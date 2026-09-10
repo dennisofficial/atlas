@@ -14,7 +14,7 @@ index 5150999349c76c2f632c789e77f4800282691270..0cc2fc7ca61984e3fafa77906e515890
      }
    }
    render(buffer, deltaTime) {
-+    if (!this._dirty && (this._cleanStreak ?? 0) >= 2 && this._lastPaintX === this._screenX && this._lastPaintY === this._screenY) {
++    if (this._ctx._usesProcessStdout && !this._dirty && (this._cleanStreak ?? 0) >= 2 && this._lastPaintX === this._screenX && this._lastPaintY === this._screenY) {
 +      this._cleanStreak++;
 +      this._ctx.addToHitGrid(this._screenX, this._screenY, this.width, this.height, this.num);
 +      return;
@@ -29,7 +29,7 @@ index 5150999349c76c2f632c789e77f4800282691270..0cc2fc7ca61984e3fafa77906e515890
        return;
      const screenX = this._screenX;
      const screenY = this._screenY;
-+    if (!this._dirty && (this._cleanStreak ?? 0) >= 2 && this._lastPaintX === screenX && this._lastPaintY === screenY) {
++    if (this._ctx._usesProcessStdout && !this._dirty && (this._cleanStreak ?? 0) >= 2 && this._lastPaintX === screenX && this._lastPaintY === screenY) {
 +      this._cleanStreak++;
 +      this._ctx.addToHitGrid(screenX, screenY, this.width, this.height, this.num);
 +      return;
@@ -44,7 +44,7 @@ index 5150999349c76c2f632c789e77f4800282691270..0cc2fc7ca61984e3fafa77906e515890
        return;
      const screenX = this._screenX;
      const screenY = this._screenY;
-+    if (!this._dirty && (this._cleanStreak ?? 0) >= 2 && this._lastPaintX === screenX && this._lastPaintY === screenY) {
++    if (this._ctx._usesProcessStdout && !this._dirty && (this._cleanStreak ?? 0) >= 2 && this._lastPaintX === screenX && this._lastPaintY === screenY) {
 +      this._cleanStreak++;
 +      this._ctx.addToHitGrid(screenX, screenY, this.width, this.height, this.num);
 +      this.renderCursor(buffer);
