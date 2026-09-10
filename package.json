@@ -33,5 +33,8 @@
     "react-dom": "19.2.7",
     "@types/react": "^19",
     "@types/react-dom": "^19"
+  },
+  "patchedDependencies": {
+    "@opentui/core@0.5.9": "patches/@opentui%2Fcore@0.5.9.patch"
   }
 }
