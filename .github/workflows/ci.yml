@@ -28,8 +28,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: pull sandbox image
-        run: docker pull ghcr.io/${{ github.repository_owner }}/atlas-sandbox:latest
+      - name: pull test images
+        run: |
+          docker pull ghcr.io/${{ github.repository_owner }}/atlas-sandbox:latest
+          docker pull node:22-slim
 
       - name: typecheck
         run: bun run typecheck

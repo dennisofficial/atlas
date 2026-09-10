@@ -145,7 +145,7 @@ const DOCKER_AVAILABLE = (await dockerUnavailableReason(SOCKET)) === undefined
 const describeDocker = DOCKER_AVAILABLE ? describe : describe.skip
 
 const engine = new DockerEngine({ socketPath: SOCKET })
-const PREFIX = 'atlas-dev'
+const PREFIX = 'atlas-dev-routed'
 
 const worktree = await realpath(await mkdtemp(join(tmpdir(), 'atlas-dev-routed-')))
 

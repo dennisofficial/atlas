@@ -181,7 +181,18 @@ git status --short
         labels: { [worktreeLabel(PREFIX)]: worktree },
         all: true,
       })
-      for (const container of owned) await engine.removeContainer({ id: container.id })
+      for (const container of owned) {
+        // the scripts above run partly as root, leaving files a native-Linux host
+        // cannot delete, so empty the mounts from inside before removing
+        await runSandboxScript({
+          engine,
+          containerId: container.id,
+          cwd: '/',
+          user: '0',
+          script: `rm -rf ${quoted(worktree)} ${quoted(outside)} || true`,
+        }).catch(() => undefined)
+        await engine.removeContainer({ id: container.id })
+      }
       await rm(fixtureRoot, { recursive: true, force: true })
     }
   }, 20 * 60_000)

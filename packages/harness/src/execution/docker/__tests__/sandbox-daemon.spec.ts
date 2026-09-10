@@ -1,11 +1,12 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 
 import { existsSync } from 'node:fs'
-import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { DockerEngine } from '../engine'
-import { runSandboxScript } from '../sandbox-scripts'
+import { runSandboxScript, type ScriptOutcome } from '../sandbox-scripts'
 import { dockerUnavailableReason } from './live-docker'
 import {
   ensureSandbox,
@@ -19,7 +20,13 @@ const SOCKET = '/var/run/docker.sock'
 const describeDocker = (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
 
 const engine = new DockerEngine({ socketPath: SOCKET })
-const PREFIX = 'atlas-dev'
+const PREFIX = 'atlas-dev-sandbox'
+
+const worktree = await realpath(await mkdtemp(join(tmpdir(), 'atlas-dev-sandbox-')))
+
+afterAll(async () => {
+  await rm(worktree, { recursive: true, force: true })
+})
 
 const sweep = async (): Promise<void> => {
   const stale = await engine.listContainers({ labels: { [worktreeLabel(PREFIX)]: undefined }, all: true })
@@ -29,13 +36,11 @@ const sweep = async (): Promise<void> => {
 describeDocker('ensureSandbox against a live daemon', () => {
   afterEach(sweep)
 
-  const worktree = join('/private/tmp', 'atlas-dev-sandbox-worktree')
-
   const liveConfig = (overrides?: Partial<SandboxConfig>): SandboxConfig => ({
     image: 'node:22-slim',
     worktree,
-    uid: 501,
-    gid: 20,
+    uid: process.getuid?.() ?? 501,
+    gid: process.getgid?.() ?? 20,
     home: '/Users/operator',
     limits: { cpus: 1, memoryBytes: 512 * 1024 ** 2 },
     dockerSocket: SOCKET,
@@ -108,34 +113,39 @@ describeDocker('ensureSandbox against a live daemon', () => {
   it('runs setup once and start on every ensure, leaving markers in the mounted worktree', async () => {
     const setupMarker = join(worktree, '.atlas-setup-ran')
     const startMarker = join(worktree, '.atlas-start-ran')
-    await mkdir(worktree, { recursive: true })
-    await rm(setupMarker, { force: true })
-    await rm(startMarker, { force: true })
+    const config = liveConfig({
+      setup: `touch ${setupMarker}`,
+      start: `touch ${startMarker}`,
+    })
+    const sandbox = await ensureSandbox({ engine, config })
+
+    // setup runs as root, so the markers are root-owned on a native-Linux daemon
+    // and only the container can delete them
+    const clearMarkers = (): Promise<ScriptOutcome> =>
+      runSandboxScript({
+        engine,
+        containerId: sandbox.id,
+        script: `rm -f ${setupMarker} ${startMarker}`,
+        cwd: worktree,
+        user: '0',
+      })
 
     try {
-      const config = liveConfig({
-        setup: `touch ${setupMarker}`,
-        start: `touch ${startMarker}`,
-      })
-      await ensureSandbox({ engine, config })
-
       expect(existsSync(setupMarker)).toBe(true)
       expect(existsSync(startMarker)).toBe(true)
 
-      await rm(setupMarker, { force: true })
-      await rm(startMarker, { force: true })
+      await clearMarkers()
       await ensureSandbox({ engine, config })
 
       expect(existsSync(setupMarker)).toBe(false)
       expect(existsSync(startMarker)).toBe(true)
     } finally {
-      await rm(setupMarker, { force: true })
-      await rm(startMarker, { force: true })
+      await clearMarkers()
     }
   })
 
   it('reads a mounted memory subtree inside, but cannot see auth.json or write to it', async () => {
-    const atlasHome = join('/private/tmp', 'atlas-dev-sandbox-home')
+    const atlasHome = await realpath(await mkdtemp(join(tmpdir(), 'atlas-dev-sandbox-home-')))
     await mkdir(join(atlasHome, 'memory'), { recursive: true })
     await writeFile(join(atlasHome, 'memory', 'MEMORY.md'), 'remembered')
     await writeFile(join(atlasHome, 'auth.json'), '{"secret":true}')
