@@ -1,4 +1,4 @@
-import { afterAll, afterEach, describe, expect, it } from 'bun:test'
+import { afterAll, afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
@@ -22,10 +22,13 @@ const describeDocker = (await dockerUnavailableReason(SOCKET)) === undefined ? d
 const engine = new DockerEngine({ socketPath: SOCKET })
 const PREFIX = 'atlas-dev-sandbox'
 
-const worktree = await realpath(await mkdtemp(join(tmpdir(), 'atlas-dev-sandbox-')))
+// A fresh worktree per test, because a container named for a shared one can still be
+// finalizing its removal when the next test asks the daemon for it
+let worktree = ''
+const fixtureDirs: string[] = []
 
 afterAll(async () => {
-  await rm(worktree, { recursive: true, force: true })
+  for (const dir of fixtureDirs) await rm(dir, { recursive: true, force: true })
 })
 
 const sweep = async (): Promise<void> => {
@@ -34,6 +37,10 @@ const sweep = async (): Promise<void> => {
 }
 
 describeDocker('ensureSandbox against a live daemon', () => {
+  beforeEach(async () => {
+    worktree = await realpath(await mkdtemp(join(tmpdir(), 'atlas-dev-sandbox-')))
+    fixtureDirs.push(worktree)
+  })
   afterEach(sweep)
 
   const liveConfig = (overrides?: Partial<SandboxConfig>): SandboxConfig => ({

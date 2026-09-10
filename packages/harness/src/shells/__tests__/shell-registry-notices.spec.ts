@@ -8,6 +8,7 @@ import {
   endedDraft,
   job,
   openRegistry,
+  printed,
   settle,
   shellAdapters,
   THREAD,
@@ -204,7 +205,7 @@ for (const adapter of shellAdapters) {
         const { registry } = openRegistry({ adapter })
         const started = registry.start(job({ command: 'echo before; sleep 60' }))
         if (!started.ok) throw new Error(started.reason)
-        await Bun.sleep(150)
+        await printed({ registry, shellId: started.snapshot.shellId, text: 'before' })
 
         const killed = registry.kill({
           shellId: started.snapshot.shellId,
