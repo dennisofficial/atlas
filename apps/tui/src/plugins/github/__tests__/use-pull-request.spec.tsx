@@ -19,7 +19,7 @@ import {
 } from '../pure'
 import { usePullRequest, type PullRequestControl } from '../use-pull-request'
 
-import { spansOf } from '../../../ui/sidebar-section'
+import { flattenedSpans } from '../../../ui/sidebar-section'
 
 const WIDE = 200
 
@@ -99,7 +99,9 @@ const RENDER_MS = 60
 
 const textOf = (section: SidebarSection | null, id: string): string | null => {
   const row = section?.rows.find((entry) => entry.id === id)
-  return row === undefined ? null : spansOf({ row: row, cells: WIDE }).map((span) => span.text).join('')
+  return row === undefined
+    ? null
+    : flattenedSpans({ row: row, cells: WIDE }).map((span) => span.text).join('')
 }
 
 async function mounted(args: {

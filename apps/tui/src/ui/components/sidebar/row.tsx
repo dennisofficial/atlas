@@ -2,7 +2,7 @@ import React from 'react'
 
 import { theme } from '../../theme'
 import { Spans, type Span } from '../spans'
-import { clipSpans, fitLabel, spanCells } from './cells'
+import { clipSpans, fitLabel, justifySpans, spanCells } from './cells'
 
 const COUNT_SEPARATOR = '  '
 
@@ -12,9 +12,20 @@ export function Row(props: {
   cells: number
   mark?: Span
   value?: readonly Span[]
+  left?: readonly Span[]
 }): React.ReactNode {
   const markSpans = props.mark === undefined ? [] : [props.mark, { text: ' ' }]
   const cells = Math.max(0, props.cells - spanCells(markSpans))
+
+  if (props.left !== undefined) {
+    const justified = justifySpans({ left: props.left, right: props.value ?? [], cells })
+    return (
+      <text>
+        <Spans spans={[...markSpans, ...justified]} />
+      </text>
+    )
+  }
+
   const value = clipSpans({ spans: props.value ?? [], cells })
   const label = fitLabel({ label: props.label, valueCells: spanCells(value), cells })
 

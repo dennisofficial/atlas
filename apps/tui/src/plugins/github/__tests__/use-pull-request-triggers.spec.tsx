@@ -13,7 +13,7 @@ import {
 } from '../pure'
 import { usePullRequest, type CheckoutProbe, type PullRequestControl } from '../use-pull-request'
 
-import { spansOf } from '../../../ui/sidebar-section'
+import { flattenedSpans } from '../../../ui/sidebar-section'
 
 const WIDE = 200
 
@@ -136,7 +136,9 @@ async function mounted(args: { askGit: CheckoutProbe; directory?: string }): Pro
 
 const branchOf = (probe: Probe): string | null => {
   const row = probe.control?.section?.rows.find((entry) => entry.id === 'branch')
-  return row === undefined ? null : spansOf({ row: row, cells: WIDE }).map((span) => span.text).join('')
+  return row === undefined
+    ? null
+    : flattenedSpans({ row: row, cells: WIDE }).map((span) => span.text).join('')
 }
 
 const countingProbe = (): CheckoutProbe & { calls: string[] } => {
