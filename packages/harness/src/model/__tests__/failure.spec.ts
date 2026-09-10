@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { APICallError } from '@ai-sdk/provider'
+import { StreamProviderError } from 'ai'
 
 import { ModelStreamError } from '../errors'
 import { modelFailureOf } from '../failure'
@@ -48,8 +49,33 @@ describe('reading a model failure off whatever the provider threw', () => {
     'terminated',
     'read ECONNRESET',
     'connect ETIMEDOUT 1.2.3.4:443',
+    'Connection closed.',
   ])('reads %p as a dropped connection, which has no status', (message) => {
     expect(modelFailureOf(new Error(message))).toEqual({})
+  })
+
+  it('takes the status off a mid-stream provider error', () => {
+    const error = new StreamProviderError({ message: 'upstream exploded', statusCode: 500 })
+
+    expect(modelFailureOf(error)).toEqual({ status: 500 })
+  })
+
+  it('trusts a mid-stream provider error the provider flagged retryable', () => {
+    const error = new StreamProviderError({ message: 'try again', isRetryable: true })
+
+    expect(modelFailureOf(error)).toEqual({})
+  })
+
+  it("reads litellm's dropped upstream connection as transient", () => {
+    const error = new StreamProviderError({
+      message: 'litellm.APIConnectionError: APIConnectionError: UpstreamError - Connection closed.',
+    })
+
+    expect(modelFailureOf(error)).toEqual({})
+  })
+
+  it('refuses a mid-stream provider error with no status, no flag, and an unrecognised message', () => {
+    expect(modelFailureOf(new StreamProviderError({ message: 'billing hard limit reached' }))).toBeNull()
   })
 
   /**
