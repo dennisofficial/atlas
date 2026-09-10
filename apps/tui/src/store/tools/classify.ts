@@ -143,7 +143,7 @@ function gatheredByName(args: { call: ToolCall; cwd: string }): Classification |
     const picture = imageRead(args)
     if (picture !== null) return picture
 
-    const path = relativise(target, args.cwd)
+    const path = relativise(str(output.path) ?? target, args.cwd)
     const lines = num(output.lines) ?? lineCount(call.modelText)
     return {
       klass: EToolClass.Gathered,

@@ -110,6 +110,33 @@ describe('the tools that are not bash', () => {
     expect(read.detail).toBe(EDetail.File)
   })
 
+  it('shows the path the tool resolved rather than the one the model typed', () => {
+    const read = reading(
+      aCall({
+        name: 'read',
+        input: { path: '$TMPDIR/handoff-env-tier-filling.md' },
+        output: { path: '/var/folders/zw/zwq586mj7xgc4xh3yt11cbrc0000gn/T/handoff-env-tier-filling.md', lines: 118 },
+      }),
+    )
+
+    expect(read.line).toBe('/var/folders/zw/zwq586mj7xgc4xh3yt11cbrc0000gn/T/handoff-env-tier-filling.md')
+    expect(read.alone).toBe(
+      'Read /var/folders/zw/zwq586mj7xgc4xh3yt11cbrc0000gn/T/handoff-env-tier-filling.md',
+    )
+  })
+
+  it('keeps the resolved path relative when the read landed inside the project', () => {
+    const read = reading(
+      aCall({
+        name: 'read',
+        input: { path: '~/elsewhere/theme.ts' },
+        output: { path: `${CWD}/src/ui/theme.ts`, lines: 210 },
+      }),
+    )
+
+    expect(read.line).toBe('src/ui/theme.ts')
+  })
+
   it('counts a grep in matches', () => {
     const grep = reading(
       aCall({ name: 'grep', input: { pattern: 'useClickRegion' }, output: { matches: ['a', 'b'] } }),

@@ -75,6 +75,16 @@ describe('resolveToolPath', () => {
     ).toEqual({ ok: true, path: '/tmp/handoffs/note.md', anchored: false })
   })
 
+  it('collapses the doubled slash a trailing-slash variable leaves behind', () => {
+    expect(
+      resolveToolPath({
+        projectDirectory: root,
+        path: '$ATLAS_SPEC_TMP/handoff.md',
+        env: { ATLAS_SPEC_TMP: '/var/folders/zw/x/T/' },
+      }),
+    ).toEqual({ ok: true, path: '/var/folders/zw/x/T/handoff.md', anchored: false })
+  })
+
   it('expands the ${VARIABLE} form', () => {
     expect(
       resolveToolPath({

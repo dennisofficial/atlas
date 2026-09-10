@@ -19,7 +19,7 @@
 import React, { useMemo } from 'react'
 
 import { ECallState, type ToolCall } from '../../../store'
-import { dictatedContentOf, inputOf, relativise, str } from '../../../store/tools'
+import { dictatedContentOf, inputOf, outputOf, relativise, str } from '../../../store/tools'
 import { theme } from '../../theme'
 import { Panel, PANEL_INSET, PANEL_PAD } from '../panel'
 import { MoreToggle, NOT_EXPANDABLE, shownOf, type Expander } from './more-toggle'
@@ -65,7 +65,10 @@ export function ToolCreatedFile(props: {
   }, [content, expand.expanded, streaming])
   if (content === undefined) return null
 
-  const path = relativise(str(inputOf(props.call).path) ?? props.call.name, props.cwd)
+  const path = relativise(
+    str(outputOf(props.call).path) ?? str(inputOf(props.call).path) ?? props.call.name,
+    props.cwd,
+  )
   const width = Math.max(24, props.inner - PANEL_PAD)
 
   return (
