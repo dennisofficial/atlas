@@ -1,11 +1,64 @@
+import { homedir } from 'node:os'
 import { isAbsolute, resolve } from 'node:path'
 
 import { z } from 'zod'
 
 export const filePathSchema = z.string().min(1)
 
-export function resolveToolPath(args: { projectDirectory: string; path: string }): string {
-  return isAbsolute(args.path) ? args.path : resolve(args.projectDirectory, args.path)
+export const pathEnvironmentNote =
+  'A path may reference environment variables such as $TMPDIR and may start with ~; both expand against the environment before resolution, and a variable that is not set is an error rather than a literal directory name.'
+
+export type ToolPathResolution =
+  | { ok: true; path: string; anchored: boolean }
+  | { ok: false; reason: string }
+
+export type EnvExpansion = { ok: true; path: string } | { ok: false; reason: string }
+
+const ENV_REFERENCE = /\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))/g
+
+export function expandPathEnvironment(args: {
+  path: string
+  env?: NodeJS.ProcessEnv
+}): EnvExpansion {
+  const env = args.env ?? process.env
+  let path = args.path
+
+  if (path === '~' || path.startsWith('~/')) {
+    path = (env['HOME'] ?? homedir()) + path.slice(1)
+  }
+
+  const unset = new Set<string>()
+  path = path.replace(ENV_REFERENCE, (reference, braced: string | undefined, bare: string | undefined) => {
+    const name = braced ?? bare ?? ''
+    const value = env[name]
+    if (value === undefined) {
+      unset.add(name)
+      return reference
+    }
+    return value
+  })
+
+  if (unset.size > 0) {
+    const names = [...unset].map((name) => `$${name}`)
+    const verb = unset.size === 1 ? 'is' : 'are'
+    return {
+      ok: false,
+      reason: `The path ${args.path} references ${names.join(' and ')}, which ${verb} not set in the agent's environment. Spell the path out, or expand it through the bash tool instead.`,
+    }
+  }
+
+  return { ok: true, path }
+}
+
+export function resolveToolPath(args: {
+  projectDirectory: string
+  path: string
+  env?: NodeJS.ProcessEnv
+}): ToolPathResolution {
+  const expanded = expandPathEnvironment({ path: args.path, ...(args.env === undefined ? {} : { env: args.env }) })
+  if (!expanded.ok) return expanded
+  if (isAbsolute(expanded.path)) return { ok: true, path: expanded.path, anchored: false }
+  return { ok: true, path: resolve(args.projectDirectory, expanded.path), anchored: true }
 }
 
 export enum ELineEnding {

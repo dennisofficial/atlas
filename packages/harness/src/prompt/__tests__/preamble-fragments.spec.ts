@@ -46,6 +46,7 @@ const PROJECT_DIRECTORY =
 
 const RELATIVE_PATHS =
   'A path you pass to a tool resolves against the project directory, so write those relative to it.' +
+  ' A tool path may reference environment variables such as $TMPDIR and may start with ~; both expand for you, and a variable that is not set comes back as an error.' +
   ' A path inside a bash command is resolved by the shell instead, against workdir or the project directory, so write those absolute.'
 
 const READ_BEFORE_WRITE = `write replaces a file whole, so an existing file has to have been read whole before you may

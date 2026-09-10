@@ -86,3 +86,36 @@ describe('resolving a declared path against the project directory', () => {
     expect(await inputOf({ command: 'ls' }, 'bash')).toEqual({ command: 'ls' })
   })
 })
+
+describe('expanding environment references before anchoring', () => {
+  it('expands $TMPDIR-style paths to absolute instead of anchoring them to the project', async () => {
+    process.env['ATLAS_SPEC_TMP'] = '/var/folders/spec'
+    try {
+      expect(await inputOf('$ATLAS_SPEC_TMP/handoff.md')).toEqual({
+        path: '/var/folders/spec/handoff.md',
+      })
+    } finally {
+      delete process.env['ATLAS_SPEC_TMP']
+    }
+  })
+
+  it('expands a leading tilde instead of anchoring it to the project', async () => {
+    const home = process.env['HOME'] ?? ''
+    expect(await inputOf('~/notes.md')).toEqual({ path: `${home}/notes.md` })
+  })
+
+  it('anchors the expanded value when a variable holds a relative path', async () => {
+    process.env['ATLAS_SPEC_REL'] = 'out/build'
+    try {
+      expect(await inputOf('$ATLAS_SPEC_REL/x.ts')).toEqual({ path: `${ROOT}/out/build/x.ts` })
+    } finally {
+      delete process.env['ATLAS_SPEC_REL']
+    }
+  })
+
+  it('leaves a path through an unset variable alone so the tool can teach the mistake', async () => {
+    expect(await inputOf('$ATLAS_SPEC_UNSET_VAR/handoff.md')).toEqual({
+      path: '$ATLAS_SPEC_UNSET_VAR/handoff.md',
+    })
+  })
+})

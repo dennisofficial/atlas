@@ -40,6 +40,7 @@ export class RelativePathsFragment extends PromptFragment {
   text(): string {
     return [
       'A path you pass to a tool resolves against the project directory, so write those relative to it.',
+      'A tool path may reference environment variables such as $TMPDIR and may start with ~; both expand for you, and a variable that is not set comes back as an error.',
       'A path inside a bash command is resolved by the shell instead, against workdir or the project directory, so write those absolute.',
     ].join(' ')
   }

@@ -19,7 +19,7 @@ import {
 
 import { LocalFileSystemPort } from '../../execution/local-filesystem'
 import { LocalProcessPort } from '../../execution/local-process'
-import { filePathSchema, resolveToolPath } from './file-text'
+import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-text'
 import { runPosixGrep } from './grep-fallback'
 import { missingPathReason } from './missing-path'
 
@@ -44,6 +44,7 @@ const inputSchema = z.strictObject({
 const description = [
   'Search file contents by regular expression and return the matching lines, each prefixed with its absolute path and line number.',
   'Searches the workspace root unless path names a narrower file or directory (a relative path resolves against the project directory), and glob narrows further by file name.',
+  pathEnvironmentNote,
   `Returns at most ${DEFAULT_HEAD_LIMIT} lines unless headLimit says otherwise; when more match, the result says so and offset asks for the next page.`,
   'Version control directories are never searched, and long lines are cut short.',
   'Symbolic links are followed.',
@@ -203,7 +204,9 @@ export class GrepTool extends SchemaTool<typeof inputSchema> {
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     const { pattern, glob, caseInsensitive, context, headLimit, offset } = input
     const rawPath = input.path
-    const searchPath = resolveToolPath({ projectDirectory, path: rawPath ?? projectDirectory })
+    const resolved = resolveToolPath({ projectDirectory, path: rawPath ?? projectDirectory })
+    if (!resolved.ok) return { ok: false, reason: resolved.reason }
+    const searchPath = resolved.path
 
     if (rawPath !== undefined) {
       const target = await stat(searchPath).catch(() => null)
@@ -212,9 +215,9 @@ export class GrepTool extends SchemaTool<typeof inputSchema> {
           ok: false,
           reason: await missingPathReason({
             path: searchPath,
-            ...(rawPath === searchPath
-              ? {}
-              : { resolvedFrom: { raw: rawPath, projectDirectory } }),
+            ...(resolved.anchored
+              ? { resolvedFrom: { raw: rawPath, projectDirectory } }
+              : {}),
           }),
         }
       }
