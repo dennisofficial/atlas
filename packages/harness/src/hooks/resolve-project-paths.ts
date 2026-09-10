@@ -19,6 +19,7 @@ import {
   inputFieldOf,
   type DeclaredPaths,
 } from '../tools/declared-paths'
+import { expandPathEnvironment } from '../tools/builtin/file-text'
 
 export class ResolveProjectPathsHook extends BeforeToolHook {
   readonly name = 'resolveProjectPaths'
@@ -44,9 +45,18 @@ export class ResolveProjectPathsHook extends BeforeToolHook {
 
       const value = inputFieldOf({ input, field: field.field })
       if (value === ABSENT || typeof value !== 'string' || value.length === 0) continue
-      if (isAbsolute(value)) continue
 
-      input = { ...(input as Record<string, unknown>), [field.field]: resolve(projectDirectory, value) }
+      const expanded = expandPathEnvironment({ path: value })
+      if (!expanded.ok) continue
+
+      if (isAbsolute(expanded.path)) {
+        if (expanded.path !== value) {
+          input = { ...(input as Record<string, unknown>), [field.field]: expanded.path }
+        }
+        continue
+      }
+
+      input = { ...(input as Record<string, unknown>), [field.field]: resolve(projectDirectory, expanded.path) }
     }
 
     return { decision: EBeforeToolDecision.Allow, input }

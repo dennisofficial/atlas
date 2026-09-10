@@ -14,7 +14,7 @@ import {
 import { z } from 'zod'
 
 import { LocalFileSystemPort } from '../../execution/local-filesystem'
-import { filePathSchema, resolveToolPath } from './file-text'
+import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-text'
 import { missingPathReason } from './missing-path'
 import { readImage } from './read-image'
 
@@ -37,6 +37,7 @@ const inputSchema = z.strictObject({
 const description = [
   'Read a file from the filesystem.',
   'A relative path resolves against the project directory.',
+  pathEnvironmentNote,
   'A PNG, JPEG, GIF or WebP file comes back as a picture you can look at, provided it is small enough to send.',
   'Output is line-numbered, tab-separated, one line per file line.',
   'Use offset to start at a given 1-based line and limit to cap how many lines come back.',
@@ -188,7 +189,9 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
     projectDirectory,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     const rawPath = input.path
-    const path = resolveToolPath({ projectDirectory, path: rawPath })
+    const resolved = resolveToolPath({ projectDirectory, path: rawPath })
+    if (!resolved.ok) return { ok: false, reason: resolved.reason }
+    const path = resolved.path
     const { offset, limit } = input
     const stats = await this.files.stat({ path }).catch(() => null)
     if (stats === null) {
@@ -196,7 +199,7 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
         ok: false,
         reason: await missingPathReason({
           path,
-          ...(rawPath === path ? {} : { resolvedFrom: { raw: rawPath, projectDirectory } }),
+          ...(resolved.anchored ? { resolvedFrom: { raw: rawPath, projectDirectory } } : {}),
         }),
       }
     }

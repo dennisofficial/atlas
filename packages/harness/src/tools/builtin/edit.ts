@@ -14,7 +14,7 @@ import { z } from 'zod'
 import { LocalFileSystemPort } from '../../execution/local-filesystem'
 import { writeFileAtomically } from '../../files/atomic-write'
 import { FileWriteGuardPort, SerializedWrites } from '../../files/write-guard'
-import { filePathSchema, resolveToolPath, toLf } from './file-text'
+import { filePathSchema, pathEnvironmentNote, resolveToolPath, toLf } from './file-text'
 import { replaceInContent } from './replace-text'
 import { renderUnifiedDiff } from './unified-diff'
 
@@ -28,6 +28,7 @@ const inputSchema = z.strictObject({
 const description = [
   'Replace an exact string in a text file.',
   'A relative path resolves against the project directory.',
+  pathEnvironmentNote,
   'oldString must match the file exactly, including indentation, and must be unique unless replaceAll is true.',
   'An empty oldString creates the file with newString as its whole content.',
   'Lines the edit does not touch keep their exact bytes, line endings included.',
@@ -126,7 +127,9 @@ export class EditTool extends SchemaTool<typeof inputSchema> {
     threadId,
     projectDirectory,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
-    const path = resolveToolPath({ projectDirectory, path: input.path })
+    const resolved = resolveToolPath({ projectDirectory, path: input.path })
+    if (!resolved.ok) return { ok: false, reason: resolved.reason }
+    const path = resolved.path
     const { oldString, newString, replaceAll } = input
 
     const guarded = await this.guard.underLock({

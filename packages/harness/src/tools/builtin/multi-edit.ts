@@ -14,7 +14,7 @@ import { z } from 'zod'
 import { LocalFileSystemPort } from '../../execution/local-filesystem'
 import { writeFileAtomically } from '../../files/atomic-write'
 import { FileWriteGuardPort, SerializedWrites } from '../../files/write-guard'
-import { filePathSchema, resolveToolPath, toLf } from './file-text'
+import { filePathSchema, pathEnvironmentNote, resolveToolPath, toLf } from './file-text'
 import { replaceInContent } from './replace-text'
 import { renderUnifiedDiff } from './unified-diff'
 
@@ -34,6 +34,7 @@ const inputSchema = z.strictObject({
 const description = [
   'Apply several edits to one file in a single call.',
   'A relative path resolves against the project directory.',
+  pathEnvironmentNote,
   'Each edit follows the edit tool\'s rules: oldString must match the file exactly, including indentation, and must be unique unless that edit\'s replaceAll is true.',
   'Edits apply in array order, each against the result of the ones before it, and the file is written once — if any edit fails, nothing is written.',
   'Prefer this over consecutive edit calls when changing several places in the same file. To create a file, use write.',
@@ -60,7 +61,9 @@ export class MultiEditTool extends SchemaTool<typeof inputSchema> {
     threadId,
     projectDirectory,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
-    const path = resolveToolPath({ projectDirectory, path: input.path })
+    const resolved = resolveToolPath({ projectDirectory, path: input.path })
+    if (!resolved.ok) return { ok: false, reason: resolved.reason }
+    const path = resolved.path
 
     const guarded = await this.guard.underLock({
       threadId,
