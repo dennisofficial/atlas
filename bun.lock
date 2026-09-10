@@ -72,9 +72,6 @@
       },
     },
   },
-  "patchedDependencies": {
-    "@opentui/core@0.5.9": "patches/@opentui%2Fcore@0.5.9.patch",
-  },
   "overrides": {
     "@types/react": "^19",
     "@types/react-dom": "^19",
