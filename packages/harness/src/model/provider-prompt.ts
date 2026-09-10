@@ -4,4 +4,7 @@ export const toProviderPrompt = (args: { assembled: Assembled; provider: Provide
   instructions: args.assembled.system,
   messages: args.assembled.messages.map((assembled) => assembled.message),
   provider: args.provider,
+  ...(args.assembled.requestOptions === undefined
+    ? {}
+    : { requestOptions: args.assembled.requestOptions }),
 })

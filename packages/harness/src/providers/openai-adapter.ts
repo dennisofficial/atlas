@@ -7,9 +7,11 @@ import {
   type ModelCard,
 } from '@dltech/atlas-core'
 
+import type { OpenAIProviderSettings } from '@ai-sdk/openai'
+
 import { ProviderAdapter } from './adapter'
 import { openaiEffortOptions } from './openai-effort'
-import { createOpenAiModel } from './openai-oauth'
+import { createOpenAiModel, mergedProviderOptions } from './openai-oauth'
 
 export const OPENAI_PROVIDER_ID = 'openai'
 
@@ -19,11 +21,17 @@ export class OpenAiAdapter extends ProviderAdapter {
 
   private readonly credentials: CredentialPort
   private readonly catalogue: readonly ModelCard[]
+  private readonly fetch: OpenAIProviderSettings['fetch'] | undefined
 
-  constructor(args: { credentials: CredentialPort; cards: readonly ModelCard[] }) {
+  constructor(args: {
+    credentials: CredentialPort
+    cards: readonly ModelCard[]
+    fetch?: OpenAIProviderSettings['fetch'] | undefined
+  }) {
     super()
     this.credentials = args.credentials
     this.catalogue = args.cards
+    this.fetch = args.fetch
   }
 
   cards(): readonly ModelCard[] {
@@ -44,12 +52,16 @@ export class OpenAiAdapter extends ProviderAdapter {
       providerId: OPENAI_PROVIDER_ID,
       modelId: args.card.ref.modelId,
       accountId: args.accountId,
+      ...(this.fetch === undefined ? {} : { fetch: this.fetch }),
     })
 
-    const withEffort = (options: Parameters<LanguageModelV4['doStream']>[0]) => {
-      const effort = this.effortOptions({ card: args.card, effort: args.effort() })
-      if (effort === undefined) return options
-      return { ...options, providerOptions: { ...effort, ...options.providerOptions } }
+    const withProviderOptions = (options: Parameters<LanguageModelV4['doStream']>[0]) => {
+      const providerOptions = mergedProviderOptions({
+        defaults: this.effortOptions({ card: args.card, effort: args.effort() }),
+        call: options.providerOptions,
+      })
+      if (providerOptions === undefined) return options
+      return { ...options, providerOptions }
     }
 
     return {
@@ -57,8 +69,8 @@ export class OpenAiAdapter extends ProviderAdapter {
       provider: OPENAI_PROVIDER_ID,
       modelId: args.card.ref.modelId,
       supportedUrls: {},
-      doGenerate: (options) => authorized.doGenerate(withEffort(options)),
-      doStream: (options) => authorized.doStream(withEffort(options)),
+      doGenerate: (options) => authorized.doGenerate(withProviderOptions(options)),
+      doStream: (options) => authorized.doStream(withProviderOptions(options)),
     }
   }
 }
