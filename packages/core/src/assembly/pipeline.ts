@@ -1,4 +1,5 @@
 import { cacheBreakpoints } from './annotators/cache-breakpoints'
+import { requestCacheKey } from './annotators/request-cache-key'
 import type { Annotator, Rule } from './rule'
 import { agentEndingsBlock } from './rules/agent-endings-block'
 import { compactedHistory } from './rules/compacted-history'
@@ -51,7 +52,7 @@ export function defaultRules({
 }
 
 export function defaultAnnotators(): readonly Annotator[] {
-  return [cacheBreakpoints()]
+  return [cacheBreakpoints(), requestCacheKey()]
 }
 
 export function defaultPipeline({

@@ -90,6 +90,21 @@ describe('the openai model authenticated by a ChatGPT subscription', () => {
     })
   })
 
+  it('never sends prompt_cache_retention to the codex backend, which 400s on it', async () => {
+    const recorder = recordingFetch({ body: RESPONSE_JSON, contentType: 'application/json' })
+    const model = createOpenAiModel({
+      credentials: subscriptionCredentials('token-one'),
+      providerId: 'openai',
+      modelId: 'gpt-5.1-codex',
+      fetch: recorder.fetch,
+    })
+
+    await generateText({ model, prompt: 'ping' })
+
+    const body = recorder.requests[0]?.body as Record<string, unknown>
+    expect(body['prompt_cache_retention']).toBeUndefined()
+  })
+
   it('keeps caller provider options over the subscription defaults', async () => {
     const recorder = recordingFetch({ body: RESPONSE_JSON, contentType: 'application/json' })
     const model = createOpenAiModel({
@@ -173,5 +188,40 @@ describe('the openai model authenticated by an api key', () => {
     expect(request?.headers.get('authorization')).toBe('Bearer sk-test')
     expect(request?.headers.has('chatgpt-account-id')).toBe(false)
     expect(request?.body).not.toMatchObject({ store: false })
+  })
+
+  it('asks api.openai.com for 24h cache retention on models that accept it', async () => {
+    const recorder = recordingFetch({ body: RESPONSE_JSON, contentType: 'application/json' })
+    const model = createOpenAiModel({
+      credentials: {
+        read: async () => apiKeyCredential({ apiKey: 'sk-test' }),
+        discard: async () => {},
+      },
+      providerId: 'openai',
+      modelId: 'gpt-5.1-codex',
+      fetch: recorder.fetch,
+    })
+
+    await generateText({ model, prompt: 'ping' })
+
+    expect(recorder.requests[0]?.body).toMatchObject({ prompt_cache_retention: '24h' })
+  })
+
+  it('sends no retention parameter for a model on the newer cache scheme', async () => {
+    const recorder = recordingFetch({ body: RESPONSE_JSON, contentType: 'application/json' })
+    const model = createOpenAiModel({
+      credentials: {
+        read: async () => apiKeyCredential({ apiKey: 'sk-test' }),
+        discard: async () => {},
+      },
+      providerId: 'openai',
+      modelId: 'gpt-5.6-terra',
+      fetch: recorder.fetch,
+    })
+
+    await generateText({ model, prompt: 'ping' })
+
+    const body = recorder.requests[0]?.body as Record<string, unknown>
+    expect(body['prompt_cache_retention']).toBeUndefined()
   })
 })

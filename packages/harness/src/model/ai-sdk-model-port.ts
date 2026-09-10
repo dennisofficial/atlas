@@ -83,6 +83,9 @@ export async function runModelStream(args: {
     maxRetries: RETRIES_BELONG_TO_THE_POLICY,
     timeout: args.streamTimeout ?? DEFAULT_STREAM_TIMEOUT,
     onError: reportNothing,
+    ...(args.prompt.requestOptions === undefined
+      ? {}
+      : { providerOptions: args.prompt.requestOptions }),
   })
 
   const accumulator = createPartAccumulator()

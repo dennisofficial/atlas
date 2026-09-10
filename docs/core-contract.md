@@ -240,12 +240,20 @@ a gap it cannot see.
 ```ts
 type SystemBlock = { text: string; providerOptions?: ProviderOptions }
 type AssembledMessage = { message: ModelMessage; origin: EventRef }
-type Assembled = { system: SystemBlock[]; messages: AssembledMessage[] }
+type Assembled = {
+  system: SystemBlock[]
+  messages: AssembledMessage[]
+  requestOptions?: ProviderOptions
+}
 ```
 
 - **`system` is blocks, not strings.** Plain strings cannot carry a cache breakpoint, and
   `@ai-sdk/anthropic` reads `cacheControl` off `SystemModelMessage.providerOptions`. Note ai@7
   forbids system messages in `messages` entirely — they go in `instructions`.
+- **`requestOptions` is the top-level counterpart of per-block `providerOptions`.** Some caching
+  knobs are request-scoped, not block-scoped — OpenAI's `prompt_cache_key`, which the
+  `requestCacheKey` annotator pins to the thread id. The annotator writes it, `toProviderPrompt`
+  carries it, and `runModelStream` hands it to `streamText` as `providerOptions`.
 - **`AssembledMessage.origin` carries provenance out-of-band.** `ModelMessage` has nowhere to hold
   it, and smuggling it through `providerOptions` forced a cleanup rule without which internal ids
   ship to the provider on every turn. The wrapper also removes ~30 lines of union re-narrowing —
