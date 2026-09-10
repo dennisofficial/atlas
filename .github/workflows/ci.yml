@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
   check:
@@ -20,6 +21,15 @@ jobs:
       - uses: oven-sh/setup-bun@v2
 
       - run: bun install
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: pull sandbox image
+        run: docker pull ghcr.io/${{ github.repository_owner }}/atlas-sandbox:latest
 
       - name: typecheck
         run: bun run typecheck
