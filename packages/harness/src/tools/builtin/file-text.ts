@@ -57,7 +57,7 @@ export function resolveToolPath(args: {
 }): ToolPathResolution {
   const expanded = expandPathEnvironment({ path: args.path, ...(args.env === undefined ? {} : { env: args.env }) })
   if (!expanded.ok) return expanded
-  if (isAbsolute(expanded.path)) return { ok: true, path: expanded.path, anchored: false }
+  if (isAbsolute(expanded.path)) return { ok: true, path: resolve(expanded.path), anchored: false }
   return { ok: true, path: resolve(args.projectDirectory, expanded.path), anchored: true }
 }
 
