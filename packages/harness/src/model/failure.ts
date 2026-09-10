@@ -1,4 +1,5 @@
 import { APICallError } from '@ai-sdk/provider'
+import { StreamProviderError } from 'ai'
 
 import type { ModelFailure } from '@dltech/atlas-core'
 
@@ -9,12 +10,13 @@ const DROPPED_CONNECTION = [
   'socket hang up',
   'terminated',
   'network request failed',
-  'ECONNRESET',
-  'ECONNREFUSED',
-  'ETIMEDOUT',
-  'EPIPE',
-  'ENOTFOUND',
-  'UND_ERR_SOCKET',
+  'connection closed',
+  'econnreset',
+  'econnrefused',
+  'etimedout',
+  'epipe',
+  'enotfound',
+  'und_err_socket',
 ]
 
 const SECONDS = 1_000
@@ -29,8 +31,10 @@ function retryAfterMsOf(headers: Record<string, string> | undefined): number | u
   return Number.isFinite(seconds) && seconds >= 0 ? seconds * SECONDS : undefined
 }
 
-const looksLikeDroppedConnection = (message: string): boolean =>
-  DROPPED_CONNECTION.some((needle) => message.includes(needle))
+const looksLikeDroppedConnection = (message: string): boolean => {
+  const lowered = message.toLowerCase()
+  return DROPPED_CONNECTION.some((needle) => lowered.includes(needle))
+}
 
 export function modelFailureOf(error: unknown): ModelFailure | null {
   if (error instanceof StreamStallError) return DROPPED
@@ -43,6 +47,11 @@ export function modelFailureOf(error: unknown): ModelFailure | null {
       ...(error.statusCode === undefined ? {} : { status: error.statusCode }),
       ...(retryAfterMs === undefined ? {} : { retryAfterMs }),
     }
+  }
+
+  if (StreamProviderError.isInstance(error)) {
+    if (error.statusCode !== undefined) return { status: error.statusCode }
+    if (error.isRetryable) return DROPPED
   }
 
   if (error instanceof Error && looksLikeDroppedConnection(error.message)) return DROPPED
