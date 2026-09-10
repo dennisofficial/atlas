@@ -4,6 +4,7 @@ import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { IDLE_SIDEBAR } from '../../store/sidebar-model'
+import type { SidebarCrewFold } from '../../store/subagent-row'
 import { Shells } from '../components/shells'
 import { Sidebar } from '../components/sidebar'
 import { teardown } from '../markdown/__tests__/harness'
@@ -51,7 +52,10 @@ async function framed(node: React.ReactNode): Promise<string[]> {
   }
 }
 
-const sidebarRows = (shells: readonly ShellSnapshot[]): Promise<string[]> =>
+const sidebarRows = (
+  shells: readonly ShellSnapshot[],
+  fold?: SidebarCrewFold,
+): Promise<string[]> =>
   framed(
     <Sidebar
       width={SIDEBAR_WIDTH}
@@ -60,6 +64,7 @@ const sidebarRows = (shells: readonly ShellSnapshot[]): Promise<string[]> =>
       worktree={null}
       shells={shells}
       shellNow={NOW}
+      {...(fold === undefined ? {} : { shellFold: fold })}
     />,
   )
 
@@ -105,19 +110,14 @@ describe('what the sidebar says about background shells', () => {
     expect(has(rows, 'bun test --watch')).toBe(true)
   })
 
-  it('counts the finished ones out of the live tally but keeps them listed', async () => {
-    const rows = await sidebarRows([
-      shell({ shellId: 'bash_1' }),
-      shell({
-        shellId: 'bash_2',
-        status: EShellStatus.Exited,
-        exitCode: 0,
-        description: 'Build the app',
-      }),
-    ])
+  it('lists only what is running, pointing at /shells for what finished', async () => {
+    const rows = await sidebarRows([shell({ shellId: 'bash_1' })], {
+      hidden: 1,
+      hiddenFailed: false,
+    })
 
     expect(has(rows, '1/2')).toBe(true)
-    expect(has(rows, 'Build the app')).toBe(true)
+    expect(has(rows, '1 more in /shells')).toBe(true)
   })
 
   it('marks a shell waiting on input, since that one will never finish on its own', async () => {
@@ -126,31 +126,10 @@ describe('what the sidebar says about background shells', () => {
     expect(has(rows, 'awaiting input')).toBe(true)
   })
 
-  it('names a failing exit code rather than only saying it ended', async () => {
-    const rows = await sidebarRows([
-      shell({ shellId: 'bash_1', status: EShellStatus.Exited, exitCode: 2 }),
-    ])
-
-    expect(has(rows, 'exit 2')).toBe(true)
-  })
-
   it('counts a running shell up from when it started', async () => {
     const rows = await sidebarRows([shell({ shellId: 'bash_1' })])
 
     expect(has(rows, 'running · 1m 4s')).toBe(true)
-  })
-
-  it('stops a finished shell at what it took rather than counting past its ending', async () => {
-    const rows = await sidebarRows([
-      shell({
-        shellId: 'bash_1',
-        status: EShellStatus.Exited,
-        exitCode: 0,
-        endedAt: '2026-08-27T12:00:12.000Z',
-      }),
-    ])
-
-    expect(has(rows, 'done · 12s')).toBe(true)
   })
 })
 
@@ -203,6 +182,25 @@ describe('what the shells panel shows', () => {
     const rows = await panelRows({ shells: [selected], selected })
 
     expect(has(rows, 'stop it')).toBe(false)
+  })
+
+  it('names a failing exit code rather than only saying it ended', async () => {
+    const selected = shell({ shellId: 'bash_1', status: EShellStatus.Exited, exitCode: 2 })
+    const rows = await panelRows({ shells: [selected], selected })
+
+    expect(has(rows, 'exit 2')).toBe(true)
+  })
+
+  it('stops a finished shell at what it took rather than counting past its ending', async () => {
+    const selected = shell({
+      shellId: 'bash_1',
+      status: EShellStatus.Exited,
+      exitCode: 0,
+      endedAt: '2026-08-27T12:00:12.000Z',
+    })
+    const rows = await panelRows({ shells: [selected], selected })
+
+    expect(has(rows, 'done · 12s')).toBe(true)
   })
 
   it('says a shell has printed nothing rather than showing a blank pane', async () => {
