@@ -5,30 +5,24 @@ import type { ShellSnapshot } from '@dltech/atlas-harness'
 import type { SidebarCrewFold } from '../../../store/subagent-row'
 import { plural } from '../../../store/tools/reading'
 import { usePress } from '../../hooks/use-press'
-import { isShellRunning, shellNameLabel, shellReadout } from '../../shells-model'
+import { shellNameLabel, shellReadout } from '../../shells-model'
 import { glyph, theme } from '../../theme'
 import type { Span } from '../spans'
 import { Row, Section } from './row'
 
-const markFor = (shell: ShellSnapshot) => {
-  if (shell.awaitingInput) return { text: glyph.warning, fg: theme.warn }
-  if (isShellRunning(shell)) return { text: glyph.active, fg: theme.ok }
-  return { text: glyph.seen, fg: theme.rule }
-}
-
-const readoutColourFor = (shell: ShellSnapshot): string => {
-  if (shell.awaitingInput) return theme.warn
-  return isShellRunning(shell) ? theme.hint : theme.meta
-}
+const markFor = (shell: ShellSnapshot) =>
+  shell.awaitingInput
+    ? { text: glyph.warning, fg: theme.warn }
+    : { text: glyph.active, fg: theme.ok }
 
 const valueFor = (args: { shell: ShellSnapshot; now: number }): readonly Span[] => [
-  { text: shellReadout(args), fg: readoutColourFor(args.shell) },
+  { text: shellReadout(args), fg: args.shell.awaitingInput ? theme.warn : theme.hint },
 ]
 
 /**
- * What the panel let go of, kept as one line rather than a heading of its own. The reading names
- * `/shells` because a reclaimed shell is still whole — the row leaves the sidebar, nothing leaves
- * the registry or its scrollback.
+ * What finished and left the panel, kept as one line rather than a heading of its own. The
+ * reading names `/shells` because a finished shell is still whole — the row leaves the sidebar,
+ * nothing leaves the registry or its scrollback.
  */
 function RetiredLine(props: { fold: SidebarCrewFold; cells: number }): React.ReactNode {
   return (
@@ -37,7 +31,6 @@ function RetiredLine(props: { fold: SidebarCrewFold; cells: number }): React.Rea
       labelFg={theme.rule}
       cells={props.cells}
       mark={{ text: glyph.seen, fg: theme.rule }}
-      {...(props.fold.hiddenFailed ? { value: [{ text: 'one failed', fg: theme.warn }] } : {})}
     />
   )
 }
@@ -52,11 +45,10 @@ export function ShellsSection(props: {
   const press = usePress()
   if (props.shells.length === 0) return null
 
-  const running = props.shells.filter(isShellRunning).length
   const hidden = props.fold?.hidden ?? 0
 
   return (
-    <Section label="Shells" count={`${running}/${props.shells.length + hidden}`}>
+    <Section label="Shells" count={`${props.shells.length}/${props.shells.length + hidden}`}>
       {props.shells.map((shell) => (
         <box
           key={shell.shellId}
@@ -65,7 +57,7 @@ export function ShellsSection(props: {
         >
           <Row
             label={shellNameLabel(shell)}
-            labelFg={isShellRunning(shell) ? theme.hover : theme.meta}
+            labelFg={theme.hover}
             cells={props.cells}
             mark={markFor(shell)}
             value={valueFor({ shell, now: props.now })}
