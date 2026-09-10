@@ -63,7 +63,7 @@ describeDocker('ensureSandbox against a live daemon', () => {
     const second = await ensureSandbox({ engine, config: liveConfig() })
     expect(second.created).toBe(false)
     expect(second.id).toBe(first.id)
-  })
+  }, 60_000)
 
   it('restarts a stopped sandbox rather than creating a second one', async () => {
     const first = await ensureSandbox({ engine, config: liveConfig() })
@@ -74,7 +74,7 @@ describeDocker('ensureSandbox against a live daemon', () => {
     expect(second.id).toBe(first.id)
     expect(second.created).toBe(false)
     expect((await engine.inspectContainer({ id: first.id })).state.running).toBe(true)
-  })
+  }, 60_000)
 
   it('is discoverable by label from a fresh client, as if the creating process had gone', async () => {
     const created = await ensureSandbox({ engine, config: liveConfig() })
@@ -83,7 +83,7 @@ describeDocker('ensureSandbox against a live daemon', () => {
     const found = await findSandbox({ engine: anotherClient, prefix: PREFIX, worktree })
 
     expect(found?.id).toBe(created.id)
-  })
+  }, 60_000)
 
   it('reports the worktree mount with source equal to destination in the daemon record', async () => {
     const created = await ensureSandbox({ engine, config: liveConfig() })
@@ -93,7 +93,7 @@ describeDocker('ensureSandbox against a live daemon', () => {
 
     expect(mount?.source).toBe(worktree)
     expect(mount?.readOnly).toBe(false)
-  })
+  }, 60_000)
 
   it('warns rather than letting the OOM killer explain an oversubscribed machine', async () => {
     const info = await engine.info()
@@ -149,7 +149,7 @@ describeDocker('ensureSandbox against a live daemon', () => {
     } finally {
       await clearMarkers()
     }
-  })
+  }, 60_000)
 
   it('reads a mounted memory subtree inside, but cannot see auth.json or write to it', async () => {
     const atlasHome = await realpath(await mkdtemp(join(tmpdir(), 'atlas-dev-sandbox-home-')))
@@ -191,5 +191,5 @@ describeDocker('ensureSandbox against a live daemon', () => {
     } finally {
       await rm(atlasHome, { recursive: true, force: true })
     }
-  })
+  }, 60_000)
 })
