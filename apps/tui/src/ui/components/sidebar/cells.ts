@@ -86,6 +86,30 @@ export function clipSpans(args: { spans: readonly Span[]; cells: number }): Span
   return kept
 }
 
+const SIDE_GAP_CELLS = 2
+
+/**
+ * The two sides of a split row with the gap between them padded out to the column width. The right
+ * side keeps its cells and the left gives room first: the right is where the reading nobody can
+ * afford to lose sits.
+ */
+export function justifySpans(args: {
+  left: readonly Span[]
+  right: readonly Span[]
+  cells: number
+}): Span[] {
+  const right = clipSpans({ spans: args.right, cells: args.cells })
+  const gap = right.length === 0 ? 0 : SIDE_GAP_CELLS
+  const left = clipSpans({
+    spans: args.left,
+    cells: Math.max(0, args.cells - spanCells(right) - gap),
+  })
+  if (right.length === 0) return left
+
+  const pad = args.cells - spanCells(left) - spanCells(right)
+  return clipSpans({ spans: [...left, { text: ' '.repeat(Math.max(gap, pad)) }, ...right], cells: args.cells })
+}
+
 export function fitLabel(args: { label: string; valueCells: number; cells: number }): string {
   if (args.valueCells === 0) return truncateCells({ text: args.label, cells: args.cells })
 

@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 
 import type { LinkedPullRequest } from '@dltech/atlas-core'
 
-import type { Span } from '../../ui/components/spans'
 import { useShimmerClock } from '../../ui/hooks/use-shimmer-clock'
+import type { SidebarRowSplit } from '../../ui/sidebar-section'
 import { SPINNER_FRAME_MS, theme } from '../../ui/theme'
 import { ESidebarPlace, type SidebarSection, type SidebarSectionRow } from '../surface'
 import { probeCheckout } from './checkout-probe'
@@ -57,13 +57,13 @@ const rowOf = (args: {
   const spans =
     pullRequest !== null
       ? pullRequestRow({ pullRequest, now })
-      : (() => {
-          const unread: readonly Span[] = [
+      : (): SidebarRowSplit => ({
+          left: [
             { text: `#${entry.number}`, fg: theme.code },
             { text: ` ${entry.branch}`, fg: theme.hint },
-          ]
-          return () => unread
-        })()
+          ],
+          right: [],
+        })
 
   return {
     id: entry.current ? 'pull-request-current' : `pull-request-${entry.key}`,
@@ -166,7 +166,10 @@ export function usePullRequest(args: {
     const rows: SidebarSectionRow[] = []
 
     if (checkout !== null) {
-      rows.push({ id: 'branch', spans: [{ text: checkout.branch, fg: theme.hover }] })
+      rows.push({
+        id: 'branch',
+        spans: { left: [{ text: checkout.branch, fg: theme.hover }], right: [] },
+      })
     }
     for (const entry of entries) rows.push(rowOf({ entry, now, onOpen }))
     if (rows.length === 0) return null

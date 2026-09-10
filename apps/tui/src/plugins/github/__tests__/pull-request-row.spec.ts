@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
+import { justifySpans } from '../../../ui/components/sidebar/cells'
+import type { SidebarRowSplit } from '../../../ui/sidebar-section'
 import { theme } from '../../../ui/theme'
 import { EChecksState, EPullRequestState, pullRequestBadge, type PullRequest } from '../pure'
 import { pullRequestStatusColor } from '../pull-request-pill'
@@ -22,25 +24,35 @@ const withChecks = (tally: {
   tally,
 })
 
-const textAt = (args: {
-  pullRequest: PullRequest
-  cells: number
-}): string =>
+const splitAt = (args: { pullRequest: PullRequest; cells: number }): SidebarRowSplit =>
   pullRequestRow({ pullRequest: args.pullRequest, now: NOW })(args.cells)
-    .map((span) => span.text)
-    .join('')
+
+const textOf = (spans: readonly { text: string }[]): string =>
+  spans.map((span) => span.text).join('')
+
+const textAt = (args: { pullRequest: PullRequest; cells: number }): string => {
+  const split = splitAt(args)
+  return textOf(justifySpans({ left: split.left, right: split.right, cells: args.cells }))
+}
 
 describe('the pull request row gives up richness before it gives up the failure count', () => {
   const pullRequest = withChecks({ running: 2, passed: 3, failed: 1 })
 
-  it('shows everything when the column is wide', () => {
-    const text = textAt({ pullRequest, cells: WIDE })
+  it('shows everything when the column is wide, number and state left, checks right', () => {
+    const split = splitAt({ pullRequest, cells: WIDE })
 
-    expect(text).toContain('#12')
-    expect(text).toContain('open')
-    expect(text).toContain('2 running')
-    expect(text).toContain('3 ✓')
-    expect(text).toContain('1 ✗')
+    expect(textOf(split.left)).toBe('#12 open')
+    expect(textOf(split.right)).toContain('2 running')
+    expect(textOf(split.right)).toContain('3 ✓')
+    expect(textOf(split.right)).toContain('1 ✗')
+  })
+
+  it('justifies the number to the left edge and the checks to the right edge', () => {
+    const text = textAt({ pullRequest, cells: 30 })
+
+    expect(text.startsWith('#12')).toBe(true)
+    expect(text.endsWith('1 ✗')).toBe(true)
+    expect(text.length).toBe(30)
   })
 
   it('drops the state before anything else', () => {
@@ -50,10 +62,11 @@ describe('the pull request row gives up richness before it gives up the failure 
     expect(text).toContain('1 ✗')
   })
 
-  it('keeps the number and the failure count at the narrowest width that fits them', () => {
-    const text = textAt({ pullRequest, cells: 10 })
+  it('keeps the number on the left and the failure count on the right', () => {
+    const split = splitAt({ pullRequest, cells: 10 })
 
-    expect(text).toBe('#12  1 ✗')
+    expect(textOf(split.left)).toBe('#12')
+    expect(textOf(split.right)).toBe('1 ✗')
   })
 
   it('never clips the failure count away while the number still fits', () => {
@@ -66,19 +79,24 @@ describe('the pull request row gives up richness before it gives up the failure 
   })
 
   it('falls back to the number alone rather than emitting nothing', () => {
-    expect(textAt({ pullRequest, cells: 1 })).toBe('#12')
+    const split = splitAt({ pullRequest, cells: 1 })
+
+    expect(textOf(split.left)).toBe('#12')
+    expect(split.right).toEqual([])
   })
 
   it('says nothing about checks that do not exist', () => {
     const clean = withChecks({ running: 0, passed: 0, failed: 0 })
+    const split = splitAt({ pullRequest: clean, cells: WIDE })
 
-    expect(textAt({ pullRequest: clean, cells: WIDE })).toBe('#12 open')
+    expect(textOf(split.left)).toBe('#12 open')
+    expect(split.right).toEqual([])
   })
 })
 
 describe('the pull request row inks the number with the shared status color', () => {
   const numberInk = (pullRequest: PullRequest): string | undefined =>
-    pullRequestRow({ pullRequest, now: NOW })(WIDE).at(0)?.fg
+    pullRequestRow({ pullRequest, now: NOW })(WIDE).left.at(0)?.fg
 
   it('matches the tone the footer chip fills with', () => {
     const failing = withChecks({ running: 0, passed: 1, failed: 1 })
@@ -104,6 +122,6 @@ describe('the pull request row inks the number with the shared status color', ()
   it('holds the ink at the narrowest rung', () => {
     const failing = withChecks({ running: 0, passed: 1, failed: 1 })
 
-    expect(pullRequestRow({ pullRequest: failing, now: NOW })(1).at(0)?.fg).toBe(theme.error)
+    expect(pullRequestRow({ pullRequest: failing, now: NOW })(1).left.at(0)?.fg).toBe(theme.error)
   })
 })

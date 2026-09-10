@@ -1,3 +1,4 @@
+import { justifySpans } from './components/sidebar/cells'
 import type { Span } from './components/spans'
 
 /**
@@ -11,11 +12,26 @@ export enum ESidebarPlace {
 }
 
 /**
+ * A split row anchors one group of spans to the left edge and another to the right, with the gap
+ * between them padded out to the column width — the github section reads the pull request number
+ * and state on the left and its check tally on the right.
+ */
+export type SidebarRowSplit = {
+  left: readonly Span[]
+  right: readonly Span[]
+}
+
+export type SidebarRowContent = readonly Span[] | SidebarRowSplit
+
+/**
  * A row may be a function of the column width because clipping cuts the tail, and for some rows the
  * tail is the reading nobody can afford to lose — a failing check count sits to the right of the
  * passing one. A fixed array is still accepted, and is right for a row that cannot degrade.
  */
-export type SidebarRowSpans = readonly Span[] | ((cells: number) => readonly Span[])
+export type SidebarRowSpans = SidebarRowContent | ((cells: number) => SidebarRowContent)
+
+export const isSidebarRowSplit = (content: SidebarRowContent): content is SidebarRowSplit =>
+  !Array.isArray(content)
 
 export type SidebarSectionRow = {
   id: string
@@ -23,8 +39,17 @@ export type SidebarSectionRow = {
   onActivate?: (() => void) | undefined
 }
 
-export const spansOf = (args: { row: SidebarSectionRow; cells: number }): readonly Span[] =>
+export const spansOf = (args: { row: SidebarSectionRow; cells: number }): SidebarRowContent =>
   typeof args.row.spans === 'function' ? args.row.spans(args.cells) : args.row.spans
+
+export const flattenedSpans = (args: {
+  row: SidebarSectionRow
+  cells: number
+}): readonly Span[] => {
+  const content = spansOf(args)
+  if (!isSidebarRowSplit(content)) return content
+  return justifySpans({ left: content.left, right: content.right, cells: args.cells })
+}
 
 export type SidebarSection = {
   id: string

@@ -27,7 +27,7 @@ import type { PluginSurface } from '../../surface'
 import GithubPlugin, { registerPlugin } from '../index'
 
 import { settle, teardown } from '../../../ui/markdown/__tests__/harness'
-import { spansOf } from '../../../ui/sidebar-section'
+import { flattenedSpans } from '../../../ui/sidebar-section'
 
 const RENDER_MS = 40
 
@@ -105,7 +105,7 @@ const branchRowOf = (probe: Probe): string | null => {
   const row = probe.surface?.sidebarSection?.rows.find((entry) => entry.id === 'branch')
   if (row === undefined) return null
 
-  return spansOf({ row, cells: WIDE }).map((span) => span.text).join('')
+  return flattenedSpans({ row, cells: WIDE }).map((span) => span.text).join('')
 }
 
 /**
