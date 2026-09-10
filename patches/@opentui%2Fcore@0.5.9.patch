@@ -1,0 +1,58 @@
+diff --git a/chunk-bun-jxfx3h5k.js b/chunk-bun-jxfx3h5k.js
+index 5150999349c76c2f632c789e77f4800282691270..0cc2fc7ca61984e3fafa77906e51589092a2be6f 100644
+--- a/chunk-bun-jxfx3h5k.js
++++ b/chunk-bun-jxfx3h5k.js
+@@ -163,6 +163,7 @@ class BaseRenderable extends EventEmitter {
+   }
+   markDirty() {
+     this._dirty = true;
++    this._cleanStreak = 0;
+   }
+   destroy() {}
+   destroyRecursively() {}
+@@ -1180,6 +1181,14 @@ class Renderable extends BaseRenderable {
+     }
+   }
+   render(buffer, deltaTime) {
++    if (!this._dirty && (this._cleanStreak ?? 0) >= 2 && this._lastPaintX === this._screenX && this._lastPaintY === this._screenY) {
++      this._cleanStreak++;
++      this._ctx.addToHitGrid(this._screenX, this._screenY, this.width, this.height, this.num);
++      return;
++    }
++    this._cleanStreak = (this._cleanStreak ?? 0) + 1;
++    this._lastPaintX = this._screenX;
++    this._lastPaintY = this._screenY;
+     let renderBuffer = buffer;
+     if (this.buffered && this.frameBuffer) {
+       renderBuffer = this.frameBuffer;
+@@ -3116,6 +3125,14 @@ class TextBufferRenderable extends Renderable {
+       return;
+     const screenX = this._screenX;
+     const screenY = this._screenY;
++    if (!this._dirty && (this._cleanStreak ?? 0) >= 2 && this._lastPaintX === screenX && this._lastPaintY === screenY) {
++      this._cleanStreak++;
++      this._ctx.addToHitGrid(screenX, screenY, this.width, this.height, this.num);
++      return;
++    }
++    this._cleanStreak = (this._cleanStreak ?? 0) + 1;
++    this._lastPaintX = screenX;
++    this._lastPaintY = screenY;
+     this.markClean();
+     this._ctx.addToHitGrid(screenX, screenY, this.width, this.height, this.num);
+     this.renderSelf(buffer);
+@@ -6259,6 +6276,15 @@ class EditBufferRenderable extends Renderable {
+       return;
+     const screenX = this._screenX;
+     const screenY = this._screenY;
++    if (!this._dirty && (this._cleanStreak ?? 0) >= 2 && this._lastPaintX === screenX && this._lastPaintY === screenY) {
++      this._cleanStreak++;
++      this._ctx.addToHitGrid(screenX, screenY, this.width, this.height, this.num);
++      this.renderCursor(buffer);
++      return;
++    }
++    this._cleanStreak = (this._cleanStreak ?? 0) + 1;
++    this._lastPaintX = screenX;
++    this._lastPaintY = screenY;
+     this.markClean();
+     this._ctx.addToHitGrid(screenX, screenY, this.width, this.height, this.num);
+     this.renderSelf(buffer);
