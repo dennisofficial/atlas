@@ -1,10 +1,5 @@
 import { resolveAgainst, isUnderPath } from './classifier/path-set'
-import { homeDotDirectory, insideTemporaryRoot } from './classifier/shapes'
-
-const isPersonalDotPath = ({ path }: { path: string }): boolean => {
-  const topLevelUnderHome = homeDotDirectory({ path })
-  return topLevelUnderHome !== undefined && topLevelUnderHome.startsWith('.')
-}
+import { insideTemporaryRoot, isPersonalDotPath } from './classifier/shapes'
 
 export function outsideProjectNotice({
   path,
