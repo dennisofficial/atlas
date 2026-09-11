@@ -3,6 +3,7 @@ dist
 .turbo
 *.log
 .DS_Store
+storybook-static/
 
 # Host-rendered workspace secret material (SSH keys, etc.) — never repo content.
 .ssh/

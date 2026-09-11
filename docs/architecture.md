@@ -1213,6 +1213,7 @@ atlas/
   packages/
     core/       pure. no I/O, no clock, no randomness, no network, no database
     harness/    the loop, hooks, tools, model adapters, credentials, store
+    ui/         design tokens (pure TS, platform-agnostic) + web UI atoms + Storybook
   apps/
     tui/        OpenTUI + React, and the composition root
   docs/
@@ -1228,9 +1229,16 @@ into `core`, not to add a mock. `tui` never imports `store` or `providers` direc
 `harness` through its ports, and the composition root is the only place that knows which
 implementation is bound.
 
-Three packages, not five. A package boundary is worth it only where the compiler should enforce a
-dependency rule: `core` has no I/O, `harness` is importable without a terminal. `store` and
+A package boundary is worth it only where the compiler should enforce a dependency rule: `core` has
+no I/O, `harness` is importable without a terminal, `ui` imports nothing from Atlas. `store` and
 `providers` stay folders until something forces them out.
+
+`ui` is the design system for the future web app: tokens are the source of truth in pure TS
+(three layers — primitive, semantic, component), `tools/generate-css.ts` derives
+`src/styles/theme.css` (Tailwind v4 `@theme` + light/dark CSS variables), and a test fails if the
+stylesheet drifts from the tokens. Atoms are web components (Radix + CVA); the pure `/tokens`
+subpath is the only contract a future Expo app consumes, because atoms cannot be shared across
+DOM and native anyway.
 
 ### Folder structure
 
