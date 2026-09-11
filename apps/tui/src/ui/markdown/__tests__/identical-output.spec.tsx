@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import React, { act } from 'react'
 
+import { ALT } from '../../theme'
 import { frameSettled } from '../../__tests__/waiting'
 import { MarkdownView } from '../markdown-view'
 import { grammarsReady, settle, teardown } from './harness'
@@ -40,6 +41,13 @@ const recording = process.env.RECORD_MARKDOWN_FRAMES === '1'
 const fixture: Fixture = existsSync(FIXTURE)
   ? (JSON.parse(readFileSync(FIXTURE, 'utf8')) as Fixture)
   : {}
+
+// The fixtures were recorded on macOS, whose wheel hint names its own modifier (theme.ts ALT)
+function forPlatform(lines: readonly string[]): readonly string[]
+function forPlatform(lines: readonly string[] | undefined): readonly string[] | undefined
+function forPlatform(lines: readonly string[] | undefined): readonly string[] | undefined {
+  return lines?.map((line) => line.replaceAll('opt+wheel', `${ALT}+wheel`))
+}
 
 type StreamState = { source: string; streaming: boolean }
 
@@ -124,12 +132,14 @@ describe('streamed markdown draws what a one-shot render draws', () => {
       expect(expected, `no fixture for ${name}; record with RECORD_MARKDOWN_FRAMES=1`).toBeDefined()
       if (expected === undefined) return
 
-      expect(oneShot).toEqual(expected.oneShot)
+      expect(oneShot).toEqual(forPlatform(expected.oneShot))
       for (const chunk of CHUNK_SIZES) {
         const key = String(chunk)
-        expect(streamed[key]?.live, `${name} live @${chunk}`).toEqual(expected.streamed[key]?.live)
+        expect(streamed[key]?.live, `${name} live @${chunk}`).toEqual(
+          forPlatform(expected.streamed[key]?.live),
+        )
         expect(streamed[key]?.settled, `${name} settled @${chunk}`).toEqual(
-          expected.streamed[key]?.settled,
+          forPlatform(expected.streamed[key]?.settled),
         )
       }
     }, 120_000)

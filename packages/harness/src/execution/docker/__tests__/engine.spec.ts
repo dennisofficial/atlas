@@ -51,7 +51,7 @@ describeDocker('DockerEngine over the unix socket', () => {
 
     await engine.removeContainer({ id: created.id })
     expect(await engine.listContainers({ labels: LABEL, all: true })).toHaveLength(0)
-  })
+  }, 120_000)
 
   it('runs an exec and reports its exit code', async () => {
     const created = await engine.createContainer({

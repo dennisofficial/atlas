@@ -20,6 +20,7 @@ const RAN = /^Ran \d+ tests? across (\d+) files?\./gm
 type ShardResult = {
   shard: number
   ok: boolean
+  code: number
   output: string
   passed: number
   failed: number
@@ -84,6 +85,7 @@ async function runShard(args: { shard: number; files: readonly string[] }): Prom
   return {
     shard: args.shard,
     ok: code === 0,
+    code,
     output,
     ...tally(output),
     seconds: (Date.now() - startedAt) / 1_000,
@@ -115,7 +117,10 @@ async function main(): Promise<void> {
   )
 
   const failures = results.filter((result) => !result.ok)
-  for (const failure of failures) process.stdout.write(failure.output)
+  for (const failure of failures) {
+    process.stdout.write(`shard ${failure.shard} exited ${failure.code}\n`)
+    process.stdout.write(failure.output)
+  }
 
   const passed = results.reduce((total, result) => total + result.passed, 0)
   const failed = results.reduce((total, result) => total + result.failed, 0)
@@ -132,10 +137,11 @@ async function main(): Promise<void> {
     process.stdout.write(
       `sharding is not splitting the suite: dispatched ${files.length} files, ran ${filesRan}\n`,
     )
-    process.exit(1)
   }
 
-  process.exit(failures.length === 0 ? 0 : 1)
+  // process.exitCode rather than process.exit: exiting early truncates whatever the pipe
+  // has not flushed yet, which ate the summary and the failing shard's tail in CI
+  process.exitCode = failures.length === 0 && filesRan === files.length ? 0 : 1
 }
 
 await main()

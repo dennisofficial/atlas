@@ -194,6 +194,24 @@ export async function settle({
   throw new Error(`background shell ${shellId} never left running`)
 }
 
+export async function printed({
+  registry,
+  shellId,
+  text,
+  threadId = THREAD,
+}: {
+  registry: ShellRegistryPort
+  shellId: string
+  text: string
+  threadId?: ThreadId
+}): Promise<void> {
+  for (let attempt = 0; attempt < 400; attempt += 1) {
+    if (registry.peek({ shellId, characters: 2000, threadId })?.includes(text)) return
+    await Bun.sleep(25)
+  }
+  throw new Error(`background shell ${shellId} never printed ${JSON.stringify(text)}`)
+}
+
 /**
  * A kill flips the status synchronously but the ending is announced when the process is reaped, so
  * waiting on the status is not waiting on the notice.

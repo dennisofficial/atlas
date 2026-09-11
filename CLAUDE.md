@@ -14,11 +14,14 @@ subscription credentials are one provider implementation among several, not a fo
 
 ## Who uses Atlas
 
-**One person: Dennis.** There is no user base, no support burden, no migration window, and no
-untrusted third party. Weigh decisions accordingly — a breaking change costs one afternoon, a
-plugin loaded from disk is his own code in his own repo, and a feature nobody has asked for is a
-feature nobody needs. Spend the saved effort on the things a single user still feels every day:
-a hang, a silent failure, a seam that makes the next feature cheap.
+**A small team, in a public repo.** Atlas is built by the people who run it every day — there is
+no separate customer base, no support burden, and no migration window. Weigh decisions
+accordingly: a breaking change costs an afternoon, not a quarter, and a feature nobody has asked
+for is a feature nobody needs. But the code is read by contributors and strangers now, so keep
+interfaces honest and note setup-breaking changes in the PR. Spend the saved effort on the things
+daily users still feel: a hang, a silent failure, a seam that makes the next feature cheap.
+
+Contributions are welcome — `CONTRIBUTING.md` holds the setup and the PR flow.
 
 Read `docs/architecture.md` before changing anything structural. It is the source of truth over
 any inference from code, and `docs/core-contract.md` holds the seams it depends on.
@@ -149,15 +152,17 @@ throwaway probe that produced the numbers is `apps/tui/scripts/proto-shimmer.tsx
 
 ## Git
 
-- **Work in a worktree; the main checkout is read-only.** Cut a worktree under
-  `.atlas/worktrees/<slug>` from `origin/main` on a `dennis/<slug>` branch, do the work there,
-  then ship it as a PR: push, `gh pr create`, and merge with plain `gh pr merge --squash` — no
-  review gate, and never `--delete-branch`, which fails on the local `main` checkout after the
-  merge has already landed. Remove the worktree and delete the local branch afterwards, then
-  `git pull --ff-only` in the main checkout: `atlas-dev` runs from the main tree, and until main
-  is pulled every running terminal is a release behind what was just shipped. The read-only main
-  checkout is load-bearing, not hygiene: `atlas-dev` flags every running terminal as stale the
-  moment the tree moves, so direct edits in the main checkout turn that notice into noise.
+- **Branch from `origin/main`, ship as a PR.** Branch as `<you>/<slug>` (e.g.
+  `dennis/add-the-thing`), push, `gh pr create`, and merge with `gh pr merge --squash` once CI is
+  green. Keep PRs small enough to review in one sitting.
+- **If you run `atlas-dev` from the main checkout, that checkout is read-only.** It is
+  load-bearing, not hygiene: `atlas-dev` flags every running terminal as stale the moment the
+  tree moves, so direct edits in the main checkout turn that notice into noise. Cut a worktree
+  under `.atlas/worktrees/<slug>`, do the work there, and after the merge remove the worktree,
+  delete the local branch, and `git pull --ff-only` in the main checkout — until main is pulled,
+  every running terminal is a release behind what was just shipped. Merge from inside a worktree
+  with plain `gh pr merge --squash`, never `--delete-branch`, which fails on the local `main`
+  checkout after the merge has already landed.
 - Never force-push, never `--no-verify`.
 - **Never use `git stash`** unless explicitly asked.
 - Conventional commits: `<type>(<scope>): <description>` — imperative, lowercase.

@@ -9,10 +9,12 @@ import {
 } from '../registry'
 import { codeRenderer, plainRenderer } from '../renderers/code'
 import { diffRenderer } from '../renderers/diff'
+import { lexicalRenderer } from '../renderers/lexical'
 
 function restoreProductionRenderersForLaterSpecFilesInThisProcess(): void {
   resetFencedRenderers()
   registerFencedRenderer(diffRenderer)
+  registerFencedRenderer(lexicalRenderer)
   registerFencedRenderer(codeRenderer)
   registerFallbackRenderer(plainRenderer)
 }

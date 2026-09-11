@@ -1,0 +1,46 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      ATLAS_HOME: ${{ github.workspace }}/.atlas-home
+      NODE_ENV: development
+      # Fewer shards than cores: parallel bun processes starve the settle-based
+      # render specs into flakes on the 4-core runner
+      ATLAS_TEST_SHARDS: '2'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - run: bun install
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: pull test images
+        run: |
+          docker pull ghcr.io/${{ github.repository_owner }}/atlas-sandbox:latest
+          docker pull node:22-slim
+
+      - name: typecheck
+        run: bun run typecheck
+
+      - name: test
+        run: bun run test --concurrency 1 --output-logs=full
+
+      - name: build binary
+        run: bun run build
