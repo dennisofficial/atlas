@@ -14,10 +14,10 @@ subscription credentials are one provider implementation among several, not a fo
 
 ## Who uses Atlas
 
-**A small team, in a public repo.** Atlas is built by the people who run it every day — there is
-no separate customer base, no support burden, and no migration window. Weigh decisions
-accordingly: a breaking change costs an afternoon, not a quarter, and a feature nobody has asked
-for is a feature nobody needs. But the code is read by contributors and strangers now, so keep
+**A small team.** Atlas is built by the people who run it every day — there is no separate
+customer base, no support burden, and no migration window. Weigh decisions accordingly: a
+breaking change costs an afternoon, not a quarter, and a feature nobody has asked for is a
+feature nobody needs. The code is read by every teammate and agent that works in it, so keep
 interfaces honest and note setup-breaking changes in the PR. Spend the saved effort on the things
 daily users still feel: a hang, a silent failure, a seam that makes the next feature cheap.
 
