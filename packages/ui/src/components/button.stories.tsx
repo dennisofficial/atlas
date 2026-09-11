@@ -11,25 +11,22 @@ const meta = {
       control: "select",
       options: [
         "primary",
-        "destructive",
-        "outline",
         "secondary",
+        "outline",
         "ghost",
+        "destructive",
         "link",
       ],
     },
-    size: {
-      control: "select",
-      options: ["sm", "md", "lg", "icon"],
-    },
+    size: { control: "select", options: ["xs", "sm", "md", "lg"] },
   },
-  args: { children: "Button" },
+  args: { children: "New session" },
 } satisfies Meta<typeof Button>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Primary: Story = {};
+export const Secondary: Story = {};
 
 export const AllVariants: Story = {
   render: (args) => (
@@ -59,6 +56,9 @@ export const AllVariants: Story = {
 export const AllSizes: Story = {
   render: (args) => (
     <div className="flex flex-wrap items-center gap-4">
+      <Button {...args} size="xs">
+        Extra small
+      </Button>
       <Button {...args} size="sm">
         Small
       </Button>
@@ -70,6 +70,10 @@ export const AllSizes: Story = {
       </Button>
     </div>
   ),
+};
+
+export const Loading: Story = {
+  args: { loading: true, variant: "primary" },
 };
 
 export const Disabled: Story = {

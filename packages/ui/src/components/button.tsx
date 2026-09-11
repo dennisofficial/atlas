@@ -1,40 +1,49 @@
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
 import { cn } from "../lib/cn";
+import { Spinner } from "./spinner";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-md font-sans font-medium leading-none tracking-normal outline-none transition-[background,color,border-color,filter,opacity] duration-[var(--duration-fast)] ease-[var(--ease-standard)] active:translate-y-[0.5px] disabled:cursor-not-allowed disabled:opacity-45 disabled:active:translate-y-0 [&_svg]:size-3.5 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        primary: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline:
-          "border border-border bg-background hover:bg-accent hover:text-accent-foreground",
+        primary:
+          "bg-primary text-primary-foreground border border-transparent hover:brightness-[1.08]",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+          "bg-secondary text-secondary-foreground border border-border hover:bg-selected",
+        outline:
+          "bg-transparent text-foreground border border-border hover:bg-hover hover:border-warm-700",
+        ghost:
+          "bg-transparent text-meta border border-transparent hover:bg-hover hover:text-foreground",
+        destructive:
+          "bg-destructive text-destructive-foreground border border-transparent hover:brightness-[1.08]",
+        link: "bg-transparent text-link border border-transparent hover:underline underline-offset-2",
       },
       size: {
-        sm: "h-8 rounded-md px-3 text-xs",
-        md: "h-9 px-4 py-2",
-        lg: "h-10 rounded-md px-6",
-        icon: "size-9",
+        xs: "h-control-xs px-1.5 text-xs gap-1",
+        sm: "h-control-sm px-2 text-sm gap-[5px]",
+        md: "h-control-md px-3 text-base gap-1.5",
+        lg: "h-control-lg px-4 text-md gap-2",
       },
     },
     defaultVariants: {
-      variant: "primary",
+      variant: "secondary",
       size: "md",
     },
   },
 );
 
-export type ButtonProps = ComponentProps<"button"> &
+export type ButtonProps = Omit<ComponentProps<"button">, "children"> &
   VariantProps<typeof buttonVariants> & {
+    children?: ReactNode;
+    icon?: ReactNode;
+    iconRight?: ReactNode;
+    iconOnly?: boolean;
+    loading?: boolean;
+    fullWidth?: boolean;
     asChild?: boolean;
   };
 
@@ -42,14 +51,34 @@ export function Button({
   className,
   variant,
   size,
+  children,
+  icon,
+  iconRight,
+  iconOnly = false,
+  loading = false,
+  fullWidth = false,
   asChild = false,
+  disabled,
+  type = "button",
   ...props
 }: ButtonProps) {
   const Comp = asChild ? Slot : "button";
   return (
     <Comp
-      className={cn(buttonVariants({ variant, size, className }))}
+      className={cn(
+        buttonVariants({ variant, size }),
+        fullWidth && "flex w-full",
+        iconOnly && "aspect-square px-0",
+        variant === "link" && "h-auto px-0",
+        className,
+      )}
+      disabled={disabled || loading}
+      type={asChild ? undefined : type}
       {...props}
-    />
+    >
+      {loading ? <Spinner /> : icon}
+      {iconOnly ? null : children}
+      {iconRight}
+    </Comp>
   );
 }

@@ -1,14 +1,16 @@
-import { primitives } from "./primitives";
+import { control, radius } from "./scale";
 
 export const component = {
   button: {
-    radius: primitives.radius.md,
+    radius: radius.md,
+    height: control.md,
   },
   input: {
-    radius: primitives.radius.md,
+    radius: radius.md,
+    height: control.md,
   },
   card: {
-    radius: primitives.radius.lg,
+    radius: radius.lg,
   },
 } as const;
 

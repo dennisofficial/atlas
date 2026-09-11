@@ -1236,9 +1236,10 @@ no I/O, `harness` is importable without a terminal, `ui` imports nothing from At
 `ui` is the design system for the future web app: tokens are the source of truth in pure TS
 (three layers — primitive, semantic, component), `tools/generate-css.ts` derives
 `src/styles/theme.css` (Tailwind v4 `@theme` + light/dark CSS variables), and a test fails if the
-stylesheet drifts from the tokens. Atoms are web components (Radix + CVA); the pure `/tokens`
-subpath is the only contract a future Expo app consumes, because atoms cannot be shared across
-DOM and native anyway.
+stylesheet drifts from the tokens. The palette is dark-first — dark is `:root`, light is opt-in
+via `[data-theme="day"]`/`.light` — and every color traces to a value the TUI ships. Atoms are
+web components (Radix + CVA); the pure `/tokens` subpath is the only contract a future Expo app
+consumes, because atoms cannot be shared across DOM and native anyway.
 
 ### Folder structure
 
