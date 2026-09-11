@@ -17,6 +17,7 @@ const DROPPED_CONNECTION = [
   'epipe',
   'enotfound',
   'und_err_socket',
+  'without a finish reason',
 ]
 
 const SECONDS = 1_000

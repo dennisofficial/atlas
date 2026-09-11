@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { APICallError } from '@ai-sdk/provider'
-import { StreamProviderError } from 'ai'
+import { InvalidResponseDataError, StreamProviderError } from 'ai'
 
 import { ModelStreamError } from '../errors'
 import { modelFailureOf } from '../failure'
@@ -76,6 +76,36 @@ describe('reading a model failure off whatever the provider threw', () => {
 
   it('refuses a mid-stream provider error with no status, no flag, and an unrecognised message', () => {
     expect(modelFailureOf(new StreamProviderError({ message: 'billing hard limit reached' }))).toBeNull()
+  })
+
+  it('reads a stream that ended without a finish reason as a dropped connection', () => {
+    const error = new InvalidResponseDataError({
+      data: undefined,
+      message: 'Response stream ended without a finish reason.',
+    })
+
+    expect(modelFailureOf(error)).toEqual({})
+  })
+
+  it('reads a stream that ended without a finish reason wrapped in the stream error', () => {
+    const wrapped = new ModelStreamError({
+      message: 'Response stream ended without a finish reason.',
+      cause: new InvalidResponseDataError({
+        data: undefined,
+        message: 'Response stream ended without a finish reason.',
+      }),
+    })
+
+    expect(modelFailureOf(wrapped)).toEqual({})
+  })
+
+  it('refuses invalid response data that is not a truncated stream', () => {
+    const error = new InvalidResponseDataError({
+      data: {},
+      message: "Expected 'id' to be a string.",
+    })
+
+    expect(modelFailureOf(error)).toBeNull()
   })
 
   it('reads an AbortSignal.timeout reason as a dropped connection', () => {
