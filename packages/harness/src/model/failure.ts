@@ -54,6 +54,10 @@ export function modelFailureOf(error: unknown): ModelFailure | null {
     if (error.isRetryable) return DROPPED
   }
 
+  // AbortSignal.timeout() aborts with a DOMException named 'TimeoutError', which carries no
+  // status and matches none of the message needles.
+  if (error instanceof Error && error.name === 'TimeoutError') return DROPPED
+
   if (error instanceof Error && looksLikeDroppedConnection(error.message)) return DROPPED
 
   return null

@@ -78,6 +78,21 @@ describe('reading a model failure off whatever the provider threw', () => {
     expect(modelFailureOf(new StreamProviderError({ message: 'billing hard limit reached' }))).toBeNull()
   })
 
+  it('reads an AbortSignal.timeout reason as a dropped connection', () => {
+    const timedOut = new DOMException('The operation timed out.', 'TimeoutError')
+
+    expect(modelFailureOf(timedOut)).toEqual({})
+  })
+
+  it('reads a timeout wrapped in the stream error as a dropped connection', () => {
+    const wrapped = new ModelStreamError({
+      message: 'TimeoutError: The operation timed out.',
+      cause: new DOMException('The operation timed out.', 'TimeoutError'),
+    })
+
+    expect(modelFailureOf(wrapped)).toEqual({})
+  })
+
   /**
    * A bug in our own code reaches the same catch as a dropped socket. Retrying one ten times just
    * delays the report, so anything unrecognised is refused rather than assumed transient.
