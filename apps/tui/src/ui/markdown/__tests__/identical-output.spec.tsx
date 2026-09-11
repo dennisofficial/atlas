@@ -43,8 +43,11 @@ const fixture: Fixture = existsSync(FIXTURE)
   : {}
 
 // The fixtures were recorded on macOS, whose wheel hint names its own modifier (theme.ts ALT)
-const forPlatform = (lines: readonly string[] | undefined): readonly string[] | undefined =>
-  lines?.map((line) => line.replaceAll('opt+wheel', `${ALT}+wheel`))
+function forPlatform(lines: readonly string[]): readonly string[]
+function forPlatform(lines: readonly string[] | undefined): readonly string[] | undefined
+function forPlatform(lines: readonly string[] | undefined): readonly string[] | undefined {
+  return lines?.map((line) => line.replaceAll('opt+wheel', `${ALT}+wheel`))
+}
 
 type StreamState = { source: string; streaming: boolean }
 
