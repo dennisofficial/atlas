@@ -36,4 +36,17 @@ describe('requestCacheKey', () => {
 
     expect(annotated.requestOptions).toEqual(keyed.requestOptions)
   })
+
+  it('spells the key snake_case for openai-compatible providers, which spread options verbatim', () => {
+    const ctx = contextOn('inference')
+    const result = requestCacheKey({ providerId: 'inference', optionKey: 'prompt_cache_key' })(
+      BARE,
+      [],
+      ctx,
+    )
+
+    expect(result.requestOptions).toEqual({
+      inference: { prompt_cache_key: String(ctx.threadId) },
+    })
+  })
 })

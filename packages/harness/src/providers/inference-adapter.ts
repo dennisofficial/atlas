@@ -1,4 +1,4 @@
-import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
+import { createOpenAICompatible, type OpenAICompatibleProviderSettings } from '@ai-sdk/openai-compatible'
 import type { LanguageModelV4, SharedV4ProviderOptions } from '@ai-sdk/provider'
 
 import {
@@ -27,11 +27,17 @@ export class InferenceAdapter extends ProviderAdapter {
 
   private readonly credentials: CredentialPort
   private readonly catalogue: readonly ModelCard[]
+  private readonly fetch: OpenAICompatibleProviderSettings['fetch'] | undefined
 
-  constructor(args: { credentials: CredentialPort; cards: readonly ModelCard[] }) {
+  constructor(args: {
+    credentials: CredentialPort
+    cards: readonly ModelCard[]
+    fetch?: OpenAICompatibleProviderSettings['fetch'] | undefined
+  }) {
     super()
     this.credentials = args.credentials
     this.catalogue = args.cards
+    this.fetch = args.fetch
   }
 
   cards(): readonly ModelCard[] {
@@ -58,13 +64,19 @@ export class InferenceAdapter extends ProviderAdapter {
         name: INFERENCE_PROVIDER_ID,
         baseURL: INFERENCE_BASE_URL,
         apiKey,
+        ...(this.fetch === undefined ? {} : { fetch: this.fetch }),
       }).chatModel(args.card.ref.modelId)
     }
 
     const withEffort = (options: Parameters<LanguageModelV4['doStream']>[0]) => {
       const effort = this.effortOptions({ card: args.card, effort: args.effort() })
       if (effort === undefined) return options
-      return { ...options, providerOptions: { ...effort, ...options.providerOptions } }
+
+      const providerOptions = { ...options.providerOptions }
+      for (const [provider, bucket] of Object.entries(effort)) {
+        providerOptions[provider] = { ...bucket, ...providerOptions[provider] }
+      }
+      return { ...options, providerOptions }
     }
 
     return {
