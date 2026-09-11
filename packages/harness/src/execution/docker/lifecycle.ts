@@ -109,13 +109,20 @@ export function startIdleStop(args: {
   let stopping = false
 
   const tick = async (): Promise<void> => {
-    const due = idleStopDue({
-      lastBashAt,
-      runningShells: args.runningShells(),
-      idleMinutes: args.idleMinutes(),
-      now: now(),
-    })
-    if (!due || stopping) return
+    if (stopping) return
+
+    let due = false
+    try {
+      due = idleStopDue({
+        lastBashAt,
+        runningShells: args.runningShells(),
+        idleMinutes: args.idleMinutes(),
+        now: now(),
+      })
+    } catch {
+      return
+    }
+    if (!due) return
 
     stopping = true
     try {
