@@ -15,6 +15,9 @@ jobs:
     env:
       ATLAS_HOME: ${{ github.workspace }}/.atlas-home
       NODE_ENV: development
+      # Fewer shards than cores: parallel bun processes starve the settle-based
+      # render specs into flakes on the 4-core runner
+      ATLAS_TEST_SHARDS: '2'
     steps:
       - uses: actions/checkout@v4
 
