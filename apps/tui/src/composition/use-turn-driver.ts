@@ -9,6 +9,7 @@ import {
 import { ETurnStatus, rewindThread, type TurnOutcome } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 
+import type { PendingSaid } from '../store'
 import { unansweredApproval, type ApprovalQuestion } from '../ui/approval-model'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { useApproval, type ApprovalControl } from './use-approval'
@@ -86,7 +87,7 @@ export function useTurnDriver(args: {
   compactIfFull: (used: number) => Promise<void>
   cancelCompaction: () => boolean
   onSettled: () => Promise<void>
-  onUndone: (text: string) => void
+  onUndone: (said: PendingSaid) => void
   setFailure: (reason: string | null) => void
   forgetUsage: () => void
 }): TurnDriver {
@@ -142,7 +143,7 @@ export function useTurnDriver(args: {
     if (undone.type === EUndo.Nothing) return
 
     await refresh()
-    onUndone(undone.text)
+    onUndone(undone.said)
   }, [app.agents, app.log, app.threads, onUndone, refresh, setFailure, threadId])
 
   const drive = useCallback(

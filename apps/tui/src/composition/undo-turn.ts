@@ -1,6 +1,8 @@
 import type { ThreadId, Event, EventLogPort } from '@dltech/atlas-core'
 import { rewindThread, type AgentRegistryPort, type ThreadStorePort } from '@dltech/atlas-harness'
 
+import type { PendingSaid } from '../store'
+
 export enum EUndo {
   Restored = 'restored',
   Refused = 'refused',
@@ -8,7 +10,7 @@ export enum EUndo {
 }
 
 export type Undo =
-  | { type: EUndo.Restored; text: string }
+  | { type: EUndo.Restored; said: PendingSaid }
   | { type: EUndo.Refused; reason: string }
   | { type: EUndo.Nothing }
 
@@ -30,5 +32,5 @@ export async function undoTurn(args: {
   const rewound = await rewindThread({ log, threads, agents, threadId, toSeq: said.seq - 1 })
   if (!rewound.ok) return { type: EUndo.Refused, reason: rewound.reason }
 
-  return { type: EUndo.Restored, text: said.text }
+  return { type: EUndo.Restored, said: { text: said.text, images: said.images ?? [] } }
 }
