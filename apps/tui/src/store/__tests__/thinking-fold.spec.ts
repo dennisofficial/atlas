@@ -37,7 +37,7 @@ const said = (args: { key: string; text: string }): TranscriptEntry => ({
 
 const toolsRan = (): TranscriptEntry => {
   const live = liveToolRuns([
-    { callId: toCallId('call-1'), name: 'bash', input: {}, precededByBlocks: 0 },
+    { callId: toCallId('call-1'), name: 'bash', input: {}, at: null, precededByBlocks: 0 },
   ]).at(0)
   if (live === undefined) throw new Error('a single call makes a single run')
 

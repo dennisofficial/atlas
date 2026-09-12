@@ -30,6 +30,7 @@ import { tailOfPath } from '../../paths'
 import { theme, TRANSCRIPT_INSET } from '../../theme'
 import { markPaint, SHIPPED_MARK, type EMark } from '../../tool-marks'
 import { SpinnerGlyph } from '../shimmer-line'
+import { ElapsedNote, elapsedCellsOf } from './tool-elapsed'
 import { Attachments } from './tool-run-attachments'
 import { moreKey, sentenceKey } from './tool-run-expansion'
 import { MergedBlock } from './tool-run-merged'
@@ -81,6 +82,9 @@ const SentenceBlock = React.memo(function SentenceBlock(props: {
         <span fg={theme.rule} {...region.wash}>
           {measureOfSentence(done)}
         </span>
+        {running === undefined ? null : (
+          <ElapsedNote call={running.call} separator=" · " fg={theme.rule} wash={region.wash} />
+        )}
       </text>
 
       {running === undefined ? null : <Streaming call={running.call} inner={props.inner} />}
@@ -124,7 +128,8 @@ const AloneBlock = React.memo(function AloneBlock(props: {
     opensCluster: props.opensCluster,
     ...(running ? { spinner: RUNNING } : {}),
   })
-  const room = Math.max(8, props.inner - 2 - reading.note.length - GAP)
+  const separator = reading.note === '' ? '' : ' · '
+  const room = Math.max(8, props.inner - 2 - reading.note.length - elapsedCellsOf({ call, separator }) - GAP)
   const label = tailOfPath({ path: said, cells: room })
   const pad = ' '.repeat(Math.max(0, room - [...label].length))
   /**
@@ -161,6 +166,7 @@ const AloneBlock = React.memo(function AloneBlock(props: {
         )}
         <span fg={paint.text} {...region.wash}>{`${label}${pad}`}</span>
         <span fg={paint.note} {...region.wash}>{`${' '.repeat(GAP)}${reading.note}`}</span>
+        <ElapsedNote call={call} separator={separator} fg={theme.rule} wash={region.wash} />
       </text>
       {running && !dictating ? <Streaming call={call} inner={props.inner} /> : null}
       {running ? null : (
