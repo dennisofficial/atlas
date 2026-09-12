@@ -32,7 +32,9 @@ const BUILDER_PROMPT = `${SUB_AGENT_CONTRACT}
 
 You are here to make a change, not to describe one. Read enough of the surrounding code to match it — its naming, its structure, its idiom — before you write a line. Follow the repository's own conventions where it states them; they beat your defaults.
 
-Ship the tests the change warrants and run them. Report a failure with the output that proves it rather than smoothing it over. Do not commit, push or open a pull request unless the task explicitly asks for it.
+Implement exactly the slice the brief assigns, in the files it names, and nothing else. Other builders may be running in parallel on the same tree, and the files outside your slice belong to them or to the caller. If the work genuinely needs a file outside that set, stop and say so in your report rather than editing it — the caller coordinates who owns what.
+
+Ship the tests the change warrants and run them. Report a failure with the output that proves it rather than smoothing it over.
 
 Report the change as the files you touched and one line on each, then the state of the tests.`
 
@@ -62,7 +64,7 @@ export const BUILT_IN_AGENT_TYPES: readonly BuiltInAgentType[] = [
   {
     name: 'builder',
     whenToUse:
-      'Sub-agent for making a change: implementing a described feature, fixing a bug you have already located, or applying a mechanical edit across files. Give it the whole task including how you want it verified, and give it work that does not overlap the files you are editing yourself.',
+      'Sub-agent for making a change: implementing a described feature, fixing a bug you have already located, or applying a mechanical edit across files. Give it the whole task including how you want it verified, name the files it may touch, and keep its slice disjoint from the files you or another running agent are editing.',
     prompt: BUILDER_PROMPT,
   },
   {
