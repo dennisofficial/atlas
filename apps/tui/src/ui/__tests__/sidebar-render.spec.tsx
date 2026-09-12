@@ -321,7 +321,7 @@ describe("what the sidebar says", () => {
 
     expect(frame).toContain("Refresh-token rotation");
     expect(frame).toContain("14 turns · $1.42");
-    expect(rowWith({ rows, text: "↑ 214.0k" })).toContain("↓ 22.4k");
+    expect(rowWith({ rows, text: "↑ 34.0k" })).toContain("↓ 22.4k");
     expect(frame).not.toContain("claude-");
     expect(frame).not.toContain("branch rotation");
   }, 30_000);
@@ -480,13 +480,13 @@ describe("what the sidebar says", () => {
   it("gives a child a second line carrying what it spent, in both directions", async () => {
     const rows = await rowsOf({ model: FED });
 
-    expect(rowWith({ rows, text: "↑ 48.2k" })).toContain("↓ 3.1k");
+    expect(rowWith({ rows, text: "↑ 7.2k" })).toContain("↓ 3.1k");
   }, 30_000);
 
   it("gives a measured child how full its own window has got, beside what it spent", async () => {
     const rows = await rowsOf({ model: MEASURED });
 
-    expect(rowWith({ rows, text: "↑ 48.2k" })).toContain("ctx 34%");
+    expect(rowWith({ rows, text: "↑ 7.2k" })).toContain("ctx 34%");
   }, 30_000);
 
   it("keeps the spend off the line the name and state share", async () => {
@@ -502,7 +502,7 @@ describe("what the sidebar says", () => {
   it("ends the spend line on the same column the state above it ends on", async () => {
     const rows = await rowsOf({ model: FED });
     const state = written(rowWith({ rows, text: "test-writer" })).trimEnd();
-    const spend = written(rowWith({ rows, text: "↑ 48.2k" })).trimEnd();
+    const spend = written(rowWith({ rows, text: "↑ 7.2k" })).trimEnd();
 
     expect(spend.startsWith(" ")).toBe(true);
     expect(spend.endsWith("↓ 3.1k")).toBe(true);
@@ -512,7 +512,7 @@ describe("what the sidebar says", () => {
   it("ends on the same column as the state above once a third figure joins", async () => {
     const rows = await rowsOf({ model: MEASURED });
     const state = written(rowWith({ rows, text: "test-writer" })).trimEnd();
-    const figures = written(rowWith({ rows, text: "↑ 48.2k" })).trimEnd();
+    const figures = written(rowWith({ rows, text: "↑ 7.2k" })).trimEnd();
 
     expect(figures.startsWith(" ")).toBe(true);
     expect(figures.endsWith("ctx 34%")).toBe(true);
@@ -522,7 +522,7 @@ describe("what the sidebar says", () => {
   it("draws nothing at all for a child nothing has measured", async () => {
     const rows = await rowsOf({ model: FED });
 
-    expect(rowWith({ rows, text: "↑ 48.2k" })).not.toContain("ctx");
+    expect(rowWith({ rows, text: "↑ 7.2k" })).not.toContain("ctx");
   }, 30_000);
 
   /**
@@ -563,7 +563,7 @@ describe("what the sidebar says", () => {
     const rows = await rowsOf({ model: FED });
     const frame = rows.join("\n");
 
-    expect(frame).toContain("↑ 48.2k");
+    expect(frame).toContain("↑ 7.2k");
     expect(frame).not.toContain("51.3k");
     expect(frame).not.toContain("60.7k");
   }, 30_000);
