@@ -45,6 +45,7 @@ async function spawnGrep(args: FallbackSearch & { cmd: readonly string[] }): Pro
   })
   const handleAbort = (): void => search.terminate()
   args.signal.addEventListener('abort', handleAbort, { once: true })
+  if (args.signal.aborted) handleAbort()
   try {
     const [stdout, stderr, exitCode] = await Promise.all([
       new Response(search.stdout).text(),
@@ -83,7 +84,9 @@ export async function runPosixGrep(args: FallbackSearch): Promise<SearchResult> 
   }
 
   const include = args.include === undefined ? null : new Bun.Glob(`**/${args.include}`)
-  const candidates = (await args.files.glob({ pattern: '**/*', cwd: args.searchPath, dot: true })).filter(
+  const candidates = (
+    await args.files.glob({ pattern: '**/*', cwd: args.searchPath, dot: true, signal: args.signal })
+  ).filter(
     (path) => {
       const relative = relativeToRoot(path, args.searchPath)
       return !touchesExcludedSegment(relative, args.excludeSegments) && (include === null || include.match(relative))
@@ -97,6 +100,7 @@ export async function runPosixGrep(args: FallbackSearch): Promise<SearchResult> 
   let sawError = false
   let sawMatch = false
   for (const batch of batchesOf(candidates)) {
+    if (args.signal.aborted) break
     const result = await spawnGrep({ ...args, cmd: ['grep', '-H', ...grepFlags(args), '--', ...batch] })
     stdout += result.stdout
     if (result.exitCode > NO_MATCH_EXIT_CODE) {

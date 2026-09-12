@@ -33,6 +33,7 @@ export async function walkGlob(args: {
   pattern: string
   cwd: string
   dot: boolean
+  signal?: AbortSignal
 }): Promise<string[]> {
   const { pattern, cwd } = ascendOutOf({ pattern: args.pattern, cwd: args.cwd })
   const matcher = new Bun.Glob(pattern)
@@ -53,6 +54,8 @@ export async function walkGlob(args: {
     ancestry: ReadonlySet<string>,
     hops: number,
   ): Promise<void> => {
+    if (args.signal?.aborted) return
+
     const entries = await readdir(directory, { withFileTypes: true }).catch(() => null)
     if (entries === null) return
 

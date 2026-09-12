@@ -29,6 +29,7 @@ describe('a tool call the model is still dictating', () => {
         callId: toCallId('call-1'),
         name: 'write_file',
         input: undefined,
+        at: expect.any(String),
         precededByBlocks: 1,
       },
     ])
@@ -74,6 +75,7 @@ describe('a tool call the model is still dictating', () => {
         callId: toCallId('call-1'),
         name: 'write_file',
         input: { path: 'notes.md', content: 'ab' },
+        at: expect.any(String),
         precededByBlocks: 0,
       },
     ])
@@ -87,6 +89,20 @@ describe('a tool call the model is still dictating', () => {
 
     expect(calls.map((call) => call.callId)).toEqual([toCallId('call-1')])
     expect(calls.at(0)?.input).toEqual({ path: 'a' })
+  })
+
+  it('stamps when the call opened, so the transcript can count up while it runs', () => {
+    const before = Date.now()
+    const calls = callsOf([
+      started(stepOne),
+      toolInputStart({ stepId: stepOne, callId: 'call-1', name: 'bash' }),
+    ])
+    const at = calls.at(0)?.at
+
+    expect(typeof at).toBe('string')
+    const ms = Date.parse(at ?? '')
+    expect(ms).toBeGreaterThanOrEqual(before)
+    expect(ms).toBeLessThanOrEqual(Date.now())
   })
 
   it('keeps parallel calls apart while both are being dictated', () => {

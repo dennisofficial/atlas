@@ -12,6 +12,10 @@ class WithoutRipgrep extends LocalProcessPort {
   override which(): string | null {
     return null
   }
+
+  override async vendored(): Promise<string | null> {
+    return null
+  }
 }
 
 let root = ''

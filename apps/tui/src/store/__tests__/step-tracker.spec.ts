@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EStepEnd, type StepSignal } from '@dltech/atlas-harness'
 
-import { liveSteps, stepsOfSignals } from '../in-flight-steps'
+import { liveSteps, stepsOfSignals, type InFlightStep } from '../in-flight-steps'
 import { createStepTracker } from '../step-tracker'
 import {
   ended,
@@ -23,6 +23,11 @@ const tracked = (signals: readonly StepSignal[]) => {
   return tracker
 }
 
+// A call's `at` is stamped when it opens, so the tracker and the from-scratch fold legitimately
+// disagree on the wall clock; the comparison is about everything else.
+const unstamped = (steps: InFlightStep[]): InFlightStep[] =>
+  steps.map((step) => ({ ...step, calls: step.calls.map((call) => ({ ...call, at: null })) }))
+
 describe('the step tracker', () => {
   it('lands where the from-scratch fold lands, signal by signal', () => {
     const signals: StepSignal[] = [
@@ -39,7 +44,9 @@ describe('the step tracker', () => {
 
     for (const [index, signal] of signals.entries()) {
       tracker.absorb(signal)
-      expect(tracker.live([])).toEqual(liveSteps({ steps: stepsOfSignals(signals.slice(0, index + 1)), events: [] }))
+      expect(unstamped(tracker.live([]))).toEqual(
+        unstamped(liveSteps({ steps: stepsOfSignals(signals.slice(0, index + 1)), events: [] })),
+      )
     }
   })
 

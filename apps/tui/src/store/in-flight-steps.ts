@@ -57,6 +57,7 @@ function openedCall(args: { step: ArrivingStep; callId: CallId; name: string }):
     callId: args.callId,
     name: args.name,
     input: undefined,
+    at: new Date().toISOString(),
     precededByBlocks: args.step.blocks.length,
     arriving: null,
   }
@@ -120,6 +121,7 @@ const settledCall = (call: ArrivingCall): LiveToolCall => ({
   callId: call.callId,
   name: call.name,
   input: parsedInputOf(call),
+  at: call.at,
   precededByBlocks: call.precededByBlocks,
 })
 

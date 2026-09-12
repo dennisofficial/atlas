@@ -85,7 +85,7 @@ export class GlobTool extends SchemaTool<typeof inputSchema> {
 
     let matches: readonly string[]
     try {
-      matches = await this.files.glob({ pattern, cwd: from })
+      matches = await this.files.glob({ pattern, cwd: from, signal })
     } catch (error) {
       return { ok: false, reason: `could not scan ${from} for "${pattern}": ${messageOf(error)}` }
     }

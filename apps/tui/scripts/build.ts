@@ -1,4 +1,5 @@
 import { probeSourceState, repoRootOf, sourceStampOf } from '../src/build/stamp'
+import { stageVendoredRipgrep } from './stage-ripgrep'
 
 const arg = (name: string): string | undefined => {
   const at = process.argv.indexOf(name)
@@ -26,6 +27,10 @@ if (version !== undefined && version !== '') {
     console.warn('not a git tree: building without a staleness stamp')
   }
 }
+
+const repoRoot = new URL('../../../', import.meta.url).pathname
+const staged = await stageVendoredRipgrep({ repoRoot, target: arg('--target') })
+defines.push(defineOf('ATLAS_VENDORED_RG_VERSION', staged.version))
 
 const cmd = [
   'bun',

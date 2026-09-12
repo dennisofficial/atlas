@@ -32,5 +32,10 @@ export abstract class FileSystemPort {
 
   abstract readDirectory(args: { path: string }): Promise<readonly FileSystemEntry[]>
 
-  abstract glob(args: { pattern: string; cwd: string; dot?: boolean }): Promise<readonly string[]>
+  abstract glob(args: {
+    pattern: string
+    cwd: string
+    dot?: boolean
+    signal?: AbortSignal
+  }): Promise<readonly string[]>
 }

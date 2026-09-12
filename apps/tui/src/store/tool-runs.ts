@@ -59,6 +59,8 @@ export type LiveToolCall = {
   callId: CallId
   name: string
   input: unknown
+  /** When the call opened, stamped as the first chunk of it arrived — the durable log lags behind. */
+  at: string | null
   precededByBlocks: number
 }
 
@@ -247,7 +249,7 @@ export function liveToolRuns(calls: readonly LiveToolCall[]): LiveToolRun[] {
   const runs: { precededByBlocks: number; seeds: CallSeed[] }[] = []
 
   for (const call of calls) {
-    const seed: CallSeed = { callId: call.callId, name: call.name, input: call.input, at: null }
+    const seed: CallSeed = { callId: call.callId, name: call.name, input: call.input, at: call.at }
     const open = runs.at(-1)
 
     if (open !== undefined && open.precededByBlocks === call.precededByBlocks) open.seeds.push(seed)
