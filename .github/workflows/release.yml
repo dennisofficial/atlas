@@ -30,7 +30,10 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
 
-      - run: bun install
+      # Cross-compiles three targets from one ubuntu host, and @vscode/ripgrep ships its binaries
+      # as os/cpu-gated optional packages — without the overrides only the host's rg is installed
+      # and staging the vendored binary for the darwin targets fails.
+      - run: bun install --os='*' --cpu='*'
 
       - name: typecheck and test
         run: bun run typecheck && bun run test

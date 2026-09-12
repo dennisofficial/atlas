@@ -46,6 +46,24 @@ class FakeProcesses implements ProcessPort {
   }
 }
 
+class VendoredProcesses extends FakeProcesses {
+  readonly vendoredProbes: { command: string; threadId?: ThreadId | undefined }[] = []
+
+  constructor(
+    ripgrep: string | null,
+    private readonly vendoredAnswer: string | null,
+    stdout = '',
+    exitCode = 1,
+  ) {
+    super(ripgrep, stdout, exitCode)
+  }
+
+  async vendored(args: { command: string; threadId?: ThreadId | undefined }): Promise<string | null> {
+    this.vendoredProbes.push(args)
+    return this.vendoredAnswer
+  }
+}
+
 const fakeFiles = (entries: readonly string[]): FileSystemPort => ({
   stat: async () => {
     throw new Error('ENOENT')
@@ -122,6 +140,26 @@ describe('GrepTool over a ProcessPort', () => {
     expect(outcome.ok).toBe(true)
     if (!outcome.ok) throw new Error('unreachable')
     expect(outcome.output).toMatchObject({ matches: ['/work/a.ts:2:const needle = 1'], paths: ['/work/a.ts'] })
+  })
+
+  it('prefers the vendored binary over a system ripgrep, probing with the calling thread', async () => {
+    const processes = new VendoredProcesses('/usr/bin/rg', '/vendored/rg')
+
+    const outcome = await searchWith(processes)
+
+    expect(outcome.ok).toBe(true)
+    expect(processes.spawned[0]?.cmd[0]).toBe('/vendored/rg')
+    expect(processes.vendoredProbes[0]?.threadId).toBe(toThreadId('thread-1'))
+    expect(processes.probed).toHaveLength(0)
+  })
+
+  it('uses the system ripgrep when the port has nothing vendored', async () => {
+    const processes = new VendoredProcesses('/usr/bin/rg', null)
+
+    const outcome = await searchWith(processes)
+
+    expect(outcome.ok).toBe(true)
+    expect(processes.spawned[0]?.cmd[0]).toBe('/usr/bin/rg')
   })
 
   it('carries the calling thread onto the probe and the spawn, so a router can place both', async () => {

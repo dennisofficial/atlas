@@ -5,6 +5,8 @@ import {
   type SpawnCommand,
 } from '@dltech/atlas-core'
 
+import { vendoredRipgrep } from './vendored-ripgrep'
+
 export const SIGKILL_GRACE_MS = 5_000
 
 export type LocalProcessHandle = ProcessHandle & { readonly pid: number }
@@ -81,5 +83,10 @@ export class LocalProcessPort implements ProcessPort {
   which(args: { command: string }): string | null {
     const path = process.env.PATH
     return path === undefined ? Bun.which(args.command) : Bun.which(args.command, { PATH: path })
+  }
+
+  async vendored(args: { command: string }): Promise<string | null> {
+    if (args.command !== 'rg') return null
+    return await vendoredRipgrep()
   }
 }

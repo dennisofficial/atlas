@@ -70,6 +70,9 @@ ds-bundle/
 apps/tui/bin/atlas
 packages/harness/src/discovery/*.generated.ts
 
+# The rg binary scripts/build.ts stages for `bun build --compile` to embed — per-target, never committed
+packages/harness/src/execution/vendor/
+
 # Next.js build output and TS incremental state — regenerated, never committed. Their absence here
 # is what let 7,847 stale files from the pre-`deprecated/` layout show up as untracked changes.
 .next/

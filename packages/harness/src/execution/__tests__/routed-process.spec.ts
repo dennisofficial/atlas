@@ -75,6 +75,16 @@ class ExposingProcesses extends RecordingProcesses {
   }
 }
 
+class VendoredProcesses extends RecordingProcesses {
+  constructor(answer: string | null, private readonly vendoredAnswer: string | null) {
+    super(answer)
+  }
+
+  async vendored(args: { command: string; threadId?: ThreadId | undefined }): Promise<string | null> {
+    return this.vendoredAnswer
+  }
+}
+
 const locationOf = (threadId: ThreadId | undefined): EExecutionLocation =>
   threadId === DOCKER_THREAD ? EExecutionLocation.Docker : EExecutionLocation.Host
 
@@ -124,6 +134,15 @@ describe('RoutedProcessPort', () => {
     expect(port.which({ command: 'rg', threadId: DOCKER_THREAD })).toBe('/usr/bin/rg')
     expect(port.which({ command: 'rg', threadId: HOST_THREAD })).toBe('/bin/rg')
     expect(docker.probed[0]?.threadId).toBe(DOCKER_THREAD)
+  })
+
+  it('offers the vendored binary to host threads and hides it from docker threads', async () => {
+    const local = new VendoredProcesses(null, '/vendored/rg')
+    const docker = new VendoredProcesses('/usr/bin/rg', null)
+    const port = routed({ local, docker })
+
+    expect(await port.vendored?.({ command: 'rg', threadId: HOST_THREAD })).toBe('/vendored/rg')
+    expect(await port.vendored?.({ command: 'rg', threadId: DOCKER_THREAD })).toBeNull()
   })
 
   it('routes exposePort with the thread and refuses when the chosen port cannot expose', async () => {

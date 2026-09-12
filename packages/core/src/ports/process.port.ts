@@ -29,6 +29,8 @@ export abstract class ProcessPort {
 
   abstract which(args: { command: string; threadId?: ThreadId | undefined }): string | null
 
+  vendored?(args: { command: string; threadId?: ThreadId | undefined }): Promise<string | null>
+
   exposePort?(args: {
     containerPort: number
     threadId?: ThreadId | undefined

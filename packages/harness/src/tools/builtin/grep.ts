@@ -84,11 +84,19 @@ function ripgrepSearcher(args: SearchArguments & { binary: string }): Searcher {
   }
 }
 
-function searcherFor(
-  args: SearchArguments & { processes: ProcessPort; threadId: ThreadId },
-): Searcher | null {
-  const binary = args.processes.which({ command: 'rg', threadId: args.threadId })
-  return binary === null ? null : ripgrepSearcher({ ...args, binary })
+function searcherFor(args: SearchArguments & { binary: string }): Searcher {
+  return ripgrepSearcher({ ...args })
+}
+
+async function ripgrepBinaryOf(args: {
+  processes: ProcessPort
+  threadId: ThreadId
+}): Promise<string | null> {
+  if (args.processes.vendored !== undefined) {
+    const vendored = await args.processes.vendored({ command: 'rg', threadId: args.threadId })
+    if (vendored !== null) return vendored
+  }
+  return args.processes.which({ command: 'rg', threadId: args.threadId })
 }
 
 export type GrepInput = z.output<typeof inputSchema>
@@ -222,15 +230,18 @@ export class GrepTool extends SchemaTool<typeof inputSchema> {
         }
       }
     }
-    const searcher = searcherFor({
-      pattern,
-      searchPath,
-      glob,
-      caseInsensitive: caseInsensitive ?? false,
-      context,
-      processes: this.processes,
-      threadId,
-    })
+    const binary = await ripgrepBinaryOf({ processes: this.processes, threadId })
+    const searcher =
+      binary === null
+        ? null
+        : searcherFor({
+            pattern,
+            searchPath,
+            glob,
+            caseInsensitive: caseInsensitive ?? false,
+            context,
+            binary,
+          })
 
     let stdout: string
     let stderr: string
