@@ -104,7 +104,7 @@ export function useConversation(args: {
   autoCompactAtPercent: number
   thinking: EThinkingVisibility
   tldrStatus: boolean
-  onUndone: (text: string) => void
+  onUndone: (said: PendingSaid) => void
   canWake: boolean
 }): Conversation {
   const { app, paceReveal, thinking, tldrStatus, onUndone } = args
@@ -326,12 +326,22 @@ export function useConversation(args: {
     if (queuedBack !== null) return Promise.resolve(queuedBack)
 
     const retracted = retraction.current.then(() =>
-      takeBackTrailingSaid({ log: app.log, threads: app.threads, agents: app.agents, threadId }),
+      takeBackTrailingSaid({
+        log: app.log,
+        threads: app.threads,
+        agents: app.agents,
+        threadId,
+        ...(turnDriver.workingRef.current
+          ? { interrupt: turnDriver.handleInterrupt }
+          : {}),
+      }),
     )
     retraction.current = retracted
 
     return retracted.then((takeBack) => {
       if (takeBack.type === ETakeBack.Nothing) return null
+
+      if (takeBack.type === ETakeBack.Interrupted) return null
 
       if (takeBack.type === ETakeBack.TooLate) {
         notify({
@@ -346,7 +356,7 @@ export function useConversation(args: {
       refresh()
       return takeBack.said
     })
-  }, [app.agents, app.log, app.threads, pending, refresh, threadId])
+  }, [app.agents, app.log, app.threads, pending, refresh, threadId, turnDriver])
 
   /**
    * Shell endings are not dropped on the way out: they belong to the thread that started the shell,

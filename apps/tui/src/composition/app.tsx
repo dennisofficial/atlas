@@ -22,7 +22,7 @@ import {
 } from '@dltech/atlas-core'
 import { forkConversation, type DiscoveredSkill } from '@dltech/atlas-harness'
 
-import { newestExpandableKey } from '../store'
+import { newestExpandableKey, type PendingSaid } from '../store'
 import { withContainer, withSections } from '../store/sidebar-model'
 import { accountMeterSpans } from '../ui/account-meters'
 import { accountOf, type AccountRow } from '../ui/accounts-model'
@@ -239,6 +239,9 @@ function Workspace(props: {
 
   const handleFocusComposer = useCallback(() => draft.editor.current?.focus(), [draft])
 
+  const restoreUndone = useRef<(said: PendingSaid) => void>(() => undefined)
+  const handleUndone = useCallback((said: PendingSaid) => restoreUndone.current(said), [])
+
   const conversation = useConversation({
     app: props.app,
     opened: props.opened,
@@ -246,7 +249,7 @@ function Workspace(props: {
     autoCompactAtPercent: settings.autoCompactAtPercent,
     thinking: settings.thinking,
     tldrStatus: settings.tldrStatus,
-    onUndone: draft.setValue,
+    onUndone: handleUndone,
     canWake: exitGuard.state === null,
   })
 
@@ -255,6 +258,13 @@ function Workspace(props: {
     read: props.clipboard,
     directory: pasteDirectoryOf(conversation.threadId),
   })
+
+  useEffect(() => {
+    restoreUndone.current = (said) => {
+      draft.setValue(said.text)
+      tokens.restore(restoredImages({ images: said.images, text: said.text }))
+    }
+  }, [draft, tokens])
 
   const [peeking, setPeeking] = useState(false)
   const { sidebarWidth, sidebarFoldBelow } = settings

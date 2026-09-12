@@ -54,7 +54,7 @@ export function globalBindings(handlers: GlobalHandlers): readonly KeyBinding[] 
     global({
       chord: 'up',
       hint: 'take back',
-      describe: 'take the last queued message back into the draft',
+      describe: 'take the last message back into the draft — interrupts the turn if it is still being answered',
       group: EKeyGroup.Composer,
       run: () => handlers.draftIsEmpty() && handlers.onTakeBackPending(),
     }),

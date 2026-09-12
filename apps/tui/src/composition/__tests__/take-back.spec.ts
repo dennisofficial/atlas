@@ -86,6 +86,43 @@ describe('taking back a message the loop already drained', () => {
     expect(await log.read({ threadId: THREAD })).toEqual([])
   })
 
+  it('interrupts rather than rewinding while the turn is still answering — the settle hands the text back', async () => {
+    const { log, threads, agents } = backedBy([{ type: 'user-said', text: 'start' }])
+    let interrupted = 0
+
+    const taken = await takeBackTrailingSaid({
+      log,
+      threads,
+      agents,
+      threadId: THREAD,
+      interrupt: () => void (interrupted += 1),
+    })
+
+    expect(taken).toEqual({ type: ETakeBack.Interrupted })
+    expect(interrupted).toBe(1)
+    expect((await log.read({ threadId: THREAD })).map((event) => event.type)).toEqual(['user-said'])
+  })
+
+  it('does not spend the interrupt when the tail is no longer the message', async () => {
+    const { log, threads, agents } = backedBy([
+      { type: 'user-said', text: 'start' },
+      { type: 'assistant-said', parts: [{ type: 'text', text: 'on it' }] },
+    ])
+    let interrupted = 0
+
+    const taken = await takeBackTrailingSaid({
+      log,
+      threads,
+      agents,
+      threadId: THREAD,
+      interrupt: () => void (interrupted += 1),
+    })
+
+    expect(taken.type).toBe(ETakeBack.Nothing)
+    expect(interrupted).toBe(0)
+    expect((await log.read({ threadId: THREAD })).length).toBe(2)
+  })
+
   it('finds nothing once the agent has answered — the edit is a follow-up now', async () => {
     const { log, threads, agents } = backedBy([
       { type: 'user-said', text: 'check the tests too' },

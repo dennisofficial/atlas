@@ -9,12 +9,14 @@ const wasSaid = (event: Event | undefined): event is Said => event?.type === 'us
 
 export enum ETakeBack {
   Taken = 'taken',
+  Interrupted = 'interrupted',
   Nothing = 'nothing',
   TooLate = 'too-late',
 }
 
 export type TakeBack =
   | { type: ETakeBack.Taken; said: PendingSaid }
+  | { type: ETakeBack.Interrupted }
   | { type: ETakeBack.Nothing }
   | { type: ETakeBack.TooLate }
 
@@ -28,11 +30,22 @@ export async function takeBackTrailingSaid(args: {
   threads: ThreadStorePort
   agents: AgentRegistryPort
   threadId: ThreadId
+  interrupt?: () => void
 }): Promise<TakeBack> {
   const owned = await args.log.readOwn({ threadId: args.threadId })
   const last = owned.at(-1)
 
   if (!wasSaid(last)) return { type: ETakeBack.Nothing }
+
+  /**
+   * A turn in flight has already assembled its request from this message, so deleting the row
+   * would not stop the reply — the press becomes an interrupt instead, and the driver's settle
+   * path rewinds the thread and hands the text back once the stream has actually stopped.
+   */
+  if (args.interrupt !== undefined) {
+    args.interrupt()
+    return { type: ETakeBack.Interrupted }
+  }
 
   const rewound = await rewindThread({
     log: args.log,

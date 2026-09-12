@@ -92,6 +92,35 @@ describe('typing while the turn is running', () => {
     }
   }, 60_000)
 
+  it('interrupts the turn on ↑ while the first step is still streaming, handing the prompt back', async () => {
+    const mounted = await open({ app: slowly() })
+
+    try {
+      await mounted.typeText('start')
+      mounted.pressEnter()
+
+      const running = await until({
+        holds: async () => (await mounted.frame()).includes('esc to interrupt'),
+        within: 20_000,
+      })
+      expect(running).toBe(true)
+
+      mounted.pressUp()
+
+      const returned = await until({
+        holds: async () =>
+          mounted.draftText() === 'start' &&
+          !(await mounted.frame()).includes('esc to interrupt'),
+        within: 20_000,
+      })
+
+      expect(returned).toBe(true)
+      expect(await mounted.app.log.read({ threadId: THREAD })).toEqual([])
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
   it('takes back a message the loop has taken but not yet answered, retracting it from the log', async () => {
     const mounted = await open({ app: slowly() })
 
