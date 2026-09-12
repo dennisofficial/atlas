@@ -343,6 +343,15 @@ because the plumbing's existence otherwise reads as enforcement. What it buys is
 which finds a one-line fix can simply be told to make it, instead of reporting a fix somebody else
 has to apply.
 
+**Coordination between parallel children is a briefing too.** Builders running in parallel share
+one working tree, and nothing arbitrates which one may touch a file — the contract lives in the
+prompts. The parent decomposes a change into file-disjoint slices and names the files in each
+brief, and a builder that needs a file outside its slice stops and reports rather than editing
+it. `withPathLock` (below) closes the write race between two children, but semantic ownership is
+the orchestrator's job, stated in prose rather than enforced by a claims registry. Git state is
+deliberately unaddressed: no prompt tells a child whether it may commit, so its own judgment and
+the brief decide.
+
 **A child works in the directory the parent was in when it spawned.** The worktree tools are denied
 to children, so a child's own log never holds a `worktree-entered`, and folding it with the process
 launch directory would anchor a child to a checkout the session has since left — its prompt, its
