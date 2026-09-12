@@ -155,7 +155,7 @@ describe('what the narrow value column says about a child', () => {
 
 describe('what a child cost', () => {
   it('reads both directions, because input is where a child spends', () => {
-    expect(subagentSpendLabel(counted())).toBe('↑ 48.2k  ↓ 3.1k')
+    expect(subagentSpendLabel(counted())).toBe('↑ 7.2k  ↓ 3.1k')
   })
 
   it('says the reading is missing rather than claiming the child was free', () => {
@@ -188,7 +188,7 @@ describe('what a child cost', () => {
       spend: new Map([[CHILD, counted()]]),
     })
 
-    expect(subagentSpendLabel(built[0]?.spend ?? null)).toBe('↑ 48.2k  ↓ 3.1k')
+    expect(subagentSpendLabel(built[0]?.spend ?? null)).toBe('↑ 7.2k  ↓ 3.1k')
   })
 
   it('leaves a child the map has no entry for unread rather than counted at zero', () => {
@@ -227,7 +227,7 @@ describe('the second line a child row hangs off its right edge', () => {
   it('writes what the child cost first and how full it has got to the right of it', () => {
     expect(
       subagentFigures({ spend: counted(), context: { tokens: 68_000, window: 200_000 } }),
-    ).toBe('↑ 48.2k  ↓ 3.1k  ctx 34%')
+    ).toBe('↑ 7.2k  ↓ 3.1k  ctx 34%')
   })
 
   it('writes the window reading alone when the ledger has not answered yet', () => {
@@ -237,7 +237,7 @@ describe('the second line a child row hangs off its right edge', () => {
   })
 
   it('writes the spend alone when nothing has measured the child yet', () => {
-    expect(subagentFigures({ spend: counted(), context: undefined })).toBe('↑ 48.2k  ↓ 3.1k')
+    expect(subagentFigures({ spend: counted(), context: undefined })).toBe('↑ 7.2k  ↓ 3.1k')
   })
 
   it('spends no row height on a child neither reading has reached', () => {
@@ -278,7 +278,7 @@ describe('merging the crew into a sidebar', () => {
     })
     const merged = withCrew({ model: parent, subagents: spent })
 
-    expect(subagentSpendLabel(merged.subagents?.[0]?.spend ?? null)).toBe('↑ 48.2k  ↓ 3.1k')
+    expect(subagentSpendLabel(merged.subagents?.[0]?.spend ?? null)).toBe('↑ 7.2k  ↓ 3.1k')
     expect(merged.spend).toBe(parent.spend)
   })
 
@@ -296,7 +296,7 @@ describe('merging the crew into a sidebar', () => {
     const merged = withCrew({ model: parent, subagents: measured })
     const row = merged.subagents?.[0]
 
-    expect(row === undefined ? null : subagentFigures(row)).toBe('↑ 48.2k  ↓ 3.1k  ctx 34%')
+    expect(row === undefined ? null : subagentFigures(row)).toBe('↑ 7.2k  ↓ 3.1k  ctx 34%')
     expect(merged.spend).toBe(parent.spend)
     expect(Object.keys(merged).filter((field) => !(field in parent))).toEqual(['subagents'])
   })
