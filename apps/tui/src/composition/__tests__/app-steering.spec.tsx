@@ -92,36 +92,7 @@ describe('typing while the turn is running', () => {
     }
   }, 60_000)
 
-  it('interrupts the turn on ↑ while the first step is still streaming, handing the prompt back', async () => {
-    const mounted = await open({ app: slowly() })
-
-    try {
-      await mounted.typeText('start')
-      mounted.pressEnter()
-
-      const running = await until({
-        holds: async () => (await mounted.frame()).includes('esc to interrupt'),
-        within: 20_000,
-      })
-      expect(running).toBe(true)
-
-      mounted.pressUp()
-
-      const returned = await until({
-        holds: async () =>
-          mounted.draftText() === 'start' &&
-          !(await mounted.frame()).includes('esc to interrupt'),
-        within: 20_000,
-      })
-
-      expect(returned).toBe(true)
-      expect(await mounted.app.log.read({ threadId: THREAD })).toEqual([])
-    } finally {
-      await mounted.done()
-    }
-  }, 60_000)
-
-  it('takes back a message the loop has taken but not yet answered, retracting it from the log', async () => {
+  it('leaves a message the loop has taken alone on ↑ — esc is the edit once the queue has let it go', async () => {
     const mounted = await open({ app: slowly() })
 
     try {
@@ -147,20 +118,21 @@ describe('typing while the turn is running', () => {
       expect(consumed).toBe(true)
 
       mounted.pressUp()
+      await mounted.frame()
 
-      const returned = await until({
-        holds: async () => {
-          const events = await mounted.app.log.read({ threadId: THREAD })
-          const retracted = !events.some(
-            (event) => event.type === 'user-said' && event.text === STEER,
-          )
-          return retracted && (await mounted.frame()).includes(STEER)
-        },
+      expect(mounted.draftText()).toBe('')
+
+      const settled = await until({
+        holds: async () => !(await mounted.frame()).includes('esc to interrupt'),
         within: 20_000,
       })
+      expect(settled).toBe(true)
 
-      expect(returned).toBe(true)
-      expect(mounted.app.pending.forThread({ threadId: THREAD }).getSnapshot()).toEqual([])
+      const events = await mounted.app.log.read({ threadId: THREAD })
+      const kinds = events.map((event) => event.type)
+      expect(kinds.filter((kind) => kind === 'user-said')).toEqual(['user-said', 'user-said'])
+      expect(kinds.lastIndexOf('assistant-said')).toBeGreaterThan(kinds.lastIndexOf('user-said'))
+      expect(mounted.app.turnsDriven).toBe(1)
     } finally {
       await mounted.done()
     }

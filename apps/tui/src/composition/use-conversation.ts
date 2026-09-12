@@ -36,7 +36,6 @@ import { ECompactScope } from './compact-turn'
 import { EOpenMode } from './config'
 import { useRevokeGrant } from './revoke-grant'
 import type { Renaming } from './session-rename'
-import { ETakeBack, takeBackTrailingSaid } from './take-back'
 import { terminalTitleSequence } from './terminal-title'
 import { threadHandle } from './thread-slug'
 import { userSaidDraft } from './user-said'
@@ -82,7 +81,7 @@ export type Conversation = {
     context?: readonly EventDraft[]
   }) => void
   handleQueueSettled: (entry: QueuedSettled) => void
-  handleTakeBackPending: () => Promise<PendingSaid | null> | null
+  handleTakeBackPending: () => PendingSaid | null
   handleRetry: (() => void) | null
   handleResume: (() => void) | null
   handleReportProblem: (reason: string) => void
@@ -319,44 +318,11 @@ export function useConversation(args: {
     [drive, nameSession, pending, working],
   )
 
-  const retraction = useRef<Promise<unknown>>(Promise.resolve(true))
-
-  const handleTakeBackPending = useCallback((): Promise<PendingSaid | null> | null => {
-    const queuedBack = pending.takeBackLast()
-    if (queuedBack !== null) return Promise.resolve(queuedBack)
-
-    const retracted = retraction.current.then(() =>
-      takeBackTrailingSaid({
-        log: app.log,
-        threads: app.threads,
-        agents: app.agents,
-        threadId,
-        ...(turnDriver.workingRef.current
-          ? { interrupt: turnDriver.handleInterrupt }
-          : {}),
-      }),
-    )
-    retraction.current = retracted
-
-    return retracted.then((takeBack) => {
-      if (takeBack.type === ETakeBack.Nothing) return null
-
-      if (takeBack.type === ETakeBack.Interrupted) return null
-
-      if (takeBack.type === ETakeBack.TooLate) {
-        notify({
-          key: 'take-back-too-late',
-          tone: ENoticeTone.Warn,
-          ttlMs: NOTICE_WARN_MS,
-          text: 'the agent is already answering that one — send the edit as a follow-up',
-        })
-        return null
-      }
-
-      refresh()
-      return takeBack.said
-    })
-  }, [app.agents, app.log, app.threads, pending, refresh, threadId, turnDriver])
+  /**
+   * Only the queue is taken back: once the loop has drained a message into the log, the edit route
+   * is interrupt-and-resend, not a second retraction path that would have to race the stream.
+   */
+  const handleTakeBackPending = useCallback((): PendingSaid | null => pending.takeBackLast(), [pending])
 
   /**
    * Shell endings are not dropped on the way out: they belong to the thread that started the shell,
