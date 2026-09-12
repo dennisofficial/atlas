@@ -33,10 +33,15 @@ any inference from code, and `docs/core-contract.md` holds the seams it depends 
 | ---------------------------- | -------------- | ------------------------------------------------------------- |
 | `@dltech/atlas-core`         | `zod` only     | Events, IDs, context assembly, hook and port contracts. Pure.  |
 | `@dltech/atlas-harness`      | core           | The loop, hooks, tools, model adapters, credentials, store.    |
+| `@dltech/atlas-ui`           | nothing        | Design tokens and web UI atoms; Storybook. No Atlas imports.   |
 | `@dltech/atlas` (`apps/tui`) | core, harness  | OpenTUI + React terminal app and the composition root.         |
 
-Three packages, not five. A package boundary is worth it only where the compiler should enforce a
-dependency rule.
+A package boundary is worth it only where the compiler should enforce a dependency rule.
+
+**`ui` is a design-system package, not an Atlas app package.** Its token layer (`/tokens`) is
+pure TS with no platform imports — that subpath is the contract a future Expo app consumes. Its
+atoms are honest web components (Radix + CVA + Tailwind v4); nothing in the package imports from
+`core` or `harness`.
 
 **`core` performs no I/O.** No filesystem, no network, no database, no clock, no randomness. It is
 pure functions and types. When something is hard to test, that is the signal to move the decision
