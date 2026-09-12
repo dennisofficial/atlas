@@ -22,7 +22,7 @@ import {
 } from '@dltech/atlas-core'
 import { forkConversation, type DiscoveredSkill } from '@dltech/atlas-harness'
 
-import { newestExpandableKey } from '../store'
+import { newestExpandableKey, type PendingSaid } from '../store'
 import { withContainer, withSections } from '../store/sidebar-model'
 import { accountMeterSpans } from '../ui/account-meters'
 import { accountOf, type AccountRow } from '../ui/accounts-model'
@@ -239,6 +239,9 @@ function Workspace(props: {
 
   const handleFocusComposer = useCallback(() => draft.editor.current?.focus(), [draft])
 
+  const restoreUndone = useRef<(said: PendingSaid) => void>(() => undefined)
+  const handleUndone = useCallback((said: PendingSaid) => restoreUndone.current(said), [])
+
   const conversation = useConversation({
     app: props.app,
     opened: props.opened,
@@ -246,7 +249,7 @@ function Workspace(props: {
     autoCompactAtPercent: settings.autoCompactAtPercent,
     thinking: settings.thinking,
     tldrStatus: settings.tldrStatus,
-    onUndone: draft.setValue,
+    onUndone: handleUndone,
     canWake: exitGuard.state === null,
   })
 
@@ -255,6 +258,13 @@ function Workspace(props: {
     read: props.clipboard,
     directory: pasteDirectoryOf(conversation.threadId),
   })
+
+  useEffect(() => {
+    restoreUndone.current = (said) => {
+      draft.setValue(said.text)
+      tokens.restore(restoredImages({ images: said.images, text: said.text }))
+    }
+  }, [draft, tokens])
 
   const [peeking, setPeeking] = useState(false)
   const { sidebarWidth, sidebarFoldBelow } = settings
@@ -968,20 +978,16 @@ function Workspace(props: {
   )
 
   const handleTakeBackPending = useCallback((): boolean => {
-    const taking = conversation.handleTakeBackPending()
-    if (taking === null) return false
+    const taken = conversation.handleTakeBackPending()
+    if (taken === null) return false
 
-    void taking.then((taken) => {
-      if (taken === null) return
-
-      /**
-       * A draft taken back out of the queue arrives as plain text, so its tokens come back without
-       * the extmarks that made them whole. They are re-marked from the images it carried, or a
-       * picture that survived a take-back would be the one the cursor could still walk into.
-       */
-      draft.setValue(taken.text)
-      tokens.restore(restoredImages({ images: taken.images, text: taken.text }))
-    })
+    /**
+     * A draft taken back out of the queue arrives as plain text, so its tokens come back without
+     * the extmarks that made them whole. They are re-marked from the images it carried, or a
+     * picture that survived a take-back would be the one the cursor could still walk into.
+     */
+    draft.setValue(taken.text)
+    tokens.restore(restoredImages({ images: taken.images, text: taken.text }))
     return true
   }, [conversation, draft, tokens])
 

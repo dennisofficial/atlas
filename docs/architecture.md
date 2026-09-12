@@ -343,6 +343,15 @@ because the plumbing's existence otherwise reads as enforcement. What it buys is
 which finds a one-line fix can simply be told to make it, instead of reporting a fix somebody else
 has to apply.
 
+**Coordination between parallel children is a briefing too.** Builders running in parallel share
+one working tree, and nothing arbitrates which one may touch a file — the contract lives in the
+prompts. The parent decomposes a change into file-disjoint slices and names the files in each
+brief, and a builder that needs a file outside its slice stops and reports rather than editing
+it. `withPathLock` (below) closes the write race between two children, but semantic ownership is
+the orchestrator's job, stated in prose rather than enforced by a claims registry. Git state is
+deliberately unaddressed: no prompt tells a child whether it may commit, so its own judgment and
+the brief decide.
+
 **A child works in the directory the parent was in when it spawned.** The worktree tools are denied
 to children, so a child's own log never holds a `worktree-entered`, and folding it with the process
 launch directory would anchor a child to a checkout the session has since left — its prompt, its
@@ -1213,6 +1222,7 @@ atlas/
   packages/
     core/       pure. no I/O, no clock, no randomness, no network, no database
     harness/    the loop, hooks, tools, model adapters, credentials, store
+    ui/         design tokens (pure TS, platform-agnostic) + web UI atoms + Storybook
   apps/
     tui/        OpenTUI + React, and the composition root
   docs/
@@ -1228,9 +1238,17 @@ into `core`, not to add a mock. `tui` never imports `store` or `providers` direc
 `harness` through its ports, and the composition root is the only place that knows which
 implementation is bound.
 
-Three packages, not five. A package boundary is worth it only where the compiler should enforce a
-dependency rule: `core` has no I/O, `harness` is importable without a terminal. `store` and
+A package boundary is worth it only where the compiler should enforce a dependency rule: `core` has
+no I/O, `harness` is importable without a terminal, `ui` imports nothing from Atlas. `store` and
 `providers` stay folders until something forces them out.
+
+`ui` is the design system for the future web app: tokens are the source of truth in pure TS
+(three layers — primitive, semantic, component), `tools/generate-css.ts` derives
+`src/styles/theme.css` (Tailwind v4 `@theme` + light/dark CSS variables), and a test fails if the
+stylesheet drifts from the tokens. The palette is dark-first — dark is `:root`, light is opt-in
+via `[data-theme="day"]`/`.light` — and every color traces to a value the TUI ships. Atoms are
+web components (Radix + CVA); the pure `/tokens` subpath is the only contract a future Expo app
+consumes, because atoms cannot be shared across DOM and native anyway.
 
 ### Folder structure
 

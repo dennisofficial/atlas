@@ -3,6 +3,7 @@ dist
 .turbo
 *.log
 .DS_Store
+storybook-static/
 
 # Host-rendered workspace secret material (SSH keys, etc.) — never repo content.
 .ssh/
@@ -51,6 +52,9 @@ ds-bundle/
 .ds-sync/
 
 .scratch/
+
+# Personal per-repo instructions (ATLAS.local.md etc.) — the harness loads them, git never does
+*.local.md
 
 # The repo-local state a source launch used to keep before it was pointed at ~/.atlas like the
 # shipped binary. Nothing writes here any more; the entry stays so an old checkout's secret

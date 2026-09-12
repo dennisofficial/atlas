@@ -46,7 +46,10 @@ describe('undoing the exchange an interrupted turn never answered', () => {
 
     const undone = await undoTurn({ log, threads, agents, threadId: THREAD })
 
-    expect(undone).toEqual({ type: EUndo.Restored, text: 'rewrite the loop' })
+    expect(undone).toEqual({
+      type: EUndo.Restored,
+      said: { text: 'rewrite the loop', images: [] },
+    })
     expect(await log.read({ threadId: THREAD })).toEqual([])
   })
 
@@ -59,11 +62,20 @@ describe('undoing the exchange an interrupted turn never answered', () => {
 
     const undone = await undoTurn({ log, threads, agents, threadId: THREAD })
 
-    expect(undone).toEqual({ type: EUndo.Restored, text: 'second' })
+    expect(undone).toEqual({ type: EUndo.Restored, said: { text: 'second', images: [] } })
     expect((await log.read({ threadId: THREAD })).map((event) => event.type)).toEqual([
       'user-said',
       'assistant-said',
     ])
+  })
+
+  it('hands the images back with the text, or a picture in the prompt would not survive the undo', async () => {
+    const image = { path: '/tmp/shot.png', mediaType: 'image/png', data: 'aW1hZ2U=' }
+    const { log, threads, agents } = backedBy([{ type: 'user-said', text: 'what is this?', images: [image] }])
+
+    const undone = await undoTurn({ log, threads, agents, threadId: THREAD })
+
+    expect(undone).toEqual({ type: EUndo.Restored, said: { text: 'what is this?', images: [image] } })
   })
 
   it('has nothing to undo on a thread the developer never spoke on', async () => {
