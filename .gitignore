@@ -53,6 +53,9 @@ ds-bundle/
 
 .scratch/
 
+# Personal per-repo instructions (ATLAS.local.md etc.) — the harness loads them, git never does
+*.local.md
+
 # The repo-local state a source launch used to keep before it was pointed at ~/.atlas like the
 # shipped binary. Nothing writes here any more; the entry stays so an old checkout's secret
 # material cannot be committed by accident.
