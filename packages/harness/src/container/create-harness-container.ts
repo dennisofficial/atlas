@@ -13,10 +13,12 @@ import { AgentRegistryPort } from '../agents/registry/port'
 import { AgentSupervisor } from '../agents/registry/supervisor'
 import type { AgentType } from '../agents/types/agent-type'
 import { BUILT_IN_AGENT_TYPES } from '../agents/types/built-ins'
+import { AccountStoreProxy } from '../cloud/account-store-proxy'
+import { CloudSessionStore } from '../cloud/cloud-session'
 import { ClaudeCodeSource, claudeCodePayloadStore } from '../credentials/claude-code-source'
 import { fileAccountStore } from '../credentials/account-store'
 import { builtinOauthClients } from '../credentials/oauth'
-import { atlasVaultFile, atlasVaultKeyFile } from '../credentials/paths'
+import { atlasCloudFile, atlasVaultFile, atlasVaultKeyFile } from '../credentials/paths'
 import { SecretCipher } from '../credentials/secret-cipher'
 import { FileSecretsStore } from '../secrets/file-secrets-store'
 import { atlasSecretsFile } from '../secrets/paths'
@@ -46,9 +48,11 @@ import {
 } from './injection'
 import {
   ClaudeCodeSourceToken,
+  CloudSessionStoreToken,
   HookChainToken,
   KeychainReaderToken,
   LanguageModelToken,
+  LocalAccountStoreToken,
   ModelCardSourceToken,
   PrismaClientToken,
   SecretsStoreToken,
@@ -120,13 +124,29 @@ export function createHarnessContainer(): DependencyContainer {
         resolver.resolve(portToken(IdPort)),
       ),
   })
-  harness.register(portToken(AccountStorePort), {
+  harness.register(LocalAccountStoreToken, {
     useFactory: instanceCachingFactory(
       (resolver) =>
         fileAccountStore({
           file: atlasVaultFile(),
           keyFile: atlasVaultKeyFile(),
           clock: resolver.resolve(portToken(ClockPort)),
+        }),
+    ),
+  })
+
+  harness.register(CloudSessionStoreToken, {
+    useFactory: instanceCachingFactory(
+      () => new CloudSessionStore({ file: atlasCloudFile(), keyFile: atlasVaultKeyFile() }),
+    ),
+  })
+
+  harness.register(portToken(AccountStorePort), {
+    useFactory: instanceCachingFactory(
+      (resolver) =>
+        new AccountStoreProxy({
+          local: resolver.resolve(LocalAccountStoreToken),
+          sessions: resolver.resolve(CloudSessionStoreToken),
         }),
     ),
   })

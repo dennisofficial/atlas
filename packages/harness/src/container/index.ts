@@ -10,11 +10,13 @@ export { Disposable, disposeAll, registerDisposable } from './disposal'
 export {
   ClassifierPolicyToken,
   ClaudeCodeSourceToken,
+  CloudSessionStoreToken,
   DockerEngineToken,
   HookChainToken,
   HookMishapReporterToken,
   KeychainReaderToken,
   LanguageModelToken,
+  LocalAccountStoreToken,
   ModelCardSourceToken,
   PrismaClientToken,
   ProjectSettingsStoreToken,
