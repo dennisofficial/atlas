@@ -247,4 +247,112 @@ describe('CloudClient', () => {
     expect((failure as CloudError).status).toBe(0)
     expect((failure as CloudError).message).toContain('connection refused')
   })
+
+  it('lists secrets from the collection envelope', async () => {
+    const { client, calls } = clientWith(() => ({
+      status: 200,
+      body: {
+        secrets: [{ name: 'search.tavily', value: 'tvly-1', updatedAt: '2026-01-01T00:00:00.000Z' }],
+      },
+    }))
+
+    const secrets = await client.listSecrets()
+
+    expect(calls[0]).toMatchObject({ method: 'GET', url: 'http://cloud.test/v1/secrets' })
+    expect(secrets).toEqual([
+      { name: 'search.tavily', value: 'tvly-1', updatedAt: '2026-01-01T00:00:00.000Z' },
+    ])
+  })
+
+  it('puts a secret value under its name', async () => {
+    const { client, calls } = clientWith(() => ({ status: 204 }))
+
+    await client.putSecret({ name: 'search.tavily', value: 'tvly-1' })
+
+    expect(calls[0]).toMatchObject({
+      method: 'PUT',
+      url: 'http://cloud.test/v1/secrets/search.tavily',
+      body: { value: 'tvly-1' },
+    })
+  })
+
+  it('deletes a secret by name', async () => {
+    const { client, calls } = clientWith(() => ({ status: 204 }))
+
+    await client.deleteSecret({ name: 'search.tavily' })
+
+    expect(calls[0]).toMatchObject({
+      method: 'DELETE',
+      url: 'http://cloud.test/v1/secrets/search.tavily',
+    })
+  })
+
+  it('lists mcp servers validated against the spec schema', async () => {
+    const { client, calls } = clientWith(() => ({
+      status: 200,
+      body: {
+        servers: [
+          {
+            name: 'linear',
+            transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' },
+            trusted: true,
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+          { name: 'paused', disabled: true, updatedAt: '2026-01-01T00:00:00.000Z' },
+        ],
+      },
+    }))
+
+    const servers = await client.listMcpServers()
+
+    expect(calls[0]).toMatchObject({ method: 'GET', url: 'http://cloud.test/v1/mcp-servers' })
+    expect(servers).toEqual([
+      {
+        name: 'linear',
+        transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' },
+        trusted: true,
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+      { name: 'paused', disabled: true, updatedAt: '2026-01-01T00:00:00.000Z' },
+    ])
+  })
+
+  it('rejects an mcp server entry the spec schema would not load', async () => {
+    const { client } = clientWith(() => ({
+      status: 200,
+      body: { servers: [{ name: 'broken', updatedAt: '2026-01-01T00:00:00.000Z' }] },
+    }))
+
+    await expect(client.listMcpServers()).rejects.toThrow()
+  })
+
+  it('puts an mcp server, omitting absent optional fields from the body', async () => {
+    const { client, calls } = clientWith(() => ({ status: 204 }))
+
+    await client.putMcpServer({
+      name: 'linear',
+      transport: { kind: 'stdio', command: 'npx', args: ['-y', 'linear-mcp'] },
+      trusted: true,
+    })
+
+    expect(calls[0]).toMatchObject({
+      method: 'PUT',
+      url: 'http://cloud.test/v1/mcp-servers/linear',
+      body: {
+        transport: { kind: 'stdio', command: 'npx', args: ['-y', 'linear-mcp'] },
+        trusted: true,
+      },
+    })
+  })
+
+  it('deletes an mcp server by name', async () => {
+    const { client, calls } = clientWith(() => ({ status: 204 }))
+
+    await client.deleteMcpServer({ name: 'linear' })
+
+    expect(calls[0]).toMatchObject({
+      method: 'DELETE',
+      url: 'http://cloud.test/v1/mcp-servers/linear',
+    })
+  })
 })

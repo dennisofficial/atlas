@@ -17,6 +17,7 @@ export {
   KeychainReaderToken,
   LanguageModelToken,
   LocalAccountStoreToken,
+  LocalSecretsStoreToken,
   ModelCardSourceToken,
   PrismaClientToken,
   ProjectSettingsStoreToken,

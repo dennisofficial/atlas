@@ -2,6 +2,7 @@ import { DynamicToolSource, FileSystemPort, ProcessPort, ToolDefinition } from '
 
 import { portToken, resolveSet, type DependencyContainer } from '../container/injection'
 import {
+  CloudSessionStoreToken,
   SecretsStoreToken,
   WebSearchBackendToken,
   WorktreeDirectoryToken,
@@ -114,7 +115,10 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
     useFactory: (resolver) => new SkillTool(resolver.resolve(portToken(SkillRegistryPort))),
   })
   container.register(portToken(ToolDefinition), { useClass: SkillInstallTool })
-  container.register(portToken(ToolDefinition), { useClass: McpEditTool })
+  container.register(portToken(ToolDefinition), {
+    useFactory: (resolver) =>
+      new McpEditTool({ sessions: resolver.resolve(CloudSessionStoreToken) }),
+  })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) =>
       new AgentSpawnTool(

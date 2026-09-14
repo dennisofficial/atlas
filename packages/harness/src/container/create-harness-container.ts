@@ -15,6 +15,7 @@ import type { AgentType } from '../agents/types/agent-type'
 import { BUILT_IN_AGENT_TYPES } from '../agents/types/built-ins'
 import { AccountStoreProxy } from '../cloud/account-store-proxy'
 import { CloudSessionStore } from '../cloud/cloud-session'
+import { SecretsStoreProxy } from '../cloud/secrets-store-proxy'
 import { ClaudeCodeSource, claudeCodePayloadStore } from '../credentials/claude-code-source'
 import { fileAccountStore } from '../credentials/account-store'
 import { builtinOauthClients } from '../credentials/oauth'
@@ -53,6 +54,7 @@ import {
   KeychainReaderToken,
   LanguageModelToken,
   LocalAccountStoreToken,
+  LocalSecretsStoreToken,
   ModelCardSourceToken,
   PrismaClientToken,
   SecretsStoreToken,
@@ -151,12 +153,22 @@ export function createHarnessContainer(): DependencyContainer {
     ),
   })
 
-  harness.register(SecretsStoreToken, {
+  harness.register(LocalSecretsStoreToken, {
     useFactory: instanceCachingFactory(
       () =>
         new FileSecretsStore({
           file: atlasSecretsFile(),
           cipher: new SecretCipher(atlasVaultKeyFile()),
+        }),
+    ),
+  })
+
+  harness.register(SecretsStoreToken, {
+    useFactory: instanceCachingFactory(
+      (resolver) =>
+        new SecretsStoreProxy({
+          local: resolver.resolve(LocalSecretsStoreToken),
+          sessions: resolver.resolve(CloudSessionStoreToken),
         }),
     ),
   })

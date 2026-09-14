@@ -17,6 +17,10 @@ export class FileSecretsStore implements SecretsPort {
     return this.args.file
   }
 
+  names(): string[] {
+    return Object.keys(this.load().secrets)
+  }
+
   read(name: string): string | undefined {
     const sealed = this.load().secrets[name]
     return sealed === undefined ? undefined : this.args.cipher.decrypt(sealed)

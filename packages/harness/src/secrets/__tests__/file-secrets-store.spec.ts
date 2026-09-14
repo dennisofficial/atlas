@@ -57,6 +57,17 @@ describe('the secrets store', () => {
     expect(store.read('search.exa')).toBe('two')
   })
 
+  it('lists the names it holds, and none before anything is written', () => {
+    const store = storeAt()
+    expect(store.names()).toEqual([])
+
+    store.write({ name: 'search.tavily', value: 'one' })
+    store.write({ name: 'search.exa', value: 'two' })
+    store.remove('search.tavily')
+
+    expect(store.names()).toEqual(['search.exa'])
+  })
+
   it('never leaves the secret on disk in the clear', () => {
     const file = join(directory, 'secrets.json')
     storeAt().write({ name: 'search.tavily', value: KEY })

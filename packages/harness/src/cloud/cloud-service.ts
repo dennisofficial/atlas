@@ -6,6 +6,8 @@ import {
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
+import { FileMcpSource } from '../mcp/config/sources'
+import type { FileSecretsStore } from '../secrets/file-secrets-store'
 import { CloudClient, CloudError } from './cloud-client'
 import type { CloudSession, CloudSessionStore } from './cloud-session'
 import {
@@ -18,9 +20,17 @@ const getSessionResponseSchema = z.object({
   user: z.object({ email: z.string().optional() }),
 })
 
+export type CloudLoginResult = {
+  session: CloudSession
+  imported: number
+  importedSecrets: number
+  importedMcp: number
+}
+
 export class CloudService {
   private readonly sessions: CloudSessionStore
   private readonly localAccounts: AccountStorePort
+  private readonly localSecrets: FileSecretsStore | undefined
   private readonly defaultUrl: string
   private readonly fetchFn: typeof fetch
 
@@ -28,10 +38,12 @@ export class CloudService {
     sessions: CloudSessionStore
     localAccounts: AccountStorePort
     defaultUrl: string
+    localSecrets?: FileSecretsStore
     fetchFn?: typeof fetch
   }) {
     this.sessions = args.sessions
     this.localAccounts = args.localAccounts
+    this.localSecrets = args.localSecrets
     this.defaultUrl = args.defaultUrl
     this.fetchFn = args.fetchFn ?? fetch
   }
@@ -56,7 +68,7 @@ export class CloudService {
   async finishLogin(args: {
     ticket: CloudLoginTicket
     token: string
-  }): Promise<{ session: CloudSession; imported: number }> {
+  }): Promise<CloudLoginResult> {
     const { ticket, token } = args
     const email = await this.readSignedInEmail({ url: ticket.url, token })
 
@@ -67,11 +79,13 @@ export class CloudService {
 
     try {
       const imported = await this.importLocalAccounts({ client })
-      return { session, imported }
+      const importedSecrets = await this.importLocalSecrets({ client })
+      const importedMcp = await this.importLocalMcp({ client })
+      return { session, imported, importedSecrets, importedMcp }
     } catch (cause) {
       throw new CloudError({
         status: cause instanceof CloudError ? cause.status : 0,
-        message: `Signed in to ${ticket.url}, but copying the local accounts into the cloud failed: ${cause instanceof Error ? cause.message : String(cause)}. The sign-in is kept; the accounts may be incomplete.`,
+        message: `Signed in to ${ticket.url}, but copying the local accounts, secrets and mcp servers into the cloud failed: ${cause instanceof Error ? cause.message : String(cause)}. The sign-in is kept; the copy may be incomplete.`,
       })
     }
   }
@@ -123,6 +137,40 @@ export class CloudService {
 
     await this.copyActivePointers({ remote, remoteIds })
     return remoteIds.size
+  }
+
+  private async importLocalSecrets(args: { client: CloudClient }): Promise<number> {
+    if (this.localSecrets === undefined) return 0
+
+    const existing = await args.client.listSecrets()
+    if (existing.length > 0) return 0
+
+    let imported = 0
+    for (const name of this.localSecrets.names()) {
+      const value = this.localSecrets.read(name)
+      if (value === undefined) continue
+      await args.client.putSecret({ name, value })
+      imported += 1
+    }
+    return imported
+  }
+
+  private async importLocalMcp(args: { client: CloudClient }): Promise<number> {
+    const existing = await args.client.listMcpServers()
+    if (existing.length > 0) return 0
+
+    const read = await FileMcpSource.user().load()
+    let imported = 0
+    for (const spec of read.specs) {
+      await args.client.putMcpServer({
+        name: spec.name,
+        ...(spec.transport === undefined ? {} : { transport: spec.transport }),
+        ...(spec.disabled === undefined ? {} : { disabled: spec.disabled }),
+        ...(spec.trusted === undefined ? {} : { trusted: spec.trusted }),
+      })
+      imported += 1
+    }
+    return imported
   }
 
   private async copyActivePointers(args: {
