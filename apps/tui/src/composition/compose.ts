@@ -94,6 +94,7 @@ import {
   CloudService,
   CloudSessionStoreToken,
   KeychainReaderToken,
+  SecretsStoreProxy,
   LocalAccountStoreToken,
   claudeCodePayloadStore,
   importClaudeCodeAccount,
@@ -349,6 +350,20 @@ export async function composeAtlas(args: {
 
   const credentials = container.resolve(portToken(CredentialPort))
   const accountStore = container.resolve(portToken(AccountStorePort))
+  const secrets = container.resolve(SecretsStoreToken)
+
+  if (secrets instanceof SecretsStoreProxy) {
+    try {
+      await secrets.warm()
+    } catch (error) {
+      notify({
+        key: 'cloud:secrets',
+        tone: ENoticeTone.Warn,
+        ttlMs: NOTICE_WARN_MS,
+        text: `Atlas Cloud secrets could not be loaded (${error instanceof Error ? error.message : String(error)}) — cloud-backed keys stay unread until it comes back.`,
+      })
+    }
+  }
 
   await syncEnvironmentAccounts({ accounts: accountStore, env: args.env })
   await importClaudeCodeAccount({
@@ -793,7 +808,7 @@ export async function composeAtlas(args: {
     titler: ({ text, images, signal }) => titleFor({ model: titlerModel, text, images, signal }),
     summarise,
     settings,
-    secrets: container.resolve(SecretsStoreToken),
+    secrets,
     skills: skillRegistry.all(),
     skillRegistry,
     agentTypes,
