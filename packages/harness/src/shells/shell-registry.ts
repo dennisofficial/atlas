@@ -73,6 +73,16 @@ export abstract class ShellRegistryPort {
     threadId: ThreadId
   }): string | undefined
   abstract kill(args: { shellId: string; by: EKilledBy; threadId: ThreadId }): ShellKillOutcome
+  /**
+   * A rewind disowns the shells it cut: they die with the transcript that started them, and their
+   * endings announce nothing — the rewound thread holds no tool call the announcement could
+   * belong to. Removal is the exception to every ending announcing itself.
+   */
+  abstract removeShells(args: {
+    threadId: ThreadId
+    shellIds: readonly string[]
+    by: EKilledBy
+  }): void
   abstract list(args: { threadId: ThreadId }): readonly ShellSnapshot[]
   abstract listEverywhere(): readonly ShellSnapshot[]
   abstract version(): number
@@ -265,6 +275,34 @@ export class BunShellRegistry extends ShellRegistryPort {
     return { died: true, snapshot: entry.shell.snapshot(), delta: take(entry) }
   }
 
+  removeShells({
+    threadId,
+    shellIds,
+    by,
+  }: {
+    threadId: ThreadId
+    shellIds: readonly string[]
+    by: EKilledBy
+  }): void {
+    let removed = false
+    for (const shellId of shellIds) {
+      const entry = this.entryFor({ shellId, threadId })
+      if (entry === undefined) continue
+      entry.announced = true
+      if (entry.shell.snapshot().status === EShellStatus.Running) {
+        entry.shell.kill(by)
+        const exited = entry.shell.exited
+        this.settling.add(exited)
+        void exited.finally(() => void this.settling.delete(exited))
+      }
+      this.tracked.delete(toShellId(shellId))
+      removed = true
+    }
+    if (!removed) return
+    this.notices.dropShells({ threadId, shellIds })
+    this.bump()
+  }
+
   list({ threadId }: { threadId: ThreadId }): readonly ShellSnapshot[] {
     return [...this.tracked.values()]
       .filter((entry) => entry.threadId === threadId)
@@ -364,6 +402,8 @@ export class BunShellRegistry extends ShellRegistryPort {
       threadId: args.entry.threadId,
       shell: args.shell.snapshot(),
     })
+
+    if (this.tracked.get(args.shell.shellId) !== args.entry) return
 
     if (args.entry.endingClaimed) {
       if (hooked.length > 0) {

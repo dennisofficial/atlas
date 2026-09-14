@@ -103,6 +103,7 @@ const rewoundTo = (args: { threadId: ThreadId; toSeq: number }) =>
     log: fixture.log,
     threads: fixture.threads,
     agents: fixture.agents,
+    shells: fixture.shells,
     threadId: args.threadId,
     toSeq: args.toSeq,
   })
@@ -195,7 +196,7 @@ describe('summarisation replaces the range it covers', () => {
     const threadId = await openThread([...OPENING])
     await summariseTo({ threadId, throughSeq: 2, summary: 'the opening' })
 
-    expect(await rewoundTo({ threadId, toSeq: 3 })).toEqual({ ok: true, discarded: 1 })
+    expect(await rewoundTo({ threadId, toSeq: 3 })).toEqual({ ok: true, discarded: 1, cutShells: [] })
   })
 
   it('folds an earlier summary into a later one', async () => {

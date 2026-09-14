@@ -126,6 +126,16 @@ export class ShellNoticeQueue {
     return this.noticed.get(threadId) ?? NOTHING_ANNOUNCED
   }
 
+  dropShells({ threadId, shellIds }: { threadId: ThreadId; shellIds: readonly string[] }): void {
+    if (this.queued.length === 0 || shellIds.length === 0) return
+    this.settle(
+      this.queued.filter(
+        (notice) =>
+          notice.threadId !== threadId || !shellIds.includes(notice.snapshot.shellId),
+      ),
+    )
+  }
+
   threadsAwaiting(): readonly ThreadId[] {
     return [...this.noticed.keys()]
   }

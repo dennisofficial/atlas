@@ -11,6 +11,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { compactThread } from '../../../store/compact'
+import { UnstaffedShells } from '../../../store/__tests__/harness'
 import { rewindThread } from '../../../store/rewind'
 import { openChildThread } from '../open-child'
 import {
@@ -70,6 +71,7 @@ const rewindToStart = (entry: OpenedSupervisor) =>
     log: entry.harness.log,
     threads: entry.harness.threads,
     agents: entry.supervisor,
+    shells: new UnstaffedShells(),
     threadId: entry.parent,
     toSeq: 0,
   })
@@ -148,6 +150,7 @@ describe('a sub-agent whose delegation a rewind deletes', () => {
       log: entry.harness.log,
       threads: entry.harness.threads,
       agents: entry.supervisor,
+    shells: new UnstaffedShells(),
       threadId: entry.parent,
       toSeq: 1,
     })

@@ -10,6 +10,7 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import { UnstaffedShells } from '../../../store/__tests__/harness'
 import { rewindThread } from '../../../store/rewind'
 import { openChildThread } from '../open-child'
 import {
@@ -168,6 +169,7 @@ describe('the rewind a lost child was blocking', () => {
         log: open.harness.log,
         threads: open.harness.threads,
         agents: open.supervisor,
+        shells: new UnstaffedShells(),
         threadId: open.parent,
         toSeq: 0,
       })
@@ -224,6 +226,7 @@ describe('a child thread the parent never recorded', () => {
         log: open.harness.log,
         threads: open.harness.threads,
         agents: open.supervisor,
+        shells: new UnstaffedShells(),
         threadId: open.parent,
         toSeq: 0,
       }),

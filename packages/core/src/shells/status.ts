@@ -10,6 +10,7 @@ export enum EKilledBy {
   Model = 'model',
   SessionEnd = 'session-end',
   Timeout = 'timeout',
+  Rewind = 'rewind',
   Unrecorded = 'unrecorded',
 }
 
@@ -31,6 +32,7 @@ function killEnding(killedBy: EKilledBy | undefined): string {
   if (killedBy === EKilledBy.Model) return 'was killed at your request'
   if (killedBy === EKilledBy.SessionEnd) return 'was killed because the session was closing'
   if (killedBy === EKilledBy.Timeout) return 'was killed for outliving its timeout'
+  if (killedBy === EKilledBy.Rewind) return 'was killed by a rewind'
   return 'was killed'
 }
 

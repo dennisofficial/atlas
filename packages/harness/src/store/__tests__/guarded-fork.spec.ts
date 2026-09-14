@@ -180,6 +180,7 @@ describe('rewinding across a fork boundary', () => {
       log: fixture.log,
       threads: fixture.threads,
       agents: fixture.agents,
+      shells: fixture.shells,
       threadId: forked.thread.id,
       toSeq: 1,
     })
@@ -199,6 +200,7 @@ describe('rewinding across a fork boundary', () => {
       log: fixture.log,
       threads: fixture.threads,
       agents: fixture.agents,
+      shells: fixture.shells,
       threadId: forked.thread.id,
       toSeq: 1,
     })
@@ -220,11 +222,12 @@ describe('rewinding across a fork boundary', () => {
       log: fixture.log,
       threads: fixture.threads,
       agents: fixture.agents,
+      shells: fixture.shells,
       threadId: forked.thread.id,
       toSeq: 3,
     })
 
-    expect(rewound).toEqual({ ok: true, discarded: 1 })
+    expect(rewound).toEqual({ ok: true, discarded: 1, cutShells: [] })
   })
 
   it('lets a copy fork rewind below the fork point, because it owns every row it holds', async () => {
@@ -237,11 +240,12 @@ describe('rewinding across a fork boundary', () => {
       log: fixture.log,
       threads: fixture.threads,
       agents: fixture.agents,
+      shells: fixture.shells,
       threadId: forked.thread.id,
       toSeq: 1,
     })
 
-    expect(rewound).toEqual({ ok: true, discarded: 2 })
+    expect(rewound).toEqual({ ok: true, discarded: 2, cutShells: [] })
     expect((await fixture.log.readOwn({ threadId })).length).toBe(3)
   })
 
@@ -256,10 +260,11 @@ describe('rewinding across a fork boundary', () => {
       log: fixture.log,
       threads: fixture.threads,
       agents: fixture.agents,
+      shells: fixture.shells,
       threadId: forked.thread.id,
       toSeq: 4,
     })
 
-    expect(rewound).toEqual({ ok: true, discarded: 1 })
+    expect(rewound).toEqual({ ok: true, discarded: 1, cutShells: [] })
   })
 })

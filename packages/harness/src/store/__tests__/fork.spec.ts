@@ -361,11 +361,12 @@ describe("rewinding a fork", () => {
       log: store.log,
       threads: store.threads,
       agents: store.agents,
+      shells: store.shells,
       threadId: child.id,
       toSeq: 2,
     });
 
-    expect(result).toEqual({ ok: true, discarded: 2 });
+    expect(result).toEqual({ ok: true, discarded: 2, cutShells: [] });
     expect(shapeOf(await store.log.read({ threadId: child.id }))).toEqual([
       [1, "user-said"],
       [2, "assistant-said"],
@@ -392,6 +393,7 @@ describe("rewinding a fork", () => {
       log: store.log,
       threads: store.threads,
       agents: store.agents,
+      shells: store.shells,
       threadId: child.id,
       toSeq: 3,
     });

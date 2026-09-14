@@ -3,10 +3,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import type { ThreadId, ClockPort, EventId, IdPort, RunId } from '@dltech/atlas-core'
-import { toThreadId, toCallId, toEventId, toRunId } from '@dltech/atlas-core'
+import { EKilledBy, toThreadId, toCallId, toEventId, toRunId } from '@dltech/atlas-core'
 
 import type { PrismaClient } from '../../../prisma/generated/client'
 import { AgentRegistryPort } from '../../agents/registry/port'
+import type { ShellSnapshot } from '../../shells/background-shell'
+import { ShellRegistryPort } from '../../shells/shell-registry'
 import { openAtlasDatabase, type AtlasDatabase } from '../database'
 import { PrismaThreadStore } from '../thread-store'
 import { PrismaEventLog } from '../event-log'
@@ -60,12 +62,57 @@ export class UnstaffedAgents extends AgentRegistryPort {
   }
 }
 
+export class UnstaffedShells extends ShellRegistryPort {
+  start() {
+    return { ok: false as const, reason: 'no shell registry in this fixture' }
+  }
+  read() {
+    return { ok: false as const, reason: 'no shell registry in this fixture' }
+  }
+  peek() {
+    return undefined
+  }
+  kill() {
+    return { ok: false as const, reason: 'no shell registry in this fixture' }
+  }
+  removeShells(_args: { threadId: ThreadId; shellIds: readonly string[]; by: EKilledBy }): void {}
+  list(_args: { threadId: ThreadId }): readonly ShellSnapshot[] {
+    return []
+  }
+  listEverywhere() {
+    return []
+  }
+  version() {
+    return 0
+  }
+  subscribe() {
+    return () => undefined
+  }
+  drainNotifications() {
+    return []
+  }
+  pendingNotices() {
+    return []
+  }
+  threadsAwaitingNotice() {
+    return []
+  }
+  onNotice() {
+    return () => undefined
+  }
+  forgetNotices() {}
+  closeAll() {
+    return Promise.resolve()
+  }
+}
+
 export type StoreFixture = {
   databaseUrl: string
   prisma: PrismaClient
   log: PrismaEventLog
   threads: PrismaThreadStore
   agents: AgentRegistryPort
+  shells: UnstaffedShells
   clock: SteppingClock
   reopen: () => Promise<StoreFixture>
   close: () => Promise<void>
@@ -136,6 +183,7 @@ async function attach({
     log: new PrismaEventLog(database.prisma, clock, ids),
     threads: new PrismaThreadStore(database.prisma, clock, ids),
     agents: new UnstaffedAgents(),
+    shells: new UnstaffedShells(),
     reopen: async () => {
       await database.close()
       return attach({ databaseUrl, discard, idPrefix: `${idPrefix}b` })
