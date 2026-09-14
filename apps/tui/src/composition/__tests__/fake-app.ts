@@ -35,10 +35,12 @@ import type { EventDraft } from '@dltech/atlas-core'
 import {
   AccountsService,
   builtinOauthClients,
+  CloudClient,
   CloudService,
   CloudSessionStore,
   createAccountUsageService,
   createDeltaChannel,
+  EGithubConnectPoll,
   InMemoryToolRegistry,
   memoryAccountStore,
   createSettingsService,
@@ -56,9 +58,13 @@ import {
   ENotice,
   EShellStatus,
   type AgentTypeCatalog,
+  type CloudSession,
   type EKilledBy,
   type DeltaChannel,
   type DiscoveredSkill,
+  type GithubConnection,
+  type GithubConnectPollOutcome,
+  type GithubConnectTicket,
   type PendingShellNotice,
   type ShellSnapshot,
 } from '@dltech/atlas-harness'
@@ -194,14 +200,81 @@ export const fakeAccounts = (): AccountsService => {
   })
 }
 
-export const fakeCloud = (): CloudService =>
-  new CloudService({
-    sessions: new CloudSessionStore({
+export const GITHUB_TICKET: GithubConnectTicket = {
+  deviceCode: 'device-1',
+  userCode: 'F00D-CAFE',
+  verificationUrl: 'https://github.com/login/device',
+  expiresInMs: 900_000,
+  intervalMs: 100,
+}
+
+export class FakeCloudClient extends CloudClient {
+  connection: GithubConnection | null = null
+  outcome: GithubConnectPollOutcome | null = null
+  disconnects = 0
+
+  constructor() {
+    super({ url: 'http://localhost:3400', token: 'fake-token' })
+  }
+
+  override async githubConnection(): Promise<GithubConnection | null> {
+    return this.connection
+  }
+
+  override async beginGithubConnect(): Promise<GithubConnectTicket> {
+    return GITHUB_TICKET
+  }
+
+  override async pollGithubConnect(_args: {
+    deviceCode: string
+  }): Promise<GithubConnectPollOutcome> {
+    if (this.outcome !== null) return this.outcome
+
+    const connection: GithubConnection = this.connection ?? {
+      login: 'octocat',
+      scopes: ['repo'],
+      connectedAt: '2026-01-01T00:00:00.000Z',
+    }
+    this.connection = connection
+    return { status: EGithubConnectPoll.Connected, connection }
+  }
+
+  override async disconnectGithub(): Promise<void> {
+    this.disconnects += 1
+    this.connection = null
+  }
+}
+
+class FakeCloudService extends CloudService {
+  private readonly fakeClient: CloudClient | null
+
+  constructor(args: { session: CloudSession | null; client: CloudClient | null }) {
+    const sessions = new CloudSessionStore({
       file: join(tmpdir(), `atlas-fake-cloud-${randomUUID()}.json`),
       keyFile: join(tmpdir(), `atlas-fake-cloud-${randomUUID()}.key`),
-    }),
-    localAccounts: memoryAccountStore({ clock: new SystemClock() }),
-    defaultUrl: 'http://localhost:3400',
+    })
+    if (args.session !== null) sessions.write(args.session)
+
+    super({
+      sessions,
+      localAccounts: memoryAccountStore({ clock: new SystemClock() }),
+      defaultUrl: 'http://localhost:3400',
+    })
+    this.fakeClient = args.client
+  }
+
+  override client(): CloudClient | null {
+    return this.fakeClient
+  }
+}
+
+export const fakeCloud = (args?: {
+  session?: CloudSession | null
+  client?: CloudClient | null
+}): CloudService =>
+  new FakeCloudService({
+    session: args?.session ?? null,
+    client: args?.client ?? null,
   })
 
 export type ScriptedReply = { thinking: string; reply: string }

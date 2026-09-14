@@ -27,6 +27,7 @@ import {
   askForCloudCode,
   askForCode,
   askForDeviceCode,
+  askForGithubCode,
   announced,
   backspace,
   backToList,
@@ -384,6 +385,142 @@ describe('the cloud sign-in prompt', () => {
 
     expect(cancelled.view).toBe(EAccountsView.List)
     expect(cancelled.cloudPrompt).toBeNull()
+    expect(cancelled.typed).toBe('')
+  })
+})
+
+describe('the GitHub row', () => {
+  const githubRowOf = (rows: readonly ReturnType<typeof accountRows>[number][]) =>
+    rows.find((row) => row.kind === EAccountRow.Github)
+
+  it('stays out of the list when there is no cloud session to hold the connection', () => {
+    const rows = accountRows({ accounts: [], active: {}, cloud: null })
+
+    expect(githubRowOf(rows)).toBeUndefined()
+  })
+
+  it('follows the cloud row once a session exists', () => {
+    const rows = accountRows({
+      accounts: [account({ id: 'work' })],
+      active: {},
+      cloud: { email: 'dennis@example.com' },
+      github: { connection: null, unreachable: false },
+    })
+
+    expect(rows[0]?.kind).toBe(EAccountRow.Cloud)
+    expect(rows[1]?.kind).toBe(EAccountRow.Github)
+    expect(rows[2]?.kind).toBe(EAccountRow.Account)
+  })
+
+  it('invites the connection when there is none', () => {
+    const row = githubRowOf(
+      accountRows({
+        accounts: [],
+        active: {},
+        cloud: { email: null },
+        github: { connection: null, unreachable: false },
+      }),
+    )
+    if (row === undefined) throw new Error('expected the github row')
+
+    expect(rowLabel(row)).toBe('GitHub')
+    expect(rowDetail(row)).toBe('not connected · enter to connect')
+    expect(row.active).toBe(false)
+  })
+
+  it('names the login and how to disconnect once connected', () => {
+    const row = githubRowOf(
+      accountRows({
+        accounts: [],
+        active: {},
+        cloud: { email: null },
+        github: { connection: { login: 'octocat' }, unreachable: false },
+      }),
+    )
+    if (row === undefined) throw new Error('expected the github row')
+
+    expect(rowLabel(row)).toBe('GitHub')
+    expect(rowDetail(row)).toBe('@octocat · press x to disconnect')
+  })
+
+  it('says so when Atlas Cloud could not be reached for the connection', () => {
+    const row = githubRowOf(
+      accountRows({
+        accounts: [],
+        active: {},
+        cloud: { email: null },
+        github: { connection: null, unreachable: true },
+      }),
+    )
+    if (row === undefined) throw new Error('expected the github row')
+
+    expect(rowDetail(row)).toBe("couldn't reach Atlas Cloud")
+  })
+
+  it('answers for no provider, so n and k leave it alone', () => {
+    const row = githubRowOf(
+      accountRows({
+        accounts: [],
+        active: {},
+        cloud: { email: null },
+        github: { connection: { login: 'octocat' }, unreachable: false },
+      }),
+    )
+    if (row === undefined) throw new Error('expected the github row')
+
+    expect(rowProvider(row)).toBeUndefined()
+    expect(accountOf(row)).toBeUndefined()
+  })
+})
+
+describe('the GitHub connect prompt', () => {
+  const TICKET_PROMPT = { url: 'https://github.com/login/device', userCode: 'F00D-CAFE' }
+
+  it('opens on the github device view without a code behind the prompt yet', () => {
+    const asked = askForGithubCode({ state: openAccounts({ rows: [] }) })
+
+    expect(asked.view).toBe(EAccountsView.GithubDevice)
+    expect(asked.githubPrompt).toBeNull()
+    expect(asked.cloudPrompt).toBeNull()
+    expect(asked.prompt).toBeNull()
+    expect(isPrompting(asked)).toBe(true)
+    expect(asked.busy).toBe(false)
+  })
+
+  it('shows the code and the URL once the ticket arrives', () => {
+    const asked = askForGithubCode({ state: openAccounts({ rows: [] }), prompt: TICKET_PROMPT })
+
+    expect(asked.githubPrompt?.userCode).toBe('F00D-CAFE')
+    expect(asked.githubPrompt?.url).toBe('https://github.com/login/device')
+  })
+
+  it('fails in place when the code expires', () => {
+    const asked = askForGithubCode({ state: openAccounts({ rows: [] }), prompt: TICKET_PROMPT })
+    const expired = failed({ state: asked, reason: 'that code expired.' })
+
+    expect(expired.failure).toBe('that code expired.')
+    expect(expired.view).toBe(EAccountsView.GithubDevice)
+    expect(expired.busy).toBe(false)
+  })
+
+  it('returns to the list with a notice when the connection lands', () => {
+    const asked = askForGithubCode({ state: openAccounts({ rows: [] }), prompt: TICKET_PROMPT })
+    const done = announced({
+      state: backToList(asked),
+      notice: 'Connected GitHub as @octocat.',
+    })
+
+    expect(done.view).toBe(EAccountsView.List)
+    expect(done.githubPrompt).toBeNull()
+    expect(done.notice).toBe('Connected GitHub as @octocat.')
+  })
+
+  it('leaves nothing behind when it is cancelled', () => {
+    const asked = askForGithubCode({ state: openAccounts({ rows: [] }), prompt: TICKET_PROMPT })
+    const cancelled = backToList(asked)
+
+    expect(cancelled.view).toBe(EAccountsView.List)
+    expect(cancelled.githubPrompt).toBeNull()
     expect(cancelled.typed).toBe('')
   })
 })
