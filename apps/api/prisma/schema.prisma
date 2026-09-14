@@ -25,6 +25,7 @@ model User {
   agentAccounts AgentAccount[]
   secretEntries SecretEntry[]
   mcpServers    McpServerConfig[]
+  githubConnection GithubConnection?
 }
 
 model AgentAccount {
@@ -78,6 +79,17 @@ model McpServerConfig {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, name])
+}
+
+model GithubConnection {
+  id          String   @id
+  login       String
+  scopes      String
+  sealedToken String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Session {
