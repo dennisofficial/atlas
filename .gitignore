@@ -81,3 +81,4 @@ packages/harness/src/execution/vendor/
 # is what let 7,847 stale files from the pre-`deprecated/` layout show up as untracked changes.
 .next/
 *.tsbuildinfo
+apps/api/src/generated/

@@ -1,0 +1,53 @@
+{
+  "name": "@dltech/atlas-api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "typecheck": "bun run db:generate && tsc --noEmit",
+    "test": "bun run db:generate && vitest run",
+    "build": "bun run db:generate && nest build api && tsc-alias -p tsconfig.build.json",
+    "dev": "bun run env:inject -- nest start api --watch",
+    "start:prod": "dotenvx run --strict -f envs/.env.api.$APP_TIER.enc -- node dist/src/api/main.js",
+    "env:inject": "dotenvx run -f envs/.env.api.local.enc -f envs/.env.personal --ignore=MISSING_ENV_FILE -o --strict",
+    "db:generate": "prisma generate",
+    "db:migrate": "bun run env:inject -- prisma migrate dev",
+    "db:migrate:deploy": "dotenvx run --strict -f envs/.env.api.$MIGRATE_TIER.enc -- prisma migrate deploy",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down"
+  },
+  "dependencies": {
+    "@dotenvx/dotenvx": "^1.71.0",
+    "@nestjs/common": "^11.2.1",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/core": "^11.2.1",
+    "@nestjs/platform-express": "^11.2.1",
+    "@nestjs/throttler": "^6.5.0",
+    "@prisma/adapter-pg": "7.9.1",
+    "@prisma/client": "7.9.1",
+    "@thallesp/nestjs-better-auth": "^2.4.0",
+    "better-auth": "^1.6.29",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "joi": "^18.2.3",
+    "pg": "^8.16.3",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.12",
+    "@nestjs/testing": "^11.2.1",
+    "@swc/core": "^1.13.5",
+    "@types/express": "^5.0.3",
+    "@types/node": "^26.3.0",
+    "@types/pg": "^8.15.5",
+    "@types/supertest": "^6.0.3",
+    "prisma": "7.9.1",
+    "supertest": "^7.1.4",
+    "tsc-alias": "^1.8.16",
+    "typescript": "6.0.3",
+    "unplugin-swc": "^1.5.7",
+    "vitest": "^3.2.7"
+  }
+}

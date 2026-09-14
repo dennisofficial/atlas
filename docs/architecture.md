@@ -1225,6 +1225,7 @@ atlas/
     ui/         design tokens (pure TS, platform-agnostic) + web UI atoms + Storybook
   apps/
     tui/        OpenTUI + React, and the composition root
+    api/        Atlas Cloud backend (NestJS): auth, users, credential storage
   docs/
   deprecated/   frozen reference: the previous TUI, the never-run agent-engine and the codex-sdk
                 client, and the paused backend/web/shared cloud stack with its CI and infra
@@ -1232,6 +1233,12 @@ atlas/
 ```
 
 `deprecated/` is not a Bun workspace member. It is read for prior art and never imported.
+
+`api` is the one member that does not run on Bun: Nest's DI needs legacy decorators with
+emitted metadata, which Bun's transpiler silently drops, so `api` compiles with `tsc` (CommonJS,
+NodeNext), runs on Node, and tests with vitest + unplugin-swc. It also performs no model calls —
+it holds users, organizations, and sealed credentials, and clients (the TUI first) fetch from it
+over HTTP. Its own conventions live in `apps/api/AGENTS.md`.
 
 `core` performs **no I/O**. When something is hard to test, that is the signal to move the decision
 into `core`, not to add a mock. `tui` never imports `store` or `providers` directly — it talks to
