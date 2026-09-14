@@ -12,6 +12,8 @@ import {
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
+import { mcpSpecSchema, type McpTransport, type ParsedMcpSpec } from '../mcp/config/specs'
+
 export class CloudError extends Error {
   readonly status: number
 
@@ -23,6 +25,24 @@ export class CloudError extends Error {
 }
 
 const activeAccountResponseSchema = z.object({ accountId: accountIdSchema.nullable() })
+
+const cloudSecretSchema = z.strictObject({
+  name: z.string().min(1),
+  value: z.string(),
+  updatedAt: z.string(),
+})
+
+export type CloudSecret = z.infer<typeof cloudSecretSchema>
+
+const cloudMcpServerWireSchema = z.strictObject({
+  name: mcpSpecSchema.shape.name,
+  transport: mcpSpecSchema.shape.transport,
+  disabled: mcpSpecSchema.shape.disabled,
+  trusted: mcpSpecSchema.shape.trusted,
+  updatedAt: z.string(),
+})
+
+export type CloudMcpServer = ParsedMcpSpec & { updatedAt: string }
 
 const detailFrom = (body: unknown): string | undefined => {
   if (typeof body !== 'object' || body === null) return undefined
@@ -47,6 +67,10 @@ export class CloudClient {
     this.url = args.url.replace(/\/+$/, '')
     this.token = args.token
     this.fetchFn = args.fetchFn ?? fetch
+  }
+
+  get baseUrl(): string {
+    return this.url
   }
 
   async health(): Promise<boolean> {
@@ -138,6 +162,53 @@ export class CloudClient {
     const parsed = activeAccountResponseSchema.parse(body)
 
     return parsed.accountId ?? undefined
+  }
+
+  async listSecrets(): Promise<readonly CloudSecret[]> {
+    const body = await this.request({ method: 'GET', path: '/v1/secrets' })
+    return z.strictObject({ secrets: z.array(cloudSecretSchema) }).parse(body).secrets
+  }
+
+  async putSecret(args: { name: string; value: string }): Promise<void> {
+    await this.request({
+      method: 'PUT',
+      path: `/v1/secrets/${args.name}`,
+      body: { value: args.value },
+    })
+  }
+
+  async deleteSecret(args: { name: string }): Promise<void> {
+    await this.request({ method: 'DELETE', path: `/v1/secrets/${args.name}` })
+  }
+
+  async listMcpServers(): Promise<readonly CloudMcpServer[]> {
+    const body = await this.request({ method: 'GET', path: '/v1/mcp-servers' })
+    const parsed = z.strictObject({ servers: z.array(cloudMcpServerWireSchema) }).parse(body)
+    return parsed.servers.map((server) => {
+      const { updatedAt, ...fields } = server
+      return { ...mcpSpecSchema.parse(fields), updatedAt }
+    })
+  }
+
+  async putMcpServer(args: {
+    name: string
+    transport?: McpTransport
+    disabled?: boolean
+    trusted?: boolean
+  }): Promise<void> {
+    await this.request({
+      method: 'PUT',
+      path: `/v1/mcp-servers/${args.name}`,
+      body: {
+        ...(args.transport === undefined ? {} : { transport: args.transport }),
+        ...(args.disabled === undefined ? {} : { disabled: args.disabled }),
+        ...(args.trusted === undefined ? {} : { trusted: args.trusted }),
+      },
+    })
+  }
+
+  async deleteMcpServer(args: { name: string }): Promise<void> {
+    await this.request({ method: 'DELETE', path: `/v1/mcp-servers/${args.name}` })
   }
 
   private async request(args: {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -12,6 +12,8 @@ import {
 } from '@dltech/atlas-core'
 
 import { memoryAccountStore, type AccountStore } from '../../credentials/account-store'
+import { SecretCipher } from '../../credentials/secret-cipher'
+import { FileSecretsStore } from '../../secrets/file-secrets-store'
 import { CloudError } from '../cloud-client'
 import { CloudService } from '../cloud-service'
 import { CloudSessionStore } from '../cloud-session'
@@ -39,6 +41,10 @@ type CloudFake = {
   added: Record<string, unknown>[]
   actives: { provider: string; accountId: string }[]
   remoteAccounts: Record<string, unknown>[]
+  remoteSecrets: { name: string; value: string; updatedAt: string }[]
+  putSecrets: { name: string; value: unknown }[]
+  remoteMcp: Record<string, unknown>[]
+  putMcp: { name: string; body: Record<string, unknown> }[]
 }
 
 const cloudFake = (): CloudFake => {
@@ -46,6 +52,10 @@ const cloudFake = (): CloudFake => {
     added: [],
     actives: [],
     remoteAccounts: [],
+    remoteSecrets: [],
+    putSecrets: [],
+    remoteMcp: [],
+    putMcp: [],
     fetchFn: undefined as unknown as typeof fetch,
   }
 
@@ -87,6 +97,20 @@ const cloudFake = (): CloudFake => {
       })
       return reply(204)
     }
+    if (path === '/v1/secrets' && method === 'GET') return reply(200, { secrets: fake.remoteSecrets })
+    if (path.startsWith('/v1/secrets/') && method === 'PUT') {
+      const name = path.slice('/v1/secrets/'.length)
+      fake.putSecrets.push({ name, value: body?.['value'] })
+      fake.remoteSecrets.push({ name, value: String(body?.['value']), updatedAt: '2026-01-01T00:00:00.000Z' })
+      return reply(204)
+    }
+    if (path === '/v1/mcp-servers' && method === 'GET') return reply(200, { servers: fake.remoteMcp })
+    if (path.startsWith('/v1/mcp-servers/') && method === 'PUT') {
+      const name = path.slice('/v1/mcp-servers/'.length)
+      fake.putMcp.push({ name, body: body ?? {} })
+      fake.remoteMcp.push({ name, ...(body ?? {}), updatedAt: '2026-01-01T00:00:00.000Z' })
+      return reply(204)
+    }
 
     return reply(404, { message: `unhandled ${method} ${path}` })
   }) as typeof fetch
@@ -97,22 +121,35 @@ const cloudFake = (): CloudFake => {
 let directory: string
 let sessions: CloudSessionStore
 let local: AccountStore
+let localSecrets: FileSecretsStore
+
+const realAtlasHome = process.env['ATLAS_HOME']
 
 beforeEach(() => {
   directory = mkdtempSync(join(tmpdir(), 'atlas-cloud-service-'))
+  process.env['ATLAS_HOME'] = directory
   sessions = new CloudSessionStore({
     file: join(directory, 'cloud.json'),
     keyFile: join(directory, 'key'),
   })
   local = memoryAccountStore({ clock })
+  localSecrets = new FileSecretsStore({
+    file: join(directory, 'secrets.json'),
+    cipher: new SecretCipher(join(directory, 'key')),
+  })
 })
 
 afterEach(() => {
+  if (realAtlasHome === undefined) delete process.env['ATLAS_HOME']
+  else process.env['ATLAS_HOME'] = realAtlasHome
   rmSync(directory, { recursive: true, force: true })
 })
 
 const serviceOver = (fetchFn: typeof fetch) =>
   new CloudService({ sessions, localAccounts: local, defaultUrl: URL, fetchFn })
+
+const serviceWithSecrets = (fetchFn: typeof fetch) =>
+  new CloudService({ sessions, localAccounts: local, defaultUrl: URL, localSecrets, fetchFn })
 
 const seedLocal = async () => {
   const anthropic = await local.add({
@@ -225,5 +262,72 @@ describe('CloudService', () => {
 
     service.logout()
     expect(service.session()).toBeNull()
+  })
+
+  it('finishLogin imports local secrets and the user mcp layer when the cloud is empty', async () => {
+    const fake = cloudFake()
+    const service = serviceWithSecrets(fake.fetchFn)
+    localSecrets.write({ name: 'search.tavily', value: 'tvly-1' })
+    localSecrets.write({ name: 'search.exa', value: 'exa-1' })
+    writeFileSync(
+      join(directory, 'mcp.json'),
+      JSON.stringify({
+        linear: { transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' }, trusted: true },
+        paused: { disabled: true },
+      }),
+    )
+
+    const ticket = await service.beginLogin()
+    const result = await service.finishLogin({ ticket, token: 'sess_new' })
+
+    expect(result.importedSecrets).toBe(2)
+    expect(result.importedMcp).toBe(2)
+    expect(fake.putSecrets).toEqual([
+      { name: 'search.tavily', value: 'tvly-1' },
+      { name: 'search.exa', value: 'exa-1' },
+    ])
+    expect(fake.putMcp).toEqual([
+      {
+        name: 'linear',
+        body: { transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' }, trusted: true },
+      },
+      { name: 'paused', body: { disabled: true } },
+    ])
+  })
+
+  it('finishLogin skips the secrets and mcp imports when the cloud already holds them', async () => {
+    const fake = cloudFake()
+    fake.remoteSecrets.push({ name: 'existing', value: 'v', updatedAt: '2026-01-01T00:00:00.000Z' })
+    fake.remoteMcp.push({ name: 'existing', disabled: true, updatedAt: '2026-01-01T00:00:00.000Z' })
+    const service = serviceWithSecrets(fake.fetchFn)
+    localSecrets.write({ name: 'search.tavily', value: 'tvly-1' })
+    writeFileSync(
+      join(directory, 'mcp.json'),
+      JSON.stringify({ linear: { transport: { kind: 'stdio', command: 'npx' } } }),
+    )
+
+    const ticket = await service.beginLogin()
+    const result = await service.finishLogin({ ticket, token: 'sess_new' })
+
+    expect(result.importedSecrets).toBe(0)
+    expect(result.importedMcp).toBe(0)
+    expect(fake.putSecrets).toHaveLength(0)
+    expect(fake.putMcp).toHaveLength(0)
+  })
+
+  it('finishLogin skips the secrets import when no local secrets store is wired', async () => {
+    const fake = cloudFake()
+    const service = serviceOver(fake.fetchFn)
+    writeFileSync(
+      join(directory, 'mcp.json'),
+      JSON.stringify({ linear: { transport: { kind: 'stdio', command: 'npx' } } }),
+    )
+
+    const ticket = await service.beginLogin()
+    const result = await service.finishLogin({ ticket, token: 'sess_new' })
+
+    expect(result.importedSecrets).toBe(0)
+    expect(result.importedMcp).toBe(1)
+    expect(fake.putSecrets).toHaveLength(0)
   })
 })

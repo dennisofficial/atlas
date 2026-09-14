@@ -3,6 +3,7 @@ import { stat } from 'node:fs/promises'
 import { type ToolOutcome, type ToolRun } from '@dltech/atlas-core'
 import { z } from 'zod'
 
+import { CloudError, type CloudClient } from '../../cloud/cloud-client'
 import { writeFileAtomically } from '../../files/atomic-write'
 import { compatMcpFile, projectMcpFile, userMcpFile } from '../../settings/paths'
 import {
@@ -128,6 +129,58 @@ const verbOf = (action: EMcpEditAction): string =>
       : action === EMcpEditAction.Enable
         ? 'enabled'
         : 'removed'
+
+export async function runRemote(args: {
+  input: McpEditInput
+  client: CloudClient
+}): Promise<ToolOutcome> {
+  const { input, client } = args
+  const definedIn = `${client.baseUrl}/v1/mcp-servers`
+
+  if (input.action === EMcpEditAction.Remove) {
+    try {
+      await client.deleteMcpServer({ name: input.name })
+    } catch (error) {
+      return { ok: false, reason: remoteReason(error) }
+    }
+    return {
+      ok: true,
+      output: { path: definedIn, name: input.name, action: input.action },
+      modelText: `Server ${JSON.stringify(input.name)} removed from ${definedIn}.`,
+    }
+  }
+
+  const entry = entryOf(input)
+  const checked = mcpSpecSchema.safeParse({ ...entry, name: input.name })
+  if (!checked.success) {
+    return {
+      ok: false,
+      reason: `server ${JSON.stringify(input.name)} is not writable: ${detailsOf(checked.error.issues)}`,
+    }
+  }
+
+  try {
+    await client.putMcpServer({
+      name: input.name,
+      ...(input.transport === undefined ? {} : { transport: input.transport }),
+      ...(input.action === EMcpEditAction.Disable ? { disabled: true } : {}),
+      ...(input.trusted === undefined ? {} : { trusted: input.trusted }),
+    })
+  } catch (error) {
+    return { ok: false, reason: remoteReason(error) }
+  }
+
+  return {
+    ok: true,
+    output: { path: definedIn, name: input.name, action: input.action },
+    modelText: `Server ${JSON.stringify(input.name)} ${verbOf(input.action)} in ${definedIn}.`,
+  }
+}
+
+const remoteReason = (error: unknown): string =>
+  error instanceof CloudError
+    ? error.message
+    : `The Atlas Cloud API could not be reached: ${error instanceof Error ? error.message : String(error)}`
 
 export async function run(args: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
   const { input } = args
