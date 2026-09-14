@@ -45,6 +45,7 @@ export enum ESettingId {
   ContainerIdleMinutes = 'container.idleMinutes',
   DatabaseUrl = 'store.databaseUrl',
   KeychainService = 'credentials.keychainService',
+  CloudUrl = 'cloud.url',
   AutoRestart = 'dev.autoRestart',
 }
 
@@ -576,6 +577,17 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     environmentVariable: 'ATLAS_DATABASE_URL',
     kind: ESettingKind.Text,
     fallback: '',
+  },
+  {
+    id: ESettingId.CloudUrl,
+    page: ESettingPage.Hidden,
+    group: 'Cloud',
+    label: 'Cloud API',
+    description:
+      'Where the Atlas Cloud API lives — the backend that becomes the source of truth for accounts once a cloud session is signed in. The fallback is the local development server, which is what an Atlas contributor running apps/api next to the TUI gets.',
+    environmentVariable: 'ATLAS_CLOUD_URL',
+    kind: ESettingKind.Text,
+    fallback: 'http://localhost:3400',
   },
   {
     id: ESettingId.KeychainService,

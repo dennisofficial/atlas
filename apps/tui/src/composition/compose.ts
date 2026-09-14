@@ -91,7 +91,10 @@ import {
   remotesOf,
   ClaudeCodeSource,
   ClaudeCodeSourceToken,
+  CloudService,
+  CloudSessionStoreToken,
   KeychainReaderToken,
+  LocalAccountStoreToken,
   claudeCodePayloadStore,
   importClaudeCodeAccount,
   syncEnvironmentAccounts,
@@ -263,6 +266,7 @@ export type AtlasApp = {
   summarise: Summariser
   credentials: CredentialPort
   accounts: AccountsService
+  cloud: CloudService
   channel: DeltaChannel
   runner: TurnRunner
   log: EventLogPort
@@ -355,6 +359,11 @@ export async function composeAtlas(args: {
   const accounts = new AccountsService({
     accounts: accountStore,
     clients: builtinOauthClients({ clock: container.resolve(portToken(ClockPort)) }),
+  })
+  const cloud = new CloudService({
+    sessions: container.resolve(CloudSessionStoreToken),
+    localAccounts: container.resolve(LocalAccountStoreToken),
+    defaultUrl: launchValue(ESettingId.CloudUrl) ?? 'http://localhost:3400',
   })
   const usage = createAccountUsageService({ usage: new AnthropicUsageClient({ credentials }) })
   args.settings.bindTo(container)
@@ -803,6 +812,7 @@ export async function composeAtlas(args: {
     openUrl: createUrlOpener(),
     credentials,
     accounts,
+    cloud,
     usage,
     channel,
     log,

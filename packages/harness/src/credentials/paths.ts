@@ -5,6 +5,7 @@ import { atlasDirectory } from '../store/paths'
 
 export const ATLAS_VAULT_NAME = 'auth.json'
 export const ATLAS_VAULT_KEY_NAME = 'key'
+export const ATLAS_CLOUD_NAME = 'cloud.json'
 export const CLAUDE_DIRECTORY_NAME = '.claude'
 export const CLAUDE_CREDENTIALS_NAME = '.credentials.json'
 
@@ -14,6 +15,10 @@ export function atlasVaultFile(): string {
 
 export function atlasVaultKeyFile(): string {
   return join(atlasDirectory(), ATLAS_VAULT_KEY_NAME)
+}
+
+export function atlasCloudFile(): string {
+  return join(atlasDirectory(), ATLAS_CLOUD_NAME)
 }
 
 export function claudeCredentialsFile(): string {

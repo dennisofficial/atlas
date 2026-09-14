@@ -1,22 +1,19 @@
 import React from 'react'
 
-import { providerSpec } from '@dltech/atlas-core'
-
 import {
   ACCOUNT_ROWS,
   accountsWindow,
   EAccountsView,
-  maskedKey,
-  rowDetail,
   rowKey,
-  rowLabel,
   type AccountRow,
   type AccountsState,
 } from '../accounts-model'
+import { rowDetail, rowLabel } from '../accounts-labels'
 import { type Hint } from '../hint-layout'
 import { type PressHandlers, usePress } from '../hooks/use-press'
 import { glyph, theme } from '../theme'
 import { clipSpans } from './sidebar/cells'
+import { AccountsPrompt, TextLine, Wrapped } from './accounts-prompt'
 import {
   BottomDrawer,
   drawerCells,
@@ -56,22 +53,8 @@ const DEVICE_HINTS: readonly Hint[] = [
   { key: 'esc', label: 'cancel' },
 ]
 
-export const OPEN_URL_HINT =
-  'Opened in your browser. Approve, then paste the code. Click to reopen:'
-
-function TextLine(props: {
-  spans: readonly Span[]
-  cells: number
-  press?: PressHandlers
-}): React.ReactNode {
-  return (
-    <DrawerLine {...(props.press === undefined ? {} : { press: props.press })}>
-      <text>
-        <Spans spans={clipSpans({ spans: props.spans, cells: props.cells })} />
-      </text>
-    </DrawerLine>
-  )
-}
+const showsDeviceHints = (view: EAccountsView): boolean =>
+  view === EAccountsView.DeviceCode || view === EAccountsView.CloudDevice
 
 function AccountLine(props: {
   row: AccountRow
@@ -129,127 +112,6 @@ function AccountLine(props: {
   )
 }
 
-function wrap(args: { text: string; cells: number }): readonly string[] {
-  if (args.cells <= 0) return [args.text]
-
-  return args.text.split('\n').flatMap((paragraph) => {
-    const lines: string[] = []
-    let rest = paragraph
-
-    while (rest.length > args.cells) {
-      const broke = rest.lastIndexOf(' ', args.cells)
-      const at = broke > 0 ? broke : args.cells
-      lines.push(rest.slice(0, at))
-      rest = rest.slice(broke > 0 ? at + 1 : at)
-    }
-    lines.push(rest)
-
-    return lines
-  })
-}
-
-function Wrapped(props: {
-  text: string
-  cells: number
-  fg: string
-  press?: PressHandlers
-}): React.ReactNode {
-  const lines = wrap({ text: props.text, cells: props.cells })
-
-  return (
-    <>
-      {lines.map((line, index) => (
-        <DrawerLine
-          key={`${index}-${line}`}
-          {...(props.press === undefined ? {} : { press: props.press })}
-        >
-          <text fg={props.fg}>{line}</text>
-        </DrawerLine>
-      ))}
-    </>
-  )
-}
-
-function Prompt(props: {
-  state: AccountsState
-  cells: number
-  onOpenUrl: () => void
-}): React.ReactNode {
-  const { state } = props
-  const press = usePress()
-  const provider = state.prompt === null ? null : providerSpec(state.prompt.provider).label
-  const typing = state.view === EAccountsView.ApiKey ? maskedKey(state.typed) : state.typed
-
-  return (
-    <box flexDirection="column" flexShrink={0}>
-      <DrawerHeading
-        label={state.view === EAccountsView.ApiKey ? 'Paste the api key' : 'Sign in'}
-      />
-      {state.view === EAccountsView.ApiKey ? (
-        <TextLine
-          spans={[{ text: `Paste a ${provider ?? ''} api key and press enter.`, fg: theme.hint }]}
-          cells={props.cells}
-        />
-      ) : state.view === EAccountsView.DeviceCode ? (
-        <>
-          {state.prompt?.userCode === undefined || state.prompt.userCode.length === 0 ? (
-            <TextLine
-              spans={[{ text: 'Asking OpenAI for a code…', fg: theme.hint }]}
-              cells={props.cells}
-            />
-          ) : (
-            <>
-              <TextLine
-                spans={[
-                  { text: 'Enter this code to sign in: ', fg: theme.hint },
-                  { text: state.prompt.userCode, fg: theme.bright },
-                ]}
-                cells={props.cells}
-              />
-              <Wrapped
-                text={state.prompt.url}
-                cells={props.cells}
-                fg={theme.court.external}
-                press={press(props.onOpenUrl)}
-              />
-              <TextLine
-                spans={[{ text: 'waiting for approval…', fg: theme.hint }]}
-                cells={props.cells}
-              />
-            </>
-          )}
-        </>
-      ) : (
-        <>
-          <TextLine
-            spans={[{ text: OPEN_URL_HINT, fg: theme.hint }]}
-            cells={props.cells}
-            press={press(props.onOpenUrl)}
-          />
-          <Wrapped
-            text={state.prompt?.url ?? ''}
-            cells={props.cells}
-            fg={theme.court.external}
-            press={press(props.onOpenUrl)}
-          />
-        </>
-      )}
-      {state.view === EAccountsView.DeviceCode ? null : (
-        <TextLine
-          spans={[
-            { text: `${glyph.marker} `, fg: theme.accent },
-            { text: typing.length === 0 ? 'waiting for a paste…' : typing, fg: theme.bright },
-          ]}
-          cells={props.cells}
-        />
-      )}
-      {state.busy ? (
-        <TextLine spans={[{ text: 'working…', fg: theme.hint }]} cells={props.cells} />
-      ) : null}
-    </box>
-  )
-}
-
 export function Accounts(props: {
   meters?: (row: AccountRow) => readonly Span[]
   width: number
@@ -274,7 +136,7 @@ export function Accounts(props: {
           <DrawerHints
             hints={
               prompting
-                ? props.state.view === EAccountsView.DeviceCode
+                ? showsDeviceHints(props.state.view)
                   ? DEVICE_HINTS
                   : PROMPT_HINTS
                 : LIST_HINTS
@@ -310,7 +172,9 @@ export function Accounts(props: {
           </>
         )}
       </box>
-      {prompting ? <Prompt state={props.state} cells={cells} onOpenUrl={props.onOpenUrl} /> : null}
+      {prompting ? (
+        <AccountsPrompt state={props.state} cells={cells} onOpenUrl={props.onOpenUrl} />
+      ) : null}
       {props.state.notice === null ? null : (
         <box flexDirection="column" flexShrink={0}>
           <Wrapped text={props.state.notice} cells={cells} fg={theme.hint} />
