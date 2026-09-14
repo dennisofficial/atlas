@@ -33,6 +33,7 @@ export class CloudService {
   private readonly localSecrets: FileSecretsStore | undefined
   private readonly defaultUrl: string
   private readonly fetchFn: typeof fetch
+  private cached: { token: string; client: CloudClient } | undefined
 
   constructor(args: {
     sessions: CloudSessionStore
@@ -50,6 +51,23 @@ export class CloudService {
 
   session(): CloudSession | null {
     return this.sessions.read()
+  }
+
+  client(): CloudClient | null {
+    const session = this.sessions.read()
+    if (session === null) {
+      this.cached = undefined
+      return null
+    }
+
+    if (this.cached?.token !== session.token) {
+      this.cached = {
+        token: session.token,
+        client: new CloudClient({ url: session.url, token: session.token, fetchFn: this.fetchFn }),
+      }
+    }
+
+    return this.cached.client
   }
 
   async beginLogin(args?: { url?: string }): Promise<CloudLoginTicket> {
