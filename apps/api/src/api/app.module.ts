@@ -8,6 +8,8 @@ import { CryptoModule } from '@lib/crypto/crypto.module'
 import { AccountsModule } from './accounts/accounts.module'
 import { AuthModule } from './auth/auth.module'
 import { HealthController } from './health/health.controller'
+import { McpServersModule } from './mcp-servers/mcp-servers.module'
+import { SecretsModule } from './secrets/secrets.module'
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { HealthController } from './health/health.controller'
     CryptoModule,
     AuthModule,
     AccountsModule,
+    SecretsModule,
+    McpServersModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
