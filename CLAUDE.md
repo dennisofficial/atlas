@@ -35,6 +35,7 @@ any inference from code, and `docs/core-contract.md` holds the seams it depends 
 | `@dltech/atlas-harness`      | core           | The loop, hooks, tools, model adapters, credentials, store.    |
 | `@dltech/atlas-ui`           | nothing        | Design tokens and web UI atoms; Storybook. No Atlas imports.   |
 | `@dltech/atlas` (`apps/tui`) | core, harness  | OpenTUI + React terminal app and the composition root.         |
+| `@dltech/atlas-api` (`apps/api`) | nothing in-repo | Atlas Cloud backend (NestJS + better-auth + Prisma/Neon). |
 
 A package boundary is worth it only where the compiler should enforce a dependency rule.
 
@@ -49,6 +50,11 @@ into `core`, not to add a mock.
 
 **`tui` never reaches past `harness`.** It talks to `harness` through its ports. The composition
 root in `apps/tui/src/composition` is the only place that knows which implementation is bound.
+
+**`api` runs on Node, not Bun, and tests with vitest, not `bun test`.** Nest's dependency
+injection needs legacy decorators with emitted metadata, which Bun's transpiler silently drops —
+this is the same constraint that bars tsyringe decorators elsewhere in the repo, answered the
+other way. `apps/api/AGENTS.md` holds its conventions (env tiers, module layout, testing tiers).
 
 ## `deprecated/`
 
