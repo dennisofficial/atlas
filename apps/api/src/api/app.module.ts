@@ -7,6 +7,7 @@ import { envConfigValidation } from '@core/config/env/validation'
 import { CryptoModule } from '@lib/crypto/crypto.module'
 import { AccountsModule } from './accounts/accounts.module'
 import { AuthModule } from './auth/auth.module'
+import { GithubModule } from './github/github.module'
 import { HealthController } from './health/health.controller'
 import { McpServersModule } from './mcp-servers/mcp-servers.module'
 import { SecretsModule } from './secrets/secrets.module'
@@ -23,6 +24,7 @@ import { SecretsModule } from './secrets/secrets.module'
     AccountsModule,
     SecretsModule,
     McpServersModule,
+    GithubModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

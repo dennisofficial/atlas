@@ -315,6 +315,30 @@ describe('CloudService', () => {
     expect(fake.putMcp).toHaveLength(0)
   })
 
+  it('client is null when signed out', () => {
+    const service = serviceOver(cloudFake().fetchFn)
+
+    expect(service.client()).toBeNull()
+  })
+
+  it('client caches one CloudClient per session token', () => {
+    const service = serviceOver(cloudFake().fetchFn)
+    sessions.write({ url: URL, token: 'sess_a', email: null })
+
+    const first = service.client()
+
+    expect(first).not.toBeNull()
+    expect(service.client()).toBe(first)
+
+    sessions.write({ url: URL, token: 'sess_b', email: null })
+
+    const rebuilt = service.client()
+
+    expect(rebuilt).not.toBe(first)
+    expect(service.client()).toBe(rebuilt)
+    expect(rebuilt?.baseUrl).toBe(URL)
+  })
+
   it('finishLogin skips the secrets import when no local secrets store is wired', async () => {
     const fake = cloudFake()
     const service = serviceOver(fake.fetchFn)

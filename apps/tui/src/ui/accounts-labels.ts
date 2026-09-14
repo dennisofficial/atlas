@@ -66,13 +66,21 @@ const cloudDetail = (row: Extract<AccountRow, { kind: EAccountRow.Cloud }>): str
   return `${row.session.email ?? 'signed in'} · press x to sign out`
 }
 
+const githubDetail = (row: Extract<AccountRow, { kind: EAccountRow.Github }>): string => {
+  if (row.github.unreachable) return "couldn't reach Atlas Cloud"
+  if (row.github.connection === null) return 'not connected · enter to connect'
+  return `@${row.github.connection.login} · press x to disconnect`
+}
+
 export const rowLabel = (row: AccountRow): string => {
   if (row.kind === EAccountRow.Cloud) return 'Atlas Cloud'
+  if (row.kind === EAccountRow.Github) return 'GitHub'
   return row.kind === EAccountRow.Account ? row.account.label : providerSpec(row.provider).label
 }
 
 export const rowDetail = (row: AccountRow): string => {
   if (row.kind === EAccountRow.Cloud) return cloudDetail(row)
+  if (row.kind === EAccountRow.Github) return githubDetail(row)
   return row.kind === EAccountRow.Account ? accountDetail(row.account) : signedOutDetail(row.provider)
 }
 

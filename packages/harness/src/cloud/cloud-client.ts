@@ -13,16 +13,19 @@ import {
 import { z } from 'zod'
 
 import { mcpSpecSchema, type McpTransport, type ParsedMcpSpec } from '../mcp/config/specs'
+import { cloudRequest } from './cloud-transport'
+import {
+  githubConnectPollOutcomeFrom,
+  githubConnectPollResponseSchema,
+  githubConnectTicketSchema,
+  githubStateResponseSchema,
+  githubTokenResponseSchema,
+  type GithubConnectPollOutcome,
+  type GithubConnectTicket,
+  type GithubConnection,
+} from './github-connect'
 
-export class CloudError extends Error {
-  readonly status: number
-
-  constructor(args: { status: number; message: string }) {
-    super(args.message)
-    this.name = 'CloudError'
-    this.status = args.status
-  }
-}
+export { CloudError } from './cloud-transport'
 
 const activeAccountResponseSchema = z.object({ accountId: accountIdSchema.nullable() })
 
@@ -43,20 +46,6 @@ const cloudMcpServerWireSchema = z.strictObject({
 })
 
 export type CloudMcpServer = ParsedMcpSpec & { updatedAt: string }
-
-const detailFrom = (body: unknown): string | undefined => {
-  if (typeof body !== 'object' || body === null) return undefined
-
-  const message = Reflect.get(body, 'message')
-  if (typeof message === 'string' && message.length > 0) return message
-  if (Array.isArray(message) && message.every((part) => typeof part === 'string'))
-    return message.join('; ')
-
-  const error = Reflect.get(body, 'error')
-  if (typeof error === 'string' && error.length > 0) return error
-
-  return undefined
-}
 
 export class CloudClient {
   private readonly url: string
@@ -211,50 +200,55 @@ export class CloudClient {
     await this.request({ method: 'DELETE', path: `/v1/mcp-servers/${args.name}` })
   }
 
-  private async request(args: {
+  async beginGithubConnect(): Promise<GithubConnectTicket> {
+    const body = await this.request({ method: 'POST', path: '/v1/github/connect/begin' })
+    return githubConnectTicketSchema.parse(body)
+  }
+
+  async pollGithubConnect(args: { deviceCode: string }): Promise<GithubConnectPollOutcome> {
+    const body = await this.request({
+      method: 'POST',
+      path: '/v1/github/connect/poll',
+      body: { deviceCode: args.deviceCode },
+    })
+    return githubConnectPollOutcomeFrom(githubConnectPollResponseSchema.parse(body))
+  }
+
+  async githubConnection(): Promise<GithubConnection | null> {
+    const body = await this.request({ method: 'GET', path: '/v1/github' })
+    const parsed = githubStateResponseSchema.parse(body)
+    if (!parsed.connected) return null
+    return { login: parsed.login, scopes: parsed.scopes, connectedAt: parsed.connectedAt }
+  }
+
+  async githubToken(): Promise<string | undefined> {
+    const body = await this.request({
+      method: 'GET',
+      path: '/v1/github/token',
+      allowMissing: true,
+    })
+    if (body === undefined) return undefined
+    return githubTokenResponseSchema.parse(body).token
+  }
+
+  async disconnectGithub(): Promise<void> {
+    await this.request({ method: 'DELETE', path: '/v1/github' })
+  }
+
+  private request(args: {
     method: string
     path: string
     body?: unknown
     allowMissing?: boolean
   }): Promise<unknown> {
-    let response: Response
-    try {
-      response = await this.fetchFn(`${this.url}${args.path}`, {
-        method: args.method,
-        headers: {
-          authorization: `Bearer ${this.token}`,
-          ...(args.body === undefined ? {} : { 'content-type': 'application/json' }),
-        },
-        ...(args.body === undefined ? {} : { body: JSON.stringify(args.body) }),
-      })
-    } catch (cause) {
-      throw new CloudError({
-        status: 0,
-        message: `The Atlas Cloud API at ${this.url} could not be reached: ${cause instanceof Error ? cause.message : String(cause)}.`,
-      })
-    }
-
-    const text = await response.text()
-    const parsed: unknown = text.length === 0 ? undefined : safeJson(text)
-
-    if (response.status === 404 && args.allowMissing === true) return undefined
-
-    if (!response.ok) {
-      const detail = detailFrom(parsed)
-      throw new CloudError({
-        status: response.status,
-        message: `The Atlas Cloud API answered ${args.method} ${args.path} with ${response.status}${detail === undefined ? '' : `: ${detail}`}.`,
-      })
-    }
-
-    return parsed
-  }
-}
-
-const safeJson = (text: string): unknown => {
-  try {
-    return JSON.parse(text)
-  } catch {
-    return undefined
+    return cloudRequest({
+      url: this.url,
+      token: this.token,
+      fetchFn: this.fetchFn,
+      method: args.method,
+      path: args.path,
+      ...(args.body === undefined ? {} : { body: args.body }),
+      ...(args.allowMissing === undefined ? {} : { allowMissing: args.allowMissing }),
+    })
   }
 }

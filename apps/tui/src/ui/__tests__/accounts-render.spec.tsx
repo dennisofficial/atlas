@@ -73,6 +73,7 @@ const stateWith = (rows: readonly AccountRow[]): AccountsState => ({
   rows,
   prompt: null,
   cloudPrompt: null,
+  githubPrompt: null,
   typed: '',
   notice: null,
   failure: null,
@@ -180,6 +181,46 @@ describe('an account row', () => {
     const second = rows.findIndex((row) => row.includes('dennis@trycomp.ai'))
 
     expect(second).toBe(first + 3)
+  })
+})
+
+describe('the GitHub row and prompt', () => {
+  const cloudRow: AccountRow = {
+    kind: EAccountRow.Cloud,
+    session: { email: 'dennis@example.com' },
+    active: false,
+  }
+
+  it('renders the row under Atlas Cloud with the connect invitation', async () => {
+    const githubRow: AccountRow = {
+      kind: EAccountRow.Github,
+      github: { connection: null, unreachable: false },
+      active: false,
+    }
+
+    const rows = await rowsOf({ state: stateWith([cloudRow, githubRow]) })
+
+    const cloud = rows.findIndex((row) => row.includes('Atlas Cloud'))
+    const github = rows.findIndex((row) => row.includes('GitHub'))
+
+    expect(github).toBe(cloud + 2)
+    expect(lineWith(rows, 'not connected')).toContain('enter to connect')
+  })
+
+  it('shows the device code and URL while a connection waits, with no typing line', async () => {
+    const state: AccountsState = {
+      ...stateWith([]),
+      view: EAccountsView.GithubDevice,
+      githubPrompt: { url: 'https://github.com/login/device', userCode: 'F00D-CAFE' },
+    }
+
+    const rows = await rowsOf({ state })
+    const frame = rows.join('\n')
+
+    expect(frame).toContain('F00D-CAFE')
+    expect(frame).toContain('github.com/login/device')
+    expect(frame).toContain('waiting for approval')
+    expect(frame).not.toContain('waiting for a paste')
   })
 })
 

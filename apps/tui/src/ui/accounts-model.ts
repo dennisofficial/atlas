@@ -10,6 +10,7 @@ export enum EAccountsView {
   PastedCode = 'pasted-code',
   DeviceCode = 'device-code',
   CloudDevice = 'cloud-device',
+  GithubDevice = 'github-device',
   ApiKey = 'api-key',
 }
 
@@ -25,9 +26,14 @@ export enum EAccountRow {
   Account = 'account',
   SignedOut = 'signed-out',
   Cloud = 'cloud',
+  Github = 'github',
 }
 
 export type CloudIdentity = { email: string | null }
+
+export type GithubIdentity = { login: string }
+
+export type GithubRowState = { connection: GithubIdentity | null; unreachable: boolean }
 
 /**
  * A provider Atlas can answer for but nothing has signed into still gets a row, because the sign-in
@@ -39,9 +45,10 @@ export type AccountRow =
   | { kind: EAccountRow.Account; account: Account; active: boolean }
   | { kind: EAccountRow.SignedOut; provider: EAuthProvider; active: false }
   | { kind: EAccountRow.Cloud; session: CloudIdentity | null; active: false }
+  | { kind: EAccountRow.Github; github: GithubRowState; active: false }
 
 export const rowProvider = (row: AccountRow): EAuthProvider | undefined => {
-  if (row.kind === EAccountRow.Cloud) return undefined
+  if (row.kind === EAccountRow.Cloud || row.kind === EAccountRow.Github) return undefined
   return row.kind === EAccountRow.Account ? row.account.provider : row.provider
 }
 
@@ -50,6 +57,7 @@ export const accountOf = (row: AccountRow): Account | undefined =>
 
 export const rowKey = (row: AccountRow): string => {
   if (row.kind === EAccountRow.Cloud) return 'cloud'
+  if (row.kind === EAccountRow.Github) return 'github'
   return row.kind === EAccountRow.Account ? String(row.account.id) : `signed-out:${row.provider}`
 }
 
@@ -70,6 +78,7 @@ export type AccountsState = {
   rows: readonly AccountRow[]
   prompt: AccountsPrompt | null
   cloudPrompt: CloudPrompt | null
+  githubPrompt: CloudPrompt | null
   typed: string
   notice: string | null
   failure: string | null
@@ -99,6 +108,7 @@ export function accountRows(args: {
   accounts: readonly Account[]
   active: Partial<Record<EAuthProvider, AccountId | undefined>>
   cloud: CloudIdentity | null
+  github?: GithubRowState | undefined
 }): readonly AccountRow[] {
   const held = new Set(args.accounts.map((account) => account.provider))
 
@@ -118,9 +128,14 @@ export function accountRows(args: {
   ]
 
   const cloudRow: AccountRow = { kind: EAccountRow.Cloud, session: args.cloud, active: false }
+  const githubRows: AccountRow[] =
+    args.github === undefined
+      ? []
+      : [{ kind: EAccountRow.Github, github: args.github, active: false }]
 
   return [
     cloudRow,
+    ...githubRows,
     ...rows.sort(
       (left, right) =>
         rank(left) - rank(right) ||
@@ -142,6 +157,7 @@ export function openAccounts(args: {
     rows: args.rows,
     prompt: null,
     cloudPrompt: null,
+    githubPrompt: null,
     typed: '',
     notice: args.notice ?? null,
     failure: null,
@@ -209,6 +225,21 @@ export function askForCloudCode(args: {
   }
 }
 
+export function askForGithubCode(args: {
+  state: AccountsState
+  prompt?: CloudPrompt | undefined
+}): AccountsState {
+  return {
+    ...args.state,
+    view: EAccountsView.GithubDevice,
+    githubPrompt: args.prompt ?? null,
+    typed: '',
+    failure: null,
+    notice: null,
+    busy: false,
+  }
+}
+
 export function askForApiKey(args: {
   state: AccountsState
   provider: EAuthProvider
@@ -232,7 +263,8 @@ export function backspace(state: AccountsState): AccountsState {
 }
 
 export function backToList(state: AccountsState): AccountsState {
-  return { ...state, view: EAccountsView.List, prompt: null, cloudPrompt: null, typed: '', busy: false }
+  const cleared = { prompt: null, cloudPrompt: null, githubPrompt: null }
+  return { ...state, ...cleared, view: EAccountsView.List, typed: '', busy: false }
 }
 
 export function working(state: AccountsState): AccountsState {
