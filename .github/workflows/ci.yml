@@ -9,15 +9,54 @@ permissions:
   contents: read
   packages: read
 
+env:
+  ATLAS_HOME: ${{ github.workspace }}/.atlas-home
+  NODE_ENV: development
+
 jobs:
   check:
     runs-on: ubuntu-latest
-    env:
-      ATLAS_HOME: ${{ github.workspace }}/.atlas-home
-      NODE_ENV: development
-      # Fewer shards than cores: parallel bun processes starve the settle-based
-      # render specs into flakes on the 4-core runner
-      ATLAS_TEST_SHARDS: '2'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - run: bun install
+
+      - name: typecheck
+        run: bun run typecheck
+
+      - name: build binary
+        run: bun run build
+
+  # One TUI shard per runner: parallel bun processes on one 4-core runner starve the
+  # settle-based render specs into flakes, but separate runners have separate cores
+  test-tui:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - run: bun install
+
+      - name: generate the harness prisma client
+        run: bun run db:ensure
+        working-directory: packages/harness
+
+      - name: tui shard ${{ matrix.shard }} of 2
+        run: bun run test
+        working-directory: apps/tui
+        env:
+          ATLAS_TEST_SHARDS: '2'
+          ATLAS_TEST_SHARD: ${{ matrix.shard }}
+
+  test-packages:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -36,11 +75,5 @@ jobs:
           docker pull ghcr.io/${{ github.repository_owner }}/atlas-sandbox:latest
           docker pull node:22-slim
 
-      - name: typecheck
-        run: bun run typecheck
-
-      - name: test
-        run: bun run test --concurrency 1 --output-logs=full
-
-      - name: build binary
-        run: bun run build
+      - name: test core, harness, ui, api
+        run: bun run test --filter='!@dltech/atlas' --concurrency 1 --output-logs=full
