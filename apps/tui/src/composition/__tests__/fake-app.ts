@@ -54,7 +54,9 @@ import {
   SystemClock,
   EMPTY_AGENT_TYPE_CATALOG,
   ENotice,
+  EShellStatus,
   type AgentTypeCatalog,
+  type EKilledBy,
   type DeltaChannel,
   type DiscoveredSkill,
   type PendingShellNotice,
@@ -291,6 +293,7 @@ export type FakeShells = ShellRegistryPort & {
   announce: (snapshot: ShellSnapshot, owner?: ThreadId) => void
   poke: () => void
   readonly killed: readonly string[]
+  readonly removed: readonly { shellId: string; by: EKilledBy }[]
 }
 
 const NO_NOTICES: readonly PendingShellNotice[] = Object.freeze([])
@@ -303,6 +306,7 @@ export function fakeShellRegistry(): FakeShells {
   const owned: OwnedShell[] = []
   const printed = new Map<string, string>()
   const killed: string[] = []
+  const removed: { shellId: string; by: EKilledBy }[] = []
   const listeners = new Set<() => void>()
   const revisionListeners = new Set<() => void>()
   let revision = 0
@@ -347,6 +351,10 @@ export function fakeShellRegistry(): FakeShells {
   return {
     get killed() {
       return killed
+    },
+
+    get removed() {
+      return removed
     },
 
     place: (snapshot, owner = FAKE_SHELL_OWNER) => {
@@ -396,6 +404,24 @@ export function fakeShellRegistry(): FakeShells {
       if (snapshot === undefined) return { ok: false, reason: `no shell ${shellId}` }
       killed.push(shellId)
       return { ok: true, snapshot }
+    },
+
+    removeShells: ({ threadId, shellIds, by }) => {
+      let removedAny = false
+      for (let index = owned.length - 1; index >= 0; index -= 1) {
+        const one = owned[index]
+        if (one === undefined || one.threadId !== threadId) continue
+        if (!shellIds.includes(one.snapshot.shellId)) continue
+        if (one.snapshot.status === EShellStatus.Running) killed.push(one.snapshot.shellId)
+        removed.push({ shellId: one.snapshot.shellId, by })
+        owned.splice(index, 1)
+        removedAny = true
+      }
+      const keptEnded = ended.filter(
+        (one) => one.threadId !== threadId || !shellIds.includes(one.snapshot.shellId),
+      )
+      if (keptEnded.length !== ended.length) settle(keptEnded)
+      if (removedAny) bump()
     },
 
     list: ({ threadId }) =>

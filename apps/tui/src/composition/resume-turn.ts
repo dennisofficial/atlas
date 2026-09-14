@@ -1,5 +1,5 @@
 import { EResume, resumePlan, type Event, type EventLogPort, type ThreadId } from '@dltech/atlas-core'
-import { rewindThread, type AgentRegistryPort, type ThreadStorePort } from '@dltech/atlas-harness'
+import { rewindThread, type AgentRegistryPort, type ShellRegistryPort, type ThreadStorePort } from '@dltech/atlas-harness'
 
 export enum EDiscard {
   Discarded = 'discarded',
@@ -16,9 +16,10 @@ export async function discardInterrupted(args: {
   log: EventLogPort
   threads: ThreadStorePort
   agents: AgentRegistryPort
+  shells: ShellRegistryPort
   threadId: ThreadId
 }): Promise<Discard> {
-  const { log, threads, agents, threadId } = args
+  const { log, threads, agents, shells, threadId } = args
 
   const events: readonly Event[] = await log.readOwn({ threadId })
   const plan = resumePlan(events)
@@ -28,6 +29,7 @@ export async function discardInterrupted(args: {
     log,
     threads,
     agents,
+    shells,
     threadId,
     toSeq: plan.interrupted.seq - 1,
   })

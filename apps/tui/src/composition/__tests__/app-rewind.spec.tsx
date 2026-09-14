@@ -1,4 +1,5 @@
-import { EForkMode, toThreadId } from '@dltech/atlas-core'
+import { EForkMode, toCallId, toRunId, toThreadId } from '@dltech/atlas-core'
+import { EKilledBy, EShellStatus, toShellId } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
@@ -125,6 +126,70 @@ describe('the rewind command', () => {
       })
       expect(frame).not.toContain(REWIND_TITLE)
       expect(frame).toContain('now the lexer')
+      expect(await app.log.read({ threadId: THREAD })).toHaveLength(2)
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+})
+
+describe('a rewind that cuts a background shell', () => {
+  it('kills the shell and warns the operator, since the rewound transcript never started it', async () => {
+    const app = appWith()
+    const seeded = await app.log.append({
+      threadId: THREAD,
+      runId: toRunId('run-seed'),
+      drafts: [
+        { type: 'user-said', text: 'start the watcher' },
+        { type: 'assistant-said', parts: [{ type: 'text', text: 'watching' }] },
+        { type: 'user-said', text: 'now the parser' },
+        {
+          type: 'tool-called',
+          callId: toCallId('call-bg'),
+          name: 'bash',
+          input: { command: 'npm test -- --watch', runInBackground: true },
+          ordinal: 0,
+        },
+        {
+          type: 'tool-result',
+          callId: toCallId('call-bg'),
+          name: 'bash',
+          output: { shellId: 'bash_1', status: 'running' },
+        },
+        { type: 'assistant-said', parts: [{ type: 'text', text: 'on it' }] },
+      ],
+    })
+    app.shells.place(
+      {
+        shellId: toShellId('bash_1'),
+        command: 'npm test -- --watch',
+        description: 'Run the test watcher',
+        status: EShellStatus.Running,
+        pid: 4242,
+        startedAt: '2026-08-27T12:00:00.000Z',
+        lastOutputAt: '2026-08-27T12:00:00.000Z',
+        totalCharacters: 0,
+        awaitingInput: false,
+      },
+      THREAD,
+    )
+    const setup = await testRender(
+      <App app={app} opened={{ threadId: THREAD, events: seeded, turns: [], name: null, started: true }} />,
+      WIDE,
+    )
+    await frameShowing({ setup, text: 'now the parser' })
+
+    try {
+      await said(setup, app, '/rewind', REWIND_TITLE)
+
+      setup.mockInput.pressEnter()
+      expect(await frameShowing({ setup, text: 'rewind to here' })).toContain('rewind to here')
+
+      setup.mockInput.pressEnter()
+      const frame = await frameShowing({ setup, text: 'killed background shell' })
+
+      expect(frame).toContain('bash_1')
+      expect(app.shells.removed).toEqual([{ shellId: 'bash_1', by: EKilledBy.Rewind }])
       expect(await app.log.read({ threadId: THREAD })).toHaveLength(2)
     } finally {
       await teardown(setup)

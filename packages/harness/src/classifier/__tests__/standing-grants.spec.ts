@@ -168,6 +168,7 @@ describe('a permission the operator gave once', () => {
       log: fixture.log,
       threads: fixture.threads,
       agents: fixture.agents,
+      shells: fixture.shells,
       threadId,
       toSeq: 2,
     })

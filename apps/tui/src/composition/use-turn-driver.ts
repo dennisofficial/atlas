@@ -134,7 +134,13 @@ export function useTurnDriver(args: {
   )
 
   const undo = useCallback(async () => {
-    const undone = await undoTurn({ log: app.log, threads: app.threads, agents: app.agents, threadId })
+    const undone = await undoTurn({
+      log: app.log,
+      threads: app.threads,
+      agents: app.agents,
+      shells: app.shells,
+      threadId,
+    })
 
     if (undone.type === EUndo.Refused) {
       setFailure(undone.reason)
@@ -144,7 +150,7 @@ export function useTurnDriver(args: {
 
     await refresh()
     onUndone(undone.said)
-  }, [app.agents, app.log, app.threads, onUndone, refresh, setFailure, threadId])
+  }, [app.agents, app.log, app.shells, app.threads, onUndone, refresh, setFailure, threadId])
 
   const drive = useCallback(
     (drafts: readonly EventDraft[]): Promise<void> => {
@@ -232,6 +238,7 @@ export function useTurnDriver(args: {
         log: app.log,
         threads: app.threads,
         agents: app.agents,
+        shells: app.shells,
         threadId,
       })
 
@@ -244,7 +251,7 @@ export function useTurnDriver(args: {
       await refresh()
       void drive([])
     })()
-  }, [app.agents, app.log, app.threads, drive, forgetUsage, refresh, setFailure, threadId, working])
+  }, [app.agents, app.log, app.shells, app.threads, drive, forgetUsage, refresh, setFailure, threadId, working])
 
   const rewindTo = useCallback(
     async (toSeq: number) => {
@@ -266,6 +273,7 @@ export function useTurnDriver(args: {
           log: app.log,
           threads: app.threads,
           agents: app.agents,
+          shells: app.shells,
           threadId,
           toSeq,
         })
@@ -273,6 +281,20 @@ export function useTurnDriver(args: {
         if (!rewound.ok) {
           setFailure(rewound.reason)
           return
+        }
+        if (rewound.cutShells.length > 0) {
+          const named = rewound.cutShells
+            .map((shell) => `${shell.shellId} (${shell.command})`)
+            .join(', ')
+          notify({
+            key: 'rewind-cut-shells',
+            tone: ENoticeTone.Warn,
+            ttlMs: NOTICE_WARN_MS,
+            text:
+              rewound.cutShells.length === 1
+                ? `the rewind killed background shell ${named}`
+                : `the rewind killed ${rewound.cutShells.length} background shells: ${named}`,
+          })
         }
         store.resetSteps()
         forgetUsage()
@@ -282,7 +304,7 @@ export function useTurnDriver(args: {
         setWorking(false)
       }
     },
-    [app.agents, app.log, app.threads, cancelCompaction, forgetUsage, refresh, setFailure, store, threadId],
+    [app.agents, app.log, app.shells, app.threads, cancelCompaction, forgetUsage, refresh, setFailure, store, threadId],
   )
 
   /**

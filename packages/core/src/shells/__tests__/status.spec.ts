@@ -16,6 +16,7 @@ describe('the sentence a shell ends on', () => {
     expect(killedBy(EKilledBy.User)).toBe('was killed by the user')
     expect(killedBy(EKilledBy.Model)).toBe('was killed at your request')
     expect(killedBy(EKilledBy.SessionEnd)).toBe('was killed because the session was closing')
+    expect(killedBy(EKilledBy.Rewind)).toBe('was killed by a rewind')
   })
 
   it('says only that it was killed when nobody was recorded', () => {

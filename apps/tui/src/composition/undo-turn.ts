@@ -1,5 +1,5 @@
 import type { ThreadId, Event, EventLogPort } from '@dltech/atlas-core'
-import { rewindThread, type AgentRegistryPort, type ThreadStorePort } from '@dltech/atlas-harness'
+import { rewindThread, type AgentRegistryPort, type ShellRegistryPort, type ThreadStorePort } from '@dltech/atlas-harness'
 
 import type { PendingSaid } from '../store'
 
@@ -22,14 +22,15 @@ export async function undoTurn(args: {
   log: EventLogPort
   threads: ThreadStorePort
   agents: AgentRegistryPort
+  shells: ShellRegistryPort
   threadId: ThreadId
 }): Promise<Undo> {
-  const { log, threads, agents, threadId } = args
+  const { log, threads, agents, shells, threadId } = args
 
   const said = (await log.readOwn({ threadId })).findLast(wasSaid)
   if (said === undefined) return { type: EUndo.Nothing }
 
-  const rewound = await rewindThread({ log, threads, agents, threadId, toSeq: said.seq - 1 })
+  const rewound = await rewindThread({ log, threads, agents, shells, threadId, toSeq: said.seq - 1 })
   if (!rewound.ok) return { type: EUndo.Refused, reason: rewound.reason }
 
   return { type: EUndo.Restored, said: { text: said.text, images: said.images ?? [] } }

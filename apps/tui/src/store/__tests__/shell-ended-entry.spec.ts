@@ -67,6 +67,14 @@ describe('a background shell ending in the transcript', () => {
     expect(entry.text).toBe('Background shell "Run full TUI suite" was killed by you')
   })
 
+  it('says a rewind was what killed it', () => {
+    const entry = onlyShellEntry(
+      log([shellEnded({ status: EShellStatus.Killed, killedBy: EKilledBy.Rewind, exitCode: undefined })]),
+    )
+
+    expect(entry.text).toBe('Background shell "Run full TUI suite" was killed by a rewind')
+  })
+
   it('says a timeout blew a deadline rather than that someone killed it', () => {
     const entry = onlyShellEntry(
       log([
