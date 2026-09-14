@@ -206,6 +206,9 @@ describe('the accounts overlay', () => {
       setup.mockInput.pressArrow('down')
       await setup.flush()
       await settle(120)
+      setup.mockInput.pressArrow('down')
+      await setup.flush()
+      await settle(120)
       setup.mockInput.pressKey('k')
       await setup.flush()
       await settle(150)
@@ -224,6 +227,9 @@ describe('the accounts overlay', () => {
 
     try {
       await openOverlay(setup)
+      setup.mockInput.pressArrow('down')
+      await setup.flush()
+      await settle(120)
       setup.mockInput.pressEnter()
       await setup.flush()
       await settle(150)
@@ -240,6 +246,9 @@ describe('the accounts overlay', () => {
 
     try {
       await openOverlay(setup)
+      setup.mockInput.pressArrow('down')
+      await setup.flush()
+      await settle(120)
       setup.mockInput.pressArrow('down')
       await setup.flush()
       await settle(120)
@@ -357,6 +366,9 @@ describe('the accounts overlay', () => {
 
     try {
       await openOverlay(setup)
+      setup.mockInput.pressArrow('down')
+      await setup.flush()
+      await settle(120)
       setup.mockInput.pressKey('n')
       await setup.flush()
       await settle(120)
@@ -380,6 +392,9 @@ describe('the accounts overlay', () => {
 
     try {
       await openOverlay(setup)
+      setup.mockInput.pressArrow('down')
+      await setup.flush()
+      await settle(120)
       setup.mockInput.pressArrow('down')
       await setup.flush()
       await settle(120)
@@ -409,6 +424,9 @@ describe('the accounts overlay', () => {
 
     try {
       await openOverlay(setup)
+      setup.mockInput.pressArrow('down')
+      await setup.flush()
+      await settle(120)
       setup.mockInput.pressKey('n')
       await setup.flush()
       await settle(120)

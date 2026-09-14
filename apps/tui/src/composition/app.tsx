@@ -533,6 +533,7 @@ function Workspace(props: {
 
   const accounts = useAccounts({
     accounts: props.app.accounts,
+    cloud: props.app.cloud,
     openUrl: props.app.openUrl,
     onAccounts: props.app.models.observeAccounts,
   })
