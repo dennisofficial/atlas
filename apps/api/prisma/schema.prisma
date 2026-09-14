@@ -22,6 +22,36 @@ model User {
   members       Member[]
   invitations   Invitation[]
   deviceCodes   DeviceCode[]
+  agentAccounts AgentAccount[]
+}
+
+model AgentAccount {
+  id           String   @id
+  provider     String
+  kind         String
+  origin       String
+  label        String
+  status       String
+  email        String?
+  subscription String?
+  importedFrom String?
+  sealedSecret String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, provider])
+}
+
+model ActiveAccount {
+  userId    String
+  provider  String
+  accountId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([userId, provider])
 }
 
 model Session {

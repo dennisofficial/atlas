@@ -40,6 +40,7 @@ import { fakeAgentRegistry } from '../src/composition/__tests__/fake-agents'
 import {
   alwaysAuthorised,
   fakeAccounts,
+  fakeCloud,
   fakeCatalogue,
   fakeSkillRegistry,
 } from '../src/composition/__tests__/fake-app'
@@ -93,6 +94,7 @@ const benchApp = (args: {
     summarise: async () => null,
     credentials: alwaysAuthorised(),
     accounts: fakeAccounts(),
+    cloud: fakeCloud(),
     channel: args.channel,
     runner: args.runner,
     log: args.harness.log,

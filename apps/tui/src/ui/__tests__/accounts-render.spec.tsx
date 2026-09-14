@@ -12,11 +12,11 @@ import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { accountMeterSpans } from '../account-meters'
+import { rowLabel } from '../accounts-labels'
 import {
   ACCOUNT_ROWS,
   EAccountRow,
   EAccountsView,
-  rowLabel,
   type AccountRow,
   type AccountsState,
 } from '../accounts-model'
@@ -72,6 +72,7 @@ const stateWith = (rows: readonly AccountRow[]): AccountsState => ({
   index: 0,
   rows,
   prompt: null,
+  cloudPrompt: null,
   typed: '',
   notice: null,
   failure: null,

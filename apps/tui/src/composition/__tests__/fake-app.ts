@@ -1,3 +1,7 @@
+import { randomUUID } from 'node:crypto'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import {
   AccountUsagePort,
   ATLAS_SETTINGS,
@@ -31,6 +35,8 @@ import type { EventDraft } from '@dltech/atlas-core'
 import {
   AccountsService,
   builtinOauthClients,
+  CloudService,
+  CloudSessionStore,
   createAccountUsageService,
   createDeltaChannel,
   InMemoryToolRegistry,
@@ -187,6 +193,16 @@ export const fakeAccounts = (): AccountsService => {
     clients: builtinOauthClients({ clock }),
   })
 }
+
+export const fakeCloud = (): CloudService =>
+  new CloudService({
+    sessions: new CloudSessionStore({
+      file: join(tmpdir(), `atlas-fake-cloud-${randomUUID()}.json`),
+      keyFile: join(tmpdir(), `atlas-fake-cloud-${randomUUID()}.key`),
+    }),
+    localAccounts: memoryAccountStore({ clock: new SystemClock() }),
+    defaultUrl: 'http://localhost:3400',
+  })
 
 export type ScriptedReply = { thinking: string; reply: string }
 
@@ -603,6 +619,7 @@ export function fakeApp(args: {
     },
     files: new FileBrowser({ root: args.workspaceRoot ?? FAKE_CONFIG.cwd }),
     accounts: fakeAccounts(),
+    cloud: fakeCloud(),
     openUrl: (url: string) => {
       openedUrls.push(url)
     },
