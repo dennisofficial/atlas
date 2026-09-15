@@ -28,6 +28,7 @@ export {
 export { appendWithin, PrismaEventLog, type AppendArgs } from './event-log'
 export { RandomIds } from './ids'
 export { rewindThread, type RewindKill, type RewindResult } from './rewind'
+export { createLoopCut, type ApplyLoopCut } from './cut-loop'
 export { atlasMigrationsDirectory, loadAtlasMigrations } from './migrations'
 export {
   ATLAS_DATABASE_NAME,

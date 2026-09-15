@@ -112,6 +112,22 @@ the same one comes back around. That is a stuck detector, not a budget: it canno
 is still working. `modelSteps` survives only as the index handed to rules as `ctx.step`, counting
 model calls rather than loop iterations because `nudge.lifetimeSteps` is specified in model steps.
 
+**A run of identical calls is cut out of the log, not argued with.** A model that calls the same
+tool with the same input and gets the same result, three times running with nothing in between, is
+polling — and a generative model repeats whatever its own history shows, so a reminder appended
+*after* the run just joins the pattern it was meant to break. `loopCutPlan` (`core/events/loop-cut`)
+instead finds the run at the tail — one or more rounds repeating as a unit, every call settled,
+every result byte-identical — and the loop rewinds the thread to just after the *first* occurrence:
+the information stays, the repetition goes. Two guards keep the cut honest. The unit's calls must
+all be `repeatable` — a declared Read tool, or a `bash` command the classifier's own reading proves
+read-only deed by deed, never a backgrounded one — and the store re-verifies before deleting: a
+tail that moved since detection, a `rewindTarget` refusal, or a `rewindPlan` that would destroy a
+creation each decline the cut, because an automatic rewind never earns the confirmation an operator
+one does. A cut lands as a real rewind plus one `nudge` saying what was removed and why not to
+resume it; the nudge is a barrier, so a model that loops again starts a fresh run, and the third
+detection in one turn fails it naming the call — the same stuck-detector shape as
+`settleAttempted`, never a budget.
+
 **`settlePending` is built by the loop, not injected into it.** `TurnDeps` takes `dispatch`; the loop
 constructs `settlePending` from `dispatch` and the log it already holds. Injecting a pre-built
 `settlePending` meant it closed over a *different* log than the loop wrote through — two logs writing
