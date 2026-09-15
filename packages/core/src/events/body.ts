@@ -75,6 +75,7 @@ export type EventBody =
       adopted?: boolean | undefined
     }
   | { type: 'worktree-exited'; path: string; action: EWorktreeExit; returnTo?: string | undefined }
+  | { type: 'directory-changed'; path: string }
   | {
       type: 'pull-request-linked'
       number: number

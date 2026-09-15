@@ -42,6 +42,8 @@ const exited = (args: { path: string; action: EWorktreeExit; returnTo?: string }
     ...(args.returnTo === undefined ? {} : { returnTo: args.returnTo }),
   })
 
+const moved = (path: string) => event({ type: 'directory-changed', path })
+
 describe('which worktree the session is in', () => {
   it('is in none until one is entered', () => {
     expect(activeWorktreeOf([said('hello'), said('again')])).toBeUndefined()
@@ -85,6 +87,18 @@ describe('which worktree the session is in', () => {
     ]
 
     expect(activeWorktreeOf(events)?.branch).toBe('dennis/eng-401')
+  })
+
+  it('is in none once the session moves elsewhere, without any exit recorded', () => {
+    const events = [entered({ path: TREE, branch: 'dennis/eng-327' }), moved('/Users/dev/other')]
+
+    expect(activeWorktreeOf(events)).toBeUndefined()
+  })
+
+  it('is the worktree entered after a move', () => {
+    const events = [moved('/Users/dev/other'), entered({ path: TREE, branch: 'dennis/eng-327' })]
+
+    expect(activeWorktreeOf(events)?.path).toBe(TREE)
   })
 })
 
@@ -132,6 +146,36 @@ describe('where the project is', () => {
 
     expect(projectDirectoryOf({ events, launchDirectory: TREE })).toBe(OTHER)
   })
+
+  it('is where the session last moved, worktree or not', () => {
+    expect(projectDirectoryOf({ events: [moved('/Users/dev/other')], launchDirectory: LAUNCH })).toBe(
+      '/Users/dev/other',
+    )
+
+    const outOfAWorktree = [
+      entered({ path: TREE, branch: 'dennis/eng-327' }),
+      moved('/Users/dev/other'),
+    ]
+    expect(projectDirectoryOf({ events: outOfAWorktree, launchDirectory: LAUNCH })).toBe(
+      '/Users/dev/other',
+    )
+
+    const backIntoAWorktree = [
+      moved('/Users/dev/other'),
+      entered({ path: TREE, branch: 'dennis/eng-327' }),
+    ]
+    expect(projectDirectoryOf({ events: backIntoAWorktree, launchDirectory: LAUNCH })).toBe(TREE)
+  })
+
+  it('follows a move home again after a later worktree is exited without a returnTo', () => {
+    const events = [
+      moved('/Users/dev/other'),
+      entered({ path: TREE, branch: 'dennis/eng-327' }),
+      exited({ path: TREE, action: EWorktreeExit.Keep }),
+    ]
+
+    expect(projectDirectoryOf({ events, launchDirectory: LAUNCH })).toBe('/Users/dev/other')
+  })
 })
 
 describe('the home directory', () => {
@@ -153,11 +197,17 @@ describe('the home directory', () => {
   it('folds unwritten drafts the same way', () => {
     expect(homeDirectoryAfter({ drafts: [{ type: 'user-said', text: 'hi' }], home: LAUNCH })).toBe(LAUNCH)
 
-    const moved = homeDirectoryAfter({
+    const exitedHome = homeDirectoryAfter({
       drafts: [{ type: 'worktree-exited', path: TREE, action: EWorktreeExit.Keep, returnTo: LAUNCH }],
       home: TREE,
     })
-    expect(moved).toBe(LAUNCH)
+    expect(exitedHome).toBe(LAUNCH)
+
+    const movedHome = homeDirectoryAfter({
+      drafts: [{ type: 'directory-changed', path: '/Users/dev/other' }],
+      home: LAUNCH,
+    })
+    expect(movedHome).toBe('/Users/dev/other')
   })
 })
 
@@ -183,6 +233,13 @@ describe('folding drafts that have not been written yet', () => {
   it('is in none again once a draft exits', () => {
     const active = { path: TREE, branch: 'dennis/eng-327', base: 'origin/main', adopted: false }
     const drafts = [{ type: 'worktree-exited' as const, path: TREE, action: EWorktreeExit.Keep }]
+
+    expect(activeWorktreeAfter({ drafts, active })).toBeUndefined()
+  })
+
+  it('is in none again once a draft moves the session elsewhere', () => {
+    const active = { path: TREE, branch: 'dennis/eng-327', base: 'origin/main', adopted: false }
+    const drafts = [{ type: 'directory-changed' as const, path: '/Users/dev/other' }]
 
     expect(activeWorktreeAfter({ drafts, active })).toBeUndefined()
   })

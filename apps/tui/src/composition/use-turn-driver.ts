@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 
 import type { PendingSaid } from '../store'
 import { unansweredApproval, type ApprovalQuestion } from '../ui/approval-model'
+import type { DirectoryMove } from './directory-move'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { useApproval, type ApprovalControl } from './use-approval'
 import type { AtlasApp } from './compose'
@@ -81,6 +82,7 @@ export function useTurnDriver(args: {
   app: AtlasApp
   threadId: ThreadId
   started: RefObject<boolean>
+  pendingMove: RefObject<DirectoryMove | null>
   view: ThreadView
   readClock: () => number
   used: RefObject<number>
@@ -91,7 +93,7 @@ export function useTurnDriver(args: {
   setFailure: (reason: string | null) => void
   forgetUsage: () => void
 }): TurnDriver {
-  const { app, threadId, started, view, readClock, used, compactIfFull } = args
+  const { app, threadId, started, pendingMove, view, readClock, used, compactIfFull } = args
   const { cancelCompaction, onSettled, onUndone, setFailure, forgetUsage } = args
   const { store, events, refresh, stamp } = view
 
@@ -121,16 +123,18 @@ export function useTurnDriver(args: {
         return
       }
 
+      const move = pendingMove.current
+      pendingMove.current = null
       await app.threads.createWithFirstEvents({
         threadId,
-        drafts,
+        drafts: move === null ? drafts : [{ type: 'directory-changed', path: move.path }, ...drafts],
         runId,
-        workspace: app.workspace.workspace,
-        repo: app.workspace.repo,
+        workspace: move?.workspace ?? app.workspace.workspace,
+        repo: move === null ? app.workspace.repo : move.repo,
       })
       started.current = true
     },
-    [app.ids, app.log, app.threads, app.workspace, started, threadId],
+    [app.ids, app.log, app.threads, app.workspace, pendingMove, started, threadId],
   )
 
   const undo = useCallback(async () => {

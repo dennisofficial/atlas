@@ -177,7 +177,7 @@ describe('localCommands', () => {
 
     const settled = commands.filter((one) => one.timing === ECommandTiming.Settled)
 
-    expect(settled.map((one) => one.name).sort()).toEqual(['compact', 'new', 'resume', 'rewind'])
+    expect(settled.map((one) => one.name).sort()).toEqual(['cd', 'compact', 'new', 'resume', 'rewind'])
   })
 })
 
@@ -457,6 +457,7 @@ describe('the restart command', () => {
     const settled = commands.filter((one) => one.timing === ECommandTiming.Settled)
 
     expect(settled.map((one) => one.name).sort()).toEqual([
+      'cd',
       'compact',
       'new',
       'restart',

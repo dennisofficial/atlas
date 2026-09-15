@@ -752,6 +752,7 @@ function Workspace(props: {
   const commands = useMemo(
     () =>
       localCommands({
+        onChangeDirectory: conversation.handleChangeDirectory,
         onContainer: handleContainer,
         onCompact: conversation.handleCompact,
         onRewind: rewind.handleOpen,
@@ -772,6 +773,7 @@ function Workspace(props: {
       }),
     [
       agentsPicker.handleOpen,
+      conversation.handleChangeDirectory,
       conversation.handleCompact,
       conversation.handleRename,
       handleContainer,

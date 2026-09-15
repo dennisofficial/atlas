@@ -62,6 +62,7 @@ const unknownContainerArgument = (argumentText: string): string =>
   `/container takes no argument to say where this conversation runs, or "off" | "docker" to move it — not ${argumentText.trim()}`
 
 export type LocalCommandHandlers = {
+  onChangeDirectory: (argumentText: string) => Promise<CommandEffect>
   onContainer: (asked: EExecutionLocation | EContainerAsk) => string
   onCompact: (scope: ECompactScope) => void
   onRewind: () => void
@@ -106,6 +107,15 @@ const immediate = (args: {
 
 export function localCommands(handlers: LocalCommandHandlers): readonly LocalCommand[] {
   return [
+    local({
+      name: 'cd',
+      summary: 'move this session to another directory',
+      argumentHint: '[directory]',
+      group: ECommandGroup.Workspace,
+      timing: ECommandTiming.Settled,
+      echo: ECommandEcho.Output,
+      run: ({ argumentText }) => handlers.onChangeDirectory(argumentText),
+    }),
     local({
       name: 'container',
       summary: 'move this conversation between the host and a docker container',
