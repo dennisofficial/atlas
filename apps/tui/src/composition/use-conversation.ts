@@ -2,6 +2,7 @@ import {
   activeWorktreeOf,
   contextTokens,
   ECompactionAnchor,
+  EExecutionLocation,
   projectDirectoryOf,
   treeMutationsOf,
   type ActiveWorktree,
@@ -10,7 +11,6 @@ import {
   type EventDraft,
   type ModelUsage,
   type SaidImage,
-  type EExecutionLocation,
 } from '@dltech/atlas-core'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
@@ -28,8 +28,9 @@ import { publishProjections } from '../plugins/projection'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { createAwakeClock } from './awake-clock'
 import { droppedNotice, type QueuedSettled } from './commands'
-import { ECommandEffect } from './commands/local-command'
+import { ECommandEffect, type CommandEffect } from './commands/local-command'
 import type { AtlasApp } from './compose'
+import { changeDirectory, type DirectoryMove } from './directory-move'
 import type { OpenedConversation } from './open-conversation'
 import type { RecoveredAgents, ThreadModel } from '@dltech/atlas-harness'
 import { ECompactScope } from './compact-turn'
@@ -89,6 +90,7 @@ export type Conversation = {
   compacting: Compacting | null
   handleNewConversation: () => void
   handleOpenThread: (threadId: string) => void
+  handleChangeDirectory: (argumentText: string) => Promise<CommandEffect>
   handleRename: (argumentText: string) => Promise<Renaming>
   handleCompact: (scope: ECompactScope) => void
   handleCompactAround: (args: { anchor: ECompactionAnchor; seq: number }) => void
@@ -110,6 +112,8 @@ export function useConversation(args: {
   const [opened, setOpened] = useState<OpenedConversation>(args.opened)
   const [failure, setFailure] = useState<string | null>(null)
   const [reported, setReported] = useState<ModelUsage | null>(null)
+  const [pendingMove, setPendingMove] = useState<DirectoryMove | null>(null)
+  const pendingMoveRef = useRef<DirectoryMove | null>(null)
   const usedRef = useRef(0)
   const startedRef = useRef(args.opened.started)
 
@@ -243,6 +247,7 @@ export function useConversation(args: {
     app,
     threadId,
     started: startedRef,
+    pendingMove: pendingMoveRef,
     view,
     readClock,
     used: usedRef,
@@ -333,6 +338,8 @@ export function useConversation(args: {
       turnDriver.settle()
       setFailure(null)
       setReported(null)
+      pendingMoveRef.current = null
+      setPendingMove(null)
       startedRef.current = next.started
       setEvents(next.events)
       setName(next.name)
@@ -380,11 +387,33 @@ export function useConversation(args: {
     activeWorktree: ActiveWorktree | null
   } => {
     const launchDirectory = app.workspace.workspace
+    if (pendingMove !== null && events.length === 0) {
+      return { projectDirectory: pendingMove.path, activeWorktree: null }
+    }
     return {
       projectDirectory: projectDirectoryOf({ events, launchDirectory }),
       activeWorktree: activeWorktreeOf(events) ?? null,
     }
-  }, [events, app.workspace.workspace])
+  }, [events, pendingMove, app.workspace.workspace])
+
+  const holdMove = useCallback((move: DirectoryMove | null): void => {
+    pendingMoveRef.current = move
+    setPendingMove(move)
+  }, [])
+
+  const handleChangeDirectory = useCallback(
+    (argumentText: string): Promise<CommandEffect> =>
+      changeDirectory({
+        app,
+        threadId,
+        started,
+        workspace,
+        holdMove,
+        refresh,
+        argumentText,
+      }),
+    [app, holdMove, refresh, started, threadId, workspace],
+  )
   usedRef.current = used
 
   useEffect(() => {
@@ -431,6 +460,7 @@ export function useConversation(args: {
     handleInterrupt: turnDriver.handleInterrupt,
     handleNewConversation,
     handleOpenThread,
+    handleChangeDirectory,
     handleRename: renameSession,
     handleCompact: compaction.compact,
     handleCompactAround: compaction.compactAround,

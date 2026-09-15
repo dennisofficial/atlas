@@ -60,6 +60,7 @@ function lineOf(event: Event, payloadLimit: number): string | undefined {
 
   if (event.type === 'worktree-entered') return `Atlas entered worktree ${event.path} (${event.branch})`
   if (event.type === 'worktree-exited') return `Atlas left worktree ${event.path} (${event.action})`
+  if (event.type === 'directory-changed') return `Atlas moved the project directory to ${event.path}`
 
   return undefined
 }

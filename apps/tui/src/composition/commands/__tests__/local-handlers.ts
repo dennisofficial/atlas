@@ -1,5 +1,6 @@
 import { ERenamed, type Renaming } from '../../session-rename'
 import type { SkillsReloaded } from '../../skills-reload'
+import { RAN } from '../local-command'
 import type { LocalCommandHandlers } from '../registry'
 
 export const stub = (): undefined => undefined
@@ -14,6 +15,7 @@ const renamed = async (argumentText: string): Promise<Renaming> => ({
 export const handlers = (
   overrides: Partial<LocalCommandHandlers> = {},
 ): LocalCommandHandlers => ({
+  onChangeDirectory: async () => RAN,
   onContainer: () => 'on the host',
   onCompact: stub,
   onRewind: stub,
