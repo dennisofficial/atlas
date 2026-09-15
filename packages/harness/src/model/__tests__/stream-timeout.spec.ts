@@ -4,10 +4,12 @@ import { MockLanguageModelV4 } from 'ai/test'
 
 import type { ProviderIdentity, ProviderPrompt } from '@dltech/atlas-core'
 
+import { simulateReadableStream } from 'ai/test'
+
 import { runModelStream, type StreamTimeout } from '../ai-sdk-model-port'
 import { StreamStallError } from '../errors'
 import { modelFailureOf } from '../failure'
-import { scriptedModel } from '../testing/scripted-model'
+import { providerPartsFor, scriptedModel } from '../testing/scripted-model'
 
 const identity: ProviderIdentity = { id: 'anthropic', modelId: 'claude-opus-5' }
 
@@ -17,8 +19,9 @@ const prompt: ProviderPrompt = {
   provider: identity,
 }
 
-const IMPATIENT: StreamTimeout = { firstChunkMs: 25, chunkMs: 25 }
-const PATIENT: StreamTimeout = { firstChunkMs: 5_000, chunkMs: 5_000 }
+const IMPATIENT: StreamTimeout = { ttfbMs: 5_000, firstChunkMs: 25, chunkMs: 25 }
+const PATIENT: StreamTimeout = { ttfbMs: 5_000, firstChunkMs: 5_000, chunkMs: 5_000 }
+const UNANSWERED: StreamTimeout = { ttfbMs: 25, firstChunkMs: 5_000, chunkMs: 5_000 }
 
 // Enqueues its parts and then stays open without ever closing — the polite silent connection no
 // layer used to time out. Errors the stream when the SDK aborts the request, the way a real
@@ -99,5 +102,74 @@ describe('a stream that goes silent without closing', () => {
     })
 
     expect(result.parts).toEqual([{ type: 'text', text: 'half a thought' }])
+  })
+})
+
+// A provider that accepts the request and never answers it: doStream itself never settles, the
+// way inference.net behaves when its queue is congested (diagnosed 2026-09-15 from live
+// harness.db turns whose first model call sat silent for 3-50 minutes).
+const unansweringModel = (onAborted?: () => void): MockLanguageModelV4 =>
+  new MockLanguageModelV4({
+    doStream: ({ abortSignal }) =>
+      new Promise(() => {
+        abortSignal?.addEventListener('abort', () => onAborted?.())
+      }),
+  })
+
+const runUnanswered = (args: { model: MockLanguageModelV4; streamTimeout: StreamTimeout }) =>
+  runModelStream({
+    model: args.model,
+    prompt,
+    tools: [],
+    signal: new AbortController().signal,
+    streamTimeout: args.streamTimeout,
+  })
+
+describe('a provider that never answers the request', () => {
+  it('rejects once the time-to-headers budget is spent', async () => {
+    await expect(
+      runUnanswered({ model: unansweringModel(), streamTimeout: UNANSWERED }),
+    ).rejects.toThrow(StreamStallError)
+  })
+
+  it('classifies the rejection as a retryable dropped connection', async () => {
+    const error = await runUnanswered({
+      model: unansweringModel(),
+      streamTimeout: UNANSWERED,
+    }).catch((caught: unknown) => caught)
+
+    expect(modelFailureOf(error)).toEqual({})
+  })
+
+  it('aborts the request it gave up on, so the socket does not linger', async () => {
+    let aborted = false
+
+    await runUnanswered({
+      model: unansweringModel(() => {
+        aborted = true
+      }),
+      streamTimeout: UNANSWERED,
+    }).catch(() => {})
+
+    expect(aborted).toBe(true)
+  })
+
+  it('lets a slow provider through when it answers inside the budget', async () => {
+    const slowModel = new MockLanguageModelV4({
+      doStream: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 30))
+        return {
+          stream: simulateReadableStream<LanguageModelV4StreamPart>({
+            chunks: providerPartsFor({ text: 'late but here' }),
+            initialDelayInMs: 0,
+            chunkDelayInMs: 0,
+          }),
+        }
+      },
+    })
+
+    const result = await runUnanswered({ model: slowModel, streamTimeout: PATIENT })
+
+    expect(result.parts).toEqual([{ type: 'text', text: 'late but here' }])
   })
 })
