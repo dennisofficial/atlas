@@ -1,0 +1,35 @@
+name: atlas-api
+region: nyc
+services:
+  - name: api
+    source_dir: /
+    dockerfile_path: apps/api/Dockerfile
+    github:
+      repo: dennisofficial/atlas
+      branch: main
+      deploy_on_push: true
+    http_port: 3400
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    health_check:
+      http_path: /v1/health
+      initial_delay_seconds: 20
+    envs:
+      - key: APP_TIER
+        value: production
+      - key: DOTENV_PRIVATE_KEY_API_PRODUCTION
+        type: SECRET
+jobs:
+  - name: migrate
+    kind: PRE_DEPLOY
+    source_dir: /
+    dockerfile_path: apps/api/Dockerfile
+    github:
+      repo: dennisofficial/atlas
+      branch: main
+    run_command: node_modules/.bin/dotenvx run --strict -f envs/.env.api.production.enc -- node_modules/.bin/prisma migrate deploy
+    envs:
+      - key: APP_TIER
+        value: production
+      - key: DOTENV_PRIVATE_KEY_API_PRODUCTION
+        type: SECRET

@@ -21,18 +21,25 @@ src/
   _module/    shared injectable modules (session guard + verifier port).
   api/        the deployable app: app.module.ts + feature modules (auth, health, …).
   db/         the lazy `db` client proxy + generated-client type re-exports.
-  main.ts     the entrypoint (Vercel detects this exact location) — boots the app,
-              hydrating env from the tier file when a DOTENV_PRIVATE_KEY is present.
+  main.ts     the entrypoint — boots the app, hydrating env from the tier file when a
+              DOTENV_PRIVATE_KEY is present; also default-exports the handler (harmless).
   api/main.ts one-line shim so `nest start api` / `start:prod` boot the same bootstrap.
 prisma/       schema + migrations only (the client wrapper moved to src/db).
 envs/         dotenvx tier files (.env.api.<tier>.enc, committed; .env.keys, never).
 test/         cross-cutting specs (env alignment).
 ```
 
-Imports are plain relative paths — this package has no path aliases on purpose. Vercel's
-backend builder neither rewrites tsconfig paths in its compiled output nor traces imports
-through them into the function bundle, so aliases break the deploy twice over. Do not
-reintroduce them (Vercel is the settled deploy target).
+Imports are plain relative paths — this package has no path aliases on purpose. tsc never
+rewrites them, and every downstream toolchain (bundlers, tracers, containers) has broken on
+them at least once; relative imports work everywhere. Do not reintroduce them.
+
+## Deploy
+
+DigitalOcean App Platform, git-connected to main: `apps/api/Dockerfile` (multi-stage, repo-root
+build context) + `.do/app.yaml` (app spec: web service on port 3400 with a PRE_DEPLOY migrate
+job, region nyc). The only env the platform needs is `APP_TIER` and `DOTENV_PRIVATE_KEY_API_PRODUCTION`
+— the tier file in the image carries the rest. Migrations also run from local via
+`MIGRATE_TIER=production bun run db:migrate:deploy`.
 
 ## Auth
 
