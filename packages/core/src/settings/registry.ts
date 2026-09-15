@@ -585,10 +585,10 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Cloud',
     label: 'Cloud API',
     description:
-      'Where the Atlas Cloud API lives — the backend that becomes the source of truth for accounts once a cloud session is signed in. The fallback is the local development server, which is what an Atlas contributor running apps/api next to the TUI gets.',
+      'Where the Atlas Cloud API lives — the backend that is the source of truth for accounts, secrets and the user MCP layer. The fallback is the production deployment; an Atlas contributor running apps/api next to the TUI points this at the local development server instead.',
     environmentVariable: 'ATLAS_CLOUD_URL',
     kind: ESettingKind.Text,
-    fallback: 'http://localhost:3400',
+    fallback: 'https://api.byatlas.io',
   },
   {
     id: ESettingId.CloudRequired,
@@ -596,10 +596,10 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Cloud',
     label: 'Cloud is the only store',
     description:
-      'When on, Atlas Cloud is the only credential store and signing in is required — a signed-out Atlas refuses to read or write accounts, secrets, or the user MCP layer rather than touching the local vault. While off, the shipped default, a signed-out Atlas keeps using the local vault exactly as it always has. This flips to on once the cloud API is deployed.',
+      'When on, Atlas Cloud is the only credential store and signing in is required — a signed-out Atlas refuses to read or write accounts, secrets, or the user MCP layer rather than touching the local vault. This is the shipped default. Turning it off is the escape hatch for developing the cloud API itself against a local apps/api, with the local vault active again.',
     environmentVariable: 'ATLAS_CLOUD_REQUIRED',
     kind: ESettingKind.Toggle,
-    fallback: false,
+    fallback: true,
   },
   {
     id: ESettingId.KeychainService,
