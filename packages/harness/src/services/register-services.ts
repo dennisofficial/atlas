@@ -1,4 +1,4 @@
-import { ClockPort } from '@dltech/atlas-core'
+import { ClockPort, ProcessPort } from '@dltech/atlas-core'
 
 import { registerDisposable } from '../container/disposal'
 import { instanceCachingFactory, portToken, type DependencyContainer } from '../container/injection'
@@ -14,11 +14,12 @@ export function registerServices({ container }: { container: DependencyContainer
 
   container.register(portToken(ServiceRegistryPort), {
     useFactory: instanceCachingFactory((resolver) => {
-      live = new BunServiceRegistry(
-        resolver.resolve(WorkspaceRoot),
-        resolver.resolve(portToken(ClockPort)),
-        atlasServicesDirectory(),
-      )
+      live = new BunServiceRegistry({
+        root: resolver.resolve(WorkspaceRoot),
+        clock: resolver.resolve(portToken(ClockPort)),
+        logsDirectory: atlasServicesDirectory(),
+        processes: resolver.resolve(portToken(ProcessPort)),
+      })
       return live
     }),
   })

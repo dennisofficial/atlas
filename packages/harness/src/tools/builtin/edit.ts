@@ -2,9 +2,10 @@ import {
   EContentAccess,
   EPathForm,
   EPathPresence,
+  AgentFileSystemPort,
   EToolEffect,
-  FileSystemPort,
   SchemaTool,
+  type ThreadId,
   type DeclaredPathField,
   type ToolOutcome,
   type ToolRun,
@@ -43,7 +44,8 @@ async function createFile(args: {
   newString: string
   existing: string | null
   mode: number | undefined
-  files: FileSystemPort
+  files: AgentFileSystemPort
+  threadId: ThreadId
 }): Promise<ToolOutcome> {
   if (args.newString === '') {
     return {
@@ -57,7 +59,13 @@ async function createFile(args: {
     return { ok: false, reason: 'Cannot create new file - file already exists.' }
   }
 
-  await writeFileAtomically({ path: args.path, content: args.newString, mode: args.mode, files: args.files })
+  await writeFileAtomically({
+    path: args.path,
+    content: args.newString,
+    mode: args.mode,
+    files: args.files,
+    threadId: args.threadId,
+  })
 
   return {
     ok: true,
@@ -79,9 +87,10 @@ async function replaceInFile(args: {
   newString: string
   replaceAll: boolean
   mode: number
-  files: FileSystemPort
+  files: AgentFileSystemPort
+  threadId: ThreadId
 }): Promise<ToolOutcome> {
-  const raw = await Bun.file(args.path).text()
+  const raw = await args.files.readFile({ path: args.path, threadId: args.threadId })
   const replaced = replaceInContent({
     content: raw,
     oldString: args.oldString,
@@ -90,7 +99,13 @@ async function replaceInFile(args: {
   })
   if (!replaced.ok) return { ok: false, reason: replaced.reason }
 
-  await writeFileAtomically({ path: args.path, content: replaced.content, mode: args.mode, files: args.files })
+  await writeFileAtomically({
+    path: args.path,
+    content: replaced.content,
+    mode: args.mode,
+    files: args.files,
+    threadId: args.threadId,
+  })
 
   return {
     ok: true,
@@ -117,7 +132,7 @@ export class EditTool extends SchemaTool<typeof inputSchema> {
 
   constructor(
     private readonly guard: FileWriteGuardPort = new SerializedWrites(),
-    private readonly files: FileSystemPort = new LocalFileSystemPort(),
+    private readonly files: AgentFileSystemPort = new LocalFileSystemPort(),
   ) {
     super()
   }
@@ -136,14 +151,22 @@ export class EditTool extends SchemaTool<typeof inputSchema> {
       threadId,
       path,
       write: async (): Promise<ToolOutcome> => {
-        const stats = await this.files.stat({ path }).catch(() => null)
+        const stats = await this.files.stat({ path, threadId }).catch(() => null)
         if (stats !== null && !stats.isFile()) {
           return { ok: false, reason: `${path} is not a regular file.` }
         }
 
         if (oldString === '') {
-          const existing = stats === null ? null : await Bun.file(path).text()
-          return await createFile({ path, newString, existing, mode: stats?.mode, files: this.files })
+          const existing =
+            stats === null ? null : await this.files.readFile({ path, threadId })
+          return await createFile({
+            path,
+            newString,
+            existing,
+            mode: stats?.mode,
+            files: this.files,
+            threadId,
+          })
         }
 
         if (stats === null) return { ok: false, reason: `File does not exist: ${path}` }
@@ -155,6 +178,7 @@ export class EditTool extends SchemaTool<typeof inputSchema> {
           replaceAll: replaceAll ?? false,
           mode: stats.mode,
           files: this.files,
+          threadId,
         })
       },
     })

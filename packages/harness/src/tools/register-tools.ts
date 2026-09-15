@@ -1,4 +1,10 @@
-import { DynamicToolSource, FileSystemPort, ProcessPort, ToolDefinition } from '@dltech/atlas-core'
+import {
+  AgentFileSystemPort,
+  DynamicToolSource,
+  FileSystemPort,
+  ProcessPort,
+  ToolDefinition,
+} from '@dltech/atlas-core'
 
 import { portToken, resolveSet, type DependencyContainer } from '../container/injection'
 import {
@@ -53,27 +59,27 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
     resolver.resolve(AgentRegistrySourceToken)
 
   container.register(portToken(ToolDefinition), {
-    useFactory: (resolver) => new ReadTool(resolver.resolve(portToken(FileSystemPort))),
+    useFactory: (resolver) => new ReadTool(resolver.resolve(portToken(AgentFileSystemPort))),
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) =>
       new WriteTool(
         resolver.resolve(portToken(FileWriteGuardPort)),
-        resolver.resolve(portToken(FileSystemPort)),
+        resolver.resolve(portToken(AgentFileSystemPort)),
       ),
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) =>
       new EditTool(
         resolver.resolve(portToken(FileWriteGuardPort)),
-        resolver.resolve(portToken(FileSystemPort)),
+        resolver.resolve(portToken(AgentFileSystemPort)),
       ),
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) =>
       new MultiEditTool(
         resolver.resolve(portToken(FileWriteGuardPort)),
-        resolver.resolve(portToken(FileSystemPort)),
+        resolver.resolve(portToken(AgentFileSystemPort)),
       ),
   })
   container.register(portToken(ToolDefinition), {
@@ -88,11 +94,11 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
     useFactory: (resolver) =>
       new GrepTool(
         resolver.resolve(portToken(ProcessPort)),
-        resolver.resolve(portToken(FileSystemPort)),
+        resolver.resolve(portToken(AgentFileSystemPort)),
       ),
   })
   container.register(portToken(ToolDefinition), {
-    useFactory: (resolver) => new GlobTool(resolver.resolve(portToken(FileSystemPort))),
+    useFactory: (resolver) => new GlobTool(resolver.resolve(portToken(AgentFileSystemPort))),
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) => new ShellListTool(shellRegistry(resolver)),

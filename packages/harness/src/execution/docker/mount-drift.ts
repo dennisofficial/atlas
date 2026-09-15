@@ -31,7 +31,7 @@ export const systemMountDestinations = (config: SandboxConfig): ReadonlySet<stri
       join(config.home, '.gitconfig'),
       `${CONTAINER_GNUPG_HOME}/S.gpg-agent`,
       `${CONTAINER_GNUPG_HOME}/pubring.kbx`,
-      ...(config.atlasHomeSubtrees ?? []),
+      ...(config.atlasHomeSubtrees ?? []).map((subtree) => subtree.path),
     ].filter((path): path is string => path !== undefined),
   )
 
@@ -95,11 +95,26 @@ export const mountsDrift = (args: {
   return false
 }
 
+export const atlasHomeSubtreesMissing = (args: {
+  config: SandboxConfig
+  actual: readonly ContainerMount[]
+}): boolean =>
+  (args.config.atlasHomeSubtrees ?? []).some(
+    (wanted) =>
+      !args.actual.some(
+        (mount) =>
+          mount.destination === wanted.path &&
+          mount.readOnly === (wanted.mode === EMountMode.ReadOnly),
+      ),
+  )
+
 export function declaredMountsDrift(args: {
   config: SandboxConfig
   details: ContainerDetails
   prefix: string
 }): boolean {
+  if (atlasHomeSubtreesMissing({ config: args.config, actual: args.details.mounts })) return true
+
   const recorded = args.details.config.labels[declaredMountsLabel(args.prefix)]
   const declared = args.config.mounts ?? []
   if (recorded !== undefined) return recorded !== encodeDeclaredMounts(declared)

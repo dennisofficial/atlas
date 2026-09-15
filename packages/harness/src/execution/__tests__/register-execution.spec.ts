@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { FileSystemPort, ProcessPort } from '@dltech/atlas-core'
+import { AgentFileSystemPort, FileSystemPort, ProcessPort } from '@dltech/atlas-core'
 
 import { createIsolatedContainer, portToken } from '../../container/injection'
 import { DockerEngineToken } from '../../container/tokens'
@@ -22,6 +22,10 @@ describe('registerExecution', () => {
 
   it('binds the filesystem port to the local adapter', () => {
     expect(wired().resolve(portToken(FileSystemPort))).toBeInstanceOf(LocalFileSystemPort)
+  })
+
+  it('aliases the agent filesystem port to the local adapter until a router overrides it', () => {
+    expect(wired().resolve(portToken(AgentFileSystemPort))).toBeInstanceOf(LocalFileSystemPort)
   })
 
   it('registers one shared docker engine for the container', () => {

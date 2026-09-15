@@ -11,6 +11,7 @@ export enum EKilledBy {
   SessionEnd = 'session-end',
   Timeout = 'timeout',
   Rewind = 'rewind',
+  ContainerSwitch = 'container-switch',
   Unrecorded = 'unrecorded',
 }
 

@@ -235,11 +235,28 @@ describe('mountedAtlasHomeSubtrees', () => {
 
       expect(
         mountedAtlasHomeSubtrees({ worktree: '/unrelated/worktree', atlasHome }),
-      ).toEqual([join(atlasHome, 'memory'), join(atlasHome, 'skills')])
+      ).toEqual([
+        { path: join(atlasHome, 'memory'), mode: EMountMode.ReadOnly },
+        { path: join(atlasHome, 'skills'), mode: EMountMode.ReadOnly },
+      ])
     })
   })
 
-  it('can never name the atlas home root — the candidate list is four fixed subtrees', async () => {
+  it('mounts the services log directory writable and the bin directory read-only', async () => {
+    await withAtlasHome(async (atlasHome) => {
+      await mkdir(join(atlasHome, 'services'))
+      await mkdir(join(atlasHome, 'bin'))
+
+      expect(
+        mountedAtlasHomeSubtrees({ worktree: '/unrelated/worktree', atlasHome }),
+      ).toEqual([
+        { path: join(atlasHome, 'services'), mode: EMountMode.ReadWrite },
+        { path: join(atlasHome, 'bin'), mode: EMountMode.ReadOnly },
+      ])
+    })
+  })
+
+  it('can never name the atlas home root — the candidate list is fixed subtrees', async () => {
     await withAtlasHome(async (atlasHome) => {
       await mkdir(join(atlasHome, 'memory'))
       await mkdir(join(atlasHome, 'agents'))
@@ -247,8 +264,8 @@ describe('mountedAtlasHomeSubtrees', () => {
 
       const subtrees = mountedAtlasHomeSubtrees({ worktree: '/unrelated/worktree', atlasHome })
 
-      expect(subtrees).not.toContain(atlasHome)
-      expect(subtrees.every((subtree) => subtree.startsWith(`${atlasHome}/`))).toBe(true)
+      expect(subtrees.map((subtree) => subtree.path)).not.toContain(atlasHome)
+      expect(subtrees.every((subtree) => subtree.path.startsWith(`${atlasHome}/`))).toBe(true)
     })
   })
 
@@ -286,14 +303,18 @@ describe('mountedAtlasHomeSubtrees', () => {
           worktree: '/unrelated/worktree',
           limits: { cpus: 1, memoryBytes: 1024 ** 3 },
         })
-        expect(probed.atlasHomeSubtrees).toEqual([join(atlasHome, 'memory')])
+        expect(probed.atlasHomeSubtrees).toEqual([
+          { path: join(atlasHome, 'memory'), mode: EMountMode.ReadOnly },
+        ])
 
         const explicit = sandboxConfigFromHost({
           worktree: '/unrelated/worktree',
           limits: { cpus: 1, memoryBytes: 1024 ** 3 },
-          atlasHomeSubtrees: ['/elsewhere/memory'],
+          atlasHomeSubtrees: [{ path: '/elsewhere/memory', mode: EMountMode.ReadOnly }],
         })
-        expect(explicit.atlasHomeSubtrees).toEqual(['/elsewhere/memory'])
+        expect(explicit.atlasHomeSubtrees).toEqual([
+          { path: '/elsewhere/memory', mode: EMountMode.ReadOnly },
+        ])
       } finally {
         if (previous === undefined) delete process.env['ATLAS_HOME']
         else process.env['ATLAS_HOME'] = previous

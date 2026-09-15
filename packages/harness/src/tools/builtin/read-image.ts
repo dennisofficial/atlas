@@ -3,10 +3,11 @@ import {
   imageSize,
   MAX_INLINE_BYTES,
   planDelivery,
-  type FileSystemPort,
+  type AgentFileSystemPort,
   type ImageSize,
   type ModelPart,
   type SupportedImageMediaType,
+  type ThreadId,
   type ToolOutcome,
 } from '@dltech/atlas-core'
 
@@ -98,12 +99,15 @@ export async function readImage(args: {
   mediaType: SupportedImageMediaType
   byteLength: number
   head: Uint8Array
-  files: FileSystemPort
+  files: AgentFileSystemPort
+  threadId: ThreadId
 }): Promise<ToolOutcome> {
   const { path, mediaType, byteLength } = args
 
   const readable =
-    byteLength <= MAX_INLINE_BYTES ? await args.files.readBytes({ path }) : args.head
+    byteLength <= MAX_INLINE_BYTES
+      ? await args.files.readBytes({ path, threadId: args.threadId })
+      : args.head
 
   const size = imageSize({ bytes: readable, mediaType })
 

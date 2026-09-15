@@ -1,7 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 
-import { EKilledBy, EStopAction, type ClockPort, type EventDraft, type ThreadId } from '@dltech/atlas-core'
+import {
+  EKilledBy,
+  EStopAction,
+  type ClockPort,
+  type EventDraft,
+  type ProcessPort,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import { ServiceNoticeQueue } from './service-notices'
 import {
@@ -76,12 +83,22 @@ export class BunServiceRegistry extends ServiceRegistryPort {
   private readonly listeners = new Set<() => void>()
   private flushQueued = false
 
-  constructor(
-    private readonly root: string,
-    private readonly clock: ClockPort,
-    private readonly logsDirectory: string,
-  ) {
+  private readonly root: string
+  private readonly clock: ClockPort
+  private readonly logsDirectory: string
+  private readonly processes: ProcessPort
+
+  constructor(args: {
+    root: string
+    clock: ClockPort
+    logsDirectory: string
+    processes: ProcessPort
+  }) {
     super()
+    this.root = args.root
+    this.clock = args.clock
+    this.logsDirectory = args.logsDirectory
+    this.processes = args.processes
   }
 
   /**
@@ -104,6 +121,8 @@ export class BunServiceRegistry extends ServiceRegistryPort {
       cwd: args.cwd ?? this.root,
       logPath: join(this.logsDirectory, `${serviceId}.${this.sessionToken}.log`),
       clock: this.clock,
+      processes: this.processes,
+      threadId: args.threadId,
       onExit: (service) => this.announceExit(service),
     })
     if (!opened.ok) return opened

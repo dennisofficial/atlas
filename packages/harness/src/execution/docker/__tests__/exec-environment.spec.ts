@@ -3,6 +3,17 @@ import { describe, expect, it } from 'bun:test'
 import { execEnvFor } from '../exec-environment'
 
 describe('execEnvFor', () => {
+  it('appends the atlas bin directory after the operator home bin, so atlas-svc resolves in-container', () => {
+    expect(
+      execEnvFor({
+        requested: { PATH: '/host/bin' },
+        imageEnv: ['PATH=/opt/mise/shims:/usr/local/bin'],
+        home: '/home/operator',
+        atlasBin: '/home/operator/.atlas/bin',
+      }).PATH,
+    ).toBe('/opt/mise/shims:/usr/local/bin:/home/operator/.local/bin:/home/operator/.atlas/bin')
+  })
+
   it('appends the operator home bin directory to the resolved PATH, never shadowing the image', () => {
     expect(
       execEnvFor({

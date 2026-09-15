@@ -6,6 +6,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { SIGKILL_GRACE_MS } from '../local-process'
+import { atlasBinDirectory } from '../../store/paths'
 import { demuxExecStream } from './frames'
 import { execEnvFor } from './exec-environment'
 import { EngineRequestFailed, type ContainerDetails, type DockerEngine } from './engine'
@@ -226,6 +227,7 @@ export class DockerProcessPort implements ProcessPort {
               requested: command.env,
               imageEnv: this.imageEnv,
               home: this.sandboxConfig.home,
+              atlasBin: atlasBinDirectory(),
             }),
     })
     const demuxed = demuxExecStream({

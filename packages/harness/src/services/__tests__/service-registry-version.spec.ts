@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import { toThreadId, type ClockPort } from '@dltech/atlas-core'
 
+import { LocalProcessPort } from '../../execution/local-process'
 import { BunServiceRegistry } from '../service-registry'
 
 const THREAD = toThreadId('thread-under-test')
@@ -20,7 +21,12 @@ const opened: { registry: BunServiceRegistry; root: string }[] = []
 
 function openRegistry(): { registry: BunServiceRegistry; root: string } {
   const root = mkdtempSync(join(tmpdir(), 'atlas-services-'))
-  const registry = new BunServiceRegistry(root, new FixedClock(), join(root, 'logs'))
+  const registry = new BunServiceRegistry({
+    root,
+    clock: new FixedClock(),
+    logsDirectory: join(root, 'logs'),
+    processes: new LocalProcessPort(),
+  })
   opened.push({ registry, root })
   return { registry, root }
 }

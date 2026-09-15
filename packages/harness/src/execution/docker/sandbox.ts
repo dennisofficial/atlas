@@ -63,7 +63,7 @@ export type SandboxConfig = {
   env?: Record<string, string> | undefined
   githubToken?: string | undefined
   mounts?: readonly Mount[] | undefined
-  atlasHomeSubtrees?: readonly string[] | undefined
+  atlasHomeSubtrees?: readonly Mount[] | undefined
 }
 
 export type Sandbox = {
@@ -85,7 +85,11 @@ export function sandboxCreateBody(config: SandboxConfig): CreateContainerBody {
     `${config.worktree}:${config.worktree}`,
     `${config.dockerSocket}:${config.dockerSocket}`,
   ]
-  const env: string[] = [`HOME=${config.home}`, `COMPOSE_PROJECT_NAME=${sandboxNameFor({ prefix, worktree: config.worktree })}`]
+  const env: string[] = [
+    `HOME=${config.home}`,
+    `COMPOSE_PROJECT_NAME=${sandboxNameFor({ prefix, worktree: config.worktree })}`,
+    'NODE_ENV=development',
+  ]
 
   if (config.sshAuthSock !== undefined) {
     binds.push(`${config.sshAuthSock}:${config.sshAuthSock}`)
@@ -97,7 +101,7 @@ export function sandboxCreateBody(config: SandboxConfig): CreateContainerBody {
   if (config.gitconfigPath !== undefined) {
     binds.push(`${config.gitconfigPath}:${config.gitconfigPath}:ro`)
   }
-  for (const subtree of config.atlasHomeSubtrees ?? []) binds.push(`${subtree}:${subtree}:ro`)
+  for (const subtree of config.atlasHomeSubtrees ?? []) binds.push(mountBind(subtree))
   for (const mount of config.mounts ?? []) binds.push(mountBind(mount))
 
   // Scoped safe.directory wildcards require recent Git; Debian Bookworm's Git 2.39 ignores them.

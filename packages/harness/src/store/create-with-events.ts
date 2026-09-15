@@ -1,5 +1,6 @@
 import type {
   ClockPort,
+  EExecutionLocation,
   Event,
   EventDraft,
   IdPort,
@@ -27,6 +28,7 @@ export type OpenThreadArgs = {
   title?: string | undefined
   workspace?: string | undefined
   repo?: string | null | undefined
+  executionLocation?: EExecutionLocation | undefined
   agent?: SupervisedAgent | undefined
 }
 
@@ -40,6 +42,7 @@ export async function createThreadWithEvents({
   title,
   workspace,
   repo,
+  executionLocation,
   agent,
 }: OpenThreadArgs & {
   tx: Prisma.TransactionClient
@@ -59,6 +62,7 @@ export async function createThreadWithEvents({
       ...(title === undefined ? {} : { title }),
       ...(workspace === undefined ? {} : { workspace }),
       ...(repo === undefined ? {} : { repo }),
+      ...(executionLocation === undefined ? {} : { executionLocation }),
       ...(agent === undefined ? {} : { spawnerThreadId: agent.spawnedBy, agentType: agent.type }),
     },
   })

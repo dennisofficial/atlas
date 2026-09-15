@@ -5,6 +5,7 @@ import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import { EMountMode } from '../../image/mounts'
 import { DockerEngine } from '../engine'
 import { runSandboxScript, type ScriptOutcome } from '../sandbox-scripts'
 import { dockerUnavailableReason } from './live-docker'
@@ -160,7 +161,9 @@ describeDocker('ensureSandbox against a live daemon', () => {
     try {
       const sandbox = await ensureSandbox({
         engine,
-        config: liveConfig({ atlasHomeSubtrees: [join(atlasHome, 'memory')] }),
+        config: liveConfig({
+          atlasHomeSubtrees: [{ path: join(atlasHome, 'memory'), mode: EMountMode.ReadOnly }],
+        }),
       })
 
       const reading = await runSandboxScript({

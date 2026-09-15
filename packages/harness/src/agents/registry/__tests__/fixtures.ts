@@ -4,6 +4,7 @@ import {
   toCallId,
   toRunId,
   type EventDraft,
+  type ExecutionLocationSinkPort,
   type ModelPort,
   type ModelStepResult,
   type ThreadId,
@@ -122,7 +123,11 @@ export type OpenedSupervisor = {
 
 export async function openSupervisor({
   agentTypes = [agentTypeNamed({ name: 'explore' }), agentTypeNamed({ name: 'builder' })],
-}: { agentTypes?: readonly AgentType[] } = {}): Promise<OpenedSupervisor> {
+  sink,
+}: {
+  agentTypes?: readonly AgentType[]
+  sink?: ExecutionLocationSinkPort | undefined
+} = {}): Promise<OpenedSupervisor> {
   const temp = createTempDatabase()
   const harness = await buildHarness({
     databaseUrl: temp.databaseUrl,
@@ -141,6 +146,7 @@ export async function openSupervisor({
       agentTypes,
       runners: runners.source,
       launchDirectory: '/launch',
+      ...(sink === undefined ? {} : { sink }),
     }),
     parent: (await harness.threads.create({})).id,
     close: async () => {

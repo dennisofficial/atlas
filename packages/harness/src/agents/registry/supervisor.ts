@@ -1,19 +1,21 @@
 import {
   EKilledBy,
   EMessageOrigin,
+  NoopExecutionLocationSink,
   projectDirectoryOf,
   type ClockPort,
   type EventDraft,
   type EventLogPort,
+  type ExecutionLocationSinkPort,
   type IdPort,
   type SaidImage,
   type ThreadId,
 } from '@dltech/atlas-core'
 
 import type { ThreadStorePort } from '../../store'
-import type { ChildRunnerSource } from './child-runner'
 import type { AgentType } from '../types'
 import { ChildSteps } from './child-steps'
+import type { SupervisorDeps } from './deps'
 import { freshChild, isStepping, snapshotOf, type ChildState } from './child-state'
 import { NoticeDelivery } from './delivery'
 import { AgentNoticeQueue } from './notices'
@@ -44,16 +46,9 @@ export class AgentSupervisor extends AgentRegistryPort {
   private readonly steps: ChildSteps
   private readonly recovery: ChildRecovery
   private readonly launchDirectory: string
+  private readonly sink: ExecutionLocationSinkPort
 
-  constructor(args: {
-    log: EventLogPort
-    threads: ThreadStorePort
-    ids: IdPort
-    clock: ClockPort
-    agentTypes: readonly AgentType[]
-    runners: ChildRunnerSource
-    launchDirectory: string
-  }) {
+  constructor(args: SupervisorDeps) {
     super()
     this.log = args.log
     this.threads = args.threads
@@ -61,6 +56,7 @@ export class AgentSupervisor extends AgentRegistryPort {
     this.clock = args.clock
     this.agentTypes = args.agentTypes
     this.launchDirectory = args.launchDirectory
+    this.sink = args.sink ?? new NoopExecutionLocationSink()
     this.steps = new ChildSteps({
       runners: args.runners,
       roster: this.roster,
@@ -98,7 +94,7 @@ export class AgentSupervisor extends AgentRegistryPort {
     }
     if (brief.trim() === '') return { ok: false, reason: EMPTY_BRIEF }
 
-    const agentId = await openChildThread({
+    const { threadId: agentId, inheritedLocation } = await openChildThread({
       threads: this.threads,
       log: this.log,
       ids: this.ids,
@@ -107,6 +103,8 @@ export class AgentSupervisor extends AgentRegistryPort {
       brief,
       intent,
     })
+
+    if (inheritedLocation !== undefined) this.sink.note({ threadId: agentId, location: inheritedLocation })
 
     const child = freshChild({
       agentId,

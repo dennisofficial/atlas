@@ -6,10 +6,12 @@ export type LabelledSandbox = {
 export function idleStopDue(args: {
   lastBashAt: number
   runningShells: number
+  runningServices: number
   idleMinutes: number
   now: number
 }): boolean {
   if (args.runningShells > 0) return false
+  if (args.runningServices > 0) return false
   return args.now - args.lastBashAt >= args.idleMinutes * 60_000
 }
 

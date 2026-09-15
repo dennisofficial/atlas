@@ -49,7 +49,7 @@ const ended = (agentId: ThreadId): EventDraft => ({
 })
 
 async function completedDelegation(entry: OpenedSupervisor): Promise<ThreadId> {
-  const agentId = await openChildThread({
+  const { threadId: agentId } = await openChildThread({
     threads: entry.harness.threads,
     log: entry.harness.log,
     ids: entry.harness.ids,
@@ -135,7 +135,7 @@ describe('a sub-agent whose delegation a rewind deletes', () => {
 
   it('keeps a child whose spawn sits at the rewind target, and keeps recording for it', async () => {
     const entry = await openAndTrack()
-    const kept = await openChildThread({
+    const { threadId: kept } = await openChildThread({
       threads: entry.harness.threads,
       log: entry.harness.log,
       ids: entry.harness.ids,

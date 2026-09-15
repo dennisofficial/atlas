@@ -7,6 +7,16 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
+const withoutNodeEnv = (
+  env: Record<string, string | undefined> | undefined,
+): Record<string, string | undefined> | undefined => {
+  if (env === undefined || !('NODE_ENV' in env)) return env
+
+  const stripped = { ...env }
+  delete stripped['NODE_ENV']
+  return stripped
+}
+
 export class RoutedProcessPort implements ProcessPort {
   private readonly local: ProcessPort
   private readonly dockerFor: () => ProcessPort
@@ -24,7 +34,12 @@ export class RoutedProcessPort implements ProcessPort {
   }
 
   spawn(args: SpawnCommand): ProcessHandle {
-    return this.portFor(args.threadId).spawn(args)
+    if (this.locationOf(args.threadId) !== EExecutionLocation.Docker) {
+      return this.local.spawn(args)
+    }
+
+    this.docker ??= this.dockerFor()
+    return this.docker.spawn({ ...args, env: withoutNodeEnv(args.env) })
   }
 
   which(args: { command: string; threadId?: ThreadId | undefined }): string | null {

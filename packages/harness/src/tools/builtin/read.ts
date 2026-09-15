@@ -1,9 +1,9 @@
 import {
+  AgentFileSystemPort,
   EContentAccess,
   EPathForm,
   EPathPresence,
   EToolEffect,
-  FileSystemPort,
   imageMediaType,
   SchemaTool,
   type DeclaredPathField,
@@ -78,38 +78,23 @@ type LineScan = Selection | { kind: EScan.PastEnd; totalLines: number }
 const withoutCarriageReturn = (line: string): string =>
   line.endsWith('\r') ? line.slice(0, -1) : line
 
-async function* linesOf(path: string): AsyncGenerator<string> {
-  const decoder = new TextDecoder()
-  let pending = ''
-
-  for await (const chunk of Bun.file(path).stream()) {
-    pending += decoder.decode(chunk, { stream: true })
-
-    let start = 0
-    let newline = pending.indexOf('\n', start)
-    while (newline !== -1) {
-      yield withoutCarriageReturn(pending.slice(start, newline))
-      start = newline + 1
-      newline = pending.indexOf('\n', start)
-    }
-    pending = pending.slice(start)
-  }
-
-  pending += decoder.decode()
-  if (pending !== '') yield withoutCarriageReturn(pending)
+function linesOf(content: string): string[] {
+  const lines = content.split('\n')
+  if (lines[lines.length - 1] === '') lines.pop()
+  return lines.map(withoutCarriageReturn)
 }
 
-async function scanLines(args: {
-  path: string
+function scanLines(args: {
+  content: string
   firstLine: number
   limit: number
-}): Promise<LineScan> {
+}): LineScan {
   const lines: string[] = []
   let lineNumber = 0
   let bytes = 0
   let clipped = 0
 
-  for await (const line of linesOf(args.path)) {
+  for (const line of linesOf(args.content)) {
     lineNumber += 1
     if (lineNumber < args.firstLine) continue
 
@@ -132,6 +117,8 @@ async function scanLines(args: {
 
   return { kind: EScan.Selected, lines, stop: EStop.EndOfFile, clipped, nextLine: lineNumber + 1 }
 }
+
+const utf8Decoder = new TextDecoder()
 
 const resumeAt = (nextLine: number): string =>
   `Read on with offset ${nextLine}, or use grep to jump to what you need.`
@@ -180,20 +167,21 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
     { field: 'path', presence: EPathPresence.Required, form: EPathForm.Absolute, content: EContentAccess.Reads },
   ]
 
-  constructor(private readonly files: FileSystemPort = new LocalFileSystemPort()) {
+  constructor(private readonly files: AgentFileSystemPort = new LocalFileSystemPort()) {
     super()
   }
 
   protected override async run({
     input,
     projectDirectory,
+    threadId,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     const rawPath = input.path
     const resolved = resolveToolPath({ projectDirectory, path: rawPath })
     if (!resolved.ok) return { ok: false, reason: resolved.reason }
     const path = resolved.path
     const { offset, limit } = input
-    const stats = await this.files.stat({ path }).catch(() => null)
+    const stats = await this.files.stat({ path, threadId }).catch(() => null)
     if (stats === null) {
       return {
         ok: false,
@@ -208,7 +196,8 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
     }
     if (!stats.isFile()) return { ok: false, reason: `${path} is not a regular file.` }
 
-    const head = new Uint8Array(await Bun.file(path).slice(0, BINARY_SNIFF_LENGTH).arrayBuffer())
+    const bytes = await this.files.readBytes({ path, threadId })
+    const head = bytes.subarray(0, BINARY_SNIFF_LENGTH)
 
     const mediaType = imageMediaType(head)
     if (mediaType !== null) {
@@ -218,6 +207,7 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
         byteLength: stats.size,
         head,
         files: this.files,
+        threadId,
       })
     }
 
@@ -226,7 +216,11 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
     }
 
     const firstLine = offset ?? 1
-    const scan = await scanLines({ path, firstLine, limit: limit ?? DEFAULT_LINE_LIMIT })
+    const scan = scanLines({
+      content: utf8Decoder.decode(bytes),
+      firstLine,
+      limit: limit ?? DEFAULT_LINE_LIMIT,
+    })
 
     if (scan.kind === EScan.PastEnd) {
       return {

@@ -1,14 +1,19 @@
 import {
   AfterToolHook,
+  AgentFileSystemPort,
   BeforeToolHook,
   DEFAULT_CONTAINER_IDLE_MINUTES,
+  EServiceStatus,
   ESettingId,
   EShellStatus,
+  ExecutionLocationSinkPort,
+  FileSystemPort,
   ProcessPort,
   rangeValueOf,
 } from '@dltech/atlas-core'
 import {
   BashActivityHook,
+  DockerFileSystemPort,
   DockerProcessPort,
   EImageKind,
   ESandboxState,
@@ -22,6 +27,8 @@ import {
   portToken,
   mountedAtlasHomeSubtrees,
   resolveContainerConfig,
+  RoutedFileSystemPort,
+  ServiceRegistryPort,
   ShellRegistryPort,
   type DependencyContainer,
   type DockerEngine,
@@ -61,7 +68,10 @@ export async function bindSandbox(args: {
     declared: resolution.mounts,
     atlasHome: args.atlasHome,
   })
-  const mounts = [...resolution.mounts.map((mount) => mount.path), ...atlasSubtrees]
+  const mounts = [
+    ...resolution.mounts.map((mount) => mount.path),
+    ...atlasSubtrees.map((subtree) => subtree.path),
+  ]
   for (const refusal of resolution.refusals) {
     notify({
       key: `container-refusal:${refusal.file}`,
@@ -133,6 +143,23 @@ export async function bindSandbox(args: {
     }),
   })
 
+  container.register(portToken(ExecutionLocationSinkPort), {
+    useValue: {
+      note: ({ threadId, location }) => executionLocation.note({ threadId, location }),
+    },
+  })
+
+  container.register(portToken(AgentFileSystemPort), {
+    useFactory: (resolver) =>
+      new RoutedFileSystemPort({
+        local: resolver.resolve(portToken(FileSystemPort)),
+        dockerFor: () => new DockerFileSystemPort({ processes: docker() }),
+        locationOf: (threadId) =>
+          (threadId === undefined ? undefined : executionLocation.of(threadId)) ??
+          executionLocation.current(),
+      }),
+  })
+
   const markStopped = (): void => {
     status.mark({ state: ESandboxState.Stopped })
     dockerPort?.sandboxStopped()
@@ -146,6 +173,11 @@ export async function bindSandbox(args: {
         .resolve(portToken(ShellRegistryPort))
         .listEverywhere()
         .filter((shell) => shell.status === EShellStatus.Running).length,
+    runningServices: () =>
+      container
+        .resolve(portToken(ServiceRegistryPort))
+        .list()
+        .filter((service) => service.status === EServiceStatus.Running).length,
     idleMinutes: () =>
       rangeValueOf({
         resolution: settings.snapshot().resolution,

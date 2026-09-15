@@ -2,8 +2,8 @@ import {
   EContentAccess,
   EPathForm,
   EPathPresence,
+  AgentFileSystemPort,
   EToolEffect,
-  FileSystemPort,
   SchemaTool,
   type DeclaredPathField,
   type ToolOutcome,
@@ -40,7 +40,7 @@ export class WriteTool extends SchemaTool<typeof inputSchema> {
 
   constructor(
     private readonly guard: FileWriteGuardPort = new SerializedWrites(),
-    private readonly files: FileSystemPort = new LocalFileSystemPort(),
+    private readonly files: AgentFileSystemPort = new LocalFileSystemPort(),
   ) {
     super()
   }
@@ -59,12 +59,12 @@ export class WriteTool extends SchemaTool<typeof inputSchema> {
       threadId,
       path,
       write: async (): Promise<ToolOutcome> => {
-        const stats = await this.files.stat({ path }).catch(() => null)
+        const stats = await this.files.stat({ path, threadId }).catch(() => null)
         if (stats !== null && !stats.isFile()) {
           return { ok: false, reason: `${path} already exists and is not a regular file.` }
         }
 
-        const bytes = await writeFileAtomically({ path, content, mode: stats?.mode, files: this.files })
+        const bytes = await writeFileAtomically({ path, content, mode: stats?.mode, files: this.files, threadId })
         const created = stats === null
 
         return {

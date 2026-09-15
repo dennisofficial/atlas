@@ -329,7 +329,10 @@ describe('ensureSandbox scripts and drift, against a fake engine', () => {
 
     const sandbox = await ensureSandbox({
       engine: fake,
-      config: { ...FAKE_CONFIG, atlasHomeSubtrees: ['/Users/operator/.atlas/memory'] },
+      config: {
+        ...FAKE_CONFIG,
+        atlasHomeSubtrees: [{ path: '/Users/operator/.atlas/memory', mode: EMountMode.ReadOnly }],
+      },
     })
 
     expect(sandbox.created).toBe(false)

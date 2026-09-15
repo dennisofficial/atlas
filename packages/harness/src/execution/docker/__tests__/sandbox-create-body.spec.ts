@@ -228,15 +228,25 @@ describe('sandboxCreateBody', () => {
     )
   })
 
-  it('binds each atlas home subtree read-only at its identical path, never the atlas home root', () => {
+  it('binds each atlas home subtree at its identical path in its own mode, never the atlas home root', () => {
     const body = sandboxCreateBody({
       ...CONFIG,
-      atlasHomeSubtrees: ['/Users/operator/.atlas/memory', '/Users/operator/.atlas/skills'],
+      atlasHomeSubtrees: [
+        { path: '/Users/operator/.atlas/memory', mode: EMountMode.ReadOnly },
+        { path: '/Users/operator/.atlas/services', mode: EMountMode.ReadWrite },
+      ],
     })
     const binds = body.HostConfig?.Binds ?? []
 
     expect(binds).toContain('/Users/operator/.atlas/memory:/Users/operator/.atlas/memory:ro')
-    expect(binds).toContain('/Users/operator/.atlas/skills:/Users/operator/.atlas/skills:ro')
+    expect(binds).toContain('/Users/operator/.atlas/services:/Users/operator/.atlas/services')
     expect(binds.some((bind) => bind.startsWith('/Users/operator/.atlas:'))).toBe(false)
+  })
+
+  it('defaults NODE_ENV to development, and declared env still wins the collision', () => {
+    expect(sandboxCreateBody(CONFIG).Env).toContain('NODE_ENV=development')
+
+    const env = sandboxCreateBody({ ...CONFIG, env: { NODE_ENV: 'production' } }).Env ?? []
+    expect(env.filter((one) => one.startsWith('NODE_ENV='))).toEqual(['NODE_ENV=production'])
   })
 })

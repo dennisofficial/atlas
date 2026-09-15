@@ -6,6 +6,7 @@ export type RestartSafety = {
   readonly compacting: boolean
   readonly approvalOpen: boolean
   readonly exitGuardOpen: boolean
+  readonly containerGuardOpen: boolean
   readonly queuedMessages: number
   readonly runningTasks: number
   readonly draftEmpty: boolean
@@ -17,6 +18,7 @@ export function autoRestartBlocker(args: RestartSafety): string | null {
   if (args.compacting) return 'a compaction is running'
   if (args.approvalOpen) return 'an approval is waiting'
   if (args.exitGuardOpen) return 'the exit guard is open'
+  if (args.containerGuardOpen) return 'the container guard is open'
   if (args.runningTasks > 0) return 'tasks are still running'
   if (args.queuedMessages > 0) return 'a message is still queued'
   if (!args.draftEmpty) return 'the composer holds a draft'

@@ -1,4 +1,4 @@
-import type { FileSystemPort, ProcessPort, ThreadId } from '@dltech/atlas-core'
+import type { AgentFileSystemPort, ProcessPort, ThreadId } from '@dltech/atlas-core'
 
 const FILES_PER_GREP_BATCH = 128
 
@@ -18,7 +18,7 @@ export type FallbackSearch = {
   context: number | undefined
   signal: AbortSignal
   processes: ProcessPort
-  files: FileSystemPort
+  files: AgentFileSystemPort
   threadId: ThreadId
 }
 
@@ -77,7 +77,9 @@ function grepFlags(args: FallbackSearch): string[] {
  * grep runs over explicit files in batches.
  */
 export async function runPosixGrep(args: FallbackSearch): Promise<SearchResult> {
-  const target = await args.files.stat({ path: args.searchPath }).catch(() => null)
+  const target = await args.files
+    .stat({ path: args.searchPath, threadId: args.threadId })
+    .catch(() => null)
 
   if (target !== null && target.isFile()) {
     return await spawnGrep({ ...args, cmd: ['grep', '-H', ...grepFlags(args), '--', args.searchPath] })
@@ -85,7 +87,13 @@ export async function runPosixGrep(args: FallbackSearch): Promise<SearchResult> 
 
   const include = args.include === undefined ? null : new Bun.Glob(`**/${args.include}`)
   const candidates = (
-    await args.files.glob({ pattern: '**/*', cwd: args.searchPath, dot: true, signal: args.signal })
+    await args.files.glob({
+      pattern: '**/*',
+      cwd: args.searchPath,
+      dot: true,
+      signal: args.signal,
+      threadId: args.threadId,
+    })
   ).filter(
     (path) => {
       const relative = relativeToRoot(path, args.searchPath)

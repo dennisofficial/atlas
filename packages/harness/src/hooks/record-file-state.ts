@@ -6,9 +6,9 @@ import {
   EContentAccess,
   EStage,
   ToolDefinition,
+  type AgentFileSystemPort,
   type AfterTool,
   type DeclaredPathField,
-  type FileSystemPort,
   type HookOrder,
   type ThreadId,
   type ToolCall,
@@ -27,12 +27,12 @@ export class RecordFileStateHook extends AfterToolHook {
 
   private readonly seen: FileReadStatePort
   private readonly declarations: Map<string, ToolDeclaration>
-  private readonly files: FileSystemPort
+  private readonly files: AgentFileSystemPort
 
   constructor(
     seen: FileReadStatePort,
     tools: readonly ToolDeclaration[],
-    files: FileSystemPort = new LocalFileSystemPort(),
+    files: AgentFileSystemPort = new LocalFileSystemPort(),
   ) {
     super()
     this.seen = seen
@@ -72,14 +72,14 @@ export class RecordFileStateHook extends AfterToolHook {
   }): Promise<void> {
     if (!isAbsolute(path)) return
 
-    const stats = await this.files.stat({ path }).catch(() => null)
+    const stats = await this.files.stat({ path, threadId }).catch(() => null)
     if (stats === null || !stats.isFile()) return
 
-    const digest = await digestOf({ path, files: this.files })
+    const digest = await digestOf({ path, files: this.files, threadId })
     if (digest === undefined) return
 
     const known = this.seen.viewOf({ threadId, path })
-    const wholeFile = known !== undefined && !(await movedSince({ view: known, stats, path, files: this.files })) && known.wholeFile
+    const wholeFile = known !== undefined && !(await movedSince({ view: known, stats, path, files: this.files, threadId })) && known.wholeFile
 
     this.seen.record({
       threadId,
@@ -100,10 +100,10 @@ export class RecordFileStateHook extends AfterToolHook {
     const value = inputFieldOf({ input: call.input, field: declared.field })
     if (value === ABSENT || typeof value !== 'string' || !isAbsolute(value)) return
 
-    const stats = await this.files.stat({ path: value }).catch(() => null)
+    const stats = await this.files.stat({ path: value, threadId: call.threadId }).catch(() => null)
     if (stats === null || !stats.isFile()) return
 
-    const digest = await digestOf({ path: value, files: this.files })
+    const digest = await digestOf({ path: value, files: this.files, threadId: call.threadId })
     if (digest === undefined) return
 
     this.seen.record({
@@ -145,5 +145,5 @@ export class RecordFileStateHook extends AfterToolHook {
 export const createRecordFileStateHook = (args: {
   seen: FileReadStatePort
   tools: readonly ToolDeclaration[]
-  files?: FileSystemPort | undefined
+  files?: AgentFileSystemPort | undefined
 }): AfterToolHook => new RecordFileStateHook(args.seen, args.tools, args.files)
