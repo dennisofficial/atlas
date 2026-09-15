@@ -795,7 +795,12 @@ function Workspace(props: {
 
   const specs = useMemo(() => commandSpecs({ commands, skills }), [commands, skills])
 
-  const menus = useComposerMenus({ specs, files: props.app.files, onComplete: draft.setValue })
+  const menus = useComposerMenus({
+    specs,
+    files: props.app.files,
+    currentDirectory: conversation.projectDirectory,
+    onComplete: draft.setValue,
+  })
   const readDraft = useRef(menus.handleTextChanged)
   readDraft.current = menus.handleTextChanged
 
@@ -1268,6 +1273,9 @@ function Workspace(props: {
               <CommandMenu state={menus.command} width={composerWidth} />
             )}
             {menus.file === null ? null : <FileMenu state={menus.file} width={composerWidth} />}
+            {menus.cd === null ? null : (
+              <FileMenu state={menus.cd} width={composerWidth} label=" Directories " />
+            )}
             <Composer
               draft={draft}
               width={composerWidth}

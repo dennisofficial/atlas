@@ -35,6 +35,7 @@ export type Mounted = {
   nextFrame: () => Promise<string>
   typeText: (text: string) => Promise<void>
   pressEnter: () => void
+  pressTab: () => void
   pressEscape: () => void
   pressBackspace: () => void
   paste: (text: string) => Promise<void>
@@ -109,6 +110,7 @@ export async function open(args: {
     },
     typeText: (text) => setup.mockInput.typeText(text),
     pressEnter: () => setup.mockInput.pressEnter(),
+    pressTab: () => setup.mockInput.pressTab(),
     pressEscape: () => setup.mockInput.pressEscape(),
     pressBackspace: () => setup.mockInput.pressBackspace(),
     paste: (text) => setup.mockInput.pasteBracketedText(text),

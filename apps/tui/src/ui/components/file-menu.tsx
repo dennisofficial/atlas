@@ -48,7 +48,11 @@ function FileRow(props: { path: string; cells: number; selected: boolean }): Rea
   )
 }
 
-export function FileMenu(props: { state: FileMenuState; width: number }): React.ReactNode {
+export function FileMenu(props: {
+  state: FileMenuState
+  width: number
+  label?: string
+}): React.ReactNode {
   const cells = Math.max(0, props.width - CHROME_COLUMNS)
   const { start, visible } = fileMenuWindow({ state: props.state, rows: FILE_MENU_ROWS })
   const counted = `${props.state.index + 1}/${props.state.matches.length}`
@@ -58,7 +62,7 @@ export function FileMenu(props: { state: FileMenuState; width: number }): React.
     <Panel
       width={props.width}
       fill={theme.overlayBg}
-      label={<text fg={theme.meta} bg={theme.overlayBg}>{' Files '}</text>}
+      label={<text fg={theme.meta} bg={theme.overlayBg}>{props.label ?? ' Files '}</text>}
       badge={<text fg={theme.hint} bg={theme.overlayBg}>{` ${counted} · ⇥ ${verb} `}</text>}
     >
       <box flexDirection="column" flexShrink={0}>
