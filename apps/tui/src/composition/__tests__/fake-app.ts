@@ -25,6 +25,7 @@ import {
   type ModelCard,
   type ModelPort,
   type ModelStepResult,
+  type SecretsPort,
   type SettingsDocument,
   toThreadId,
   type ThreadId,
@@ -646,6 +647,7 @@ export function fakeApp(args: {
   model: ModelPort
   settings?: SettingsDocument
   secrets?: Record<string, string>
+  secretsPort?: SecretsPort
   names?: string | null
   summarises?: string | null
   summariseDelayMs?: number
@@ -815,7 +817,7 @@ export function fakeApp(args: {
         ...(args.settings === undefined ? {} : { document: args.settings }),
       }),
     }),
-    secrets: new MemorySecretsStore({
+    secrets: args.secretsPort ?? new MemorySecretsStore({
       label: '~/.atlas/secrets.json',
       ...(args.secrets === undefined ? {} : { secrets: args.secrets }),
     }),

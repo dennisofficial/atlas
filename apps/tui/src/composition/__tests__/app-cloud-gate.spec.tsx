@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
+import { SecretsPort } from '@dltech/atlas-core'
+import { CloudSignInRequiredError } from '@dltech/atlas-harness'
+
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { open, until, REPLY, THINKING } from './app-fixture'
 import { fakeApp, fakeSignedOutCloud, failingModelPort, scriptedModelPort } from './fake-app'
@@ -88,6 +91,43 @@ describe('the cloud sign-in boot gate', () => {
 
       await mounted.typeText('still here')
       expect(await mounted.frame()).not.toContain('ACCOUNTS')
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('renders the gate over a secrets port that reads empty and refuses writes, like a signed-out proxy', async () => {
+    class SignedOutSecrets extends SecretsPort {
+      origin(): string {
+        return 'Atlas Cloud (signed out)'
+      }
+      read(): string | undefined {
+        return undefined
+      }
+      write(): void {
+        throw new CloudSignInRequiredError()
+      }
+      remove(): void {
+        throw new CloudSignInRequiredError()
+      }
+    }
+
+    const mounted = await open({
+      app: fakeApp({
+        model: scripted(),
+        cloud: fakeSignedOutCloud(),
+        cloudRequired: true,
+        secretsPort: new SignedOutSecrets(),
+      }),
+    })
+
+    try {
+      const gated = await until({
+        holds: async () => (await mounted.frame()).includes(SIGN_IN_NOTICE),
+        within: 20_000,
+      })
+      expect(gated).toBe(true)
+      expect(await mounted.frame()).not.toContain('something broke')
     } finally {
       await mounted.done()
     }
