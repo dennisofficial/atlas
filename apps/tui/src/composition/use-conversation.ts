@@ -422,7 +422,11 @@ export function useConversation(args: {
     process.stdout.write(
       terminalTitleSequence({ name, directory: workspace.projectDirectory }),
     )
-  }, [name, workspace.projectDirectory])
+    app.journalResume({
+      active: { threadId, title: name, started },
+      directory: workspace.projectDirectory,
+    })
+  }, [app, name, started, threadId, workspace.projectDirectory])
 
   const rows = useMemo(
     () => pendingRows({ entries: queued, notices, agents: agentNotices, services: serviceNotices }),

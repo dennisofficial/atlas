@@ -84,6 +84,8 @@ const benchApp = (args: {
 
   return {
     config: { model: undefined, open: { mode: EOpenMode.New }, cwd: args.root, executionLocation: undefined },
+    command: 'atlas-dev',
+    journalResume: () => {},
     workspace: { workspace: args.root, repo: null },
     tools: new InMemoryToolRegistry([]),
     markActiveThread: (next) => {

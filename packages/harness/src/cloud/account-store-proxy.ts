@@ -35,6 +35,7 @@ export class AccountStoreProxy extends AccountStorePort {
   }
 
   list(): Promise<readonly Account[]> {
+    if (this.signedOutOfRequiredCloud()) return Promise.resolve([])
     return this.current().list()
   }
 
@@ -63,7 +64,12 @@ export class AccountStoreProxy extends AccountStorePort {
   }
 
   activeFor(provider: EAuthProvider): Promise<AccountId | undefined> {
+    if (this.signedOutOfRequiredCloud()) return Promise.resolve(undefined)
     return this.current().activeFor(provider)
+  }
+
+  private signedOutOfRequiredCloud(): boolean {
+    return this.sessions.read() === null && this.cloudRequired()
   }
 
   private current(): AccountStorePort {
