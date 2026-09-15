@@ -134,7 +134,7 @@ describe('the rewind command', () => {
 })
 
 describe('a rewind that cuts a background shell', () => {
-  it('kills the shell and warns the operator, since the rewound transcript never started it', async () => {
+  const seededAppWithShell = async (): Promise<{ app: FakeApp; setup: Mounted }> => {
     const app = appWith()
     const seeded = await app.log.append({
       threadId: THREAD,
@@ -178,6 +178,11 @@ describe('a rewind that cuts a background shell', () => {
       WIDE,
     )
     await frameShowing({ setup, text: 'now the parser' })
+    return { app, setup }
+  }
+
+  it('asks before destroying the shell, naming it, and kills it once confirmed', async () => {
+    const { app, setup } = await seededAppWithShell()
 
     try {
       await said(setup, app, '/rewind', REWIND_TITLE)
@@ -186,11 +191,41 @@ describe('a rewind that cuts a background shell', () => {
       expect(await frameShowing({ setup, text: 'rewind to here' })).toContain('rewind to here')
 
       setup.mockInput.pressEnter()
-      const frame = await frameShowing({ setup, text: 'killed background shell' })
+      const asking = await frameShowing({ setup, text: 'destroys what was created' })
+      expect(asking).toContain('Run the test watcher')
+      expect(app.shells.removed).toEqual([])
+
+      setup.mockInput.pressEnter()
+      const frame = await frameShowing({ setup, text: 'the rewind destroyed' })
 
       expect(frame).toContain('bash_1')
       expect(app.shells.removed).toEqual([{ shellId: 'bash_1', by: EKilledBy.Rewind }])
       expect(await app.log.read({ threadId: THREAD })).toHaveLength(2)
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('leaves the shell and the transcript alone when the operator cancels', async () => {
+    const { app, setup } = await seededAppWithShell()
+
+    try {
+      await said(setup, app, '/rewind', REWIND_TITLE)
+
+      setup.mockInput.pressEnter()
+      await frameShowing({ setup, text: 'rewind to here' })
+      setup.mockInput.pressEnter()
+      await frameShowing({ setup, text: 'destroys what was created' })
+
+      setup.mockInput.pressEscape()
+      await frameWhen({
+        setup,
+        holds: (drawn) => !drawn.includes('destroys what was created'),
+        describe: 'the rewind confirmation to close',
+      })
+
+      expect(app.shells.removed).toEqual([])
+      expect(await app.log.read({ threadId: THREAD })).toHaveLength(6)
     } finally {
       await teardown(setup)
     }

@@ -94,6 +94,15 @@ export function fakeServiceRegistry(): FakeServices {
       return { ok: true, snapshot, action: EStopAction.Term }
     },
 
+    removeServices: ({ serviceIds, by }) => {
+      for (const serviceId of serviceIds) stopped.push({ serviceId, by })
+      for (let at = owned.length - 1; at >= 0; at -= 1) {
+        if (serviceIds.includes(owned[at]?.snapshot.serviceId ?? '')) owned.splice(at, 1)
+      }
+      settle(ended.filter((one) => !serviceIds.includes(one.snapshot.serviceId)))
+      bump()
+    },
+
     list: () => owned.map((one) => one.snapshot),
 
     threadsAwaitingNotice: () => [...new Set(ended.map((one) => one.threadId))],

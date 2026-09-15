@@ -10,6 +10,7 @@ import { ContainerGuard } from '../ui/components/container-guard'
 import { ExitGuard } from '../ui/components/exit-guard'
 import { exitGuardAgentRow, exitGuardRow, exitGuardServiceRow } from '../ui/exit-guard-model'
 import { Rewind } from '../ui/components/rewind'
+import { RewindConfirm } from '../ui/components/rewind-confirm'
 import { Services } from '../ui/components/services'
 import { Settings } from '../ui/components/settings'
 import { Shells } from '../ui/components/shells'
@@ -27,6 +28,7 @@ import type { ApprovalControl } from './use-approval'
 import type { ContainerGuardControl } from './use-container-guard'
 import type { ExitGuardControl } from './use-exit-guard'
 import type { RewindControl } from './use-rewind'
+import type { RewindConfirmControl } from './use-rewind-confirm'
 import type { ServicesControl } from './use-services'
 import type { SettingsControl } from './use-settings'
 import type { ShellsControl } from './use-shells'
@@ -48,6 +50,7 @@ function DerivedOverlayStack(props: {
   threads: ThreadsControl
   accountMeters: (row: AccountRow) => readonly Span[]
   rewind: RewindControl
+  rewindConfirm: RewindConfirmControl
   approval: ApprovalControl
   exitGuard: ExitGuardControl
   containerGuard: ContainerGuardControl
@@ -161,6 +164,15 @@ function DerivedOverlayStack(props: {
           overlay
           onPick={approval.handlePick}
           onDismiss={approval.handleDismiss}
+        />
+      )}
+      {props.rewindConfirm.state === null ? null : (
+        <RewindConfirm
+          width={Math.min(props.contentWidth, props.width)}
+          state={props.rewindConfirm.state}
+          overlay
+          onConfirm={props.rewindConfirm.handleConfirm}
+          onDismiss={props.rewindConfirm.handleDismiss}
         />
       )}
       {exitGuard.state === null ? null : (

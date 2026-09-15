@@ -280,6 +280,51 @@ describe('listing services', () => {
   })
 })
 
+describe('a rewind removing services', () => {
+  it('kills a running service, forgets it, and announces nothing', async () => {
+    const { registry } = openRegistry()
+    const started = await registry.start({
+      threadId: THREAD,
+      command: 'sleep 30',
+      description: 'web dev server',
+    })
+    if (!started.ok) throw new Error(started.reason)
+
+    registry.removeServices({ serviceIds: [started.snapshot.serviceId], by: EKilledBy.Rewind })
+
+    expect(registry.list()).toHaveLength(0)
+    await Bun.sleep(400)
+    expect(registry.pendingNotices({ threadId: THREAD })).toHaveLength(0)
+    expect(registry.drainNotifications({ threadId: THREAD })).toHaveLength(0)
+  })
+
+  it('drops the ending a removed service had already queued', async () => {
+    const { registry } = openRegistry()
+    await registry.start({ threadId: THREAD, command: 'exit 0', description: 'brief server' })
+    await announced({ registry })
+
+    registry.removeServices({ serviceIds: ['svc_1'], by: EKilledBy.Rewind })
+
+    expect(registry.pendingNotices({ threadId: THREAD })).toHaveLength(0)
+    expect(registry.drainNotifications({ threadId: THREAD })).toHaveLength(0)
+    expect(registry.threadsAwaitingNotice()).toEqual([])
+  })
+
+  it('leaves a service nobody cut alone', async () => {
+    const { registry } = openRegistry()
+    const started = await registry.start({
+      threadId: THREAD,
+      command: 'sleep 30',
+      description: 'web dev server',
+    })
+    if (!started.ok) throw new Error(started.reason)
+
+    registry.removeServices({ serviceIds: ['svc_99'], by: EKilledBy.Rewind })
+
+    expect(registry.list().map((snapshot) => snapshot.serviceId)).toEqual(['svc_1'])
+  })
+})
+
 describe('closing the session', () => {
   it('stops everything and still queues the endings', async () => {
     const { registry } = openRegistry()

@@ -1142,13 +1142,14 @@ function Workspace(props: {
 
   const registry = useKeyRegistry()
 
-  const { approval } = conversation
+  const { approval, rewindConfirm } = conversation
   const compacting = conversation.compacting !== null
 
   const overlays = useMemo(
     (): readonly OverlayPresence[] => [
       covering(exitGuard.state !== null, exitGuard.handleKey),
       covering(containerGuard.state !== null, containerGuard.handleKey),
+      covering(rewindConfirm.state !== null, rewindConfirm.handleKey),
       covering(approval.state !== null, approval.handleKey),
       covering(rewind.state !== null, rewind.handleKey),
       covering(switcher.state !== null, switcher.handleKey),
@@ -1177,6 +1178,8 @@ function Workspace(props: {
       overlay,
       rewind.handleKey,
       rewind.state,
+      rewindConfirm.handleKey,
+      rewindConfirm.state,
       services.handleKey,
       services.state,
       settings.handleKey,
@@ -1401,6 +1404,7 @@ function Workspace(props: {
           threads={threads}
           agentsPicker={agentsPicker}
           rewind={rewind}
+          rewindConfirm={conversation.rewindConfirm}
           approval={conversation.approval}
           exitGuard={exitGuard}
           containerGuard={containerGuard}

@@ -181,12 +181,12 @@ describe('rewinding across a fork boundary', () => {
       threads: fixture.threads,
       agents: fixture.agents,
       shells: fixture.shells,
+      services: fixture.services,
       threadId: forked.thread.id,
       toSeq: 1,
     })
 
-    expect(rewound.ok).toBe(false)
-    expect(rewound.ok === false && rewound.refusal).toBe(ERewindRefusal.BelowInheritedPrefix)
+    expect(rewound).toMatchObject({ ok: false, refusal: ERewindRefusal.BelowInheritedPrefix })
   })
 
   it('leaves the sequence space intact, so a later append cannot collide with an inherited row', async () => {
@@ -201,6 +201,7 @@ describe('rewinding across a fork boundary', () => {
       threads: fixture.threads,
       agents: fixture.agents,
       shells: fixture.shells,
+      services: fixture.services,
       threadId: forked.thread.id,
       toSeq: 1,
     })
@@ -223,11 +224,12 @@ describe('rewinding across a fork boundary', () => {
       threads: fixture.threads,
       agents: fixture.agents,
       shells: fixture.shells,
+      services: fixture.services,
       threadId: forked.thread.id,
       toSeq: 3,
     })
 
-    expect(rewound).toEqual({ ok: true, discarded: 1, cutShells: [] })
+    expect(rewound).toEqual({ ok: true, discarded: 1, kills: [] })
   })
 
   it('lets a copy fork rewind below the fork point, because it owns every row it holds', async () => {
@@ -241,11 +243,12 @@ describe('rewinding across a fork boundary', () => {
       threads: fixture.threads,
       agents: fixture.agents,
       shells: fixture.shells,
+      services: fixture.services,
       threadId: forked.thread.id,
       toSeq: 1,
     })
 
-    expect(rewound).toEqual({ ok: true, discarded: 2, cutShells: [] })
+    expect(rewound).toEqual({ ok: true, discarded: 2, kills: [] })
     expect((await fixture.log.readOwn({ threadId })).length).toBe(3)
   })
 
@@ -261,10 +264,11 @@ describe('rewinding across a fork boundary', () => {
       threads: fixture.threads,
       agents: fixture.agents,
       shells: fixture.shells,
+      services: fixture.services,
       threadId: forked.thread.id,
       toSeq: 4,
     })
 
-    expect(rewound).toEqual({ ok: true, discarded: 1, cutShells: [] })
+    expect(rewound).toEqual({ ok: true, discarded: 1, kills: [] })
   })
 })

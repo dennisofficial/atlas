@@ -3,6 +3,7 @@ import { join } from 'node:path'
 
 import {
   EKilledBy,
+  EServiceStatus,
   EStopAction,
   type ClockPort,
   type EventDraft,
@@ -42,6 +43,12 @@ export abstract class ServiceRegistryPort {
     cwd?: string | undefined
   }): Promise<StartedServiceOutcome>
   abstract stop(args: { serviceId: string; by: EKilledBy }): ServiceStopOutcome
+  /**
+   * A rewind disowns the services it cut: they die with the transcript that started them, and
+   * their endings announce nothing — the rewound thread holds no tool call the announcement could
+   * belong to. Removal is the exception to every ending announcing itself.
+   */
+  abstract removeServices(args: { serviceIds: readonly string[]; by: EKilledBy }): void
   abstract list(): readonly ServiceSnapshot[]
   abstract version(): number
   abstract subscribe(listener: () => void): () => void
@@ -166,6 +173,21 @@ export class BunServiceRegistry extends ServiceRegistryPort {
 
     const action = entry.service.stop(by)
     return { ok: true, snapshot: entry.service.snapshot(), action }
+  }
+
+  removeServices({ serviceIds, by }: { serviceIds: readonly string[]; by: EKilledBy }): void {
+    let removed = false
+    for (const serviceId of serviceIds) {
+      const entry = this.tracked.get(serviceId)
+      if (entry === undefined) continue
+      entry.announced = true
+      if (entry.service.snapshot().status === EServiceStatus.Running) entry.service.stop(by)
+      this.tracked.delete(serviceId)
+      removed = true
+    }
+    if (!removed) return
+    this.notices.dropServices({ serviceIds })
+    this.bump()
   }
 
   list(): readonly ServiceSnapshot[] {

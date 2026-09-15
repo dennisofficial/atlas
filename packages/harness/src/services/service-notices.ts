@@ -72,6 +72,13 @@ export class ServiceNoticeQueue {
     this.settle(kept)
   }
 
+  dropServices({ serviceIds }: { serviceIds: readonly string[] }): void {
+    if (this.queued.length === 0 || serviceIds.length === 0) return
+    this.settle(
+      this.queued.filter((notice) => !serviceIds.includes(notice.snapshot.serviceId)),
+    )
+  }
+
   /**
    * The snapshots are held rather than derived per call: pending backs a React external store,
    * which reads it on every render and requires a stable value between changes.

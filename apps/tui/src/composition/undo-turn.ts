@@ -1,5 +1,11 @@
 import type { ThreadId, Event, EventLogPort } from '@dltech/atlas-core'
-import { rewindThread, type AgentRegistryPort, type ShellRegistryPort, type ThreadStorePort } from '@dltech/atlas-harness'
+import {
+  rewindThread,
+  type AgentRegistryPort,
+  type ServiceRegistryPort,
+  type ShellRegistryPort,
+  type ThreadStorePort,
+} from '@dltech/atlas-harness'
 
 import type { PendingSaid } from '../store'
 
@@ -23,15 +29,32 @@ export async function undoTurn(args: {
   threads: ThreadStorePort
   agents: AgentRegistryPort
   shells: ShellRegistryPort
+  services: ServiceRegistryPort
   threadId: ThreadId
 }): Promise<Undo> {
-  const { log, threads, agents, shells, threadId } = args
+  const { log, threads, agents, shells, services, threadId } = args
 
   const said = (await log.readOwn({ threadId })).findLast(wasSaid)
   if (said === undefined) return { type: EUndo.Nothing }
 
-  const rewound = await rewindThread({ log, threads, agents, shells, threadId, toSeq: said.seq - 1 })
-  if (!rewound.ok) return { type: EUndo.Refused, reason: rewound.reason }
+  const rewound = await rewindThread({
+    log,
+    threads,
+    agents,
+    shells,
+    services,
+    threadId,
+    toSeq: said.seq - 1,
+  })
+  if (!rewound.ok) {
+    if ('needsConfirmation' in rewound) {
+      return {
+        type: EUndo.Refused,
+        reason: 'undoing this turn would destroy work it started — rewind past it with /rewind to confirm',
+      }
+    }
+    return { type: EUndo.Refused, reason: rewound.reason }
+  }
 
   return { type: EUndo.Restored, said: { text: said.text, images: said.images ?? [] } }
 }

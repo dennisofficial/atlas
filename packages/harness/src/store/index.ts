@@ -27,7 +27,7 @@ export {
 } from './decode-events'
 export { appendWithin, PrismaEventLog, type AppendArgs } from './event-log'
 export { RandomIds } from './ids'
-export { rewindThread, type RewindResult } from './rewind'
+export { rewindThread, type RewindKill, type RewindResult } from './rewind'
 export { atlasMigrationsDirectory, loadAtlasMigrations } from './migrations'
 export {
   ATLAS_DATABASE_NAME,

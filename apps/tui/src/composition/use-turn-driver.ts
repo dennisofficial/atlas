@@ -6,7 +6,7 @@ import {
   type EventLogPort,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { ETurnStatus, rewindThread, type TurnOutcome } from '@dltech/atlas-harness'
+import { ETurnStatus, rewindThread, type RewindKill, type TurnOutcome } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 
 import type { PendingSaid } from '../store'
@@ -16,6 +16,7 @@ import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { useApproval, type ApprovalControl } from './use-approval'
 import type { AtlasApp } from './compose'
 import { discardInterrupted, EDiscard } from './resume-turn'
+import { useRewindConfirm, type RewindConfirmControl } from './use-rewind-confirm'
 import { EUndo, undoTurn } from './undo-turn'
 import type { ThreadView } from './use-thread-view'
 import {
@@ -27,6 +28,12 @@ import {
 } from './turn-progress'
 
 const UNEXPLAINED = 'The turn stopped for a reason it did not name.'
+
+const killLabel = (kill: RewindKill): string => {
+  if (kill.kind === 'agent') return `sub-agent ${kill.agentType} (${kill.intent})`
+  if (kill.kind === 'shell') return `background shell ${kill.shellId} (${kill.command ?? 'unknown command'})`
+  return `service ${kill.serviceId} (${kill.command ?? 'unknown command'})`
+}
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : UNEXPLAINED)
 
@@ -62,6 +69,7 @@ export type TurnDriver = {
   working: boolean
   workingRef: RefObject<boolean>
   approval: ApprovalControl
+  rewindConfirm: RewindConfirmControl
   drive: (drafts: readonly EventDraft[]) => Promise<void>
   handleInterrupt: () => void
   handleRetry: () => void
@@ -137,12 +145,15 @@ export function useTurnDriver(args: {
     [app.ids, app.log, app.threads, app.workspace, pendingMove, started, threadId],
   )
 
+  const rewindConfirm = useRewindConfirm()
+
   const undo = useCallback(async () => {
     const undone = await undoTurn({
       log: app.log,
       threads: app.threads,
       agents: app.agents,
       shells: app.shells,
+      services: app.services,
       threadId,
     })
 
@@ -154,7 +165,7 @@ export function useTurnDriver(args: {
 
     await refresh()
     onUndone(undone.said)
-  }, [app.agents, app.log, app.shells, app.threads, onUndone, refresh, setFailure, threadId])
+  }, [app.agents, app.log, app.services, app.shells, app.threads, onUndone, refresh, setFailure, threadId])
 
   const drive = useCallback(
     (drafts: readonly EventDraft[]): Promise<void> => {
@@ -234,7 +245,7 @@ export function useTurnDriver(args: {
     void drive(resumeDrafts(events))
   }, [drive, events, working])
 
-  const handleResumeFresh = useCallback(() => {
+  const resumeFresh = useCallback((confirmed: boolean) => {
     if (working) return
 
     void (async () => {
@@ -243,11 +254,21 @@ export function useTurnDriver(args: {
         threads: app.threads,
         agents: app.agents,
         shells: app.shells,
+        services: app.services,
         threadId,
+        confirmed,
       })
 
       if (discarded.type === EDiscard.Refused) {
         setFailure(discarded.reason)
+        return
+      }
+      if (discarded.type === EDiscard.NeedsConfirmation) {
+        rewindConfirm.handleOpen({
+          toSeq: discarded.toSeq,
+          kills: discarded.kills,
+          onConfirmed: () => resumeFresh(true),
+        })
         return
       }
 
@@ -255,10 +276,12 @@ export function useTurnDriver(args: {
       await refresh()
       void drive([])
     })()
-  }, [app.agents, app.log, app.shells, app.threads, drive, forgetUsage, refresh, setFailure, threadId, working])
+  }, [app.agents, app.log, app.services, app.shells, app.threads, drive, forgetUsage, refresh, rewindConfirm, setFailure, threadId, working])
+
+  const handleResumeFresh = useCallback(() => resumeFresh(false), [resumeFresh])
 
   const rewindTo = useCallback(
-    async (toSeq: number) => {
+    async (toSeq: number, confirmed = false): Promise<void> => {
       if (abort.current !== null) {
         notify({
           key: 'rewind-mid-turn',
@@ -278,26 +301,31 @@ export function useTurnDriver(args: {
           threads: app.threads,
           agents: app.agents,
           shells: app.shells,
+          services: app.services,
           threadId,
           toSeq,
+          confirmed,
         })
 
         if (!rewound.ok) {
+          if ('needsConfirmation' in rewound) {
+            rewindConfirm.handleOpen({
+              toSeq,
+              kills: rewound.kills,
+              onConfirmed: () => void rewindTo(toSeq, true),
+            })
+            return
+          }
           setFailure(rewound.reason)
           return
         }
-        if (rewound.cutShells.length > 0) {
-          const named = rewound.cutShells
-            .map((shell) => `${shell.shellId} (${shell.command})`)
-            .join(', ')
+        if (rewound.kills.length > 0) {
+          const named = rewound.kills.map(killLabel).join(', ')
           notify({
-            key: 'rewind-cut-shells',
+            key: 'rewind-cut-creations',
             tone: ENoticeTone.Warn,
             ttlMs: NOTICE_WARN_MS,
-            text:
-              rewound.cutShells.length === 1
-                ? `the rewind killed background shell ${named}`
-                : `the rewind killed ${rewound.cutShells.length} background shells: ${named}`,
+            text: `the rewind destroyed ${named}`,
           })
         }
         store.resetSteps()
@@ -308,7 +336,7 @@ export function useTurnDriver(args: {
         setWorking(false)
       }
     },
-    [app.agents, app.log, app.shells, app.threads, cancelCompaction, forgetUsage, refresh, setFailure, store, threadId],
+    [app.agents, app.log, app.services, app.shells, app.threads, cancelCompaction, forgetUsage, refresh, rewindConfirm, setFailure, store, threadId],
   )
 
   /**
@@ -333,6 +361,7 @@ export function useTurnDriver(args: {
     working,
     workingRef,
     approval,
+    rewindConfirm,
     drive,
     handleInterrupt,
     handleRetry,
