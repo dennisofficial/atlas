@@ -10,7 +10,7 @@ import {
   type AccountSecret,
 } from '@dltech/atlas-core'
 
-import { CloudClient, CloudError } from '../cloud-client'
+import { CloudClient, CloudError, cloudClientFor } from '../cloud-client'
 
 const TOKEN = 'sess_test_token'
 
@@ -40,6 +40,7 @@ type Recorded = {
 
 const clientWith = (
   respond: (call: Recorded) => { status: number; body?: unknown },
+  clientVersion?: string,
 ): { client: CloudClient; calls: Recorded[] } => {
   const calls: Recorded[] = []
 
@@ -59,7 +60,13 @@ const clientWith = (
     })
   }) as typeof fetch
 
-  return { client: new CloudClient({ url: 'http://cloud.test/', token: TOKEN, fetchFn }), calls }
+  const client = new CloudClient({
+    url: 'http://cloud.test/',
+    token: TOKEN,
+    ...(clientVersion === undefined ? {} : { clientVersion }),
+    fetchFn,
+  })
+  return { client, calls }
 }
 
 describe('CloudClient', () => {
@@ -76,7 +83,65 @@ describe('CloudClient', () => {
 
     await client.listAccounts()
 
-    expect(calls[0]?.headers).toEqual({ authorization: `Bearer ${TOKEN}` })
+    expect(calls[0]?.headers).toEqual({
+      authorization: `Bearer ${TOKEN}`,
+      'atlas-client-version': 'dev',
+    })
+  })
+
+  it('sends atlas-client-version: dev by default across GET, POST and PUT', async () => {
+    const { client, calls } = clientWith((call) =>
+      call.method === 'POST' ? { status: 201, body: accountBody() } : { status: 204 },
+    )
+
+    await client.readAccount({ accountId: toAccountId('acc_1') })
+    await client.addAccount({
+      draft: {
+        provider: EAuthProvider.OpenAI,
+        label: 'personal',
+        secret,
+        origin: EAccountOrigin.Imported,
+      },
+    })
+    await client.putSecret({ name: 'k', value: 'v' })
+
+    expect(calls.map((call) => call.method)).toEqual(['GET', 'POST', 'PUT'])
+    expect(calls.map((call) => new Headers(call.headers).get('atlas-client-version'))).toEqual([
+      'dev',
+      'dev',
+      'dev',
+    ])
+  })
+
+  it('sends an explicit client version on GET, POST and PUT', async () => {
+    const { client, calls } = clientWith((call) => {
+      if (call.method === 'POST') return { status: 201, body: accountBody() }
+      if (call.method === 'GET') return { status: 200, body: [] }
+      return { status: 204 }
+    }, '1.2.3')
+
+    await client.listAccounts()
+    await client.addAccount({
+      draft: {
+        provider: EAuthProvider.OpenAI,
+        label: 'personal',
+        secret,
+        origin: EAccountOrigin.Imported,
+      },
+    })
+    await client.replaceAccountSecret({ accountId: toAccountId('acc_1'), secret })
+
+    expect(calls.map((call) => call.method)).toEqual(['GET', 'POST', 'PUT'])
+    for (const call of calls) {
+      expect(new Headers(call.headers).get('atlas-client-version')).toBe('1.2.3')
+    }
+  })
+
+  it('sends the client version on health checks', async () => {
+    const { client, calls } = clientWith(() => ({ status: 200, body: { status: 'ok' } }), '2.0.0')
+
+    expect(await client.health()).toBe(true)
+    expect(new Headers(calls[0]?.headers).get('atlas-client-version')).toBe('2.0.0')
   })
 
   it('health is true on a 200 and false on a failure or an unreachable host', async () => {
@@ -354,5 +419,55 @@ describe('CloudClient', () => {
       method: 'DELETE',
       url: 'http://cloud.test/v1/mcp-servers/linear',
     })
+  })
+})
+
+describe('cloudClientFor', () => {
+  const session = { url: 'http://cloud.test/', token: 'sess_from_session', email: 'a@b.c' }
+
+  it('builds a client carrying the session url, token and the given version', async () => {
+    const calls: Recorded[] = []
+    const fetchFn = (async (input: unknown, init?: RequestInit) => {
+      calls.push({
+        url: String(input),
+        method: init?.method ?? 'GET',
+        headers: init?.headers,
+        body: undefined,
+      })
+      return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    }) as typeof fetch
+
+    const client = cloudClientFor({ session, clientVersion: '3.1.4', fetchFn })
+    await client.listAccounts()
+
+    expect(client.baseUrl).toBe('http://cloud.test')
+    expect(calls[0]?.headers).toEqual({
+      authorization: 'Bearer sess_from_session',
+      'atlas-client-version': '3.1.4',
+    })
+  })
+
+  it('defaults the version to dev when none is given', async () => {
+    const calls: Recorded[] = []
+    const fetchFn = (async (input: unknown, init?: RequestInit) => {
+      calls.push({
+        url: String(input),
+        method: init?.method ?? 'GET',
+        headers: init?.headers,
+        body: undefined,
+      })
+      return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    }) as typeof fetch
+
+    const client = cloudClientFor({ session, fetchFn })
+    await client.listAccounts()
+
+    expect(new Headers(calls[0]?.headers).get('atlas-client-version')).toBe('dev')
   })
 })

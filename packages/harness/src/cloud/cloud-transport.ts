@@ -33,6 +33,7 @@ const safeJson = (text: string): unknown => {
 export const cloudRequest = async (args: {
   url: string
   token: string
+  clientVersion: string
   fetchFn: typeof fetch
   method: string
   path: string
@@ -45,6 +46,7 @@ export const cloudRequest = async (args: {
       method: args.method,
       headers: {
         authorization: `Bearer ${args.token}`,
+        'atlas-client-version': args.clientVersion,
         ...(args.body === undefined ? {} : { 'content-type': 'application/json' }),
       },
       ...(args.body === undefined ? {} : { body: JSON.stringify(args.body) }),

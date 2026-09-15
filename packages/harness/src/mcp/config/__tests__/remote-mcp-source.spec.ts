@@ -2,11 +2,12 @@ import { describe, expect, it } from 'bun:test'
 
 import { EDefinitionOrigin } from '@dltech/atlas-core'
 
-import { CloudClient } from '../../../cloud/cloud-client'
 import { RemoteMcpSource } from '../remote-mcp-source'
 import { EMcpRejection } from '../sources'
 
 const URL = 'http://cloud.test'
+
+const session = { url: URL, token: 'sess_test', email: null }
 
 const sourceOver = (respond: () => { status: number; body?: unknown }): RemoteMcpSource => {
   const fetchFn = (async (_input: unknown, _init?: RequestInit) => {
@@ -17,10 +18,7 @@ const sourceOver = (respond: () => { status: number; body?: unknown }): RemoteMc
     })
   }) as typeof fetch
 
-  return new RemoteMcpSource({
-    client: new CloudClient({ url: URL, token: 'sess_test', fetchFn }),
-    url: URL,
-  })
+  return new RemoteMcpSource({ session, fetchFn })
 }
 
 describe('RemoteMcpSource', () => {
@@ -86,5 +84,21 @@ describe('RemoteMcpSource', () => {
 
     expect(read.specs).toHaveLength(0)
     expect(read.rejections[0]?.rejection).toBe(EMcpRejection.BadEntry)
+  })
+
+  it('sends the wired client version on its requests', async () => {
+    const seen: { version: string | null } = { version: null }
+    const fetchFn = (async (_input: unknown, init?: RequestInit) => {
+      seen.version = new Headers(init?.headers).get('atlas-client-version')
+      return new Response(JSON.stringify({ servers: [] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    }) as typeof fetch
+
+    const source = new RemoteMcpSource({ session, clientVersion: '4.5.6', fetchFn })
+    await source.load()
+
+    expect(seen.version).toBe('4.5.6')
   })
 })

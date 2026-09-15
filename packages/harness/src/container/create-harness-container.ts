@@ -1,11 +1,18 @@
 import {
   AccountStorePort,
+  ATLAS_SETTINGS,
   ClockPort,
   CredentialPort,
   EDefinitionOrigin,
+  ESettingId,
+  ESettingsLayer,
   EventLogPort,
   IdPort,
   ModelPort,
+  resolveSettings,
+  toggleValueOf,
+  type SettingsLayerInput,
+  type SettingsStorePort,
 } from '@dltech/atlas-core'
 
 import { childRunnerSource, type ChildRunnerDepsSource } from '../agents/registry/child-runner'
@@ -30,6 +37,7 @@ import { resolveHookChain } from '../hooks/resolve-hooks'
 import { AiSdkModelPort } from '../model/ai-sdk-model-port'
 import { createRawTape } from '../model/raw-tape'
 import { registerFileState } from '../files'
+import { environmentLayer } from '../settings/environment'
 import { registerExecution } from '../execution/register-execution'
 import { registerServices } from '../services/register-services'
 import { registerShells } from '../shells/register-shells'
@@ -49,6 +57,8 @@ import {
 } from './injection'
 import {
   ClaudeCodeSourceToken,
+  ClientVersionToken,
+  CloudRequiredToken,
   CloudSessionStoreToken,
   HookChainToken,
   KeychainReaderToken,
@@ -57,12 +67,42 @@ import {
   LocalSecretsStoreToken,
   ModelCardSourceToken,
   PrismaClientToken,
+  ProjectSettingsStoreToken,
   SecretsStoreToken,
+  UserSettingsStoreToken,
   WorkspaceRoot,
 } from './tokens'
 
 export const ChildRunnerDepsToken: InjectionToken<ChildRunnerDepsSource> =
   Symbol('atlas.ChildRunnerDeps')
+
+const clientVersionOf = (resolver: DependencyContainer): string =>
+  resolver.isRegistered(ClientVersionToken, true) ? resolver.resolve(ClientVersionToken) : 'dev'
+
+const liveCloudRequired =
+  (resolver: DependencyContainer) => (): boolean =>
+    resolver.isRegistered(CloudRequiredToken, true) ? resolver.resolve(CloudRequiredToken)() : false
+
+const cloudRequiredDefault =
+  (args: { container: DependencyContainer }): (() => boolean) =>
+  (): boolean => {
+    const stores: [InjectionToken<SettingsStorePort>, ESettingsLayer][] = [
+      [UserSettingsStoreToken, ESettingsLayer.User],
+      [ProjectSettingsStoreToken, ESettingsLayer.Project],
+    ]
+    const layers: SettingsLayerInput[] = []
+    for (const [token, layer] of stores) {
+      if (!args.container.isRegistered(token, true)) continue
+      const store = args.container.resolve(token)
+      layers.push({ layer, origin: store.origin(), values: store.read().document.values })
+    }
+    layers.push(environmentLayer({ definitions: ATLAS_SETTINGS, env: process.env }))
+
+    return toggleValueOf({
+      resolution: resolveSettings({ definitions: ATLAS_SETTINGS, layers }),
+      id: ESettingId.CloudRequired,
+    })
+  }
 
 const embeddedAgentTypes = (): readonly AgentType[] =>
   BUILT_IN_AGENT_TYPES.map((agentType) => ({ ...agentType, origin: EDefinitionOrigin.BuiltIn }))
@@ -143,12 +183,18 @@ export function createHarnessContainer(): DependencyContainer {
     ),
   })
 
+  harness.register(CloudRequiredToken, {
+    useValue: cloudRequiredDefault({ container: harness }),
+  })
+
   harness.register(portToken(AccountStorePort), {
     useFactory: instanceCachingFactory(
       (resolver) =>
         new AccountStoreProxy({
           local: resolver.resolve(LocalAccountStoreToken),
           sessions: resolver.resolve(CloudSessionStoreToken),
+          clientVersion: clientVersionOf(resolver),
+          cloudRequired: liveCloudRequired(resolver),
         }),
     ),
   })
@@ -169,6 +215,8 @@ export function createHarnessContainer(): DependencyContainer {
         new SecretsStoreProxy({
           local: resolver.resolve(LocalSecretsStoreToken),
           sessions: resolver.resolve(CloudSessionStoreToken),
+          clientVersion: clientVersionOf(resolver),
+          cloudRequired: liveCloudRequired(resolver),
         }),
     ),
   })

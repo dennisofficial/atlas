@@ -106,6 +106,7 @@ const benchApp = (args: {
     agents: fakeAgentRegistry(),
     services: fakeServiceRegistry(),
     model: heldChoice({ ref: DEFAULT_MODEL_REF, effort: EEffort.Medium }),
+    cloudRequired: false,
     modelPinned: false,
     models: fakeCatalogue(),
     settings: createSettingsService({

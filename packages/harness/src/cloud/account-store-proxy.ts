@@ -9,19 +9,29 @@ import {
   type StoredAccount,
 } from '@dltech/atlas-core'
 
-import { CloudClient } from './cloud-client'
+import { cloudClientFor } from './cloud-client'
 import type { CloudSessionStore } from './cloud-session'
 import { RemoteAccountStore } from './remote-account-store'
+import { CloudSignInRequiredError } from './sign-in-required'
 
 export class AccountStoreProxy extends AccountStorePort {
   private readonly local: AccountStorePort
   private readonly sessions: CloudSessionStore
+  private readonly clientVersion: string | undefined
+  private readonly cloudRequired: () => boolean
   private remote: { token: string; store: RemoteAccountStore } | undefined
 
-  constructor(args: { local: AccountStorePort; sessions: CloudSessionStore }) {
+  constructor(args: {
+    local: AccountStorePort
+    sessions: CloudSessionStore
+    clientVersion?: string
+    cloudRequired?: () => boolean
+  }) {
     super()
     this.local = args.local
     this.sessions = args.sessions
+    this.clientVersion = args.clientVersion
+    this.cloudRequired = args.cloudRequired ?? (() => false)
   }
 
   list(): Promise<readonly Account[]> {
@@ -58,13 +68,19 @@ export class AccountStoreProxy extends AccountStorePort {
 
   private current(): AccountStorePort {
     const session = this.sessions.read()
-    if (session === null) return this.local
+    if (session === null) {
+      if (this.cloudRequired()) throw new CloudSignInRequiredError()
+      return this.local
+    }
 
     if (this.remote?.token !== session.token) {
       this.remote = {
         token: session.token,
         store: new RemoteAccountStore({
-          client: new CloudClient({ url: session.url, token: session.token }),
+          client: cloudClientFor({
+            session,
+            ...(this.clientVersion === undefined ? {} : { clientVersion: this.clientVersion }),
+          }),
         }),
       }
     }

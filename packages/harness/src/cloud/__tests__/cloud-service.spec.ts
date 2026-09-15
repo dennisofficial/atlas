@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -45,6 +45,8 @@ type CloudFake = {
   putSecrets: { name: string; value: unknown }[]
   remoteMcp: Record<string, unknown>[]
   putMcp: { name: string; body: Record<string, unknown> }[]
+  clientVersions: { path: string; version: string | null }[]
+  failAccountsList: boolean
 }
 
 const cloudFake = (): CloudFake => {
@@ -56,6 +58,8 @@ const cloudFake = (): CloudFake => {
     putSecrets: [],
     remoteMcp: [],
     putMcp: [],
+    clientVersions: [],
+    failAccountsList: false,
     fetchFn: undefined as unknown as typeof fetch,
   }
 
@@ -63,6 +67,10 @@ const cloudFake = (): CloudFake => {
     const path = String(input).slice(URL.length)
     const method = init?.method ?? 'GET'
     const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as Record<string, unknown>) : undefined
+    fake.clientVersions.push({
+      path,
+      version: new Headers(init?.headers).get('atlas-client-version'),
+    })
 
     const reply = (status: number, payload?: unknown) =>
       new Response(payload === undefined ? null : JSON.stringify(payload), {
@@ -74,7 +82,10 @@ const cloudFake = (): CloudFake => {
     if (path === '/api/auth/device/code') return reply(200, deviceCodeBody)
     if (path === '/api/auth/get-session')
       return reply(200, { user: { email: 'dev@example.com', name: 'Dev' }, session: {} })
-    if (path === '/v1/accounts' && method === 'GET') return reply(200, fake.remoteAccounts)
+    if (path === '/v1/accounts' && method === 'GET') {
+      if (fake.failAccountsList) return reply(500, { message: 'listing broke' })
+      return reply(200, fake.remoteAccounts)
+    }
     if (path === '/v1/accounts' && method === 'POST') {
       const id = `acc_remote_${fake.added.length + 1}`
       fake.added.push(body ?? {})
@@ -353,5 +364,110 @@ describe('CloudService', () => {
     expect(result.importedSecrets).toBe(0)
     expect(result.importedMcp).toBe(1)
     expect(fake.putSecrets).toHaveLength(0)
+  })
+
+  it('finishLogin archives the local files after the import and returns their paths', async () => {
+    const fake = cloudFake()
+    const service = serviceWithSecrets(fake.fetchFn)
+    writeFileSync(join(directory, 'auth.json'), '{}')
+    localSecrets.write({ name: 'search.tavily', value: 'tvly-1' })
+    writeFileSync(
+      join(directory, 'mcp.json'),
+      JSON.stringify({ linear: { transport: { kind: 'stdio', command: 'npx' } } }),
+    )
+
+    const ticket = await service.beginLogin()
+    const result = await service.finishLogin({ ticket, token: 'sess_new' })
+
+    expect(result.archived).toEqual([
+      join(directory, 'auth.json.archived'),
+      join(directory, 'secrets.json.archived'),
+      join(directory, 'mcp.json.archived'),
+    ])
+    expect(existsSync(join(directory, 'auth.json'))).toBe(false)
+    expect(existsSync(join(directory, 'secrets.json'))).toBe(false)
+    expect(existsSync(join(directory, 'mcp.json'))).toBe(false)
+    expect(existsSync(join(directory, 'auth.json.archived'))).toBe(true)
+    expect(existsSync(join(directory, 'secrets.json.archived'))).toBe(true)
+    expect(existsSync(join(directory, 'mcp.json.archived'))).toBe(true)
+  })
+
+  it('finishLogin archives even when the cloud was already populated', async () => {
+    const fake = cloudFake()
+    fake.remoteAccounts.push({
+      id: 'acc_existing',
+      provider: EAuthProvider.Anthropic,
+      kind: EAuthKind.ApiKey,
+      origin: EAccountOrigin.Login,
+      label: 'existing',
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    })
+    const service = serviceOver(fake.fetchFn)
+    writeFileSync(join(directory, 'auth.json'), '{}')
+
+    const ticket = await service.beginLogin()
+    const result = await service.finishLogin({ ticket, token: 'sess_new' })
+
+    expect(result.imported).toBe(0)
+    expect(result.archived).toEqual([join(directory, 'auth.json.archived')])
+    expect(existsSync(join(directory, 'auth.json'))).toBe(false)
+  })
+
+  it('finishLogin tolerates local files that are absent or already archived', async () => {
+    const fake = cloudFake()
+    const service = serviceOver(fake.fetchFn)
+
+    const ticket = await service.beginLogin()
+    const result = await service.finishLogin({ ticket, token: 'sess_new' })
+
+    expect(result.archived).toEqual([])
+  })
+
+  it('finishLogin archives nothing when the import fails', async () => {
+    const fake = cloudFake()
+    fake.failAccountsList = true
+    const service = serviceWithSecrets(fake.fetchFn)
+    writeFileSync(join(directory, 'auth.json'), '{}')
+    localSecrets.write({ name: 'search.tavily', value: 'tvly-1' })
+    writeFileSync(
+      join(directory, 'mcp.json'),
+      JSON.stringify({ linear: { transport: { kind: 'stdio', command: 'npx' } } }),
+    )
+
+    const ticket = await service.beginLogin()
+    const failure = await service
+      .finishLogin({ ticket, token: 'sess_new' })
+      .catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(CloudError)
+    expect(existsSync(join(directory, 'auth.json'))).toBe(true)
+    expect(existsSync(join(directory, 'secrets.json'))).toBe(true)
+    expect(existsSync(join(directory, 'mcp.json'))).toBe(true)
+    expect(existsSync(join(directory, 'auth.json.archived'))).toBe(false)
+    expect(existsSync(join(directory, 'secrets.json.archived'))).toBe(false)
+    expect(existsSync(join(directory, 'mcp.json.archived'))).toBe(false)
+  })
+
+  it('sends the wired client version on every v1 request its clients make', async () => {
+    const fake = cloudFake()
+    const service = new CloudService({
+      sessions,
+      localAccounts: local,
+      defaultUrl: URL,
+      clientVersion: '1.2.3',
+      fetchFn: fake.fetchFn,
+    })
+
+    const ticket = await service.beginLogin()
+    await service.finishLogin({ ticket, token: 'sess_new' })
+    await service.client()?.listAccounts()
+
+    const v1Calls = fake.clientVersions.filter((call) => call.path.startsWith('/v1/'))
+    expect(v1Calls.length).toBeGreaterThan(0)
+    for (const call of v1Calls) {
+      expect(call.version).toBe('1.2.3')
+    }
   })
 })

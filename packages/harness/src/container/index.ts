@@ -10,6 +10,8 @@ export { Disposable, disposeAll, registerDisposable } from './disposal'
 export {
   ClassifierPolicyToken,
   ClaudeCodeSourceToken,
+  ClientVersionToken,
+  CloudRequiredToken,
   CloudSessionStoreToken,
   DockerEngineToken,
   HookChainToken,

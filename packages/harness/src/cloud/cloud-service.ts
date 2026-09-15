@@ -1,3 +1,5 @@
+import { renameSync } from 'node:fs'
+
 import {
   AccountStorePort,
   EAuthProvider,
@@ -6,9 +8,12 @@ import {
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
+import { atlasVaultFile } from '../credentials/paths'
 import { FileMcpSource } from '../mcp/config/sources'
 import type { FileSecretsStore } from '../secrets/file-secrets-store'
-import { CloudClient, CloudError } from './cloud-client'
+import { atlasSecretsFile } from '../secrets/paths'
+import { userMcpFile } from '../settings/paths'
+import { CloudClient, CloudError, cloudClientFor } from './cloud-client'
 import type { CloudSession, CloudSessionStore } from './cloud-session'
 import {
   beginCloudLogin,
@@ -25,13 +30,35 @@ export type CloudLoginResult = {
   imported: number
   importedSecrets: number
   importedMcp: number
+  archived: string[]
 }
+
+const isAbsentFile = (cause: unknown): boolean =>
+  typeof cause === 'object' && cause !== null && Reflect.get(cause, 'code') === 'ENOENT'
+
+const archiveIfPresent = (file: string): string | null => {
+  const archived = `${file}.archived`
+  try {
+    renameSync(file, archived)
+  } catch (cause) {
+    if (isAbsentFile(cause)) return null
+    throw cause
+  }
+  return archived
+}
+
+const archiveImportedLocalFiles = (): string[] =>
+  [atlasVaultFile(), atlasSecretsFile(), userMcpFile()].flatMap((file) => {
+    const archived = archiveIfPresent(file)
+    return archived === null ? [] : [archived]
+  })
 
 export class CloudService {
   private readonly sessions: CloudSessionStore
   private readonly localAccounts: AccountStorePort
   private readonly localSecrets: FileSecretsStore | undefined
   private readonly defaultUrl: string
+  private readonly clientVersion: string | undefined
   private readonly fetchFn: typeof fetch
   private cached: { token: string; client: CloudClient } | undefined
 
@@ -40,13 +67,23 @@ export class CloudService {
     localAccounts: AccountStorePort
     defaultUrl: string
     localSecrets?: FileSecretsStore
+    clientVersion?: string
     fetchFn?: typeof fetch
   }) {
     this.sessions = args.sessions
     this.localAccounts = args.localAccounts
     this.localSecrets = args.localSecrets
     this.defaultUrl = args.defaultUrl
+    this.clientVersion = args.clientVersion
     this.fetchFn = args.fetchFn ?? fetch
+  }
+
+  private clientFor(args: { session: CloudSession }): CloudClient {
+    return cloudClientFor({
+      session: args.session,
+      ...(this.clientVersion === undefined ? {} : { clientVersion: this.clientVersion }),
+      fetchFn: this.fetchFn,
+    })
   }
 
   session(): CloudSession | null {
@@ -61,10 +98,7 @@ export class CloudService {
     }
 
     if (this.cached?.token !== session.token) {
-      this.cached = {
-        token: session.token,
-        client: new CloudClient({ url: session.url, token: session.token, fetchFn: this.fetchFn }),
-      }
+      this.cached = { token: session.token, client: this.clientFor({ session }) }
     }
 
     return this.cached.client
@@ -73,7 +107,12 @@ export class CloudService {
   async beginLogin(args?: { url?: string }): Promise<CloudLoginTicket> {
     const url = args?.url ?? this.defaultUrl
 
-    const reachable = await new CloudClient({ url, token: '', fetchFn: this.fetchFn }).health()
+    const reachable = await new CloudClient({
+      url,
+      token: '',
+      ...(this.clientVersion === undefined ? {} : { clientVersion: this.clientVersion }),
+      fetchFn: this.fetchFn,
+    }).health()
     if (!reachable)
       throw new CloudError({
         status: 0,
@@ -93,13 +132,14 @@ export class CloudService {
     const session: CloudSession = { url: ticket.url, token, email }
     this.sessions.write(session)
 
-    const client = new CloudClient({ url: ticket.url, token, fetchFn: this.fetchFn })
+    const client = this.clientFor({ session })
 
     try {
       const imported = await this.importLocalAccounts({ client })
       const importedSecrets = await this.importLocalSecrets({ client })
       const importedMcp = await this.importLocalMcp({ client })
-      return { session, imported, importedSecrets, importedMcp }
+      const archived = archiveImportedLocalFiles()
+      return { session, imported, importedSecrets, importedMcp, archived }
     } catch (cause) {
       throw new CloudError({
         status: cause instanceof CloudError ? cause.status : 0,
