@@ -56,7 +56,13 @@ export async function bootAtlas(args: {
   applyAppearance(appearanceOf({ resolution: settings.service.snapshot().resolution }));
 
   const progress = createBootProgress();
-  const session = openSession({ config, env: args.env, progress, settings });
+  const session = openSession({
+    config,
+    command: args.command,
+    env: args.env,
+    progress,
+    settings,
+  });
 
   const renderer = await createCliRenderer({
     useMouse: true,

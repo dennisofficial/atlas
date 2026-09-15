@@ -78,6 +78,7 @@ import type { QueuedSettled } from '../commands'
 import { userSaidDraft } from '../user-said'
 import type { AtlasApp } from '../compose'
 import type { ActiveConversation } from '../resume-hint'
+import { threadHandle } from '../thread-slug'
 import { heldChoice } from '../model-selection'
 import type { ModelCatalogue } from '../providers'
 import { DEFAULT_MODEL_REF, EOpenMode, type AtlasConfig, type OpenRequest } from '../config'
@@ -638,6 +639,7 @@ export type FakeApp = AtlasApp & {
   readonly openedDirectories: readonly string[]
   readonly sandboxStops: number
   readonly bashNotes: number
+  readonly journaled: readonly { handle: string; directory: string }[]
 }
 
 export function fakeApp(args: {
@@ -688,6 +690,7 @@ export function fakeApp(args: {
   const titled: string[] = []
   const openedUrls: string[] = []
   const openedDirectories: string[] = []
+  const journaled: { handle: string; directory: string }[] = []
 
   return {
     skills: skillRegistry.all(),
@@ -775,6 +778,12 @@ export function fakeApp(args: {
       ...(args.cwd === undefined ? {} : { cwd: args.cwd }),
       ...(args.open === undefined ? {} : { open: args.open }),
     },
+    command: 'atlas-dev',
+    journalResume: ({ active, directory }) => {
+      if (!active.started) return
+      journaled.push({ handle: threadHandle(active), directory })
+    },
+    journaled,
     workspace,
     credentials: alwaysAuthorised(),
     channel,

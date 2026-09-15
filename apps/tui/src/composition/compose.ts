@@ -144,6 +144,7 @@ import { clientVersionHeader } from '../build/info'
 import { createPendingQueues, type PendingQueues } from '../store'
 import type { QueuedSettled } from './commands'
 import type { ActiveConversation } from './resume-hint'
+import { journalResume } from './resume-journal'
 import { compactTurn, ECompaction, type Summariser } from './compact-turn'
 import { SUMMARISER_MODEL_ID, TITLER_MODEL_ID, TLDR_MODEL_ID, type AtlasConfig } from './config'
 import { launchSelection, modelPinned } from './model-preference'
@@ -263,6 +264,7 @@ async function claimOpenedWorktree(args: {
 
 export type AtlasApp = {
   config: AtlasConfig
+  command: string
   workspace: WorkspaceIdentity
   tools: ToolRegistry
   markActiveThread: (active: ActiveConversation) => void
@@ -303,11 +305,13 @@ export type AtlasApp = {
   pullRequests: PullRequestPort | null
   mcp: () => readonly McpServerStatus[]
   threadOpened: (args: { threadId: ThreadId; projectDirectory: string }) => Promise<void>
+  journalResume: (args: { active: ActiveConversation; directory: string }) => void
   close: () => Promise<void>
 }
 
 export async function composeAtlas(args: {
   config: AtlasConfig
+  command: string
   env: Record<string, string | undefined>
   settings: SettingsBinding
 }): Promise<AtlasApp> {
@@ -824,6 +828,7 @@ export async function composeAtlas(args: {
 
   return {
     config,
+    command: args.command,
     workspace,
     tools: container.resolve(portToken(ToolRegistry)),
     markActiveThread: (active) => {
@@ -880,6 +885,8 @@ export async function composeAtlas(args: {
 
       await log.append({ threadId, runId: ids.nextRunId(), drafts })
     },
+    journalResume: ({ active, directory }) =>
+      journalResume({ active, command: args.command, directory }),
     cloudRequired,
     model,
     modelPinned: pinnedByFlag,
