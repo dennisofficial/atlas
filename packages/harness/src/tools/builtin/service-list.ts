@@ -71,7 +71,7 @@ export class ServiceListTool extends SchemaTool<typeof inputSchema> {
           description: snapshot.description,
           status: snapshot.status,
           exitCode: snapshot.exitCode,
-          pid: snapshot.pid,
+          ...(snapshot.pid === undefined ? {} : { pid: snapshot.pid }),
           logPath: snapshot.logPath,
           startedAt: snapshot.startedAt,
         })),

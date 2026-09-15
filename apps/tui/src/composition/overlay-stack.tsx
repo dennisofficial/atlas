@@ -6,6 +6,7 @@ import { Approval } from '../ui/components/approval'
 import type { Span } from '../ui/components/spans'
 import type { AccountRow } from '../ui/accounts-model'
 import { CompactingOverlay, type Compacting } from '../ui/components/compacting'
+import { ContainerGuard } from '../ui/components/container-guard'
 import { ExitGuard } from '../ui/components/exit-guard'
 import { exitGuardAgentRow, exitGuardRow, exitGuardServiceRow } from '../ui/exit-guard-model'
 import { Rewind } from '../ui/components/rewind'
@@ -23,6 +24,7 @@ import type { AccountsControl } from './use-accounts'
 import type { AgentsControl } from './use-agents'
 import type { AgentsPickerControl } from './use-agents-picker'
 import type { ApprovalControl } from './use-approval'
+import type { ContainerGuardControl } from './use-container-guard'
 import type { ExitGuardControl } from './use-exit-guard'
 import type { RewindControl } from './use-rewind'
 import type { ServicesControl } from './use-services'
@@ -48,11 +50,22 @@ function DerivedOverlayStack(props: {
   rewind: RewindControl
   approval: ApprovalControl
   exitGuard: ExitGuardControl
+  containerGuard: ContainerGuardControl
   compacting: Compacting | null
   now: number
 }): React.ReactNode {
-  const { switcher, shells, agents, agentsPicker, settings, accounts, threads, rewind, exitGuard } =
-    props
+  const {
+    switcher,
+    shells,
+    agents,
+    agentsPicker,
+    settings,
+    accounts,
+    threads,
+    rewind,
+    exitGuard,
+    containerGuard,
+  } = props
   const { approval } = props
   useAppearance()
   const sidebarWidth = Math.min(settings.sidebarWidth, props.width)
@@ -162,6 +175,21 @@ function DerivedOverlayStack(props: {
           overlay
           onPick={exitGuard.handlePick}
           onDismiss={exitGuard.handleDismiss}
+        />
+      )}
+      {containerGuard.state === null || containerGuard.target === null ? null : (
+        <ContainerGuard
+          width={Math.min(props.contentWidth, props.width)}
+          target={containerGuard.target}
+          running={[
+            ...shells.shells.filter(isShellRunning).map(exitGuardRow),
+            ...props.services.everywhere.filter(isServiceAlive).map(exitGuardServiceRow),
+            ...agents.own.filter(isSubagentRunning).map(exitGuardAgentRow),
+          ]}
+          state={containerGuard.state}
+          overlay
+          onPick={containerGuard.handlePick}
+          onDismiss={containerGuard.handleDismiss}
         />
       )}
       {settings.state === null ? null : (

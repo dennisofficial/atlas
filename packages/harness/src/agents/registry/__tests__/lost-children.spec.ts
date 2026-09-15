@@ -42,7 +42,7 @@ async function crashedWith(drafts: readonly EventDraft[]): Promise<OpenedSupervi
   const open = await openSupervisor()
   opened.push(open)
 
-  const agentId = await openChildThread({
+  const { threadId: agentId } = await openChildThread({
     threads: open.harness.threads,
     log: open.harness.log,
     ids: open.harness.ids,

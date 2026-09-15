@@ -1,8 +1,15 @@
-import type { AgentSnapshot, ServiceSnapshot, ShellSnapshot } from '@dltech/atlas-harness'
-
-import { subagentLabel } from '../store/subagent-row'
-import { serviceNameLabel } from './services-model'
-import { shellNameLabel } from './shells-model'
+import {
+  agentStopRow,
+  moveStopGuardSelection,
+  openStopGuard,
+  resolveStopGuard,
+  selectedStopGuardOption,
+  serviceStopRow,
+  shellStopRow,
+  type StopGuardOption,
+  type StopGuardRow,
+  type StopGuardState,
+} from './stop-guard-model'
 
 export enum EExitChoice {
   StopAndExit = 'stop-and-exit',
@@ -10,28 +17,13 @@ export enum EExitChoice {
   Stay = 'stay',
 }
 
-export const SHELL_TAG = 'shell'
+export { AGENT_TAG, SERVICE_TAG, SHELL_TAG } from './stop-guard-model'
 
-export const AGENT_TAG = 'agent'
+export type ExitGuardRow = StopGuardRow
 
-export const SERVICE_TAG = 'service'
+export type ExitGuardOption = StopGuardOption<EExitChoice>
 
-export type ExitGuardRow = {
-  id: string
-  tag: string
-  label: string
-}
-
-export type ExitGuardOption = {
-  choice: EExitChoice
-  label: string
-  enabled: boolean
-  note?: string | undefined
-}
-
-export type ExitGuardState = {
-  selected: number
-}
+export type ExitGuardState = StopGuardState
 
 export const DETACH_NOTE = 'coming soon'
 
@@ -46,69 +38,24 @@ export const EXIT_GUARD_OPTIONS: readonly ExitGuardOption[] = Object.freeze([
   { choice: EExitChoice.Stay, label: 'Stay', enabled: true },
 ])
 
-const FIRST_ENABLED = Math.max(
-  0,
-  EXIT_GUARD_OPTIONS.findIndex((option) => option.enabled),
-)
+export const exitGuardRow = shellStopRow
 
-export function exitGuardRow(
-  shell: Pick<ShellSnapshot, 'shellId' | 'command'> & { description?: string | undefined },
-): ExitGuardRow {
-  return { id: shell.shellId, tag: SHELL_TAG, label: shellNameLabel(shell) }
-}
+export const exitGuardServiceRow = serviceStopRow
 
-export function exitGuardServiceRow(
-  service: Pick<ServiceSnapshot, 'serviceId' | 'command' | 'description'>,
-): ExitGuardRow {
-  return { id: service.serviceId, tag: SERVICE_TAG, label: serviceNameLabel(service) }
-}
-
-export function exitGuardAgentRow(
-  agent: Pick<AgentSnapshot, 'agentId' | 'agentType' | 'intent'>,
-): ExitGuardRow {
-  return { id: agent.agentId, tag: AGENT_TAG, label: subagentLabel(agent) }
-}
+export const exitGuardAgentRow = agentStopRow
 
 export function openExitGuard(): ExitGuardState {
-  return { selected: FIRST_ENABLED }
+  return openStopGuard({ options: EXIT_GUARD_OPTIONS })
 }
 
 export function selectedOption(state: ExitGuardState): ExitGuardOption | undefined {
-  return EXIT_GUARD_OPTIONS[state.selected]
-}
-
-function nextEnabled(args: { from: number; step: number }): number {
-  for (let at = args.from + args.step; at >= 0 && at < EXIT_GUARD_OPTIONS.length; at += args.step) {
-    if (EXIT_GUARD_OPTIONS[at]?.enabled === true) return at
-  }
-
-  return args.from
-}
-
-function steppedSelection(args: { from: number; steps: number }): number {
-  const step = args.steps < 0 ? -1 : 1
-  let at = args.from
-
-  for (let taken = 0; taken < Math.abs(args.steps); taken += 1) {
-    at = nextEnabled({ from: at, step })
-  }
-
-  return at
+  return selectedStopGuardOption({ options: EXIT_GUARD_OPTIONS, state })
 }
 
 export function moveSelection(args: { state: ExitGuardState; delta: number }): ExitGuardState {
-  const steps = Math.trunc(args.delta)
-  if (steps === 0) return args.state
-
-  const selected = steppedSelection({ from: args.state.selected, steps })
-  if (selected === args.state.selected) return args.state
-
-  return { selected }
+  return moveStopGuardSelection({ options: EXIT_GUARD_OPTIONS, ...args })
 }
 
 export function resolve(state: ExitGuardState): EExitChoice | null {
-  const option = selectedOption(state)
-  if (option === undefined || !option.enabled) return null
-
-  return option.choice
+  return resolveStopGuard({ options: EXIT_GUARD_OPTIONS, state })
 }

@@ -43,6 +43,8 @@ export { EImageKind, resolveContainerConfig, type ContainerResolution, type Imag
 export type { BoundPort } from './execution/docker/ports'
 export { LocalProcessPort } from './execution/local-process'
 export { RoutedProcessPort } from './execution/routed-process'
+export { DockerFileSystemPort } from './execution/docker/docker-filesystem'
+export { RoutedFileSystemPort } from './execution/routed-filesystem'
 export * from './workspace/run-git'
 export * from './workspace/probe'
 export * from './workspace/worktrees'

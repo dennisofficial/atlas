@@ -1,13 +1,14 @@
 import { z } from 'zod'
 
 import {
+  AgentFileSystemPort,
   EContentAccess,
   EPathForm,
   EPathPresence,
   EToolEffect,
-  FileSystemPort,
   SchemaTool,
   type DeclaredPathField,
+  type ThreadId,
   type ToolOutcome,
   type ToolRun,
 } from '@dltech/atlas-core'
@@ -35,8 +36,12 @@ type DatedPath = { path: string; modifiedAt: number }
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 
-async function modifiedAt(args: { path: string; files: FileSystemPort }): Promise<number> {
-  const stats = await args.files.stat({ path: args.path }).catch(() => null)
+async function modifiedAt(args: {
+  path: string
+  files: AgentFileSystemPort
+  threadId: ThreadId
+}): Promise<number> {
+  const stats = await args.files.stat({ path: args.path, threadId: args.threadId }).catch(() => null)
   return stats?.mtimeMs ?? 0
 }
 
@@ -66,7 +71,7 @@ export class GlobTool extends SchemaTool<typeof inputSchema> {
     { field: 'pattern', presence: EPathPresence.Required, form: EPathForm.RelativeToBase, content: EContentAccess.None },
   ]
 
-  constructor(private readonly files: FileSystemPort = new LocalFileSystemPort()) {
+  constructor(private readonly files: AgentFileSystemPort = new LocalFileSystemPort()) {
     super()
   }
 
@@ -74,6 +79,7 @@ export class GlobTool extends SchemaTool<typeof inputSchema> {
     input,
     signal,
     projectDirectory,
+    threadId,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     const { pattern, path } = input
     let from = projectDirectory
@@ -85,7 +91,7 @@ export class GlobTool extends SchemaTool<typeof inputSchema> {
 
     let matches: readonly string[]
     try {
-      matches = await this.files.glob({ pattern, cwd: from, signal })
+      matches = await this.files.glob({ pattern, cwd: from, signal, threadId })
     } catch (error) {
       return { ok: false, reason: `could not scan ${from} for "${pattern}": ${messageOf(error)}` }
     }
@@ -93,7 +99,7 @@ export class GlobTool extends SchemaTool<typeof inputSchema> {
     const found: DatedPath[] = []
     for (const match of matches) {
       if (signal.aborted) return { ok: false, reason: 'the developer interrupted the turn while scanning for files' }
-      found.push({ path: match, modifiedAt: await modifiedAt({ path: match, files: this.files }) })
+      found.push({ path: match, modifiedAt: await modifiedAt({ path: match, files: this.files, threadId }) })
     }
 
     const paths = found.sort(byNewestFirst).slice(0, RESULT_LIMIT).map((dated) => dated.path)

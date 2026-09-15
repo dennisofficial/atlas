@@ -1,13 +1,11 @@
-import { stat } from 'node:fs/promises'
-
 import { z } from 'zod'
 
 import {
+  AgentFileSystemPort,
   EContentAccess,
   EPathForm,
   EPathPresence,
   EToolEffect,
-  FileSystemPort,
   ProcessPort,
   SchemaTool,
   type DeclaredPathField,
@@ -199,7 +197,7 @@ export class GrepTool extends SchemaTool<typeof inputSchema> {
 
   constructor(
     private readonly processes: ProcessPort = new LocalProcessPort(),
-    private readonly files: FileSystemPort = new LocalFileSystemPort(),
+    private readonly files: AgentFileSystemPort = new LocalFileSystemPort(),
   ) {
     super()
   }
@@ -217,7 +215,7 @@ export class GrepTool extends SchemaTool<typeof inputSchema> {
     const searchPath = resolved.path
 
     if (rawPath !== undefined) {
-      const target = await stat(searchPath).catch(() => null)
+      const target = await this.files.stat({ path: searchPath, threadId }).catch(() => null)
       if (target === null) {
         return {
           ok: false,

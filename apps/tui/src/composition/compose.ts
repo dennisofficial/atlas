@@ -737,7 +737,10 @@ export async function composeAtlas(args: {
       runningShells,
       runningAgents,
       runningServices,
-      executionLocation: () => ({ location: executionLocation.current(), mounts }),
+      executionLocation: ({ threadId }) => ({
+        location: executionLocation.of(threadId) ?? executionLocation.current(),
+        mounts,
+      }),
     }),
     launchDirectory: workspace.workspace,
     tools,
@@ -802,6 +805,10 @@ export async function composeAtlas(args: {
           repoRoot: workspace.repo ?? undefined,
           runningShells,
           runningServices,
+          executionLocation: ({ threadId }) => ({
+            location: executionLocation.of(threadId) ?? executionLocation.current(),
+            mounts,
+          }),
         }),
     }),
   })

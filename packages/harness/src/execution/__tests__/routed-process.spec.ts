@@ -126,6 +126,20 @@ describe('RoutedProcessPort', () => {
     expect(docker.spawned).toHaveLength(0)
   })
 
+  it('strips the harness-process NODE_ENV from a docker spawn and leaves a host spawn untouched', () => {
+    const local = new RecordingProcesses()
+    const docker = new RecordingProcesses()
+    const port = routed({ local, docker })
+    const env = { NODE_ENV: 'production', KEEP: 'yes' }
+
+    port.spawn({ cmd: ['true'], cwd: '/work', env, threadId: DOCKER_THREAD })
+    port.spawn({ cmd: ['true'], cwd: '/work', env, threadId: HOST_THREAD })
+
+    expect(docker.spawned[0]?.env).toEqual({ KEEP: 'yes' })
+    expect(env).toEqual({ NODE_ENV: 'production', KEEP: 'yes' })
+    expect(local.spawned[0]?.env).toEqual({ NODE_ENV: 'production', KEEP: 'yes' })
+  })
+
   it('routes which() with the same thread so grep probes where it will run', () => {
     const local = new RecordingProcesses('/bin/rg')
     const docker = new RecordingProcesses('/usr/bin/rg')

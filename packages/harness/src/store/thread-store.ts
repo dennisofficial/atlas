@@ -378,6 +378,7 @@ export class PrismaThreadStore implements ThreadStorePort {
     title,
     workspace,
     repo,
+    executionLocation,
     agent,
   }: OpenThreadArgs): Promise<{ thread: ThreadSummary; events: Event[] }> {
     return this.prisma.$transaction(async (tx) => {
@@ -391,6 +392,7 @@ export class PrismaThreadStore implements ThreadStorePort {
         title,
         workspace,
         repo,
+        executionLocation,
         agent,
       })
       const row = await tx.thread.findUniqueOrThrow({ where: { id: threadId } })

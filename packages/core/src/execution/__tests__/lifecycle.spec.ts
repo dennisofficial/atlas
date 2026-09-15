@@ -8,6 +8,7 @@ describe('idleStopDue', () => {
   const due = {
     lastBashAt: 1_000_000,
     idleMinutes: 30,
+    runningServices: 0,
   }
 
   it('never fires while a background shell is running, however long the quiet', () => {
@@ -16,7 +17,13 @@ describe('idleStopDue', () => {
     ).toBe(false)
   })
 
-  it('fires once the last shell has ended and the window has passed', () => {
+  it('never fires while a service is running, however long the quiet', () => {
+    expect(
+      idleStopDue({ ...due, runningShells: 0, runningServices: 1, now: due.lastBashAt + 60 * 60_000 }),
+    ).toBe(false)
+  })
+
+  it('fires once the last shell and service have ended and the window has passed', () => {
     expect(
       idleStopDue({ ...due, runningShells: 0, now: due.lastBashAt + 30 * 60_000 }),
     ).toBe(true)

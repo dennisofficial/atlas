@@ -69,6 +69,69 @@ const details = (args: {
 })
 
 describe('declared mounts drift, label-stamped at creation', () => {
+  it('drifts a labeled container created before an atlas home subtree mount existed', () => {
+    const labeled = details({
+      labels: { [declaredMountsLabel('atlas')]: encodeDeclaredMounts([]) },
+      mounts: [
+        { source: '/project', destination: '/project', readOnly: false },
+        { source: '/var/run/docker.sock', destination: '/var/run/docker.sock', readOnly: false },
+      ],
+    })
+    const withServices: SandboxConfig = {
+      ...config,
+      atlasHomeSubtrees: [
+        { path: '/home/operator/.atlas/memory', mode: EMountMode.ReadOnly },
+        { path: '/home/operator/.atlas/services', mode: EMountMode.ReadWrite },
+      ],
+    }
+
+    expect(declaredMountsDrift({ config: withServices, details: labeled, prefix: 'atlas' })).toBe(
+      true,
+    )
+
+    const current = details({
+      labels: { [declaredMountsLabel('atlas')]: encodeDeclaredMounts([]) },
+      mounts: [
+        { source: '/project', destination: '/project', readOnly: false },
+        { source: '/var/run/docker.sock', destination: '/var/run/docker.sock', readOnly: false },
+        {
+          source: '/home/operator/.atlas/memory',
+          destination: '/home/operator/.atlas/memory',
+          readOnly: true,
+        },
+        {
+          source: '/home/operator/.atlas/services',
+          destination: '/home/operator/.atlas/services',
+          readOnly: false,
+        },
+      ],
+    })
+    expect(declaredMountsDrift({ config: withServices, details: current, prefix: 'atlas' })).toBe(
+      false,
+    )
+  })
+
+  it('drifts when an atlas home subtree is mounted at the wrong mode', () => {
+    const withServices: SandboxConfig = {
+      ...config,
+      atlasHomeSubtrees: [{ path: '/home/operator/.atlas/services', mode: EMountMode.ReadWrite }],
+    }
+    const readOnlyServices = details({
+      labels: { [declaredMountsLabel('atlas')]: encodeDeclaredMounts([]) },
+      mounts: [
+        {
+          source: '/home/operator/.atlas/services',
+          destination: '/home/operator/.atlas/services',
+          readOnly: true,
+        },
+      ],
+    })
+
+    expect(
+      declaredMountsDrift({ config: withServices, details: readOnlyServices, prefix: 'atlas' }),
+    ).toBe(true)
+  })
+
   it('reuses a labeled container whose declared mounts still match, whatever the live mounts look like', () => {
     const labeled = details({ labels: { [declaredMountsLabel('atlas')]: encodeDeclaredMounts([]) } })
 

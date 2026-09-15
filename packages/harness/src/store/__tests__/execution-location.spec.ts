@@ -41,6 +41,31 @@ describe('the execution location of a thread', () => {
     expect(await locationOf(threadId)).toBeUndefined()
   })
 
+  it('is set at opening when the thread arrives with its first events', async () => {
+    fixture = await openStoreFixture()
+
+    const { thread } = await fixture.threads.createWithFirstEvents({
+      drafts: [said('the brief')],
+      runId,
+      executionLocation: EExecutionLocation.Docker,
+    })
+
+    expect(thread.executionLocation).toBe(EExecutionLocation.Docker)
+    expect(await locationOf(thread.id)).toBe(EExecutionLocation.Docker)
+  })
+
+  it('stays undecided when the opening carried no location, so the default still answers', async () => {
+    fixture = await openStoreFixture()
+
+    const { thread } = await fixture.threads.createWithFirstEvents({
+      drafts: [said('the brief')],
+      runId,
+    })
+
+    expect(thread.executionLocation).toBeUndefined()
+    expect(await locationOf(thread.id)).toBeUndefined()
+  })
+
   it('is written by choosing one and read back on the summary', async () => {
     const threadId = await openThread()
 

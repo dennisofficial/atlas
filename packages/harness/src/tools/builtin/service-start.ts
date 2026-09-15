@@ -97,11 +97,13 @@ export class ServiceStartTool extends SchemaTool<typeof inputSchema> {
         command: snapshot.command,
         description: snapshot.description,
         status: snapshot.status,
-        pid: snapshot.pid,
+        ...(snapshot.pid === undefined ? {} : { pid: snapshot.pid }),
         logPath: snapshot.logPath,
       },
       modelText: [
-        `Started ${snapshot.serviceId} (pid ${snapshot.pid}) - ${snapshot.description}.`,
+        snapshot.pid === undefined
+          ? `Started ${snapshot.serviceId} - ${snapshot.description}.`
+          : `Started ${snapshot.serviceId} (pid ${snapshot.pid}) - ${snapshot.description}.`,
         `log: ${snapshot.logPath}`,
         'It keeps running after this turn ends and nobody waits on it; if it dies you will be told.',
         `Read the log with the file tools you already have, or pipe it in bash: atlas-svc logs ${snapshot.serviceId} | grep ...`,

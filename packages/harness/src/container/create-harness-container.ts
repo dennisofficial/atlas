@@ -7,8 +7,10 @@ import {
   ESettingId,
   ESettingsLayer,
   EventLogPort,
+  ExecutionLocationSinkPort,
   IdPort,
   ModelPort,
+  NoopExecutionLocationSink,
   resolveSettings,
   toggleValueOf,
   type SettingsLayerInput,
@@ -112,6 +114,8 @@ function registerAgents({ container }: { container: DependencyContainer }): void
 
   container.register(AgentTypesToken, { useValue: embeddedAgentTypes() })
 
+  container.register(portToken(ExecutionLocationSinkPort), { useClass: NoopExecutionLocationSink })
+
   container.register(portToken(AgentRegistryPort), {
     useFactory: instanceCachingFactory((resolver) => {
       live = new AgentSupervisor({
@@ -122,6 +126,7 @@ function registerAgents({ container }: { container: DependencyContainer }): void
         agentTypes: resolver.resolve(AgentTypesToken),
         runners: childRunnerSource({ deps: () => resolver.resolve(ChildRunnerDepsToken)() }),
         launchDirectory: resolver.resolve(WorkspaceRoot),
+        sink: resolver.resolve(portToken(ExecutionLocationSinkPort)),
       })
       return live
     }),

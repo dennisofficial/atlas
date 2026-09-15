@@ -20,7 +20,7 @@ const description = [
   'Stop a service that is still running.',
   'Takes the id that service_start returned.',
   'The whole process group is signalled, so anything the service forked goes with it.',
-  'SIGTERM first; a service that ignored it gets SIGKILL when you stop it again.',
+  'SIGTERM first; a service that keeps ignoring it is escalated to SIGKILL automatically after a grace period.',
   'You will be told when it has actually exited, the same as any other ending.',
 ].join(' ')
 
@@ -55,8 +55,8 @@ export class ServiceStopTool extends SchemaTool<typeof inputSchema> {
         action === EStopAction.Gone
           ? `Service ${snapshot.serviceId} had already exited, so nothing was signalled.`
           : action === EStopAction.Kill
-            ? `Service ${snapshot.serviceId} had ignored SIGTERM, so it and its process group were sent SIGKILL.`
-            : `Sent SIGTERM to service ${snapshot.serviceId} and its process group. You will be told when it has exited.`,
+            ? `Service ${snapshot.serviceId} was already asked to stop; SIGKILL follows automatically after the grace period if it keeps ignoring SIGTERM.`
+            : `Sent SIGTERM to service ${snapshot.serviceId} and its process group, escalating to SIGKILL automatically after a grace period. You will be told when it has exited.`,
     }
   }
 }

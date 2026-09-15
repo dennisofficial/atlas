@@ -9,6 +9,7 @@ const CLEAN: RestartSafety = {
   compacting: false,
   approvalOpen: false,
   exitGuardOpen: false,
+  containerGuardOpen: false,
   queuedMessages: 0,
   runningTasks: 0,
   draftEmpty: true,

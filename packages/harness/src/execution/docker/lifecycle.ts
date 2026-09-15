@@ -98,6 +98,7 @@ export function startIdleStop(args: {
   engine: LifecycleEngine
   worktree: string
   runningShells: () => number
+  runningServices?: (() => number) | undefined
   idleMinutes: () => number
   prefix?: string | undefined
   now?: (() => number) | undefined
@@ -116,6 +117,7 @@ export function startIdleStop(args: {
       due = idleStopDue({
         lastBashAt,
         runningShells: args.runningShells(),
+        runningServices: args.runningServices?.() ?? 0,
         idleMinutes: args.idleMinutes(),
         now: now(),
       })

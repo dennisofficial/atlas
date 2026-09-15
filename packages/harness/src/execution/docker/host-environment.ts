@@ -12,7 +12,7 @@ import {
 } from './sandbox'
 import { EImageKind, type ContainerResolution } from '../image/resolve'
 import type { DockerfileBuild } from '../image/build'
-import type { Mount } from '../image/mounts'
+import { EMountMode, type Mount } from '../image/mounts'
 import { mountsWithGitMetadata } from './git-metadata-mounts'
 
 export type HostSandboxEnvironment = {
@@ -102,20 +102,30 @@ const imageFieldsOf = (
 // Security invariant: the atlas-home root itself must never become reachable by widening this
 // list. Mounting only these named subtrees is what keeps auth.json, the vault key and
 // harness.db out of the container — credentials never enter the sandbox.
-export const ATLAS_HOME_MOUNTED_SUBTREES = ['memory', 'skills', 'agents', 'projects'] as const
+export const ATLAS_HOME_MOUNTED_SUBTREES = [
+  { name: 'memory', mode: EMountMode.ReadOnly },
+  { name: 'skills', mode: EMountMode.ReadOnly },
+  { name: 'agents', mode: EMountMode.ReadOnly },
+  { name: 'projects', mode: EMountMode.ReadOnly },
+  { name: 'services', mode: EMountMode.ReadWrite },
+  { name: 'bin', mode: EMountMode.ReadOnly },
+] as const
 
 export function mountedAtlasHomeSubtrees(args: {
   worktree: string
   declared?: readonly Mount[] | undefined
   atlasHome?: string | undefined
-}): readonly string[] {
+}): readonly Mount[] {
   const atlasHome = args.atlasHome ?? atlasHomeFrom({ env: process.env, home: homedir() })
   const covered = [args.worktree, ...(args.declared ?? []).map((mount) => mount.path)]
 
-  return ATLAS_HOME_MOUNTED_SUBTREES.map((name) => join(atlasHome, name)).filter(
+  return ATLAS_HOME_MOUNTED_SUBTREES.map(({ name, mode }) => ({
+    path: join(atlasHome, name),
+    mode,
+  })).filter(
     (subtree) =>
-      existsSync(subtree) &&
-      !covered.some((root) => isUnderPath({ directory: root, path: subtree })),
+      existsSync(subtree.path) &&
+      !covered.some((root) => isUnderPath({ directory: root, path: subtree.path })),
   )
 }
 
@@ -125,7 +135,7 @@ export function sandboxConfigFromHost(args: {
   image?: string | undefined
   resolution?: ContainerResolution | undefined
   labelPrefix?: string | undefined
-  atlasHomeSubtrees?: readonly string[] | undefined
+  atlasHomeSubtrees?: readonly Mount[] | undefined
 }): SandboxConfig {
   const host = hostSandboxEnvironment()
 

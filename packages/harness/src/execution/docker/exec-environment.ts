@@ -2,6 +2,7 @@ export const execEnvFor = (args: {
   requested: Record<string, string | undefined>
   imageEnv: readonly string[]
   home?: string | undefined
+  atlasBin?: string | undefined
 }): Record<string, string> => {
   const env: Record<string, string> = {}
   for (const [key, value] of Object.entries(args.requested)) {
@@ -14,6 +15,7 @@ export const execEnvFor = (args: {
   const imagePath = imageValue('PATH')
   if (env.PATH !== undefined && imagePath !== undefined) env.PATH = imagePath
   if (env.PATH !== undefined && args.home !== undefined) env.PATH = `${env.PATH}:${args.home}/.local/bin`
+  if (env.PATH !== undefined && args.atlasBin !== undefined) env.PATH = `${env.PATH}:${args.atlasBin}`
 
   for (const key of ['TMPDIR', 'TMP', 'TEMP']) env[key] = imageValue(key) ?? '/tmp'
 

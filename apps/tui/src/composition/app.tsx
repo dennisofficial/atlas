@@ -15,6 +15,7 @@ import {
   contextPressure,
   ECompactionAnchor,
   EForkMode,
+  EKilledBy,
   launchWorktreeOf,
   type EExecutionLocation,
   type EUsageWindow,
@@ -61,6 +62,8 @@ import { useSince } from '../ui/hooks/use-since'
 import { composerEdgeVersion, subscribeComposerEdge } from '../ui/composer-edge-store'
 import { densityVersion, subscribeDensity } from '../ui/density-store'
 import { modelLabel } from '../ui/model-label'
+import { isServiceAlive } from '../ui/services-model'
+import { isShellRunning } from '../ui/shells-model'
 import { theme } from '../ui/theme'
 import {
   clearNotice,
@@ -94,7 +97,12 @@ import {
   useKeyRegistry,
 } from '../ui/keys'
 import { commandSpecs, dispatchSubmission, EContainerAsk, EDispatch, localCommands } from './commands'
-import { currentLocationNotice, movedLocationNotice } from './container-notices'
+import { isSubagentRunning } from '../store/subagent-row'
+import {
+  currentLocationNotice,
+  movedLocationNotice,
+  pendingSwitchNotice,
+} from './container-notices'
 import { mcpReport } from './mcp-report'
 import { useComposerMenus } from './use-composer-menus'
 import { workspaceFileLoader } from './mentioned-files'
@@ -134,6 +142,7 @@ import { SubagentTranscript } from './subagent-transcript'
 import { useAgentsPicker } from './use-agents-picker'
 import { EModelScope, useSwitcher } from './use-switcher'
 import { useThreadModel } from './use-thread-model'
+import { useContainerGuard } from './use-container-guard'
 import { useContainerPill } from './use-container-pill'
 import { useLocationPill } from './use-location-pill'
 import { useExecutionLocation } from './use-execution-location'
@@ -665,6 +674,46 @@ function Workspace(props: {
     return reloadedSkills({ before, after })
   }, [props.app.skillRegistry])
 
+  const containerBlockers = useCallback(() => {
+    const threadId = conversation.threadId
+    return {
+      shells: props.app.shells.list({ threadId }).filter(isShellRunning),
+      services: props.app.services.list().filter(isServiceAlive),
+      agents: props.app.agents.list({ threadId }).filter(isSubagentRunning),
+    }
+  }, [conversation.threadId, props.app])
+
+  const applyContainerSwitch = useCallback(
+    (target: EExecutionLocation) => {
+      const threadId = conversation.threadId
+      const blockers = containerBlockers()
+      for (const shell of blockers.shells) {
+        props.app.shells.kill({ shellId: shell.shellId, by: EKilledBy.ContainerSwitch, threadId })
+      }
+      for (const service of blockers.services) {
+        props.app.services.stop({ serviceId: service.serviceId, by: EKilledBy.ContainerSwitch })
+      }
+      for (const agent of blockers.agents) {
+        props.app.agents.stop({ agentId: agent.agentId, threadId, by: EKilledBy.ContainerSwitch })
+      }
+
+      execution.handleSet(target)
+      const stopped = blockers.shells.length + blockers.services.length + blockers.agents.length
+      notify({
+        key: 'container-switch',
+        tone: ENoticeTone.Warn,
+        ttlMs: NOTICE_WARN_MS,
+        text:
+          stopped === 0
+            ? movedLocationNotice(target)
+            : `${movedLocationNotice(target)} — stopped ${stopped} running ${stopped === 1 ? 'task' : 'tasks'}`,
+      })
+    },
+    [containerBlockers, conversation.threadId, execution, props.app],
+  )
+
+  const containerGuard = useContainerGuard({ onSwitch: applyContainerSwitch })
+
   const handleRestart = useCallback(() => {
     if (props.onRestart === null) return
 
@@ -700,6 +749,7 @@ function Workspace(props: {
           compacting: conversation.compacting !== null,
           approvalOpen: conversation.approval.state !== null,
           exitGuardOpen: exitGuard.state !== null,
+          containerGuardOpen: containerGuard.state !== null,
           queuedMessages: props.app.pending.waitingCount(),
           runningTasks: shells.running + agents.running + services.running,
           draftEmpty: (draft.editor.current?.plainText ?? draft.value).length === 0,
@@ -711,6 +761,7 @@ function Workspace(props: {
       props.app.pending,
       conversation,
       exitGuard.state,
+      containerGuard.state,
       shells.running,
       agents.running,
       services.running,
@@ -737,17 +788,30 @@ function Workspace(props: {
     return () => clearInterval(timer)
   }, [])
 
-  // OpenTUI parses a whole input burst before React re-renders, so a paste — or ⏎ arriving in the
-  // same burst as the text — reaches here with `draft.value` still empty. The buffer is the truth.
   const handleContainer = useCallback(
     (asked: EExecutionLocation | EContainerAsk): string => {
       if (asked === EContainerAsk.Current) return currentLocationNotice(execution.location)
+      if (asked === execution.location) return currentLocationNotice(execution.location)
+
+      const blockers = containerBlockers()
+      const count = blockers.shells.length + blockers.services.length + blockers.agents.length
+      if (count > 0) {
+        containerGuard.handleOpen({ target: asked })
+        return pendingSwitchNotice({ target: asked, count })
+      }
 
       execution.handleSet(asked)
       return movedLocationNotice(asked)
     },
-    [execution],
+    [containerBlockers, containerGuard, execution],
   )
+
+  useEffect(() => {
+    if (containerGuard.state === null) return
+    if (shells.running + agents.running + services.running > 0) return
+
+    containerGuard.handleApply()
+  }, [agents.running, containerGuard, services.running, shells.running])
 
   const commands = useMemo(
     () =>
@@ -1084,6 +1148,7 @@ function Workspace(props: {
   const overlays = useMemo(
     (): readonly OverlayPresence[] => [
       covering(exitGuard.state !== null, exitGuard.handleKey),
+      covering(containerGuard.state !== null, containerGuard.handleKey),
       covering(approval.state !== null, approval.handleKey),
       covering(rewind.state !== null, rewind.handleKey),
       covering(switcher.state !== null, switcher.handleKey),
@@ -1338,6 +1403,7 @@ function Workspace(props: {
           rewind={rewind}
           approval={conversation.approval}
           exitGuard={exitGuard}
+          containerGuard={containerGuard}
           compacting={conversation.compacting}
           now={conversation.now}
         />

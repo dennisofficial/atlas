@@ -23,6 +23,7 @@ import { useTickingNow } from './use-ticking-now'
 
 export type AgentsControl = {
   sidebar: SidebarModel
+  own: readonly AgentSnapshot[]
   everywhere: readonly AgentSnapshot[]
   visits: CrewVisits
   running: number
@@ -148,11 +149,12 @@ export function useAgents({
   return useMemo(
     () => ({
       sidebar: withCrew({ model: sidebar, subagents: crew.folded.shown, fold: crew.folded }),
+      own,
       everywhere,
       visits,
       running: crew.running,
       count: crew.count,
     }),
-    [crew, everywhere, sidebar, visits],
+    [crew, everywhere, own, sidebar, visits],
   )
 }

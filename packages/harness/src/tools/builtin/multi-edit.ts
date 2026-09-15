@@ -2,8 +2,8 @@ import {
   EContentAccess,
   EPathForm,
   EPathPresence,
+  AgentFileSystemPort,
   EToolEffect,
-  FileSystemPort,
   SchemaTool,
   type DeclaredPathField,
   type ToolOutcome,
@@ -51,7 +51,7 @@ export class MultiEditTool extends SchemaTool<typeof inputSchema> {
 
   constructor(
     private readonly guard: FileWriteGuardPort = new SerializedWrites(),
-    private readonly files: FileSystemPort = new LocalFileSystemPort(),
+    private readonly files: AgentFileSystemPort = new LocalFileSystemPort(),
   ) {
     super()
   }
@@ -77,11 +77,11 @@ export class MultiEditTool extends SchemaTool<typeof inputSchema> {
           }
         }
 
-        const stats = await this.files.stat({ path }).catch(() => null)
+        const stats = await this.files.stat({ path, threadId }).catch(() => null)
         if (stats === null) return { ok: false, reason: `File does not exist: ${path}` }
         if (!stats.isFile()) return { ok: false, reason: `${path} is not a regular file.` }
 
-        const raw = await Bun.file(path).text()
+        const raw = await this.files.readFile({ path, threadId })
         let content = raw
         for (const [index, edit] of input.edits.entries()) {
           const replaced = replaceInContent({
@@ -99,7 +99,7 @@ export class MultiEditTool extends SchemaTool<typeof inputSchema> {
           content = replaced.content
         }
 
-        await writeFileAtomically({ path, content, mode: stats.mode, files: this.files })
+        await writeFileAtomically({ path, content, mode: stats.mode, files: this.files, threadId })
 
         return {
           ok: true,
