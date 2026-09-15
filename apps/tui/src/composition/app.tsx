@@ -537,6 +537,16 @@ function Workspace(props: {
     openUrl: props.app.openUrl,
     onAccounts: props.app.models.observeAccounts,
   })
+
+  const signInGateFired = useRef(false)
+  useEffect(() => {
+    if (signInGateFired.current) return
+    signInGateFired.current = true
+    if (!props.app.cloudRequired || props.app.cloud.session() !== null) return
+
+    accounts.handleOpen('Sign in to Atlas Cloud to use Atlas.')
+  }, [accounts, props.app.cloud, props.app.cloudRequired])
+
   const accountsOpen = accounts.state !== null
   const accountRows = accounts.state?.rows
 

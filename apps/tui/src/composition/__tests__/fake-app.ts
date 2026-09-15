@@ -268,14 +268,23 @@ class FakeCloudService extends CloudService {
   }
 }
 
+export const FAKE_CLOUD_SESSION: CloudSession = {
+  url: 'https://cloud.test',
+  token: 'test',
+  email: 'test@atlas.dev',
+}
+
 export const fakeCloud = (args?: {
   session?: CloudSession | null
   client?: CloudClient | null
 }): CloudService =>
   new FakeCloudService({
-    session: args?.session ?? null,
+    session: args?.session ?? FAKE_CLOUD_SESSION,
     client: args?.client ?? null,
   })
+
+export const fakeSignedOutCloud = (args?: { client?: CloudClient | null }): CloudService =>
+  new FakeCloudService({ session: null, client: args?.client ?? null })
 
 export type ScriptedReply = { thinking: string; reply: string }
 
@@ -645,6 +654,8 @@ export function fakeApp(args: {
   workspace?: WorkspaceIdentity
   pullRequests?: PullRequestPort | null
   open?: OpenRequest
+  cloud?: CloudService
+  cloudRequired?: boolean
 }): FakeApp {
   const channel = createDeltaChannel()
   const log = fakeEventLog()
@@ -692,7 +703,7 @@ export function fakeApp(args: {
     },
     files: new FileBrowser({ root: args.workspaceRoot ?? FAKE_CONFIG.cwd }),
     accounts: fakeAccounts(),
-    cloud: fakeCloud(),
+    cloud: args.cloud ?? fakeCloud(),
     openUrl: (url: string) => {
       openedUrls.push(url)
     },
@@ -778,6 +789,7 @@ export function fakeApp(args: {
       ref: parseRef(FAKE_CONFIG.model ?? '') ?? DEFAULT_MODEL_REF,
       effort: EEffort.Medium,
     }),
+    cloudRequired: args.cloudRequired ?? false,
     modelPinned: false,
     models: fakeCatalogue(),
     executionLocation: createExecutionLocationState({ initial: EExecutionLocation.Host }),

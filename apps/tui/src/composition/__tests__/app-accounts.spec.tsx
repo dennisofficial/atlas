@@ -15,6 +15,7 @@ import { App } from '../app'
 import {
   fakeApp,
   fakeCloud,
+  fakeSignedOutCloud,
   FakeCloudClient,
   GITHUB_TICKET,
   scriptedModelPort,
@@ -469,7 +470,8 @@ describe('the accounts overlay', () => {
 
 describe('the GitHub row', () => {
   it('stays out of the overlay while signed out of Atlas Cloud', async () => {
-    const setup = await opened({ app: await appWith([]) })
+    const app = await appWith([])
+    const setup = await opened({ app: { ...app, cloud: fakeSignedOutCloud() } })
 
     try {
       await openOverlay(setup)

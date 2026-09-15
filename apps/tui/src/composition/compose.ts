@@ -91,6 +91,7 @@ import {
   remotesOf,
   ClaudeCodeSource,
   ClaudeCodeSourceToken,
+  ClientVersionToken,
   CloudService,
   CloudSessionStoreToken,
   KeychainReaderToken,
@@ -139,6 +140,7 @@ import {
   type SettingsService,
 } from '@dltech/atlas-harness'
 
+import { clientVersionHeader } from '../build/info'
 import { createPendingQueues, type PendingQueues } from '../store'
 import type { QueuedSettled } from './commands'
 import type { ActiveConversation } from './resume-hint'
@@ -280,6 +282,7 @@ export type AtlasApp = {
   services: ServiceRegistryPort
   sandbox: SandboxControl
   containerStatus: SandboxStatusState
+  cloudRequired: boolean
   model: ModelChoice
   modelPinned: boolean
   models: ModelCatalogue
@@ -308,6 +311,7 @@ export async function composeAtlas(args: {
 }): Promise<AtlasApp> {
   const { config } = args
   const container = createHarnessContainer()
+  container.register(ClientVersionToken, { useValue: clientVersionHeader() })
   const workspace = await probeWorkspace({ cwd: config.cwd })
   await claimLaunchWorktree({ container, workspace })
   const mcp = await registerMcp({ container, cwd: config.cwd })
@@ -326,6 +330,7 @@ export async function composeAtlas(args: {
 
   const settings = args.settings.service
   const settled = settings.snapshot().resolution
+  const cloudRequired = toggleValueOf({ resolution: settled, id: ESettingId.CloudRequired })
   const launchValue = (id: ESettingId): string | undefined => {
     const held = textValueOf({ resolution: settled, id })
     return held.length === 0 ? undefined : held
@@ -365,20 +370,24 @@ export async function composeAtlas(args: {
     }
   }
 
-  await syncEnvironmentAccounts({ accounts: accountStore, env: args.env })
-  await importClaudeCodeAccount({
-    accounts: accountStore,
-    source: container.resolve(ClaudeCodeSourceToken),
-  })
-
-  const accounts = new AccountsService({
-    accounts: accountStore,
-    clients: builtinOauthClients({ clock: container.resolve(portToken(ClockPort)) }),
-  })
   const cloud = new CloudService({
     sessions: container.resolve(CloudSessionStoreToken),
     localAccounts: container.resolve(LocalAccountStoreToken),
     defaultUrl: launchValue(ESettingId.CloudUrl) ?? 'http://localhost:3400',
+    clientVersion: clientVersionHeader(),
+  })
+
+  if (!cloudRequired || cloud.session() !== null) {
+    await syncEnvironmentAccounts({ accounts: accountStore, env: args.env })
+    await importClaudeCodeAccount({
+      accounts: accountStore,
+      source: container.resolve(ClaudeCodeSourceToken),
+    })
+  }
+
+  const accounts = new AccountsService({
+    accounts: accountStore,
+    clients: builtinOauthClients({ clock: container.resolve(portToken(ClockPort)) }),
   })
   const usage = createAccountUsageService({ usage: new AnthropicUsageClient({ credentials }) })
   args.settings.bindTo(container)
@@ -855,6 +864,7 @@ export async function composeAtlas(args: {
 
       await log.append({ threadId, runId: ids.nextRunId(), drafts })
     },
+    cloudRequired,
     model,
     modelPinned: pinnedByFlag,
     models,

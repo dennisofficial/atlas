@@ -17,6 +17,16 @@ export type BuildInfo =
 const present = (value: string | undefined): string | undefined =>
   value === undefined || value === '' ? undefined : value
 
+export function clientVersionOf(build: BuildInfo): string {
+  if (build.kind === EBuildKind.Release) return build.version
+  if (build.kind === EBuildKind.Dev) return `dev+${build.stamp}`
+  return 'dev'
+}
+
+export function clientVersionHeader(): string {
+  return clientVersionOf(buildInfo())
+}
+
 export function buildInfo(): BuildInfo {
   const version = typeof ATLAS_VERSION === 'undefined' ? undefined : present(ATLAS_VERSION)
   if (version !== undefined) {
