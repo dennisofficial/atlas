@@ -129,7 +129,7 @@ export function useTurnDriver(args: {
         threadId,
         drafts: move === null ? drafts : [{ type: 'directory-changed', path: move.path }, ...drafts],
         runId,
-        workspace: move?.workspace ?? app.workspace.workspace,
+        workspace: move?.path ?? app.workspace.workspace,
         repo: move === null ? app.workspace.repo : move.repo,
       })
       started.current = true

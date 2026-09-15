@@ -12,7 +12,6 @@ import { stateOfDirectory, workspaceRefusal } from './workspace-directory'
 
 export type DirectoryMove = {
   path: string
-  workspace: string
   repo: string | null
 }
 
@@ -36,7 +35,7 @@ export const alreadyThereNotice = (path: string): string => `already working in 
 export async function moveTowards({ path }: { path: string }): Promise<DirectoryMove> {
   const canonical = await realpath(path).catch(() => path)
   const identity = await probeWorkspace({ cwd: canonical })
-  return { path: canonical, workspace: identity.workspace, repo: identity.repo }
+  return { path: identity.workspace, repo: identity.repo }
 }
 
 export type MovePorts = Pick<AtlasApp, 'log' | 'ids' | 'threads' | 'threadOpened'>
@@ -61,7 +60,7 @@ export async function applyDirectoryMove(args: {
     runId: app.ids.nextRunId(),
     drafts: [{ type: 'directory-changed', path: move.path }],
   })
-  await app.threads.adopt({ threadId, workspace: move.workspace, repo: move.repo })
+  await app.threads.adopt({ threadId, workspace: move.path, repo: move.repo })
   await app.threadOpened({ threadId, projectDirectory: move.path })
 }
 
