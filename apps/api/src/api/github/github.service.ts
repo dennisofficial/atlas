@@ -5,9 +5,9 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common'
-import { EnvService } from '@core/config/env/env.service'
-import { db } from '@db'
-import { SecretCipherService } from '@lib/crypto/secret-cipher.service'
+import { EnvService } from '../../_core/config/env/env.service'
+import { db } from '../../db'
+import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import type { GithubPollOutcome } from './github-device-client'
 import { GithubDeviceClient } from './github-device-client'
 import type {

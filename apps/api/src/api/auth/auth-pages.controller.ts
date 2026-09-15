@@ -1,5 +1,5 @@
 import { Controller, Get, Header, VERSION_NEUTRAL } from '@nestjs/common'
-import { Public } from '@core/decorators/public.decorator'
+import { Public } from '../../_core/decorators/public.decorator'
 import { DEVICE_PAGE, SIGN_IN_PAGE, SIGN_UP_PAGE } from './auth-pages.html'
 
 @Public()

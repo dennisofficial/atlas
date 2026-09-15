@@ -1,7 +1,7 @@
 import type { IncomingMessage } from 'node:http'
 import { Injectable } from '@nestjs/common'
-import type { SessionVerifier } from '@core/ports/session-verifier'
-import type { VerifiedSession } from '@core/types/auth.types'
+import type { SessionVerifier } from '../../_core/ports/session-verifier'
+import type { VerifiedSession } from '../../_core/types/auth.types'
 import { fromNodeHeaders } from 'better-auth/node'
 import { auth } from './auth.server'
 

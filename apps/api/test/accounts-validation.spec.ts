@@ -3,13 +3,13 @@ import { ValidationPipe } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { EnvService } from '@core/config/env/env.service'
-import { SecretCipherService } from '@lib/crypto/secret-cipher.service'
-import { SessionAuthGuard } from '@module/session/session-auth.guard'
-import { AccountsController } from '@api/accounts/accounts.controller'
-import { AccountsService } from '@api/accounts/accounts.service'
+import { EnvService } from '../src/_core/config/env/env.service'
+import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
+import { SessionAuthGuard } from '../src/_module/session/session-auth.guard'
+import { AccountsController } from '../src/api/accounts/accounts.controller'
+import { AccountsService } from '../src/api/accounts/accounts.service'
 
-vi.mock('@db', () => ({ db: {} }))
+vi.mock('../src/db', () => ({ db: {} }))
 
 describe('AccountsController validation (in-process)', () => {
   let app: INestApplication

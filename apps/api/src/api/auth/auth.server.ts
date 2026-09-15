@@ -1,4 +1,4 @@
-import { db } from '@db'
+import { db } from '../../db'
 import { betterAuth } from 'better-auth'
 import { prismaAdapter } from 'better-auth/adapters/prisma'
 import { bearer, deviceAuthorization, organization } from 'better-auth/plugins'

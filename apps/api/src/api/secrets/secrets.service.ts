@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { BadRequestException, Injectable } from '@nestjs/common'
-import type { SecretEntryModel } from '@db'
-import { db } from '@db'
-import { SecretCipherService } from '@lib/crypto/secret-cipher.service'
+import type { SecretEntryModel } from '../../db'
+import { db } from '../../db'
+import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import type { SecretDto } from './secrets.types'
 
 const MAX_NAME_LENGTH = 200

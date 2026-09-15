@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { EnvService } from '@core/config/env/env.service'
+import { EnvService } from '../../_core/config/env/env.service'
 import { SecretCipherService } from './secret-cipher.service'
 
 const HEX_KEY =
