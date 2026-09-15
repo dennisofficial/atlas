@@ -11,14 +11,14 @@ describe('shell registry versioning', () => {
     const seen: number[] = []
     registry.subscribe(() => seen.push(registry.version()))
 
-    const started = registry.start(job({ command: 'echo done' }))
+    // The shell must outlive the assertion window: an echo can be reaped within
+    // Bun.sleep(0), landing the exit event first and making the version 2 or 3 here.
+    const started = registry.start(job({ command: 'sleep 60' }))
     if (!started.ok) throw new Error(started.reason)
     await Bun.sleep(0)
 
     expect(registry.version()).toBe(1)
     expect(seen).toEqual([1])
-
-    await settle({ registry, shellId: started.snapshot.shellId })
   })
 
   it('publishes an exit when the process is reaped', async () => {
