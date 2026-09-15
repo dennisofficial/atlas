@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -150,6 +150,75 @@ describe('the cd command', () => {
       expect(first).toMatchObject({ type: 'directory-changed', path: target })
       expect(second).toMatchObject({ type: 'user-said', text: 'look around' })
       expect(app.threads.createdWith[0]).toMatchObject({ workspace: target, repo: null })
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+})
+
+describe('the cd argument menu', () => {
+  const makeWorkspace = async (): Promise<string> => {
+    const root = await makeDirectory()
+    await mkdir(join(root, 'alpha'))
+    await mkdir(join(root, 'beta'))
+    await writeFile(join(root, 'README.md'), 'not a directory\n')
+    return root
+  }
+
+  it('lists the directories of the current project directory, and tab walks into one', async () => {
+    const root = await makeWorkspace()
+    const app = fakeApp({
+      model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }),
+      cwd: root,
+      workspaceRoot: root,
+    })
+    const mounted = await open({ app, opened: UNSTARTED })
+
+    try {
+      await mounted.typeText('/cd ')
+
+      const frame = await mounted.frame()
+      expect(frame).toContain('Directories')
+      expect(frame).toContain('alpha')
+      expect(frame).toContain('beta')
+      expect(frame).not.toContain('README.md')
+
+      mounted.pressTab()
+      await mounted.frame()
+
+      expect(mounted.draftText()).toBe('/cd alpha/')
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('completes a fragment on enter instead of submitting, and submits once the path settles', async () => {
+    const root = await makeWorkspace()
+    const app = fakeApp({
+      model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }),
+      cwd: root,
+      workspaceRoot: root,
+    })
+    const mounted = await open({ app, opened: UNSTARTED })
+
+    try {
+      await mounted.typeText('/cd b')
+      await mounted.frame()
+
+      mounted.pressEnter()
+      await mounted.frame()
+      expect(mounted.draftText()).toBe('/cd beta/')
+      expect(directoryEvents(app)).toEqual([])
+
+      mounted.pressEnter()
+
+      const moved = await until({
+        holds: async () => app.openedDirectories.includes(join(root, 'beta')),
+        within: WITHIN_MS,
+      })
+
+      expect(moved).toBe(true)
+      expect(mounted.draftText()).toBe('')
     } finally {
       await mounted.done()
     }
