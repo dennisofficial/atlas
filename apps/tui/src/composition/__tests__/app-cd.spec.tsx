@@ -70,6 +70,33 @@ describe('the cd command', () => {
     }
   }, 60_000)
 
+  it('lands on the repository root when the target is a subdirectory of one', async () => {
+    const repo = await makeDirectory()
+    const nested = join(repo, 'src')
+    await mkdir(nested)
+    const init = Bun.spawn(['git', 'init'], { cwd: repo, stdout: 'ignore', stderr: 'ignore' })
+    expect(await init.exited).toBe(0)
+
+    const app = speaking()
+    const mounted = await open({ app, opened: await spokenIn(app) })
+
+    try {
+      await mounted.typeText(`/cd ${nested}`)
+      mounted.pressEnter()
+
+      const landed = await until({
+        holds: async () => directoryEvents(app).length > 0,
+        within: WITHIN_MS,
+      })
+
+      expect(landed).toBe(true)
+      expect(directoryEvents(app)[0]).toMatchObject({ path: repo })
+      expect(app.openedDirectories).toContain(repo)
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
   it('answers a bare /cd with the current directory and moves nothing', async () => {
     const app = speaking()
     const mounted = await open({ app, opened: await spokenIn(app) })

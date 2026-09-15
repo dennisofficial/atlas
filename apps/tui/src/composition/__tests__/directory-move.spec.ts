@@ -74,10 +74,10 @@ describe('a /cd target on disk', () => {
   it('reads a plain directory as its own workspace with no repo', async () => {
     const root = await make()
     const move = await moveTowards({ path: root })
-    expect(move).toEqual({ path: root, workspace: root, repo: null })
+    expect(move).toEqual({ path: root, repo: null })
   })
 
-  it('attributes a subdirectory of a git repository to the repository', async () => {
+  it('lands on the repository root when aimed at a subdirectory of one, the way a launch there would', async () => {
     const root = await make()
     const nested = join(root, 'packages', 'core')
     await mkdir(nested, { recursive: true })
@@ -85,15 +85,37 @@ describe('a /cd target on disk', () => {
     expect(await init.exited).toBe(0)
 
     const move = await moveTowards({ path: nested })
-    expect(move.path).toBe(nested)
-    expect(move.workspace).toBe(root)
+    expect(move.path).toBe(root)
+    expect(move.repo).toBe(root)
+  })
+
+  it('lands on the worktree root when aimed inside a worktree, not the main checkout', async () => {
+    const root = await make()
+    const run = async (argv: string[]) => {
+      const proc = Bun.spawn(argv, { cwd: root, stdout: 'ignore', stderr: 'ignore' })
+      expect(await proc.exited).toBe(0)
+    }
+    await run(['git', 'init'])
+    await run(['git', 'config', 'user.email', 'test@atlas.dev'])
+    await run(['git', 'config', 'user.name', 'atlas test'])
+    await writeFile(join(root, 'README.md'), 'root\n')
+    await run(['git', 'add', 'README.md'])
+    await run(['git', 'commit', '-m', 'start'])
+
+    const tree = join(root, 'linked-worktree')
+    await run(['git', 'worktree', 'add', tree, '-b', 'side'])
+    const nested = join(tree, 'src')
+    await mkdir(nested)
+
+    const move = await moveTowards({ path: nested })
+    expect(move.path).toBe(tree)
     expect(move.repo).toBe(root)
   })
 })
 
 describe('moving a started conversation', () => {
   const threadId = toThreadId('thread-1')
-  const move = { path: '/srv/elsewhere', workspace: '/srv/elsewhere', repo: null }
+  const move = { path: '/srv/elsewhere', repo: null }
 
   const ports = () => {
     const log = fakeEventLog()
