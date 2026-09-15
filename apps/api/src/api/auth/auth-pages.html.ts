@@ -34,20 +34,24 @@ export const SIGN_UP_PAGE = page(
     document.getElementById('form').addEventListener('submit', async (event) => {
       event.preventDefault()
       const form = new FormData(event.target)
-      const response = await fetch('/api/auth/sign-up/email', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          name: form.get('name'),
-          email: form.get('email'),
-          password: form.get('password'),
-        }),
-      })
-      if (response.ok) {
-        window.location.href = new URLSearchParams(window.location.search).get('next') ?? '/device'
-      } else {
-        const body = await response.json().catch(() => ({}))
-        document.getElementById('error').textContent = body.message ?? 'Sign-up failed'
+      try {
+        const response = await fetch('/api/auth/sign-up/email', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            name: form.get('name'),
+            email: form.get('email'),
+            password: form.get('password'),
+          }),
+        })
+        if (response.ok) {
+          window.location.href = new URLSearchParams(window.location.search).get('next') ?? '/device'
+        } else {
+          const body = await response.json().catch(() => ({}))
+          document.getElementById('error').textContent = body.message ?? 'Sign-up failed'
+        }
+      } catch {
+        document.getElementById('error').textContent = 'Could not reach Atlas Cloud — check your connection and retry.'
       }
     })
   </script>`,
@@ -66,15 +70,19 @@ export const SIGN_IN_PAGE = page(
     document.getElementById('form').addEventListener('submit', async (event) => {
       event.preventDefault()
       const form = new FormData(event.target)
-      const response = await fetch('/api/auth/sign-in/email', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email: form.get('email'), password: form.get('password') }),
-      })
-      if (response.ok) {
-        window.location.href = new URLSearchParams(window.location.search).get('next') ?? '/device'
-      } else {
-        document.getElementById('error').textContent = 'Invalid email or password'
+      try {
+        const response = await fetch('/api/auth/sign-in/email', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ email: form.get('email'), password: form.get('password') }),
+        })
+        if (response.ok) {
+          window.location.href = new URLSearchParams(window.location.search).get('next') ?? '/device'
+        } else {
+          document.getElementById('error').textContent = 'Invalid email or password'
+        }
+      } catch {
+        document.getElementById('error').textContent = 'Could not reach Atlas Cloud — check your connection and retry.'
       }
     })
   </script>`,
@@ -112,26 +120,30 @@ export const DEVICE_PAGE = page(
       }
     }
 
-    fetch('/api/auth/get-session').then(async (response) => {
-      document.getElementById('loading').hidden = true
-      if (!response.ok) {
-        const next = encodeURIComponent('/device?user_code=' + userCode)
-        show('You need to sign in first.')
-        window.location.href = '/sign-in?next=' + next
-        return
-      }
-      const claim = await fetch('/api/auth/device?user_code=' + encodeURIComponent(userCode), {
-        headers: { accept: 'application/json' },
+    fetch('/api/auth/get-session')
+      .then(async (response) => {
+        document.getElementById('loading').hidden = true
+        const session = await response.json().catch(() => null)
+        if (!response.ok || !session || !session.user) {
+          window.location.href = '/sign-in?next=' + encodeURIComponent('/device?user_code=' + userCode)
+          return
+        }
+        const claim = await fetch('/api/auth/device?user_code=' + encodeURIComponent(userCode), {
+          headers: { accept: 'application/json' },
+        })
+        if (!claim.ok) {
+          const body = await claim.json().catch(() => ({}))
+          show(body.message ?? body.error_description ?? 'Unknown or expired device code')
+          return
+        }
+        document.getElementById('code').textContent = userCode
+        document.getElementById('content').hidden = false
+        document.getElementById('approve').addEventListener('click', () => act('approve'))
+        document.getElementById('deny').addEventListener('click', () => act('deny'))
       })
-      if (!claim.ok) {
-        const body = await claim.json().catch(() => ({}))
-        show(body.message ?? body.error_description ?? 'Unknown or expired device code')
-        return
-      }
-      document.getElementById('code').textContent = userCode
-      document.getElementById('content').hidden = false
-      document.getElementById('approve').addEventListener('click', () => act('approve'))
-      document.getElementById('deny').addEventListener('click', () => act('deny'))
-    })
+      .catch(() => {
+        document.getElementById('loading').hidden = true
+        show('Could not reach Atlas Cloud — check your connection and reload this page.')
+      })
   </script>`,
 )
