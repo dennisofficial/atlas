@@ -31,8 +31,8 @@ export type AgentSnapshot = {
 /**
  * A child thread the store has and the parent's log does not: the process died between opening the
  * child and recording the spawn. Nothing can be written for it — a reconstructed `agent-spawned`
- * could only land at `head + 1`, above every rewind target, where `unendedSpawns` would refuse
- * every rewind forever — so it is reported to the operator and left alone.
+ * could only land at `head + 1`, where it would read as a spawn the operator made just now — so it
+ * is reported to the operator and left alone.
  */
 export type UnloggedChild = {
   agentId: ThreadId

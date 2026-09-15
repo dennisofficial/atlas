@@ -49,6 +49,7 @@ import { useShellWake } from './use-shell-wake'
 import { EThreadRows, useThreadView, type ThreadSeed } from './use-thread-view'
 import { useThreadSwap } from './use-thread-swap'
 import type { ApprovalControl } from './use-approval'
+import type { RewindConfirmControl } from './use-rewind-confirm'
 import { useTurnDriver } from './use-turn-driver'
 import { useTickingNow } from './use-turn-clock'
 import { clockReadableAt, transcriptOfTurn } from './turn-progress'
@@ -63,6 +64,7 @@ export type Conversation = {
   threadModel: ThreadModel | undefined
   executionLocation: EExecutionLocation | undefined
   approval: ApprovalControl
+  rewindConfirm: RewindConfirmControl
   lost: RecoveredAgents | null
   handle: string | null
   model: TranscriptModel
@@ -433,6 +435,7 @@ export function useConversation(args: {
 
   return {
     approval: turnDriver.approval,
+    rewindConfirm: turnDriver.rewindConfirm,
     projectDirectory: workspace.projectDirectory,
     activeWorktree: workspace.activeWorktree,
     threadId,

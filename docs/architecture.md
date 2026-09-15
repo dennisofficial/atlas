@@ -636,18 +636,21 @@ a report-only panel with no affordance — deliberately no affordance, since `ag
 `agent_resume` would both answer `unknownAgent` for a child the parent never recorded.
 
 **Healing one by forging the missing row was considered and rejected.** `@@unique([threadId, seq])`
-means a reconstructed `agent-spawned` can only land at `head + 1`, and `rewindTarget` refuses on
-`spawn.seq > toSeq` — so a spawn forged at the head would make the thread **permanently
-un-rewindable**. Fabricating history to paper over a gap in history costs more than the gap. Store-only
+means a reconstructed `agent-spawned` can only land at `head + 1`, where it would read as a spawn the
+operator made just now — and a rewind to the head would then destroy a child the thread never
+recorded. Fabricating history to paper over a gap in history costs more than the gap. Store-only
 orphans are therefore reported, never invented.
 
-**A rewind that deletes a delegation removes the delegate.** Rewind deletes the parent's rows
-outright, so an `agent-spawned` above the target leaves a child thread nothing records — and the
-recovery above would report it as an orphan forever, a false alarm for history the operator
-deliberately cut. So `rewindThread` hands the cut spawns to two removals: the supervisor forgets
-the child (aborting it first if it was resumed and is stepping again — the first-stepping case is
-already refused as `UnendedSubAgent`), dropping any ending it queued; and the store deletes the
-child's thread in the same transaction as the parent's rows, events and turns cascading. A child
+**A rewind that deletes a creation destroys it — after one confirmation.** A cut below an
+`agent-spawned`, a background start, or a `service_start` deletes the rows that record the thing,
+so the thing must go with them: anything less strands a live child stepping into a thread its
+parent no longer records, and recovery would report it as an orphan forever, a false alarm for
+history the operator deliberately cut. But destroying in-flight work is the one rewind outcome
+worth a second look, so `rewindThread` answers a non-empty cut list with `needsConfirmation`
+naming what dies — children, shells and services alike, running or not — and only a confirmed
+rewind proceeds. The supervisor then forgets the child, aborting it first whether it is on its
+first step or resumed, and drops any ending it queued; the store deletes the child's thread in the
+same transaction as the parent's rows, events and turns cascading. A child
 that was forked from cannot be deleted — the fork relation is `onDelete: Restrict` because a
 reference fork reads the child's rows — so it survives detached, its supervision attribution
 cleared, an ordinary conversation rather than a phantom. A child whose spawn sits at or below the
@@ -756,11 +759,14 @@ be held to:
    child as nobody's turn and its first `runTurn` returns `Idle`. The parent's row is outside the
    transaction deliberately, which leaves one narrow window: a crash between the two makes a child the
    parent's log never mentions. That is reported, never fabricated — see the sub-agent section.
-3. **Closed. `ERewindRefusal.UnendedSubAgent` refuses a rewind that would cut below a live child.**
-   `unendedSpawns` finds any `agent-spawned` above the target with no `agent-ended` behind it, and the
-   refusal names the child. An **ended** child does not block: its rows are a finished record, and
-   refusing there would make every thread that ever delegated un-rewindable below its first delegation.
-   The residue is the crash case named under sub-agents — an orphaned spawn is unended forever.
+3. **Closed, and since loosened. A rewind below a spawn confirms rather than refuses.** The guard
+   began as `ERewindRefusal.UnendedSubAgent`, a hard refusal that stranded the operator whose intent —
+   taking the delegation back — was already clear. `rewindPlan` now names every creation the cut would
+   destroy, and `rewindThread` holds the write until the operator confirms. A child whose spawn sits at
+   or below the target keeps its thread, and its `agent-ended` above the cut is re-appended rather than
+   deleted — the treatment shell and service notices already had, so a surviving source never loses
+   its record. Crash residue — an orphaned spawn, unended forever — is destroyed on confirmation like
+   anything else the cut removes.
 4. **Closed. Both self-relations are declared `onDelete: Restrict`.** `ThreadFork` on `parentThreadId`
    and `ThreadSupervision` on `spawnerThreadId`. There is still no thread-delete path; when one lands, a
    cascade would have stripped the parent's rows and left the child silently reading as though it never

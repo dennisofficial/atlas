@@ -156,7 +156,8 @@ transcript search, and `core/budget/resolveBudget` as the auto-compaction contro
   budget. `ctrl+g` and `/agents` walk to a child, `ctrl+k` stops one, and the ending says who
   stopped it — `EKilledBy` now covering `Unrecorded` for a child the session lost before it could
   report. Five of the six fork invariants in `docs/architecture.md` closed on the way, including the
-  rewind hole — `ERewindRefusal.UnendedSubAgent` refuses a cut below a live child.
+  rewind hole — a cut below a live child was once refused outright; it now asks once, naming what
+  dies, and a confirmed rewind destroys the child with the delegation.
 
 - **Read-before-write is per thread, locked, and content-aware.** `ToolCall` carries a required
   `threadId` and `FileReadStatePort` keys views on `{ threadId, path }`, so a sub-agent's read no

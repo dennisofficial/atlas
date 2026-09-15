@@ -243,15 +243,11 @@ const agentEnded = (agentId = CHILD): EventDraft => ({
 })
 
 describe('rewindTarget on a thread that delegated', () => {
-  it('refuses a target that would delete the spawn of a child nothing has ended', () => {
+  it('allows a target below a live spawn — destroying the child is the plan’s confirm, not a refusal', () => {
     const events = eventsFrom([said('delegate it'), spawned(), replied('spawned one')])
 
-    expect(rewindTarget({ events, toSeq: 1 })).toEqual({
-      allowed: false,
-      refusal: ERewindRefusal.UnendedSubAgent,
-      reason:
-        'rewinding to 1 would cut below the spawn of explore sub-agent thread_child, which has no ending behind it, and the child would go on stepping into a thread its parent no longer records',
-    })
+    expect(rewindTarget({ events, toSeq: 1 })).toEqual({ allowed: true })
+    expect(rewindTarget({ events, toSeq: 0 })).toEqual({ allowed: true })
   })
 
   it('allows a target that keeps the spawn, which leaves the child recorded', () => {
@@ -270,16 +266,5 @@ describe('rewindTarget on a thread that delegated', () => {
 
     expect(rewindTarget({ events, toSeq: 1 })).toEqual({ allowed: true })
     expect(rewindTarget({ events, toSeq: 0 })).toEqual({ allowed: true })
-  })
-
-  it('names the child still unended when another one has ended', () => {
-    const other = toThreadId('thread_other')
-    const target = rewindTarget({
-      events: eventsFrom([spawned(), spawned(other), agentEnded()]),
-      toSeq: 0,
-    })
-
-    expect(target).toMatchObject({ allowed: false, refusal: ERewindRefusal.UnendedSubAgent })
-    if (!target.allowed) expect(target.reason).toContain('thread_other')
   })
 })

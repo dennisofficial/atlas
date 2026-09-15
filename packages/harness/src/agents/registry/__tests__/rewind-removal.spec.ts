@@ -11,7 +11,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { compactThread } from '../../../store/compact'
-import { UnstaffedShells } from '../../../store/__tests__/harness'
+import { UnstaffedServices, UnstaffedShells } from '../../../store/__tests__/harness'
 import { rewindThread } from '../../../store/rewind'
 import { openChildThread } from '../open-child'
 import {
@@ -66,14 +66,16 @@ async function completedDelegation(entry: OpenedSupervisor): Promise<ThreadId> {
   return agentId
 }
 
-const rewindToStart = (entry: OpenedSupervisor) =>
+const rewindToStart = (entry: OpenedSupervisor, confirmed = true) =>
   rewindThread({
     log: entry.harness.log,
     threads: entry.harness.threads,
     agents: entry.supervisor,
     shells: new UnstaffedShells(),
+    services: new UnstaffedServices(),
     threadId: entry.parent,
     toSeq: 0,
+    confirmed,
   })
 
 const deliverNotices = async (entry: OpenedSupervisor): Promise<void> => {
@@ -150,9 +152,11 @@ describe('a sub-agent whose delegation a rewind deletes', () => {
       log: entry.harness.log,
       threads: entry.harness.threads,
       agents: entry.supervisor,
-    shells: new UnstaffedShells(),
+      shells: new UnstaffedShells(),
+      services: new UnstaffedServices(),
       threadId: entry.parent,
       toSeq: 1,
+      confirmed: true,
     })
 
     expect(await entry.harness.threads.find({ threadId: kept })).toBeDefined()
@@ -229,6 +233,51 @@ describe('a sub-agent whose delegation a rewind deletes', () => {
 
     expect(entry.supervisor.pendingNotices({ threadId: entry.parent })).toHaveLength(0)
     expect(entry.supervisor.drainNotifications({ threadId: entry.parent })).toHaveLength(0)
+  })
+
+  it('asks before cutting a child still on its first step, then aborts it once confirmed', async () => {
+    const entry = await openAndTrack()
+    const spawned = await entry.supervisor.spawn({
+      threadId: entry.parent,
+      agentType: 'builder',
+      brief: 'write the thing',
+      intent: 'write the thing',
+    })
+    if (!spawned.ok) throw new Error(spawned.reason)
+    await settled()
+
+    const running = entry.runners.started[0]
+    if (running === undefined) throw new Error('the child never started stepping')
+    const agentId = spawned.snapshot.agentId
+
+    const asking = await rewindToStart(entry, false)
+    expect(asking).toEqual({
+      ok: false,
+      needsConfirmation: true,
+      toSeq: 0,
+      kills: [
+        {
+          kind: 'agent',
+          agentId,
+          agentType: 'builder',
+          intent: 'write the thing',
+          running: true,
+        },
+      ],
+    })
+    expect(running.signal.aborted).toBe(false)
+    expect(await entry.harness.threads.find({ threadId: agentId })).toBeDefined()
+
+    expect(await rewindToStart(entry)).toMatchObject({ ok: true })
+    expect(running.signal.aborted).toBe(true)
+    expect(entry.supervisor.list({ threadId: entry.parent })).toHaveLength(0)
+    expect(await entry.harness.threads.find({ threadId: agentId })).toBeUndefined()
+
+    running.settle(finished())
+    await settled()
+    expect(entry.supervisor.drainNotifications({ threadId: entry.parent })).toHaveLength(0)
+
+    await entry.supervisor.closeAll()
   })
 
   it('stops a child that started stepping again before its thread is deleted', async () => {

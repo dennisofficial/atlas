@@ -7,6 +7,8 @@ import { EKilledBy, toThreadId, toCallId, toEventId, toRunId } from '@dltech/atl
 
 import type { PrismaClient } from '../../../prisma/generated/client'
 import { AgentRegistryPort } from '../../agents/registry/port'
+import type { ServiceSnapshot } from '../../services/service-process'
+import { ServiceRegistryPort } from '../../services/service-registry'
 import type { ShellSnapshot } from '../../shells/background-shell'
 import { ShellRegistryPort } from '../../shells/shell-registry'
 import { openAtlasDatabase, type AtlasDatabase } from '../database'
@@ -106,6 +108,41 @@ export class UnstaffedShells extends ShellRegistryPort {
   }
 }
 
+export class UnstaffedServices extends ServiceRegistryPort {
+  start() {
+    return Promise.resolve({ ok: false as const, reason: 'no service registry in this fixture' })
+  }
+  stop() {
+    return { ok: false as const, reason: 'no service registry in this fixture' }
+  }
+  removeServices(_args: { serviceIds: readonly string[]; by: EKilledBy }): void {}
+  list(): readonly ServiceSnapshot[] {
+    return []
+  }
+  version() {
+    return 0
+  }
+  subscribe() {
+    return () => undefined
+  }
+  drainNotifications() {
+    return []
+  }
+  pendingNotices() {
+    return []
+  }
+  threadsAwaitingNotice() {
+    return []
+  }
+  onNotice() {
+    return () => undefined
+  }
+  forgetNotices() {}
+  closeAll() {
+    return Promise.resolve()
+  }
+}
+
 export type StoreFixture = {
   databaseUrl: string
   prisma: PrismaClient
@@ -113,6 +150,7 @@ export type StoreFixture = {
   threads: PrismaThreadStore
   agents: AgentRegistryPort
   shells: UnstaffedShells
+  services: UnstaffedServices
   clock: SteppingClock
   reopen: () => Promise<StoreFixture>
   close: () => Promise<void>
@@ -184,6 +222,7 @@ async function attach({
     threads: new PrismaThreadStore(database.prisma, clock, ids),
     agents: new UnstaffedAgents(),
     shells: new UnstaffedShells(),
+    services: new UnstaffedServices(),
     reopen: async () => {
       await database.close()
       return attach({ databaseUrl, discard, idPrefix: `${idPrefix}b` })

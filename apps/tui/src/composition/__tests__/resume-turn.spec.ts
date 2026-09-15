@@ -13,6 +13,7 @@ import { discardInterrupted, EDiscard } from '../resume-turn'
 import { fakeAgentRegistry } from './fake-agents'
 import { fakeShellRegistry } from './fake-app'
 import { fakeThreadStore, fakeEventLog } from './fake-backend'
+import { fakeServiceRegistry } from './fake-services'
 
 const THREAD = toThreadId('resuming')
 
@@ -35,43 +36,49 @@ const stamped = (drafts: readonly EventDraft[]): Event[] =>
 
 const backedBy = (drafts: readonly EventDraft[]) => {
   const log = fakeEventLog(stamped(drafts))
-  return { log, threads: fakeThreadStore({ log, existing: [THREAD] }), agents: fakeAgentRegistry(), shells: fakeShellRegistry() }
+  return {
+    log,
+    threads: fakeThreadStore({ log, existing: [THREAD] }),
+    agents: fakeAgentRegistry(),
+    shells: fakeShellRegistry(),
+    services: fakeServiceRegistry(),
+  }
 }
 
 describe('discarding a cut-short reply so the step can be taken again', () => {
   it('deletes the interrupted reply and leaves the message that asked for it', async () => {
-    const { log, threads, agents, shells } = backedBy([
+    const { log, threads, agents, shells, services } = backedBy([
       { type: 'user-said', text: 'explain the loop' },
       { type: 'assistant-said', parts: [{ type: 'text', text: 'it keeps' }], interrupted: true },
     ])
 
-    const discarded = await discardInterrupted({ log, threads, agents, threadId: THREAD, shells })
+    const discarded = await discardInterrupted({ log, threads, agents, threadId: THREAD, shells, services })
 
     expect(discarded).toEqual({ type: EDiscard.Discarded })
     expect((await log.read({ threadId: THREAD })).map((event) => event.type)).toEqual(['user-said'])
   })
 
   it('leaves a thread the model finished alone', async () => {
-    const { log, threads, agents, shells } = backedBy([
+    const { log, threads, agents, shells, services } = backedBy([
       { type: 'user-said', text: 'explain the loop' },
       { type: 'assistant-said', parts: [{ type: 'text', text: 'it keeps its position' }] },
     ])
 
-    expect(await discardInterrupted({ log, threads, agents, threadId: THREAD, shells })).toEqual({
+    expect(await discardInterrupted({ log, threads, agents, threadId: THREAD, shells, services })).toEqual({
       type: EDiscard.Nothing,
     })
     expect(await log.read({ threadId: THREAD })).toHaveLength(2)
   })
 
   it('discards nothing when the interruption left a tool settlement as the last word', async () => {
-    const { log, threads, agents, shells } = backedBy([
+    const { log, threads, agents, shells, services } = backedBy([
       { type: 'user-said', text: 'run it' },
       { type: 'assistant-said', parts: [{ type: 'text', text: 'running' }], interrupted: true },
       { type: 'tool-called', callId: toCallId('call-1'), name: 'bash', input: {}, ordinal: 0 },
       { type: 'tool-denied', callId: toCallId('call-1'), name: 'bash', reason: 'stopped first' },
     ])
 
-    expect(await discardInterrupted({ log, threads, agents, threadId: THREAD, shells })).toEqual({
+    expect(await discardInterrupted({ log, threads, agents, threadId: THREAD, shells, services })).toEqual({
       type: EDiscard.Nothing,
     })
     expect(await log.read({ threadId: THREAD })).toHaveLength(4)

@@ -21,6 +21,7 @@ function killEnding(killedBy: EKilledBy | undefined): string {
   if (killedBy === EKilledBy.User) return 'was stopped by the user'
   if (killedBy === EKilledBy.Model) return 'was stopped at your request'
   if (killedBy === EKilledBy.SessionEnd) return 'was stopped because the session was closing'
+  if (killedBy === EKilledBy.Rewind) return 'was killed by a rewind'
   return 'was stopped'
 }
 
