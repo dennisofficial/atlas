@@ -21,6 +21,21 @@ export interface GithubHttpResponse {
 
 export type FetchFn = (url: string, request: GithubHttpRequest) => Promise<GithubHttpResponse>
 
+function asHttpResponse(value: unknown): GithubHttpResponse {
+  if (
+    typeof value !== 'object' ||
+    value === null ||
+    !('ok' in value) ||
+    !('status' in value) ||
+    !('text' in value)
+  ) {
+    throw new BadGatewayException('fetch returned an unreadable response')
+  }
+  return value as GithubHttpResponse
+}
+
+const defaultFetch: FetchFn = async (url, request) => asHttpResponse(await fetch(url, request))
+
 export type GithubPollOutcome =
   | { kind: 'granted'; accessToken: string; scope: string }
   | { kind: 'error'; error: string; description?: string }
@@ -67,7 +82,7 @@ export class GithubDeviceClient {
   private readonly fetchFn: FetchFn
 
   constructor(args: { fetchFn?: FetchFn } = {}) {
-    this.fetchFn = args.fetchFn ?? fetch
+    this.fetchFn = args.fetchFn ?? defaultFetch
   }
 
   async beginDeviceFlow(args: { clientId: string }): Promise<GithubDeviceCodesDto> {

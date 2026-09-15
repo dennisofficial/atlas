@@ -12,8 +12,8 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common'
-import type { AuthenticatedRequest } from '@core/types/auth.types'
-import { SessionAuthGuard } from '@module/session/session-auth.guard'
+import type { AuthenticatedRequest } from '../../_core/types/auth.types'
+import { SessionAuthGuard } from '../../_module/session/session-auth.guard'
 import {
   CreateAccountDto,
   ReplaceSecretDto,

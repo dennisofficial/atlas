@@ -14,13 +14,6 @@
     "useDefineForClassFields": false,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "paths": {
-      "@api/*": ["./src/api/*"],
-      "@core/*": ["./src/_core/*"],
-      "@lib/*": ["./src/_lib/*"],
-      "@module/*": ["./src/_module/*"],
-      "@db": ["./prisma"]
-    },
     "outDir": "dist",
     "noEmit": true
   },

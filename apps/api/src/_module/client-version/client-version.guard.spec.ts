@@ -2,7 +2,7 @@ import type { ExecutionContext } from '@nestjs/common'
 import { HttpException, InternalServerErrorException } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { describe, expect, it } from 'vitest'
-import { MIN_CLIENT_VERSION_KEY } from '@core/decorators/min-client-version.decorator'
+import { MIN_CLIENT_VERSION_KEY } from '../../_core/decorators/min-client-version.decorator'
 import { ClientVersionGuard } from './client-version.guard'
 
 function contextFor(headers: Record<string, string>, minimum?: string): ExecutionContext {

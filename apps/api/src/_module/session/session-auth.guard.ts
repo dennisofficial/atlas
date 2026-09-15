@@ -1,10 +1,10 @@
 import type { CanActivate, ExecutionContext } from '@nestjs/common'
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
-import { IS_PUBLIC_KEY } from '@core/decorators/public.decorator'
-import type { SessionVerifier } from '@core/ports/session-verifier'
-import { SESSION_VERIFIER } from '@core/ports/session-verifier'
-import type { AuthenticatedRequest } from '@core/types/auth.types'
+import { IS_PUBLIC_KEY } from '../../_core/decorators/public.decorator'
+import type { SessionVerifier } from '../../_core/ports/session-verifier'
+import { SESSION_VERIFIER } from '../../_core/ports/session-verifier'
+import type { AuthenticatedRequest } from '../../_core/types/auth.types'
 
 @Injectable()
 export class SessionAuthGuard implements CanActivate {

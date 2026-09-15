@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
-import type { AgentAccountModel } from '@db'
-import { db } from '@db'
-import { SecretCipherService } from '@lib/crypto/secret-cipher.service'
+import type { AgentAccountModel } from '../../db'
+import { db } from '../../db'
+import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import type { CreateAccountDto, SecretDto, SetActiveDto, SetStatusDto } from './accounts.dto'
 import type {
   AccountDto,

@@ -5,9 +5,9 @@
   "scripts": {
     "typecheck": "bun run db:generate && tsc --noEmit",
     "test": "bun run db:generate && vitest run",
-    "build": "bun run db:generate && nest build api && tsc-alias -p tsconfig.build.json",
+    "build": "bun run db:generate && nest build api",
     "dev": "bun run env:inject -- nest start api --watch",
-    "start:prod": "dotenvx run --strict -f envs/.env.api.$APP_TIER.enc -- node dist/src/api/main.js",
+    "start:prod": "dotenvx run --strict -f envs/.env.api.$APP_TIER.enc -- node dist/api/main.js",
     "env:inject": "dotenvx run -f envs/.env.api.local.enc -f envs/.env.personal --ignore=MISSING_ENV_FILE -o --strict",
     "db:generate": "prisma generate",
     "db:migrate": "bun run env:inject -- prisma migrate dev",
@@ -45,7 +45,6 @@
     "@types/supertest": "^6.0.3",
     "prisma": "7.9.1",
     "supertest": "^7.1.4",
-    "tsc-alias": "^1.8.16",
     "typescript": "6.0.3",
     "unplugin-swc": "^1.5.7",
     "vitest": "^3.2.7"

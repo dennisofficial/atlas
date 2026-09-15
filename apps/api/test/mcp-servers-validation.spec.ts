@@ -3,14 +3,14 @@ import { ValidationPipe } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { EnvService } from '@core/config/env/env.service'
-import { SecretCipherService } from '@lib/crypto/secret-cipher.service'
-import type { AuthenticatedRequest } from '@core/types/auth.types'
-import { SessionAuthGuard } from '@module/session/session-auth.guard'
-import { McpServersController } from '@api/mcp-servers/mcp-servers.controller'
-import { McpServersService } from '@api/mcp-servers/mcp-servers.service'
+import { EnvService } from '../src/_core/config/env/env.service'
+import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
+import type { AuthenticatedRequest } from '../src/_core/types/auth.types'
+import { SessionAuthGuard } from '../src/_module/session/session-auth.guard'
+import { McpServersController } from '../src/api/mcp-servers/mcp-servers.controller'
+import { McpServersService } from '../src/api/mcp-servers/mcp-servers.service'
 
-vi.mock('@db', () => ({ db: {} }))
+vi.mock('../src/db', () => ({ db: {} }))
 
 describe('McpServersController validation (in-process)', () => {
   let app: INestApplication

@@ -1,8 +1,8 @@
 import type { CanActivate, ExecutionContext } from '@nestjs/common'
 import { HttpException, Injectable, InternalServerErrorException } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
-import { MIN_CLIENT_VERSION_KEY } from '@core/decorators/min-client-version.decorator'
-import { isBelowMinimum, parseClientVersion } from '@lib/version/client-version'
+import { MIN_CLIENT_VERSION_KEY } from '../../_core/decorators/min-client-version.decorator'
+import { isBelowMinimum, parseClientVersion } from '../../_lib/version/client-version'
 import type { Request } from 'express'
 
 const UPGRADE_REQUIRED = 426

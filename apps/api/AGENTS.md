@@ -19,16 +19,20 @@ src/
   _core/      kernel: env module, decorators, ports, types. Imports nothing from slices.
   _lib/       infra adapters (crypto). Framework-light.
   _module/    shared injectable modules (session guard + verifier port).
-  api/        the deployable app: main.ts, app.module.ts, feature modules (auth, health).
-prisma/       schema, migrations, lazy `db` client proxy (import via the `@db` alias).
+  api/        the deployable app: app.module.ts + feature modules (auth, health, …).
+  db/         the lazy `db` client proxy + generated-client type re-exports.
+  main.ts     the entrypoint (Vercel detects this exact location) — boots the app,
+              hydrating env from the tier file when a DOTENV_PRIVATE_KEY is present.
+  api/main.ts one-line shim so `nest start api` / `start:prod` boot the same bootstrap.
+prisma/       schema + migrations only (the client wrapper moved to src/db).
 envs/         dotenvx tier files (.env.api.<tier>.enc, committed; .env.keys, never).
 test/         cross-cutting specs (env alignment).
 ```
 
-Path aliases (`@core/*`, `@lib/*`, `@module/*`, `@api/*`, `@db`) are declared in
-`tsconfig.json`, mirrored in `vitest.config.mts`, and rewritten for the build by `tsc-alias`.
-`@db` maps to the `prisma/` directory, not a file — tsc-alias keeps a `.ts` extension on
-file-target aliases, which Node cannot load.
+Imports are plain relative paths — this package has no path aliases on purpose. Vercel's
+backend builder neither rewrites tsconfig paths in its compiled output nor traces imports
+through them into the function bundle, so aliases break the deploy twice over. Do not
+reintroduce them (Vercel is the settled deploy target).
 
 ## Auth
 
@@ -59,7 +63,7 @@ Migrations run through `db:migrate` (dotenvx-injected); in deployed tiers they r
 ## Rules that differ from the rest of the repo
 
 - vitest unit specs are colocated `*.spec.ts`; they never touch a real database (CI has none).
-  `@db` is a lazy proxy, so importing it is safe; constructing queries is not.
+  `src/db`'s `db` is a lazy proxy, so importing it is safe; constructing queries is not.
 - Everything else from the root CLAUDE.md still applies: 300-line files, no `as any`, no
   ts-ignore, E-prefixed enums, `handle`-prefixed handlers, named parameters, no comments that
   restate the code.

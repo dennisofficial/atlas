@@ -41,22 +41,29 @@ describe('env tier alignment', () => {
     }
   })
 
-  it('comments every staging/production value with a recognized reason', () => {
-    for (const tier of ['staging', 'production'] as const) {
-      for (const entry of parseTier(tier)) {
-        if (entry.key === 'APP_TIER' || entry.key === 'PORT') continue
-        expect(entry.commented, `${tier}:${entry.key} must be commented`).toBe(true)
-        expect(entry.value, `${tier}:${entry.key}`).toMatch(RECOGNIZED_PLACEHOLDERS)
-      }
+  it('comments every staging value with a recognized reason', () => {
+    for (const entry of parseTier('staging')) {
+      if (entry.key === 'APP_TIER' || entry.key === 'PORT') continue
+      expect(entry.commented, `staging:${entry.key} must be commented`).toBe(true)
+      expect(entry.value, `staging:${entry.key}`).toMatch(RECOGNIZED_PLACEHOLDERS)
     }
   })
 
-  it('encrypts every supplied local value', () => {
-    for (const entry of parseTier('local')) {
-      if (entry.commented) continue
-      if (entry.key === 'APP_TIER' || entry.key === 'PORT') continue
-      if (entry.key.startsWith('DOTENV_PUBLIC_KEY')) continue
-      expect(entry.value, `local:${entry.key}`).toMatch(/^encrypted:/)
+  it('comments every value production does not supply, with a recognized reason', () => {
+    for (const entry of parseTier('production')) {
+      if (!entry.commented) continue
+      expect(entry.value, `production:${entry.key}`).toMatch(RECOGNIZED_PLACEHOLDERS)
+    }
+  })
+
+  it('encrypts every supplied value in every tier', () => {
+    for (const tier of TIERS) {
+      for (const entry of parseTier(tier)) {
+        if (entry.commented) continue
+        if (entry.key === 'APP_TIER' || entry.key === 'PORT') continue
+        if (entry.key.startsWith('DOTENV_PUBLIC_KEY')) continue
+        expect(entry.value, `${tier}:${entry.key}`).toMatch(/^encrypted:/)
+      }
     }
   })
 })

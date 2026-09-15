@@ -4,8 +4,8 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { EnvService } from '@core/config/env/env.service'
-import { SecretCipherService } from '@lib/crypto/secret-cipher.service'
+import { EnvService } from '../../_core/config/env/env.service'
+import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import type { PrismaClient } from '../../generated/prisma/client'
 import type {
   FetchFn,
@@ -62,7 +62,7 @@ const fake = vi.hoisted(() => {
   return { db, connections }
 })
 
-vi.mock('@db', () => ({ db: fake.db as unknown as PrismaClient }))
+vi.mock('../../db', () => ({ db: fake.db as unknown as PrismaClient }))
 
 const USER_A = 'user-a'
 const USER_B = 'user-b'
