@@ -22,6 +22,7 @@ import { PrismaTurnLedger } from '../ledger'
 import { AiSdkModelPort, type ModelCardSource } from '../model/ai-sdk-model-port'
 import { createRawTape } from '../model/raw-tape'
 import type { ToolDispatcher } from '../tools/dispatch'
+import { createLoopCut } from '../store/cut-loop'
 import { openAtlasDatabase, PrismaThreadStore, PrismaEventLog, RandomIds, SystemClock } from '../store'
 import type { ThreadStorePort } from '../store'
 import { LoopTurnRunner, type TurnDeps } from './run-turn'
@@ -75,6 +76,7 @@ export async function buildHarness(args: BuildHarnessArgs): Promise<AtlasHarness
     tape,
   })
   const ledger = new PrismaTurnLedger(database.prisma)
+  const threads = new PrismaThreadStore(database.prisma, clock, ids)
 
   const turnDeps: TurnDeps = {
     log,
@@ -92,6 +94,7 @@ export async function buildHarness(args: BuildHarnessArgs): Promise<AtlasHarness
     onChunk: args.onChunk,
     hooks: args.hooks,
     spend: { ledger, clock },
+    applyLoopCut: createLoopCut({ threads, log, ids }),
     launchDirectory: args.launchDirectory,
     ...(args.compact === undefined ? {} : { compact: args.compact }),
     ...(args.autoCompactAtPercent === undefined
@@ -102,7 +105,7 @@ export async function buildHarness(args: BuildHarnessArgs): Promise<AtlasHarness
   return {
     runner: new LoopTurnRunner(turnDeps),
     log,
-    threads: new PrismaThreadStore(database.prisma, clock, ids),
+    threads,
     model,
     ids,
     clock,

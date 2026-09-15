@@ -159,6 +159,8 @@ import { selectableModel, type ModelChoice } from './model-selection'
 import { knownRefs, modelCatalogue, type ModelCatalogue } from './providers'
 import { assemblePlugins } from '../plugins/assemble'
 import { PullRequestPort } from '../plugins/github/pure'
+import { createLoopCut } from '@dltech/atlas-harness'
+
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { tldrFeed } from '../ui/tldr-feed-store'
 import type { ContributedProjection } from '../plugins/projection'
@@ -752,6 +754,13 @@ export async function composeAtlas(args: {
     ],
     spend: { ledger, clock: container.resolve(portToken(ClockPort)) },
     compact: compactBeforeOverflow,
+    applyLoopCut: createLoopCut({ threads, log, ids }),
+    onLoopCut: (cut) =>
+      notify({
+        tone: ENoticeTone.Warn,
+        text: `cut a runaway loop: ${cut.names.join(', ')} returned identical results ${cut.repeats} times in a row, so the turn was rewound to before the repetition`,
+        ttlMs: NOTICE_WARN_MS,
+      }),
   }
 
   const pinnedModel = ({ modelId }: { modelId: string }): ReturnType<ProviderAdapter['model']> => {
