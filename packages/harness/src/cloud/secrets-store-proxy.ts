@@ -31,10 +31,12 @@ export class SecretsStoreProxy implements SecretsPort {
   }
 
   origin(): string {
+    if (this.signedOutOfRequiredCloud()) return 'Atlas Cloud (signed out)'
     return this.current().origin()
   }
 
   read(name: string): string | undefined {
+    if (this.signedOutOfRequiredCloud()) return undefined
     return this.current().read(name)
   }
 
@@ -51,6 +53,10 @@ export class SecretsStoreProxy implements SecretsPort {
     if (remote !== undefined) return remote
     if (this.cloudRequired()) throw new CloudSignInRequiredError()
     return this.local
+  }
+
+  private signedOutOfRequiredCloud(): boolean {
+    return this.sessions.read() === null && this.cloudRequired()
   }
 
   private activeRemote(): RemoteSecretsStore | undefined {
