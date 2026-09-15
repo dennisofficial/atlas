@@ -291,3 +291,74 @@ describe('McpEditTool with a cloud session', () => {
     expect(await Bun.file(join(root, 'mcp.json')).exists()).toBe(true)
   })
 })
+
+describe('McpEditTool with the cloud required', () => {
+  let sessions: CloudSessionStore
+  let cloudRequired: boolean
+
+  beforeEach(() => {
+    sessions = new CloudSessionStore({
+      file: join(root, 'cloud.json'),
+      keyFile: join(root, 'key'),
+    })
+    cloudRequired = true
+  })
+
+  afterEach(() => {
+    delete process.env['ATLAS_HOME']
+  })
+
+  const invokeRequiring = async (input: unknown): Promise<ToolOutcome> =>
+    new McpEditTool({ sessions, cloudRequired: () => cloudRequired }).invoke({
+      input,
+      signal: new AbortController().signal,
+      idempotencyKey: 'edit-1',
+      projectDirectory: root,
+      threadId: toThreadId('thread-1'),
+    })
+
+  it('fails a signed-out user-layer edit with the sign-in reason and writes nothing', async () => {
+    process.env['ATLAS_HOME'] = root
+
+    const outcome = await invokeRequiring({
+      layer: 'user',
+      name: 'linear',
+      transport: { kind: 'stdio', command: 'npx' },
+      action: 'upsert',
+    })
+
+    expect(outcome.ok).toBe(false)
+    if (!outcome.ok) expect(outcome.reason).toBe('sign in to Atlas Cloud first — /auth')
+    expect(await Bun.file(join(root, 'mcp.json')).exists()).toBe(false)
+  })
+
+  it('still writes the project layer to a file while signed out', async () => {
+    const outcome = await invokeRequiring({
+      layer: 'project',
+      name: 'linear',
+      transport: { kind: 'stdio', command: 'npx' },
+      action: 'upsert',
+    })
+
+    expect(outcome).toMatchObject({ ok: true })
+    expect(await Bun.file(join(root, '.atlas', 'mcp.json')).exists()).toBe(true)
+  })
+
+  it('flips live: the user file is writable again once the flag drops', async () => {
+    process.env['ATLAS_HOME'] = root
+
+    const refused = await invokeRequiring({ layer: 'user', name: 'linear', action: 'remove' })
+    expect(refused.ok).toBe(false)
+
+    cloudRequired = false
+    const outcome = await invokeRequiring({
+      layer: 'user',
+      name: 'linear',
+      transport: { kind: 'stdio', command: 'npx' },
+      action: 'upsert',
+    })
+
+    expect(outcome).toMatchObject({ ok: true })
+    expect(await Bun.file(join(root, 'mcp.json')).exists()).toBe(true)
+  })
+})

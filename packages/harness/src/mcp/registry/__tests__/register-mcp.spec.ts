@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -7,7 +7,7 @@ import { EDefinitionOrigin } from '@dltech/atlas-core'
 
 import { CloudSessionStore } from '../../../cloud/cloud-session'
 import { createIsolatedContainer } from '../../../container/injection'
-import { CloudSessionStoreToken } from '../../../container/tokens'
+import { CloudRequiredToken, CloudSessionStoreToken } from '../../../container/tokens'
 import { FileMcpSource } from '../../config/sources'
 import { RemoteMcpSource } from '../../config/remote-mcp-source'
 import { mcpSourcesFor, registerMcp } from '../register-mcp'
@@ -49,11 +49,27 @@ describe('mcpSourcesFor', () => {
     expect(sources[2]).toBeInstanceOf(FileMcpSource)
   })
 
-  it('keeps the user file source when no session exists', () => {
+  it('keeps the user file source when no session exists and the cloud is not required', () => {
     const sources = mcpSourcesFor({ session: null, cwd: directory })
 
     expect(sources[1]).toBeInstanceOf(FileMcpSource)
     expect(sources[1]).not.toBeInstanceOf(RemoteMcpSource)
+  })
+
+  it('omits the user layer entirely when the cloud is required and no session exists', async () => {
+    writeFileSync(
+      join(directory, 'mcp.json'),
+      JSON.stringify({ linear: { transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' } } }),
+    )
+
+    const sources = mcpSourcesFor({ session: null, cwd: directory, cloudRequired: true })
+
+    expect(sources).toHaveLength(3)
+    expect(sources.some((source) => source.origin === EDefinitionOrigin.User)).toBe(false)
+
+    const reads = await Promise.all(sources.map((source) => source.load()))
+    expect(reads.flatMap((read) => read.specs)).toHaveLength(0)
+    expect(reads.flatMap((read) => read.rejections)).toHaveLength(0)
   })
 })
 
@@ -75,6 +91,38 @@ describe('registerMcp', () => {
 
   it('never touches the cloud when the container holds no session store', async () => {
     const container = createIsolatedContainer()
+
+    const store = await registerMcp({ container, cwd: directory })
+
+    expect(store.servers()).toHaveLength(0)
+    expect(fetched).toHaveLength(0)
+  })
+
+  it('reads the local user file when signed out and the cloud is not required', async () => {
+    writeFileSync(
+      join(directory, 'mcp.json'),
+      JSON.stringify({ linear: { transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' } } }),
+    )
+
+    const sources = mcpSourcesFor({ session: null, cwd: directory })
+    const reads = await Promise.all(sources.map((source) => source.load()))
+
+    const specs = reads.flatMap((read) => read.specs)
+    expect(specs).toHaveLength(1)
+    expect(specs[0]).toMatchObject({
+      name: 'linear',
+      origin: EDefinitionOrigin.User,
+      definedIn: join(directory, 'mcp.json'),
+    })
+  })
+
+  it('ignores the local user file when the cloud is required and no session exists', async () => {
+    writeFileSync(
+      join(directory, 'mcp.json'),
+      JSON.stringify({ linear: { transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' } } }),
+    )
+    const container = createIsolatedContainer()
+    container.register(CloudRequiredToken, { useValue: () => true })
 
     const store = await registerMcp({ container, cwd: directory })
 

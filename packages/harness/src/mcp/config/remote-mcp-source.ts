@@ -1,7 +1,8 @@
 import { EDefinitionOrigin } from '@dltech/atlas-core'
 import { z, ZodError } from 'zod'
 
-import type { CloudClient } from '../../cloud/cloud-client'
+import { cloudClientFor, type CloudClient } from '../../cloud/cloud-client'
+import type { CloudSession } from '../../cloud/cloud-session'
 import {
   EMcpRejection,
   McpSource,
@@ -19,10 +20,10 @@ export class RemoteMcpSource extends McpSource {
   private readonly client: CloudClient
   private readonly definedIn: string
 
-  constructor(args: { client: CloudClient; url: string }) {
+  constructor(args: { session: CloudSession; clientVersion?: string; fetchFn?: typeof fetch }) {
     super()
-    this.client = args.client
-    this.definedIn = `${args.url.replace(/\/+$/, '')}/v1/mcp-servers`
+    this.client = cloudClientFor(args)
+    this.definedIn = `${args.session.url.replace(/\/+$/, '')}/v1/mcp-servers`
   }
 
   async load(): Promise<McpSourceRead> {

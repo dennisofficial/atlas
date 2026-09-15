@@ -13,6 +13,7 @@ import {
 import { z } from 'zod'
 
 import { mcpSpecSchema, type McpTransport, type ParsedMcpSpec } from '../mcp/config/specs'
+import type { CloudSession } from './cloud-session'
 import { cloudRequest } from './cloud-transport'
 import {
   githubConnectPollOutcomeFrom,
@@ -50,11 +51,18 @@ export type CloudMcpServer = ParsedMcpSpec & { updatedAt: string }
 export class CloudClient {
   private readonly url: string
   private readonly token: string
+  private readonly clientVersion: string
   private readonly fetchFn: typeof fetch
 
-  constructor(args: { url: string; token: string; fetchFn?: typeof fetch }) {
+  constructor(args: {
+    url: string
+    token: string
+    clientVersion?: string
+    fetchFn?: typeof fetch
+  }) {
     this.url = args.url.replace(/\/+$/, '')
     this.token = args.token
+    this.clientVersion = args.clientVersion ?? 'dev'
     this.fetchFn = args.fetchFn ?? fetch
   }
 
@@ -64,7 +72,9 @@ export class CloudClient {
 
   async health(): Promise<boolean> {
     try {
-      const response = await this.fetchFn(`${this.url}/v1/health`)
+      const response = await this.fetchFn(`${this.url}/v1/health`, {
+        headers: { 'atlas-client-version': this.clientVersion },
+      })
       return response.ok
     } catch {
       return false
@@ -244,6 +254,7 @@ export class CloudClient {
     return cloudRequest({
       url: this.url,
       token: this.token,
+      clientVersion: this.clientVersion,
       fetchFn: this.fetchFn,
       method: args.method,
       path: args.path,
@@ -252,3 +263,15 @@ export class CloudClient {
     })
   }
 }
+
+export const cloudClientFor = (args: {
+  session: CloudSession
+  clientVersion?: string
+  fetchFn?: typeof fetch
+}): CloudClient =>
+  new CloudClient({
+    url: args.session.url,
+    token: args.session.token,
+    ...(args.clientVersion === undefined ? {} : { clientVersion: args.clientVersion }),
+    ...(args.fetchFn === undefined ? {} : { fetchFn: args.fetchFn }),
+  })

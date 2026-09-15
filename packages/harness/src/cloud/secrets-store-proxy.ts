@@ -1,18 +1,28 @@
 import type { SecretsPort } from '@dltech/atlas-core'
 
 import type { FileSecretsStore } from '../secrets/file-secrets-store'
-import { CloudClient } from './cloud-client'
+import { cloudClientFor } from './cloud-client'
 import type { CloudSessionStore } from './cloud-session'
 import { RemoteSecretsStore } from './remote-secrets-store'
+import { CloudSignInRequiredError } from './sign-in-required'
 
 export class SecretsStoreProxy implements SecretsPort {
   private readonly local: FileSecretsStore
   private readonly sessions: CloudSessionStore
+  private readonly clientVersion: string | undefined
+  private readonly cloudRequired: () => boolean
   private remote: { token: string; store: RemoteSecretsStore } | undefined
 
-  constructor(args: { local: FileSecretsStore; sessions: CloudSessionStore }) {
+  constructor(args: {
+    local: FileSecretsStore
+    sessions: CloudSessionStore
+    clientVersion?: string
+    cloudRequired?: () => boolean
+  }) {
     this.local = args.local
     this.sessions = args.sessions
+    this.clientVersion = args.clientVersion
+    this.cloudRequired = args.cloudRequired ?? (() => false)
   }
 
   async warm(): Promise<void> {
@@ -37,7 +47,10 @@ export class SecretsStoreProxy implements SecretsPort {
   }
 
   private current(): SecretsPort {
-    return this.activeRemote() ?? this.local
+    const remote = this.activeRemote()
+    if (remote !== undefined) return remote
+    if (this.cloudRequired()) throw new CloudSignInRequiredError()
+    return this.local
   }
 
   private activeRemote(): RemoteSecretsStore | undefined {
@@ -48,7 +61,10 @@ export class SecretsStoreProxy implements SecretsPort {
       this.remote = {
         token: session.token,
         store: new RemoteSecretsStore({
-          client: new CloudClient({ url: session.url, token: session.token }),
+          client: cloudClientFor({
+            session,
+            ...(this.clientVersion === undefined ? {} : { clientVersion: this.clientVersion }),
+          }),
         }),
       }
     }

@@ -2,6 +2,8 @@ import { DynamicToolSource, FileSystemPort, ProcessPort, ToolDefinition } from '
 
 import { portToken, resolveSet, type DependencyContainer } from '../container/injection'
 import {
+  ClientVersionToken,
+  CloudRequiredToken,
   CloudSessionStoreToken,
   SecretsStoreToken,
   WebSearchBackendToken,
@@ -117,7 +119,16 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
   container.register(portToken(ToolDefinition), { useClass: SkillInstallTool })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) =>
-      new McpEditTool({ sessions: resolver.resolve(CloudSessionStoreToken) }),
+      new McpEditTool({
+        sessions: resolver.resolve(CloudSessionStoreToken),
+        cloudRequired: () =>
+          resolver.isRegistered(CloudRequiredToken, true)
+            ? resolver.resolve(CloudRequiredToken)()
+            : false,
+        clientVersion: resolver.isRegistered(ClientVersionToken, true)
+          ? resolver.resolve(ClientVersionToken)
+          : 'dev',
+      }),
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) =>

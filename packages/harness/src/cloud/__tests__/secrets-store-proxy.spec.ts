@@ -7,15 +7,22 @@ import { SecretCipher } from '../../credentials/secret-cipher'
 import { FileSecretsStore } from '../../secrets/file-secrets-store'
 import { CloudSessionStore } from '../cloud-session'
 import { SecretsStoreProxy } from '../secrets-store-proxy'
+import { CloudSignInRequiredError } from '../sign-in-required'
 
 const flushWrites = () => new Promise((resolve) => setImmediate(resolve))
 
 let directory: string
 let sessions: CloudSessionStore
 let local: FileSecretsStore
+let cloudRequired: boolean
 let proxy: SecretsStoreProxy
 
-let fetchCalls: { url: string; method: string; authorization: string | null }[]
+let fetchCalls: {
+  url: string
+  method: string
+  authorization: string | null
+  clientVersion: string | null
+}[]
 const realFetch = globalThis.fetch
 
 beforeEach(() => {
@@ -28,7 +35,8 @@ beforeEach(() => {
     file: join(directory, 'secrets.json'),
     cipher: new SecretCipher(join(directory, 'key')),
   })
-  proxy = new SecretsStoreProxy({ local, sessions })
+  cloudRequired = false
+  proxy = new SecretsStoreProxy({ local, sessions, cloudRequired: () => cloudRequired })
 
   fetchCalls = []
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
@@ -37,6 +45,7 @@ beforeEach(() => {
       url: String(input),
       method: init?.method ?? 'GET',
       authorization: headers.get('authorization'),
+      clientVersion: headers.get('atlas-client-version'),
     })
     return new Response(JSON.stringify({ secrets: [{ name: 'remote.key', value: 'cloud-value', updatedAt: '2026-01-01T00:00:00.000Z' }] }), {
       status: 200,
@@ -53,7 +62,16 @@ afterEach(() => {
 const signIn = (token: string) =>
   sessions.write({ url: 'http://cloud.test', token, email: 'a@b.c' })
 
-describe('SecretsStoreProxy', () => {
+const thrownBy = (attempt: () => unknown): unknown => {
+  try {
+    attempt()
+  } catch (cause) {
+    return cause
+  }
+  return undefined
+}
+
+describe('SecretsStoreProxy with the cloud not required', () => {
   it('serves from the local file store while no session exists', async () => {
     proxy.write({ name: 'search.tavily', value: 'local-value' })
     await proxy.warm()
@@ -63,6 +81,65 @@ describe('SecretsStoreProxy', () => {
     expect(fetchCalls).toHaveLength(0)
   })
 
+  it('falls back to local after the session is cleared', async () => {
+    signIn('sess_a')
+    await proxy.warm()
+    expect(fetchCalls).toHaveLength(1)
+
+    sessions.clear()
+    proxy.write({ name: 'search.tavily', value: 'local-value' })
+
+    expect(fetchCalls).toHaveLength(1)
+    expect(local.read('search.tavily')).toBe('local-value')
+  })
+})
+
+describe('SecretsStoreProxy with the cloud required', () => {
+  beforeEach(() => {
+    cloudRequired = true
+  })
+
+  it('throws CloudSignInRequiredError from every method while signed out', () => {
+    const attempts: (() => unknown)[] = [
+      () => proxy.origin(),
+      () => proxy.read('search.tavily'),
+      () => proxy.write({ name: 'search.tavily', value: 'x' }),
+      () => proxy.remove('search.tavily'),
+    ]
+
+    for (const attempt of attempts) {
+      const failure = thrownBy(attempt)
+      expect(failure).toBeInstanceOf(CloudSignInRequiredError)
+      expect((failure as Error).message).toBe('sign in to Atlas Cloud first — /auth')
+    }
+
+    expect(local.read('search.tavily')).toBeUndefined()
+    expect(fetchCalls).toHaveLength(0)
+  })
+
+  it('warm resolves without touching anything while signed out', async () => {
+    local.write({ name: 'search.tavily', value: 'local-value' })
+
+    await proxy.warm()
+
+    expect(fetchCalls).toHaveLength(0)
+    expect(thrownBy(() => proxy.read('search.tavily'))).toBeInstanceOf(CloudSignInRequiredError)
+  })
+
+  it('flips live: local while off, refusing while on', () => {
+    cloudRequired = false
+    proxy.write({ name: 'search.tavily', value: 'local-value' })
+    expect(proxy.read('search.tavily')).toBe('local-value')
+
+    cloudRequired = true
+    expect(thrownBy(() => proxy.read('search.tavily'))).toBeInstanceOf(CloudSignInRequiredError)
+
+    cloudRequired = false
+    expect(proxy.read('search.tavily')).toBe('local-value')
+  })
+})
+
+describe('SecretsStoreProxy with a session', () => {
   it('warm no-ops when local, and warms the remote once a session exists', async () => {
     signIn('sess_a')
 
@@ -116,15 +193,17 @@ describe('SecretsStoreProxy', () => {
     expect(fetchCalls).toHaveLength(1)
   })
 
-  it('falls back to local after the session is cleared', async () => {
+  it('sends the wired client version on remote calls', async () => {
+    proxy = new SecretsStoreProxy({
+      local,
+      sessions,
+      clientVersion: '1.2.3',
+      cloudRequired: () => cloudRequired,
+    })
     signIn('sess_a')
+
     await proxy.warm()
-    expect(fetchCalls).toHaveLength(1)
 
-    sessions.clear()
-    proxy.write({ name: 'search.tavily', value: 'local-value' })
-
-    expect(fetchCalls).toHaveLength(1)
-    expect(local.read('search.tavily')).toBe('local-value')
+    expect(fetchCalls[0]?.clientVersion).toBe('1.2.3')
   })
 })
