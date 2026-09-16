@@ -72,7 +72,7 @@ export async function spokenIn(app: FakeApp): Promise<OpenedConversation> {
 
 const NOTHING_ON_THE_CLIPBOARD: ClipboardImageReader = async () => null
 
-const editorIn = (node: Renderable): TextareaRenderable | null => {
+export const editorIn = (node: Renderable): TextareaRenderable | null => {
   if (node instanceof TextareaRenderable) return node
   for (const child of node.getChildren()) {
     const found = editorIn(child)
@@ -123,6 +123,14 @@ export async function open(args: {
 }
 
 const POLL_MS = 10
+
+export function promiseGate(): { gate: Promise<void>; release: () => void } {
+  let release = () => {}
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  return { gate, release }
+}
 
 export async function until(args: {
   holds: () => Promise<boolean>

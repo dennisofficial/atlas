@@ -9,7 +9,7 @@ import { ESandboxState, EShellStatus, toShellId, type ShellSnapshot } from '@dlt
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
 import type { OpenedConversation } from '../open-conversation'
-import { open, spokenIn, until, REPLY, THREAD, THINKING } from './app-fixture'
+import { open, promiseGate, spokenIn, until, REPLY, THREAD, THINKING } from './app-fixture'
 import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
 await grammarsReady()
@@ -137,6 +137,61 @@ describe('the container command', () => {
       await mounted.frame()
 
       expect(app.sandboxStops).toBe(0)
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('narrates the move and holds the composer until the session is relocated', async () => {
+    const app = speaking()
+    const mounted = await open({ app, opened: await spokenIn(app) })
+
+    const { gate, release } = promiseGate()
+    const append = app.log.append.bind(app.log)
+    app.log.append = (args) => gate.then(() => append(args))
+
+    try {
+      await mounted.typeText('/container docker')
+      mounted.pressEnter()
+      const moving = await mounted.frame()
+
+      expect(moving).toContain('MOVING INTO A DOCKER CONTAINER')
+      expect(moving).toContain('✓ handing the conversation over')
+      expect(moving).toContain('stopping services, moving sub-agents')
+
+      await mounted.typeText('typed over the move')
+      expect(mounted.draftText()).toBe('')
+
+      release()
+      expect(await mounted.frame()).not.toContain('MOVING INTO A DOCKER CONTAINER')
+
+      await mounted.typeText('back in command')
+      expect(mounted.draftText()).toBe('back in command')
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('puts the conversation back where it was when the move cannot finish', async () => {
+    const app = speaking()
+    const mounted = await open({ app, opened: await spokenIn(app) })
+    app.log.append = () => Promise.reject(new Error('the log fell over'))
+
+    try {
+      await mounted.typeText('/container docker')
+      mounted.pressEnter()
+      const failed = await mounted.frame()
+
+      expect(failed).toContain('✗ stopping services, moving sub-agents')
+      expect(failed).toContain('did not finish')
+      expect(failed).toContain('the log fell over')
+      expect(app.executionLocation.current()).toBe(EExecutionLocation.Host)
+
+      mounted.pressEscape()
+      expect(await mounted.frame()).not.toContain('MOVING INTO A DOCKER CONTAINER')
+
+      await mounted.typeText('back in command')
+      expect(mounted.draftText()).toBe('back in command')
     } finally {
       await mounted.done()
     }

@@ -13,17 +13,6 @@ export const CLOUD_CONNECTION_NOTICE_KEY = 'container-cloud-connection'
 
 export const CLOUD_SANDBOX_NOTICE_KEY = 'container-cloud-sandbox'
 
-const STEP_TEXT: Record<ELiftStep, string> = {
-  [ELiftStep.Transferring]: 'moving to the cloud — transferring the conversation',
-  [ELiftStep.Flipping]: 'moving to the cloud — handing the conversation over',
-  [ELiftStep.Stopping]: 'moving to the cloud — closing what is running here',
-  [ELiftStep.Capturing]: 'moving to the cloud — packing the uncommitted work',
-  [ELiftStep.Starting]: 'moving to the cloud — waiting for the sandbox',
-  [ELiftStep.Attaching]: 'moving to the cloud — attaching',
-}
-
-export const liftProgressNotice = (step: ELiftStep): string => STEP_TEXT[step]
-
 const stoppedTail = (lifted: LiftSuccess | LiftFailure): string => {
   const { shells, services } = lifted.stopped
   const parts: string[] = []

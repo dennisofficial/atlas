@@ -4,6 +4,7 @@ export type RestartSafety = {
   readonly working: boolean
   readonly interrupting: boolean
   readonly compacting: boolean
+  readonly containerMoveOpen: boolean
   readonly approvalOpen: boolean
   readonly exitGuardOpen: boolean
   readonly containerGuardOpen: boolean
@@ -16,6 +17,7 @@ export function autoRestartBlocker(args: RestartSafety): string | null {
   if (args.working) return 'a turn is running'
   if (args.interrupting) return 'the turn is being interrupted'
   if (args.compacting) return 'a compaction is running'
+  if (args.containerMoveOpen) return 'a container move is running'
   if (args.approvalOpen) return 'an approval is waiting'
   if (args.exitGuardOpen) return 'the exit guard is open'
   if (args.containerGuardOpen) return 'the container guard is open'

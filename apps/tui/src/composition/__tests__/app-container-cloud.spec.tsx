@@ -12,7 +12,7 @@ import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/har
 import { App } from '../app'
 import { CLEAN_WORKSPACE, fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
 import type { CloudBridgeFactory, WorkspaceCapture } from '../use-cloud-lift'
-import { spokenIn, REPLY, THINKING, THREAD } from './app-fixture'
+import { editorIn, promiseGate, spokenIn, REPLY, THINKING, THREAD } from './app-fixture'
 import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
 await grammarsReady()
@@ -51,6 +51,9 @@ const mount = async (args: { app: FakeApp; bridge: FakeBridge }) => {
       setup.mockInput.pressEnter()
       return frame()
     },
+    typeText: (text: string) => setup.mockInput.typeText(text),
+    pressEscape: () => setup.mockInput.pressEscape(),
+    draftText: () => editorIn(setup.renderer.root)?.plainText ?? null,
     done: () => teardown(setup),
   }
 }
@@ -154,6 +157,70 @@ describe('/container cloud', () => {
       expect(frame).toContain('not set up')
       expect(bridge.attached).toEqual([])
       expect(app.executionLocation.current()).toBe(EExecutionLocation.Host)
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+})
+
+describe('the move overview', () => {
+  const gated = (bridge: FakeBridge): { release: () => void } => {
+    const { gate, release } = promiseGate()
+    const create = bridge.sandboxes.create
+    bridge.sandboxes.create = async (args) => {
+      await gate
+      return create(args)
+    }
+    return { release }
+  }
+
+  it('narrates each step and holds the composer until the sandbox answers', async () => {
+    const app = speaking()
+    const bridge = fakeBridge()
+    const { release } = gated(bridge)
+    const mounted = await mount({ app, bridge })
+
+    try {
+      const moving = await mounted.run('cloud')
+
+      expect(moving).toContain('MOVING TO THE CLOUD')
+      expect(moving).toContain('✓ transferring the conversation')
+      expect(moving).toContain('waiting for the sandbox')
+
+      await mounted.typeText('typed over the move')
+      expect(mounted.draftText()).toBe('')
+
+      release()
+      expect(await mounted.frame()).not.toContain('MOVING TO THE CLOUD')
+
+      await mounted.typeText('back in command')
+      expect(mounted.draftText()).toBe('back in command')
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('shows the step that failed with the reason, and gives the composer back on esc', async () => {
+    const app = speaking()
+    const bridge = fakeBridge({
+      createFails: new CloudError({ status: 500, message: 'no capacity in iad1' }),
+    })
+    const mounted = await mount({ app, bridge })
+
+    try {
+      const failed = await mounted.run('cloud')
+
+      expect(failed).toContain('✗ waiting for the sandbox')
+      expect(failed).toContain('no capacity in iad1')
+
+      await mounted.typeText('typed over the move')
+      expect(mounted.draftText()).toBe('')
+
+      mounted.pressEscape()
+      expect(await mounted.frame()).not.toContain('MOVING TO THE CLOUD')
+
+      await mounted.typeText('back in command')
+      expect(mounted.draftText()).toBe('back in command')
     } finally {
       await mounted.done()
     }
