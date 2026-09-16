@@ -62,6 +62,7 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/envs ./apps/api/envs
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 COPY --from=serve-binary /app/packages/harness/bin/atlas-serve /app/atlas-serve
+COPY --from=builder /app/apps/api/scripts ./apps/api/scripts
 
 WORKDIR /app/apps/api
 ENV NODE_ENV=production
