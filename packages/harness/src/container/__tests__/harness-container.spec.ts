@@ -5,7 +5,7 @@ import { ClockPort, CredentialPort, EventLogPort, FileSystemPort, IdPort, Proces
 import type { KeychainReader } from '../../credentials/keychain-reader'
 import { LocalFileSystemPort } from '../../execution/local-filesystem'
 import { LocalProcessPort } from '../../execution/local-process'
-import { RefreshingCredentialPort } from '../../credentials/refreshing-credential-port'
+import { CredentialPortProxy } from '../../cloud/credential-port-proxy'
 import {
   ThreadStorePort,
   PrismaThreadStore,
@@ -61,8 +61,8 @@ describe('createHarnessContainer', () => {
     expect(harness.resolve(portToken(ThreadStorePort))).toBeInstanceOf(PrismaThreadStore)
   })
 
-  it('resolves the credential port to one that can refresh what it hands out', () => {
-    expect(harness.resolve(portToken(CredentialPort))).toBeInstanceOf(RefreshingCredentialPort)
+  it('resolves the credential port to the brokered proxy', () => {
+    expect(harness.resolve(portToken(CredentialPort))).toBeInstanceOf(CredentialPortProxy)
   })
 
   it('resolves the process port to the local adapter', () => {

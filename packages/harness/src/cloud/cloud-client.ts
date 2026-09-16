@@ -30,6 +30,13 @@ export { CloudError } from './cloud-transport'
 
 const activeAccountResponseSchema = z.object({ accountId: accountIdSchema.nullable() })
 
+const accessTokenResponseSchema = z.strictObject({
+  accessToken: z.string().min(1),
+  expiresAt: z.string().nullable(),
+})
+
+export type BrokeredAccessToken = z.infer<typeof accessTokenResponseSchema>
+
 const cloudSecretSchema = z.strictObject({
   name: z.string().min(1),
   value: z.string(),
@@ -140,6 +147,21 @@ export class CloudClient {
 
   async removeAccount(args: { accountId: AccountId }): Promise<void> {
     await this.request({ method: 'DELETE', path: `/v1/accounts/${args.accountId}` })
+  }
+
+  async accessToken(args: {
+    accountId: AccountId
+    rejectedAccessToken?: string
+  }): Promise<BrokeredAccessToken> {
+    const body = await this.request({
+      method: 'POST',
+      path: `/v1/accounts/${args.accountId}/access-token`,
+      body:
+        args.rejectedAccessToken === undefined
+          ? {}
+          : { rejectedAccessToken: args.rejectedAccessToken },
+    })
+    return accessTokenResponseSchema.parse(body)
   }
 
   async setActiveAccount(args: {
