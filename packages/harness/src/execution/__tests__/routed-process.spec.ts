@@ -1,9 +1,10 @@
 import { afterAll, describe, expect, it } from 'bun:test'
 
-import { existsSync } from 'node:fs'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+
+import { dockerUnavailableReason } from '../docker/__tests__/live-docker'
 
 import {
   EExecutionLocation,
@@ -74,6 +75,16 @@ class ExposingProcesses extends RecordingProcesses {
   }
 }
 
+class VendoredProcesses extends RecordingProcesses {
+  constructor(answer: string | null, private readonly vendoredAnswer: string | null) {
+    super(answer)
+  }
+
+  async vendored(args: { command: string; threadId?: ThreadId | undefined }): Promise<string | null> {
+    return this.vendoredAnswer
+  }
+}
+
 const locationOf = (threadId: ThreadId | undefined): EExecutionLocation =>
   threadId === DOCKER_THREAD ? EExecutionLocation.Docker : EExecutionLocation.Host
 
@@ -115,6 +126,20 @@ describe('RoutedProcessPort', () => {
     expect(docker.spawned).toHaveLength(0)
   })
 
+  it('strips the harness-process NODE_ENV from a docker spawn and leaves a host spawn untouched', () => {
+    const local = new RecordingProcesses()
+    const docker = new RecordingProcesses()
+    const port = routed({ local, docker })
+    const env = { NODE_ENV: 'production', KEEP: 'yes' }
+
+    port.spawn({ cmd: ['true'], cwd: '/work', env, threadId: DOCKER_THREAD })
+    port.spawn({ cmd: ['true'], cwd: '/work', env, threadId: HOST_THREAD })
+
+    expect(docker.spawned[0]?.env).toEqual({ KEEP: 'yes' })
+    expect(env).toEqual({ NODE_ENV: 'production', KEEP: 'yes' })
+    expect(local.spawned[0]?.env).toEqual({ NODE_ENV: 'production', KEEP: 'yes' })
+  })
+
   it('routes which() with the same thread so grep probes where it will run', () => {
     const local = new RecordingProcesses('/bin/rg')
     const docker = new RecordingProcesses('/usr/bin/rg')
@@ -123,6 +148,15 @@ describe('RoutedProcessPort', () => {
     expect(port.which({ command: 'rg', threadId: DOCKER_THREAD })).toBe('/usr/bin/rg')
     expect(port.which({ command: 'rg', threadId: HOST_THREAD })).toBe('/bin/rg')
     expect(docker.probed[0]?.threadId).toBe(DOCKER_THREAD)
+  })
+
+  it('offers the vendored binary to host threads and hides it from docker threads', async () => {
+    const local = new VendoredProcesses(null, '/vendored/rg')
+    const docker = new VendoredProcesses('/usr/bin/rg', null)
+    const port = routed({ local, docker })
+
+    expect(await port.vendored?.({ command: 'rg', threadId: HOST_THREAD })).toBe('/vendored/rg')
+    expect(await port.vendored?.({ command: 'rg', threadId: DOCKER_THREAD })).toBeNull()
   })
 
   it('routes exposePort with the thread and refuses when the chosen port cannot expose', async () => {
@@ -140,11 +174,11 @@ describe('RoutedProcessPort', () => {
 })
 
 const SOCKET = '/var/run/docker.sock'
-const DOCKER_AVAILABLE = existsSync(SOCKET)
+const DOCKER_AVAILABLE = (await dockerUnavailableReason(SOCKET)) === undefined
 const describeDocker = DOCKER_AVAILABLE ? describe : describe.skip
 
 const engine = new DockerEngine({ socketPath: SOCKET })
-const PREFIX = 'atlas-dev'
+const PREFIX = 'atlas-dev-routed'
 
 const worktree = await realpath(await mkdtemp(join(tmpdir(), 'atlas-dev-routed-')))
 

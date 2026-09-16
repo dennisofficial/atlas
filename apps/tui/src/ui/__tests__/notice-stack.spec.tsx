@@ -6,6 +6,7 @@ import {
   clearNotice,
   currentNotices,
   dismissNotice,
+  ENoticePosition,
   ENoticeTone,
   notify,
   tickNotices,
@@ -24,12 +25,42 @@ describe('the notice stack', () => {
     expect(frame.trim()).toBe('')
   })
 
+  it('keeps its own row between the transcript and the composer', async () => {
+    dismissNotice()
+    notify({ text: 'copied 3 lines' })
+    const frame = await frameOf(
+      <box flexDirection="column" height={4}>
+        <text>transcript</text>
+        {stack()}
+        <text>composer</text>
+      </box>,
+      WIDTH,
+    )
+    dismissNotice()
+
+    const rows = frame.split('\n')
+    const transcript = rows.findIndex((row) => row.includes('transcript'))
+    const notice = rows.findIndex((row) => row.includes('copied 3 lines'))
+    const composer = rows.findIndex((row) => row.includes('composer'))
+    expect(notice).toBe(transcript + 1)
+    expect(composer).toBe(notice + 1)
+  })
+
   it('says the thing that happened', async () => {
     notify({ text: 'copied 3 lines' })
     const frame = await frameOf(stack(), WIDTH)
     dismissNotice()
 
     expect(frame).toContain('✓ copied 3 lines')
+  })
+
+  it('hugs the left edge of the row it is given', async () => {
+    notify({ text: 'copied 3 lines' })
+    const frame = await frameOf(stack(), WIDTH)
+    dismissNotice()
+
+    const row = frame.split('\n').find((line) => line.includes('copied'))
+    expect(row?.indexOf('✓')).toBe(1)
   })
 
   it('marks a warning apart from a confirmation', async () => {
@@ -61,6 +92,14 @@ describe('the notice stack', () => {
     const secondRow = rows.findIndex((row) => row.includes('second'))
     expect(firstRow).toBeGreaterThanOrEqual(0)
     expect(secondRow).toBeGreaterThan(firstRow)
+  })
+
+  it('leaves notices bound for the composer edge to the edge', async () => {
+    notify({ text: 'copied 3 lines', position: ENoticePosition.Composer })
+    const frame = await frameOf(stack(), WIDTH)
+    dismissNotice()
+
+    expect(frame.trim()).toBe('')
   })
 
   it('says nothing when the room is too narrow to say it in', async () => {

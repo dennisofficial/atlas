@@ -5,7 +5,7 @@ import { ForkChainTooDeep } from './compose-thread'
 
 export type ThreadWorktree = { path: string; branch: string }
 
-const WORKTREE_EVENT_TYPES = ['worktree-entered', 'worktree-exited']
+const WORKTREE_EVENT_TYPES = ['worktree-entered', 'worktree-exited', 'directory-changed']
 
 const PULL_REQUEST_EVENT_TYPE = 'pull-request-linked'
 

@@ -1,7 +1,15 @@
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 
-import { EKilledBy, EStopAction, type ClockPort, type EventDraft, type ThreadId } from '@dltech/atlas-core'
+import {
+  EKilledBy,
+  EServiceStatus,
+  EStopAction,
+  type ClockPort,
+  type EventDraft,
+  type ProcessPort,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import { ServiceNoticeQueue } from './service-notices'
 import {
@@ -35,6 +43,12 @@ export abstract class ServiceRegistryPort {
     cwd?: string | undefined
   }): Promise<StartedServiceOutcome>
   abstract stop(args: { serviceId: string; by: EKilledBy }): ServiceStopOutcome
+  /**
+   * A rewind disowns the services it cut: they die with the transcript that started them, and
+   * their endings announce nothing — the rewound thread holds no tool call the announcement could
+   * belong to. Removal is the exception to every ending announcing itself.
+   */
+  abstract removeServices(args: { serviceIds: readonly string[]; by: EKilledBy }): void
   abstract list(): readonly ServiceSnapshot[]
   abstract version(): number
   abstract subscribe(listener: () => void): () => void
@@ -76,12 +90,22 @@ export class BunServiceRegistry extends ServiceRegistryPort {
   private readonly listeners = new Set<() => void>()
   private flushQueued = false
 
-  constructor(
-    private readonly root: string,
-    private readonly clock: ClockPort,
-    private readonly logsDirectory: string,
-  ) {
+  private readonly root: string
+  private readonly clock: ClockPort
+  private readonly logsDirectory: string
+  private readonly processes: ProcessPort
+
+  constructor(args: {
+    root: string
+    clock: ClockPort
+    logsDirectory: string
+    processes: ProcessPort
+  }) {
     super()
+    this.root = args.root
+    this.clock = args.clock
+    this.logsDirectory = args.logsDirectory
+    this.processes = args.processes
   }
 
   /**
@@ -104,6 +128,8 @@ export class BunServiceRegistry extends ServiceRegistryPort {
       cwd: args.cwd ?? this.root,
       logPath: join(this.logsDirectory, `${serviceId}.${this.sessionToken}.log`),
       clock: this.clock,
+      processes: this.processes,
+      threadId: args.threadId,
       onExit: (service) => this.announceExit(service),
     })
     if (!opened.ok) return opened
@@ -147,6 +173,21 @@ export class BunServiceRegistry extends ServiceRegistryPort {
 
     const action = entry.service.stop(by)
     return { ok: true, snapshot: entry.service.snapshot(), action }
+  }
+
+  removeServices({ serviceIds, by }: { serviceIds: readonly string[]; by: EKilledBy }): void {
+    let removed = false
+    for (const serviceId of serviceIds) {
+      const entry = this.tracked.get(serviceId)
+      if (entry === undefined) continue
+      entry.announced = true
+      if (entry.service.snapshot().status === EServiceStatus.Running) entry.service.stop(by)
+      this.tracked.delete(serviceId)
+      removed = true
+    }
+    if (!removed) return
+    this.notices.dropServices({ serviceIds })
+    this.bump()
   }
 
   list(): readonly ServiceSnapshot[] {

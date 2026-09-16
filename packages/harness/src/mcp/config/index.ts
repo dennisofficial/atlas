@@ -4,8 +4,10 @@ export {
   EMcpEditLayer,
   inputSchema,
   run,
+  runRemote,
   type McpEditInput,
 } from './writer'
+export { RemoteMcpSource } from './remote-mcp-source'
 export {
   BuiltInMcpSource,
   CompatMcpSource,

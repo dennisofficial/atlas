@@ -1,3 +1,7 @@
+import { randomUUID } from 'node:crypto'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import {
   AccountUsagePort,
   ATLAS_SETTINGS,
@@ -15,12 +19,14 @@ import {
   type ChunkFilter,
   EAuthKind,
   toAccountId,
+  type AccountDraft,
   type Credential,
   type CredentialPort,
   type EffortMap,
   type ModelCard,
   type ModelPort,
   type ModelStepResult,
+  type SecretsPort,
   type SettingsDocument,
   toThreadId,
   type ThreadId,
@@ -31,8 +37,13 @@ import type { EventDraft } from '@dltech/atlas-core'
 import {
   AccountsService,
   builtinOauthClients,
+  CloudClient,
+  CloudService,
+  CloudSessionStore,
   createAccountUsageService,
   createDeltaChannel,
+  EGithubConnectPoll,
+  InMemoryToolRegistry,
   memoryAccountStore,
   createSettingsService,
   ESkillOrigin,
@@ -47,9 +58,15 @@ import {
   SystemClock,
   EMPTY_AGENT_TYPE_CATALOG,
   ENotice,
+  EShellStatus,
   type AgentTypeCatalog,
+  type CloudSession,
+  type EKilledBy,
   type DeltaChannel,
   type DiscoveredSkill,
+  type GithubConnection,
+  type GithubConnectPollOutcome,
+  type GithubConnectTicket,
   type PendingShellNotice,
   type ShellSnapshot,
 } from '@dltech/atlas-harness'
@@ -58,15 +75,17 @@ import { FileBrowser } from '@dltech/atlas-harness'
 
 import type { PullRequestPort } from '../../plugins/github/pure'
 
-import { createPendingQueue } from '../../store'
-import { userSaidDraft } from '../user-said'
+import { createPendingQueues } from '../../store'
+import type { QueuedSettled } from '../commands'
+import { userSaidDraft } from '@dltech/atlas-harness'
 import type { AtlasApp } from '../compose'
-import type { ActiveConversation } from '../resume-hint'
-import { heldChoice } from '../model-selection'
-import type { ModelCatalogue } from '../providers'
-import { DEFAULT_MODEL_REF, EOpenMode, type AtlasConfig } from '../config'
-import { createExecutionLocationState } from '../execution-location-state'
-import { createSandboxStatusState } from '../sandbox-status-state'
+import type { ActiveConversation } from '@dltech/atlas-harness'
+import { threadHandle } from '@dltech/atlas-harness'
+import { heldChoice } from '@dltech/atlas-harness'
+import type { ModelCatalogue } from '@dltech/atlas-harness'
+import { DEFAULT_MODEL_REF, EOpenMode, type AtlasConfig, type OpenRequest } from '../config'
+import { createExecutionLocationState } from '@dltech/atlas-harness'
+import { createSandboxStatusState } from '@dltech/atlas-harness'
 import { fakeAgentRegistry, type FakeAgents } from './fake-agents'
 import { fakeServiceRegistry, type FakeServices } from './fake-services'
 import {
@@ -160,6 +179,8 @@ export function fakeCatalogue(): ModelCatalogue {
     reachable: (providerId) => providerId === 'anthropic',
     subscribed: () => true,
     observeAccounts: () => {},
+    subscribe: () => () => {},
+    version: () => 0,
   }
 }
 
@@ -175,14 +196,102 @@ export const alwaysAuthorised = (): CredentialPort => ({
   discard: async () => {},
 })
 
-export const fakeAccounts = (): AccountsService => {
+export const fakeAccounts = (seeded?: readonly AccountDraft[]): AccountsService => {
   const clock = new SystemClock()
+  const store = memoryAccountStore({ clock })
+  for (const draft of seeded ?? []) void store.add(draft)
 
   return new AccountsService({
-    accounts: memoryAccountStore({ clock }),
+    accounts: store,
     clients: builtinOauthClients({ clock }),
   })
 }
+
+export const GITHUB_TICKET: GithubConnectTicket = {
+  deviceCode: 'device-1',
+  userCode: 'F00D-CAFE',
+  verificationUrl: 'https://github.com/login/device',
+  expiresInMs: 900_000,
+  intervalMs: 100,
+}
+
+export class FakeCloudClient extends CloudClient {
+  connection: GithubConnection | null = null
+  outcome: GithubConnectPollOutcome | null = null
+  disconnects = 0
+
+  constructor() {
+    super({ url: 'http://localhost:3400', token: 'fake-token' })
+  }
+
+  override async githubConnection(): Promise<GithubConnection | null> {
+    return this.connection
+  }
+
+  override async beginGithubConnect(): Promise<GithubConnectTicket> {
+    return GITHUB_TICKET
+  }
+
+  override async pollGithubConnect(_args: {
+    deviceCode: string
+  }): Promise<GithubConnectPollOutcome> {
+    if (this.outcome !== null) return this.outcome
+
+    const connection: GithubConnection = this.connection ?? {
+      login: 'octocat',
+      scopes: ['repo'],
+      connectedAt: '2026-01-01T00:00:00.000Z',
+    }
+    this.connection = connection
+    return { status: EGithubConnectPoll.Connected, connection }
+  }
+
+  override async disconnectGithub(): Promise<void> {
+    this.disconnects += 1
+    this.connection = null
+  }
+}
+
+class FakeCloudService extends CloudService {
+  private readonly fakeClient: CloudClient | null
+
+  constructor(args: { session: CloudSession | null; client: CloudClient | null }) {
+    const sessions = new CloudSessionStore({
+      file: join(tmpdir(), `atlas-fake-cloud-${randomUUID()}.json`),
+      keyFile: join(tmpdir(), `atlas-fake-cloud-${randomUUID()}.key`),
+    })
+    if (args.session !== null) sessions.write(args.session)
+
+    super({
+      sessions,
+      localAccounts: memoryAccountStore({ clock: new SystemClock() }),
+      defaultUrl: 'http://localhost:3400',
+    })
+    this.fakeClient = args.client
+  }
+
+  override client(): CloudClient | null {
+    return this.fakeClient
+  }
+}
+
+export const FAKE_CLOUD_SESSION: CloudSession = {
+  url: 'https://cloud.test',
+  token: 'test',
+  email: 'test@atlas.dev',
+}
+
+export const fakeCloud = (args?: {
+  session?: CloudSession | null
+  client?: CloudClient | null
+}): CloudService =>
+  new FakeCloudService({
+    session: args?.session ?? FAKE_CLOUD_SESSION,
+    client: args?.client ?? null,
+  })
+
+export const fakeSignedOutCloud = (args?: { client?: CloudClient | null }): CloudService =>
+  new FakeCloudService({ session: null, client: args?.client ?? null })
 
 export type ScriptedReply = { thinking: string; reply: string }
 
@@ -273,6 +382,7 @@ export type FakeShells = ShellRegistryPort & {
   announce: (snapshot: ShellSnapshot, owner?: ThreadId) => void
   poke: () => void
   readonly killed: readonly string[]
+  readonly removed: readonly { shellId: string; by: EKilledBy }[]
 }
 
 const NO_NOTICES: readonly PendingShellNotice[] = Object.freeze([])
@@ -285,6 +395,7 @@ export function fakeShellRegistry(): FakeShells {
   const owned: OwnedShell[] = []
   const printed = new Map<string, string>()
   const killed: string[] = []
+  const removed: { shellId: string; by: EKilledBy }[] = []
   const listeners = new Set<() => void>()
   const revisionListeners = new Set<() => void>()
   let revision = 0
@@ -329,6 +440,10 @@ export function fakeShellRegistry(): FakeShells {
   return {
     get killed() {
       return killed
+    },
+
+    get removed() {
+      return removed
     },
 
     place: (snapshot, owner = FAKE_SHELL_OWNER) => {
@@ -378,6 +493,24 @@ export function fakeShellRegistry(): FakeShells {
       if (snapshot === undefined) return { ok: false, reason: `no shell ${shellId}` }
       killed.push(shellId)
       return { ok: true, snapshot }
+    },
+
+    removeShells: ({ threadId, shellIds, by }) => {
+      let removedAny = false
+      for (let index = owned.length - 1; index >= 0; index -= 1) {
+        const one = owned[index]
+        if (one === undefined || one.threadId !== threadId) continue
+        if (!shellIds.includes(one.snapshot.shellId)) continue
+        if (one.snapshot.status === EShellStatus.Running) killed.push(one.snapshot.shellId)
+        removed.push({ shellId: one.snapshot.shellId, by })
+        owned.splice(index, 1)
+        removedAny = true
+      }
+      const keptEnded = ended.filter(
+        (one) => one.threadId !== threadId || !shellIds.includes(one.snapshot.shellId),
+      )
+      if (keptEnded.length !== ended.length) settle(keptEnded)
+      if (removedAny) bump()
     },
 
     list: ({ threadId }) =>
@@ -512,12 +645,14 @@ export type FakeApp = AtlasApp & {
   readonly openedDirectories: readonly string[]
   readonly sandboxStops: number
   readonly bashNotes: number
+  readonly journaled: readonly { handle: string; directory: string }[]
 }
 
 export function fakeApp(args: {
   model: ModelPort
   settings?: SettingsDocument
   secrets?: Record<string, string>
+  secretsPort?: SecretsPort
   names?: string | null
   summarises?: string | null
   summariseDelayMs?: number
@@ -527,13 +662,19 @@ export function fakeApp(args: {
   cwd?: string
   workspace?: WorkspaceIdentity
   pullRequests?: PullRequestPort | null
+  open?: OpenRequest
+  cloud?: CloudService
+  cloudRequired?: boolean
+  models?: ModelCatalogue
+  accountsSeed?: readonly AccountDraft[]
 }): FakeApp {
   const channel = createDeltaChannel()
   const log = fakeEventLog()
-  const threads = fakeThreadStore({ log })
+  const workspace = args.workspace ?? { workspace: args.cwd ?? FAKE_CONFIG.cwd, repo: null }
+  const threads = fakeThreadStore({ log, workspace: workspace.workspace, repo: workspace.repo })
   const ids = new RandomIds()
   const ledger = fakeLedger()
-  const pending = createPendingQueue()
+  const pending = createPendingQueues<QueuedSettled>()
   const shells = fakeShellRegistry()
   const agents = fakeAgentRegistry()
   const services = fakeServiceRegistry()
@@ -546,7 +687,8 @@ export function fakeApp(args: {
       ids,
       assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: FAKE_CONFIG.cwd }),
       spend: { ledger, clock: new SystemClock() },
-      drainPending: async () => pending.drain().map(userSaidDraft),
+      drainPending: async ({ threadId }) =>
+        pending.forThread({ threadId }).drain().map(userSaidDraft),
     },
   })
 
@@ -557,10 +699,12 @@ export function fakeApp(args: {
   const titled: string[] = []
   const openedUrls: string[] = []
   const openedDirectories: string[] = []
+  const journaled: { handle: string; directory: string }[] = []
 
   return {
     skills: skillRegistry.all(),
     skillRegistry,
+    tools: new InMemoryToolRegistry([]),
     agentTypes: args.agentTypes ?? EMPTY_AGENT_TYPE_CATALOG,
     pluginProjections: [],
     pluginSurfaces: [],
@@ -570,7 +714,8 @@ export function fakeApp(args: {
       openedDirectories.push(projectDirectory)
     },
     files: new FileBrowser({ root: args.workspaceRoot ?? FAKE_CONFIG.cwd }),
-    accounts: fakeAccounts(),
+    accounts: fakeAccounts(args.accountsSeed),
+    cloud: args.cloud ?? fakeCloud(),
     openUrl: (url: string) => {
       openedUrls.push(url)
     },
@@ -637,8 +782,24 @@ export function fakeApp(args: {
       return args.summarises ?? null
     },
 
-    config: { ...FAKE_CONFIG, ...(args.cwd === undefined ? {} : { cwd: args.cwd }) },
-    workspace: args.workspace ?? { workspace: args.cwd ?? FAKE_CONFIG.cwd, repo: null },
+    config: {
+      ...FAKE_CONFIG,
+      ...(args.cwd === undefined ? {} : { cwd: args.cwd }),
+      ...(args.open === undefined ? {} : { open: args.open }),
+    },
+    launch: {
+      cwd: args.cwd ?? FAKE_CONFIG.cwd,
+      command: 'atlas-dev',
+      model: undefined,
+      executionLocation: undefined,
+    },
+    command: 'atlas-dev',
+    journalResume: ({ active, directory }) => {
+      if (!active.started) return
+      journaled.push({ handle: threadHandle(active), directory })
+    },
+    journaled,
+    workspace,
     credentials: alwaysAuthorised(),
     channel,
     log,
@@ -652,10 +813,15 @@ export function fakeApp(args: {
       ref: parseRef(FAKE_CONFIG.model ?? '') ?? DEFAULT_MODEL_REF,
       effort: EEffort.Medium,
     }),
+    cloudRequired: args.cloudRequired ?? false,
     modelPinned: false,
-    models: fakeCatalogue(),
+    models: args.models ?? fakeCatalogue(),
     executionLocation: createExecutionLocationState({ initial: EExecutionLocation.Host }),
-    containerStatus: createSandboxStatusState({ image: 'node:22-slim' }),
+    containerStatus: createSandboxStatusState({
+      image: 'node:22-slim',
+      label: 'node:22-slim',
+      limits: { cpus: 4, memoryGb: 8 },
+    }),
     executionPinned: false,
     settings: createSettingsService({
       definitions: ATLAS_SETTINGS,
@@ -664,7 +830,7 @@ export function fakeApp(args: {
         ...(args.settings === undefined ? {} : { document: args.settings }),
       }),
     }),
-    secrets: new MemorySecretsStore({
+    secrets: args.secretsPort ?? new MemorySecretsStore({
       label: '~/.atlas/secrets.json',
       ...(args.secrets === undefined ? {} : { secrets: args.secrets }),
     }),

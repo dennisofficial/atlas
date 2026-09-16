@@ -2,10 +2,18 @@ import { afterEach, describe, expect, test } from 'bun:test'
 import { testRender } from '@opentui/react/test-utils'
 import React from 'react'
 
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import { applyTranscriptBounds } from '../../viewport-rows-store'
 import '../transcript-image'
+import { encodePng } from './png-fixture'
 
-const PATH = `${process.env.HOME}/atlas-images/radial-sky.png`
+const rgba = new Uint8Array(8 * 8 * 4)
+for (let pixel = 0; pixel < 8 * 8; pixel += 1) rgba.set([220, 20, 60, 255], pixel * 4)
+const PATH = join(mkdtempSync(join(tmpdir(), 'atlas-transcript-image-')), 'fixture.png')
+writeFileSync(PATH, encodePng({ width: 8, height: 8, colourType: 6, bytesPerPixel: 4, samples: rgba }))
 
 /** Any of the quadrant glyphs the block sampler paints with; a gradient need not produce a solid one. */
 const painted = (frame: string): boolean => /[\u2580-\u259f]/.test(frame)

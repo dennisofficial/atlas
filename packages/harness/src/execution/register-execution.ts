@@ -1,4 +1,4 @@
-import { FileSystemPort, ProcessPort } from '@dltech/atlas-core'
+import { AgentFileSystemPort, FileSystemPort, ProcessPort } from '@dltech/atlas-core'
 
 import { instanceCachingFactory, portToken, type DependencyContainer } from '../container/injection'
 import { DockerEngineToken } from '../container/tokens'
@@ -10,6 +10,9 @@ import { LocalProcessPort } from './local-process'
 export function registerExecution({ container }: { container: DependencyContainer }): void {
   container.register(portToken(ProcessPort), { useClass: LocalProcessPort })
   container.register(portToken(FileSystemPort), { useClass: LocalFileSystemPort })
+  container.register(portToken(AgentFileSystemPort), {
+    useFactory: (resolver) => resolver.resolve(portToken(FileSystemPort)),
+  })
   container.register(DockerEngineToken, {
     useFactory: instanceCachingFactory(
       () =>

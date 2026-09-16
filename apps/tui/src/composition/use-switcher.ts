@@ -20,7 +20,7 @@ import {
   type SwitcherState,
   type SwitcherTarget,
 } from '../ui/switcher-model'
-import type { ModelCatalogue } from './providers'
+import type { ModelCatalogue } from '@dltech/atlas-harness'
 
 export { EModelScope, settingTarget, THREAD_TARGET } from '../ui/switcher-model'
 export type { SwitcherTarget } from '../ui/switcher-model'
@@ -51,6 +51,8 @@ const PIN_KEY = '*'
  */
 export function useSwitcher(args: {
   catalogue: ModelCatalogue
+  /** Bumps whenever the catalogue re-observes accounts, so availability never serves a stale memo. */
+  accountsVersion: number
   active: ModelRef
   effort: EEffort
   fallback: { ref: ModelRef; effort: EEffort }
@@ -61,7 +63,17 @@ export function useSwitcher(args: {
 }): SwitcherControl {
   const held = useRef<Browsing | null>(null)
   const [browsing, setBrowsing] = useState<Browsing | null>(null)
-  const { catalogue, active, effort, fallback, settingRef, favourites, onPick, onPin } = args
+  const {
+    catalogue,
+    accountsVersion,
+    active,
+    effort,
+    fallback,
+    settingRef,
+    favourites,
+    onPick,
+    onPin,
+  } = args
 
   const put = useCallback((next: Browsing | null) => {
     held.current = next
@@ -76,7 +88,7 @@ export function useSwitcher(args: {
         favourites: args.favourites,
         query: args.query,
       }),
-    [catalogue],
+    [catalogue, accountsVersion],
   )
 
   const rowsFor = useCallback(
@@ -107,7 +119,7 @@ export function useSwitcher(args: {
         }),
       })
     },
-    [active, catalogue, effort, fallback, favourites, put, settingRef],
+    [active, accountsVersion, catalogue, effort, fallback, favourites, put, settingRef],
   )
 
   const handleDismiss = useCallback(() => put(null), [put])

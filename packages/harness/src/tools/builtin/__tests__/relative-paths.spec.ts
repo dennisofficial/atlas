@@ -50,11 +50,93 @@ describe('filePathSchema', () => {
 
 describe('resolveToolPath', () => {
   it('leaves an absolute path untouched', () => {
-    expect(resolveToolPath({ projectDirectory: root, path: '/x/y.ts' })).toBe('/x/y.ts')
+    expect(resolveToolPath({ projectDirectory: root, path: '/x/y.ts' })).toEqual({
+      ok: true,
+      path: '/x/y.ts',
+      anchored: false,
+    })
   })
 
   it('anchors a relative path to the project directory', () => {
-    expect(resolveToolPath({ projectDirectory: root, path: 'a/b.ts' })).toBe(join(root, 'a/b.ts'))
+    expect(resolveToolPath({ projectDirectory: root, path: 'a/b.ts' })).toEqual({
+      ok: true,
+      path: join(root, 'a/b.ts'),
+      anchored: true,
+    })
+  })
+
+  it('expands a $VARIABLE reference before deciding the path is absolute', () => {
+    expect(
+      resolveToolPath({
+        projectDirectory: root,
+        path: '$ATLAS_SPEC_DIR/note.md',
+        env: { ATLAS_SPEC_DIR: '/tmp/handoffs' },
+      }),
+    ).toEqual({ ok: true, path: '/tmp/handoffs/note.md', anchored: false })
+  })
+
+  it('collapses the doubled slash a trailing-slash variable leaves behind', () => {
+    expect(
+      resolveToolPath({
+        projectDirectory: root,
+        path: '$ATLAS_SPEC_TMP/handoff.md',
+        env: { ATLAS_SPEC_TMP: '/var/folders/zw/x/T/' },
+      }),
+    ).toEqual({ ok: true, path: '/var/folders/zw/x/T/handoff.md', anchored: false })
+  })
+
+  it('expands the ${VARIABLE} form', () => {
+    expect(
+      resolveToolPath({
+        projectDirectory: root,
+        path: '${ATLAS_SPEC_DIR}/note.md',
+        env: { ATLAS_SPEC_DIR: '/tmp/handoffs' },
+      }),
+    ).toEqual({ ok: true, path: '/tmp/handoffs/note.md', anchored: false })
+  })
+
+  it('expands a variable mid-path and still anchors a relative result', () => {
+    expect(
+      resolveToolPath({
+        projectDirectory: root,
+        path: 'out/$ATLAS_SPEC_BUILD/x.ts',
+        env: { ATLAS_SPEC_BUILD: '42' },
+      }),
+    ).toEqual({ ok: true, path: join(root, 'out/42/x.ts'), anchored: true })
+  })
+
+  it('expands a leading tilde to the home directory', () => {
+    expect(
+      resolveToolPath({ projectDirectory: root, path: '~/notes.md', env: { HOME: '/home/dev' } }),
+    ).toEqual({ ok: true, path: '/home/dev/notes.md', anchored: false })
+  })
+
+  it('refuses a variable that is not set rather than treating it as a literal directory', () => {
+    const resolved = resolveToolPath({
+      projectDirectory: root,
+      path: '$ATLAS_SPEC_UNSET/note.md',
+      env: {},
+    })
+
+    expect(resolved.ok).toBe(false)
+    if (!resolved.ok) {
+      expect(resolved.reason).toContain('$ATLAS_SPEC_UNSET')
+      expect(resolved.reason).toContain('not set')
+    }
+  })
+
+  it('names every unset variable when there is more than one', () => {
+    const resolved = resolveToolPath({
+      projectDirectory: root,
+      path: '$ATLAS_SPEC_A/$ATLAS_SPEC_B.md',
+      env: {},
+    })
+
+    expect(resolved.ok).toBe(false)
+    if (!resolved.ok) {
+      expect(resolved.reason).toContain('$ATLAS_SPEC_A')
+      expect(resolved.reason).toContain('$ATLAS_SPEC_B')
+    }
   })
 })
 
@@ -107,5 +189,70 @@ describe('file tools resolve relative paths against the project directory withou
     expect(reason).toContain(
       `composition/gone.ts resolved against the project directory ${root}`,
     )
+  })
+})
+
+describe('file tools expand environment references in paths', () => {
+  it('writes a file under a directory named through an environment variable', async () => {
+    process.env['ATLAS_SPEC_WRITE_DIR'] = root
+    try {
+      const outcome = await invoke(new WriteTool(), {
+        path: '$ATLAS_SPEC_WRITE_DIR/via-env.md',
+        content: 'expanded\n',
+      })
+
+      expect(outcome.ok).toBe(true)
+      expect(await readFile(join(root, 'via-env.md'), 'utf8')).toBe('expanded\n')
+    } finally {
+      delete process.env['ATLAS_SPEC_WRITE_DIR']
+    }
+  })
+
+  it('refuses a path through an unset variable before anything is created', async () => {
+    const outcome = await invoke(new WriteTool(), {
+      path: '$ATLAS_SPEC_DEFINITELY_UNSET/handoff.md',
+      content: 'nope\n',
+    })
+
+    expect(outcome.ok).toBe(false)
+    const reason = outcome.ok ? '' : outcome.reason
+    expect(reason).toContain('$ATLAS_SPEC_DEFINITELY_UNSET')
+    expect(reason).toContain('not set')
+    expect(reason).not.toContain('resolved against the project directory')
+    expect(await Bun.file(join(root, '$ATLAS_SPEC_DEFINITELY_UNSET', 'handoff.md')).exists()).toBe(false)
+  })
+
+  it('reports the unset variable for a read, the tool the screenshot hit', async () => {
+    const outcome = await invoke(new ReadTool(), { path: '$ATLAS_SPEC_DEFINITELY_UNSET/handoff.md' })
+
+    expect(outcome.ok).toBe(false)
+    const reason = outcome.ok ? '' : outcome.reason
+    expect(reason).toContain('$ATLAS_SPEC_DEFINITELY_UNSET')
+    expect(reason).toContain('not set')
+  })
+
+  it('reports the unset variable for a glob base directory', async () => {
+    const outcome = await invoke(new GlobTool(), {
+      pattern: '*.md',
+      path: '$ATLAS_SPEC_DEFINITELY_UNSET',
+    })
+
+    expect(outcome.ok).toBe(false)
+    const reason = outcome.ok ? '' : outcome.reason
+    expect(reason).toContain('$ATLAS_SPEC_DEFINITELY_UNSET')
+  })
+
+  it('does not claim an env-anchored miss resolved against the project directory', async () => {
+    process.env['ATLAS_SPEC_WRITE_DIR'] = root
+    try {
+      const outcome = await invoke(new ReadTool(), { path: '$ATLAS_SPEC_WRITE_DIR/gone.md' })
+
+      expect(outcome.ok).toBe(false)
+      const reason = outcome.ok ? '' : outcome.reason
+      expect(reason).toContain(`File does not exist: ${join(root, 'gone.md')}`)
+      expect(reason).not.toContain('resolved against the project directory')
+    } finally {
+      delete process.env['ATLAS_SPEC_WRITE_DIR']
+    }
   })
 })

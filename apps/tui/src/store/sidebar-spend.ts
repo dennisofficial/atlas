@@ -10,7 +10,7 @@ import {
   type TurnSpend,
 } from "@dltech/atlas-harness";
 
-import { formatTokens } from "../ui/theme";
+import { formatTokens, theme } from "../ui/theme";
 
 export type ModelPriceLookup = (ref: ModelRef) => ModelCost | undefined;
 
@@ -71,6 +71,16 @@ export function sidebarSpendOf(args: {
   };
 }
 
+export const COST_WARN_USD = 50;
+
+export const COST_DANGER_USD = 150;
+
+export function costTone(costUsd: number): string {
+  if (costUsd >= COST_DANGER_USD) return theme.error;
+  if (costUsd >= COST_WARN_USD) return theme.warn;
+  return theme.hint;
+}
+
 const CENT = 0.01;
 
 export const formatUsd = (dollars: number): string =>
@@ -81,16 +91,17 @@ export const formatUsd = (dollars: number): string =>
 const FIGURE_SEPARATOR = "  ";
 
 /**
- * Cache reads are the figure worth a column of its own: they are counted inside `inputTokens` and
- * billed at a tenth of it, so an input total read without them badly over-states what a long
- * conversation costs.
+ * Providers count cache reads inside `inputTokens` and bill them at a tenth of it, so the input
+ * figure shows only the uncached remainder and the cache column carries the rest. Read together
+ * they are the true input total, and a long conversation shows its caching is working rather than
+ * reading as many millions of fresh tokens.
  */
 export function spendFigures(spend: SidebarSpend): string | null {
   const { inputTokens, outputTokens, cacheReadTokens } = spend.totals;
   if (inputTokens === 0 && outputTokens === 0) return null;
 
   const figures = [
-    `↑ ${formatTokens(inputTokens)}`,
+    `↑ ${formatTokens(inputTokens - cacheReadTokens)}`,
     `↓ ${formatTokens(outputTokens)}`,
     ...(cacheReadTokens === 0
       ? []

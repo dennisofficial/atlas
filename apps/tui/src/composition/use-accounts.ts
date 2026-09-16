@@ -9,15 +9,21 @@ import {
   type Account,
   type AccountId,
 } from '@dltech/atlas-core'
-import type { AccountsService, DeviceTicket, LoginTicket, UrlOpener } from '@dltech/atlas-harness'
+import type {
+  AccountsService,
+  CloudService,
+  DeviceTicket,
+  LoginTicket,
+  UrlOpener,
+} from '@dltech/atlas-harness'
 import { EDevicePoll } from '@dltech/atlas-harness'
-
-import { pastedText } from '../ui/pasted-text'
 
 import {
   acceptsApiKey,
   acceptsDeviceCode,
   acceptsPastedCode,
+} from '../ui/accounts-labels'
+import {
   accountOf,
   accountRows,
   rowProvider,
@@ -26,6 +32,7 @@ import {
   askForDeviceCode,
   backspace,
   backToList,
+  EAccountRow,
   EAccountsView,
   failed,
   isPrompting,
@@ -38,6 +45,10 @@ import {
   type AccountRow,
   type AccountsState,
 } from '../ui/accounts-model'
+import { pastedText } from '../ui/pasted-text'
+
+import { useCloudLogin } from './use-cloud-login'
+import { githubRow, useGithubConnect } from './use-github-connect'
 
 export type AccountsControl = {
   state: AccountsState | null
@@ -71,10 +82,11 @@ const providerOf = (state: AccountsState): EAuthProvider | undefined => {
  */
 export function useAccounts(args: {
   accounts: AccountsService
+  cloud: CloudService
   openUrl: UrlOpener
   onAccounts?: (accounts: readonly Account[]) => void
 }): AccountsControl {
-  const { accounts, openUrl, onAccounts } = args
+  const { accounts, cloud, openUrl, onAccounts } = args
   const held = useRef<AccountsState | null>(null)
   const [state, setState] = useState<AccountsState | null>(null)
   const ticket = useRef<LoginTicket | null>(null)
@@ -96,8 +108,17 @@ export function useAccounts(args: {
       active[spec.provider] = await accounts.activeFor(spec.provider)
     }
 
-    return accountRows({ accounts: stored, active })
-  }, [accounts, onAccounts])
+    const session = cloud.session()
+    const client = session === null ? null : cloud.client()
+    const github = client === null ? undefined : await githubRow(client)
+
+    return accountRows({
+      accounts: stored,
+      active,
+      cloud: session === null ? null : { email: session.email },
+      ...(github === undefined ? {} : { github }),
+    })
+  }, [accounts, cloud, onAccounts])
 
   const handleOpen = useCallback(
     (notice?: string) => {
@@ -114,12 +135,6 @@ export function useAccounts(args: {
     deviceTimer.current = null
   }, [])
 
-  const handleDismiss = useCallback(() => {
-    ticket.current = null
-    stopDevice()
-    put(null)
-  }, [put, stopDevice])
-
   const refresh = useCallback(
     (change: (state: AccountsState) => AccountsState = (current) => current) => {
       void rows().then((loaded) => {
@@ -131,6 +146,17 @@ export function useAccounts(args: {
     },
     [put, rows],
   )
+
+  const cloudLogin = useCloudLogin({ cloud, openUrl, held, put, refresh })
+  const githubConnect = useGithubConnect({ cloud, openUrl, held, put, refresh })
+
+  const handleDismiss = useCallback(() => {
+    ticket.current = null
+    stopDevice()
+    cloudLogin.stop()
+    githubConnect.stop()
+    put(null)
+  }, [cloudLogin, githubConnect, put, stopDevice])
 
   /**
    * A row for a provider nothing has signed into exists to be signed into, so the key that activates
@@ -148,6 +174,19 @@ export function useAccounts(args: {
 
   const handlePick = useCallback(
     (row: AccountRow) => {
+      if (row.kind === EAccountRow.Cloud) {
+        const current = held.current
+        if (current !== null) cloudLogin.begin(current)
+        return
+      }
+
+      if (row.kind === EAccountRow.Github) {
+        const current = held.current
+        if (row.github.connection === null && !row.github.unreachable && current !== null)
+          githubConnect.begin(current)
+        return
+      }
+
       const account = accountOf(row)
       if (account === undefined) {
         const current = held.current
@@ -157,7 +196,7 @@ export function useAccounts(args: {
 
       void accounts.use({ provider: account.provider, accountId: account.id }).then(() => refresh())
     },
-    [accounts, askForKey, refresh],
+    [accounts, askForKey, cloudLogin, githubConnect, refresh],
   )
 
   /**
@@ -255,7 +294,8 @@ export function useAccounts(args: {
   )
 
   const handleOpenUrl = useCallback(() => {
-    const url = held.current?.prompt?.url
+    const current = held.current
+    const url = current?.prompt?.url ?? current?.cloudPrompt?.url ?? current?.githubPrompt?.url
     if (url === undefined || url.length === 0) return
 
     openUrl(url)
@@ -264,12 +304,21 @@ export function useAccounts(args: {
   const removeSelected = useCallback(
     (current: AccountsState) => {
       const row = selectedRow(current)
-      const account = row === undefined ? undefined : accountOf(row)
+      if (row === undefined) return
+
+      if (row.kind === EAccountRow.Cloud) return
+
+      if (row.kind === EAccountRow.Github) {
+        if (row.github.connection !== null) githubConnect.disconnect()
+        return
+      }
+
+      const account = accountOf(row)
       if (account === undefined) return
 
       void accounts.remove(account.id).then(() => refresh())
     },
-    [accounts, refresh],
+    [accounts, cloudLogin, githubConnect, refresh],
   )
 
   const submit = useCallback(
@@ -339,11 +388,18 @@ export function useAccounts(args: {
       if (key.name === 'escape') {
         ticket.current = null
         stopDevice()
+        cloudLogin.stop()
+        githubConnect.stop()
         put(backToList(current))
         return
       }
 
-      if (current.view === EAccountsView.DeviceCode) return
+      if (
+        current.view === EAccountsView.DeviceCode ||
+        current.view === EAccountsView.CloudDevice ||
+        current.view === EAccountsView.GithubDevice
+      )
+        return
 
       if (key.name === 'return') {
         submit(current)
@@ -357,7 +413,7 @@ export function useAccounts(args: {
 
       if (isPrintable(key)) put(typeInto({ state: current, text: key.sequence ?? '' }))
     },
-    [put, stopDevice, submit],
+    [cloudLogin, githubConnect, put, stopDevice, submit],
   )
 
   const handleKey = useCallback(

@@ -6,14 +6,17 @@ import {
   type EventLogPort,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { ETurnStatus, rewindThread, type TurnOutcome } from '@dltech/atlas-harness'
+import { ETurnStatus, rewindThread, type RewindKill, type TurnOutcome } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 
+import type { PendingSaid } from '../store'
 import { unansweredApproval, type ApprovalQuestion } from '../ui/approval-model'
+import type { DirectoryMove } from './directory-move'
+import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { useApproval, type ApprovalControl } from './use-approval'
-import { MID_TURN } from './commands/dispatch'
 import type { AtlasApp } from './compose'
 import { discardInterrupted, EDiscard } from './resume-turn'
+import { useRewindConfirm, type RewindConfirmControl } from './use-rewind-confirm'
 import { EUndo, undoTurn } from './undo-turn'
 import type { ThreadView } from './use-thread-view'
 import {
@@ -25,6 +28,12 @@ import {
 } from './turn-progress'
 
 const UNEXPLAINED = 'The turn stopped for a reason it did not name.'
+
+const killLabel = (kill: RewindKill): string => {
+  if (kill.kind === 'agent') return `sub-agent ${kill.agentType} (${kill.intent})`
+  if (kill.kind === 'shell') return `background shell ${kill.shellId} (${kill.command ?? 'unknown command'})`
+  return `service ${kill.serviceId} (${kill.command ?? 'unknown command'})`
+}
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : UNEXPLAINED)
 
@@ -58,7 +67,9 @@ const commitGate = (): CommitGate => {
 
 export type TurnDriver = {
   working: boolean
+  workingRef: RefObject<boolean>
   approval: ApprovalControl
+  rewindConfirm: RewindConfirmControl
   drive: (drafts: readonly EventDraft[]) => Promise<void>
   handleInterrupt: () => void
   handleRetry: () => void
@@ -79,20 +90,23 @@ export function useTurnDriver(args: {
   app: AtlasApp
   threadId: ThreadId
   started: RefObject<boolean>
+  pendingMove: RefObject<DirectoryMove | null>
   view: ThreadView
   readClock: () => number
   used: RefObject<number>
   compactIfFull: (used: number) => Promise<void>
   cancelCompaction: () => boolean
-  onUndone: (text: string) => void
+  onSettled: () => Promise<void>
+  onUndone: (said: PendingSaid) => void
   setFailure: (reason: string | null) => void
   forgetUsage: () => void
 }): TurnDriver {
-  const { app, threadId, started, view, readClock, used, compactIfFull } = args
-  const { cancelCompaction, onUndone, setFailure, forgetUsage } = args
+  const { app, threadId, started, pendingMove, view, readClock, used, compactIfFull } = args
+  const { cancelCompaction, onSettled, onUndone, setFailure, forgetUsage } = args
   const { store, events, refresh, stamp } = view
 
   const [working, setWorking] = useState(false)
+  const workingRef = useRef(false)
   const abort = useRef<AbortController | null>(null)
   const driveLatest = useRef<(drafts: readonly EventDraft[]) => Promise<void>>(async () => undefined)
 
@@ -117,20 +131,31 @@ export function useTurnDriver(args: {
         return
       }
 
+      const move = pendingMove.current
+      pendingMove.current = null
       await app.threads.createWithFirstEvents({
         threadId,
-        drafts,
+        drafts: move === null ? drafts : [{ type: 'directory-changed', path: move.path }, ...drafts],
         runId,
-        workspace: app.workspace.workspace,
-        repo: app.workspace.repo,
+        workspace: move?.path ?? app.workspace.workspace,
+        repo: move === null ? app.workspace.repo : move.repo,
       })
       started.current = true
     },
-    [app.ids, app.log, app.threads, app.workspace, started, threadId],
+    [app.ids, app.log, app.threads, app.workspace, pendingMove, started, threadId],
   )
 
+  const rewindConfirm = useRewindConfirm()
+
   const undo = useCallback(async () => {
-    const undone = await undoTurn({ log: app.log, threads: app.threads, threadId })
+    const undone = await undoTurn({
+      log: app.log,
+      threads: app.threads,
+      agents: app.agents,
+      shells: app.shells,
+      services: app.services,
+      threadId,
+    })
 
     if (undone.type === EUndo.Refused) {
       setFailure(undone.reason)
@@ -139,8 +164,8 @@ export function useTurnDriver(args: {
     if (undone.type === EUndo.Nothing) return
 
     await refresh()
-    onUndone(undone.text)
-  }, [app.log, app.threads, onUndone, refresh, setFailure, threadId])
+    onUndone(undone.said)
+  }, [app.agents, app.log, app.services, app.shells, app.threads, onUndone, refresh, setFailure, threadId])
 
   const drive = useCallback(
     (drafts: readonly EventDraft[]): Promise<void> => {
@@ -148,12 +173,14 @@ export function useTurnDriver(args: {
       const gate = commitGate()
 
       abort.current = controller
+      workingRef.current = true
       setWorking(true)
       setFailure(null)
       store.supersedeFailure()
       stamp(() => turnStarted({ now: readClock() }))
 
       void (async () => {
+        let pausedForApproval = false
         try {
           if (drafts.length > 0) {
             await commit(drafts)
@@ -163,16 +190,21 @@ export function useTurnDriver(args: {
           const outcome = await app.runner.runTurn({ threadId, signal: controller.signal })
           const asked = await pausedOnApproval({ log: app.log, threadId, outcome })
           if (asked === null) setFailure(stoppageOf(outcome))
-          else openApproval(asked)
+          else {
+            pausedForApproval = true
+            openApproval(asked)
+          }
           if (committedNothing(outcome)) await undo()
         } catch (error) {
           setFailure(messageOf(error))
         } finally {
           gate.settle()
           abort.current = null
-          setWorking(false)
+          workingRef.current = false
           stamp((current) => turnSettled({ progress: current, now: readClock() }))
           await refresh().catch(() => undefined)
+          if (!pausedForApproval) await onSettled().catch(() => undefined)
+          setWorking(false)
           await compactIfFull(used.current).catch(() => undefined)
         }
       })()
@@ -183,6 +215,7 @@ export function useTurnDriver(args: {
       app,
       commit,
       compactIfFull,
+      onSettled,
       openApproval,
       readClock,
       refresh,
@@ -212,18 +245,30 @@ export function useTurnDriver(args: {
     void drive(resumeDrafts(events))
   }, [drive, events, working])
 
-  const handleResumeFresh = useCallback(() => {
+  const resumeFresh = useCallback((confirmed: boolean) => {
     if (working) return
 
     void (async () => {
       const discarded = await discardInterrupted({
         log: app.log,
         threads: app.threads,
+        agents: app.agents,
+        shells: app.shells,
+        services: app.services,
         threadId,
+        confirmed,
       })
 
       if (discarded.type === EDiscard.Refused) {
         setFailure(discarded.reason)
+        return
+      }
+      if (discarded.type === EDiscard.NeedsConfirmation) {
+        rewindConfirm.handleOpen({
+          toSeq: discarded.toSeq,
+          kills: discarded.kills,
+          onConfirmed: () => resumeFresh(true),
+        })
         return
       }
 
@@ -231,32 +276,67 @@ export function useTurnDriver(args: {
       await refresh()
       void drive([])
     })()
-  }, [app.log, app.threads, drive, forgetUsage, refresh, setFailure, threadId, working])
+  }, [app.agents, app.log, app.services, app.shells, app.threads, drive, forgetUsage, refresh, rewindConfirm, setFailure, threadId, working])
+
+  const handleResumeFresh = useCallback(() => resumeFresh(false), [resumeFresh])
 
   const rewindTo = useCallback(
-    async (toSeq: number) => {
+    async (toSeq: number, confirmed = false): Promise<void> => {
       if (abort.current !== null) {
-        setFailure(MID_TURN('rewind'))
+        notify({
+          key: 'rewind-mid-turn',
+          tone: ENoticeTone.Warn,
+          ttlMs: NOTICE_WARN_MS,
+          text: '/rewind has to wait for this turn — pick the point again when it settles',
+        })
         return
       }
 
       cancelCompaction()
+      workingRef.current = true
       setWorking(true)
       try {
-        const rewound = await rewindThread({ log: app.log, threads: app.threads, threadId, toSeq })
+        const rewound = await rewindThread({
+          log: app.log,
+          threads: app.threads,
+          agents: app.agents,
+          shells: app.shells,
+          services: app.services,
+          threadId,
+          toSeq,
+          confirmed,
+        })
 
         if (!rewound.ok) {
+          if ('needsConfirmation' in rewound) {
+            rewindConfirm.handleOpen({
+              toSeq,
+              kills: rewound.kills,
+              onConfirmed: () => void rewindTo(toSeq, true),
+            })
+            return
+          }
           setFailure(rewound.reason)
           return
+        }
+        if (rewound.kills.length > 0) {
+          const named = rewound.kills.map(killLabel).join(', ')
+          notify({
+            key: 'rewind-cut-creations',
+            tone: ENoticeTone.Warn,
+            ttlMs: NOTICE_WARN_MS,
+            text: `the rewind destroyed ${named}`,
+          })
         }
         store.resetSteps()
         forgetUsage()
         await refresh()
       } finally {
+        workingRef.current = false
         setWorking(false)
       }
     },
-    [app.log, app.threads, cancelCompaction, forgetUsage, refresh, setFailure, store, threadId],
+    [app.agents, app.log, app.services, app.shells, app.threads, cancelCompaction, forgetUsage, refresh, rewindConfirm, setFailure, store, threadId],
   )
 
   /**
@@ -271,7 +351,7 @@ export function useTurnDriver(args: {
 
     stamp(turnInterrupting)
     controller.abort()
-  }, [cancelCompaction])
+  }, [cancelCompaction, stamp])
 
   const handleRewindTo = useCallback((toSeq: number) => void rewindTo(toSeq), [rewindTo])
 
@@ -279,7 +359,9 @@ export function useTurnDriver(args: {
 
   return {
     working,
+    workingRef,
     approval,
+    rewindConfirm,
     drive,
     handleInterrupt,
     handleRetry,

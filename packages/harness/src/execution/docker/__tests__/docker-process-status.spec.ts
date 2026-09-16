@@ -1,21 +1,21 @@
 import { afterAll, describe, expect, it } from 'bun:test'
 
-import { existsSync } from 'node:fs'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { DockerProcessPort } from '../docker-process'
 import { DockerEngine } from '../engine'
-import { worktreeLabel, type SandboxConfig } from '../sandbox'
+import { sandboxNameFor, worktreeLabel, type SandboxConfig } from '../sandbox'
+import { dockerUnavailableReason } from './live-docker'
 import { ESandboxState, type SandboxStatus } from '../status'
 
 const SOCKET = '/var/run/docker.sock'
-const DOCKER_AVAILABLE = existsSync(SOCKET)
+const DOCKER_AVAILABLE = (await dockerUnavailableReason(SOCKET)) === undefined
 const describeDocker = DOCKER_AVAILABLE ? describe : describe.skip
 
 const engine = new DockerEngine({ socketPath: SOCKET })
-const PREFIX = 'atlas-dev'
+const PREFIX = 'atlas-dev-process-status'
 
 const worktree = await realpath(await mkdtemp(join(tmpdir(), 'atlas-dev-status-')))
 
@@ -59,6 +59,7 @@ describeDocker('DockerProcessPort sandbox status', () => {
     expect(seen.map((one) => one.state)).toEqual([ESandboxState.Starting, ESandboxState.Running])
     const running = seen[1]
     if (running?.state !== ESandboxState.Running) throw new Error('unreachable')
+    expect(running.name).toBe(sandboxNameFor({ prefix: PREFIX, worktree }))
     expect(running.ports.length).toBeGreaterThan(0)
     expect(running.ports[0]?.hostPort).toBeGreaterThan(0)
   }, 60_000)
@@ -76,7 +77,7 @@ describeDocker('DockerProcessPort sandbox status', () => {
 
     const failed = seen.at(-1)
     if (failed?.state !== ESandboxState.Failed) throw new Error(`expected failed, got ${failed?.state ?? 'nothing'}`)
-    expect(failed.reason.toLowerCase()).toContain('no such image')
+    expect(failed.reason).toContain('atlas-dev-no-such-image')
     await rm(missingWorktree, { recursive: true, force: true })
   }, 60_000)
 

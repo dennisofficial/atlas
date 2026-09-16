@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { DEFAULT_SANDBOX_IMAGE } from '../docker/sandbox'
+import { EBuildContext } from './build'
 import { type Mount } from './mounts'
 import { parseContainerJson, parseDevcontainerJson } from './parse'
 import { EConfigRefusal, type ConfigRefusal } from './refusals'
@@ -20,12 +21,13 @@ export enum EImageKind {
 
 export type ImageRef =
   | { kind: EImageKind.Image; reference: string }
-  | { kind: EImageKind.Dockerfile; path: string }
+  | { kind: EImageKind.Dockerfile; path: string; context: EBuildContext }
 
 export type ContainerResolution = {
   image: ImageRef
   setup?: string | undefined
   start?: string | undefined
+  env: Record<string, string>
   mounts: readonly Mount[]
   source: EConfigSource
   notes: readonly string[]
@@ -33,9 +35,6 @@ export type ContainerResolution = {
 }
 
 export type TextFileReader = (path: string) => Promise<string | undefined>
-
-export const DEFAULT_CONTAINER_SETUP =
-  'apt-get update && apt-get install -y --no-install-recommends git ripgrep gnupg ca-certificates && npx -y playwright install-deps chromium'
 
 export const readTextFile: TextFileReader = async (path) => {
   try {
@@ -61,6 +60,7 @@ const ignoredNote = (args: { file: string; ignored: readonly string[] }): string
 
 export async function resolveContainerConfig(args: {
   projectDirectory: string
+  atlasHome?: string | undefined
   readText?: TextFileReader
 }): Promise<ContainerResolution> {
   const read = args.readText ?? readTextFile
@@ -78,8 +78,9 @@ export async function resolveContainerConfig(args: {
           kind: EImageKind.Image,
           reference: parsed.config.image ?? DEFAULT_SANDBOX_IMAGE,
         },
-        setup: parsed.config.setup ?? (parsed.config.image === undefined ? DEFAULT_CONTAINER_SETUP : undefined),
+        setup: parsed.config.setup,
         start: parsed.config.start,
+        env: parsed.config.env ?? {},
         mounts: parsed.mounts,
         source: EConfigSource.ContainerJson,
         notes,
@@ -104,8 +105,9 @@ export async function resolveContainerConfig(args: {
           kind: EImageKind.Image,
           reference: parsed.image ?? DEFAULT_SANDBOX_IMAGE,
         },
-        setup: parsed.setup ?? (parsed.image === undefined ? DEFAULT_CONTAINER_SETUP : undefined),
+        setup: parsed.setup,
         start: undefined,
+        env: {},
         mounts: [],
         source: EConfigSource.DevcontainerJson,
         notes,
@@ -122,7 +124,8 @@ export async function resolveContainerConfig(args: {
   if ((await read(dockerfile)) !== undefined) {
     notes.push(dockerfileNote(dockerfile))
     return {
-      image: { kind: EImageKind.Dockerfile, path: dockerfile },
+      image: { kind: EImageKind.Dockerfile, path: dockerfile, context: EBuildContext.Directory },
+      env: {},
       mounts: [],
       source: EConfigSource.Dockerfile,
       notes,
@@ -130,9 +133,28 @@ export async function resolveContainerConfig(args: {
     }
   }
 
+  if (args.atlasHome !== undefined) {
+    const userDockerfile = join(args.atlasHome, 'Dockerfile')
+    if ((await read(userDockerfile)) !== undefined) {
+      notes.push(dockerfileNote(userDockerfile))
+      return {
+        image: {
+          kind: EImageKind.Dockerfile,
+          path: userDockerfile,
+          context: EBuildContext.DockerfileOnly,
+        },
+        env: {},
+        mounts: [],
+        source: EConfigSource.Dockerfile,
+        notes,
+        refusals,
+      }
+    }
+  }
+
   return {
     image: { kind: EImageKind.Image, reference: DEFAULT_SANDBOX_IMAGE },
-    setup: DEFAULT_CONTAINER_SETUP,
+    env: {},
     mounts: [],
     source: EConfigSource.BuiltIn,
     notes,

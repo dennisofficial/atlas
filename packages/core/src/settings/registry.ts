@@ -8,6 +8,7 @@ import { ESettingKind, type SettingOption } from './value'
 export const SETTING_PAGES: readonly SettingPage[] = [
   { id: ESettingPage.General, label: 'general' },
   { id: ESettingPage.Appearance, label: 'appearance' },
+  { id: ESettingPage.Account, label: 'account' },
 ]
 
 export enum ESettingId {
@@ -18,7 +19,6 @@ export enum ESettingId {
   ProjectInstructions = 'context.projectInstructions',
   UserInstructions = 'context.userInstructions',
   InstructionFilenames = 'context.filenames',
-  NestedInstructions = 'context.nestedInstructions',
   ReloadInstructions = 'context.reload',
   AutoCompact = 'context.autoCompact',
   ImageRows = 'transcript.imageRows',
@@ -47,6 +47,8 @@ export enum ESettingId {
   ContainerIdleMinutes = 'container.idleMinutes',
   DatabaseUrl = 'store.databaseUrl',
   KeychainService = 'credentials.keychainService',
+  CloudUrl = 'cloud.url',
+  CloudRequired = 'cloud.required',
   AutoRestart = 'dev.autoRestart',
 }
 
@@ -210,17 +212,6 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
       { value: 'agents', label: 'AGENTS.md' },
       { value: 'none', label: 'neither', detail: 'ATLAS.md only' },
     ],
-  },
-  {
-    id: ESettingId.NestedInstructions,
-    page: ESettingPage.General,
-    group: 'Project context',
-    label: 'Nested instructions',
-    description:
-      'Pull in the instruction file above a path the moment a tool touches it, rather than only the ones on the way to the working directory. This is what lets a package deep in a monorepo state its own rules without every session paying for them.',
-    environmentVariable: 'ATLAS_NESTED_INSTRUCTIONS',
-    kind: ESettingKind.Toggle,
-    fallback: true,
   },
   {
     id: ESettingId.ReloadInstructions,
@@ -600,6 +591,28 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     environmentVariable: 'ATLAS_DATABASE_URL',
     kind: ESettingKind.Text,
     fallback: '',
+  },
+  {
+    id: ESettingId.CloudUrl,
+    page: ESettingPage.Hidden,
+    group: 'Cloud',
+    label: 'Cloud API',
+    description:
+      'Where the Atlas Cloud API lives — the backend that is the source of truth for accounts, secrets and the user MCP layer. The fallback is the production deployment; an Atlas contributor running apps/api next to the TUI points this at the local development server instead.',
+    environmentVariable: 'ATLAS_CLOUD_URL',
+    kind: ESettingKind.Text,
+    fallback: 'https://api.byatlas.io',
+  },
+  {
+    id: ESettingId.CloudRequired,
+    page: ESettingPage.Hidden,
+    group: 'Cloud',
+    label: 'Cloud is the only store',
+    description:
+      'When on, Atlas Cloud is the only credential store and signing in is required — a signed-out Atlas refuses to read or write accounts, secrets, or the user MCP layer rather than touching the local vault. This is the shipped default. Turning it off is the escape hatch for developing the cloud API itself against a local apps/api, with the local vault active again.',
+    environmentVariable: 'ATLAS_CLOUD_REQUIRED',
+    kind: ESettingKind.Toggle,
+    fallback: true,
   },
   {
     id: ESettingId.KeychainService,

@@ -5,10 +5,14 @@
  * dim stdout renderer as `ls`. Same machinery, one side instead of two: the read tool hands back
  * numbered rows, so the number goes to a gutter and the content goes to the highlighter under the
  * filetype of the path that was read.
+ *
+ * Every line is ONE <text>: the gutter is a span beside the content spans. OpenTUI repaints every
+ * visible renderable every frame, so the row <box> plus two <text>s this used to spend per line
+ * cost triple the frames' worth of mounted renderables for the same cells.
  */
 
-import { pathToFiletype, StyledText, type TextChunk } from '@opentui/core'
-import React, { useEffect, useMemo, useState } from 'react'
+import { pathToFiletype, type RGBA, type TextChunk } from '@opentui/core'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 
 import { cachedHighlight, fitDiffChunks, highlightRows } from '../../markdown/highlight-rows'
 import { theme } from '../../theme'
@@ -29,27 +33,71 @@ export function codeLinesOf(body: readonly string[]): CodeLine[] {
 
 type Rows = readonly (readonly TextChunk[])[] | null
 
-export function useHighlighted(args: {
-  lines: readonly string[]
-  filetype: string
-}): readonly (readonly TextChunk[] | null)[] {
+type Settled = { key: string; rows: Rows }
+
+const sameSettled = (current: Settled | null, next: Settled): Settled =>
+  current !== null && current.key === next.key && current.rows === next.rows ? current : next
+
+export type LineChunks = readonly (readonly TextChunk[] | null)[]
+
+/**
+ * Highlighting is asynchronous, so a row is drawn plain first and coloured when tree-sitter answers.
+ * The effect is keyed on the CONTENT, never on the array carrying it: a caller that rebuilds its
+ * lines every render must not restart the pass, and an answer that matches what is already held
+ * must not schedule a render, or the block re-renders itself forever.
+ */
+export function useHighlighted(args: { lines: readonly string[]; filetype: string }): LineChunks {
   const { lines, filetype } = args
   const key = useMemo(() => `${filetype} ${lines.join('\n')}`, [lines, filetype])
-  const cached = useMemo(() => cachedHighlight({ lines, filetype }) ?? null, [lines, filetype])
-  const [settled, setSettled] = useState<{ key: string; rows: Rows } | null>(null)
+  const cached = useMemo(() => cachedHighlight({ lines, filetype }), [lines, filetype])
+  const [settled, setSettled] = useState<Settled | null>(null)
+  const latest = useRef({ lines, filetype })
+  latest.current = { lines, filetype }
 
   useEffect(() => {
+    if (cachedHighlight(latest.current) !== undefined) return
     let live = true
-    void highlightRows({ lines, filetype }).then((rows) => {
-      if (live) setSettled({ key, rows })
+    void highlightRows(latest.current).then((rows) => {
+      if (live) setSettled((current) => sameSettled(current, { key, rows }))
     })
     return () => {
       live = false
     }
-  }, [key, lines, filetype])
+  }, [key])
 
-  const rows = settled?.key === key ? settled.rows : cached
-  return lines.map((_unused, index) => rows?.[index] ?? null)
+  const rows = settled?.key === key ? settled.rows : (cached ?? null)
+  return useMemo(() => lines.map((_unused, index) => rows?.[index] ?? null), [lines, rows])
+}
+
+export function useRowChunks(args: {
+  texts: readonly string[]
+  chunks: LineChunks
+  columns: number
+}): readonly (readonly TextChunk[])[] {
+  const { texts, chunks, columns } = args
+  return useMemo(
+    () =>
+      texts.map((text, index) =>
+        fitDiffChunks({ chunks: chunksFor({ text, chunks: chunks[index] ?? null }), columns }),
+      ),
+    [texts, chunks, columns],
+  )
+}
+
+const spanPropsOf = (chunk: TextChunk): { fg?: RGBA; bg?: RGBA; attributes?: number } => {
+  const props: { fg?: RGBA; bg?: RGBA; attributes?: number } = {}
+  if (chunk.fg !== undefined) props.fg = chunk.fg
+  if (chunk.bg !== undefined) props.bg = chunk.bg
+  if (chunk.attributes !== undefined) props.attributes = chunk.attributes
+  return props
+}
+
+export function chunkSpans(row: readonly TextChunk[]): React.ReactNode {
+  return row.map((chunk, index) => (
+    <span key={index} {...spanPropsOf(chunk)}>
+      {chunk.text}
+    </span>
+  ))
 }
 
 export function CodeLines(props: {
@@ -66,30 +114,26 @@ export function CodeLines(props: {
     ...props.lines.map((line) => (line.number === null ? 0 : String(line.number).length)),
   )
   const columns = Math.max(1, props.inner - props.indent.length - digits - 1)
+  const rows = useRowChunks({ texts, chunks, columns })
 
   return (
     <>
-      {props.lines.map((line, index) => (
-        <box key={index} flexDirection="row" height={1} flexShrink={0}>
-          <text wrapMode="none" flexShrink={0} fg={theme.rule}>
-            {`${props.indent}${(line.number === null ? '' : String(line.number)).padStart(digits)} `}
-          </text>
+      {rows.map((row, index) => {
+        const number = props.lines[index]?.number ?? null
+        const gutter = `${props.indent}${(number === null ? '' : String(number)).padStart(digits)} `
+        return (
           <text
+            key={index}
             wrapMode="none"
-            width={columns}
+            width={gutter.length + columns}
             flexShrink={0}
             fg={theme.body}
-            content={
-              new StyledText([
-                ...fitDiffChunks({
-                  chunks: chunksFor({ text: line.text, chunks: chunks[index] ?? null }),
-                  columns,
-                }),
-              ])
-            }
-          />
-        </box>
-      ))}
+          >
+            <span fg={theme.rule}>{gutter}</span>
+            {chunkSpans(row)}
+          </text>
+        )
+      })}
     </>
   )
 }

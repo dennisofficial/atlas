@@ -2,8 +2,8 @@ import {
   EContentAccess,
   EPathForm,
   EPathPresence,
+  AgentFileSystemPort,
   EToolEffect,
-  FileSystemPort,
   SchemaTool,
   type DeclaredPathField,
   type ToolOutcome,
@@ -14,7 +14,7 @@ import { z } from 'zod'
 import { LocalFileSystemPort } from '../../execution/local-filesystem'
 import { writeFileAtomically } from '../../files/atomic-write'
 import { FileWriteGuardPort, SerializedWrites } from '../../files/write-guard'
-import { filePathSchema, resolveToolPath } from './file-text'
+import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-text'
 
 const inputSchema = z.strictObject({
   path: filePathSchema,
@@ -24,6 +24,7 @@ const inputSchema = z.strictObject({
 const description = [
   'Write a text file, replacing it entirely if it already exists.',
   'A relative path resolves against the project directory; missing parent directories are created.',
+  pathEnvironmentNote,
   'Content is written byte for byte, so send the line endings you want the file to have.',
   'Prefer the edit tool for changing part of an existing file.',
 ].join(' ')
@@ -39,7 +40,7 @@ export class WriteTool extends SchemaTool<typeof inputSchema> {
 
   constructor(
     private readonly guard: FileWriteGuardPort = new SerializedWrites(),
-    private readonly files: FileSystemPort = new LocalFileSystemPort(),
+    private readonly files: AgentFileSystemPort = new LocalFileSystemPort(),
   ) {
     super()
   }
@@ -49,19 +50,21 @@ export class WriteTool extends SchemaTool<typeof inputSchema> {
     threadId,
     projectDirectory,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
-    const path = resolveToolPath({ projectDirectory, path: input.path })
+    const resolved = resolveToolPath({ projectDirectory, path: input.path })
+    if (!resolved.ok) return { ok: false, reason: resolved.reason }
+    const path = resolved.path
     const { content } = input
 
     const guarded = await this.guard.underLock({
       threadId,
       path,
       write: async (): Promise<ToolOutcome> => {
-        const stats = await this.files.stat({ path }).catch(() => null)
+        const stats = await this.files.stat({ path, threadId }).catch(() => null)
         if (stats !== null && !stats.isFile()) {
           return { ok: false, reason: `${path} already exists and is not a regular file.` }
         }
 
-        const bytes = await writeFileAtomically({ path, content, mode: stats?.mode, files: this.files })
+        const bytes = await writeFileAtomically({ path, content, mode: stats?.mode, files: this.files, threadId })
         const created = stats === null
 
         return {

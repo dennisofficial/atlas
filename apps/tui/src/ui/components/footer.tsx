@@ -14,6 +14,7 @@ import {
 } from '../footer-layout'
 import type { FooterStripState } from '../footer-strip'
 import { HINT_SEPARATOR } from '../hint-layout'
+import { useAppearance } from '../hooks/use-appearance'
 import { meterTone } from '../meter-tone'
 import { theme } from '../theme'
 import type { FooterMeter } from '../usage-meters'
@@ -37,7 +38,9 @@ function meterSpans(meters: readonly FooterMeter[]): Span[] {
 }
 
 function readoutSpans(args: { readout: FooterReadout; context: FooterContext }): Span[] {
-  const fg = isMeasured(args.context) ? contextTone(args.context.percent) : theme.warn
+  const fg = isMeasured(args.context)
+    ? contextTone({ percent: args.context.percent, tokens: args.context.tokensUsed })
+    : theme.warn
   return [{ text: args.readout.text, fg }, ...meterSpans(args.readout.meters)]
 }
 
@@ -49,7 +52,7 @@ function factSpans(args: { instruments: FooterInstruments }): Span[][] {
   ]
 }
 
-export function Footer(props: {
+function DerivedFooter(props: {
   width: number
   model: string
   effort?: FooterEffort | null
@@ -59,6 +62,7 @@ export function Footer(props: {
   layout?: FooterLayout
   onActivateItem?: (item: FooterItem) => void
 }): React.ReactNode {
+  useAppearance()
   const layout =
     props.layout ??
     footerLayout({
@@ -76,6 +80,39 @@ export function Footer(props: {
 
   const facts = separated(factSpans({ instruments: layout.instruments }))
 
+  const strip = (
+    <FooterStrip
+      items={layout.instruments.items}
+      lead={layout.instruments.rows === 1 && facts.length > 0}
+      selectedId={props.strip?.itemId ?? null}
+      {...(props.onActivateItem === undefined ? {} : { onActivate: props.onActivateItem })}
+    />
+  )
+
+  if (layout.instruments.rows === 2) {
+    return (
+      <box
+        flexDirection="column"
+        flexShrink={0}
+        paddingLeft={FOOTER_GUTTER}
+        paddingRight={FOOTER_GUTTER}
+      >
+        <box flexDirection="row" flexShrink={0}>
+          <text flexShrink={0}>
+            <Spans spans={facts} />
+          </text>
+          <box flexGrow={1} />
+          <text flexShrink={0}>
+            <Spans spans={context} />
+          </text>
+        </box>
+        <box flexDirection="row" flexShrink={0}>
+          {strip}
+        </box>
+      </box>
+    )
+  }
+
   return (
     <box
       flexDirection="row"
@@ -86,12 +123,7 @@ export function Footer(props: {
       <text flexShrink={0}>
         <Spans spans={facts} />
       </text>
-      <FooterStrip
-        items={layout.instruments.items}
-        lead={facts.length > 0}
-        selectedId={props.strip?.itemId ?? null}
-        {...(props.onActivateItem === undefined ? {} : { onActivate: props.onActivateItem })}
-      />
+      {strip}
       <box flexGrow={1} />
       <text flexShrink={0}>
         <Spans spans={context} />
@@ -99,3 +131,5 @@ export function Footer(props: {
     </box>
   )
 }
+
+export const Footer = React.memo(DerivedFooter)

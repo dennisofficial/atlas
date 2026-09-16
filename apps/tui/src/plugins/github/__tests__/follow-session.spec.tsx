@@ -27,7 +27,7 @@ import type { PluginSurface } from '../../surface'
 import GithubPlugin, { registerPlugin } from '../index'
 
 import { settle, teardown } from '../../../ui/markdown/__tests__/harness'
-import { spansOf } from '../../../ui/sidebar-section'
+import { flattenedSpans } from '../../../ui/sidebar-section'
 
 const RENDER_MS = 40
 
@@ -105,7 +105,7 @@ const branchRowOf = (probe: Probe): string | null => {
   const row = probe.surface?.sidebarSection?.rows.find((entry) => entry.id === 'branch')
   if (row === undefined) return null
 
-  return spansOf({ row, cells: WIDE }).map((span) => span.text).join('')
+  return flattenedSpans({ row, cells: WIDE }).map((span) => span.text).join('')
 }
 
 /**
@@ -205,7 +205,7 @@ describe('the github section following the session, through the real wiring', ()
 
       await act(async () => {
         for (const hook of chain.afterTool) {
-          await hook.run({ call: callNamed('enter_worktree'), result: entered(worktree), signal: NEVER_ABORTED })
+          await hook.run({ call: callNamed('enter_worktree'), result: entered(worktree), projectDirectory: '/repo', signal: NEVER_ABORTED })
         }
       })
       await flush()
@@ -213,7 +213,7 @@ describe('the github section following the session, through the real wiring', ()
 
       await act(async () => {
         for (const hook of chain.afterTool) {
-          await hook.run({ call: callNamed('exit_worktree'), result: exited(worktree), signal: NEVER_ABORTED })
+          await hook.run({ call: callNamed('exit_worktree'), result: exited(worktree), projectDirectory: '/repo', signal: NEVER_ABORTED })
         }
       })
       await flush()

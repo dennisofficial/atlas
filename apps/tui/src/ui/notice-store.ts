@@ -1,18 +1,17 @@
 import {
   clearNotice as withoutNotice,
+  ENoticePosition,
   ENoticeTone,
   expireNotices,
   nextExpiryAtMs,
+  NOTICE_MS,
+  NOTICE_WARN_MS,
   type Notice,
   postNotice,
 } from '@dltech/atlas-core'
 
-export { ENoticeTone }
+export { ENoticePosition, ENoticeTone, NOTICE_MS, NOTICE_WARN_MS }
 export type { Notice }
-
-export const NOTICE_MS = 2000
-
-export const NOTICE_WARN_MS = 6000
 
 export const NOTICE_KEY_CLASSIFIER_OFFLINE = 'classifier-offline'
 
@@ -74,6 +73,7 @@ export function configureNotices(args: { ttlMs: number }): void {
 export function notify(args: {
   text: string
   tone?: ENoticeTone
+  position?: ENoticePosition
   key?: string
   ttlMs?: number
   sticky?: boolean
@@ -86,6 +86,7 @@ export function notify(args: {
       key: args.key ?? `notice-${issued}`,
       text: args.text,
       tone: args.tone ?? ENoticeTone.Done,
+      ...(args.position === undefined ? {} : { position: args.position }),
       ttlMs: args.sticky === true ? null : (args.ttlMs ?? defaultTtlMs),
     },
     issuedAtMs: Date.now(),

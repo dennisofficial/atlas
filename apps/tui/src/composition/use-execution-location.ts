@@ -2,7 +2,7 @@ import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
 import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
 
 import type { AtlasApp } from './compose'
-import { resolveExecutionLocation } from './execution-preference'
+import { resolveExecutionLocation } from '@dltech/atlas-harness'
 
 export type ExecutionLocationControl = {
   location: EExecutionLocation

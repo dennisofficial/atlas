@@ -51,7 +51,7 @@ import {
 import { replayLines } from './classify-report'
 import { CLASSIFY_USAGE, EClassifyTask, type ClassifyRequest } from './classify'
 import { judgeModel, judgeRefFor } from './judge-model'
-import { loadSettings } from './settings-binding'
+import { loadSettings } from '@dltech/atlas-harness'
 
 const REFUSED = 1
 

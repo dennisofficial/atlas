@@ -14,7 +14,7 @@ import { composeAtlas, type AtlasApp } from './compose'
 import type { AtlasConfig } from './config'
 import { diagnoseCredentialFailure, type CredentialDiagnosis } from './credential-diagnosis'
 import { openConversation, type OpenedConversation } from './open-conversation'
-import type { SettingsBinding } from './settings-binding'
+import type { SettingsBinding } from '@dltech/atlas-harness'
 import { stateOfDirectory, workspaceRefusal } from './workspace-directory'
 
 const REFUSED = 1
@@ -68,6 +68,7 @@ async function sweepOrphanedSandboxes(args: { cwd: string }): Promise<void> {
 
 async function startSession(args: {
   config: AtlasConfig
+  command: string
   env: Record<string, string | undefined>
   progress: BootProgress
   settings: SettingsBinding
@@ -83,7 +84,12 @@ async function startSession(args: {
   void sweepOrphanedSandboxes({ cwd: config.cwd }).catch(() => undefined)
 
   progress.report(EBootStep.Composing)
-  const app = await composeAtlas({ config, env: args.env, settings: args.settings })
+  const app = await composeAtlas({
+    config,
+    command: args.command,
+    env: args.env,
+    settings: args.settings,
+  })
 
   progress.report(EBootStep.Authorising)
   const refused = await credentialRefusal(app)
@@ -120,6 +126,7 @@ async function startSession(args: {
 
 export function openSession(args: {
   config: AtlasConfig
+  command: string
   env: Record<string, string | undefined>
   progress: BootProgress
   settings: SettingsBinding

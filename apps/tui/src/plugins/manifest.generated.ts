@@ -2,10 +2,12 @@
 
 import type { DependencyContainer } from '@dltech/atlas-harness'
 
+import { registerPlugin as registerForeignCheckout } from './foreign-checkout'
 import { registerPlugin as registerGithub } from './github'
 
-export const NATIVE_PLUGIN_IDS: readonly string[] = ['github']
+export const NATIVE_PLUGIN_IDS: readonly string[] = ['foreign-checkout', 'github']
 
 export function registerNativePlugins({ container }: { container: DependencyContainer }): void {
+  registerForeignCheckout({ container })
   registerGithub({ container })
 }

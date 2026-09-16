@@ -24,6 +24,7 @@ export function activeWorktreeOf(events: readonly Event[]): ActiveWorktree | und
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const event = events[index]
     if (event?.type === 'worktree-exited') return undefined
+    if (event?.type === 'directory-changed') return undefined
     if (event?.type === 'worktree-entered') return activeFrom(event)
   }
 
@@ -37,6 +38,7 @@ export function activeWorktreeAfter(args: {
   for (let index = args.drafts.length - 1; index >= 0; index -= 1) {
     const draft = args.drafts[index]
     if (draft?.type === 'worktree-exited') return undefined
+    if (draft?.type === 'directory-changed') return undefined
     if (draft?.type === 'worktree-entered') return activeFrom(draft)
   }
 
@@ -50,6 +52,7 @@ export function homeDirectoryOf(args: {
   let home = args.launchDirectory
   for (const event of args.events) {
     if (event.type === 'worktree-exited' && event.returnTo !== undefined) home = event.returnTo
+    if (event.type === 'directory-changed') home = event.path
   }
   return home
 }
@@ -61,6 +64,7 @@ export function homeDirectoryAfter(args: {
   let home = args.home
   for (const draft of args.drafts) {
     if (draft.type === 'worktree-exited' && draft.returnTo !== undefined) home = draft.returnTo
+    if (draft.type === 'directory-changed') home = draft.path
   }
   return home
 }

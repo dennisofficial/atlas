@@ -143,7 +143,7 @@ function gatheredByName(args: { call: ToolCall; cwd: string }): Classification |
     const picture = imageRead(args)
     if (picture !== null) return picture
 
-    const path = relativise(target, args.cwd)
+    const path = relativise(str(output.path) ?? target, args.cwd)
     const lines = num(output.lines) ?? lineCount(call.modelText)
     return {
       klass: EToolClass.Gathered,
@@ -259,7 +259,9 @@ export function classify(args: { call: ToolCall; cwd: string }): Classification 
   const remembered = memoryCall(args)
   if (remembered !== null) return remembered
 
-  if (call.name === 'edit' || call.name === 'write') return changed(args)
+  if (call.name === 'edit' || call.name === 'multi_edit' || call.name === 'write') {
+    return changed(args)
+  }
 
   if (call.name === 'bash') {
     const output = outputOf(call)

@@ -87,6 +87,10 @@ type EventBody =
   lives in `core/shells` for this reason: `core` owns the value unions its event bodies store.
   The delta is read when the draft is **handed over**, not when the process exits, so an ending that
   is dropped rather than delivered leaves its output where `shell_output` can still find it.
+  A kill the model asked for never becomes this event: `shell_kill` claims the ending, waits for
+  the process to die, and carries the output in its own tool result, so nothing announces beside
+  it. The claim is handed back when the process outlives the settle deadline, so an ending nobody
+  collected announces itself as usual.
 - **The two agent bodies are the whole of what a parent records about a child, and both live on the
   parent's log.** That is the rule a delegate's work is counted, never quoted, expressed as a schema:
   a child's own rows carry the child's `threadId` and never reach the parent, so the parent holds one
@@ -236,12 +240,20 @@ a gap it cannot see.
 ```ts
 type SystemBlock = { text: string; providerOptions?: ProviderOptions }
 type AssembledMessage = { message: ModelMessage; origin: EventRef }
-type Assembled = { system: SystemBlock[]; messages: AssembledMessage[] }
+type Assembled = {
+  system: SystemBlock[]
+  messages: AssembledMessage[]
+  requestOptions?: ProviderOptions
+}
 ```
 
 - **`system` is blocks, not strings.** Plain strings cannot carry a cache breakpoint, and
   `@ai-sdk/anthropic` reads `cacheControl` off `SystemModelMessage.providerOptions`. Note ai@7
   forbids system messages in `messages` entirely — they go in `instructions`.
+- **`requestOptions` is the top-level counterpart of per-block `providerOptions`.** Some caching
+  knobs are request-scoped, not block-scoped — OpenAI's `prompt_cache_key`, which the
+  `requestCacheKey` annotator pins to the thread id. The annotator writes it, `toProviderPrompt`
+  carries it, and `runModelStream` hands it to `streamText` as `providerOptions`.
 - **`AssembledMessage.origin` carries provenance out-of-band.** `ModelMessage` has nowhere to hold
   it, and smuggling it through `providerOptions` forced a cleanup rule without which internal ids
   ship to the provider on every turn. The wrapper also removes ~30 lines of union re-narrowing —
@@ -269,8 +281,9 @@ type AssemblyPipeline = { rules: readonly Rule[]; annotators: readonly Annotator
 
 **Rules and annotators travel as one `AssemblyPipeline`.** They are not independently chosen: an
 annotator reads the shape the rules produced, so a caller holding one without the other is holding
-half a decision. As two loose fields the two composition roots — `buildHarness` and the TUI's
-`compose.ts` — each had to remember both, and adding the first annotator meant editing both roots.
+half a decision. As two loose fields the two composition roots — `buildHarness` and the shared
+`composeHarness` in `harness/src/composition` (which the TUI's `compose.ts` wraps) — each had to
+remember both, and adding the first annotator meant editing both roots.
 `defaultPipeline(workspace)` is the one thing either root asks for.
 
 **Rules are pure and synchronous.** Not for testability — because re-running a cheap pure pipeline is
@@ -357,7 +370,7 @@ type BeforeTurn    = (args: { threadId: string }) => Promise<HookOutcome>
 type BeforeStep    = (args: { assembled: Assembled; trace: AssemblyTrace }) => Promise<Assembled>  // persists
 type BeforeRequest = (p: ProviderPrompt) => Promise<ProviderPrompt>          // transient, per-provider
 type BeforeTool    = (args: { call: ToolCall }) => Promise<BeforeToolOutcome>
-type AfterTool     = (args: { call: ToolCall; result: ToolOutcome; signal: AbortSignal }) => Promise<HookOutcome>
+type AfterTool     = (args: { call: ToolCall; result: ToolOutcome; projectDirectory: string; signal: AbortSignal }) => Promise<HookOutcome>
 type AfterShell    = (args: { threadId: string; shell: EndedShell }) => Promise<HookOutcome>  // fired by the shell registry
 type OnChunk       = (c: Chunk) => Promise<Chunk | null>
 type AfterTurn     = (args: { threadId: string }) => Promise<HookOutcome>
@@ -484,6 +497,10 @@ longer match disk, or — for a whole-file replace only — one where the model 
 does not exist is allowed: creating a file destroys nothing, and refusing it would make `write` to a new
 path and `edit` with an empty `oldString` impossible. `RecordFileStateHook` (`EStage.Observe`) fills
 the notebook after a successful call and is the **first registration of `AfterToolHook`** in the repo.
+Injection counts as seeing: the hooks that load instruction files and memory indexes into context
+record the same views through `recordLoadedFiles`, so a write to an injected `CLAUDE.md` needs no
+redundant `read` — while a bounded memory index records `wholeFile: false`, keeping a whole-file
+replace of a partially shown file refused.
 
 **Which tools this applies to is declared, never inferred.** `DeclaredPathField.content` is an
 `EContentAccess` of `None | Reads | Amends | Overwrites`. `EToolEffect` cannot answer it: it

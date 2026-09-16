@@ -13,7 +13,7 @@ import {
   ECompactScope,
   summariseAt,
   type Compaction,
-} from './compact-turn'
+} from '@dltech/atlas-harness'
 import type { AtlasApp } from './compose'
 
 const COMPACTION_CRASHED = 'compacting the history did not finish, so nothing was changed'
@@ -80,13 +80,14 @@ export function useCompaction(args: {
         compactTurn({
           log: app.log,
           threads: app.threads,
+          agents: app.agents,
           threadId,
           scope,
           summarise: app.summarise,
           signal,
         }),
       ),
-    [app.log, app.summarise, app.threads, run, threadId],
+    [app.agents, app.log, app.summarise, app.threads, run, threadId],
   )
 
   const compactAround = useCallback(
@@ -95,6 +96,7 @@ export function useCompaction(args: {
         summariseAt({
           log: app.log,
           threads: app.threads,
+          agents: app.agents,
           threadId,
           anchor: around.anchor,
           seq: around.seq,
@@ -102,7 +104,7 @@ export function useCompaction(args: {
           signal,
         }),
       ),
-    [app.log, app.summarise, app.threads, run, threadId],
+    [app.agents, app.log, app.summarise, app.threads, run, threadId],
   )
 
   const compactIfFull = useCallback(
@@ -115,13 +117,14 @@ export function useCompaction(args: {
         compactTurn({
           log: app.log,
           threads: app.threads,
+          agents: app.agents,
           threadId,
           summarise: app.summarise,
           signal,
         }),
       )
     },
-    [app.log, app.model, app.models, app.summarise, app.threads, atPercent, run, threadId],
+    [app.agents, app.log, app.model, app.models, app.summarise, app.threads, atPercent, run, threadId],
   )
 
   /**

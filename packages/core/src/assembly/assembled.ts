@@ -9,4 +9,5 @@ export type AssembledMessage = { message: Message; origin: EventRef }
 export type Assembled = {
   system: readonly SystemBlock[]
   messages: readonly AssembledMessage[]
+  requestOptions?: ProviderOptions | undefined
 }

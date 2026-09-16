@@ -1,15 +1,25 @@
+import { join } from 'node:path'
+
 import { EMountMode, type Mount } from '../image/mounts'
 import { CONTAINER_GNUPG_HOME, type SandboxConfig } from './sandbox'
-import type { ContainerMount } from './engine'
+import type { ContainerDetails, ContainerMount } from './engine'
 
-export class SandboxMountsChanged extends Error {
-  constructor(args: { name: string }) {
-    super(
-      `the declared mounts changed since ${args.name} was created, and Docker cannot add a bind to an existing container — this worktree needs a new container: remove ${args.name} and start again`,
-    )
-    this.name = 'SandboxMountsChanged'
-  }
-}
+export const envDrift = (args: {
+  declared: Record<string, string>
+  actual: readonly string[]
+}): boolean =>
+  Object.entries(args.declared).some(
+    ([key, value]) => !args.actual.includes(`${key}=${value}`),
+  )
+
+export const declaredMountsLabel = (prefix: string): string => `${prefix}.mounts`
+
+export const encodeDeclaredMounts = (mounts: readonly Mount[]): string =>
+  JSON.stringify(
+    [...mounts]
+      .map((mount) => ({ path: mount.path, readOnly: mount.mode === EMountMode.ReadOnly }))
+      .sort((left, right) => left.path.localeCompare(right.path)),
+  )
 
 export const systemMountDestinations = (config: SandboxConfig): ReadonlySet<string> =>
   new Set(
@@ -17,13 +27,51 @@ export const systemMountDestinations = (config: SandboxConfig): ReadonlySet<stri
       config.worktree,
       config.dockerSocket,
       config.sshAuthSock,
-      config.gitconfigPath,
-      config.gpgAgentExtraSocket === undefined
-        ? undefined
-        : `${CONTAINER_GNUPG_HOME}/S.gpg-agent`,
-      ...(config.atlasHomeSubtrees ?? []),
+      join(config.home, '.ssh', 'known_hosts'),
+      join(config.home, '.gitconfig'),
+      `${CONTAINER_GNUPG_HOME}/S.gpg-agent`,
+      `${CONTAINER_GNUPG_HOME}/pubring.kbx`,
+      ...(config.atlasHomeSubtrees ?? []).map((subtree) => subtree.path),
     ].filter((path): path is string => path !== undefined),
   )
+
+const wantedIdentityMounts = (config: SandboxConfig): ContainerMount[] => {
+  const wanted: ContainerMount[] = []
+  if (config.sshKnownHostsPath !== undefined) {
+    wanted.push({
+      source: config.sshKnownHostsPath,
+      destination: config.sshKnownHostsPath,
+      readOnly: true,
+    })
+  }
+  if (config.gpgAgentExtraSocket !== undefined && config.gpgPubringPath !== undefined) {
+    wanted.push({
+      source: config.gpgPubringPath,
+      destination: `${CONTAINER_GNUPG_HOME}/pubring.kbx`,
+      readOnly: true,
+    })
+  }
+  return wanted
+}
+
+export const missingIdentityMounts = (args: {
+  config: SandboxConfig
+  actual: readonly ContainerMount[]
+}): string[] =>
+  wantedIdentityMounts(args.config)
+    .filter(
+      (wanted) =>
+        !args.actual.some(
+          (mount) =>
+            mount.source === wanted.source &&
+            mount.destination === wanted.destination &&
+            mount.readOnly,
+        ),
+    )
+    .map(
+      (missing) =>
+        `${missing.source} appeared after this container was created, so the sandbox cannot see it yet — the sandbox picks it up on its next recreate`,
+    )
 
 export const mountsDrift = (args: {
   requested: readonly Mount[]
@@ -36,12 +84,44 @@ export const mountsDrift = (args: {
   const present = new Map(
     args.actual
       .filter((mount) => !args.system.has(mount.destination))
-      .map((mount) => [mount.destination, mount.readOnly]),
+      .map((mount) => [mount.destination, mount]),
   )
 
   if (wanted.size !== present.size) return true
   for (const [path, readOnly] of wanted) {
-    if (present.get(path) !== readOnly) return true
+    const mount = present.get(path)
+    if (mount?.source !== path || mount.readOnly !== readOnly) return true
   }
   return false
+}
+
+export const atlasHomeSubtreesMissing = (args: {
+  config: SandboxConfig
+  actual: readonly ContainerMount[]
+}): boolean =>
+  (args.config.atlasHomeSubtrees ?? []).some(
+    (wanted) =>
+      !args.actual.some(
+        (mount) =>
+          mount.destination === wanted.path &&
+          mount.readOnly === (wanted.mode === EMountMode.ReadOnly),
+      ),
+  )
+
+export function declaredMountsDrift(args: {
+  config: SandboxConfig
+  details: ContainerDetails
+  prefix: string
+}): boolean {
+  if (atlasHomeSubtreesMissing({ config: args.config, actual: args.details.mounts })) return true
+
+  const recorded = args.details.config.labels[declaredMountsLabel(args.prefix)]
+  const declared = args.config.mounts ?? []
+  if (recorded !== undefined) return recorded !== encodeDeclaredMounts(declared)
+
+  return mountsDrift({
+    requested: declared,
+    actual: args.details.mounts,
+    system: systemMountDestinations(args.config),
+  })
 }

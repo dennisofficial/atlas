@@ -1,7 +1,16 @@
-import { DynamicToolSource, FileSystemPort, ProcessPort, ToolDefinition } from '@dltech/atlas-core'
+import {
+  AgentFileSystemPort,
+  DynamicToolSource,
+  FileSystemPort,
+  ProcessPort,
+  ToolDefinition,
+} from '@dltech/atlas-core'
 
 import { portToken, resolveSet, type DependencyContainer } from '../container/injection'
 import {
+  ClientVersionToken,
+  CloudRequiredToken,
+  CloudSessionStoreToken,
   SecretsStoreToken,
   WebSearchBackendToken,
   WorktreeDirectoryToken,
@@ -25,6 +34,7 @@ import { ExitWorktreeTool } from './builtin/exit-worktree'
 import { GlobTool } from './builtin/glob'
 import { GrepTool } from './builtin/grep'
 import { McpEditTool } from './builtin/mcp-edit'
+import { MultiEditTool } from './builtin/multi-edit'
 import { ReadTool } from './builtin/read'
 import { ServiceListTool } from './builtin/service-list'
 import { ServiceStartTool } from './builtin/service-start'
@@ -49,20 +59,27 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
     resolver.resolve(AgentRegistrySourceToken)
 
   container.register(portToken(ToolDefinition), {
-    useFactory: (resolver) => new ReadTool(resolver.resolve(portToken(FileSystemPort))),
+    useFactory: (resolver) => new ReadTool(resolver.resolve(portToken(AgentFileSystemPort))),
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) =>
       new WriteTool(
         resolver.resolve(portToken(FileWriteGuardPort)),
-        resolver.resolve(portToken(FileSystemPort)),
+        resolver.resolve(portToken(AgentFileSystemPort)),
       ),
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) =>
       new EditTool(
         resolver.resolve(portToken(FileWriteGuardPort)),
-        resolver.resolve(portToken(FileSystemPort)),
+        resolver.resolve(portToken(AgentFileSystemPort)),
+      ),
+  })
+  container.register(portToken(ToolDefinition), {
+    useFactory: (resolver) =>
+      new MultiEditTool(
+        resolver.resolve(portToken(FileWriteGuardPort)),
+        resolver.resolve(portToken(AgentFileSystemPort)),
       ),
   })
   container.register(portToken(ToolDefinition), {
@@ -74,10 +91,14 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
       ),
   })
   container.register(portToken(ToolDefinition), {
-    useFactory: (resolver) => new GrepTool(resolver.resolve(portToken(ProcessPort))),
+    useFactory: (resolver) =>
+      new GrepTool(
+        resolver.resolve(portToken(ProcessPort)),
+        resolver.resolve(portToken(AgentFileSystemPort)),
+      ),
   })
   container.register(portToken(ToolDefinition), {
-    useFactory: (resolver) => new GlobTool(resolver.resolve(portToken(FileSystemPort))),
+    useFactory: (resolver) => new GlobTool(resolver.resolve(portToken(AgentFileSystemPort))),
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) => new ShellListTool(shellRegistry(resolver)),
@@ -102,7 +123,19 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
     useFactory: (resolver) => new SkillTool(resolver.resolve(portToken(SkillRegistryPort))),
   })
   container.register(portToken(ToolDefinition), { useClass: SkillInstallTool })
-  container.register(portToken(ToolDefinition), { useClass: McpEditTool })
+  container.register(portToken(ToolDefinition), {
+    useFactory: (resolver) =>
+      new McpEditTool({
+        sessions: resolver.resolve(CloudSessionStoreToken),
+        cloudRequired: () =>
+          resolver.isRegistered(CloudRequiredToken, true)
+            ? resolver.resolve(CloudRequiredToken)()
+            : false,
+        clientVersion: resolver.isRegistered(ClientVersionToken, true)
+          ? resolver.resolve(ClientVersionToken)
+          : 'dev',
+      }),
+  })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) =>
       new AgentSpawnTool(

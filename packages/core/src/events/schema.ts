@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import { EAgentStart } from '../agents/start'
 import { EAgentStatus } from '../agents/status'
+import { EExecutionLocation } from '../execution/location'
 import { ERiskDimension } from '../policy/classifier/dimension'
 import { EGrantScope } from '../policy/classifier/grant'
 import { EClassifierMode, ETriage } from '../policy/classifier/triage'
@@ -140,6 +141,15 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     path: z.string().min(1),
     action: z.enum(EWorktreeExit),
     returnTo: z.string().min(1).optional(),
+  }),
+  z.object({
+    type: z.literal('location-changed'),
+    from: z.enum(EExecutionLocation),
+    to: z.enum(EExecutionLocation),
+  }),
+  z.object({
+    type: z.literal('directory-changed'),
+    path: z.string().min(1),
   }),
   z.object({
     type: z.literal('pull-request-linked'),

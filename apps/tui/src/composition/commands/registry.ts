@@ -1,6 +1,6 @@
 import { ECommandGroup, ECommandKind, EExecutionLocation } from '@dltech/atlas-core'
 
-import { ECompactScope, scopeOfArgument } from '../compact-turn'
+import { ECompactScope, scopeOfArgument } from '@dltech/atlas-harness'
 import { ERenamed } from '../session-rename'
 import type { Renaming } from '../session-rename'
 import { reloadNotice, type SkillsReloaded } from '../skills-reload'
@@ -62,6 +62,7 @@ const unknownContainerArgument = (argumentText: string): string =>
   `/container takes no argument to say where this conversation runs, or "off" | "docker" to move it — not ${argumentText.trim()}`
 
 export type LocalCommandHandlers = {
+  onChangeDirectory: (argumentText: string) => Promise<CommandEffect>
   onContainer: (asked: EExecutionLocation | EContainerAsk) => string
   onCompact: (scope: ECompactScope) => void
   onRewind: () => void
@@ -106,6 +107,15 @@ const immediate = (args: {
 
 export function localCommands(handlers: LocalCommandHandlers): readonly LocalCommand[] {
   return [
+    local({
+      name: 'cd',
+      summary: 'move this session to another directory',
+      argumentHint: '[directory]',
+      group: ECommandGroup.Workspace,
+      timing: ECommandTiming.Settled,
+      echo: ECommandEcho.Output,
+      run: ({ argumentText }) => handlers.onChangeDirectory(argumentText),
+    }),
     local({
       name: 'container',
       summary: 'move this conversation between the host and a docker container',
@@ -191,7 +201,7 @@ export function localCommands(handlers: LocalCommandHandlers): readonly LocalCom
     }),
     local({
       name: 'rewind',
-      summary: 'go back to an earlier message, or summarise around it',
+      summary: 'go back to an earlier message, summarise around it, or fork the conversation from it',
       group: ECommandGroup.Context,
       timing: ECommandTiming.Settled,
       echo: ECommandEcho.Silent,
@@ -207,6 +217,7 @@ export function localCommands(handlers: LocalCommandHandlers): readonly LocalCom
       group: ECommandGroup.Session,
       timing: ECommandTiming.Settled,
       echo: ECommandEcho.Silent,
+      dropsQueue: true,
       run: ({ argumentText }) => {
         handlers.onOpenThreads(argumentText.trim())
         return RAN
@@ -245,6 +256,7 @@ export function localCommands(handlers: LocalCommandHandlers): readonly LocalCom
       group: ECommandGroup.Session,
       timing: ECommandTiming.Settled,
       echo: ECommandEcho.Silent,
+      dropsQueue: true,
       run: () => {
         handlers.onNewConversation()
         return RAN
@@ -259,6 +271,8 @@ export function localCommands(handlers: LocalCommandHandlers): readonly LocalCom
             group: ECommandGroup.Session,
             timing: ECommandTiming.Settled,
             echo: ECommandEcho.Silent,
+            dropsQueue: true,
+            losesWaiting: true,
             run: () => {
               handlers.onRestart?.()
               return RAN

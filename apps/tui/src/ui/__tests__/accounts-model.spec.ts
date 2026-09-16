@@ -11,23 +11,29 @@ import {
 } from '@dltech/atlas-core'
 
 import {
-  accountDetail,
-  accountRows,
-  EAccountRow,
-  rowDetail,
-  rowLabel,
-  rowProvider,
-  askForApiKey,
-  askForCode,
-  askForDeviceCode,
   acceptsDeviceCode,
   acceptsPastedCode,
+  accountDetail,
+  maskedKey,
+  rowDetail,
+  rowLabel,
+} from '../accounts-labels'
+import {
+  accountOf,
+  accountRows,
+  EAccountRow,
+  rowProvider,
+  askForApiKey,
+  askForCloudCode,
+  askForCode,
+  askForDeviceCode,
+  askForGithubCode,
+  announced,
   backspace,
   backToList,
   EAccountsView,
   failed,
   isPrompting,
-  maskedKey,
   moveSelection,
   openAccounts,
   selectedRow,
@@ -57,6 +63,7 @@ const rowsOf = (accounts: readonly Account[], activeId?: string) =>
   accountRows({
     accounts,
     active: activeId === undefined ? {} : { [EAuthProvider.Anthropic]: toAccountId(activeId) },
+    cloud: null,
   })
 
 /**
@@ -86,6 +93,7 @@ describe('accountRows', () => {
         account({ id: 'first', createdAt: '2026-01-01T00:00:00.000Z' }),
       ],
       active: {},
+      cloud: null,
     })
 
     expect(rows.filter((row) => row.kind === EAccountRow.Account).map(rowLabel)).toEqual([
@@ -101,20 +109,20 @@ describe('a provider with no account yet', () => {
     rows.flatMap((row) => (row.kind === EAccountRow.SignedOut ? [row.provider] : []))
 
   it('offers a row for every reachable provider nothing is signed into', () => {
-    const rows = accountRows({ accounts: [], active: {} })
+    const rows = accountRows({ accounts: [], active: {}, cloud: null })
 
     expect([...signedOut(rows)].sort()).toEqual([...reachable()].sort())
   })
 
   it('drops the placeholder once that provider has an account', () => {
-    const rows = accountRows({ accounts: [account({ id: 'work' })], active: {} })
+    const rows = accountRows({ accounts: [account({ id: 'work' })], active: {}, cloud: null })
 
     expect(signedOut(rows)).not.toContain(EAuthProvider.Anthropic)
     expect(signedOut(rows).length).toBe(reachable().length - 1)
   })
 
   it('never offers a provider with no adapter behind it', () => {
-    const rows = accountRows({ accounts: [], active: {} })
+    const rows = accountRows({ accounts: [], active: {}, cloud: null })
 
     for (const provider of signedOut(rows)) expect(reachable()).toContain(provider)
   })
@@ -123,7 +131,8 @@ describe('a provider with no account yet', () => {
     const rows = accountRows({
       accounts: [account({ id: 'inference', provider: EAuthProvider.Inference })],
       active: {},
-    })
+      cloud: null,
+    }).filter((row) => row.kind !== EAccountRow.Cloud)
 
     expect(rows.map(rowProvider).at(-1)).toBe(EAuthProvider.Inference)
     expect(rows.at(-1)?.kind).toBe(EAccountRow.Account)
@@ -131,7 +140,9 @@ describe('a provider with no account yet', () => {
   })
 
   it('names the provider and says how to sign in, without crying wolf', () => {
-    const [row] = accountRows({ accounts: [], active: {} })
+    const row = accountRows({ accounts: [], active: {}, cloud: null }).find(
+      (candidate) => rowProvider(candidate) === EAuthProvider.Anthropic,
+    )
     if (row === undefined) throw new Error('expected a row')
 
     expect(rowLabel(row)).toBe('Anthropic')
@@ -140,7 +151,7 @@ describe('a provider with no account yet', () => {
   })
 
   it('offers only the flows that provider actually accepts', () => {
-    const rows = accountRows({ accounts: [], active: {} })
+    const rows = accountRows({ accounts: [], active: {}, cloud: null })
     const openrouter = rows.find((row) => rowProvider(row) === EAuthProvider.OpenRouter)
     const anthropic = rows.find((row) => rowProvider(row) === EAuthProvider.Anthropic)
     if (openrouter === undefined || anthropic === undefined) throw new Error('expected both')
@@ -152,7 +163,7 @@ describe('a provider with no account yet', () => {
   })
 
   it('is never the active row, because nothing is answering for it', () => {
-    const rows = accountRows({ accounts: [], active: {} })
+    const rows = accountRows({ accounts: [], active: {}, cloud: null })
 
     expect(rows.every((row) => !row.active)).toBe(true)
   })
@@ -161,8 +172,10 @@ describe('a provider with no account yet', () => {
 describe('openAccounts', () => {
   it('starts on the account that answers today', () => {
     const state = openAccounts({ rows: rowsOf([account({ id: 'a' }), account({ id: 'b' })], 'b') })
+    const picked = selectedRow(state)
+    if (picked === undefined) throw new Error('expected a row')
 
-    expect(state.index).toBe(1)
+    expect(rowLabel(picked)).toBe('b')
     expect(state.view).toBe(EAccountsView.List)
     expect(isPrompting(state)).toBe(false)
   })
@@ -270,6 +283,227 @@ describe('the device-code prompt', () => {
     expect(acceptsPastedCode(EAuthProvider.OpenAI)).toBe(false)
     expect(acceptsPastedCode(EAuthProvider.Anthropic)).toBe(true)
     expect(acceptsDeviceCode(EAuthProvider.Anthropic)).toBe(false)
+  })
+})
+
+describe('the Atlas Cloud row', () => {
+  const cloudRowOf = (rows: readonly ReturnType<typeof accountRows>[number][]) =>
+    rows.find((row) => row.kind === EAccountRow.Cloud)
+
+  it('leads the list while there is no session, because it is how sign-in starts', () => {
+    const rows = accountRows({ accounts: [account({ id: 'work' })], active: {}, cloud: null })
+
+    expect(rows[0]?.kind).toBe(EAccountRow.Cloud)
+    expect(rows[1]?.kind).toBe(EAccountRow.Account)
+  })
+
+  it('offers sign-in and nothing else', () => {
+    const row = cloudRowOf(accountRows({ accounts: [], active: {}, cloud: null }))
+    if (row === undefined) throw new Error('expected the cloud row')
+
+    expect(rowLabel(row)).toBe('Atlas Cloud')
+    expect(rowDetail(row)).toBe('not signed in · sign in')
+    expect(row.active).toBe(false)
+  })
+
+  it('steps out of the list once a session exists, because identity lives in settings', () => {
+    const rows = accountRows({ accounts: [], active: {}, cloud: { email: 'dennis@example.com' } })
+
+    expect(cloudRowOf(rows)).toBeUndefined()
+  })
+
+  it('answers for no provider, so n and k leave it alone', () => {
+    const row = cloudRowOf(accountRows({ accounts: [], active: {}, cloud: null }))
+    if (row === undefined) throw new Error('expected the cloud row')
+
+    expect(rowProvider(row)).toBeUndefined()
+    expect(accountOf(row)).toBeUndefined()
+  })
+})
+
+describe('the cloud sign-in prompt', () => {
+  const TICKET_PROMPT = { url: 'http://localhost:3400/device', userCode: 'WXYZ-1234' }
+
+  it('opens on the cloud device view without a provider behind the prompt', () => {
+    const asked = askForCloudCode({ state: openAccounts({ rows: [] }) })
+
+    expect(asked.view).toBe(EAccountsView.CloudDevice)
+    expect(asked.cloudPrompt).toBeNull()
+    expect(asked.prompt).toBeNull()
+    expect(isPrompting(asked)).toBe(true)
+    expect(asked.busy).toBe(false)
+  })
+
+  it('shows the code and the URL once the ticket arrives', () => {
+    const asked = askForCloudCode({ state: openAccounts({ rows: [] }), prompt: TICKET_PROMPT })
+
+    expect(asked.cloudPrompt?.userCode).toBe('WXYZ-1234')
+    expect(asked.cloudPrompt?.url).toBe('http://localhost:3400/device')
+  })
+
+  it('fails in place when the ticket expires', () => {
+    const asked = askForCloudCode({ state: openAccounts({ rows: [] }), prompt: TICKET_PROMPT })
+    const expired = failed({ state: asked, reason: 'that code expired.' })
+
+    expect(expired.failure).toBe('that code expired.')
+    expect(expired.view).toBe(EAccountsView.CloudDevice)
+    expect(expired.busy).toBe(false)
+  })
+
+  it('returns to the list with a notice when sign-in completes', () => {
+    const asked = askForCloudCode({ state: openAccounts({ rows: [] }), prompt: TICKET_PROMPT })
+    const done = announced({
+      state: backToList(asked),
+      notice: 'Signed in to Atlas Cloud as dennis@example.com.',
+    })
+
+    expect(done.view).toBe(EAccountsView.List)
+    expect(done.cloudPrompt).toBeNull()
+    expect(done.notice).toBe('Signed in to Atlas Cloud as dennis@example.com.')
+  })
+
+  it('leaves nothing behind when it is cancelled', () => {
+    const asked = askForCloudCode({ state: openAccounts({ rows: [] }), prompt: TICKET_PROMPT })
+    const cancelled = backToList(asked)
+
+    expect(cancelled.view).toBe(EAccountsView.List)
+    expect(cancelled.cloudPrompt).toBeNull()
+    expect(cancelled.typed).toBe('')
+  })
+})
+
+describe('the GitHub row', () => {
+  const githubRowOf = (rows: readonly ReturnType<typeof accountRows>[number][]) =>
+    rows.find((row) => row.kind === EAccountRow.Github)
+
+  it('stays out of the list when there is no cloud session to hold the connection', () => {
+    const rows = accountRows({ accounts: [], active: {}, cloud: null })
+
+    expect(githubRowOf(rows)).toBeUndefined()
+  })
+
+  it('leads the list once a session exists, with the cloud row gone to settings', () => {
+    const rows = accountRows({
+      accounts: [account({ id: 'work' })],
+      active: {},
+      cloud: { email: 'dennis@example.com' },
+      github: { connection: null, unreachable: false },
+    })
+
+    expect(rows[0]?.kind).toBe(EAccountRow.Github)
+    expect(rows[1]?.kind).toBe(EAccountRow.Account)
+  })
+
+  it('invites the connection when there is none', () => {
+    const row = githubRowOf(
+      accountRows({
+        accounts: [],
+        active: {},
+        cloud: { email: null },
+        github: { connection: null, unreachable: false },
+      }),
+    )
+    if (row === undefined) throw new Error('expected the github row')
+
+    expect(rowLabel(row)).toBe('GitHub')
+    expect(rowDetail(row)).toBe('not connected · enter to connect')
+    expect(row.active).toBe(false)
+  })
+
+  it('names the login and how to disconnect once connected', () => {
+    const row = githubRowOf(
+      accountRows({
+        accounts: [],
+        active: {},
+        cloud: { email: null },
+        github: { connection: { login: 'octocat' }, unreachable: false },
+      }),
+    )
+    if (row === undefined) throw new Error('expected the github row')
+
+    expect(rowLabel(row)).toBe('GitHub')
+    expect(rowDetail(row)).toBe('@octocat · press x to disconnect')
+  })
+
+  it('says so when Atlas Cloud could not be reached for the connection', () => {
+    const row = githubRowOf(
+      accountRows({
+        accounts: [],
+        active: {},
+        cloud: { email: null },
+        github: { connection: null, unreachable: true },
+      }),
+    )
+    if (row === undefined) throw new Error('expected the github row')
+
+    expect(rowDetail(row)).toBe("couldn't reach Atlas Cloud")
+  })
+
+  it('answers for no provider, so n and k leave it alone', () => {
+    const row = githubRowOf(
+      accountRows({
+        accounts: [],
+        active: {},
+        cloud: { email: null },
+        github: { connection: { login: 'octocat' }, unreachable: false },
+      }),
+    )
+    if (row === undefined) throw new Error('expected the github row')
+
+    expect(rowProvider(row)).toBeUndefined()
+    expect(accountOf(row)).toBeUndefined()
+  })
+})
+
+describe('the GitHub connect prompt', () => {
+  const TICKET_PROMPT = { url: 'https://github.com/login/device', userCode: 'F00D-CAFE' }
+
+  it('opens on the github device view without a code behind the prompt yet', () => {
+    const asked = askForGithubCode({ state: openAccounts({ rows: [] }) })
+
+    expect(asked.view).toBe(EAccountsView.GithubDevice)
+    expect(asked.githubPrompt).toBeNull()
+    expect(asked.cloudPrompt).toBeNull()
+    expect(asked.prompt).toBeNull()
+    expect(isPrompting(asked)).toBe(true)
+    expect(asked.busy).toBe(false)
+  })
+
+  it('shows the code and the URL once the ticket arrives', () => {
+    const asked = askForGithubCode({ state: openAccounts({ rows: [] }), prompt: TICKET_PROMPT })
+
+    expect(asked.githubPrompt?.userCode).toBe('F00D-CAFE')
+    expect(asked.githubPrompt?.url).toBe('https://github.com/login/device')
+  })
+
+  it('fails in place when the code expires', () => {
+    const asked = askForGithubCode({ state: openAccounts({ rows: [] }), prompt: TICKET_PROMPT })
+    const expired = failed({ state: asked, reason: 'that code expired.' })
+
+    expect(expired.failure).toBe('that code expired.')
+    expect(expired.view).toBe(EAccountsView.GithubDevice)
+    expect(expired.busy).toBe(false)
+  })
+
+  it('returns to the list with a notice when the connection lands', () => {
+    const asked = askForGithubCode({ state: openAccounts({ rows: [] }), prompt: TICKET_PROMPT })
+    const done = announced({
+      state: backToList(asked),
+      notice: 'Connected GitHub as @octocat.',
+    })
+
+    expect(done.view).toBe(EAccountsView.List)
+    expect(done.githubPrompt).toBeNull()
+    expect(done.notice).toBe('Connected GitHub as @octocat.')
+  })
+
+  it('leaves nothing behind when it is cancelled', () => {
+    const asked = askForGithubCode({ state: openAccounts({ rows: [] }), prompt: TICKET_PROMPT })
+    const cancelled = backToList(asked)
+
+    expect(cancelled.view).toBe(EAccountsView.List)
+    expect(cancelled.githubPrompt).toBeNull()
+    expect(cancelled.typed).toBe('')
   })
 })
 

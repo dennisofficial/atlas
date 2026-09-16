@@ -133,6 +133,7 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
         'setsid, a detached subprocess or a sentinel file - only shell_kill and the end of the session stop it.',
         'Its ending will be delivered to you with everything it printed, whether or not a turn is running then,',
         'and so will a prompt it stops on, since its stdin is closed and no ending would ever follow.',
+        'The one ending that never lands that way is a kill you asked for: shell_kill waits for the death, and its result carries everything the shell printed.',
         ...watchClause({ watch: args.watch }),
         ...ceilingClause({ timeoutMs: args.timeoutMs }),
         ...checkInClause({ checkInMs }),
@@ -149,6 +150,7 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
     signal,
     projectDirectory,
     threadId,
+    onOutput,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     if (signal.aborted) return { ok: false, reason: 'the developer interrupted the turn before the command started' }
 
@@ -228,7 +230,11 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
 
     let read: ShellOutput
     try {
-      read = await readShell({ shell, limit: MAXIMUM_OUTPUT_CHARACTERS })
+      read = await readShell({
+        shell,
+        limit: MAXIMUM_OUTPUT_CHARACTERS,
+        ...(onOutput === undefined ? {} : { onOutput }),
+      })
     } catch (error) {
       return { ok: false, reason: `the command could not be read back: ${messageOf(error)}` }
     } finally {

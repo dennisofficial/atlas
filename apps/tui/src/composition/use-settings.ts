@@ -5,6 +5,7 @@ import {
   DEFAULT_WARN_PERCENT,
   ESettingId,
   ESettingKind,
+  ESettingPage,
   EUsageWindow,
   formatFavourites,
   parseFavourites,
@@ -14,6 +15,7 @@ import {
   type ResolvedSetting,
   type SecretPrompt,
   type SettingValue,
+  type SettingsResolution,
 } from '@dltech/atlas-core'
 import type { KeyEvent } from '@opentui/core'
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
@@ -30,6 +32,7 @@ const AUTO_COMPACT_AT_PERCENT = 90
 
 const NOTICE_SECONDS = 2
 import {
+  currentPage,
   currentRow,
   movePage,
   moveRow,
@@ -52,6 +55,9 @@ export type SettingsControl = {
   secretOrigin: string
   origin: string
   problem: string | undefined
+  cloudEmail: string | null
+  cloudSignedIn: boolean
+  handleSignOut: () => void
   sidebarWidth: number
   sidebarFoldBelow: number
   autoCompactAtPercent: number
@@ -70,6 +76,58 @@ export type SettingsControl = {
   handleKey: (key: KeyEvent) => void
 }
 
+type Preferences = Pick<
+  SettingsControl,
+  | 'sidebarWidth'
+  | 'sidebarFoldBelow'
+  | 'autoCompactAtPercent'
+  | 'autoRestart'
+  | 'noticeSeconds'
+  | 'paceReveal'
+  | 'footerMeters'
+  | 'usageWarn'
+  | 'thinking'
+  | 'tldrStatus'
+  | 'modelFavourites'
+>
+
+const preferencesOf = (resolution: SettingsResolution): Preferences => ({
+  sidebarWidth: rangeValueOf({ resolution, id: ESettingId.SidebarWidth, fallback: SIDEBAR_WIDTH }),
+  sidebarFoldBelow: rangeValueOf({
+    resolution,
+    id: ESettingId.SidebarFoldBelow,
+    fallback: SIDEBAR_FOLD_BELOW,
+  }),
+  autoCompactAtPercent: rangeValueOf({
+    resolution,
+    id: ESettingId.AutoCompact,
+    fallback: AUTO_COMPACT_AT_PERCENT,
+  }),
+  autoRestart: toggleValueOf({ resolution, id: ESettingId.AutoRestart }),
+  noticeSeconds: rangeValueOf({ resolution, id: ESettingId.NoticeSeconds, fallback: NOTICE_SECONDS }),
+  paceReveal: toggleValueOf({ resolution, id: ESettingId.SmoothStreaming }),
+  footerMeters: footerMetersOf(
+    choiceValueOf({ resolution, id: ESettingId.FooterMeters, fallback: SHIPPED_FOOTER_METERS }),
+  ),
+  usageWarn: {
+    [EUsageWindow.FiveHour]: rangeValueOf({
+      resolution,
+      id: ESettingId.WarnFiveHour,
+      fallback: DEFAULT_WARN_PERCENT[EUsageWindow.FiveHour],
+    }),
+    [EUsageWindow.SevenDay]: rangeValueOf({
+      resolution,
+      id: ESettingId.WarnWeekly,
+      fallback: DEFAULT_WARN_PERCENT[EUsageWindow.SevenDay],
+    }),
+  },
+  thinking: thinkingVisibilityOf(
+    choiceValueOf({ resolution, id: ESettingId.ThinkingBlocks, fallback: SHIPPED_THINKING }),
+  ),
+  tldrStatus: toggleValueOf({ resolution, id: ESettingId.TldrStatus }),
+  modelFavourites: parseFavourites(textValueOf({ resolution, id: ESettingId.ModelFavourites })),
+})
+
 export function useSettings(args: {
   app: AtlasApp
   onChooseModel: (id: string) => void
@@ -80,6 +138,7 @@ export function useSettings(args: {
 
   const [state, setState] = useState<SettingsState | null>(null)
   const [refused, setRefused] = useState<string | null>(null)
+  const [cloudSession, setCloudSession] = useState<{ email: string | null } | null>(null)
 
 
   const view = useMemo(
@@ -111,7 +170,19 @@ export function useSettings(args: {
     [app.settings, view],
   )
 
-  const handleOpen = useCallback(() => setState(openSettings()), [])
+  const readCloudSession = useCallback(() => {
+    setCloudSession(app.cloud.session())
+  }, [app.cloud])
+
+  const handleOpen = useCallback(() => {
+    readCloudSession()
+    setState(openSettings())
+  }, [readCloudSession])
+
+  const handleSignOut = useCallback(() => {
+    app.cloud.logout()
+    readCloudSession()
+  }, [app.cloud, readCloudSession])
 
   const handlePinModels = useCallback(
     (favourites: readonly string[]) => {
@@ -135,6 +206,11 @@ export function useSettings(args: {
     (target: SettingsState) => {
       setState(target)
 
+      if (currentPage({ state: target, model: view })?.page.id === ESettingPage.Account) {
+        if (app.cloud.session() !== null) handleSignOut()
+        return
+      }
+
       const row = currentRow({ state: target, model: view })
       if (row === undefined) return
 
@@ -150,7 +226,7 @@ export function useSettings(args: {
 
       write(target, (held) => activateSetting({ definition: held.definition, current: held.value }))
     },
-    [onChooseModel, secret, view, write],
+    [app.cloud, handleSignOut, onChooseModel, secret, view, write],
   )
 
   const handleKey = useCallback(
@@ -196,71 +272,45 @@ export function useSettings(args: {
     [handleActivate, handleDismiss, secret, state, view, write],
   )
 
-  return {
-    view,
-    appearance,
-    state,
-    prompt: secret.prompt,
-    secretOf: secret.displayOf,
-    secretOrigin: secret.origin,
-    origin: held.writesTo,
-    problem: refused ?? held.problems[0],
-    sidebarWidth: rangeValueOf({
-      resolution: held.resolution,
-      id: ESettingId.SidebarWidth,
-      fallback: SIDEBAR_WIDTH,
+  const preferences = useMemo(() => preferencesOf(held.resolution), [held.resolution])
+  const problem = refused ?? held.problems[0]
+  const origin = held.writesTo
+
+  return useMemo(
+    () => ({
+      view,
+      appearance,
+      state,
+      prompt: secret.prompt,
+      secretOf: secret.displayOf,
+      secretOrigin: secret.origin,
+      origin,
+      problem,
+      cloudEmail: cloudSession?.email ?? null,
+      cloudSignedIn: cloudSession !== null,
+      handleSignOut,
+      ...preferences,
+      handlePinModels,
+      handleOpen,
+      handleDismiss,
+      handleActivate,
+      handleKey,
     }),
-    sidebarFoldBelow: rangeValueOf({
-      resolution: held.resolution,
-      id: ESettingId.SidebarFoldBelow,
-      fallback: SIDEBAR_FOLD_BELOW,
-    }),
-    autoCompactAtPercent: rangeValueOf({
-      resolution: held.resolution,
-      id: ESettingId.AutoCompact,
-      fallback: AUTO_COMPACT_AT_PERCENT,
-    }),
-    autoRestart: toggleValueOf({ resolution: held.resolution, id: ESettingId.AutoRestart }),
-    noticeSeconds: rangeValueOf({
-      resolution: held.resolution,
-      id: ESettingId.NoticeSeconds,
-      fallback: NOTICE_SECONDS,
-    }),
-    paceReveal: toggleValueOf({ resolution: held.resolution, id: ESettingId.SmoothStreaming }),
-    footerMeters: footerMetersOf(
-      choiceValueOf({
-        resolution: held.resolution,
-        id: ESettingId.FooterMeters,
-        fallback: SHIPPED_FOOTER_METERS,
-      }),
-    ),
-    usageWarn: {
-      [EUsageWindow.FiveHour]: rangeValueOf({
-        resolution: held.resolution,
-        id: ESettingId.WarnFiveHour,
-        fallback: DEFAULT_WARN_PERCENT[EUsageWindow.FiveHour],
-      }),
-      [EUsageWindow.SevenDay]: rangeValueOf({
-        resolution: held.resolution,
-        id: ESettingId.WarnWeekly,
-        fallback: DEFAULT_WARN_PERCENT[EUsageWindow.SevenDay],
-      }),
-    },
-    thinking: thinkingVisibilityOf(
-      choiceValueOf({
-        resolution: held.resolution,
-        id: ESettingId.ThinkingBlocks,
-        fallback: SHIPPED_THINKING,
-      }),
-    ),
-    tldrStatus: toggleValueOf({ resolution: held.resolution, id: ESettingId.TldrStatus }),
-    modelFavourites: parseFavourites(
-      textValueOf({ resolution: held.resolution, id: ESettingId.ModelFavourites }),
-    ),
-    handlePinModels,
-    handleOpen,
-    handleDismiss,
-    handleActivate,
-    handleKey,
-  }
+    [
+      appearance,
+      cloudSession,
+      handleActivate,
+      handleDismiss,
+      handleKey,
+      handleOpen,
+      handlePinModels,
+      handleSignOut,
+      origin,
+      preferences,
+      problem,
+      secret,
+      state,
+      view,
+    ],
+  )
 }

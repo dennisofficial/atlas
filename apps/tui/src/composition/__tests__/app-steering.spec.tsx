@@ -44,7 +44,7 @@ describe('typing while the turn is running', () => {
 
       expect(queued).toBe(true)
       expect(mounted.app.turnsDriven).toBe(1)
-      expect(mounted.app.pending.getSnapshot().map((message) => message.text)).toEqual([STEER])
+      expect(mounted.app.pending.forThread({ threadId: THREAD }).getSnapshot().map((message) => message.text)).toEqual([STEER])
 
       const midTurn = await mounted.app.log.read({ threadId: THREAD })
       expect(midTurn.filter((event) => event.type === 'user-said').length).toBe(1)
@@ -86,13 +86,13 @@ describe('typing while the turn is running', () => {
       })
 
       expect(returned).toBe(true)
-      expect(mounted.app.pending.getSnapshot()).toEqual([])
+      expect(mounted.app.pending.forThread({ threadId: THREAD }).getSnapshot()).toEqual([])
     } finally {
       await mounted.done()
     }
   }, 60_000)
 
-  it('has nothing to give back on ↑ once the loop has already taken the message', async () => {
+  it('leaves a message the loop has taken alone on ↑ — esc is the edit once the queue has let it go', async () => {
     const mounted = await open({ app: slowly() })
 
     try {
@@ -108,19 +108,31 @@ describe('typing while the turn is running', () => {
       await mounted.typeText(STEER)
       mounted.pressEnter()
 
-      const queued = await until({
-        holds: async () => (await mounted.frame()).includes(TAKE_BACK),
+      const consumed = await until({
+        holds: async () => {
+          const events = await mounted.app.log.read({ threadId: THREAD })
+          return events.some((event) => event.type === 'user-said' && event.text === STEER)
+        },
         within: 20_000,
       })
-      expect(queued).toBe(true)
-
-      expect(mounted.app.pending.drain()).toEqual([{ text: STEER, images: [] }])
+      expect(consumed).toBe(true)
 
       mounted.pressUp()
       await mounted.frame()
 
-      expect(mounted.app.pending.takeBackLast()).toBeNull()
-      expect(await mounted.frame()).not.toContain(TAKE_BACK)
+      expect(mounted.draftText()).toBe('')
+
+      const settled = await until({
+        holds: async () => !(await mounted.frame()).includes('esc to interrupt'),
+        within: 20_000,
+      })
+      expect(settled).toBe(true)
+
+      const events = await mounted.app.log.read({ threadId: THREAD })
+      const kinds = events.map((event) => event.type)
+      expect(kinds.filter((kind) => kind === 'user-said')).toEqual(['user-said', 'user-said'])
+      expect(kinds.lastIndexOf('assistant-said')).toBeGreaterThan(kinds.lastIndexOf('user-said'))
+      expect(mounted.app.turnsDriven).toBe(1)
     } finally {
       await mounted.done()
     }
@@ -198,7 +210,7 @@ describe('typing while the turn is running', () => {
       const released = await until({
         holds: async () => {
           await mounted.frame()
-          return mounted.app.pending.getSnapshot().length === 0
+          return mounted.app.pending.forThread({ threadId: THREAD }).getSnapshot().length === 0
         },
         within: 20_000,
       })

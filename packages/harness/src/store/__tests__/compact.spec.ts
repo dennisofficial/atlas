@@ -72,6 +72,7 @@ const mark = (args: {
   compactThread({
     log: fixture.log,
     threads: fixture.threads,
+    agents: fixture.agents,
     threadId: args.threadId,
     anchor: args.anchor ?? ECompactionAnchor.Prefix,
     seq: args.seq,
@@ -101,6 +102,9 @@ const rewoundTo = (args: { threadId: ThreadId; toSeq: number }) =>
   rewindThread({
     log: fixture.log,
     threads: fixture.threads,
+    agents: fixture.agents,
+    shells: fixture.shells,
+    services: fixture.services,
     threadId: args.threadId,
     toSeq: args.toSeq,
   })
@@ -185,15 +189,14 @@ describe('summarisation replaces the range it covers', () => {
 
     const rewound = await rewoundTo({ threadId, toSeq: 1 })
 
-    expect(rewound.ok).toBe(false)
-    expect(rewound.ok === false && rewound.refusal).toBe(ERewindRefusal.BelowCompaction)
+    expect(rewound).toMatchObject({ ok: false, refusal: ERewindRefusal.BelowCompaction })
   })
 
   it('still allows a rewind above the boundary', async () => {
     const threadId = await openThread([...OPENING])
     await summariseTo({ threadId, throughSeq: 2, summary: 'the opening' })
 
-    expect(await rewoundTo({ threadId, toSeq: 3 })).toEqual({ ok: true, discarded: 1 })
+    expect(await rewoundTo({ threadId, toSeq: 3 })).toEqual({ ok: true, discarded: 1, kills: [] })
   })
 
   it('folds an earlier summary into a later one', async () => {
@@ -269,6 +272,7 @@ describe('what neither operation will do', () => {
     await compactThread({
       log: fixture.log,
       threads: fixture.threads,
+      agents: fixture.agents,
       threadId,
       anchor: ECompactionAnchor.Prefix,
       seq: 2,

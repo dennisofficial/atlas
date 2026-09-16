@@ -2,20 +2,20 @@ import {
   activeWorktreeOf,
   contextTokens,
   ECompactionAnchor,
+  EExecutionLocation,
   projectDirectoryOf,
+  treeMutationsOf,
   type ActiveWorktree,
   type ThreadId,
   type Event,
   type EventDraft,
   type ModelUsage,
   type SaidImage,
-  type EExecutionLocation,
 } from '@dltech/atlas-core'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import {
   pendingRows,
-  trailingSaid,
   type EThinkingVisibility,
   type PendingRow,
   type PendingSaid,
@@ -23,20 +23,25 @@ import {
   type TranscriptModel,
 } from '../store'
 import type { Compacting } from '../ui/components/compacting'
-import type { TurnClock } from '../ui/components/transcript'
+import type { TurnClock } from '../ui/turn-clock'
 import { publishProjections } from '../plugins/projection'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { createAwakeClock } from './awake-clock'
+import { droppedNotice, type QueuedSettled } from './commands'
+import { ECommandEffect, type CommandEffect } from './commands/local-command'
 import type { AtlasApp } from './compose'
+import { changeDirectory, type DirectoryMove } from './directory-move'
 import type { OpenedConversation } from './open-conversation'
 import type { RecoveredAgents, ThreadModel } from '@dltech/atlas-harness'
-import { ECompactScope } from './compact-turn'
+import { ECompactScope } from '@dltech/atlas-harness'
+import { EOpenMode } from './config'
 import { useRevokeGrant } from './revoke-grant'
 import type { Renaming } from './session-rename'
 import { terminalTitleSequence } from './terminal-title'
-import { threadHandle } from './thread-slug'
-import { userSaidDraft } from './user-said'
+import { threadHandle } from '@dltech/atlas-harness'
+import { userSaidDraft } from '@dltech/atlas-harness'
 import { useCompaction } from './use-compaction'
+import { useDelegatedToolCalls } from '../ui/hooks/use-delegated-tool-calls'
 import { useSessionName } from './use-session-name'
 import { useAgentWake } from './use-agent-wake'
 import { useServiceWake } from './use-service-wake'
@@ -44,6 +49,7 @@ import { useShellWake } from './use-shell-wake'
 import { EThreadRows, useThreadView, type ThreadSeed } from './use-thread-view'
 import { useThreadSwap } from './use-thread-swap'
 import type { ApprovalControl } from './use-approval'
+import type { RewindConfirmControl } from './use-rewind-confirm'
 import { useTurnDriver } from './use-turn-driver'
 import { useTickingNow } from './use-turn-clock'
 import { clockReadableAt, transcriptOfTurn } from './turn-progress'
@@ -58,6 +64,7 @@ export type Conversation = {
   threadModel: ThreadModel | undefined
   executionLocation: EExecutionLocation | undefined
   approval: ApprovalControl
+  rewindConfirm: RewindConfirmControl
   lost: RecoveredAgents | null
   handle: string | null
   model: TranscriptModel
@@ -65,6 +72,7 @@ export type Conversation = {
   turn: TurnClock
   now: number
   working: boolean
+  mutations: number
   contextTokens: number
   projectDirectory: string
   activeWorktree: ActiveWorktree | null
@@ -75,6 +83,7 @@ export type Conversation = {
     images?: readonly SaidImage[]
     context?: readonly EventDraft[]
   }) => void
+  handleQueueSettled: (entry: QueuedSettled) => void
   handleTakeBackPending: () => PendingSaid | null
   handleRetry: (() => void) | null
   handleResume: (() => void) | null
@@ -83,6 +92,7 @@ export type Conversation = {
   compacting: Compacting | null
   handleNewConversation: () => void
   handleOpenThread: (threadId: string) => void
+  handleChangeDirectory: (argumentText: string) => Promise<CommandEffect>
   handleRename: (argumentText: string) => Promise<Renaming>
   handleCompact: (scope: ECompactScope) => void
   handleCompactAround: (args: { anchor: ECompactionAnchor; seq: number }) => void
@@ -97,13 +107,15 @@ export function useConversation(args: {
   autoCompactAtPercent: number
   thinking: EThinkingVisibility
   tldrStatus: boolean
-  onUndone: (text: string) => void
+  onUndone: (said: PendingSaid) => void
   canWake: boolean
 }): Conversation {
   const { app, paceReveal, thinking, tldrStatus, onUndone } = args
   const [opened, setOpened] = useState<OpenedConversation>(args.opened)
   const [failure, setFailure] = useState<string | null>(null)
   const [reported, setReported] = useState<ModelUsage | null>(null)
+  const [pendingMove, setPendingMove] = useState<DirectoryMove | null>(null)
+  const pendingMoveRef = useRef<DirectoryMove | null>(null)
   const usedRef = useRef(0)
   const startedRef = useRef(args.opened.started)
 
@@ -134,14 +146,53 @@ export function useConversation(args: {
     [opened],
   )
 
-  const pending = app.pending
+  const pending = useMemo(() => app.pending.forThread({ threadId }), [app.pending, threadId])
 
   /**
-   * The rows that landed settle the queue the operator typed ahead into — a concern of whoever owns
-   * the composer, which is why the view reports the read rather than knowing what to do about it.
+   * Settled commands wait in the same queue as the messages, but drain in the driver's own settle
+   * path, before `working` flips: a wake or an auto-compaction reacting to the settle must find
+   * the queued work already running, not beat it. A command that swaps the thread out strands the
+   * commands queued behind it, so it says so and ends the drain.
    */
-  const afterRead = useCallback(
-    (read: readonly Event[]) => pending.settleTaken({ landed: trailingSaid(read) }),
+  const drainSettledCommands = useCallback(async (): Promise<void> => {
+    const queuedCommands = pending.drainCommands()
+    if (queuedCommands.length === 0) return
+
+    for (const [index, entry] of queuedCommands.entries()) {
+      const { command } = entry
+      if (command.dropsQueue) {
+        const dropped = droppedNotice({
+          command: command.name,
+          messages: command.losesWaiting
+            ? pending.getSnapshot().filter((one) => one.kind === 'message').length
+            : 0,
+          commands: queuedCommands.slice(index + 1).map((one) => one.command.name),
+        })
+        if (dropped !== null) {
+          notify({
+            key: 'queued-dropped',
+            text: dropped,
+            tone: ENoticeTone.Warn,
+            ttlMs: NOTICE_WARN_MS,
+          })
+        }
+      }
+
+      const effect = await command.run()
+      if (effect.type === ECommandEffect.Refused) {
+        notify({ text: effect.reason, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
+      } else if (effect.type === ECommandEffect.Ran && effect.notice !== undefined) {
+        notify({ text: effect.notice })
+      }
+
+      if (command.dropsQueue) return
+    }
+  }, [pending])
+
+  const handleQueueSettled = useCallback(
+    (entry: QueuedSettled): void => {
+      pending.enqueueCommand({ text: entry.text, command: entry })
+    },
     [pending],
   )
 
@@ -155,7 +206,6 @@ export function useConversation(args: {
     initial,
     paceReveal,
     projectEvents,
-    afterRead,
     onUsage: setReported,
   })
 
@@ -199,15 +249,25 @@ export function useConversation(args: {
     app,
     threadId,
     started: startedRef,
+    pendingMove: pendingMoveRef,
     view,
     readClock,
     used: usedRef,
     compactIfFull: compaction.compactIfFull,
     cancelCompaction: compaction.cancel,
+    onSettled: drainSettledCommands,
     onUndone,
     setFailure,
     forgetUsage,
   })
+
+  const resumeAtLaunch = useRef(app.config.open.mode !== EOpenMode.New)
+
+  useEffect(() => {
+    if (!resumeAtLaunch.current) return
+    resumeAtLaunch.current = false
+    if (turnDriver.isResumable) turnDriver.handleResume()
+  }, [turnDriver])
 
   const { working, drive } = turnDriver
   const { compacting } = compaction
@@ -252,7 +312,7 @@ export function useConversation(args: {
 
       if (working) {
         pending.enqueue({ text, images })
-        nameSession({ said: text, opened: ALREADY_OPEN })
+        nameSession({ said: text, opened: ALREADY_OPEN, images, context: args.context })
         return
       }
 
@@ -260,12 +320,16 @@ export function useConversation(args: {
         ...(args.context ?? []),
         ...[...pending.drain(), { text, images }].map(userSaidDraft),
       ])
-      nameSession({ said: text, opened })
+      nameSession({ said: text, opened, images, context: args.context })
     },
     [drive, nameSession, pending, working],
   )
 
-  const handleTakeBackPending = useCallback(() => pending.takeBackLast(), [pending])
+  /**
+   * Only the queue is taken back: once the loop has drained a message into the log, the edit route
+   * is interrupt-and-resend, not a second retraction path that would have to race the stream.
+   */
+  const handleTakeBackPending = useCallback((): PendingSaid | null => pending.takeBackLast(), [pending])
 
   /**
    * Shell endings are not dropped on the way out: they belong to the thread that started the shell,
@@ -273,22 +337,23 @@ export function useConversation(args: {
    */
   const adopt = useCallback(
     (next: OpenedConversation) => {
-      pending.clear()
       turnDriver.settle()
       setFailure(null)
       setReported(null)
+      pendingMoveRef.current = null
+      setPendingMove(null)
       startedRef.current = next.started
       setEvents(next.events)
       setName(next.name)
       setOpened(next)
     },
-    [pending, setEvents, setName, turnDriver],
+    [setEvents, setName, turnDriver],
   )
 
   const { handleNewConversation, handleOpenThread } = useThreadSwap({
     app,
     threadId,
-    working,
+    working: turnDriver.workingRef,
     adopt,
     onFailure: setFailure,
   })
@@ -312,26 +377,59 @@ export function useConversation(args: {
 
   const used = useMemo(() => contextTokens({ reported, events }), [reported, events])
 
+  const mutations = useMemo(
+    () => treeMutationsOf({ events, effects: (name) => app.tools.find(name)?.effect }),
+    [events, app.tools],
+  )
+
+  const delegatedToolCalls = useDelegatedToolCalls({ agents: app.agents, threadId })
+
   const workspace = useMemo((): {
     projectDirectory: string
     activeWorktree: ActiveWorktree | null
   } => {
     const launchDirectory = app.workspace.workspace
+    if (pendingMove !== null && events.length === 0) {
+      return { projectDirectory: pendingMove.path, activeWorktree: null }
+    }
     return {
       projectDirectory: projectDirectoryOf({ events, launchDirectory }),
       activeWorktree: activeWorktreeOf(events) ?? null,
     }
-  }, [events, app.workspace.workspace])
+  }, [events, pendingMove, app.workspace.workspace])
+
+  const holdMove = useCallback((move: DirectoryMove | null): void => {
+    pendingMoveRef.current = move
+    setPendingMove(move)
+  }, [])
+
+  const handleChangeDirectory = useCallback(
+    (argumentText: string): Promise<CommandEffect> =>
+      changeDirectory({
+        app,
+        threadId,
+        started,
+        workspace,
+        holdMove,
+        refresh,
+        argumentText,
+      }),
+    [app, holdMove, refresh, started, threadId, workspace],
+  )
   usedRef.current = used
 
   useEffect(() => {
     process.stdout.write(
       terminalTitleSequence({ name, directory: workspace.projectDirectory }),
     )
-  }, [name, workspace.projectDirectory])
+    app.journalResume({
+      active: { threadId, title: name, started },
+      directory: workspace.projectDirectory,
+    })
+  }, [app, name, started, threadId, workspace.projectDirectory])
 
   const rows = useMemo(
-    () => pendingRows({ messages: queued, notices, agents: agentNotices, services: serviceNotices }),
+    () => pendingRows({ entries: queued, notices, agents: agentNotices, services: serviceNotices }),
     [agentNotices, notices, queued, serviceNotices],
   )
 
@@ -341,6 +439,7 @@ export function useConversation(args: {
 
   return {
     approval: turnDriver.approval,
+    rewindConfirm: turnDriver.rewindConfirm,
     projectDirectory: workspace.projectDirectory,
     activeWorktree: workspace.activeWorktree,
     threadId,
@@ -354,9 +453,11 @@ export function useConversation(args: {
     turn,
     now: clockReadableAt({ now, clock: turn }),
     working,
+    mutations: mutations + delegatedToolCalls,
     contextTokens: used,
     pending: rows,
     handleSend,
+    handleQueueSettled,
     handleTakeBackPending,
     handleRetry: retryable ? turnDriver.handleRetry : null,
     handleResume: resumable ? turnDriver.handleResume : null,
@@ -366,6 +467,7 @@ export function useConversation(args: {
     handleInterrupt: turnDriver.handleInterrupt,
     handleNewConversation,
     handleOpenThread,
+    handleChangeDirectory,
     handleRename: renameSession,
     handleCompact: compaction.compact,
     handleCompactAround: compaction.compactAround,

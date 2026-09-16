@@ -1,19 +1,20 @@
 import { z } from 'zod'
 
 import {
+  AgentFileSystemPort,
   EContentAccess,
   EPathForm,
   EPathPresence,
   EToolEffect,
-  FileSystemPort,
   SchemaTool,
   type DeclaredPathField,
+  type ThreadId,
   type ToolOutcome,
   type ToolRun,
 } from '@dltech/atlas-core'
 
 import { LocalFileSystemPort } from '../../execution/local-filesystem'
-import { filePathSchema, resolveToolPath } from './file-text'
+import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-text'
 
 const RESULT_LIMIT = 100
 
@@ -25,16 +26,22 @@ const inputSchema = z.strictObject({
 const description = [
   'Find files by glob pattern and return their absolute paths, most recently modified first.',
   'Matches against the directory you are currently in unless path names a different one; a relative path resolves against the project directory.',
+  pathEnvironmentNote,
   `Returns at most ${RESULT_LIMIT} paths; when more match, the result says how many were left out.`,
   'Hidden files and directories are not matched.',
+  'Symbolic links are followed.',
 ].join(' ')
 
 type DatedPath = { path: string; modifiedAt: number }
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 
-async function modifiedAt(args: { path: string; files: FileSystemPort }): Promise<number> {
-  const stats = await args.files.stat({ path: args.path }).catch(() => null)
+async function modifiedAt(args: {
+  path: string
+  files: AgentFileSystemPort
+  threadId: ThreadId
+}): Promise<number> {
+  const stats = await args.files.stat({ path: args.path, threadId: args.threadId }).catch(() => null)
   return stats?.mtimeMs ?? 0
 }
 
@@ -64,7 +71,7 @@ export class GlobTool extends SchemaTool<typeof inputSchema> {
     { field: 'pattern', presence: EPathPresence.Required, form: EPathForm.RelativeToBase, content: EContentAccess.None },
   ]
 
-  constructor(private readonly files: FileSystemPort = new LocalFileSystemPort()) {
+  constructor(private readonly files: AgentFileSystemPort = new LocalFileSystemPort()) {
     super()
   }
 
@@ -72,13 +79,19 @@ export class GlobTool extends SchemaTool<typeof inputSchema> {
     input,
     signal,
     projectDirectory,
+    threadId,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     const { pattern, path } = input
-    const from = path === undefined ? projectDirectory : resolveToolPath({ projectDirectory, path })
+    let from = projectDirectory
+    if (path !== undefined) {
+      const resolved = resolveToolPath({ projectDirectory, path })
+      if (!resolved.ok) return { ok: false, reason: resolved.reason }
+      from = resolved.path
+    }
 
     let matches: readonly string[]
     try {
-      matches = await this.files.glob({ pattern, cwd: from })
+      matches = await this.files.glob({ pattern, cwd: from, signal, threadId })
     } catch (error) {
       return { ok: false, reason: `could not scan ${from} for "${pattern}": ${messageOf(error)}` }
     }
@@ -86,7 +99,7 @@ export class GlobTool extends SchemaTool<typeof inputSchema> {
     const found: DatedPath[] = []
     for (const match of matches) {
       if (signal.aborted) return { ok: false, reason: 'the developer interrupted the turn while scanning for files' }
-      found.push({ path: match, modifiedAt: await modifiedAt({ path: match, files: this.files }) })
+      found.push({ path: match, modifiedAt: await modifiedAt({ path: match, files: this.files, threadId }) })
     }
 
     const paths = found.sort(byNewestFirst).slice(0, RESULT_LIMIT).map((dated) => dated.path)

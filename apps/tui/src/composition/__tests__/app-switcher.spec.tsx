@@ -1,4 +1,8 @@
 import {
+  ANTHROPIC_PROVIDER_ID,
+  EAccountOrigin,
+  EAuthKind,
+  EAuthProvider,
   EEffort,
   ESettingId,
   parseFavourites,
@@ -6,13 +10,16 @@ import {
   textValueOf,
   toThreadId,
 } from '@dltech/atlas-core'
+import { AnthropicAdapter, cardsForProvider } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
-import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
+import { modelCatalogue } from '@dltech/atlas-harness'
+import { until } from './app-fixture'
+import { alwaysAuthorised, fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
 await grammarsReady()
 
@@ -411,6 +418,56 @@ describe('unfolding what a row folded away', () => {
       await enter(setup)
 
       expect(setup.captureCharFrame()).toContain('weighing it')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+})
+
+describe('availability after accounts land mid-session', () => {
+  it('drops the no-key badge once the accounts overlay reports them, without a restart', async () => {
+    const app = fakeApp({
+      model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }),
+      models: modelCatalogue({
+        adapters: [
+          new AnthropicAdapter({
+            credentials: alwaysAuthorised(),
+            cards: cardsForProvider(ANTHROPIC_PROVIDER_ID),
+          }),
+        ],
+        accounts: [],
+      }),
+      accountsSeed: [
+        {
+          provider: EAuthProvider.Anthropic,
+          label: 'claude',
+          secret: { kind: EAuthKind.ApiKey, apiKey: 'sk-test' },
+          origin: EAccountOrigin.Login,
+        },
+      ],
+    })
+    const setup = await opened(app)
+
+    try {
+      await openSwitcherWith(setup)
+      expect(setup.captureCharFrame()).toContain('no key')
+      await escape(setup)
+
+      setup.mockInput.pressKey('a', { ctrl: true })
+      await landed(setup)
+      expect(
+        await until({
+          holds: async () => {
+            await setup.flush()
+            return setup.captureCharFrame().includes('claude')
+          },
+          within: 20_000,
+        }),
+      ).toBe(true)
+      await escape(setup)
+
+      await openSwitcherWith(setup)
+      expect(setup.captureCharFrame()).not.toContain('no key')
     } finally {
       await teardown(setup)
     }

@@ -129,20 +129,21 @@ export function subagentStateLabel(args: { subagent: SubagentReadout; now: numbe
  */
 export const SPEND_UNAVAILABLE_LABEL = 'tokens unavailable'
 
-const FIGURE_SEPARATOR = '  '
+export const FIGURE_SEPARATOR = '  '
 
 /**
  * Both directions are shown because input dominates a child's bill and output alone would flatter
- * it. Cache reads and writes are already counted inside `inputTokens`.
+ * it. Cache reads are counted inside `inputTokens`, so the input figure shows only the uncached
+ * remainder, matching the parent's line.
  */
 export function subagentSpendLabel(spend: AgentSpend | null): string | null {
   if (spend === null) return null
   if (spend.reading === ESpendReading.Unavailable) return SPEND_UNAVAILABLE_LABEL
 
-  const { inputTokens, outputTokens } = spend.totals
+  const { inputTokens, outputTokens, cacheReadTokens } = spend.totals
   if (inputTokens === 0 && outputTokens === 0) return null
 
-  return `↑ ${formatTokens(inputTokens)}${FIGURE_SEPARATOR}↓ ${formatTokens(outputTokens)}`
+  return `↑ ${formatTokens(inputTokens - cacheReadTokens)}${FIGURE_SEPARATOR}↓ ${formatTokens(outputTokens)}`
 }
 
 /**

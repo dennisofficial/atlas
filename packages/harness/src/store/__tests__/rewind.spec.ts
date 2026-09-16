@@ -36,7 +36,19 @@ const resulted: EventDraft = {
   output: { ok: true },
 }
 
-const openExchange = async (): Promise<{ fixture: StoreFixture; threadId: ThreadId }> => {
+const rewind = (args: { threadId: ThreadId; toSeq: number; confirmed?: boolean }) =>
+  rewindThread({
+    log: fixture.log,
+    threads: fixture.threads,
+    agents: fixture.agents,
+    shells: fixture.shells,
+    services: fixture.services,
+    threadId: args.threadId,
+    toSeq: args.toSeq,
+    ...(args.confirmed === undefined ? {} : { confirmed: args.confirmed }),
+  })
+
+const openExchange = async (): Promise<ThreadId> => {
   fixture = await openStoreFixture()
   const thread = await fixture.threads.create({ title: 'work' })
   await fixture.log.append({
@@ -44,7 +56,7 @@ const openExchange = async (): Promise<{ fixture: StoreFixture; threadId: Thread
     runId,
     drafts: [said('clean the build'), replied('on it'), called, resulted, replied('done')],
   })
-  return { fixture, threadId: thread.id }
+  return thread.id
 }
 
 afterEach(async () => {
@@ -53,46 +65,46 @@ afterEach(async () => {
 
 describe('rewindThread', () => {
   it('truncates the thread to a settled point and reports what it discarded', async () => {
-    const { fixture: store, threadId } = await openExchange()
+    const threadId = await openExchange()
 
-    const result = await rewindThread({ log: store.log, threads: store.threads, threadId, toSeq: 2 })
+    const result = await rewind({ threadId, toSeq: 2 })
 
-    expect(result).toEqual({ ok: true, discarded: 3 })
-    expect((await store.log.read({ threadId })).map((event) => event.type)).toEqual([
+    expect(result).toEqual({ ok: true, discarded: 3, kills: [] })
+    expect((await fixture.log.read({ threadId })).map((event) => event.type)).toEqual([
       'user-said',
       'assistant-said',
     ])
-    expect((await store.threads.find({ threadId }))?.head).toBe(2)
+    expect((await fixture.threads.find({ threadId }))?.head).toBe(2)
   })
 
   it('refuses a target that would re-dispatch a tool call, which the surviving idempotencyKey does not deduplicate', async () => {
-    const { fixture: store, threadId } = await openExchange()
+    const threadId = await openExchange()
 
-    const result = await rewindThread({ log: store.log, threads: store.threads, threadId, toSeq: 3 })
+    const result = await rewind({ threadId, toSeq: 3 })
 
     expect(result).toMatchObject({ ok: false, refusal: ERewindRefusal.UnsettledToolCall })
-    expect((await store.log.read({ threadId })).length).toBe(5)
-    expect((await store.threads.find({ threadId }))?.head).toBe(5)
+    expect((await fixture.log.read({ threadId })).length).toBe(5)
+    expect((await fixture.threads.find({ threadId }))?.head).toBe(5)
   })
 
   it('refuses a sequence the thread never reached, and writes nothing', async () => {
-    const { fixture: store, threadId } = await openExchange()
+    const threadId = await openExchange()
 
-    const result = await rewindThread({ log: store.log, threads: store.threads, threadId, toSeq: 9 })
+    const result = await rewind({ threadId, toSeq: 9 })
 
     expect(result).toMatchObject({ ok: false, refusal: ERewindRefusal.NoSuchTarget })
-    expect((await store.log.read({ threadId })).length).toBe(5)
-    expect((await store.threads.find({ threadId }))?.head).toBe(5)
+    expect((await fixture.log.read({ threadId })).length).toBe(5)
+    expect((await fixture.threads.find({ threadId }))?.head).toBe(5)
   })
 
   it('leaves the thread ready for the next exchange', async () => {
-    const { fixture: store, threadId } = await openExchange()
+    const threadId = await openExchange()
 
-    await rewindThread({ log: store.log, threads: store.threads, threadId, toSeq: 0 })
-    const appended = await store.log.append({ threadId, runId, drafts: [said('start over')] })
+    await rewind({ threadId, toSeq: 0 })
+    const appended = await fixture.log.append({ threadId, runId, drafts: [said('start over')] })
 
     expect(appended.map((event) => event.seq)).toEqual([1])
-    expect((await store.log.read({ threadId })).map((event) => event.type)).toEqual(['user-said'])
+    expect((await fixture.log.read({ threadId })).map((event) => event.type)).toEqual(['user-said'])
   })
 })
 
@@ -125,22 +137,39 @@ const openDelegation = async (drafts: readonly EventDraft[]): Promise<ThreadId> 
 }
 
 describe('rewindThread on a thread that delegated', () => {
-  it('refuses to cut below the spawn of a child nothing ended, and writes nothing', async () => {
+  it('asks before cutting below a spawn, naming the child, and writes nothing', async () => {
     const threadId = await openDelegation([said('delegate it'), spawned, replied('spawned one')])
 
-    const result = await rewindThread({
-      log: fixture.log,
-      threads: fixture.threads,
-      threadId,
-      toSeq: 1,
-    })
+    const result = await rewind({ threadId, toSeq: 1 })
 
-    expect(result).toMatchObject({ ok: false, refusal: ERewindRefusal.UnendedSubAgent })
+    expect(result).toEqual({
+      ok: false,
+      needsConfirmation: true,
+      toSeq: 1,
+      kills: [
+        {
+          kind: 'agent',
+          agentId: CHILD,
+          agentType: 'explore',
+          intent: 'find the callers',
+          running: false,
+        },
+      ],
+    })
     expect((await fixture.log.read({ threadId })).length).toBe(3)
     expect((await fixture.threads.find({ threadId }))?.head).toBe(3)
   })
 
-  it('cuts below the spawn of a child that ended', async () => {
+  it('destroys the child with the deleted delegation once confirmed', async () => {
+    const threadId = await openDelegation([said('delegate it'), spawned, replied('spawned one')])
+
+    const result = await rewind({ threadId, toSeq: 1, confirmed: true })
+
+    expect(result).toMatchObject({ ok: true, discarded: 2 })
+    expect((await fixture.log.read({ threadId })).map((event) => event.type)).toEqual(['user-said'])
+  })
+
+  it('asks before cutting below the spawn of a child that ended, too — the record dies with it', async () => {
     const threadId = await openDelegation([
       said('delegate it'),
       spawned,
@@ -148,14 +177,30 @@ describe('rewindThread on a thread that delegated', () => {
       replied('four callers'),
     ])
 
-    const result = await rewindThread({
-      log: fixture.log,
-      threads: fixture.threads,
-      threadId,
-      toSeq: 1,
-    })
+    const result = await rewind({ threadId, toSeq: 1 })
 
-    expect(result).toEqual({ ok: true, discarded: 3 })
-    expect((await fixture.log.read({ threadId })).map((event) => event.type)).toEqual(['user-said'])
+    expect(result).toMatchObject({ ok: false, needsConfirmation: true })
+  })
+
+  it('keeps the ending that landed above the cut when the spawn sits below it', async () => {
+    const threadId = await openDelegation([
+      said('delegate it'),
+      spawned,
+      said('msg_2'),
+      agentEnded,
+      said('msg_3'),
+    ])
+
+    const result = await rewind({ threadId, toSeq: 3 })
+
+    expect(result).toEqual({ ok: true, discarded: 1, kills: [] })
+    const events = await fixture.log.read({ threadId })
+    expect(events.map((event) => event.type)).toEqual([
+      'user-said',
+      'agent-spawned',
+      'user-said',
+      'agent-ended',
+    ])
+    expect(events.at(-1)?.seq).toBe(4)
   })
 })

@@ -13,7 +13,7 @@ import {
   mcpLayerOf,
   mcpReport,
   NO_MCP_SERVERS,
-} from '../mcp-report'
+} from '@dltech/atlas-harness'
 import { handlers } from '../commands/__tests__/local-handlers'
 
 const server = (args: {

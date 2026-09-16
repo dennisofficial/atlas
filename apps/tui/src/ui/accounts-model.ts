@@ -1,10 +1,5 @@
 import {
-  EAccountOrigin,
-  EAccountStatus,
-  EAuthKind,
   EAuthProvider,
-  ELoginFlow,
-  providerSpec,
   reachableProviders,
   type Account,
   type AccountId,
@@ -14,6 +9,8 @@ export enum EAccountsView {
   List = 'list',
   PastedCode = 'pasted-code',
   DeviceCode = 'device-code',
+  CloudDevice = 'cloud-device',
+  GithubDevice = 'github-device',
   ApiKey = 'api-key',
 }
 
@@ -28,25 +25,42 @@ export type AccountsWindow = {
 export enum EAccountRow {
   Account = 'account',
   SignedOut = 'signed-out',
+  Cloud = 'cloud',
+  Github = 'github',
 }
+
+export type CloudIdentity = { email: string | null }
+
+export type GithubIdentity = { login: string }
+
+export type GithubRowState = { connection: GithubIdentity | null; unreachable: boolean }
 
 /**
  * A provider Atlas can answer for but nothing has signed into still gets a row, because the sign-in
- * flows are reached by selecting one. Discriminated rather than optional so every reader that wants
- * an account id has to say what it does without one.
+ * flows are reached by selecting one. The cloud row leads the list only while there is no session,
+ * because signing in is reached by selecting it — once signed in, identity and sign-out belong to
+ * the settings account tab. Discriminated rather than optional so every reader that wants an
+ * account id has to say what it does without one.
  */
 export type AccountRow =
   | { kind: EAccountRow.Account; account: Account; active: boolean }
   | { kind: EAccountRow.SignedOut; provider: EAuthProvider; active: false }
+  | { kind: EAccountRow.Cloud; active: false }
+  | { kind: EAccountRow.Github; github: GithubRowState; active: false }
 
-export const rowProvider = (row: AccountRow): EAuthProvider =>
-  row.kind === EAccountRow.Account ? row.account.provider : row.provider
+export const rowProvider = (row: AccountRow): EAuthProvider | undefined => {
+  if (row.kind === EAccountRow.Cloud || row.kind === EAccountRow.Github) return undefined
+  return row.kind === EAccountRow.Account ? row.account.provider : row.provider
+}
 
 export const accountOf = (row: AccountRow): Account | undefined =>
   row.kind === EAccountRow.Account ? row.account : undefined
 
-export const rowKey = (row: AccountRow): string =>
-  row.kind === EAccountRow.Account ? String(row.account.id) : `signed-out:${row.provider}`
+export const rowKey = (row: AccountRow): string => {
+  if (row.kind === EAccountRow.Cloud) return 'cloud'
+  if (row.kind === EAccountRow.Github) return 'github'
+  return row.kind === EAccountRow.Account ? String(row.account.id) : `signed-out:${row.provider}`
+}
 
 export type AccountsPrompt = {
   provider: EAuthProvider
@@ -54,11 +68,18 @@ export type AccountsPrompt = {
   userCode?: string | undefined
 }
 
+export type CloudPrompt = {
+  url: string
+  userCode: string
+}
+
 export type AccountsState = {
   view: EAccountsView
   index: number
   rows: readonly AccountRow[]
   prompt: AccountsPrompt | null
+  cloudPrompt: CloudPrompt | null
+  githubPrompt: CloudPrompt | null
   typed: string
   notice: string | null
   failure: string | null
@@ -73,7 +94,10 @@ const PROVIDER_ORDER: readonly EAuthProvider[] = [
 ]
 
 const rank = (row: AccountRow): number => {
-  const at = PROVIDER_ORDER.indexOf(rowProvider(row))
+  const provider = rowProvider(row)
+  if (provider === undefined) return -1
+
+  const at = PROVIDER_ORDER.indexOf(provider)
   return at < 0 ? PROVIDER_ORDER.length : at
 }
 
@@ -84,6 +108,8 @@ const openedAt = (row: AccountRow): string => accountOf(row)?.createdAt ?? ''
 export function accountRows(args: {
   accounts: readonly Account[]
   active: Partial<Record<EAuthProvider, AccountId | undefined>>
+  cloud: CloudIdentity | null
+  github?: GithubRowState | undefined
 }): readonly AccountRow[] {
   const held = new Set(args.accounts.map((account) => account.provider))
 
@@ -102,12 +128,23 @@ export function accountRows(args: {
       })),
   ]
 
-  return rows.sort(
-    (left, right) =>
-      rank(left) - rank(right) ||
-      placement(left) - placement(right) ||
-      openedAt(left).localeCompare(openedAt(right)),
-  )
+  const cloudRows: AccountRow[] =
+    args.cloud === null ? [{ kind: EAccountRow.Cloud, active: false }] : []
+  const githubRows: AccountRow[] =
+    args.github === undefined
+      ? []
+      : [{ kind: EAccountRow.Github, github: args.github, active: false }]
+
+  return [
+    ...cloudRows,
+    ...githubRows,
+    ...rows.sort(
+      (left, right) =>
+        rank(left) - rank(right) ||
+        placement(left) - placement(right) ||
+        openedAt(left).localeCompare(openedAt(right)),
+    ),
+  ]
 }
 
 export function openAccounts(args: {
@@ -121,6 +158,8 @@ export function openAccounts(args: {
     index: active < 0 ? 0 : active,
     rows: args.rows,
     prompt: null,
+    cloudPrompt: null,
+    githubPrompt: null,
     typed: '',
     notice: args.notice ?? null,
     failure: null,
@@ -173,6 +212,36 @@ export function askForDeviceCode(args: {
   }
 }
 
+export function askForCloudCode(args: {
+  state: AccountsState
+  prompt?: CloudPrompt | undefined
+}): AccountsState {
+  return {
+    ...args.state,
+    view: EAccountsView.CloudDevice,
+    cloudPrompt: args.prompt ?? null,
+    typed: '',
+    failure: null,
+    notice: null,
+    busy: false,
+  }
+}
+
+export function askForGithubCode(args: {
+  state: AccountsState
+  prompt?: CloudPrompt | undefined
+}): AccountsState {
+  return {
+    ...args.state,
+    view: EAccountsView.GithubDevice,
+    githubPrompt: args.prompt ?? null,
+    typed: '',
+    failure: null,
+    notice: null,
+    busy: false,
+  }
+}
+
 export function askForApiKey(args: {
   state: AccountsState
   provider: EAuthProvider
@@ -196,7 +265,8 @@ export function backspace(state: AccountsState): AccountsState {
 }
 
 export function backToList(state: AccountsState): AccountsState {
-  return { ...state, view: EAccountsView.List, prompt: null, typed: '', busy: false }
+  const cleared = { prompt: null, cloudPrompt: null, githubPrompt: null }
+  return { ...state, ...cleared, view: EAccountsView.List, typed: '', busy: false }
 }
 
 export function working(state: AccountsState): AccountsState {
@@ -212,66 +282,6 @@ export function announced(args: { state: AccountsState; notice: string }): Accou
 }
 
 export const isPrompting = (state: AccountsState): boolean => state.view !== EAccountsView.List
-
-export const kindLabel = (account: Account): string =>
-  account.kind === EAuthKind.ApiKey ? 'api key' : 'subscription'
-
-export const originLabel = (account: Account): string | null => {
-  if (account.origin === EAccountOrigin.Imported) return 'imported'
-  if (account.origin === EAccountOrigin.Environment) return 'from the environment'
-  return null
-}
-
-export const statusLabel = (account: Account): string | null =>
-  account.status === EAccountStatus.Active ? null : account.status
-
-export const availabilityLabel = (account: Account): string | null =>
-  providerSpec(account.provider).reachable ? null : 'no adapter yet'
-
-export function accountDetail(account: Account): string {
-  const parts = [
-    providerSpec(account.provider).label,
-    availabilityLabel(account),
-    kindLabel(account),
-    originLabel(account),
-    statusLabel(account),
-  ]
-
-  return parts.filter((part): part is string => part !== null).join(' · ')
-}
-
-const FLOW_LABEL: Readonly<Record<ELoginFlow, string>> = {
-  [ELoginFlow.PastedCode]: 'sign in',
-  [ELoginFlow.DeviceCode]: 'sign in',
-  [ELoginFlow.ApiKey]: 'api key',
-}
-
-export const signInFlows = (provider: EAuthProvider): readonly string[] => [
-  ...new Set(providerSpec(provider).logins.map((flow) => FLOW_LABEL[flow])),
-]
-
-export const acceptsApiKey = (provider: EAuthProvider): boolean =>
-  providerSpec(provider).logins.includes(ELoginFlow.ApiKey)
-
-export const acceptsPastedCode = (provider: EAuthProvider): boolean =>
-  providerSpec(provider).logins.includes(ELoginFlow.PastedCode)
-
-export const acceptsDeviceCode = (provider: EAuthProvider): boolean =>
-  providerSpec(provider).logins.includes(ELoginFlow.DeviceCode)
-
-const signedOutDetail = (provider: EAuthProvider): string =>
-  ['not signed in', signInFlows(provider).join(' or ')]
-    .filter((part) => part.length > 0)
-    .join(' · ')
-
-export const rowLabel = (row: AccountRow): string =>
-  row.kind === EAccountRow.Account ? row.account.label : providerSpec(row.provider).label
-
-export const rowDetail = (row: AccountRow): string =>
-  row.kind === EAccountRow.Account ? accountDetail(row.account) : signedOutDetail(row.provider)
-
-export const maskedKey = (typed: string): string =>
-  typed.length <= 4 ? '•'.repeat(typed.length) : `${'•'.repeat(typed.length - 4)}${typed.slice(-4)}`
 
 /**
  * A bottom drawer is as tall as its body asks for, and an account costs three rows, so the list

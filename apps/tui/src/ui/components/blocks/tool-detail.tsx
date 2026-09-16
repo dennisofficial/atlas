@@ -7,7 +7,7 @@
  */
 
 import { collapseUnchanged } from '@dltech/atlas-core'
-import React from 'react'
+import React, { useMemo } from 'react'
 
 import type { ToolCall } from '../../../store'
 import {
@@ -34,7 +34,7 @@ import { ToolImage } from './tool-image'
 import { ToolTerminal } from './tool-terminal'
 import { ToolPage, ToolResults } from './tool-web'
 
-const DIFF_CONTEXT = 2
+export const DIFF_CONTEXT = 2
 
 const MAX_ROWS = 12
 
@@ -42,12 +42,30 @@ const INDENT = '    '
 
 const PATH_SHARE = 3
 
-function Line(props: { text: string; inner: number; fg: string }): React.ReactNode {
+const detailLine = (args: { text: string; inner: number }): string =>
+  `${INDENT}${tailOfPath({ path: stripAnsi(args.text), cells: Math.max(8, args.inner - INDENT.length) })}`
+
+type LineGroup = { fg: string; lines: readonly string[] }
+
+/**
+ * A block of same-shaped rows as ONE <text> with a span per colour group — the rows a per-line
+ * loop used to spend a renderable each on. Every renderable still mounted is repainted every
+ * frame, so a twelve-row detail is one repaint here, not twelve.
+ */
+function JoinedLines(props: { inner: number; groups: readonly LineGroup[] }): React.ReactNode {
+  const groups = props.groups.filter((group) => group.lines.length > 0)
+  if (groups.length === 0) return null
+
   return (
     <text wrapMode="none" width={props.inner} flexShrink={0}>
-      <span fg={props.fg}>
-        {`${INDENT}${tailOfPath({ path: stripAnsi(props.text), cells: Math.max(8, props.inner - INDENT.length) })}`}
-      </span>
+      {groups.flatMap((group, index) => {
+        const span = (
+          <span key={index} fg={group.fg}>
+            {group.lines.join('\n')}
+          </span>
+        )
+        return index === 0 ? [span] : ['\n', span]
+      })}
     </text>
   )
 }
@@ -64,12 +82,21 @@ function Output(props: { call: ToolCall; inner: number; expand: Expander }): Rea
 
   return (
     <>
-      {commandLines(props.call).map((line, index) => (
-        <Line key={`c${index}`} text={line} inner={props.inner} fg={theme.code} />
-      ))}
-      {shown.map((line, index) => (
-        <Line key={`d${index}`} text={line} inner={props.inner} fg={theme.hint} />
-      ))}
+      <JoinedLines
+        inner={props.inner}
+        groups={[
+          {
+            fg: theme.code,
+            lines: commandLines(props.call).map((line) =>
+              detailLine({ text: line, inner: props.inner }),
+            ),
+          },
+          {
+            fg: theme.hint,
+            lines: shown.map((line) => detailLine({ text: line, inner: props.inner })),
+          },
+        ]}
+      />
       <More hidden={body.length - MAX_ROWS} inner={props.inner} expand={props.expand} />
     </>
   )
@@ -88,11 +115,10 @@ function Reason(props: { call: ToolCall; inner: number; expand: Expander }): Rea
 
   return (
     <>
-      {shown.map((line, index) => (
-        <text key={index} wrapMode="none" width={props.inner} flexShrink={0}>
-          <span fg={theme.error}>{`${INDENT}${line}`}</span>
-        </text>
-      ))}
+      <JoinedLines
+        inner={props.inner}
+        groups={[{ fg: theme.error, lines: shown.map((line) => `${INDENT}${line}`) }]}
+      />
       <More hidden={rows.length - MAX_ROWS} inner={props.inner} expand={props.expand} />
     </>
   )
@@ -105,13 +131,16 @@ function FileRead(props: {
   expand: Expander
 }): React.ReactNode {
   const body = detailOf(props.call)
-  const shown = shownOf({ body, cap: MAX_ROWS, expand: props.expand })
+  const lines = useMemo(
+    () => codeLinesOf(shownOf({ body: detailOf(props.call), cap: MAX_ROWS, expand: props.expand })),
+    [props.call, props.expand.expanded],
+  )
   const named = outputOf(props.call).path
   const path = typeof named === 'string' ? named : (targetOf({ call: props.call, cwd: props.cwd }) ?? '')
 
   return (
     <>
-      <CodeLines lines={codeLinesOf(shown)} path={path} inner={props.inner} indent={INDENT} />
+      <CodeLines lines={lines} path={path} inner={props.inner} indent={INDENT} />
       <More hidden={body.length - MAX_ROWS} inner={props.inner} expand={props.expand} />
     </>
   )
@@ -121,20 +150,27 @@ function Matches(props: { call: ToolCall; inner: number; expand: Expander }): Re
   const found = strings(outputOf(props.call).matches)
   const shown = shownOf({ body: found, cap: MAX_ROWS, expand: props.expand })
 
+  if (shown.length === 0) {
+    return <More hidden={found.length - MAX_ROWS} inner={props.inner} expand={props.expand} />
+  }
+
   return (
     <>
-      {shown.map((match, index) => {
-        const [path, row, ...rest] = match.split(':')
-        return (
-          <text key={index} wrapMode="none" width={props.inner} flexShrink={0}>
-            <span fg={theme.meta}>
-              {`${INDENT}${tailOfPath({ path: path ?? '', cells: Math.floor(props.inner / PATH_SHARE) })}`}
+      <text wrapMode="none" width={props.inner} flexShrink={0}>
+        {shown.map((match, index) => {
+          const [path, row, ...rest] = match.split(':')
+          return (
+            <span key={index}>
+              {index === 0 ? '' : '\n'}
+              <span fg={theme.meta}>
+                {`${INDENT}${tailOfPath({ path: path ?? '', cells: Math.floor(props.inner / PATH_SHARE) })}`}
+              </span>
+              <span fg={theme.rule}>{`:${row ?? ''}  `}</span>
+              <span fg={theme.hint}>{rest.join(':').trim()}</span>
             </span>
-            <span fg={theme.rule}>{`:${row ?? ''}  `}</span>
-            <span fg={theme.hint}>{rest.join(':').trim()}</span>
-          </text>
-        )
-      })}
+          )
+        })}
+      </text>
       <More hidden={found.length - MAX_ROWS} inner={props.inner} expand={props.expand} />
     </>
   )
@@ -151,9 +187,17 @@ function Paths(props: {
 
   return (
     <>
-      {shown.map((path, index) => (
-        <Line key={index} text={relativise(path, props.cwd)} inner={props.inner} fg={theme.meta} />
-      ))}
+      <JoinedLines
+        inner={props.inner}
+        groups={[
+          {
+            fg: theme.meta,
+            lines: shown.map((path) =>
+              detailLine({ text: relativise(path, props.cwd), inner: props.inner }),
+            ),
+          },
+        ]}
+      />
       <More hidden={found.length - MAX_ROWS} inner={props.inner} expand={props.expand} />
     </>
   )
@@ -198,33 +242,39 @@ function Tests(props: { call: ToolCall; inner: number; expand: Expander }): Reac
   }
 
   return (
-    <>
-      {failures.map((line, index) => (
-        <Line key={`f${index}`} text={line} inner={props.inner} fg={theme.error} />
-      ))}
-      {tally.map((line, index) => (
-        <Line key={`t${index}`} text={line.trim()} inner={props.inner} fg={theme.meta} />
-      ))}
-    </>
+    <JoinedLines
+      inner={props.inner}
+      groups={[
+        {
+          fg: theme.error,
+          lines: failures.map((line) => detailLine({ text: line, inner: props.inner })),
+        },
+        {
+          fg: theme.meta,
+          lines: tally.map((line) => detailLine({ text: line.trim(), inner: props.inner })),
+        },
+      ]}
+    />
   )
 }
 
-const DIFF_INSET = 2
+export const DIFF_INSET = 2
 
 function Diff(props: { call: ToolCall; inner: number; cwd: string }): React.ReactNode {
-  const file = diffOf(props.call)
+  const file = useMemo(() => {
+    const parsed = diffOf(props.call)
+    if (parsed === null) return null
+    return {
+      ...parsed,
+      path: relativise(parsed.path, props.cwd),
+      hunks: parsed.hunks.map((hunk) => collapseUnchanged({ hunk, context: DIFF_CONTEXT })),
+    }
+  }, [props.call, props.cwd])
   if (file === null) return null
 
   return (
     <box marginLeft={DIFF_INSET} marginTop={1}>
-      <InlineDiff
-        file={{
-          ...file,
-          path: relativise(file.path, props.cwd),
-          hunks: file.hunks.map((hunk) => collapseUnchanged({ hunk, context: DIFF_CONTEXT })),
-        }}
-        width={Math.max(24, props.inner - DIFF_INSET)}
-      />
+      <InlineDiff file={file} width={Math.max(24, props.inner - DIFF_INSET)} />
     </box>
   )
 }

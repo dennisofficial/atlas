@@ -144,6 +144,7 @@ export function cacheBreakpoints(options: CacheBreakpointOptions = {}): Annotato
       )
 
       return {
+        ...input,
         system,
         messages: input.messages.map((entry, index) => {
           const parts = marks.get(index)

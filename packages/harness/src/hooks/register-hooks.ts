@@ -1,8 +1,8 @@
 import {
   AfterToolHook,
+  AgentFileSystemPort,
   BeforeToolHook,
   BeforeTurnHook,
-  FileSystemPort,
   ToolDefinition,
   WorkspaceFactsPort,
 } from '@dltech/atlas-core'
@@ -14,6 +14,7 @@ import { WorkspaceRoot } from '../container/tokens'
 import { FileReadStatePort } from '../files/read-state'
 import { InvalidateFactsHook } from './invalidate-facts'
 import { MirrorPlanHook } from './mirror-plan'
+import { OutsideProjectHook } from './outside-project'
 import { PrewarmFactsHook } from './prewarm-facts'
 import { ReadBeforeWriteHook } from './read-before-write'
 import { ResolveProjectPathsHook } from './resolve-project-paths'
@@ -34,7 +35,7 @@ export function registerBuiltinHooks({ container }: { container: DependencyConta
       new ReadBeforeWriteHook(
         resolver.resolve(portToken(FileReadStatePort)),
         resolver.resolveAll(portToken(ToolDefinition)),
-        resolver.resolve(portToken(FileSystemPort)),
+        resolver.resolve(portToken(AgentFileSystemPort)),
       ),
   })
   registerClassifier({ container })
@@ -50,10 +51,11 @@ export function registerBuiltinHooks({ container }: { container: DependencyConta
       new RecordFileStateHook(
         resolver.resolve(portToken(FileReadStatePort)),
         resolver.resolveAll(portToken(ToolDefinition)),
-        resolver.resolve(portToken(FileSystemPort)),
+        resolver.resolve(portToken(AgentFileSystemPort)),
       ),
   })
   container.register(portToken(AfterToolHook), { useClass: MirrorPlanHook })
+  container.register(portToken(AfterToolHook), { useClass: OutsideProjectHook })
   container.register(portToken(AfterToolHook), { useClass: TrackWorktreeHook })
   container.register(portToken(AfterToolHook), {
     useFactory: (resolver) =>

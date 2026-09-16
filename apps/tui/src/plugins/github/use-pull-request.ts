@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 
 import type { LinkedPullRequest } from '@dltech/atlas-core'
 
-import type { Span } from '../../ui/components/spans'
 import { useShimmerClock } from '../../ui/hooks/use-shimmer-clock'
+import type { SidebarRowSplit } from '../../ui/sidebar-section'
 import { SPINNER_FRAME_MS, theme } from '../../ui/theme'
 import { ESidebarPlace, type SidebarSection, type SidebarSectionRow } from '../surface'
 import { probeCheckout } from './checkout-probe'
@@ -57,13 +57,13 @@ const rowOf = (args: {
   const spans =
     pullRequest !== null
       ? pullRequestRow({ pullRequest, now })
-      : (() => {
-          const unread: readonly Span[] = [
+      : (): SidebarRowSplit => ({
+          left: [
             { text: `#${entry.number}`, fg: theme.code },
             { text: ` ${entry.branch}`, fg: theme.hint },
-          ]
-          return () => unread
-        })()
+          ],
+          right: [],
+        })
 
   return {
     id: entry.current ? 'pull-request-current' : `pull-request-${entry.key}`,
@@ -93,7 +93,7 @@ export function usePullRequest(args: {
   const askGit = args.probe ?? probeCheckout
   const [checkout, setCheckout] = useState<RepositoryCheckout | null>(null)
 
-  useSyncExternalStore(service.subscribe, service.version)
+  const version = useSyncExternalStore(service.subscribe, service.version)
 
   const probe = useCallback(
     async (owned: () => boolean): Promise<void> => {
@@ -134,12 +134,14 @@ export function usePullRequest(args: {
     }
   }, [probe, working])
 
-  const reading = checkout === null ? null : service.snapshot({ key: checkoutKey(checkout) })
-  const entries = pullRequestEntries({
-    linked,
-    read: (key) => service.snapshot({ key }),
-    current: checkout === null || reading === null ? null : { checkout, reading },
-  })
+  const entries = useMemo(() => {
+    const reading = checkout === null ? null : service.snapshot({ key: checkoutKey(checkout) })
+    return pullRequestEntries({
+      linked,
+      read: (key) => service.snapshot({ key }),
+      current: checkout === null || reading === null ? null : { checkout, reading },
+    })
+  }, [checkout, linked, service, version])
 
   const anyRunning = entries.some((entry) => {
     const pullRequest = foundPullRequest(entry)
@@ -164,7 +166,10 @@ export function usePullRequest(args: {
     const rows: SidebarSectionRow[] = []
 
     if (checkout !== null) {
-      rows.push({ id: 'branch', spans: [{ text: checkout.branch, fg: theme.hover }] })
+      rows.push({
+        id: 'branch',
+        spans: { left: [{ text: checkout.branch, fg: theme.hover }], right: [] },
+      })
     }
     for (const entry of entries) rows.push(rowOf({ entry, now, onOpen }))
     if (rows.length === 0) return null

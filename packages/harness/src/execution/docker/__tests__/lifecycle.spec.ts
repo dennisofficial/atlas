@@ -171,6 +171,36 @@ describe('the idle stopwatch', () => {
     }
   })
 
+  it('does not fire while a dockerized service is running, and fires once it ends', async () => {
+    const { engine, recorded } = fakeEngine({
+      containers: [{ id: 'one', state: 'running', worktree: '/repo/wt' }],
+    })
+    let runningServices = 1
+    let now = 1_000_000
+
+    const idle = startIdleStop({
+      engine,
+      prefix: 'atlas-test',
+      worktree: '/repo/wt',
+      runningShells: () => 0,
+      runningServices: () => runningServices,
+      idleMinutes: () => 1,
+      now: () => now,
+      tickMs: 5,
+    })
+
+    try {
+      now += 5 * 60_000
+      expect(await until(() => recorded.stopped.length > 0, 40)).toBe(false)
+
+      runningServices = 0
+      expect(await until(() => recorded.stopped.length > 0)).toBe(true)
+      expect(recorded.stopped).toEqual(['one'])
+    } finally {
+      idle.halt()
+    }
+  })
+
   it('starts the window over when a bash call lands', async () => {
     const { engine, recorded } = fakeEngine({
       containers: [{ id: 'one', state: 'running', worktree: '/repo/wt' }],
@@ -307,6 +337,7 @@ describe('ReclaimWorktreeSandboxHook', () => {
     await hook.run({
       call: bashCall('exit_worktree'),
       result: exited(EWorktreeExit.Remove),
+      projectDirectory: '/repo',
       signal: new AbortController().signal,
     })
 
@@ -322,6 +353,7 @@ describe('ReclaimWorktreeSandboxHook', () => {
     await hook.run({
       call: bashCall('exit_worktree'),
       result: exited(EWorktreeExit.Keep),
+      projectDirectory: '/repo',
       signal: new AbortController().signal,
     })
 
@@ -338,11 +370,13 @@ describe('ReclaimWorktreeSandboxHook', () => {
     await hook.run({
       call: bashCall('exit_worktree'),
       result: { ok: false, reason: 'refused' },
+      projectDirectory: '/repo',
       signal,
     })
     await hook.run({
       call: bashCall('bash'),
       result: { ok: true, output: { command: 'ls' }, modelText: '' },
+      projectDirectory: '/repo',
       signal,
     })
 

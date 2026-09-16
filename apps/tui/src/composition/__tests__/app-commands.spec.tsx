@@ -108,6 +108,15 @@ describe('the command menu', () => {
       await setup.mockInput.typeText('/')
       await landed(setup)
 
+      const first = setup.captureCharFrame()
+      expect(first).toContain('/cd')
+      expect(first).toContain('move this session to another')
+
+      for (let row = 0; row < 8; row += 1) {
+        setup.mockInput.pressArrow('down')
+        await landed(setup)
+      }
+
       const frame = setup.captureCharFrame()
       expect(frame).toContain('compact')
       expect(frame).toContain('replace the history so far')

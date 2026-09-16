@@ -6,7 +6,9 @@ import {
 } from '@dltech/atlas-core'
 
 import { SIGKILL_GRACE_MS } from '../local-process'
+import { atlasBinDirectory } from '../../store/paths'
 import { demuxExecStream } from './frames'
+import { execEnvFor } from './exec-environment'
 import { EngineRequestFailed, type ContainerDetails, type DockerEngine } from './engine'
 import { blockRefusal, portInBlock } from './ports'
 import {
@@ -46,27 +48,10 @@ const bridge = (
     },
   })
 
-const containerStopped = (error: unknown): boolean =>
+const containerGone = (error: unknown): boolean =>
   error instanceof EngineRequestFailed &&
-  error.status === 409 &&
-  error.message.includes('is not running')
-
-const execEnvFor = (args: {
-  requested: Record<string, string | undefined>
-  imageEnv: readonly string[]
-}): Record<string, string> => {
-  const env: Record<string, string> = {}
-  for (const [key, value] of Object.entries(args.requested)) {
-    if (value !== undefined) env[key] = value
-  }
-
-  const imagePath = args.imageEnv
-    .find((one) => one.startsWith('PATH='))
-    ?.slice('PATH='.length)
-  if (env.PATH !== undefined && imagePath !== undefined) env.PATH = imagePath
-
-  return env
-}
+  ((error.status === 409 && error.message.includes('is not running')) ||
+    (error.status === 404 && error.message.includes('No such container')))
 
 export class DockerProcessPort implements ProcessPort {
   private readonly engine: DockerEngine
@@ -186,9 +171,11 @@ export class DockerProcessPort implements ProcessPort {
       const { sandbox, details } = await this.ensureRunning()
       this.collected.push(...sandbox.warnings)
       this.imageEnv = details.config.env
-      this.onStatus?.({ state: ESandboxState.Running, ports: details.ports })
+      this.onStatus?.({ state: ESandboxState.Running, name: sandbox.name, ports: details.ports })
       return sandbox
     } catch (error) {
+      this.sandboxPromise = undefined
+      this.imageEnv = undefined
       this.onStatus?.({
         state: ESandboxState.Failed,
         reason: error instanceof Error ? error.message : String(error),
@@ -216,7 +203,7 @@ export class DockerProcessPort implements ProcessPort {
     try {
       return await this.execIn({ sandbox: await this.ensure(), command: args })
     } catch (error) {
-      if (!containerStopped(error)) throw error
+      if (!containerGone(error)) throw error
 
       this.onStatus?.({ state: ESandboxState.Stopped })
       this.sandboxStopped()
@@ -236,7 +223,12 @@ export class DockerProcessPort implements ProcessPort {
       env:
         command.env === undefined
           ? {}
-          : execEnvFor({ requested: command.env, imageEnv: this.imageEnv }),
+          : execEnvFor({
+              requested: command.env,
+              imageEnv: this.imageEnv,
+              home: this.sandboxConfig.home,
+              atlasBin: atlasBinDirectory(),
+            }),
     })
     const demuxed = demuxExecStream({
       stream: await this.engine.startExec({ execId: exec.id }),

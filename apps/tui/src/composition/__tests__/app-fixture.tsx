@@ -1,4 +1,5 @@
 import { toRunId, toThreadId } from '@dltech/atlas-core'
+import { TextareaRenderable, type Renderable } from '@opentui/core'
 import type { MockMouse } from '@opentui/core/testing'
 import { testRender } from '@opentui/react/test-utils'
 import React from 'react'
@@ -29,10 +30,12 @@ export const REPLY = 'Atlas derives every prompt from the event log.'
 
 export type Mounted = {
   app: FakeApp
+  draftText: () => string | null
   frame: () => Promise<string>
   nextFrame: () => Promise<string>
   typeText: (text: string) => Promise<void>
   pressEnter: () => void
+  pressTab: () => void
   pressEscape: () => void
   pressBackspace: () => void
   paste: (text: string) => Promise<void>
@@ -69,6 +72,15 @@ export async function spokenIn(app: FakeApp): Promise<OpenedConversation> {
 
 const NOTHING_ON_THE_CLIPBOARD: ClipboardImageReader = async () => null
 
+const editorIn = (node: Renderable): TextareaRenderable | null => {
+  if (node instanceof TextareaRenderable) return node
+  for (const child of node.getChildren()) {
+    const found = editorIn(child)
+    if (found !== null) return found
+  }
+  return null
+}
+
 export async function open(args: {
   app: FakeApp
   opened?: OpenedConversation
@@ -85,6 +97,7 @@ export async function open(args: {
 
   return {
     app: args.app,
+    draftText: () => editorIn(setup.renderer.root)?.plainText ?? null,
     frame: async () => {
       await setup.flush()
       await settle(SETTLE_MS)
@@ -97,6 +110,7 @@ export async function open(args: {
     },
     typeText: (text) => setup.mockInput.typeText(text),
     pressEnter: () => setup.mockInput.pressEnter(),
+    pressTab: () => setup.mockInput.pressTab(),
     pressEscape: () => setup.mockInput.pressEscape(),
     pressBackspace: () => setup.mockInput.pressBackspace(),
     paste: (text) => setup.mockInput.pasteBracketedText(text),

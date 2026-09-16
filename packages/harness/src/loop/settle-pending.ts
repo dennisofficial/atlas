@@ -16,9 +16,14 @@ import {
   type EventDraft,
   type EventLogPort,
   type ToolDeclaration,
+  type ToolOutputChunk,
 } from '@dltech/atlas-core'
 
 import type { DispatchableCall, ToolDispatcher } from '../tools/dispatch'
+
+export type ToolOutputNotice = ToolOutputChunk & { callId: CallId }
+
+export type OnToolOutputNotice = (args: ToolOutputNotice) => void
 
 export type SettlePending = (args: {
   threadId: ThreadId
@@ -30,6 +35,7 @@ export function createSettlePending(deps: {
   dispatch: ToolDispatcher
   tools?: (() => readonly ToolDeclaration[]) | undefined
   launchDirectory?: string | undefined
+  onToolOutput?: OnToolOutputNotice | undefined
 }): SettlePending {
   const isSafe = (call: DispatchableCall): boolean => {
     const declarations = new Map((deps.tools?.() ?? []).map((tool) => [tool.name, tool]))
@@ -51,6 +57,7 @@ export function createSettlePending(deps: {
       return [{ type: 'tool-denied', callId: call.callId, name: call.name, reason: refusal }]
     }
 
+    const tap = deps.onToolOutput
     return deps.dispatch.dispatch({
       call,
       signal: args.signal,
@@ -58,6 +65,9 @@ export function createSettlePending(deps: {
       homeDirectory: args.homeDirectory,
       activeWorktree: args.activeWorktree,
       events: args.events,
+      ...(tap === undefined
+        ? {}
+        : { onOutput: (chunk: ToolOutputChunk) => tap({ callId: call.callId, ...chunk }) }),
     })
   }
 
@@ -89,8 +99,8 @@ export function createSettlePending(deps: {
 
       const projectDirectory = activeWorktree?.path ?? homeDirectory
       const settled = await Promise.all(
-        run.map((call) =>
-          settleOne({
+        run.map(async (call) => {
+          const drafts = await settleOne({
             call,
             refusal: refusals.get(call.callId),
             events,
@@ -98,15 +108,11 @@ export function createSettlePending(deps: {
             projectDirectory,
             homeDirectory,
             activeWorktree,
-          }),
-        ),
+          })
+          if (drafts.length > 0) await deps.log.append({ threadId, runId: call.runId, drafts })
+          return drafts
+        }),
       )
-
-      for (const [index, drafts] of settled.entries()) {
-        const call = run[index]
-        if (call === undefined || drafts.length === 0) continue
-        await deps.log.append({ threadId, runId: call.runId, drafts })
-      }
 
       const drafts = settled.flat()
 

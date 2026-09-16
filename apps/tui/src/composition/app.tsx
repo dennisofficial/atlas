@@ -14,20 +14,22 @@ import React, {
 import {
   contextPressure,
   ECompactionAnchor,
+  EForkMode,
+  EKilledBy,
   launchWorktreeOf,
   type EExecutionLocation,
   type EUsageWindow,
   type ModelCard,
 } from '@dltech/atlas-core'
-import type { DiscoveredSkill } from '@dltech/atlas-harness'
+import { forkConversation, relocateSession, type DiscoveredSkill } from '@dltech/atlas-harness'
 
-import { newestExpandableKey } from '../store'
+import { newestExpandableKey, type PendingSaid } from '../store'
 import { withContainer, withSections } from '../store/sidebar-model'
 import { accountMeterSpans } from '../ui/account-meters'
 import { accountOf, type AccountRow } from '../ui/accounts-model'
 import { isWaiting, type BackgroundWork } from '../ui/background-wait'
 import type { Span } from '../ui/components/spans'
-import { usageMeters, type FooterMeter } from '../ui/usage-meters'
+import type { FooterMeter } from '../ui/usage-meters'
 import { CommandMenu } from '../ui/components/command-menu'
 import { FileMenu } from '../ui/components/file-menu'
 import { Composer, composerRows, composerTone } from '../ui/components/composer'
@@ -46,6 +48,7 @@ import { footerLayout } from '../ui/footer-layout'
 import { Screen } from '../ui/components/screen'
 import { HeaderBar } from '../ui/components/header-bar'
 import { useDiffStat } from '../ui/hooks/use-diff-stat'
+import { useTerminalFocus } from '../ui/hooks/use-terminal-focus'
 import { AgentTypes } from '../ui/components/agent-types'
 import { LostChildren } from '../ui/components/lost-children'
 import { hasLostChildren, lostChildrenNotice } from '../ui/lost-children-model'
@@ -59,6 +62,7 @@ import { useSince } from '../ui/hooks/use-since'
 import { composerEdgeVersion, subscribeComposerEdge } from '../ui/composer-edge-store'
 import { densityVersion, subscribeDensity } from '../ui/density-store'
 import { modelLabel } from '../ui/model-label'
+import { isShellRunning } from '../ui/shells-model'
 import { theme } from '../ui/theme'
 import {
   clearNotice,
@@ -92,8 +96,13 @@ import {
   useKeyRegistry,
 } from '../ui/keys'
 import { commandSpecs, dispatchSubmission, EContainerAsk, EDispatch, localCommands } from './commands'
-import { currentLocationNotice, movedLocationNotice } from './container-notices'
-import { mcpReport } from './mcp-report'
+import {
+  currentLocationNotice,
+  movedLocationNotice,
+  pendingSwitchNotice,
+  relocatedNotice,
+} from './container-notices'
+import { mcpReport } from '@dltech/atlas-harness'
 import { useComposerMenus } from './use-composer-menus'
 import { workspaceFileLoader } from './mentioned-files'
 import { useResolvedMentions } from './use-resolved-mentions'
@@ -102,7 +111,7 @@ import { reloadedSkills, type SkillsReloaded } from './skills-reload'
 import { globalBindings } from './global-bindings'
 import { applyTranscriptCovered } from '../ui/covered-store'
 import { OverlayStack } from './overlay-stack'
-import { unmeasuredWindowWarning } from './providers'
+import { unmeasuredWindowWarning } from '@dltech/atlas-harness'
 import { settleStaleness } from './auto-restart'
 import { checkForUpdate, sourceStalenessProbe, type SourceStaleness } from './update-check'
 import type { OpenedConversation } from './open-conversation'
@@ -130,14 +139,15 @@ import { useAgents } from './use-agents'
 import { useAgentView } from './use-agent-view'
 import { SubagentTranscript } from './subagent-transcript'
 import { useAgentsPicker } from './use-agents-picker'
-import { settingModelRef } from './model-preference'
+import { settingModelRef } from '@dltech/atlas-harness'
 import { settingTarget, useSwitcher } from './use-switcher'
 import { useThreadModel } from './use-thread-model'
+import { useContainerGuard } from './use-container-guard'
 import { useContainerPill } from './use-container-pill'
+import { useLocationPill } from './use-location-pill'
 import { useExecutionLocation } from './use-execution-location'
 import { useThreads } from './use-threads'
-
-const PLACEHOLDER = 'Ask anything'
+import { useUsageMeters } from './use-usage-meters'
 
 const STEER_PLACEHOLDER = 'Steer the turn'
 
@@ -157,9 +167,12 @@ enum EChromePanel {
   LostAgents = 'lost-agents',
 }
 
-const composerPlaceholder = (args: { addressingChild: boolean; working: boolean }): string => {
+const composerPlaceholder = (args: {
+  addressingChild: boolean
+  working: boolean
+}): string | undefined => {
   if (args.addressingChild) return SUBAGENT_PLACEHOLDER
-  return args.working ? STEER_PLACEHOLDER : PLACEHOLDER
+  return args.working ? STEER_PLACEHOLDER : undefined
 }
 
 const readoutOf = (args: {
@@ -222,7 +235,8 @@ function Workspace(props: {
   useSyncExternalStore(subscribePalette, paletteVersion)
   useSyncExternalStore(subscribeDensity, densityVersion)
   useSyncExternalStore(subscribeComposerEdge, composerEdgeVersion)
-  useSyncExternalStore(props.app.usage.subscribe, props.app.usage.version)
+  const usageVersion = useSyncExternalStore(props.app.usage.subscribe, props.app.usage.version)
+  const accountsVersion = useSyncExternalStore(props.app.models.subscribe, props.app.models.version)
 
   const chooseModelSetting = useRef<((id: string) => void) | null>(null)
   const handleChooseModelSetting = useCallback((id: string) => {
@@ -237,6 +251,9 @@ function Workspace(props: {
 
   const handleFocusComposer = useCallback(() => draft.editor.current?.focus(), [draft])
 
+  const restoreUndone = useRef<(said: PendingSaid) => void>(() => undefined)
+  const handleUndone = useCallback((said: PendingSaid) => restoreUndone.current(said), [])
+
   const conversation = useConversation({
     app: props.app,
     opened: props.opened,
@@ -244,7 +261,7 @@ function Workspace(props: {
     autoCompactAtPercent: settings.autoCompactAtPercent,
     thinking: settings.thinking,
     tldrStatus: settings.tldrStatus,
-    onUndone: draft.setValue,
+    onUndone: handleUndone,
     canWake: exitGuard.state === null,
   })
 
@@ -253,6 +270,13 @@ function Workspace(props: {
     read: props.clipboard,
     directory: pasteDirectoryOf(conversation.threadId),
   })
+
+  useEffect(() => {
+    restoreUndone.current = (said) => {
+      draft.setValue(said.text)
+      tokens.restore(restoredImages({ images: said.images, text: said.text }))
+    }
+  }, [draft, tokens])
 
   const [peeking, setPeeking] = useState(false)
   const { sidebarWidth, sidebarFoldBelow } = settings
@@ -278,6 +302,7 @@ function Workspace(props: {
     started: conversation.started,
   })
   const containerPill = useContainerPill({ app: props.app })
+  const locationPill = useLocationPill({ app: props.app })
 
   const { selection } = threadModel
 
@@ -292,16 +317,18 @@ function Workspace(props: {
 
   const metered = props.app.models.subscribed(selection.ref.providerId)
 
-  const meters = metered
-    ? usageMeters({
-        usage: props.app.usage.snapshot(),
-        show: settings.footerMeters,
-        warn: settings.usageWarn,
-        now: Date.now(),
-      })
-    : []
+  const meters = useUsageMeters({
+    usage: props.app.usage,
+    metered,
+    show: settings.footerMeters,
+    warn: settings.usageWarn,
+  })
 
-  const readout = readoutOf({ card, used: conversation.contextTokens, meters })
+  const { contextTokens } = conversation
+  const readout = useMemo(
+    () => readoutOf({ card, used: contextTokens, meters }),
+    [card, contextTokens, meters],
+  )
 
   useEffect(() => {
     const warning = unmeasuredWindowWarning({
@@ -366,6 +393,7 @@ function Workspace(props: {
 
   const switcher = useSwitcher({
     catalogue: props.app.models,
+    accountsVersion,
     active: selection.ref,
     effort: selection.effort,
     fallback: threadModel.fallback,
@@ -472,7 +500,10 @@ function Workspace(props: {
    * looked at a child and came back. Nothing about the wait is a fact about which thread is on
    * screen, so nothing about it belongs below this point.
    */
-  const background: BackgroundWork = { agents: agents.running, shells: shells.running }
+  const background = useMemo(
+    (): BackgroundWork => ({ agents: agents.running, shells: shells.running }),
+    [agents.running, shells.running],
+  )
   const waitingSince = useSince(isWaiting(background))
 
   /**
@@ -497,6 +528,8 @@ function Workspace(props: {
   const headerDiff = useDiffStat({
     projectDirectory: conversation.projectDirectory,
     working: conversation.working,
+    focus: useTerminalFocus(),
+    mutations: conversation.mutations,
   })
   const docked = wide && !welcome
   const contentWidth = contentWidthOf({ width, sidebarWidth, docked })
@@ -527,9 +560,20 @@ function Workspace(props: {
 
   const accounts = useAccounts({
     accounts: props.app.accounts,
+    cloud: props.app.cloud,
     openUrl: props.app.openUrl,
     onAccounts: props.app.models.observeAccounts,
   })
+
+  const signInGateFired = useRef(false)
+  useEffect(() => {
+    if (signInGateFired.current) return
+    signInGateFired.current = true
+    if (!props.app.cloudRequired || props.app.cloud.session() !== null) return
+
+    accounts.handleOpen('Sign in to Atlas Cloud to use Atlas.')
+  }, [accounts, props.app.cloud, props.app.cloudRequired])
+
   const accountsOpen = accounts.state !== null
   const accountRows = accounts.state?.rows
 
@@ -541,18 +585,19 @@ function Workspace(props: {
     }
   }, [accountRows, accountsOpen, usage])
 
-  const accountMeters = useCallback(
-    (row: AccountRow): readonly Span[] => {
-      const account = accountOf(row)
-      if (account === undefined) return []
+  const accountMeters = useMemo(
+    () =>
+      (row: AccountRow): readonly Span[] => {
+        const account = accountOf(row)
+        if (account === undefined) return []
 
-      return accountMeterSpans({
-        usage: usage.snapshotFor({ accountId: account.id }),
-        warn: settings.usageWarn,
-        now: Date.now(),
-      })
-    },
-    [settings.usageWarn, usage],
+        return accountMeterSpans({
+          usage: usage.snapshotFor({ accountId: account.id }),
+          warn: settings.usageWarn,
+          now: Date.now(),
+        })
+      },
+    [settings.usageWarn, usage, usageVersion],
   )
 
   /**
@@ -584,6 +629,24 @@ function Workspace(props: {
 
   const handleRewindChoice = useCallback(
     ({ point, verb }: RewindChoice) => {
+      if (verb === ERewindVerb.Fork) {
+        void forkConversation({
+          log: props.app.log,
+          threads: props.app.threads,
+          threadId: conversation.threadId,
+          seq: point.seq,
+          mode: EForkMode.Copy,
+        }).then((forked) => {
+          if (!forked.ok) {
+            notify({ key: 'fork-refused', text: forked.reason, tone: ENoticeTone.Warn })
+            return
+          }
+
+          handleOpenThread(forked.thread.id)
+        })
+        return
+      }
+
       if (verb === ERewindVerb.ToHere) {
         conversation.handleRewindTo(point.seq - 1)
         if (point.kind === ERewindPointKind.Said) draft.setValue(point.text)
@@ -597,7 +660,7 @@ function Workspace(props: {
 
       conversation.handleCompactAround({ anchor: ECompactionAnchor.Suffix, seq: point.seq })
     },
-    [conversation, draft],
+    [conversation, draft, handleOpenThread, props.app.log, props.app.threads],
   )
 
   const rewind = useRewind({ events: conversation.readEvents, onPick: handleRewindChoice })
@@ -628,6 +691,51 @@ function Workspace(props: {
     setLoadedSkills(after)
     return reloadedSkills({ before, after })
   }, [props.app.skillRegistry])
+
+  const containerBlockers = useCallback(
+    () =>
+      props.app.shells.list({ threadId: conversation.threadId }).filter(isShellRunning),
+    [conversation.threadId, props.app],
+  )
+
+  const applyContainerSwitch = useCallback(
+    (target: EExecutionLocation) => {
+      const threadId = conversation.threadId
+      for (const shell of containerBlockers()) {
+        props.app.shells.kill({ shellId: shell.shellId, by: EKilledBy.ContainerSwitch, threadId })
+      }
+
+      const from = execution.location
+      execution.handleSet(target)
+      if (!conversation.started) return
+
+      void relocateSession({
+        threadId,
+        from,
+        location: target,
+        log: props.app.log,
+        ids: props.app.ids,
+        services: props.app.services,
+        agents: props.app.agents,
+      })
+        .then((moved) =>
+          notify({
+            key: 'container-switch',
+            tone: ENoticeTone.Warn,
+            ttlMs: NOTICE_WARN_MS,
+            text: relocatedNotice({
+              target,
+              stoppedServices: moved.stoppedServices.length,
+              relocatedAgents: moved.relocatedAgents.length,
+            }),
+          }),
+        )
+        .catch(() => undefined)
+    },
+    [containerBlockers, conversation.threadId, conversation.started, execution, props.app],
+  )
+
+  const containerGuard = useContainerGuard({ onSwitch: applyContainerSwitch })
 
   const handleRestart = useCallback(() => {
     if (props.onRestart === null) return
@@ -664,7 +772,8 @@ function Workspace(props: {
           compacting: conversation.compacting !== null,
           approvalOpen: conversation.approval.state !== null,
           exitGuardOpen: exitGuard.state !== null,
-          queuedMessages: props.app.pending.getSnapshot().length,
+          containerGuardOpen: containerGuard.state !== null,
+          queuedMessages: props.app.pending.waitingCount(),
           runningTasks: shells.running + agents.running + services.running,
           draftEmpty: (draft.editor.current?.plainText ?? draft.value).length === 0,
         }),
@@ -675,6 +784,7 @@ function Workspace(props: {
       props.app.pending,
       conversation,
       exitGuard.state,
+      containerGuard.state,
       shells.running,
       agents.running,
       services.running,
@@ -701,21 +811,34 @@ function Workspace(props: {
     return () => clearInterval(timer)
   }, [])
 
-  // OpenTUI parses a whole input burst before React re-renders, so a paste — or ⏎ arriving in the
-  // same burst as the text — reaches here with `draft.value` still empty. The buffer is the truth.
   const handleContainer = useCallback(
     (asked: EExecutionLocation | EContainerAsk): string => {
       if (asked === EContainerAsk.Current) return currentLocationNotice(execution.location)
+      if (asked === execution.location) return currentLocationNotice(execution.location)
 
-      execution.handleSet(asked)
+      const blockers = containerBlockers()
+      if (blockers.length > 0) {
+        containerGuard.handleOpen({ target: asked })
+        return pendingSwitchNotice({ target: asked, count: blockers.length })
+      }
+
+      applyContainerSwitch(asked)
       return movedLocationNotice(asked)
     },
-    [execution],
+    [applyContainerSwitch, containerBlockers, containerGuard, execution],
   )
+
+  useEffect(() => {
+    if (containerGuard.state === null) return
+    if (shells.running > 0) return
+
+    containerGuard.handleApply()
+  }, [containerGuard, shells.running])
 
   const commands = useMemo(
     () =>
       localCommands({
+        onChangeDirectory: conversation.handleChangeDirectory,
         onContainer: handleContainer,
         onCompact: conversation.handleCompact,
         onRewind: rewind.handleOpen,
@@ -736,6 +859,7 @@ function Workspace(props: {
       }),
     [
       agentsPicker.handleOpen,
+      conversation.handleChangeDirectory,
       conversation.handleCompact,
       conversation.handleRename,
       handleContainer,
@@ -757,7 +881,12 @@ function Workspace(props: {
 
   const specs = useMemo(() => commandSpecs({ commands, skills }), [commands, skills])
 
-  const menus = useComposerMenus({ specs, files: props.app.files, onComplete: draft.setValue })
+  const menus = useComposerMenus({
+    specs,
+    files: props.app.files,
+    currentDirectory: conversation.projectDirectory,
+    onComplete: draft.setValue,
+  })
   const readDraft = useRef(menus.handleTextChanged)
   readDraft.current = menus.handleTextChanged
 
@@ -875,6 +1004,11 @@ function Workspace(props: {
           ? {}
           : { loadFile: workspaceFileLoader(props.app.files) }),
       }).then((dispatched) => {
+        if (dispatched.type === EDispatch.Queued) {
+          tokens.restore(readyImages)
+          conversation.handleQueueSettled(dispatched.entry)
+          return
+        }
         if (dispatched.type === EDispatch.Refused) {
           putBack()
           conversation.handleReportProblem(dispatched.reason)
@@ -927,10 +1061,13 @@ function Workspace(props: {
         width: chromeWidth,
         model: card?.label ?? modelLabel(selection.ref.modelId),
         effort: selection.effort,
-        items: surfaces.footerItems,
+        items:
+          locationPill === null
+            ? surfaces.footerItems
+            : [locationPill, ...surfaces.footerItems],
         context: readout,
       }),
-    [card, chromeWidth, readout, selection.effort, selection.ref, surfaces.footerItems],
+    [card, chromeWidth, locationPill, readout, selection.effort, selection.ref, surfaces.footerItems],
   )
 
   const footerStrip = useFooterStrip({ items: footerRow.instruments.items, draft })
@@ -1027,27 +1164,65 @@ function Workspace(props: {
 
   const registry = useKeyRegistry()
 
-  const overlays: readonly OverlayPresence[] = [
-    covering(exitGuard.state !== null, exitGuard.handleKey),
-    covering(conversation.approval.state !== null, conversation.approval.handleKey),
-    covering(rewind.state !== null, rewind.handleKey),
-    { ...covering(switcher.state !== null, switcher.handleKey), porous: true },
-    covering(shells.state !== null, shells.handleKey),
-    covering(services.state !== null, services.handleKey),
-    covering(accounts.state !== null, accounts.handleKey),
-    covering(threads.state !== null, threads.handleKey),
-    covering(agentsPicker.state !== null, agentsPicker.handleKey),
-    { ...covering(settings.state !== null, settings.handleKey), porous: true },
-    { ...covering(footerStrip.state !== null, footerStrip.handleKey), coversTranscript: false },
-    { open: conversation.compacting !== null, coversComposer: true, coversTranscript: true },
-    { open: overlay, coversComposer: true, coversTranscript: false },
-  ]
+  const { approval, rewindConfirm } = conversation
+  const compacting = conversation.compacting !== null
 
-  const handleKey = useOverlayKeys({
-    veil: { shown: panel !== null, dismiss: () => setPanel(null), keys: [HELP_KEY] },
-    owners: keyOwners(overlays),
-    bindings: registry.snapshot,
-  })
+  const overlays = useMemo(
+    (): readonly OverlayPresence[] => [
+      covering(exitGuard.state !== null, exitGuard.handleKey),
+      covering(containerGuard.state !== null, containerGuard.handleKey),
+      covering(rewindConfirm.state !== null, rewindConfirm.handleKey),
+      covering(approval.state !== null, approval.handleKey),
+      covering(rewind.state !== null, rewind.handleKey),
+      covering(switcher.state !== null, switcher.handleKey),
+      covering(shells.state !== null, shells.handleKey),
+      covering(services.state !== null, services.handleKey),
+      covering(accounts.state !== null, accounts.handleKey),
+      covering(threads.state !== null, threads.handleKey),
+      covering(agentsPicker.state !== null, agentsPicker.handleKey),
+      { ...covering(settings.state !== null, settings.handleKey), porous: true },
+      { ...covering(footerStrip.state !== null, footerStrip.handleKey), coversTranscript: false },
+      { open: compacting, coversComposer: true, coversTranscript: true },
+      { open: overlay, coversComposer: true, coversTranscript: false },
+    ],
+    [
+      accounts.handleKey,
+      accounts.state,
+      agentsPicker.handleKey,
+      agentsPicker.state,
+      approval.handleKey,
+      approval.state,
+      compacting,
+      exitGuard.handleKey,
+      exitGuard.state,
+      footerStrip.handleKey,
+      footerStrip.state,
+      overlay,
+      rewind.handleKey,
+      rewind.state,
+      rewindConfirm.handleKey,
+      rewindConfirm.state,
+      services.handleKey,
+      services.state,
+      settings.handleKey,
+      settings.state,
+      shells.handleKey,
+      shells.state,
+      switcher.handleKey,
+      switcher.state,
+      threads.handleKey,
+      threads.state,
+    ],
+  )
+
+  const owners = useMemo(() => keyOwners(overlays), [overlays])
+  const handleDismissPanel = useCallback(() => setPanel(null), [])
+  const veil = useMemo(
+    () => ({ shown: panel !== null, dismiss: handleDismissPanel, keys: [HELP_KEY] }),
+    [handleDismissPanel, panel],
+  )
+
+  const handleKey = useOverlayKeys({ veil, owners, bindings: registry.snapshot })
 
   const handleKeyWithMenu = useCallback(
     (key: KeyEvent) => {
@@ -1103,6 +1278,20 @@ function Workspace(props: {
     ),
   )
 
+  const sidebarModel = useMemo(
+    () =>
+      withSections({
+        model: withContainer({ model: agents.sidebar, container: containerPill }),
+        sections: surfaces.sidebarSections,
+      }),
+    [agents.sidebar, containerPill, surfaces.sidebarSections],
+  )
+
+  const placeholder = composerPlaceholder({
+    addressingChild: agentView.viewing !== null,
+    working: conversation.working,
+  })
+
   return (
     <Screen>
       <SelectionSurface>
@@ -1155,8 +1344,8 @@ function Workspace(props: {
                 onToggle={handleToggle}
               />
             )}
-            <NoticeStack width={chromeWidth} />
           </box>
+          <NoticeStack width={chromeWidth} />
           {panel === EChromePanel.Shortcuts ? <Shortcuts width={chromeWidth} /> : null}
           {panel === EChromePanel.AgentTypes ? (
             <AgentTypes width={chromeWidth} catalog={props.app.agentTypes} />
@@ -1174,14 +1363,14 @@ function Workspace(props: {
               <CommandMenu state={menus.command} width={composerWidth} />
             )}
             {menus.file === null ? null : <FileMenu state={menus.file} width={composerWidth} />}
+            {menus.cd === null ? null : (
+              <FileMenu state={menus.cd} width={composerWidth} label=" Directories " />
+            )}
             <Composer
               draft={draft}
               width={composerWidth}
               tone={tone}
-              placeholder={composerPlaceholder({
-                addressingChild: agentView.viewing !== null,
-                working: conversation.working,
-              })}
+              {...(placeholder === undefined ? {} : { placeholder })}
               maxRows={composerRows(height)}
               focused={!overlaid}
               highlights={highlights}
@@ -1206,10 +1395,7 @@ function Workspace(props: {
         {sidebarVisible ? (
           <Sidebar
             width={overlay ? floatingSidebarWidth({ width, sidebarWidth }) : sidebarWidth}
-            model={withSections({
-              model: withContainer({ model: agents.sidebar, container: containerPill }),
-              sections: surfaces.sidebarSections,
-            })}
+            model={sidebarModel}
             root={projectRoot}
             worktree={sidebarWorktree}
             overlay={overlay}
@@ -1240,8 +1426,10 @@ function Workspace(props: {
           threads={threads}
           agentsPicker={agentsPicker}
           rewind={rewind}
+          rewindConfirm={conversation.rewindConfirm}
           approval={conversation.approval}
           exitGuard={exitGuard}
+          containerGuard={containerGuard}
           compacting={conversation.compacting}
           now={conversation.now}
         />

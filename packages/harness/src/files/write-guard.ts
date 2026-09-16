@@ -1,4 +1,4 @@
-import type { FileSystemPort, ThreadId } from '@dltech/atlas-core'
+import type { AgentFileSystemPort, ThreadId } from '@dltech/atlas-core'
 
 import { LocalFileSystemPort } from '../execution/local-filesystem'
 import { withPathLock } from './path-lock'
@@ -34,7 +34,7 @@ export class SerializedWrites extends FileWriteGuardPort {
 export class VerifyingWriteGuard extends FileWriteGuardPort {
   constructor(
     private readonly seen: FileReadStatePort,
-    private readonly files: FileSystemPort = new LocalFileSystemPort(),
+    private readonly files: AgentFileSystemPort = new LocalFileSystemPort(),
   ) {
     super()
   }
@@ -70,9 +70,9 @@ export class VerifyingWriteGuard extends FileWriteGuardPort {
     const view = this.seen.viewOf({ threadId, path })
     if (view === undefined) return false
 
-    const stats = await this.files.stat({ path }).catch(() => null)
+    const stats = await this.files.stat({ path, threadId }).catch(() => null)
     if (stats === null || !stats.isFile()) return false
 
-    return await movedSince({ view, stats, path, files: this.files })
+    return await movedSince({ view, stats, path, files: this.files, threadId })
   }
 }

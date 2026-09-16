@@ -16,9 +16,14 @@ const MARK_CELLS = 2
 
 const GAP = 1
 
+export type LineHandlers = PressHandlers & {
+  onMouseOver?: () => void
+  onMouseOut?: () => void
+}
+
 export function SettingsLine(props: {
   band?: string
-  press?: PressHandlers
+  press?: LineHandlers
   id?: string
   children: React.ReactNode
 }): React.ReactNode {
@@ -74,6 +79,46 @@ function readOut(args: {
   return [shown, { text: ' '.repeat(room - together + GAP) }, affordance]
 }
 
+export function SettingsTextLine(props: {
+  label: string
+  value: readonly Span[]
+  cells: number
+  selected?: boolean | undefined
+  id?: string | undefined
+  band?: string | undefined
+  press?: LineHandlers | undefined
+}): React.ReactNode {
+  const labelCells = labelColumn(props.cells)
+  const selected = props.selected === true
+  const mark: Span = selected
+    ? { text: `${glyph.selected} `, fg: theme.accent }
+    : { text: ' '.repeat(MARK_CELLS) }
+
+  const spans: Span[] = [
+    mark,
+    {
+      text: paddedLabel({ label: props.label, cells: labelCells }),
+      fg: selected ? theme.bright : theme.hover,
+    },
+    { text: ' ' },
+    ...props.value,
+  ]
+
+  const band = props.band ?? (selected ? theme.hoverBg : undefined)
+
+  return (
+    <SettingsLine
+      {...(props.id === undefined ? {} : { id: props.id })}
+      {...(band === undefined ? {} : { band })}
+      {...(props.press === undefined ? {} : { press: props.press })}
+    >
+      <text>
+        <Spans spans={clipSpans({ spans, cells: props.cells })} />
+      </text>
+    </SettingsLine>
+  )
+}
+
 export function SettingLine(props: {
   setting: ResolvedSetting
   cells: number
@@ -82,33 +127,19 @@ export function SettingLine(props: {
   press?: PressHandlers
 }): React.ReactNode {
   const labelCells = labelColumn(props.cells)
-  const mark: Span = props.selected
-    ? { text: `${glyph.selected} `, fg: theme.accent }
-    : { text: ' '.repeat(MARK_CELLS) }
-
-  const spans: Span[] = [
-    mark,
-    {
-      text: paddedLabel({ label: props.setting.definition.label, cells: labelCells }),
-      fg: props.selected ? theme.bright : theme.hover,
-    },
-    { text: ' ' },
-    ...readOut({
-      setting: props.setting,
-      cells: props.cells - MARK_CELLS - labelCells - GAP,
-      override: props.override,
-    }),
-  ]
 
   return (
-    <SettingsLine
+    <SettingsTextLine
       id={`setting-${props.setting.definition.id}`}
-      {...(props.selected ? { band: theme.hoverBg } : {})}
+      label={props.setting.definition.label}
+      value={readOut({
+        setting: props.setting,
+        cells: props.cells - MARK_CELLS - labelCells - GAP,
+        override: props.override,
+      })}
+      cells={props.cells}
+      selected={props.selected}
       {...(props.press === undefined ? {} : { press: props.press })}
-    >
-      <text>
-        <Spans spans={clipSpans({ spans, cells: props.cells })} />
-      </text>
-    </SettingsLine>
+    />
   )
 }

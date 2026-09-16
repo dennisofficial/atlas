@@ -3,6 +3,7 @@ dist
 .turbo
 *.log
 .DS_Store
+storybook-static/
 
 # Host-rendered workspace secret material (SSH keys, etc.) — never repo content.
 .ssh/
@@ -52,6 +53,9 @@ ds-bundle/
 
 .scratch/
 
+# Personal per-repo instructions (ATLAS.local.md etc.) — the harness loads them, git never does
+*.local.md
+
 # The repo-local state a source launch used to keep before it was pointed at ~/.atlas like the
 # shipped binary. Nothing writes here any more; the entry stays so an old checkout's secret
 # material cannot be committed by accident.
@@ -70,7 +74,13 @@ ds-bundle/
 apps/tui/bin/atlas
 packages/harness/src/discovery/*.generated.ts
 
+# The rg binary scripts/build.ts stages for `bun build --compile` to embed — per-target, never committed
+packages/harness/src/execution/vendor/
+
 # Next.js build output and TS incremental state — regenerated, never committed. Their absence here
 # is what let 7,847 stale files from the pre-`deprecated/` layout show up as untracked changes.
 .next/
 *.tsbuildinfo
+apps/api/src/generated/
+
+.do/live-spec.backup.yaml

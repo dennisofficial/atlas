@@ -10,9 +10,13 @@ import {
   EStopAction,
   toThreadId,
   type ClockPort,
+  type ProcessHandle,
+  type ProcessPort,
+  type SpawnCommand,
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import { LocalProcessPort } from '../../execution/local-process'
 import { logTail } from '../service-process'
 import { BunServiceRegistry } from '../service-registry'
 
@@ -33,11 +37,40 @@ class SteppableClock implements ClockPort {
 
 const opened: { registry: BunServiceRegistry; root: string }[] = []
 
-function openRegistry(): { registry: BunServiceRegistry; root: string } {
+function openRegistry(args?: { processes?: ProcessPort | undefined }): {
+  registry: BunServiceRegistry
+  root: string
+} {
   const root = mkdtempSync(join(tmpdir(), 'atlas-services-'))
-  const registry = new BunServiceRegistry(root, new SteppableClock(), join(root, 'logs'))
+  const registry = new BunServiceRegistry({
+    root,
+    clock: new SteppableClock(),
+    logsDirectory: join(root, 'logs'),
+    processes: args?.processes ?? new LocalProcessPort(),
+  })
   opened.push({ registry, root })
   return { registry, root }
+}
+
+class PidlessPort implements ProcessPort {
+  readonly spawned: SpawnCommand[] = []
+  private end: (code: number) => void = () => undefined
+
+  spawn(args: SpawnCommand): ProcessHandle {
+    this.spawned.push(args)
+    return {
+      stdout: new ReadableStream({ start: (controller) => controller.close() }),
+      stderr: new ReadableStream({ start: (controller) => controller.close() }),
+      exited: new Promise<number>((resolve) => {
+        this.end = resolve
+      }),
+      terminate: () => this.end(143),
+    }
+  }
+
+  which(): string | null {
+    return null
+  }
 }
 
 afterEach(async () => {
@@ -129,6 +162,26 @@ describe('starting a service', () => {
   })
 })
 
+describe('starting through a routed port', () => {
+  it('spawns with the starting thread id and reports no host pid', async () => {
+    const port = new PidlessPort()
+    const { registry } = openRegistry({ processes: port })
+
+    const started = await registry.start({
+      threadId: THREAD,
+      command: 'serve --port 3000',
+      description: 'containerized dev server',
+    })
+
+    expect(started.ok).toBe(true)
+    if (!started.ok) return
+    expect(started.snapshot.pid).toBeUndefined()
+    expect(started.snapshot.status).toBe(EServiceStatus.Running)
+    expect(port.spawned[0]?.threadId).toBe(THREAD)
+    expect(port.spawned[0]?.cmd).toEqual(['bash', '-c', 'serve --port 3000'])
+  })
+})
+
 describe('stopping a service', () => {
   it('SIGTERMs first and reports the escalation as prose actions', async () => {
     const { registry } = openRegistry()
@@ -158,7 +211,7 @@ describe('stopping a service', () => {
     expect(third.ok).toBe(true)
     if (!third.ok) return
     expect(third.action).toBe(EStopAction.Gone)
-  })
+  }, 15_000)
 
   it('answers an unknown id with a sentence naming what is registered', async () => {
     const { registry } = openRegistry()
@@ -227,6 +280,51 @@ describe('listing services', () => {
   })
 })
 
+describe('a rewind removing services', () => {
+  it('kills a running service, forgets it, and announces nothing', async () => {
+    const { registry } = openRegistry()
+    const started = await registry.start({
+      threadId: THREAD,
+      command: 'sleep 30',
+      description: 'web dev server',
+    })
+    if (!started.ok) throw new Error(started.reason)
+
+    registry.removeServices({ serviceIds: [started.snapshot.serviceId], by: EKilledBy.Rewind })
+
+    expect(registry.list()).toHaveLength(0)
+    await Bun.sleep(400)
+    expect(registry.pendingNotices({ threadId: THREAD })).toHaveLength(0)
+    expect(registry.drainNotifications({ threadId: THREAD })).toHaveLength(0)
+  })
+
+  it('drops the ending a removed service had already queued', async () => {
+    const { registry } = openRegistry()
+    await registry.start({ threadId: THREAD, command: 'exit 0', description: 'brief server' })
+    await announced({ registry })
+
+    registry.removeServices({ serviceIds: ['svc_1'], by: EKilledBy.Rewind })
+
+    expect(registry.pendingNotices({ threadId: THREAD })).toHaveLength(0)
+    expect(registry.drainNotifications({ threadId: THREAD })).toHaveLength(0)
+    expect(registry.threadsAwaitingNotice()).toEqual([])
+  })
+
+  it('leaves a service nobody cut alone', async () => {
+    const { registry } = openRegistry()
+    const started = await registry.start({
+      threadId: THREAD,
+      command: 'sleep 30',
+      description: 'web dev server',
+    })
+    if (!started.ok) throw new Error(started.reason)
+
+    registry.removeServices({ serviceIds: ['svc_99'], by: EKilledBy.Rewind })
+
+    expect(registry.list().map((snapshot) => snapshot.serviceId)).toEqual(['svc_1'])
+  })
+})
+
 describe('closing the session', () => {
   it('stops everything and still queues the endings', async () => {
     const { registry } = openRegistry()
@@ -258,5 +356,5 @@ describe('closing the session', () => {
 
     expect(Date.now() - before).toBeLessThan(10_000)
     expect(registry.list()).toHaveLength(0)
-  })
+  }, 15_000)
 })

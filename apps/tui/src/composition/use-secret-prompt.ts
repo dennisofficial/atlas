@@ -10,10 +10,13 @@ import {
 } from '@dltech/atlas-core'
 import type { KeyEvent, PasteEvent } from '@opentui/core'
 import { usePaste } from '@opentui/react'
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+
+import { CloudSignInRequiredError } from '@dltech/atlas-harness'
 
 import type { Span } from '../ui/components/spans'
 import { isPrintable } from '../ui/keys/printable'
+import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { pastedText } from '../ui/pasted-text'
 import { secretTargetOf } from '../ui/secret-target'
 import { secretDisplay } from '../ui/settings-format'
@@ -68,13 +71,23 @@ export function useSecretPrompt(args: {
   const commit = useCallback(
     (current: SecretPrompt) => {
       const committed = commitSecretPrompt(current)
-      if (committed.action === ESecretCommit.Save) {
-        secrets.write({ name: committed.name, value: committed.value })
-      } else {
-        secrets.remove(committed.name)
+      try {
+        if (committed.action === ESecretCommit.Save) {
+          secrets.write({ name: committed.name, value: committed.value })
+        } else {
+          secrets.remove(committed.name)
+        }
+        setReads((read) => read + 1)
+      } catch (error) {
+        if (!(error instanceof CloudSignInRequiredError)) throw error
+        notify({
+          key: 'secrets:signed-out',
+          tone: ENoticeTone.Warn,
+          ttlMs: NOTICE_WARN_MS,
+          text: error.message,
+        })
       }
 
-      setReads((read) => read + 1)
       setPrompt(null)
     },
     [secrets],
@@ -120,5 +133,10 @@ export function useSecretPrompt(args: {
     ),
   )
 
-  return { prompt, origin: secrets.origin(), displayOf, open, close, handleKey }
+  const origin = secrets.origin()
+
+  return useMemo(
+    () => ({ prompt, origin, displayOf, open, close, handleKey }),
+    [close, displayOf, handleKey, open, origin, prompt],
+  )
 }

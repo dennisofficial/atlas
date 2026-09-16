@@ -14,11 +14,14 @@ subscription credentials are one provider implementation among several, not a fo
 
 ## Who uses Atlas
 
-**One person: Dennis.** There is no user base, no support burden, no migration window, and no
-untrusted third party. Weigh decisions accordingly — a breaking change costs one afternoon, a
-plugin loaded from disk is his own code in his own repo, and a feature nobody has asked for is a
-feature nobody needs. Spend the saved effort on the things a single user still feels every day:
-a hang, a silent failure, a seam that makes the next feature cheap.
+**A small team, in a public repo.** Atlas is built by the people who run it every day — there is
+no separate customer base, no support burden, and no migration window. Weigh decisions
+accordingly: a breaking change costs an afternoon, not a quarter, and a feature nobody has asked
+for is a feature nobody needs. But the code is read by contributors and strangers now, so keep
+interfaces honest and note setup-breaking changes in the PR. Spend the saved effort on the things
+daily users still feel: a hang, a silent failure, a seam that makes the next feature cheap.
+
+Contributions are welcome — `CONTRIBUTING.md` holds the setup and the PR flow.
 
 Read `docs/architecture.md` before changing anything structural. It is the source of truth over
 any inference from code, and `docs/core-contract.md` holds the seams it depends on.
@@ -30,17 +33,30 @@ any inference from code, and `docs/core-contract.md` holds the seams it depends 
 | ---------------------------- | -------------- | ------------------------------------------------------------- |
 | `@dltech/atlas-core`         | `zod` only     | Events, IDs, context assembly, hook and port contracts. Pure.  |
 | `@dltech/atlas-harness`      | core           | The loop, hooks, tools, model adapters, credentials, store.    |
-| `@dltech/atlas` (`apps/tui`) | core, harness  | OpenTUI + React terminal app and the composition root.         |
+| `@dltech/atlas-ui`           | nothing        | Design tokens and web UI atoms; Storybook. No Atlas imports.   |
+| `@dltech/atlas` (`apps/tui`) | core, harness  | OpenTUI + React terminal app; binds its stores into the shared root. |
+| `@dltech/atlas-api` (`apps/api`) | nothing in-repo | Atlas Cloud backend (NestJS + better-auth + Prisma/Neon). |
+| `web` (`apps/web`) | nothing in-repo | Atlas Cloud frontend (Next.js App Router; deploys to Vercel). |
 
-Three packages, not five. A package boundary is worth it only where the compiler should enforce a
-dependency rule.
+A package boundary is worth it only where the compiler should enforce a dependency rule.
+
+**`ui` is a design-system package, not an Atlas app package.** Its token layer (`/tokens`) is
+pure TS with no platform imports — that subpath is the contract a future Expo app consumes. Its
+atoms are honest web components (Radix + CVA + Tailwind v4); nothing in the package imports from
+`core` or `harness`.
 
 **`core` performs no I/O.** No filesystem, no network, no database, no clock, no randomness. It is
 pure functions and types. When something is hard to test, that is the signal to move the decision
 into `core`, not to add a mock.
 
-**`tui` never reaches past `harness`.** It talks to `harness` through its ports. The composition
-root in `apps/tui/src/composition` is the only place that knows which implementation is bound.
+**`tui` never reaches past `harness`.** It talks to `harness` through its ports. The shared
+composition root lives in `packages/harness/src/composition` (`composeHarness`); `apps/tui`
+supplies only its surface bindings (notices, tl;dr feed, plugins) through it.
+
+**`api` runs on Node, not Bun, and tests with vitest, not `bun test`.** Nest's dependency
+injection needs legacy decorators with emitted metadata, which Bun's transpiler silently drops —
+this is the same constraint that bars tsyringe decorators elsewhere in the repo, answered the
+other way. `apps/api/AGENTS.md` holds its conventions (env tiers, module layout, testing tiers).
 
 ## `deprecated/`
 
@@ -124,15 +140,42 @@ classes only.
 - Context assembly, hook resolution, and policy decisions are pure and belong to `core` — test them
   with plain data, never with a live model, a terminal, or a database.
 
+## TUI performance
+
+OpenTUI repaints **every visible renderable every frame** — there is no dirty-region painting — so
+the renderable count of the visible tree is the per-frame cost, and the frame count is the rest.
+These are measured facts from the September 2026 perf round (#338, #340, #342, #343, #346); the
+throwaway probe that produced the numbers is `apps/tui/scripts/proto-shimmer.tsx`.
+
+- **One `<text>` with styled spans, never a `<box>` + `<text>` per cell.** A row of N elements costs
+  N × (5 native handles + a Yoga node) and is repainted every frame; one text with spans draws the
+  same pixels for a fraction of it. Gutter numbers, signs, background tints: they are all spans.
+- **A React commit is a frame.** Never `setState` on a timer in a component — subscribe to the
+  shared ticker (`subscribeTicker` in `ui/hooks/use-shimmer-clock.ts`) and write to the renderable
+  by ref (`content`, or a span's `children`), so the tick skips React entirely.
+- **An effect that awaits and then `setState`s must be keyed on content and bail when the answer is
+  unchanged.** Keyed on array identity, it loops render → effect → setState forever at 60 fps — one
+  such block pinned a whole core per tile. See `tool-block-idle.spec.tsx`.
+- **Never `content={new StyledText(...)}` inline.** `content` compares by reference, so a fresh
+  object is a full native buffer re-push every render. Memoize it.
+- **`targetFps` is inert.** The renderer is request-driven; frames happen only when something calls
+  `requestRender` (every React commit does), capped by `maxFps` (60). When a tile is hot while idle,
+  count frames first (`renderer.getStats().frameCount` over a quiet window) — nonzero means a state
+  loop, and the fix is upstream of any cadence knob.
+
 ## Git
 
-- **Work in a worktree; the main checkout is read-only between merges.** Cut a worktree under
-  `.claude/worktrees/<slug>` from `origin/main`, do the work there, and merge back into `main`
-  locally when done — no PR, no review gate — then push `main` to `origin`. Remove the worktree
-  after the merge. This is
-  load-bearing, not hygiene: `atlas-dev` runs from the main tree and flags every running terminal
-  as stale the moment the tree moves, so direct edits in the main checkout turn that notice into
-  noise.
+- **Branch from `origin/main`, ship as a PR.** Branch as `<you>/<slug>` (e.g.
+  `dennis/add-the-thing`), push, `gh pr create`, and merge with `gh pr merge --squash` once CI is
+  green. Keep PRs small enough to review in one sitting.
+- **If you run `atlas-dev` from the main checkout, that checkout is read-only.** It is
+  load-bearing, not hygiene: `atlas-dev` flags every running terminal as stale the moment the
+  tree moves, so direct edits in the main checkout turn that notice into noise. Cut a worktree
+  under `.atlas/worktrees/<slug>`, do the work there, and after the merge remove the worktree,
+  delete the local branch, and `git pull --ff-only` in the main checkout — until main is pulled,
+  every running terminal is a release behind what was just shipped. Merge from inside a worktree
+  with plain `gh pr merge --squash`, never `--delete-branch`, which fails on the local `main`
+  checkout after the merge has already landed.
 - Never force-push, never `--no-verify`.
 - **Never use `git stash`** unless explicitly asked.
 - Conventional commits: `<type>(<scope>): <description>` — imperative, lowercase.
@@ -176,6 +219,10 @@ binary. The package manager has simply stopped being a second tool.
 typecheck cannot: runtime assets loaded by path, and optional peer dependencies that need `--external`.
 Nest was the original reason for that warning and now lives only under `deprecated/`, but the class of
 failure is not specific to it — the tree-sitter grammars are the live example.
+
+## Sandbox image
+
+The sandbox image is a private GHCR listing; access rides on GitHub.
 
 ## Agent skills
 

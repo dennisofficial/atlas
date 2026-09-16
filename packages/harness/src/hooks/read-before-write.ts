@@ -6,10 +6,10 @@ import {
   EContentAccess,
   EStage,
   ToolDefinition,
+  type AgentFileSystemPort,
   type BeforeTool,
   type DeclaredPathField,
   type FileStat,
-  type FileSystemPort,
   type HookOrder,
   type ThreadId,
   type ToolCall,
@@ -55,9 +55,16 @@ type FileStatus =
 const errorCodeOf = (error: unknown): string =>
   error instanceof Error && 'code' in error && typeof error.code === 'string' ? error.code : 'unknown'
 
-async function statusOf(args: { path: string; files: FileSystemPort }): Promise<FileStatus> {
+async function statusOf(args: {
+  path: string
+  files: AgentFileSystemPort
+  threadId: ThreadId
+}): Promise<FileStatus> {
   try {
-    return { kind: EStatus.Present, stats: await args.files.stat({ path: args.path }) }
+    return {
+      kind: EStatus.Present,
+      stats: await args.files.stat({ path: args.path, threadId: args.threadId }),
+    }
   } catch (error) {
     const fault = errorCodeOf(error)
     if (fault === 'ENOENT') return { kind: EStatus.Absent }
@@ -109,7 +116,7 @@ export class ReadBeforeWriteHook extends BeforeToolHook {
   constructor(
     private readonly seen: FileReadStatePort,
     tools: readonly ToolDeclaration[],
-    private readonly files: FileSystemPort = new LocalFileSystemPort(),
+    private readonly files: AgentFileSystemPort = new LocalFileSystemPort(),
   ) {
     super()
     this.declaredPaths = createDeclaredPaths({ tools })
@@ -133,7 +140,7 @@ export class ReadBeforeWriteHook extends BeforeToolHook {
     if (path === undefined) return undefined
 
     const content = args.declared.content
-    const status = await statusOf({ path, files: this.files })
+    const status = await statusOf({ path, files: this.files, threadId: args.threadId })
     if (status.kind === EStatus.Absent) return undefined
     if (status.kind === EStatus.Unverifiable) {
       return { kind: EDenial.Unverifiable, path, content, fault: status.fault }
@@ -149,7 +156,7 @@ export class ReadBeforeWriteHook extends BeforeToolHook {
         : undefined
     }
 
-    if (await movedSince({ view, stats, path, files: this.files })) {
+    if (await movedSince({ view, stats, path, files: this.files, threadId: args.threadId })) {
       return { kind: EDenial.Stale, path, content }
     }
 
@@ -180,5 +187,5 @@ export class ReadBeforeWriteHook extends BeforeToolHook {
 export const createReadBeforeWriteHook = (args: {
   seen: FileReadStatePort
   tools: readonly ToolDeclaration[]
-  files?: FileSystemPort | undefined
+  files?: AgentFileSystemPort | undefined
 }): BeforeToolHook => new ReadBeforeWriteHook(args.seen, args.tools, args.files)

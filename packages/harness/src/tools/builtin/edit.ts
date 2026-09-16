@@ -2,9 +2,10 @@ import {
   EContentAccess,
   EPathForm,
   EPathPresence,
+  AgentFileSystemPort,
   EToolEffect,
-  FileSystemPort,
   SchemaTool,
+  type ThreadId,
   type DeclaredPathField,
   type ToolOutcome,
   type ToolRun,
@@ -14,15 +15,8 @@ import { z } from 'zod'
 import { LocalFileSystemPort } from '../../execution/local-filesystem'
 import { writeFileAtomically } from '../../files/atomic-write'
 import { FileWriteGuardPort, SerializedWrites } from '../../files/write-guard'
-import {
-  detectLineEnding,
-  endingOfRegion,
-  filePathSchema,
-  lineEndingAgnosticPattern,
-  resolveToolPath,
-  toLf,
-  withLineEnding,
-} from './file-text'
+import { filePathSchema, pathEnvironmentNote, resolveToolPath, toLf } from './file-text'
+import { replaceInContent } from './replace-text'
 import { renderUnifiedDiff } from './unified-diff'
 
 const inputSchema = z.strictObject({
@@ -35,6 +29,7 @@ const inputSchema = z.strictObject({
 const description = [
   'Replace an exact string in a text file.',
   'A relative path resolves against the project directory.',
+  pathEnvironmentNote,
   'oldString must match the file exactly, including indentation, and must be unique unless replaceAll is true.',
   'An empty oldString creates the file with newString as its whole content.',
   'Lines the edit does not touch keep their exact bytes, line endings included.',
@@ -49,7 +44,8 @@ async function createFile(args: {
   newString: string
   existing: string | null
   mode: number | undefined
-  files: FileSystemPort
+  files: AgentFileSystemPort
+  threadId: ThreadId
 }): Promise<ToolOutcome> {
   if (args.newString === '') {
     return {
@@ -63,7 +59,13 @@ async function createFile(args: {
     return { ok: false, reason: 'Cannot create new file - file already exists.' }
   }
 
-  await writeFileAtomically({ path: args.path, content: args.newString, mode: args.mode, files: args.files })
+  await writeFileAtomically({
+    path: args.path,
+    content: args.newString,
+    mode: args.mode,
+    files: args.files,
+    threadId: args.threadId,
+  })
 
   return {
     ok: true,
@@ -85,33 +87,25 @@ async function replaceInFile(args: {
   newString: string
   replaceAll: boolean
   mode: number
-  files: FileSystemPort
+  files: AgentFileSystemPort
+  threadId: ThreadId
 }): Promise<ToolOutcome> {
-  const raw = await Bun.file(args.path).text()
-  const pattern = lineEndingAgnosticPattern(args.oldString)
+  const raw = await args.files.readFile({ path: args.path, threadId: args.threadId })
+  const replaced = replaceInContent({
+    content: raw,
+    oldString: args.oldString,
+    newString: args.newString,
+    replaceAll: args.replaceAll,
+  })
+  if (!replaced.ok) return { ok: false, reason: replaced.reason }
 
-  const matches = [...raw.matchAll(new RegExp(pattern, 'g'))].length
-  if (matches === 0) {
-    return { ok: false, reason: `String to replace not found in file.\nString: ${args.oldString}` }
-  }
-  if (matches > 1 && !args.replaceAll) {
-    return {
-      ok: false,
-      reason: `Found ${matches} matches of the string to replace, but replaceAll is false. To replace all occurrences, set replaceAll to true. To replace only one occurrence, please provide more context to uniquely identify the instance.\nString: ${args.oldString}`,
-    }
-  }
-
-  const fallback = detectLineEnding(raw)
-  const replacement = toLf(args.newString)
-  const rewritten = raw.replace(new RegExp(pattern, args.replaceAll ? 'g' : ''), (region) =>
-    withLineEnding({ content: replacement, ending: endingOfRegion({ region, fallback }) }),
-  )
-
-  if (rewritten === raw) {
-    return { ok: false, reason: 'oldString and newString are identical; the file would not change.' }
-  }
-
-  await writeFileAtomically({ path: args.path, content: rewritten, mode: args.mode, files: args.files })
+  await writeFileAtomically({
+    path: args.path,
+    content: replaced.content,
+    mode: args.mode,
+    files: args.files,
+    threadId: args.threadId,
+  })
 
   return {
     ok: true,
@@ -120,7 +114,7 @@ async function replaceInFile(args: {
       diff: renderUnifiedDiff({
         path: args.path,
         oldContent: toLf(raw),
-        newContent: toLf(rewritten),
+        newContent: toLf(replaced.content),
       }),
     },
     modelText: updated(args.path),
@@ -138,7 +132,7 @@ export class EditTool extends SchemaTool<typeof inputSchema> {
 
   constructor(
     private readonly guard: FileWriteGuardPort = new SerializedWrites(),
-    private readonly files: FileSystemPort = new LocalFileSystemPort(),
+    private readonly files: AgentFileSystemPort = new LocalFileSystemPort(),
   ) {
     super()
   }
@@ -148,21 +142,31 @@ export class EditTool extends SchemaTool<typeof inputSchema> {
     threadId,
     projectDirectory,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
-    const path = resolveToolPath({ projectDirectory, path: input.path })
+    const resolved = resolveToolPath({ projectDirectory, path: input.path })
+    if (!resolved.ok) return { ok: false, reason: resolved.reason }
+    const path = resolved.path
     const { oldString, newString, replaceAll } = input
 
     const guarded = await this.guard.underLock({
       threadId,
       path,
       write: async (): Promise<ToolOutcome> => {
-        const stats = await this.files.stat({ path }).catch(() => null)
+        const stats = await this.files.stat({ path, threadId }).catch(() => null)
         if (stats !== null && !stats.isFile()) {
           return { ok: false, reason: `${path} is not a regular file.` }
         }
 
         if (oldString === '') {
-          const existing = stats === null ? null : await Bun.file(path).text()
-          return await createFile({ path, newString, existing, mode: stats?.mode, files: this.files })
+          const existing =
+            stats === null ? null : await this.files.readFile({ path, threadId })
+          return await createFile({
+            path,
+            newString,
+            existing,
+            mode: stats?.mode,
+            files: this.files,
+            threadId,
+          })
         }
 
         if (stats === null) return { ok: false, reason: `File does not exist: ${path}` }
@@ -174,6 +178,7 @@ export class EditTool extends SchemaTool<typeof inputSchema> {
           replaceAll: replaceAll ?? false,
           mode: stats.mode,
           files: this.files,
+          threadId,
         })
       },
     })

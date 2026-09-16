@@ -94,7 +94,11 @@ export function elisionLabel(args: { elided: number }): string {
 
 export function lineText(line: DiffLine): string {
   if (line.kind !== EDiffLine.Elision) return line.text
-  return elisionLabel({ elided: line.elided ?? 0 })
+  // A seam between two edits of one file is a gap of unknown size — a band, with nothing to count.
+  if (line.elided === undefined) return ''
+  if (line.overflow === true)
+    return `${line.elided} more line${line.elided === 1 ? '' : 's'}`
+  return elisionLabel({ elided: line.elided })
 }
 
 export function filetypeOf(args: { path: string }): string {

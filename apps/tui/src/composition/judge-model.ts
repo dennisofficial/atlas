@@ -9,7 +9,7 @@ import {
 } from '@dltech/atlas-core'
 import { generatedCatalogue, type ProviderAdapter } from '@dltech/atlas-harness'
 
-import { providerAdapters, unanswerableRef } from './providers'
+import { providerAdapters, unanswerableRef } from '@dltech/atlas-harness'
 
 export const judgeRefFor = ({ override }: { override: string }): ModelRef =>
   resolveUtilityModel({

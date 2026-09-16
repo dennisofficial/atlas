@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
-import { basename, dirname, join } from 'node:path'
+import { basename, dirname, isAbsolute, join } from 'node:path'
 
-import type { FileSystemPort } from '@dltech/atlas-core'
+import type { AgentFileSystemPort, ThreadId } from '@dltech/atlas-core'
 
 import { LocalFileSystemPort } from '../execution/local-filesystem'
 
@@ -12,23 +12,41 @@ const PERMISSION_BITS = 0o777
 const temporaryBeside = (path: string): string =>
   join(dirname(path), `.${basename(path)}.${randomUUID()}.atlas-partial`)
 
+const MAX_LINK_HOPS = 40
+
+async function resolveLinkChain(args: {
+  path: string
+  files: AgentFileSystemPort
+  threadId?: ThreadId | undefined
+}): Promise<string> {
+  let current = args.path
+  for (let hop = 0; hop < MAX_LINK_HOPS; hop++) {
+    const target = await args.files.readLink({ path: current, threadId: args.threadId })
+    if (target === null) return current
+    current = isAbsolute(target) ? target : join(dirname(current), target)
+  }
+  throw new Error(`Cannot write ${args.path}: too many levels of symbolic links`)
+}
+
 export async function writeFileAtomically(args: {
   path: string
   content: string
   mode?: number | undefined
-  files?: FileSystemPort | undefined
+  files?: AgentFileSystemPort | undefined
+  threadId?: ThreadId | undefined
 }): Promise<number> {
   const files = args.files ?? new LocalFileSystemPort()
-  await files.mkdir({ path: dirname(args.path) })
+  const path = await resolveLinkChain({ path: args.path, files, threadId: args.threadId })
+  await files.mkdir({ path: dirname(path), threadId: args.threadId })
 
-  const temporary = temporaryBeside(args.path)
+  const temporary = temporaryBeside(path)
   const mode = args.mode === undefined ? DEFAULT_FILE_MODE : args.mode & PERMISSION_BITS
 
   try {
-    await files.writeFile({ path: temporary, content: args.content, mode })
-    await files.rename({ from: temporary, to: args.path })
+    await files.writeFile({ path: temporary, content: args.content, mode, threadId: args.threadId })
+    await files.rename({ from: temporary, to: path, threadId: args.threadId })
   } catch (error) {
-    await files.removeFile({ path: temporary }).catch(() => undefined)
+    await files.removeFile({ path: temporary, threadId: args.threadId }).catch(() => undefined)
     throw error
   }
 

@@ -142,7 +142,7 @@ describe('settling a step whose calls may share a batch', () => {
     expect(await resultOrder(harness, threadId)).toEqual(['call-1', 'call-2', 'call-3'])
   })
 
-  it('appends results in call order even when they finish out of order', async () => {
+  it('appends each result as it lands, ahead of slower batch-mates', async () => {
     const harness = await openLog()
     const threadId = await branchWithCalls({
       harness,
@@ -156,15 +156,19 @@ describe('settling a step whose calls may share a batch', () => {
       log: harness.log,
       dispatch: tracingDispatch({
         trace,
-        holdFor: (call) => (call.callId === toCallId('call-slow') ? 120 : 10),
+        holdFor: (call) => (call.callId === toCallId('call-slow') ? 150 : 10),
       }),
       tools: () => TOOLS,
     })
 
-    await settle({ threadId, signal: new AbortController().signal })
+    const settling = settle({ threadId, signal: new AbortController().signal })
+    await Bun.sleep(60)
 
-    expect(trace.finished).toEqual(['call-fast', 'call-slow'])
-    expect(await resultOrder(harness, threadId)).toEqual(['call-slow', 'call-fast'])
+    expect(trace.finished).toEqual(['call-fast'])
+    expect(await resultOrder(harness, threadId)).toEqual(['call-fast'])
+
+    await settling
+    expect(await resultOrder(harness, threadId)).toEqual(['call-fast', 'call-slow'])
   })
 
   it('keeps a call that changes the world to itself', async () => {

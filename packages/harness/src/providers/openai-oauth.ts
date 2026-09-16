@@ -16,6 +16,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { CredentialError, ECredentialFailure } from '../credentials/credential-error'
+import { openaiCacheOptions } from './openai-cache'
 
 // A ChatGPT subscription token is only good against the codex backend, never api.openai.com. The
 // transport is the Responses API under /backend-api/codex with the account id as a header and the
@@ -54,7 +55,7 @@ const settingsOf = (credential: Credential): OpenAIProviderSettings => {
   }
 }
 
-const mergedProviderOptions = (args: {
+export const mergedProviderOptions = (args: {
   defaults: SharedV4ProviderOptions | undefined
   call: SharedV4ProviderOptions | undefined
 }): SharedV4ProviderOptions | undefined => {
@@ -90,7 +91,9 @@ export function createOpenAiModel(args: {
     return { model, credential }
   }
 
-  // The codex request shape applies to a subscription; a metered api key must not carry it.
+  // The codex request shape applies to a subscription; a metered api key must not carry it. The
+  // extended-retention ask is the mirror image: the codex backend 400s on prompt_cache_retention
+  // (verified live 2026-09-10), so only api.openai.com ever sees it.
   const shaped = ({
     authorized,
     options,
@@ -98,10 +101,13 @@ export function createOpenAiModel(args: {
     authorized: AuthorizedModel
     options: LanguageModelV4CallOptions
   }): LanguageModelV4CallOptions => {
-    if (authorized.credential.kind !== EAuthKind.Oauth) return options
+    const defaults =
+      authorized.credential.kind === EAuthKind.Oauth
+        ? SUBSCRIPTION_REQUEST
+        : openaiCacheOptions({ modelId: args.modelId })
 
     const providerOptions = mergedProviderOptions({
-      defaults: SUBSCRIPTION_REQUEST,
+      defaults,
       call: options.providerOptions,
     })
 

@@ -1,0 +1,16 @@
+**/node_modules
+**/dist
+**/.turbo
+**/.vercel
+**/coverage
+.git
+.atlas/worktrees
+.atlas/home
+.claude/worktrees
+.scratch
+.atlas-home
+deprecated
+docs/research
+.env.keys
+**/.env.keys
+**/.env.personal

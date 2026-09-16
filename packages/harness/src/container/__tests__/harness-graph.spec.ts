@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeAll, describe, expect, it } from 'bun:test'
 
-import { EventLogPort, EWebSearchBackend, toCallId, toRunId, toThreadId, type Chunk } from '@dltech/atlas-core'
+import { EventLogPort, EExecutionLocation, EWebSearchBackend, ExecutionLocationSinkPort, toCallId, toRunId, toThreadId, type Chunk } from '@dltech/atlas-core'
 
 import { ToolDispatcher } from '../../tools/dispatch'
 import { ToolRegistry } from '../../tools/registry'
@@ -53,6 +53,7 @@ describe('the harness container graph', () => {
       'glob',
       'grep',
       'mcp-edit',
+      'multi_edit',
       'read',
       'service_list',
       'service_start',
@@ -83,6 +84,7 @@ describe('the harness container graph', () => {
       'plan',
       'recordFileState',
       'track-worktree',
+      'outside-project',
       'invalidateFacts',
     ])
     expect(await hooks.onChunk({ chunk: delta })).toBe(delta)
@@ -115,5 +117,13 @@ describe('the harness container graph', () => {
 
   it('refuses to resolve the event log until the root has opened a database', () => {
     expect(() => rooted().resolve(portToken(EventLogPort))).toThrow()
+  })
+
+  it('answers the execution-location sink with a no-op until an app registers a real one', () => {
+    const sink = rooted().resolve(portToken(ExecutionLocationSinkPort))
+
+    expect(() =>
+      sink.note({ threadId: toThreadId('thread-1'), location: EExecutionLocation.Docker }),
+    ).not.toThrow()
   })
 })

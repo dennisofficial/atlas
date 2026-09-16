@@ -435,6 +435,29 @@ describe('the worktree a listed thread is standing in', () => {
     expect((await threads.list({ project: '/here' }))[0]?.worktree).toBeUndefined()
   })
 
+  it('is nothing once the thread moves to a plain directory, and comes back on a later entry', async () => {
+    const { threads, log } = await openFixture()
+    const thread = await threads.create({ workspace: '/here' })
+    await log.append({
+      threadId: thread.id,
+      runId,
+      drafts: [
+        entered('/here/.worktrees/fix-a1b2', 'dennis/fix-a1b2'),
+        { type: 'directory-changed', path: '/elsewhere' },
+      ],
+    })
+
+    expect((await threads.list({ project: '/here' }))[0]?.worktree).toBeUndefined()
+
+    await log.append({
+      threadId: thread.id,
+      runId,
+      drafts: [entered('/here/.worktrees/fix-c3d4', 'dennis/fix-c3d4')],
+    })
+
+    expect((await threads.list({ project: '/here' }))[0]?.worktree?.branch).toBe('dennis/fix-c3d4')
+  })
+
   it('comes back to a worktree the thread re-entered after leaving another', async () => {
     const { threads, log } = await openFixture()
     const thread = await threads.create({ workspace: '/here' })

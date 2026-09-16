@@ -24,11 +24,12 @@ export {
 } from './in-flight-steps'
 export {
   createPendingQueue,
-  trailingSaid,
+  createPendingQueues,
   type PendingMessage,
   type PendingQueue,
+  type PendingQueues,
   type PendingSaid,
-} from './pending-queue'
+} from '@dltech/atlas-harness'
 export { EPendingKind, pendingRows, type PendingRow } from './pending-rows'
 export {
   shellAwaitingInputLine,
@@ -53,6 +54,7 @@ export {
   settled,
   succeeded,
   toolRuns,
+  type ContextAttachment,
   type LiveToolCall,
   type LiveToolRun,
   type ToolCall,
@@ -95,4 +97,13 @@ export {
   type SidebarTeammate,
 } from './sidebar-model'
 export { type SidebarCrewFold, type SidebarSubagent } from './subagent-row'
+export {
+  IDLE_PROGRESS,
+  turnAdvanced,
+  turnInterrupting,
+  turnObserved,
+  turnSettled,
+  turnStarted,
+  type TurnProgress,
+} from './turn-progress'
 export { classifierFold, type ClassifierFold } from './classifier-fold'

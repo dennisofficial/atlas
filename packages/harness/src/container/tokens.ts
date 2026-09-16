@@ -1,6 +1,7 @@
 import type { LanguageModelV4 } from '@ai-sdk/provider'
 
 import type {
+  AccountStorePort,
   ClassifierPolicy,
   EWebSearchBackend,
   SecretsPort,
@@ -8,9 +9,11 @@ import type {
 } from '@dltech/atlas-core'
 
 import type { PrismaClient } from '../../prisma/generated/client'
+import type { CloudSessionStore } from '../cloud/cloud-session'
 import type { ClaudeCodeSource } from '../credentials/claude-code-source'
 import type { KeychainReader } from '../credentials/keychain-reader'
 import type { DockerEngine } from '../execution/docker/engine'
+import type { FileSecretsStore } from '../secrets/file-secrets-store'
 import type { OnHookMishap } from '../hooks/budget'
 import type { HookChain, HookChainSource } from '../hooks/registry'
 import type { ModelCardSource } from '../model/ai-sdk-model-port'
@@ -55,6 +58,22 @@ export const WebSearchBackendToken: InjectionToken<() => EWebSearchBackend> = Sy
 )
 
 export const SecretsStoreToken: InjectionToken<SecretsPort> = Symbol('atlas.SecretsStore')
+
+export const LocalSecretsStoreToken: InjectionToken<FileSecretsStore> = Symbol(
+  'atlas.LocalSecretsStore',
+)
+
+export const CloudSessionStoreToken: InjectionToken<CloudSessionStore> = Symbol(
+  'atlas.CloudSessionStore',
+)
+
+export const ClientVersionToken: InjectionToken<string> = Symbol('atlas.ClientVersion')
+
+export const CloudRequiredToken: InjectionToken<() => boolean> = Symbol('atlas.CloudRequired')
+
+export const LocalAccountStoreToken: InjectionToken<AccountStorePort> = Symbol(
+  'atlas.LocalAccountStore',
+)
 
 export const DockerEngineToken: InjectionToken<DockerEngine> = Symbol('atlas.DockerEngine')
 

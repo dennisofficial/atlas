@@ -4,10 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ThreadId } from '@dltech/atlas-core'
 import { EKilledBy, type ShellSnapshot } from '@dltech/atlas-harness'
 
-import { DEFAULT_CREW_CAP } from '../store/crew-fold'
-import { DEFAULT_CREW_GRACE_MS } from '../store/crew-retirement'
-import { NO_VISITS, recordDeparture, type CrewVisits } from '../store/crew-visits'
-import { foldShells, shellGraceIsRunning } from '../store/shell-retirement'
 import { useTickingNow } from './use-ticking-now'
 import type { SidebarCrewFold } from '../store/subagent-row'
 import { useOutputScroll, type OutputScroll } from '../ui/hooks/use-output-scroll'
@@ -103,26 +99,10 @@ function useShellSnapshots(args: {
   return lists
 }
 
-function useShellVisits(viewing: string | null): CrewVisits {
-  const [visits, setVisits] = useState<CrewVisits>(NO_VISITS)
-
-  useEffect(() => {
-    if (viewing === null) return
-
-    return () => {
-      setVisits((held) =>
-        recordDeparture({ visits: held, leaving: viewing, at: new Date().toISOString() }),
-      )
-    }
-  }, [viewing])
-
-  return visits
-}
-
 /**
- * A settled shell prints nothing more, so the poll finds the same snapshots and holds the render
- * still — the one thing a grace window or a counting timer cannot survive. The tick runs while a
- * shell is running or inside its window, and reads the wall clock rather than the turn's own.
+ * The sidebar lists only what is still running; a finished shell leaves the panel at once and
+ * stays reachable through /shells. The tick exists for the live readouts alone, so it runs while
+ * a shell is running and stops with the last of them.
  */
 /**
  * The scoped list is what a conversation may see and act on; the unscoped one exists for the exit
@@ -141,31 +121,9 @@ export function useShells({ app, threadId }: { app: AtlasApp; threadId: ThreadId
 
   const selected = state === null ? undefined : selectedShell({ state, shells })
 
-  const viewing = selected?.shellId ?? null
-  const visits = useShellVisits(viewing)
-  const now = useTickingNow(
-    shells.some(isShellRunning) ||
-      shellGraceIsRunning({
-        shells,
-        visits,
-        viewing,
-        now: Date.now(),
-        graceMs: DEFAULT_CREW_GRACE_MS,
-      }),
-  )
+  const now = useTickingNow(shells.some(isShellRunning))
 
-  const folded = useMemo(
-    () =>
-      foldShells({
-        shells,
-        visits,
-        viewing,
-        now,
-        graceMs: DEFAULT_CREW_GRACE_MS,
-        cap: DEFAULT_CREW_CAP,
-      }),
-    [now, shells, viewing, visits],
-  )
+  const folded = useMemo(() => shells.filter(isShellRunning), [shells])
 
   const [output, setOutput] = useState('')
   const openId = selected?.shellId
@@ -232,8 +190,8 @@ export function useShells({ app, threadId }: { app: AtlasApp; threadId: ThreadId
   return useMemo(
     () => ({
       shells,
-      folded: folded.shown,
-      fold: { hidden: folded.hidden, hiddenFailed: folded.hiddenFailed },
+      folded,
+      fold: { hidden: shells.length - folded.length, hiddenFailed: false },
       everywhere,
       running: runningCount(everywhere),
       now,

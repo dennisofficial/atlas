@@ -59,7 +59,7 @@ async function opened(app: FakeApp): Promise<Mounted> {
 }
 
 describe('a finished background shell leaving the sidebar', () => {
-  it('takes the whole heading with it once a clean exit has served its grace', async () => {
+  it('leaves the moment it finishes, taking the whole heading with it', async () => {
     const setup = await opened(
       appWith([settled({ shellId: 'bash_gone', description: 'compiling assets' })]),
     )
@@ -74,19 +74,22 @@ describe('a finished background shell leaving the sidebar', () => {
     }
   }, 60_000)
 
-  it('never reclaims a failure the operator has not opened', async () => {
+  it('leaves on a failure too — the shell log keeps it', async () => {
     const setup = await opened(
       appWith([shellOf({ shellId: 'bash_bad', description: 'seeding fixtures', exitCode: 2 })]),
     )
 
     try {
-      expect(setup.captureCharFrame()).toContain('seeding fixtures')
+      const frame = setup.captureCharFrame()
+
+      expect(frame).not.toContain('seeding fixtures')
+      expect(frame).not.toContain('SHELLS')
     } finally {
       await teardown(setup)
     }
   }, 60_000)
 
-  it('never reclaims a shell that is waiting on a human', async () => {
+  it('keeps a shell that is waiting on a human', async () => {
     const setup = await opened(
       appWith([
         shellOf({
@@ -106,27 +109,7 @@ describe('a finished background shell leaving the sidebar', () => {
     }
   }, 60_000)
 
-  it('counts what it let go of against the total, beside the rows it kept', async () => {
-    const setup = await opened(
-      appWith([
-        shellOf({ shellId: 'bash_bad', description: 'seeding fixtures', exitCode: 2 }),
-        settled({ shellId: 'bash_gone', description: 'compiling assets' }),
-      ]),
-    )
-
-    try {
-      const frame = setup.captureCharFrame()
-
-      expect(frame).toContain('seeding fixtures')
-      expect(frame).not.toContain('compiling assets')
-      expect(frame).toContain('SHELLS  0/2')
-      expect(frame).toContain('1 more in /shells')
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-
-  it('keeps a running shell while its settled siblings retire around it', async () => {
+  it('points at /shells for what finished beside the rows still running', async () => {
     const setup = await opened(
       appWith([
         shellOf({
@@ -145,6 +128,32 @@ describe('a finished background shell leaving the sidebar', () => {
       expect(frame).toContain('watching stylesheets')
       expect(frame).not.toContain('compiling assets')
       expect(frame).toContain('SHELLS  1/2')
+      expect(frame).toContain('1 more in /shells')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('points at /shells for a failure the same way', async () => {
+    const setup = await opened(
+      appWith([
+        shellOf({
+          shellId: 'bash_live',
+          description: 'watching stylesheets',
+          status: EShellStatus.Running,
+          endedAt: undefined,
+        }),
+        shellOf({ shellId: 'bash_bad', description: 'seeding fixtures', exitCode: 2 }),
+      ]),
+    )
+
+    try {
+      const frame = setup.captureCharFrame()
+
+      expect(frame).toContain('watching stylesheets')
+      expect(frame).not.toContain('seeding fixtures')
+      expect(frame).toContain('SHELLS  1/2')
+      expect(frame).toContain('1 more in /shells')
     } finally {
       await teardown(setup)
     }

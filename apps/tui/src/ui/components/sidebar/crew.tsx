@@ -2,14 +2,18 @@ import React from 'react'
 
 import { type SidebarTeammate } from '../../../store/sidebar-model'
 import {
+  FIGURE_SEPARATOR,
   isSubagentRunning,
+  subagentContextLabel,
   subagentFigures,
   subagentReading,
   subagentSpendIsUnavailable,
+  subagentSpendLabel,
   type SidebarCrewFold,
   type SidebarSubagent,
 } from '../../../store/subagent-row'
 import { plural } from '../../../store/tools/reading'
+import { contextUsageTone } from '../../context-bar'
 import { usePress } from '../../hooks/use-press'
 import { cellsOf } from '../../hint-layout'
 import { MARK_OF, NAME_INK_OF, STATE_INK_OF } from '../../subagent-ink'
@@ -44,15 +48,40 @@ function FiguresLine(props: { subagent: SidebarSubagent; cells: number }): React
   const label = subagentFigures(props.subagent)
   if (label === null) return null
 
+  const spend = subagentSpendLabel(props.subagent.spend)
+  const context = subagentContextLabel(props.subagent.context)
+  const spendFg = subagentSpendIsUnavailable(props.subagent.spend) ? theme.rule : theme.dim
+  const contextFg =
+    props.subagent.context === undefined
+      ? theme.dim
+      : contextUsageTone(props.subagent.context.tokens)
+
   const shown = truncateCells({ text: label, cells: props.cells })
   const lead = ' '.repeat(Math.max(0, props.cells - cellsOf(shown)))
+
+  if (shown !== label) {
+    return (
+      <text>
+        <span>{lead}</span>
+        <span fg={spendFg}>{shown}</span>
+      </text>
+    )
+  }
+
+  const figures = [
+    ...(spend === null ? [] : [{ text: spend, fg: spendFg }]),
+    ...(context === null ? [] : [{ text: context, fg: contextFg }]),
+  ]
 
   return (
     <text>
       <span>{lead}</span>
-      <span fg={subagentSpendIsUnavailable(props.subagent.spend) ? theme.rule : theme.dim}>
-        {shown}
-      </span>
+      {figures.map((figure, index) => (
+        <span key={index}>
+          {index === 0 ? '' : FIGURE_SEPARATOR}
+          <span fg={figure.fg}>{figure.text}</span>
+        </span>
+      ))}
     </text>
   )
 }

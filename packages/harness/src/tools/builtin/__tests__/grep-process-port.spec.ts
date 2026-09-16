@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   toThreadId,
+  type FileSystemPort,
   type ProcessHandle,
   type ProcessPort,
   type SpawnCommand,
@@ -45,8 +46,45 @@ class FakeProcesses implements ProcessPort {
   }
 }
 
-const searchWith = (processes: FakeProcesses): Promise<ToolOutcome> =>
-  new GrepTool(processes).invoke({
+class VendoredProcesses extends FakeProcesses {
+  readonly vendoredProbes: { command: string; threadId?: ThreadId | undefined }[] = []
+
+  constructor(
+    ripgrep: string | null,
+    private readonly vendoredAnswer: string | null,
+    stdout = '',
+    exitCode = 1,
+  ) {
+    super(ripgrep, stdout, exitCode)
+  }
+
+  async vendored(args: { command: string; threadId?: ThreadId | undefined }): Promise<string | null> {
+    this.vendoredProbes.push(args)
+    return this.vendoredAnswer
+  }
+}
+
+const fakeFiles = (entries: readonly string[]): FileSystemPort => ({
+  stat: async () => {
+    throw new Error('ENOENT')
+  },
+  readLink: async () => null,
+  readFile: async () => {
+    throw new Error('ENOENT')
+  },
+  readBytes: async () => {
+    throw new Error('ENOENT')
+  },
+  writeFile: async () => undefined,
+  removeFile: async () => undefined,
+  mkdir: async () => undefined,
+  rename: async () => undefined,
+  readDirectory: async () => [],
+  glob: async () => entries,
+})
+
+const searchWith = (processes: FakeProcesses, files?: FileSystemPort): Promise<ToolOutcome> =>
+  new GrepTool(processes, files ?? fakeFiles([])).invoke({
     input: { pattern: 'needle' },
     signal: new AbortController().signal,
     idempotencyKey: 'grep-process-port',
@@ -65,12 +103,33 @@ describe('GrepTool over a ProcessPort', () => {
   })
 
   it('falls back to POSIX grep when the port has no ripgrep', async () => {
-    const processes = new FakeProcesses(null)
+    const processes = new FakeProcesses(null, '', 0)
 
-    const outcome = await searchWith(processes)
+    const outcome = await searchWith(processes, fakeFiles(['/work/a.ts']))
 
     expect(outcome.ok).toBe(true)
     expect(processes.spawned[0]?.cmd[0]).toBe('grep')
+    expect(processes.spawned[0]?.cmd).toContain('/work/a.ts')
+  })
+
+  it('spawns no grep at all when the fallback finds nothing to search', async () => {
+    const processes = new FakeProcesses(null)
+
+    const outcome = await searchWith(processes, fakeFiles([]))
+
+    expect(outcome.ok).toBe(true)
+    expect(processes.spawned).toHaveLength(0)
+  })
+
+  it('searches in batches rather than past the argument limit', async () => {
+    const processes = new FakeProcesses(null, '', 0)
+    const entries = Array.from({ length: 130 }, (_, index) => `/work/file-${index}.ts`)
+
+    const outcome = await searchWith(processes, fakeFiles(entries))
+
+    expect(outcome.ok).toBe(true)
+    expect(processes.spawned).toHaveLength(2)
+    expect(processes.spawned[0]?.cmd.filter((part) => part.startsWith('/work/'))).toHaveLength(128)
   })
 
   it('reads the matches the spawned search printed', async () => {
@@ -81,6 +140,26 @@ describe('GrepTool over a ProcessPort', () => {
     expect(outcome.ok).toBe(true)
     if (!outcome.ok) throw new Error('unreachable')
     expect(outcome.output).toMatchObject({ matches: ['/work/a.ts:2:const needle = 1'], paths: ['/work/a.ts'] })
+  })
+
+  it('prefers the vendored binary over a system ripgrep, probing with the calling thread', async () => {
+    const processes = new VendoredProcesses('/usr/bin/rg', '/vendored/rg')
+
+    const outcome = await searchWith(processes)
+
+    expect(outcome.ok).toBe(true)
+    expect(processes.spawned[0]?.cmd[0]).toBe('/vendored/rg')
+    expect(processes.vendoredProbes[0]?.threadId).toBe(toThreadId('thread-1'))
+    expect(processes.probed).toHaveLength(0)
+  })
+
+  it('uses the system ripgrep when the port has nothing vendored', async () => {
+    const processes = new VendoredProcesses('/usr/bin/rg', null)
+
+    const outcome = await searchWith(processes)
+
+    expect(outcome.ok).toBe(true)
+    expect(processes.spawned[0]?.cmd[0]).toBe('/usr/bin/rg')
   })
 
   it('carries the calling thread onto the probe and the spawn, so a router can place both', async () => {

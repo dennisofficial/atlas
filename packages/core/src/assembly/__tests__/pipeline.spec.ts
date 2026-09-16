@@ -107,6 +107,8 @@ describe('defaultPipeline', () => {
       'imagesInContext',
       'worktreeBlock',
       'cacheBreakpoints',
+      'requestCacheKey:openai',
+      'requestCacheKey:inference',
     ])
     expect(assembled.system.at(-1)?.providerOptions).toBeDefined()
     expect(assembled.messages.at(-1)?.message.content.at(-1)?.providerOptions).toBeDefined()

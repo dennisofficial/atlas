@@ -20,6 +20,7 @@ const RAN = /^Ran \d+ tests? across (\d+) files?\./gm
 type ShardResult = {
   shard: number
   ok: boolean
+  code: number
   output: string
   passed: number
   failed: number
@@ -31,6 +32,16 @@ const shardCount = ({ files }: { files: number }): number => {
   const asked = Number.parseInt(Bun.env.ATLAS_TEST_SHARDS ?? '', 10)
   const wanted = Number.isFinite(asked) && asked > 0 ? asked : cpus().length
   return Math.max(1, Math.min(MAXIMUM_SHARDS, wanted, files))
+}
+
+function requestedShard({ of }: { of: number }): number | null | undefined {
+  const raw = Bun.env.ATLAS_TEST_SHARD
+  if (raw === undefined || raw === '') return null
+  const asked = Number.parseInt(raw, 10)
+  if (Number.isFinite(asked) && asked >= 1 && asked <= of) return asked
+  process.stdout.write(`ATLAS_TEST_SHARD=${raw} is out of range: the suite has ${of} shards\n`)
+  process.exitCode = 1
+  return undefined
 }
 
 async function specFiles(): Promise<string[]> {
@@ -84,6 +95,7 @@ async function runShard(args: { shard: number; files: readonly string[] }): Prom
   return {
     shard: args.shard,
     ok: code === 0,
+    code,
     output,
     ...tally(output),
     seconds: (Date.now() - startedAt) / 1_000,
@@ -106,16 +118,23 @@ async function main(): Promise<void> {
   }
 
   const of = shardCount({ files: files.length })
+  const only = requestedShard({ of })
+  if (only === undefined) return
   const startedAt = Date.now()
 
+  const selected = partition({ files, of })
+    .map((shardFiles, index) => ({ shard: index + 1, files: shardFiles }))
+    .filter(({ shard }) => only === null || shard === only)
+
   const results = await Promise.all(
-    partition({ files, of }).map((shardFiles, index) =>
-      runShard({ shard: index + 1, files: shardFiles }),
-    ),
+    selected.map(({ shard, files: shardFiles }) => runShard({ shard, files: shardFiles })),
   )
 
   const failures = results.filter((result) => !result.ok)
-  for (const failure of failures) process.stdout.write(failure.output)
+  for (const failure of failures) {
+    process.stdout.write(`shard ${failure.shard} exited ${failure.code}\n`)
+    process.stdout.write(failure.output)
+  }
 
   const passed = results.reduce((total, result) => total + result.passed, 0)
   const failed = results.reduce((total, result) => total + result.failed, 0)
@@ -123,19 +142,22 @@ async function main(): Promise<void> {
   const slowest = Math.max(...results.map((result) => result.seconds))
   const elapsed = (Date.now() - startedAt) / 1_000
 
+  const scope = only === null ? `across ${of} shards` : `on shard ${only} of ${of}`
   process.stdout.write(
-    `\n${passed} pass, ${failed} fail across ${of} shards in ${elapsed.toFixed(1)}s ` +
+    `\n${passed} pass, ${failed} fail ${scope} in ${elapsed.toFixed(1)}s ` +
       `(slowest shard ${slowest.toFixed(1)}s)\n`,
   )
 
-  if (filesRan !== files.length) {
+  const dispatched = selected.reduce((total, { files: shardFiles }) => total + shardFiles.length, 0)
+  if (filesRan !== dispatched) {
     process.stdout.write(
-      `sharding is not splitting the suite: dispatched ${files.length} files, ran ${filesRan}\n`,
+      `sharding is not splitting the suite: dispatched ${dispatched} files, ran ${filesRan}\n`,
     )
-    process.exit(1)
   }
 
-  process.exit(failures.length === 0 ? 0 : 1)
+  // process.exitCode rather than process.exit: exiting early truncates whatever the pipe
+  // has not flushed yet, which ate the summary and the failing shard's tail in CI
+  process.exitCode = failures.length === 0 && filesRan === dispatched ? 0 : 1
 }
 
 await main()

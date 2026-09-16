@@ -22,7 +22,11 @@ import { TaskListFragment } from './fragments/plan'
 import { DestructiveActionsFragment, GitEtiquetteFragment } from './fragments/safety'
 import {
   ConcernThenBuildFragment,
+  DecisionsAreTheirsFragment,
   DeliverWhatWasAskedFragment,
+  OpenQuestionsFragment,
+  PaceFragment,
+  PlanFirstFragment,
   RequestLadderFragment,
 } from './fragments/scope'
 import { BackgroundShellsFragment } from './fragments/shells'
@@ -47,6 +51,10 @@ export function registerBuiltinPromptFragments({
     RequestLadderFragment,
     DeliverWhatWasAskedFragment,
     ConcernThenBuildFragment,
+    PaceFragment,
+    OpenQuestionsFragment,
+    PlanFirstFragment,
+    DecisionsAreTheirsFragment,
     TodayFragment,
     ProjectDirectoryFragment,
     RelativePathsFragment,

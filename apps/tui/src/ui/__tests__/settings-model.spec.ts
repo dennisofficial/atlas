@@ -1,6 +1,7 @@
 import {
   ATLAS_SETTINGS,
   ESettingId,
+  ESettingPage,
   ESettingsLayer,
   resolveSettings,
   type SettingsLayerInput,
@@ -23,10 +24,17 @@ const modelWith = (layers: readonly SettingsLayerInput[] = []): SettingsModel =>
   })
 
 describe('settingsModel', () => {
-  it('keeps only the pages that have something on them', () => {
+  it('keeps only the pages that have something on them, plus the account page', () => {
     const model = modelWith()
 
-    expect(model.pages.map((page) => page.page.label)).toEqual(['general', 'appearance'])
+    expect(model.pages.map((page) => page.page.label)).toEqual(['general', 'appearance', 'account'])
+  })
+
+  it('keeps the account page even though it holds no settings of its own', () => {
+    const account = modelWith().pages.at(-1)
+
+    expect(account?.page.id).toBe(ESettingPage.Account)
+    expect(account?.rows).toEqual([])
   })
 
   it('gathers consecutive rows under one group heading', () => {
@@ -35,7 +43,7 @@ describe('settingsModel', () => {
     expect(general?.groups.map((group) => [group.label, group.rows.length])).toEqual([
       ['Transcript', 6],
       ['Layout', 2],
-      ['Project context', 5],
+      ['Project context', 4],
       ['Context window', 1],
       ['Worktrees', 1],
       ['Usage meters', 3],
@@ -46,7 +54,7 @@ describe('settingsModel', () => {
       ['Model', 3],
       ['Execution', 4],
     ])
-    expect(general?.rows).toHaveLength(30)
+    expect(general?.rows).toHaveLength(29)
   })
 
   it('keeps the appearance page to its colour, its density and its composer', () => {
@@ -83,16 +91,20 @@ describe('moving around the page', () => {
     const top = openSettings()
 
     expect(moveRow({ state: top, model, delta: -1 })).toEqual({ pageIndex: 0, rowIndex: 0 })
-    expect(moveRow({ state: top, model, delta: 99 })).toEqual({ pageIndex: 0, rowIndex: 29 })
+    expect(moveRow({ state: top, model, delta: 99 })).toEqual({ pageIndex: 0, rowIndex: 28 })
   })
 
   it('wraps around the tab strip and lands on its first row', () => {
     const moved = movePage({ state: { pageIndex: 0, rowIndex: 1 }, model, delta: 1 })
 
     expect(moved).toEqual({ pageIndex: 1, rowIndex: 0 })
-    expect(movePage({ state: moved, model, delta: 1 })).toEqual({ pageIndex: 0, rowIndex: 0 })
+    expect(movePage({ state: moved, model, delta: 1 })).toEqual({ pageIndex: 2, rowIndex: 0 })
+    expect(movePage({ state: { pageIndex: 2, rowIndex: 0 }, model, delta: 1 })).toEqual({
+      pageIndex: 0,
+      rowIndex: 0,
+    })
     expect(movePage({ state: openSettings(), model, delta: -1 })).toEqual({
-      pageIndex: 1,
+      pageIndex: 2,
       rowIndex: 0,
     })
   })

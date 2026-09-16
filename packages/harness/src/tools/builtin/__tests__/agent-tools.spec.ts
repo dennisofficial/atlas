@@ -64,6 +64,7 @@ async function open(): Promise<Opened> {
     clock: harness.clock,
     agentTypes: TYPES,
     runners: runners.source,
+    launchDirectory: '/launch',
   })
   const source = (): AgentSupervisor => supervisor
 
@@ -97,13 +98,11 @@ const invoke = ({
     threadId,
   })
 
-const spawnedIds = z.object({ agents: z.array(z.object({ agentId: z.string() })) })
+const spawned = z.object({ agentId: z.string() })
 
 function spawnedId(outcome: ToolOutcome): ThreadId {
   if (!outcome.ok) throw new Error(`the spawn was refused: ${outcome.reason}`)
-  const first = spawnedIds.parse(outcome.output).agents[0]
-  if (first === undefined) throw new Error('the spawn started nothing')
-  return toThreadId(first.agentId)
+  return toThreadId(spawned.parse(outcome.output).agentId)
 }
 
 const settle = async (): Promise<void> => {
@@ -147,7 +146,7 @@ describe('agent_spawn', () => {
     expect(outcome.ok && outcome.modelText).toContain('the moment it stops')
   })
 
-  it('starts a whole wave from one agents array', async () => {
+  it('refuses an agents array, since one call starts exactly one agent', async () => {
     const open_ = await open()
 
     const outcome = await invoke({
@@ -161,9 +160,9 @@ describe('agent_spawn', () => {
       },
     })
 
-    expect(outcome.ok).toBe(true)
-    expect(open_.runners.started).toHaveLength(2)
-    expect(open_.supervisor.list({ threadId: open_.parent })).toHaveLength(2)
+    expect(outcome.ok).toBe(false)
+    expect(!outcome.ok && outcome.reason).toContain('agents')
+    expect(open_.runners.started).toHaveLength(0)
   })
 
   it('refuses a type nobody registered, naming the ones that exist', async () => {
@@ -180,7 +179,7 @@ describe('agent_spawn', () => {
     expect(open_.runners.started).toHaveLength(0)
   })
 
-  it('refuses a call that carries both a single agent and a wave', async () => {
+  it('refuses a call that adds an agents array beside the one agent', async () => {
     const open_ = await open()
 
     const outcome = await invoke({
@@ -195,6 +194,7 @@ describe('agent_spawn', () => {
     })
 
     expect(outcome.ok).toBe(false)
+    expect(!outcome.ok && outcome.reason).toContain('agents')
     expect(open_.runners.started).toHaveLength(0)
   })
 

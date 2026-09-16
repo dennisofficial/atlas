@@ -2,6 +2,7 @@ import { EAccountOrigin, EAuthKind, EAuthProvider, toThreadId } from '@dltech/at
 import {
   AccountsService,
   EDevicePoll,
+  EGithubConnectPoll,
   memoryAccountStore,
   SystemClock,
 } from '@dltech/atlas-harness'
@@ -11,7 +12,15 @@ import React from 'react'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
-import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
+import {
+  fakeApp,
+  fakeCloud,
+  fakeSignedOutCloud,
+  FakeCloudClient,
+  GITHUB_TICKET,
+  scriptedModelPort,
+  type FakeApp,
+} from './fake-app'
 
 await grammarsReady()
 
@@ -102,9 +111,22 @@ const accountsHolding = async (labels: readonly string[]): Promise<AccountsServi
 const appWith = async (labels: readonly string[]): Promise<FakeApp> => {
   const app = fakeApp({
     model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }),
+    cloud: fakeSignedOutCloud(),
   })
 
   return { ...app, accounts: await accountsHolding(labels) }
+}
+
+const CLOUD_SESSION = {
+  url: 'http://localhost:3400',
+  token: 'session-token',
+  email: 'dennis@example.com',
+}
+
+const appSignedIntoCloud = async (client: FakeCloudClient): Promise<FakeApp> => {
+  const app = await appWith([])
+
+  return { ...app, cloud: fakeCloud({ session: CLOUD_SESSION, client }) }
 }
 
 async function opened(args: { app: FakeApp; notice?: string }): Promise<Mounted> {
@@ -206,6 +228,9 @@ describe('the accounts overlay', () => {
       setup.mockInput.pressArrow('down')
       await setup.flush()
       await settle(120)
+      setup.mockInput.pressArrow('down')
+      await setup.flush()
+      await settle(120)
       setup.mockInput.pressKey('k')
       await setup.flush()
       await settle(150)
@@ -224,6 +249,9 @@ describe('the accounts overlay', () => {
 
     try {
       await openOverlay(setup)
+      setup.mockInput.pressArrow('down')
+      await setup.flush()
+      await settle(120)
       setup.mockInput.pressEnter()
       await setup.flush()
       await settle(150)
@@ -240,6 +268,9 @@ describe('the accounts overlay', () => {
 
     try {
       await openOverlay(setup)
+      setup.mockInput.pressArrow('down')
+      await setup.flush()
+      await settle(120)
       setup.mockInput.pressArrow('down')
       await setup.flush()
       await settle(120)
@@ -357,6 +388,9 @@ describe('the accounts overlay', () => {
 
     try {
       await openOverlay(setup)
+      setup.mockInput.pressArrow('down')
+      await setup.flush()
+      await settle(120)
       setup.mockInput.pressKey('n')
       await setup.flush()
       await settle(120)
@@ -380,6 +414,9 @@ describe('the accounts overlay', () => {
 
     try {
       await openOverlay(setup)
+      setup.mockInput.pressArrow('down')
+      await setup.flush()
+      await settle(120)
       setup.mockInput.pressArrow('down')
       await setup.flush()
       await settle(120)
@@ -409,6 +446,9 @@ describe('the accounts overlay', () => {
 
     try {
       await openOverlay(setup)
+      setup.mockInput.pressArrow('down')
+      await setup.flush()
+      await settle(120)
       setup.mockInput.pressKey('n')
       await setup.flush()
       await settle(120)
@@ -423,6 +463,111 @@ describe('the accounts overlay', () => {
       const frame = setup.captureCharFrame()
 
       expect(frame).toContain('signed-in@example.com')
+    } finally {
+      await teardown(setup)
+    }
+  })
+})
+
+describe('the GitHub row', () => {
+  it('stays out of the overlay while signed out of Atlas Cloud', async () => {
+    const app = await appWith([])
+    const setup = await opened({ app: { ...app, cloud: fakeSignedOutCloud() } })
+
+    try {
+      await openOverlay(setup)
+
+      expect(setup.captureCharFrame()).not.toContain('GitHub')
+    } finally {
+      await teardown(setup)
+    }
+  })
+
+  it('offers the connection once a cloud session exists', async () => {
+    const setup = await opened({ app: await appSignedIntoCloud(new FakeCloudClient()) })
+
+    try {
+      await openOverlay(setup)
+
+      const frame = setup.captureCharFrame()
+
+      expect(frame).toContain('GitHub')
+      expect(frame).toContain('not connected · enter to connect')
+    } finally {
+      await teardown(setup)
+    }
+  })
+
+  it('shows the device code on enter and connects once the poll lands', async () => {
+    const client = new FakeCloudClient()
+    const app = await appSignedIntoCloud(client)
+    const setup = await opened({ app })
+
+    try {
+      await openOverlay(setup)
+      setup.mockInput.pressEnter()
+      await setup.flush()
+      await settle(150)
+      await setup.flush()
+
+      const prompting = setup.captureCharFrame()
+      expect(prompting).toContain(GITHUB_TICKET.userCode)
+      expect(prompting).toContain('github.com/login/device')
+      expect(app.openedUrls).toEqual([GITHUB_TICKET.verificationUrl])
+
+      await settle(3500)
+      await setup.flush()
+
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain('Connected GitHub as @octocat.')
+      expect(frame).toContain('@octocat · press x to disconnect')
+      expect(client.connection?.login).toBe('octocat')
+    } finally {
+      await teardown(setup)
+    }
+  })
+
+  it('says the connection was refused when the operator denies it', async () => {
+    const client = new FakeCloudClient()
+    client.outcome = { status: EGithubConnectPoll.Denied }
+    const setup = await opened({ app: await appSignedIntoCloud(client) })
+
+    try {
+      await openOverlay(setup)
+      setup.mockInput.pressEnter()
+      await setup.flush()
+      await settle(3500)
+      await setup.flush()
+
+      expect(setup.captureCharFrame()).toContain('that connection was refused.')
+    } finally {
+      await teardown(setup)
+    }
+  })
+
+  it('disconnects on x and says so', async () => {
+    const client = new FakeCloudClient()
+    client.connection = {
+      login: 'octocat',
+      scopes: ['repo'],
+      connectedAt: '2026-01-01T00:00:00.000Z',
+    }
+    const setup = await opened({ app: await appSignedIntoCloud(client) })
+
+    try {
+      await openOverlay(setup)
+
+      expect(setup.captureCharFrame()).toContain('@octocat · press x to disconnect')
+
+      setup.mockInput.pressKey('x')
+      await setup.flush()
+      await settle(250)
+      await setup.flush()
+
+      const frame = setup.captureCharFrame()
+      expect(client.disconnects).toBe(1)
+      expect(frame).toContain('Disconnected GitHub.')
+      expect(frame).toContain('not connected · enter to connect')
     } finally {
       await teardown(setup)
     }

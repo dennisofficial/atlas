@@ -16,6 +16,7 @@ import {
   type ToolCall,
   type ToolDefinition,
   type ToolOutcome,
+  type OnToolOutput,
   type WorkspacePort,
   type HookOutcome,
 } from '@dltech/atlas-core'
@@ -44,6 +45,7 @@ export abstract class ToolDispatcher {
     homeDirectory?: string | undefined
     events: readonly Event[]
     activeWorktree?: ActiveWorktree | undefined
+    onOutput?: OnToolOutput | undefined
   }): Promise<readonly EventDraft[]>
 }
 
@@ -85,8 +87,9 @@ export class HookedToolDispatcher extends ToolDispatcher {
     homeDirectory?: string | undefined
     events: readonly Event[]
     activeWorktree?: ActiveWorktree | undefined
+    onOutput?: OnToolOutput | undefined
   }): Promise<readonly EventDraft[]> {
-    const { call, signal, projectDirectory, homeDirectory, activeWorktree, events } = args
+    const { call, signal, projectDirectory, homeDirectory, activeWorktree, events, onOutput } = args
     const definition = this.registry.find(call.name)
     if (definition === undefined) return [this.unknownToolDraft({ call })]
 
@@ -140,12 +143,13 @@ export class HookedToolDispatcher extends ToolDispatcher {
       homeDirectory,
       activeWorktree,
       threadId: call.threadId,
+      onOutput,
     })
 
     return [
       ...drafts,
       this.resultDraft({ call: allowed, result, interrupted: signal.aborted }),
-      ...(await this.observeAfterTool({ call: allowed, result, signal })),
+      ...(await this.observeAfterTool({ call: allowed, result, projectDirectory, signal })),
     ]
   }
 
@@ -241,6 +245,7 @@ export class HookedToolDispatcher extends ToolDispatcher {
     homeDirectory: string | undefined
     activeWorktree: ActiveWorktree | undefined
     threadId: ThreadId
+    onOutput: OnToolOutput | undefined
   }): Promise<ToolOutcome> {
     try {
       return await args.definition.invoke({
@@ -251,6 +256,7 @@ export class HookedToolDispatcher extends ToolDispatcher {
         homeDirectory: args.homeDirectory,
         activeWorktree: args.activeWorktree,
         threadId: args.threadId,
+        onOutput: args.onOutput,
       })
     } catch (error) {
       return { ok: false, reason: `the ${args.call.name} tool threw: ${messageOf(error)}` }
@@ -260,6 +266,7 @@ export class HookedToolDispatcher extends ToolDispatcher {
   private async observeAfterTool(args: {
     call: ToolCall
     result: ToolOutcome
+    projectDirectory: string
     signal: AbortSignal
   }): Promise<EventDraft[]> {
     const observed: EventDraft[] = []
@@ -267,7 +274,13 @@ export class HookedToolDispatcher extends ToolDispatcher {
     for (const hook of this.hooks.afterTool) {
       const outcome = await withinBudget({
         label: hook.name,
-        run: () => hook.run({ call: args.call, result: args.result, signal: args.signal }),
+        run: () =>
+          hook.run({
+            call: args.call,
+            result: args.result,
+            projectDirectory: args.projectDirectory,
+            signal: args.signal,
+          }),
         fallback: () => NO_OUTCOME,
         budgetMs: this.hooks.bounds.budgetMs,
         onMishap: this.onMishap,

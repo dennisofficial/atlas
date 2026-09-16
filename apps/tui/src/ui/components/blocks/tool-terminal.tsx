@@ -10,19 +10,18 @@
  * arguments; the output joins when the command has run.
  */
 
-import { StyledText } from '@opentui/core'
-import React from 'react'
+import React, { useMemo } from 'react'
 
 import type { ToolCall } from '../../../store'
 import { detailOf, inputOf, str } from '../../../store/tools'
 import { stripAnsi } from '../../ansi'
-import { fitDiffChunks } from '../../markdown/highlight-rows'
+import { wrapDiffChunks } from '../../markdown/highlight-rows'
 import { tailOfPath } from '../../paths'
 import { theme } from '../../theme'
 import { chunksFor } from '../diff/chunk-styling'
 import { Panel, PANEL_INSET, PANEL_PAD } from '../panel'
 import { MoreToggle, NOT_EXPANDABLE, shownOf, type Expander } from './more-toggle'
-import { useHighlighted } from './tool-code-lines'
+import { chunkSpans, useHighlighted } from './tool-code-lines'
 
 const CHROME = PANEL_INSET + PANEL_PAD
 
@@ -30,31 +29,27 @@ const MAX_ROWS = 12
 
 const PROMPT = '$ '
 
-function CommandRows(props: { command: string; columns: number }): React.ReactNode {
-  const lines = props.command.replace(/\n$/, '').split('\n')
+export function CommandRows(props: { command: string; columns: number }): React.ReactNode {
+  const lines = useMemo(() => props.command.replace(/\n$/, '').split('\n'), [props.command])
   const chunks = useHighlighted({ lines, filetype: 'bash' })
+  const rows = useMemo(
+    () =>
+      lines.flatMap((text, index) =>
+        wrapDiffChunks({
+          chunks: chunksFor({ text, chunks: chunks[index] ?? null }),
+          columns: props.columns,
+        }),
+      ),
+    [lines, chunks, props.columns],
+  )
 
   return (
     <>
-      {lines.map((line, index) => (
-        <box key={index} flexDirection="row" height={1} flexShrink={0}>
-          <text wrapMode="none" flexShrink={0} fg={theme.ok}>
-            {index === 0 ? PROMPT : ' '.repeat(PROMPT.length)}
-          </text>
-          <text
-            wrapMode="none"
-            flexShrink={0}
-            fg={theme.body}
-            content={
-              new StyledText([
-                ...fitDiffChunks({
-                  chunks: chunksFor({ text: line, chunks: chunks[index] ?? null }),
-                  columns: props.columns,
-                }),
-              ])
-            }
-          />
-        </box>
+      {rows.map((row, index) => (
+        <text key={index} wrapMode="none" flexShrink={0} fg={theme.body}>
+          <span fg={theme.ok}>{index === 0 ? PROMPT : ' '.repeat(PROMPT.length)}</span>
+          {chunkSpans(row)}
+        </text>
       ))}
     </>
   )
@@ -68,7 +63,14 @@ export function ToolTerminal(props: {
   const expand = props.expand ?? NOT_EXPANDABLE
   const command = str(inputOf(props.call).command)
   const printed = detailOf(props.call).map(stripAnsi)
-  const shown = shownOf({ body: printed, cap: MAX_ROWS, expand })
+  /**
+   * A running command's output arrives live and is read from its TAIL — the panel is a terminal,
+   * and a terminal shows where the output is now, not where it started. Once the call settles the
+   * durable output takes over, read from its head with the rest behind the count as usual.
+   */
+  const live = (props.call.liveOutput ?? '').replace(/\n+$/, '').split('\n').map(stripAnsi)
+  const running = printed.length === 0 && (props.call.liveOutput?.length ?? 0) > 0
+  const shown = running ? live.slice(-MAX_ROWS) : shownOf({ body: printed, cap: MAX_ROWS, expand })
   const width = Math.max(24, props.inner - PANEL_PAD)
   const columns = Math.max(8, width - CHROME - PROMPT.length)
 
@@ -84,7 +86,9 @@ export function ToolTerminal(props: {
             </span>
           </text>
         ))}
-        <MoreToggle hidden={printed.length - MAX_ROWS} indent="" expand={expand} />
+        {running ? null : (
+          <MoreToggle hidden={printed.length - MAX_ROWS} indent="" expand={expand} />
+        )}
       </Panel>
     </box>
   )

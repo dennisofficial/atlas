@@ -179,7 +179,11 @@ describe('the sandbox line in the transcript', () => {
       await setup.flush()
       expect(setup.captureCharFrame()).toContain('starting the container')
 
-      app.containerStatus.mark({ state: ESandboxState.Running, ports: [] })
+      app.containerStatus.mark({
+        state: ESandboxState.Running,
+        name: 'atlas-dev-0123456789ab',
+        ports: [],
+      })
       await setup.flush()
       await settle(250)
       await setup.flush()
@@ -218,6 +222,47 @@ describe('the sandbox line in the transcript', () => {
   }, 60_000)
 })
 
+describe('the location pill in the footer', () => {
+  it('shows a docker chip, the short image label and the sandbox limits in docker', async () => {
+    const app = speaking({ values: { [ESettingId.ExecutionLocation]: 'docker' } })
+    const setup = await testRender(<App app={app} opened={await spokenIn(app)} />, {
+      width: 140,
+      height: 40,
+    })
+
+    try {
+      await setup.flush()
+      await settle(250)
+      await setup.flush()
+
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain('docker')
+      expect(frame).toContain('node:22-slim')
+      expect(frame).toContain('4 cpu · 8 GB')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('shows no location chip on the host', async () => {
+    const app = speaking()
+    const setup = await testRender(<App app={app} opened={await spokenIn(app)} />, {
+      width: 140,
+      height: 40,
+    })
+
+    try {
+      await setup.flush()
+      await settle(250)
+      await setup.flush()
+
+      expect(setup.captureCharFrame()).not.toContain('docker')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+})
+
 describe('the container pill in the sidebar', () => {
   it('is absent on the host and answers with the sandbox state in docker', async () => {
     const app = speaking()
@@ -245,6 +290,7 @@ describe('the container pill in the sidebar', () => {
 
       app.containerStatus.mark({
         state: ESandboxState.Running,
+        name: 'atlas-dev-0123456789ab',
         ports: [{ containerPort: 3000, hostPort: 20_123 }],
       })
       await setup.flush()
@@ -253,6 +299,7 @@ describe('the container pill in the sidebar', () => {
 
       const running = setup.captureCharFrame()
       expect(running).toContain('running')
+      expect(running).toContain('atlas-dev-0123456789ab')
       expect(running).not.toContain('3000→20123')
 
       app.shells.place(shellExposing({ containerPort: 3000, hostPort: 20_123 }))

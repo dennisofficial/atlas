@@ -20,7 +20,7 @@ import {
   NOTICE_WARN_MS,
   notify,
 } from '../ui/notice-store'
-import { unanswerableRef, type ModelCatalogue } from './providers'
+import { unanswerableRef, type ModelCatalogue } from '@dltech/atlas-harness'
 
 type QuickLanguageModel = ReturnType<ProviderAdapter['model']>
 

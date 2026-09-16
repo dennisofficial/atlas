@@ -12,11 +12,11 @@ import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { accountMeterSpans } from '../account-meters'
+import { rowLabel } from '../accounts-labels'
 import {
   ACCOUNT_ROWS,
   EAccountRow,
   EAccountsView,
-  rowLabel,
   type AccountRow,
   type AccountsState,
 } from '../accounts-model'
@@ -72,6 +72,8 @@ const stateWith = (rows: readonly AccountRow[]): AccountsState => ({
   index: 0,
   rows,
   prompt: null,
+  cloudPrompt: null,
+  githubPrompt: null,
   typed: '',
   notice: null,
   failure: null,
@@ -179,6 +181,37 @@ describe('an account row', () => {
     const second = rows.findIndex((row) => row.includes('dennis@trycomp.ai'))
 
     expect(second).toBe(first + 3)
+  })
+})
+
+describe('the GitHub row and prompt', () => {
+  it('renders the row with the connect invitation', async () => {
+    const githubRow: AccountRow = {
+      kind: EAccountRow.Github,
+      github: { connection: null, unreachable: false },
+      active: false,
+    }
+
+    const rows = await rowsOf({ state: stateWith([githubRow]) })
+
+    expect(lineWith(rows, 'GitHub')).not.toBe('')
+    expect(lineWith(rows, 'not connected')).toContain('enter to connect')
+  })
+
+  it('shows the device code and URL while a connection waits, with no typing line', async () => {
+    const state: AccountsState = {
+      ...stateWith([]),
+      view: EAccountsView.GithubDevice,
+      githubPrompt: { url: 'https://github.com/login/device', userCode: 'F00D-CAFE' },
+    }
+
+    const rows = await rowsOf({ state })
+    const frame = rows.join('\n')
+
+    expect(frame).toContain('F00D-CAFE')
+    expect(frame).toContain('github.com/login/device')
+    expect(frame).toContain('waiting for approval')
+    expect(frame).not.toContain('waiting for a paste')
   })
 })
 

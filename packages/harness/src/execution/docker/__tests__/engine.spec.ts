@@ -1,11 +1,10 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { existsSync } from 'node:fs'
-
 import { DockerEngine, EngineRequestFailed } from '../engine'
+import { dockerUnavailableReason } from './live-docker'
 
 const SOCKET = '/var/run/docker.sock'
-const describeDocker = existsSync(SOCKET) ? describe : describe.skip
+const describeDocker = (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
 
 const engine = new DockerEngine({ socketPath: SOCKET })
 const LABEL = { 'atlas-dev.spec': 'engine' }
@@ -52,7 +51,7 @@ describeDocker('DockerEngine over the unix socket', () => {
 
     await engine.removeContainer({ id: created.id })
     expect(await engine.listContainers({ labels: LABEL, all: true })).toHaveLength(0)
-  })
+  }, 120_000)
 
   it('runs an exec and reports its exit code', async () => {
     const created = await engine.createContainer({

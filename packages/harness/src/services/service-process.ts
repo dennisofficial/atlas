@@ -1,4 +1,4 @@
-import { closeSync, mkdirSync, openSync, readSync, statSync } from 'node:fs'
+import { closeSync, mkdirSync, openSync, readSync, statSync, writeSync } from 'node:fs'
 import { dirname } from 'node:path'
 
 import {
@@ -7,9 +7,12 @@ import {
   EStopAction,
   stopActionFor,
   type ClockPort,
+  type ProcessHandle,
+  type ProcessPort,
+  type ThreadId,
 } from '@dltech/atlas-core'
 
-import { messageOf, signalGroup } from '../shells/shell-process'
+import { messageOf, withinReadGrace } from '../shells/shell-process'
 import { atlasBinDirectory } from '../store/paths'
 
 export const SERVICE_SETTLE_MS = 250
@@ -20,7 +23,7 @@ export type ServiceSnapshot = {
   description: string
   status: EServiceStatus
   killedBy?: EKilledBy | undefined
-  pid: number
+  pid?: number | undefined
   exitCode?: number | undefined
   logPath: string
   startedAt: string
@@ -37,10 +40,30 @@ export type Service = {
 
 export type StartedService = { ok: true; service: Service } | { ok: false; reason: string }
 
+type Pump = { done: Promise<void>; stop: () => void }
+
+const hostPidOf = (handle: ProcessHandle): number | undefined =>
+  'pid' in handle && typeof handle.pid === 'number' ? handle.pid : undefined
+
+const pumpInto = (args: { stream: ReadableStream<Uint8Array>; fd: number }): Pump => {
+  const reader = args.stream.getReader()
+  const done = (async () => {
+    for (;;) {
+      const { done: finished, value } = await reader.read()
+      if (finished) return
+      if (value !== undefined && value.byteLength > 0) writeSync(args.fd, value)
+    }
+  })()
+  done.catch(() => undefined)
+
+  return { done, stop: () => void reader.cancel().catch(() => undefined) }
+}
+
 /**
  * A service's output is a file, not a buffer: a dev server prints unboundedly for hours, and the
- * model reads the log with the file tools it already has. Both streams share one append-mode fd so
- * their interleaving in the log matches their interleaving in time.
+ * model reads the log with the file tools it already has. The log stays a host-side file even when
+ * the service runs inside the sandbox, so both ProcessHandle streams are pumped into it here; with
+ * two readers instead of one shared fd, cross-stream interleave is chunk arrival order.
  */
 export function startService(spec: {
   serviceId: string
@@ -49,6 +72,8 @@ export function startService(spec: {
   cwd: string
   logPath: string
   clock: ClockPort
+  processes: ProcessPort
+  threadId: ThreadId
   onExit: (service: Service) => void
 }): StartedService {
   let fd: number
@@ -62,23 +87,23 @@ export function startService(spec: {
     }
   }
 
-  let child: ReturnType<typeof Bun.spawn>
+  let handle: ProcessHandle
   try {
-    child = Bun.spawn({
+    handle = spec.processes.spawn({
       cmd: ['bash', '-c', spec.command],
       cwd: spec.cwd,
-      stdin: 'ignore',
-      stdout: fd,
-      stderr: fd,
-      detached: true,
       env: { ...process.env, PATH: `${atlasBinDirectory()}:${process.env.PATH ?? ''}` },
+      threadId: spec.threadId,
     })
   } catch (error) {
     closeSync(fd)
     return { ok: false, reason: `could not start a service in ${spec.cwd}: ${messageOf(error)}` }
   }
-  closeSync(fd)
-  child.unref()
+
+  const pid = hostPidOf(handle)
+  const stdout = pumpInto({ stream: handle.stdout, fd })
+  const stderr = pumpInto({ stream: handle.stderr, fd })
+  const drained = Promise.all([stdout.done, stderr.done])
 
   const startedAt = spec.clock.now()
   let status = EServiceStatus.Running
@@ -96,18 +121,22 @@ export function startService(spec: {
       status = EServiceStatus.Killed
       killedBy = by
     }
-    signalGroup({ child, signal: action === EStopAction.Kill ? 'SIGKILL' : 'SIGTERM' })
+    handle.terminate()
     return action
   }
 
   const settled = (async () => {
     try {
-      exitCode = await child.exited
+      exitCode = await handle.exited
     } catch {
       exitCode = undefined
     } finally {
       endedAt = spec.clock.now()
       if (status === EServiceStatus.Running) status = EServiceStatus.Exited
+      await withinReadGrace(drained)
+      stdout.stop()
+      stderr.stop()
+      closeSync(fd)
     }
   })()
 
@@ -121,7 +150,7 @@ export function startService(spec: {
       description: spec.description,
       status,
       killedBy,
-      pid: child.pid,
+      pid,
       exitCode,
       logPath: spec.logPath,
       startedAt,

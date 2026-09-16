@@ -25,10 +25,14 @@ const config = (): SandboxConfig => ({
 
 class StubEngine extends DockerEngine {
   running = true
+  exists = true
+  image = 'node:22-slim'
   listCalls = 0
   inspectCalls = 0
   startCalls = 0
+  createCalls = 0
   execError: Error | null = null
+  listError: Error | null = null
 
   constructor() {
     super({ socketPath: '/atlas-dev-stub.sock' })
@@ -36,6 +40,12 @@ class StubEngine extends DockerEngine {
 
   override async listContainers(): Promise<ContainerSummary[]> {
     this.listCalls += 1
+    if (this.listError !== null) {
+      const error = this.listError
+      this.listError = null
+      throw error
+    }
+    if (!this.exists) return []
     return [
       {
         id: CONTAINER_ID,
@@ -52,11 +62,29 @@ class StubEngine extends DockerEngine {
       id: CONTAINER_ID,
       name: 'atlas-dev-stub',
       state: { running: this.running },
-      config: { labels: {}, env: ['PATH=/usr/local/bin'] },
+      config: { labels: {}, env: ['PATH=/usr/local/bin'], image: this.image },
       mounts: [],
       ports: [{ containerPort: 3000, hostPort: 20_000 }],
       hostConfig: { nanoCpus: 0, memoryBytes: 0 },
     }
+  }
+
+  override async info(): Promise<{ cpus: number; memoryBytes: number }> {
+    return { cpus: 64, memoryBytes: 1024 ** 4 }
+  }
+
+  override async createContainer(args: { body: { Image: string } }): Promise<{ id: string; warnings: string[] }> {
+    this.createCalls += 1
+    this.exists = true
+    this.running = true
+    this.image = args.body.Image
+    return { id: CONTAINER_ID, warnings: [] }
+  }
+
+  override async removeContainer(args: { id: string }): Promise<void> {
+    void args
+    this.exists = false
+    this.running = false
   }
 
   override async startContainer(): Promise<void> {
@@ -67,7 +95,11 @@ class StubEngine extends DockerEngine {
   private execSeq = 0
 
   override async createExec(): Promise<{ id: string }> {
-    if (this.execError !== null) throw this.execError
+    if (this.execError !== null) {
+      const error = this.execError
+      this.execError = null
+      throw error
+    }
     if (!this.running) {
       throw new EngineRequestFailed({
         status: 409,
@@ -178,5 +210,62 @@ describe('DockerProcessPort recovering a sandbox that stopped behind its back', 
     expect(await runTrue(port)).toBe(0)
     expect(engine.startCalls).toBe(1)
     expect(statesOf(seen)).toEqual([ESandboxState.Starting, ESandboxState.Running])
+  })
+})
+
+describe('DockerProcessPort after a failed ensure', () => {
+  it('does not latch the failure: the next spawn re-ensures against the daemon', async () => {
+    const engine = new StubEngine()
+    engine.listError = new Error('daemon socket vanished mid-call')
+    const seen: SandboxStatus[] = []
+    const port = new DockerProcessPort({
+      engine,
+      sandbox: config(),
+      dockerCli: null,
+      onStatus: (status) => seen.push(status),
+    })
+
+    await expect(runTrue(port)).rejects.toThrow('daemon socket vanished mid-call')
+    expect(statesOf(seen)).toEqual([ESandboxState.Starting, ESandboxState.Failed])
+
+    expect(await runTrue(port)).toBe(0)
+    expect(statesOf(seen)).toEqual([
+      ESandboxState.Starting,
+      ESandboxState.Failed,
+      ESandboxState.Starting,
+      ESandboxState.Running,
+    ])
+  })
+})
+
+describe('DockerProcessPort when the container vanishes between ensure and exec', () => {
+  it('re-ensures and retries once on a 404, the way it does for a stopped container', async () => {
+    const engine = new StubEngine()
+    const seen: SandboxStatus[] = []
+    const port = new DockerProcessPort({
+      engine,
+      sandbox: config(),
+      dockerCli: null,
+      onStatus: (status) => seen.push(status),
+    })
+
+    expect(await runTrue(port)).toBe(0)
+
+    engine.execError = new EngineRequestFailed({
+      status: 404,
+      message: `No such container: ${CONTAINER_ID}`,
+    })
+    engine.exists = false
+    engine.running = false
+
+    expect(await runTrue(port)).toBe(0)
+    expect(engine.createCalls).toBe(1)
+    expect(statesOf(seen)).toEqual([
+      ESandboxState.Starting,
+      ESandboxState.Running,
+      ESandboxState.Stopped,
+      ESandboxState.Starting,
+      ESandboxState.Running,
+    ])
   })
 })

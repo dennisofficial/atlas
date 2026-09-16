@@ -1,11 +1,20 @@
 import {
   AccountStorePort,
+  ATLAS_SETTINGS,
   ClockPort,
   CredentialPort,
   EDefinitionOrigin,
+  ESettingId,
+  ESettingsLayer,
   EventLogPort,
+  ExecutionLocationSinkPort,
   IdPort,
   ModelPort,
+  NoopExecutionLocationSink,
+  resolveSettings,
+  toggleValueOf,
+  type SettingsLayerInput,
+  type SettingsStorePort,
 } from '@dltech/atlas-core'
 
 import { childRunnerSource, type ChildRunnerDepsSource } from '../agents/registry/child-runner'
@@ -13,13 +22,18 @@ import { AgentRegistryPort } from '../agents/registry/port'
 import { AgentSupervisor } from '../agents/registry/supervisor'
 import type { AgentType } from '../agents/types/agent-type'
 import { BUILT_IN_AGENT_TYPES } from '../agents/types/built-ins'
+import { AccountStoreProxy } from '../cloud/account-store-proxy'
+import { CloudSessionStore } from '../cloud/cloud-session'
+import { CredentialPortProxy } from '../cloud/credential-port-proxy'
+import { SecretsStoreProxy } from '../cloud/secrets-store-proxy'
 import { ClaudeCodeSource, claudeCodePayloadStore } from '../credentials/claude-code-source'
 import { fileAccountStore } from '../credentials/account-store'
 import { builtinOauthClients } from '../credentials/oauth'
-import { atlasVaultFile, atlasVaultKeyFile } from '../credentials/paths'
+import { atlasCloudFile, atlasVaultFile, atlasVaultKeyFile } from '../credentials/paths'
 import { SecretCipher } from '../credentials/secret-cipher'
 import { FileSecretsStore } from '../secrets/file-secrets-store'
 import { atlasSecretsFile } from '../secrets/paths'
+import { BrokeredCredentialPort } from '../credentials/brokered-credential-port'
 import { RefreshingCredentialPort } from '../credentials/refreshing-credential-port'
 import { registerBuiltinHooks } from '../hooks/register-hooks'
 import { PrismaTurnLedger, TurnLedgerPort } from '../ledger'
@@ -27,6 +41,7 @@ import { resolveHookChain } from '../hooks/resolve-hooks'
 import { AiSdkModelPort } from '../model/ai-sdk-model-port'
 import { createRawTape } from '../model/raw-tape'
 import { registerFileState } from '../files'
+import { environmentLayer } from '../settings/environment'
 import { registerExecution } from '../execution/register-execution'
 import { registerServices } from '../services/register-services'
 import { registerShells } from '../shells/register-shells'
@@ -46,16 +61,52 @@ import {
 } from './injection'
 import {
   ClaudeCodeSourceToken,
+  ClientVersionToken,
+  CloudRequiredToken,
+  CloudSessionStoreToken,
   HookChainToken,
   KeychainReaderToken,
   LanguageModelToken,
+  LocalAccountStoreToken,
+  LocalSecretsStoreToken,
   ModelCardSourceToken,
   PrismaClientToken,
+  ProjectSettingsStoreToken,
   SecretsStoreToken,
+  UserSettingsStoreToken,
+  WorkspaceRoot,
 } from './tokens'
 
 export const ChildRunnerDepsToken: InjectionToken<ChildRunnerDepsSource> =
   Symbol('atlas.ChildRunnerDeps')
+
+const clientVersionOf = (resolver: DependencyContainer): string =>
+  resolver.isRegistered(ClientVersionToken, true) ? resolver.resolve(ClientVersionToken) : 'dev'
+
+const liveCloudRequired =
+  (resolver: DependencyContainer) => (): boolean =>
+    resolver.isRegistered(CloudRequiredToken, true) ? resolver.resolve(CloudRequiredToken)() : false
+
+const cloudRequiredDefault =
+  (args: { container: DependencyContainer }): (() => boolean) =>
+  (): boolean => {
+    const stores: [InjectionToken<SettingsStorePort>, ESettingsLayer][] = [
+      [UserSettingsStoreToken, ESettingsLayer.User],
+      [ProjectSettingsStoreToken, ESettingsLayer.Project],
+    ]
+    const layers: SettingsLayerInput[] = []
+    for (const [token, layer] of stores) {
+      if (!args.container.isRegistered(token, true)) continue
+      const store = args.container.resolve(token)
+      layers.push({ layer, origin: store.origin(), values: store.read().document.values })
+    }
+    layers.push(environmentLayer({ definitions: ATLAS_SETTINGS, env: process.env }))
+
+    return toggleValueOf({
+      resolution: resolveSettings({ definitions: ATLAS_SETTINGS, layers }),
+      id: ESettingId.CloudRequired,
+    })
+  }
 
 const embeddedAgentTypes = (): readonly AgentType[] =>
   BUILT_IN_AGENT_TYPES.map((agentType) => ({ ...agentType, origin: EDefinitionOrigin.BuiltIn }))
@@ -64,6 +115,8 @@ function registerAgents({ container }: { container: DependencyContainer }): void
   let live: AgentRegistryPort | undefined
 
   container.register(AgentTypesToken, { useValue: embeddedAgentTypes() })
+
+  container.register(portToken(ExecutionLocationSinkPort), { useClass: NoopExecutionLocationSink })
 
   container.register(portToken(AgentRegistryPort), {
     useFactory: instanceCachingFactory((resolver) => {
@@ -74,6 +127,8 @@ function registerAgents({ container }: { container: DependencyContainer }): void
         clock: resolver.resolve(portToken(ClockPort)),
         agentTypes: resolver.resolve(AgentTypesToken),
         runners: childRunnerSource({ deps: () => resolver.resolve(ChildRunnerDepsToken)() }),
+        launchDirectory: resolver.resolve(WorkspaceRoot),
+        sink: resolver.resolve(portToken(ExecutionLocationSinkPort)),
       })
       return live
     }),
@@ -118,7 +173,7 @@ export function createHarnessContainer(): DependencyContainer {
         resolver.resolve(portToken(IdPort)),
       ),
   })
-  harness.register(portToken(AccountStorePort), {
+  harness.register(LocalAccountStoreToken, {
     useFactory: instanceCachingFactory(
       (resolver) =>
         fileAccountStore({
@@ -129,12 +184,46 @@ export function createHarnessContainer(): DependencyContainer {
     ),
   })
 
-  harness.register(SecretsStoreToken, {
+  harness.register(CloudSessionStoreToken, {
+    useFactory: instanceCachingFactory(
+      () => new CloudSessionStore({ file: atlasCloudFile(), keyFile: atlasVaultKeyFile() }),
+    ),
+  })
+
+  harness.register(CloudRequiredToken, {
+    useValue: cloudRequiredDefault({ container: harness }),
+  })
+
+  harness.register(portToken(AccountStorePort), {
+    useFactory: instanceCachingFactory(
+      (resolver) =>
+        new AccountStoreProxy({
+          local: resolver.resolve(LocalAccountStoreToken),
+          sessions: resolver.resolve(CloudSessionStoreToken),
+          clientVersion: clientVersionOf(resolver),
+          cloudRequired: liveCloudRequired(resolver),
+        }),
+    ),
+  })
+
+  harness.register(LocalSecretsStoreToken, {
     useFactory: instanceCachingFactory(
       () =>
         new FileSecretsStore({
           file: atlasSecretsFile(),
           cipher: new SecretCipher(atlasVaultKeyFile()),
+        }),
+    ),
+  })
+
+  harness.register(SecretsStoreToken, {
+    useFactory: instanceCachingFactory(
+      (resolver) =>
+        new SecretsStoreProxy({
+          local: resolver.resolve(LocalSecretsStoreToken),
+          sessions: resolver.resolve(CloudSessionStoreToken),
+          clientVersion: clientVersionOf(resolver),
+          cloudRequired: liveCloudRequired(resolver),
         }),
     ),
   })
@@ -151,12 +240,23 @@ export function createHarnessContainer(): DependencyContainer {
   harness.register(portToken(CredentialPort), {
     useFactory: instanceCachingFactory((resolver) => {
       const clock = resolver.resolve(portToken(ClockPort))
+      const accounts = resolver.resolve(portToken(AccountStorePort))
+      const sessions = resolver.resolve(CloudSessionStoreToken)
 
-      return new RefreshingCredentialPort({
-        accounts: resolver.resolve(portToken(AccountStorePort)),
-        clients: builtinOauthClients({ clock }),
-        clock,
-        sinks: [resolver.resolve(ClaudeCodeSourceToken)],
+      return new CredentialPortProxy({
+        sessions,
+        local: new RefreshingCredentialPort({
+          accounts,
+          clients: builtinOauthClients({ clock }),
+          clock,
+          sinks: [resolver.resolve(ClaudeCodeSourceToken)],
+        }),
+        brokered: new BrokeredCredentialPort({
+          accounts,
+          sessions,
+          clock,
+          clientVersion: clientVersionOf(resolver),
+        }),
       })
     }),
   })

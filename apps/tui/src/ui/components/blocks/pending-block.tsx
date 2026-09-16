@@ -7,30 +7,29 @@ import { UserBlock } from './user-block'
 type NoticeKind = EPendingKind.BackgroundShell | EPendingKind.Agent | EPendingKind.Service
 
 type PendingRun =
-  | { kind: EPendingKind.Operator; id: string; said: readonly string[]; takeBack: boolean }
+  | { kind: EPendingKind.Operator; id: string; said: readonly string[] }
   | { kind: NoticeKind; id: string; text: string; failed: boolean }
 
 /**
- * Consecutive queued messages share one panel, the way the transcript gives one panel to
- * consecutive things the operator said — four one-word messages must not stack four panels high.
+ * Consecutive queued submissions share one panel, the way the transcript gives one panel to
+ * consecutive things the operator said — a queued command is one of those, so it reads the same.
  */
 export function pendingRuns(rows: readonly PendingRow[]): readonly PendingRun[] {
   const runs: PendingRun[] = []
 
   for (const row of rows) {
-    if (row.kind !== EPendingKind.Operator) {
-      runs.push({ kind: row.kind, id: row.id, text: row.text, failed: row.failed })
+    if (row.kind === EPendingKind.Operator || row.kind === EPendingKind.Command) {
+      const open = runs.at(-1)
+      if (open?.kind === EPendingKind.Operator) {
+        open.said = [...open.said, row.text]
+        continue
+      }
+
+      runs.push({ kind: EPendingKind.Operator, id: row.id, said: [row.text] })
       continue
     }
 
-    const open = runs.at(-1)
-    if (open?.kind === EPendingKind.Operator) {
-      open.said = [...open.said, row.text]
-      open.takeBack = !row.taken
-      continue
-    }
-
-    runs.push({ kind: row.kind, id: row.id, said: [row.text], takeBack: !row.taken })
+    runs.push({ kind: row.kind, id: row.id, text: row.text, failed: row.failed })
   }
 
   return runs
@@ -44,18 +43,12 @@ export function PendingBlock(props: {
 
   return (
     <box flexDirection="column" flexShrink={0}>
-      {pendingRuns(props.rows).map((run) =>
-        run.kind === EPendingKind.Operator ? (
-          <UserBlock
-            key={run.id}
-            said={run.said}
-            width={props.width}
-            {...(run.takeBack ? { takeBack: true } : {})}
-          />
-        ) : (
-          <WaitingNoticeRow key={run.id} text={run.text} failed={run.failed} width={props.width} />
-        ),
-      )}
+      {pendingRuns(props.rows).map((run) => {
+        if (run.kind === EPendingKind.Operator) {
+          return <UserBlock key={run.id} said={run.said} width={props.width} takeBack />
+        }
+        return <WaitingNoticeRow key={run.id} text={run.text} failed={run.failed} width={props.width} />
+      })}
     </box>
   )
 }

@@ -65,6 +65,9 @@ const page = (args: {
       secretOf={args.secretOf ?? (() => undefined)}
       secretOrigin={SECRETS_ORIGIN}
       {...(args.problem === undefined ? {} : { problem: args.problem })}
+      cloudEmail={null}
+      cloudSignedIn={false}
+      onSignOut={() => {}}
       onActivate={() => {}}
       onDismiss={() => {}}
     />
@@ -260,11 +263,11 @@ describe('the search key row', () => {
     const rows = await rowsOf(
       page({
         secretOf: (id) =>
-          id === ESettingId.NestedInstructions ? { text: '••••1234', fg: theme.ok } : undefined,
+          id === ESettingId.ProjectInstructions ? { text: '••••1234', fg: theme.ok } : undefined,
       }),
       WIDE,
     )
-    const shown = rows.find((row) => row.includes('Nested instructions'))
+    const shown = rows.find((row) => row.includes('Project instructions'))
 
     expect(shown).toContain('••••1234')
     expect(shown).not.toContain(' on ')

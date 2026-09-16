@@ -87,6 +87,8 @@ export class ChildSteps {
   }
 
   private finish({ child, status }: { child: ChildState; status: EAgentStatus }): void {
+    if (this.roster.find(child.agentId) === undefined) return
+
     child.status = status
     child.endedAt = this.clock.now()
     child.steppingSince = undefined
@@ -121,6 +123,7 @@ export class ChildSteps {
     return this.runners({
       agentType,
       threadId: child.agentId,
+      projectDirectory: child.projectDirectory,
       observe: (drafts) => this.record({ child, drafts }),
       observeContext: ({ tokens, window }) => this.measure({ child, tokens, window }),
       steering: () => child.pending.splice(0),

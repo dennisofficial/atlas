@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { APICallError } from '@ai-sdk/provider'
+import { InvalidResponseDataError, StreamProviderError } from 'ai'
 
 import { ModelStreamError } from '../errors'
 import { modelFailureOf } from '../failure'
@@ -48,8 +49,78 @@ describe('reading a model failure off whatever the provider threw', () => {
     'terminated',
     'read ECONNRESET',
     'connect ETIMEDOUT 1.2.3.4:443',
+    'Connection closed.',
   ])('reads %p as a dropped connection, which has no status', (message) => {
     expect(modelFailureOf(new Error(message))).toEqual({})
+  })
+
+  it('takes the status off a mid-stream provider error', () => {
+    const error = new StreamProviderError({ message: 'upstream exploded', statusCode: 500 })
+
+    expect(modelFailureOf(error)).toEqual({ status: 500 })
+  })
+
+  it('trusts a mid-stream provider error the provider flagged retryable', () => {
+    const error = new StreamProviderError({ message: 'try again', isRetryable: true })
+
+    expect(modelFailureOf(error)).toEqual({})
+  })
+
+  it("reads litellm's dropped upstream connection as transient", () => {
+    const error = new StreamProviderError({
+      message: 'litellm.APIConnectionError: APIConnectionError: UpstreamError - Connection closed.',
+    })
+
+    expect(modelFailureOf(error)).toEqual({})
+  })
+
+  it('refuses a mid-stream provider error with no status, no flag, and an unrecognised message', () => {
+    expect(modelFailureOf(new StreamProviderError({ message: 'billing hard limit reached' }))).toBeNull()
+  })
+
+  it('reads a stream that ended without a finish reason as a dropped connection', () => {
+    const error = new InvalidResponseDataError({
+      data: undefined,
+      message: 'Response stream ended without a finish reason.',
+    })
+
+    expect(modelFailureOf(error)).toEqual({})
+  })
+
+  it('reads a stream that ended without a finish reason wrapped in the stream error', () => {
+    const wrapped = new ModelStreamError({
+      message: 'Response stream ended without a finish reason.',
+      cause: new InvalidResponseDataError({
+        data: undefined,
+        message: 'Response stream ended without a finish reason.',
+      }),
+    })
+
+    expect(modelFailureOf(wrapped)).toEqual({})
+  })
+
+  it('refuses invalid response data that is not a truncated stream', () => {
+    const error = new InvalidResponseDataError({
+      data: {},
+      message: "Expected 'id' to be a string.",
+    })
+
+    expect(modelFailureOf(error)).toBeNull()
+  })
+
+  it('reads an AbortSignal.timeout reason as a dropped connection', () => {
+    const timedOut = new DOMException('The operation timed out.', 'TimeoutError')
+
+    expect(modelFailureOf(timedOut)).toEqual({})
+  })
+
+  it('reads a timeout wrapped in the stream error as a dropped connection', () => {
+    const wrapped = new ModelStreamError({
+      message: 'TimeoutError: The operation timed out.',
+      cause: new DOMException('The operation timed out.', 'TimeoutError'),
+    })
+
+    expect(modelFailureOf(wrapped)).toEqual({})
   })
 
   /**

@@ -1,4 +1,4 @@
-import { getErrorMessage } from '@ai-sdk/provider'
+import { getErrorMessage, type LanguageModelV4 } from '@ai-sdk/provider'
 import { stepCountIs, streamText, type LanguageModel } from 'ai'
 
 import {
@@ -37,15 +37,56 @@ const reportNothing = () => {}
 // they take. https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text
 const RETRIES_BELONG_TO_THE_POLICY = 0
 
-export type StreamTimeout = { firstChunkMs: number; chunkMs: number }
+export type StreamTimeout = { ttfbMs: number; firstChunkMs: number; chunkMs: number }
 
 // streamText arms no timeout unless one is passed, and Bun's fetch has no default idle timeout —
 // so a provider that holds the connection open but goes silent would block the for-await below
 // until esc. The first chunk gets a longer grace because prefill of a large context is legitimately
 // slow. https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text#timeout
+//
+// firstChunkMs itself only starts ticking once doStream resolves — i.e. once response headers
+// arrive — so a provider that queues the request without answering (observed from inference.net
+// under load, 2026-09-15: live turns silent for 3-50 minutes with no retry line) sits outside every
+// watchdog. ttfbMs covers that window by racing doStream against a timer.
 const DEFAULT_STREAM_TIMEOUT: StreamTimeout = {
+  ttfbMs: 90_000,
   firstChunkMs: 180_000,
   chunkMs: 120_000,
+}
+
+type DoStreamOptions = Parameters<LanguageModelV4['doStream']>[0]
+
+const isV4Model = (model: LanguageModel): model is LanguageModelV4 =>
+  typeof model === 'object' && model.specificationVersion === 'v4'
+
+function withResponseDeadline(args: { model: LanguageModelV4; ttfbMs: number }): LanguageModelV4 {
+  const doStream = (options: DoStreamOptions) => {
+    const deadline = new AbortController()
+    const followCaller = () => deadline.abort(options.abortSignal?.reason)
+    options.abortSignal?.addEventListener('abort', followCaller, { once: true })
+
+    const timer = setTimeout(
+      () =>
+        deadline.abort(new StreamStallError('the provider did not answer the request in time')),
+      args.ttfbMs,
+    )
+
+    const answered = args.model.doStream({ ...options, abortSignal: deadline.signal })
+    const unanswered = new Promise<never>((_, reject) =>
+      deadline.signal.addEventListener('abort', () => reject(deadline.signal.reason), {
+        once: true,
+      }),
+    )
+
+    // The caller listener outlives the race on purpose: deadline.signal drives the request for
+    // the stream's whole life, so an esc mid-stream must still reach it.
+    return Promise.race([answered, unanswered]).finally(() => clearTimeout(timer))
+  }
+
+  return new Proxy(args.model, {
+    get: (target, property, receiver) =>
+      property === 'doStream' ? doStream : Reflect.get(target, property, receiver),
+  })
 }
 
 async function keptChunk(args: {
@@ -73,16 +114,24 @@ export async function runModelStream(args: {
   const instructions = toInstructions(args.prompt.instructions)
   const tape = args.tape ?? NO_RAW_TAPE
 
+  const timeout = args.streamTimeout ?? DEFAULT_STREAM_TIMEOUT
+  const model = isV4Model(args.model)
+    ? withResponseDeadline({ model: args.model, ttfbMs: timeout.ttfbMs })
+    : args.model
+
   const stream = streamText({
-    model: args.model,
+    model,
     ...(instructions.length > 0 ? { instructions } : {}),
     messages: toModelMessages(args.prompt.messages),
     tools: toToolSet(args.tools),
     stopWhen: stepCountIs(1),
     abortSignal: args.signal,
     maxRetries: RETRIES_BELONG_TO_THE_POLICY,
-    timeout: args.streamTimeout ?? DEFAULT_STREAM_TIMEOUT,
+    timeout: { firstChunkMs: timeout.firstChunkMs, chunkMs: timeout.chunkMs },
     onError: reportNothing,
+    ...(args.prompt.requestOptions === undefined
+      ? {}
+      : { providerOptions: args.prompt.requestOptions }),
   })
 
   const accumulator = createPartAccumulator()
@@ -105,6 +154,7 @@ export async function runModelStream(args: {
       if (kept !== null) accumulator.handle(kept)
 
       if (part.type === 'error') {
+        if (part.error instanceof StreamStallError) throw part.error
         throw new ModelStreamError({ message: getErrorMessage(part.error), cause: part.error })
       }
     }

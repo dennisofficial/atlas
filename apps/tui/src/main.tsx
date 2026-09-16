@@ -1,13 +1,11 @@
 import { bootAtlas } from './composition/boot'
+import { BOOT_FAILURE_EXIT_CODE, bootFailureReport } from './composition/boot-failure'
 import { launchCommand } from './composition/launch-command'
 
 export const APP_PACKAGE_NAME = '@dltech/atlas'
 
-const STARTUP_FAILED = 1
-
 const report = (error: unknown): void => {
-  const detail = error instanceof Error ? (error.stack ?? error.message) : 'Atlas failed to start.'
-  process.stderr.write(`${detail}\n`)
+  process.stderr.write(bootFailureReport({ error, debug: process.env.ATLAS_DEBUG !== undefined }))
 }
 
 if (import.meta.main) {
@@ -22,6 +20,6 @@ if (import.meta.main) {
     })
     .catch((error: unknown) => {
       report(error)
-      process.exitCode = STARTUP_FAILED
+      process.exitCode = BOOT_FAILURE_EXIT_CODE
     })
 }

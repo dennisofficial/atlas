@@ -1,6 +1,6 @@
 import { EShellStatus, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 
-import type { BackgroundShell, ShellSnapshot } from './background-shell'
+import type { BackgroundShell, ShellDelta, ShellSnapshot } from './background-shell'
 import { awaitingInputDraft, endedDraft, matchedDraft, stillRunningDraft } from './notifications'
 import type { MatchedLines } from './shell-watch'
 
@@ -10,6 +10,7 @@ export type Tracked = {
   shell: BackgroundShell
   cursor: number
   announced: boolean
+  endingClaimed: boolean
   threadId: ThreadId
   pattern?: string | undefined
 }
@@ -21,12 +22,6 @@ export enum ENotice {
   StillRunning = 'still-running',
 }
 
-export type ShellDelta = {
-  text: string
-  droppedCharacters: number
-  remainingCharacters: number
-}
-
 type NoticedShell = { snapshot: ShellSnapshot; threadId: ThreadId }
 
 /**
@@ -36,6 +31,9 @@ type NoticedShell = { snapshot: ShellSnapshot; threadId: ThreadId }
  * `hooked` is what the after-shell hooks produced for this ending. It travels with the notice
  * because nothing else can deliver it: the shell may well have ended with no turn in flight.
  *
+ * An ending whose output shell_kill already handed to the model is `outputClaimed`: the shell's own
+ * draft would only repeat the tool result, so the notice exists purely to give hook drafts a ride.
+ *
  * A match carries its lines instead of a delta: the matcher accumulates separately from the
  * delivery cursor, so nothing about a match is read out of the shell's undelivered output.
  */
@@ -44,6 +42,7 @@ export type ShellNotice =
       kind: ENotice.Ended
       take: () => ShellDelta
       hooked?: readonly EventDraft[] | undefined
+      outputClaimed?: boolean | undefined
     })
   | (NoticedShell & { kind: ENotice.AwaitingInput; take: () => ShellDelta })
   | (NoticedShell & { kind: ENotice.Matched; pattern: string; matched: MatchedLines })
@@ -127,6 +126,16 @@ export class ShellNoticeQueue {
     return this.noticed.get(threadId) ?? NOTHING_ANNOUNCED
   }
 
+  dropShells({ threadId, shellIds }: { threadId: ThreadId; shellIds: readonly string[] }): void {
+    if (this.queued.length === 0 || shellIds.length === 0) return
+    this.settle(
+      this.queued.filter(
+        (notice) =>
+          notice.threadId !== threadId || !shellIds.includes(notice.snapshot.shellId),
+      ),
+    )
+  }
+
   threadsAwaiting(): readonly ThreadId[] {
     return [...this.noticed.keys()]
   }
@@ -179,6 +188,10 @@ export class ShellNoticeQueue {
           checkInMs: notice.checkInMs,
         }),
       ]
+    }
+
+    if (notice.kind === ENotice.Ended && notice.outputClaimed === true) {
+      return notice.hooked ?? []
     }
 
     const delta = notice.take()

@@ -6,15 +6,18 @@ import { Approval } from '../ui/components/approval'
 import type { Span } from '../ui/components/spans'
 import type { AccountRow } from '../ui/accounts-model'
 import { CompactingOverlay, type Compacting } from '../ui/components/compacting'
+import { ContainerGuard } from '../ui/components/container-guard'
 import { ExitGuard } from '../ui/components/exit-guard'
 import { exitGuardAgentRow, exitGuardRow, exitGuardServiceRow } from '../ui/exit-guard-model'
 import { Rewind } from '../ui/components/rewind'
+import { RewindConfirm } from '../ui/components/rewind-confirm'
 import { Services } from '../ui/components/services'
 import { Settings } from '../ui/components/settings'
 import { Shells } from '../ui/components/shells'
 import { Switcher } from '../ui/components/switcher'
 import { Threads } from '../ui/components/threads'
 import { AgentsPicker } from '../ui/components/agents-picker'
+import { useAppearance } from '../ui/hooks/use-appearance'
 import { isServiceAlive } from '../ui/services-model'
 import { isShellRunning } from '../ui/shells-model'
 import { isSubagentRunning } from '../store/subagent-row'
@@ -22,15 +25,17 @@ import type { AccountsControl } from './use-accounts'
 import type { AgentsControl } from './use-agents'
 import type { AgentsPickerControl } from './use-agents-picker'
 import type { ApprovalControl } from './use-approval'
+import type { ContainerGuardControl } from './use-container-guard'
 import type { ExitGuardControl } from './use-exit-guard'
 import type { RewindControl } from './use-rewind'
+import type { RewindConfirmControl } from './use-rewind-confirm'
 import type { ServicesControl } from './use-services'
 import type { SettingsControl } from './use-settings'
 import type { ShellsControl } from './use-shells'
 import { type SwitcherControl } from './use-switcher'
 import type { ThreadsControl } from './use-threads'
 
-export function OverlayStack(props: {
+function DerivedOverlayStack(props: {
   width: number
   contentWidth: number
   cwd: string
@@ -45,14 +50,27 @@ export function OverlayStack(props: {
   threads: ThreadsControl
   accountMeters: (row: AccountRow) => readonly Span[]
   rewind: RewindControl
+  rewindConfirm: RewindConfirmControl
   approval: ApprovalControl
   exitGuard: ExitGuardControl
+  containerGuard: ContainerGuardControl
   compacting: Compacting | null
   now: number
 }): React.ReactNode {
-  const { switcher, shells, agents, agentsPicker, settings, accounts, threads, rewind, exitGuard } =
-    props
+  const {
+    switcher,
+    shells,
+    agents,
+    agentsPicker,
+    settings,
+    accounts,
+    threads,
+    rewind,
+    exitGuard,
+    containerGuard,
+  } = props
   const { approval } = props
+  useAppearance()
   const sidebarWidth = Math.min(settings.sidebarWidth, props.width)
 
   return (
@@ -149,6 +167,15 @@ export function OverlayStack(props: {
           onDismiss={approval.handleDismiss}
         />
       )}
+      {props.rewindConfirm.state === null ? null : (
+        <RewindConfirm
+          width={Math.min(props.contentWidth, props.width)}
+          state={props.rewindConfirm.state}
+          overlay
+          onConfirm={props.rewindConfirm.handleConfirm}
+          onDismiss={props.rewindConfirm.handleDismiss}
+        />
+      )}
       {exitGuard.state === null ? null : (
         <ExitGuard
           width={Math.min(props.contentWidth, props.width)}
@@ -161,6 +188,17 @@ export function OverlayStack(props: {
           overlay
           onPick={exitGuard.handlePick}
           onDismiss={exitGuard.handleDismiss}
+        />
+      )}
+      {containerGuard.state === null || containerGuard.target === null ? null : (
+        <ContainerGuard
+          width={Math.min(props.contentWidth, props.width)}
+          target={containerGuard.target}
+          running={shells.shells.filter(isShellRunning).map(exitGuardRow)}
+          state={containerGuard.state}
+          overlay
+          onPick={containerGuard.handlePick}
+          onDismiss={containerGuard.handleDismiss}
         />
       )}
       {settings.state === null ? null : (
@@ -176,6 +214,9 @@ export function OverlayStack(props: {
           secretOf={settings.secretOf}
           secretOrigin={settings.secretOrigin}
           problem={settings.problem}
+          cloudEmail={settings.cloudEmail}
+          cloudSignedIn={settings.cloudSignedIn}
+          onSignOut={settings.handleSignOut}
           onActivate={settings.handleActivate}
           onDismiss={settings.handleDismiss}
         />
@@ -183,3 +224,5 @@ export function OverlayStack(props: {
     </>
   )
 }
+
+export const OverlayStack = React.memo(DerivedOverlayStack)

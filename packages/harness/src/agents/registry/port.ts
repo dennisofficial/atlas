@@ -1,9 +1,11 @@
-import type { EKilledBy, EventDraft, SaidImage, ThreadId } from '@dltech/atlas-core'
+import type { EExecutionLocation, EKilledBy, EventDraft, SaidImage, ThreadId } from '@dltech/atlas-core'
 
 import type { AgentType } from '../types'
 import type { AgentSnapshot, RecoveredAgents } from './snapshot'
 
 export type AgentOutcome = { ok: true; snapshot: AgentSnapshot } | { ok: false; reason: string }
+
+export type RelocateChildrenArgs = { threadId: ThreadId; location: EExecutionLocation }
 
 /**
  * A sub-agent belongs to the thread that spawned it, so every read and every steer is scoped to
@@ -25,7 +27,12 @@ export abstract class AgentRegistryPort {
   }): Promise<AgentOutcome>
   abstract resume(args: { agentId: ThreadId; threadId: ThreadId }): Promise<AgentOutcome>
   abstract stop(args: { agentId: ThreadId; threadId: ThreadId; by: EKilledBy }): AgentOutcome
+  abstract relocateChildren(args: RelocateChildrenArgs): Promise<readonly ThreadId[]>
   abstract list(args: { threadId: ThreadId }): readonly AgentSnapshot[]
+  abstract removeChildren(args: {
+    threadId: ThreadId
+    agentIds: readonly ThreadId[]
+  }): Promise<void>
   abstract recordLostAgents(args: { threadId: ThreadId }): Promise<RecoveredAgents>
   abstract listEverywhere(): readonly AgentSnapshot[]
   abstract drainNotifications(args: { threadId: ThreadId }): readonly EventDraft[]

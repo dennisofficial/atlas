@@ -1,4 +1,4 @@
-import type { ETldrStatus, SaidImage } from '@dltech/atlas-core'
+import type { EExecutionLocation, ETldrStatus, SaidImage } from '@dltech/atlas-core'
 
 import { runLabel } from './tools'
 import { settled, type ToolRun } from './tool-runs'
@@ -23,6 +23,7 @@ export enum EEntryKind {
   TldrWritten = 'tldr-written',
   TurnEnded = 'turn-ended',
   SandboxNotice = 'sandbox-notice',
+  LocationChanged = 'location-changed',
 }
 
 export type OperatorSaidEntry = {
@@ -171,6 +172,14 @@ export type SandboxNoticeEntry = {
   failed: boolean
 }
 
+export type LocationChangedEntry = {
+  kind: EEntryKind.LocationChanged
+  author: EAuthor.Model
+  key: string
+  text: string
+  to: EExecutionLocation
+}
+
 export type TranscriptEntry =
   | OperatorSaidEntry
   | ModelSaidEntry
@@ -186,6 +195,7 @@ export type TranscriptEntry =
   | TldrWrittenEntry
   | TurnEndedEntry
   | SandboxNoticeEntry
+  | LocationChangedEntry
 
 export type StepFailure = { message: string | null }
 

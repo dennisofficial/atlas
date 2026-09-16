@@ -1,0 +1,259 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+  runtime      = "nodejs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String       @id
+  name          String
+  email         String       @unique
+  emailVerified Boolean      @default(false)
+  image         String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  members       Member[]
+  invitations   Invitation[]
+  deviceCodes   DeviceCode[]
+  agentAccounts AgentAccount[]
+  secretEntries SecretEntry[]
+  mcpServers    McpServerConfig[]
+  githubConnection GithubConnection?
+  threads       Thread[]
+}
+
+model Thread {
+  id                String   @id
+  title             String?
+  head              Int      @default(0)
+  createdAt         String
+  updatedAt         String
+  parentThreadId    String?
+  forkSeq           Int?
+  forkMode          String?
+  spawnerThreadId   String?
+  agentType         String?
+  workspace         String?
+  repo              String?
+  modelRef          String?
+  modelEffort       String?
+  executionLocation String?
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent            Thread?  @relation("ThreadFork", fields: [parentThreadId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  forks             Thread[] @relation("ThreadFork")
+  spawner           Thread?  @relation("ThreadSupervision", fields: [spawnerThreadId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  spawned           Thread[] @relation("ThreadSupervision")
+  events            Event[]
+  turns             Turn[]
+
+  @@index([userId, updatedAt])
+  @@index([parentThreadId])
+  @@index([spawnerThreadId])
+  @@index([userId, workspace, updatedAt])
+  @@index([userId, repo, updatedAt])
+}
+
+model Event {
+  id            String  @id
+  threadId      String
+  seq           Int
+  runId         String
+  parentRunId   String?
+  depth         Int
+  at            String
+  type          String
+  body          String
+  contextSlot   String?
+  contextKey    String?
+  contextDigest String?
+  userId        String
+  thread        Thread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@unique([threadId, seq])
+  @@unique([threadId, contextSlot, contextKey, contextDigest])
+  @@index([threadId, type])
+  @@index([userId])
+}
+
+model Turn {
+  runId            String @id
+  threadId         String
+  status           String
+  providerId       String
+  modelId          String
+  steps            Int
+  inputTokens      Int
+  outputTokens     Int
+  cacheReadTokens  Int
+  cacheWriteTokens Int
+  startedAt        String
+  endedAt          String
+  durationMs       Int
+  userId           String
+  thread           Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, startedAt])
+  @@index([userId])
+}
+
+model AgentAccount {
+  id           String   @id
+  provider     String
+  kind         String
+  origin       String
+  label        String
+  status       String
+  email        String?
+  subscription String?
+  importedFrom String?
+  sealedSecret  String
+  secretVersion Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, provider])
+}
+
+model ActiveAccount {
+  userId    String
+  provider  String
+  accountId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([userId, provider])
+}
+
+model SecretEntry {
+  id          String   @id
+  name        String
+  sealedValue String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+}
+
+model McpServerConfig {
+  id         String   @id
+  name       String
+  sealedSpec String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+}
+
+model GithubConnection {
+  id          String   @id
+  login       String
+  scopes      String
+  sealedToken String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Session {
+  id                   String   @id
+  expiresAt            DateTime
+  token                String   @unique
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  ipAddress            String?
+  userAgent            String?
+  activeOrganizationId String?
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id                    String   @id
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  userId                String
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Organization {
+  id          String       @id
+  name        String
+  slug        String       @unique
+  logo        String?
+  metadata    String?
+  createdAt   DateTime     @default(now())
+  members     Member[]
+  invitations Invitation[]
+}
+
+model Member {
+  id             String       @id
+  role           String
+  createdAt      DateTime     @default(now())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Invitation {
+  id             String       @id
+  email          String
+  role           String?
+  status         String
+  expiresAt      DateTime
+  createdAt      DateTime     @default(now())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inviterId      String
+  inviter        User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+}
+
+model DeviceCode {
+  id              String    @id
+  deviceCode      String
+  userCode        String
+  expiresAt       DateTime
+  status          String
+  lastPolledAt    DateTime?
+  pollingInterval Int?
+  clientId        String?
+  scope           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  userId          String?
+  user            User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

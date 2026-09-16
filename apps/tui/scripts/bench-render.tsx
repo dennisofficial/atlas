@@ -12,13 +12,14 @@ import {
 } from '@dltech/atlas-core'
 import type { Event } from '@dltech/atlas-core'
 import type { TurnSpend } from '@dltech/atlas-harness'
-import type { ActiveConversation } from '../src/composition/resume-hint'
+import type { ActiveConversation } from '@dltech/atlas-harness'
 import {
   createAccountUsageService,
   createDeltaChannel,
   createSettingsService,
   EMPTY_AGENT_TYPE_CATALOG,
   FileBrowser,
+  InMemoryToolRegistry,
   MemorySecretsStore,
   MemorySettingsStore,
   PublishingTurnRunner,
@@ -32,18 +33,20 @@ import type { Renderable } from '@opentui/core'
 import { App } from '../src/composition/app'
 import type { AtlasApp } from '../src/composition/compose'
 import { DEFAULT_MODEL_REF, EOpenMode } from '../src/composition/config'
-import { createExecutionLocationState } from '../src/composition/execution-location-state'
-import { createSandboxStatusState } from '../src/composition/sandbox-status-state'
-import { heldChoice } from '../src/composition/model-selection'
+import { createExecutionLocationState } from '@dltech/atlas-harness'
+import { createSandboxStatusState } from '@dltech/atlas-harness'
+import { heldChoice } from '@dltech/atlas-harness'
 import { fakeAgentRegistry } from '../src/composition/__tests__/fake-agents'
 import {
   alwaysAuthorised,
   fakeAccounts,
+  fakeCloud,
   fakeCatalogue,
   fakeSkillRegistry,
 } from '../src/composition/__tests__/fake-app'
 import { fakeServiceRegistry } from '../src/composition/__tests__/fake-services'
-import { createPendingQueue } from '../src/store'
+import { createPendingQueues } from '../src/store'
+import type { QueuedSettled } from '../src/composition/commands'
 import { grammarsReady, teardown } from '../src/ui/markdown/__tests__/harness'
 
 declare global {
@@ -81,7 +84,11 @@ const benchApp = (args: {
 
   return {
     config: { model: undefined, open: { mode: EOpenMode.New }, cwd: args.root, executionLocation: undefined },
+    launch: { cwd: args.root, command: 'atlas-dev', model: undefined, executionLocation: undefined },
+    command: 'atlas-dev',
+    journalResume: () => {},
     workspace: { workspace: args.root, repo: null },
+    tools: new InMemoryToolRegistry([]),
     markActiveThread: (next) => {
       active = next
     },
@@ -90,17 +97,19 @@ const benchApp = (args: {
     summarise: async () => null,
     credentials: alwaysAuthorised(),
     accounts: fakeAccounts(),
+    cloud: fakeCloud(),
     channel: args.channel,
     runner: args.runner,
     log: args.harness.log,
     threads: args.harness.threads,
     ledger: args.harness.ledger,
     ids: args.harness.ids,
-    pending: createPendingQueue(),
+    pending: createPendingQueues<QueuedSettled>(),
     shells: args.shells,
     agents: fakeAgentRegistry(),
     services: fakeServiceRegistry(),
     model: heldChoice({ ref: DEFAULT_MODEL_REF, effort: EEffort.Medium }),
+    cloudRequired: false,
     modelPinned: false,
     models: fakeCatalogue(),
     settings: createSettingsService({
@@ -126,11 +135,18 @@ const benchApp = (args: {
     mcp: () => [],
     threadOpened: async () => {},
     sandbox: { noteBash: () => {}, stop: async () => false },
-    containerStatus: createSandboxStatusState({ image: 'unused' }),
+    containerStatus: createSandboxStatusState({ image: 'unused', label: 'unused' }),
     executionLocation: createExecutionLocationState({ initial: EExecutionLocation.Host }),
     executionPinned: false,
     close: async () => {},
   }
+}
+
+export type BenchFrameStats = {
+  averageFrameTime: number
+  nativeAverageFrameTime: number
+  averageCellsUpdated: number
+  frameCallbackTime: number
 }
 
 export type BenchRender = {
@@ -138,6 +154,7 @@ export type BenchRender = {
   frameText: () => string
   flush: () => Promise<void>
   root: () => Renderable
+  stats: () => BenchFrameStats
   close: () => Promise<void>
 }
 
@@ -174,9 +191,19 @@ export const mountBenchRender = async (args: {
    */
   globalThis.IS_REACT_ACT_ENVIRONMENT = false
 
+  setup.renderer.setGatherStats(true)
   await setup.flush()
   return {
     framesRendered: () => setup.renderer.getStats().frameCount,
+    stats: () => {
+      const stats = setup.renderer.getStats()
+      return {
+        averageFrameTime: stats.averageFrameTime,
+        nativeAverageFrameTime: stats.nativeAverageFrameTime,
+        averageCellsUpdated: stats.averageCellsUpdated,
+        frameCallbackTime: stats.frameCallbackTime,
+      }
+    },
     frameText: () => setup.captureCharFrame(),
     flush: () => setup.flush(),
     root: () => setup.renderer.root,

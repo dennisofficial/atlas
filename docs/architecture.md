@@ -112,6 +112,22 @@ the same one comes back around. That is a stuck detector, not a budget: it canno
 is still working. `modelSteps` survives only as the index handed to rules as `ctx.step`, counting
 model calls rather than loop iterations because `nudge.lifetimeSteps` is specified in model steps.
 
+**A run of identical calls is cut out of the log, not argued with.** A model that calls the same
+tool with the same input and gets the same result, three times running with nothing in between, is
+polling — and a generative model repeats whatever its own history shows, so a reminder appended
+*after* the run just joins the pattern it was meant to break. `loopCutPlan` (`core/events/loop-cut`)
+instead finds the run at the tail — one or more rounds repeating as a unit, every call settled,
+every result byte-identical — and the loop rewinds the thread to just after the *first* occurrence:
+the information stays, the repetition goes. Two guards keep the cut honest. The unit's calls must
+all be `repeatable` — a declared Read tool, or a `bash` command the classifier's own reading proves
+read-only deed by deed, never a backgrounded one — and the store re-verifies before deleting: a
+tail that moved since detection, a `rewindTarget` refusal, or a `rewindPlan` that would destroy a
+creation each decline the cut, because an automatic rewind never earns the confirmation an operator
+one does. A cut lands as a real rewind plus one `nudge` saying what was removed and why not to
+resume it; the nudge is a barrier, so a model that loops again starts a fresh run, and the third
+detection in one turn fails it naming the call — the same stuck-detector shape as
+`settleAttempted`, never a budget.
+
 **`settlePending` is built by the loop, not injected into it.** `TurnDeps` takes `dispatch`; the loop
 constructs `settlePending` from `dispatch` and the log it already holds. Injecting a pre-built
 `settlePending` meant it closed over a *different* log than the loop wrote through — two logs writing
@@ -221,6 +237,13 @@ in the exit callback reads as the obvious place and is wrong: an ending that is 
 delivered — `forgetNotices` when a new conversation opens — would take output nobody had seen with it.
 So a queued ending holds its snapshot and a closure that takes the delta, and `drainNotifications`
 is what advances the model's cursor. Until something drains, `shell_output` still finds the output.
+
+**A kill the model asked for is the one ending that is not pushed.** `shell_kill` claims the ending
+at kill time, waits for the process to die (bounded by the SIGKILL grace plus slack), and hands the
+output back as the tool result — no event, no wake, no transcript line, since the caller is already
+holding the answer. After-shell hooks still run for the shell, and their drafts keep their ride when
+they have one. If the process outlives the settle deadline the claim is released and the ending
+announces itself as usual.
 
 **Nothing times a background shell out.** A quiet shell is not a stuck one — a test suite can run for
 minutes without printing — so there is no threshold, no sweep and no timer. What survives is the signal
@@ -335,6 +358,24 @@ every built-in. The read-only guarantee is a **briefing, not a mechanism** — s
 because the plumbing's existence otherwise reads as enforcement. What it buys is that a reviewer
 which finds a one-line fix can simply be told to make it, instead of reporting a fix somebody else
 has to apply.
+
+**Coordination between parallel children is a briefing too.** Builders running in parallel share
+one working tree, and nothing arbitrates which one may touch a file — the contract lives in the
+prompts. The parent decomposes a change into file-disjoint slices and names the files in each
+brief, and a builder that needs a file outside its slice stops and reports rather than editing
+it. `withPathLock` (below) closes the write race between two children, but semantic ownership is
+the orchestrator's job, stated in prose rather than enforced by a claims registry. Git state is
+deliberately unaddressed: no prompt tells a child whether it may commit, so its own judgment and
+the brief decide.
+
+**A child works in the directory the parent was in when it spawned.** The worktree tools are denied
+to children, so a child's own log never holds a `worktree-entered`, and folding it with the process
+launch directory would anchor a child to a checkout the session has since left — its prompt, its
+relative path resolution and the outside-project nudge would all name the wrong directory. The
+supervisor therefore snapshots `projectDirectoryOf` over the *parent's* log at spawn and hands it
+down as the child's `launchDirectory`, so the fold every consumer already runs lands on the session's
+real directory. The snapshot does not follow a parent that moves worktrees mid-child: children are
+briefed against the directory at spawn and are short-lived.
 
 **What the model has seen of a file is per thread, and delegation is what forced it.**
 `ToolCall` carries a required `threadId` and `FileReadStatePort` keys its views on
@@ -553,9 +594,11 @@ read path, not a pool.
 
 ### The five tools
 
-`agent_spawn` starts one child or a whole wave and returns ids at once, never blocking; it declares
-itself concurrency-safe, so a model that emits five spawn calls in one step genuinely fans out
-through `Promise.all`. `agent_say` steers. `agent_resume` re-runs a child that died on a provider
+`agent_spawn` starts exactly one child per call and returns its id at once, never blocking; it
+declares itself concurrency-safe, so a model that emits five spawn calls in one step genuinely fans
+out through `Promise.all`. One agent per call is deliberate: a wave form let a model split one
+completion's output budget across several briefs, and dual-form schemas (flat fields or an `agents`
+array) made models trained on all-properties-required schemas fill in both and fail. `agent_say` steers. `agent_resume` re-runs a child that died on a provider
 error, appending nothing. `agent_list` reports the caller's own children. `agent_stop` aborts one,
 which still delivers an ending. A child gets none of the five.
 
@@ -609,10 +652,26 @@ a report-only panel with no affordance — deliberately no affordance, since `ag
 `agent_resume` would both answer `unknownAgent` for a child the parent never recorded.
 
 **Healing one by forging the missing row was considered and rejected.** `@@unique([threadId, seq])`
-means a reconstructed `agent-spawned` can only land at `head + 1`, and `rewindTarget` refuses on
-`spawn.seq > toSeq` — so a spawn forged at the head would make the thread **permanently
-un-rewindable**. Fabricating history to paper over a gap in history costs more than the gap. Store-only
+means a reconstructed `agent-spawned` can only land at `head + 1`, where it would read as a spawn the
+operator made just now — and a rewind to the head would then destroy a child the thread never
+recorded. Fabricating history to paper over a gap in history costs more than the gap. Store-only
 orphans are therefore reported, never invented.
+
+**A rewind that deletes a creation destroys it — after one confirmation.** A cut below an
+`agent-spawned`, a background start, or a `service_start` deletes the rows that record the thing,
+so the thing must go with them: anything less strands a live child stepping into a thread its
+parent no longer records, and recovery would report it as an orphan forever, a false alarm for
+history the operator deliberately cut. But destroying in-flight work is the one rewind outcome
+worth a second look, so `rewindThread` answers a non-empty cut list with `needsConfirmation`
+naming what dies — children, shells and services alike, running or not — and only a confirmed
+rewind proceeds. The supervisor then forgets the child, aborting it first whether it is on its
+first step or resumed, and drops any ending it queued; the store deletes the child's thread in the
+same transaction as the parent's rows, events and turns cascading. A child
+that was forked from cannot be deleted — the fork relation is `onDelete: Restrict` because a
+reference fork reads the child's rows — so it survives detached, its supervision attribution
+cleared, an ordinary conversation rather than a phantom. A child whose spawn sits at or below the
+target keeps its thread, and a thread the parent never recorded (the crash-window orphan above) is
+never touched: removal follows the deleted spawn rows, nothing else.
 
 **The window that produces them is a live trade, not residue.**
 `ThreadStorePort.createWithFirstEvents` makes the thread row and its opening events atomic, so a
@@ -716,11 +775,14 @@ be held to:
    child as nobody's turn and its first `runTurn` returns `Idle`. The parent's row is outside the
    transaction deliberately, which leaves one narrow window: a crash between the two makes a child the
    parent's log never mentions. That is reported, never fabricated — see the sub-agent section.
-3. **Closed. `ERewindRefusal.UnendedSubAgent` refuses a rewind that would cut below a live child.**
-   `unendedSpawns` finds any `agent-spawned` above the target with no `agent-ended` behind it, and the
-   refusal names the child. An **ended** child does not block: its rows are a finished record, and
-   refusing there would make every thread that ever delegated un-rewindable below its first delegation.
-   The residue is the crash case named under sub-agents — an orphaned spawn is unended forever.
+3. **Closed, and since loosened. A rewind below a spawn confirms rather than refuses.** The guard
+   began as `ERewindRefusal.UnendedSubAgent`, a hard refusal that stranded the operator whose intent —
+   taking the delegation back — was already clear. `rewindPlan` now names every creation the cut would
+   destroy, and `rewindThread` holds the write until the operator confirms. A child whose spawn sits at
+   or below the target keeps its thread, and its `agent-ended` above the cut is re-appended rather than
+   deleted — the treatment shell and service notices already had, so a surviving source never loses
+   its record. Crash residue — an orphaned spawn, unended forever — is destroyed on confirmation like
+   anything else the cut removes.
 4. **Closed. Both self-relations are declared `onDelete: Restrict`.** `ThreadFork` on `parentThreadId`
    and `ThreadSupervision` on `spawnerThreadId`. There is still no thread-delete path; when one lands, a
    cascade would have stripped the parent's rows and left the child silently reading as though it never
@@ -991,6 +1053,16 @@ path outside the project directory, and it was deleted rather than kept: `bash` 
 fields, so it never applied there, and an agent that can `cat` a file it may not `edit` is being told
 which tool to use, not being made safe.
 
+What stands in the wall's place is a nudge. `OutsideProjectHook` watches successful calls with
+`EToolEffect.Write` — `write`, `edit`, `multi_edit`, and any future file tool, since the gate is the
+effect and a `path` in the input rather than a name list — and when the target lands outside the
+project directory, and outside the temp roots and the dot-paths straight under home (where memory,
+skills and one-off config writes legitimately live), it returns `additionalContext` naming the path
+it wrote and the session's actual directory, and pointing at `enter_worktree`. The decision is pure
+(`core/policy/outside-project`), so the exemption list is tested rather than remembered, and the
+delivery rides the `context-loaded` seam, so a repeated slip to the same path dedupes instead of
+stacking.
+
 **Two stores sit outside all three timelines, and neither is ever read back to rebuild state.**
 
 The **spend ledger** is one `Turn` row per turn: token counts in four tiers, the model that billed
@@ -1172,8 +1244,10 @@ atlas/
   packages/
     core/       pure. no I/O, no clock, no randomness, no network, no database
     harness/    the loop, hooks, tools, model adapters, credentials, store
+    ui/         design tokens (pure TS, platform-agnostic) + web UI atoms + Storybook
   apps/
-    tui/        OpenTUI + React, and the composition root
+    tui/        OpenTUI + React; wraps the shared composition root with terminal bindings
+    api/        Atlas Cloud backend (NestJS): auth, users, credential storage
   docs/
   deprecated/   frozen reference: the previous TUI, the never-run agent-engine and the codex-sdk
                 client, and the paused backend/web/shared cloud stack with its CI and infra
@@ -1182,14 +1256,38 @@ atlas/
 
 `deprecated/` is not a Bun workspace member. It is read for prior art and never imported.
 
+`api` is the one member that does not run on Bun: Nest's DI needs legacy decorators with
+emitted metadata, which Bun's transpiler silently drops, so `api` compiles with `tsc` (CommonJS,
+NodeNext), runs on Node, and tests with vitest + unplugin-swc. It also performs no model calls —
+it holds users, organizations, and sealed credentials, and clients (the TUI first) fetch from it
+over HTTP. Its own conventions live in `apps/api/AGENTS.md`.
+
 `core` performs **no I/O**. When something is hard to test, that is the signal to move the decision
 into `core`, not to add a mock. `tui` never imports `store` or `providers` directly — it talks to
 `harness` through its ports, and the composition root is the only place that knows which
 implementation is bound.
 
-Three packages, not five. A package boundary is worth it only where the compiler should enforce a
-dependency rule: `core` has no I/O, `harness` is importable without a terminal. `store` and
+**The composition root is shared, and lives in `harness/src/composition`.** `composeHarness`
+assembles a whole session — container, settings policy, model selection, execution routing, sandbox,
+skills/MCP/agent types, credentials, turn wiring — knowing nothing about who asked. A surface (the
+TUI today; a serve mode or web app later) injects its half through `HarnessSurfaceBinding`: a
+`NoticePort` to report through, an optional `TldrFeed` to stream turn summaries into, and a `bind`
+callback for its own container registrations (the TUI's warp reporter and plugin assembly), which
+runs after every built-in registration and before the instance-cached `HookChain`/`ToolRegistry`
+first resolve. What `bind` returns rides out on `HarnessApp.surface`. The TUI's `composeAtlas` is
+that wrapper; anything UI-shaped — notice stores, plugin surfaces, argv parsing — stays in the app.
+
+A package boundary is worth it only where the compiler should enforce a dependency rule: `core` has
+no I/O, `harness` is importable without a terminal, `ui` imports nothing from Atlas. `store` and
 `providers` stay folders until something forces them out.
+
+`ui` is the design system for the future web app: tokens are the source of truth in pure TS
+(three layers — primitive, semantic, component), `tools/generate-css.ts` derives
+`src/styles/theme.css` (Tailwind v4 `@theme` + light/dark CSS variables), and a test fails if the
+stylesheet drifts from the tokens. The palette is dark-first — dark is `:root`, light is opt-in
+via `[data-theme="day"]`/`.light` — and every color traces to a value the TUI ships. Atoms are
+web components (Radix + CVA); the pure `/tokens` subpath is the only contract a future Expo app
+consumes, because atoms cannot be shared across DOM and native anyway.
 
 ### Folder structure
 
@@ -1216,6 +1314,8 @@ packages/core/src/
   message/       Atlas's own message type (see below)
 
 packages/harness/src/
+  composition/   the shared composition root: composeHarness, surface binding, model/execution
+                 selection, sandbox and settings wiring, pending-input queues live in pending/
   loop/          runTurn, settlePending
   model/         ModelPort over AI SDK; the stream accumulator
   providers/     ProviderAdapter impls, one per vendor: anthropic, openai, openrouter, inference
@@ -1237,7 +1337,7 @@ packages/harness/src/
 
 apps/tui/src/
   main.tsx
-  composition/   the container bootstrap — the only place bindings are chosen
+  composition/   the surface wrapper: binds terminal stores into the shared root
   store/         ConversationStore: log + delta channel → useSyncExternalStore
   ui/            components, pages
   ui/markdown/            segmenter, prose, tables, fenced blocks; the renderer registry

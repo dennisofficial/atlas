@@ -4,12 +4,12 @@ import {
   EAgentStatus,
   EKilledBy,
   EMessageOrigin,
-  ERewindRefusal,
   toCallId,
   type EventDraft,
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import { UnstaffedServices, UnstaffedShells } from '../../../store/__tests__/harness'
 import { rewindThread } from '../../../store/rewind'
 import { openChildThread } from '../open-child'
 import {
@@ -41,7 +41,7 @@ async function crashedWith(drafts: readonly EventDraft[]): Promise<OpenedSupervi
   const open = await openSupervisor()
   opened.push(open)
 
-  const agentId = await openChildThread({
+  const { threadId: agentId } = await openChildThread({
     threads: open.harness.threads,
     log: open.harness.log,
     ids: open.harness.ids,
@@ -160,22 +160,33 @@ describe('a child the process lost, found again at recovery', () => {
   })
 })
 
-describe('the rewind a lost child was blocking', () => {
-  it('is refused while the spawn has no ending, and allowed once recovery writes one', async () => {
+describe('the rewind past a lost child', () => {
+  it('asks for confirmation and, once confirmed, destroys the child like it never happened', async () => {
     const open = await crashedWith(worked)
-    const rewind = () =>
+    const rewind = (confirmed: boolean) =>
       rewindThread({
         log: open.harness.log,
         threads: open.harness.threads,
+        agents: open.supervisor,
+        shells: new UnstaffedShells(),
+        services: new UnstaffedServices(),
         threadId: open.parent,
         toSeq: 0,
+        confirmed,
       })
 
-    expect(await rewind()).toMatchObject({ ok: false, refusal: ERewindRefusal.UnendedSubAgent })
+    const asking = await rewind(false)
+    expect(asking).toMatchObject({
+      ok: false,
+      needsConfirmation: true,
+      kills: [{ kind: 'agent', agentType: 'explore', intent: 'find the callers', running: false }],
+    })
 
-    await open.supervisor.recordLostAgents({ threadId: open.parent })
+    expect(await rewind(true)).toMatchObject({ ok: true })
 
-    expect(await rewind()).toMatchObject({ ok: true })
+    const recovered = await open.supervisor.recordLostAgents({ threadId: open.parent })
+    expect(recovered.settled).toHaveLength(0)
+    expect(recovered.unlogged).toHaveLength(0)
   })
 })
 
@@ -222,6 +233,9 @@ describe('a child thread the parent never recorded', () => {
       await rewindThread({
         log: open.harness.log,
         threads: open.harness.threads,
+        agents: open.supervisor,
+        shells: new UnstaffedShells(),
+        services: new UnstaffedServices(),
         threadId: open.parent,
         toSeq: 0,
       }),

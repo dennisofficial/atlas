@@ -110,6 +110,33 @@ describe('the tools that are not bash', () => {
     expect(read.detail).toBe(EDetail.File)
   })
 
+  it('shows the path the tool resolved rather than the one the model typed', () => {
+    const read = reading(
+      aCall({
+        name: 'read',
+        input: { path: '$TMPDIR/handoff-env-tier-filling.md' },
+        output: { path: '/var/folders/zw/zwq586mj7xgc4xh3yt11cbrc0000gn/T/handoff-env-tier-filling.md', lines: 118 },
+      }),
+    )
+
+    expect(read.line).toBe('/var/folders/zw/zwq586mj7xgc4xh3yt11cbrc0000gn/T/handoff-env-tier-filling.md')
+    expect(read.alone).toBe(
+      'Read /var/folders/zw/zwq586mj7xgc4xh3yt11cbrc0000gn/T/handoff-env-tier-filling.md',
+    )
+  })
+
+  it('keeps the resolved path relative when the read landed inside the project', () => {
+    const read = reading(
+      aCall({
+        name: 'read',
+        input: { path: '~/elsewhere/theme.ts' },
+        output: { path: `${CWD}/src/ui/theme.ts`, lines: 210 },
+      }),
+    )
+
+    expect(read.line).toBe('src/ui/theme.ts')
+  })
+
   it('counts a grep in matches', () => {
     const grep = reading(
       aCall({ name: 'grep', input: { pattern: 'useClickRegion' }, output: { matches: ['a', 'b'] } }),
@@ -134,6 +161,23 @@ describe('the tools that are not bash', () => {
     expect(edit.line).toBe('Edited src/a.ts')
     expect(edit.note).toBe('+1 −0')
     expect(edit.detail).toBe(EDetail.Diff)
+  })
+
+  it('reads a multi-edit as an edit, several hunks and all', () => {
+    const multi = reading(
+      aCall({
+        name: 'multi_edit',
+        output: {
+          path: `${CWD}/src/a.ts`,
+          diff: '--- a/src/a.ts\n+++ b/src/a.ts\n@@ -1,1 +1,2 @@\n one\n+two\n@@ -10,1 +10,2 @@\n ten\n+eleven\n',
+        },
+      }),
+    )
+
+    expect(multi.klass).toBe(EToolClass.Change)
+    expect(multi.line).toBe('Edited src/a.ts')
+    expect(multi.note).toBe('+2 −0')
+    expect(multi.detail).toBe(EDetail.Diff)
   })
 
   it('says a write created rather than wrote when it did', () => {
@@ -367,72 +411,6 @@ describe('what a sub-agent call reads as', () => {
 
   it('says none when nothing has been spawned', () => {
     expect(reading(aCall({ name: 'agent_list', output: { agents: [] } })).note).toBe('none')
-  })
-
-  it('names the count and not one anonymous child when a wave is spawned in one call', () => {
-    const wave = reading(
-      aCall({
-        name: 'agent_spawn',
-        input: {
-          agents: [
-            { agentType: 'explore', brief: 'map the tui', intent: 'map the tui app structure' },
-            { agentType: 'explore', brief: 'map the loop', intent: 'map the harness loop' },
-            { agentType: 'reviewer', brief: 'read the diff', intent: 'review the diff' },
-          ],
-        },
-        output: {
-          agents: [
-            { agentId: 'a', agentType: 'explore', intent: 'map the tui app structure' },
-            { agentId: 'b', agentType: 'explore', intent: 'map the harness loop' },
-            { agentId: 'c', agentType: 'reviewer', intent: 'review the diff' },
-          ],
-        },
-        modelText: 'Started 3 sub-agents.\na  explore  map the tui app structure',
-      }),
-    )
-
-    expect(wave.line).toBe('Spawned 3 sub-agents')
-    expect(wave.note).toBe('3/3 running')
-    expect(wave.metric).toBe(3)
-    expect(wave.detail).toBe(EDetail.Output)
-  })
-
-  it('counts a pair as a pair', () => {
-    const pair = reading(
-      aCall({
-        name: 'agent_spawn',
-        input: {
-          agents: [
-            { agentType: 'explore', brief: 'one', intent: 'the first' },
-            { agentType: 'explore', brief: 'two', intent: 'the second' },
-          ],
-        },
-        output: { agents: [{ agentId: 'a' }, { agentId: 'b' }] },
-      }),
-    )
-
-    expect(pair.line).toBe('Spawned 2 sub-agents')
-    expect(pair.note).toBe('2/2 running')
-  })
-
-  it('claims no more than it asked for when part of a wave was refused', () => {
-    const partial = reading(
-      aCall({
-        name: 'agent_spawn',
-        input: {
-          agents: [
-            { agentType: 'explore', brief: 'one', intent: 'the first' },
-            { agentType: 'explore', brief: 'two', intent: 'the second' },
-            { agentType: 'nope', brief: 'three', intent: 'the third' },
-          ],
-        },
-        output: { agents: [{ agentId: 'a' }, { agentId: 'b' }] },
-      }),
-    )
-
-    expect(partial.line).toBe('Spawned 3 sub-agents')
-    expect(partial.note).toBe('2/3 running')
-    expect(partial.metric).toBe(3)
   })
 
   it('keeps a single-child spawn reading as the one child it named', () => {

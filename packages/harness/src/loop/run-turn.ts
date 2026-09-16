@@ -11,11 +11,14 @@ import {
   imageTierOf,
   contextWindowOf,
   exchangeFaults,
+  loopCutNoticeDraft,
+  loopCutPlan,
   outstandingApproval,
   pendingCalls,
   projectDirectoryOf,
   rowsOwnedBy,
   type Assembled,
+  type LoopCut,
   type AssemblyPipeline,
   type ThreadId,
   type CallId,
@@ -31,13 +34,15 @@ import {
 } from '@dltech/atlas-core'
 
 import type { HookChain } from '../hooks/registry'
+import type { ApplyLoopCut } from '../store/cut-loop'
 import type { ToolDispatcher } from '../tools/dispatch'
+import { MAX_LOOP_CUTS_PER_TURN, repeatableFor } from './loop-guard'
 import { takeModelStepWithRetry, type RetryDeps } from './retrying-step'
 import { openTurnSpend, TURN_CRASHED, type TurnLedgerDeps, type TurnSpendTally } from '../ledger/record-turn-spend'
 import { appendResumeDrafts } from './resume-turn'
-import { createSettlePending, type SettlePending } from './settle-pending'
+import { createSettlePending, type OnToolOutputNotice, type SettlePending } from './settle-pending'
 import { draftsFor, interruptedDrafts } from './step-drafts'
-import { faultReport, overflowReport, stalledReport, swallowedReport } from './turn-faults'
+import { faultReport, loopReport, overflowReport, stalledReport, swallowedReport } from './turn-faults'
 import { committedSinceLastMessage, messageArrivedSince } from './turn-position'
 import { ETurnStatus, type TurnOutcome } from './turn-outcome'
 import { TurnRunner } from './turn-runner.port'
@@ -50,6 +55,7 @@ export type TurnDeps = {
   tools?: (() => readonly ToolDeclaration[]) | undefined
   countTokens?: ((assembled: Assembled) => number) | undefined
   onChunk?: ChunkFilter | undefined
+  onToolOutput?: OnToolOutputNotice | undefined
   onContext?: ((args: { tokens: number; window: number }) => void) | undefined
   dispatch?: ToolDispatcher | undefined
   hooks?: HookChain | undefined
@@ -58,6 +64,8 @@ export type TurnDeps = {
     | undefined
   spend?: TurnLedgerDeps | undefined
   compact?: ((args: { threadId: ThreadId }) => Promise<boolean>) | undefined
+  applyLoopCut?: ApplyLoopCut | undefined
+  onLoopCut?: ((cut: LoopCut) => void) | undefined
   autoCompactAtPercent?: (() => number) | undefined
   launchDirectory?: string | undefined
   retry?: RetryDeps | undefined
@@ -79,6 +87,8 @@ export class LoopTurnRunner extends TurnRunner {
   private readonly spend: TurnLedgerDeps | undefined
   private readonly settlePending: SettlePending | undefined
   private readonly compact: ((args: { threadId: ThreadId }) => Promise<boolean>) | undefined
+  private readonly applyLoopCut: ApplyLoopCut | undefined
+  private readonly onLoopCut: ((cut: LoopCut) => void) | undefined
   private readonly autoCompactAtPercent: () => number
   private readonly launchDirectory: string
   private readonly retry: RetryDeps | undefined
@@ -99,6 +109,8 @@ export class LoopTurnRunner extends TurnRunner {
     this.drainPending = deps.drainPending
     this.spend = deps.spend
     this.compact = deps.compact
+    this.applyLoopCut = deps.applyLoopCut
+    this.onLoopCut = deps.onLoopCut
     this.autoCompactAtPercent = deps.autoCompactAtPercent ?? (() => AUTO_COMPACT_OFF)
     this.launchDirectory = deps.launchDirectory ?? process.cwd()
     this.retry = deps.retry
@@ -110,6 +122,7 @@ export class LoopTurnRunner extends TurnRunner {
             dispatch: deps.dispatch,
             tools: this.tools,
             launchDirectory: deps.launchDirectory,
+            onToolOutput: deps.onToolOutput,
           })
   }
 
@@ -181,6 +194,7 @@ export class LoopTurnRunner extends TurnRunner {
     let seenThrough: number | undefined
     let settleAttempted: CallId | undefined
     let compacted = false
+    let loopCuts = 0
     const committedCalls: ModelToolCall[] = []
 
     const interrupted = async (): Promise<TurnOutcome> => ({
@@ -227,6 +241,31 @@ export class LoopTurnRunner extends TurnRunner {
 
       const events = (await this.drainInto({ threadId })) ? await this.log.read({ threadId }) : beforeDrain
       const owned = rowsOwnedBy({ events, threadId })
+
+      if (this.applyLoopCut !== undefined) {
+        const cut = loopCutPlan({
+          events: owned,
+          repeatable: repeatableFor({ tools: this.tools, projectDirectory }),
+        })
+        if (cut !== undefined) {
+          if (loopCuts >= MAX_LOOP_CUTS_PER_TURN) {
+            return { status: ETurnStatus.Failed, runId, message: loopReport(cut), cause: cut }
+          }
+          loopCuts += 1
+          const applied = await this.applyLoopCut({
+            threadId,
+            toSeq: cut.toSeq,
+            throughSeq: cut.throughSeq,
+            notice: loopCutNoticeDraft(cut),
+          })
+          if (applied) {
+            this.onLoopCut?.(cut)
+            previous = undefined
+            seenThrough = undefined
+            continue
+          }
+        }
+      }
 
       if (!awaitsReply(owned) && !messageArrivedSince({ events: owned, seenThrough })) {
         const swallowed = committedCalls.at(-1)

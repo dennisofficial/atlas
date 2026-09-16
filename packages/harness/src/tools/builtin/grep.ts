@@ -1,8 +1,7 @@
-import { stat } from 'node:fs/promises'
-
 import { z } from 'zod'
 
 import {
+  AgentFileSystemPort,
   EContentAccess,
   EPathForm,
   EPathPresence,
@@ -16,8 +15,10 @@ import {
   type ToolRun,
 } from '@dltech/atlas-core'
 
+import { LocalFileSystemPort } from '../../execution/local-filesystem'
 import { LocalProcessPort } from '../../execution/local-process'
-import { filePathSchema, resolveToolPath } from './file-text'
+import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-text'
+import { runPosixGrep } from './grep-fallback'
 import { missingPathReason } from './missing-path'
 
 const DEFAULT_HEAD_LIMIT = 250
@@ -41,8 +42,10 @@ const inputSchema = z.strictObject({
 const description = [
   'Search file contents by regular expression and return the matching lines, each prefixed with its absolute path and line number.',
   'Searches the workspace root unless path names a narrower file or directory (a relative path resolves against the project directory), and glob narrows further by file name.',
+  pathEnvironmentNote,
   `Returns at most ${DEFAULT_HEAD_LIMIT} lines unless headLimit says otherwise; when more match, the result says so and offset asks for the next page.`,
   'Version control directories are never searched, and long lines are cut short.',
+  'Symbolic links are followed.',
 ].join(' ')
 
 type Searcher = { name: string; command: readonly string[] }
@@ -62,7 +65,9 @@ function ripgrepSearcher(args: SearchArguments & { binary: string }): Searcher {
     name: 'ripgrep',
     command: [
       args.binary,
+      '--with-filename',
       '--hidden',
+      '--follow',
       ...VERSION_CONTROL_DIRECTORIES.flatMap((directory) => ['--glob', `!${directory}`]),
       '--max-columns',
       String(MAXIMUM_LINE_LENGTH),
@@ -77,33 +82,19 @@ function ripgrepSearcher(args: SearchArguments & { binary: string }): Searcher {
   }
 }
 
-function posixGrepSearcher(args: SearchArguments): Searcher {
-  return {
-    name: 'grep',
-    command: [
-      'grep',
-      '-r',
-      '-n',
-      '-I',
-      '-E',
-      ...[...VERSION_CONTROL_DIRECTORIES, ...DIRECTORIES_RIPGREP_SKIPS_BY_GITIGNORE].map(
-        (directory) => `--exclude-dir=${directory}`,
-      ),
-      ...(args.caseInsensitive ? ['-i'] : []),
-      ...(args.context === undefined ? [] : ['-C', String(args.context)]),
-      ...(args.glob === undefined ? [] : [`--include=${args.glob}`]),
-      '-e',
-      args.pattern,
-      args.searchPath,
-    ],
-  }
+function searcherFor(args: SearchArguments & { binary: string }): Searcher {
+  return ripgrepSearcher({ ...args })
 }
 
-function searcherFor(
-  args: SearchArguments & { processes: ProcessPort; threadId: ThreadId },
-): Searcher {
-  const binary = args.processes.which({ command: 'rg', threadId: args.threadId })
-  return binary === null ? posixGrepSearcher(args) : ripgrepSearcher({ ...args, binary })
+async function ripgrepBinaryOf(args: {
+  processes: ProcessPort
+  threadId: ThreadId
+}): Promise<string | null> {
+  if (args.processes.vendored !== undefined) {
+    const vendored = await args.processes.vendored({ command: 'rg', threadId: args.threadId })
+    if (vendored !== null) return vendored
+  }
+  return args.processes.which({ command: 'rg', threadId: args.threadId })
 }
 
 export type GrepInput = z.output<typeof inputSchema>
@@ -204,7 +195,10 @@ export class GrepTool extends SchemaTool<typeof inputSchema> {
     { field: 'path', presence: EPathPresence.Optional, form: EPathForm.Absolute, content: EContentAccess.None },
   ]
 
-  constructor(private readonly processes: ProcessPort = new LocalProcessPort()) {
+  constructor(
+    private readonly processes: ProcessPort = new LocalProcessPort(),
+    private readonly files: AgentFileSystemPort = new LocalFileSystemPort(),
+  ) {
     super()
   }
 
@@ -216,54 +210,75 @@ export class GrepTool extends SchemaTool<typeof inputSchema> {
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     const { pattern, glob, caseInsensitive, context, headLimit, offset } = input
     const rawPath = input.path
-    const searchPath = resolveToolPath({ projectDirectory, path: rawPath ?? projectDirectory })
+    const resolved = resolveToolPath({ projectDirectory, path: rawPath ?? projectDirectory })
+    if (!resolved.ok) return { ok: false, reason: resolved.reason }
+    const searchPath = resolved.path
 
     if (rawPath !== undefined) {
-      const target = await stat(searchPath).catch(() => null)
+      const target = await this.files.stat({ path: searchPath, threadId }).catch(() => null)
       if (target === null) {
         return {
           ok: false,
           reason: await missingPathReason({
             path: searchPath,
-            ...(rawPath === searchPath
-              ? {}
-              : { resolvedFrom: { raw: rawPath, projectDirectory } }),
+            ...(resolved.anchored
+              ? { resolvedFrom: { raw: rawPath, projectDirectory } }
+              : {}),
           }),
         }
       }
     }
-    const searcher = searcherFor({
-      pattern,
-      searchPath,
-      glob,
-      caseInsensitive: caseInsensitive ?? false,
-      context,
-      processes: this.processes,
-      threadId,
-    })
+    const binary = await ripgrepBinaryOf({ processes: this.processes, threadId })
+    const searcher =
+      binary === null
+        ? null
+        : searcherFor({
+            pattern,
+            searchPath,
+            glob,
+            caseInsensitive: caseInsensitive ?? false,
+            context,
+            binary,
+          })
 
     let stdout: string
     let stderr: string
     let exitCode: number
     try {
-      const search = this.processes.spawn({
-        cmd: [...searcher.command],
-        cwd: projectDirectory,
-        threadId,
-      })
-      const handleAbort = (): void => search.terminate()
-      signal.addEventListener('abort', handleAbort, { once: true })
-      try {
-        ;[stdout, stderr, exitCode] = await Promise.all([
-          new Response(search.stdout).text(),
-          new Response(search.stderr).text(),
-          search.exited,
-        ])
-      } finally {
-        signal.removeEventListener('abort', handleAbort)
+      if (searcher === null) {
+        ;({ stdout, stderr, exitCode } = await runPosixGrep({
+          pattern,
+          searchPath,
+          cwd: projectDirectory,
+          include: glob,
+          excludeSegments: [...VERSION_CONTROL_DIRECTORIES, ...DIRECTORIES_RIPGREP_SKIPS_BY_GITIGNORE],
+          caseInsensitive: caseInsensitive ?? false,
+          context,
+          signal,
+          processes: this.processes,
+          files: this.files,
+          threadId,
+        }))
+      } else {
+        const search = this.processes.spawn({
+          cmd: [...searcher.command],
+          cwd: projectDirectory,
+          threadId,
+        })
+        const handleAbort = (): void => search.terminate()
+        signal.addEventListener('abort', handleAbort, { once: true })
+        try {
+          ;[stdout, stderr, exitCode] = await Promise.all([
+            new Response(search.stdout).text(),
+            new Response(search.stderr).text(),
+            search.exited,
+          ])
+        } finally {
+          signal.removeEventListener('abort', handleAbort)
+        }
       }
     } catch (error) {
-      return { ok: false, reason: `could not run ${searcher.name}: ${messageOf(error)}` }
+      return { ok: false, reason: `could not run ${searcher?.name ?? 'grep'}: ${messageOf(error)}` }
     }
 
     const lines = stdout
@@ -277,7 +292,7 @@ export class GrepTool extends SchemaTool<typeof inputSchema> {
     if (searchFailed && lines.length === 0) {
       return {
         ok: false,
-        reason: `${searcher.name} exited ${exitCode}${complaint.length === 0 ? '' : `: ${complaint}`}`,
+        reason: `${searcher?.name ?? 'grep'} exited ${exitCode}${complaint.length === 0 ? '' : `: ${complaint}`}`,
       }
     }
 

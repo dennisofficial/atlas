@@ -13,7 +13,8 @@ import {
 import {
   EShellStatus,
   type BoundPort,
-  type ESandboxState,
+  type SandboxContainer,
+  type SandboxLimits,
   type ShellSnapshot,
   type TurnSpend,
 } from "@dltech/atlas-harness";
@@ -21,7 +22,7 @@ import {
 import { classifierFold, type ClassifierFold } from "./classifier-fold";
 import { truncateCells } from "../ui/components/sidebar/cells";
 import { orderSections, type SidebarSection } from "../ui/sidebar-section";
-import type { TurnClock } from "../ui/components/transcript";
+import type { TurnClock } from "../ui/turn-clock";
 import {
   NOTHING_TALLIED,
   sidebarSpendOf,
@@ -68,12 +69,9 @@ export type SidebarModel = {
   container?: SidebarContainer;
 };
 
-export type SidebarContainer = {
-  state: ESandboxState;
-  image: string;
-  ports: readonly BoundPort[];
-  reason?: string | undefined;
-};
+export type SidebarLimits = SandboxLimits;
+
+export type SidebarContainer = SandboxContainer;
 
 export const IDLE_SIDEBAR: SidebarModel = {
   title: null,
@@ -251,8 +249,16 @@ export function containerPillOf(args: {
 }): SidebarContainer | null {
   if (args.location === EExecutionLocation.Host) return null;
 
-  const { state, image, reason } = args.container;
-  return { state, image, ports: args.exposed, ...(reason === undefined ? {} : { reason }) };
+  const { state, image, label, name, limits, reason } = args.container;
+  return {
+    state,
+    image,
+    label,
+    ...(name === undefined ? {} : { name }),
+    ...(limits === undefined ? {} : { limits }),
+    ports: args.exposed,
+    ...(reason === undefined ? {} : { reason }),
+  };
 }
 
 export function withContainer(args: {

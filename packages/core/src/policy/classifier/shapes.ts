@@ -54,6 +54,11 @@ export function insideTemporaryRoot({ path }: { path: string }): boolean {
   return TEMPORARY_ROOTS.some((directory) => isUnderPath({ directory, path }))
 }
 
+export function isPersonalDotPath({ path }: { path: string }): boolean {
+  const topLevelUnderHome = homeDotDirectory({ path })
+  return topLevelUnderHome !== undefined && topLevelUnderHome.startsWith('.')
+}
+
 export function looksSecretShaped({ path }: { path: string }): boolean {
   const name = basenameOf({ path })
   if (name === '.env' || name.startsWith('.env.')) return true
