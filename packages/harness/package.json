@@ -9,7 +9,7 @@
   "scripts": {
     "typecheck": "bun run db:ensure && tsc --noEmit",
     "test": "bun run db:ensure && bun test",
-    "build:serve": "bun build --compile src/serve/main.ts --outfile bin/atlas-serve",
+    "build:serve": "bun scripts/build-serve.ts",
     "generate:catalogue": "bun scripts/generate-catalogue.ts",
     "db:generate": "prisma generate",
     "db:ensure": "bun prisma/ensure-client.ts && bun prisma/embed-migrations.ts",

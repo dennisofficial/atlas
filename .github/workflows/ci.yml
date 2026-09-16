@@ -29,6 +29,10 @@ jobs:
       - name: build binary
         run: bun run build
 
+      - name: build serve binary
+        run: bun run db:ensure && bun run build:serve
+        working-directory: packages/harness
+
   # One TUI shard per runner: parallel bun processes on one 4-core runner starve the
   # settle-based render specs into flakes, but separate runners have separate cores
   test-tui:
