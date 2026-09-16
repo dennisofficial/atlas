@@ -688,11 +688,14 @@ function Workspace(props: {
         props.app.shells.kill({ shellId: shell.shellId, by: EKilledBy.ContainerSwitch, threadId })
       }
 
+      const from = execution.location
       execution.handleSet(target)
+      if (!conversation.started) return
+
       void relocateSession({
         threadId,
+        from,
         location: target,
-        threads: props.app.threads,
         log: props.app.log,
         ids: props.app.ids,
         services: props.app.services,
@@ -712,7 +715,7 @@ function Workspace(props: {
         )
         .catch(() => undefined)
     },
-    [containerBlockers, conversation.threadId, execution, props.app],
+    [containerBlockers, conversation.threadId, conversation.started, execution, props.app],
   )
 
   const containerGuard = useContainerGuard({ onSwitch: applyContainerSwitch })

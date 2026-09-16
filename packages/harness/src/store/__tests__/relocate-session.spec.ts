@@ -112,8 +112,8 @@ describe('relocating a session to another execution location', () => {
 
     const result = await relocateSession({
       threadId: parent,
+      from: EExecutionLocation.Host,
       location: EExecutionLocation.Docker,
-      threads: fixture.threads,
       log: fixture.log,
       ids: new CountingIds('relocate'),
       services,
@@ -128,9 +128,6 @@ describe('relocating a session to another execution location', () => {
       to: EExecutionLocation.Docker,
     })
 
-    const stored = await fixture.threads.find({ threadId: parent })
-    expect(stored?.executionLocation).toBe(EExecutionLocation.Docker)
-
     expect(services.stops).toEqual([{ serviceId: 'svc_1', by: EKilledBy.ContainerSwitch }])
     expect(agents.relocations).toEqual([
       { threadId: parent, location: EExecutionLocation.Docker },
@@ -142,14 +139,14 @@ describe('relocating a session to another execution location', () => {
     } satisfies RelocatedSession)
   })
 
-  it('records the host as the origin when the thread never chose a location', async () => {
+  it('records the origin it was handed, leaving the row to the caller', async () => {
     const fixture = await open()
     const parent = (await fixture.threads.create({})).id
 
     await relocateSession({
       threadId: parent,
-      location: EExecutionLocation.Docker,
-      threads: fixture.threads,
+      from: EExecutionLocation.Docker,
+      location: EExecutionLocation.Host,
       log: fixture.log,
       ids: new CountingIds('relocate'),
       services: new FakeServices([]),
@@ -159,8 +156,11 @@ describe('relocating a session to another execution location', () => {
     const events = await fixture.log.readOwn({ threadId: parent })
     const moved = events.find((event) => event.type === 'location-changed')
     expect(moved).toMatchObject({
-      from: EExecutionLocation.Host,
-      to: EExecutionLocation.Docker,
+      from: EExecutionLocation.Docker,
+      to: EExecutionLocation.Host,
     })
+
+    const stored = await fixture.threads.find({ threadId: parent })
+    expect(stored?.executionLocation).toBeUndefined()
   })
 })
