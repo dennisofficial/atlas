@@ -49,7 +49,8 @@ COPY packages/core ./packages/core
 COPY packages/harness ./packages/harness
 COPY tsconfig.base.json ./tsconfig.base.json
 RUN cd packages/harness && bun run db:ensure \
-  && bun run build:serve -- --target bun-linux-x64 --outfile bin/atlas-serve
+  && bun run build:serve -- --target bun-linux-x64 --outfile bin/atlas-serve \
+  && sha256sum bin/atlas-serve | cut -d' ' -f1 > bin/atlas-serve.sha256
 
 FROM node:22.13.1-slim AS runtime
 RUN apt-get update -y && apt-get install -y --no-install-recommends openssl \
@@ -63,6 +64,7 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/envs ./apps/api/envs
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 COPY --from=serve-binary /app/packages/harness/bin/atlas-serve /app/atlas-serve
+COPY --from=serve-binary /app/packages/harness/bin/atlas-serve.sha256 /app/atlas-serve.sha256
 COPY --from=builder /app/apps/api/scripts ./apps/api/scripts
 
 WORKDIR /app/apps/api
