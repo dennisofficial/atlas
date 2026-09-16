@@ -1,5 +1,5 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common'
-import { Sandbox } from '@vercel/sandbox'
+import { APIError, Sandbox } from '@vercel/sandbox'
 import { EnvService } from '../../_core/config/env/env.service'
 import { ESandboxState } from './sandboxes.types'
 import { ServeBinaryService } from './serve-binary'
@@ -31,6 +31,27 @@ interface SandboxConfiguration {
   teamId: string
   projectId: string
   cloudUrl: string
+}
+
+export class SandboxMissingError extends Error {
+  constructor(name: string) {
+    super(`sandbox ${name} no longer exists on Vercel`)
+    this.name = 'SandboxMissingError'
+  }
+}
+
+const snapshotCodeOf = (json: unknown): string | undefined => {
+  if (typeof json !== 'object' || json === null) return undefined
+  const error = (json as { error?: unknown }).error
+  if (typeof error !== 'object' || error === null) return undefined
+  const code = (error as { code?: unknown }).code
+  return typeof code === 'string' ? code : undefined
+}
+
+const isSandboxMissing = (error: unknown): boolean => {
+  if (!(error instanceof APIError)) return false
+  if (error.response.status === 404) return true
+  return error.response.status === 410 && snapshotCodeOf(error.json) === 'snapshot_not_found'
 }
 
 const stateOf = (status: string): ESandboxState => {
@@ -87,14 +108,19 @@ export class VercelSandboxClient {
   }
 
   async resume(args: { name: string }): Promise<SandboxPlacement> {
-    const sandbox = await Sandbox.get({
-      ...this.credentials(),
-      name: args.name,
-      resume: true,
-      onResume: this.launchServe,
-    })
-    await this.launchServe(sandbox)
-    return this.placementOf(sandbox)
+    try {
+      const sandbox = await Sandbox.get({
+        ...this.credentials(),
+        name: args.name,
+        resume: true,
+        onResume: this.launchServe,
+      })
+      await this.launchServe(sandbox)
+      return this.placementOf(sandbox)
+    } catch (failure) {
+      if (isSandboxMissing(failure)) throw new SandboxMissingError(args.name)
+      throw failure
+    }
   }
 
   async inspect(args: { name: string }): Promise<SandboxObservation> {
@@ -104,8 +130,13 @@ export class VercelSandboxClient {
   }
 
   async stop(args: { name: string }): Promise<void> {
-    const sandbox = await Sandbox.get({ ...this.credentials(), name: args.name })
-    await sandbox.stop()
+    try {
+      const sandbox = await Sandbox.get({ ...this.credentials(), name: args.name })
+      await sandbox.stop()
+    } catch (failure) {
+      if (isSandboxMissing(failure)) return
+      throw failure
+    }
   }
 
   private placementOf(sandbox: Sandbox): SandboxPlacement {

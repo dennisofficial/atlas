@@ -8,6 +8,7 @@ const sdk = vi.hoisted(() => ({
   getParams: [] as Record<string, unknown>[],
   stopped: [] as string[],
   status: 'running',
+  getFailure: null as Error | null,
 }))
 
 const launch = vi.hoisted(() => ({
@@ -17,6 +18,16 @@ const launch = vi.hoisted(() => ({
 }))
 
 vi.mock('@vercel/sandbox', () => {
+  class APIError<ErrorData = unknown> extends Error {
+    json: ErrorData | undefined
+    constructor(
+      readonly response: Response,
+      options?: { json?: ErrorData },
+    ) {
+      super('vercel api error')
+      this.json = options?.json
+    }
+  }
   const sandbox = {
     get status() {
       return sdk.status
@@ -28,6 +39,7 @@ vi.mock('@vercel/sandbox', () => {
     },
   }
   return {
+    APIError,
     Sandbox: {
       getOrCreate: async (params: Record<string, unknown>) => {
         sdk.createParams.push(params)
@@ -35,6 +47,7 @@ vi.mock('@vercel/sandbox', () => {
       },
       get: async (params: Record<string, unknown>) => {
         sdk.getParams.push(params)
+        if (sdk.getFailure !== null) throw sdk.getFailure
         return sandbox
       },
     },
@@ -53,9 +66,11 @@ vi.mock('./serve-launch', () => ({
   SERVE_LOG_PATH: '/vercel/sandbox/atlas-serve.log',
 }))
 
+import { APIError } from '@vercel/sandbox'
 import {
   SANDBOX_REGION,
   SANDBOX_SERVE_PORT,
+  SandboxMissingError,
   VercelSandboxClient,
   WORKSPACE_PATH,
 } from './vercel-sandbox.client'
@@ -91,6 +106,7 @@ describe('VercelSandboxClient', () => {
     sdk.getParams.length = 0
     sdk.stopped.length = 0
     sdk.status = 'running'
+    sdk.getFailure = null
     launch.launched = 0
     launch.failLaunch = false
     launch.readStamp = undefined
@@ -191,6 +207,34 @@ describe('VercelSandboxClient', () => {
 
     await client.resume({ name: 'atlas-thread-abc' })
     expect(sdk.getParams.at(-1)).toMatchObject({ name: 'atlas-thread-abc', resume: true })
+  })
+
+  it('translates a gone sandbox on resume into SandboxMissingError', async () => {
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    sdk.getFailure = new APIError({ status: 404 } as Response)
+
+    await expect(client.resume({ name: 'atlas-thread-gone' })).rejects.toBeInstanceOf(
+      SandboxMissingError,
+    )
+  })
+
+  it('translates an expired snapshot on resume into SandboxMissingError', async () => {
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    sdk.getFailure = new APIError(
+      { status: 410 } as Response,
+      { json: { error: { code: 'snapshot_not_found' } } },
+    )
+
+    await expect(client.resume({ name: 'atlas-thread-gone' })).rejects.toBeInstanceOf(
+      SandboxMissingError,
+    )
+  })
+
+  it('treats stopping an already-gone sandbox as stopped', async () => {
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    sdk.getFailure = new APIError({ status: 404 } as Response)
+
+    await expect(client.stop({ name: 'atlas-thread-gone' })).resolves.toBeUndefined()
   })
 
   it('answers 503 with a specific reason when the deployment is unconfigured', async () => {
