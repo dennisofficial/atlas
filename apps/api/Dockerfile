@@ -47,6 +47,7 @@ COPY --from=serve-deps /app/packages/core/node_modules ./packages/core/node_modu
 COPY --from=serve-deps /app/packages/harness/node_modules ./packages/harness/node_modules
 COPY packages/core ./packages/core
 COPY packages/harness ./packages/harness
+COPY tsconfig.base.json ./tsconfig.base.json
 RUN cd packages/harness && bun run db:ensure \
   && bun run build:serve -- --target bun-linux-x64 --outfile bin/atlas-serve
 
