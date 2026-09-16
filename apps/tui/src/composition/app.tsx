@@ -956,6 +956,20 @@ function Workspace(props: {
     containerGuard.handleApply()
   }, [containerGuard, shells.running])
 
+  const handleQuit = useCallback(() => {
+    if (conversation.working) {
+      conversation.handleInterrupt()
+      return
+    }
+
+    if (shells.running + agents.running + services.running > 0) {
+      exitGuard.handleOpen()
+      return
+    }
+
+    renderer.destroy()
+  }, [agents.running, conversation, exitGuard, renderer, services.running, shells])
+
   const commands = useMemo(
     () =>
       localCommands({
@@ -977,6 +991,7 @@ function Workspace(props: {
         onReloadSkills: handleReloadSkills,
         onShowMcp: () => mcpReport({ servers: props.app.mcp() }),
         onRestart: props.onRestart === null ? null : handleRestart,
+        onQuit: handleQuit,
       }),
     [
       agentsPicker.handleOpen,
@@ -986,6 +1001,7 @@ function Workspace(props: {
       handleContainer,
       handleNewConversation,
       handleOpenAccounts,
+      handleQuit,
       handleReloadSkills,
       handleRestart,
       props.app,
@@ -1223,20 +1239,6 @@ function Workspace(props: {
   useEffect(() => {
     setPeeking((open) => peekInForce({ layout, peeking: open }))
   }, [layout])
-
-  const handleQuit = useCallback(() => {
-    if (conversation.working) {
-      conversation.handleInterrupt()
-      return
-    }
-
-    if (shells.running + agents.running + services.running > 0) {
-      exitGuard.handleOpen()
-      return
-    }
-
-    renderer.destroy()
-  }, [agents.running, conversation, exitGuard, renderer, services.running, shells])
 
   useEffect(() => {
     if (exitGuard.state !== null && shells.running + agents.running + services.running === 0) {
