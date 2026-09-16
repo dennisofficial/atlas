@@ -1,0 +1,9 @@
+apps/tui/bin/atlas-dev
+  ai_agent 55-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "00c7cc53e13688041f16089c2e89824cb15b2205",
+  "prompts": {}
+}
