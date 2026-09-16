@@ -1,0 +1,21 @@
+.do/app.yaml
+  s_58ce129360bf70::t_c52e47dd9e0c6f 1-18,21-40,42-61
+apps/api/AGENTS.md
+  ai_agent 48-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "ac6fc4b75e6b9e3ce4156bbbd00e9939a3d8376e",
+  "prompts": {},
+  "sessions": {
+    "s_58ce129360bf70": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b2fedd11-3a58-4104-99c5-bebba477ebdb",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Dennis Lysenko <dennislysenko@hotmail.com>"
+    }
+  }
+}
