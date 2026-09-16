@@ -236,6 +236,7 @@ function Workspace(props: {
   useSyncExternalStore(subscribeDensity, densityVersion)
   useSyncExternalStore(subscribeComposerEdge, composerEdgeVersion)
   const usageVersion = useSyncExternalStore(props.app.usage.subscribe, props.app.usage.version)
+  const accountsVersion = useSyncExternalStore(props.app.models.subscribe, props.app.models.version)
 
   const chooseDefaultModel = useRef<(() => void) | null>(null)
   const handleChooseDefaultModel = useCallback(() => chooseDefaultModel.current?.(), [])
@@ -380,6 +381,7 @@ function Workspace(props: {
 
   const switcher = useSwitcher({
     catalogue: props.app.models,
+    accountsVersion,
     active: selection.ref,
     effort: selection.effort,
     fallback: threadModel.fallback,
