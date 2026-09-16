@@ -1,0 +1,111 @@
+import { describe, expect, it } from 'bun:test'
+
+import { EChannelConnection } from '@dltech/atlas-harness'
+
+import { ECloudSandboxState, type CloudReload, type CloudSandboxStatus } from '../cloud-bridge'
+import { createCloudSession } from '../cloud-session'
+import { fakeCloudChannel } from './fixture'
+
+const settled = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0))
+
+const sessionOn = (args: { status?: CloudSandboxStatus | undefined } = {}) => {
+  const channel = fakeCloudChannel()
+  const reloads: CloudReload[] = []
+  const session = createCloudSession({
+    channel,
+    sandboxes: { create: async () => ({ url: '', token: '', state: ECloudSandboxState.Running }), find: async () => args.status },
+    onReload: (reload) => reloads.push(reload),
+  })
+
+  return { channel, session, reloads }
+}
+
+describe('what the operator is told about the socket', () => {
+  it('follows the channel through connecting, open and reconnecting', () => {
+    const { channel, session } = sessionOn()
+    const seen: EChannelConnection[] = [session.health().connection.state]
+
+    session.subscribe(() => seen.push(session.health().connection.state))
+    channel.moveTo({ state: EChannelConnection.Open, detail: null })
+    channel.moveTo({ state: EChannelConnection.Reconnecting, detail: null })
+
+    expect(seen).toEqual([
+      EChannelConnection.Connecting,
+      EChannelConnection.Open,
+      EChannelConnection.Reconnecting,
+    ])
+  })
+
+  it('reads a socket that will not reopen as parked when the control plane says parked', async () => {
+    const { channel, session } = sessionOn({
+      status: { state: ECloudSandboxState.Parked },
+    })
+
+    channel.moveTo({ state: EChannelConnection.Closed, detail: 'gave up after 8 attempts' })
+    await settled()
+
+    expect(session.health().connection).toEqual({ state: EChannelConnection.Parked, detail: null })
+  })
+
+  it('reads a resuming sandbox as reconnecting rather than as a failure', async () => {
+    const { channel, session } = sessionOn({
+      status: { state: ECloudSandboxState.Resuming },
+    })
+
+    channel.moveTo({ state: EChannelConnection.Closed, detail: null })
+    await settled()
+
+    expect(session.health().connection.state).toBe(EChannelConnection.Reconnecting)
+  })
+
+  it('stays closed when the control plane has never heard of the sandbox', async () => {
+    const { channel, session } = sessionOn({ status: undefined })
+
+    channel.moveTo({ state: EChannelConnection.Closed, detail: null })
+    await settled()
+
+    expect(session.health().connection.state).toBe(EChannelConnection.Closed)
+    expect(session.health().connection.detail).toContain('no sandbox')
+  })
+})
+
+describe('a channel that cannot resume its delta buffer', () => {
+  it('hands the reload on so the durable log is read again', () => {
+    const { channel, reloads } = sessionOn()
+
+    channel.reload({ sinceEventSeq: 42 })
+
+    expect(reloads).toEqual([{ sinceEventSeq: 42 }])
+  })
+
+  it('stops listening once the session is closed', () => {
+    const { channel, session, reloads } = sessionOn()
+
+    session.close()
+    channel.reload({ sinceEventSeq: 7 })
+
+    expect(reloads).toEqual([])
+    expect(channel.closed).toBe(true)
+  })
+})
+
+describe('what the sandbox itself refuses', () => {
+  it('keeps an error frame that arrives over a healthy socket', () => {
+    const { channel, session } = sessionOn()
+
+    channel.moveTo({ state: EChannelConnection.Open, detail: null })
+    channel.fail('workspace failed at git apply: patch does not apply')
+
+    expect(session.health().connection.state).toBe(EChannelConnection.Open)
+    expect(session.health().failure).toContain('git apply')
+  })
+
+  it('leaves the socket state alone when the sandbox complains', () => {
+    const { channel, session } = sessionOn()
+
+    channel.moveTo({ state: EChannelConnection.Open, detail: null })
+    channel.fail('workspace failed at git clone: repository not found')
+
+    expect(session.health().connection.detail).toBeNull()
+  })
+})

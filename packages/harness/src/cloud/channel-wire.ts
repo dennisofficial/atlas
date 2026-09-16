@@ -1,0 +1,100 @@
+import { z } from 'zod'
+
+import { threadIdSchema } from '@dltech/atlas-core'
+
+import { channelSignalSchema } from './signal-wire'
+
+export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
+
+const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
+
+export const bearerSubprotocolOf = (token: string): string =>
+  `${BEARER_SUBPROTOCOL_PREFIX}${token}`
+
+export const tokenFromSubprotocols = (protocols: readonly string[]): string | null => {
+  const carrier = protocols.find((protocol) => protocol.startsWith(BEARER_SUBPROTOCOL_PREFIX))
+  if (carrier === undefined) return null
+
+  const token = carrier.slice(BEARER_SUBPROTOCOL_PREFIX.length)
+  return token.length === 0 ? null : token
+}
+
+export enum EServeFrame {
+  Ready = 'ready',
+  Signal = 'signal',
+  Reply = 'reply',
+  Reload = 'reload',
+  Parked = 'parked',
+  Error = 'error',
+}
+
+export enum EClientFrame {
+  Hello = 'hello',
+  Send = 'send',
+  Interrupt = 'interrupt',
+  Request = 'request',
+  Pong = 'pong',
+}
+
+export enum EClientRequest {
+  CompletePaths = 'complete-paths',
+  BrowseDirectory = 'browse-directory',
+}
+
+const seqSchema = z.number().int().nonnegative()
+
+export const serveFrameSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal(EServeFrame.Ready), seq: seqSchema }),
+  z.object({ kind: z.literal(EServeFrame.Signal), seq: seqSchema, signal: channelSignalSchema }),
+  z.object({
+    kind: z.literal(EServeFrame.Reply),
+    replyTo: z.string().min(1),
+    ok: z.boolean(),
+    data: z.unknown(),
+  }),
+  z.object({ kind: z.literal(EServeFrame.Reload), sinceEventSeq: seqSchema }),
+  z.object({ kind: z.literal(EServeFrame.Parked), reason: z.string() }),
+  z.object({ kind: z.literal(EServeFrame.Error), message: z.string() }),
+])
+
+export type ServeFrame = z.infer<typeof serveFrameSchema>
+
+export const clientFrameSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal(EClientFrame.Hello),
+    threadId: threadIdSchema,
+    channelCursor: seqSchema.nullable(),
+    lastEventSeq: seqSchema,
+  }),
+  z.object({ kind: z.literal(EClientFrame.Send), text: z.string() }),
+  z.object({ kind: z.literal(EClientFrame.Interrupt) }),
+  z.object({
+    kind: z.literal(EClientFrame.Request),
+    id: z.string().min(1),
+    op: z.nativeEnum(EClientRequest),
+    params: z.unknown(),
+  }),
+  z.object({ kind: z.literal(EClientFrame.Pong) }),
+])
+
+export type ClientFrame = z.infer<typeof clientFrameSchema>
+
+export const encodeFrame = (frame: ServeFrame | ClientFrame): string => JSON.stringify(frame)
+
+const parsedJson = (raw: string): unknown => {
+  try {
+    return JSON.parse(raw) as unknown
+  } catch {
+    return null
+  }
+}
+
+export const decodeServeFrame = (raw: string): ServeFrame | null => {
+  const parsed = serveFrameSchema.safeParse(parsedJson(raw))
+  return parsed.success ? parsed.data : null
+}
+
+export const decodeClientFrame = (raw: string): ClientFrame | null => {
+  const parsed = clientFrameSchema.safeParse(parsedJson(raw))
+  return parsed.success ? parsed.data : null
+}

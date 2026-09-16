@@ -9,5 +9,6 @@ import { GithubService } from './github.service'
     GithubService,
     { provide: GithubDeviceClient, useFactory: () => new GithubDeviceClient({}) },
   ],
+  exports: [GithubService],
 })
 export class GithubModule {}

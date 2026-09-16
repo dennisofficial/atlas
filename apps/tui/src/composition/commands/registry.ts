@@ -55,11 +55,12 @@ export const containerAskOfArgument = (
   if (asked === '') return EContainerAsk.Current
   if (asked === 'off' || asked === 'host') return EExecutionLocation.Host
   if (asked === 'docker') return EExecutionLocation.Docker
+  if (asked === 'cloud') return EExecutionLocation.Cloud
   return null
 }
 
 const unknownContainerArgument = (argumentText: string): string =>
-  `/container takes no argument to say where this conversation runs, or "off" | "docker" to move it — not ${argumentText.trim()}`
+  `/container takes no argument to say where this conversation runs, or "off" | "docker" | "cloud" to move it — not ${argumentText.trim()}`
 
 export type LocalCommandHandlers = {
   onChangeDirectory: (argumentText: string) => Promise<CommandEffect>
@@ -118,8 +119,8 @@ export function localCommands(handlers: LocalCommandHandlers): readonly LocalCom
     }),
     local({
       name: 'container',
-      summary: 'move this conversation between the host and a docker container',
-      argumentHint: '[off|docker]',
+      summary: 'move this conversation between the host, a docker container and the cloud',
+      argumentHint: '[off|docker|cloud]',
       group: ECommandGroup.Session,
       timing: ECommandTiming.Immediate,
       echo: ECommandEcho.Output,

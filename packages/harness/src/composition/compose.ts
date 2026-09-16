@@ -52,7 +52,7 @@ import type { Summariser } from './compact-turn'
 import { SUMMARISER_MODEL_ID, TITLER_MODEL_ID, TLDR_MODEL_ID, type HarnessLaunch } from './config'
 import { bindInstructionsAndMemory } from './context-bindings'
 import { faultInjected } from './fault-injection'
-import type { HarnessApp, HarnessSurfaceBinding } from './harness-app'
+import type { HarnessApp, HarnessStoreBinding, HarnessSurfaceBinding } from './harness-app'
 import { mcpBootNotice } from './mcp-report'
 import { knownRefs } from './model-catalogue'
 import { bindModels } from './model-bindings'
@@ -71,6 +71,7 @@ export async function composeHarness<TSurface = undefined, Command = never>(args
   settings: SettingsBinding
   clientVersion: string
   surface: HarnessSurfaceBinding<TSurface>
+  stores?: HarnessStoreBinding | undefined
 }): Promise<HarnessApp<TSurface, Command>> {
   const { launch, surface } = args
   const notice: NoticePort = surface.notice
@@ -178,6 +179,8 @@ export async function composeHarness<TSurface = undefined, Command = never>(args
     },
     subagentModelId: launchValue(ESettingId.SubagentModel),
   })
+
+  if (args.stores !== undefined) await args.stores.bind({ container })
 
   const log = container.resolve(portToken(EventLogPort))
   const ids = container.resolve(portToken(IdPort))

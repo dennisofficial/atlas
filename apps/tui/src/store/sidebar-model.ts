@@ -20,6 +20,7 @@ import {
 } from "@dltech/atlas-harness";
 
 import { classifierFold, type ClassifierFold } from "./classifier-fold";
+import type { SidebarCloud } from "./cloud-state";
 import { truncateCells } from "../ui/components/sidebar/cells";
 import { orderSections, type SidebarSection } from "../ui/sidebar-section";
 import type { TurnClock } from "../ui/turn-clock";
@@ -67,6 +68,7 @@ export type SidebarModel = {
   classifier?: ClassifierFold;
   grants?: readonly Grant[];
   container?: SidebarContainer;
+  cloud?: SidebarCloud;
 };
 
 export type SidebarLimits = SandboxLimits;
@@ -247,7 +249,7 @@ export function containerPillOf(args: {
   container: SidebarContainer;
   exposed: readonly BoundPort[];
 }): SidebarContainer | null {
-  if (args.location === EExecutionLocation.Host) return null;
+  if (args.location !== EExecutionLocation.Docker) return null;
 
   const { state, image, label, name, limits, reason } = args.container;
   return {
@@ -268,4 +270,13 @@ export function withContainer(args: {
   if (args.container === null) return args.model;
 
   return { ...args.model, container: args.container };
+}
+
+export function withCloud(args: {
+  model: SidebarModel;
+  cloud: SidebarCloud | null;
+}): SidebarModel {
+  if (args.cloud === null) return args.model;
+
+  return { ...args.model, cloud: args.cloud };
 }
