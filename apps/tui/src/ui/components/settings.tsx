@@ -3,7 +3,7 @@ import type { ScrollBoxRenderable } from '@opentui/core'
 import React, { useEffect, useRef } from 'react'
 
 import { fitHints, hintSpans, type Hint } from '../hint-layout'
-import { usePress } from '../hooks/use-press'
+import { useClickRegion } from '../hooks/use-click-region'
 import { currentPage, type SettingsModel, type SettingsState } from '../settings-model'
 import { theme } from '../theme'
 import type { Appearance } from '../appearance'
@@ -51,7 +51,7 @@ function FooterLine(props: {
   failing: boolean
   onDismiss: () => void
 }): React.ReactNode {
-  const press = usePress()
+  const region = useClickRegion(props.onDismiss)
   const hints = hintSpans({
     hints: fitHints({ hints: props.hints, cells: props.cells }),
     keyColour: theme.meta,
@@ -64,7 +64,10 @@ function FooterLine(props: {
   const gap = Math.max(GAP_CELLS, props.cells - [...props.status].length - width)
 
   return (
-    <SettingsLine press={press(props.onDismiss)}>
+    <SettingsLine
+      {...(region.wash.bg === undefined ? {} : { band: region.wash.bg })}
+      press={region.handlers}
+    >
       <text>
         <Spans
           spans={clipSpans({ spans: [status, { text: ' '.repeat(gap) }, ...hints], cells: props.cells })}

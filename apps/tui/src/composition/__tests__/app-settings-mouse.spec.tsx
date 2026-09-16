@@ -133,4 +133,31 @@ describe('the settings page under the mouse', () => {
       await teardown(setup)
     }
   }, 60_000)
+
+  it('washes the footer line under the pointer and still dismisses on click', async () => {
+    const app = appWith()
+    const setup = await onSettings(app)
+
+    try {
+      const row = rowIndexOf(setup, 'edits write to')
+      const column = columnOf(setup, 'edits write to')
+      expect(row).toBeGreaterThan(0)
+
+      const before = setup.captureSpans() as unknown as PaintedLines
+      expect(groundAt(before, row, column)?.equals(parseColor(theme.hoverBg))).toBe(false)
+
+      await setup.mockMouse.moveTo(column, row)
+      await landed(setup)
+
+      const hovered = setup.captureSpans() as unknown as PaintedLines
+      expect(groundAt(hovered, row, column)?.equals(parseColor(theme.hoverBg))).toBe(true)
+
+      await setup.mockMouse.click(column, row)
+      await landed(setup)
+
+      expect(rowIndexOf(setup, 'edits write to')).toBe(-1)
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
 })
