@@ -9,6 +9,8 @@
   ],
   "scripts": {
     "postinstall": "bun run --filter @dltech/atlas-harness db:ensure",
+    "do:spec:diff": "doctl apps spec get \"$DO_APP_ID\" --format yaml | diff -u - .do/app.yaml",
+    "do:spec:apply": "doctl apps update \"$DO_APP_ID\" --spec .do/app.yaml",
     "typecheck": "turbo run typecheck",
     "bench:load": "bun apps/tui/scripts/bench-load.ts",
     "bench:replay": "bun apps/tui/scripts/bench-replay.ts",

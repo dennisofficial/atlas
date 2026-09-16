@@ -11,6 +11,7 @@ import { AccountsModule } from './accounts/accounts.module'
 import { AuthModule } from './auth/auth.module'
 import { GithubModule } from './github/github.module'
 import { HealthController } from './health/health.controller'
+import { MigrationStateService } from './health/migration-state.service'
 import { McpServersModule } from './mcp-servers/mcp-servers.module'
 import { SecretsModule } from './secrets/secrets.module'
 import { SessionsModule } from './sessions/sessions.module'
@@ -33,6 +34,7 @@ import { SessionsModule } from './sessions/sessions.module'
   ],
   controllers: [HealthController],
   providers: [
+    MigrationStateService,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: ClientVersionGuard },
   ],

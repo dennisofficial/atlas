@@ -29,9 +29,12 @@ jobs:
     github:
       repo: dennisofficial/atlas
       branch: main
-    run_command: node_modules/.bin/dotenvx run --strict -f envs/.env.api.production.enc -- node_modules/.bin/prisma migrate deploy
+    instance_size_slug: basic-xxs
+    run_command: npm run db:migrate:deploy
     envs:
       - key: APP_TIER
+        value: production
+      - key: MIGRATE_TIER
         value: production
       - key: DOTENV_PRIVATE_KEY_API_PRODUCTION
         type: SECRET
