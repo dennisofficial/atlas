@@ -11,6 +11,7 @@ WORKDIR /app
 COPY package.json bun.lock bunfig.toml ./
 COPY apps/api/package.json ./apps/api/
 COPY apps/tui/package.json ./apps/tui/
+COPY apps/web/package.json ./apps/web/
 COPY packages/core/package.json ./packages/core/
 COPY packages/harness/package.json ./packages/harness/
 COPY packages/ui/package.json ./packages/ui/
