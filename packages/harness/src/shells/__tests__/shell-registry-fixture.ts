@@ -12,6 +12,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { DockerProcessPort } from '../../execution/docker/docker-process'
+import { liveDockerOptedIn } from '../../execution/docker/__tests__/live-docker'
 import { DockerEngine } from '../../execution/docker/engine'
 import {
   DEFAULT_DOCKER_SOCKET,
@@ -122,7 +123,7 @@ export const localShellAdapter: ShellAdapter = {
 
 export const dockerShellAdapter: ShellAdapter = {
   name: 'docker',
-  available: existsSync(SOCKET),
+  available: liveDockerOptedIn() && existsSync(SOCKET),
   processes: ({ root }) =>
     new DockerProcessPort({ engine: dockerEngine, sandbox: dockerSandbox(root) }),
   sweep: async ({ root }) => {

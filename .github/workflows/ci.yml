@@ -57,6 +57,8 @@ jobs:
 
   test-packages:
     runs-on: ubuntu-latest
+    env:
+      ATLAS_LIVE_DOCKER: '1'
     steps:
       - uses: actions/checkout@v4
 
