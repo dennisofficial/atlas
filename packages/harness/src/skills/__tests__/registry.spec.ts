@@ -24,6 +24,9 @@ const userSource = () =>
 const projectSource = () =>
   new FilesystemSkillSource({ directory: repository, origin: ESkillOrigin.Project })
 
+const builtInNames = async (): Promise<readonly string[]> =>
+  (await new EmbeddedSkillSource().load()).map((skill) => skill.spec.name)
+
 beforeEach(() => {
   home = mkdtempSync(join(tmpdir(), 'atlas-user-skills-'))
   repository = mkdtempSync(join(tmpdir(), 'atlas-project-skills-'))
@@ -38,7 +41,9 @@ describe('loadSkills', () => {
       sources: [new EmbeddedSkillSource(), userSource(), projectSource()],
     })
 
-    expect(loaded.map((skill) => skill.spec.name)).toEqual(['commit', 'plan', 'review'])
+    expect(loaded.map((skill) => skill.spec.name)).toEqual(
+      [...(await builtInNames()), 'plan', 'review'].sort(),
+    )
   })
 
   it('lets the user shadow a built-in', async () => {
@@ -46,9 +51,11 @@ describe('loadSkills', () => {
 
     const loaded = await loadSkills({ sources: [new EmbeddedSkillSource(), userSource()] })
 
-    expect(loaded).toHaveLength(1)
-    expect(loaded[0]?.origin).toBe(ESkillOrigin.User)
-    expect(loaded[0]?.body).toBe('user commit')
+    expect(loaded).toHaveLength((await builtInNames()).length)
+
+    const commit = loaded.find((skill) => skill.spec.name === 'commit')
+    expect(commit?.origin).toBe(ESkillOrigin.User)
+    expect(commit?.body).toBe('user commit')
   })
 
   it('lets the project shadow both the user and the built-in', async () => {
@@ -59,9 +66,11 @@ describe('loadSkills', () => {
       sources: [new EmbeddedSkillSource(), userSource(), projectSource()],
     })
 
-    expect(loaded).toHaveLength(1)
-    expect(loaded[0]?.origin).toBe(ESkillOrigin.Project)
-    expect(loaded[0]?.body).toBe('project commit')
+    expect(loaded).toHaveLength((await builtInNames()).length)
+
+    const commit = loaded.find((skill) => skill.spec.name === 'commit')
+    expect(commit?.origin).toBe(ESkillOrigin.Project)
+    expect(commit?.body).toBe('project commit')
   })
 
   it('applies precedence regardless of the order the sources are passed in', async () => {
@@ -72,8 +81,9 @@ describe('loadSkills', () => {
       sources: [projectSource(), new EmbeddedSkillSource(), userSource()],
     })
 
-    expect(loaded.map((skill) => skill.origin)).toEqual([ESkillOrigin.Project])
-    expect(loaded[0]?.body).toBe('project commit')
+    const commit = loaded.find((skill) => skill.spec.name === 'commit')
+    expect(commit?.origin).toBe(ESkillOrigin.Project)
+    expect(commit?.body).toBe('project commit')
   })
 
   it('sorts by name so two runs agree', async () => {
@@ -83,7 +93,9 @@ describe('loadSkills', () => {
 
     const loaded = await loadSkills({ sources: [projectSource(), new EmbeddedSkillSource()] })
 
-    expect(loaded.map((skill) => skill.spec.name)).toEqual(['alpha', 'commit', 'mid', 'zeta'])
+    expect(loaded.map((skill) => skill.spec.name)).toEqual(
+      [...(await builtInNames()), 'alpha', 'mid', 'zeta'].sort(),
+    )
   })
 
   it('yields nothing when no source has anything to offer', async () => {
@@ -100,7 +112,7 @@ describe('readSkillSources', () => {
       sources: [new EmbeddedSkillSource(), userSource(), projectSource()],
     })
 
-    expect(load.skills.map((skill) => skill.body)).toEqual(['project commit'])
+    expect(load.skills.find((skill) => skill.spec.name === 'commit')?.body).toBe('project commit')
     expect(load.shadowed.map((skill) => skill.origin).sort()).toEqual([
       ESkillOrigin.BuiltIn,
       ESkillOrigin.User,
