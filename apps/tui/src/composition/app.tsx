@@ -99,9 +99,14 @@ import { commandSpecs, dispatchSubmission, EContainerAsk, EDispatch, localComman
 import {
   currentLocationNotice,
   movedLocationNotice,
+  moveFailedNotice,
+  movingNotice,
   pendingSwitchNotice,
   relocatedNotice,
 } from './container-notices'
+import { ELocalMoveStep } from './container-move'
+import { messageOf } from './error-text'
+import { useContainerMove } from './use-container-move'
 import { mcpReport } from '@dltech/atlas-harness'
 import { useComposerMenus } from './use-composer-menus'
 import { workspaceFileLoader } from './mentioned-files'
@@ -776,6 +781,8 @@ function Workspace(props: {
     [conversation.threadId, props.app],
   )
 
+  const containerMove = useContainerMove()
+
   const cloudLift = useCloudLift({
     app: props.app,
     threadId: conversation.threadId,
@@ -785,6 +792,7 @@ function Workspace(props: {
     setLocation: execution.handleSet,
     createBridge: props.createBridge,
     capture: props.captureWorkspace,
+    move: containerMove,
     onLifted: props.onLifted,
   })
 
@@ -795,15 +803,21 @@ function Workspace(props: {
         return
       }
 
+      containerMove.handleBegin(target)
       const threadId = conversation.threadId
       for (const shell of containerBlockers()) {
         props.app.shells.kill({ shellId: shell.shellId, by: EKilledBy.ContainerSwitch, threadId })
       }
 
+      containerMove.handleAdvance(ELocalMoveStep.Flipping)
       const from = execution.location
       execution.handleSet(target)
-      if (!conversation.started) return
+      if (!conversation.started) {
+        containerMove.handleSettle()
+        return
+      }
 
+      containerMove.handleAdvance(ELocalMoveStep.Relocating)
       void relocateSession({
         threadId,
         from,
@@ -813,7 +827,8 @@ function Workspace(props: {
         services: props.app.services,
         agents: props.app.agents,
       })
-        .then((moved) =>
+        .then((moved) => {
+          containerMove.handleSettle()
           notify({
             key: 'container-switch',
             tone: ENoticeTone.Warn,
@@ -823,13 +838,24 @@ function Workspace(props: {
               stoppedServices: moved.stoppedServices.length,
               relocatedAgents: moved.relocatedAgents.length,
             }),
-          }),
-        )
-        .catch(() => undefined)
+          })
+        })
+        .catch((error: unknown) => {
+          execution.handleSet(from)
+          const reason = moveFailedNotice({ target, from, detail: messageOf(error) })
+          containerMove.handleFail(reason)
+          notify({
+            key: 'container-switch',
+            tone: ENoticeTone.Warn,
+            ttlMs: NOTICE_WARN_MS,
+            text: reason,
+          })
+        })
     },
     [
       cloudLift,
       containerBlockers,
+      containerMove,
       conversation.threadId,
       conversation.started,
       execution,
@@ -872,6 +898,7 @@ function Workspace(props: {
           working: conversation.working,
           interrupting: conversation.turn.interrupting,
           compacting: conversation.compacting !== null,
+          containerMoveOpen: containerMove.move !== null,
           approvalOpen: conversation.approval.state !== null,
           exitGuardOpen: exitGuard.state !== null,
           containerGuardOpen: containerGuard.state !== null,
@@ -887,6 +914,7 @@ function Workspace(props: {
       conversation,
       exitGuard.state,
       containerGuard.state,
+      containerMove.move,
       shells.running,
       agents.running,
       services.running,
@@ -917,6 +945,9 @@ function Workspace(props: {
     (asked: EExecutionLocation | EContainerAsk): string => {
       if (asked === EContainerAsk.Current) return currentLocationNotice(execution.location)
       if (asked === execution.location) return currentLocationNotice(execution.location)
+      if (containerMove.move !== null) {
+        return 'a move is already underway — wait for it to settle'
+      }
 
       if (asked === EExecutionLocation.Cloud) {
         const refusal = liftRefusal({
@@ -935,14 +966,20 @@ function Workspace(props: {
       }
 
       applyContainerSwitch(asked)
-      return movedLocationNotice(asked)
+      if (!conversation.started && asked !== EExecutionLocation.Cloud) {
+        return movedLocationNotice(asked)
+      }
+
+      return movingNotice(asked)
     },
     [
       agents.running,
       applyContainerSwitch,
       containerBlockers,
       containerGuard,
+      containerMove.move,
       conversation.compacting,
+      conversation.started,
       conversation.turn.interrupting,
       conversation.working,
       execution,
@@ -1289,6 +1326,8 @@ function Workspace(props: {
 
   const { approval, rewindConfirm } = conversation
   const compacting = conversation.compacting !== null
+  const moving = containerMove.move !== null
+  const moveFailed = containerMove.move?.failure != null
 
   const overlays = useMemo(
     (): readonly OverlayPresence[] => [
@@ -1307,6 +1346,12 @@ function Workspace(props: {
       { ...covering(settings.state !== null, settings.handleKey), porous: true },
       { ...covering(footerStrip.state !== null, footerStrip.handleKey), coversTranscript: false },
       { open: compacting, coversComposer: true, coversTranscript: true },
+      {
+        open: moving,
+        handleKey: moveFailed ? containerMove.handleKey : undefined,
+        coversComposer: true,
+        coversTranscript: true,
+      },
       { open: overlay, coversComposer: true, coversTranscript: false },
     ],
     [
@@ -1317,10 +1362,13 @@ function Workspace(props: {
       approval.handleKey,
       approval.state,
       compacting,
+      containerMove.handleKey,
       exitGuard.handleKey,
       exitGuard.state,
       footerStrip.handleKey,
       footerStrip.state,
+      moveFailed,
+      moving,
       onboarding.handleKey,
       onboarding.state,
       overlay,
@@ -1561,6 +1609,9 @@ function Workspace(props: {
           exitGuard={exitGuard}
           containerGuard={containerGuard}
           compacting={conversation.compacting}
+          containerMove={containerMove.move}
+          containerMoveNow={containerMove.now}
+          onDismissContainerMove={containerMove.handleDismiss}
           now={conversation.now}
         />
       </SelectionSurface>

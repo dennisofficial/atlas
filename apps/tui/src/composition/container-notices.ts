@@ -20,6 +20,22 @@ export const movedLocationNotice = (location: EExecutionLocation): string => {
   return `this conversation now runs ${whereItRuns(location)} — a read outside the project will fail from the next turn on`
 }
 
+const WHERE_IT_HEADS: Record<EExecutionLocation, string> = {
+  [EExecutionLocation.Host]: 'back to the host',
+  [EExecutionLocation.Docker]: 'into a Docker container',
+  [EExecutionLocation.Cloud]: 'to the cloud',
+}
+
+export const movingNotice = (location: EExecutionLocation): string =>
+  `moving ${WHERE_IT_HEADS[location]} — the composer is paused until the move settles`
+
+export const moveFailedNotice = (args: {
+  target: EExecutionLocation
+  from: EExecutionLocation
+  detail: string
+}): string =>
+  `moving ${WHERE_IT_HEADS[args.target]} did not finish — this conversation still runs ${WHERE_IT_RUNS[args.from]}. ${args.detail}`
+
 export const pendingSwitchNotice = (args: {
   target: EExecutionLocation
   count: number

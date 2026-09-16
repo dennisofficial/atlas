@@ -7,6 +7,8 @@ import type { Span } from '../ui/components/spans'
 import type { AccountRow } from '../ui/accounts-model'
 import { CompactingOverlay, type Compacting } from '../ui/components/compacting'
 import { ContainerGuard } from '../ui/components/container-guard'
+import { ContainerMoveOverlay } from '../ui/components/container-move'
+import type { ContainerMove } from './container-move'
 import { ExitGuard } from '../ui/components/exit-guard'
 import { exitGuardAgentRow, exitGuardRow, exitGuardServiceRow } from '../ui/exit-guard-model'
 import { Rewind } from '../ui/components/rewind'
@@ -58,6 +60,9 @@ function DerivedOverlayStack(props: {
   exitGuard: ExitGuardControl
   containerGuard: ContainerGuardControl
   compacting: Compacting | null
+  containerMove: ContainerMove | null
+  containerMoveNow: number
+  onDismissContainerMove: () => void
   now: number
 }): React.ReactNode {
   const {
@@ -81,6 +86,14 @@ function DerivedOverlayStack(props: {
     <>
       {props.compacting === null ? null : (
         <CompactingOverlay compacting={props.compacting} now={props.now} width={props.width} />
+      )}
+      {props.containerMove === null ? null : (
+        <ContainerMoveOverlay
+          move={props.containerMove}
+          now={props.containerMoveNow}
+          width={props.width}
+          onDismiss={props.onDismissContainerMove}
+        />
       )}
       {rewind.state === null ? null : (
         <Rewind

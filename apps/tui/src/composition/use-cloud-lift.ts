@@ -4,22 +4,16 @@ import { useCallback, useRef } from 'react'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { cloudApp, openCloudConversation } from './cloud/cloud-app'
 import type { CloudBridge, LiftedWorkspace } from './cloud/cloud-bridge'
-import { ELiftStep, liftToCloud } from './cloud/lift'
-import {
-  CLOUD_LIFT_NOTICE_KEY,
-  liftedNotice,
-  liftFailedNotice,
-  liftProgressNotice,
-} from './cloud/lift-notices'
+import { liftToCloud } from './cloud/lift'
+import { CLOUD_LIFT_NOTICE_KEY, liftedNotice, liftFailedNotice } from './cloud/lift-notices'
 import { stopLocalWork } from './cloud/stop-local'
 import type { AtlasApp } from './compose'
+import { messageOf } from './error-text'
 import type { LiftedAttachment } from './lifted-session'
+import type { ContainerMoveControl } from './use-container-move'
 
 const NOT_SIGNED_IN =
   'moving to the cloud needs an Atlas Cloud sign-in — press ctrl+a or run /auth, then try again'
-
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error)
 
 export type CloudBridgeFactory = (args: { url: string; token: string }) => CloudBridge
 
@@ -36,6 +30,7 @@ export function useCloudLift(args: {
   setLocation: (location: EExecutionLocation) => void
   createBridge: CloudBridgeFactory
   capture: WorkspaceCapture
+  move: ContainerMoveControl
   onLifted: (attachment: LiftedAttachment) => void
 }): CloudLiftControl {
   const lifting = useRef(false)
@@ -54,6 +49,8 @@ export function useCloudLift(args: {
 
     lifting.current = true
     const bridge = createBridge({ url: signedIn.url, token: signedIn.token })
+    const { move } = latest.current
+    move.handleBegin(EExecutionLocation.Cloud)
 
     void liftToCloud({
       threadId,
@@ -69,19 +66,15 @@ export function useCloudLift(args: {
       stopLocal: async () =>
         stopLocalWork({ threadId, shells: app.shells, services: app.services }),
       capture: latest.current.capture,
-      onProgress: (step: ELiftStep) =>
-        notify({
-          key: CLOUD_LIFT_NOTICE_KEY,
-          text: liftProgressNotice(step),
-          tone: ENoticeTone.Info,
-          sticky: true,
-        }),
+      onProgress: (step) => move.handleAdvance(step),
     })
       .then(async (lifted) => {
         if (!lifted.ok) {
+          const reason = liftFailedNotice(lifted)
+          move.handleFail(reason)
           notify({
             key: CLOUD_LIFT_NOTICE_KEY,
-            text: liftFailedNotice(lifted),
+            text: reason,
             tone: ENoticeTone.Warn,
             ttlMs: NOTICE_WARN_MS,
           })
@@ -91,13 +84,16 @@ export function useCloudLift(args: {
         const attached = cloudApp({ app, bridge, channel: lifted.channel })
         const opened = await openCloudConversation({ app: attached, threadId })
 
+        move.handleSettle()
         notify({ key: CLOUD_LIFT_NOTICE_KEY, text: liftedNotice(lifted), tone: ENoticeTone.Done })
         onLifted({ app: attached, opened, bridge, channel: lifted.channel })
       })
       .catch((error: unknown) => {
+        const reason = `moving to the cloud failed — ${messageOf(error)}`
+        move.handleFail(reason)
         notify({
           key: CLOUD_LIFT_NOTICE_KEY,
-          text: `moving to the cloud failed — ${messageOf(error)}`,
+          text: reason,
           tone: ENoticeTone.Warn,
           ttlMs: NOTICE_WARN_MS,
         })
