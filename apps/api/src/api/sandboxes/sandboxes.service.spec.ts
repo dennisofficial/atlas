@@ -17,7 +17,7 @@ import type { EnvService } from '../../_core/config/env/env.service'
 import type { GithubService } from '../github/github.service'
 import { SandboxesService } from './sandboxes.service'
 import { ESandboxState } from './sandboxes.types'
-import type { VercelSandboxClient } from './vercel-sandbox.client'
+import { SandboxMissingError, type VercelSandboxClient } from './vercel-sandbox.client'
 import { MAX_WORKSPACE_PATCH_BYTES } from './workspace-spec'
 
 const USER_A = 'user-a'
@@ -281,6 +281,36 @@ describe('SandboxesService', () => {
     await expect(attaching).rejects.toThrow('over the 5.0MiB limit')
     expect(fake.cloudSandboxes).toHaveLength(0)
     expect(client.getOrCreate).not.toHaveBeenCalled()
+  })
+
+  it('re-provisions with a fresh token when the row outlives its sandbox', async () => {
+    const first = await service.attach({ userId: USER_A, threadId: THREAD })
+    client.resume.mockRejectedValueOnce(
+      new SandboxMissingError(fake.cloudSandboxes[0]?.name ?? 'gone'),
+    )
+
+    const attached = await service.attach({ userId: USER_A, threadId: THREAD })
+
+    expect(attached.token).toBeDefined()
+    expect(attached.token).not.toBe(first.token)
+    expect(client.getOrCreate).toHaveBeenCalledTimes(2)
+    expect(fake.cloudSandboxes).toHaveLength(1)
+    expect(fake.cloudSandboxes[0]?.tokenHash).toBe(
+      createHash('sha256')
+        .update(attached.token as string)
+        .digest('hex'),
+    )
+  })
+
+  it('keeps the row and propagates when resume fails for another reason', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    client.resume.mockRejectedValueOnce(new Error('vercel is unhappy'))
+
+    await expect(service.attach({ userId: USER_A, threadId: THREAD })).rejects.toThrow(
+      'vercel is unhappy',
+    )
+    expect(fake.cloudSandboxes).toHaveLength(1)
+    expect(client.getOrCreate).toHaveBeenCalledTimes(1)
   })
 
   it('releases the claim when provisioning fails so a retry can mint again', async () => {

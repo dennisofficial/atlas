@@ -16,7 +16,7 @@ import type {
   SandboxWorkspaceSpec,
 } from './sandboxes.types'
 import { ESandboxState } from './sandboxes.types'
-import { SANDBOX_REGION, VercelSandboxClient } from './vercel-sandbox.client'
+import { SANDBOX_REGION, SandboxMissingError, VercelSandboxClient } from './vercel-sandbox.client'
 import type { WorkspaceColumns } from './workspace-spec'
 import { workspaceColumnsOf, workspaceSpecOf } from './workspace-spec'
 
@@ -44,8 +44,14 @@ export class SandboxesService {
     const columns = workspaceColumnsOf(args.workspace)
     const minted = mintSessionToken()
     const claimed = await this.claim({ thread, tokenHash: minted.tokenHash, columns })
-    if (claimed.tokenHash !== minted.tokenHash) return this.resumed(claimed)
-    return this.provision({ row: claimed, token: minted.token })
+    if (claimed.tokenHash === minted.tokenHash) {
+      return this.provision({ row: claimed, token: minted.token })
+    }
+    const resumed = await this.tryResume(claimed)
+    if (resumed !== null) return resumed
+    await db.cloudSandbox.delete({ where: { threadId: claimed.threadId } })
+    const reclaimed = await this.claim({ thread, tokenHash: minted.tokenHash, columns })
+    return this.provision({ row: reclaimed, token: minted.token })
   }
 
   /**
@@ -171,10 +177,15 @@ export class SandboxesService {
     }
   }
 
-  private async resumed(row: CloudSandboxModel): Promise<SandboxAttachmentDto> {
-    const placement = await this.vercel.resume({ name: row.name })
-    const stamped = await this.stamp({ row, placement })
-    return { ...toSandboxDto(stamped), url: placement.url }
+  private async tryResume(row: CloudSandboxModel): Promise<SandboxAttachmentDto | null> {
+    try {
+      const placement = await this.vercel.resume({ name: row.name })
+      const stamped = await this.stamp({ row, placement })
+      return { ...toSandboxDto(stamped), url: placement.url }
+    } catch (failure) {
+      if (failure instanceof SandboxMissingError) return null
+      throw failure
+    }
   }
 
   private stamp(args: {
