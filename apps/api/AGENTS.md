@@ -85,6 +85,12 @@ is the only thing that applies schema in a deployed tier — never the app conta
 no DDL rights by design. Locally the same command is `MIGRATE_TIER=production bun run
 db:migrate:deploy`.
 
+The job connects through `DIRECT_URL` (Neon's non-pooled endpoint) when the tier supplies one,
+falling back to `DATABASE_URL` — `prisma migrate deploy`'s session-level advisory lock does not
+survive the pooler: a killed job once left the lock pinned on a pooled backend and every later
+deploy timed out acquiring it (P1002). `scripts/migrate-deploy.mjs` also retries the deploy
+three times with a 20s backoff, so two overlapping PRE_DEPLOY jobs no longer fail a deployment.
+
 **Rollback does not unwind a migration.** App Platform can restore any of the last ten
 successful deployments, and it restores code, configuration and the app spec — never database
 data. It is control-panel only: Apps → the app → Activity → Rollback. `doctl apps` has no

@@ -11,7 +11,7 @@
     "env:inject": "dotenvx run -f envs/.env.api.local.enc -f envs/.env.personal --ignore=MISSING_ENV_FILE -o --strict",
     "db:generate": "prisma generate",
     "db:migrate": "bun run env:inject -- prisma migrate dev",
-    "db:migrate:deploy": "dotenvx run --strict -f envs/.env.api.$MIGRATE_TIER.enc -- prisma migrate deploy",
+    "db:migrate:deploy": "dotenvx run --strict -f envs/.env.api.$MIGRATE_TIER.enc -- node scripts/migrate-deploy.mjs",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down"
   },
