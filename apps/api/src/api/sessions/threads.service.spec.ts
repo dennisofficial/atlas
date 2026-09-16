@@ -61,6 +61,20 @@ describe('ThreadsService', () => {
     expect(opened.events[0]?.threadId).toBe(opened.thread.id)
   })
 
+  it('open with no first events still creates the thread, so a sandbox can attach to it', async () => {
+    const opened = await service.open({
+      userId: USER_A,
+      draft: { threadId: 'brn_empty', runId: 'run_1', drafts: [], executionLocation: 'cloud' },
+    })
+
+    expect(opened.thread.id).toBe('brn_empty')
+    expect(opened.thread.head).toBe(0)
+    expect(opened.events).toEqual([])
+
+    const found = await service.find({ userId: USER_A, threadId: 'brn_empty' })
+    expect(found.executionLocation).toBe('cloud')
+  })
+
   it('list scopes to project and user, newest first, and enriches from events', async () => {
     const one = await service.create({
       userId: USER_A,

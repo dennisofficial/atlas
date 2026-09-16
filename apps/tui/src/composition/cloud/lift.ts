@@ -101,8 +101,8 @@ const failureOf = (args: {
 
 /**
  * The remote thread is opened by the same call that carries the transferred log, so a lift is one
- * batch rather than a create followed by a stream of appends. A thread nobody has spoken in has
- * nothing to transfer and is simply marked as belonging to the cloud.
+ * batch rather than a create followed by a stream of appends. A thread nobody has spoken in opens
+ * with no events at all — the sandbox attach needs the row to exist either way.
  */
 async function transfer(args: LiftArgs): Promise<void> {
   const { bridge, threadId } = args
@@ -114,8 +114,6 @@ async function transfer(args: LiftArgs): Promise<void> {
     })
     return
   }
-
-  if (!args.started || args.events.length === 0) return
 
   await bridge.stores.threads.createWithFirstEvents({
     threadId,
