@@ -2,6 +2,7 @@ import type { ResolvedSetting } from '@dltech/atlas-core'
 import React from 'react'
 
 import { cellsOf } from '../../hint-layout'
+import { useClickRegion } from '../../hooks/use-click-region'
 import { type PressHandlers } from '../../hooks/use-press'
 import { affordanceHint, valueColour, valueLabel } from '../../settings-format'
 import { glyph, theme } from '../../theme'
@@ -124,7 +125,8 @@ export function SettingLine(props: {
   cells: number
   selected: boolean
   override?: Span | undefined
-  press?: PressHandlers
+  band?: string | undefined
+  press?: LineHandlers
 }): React.ReactNode {
   const labelCells = labelColumn(props.cells)
 
@@ -139,7 +141,29 @@ export function SettingLine(props: {
       })}
       cells={props.cells}
       selected={props.selected}
+      {...(props.band === undefined ? {} : { band: props.band })}
       {...(props.press === undefined ? {} : { press: props.press })}
+    />
+  )
+}
+
+export function SelectableSettingLine(props: {
+  setting: ResolvedSetting
+  cells: number
+  selected: boolean
+  override?: Span | undefined
+  onSelect: () => void
+}): React.ReactNode {
+  const region = useClickRegion(props.onSelect)
+
+  return (
+    <SettingLine
+      setting={props.setting}
+      cells={props.cells}
+      selected={props.selected}
+      {...(props.override === undefined ? {} : { override: props.override })}
+      {...(region.wash.bg === undefined ? {} : { band: region.wash.bg })}
+      press={region.handlers}
     />
   )
 }

@@ -230,7 +230,7 @@ function DerivedOverlayStack(props: {
           cloudEmail={settings.cloudEmail}
           cloudSignedIn={settings.cloudSignedIn}
           onSignOut={settings.handleSignOut}
-          onActivate={settings.handleActivate}
+          onSelect={settings.handleSelect}
           onDismiss={settings.handleDismiss}
         />
       )}

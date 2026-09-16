@@ -68,7 +68,7 @@ const page = (args: {
       cloudEmail={null}
       cloudSignedIn={false}
       onSignOut={() => {}}
-      onActivate={() => {}}
+      onSelect={() => {}}
       onDismiss={() => {}}
     />
   )

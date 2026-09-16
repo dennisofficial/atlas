@@ -12,7 +12,7 @@ import { SettingsBand } from './settings/band'
 import { SettingsDetail } from './settings/detail'
 import { SettingsHead } from './settings/head'
 import { SecretPrompt } from './settings/secret-prompt'
-import { SettingLine, SettingsGroupHeader, SettingsLine, SETTINGS_PAD } from './settings/rows'
+import { SelectableSettingLine, SettingsGroupHeader, SettingsLine, SETTINGS_PAD } from './settings/rows'
 import { clipSpans } from './sidebar/cells'
 import { Spans, type Span } from './spans'
 
@@ -89,10 +89,9 @@ export function Settings(props: {
   cloudEmail: string | null
   cloudSignedIn: boolean
   onSignOut: () => void
-  onActivate: (target: { pageIndex: number; rowIndex: number }) => void
+  onSelect: (target: SettingsState) => void
   onDismiss: () => void
 }): React.ReactNode {
-  const press = usePress()
   const detail = settingsDetailVisible({ width: props.width, sidebarWidth: props.sidebarWidth })
   const columnWidth = props.width - (detail ? props.sidebarWidth : 0)
   const cells = settingsCells({ width: columnWidth })
@@ -161,18 +160,18 @@ export function Settings(props: {
                 <box key={group.label} flexDirection="column" flexShrink={0}>
                   <SettingsGroupHeader label={group.label} />
                   {group.rows.map((row) => (
-                    <SettingLine
+                    <SelectableSettingLine
                       key={row.definition.id}
                       setting={row}
                       cells={cells}
                       override={props.secretOf(row.definition.id)}
                       selected={row.definition.id === selected?.definition.id}
-                      press={press(() =>
-                        props.onActivate({
+                      onSelect={() =>
+                        props.onSelect({
                           pageIndex: props.state.pageIndex,
                           rowIndex: page.rows.indexOf(row),
-                        }),
-                      )}
+                        })
+                      }
                     />
                   ))}
                 </box>

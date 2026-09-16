@@ -58,7 +58,7 @@ export type SettingsControl = {
   handlePinModels: (favourites: readonly string[]) => void
   handleOpen: () => void
   handleDismiss: () => void
-  handleActivate: (target: SettingsState) => void
+  handleSelect: (target: SettingsState) => void
   handleKey: (key: KeyEvent) => void
 }
 
@@ -148,6 +148,10 @@ export function useSettings(args: {
     setRefused(null)
     secret.close()
   }, [secret])
+
+  const handleSelect = useCallback((target: SettingsState) => {
+    setState(target)
+  }, [])
 
   const handleActivate = useCallback(
     (target: SettingsState) => {
@@ -245,17 +249,17 @@ export function useSettings(args: {
       handlePinModels,
       handleOpen,
       handleDismiss,
-      handleActivate,
+      handleSelect,
       handleKey,
     }),
     [
       appearance,
       cloudSession,
-      handleActivate,
       handleDismiss,
       handleKey,
       handleOpen,
       handlePinModels,
+      handleSelect,
       handleSignOut,
       origin,
       preferences,
