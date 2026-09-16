@@ -15,6 +15,7 @@ import {
 import type { AuthenticatedRequest } from '../../_core/types/auth.types'
 import { SessionAuthGuard } from '../../_module/session/session-auth.guard'
 import {
+  AccessTokenRequestDto,
   CreateAccountDto,
   ReplaceSecretDto,
   SetActiveDto,
@@ -85,8 +86,15 @@ export class AccountsController {
   handleAccessToken(
     @Req() request: AuthenticatedRequest,
     @Param('id') accountId: string,
+    @Body() body: AccessTokenRequestDto,
   ): Promise<AccessTokenDto> {
-    return this.broker.accessToken({ userId: userIdOf(request), accountId })
+    return this.broker.accessToken({
+      userId: userIdOf(request),
+      accountId,
+      ...(body.rejectedAccessToken === undefined
+        ? {}
+        : { rejectedAccessToken: body.rejectedAccessToken }),
+    })
   }
 
   @Put(':id/secret')

@@ -23,6 +23,12 @@ export class OauthTokensDto {
   accountId?: string
 }
 
+export class AccessTokenRequestDto {
+  @IsOptional()
+  @IsString()
+  rejectedAccessToken?: string
+}
+
 export class SecretDto {
   @IsIn([EAuthKind.Oauth, EAuthKind.ApiKey])
   kind!: EAuthKind
