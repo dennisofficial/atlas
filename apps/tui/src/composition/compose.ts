@@ -95,7 +95,6 @@ import {
   CloudService,
   CloudSessionStoreToken,
   KeychainReaderToken,
-  AccountStoreProxy,
   SecretsStoreProxy,
   LocalAccountStoreToken,
   claudeCodePayloadStore,
@@ -364,17 +363,6 @@ export async function composeAtlas(args: {
   const credentials = container.resolve(portToken(CredentialPort))
   const accountStore = container.resolve(portToken(AccountStorePort))
   const secrets = container.resolve(SecretsStoreToken)
-
-  if (accountStore instanceof AccountStoreProxy) {
-    accountStore.watchOutages((outage) => {
-      notify({
-        key: 'cloud:accounts',
-        tone: ENoticeTone.Warn,
-        ttlMs: NOTICE_WARN_MS,
-        text: `${outage.message} Atlas is serving accounts from the local vault until it answers again.`,
-      })
-    })
-  }
 
   if (secrets instanceof SecretsStoreProxy) {
     try {

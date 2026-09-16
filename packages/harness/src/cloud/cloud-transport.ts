@@ -8,6 +8,9 @@ export class CloudError extends Error {
   }
 }
 
+export const isCloudUnavailable = (error: unknown): boolean =>
+  error instanceof CloudError && (error.status === 0 || error.status >= 500)
+
 const detailFrom = (body: unknown): string | undefined => {
   if (typeof body !== 'object' || body === null) return undefined
 
