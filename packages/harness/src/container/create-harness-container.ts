@@ -254,6 +254,7 @@ export function createHarnessContainer(): DependencyContainer {
         brokered: new BrokeredCredentialPort({
           accounts,
           sessions,
+          clock,
           clientVersion: clientVersionOf(resolver),
         }),
       })

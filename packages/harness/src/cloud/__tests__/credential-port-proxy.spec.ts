@@ -25,7 +25,7 @@ const realFetch = globalThis.fetch
 
 const build = () => {
   const accounts = memoryAccountStore({ clock })
-  const brokered = new BrokeredCredentialPort({ accounts, sessions })
+  const brokered = new BrokeredCredentialPort({ accounts, sessions, clock })
   const local = new RefreshingCredentialPort({ accounts, clients: {}, clock })
   return new CredentialPortProxy({ local, sessions, brokered })
 }
@@ -79,7 +79,7 @@ describe('CredentialPortProxy', () => {
     })
     await accounts.setActive({ provider: EAuthProvider.Anthropic, accountId: added.id })
 
-    const brokered = new BrokeredCredentialPort({ accounts, sessions })
+    const brokered = new BrokeredCredentialPort({ accounts, sessions, clock })
     const local = new RefreshingCredentialPort({ accounts, clients: {}, clock })
     const proxy = new CredentialPortProxy({ local, sessions, brokered })
 
