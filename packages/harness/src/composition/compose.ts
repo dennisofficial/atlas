@@ -76,9 +76,15 @@ export async function composeHarness<TSurface = undefined, Command = never>(args
   const notice: NoticePort = surface.notice
   const container = createHarnessContainer()
   container.register(ClientVersionToken, { useValue: args.clientVersion })
-  const workspace = await probeWorkspace({ cwd: launch.cwd })
+  // A session with no workspace (an orchestrator agent) anchors at the process directory: nothing
+  // probes a repo, claims a worktree, or reads project instructions for it.
+  const anchor = launch.cwd ?? process.cwd()
+  const workspace =
+    launch.cwd === undefined
+      ? { workspace: anchor, repo: null }
+      : await probeWorkspace({ cwd: anchor })
   await claimLaunchWorktree({ container, workspace })
-  const mcp = await registerMcp({ container, cwd: launch.cwd })
+  const mcp = await registerMcp({ container, cwd: anchor })
 
   for (const server of mcp.servers()) {
     const bootNotice = mcpBootNotice(server)
@@ -116,7 +122,7 @@ export async function composeHarness<TSurface = undefined, Command = never>(args
   const secrets = container.resolve(SecretsStoreToken)
   args.settings.bindTo(container)
 
-  await bindSettingsPolicy({ container, settings, workspace, credentials, cwd: launch.cwd })
+  await bindSettingsPolicy({ container, settings, workspace, credentials, cwd: anchor })
   bindInstructionsAndMemory({
     container,
     settings,
@@ -135,6 +141,7 @@ export async function composeHarness<TSurface = undefined, Command = never>(args
   } = await bindModels({
     container,
     launch,
+    anchor,
     settled,
     settings,
     credentials,
@@ -153,7 +160,7 @@ export async function composeHarness<TSurface = undefined, Command = never>(args
     registry: await liveSkillRegistry({
       atlasHome: atlasDirectory(),
       home: homedir(),
-      cwd: launch.cwd,
+      cwd: anchor,
     }),
   })
 
@@ -162,7 +169,7 @@ export async function composeHarness<TSurface = undefined, Command = never>(args
     sources: await agentTypeSources({
       atlasHome: atlasDirectory(),
       home: homedir(),
-      cwd: launch.cwd,
+      cwd: anchor,
     }),
     reachableModelIds: knownRefs(models),
     modelIsUsable: (modelId) => {
@@ -250,11 +257,11 @@ export async function composeHarness<TSurface = undefined, Command = never>(args
     skillRegistry,
     agentTypes,
     files: new FileBrowser({
-      root: launch.cwd,
+      root: anchor,
       reachableRoots: () =>
         reachableRootsFor({
           location: executionLocation.current(),
-          projectDirectory: launch.cwd,
+          projectDirectory: anchor,
           mounts,
         }),
     }),

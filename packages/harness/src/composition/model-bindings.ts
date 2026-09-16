@@ -82,6 +82,8 @@ export type ModelBindings = {
 export async function bindModels(args: {
   container: DependencyContainer
   launch: HarnessLaunch
+  /** The directory the sandbox binds and roots resolve against — the launch cwd, or the process directory for a workspace-less session. */
+  anchor: string
   settled: SettingsResolution
   settings: SettingsService
   credentials: CredentialPort
@@ -120,7 +122,7 @@ export async function bindModels(args: {
   const { sandbox, containerStatus, mounts } = await bindSandbox({
     container,
     engine: container.resolve(DockerEngineToken),
-    cwd: launch.cwd,
+    cwd: args.anchor,
     settings,
     executionLocation,
     notice,

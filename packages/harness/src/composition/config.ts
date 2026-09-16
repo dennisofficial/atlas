@@ -13,7 +13,8 @@ export const TLDR_MODEL_ID = 'claude-haiku-4-5-20251001'
 
 /** What a launch decides for itself and nothing that outlives it; anything durable is a setting. */
 export type HarnessLaunch = {
-  cwd: string
+  /** The project directory. Undefined is a session with no workspace — an orchestrator agent owning a flow rather than a checkout. */
+  cwd: string | undefined
   command: string
   model: string | undefined
   executionLocation: string | undefined

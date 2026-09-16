@@ -60,6 +60,22 @@ const compose = <TSurface = undefined>(args?: {
   })
 
 describe('composeHarness', () => {
+  it('composes a workspace-less session for an orchestrator with no project', async () => {
+    const app = await composeHarness<undefined, never>({
+      launch: { cwd: undefined, command: 'atlas-test', model: undefined, executionLocation: undefined },
+      env: {},
+      settings: settingsBinding(),
+      clientVersion: 'compose-spec',
+      surface: { notice: recordingNotices().port },
+    })
+
+    expect(app.launch.cwd).toBeUndefined()
+    expect(app.workspace.repo).toBeNull()
+    expect(app.tools.declarations().length).toBeGreaterThan(0)
+
+    await expect(app.close()).resolves.toBeUndefined()
+  })
+
   it('composes a working session against a bare project and closes cleanly', async () => {
     const app = await compose()
 

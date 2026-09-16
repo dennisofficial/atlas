@@ -31,7 +31,7 @@ afterEach(async () => {
 const failingClaudeCodeSource = (): ClaudeCodeSource =>
   new ClaudeCodeSource({
     read: async () => {
-      throw new CloudError('Atlas Cloud is unreachable')
+      throw new CloudError({ status: 0, message: 'Atlas Cloud is unreachable' })
     },
     write: async () => {},
   })
