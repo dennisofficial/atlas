@@ -87,7 +87,8 @@ db:migrate:deploy`.
 
 **Rollback does not unwind a migration.** App Platform can restore any of the last ten
 successful deployments, and it restores code, configuration and the app spec — never database
-data. Prisma has no down-migrations either. So every migration must be backward-compatible with
+data. It is control-panel only: Apps → the app → Activity → Rollback. `doctl apps` has no
+rollback subcommand, and the deployment must share the app's region and database configuration. Prisma has no down-migrations either. So every migration must be backward-compatible with
 the release it lands ahead of: add columns with defaults, add tables, never rename or drop in
 the same deploy as the code that stops using them. A `FAILED_DEPLOY` job that ran down-DDL would
 turn a failed deploy into data loss; there is deliberately none.
