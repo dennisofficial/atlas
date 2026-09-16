@@ -4,11 +4,13 @@ import {
   type AccountDraft,
   type AccountId,
   type AccountSecret,
+  type ClockPort,
   type EAccountStatus,
   type EAuthProvider,
   type StoredAccount,
 } from '@dltech/atlas-core'
 
+import { CachingAccountStore } from './caching-account-store'
 import { cloudClientFor } from './cloud-client'
 import type { CloudSessionStore } from './cloud-session'
 import { RemoteAccountStore } from './remote-account-store'
@@ -25,19 +27,22 @@ export class AccountStoreProxy extends AccountStorePort {
   private readonly sessions: CloudSessionStore
   private readonly clientVersion: string | undefined
   private readonly cloudRequired: () => boolean
-  private remote: { token: string; store: RemoteAccountStore } | undefined
+  private readonly clock: ClockPort | undefined
+  private remote: { token: string; store: AccountStorePort } | undefined
 
   constructor(args: {
     local: AccountStorePort
     sessions: CloudSessionStore
     clientVersion?: string
     cloudRequired?: () => boolean
+    clock?: ClockPort
   }) {
     super()
     this.local = args.local
     this.sessions = args.sessions
     this.clientVersion = args.clientVersion
     this.cloudRequired = args.cloudRequired ?? (() => false)
+    this.clock = args.clock
   }
 
   list(): Promise<readonly Account[]> {
@@ -86,14 +91,18 @@ export class AccountStoreProxy extends AccountStorePort {
     }
 
     if (this.remote?.token !== session.token) {
+      const remote = new RemoteAccountStore({
+        client: cloudClientFor({
+          session,
+          ...(this.clientVersion === undefined ? {} : { clientVersion: this.clientVersion }),
+        }),
+      })
       this.remote = {
         token: session.token,
-        store: new RemoteAccountStore({
-          client: cloudClientFor({
-            session,
-            ...(this.clientVersion === undefined ? {} : { clientVersion: this.clientVersion }),
-          }),
-        }),
+        store:
+          this.clock === undefined
+            ? remote
+            : new CachingAccountStore({ remote, clock: this.clock }),
       }
     }
 

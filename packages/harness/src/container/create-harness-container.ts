@@ -202,6 +202,7 @@ export function createHarnessContainer(): DependencyContainer {
           sessions: resolver.resolve(CloudSessionStoreToken),
           clientVersion: clientVersionOf(resolver),
           cloudRequired: liveCloudRequired(resolver),
+          clock: resolver.resolve(portToken(ClockPort)),
         }),
     ),
   })
