@@ -71,9 +71,9 @@ export function sidebarSpendOf(args: {
   };
 }
 
-export const COST_WARN_USD = 5;
+export const COST_WARN_USD = 50;
 
-export const COST_DANGER_USD = 10;
+export const COST_DANGER_USD = 150;
 
 export function costTone(costUsd: number): string {
   if (costUsd >= COST_DANGER_USD) return theme.error;
