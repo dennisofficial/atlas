@@ -1,4 +1,5 @@
 import {
+  agentTypeSettingId,
   defaultPipeline,
   EAgentStatus,
   ENoticeTone,
@@ -10,6 +11,7 @@ import {
   parseRef,
   promptContextFor,
   promptModelOf,
+  textValueOf,
   toggleValueOf,
   ClockPort,
   EventLogPort,
@@ -44,6 +46,7 @@ import type { PendingQueues } from '../pending'
 import { userSaidDraft } from '../pending'
 import type { PromptRegistry } from '../prompt/registry'
 import { ServiceRegistryPort } from '../services/service-registry'
+import type { SettingsService } from '../settings/service'
 import { ShellRegistryPort } from '../shells/shell-registry'
 import { createLoopCut } from '../store/cut-loop'
 import { ThreadStorePort } from '../store/thread-store'
@@ -78,10 +81,10 @@ export function wireTurn<Command>(args: {
   channel: DeltaChannel
   notice: NoticePort
   summarise: Summariser
-  subagentModelId: () => string | undefined
+  settings: SettingsService
   stopSandbox: () => Promise<boolean>
   settled: SettingsResolution
-  tldr: { feed: TldrFeed | undefined; model: LanguageModel; modelId: string }
+  tldr: { feed: TldrFeed | undefined; model: LanguageModel; modelId: () => string }
 }): TurnWiring {
   const {
     container,
@@ -222,7 +225,7 @@ export function wireTurn<Command>(args: {
     model,
     modelPort,
     hooks: () => container.resolve(HookChainToken),
-    subagentModelId: args.subagentModelId,
+    settings: args.settings,
   })
 
   const cardPinnedTo = (pinned: string | undefined): ModelCard | undefined => {
@@ -230,6 +233,11 @@ export function wireTurn<Command>(args: {
 
     const ref = parseRef(pinned)
     return ref === undefined ? undefined : models.cardFor(ref)
+  }
+
+  const subagentSetting = (id: string): string | undefined => {
+    const held = textValueOf({ resolution: args.settings.snapshot().resolution, id })
+    return held.length === 0 ? undefined : held
   }
 
   /**
@@ -252,7 +260,13 @@ export function wireTurn<Command>(args: {
               prompts,
               agentType,
               provider: modelPort.identity,
-              model: promptModelOf(cardPinnedTo(agentType.model ?? args.subagentModelId())),
+              model: promptModelOf(
+                cardPinnedTo(
+                  subagentSetting(agentTypeSettingId(agentType.name)) ??
+                    agentType.model ??
+                    subagentSetting(ESettingId.SubagentModel),
+                ),
+              ),
               projectDirectory,
             }),
           launchDirectory: working ?? workspace.workspace,

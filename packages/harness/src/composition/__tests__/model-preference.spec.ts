@@ -12,6 +12,7 @@ import { createSettingsService, environmentLayer, MemorySettingsStore } from '@d
 import { DEFAULT_MODEL_REF } from '../config'
 import {
   defaultSelection,
+  fallbackRef,
   launchSelection,
   modelPinned,
   rememberSettingModel,
@@ -59,6 +60,25 @@ describe('the default model pair', () => {
     const selection = launched({})
     expect(refKey(selection.ref)).toBe(refKey(DEFAULT_MODEL_REF))
     expect(selection.effort).toBe(EEffort.Medium)
+  })
+
+  it('falls back to the first reachable provider when the shipped default has no account', () => {
+    const base = fakeCatalogue()
+    const openaiOnly = {
+      ...base,
+      reachable: (providerId: string) => providerId === 'openai',
+    }
+
+    expect(refKey(defaultSelection({ settled: settled({}), catalogue: openaiOnly }).ref)).toBe(
+      'openai/gpt-5-codex',
+    )
+  })
+
+  it('still answers with the shipped ref when nothing is reachable at all', () => {
+    const base = fakeCatalogue()
+    const nowhere = { ...base, reachable: () => false }
+
+    expect(refKey(fallbackRef({ catalogue: nowhere }))).toBe(refKey(DEFAULT_MODEL_REF))
   })
 
   it('opens on the qualified pair the settings hold', () => {

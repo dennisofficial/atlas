@@ -27,7 +27,12 @@ describe('settingsModel', () => {
   it('keeps only the pages that have something on them, plus the account page', () => {
     const model = modelWith()
 
-    expect(model.pages.map((page) => page.page.label)).toEqual(['general', 'appearance', 'account'])
+    expect(model.pages.map((page) => page.page.label)).toEqual([
+      'general',
+      'models',
+      'appearance',
+      'account',
+    ])
   })
 
   it('keeps the account page even though it holds no settings of its own', () => {
@@ -51,14 +56,30 @@ describe('settingsModel', () => {
       ['Notifications', 1],
       ['Development', 1],
       ['Web', 2],
-      ['Model', 3],
       ['Execution', 4],
     ])
-    expect(general?.rows).toHaveLength(29)
+    expect(general?.rows).toHaveLength(26)
+  })
+
+  it('gathers the model rows on the models page, default pair first', () => {
+    const models = modelWith().pages[1]
+
+    expect(models?.page.id).toBe(ESettingPage.Models)
+    expect(models?.groups.map((group) => [group.label, group.rows.length])).toEqual([
+      ['Model', 2],
+      ['Background processes', 3],
+    ])
+    expect(models?.rows.map((row) => row.definition.id)).toEqual([
+      ESettingId.ModelId,
+      ESettingId.ModelEffort,
+      ESettingId.QuickModel,
+      ESettingId.CompactionModel,
+      ESettingId.SubagentModel,
+    ])
   })
 
   it('keeps the appearance page to its colour, its density and its composer', () => {
-    const appearance = modelWith().pages[1]
+    const appearance = modelWith().pages[2]
 
     expect(appearance?.groups.map((group) => group.label)).toEqual([
       'Colour',
@@ -77,7 +98,7 @@ describe('settingsModel', () => {
         origins: { [ESettingId.Accent]: 'ATLAS_ACCENT' },
       },
     ])
-    const appearance = model.pages[1]
+    const appearance = model.pages[2]
 
     expect(appearance?.rows[0]?.value).toBe('moss')
     expect(appearance?.rows[0]?.origin).toBe('ATLAS_ACCENT')
@@ -91,7 +112,7 @@ describe('moving around the page', () => {
     const top = openSettings()
 
     expect(moveRow({ state: top, model, delta: -1 })).toEqual({ pageIndex: 0, rowIndex: 0 })
-    expect(moveRow({ state: top, model, delta: 99 })).toEqual({ pageIndex: 0, rowIndex: 28 })
+    expect(moveRow({ state: top, model, delta: 99 })).toEqual({ pageIndex: 0, rowIndex: 25 })
   })
 
   it('wraps around the tab strip and lands on its first row', () => {
@@ -99,12 +120,12 @@ describe('moving around the page', () => {
 
     expect(moved).toEqual({ pageIndex: 1, rowIndex: 0 })
     expect(movePage({ state: moved, model, delta: 1 })).toEqual({ pageIndex: 2, rowIndex: 0 })
-    expect(movePage({ state: { pageIndex: 2, rowIndex: 0 }, model, delta: 1 })).toEqual({
+    expect(movePage({ state: { pageIndex: 3, rowIndex: 0 }, model, delta: 1 })).toEqual({
       pageIndex: 0,
       rowIndex: 0,
     })
     expect(movePage({ state: openSettings(), model, delta: -1 })).toEqual({
-      pageIndex: 2,
+      pageIndex: 3,
       rowIndex: 0,
     })
   })
@@ -114,6 +135,9 @@ describe('moving around the page', () => {
       ESettingId.SmoothStreaming,
     )
     expect(currentRow({ state: { pageIndex: 1, rowIndex: 0 }, model })?.definition.id).toBe(
+      ESettingId.ModelId,
+    )
+    expect(currentRow({ state: { pageIndex: 2, rowIndex: 0 }, model })?.definition.id).toBe(
       ESettingId.Accent,
     )
   })

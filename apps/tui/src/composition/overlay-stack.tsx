@@ -17,6 +17,7 @@ import { Shells } from '../ui/components/shells'
 import { Switcher } from '../ui/components/switcher'
 import { Threads } from '../ui/components/threads'
 import { AgentsPicker } from '../ui/components/agents-picker'
+import { Onboarding } from '../ui/components/onboarding'
 import { useAppearance } from '../ui/hooks/use-appearance'
 import { isServiceAlive } from '../ui/services-model'
 import { isShellRunning } from '../ui/shells-model'
@@ -27,6 +28,7 @@ import type { AgentsPickerControl } from './use-agents-picker'
 import type { ApprovalControl } from './use-approval'
 import type { ContainerGuardControl } from './use-container-guard'
 import type { ExitGuardControl } from './use-exit-guard'
+import type { OnboardingControl } from './use-onboarding'
 import type { RewindControl } from './use-rewind'
 import type { RewindConfirmControl } from './use-rewind-confirm'
 import type { ServicesControl } from './use-services'
@@ -46,6 +48,7 @@ function DerivedOverlayStack(props: {
   agents: AgentsControl
   agentsPicker: AgentsPickerControl
   settings: SettingsControl
+  onboarding: OnboardingControl
   accounts: AccountsControl
   threads: ThreadsControl
   accountMeters: (row: AccountRow) => readonly Span[]
@@ -63,6 +66,7 @@ function DerivedOverlayStack(props: {
     agents,
     agentsPicker,
     settings,
+    onboarding,
     accounts,
     threads,
     rewind,
@@ -199,6 +203,15 @@ function DerivedOverlayStack(props: {
           overlay
           onPick={containerGuard.handlePick}
           onDismiss={containerGuard.handleDismiss}
+        />
+      )}
+      {onboarding.state === null ? null : (
+        <Onboarding
+          width={props.width}
+          rows={onboarding.rows}
+          rowIndex={onboarding.state.rowIndex}
+          onActivate={onboarding.handleActivate}
+          onDismiss={onboarding.handleDismiss}
         />
       )}
       {settings.state === null ? null : (

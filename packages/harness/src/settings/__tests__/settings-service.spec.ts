@@ -1,4 +1,4 @@
-import { ATLAS_SETTINGS, EMPTY_SETTINGS_DOCUMENT, ESettingId, ESettingsLayer } from '@dltech/atlas-core'
+import { agentTypeModelDefinitions, ATLAS_SETTINGS, EMPTY_SETTINGS_DOCUMENT, ESettingId, ESettingsLayer } from '@dltech/atlas-core'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -104,6 +104,42 @@ describe('createSettingsService', () => {
     expect(serviceWith({ user: failing }).snapshot().problems).toEqual([
       'settings.json is not valid json',
     ])
+  })
+
+  it('registers late definitions and resolves values held for them', () => {
+    const service = serviceWith({
+      user: new MemorySettingsStore({ document: { values: { 'agents.type.explore': 'openai/gpt-5' } } }),
+    })
+    let told = 0
+    service.subscribe(() => {
+      told += 1
+    })
+
+    expect(service.snapshot().resolution.settings.has('agents.type.explore')).toBe(false)
+
+    service.register(
+      agentTypeModelDefinitions({ typeNames: ['explore'] }).map((definition) => ({ ...definition })),
+    )
+
+    expect(told).toBe(1)
+    const held = service.snapshot().resolution.settings.get('agents.type.explore')
+    expect(held?.value).toBe('openai/gpt-5')
+    expect(service.definitions.some((definition) => definition.id === 'agents.type.explore')).toBe(
+      true,
+    )
+  })
+
+  it('ignores a definition already registered, and stays quiet for it', () => {
+    const service = serviceWith({ user })
+    let told = 0
+    service.subscribe(() => {
+      told += 1
+    })
+
+    service.register(agentTypeModelDefinitions({ typeNames: ['explore'] }))
+    service.register(agentTypeModelDefinitions({ typeNames: ['explore'] }))
+
+    expect(told).toBe(1)
   })
 })
 

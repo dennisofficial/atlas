@@ -7,14 +7,25 @@ import {
   type CredentialPort,
   type ModelRef,
 } from '@dltech/atlas-core'
-import { generatedCatalogue, type ProviderAdapter } from '@dltech/atlas-harness'
+import {
+  DEFAULT_MODEL_REF,
+  generatedCatalogue,
+  providerAdapters,
+  unanswerableRef,
+  type ProviderAdapter,
+} from '@dltech/atlas-harness'
 
-import { providerAdapters, unanswerableRef } from '@dltech/atlas-harness'
-
-export const judgeRefFor = ({ override }: { override: string }): ModelRef =>
+export const judgeRefFor = ({
+  override,
+  followDefault = DEFAULT_MODEL_REF,
+}: {
+  override: string
+  followDefault?: ModelRef
+}): ModelRef =>
   resolveUtilityModel({
     role: EUtilityModelRole.Judge,
     override,
+    followDefault,
     catalogue: generatedCatalogue(),
   })
 

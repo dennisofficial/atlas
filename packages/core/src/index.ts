@@ -198,6 +198,7 @@ export * from './settings/layers'
 export * from './settings/resolve'
 export * from './settings/edit'
 export * from './settings/registry'
+export * from './settings/agent-type-rows'
 
 export * from './version/semver'
 

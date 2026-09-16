@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  EUtilityModelRole,
-  UTILITY_MODEL_DEFAULTS,
-  type CredentialPort,
-} from '@dltech/atlas-core'
+import { type CredentialPort, type ModelRef } from '@dltech/atlas-core'
+import { DEFAULT_MODEL_REF } from '@dltech/atlas-harness'
 
 import { judgeModel, judgeRefFor } from '../judge-model'
 
@@ -13,11 +10,17 @@ const credentials: CredentialPort = {
   discard: () => Promise.resolve(),
 }
 
-const judgeDefault = UTILITY_MODEL_DEFAULTS[EUtilityModelRole.Judge]
+const judgeDefault: ModelRef = DEFAULT_MODEL_REF
 
 describe('judgeRefFor', () => {
-  it('falls back to the registry default when no quick model is set', () => {
+  it('follows the given default when no quick model is set', () => {
     expect(judgeRefFor({ override: '' })).toEqual(judgeDefault)
+    expect(
+      judgeRefFor({
+        override: '',
+        followDefault: { providerId: 'openai', modelId: 'gpt-5.1-codex-mini' },
+      }),
+    ).toEqual({ providerId: 'openai', modelId: 'gpt-5.1-codex-mini' })
   })
 
   it('honours a quick-model override that names a real card', () => {

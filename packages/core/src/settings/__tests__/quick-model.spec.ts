@@ -13,8 +13,8 @@ describe('QuickModel setting', () => {
     const definition = quickModel()
 
     expect(definition?.kind).toBe(ESettingKind.Model)
-    expect(definition?.page).toBe(ESettingPage.General)
-    expect(definition?.group).toBe('Model')
+    expect(definition?.page).toBe(ESettingPage.Models)
+    expect(definition?.group).toBe('Background processes')
     expect(definition?.fallback).toBe('')
     expect(definition?.environmentVariable).toBe('ATLAS_QUICK_MODEL')
   })

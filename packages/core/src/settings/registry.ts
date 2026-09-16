@@ -7,6 +7,7 @@ import { ESettingKind, type SettingOption } from './value'
 
 export const SETTING_PAGES: readonly SettingPage[] = [
   { id: ESettingPage.General, label: 'general' },
+  { id: ESettingPage.Models, label: 'models' },
   { id: ESettingPage.Appearance, label: 'appearance' },
   { id: ESettingPage.Account, label: 'account' },
 ]
@@ -39,6 +40,7 @@ export enum ESettingId {
   ModelId = 'model.id',
   ModelEffort = 'model.effort',
   QuickModel = 'model.quickModel',
+  CompactionModel = 'model.compactionModel',
   ModelFavourites = 'model.favourites',
   SubagentModel = 'agents.subagentModel',
   ExecutionLocation = 'execution.location',
@@ -467,7 +469,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.ModelId,
-    page: ESettingPage.General,
+    page: ESettingPage.Models,
     group: 'Model',
     label: 'Default model',
     description:
@@ -475,10 +477,11 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     environmentVariable: 'ATLAS_MODEL',
     kind: ESettingKind.Model,
     fallback: '',
+    unsetLabel: 'automatic',
   },
   {
     id: ESettingId.ModelEffort,
-    page: ESettingPage.General,
+    page: ESettingPage.Models,
     group: 'Model',
     label: 'Default effort',
     description:
@@ -490,14 +493,39 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.QuickModel,
-    page: ESettingPage.General,
-    group: 'Model',
-    label: 'Quick-call model',
+    page: ESettingPage.Models,
+    group: 'Background processes',
+    label: 'Quick calls',
     description:
-      'The model the quick background calls run on — tl;dr footers, session titles and the nudge judge — all of which pin a low effort and never read the conversation\u2019s own model. Left empty, each runs on its built-in default. One choice serves them all: it is how you move the quick tier onto another provider when the usual one is having a bad day.',
+      'The model the quick background calls run on — tl;dr footers, session titles and the nudge judge — all of which pin a low effort and never read the conversation\u2019s own model. Left empty, they follow the default model. One choice serves them all: it is how you move the quick tier onto a cheaper model, or onto another provider when the usual one is having a bad day.',
     environmentVariable: 'ATLAS_QUICK_MODEL',
     kind: ESettingKind.Model,
     fallback: '',
+    unsetLabel: 'follow default',
+  },
+  {
+    id: ESettingId.CompactionModel,
+    page: ESettingPage.Models,
+    group: 'Background processes',
+    label: 'Compaction',
+    description:
+      'The model that summarises older turns when the context window fills, both for the automatic compaction and for /compact. The summary is all the next turn sees of what it replaces, so a weak model here costs the conversation its memory. Left empty, it follows the default model.',
+    environmentVariable: 'ATLAS_COMPACTION_MODEL',
+    kind: ESettingKind.Model,
+    fallback: '',
+    unsetLabel: 'follow default',
+  },
+  {
+    id: ESettingId.SubagentModel,
+    page: ESettingPage.Models,
+    group: 'Background processes',
+    label: 'Sub-agents',
+    description:
+      'The model every sub-agent runs on unless its own type is given one below or pins one in its definition. Left empty, a sub-agent runs on whatever model the conversation that spawned it is on.',
+    environmentVariable: 'ATLAS_SUBAGENT_MODEL',
+    kind: ESettingKind.Model,
+    fallback: '',
+    unsetLabel: 'inherit conversation',
   },
   {
     id: ESettingId.ModelFavourites,
@@ -507,17 +535,6 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     description:
       'The models the switcher gathers into its own group at the top of the list, in the order they were pinned. Written by the switcher rather than set here.',
     environmentVariable: 'ATLAS_MODEL_FAVOURITES',
-    kind: ESettingKind.Text,
-    fallback: '',
-  },
-  {
-    id: ESettingId.SubagentModel,
-    page: ESettingPage.Hidden,
-    group: 'Sub-agents',
-    label: 'Sub-agent model',
-    description:
-      'The model every sub-agent runs on unless its own type pins one. Left empty, a child inherits whatever the conversation that spawned it is on.',
-    environmentVariable: 'ATLAS_SUBAGENT_MODEL',
     kind: ESettingKind.Text,
     fallback: '',
   },

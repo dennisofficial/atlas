@@ -21,7 +21,7 @@ import {
   type EUsageWindow,
   type ModelCard,
 } from '@dltech/atlas-core'
-import { forkConversation, relocateSession, type DiscoveredSkill } from '@dltech/atlas-harness'
+import { forkConversation, relocateSession, settingModelRef, suggestedModelRef, type DiscoveredSkill } from '@dltech/atlas-harness'
 
 import { newestExpandableKey, type PendingSaid } from '../store'
 import { withContainer, withSections } from '../store/sidebar-model'
@@ -125,6 +125,8 @@ import {
   type OverlayPresence,
 } from './overlay-presence'
 import { useOverlayKeys } from './use-overlay-keys'
+import { useModelChecks } from './use-model-checks'
+import { useOnboarding } from './use-onboarding'
 import { useSettings } from './use-settings'
 import { useServices } from './use-services'
 import { useShells } from './use-shells'
@@ -139,7 +141,6 @@ import { useAgents } from './use-agents'
 import { useAgentView } from './use-agent-view'
 import { SubagentTranscript } from './subagent-transcript'
 import { useAgentsPicker } from './use-agents-picker'
-import { settingModelRef } from '@dltech/atlas-harness'
 import { settingTarget, useSwitcher } from './use-switcher'
 import { useThreadModel } from './use-thread-model'
 import { useContainerGuard } from './use-container-guard'
@@ -244,6 +245,7 @@ function Workspace(props: {
   }, [])
 
   const settings = useSettings({ app: props.app, onChooseModel: handleChooseModelSetting })
+  useModelChecks(props.app)
 
   useCopyOnSelect()
 
@@ -382,12 +384,13 @@ function Workspace(props: {
   }, [conversation, draft])
 
   const heldSettingRef = useCallback(
-    (id: string) =>
-      settingModelRef({
-        id,
-        settled: props.app.settings.snapshot().resolution,
-        catalogue: props.app.models,
-      }),
+    (id: string) => {
+      const settled = props.app.settings.snapshot().resolution
+      return (
+        settingModelRef({ id, settled, catalogue: props.app.models }) ??
+        suggestedModelRef({ id, settled, catalogue: props.app.models })
+      )
+    },
     [props.app],
   )
 
@@ -626,6 +629,12 @@ function Workspace(props: {
     pendingCredentialNotice.current = null
     accounts.handleOpen(notice ?? undefined)
   }, [accounts])
+
+  const onboarding = useOnboarding({
+    app: props.app,
+    onChooseModel: handleChooseModelSetting,
+    onOpenAccounts: handleOpenAccounts,
+  })
 
   const handleRewindChoice = useCallback(
     ({ point, verb }: RewindChoice) => {
@@ -1180,6 +1189,7 @@ function Workspace(props: {
       covering(accounts.state !== null, accounts.handleKey),
       covering(threads.state !== null, threads.handleKey),
       covering(agentsPicker.state !== null, agentsPicker.handleKey),
+      { ...covering(onboarding.state !== null, onboarding.handleKey), porous: true },
       { ...covering(settings.state !== null, settings.handleKey), porous: true },
       { ...covering(footerStrip.state !== null, footerStrip.handleKey), coversTranscript: false },
       { open: compacting, coversComposer: true, coversTranscript: true },
@@ -1197,6 +1207,8 @@ function Workspace(props: {
       exitGuard.state,
       footerStrip.handleKey,
       footerStrip.state,
+      onboarding.handleKey,
+      onboarding.state,
       overlay,
       rewind.handleKey,
       rewind.state,
@@ -1422,6 +1434,7 @@ function Workspace(props: {
           services={services}
           agents={agents}
           settings={settings}
+          onboarding={onboarding}
           accounts={accounts}
           threads={threads}
           agentsPicker={agentsPicker}

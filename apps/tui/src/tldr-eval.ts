@@ -13,12 +13,10 @@ import { generateText, type LanguageModel } from 'ai'
 import {
   CredentialPort,
   EMessageOrigin,
-  EUtilityModelRole,
   EventLogPort,
   saidBy,
   toThreadId,
   transcriptOfRange,
-  UTILITY_MODEL_DEFAULTS,
   type Event,
 } from '@dltech/atlas-core'
 import {
@@ -31,6 +29,7 @@ import {
   openAtlasDatabase,
   portToken,
   PrismaClientToken,
+  TLDR_MODEL_ID,
   tldrFor,
 } from '@dltech/atlas-harness'
 
@@ -157,7 +156,7 @@ async function main(): Promise<void> {
     const log = container.resolve(portToken(EventLogPort))
     const model = createAnthropicOauthModel({
       credentials: container.resolve(portToken(CredentialPort)),
-      modelId: UTILITY_MODEL_DEFAULTS[EUtilityModelRole.Tldr].modelId,
+      modelId: TLDR_MODEL_ID,
     })
 
     const threads: { id: string; title: string | null }[] = await database.prisma.thread.findMany({

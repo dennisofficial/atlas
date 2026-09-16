@@ -229,7 +229,7 @@ describe('the model a child is actually run against', () => {
         asked.push(modelId)
         return port(modelId)
       },
-      subagentModelId: REACHABLE,
+      subagentModelId: () => REACHABLE,
     })
 
     const built = modelFor({ agentType: typeOf({ name: 'plain' }) })
@@ -242,12 +242,39 @@ describe('the model a child is actually run against', () => {
     const modelFor = pinnedModelSource({
       inherited: () => port('claude-opus-5'),
       build: ({ modelId }) => port(modelId),
-      subagentModelId: REACHABLE,
+      subagentModelId: () => REACHABLE,
     })
 
     const built = modelFor({ agentType: typeOf({ name: 'quick', model: ANOTHER_VENDOR }) })
 
     expect(built.identity.modelId).toBe(ANOTHER_VENDOR)
+  })
+
+  it('is the type\'s own settings row when one is set, ahead of the pin and the role', () => {
+    const TYPE_ROW = 'openrouter/anthropic/claude-haiku-4.5'
+    const modelFor = pinnedModelSource({
+      inherited: () => port('claude-opus-5'),
+      build: ({ modelId }) => port(modelId),
+      typeModelId: (typeName) => (typeName === 'quick' ? TYPE_ROW : undefined),
+      subagentModelId: () => REACHABLE,
+    })
+
+    const built = modelFor({ agentType: typeOf({ name: 'quick', model: ANOTHER_VENDOR }) })
+
+    expect(built.identity.modelId).toBe(TYPE_ROW)
+  })
+
+  it('re-reads the type row per spawn, so a mid-session change reaches the next child', () => {
+    let row: string | undefined
+    const modelFor = pinnedModelSource({
+      inherited: () => port('claude-opus-5'),
+      build: ({ modelId }) => port(modelId),
+      typeModelId: () => row,
+    })
+
+    expect(modelFor({ agentType: typeOf({ name: 'plain' }) }).identity.modelId).toBe('claude-opus-5')
+    row = REACHABLE
+    expect(modelFor({ agentType: typeOf({ name: 'plain' }) }).identity.modelId).toBe(REACHABLE)
   })
 
   it('is rebuilt per spawn, so a child started after a switch reads the current selection', () => {
