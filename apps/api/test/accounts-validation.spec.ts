@@ -8,6 +8,7 @@ import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
 import { SessionAuthGuard } from '../src/_module/session/session-auth.guard'
 import { AccountsController } from '../src/api/accounts/accounts.controller'
 import { AccountsService } from '../src/api/accounts/accounts.service'
+import { BrokerService } from '../src/api/accounts/broker.service'
 
 vi.mock('../src/db', () => ({ db: {} }))
 
@@ -19,6 +20,7 @@ describe('AccountsController validation (in-process)', () => {
       controllers: [AccountsController],
       providers: [
         AccountsService,
+        BrokerService,
         {
           provide: SecretCipherService,
           useValue: new SecretCipherService(
