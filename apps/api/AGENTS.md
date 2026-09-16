@@ -48,8 +48,13 @@ this reason: the `migrate` job existed in the file and never in the app.
 ```
 export DO_APP_ID=<app id>
 bun run do:spec:diff     # live spec vs .do/app.yaml — run this when either changes
-bun run do:spec:apply    # doctl apps update --spec
+bun run do:spec:apply    # backs the live spec up, then doctl apps update --spec
 ```
+
+`apps update --spec` replaces the whole spec rather than merging into it, so read the diff
+before applying: anything the control panel holds and the file does not is dropped. `apply`
+writes the live spec to `.do/live-spec.backup.yaml` (git-ignored) first, which is what you feed
+back to `--spec` to undo.
 
 PRE_DEPLOY jobs are API/CLI-only; the control panel cannot create one, and a spec edited there
 can drop it. Diff before you trust it.

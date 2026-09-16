@@ -82,3 +82,5 @@ packages/harness/src/execution/vendor/
 .next/
 *.tsbuildinfo
 apps/api/src/generated/
+
+.do/live-spec.backup.yaml
