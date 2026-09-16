@@ -45,6 +45,13 @@ created or updated through the API/CLI, so committing a change to it changes not
 — the live spec is whatever was last applied. Migrations silently stopped running for exactly
 this reason: the `migrate` job existed in the file and never in the app.
 
+The file is a mirror of the live spec, not a wish. It was not, once: it named an app `atlas-api`
+with a service `api` on port 3400, while the live app is `atlas` with `atlas-apps-api` on 8080,
+and it carried neither the `api.byatlas.io` domain nor the alerts. Applying that would have
+renamed both, moved the port and dropped the domain — `apps update --spec` replaces the spec
+rather than merging into it. Take the live spec as the base for any edit and keep the diff to
+what you mean to change.
+
 ```
 export DO_APP_ID=<app id>
 bun run do:spec:diff     # live spec vs .do/app.yaml — run this when either changes

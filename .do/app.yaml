@@ -1,40 +1,61 @@
-name: atlas-api
+alerts:
+- rule: DEPLOYMENT_FAILED
+- rule: DOMAIN_FAILED
+domains:
+- domain: api.byatlas.io
+  type: PRIMARY
+features:
+- buildpack-stack=ubuntu-22
+ingress:
+  rules:
+  - component:
+      name: atlas-apps-api
+    match:
+      authority:
+        exact: ""
+      path:
+        prefix: /
+name: atlas
 region: nyc
 services:
-  - name: api
-    source_dir: /
-    dockerfile_path: apps/api/Dockerfile
-    github:
-      repo: dennisofficial/atlas
-      branch: main
-      deploy_on_push: true
-    http_port: 3400
-    instance_count: 1
-    instance_size_slug: basic-xxs
-    routes:
-      - path: /
-    health_check:
-      http_path: /v1/health
-      initial_delay_seconds: 20
-    envs:
-      - key: APP_TIER
-        value: production
-      - key: DOTENV_PRIVATE_KEY_API_PRODUCTION
-        type: SECRET
+- dockerfile_path: apps/api/Dockerfile
+  envs:
+  - key: DOTENV_PRIVATE_KEY_API_PRODUCTION
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: EV[1:6sMXx7X/pb2Oemkp1Ai9dbRt/NTCyC9k:E1Mx6NOVNRXdcctQqhUuasDkvSBKoimtBzhMA8MfgGVzMKn7k8nlpyW2mQGoU/fnPet4VHE/oi+W6dbQgIJjd5gijxS140s44Xb0BNVrBt0=]
+  - key: APP_TIER
+    scope: RUN_AND_BUILD_TIME
+    value: production
+  github:
+    branch: main
+    deploy_on_push: true
+    repo: dennisofficial/atlas
+  health_check:
+    http_path: /v1/health
+    initial_delay_seconds: 20
+  http_port: 8080
+  instance_count: 1
+  instance_size_slug: apps-s-1vcpu-0.5gb
+  name: atlas-apps-api
 jobs:
-  - name: migrate
-    kind: PRE_DEPLOY
-    source_dir: /
-    dockerfile_path: apps/api/Dockerfile
-    github:
-      repo: dennisofficial/atlas
-      branch: main
-    instance_size_slug: basic-xxs
-    run_command: npm run db:migrate:deploy
-    envs:
-      - key: APP_TIER
-        value: production
-      - key: MIGRATE_TIER
-        value: production
-      - key: DOTENV_PRIVATE_KEY_API_PRODUCTION
-        type: SECRET
+- dockerfile_path: apps/api/Dockerfile
+  envs:
+  - key: DOTENV_PRIVATE_KEY_API_PRODUCTION
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: EV[1:6sMXx7X/pb2Oemkp1Ai9dbRt/NTCyC9k:E1Mx6NOVNRXdcctQqhUuasDkvSBKoimtBzhMA8MfgGVzMKn7k8nlpyW2mQGoU/fnPet4VHE/oi+W6dbQgIJjd5gijxS140s44Xb0BNVrBt0=]
+  - key: APP_TIER
+    scope: RUN_AND_BUILD_TIME
+    value: production
+  - key: MIGRATE_TIER
+    scope: RUN_AND_BUILD_TIME
+    value: production
+  github:
+    branch: main
+    repo: dennisofficial/atlas
+  instance_count: 1
+  instance_size_slug: apps-s-1vcpu-0.5gb
+  kind: PRE_DEPLOY
+  name: migrate
+  run_command: npm run db:migrate:deploy
