@@ -1,6 +1,9 @@
 import {
+  agentTypeSettingId,
   ANTHROPIC_PROVIDER_ID,
+  ESettingId,
   parseRef,
+  textValueOf,
   type Account,
   type CredentialPort,
   type ModelPort,
@@ -33,7 +36,7 @@ export function childModelSource(args: {
   model: SelectableModel
   modelPort: ModelPort
   hooks: () => HookChain
-  subagentModelId: () => string | undefined
+  settings: SettingsService
 }): ReturnType<typeof pinnedModelSource> {
   const { models, model, modelPort } = args
 
@@ -47,8 +50,18 @@ export function childModelSource(args: {
     return adapter.model({ card, effort: () => model.choice().effort })
   }
 
+  /** A setting that names a model nothing can run is skipped, not thrown on, so a stale pick degrades to the next voice in the chain instead of failing every spawn. */
+  const liveSetting = (id: string): string | undefined => {
+    const held = textValueOf({ resolution: args.settings.snapshot().resolution, id })
+    if (held.length === 0) return undefined
+
+    const ref = parseRef(held)
+    return ref !== undefined && isRefReachable({ catalogue: models, ref }) ? held : undefined
+  }
+
   return pinnedModelSource({
-    subagentModelId: args.subagentModelId(),
+    typeModelId: (typeName) => liveSetting(agentTypeSettingId(typeName)),
+    subagentModelId: () => liveSetting(ESettingId.SubagentModel),
     inherited: () => modelPort,
     build: ({ modelId }) =>
       faultInjected(
@@ -62,7 +75,7 @@ export function childModelSource(args: {
 
 import { createExecutionLocationState, type ExecutionLocationState } from './execution-location-state'
 import { executionPinned, resolveExecutionLocation } from './execution-preference'
-import { modelCatalogue, type ModelCatalogue } from './model-catalogue'
+import { isRefReachable, modelCatalogue, type ModelCatalogue } from './model-catalogue'
 import { launchSelection, modelPinned } from './model-preference'
 import { selectableModel, type SelectableModel } from './model-selection'
 import { bindSandbox, type SandboxControl } from './sandbox-binding'

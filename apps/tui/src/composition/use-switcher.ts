@@ -6,6 +6,7 @@ import { refKey, toggleFavourite, type EEffort, type ModelRef } from '@dltech/at
 import {
   adjustEffort,
   anchorOn,
+  EModelScope,
   modelCount,
   moveSelection,
   openSwitcher,
@@ -13,42 +14,35 @@ import {
   selectAt,
   selectedCard,
   switcherRows,
+  THREAD_TARGET,
   type SwitcherChoice,
   type SwitcherRow,
   type SwitcherState,
+  type SwitcherTarget,
 } from '../ui/switcher-model'
 import type { ModelCatalogue } from '@dltech/atlas-harness'
 
-/** Which of the two model preferences a pick lands on. */
-export enum EModelScope {
-  Thread = 'thread',
-  Default = 'default',
-}
+export { EModelScope, settingTarget, THREAD_TARGET } from '../ui/switcher-model'
+export type { SwitcherTarget } from '../ui/switcher-model'
 
 export type SwitcherControl = {
   state: SwitcherState | null
-  scope: EModelScope
+  target: SwitcherTarget
   rows: readonly SwitcherRow[]
   query: string
   total: number
   favourites: readonly string[]
-  handleOpen: (scope?: EModelScope) => void
+  handleOpen: (target?: SwitcherTarget) => void
   handleDismiss: () => void
   handlePick: (choice: SwitcherChoice) => void
   handleSelect: (index: number) => void
+  handleQuery: (typed: string) => void
   handleKey: (key: KeyEvent) => void
 }
 
-type Browsing = { state: SwitcherState; query: string; scope: EModelScope }
-
-const FILTERABLE = /[\w.:/-]/
+type Browsing = { state: SwitcherState; query: string; target: SwitcherTarget }
 
 const PIN_KEY = '*'
-
-const isFilterKey = (key: KeyEvent): boolean => {
-  const sequence = key.sequence ?? ''
-  return sequence.length === 1 && !key.ctrl && !key.meta && FILTERABLE.test(sequence)
-}
 
 /**
  * OpenTUI parses a whole input burst before React re-renders, so the run of key events a typed word
@@ -61,15 +55,25 @@ export function useSwitcher(args: {
   accountsVersion: number
   active: ModelRef
   effort: EEffort
-  /** Where the highlight starts when the picker is set on the default rather than the thread. */
   fallback: { ref: ModelRef; effort: EEffort }
+  settingRef: (id: string) => ModelRef | undefined
   favourites: readonly string[]
-  onPick: (args: { choice: SwitcherChoice; scope: EModelScope }) => void
+  onPick: (args: { choice: SwitcherChoice; target: SwitcherTarget }) => void
   onPin: (favourites: readonly string[]) => void
 }): SwitcherControl {
   const held = useRef<Browsing | null>(null)
   const [browsing, setBrowsing] = useState<Browsing | null>(null)
-  const { catalogue, accountsVersion, active, effort, fallback, favourites, onPick, onPin } = args
+  const {
+    catalogue,
+    accountsVersion,
+    active,
+    effort,
+    fallback,
+    settingRef,
+    favourites,
+    onPick,
+    onPin,
+  } = args
 
   const put = useCallback((next: Browsing | null) => {
     held.current = next
@@ -97,12 +101,15 @@ export function useSwitcher(args: {
   const total = useMemo(() => modelCount(catalogue.providers), [catalogue])
 
   const handleOpen = useCallback(
-    (scope: EModelScope = EModelScope.Thread) => {
-      const anchor = scope === EModelScope.Default ? fallback : { ref: active, effort }
+    (target: SwitcherTarget = THREAD_TARGET) => {
+      const anchor =
+        target.scope === EModelScope.Setting
+          ? { ref: settingRef(target.id) ?? fallback.ref, effort: fallback.effort }
+          : { ref: active, effort }
 
       put({
         query: '',
-        scope,
+        target,
         state: openSwitcher({
           providers: catalogue.providers,
           active: anchor.ref,
@@ -112,34 +119,37 @@ export function useSwitcher(args: {
         }),
       })
     },
-    [active, accountsVersion, catalogue, effort, fallback, favourites, put],
+    [active, accountsVersion, catalogue, effort, fallback, favourites, put, settingRef],
   )
 
   const handleDismiss = useCallback(() => put(null), [put])
 
   const handlePick = useCallback(
     (choice: SwitcherChoice) => {
-      const scope = held.current?.scope ?? EModelScope.Thread
+      const target = held.current?.target ?? THREAD_TARGET
       put(null)
-      onPick({ choice, scope })
+      onPick({ choice, target })
     },
     [onPick, put],
   )
 
-  const handleFilter = useCallback(
-    (args: { current: Browsing; typed: string }) => {
+  const handleQuery = useCallback(
+    (typed: string) => {
+      const current = held.current
+      if (current === null) return
+
       const following = selectedCard({
-        state: args.current.state,
-        rows: rowsFor(args.current.query),
+        state: current.state,
+        rows: rowsFor(current.query),
       })?.ref
 
       put({
-        ...args.current,
-        query: args.typed,
+        ...current,
+        query: typed,
         state: anchorOn({
-          rows: rowsFor(args.typed),
+          rows: rowsFor(typed),
           active: following,
-          effort: args.current.state.effort,
+          effort: current.state.effort,
         }),
       })
     },
@@ -191,47 +201,44 @@ export function useSwitcher(args: {
       const laid = rowsFor(current.query)
 
       if (key.name === 'escape') {
+        key.preventDefault()
         handleDismiss()
         return
       }
 
       if (key.name === 'return') {
+        key.preventDefault()
         handlePick(resolve({ state: current.state, rows: laid }))
         return
       }
 
       if (key.name === 'up' || key.name === 'down') {
+        key.preventDefault()
         const delta = key.name === 'up' ? -1 : 1
         put({ ...current, state: moveSelection({ state: current.state, delta, rows: laid }) })
         return
       }
 
       if (key.name === 'left' || key.name === 'right') {
+        if (current.target.scope === EModelScope.Setting && !current.target.withEffort) return
+        key.preventDefault()
         const delta = key.name === 'left' ? -1 : 1
         put({ ...current, state: adjustEffort({ state: current.state, delta, rows: laid }) })
         return
       }
 
-      if (key.name === 'backspace') {
-        handleFilter({ current, typed: current.query.slice(0, -1) })
-        return
-      }
-
-      if (key.sequence === PIN_KEY) {
+      if (key.sequence === PIN_KEY && !key.ctrl && !key.meta) {
+        key.preventDefault()
         handlePin(current)
-        return
       }
-
-      if (isFilterKey(key))
-        handleFilter({ current, typed: `${current.query}${key.sequence ?? ''}` })
     },
-    [handleDismiss, handleFilter, handlePick, handlePin, put, rowsFor],
+    [handleDismiss, handlePick, handlePin, put, rowsFor],
   )
 
   return useMemo(
     () => ({
       state: browsing?.state ?? null,
-      scope: browsing?.scope ?? EModelScope.Thread,
+      target: browsing?.target ?? THREAD_TARGET,
       rows,
       query,
       total,
@@ -240,6 +247,7 @@ export function useSwitcher(args: {
       handleDismiss,
       handlePick,
       handleSelect,
+      handleQuery,
       handleKey,
     }),
     [
@@ -249,6 +257,7 @@ export function useSwitcher(args: {
       handleKey,
       handleOpen,
       handlePick,
+      handleQuery,
       handleSelect,
       query,
       rows,

@@ -1,7 +1,7 @@
 import { refKey, type EEffort, type ModelRef } from '@dltech/atlas-core'
 import { createSwitchableModel, type Switchable } from '../model/switchable-model'
 
-import { isRefReachable, type ModelCatalogue } from './model-catalogue'
+import { isRefReachable, unanswerableRef, type ModelCatalogue } from './model-catalogue'
 
 export type ModelSelection = { ref: ModelRef; effort: EEffort }
 
@@ -13,8 +13,7 @@ export type ModelChoice = {
 
 export type SelectableModel = Switchable<ModelSelection>
 
-const unbuildable = (ref: ModelRef): Error =>
-  new Error(`no provider adapter can answer for ${refKey(ref)}`)
+const unbuildable = (ref: ModelRef): Error => unanswerableRef(refKey(ref))
 
 export function selectableModel(args: {
   initial: ModelSelection

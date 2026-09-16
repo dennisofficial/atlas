@@ -136,7 +136,7 @@ describe('the settings page', () => {
   })
 
   it('lists the options a choice offers', async () => {
-    const rows = await rowsOf(page({ state: { pageIndex: 1, rowIndex: 0 } }), WIDE)
+    const rows = await rowsOf(page({ state: { pageIndex: 2, rowIndex: 0 } }), WIDE)
 
     expect(rowWith(rows, 'Accent')).toContain(
       ['clay', 'slate', 'moss', 'plum'].join(OPTION_SEPARATOR),

@@ -1,16 +1,22 @@
 import {
+  ANTHROPIC_PROVIDER_ID,
   catalogOf,
   EAuthKind,
   findCard,
   reachableProviders,
   refKey,
   type Account,
+  type CredentialPort,
   type ModelCard,
   type ModelCatalog,
   type ModelRef,
 } from '@dltech/atlas-core'
-import { withoutDatedDuplicates } from '../models/generated-catalogue'
+import { cardsForProvider, withoutDatedDuplicates } from '../models/generated-catalogue'
 import type { ProviderAdapter } from '../providers/adapter'
+import { AnthropicAdapter } from '../providers/anthropic-adapter'
+import { INFERENCE_PROVIDER_ID, InferenceAdapter } from '../providers/inference-adapter'
+import { OPENAI_PROVIDER_ID, OpenAiAdapter } from '../providers/openai-adapter'
+import { OPENROUTER_PROVIDER_ID, OpenRouterAdapter } from '../providers/openrouter-adapter'
 
 export type CatalogueProvider = {
   id: string
@@ -88,6 +94,27 @@ export function modelCatalogue(args: {
     version: () => version,
   }
 }
+
+export const providerAdapters = (args: {
+  credentials: CredentialPort
+}): readonly ProviderAdapter[] => [
+  new AnthropicAdapter({
+    credentials: args.credentials,
+    cards: cardsForProvider(ANTHROPIC_PROVIDER_ID),
+  }),
+  new OpenAiAdapter({ credentials: args.credentials, cards: cardsForProvider(OPENAI_PROVIDER_ID) }),
+  new OpenRouterAdapter({
+    credentials: args.credentials,
+    cards: cardsForProvider(OPENROUTER_PROVIDER_ID),
+  }),
+  new InferenceAdapter({
+    credentials: args.credentials,
+    cards: cardsForProvider(INFERENCE_PROVIDER_ID),
+  }),
+]
+
+export const unanswerableRef = (key: string): Error =>
+  new Error(`no provider adapter can answer for ${key}`)
 
 export const isRefReachable = (args: { catalogue: ModelCatalogue; ref: ModelRef }): boolean =>
   args.catalogue.cardFor(args.ref) !== undefined && args.catalogue.reachable(args.ref.providerId)

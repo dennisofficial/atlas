@@ -21,12 +21,14 @@ export type SettingsSnapshot = {
 export type SettingsWrite = { ok: true } | { ok: false; message: string }
 
 export type SettingsService = {
-  definitions: readonly SettingDefinition[]
+  readonly definitions: readonly SettingDefinition[]
   snapshot: () => SettingsSnapshot
   version: () => number
   subscribe: (listener: () => void) => () => void
   set: (args: { id: string; value: SettingValue }) => SettingsWrite
   clear: (args: { id: string }) => SettingsWrite
+  /** Late-registered rows — the per-agent-type model picks exist only once the types are loaded. */
+  register: (extra: readonly SettingDefinition[]) => void
   reload: () => void
 }
 
@@ -40,6 +42,7 @@ export function createSettingsService(args: {
   environment?: SettingsLayerInput
 }): SettingsService {
   const listeners = new Set<() => void>()
+  let definitions = args.definitions
   let version = 0
   let snapshot = build()
 
@@ -66,7 +69,7 @@ export function createSettingsService(args: {
     if (project?.problem !== undefined) problems.push(project.problem)
 
     return {
-      resolution: resolveSettings({ definitions: args.definitions, layers }),
+      resolution: resolveSettings({ definitions, layers }),
       document: user.document,
       writesTo: args.user.origin(),
       problems,
@@ -91,7 +94,9 @@ export function createSettingsService(args: {
   }
 
   return {
-    definitions: args.definitions,
+    get definitions() {
+      return definitions
+    },
     snapshot: () => snapshot,
     version: () => version,
     subscribe: (listener) => {
@@ -103,6 +108,13 @@ export function createSettingsService(args: {
     set: ({ id, value }) =>
       persist(withSetting({ document: snapshot.document, id, value })),
     clear: ({ id }) => persist(withoutSetting({ document: snapshot.document, id })),
+    register: (extra) => {
+      const known = new Set(definitions.map((definition) => definition.id))
+      const novel = extra.filter((definition) => !known.has(definition.id))
+      if (novel.length === 0) return
+      definitions = [...definitions, ...novel]
+      republish()
+    },
     reload: republish,
   }
 }

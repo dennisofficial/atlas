@@ -8,23 +8,18 @@ import {
   EWebSearchBackend,
   backendOf,
   environmentFor,
-  JudgePort,
   type CredentialPort,
   type WorkspaceIdentity,
 } from '@dltech/atlas-core'
 
-import { HaikuJudge } from '../classifier/judge'
 import {
   ClassifierPolicyToken,
   WebSearchBackendToken,
   WorktreeDirectoryToken,
 } from '../container/tokens'
-import { portToken, type DependencyContainer } from '../container/injection'
-import { createAnthropicOauthModel } from '../providers/anthropic-oauth'
+import type { DependencyContainer } from '../container/injection'
 import type { SettingsService } from '../settings/service'
 import { remotesOf } from '../workspace/probe'
-
-import { TITLER_MODEL_ID } from './config'
 
 export async function bindSettingsPolicy(args: {
   container: DependencyContainer
@@ -70,12 +65,6 @@ export async function bindSettingsPolicy(args: {
             fallback: EClassifierMode.Shadow,
           }),
         ) ?? EClassifierMode.Shadow,
-    }),
-  })
-
-  container.register(portToken(JudgePort), {
-    useValue: new HaikuJudge({
-      model: createAnthropicOauthModel({ credentials: args.credentials, modelId: TITLER_MODEL_ID }),
     }),
   })
 

@@ -44,6 +44,21 @@ const settled = (args: {
     args.effort,
 })
 
+/**
+ * Nobody's choice can hardcode a provider: a user with only OpenRouter set up cannot run the
+ * shipped Anthropic default. The shipped ref leads when it is reachable; otherwise the first
+ * reachable provider's first card answers, and only a launch with no accounts at all — which
+ * onboarding intercepts before this matters — falls back to the shipped ref unanswered.
+ */
+export function fallbackRef(args: { catalogue: ModelCatalogue }): ModelRef {
+  if (isRefReachable({ catalogue: args.catalogue, ref: DEFAULT_MODEL_REF })) return DEFAULT_MODEL_REF
+
+  const offered = args.catalogue.providers.find((provider) =>
+    args.catalogue.reachable(provider.id),
+  )?.cards[0]
+  return offered?.ref ?? DEFAULT_MODEL_REF
+}
+
 /** The pair a conversation with no model of its own starts on, as the layers settled it. */
 export function defaultSelection(args: {
   settled: SettingsResolution
@@ -57,7 +72,7 @@ export function defaultSelection(args: {
   })
 
   return settled({
-    ref: usableRef({ reference, catalogue: args.catalogue }) ?? DEFAULT_MODEL_REF,
+    ref: usableRef({ reference, catalogue: args.catalogue }) ?? fallbackRef(args),
     effort: usableEffort(effort) ?? DEFAULT_EFFORT,
     catalogue: args.catalogue,
   })
@@ -110,10 +125,23 @@ export const storedModel = (selection: ModelSelection): ThreadModel => ({
   effort: selection.effort,
 })
 
-export function rememberDefault(args: {
+export function settingModelRef(args: {
+  id: string
+  settled: SettingsResolution
+  catalogue: ModelCatalogue
+}): ModelRef | undefined {
+  return usableRef({
+    reference: textValueOf({ resolution: args.settled, id: args.id }),
+    catalogue: args.catalogue,
+  })
+}
+
+export function rememberSettingModel(args: {
   settings: SettingsService
+  target: { id: string; withEffort: boolean }
   selection: ModelSelection
 }): void {
-  args.settings.set({ id: ESettingId.ModelId, value: refKey(args.selection.ref) })
+  args.settings.set({ id: args.target.id, value: refKey(args.selection.ref) })
+  if (!args.target.withEffort) return
   args.settings.set({ id: ESettingId.ModelEffort, value: args.selection.effort })
 }

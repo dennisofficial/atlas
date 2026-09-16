@@ -29,10 +29,9 @@ import {
   openAtlasDatabase,
   portToken,
   PrismaClientToken,
+  TLDR_MODEL_ID,
   tldrFor,
 } from '@dltech/atlas-harness'
-
-import { TLDR_MODEL_ID } from './composition/config'
 
 const argAfter = (flag: string, fallback: number): number => {
   const at = process.argv.indexOf(flag)

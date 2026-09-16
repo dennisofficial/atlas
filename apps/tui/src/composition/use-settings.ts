@@ -130,7 +130,7 @@ const preferencesOf = (resolution: SettingsResolution): Preferences => ({
 
 export function useSettings(args: {
   app: AtlasApp
-  onChooseModel: () => void
+  onChooseModel: (id: string) => void
 }): SettingsControl {
   const { app, onChooseModel } = args
   useSyncExternalStore(app.settings.subscribe, app.settings.version)
@@ -220,7 +220,7 @@ export function useSettings(args: {
       }
 
       if (row.definition.kind === ESettingKind.Model) {
-        onChooseModel()
+        onChooseModel(row.definition.id)
         return
       }
 

@@ -43,7 +43,9 @@ export function valueLabel(args: {
     return typeof value === 'string' ? value : definition.fallback
   }
   if (definition.kind === ESettingKind.Model) {
-    return typeof value === 'string' && value.length > 0 ? value : MODEL_NOT_SET
+    return typeof value === 'string' && value.length > 0
+      ? value
+      : (definition.unsetLabel ?? MODEL_NOT_SET)
   }
   if (definition.kind === ESettingKind.Choice) {
     if (typeof value !== 'string') return definition.fallback

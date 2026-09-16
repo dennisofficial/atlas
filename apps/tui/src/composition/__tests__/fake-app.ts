@@ -18,6 +18,7 @@ import {
   type Chunk,
   type ChunkFilter,
   EAuthKind,
+  ESettingId,
   toAccountId,
   type AccountDraft,
   type Credential,
@@ -827,7 +828,9 @@ export function fakeApp(args: {
       definitions: ATLAS_SETTINGS,
       user: new MemorySettingsStore({
         label: '~/.atlas/settings.json',
-        ...(args.settings === undefined ? {} : { document: args.settings }),
+        // A fake app is an established install — the onboarding gate reads an untouched
+        // document as a first launch. Pass settings: { values: {} } to be fresh.
+        document: args.settings ?? { values: { [ESettingId.Accent]: 'clay' } },
       }),
     }),
     secrets: args.secretsPort ?? new MemorySecretsStore({

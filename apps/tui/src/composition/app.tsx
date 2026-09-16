@@ -21,7 +21,7 @@ import {
   type EUsageWindow,
   type ModelCard,
 } from '@dltech/atlas-core'
-import { forkConversation, relocateSession, type DiscoveredSkill } from '@dltech/atlas-harness'
+import { forkConversation, relocateSession, settingModelRef, suggestedModelRef, type DiscoveredSkill } from '@dltech/atlas-harness'
 
 import { newestExpandableKey, type PendingSaid } from '../store'
 import { withCloud, withContainer, withSections } from '../store/sidebar-model'
@@ -125,6 +125,8 @@ import {
   type OverlayPresence,
 } from './overlay-presence'
 import { useOverlayKeys } from './use-overlay-keys'
+import { useModelChecks } from './use-model-checks'
+import { useOnboarding } from './use-onboarding'
 import { useSettings } from './use-settings'
 import { useServices } from './use-services'
 import { useShells } from './use-shells'
@@ -139,7 +141,7 @@ import { useAgents } from './use-agents'
 import { useAgentView } from './use-agent-view'
 import { SubagentTranscript } from './subagent-transcript'
 import { useAgentsPicker } from './use-agents-picker'
-import { EModelScope, useSwitcher } from './use-switcher'
+import { settingTarget, useSwitcher } from './use-switcher'
 import { useThreadModel } from './use-thread-model'
 import { useContainerGuard } from './use-container-guard'
 import { useContainerPill } from './use-container-pill'
@@ -302,10 +304,13 @@ function Workspace(props: {
   const usageVersion = useSyncExternalStore(props.app.usage.subscribe, props.app.usage.version)
   const accountsVersion = useSyncExternalStore(props.app.models.subscribe, props.app.models.version)
 
-  const chooseDefaultModel = useRef<(() => void) | null>(null)
-  const handleChooseDefaultModel = useCallback(() => chooseDefaultModel.current?.(), [])
+  const chooseModelSetting = useRef<((id: string) => void) | null>(null)
+  const handleChooseModelSetting = useCallback((id: string) => {
+    chooseModelSetting.current?.(id)
+  }, [])
 
-  const settings = useSettings({ app: props.app, onChooseModel: handleChooseDefaultModel })
+  const settings = useSettings({ app: props.app, onChooseModel: handleChooseModelSetting })
+  useModelChecks(props.app)
 
   useCopyOnSelect()
 
@@ -447,12 +452,24 @@ function Workspace(props: {
     conversation.handleNewConversation()
   }, [conversation, draft])
 
+  const heldSettingRef = useCallback(
+    (id: string) => {
+      const settled = props.app.settings.snapshot().resolution
+      return (
+        settingModelRef({ id, settled, catalogue: props.app.models }) ??
+        suggestedModelRef({ id, settled, catalogue: props.app.models })
+      )
+    },
+    [props.app],
+  )
+
   const switcher = useSwitcher({
     catalogue: props.app.models,
     accountsVersion,
     active: selection.ref,
     effort: selection.effort,
     fallback: threadModel.fallback,
+    settingRef: heldSettingRef,
     favourites: settings.modelFavourites,
     onPick: threadModel.handlePicked,
     onPin: settings.handlePinModels,
@@ -461,8 +478,11 @@ function Workspace(props: {
   const openSwitcher = switcher.handleOpen
 
   useEffect(() => {
-    chooseDefaultModel.current = () => openSwitcher(EModelScope.Default)
-  }, [openSwitcher])
+    chooseModelSetting.current = (id) => {
+      const definition = props.app.settings.definitions.find((one) => one.id === id)
+      openSwitcher(settingTarget({ id, label: definition?.label ?? id }))
+    }
+  }, [openSwitcher, props.app.settings.definitions])
 
   const shells = useShells({ app: props.app, threadId: conversation.threadId })
   const services = useServices({ app: props.app })
@@ -678,6 +698,12 @@ function Workspace(props: {
     pendingCredentialNotice.current = null
     accounts.handleOpen(notice ?? undefined)
   }, [accounts])
+
+  const onboarding = useOnboarding({
+    app: props.app,
+    onChooseModel: handleChooseModelSetting,
+    onOpenAccounts: handleOpenAccounts,
+  })
 
   const handleRewindChoice = useCallback(
     ({ point, verb }: RewindChoice) => {
@@ -1269,12 +1295,13 @@ function Workspace(props: {
       covering(rewindConfirm.state !== null, rewindConfirm.handleKey),
       covering(approval.state !== null, approval.handleKey),
       covering(rewind.state !== null, rewind.handleKey),
-      covering(switcher.state !== null, switcher.handleKey),
+      { ...covering(switcher.state !== null, switcher.handleKey), porous: true },
       covering(shells.state !== null, shells.handleKey),
       covering(services.state !== null, services.handleKey),
       covering(accounts.state !== null, accounts.handleKey),
       covering(threads.state !== null, threads.handleKey),
       covering(agentsPicker.state !== null, agentsPicker.handleKey),
+      { ...covering(onboarding.state !== null, onboarding.handleKey), porous: true },
       { ...covering(settings.state !== null, settings.handleKey), porous: true },
       { ...covering(footerStrip.state !== null, footerStrip.handleKey), coversTranscript: false },
       { open: compacting, coversComposer: true, coversTranscript: true },
@@ -1292,6 +1319,8 @@ function Workspace(props: {
       exitGuard.state,
       footerStrip.handleKey,
       footerStrip.state,
+      onboarding.handleKey,
+      onboarding.state,
       overlay,
       rewind.handleKey,
       rewind.state,
@@ -1520,6 +1549,7 @@ function Workspace(props: {
           services={services}
           agents={agents}
           settings={settings}
+          onboarding={onboarding}
           accounts={accounts}
           threads={threads}
           agentsPicker={agentsPicker}

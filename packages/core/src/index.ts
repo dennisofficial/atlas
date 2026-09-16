@@ -175,6 +175,7 @@ export * from './models/favourites'
 export * from './models/pressure'
 export * from './models/usage'
 export * from './models/retry'
+export * from './models/utility-roles'
 
 export * from './usage/window'
 export * from './usage/meter'
@@ -197,6 +198,7 @@ export * from './settings/layers'
 export * from './settings/resolve'
 export * from './settings/edit'
 export * from './settings/registry'
+export * from './settings/agent-type-rows'
 
 export * from './version/semver'
 

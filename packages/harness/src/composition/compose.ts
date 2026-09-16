@@ -2,10 +2,13 @@ import { homedir } from 'node:os'
 
 import {
   AccountStorePort,
+  agentTypeModelDefinitions,
   EventLogPort,
   ENoticeTone,
   ESettingId,
+  EUtilityModelRole,
   IdPort,
+  JudgePort,
   ModelPort,
   NOTICE_WARN_MS,
   parseRef,
@@ -30,9 +33,9 @@ import {
   WorkspaceRoot,
 } from '../container/tokens'
 import type { HookMishap } from '../hooks/budget'
+import { HaikuJudge } from '../classifier/judge'
 import { FileBrowser } from '../files/file-browser'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
-import { createAnthropicOauthModel } from '../providers/anthropic-oauth'
 import { summaryFor } from '../model/summariser'
 import { titleFor } from '../model/titler'
 import { registerMcp } from '../mcp/registry/register-mcp'
@@ -49,7 +52,7 @@ import { probeWorkspace } from '../workspace/probe'
 
 import { bindAccounts, bindKeychainSource } from './account-bindings'
 import type { Summariser } from './compact-turn'
-import { SUMMARISER_MODEL_ID, TITLER_MODEL_ID, TLDR_MODEL_ID, type HarnessLaunch } from './config'
+import type { HarnessLaunch } from './config'
 import { bindInstructionsAndMemory } from './context-bindings'
 import { faultInjected } from './fault-injection'
 import type { HarnessApp, HarnessStoreBinding, HarnessSurfaceBinding } from './harness-app'
@@ -57,6 +60,7 @@ import { mcpBootNotice } from './mcp-report'
 import { knownRefs } from './model-catalogue'
 import { bindModels } from './model-bindings'
 import { bindSettingsPolicy } from './policy-bindings'
+import { createUtilityModel } from './utility-model'
 import { reachableRootsFor } from './reachable-files'
 import { journalResume } from './resume-journal'
 import type { ActiveConversation } from './resume-hint'
@@ -180,6 +184,21 @@ export async function composeHarness<TSurface = undefined, Command = never>(args
     subagentModelId: launchValue(ESettingId.SubagentModel),
   })
 
+  settings.register(
+    agentTypeModelDefinitions({ typeNames: agentTypes.types.map((type) => type.name) }),
+  )
+
+  container.register(portToken(JudgePort), {
+    useValue: new HaikuJudge({
+      model: createUtilityModel({
+        role: EUtilityModelRole.Judge,
+        settings,
+        catalogue: models,
+        notice,
+      }),
+    }),
+  })
+
   if (args.stores !== undefined) await args.stores.bind({ container })
 
   const log = container.resolve(portToken(EventLogPort))
@@ -211,13 +230,28 @@ export async function composeHarness<TSurface = undefined, Command = never>(args
 
   let activeThread: ActiveConversation | null = null
 
-  const titlerModel = createAnthropicOauthModel({ credentials, modelId: TITLER_MODEL_ID })
-  const summariserModel = createAnthropicOauthModel({ credentials, modelId: SUMMARISER_MODEL_ID })
-  const tldrModel = createAnthropicOauthModel({ credentials, modelId: TLDR_MODEL_ID })
+  const titlerModel = createUtilityModel({
+    role: EUtilityModelRole.Titler,
+    settings,
+    catalogue: models,
+    notice,
+  })
+  const compactionModel = createUtilityModel({
+    role: EUtilityModelRole.Compaction,
+    settings,
+    catalogue: models,
+    notice,
+  })
+  const tldrModel = createUtilityModel({
+    role: EUtilityModelRole.Tldr,
+    settings,
+    catalogue: models,
+    notice,
+  })
 
   const summarise: Summariser = ({ events, fromSeq, throughSeq, signal }) =>
     summaryFor({
-      model: summariserModel,
+      model: compactionModel,
       events,
       fromSeq,
       throughSeq,
@@ -238,10 +272,10 @@ export async function composeHarness<TSurface = undefined, Command = never>(args
     channel,
     notice,
     summarise,
-    subagentModelId: () => launchValue(ESettingId.SubagentModel),
+    settings,
     stopSandbox: sandbox.stop,
     settled,
-    tldr: { feed: surface.tldrFeed, model: tldrModel, modelId: TLDR_MODEL_ID },
+    tldr: { feed: surface.tldrFeed, model: tldrModel, modelId: () => tldrModel.modelId },
   })
 
   return {

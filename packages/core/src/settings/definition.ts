@@ -2,6 +2,7 @@ import { ESettingKind, type SettingOption } from './value'
 
 export enum ESettingPage {
   General = 'general',
+  Models = 'models',
   Appearance = 'appearance',
   Account = 'account',
   Hidden = 'hidden',
@@ -50,6 +51,8 @@ export type TextDefinition = SettingFacts & {
 export type ModelDefinition = SettingFacts & {
   kind: ESettingKind.Model
   fallback: string
+  /** What the row reads while nothing is set — the resolution chain's own words for "empty". */
+  unsetLabel?: string
 }
 
 export type SecretDefinition = SettingFacts & {
