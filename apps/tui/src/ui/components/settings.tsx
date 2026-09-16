@@ -1,4 +1,4 @@
-import type { SecretPrompt as SecretPromptState } from '@dltech/atlas-core'
+import { ESettingPage, type SecretPrompt as SecretPromptState } from '@dltech/atlas-core'
 import type { ScrollBoxRenderable } from '@opentui/core'
 import React, { useEffect, useRef } from 'react'
 
@@ -7,6 +7,7 @@ import { usePress } from '../hooks/use-press'
 import { currentPage, type SettingsModel, type SettingsState } from '../settings-model'
 import { theme } from '../theme'
 import type { Appearance } from '../appearance'
+import { SettingsAccount } from './settings/account'
 import { SettingsBand } from './settings/band'
 import { SettingsDetail } from './settings/detail'
 import { SettingsHead } from './settings/head'
@@ -24,6 +25,17 @@ const HINTS: readonly Hint[] = [
   { key: 'esc', label: 'back' },
 ]
 
+const ACCOUNT_HINTS_SIGNED_IN: readonly Hint[] = [
+  { key: '⏎', label: 'sign out' },
+  { key: '⇥', label: 'tab' },
+  { key: 'esc', label: 'back' },
+]
+
+const ACCOUNT_HINTS_SIGNED_OUT: readonly Hint[] = [
+  { key: '⇥', label: 'tab' },
+  { key: 'esc', label: 'back' },
+]
+
 const GAP_CELLS = 1
 
 const settingsCells = (args: { width: number }): number =>
@@ -34,13 +46,14 @@ export const settingsDetailVisible = (args: { width: number; sidebarWidth: numbe
 
 function FooterLine(props: {
   cells: number
+  hints: readonly Hint[]
   status: string
   failing: boolean
   onDismiss: () => void
 }): React.ReactNode {
   const press = usePress()
   const hints = hintSpans({
-    hints: fitHints({ hints: HINTS, cells: props.cells }),
+    hints: fitHints({ hints: props.hints, cells: props.cells }),
     keyColour: theme.meta,
   })
   const width = hints.reduce((total, span) => total + [...span.text].length, 0)
@@ -73,6 +86,9 @@ export function Settings(props: {
   secretOf: (id: string) => Span | undefined
   secretOrigin: string
   problem?: string | undefined
+  cloudEmail: string | null
+  cloudSignedIn: boolean
+  onSignOut: () => void
   onActivate: (target: { pageIndex: number; rowIndex: number }) => void
   onDismiss: () => void
 }): React.ReactNode {
@@ -82,6 +98,21 @@ export function Settings(props: {
   const cells = settingsCells({ width: columnWidth })
   const page = currentPage({ state: props.state, model: props.model })
   const selected = page?.rows[props.state.rowIndex]
+  const onAccountPage = page?.page.id === ESettingPage.Account
+
+  const status =
+    props.problem ??
+    (onAccountPage
+      ? 'providers and api keys live in the accounts overlay — ctrl+a'
+      : props.prompt === null
+        ? `edits write to ${props.origin}`
+        : `sealed into ${props.secretOrigin}, never into ${props.origin}`)
+
+  const hints = onAccountPage
+    ? props.cloudSignedIn
+      ? ACCOUNT_HINTS_SIGNED_IN
+      : ACCOUNT_HINTS_SIGNED_OUT
+    : HINTS
 
   const scroller = useRef<ScrollBoxRenderable | null>(null)
   const selectedId = selected?.definition.id
@@ -118,7 +149,15 @@ export function Settings(props: {
         >
           <scrollbox ref={scroller} flexGrow={1} flexShrink={1} flexBasis={0}>
             <box flexDirection="column" flexShrink={0} gap={1}>
-              {page?.groups.map((group) => (
+              {onAccountPage ? (
+                <SettingsAccount
+                  cells={cells}
+                  email={props.cloudEmail}
+                  signedIn={props.cloudSignedIn}
+                  onSignOut={props.onSignOut}
+                />
+              ) : null}
+              {onAccountPage ? null : page?.groups.map((group) => (
                 <box key={group.label} flexDirection="column" flexShrink={0}>
                   <SettingsGroupHeader label={group.label} />
                   {group.rows.map((row) => (
@@ -151,12 +190,8 @@ export function Settings(props: {
           )}
           <FooterLine
             cells={cells}
-            status={
-              props.problem ??
-              (props.prompt === null
-                ? `edits write to ${props.origin}`
-                : `sealed into ${props.secretOrigin}, never into ${props.origin}`)
-            }
+            hints={hints}
+            status={status}
             failing={props.problem !== undefined}
             onDismiss={props.onDismiss}
           />

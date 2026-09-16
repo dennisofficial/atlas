@@ -3,6 +3,7 @@ import { ESettingKind, type SettingOption } from './value'
 export enum ESettingPage {
   General = 'general',
   Appearance = 'appearance',
+  Account = 'account',
   Hidden = 'hidden',
 }
 

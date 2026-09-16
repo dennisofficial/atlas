@@ -65,6 +65,9 @@ const page = (args: {
       secretOf={args.secretOf ?? (() => undefined)}
       secretOrigin={SECRETS_ORIGIN}
       {...(args.problem === undefined ? {} : { problem: args.problem })}
+      cloudEmail={null}
+      cloudSignedIn={false}
+      onSignOut={() => {}}
       onActivate={() => {}}
       onDismiss={() => {}}
     />

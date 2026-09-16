@@ -1,6 +1,7 @@
 import {
   ATLAS_SETTINGS,
   ESettingId,
+  ESettingPage,
   ESettingsLayer,
   resolveSettings,
   type SettingsLayerInput,
@@ -23,10 +24,17 @@ const modelWith = (layers: readonly SettingsLayerInput[] = []): SettingsModel =>
   })
 
 describe('settingsModel', () => {
-  it('keeps only the pages that have something on them', () => {
+  it('keeps only the pages that have something on them, plus the account page', () => {
     const model = modelWith()
 
-    expect(model.pages.map((page) => page.page.label)).toEqual(['general', 'appearance'])
+    expect(model.pages.map((page) => page.page.label)).toEqual(['general', 'appearance', 'account'])
+  })
+
+  it('keeps the account page even though it holds no settings of its own', () => {
+    const account = modelWith().pages.at(-1)
+
+    expect(account?.page.id).toBe(ESettingPage.Account)
+    expect(account?.rows).toEqual([])
   })
 
   it('gathers consecutive rows under one group heading', () => {
@@ -90,9 +98,13 @@ describe('moving around the page', () => {
     const moved = movePage({ state: { pageIndex: 0, rowIndex: 1 }, model, delta: 1 })
 
     expect(moved).toEqual({ pageIndex: 1, rowIndex: 0 })
-    expect(movePage({ state: moved, model, delta: 1 })).toEqual({ pageIndex: 0, rowIndex: 0 })
+    expect(movePage({ state: moved, model, delta: 1 })).toEqual({ pageIndex: 2, rowIndex: 0 })
+    expect(movePage({ state: { pageIndex: 2, rowIndex: 0 }, model, delta: 1 })).toEqual({
+      pageIndex: 0,
+      rowIndex: 0,
+    })
     expect(movePage({ state: openSettings(), model, delta: -1 })).toEqual({
-      pageIndex: 1,
+      pageIndex: 2,
       rowIndex: 0,
     })
   })

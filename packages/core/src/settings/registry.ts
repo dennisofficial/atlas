@@ -8,6 +8,7 @@ import { ESettingKind, type SettingOption } from './value'
 export const SETTING_PAGES: readonly SettingPage[] = [
   { id: ESettingPage.General, label: 'general' },
   { id: ESettingPage.Appearance, label: 'appearance' },
+  { id: ESettingPage.Account, label: 'account' },
 ]
 
 export enum ESettingId {

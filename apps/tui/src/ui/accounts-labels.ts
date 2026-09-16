@@ -61,10 +61,7 @@ const signedOutDetail = (provider: EAuthProvider): string =>
     .filter((part) => part.length > 0)
     .join(' · ')
 
-const cloudDetail = (row: Extract<AccountRow, { kind: EAccountRow.Cloud }>): string => {
-  if (row.session === null) return 'not signed in · sign in'
-  return `${row.session.email ?? 'signed in'} · press x to sign out`
-}
+const CLOUD_DETAIL = 'not signed in · sign in'
 
 const githubDetail = (row: Extract<AccountRow, { kind: EAccountRow.Github }>): string => {
   if (row.github.unreachable) return "couldn't reach Atlas Cloud"
@@ -79,7 +76,7 @@ export const rowLabel = (row: AccountRow): string => {
 }
 
 export const rowDetail = (row: AccountRow): string => {
-  if (row.kind === EAccountRow.Cloud) return cloudDetail(row)
+  if (row.kind === EAccountRow.Cloud) return CLOUD_DETAIL
   if (row.kind === EAccountRow.Github) return githubDetail(row)
   return row.kind === EAccountRow.Account ? accountDetail(row.account) : signedOutDetail(row.provider)
 }

@@ -4,7 +4,6 @@ import type { CloudLoginTicket, CloudService, UrlOpener } from '@dltech/atlas-ha
 import { ECloudLoginPoll, pollCloudLogin } from '@dltech/atlas-harness'
 
 import {
-  announced,
   askForCloudCode,
   backToList,
   EAccountsView,
@@ -14,7 +13,6 @@ import {
 
 export type CloudLoginControl = {
   begin: (current: AccountsState) => void
-  signOut: () => void
   stop: () => void
 }
 
@@ -145,10 +143,5 @@ export function useCloudLogin(args: {
     [cloud, held, openUrl, poll, put],
   )
 
-  const signOut = useCallback(() => {
-    cloud.logout()
-    refresh((next) => announced({ state: next, notice: 'Signed out of Atlas Cloud.' }))
-  }, [cloud, refresh])
-
-  return { begin, signOut, stop }
+  return { begin, stop }
 }
