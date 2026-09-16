@@ -20,7 +20,7 @@ import type {
 
 import { EOpenMode, type OpenRequest } from './config'
 import { readThreadSpend } from './thread-spend'
-import { slugOfTitle } from './thread-slug'
+import { slugOfTitle } from '@dltech/atlas-harness'
 
 /**
  * `started` is what the store knows, not what the screen shows: a conversation nobody has spoken in

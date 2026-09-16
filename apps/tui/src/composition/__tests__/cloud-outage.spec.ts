@@ -1,7 +1,7 @@
 import { CloudError, CloudSignInRequiredError } from '@dltech/atlas-harness'
 import { describe, expect, it } from 'bun:test'
 
-import { cloudOutageMessage, isCloudOutage } from '../cloud-outage'
+import { cloudOutageMessage, isCloudOutage } from '@dltech/atlas-harness'
 import { diagnoseCredentialFailure } from '../credential-diagnosis'
 
 describe('a cloud outage is a degradation, not a crash', () => {

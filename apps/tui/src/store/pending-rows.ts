@@ -7,7 +7,7 @@ import {
 } from '@dltech/atlas-harness'
 
 import { agentEndedLine, agentEndingFailed } from './agent-ended-line'
-import type { PendingEntry } from './pending-queue'
+import type { PendingEntry } from '@dltech/atlas-harness'
 import { serviceEndedLine, serviceEndingFailed } from './service-ended-line'
 import {
   shellAwaitingInputLine,

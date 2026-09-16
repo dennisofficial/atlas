@@ -7,12 +7,9 @@ import {
   type ModelCard,
   type ModelRef,
 } from '@dltech/atlas-core'
+import type { CatalogueProvider } from '@dltech/atlas-harness'
 
-export type SwitcherProvider = {
-  id: string
-  label: string
-  cards: readonly ModelCard[]
-}
+export type SwitcherProvider = CatalogueProvider
 
 export type SwitcherAvailability = ReadonlySet<string> | ((providerId: string) => boolean)
 

@@ -1,6 +1,6 @@
 import { ECommandGroup, ECommandKind, EExecutionLocation } from '@dltech/atlas-core'
 
-import { ECompactScope, scopeOfArgument } from '../compact-turn'
+import { ECompactScope, scopeOfArgument } from '@dltech/atlas-harness'
 import { ERenamed } from '../session-rename'
 import type { Renaming } from '../session-rename'
 import { reloadNotice, type SkillsReloaded } from '../skills-reload'

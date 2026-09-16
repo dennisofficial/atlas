@@ -24,11 +24,12 @@ export {
 } from './in-flight-steps'
 export {
   createPendingQueue,
+  createPendingQueues,
   type PendingMessage,
   type PendingQueue,
+  type PendingQueues,
   type PendingSaid,
-} from './pending-queue'
-export { createPendingQueues, type PendingQueues } from './pending-queues'
+} from '@dltech/atlas-harness'
 export { EPendingKind, pendingRows, type PendingRow } from './pending-rows'
 export {
   shellAwaitingInputLine,

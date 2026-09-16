@@ -77,15 +77,15 @@ import type { PullRequestPort } from '../../plugins/github/pure'
 
 import { createPendingQueues } from '../../store'
 import type { QueuedSettled } from '../commands'
-import { userSaidDraft } from '../user-said'
+import { userSaidDraft } from '@dltech/atlas-harness'
 import type { AtlasApp } from '../compose'
-import type { ActiveConversation } from '../resume-hint'
-import { threadHandle } from '../thread-slug'
-import { heldChoice } from '../model-selection'
-import type { ModelCatalogue } from '../providers'
+import type { ActiveConversation } from '@dltech/atlas-harness'
+import { threadHandle } from '@dltech/atlas-harness'
+import { heldChoice } from '@dltech/atlas-harness'
+import type { ModelCatalogue } from '@dltech/atlas-harness'
 import { DEFAULT_MODEL_REF, EOpenMode, type AtlasConfig, type OpenRequest } from '../config'
-import { createExecutionLocationState } from '../execution-location-state'
-import { createSandboxStatusState } from '../sandbox-status-state'
+import { createExecutionLocationState } from '@dltech/atlas-harness'
+import { createSandboxStatusState } from '@dltech/atlas-harness'
 import { fakeAgentRegistry, type FakeAgents } from './fake-agents'
 import { fakeServiceRegistry, type FakeServices } from './fake-services'
 import {
@@ -786,6 +786,12 @@ export function fakeApp(args: {
       ...FAKE_CONFIG,
       ...(args.cwd === undefined ? {} : { cwd: args.cwd }),
       ...(args.open === undefined ? {} : { open: args.open }),
+    },
+    launch: {
+      cwd: args.cwd ?? FAKE_CONFIG.cwd,
+      command: 'atlas-dev',
+      model: undefined,
+      executionLocation: undefined,
     },
     command: 'atlas-dev',
     journalResume: ({ active, directory }) => {

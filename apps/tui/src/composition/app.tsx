@@ -102,7 +102,7 @@ import {
   pendingSwitchNotice,
   relocatedNotice,
 } from './container-notices'
-import { mcpReport } from './mcp-report'
+import { mcpReport } from '@dltech/atlas-harness'
 import { useComposerMenus } from './use-composer-menus'
 import { workspaceFileLoader } from './mentioned-files'
 import { useResolvedMentions } from './use-resolved-mentions'
@@ -111,7 +111,7 @@ import { reloadedSkills, type SkillsReloaded } from './skills-reload'
 import { globalBindings } from './global-bindings'
 import { applyTranscriptCovered } from '../ui/covered-store'
 import { OverlayStack } from './overlay-stack'
-import { unmeasuredWindowWarning } from './providers'
+import { unmeasuredWindowWarning } from '@dltech/atlas-harness'
 import { settleStaleness } from './auto-restart'
 import { checkForUpdate, sourceStalenessProbe, type SourceStaleness } from './update-check'
 import type { OpenedConversation } from './open-conversation'

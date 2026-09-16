@@ -17,7 +17,7 @@ import React from 'react'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
-import { modelCatalogue } from '../providers'
+import { modelCatalogue } from '@dltech/atlas-harness'
 import { until } from './app-fixture'
 import { alwaysAuthorised, fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 

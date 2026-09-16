@@ -1246,7 +1246,7 @@ atlas/
     harness/    the loop, hooks, tools, model adapters, credentials, store
     ui/         design tokens (pure TS, platform-agnostic) + web UI atoms + Storybook
   apps/
-    tui/        OpenTUI + React, and the composition root
+    tui/        OpenTUI + React; wraps the shared composition root with terminal bindings
     api/        Atlas Cloud backend (NestJS): auth, users, credential storage
   docs/
   deprecated/   frozen reference: the previous TUI, the never-run agent-engine and the codex-sdk
@@ -1266,6 +1266,16 @@ over HTTP. Its own conventions live in `apps/api/AGENTS.md`.
 into `core`, not to add a mock. `tui` never imports `store` or `providers` directly — it talks to
 `harness` through its ports, and the composition root is the only place that knows which
 implementation is bound.
+
+**The composition root is shared, and lives in `harness/src/composition`.** `composeHarness`
+assembles a whole session — container, settings policy, model selection, execution routing, sandbox,
+skills/MCP/agent types, credentials, turn wiring — knowing nothing about who asked. A surface (the
+TUI today; a serve mode or web app later) injects its half through `HarnessSurfaceBinding`: a
+`NoticePort` to report through, an optional `TldrFeed` to stream turn summaries into, and a `bind`
+callback for its own container registrations (the TUI's warp reporter and plugin assembly), which
+runs after every built-in registration and before the instance-cached `HookChain`/`ToolRegistry`
+first resolve. What `bind` returns rides out on `HarnessApp.surface`. The TUI's `composeAtlas` is
+that wrapper; anything UI-shaped — notice stores, plugin surfaces, argv parsing — stays in the app.
 
 A package boundary is worth it only where the compiler should enforce a dependency rule: `core` has
 no I/O, `harness` is importable without a terminal, `ui` imports nothing from Atlas. `store` and
@@ -1304,6 +1314,8 @@ packages/core/src/
   message/       Atlas's own message type (see below)
 
 packages/harness/src/
+  composition/   the shared composition root: composeHarness, surface binding, model/execution
+                 selection, sandbox and settings wiring, pending-input queues live in pending/
   loop/          runTurn, settlePending
   model/         ModelPort over AI SDK; the stream accumulator
   providers/     ProviderAdapter impls, one per vendor: anthropic, openai, openrouter, inference
@@ -1325,7 +1337,7 @@ packages/harness/src/
 
 apps/tui/src/
   main.tsx
-  composition/   the container bootstrap — the only place bindings are chosen
+  composition/   the surface wrapper: binds terminal stores into the shared root
   store/         ConversationStore: log + delta channel → useSyncExternalStore
   ui/            components, pages
   ui/markdown/            segmenter, prose, tables, fenced blocks; the renderer registry
