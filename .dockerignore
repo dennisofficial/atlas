@@ -1,5 +1,7 @@
 **/node_modules
 **/dist
+packages/harness/bin
+packages/harness/src/execution/vendor
 **/.turbo
 **/.vercel
 **/coverage
