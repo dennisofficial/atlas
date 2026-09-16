@@ -16,7 +16,7 @@ import {
 import { memoryAccountStore, type AccountStore } from '../../credentials/account-store'
 import { CredentialError, ECredentialFailure } from '../../credentials/credential-error'
 import { RefreshingCredentialPort } from '../../credentials/refreshing-credential-port'
-import { AccountStoreProxy, CLOUD_OUTAGE_COOLDOWN_MS } from '../account-store-proxy'
+import { AccountStoreProxy } from '../account-store-proxy'
 import { CloudSessionStore } from '../cloud-session'
 import { CloudSignInRequiredError } from '../sign-in-required'
 
@@ -263,6 +263,12 @@ describe('AccountStoreProxy when the cloud is answering badly', () => {
       origin: EAccountOrigin.Login,
     })
 
+  const failureOf = async (): Promise<unknown> =>
+    proxy.list().then(
+      () => undefined,
+      (error: unknown) => error,
+    )
+
   const failing = (status: number) => () =>
     new Response(JSON.stringify({ message: 'Internal server error' }), {
       status,
@@ -281,103 +287,38 @@ describe('AccountStoreProxy when the cloud is answering badly', () => {
       answer()) as typeof fetch
   })
 
-  it('serves the local store rather than throwing when the cloud 500s', async () => {
+  it('fails the call when the cloud 500s rather than serving the archived local vault', async () => {
     signIn('sess_a')
     await seedLocal()
     answer = failing(500)
 
-    expect(await proxy.list()).toHaveLength(1)
+    expect(await failureOf()).toBeInstanceOf(Error)
   })
 
-  it('serves the local store when the cloud cannot be reached at all', async () => {
+  it('fails the call when the cloud cannot be reached at all', async () => {
     signIn('sess_a')
     await seedLocal()
     answer = () => {
       throw new Error('ECONNREFUSED')
     }
 
-    expect(await proxy.list()).toHaveLength(1)
+    expect(await failureOf()).toBeInstanceOf(Error)
   })
 
-  it('tells whoever is watching, once per distinct outage', async () => {
-    const seen: number[] = []
-    proxy.watchOutages((outage) => seen.push(outage.status))
-    signIn('sess_a')
-    answer = failing(500)
-
-    await proxy.list()
-    await proxy.list()
-
-    expect(seen).toEqual([500])
-  })
-
-  it('stops asking the cloud until the cooldown has passed', async () => {
-    let now = 0
-    proxy = new AccountStoreProxy({
-      local,
-      sessions,
-      cloudRequired: () => cloudRequired,
-      now: () => now,
-    })
-    signIn('sess_a')
-
-    let attempts = 0
-    answer = () => {
-      attempts += 1
-      return failing(500)()
-    }
-
-    await proxy.list()
-    await proxy.list()
-    expect(attempts).toBe(1)
-
-    now = CLOUD_OUTAGE_COOLDOWN_MS + 1
-    await proxy.list()
-    expect(attempts).toBe(2)
-  })
-
-  it('leaves a 401 alone — a rejected token is not an outage', async () => {
+  it('fails the call on a 401 too — a rejected token is nothing to fall back from', async () => {
     signIn('sess_a')
     answer = failing(401)
 
-    let failure: unknown
-    await proxy.list().catch((error: unknown) => {
-      failure = error
-    })
-
-    expect(failure).toBeInstanceOf(Error)
+    expect(await failureOf()).toBeInstanceOf(Error)
   })
 
-  it('keeps the cloud authoritative when the operator required it', async () => {
-    cloudRequired = true
+  it('serves the cloud again as soon as it answers', async () => {
     signIn('sess_a')
     answer = failing(500)
+    await failureOf()
 
-    let failure: unknown
-    await proxy.list().catch((error: unknown) => {
-      failure = error
-    })
-
-    expect(failure).toBeInstanceOf(Error)
-  })
-
-  it('comes back to the cloud once it answers again', async () => {
-    let now = 0
-    proxy = new AccountStoreProxy({
-      local,
-      sessions,
-      cloudRequired: () => cloudRequired,
-      now: () => now,
-    })
-    signIn('sess_a')
-    answer = failing(500)
-    await proxy.list()
-    expect(proxy.degraded()).not.toBeNull()
-
-    now = CLOUD_OUTAGE_COOLDOWN_MS + 1
     answer = serving
 
     expect(await proxy.list()).toHaveLength(1)
-    expect(proxy.degraded()).toBeNull()
   })
 })
