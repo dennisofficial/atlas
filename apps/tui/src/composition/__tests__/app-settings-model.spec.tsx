@@ -66,6 +66,13 @@ async function openSettingsWith(setup: Mounted): Promise<void> {
   await landed(setup)
 }
 
+/** The model rows live on the models page now — one tab right of where settings opens. */
+async function openModelsWith(setup: Mounted): Promise<void> {
+  await openSettingsWith(setup)
+  setup.mockInput.pressTab()
+  await landed(setup)
+}
+
 async function downTo(args: { setup: Mounted; needle: string }): Promise<void> {
   for (let step = 0; step < 30; step += 1) {
     const row = args.setup
@@ -103,7 +110,7 @@ describe('the model-kind settings rows', () => {
     const setup = await opened(app)
 
     try {
-      await openSettingsWith(setup)
+      await openModelsWith(setup)
       await downTo({ setup, needle: 'Default model' })
       await enter(setup)
 
@@ -126,15 +133,15 @@ describe('the model-kind settings rows', () => {
     const setup = await opened(app)
 
     try {
-      await openSettingsWith(setup)
-      await downTo({ setup, needle: 'Quick-call model' })
+      await openModelsWith(setup)
+      await downTo({ setup, needle: 'Quick calls' })
 
-      expect(rowShowing(setup, 'Quick-call model')).toContain('shipped default')
+      expect(rowShowing(setup, 'Quick calls')).toContain('follow default')
 
       await enter(setup)
 
       const picking = setup.captureCharFrame()
-      expect(picking).toContain('QUICK-CALL MODEL')
+      expect(picking).toContain('QUICK CALLS')
       expect(picking).not.toContain('EFFORT')
 
       await arrow(setup, 'up')
@@ -144,7 +151,7 @@ describe('the model-kind settings rows', () => {
       expect(valueIn(app, ESettingId.QuickModel)).toBe('anthropic/claude-sonnet-5')
       expect(writtenFor(app, ESettingId.ModelId)).toBeUndefined()
       expect(writtenFor(app, ESettingId.ModelEffort)).toBe('high')
-      expect(rowShowing(setup, 'Quick-call model')).toContain('anthropic/claude-sonnet-5')
+      expect(rowShowing(setup, 'Quick calls')).toContain('anthropic/claude-sonnet-5')
     } finally {
       await teardown(setup)
     }
@@ -155,8 +162,8 @@ describe('the model-kind settings rows', () => {
     const setup = await opened(app)
 
     try {
-      await openSettingsWith(setup)
-      await downTo({ setup, needle: 'Quick-call model' })
+      await openModelsWith(setup)
+      await downTo({ setup, needle: 'Quick calls' })
       await enter(setup)
 
       await setup.mockInput.typeText('sonnet')

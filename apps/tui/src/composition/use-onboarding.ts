@@ -41,10 +41,11 @@ const MODEL_ROWS: readonly { key: EOnboardingRow; id: ESettingId; label: string 
 ]
 
 /**
- * A first launch has no settings file and possibly no accounts, and neither the old hardcoded
- * fallbacks nor a guessed provider can carry it: the picks have to be made. The gate is the empty
- * user document or a catalogue with nothing reachable, so an established install never sees this.
- * Escape dismisses for the session; a still-fresh install is asked again on the next launch.
+ * A first launch has no accounts and no picks, and neither the old hardcoded fallbacks nor a
+ * guessed provider can carry it: the picks have to be made. The gate is a catalogue with nothing
+ * reachable, or an untouched settings document with no default model from any layer — an
+ * established install with working accounts never sees this. Escape dismisses for the session; a
+ * still-due install is asked again on the next launch.
  */
 export function useOnboarding(args: {
   app: AtlasApp
@@ -56,9 +57,13 @@ export function useOnboarding(args: {
   const accountsVersion = useSyncExternalStore(app.models.subscribe, app.models.version)
 
   const [state, setState] = useState<OnboardingState | null>(() => {
-    const fresh = Object.keys(app.settings.snapshot().document.values).length === 0
     const reachable = app.models.providers.some((provider) => app.models.reachable(provider.id))
-    return fresh || !reachable ? { rowIndex: 0 } : null
+    if (!reachable) return { rowIndex: 0 }
+
+    const snapshot = app.settings.snapshot()
+    const untouched = Object.keys(snapshot.document.values).length === 0
+    const defaultUnset = textValueOf({ resolution: snapshot.resolution, id: ESettingId.ModelId })
+    return untouched && defaultUnset.length === 0 ? { rowIndex: 0 } : null
   })
 
   const rows = useMemo((): readonly OnboardingRowView[] => {

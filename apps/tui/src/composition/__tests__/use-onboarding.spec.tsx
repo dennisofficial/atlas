@@ -38,6 +38,8 @@ const EVERYTHING_SET: SettingsDocument = {
   },
 }
 
+const FRESH: SettingsDocument = { values: {} }
+
 const appOver = (settings?: SettingsDocument): FakeApp =>
   fakeApp({
     model: scriptedModelPort({ script: { thinking: '', reply: '' } }),
@@ -57,7 +59,7 @@ async function mounted(
 describe('useOnboarding', () => {
   it('opens for a fresh install with no settings at all', async () => {
     const probe = probed()
-    const { done } = await mounted(appOver(), probe)
+    const { done } = await mounted(appOver(FRESH), probe)
 
     expect(probe.control?.state).toEqual({ rowIndex: 0 })
     expect(probe.control?.ready).toBe(false)
@@ -80,9 +82,28 @@ describe('useOnboarding', () => {
     done()
   })
 
+  it('opens when no provider is reachable, whatever the settings hold', async () => {
+    const probe = probed()
+    const established = fakeApp({
+      model: scriptedModelPort({ script: { thinking: '', reply: '' } }),
+      settings: EVERYTHING_SET,
+    })
+    const catalogue = established.models
+    const offline = fakeApp({
+      model: scriptedModelPort({ script: { thinking: '', reply: '' } }),
+      settings: EVERYTHING_SET,
+      models: { ...catalogue, reachable: () => false },
+    })
+    const { done } = await mounted(offline, probe)
+
+    expect(probe.control?.state).not.toBeNull()
+    expect(probe.control?.rows[0]?.done).toBe(false)
+    done()
+  })
+
   it('is not ready until all four models are picked, even with a provider connected', async () => {
     const probe = probed()
-    const app = appOver()
+    const app = appOver(FRESH)
     const { flush, done } = await mounted(app, probe)
 
     await act(async () => {
@@ -99,7 +120,7 @@ describe('useOnboarding', () => {
 
   it('routes a model row to the picker and the accounts row to the overlay', async () => {
     const probe = probed()
-    const { done } = await mounted(appOver(), probe)
+    const { done } = await mounted(appOver(FRESH), probe)
     const control = probe.control
     if (control === null) throw new Error('no control')
 
@@ -113,7 +134,7 @@ describe('useOnboarding', () => {
 
   it('turns ready as the picks land and closes on begin', async () => {
     const probe = probed()
-    const app = appOver()
+    const app = appOver(FRESH)
     const { flush, done } = await mounted(app, probe)
 
     const picks: readonly { id: ESettingId; value: string }[] = [

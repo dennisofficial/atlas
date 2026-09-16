@@ -1183,7 +1183,7 @@ function Workspace(props: {
       covering(rewindConfirm.state !== null, rewindConfirm.handleKey),
       covering(approval.state !== null, approval.handleKey),
       covering(rewind.state !== null, rewind.handleKey),
-      covering(switcher.state !== null, switcher.handleKey),
+      { ...covering(switcher.state !== null, switcher.handleKey), porous: true },
       covering(shells.state !== null, shells.handleKey),
       covering(services.state !== null, services.handleKey),
       covering(accounts.state !== null, accounts.handleKey),
