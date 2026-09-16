@@ -1192,10 +1192,10 @@ Atlas takes up a pair Claude Code refreshed first, and never pushes an older pai
 ## Which model answers
 
 **Two preferences, one picker.** A conversation carries the model it was last switched to, in
-`Thread.modelRef` / `Thread.modelEffort`; the settings page carries `model.id` / `model.effort`,
-which is only what a conversation with nothing of its own begins on. The switcher (`ctrl+p`,
-`/model`) writes the conversation. The `Default model` row on the settings page opens the same
-picker set on the default, and writes that instead.
+`Thread.modelRef` / `Thread.modelEffort`; the models settings page carries `model.id` /
+`model.effort`, which is only what a conversation with nothing of its own begins on. The switcher
+(`ctrl+p`, `/model`) writes the conversation. Every model row on the models page opens the same
+picker set on that row, and writes that instead.
 
 The split exists because the old arrangement had exactly one remembered pair for the whole machine,
 so two terminals on two conversations fought over it — switching one to Haiku switched the other on
@@ -1204,9 +1204,21 @@ worked rather than something that happened in it: rewinding past a switch should
 fork carries the parent's pair forward.
 
 Resolution order, most specific first: `--model` for the conversation the process launches on, then
-the thread's own pair, then the settings default, then `DEFAULT_MODEL_REF`. A thread naming a model
-that left the catalogue — or whose account is gone — falls back *whole*, so an effort never outlives
-the model that offered it.
+the thread's own pair, then the settings default, then `fallbackRef` — the shipped Anthropic
+default when its provider is set up, the first reachable provider's first card when it is not,
+because a default nobody can run is no default at all. A thread naming a model that left the
+catalogue — or whose account is gone — falls back *whole*, so an effort never outlives the model
+that offered it.
+
+**Every background call has a role, and every role has a row.** The tl;dr footer, the session
+titler and the nudge judge share the quick-calls row (`model.quickModel`); compaction has its own
+(`model.compactionModel`); sub-agents have theirs (`agents.subagentModel`), with one dynamically
+registered row per loaded agent type beneath it. A role left empty follows the default model —
+there is no hardcoded model id anywhere in the chain, because no provider can be assumed set up.
+Each call re-reads the settings, so a pick lands mid-session, and a role whose pick cannot run
+(provider account gone, model dropped from the catalogue) raises a standing notice that clears
+itself when the row is fixed. A first launch with no settings file and no reachable provider is
+held at an onboarding screen until the four picks are made.
 
 `useThreadModel` reads the default where a thread is adopted rather than following it, so raising
 the default reaches the next conversation instead of the one on screen. A conversation is written
