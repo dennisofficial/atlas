@@ -21,7 +21,13 @@ import {
   SetStatusDto,
 } from './accounts.dto'
 import { AccountsService } from './accounts.service'
-import type { AccountDto, ActiveAccountDto, StoredAccountDto } from './accounts.types'
+import { BrokerService } from './broker.service'
+import type {
+  AccessTokenDto,
+  AccountDto,
+  ActiveAccountDto,
+  StoredAccountDto,
+} from './accounts.types'
 
 function userIdOf(request: AuthenticatedRequest): string {
   const auth = request.auth
@@ -32,7 +38,10 @@ function userIdOf(request: AuthenticatedRequest): string {
 @Controller({ path: 'accounts', version: '1' })
 @UseGuards(SessionAuthGuard)
 export class AccountsController {
-  constructor(private readonly accounts: AccountsService) {}
+  constructor(
+    private readonly accounts: AccountsService,
+    private readonly broker: BrokerService,
+  ) {}
 
   @Get()
   handleList(@Req() request: AuthenticatedRequest): Promise<AccountDto[]> {
@@ -70,6 +79,14 @@ export class AccountsController {
     @Param('id') accountId: string,
   ): Promise<StoredAccountDto> {
     return this.accounts.read({ userId: userIdOf(request), accountId })
+  }
+
+  @Post(':id/access-token')
+  handleAccessToken(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') accountId: string,
+  ): Promise<AccessTokenDto> {
+    return this.broker.accessToken({ userId: userIdOf(request), accountId })
   }
 
   @Put(':id/secret')
