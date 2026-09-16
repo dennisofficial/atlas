@@ -5,10 +5,7 @@ export const DEFAULT_MODEL_REF: ModelRef = {
   modelId: 'claude-haiku-4-5',
 }
 
-export const TITLER_MODEL_ID = 'claude-haiku-4-5-20251001'
-
-export const SUMMARISER_MODEL_ID = 'claude-sonnet-5'
-
+/** The eval harness replays shipped tl;dr behavior, so it pins the model the feature shipped on. */
 export const TLDR_MODEL_ID = 'claude-haiku-4-5-20251001'
 
 /** What a launch decides for itself and nothing that outlives it; anything durable is a setting. */

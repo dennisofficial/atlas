@@ -2,7 +2,7 @@ import { resolve } from 'node:path'
 
 import { expandHome } from '../ui/paths'
 
-export { DEFAULT_MODEL_REF, SUMMARISER_MODEL_ID, TITLER_MODEL_ID, TLDR_MODEL_ID } from '@dltech/atlas-harness'
+export { DEFAULT_MODEL_REF, TLDR_MODEL_ID } from '@dltech/atlas-harness'
 
 export enum EOpenMode {
   New = 'new',

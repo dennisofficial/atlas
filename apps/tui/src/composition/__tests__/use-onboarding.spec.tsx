@@ -1,18 +1,19 @@
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
-import React from 'react'
+import React, { act } from 'react'
 
 import { ESettingId, type SettingsDocument } from '@dltech/atlas-core'
 
-import { scriptedModelPort } from './fake-app'
-import { fakeApp, type FakeApp } from './fake-app'
-import { useOnboarding, type OnboardingControl } from '../use-onboarding'
+import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
+import { EOnboardingRow, useOnboarding, type OnboardingControl } from '../use-onboarding'
 
 type Probe = {
   control: OnboardingControl | null
   chosen: string[]
   accountsOpened: number
 }
+
+const probed = (): Probe => ({ control: null, chosen: [], accountsOpened: 0 })
 
 function Host(props: { app: FakeApp; probe: Probe }): React.ReactNode {
   props.probe.control = useOnboarding({
@@ -37,76 +38,109 @@ const EVERYTHING_SET: SettingsDocument = {
   },
 }
 
-async function hostWith(args: {
-  probe: Probe
-  settings?: SettingsDocument
-}): Promise<void> {
-  const app = fakeApp({
-    model: scriptedModelPort({ script: [] }),
-    ...(args.settings === undefined ? {} : { settings: args.settings }),
+const appOver = (settings?: SettingsDocument): FakeApp =>
+  fakeApp({
+    model: scriptedModelPort({ script: { thinking: '', reply: '' } }),
+    ...(settings === undefined ? {} : { settings }),
   })
-  const session = await testRender(<Host app={app} probe={args.probe} />)
-  await session.renderOnce()
-  session.destroy()
+
+async function mounted(
+  app: FakeApp,
+  probe: Probe,
+): Promise<{ flush: () => Promise<void>; done: () => void }> {
+  const setup = await testRender(<Host app={app} probe={probe} />, { width: 60, height: 8 })
+  await setup.renderOnce()
+
+  return { flush: setup.renderOnce, done: () => setup.renderer.destroy() }
 }
 
 describe('useOnboarding', () => {
   it('opens for a fresh install with no settings at all', async () => {
-    const probe: Probe = { control: null, chosen: [], accountsOpened: 0 }
-    await hostWith({ probe })
+    const probe = probed()
+    const { done } = await mounted(appOver(), probe)
 
     expect(probe.control?.state).toEqual({ rowIndex: 0 })
     expect(probe.control?.ready).toBe(false)
     expect(probe.control?.rows.map((row) => row.key)).toEqual([
-      'accounts',
-      'default',
-      'quick',
-      'compaction',
-      'subagents',
-      'begin',
+      EOnboardingRow.Accounts,
+      EOnboardingRow.Default,
+      EOnboardingRow.Quick,
+      EOnboardingRow.Compaction,
+      EOnboardingRow.Subagents,
+      EOnboardingRow.Begin,
     ])
+    done()
   })
 
   it('stays closed for an established install', async () => {
-    const probe: Probe = { control: null, chosen: [], accountsOpened: 0 }
-    await hostWith({ probe, settings: EVERYTHING_SET })
+    const probe = probed()
+    const { done } = await mounted(appOver(EVERYTHING_SET), probe)
 
     expect(probe.control?.state).toBeNull()
+    done()
   })
 
-  it('is not ready until a provider is connected and all four models are picked', async () => {
-    const probe: Probe = { control: null, chosen: [], accountsOpened: 0 }
-    const app = fakeApp({
-      model: scriptedModelPort({ script: [] }),
-      settings: { values: { [ESettingId.ModelId]: 'anthropic/claude-sonnet-5' } },
+  it('is not ready until all four models are picked, even with a provider connected', async () => {
+    const probe = probed()
+    const app = appOver()
+    const { flush, done } = await mounted(app, probe)
+
+    await act(async () => {
+      app.settings.set({ id: ESettingId.ModelId, value: 'anthropic/claude-sonnet-5' })
     })
-    const session = await testRender(<Host app={app} probe={probe} />)
-    await session.renderOnce()
+    await flush()
 
     expect(probe.control?.state).not.toBeNull()
     expect(probe.control?.ready).toBe(false)
     expect(probe.control?.rows.find((row) => row.key === 'default')?.done).toBe(true)
     expect(probe.control?.rows.find((row) => row.key === 'quick')?.done).toBe(false)
-
-    session.destroy()
+    done()
   })
 
   it('routes a model row to the picker and the accounts row to the overlay', async () => {
-    const probe: Probe = { control: null, chosen: [], accountsOpened: 0 }
-    const app = fakeApp({ model: scriptedModelPort({ script: [] }) })
-    const session = await testRender(<Host app={app} probe={probe} />)
-    await session.renderOnce()
-
+    const probe = probed()
+    const { done } = await mounted(appOver(), probe)
     const control = probe.control
     if (control === null) throw new Error('no control')
 
-    const rows = control.rows
-    control.handleActivate(rows[1]!)
-    control.handleActivate(rows[0]!)
+    control.handleActivate(control.rows[1]!)
+    control.handleActivate(control.rows[0]!)
 
     expect(probe.chosen).toEqual([ESettingId.ModelId])
     expect(probe.accountsOpened).toBe(1)
+    done()
+  })
 
-    session.destroy()
+  it('turns ready as the picks land and closes on begin', async () => {
+    const probe = probed()
+    const app = appOver()
+    const { flush, done } = await mounted(app, probe)
+
+    const picks: readonly { id: ESettingId; value: string }[] = [
+      { id: ESettingId.ModelId, value: 'anthropic/claude-sonnet-5' },
+      { id: ESettingId.QuickModel, value: 'anthropic/claude-haiku-4-5' },
+      { id: ESettingId.CompactionModel, value: 'anthropic/claude-sonnet-5' },
+      { id: ESettingId.SubagentModel, value: 'anthropic/claude-sonnet-5' },
+    ]
+    await act(async () => {
+      for (const pick of picks) {
+        app.settings.set({ id: pick.id, value: pick.value })
+      }
+    })
+    await flush()
+
+    const control = probe.control
+    if (control === null) throw new Error('no control')
+    expect(control.ready).toBe(true)
+
+    const begin = control.rows.at(-1)
+    if (begin === undefined) throw new Error('no begin row')
+    await act(async () => {
+      control.handleActivate(begin)
+    })
+    await flush()
+
+    expect(probe.control?.state).toBeNull()
+    done()
   })
 })
