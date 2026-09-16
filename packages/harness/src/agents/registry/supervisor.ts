@@ -2,7 +2,6 @@ import {
   EKilledBy,
   EMessageOrigin,
   NoopExecutionLocationSink,
-  projectDirectoryOf,
   type ClockPort,
   type EventDraft,
   type EventLogPort,
@@ -15,14 +14,15 @@ import {
 import type { ThreadStorePort } from '../../store'
 import type { AgentType } from '../types'
 import { ChildSteps } from './child-steps'
-import type { SupervisorDeps } from './deps'
+import { agentTypeNamed, type SupervisorDeps } from './deps'
 import { freshChild, isStepping, snapshotOf, type ChildState } from './child-state'
 import { NoticeDelivery } from './delivery'
 import { AgentNoticeQueue } from './notices'
 import { openChildThread } from './open-child'
 import { forgetRemovedChildren } from './remove-children'
-import { AgentRegistryPort, type AgentOutcome } from './port'
+import { AgentRegistryPort, type AgentOutcome, type RelocateChildrenArgs } from './port'
 import { ChildRecovery } from './recovery'
+import { childDirectory, relocateThreadChildren, type Relocation } from './relocate-children'
 import {
   alreadyStepping,
   EMPTY_BRIEF,
@@ -47,9 +47,12 @@ export class AgentSupervisor extends AgentRegistryPort {
   private readonly recovery: ChildRecovery
   private readonly launchDirectory: string
   private readonly sink: ExecutionLocationSinkPort
+  private readonly deps: SupervisorDeps
+  private readonly relocation: Relocation
 
   constructor(args: SupervisorDeps) {
     super()
+    this.deps = args
     this.log = args.log
     this.threads = args.threads
     this.ids = args.ids
@@ -71,6 +74,7 @@ export class AgentSupervisor extends AgentRegistryPort {
       clock: args.clock,
       roster: this.roster,
     })
+    this.relocation = { deps: args, sink: this.sink, roster: this.roster, steps: this.steps, recovery: this.recovery }
   }
 
   types(): readonly AgentType[] {
@@ -88,7 +92,7 @@ export class AgentSupervisor extends AgentRegistryPort {
     brief: string
     intent: string
   }): Promise<AgentOutcome> {
-    const type = this.agentTypes.find((one) => one.name === agentType)
+    const type = agentTypeNamed({ agentTypes: this.agentTypes, name: agentType })
     if (type === undefined) {
       return { ok: false, reason: unknownAgentType({ agentType, known: this.agentTypes }) }
     }
@@ -112,7 +116,7 @@ export class AgentSupervisor extends AgentRegistryPort {
       agentType: type.name,
       intent,
       at: this.clock.now(),
-      projectDirectory: await this.directoryOf({ threadId }),
+      projectDirectory: await childDirectory({ deps: this.deps, threadId }),
     })
     this.roster.add(child)
 
@@ -146,7 +150,7 @@ export class AgentSupervisor extends AgentRegistryPort {
       return { ok: true, snapshot: snapshotOf(child) }
     }
 
-    const agentType = typeNamed(this.agentTypes, child.agentType)
+    const agentType = agentTypeNamed({ agentTypes: this.agentTypes, name: child.agentType })
     if (agentType === undefined) {
       return { ok: false, reason: retiredAgentType(child.agentType) }
     }
@@ -163,7 +167,7 @@ export class AgentSupervisor extends AgentRegistryPort {
         },
       ],
     })
-    child.projectDirectory ??= await this.directoryOf({ threadId })
+    child.projectDirectory ??= await childDirectory({ deps: this.deps, threadId })
     this.steps.take({
       child,
       agentType,
@@ -186,12 +190,12 @@ export class AgentSupervisor extends AgentRegistryPort {
     }
     if (isStepping(child)) return { ok: false, reason: alreadyStepping(agentId) }
 
-    const agentType = typeNamed(this.agentTypes, child.agentType)
+    const agentType = agentTypeNamed({ agentTypes: this.agentTypes, name: child.agentType })
     if (agentType === undefined) {
       return { ok: false, reason: retiredAgentType(child.agentType) }
     }
 
-    child.projectDirectory ??= await this.directoryOf({ threadId })
+    child.projectDirectory ??= await childDirectory({ deps: this.deps, threadId })
     this.steps.take({
       child,
       agentType,
@@ -199,6 +203,10 @@ export class AgentSupervisor extends AgentRegistryPort {
     })
 
     return { ok: true, snapshot: snapshotOf(child) }
+  }
+
+  relocateChildren(args: RelocateChildrenArgs): Promise<readonly ThreadId[]> {
+    return relocateThreadChildren({ ...args, ...this.relocation })
   }
 
   stop({
@@ -285,14 +293,4 @@ export class AgentSupervisor extends AgentRegistryPort {
     const child = this.roster.find(agentId)
     return child === undefined || child.spawnedBy !== threadId ? undefined : child
   }
-
-  private async directoryOf({ threadId }: { threadId: ThreadId }): Promise<string> {
-    return projectDirectoryOf({
-      events: await this.log.read({ threadId }),
-      launchDirectory: this.launchDirectory,
-    })
-  }
 }
-
-const typeNamed = (types: readonly AgentType[], name: string): AgentType | undefined =>
-  types.find((one) => one.name === name)

@@ -10,6 +10,7 @@ import { ThinkingBlock } from './blocks/thinking-block'
 import { TldrBlock } from './blocks/tldr-block'
 import { ToolRunBlock } from './blocks/tool-run-block'
 import { TurnEndedBlock } from './blocks/turn-ended-block'
+import { LocationDivider } from './location-divider'
 import { UserBlock } from './blocks/user-block'
 
 const SHELL_OUTPUT_HINT = '↵ output'
@@ -212,6 +213,9 @@ function DerivedEntryView(props: {
           <text fg={entry.failed ? theme.warn : theme.dim}>{entry.text}</text>
         </box>
       )
+
+    case EEntryKind.LocationChanged:
+      return <LocationDivider width={props.width} location={entry.to} />
 
     default: {
       const unrendered: never = entry

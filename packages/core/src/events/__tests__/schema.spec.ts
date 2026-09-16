@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EAgentStart } from '../../agents/start'
 import { EAgentStatus } from '../../agents/status'
+import { EExecutionLocation } from '../../execution/location'
 import { ERiskDimension } from '../../policy/classifier/dimension'
 import { EGrantScope } from '../../policy/classifier/grant'
 import { EClassifierMode, ETriage } from '../../policy/classifier/triage'
@@ -23,6 +24,7 @@ const bodies: EventDraft[] = [
   { type: 'approval-answered', callId: toCallId('call-1'), decision: EDecision.Allow },
   { type: 'context-loaded', slot: 'claude-md', key: '/a/CLAUDE.md', content: '# rules' },
   { type: 'nudge', text: 'stay on task', lifetimeSteps: 2 },
+  { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Docker },
   {
     type: 'agent-spawned',
     agentId: toThreadId('thread-child-1'),
@@ -180,6 +182,12 @@ describe('eventBodySchema', () => {
 
   it('rejects a nudge with no lifetime', () => {
     expect(() => eventBodySchema.parse({ type: 'nudge', text: 'stay on task' })).toThrow()
+  })
+
+  it('rejects a relocation that names a location outside the enum', () => {
+    expect(() =>
+      eventBodySchema.parse({ type: 'location-changed', from: 'host', to: 'the moon' }),
+    ).toThrow()
   })
 
   it('rejects a classifier verdict whose judgment is outside the enum', () => {

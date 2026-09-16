@@ -21,7 +21,7 @@ import {
   type EUsageWindow,
   type ModelCard,
 } from '@dltech/atlas-core'
-import { forkConversation, type DiscoveredSkill } from '@dltech/atlas-harness'
+import { forkConversation, relocateSession, type DiscoveredSkill } from '@dltech/atlas-harness'
 
 import { newestExpandableKey, type PendingSaid } from '../store'
 import { withContainer, withSections } from '../store/sidebar-model'
@@ -62,7 +62,6 @@ import { useSince } from '../ui/hooks/use-since'
 import { composerEdgeVersion, subscribeComposerEdge } from '../ui/composer-edge-store'
 import { densityVersion, subscribeDensity } from '../ui/density-store'
 import { modelLabel } from '../ui/model-label'
-import { isServiceAlive } from '../ui/services-model'
 import { isShellRunning } from '../ui/shells-model'
 import { theme } from '../ui/theme'
 import {
@@ -97,11 +96,11 @@ import {
   useKeyRegistry,
 } from '../ui/keys'
 import { commandSpecs, dispatchSubmission, EContainerAsk, EDispatch, localCommands } from './commands'
-import { isSubagentRunning } from '../store/subagent-row'
 import {
   currentLocationNotice,
   movedLocationNotice,
   pendingSwitchNotice,
+  relocatedNotice,
 } from './container-notices'
 import { mcpReport } from './mcp-report'
 import { useComposerMenus } from './use-composer-menus'
@@ -676,40 +675,42 @@ function Workspace(props: {
     return reloadedSkills({ before, after })
   }, [props.app.skillRegistry])
 
-  const containerBlockers = useCallback(() => {
-    const threadId = conversation.threadId
-    return {
-      shells: props.app.shells.list({ threadId }).filter(isShellRunning),
-      services: props.app.services.list().filter(isServiceAlive),
-      agents: props.app.agents.list({ threadId }).filter(isSubagentRunning),
-    }
-  }, [conversation.threadId, props.app])
+  const containerBlockers = useCallback(
+    () =>
+      props.app.shells.list({ threadId: conversation.threadId }).filter(isShellRunning),
+    [conversation.threadId, props.app],
+  )
 
   const applyContainerSwitch = useCallback(
     (target: EExecutionLocation) => {
       const threadId = conversation.threadId
-      const blockers = containerBlockers()
-      for (const shell of blockers.shells) {
+      for (const shell of containerBlockers()) {
         props.app.shells.kill({ shellId: shell.shellId, by: EKilledBy.ContainerSwitch, threadId })
-      }
-      for (const service of blockers.services) {
-        props.app.services.stop({ serviceId: service.serviceId, by: EKilledBy.ContainerSwitch })
-      }
-      for (const agent of blockers.agents) {
-        props.app.agents.stop({ agentId: agent.agentId, threadId, by: EKilledBy.ContainerSwitch })
       }
 
       execution.handleSet(target)
-      const stopped = blockers.shells.length + blockers.services.length + blockers.agents.length
-      notify({
-        key: 'container-switch',
-        tone: ENoticeTone.Warn,
-        ttlMs: NOTICE_WARN_MS,
-        text:
-          stopped === 0
-            ? movedLocationNotice(target)
-            : `${movedLocationNotice(target)} — stopped ${stopped} running ${stopped === 1 ? 'task' : 'tasks'}`,
+      void relocateSession({
+        threadId,
+        location: target,
+        threads: props.app.threads,
+        log: props.app.log,
+        ids: props.app.ids,
+        services: props.app.services,
+        agents: props.app.agents,
       })
+        .then((moved) =>
+          notify({
+            key: 'container-switch',
+            tone: ENoticeTone.Warn,
+            ttlMs: NOTICE_WARN_MS,
+            text: relocatedNotice({
+              target,
+              stoppedServices: moved.stoppedServices.length,
+              relocatedAgents: moved.relocatedAgents.length,
+            }),
+          }),
+        )
+        .catch(() => undefined)
     },
     [containerBlockers, conversation.threadId, execution, props.app],
   )
@@ -796,24 +797,23 @@ function Workspace(props: {
       if (asked === execution.location) return currentLocationNotice(execution.location)
 
       const blockers = containerBlockers()
-      const count = blockers.shells.length + blockers.services.length + blockers.agents.length
-      if (count > 0) {
+      if (blockers.length > 0) {
         containerGuard.handleOpen({ target: asked })
-        return pendingSwitchNotice({ target: asked, count })
+        return pendingSwitchNotice({ target: asked, count: blockers.length })
       }
 
-      execution.handleSet(asked)
+      applyContainerSwitch(asked)
       return movedLocationNotice(asked)
     },
-    [containerBlockers, containerGuard, execution],
+    [applyContainerSwitch, containerBlockers, containerGuard, execution],
   )
 
   useEffect(() => {
     if (containerGuard.state === null) return
-    if (shells.running + agents.running + services.running > 0) return
+    if (shells.running > 0) return
 
     containerGuard.handleApply()
-  }, [agents.running, containerGuard, services.running, shells.running])
+  }, [containerGuard, shells.running])
 
   const commands = useMemo(
     () =>
