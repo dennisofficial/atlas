@@ -8,7 +8,7 @@
     "api": "openai-completions",
     "contextWindow": 163840,
     "imageTier": "standard",
-    "maxOutputTokens": 8192,
+    "maxOutputTokens": 65536,
     "cost": {
       "inputPerMillion": 0.7,
       "outputPerMillion": 2
@@ -21,9 +21,9 @@
     },
     "label": "deepseek-v4-flash",
     "api": "openai-completions",
-    "contextWindow": 163840,
+    "contextWindow": 1000000,
     "imageTier": "standard",
-    "maxOutputTokens": 8192,
+    "maxOutputTokens": 384000,
     "cost": {
       "inputPerMillion": 0.23,
       "outputPerMillion": 0.62
@@ -41,9 +41,9 @@
     },
     "label": "deepseek-v4-flash-0731",
     "api": "openai-completions",
-    "contextWindow": 256000,
+    "contextWindow": 1048575,
     "imageTier": "standard",
-    "maxOutputTokens": 384000,
+    "maxOutputTokens": 1048575,
     "cost": {
       "inputPerMillion": 0.53,
       "outputPerMillion": 1.58
@@ -92,6 +92,21 @@
       "low": "low",
       "high": "high",
       "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
+      "modelId": "deepseek-v4.1-flash"
+    },
+    "label": "deepseek-v4.1-flash",
+    "api": "openai-completions",
+    "contextWindow": 1040000,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 1
     }
   },
   {
@@ -339,9 +354,9 @@
     },
     "label": "glm-5",
     "api": "openai-completions",
-    "contextWindow": 200000,
+    "contextWindow": 204800,
     "imageTier": "standard",
-    "maxOutputTokens": 128000,
+    "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.95,
       "outputPerMillion": 2.55
@@ -406,8 +421,8 @@
     "imageTier": "standard",
     "maxOutputTokens": 131072,
     "cost": {
-      "inputPerMillion": 2.1,
-      "outputPerMillion": 6.6
+      "inputPerMillion": 1,
+      "outputPerMillion": 3
     },
     "effort": {
       "low": "low",
@@ -422,12 +437,12 @@
     },
     "label": "glm-5.3-flash",
     "api": "openai-completions",
-    "contextWindow": 1000000,
+    "contextWindow": 1048576,
     "imageTier": "standard",
-    "maxOutputTokens": 131072,
+    "maxOutputTokens": 128000,
     "cost": {
-      "inputPerMillion": 0.54,
-      "outputPerMillion": 1.8
+      "inputPerMillion": 0.15,
+      "outputPerMillion": 0.5
     },
     "effort": {
       "low": "low",
@@ -772,7 +787,7 @@
     "api": "openai-completions",
     "contextWindow": 262144,
     "imageTier": "standard",
-    "maxOutputTokens": 65536,
+    "maxOutputTokens": 262144,
     "cost": {
       "inputPerMillion": 0.8,
       "outputPerMillion": 3.95
@@ -796,26 +811,6 @@
     "cost": {
       "inputPerMillion": 1.25,
       "outputPerMillion": 5.3
-    },
-    "effort": {
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "inference",
-      "modelId": "kimi-k3"
-    },
-    "label": "kimi-k3",
-    "api": "openai-completions",
-    "contextWindow": 1048576,
-    "imageTier": "standard",
-    "maxOutputTokens": 1048576,
-    "cost": {
-      "inputPerMillion": 3.95,
-      "outputPerMillion": 19.8
     },
     "effort": {
       "low": "low",
@@ -850,9 +845,9 @@
     },
     "label": "llama-3.2-1b-instruct",
     "api": "openai-completions",
-    "contextWindow": 128000,
+    "contextWindow": 60000,
     "imageTier": "standard",
-    "maxOutputTokens": 2048,
+    "maxOutputTokens": 60000,
     "cost": {
       "inputPerMillion": 0.027,
       "outputPerMillion": 0.201
@@ -865,9 +860,9 @@
     },
     "label": "llama-3.2-3b-instruct",
     "api": "openai-completions",
-    "contextWindow": 128000,
+    "contextWindow": 131072,
     "imageTier": "standard",
-    "maxOutputTokens": 2048,
+    "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.05,
       "outputPerMillion": 0.33
@@ -882,10 +877,31 @@
     "api": "openai-completions",
     "contextWindow": 131072,
     "imageTier": "standard",
-    "maxOutputTokens": 16384,
+    "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 0.13,
       "outputPerMillion": 0.4
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
+      "modelId": "moonshotai/kimi-k3"
+    },
+    "label": "moonshotai/kimi-k3",
+    "api": "openai-completions",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 1048576,
+    "cost": {
+      "inputPerMillion": 2.1,
+      "outputPerMillion": 10.95
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
     }
   },
   {
@@ -915,9 +931,9 @@
     },
     "label": "qwen3-14b",
     "api": "openai-completions",
-    "contextWindow": 40960,
+    "contextWindow": 131072,
     "imageTier": "standard",
-    "maxOutputTokens": 40960,
+    "maxOutputTokens": 8192,
     "cost": {
       "inputPerMillion": 0.2275,
       "outputPerMillion": 0.91
@@ -937,7 +953,7 @@
     "api": "openai-completions",
     "contextWindow": 40960,
     "imageTier": "standard",
-    "maxOutputTokens": 40960,
+    "maxOutputTokens": 16384,
     "cost": {
       "inputPerMillion": 0.12,
       "outputPerMillion": 0.5
@@ -955,9 +971,9 @@
     },
     "label": "qwen3-8b",
     "api": "openai-completions",
-    "contextWindow": 40960,
+    "contextWindow": 131072,
     "imageTier": "standard",
-    "maxOutputTokens": 40960,
+    "maxOutputTokens": 8192,
     "cost": {
       "inputPerMillion": 0.117,
       "outputPerMillion": 0.455
@@ -977,7 +993,7 @@
     "api": "openai-completions",
     "contextWindow": 262144,
     "imageTier": "standard",
-    "maxOutputTokens": 32768,
+    "maxOutputTokens": 65536,
     "cost": {
       "inputPerMillion": 0.78,
       "outputPerMillion": 3.9

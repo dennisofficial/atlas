@@ -35,6 +35,8 @@ function cardFor({
   const maxOutputTokens = model.limit?.output
   const input = model.cost?.input
   const output = model.cost?.output
+  const cacheRead = model.cost?.cache_read
+  const cacheWrite = model.cost?.cache_write
   const effort = deriveEffort(model).rungs
 
   return {
@@ -46,7 +48,14 @@ function cardFor({
     ...(maxOutputTokens === undefined ? {} : { maxOutputTokens }),
     ...(input === undefined || output === undefined
       ? {}
-      : { cost: { inputPerMillion: input, outputPerMillion: output } }),
+      : {
+          cost: {
+            inputPerMillion: input,
+            outputPerMillion: output,
+            ...(cacheRead === undefined ? {} : { cacheReadPerMillion: cacheRead }),
+            ...(cacheWrite === undefined ? {} : { cacheWritePerMillion: cacheWrite }),
+          },
+        }),
     ...(effort === undefined ? {} : { effort }),
   }
 }
