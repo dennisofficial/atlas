@@ -27,6 +27,8 @@ COPY tsconfig.base.json ./tsconfig.base.json
 RUN cd apps/api && bun run build
 
 FROM node:22.13.1-slim AS runtime
+RUN apt-get update -y && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules

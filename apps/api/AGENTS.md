@@ -36,10 +36,81 @@ them at least once; relative imports work everywhere. Do not reintroduce them.
 ## Deploy
 
 DigitalOcean App Platform, git-connected to main: `apps/api/Dockerfile` (multi-stage, repo-root
-build context) + `.do/app.yaml` (app spec: web service on port 3400 with a PRE_DEPLOY migrate
-job, region nyc). The only env the platform needs is `APP_TIER` and `DOTENV_PRIVATE_KEY_API_PRODUCTION`
-— the tier file in the image carries the rest. Migrations also run from local via
-`MIGRATE_TIER=production bun run db:migrate:deploy`.
+build context) + `.do/app.yaml` (app spec: api service on port 3400 with a PRE_DEPLOY migrate
+job, region nyc). The only env the platform needs is `APP_TIER`, `MIGRATE_TIER` and
+`DOTENV_PRIVATE_KEY_API_PRODUCTION` — the tier file in the image carries the rest.
+
+**`.do/app.yaml` is not read on push.** App Platform reads a spec file only when an app is
+created or updated through the API/CLI, so committing a change to it changes nothing on its own
+— the live spec is whatever was last applied. Migrations silently stopped running for exactly
+this reason: the `migrate` job existed in the file and never in the app.
+
+The file is a mirror of the live spec, not a wish. It was not, once: it named an app `atlas-api`
+with a service `api` on port 3400, while the live app is `atlas` with `atlas-apps-api` on 8080,
+and it carried neither the `api.byatlas.io` domain nor the alerts. Applying that would have
+renamed both, moved the port and dropped the domain — `apps update --spec` replaces the spec
+rather than merging into it. Take the live spec as the base for any edit and keep the diff to
+what you mean to change.
+
+```
+export DO_APP_ID=<app id>
+bun run do:spec:diff     # live spec vs .do/app.yaml — run this when either changes
+bun run do:spec:apply    # backs the live spec up, then doctl apps update --spec
+```
+
+`apps update --spec` replaces the whole spec rather than merging into it, so read the diff
+before applying: anything the control panel holds and the file does not is dropped. `apply`
+writes the live spec to `.do/live-spec.backup.yaml` (git-ignored) first, which is what you feed
+back to `--spec` to undo.
+
+PRE_DEPLOY jobs are API/CLI-only; the control panel cannot create one, and a spec edited there
+can drop it. Diff before you trust it.
+
+Applying the spec is not proof it works. Confirm the job is both present and running:
+
+```
+doctl apps get "$DO_APP_ID" --format Spec | grep -A2 'kind: PRE_DEPLOY'
+doctl apps list-deployments "$DO_APP_ID" --format ID,Phase,Created | head -3
+doctl apps logs "$DO_APP_ID" migrate --type run --deployment <id>
+```
+
+The migrate logs of a healthy deploy read `N migrations found` then either the migrations it
+applied or `No pending migrations to apply.` A deployment whose `Phase` is `ERROR` with the job
+having exited non-zero is the gate working, not a regression: the previous release is still
+serving and the schema was never half-applied.
+
+**What the job buys.** A PRE_DEPLOY job runs to completion before the new containers start, and
+a non-zero exit cancels the deployment with the previous release still serving. The migrate job
+is the only thing that applies schema in a deployed tier — never the app container, which holds
+no DDL rights by design. Locally the same command is `MIGRATE_TIER=production bun run
+db:migrate:deploy`.
+
+**Rollback does not unwind a migration.** App Platform can restore any of the last ten
+successful deployments, and it restores code, configuration and the app spec — never database
+data. It is control-panel only: Apps → the app → Activity → Rollback. `doctl apps` has no
+rollback subcommand, and the deployment must share the app's region and database configuration. Prisma has no down-migrations either. So every migration must be backward-compatible with
+the release it lands ahead of: add columns with defaults, add tables, never rename or drop in
+the same deploy as the code that stops using them. A `FAILED_DEPLOY` job that ran down-DDL would
+turn a failed deploy into data loss; there is deliberately none.
+
+The database half of a rollback is Neon's, and it is already there — nothing to build. A restore
+matches the timestamp to an LSN, moves the compute to a point-in-time branch so the connection
+string does not change, and renames the pre-restore branch to `<name>_old_head_<timestamp>`, so
+the restore is itself reversible:
+
+```
+neon branches restore main '^self@2026-09-16T04:00:00.000Z'
+```
+
+It only reaches as far back as the project's history retention — 1 day by default on paid plans,
+6 hours on free, configurable to 7 days on Launch and 30 on Scale. Check that window is wider
+than the gap between a bad migration landing and someone noticing, because outside it there is
+no restore to make.
+
+`GET /v1/health` answers 503 when the running build expects migrations the database has not
+applied, so drift fails the health check and DO holds the previous release rather than serving
+500s. A database it cannot reach is reported as `unknown` and stays healthy — a cold start is
+not drift.
 
 ## Auth
 
