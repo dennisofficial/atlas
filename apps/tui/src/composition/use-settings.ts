@@ -5,6 +5,7 @@ import {
   DEFAULT_WARN_PERCENT,
   ESettingId,
   ESettingKind,
+  ESettingPage,
   EUsageWindow,
   formatFavourites,
   parseFavourites,
@@ -31,6 +32,7 @@ const AUTO_COMPACT_AT_PERCENT = 90
 
 const NOTICE_SECONDS = 2
 import {
+  currentPage,
   currentRow,
   movePage,
   moveRow,
@@ -53,6 +55,9 @@ export type SettingsControl = {
   secretOrigin: string
   origin: string
   problem: string | undefined
+  cloudEmail: string | null
+  cloudSignedIn: boolean
+  handleSignOut: () => void
   sidebarWidth: number
   sidebarFoldBelow: number
   autoCompactAtPercent: number
@@ -133,6 +138,7 @@ export function useSettings(args: {
 
   const [state, setState] = useState<SettingsState | null>(null)
   const [refused, setRefused] = useState<string | null>(null)
+  const [cloudSession, setCloudSession] = useState<{ email: string | null } | null>(null)
 
 
   const view = useMemo(
@@ -164,7 +170,19 @@ export function useSettings(args: {
     [app.settings, view],
   )
 
-  const handleOpen = useCallback(() => setState(openSettings()), [])
+  const readCloudSession = useCallback(() => {
+    setCloudSession(app.cloud.session())
+  }, [app.cloud])
+
+  const handleOpen = useCallback(() => {
+    readCloudSession()
+    setState(openSettings())
+  }, [readCloudSession])
+
+  const handleSignOut = useCallback(() => {
+    app.cloud.logout()
+    readCloudSession()
+  }, [app.cloud, readCloudSession])
 
   const handlePinModels = useCallback(
     (favourites: readonly string[]) => {
@@ -188,6 +206,11 @@ export function useSettings(args: {
     (target: SettingsState) => {
       setState(target)
 
+      if (currentPage({ state: target, model: view })?.page.id === ESettingPage.Account) {
+        if (app.cloud.session() !== null) handleSignOut()
+        return
+      }
+
       const row = currentRow({ state: target, model: view })
       if (row === undefined) return
 
@@ -203,7 +226,7 @@ export function useSettings(args: {
 
       write(target, (held) => activateSetting({ definition: held.definition, current: held.value }))
     },
-    [onChooseModel, secret, view, write],
+    [app.cloud, handleSignOut, onChooseModel, secret, view, write],
   )
 
   const handleKey = useCallback(
@@ -263,6 +286,9 @@ export function useSettings(args: {
       secretOrigin: secret.origin,
       origin,
       problem,
+      cloudEmail: cloudSession?.email ?? null,
+      cloudSignedIn: cloudSession !== null,
+      handleSignOut,
       ...preferences,
       handlePinModels,
       handleOpen,
@@ -272,11 +298,13 @@ export function useSettings(args: {
     }),
     [
       appearance,
+      cloudSession,
       handleActivate,
       handleDismiss,
       handleKey,
       handleOpen,
       handlePinModels,
+      handleSignOut,
       origin,
       preferences,
       problem,

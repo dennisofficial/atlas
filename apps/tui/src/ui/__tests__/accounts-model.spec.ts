@@ -287,54 +287,37 @@ describe('the device-code prompt', () => {
 })
 
 describe('the Atlas Cloud row', () => {
-  const cloudRowOf = (rows: readonly ReturnType<typeof accountRows>[number][]) => {
-    const row = rows[0]
-    if (row === undefined || row.kind !== EAccountRow.Cloud) throw new Error('expected the cloud row')
-    return row
-  }
+  const cloudRowOf = (rows: readonly ReturnType<typeof accountRows>[number][]) =>
+    rows.find((row) => row.kind === EAccountRow.Cloud)
 
-  it('leads the list whether or not a session exists', () => {
+  it('leads the list while there is no session, because it is how sign-in starts', () => {
     const rows = accountRows({ accounts: [account({ id: 'work' })], active: {}, cloud: null })
 
     expect(rows[0]?.kind).toBe(EAccountRow.Cloud)
     expect(rows[1]?.kind).toBe(EAccountRow.Account)
   })
 
-  it('offers sign-in when there is no session', () => {
+  it('offers sign-in and nothing else', () => {
     const row = cloudRowOf(accountRows({ accounts: [], active: {}, cloud: null }))
+    if (row === undefined) throw new Error('expected the cloud row')
 
     expect(rowLabel(row)).toBe('Atlas Cloud')
     expect(rowDetail(row)).toBe('not signed in · sign in')
     expect(row.active).toBe(false)
   })
 
-  it('names the signed-in account and how to leave', () => {
-    const row = cloudRowOf(
-      accountRows({ accounts: [], active: {}, cloud: { email: 'dennis@example.com' } }),
-    )
+  it('steps out of the list once a session exists, because identity lives in settings', () => {
+    const rows = accountRows({ accounts: [], active: {}, cloud: { email: 'dennis@example.com' } })
 
-    expect(rowLabel(row)).toBe('Atlas Cloud')
-    expect(rowDetail(row)).toBe('dennis@example.com · press x to sign out')
-  })
-
-  it('still says signed in when the session carries no email', () => {
-    const row = cloudRowOf(accountRows({ accounts: [], active: {}, cloud: { email: null } }))
-
-    expect(rowDetail(row)).toBe('signed in · press x to sign out')
+    expect(cloudRowOf(rows)).toBeUndefined()
   })
 
   it('answers for no provider, so n and k leave it alone', () => {
     const row = cloudRowOf(accountRows({ accounts: [], active: {}, cloud: null }))
+    if (row === undefined) throw new Error('expected the cloud row')
 
     expect(rowProvider(row)).toBeUndefined()
     expect(accountOf(row)).toBeUndefined()
-  })
-
-  it('drops back to sign-in once the session is gone', () => {
-    const row = cloudRowOf(accountRows({ accounts: [], active: {}, cloud: null }))
-
-    expect(row.session).toBeNull()
-    expect(rowDetail(row)).toBe('not signed in · sign in')
   })
 })
 
@@ -399,7 +382,7 @@ describe('the GitHub row', () => {
     expect(githubRowOf(rows)).toBeUndefined()
   })
 
-  it('follows the cloud row once a session exists', () => {
+  it('leads the list once a session exists, with the cloud row gone to settings', () => {
     const rows = accountRows({
       accounts: [account({ id: 'work' })],
       active: {},
@@ -407,9 +390,8 @@ describe('the GitHub row', () => {
       github: { connection: null, unreachable: false },
     })
 
-    expect(rows[0]?.kind).toBe(EAccountRow.Cloud)
-    expect(rows[1]?.kind).toBe(EAccountRow.Github)
-    expect(rows[2]?.kind).toBe(EAccountRow.Account)
+    expect(rows[0]?.kind).toBe(EAccountRow.Github)
+    expect(rows[1]?.kind).toBe(EAccountRow.Account)
   })
 
   it('invites the connection when there is none', () => {

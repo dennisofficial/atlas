@@ -176,7 +176,7 @@ export function useAccounts(args: {
     (row: AccountRow) => {
       if (row.kind === EAccountRow.Cloud) {
         const current = held.current
-        if (row.session === null && current !== null) cloudLogin.begin(current)
+        if (current !== null) cloudLogin.begin(current)
         return
       }
 
@@ -306,10 +306,7 @@ export function useAccounts(args: {
       const row = selectedRow(current)
       if (row === undefined) return
 
-      if (row.kind === EAccountRow.Cloud) {
-        if (row.session !== null) cloudLogin.signOut()
-        return
-      }
+      if (row.kind === EAccountRow.Cloud) return
 
       if (row.kind === EAccountRow.Github) {
         if (row.github.connection !== null) githubConnect.disconnect()

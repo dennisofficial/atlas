@@ -185,25 +185,16 @@ describe('an account row', () => {
 })
 
 describe('the GitHub row and prompt', () => {
-  const cloudRow: AccountRow = {
-    kind: EAccountRow.Cloud,
-    session: { email: 'dennis@example.com' },
-    active: false,
-  }
-
-  it('renders the row under Atlas Cloud with the connect invitation', async () => {
+  it('renders the row with the connect invitation', async () => {
     const githubRow: AccountRow = {
       kind: EAccountRow.Github,
       github: { connection: null, unreachable: false },
       active: false,
     }
 
-    const rows = await rowsOf({ state: stateWith([cloudRow, githubRow]) })
+    const rows = await rowsOf({ state: stateWith([githubRow]) })
 
-    const cloud = rows.findIndex((row) => row.includes('Atlas Cloud'))
-    const github = rows.findIndex((row) => row.includes('GitHub'))
-
-    expect(github).toBe(cloud + 2)
+    expect(lineWith(rows, 'GitHub')).not.toBe('')
     expect(lineWith(rows, 'not connected')).toContain('enter to connect')
   })
 

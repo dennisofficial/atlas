@@ -37,14 +37,15 @@ export type GithubRowState = { connection: GithubIdentity | null; unreachable: b
 
 /**
  * A provider Atlas can answer for but nothing has signed into still gets a row, because the sign-in
- * flows are reached by selecting one. The cloud row leads the list whether or not a session exists,
- * because both signing in and signing out are reached by selecting it. Discriminated rather than
- * optional so every reader that wants an account id has to say what it does without one.
+ * flows are reached by selecting one. The cloud row leads the list only while there is no session,
+ * because signing in is reached by selecting it — once signed in, identity and sign-out belong to
+ * the settings account tab. Discriminated rather than optional so every reader that wants an
+ * account id has to say what it does without one.
  */
 export type AccountRow =
   | { kind: EAccountRow.Account; account: Account; active: boolean }
   | { kind: EAccountRow.SignedOut; provider: EAuthProvider; active: false }
-  | { kind: EAccountRow.Cloud; session: CloudIdentity | null; active: false }
+  | { kind: EAccountRow.Cloud; active: false }
   | { kind: EAccountRow.Github; github: GithubRowState; active: false }
 
 export const rowProvider = (row: AccountRow): EAuthProvider | undefined => {
@@ -127,14 +128,15 @@ export function accountRows(args: {
       })),
   ]
 
-  const cloudRow: AccountRow = { kind: EAccountRow.Cloud, session: args.cloud, active: false }
+  const cloudRows: AccountRow[] =
+    args.cloud === null ? [{ kind: EAccountRow.Cloud, active: false }] : []
   const githubRows: AccountRow[] =
     args.github === undefined
       ? []
       : [{ kind: EAccountRow.Github, github: args.github, active: false }]
 
   return [
-    cloudRow,
+    ...cloudRows,
     ...githubRows,
     ...rows.sort(
       (left, right) =>

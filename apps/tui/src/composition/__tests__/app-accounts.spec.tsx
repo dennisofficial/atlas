@@ -111,6 +111,7 @@ const accountsHolding = async (labels: readonly string[]): Promise<AccountsServi
 const appWith = async (labels: readonly string[]): Promise<FakeApp> => {
   const app = fakeApp({
     model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }),
+    cloud: fakeSignedOutCloud(),
   })
 
   return { ...app, accounts: await accountsHolding(labels) }
@@ -504,9 +505,6 @@ describe('the GitHub row', () => {
 
     try {
       await openOverlay(setup)
-      setup.mockInput.pressArrow('down')
-      await setup.flush()
-      await settle(120)
       setup.mockInput.pressEnter()
       await setup.flush()
       await settle(150)
@@ -536,9 +534,6 @@ describe('the GitHub row', () => {
 
     try {
       await openOverlay(setup)
-      setup.mockInput.pressArrow('down')
-      await setup.flush()
-      await settle(120)
       setup.mockInput.pressEnter()
       await setup.flush()
       await settle(3500)
@@ -564,9 +559,6 @@ describe('the GitHub row', () => {
 
       expect(setup.captureCharFrame()).toContain('@octocat · press x to disconnect')
 
-      setup.mockInput.pressArrow('down')
-      await setup.flush()
-      await settle(120)
       setup.mockInput.pressKey('x')
       await setup.flush()
       await settle(250)

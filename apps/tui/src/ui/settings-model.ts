@@ -1,5 +1,6 @@
 import {
   definitionsOfPage,
+  ESettingPage,
   SETTING_PAGES,
   type ResolvedSetting,
   type SettingDefinition,
@@ -62,6 +63,8 @@ const resolvedOf = (args: {
   return rows
 }
 
+const holdsSettings = (page: SettingPage): boolean => page.id !== ESettingPage.Account
+
 export function settingsModel(args: {
   definitions: readonly SettingDefinition[]
   resolution: SettingsResolution
@@ -74,7 +77,7 @@ export function settingsModel(args: {
       definitions: definitionsOfPage({ definitions: args.definitions, page: page.id }),
       resolution: args.resolution,
     })
-    if (rows.length === 0) continue
+    if (rows.length === 0 && holdsSettings(page)) continue
 
     pages.push({ page, groups: groupsOf(rows), rows })
   }
