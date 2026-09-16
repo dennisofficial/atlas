@@ -137,6 +137,9 @@ classes only.
 - **Every new feature includes tests.** TDD preferred.
 - Tests live in a sibling `__tests__/` directory as `*.spec.ts(x)`.
 - `bun test` everywhere.
+- Live Docker specs (anything gating on `describeLiveDocker` / `dockerUnavailableReason`, plus the
+  docker shell-adapter specs) run only with `ATLAS_LIVE_DOCKER=1`; CI sets it. Locally they skip by
+  default so a running Docker Desktop doesn't turn every `bun test` pass into real containers.
 - Context assembly, hook resolution, and policy decisions are pure and belong to `core` — test them
   with plain data, never with a live model, a terminal, or a database.
 
