@@ -69,8 +69,22 @@ db:migrate:deploy`.
 successful deployments, and it restores code, configuration and the app spec — never database
 data. Prisma has no down-migrations either. So every migration must be backward-compatible with
 the release it lands ahead of: add columns with defaults, add tables, never rename or drop in
-the same deploy as the code that stops using them. The database escape hatch is Neon's branching
-and point-in-time restore, not the deploy pipeline.
+the same deploy as the code that stops using them. A `FAILED_DEPLOY` job that ran down-DDL would
+turn a failed deploy into data loss; there is deliberately none.
+
+The database half of a rollback is Neon's, and it is already there — nothing to build. A restore
+matches the timestamp to an LSN, moves the compute to a point-in-time branch so the connection
+string does not change, and renames the pre-restore branch to `<name>_old_head_<timestamp>`, so
+the restore is itself reversible:
+
+```
+neon branches restore main '^self@2026-09-16T04:00:00.000Z'
+```
+
+It only reaches as far back as the project's history retention — 1 day by default on paid plans,
+6 hours on free, configurable to 7 days on Launch and 30 on Scale. Check that window is wider
+than the gap between a bad migration landing and someone noticing, because outside it there is
+no restore to make.
 
 `GET /v1/health` answers 503 when the running build expects migrations the database has not
 applied, so drift fails the health check and DO holds the previous release rather than serving
