@@ -52,6 +52,13 @@ export ATLAS_DEV=1
 # it is standing in for.
 export NODE_ENV=production
 
+# Bun's runtime transpiler cache keys an entry by source hash alone — NODE_ENV is not part of the
+# key — so any file over 50KB that some other command transpiled without NODE_ENV=production
+# replays its `jsxDEV(...)` calls into this launch, where react/jsx-dev-runtime exports jsxDEV as
+# undefined. A cache of our own only ever holds production output.
+# https://bun.com/docs/runtime/modules#transpiler-cache
+export BUN_RUNTIME_TRANSPILER_CACHE_PATH="${TMPDIR:-/tmp}/atlas-dev-transpiler-cache"
+
 generate
 
 while :; do
