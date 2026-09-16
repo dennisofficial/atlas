@@ -129,7 +129,7 @@ export function subagentStateLabel(args: { subagent: SubagentReadout; now: numbe
  */
 export const SPEND_UNAVAILABLE_LABEL = 'tokens unavailable'
 
-const FIGURE_SEPARATOR = '  '
+export const FIGURE_SEPARATOR = '  '
 
 /**
  * Both directions are shown because input dominates a child's bill and output alone would flatter

@@ -38,7 +38,9 @@ function meterSpans(meters: readonly FooterMeter[]): Span[] {
 }
 
 function readoutSpans(args: { readout: FooterReadout; context: FooterContext }): Span[] {
-  const fg = isMeasured(args.context) ? contextTone(args.context.percent) : theme.warn
+  const fg = isMeasured(args.context)
+    ? contextTone({ percent: args.context.percent, tokens: args.context.tokensUsed })
+    : theme.warn
   return [{ text: args.readout.text, fg }, ...meterSpans(args.readout.meters)]
 }
 

@@ -10,7 +10,7 @@ import {
   type TurnSpend,
 } from "@dltech/atlas-harness";
 
-import { formatTokens } from "../ui/theme";
+import { formatTokens, theme } from "../ui/theme";
 
 export type ModelPriceLookup = (ref: ModelRef) => ModelCost | undefined;
 
@@ -69,6 +69,16 @@ export function sidebarSpendOf(args: {
         ? null
         : costOfTurns({ ...args, priceOf: args.priceOf }),
   };
+}
+
+export const COST_WARN_USD = 5;
+
+export const COST_DANGER_USD = 10;
+
+export function costTone(costUsd: number): string {
+  if (costUsd >= COST_DANGER_USD) return theme.error;
+  if (costUsd >= COST_WARN_USD) return theme.warn;
+  return theme.hint;
 }
 
 const CENT = 0.01;
