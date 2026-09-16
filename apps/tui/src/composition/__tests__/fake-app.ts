@@ -19,6 +19,7 @@ import {
   type ChunkFilter,
   EAuthKind,
   toAccountId,
+  type AccountDraft,
   type Credential,
   type CredentialPort,
   type EffortMap,
@@ -178,6 +179,8 @@ export function fakeCatalogue(): ModelCatalogue {
     reachable: (providerId) => providerId === 'anthropic',
     subscribed: () => true,
     observeAccounts: () => {},
+    subscribe: () => () => {},
+    version: () => 0,
   }
 }
 
@@ -193,11 +196,13 @@ export const alwaysAuthorised = (): CredentialPort => ({
   discard: async () => {},
 })
 
-export const fakeAccounts = (): AccountsService => {
+export const fakeAccounts = (seeded?: readonly AccountDraft[]): AccountsService => {
   const clock = new SystemClock()
+  const store = memoryAccountStore({ clock })
+  for (const draft of seeded ?? []) void store.add(draft)
 
   return new AccountsService({
-    accounts: memoryAccountStore({ clock }),
+    accounts: store,
     clients: builtinOauthClients({ clock }),
   })
 }
@@ -660,6 +665,8 @@ export function fakeApp(args: {
   open?: OpenRequest
   cloud?: CloudService
   cloudRequired?: boolean
+  models?: ModelCatalogue
+  accountsSeed?: readonly AccountDraft[]
 }): FakeApp {
   const channel = createDeltaChannel()
   const log = fakeEventLog()
@@ -707,7 +714,7 @@ export function fakeApp(args: {
       openedDirectories.push(projectDirectory)
     },
     files: new FileBrowser({ root: args.workspaceRoot ?? FAKE_CONFIG.cwd }),
-    accounts: fakeAccounts(),
+    accounts: fakeAccounts(args.accountsSeed),
     cloud: args.cloud ?? fakeCloud(),
     openUrl: (url: string) => {
       openedUrls.push(url)
@@ -802,7 +809,7 @@ export function fakeApp(args: {
     }),
     cloudRequired: args.cloudRequired ?? false,
     modelPinned: false,
-    models: fakeCatalogue(),
+    models: args.models ?? fakeCatalogue(),
     executionLocation: createExecutionLocationState({ initial: EExecutionLocation.Host }),
     containerStatus: createSandboxStatusState({
       image: 'node:22-slim',

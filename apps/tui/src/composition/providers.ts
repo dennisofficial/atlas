@@ -21,6 +21,8 @@ export type ModelCatalogue = {
   reachable: (providerId: string) => boolean
   subscribed: (providerId: string) => boolean
   observeAccounts: (accounts: readonly Account[]) => void
+  subscribe: (listener: () => void) => () => void
+  version: () => number
 }
 
 const providersHolding = (args: {
@@ -54,6 +56,9 @@ export function modelCatalogue(args: {
   let keyed = keyedProviders(args.accounts ?? [])
   let subscribed = subscribedProviders(args.accounts ?? [])
 
+  const listeners = new Set<() => void>()
+  let version = 0
+
   return {
     providers: args.adapters.map((adapter) => ({
       id: adapter.id,
@@ -68,7 +73,14 @@ export function modelCatalogue(args: {
     observeAccounts: (accounts) => {
       keyed = keyedProviders(accounts)
       subscribed = subscribedProviders(accounts)
+      version += 1
+      for (const listener of listeners) listener()
     },
+    subscribe: (listener) => {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+    version: () => version,
   }
 }
 

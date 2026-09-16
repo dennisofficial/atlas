@@ -66,6 +66,8 @@ const catalogueWith = (adapter: ProviderAdapter): ModelCatalogue => ({
   reachable: () => true,
   subscribed: () => false,
   observeAccounts: () => {},
+  subscribe: () => () => {},
+  version: () => 0,
 })
 
 describe('the model behind the switcher', () => {

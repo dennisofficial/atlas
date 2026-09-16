@@ -91,4 +91,20 @@ describe('which providers report a session and weekly window', () => {
 
     expect(catalogue.subscribed(ANTHROPIC_PROVIDER_ID)).toBe(true)
   })
+
+  it('bumps its version and notifies subscribers when accounts are observed', () => {
+    const catalogue = catalogueWith([])
+    const seen: number[] = []
+    const stop = catalogue.subscribe(() => seen.push(catalogue.version()))
+
+    expect(catalogue.version()).toBe(0)
+
+    catalogue.observeAccounts([])
+    catalogue.observeAccounts([])
+    stop()
+    catalogue.observeAccounts([])
+
+    expect(seen).toEqual([1, 2])
+    expect(catalogue.version()).toBe(3)
+  })
 })

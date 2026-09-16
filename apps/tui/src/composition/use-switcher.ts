@@ -57,6 +57,8 @@ const isFilterKey = (key: KeyEvent): boolean => {
  */
 export function useSwitcher(args: {
   catalogue: ModelCatalogue
+  /** Bumps whenever the catalogue re-observes accounts, so availability never serves a stale memo. */
+  accountsVersion: number
   active: ModelRef
   effort: EEffort
   /** Where the highlight starts when the picker is set on the default rather than the thread. */
@@ -67,7 +69,7 @@ export function useSwitcher(args: {
 }): SwitcherControl {
   const held = useRef<Browsing | null>(null)
   const [browsing, setBrowsing] = useState<Browsing | null>(null)
-  const { catalogue, active, effort, fallback, favourites, onPick, onPin } = args
+  const { catalogue, accountsVersion, active, effort, fallback, favourites, onPick, onPin } = args
 
   const put = useCallback((next: Browsing | null) => {
     held.current = next
@@ -82,7 +84,7 @@ export function useSwitcher(args: {
         favourites: args.favourites,
         query: args.query,
       }),
-    [catalogue],
+    [catalogue, accountsVersion],
   )
 
   const rowsFor = useCallback(
@@ -110,7 +112,7 @@ export function useSwitcher(args: {
         }),
       })
     },
-    [active, catalogue, effort, fallback, favourites, put],
+    [active, accountsVersion, catalogue, effort, fallback, favourites, put],
   )
 
   const handleDismiss = useCallback(() => put(null), [put])
