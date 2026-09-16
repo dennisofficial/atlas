@@ -2,8 +2,16 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 
 import type { BoundPort } from '@dltech/atlas-harness'
 
+import { cloudPillOf, type SidebarCloud } from '../store/cloud-state'
 import { containerPillOf, exposedPortsOf, type SidebarContainer } from '../store/sidebar-model'
+import type { CloudConnection } from './cloud/cloud-bridge'
 import type { AtlasApp } from './compose'
+
+/** At most one of these is ever set: the pill says where the loop runs, and it runs in one place. */
+export type ContainerPills = {
+  container: SidebarContainer | null
+  cloud: SidebarCloud | null
+}
 
 const samePorts = (left: readonly BoundPort[], right: readonly BoundPort[]): boolean =>
   left.length === right.length &&
@@ -33,8 +41,12 @@ function useExposedPorts(args: { shells: AtlasApp['shells'] }): readonly BoundPo
   return exposed
 }
 
-export function useContainerPill(args: { app: AtlasApp }): SidebarContainer | null {
+export function useContainerPill(args: {
+  app: AtlasApp
+  connection?: CloudConnection | null | undefined
+}): ContainerPills {
   const { app } = args
+  const connection = args.connection ?? null
 
   const location = useSyncExternalStore(
     app.executionLocation.subscribe,
@@ -44,7 +56,10 @@ export function useContainerPill(args: { app: AtlasApp }): SidebarContainer | nu
   const exposed = useExposedPorts({ shells: app.shells })
 
   return useMemo(
-    () => containerPillOf({ location, container, exposed }),
-    [location, container, exposed],
+    () => ({
+      container: containerPillOf({ location, container, exposed }),
+      cloud: cloudPillOf({ connection }),
+    }),
+    [location, container, exposed, connection],
   )
 }

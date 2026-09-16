@@ -57,6 +57,10 @@ export type HarnessSurfaceBinding<TSurface = undefined> = {
   bind?: ((args: { container: DependencyContainer }) => TSurface | Promise<TSurface>) | undefined
 }
 
+export type HarnessStoreBinding = {
+  bind: (args: { container: DependencyContainer }) => void | Promise<void>
+}
+
 /** What a composed session hands its surface. Nothing here renders. */
 export type HarnessApp<TSurface = undefined, Command = never> = {
   launch: HarnessLaunch

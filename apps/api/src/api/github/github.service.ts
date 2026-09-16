@@ -78,9 +78,15 @@ export class GithubService {
   }
 
   async readToken(args: { userId: string }): Promise<GithubTokenDto> {
+    const token = await this.findToken(args)
+    if (token === undefined) throw new NotFoundException('github is not connected')
+    return { token }
+  }
+
+  async findToken(args: { userId: string }): Promise<string | undefined> {
     const row = await db.githubConnection.findUnique({ where: { userId: args.userId } })
-    if (row === null) throw new NotFoundException('github is not connected')
-    return { token: this.cipher.decrypt(row.sealedToken) }
+    if (row === null) return undefined
+    return this.cipher.decrypt(row.sealedToken)
   }
 
   async disconnect(args: { userId: string }): Promise<void> {

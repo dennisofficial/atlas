@@ -1,0 +1,395 @@
+import { afterEach, describe, expect, it } from 'bun:test'
+
+import { toRunId, toThreadId } from '@dltech/atlas-core'
+
+import { EStepEnd } from '../../channel/signal'
+import { EClientFrame, EClientRequest, EServeFrame, type ServeFrame } from '../../cloud/channel-wire'
+import { ETurnStatus } from '../../loop/turn-outcome'
+import {
+  EServeEnv,
+  EServeEvent,
+  EWorkspaceState,
+  EWorkspaceStep,
+  startServe,
+  type ServeHandle,
+  type WorkspaceReadiness,
+} from '../index'
+
+import { connect } from './client'
+import { fakeServeApp, type FakeServeApp, type RunTurn } from './fakes'
+
+const TOKEN = 'session-token'
+
+const threadId = toThreadId('thread-serve')
+
+const CONTROL_PLANE = 'https://api.example.com'
+
+const HEARTBEAT_URL = `${CONTROL_PLANE}/v1/sandboxes/thread-serve/heartbeat`
+
+type Started = { handle: ServeHandle; app: FakeServeApp; beats: string[]; lines: string[] }
+
+const running: ServeHandle[] = []
+
+const start = async (args: {
+  runTurn?: RunTurn | undefined
+  entries?: Record<string, readonly { name: string; isDirectory: boolean }[]> | undefined
+  bufferSize?: number | undefined
+  env?: Record<string, string | undefined> | undefined
+  workspace?: WorkspaceReadiness | undefined
+}): Promise<Started> => {
+  const beats: string[] = []
+  const lines: string[] = []
+  const app = fakeServeApp({
+    threadId,
+    root: '/workspace',
+    runTurn: args.runTurn,
+    entries: args.entries,
+  })
+
+  const told =
+    args.env === undefined
+      ? { threadId, port: 0, token: TOKEN, controlPlaneUrl: CONTROL_PLANE, env: {} }
+      : { env: args.env }
+
+  const handle = await startServe({
+    ...told,
+    cwd: '/workspace',
+    bufferSize: args.bufferSize,
+    write: (line) => lines.push(line),
+    fetchFn: (async (input: unknown) => {
+      beats.push(String(input))
+      return new Response(null, { status: 204 })
+    }) as typeof fetch,
+    compose: async () => app,
+    ensureWorkspace: async () => args.workspace ?? { state: EWorkspaceState.Skipped },
+  })
+
+  running.push(handle)
+  return { handle, app, beats, lines }
+}
+
+const hello = (args: { channelCursor: number | null; lastEventSeq: number }) =>
+  ({ kind: EClientFrame.Hello, threadId, ...args }) as const
+
+const seqsOf = (frames: readonly ServeFrame[]): number[] =>
+  frames.flatMap((frame) => (frame.kind === EServeFrame.Signal ? [frame.seq] : []))
+
+const stepIdsOf = (frames: readonly ServeFrame[]): string[] =>
+  frames.flatMap((frame) => {
+    if (frame.kind !== EServeFrame.Signal) return []
+    const { signal } = frame
+    if (signal.type === 'step-started' || signal.type === 'chunk') return [signal.stepId]
+    if (signal.type === 'step-ended') return [signal.stepId]
+    return []
+  })
+
+const isStep = (frame: ServeFrame, type: 'chunk' | 'step-ended'): boolean =>
+  frame.kind === EServeFrame.Signal && frame.signal.type === type
+
+const textChunk = (text: string) => ({ type: 'text-delta', id: 'block', text }) as const
+
+const gate = () => {
+  let open = (): void => undefined
+  const opened = new Promise<void>((resolve) => {
+    open = resolve
+  })
+  return { opened, open: () => open() }
+}
+
+afterEach(async () => {
+  while (running.length > 0) await running.pop()?.close()
+})
+
+describe('startServe', () => {
+  it('refuses a websocket upgrade carrying the wrong token', async () => {
+    const { handle } = await start({})
+
+    await expect(connect({ port: handle.port, token: 'not-the-token' })).rejects.toThrow()
+  })
+
+  it('answers health only for the session token', async () => {
+    const { handle } = await start({})
+    const url = `http://127.0.0.1:${handle.port}/v1/health`
+
+    expect((await fetch(url)).status).toBe(401)
+
+    const allowed = await fetch(url, { headers: { authorization: `Bearer ${TOKEN}` } })
+    expect(allowed.status).toBe(200)
+    expect(await allowed.json()).toMatchObject({ ok: true, threadId, turnRunning: false })
+  })
+
+  it('closes a socket whose first frame is not hello', async () => {
+    const { handle } = await start({})
+    const client = await connect({ port: handle.port, token: TOKEN })
+
+    client.send({ kind: EClientFrame.Send, text: 'hi' })
+
+    expect(await client.closed).toBe(1008)
+    expect(client.frames.at(-1)).toEqual({
+      kind: EServeFrame.Error,
+      message: 'the first frame must be hello',
+    })
+  })
+
+  it('replays only the frames after a cursor it still holds', async () => {
+    const { handle, app } = await start({})
+    const publisher = app.channel.publisherFor({ threadId })
+    publisher.onChunk(textChunk('one'))
+    publisher.onChunk(textChunk('two'))
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: 0, lastEventSeq: 4 }))
+
+    await client.waitFor((frame) => frame.kind === EServeFrame.Signal && frame.seq === 2)
+    expect(client.frames[0]).toEqual({ kind: EServeFrame.Ready, seq: 3 })
+    expect(seqsOf(client.frames)).toEqual([1, 2])
+  })
+
+  it('tells a client with no cursor to re-read the log, then hands it the step in flight', async () => {
+    const { handle, app } = await start({})
+    const publisher = app.channel.publisherFor({ threadId })
+    publisher.onChunk(textChunk('one'))
+    publisher.onChunk(textChunk('two'))
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 9 }))
+
+    await client.waitFor((frame) => frame.kind === EServeFrame.Signal && frame.seq === 2)
+    expect(client.frames[0]).toEqual({ kind: EServeFrame.Reload, sinceEventSeq: 9 })
+    expect(client.frames[1]).toEqual({ kind: EServeFrame.Ready, seq: 3 })
+    expect(seqsOf(client.frames)).toEqual([0, 1, 2])
+  })
+
+  it('tells a client whose cursor fell out of the ring to re-read the log', async () => {
+    const { handle, app } = await start({ bufferSize: 2 })
+    const publisher = app.channel.publisherFor({ threadId })
+    for (const text of ['one', 'two', 'three']) publisher.onChunk(textChunk(text))
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: 0, lastEventSeq: 2 }))
+
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+    expect(client.frames[0]).toEqual({ kind: EServeFrame.Reload, sinceEventSeq: 2 })
+  })
+
+  it('replays the step in flight under a fresh id, and keeps that client on it', async () => {
+    const { handle, app } = await start({})
+    const publisher = app.channel.publisherFor({ threadId })
+    publisher.onChunk(textChunk('one'))
+
+    const live = await connect({ port: handle.port, token: TOKEN })
+    live.send(hello({ channelCursor: 0, lastEventSeq: 0 }))
+    await live.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    const reloaded = await connect({ port: handle.port, token: TOKEN })
+    reloaded.send(hello({ channelCursor: null, lastEventSeq: 9 }))
+    await reloaded.waitFor((frame) => isStep(frame, 'chunk'))
+
+    const replayed = stepIdsOf(reloaded.frames)[0]
+    expect(replayed).toBeDefined()
+    expect(replayed).not.toBe(`${threadId}#1`)
+
+    publisher.onChunk(textChunk('two'))
+    publisher.close({ end: EStepEnd.Completed })
+    await reloaded.waitFor((frame) => isStep(frame, 'step-ended'))
+    await live.waitFor((frame) => isStep(frame, 'step-ended'))
+
+    expect(new Set(stepIdsOf(reloaded.frames))).toEqual(new Set([replayed as string]))
+    expect(new Set(stepIdsOf(live.frames))).toEqual(new Set([`${threadId}#1`]))
+  })
+
+  it('leaves a resumed client on the step id it already knows', async () => {
+    const { handle, app } = await start({})
+    const publisher = app.channel.publisherFor({ threadId })
+    publisher.onChunk(textChunk('one'))
+    publisher.onChunk(textChunk('two'))
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: 0, lastEventSeq: 4 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Signal && frame.seq === 2)
+
+    expect(stepIdsOf(client.frames)).toEqual([`${threadId}#1`, `${threadId}#1`])
+  })
+
+  it('never backfills a step whose start has aged out of the ring', async () => {
+    const { handle, app } = await start({ bufferSize: 2 })
+    const publisher = app.channel.publisherFor({ threadId })
+    for (const text of ['one', 'two', 'three']) publisher.onChunk(textChunk(text))
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 3 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+    await Bun.sleep(10)
+
+    expect(client.frames.map((frame) => frame.kind)).toEqual([
+      EServeFrame.Reload,
+      EServeFrame.Ready,
+    ])
+
+    publisher.onChunk(textChunk('four'))
+    await client.waitFor((frame) => isStep(frame, 'chunk'))
+
+    expect(stepIdsOf(client.frames)[0]).not.toBe(`${threadId}#1`)
+  })
+
+  it('forwards live signals in order under a monotonic seq', async () => {
+    const { handle, app } = await start({})
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    const publisher = app.channel.publisherFor({ threadId })
+    for (const text of ['one', 'two', 'three']) publisher.onChunk(textChunk(text))
+
+    await client.waitFor((frame) => frame.kind === EServeFrame.Signal && frame.seq === 3)
+    expect(seqsOf(client.frames)).toEqual([0, 1, 2, 3])
+  })
+
+  it('answers a request while a turn is streaming', async () => {
+    const held = gate()
+    const { handle, app } = await start({
+      entries: {
+        'src/': [
+          { name: 'channel', isDirectory: true },
+          { name: 'chunk.ts', isDirectory: false },
+          { name: 'other.ts', isDirectory: false },
+        ],
+      },
+      runTurn: async () => {
+        const publisher = app.channel.publisherFor({ threadId })
+        publisher.onChunk(textChunk('one'))
+        await held.opened
+        publisher.onChunk(textChunk('two'))
+        return { status: ETurnStatus.Completed, runId: toRunId('run-1') }
+      },
+    })
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    client.send({ kind: EClientFrame.Send, text: 'go' })
+    await client.waitFor((frame) => frame.kind === EServeFrame.Signal && frame.seq === 1)
+
+    client.send({
+      kind: EClientFrame.Request,
+      id: 'ask-1',
+      op: EClientRequest.CompletePaths,
+      params: { query: 'src/ch' },
+    })
+    const reply = await client.waitFor((frame) => frame.kind === EServeFrame.Reply)
+
+    expect(reply).toEqual({
+      kind: EServeFrame.Reply,
+      replyTo: 'ask-1',
+      ok: true,
+      data: {
+        directory: 'src/',
+        fragment: 'ch',
+        entries: [
+          { name: 'channel', isDirectory: true },
+          { name: 'chunk.ts', isDirectory: false },
+        ],
+      },
+    })
+
+    held.open()
+    await client.waitFor((frame) => frame.kind === EServeFrame.Signal && frame.seq === 2)
+    expect(app.appended).toEqual([{ type: 'user-said', text: 'go' }])
+  })
+
+  it('heartbeats for a turn and never for a socket that is merely open', async () => {
+    const { handle, beats } = await start({})
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+    await Bun.sleep(20)
+
+    expect(beats).toEqual([])
+
+    client.send({ kind: EClientFrame.Send, text: 'go' })
+    await Bun.sleep(20)
+
+    expect(beats).toEqual([HEARTBEAT_URL])
+  })
+
+  it('boots from the variables the sandbox was created with, and logs none of them', async () => {
+    const { handle, lines } = await start({
+      env: {
+        [EServeEnv.Token]: TOKEN,
+        [EServeEnv.Port]: '0',
+        [EServeEnv.ThreadId]: 'thread-serve',
+        [EServeEnv.CloudUrl]: CONTROL_PLANE,
+      },
+    })
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    expect(lines.some((line) => line.includes(EServeEvent.Started))).toBe(true)
+    expect(lines.some((line) => line.includes(TOKEN))).toBe(false)
+  })
+
+  it('reports a workspace it could not materialize, and refuses to work in an empty tree', async () => {
+    const { handle, lines } = await start({
+      workspace: {
+        state: EWorkspaceState.Failed,
+        step: EWorkspaceStep.Clone,
+        reason: 'fatal: repository not found',
+      },
+    })
+
+    const health = await fetch(`http://127.0.0.1:${handle.port}/v1/health`, {
+      headers: { authorization: `Bearer ${TOKEN}` },
+    })
+    expect(await health.json()).toMatchObject({
+      ok: false,
+      workspace: { state: EWorkspaceState.Failed, step: EWorkspaceStep.Clone },
+    })
+    expect(lines.some((line) => line.includes(EServeEvent.WorkspaceFailed))).toBe(true)
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    client.send({ kind: EClientFrame.Send, text: 'go' })
+    const refusal = await client.waitFor((frame) => frame.kind === EServeFrame.Error)
+
+    expect(refusal).toMatchObject({ kind: EServeFrame.Error })
+    expect(JSON.stringify(refusal)).toContain('fatal: repository not found')
+  })
+
+  it('logs the workspace it found already materialized', async () => {
+    const { lines } = await start({ workspace: { state: EWorkspaceState.Present } })
+
+    expect(
+      lines.some(
+        (line) =>
+          line.includes(EServeEvent.WorkspaceReady) && line.includes(EWorkspaceState.Present),
+      ),
+    ).toBe(true)
+  })
+
+  it('interrupts the turn a client asked it to stop', async () => {
+    let aborted = false
+    const { handle } = await start({
+      runTurn: async ({ signal }) => {
+        await new Promise<void>((resolve) => signal?.addEventListener('abort', () => resolve()))
+        aborted = true
+        return { status: ETurnStatus.Interrupted, runId: toRunId('run-1'), committed: false }
+      },
+    })
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    client.send({ kind: EClientFrame.Send, text: 'go' })
+    await Bun.sleep(10)
+    client.send({ kind: EClientFrame.Interrupt })
+    await Bun.sleep(10)
+
+    expect(aborted).toBe(true)
+  })
+})

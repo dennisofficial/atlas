@@ -14,17 +14,17 @@ import React, {
 import {
   contextPressure,
   ECompactionAnchor,
+  EExecutionLocation,
   EForkMode,
   EKilledBy,
   launchWorktreeOf,
-  type EExecutionLocation,
   type EUsageWindow,
   type ModelCard,
 } from '@dltech/atlas-core'
 import { forkConversation, relocateSession, settingModelRef, suggestedModelRef, type DiscoveredSkill } from '@dltech/atlas-harness'
 
 import { newestExpandableKey, type PendingSaid } from '../store'
-import { withContainer, withSections } from '../store/sidebar-model'
+import { withCloud, withContainer, withSections } from '../store/sidebar-model'
 import { accountMeterSpans } from '../ui/account-meters'
 import { accountOf, type AccountRow } from '../ui/accounts-model'
 import { isWaiting, type BackgroundWork } from '../ui/background-wait'
@@ -149,6 +149,16 @@ import { useLocationPill } from './use-location-pill'
 import { useExecutionLocation } from './use-execution-location'
 import { useThreads } from './use-threads'
 import { useUsageMeters } from './use-usage-meters'
+import { createCloudBridge } from './cloud/create-bridge'
+import { createCloudSession, type CloudSession } from './cloud/cloud-session'
+import { liftRefusal } from './cloud/lift-plan'
+import { openCloudConversation } from './cloud/cloud-app'
+import type { CloudBridgeFactory, WorkspaceCapture } from './use-cloud-lift'
+import { useCloudLift } from './use-cloud-lift'
+import { captureWorkspace } from './cloud/workspace-snapshot'
+import { useCloudSession } from './use-cloud-session'
+import type { LiftedAttachment, LiftedSession } from './lifted-session'
+import { clientVersionHeader } from '../build/info'
 
 const STEER_PLACEHOLDER = 'Steer the turn'
 
@@ -189,6 +199,16 @@ const readoutOf = (args: {
   return { percent: pressure.percent, tokensUsed: pressure.used, meters: args.meters }
 }
 
+const liveBridge: CloudBridgeFactory = ({ url, token }) =>
+  createCloudBridge({ url, token, clientVersion: clientVersionHeader() })
+
+/**
+ * A lift is the conversation opened again as a cloud thread, not the running one rewired: the
+ * workspace remounts against the remote stores under a fresh key, so every hook below reads the
+ * cloud log from its first render rather than swapping ports out from under a live session. A
+ * reload — the channel saying its delta buffer could not resume — re-reads the durable log the
+ * same way, which is why it counts into the key.
+ */
 export function App(props: {
   app: AtlasApp
   opened: OpenedConversation
@@ -196,14 +216,55 @@ export function App(props: {
   covered?: boolean
   clipboard?: ClipboardImageReader
   onRestart?: () => void
+  createBridge?: CloudBridgeFactory
+  captureWorkspace?: WorkspaceCapture
 }): React.ReactNode {
   const registry = useMemo(() => createKeyRegistry(), [])
+  const [lifted, setLifted] = useState<LiftedSession | null>(null)
+  const held = useRef<LiftedSession | null>(null)
+  held.current = lifted
+
+  const handleReload = useCallback(() => {
+    const attached = held.current
+    if (attached === null) return
+
+    void openCloudConversation({
+      app: attached.app,
+      threadId: attached.opened.threadId,
+    }).then((opened) =>
+      setLifted((current) =>
+        current === null ? current : { ...current, opened, reloads: current.reloads + 1 },
+      ),
+    )
+  }, [])
+
+  const handleLifted = useCallback(
+    (attachment: LiftedAttachment) => {
+      held.current?.session.close()
+
+      setLifted({
+        ...attachment,
+        session: createCloudSession({
+          channel: attachment.channel,
+          sandboxes: attachment.bridge.sandboxes,
+          onReload: handleReload,
+        }),
+        reloads: 0,
+      })
+    },
+    [handleReload],
+  )
 
   return (
     <KeyRegistryContext.Provider value={registry}>
       <Workspace
-        app={props.app}
-        opened={props.opened}
+        key={lifted === null ? 'local' : `cloud:${lifted.opened.threadId}:${lifted.reloads}`}
+        app={lifted?.app ?? props.app}
+        opened={lifted?.opened ?? props.opened}
+        cloudSession={lifted?.session ?? null}
+        createBridge={props.createBridge ?? liveBridge}
+        captureWorkspace={props.captureWorkspace ?? captureWorkspace}
+        onLifted={handleLifted}
         credentialNotice={props.credentialNotice ?? null}
         covered={props.covered === true}
         clipboard={props.clipboard ?? readClipboardImage}
@@ -220,6 +281,10 @@ function Workspace(props: {
   covered: boolean
   clipboard: ClipboardImageReader
   onRestart: (() => void) | null
+  cloudSession: CloudSession | null
+  createBridge: CloudBridgeFactory
+  captureWorkspace: WorkspaceCapture
+  onLifted: (attachment: LiftedAttachment) => void
 }): React.ReactNode {
   const renderer = useRenderer()
   const restarting = useRef(false)
@@ -303,7 +368,11 @@ function Workspace(props: {
     stored: conversation.executionLocation,
     started: conversation.started,
   })
-  const containerPill = useContainerPill({ app: props.app })
+  const cloudHealth = useCloudSession({ session: props.cloudSession })
+  const containerPill = useContainerPill({
+    app: props.app,
+    connection: cloudHealth?.connection ?? null,
+  })
   const locationPill = useLocationPill({ app: props.app })
 
   const { selection } = threadModel
@@ -707,8 +776,25 @@ function Workspace(props: {
     [conversation.threadId, props.app],
   )
 
+  const cloudLift = useCloudLift({
+    app: props.app,
+    threadId: conversation.threadId,
+    started: conversation.started,
+    projectDirectory: conversation.projectDirectory,
+    readEvents: conversation.readEvents,
+    setLocation: execution.handleSet,
+    createBridge: props.createBridge,
+    capture: props.captureWorkspace,
+    onLifted: props.onLifted,
+  })
+
   const applyContainerSwitch = useCallback(
     (target: EExecutionLocation) => {
+      if (target === EExecutionLocation.Cloud) {
+        cloudLift.handleLift()
+        return
+      }
+
       const threadId = conversation.threadId
       for (const shell of containerBlockers()) {
         props.app.shells.kill({ shellId: shell.shellId, by: EKilledBy.ContainerSwitch, threadId })
@@ -741,7 +827,14 @@ function Workspace(props: {
         )
         .catch(() => undefined)
     },
-    [containerBlockers, conversation.threadId, conversation.started, execution, props.app],
+    [
+      cloudLift,
+      containerBlockers,
+      conversation.threadId,
+      conversation.started,
+      execution,
+      props.app,
+    ],
   )
 
   const containerGuard = useContainerGuard({ onSwitch: applyContainerSwitch })
@@ -825,6 +918,16 @@ function Workspace(props: {
       if (asked === EContainerAsk.Current) return currentLocationNotice(execution.location)
       if (asked === execution.location) return currentLocationNotice(execution.location)
 
+      if (asked === EExecutionLocation.Cloud) {
+        const refusal = liftRefusal({
+          working: conversation.working,
+          interrupting: conversation.turn.interrupting,
+          compacting: conversation.compacting !== null,
+          runningAgents: agents.running,
+        })
+        if (refusal !== null) return refusal
+      }
+
       const blockers = containerBlockers()
       if (blockers.length > 0) {
         containerGuard.handleOpen({ target: asked })
@@ -834,7 +937,16 @@ function Workspace(props: {
       applyContainerSwitch(asked)
       return movedLocationNotice(asked)
     },
-    [applyContainerSwitch, containerBlockers, containerGuard, execution],
+    [
+      agents.running,
+      applyContainerSwitch,
+      containerBlockers,
+      containerGuard,
+      conversation.compacting,
+      conversation.turn.interrupting,
+      conversation.working,
+      execution,
+    ],
   )
 
   useEffect(() => {
@@ -1293,7 +1405,10 @@ function Workspace(props: {
   const sidebarModel = useMemo(
     () =>
       withSections({
-        model: withContainer({ model: agents.sidebar, container: containerPill }),
+        model: withCloud({
+          model: withContainer({ model: agents.sidebar, container: containerPill.container }),
+          cloud: containerPill.cloud,
+        }),
         sections: surfaces.sidebarSections,
       }),
     [agents.sidebar, containerPill, surfaces.sidebarSections],

@@ -31,4 +31,13 @@ describe('EmbeddedSkillSource', () => {
     expect(commit?.modelInvocable).toBe(true)
     expect(commit?.frontmatter.name).toBe('commit')
   })
+
+  it('carries the resolving-merge-conflicts built-in with its frontmatter and body', async () => {
+    const loaded = await new EmbeddedSkillSource().load()
+    const skill = loaded.find((entry) => entry.spec.name === 'resolving-merge-conflicts')
+
+    expect(skill?.spec.summary).toContain('merge/rebase conflict')
+    expect(skill?.body).toContain('Resolve each hunk')
+    expect(skill?.frontmatter.name).toBe('resolving-merge-conflicts')
+  })
 })

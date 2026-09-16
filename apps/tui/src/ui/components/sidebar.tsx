@@ -12,6 +12,7 @@ import type { SidebarModel } from "../../store";
 import type { SidebarCrewFold } from "../../store/subagent-row";
 import { SIDEBAR_GUTTER, SIDEBAR_PADDING, sidebarCells } from "./sidebar/cells";
 import { ESidebarPlace } from "../sidebar-section";
+import { CloudSection } from "./sidebar/cloud";
 import { ContainerSection } from "./sidebar/container";
 import { ContributedSections } from "./sidebar/contributed";
 import { SubagentsSection, TeammatesSection } from "./sidebar/crew";
@@ -137,6 +138,9 @@ function DerivedSidebar(props: {
             <HeadSection model={model} cells={cells} />
             {model.container === undefined ? null : (
               <ContainerSection container={model.container} cells={cells} />
+            )}
+            {model.cloud === undefined ? null : (
+              <CloudSection cloud={model.cloud} cells={cells} />
             )}
             <ContributedSections
               sections={model.sections ?? []}
