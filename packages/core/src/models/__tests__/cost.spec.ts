@@ -46,6 +46,24 @@ describe("what a turn cost", () => {
     expect(dollars).toBeCloseTo(3.75, 6);
   });
 
+  it("bills cache tiers at the card's own rates when it carries them", () => {
+    const dollars = estimateCostUsd({
+      spend: spendOf({
+        inputTokens: 2_000_000,
+        cacheReadTokens: 1_000_000,
+        cacheWriteTokens: 500_000,
+      }),
+      cost: {
+        inputPerMillion: 3,
+        outputPerMillion: 15,
+        cacheReadPerMillion: 0.45,
+        cacheWritePerMillion: 6,
+      },
+    });
+
+    expect(dollars).toBeCloseTo(1.5 + 0.45 + 3, 6);
+  });
+
   it("never bills negative input when the cache figures overshoot the total", () => {
     const dollars = estimateCostUsd({
       spend: spendOf({ inputTokens: 0, cacheReadTokens: 1_000_000 }),

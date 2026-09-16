@@ -5,6 +5,8 @@ import { refKey, type ModelRef } from './ref'
 export type ModelCost = {
   inputPerMillion: number
   outputPerMillion: number
+  cacheReadPerMillion?: number
+  cacheWritePerMillion?: number
 }
 
 export type ModelCard = {

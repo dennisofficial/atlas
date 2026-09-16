@@ -27,6 +27,8 @@ const modelSchema = z.object({
     .object({
       input: z.number().optional(),
       output: z.number().optional(),
+      cache_read: z.number().optional(),
+      cache_write: z.number().optional(),
     })
     .optional(),
 })
