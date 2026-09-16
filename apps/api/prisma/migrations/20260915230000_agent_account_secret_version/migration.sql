@@ -1,0 +1,1 @@
+ALTER TABLE "AgentAccount" ADD COLUMN "secretVersion" INTEGER NOT NULL DEFAULT 0;

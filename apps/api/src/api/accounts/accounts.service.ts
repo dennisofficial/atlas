@@ -116,6 +116,7 @@ export class AccountsService {
         sealedSecret: this.sealSecret(secret),
         kind: secret.kind,
         status: EAccountStatus.Active,
+        secretVersion: { increment: 1 },
       },
     })
   }

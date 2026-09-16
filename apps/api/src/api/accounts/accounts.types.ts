@@ -55,3 +55,8 @@ export interface StoredAccountDto extends AccountDto {
 export interface ActiveAccountDto {
   accountId: string | null
 }
+
+export interface AccessTokenDto {
+  accessToken: string
+  expiresAt: string | null
+}
