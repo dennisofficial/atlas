@@ -1,6 +1,7 @@
 import { ServiceUnavailableException } from '@nestjs/common'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EnvService } from '../../_core/config/env/env.service'
+import type { ServeBinaryService } from './serve-binary'
 
 const sdk = vi.hoisted(() => ({
   createParams: [] as Record<string, unknown>[],
@@ -12,12 +13,7 @@ const sdk = vi.hoisted(() => ({
 const launch = vi.hoisted(() => ({
   launched: 0,
   failLaunch: false,
-  readBinary: undefined as (() => Promise<Uint8Array>) | undefined,
-}))
-
-const fs = vi.hoisted(() => ({
-  binary: new Uint8Array([0x7f, 0x45, 0x4c, 0x46]) as Uint8Array | null,
-  readPaths: [] as string[],
+  readStamp: undefined as (() => Promise<string>) | undefined,
 }))
 
 vi.mock('@vercel/sandbox', () => {
@@ -45,17 +41,9 @@ vi.mock('@vercel/sandbox', () => {
   }
 })
 
-vi.mock('node:fs/promises', () => ({
-  readFile: async (path: string) => {
-    fs.readPaths.push(path)
-    if (fs.binary === null) throw new Error('ENOENT')
-    return fs.binary
-  },
-}))
-
 vi.mock('./serve-launch', () => ({
-  createServeLauncher: (args: { readBinary: () => Promise<Uint8Array> }) => {
-    launch.readBinary = args.readBinary
+  createServeLauncher: (args: { readStamp: () => Promise<string> }) => {
+    launch.readStamp = args.readStamp
     return async () => {
       if (launch.failLaunch) throw new Error('atlas serve did not answer')
       launch.launched += 1
@@ -80,11 +68,15 @@ const CONFIGURED: Record<string, string | number> = {
   ATLAS_CLOUD_URL: 'https://api.byatlas.io',
   SANDBOX_MAX_SESSION_MINUTES: 240,
   SANDBOX_IMAGE: 'atlas-sandbox:sha-deadbeef',
-  SANDBOX_SERVE_BINARY: '/opt/atlas/atlas-serve',
 }
 
 const envWith = (values: Record<string, string | number | undefined>): EnvService =>
   ({ get: (key: string) => values[key] }) as unknown as EnvService
+
+const fakeServeBinary = () => {
+  const stamp = vi.fn(async () => 'build-stamp')
+  return { stamp, asService: { stamp } as unknown as ServeBinaryService }
+}
 
 type CreateHooks = {
   onCreate: (sandbox: unknown) => Promise<void>
@@ -101,13 +93,11 @@ describe('VercelSandboxClient', () => {
     sdk.status = 'running'
     launch.launched = 0
     launch.failLaunch = false
-    launch.readBinary = undefined
-    fs.binary = new Uint8Array([0x7f, 0x45, 0x4c, 0x46])
-    fs.readPaths.length = 0
+    launch.readStamp = undefined
   })
 
   it('snapshots the sandbox filesystem, mounts nothing, and declares the served port', async () => {
-    const client = new VercelSandboxClient(envWith(CONFIGURED))
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
 
     const placement = await client.getOrCreate({
       name: 'atlas-thread-abc',
@@ -141,7 +131,7 @@ describe('VercelSandboxClient', () => {
   })
 
   it('boots the sandbox from the configured image', async () => {
-    const client = new VercelSandboxClient(envWith(CONFIGURED))
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
 
     await client.getOrCreate({ name: 'atlas-thread-abc', threadId: 'brn_thread_1', token: 't' })
 
@@ -149,7 +139,7 @@ describe('VercelSandboxClient', () => {
   })
 
   it('restarts serve on every resume and after the SDK resolves, whatever path resolved it', async () => {
-    const client = new VercelSandboxClient(envWith(CONFIGURED))
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
 
     await client.getOrCreate({ name: 'atlas-thread-abc', threadId: 'brn_thread_1', token: 't' })
     expect(launch.launched).toBe(1)
@@ -165,36 +155,26 @@ describe('VercelSandboxClient', () => {
 
   it('propagates a serve that never becomes healthy instead of returning a dead URL', async () => {
     launch.failLaunch = true
-    const client = new VercelSandboxClient(envWith(CONFIGURED))
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
 
     await expect(
       client.getOrCreate({ name: 'atlas-thread-abc', threadId: 'brn_thread_1', token: 't' }),
     ).rejects.toThrow('atlas serve did not answer')
   })
 
-  it('reads the binary lazily from the configured path', async () => {
-    const client = new VercelSandboxClient(envWith(CONFIGURED))
+  it('reads the serve stamp lazily through the binary service', async () => {
+    const serveBinary = fakeServeBinary()
+    const client = new VercelSandboxClient(envWith(CONFIGURED), serveBinary.asService)
 
     await client.getOrCreate({ name: 'atlas-thread-abc', threadId: 'brn_thread_1', token: 't' })
-    expect(fs.readPaths).toEqual([])
+    expect(serveBinary.stamp).not.toHaveBeenCalled()
 
-    const content = await launch.readBinary?.()
-    expect(fs.readPaths).toEqual(['/opt/atlas/atlas-serve'])
-    expect(content).toEqual(new Uint8Array([0x7f, 0x45, 0x4c, 0x46]))
-  })
-
-  it('falls back to the baked-in binary path and 503s when no binary is there', async () => {
-    const { SANDBOX_SERVE_BINARY: _ignored, ...withoutBinaryPath } = CONFIGURED
-    fs.binary = null
-    const client = new VercelSandboxClient(envWith(withoutBinaryPath))
-
-    await client.getOrCreate({ name: 'atlas-thread-abc', threadId: 'brn_thread_1', token: 't' })
-    await expect(launch.readBinary?.()).rejects.toBeInstanceOf(ServiceUnavailableException)
-    expect(fs.readPaths).toEqual(['/app/atlas-serve'])
+    await expect(launch.readStamp?.()).resolves.toBe('build-stamp')
+    expect(serveBinary.stamp).toHaveBeenCalledTimes(1)
   })
 
   it('reads a stopped sandbox as parked and a pending one as resuming', async () => {
-    const client = new VercelSandboxClient(envWith(CONFIGURED))
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
 
     sdk.status = 'stopped'
     expect((await client.inspect({ name: 'atlas-thread-abc' })).state).toBe(ESandboxState.Parked)
@@ -204,7 +184,7 @@ describe('VercelSandboxClient', () => {
   })
 
   it('stops through the SDK and resumes on demand', async () => {
-    const client = new VercelSandboxClient(envWith(CONFIGURED))
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
 
     await client.stop({ name: 'atlas-thread-abc' })
     expect(sdk.stopped).toHaveLength(1)
@@ -214,7 +194,10 @@ describe('VercelSandboxClient', () => {
   })
 
   it('answers 503 with a specific reason when the deployment is unconfigured', async () => {
-    const client = new VercelSandboxClient(envWith({ VERCEL_TOKEN: 'vercel-token' }))
+    const client = new VercelSandboxClient(
+      envWith({ VERCEL_TOKEN: 'vercel-token' }),
+      fakeServeBinary().asService,
+    )
 
     await expect(client.inspect({ name: 'atlas-thread-abc' })).rejects.toBeInstanceOf(
       ServiceUnavailableException,

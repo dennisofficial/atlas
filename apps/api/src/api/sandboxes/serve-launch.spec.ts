@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 import type { Sandbox } from '@vercel/sandbox'
 import {
@@ -16,12 +15,16 @@ interface RecordedCommand {
   timeoutMs?: number
 }
 
-const binary = new Uint8Array([0x7f, 0x45, 0x4c, 0x46])
-const binaryStamp = createHash('sha256').update(binary).digest('hex')
+const BUILD_STAMP = 'a'.repeat(64)
 
-const fakeSandbox = (args: { healthy: boolean; stamp?: string; waitSucceeds?: boolean }) => {
+const fakeSandbox = (args: {
+  healthy: boolean
+  stamp?: string
+  downloadExit?: number
+  downloadStderr?: string
+  waitSucceeds?: boolean
+}) => {
   const commands: RecordedCommand[] = []
-  const writes: { path: string; content: Uint8Array | string; mode?: number }[][] = []
   const sandbox = {
     runCommand: vi.fn(async (params: RecordedCommand) => {
       commands.push(params)
@@ -33,38 +36,38 @@ const fakeSandbox = (args: { healthy: boolean; stamp?: string; waitSucceeds?: bo
       if (script.startsWith('cat ')) {
         return { exitCode: 0, stdout: async () => args.stamp ?? '' }
       }
+      if (script.startsWith('curl -sfS')) {
+        return {
+          exitCode: args.downloadExit ?? 0,
+          stderr: async () => args.downloadStderr ?? '',
+        }
+      }
       if (script.startsWith('for pid in')) return { exitCode: 0 }
       return { exitCode: args.healthy ? 0 : 1 }
     }),
-    writeFiles: vi.fn(
-      async (files: { path: string; content: Uint8Array | string; mode?: number }[]) => {
-        writes.push(files)
-      },
-    ),
   }
-  return { sandbox: sandbox as unknown as Sandbox, commands, writes }
+  return { sandbox: sandbox as unknown as Sandbox, commands }
 }
 
-const readBinary = vi.fn(async () => binary)
+const readStamp = vi.fn(async () => BUILD_STAMP)
 
 const scriptsOf = (commands: RecordedCommand[]): string[] =>
   commands.map((command) => command.args?.[1] ?? '')
 
 describe('createServeLauncher', () => {
   it('does nothing when serve already answers health', async () => {
-    const { sandbox, commands, writes } = fakeSandbox({ healthy: true })
+    const { sandbox, commands } = fakeSandbox({ healthy: true })
 
-    await createServeLauncher({ readBinary })(sandbox)
+    await createServeLauncher({ readStamp })(sandbox)
 
     expect(commands).toHaveLength(1)
     expect(commands[0]?.args?.[1]).toContain(HEALTH_PROBE)
-    expect(writes).toHaveLength(0)
   })
 
   it('kills any wedged serve, starts detached with its log redirected, then waits for health', async () => {
-    const { sandbox, commands } = fakeSandbox({ healthy: false, stamp: binaryStamp })
+    const { sandbox, commands } = fakeSandbox({ healthy: false, stamp: BUILD_STAMP })
 
-    await createServeLauncher({ readBinary })(sandbox)
+    await createServeLauncher({ readStamp })(sandbox)
 
     const scripts = scriptsOf(commands)
     expect(scripts.at(-3)).toContain('for pid in /proc/[0-9]*')
@@ -76,40 +79,52 @@ describe('createServeLauncher', () => {
     expect(wait?.timeoutMs).toBeGreaterThan(90 * 2 * 1000)
   })
 
-  it('does not reinstall when the sandbox already carries this exact binary', async () => {
-    const { sandbox, writes } = fakeSandbox({ healthy: false, stamp: binaryStamp })
+  it('does not download when the sandbox already carries this exact build', async () => {
+    const { sandbox, commands } = fakeSandbox({ healthy: false, stamp: BUILD_STAMP })
 
-    await createServeLauncher({ readBinary })(sandbox)
+    await createServeLauncher({ readStamp })(sandbox)
 
-    expect(writes).toHaveLength(0)
+    expect(scriptsOf(commands).some((script) => script.startsWith('curl -sfS'))).toBe(false)
   })
 
-  it('reinstalls binary and stamp when the sandbox carries a different build', async () => {
-    const { sandbox, commands, writes } = fakeSandbox({ healthy: false, stamp: 'older-build' })
+  it('downloads the binary from the API and re-stamps when the sandbox carries a different build', async () => {
+    const { sandbox, commands } = fakeSandbox({ healthy: false, stamp: 'older-build' })
 
-    await createServeLauncher({ readBinary })(sandbox)
+    await createServeLauncher({ readStamp })(sandbox)
 
-    expect(writes).toEqual([
-      [
-        { path: SERVE_BINARY_PATH, content: binary, mode: 0o755 },
-        { path: SERVE_STAMP_PATH, content: binaryStamp },
-      ],
-    ])
+    const download = scriptsOf(commands).find((script) => script.startsWith('curl -sfS'))
+    expect(download).toContain('Authorization: Bearer $ATLAS_SERVE_TOKEN')
+    expect(download).toContain(
+      `"$ATLAS_CLOUD_URL/v1/sandboxes/$ATLAS_THREAD_ID/serve-binary"`,
+    )
+    expect(download).toContain(`-o ${SERVE_BINARY_PATH}`)
+    expect(download).toContain(`chmod 755 ${SERVE_BINARY_PATH}`)
+    expect(download).toContain(`> ${SERVE_STAMP_PATH}`)
+    expect(download).toContain(BUILD_STAMP)
     expect(commands.at(-2)?.detached).toBe(true)
   })
 
-  it('installs when the sandbox has never seen a binary', async () => {
-    const { sandbox, writes } = fakeSandbox({ healthy: false })
+  it('downloads when the sandbox has never seen a binary', async () => {
+    const { sandbox, commands } = fakeSandbox({ healthy: false })
 
-    await createServeLauncher({ readBinary })(sandbox)
+    await createServeLauncher({ readStamp })(sandbox)
 
-    expect(writes).toHaveLength(1)
-    expect(writes[0]?.[0]).toEqual({ path: SERVE_BINARY_PATH, content: binary, mode: 0o755 })
+    expect(scriptsOf(commands).some((script) => script.startsWith('curl -sfS'))).toBe(true)
+  })
+
+  it('fails loudly with curl stderr when the download fails', async () => {
+    const { sandbox } = fakeSandbox({
+      healthy: false,
+      downloadExit: 22,
+      downloadStderr: 'curl: (22) The requested URL returned error: 401',
+    })
+
+    await expect(createServeLauncher({ readStamp })(sandbox)).rejects.toThrow('401')
   })
 
   it('fails loudly, naming the in-sandbox log, when health never answers', async () => {
-    const { sandbox } = fakeSandbox({ healthy: false, stamp: binaryStamp, waitSucceeds: false })
+    const { sandbox } = fakeSandbox({ healthy: false, stamp: BUILD_STAMP, waitSucceeds: false })
 
-    await expect(createServeLauncher({ readBinary })(sandbox)).rejects.toThrow(SERVE_LOG_PATH)
+    await expect(createServeLauncher({ readStamp })(sandbox)).rejects.toThrow(SERVE_LOG_PATH)
   })
 })

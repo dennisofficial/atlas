@@ -1,8 +1,8 @@
-import { readFile } from 'node:fs/promises'
 import { Injectable, ServiceUnavailableException } from '@nestjs/common'
 import { Sandbox } from '@vercel/sandbox'
 import { EnvService } from '../../_core/config/env/env.service'
 import { ESandboxState } from './sandboxes.types'
+import { ServeBinaryService } from './serve-binary'
 import { createServeLauncher, type ServeLauncher } from './serve-launch'
 
 export const SANDBOX_REGION = 'iad1'
@@ -14,8 +14,6 @@ export const SANDBOX_SERVE_PORT = 3000
 export const WORKSPACE_PATH = '/vercel/sandbox/workspace'
 
 const MINUTE_MS = 60_000
-
-const DEFAULT_SERVE_BINARY_PATH = '/app/atlas-serve'
 
 export interface SandboxPlacement {
   sessionId: string
@@ -53,8 +51,11 @@ const routedUrlOf = (sandbox: Sandbox): string | undefined => {
 export class VercelSandboxClient {
   private readonly launchServe: ServeLauncher
 
-  constructor(private readonly env: EnvService) {
-    this.launchServe = createServeLauncher({ readBinary: () => this.serveBinary() })
+  constructor(
+    private readonly env: EnvService,
+    serveBinary: ServeBinaryService,
+  ) {
+    this.launchServe = createServeLauncher({ readStamp: () => serveBinary.stamp() })
   }
 
   async getOrCreate(args: {
@@ -117,17 +118,6 @@ export class VercelSandboxClient {
 
   private maxSessionMs(): number {
     return this.env.get('SANDBOX_MAX_SESSION_MINUTES') * MINUTE_MS
-  }
-
-  private async serveBinary(): Promise<Uint8Array> {
-    const path = this.env.get('SANDBOX_SERVE_BINARY') ?? DEFAULT_SERVE_BINARY_PATH
-    try {
-      return await readFile(path)
-    } catch {
-      throw new ServiceUnavailableException(
-        `this deployment has no atlas serve binary at ${path}`,
-      )
-    }
   }
 
   private credentials(): Omit<SandboxConfiguration, 'cloudUrl'> {
