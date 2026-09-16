@@ -169,6 +169,7 @@ export function sidebarFrom(args: {
   const spend = sidebarSpendOf({
     turns: args.turns ?? [],
     liveOutputTokens: turn.startedAt === null ? 0 : turn.outputTokens,
+    liveInput: turn.startedAt === null ? undefined : turn.input,
     priceOf: args.priceOf,
   });
   const named = name === null ? null : oneLineOf(name);

@@ -12,7 +12,7 @@ import {
 } from '../../store'
 import type { BackgroundWork } from '../background-wait'
 import { Transcript } from '../components/transcript'
-import type { TurnClock } from '../turn-clock'
+import { NO_LIVE_INPUT, type TurnClock } from '../turn-clock'
 import { teardown } from '../markdown/__tests__/harness'
 import { frameSettled } from './waiting'
 
@@ -182,6 +182,7 @@ export const FAILED_SILENTLY = model([operatorSaid('u1', 'go'), modelSaid('a1', 
 export const RUNNING: TurnClock = {
   startedAt: 1_000,
   outputTokens: 1_280,
+  input: NO_LIVE_INPUT,
   interrupting: false,
   reasoning: false,
   completed: null,
@@ -195,6 +196,7 @@ export const INTERRUPTING: TurnClock = { ...RUNNING, interrupting: true }
 export const FINISHED: TurnClock = {
   startedAt: null,
   outputTokens: 0,
+  input: NO_LIVE_INPUT,
   interrupting: false,
   reasoning: false,
   completed: { durationMs: 92_000, outputTokens: 4_210 },

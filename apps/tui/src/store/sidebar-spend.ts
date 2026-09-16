@@ -11,13 +11,14 @@ import {
 } from "@dltech/atlas-harness";
 
 import { formatTokens, theme } from "../ui/theme";
+import type { LiveInput } from "../ui/turn-clock";
 
 export type ModelPriceLookup = (ref: ModelRef) => ModelCost | undefined;
 
 /**
  * What the conversation has cost so far. The ledger only gains a row once a turn has ended, so the
- * turn in flight contributes the output tokens the clock has counted and nothing else: its input
- * and its cache figures are not known until the provider reports them.
+ * turn in flight contributes what its clock has counted: the output estimate, plus the input and
+ * cache figures each finished step has already reported.
  *
  * `costUsd` is null when nothing could be priced — a subscription-credential provider ships no
  * rates, and a figure of zero would read as a free conversation rather than an unpriced one.
@@ -54,11 +55,16 @@ function costOfTurns(args: {
 export function sidebarSpendOf(args: {
   turns: readonly TurnSpend[];
   liveOutputTokens: number;
+  liveInput?: LiveInput | undefined;
   priceOf?: ModelPriceLookup | undefined;
 }): SidebarSpend {
   const ledger = totalSpend(args.turns);
+  const live = args.liveInput;
   const totals: SpendTotals = {
     ...ledger,
+    inputTokens: ledger.inputTokens + (live?.inputTokens ?? 0),
+    cacheReadTokens: ledger.cacheReadTokens + (live?.cacheReadTokens ?? 0),
+    cacheWriteTokens: ledger.cacheWriteTokens + (live?.cacheWriteTokens ?? 0),
     outputTokens: ledger.outputTokens + args.liveOutputTokens,
   };
 

@@ -1,7 +1,7 @@
 import type { Chunk } from '@dltech/atlas-core'
 import type { ChannelSignal, RetryWaitingSignal } from '@dltech/atlas-harness'
 
-import { IDLE_TURN, type TurnClock } from '../ui/turn-clock'
+import { IDLE_TURN, NO_LIVE_INPUT, type LiveInput, type TurnClock } from '../ui/turn-clock'
 
 const CHARACTERS_PER_TOKEN = 4
 
@@ -14,6 +14,24 @@ const tokensOf = (characters: number): number => Math.ceil(characters / CHARACTE
 const deltaTextOf = (chunk: Chunk): string => {
   if (chunk.type === 'text-delta' || chunk.type === 'reasoning-delta') return chunk.text
   return chunk.type === 'tool-input-delta' ? chunk.text : ''
+}
+
+const countedOrNothing = (value: number | undefined): number =>
+  value === undefined || !Number.isFinite(value) || value < 0 ? 0 : value
+
+/**
+ * Each step is its own stream, so a finish chunk's usage is that step's alone, and the turn's
+ * input spend is the sum over them — the same tally the ledger writes at turn end.
+ */
+function inputAfter(args: { chunk: Chunk; input: LiveInput }): LiveInput {
+  if (args.chunk.type !== 'finish' || args.chunk.usage === undefined) return args.input
+
+  const { usage } = args.chunk
+  return {
+    inputTokens: args.input.inputTokens + countedOrNothing(usage.inputTokens),
+    cacheReadTokens: args.input.cacheReadTokens + countedOrNothing(usage.cacheReadTokens),
+    cacheWriteTokens: args.input.cacheWriteTokens + countedOrNothing(usage.cacheWriteTokens),
+  }
 }
 
 function reasoningAfter(args: { chunk: Chunk; reasoning: boolean }): boolean {
@@ -39,6 +57,7 @@ export const turnStarted = (args: { now: number }): TurnProgress => ({
   clock: {
     startedAt: args.now,
     outputTokens: 0,
+    input: NO_LIVE_INPUT,
     interrupting: false,
     reasoning: false,
     completed: null,
@@ -94,11 +113,14 @@ export function turnAdvanced(args: {
 
   const reasoning = reasoningAfter({ chunk: args.signal.chunk, reasoning: clock.reasoning })
   const text = deltaTextOf(args.signal.chunk)
+  const input = inputAfter({ chunk: args.signal.chunk, input: clock.input })
   const retry = null
 
   if (text.length === 0) {
-    if (reasoning === clock.reasoning && clock.retry === null) return args.progress
-    return { ...args.progress, clock: { ...clock, reasoning, retry } }
+    if (reasoning === clock.reasoning && input === clock.input && clock.retry === null) {
+      return args.progress
+    }
+    return { ...args.progress, clock: { ...clock, reasoning, input, retry } }
   }
 
   const characters = args.progress.characters + text.length
@@ -108,7 +130,7 @@ export function turnAdvanced(args: {
     return { characters, clock }
   }
 
-  return { characters, clock: { ...clock, outputTokens, reasoning, retry } }
+  return { characters, clock: { ...clock, outputTokens, reasoning, input, retry } }
 }
 
 /**
@@ -141,6 +163,7 @@ export function turnSettled(args: { progress: TurnProgress; now: number }): Turn
     clock: {
       startedAt: null,
       outputTokens: 0,
+      input: NO_LIVE_INPUT,
       interrupting: false,
       reasoning: false,
       retry: null,

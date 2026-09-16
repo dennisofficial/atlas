@@ -123,7 +123,7 @@ describe("what the conversation has spent", () => {
 
   /**
    * A turn only reaches the ledger once it has ended, so the clock is the only reading of the turn
-   * in flight — and it counts output alone, which is why nothing else moves while one runs.
+   * in flight — the output it has counted, plus the input each finished step has reported.
    */
   it("adds what the running turn has streamed to the recorded output", () => {
     const model = deriveSidebar({
@@ -134,6 +134,20 @@ describe("what the conversation has spent", () => {
 
     expect(model.spend.totals.outputTokens).toBe(4_120);
     expect(model.spend.totals.inputTokens).toBe(100_000);
+  });
+
+  it("adds what the running turn's finished steps reported to the recorded input", () => {
+    const model = deriveSidebar({
+      events: [],
+      turn: turnOf({
+        startedAt: 1000,
+        input: { inputTokens: 61_500, cacheReadTokens: 58_000, cacheWriteTokens: 0 },
+      }),
+      turns: [spent()],
+    });
+
+    expect(model.spend.totals.inputTokens).toBe(161_500);
+    expect(model.spend.totals.cacheReadTokens).toBe(138_000);
   });
 
   it("drops the live count once the turn has settled into a ledger row", () => {
