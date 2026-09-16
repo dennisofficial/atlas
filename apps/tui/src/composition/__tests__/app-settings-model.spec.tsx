@@ -20,12 +20,19 @@ const THREAD = toThreadId('opened-thread')
 
 const WIDE = { width: 150, height: 40 }
 
-const appWith = (args?: { effort?: string }): FakeApp =>
+const appWith = (args?: { effort?: string; quickModel?: string }): FakeApp =>
   fakeApp({
     model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }),
-    ...(args?.effort === undefined
+    ...(args === undefined
       ? {}
-      : { settings: { values: { [ESettingId.ModelEffort]: args.effort } } }),
+      : {
+          settings: {
+            values: {
+              ...(args.effort === undefined ? {} : { [ESettingId.ModelEffort]: args.effort }),
+              ...(args.quickModel === undefined ? {} : { [ESettingId.QuickModel]: args.quickModel }),
+            },
+          },
+        }),
   })
 
 type Mounted = Awaited<ReturnType<typeof testRender>>
@@ -152,6 +159,46 @@ describe('the model-kind settings rows', () => {
       expect(writtenFor(app, ESettingId.ModelId)).toBeUndefined()
       expect(writtenFor(app, ESettingId.ModelEffort)).toBe('high')
       expect(rowShowing(setup, 'Quick calls')).toContain('anthropic/claude-sonnet-5')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('clears a picked model back to follow default on backspace', async () => {
+    const app = appWith({ quickModel: 'anthropic/claude-sonnet-5' })
+    const setup = await opened(app)
+
+    try {
+      await openModelsWith(setup)
+      await downTo({ setup, needle: 'Quick calls' })
+
+      const held = rowShowing(setup, 'Quick calls')
+      expect(held).toContain('anthropic/claude-sonnet-5')
+      expect(held).toContain('⌫ clear')
+
+      setup.mockInput.pressBackspace()
+      await landed(setup)
+
+      expect(writtenFor(app, ESettingId.QuickModel)).toBeUndefined()
+      expect(rowShowing(setup, 'Quick calls')).toContain('follow default')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('leaves an unset model row alone on backspace', async () => {
+    const app = appWith()
+    const setup = await opened(app)
+
+    try {
+      await openModelsWith(setup)
+      await downTo({ setup, needle: 'Quick calls' })
+
+      setup.mockInput.pressBackspace()
+      await landed(setup)
+
+      expect(writtenFor(app, ESettingId.QuickModel)).toBeUndefined()
+      expect(rowShowing(setup, 'Quick calls')).toContain('follow default')
     } finally {
       await teardown(setup)
     }

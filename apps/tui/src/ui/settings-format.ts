@@ -19,7 +19,7 @@ export const RANGE_HINT = '← → adjust'
 
 export const TEXT_HINT = 'set in the settings file'
 
-export const MODEL_HINT = '⏎ choose'
+export const MODEL_HINT = '⏎ choose · ⌫ clear'
 
 export const MODEL_NOT_SET = 'shipped default'
 
