@@ -138,7 +138,7 @@ describe('BrokeredCredentialPort', () => {
       failure = cause
     }
     expect(failure).toBeInstanceOf(CredentialError)
-    expect((failure as CredentialError).failure).toBe(ECredentialFailure.NoAccount)
+    expect((failure as CredentialError).failure).toBe(ECredentialFailure.NotFound)
   })
 
   it('refuses when no account exists for the provider, before calling the broker', async () => {

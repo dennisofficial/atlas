@@ -103,7 +103,7 @@ export class BrokeredCredentialPort extends CredentialPort {
 
   private noAccount(provider: EAuthProvider, reason: ENoAccountReason): CredentialError {
     return new CredentialError({
-      failure: ECredentialFailure.NoAccount,
+      failure: ECredentialFailure.NotFound,
       message: `no ${provider} account is available (${reason}). ${SIGN_IN}`,
     })
   }

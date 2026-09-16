@@ -39,7 +39,7 @@ describe('CredentialPortProxy', () => {
     })
 
     fetchCalls = 0
-    globalThis.fetch = (async () => {
+    globalThis.fetch = (async (_url: string | URL | Request, _init?: RequestInit) => {
       fetchCalls += 1
       return new Response(
         JSON.stringify({ accessToken: 'brokered', expiresAt: '2026-01-01T01:00:00.000Z' }),
