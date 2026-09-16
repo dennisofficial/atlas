@@ -1,0 +1,9 @@
+apps/api/AGENTS.md
+  ai_agent 90-91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7f34c998129266d4d596eee4531d6d01b1224eea",
+  "prompts": {}
+}
