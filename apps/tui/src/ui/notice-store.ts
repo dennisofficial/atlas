@@ -4,16 +4,14 @@ import {
   ENoticeTone,
   expireNotices,
   nextExpiryAtMs,
+  NOTICE_MS,
+  NOTICE_WARN_MS,
   type Notice,
   postNotice,
 } from '@dltech/atlas-core'
 
-export { ENoticePosition, ENoticeTone }
+export { ENoticePosition, ENoticeTone, NOTICE_MS, NOTICE_WARN_MS }
 export type { Notice }
-
-export const NOTICE_MS = 2000
-
-export const NOTICE_WARN_MS = 6000
 
 export const NOTICE_KEY_CLASSIFIER_OFFLINE = 'classifier-offline'
 

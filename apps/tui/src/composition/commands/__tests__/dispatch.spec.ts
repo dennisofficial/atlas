@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { dispatchSubmission, EDispatch, type LoadedSkill } from '../dispatch'
 import { ECommandEcho, ECommandEffect, ECommandTiming, RAN, type LocalCommand } from '../local-command'
-import { ECompactScope } from '../../compact-turn'
+import { ECompactScope } from '@dltech/atlas-harness'
 import { ERenamed } from '../../session-rename'
 import { localCommands } from '../registry'
 import { handlers } from './local-handlers'

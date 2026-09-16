@@ -47,7 +47,7 @@ import {
 import { replayLines } from './classify-report'
 import { CLASSIFY_USAGE, EClassifyTask, type ClassifyRequest } from './classify'
 import { TITLER_MODEL_ID } from './config'
-import { loadSettings } from './settings-binding'
+import { loadSettings } from '@dltech/atlas-harness'
 
 const REFUSED = 1
 

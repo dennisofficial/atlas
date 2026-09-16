@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 
 import type { SwitcherChoice } from '../ui/switcher-model'
 import type { AtlasApp } from './compose'
-import type { ModelSelection } from './model-selection'
-import { defaultSelection, rememberDefault, storedModel, threadSelection } from './model-preference'
+import type { ModelSelection } from '@dltech/atlas-harness'
+import { defaultSelection, rememberDefault, storedModel, threadSelection } from '@dltech/atlas-harness'
 import { EModelScope } from './use-switcher'
 
 export type ThreadModelControl = {

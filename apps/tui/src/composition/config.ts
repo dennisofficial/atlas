@@ -1,19 +1,8 @@
 import { resolve } from 'node:path'
 
-import type { ModelRef } from '@dltech/atlas-core'
-
 import { expandHome } from '../ui/paths'
 
-export const DEFAULT_MODEL_REF: ModelRef = {
-  providerId: 'anthropic',
-  modelId: 'claude-haiku-4-5',
-}
-
-export const TITLER_MODEL_ID = 'claude-haiku-4-5-20251001'
-
-export const SUMMARISER_MODEL_ID = 'claude-sonnet-5'
-
-export const TLDR_MODEL_ID = 'claude-haiku-4-5-20251001'
+export { DEFAULT_MODEL_REF, SUMMARISER_MODEL_ID, TITLER_MODEL_ID, TLDR_MODEL_ID } from '@dltech/atlas-harness'
 
 export enum EOpenMode {
   New = 'new',

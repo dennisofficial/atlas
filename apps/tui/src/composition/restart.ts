@@ -1,5 +1,5 @@
-import type { ActiveConversation } from './resume-hint'
-import { threadHandle } from './thread-slug'
+import type { ActiveConversation } from '@dltech/atlas-harness'
+import { threadHandle } from '@dltech/atlas-harness'
 
 /**
  * Below 128 so it cannot be mistaken for a death by signal; the atlas-dev wrapper loops on exactly

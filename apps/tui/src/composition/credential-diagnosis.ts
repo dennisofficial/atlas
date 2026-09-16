@@ -1,6 +1,6 @@
 import { CredentialError, ECredentialFailure } from '@dltech/atlas-harness'
 
-import { cloudOutageMessage } from './cloud-outage'
+import { cloudOutageMessage } from '@dltech/atlas-harness'
 
 export const CREDENTIAL_EXIT_CODE = 1
 

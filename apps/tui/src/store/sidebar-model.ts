@@ -13,7 +13,8 @@ import {
 import {
   EShellStatus,
   type BoundPort,
-  type ESandboxState,
+  type SandboxContainer,
+  type SandboxLimits,
   type ShellSnapshot,
   type TurnSpend,
 } from "@dltech/atlas-harness";
@@ -68,17 +69,9 @@ export type SidebarModel = {
   container?: SidebarContainer;
 };
 
-export type SidebarLimits = { cpus: number; memoryGb: number };
+export type SidebarLimits = SandboxLimits;
 
-export type SidebarContainer = {
-  state: ESandboxState;
-  image: string;
-  label: string;
-  name?: string | undefined;
-  limits?: SidebarLimits | undefined;
-  ports: readonly BoundPort[];
-  reason?: string | undefined;
-};
+export type SidebarContainer = SandboxContainer;
 
 export const IDLE_SIDEBAR: SidebarModel = {
   title: null,

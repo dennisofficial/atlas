@@ -281,8 +281,9 @@ type AssemblyPipeline = { rules: readonly Rule[]; annotators: readonly Annotator
 
 **Rules and annotators travel as one `AssemblyPipeline`.** They are not independently chosen: an
 annotator reads the shape the rules produced, so a caller holding one without the other is holding
-half a decision. As two loose fields the two composition roots — `buildHarness` and the TUI's
-`compose.ts` — each had to remember both, and adding the first annotator meant editing both roots.
+half a decision. As two loose fields the two composition roots — `buildHarness` and the shared
+`composeHarness` in `harness/src/composition` (which the TUI's `compose.ts` wraps) — each had to
+remember both, and adding the first annotator meant editing both roots.
 `defaultPipeline(workspace)` is the one thing either root asks for.
 
 **Rules are pure and synchronous.** Not for testability — because re-running a cheap pure pipeline is

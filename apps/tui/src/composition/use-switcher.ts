@@ -17,7 +17,7 @@ import {
   type SwitcherRow,
   type SwitcherState,
 } from '../ui/switcher-model'
-import type { ModelCatalogue } from './providers'
+import type { ModelCatalogue } from '@dltech/atlas-harness'
 
 /** Which of the two model preferences a pick lands on. */
 export enum EModelScope {

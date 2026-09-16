@@ -14,7 +14,7 @@ import { composeAtlas, type AtlasApp } from './compose'
 import type { AtlasConfig } from './config'
 import { diagnoseCredentialFailure, type CredentialDiagnosis } from './credential-diagnosis'
 import { openConversation, type OpenedConversation } from './open-conversation'
-import type { SettingsBinding } from './settings-binding'
+import type { SettingsBinding } from '@dltech/atlas-harness'
 import { stateOfDirectory, workspaceRefusal } from './workspace-directory'
 
 const REFUSED = 1
