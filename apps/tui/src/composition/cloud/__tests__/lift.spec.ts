@@ -173,13 +173,14 @@ describe('lifting a conversation into the cloud', () => {
     expect(notice.content).toContain('api')
   })
 
-  it('skips the transfer for a conversation nobody has spoken in', async () => {
+  it('opens the remote thread for a conversation nobody has spoken in, so the sandbox can attach', async () => {
     const test = harness({ started: false, events: [] })
 
     const lifted = await liftToCloud(test.args)
 
     expect(lifted.ok).toBe(true)
-    expect(test.bridge.trail).toEqual(['sandbox', 'attach'])
+    expect(test.bridge.trail).toEqual(['transfer', 'sandbox', 'attach'])
+    expect(await test.bridge.threads.find({ threadId: CLOUD_THREAD })).toBeDefined()
     expect(test.localThreads.chosenLocations).toEqual([])
   })
 })
