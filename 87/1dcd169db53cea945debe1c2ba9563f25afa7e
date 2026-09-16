@@ -1,0 +1,23 @@
+apps/web/src/app/page.tsx
+  s_58ce129360bf70::t_913f2a8afd3a03 1-15
+apps/web/tsconfig.json
+  s_58ce129360bf70::t_913f2a8afd3a03 3-4,18-23,30-31,33
+apps/web/next.config.ts
+  s_58ce129360bf70::t_913f2a8afd3a03 1,5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "871dcd169db53cea945debe1c2ba9563f25afa7e",
+  "prompts": {},
+  "sessions": {
+    "s_58ce129360bf70": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b2fedd11-3a58-4104-99c5-bebba477ebdb",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Dennis Lysenko <dennislysenko@hotmail.com>"
+    }
+  }
+}
