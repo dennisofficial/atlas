@@ -24,6 +24,9 @@ const writeSkill = (args: { at: string; name: string; body: string }): void => {
   writeFileSync(join(directory, 'SKILL.md'), args.body)
 }
 
+const builtInNames = async (): Promise<readonly string[]> =>
+  (await new EmbeddedSkillSource().load()).map((skill) => skill.spec.name)
+
 const overRoots = (plan: readonly SkillRoot[]): LiveSkillRegistry =>
   new LiveSkillRegistry({
     sources: async () => [
@@ -58,7 +61,9 @@ describe('LiveSkillRegistry', () => {
     const registry = overRoots([projectRoot('skills')])
     const returned = await registry.reload()
 
-    expect(returned.map((skill) => skill.spec.name)).toEqual(['commit', 'review'])
+    expect(returned.map((skill) => skill.spec.name)).toEqual(
+      [...(await builtInNames()), 'review'].sort(),
+    )
     expect(registry.all()).toBe(returned)
   })
 
@@ -86,14 +91,18 @@ describe('LiveSkillRegistry', () => {
     await registry.reload()
 
     expect(registry.byName('review')?.body).toBe('review body')
-    expect(registry.all().map((skill) => skill.spec.name)).toEqual(['commit', 'review'])
+    expect(registry.all().map((skill) => skill.spec.name)).toEqual(
+      [...(await builtInNames()), 'review'].sort(),
+    )
   })
 
   it('re-runs root resolution, so a root created mid-session starts contributing', async () => {
     const registry = overRoots([projectRoot('skills')])
     await registry.reload()
 
-    expect(registry.all().map((skill) => skill.spec.name)).toEqual(['commit'])
+    expect(registry.all().map((skill) => skill.spec.name)).toEqual(
+      [...(await builtInNames())].sort(),
+    )
 
     writeSkill({ at: 'skills', name: 'review', body: 'review body' })
     await registry.reload()
@@ -163,7 +172,7 @@ describe('LiveSkillRegistry', () => {
     const registry = overRoots([projectRoot('skills')])
     await registry.reload()
 
-    expect(registry.all()).toHaveLength(1)
+    expect(registry.all()).toHaveLength((await builtInNames()).length)
     expect(registry.byName('commit')?.body).toBe('project commit')
   })
 })
