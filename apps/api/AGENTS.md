@@ -59,6 +59,19 @@ back to `--spec` to undo.
 PRE_DEPLOY jobs are API/CLI-only; the control panel cannot create one, and a spec edited there
 can drop it. Diff before you trust it.
 
+Applying the spec is not proof it works. Confirm the job is both present and running:
+
+```
+doctl apps get "$DO_APP_ID" --format Spec | grep -A2 'kind: PRE_DEPLOY'
+doctl apps list-deployments "$DO_APP_ID" --format ID,Phase,Created | head -3
+doctl apps logs "$DO_APP_ID" migrate --type run --deployment <id>
+```
+
+The migrate logs of a healthy deploy read `N migrations found` then either the migrations it
+applied or `No pending migrations to apply.` A deployment whose `Phase` is `ERROR` with the job
+having exited non-zero is the gate working, not a regression: the previous release is still
+serving and the schema was never half-applied.
+
 **What the job buys.** A PRE_DEPLOY job runs to completion before the new containers start, and
 a non-zero exit cancels the deployment with the previous release still serving. The migrate job
 is the only thing that applies schema in a deployed tier — never the app container, which holds
