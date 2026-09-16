@@ -24,6 +24,7 @@ import type { AgentType } from '../agents/types/agent-type'
 import { BUILT_IN_AGENT_TYPES } from '../agents/types/built-ins'
 import { AccountStoreProxy } from '../cloud/account-store-proxy'
 import { CloudSessionStore } from '../cloud/cloud-session'
+import { CredentialPortProxy } from '../cloud/credential-port-proxy'
 import { SecretsStoreProxy } from '../cloud/secrets-store-proxy'
 import { ClaudeCodeSource, claudeCodePayloadStore } from '../credentials/claude-code-source'
 import { fileAccountStore } from '../credentials/account-store'
@@ -32,6 +33,7 @@ import { atlasCloudFile, atlasVaultFile, atlasVaultKeyFile } from '../credential
 import { SecretCipher } from '../credentials/secret-cipher'
 import { FileSecretsStore } from '../secrets/file-secrets-store'
 import { atlasSecretsFile } from '../secrets/paths'
+import { BrokeredCredentialPort } from '../credentials/brokered-credential-port'
 import { RefreshingCredentialPort } from '../credentials/refreshing-credential-port'
 import { registerBuiltinHooks } from '../hooks/register-hooks'
 import { PrismaTurnLedger, TurnLedgerPort } from '../ledger'
@@ -238,12 +240,22 @@ export function createHarnessContainer(): DependencyContainer {
   harness.register(portToken(CredentialPort), {
     useFactory: instanceCachingFactory((resolver) => {
       const clock = resolver.resolve(portToken(ClockPort))
+      const accounts = resolver.resolve(portToken(AccountStorePort))
+      const sessions = resolver.resolve(CloudSessionStoreToken)
 
-      return new RefreshingCredentialPort({
-        accounts: resolver.resolve(portToken(AccountStorePort)),
-        clients: builtinOauthClients({ clock }),
-        clock,
-        sinks: [resolver.resolve(ClaudeCodeSourceToken)],
+      return new CredentialPortProxy({
+        sessions,
+        local: new RefreshingCredentialPort({
+          accounts,
+          clients: builtinOauthClients({ clock }),
+          clock,
+          sinks: [resolver.resolve(ClaudeCodeSourceToken)],
+        }),
+        brokered: new BrokeredCredentialPort({
+          accounts,
+          sessions,
+          clientVersion: clientVersionOf(resolver),
+        }),
       })
     }),
   })

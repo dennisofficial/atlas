@@ -254,6 +254,46 @@ describe('BrokerService', () => {
     fake.db.agentAccount.updateMany = win
   })
 
+  it('refreshes a fresh token the client has rejected, because the provider revoked it', async () => {
+    const fetchMock = stubProviderRefresh({
+      access_token: 'rotated-access',
+      refresh_token: 'rotated-refresh',
+      expires_in: 3600,
+    })
+    seedAccount({
+      id: 'acc_revoked',
+      provider: EAuthProvider.Anthropic,
+      secret: oauthSecret({ expiresInMs: 3600_000 }),
+    })
+
+    const result = await broker.accessToken({
+      userId: USER,
+      accountId: 'acc_revoked',
+      rejectedAccessToken: 'old-access',
+    })
+
+    expect(result.accessToken).toBe('rotated-access')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('serves the fresh token when the rejection no longer matches, because someone else rotated', async () => {
+    const fetchMock = stubProviderRefresh({})
+    seedAccount({
+      id: 'acc_moved',
+      provider: EAuthProvider.Anthropic,
+      secret: oauthSecret({ expiresInMs: 3600_000 }),
+    })
+
+    const result = await broker.accessToken({
+      userId: USER,
+      accountId: 'acc_moved',
+      rejectedAccessToken: 'a-token-from-before-the-rotation',
+    })
+
+    expect(result.accessToken).toBe('old-access')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('refuses an account that holds no refresh token', async () => {
     seedAccount({
       id: 'acc_dead',

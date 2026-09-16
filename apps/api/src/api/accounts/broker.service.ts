@@ -17,7 +17,11 @@ const MAX_ROTATION_ATTEMPTS = 2
 export class BrokerService {
   constructor(private readonly cipher: SecretCipherService) {}
 
-  async accessToken(args: { userId: string; accountId: string }): Promise<AccessTokenDto> {
+  async accessToken(args: {
+    userId: string
+    accountId: string
+    rejectedAccessToken?: string
+  }): Promise<AccessTokenDto> {
     for (let attempt = 0; attempt < MAX_ROTATION_ATTEMPTS; attempt++) {
       const row = await db.agentAccount.findFirst({
         where: { id: args.accountId, userId: args.userId },
@@ -31,7 +35,11 @@ export class BrokerService {
 
       const tokens = secret.tokens
       const remainingMs = Date.parse(tokens.expiresAt) - Date.now()
-      if (remainingMs > REFRESH_SKEW_MS) {
+      const clientRejectedStored =
+        attempt === 0 &&
+        args.rejectedAccessToken !== undefined &&
+        args.rejectedAccessToken === tokens.accessToken
+      if (remainingMs > REFRESH_SKEW_MS && !clientRejectedStored) {
         return { accessToken: tokens.accessToken, expiresAt: tokens.expiresAt }
       }
       if (tokens.refreshToken.length === 0) {
