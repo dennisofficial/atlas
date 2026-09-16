@@ -211,6 +211,8 @@ export function fakeAgentRegistry(): FakeAgents {
       announce(kept)
     },
 
+    relocateChildren: () => Promise.resolve([]),
+
     closeAll: async () => {},
   }
 }

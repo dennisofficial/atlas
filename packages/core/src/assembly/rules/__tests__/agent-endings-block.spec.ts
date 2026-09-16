@@ -244,4 +244,13 @@ describe('an agent the operator stopped', () => {
     expect(block).toContain('was stopped when the session closed, after')
     expect(block).not.toContain('The user stopped this agent deliberately')
   })
+
+  it('tells the parent a relocated agent is resuming, not ended', () => {
+    const block = stoppedBy(EKilledBy.ContainerSwitch)
+
+    expect(block).toContain('moved with the conversation and is resuming there')
+    expect(block).toContain('the agent is resuming there')
+    expect(block).toContain('It will report again when it actually ends')
+    expect(block).not.toContain('The user stopped this agent deliberately')
+  })
 })

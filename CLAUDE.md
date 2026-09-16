@@ -36,6 +36,7 @@ any inference from code, and `docs/core-contract.md` holds the seams it depends 
 | `@dltech/atlas-ui`           | nothing        | Design tokens and web UI atoms; Storybook. No Atlas imports.   |
 | `@dltech/atlas` (`apps/tui`) | core, harness  | OpenTUI + React terminal app and the composition root.         |
 | `@dltech/atlas-api` (`apps/api`) | nothing in-repo | Atlas Cloud backend (NestJS + better-auth + Prisma/Neon). |
+| `@dltech/atlas-web` (`apps/web`) | nothing in-repo | Atlas Cloud auth frontend (Next.js App Router, standalone). |
 
 A package boundary is worth it only where the compiler should enforce a dependency rule.
 

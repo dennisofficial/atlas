@@ -36,6 +36,9 @@ function stopped(killedBy: EKilledBy | undefined): string {
   if (killedBy === EKilledBy.Unrecorded) {
     return 'was lost before anything recorded how it ended, after'
   }
+  if (killedBy === EKilledBy.ContainerSwitch) {
+    return 'moved with the conversation and is resuming there, after'
+  }
   return 'was stopped after'
 }
 

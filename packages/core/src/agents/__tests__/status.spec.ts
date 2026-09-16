@@ -74,6 +74,17 @@ describe('the sentence a parent reads about a delegate that stopped', () => {
     expect(sentence).not.toContain('stopped')
   })
 
+  it('says a relocated child is resuming, never that anyone stopped it', () => {
+    const sentence = agentEnding(
+      ending({ status: EAgentStatus.Stopped, killedBy: EKilledBy.ContainerSwitch }),
+    )
+
+    expect(sentence).toBe(
+      'moved with the conversation and is resuming there, after 4 turns and 11 tool calls',
+    )
+    expect(sentence).not.toContain('stopped')
+  })
+
   it('never lets an attribution contradict the status it is attached to', () => {
     expect(agentEnding(ending({ status: EAgentStatus.Blocked, killedBy: EKilledBy.User }))).toBe(
       'is blocked on an approval it cannot answer, after 4 turns and 11 tool calls',

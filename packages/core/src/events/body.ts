@@ -1,5 +1,6 @@
 import type { EAgentStart } from '../agents/start'
 import type { EAgentStatus } from '../agents/status'
+import type { EExecutionLocation } from '../execution/location'
 import type { ImagePart, ReasoningPart, TextPart } from '../message/parts'
 import type { ERiskDimension } from '../policy/classifier/dimension'
 import type { EGrantScope, GrantOffer } from '../policy/classifier/grant'
@@ -75,6 +76,7 @@ export type EventBody =
       adopted?: boolean | undefined
     }
   | { type: 'worktree-exited'; path: string; action: EWorktreeExit; returnTo?: string | undefined }
+  | { type: 'location-changed'; from: EExecutionLocation; to: EExecutionLocation }
   | { type: 'directory-changed'; path: string }
   | {
       type: 'pull-request-linked'
