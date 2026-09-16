@@ -19,3 +19,11 @@ export type SupervisorDeps = {
   launchDirectory: string
   sink?: ExecutionLocationSinkPort | undefined
 }
+
+export const agentTypeNamed = ({
+  agentTypes,
+  name,
+}: {
+  agentTypes: readonly AgentType[]
+  name: string
+}): AgentType | undefined => agentTypes.find((one) => one.name === name)

@@ -58,6 +58,10 @@ function lineOf(event: Event, payloadLimit: number): string | undefined {
     return `Service "${event.command}" ${event.status}: ${clipped(event.tail, payloadLimit)}`
   }
 
+  if (event.type === 'location-changed') {
+    const where = event.to === 'docker' ? 'a Docker container' : 'the host'
+    return `Atlas moved this conversation's processing to ${where} — earlier tool results came from ${event.from === 'docker' ? 'a Docker container' : 'the host'}`
+  }
   if (event.type === 'worktree-entered') return `Atlas entered worktree ${event.path} (${event.branch})`
   if (event.type === 'worktree-exited') return `Atlas left worktree ${event.path} (${event.action})`
   if (event.type === 'directory-changed') return `Atlas moved the project directory to ${event.path}`

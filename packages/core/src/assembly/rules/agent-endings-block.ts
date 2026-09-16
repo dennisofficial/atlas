@@ -16,6 +16,9 @@ const USER_STOPPED =
 const LOST_AGENT =
   'Nobody stopped this agent: the session it was running in went away before it could report. What it says here is only what it had said by then, and whatever it was doing may be half-applied. Its thread is intact, so check the work before redoing any of it, and let the user decide whether to resume it.'
 
+const RELOCATED =
+  'This agent was not stopped: the conversation moved where it runs, and the agent is resuming there. It will report again when it actually ends.'
+
 const NOT_YOUR_HISTORY =
   'None of their own steps are in your history and none are coming: what each one reports here is all of it.'
 
@@ -29,6 +32,7 @@ const reportOf = (event: Ending): string => {
 function advice(event: Ending): readonly string[] {
   if (event.killedBy === EKilledBy.User) return [USER_STOPPED]
   if (event.killedBy === EKilledBy.Unrecorded) return [LOST_AGENT]
+  if (event.killedBy === EKilledBy.ContainerSwitch) return [RELOCATED]
   return []
 }
 

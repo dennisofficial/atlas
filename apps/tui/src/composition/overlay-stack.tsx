@@ -193,11 +193,7 @@ function DerivedOverlayStack(props: {
         <ContainerGuard
           width={Math.min(props.contentWidth, props.width)}
           target={containerGuard.target}
-          running={[
-            ...shells.shells.filter(isShellRunning).map(exitGuardRow),
-            ...props.services.everywhere.filter(isServiceAlive).map(exitGuardServiceRow),
-            ...agents.own.filter(isSubagentRunning).map(exitGuardAgentRow),
-          ]}
+          running={shells.shells.filter(isShellRunning).map(exitGuardRow)}
           state={containerGuard.state}
           overlay
           onPick={containerGuard.handlePick}
