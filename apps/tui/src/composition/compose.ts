@@ -95,6 +95,7 @@ import {
   CloudService,
   CloudSessionStoreToken,
   KeychainReaderToken,
+  AccountStoreProxy,
   SecretsStoreProxy,
   LocalAccountStoreToken,
   claudeCodePayloadStore,
@@ -163,6 +164,7 @@ import { PullRequestPort } from '../plugins/github/pure'
 import { createLoopCut } from '@dltech/atlas-harness'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
+import { cloudOutageMessage } from './cloud-outage'
 import { tldrFeed } from '../ui/tldr-feed-store'
 import type { ContributedProjection } from '../plugins/projection'
 import type { ContributedSurface } from '../plugins/surface'
@@ -363,6 +365,17 @@ export async function composeAtlas(args: {
   const accountStore = container.resolve(portToken(AccountStorePort))
   const secrets = container.resolve(SecretsStoreToken)
 
+  if (accountStore instanceof AccountStoreProxy) {
+    accountStore.watchOutages((outage) => {
+      notify({
+        key: 'cloud:accounts',
+        tone: ENoticeTone.Warn,
+        ttlMs: NOTICE_WARN_MS,
+        text: `${outage.message} Atlas is serving accounts from the local vault until it answers again.`,
+      })
+    })
+  }
+
   if (secrets instanceof SecretsStoreProxy) {
     try {
       await secrets.warm()
@@ -384,11 +397,23 @@ export async function composeAtlas(args: {
   })
 
   if (!cloudRequired || cloud.session() !== null) {
-    await syncEnvironmentAccounts({ accounts: accountStore, env: args.env })
-    await importClaudeCodeAccount({
-      accounts: accountStore,
-      source: container.resolve(ClaudeCodeSourceToken),
-    })
+    try {
+      await syncEnvironmentAccounts({ accounts: accountStore, env: args.env })
+      await importClaudeCodeAccount({
+        accounts: accountStore,
+        source: container.resolve(ClaudeCodeSourceToken),
+      })
+    } catch (error) {
+      const outage = cloudOutageMessage(error)
+      if (outage === null) throw error
+
+      notify({
+        key: 'cloud:accounts',
+        tone: ENoticeTone.Warn,
+        ttlMs: NOTICE_WARN_MS,
+        text: `Atlas Cloud accounts could not be reconciled — ${outage.split('\n')[0] ?? ''}`,
+      })
+    }
   }
 
   const accounts = new AccountsService({

@@ -4,6 +4,7 @@ import { writeFileSync } from "node:fs";
 import React from "react";
 
 import { appearanceOf, applyAppearance } from "../ui/appearance";
+import { BOOT_FAILURE_EXIT_CODE, bootFailureReport } from "./boot-failure";
 import { createBootProgress } from "./boot-progress";
 import { BootScreen } from "./boot-screen";
 import { CrashBoundary } from "./crash-boundary";
@@ -123,7 +124,13 @@ export async function bootAtlas(args: {
 
   if (settled.type === ESession.Failed) {
     takeDown({ root, renderer });
-    throw settled.error;
+    process.stderr.write(
+      bootFailureReport({
+        error: settled.error,
+        debug: args.env.ATLAS_DEBUG !== undefined,
+      }),
+    );
+    return BOOT_FAILURE_EXIT_CODE;
   }
 
   if (settled.type === ESession.Refused) {

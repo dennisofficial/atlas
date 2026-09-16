@@ -1,5 +1,7 @@
 import { CredentialError, ECredentialFailure } from '@dltech/atlas-harness'
 
+import { cloudOutageMessage } from './cloud-outage'
+
 export const CREDENTIAL_EXIT_CODE = 1
 
 export type CredentialDiagnosis = { message: string; exitCode: number }
@@ -18,6 +20,11 @@ const adviceFor: Record<ECredentialFailure, string | null> = {
 }
 
 export function diagnoseCredentialFailure(error: unknown): CredentialDiagnosis | null {
+  const outage = cloudOutageMessage(error)
+  if (outage !== null) {
+    return { message: [HEADLINE, '', outage].join('\n'), exitCode: CREDENTIAL_EXIT_CODE }
+  }
+
   if (!(error instanceof CredentialError)) return null
 
   const advice = adviceFor[error.failure]
