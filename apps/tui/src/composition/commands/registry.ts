@@ -81,6 +81,7 @@ export type LocalCommandHandlers = {
   onReloadSkills: () => Promise<SkillsReloaded>
   onShowMcp: () => string
   onRestart: (() => void) | null
+  onQuit: () => void
 }
 
 const local = (command: Omit<LocalCommand, 'kind'>): LocalCommand => ({
@@ -260,6 +261,19 @@ export function localCommands(handlers: LocalCommandHandlers): readonly LocalCom
       dropsQueue: true,
       run: () => {
         handlers.onNewConversation()
+        return RAN
+      },
+    }),
+    local({
+      name: 'exit',
+      summary: 'quit atlas',
+      group: ECommandGroup.Session,
+      timing: ECommandTiming.Settled,
+      echo: ECommandEcho.Silent,
+      dropsQueue: true,
+      losesWaiting: true,
+      run: () => {
+        handlers.onQuit()
         return RAN
       },
     }),
