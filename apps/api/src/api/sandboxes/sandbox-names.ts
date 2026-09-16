@@ -1,0 +1,11 @@
+import { createHash } from 'node:crypto'
+
+const SANDBOX_NAME_PREFIX = 'atlas-thread'
+const DIGEST_LENGTH = 24
+
+const digestOf = (value: string): string =>
+  createHash('sha256').update(value).digest('hex').slice(0, DIGEST_LENGTH)
+
+export function sandboxNameFor(args: { threadId: string }): string {
+  return `${SANDBOX_NAME_PREFIX}-${digestOf(args.threadId)}`
+}

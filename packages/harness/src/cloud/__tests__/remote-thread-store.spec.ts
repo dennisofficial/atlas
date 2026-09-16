@@ -18,7 +18,7 @@ const wireThread = {
   parent: { threadId: 'brn_parent', forkSeq: 2 },
   agent: { spawnedBy: 'brn_spawner', type: 'explore' },
   model: { ref: 'anthropic/claude-opus', effort: 'high' },
-  executionLocation: 'cloud',
+  executionLocation: 'nowhere',
 }
 
 const harness = (responses: unknown[], statuses?: number[]) => {

@@ -1,15 +1,24 @@
 import { EExecutionLocation } from '@dltech/atlas-core'
 
-const whereItRuns = (location: EExecutionLocation): string =>
-  location === EExecutionLocation.Host ? 'on the host' : 'in a Docker container'
+const WHERE_IT_RUNS: Record<EExecutionLocation, string> = {
+  [EExecutionLocation.Host]: 'on the host',
+  [EExecutionLocation.Docker]: 'in a Docker container',
+  [EExecutionLocation.Cloud]: 'in a cloud sandbox',
+}
+
+const whereItRuns = (location: EExecutionLocation): string => WHERE_IT_RUNS[location]
 
 export const currentLocationNotice = (location: EExecutionLocation): string =>
   `this conversation runs ${whereItRuns(location)}`
 
-export const movedLocationNotice = (location: EExecutionLocation): string =>
-  location === EExecutionLocation.Host
-    ? 'this conversation runs on the host again'
-    : `this conversation now runs ${whereItRuns(location)} — a read outside the project will fail from the next turn on`
+export const movedLocationNotice = (location: EExecutionLocation): string => {
+  if (location === EExecutionLocation.Host) return 'this conversation runs on the host again'
+  if (location === EExecutionLocation.Cloud) {
+    return 'this conversation now runs in a cloud sandbox — it keeps going with this terminal closed'
+  }
+
+  return `this conversation now runs ${whereItRuns(location)} — a read outside the project will fail from the next turn on`
+}
 
 export const pendingSwitchNotice = (args: {
   target: EExecutionLocation

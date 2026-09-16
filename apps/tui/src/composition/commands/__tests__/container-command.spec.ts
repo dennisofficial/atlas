@@ -90,6 +90,11 @@ describe('what /container was asked for', () => {
     expect(containerAskOfArgument(' Docker ')).toBe(EExecutionLocation.Docker)
   })
 
+  it('reads cloud as the cloud sandbox', () => {
+    expect(containerAskOfArgument('cloud')).toBe(EExecutionLocation.Cloud)
+    expect(containerAskOfArgument(' Cloud ')).toBe(EExecutionLocation.Cloud)
+  })
+
   it('refuses anything else rather than falling back to a default', () => {
     expect(containerAskOfArgument('podman')).toBe(null)
     expect(containerAskOfArgument('on')).toBe(null)

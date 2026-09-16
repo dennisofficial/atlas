@@ -1,3 +1,5 @@
+import { applyUpdate, matchesValue, project, sortRows, type Where } from './fake-db-support'
+
 export type FakeThreadRow = {
   id: string
   title: string | null
@@ -50,29 +52,33 @@ export type FakeTurnRow = {
   userId: string
 }
 
-type Where = Record<string, unknown>
-
-const matchesValue = (value: unknown, condition: unknown): boolean => {
-  if (typeof condition === 'object' && condition !== null) {
-    const ops = condition as Record<string, unknown>
-    if ('in' in ops) return (ops.in as unknown[]).includes(value)
-    if ('notIn' in ops) return !(ops.notIn as unknown[]).includes(value)
-    const range = ops as { gt?: number; gte?: number; lte?: number }
-    const numeric = value as number
-    if (range.gt !== undefined && !(numeric > range.gt)) return false
-    if (range.gte !== undefined && numeric < range.gte) return false
-    if (range.lte !== undefined && numeric > range.lte) return false
-    return true
-  }
-  return value === condition
+export type FakeCloudSandboxRow = {
+  id: string
+  threadId: string
+  userId: string
+  sandboxId: string
+  name: string
+  region: string
+  state: string
+  lastActivityAt: string
+  tokenHash: string
+  workspaceRemoteUrl: string | null
+  workspaceBranch: string | null
+  workspaceCommit: string | null
+  workspacePatch: string | null
+  createdAt: string
+  updatedAt: string
 }
+
+type FakeRow = FakeThreadRow | FakeEventRow | FakeTurnRow | FakeCloudSandboxRow
 
 export function createFakeSessionDb() {
   const threads: FakeThreadRow[] = []
   const events: FakeEventRow[] = []
   const turns: FakeTurnRow[] = []
+  const cloudSandboxes: FakeCloudSandboxRow[] = []
 
-  const matchesRow = (row: FakeThreadRow | FakeEventRow | FakeTurnRow, where: Where): boolean =>
+  const matchesRow = (row: FakeRow, where: Where): boolean =>
     Object.entries(where).every(([key, condition]) => {
       if (key === 'OR') {
         return (condition as Where[]).some((branch) => matchesRow(row, branch))
@@ -87,40 +93,6 @@ export function createFakeSessionDb() {
       }
       return matchesValue((row as unknown as Where)[key], condition)
     })
-
-  const project = <Row>(row: Row, select?: Record<string, boolean>): Row => {
-    if (select === undefined) return row
-    const picked: Record<string, unknown> = {}
-    for (const key of Object.keys(select)) {
-      picked[key] = (row as unknown as Where)[key]
-    }
-    return picked as Row
-  }
-
-  const sortRows = <Row>(rows: Row[], orderBy: unknown): Row[] => {
-    const clauses = (Array.isArray(orderBy) ? orderBy : [orderBy]) as Record<string, string>[]
-    return [...rows].sort((a, b) => {
-      for (const clause of clauses) {
-        const [key, direction] = Object.entries(clause)[0] as [string, string]
-        const left = (a as unknown as Where)[key] as string | number
-        const right = (b as unknown as Where)[key] as string | number
-        if (left === right) continue
-        const less = left < right
-        return (direction === 'desc' ? !less : less) ? -1 : 1
-      }
-      return 0
-    })
-  }
-
-  const applyUpdate = (row: Record<string, unknown>, data: Where): void => {
-    for (const [key, value] of Object.entries(data)) {
-      if (typeof value === 'object' && value !== null && 'increment' in value) {
-        row[key] = (row[key] as number) + (value as { increment: number }).increment
-        continue
-      }
-      row[key] = value
-    }
-  }
 
   const db = {
     thread: {
@@ -228,6 +200,43 @@ export function createFakeSessionDb() {
         return args.orderBy === undefined ? matched : sortRows(matched, args.orderBy)
       },
     },
+    cloudSandbox: {
+      findUnique: async (args: { where: { threadId: string } }) =>
+        cloudSandboxes.find((one) => one.threadId === args.where.threadId) ?? null,
+      findFirst: async (args: { where: Where }) =>
+        cloudSandboxes.find((one) => matchesRow(one, args.where)) ?? null,
+      findMany: async (args: { where?: Where; orderBy?: unknown }) => {
+        const matched = cloudSandboxes.filter(
+          (one) => args.where === undefined || matchesRow(one, args.where),
+        )
+        return args.orderBy === undefined ? matched : sortRows(matched, args.orderBy)
+      },
+      upsert: async (args: {
+        where: { threadId: string }
+        create: FakeCloudSandboxRow
+        update: Where
+      }) => {
+        const existing = cloudSandboxes.find((one) => one.threadId === args.where.threadId)
+        if (existing === undefined) {
+          cloudSandboxes.push(args.create)
+          return args.create
+        }
+        applyUpdate(existing as unknown as Record<string, unknown>, args.update)
+        return existing
+      },
+      update: async (args: { where: { threadId: string }; data: Where }) => {
+        const row = cloudSandboxes.find((one) => one.threadId === args.where.threadId)
+        if (row === undefined) throw new Error('record not found')
+        applyUpdate(row as unknown as Record<string, unknown>, args.data)
+        return row
+      },
+      delete: async (args: { where: { threadId: string } }) => {
+        const index = cloudSandboxes.findIndex((one) => one.threadId === args.where.threadId)
+        if (index === -1) throw new Error('record not found')
+        const [removed] = cloudSandboxes.splice(index, 1)
+        return removed
+      },
+    },
     $transaction: async (callback: (tx: unknown) => Promise<unknown>) => callback(db),
   }
 
@@ -236,10 +245,12 @@ export function createFakeSessionDb() {
     threads,
     events,
     turns,
+    cloudSandboxes,
     reset: () => {
       threads.length = 0
       events.length = 0
       turns.length = 0
+      cloudSandboxes.length = 0
     },
   }
 }
