@@ -13,6 +13,7 @@ import { GithubModule } from './github/github.module'
 import { HealthController } from './health/health.controller'
 import { McpServersModule } from './mcp-servers/mcp-servers.module'
 import { SecretsModule } from './secrets/secrets.module'
+import { SessionsModule } from './sessions/sessions.module'
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { SecretsModule } from './secrets/secrets.module'
     SecretsModule,
     McpServersModule,
     GithubModule,
+    SessionsModule,
   ],
   controllers: [HealthController],
   providers: [

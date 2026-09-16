@@ -1,0 +1,254 @@
+export type FakeThreadRow = {
+  id: string
+  title: string | null
+  head: number
+  createdAt: string
+  updatedAt: string
+  parentThreadId: string | null
+  forkSeq: number | null
+  forkMode: string | null
+  spawnerThreadId: string | null
+  agentType: string | null
+  workspace: string | null
+  repo: string | null
+  modelRef: string | null
+  modelEffort: string | null
+  executionLocation: string | null
+  userId: string
+}
+
+export type FakeEventRow = {
+  id: string
+  threadId: string
+  seq: number
+  runId: string
+  parentRunId: string | null
+  depth: number
+  at: string
+  type: string
+  body: string
+  contextSlot: string | null
+  contextKey: string | null
+  contextDigest: string | null
+  userId: string
+}
+
+export type FakeTurnRow = {
+  runId: string
+  threadId: string
+  status: string
+  providerId: string
+  modelId: string
+  steps: number
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens: number
+  cacheWriteTokens: number
+  startedAt: string
+  endedAt: string
+  durationMs: number
+  userId: string
+}
+
+type Where = Record<string, unknown>
+
+const matchesValue = (value: unknown, condition: unknown): boolean => {
+  if (typeof condition === 'object' && condition !== null) {
+    const ops = condition as Record<string, unknown>
+    if ('in' in ops) return (ops.in as unknown[]).includes(value)
+    if ('notIn' in ops) return !(ops.notIn as unknown[]).includes(value)
+    const range = ops as { gt?: number; gte?: number; lte?: number }
+    const numeric = value as number
+    if (range.gt !== undefined && !(numeric > range.gt)) return false
+    if (range.gte !== undefined && numeric < range.gte) return false
+    if (range.lte !== undefined && numeric > range.lte) return false
+    return true
+  }
+  return value === condition
+}
+
+export function createFakeSessionDb() {
+  const threads: FakeThreadRow[] = []
+  const events: FakeEventRow[] = []
+  const turns: FakeTurnRow[] = []
+
+  const matchesRow = (row: FakeThreadRow | FakeEventRow | FakeTurnRow, where: Where): boolean =>
+    Object.entries(where).every(([key, condition]) => {
+      if (key === 'OR') {
+        return (condition as Where[]).some((branch) => matchesRow(row, branch))
+      }
+      if (key === 'forks' || key === 'spawned') {
+        const relationKey = key === 'forks' ? 'parentThreadId' : 'spawnerThreadId'
+        const some = (condition as { some?: unknown }).some !== undefined
+        const found = threads.some(
+          (thread) => (thread as unknown as Where)[relationKey] === (row as FakeThreadRow).id,
+        )
+        return some ? found : !found
+      }
+      return matchesValue((row as unknown as Where)[key], condition)
+    })
+
+  const project = <Row>(row: Row, select?: Record<string, boolean>): Row => {
+    if (select === undefined) return row
+    const picked: Record<string, unknown> = {}
+    for (const key of Object.keys(select)) {
+      picked[key] = (row as unknown as Where)[key]
+    }
+    return picked as Row
+  }
+
+  const sortRows = <Row>(rows: Row[], orderBy: unknown): Row[] => {
+    const clauses = (Array.isArray(orderBy) ? orderBy : [orderBy]) as Record<string, string>[]
+    return [...rows].sort((a, b) => {
+      for (const clause of clauses) {
+        const [key, direction] = Object.entries(clause)[0] as [string, string]
+        const left = (a as unknown as Where)[key] as string | number
+        const right = (b as unknown as Where)[key] as string | number
+        if (left === right) continue
+        const less = left < right
+        return (direction === 'desc' ? !less : less) ? -1 : 1
+      }
+      return 0
+    })
+  }
+
+  const applyUpdate = (row: Record<string, unknown>, data: Where): void => {
+    for (const [key, value] of Object.entries(data)) {
+      if (typeof value === 'object' && value !== null && 'increment' in value) {
+        row[key] = (row[key] as number) + (value as { increment: number }).increment
+        continue
+      }
+      row[key] = value
+    }
+  }
+
+  const db = {
+    thread: {
+      create: async (args: { data: Where }) => {
+        const row: FakeThreadRow = {
+          title: null,
+          head: 0,
+          parentThreadId: null,
+          forkSeq: null,
+          forkMode: null,
+          spawnerThreadId: null,
+          agentType: null,
+          workspace: null,
+          repo: null,
+          modelRef: null,
+          modelEffort: null,
+          executionLocation: null,
+          ...(args.data as Partial<FakeThreadRow>),
+        } as FakeThreadRow
+        threads.push(row)
+        return row
+      },
+      findUnique: async (args: { where: { id: string }; select?: Record<string, boolean> }) => {
+        const row = threads.find((one) => one.id === args.where.id) ?? null
+        return row === null ? null : project(row, args.select)
+      },
+      findUniqueOrThrow: async (args: { where: { id: string } }) => {
+        const row = threads.find((one) => one.id === args.where.id)
+        if (row === undefined) throw new Error('record not found')
+        return row
+      },
+      findFirst: async (args: { where: Where; orderBy?: unknown }) => {
+        const matched = threads.filter((one) => matchesRow(one, args.where))
+        const sorted = args.orderBy === undefined ? matched : sortRows(matched, args.orderBy)
+        return sorted[0] ?? null
+      },
+      findMany: async (args: { where?: Where; orderBy?: unknown; take?: number }) => {
+        const matched = threads.filter(
+          (one) => args.where === undefined || matchesRow(one, args.where),
+        )
+        const sorted = args.orderBy === undefined ? matched : sortRows(matched, args.orderBy)
+        return args.take === undefined ? sorted : sorted.slice(0, args.take)
+      },
+      update: async (args: { where: { id: string }; data: Where; select?: Record<string, boolean> }) => {
+        const row = threads.find((one) => one.id === args.where.id)
+        if (row === undefined) throw new Error('record not found')
+        applyUpdate(row as unknown as Record<string, unknown>, args.data)
+        return project(row, args.select)
+      },
+      updateMany: async (args: { where: Where; data: Where }) => {
+        const matched = threads.filter((one) => matchesRow(one, args.where))
+        for (const row of matched) applyUpdate(row as unknown as Record<string, unknown>, args.data)
+        return { count: matched.length }
+      },
+      deleteMany: async (args: { where: Where }) => {
+        const kept = threads.filter((one) => !matchesRow(one, args.where))
+        const count = threads.length - kept.length
+        threads.splice(0, threads.length, ...kept)
+        return { count }
+      },
+    },
+    event: {
+      create: async (args: { data: FakeEventRow }) => {
+        events.push(args.data)
+        return args.data
+      },
+      createMany: async (args: { data: FakeEventRow[] }) => {
+        events.push(...args.data)
+        return { count: args.data.length }
+      },
+      findMany: async (args: { where?: Where; orderBy?: unknown; select?: Record<string, boolean> }) => {
+        const matched = events.filter(
+          (one) => args.where === undefined || matchesRow(one, args.where),
+        )
+        const sorted = args.orderBy === undefined ? matched : sortRows(matched, args.orderBy)
+        return sorted.map((row) => project(row, args.select))
+      },
+      findFirst: async (args: { where: Where; orderBy?: unknown; select?: Record<string, boolean> }) => {
+        const matched = events.filter((one) => matchesRow(one, args.where))
+        const sorted = args.orderBy === undefined ? matched : sortRows(matched, args.orderBy)
+        const first = sorted[0] ?? null
+        return first === null ? null : project(first, args.select)
+      },
+      deleteMany: async (args: { where: Where }) => {
+        const kept = events.filter((one) => !matchesRow(one, args.where))
+        const count = events.length - kept.length
+        events.splice(0, events.length, ...kept)
+        return { count }
+      },
+    },
+    turn: {
+      upsert: async (args: { where: { runId: string }; create: FakeTurnRow; update: Where }) => {
+        const existing = turns.find((one) => one.runId === args.where.runId)
+        if (existing === undefined) {
+          turns.push(args.create)
+          return args.create
+        }
+        applyUpdate(existing as unknown as Record<string, unknown>, args.update)
+        return existing
+      },
+      findMany: async (args: { where?: Where; orderBy?: unknown }) => {
+        const matched = turns.filter(
+          (one) => args.where === undefined || matchesRow(one, args.where),
+        )
+        return args.orderBy === undefined ? matched : sortRows(matched, args.orderBy)
+      },
+    },
+    $transaction: async (callback: (tx: unknown) => Promise<unknown>) => callback(db),
+  }
+
+  return {
+    db,
+    threads,
+    events,
+    turns,
+    reset: () => {
+      threads.length = 0
+      events.length = 0
+      turns.length = 0
+    },
+  }
+}
+
+export type FakeSessionDb = ReturnType<typeof createFakeSessionDb>
+
+let current: FakeSessionDb | undefined
+
+export function fakeSessionDb(): FakeSessionDb {
+  current ??= createFakeSessionDb()
+  return current
+}

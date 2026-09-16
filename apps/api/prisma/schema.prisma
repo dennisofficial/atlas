@@ -26,6 +26,82 @@ model User {
   secretEntries SecretEntry[]
   mcpServers    McpServerConfig[]
   githubConnection GithubConnection?
+  threads       Thread[]
+}
+
+model Thread {
+  id                String   @id
+  title             String?
+  head              Int      @default(0)
+  createdAt         String
+  updatedAt         String
+  parentThreadId    String?
+  forkSeq           Int?
+  forkMode          String?
+  spawnerThreadId   String?
+  agentType         String?
+  workspace         String?
+  repo              String?
+  modelRef          String?
+  modelEffort       String?
+  executionLocation String?
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent            Thread?  @relation("ThreadFork", fields: [parentThreadId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  forks             Thread[] @relation("ThreadFork")
+  spawner           Thread?  @relation("ThreadSupervision", fields: [spawnerThreadId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  spawned           Thread[] @relation("ThreadSupervision")
+  events            Event[]
+  turns             Turn[]
+
+  @@index([userId, updatedAt])
+  @@index([parentThreadId])
+  @@index([spawnerThreadId])
+  @@index([userId, workspace, updatedAt])
+  @@index([userId, repo, updatedAt])
+}
+
+model Event {
+  id            String  @id
+  threadId      String
+  seq           Int
+  runId         String
+  parentRunId   String?
+  depth         Int
+  at            String
+  type          String
+  body          String
+  contextSlot   String?
+  contextKey    String?
+  contextDigest String?
+  userId        String
+  thread        Thread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@unique([threadId, seq])
+  @@unique([threadId, contextSlot, contextKey, contextDigest])
+  @@index([threadId, type])
+  @@index([userId])
+}
+
+model Turn {
+  runId            String @id
+  threadId         String
+  status           String
+  providerId       String
+  modelId          String
+  steps            Int
+  inputTokens      Int
+  outputTokens     Int
+  cacheReadTokens  Int
+  cacheWriteTokens Int
+  startedAt        String
+  endedAt          String
+  durationMs       Int
+  userId           String
+  thread           Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, startedAt])
+  @@index([userId])
 }
 
 model AgentAccount {
