@@ -71,14 +71,31 @@ describe('the notice stack', () => {
     expect(frame).toContain('⚠ clipboard unavailable')
   })
 
-  it('cuts a notice too long for the room it was given rather than wrapping it', async () => {
+  it('wraps a notice too long for the room it was given rather than cutting it', async () => {
     notify({ text: 'x'.repeat(WIDTH * 2) })
     const frame = await frameOf(stack(), WIDTH)
     dismissNotice()
 
     const rows = frame.split('\n').filter((row) => row.includes('x'))
-    expect(rows.length).toBe(1)
-    expect(frame).toContain('…')
+    expect(rows.length).toBeGreaterThan(1)
+    expect(frame).not.toContain('…')
+    const kept = rows.join('').split('').filter((char) => char === 'x').length
+    expect(kept).toBe(WIDTH * 2)
+  })
+
+  it('hangs the wrapped rows under the text rather than under the mark', async () => {
+    notify({ text: `copied ${'word '.repeat(12)}lines` })
+    const frame = await frameOf(stack(), WIDTH)
+    dismissNotice()
+
+    const rows = frame.split('\n').filter((row) => row.includes('word'))
+    const heading = rows[0]
+    expect(rows.length).toBeGreaterThan(1)
+    expect(heading).toBeDefined()
+    if (heading === undefined) return
+    for (const row of rows.slice(1)) {
+      expect(row.indexOf('word')).toBe(heading.indexOf('copied'))
+    }
   })
 
   it('stacks what lands together, the newest closest to the composer', async () => {

@@ -7,12 +7,14 @@ import {
   noticeVersion,
   subscribeNotices,
 } from '../notice-store'
+import { wrapWords } from '../text-flow'
 import { glyph, theme, TRANSCRIPT_INSET } from '../theme'
-import { truncateCells } from './sidebar/cells'
 
 export const NOTICE_MIN_CELLS = 8
 
 const SLAB_PAD = 2
+
+const MARK_INDENT = 2
 
 export const toneInk = (tone: ENoticeTone): string => {
   if (tone === ENoticeTone.Warn) return theme.warn
@@ -34,23 +36,31 @@ export function NoticeStack(props: { width: number }): React.ReactNode {
   if (notices.length === 0 || props.width < NOTICE_MIN_CELLS) return null
 
   const cells = props.width - TRANSCRIPT_INSET
+  const band = Math.max(1, cells - SLAB_PAD - MARK_INDENT)
 
   return (
     <box width={props.width} flexDirection="column" alignItems="flex-start" flexShrink={0}>
-      {notices.map((notice) => (
-        <box
-          key={notice.key}
-          flexDirection="row"
-          flexShrink={0}
-          paddingLeft={1}
-          paddingRight={1}
-          backgroundColor={theme.overlayBg}
-        >
-          <text fg={toneInk(notice.tone)} bg={theme.overlayBg}>
-            {`${toneMark(notice.tone)} ${truncateCells({ text: notice.text, cells: cells - SLAB_PAD })} `}
-          </text>
-        </box>
-      ))}
+      {notices.map((notice) => {
+        const [first, ...rest] = wrapWords({ text: notice.text, width: band })
+        const lines = [
+          `${toneMark(notice.tone)} ${first} `,
+          ...rest.map((row) => `${' '.repeat(MARK_INDENT)}${row} `),
+        ]
+        return (
+          <box
+            key={notice.key}
+            flexDirection="row"
+            flexShrink={0}
+            paddingLeft={1}
+            paddingRight={1}
+            backgroundColor={theme.overlayBg}
+          >
+            <text wrapMode="none" fg={toneInk(notice.tone)} bg={theme.overlayBg}>
+              {lines.join('\n')}
+            </text>
+          </box>
+        )
+      })}
     </box>
   )
 }
