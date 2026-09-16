@@ -1,7 +1,7 @@
 import React from "react";
 
 import type { SidebarModel } from "../../../store/sidebar-model";
-import { formatUsd, spendFigures } from "../../../store/sidebar-spend";
+import { costTone, formatUsd, spendFigures } from "../../../store/sidebar-spend";
 import { theme } from "../../theme";
 import { truncateCells } from "./cells";
 
@@ -14,6 +14,24 @@ const turnsAndCost = (model: SidebarModel): string => {
 
   return `${turns}${SEPARATOR}${formatUsd(costUsd)}`;
 };
+
+function TurnsAndCostLine(props: { model: SidebarModel; cells: number }): React.ReactNode {
+  const { costUsd } = props.model.spend;
+  const label = truncateCells({ text: turnsAndCost(props.model), cells: props.cells });
+
+  if (costUsd === null || label !== turnsAndCost(props.model)) {
+    return <text fg={theme.hint}>{label}</text>;
+  }
+
+  const turns = `${props.model.turnCount} ${props.model.turnCount === 1 ? "turn" : "turns"}`;
+
+  return (
+    <text>
+      <span fg={theme.hint}>{`${turns}${SEPARATOR}`}</span>
+      <span fg={costTone(costUsd)}>{formatUsd(costUsd)}</span>
+    </text>
+  );
+}
 
 /**
  * No model and no thread: the footer carries what is answering, and a fork of the
@@ -36,9 +54,7 @@ export function HeadSection(props: {
         </text>
       )}
       {model.turnCount === 0 ? null : (
-        <text fg={theme.hint}>
-          {truncateCells({ text: turnsAndCost(model), cells: props.cells })}
-        </text>
+        <TurnsAndCostLine model={model} cells={props.cells} />
       )}
       {figures === null ? null : (
         <text fg={theme.dim}>
