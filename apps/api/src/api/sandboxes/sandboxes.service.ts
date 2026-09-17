@@ -24,7 +24,7 @@ import type {
   SandboxWorkspaceSpec,
 } from './sandboxes.types'
 import { ESandboxState } from './sandboxes.types'
-import { SANDBOX_REGION, SandboxMissingError, VercelSandboxClient } from './vercel-sandbox.client'
+import { SANDBOX_REGION, VercelSandboxClient } from './vercel-sandbox.client'
 import type { WorkspaceColumns } from './workspace-spec'
 import { workspaceColumnsOf, workspaceSpecOf } from './workspace-spec'
 
@@ -76,8 +76,7 @@ export class SandboxesService {
     if (claimed.tokenHash === minted.tokenHash) {
       return this.provision({ row: claimed, token: minted.token })
     }
-    const resumed = await this.tryResume(claimed)
-    if (resumed !== null) return resumed
+    await this.vercel.destroy({ name: claimed.name })
     await db.cloudSandbox.delete({ where: { threadId: claimed.threadId } })
     const reclaimed = await this.claim({ thread, tokenHash: minted.tokenHash, columns })
     if (reclaimed.tokenHash !== minted.tokenHash) {
@@ -207,17 +206,6 @@ export class SandboxesService {
       await db.cloudSandbox.delete({ where: { threadId: args.row.threadId } })
       if (failure instanceof HttpException) throw failure
       throw new BadGatewayException(messageOf(failure))
-    }
-  }
-
-  private async tryResume(row: CloudSandboxModel): Promise<SandboxAttachmentDto | null> {
-    try {
-      const placement = await this.vercel.resume({ name: row.name })
-      const stamped = await this.stamp({ row, placement })
-      return { ...toSandboxDto(stamped), url: placement.url }
-    } catch (failure) {
-      if (failure instanceof SandboxMissingError) return null
-      throw failure
     }
   }
 

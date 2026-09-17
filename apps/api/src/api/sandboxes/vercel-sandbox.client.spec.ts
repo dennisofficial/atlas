@@ -172,7 +172,7 @@ describe('VercelSandboxClient', () => {
     expect(sdk.createParams[0]?.image).toBe('atlas-sandbox:sha-deadbeef')
   })
 
-  it('restarts serve on every resume, whatever path resolved it, reading the stamp lazily', async () => {
+  it('launches serve on creation and again on the SDK resume hook, reading the stamp lazily', async () => {
     const serveBinary = fakeServeBinary()
     const client = new VercelSandboxClient(envWith(CONFIGURED), serveBinary.asService)
     await client.getOrCreate({ name: 'atlas-thread-abc', threadId: 'brn_thread_1', token: 't' })
@@ -184,11 +184,6 @@ describe('VercelSandboxClient', () => {
     const hooks = hooksOf(sdk.createParams[0])
     await hooks.onResume({})
     expect(launch.launched).toBe(2)
-
-    await client.resume({ name: 'atlas-thread-abc' })
-    expect(launch.launched).toBe(3)
-    expect(sdk.getParams.at(-1)).toMatchObject({ name: 'atlas-thread-abc', resume: true })
-    expect(sdk.getParams.at(-1)).toHaveProperty('onResume')
   })
 
   it('propagates a serve that never becomes healthy instead of returning a dead URL', async () => {
@@ -214,26 +209,22 @@ describe('VercelSandboxClient', () => {
     })
   })
 
-  it('stops and resumes through the SDK, tolerating a sandbox Vercel no longer has', async () => {
+  it('stops and destroys through the SDK, tolerating a sandbox Vercel no longer has', async () => {
     const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
     await client.stop({ name: 'atlas-thread-abc' })
     expect(sdk.stopped).toHaveLength(1)
-    await client.resume({ name: 'atlas-thread-abc' })
-    expect(sdk.getParams.at(-1)).toMatchObject({ name: 'atlas-thread-abc', resume: true })
+    await client.destroy({ name: 'atlas-thread-abc' })
+    expect(sdk.deleted).toHaveLength(1)
 
     sdk.getFailure = new APIError({ status: 404 } as Response)
     await expect(client.stop({ name: 'atlas-thread-gone' })).resolves.toBeUndefined()
-    await expect(client.resume({ name: 'atlas-thread-gone' })).rejects.toBeInstanceOf(
-      SandboxMissingError,
-    )
+    await expect(client.destroy({ name: 'atlas-thread-gone' })).resolves.toBeUndefined()
 
     sdk.getFailure = new APIError(
       { status: 410 } as Response,
       { json: { error: { code: 'snapshot_not_found' } } },
     )
-    await expect(client.resume({ name: 'atlas-thread-gone' })).rejects.toBeInstanceOf(
-      SandboxMissingError,
-    )
+    await expect(client.destroy({ name: 'atlas-thread-gone' })).resolves.toBeUndefined()
   })
 
   it('answers 503 when the deployment is unconfigured, whole or missing only the image', async () => {
