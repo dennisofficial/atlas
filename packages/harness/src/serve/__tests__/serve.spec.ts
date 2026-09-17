@@ -360,6 +360,23 @@ describe('startServe', () => {
     expect(JSON.stringify(refusal)).toContain('fatal: repository not found')
   })
 
+  it('announces a failed workspace on hello, before anyone speaks', async () => {
+    const { handle } = await start({
+      workspace: {
+        state: EWorkspaceState.Failed,
+        step: EWorkspaceStep.Clone,
+        reason: 'fatal: repository not found',
+      },
+    })
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+    const announced = await client.waitFor((frame) => frame.kind === EServeFrame.Error)
+
+    expect(JSON.stringify(announced)).toContain('fatal: repository not found')
+  })
+
   it('logs the workspace it found already materialized', async () => {
     const { lines } = await start({ workspace: { state: EWorkspaceState.Present } })
 

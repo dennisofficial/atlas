@@ -1,15 +1,24 @@
 import type { Sandbox } from '@vercel/sandbox'
 
 export const SERVE_BINARY_PATH = '/vercel/sandbox/atlas-serve'
-export const SERVE_STAMP_PATH = '/vercel/sandbox/atlas-serve.sha256'
 export const SERVE_LOG_PATH = '/vercel/sandbox/atlas-serve.log'
+export const SERVE_LOCK_PATH = '/vercel/sandbox/atlas-serve.lock'
 
 const HEALTH_ATTEMPTS = 90
 const HEALTH_INTERVAL_SECONDS = 2
 const HEALTH_WAIT_TIMEOUT_MS = (HEALTH_ATTEMPTS * HEALTH_INTERVAL_SECONDS + 30) * 1000
 const DOWNLOAD_TIMEOUT_MS = 300_000
+const QUICK_COMMAND_TIMEOUT_MS = 15_000
+const EXIT_AUTH_STALE = 41
 
-export const HEALTH_PROBE = `curl -sf -H "Authorization: Bearer $ATLAS_SERVE_TOKEN" "http://localhost:$ATLAS_SERVE_PORT/v1/health" -o /dev/null`
+export class StaleSandboxTokenError extends Error {
+  constructor() {
+    super('the sandbox carries a serve token this deployment no longer recognizes')
+    this.name = 'StaleSandboxTokenError'
+  }
+}
+
+export const HEALTH_PROBE = `curl -sf -m 5 --connect-timeout 2 -H "Authorization: Bearer $ATLAS_SERVE_TOKEN" "http://localhost:$ATLAS_SERVE_PORT/v1/health" -o /dev/null`
 
 const sh = (args: { sandbox: Sandbox; script: string; timeoutMs?: number }) =>
   args.sandbox.runCommand({
@@ -19,23 +28,54 @@ const sh = (args: { sandbox: Sandbox; script: string; timeoutMs?: number }) =>
   })
 
 const serveHealthy = async (sandbox: Sandbox): Promise<boolean> =>
-  (await sh({ sandbox, script: HEALTH_PROBE })).exitCode === 0
+  (await sh({ sandbox, script: HEALTH_PROBE, timeoutMs: QUICK_COMMAND_TIMEOUT_MS })).exitCode === 0
 
-const installedStamp = async (sandbox: Sandbox): Promise<string> => {
-  const read = await sh({ sandbox, script: `cat ${SERVE_STAMP_PATH} 2>/dev/null || true` })
-  return (await read.stdout()).trim()
+const installedHash = async (sandbox: Sandbox): Promise<string> => {
+  const hashed = await sh({
+    sandbox,
+    script: `sha256sum ${SERVE_BINARY_PATH} 2>/dev/null | cut -d' ' -f1`,
+    timeoutMs: QUICK_COMMAND_TIMEOUT_MS,
+  })
+  return (await hashed.stdout()).trim()
 }
 
+const MATCHING_SERVE = `grep -qa '^${SERVE_BINARY_PATH}' "$pid/cmdline" 2>/dev/null`
+
 const KILL_WEDGED_SERVE = `for pid in /proc/[0-9]*; do
-  if grep -qa 'atlas-serv[e]' "$pid/cmdline" 2>/dev/null; then kill "\${pid#/proc/}" 2>/dev/null; fi
+  if ${MATCHING_SERVE}; then kill "\${pid#/proc/}" 2>/dev/null; fi
+done
+for i in $(seq 10); do
+  survivors=0
+  for pid in /proc/[0-9]*; do
+    if ${MATCHING_SERVE}; then survivors=1; fi
+  done
+  [ "$survivors" = "0" ] && break
+  sleep 0.5
+done
+for pid in /proc/[0-9]*; do
+  if ${MATCHING_SERVE}; then kill -9 "\${pid#/proc/}" 2>/dev/null; fi
 done
 true`
 
-const downloadBinary = (stamp: string): string =>
-  `curl -sfS -H "Authorization: Bearer $ATLAS_SERVE_TOKEN" ` +
-  `"$ATLAS_CLOUD_URL/v1/sandboxes/$ATLAS_THREAD_ID/serve-binary" -o ${SERVE_BINARY_PATH} ` +
-  `&& chmod 755 ${SERVE_BINARY_PATH} ` +
-  `&& printf '%s' '${stamp}' > ${SERVE_STAMP_PATH}`
+const downloadBinary = `mkdir -p /vercel/sandbox && ` +
+  `code=$(curl -sS --retry 3 --retry-all-errors --connect-timeout 10 -m 240 ` +
+  `-H "Authorization: Bearer $ATLAS_SERVE_TOKEN" ` +
+  `"$ATLAS_CLOUD_URL/v1/sandboxes/$ATLAS_THREAD_ID/serve-binary" ` +
+  `-o ${SERVE_BINARY_PATH} -w '%{http_code}') || exit $?; ` +
+  `if [ "$code" = "401" ]; then exit ${EXIT_AUTH_STALE}; fi; ` +
+  `if [ "$code" != "200" ]; then echo "download answered HTTP $code" >&2; exit 22; fi; ` +
+  `chmod 755 ${SERVE_BINARY_PATH}`
+
+const serveLogTail = async (sandbox: Sandbox): Promise<string> => {
+  const tail = await sh({
+    sandbox,
+    script: `tail -c 16384 ${SERVE_LOG_PATH} 2>/dev/null || true`,
+    timeoutMs: QUICK_COMMAND_TIMEOUT_MS,
+  }).catch(() => null)
+  if (tail === null) return '<could not read the serve log>'
+  const content = (await tail.stdout()).trim()
+  return content.length > 0 ? content : '<serve log is empty or missing>'
+}
 
 export type ServeLauncher = (sandbox: Sandbox) => Promise<void>
 
@@ -43,15 +83,13 @@ export function createServeLauncher(args: {
   readStamp: () => Promise<string>
 }): ServeLauncher {
   return async (sandbox) => {
-    if (await serveHealthy(sandbox)) return
-
     const stamp = await args.readStamp()
-    if ((await installedStamp(sandbox)) !== stamp) {
-      const downloaded = await sh({
-        sandbox,
-        script: downloadBinary(stamp),
-        timeoutMs: DOWNLOAD_TIMEOUT_MS,
-      })
+    const [healthy, installed] = await Promise.all([serveHealthy(sandbox), installedHash(sandbox)])
+    if (healthy && installed === stamp) return
+
+    if (installed !== stamp) {
+      const downloaded = await sh({ sandbox, script: downloadBinary, timeoutMs: DOWNLOAD_TIMEOUT_MS })
+      if (downloaded.exitCode === EXIT_AUTH_STALE) throw new StaleSandboxTokenError()
       if (downloaded.exitCode !== 0) {
         throw new Error(
           `downloading atlas serve into the sandbox failed: ${await downloaded.stderr()}`,
@@ -59,11 +97,14 @@ export function createServeLauncher(args: {
       }
     }
 
-    await sh({ sandbox, script: KILL_WEDGED_SERVE })
+    await sh({ sandbox, script: KILL_WEDGED_SERVE, timeoutMs: QUICK_COMMAND_TIMEOUT_MS })
 
     await sandbox.runCommand({
       cmd: 'sh',
-      args: ['-c', `exec ${SERVE_BINARY_PATH} >> ${SERVE_LOG_PATH} 2>&1`],
+      args: [
+        '-c',
+        `exec flock -n ${SERVE_LOCK_PATH} ${SERVE_BINARY_PATH} >> ${SERVE_LOG_PATH} 2>&1`,
+      ],
       detached: true,
     })
 
@@ -73,8 +114,9 @@ export function createServeLauncher(args: {
       timeoutMs: HEALTH_WAIT_TIMEOUT_MS,
     })
     if (waited.exitCode !== 0) {
+      const tail = await serveLogTail(sandbox)
       throw new Error(
-        `atlas serve did not answer /v1/health within ${HEALTH_ATTEMPTS * HEALTH_INTERVAL_SECONDS}s; its log is at ${SERVE_LOG_PATH} in the sandbox`,
+        `atlas serve did not answer /v1/health within ${HEALTH_ATTEMPTS * HEALTH_INTERVAL_SECONDS}s; its log is at ${SERVE_LOG_PATH} in the sandbox, tail:\n${tail}`,
       )
     }
   }

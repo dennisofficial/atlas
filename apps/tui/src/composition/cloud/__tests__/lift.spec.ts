@@ -243,6 +243,25 @@ describe('a lift that does not finish', () => {
     expect(lifted.detail).not.toContain('503')
   })
 
+  it('keeps the real message of a 503 that is not the not-configured one', async () => {
+    const bridge = fakeBridge({
+      createFails: new CloudError({
+        status: 503,
+        message: 'this deployment has no atlas serve binary at /app/atlas-serve',
+      }),
+    })
+    const test = harness({ bridge })
+
+    const lifted = await liftToCloud(test.args)
+
+    expect(lifted.ok).toBe(false)
+    if (lifted.ok) return
+
+    expect(lifted.fault).toBe(ELiftFault.Sandbox)
+    expect(lifted.detail).toContain('no atlas serve binary')
+    expect(lifted.detail).not.toContain('no sandbox provider configured')
+  })
+
   it('reads an unreachable API as unreachable rather than as a refusal', async () => {
     const bridge = fakeBridge({
       createFails: new CloudError({ status: 0, message: 'connect ECONNREFUSED' }),

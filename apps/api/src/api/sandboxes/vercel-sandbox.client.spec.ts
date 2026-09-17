@@ -1,4 +1,4 @@
-import { ServiceUnavailableException } from '@nestjs/common'
+import { BadGatewayException, ServiceUnavailableException } from '@nestjs/common'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EnvService } from '../../_core/config/env/env.service'
 import type { ServeBinaryService } from './serve-binary'
@@ -7,13 +7,18 @@ const sdk = vi.hoisted(() => ({
   createParams: [] as Record<string, unknown>[],
   getParams: [] as Record<string, unknown>[],
   stopped: [] as string[],
+  deleted: [] as string[],
   status: 'running',
   getFailure: null as Error | null,
+  createFailure: null as Error | null,
+  sandboxRef: null as unknown,
 }))
 
 const launch = vi.hoisted(() => ({
   launched: 0,
   failLaunch: false,
+  failWithStaleToken: false,
+  gate: null as Promise<void> | null,
   readStamp: undefined as (() => Promise<string>) | undefined,
 }))
 
@@ -29,6 +34,7 @@ vi.mock('@vercel/sandbox', () => {
     }
   }
   const sandbox = {
+    name: 'atlas-thread-abc',
     get status() {
       return sdk.status
     },
@@ -37,12 +43,17 @@ vi.mock('@vercel/sandbox', () => {
     stop: async () => {
       sdk.stopped.push('stopped')
     },
+    delete: async () => {
+      sdk.deleted.push('deleted')
+    },
   }
+  sdk.sandboxRef = sandbox
   return {
     APIError,
     Sandbox: {
       getOrCreate: async (params: Record<string, unknown>) => {
         sdk.createParams.push(params)
+        if (sdk.createFailure !== null) throw sdk.createFailure
         return sandbox
       },
       get: async (params: Record<string, unknown>) => {
@@ -54,17 +65,28 @@ vi.mock('@vercel/sandbox', () => {
   }
 })
 
-vi.mock('./serve-launch', () => ({
-  createServeLauncher: (args: { readStamp: () => Promise<string> }) => {
-    launch.readStamp = args.readStamp
-    return async () => {
-      if (launch.failLaunch) throw new Error('atlas serve did not answer')
-      launch.launched += 1
+vi.mock('./serve-launch', () => {
+  class StaleSandboxTokenError extends Error {
+    constructor() {
+      super('the sandbox carries a serve token this deployment no longer recognizes')
+      this.name = 'StaleSandboxTokenError'
     }
-  },
-  SERVE_BINARY_PATH: '/vercel/sandbox/atlas-serve',
-  SERVE_LOG_PATH: '/vercel/sandbox/atlas-serve.log',
-}))
+  }
+  return {
+    StaleSandboxTokenError,
+    createServeLauncher: (args: { readStamp: () => Promise<string> }) => {
+      launch.readStamp = args.readStamp
+      return async () => {
+        if (launch.failWithStaleToken) throw new StaleSandboxTokenError()
+        if (launch.failLaunch) throw new Error('atlas serve did not answer')
+        if (launch.gate !== null) await launch.gate
+        launch.launched += 1
+      }
+    },
+    SERVE_BINARY_PATH: '/vercel/sandbox/atlas-serve',
+    SERVE_LOG_PATH: '/vercel/sandbox/atlas-serve.log',
+  }
+})
 
 import { APIError } from '@vercel/sandbox'
 import {
@@ -105,16 +127,19 @@ describe('VercelSandboxClient', () => {
     sdk.createParams.length = 0
     sdk.getParams.length = 0
     sdk.stopped.length = 0
+    sdk.deleted.length = 0
     sdk.status = 'running'
     sdk.getFailure = null
+    sdk.createFailure = null
     launch.launched = 0
     launch.failLaunch = false
+    launch.failWithStaleToken = false
+    launch.gate = null
     launch.readStamp = undefined
   })
 
   it('snapshots the sandbox filesystem, mounts nothing, and declares the served port', async () => {
     const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-
     const placement = await client.getOrCreate({
       name: 'atlas-thread-abc',
       threadId: 'brn_thread_1',
@@ -144,21 +169,18 @@ describe('VercelSandboxClient', () => {
       url: `https://atlas-${SANDBOX_SERVE_PORT}.vercel.run`,
       state: ESandboxState.Running,
     })
-  })
-
-  it('boots the sandbox from the configured image', async () => {
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-
-    await client.getOrCreate({ name: 'atlas-thread-abc', threadId: 'brn_thread_1', token: 't' })
-
     expect(sdk.createParams[0]?.image).toBe('atlas-sandbox:sha-deadbeef')
   })
 
-  it('restarts serve on every resume and after the SDK resolves, whatever path resolved it', async () => {
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-
+  it('restarts serve on every resume, whatever path resolved it, reading the stamp lazily', async () => {
+    const serveBinary = fakeServeBinary()
+    const client = new VercelSandboxClient(envWith(CONFIGURED), serveBinary.asService)
     await client.getOrCreate({ name: 'atlas-thread-abc', threadId: 'brn_thread_1', token: 't' })
     expect(launch.launched).toBe(1)
+    expect(serveBinary.stamp).not.toHaveBeenCalled()
+    await expect(launch.readStamp?.()).resolves.toBe('build-stamp')
+    expect(serveBinary.stamp).toHaveBeenCalledTimes(1)
+
     const hooks = hooksOf(sdk.createParams[0])
     await hooks.onResume({})
     expect(launch.launched).toBe(2)
@@ -172,82 +194,107 @@ describe('VercelSandboxClient', () => {
   it('propagates a serve that never becomes healthy instead of returning a dead URL', async () => {
     launch.failLaunch = true
     const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-
     await expect(
       client.getOrCreate({ name: 'atlas-thread-abc', threadId: 'brn_thread_1', token: 't' }),
     ).rejects.toThrow('atlas serve did not answer')
   })
 
-  it('reads the serve stamp lazily through the binary service', async () => {
-    const serveBinary = fakeServeBinary()
-    const client = new VercelSandboxClient(envWith(CONFIGURED), serveBinary.asService)
-
-    await client.getOrCreate({ name: 'atlas-thread-abc', threadId: 'brn_thread_1', token: 't' })
-    expect(serveBinary.stamp).not.toHaveBeenCalled()
-
-    await expect(launch.readStamp?.()).resolves.toBe('build-stamp')
-    expect(serveBinary.stamp).toHaveBeenCalledTimes(1)
-  })
-
-  it('reads a stopped sandbox as parked and a pending one as resuming', async () => {
+  it('reads a stopped sandbox as parked, a pending one as resuming, and a gone one as parked', async () => {
     const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-
     sdk.status = 'stopped'
     expect((await client.inspect({ name: 'atlas-thread-abc' })).state).toBe(ESandboxState.Parked)
 
     sdk.status = 'pending'
     expect((await client.inspect({ name: 'atlas-thread-abc' })).state).toBe(ESandboxState.Resuming)
+
+    sdk.status = 'running'
+    sdk.getFailure = new APIError({ status: 404 } as Response)
+    await expect(client.inspect({ name: 'atlas-thread-gone' })).resolves.toEqual({
+      state: ESandboxState.Parked,
+    })
   })
 
-  it('stops through the SDK and resumes on demand', async () => {
+  it('stops and resumes through the SDK, tolerating a sandbox Vercel no longer has', async () => {
     const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-
     await client.stop({ name: 'atlas-thread-abc' })
     expect(sdk.stopped).toHaveLength(1)
-
     await client.resume({ name: 'atlas-thread-abc' })
     expect(sdk.getParams.at(-1)).toMatchObject({ name: 'atlas-thread-abc', resume: true })
-  })
 
-  it('translates a gone sandbox on resume into SandboxMissingError', async () => {
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
     sdk.getFailure = new APIError({ status: 404 } as Response)
-
+    await expect(client.stop({ name: 'atlas-thread-gone' })).resolves.toBeUndefined()
     await expect(client.resume({ name: 'atlas-thread-gone' })).rejects.toBeInstanceOf(
       SandboxMissingError,
     )
-  })
 
-  it('translates an expired snapshot on resume into SandboxMissingError', async () => {
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
     sdk.getFailure = new APIError(
       { status: 410 } as Response,
       { json: { error: { code: 'snapshot_not_found' } } },
     )
-
     await expect(client.resume({ name: 'atlas-thread-gone' })).rejects.toBeInstanceOf(
       SandboxMissingError,
     )
   })
 
-  it('treats stopping an already-gone sandbox as stopped', async () => {
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-    sdk.getFailure = new APIError({ status: 404 } as Response)
-
-    await expect(client.stop({ name: 'atlas-thread-gone' })).resolves.toBeUndefined()
-  })
-
-  it('answers 503 with a specific reason when the deployment is unconfigured', async () => {
-    const client = new VercelSandboxClient(
+  it('answers 503 when the deployment is unconfigured, whole or missing only the image', async () => {
+    const unconfigured = new VercelSandboxClient(
       envWith({ VERCEL_TOKEN: 'vercel-token' }),
       fakeServeBinary().asService,
     )
-
-    await expect(client.inspect({ name: 'atlas-thread-abc' })).rejects.toBeInstanceOf(
+    await expect(unconfigured.inspect({ name: 'atlas-thread-abc' })).rejects.toBeInstanceOf(
       ServiceUnavailableException,
     )
-    await expect(client.inspect({ name: 'atlas-thread-abc' })).rejects.toThrow(
+    await expect(unconfigured.inspect({ name: 'atlas-thread-abc' })).rejects.toThrow(
       'Atlas Cloud sandboxes are not configured on this deployment',
     )
+
+    const { SANDBOX_IMAGE: _omitted, ...withoutImage } = CONFIGURED
+    const imageless = new VercelSandboxClient(envWith(withoutImage), fakeServeBinary().asService)
+    await expect(imageless.inspect({ name: 'atlas-thread-abc' })).rejects.toThrow(
+      'Atlas Cloud sandboxes are not configured on this deployment',
+    )
+  })
+
+  it('destroys the sandbox and reports it missing when the serve token has gone stale', async () => {
+    launch.failWithStaleToken = true
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    await expect(
+      client.getOrCreate({ name: 'atlas-thread-abc', threadId: 'brn_thread_1', token: 't' }),
+    ).rejects.toBeInstanceOf(SandboxMissingError)
+    expect(sdk.deleted).toHaveLength(1)
+  })
+
+  it('turns a non-missing Vercel API failure into a legible bad gateway error', async () => {
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    sdk.createFailure = new APIError(
+      { status: 500 } as Response,
+      { json: { error: { message: 'quota exceeded' } } },
+    )
+
+    const failure = client.getOrCreate({
+      name: 'atlas-thread-abc',
+      threadId: 'brn_thread_1',
+      token: 't',
+    })
+    await expect(failure).rejects.toBeInstanceOf(BadGatewayException)
+    await expect(failure).rejects.toThrow('quota exceeded')
+  })
+
+  it('joins a launch already in flight for the same sandbox instead of running it twice', async () => {
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    await client.getOrCreate({ name: 'atlas-thread-abc', threadId: 'brn_thread_1', token: 't' })
+    expect(launch.launched).toBe(1)
+
+    let releaseLaunch: () => void = () => undefined
+    launch.gate = new Promise((resolve) => {
+      releaseLaunch = resolve
+    })
+    const hooks = hooksOf(sdk.createParams[0])
+    const first = hooks.onResume(sdk.sandboxRef)
+    const second = hooks.onResume(sdk.sandboxRef)
+    releaseLaunch()
+    await Promise.all([first, second])
+
+    expect(launch.launched).toBe(2)
   })
 })

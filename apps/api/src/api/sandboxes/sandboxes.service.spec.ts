@@ -1,5 +1,11 @@
 import { createHash } from 'node:crypto'
-import { NotFoundException, PayloadTooLargeException, UnauthorizedException } from '@nestjs/common'
+import {
+  BadGatewayException,
+  NotFoundException,
+  PayloadTooLargeException,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PrismaClient } from '../../generated/prisma/client'
 
@@ -8,6 +14,7 @@ vi.mock('../../db', async () => {
   return { db: fakeSessionDb().db as unknown as PrismaClient }
 })
 
+import { applyUpdate, type Where } from '../../../test/fake-db-support.js'
 import {
   fakeSessionDb,
   type FakeCloudSandboxRow,
@@ -26,6 +33,17 @@ const THREAD = 'brn_thread_1'
 const TTL_MINUTES = 30
 
 const fake = fakeSessionDb()
+
+type CloudSandboxWithUpdateMany = {
+  updateMany?: (args: { where: { threadId: string }; data: Where }) => Promise<{ count: number }>
+}
+
+const cloudSandboxDb = fake.db.cloudSandbox as unknown as CloudSandboxWithUpdateMany
+cloudSandboxDb.updateMany ??= async (args) => {
+  const matched = fake.cloudSandboxes.filter((row) => row.threadId === args.where.threadId)
+  for (const row of matched) applyUpdate(row as unknown as Record<string, unknown>, args.data)
+  return { count: matched.length }
+}
 
 const threadRow = (partial: Partial<FakeThreadRow> & { id: string }): FakeThreadRow => ({
   title: null,
@@ -142,6 +160,61 @@ describe('SandboxesService', () => {
     expect(attached.filter((one) => one.token !== undefined)).toHaveLength(1)
   })
 
+  it('never starts the second attach until the first finishes provisioning', async () => {
+    let releaseFirst: (() => void) | undefined
+    const gate = new Promise<void>((resolve) => {
+      releaseFirst = resolve
+    })
+    client.getOrCreate.mockImplementationOnce(async () => {
+      await gate
+      return {
+        sessionId: 'ses_created',
+        url: 'https://atlas-3000.vercel.run',
+        state: ESandboxState.Running,
+      }
+    })
+
+    const first = service.attach({ userId: USER_A, threadId: THREAD })
+    const second = service.attach({ userId: USER_A, threadId: THREAD })
+
+    await vi.waitFor(() => expect(client.getOrCreate).toHaveBeenCalledTimes(1))
+    expect(client.resume).not.toHaveBeenCalled()
+
+    releaseFirst?.()
+    const [firstAttached, secondAttached] = await Promise.all([first, second])
+
+    expect(client.getOrCreate).toHaveBeenCalledTimes(1)
+    expect(client.resume).toHaveBeenCalledTimes(1)
+    expect(firstAttached.token).toBeDefined()
+    expect(secondAttached.token).toBeUndefined()
+  })
+
+  it('bumps activity when claiming an existing row, before resume even completes', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    fake.cloudSandboxes[0]!.lastActivityAt = '2020-01-01T00:00:00.000Z'
+
+    let releaseResume: (() => void) | undefined
+    const gate = new Promise<void>((resolve) => {
+      releaseResume = resolve
+    })
+    client.resume.mockImplementationOnce(async () => {
+      await gate
+      return {
+        sessionId: 'ses_resumed',
+        url: 'https://atlas-3000.vercel.run',
+        state: ESandboxState.Running,
+      }
+    })
+
+    const attaching = service.attach({ userId: USER_A, threadId: THREAD })
+    await vi.waitFor(() => expect(client.resume).toHaveBeenCalledTimes(1))
+
+    expect(fake.cloudSandboxes[0]?.lastActivityAt).not.toBe('2020-01-01T00:00:00.000Z')
+
+    releaseResume?.()
+    await attaching
+  })
+
   it('returns the token once and stores only its hash', async () => {
     const first = await service.attach({ userId: USER_A, threadId: THREAD })
     const token = first.token
@@ -193,6 +266,14 @@ describe('SandboxesService', () => {
     await expect(
       service.verifySessionToken({ threadId: THREAD, token: 'not-the-token' }),
     ).rejects.toBeInstanceOf(UnauthorizedException)
+  })
+
+  it('heartbeats without throwing when the row is gone', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    const index = fake.cloudSandboxes.findIndex((row) => row.threadId === THREAD)
+    fake.cloudSandboxes.splice(index, 1)
+
+    await expect(service.heartbeat({ threadId: THREAD })).resolves.toBeUndefined()
   })
 
   it('stops a sandbox and marks it parked', async () => {
@@ -316,12 +397,21 @@ describe('SandboxesService', () => {
   it('releases the claim when provisioning fails so a retry can mint again', async () => {
     client.getOrCreate.mockRejectedValueOnce(new Error('vercel is unhappy'))
 
-    await expect(service.attach({ userId: USER_A, threadId: THREAD })).rejects.toThrow(
-      'vercel is unhappy',
-    )
+    const attaching = service.attach({ userId: USER_A, threadId: THREAD })
+    await expect(attaching).rejects.toBeInstanceOf(BadGatewayException)
+    await expect(attaching).rejects.toThrow('vercel is unhappy')
     expect(fake.cloudSandboxes).toHaveLength(0)
 
     const retried = await service.attach({ userId: USER_A, threadId: THREAD })
     expect(retried.token).toBeDefined()
+  })
+
+  it('passes an HttpException from the client straight through', async () => {
+    client.getOrCreate.mockRejectedValueOnce(new ServiceUnavailableException('not configured'))
+
+    await expect(service.attach({ userId: USER_A, threadId: THREAD })).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    )
+    expect(fake.cloudSandboxes).toHaveLength(0)
   })
 })
