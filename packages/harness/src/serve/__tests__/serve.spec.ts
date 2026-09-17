@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { toRunId, toThreadId } from '@dltech/atlas-core'
+import { toRunId, toThreadId, type ThreadId } from '@dltech/atlas-core'
 
 import { EStepEnd } from '../../channel/signal'
 import { EClientFrame, EClientRequest, EServeFrame, type ServeFrame } from '../../cloud/channel-wire'
@@ -36,6 +36,9 @@ const start = async (args: {
   bufferSize?: number | undefined
   env?: Record<string, string | undefined> | undefined
   workspace?: WorkspaceReadiness | undefined
+  adoptChildren?: ((args: { threadId: ThreadId }) => Promise<readonly ThreadId[]>) | undefined
+  whenChildrenSettled?: (() => Promise<void>) | undefined
+  heartbeatIntervalMs?: number | undefined
 }): Promise<Started> => {
   const beats: string[] = []
   const lines: string[] = []
@@ -44,6 +47,8 @@ const start = async (args: {
     root: '/workspace',
     runTurn: args.runTurn,
     entries: args.entries,
+    adoptChildren: args.adoptChildren,
+    whenChildrenSettled: args.whenChildrenSettled,
   })
 
   const told =
@@ -62,6 +67,7 @@ const start = async (args: {
     }) as typeof fetch,
     compose: async () => app,
     ensureWorkspace: async () => args.workspace ?? { state: EWorkspaceState.Skipped },
+    heartbeatIntervalMs: args.heartbeatIntervalMs,
   })
 
   running.push(handle)
@@ -313,6 +319,66 @@ describe('startServe', () => {
     expect(beats).toEqual([HEARTBEAT_URL])
   })
 
+  it('heartbeats while adopted children settle, and stops when they have', async () => {
+    let release = (): void => undefined
+    const settled = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const { beats } = await start({
+      adoptChildren: async () => [toThreadId('thread-child')],
+      whenChildrenSettled: () => settled,
+      heartbeatIntervalMs: 10,
+    })
+    await Bun.sleep(35)
+
+    expect(beats.length).toBeGreaterThan(1)
+    expect(new Set(beats)).toEqual(new Set([HEARTBEAT_URL]))
+
+    release()
+    await Bun.sleep(20)
+    const stoppedAt = beats.length
+    await Bun.sleep(35)
+    expect(beats.length).toBe(stoppedAt)
+  })
+
+  it('keeps the heartbeat when a turn ends while adopted children still settle', async () => {
+    let releaseChildren = (): void => undefined
+    let releaseTurn = (): void => undefined
+    const children = new Promise<void>((resolve) => {
+      releaseChildren = resolve
+    })
+    const turn = new Promise<void>((resolve) => {
+      releaseTurn = resolve
+    })
+    const { handle, beats } = await start({
+      adoptChildren: async () => [toThreadId('thread-child')],
+      whenChildrenSettled: () => children,
+      heartbeatIntervalMs: 10,
+      runTurn: async () => {
+        await turn
+        return { status: ETurnStatus.Completed, runId: toRunId('run-1') }
+      },
+    })
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+    client.send({ kind: EClientFrame.Send, text: 'go' })
+    await Bun.sleep(35)
+
+    releaseTurn()
+    await client.waitFor((frame) => frame.kind === EServeFrame.TurnEnded)
+    const afterTurn = beats.length
+    await Bun.sleep(35)
+    expect(beats.length).toBeGreaterThan(afterTurn)
+
+    releaseChildren()
+    await Bun.sleep(20)
+    const stoppedAt = beats.length
+    await Bun.sleep(35)
+    expect(beats.length).toBe(stoppedAt)
+  })
+
   it('boots from the variables the sandbox was created with, and logs none of them', async () => {
     const { handle, lines } = await start({
       env: {
@@ -384,6 +450,32 @@ describe('startServe', () => {
       lines.some(
         (line) =>
           line.includes(EServeEvent.WorkspaceReady) && line.includes(EWorkspaceState.Present),
+      ),
+    ).toBe(true)
+  })
+
+  it("adopts the thread's transferred children on boot, before anyone connects", async () => {
+    const { app } = await start({
+      adoptChildren: async () => [toThreadId('thread-child')],
+    })
+
+    expect(app.adoptions()).toEqual([threadId])
+  })
+
+  it('serves the socket even when child adoption fails, and only logs it', async () => {
+    const { handle, lines } = await start({
+      adoptChildren: () => Promise.reject(new Error('control plane unreachable')),
+    })
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    expect(
+      lines.some(
+        (line) =>
+          line.includes(EServeEvent.ChildAdoptionFailed) &&
+          line.includes('control plane unreachable'),
       ),
     ).toBe(true)
   })

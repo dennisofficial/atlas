@@ -3,6 +3,7 @@ import {
   type ClockPort,
   type EventDraft,
   type ProviderIdentity,
+  type ThreadId,
 } from '@dltech/atlas-core'
 
 import type { TurnOutcome } from '../../loop/turn-outcome'
@@ -27,7 +28,7 @@ export class ChildSteps {
   private readonly roster: AgentRoster
   private readonly notices: AgentNoticeQueue
   private readonly clock: ClockPort
-  private readonly inFlight = new Set<Promise<void>>()
+  private readonly inFlight = new Map<ThreadId, Set<Promise<void>>>()
 
   constructor(args: {
     runners: ChildRunnerSource
@@ -65,12 +66,22 @@ export class ChildSteps {
       signal: child.abort.signal,
     }).then((status) => this.finish({ child, status }))
 
-    this.inFlight.add(settled)
-    void settled.finally(() => this.inFlight.delete(settled))
+    const forThread = this.inFlight.get(child.spawnedBy) ?? new Set<Promise<void>>()
+    this.inFlight.set(child.spawnedBy, forThread)
+    forThread.add(settled)
+    void settled.finally(() => {
+      forThread.delete(settled)
+      if (forThread.size === 0) this.inFlight.delete(child.spawnedBy)
+    })
   }
 
-  async whenSettled(): Promise<void> {
-    await Promise.all([...this.inFlight])
+  async whenSettled(args?: { threadId?: ThreadId | undefined }): Promise<void> {
+    if (args?.threadId === undefined) {
+      await Promise.all([...this.inFlight.values()].flatMap((settled) => [...settled]))
+      return
+    }
+
+    await Promise.all([...(this.inFlight.get(args.threadId) ?? [])])
   }
 
   private async stepped({

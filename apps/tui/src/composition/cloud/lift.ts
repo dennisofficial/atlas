@@ -1,6 +1,8 @@
 import {
   EExecutionLocation,
+  EKilledBy,
   type Event,
+  type EventLogPort,
   type IdPort,
   type ThreadId,
   type WorkspaceIdentity,
@@ -9,16 +11,25 @@ import { CloudError, type ThreadStorePort } from '@dltech/atlas-harness'
 
 import type { CloudBridge, CloudChannel, CloudSandbox, LiftedWorkspace } from './cloud-bridge'
 import { draftsOf } from './event-drafts'
+import {
+  flipChildrenBack,
+  flipChildrenToCloud,
+  resumeStoppedChildren,
+  transferChildLogs,
+  type LiftAgentsPort,
+} from './lift-children'
 import { liftedDraft, NOTHING_WAS_STOPPED, type StoppedLocally } from './transition-notice'
 import { waitForSandbox } from './wait-for-sandbox'
 
 export enum ELiftStep {
+  Interrupting = 'interrupting',
+  Stopping = 'stopping',
   Transferring = 'transferring',
   Flipping = 'flipping',
-  Stopping = 'stopping',
   Capturing = 'capturing',
   Starting = 'starting',
   Attaching = 'attaching',
+  Resuming = 'resuming',
 }
 
 export enum ELiftFault {
@@ -43,6 +54,7 @@ export type LiftSuccess = {
   channel: CloudChannel
   workspace: LiftedWorkspace | null
   stopped: StoppedLocally
+  resumeOnArrival: boolean
 }
 
 export type Lifted = LiftSuccess | LiftFailure
@@ -50,12 +62,17 @@ export type Lifted = LiftSuccess | LiftFailure
 export type LiftArgs = {
   threadId: ThreadId
   cwd: string
-  events: readonly Event[]
   started: boolean
+  midTurn: boolean
+  interrupt: () => void
+  whenSettled: () => Promise<void>
+  interruptDeadlineMs?: number | undefined
   identity: WorkspaceIdentity
   title: string | null
   bridge: CloudBridge
   localThreads: ThreadStorePort
+  localLog: EventLogPort
+  agents: LiftAgentsPort
   ids: IdPort
   setLocation: (location: EExecutionLocation) => void
   stopLocal: () => Promise<StoppedLocally>
@@ -123,10 +140,11 @@ async function transfer(args: LiftArgs): Promise<void> {
     return
   }
 
+  const events: readonly Event[] = await args.localLog.read({ threadId })
   await bridge.stores.threads.createWithFirstEvents({
     threadId,
     runId: args.ids.nextRunId(),
-    drafts: draftsOf(args.events),
+    drafts: draftsOf(events),
     workspace: args.identity.workspace,
     repo: args.identity.repo,
     executionLocation: EExecutionLocation.Cloud,
@@ -134,31 +152,90 @@ async function transfer(args: LiftArgs): Promise<void> {
   })
 }
 
-const flipBack = async (args: LiftArgs): Promise<void> => {
-  args.setLocation(EExecutionLocation.Host)
+const flipBack = async (args: LiftArgs & { from: EExecutionLocation }): Promise<void> => {
+  args.setLocation(args.from)
   await args.localThreads
-    .chooseExecutionLocation({ threadId: args.threadId, location: EExecutionLocation.Host })
+    .chooseExecutionLocation({ threadId: args.threadId, location: args.from })
     .catch(() => undefined)
+  await args.bridge.stores.threads
+    .chooseExecutionLocation({ threadId: args.threadId, location: args.from })
+    .catch(() => undefined)
+  await flipChildrenBack({
+    threadId: args.threadId,
+    bridge: args.bridge,
+    agents: args.agents,
+    location: args.from,
+  })
+}
+
+const INTERRUPT_SETTLE_DEADLINE_MS = 30_000
+
+const settledBeforeDeadline = async (args: LiftArgs): Promise<boolean> => {
+  const deadlineMs = args.interruptDeadlineMs ?? INTERRUPT_SETTLE_DEADLINE_MS
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const expired = new Promise<boolean>((resolve) => {
+    timer = setTimeout(() => resolve(false), deadlineMs)
+  })
+  const settled = await Promise.race([args.whenSettled().then(() => true), expired])
+  clearTimeout(timer)
+  return settled
 }
 
 /**
  * Opening the thread again as a cloud thread, rather than moving the ports underneath a running
  * one. Every failure before the sandbox answers puts the conversation back on the host, so a lift
  * that does not finish leaves a session that still works here.
+ *
+ * Stopping leads: nothing may write to a log after the snapshot that transfers it, so shells,
+ * services and stepping children are all stopped before anything is read for the remote store.
  */
 export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
   const { onProgress, threadId } = args
 
-  onProgress(ELiftStep.Transferring)
-  try {
-    await transfer(args)
-  } catch (error) {
+  if (args.midTurn) {
+    onProgress(ELiftStep.Interrupting)
+    args.interrupt()
+  }
+
+  const settled = await settledBeforeDeadline(args)
+  if (!settled) {
     return failureOf({
-      error,
-      step: ELiftStep.Transferring,
+      error: new Error('the turn would not stop in time — nothing moved'),
+      step: ELiftStep.Interrupting,
       fallback: ELiftFault.Transfer,
       stopped: NOTHING_WAS_STOPPED,
     })
+  }
+
+  const from =
+    (await args.localThreads.find({ threadId }))?.executionLocation ?? EExecutionLocation.Host
+
+  onProgress(ELiftStep.Stopping)
+  let stopped: StoppedLocally = NOTHING_WAS_STOPPED
+  let stoppedChildren: readonly ThreadId[] = []
+  try {
+    stopped = await args.stopLocal()
+    stoppedChildren = await args.agents.stopChildren({ threadId, by: EKilledBy.ContainerSwitch })
+    args.agents.forgetNotices({ threadId })
+  } catch (error) {
+    await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })
+    return failureOf({ error, step: ELiftStep.Stopping, fallback: ELiftFault.Transfer, stopped })
+  }
+
+  onProgress(ELiftStep.Transferring)
+  try {
+    await transferChildLogs({
+      threadId,
+      bridge: args.bridge,
+      ids: args.ids,
+      agents: args.agents,
+      localThreads: args.localThreads,
+      localLog: args.localLog,
+    })
+    await transfer(args)
+  } catch (error) {
+    await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })
+    return failureOf({ error, step: ELiftStep.Transferring, fallback: ELiftFault.Transfer, stopped })
   }
 
   onProgress(ELiftStep.Flipping)
@@ -170,25 +247,26 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
         location: EExecutionLocation.Cloud,
       })
     }
-  } catch (error) {
-    await flipBack(args)
-    return failureOf({
-      error,
-      step: ELiftStep.Flipping,
-      fallback: ELiftFault.Transfer,
-      stopped: NOTHING_WAS_STOPPED,
+    await flipChildrenToCloud({
+      threadId,
+      bridge: args.bridge,
+      ids: args.ids,
+      agents: args.agents,
+      localThreads: args.localThreads,
     })
+  } catch (error) {
+    await flipBack({ ...args, from })
+    await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })
+    return failureOf({ error, step: ELiftStep.Flipping, fallback: ELiftFault.Transfer, stopped })
   }
-
-  onProgress(ELiftStep.Stopping)
-  const stopped = await args.stopLocal()
 
   onProgress(ELiftStep.Capturing)
   let workspace: LiftedWorkspace | null
   try {
     workspace = await args.capture({ cwd: args.cwd })
   } catch (error) {
-    await flipBack(args)
+    await flipBack({ ...args, from })
+    await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })
     return failureOf({ error, step: ELiftStep.Capturing, fallback: ELiftFault.Transfer, stopped })
   }
 
@@ -199,7 +277,8 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
     sandbox = await args.bridge.sandboxes.create({ threadId, workspace })
     url = sandbox.url ?? (await waitForSandbox({ sandboxes: args.bridge.sandboxes, threadId })).url
   } catch (error) {
-    await flipBack(args)
+    await flipBack({ ...args, from })
+    await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })
     return failureOf({ error, step: ELiftStep.Starting, fallback: ELiftFault.Sandbox, stopped })
   }
 
@@ -214,5 +293,7 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
   onProgress(ELiftStep.Attaching)
   const channel = args.bridge.attach({ threadId, url, token: sandbox.token })
 
-  return { ok: true, sandbox, channel, workspace, stopped }
+  if (args.midTurn) onProgress(ELiftStep.Resuming)
+
+  return { ok: true, sandbox, channel, workspace, stopped, resumeOnArrival: args.midTurn }
 }

@@ -1,4 +1,4 @@
-import { EExecutionLocation, type Event, type ThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
 import { useCallback, useRef } from 'react'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
@@ -8,6 +8,7 @@ import { createCloudRunner } from './cloud/cloud-runner'
 import { liftToCloud } from './cloud/lift'
 import { CLOUD_LIFT_NOTICE_KEY, liftedNotice, liftFailedNotice } from './cloud/lift-notices'
 import { stopLocalWork } from './cloud/stop-local'
+import { cloudLiftPlan } from './container-move'
 import type { AtlasApp } from './compose'
 import { messageOf } from './error-text'
 import type { LiftedAttachment } from './lifted-session'
@@ -26,8 +27,10 @@ export function useCloudLift(args: {
   app: AtlasApp
   threadId: ThreadId
   started: boolean
+  midTurn: () => boolean
+  handleInterrupt: () => void
+  whenSettled: () => Promise<void>
   projectDirectory: string
-  readEvents: () => readonly Event[]
   setLocation: (location: EExecutionLocation) => void
   createBridge: CloudBridgeFactory
   capture: WorkspaceCapture
@@ -42,6 +45,7 @@ export function useCloudLift(args: {
     if (lifting.current) return
 
     const { app, threadId, createBridge, onLifted } = latest.current
+    const midTurn = latest.current.midTurn()
     const signedIn = app.cloud.session()
     if (signedIn === null) {
       notify({ key: CLOUD_LIFT_NOTICE_KEY, text: NOT_SIGNED_IN, tone: ENoticeTone.Warn })
@@ -51,17 +55,21 @@ export function useCloudLift(args: {
     lifting.current = true
     const bridge = createBridge({ url: signedIn.url, token: signedIn.token })
     const { move } = latest.current
-    move.handleBegin({ target: EExecutionLocation.Cloud })
+    move.handleBegin({ target: EExecutionLocation.Cloud, plan: cloudLiftPlan({ midTurn }) })
 
     void liftToCloud({
       threadId,
       cwd: latest.current.projectDirectory,
-      events: latest.current.readEvents(),
       started: latest.current.started,
+      midTurn,
+      interrupt: latest.current.handleInterrupt,
+      whenSettled: latest.current.whenSettled,
       identity: app.workspace,
       title: null,
       bridge,
       localThreads: app.threads,
+      localLog: app.log,
+      agents: app.agents,
       ids: app.ids,
       setLocation: latest.current.setLocation,
       stopLocal: async () =>
@@ -85,10 +93,11 @@ export function useCloudLift(args: {
         const runner = createCloudRunner({ bridge, channel: lifted.channel, threadId, move })
         const attached = cloudApp({ app, bridge, channel: lifted.channel, runner })
         const opened = await openCloudConversation({ app: attached, threadId })
+        const arrived = lifted.resumeOnArrival ? { ...opened, resumeOnArrival: true } : opened
 
         move.handleSettle()
         notify({ key: CLOUD_LIFT_NOTICE_KEY, text: liftedNotice(lifted), tone: ENoticeTone.Done })
-        onLifted({ app: attached, opened, bridge, channel: lifted.channel })
+        onLifted({ app: attached, opened: arrived, bridge, channel: lifted.channel })
       })
       .catch((error: unknown) => {
         const reason = `moving to the cloud failed — ${messageOf(error)}`

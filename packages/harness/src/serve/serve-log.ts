@@ -14,6 +14,8 @@ export enum EServeEvent {
   HeartbeatFailed = 'serve.heartbeat-failed',
   WorkspaceReady = 'serve.workspace-ready',
   WorkspaceFailed = 'serve.workspace-failed',
+  ChildrenAdopted = 'serve.children-adopted',
+  ChildAdoptionFailed = 'serve.child-adoption-failed',
 }
 
 export type ServeLogLine = { event: EServeEvent; [field: string]: unknown }

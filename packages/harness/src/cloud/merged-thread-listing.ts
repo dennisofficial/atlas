@@ -1,4 +1,4 @@
-import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
+import type { ThreadId } from '@dltech/atlas-core'
 
 import type { ThreadStorePort, ThreadSummary } from '../store/thread-store'
 
@@ -9,11 +9,6 @@ export type MergedThreadListing = {
   find(args: { threadId: ThreadId }): Promise<ThreadSummary | undefined>
 }
 
-const asCloud = (row: ThreadSummary): ThreadSummary => ({
-  ...row,
-  executionLocation: EExecutionLocation.Cloud,
-})
-
 const union = (args: {
   local: readonly ThreadSummary[]
   remote: readonly ThreadSummary[]
@@ -21,7 +16,7 @@ const union = (args: {
 }): readonly ThreadSummary[] => {
   const knownRemotely = new Set(args.remote.map((row) => row.id))
   const rows = [
-    ...args.remote.map(asCloud),
+    ...args.remote,
     ...args.local.filter((row) => !knownRemotely.has(row.id)),
   ]
   rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
@@ -56,7 +51,7 @@ export function mergedThreadListing(args: {
 
     async find({ threadId }) {
       const remoteRow = await remoteOr({ remote: () => remote.find({ threadId }), fallback: undefined })
-      if (remoteRow !== undefined) return asCloud(remoteRow)
+      if (remoteRow !== undefined) return remoteRow
       return local.find({ threadId })
     },
   }

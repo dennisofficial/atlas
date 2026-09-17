@@ -33,23 +33,28 @@ export type ContainerMove = {
 }
 
 const STEP_TEXT: Record<MoveStepId, string> = {
+  [ELiftStep.Interrupting]: 'interrupting the turn at a clean break',
+  [ELiftStep.Stopping]: 'closing what is running here',
   [ELiftStep.Transferring]: 'transferring the conversation',
   [ELiftStep.Flipping]: 'handing the conversation over',
-  [ELiftStep.Stopping]: 'closing what is running here',
   [ELiftStep.Capturing]: 'packing the uncommitted work',
   [ELiftStep.Starting]: 'waiting for the sandbox',
   [ELiftStep.Attaching]: 'attaching to the sandbox',
+  [ELiftStep.Resuming]: 'resuming the turn in the cloud',
   [ELocalMoveStep.Relocating]: 'stopping services, moving sub-agents',
 }
 
 const CLOUD_PLAN: readonly MoveStepId[] = [
+  ELiftStep.Stopping,
   ELiftStep.Transferring,
   ELiftStep.Flipping,
-  ELiftStep.Stopping,
   ELiftStep.Capturing,
   ELiftStep.Starting,
   ELiftStep.Attaching,
 ]
+
+export const cloudLiftPlan = (args: { midTurn: boolean }): readonly MoveStepId[] =>
+  args.midTurn ? [ELiftStep.Interrupting, ...CLOUD_PLAN, ELiftStep.Resuming] : CLOUD_PLAN
 
 const LOCAL_PLAN: readonly MoveStepId[] = [
   ELocalMoveStep.Stopping,

@@ -3,6 +3,7 @@ import {
   EMessageOrigin,
   NoopExecutionLocationSink,
   type ClockPort,
+  type EExecutionLocation,
   type EventDraft,
   type EventLogPort,
   type ExecutionLocationSinkPort,
@@ -22,7 +23,14 @@ import { openChildThread } from './open-child'
 import { forgetRemovedChildren } from './remove-children'
 import { AgentRegistryPort, type AgentOutcome, type RelocateChildrenArgs } from './port'
 import { ChildRecovery } from './recovery'
-import { childDirectory, relocateThreadChildren, type Relocation } from './relocate-children'
+import {
+  childDirectory,
+  markThreadChildrenRelocated,
+  relocateThreadChildren,
+  resumeChild,
+  stopThreadChildren,
+  type Relocation,
+} from './relocate-children'
 import {
   alreadyStepping,
   EMPTY_BRIEF,
@@ -177,36 +185,24 @@ export class AgentSupervisor extends AgentRegistryPort {
     return { ok: true, snapshot: snapshotOf(child) }
   }
 
-  async resume({
-    agentId,
-    threadId,
-  }: {
-    agentId: ThreadId
-    threadId: ThreadId
-  }): Promise<AgentOutcome> {
-    const child = this.childFor({ agentId, threadId })
-    if (child === undefined) {
-      return { ok: false, reason: unknownAgent({ agentId, known: this.list({ threadId }) }) }
-    }
-    if (isStepping(child)) return { ok: false, reason: alreadyStepping(agentId) }
-
-    const agentType = agentTypeNamed({ agentTypes: this.agentTypes, name: child.agentType })
-    if (agentType === undefined) {
-      return { ok: false, reason: retiredAgentType(child.agentType) }
-    }
-
-    child.projectDirectory ??= await childDirectory({ deps: this.deps, threadId })
-    this.steps.take({
-      child,
-      agentType,
-      step: ({ runner, signal }) => runner.resume({ threadId: agentId, signal }),
-    })
-
-    return { ok: true, snapshot: snapshotOf(child) }
+  resume(args: { agentId: ThreadId; threadId: ThreadId }): Promise<AgentOutcome> {
+    return resumeChild({ ...args, ...this.relocation })
   }
 
   relocateChildren(args: RelocateChildrenArgs): Promise<readonly ThreadId[]> {
     return relocateThreadChildren({ ...args, ...this.relocation })
+  }
+
+  async stopChildren(args: { threadId: ThreadId; by: EKilledBy }): Promise<readonly ThreadId[]> {
+    const stopped = await stopThreadChildren({ ...args, ...this.relocation })
+    return stopped.map((child) => child.agentId)
+  }
+
+  markChildrenRelocated(args: {
+    threadId: ThreadId
+    location: EExecutionLocation
+  }): Promise<void> {
+    return markThreadChildrenRelocated({ ...args, ...this.relocation })
   }
 
   stop({
@@ -245,6 +241,10 @@ export class AgentSupervisor extends AgentRegistryPort {
 
   hydrate({ threadId }: { threadId: ThreadId }): Promise<void> {
     return this.recovery.hydrate({ threadId })
+  }
+
+  whenChildrenSettled({ threadId }: { threadId: ThreadId }): Promise<void> {
+    return this.steps.whenSettled({ threadId })
   }
 
   recordLostAgents({ threadId }: { threadId: ThreadId }): Promise<RecoveredAgents> {

@@ -345,6 +345,8 @@ function Workspace(props: {
   const restoreUndone = useRef<(said: PendingSaid) => void>(() => undefined)
   const handleUndone = useCallback((said: PendingSaid) => restoreUndone.current(said), [])
 
+  const containerMove = useContainerMove()
+
   const conversation = useConversation({
     app: props.app,
     opened: props.opened,
@@ -353,7 +355,7 @@ function Workspace(props: {
     thinking: settings.thinking,
     tldrStatus: settings.tldrStatus,
     onUndone: handleUndone,
-    canWake: exitGuard.state === null,
+    canWake: exitGuard.state === null && containerMove.move === null,
   })
 
   const tokens = useDraftTokens({
@@ -634,8 +636,6 @@ function Workspace(props: {
   const chromeWidth = chromeWidthOf({ width, sidebarWidth, docked })
   const composerWidth = welcome ? welcomeCells({ width: chromeWidth }) : chromeWidth
 
-  const containerMove = useContainerMove()
-
   const router = useThreadRouter({
     localApp: props.localApp,
     cloudBridge: props.cloudBridge,
@@ -827,8 +827,10 @@ function Workspace(props: {
     app: props.app,
     threadId: conversation.threadId,
     started: conversation.started,
+    midTurn: conversation.turnInFlight,
+    handleInterrupt: conversation.handleInterruptForMove,
+    whenSettled: conversation.whenSettled,
     projectDirectory: conversation.projectDirectory,
-    readEvents: conversation.readEvents,
     setLocation: execution.handleSet,
     createBridge: props.createBridge,
     capture: props.captureWorkspace,
@@ -992,12 +994,7 @@ function Workspace(props: {
       }
 
       if (asked === EExecutionLocation.Cloud) {
-        const refusal = liftRefusal({
-          working: conversation.working,
-          interrupting: conversation.turn.interrupting,
-          compacting: conversation.compacting !== null,
-          runningAgents: agents.running,
-        })
+        const refusal = liftRefusal({ compacting: conversation.compacting !== null })
         if (refusal !== null) return refusal
       }
 
@@ -1015,15 +1012,12 @@ function Workspace(props: {
       return movingNotice(asked)
     },
     [
-      agents.running,
       applyContainerSwitch,
       containerBlockers,
       containerGuard,
       containerMove.move,
       conversation.compacting,
       conversation.started,
-      conversation.turn.interrupting,
-      conversation.working,
       execution,
     ],
   )

@@ -27,6 +27,7 @@ export function createHeartbeat(args: {
 }): Heartbeat {
   const url = `${args.controlPlaneUrl.replace(/\/+$/, '')}/v1/sandboxes/${args.threadId}/heartbeat`
   let timer: ReturnType<typeof setInterval> | null = null
+  let holds = 0
 
   const beat = (): void => {
     void args
@@ -38,6 +39,7 @@ export function createHeartbeat(args: {
   }
 
   const stop = (): void => {
+    holds = 0
     if (timer === null) return
     clearInterval(timer)
     timer = null
@@ -47,12 +49,19 @@ export function createHeartbeat(args: {
     beat,
 
     turnStarted() {
+      holds += 1
       beat()
       if (timer !== null) return
       timer = setInterval(beat, args.intervalMs ?? HEARTBEAT_INTERVAL_MS)
     },
 
-    turnEnded: stop,
+    turnEnded() {
+      holds = Math.max(0, holds - 1)
+      if (holds > 0) return
+      if (timer === null) return
+      clearInterval(timer)
+      timer = null
+    },
 
     stop,
   }

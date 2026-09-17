@@ -6,6 +6,7 @@ import { ELiftStep } from '../cloud/lift'
 import {
   advanceMove,
   beginMove,
+  cloudLiftPlan,
   ELocalMoveStep,
   EStepMark,
   failMove,
@@ -19,9 +20,9 @@ describe('the steps a move narrates', () => {
     const move = beginMove({ target: EExecutionLocation.Cloud, now: STARTED_AT })
 
     expect(move.steps.map((step) => step.id)).toEqual([
+      ELiftStep.Stopping,
       ELiftStep.Transferring,
       ELiftStep.Flipping,
-      ELiftStep.Stopping,
       ELiftStep.Capturing,
       ELiftStep.Starting,
       ELiftStep.Attaching,
@@ -100,5 +101,31 @@ describe('the heading over the steps', () => {
     expect(moveHeading(EExecutionLocation.Cloud)).toBe('MOVING TO THE CLOUD')
     expect(moveHeading(EExecutionLocation.Docker)).toBe('MOVING INTO A DOCKER CONTAINER')
     expect(moveHeading(EExecutionLocation.Host)).toBe('MOVING BACK TO THE HOST')
+  })
+})
+
+describe('the plan a cloud lift narrates', () => {
+  it('is the plain six steps when nothing was running', () => {
+    expect(cloudLiftPlan({ midTurn: false })).toEqual([
+      ELiftStep.Stopping,
+      ELiftStep.Transferring,
+      ELiftStep.Flipping,
+      ELiftStep.Capturing,
+      ELiftStep.Starting,
+      ELiftStep.Attaching,
+    ])
+  })
+
+  it('bookends the plan with interrupting and resuming when a turn was in flight', () => {
+    expect(cloudLiftPlan({ midTurn: true })).toEqual([
+      ELiftStep.Interrupting,
+      ELiftStep.Stopping,
+      ELiftStep.Transferring,
+      ELiftStep.Flipping,
+      ELiftStep.Capturing,
+      ELiftStep.Starting,
+      ELiftStep.Attaching,
+      ELiftStep.Resuming,
+    ])
   })
 })
