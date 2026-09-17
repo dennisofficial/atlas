@@ -16,7 +16,10 @@ import { useTickingNow } from './use-turn-clock'
 export type ContainerMoveControl = {
   move: ContainerMove | null
   now: number
-  handleBegin: (target: EExecutionLocation) => void
+  handleBegin: (
+    target: EExecutionLocation,
+    shape?: { plan?: readonly MoveStepId[] | undefined; heading?: string | undefined } | undefined,
+  ) => void
   handleAdvance: (step: MoveStepId) => void
   handleSettle: () => void
   handleFail: (reason: string) => void
@@ -30,8 +33,20 @@ export function useContainerMove(): ContainerMoveControl {
   const now = useTickingNow({ ticking: move !== null && move.failure === null, clock })
 
   const handleBegin = useCallback(
-    (target: EExecutionLocation) => {
-      setMove((current) => current ?? beginMove({ target, now: clock.read() }))
+    (
+      target: EExecutionLocation,
+      shape?: { plan?: readonly MoveStepId[] | undefined; heading?: string | undefined },
+    ) => {
+      setMove(
+        (current) =>
+          current ??
+          beginMove({
+            target,
+            now: clock.read(),
+            ...(shape?.plan === undefined ? {} : { plan: shape.plan }),
+            ...(shape?.heading === undefined ? {} : { heading: shape.heading }),
+          }),
+      )
     },
     [clock],
   )

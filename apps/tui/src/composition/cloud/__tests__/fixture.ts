@@ -3,6 +3,7 @@ import {
   EChannelConnection,
   ThreadStorePort,
   type ChannelConnection,
+  type TurnOutcome,
 } from '@dltech/atlas-harness'
 
 import {
@@ -36,16 +37,22 @@ export type FakeCloudChannel = CloudChannel & {
   moveTo(connection: ChannelConnection): void
   reload(reload: CloudReload): void
   fail(message: string): void
+  endTurn(outcome: TurnOutcome): void
   readonly closed: boolean
+  readonly runs: number
+  readonly woken: readonly { url: string; token: string }[]
 }
 
 export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudChannel {
   const connections = new Set<(connection: ChannelConnection) => void>()
   const reloads = new Set<(reload: CloudReload) => void>()
   const failures = new Set<(failure: { message: string }) => void>()
+  const turnEndings = new Set<(outcome: TurnOutcome) => void>()
+  const woken: { url: string; token: string }[] = []
 
   let held: ChannelConnection = { state: EChannelConnection.Connecting, detail: null }
   let closed = false
+  let runs = 0
 
   return {
     threadId: args.threadId ?? CLOUD_THREAD,
@@ -55,6 +62,9 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
       throw new Error('a cloud channel never publishes from the client')
     },
     send: () => undefined,
+    run: () => {
+      runs += 1
+    },
     interrupt: () => undefined,
     request: async () => undefined,
     connection: () => held,
@@ -70,11 +80,20 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
         reloads.delete(listener)
       }
     },
+    onTurnEnded: (listener) => {
+      turnEndings.add(listener)
+      return () => {
+        turnEndings.delete(listener)
+      }
+    },
     onError: (listener) => {
       failures.add(listener)
       return () => {
         failures.delete(listener)
       }
+    },
+    wake: ({ url, token }) => {
+      woken.push({ url, token })
     },
     close: () => {
       closed = true
@@ -82,6 +101,14 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
 
     get closed() {
       return closed
+    },
+
+    get runs() {
+      return runs
+    },
+
+    get woken() {
+      return woken
     },
 
     moveTo(connection) {
@@ -93,6 +120,9 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
     },
     fail(message) {
       for (const listener of [...failures]) listener({ message })
+    },
+    endTurn(outcome) {
+      for (const listener of [...turnEndings]) listener(outcome)
     },
   }
 }
@@ -198,7 +228,7 @@ export function fakeBridge(
   const log = fakeEventLog()
   const threads = args.threadStore ?? fakeThreadStore({ log })
   const ledger = fakeLedger()
-  const channel = fakeCloudChannel()
+  let channel: FakeCloudChannel | null = null
   const created: { threadId: ThreadId; workspace: LiftedWorkspace | null }[] = []
   const attached: { threadId: ThreadId; url: string; token: string }[] = []
   const trail: string[] = []
@@ -211,7 +241,10 @@ export function fakeBridge(
     ledger,
     created,
     attached,
-    channel,
+    get channel() {
+      if (channel === null) throw new Error('nothing has attached yet')
+      return channel
+    },
     trail,
     stores: { log, threads: watchedThreads, ledger },
     sandboxes: {
@@ -226,6 +259,7 @@ export function fakeBridge(
     attach: ({ threadId, url, token }) => {
       trail.push('attach')
       attached.push({ threadId, url, token })
+      channel = fakeCloudChannel({ threadId })
       return channel
     },
   }

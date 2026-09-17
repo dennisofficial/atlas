@@ -11,6 +11,7 @@ import {
 import { CloudError } from '@dltech/atlas-harness'
 
 import { fakeEventLog, fakeThreadStore, type FakeThreadStore } from '../../__tests__/fake-backend'
+import { ECloudSandboxState } from '../cloud-bridge'
 import { ELiftFault, ELiftStep, liftToCloud, type LiftArgs } from '../lift'
 import { CLOUD_NOTICE_KEY, NOTHING_WAS_STOPPED } from '../transition-notice'
 import { CLEAN_WORKSPACE, CLOUD_THREAD, fakeBridge, type FakeBridge } from './fixture'
@@ -140,9 +141,27 @@ describe('lifting a conversation into the cloud', () => {
 
     const lifted = await liftToCloud(test.args)
     if (!lifted.ok) throw new Error('expected the lift to succeed')
+    if (lifted.sandbox.url === undefined) throw new Error('expected the sandbox to carry a url')
 
     expect(test.bridge.attached).toEqual([
       { threadId: CLOUD_THREAD, url: lifted.sandbox.url, token: lifted.sandbox.token },
+    ])
+  })
+
+  it('attaches once the poll finds a url, when create answers with none yet', async () => {
+    const polledUrl = 'https://sandbox.example/polled'
+    const bridge = fakeBridge({
+      sandbox: { token: 'sandbox-token', state: ECloudSandboxState.Resuming },
+      status: { state: ECloudSandboxState.Running, url: polledUrl },
+    })
+    const test = harness({ bridge })
+
+    const lifted = await liftToCloud(test.args)
+
+    expect(lifted.ok).toBe(true)
+    expect(test.bridge.trail).toEqual(['transfer', 'sandbox', 'attach'])
+    expect(test.bridge.attached).toEqual([
+      { threadId: CLOUD_THREAD, url: polledUrl, token: 'sandbox-token' },
     ])
   })
 

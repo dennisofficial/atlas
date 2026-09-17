@@ -2,6 +2,7 @@ import type { KeyEvent } from '@opentui/core'
 import { useCallback, useMemo, useRef, useState } from 'react'
 
 import { projectOf } from '@dltech/atlas-core'
+import type { ThreadStorePort } from '@dltech/atlas-harness'
 
 import {
   backspace,
@@ -39,6 +40,7 @@ export function useThreads(args: {
   app: AtlasApp
   activeThreadId: string
   onPick: (threadId: string) => void
+  listing?: (() => Pick<ThreadStorePort, 'list'>) | undefined
 }): ThreadsControl {
   const { app, activeThreadId, onPick } = args
   const held = useRef<ThreadsState | null>(null)
@@ -52,7 +54,8 @@ export function useThreads(args: {
   const handleOpen = useCallback(() => {
     put(loadingThreads({ now: Date.now() }))
 
-    void app.threads
+    const source = args.listing?.() ?? app.threads
+    void source
       .list({ project: projectOf(app.workspace) })
       .then((threads) => {
         const rows = threadRows({ threads, activeThreadId })
@@ -79,7 +82,7 @@ export function useThreads(args: {
 
         put(failedToList({ state: current, reason: reasonOf(error) }))
       })
-  }, [activeThreadId, app, put])
+  }, [activeThreadId, app, args, put])
 
   const handleDismiss = useCallback(() => put(null), [put])
 

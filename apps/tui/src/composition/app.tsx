@@ -18,10 +18,11 @@ import {
   EForkMode,
   EKilledBy,
   launchWorktreeOf,
+  toThreadId,
   type EUsageWindow,
   type ModelCard,
 } from '@dltech/atlas-core'
-import { forkConversation, relocateSession, settingModelRef, suggestedModelRef, type DiscoveredSkill } from '@dltech/atlas-harness'
+import { forkConversation, mergedThreadListing, relocateSession, settingModelRef, suggestedModelRef, type DiscoveredSkill } from '@dltech/atlas-harness'
 
 import { newestExpandableKey, type PendingSaid } from '../store'
 import { withCloud, withContainer, withSections } from '../store/sidebar-model'
@@ -158,6 +159,10 @@ import { createCloudBridge } from './cloud/create-bridge'
 import { createCloudSession, type CloudSession } from './cloud/cloud-session'
 import { liftRefusal } from './cloud/lift-plan'
 import { openCloudConversation } from './cloud/cloud-app'
+import { openCloudThread } from './cloud/cloud-open'
+import type { CloudBridge } from './cloud/cloud-bridge'
+import { EOpenMode } from './config'
+import { openConversation } from './open-conversation'
 import type { CloudBridgeFactory, WorkspaceCapture } from './use-cloud-lift'
 import { useCloudLift } from './use-cloud-lift'
 import { captureWorkspace } from './cloud/workspace-snapshot'
@@ -226,6 +231,7 @@ export function App(props: {
 }): React.ReactNode {
   const registry = useMemo(() => createKeyRegistry(), [])
   const [lifted, setLifted] = useState<LiftedSession | null>(null)
+  const [reopened, setReopened] = useState<OpenedConversation | null>(null)
   const held = useRef<LiftedSession | null>(null)
   held.current = lifted
 
@@ -260,16 +266,29 @@ export function App(props: {
     [handleReload],
   )
 
+  const handleDescend = useCallback((opened: OpenedConversation) => {
+    held.current?.session.close()
+    setLifted(null)
+    setReopened(opened)
+  }, [])
+
   return (
     <KeyRegistryContext.Provider value={registry}>
       <Workspace
-        key={lifted === null ? 'local' : `cloud:${lifted.opened.threadId}:${lifted.reloads}`}
+        key={
+          lifted === null
+            ? `local:${reopened?.threadId ?? 'boot'}`
+            : `cloud:${lifted.opened.threadId}:${lifted.reloads}`
+        }
         app={lifted?.app ?? props.app}
-        opened={lifted?.opened ?? props.opened}
+        localApp={props.app}
+        opened={lifted?.opened ?? reopened ?? props.opened}
         cloudSession={lifted?.session ?? null}
+        cloudBridge={lifted?.bridge ?? null}
         createBridge={props.createBridge ?? liveBridge}
         captureWorkspace={props.captureWorkspace ?? captureWorkspace}
         onLifted={handleLifted}
+        onDescend={handleDescend}
         credentialNotice={props.credentialNotice ?? null}
         covered={props.covered === true}
         clipboard={props.clipboard ?? readClipboardImage}
@@ -281,15 +300,18 @@ export function App(props: {
 
 function Workspace(props: {
   app: AtlasApp
+  localApp: AtlasApp
   opened: OpenedConversation
   credentialNotice: string | null
   covered: boolean
   clipboard: ClipboardImageReader
   onRestart: (() => void) | null
   cloudSession: CloudSession | null
+  cloudBridge: CloudBridge | null
   createBridge: CloudBridgeFactory
   captureWorkspace: WorkspaceCapture
   onLifted: (attachment: LiftedAttachment) => void
+  onDescend: (opened: OpenedConversation) => void
 }): React.ReactNode {
   const renderer = useRenderer()
   const restarting = useRef(false)
@@ -541,12 +563,14 @@ function Workspace(props: {
     configureNotices({ ttlMs: settings.noticeSeconds * 1000 })
   }, [settings.noticeSeconds])
 
+  const routeRef = useRef<(threadId: string) => void>(() => undefined)
+
   const handleOpenThread = useCallback(
     (threadId: string) => {
       draft.clear()
-      conversation.handleOpenThread(threadId)
+      routeRef.current(threadId)
     },
-    [conversation, draft],
+    [draft],
   )
 
   const agentView = useAgentView({
@@ -613,10 +637,32 @@ function Workspace(props: {
   const chromeWidth = chromeWidthOf({ width, sidebarWidth, docked })
   const composerWidth = welcome ? welcomeCells({ width: chromeWidth }) : chromeWidth
 
+  const bridgeRef = useRef<CloudBridge | null>(null)
+
+  /**
+   * The cloud presence: the same bridge a lift builds, held for listing and for opening threads
+   * that already live in the cloud. Built on first need so a signed-out session never pays for it.
+   */
+  const ensureBridge = useCallback((): CloudBridge | null => {
+    if (props.cloudBridge !== null) return props.cloudBridge
+    if (bridgeRef.current !== null) return bridgeRef.current
+
+    const signedIn = props.localApp.cloud.session()
+    if (signedIn === null) return null
+
+    bridgeRef.current = props.createBridge({ url: signedIn.url, token: signedIn.token })
+    return bridgeRef.current
+  }, [props.cloudBridge, props.createBridge, props.localApp])
+
   const threads = useThreads({
     app: props.app,
     activeThreadId: conversation.threadId,
     onPick: handleOpenThread,
+    listing: () => {
+      const bridge = ensureBridge()
+      if (bridge === null) return props.localApp.threads
+      return mergedThreadListing({ local: props.localApp.threads, remote: bridge.stores.threads })
+    },
   })
 
   /**
@@ -864,6 +910,95 @@ function Workspace(props: {
       props.app,
     ],
   )
+
+  /**
+   * A thread is a thread wherever it runs: picking one routes by the location on its row. A cloud
+   * thread attaches (waking its sandbox first); a host thread picked from inside a cloud session
+   * descends back to the local app; anything else is the swap the picker already knew.
+   */
+  const routeThreadOpen = useCallback(
+    async (threadId: string) => {
+      if (conversation.working) return
+
+      const bridge = ensureBridge()
+      const id = toThreadId(threadId)
+      const located =
+        bridge === null
+          ? await props.localApp.threads.find({ threadId: id })
+          : await mergedThreadListing({
+              local: props.localApp.threads,
+              remote: bridge.stores.threads,
+            }).find({ threadId: id })
+      const location = located?.executionLocation ?? EExecutionLocation.Host
+
+      if (location === EExecutionLocation.Cloud) {
+        if (threadId === conversation.threadId && props.cloudSession !== null) return
+        if (bridge === null) {
+          notify({
+            key: 'cloud-open-signin',
+            text: 'that conversation lives in the cloud — sign in with ctrl+a or /auth to open it',
+            tone: ENoticeTone.Warn,
+            ttlMs: NOTICE_WARN_MS,
+          })
+          return
+        }
+
+        try {
+          const attachment = await openCloudThread({
+            app: props.localApp,
+            bridge,
+            threadId: id,
+            move: containerMove,
+          })
+          props.onLifted(attachment)
+        } catch {
+          // openCloudThread already put the reason on the move overlay
+        }
+        return
+      }
+
+      if (threadId === conversation.threadId && props.cloudSession === null) return
+
+      if (props.cloudSession === null) {
+        conversation.handleOpenThread(threadId)
+        return
+      }
+
+      const outcome = await openConversation({
+        threads: props.localApp.threads,
+        log: props.localApp.log,
+        ledger: props.localApp.ledger,
+        agents: props.localApp.agents,
+        ids: props.localApp.ids,
+        workspace: props.localApp.workspace,
+        open: { mode: EOpenMode.Resume, threadId },
+      })
+      if (!outcome.ok) {
+        notify({
+          key: 'thread-open',
+          text: outcome.reason,
+          tone: ENoticeTone.Warn,
+          ttlMs: NOTICE_WARN_MS,
+        })
+        return
+      }
+      props.onDescend(outcome.conversation)
+    },
+    [conversation, containerMove, ensureBridge, props],
+  )
+
+  useEffect(() => {
+    routeRef.current = (threadId) => void routeThreadOpen(threadId)
+  }, [routeThreadOpen])
+
+  const bootRouted = useRef(false)
+  useEffect(() => {
+    if (bootRouted.current) return
+    bootRouted.current = true
+    if (props.cloudSession !== null) return
+    if (props.opened.executionLocation !== EExecutionLocation.Cloud) return
+    void routeThreadOpen(props.opened.threadId)
+  }, [props.cloudSession, props.opened, routeThreadOpen])
 
   const containerGuard = useContainerGuard({ onSwitch: applyContainerSwitch })
 

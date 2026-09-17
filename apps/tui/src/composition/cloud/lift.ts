@@ -10,6 +10,7 @@ import { CloudError, type ThreadStorePort } from '@dltech/atlas-harness'
 import type { CloudBridge, CloudChannel, CloudSandbox, LiftedWorkspace } from './cloud-bridge'
 import { draftsOf } from './event-drafts'
 import { liftedDraft, NOTHING_WAS_STOPPED, type StoppedLocally } from './transition-notice'
+import { waitForSandbox } from './wait-for-sandbox'
 
 export enum ELiftStep {
   Transferring = 'transferring',
@@ -193,8 +194,10 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
 
   onProgress(ELiftStep.Starting)
   let sandbox: CloudSandbox
+  let url: string
   try {
     sandbox = await args.bridge.sandboxes.create({ threadId, workspace })
+    url = sandbox.url ?? (await waitForSandbox({ sandboxes: args.bridge.sandboxes, threadId })).url
   } catch (error) {
     await flipBack(args)
     return failureOf({ error, step: ELiftStep.Starting, fallback: ELiftFault.Sandbox, stopped })
@@ -209,7 +212,7 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
     .catch(() => undefined)
 
   onProgress(ELiftStep.Attaching)
-  const channel = args.bridge.attach({ threadId, url: sandbox.url, token: sandbox.token })
+  const channel = args.bridge.attach({ threadId, url, token: sandbox.token })
 
   return { ok: true, sandbox, channel, workspace, stopped }
 }

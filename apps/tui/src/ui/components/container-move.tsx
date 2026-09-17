@@ -74,7 +74,7 @@ export function ContainerMoveOverlay(props: {
 
   return (
     <BottomDrawer overlay>
-      <DrawerHeading label={moveHeading(move.target)} />
+      <DrawerHeading label={move.heading ?? moveHeading(move.target)} />
       {move.steps.map((step) => (
         <StepLine key={step.id} step={step} elapsedMs={props.now - move.activeSince} />
       ))}
