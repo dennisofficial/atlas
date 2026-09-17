@@ -9,14 +9,14 @@ import {
   UseGuards,
 } from '@nestjs/common'
 import type { AuthenticatedRequest } from '../../_core/types/auth.types'
-import { SessionAuthGuard } from '../../_module/session/session-auth.guard'
+import { SessionOrSandboxGuard } from './session-or-sandbox.guard'
 import { RecordTurnDto } from './sessions.dto'
 import { userIdOf } from './session-user'
 import type { TurnDto, TurnTreeDto } from './sessions.types'
 import { TurnsService } from './turns.service'
 
 @Controller({ path: 'threads/:threadId/turns', version: '1' })
-@UseGuards(SessionAuthGuard)
+@UseGuards(SessionOrSandboxGuard)
 export class TurnsController {
   constructor(private readonly turns: TurnsService) {}
 
