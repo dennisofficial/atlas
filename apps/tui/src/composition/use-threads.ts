@@ -42,7 +42,7 @@ export function useThreads(args: {
   onPick: (threadId: string) => void
   listing?: (() => Pick<ThreadStorePort, 'list'>) | undefined
 }): ThreadsControl {
-  const { app, activeThreadId, onPick } = args
+  const { app, activeThreadId, onPick, listing } = args
   const held = useRef<ThreadsState | null>(null)
   const [state, setState] = useState<ThreadsState | null>(null)
 
@@ -54,7 +54,7 @@ export function useThreads(args: {
   const handleOpen = useCallback(() => {
     put(loadingThreads({ now: Date.now() }))
 
-    const source = args.listing?.() ?? app.threads
+    const source = listing?.() ?? app.threads
     void source
       .list({ project: projectOf(app.workspace) })
       .then((threads) => {
@@ -82,7 +82,7 @@ export function useThreads(args: {
 
         put(failedToList({ state: current, reason: reasonOf(error) }))
       })
-  }, [activeThreadId, app, args, put])
+  }, [activeThreadId, app, listing, put])
 
   const handleDismiss = useCallback(() => put(null), [put])
 

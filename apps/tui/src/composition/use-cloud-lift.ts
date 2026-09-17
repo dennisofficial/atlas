@@ -51,7 +51,7 @@ export function useCloudLift(args: {
     lifting.current = true
     const bridge = createBridge({ url: signedIn.url, token: signedIn.token })
     const { move } = latest.current
-    move.handleBegin(EExecutionLocation.Cloud)
+    move.handleBegin({ target: EExecutionLocation.Cloud })
 
     void liftToCloud({
       threadId,

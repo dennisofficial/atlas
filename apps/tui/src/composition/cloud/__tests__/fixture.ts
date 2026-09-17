@@ -47,6 +47,7 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
   const connections = new Set<(connection: ChannelConnection) => void>()
   const reloads = new Set<(reload: CloudReload) => void>()
   const failures = new Set<(failure: { message: string }) => void>()
+  const serverErrors = new Set<(failure: { message: string }) => void>()
   const turnEndings = new Set<(outcome: TurnOutcome) => void>()
   const woken: { url: string; token: string }[] = []
 
@@ -92,6 +93,12 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
         failures.delete(listener)
       }
     },
+    onServerError: (listener) => {
+      serverErrors.add(listener)
+      return () => {
+        serverErrors.delete(listener)
+      }
+    },
     wake: ({ url, token }) => {
       woken.push({ url, token })
     },
@@ -120,6 +127,7 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
     },
     fail(message) {
       for (const listener of [...failures]) listener({ message })
+      for (const listener of [...serverErrors]) listener({ message })
     },
     endTurn(outcome) {
       for (const listener of [...turnEndings]) listener(outcome)

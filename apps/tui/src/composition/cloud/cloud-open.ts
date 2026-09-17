@@ -1,17 +1,12 @@
-import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
+import type { ThreadId } from '@dltech/atlas-core'
 
 import type { AtlasApp } from '../compose'
-import { WAKE_HEADING, WAKE_PLAN } from '../container-move'
+import { messageOf } from '../error-text'
 import type { LiftedAttachment } from '../lifted-session'
 import type { ContainerMoveControl } from '../use-container-move'
 import { cloudApp, openCloudConversation } from './cloud-app'
 import type { CloudBridge } from './cloud-bridge'
-import { createCloudRunner } from './cloud-runner'
-import { ELiftStep } from './lift'
-import { waitForSandbox } from './wait-for-sandbox'
-
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : 'the sandbox could not be woken'
+import { createCloudRunner, wakeSandbox } from './cloud-runner'
 
 /**
  * Opening a thread that already lives in the cloud: re-attach (the API re-provisions and hands
@@ -26,13 +21,14 @@ export async function openCloudThread(args: {
 }): Promise<LiftedAttachment> {
   const { app, bridge, threadId, move } = args
 
-  move?.handleBegin(EExecutionLocation.Cloud, { plan: WAKE_PLAN, heading: WAKE_HEADING })
   try {
-    const woken = await bridge.sandboxes.create({ threadId, workspace: null })
-    const ready = await waitForSandbox({ sandboxes: bridge.sandboxes, threadId })
-    move?.handleAdvance(ELiftStep.Attaching)
+    const woken = await wakeSandbox({
+      bridge,
+      threadId,
+      ...(move === undefined ? {} : { move }),
+    })
 
-    const channel = bridge.attach({ threadId, url: ready.url, token: woken.token })
+    const channel = bridge.attach({ threadId, url: woken.url, token: woken.token })
     const runner = createCloudRunner({
       bridge,
       channel,

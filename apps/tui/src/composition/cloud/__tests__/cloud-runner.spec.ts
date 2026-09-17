@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation, toRunId } from '@dltech/atlas-core'
-import { ETurnStatus } from '@dltech/atlas-harness'
+import { EChannelConnection, ETurnStatus } from '@dltech/atlas-harness'
 
 import type { ContainerMoveControl } from '../../use-container-move'
 import { createCloudRunner } from '../cloud-runner'
@@ -16,7 +16,7 @@ const fakeMove = (): FakeMove => {
   return {
     move: null,
     now: 0,
-    handleBegin: (target) => calls.push(`begin:${target}`),
+    handleBegin: (args) => calls.push(`begin:${args.target}`),
     handleAdvance: (step) => calls.push(`advance:${step}`),
     handleSettle: () => calls.push('settle'),
     handleFail: (reason) => calls.push(`fail:${reason}`),
@@ -34,6 +34,7 @@ describe('waking a cloud runner whose channel is not open', () => {
   it('re-provisions, polls, and wakes the channel with the fresh url and token', async () => {
     const bridge = fakeBridge({ status: { state: ECloudSandboxState.Running, url: POLLED_URL } })
     const channel = fakeCloudChannel()
+    channel.moveTo({ state: EChannelConnection.Closed, detail: null })
     const move = fakeMove()
     const runner = createCloudRunner({ bridge, channel, threadId: CLOUD_THREAD, move })
 
@@ -56,6 +57,7 @@ describe('waking a cloud runner whose channel is not open', () => {
   it('touches nothing move-shaped when no move control was given', async () => {
     const bridge = fakeBridge({ status: { state: ECloudSandboxState.Running, url: POLLED_URL } })
     const channel = fakeCloudChannel()
+    channel.moveTo({ state: EChannelConnection.Closed, detail: null })
     const runner = createCloudRunner({ bridge, channel, threadId: CLOUD_THREAD })
 
     const turn = runner.runTurn({ threadId: CLOUD_THREAD })
@@ -70,6 +72,7 @@ describe('waking a cloud runner whose channel is not open', () => {
   it('fails the move and propagates the error when waking cannot re-provision the sandbox', async () => {
     const bridge = fakeBridge({ createFails: new Error('no capacity in iad1') })
     const channel = fakeCloudChannel()
+    channel.moveTo({ state: EChannelConnection.Closed, detail: null })
     const move = fakeMove()
     const runner = createCloudRunner({ bridge, channel, threadId: CLOUD_THREAD, move })
 
