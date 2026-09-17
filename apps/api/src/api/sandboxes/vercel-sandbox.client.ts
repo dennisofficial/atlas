@@ -154,21 +154,17 @@ export class VercelSandboxClient {
     }
   }
 
-  async resume(args: { name: string }): Promise<SandboxPlacement> {
+  async destroy(args: { name: string }): Promise<void> {
     const credentials = this.credentials()
     try {
       const sandbox = await Sandbox.get({
         ...credentials,
         name: args.name,
-        resume: true,
-        onResume: this.launchServe,
-        signal: AbortSignal.timeout(SANDBOX_LAUNCH_TIMEOUT_MS),
+        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
       })
-      await this.launchServe(sandbox)
-      return await this.placementOf(sandbox)
+      await sandbox.delete({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
     } catch (failure) {
-      if (isSandboxMissing(failure)) throw new SandboxMissingError(args.name)
-      if (failure instanceof SandboxMissingError) throw failure
+      if (isSandboxMissing(failure)) return
       throw asBadGateway(failure)
     }
   }

@@ -24,7 +24,7 @@ import type { EnvService } from '../../_core/config/env/env.service'
 import type { GithubService } from '../github/github.service'
 import { SandboxesService } from './sandboxes.service'
 import { ESandboxState } from './sandboxes.types'
-import { SandboxMissingError, type VercelSandboxClient } from './vercel-sandbox.client'
+import type { VercelSandboxClient } from './vercel-sandbox.client'
 import { MAX_WORKSPACE_PATCH_BYTES } from './workspace-spec'
 
 const USER_A = 'user-a'
@@ -103,11 +103,7 @@ const stubClient = () => ({
     url: 'https://atlas-3000.vercel.run',
     state: ESandboxState.Running,
   })),
-  resume: vi.fn(async () => ({
-    sessionId: 'ses_resumed',
-    url: 'https://atlas-3000.vercel.run',
-    state: ESandboxState.Running,
-  })),
+  destroy: vi.fn(async () => undefined),
   inspect: vi.fn(async () => ({ state: ESandboxState.Parked })),
   stop: vi.fn(async () => undefined),
 })
@@ -129,7 +125,7 @@ describe('SandboxesService', () => {
     )
   })
 
-  it('creates the sandbox once and resumes it thereafter', async () => {
+  it('re-provisions on every attach, returning a fresh token each time', async () => {
     const first = await service.attach({ userId: USER_A, threadId: THREAD })
 
     expect(first.url).toBe('https://atlas-3000.vercel.run')
@@ -143,21 +139,24 @@ describe('SandboxesService', () => {
     const second = await service.attach({ userId: USER_A, threadId: THREAD })
 
     expect(second.url).toBe('https://atlas-3000.vercel.run')
-    expect(client.getOrCreate).toHaveBeenCalledTimes(1)
-    expect(client.resume).toHaveBeenCalledTimes(1)
+    expect(client.destroy).toHaveBeenCalledTimes(1)
+    expect(client.destroy).toHaveBeenCalledWith({ name: fake.cloudSandboxes[0]?.name })
+    expect(client.getOrCreate).toHaveBeenCalledTimes(2)
+    expect(second.token).toBeDefined()
+    expect(second.token).not.toBe(first.token)
     expect(fake.cloudSandboxes).toHaveLength(1)
-    expect(fake.cloudSandboxes[0]?.sandboxId).toBe('ses_resumed')
   })
 
-  it('produces exactly one sandbox for two concurrent attaches', async () => {
+  it('serializes two concurrent attaches and re-provisions for the second', async () => {
     const attached = await Promise.all([
       service.attach({ userId: USER_A, threadId: THREAD }),
       service.attach({ userId: USER_A, threadId: THREAD }),
     ])
 
     expect(fake.cloudSandboxes).toHaveLength(1)
-    expect(client.getOrCreate).toHaveBeenCalledTimes(1)
-    expect(attached.filter((one) => one.token !== undefined)).toHaveLength(1)
+    expect(client.getOrCreate).toHaveBeenCalledTimes(2)
+    expect(client.destroy).toHaveBeenCalledTimes(1)
+    expect(attached.every((one) => one.token !== undefined)).toBe(true)
   })
 
   it('never starts the second attach until the first finishes provisioning', async () => {
@@ -178,44 +177,39 @@ describe('SandboxesService', () => {
     const second = service.attach({ userId: USER_A, threadId: THREAD })
 
     await vi.waitFor(() => expect(client.getOrCreate).toHaveBeenCalledTimes(1))
-    expect(client.resume).not.toHaveBeenCalled()
+    expect(client.destroy).not.toHaveBeenCalled()
 
     releaseFirst?.()
     const [firstAttached, secondAttached] = await Promise.all([first, second])
 
-    expect(client.getOrCreate).toHaveBeenCalledTimes(1)
-    expect(client.resume).toHaveBeenCalledTimes(1)
+    expect(client.getOrCreate).toHaveBeenCalledTimes(2)
+    expect(client.destroy).toHaveBeenCalledTimes(1)
     expect(firstAttached.token).toBeDefined()
-    expect(secondAttached.token).toBeUndefined()
+    expect(secondAttached.token).toBeDefined()
   })
 
-  it('bumps activity when claiming an existing row, before resume even completes', async () => {
+  it('bumps activity when claiming an existing row, before the old sandbox is destroyed', async () => {
     await service.attach({ userId: USER_A, threadId: THREAD })
     fake.cloudSandboxes[0]!.lastActivityAt = '2020-01-01T00:00:00.000Z'
 
-    let releaseResume: (() => void) | undefined
+    let releaseDestroy: (() => void) | undefined
     const gate = new Promise<void>((resolve) => {
-      releaseResume = resolve
+      releaseDestroy = resolve
     })
-    client.resume.mockImplementationOnce(async () => {
+    client.destroy.mockImplementationOnce(async () => {
       await gate
-      return {
-        sessionId: 'ses_resumed',
-        url: 'https://atlas-3000.vercel.run',
-        state: ESandboxState.Running,
-      }
     })
 
     const attaching = service.attach({ userId: USER_A, threadId: THREAD })
-    await vi.waitFor(() => expect(client.resume).toHaveBeenCalledTimes(1))
+    await vi.waitFor(() => expect(client.destroy).toHaveBeenCalledTimes(1))
 
     expect(fake.cloudSandboxes[0]?.lastActivityAt).not.toBe('2020-01-01T00:00:00.000Z')
 
-    releaseResume?.()
+    releaseDestroy?.()
     await attaching
   })
 
-  it('returns the token once and stores only its hash', async () => {
+  it('returns a fresh token on every attach and stores only its hash', async () => {
     const first = await service.attach({ userId: USER_A, threadId: THREAD })
     const token = first.token
 
@@ -228,7 +222,13 @@ describe('SandboxesService', () => {
     expect(JSON.stringify(fake.cloudSandboxes[0])).not.toContain(token)
 
     const second = await service.attach({ userId: USER_A, threadId: THREAD })
-    expect(second.token).toBeUndefined()
+    expect(second.token).toBeDefined()
+    expect(second.token).not.toBe(token)
+    expect(fake.cloudSandboxes[0]?.tokenHash).toBe(
+      createHash('sha256')
+        .update(second.token as string)
+        .digest('hex'),
+    )
   })
 
   it('answers 404 for another user, never 403', async () => {
@@ -364,14 +364,13 @@ describe('SandboxesService', () => {
     expect(client.getOrCreate).not.toHaveBeenCalled()
   })
 
-  it('re-provisions with a fresh token when the row outlives its sandbox', async () => {
+  it('destroys the sandbox the row points at before re-provisioning', async () => {
     const first = await service.attach({ userId: USER_A, threadId: THREAD })
-    client.resume.mockRejectedValueOnce(
-      new SandboxMissingError(fake.cloudSandboxes[0]?.name ?? 'gone'),
-    )
+    const name = fake.cloudSandboxes[0]?.name
 
     const attached = await service.attach({ userId: USER_A, threadId: THREAD })
 
+    expect(client.destroy).toHaveBeenCalledWith({ name })
     expect(attached.token).toBeDefined()
     expect(attached.token).not.toBe(first.token)
     expect(client.getOrCreate).toHaveBeenCalledTimes(2)
@@ -383,9 +382,9 @@ describe('SandboxesService', () => {
     )
   })
 
-  it('keeps the row and propagates when resume fails for another reason', async () => {
+  it('keeps the row and propagates when destroying the old sandbox fails', async () => {
     await service.attach({ userId: USER_A, threadId: THREAD })
-    client.resume.mockRejectedValueOnce(new Error('vercel is unhappy'))
+    client.destroy.mockRejectedValueOnce(new BadGatewayException('vercel is unhappy'))
 
     await expect(service.attach({ userId: USER_A, threadId: THREAD })).rejects.toThrow(
       'vercel is unhappy',
