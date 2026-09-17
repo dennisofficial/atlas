@@ -8,9 +8,16 @@ export const DEFAULT_SERVE_BINARY_PATH = '/app/atlas-serve'
 
 @Injectable()
 export class ServeBinaryService {
+  private stampCache: Promise<string> | undefined
+
   constructor(private readonly env: EnvService) {}
 
   async stamp(): Promise<string> {
+    if (this.stampCache === undefined) this.stampCache = this.readStamp()
+    return this.stampCache
+  }
+
+  private async readStamp(): Promise<string> {
     const path = this.binaryPath()
     const stamped = await readFile(`${path}.sha256`, 'utf8').then(
       (content) => content.trim(),

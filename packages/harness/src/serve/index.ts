@@ -131,6 +131,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     liveStepId: () => liveStepId(),
     driver,
     files: app.files,
+    refusal: () => workspaceRefusalOf(workspace) ?? null,
     log,
   })
 

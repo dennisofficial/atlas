@@ -70,13 +70,20 @@ const detailOf = (error: unknown): string =>
 
 const NOT_CONFIGURED_STATUS = 503
 
+const NOT_CONFIGURED_MARKER = 'not configured'
+
 const UNREACHABLE_STATUS = 0
 
 const PATCH_TOO_LARGE_STATUS = 413
 
 const faultOf = (args: { error: unknown; fallback: ELiftFault }): ELiftFault => {
   if (!(args.error instanceof CloudError)) return args.fallback
-  if (args.error.status === NOT_CONFIGURED_STATUS) return ELiftFault.NotConfigured
+  if (
+    args.error.status === NOT_CONFIGURED_STATUS &&
+    args.error.message.includes(NOT_CONFIGURED_MARKER)
+  ) {
+    return ELiftFault.NotConfigured
+  }
   if (args.error.status === UNREACHABLE_STATUS) return ELiftFault.Unreachable
   if (args.error.status === PATCH_TOO_LARGE_STATUS) return ELiftFault.PatchTooLarge
 

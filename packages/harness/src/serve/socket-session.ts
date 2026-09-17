@@ -47,9 +47,10 @@ export function createSessionHandlers(args: {
   liveStepId: () => StepId | null
   driver: ServeTurnDriver
   files: Pick<FileBrowser, 'list'>
+  refusal: () => string | null
   log: ServeLog
 }): SessionHandlers {
-  const { threadId, buffer, inFlight, liveStepId, driver, files, log } = args
+  const { threadId, buffer, inFlight, liveStepId, driver, files, refusal, log } = args
   const live = new Set<SessionSocket>()
   const attached = new Set<SessionSocket>()
   const aliaser = createStepAliaser()
@@ -89,6 +90,9 @@ export function createSessionHandlers(args: {
     }
 
     send({ socket, frame: { kind: EServeFrame.Ready, seq: buffer.nextSeq() } })
+
+    const blocked = refusal()
+    if (blocked !== null) send({ socket, frame: { kind: EServeFrame.Error, message: blocked } })
 
     const backfill = resumed && cursor !== null ? buffer.after(cursor) : inFlight()
     const reloadedMidStep = resumed ? null : liveStepId()

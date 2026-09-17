@@ -1,5 +1,13 @@
 import { randomUUID } from 'node:crypto'
-import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common'
+import {
+  BadGatewayException,
+  ConflictException,
+  HttpException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common'
 import { EnvService } from '../../_core/config/env/env.service'
 import type { CloudSandboxModel, ThreadModel } from '../../db'
 import { db } from '../../db'
@@ -24,10 +32,13 @@ const MINUTE_MS = 60_000
 
 const nextSandboxId = (): string => `sbx_${randomUUID()}`
 const nowIso = (): string => new Date().toISOString()
+const messageOf = (failure: unknown): string =>
+  failure instanceof Error ? failure.message : String(failure)
 
 @Injectable()
 export class SandboxesService {
   private readonly logger = new Logger(SandboxesService.name)
+  private readonly attachLocks = new Map<string, Promise<unknown>>()
 
   constructor(
     private readonly vercel: VercelSandboxClient,
@@ -36,6 +47,24 @@ export class SandboxesService {
   ) {}
 
   async attach(args: {
+    userId: string
+    threadId: string
+    workspace?: SandboxWorkspaceSpec | undefined
+  }): Promise<SandboxAttachmentDto> {
+    const previous = this.attachLocks.get(args.threadId) ?? Promise.resolve()
+    const run = previous.then(
+      () => this.attachSerialized(args),
+      () => this.attachSerialized(args),
+    )
+    this.attachLocks.set(args.threadId, run)
+    try {
+      return await run
+    } finally {
+      if (this.attachLocks.get(args.threadId) === run) this.attachLocks.delete(args.threadId)
+    }
+  }
+
+  private async attachSerialized(args: {
     userId: string
     threadId: string
     workspace?: SandboxWorkspaceSpec | undefined
@@ -51,6 +80,9 @@ export class SandboxesService {
     if (resumed !== null) return resumed
     await db.cloudSandbox.delete({ where: { threadId: claimed.threadId } })
     const reclaimed = await this.claim({ thread, tokenHash: minted.tokenHash, columns })
+    if (reclaimed.tokenHash !== minted.tokenHash) {
+      throw new ConflictException('another attach is provisioning this sandbox — retry in a moment')
+    }
     return this.provision({ row: reclaimed, token: minted.token })
   }
 
@@ -94,7 +126,7 @@ export class SandboxesService {
 
   async heartbeat(args: { threadId: string }): Promise<void> {
     const at = nowIso()
-    await db.cloudSandbox.update({
+    await db.cloudSandbox.updateMany({
       where: { threadId: args.threadId },
       data: { lastActivityAt: at, updatedAt: at },
     })
@@ -155,7 +187,7 @@ export class SandboxesService {
         createdAt: at,
         updatedAt: at,
       },
-      update: {},
+      update: { lastActivityAt: at, updatedAt: at },
     })
   }
 
@@ -173,7 +205,8 @@ export class SandboxesService {
       return { ...toSandboxDto(stamped), url: placement.url, token: args.token }
     } catch (failure) {
       await db.cloudSandbox.delete({ where: { threadId: args.row.threadId } })
-      throw failure
+      if (failure instanceof HttpException) throw failure
+      throw new BadGatewayException(messageOf(failure))
     }
   }
 
