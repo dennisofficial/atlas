@@ -57,12 +57,25 @@ export NODE_ENV=production
 # replays its `jsxDEV(...)` calls into this launch, where react/jsx-dev-runtime exports jsxDEV as
 # undefined. A cache of our own only ever holds production output.
 # https://bun.com/docs/runtime/modules#transpiler-cache
-export BUN_RUNTIME_TRANSPILER_CACHE_PATH="${TMPDIR:-/tmp}/atlas-dev-transpiler-cache"
+cache="${TMPDIR:-/tmp}/atlas-dev-transpiler-cache"
+export BUN_RUNTIME_TRANSPILER_CACHE_PATH="$cache"
+
+# The variable above is exported, so every process this session ever spawns inherits the path while
+# NODE_ENV=production is easy to lose on the way down. `jsxDEV` in an entry is that leak, already
+# written; the entry is keyed by source hash, so it would be replayed until the file changes again.
+drop_development_transpiles() {
+  [ -d "$cache" ] || return 0
+  if grep -lsa jsxDEV "$cache"/*.pile >/dev/null 2>&1; then
+    rm -rf "$cache"
+    printf 'atlas-dev: dropped a development transpile from the cache\n' >&2
+  fi
+}
 
 generate
 
 while :; do
   code=0
+  drop_development_transpiles
   bun src/main.tsx --cwd "$project" "$@" || code=$?
 
   if [ "$code" -ne "$RESTART" ]; then

@@ -1,6 +1,8 @@
 import { useKeyboard, useRenderer, useTerminalDimensions } from '@opentui/react'
-import React, { useRef, useState } from 'react'
+import { readFileSync } from 'node:fs'
+import React, { useMemo, useRef, useState } from 'react'
 
+import { annotateCrashStack } from '../../composition/crash-report'
 import { copyToClipboard } from '../clipboard'
 import { glyph, theme } from '../theme'
 import { Spans, type Span } from './spans'
@@ -21,6 +23,14 @@ const MIN_STACK_ROWS = 5
 
 const EXIT_BACKSTOP_MS = 3000
 
+const readSource = (file: string): string | null => {
+  try {
+    return readFileSync(file, 'utf8')
+  } catch {
+    return null
+  }
+}
+
 type CopyState = 'idle' | 'copied' | 'blocked'
 
 function hintSpans(copy: CopyState): Span[] {
@@ -36,13 +46,23 @@ function hintSpans(copy: CopyState): Span[] {
   ]
 }
 
-export function CrashScreen(props: { error: Error }): React.ReactNode {
+export function CrashScreen(props: {
+  error: Error
+  identity?: (() => string) | undefined
+}): React.ReactNode {
   const renderer = useRenderer()
   const { width, height } = useTerminalDimensions()
   const [copy, setCopy] = useState<CopyState>('idle')
   const exiting = useRef(false)
 
-  const report = props.error.stack ?? `${props.error.name}: ${props.error.message}`
+  const cells = Math.max(20, Math.min(width - SIDE_AIR, MAX_STACK_CELLS))
+
+  const report = useMemo(() => {
+    const stack = props.error.stack ?? `${props.error.name}: ${props.error.message}`
+    return annotateCrashStack({ stack, read: readSource, cells: cells - 2 })
+  }, [props.error, cells])
+
+  const who = props.identity?.() ?? null
 
   const handleCopy = (): void => {
     setCopy(copyToClipboard({ renderer, text: report }) ? 'copied' : 'blocked')
@@ -64,7 +84,6 @@ export function CrashScreen(props: { error: Error }): React.ReactNode {
     if (key.ctrl && key.name === 'c') handleExit()
   })
 
-  const cells = Math.max(20, Math.min(width - SIDE_AIR, MAX_STACK_CELLS))
   const rows = Math.max(MIN_STACK_ROWS, Math.floor(height * STACK_SCREEN_SHARE))
 
   return (
@@ -85,6 +104,12 @@ export function CrashScreen(props: { error: Error }): React.ReactNode {
       <box height={1} flexShrink={0}>
         <text fg={theme.hint}>{KEEP}</text>
       </box>
+      <box height={1} flexShrink={0} />
+      {who === null ? null : (
+        <box height={1} flexShrink={0}>
+          <text fg={theme.hover}>{who}</text>
+        </box>
+      )}
       <box height={1} flexShrink={0} />
       <box
         width={cells}
