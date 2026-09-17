@@ -78,6 +78,7 @@ export type Conversation = {
   activeWorktree: ActiveWorktree | null
   pending: readonly PendingRow[]
   readEvents: () => readonly Event[]
+  refresh: () => Promise<void>
   handleSend: (args: {
     text: string
     images?: readonly SaidImage[]
@@ -458,6 +459,7 @@ export function useConversation(args: {
     pending: rows,
     handleSend,
     handleQueueSettled,
+    refresh,
     handleTakeBackPending,
     handleRetry: retryable ? turnDriver.handleRetry : null,
     handleResume: resumable ? turnDriver.handleResume : null,
