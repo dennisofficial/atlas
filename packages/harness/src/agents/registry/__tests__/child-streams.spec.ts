@@ -62,6 +62,7 @@ async function childTurnWatched(): Promise<{
     projectDirectory: undefined,
     observe: () => undefined,
     observeContext: () => undefined,
+    observeModel: () => undefined,
     steering: () => [],
     deps: {
       turn: {

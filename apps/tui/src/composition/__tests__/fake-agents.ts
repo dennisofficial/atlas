@@ -1,4 +1,10 @@
-import { EAgentStatus, toThreadId, type EventDraft, type ThreadId } from '@dltech/atlas-core'
+import {
+  EAgentStatus,
+  toThreadId,
+  type EventDraft,
+  type ProviderIdentity,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import { AgentRegistryPort, type AgentSnapshot, type EKilledBy } from '@dltech/atlas-harness'
 
 export const FAKE_AGENT_OWNER = toThreadId('opened-thread')
@@ -14,6 +20,7 @@ export function fakeAgentSnapshot(args: {
   turns?: number
   toolCalls?: number
   lastTool?: string
+  model?: ProviderIdentity
 }): AgentSnapshot {
   return {
     agentId: toThreadId(args.agentId),
@@ -26,6 +33,7 @@ export function fakeAgentSnapshot(args: {
     lastTool: args.lastTool,
     startedAt: '2026-01-01T00:00:00.000Z',
     endedAt: undefined,
+    ...(args.model === undefined ? {} : { model: args.model }),
   }
 }
 
