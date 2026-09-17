@@ -35,8 +35,20 @@ export class UnstaffedAgents extends AgentRegistryPort {
   relocateChildren(_args: RelocateChildrenArgs): Promise<readonly ThreadId[]> {
     return Promise.resolve([])
   }
+  stopChildren() {
+    return Promise.resolve([])
+  }
+  markChildrenRelocated() {
+    return Promise.resolve()
+  }
   list(_args: { threadId: ThreadId }): readonly AgentSnapshot[] {
     return []
+  }
+  hydrate() {
+    return Promise.resolve()
+  }
+  whenChildrenSettled() {
+    return Promise.resolve()
   }
   removeChildren() {
     return Promise.resolve()

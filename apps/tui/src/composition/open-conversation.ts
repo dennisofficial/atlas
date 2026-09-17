@@ -36,6 +36,11 @@ export type OpenedConversation = {
   model?: ThreadModel | undefined
   executionLocation?: EExecutionLocation | undefined
   lost?: RecoveredAgents | undefined
+  /**
+   * Set only by a mid-turn lift: the turn it interrupted to move safely, so the conversation that
+   * mounts on the other side resumes it itself rather than leaving the operator to notice.
+   */
+  resumeOnArrival?: boolean | undefined
 }
 
 export const unstartedConversation = (args: { ids: IdPort }): OpenedConversation => ({

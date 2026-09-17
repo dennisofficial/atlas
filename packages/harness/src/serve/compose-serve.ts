@@ -10,6 +10,7 @@ import { portToken } from '../container/injection'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import { ThreadStorePort } from '../store/thread-store'
 
+import { adoptChildren } from './adopt-children'
 import type { ServeApp, ServeCompose } from './serve-app'
 
 export const SERVE_COMMAND = 'serve'
@@ -61,6 +62,9 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     ids: app.ids,
     files: app.files,
     workspace: app.workspace,
+    adoptChildren: ({ threadId }) =>
+      adoptChildren({ agents: app.agents, log: app.surface.log, threadId }),
+    whenChildrenSettled: ({ threadId }) => app.agents.whenChildrenSettled({ threadId }),
     close: app.close,
   }
 }

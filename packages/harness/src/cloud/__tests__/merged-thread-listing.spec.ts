@@ -33,23 +33,33 @@ const reads = (rows: readonly ThreadSummary[], fail = false) => ({
 })
 
 describe('listing threads across host and cloud', () => {
-  it('unions both stores, stamping anything the cloud knows as cloud', async () => {
+  it('unions both stores, reading the location off the row rather than the store it came from', async () => {
     const listing = mergedThreadListing({
       local: reads([row('thr_local', '2026-09-16T10:00:00.000Z')]),
-      remote: reads([row('thr_cloud', '2026-09-16T11:00:00.000Z')]),
+      remote: reads([
+        row('thr_cloud', '2026-09-16T11:00:00.000Z', EExecutionLocation.Cloud),
+        row('thr_rolled_back', '2026-09-16T09:00:00.000Z', EExecutionLocation.Host),
+      ]),
     })
 
     const rows = await listing.list({ project: PROJECT })
 
-    expect(rows.map((row) => row.id)).toEqual([toThreadId('thr_cloud'), toThreadId('thr_local')])
+    expect(rows.map((row) => row.id)).toEqual([
+      toThreadId('thr_cloud'),
+      toThreadId('thr_local'),
+      toThreadId('thr_rolled_back'),
+    ])
     expect(rows[0]?.executionLocation).toBe(EExecutionLocation.Cloud)
     expect(rows[1]?.executionLocation).toBeUndefined()
+    expect(rows[2]?.executionLocation).toBe(EExecutionLocation.Host)
   })
 
   it('shows a thread known to both once, as the cloud row', async () => {
     const listing = mergedThreadListing({
       local: reads([row('thr_same', '2026-09-16T10:00:00.000Z', EExecutionLocation.Cloud)]),
-      remote: reads([{ ...row('thr_same', '2026-09-16T12:00:00.000Z'), title: 'lifted' }]),
+      remote: reads([
+        { ...row('thr_same', '2026-09-16T12:00:00.000Z', EExecutionLocation.Cloud), title: 'lifted' },
+      ]),
     })
 
     const rows = await listing.list({ project: PROJECT })
@@ -73,7 +83,7 @@ describe('listing threads across host and cloud', () => {
   it('finds a cloud thread it is asked for, and a host thread the cloud never heard of', async () => {
     const listing = mergedThreadListing({
       local: reads([row('thr_local', '2026-09-16T10:00:00.000Z')]),
-      remote: reads([row('thr_cloud', '2026-09-16T11:00:00.000Z')]),
+      remote: reads([row('thr_cloud', '2026-09-16T11:00:00.000Z', EExecutionLocation.Cloud)]),
     })
 
     const cloud = await listing.find({ threadId: toThreadId('thr_cloud') })

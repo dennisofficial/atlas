@@ -72,6 +72,7 @@ export type Conversation = {
   turn: TurnClock
   now: number
   working: boolean
+  turnInFlight: () => boolean
   mutations: number
   contextTokens: number
   projectDirectory: string
@@ -90,6 +91,8 @@ export type Conversation = {
   handleResume: (() => void) | null
   handleReportProblem: (reason: string) => void
   handleInterrupt: () => void
+  handleInterruptForMove: () => void
+  whenSettled: () => Promise<void>
   compacting: Compacting | null
   handleNewConversation: () => void
   handleOpenThread: (threadId: string) => void
@@ -263,8 +266,21 @@ export function useConversation(args: {
   })
 
   const resumeAtLaunch = useRef(app.config.open.mode !== EOpenMode.New)
+  const resumeOnArrival = useRef(opened.resumeOnArrival === true)
 
+  /**
+   * A lift that caught a turn mid-flight interrupted it to make the move safe, so the freshly
+   * attached cloud conversation resumes it itself — discarding the interrupted tail the same way
+   * an operator picking "resume fresh" would, but without asking, since the move is what asked.
+   */
   useEffect(() => {
+    if (resumeOnArrival.current) {
+      resumeOnArrival.current = false
+      resumeAtLaunch.current = false
+      turnDriver.handleResumeFresh()
+      return
+    }
+
     if (!resumeAtLaunch.current) return
     resumeAtLaunch.current = false
     if (turnDriver.isResumable) turnDriver.handleResume()
@@ -454,6 +470,7 @@ export function useConversation(args: {
     turn,
     now: clockReadableAt({ now, clock: turn }),
     working,
+    turnInFlight: turnDriver.turnInFlight,
     mutations: mutations + delegatedToolCalls,
     contextTokens: used,
     pending: rows,
@@ -467,6 +484,8 @@ export function useConversation(args: {
     compacting,
     handleReportProblem: setFailure,
     handleInterrupt: turnDriver.handleInterrupt,
+    handleInterruptForMove: turnDriver.handleInterruptForMove,
+    whenSettled: turnDriver.whenSettled,
     handleNewConversation,
     handleOpenThread,
     handleChangeDirectory,

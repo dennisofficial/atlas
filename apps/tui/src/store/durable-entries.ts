@@ -261,12 +261,14 @@ export function durableEntries(args: {
     }
 
     if (event.type === 'location-changed') {
+      const text =
+        event.to === 'docker' ? 'docker container' : event.to === 'cloud' ? 'cloud sandbox' : 'host'
       return [
         {
           kind: EEntryKind.LocationChanged,
           author: EAuthor.Model,
           key: event.id,
-          text: event.to === 'docker' ? 'docker container' : 'host',
+          text,
           to: event.to,
         },
       ]

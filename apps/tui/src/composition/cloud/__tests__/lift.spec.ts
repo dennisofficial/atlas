@@ -1,103 +1,17 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  EExecutionLocation,
-  toEventId,
-  toRunId,
-  type Event,
-  type IdPort,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { EExecutionLocation, toRunId, type ThreadId } from '@dltech/atlas-core'
 import { CloudError } from '@dltech/atlas-harness'
 
-import { fakeEventLog, fakeThreadStore, type FakeThreadStore } from '../../__tests__/fake-backend'
+import { fakeEventLog, type FakeThreadStore } from '../../__tests__/fake-backend'
 import { ECloudSandboxState } from '../cloud-bridge'
-import { ELiftFault, ELiftStep, liftToCloud, type LiftArgs } from '../lift'
-import { CLOUD_NOTICE_KEY, NOTHING_WAS_STOPPED } from '../transition-notice'
-import { CLEAN_WORKSPACE, CLOUD_THREAD, fakeBridge, type FakeBridge } from './fixture'
-
-const AT = '2026-09-16T12:00:00.000Z'
-
-let ids = 0
-
-const fakeIds = (): IdPort => ({
-  nextThreadId: () => CLOUD_THREAD,
-  nextRunId: () => toRunId(`run_${(ids += 1)}`),
-  nextEventId: () => {
-    throw new Error('unused')
-  },
-  nextCallId: () => {
-    throw new Error('unused')
-  },
-})
-
-const said = (args: { seq: number; text: string }): Event => ({
-  type: 'user-said',
-  text: args.text,
-  id: toEventId(`event_${args.seq}`),
-  seq: args.seq,
-  threadId: CLOUD_THREAD,
-  runId: toRunId('run_local'),
-  depth: 0,
-  at: AT,
-})
-
-const LOCAL_LOG: readonly Event[] = [
-  said({ seq: 1, text: 'take the linter to zero' }),
-  said({ seq: 2, text: 'and then ship it' }),
-]
-
-type Harness = {
-  args: LiftArgs
-  bridge: FakeBridge
-  localThreads: FakeThreadStore
-  readonly located: readonly EExecutionLocation[]
-  readonly steps: readonly ELiftStep[]
-  readonly stops: number
-}
-
-const harness = (over: Partial<LiftArgs> & { bridge?: FakeBridge } = {}): Harness => {
-  const bridge = over.bridge ?? fakeBridge()
-  const localLog = fakeEventLog([...LOCAL_LOG])
-  const localThreads = fakeThreadStore({ log: localLog, existing: [CLOUD_THREAD] })
-  const located: EExecutionLocation[] = []
-  const steps: ELiftStep[] = []
-  let stops = 0
-
-  const args: LiftArgs = {
-    threadId: CLOUD_THREAD,
-    cwd: '/work',
-    events: LOCAL_LOG,
-    started: true,
-    identity: { workspace: '/work', repo: '/work' },
-    title: null,
-    bridge,
-    localThreads,
-    ids: fakeIds(),
-    setLocation: (location) => located.push(location),
-    stopLocal: async () => {
-      stops += 1
-      return { shells: ['bun run dev'], services: ['api'] }
-    },
-    capture: async () => CLEAN_WORKSPACE,
-    onProgress: (step) => steps.push(step),
-    ...over,
-  }
-
-  return {
-    args,
-    bridge,
-    localThreads,
-    located,
-    steps,
-    get stops() {
-      return stops
-    },
-  }
-}
+import { ELiftFault, ELiftStep, liftToCloud } from '../lift'
+import { CLOUD_NOTICE_KEY } from '../transition-notice'
+import { CLEAN_WORKSPACE, CLOUD_THREAD, fakeBridge } from './fixture'
+import { harness } from './lift-fixture'
 
 describe('lifting a conversation into the cloud', () => {
-  it('transfers the log, flips the thread and only then attaches', async () => {
+  it('stops what is running here, transfers the log, flips the thread and only then attaches', async () => {
     const test = harness()
 
     const lifted = await liftToCloud(test.args)
@@ -105,9 +19,9 @@ describe('lifting a conversation into the cloud', () => {
     expect(lifted.ok).toBe(true)
     expect(test.bridge.trail).toEqual(['transfer', 'sandbox', 'attach'])
     expect(test.steps).toEqual([
+      ELiftStep.Stopping,
       ELiftStep.Transferring,
       ELiftStep.Flipping,
-      ELiftStep.Stopping,
       ELiftStep.Capturing,
       ELiftStep.Starting,
       ELiftStep.Attaching,
@@ -120,9 +34,9 @@ describe('lifting a conversation into the cloud', () => {
     await liftToCloud(test.args)
 
     const transferred = test.bridge.log.peek({ threadId: CLOUD_THREAD })
-    expect(transferred.filter((event) => event.type === 'user-said').map((event) => event.seq)).toEqual([
-      1, 2,
-    ])
+    expect(
+      transferred.filter((event) => event.type === 'user-said').map((event) => event.seq),
+    ).toEqual([1, 2])
   })
 
   it('records the thread as a cloud thread on both sides', async () => {
@@ -193,7 +107,7 @@ describe('lifting a conversation into the cloud', () => {
   })
 
   it('opens the remote thread for a conversation nobody has spoken in, so the sandbox can attach', async () => {
-    const test = harness({ started: false, events: [] })
+    const test = harness({ started: false, localLog: fakeEventLog([]) })
 
     const lifted = await liftToCloud(test.args)
 
@@ -201,110 +115,6 @@ describe('lifting a conversation into the cloud', () => {
     expect(test.bridge.trail).toEqual(['transfer', 'sandbox', 'attach'])
     expect(await test.bridge.threads.find({ threadId: CLOUD_THREAD })).toBeDefined()
     expect(test.localThreads.chosenLocations).toEqual([])
-  })
-})
-
-describe('a lift that does not finish', () => {
-  it('leaves the conversation local when the transfer fails, having stopped nothing', async () => {
-    const threads = fakeThreadStore()
-    const bridge = fakeBridge({ threadStore: threads })
-    bridge.stores.threads.createWithFirstEvents = async () => {
-      throw new CloudError({ status: 500, message: 'the sessions API fell over' })
-    }
-    const test = harness({ bridge })
-
-    const lifted = await liftToCloud(test.args)
-
-    expect(lifted.ok).toBe(false)
-    if (lifted.ok) return
-
-    expect(lifted.fault).toBe(ELiftFault.Transfer)
-    expect(lifted.step).toBe(ELiftStep.Transferring)
-    expect(lifted.stopped).toEqual(NOTHING_WAS_STOPPED)
-    expect(test.located).toEqual([])
-    expect(test.stops).toBe(0)
-    expect(test.bridge.attached).toEqual([])
-  })
-
-  it('puts the conversation back on the host when the sandbox will not start', async () => {
-    const bridge = fakeBridge({
-      createFails: new CloudError({ status: 500, message: 'no capacity in iad1' }),
-    })
-    const test = harness({ bridge })
-
-    const lifted = await liftToCloud(test.args)
-
-    expect(lifted.ok).toBe(false)
-    if (lifted.ok) return
-
-    expect(lifted.fault).toBe(ELiftFault.Sandbox)
-    expect(test.located).toEqual([EExecutionLocation.Cloud, EExecutionLocation.Host])
-    expect(test.localThreads.chosenLocations.at(-1)).toEqual({
-      threadId: CLOUD_THREAD,
-      location: EExecutionLocation.Host,
-    })
-    expect(test.bridge.attached).toEqual([])
-  })
-
-  it('reads a 503 from the sandbox routes as the cloud not being set up', async () => {
-    const bridge = fakeBridge({
-      createFails: new CloudError({ status: 503, message: 'sandboxes are not configured' }),
-    })
-    const test = harness({ bridge })
-
-    const lifted = await liftToCloud(test.args)
-
-    expect(lifted.ok).toBe(false)
-    if (lifted.ok) return
-
-    expect(lifted.fault).toBe(ELiftFault.NotConfigured)
-    expect(lifted.detail).toContain('no sandbox provider configured')
-    expect(lifted.detail).not.toContain('503')
-  })
-
-  it('keeps the real message of a 503 that is not the not-configured one', async () => {
-    const bridge = fakeBridge({
-      createFails: new CloudError({
-        status: 503,
-        message: 'this deployment has no atlas serve binary at /app/atlas-serve',
-      }),
-    })
-    const test = harness({ bridge })
-
-    const lifted = await liftToCloud(test.args)
-
-    expect(lifted.ok).toBe(false)
-    if (lifted.ok) return
-
-    expect(lifted.fault).toBe(ELiftFault.Sandbox)
-    expect(lifted.detail).toContain('no atlas serve binary')
-    expect(lifted.detail).not.toContain('no sandbox provider configured')
-  })
-
-  it('reads an unreachable API as unreachable rather than as a refusal', async () => {
-    const bridge = fakeBridge({
-      createFails: new CloudError({ status: 0, message: 'connect ECONNREFUSED' }),
-    })
-    const test = harness({ bridge })
-
-    const lifted = await liftToCloud(test.args)
-
-    expect(lifted.ok).toBe(false)
-    if (lifted.ok) return
-
-    expect(lifted.fault).toBe(ELiftFault.Unreachable)
-  })
-
-  it('names what the move already closed when it fails after stopping them', async () => {
-    const bridge = fakeBridge({
-      createFails: new CloudError({ status: 500, message: 'no capacity' }),
-    })
-    const test = harness({ bridge })
-
-    const lifted = await liftToCloud(test.args)
-    if (lifted.ok) throw new Error('expected the lift to fail')
-
-    expect(lifted.stopped).toEqual({ shells: ['bun run dev'], services: ['api'] })
   })
 })
 

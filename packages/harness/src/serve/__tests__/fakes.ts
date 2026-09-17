@@ -15,6 +15,7 @@ export type FakeServeApp = ServeApp & {
   appended: EventDraft[]
   forgotten: () => number
   closed: () => boolean
+  adoptions: () => readonly ThreadId[]
 }
 
 const summaryOf = (threadId: ThreadId): ThreadSummary => ({
@@ -37,13 +38,17 @@ export function fakeServeApp(args: {
   entries?: Record<string, readonly { name: string; isDirectory: boolean }[]> | undefined
   runTurn?: RunTurn | undefined
   events?: readonly Event[] | undefined
+  adoptChildren?: ((args: { threadId: ThreadId }) => Promise<readonly ThreadId[]>) | undefined
+  whenChildrenSettled?: (() => Promise<void>) | undefined
 }): FakeServeApp {
   const channel = createDeltaChannel()
   const appended: EventDraft[] = []
   const run = args.runTurn ?? idle
+  const adopt = args.adoptChildren ?? (async () => [])
   let runs = 0
   let forgotten = 0
   let closed = false
+  const adoptions: ThreadId[] = []
 
   return {
     channel,
@@ -84,6 +89,13 @@ export function fakeServeApp(args: {
 
     workspace: { workspace: args.root, repo: null },
 
+    adoptChildren: async (given) => {
+      adoptions.push(given.threadId)
+      return adopt(given)
+    },
+
+    whenChildrenSettled: () => (args.whenChildrenSettled ?? (async () => undefined))(),
+
     close: async () => {
       closed = true
     },
@@ -91,5 +103,6 @@ export function fakeServeApp(args: {
     appended,
     forgotten: () => forgotten,
     closed: () => closed,
+    adoptions: () => adoptions,
   }
 }

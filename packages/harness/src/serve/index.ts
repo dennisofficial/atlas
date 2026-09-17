@@ -7,16 +7,16 @@ import { ETurnStatus, type TurnOutcome } from '../loop/turn-outcome'
 import { createChannelBridge } from './channel-bridge'
 import { composeServeApp } from './compose-serve'
 import { createFrameBuffer, DEFAULT_FRAME_BUFFER, type SignalFrame } from './frame-buffer'
-import { createHeartbeat } from './heartbeat'
+import { createHeartbeat, type Heartbeat } from './heartbeat'
 import {
   ensureWorkspace as materializeWorkspace,
   EWorkspaceState,
   workspaceRefusalOf,
   type EnsureWorkspace,
 } from './materialize-workspace'
-import type { ServeCompose } from './serve-app'
+import type { ServeApp, ServeCompose } from './serve-app'
 import { serveConfig } from './serve-config'
-import { createServeLog, EServeEvent, LoggingNoticePort, type LogWrite } from './serve-log'
+import { createServeLog, EServeEvent, LoggingNoticePort, type LogWrite, type ServeLog } from './serve-log'
 import { startSessionServer } from './session-server'
 import { createSessionHandlers } from './socket-session'
 import { createTurnDriver } from './turn-driver'
@@ -67,6 +67,31 @@ const wireOutcomeOf = (outcome: TurnOutcome): TurnOutcomeWire => {
   return { status: outcome.status, runId: outcome.runId, message: outcome.message }
 }
 
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : 'child adoption failed for a reason it did not name'
+
+function adoptChildrenInBackground(args: {
+  app: Pick<ServeApp, 'adoptChildren' | 'whenChildrenSettled'>
+  threadId: ThreadId
+  log: ServeLog
+  heartbeat: Pick<Heartbeat, 'turnStarted' | 'turnEnded'>
+}): void {
+  void (async () => {
+    const resumed = await args.app.adoptChildren({ threadId: args.threadId })
+    if (resumed.length === 0) return
+
+    args.log({ event: EServeEvent.ChildrenAdopted, agentIds: resumed })
+    args.heartbeat.turnStarted()
+    try {
+      await args.app.whenChildrenSettled({ threadId: args.threadId })
+    } finally {
+      args.heartbeat.turnEnded()
+    }
+  })().catch((error: unknown) => {
+    args.log({ event: EServeEvent.ChildAdoptionFailed, reason: messageOf(error) })
+  })
+}
+
 export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   const env = args.env ?? process.env
   const { threadId, port: wanted, token, controlPlaneUrl, cwd } = serveConfig({ ...args, env })
@@ -111,6 +136,8 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     intervalMs: args.heartbeatIntervalMs,
     onFailure: (reason) => log({ event: EServeEvent.HeartbeatFailed, reason }),
   })
+
+  adoptChildrenInBackground({ app, threadId, log, heartbeat })
 
   let inFlight: () => readonly SignalFrame[] = () => []
   let liveStepId: () => StepId | null = () => null

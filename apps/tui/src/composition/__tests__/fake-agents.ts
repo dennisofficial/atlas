@@ -1,11 +1,14 @@
 import {
   EAgentStatus,
+  EExecutionLocation,
   toThreadId,
   type EventDraft,
   type ProviderIdentity,
   type ThreadId,
 } from '@dltech/atlas-core'
 import { AgentRegistryPort, type AgentSnapshot, type EKilledBy } from '@dltech/atlas-harness'
+
+import type { FakeThreadStore } from './fake-backend'
 
 export const FAKE_AGENT_OWNER = toThreadId('opened-thread')
 
@@ -44,13 +47,18 @@ export type FakeAgents = AgentRegistryPort & {
   refuseSay: (reason: string | null) => void
   readonly stopped: readonly { agentId: string; by: EKilledBy }[]
   readonly said: readonly { agentId: ThreadId; threadId: ThreadId; text: string }[]
+  stopChildren: (args: { threadId: ThreadId; by: EKilledBy }) => Promise<readonly ThreadId[]>
+  markChildrenRelocated: (args: {
+    threadId: ThreadId
+    location: EExecutionLocation
+  }) => Promise<void>
 }
 
 /**
  * A held roster and a change listener, exactly as the supervisor keeps them: the sidebar reads
  * these on every render, so a listing derived per call would spin React.
  */
-export function fakeAgentRegistry(): FakeAgents {
+export function fakeAgentRegistry(args: { threads?: FakeThreadStore | undefined } = {}): FakeAgents {
   const stopped: { agentId: string; by: EKilledBy }[] = []
   const said: { agentId: ThreadId; threadId: ThreadId; text: string }[] = []
   const changeListeners = new Set<() => void>()
@@ -220,6 +228,38 @@ export function fakeAgentRegistry(): FakeAgents {
     },
 
     relocateChildren: () => Promise.resolve([]),
+
+    hydrate: async () => {},
+
+    whenChildrenSettled: async () => {},
+
+    stopChildren: async ({ threadId, by }) => {
+      const mine = owned.get(threadId) ?? NOTHING_LISTED
+      const stepping = mine.filter((one) => one.status === EAgentStatus.Running)
+      if (stepping.length === 0) return []
+
+      const steppingIds = new Set(stepping.map((one) => one.agentId))
+      const next = children.map((one) =>
+        steppingIds.has(one.agentId)
+          ? { ...one, status: EAgentStatus.Stopped, killedBy: by, endedAt: '2026-01-01T00:01:00.000Z' }
+          : one,
+      )
+      const halted = next.filter((one) => steppingIds.has(one.agentId))
+      settle(next)
+      announce([...ended, ...halted])
+      for (const one of halted) stopped.push({ agentId: one.agentId, by })
+
+      return halted.map((one) => one.agentId)
+    },
+
+    markChildrenRelocated: async ({ threadId, location }) => {
+      const mine = owned.get(threadId) ?? NOTHING_LISTED
+      if (mine.length === 0 || args.threads === undefined) return
+
+      for (const child of mine) {
+        await args.threads.chooseExecutionLocation({ threadId: child.agentId, location })
+      }
+    },
 
     closeAll: async () => {},
   }

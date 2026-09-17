@@ -677,7 +677,7 @@ export function fakeApp(args: {
   const ledger = fakeLedger()
   const pending = createPendingQueues<QueuedSettled>()
   const shells = fakeShellRegistry()
-  const agents = fakeAgentRegistry()
+  const agents = fakeAgentRegistry({ threads })
   const services = fakeServiceRegistry()
   const skillRegistry = fakeSkillRegistry({ skills: args.skills ?? [] })
   const runner = new PublishingTurnRunner({

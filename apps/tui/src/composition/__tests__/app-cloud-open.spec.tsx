@@ -29,6 +29,7 @@ const speaking = (): FakeApp =>
 const seedCloudThread = async (): Promise<{ threads: FakeThreadStore; threadId: ThreadId }> => {
   const threads = fakeThreadStore({ log: fakeEventLog() })
   const thread = await threads.create({ workspace: FAKE_CONFIG.cwd, repo: null })
+  await threads.chooseExecutionLocation({ threadId: thread.id, location: EExecutionLocation.Cloud })
   await threads.rename({ threadId: thread.id, title: 'the lifted thread' })
   return { threads, threadId: thread.id }
 }

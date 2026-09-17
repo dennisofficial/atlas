@@ -20,6 +20,9 @@ export type ServeApp = {
   ids: Pick<IdPort, 'nextRunId'>
   files: Pick<FileBrowser, 'list' | 'forget'>
   workspace: WorkspaceIdentity
+  /** Resumes the served thread's transferred children — see adopt-children.ts for why it must. */
+  adoptChildren: (args: { threadId: ThreadId }) => Promise<readonly ThreadId[]>
+  whenChildrenSettled: (args: { threadId: ThreadId }) => Promise<void>
   close: () => Promise<void>
 }
 

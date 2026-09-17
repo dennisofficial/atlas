@@ -1,72 +1,18 @@
 import { describe, expect, it } from 'bun:test'
 
-import React from 'react'
-import { testRender } from '@opentui/react/test-utils'
-
-import { EExecutionLocation, toRunId } from '@dltech/atlas-core'
+import { EAgentStatus, EExecutionLocation, toRunId } from '@dltech/atlas-core'
 import { CloudError, EChannelConnection, ETurnStatus } from '@dltech/atlas-harness'
 
 import { ECloudSandboxState } from '../cloud/cloud-bridge'
 
-import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
-import { App } from '../app'
-import { CLEAN_WORKSPACE, fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
-import type { CloudBridgeFactory, WorkspaceCapture } from '../use-cloud-lift'
-import { editorIn, promiseGate, spokenIn, REPLY, THINKING, THREAD } from './app-fixture'
-import { FAKE_CONFIG, fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
+import { grammarsReady, settle } from '../../ui/markdown/__tests__/harness'
+import { fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
+import { promiseGate, until, THREAD } from './app-fixture'
+import { mount, speaking } from './app-container-cloud-fixture'
+import { FAKE_CONFIG } from './fake-app'
+import { fakeAgentSnapshot } from './fake-agents'
 
 await grammarsReady()
-
-const DIRTY: WorkspaceCapture = async () => ({
-  ...CLEAN_WORKSPACE,
-  patch: 'diff --git a/src/app.ts b/src/app.ts\n',
-})
-
-const speaking = (): FakeApp =>
-  fakeApp({ model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }) })
-
-const mount = async (args: { app: FakeApp; bridge: FakeBridge }) => {
-  const createBridge: CloudBridgeFactory = () => args.bridge
-  const setup = await testRender(
-    <App
-      app={args.app}
-      opened={await spokenIn(args.app)}
-      createBridge={createBridge}
-      captureWorkspace={DIRTY}
-    />,
-    { width: 140, height: 40 },
-  )
-
-  const frame = async (): Promise<string> => {
-    await setup.flush()
-    await settle(250)
-    await setup.flush()
-    return setup.captureCharFrame()
-  }
-
-  return {
-    frame,
-    run: async (argument: string) => {
-      await setup.mockInput.typeText(`/container ${argument}`)
-      setup.mockInput.pressEnter()
-      return frame()
-    },
-    command: async (text: string) => {
-      await setup.mockInput.typeText(text)
-      setup.mockInput.pressEnter()
-      return frame()
-    },
-    say: async (text: string) => {
-      await setup.mockInput.typeText(text)
-      setup.mockInput.pressEnter()
-      return frame()
-    },
-    typeText: (text: string) => setup.mockInput.typeText(text),
-    pressEscape: () => setup.mockInput.pressEscape(),
-    draftText: () => editorIn(setup.renderer.root)?.plainText ?? null,
-    done: () => teardown(setup),
-  }
-}
 
 describe('/container cloud', () => {
   it('transfers, marks the thread cloud and attaches, carrying the workspace with it', async () => {
@@ -244,6 +190,34 @@ describe('the move overview', () => {
 
       await mounted.typeText('back in command')
       expect(mounted.draftText()).toBe('back in command')
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('does not wake a local turn when the move stops a stepping child', async () => {
+    const app = speaking()
+    app.agents.place(
+      fakeAgentSnapshot({
+        agentId: 'child-1',
+        spawnedBy: THREAD,
+        status: EAgentStatus.Running,
+      }),
+    )
+    const bridge = fakeBridge()
+    const { release } = gated(bridge)
+    const mounted = await mount({ app, bridge })
+
+    try {
+      await mounted.run('cloud')
+      const stopped = await until({ holds: async () => app.agents.stopped.length === 1, within: 20_000 })
+      expect(stopped).toBe(true)
+
+      await settle(400)
+      expect(app.turnsDriven).toBe(0)
+
+      release()
+      expect(await mounted.frame()).not.toContain('MOVING TO THE CLOUD')
     } finally {
       await mounted.done()
     }

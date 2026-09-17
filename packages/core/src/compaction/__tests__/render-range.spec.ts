@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EExecutionLocation } from '../../execution/location'
 import { transcriptOfRange } from '../render-range'
 import {
   called,
@@ -7,6 +8,7 @@ import {
   denied,
   eventsFrom,
   loaded,
+  movedLocation,
   replied,
   resulted,
   resultedWith,
@@ -65,6 +67,26 @@ describe('transcriptOfRange', () => {
     const events = eventsFrom([resultedWith('call-1', 'x'.repeat(5_000))])
 
     expect(transcriptOfRange({ events, throughSeq: 1 }).length).toBeLessThan(1_000)
+  })
+
+  it('renders a move to the cloud as a cloud sandbox, not the host', () => {
+    const events = eventsFrom([
+      movedLocation({ from: EExecutionLocation.Host, to: EExecutionLocation.Cloud }),
+    ])
+
+    expect(transcriptOfRange({ events, throughSeq: 1 })).toBe(
+      "Atlas moved this conversation's processing to a cloud sandbox — earlier tool results came from the host",
+    )
+  })
+
+  it('renders a move away from the cloud with the cloud on the from side', () => {
+    const events = eventsFrom([
+      movedLocation({ from: EExecutionLocation.Cloud, to: EExecutionLocation.Docker }),
+    ])
+
+    expect(transcriptOfRange({ events, throughSeq: 1 })).toBe(
+      "Atlas moved this conversation's processing to a Docker container — earlier tool results came from a cloud sandbox",
+    )
   })
 
   it('drops tool lines when only prose is wanted, keeping speech and summaries', () => {
