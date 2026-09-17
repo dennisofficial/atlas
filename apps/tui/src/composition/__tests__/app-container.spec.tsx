@@ -142,6 +142,23 @@ describe('the container command', () => {
     }
   }, 60_000)
 
+  it('shows the location marker as soon as the move settles, without waiting for a turn', async () => {
+    const app = speaking()
+    const mounted = await open({ app, opened: await spokenIn(app) })
+
+    try {
+      expect(await mounted.frame()).not.toContain('docker container')
+
+      await switchTo(mounted, 'docker')
+      expect(await mounted.frame()).toContain('docker container')
+
+      await switchTo(mounted, 'off')
+      expect(await mounted.frame()).toContain(' host ')
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
   it('narrates the move and holds the composer until the session is relocated', async () => {
     const app = speaking()
     const mounted = await open({ app, opened: await spokenIn(app) })

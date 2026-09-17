@@ -829,6 +829,7 @@ function Workspace(props: {
       })
         .then((moved) => {
           containerMove.handleSettle()
+          void conversation.refresh()
           notify({
             key: 'container-switch',
             tone: ENoticeTone.Warn,
@@ -856,6 +857,7 @@ function Workspace(props: {
       cloudLift,
       containerBlockers,
       containerMove,
+      conversation.refresh,
       conversation.threadId,
       conversation.started,
       execution,
