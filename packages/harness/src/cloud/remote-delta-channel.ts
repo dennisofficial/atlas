@@ -58,6 +58,7 @@ export type RemoteDeltaChannel = DeltaChannel & {
   onReload(listener: (reload: ChannelReload) => void): Unsubscribe
   onTurnEnded(listener: (outcome: TurnOutcome) => void): Unsubscribe
   onError(listener: (failure: ChannelFailure) => void): Unsubscribe
+  onServerError(listener: (failure: ChannelFailure) => void): Unsubscribe
   wake(args: { url: string; token: string }): void
   close(): void
 }
@@ -114,6 +115,7 @@ export function createRemoteDeltaChannel(args: {
   const reloads = registryOf<ChannelReload>()
   const turnEndings = registryOf<TurnOutcome>()
   const failures = registryOf<ChannelFailure>()
+  const serverErrors = registryOf<ChannelFailure>()
   const upstream = createUpstreamPipe({
     timeoutMs: args.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
     scheduleTimeout: args.scheduleTimeout ?? afterDelay,
@@ -224,7 +226,10 @@ export function createRemoteDeltaChannel(args: {
       turnEndings.emit(turnOutcomeFromWire(frame.outcome))
       return
     }
-    if (frame.kind === EServeFrame.Error) failures.emit({ message: frame.message })
+    if (frame.kind === EServeFrame.Error) {
+      failures.emit({ message: frame.message })
+      serverErrors.emit({ message: frame.message })
+    }
   }
 
   const handleOpen = () => {
@@ -279,25 +284,20 @@ export function createRemoteDeltaChannel(args: {
 
   const connect = () => {
     if (abandoned) return
-    const mine: ChannelSocket = socketFactory({
+    let mine: ChannelSocket | null = null
+    const guarded = <A extends unknown[]>(handler: (...args: A) => void) =>
+      (...args: A) => {
+        if (mine !== null && socket === mine) handler(...args)
+      }
+    mine = socketFactory({
       url: sessionSocketUrlOf(url),
       protocols: [CHANNEL_SUBPROTOCOL, bearerSubprotocolOf(token)],
       handlers: {
-        handleOpen: () => {
-          if (socket === mine) handleOpen()
-        },
-        handleMessage: (data) => {
-          if (socket === mine) handleMessage(data)
-        },
-        handlePing: () => {
-          if (socket === mine) handlePing()
-        },
-        handleClose: () => {
-          if (socket === mine) handleClose()
-        },
-        handleError: (message) => {
-          if (socket === mine) handleError(message)
-        },
+        handleOpen: guarded(() => handleOpen()),
+        handleMessage: guarded((data: string) => handleMessage(data)),
+        handlePing: guarded(() => handlePing()),
+        handleClose: guarded(() => handleClose()),
+        handleError: guarded((message: string) => handleError(message)),
       },
     })
     socket = mine
@@ -345,6 +345,8 @@ export function createRemoteDeltaChannel(args: {
     onTurnEnded: (listener) => turnEndings.add(listener),
 
     onError: (listener) => failures.add(listener),
+
+    onServerError: (listener) => serverErrors.add(listener),
 
     wake({ url: nextUrl, token: nextToken }) {
       if (abandoned) return

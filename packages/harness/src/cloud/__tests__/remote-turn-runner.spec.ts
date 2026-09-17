@@ -83,6 +83,55 @@ describe('a turn driven over the session socket', () => {
 
     await expect(runner.runTurn({ threadId: OTHER_THREAD })).rejects.toThrow()
   })
+
+  it('fails the turn when the sandbox itself refuses it', async () => {
+    const { channel, open, receive } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
+
+    const turn = runner.runTurn({ threadId: THREAD })
+    receive({ kind: EServeFrame.Error, message: 'the workspace failed at git apply' })
+
+    await expect(turn).rejects.toThrow('the workspace failed at git apply')
+  })
+
+  it('keeps the turn through a transport error the channel will retry', async () => {
+    const { channel, open, receive, live } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
+
+    const turn = runner.runTurn({ threadId: THREAD })
+    live().handlers.handleError('socket jitter')
+
+    let settled = false
+    void turn.then(
+      () => void (settled = true),
+      () => void (settled = true),
+    )
+    await Bun.sleep(1)
+    expect(settled).toBe(false)
+
+    endTurn(receive, completed('run-1'))
+    await expect(turn).resolves.toEqual(completed('run-1'))
+  })
+
+  it('interrupts nothing when an abort lands after the turn settled', async () => {
+    const { channel, open, receive, live } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
+    const controller = new AbortController()
+
+    const turn = runner.runTurn({ threadId: THREAD, signal: controller.signal })
+    endTurn(receive, completed('run-1'))
+    await expect(turn).resolves.toEqual(completed('run-1'))
+
+    const sentBefore = live().sent.length
+    controller.abort()
+    expect(live().sent).toHaveLength(sentBefore)
+  })
 })
 
 describe('a turn asked of a sandbox that is asleep', () => {

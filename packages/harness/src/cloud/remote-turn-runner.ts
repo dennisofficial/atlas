@@ -31,7 +31,7 @@ export class RemoteTurnRunner extends TurnRunner {
       if (connection.state !== EChannelConnection.Closed) return
       this.failAll(connection.detail ?? 'The session socket closed mid-turn.')
     })
-    this.channel.onError((failure) => {
+    this.channel.onServerError((failure) => {
       this.waiters.shift()?.reject(new Error(failure.message))
     })
   }
@@ -56,11 +56,20 @@ export class RemoteTurnRunner extends TurnRunner {
     if (args.threadId !== this.channel.threadId) {
       throw new Error(`this runner serves ${this.channel.threadId}, not ${args.threadId}`)
     }
-    if (this.channel.connection().state !== EChannelConnection.Open) await this.wake()
+
+    const state = this.channel.connection().state
+    if (state === EChannelConnection.Closed || state === EChannelConnection.Parked) {
+      await this.wake()
+    }
 
     return new Promise<TurnOutcome>((resolve, reject) => {
-      this.waiters.push({ resolve, reject })
-      args.signal?.addEventListener('abort', () => this.channel.interrupt())
+      const interrupt = () => this.channel.interrupt()
+      const settle = <T>(done: (value: T) => void) => (value: T) => {
+        args.signal?.removeEventListener('abort', interrupt)
+        done(value)
+      }
+      this.waiters.push({ resolve: settle(resolve), reject: settle(reject) })
+      args.signal?.addEventListener('abort', interrupt)
       args.fire()
     })
   }

@@ -26,10 +26,6 @@ const reads = (rows: readonly ThreadSummary[], fail = false) => ({
     if (fail) throw new Error('the cloud is unreachable')
     return rows
   },
-  mostRecent: async (): Promise<ThreadSummary | undefined> => {
-    if (fail) throw new Error('the cloud is unreachable')
-    return rows[0]
-  },
   find: async (args: { threadId: ThreadId }): Promise<ThreadSummary | undefined> => {
     if (fail) throw new Error('the cloud is unreachable')
     return rows.find((row) => row.id === args.threadId)
@@ -72,18 +68,6 @@ describe('listing threads across host and cloud', () => {
     const rows = await listing.list({ project: PROJECT, limit: 2 })
 
     expect(rows.map((row) => row.id)).toEqual([toThreadId('thr_a'), toThreadId('thr_c')])
-  })
-
-  it('answers the most recent thread across both stores', async () => {
-    const listing = mergedThreadListing({
-      local: reads([row('thr_old', '2026-09-15T10:00:00.000Z')]),
-      remote: reads([row('thr_new', '2026-09-16T10:00:00.000Z')]),
-    })
-
-    const recent = await listing.mostRecent({ project: PROJECT })
-
-    expect(recent?.id).toBe(toThreadId('thr_new'))
-    expect(recent?.executionLocation).toBe(EExecutionLocation.Cloud)
   })
 
   it('finds a cloud thread it is asked for, and a host thread the cloud never heard of', async () => {

@@ -2,11 +2,10 @@ import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
 
 import type { ThreadStorePort, ThreadSummary } from '../store/thread-store'
 
-type ThreadReads = Pick<ThreadStorePort, 'list' | 'mostRecent' | 'find'>
+type ThreadReads = Pick<ThreadStorePort, 'list' | 'find'>
 
 export type MergedThreadListing = {
   list(args: { project: string; limit?: number | undefined }): Promise<readonly ThreadSummary[]>
-  mostRecent(args: { project: string }): Promise<ThreadSummary | undefined>
   find(args: { threadId: ThreadId }): Promise<ThreadSummary | undefined>
 }
 
@@ -53,11 +52,6 @@ export function mergedThreadListing(args: {
       const remoteRows = await remoteOr({ remote: () => remote.list({ project }), fallback: [] })
       const localRows = await local.list({ project, ...(limit === undefined ? {} : { limit }) })
       return union({ local: localRows, remote: remoteRows, ...(limit === undefined ? {} : { limit }) })
-    },
-
-    async mostRecent({ project }) {
-      const rows = await this.list({ project, limit: 1 })
-      return rows[0]
     },
 
     async find({ threadId }) {

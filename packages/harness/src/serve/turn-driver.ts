@@ -85,7 +85,6 @@ export function createTurnDriver(args: {
       turning = runUntilQuiet()
     },
 
-    /** The caller already committed what it said, so a run only drives the loop from the log head. */
     run() {
       const refused = args.refusal?.()
       if (refused !== undefined) throw new Error(refused)
