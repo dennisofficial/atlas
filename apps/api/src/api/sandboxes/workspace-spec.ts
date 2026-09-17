@@ -41,6 +41,15 @@ export function workspaceColumnsOf(spec: SandboxWorkspaceSpec | undefined): Work
   }
 }
 
+export function workspaceColumnsIn(row: CloudSandboxModel): WorkspaceColumns {
+  return {
+    workspaceRemoteUrl: row.workspaceRemoteUrl,
+    workspaceBranch: row.workspaceBranch,
+    workspaceCommit: row.workspaceCommit,
+    workspacePatch: row.workspacePatch,
+  }
+}
+
 export function workspaceSpecOf(row: CloudSandboxModel): SandboxWorkspaceSpec {
   return {
     remoteUrl: row.workspaceRemoteUrl,

@@ -174,6 +174,8 @@ describe('SandboxesService', () => {
     expect(attached.state).toBe(ESandboxState.Resuming)
     expect(attached.url).toBeUndefined()
     expect(attached.token).toBeDefined()
+
+    await vi.waitFor(() => expect(client.getOrCreate).toHaveBeenCalledTimes(1))
     expect(fake.cloudSandboxes[0]?.state).toBe(ESandboxState.Parked)
 
     releaseCreate?.()
@@ -182,7 +184,7 @@ describe('SandboxesService', () => {
     expect(fake.cloudSandboxes[0]?.state).toBe(ESandboxState.Running)
   })
 
-  it('keeps a second attach from starting its claim until the first attach settles', async () => {
+  it('answers a second attach promptly while its re-provision queues behind the first', async () => {
     let releaseCreate: (() => void) | undefined
     const gate = new Promise<void>((resolve) => {
       releaseCreate = resolve
@@ -199,22 +201,19 @@ describe('SandboxesService', () => {
     const first = await service.attach({ userId: USER_A, threadId: THREAD })
     expect(first.state).toBe(ESandboxState.Resuming)
 
-    let secondClaimed = false
-    const second = service.attach({ userId: USER_A, threadId: THREAD }).then((result) => {
-      secondClaimed = true
-      return result
-    })
-
     await vi.waitFor(() => expect(client.getOrCreate).toHaveBeenCalledTimes(1))
-    expect(secondClaimed).toBe(false)
+
+    const second = await service.attach({ userId: USER_A, threadId: THREAD })
+    expect(second.state).toBe(ESandboxState.Resuming)
+    expect(second.token).not.toBe(first.token)
     expect(client.destroy).not.toHaveBeenCalled()
 
     releaseCreate?.()
-    const secondAttached = await second
+    await service.whenSettled({ threadId: THREAD })
 
-    expect(secondClaimed).toBe(true)
     expect(client.destroy).toHaveBeenCalledTimes(1)
-    expect(secondAttached.token).not.toBe(first.token)
+    expect(client.getOrCreate).toHaveBeenCalledTimes(2)
+    expect(fake.cloudSandboxes).toHaveLength(1)
   })
 
   it('serializes two concurrent attaches and re-provisions for the second', async () => {
@@ -222,6 +221,7 @@ describe('SandboxesService', () => {
       service.attach({ userId: USER_A, threadId: THREAD }),
       service.attach({ userId: USER_A, threadId: THREAD }),
     ])
+    await service.whenSettled({ threadId: THREAD })
 
     expect(fake.cloudSandboxes).toHaveLength(1)
     expect(client.getOrCreate).toHaveBeenCalledTimes(2)
@@ -229,7 +229,7 @@ describe('SandboxesService', () => {
     expect(attached.every((one) => one.token !== undefined)).toBe(true)
   })
 
-  it('never starts the second attach until the first finishes provisioning', async () => {
+  it('never starts the second re-provision until the first finishes provisioning', async () => {
     let releaseFirst: (() => void) | undefined
     const gate = new Promise<void>((resolve) => {
       releaseFirst = resolve
@@ -243,14 +243,14 @@ describe('SandboxesService', () => {
       }
     })
 
-    const first = service.attach({ userId: USER_A, threadId: THREAD })
-    const second = service.attach({ userId: USER_A, threadId: THREAD })
+    const firstAttached = await service.attach({ userId: USER_A, threadId: THREAD })
+    const secondAttached = await service.attach({ userId: USER_A, threadId: THREAD })
 
     await vi.waitFor(() => expect(client.getOrCreate).toHaveBeenCalledTimes(1))
     expect(client.destroy).not.toHaveBeenCalled()
 
     releaseFirst?.()
-    const [firstAttached, secondAttached] = await Promise.all([first, second])
+    await service.whenSettled({ threadId: THREAD })
 
     expect(client.getOrCreate).toHaveBeenCalledTimes(2)
     expect(client.destroy).toHaveBeenCalledTimes(1)
@@ -282,6 +282,7 @@ describe('SandboxesService', () => {
   it('returns a fresh token on every attach and stores only its hash', async () => {
     const first = await service.attach({ userId: USER_A, threadId: THREAD })
     const token = first.token
+    await service.whenSettled({ threadId: THREAD })
 
     expect(token).toBeDefined()
     expect(fake.cloudSandboxes[0]?.tokenHash).toBe(
@@ -292,6 +293,7 @@ describe('SandboxesService', () => {
     expect(JSON.stringify(fake.cloudSandboxes[0])).not.toContain(token)
 
     const second = await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
     expect(second.token).toBeDefined()
     expect(second.token).not.toBe(token)
     expect(fake.cloudSandboxes[0]?.tokenHash).toBe(
@@ -318,6 +320,7 @@ describe('SandboxesService', () => {
 
   it('reports the live state for the sidebar', async () => {
     await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
 
     const status = await service.status({ userId: USER_A, threadId: THREAD })
 
@@ -339,6 +342,7 @@ describe('SandboxesService', () => {
 
   it('bumps activity on an authenticated heartbeat and rejects a wrong token', async () => {
     const attached = await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
     fake.cloudSandboxes[0]!.lastActivityAt = '2026-09-16T00:00:00.000Z'
 
     await service.verifySessionToken({ threadId: THREAD, token: attached.token as string })
@@ -395,6 +399,7 @@ describe('SandboxesService', () => {
 
   it('carries the workspace spec from create through to the sandbox fetch', async () => {
     await service.attach({ userId: USER_A, threadId: THREAD, workspace: SPEC })
+    await service.whenSettled({ threadId: THREAD })
 
     expect(fake.cloudSandboxes[0]?.workspaceCommit).toBe(SPEC.commit)
     await expect(service.workspace({ threadId: THREAD })).resolves.toEqual({
@@ -404,8 +409,25 @@ describe('SandboxesService', () => {
     expect(github.findToken).toHaveBeenCalledWith({ userId: USER_A })
   })
 
+  it('keeps the stored workspace when a re-attach sends none', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD, workspace: SPEC })
+    await service.whenSettled({ threadId: THREAD })
+
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+
+    expect(fake.cloudSandboxes).toHaveLength(1)
+    expect(fake.cloudSandboxes[0]?.workspaceCommit).toBe(SPEC.commit)
+    expect(fake.cloudSandboxes[0]?.workspacePatch).toBe(SPEC.patch)
+    await expect(service.workspace({ threadId: THREAD })).resolves.toMatchObject({
+      commit: SPEC.commit,
+      patch: SPEC.patch,
+    })
+  })
+
   it('never writes the git credential onto the sandbox row', async () => {
     await service.attach({ userId: USER_A, threadId: THREAD, workspace: SPEC })
+    await service.whenSettled({ threadId: THREAD })
     await service.workspace({ threadId: THREAD })
 
     expect(JSON.stringify(fake.cloudSandboxes[0])).not.toContain('gho_user-token')
@@ -414,6 +436,7 @@ describe('SandboxesService', () => {
   it('answers a spec without a token when github is not connected', async () => {
     github.findToken.mockResolvedValueOnce(undefined as unknown as string)
     await service.attach({ userId: USER_A, threadId: THREAD, workspace: SPEC })
+    await service.whenSettled({ threadId: THREAD })
 
     await expect(service.workspace({ threadId: THREAD })).resolves.toMatchObject({
       githubToken: null,
@@ -422,6 +445,7 @@ describe('SandboxesService', () => {
 
   it('treats a session with no repo as a workspace-less one and asks github for nothing', async () => {
     await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
 
     await expect(service.workspace({ threadId: THREAD })).resolves.toEqual({
       remoteUrl: null,
@@ -450,9 +474,11 @@ describe('SandboxesService', () => {
 
   it('destroys the sandbox the row points at before re-provisioning', async () => {
     const first = await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
     const name = fake.cloudSandboxes[0]?.name
 
     const attached = await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
 
     expect(client.destroy).toHaveBeenCalledWith({ name })
     expect(attached.token).toBeDefined()
@@ -466,15 +492,20 @@ describe('SandboxesService', () => {
     )
   })
 
-  it('keeps the row and propagates when destroying the old sandbox fails', async () => {
+  it('keeps the row and reports the reason when destroying the old sandbox fails', async () => {
     await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
     client.destroy.mockRejectedValueOnce(new BadGatewayException('vercel is unhappy'))
 
-    await expect(service.attach({ userId: USER_A, threadId: THREAD })).rejects.toThrow(
-      'vercel is unhappy',
-    )
+    const attached = await service.attach({ userId: USER_A, threadId: THREAD })
+    expect(attached.state).toBe(ESandboxState.Resuming)
+
+    await service.whenSettled({ threadId: THREAD })
     expect(fake.cloudSandboxes).toHaveLength(1)
     expect(client.getOrCreate).toHaveBeenCalledTimes(1)
+    await expect(service.status({ userId: USER_A, threadId: THREAD })).rejects.toThrow(
+      'vercel is unhappy',
+    )
   })
 
   it('deletes the row when the background provision fails, without rejecting the attach response', async () => {
@@ -487,9 +518,14 @@ describe('SandboxesService', () => {
 
     await service.whenSettled({ threadId: THREAD })
     expect(fake.cloudSandboxes).toHaveLength(0)
+    await expect(service.status({ userId: USER_A, threadId: THREAD })).rejects.toThrow(
+      'vercel is unhappy',
+    )
 
     const retried = await service.attach({ userId: USER_A, threadId: THREAD })
     expect(retried.token).toBeDefined()
+    await service.whenSettled({ threadId: THREAD })
+    await expect(service.status({ userId: USER_A, threadId: THREAD })).resolves.toBeDefined()
   })
 
   it('tolerates an HttpException from the client during background provisioning too', async () => {
