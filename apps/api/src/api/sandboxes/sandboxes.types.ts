@@ -14,7 +14,6 @@ export interface SandboxStatusDto {
 }
 
 export interface SandboxAttachmentDto extends SandboxStatusDto {
-  url: string
   token: string
 }
 

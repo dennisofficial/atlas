@@ -388,6 +388,70 @@ describe('startServe', () => {
     ).toBe(true)
   })
 
+  it('runs a turn from the log head on a run frame, commits nothing, and answers with the outcome', async () => {
+    const { handle, app } = await start({
+      runTurn: async () => ({ status: ETurnStatus.Completed, runId: toRunId('run-1') }),
+    })
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    client.send({ kind: EClientFrame.Run })
+    const ended = await client.waitFor((frame) => frame.kind === EServeFrame.TurnEnded)
+
+    expect(ended).toEqual({
+      kind: EServeFrame.TurnEnded,
+      outcome: { status: ETurnStatus.Completed, runId: toRunId('run-1') },
+    })
+    expect(app.appended).toEqual([])
+  })
+
+  it('runs a queued turn again when a run frame arrives mid-turn', async () => {
+    const held = gate()
+    let turns = 0
+    const { handle } = await start({
+      runTurn: async () => {
+        turns += 1
+        if (turns === 1) await held.opened
+        return { status: ETurnStatus.Completed, runId: toRunId(`run-${turns}`) }
+      },
+    })
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    client.send({ kind: EClientFrame.Run })
+    await Bun.sleep(10)
+    client.send({ kind: EClientFrame.Run })
+    held.open()
+
+    await client.waitFor(
+      (frame) => frame.kind === EServeFrame.TurnEnded && frame.outcome.runId === 'run-2',
+    )
+    expect(turns).toBe(2)
+  })
+
+  it('refuses a run frame when the workspace failed to materialize', async () => {
+    const { handle } = await start({
+      workspace: {
+        state: EWorkspaceState.Failed,
+        step: EWorkspaceStep.Clone,
+        reason: 'fatal: repository not found',
+      },
+    })
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+    await client.waitFor((frame) => frame.kind === EServeFrame.Error)
+
+    client.send({ kind: EClientFrame.Run })
+    const refusal = await client.waitFor((frame) => frame.kind === EServeFrame.Error)
+    expect(JSON.stringify(refusal)).toContain('fatal: repository not found')
+  })
+
   it('interrupts the turn a client asked it to stop', async () => {
     let aborted = false
     const { handle } = await start({

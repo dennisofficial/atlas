@@ -26,6 +26,7 @@ export type MoveStep = {
 export type ContainerMove = {
   target: EExecutionLocation
   steps: readonly MoveStep[]
+  heading?: string | undefined
   startedAt: number
   activeSince: number
   failure: string | null
@@ -56,6 +57,10 @@ const LOCAL_PLAN: readonly MoveStepId[] = [
   ELocalMoveStep.Relocating,
 ]
 
+export const WAKE_PLAN: readonly MoveStepId[] = [ELiftStep.Starting, ELiftStep.Attaching]
+
+export const WAKE_HEADING = 'WAKING THE SANDBOX'
+
 const planFor = (target: EExecutionLocation): readonly MoveStepId[] =>
   target === EExecutionLocation.Cloud ? CLOUD_PLAN : LOCAL_PLAN
 
@@ -65,12 +70,19 @@ const stepOf = (args: { id: MoveStepId; mark: EStepMark }): MoveStep => ({
   mark: args.mark,
 })
 
-export function beginMove(args: { target: EExecutionLocation; now: number }): ContainerMove {
+export function beginMove(args: {
+  target: EExecutionLocation
+  now: number
+  plan?: readonly MoveStepId[] | undefined
+  heading?: string | undefined
+}): ContainerMove {
+  const plan = args.plan ?? planFor(args.target)
   return {
     target: args.target,
-    steps: planFor(args.target).map((id, index) =>
+    steps: plan.map((id, index) =>
       stepOf({ id, mark: index === 0 ? EStepMark.Active : EStepMark.Pending }),
     ),
+    ...(args.heading === undefined ? {} : { heading: args.heading }),
     startedAt: args.now,
     activeSince: args.now,
     failure: null,

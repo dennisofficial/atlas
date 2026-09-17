@@ -158,6 +158,8 @@ import { createCloudBridge } from './cloud/create-bridge'
 import { createCloudSession, type CloudSession } from './cloud/cloud-session'
 import { liftRefusal } from './cloud/lift-plan'
 import { openCloudConversation } from './cloud/cloud-app'
+import type { CloudBridge } from './cloud/cloud-bridge'
+import { useThreadRouter } from './use-thread-router'
 import type { CloudBridgeFactory, WorkspaceCapture } from './use-cloud-lift'
 import { useCloudLift } from './use-cloud-lift'
 import { captureWorkspace } from './cloud/workspace-snapshot'
@@ -226,6 +228,7 @@ export function App(props: {
 }): React.ReactNode {
   const registry = useMemo(() => createKeyRegistry(), [])
   const [lifted, setLifted] = useState<LiftedSession | null>(null)
+  const [reopened, setReopened] = useState<OpenedConversation | null>(null)
   const held = useRef<LiftedSession | null>(null)
   held.current = lifted
 
@@ -260,16 +263,29 @@ export function App(props: {
     [handleReload],
   )
 
+  const handleDescend = useCallback((opened: OpenedConversation) => {
+    held.current?.session.close()
+    setLifted(null)
+    setReopened(opened)
+  }, [])
+
   return (
     <KeyRegistryContext.Provider value={registry}>
       <Workspace
-        key={lifted === null ? 'local' : `cloud:${lifted.opened.threadId}:${lifted.reloads}`}
+        key={
+          lifted === null
+            ? `local:${reopened?.threadId ?? 'boot'}`
+            : `cloud:${lifted.opened.threadId}:${lifted.reloads}`
+        }
         app={lifted?.app ?? props.app}
-        opened={lifted?.opened ?? props.opened}
+        localApp={props.app}
+        opened={lifted?.opened ?? reopened ?? props.opened}
         cloudSession={lifted?.session ?? null}
+        cloudBridge={lifted?.bridge ?? null}
         createBridge={props.createBridge ?? liveBridge}
         captureWorkspace={props.captureWorkspace ?? captureWorkspace}
         onLifted={handleLifted}
+        onDescend={handleDescend}
         credentialNotice={props.credentialNotice ?? null}
         covered={props.covered === true}
         clipboard={props.clipboard ?? readClipboardImage}
@@ -281,15 +297,18 @@ export function App(props: {
 
 function Workspace(props: {
   app: AtlasApp
+  localApp: AtlasApp
   opened: OpenedConversation
   credentialNotice: string | null
   covered: boolean
   clipboard: ClipboardImageReader
   onRestart: (() => void) | null
   cloudSession: CloudSession | null
+  cloudBridge: CloudBridge | null
   createBridge: CloudBridgeFactory
   captureWorkspace: WorkspaceCapture
   onLifted: (attachment: LiftedAttachment) => void
+  onDescend: (opened: OpenedConversation) => void
 }): React.ReactNode {
   const renderer = useRenderer()
   const restarting = useRef(false)
@@ -541,12 +560,14 @@ function Workspace(props: {
     configureNotices({ ttlMs: settings.noticeSeconds * 1000 })
   }, [settings.noticeSeconds])
 
+  const routeRef = useRef<(threadId: string) => void>(() => undefined)
+
   const handleOpenThread = useCallback(
     (threadId: string) => {
       draft.clear()
-      conversation.handleOpenThread(threadId)
+      routeRef.current(threadId)
     },
-    [conversation, draft],
+    [draft],
   )
 
   const agentView = useAgentView({
@@ -613,10 +634,31 @@ function Workspace(props: {
   const chromeWidth = chromeWidthOf({ width, sidebarWidth, docked })
   const composerWidth = welcome ? welcomeCells({ width: chromeWidth }) : chromeWidth
 
+  const containerMove = useContainerMove()
+
+  const router = useThreadRouter({
+    localApp: props.localApp,
+    cloudBridge: props.cloudBridge,
+    cloudSession: props.cloudSession,
+    createBridge: props.createBridge,
+    containerMove,
+    working: conversation.working,
+    activeThreadId: conversation.threadId,
+    opened: props.opened,
+    onLifted: props.onLifted,
+    onDescend: props.onDescend,
+    onLocalSwap: conversation.handleOpenThread,
+  })
+
+  useEffect(() => {
+    routeRef.current = router.handleOpen
+  }, [router])
+
   const threads = useThreads({
     app: props.app,
     activeThreadId: conversation.threadId,
     onPick: handleOpenThread,
+    listing: router.listing,
   })
 
   /**
@@ -781,8 +823,6 @@ function Workspace(props: {
     [conversation.threadId, props.app],
   )
 
-  const containerMove = useContainerMove()
-
   const cloudLift = useCloudLift({
     app: props.app,
     threadId: conversation.threadId,
@@ -803,7 +843,7 @@ function Workspace(props: {
         return
       }
 
-      containerMove.handleBegin(target)
+      containerMove.handleBegin({ target })
       const threadId = conversation.threadId
       for (const shell of containerBlockers()) {
         props.app.shells.kill({ shellId: shell.shellId, by: EKilledBy.ContainerSwitch, threadId })

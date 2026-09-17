@@ -2,6 +2,7 @@ import type { ThreadId } from '@dltech/atlas-core'
 
 import type { ChannelListener, DeltaChannel, Unsubscribe } from '../channel/delta-channel'
 import { EStepEnd, type ChannelSignal, type StepId, type StepSignal } from '../channel/signal'
+import type { TurnOutcome } from '../loop/turn-outcome'
 import {
   bearerSubprotocolOf,
   CHANNEL_SUBPROTOCOL,
@@ -10,6 +11,7 @@ import {
   type EClientRequest,
   encodeFrame,
   EServeFrame,
+  turnOutcomeFromWire,
   type ServeFrame,
 } from './channel-wire'
 import {
@@ -48,12 +50,16 @@ export type ChannelFailure = { message: string }
 export type RemoteDeltaChannel = DeltaChannel & {
   readonly threadId: ThreadId
   send(args: { text: string }): void
+  run(): void
   interrupt(): void
   request(args: { op: EClientRequest; params: unknown }): Promise<unknown>
   connection(): ChannelConnection
   onConnection(listener: (connection: ChannelConnection) => void): Unsubscribe
   onReload(listener: (reload: ChannelReload) => void): Unsubscribe
+  onTurnEnded(listener: (outcome: TurnOutcome) => void): Unsubscribe
   onError(listener: (failure: ChannelFailure) => void): Unsubscribe
+  onServerError(listener: (failure: ChannelFailure) => void): Unsubscribe
+  wake(args: { url: string; token: string }): void
   close(): void
 }
 
@@ -107,7 +113,9 @@ export function createRemoteDeltaChannel(args: {
   const listeners = new Set<ChannelListener>()
   const connections = registryOf<ChannelConnection>()
   const reloads = registryOf<ChannelReload>()
+  const turnEndings = registryOf<TurnOutcome>()
   const failures = registryOf<ChannelFailure>()
+  const serverErrors = registryOf<ChannelFailure>()
   const upstream = createUpstreamPipe({
     timeoutMs: args.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
     scheduleTimeout: args.scheduleTimeout ?? afterDelay,
@@ -120,6 +128,9 @@ export function createRemoteDeltaChannel(args: {
   let attempt = 0
   let socket: ChannelSocket | null = null
   let abandoned = false
+  let generation = 0
+  let url = args.url
+  let token = args.token
   let connection: ChannelConnection = { state: EChannelConnection.Connecting, detail: null }
 
   const write = (data: string): boolean => {
@@ -211,7 +222,14 @@ export function createRemoteDeltaChannel(args: {
       moveTo({ state: EChannelConnection.Parked, detail: frame.reason })
       return
     }
-    if (frame.kind === EServeFrame.Error) failures.emit({ message: frame.message })
+    if (frame.kind === EServeFrame.TurnEnded) {
+      turnEndings.emit(turnOutcomeFromWire(frame.outcome))
+      return
+    }
+    if (frame.kind === EServeFrame.Error) {
+      failures.emit({ message: frame.message })
+      serverErrors.emit({ message: frame.message })
+    }
   }
 
   const handleOpen = () => {
@@ -253,18 +271,36 @@ export function createRemoteDeltaChannel(args: {
     const delayMs = backoffMs({ attempt })
     attempt += 1
     moveTo({ state: EChannelConnection.Reconnecting, detail: null })
-    scheduleRetry({ delayMs, run: connect })
+    const scheduled = generation
+    scheduleRetry({
+      delayMs,
+      run: () => {
+        if (scheduled === generation) connect()
+      },
+    })
   }
 
   const handleError = (message: string) => failures.emit({ message })
 
   const connect = () => {
     if (abandoned) return
-    socket = socketFactory({
-      url: sessionSocketUrlOf(args.url),
-      protocols: [CHANNEL_SUBPROTOCOL, bearerSubprotocolOf(args.token)],
-      handlers: { handleOpen, handleMessage, handlePing, handleClose, handleError },
+    let mine: ChannelSocket | null = null
+    const guarded = <A extends unknown[]>(handler: (...args: A) => void) =>
+      (...args: A) => {
+        if (mine !== null && socket === mine) handler(...args)
+      }
+    mine = socketFactory({
+      url: sessionSocketUrlOf(url),
+      protocols: [CHANNEL_SUBPROTOCOL, bearerSubprotocolOf(token)],
+      handlers: {
+        handleOpen: guarded(() => handleOpen()),
+        handleMessage: guarded((data: string) => handleMessage(data)),
+        handlePing: guarded(() => handlePing()),
+        handleClose: guarded(() => handleClose()),
+        handleError: guarded((message: string) => handleError(message)),
+      },
     })
+    socket = mine
   }
 
   connect()
@@ -294,6 +330,8 @@ export function createRemoteDeltaChannel(args: {
 
     send: ({ text }) => upstream.send({ kind: EClientFrame.Send, text }),
 
+    run: () => upstream.send({ kind: EClientFrame.Run }),
+
     interrupt: () => upstream.send({ kind: EClientFrame.Interrupt }),
 
     request: (request) => upstream.request(request),
@@ -304,7 +342,25 @@ export function createRemoteDeltaChannel(args: {
 
     onReload: (listener) => reloads.add(listener),
 
+    onTurnEnded: (listener) => turnEndings.add(listener),
+
     onError: (listener) => failures.add(listener),
+
+    onServerError: (listener) => serverErrors.add(listener),
+
+    wake({ url: nextUrl, token: nextToken }) {
+      if (abandoned) return
+
+      url = nextUrl
+      token = nextToken
+      attempt = 0
+      generation += 1
+      const stale = socket
+      socket = null
+      stale?.close()
+      moveTo({ state: EChannelConnection.Connecting, detail: null })
+      connect()
+    },
 
     close() {
       abandoned = true

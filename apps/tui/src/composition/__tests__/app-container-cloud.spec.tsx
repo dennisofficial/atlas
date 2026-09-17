@@ -4,7 +4,7 @@ import React from 'react'
 import { testRender } from '@opentui/react/test-utils'
 
 import { EExecutionLocation, toRunId } from '@dltech/atlas-core'
-import { CloudError, EChannelConnection } from '@dltech/atlas-harness'
+import { CloudError, EChannelConnection, ETurnStatus } from '@dltech/atlas-harness'
 
 import { ECloudSandboxState } from '../cloud/cloud-bridge'
 
@@ -13,7 +13,7 @@ import { App } from '../app'
 import { CLEAN_WORKSPACE, fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
 import type { CloudBridgeFactory, WorkspaceCapture } from '../use-cloud-lift'
 import { editorIn, promiseGate, spokenIn, REPLY, THINKING, THREAD } from './app-fixture'
-import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
+import { FAKE_CONFIG, fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
 await grammarsReady()
 
@@ -48,6 +48,16 @@ const mount = async (args: { app: FakeApp; bridge: FakeBridge }) => {
     frame,
     run: async (argument: string) => {
       await setup.mockInput.typeText(`/container ${argument}`)
+      setup.mockInput.pressEnter()
+      return frame()
+    },
+    command: async (text: string) => {
+      await setup.mockInput.typeText(text)
+      setup.mockInput.pressEnter()
+      return frame()
+    },
+    say: async (text: string) => {
+      await setup.mockInput.typeText(text)
       setup.mockInput.pressEnter()
       return frame()
     },
@@ -139,6 +149,45 @@ describe('/container cloud', () => {
       bridge.channel.reload({ sinceEventSeq: 0 })
 
       expect(await mounted.frame()).toContain(landed)
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('drives the turn on the sandbox after a lift, never on the host', async () => {
+    const app = speaking()
+    const bridge = fakeBridge()
+    const mounted = await mount({ app, bridge })
+
+    try {
+      await mounted.run('cloud')
+      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+
+      await mounted.say('keep going')
+
+      expect(bridge.channel.runs).toBe(1)
+      expect(JSON.stringify(bridge.log.peek({ threadId: THREAD }))).toContain('keep going')
+      expect(JSON.stringify(app.log.peek({ threadId: THREAD }))).not.toContain('keep going')
+
+      bridge.channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-cloud-1') })
+      expect(await mounted.frame()).toContain('keep going')
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('still lists the local conversations in /resume after a lift', async () => {
+    const app = speaking()
+    const other = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null })
+    await app.threads.rename({ threadId: other.id, title: 'the host thread' })
+    const bridge = fakeBridge()
+    const mounted = await mount({ app, bridge })
+
+    try {
+      await mounted.run('cloud')
+      const frame = await mounted.command('/resume')
+
+      expect(frame).toContain('the host thread')
     } finally {
       await mounted.done()
     }

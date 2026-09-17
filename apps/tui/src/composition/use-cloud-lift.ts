@@ -4,6 +4,7 @@ import { useCallback, useRef } from 'react'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { cloudApp, openCloudConversation } from './cloud/cloud-app'
 import type { CloudBridge, LiftedWorkspace } from './cloud/cloud-bridge'
+import { createCloudRunner } from './cloud/cloud-runner'
 import { liftToCloud } from './cloud/lift'
 import { CLOUD_LIFT_NOTICE_KEY, liftedNotice, liftFailedNotice } from './cloud/lift-notices'
 import { stopLocalWork } from './cloud/stop-local'
@@ -50,7 +51,7 @@ export function useCloudLift(args: {
     lifting.current = true
     const bridge = createBridge({ url: signedIn.url, token: signedIn.token })
     const { move } = latest.current
-    move.handleBegin(EExecutionLocation.Cloud)
+    move.handleBegin({ target: EExecutionLocation.Cloud })
 
     void liftToCloud({
       threadId,
@@ -81,7 +82,8 @@ export function useCloudLift(args: {
           return
         }
 
-        const attached = cloudApp({ app, bridge, channel: lifted.channel })
+        const runner = createCloudRunner({ bridge, channel: lifted.channel, threadId, move })
+        const attached = cloudApp({ app, bridge, channel: lifted.channel, runner })
         const opened = await openCloudConversation({ app: attached, threadId })
 
         move.handleSettle()

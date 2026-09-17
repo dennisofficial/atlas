@@ -1,4 +1,5 @@
 import type { ThreadId } from '@dltech/atlas-core'
+import type { TurnRunner } from '@dltech/atlas-harness'
 
 import type { AtlasApp } from '../compose'
 import { EOpenMode } from '../config'
@@ -6,20 +7,22 @@ import { openConversation, unstartedConversation, type OpenedConversation } from
 import type { CloudBridge, CloudChannel } from './cloud-bridge'
 
 /**
- * The same app, reading and writing somewhere else. The seven surfaces the transcript consumes are
- * ports, so a cloud thread is the local one with four of them swapped — nothing downstream of here
- * learns which machine the loop is on.
+ * The same app, reading and writing somewhere else. The transcript consumes ports and the turn
+ * driver consumes a runner, so a cloud thread is the local one with all five swapped — nothing
+ * downstream of here learns which machine the loop is on.
  */
 export const cloudApp = (args: {
   app: AtlasApp
   bridge: CloudBridge
   channel: CloudChannel
+  runner: TurnRunner
 }): AtlasApp => ({
   ...args.app,
   log: args.bridge.stores.log,
   threads: args.bridge.stores.threads,
   ledger: args.bridge.stores.ledger,
   channel: args.channel,
+  runner: args.runner,
 })
 
 /**
