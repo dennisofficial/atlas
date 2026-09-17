@@ -62,6 +62,15 @@ describe('creating a sandbox', () => {
     expect(calls[0]?.headers['atlas-client-version']).toBe('1.2.3')
   })
 
+  it('accepts a resuming response with no url yet, for the caller to poll status', async () => {
+    const { client, calls } = harness([{ body: { token: 'tok_1', state: 'resuming' } }])
+
+    const sandbox = await client.createSandbox({ threadId: 'brn_cloud' })
+
+    expect(calls[0]?.method).toBe('POST')
+    expect(sandbox).toEqual({ token: 'tok_1', state: ECloudSandboxState.Resuming })
+  })
+
   it('refuses a response that is not the creation shape', async () => {
     const { client } = harness([{ body: { url: 'https://box.vercel.run', state: 'running' } }])
 

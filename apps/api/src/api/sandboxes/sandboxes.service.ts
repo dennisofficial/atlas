@@ -1,8 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import {
-  BadGatewayException,
   ConflictException,
-  HttpException,
   Injectable,
   Logger,
   NotFoundException,
@@ -24,7 +22,7 @@ import type {
   SandboxWorkspaceSpec,
 } from './sandboxes.types'
 import { ESandboxState } from './sandboxes.types'
-import { SANDBOX_REGION, VercelSandboxClient } from './vercel-sandbox.client'
+import { SANDBOX_REGION, SandboxMissingError, VercelSandboxClient } from './vercel-sandbox.client'
 import type { WorkspaceColumns } from './workspace-spec'
 import { workspaceColumnsOf, workspaceSpecOf } from './workspace-spec'
 
@@ -46,35 +44,51 @@ export class SandboxesService {
     private readonly github: GithubService,
   ) {}
 
+  /**
+   * The response awaits only the claim: a cold image pull can take minutes, long enough for the
+   * DigitalOcean edge to 504 while the provision keeps running server-side and its answer is
+   * lost. The lock chain still covers the background provision so a second attach never starts
+   * claiming until the first has fully settled — success or failure.
+   */
   async attach(args: {
     userId: string
     threadId: string
     workspace?: SandboxWorkspaceSpec | undefined
   }): Promise<SandboxAttachmentDto> {
     const previous = this.attachLocks.get(args.threadId) ?? Promise.resolve()
-    const run = previous.then(
-      () => this.attachSerialized(args),
-      () => this.attachSerialized(args),
+    const claimed = previous.then(() => this.claimForAttach(args))
+    const settled = claimed.then(
+      (claim) => this.provisionInBackground(claim),
+      () => undefined,
     )
-    this.attachLocks.set(args.threadId, run)
-    try {
-      return await run
-    } finally {
-      if (this.attachLocks.get(args.threadId) === run) this.attachLocks.delete(args.threadId)
-    }
+    this.attachLocks.set(args.threadId, settled)
+    void settled.finally(() => {
+      if (this.attachLocks.get(args.threadId) === settled) this.attachLocks.delete(args.threadId)
+    })
+    const claim = await claimed
+    return { ...toSandboxDto(claim.row), state: ESandboxState.Resuming, token: claim.token }
   }
 
-  private async attachSerialized(args: {
+  /**
+   * Awaited only by tests: the seam that lets a spec observe the background provision settling
+   * without the harness ever waiting on it in production.
+   */
+  whenSettled(args: { threadId: string }): Promise<void> {
+    const chain = this.attachLocks.get(args.threadId) ?? Promise.resolve()
+    return chain.then(() => undefined)
+  }
+
+  private async claimForAttach(args: {
     userId: string
     threadId: string
     workspace?: SandboxWorkspaceSpec | undefined
-  }): Promise<SandboxAttachmentDto> {
+  }): Promise<{ row: CloudSandboxModel; token: string }> {
     const thread = await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
     const columns = workspaceColumnsOf(args.workspace)
     const minted = mintSessionToken()
     const claimed = await this.claim({ thread, tokenHash: minted.tokenHash, columns })
     if (claimed.tokenHash === minted.tokenHash) {
-      return this.provision({ row: claimed, token: minted.token })
+      return { row: claimed, token: minted.token }
     }
     await this.vercel.destroy({ name: claimed.name })
     await db.cloudSandbox.delete({ where: { threadId: claimed.threadId } })
@@ -82,7 +96,7 @@ export class SandboxesService {
     if (reclaimed.tokenHash !== minted.tokenHash) {
       throw new ConflictException('another attach is provisioning this sandbox — retry in a moment')
     }
-    return this.provision({ row: reclaimed, token: minted.token })
+    return { row: reclaimed, token: minted.token }
   }
 
   /**
@@ -101,11 +115,16 @@ export class SandboxesService {
 
   async status(args: { userId: string; threadId: string }): Promise<SandboxStatusDto> {
     const row = await ownedSandbox(args)
-    const observed = await this.vercel.inspect({ name: row.name })
-    return {
-      ...toSandboxDto(row),
-      state: observed.state,
-      ...(observed.url === undefined ? {} : { url: observed.url }),
+    try {
+      const observed = await this.vercel.inspect({ name: row.name })
+      return {
+        ...toSandboxDto(row),
+        state: observed.state,
+        ...(observed.url === undefined ? {} : { url: observed.url }),
+      }
+    } catch (failure) {
+      if (failure instanceof SandboxMissingError) return toSandboxDto(row)
+      throw failure
     }
   }
 
@@ -190,22 +209,32 @@ export class SandboxesService {
     })
   }
 
-  private async provision(args: {
+  /**
+   * Never throws: a polling client reads a failed provision as a 404 once the row is gone, not as
+   * an unhandled rejection in this service.
+   */
+  private async provisionInBackground(args: {
     row: CloudSandboxModel
     token: string
-  }): Promise<SandboxAttachmentDto> {
+  }): Promise<void> {
     try {
       const placement = await this.vercel.getOrCreate({
         name: args.row.name,
         threadId: args.row.threadId,
         token: args.token,
       })
-      const stamped = await this.stamp({ row: args.row, placement })
-      return { ...toSandboxDto(stamped), url: placement.url, token: args.token }
+      await this.stamp({ row: args.row, placement })
     } catch (failure) {
-      await db.cloudSandbox.delete({ where: { threadId: args.row.threadId } })
-      if (failure instanceof HttpException) throw failure
-      throw new BadGatewayException(messageOf(failure))
+      this.logger.warn(
+        `sandbox provisioning failed for thread ${args.row.threadId}: ${messageOf(failure)}`,
+      )
+      try {
+        await db.cloudSandbox.delete({ where: { threadId: args.row.threadId } })
+      } catch (deleteFailure) {
+        this.logger.warn(
+          `could not delete sandbox row for thread ${args.row.threadId} after a failed provision: ${messageOf(deleteFailure)}`,
+        )
+      }
     }
   }
 
