@@ -1,6 +1,8 @@
 import { z } from 'zod'
 
-import { threadIdSchema } from '@dltech/atlas-core'
+import { callIdSchema, runIdSchema, threadIdSchema } from '@dltech/atlas-core'
+
+import { ETurnStatus, type TurnOutcome } from '../loop/turn-outcome'
 
 import { channelSignalSchema } from './signal-wire'
 
@@ -25,12 +27,14 @@ export enum EServeFrame {
   Reply = 'reply',
   Reload = 'reload',
   Parked = 'parked',
+  TurnEnded = 'turn-ended',
   Error = 'error',
 }
 
 export enum EClientFrame {
   Hello = 'hello',
   Send = 'send',
+  Run = 'run',
   Interrupt = 'interrupt',
   Request = 'request',
   Pong = 'pong',
@@ -43,6 +47,30 @@ export enum EClientRequest {
 
 const seqSchema = z.number().int().nonnegative()
 
+export const turnOutcomeWireSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal(ETurnStatus.Completed), runId: runIdSchema }),
+  z.object({
+    status: z.literal(ETurnStatus.Paused),
+    runId: runIdSchema,
+    callId: callIdSchema,
+    reason: z.string(),
+  }),
+  z.object({ status: z.literal(ETurnStatus.Idle), runId: runIdSchema }),
+  z.object({
+    status: z.literal(ETurnStatus.Interrupted),
+    runId: runIdSchema,
+    committed: z.boolean(),
+  }),
+  z.object({ status: z.literal(ETurnStatus.Failed), runId: runIdSchema, message: z.string() }),
+])
+
+export type TurnOutcomeWire = z.infer<typeof turnOutcomeWireSchema>
+
+export const turnOutcomeFromWire = (outcome: TurnOutcomeWire): TurnOutcome => {
+  if (outcome.status !== ETurnStatus.Failed) return outcome
+  return { ...outcome, cause: undefined }
+}
+
 export const serveFrameSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal(EServeFrame.Ready), seq: seqSchema }),
   z.object({ kind: z.literal(EServeFrame.Signal), seq: seqSchema, signal: channelSignalSchema }),
@@ -54,6 +82,7 @@ export const serveFrameSchema = z.discriminatedUnion('kind', [
   }),
   z.object({ kind: z.literal(EServeFrame.Reload), sinceEventSeq: seqSchema }),
   z.object({ kind: z.literal(EServeFrame.Parked), reason: z.string() }),
+  z.object({ kind: z.literal(EServeFrame.TurnEnded), outcome: turnOutcomeWireSchema }),
   z.object({ kind: z.literal(EServeFrame.Error), message: z.string() }),
 ])
 
@@ -67,6 +96,7 @@ export const clientFrameSchema = z.discriminatedUnion('kind', [
     lastEventSeq: seqSchema,
   }),
   z.object({ kind: z.literal(EClientFrame.Send), text: z.string() }),
+  z.object({ kind: z.literal(EClientFrame.Run) }),
   z.object({ kind: z.literal(EClientFrame.Interrupt) }),
   z.object({
     kind: z.literal(EClientFrame.Request),

@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'bun:test'
 
+import { toRunId } from '@dltech/atlas-core'
+
 import { EStepEnd } from '../../channel/signal'
-import { CHANNEL_SUBPROTOCOL, EClientFrame, EServeFrame } from '../channel-wire'
+import { ETurnStatus, type TurnOutcome } from '../../loop/turn-outcome'
+import {
+  bearerSubprotocolOf,
+  CHANNEL_SUBPROTOCOL,
+  EClientFrame,
+  encodeFrame,
+  EServeFrame,
+} from '../channel-wire'
 import {
   EChannelConnection,
   RemotePublishRefused,
@@ -278,6 +287,96 @@ describe('what the channel refuses to swallow', () => {
     live().handlers.handleMessage('{"kind":"nonsense"}')
 
     expect(messages).toHaveLength(1)
+  })
+})
+
+describe('driving a turn over the wire', () => {
+  it('sends a bare run frame, since what was said is already in the log', () => {
+    const { channel, open, receive, live } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+
+    channel.run()
+
+    expect(live().sent).toEqual([
+      { kind: EClientFrame.Hello, threadId: THREAD, channelCursor: null, lastEventSeq: 0 },
+      { kind: EClientFrame.Run },
+    ])
+  })
+
+  it('hands a turn outcome to its listeners as it arrives', () => {
+    const { channel, open, receive } = harness()
+    const outcomes: TurnOutcome[] = []
+    channel.onTurnEnded((outcome) => void outcomes.push(outcome))
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+
+    receive({
+      kind: EServeFrame.TurnEnded,
+      outcome: { status: ETurnStatus.Completed, runId: toRunId('run-1') },
+    })
+
+    expect(outcomes).toEqual([{ status: ETurnStatus.Completed, runId: toRunId('run-1') }])
+  })
+})
+
+describe('waking a channel whose socket will not come back', () => {
+  it('dials the fresh attachment and reports itself connecting', () => {
+    const { channel, open, receive, drop, sockets, live } = harness({ maxAttempts: 0 })
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    drop()
+    expect(channel.connection().state).toBe(EChannelConnection.Closed)
+
+    channel.wake({ url: 'https://fresh.test/', token: 'tok_fresh' })
+
+    expect(sockets).toHaveLength(2)
+    expect(live().url).toBe('wss://fresh.test/v1/session')
+    expect(live().protocols).toEqual([CHANNEL_SUBPROTOCOL, bearerSubprotocolOf('tok_fresh')])
+    expect(channel.connection().state).toBe(EChannelConnection.Connecting)
+
+    live().handlers.handleOpen()
+    live().handlers.handleMessage(encodeFrame({ kind: EServeFrame.Ready, seq: 1 }))
+    expect(channel.connection().state).toBe(EChannelConnection.Open)
+  })
+
+  it('cancels the retry it had scheduled, so the old dial never lands', () => {
+    const { channel, open, receive, drop, retries } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    drop()
+    expect(retries).toHaveLength(1)
+
+    channel.wake({ url: 'https://fresh.test/', token: 'tok_fresh' })
+    retries[0]?.run()
+
+    expect(channel.connection().state).toBe(EChannelConnection.Connecting)
+  })
+
+  it('flushes what was queued while it was closed once the fresh socket is ready', () => {
+    const { channel, open, receive, drop, live } = harness({ maxAttempts: 0 })
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    drop()
+
+    channel.run()
+    channel.wake({ url: 'https://fresh.test/', token: 'tok_fresh' })
+    live().handlers.handleOpen()
+    live().handlers.handleMessage(encodeFrame({ kind: EServeFrame.Ready, seq: 1 }))
+
+    expect(live().sent.at(-1)).toEqual({ kind: EClientFrame.Run })
+  })
+
+  it('stays closed for good once close() has run, wake or not', () => {
+    const { channel, open, receive, sockets } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    channel.close()
+
+    channel.wake({ url: 'https://fresh.test/', token: 'tok_fresh' })
+
+    expect(sockets).toHaveLength(1)
+    expect(channel.connection().state).toBe(EChannelConnection.Closed)
   })
 })
 

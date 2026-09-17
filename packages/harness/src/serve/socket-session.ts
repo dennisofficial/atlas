@@ -122,6 +122,18 @@ export function createSessionHandlers(args: {
       return
     }
 
+    if (frame.kind === EClientFrame.Run) {
+      try {
+        driver.run()
+      } catch (error) {
+        send({
+          socket,
+          frame: { kind: EServeFrame.Error, message: messageOf(error, 'the turn was not accepted') },
+        })
+      }
+      return
+    }
+
     if (frame.kind === EClientFrame.Interrupt) {
       driver.interrupt()
       return

@@ -6,6 +6,7 @@ import type { ServeApp } from './serve-app'
 
 export type ServeTurnDriver = {
   say: (args: { text: string }) => Promise<void>
+  run: () => void
   interrupt: () => void
   running: () => boolean
   settled: () => Promise<void>
@@ -77,6 +78,18 @@ export function createTurnDriver(args: {
       if (refused !== undefined) throw new Error(refused)
 
       await commit(text)
+      if (turning !== null) {
+        again = true
+        return
+      }
+      turning = runUntilQuiet()
+    },
+
+    /** The caller already committed what it said, so a run only drives the loop from the log head. */
+    run() {
+      const refused = args.refusal?.()
+      if (refused !== undefined) throw new Error(refused)
+
       if (turning !== null) {
         again = true
         return

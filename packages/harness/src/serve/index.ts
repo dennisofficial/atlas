@@ -1,6 +1,8 @@
 import { isResumable, type ThreadId } from '@dltech/atlas-core'
 
 import type { StepId } from '../channel/signal'
+import { EServeFrame, type ServeFrame, type TurnOutcomeWire } from '../cloud/channel-wire'
+import { ETurnStatus, type TurnOutcome } from '../loop/turn-outcome'
 
 import { createChannelBridge } from './channel-bridge'
 import { composeServeApp } from './compose-serve'
@@ -60,6 +62,11 @@ export type ServeHandle = {
   close: () => Promise<void>
 }
 
+const wireOutcomeOf = (outcome: TurnOutcome): TurnOutcomeWire => {
+  if (outcome.status !== ETurnStatus.Failed) return outcome
+  return { status: outcome.status, runId: outcome.runId, message: outcome.message }
+}
+
 export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   const env = args.env ?? process.env
   const { threadId, port: wanted, token, controlPlaneUrl, cwd } = serveConfig({ ...args, env })
@@ -107,6 +114,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
 
   let inFlight: () => readonly SignalFrame[] = () => []
   let liveStepId: () => StepId | null = () => null
+  let broadcast: (frame: ServeFrame) => void = () => undefined
 
   const driver = createTurnDriver({
     app,
@@ -120,7 +128,10 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
       heartbeat.turnEnded()
       app.files.forget()
     },
-    onOutcome: (outcome) => log({ event: EServeEvent.TurnEnded, status: outcome.status }),
+    onOutcome: (outcome) => {
+      log({ event: EServeEvent.TurnEnded, status: outcome.status })
+      broadcast({ kind: EServeFrame.TurnEnded, outcome: wireOutcomeOf(outcome) })
+    },
     onFailure: (reason) => log({ event: EServeEvent.TurnFailed, reason }),
   })
 
@@ -144,6 +155,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   })
   inFlight = bridge.inFlight
   liveStepId = bridge.liveStepId
+  broadcast = handlers.broadcast
 
   /**
    * A turn cut short by the container stopping leaves its events durable and nothing else, so the
