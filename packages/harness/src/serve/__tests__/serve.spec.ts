@@ -452,6 +452,23 @@ describe('startServe', () => {
     expect(JSON.stringify(refusal)).toContain('fatal: repository not found')
   })
 
+  it('answers a turn that throws with the reason, not silence', async () => {
+    const { handle } = await start({
+      runTurn: async () => {
+        throw new Error('the control plane answered 401')
+      },
+    })
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    client.send({ kind: EClientFrame.Run })
+    const failure = await client.waitFor((frame) => frame.kind === EServeFrame.Error)
+
+    expect(failure).toEqual({ kind: EServeFrame.Error, message: 'the control plane answered 401' })
+  })
+
   it('interrupts the turn a client asked it to stop', async () => {
     let aborted = false
     const { handle } = await start({

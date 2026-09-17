@@ -132,7 +132,10 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
       log({ event: EServeEvent.TurnEnded, status: outcome.status })
       broadcast({ kind: EServeFrame.TurnEnded, outcome: wireOutcomeOf(outcome) })
     },
-    onFailure: (reason) => log({ event: EServeEvent.TurnFailed, reason }),
+    onFailure: (reason) => {
+      log({ event: EServeEvent.TurnFailed, reason })
+      broadcast({ kind: EServeFrame.Error, message: reason })
+    },
   })
 
   const handlers = createSessionHandlers({

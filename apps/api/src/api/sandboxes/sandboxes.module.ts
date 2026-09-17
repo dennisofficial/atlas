@@ -25,5 +25,6 @@ import { SandboxWorkspaceController } from './workspace.controller'
     ServeBinaryService,
     VercelSandboxClient,
   ],
+  exports: [SandboxesService],
 })
 export class SandboxesModule {}
