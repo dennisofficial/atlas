@@ -34,4 +34,10 @@ describe('container guard heading', () => {
       'Moving this conversation back to the host',
     )
   })
+
+  it('names the cloud when moving to a sandbox', () => {
+    expect(containerGuardHeading(EExecutionLocation.Cloud)).toBe(
+      'Moving this conversation to the cloud',
+    )
+  })
 })
