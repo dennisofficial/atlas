@@ -10,7 +10,7 @@ type CrashState = { error: Error | null }
  * inside it and answers with a screen that can copy the error and exit.
  */
 export class CrashBoundary extends React.Component<
-  { children: React.ReactNode },
+  { children: React.ReactNode; identity?: (() => string) | undefined },
   CrashState
 > {
   override state: CrashState = { error: null }
@@ -20,7 +20,9 @@ export class CrashBoundary extends React.Component<
   }
 
   override render(): React.ReactNode {
-    if (this.state.error !== null) return <CrashScreen error={this.state.error} />
+    if (this.state.error !== null) {
+      return <CrashScreen error={this.state.error} identity={this.props.identity} />
+    }
     return this.props.children
   }
 }
