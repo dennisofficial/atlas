@@ -86,6 +86,7 @@ async function childTurn(args: {
     projectDirectory: undefined,
     observe: () => undefined,
     observeContext: () => undefined,
+    observeModel: () => undefined,
     steering: () => steering.splice(0),
     deps: {
       turn: parent,

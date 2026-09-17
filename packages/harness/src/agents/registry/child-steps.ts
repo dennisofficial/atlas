@@ -1,4 +1,9 @@
-import { EAgentStatus, type ClockPort, type EventDraft } from '@dltech/atlas-core'
+import {
+  EAgentStatus,
+  type ClockPort,
+  type EventDraft,
+  type ProviderIdentity,
+} from '@dltech/atlas-core'
 
 import type { TurnOutcome } from '../../loop/turn-outcome'
 import type { TurnRunner } from '../../loop/turn-runner.port'
@@ -119,6 +124,13 @@ export class ChildSteps {
     this.roster.changed()
   }
 
+  private noteModel({ child, model }: { child: ChildState; model: ProviderIdentity }): void {
+    if (child.model?.id === model.id && child.model.modelId === model.modelId) return
+
+    child.model = model
+    this.roster.changed()
+  }
+
   private runnerFor({ child, agentType }: { child: ChildState; agentType: AgentType }): TurnRunner {
     return this.runners({
       agentType,
@@ -126,6 +138,7 @@ export class ChildSteps {
       projectDirectory: child.projectDirectory,
       observe: (drafts) => this.record({ child, drafts }),
       observeContext: ({ tokens, window }) => this.measure({ child, tokens, window }),
+      observeModel: (model) => this.noteModel({ child, model }),
       steering: () => child.pending.splice(0),
     })
   }

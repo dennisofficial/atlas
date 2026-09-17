@@ -1,15 +1,6 @@
 export { agentEndedLine, agentEndingFailed, type AgentEndingRow } from './agent-ended-line'
 export { createConversationStore, type ConversationStore } from './conversation-store'
 export { sameEvents } from './same-log'
-export {
-  agentSpendOf,
-  ESpendReading,
-  NOTHING_COUNTED,
-  NOTHING_SPENT,
-  SPEND_UNAVAILABLE,
-  type AgentSpend,
-  type SpendTotals,
-} from './agent-spend'
 export { deriveTranscript } from './derive-transcript'
 export { durableEntries } from './durable-entries'
 export { isExpandable, newestExpandableKey } from './expandable'

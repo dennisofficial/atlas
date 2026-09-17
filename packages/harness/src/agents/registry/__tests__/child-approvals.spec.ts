@@ -67,6 +67,7 @@ async function childAsked(): Promise<{ harness: AtlasHarness; threadId: ThreadId
     projectDirectory: undefined,
     observe: () => {},
     observeContext: () => {},
+    observeModel: () => {},
     steering: () => [],
     deps: {
       turn: {

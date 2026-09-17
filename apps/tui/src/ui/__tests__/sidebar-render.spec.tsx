@@ -5,7 +5,6 @@ import { testRender } from "@opentui/react/test-utils";
 import { describe, expect, it } from "bun:test";
 import React, { act } from "react";
 
-import { ESpendReading, SPEND_UNAVAILABLE } from "../../store/agent-spend";
 import {
   ESidebarTaskState,
   IDLE_SIDEBAR,
@@ -102,34 +101,22 @@ const FED: SidebarModel = {
       id: "s1",
       name: "test-writer",
       status: EAgentStatus.Running,
-      calls: 41,
       lastTool: "edit",
       startedAt: "2026-01-01T00:00:00.000Z",
       endedAt: null,
       state: "edit · 1m 4s",
-      spend: {
-        reading: ESpendReading.Counted,
-        totals: {
-          turns: 6,
-          steps: 12,
-          inputTokens: 48_200,
-          outputTokens: 3_100,
-          cacheReadTokens: 41_000,
-          cacheWriteTokens: 2_000,
-        },
-      },
+      model: "Claude Haiku 4.5",
       selected: false,
     },
     {
       id: "s2",
       name: "migration",
       status: EAgentStatus.Blocked,
-      calls: 3,
       lastTool: "bash",
       startedAt: "2026-01-01T00:00:00.000Z",
       endedAt: null,
       state: "blocked · 12s",
-      spend: SPEND_UNAVAILABLE,
+      model: null,
       selected: false,
     },
   ],
@@ -477,42 +464,42 @@ describe("what the sidebar says", () => {
     ).toBe(false);
   }, 30_000);
 
-  it("gives a child a second line carrying what it spent, in both directions", async () => {
+  it("gives a child a second line naming the model it runs", async () => {
     const rows = await rowsOf({ model: FED });
 
-    expect(rowWith({ rows, text: "↑ 7.2k" })).toContain("↓ 3.1k");
+    expect(rowWith({ rows, text: "Claude Haiku 4.5" })).not.toBe("");
   }, 30_000);
 
-  it("gives a measured child how full its own window has got, beside what it spent", async () => {
+  it("gives a measured child how full its own window has got, beside its model", async () => {
     const rows = await rowsOf({ model: MEASURED });
 
-    expect(rowWith({ rows, text: "↑ 7.2k" })).toContain("ctx 34%");
+    expect(rowWith({ rows, text: "Claude Haiku 4.5" })).toContain("ctx 34%");
   }, 30_000);
 
-  it("keeps the spend off the line the name and state share", async () => {
+  it("keeps the model off the line the name and state share", async () => {
     const rows = await rowsOf({ model: FED });
 
-    expect(rowWith({ rows, text: "test-writer" })).not.toContain("48.2k");
+    expect(rowWith({ rows, text: "test-writer" })).not.toContain("Haiku");
   }, 30_000);
 
   /**
    * Hung off the value column's own right edge rather than the panel's, so a crew of five stacks
    * its figures into a column rather than reading as ten unrelated lines.
    */
-  it("ends the spend line on the same column the state above it ends on", async () => {
+  it("ends the model line on the same column the state above it ends on", async () => {
     const rows = await rowsOf({ model: FED });
     const state = written(rowWith({ rows, text: "test-writer" })).trimEnd();
-    const spend = written(rowWith({ rows, text: "↑ 7.2k" })).trimEnd();
+    const model = written(rowWith({ rows, text: "Claude Haiku 4.5" })).trimEnd();
 
-    expect(spend.startsWith(" ")).toBe(true);
-    expect(spend.endsWith("↓ 3.1k")).toBe(true);
-    expect(spend.length).toBe(state.length);
+    expect(model.startsWith(" ")).toBe(true);
+    expect(model.endsWith("Claude Haiku 4.5")).toBe(true);
+    expect(model.length).toBe(state.length);
   }, 30_000);
 
-  it("ends on the same column as the state above once a third figure joins", async () => {
+  it("ends on the same column as the state above once a second figure joins", async () => {
     const rows = await rowsOf({ model: MEASURED });
     const state = written(rowWith({ rows, text: "test-writer" })).trimEnd();
-    const figures = written(rowWith({ rows, text: "↑ 7.2k" })).trimEnd();
+    const figures = written(rowWith({ rows, text: "Claude Haiku 4.5" })).trimEnd();
 
     expect(figures.startsWith(" ")).toBe(true);
     expect(figures.endsWith("ctx 34%")).toBe(true);
@@ -522,7 +509,7 @@ describe("what the sidebar says", () => {
   it("draws nothing at all for a child nothing has measured", async () => {
     const rows = await rowsOf({ model: FED });
 
-    expect(rowWith({ rows, text: "↑ 7.2k" })).not.toContain("ctx");
+    expect(rowWith({ rows, text: "Claude Haiku 4.5" })).not.toContain("ctx");
   }, 30_000);
 
   /**
@@ -537,33 +524,24 @@ describe("what the sidebar says", () => {
     expect(frame).not.toContain("90.4k");
   }, 30_000);
 
-  it("right-aligns the missing reading too, so it reads as a row and not a mistake", async () => {
+  it("spends no second line on a child whose model was never observed", async () => {
     const rows = await rowsOf({ model: FED });
-    const state = written(rowWith({ rows, text: "test-writer" })).trimEnd();
-    const missing = written(
-      rowWith({ rows, text: "tokens unavailable" }),
-    ).trimEnd();
+    const blocked = rows.findIndex((row) => row.includes("migration"));
 
-    expect(missing.endsWith("tokens unavailable")).toBe(true);
-    expect(missing.length).toBe(state.length);
-  }, 30_000);
-
-  it("says a reading is missing rather than showing a child as free", async () => {
-    const rows = await rowsOf({ model: FED });
-
-    expect(rows.join("\n")).toContain("tokens unavailable");
-    expect(rowWith({ rows, text: "tokens unavailable" })).not.toContain("0");
+    expect(blocked).toBeGreaterThanOrEqual(0);
+    expect(written(rows[blocked + 1] ?? "").trim()).toBe("");
+    expect(rows[blocked + 2]).toContain("TEAMMATES");
   }, 30_000);
 
   /**
    * The context meter answers for this conversation's window. A child's window is a different one,
    * and the row beneath it must never be read into the number above it.
    */
-  it("leaves the parent context meter untouched by what the crew spent", async () => {
+  it("leaves the parent context meter untouched by the crew's own readings", async () => {
     const rows = await rowsOf({ model: FED });
     const frame = rows.join("\n");
 
-    expect(frame).toContain("↑ 7.2k");
+    expect(frame).toContain("Claude Haiku 4.5");
     expect(frame).not.toContain("51.3k");
     expect(frame).not.toContain("60.7k");
   }, 30_000);

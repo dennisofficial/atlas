@@ -1,15 +1,12 @@
-import { EAgentStatus, contextPressure } from '@dltech/atlas-core'
+import { EAgentStatus, contextPressure, type ProviderIdentity } from '@dltech/atlas-core'
 import type { AgentSnapshot, ChildContext } from '@dltech/atlas-harness'
 
 import { truncateCells } from '../ui/components/sidebar/cells'
-import { formatElapsed, formatTokens } from '../ui/theme'
-import { ESpendReading, type AgentSpend } from './agent-spend'
+import { formatElapsed } from '../ui/theme'
 import { TITLE_CELLS, oneLineOf } from './sidebar-text'
-import { plural } from './tools/reading'
 
 export type SubagentReadout = {
   status: EAgentStatus
-  calls: number
   lastTool: string | null
   startedAt: string
   endedAt: string | null
@@ -19,7 +16,7 @@ export type SidebarSubagent = SubagentReadout & {
   id: string
   name: string
   state: string
-  spend: AgentSpend | null
+  model: string | null
   context?: ChildContext | undefined
   selected: boolean
 }
@@ -47,7 +44,7 @@ export const subagentWentWrong = (subagent: Pick<SidebarSubagent, 'status'>): bo
 
 /**
  * What the narrow value column spends its cells on. A child that is still going is judged by what
- * it is doing and for how long; one that has settled is judged by how much it got through.
+ * it is doing and for how long; one that has settled is judged by its outcome alone.
  */
 export enum ESubagentReading {
   Live = 'live',
@@ -98,8 +95,6 @@ const READOUT_SEPARATOR = ' · '
 const stateWord = (subagent: Pick<SubagentReadout, 'status'>): string =>
   SUBAGENT_STATE_LABEL[subagent.status]
 
-const callsWord = (calls: number): string | null => (calls === 0 ? null : plural(calls, 'call'))
-
 type ReadoutParts = { subagent: SubagentReadout; since: string | null }
 
 const SUBAGENT_READOUT: Record<
@@ -108,7 +103,7 @@ const SUBAGENT_READOUT: Record<
 > = {
   [ESubagentReading.Live]: ({ subagent, since }) => [subagent.lastTool, since],
   [ESubagentReading.Held]: ({ subagent, since }) => [stateWord(subagent), since],
-  [ESubagentReading.Settled]: ({ subagent }) => [stateWord(subagent), callsWord(subagent.calls)],
+  [ESubagentReading.Settled]: ({ subagent }) => [stateWord(subagent)],
 }
 
 export function subagentStateLabel(args: { subagent: SubagentReadout; now: number }): string {
@@ -123,28 +118,7 @@ export function subagentStateLabel(args: { subagent: SubagentReadout; now: numbe
   return written === '' ? stateWord(subagent) : written
 }
 
-/**
- * Counted from the supervisor's own reading of the child rather than from the composed event list,
- * which belongs to whichever thread is open and would lend an untitled child the parent's work.
- */
-export const SPEND_UNAVAILABLE_LABEL = 'tokens unavailable'
-
 export const FIGURE_SEPARATOR = '  '
-
-/**
- * Both directions are shown because input dominates a child's bill and output alone would flatter
- * it. Cache reads are counted inside `inputTokens`, so the input figure shows only the uncached
- * remainder, matching the parent's line.
- */
-export function subagentSpendLabel(spend: AgentSpend | null): string | null {
-  if (spend === null) return null
-  if (spend.reading === ESpendReading.Unavailable) return SPEND_UNAVAILABLE_LABEL
-
-  const { inputTokens, outputTokens, cacheReadTokens } = spend.totals
-  if (inputTokens === 0 && outputTokens === 0) return null
-
-  return `↑ ${formatTokens(inputTokens - cacheReadTokens)}${FIGURE_SEPARATOR}↓ ${formatTokens(outputTokens)}`
-}
 
 /**
  * A child's own window, never added to the parent's: a child may run a different model, so the two
@@ -159,29 +133,29 @@ export function subagentContextLabel(context: ChildContext | undefined): string 
   return `ctx ${pressure.percent}%`
 }
 
+/**
+ * The second line: which model the child runs and how full its own window has got. A child whose
+ * model this process never observed — one recovered from the log — shows its window alone.
+ */
 export function subagentFigures(
-  subagent: Pick<SidebarSubagent, 'spend' | 'context'>,
+  subagent: Pick<SidebarSubagent, 'model' | 'context'>,
 ): string | null {
-  const written = [subagentSpendLabel(subagent.spend), subagentContextLabel(subagent.context)]
+  const written = [subagent.model, subagentContextLabel(subagent.context)]
     .filter((figure): figure is string => figure !== null)
     .join(FIGURE_SEPARATOR)
 
   return written === '' ? null : written
 }
 
-export const subagentSpendIsUnavailable = (spend: AgentSpend | null): boolean =>
-  spend !== null && spend.reading === ESpendReading.Unavailable
-
 export function subagentRows(args: {
   snapshots: readonly AgentSnapshot[]
   now: number
-  spend?: ReadonlyMap<string, AgentSpend> | undefined
+  modelLabel?: ((model: ProviderIdentity) => string) | undefined
   viewing?: string | null | undefined
 }): readonly SidebarSubagent[] {
   return args.snapshots.map((snapshot) => {
     const readout: SubagentReadout = {
       status: snapshot.status,
-      calls: snapshot.toolCalls,
       lastTool: snapshot.lastTool ?? null,
       startedAt: snapshot.startedAt,
       endedAt: snapshot.endedAt ?? null,
@@ -192,7 +166,10 @@ export function subagentRows(args: {
       id: snapshot.agentId,
       name: subagentLabel(snapshot),
       state: subagentStateLabel({ subagent: readout, now: args.now }),
-      spend: args.spend?.get(snapshot.agentId) ?? null,
+      model:
+        snapshot.model === undefined
+          ? null
+          : (args.modelLabel?.(snapshot.model) ?? snapshot.model.modelId),
       context: snapshot.context,
       selected: snapshot.agentId === args.viewing,
     }

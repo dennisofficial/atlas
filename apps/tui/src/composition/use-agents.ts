@@ -1,4 +1,4 @@
-import type { ThreadId } from '@dltech/atlas-core'
+import type { ProviderIdentity, ThreadId } from '@dltech/atlas-core'
 import type { AgentSnapshot } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
@@ -17,8 +17,8 @@ import {
   subagentShowsElapsed,
   subagentWentWrong,
 } from '../store/subagent-row'
+import { modelLabel } from '../ui/model-label'
 import type { AtlasApp } from './compose'
-import { useAgentSpend } from './use-agent-spend'
 import { useTickingNow } from './use-ticking-now'
 
 export type AgentsControl = {
@@ -121,10 +121,12 @@ export function useAgents({
   const members = useMemo(() => crewMembersOf({ snapshots: own, visits }), [own, visits])
 
   const now = useTickingNow(own.some(subagentShowsElapsed) || graceIsRunning({ members, viewing }))
-  const spend = useAgentSpend({ app, children: own })
 
   const crew = useMemo(() => {
-    const subagents = subagentRows({ snapshots: own, now, spend, viewing })
+    const nameModel = (model: ProviderIdentity): string =>
+      app.models.cardFor({ providerId: model.id, modelId: model.modelId })?.label ??
+      modelLabel(model.modelId)
+    const subagents = subagentRows({ snapshots: own, now, modelLabel: nameModel, viewing })
     const { standings } = partitionCrew({
       crew: members,
       viewing,
@@ -144,7 +146,7 @@ export function useAgents({
       running: subagents.filter(isSubagentRunning).length,
       count: subagents.length,
     }
-  }, [members, now, own, spend, viewing])
+  }, [app.models, members, now, own, viewing])
 
   return useMemo(
     () => ({

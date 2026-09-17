@@ -1,4 +1,11 @@
-import { EAgentStatus, EDefinitionOrigin, toCallId, toRunId, toThreadId } from '@dltech/atlas-core'
+import {
+  EAgentStatus,
+  EDefinitionOrigin,
+  toCallId,
+  toRunId,
+  toThreadId,
+  type ProviderIdentity,
+} from '@dltech/atlas-core'
 import {
   EAgentTypeRefusal,
   EKilledBy,
@@ -69,7 +76,13 @@ const appWith = (): FakeApp =>
   fakeApp({ model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }) })
 
 const child = (
-  over: { turns?: number; toolCalls?: number; status?: EAgentStatus; lastTool?: string } = {},
+  over: {
+    turns?: number
+    toolCalls?: number
+    status?: EAgentStatus
+    lastTool?: string
+    model?: ProviderIdentity
+  } = {},
 ) =>
   fakeAgentSnapshot({
     agentId: CHILD,
@@ -140,7 +153,7 @@ describe('a sub-agent in the sidebar', () => {
     }
   }, 60_000)
 
-  it("counts the child's own turns and tool calls, never the conversation it was spawned from", async () => {
+  it("reads the child's own work, never the conversation it was spawned from", async () => {
     const app = appWith()
     await app.log.append({
       threadId: THREAD,
@@ -161,7 +174,23 @@ describe('a sub-agent in the sidebar', () => {
       act(() => app.agents.end({ agentId: CHILD }))
       await setup.flush()
 
-      expect(setup.captureCharFrame()).toContain('done · 7 calls')
+      const frame = setup.captureCharFrame()
+      const row = frame.split('\n').find((line) => line.includes(CHILD_INTENT)) ?? ''
+      expect(row).toContain('done')
+      expect(row).not.toContain('calls')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('names the model the child runs on a line under its own', async () => {
+    const app = appWith()
+    app.agents.place(child({ model: { id: 'anthropic', modelId: 'claude-sonnet-5' } }))
+
+    const setup = await opened(app)
+
+    try {
+      expect(setup.captureCharFrame()).toContain('sonnet-5')
     } finally {
       await teardown(setup)
     }

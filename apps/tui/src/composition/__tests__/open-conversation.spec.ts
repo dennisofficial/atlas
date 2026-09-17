@@ -19,8 +19,6 @@ import {
   type TurnSpend,
 } from '@dltech/atlas-harness'
 
-import { ESpendReading } from '../../store'
-
 import { EOpenMode } from '../config'
 import { openConversation, type OpenOutcome, type OpenedConversation } from '../open-conversation'
 import { fakeAgentRegistry } from './fake-agents'
