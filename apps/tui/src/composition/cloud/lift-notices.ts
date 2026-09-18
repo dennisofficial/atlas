@@ -9,8 +9,6 @@ import { ELiftFault, ELiftStep, type LiftFailure } from './lift'
 
 export const CLOUD_LIFT_NOTICE_KEY = 'container-cloud'
 
-export const CLOUD_CONNECTION_NOTICE_KEY = 'container-cloud-connection'
-
 export const CLOUD_SANDBOX_NOTICE_KEY = 'container-cloud-sandbox'
 
 const stoppedTail = (failure: LiftFailure): string => {
@@ -39,22 +37,6 @@ const stillHere = (failure: LiftFailure): string =>
 
 export const liftFailedNotice = (failure: LiftFailure): string =>
   `${FAULT_HEAD[failure.fault]} — ${stillHere(failure)}. ${failure.detail}`
-
-const CONNECTION_TEXT: Record<EChannelConnection, string | null> = {
-  [EChannelConnection.Connecting]: 'connecting to the cloud sandbox',
-  [EChannelConnection.Open]: null,
-  [EChannelConnection.Reconnecting]: 'reconnecting to the cloud sandbox',
-  [EChannelConnection.Parked]: 'the cloud sandbox is parked — the next message wakes it',
-  [EChannelConnection.Closed]: 'the cloud sandbox is not answering',
-}
-
-export const connectionNotice = (connection: CloudConnection): string | null => {
-  const text = CONNECTION_TEXT[connection.state]
-  if (text === null) return null
-  if (connection.detail === null) return text
-
-  return `${text} — ${connection.detail}`
-}
 
 /**
  * A stopped sandbox cannot say that it stopped, so a socket that will not come back is read against

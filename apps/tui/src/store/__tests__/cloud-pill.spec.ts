@@ -18,12 +18,12 @@ describe('the cloud pill', () => {
     expect(cloudPillOf({ connection: null })).toBeNull()
   })
 
-  it('carries the connection state and its detail once attached', () => {
+  it('carries the connection state once attached', () => {
     expect(
       cloudPillOf({
         connection: { state: EChannelConnection.Parked, detail: 'quiet past the TTL' },
       }),
-    ).toEqual({ state: EChannelConnection.Parked, detail: 'quiet past the TTL' })
+    ).toEqual({ state: EChannelConnection.Parked })
   })
 
   it('joins the sidebar model only when it is shown', () => {

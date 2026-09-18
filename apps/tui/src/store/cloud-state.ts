@@ -1,6 +1,6 @@
 import { EChannelConnection, type ChannelConnection } from '@dltech/atlas-harness'
 
-export type SidebarCloud = { state: EChannelConnection; detail: string | null }
+export type SidebarCloud = { state: EChannelConnection }
 
 const RESTING: ReadonlySet<EChannelConnection> = new Set([
   EChannelConnection.Connecting,
@@ -14,5 +14,5 @@ export const isResting = (state: EChannelConnection): boolean => RESTING.has(sta
 export function cloudPillOf(args: { connection: ChannelConnection | null }): SidebarCloud | null {
   if (args.connection === null) return null
 
-  return { state: args.connection.state, detail: args.connection.detail }
+  return { state: args.connection.state }
 }
