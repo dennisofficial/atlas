@@ -12,6 +12,7 @@ import { ThreadStorePort } from '../store/thread-store'
 
 import { adoptChildren } from './adopt-children'
 import type { ServeApp, ServeCompose } from './serve-app'
+import { seedServeSession } from './serve-session'
 
 export const SERVE_COMMAND = 'serve'
 
@@ -23,6 +24,8 @@ type ServeStores = { log: EventLogPort; threads: ThreadStorePort }
  * read off the app, because the root resolves its own before the surface binds.
  */
 export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => {
+  seedServeSession({ url: args.controlPlaneUrl, token: args.token })
+
   const client = new SessionsClient({
     url: args.controlPlaneUrl,
     token: args.token,
