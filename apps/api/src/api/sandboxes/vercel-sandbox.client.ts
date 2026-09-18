@@ -1,4 +1,4 @@
-import { BadGatewayException, Injectable, ServiceUnavailableException } from '@nestjs/common'
+import { BadGatewayException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import { APIError, Sandbox } from '@vercel/sandbox'
 import { EnvService } from '../../_core/config/env/env.service'
 import { ESandboxState } from './sandboxes.types'
@@ -68,6 +68,12 @@ const vercelMessageOf = (error: APIError<unknown>): string => {
   return error.message
 }
 
+const failureTextOf = (failure: unknown): string => {
+  if (failure instanceof APIError) return vercelMessageOf(failure)
+  if (failure instanceof Error) return failure.message
+  return String(failure)
+}
+
 const isSandboxMissing = (error: unknown): boolean => {
   if (!(error instanceof APIError)) return false
   if (error.response.status === 404) return true
@@ -109,6 +115,7 @@ const routedUrlWithRetries = async (sandbox: Sandbox): Promise<string> => {
 
 @Injectable()
 export class VercelSandboxClient {
+  private readonly logger = new Logger(VercelSandboxClient.name)
   private readonly launchServe: ServeLauncher
   private readonly inflightLaunches = new WeakMap<object, Promise<void>>()
 
@@ -126,6 +133,7 @@ export class VercelSandboxClient {
     token: string
   }): Promise<SandboxPlacement> {
     const configuration = this.configuration()
+    const createStartedAt = Date.now()
     try {
       const sandbox = await Sandbox.getOrCreate({
         ...this.credentialsOf(configuration),
@@ -146,10 +154,18 @@ export class VercelSandboxClient {
         },
         signal: AbortSignal.timeout(SANDBOX_LAUNCH_TIMEOUT_MS),
       })
+      const createMs = Date.now() - createStartedAt
+      const serveStartedAt = Date.now()
       await this.launchServe(sandbox)
+      this.logger.log(
+        `sandbox ${args.name} provisioned: get-or-create ${createMs}ms, serve launch ${Date.now() - serveStartedAt}ms`,
+      )
       return await this.placementOf(sandbox)
     } catch (failure) {
       if (failure instanceof SandboxMissingError) throw failure
+      this.logger.warn(
+        `sandbox ${args.name} provision failed ${Date.now() - createStartedAt}ms in: ${failureTextOf(failure)}`,
+      )
       throw asBadGateway(failure)
     }
   }

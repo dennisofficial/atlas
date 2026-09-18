@@ -17,6 +17,7 @@ import {
   EWorkspaceState,
   EWorkspaceStep,
   startServe,
+  type EnsureWorkspace,
   type ServeHandle,
   type WorkspaceReadiness,
 } from '../index'
@@ -42,6 +43,7 @@ const start = async (args: {
   bufferSize?: number | undefined
   env?: Record<string, string | undefined> | undefined
   workspace?: WorkspaceReadiness | undefined
+  ensureWorkspace?: EnsureWorkspace | undefined
   adoptChildren?: ((args: { threadId: ThreadId }) => Promise<readonly ThreadId[]>) | undefined
   whenChildrenSettled?: (() => Promise<void>) | undefined
   heartbeatIntervalMs?: number | undefined
@@ -72,7 +74,8 @@ const start = async (args: {
       return new Response(null, { status: 204 })
     }) as typeof fetch,
     compose: async () => app,
-    ensureWorkspace: async () => args.workspace ?? { state: EWorkspaceState.Skipped },
+    ensureWorkspace:
+      args.ensureWorkspace ?? (async () => args.workspace ?? { state: EWorkspaceState.Skipped }),
     heartbeatIntervalMs: args.heartbeatIntervalMs,
   })
 
@@ -501,6 +504,37 @@ describe('startServe', () => {
           line.includes(EServeEvent.WorkspaceReady) && line.includes(EWorkspaceState.Present),
       ),
     ).toBe(true)
+  })
+
+  it('times the workspace materialization in its boot log', async () => {
+    const ensureWorkspace: EnsureWorkspace = async () => {
+      await Bun.sleep(30)
+      return { state: EWorkspaceState.Skipped }
+    }
+    const { lines } = await start({ ensureWorkspace })
+
+    const ready = lines.find((line) => line.includes(EServeEvent.WorkspaceReady))
+    const ms: unknown = JSON.parse(ready ?? '{}').ms
+    expect(typeof ms).toBe('number')
+    expect(ms).toBeGreaterThanOrEqual(20)
+  })
+
+  it('times the skills materialization in its boot log', async () => {
+    const { lines } = await start({})
+
+    const skills = lines.find(
+      (line) =>
+        line.includes(EServeEvent.SkillsReady) || line.includes(EServeEvent.SkillsFailed),
+    )
+    expect(skills).toBeDefined()
+    expect(JSON.parse(skills ?? '{}').ms).toEqual(expect.any(Number))
+  })
+
+  it('stamps the whole boot on the started line', async () => {
+    const { lines } = await start({})
+
+    const started = lines.find((line) => line.includes(EServeEvent.Started))
+    expect(JSON.parse(started ?? '{}').ms).toEqual(expect.any(Number))
   })
 
   it("adopts the thread's transferred children on boot, before anyone connects", async () => {
