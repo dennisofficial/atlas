@@ -618,7 +618,7 @@ function Workspace(props: {
   const sidebarVisible = !welcome && sidebarShown({ layout, peeking })
   const overlay = sidebarVisible && !wide
 
-  const repoRoot = props.app.workspace.repo ?? props.app.config.cwd
+  const repoRoot = conversation.repo ?? conversation.projectDirectory
   const sidebarWorktree =
     conversation.activeWorktree?.path ??
     (conversation.projectDirectory.startsWith(`${repoRoot}/`)

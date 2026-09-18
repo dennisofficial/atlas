@@ -6,6 +6,8 @@ import { join } from 'node:path'
 
 import { ESettingId } from '@dltech/atlas-core'
 
+import { glyph } from '../../ui/glyphs'
+
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import type { OpenedConversation } from '../open-conversation'
 import { open, spokenIn, until, REPLY, THREAD, THINKING } from './app-fixture'
@@ -60,7 +62,7 @@ describe('the cd command', () => {
       })
 
       expect(landed).toBe(true)
-      expect(directoryEvents(app)[0]).toMatchObject({ path: target })
+      expect(directoryEvents(app)[0]).toMatchObject({ path: target, repo: null })
       expect(app.openedDirectories).toContain(target)
 
       const frame = await mounted.frame()
@@ -90,7 +92,7 @@ describe('the cd command', () => {
       })
 
       expect(landed).toBe(true)
-      expect(directoryEvents(app)[0]).toMatchObject({ path: repo })
+      expect(directoryEvents(app)[0]).toMatchObject({ path: repo, repo })
       expect(app.openedDirectories).toContain(repo)
     } finally {
       await mounted.done()
@@ -174,9 +176,40 @@ describe('the cd command', () => {
 
       expect(landed).toBe(true)
       const [first, second] = app.log.peek({ threadId: THREAD })
-      expect(first).toMatchObject({ type: 'directory-changed', path: target })
+      expect(first).toMatchObject({ type: 'directory-changed', path: target, repo: null })
       expect(second).toMatchObject({ type: 'user-said', text: 'look around' })
       expect(app.threads.createdWith[0]).toMatchObject({ workspace: target, repo: null })
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('re-roots the header on the repo a move lands in', async () => {
+    const parent = await makeDirectory()
+    const child = join(parent, 'glasshouse')
+    await mkdir(child)
+    const init = Bun.spawn(['git', 'init'], { cwd: child, stdout: 'ignore', stderr: 'ignore' })
+    expect(await init.exited).toBe(0)
+
+    const app = fakeApp({
+      model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }),
+      cwd: parent,
+      workspaceRoot: parent,
+      workspace: { workspace: parent, repo: null },
+    })
+    const mounted = await open({ app, opened: await spokenIn(app) })
+
+    try {
+      await mounted.typeText(`/cd ${child}`)
+      mounted.pressEnter()
+
+      const reRooted = await until({
+        holds: async () => (await mounted.frame()).includes(`${glyph.home} glasshouse`),
+        within: WITHIN_MS,
+      })
+
+      expect(reRooted).toBe(true)
+      expect(await mounted.frame()).not.toContain(`${glyph.worktree} glasshouse`)
     } finally {
       await mounted.done()
     }

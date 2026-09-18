@@ -58,7 +58,7 @@ export async function applyDirectoryMove(args: {
   await app.log.append({
     threadId,
     runId: app.ids.nextRunId(),
-    drafts: [{ type: 'directory-changed', path: move.path }],
+    drafts: [{ type: 'directory-changed', path: move.path, repo: move.repo }],
   })
   await app.threads.adopt({ threadId, workspace: move.path, repo: move.repo })
   await app.threadOpened({ threadId, projectDirectory: move.path })
