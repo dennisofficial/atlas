@@ -19,6 +19,10 @@ describe('the sentence a shell ends on', () => {
     expect(killedBy(EKilledBy.Rewind)).toBe('was killed by a rewind')
   })
 
+  it('names a lost shell as killed rather than finished', () => {
+    expect(killedBy(EKilledBy.LostContact)).toBe('was killed because atlas lost contact with it')
+  })
+
   it('says only that it was killed when nobody was recorded', () => {
     expect(killedBy(EKilledBy.Unrecorded)).toBe('was killed')
     expect(shellEnding({ status: EShellStatus.Killed })).toBe('was killed')

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { createFrameParser, demuxExecStream, EExecStream } from '../frames'
+import { createFrameParser, demuxExecStream, EExecStream, EReadRecovery } from '../frames'
 
 const bytes = (hex: string): Uint8Array => {
   const out = new Uint8Array(hex.length / 2)
@@ -157,5 +157,70 @@ describe('demuxExecStream', () => {
     await done
     expect(new TextDecoder().decode(await collected(stdout))).toBe('pid=8 pgid=\nout\n')
     expect(new TextDecoder().decode(await collected(stderr))).toBe('sh: 1: ps: not found\nerr\n')
+  })
+
+  const dying = (chunks: readonly Uint8Array[]): ReadableStream<Uint8Array> => {
+    let at = 0
+    return new ReadableStream({
+      pull(controller) {
+        const next = chunks[at]
+        at += 1
+        if (next !== undefined) {
+          controller.enqueue(next)
+          return
+        }
+        controller.error(new Error('The operation timed out'))
+      },
+    })
+  }
+
+  it('lets a recovery hook close the streams cleanly with a last word on stderr', async () => {
+    const said = frame(EExecStream.Stdout, text('serving on 3001\n'))
+    const { stdout, stderr, done } = demuxExecStream({
+      stream: dying([said]),
+      onReadFailure: async () => ({
+        kind: EReadRecovery.LastWord,
+        lastWord: text('atlas lost the output stream\n'),
+      }),
+    })
+
+    await done
+    expect(new TextDecoder().decode(await collected(stdout))).toBe('serving on 3001\n')
+    expect(new TextDecoder().decode(await collected(stderr))).toBe('atlas lost the output stream\n')
+  })
+
+  it('closes both streams without a last word when the hook says the process ended with its stream', async () => {
+    const said = frame(EExecStream.Stdout, text('serving on 3001\n'))
+    const { stdout, stderr, done } = demuxExecStream({
+      stream: dying([said]),
+      onReadFailure: async () => ({ kind: EReadRecovery.Ended }),
+    })
+
+    await done
+    expect(new TextDecoder().decode(await collected(stdout))).toBe('serving on 3001\n')
+    expect(new TextDecoder().decode(await collected(stderr))).toBe('')
+  })
+
+  it('errors both streams when the recovery hook declines', async () => {
+    const { stdout, stderr, done } = demuxExecStream({
+      stream: dying([]),
+      onReadFailure: async () => ({ kind: EReadRecovery.Unrecoverable }),
+    })
+
+    await expect(done).rejects.toThrow('The operation timed out')
+    await expect(collected(stdout)).rejects.toThrow('The operation timed out')
+    await expect(collected(stderr)).rejects.toThrow('The operation timed out')
+  })
+
+  it('errors both streams when the recovery hook itself throws', async () => {
+    const { stdout, done } = demuxExecStream({
+      stream: dying([]),
+      onReadFailure: async () => {
+        throw new Error('the daemon is gone')
+      },
+    })
+
+    await expect(done).rejects.toThrow('The operation timed out')
+    await expect(collected(stdout)).rejects.toThrow('The operation timed out')
   })
 })

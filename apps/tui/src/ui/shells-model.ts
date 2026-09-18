@@ -53,6 +53,7 @@ export function shellStateLabel(shell: ShellSnapshot): string {
   if (shell.status === EShellStatus.Killed) {
     if (shell.killedBy === EKilledBy.User) return 'killed by you'
     if (shell.killedBy === EKilledBy.Timeout) return 'timed out'
+    if (shell.killedBy === EKilledBy.LostContact) return 'lost contact'
     return 'killed'
   }
   if (shell.status === EShellStatus.Overflowed) return 'killed — too much output'

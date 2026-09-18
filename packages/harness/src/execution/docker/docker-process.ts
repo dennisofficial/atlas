@@ -7,8 +7,8 @@ import {
 
 import { SIGKILL_GRACE_MS } from '../local-process'
 import { atlasBinDirectory } from '../../store/paths'
-import { demuxExecStream } from './frames'
 import { execEnvFor } from './exec-environment'
+import { trackExec } from './exec-tracker'
 import { EngineRequestFailed, type ContainerDetails, type DockerEngine } from './engine'
 import { blockRefusal, portInBlock } from './ports'
 import {
@@ -230,23 +230,15 @@ export class DockerProcessPort implements ProcessPort {
               atlasBin: atlasBinDirectory(),
             }),
     })
-    const demuxed = demuxExecStream({
+    const tracked = trackExec({
       stream: await this.engine.startExec({ execId: exec.id }),
+      inspect: () => this.engine.inspectExec({ execId: exec.id }),
     })
 
-    const exited = (async (): Promise<number> => {
-      await demuxed.done
-      for (;;) {
-        const state = await this.engine.inspectExec({ execId: exec.id })
-        if (!state.running && state.exitCode !== null) return state.exitCode
-        await new Promise((resolve) => setTimeout(resolve, 50))
-      }
-    })()
-
     return {
-      stdout: demuxed.stdout,
-      stderr: demuxed.stderr,
-      exited,
+      stdout: tracked.stdout,
+      stderr: tracked.stderr,
+      exited: tracked.exited,
       signal: async (signal) => {
         await this.signalGroup({ containerId: sandbox.id, pidfile, signal })
       },
