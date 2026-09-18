@@ -8,6 +8,14 @@ import { channelSignalSchema } from './signal-wire'
 
 export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
 
+/**
+ * Bumped by hand when a frame's shape changes. The TUI and the serve are built at different times
+ * from different releases — the TUI from the operator's build, the serve from whatever the API's
+ * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
+ * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
+ */
+export const CHANNEL_PROTOCOL_VERSION = 1
+
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
 export const bearerSubprotocolOf = (token: string): string =>
@@ -72,7 +80,11 @@ export const turnOutcomeFromWire = (outcome: TurnOutcomeWire): TurnOutcome => {
 }
 
 export const serveFrameSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal(EServeFrame.Ready), seq: seqSchema }),
+  z.object({
+    kind: z.literal(EServeFrame.Ready),
+    seq: seqSchema,
+    protocol: z.number().int().nonnegative().optional(),
+  }),
   z.object({ kind: z.literal(EServeFrame.Signal), seq: seqSchema, signal: channelSignalSchema }),
   z.object({
     kind: z.literal(EServeFrame.Reply),
@@ -94,6 +106,7 @@ export const clientFrameSchema = z.discriminatedUnion('kind', [
     threadId: threadIdSchema,
     channelCursor: seqSchema.nullable(),
     lastEventSeq: seqSchema,
+    protocol: z.number().int().nonnegative().optional(),
   }),
   z.object({ kind: z.literal(EClientFrame.Send), text: z.string() }),
   z.object({ kind: z.literal(EClientFrame.Run) }),

@@ -5,6 +5,7 @@ import { EStepEnd, type ChannelSignal, type StepId, type StepSignal } from '../c
 import type { TurnOutcome } from '../loop/turn-outcome'
 import {
   bearerSubprotocolOf,
+  CHANNEL_PROTOCOL_VERSION,
   CHANNEL_SUBPROTOCOL,
   decodeServeFrame,
   EClientFrame,
@@ -197,6 +198,19 @@ export function createRemoteDeltaChannel(args: {
 
   const handleFrame = (frame: ServeFrame) => {
     if (frame.kind === EServeFrame.Ready) {
+      if (frame.protocol !== undefined && frame.protocol !== CHANNEL_PROTOCOL_VERSION) {
+        const message =
+          frame.protocol > CHANNEL_PROTOCOL_VERSION
+            ? `the sandbox's serve speaks a newer wire protocol (${frame.protocol}) than this Atlas (${CHANNEL_PROTOCOL_VERSION}) — update Atlas, then re-open the conversation`
+            : `the sandbox's serve speaks an older wire protocol (${frame.protocol}) than this Atlas (${CHANNEL_PROTOCOL_VERSION}) — re-open the conversation so the sandbox's serve is rebuilt`
+        abandoned = true
+        failures.emit({ message })
+        serverErrors.emit({ message })
+        endStrandedStep()
+        moveTo({ state: EChannelConnection.Closed, detail: message })
+        socket?.close()
+        return
+      }
       attempt = 0
       upstream.attach({ write })
       moveTo({ state: EChannelConnection.Open, detail: null })
@@ -239,6 +253,7 @@ export function createRemoteDeltaChannel(args: {
         threadId: args.threadId,
         channelCursor,
         lastEventSeq: lastEventSeq(),
+        protocol: CHANNEL_PROTOCOL_VERSION,
       }),
     )
   }

@@ -5,6 +5,7 @@ import type { ThreadId } from '@dltech/atlas-core'
 import type { StepId } from '../channel/signal'
 
 import {
+  CHANNEL_PROTOCOL_VERSION,
   EClientFrame,
   EServeFrame,
   decodeClientFrame,
@@ -89,7 +90,10 @@ export function createSessionHandlers(args: {
       send({ socket, frame: { kind: EServeFrame.Reload, sinceEventSeq: hello.lastEventSeq } })
     }
 
-    send({ socket, frame: { kind: EServeFrame.Ready, seq: buffer.nextSeq() } })
+    send({
+      socket,
+      frame: { kind: EServeFrame.Ready, seq: buffer.nextSeq(), protocol: CHANNEL_PROTOCOL_VERSION },
+    })
 
     const blocked = refusal()
     if (blocked !== null) send({ socket, frame: { kind: EServeFrame.Error, message: blocked } })
@@ -175,6 +179,14 @@ export function createSessionHandlers(args: {
         }
         if (frame.threadId !== threadId) {
           refuse({ socket, reason: 'this sandbox serves one thread' })
+          return
+        }
+        if (frame.protocol !== undefined && frame.protocol !== CHANNEL_PROTOCOL_VERSION) {
+          const reason =
+            frame.protocol > CHANNEL_PROTOCOL_VERSION
+              ? `this Atlas speaks a newer wire protocol (${frame.protocol}) than this sandbox's serve (${CHANNEL_PROTOCOL_VERSION}) — re-open the conversation so the sandbox's serve is rebuilt`
+              : `this Atlas speaks an older wire protocol (${frame.protocol}) than this sandbox's serve (${CHANNEL_PROTOCOL_VERSION}) — update Atlas, then re-open the conversation`
+          refuse({ socket, reason })
           return
         }
         greet({ socket, hello: frame })

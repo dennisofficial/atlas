@@ -116,4 +116,17 @@ describe('what the sandbox itself refuses', () => {
 
     expect(session.health().failure).toBeNull()
   })
+
+  it("keeps the sandbox's own words when it refused the socket, rather than asking why", async () => {
+    const { channel, session } = sessionOn({
+      status: { state: ECloudSandboxState.Running },
+    })
+
+    channel.fail("this Atlas speaks a newer wire protocol (9) than this sandbox's serve (1) — re-open the conversation so the sandbox's serve is rebuilt")
+    channel.moveTo({ state: EChannelConnection.Closed, detail: 'wire protocol mismatch' })
+    await settled()
+
+    expect(session.health().connection.detail).toBe('wire protocol mismatch')
+    expect(session.health().failure).toContain('wire protocol')
+  })
 })

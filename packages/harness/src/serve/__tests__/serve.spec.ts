@@ -3,7 +3,13 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import { toRunId, toThreadId, type ThreadId } from '@dltech/atlas-core'
 
 import { EStepEnd } from '../../channel/signal'
-import { EClientFrame, EClientRequest, EServeFrame, type ServeFrame } from '../../cloud/channel-wire'
+import {
+  CHANNEL_PROTOCOL_VERSION,
+  EClientFrame,
+  EClientRequest,
+  EServeFrame,
+  type ServeFrame,
+} from '../../cloud/channel-wire'
 import { ETurnStatus } from '../../loop/turn-outcome'
 import {
   EServeEnv,
@@ -74,7 +80,7 @@ const start = async (args: {
   return { handle, app, beats, lines }
 }
 
-const hello = (args: { channelCursor: number | null; lastEventSeq: number }) =>
+const hello = (args: { channelCursor: number | null; lastEventSeq: number; protocol?: number }) =>
   ({ kind: EClientFrame.Hello, threadId, ...args }) as const
 
 const seqsOf = (frames: readonly ServeFrame[]): number[] =>
@@ -137,6 +143,41 @@ describe('startServe', () => {
     })
   })
 
+  it('refuses a hello on a newer wire protocol, saying how to rebuild the serve', async () => {
+    const { handle } = await start({})
+    const client = await connect({ port: handle.port, token: TOKEN })
+
+    client.send(hello({ channelCursor: null, lastEventSeq: 0, protocol: CHANNEL_PROTOCOL_VERSION + 1 }))
+
+    expect(await client.closed).toBe(1008)
+    const last = client.frames.at(-1)
+    expect(last?.kind).toBe(EServeFrame.Error)
+    if (last?.kind !== EServeFrame.Error) throw new Error('expected an error frame')
+    expect(last.message).toContain('re-open the conversation')
+  })
+
+  it('refuses a hello on an older wire protocol, saying to update Atlas', async () => {
+    const { handle } = await start({})
+    const client = await connect({ port: handle.port, token: TOKEN })
+
+    client.send(hello({ channelCursor: null, lastEventSeq: 0, protocol: CHANNEL_PROTOCOL_VERSION - 1 }))
+
+    expect(await client.closed).toBe(1008)
+    const last = client.frames.at(-1)
+    expect(last?.kind).toBe(EServeFrame.Error)
+    if (last?.kind !== EServeFrame.Error) throw new Error('expected an error frame')
+    expect(last.message).toContain('update Atlas')
+  })
+
+  it('greets a hello too old to carry a protocol stamp', async () => {
+    const { handle } = await start({})
+    const client = await connect({ port: handle.port, token: TOKEN })
+
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+  })
+
   it('replays only the frames after a cursor it still holds', async () => {
     const { handle, app } = await start({})
     const publisher = app.channel.publisherFor({ threadId })
@@ -147,7 +188,11 @@ describe('startServe', () => {
     client.send(hello({ channelCursor: 0, lastEventSeq: 4 }))
 
     await client.waitFor((frame) => frame.kind === EServeFrame.Signal && frame.seq === 2)
-    expect(client.frames[0]).toEqual({ kind: EServeFrame.Ready, seq: 3 })
+    expect(client.frames[0]).toEqual({
+      kind: EServeFrame.Ready,
+      seq: 3,
+      protocol: CHANNEL_PROTOCOL_VERSION,
+    })
     expect(seqsOf(client.frames)).toEqual([1, 2])
   })
 
@@ -162,7 +207,11 @@ describe('startServe', () => {
 
     await client.waitFor((frame) => frame.kind === EServeFrame.Signal && frame.seq === 2)
     expect(client.frames[0]).toEqual({ kind: EServeFrame.Reload, sinceEventSeq: 9 })
-    expect(client.frames[1]).toEqual({ kind: EServeFrame.Ready, seq: 3 })
+    expect(client.frames[1]).toEqual({
+      kind: EServeFrame.Ready,
+      seq: 3,
+      protocol: CHANNEL_PROTOCOL_VERSION,
+    })
     expect(seqsOf(client.frames)).toEqual([0, 1, 2])
   })
 
