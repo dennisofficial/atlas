@@ -26,8 +26,10 @@ const bearerTokenOf = (request: Request): string | undefined => {
 /**
  * The sessions routes serve two principals for the same thread: the operator (a better-auth
  * session) and the sandbox running that thread (its session token, the same one the heartbeat,
- * workspace, and serve-binary routes already trust). A bearer that matches the thread's sandbox
- * row authenticates as the thread's owner; anything else falls through to the user session.
+ * workspace, and serve-binary routes already trust). A bearer that matches a sandbox row
+ * authenticates as the thread's owner, and may reach the conversation family the sandbox serves:
+ * the sandbox's own thread plus its sub-agent threads. Anything else falls through to the user
+ * session.
  */
 @Injectable()
 export class SessionOrSandboxGuard implements CanActivate {
@@ -49,11 +51,11 @@ export class SessionOrSandboxGuard implements CanActivate {
     const token = bearerTokenOf(request)
 
     if (token !== undefined) {
-      const row =
-        threadId !== undefined
-          ? await this.sandboxes.verifySessionToken({ threadId, token }).catch(() => null)
-          : await this.sandboxes.verifyTokenPrincipal({ token }).catch(() => null)
+      const row = await this.sandboxes.verifyTokenPrincipal({ token }).catch(() => null)
       if (row !== null) {
+        if (threadId !== undefined) {
+          await this.sandboxes.assertThreadInFamily({ sandboxThreadId: row.threadId, threadId })
+        }
         request.auth = {
           userId: row.userId,
           sessionId: `sandbox:${row.id}`,

@@ -194,6 +194,24 @@ export class SandboxesService {
     return row
   }
 
+  /**
+   * A sandbox token reaches the conversation it serves: the sandbox's own thread plus the
+   * sub-agent threads it spawns (spawnerThreadId points at the root). Sub-agents cannot spawn
+   * sub-agents of their own, so the family is exactly one level deep.
+   */
+  async assertThreadInFamily(args: { sandboxThreadId: string; threadId: string }): Promise<void> {
+    if (args.threadId === args.sandboxThreadId) return
+    const child = await db.thread.findFirst({
+      where: { id: args.threadId, spawnerThreadId: args.sandboxThreadId },
+      select: { id: true },
+    })
+    if (child === null) {
+      throw new UnauthorizedException(
+        'the sandbox token reaches only its own thread and its sub-agents',
+      )
+    }
+  }
+
   async heartbeat(args: { threadId: string }): Promise<void> {
     const at = nowIso()
     await db.cloudSandbox.updateMany({
@@ -214,6 +232,11 @@ export class SandboxesService {
     let parked = 0
     for (const row of stale) {
       try {
+        const fresh = await db.cloudSandbox.findUnique({
+          where: { threadId: row.threadId },
+          select: { lastActivityAt: true },
+        })
+        if (fresh === null || fresh.lastActivityAt >= quietSince) continue
         await this.park({ row })
         parked += 1
       } catch (failure) {

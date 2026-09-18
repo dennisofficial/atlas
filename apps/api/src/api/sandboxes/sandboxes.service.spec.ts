@@ -397,6 +397,47 @@ describe('SandboxesService', () => {
     expect(fake.cloudSandboxes[1]?.state).toBe(ESandboxState.Running)
   })
 
+  it('spares a sandbox a heartbeat refreshed after the sweep began', async () => {
+    const quiet = new Date(Date.now() - (TTL_MINUTES + 5) * 60_000).toISOString()
+    fake.cloudSandboxes.push(
+      sandboxRow({ threadId: 'brn_racy', name: 'atlas-racy', lastActivityAt: quiet }),
+    )
+    const findUnique = fake.db.cloudSandbox.findUnique.bind(fake.db.cloudSandbox)
+    const raced = vi.fn(async (args: unknown) => {
+      const row = fake.cloudSandboxes.find((one) => one.threadId === 'brn_racy')
+      if (row !== undefined) row.lastActivityAt = new Date().toISOString()
+      return findUnique(args as never)
+    })
+    fake.db.cloudSandbox.findUnique = raced as unknown as typeof findUnique
+
+    try {
+      const parked = await service.reap()
+
+      expect(parked).toBe(0)
+      expect(client.stop).not.toHaveBeenCalled()
+      expect(fake.cloudSandboxes[0]?.state).toBe(ESandboxState.Running)
+    } finally {
+      fake.db.cloudSandbox.findUnique = findUnique
+    }
+  })
+
+  it("lets the sandbox token reach its own thread and its sub-agents, nothing else", async () => {
+    fake.threads.push(
+      threadRow({ id: 'brn_child', spawnerThreadId: THREAD }),
+      threadRow({ id: 'brn_elsewhere', spawnerThreadId: 'brn_someone-else' }),
+    )
+
+    await expect(
+      service.assertThreadInFamily({ sandboxThreadId: THREAD, threadId: THREAD }),
+    ).resolves.toBeUndefined()
+    await expect(
+      service.assertThreadInFamily({ sandboxThreadId: THREAD, threadId: 'brn_child' }),
+    ).resolves.toBeUndefined()
+    await expect(
+      service.assertThreadInFamily({ sandboxThreadId: THREAD, threadId: 'brn_elsewhere' }),
+    ).rejects.toBeInstanceOf(UnauthorizedException)
+  })
+
   it('carries the workspace spec from create through to the sandbox fetch', async () => {
     await service.attach({ userId: USER_A, threadId: THREAD, workspace: SPEC })
     await service.whenSettled({ threadId: THREAD })

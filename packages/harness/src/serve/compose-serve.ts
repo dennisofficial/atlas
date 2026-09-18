@@ -1,4 +1,4 @@
-import { EventLogPort } from '@dltech/atlas-core'
+import { ENoticeTone, EventLogPort, type NoticePort } from '@dltech/atlas-core'
 
 import { RemoteEventLog } from '../cloud/remote-event-log'
 import { RemoteThreadStore } from '../cloud/remote-thread-store'
@@ -17,6 +17,31 @@ import { seedServeSession } from './serve-session'
 export const SERVE_COMMAND = 'serve'
 
 type ServeStores = { log: EventLogPort; threads: ThreadStorePort }
+
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
+/**
+ * A failed append on the sandbox is otherwise invisible: the turn it belongs to just dies, and the
+ * serve log says nothing. The surface notice port is the serve log (LoggingNoticePort), so the
+ * refusal lands where the next attach can read it.
+ */
+const loggingOnAppendFailure = (args: { log: EventLogPort; notice: NoticePort }): EventLogPort => ({
+  append: async (appendArgs) => {
+    try {
+      return await args.log.append(appendArgs)
+    } catch (error) {
+      args.notice.notify({
+        tone: ENoticeTone.Warn,
+        text: `the control plane refused an event append for ${appendArgs.threadId}: ${messageOf(error)}`,
+      })
+      throw error
+    }
+  },
+  read: (readArgs) => args.log.read(readArgs),
+  readOwn: (readArgs) => args.log.readOwn(readArgs),
+  head: (headArgs) => args.log.head(headArgs),
+})
 
 /**
  * The shared root, bound for a sandbox: durable state lives in the control plane rather than on a
@@ -45,7 +70,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     surface: {
       notice: args.notice,
       bind: ({ container }) => {
-        const log = new RemoteEventLog({ client })
+        const log = loggingOnAppendFailure({ log: new RemoteEventLog({ client }), notice: args.notice })
         const threads = new RemoteThreadStore({ client })
 
         container.register(portToken(EventLogPort), { useValue: log })

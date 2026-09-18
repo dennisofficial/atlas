@@ -16,27 +16,112 @@ import { API, fail, log, MOCK_PORT, PG_CONTAINER, SERVE_PORT, signUp } from './l
 const SERVE_URL = `http://localhost:${SERVE_PORT}`
 const SANDBOX_TOKEN = `e2e-sandbox-${Date.now()}`
 
-// A canned OpenAI-compatible model: streams a fixed answer over SSE. When told to stop answering,
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+type MockMessage = { role?: string; content?: unknown }
+
+const textOf = (content: unknown): string => {
+  if (typeof content === 'string') return content
+  if (!Array.isArray(content)) return ''
+  return content
+    .map((part) =>
+      typeof part === 'object' && part !== null && 'text' in part
+        ? String((part as { text: unknown }).text)
+        : '',
+    )
+    .join('')
+}
+
+const sse = (args: { delta: object; finishReason?: string; usage?: object }): string =>
+  `data: ${JSON.stringify({
+    id: 'chatcmpl-e2e',
+    object: 'chat.completion.chunk',
+    created: 1,
+    model: 'mock',
+    choices: [
+      {
+        index: 0,
+        delta: args.delta,
+        ...(args.finishReason === undefined ? {} : { finish_reason: args.finishReason }),
+      },
+    ],
+    ...(args.usage === undefined ? {} : { usage: args.usage }),
+  })}\n\n`
+
+const USAGE = { prompt_tokens: 12, completion_tokens: 4, total_tokens: 16 }
+
+const streamText = (response: http.ServerResponse, text: string): void => {
+  response.write(sse({ delta: { role: 'assistant', content: '' } }))
+  response.write(sse({ delta: { content: text } }))
+  response.write(sse({ delta: {}, finishReason: 'stop', usage: USAGE }))
+  response.write('data: [DONE]\n\n')
+  response.end()
+}
+
+const streamToolCall = (response: http.ServerResponse): void => {
+  response.write(
+    sse({
+      delta: {
+        role: 'assistant',
+        tool_calls: [
+          {
+            index: 0,
+            id: 'call_e2e_spawn',
+            type: 'function',
+            function: {
+              name: 'agent_spawn',
+              arguments: JSON.stringify({
+                agentType: 'explore',
+                intent: 'Probe the workspace',
+                brief: 'look around and report back',
+              }),
+            },
+          },
+        ],
+      },
+    }),
+  )
+  response.write(sse({ delta: {}, finishReason: 'tool_calls', usage: USAGE }))
+  response.write('data: [DONE]\n\n')
+  response.end()
+}
+
+// A canned OpenAI-compatible model. "send a helper" is answered with an agent_spawn tool call;
+// the sub-agent's own request (its brief says "look around") gets the child's report; a request
+// carrying a tool result is the parent continuing after the spawn. When told to stop answering,
 // it fails fast with a 400 (non-retryable), which is how the failure-surfacing leg is driven.
 let mockAnswers = true
 const mock = http.createServer((request, response) => {
-  if (request.method === 'POST' && request.url === '/v1/chat/completions' && mockAnswers) {
-    response.writeHead(200, { 'content-type': 'text/event-stream' })
-    response.write(
-      'data: {"id":"chatcmpl-e2e","object":"chat.completion.chunk","created":1,"model":"mock","choices":[{"index":0,"delta":{"role":"assistant","content":""}}]}\n\n',
-    )
-    response.write(
-      'data: {"id":"chatcmpl-e2e","object":"chat.completion.chunk","created":1,"model":"mock","choices":[{"index":0,"delta":{"content":"Hello from the sandbox"}}]}\n\n',
-    )
-    response.write(
-      'data: {"id":"chatcmpl-e2e","object":"chat.completion.chunk","created":1,"model":"mock","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":12,"completion_tokens":4,"total_tokens":16}}\n\n',
-    )
-    response.write('data: [DONE]\n\n')
-    response.end()
+  if (request.method !== 'POST' || request.url !== '/v1/chat/completions' || !mockAnswers) {
+    response.writeHead(400, { 'content-type': 'application/json' })
+    response.end(JSON.stringify({ error: { message: 'the mock model is down' } }))
     return
   }
-  response.writeHead(400, { 'content-type': 'application/json' })
-  response.end(JSON.stringify({ error: { message: 'the mock model is down' } }))
+  let body = ''
+  request.on('data', (chunk: Buffer) => {
+    body += chunk.toString()
+  })
+  request.on('end', () => {
+    response.writeHead(200, { 'content-type': 'text/event-stream' })
+    const messages = (JSON.parse(body).messages ?? []) as MockMessage[]
+    if (messages.some((message) => message.role === 'tool')) {
+      streamText(response, 'The helper is on it.')
+      return
+    }
+    const said = messages
+      .filter((message) => message.role === 'user')
+      .map((message) => textOf(message.content))
+      .join('\n')
+    if (said.includes('look around')) {
+      streamText(response, 'child-report: all clear')
+      return
+    }
+    if (said.includes('send a helper')) {
+      streamToolCall(response)
+      return
+    }
+    streamText(response, 'Hello from the sandbox')
+  })
 })
 await new Promise<void>((resolve) => mock.listen(MOCK_PORT, resolve))
 
@@ -94,7 +179,7 @@ for (let attempt = 0; attempt < 60; attempt++) {
     healthy = true
     break
   }
-  await new Promise((resolve) => setTimeout(resolve, 500))
+  await sleep(500)
 }
 if (!healthy) fail('the serve never answered healthy')
 log('serve healthy')
@@ -146,19 +231,74 @@ const turns = await fetch(`${API}/v1/threads/${threadId}/turns`, {
 if (!Array.isArray(turns) || turns.length === 0) fail('the turn ledger is empty')
 log(`turn ledger recorded ${turns.length} turn(s), status ${turns[0].status}`)
 
-mockAnswers = false
 await eventLog.append({
   threadId,
   runId: toRunId('run_e2e-turn-2'),
+  drafts: [{ type: 'user-said', text: 'send a helper' }],
+})
+const spawnOutcome = await runner.runTurn({ threadId })
+if (spawnOutcome.status !== ETurnStatus.Completed) {
+  fail(`turn 2 (spawning a sub-agent) ended ${JSON.stringify(spawnOutcome)}`)
+}
+log('turn 2 completed: the parent spawned a sub-agent')
+
+let childId: string | undefined
+for (let attempt = 0; attempt < 30 && childId === undefined; attempt++) {
+  const spawned = await fetch(`${API}/v1/threads/${threadId}/spawned`, {
+    headers: { authorization: `Bearer ${userToken}` },
+  })
+    .then((res) => res.json())
+    .catch(() => null)
+  if (Array.isArray(spawned) && spawned.length > 0) {
+    childId = (spawned[0] as { id: string }).id
+    break
+  }
+  await sleep(1_000)
+}
+if (childId === undefined) fail('the sub-agent thread never appeared in the control plane')
+log(`sub-agent thread registered: ${childId}`)
+
+// The API throttles at 100 requests/minute across everything the rig has already done, so these
+// polls stay well under it.
+let childAnswered = false
+let childReadStatus = 0
+let lastChildEvents = ''
+for (let attempt = 0; attempt < 40 && !childAnswered; attempt++) {
+  const reading = await fetch(`${API}/v1/threads/${childId}/events`, {
+    headers: { authorization: `Bearer ${SANDBOX_TOKEN}` },
+  }).catch(() => null)
+  if (reading === null) {
+    await sleep(1_000)
+    continue
+  }
+  childReadStatus = reading.status
+  if (reading.status === 200) {
+    lastChildEvents = JSON.stringify(await reading.json())
+    childAnswered = lastChildEvents.includes('child-report: all clear')
+  }
+  if (!childAnswered) await sleep(1_000)
+}
+if (childReadStatus !== 200) {
+  fail(`the sandbox token cannot read the sub-agent's thread: last status ${childReadStatus}`)
+}
+if (!childAnswered) {
+  fail(`the sub-agent's answer never landed in its thread; events: ${lastChildEvents.slice(0, 600)}`)
+}
+log("sub-agent's answer committed and readable with the sandbox token")
+
+mockAnswers = false
+await eventLog.append({
+  threadId,
+  runId: toRunId('run_e2e-turn-3'),
   drafts: [{ type: 'user-said', text: 'are you there' }],
 })
 const failedOutcome = await runner.runTurn({ threadId })
 if (failedOutcome.status !== ETurnStatus.Failed) {
-  fail(`turn 2 should have failed with the mock down, ended ${failedOutcome.status}`)
+  fail(`turn 3 should have failed with the mock down, ended ${failedOutcome.status}`)
 }
 const detail = failedOutcome.status === ETurnStatus.Failed ? failedOutcome.message : ''
-if (detail.length === 0) fail('turn 2 failed without a reason reaching the client')
-log(`turn 2 failed legibly: ${detail.slice(0, 120)}`)
+if (detail.length === 0) fail('turn 3 failed without a reason reaching the client')
+log(`turn 3 failed legibly: ${detail.slice(0, 120)}`)
 mockAnswers = true
 
 await serve.close()
@@ -170,14 +310,14 @@ channel.wake({ url: SERVE_URL, token: SANDBOX_TOKEN })
 const wakingRunner = new RemoteTurnRunner({ channel, wake: async () => undefined })
 await eventLog.append({
   threadId,
-  runId: toRunId('run_e2e-turn-3'),
+  runId: toRunId('run_e2e-turn-4'),
   drafts: [{ type: 'user-said', text: 'welcome back' }],
 })
 const wokenOutcome = await wakingRunner.runTurn({ threadId })
 if (wokenOutcome.status !== ETurnStatus.Completed) {
-  fail(`turn 3 after the wake ended ${JSON.stringify(wokenOutcome)}`)
+  fail(`turn 4 after the wake ended ${JSON.stringify(wokenOutcome)}`)
 }
-log('turn 3 completed after the wake')
+log('turn 4 completed after the wake')
 
 await serve.close()
 channel.close()
