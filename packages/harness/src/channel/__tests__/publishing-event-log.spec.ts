@@ -48,6 +48,10 @@ function fakeLog(): EventLogPort & { readonly rows: Event[] } {
     async readOwn({ threadId, upTo }) {
       return this.read({ threadId, ...(upTo === undefined ? {} : { upTo }) })
     },
+
+    async replace() {
+      return []
+    },
   }
 }
 

@@ -41,6 +41,7 @@ const loggingOnAppendFailure = (args: { log: EventLogPort; notice: NoticePort })
   read: (readArgs) => args.log.read(readArgs),
   readOwn: (readArgs) => args.log.readOwn(readArgs),
   head: (headArgs) => args.log.head(headArgs),
+  replace: (replaceArgs) => args.log.replace(replaceArgs),
 })
 
 /**

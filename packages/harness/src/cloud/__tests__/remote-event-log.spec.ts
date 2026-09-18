@@ -98,4 +98,23 @@ describe('RemoteEventLog', () => {
 
     expect(await log.head({ threadId: THREAD })).toBe(42)
   })
+
+  it('replace sends the whole log as one PUT and decodes the stamped events', async () => {
+    const { log, calls } = harness([[wireEvent]])
+    const drafts: EventDraft[] = [{ type: 'user-said', text: 'hello' }]
+
+    const events = await log.replace({ threadId: THREAD, runId: RUN, drafts })
+
+    expect(calls[0]?.method).toBe('PUT')
+    expect(calls[0]?.url).toBe('http://cloud.test/v1/threads/brn_test/events')
+    expect((calls[0]?.body as { runId: string }).runId).toBe('run_test')
+    expect(events[0]).toMatchObject({ seq: 1, type: 'user-said' })
+  })
+
+  it('replace with no drafts still sends the wipe', async () => {
+    const { log, calls } = harness([[]])
+
+    expect(await log.replace({ threadId: THREAD, runId: RUN, drafts: [] })).toEqual([])
+    expect(calls).toHaveLength(1)
+  })
 })

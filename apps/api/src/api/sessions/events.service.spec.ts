@@ -187,4 +187,94 @@ describe('EventsService', () => {
       NotFoundException,
     )
   })
+
+  describe('replace', () => {
+    it('replaces the log wholesale, dropping old rows and reseqing 1..N', async () => {
+      await service.append({
+        userId: USER_A,
+        threadId: 'brn_one',
+        draft: { runId: 'run_1', drafts: [draft('user-said'), draft('assistant-said')] },
+      })
+      const oldIds = fake.events.map((event) => event.id)
+
+      const replaced = await service.replace({
+        userId: USER_A,
+        threadId: 'brn_one',
+        draft: { runId: 'run_2', drafts: [draft('user-said'), draft('assistant-said'), draft('tool-called')] },
+      })
+
+      expect(replaced.map((event) => event.seq)).toEqual([1, 2, 3])
+      expect(replaced.every((event) => event.runId === 'run_2')).toBe(true)
+      expect(fake.events).toHaveLength(3)
+      expect(fake.events.map((event) => event.id)).not.toEqual(expect.arrayContaining(oldIds))
+      expect(fake.threads[0]).toMatchObject({ id: 'brn_one', head: 3 })
+    })
+
+    it('does not dedup identical context drafts the way append does', async () => {
+      await service.append({
+        userId: USER_A,
+        threadId: 'brn_one',
+        draft: { runId: 'run_0', drafts: [draft('user-said')] },
+      })
+
+      const replaced = await service.replace({
+        userId: USER_A,
+        threadId: 'brn_one',
+        draft: {
+          runId: 'run_1',
+          drafts: [contextDraft('file', 'a', 'd'), contextDraft('file', 'a', 'd')],
+        },
+      })
+
+      expect(fake.events).toHaveLength(2)
+      expect(replaced[0]?.id).not.toBe(replaced[1]?.id)
+      expect(replaced.map((event) => event.seq)).toEqual([1, 2])
+    })
+
+    it('refuses a thread belonging to another user', async () => {
+      await service.append({
+        userId: USER_A,
+        threadId: 'brn_one',
+        draft: { runId: 'run_1', drafts: [draft('user-said')] },
+      })
+
+      await expect(
+        service.replace({
+          userId: USER_B,
+          threadId: 'brn_one',
+          draft: { runId: 'run_2', drafts: [draft('user-said')] },
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException)
+      expect(fake.events).toHaveLength(1)
+    })
+
+    it('404s on a missing thread rather than creating one', async () => {
+      await expect(
+        service.replace({
+          userId: USER_A,
+          threadId: 'brn_missing',
+          draft: { runId: 'run_1', drafts: [draft('user-said')] },
+        }),
+      ).rejects.toBeInstanceOf(NotFoundException)
+      expect(fake.threads).toHaveLength(0)
+    })
+
+    it('empties the log and zeroes head when given no drafts', async () => {
+      await service.append({
+        userId: USER_A,
+        threadId: 'brn_one',
+        draft: { runId: 'run_1', drafts: [draft('user-said'), draft('assistant-said')] },
+      })
+
+      const replaced = await service.replace({
+        userId: USER_A,
+        threadId: 'brn_one',
+        draft: { runId: 'run_2', drafts: [] },
+      })
+
+      expect(replaced).toEqual([])
+      expect(fake.events).toHaveLength(0)
+      expect(fake.threads[0]).toMatchObject({ id: 'brn_one', head: 0 })
+    })
+  })
 })

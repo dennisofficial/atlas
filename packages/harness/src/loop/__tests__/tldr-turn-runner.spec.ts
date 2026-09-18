@@ -43,6 +43,7 @@ function inMemoryLog(): EventLogPort & { rows: Event[] } {
     read: () => Promise.resolve([...rows]),
     readOwn: () => Promise.resolve([...rows]),
     head: () => Promise.resolve(rows.length),
+    replace: () => Promise.resolve([]),
   }
 }
 

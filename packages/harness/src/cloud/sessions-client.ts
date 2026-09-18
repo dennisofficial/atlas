@@ -240,6 +240,19 @@ export class SessionsClient {
     return z.array(wireEventSchema).parse(body)
   }
 
+  async replaceEvents(args: {
+    threadId: string
+    runId: string
+    drafts: readonly WireDraft[]
+  }): Promise<WireEvent[]> {
+    const body = await this.request({
+      method: 'PUT',
+      path: `/v1/threads/${args.threadId}/events`,
+      body: { runId: args.runId, drafts: args.drafts },
+    })
+    return z.array(wireEventSchema).parse(body)
+  }
+
   async readEvents(args: {
     threadId: string
     upTo?: number | undefined

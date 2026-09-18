@@ -353,6 +353,27 @@ export function fakeEventLog(seeded: readonly Event[] = []): FakeEventLog {
       return written
     },
 
+    async replace({ threadId, runId, drafts }) {
+      const written = drafts.map((draft, index) => {
+        stamped += 1
+        return stampEvent({
+          draft,
+          envelope: {
+            id: toEventId(`event-${stamped}`),
+            seq: index + 1,
+            threadId,
+            runId,
+            depth: 0,
+            at: AT,
+          },
+        })
+      })
+
+      byThread.set(threadId, written)
+      headByThread.set(threadId, written.length)
+      return written
+    },
+
     replaceWithSummary({ threadId, anchor, fromSeq, throughSeq, summary, discardRows }) {
       const rows = byThread.get(threadId) ?? []
       const inRange = (event: Event): boolean => event.seq >= fromSeq && event.seq <= throughSeq

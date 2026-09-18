@@ -10,7 +10,14 @@ export const fail = (reason) => {
 
 export const log = (line) => console.log(line)
 
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+
 export const signUp = async () => {
+  const tokenFile = process.env.E2E_TOKEN_FILE
+  if (tokenFile !== undefined && existsSync(tokenFile)) {
+    return JSON.parse(readFileSync(tokenFile, 'utf8'))
+  }
+
   const res = await fetch(`${API}/api/auth/sign-up/email`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -22,7 +29,9 @@ export const signUp = async () => {
   })
   if (res.status !== 200) fail(`sign-up answered ${res.status}`)
   const body = await res.json()
-  return { token: body.token, userId: body.user.id }
+  const account = { token: body.token, userId: body.user.id }
+  if (tokenFile !== undefined) writeFileSync(tokenFile, JSON.stringify(account))
+  return account
 }
 
 export const userSaid = (text) => ({

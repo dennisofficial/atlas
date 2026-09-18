@@ -1,9 +1,9 @@
-import { Injectable } from '@nestjs/common'
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '../../db'
-import { appendWithin, readComposedRows, readOwnRows } from './append'
+import { appendWithin, nextEventId, nowIso, readComposedRows, readOwnRows } from './append'
 import { ownedThread } from './ownership'
 import { toEventDto } from './rows'
-import type { AppendEventsDto } from './sessions.dto'
+import type { AppendEventsDto, ReplaceEventsDto } from './sessions.dto'
 import type { EventDto } from './sessions.types'
 
 @Injectable()
@@ -24,6 +24,47 @@ export class EventsService {
         drafts: args.draft.drafts,
       }),
     )
+  }
+
+  replace(args: {
+    userId: string
+    threadId: string
+    draft: ReplaceEventsDto
+  }): Promise<EventDto[]> {
+    return db.$transaction(async (tx) => {
+      const thread = await tx.thread.findUnique({ where: { id: args.threadId } })
+      if (thread === null) throw new NotFoundException('thread not found')
+      if (thread.userId !== args.userId) {
+        throw new ForbiddenException('thread belongs to another user')
+      }
+
+      await tx.event.deleteMany({ where: { threadId: args.threadId } })
+
+      const at = nowIso()
+      const rows = args.draft.drafts.map((draft, index) => ({
+        id: nextEventId(),
+        threadId: args.threadId,
+        seq: index + 1,
+        runId: args.draft.runId,
+        parentRunId: null,
+        depth: 0,
+        at,
+        type: draft.type,
+        body: draft.body,
+        contextSlot: draft.contextSlot ?? null,
+        contextKey: draft.contextKey ?? null,
+        contextDigest: draft.contextDigest ?? null,
+        userId: args.userId,
+      }))
+      await tx.event.createMany({ data: rows })
+
+      await tx.thread.update({
+        where: { id: args.threadId },
+        data: { head: rows.length, updatedAt: at },
+      })
+
+      return rows.map(toEventDto)
+    })
   }
 
   async read(args: {

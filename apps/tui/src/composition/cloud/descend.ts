@@ -1,6 +1,5 @@
 import {
   EExecutionLocation,
-  type EventDraft,
   type ThreadId,
 } from '@dltech/atlas-core'
 import { relocateSession } from '@dltech/atlas-harness'
@@ -17,19 +16,16 @@ import { flipChildrenBack } from './lift-children'
 
 const INTERRUPT_DEADLINE_MS = 30_000
 
-const sameDraft = (left: EventDraft, right: EventDraft): boolean =>
-  JSON.stringify(left) === JSON.stringify(right)
-
 export type DescendLocalHome = Pick<
   AtlasApp,
   'threads' | 'log' | 'ledger' | 'agents' | 'ids' | 'workspace' | 'services'
 >
 
 /**
- * The descend's transfer trusts seq alignment between the two logs: the lift replayed the local
- * log into the remote one in order, so the first local.head remote events are the ones the local
- * store already has. Logs are append-only on both sides, so a mismatch at the boundary means the
- * histories diverged and appending a tail would silently fork the transcript.
+ * The cloud is the log's home while the conversation is away, so coming home replaces the local
+ * log with it wholesale rather than appending a tail onto a snapshot that could have drifted. The
+ * one refusal: the cloud holding nothing while the local log holds something can only mean the
+ * transfer up never landed, and replacing would erase the conversation.
  */
 async function transferThreadDown(args: {
   threadId: ThreadId
@@ -58,33 +54,19 @@ async function transferThreadDown(args: {
     return
   }
 
-  const head = await localApp.log.head({ threadId })
-  if (head > events.length) {
-    throw new Error('the local log holds events the cloud never saw')
-  }
-  if (head > 0) {
-    const boundaryLocal = (await localApp.log.read({ threadId, upTo: head })).at(-1)
-    const boundaryRemote = events.at(head - 1)
-    if (boundaryLocal === undefined || boundaryRemote === undefined) {
-      throw new Error('the local log diverged from the cloud while the conversation was away')
+  if (events.length === 0) {
+    if ((await localApp.log.head({ threadId })) > 0) {
+      throw new Error(
+        'the cloud holds no events for this conversation but the local log does — refusing to wipe them',
+      )
     }
-    const [localDraft] = draftsOf([boundaryLocal])
-    const [remoteDraft] = draftsOf([boundaryRemote])
-    if (
-      localDraft === undefined ||
-      remoteDraft === undefined ||
-      !sameDraft(localDraft, remoteDraft)
-    ) {
-      throw new Error('the local log diverged from the cloud while the conversation was away')
-    }
+    return
   }
 
-  const tail = events.slice(head)
-  if (tail.length === 0) return
-  await localApp.log.append({
+  await localApp.log.replace({
     threadId,
     runId: localApp.ids.nextRunId(),
-    drafts: draftsOf(tail),
+    drafts: draftsOf(events),
   })
 }
 
