@@ -129,7 +129,7 @@ const MEASURED: SidebarModel = {
   subagents: [
     {
       ...(FED.subagents?.[0] as SidebarSubagent),
-      state: "1m 4s · 68.0k",
+      state: "1m 4s",
       context: { tokens: 68_000, window: 200_000 },
     },
   ],
