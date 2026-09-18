@@ -1,5 +1,6 @@
 import {
   EAgentStatus,
+  EExecutionLocation,
   EKilledBy,
   toThreadId,
   toEventId,
@@ -323,6 +324,71 @@ describe('which conversation the app opens on', () => {
     })
 
     expect(opened(outcome).threadId).toBe(YESTERDAY)
+  })
+
+  it('resumes by a title only the cloud remembers, when the local row predates the rename', async () => {
+    const remote = fakeThreadStore({
+      existing: [YESTERDAY],
+      titles: { [YESTERDAY]: 'Casual Greeting' },
+    })
+    await remote.chooseExecutionLocation({
+      threadId: YESTERDAY,
+      location: EExecutionLocation.Cloud,
+    })
+
+    const outcome = await openConversation({
+      threads: fakeThreadStore({
+        existing: [YESTERDAY],
+        titles: { [YESTERDAY]: 'Hello World Greeting' },
+      }),
+      remoteThreads: remote,
+      log: fakeEventLog([said('the renamed one')]),
+      ledger: fakeLedger(),
+      agents: fakeAgentRegistry(),
+      ids: fakeIds(),
+      workspace: HERE,
+      open: { mode: EOpenMode.Resume, threadId: 'casual-greeting' },
+    })
+
+    expect(opened(outcome).threadId).toBe(YESTERDAY)
+    expect(opened(outcome).executionLocation).toBe(EExecutionLocation.Cloud)
+  })
+
+  it('resumes a thread that only exists in the cloud at all', async () => {
+    const remote = fakeThreadStore({ existing: [YESTERDAY] })
+    await remote.chooseExecutionLocation({
+      threadId: YESTERDAY,
+      location: EExecutionLocation.Cloud,
+    })
+
+    const outcome = await openConversation({
+      threads: fakeThreadStore(),
+      remoteThreads: remote,
+      log: fakeEventLog(),
+      ledger: fakeLedger(),
+      agents: fakeAgentRegistry(),
+      ids: fakeIds(),
+      workspace: HERE,
+      open: { mode: EOpenMode.Resume, threadId: YESTERDAY },
+    })
+
+    expect(opened(outcome).threadId).toBe(YESTERDAY)
+    expect(opened(outcome).executionLocation).toBe(EExecutionLocation.Cloud)
+  })
+
+  it('still says no when neither store knows the conversation', async () => {
+    const outcome = await openConversation({
+      threads: fakeThreadStore(),
+      remoteThreads: fakeThreadStore(),
+      log: fakeEventLog(),
+      ledger: fakeLedger(),
+      agents: fakeAgentRegistry(),
+      ids: fakeIds(),
+      workspace: HERE,
+      open: { mode: EOpenMode.Resume, threadId: 'nobody-home' },
+    })
+
+    expect(outcome.ok).toBe(false)
   })
 
   it('resumes one recorded before conversations were attributed to a workspace', async () => {

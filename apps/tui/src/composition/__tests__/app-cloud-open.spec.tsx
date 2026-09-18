@@ -98,6 +98,28 @@ describe('opening a conversation that lives in the cloud', () => {
     }
   }, 60_000)
 
+  it('attaches when /resume names a cloud conversation by the title the cloud remembers', async () => {
+    const app = speaking()
+    const { threads, threadId } = await seedCloudThread()
+    const bridge = fakeBridge({ threadStore: threads, status: RUNNING_STATUS })
+    await bridge.log.append({
+      threadId,
+      runId: toRunId('run-cloud'),
+      drafts: [{ type: 'user-said', text: 'said inside the sandbox' }],
+    })
+    const mounted = await mount({ app, bridge })
+
+    try {
+      const frame = await mounted.command('/resume the-lifted-thread')
+
+      expect(bridge.attached).toHaveLength(1)
+      expect(bridge.attached[0]?.threadId).toBe(threadId)
+      expect(frame).toContain('said inside the sandbox')
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
   it('attaches at boot when the session opens on a cloud conversation', async () => {
     const app = speaking()
     const { threads, threadId } = await seedCloudThread()

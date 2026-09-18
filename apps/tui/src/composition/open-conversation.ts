@@ -56,6 +56,7 @@ export type OpenOutcome =
 
 type Opening = {
   threads: ThreadStorePort
+  remoteThreads?: ThreadStorePort | undefined
   log: EventLogPort
   ledger: TurnLedgerPort
   agents: AgentRegistryPort
@@ -77,7 +78,7 @@ const reachableFrom = (args: { thread: ThreadSummary; project: string }): boolea
   args.thread.workspace === args.project ||
   args.thread.repo === args.project
 
-const namedBy = (args: { thread: ThreadSummary; handle: string }): boolean => {
+export const namedBy = (args: { thread: ThreadSummary; handle: string }): boolean => {
   const { title } = args.thread
   if (title === undefined) return false
 
@@ -103,7 +104,19 @@ async function resumed(args: Opening & { handle: string }): Promise<ThreadSummar
   }
 
   const listed = await threads.list({ project })
-  return listed.find((thread) => namedBy({ thread, handle }))
+  const named = listed.find((thread) => namedBy({ thread, handle }))
+  if (named !== undefined) return named
+
+  const remote = args.remoteThreads
+  if (remote === undefined) return undefined
+
+  const remoteById = await remote.find({ threadId: toThreadId(handle) }).catch(() => undefined)
+  if (remoteById !== undefined && reachableFrom({ thread: remoteById, project })) {
+    return remoteById
+  }
+
+  const remoteListed = await remote.list({ project }).catch(() => [] as readonly ThreadSummary[])
+  return remoteListed.find((thread) => namedBy({ thread, handle }))
 }
 
 type Found = ThreadSummary | { unstarted: true } | { reason: string }

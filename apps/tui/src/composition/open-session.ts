@@ -8,13 +8,19 @@ import {
 } from '@dltech/atlas-harness'
 
 import { registerGrammars } from '../ui/markdown/grammars/index'
+import { clientVersionHeader } from '../build/info'
 import { ENoticeTone, notify } from '../ui/notice-store'
 import { EBootStep, type BootProgress } from './boot-progress'
 import { composeAtlas, type AtlasApp } from './compose'
 import type { AtlasConfig } from './config'
 import { diagnoseCredentialFailure, type CredentialDiagnosis } from './credential-diagnosis'
 import { openConversation, type OpenedConversation } from './open-conversation'
-import type { SettingsBinding } from '@dltech/atlas-harness'
+import {
+  RemoteThreadStore,
+  SessionsClient,
+  type SettingsBinding,
+  type ThreadStorePort,
+} from '@dltech/atlas-harness'
 import { stateOfDirectory, workspaceRefusal } from './workspace-directory'
 
 const REFUSED = 1
@@ -66,6 +72,19 @@ async function sweepOrphanedSandboxes(args: { cwd: string }): Promise<void> {
   })
 }
 
+const remoteThreadsOf = (app: AtlasApp): ThreadStorePort | undefined => {
+  const signedIn = app.cloud.session()
+  if (signedIn === null) return undefined
+
+  return new RemoteThreadStore({
+    client: new SessionsClient({
+      url: signedIn.url,
+      token: signedIn.token,
+      clientVersion: clientVersionHeader(),
+    }),
+  })
+}
+
 async function startSession(args: {
   config: AtlasConfig
   command: string
@@ -102,6 +121,7 @@ async function startSession(args: {
   progress.report(EBootStep.Opening)
   const outcome = await openConversation({
     threads: app.threads,
+    remoteThreads: remoteThreadsOf(app),
     log: app.log,
     ledger: app.ledger,
     agents: app.agents,
