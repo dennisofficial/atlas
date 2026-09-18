@@ -146,7 +146,10 @@ export function useTurnDriver(args: {
       pendingMove.current = null
       await app.threads.createWithFirstEvents({
         threadId,
-        drafts: move === null ? drafts : [{ type: 'directory-changed', path: move.path }, ...drafts],
+        drafts:
+          move === null
+            ? drafts
+            : [{ type: 'directory-changed', path: move.path, repo: move.repo }, ...drafts],
         runId,
         workspace: move?.path ?? app.workspace.workspace,
         repo: move === null ? app.workspace.repo : move.repo,

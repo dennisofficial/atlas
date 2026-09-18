@@ -4,6 +4,7 @@ import {
   ECompactionAnchor,
   EExecutionLocation,
   projectDirectoryOf,
+  repoOf,
   treeMutationsOf,
   type ActiveWorktree,
   type ThreadId,
@@ -77,6 +78,7 @@ export type Conversation = {
   contextTokens: number
   projectDirectory: string
   activeWorktree: ActiveWorktree | null
+  repo: string | null
   pending: readonly PendingRow[]
   readEvents: () => readonly Event[]
   refresh: () => Promise<void>
@@ -404,16 +406,18 @@ export function useConversation(args: {
   const workspace = useMemo((): {
     projectDirectory: string
     activeWorktree: ActiveWorktree | null
+    repo: string | null
   } => {
     const launchDirectory = app.workspace.workspace
     if (pendingMove !== null && events.length === 0) {
-      return { projectDirectory: pendingMove.path, activeWorktree: null }
+      return { projectDirectory: pendingMove.path, activeWorktree: null, repo: pendingMove.repo }
     }
     return {
       projectDirectory: projectDirectoryOf({ events, launchDirectory }),
       activeWorktree: activeWorktreeOf(events) ?? null,
+      repo: repoOf({ events, launchRepo: app.workspace.repo }),
     }
-  }, [events, pendingMove, app.workspace.workspace])
+  }, [events, pendingMove, app.workspace.workspace, app.workspace.repo])
 
   const holdMove = useCallback((move: DirectoryMove | null): void => {
     pendingMoveRef.current = move
@@ -459,6 +463,7 @@ export function useConversation(args: {
     rewindConfirm: turnDriver.rewindConfirm,
     projectDirectory: workspace.projectDirectory,
     activeWorktree: workspace.activeWorktree,
+    repo: workspace.repo,
     threadId,
     started,
     threadModel: opened.model,

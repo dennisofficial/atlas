@@ -150,6 +150,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
   z.object({
     type: z.literal('directory-changed'),
     path: z.string().min(1),
+    repo: z.string().min(1).nullable().optional(),
   }),
   z.object({
     type: z.literal('pull-request-linked'),

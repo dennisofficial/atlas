@@ -69,6 +69,17 @@ export function homeDirectoryAfter(args: {
   return home
 }
 
+export function repoOf(args: {
+  events: readonly Event[]
+  launchRepo: string | null
+}): string | null {
+  for (let index = args.events.length - 1; index >= 0; index -= 1) {
+    const event = args.events[index]
+    if (event?.type === 'directory-changed' && event.repo !== undefined) return event.repo
+  }
+  return args.launchRepo
+}
+
 export function projectDirectoryOf(args: {
   events: readonly Event[]
   launchDirectory: string
