@@ -209,6 +209,22 @@ describe('sandboxCreateBody', () => {
     expect(env.some((one) => /^GIT_CONFIG_KEY_\d+=(credential|url\.)/.test(one))).toBe(false)
   })
 
+  it('stamps a launch-config fingerprint that tracks computed env and limits but ignores identity files', () => {
+    const stamp = (config: SandboxConfig): string | undefined =>
+      sandboxCreateBody(config).Labels?.['atlas.launch-config']
+
+    expect(stamp(CONFIG)).toBeDefined()
+    expect(stamp(CONFIG)).toBe(stamp({ ...CONFIG }))
+    expect(stamp({ ...CONFIG, githubToken: 'gho_fixture' })).not.toBe(stamp(CONFIG))
+    expect(stamp({ ...CONFIG, limits: { cpus: 4, memoryBytes: 8 * 1024 ** 3 } })).not.toBe(
+      stamp(CONFIG),
+    )
+    expect(stamp({ ...CONFIG, sshKnownHostsPath: '/Users/operator/.ssh/known_hosts' })).toBe(
+      stamp(CONFIG),
+    )
+    expect(stamp({ ...CONFIG, gitconfigPath: undefined })).toBe(stamp(CONFIG))
+  })
+
   it('never broadens safe.directory to a bare star, keeping the check scoped to the repo', () => {
     const env = sandboxCreateBody(CONFIG).Env ?? []
 

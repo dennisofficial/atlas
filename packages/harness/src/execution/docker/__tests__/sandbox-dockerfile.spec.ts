@@ -6,7 +6,7 @@ import { join } from 'node:path'
 
 import { EBuildContext } from '../../image/build'
 import { ensureSandbox } from '../sandbox'
-import { fakeEngine, FAKE_CONFIG, systemMounts } from './fake-engine'
+import { fakeEngine, FAKE_CONFIG, labelsFor, systemMounts } from './fake-engine'
 
 describe('ensureSandbox with a dockerfile-built image, against a fake engine', () => {
   it('builds the image from a dockerfile before creating the container', async () => {
@@ -48,7 +48,13 @@ describe('ensureSandbox with a dockerfile-built image, against a fake engine', (
       if (reference === undefined) throw new Error('the probe created nothing')
 
       const { engine, builds } = fakeEngine({
-        existing: { id: 'kept-1', state: 'running', image: reference, mounts: systemMounts },
+        existing: {
+          id: 'kept-1',
+          state: 'running',
+          image: reference,
+          mounts: systemMounts,
+          labels: labelsFor(FAKE_CONFIG),
+        },
       })
       const sandbox = await ensureSandbox({
         engine,

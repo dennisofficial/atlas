@@ -8,7 +8,7 @@ import {
   type ContainerSummary,
   type ExecState,
 } from '../engine'
-import type { SandboxConfig } from '../sandbox'
+import { sandboxCreateBody, type SandboxConfig } from '../sandbox'
 import { ESandboxState, type SandboxStatus } from '../status'
 
 const CONTAINER_ID = 'atlas-dev-stub-container'
@@ -22,6 +22,8 @@ const config = (): SandboxConfig => ({
   limits: { cpus: 1, memoryBytes: 512 * 1024 ** 2 },
   dockerSocket: '/var/run/docker.sock',
 })
+
+const stampedLabels = (): Record<string, string> => sandboxCreateBody(config()).Labels ?? {}
 
 class StubEngine extends DockerEngine {
   running = true
@@ -62,7 +64,7 @@ class StubEngine extends DockerEngine {
       id: CONTAINER_ID,
       name: 'atlas-dev-stub',
       state: { running: this.running },
-      config: { labels: {}, env: ['PATH=/usr/local/bin'], image: this.image },
+      config: { labels: stampedLabels(), env: ['PATH=/usr/local/bin'], image: this.image },
       mounts: [],
       ports: [{ containerPort: 3000, hostPort: 20_000 }],
       hostConfig: { nanoCpus: 0, memoryBytes: 0 },
