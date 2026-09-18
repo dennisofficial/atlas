@@ -185,7 +185,16 @@ export function fakeThreadStore(
       return row
     },
 
-    async createWithFirstEvents({ threadId, drafts, runId, title, workspace, repo, agent }) {
+    async createWithFirstEvents({
+      threadId,
+      drafts,
+      runId,
+      title,
+      workspace,
+      repo,
+      agent,
+      executionLocation,
+    }) {
       created += 1
       createdWith.push({
         workspace: workspace ?? null,
@@ -201,6 +210,7 @@ export function fakeThreadStore(
         repo: repo ?? null,
         ...(title === undefined ? {} : { title }),
         ...(agent === undefined ? {} : { agent }),
+        ...(executionLocation === undefined ? {} : { executionLocation }),
       }
       rows.push(thread)
 

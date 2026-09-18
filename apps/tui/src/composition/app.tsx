@@ -155,6 +155,7 @@ import { useThreads } from './use-threads'
 import { useUsageMeters } from './use-usage-meters'
 import { createCloudBridge } from './cloud/create-bridge'
 import { createCloudSession, type CloudSession } from './cloud/cloud-session'
+import { descendFromCloud } from './cloud/descend'
 import { liftRefusal } from './cloud/lift-plan'
 import { openCloudConversation } from './cloud/cloud-app'
 import type { CloudBridge } from './cloud/cloud-bridge'
@@ -844,6 +845,39 @@ function Workspace(props: {
         return
       }
 
+      if (props.cloudSession !== null && props.cloudBridge !== null) {
+        const { channel } = props.cloudSession
+        const bridge = props.cloudBridge
+        void descendFromCloud({
+          threadId: conversation.threadId,
+          target,
+          midTurn: conversation.turnInFlight(),
+          bridge,
+          channel,
+          localApp: props.localApp,
+          move: containerMove,
+        })
+          .then((opened) => {
+            containerMove.handleSettle()
+            props.onDescend(opened)
+          })
+          .catch((error: unknown) => {
+            const reason = moveFailedNotice({
+              target,
+              from: EExecutionLocation.Cloud,
+              detail: messageOf(error),
+            })
+            containerMove.handleFail(reason)
+            notify({
+              key: 'container-switch',
+              tone: ENoticeTone.Warn,
+              ttlMs: NOTICE_WARN_MS,
+              text: reason,
+            })
+          })
+        return
+      }
+
       containerMove.handleBegin({ target })
       const threadId = conversation.threadId
       for (const shell of containerBlockers()) {
@@ -891,8 +925,13 @@ function Workspace(props: {
       conversation.refresh,
       conversation.threadId,
       conversation.started,
+      conversation.turnInFlight,
       execution,
       props.app,
+      props.localApp,
+      props.cloudSession,
+      props.cloudBridge,
+      props.onDescend,
     ],
   )
 
