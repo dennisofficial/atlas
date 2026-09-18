@@ -13,7 +13,7 @@ import {
 import { type SidebarSubagent } from "../../store/subagent-row";
 import type { SidebarSection } from "../sidebar-section";
 import { Sidebar } from "../components/sidebar";
-import { SIDEBAR_GUTTER, SIDEBAR_PADDING } from "../components/sidebar/cells";
+import { SIDEBAR_GUTTER } from "../components/sidebar/cells";
 import { teardown } from "../markdown/__tests__/harness";
 import { ESidebarPlace } from "../sidebar-section";
 import { glyph, SPINNER_FRAMES, SIDEBAR_WIDTH } from "../theme";
@@ -484,13 +484,14 @@ describe("what the sidebar says", () => {
 
   /**
    * The same pair the footer gives the main agent, with the child's own math: the model it runs
-   * flush to the left edge, the window reading flush to the right.
+   * lined up under the title, the window reading flush to the right.
    */
-  it("left-aligns the model and right-aligns the window reading on the second line", async () => {
+  it("lines the model up under the title and puts the window reading on the right edge", async () => {
     const rows = await rowsOf({ model: MEASURED });
     const line = written(rowWith({ rows, text: "Claude Haiku 4.5" }));
+    const above = written(rowWith({ rows, text: "test-writer" }));
 
-    expect(line.slice(SIDEBAR_PADDING).startsWith("Claude Haiku 4.5")).toBe(true);
+    expect(line.indexOf("Claude Haiku 4.5")).toBe(above.indexOf("test-writer"));
     expect(line.endsWith("68.0k")).toBe(true);
   }, 30_000);
 
