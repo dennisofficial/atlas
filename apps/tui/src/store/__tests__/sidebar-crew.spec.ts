@@ -47,8 +47,8 @@ const readout = (over: Partial<SubagentReadout> = {}): SubagentReadout => ({
   ...over,
 })
 
-const labelOf = (over: Partial<SubagentReadout> = {}, tokens?: number): string =>
-  subagentStateLabel({ subagent: readout(over), now: NOW, tokens })
+const labelOf = (over: Partial<SubagentReadout> = {}): string =>
+  subagentStateLabel({ subagent: readout(over), now: NOW })
 
 describe('a child row is derived from the child', () => {
   it('takes no turn count from the conversation it is listed beside', () => {
@@ -76,17 +76,17 @@ describe('a child row is derived from the child', () => {
   })
 
   it('carries the reading the row renders rather than making the view assemble it', () => {
-    expect(rows({ context: { tokens: 68_000, window: 200_000 } })[0]?.state).toBe('1m 4s · 68.0k')
+    expect(rows()[0]?.state).toBe('1m 4s')
   })
 })
 
 describe('what the narrow value column says about a child', () => {
-  it('reads a working child as how long it has been going and what its window holds', () => {
-    expect(labelOf({}, 68_000)).toBe('1m 4s · 68.0k')
+  it('reads a working child as how long it has been going', () => {
+    expect(labelOf()).toBe('1m 4s')
   })
 
-  it('reads a working child nothing has measured as its elapsed time alone', () => {
-    expect(labelOf()).toBe('1m 4s')
+  it('keeps what the window holds off the first line, which the second line carries', () => {
+    expect(rows({ context: { tokens: 68_000, window: 200_000 } })[0]?.state).toBe('1m 4s')
   })
 
   it('keeps what the child is doing out of the column, however busy it is', () => {

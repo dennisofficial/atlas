@@ -43,8 +43,8 @@ export const subagentWentWrong = (subagent: Pick<SidebarSubagent, 'status'>): bo
 
 /**
  * What the narrow value column spends its cells on. A child that is still going is judged by how
- * long it has been going and how much of its window it has spent; one that has settled says nothing
- * unless the ending needs saying — a finished child reads as its title alone.
+ * long it has been going; one that has settled says nothing unless the ending needs saying — a
+ * finished child reads as its title alone.
  */
 export enum ESubagentReading {
   Live = 'live',
@@ -95,29 +95,24 @@ const READOUT_SEPARATOR = ' · '
 const stateWord = (subagent: Pick<SubagentReadout, 'status'>): string =>
   SUBAGENT_STATE_LABEL[subagent.status]
 
-type ReadoutParts = { subagent: SubagentReadout; since: string | null; spent: string | null }
+type ReadoutParts = { subagent: SubagentReadout; since: string | null }
 
 const SUBAGENT_READOUT: Record<
   ESubagentReading,
   (parts: ReadoutParts) => readonly (string | null)[]
 > = {
-  [ESubagentReading.Live]: ({ since, spent }) => [since, spent],
+  [ESubagentReading.Live]: ({ since }) => [since],
   [ESubagentReading.Held]: ({ subagent, since }) => [stateWord(subagent), since],
   [ESubagentReading.Settled]: ({ subagent }) =>
     subagent.status === EAgentStatus.Finished ? [] : [stateWord(subagent)],
 }
 
-export function subagentStateLabel(args: {
-  subagent: SubagentReadout
-  now: number
-  tokens?: number | undefined
-}): string {
+export function subagentStateLabel(args: { subagent: SubagentReadout; now: number }): string {
   const { subagent } = args
   const elapsed = subagentElapsedMs({ subagent, now: args.now })
   const parts = SUBAGENT_READOUT[subagentReading(subagent)]({
     subagent,
     since: elapsed === null ? null : formatElapsed(elapsed),
-    spent: args.tokens === undefined ? null : formatTokens(args.tokens),
   })
 
   const written = parts.filter((part): part is string => part !== null).join(READOUT_SEPARATOR)
@@ -153,11 +148,7 @@ export function subagentRows(args: {
       ...readout,
       id: snapshot.agentId,
       name: subagentLabel(snapshot),
-      state: subagentStateLabel({
-        subagent: readout,
-        now: args.now,
-        tokens: snapshot.context?.tokens,
-      }),
+      state: subagentStateLabel({ subagent: readout, now: args.now }),
       model:
         snapshot.model === undefined
           ? null
