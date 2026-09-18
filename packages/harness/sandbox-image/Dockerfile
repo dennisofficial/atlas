@@ -52,6 +52,27 @@ RUN mkdir -p /opt/playwright-runner /opt/playwright \
   && ./node_modules/.bin/playwright --version \
   && node -e "const{chromium}=require('/opt/playwright-runner/node_modules/playwright');chromium.launch({headless:true,args:['--no-sandbox']}).then(b=>b.close()).then(()=>console.log('chromium launch OK')).catch(e=>{console.error(e);process.exit(1)})"
 
+ARG PLAYWRIGHT_CLI_VERSION=0.1.20
+# The agent CLI bundles its own playwright-core with its own browser revision, so it installs
+# its browser itself into the shared browsers path; the playwright-runner build above does not
+# satisfy it. Its default browser is the Google Chrome *channel* (an executable the image does
+# not carry at /opt/google/chrome/chrome), so PLAYWRIGHT_MCP_BROWSER points bare
+# `playwright-cli open` at the baked chromium build instead.
+ENV PLAYWRIGHT_MCP_BROWSER=chromium
+RUN mkdir -p /opt/playwright-cli \
+  && cd /opt/playwright-cli \
+  && printf '{"name":"atlas-playwright-cli","private":true}\n' > package.json \
+  && npm install "@playwright/cli@${PLAYWRIGHT_CLI_VERSION}" \
+  && ln -s /opt/playwright-cli/node_modules/.bin/playwright-cli /usr/local/bin/playwright-cli \
+  && playwright-cli install-browser chrome-for-testing \
+  && chmod -R a+rwX /opt/playwright /opt/playwright-cli \
+  && playwright-cli --version \
+  && playwright-cli open about:blank \
+  && playwright-cli close \
+  # the validation open above leaves a root-owned daemon socket dir that a non-root runtime
+  # user cannot write into
+  && rm -rf /tmp/pw-* /opt/playwright-cli/.playwright-cli
+
 RUN curl -fsSL https://mise.jdx.dev/gpg-key.pub -o /tmp/mise-key.pub \
   && gpg --dearmor --yes -o /etc/apt/keyrings/mise-archive-keyring.gpg /tmp/mise-key.pub \
   && rm /tmp/mise-key.pub \
