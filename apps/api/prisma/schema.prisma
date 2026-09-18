@@ -120,6 +120,7 @@ model CloudSandbox {
   workspaceBranch    String?
   workspaceCommit    String?
   workspacePatch     String?
+  workspaceSkills    String?
   createdAt      String
   updatedAt      String
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)

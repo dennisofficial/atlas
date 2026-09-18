@@ -24,8 +24,14 @@ import type {
 } from './sandboxes.types'
 import { ESandboxState } from './sandboxes.types'
 import { SANDBOX_REGION, SandboxMissingError, VercelSandboxClient } from './vercel-sandbox.client'
-import type { WorkspaceColumns } from './workspace-spec'
-import { assertPatchWithinLimit, workspaceColumnsIn, workspaceColumnsOf, workspaceSpecOf } from './workspace-spec'
+import {
+  assertPatchWithinLimit,
+  assertSkillsBundleWithinLimit,
+  workspaceColumnsIn,
+  workspaceColumnsOf,
+  workspaceSpecOf,
+  type WorkspaceColumns,
+} from './workspace-spec'
 
 const MINUTE_MS = 60_000
 
@@ -57,9 +63,13 @@ export class SandboxesService {
     userId: string
     threadId: string
     workspace?: SandboxWorkspaceSpec | undefined
+    skillsBundle?: string | undefined
   }): Promise<SandboxAttachmentDto> {
     const thread = await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
     if (args.workspace !== undefined) assertPatchWithinLimit({ patch: args.workspace.patch })
+    if (args.skillsBundle !== undefined) {
+      assertSkillsBundleWithinLimit({ bundle: args.skillsBundle })
+    }
     const minted = mintSessionToken()
 
     const previous = this.attachLocks.get(args.threadId) ?? Promise.resolve()
@@ -67,6 +77,7 @@ export class SandboxesService {
       this.claimAndProvision({
         thread,
         workspace: args.workspace,
+        skillsBundle: args.skillsBundle,
         token: minted.token,
         tokenHash: minted.tokenHash,
       })
@@ -95,6 +106,7 @@ export class SandboxesService {
   private async claimAndProvision(args: {
     thread: ThreadModel
     workspace: SandboxWorkspaceSpec | undefined
+    skillsBundle: string | undefined
     token: string
     tokenHash: string
   }): Promise<void> {
@@ -117,10 +129,14 @@ export class SandboxesService {
   private async claimForAttach(args: {
     thread: ThreadModel
     workspace: SandboxWorkspaceSpec | undefined
+    skillsBundle: string | undefined
     token: string
     tokenHash: string
   }): Promise<{ row: CloudSandboxModel; token: string }> {
-    const columns = workspaceColumnsOf(args.workspace)
+    const columns: WorkspaceColumns = {
+      ...workspaceColumnsOf(args.workspace),
+      workspaceSkills: args.skillsBundle ?? null,
+    }
     const claimed = await this.claim({
       thread: args.thread,
       tokenHash: args.tokenHash,
@@ -130,7 +146,12 @@ export class SandboxesService {
       return { row: claimed, token: args.token }
     }
 
-    const kept = args.workspace === undefined ? workspaceColumnsIn(claimed) : columns
+    const stored = workspaceColumnsIn(claimed)
+    const kept: WorkspaceColumns = {
+      ...(args.workspace === undefined ? stored : columns),
+      workspaceSkills:
+        args.skillsBundle === undefined ? stored.workspaceSkills : columns.workspaceSkills,
+    }
     await this.vercel.destroy({ name: claimed.name })
     await db.cloudSandbox.delete({ where: { threadId: claimed.threadId } })
     const reclaimed = await this.claim({ thread: args.thread, tokenHash: args.tokenHash, columns: kept })
@@ -149,9 +170,10 @@ export class SandboxesService {
     const row = await db.cloudSandbox.findUnique({ where: { threadId: args.threadId } })
     if (row === null) throw new NotFoundException('sandbox not found')
     const spec = workspaceSpecOf(row)
-    if (spec.remoteUrl === null) return { ...spec, githubToken: null }
+    const skillsBundle = row.workspaceSkills ?? null
+    if (spec.remoteUrl === null) return { ...spec, githubToken: null, skillsBundle }
     const githubToken = await this.github.findToken({ userId: row.userId })
-    return { ...spec, githubToken: githubToken ?? null }
+    return { ...spec, githubToken: githubToken ?? null, skillsBundle }
   }
 
   async status(args: { userId: string; threadId: string }): Promise<SandboxStatusDto> {

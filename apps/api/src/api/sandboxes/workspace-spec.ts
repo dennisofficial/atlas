@@ -4,6 +4,8 @@ import type { SandboxWorkspaceSpec } from './sandboxes.types'
 
 export const MAX_WORKSPACE_PATCH_BYTES = 5 * 1024 * 1024
 
+export const MAX_SKILLS_BUNDLE_BYTES = 4 * 1024 * 1024
+
 export const WORKSPACE_BODY_LIMIT = '8mb'
 
 const mebibytes = (bytes: number): string => `${(bytes / (1024 * 1024)).toFixed(1)}MiB`
@@ -13,6 +15,15 @@ export interface WorkspaceColumns {
   workspaceBranch: string | null
   workspaceCommit: string | null
   workspacePatch: string | null
+  workspaceSkills: string | null
+}
+
+export function assertSkillsBundleWithinLimit(args: { bundle: string }): void {
+  const bytes = Buffer.byteLength(args.bundle, 'utf8')
+  if (bytes <= MAX_SKILLS_BUNDLE_BYTES) return
+  throw new PayloadTooLargeException(
+    `the skills bundle is ${mebibytes(bytes)}, over the ${mebibytes(MAX_SKILLS_BUNDLE_BYTES)} limit — the conversation lifts without the user-level skills`,
+  )
 }
 
 export function assertPatchWithinLimit(args: { patch: string }): void {
@@ -30,6 +41,7 @@ export function workspaceColumnsOf(spec: SandboxWorkspaceSpec | undefined): Work
       workspaceBranch: null,
       workspaceCommit: null,
       workspacePatch: null,
+      workspaceSkills: null,
     }
   }
   assertPatchWithinLimit({ patch: spec.patch })
@@ -38,6 +50,7 @@ export function workspaceColumnsOf(spec: SandboxWorkspaceSpec | undefined): Work
     workspaceBranch: spec.branch,
     workspaceCommit: spec.commit,
     workspacePatch: spec.patch,
+    workspaceSkills: null,
   }
 }
 
@@ -47,6 +60,7 @@ export function workspaceColumnsIn(row: CloudSandboxModel): WorkspaceColumns {
     workspaceBranch: row.workspaceBranch,
     workspaceCommit: row.workspaceCommit,
     workspacePatch: row.workspacePatch,
+    workspaceSkills: row.workspaceSkills,
   }
 }
 

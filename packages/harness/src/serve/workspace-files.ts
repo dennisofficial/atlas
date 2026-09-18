@@ -1,5 +1,5 @@
 import { mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 export type WorkspaceFiles = {
   exists: (path: string) => Promise<boolean>
@@ -18,6 +18,7 @@ export const nodeWorkspaceFiles: WorkspaceFiles = {
   },
 
   write: async ({ path, text }) => {
+    await mkdir(dirname(path), { recursive: true })
     await writeFile(path, text, 'utf8')
   },
 

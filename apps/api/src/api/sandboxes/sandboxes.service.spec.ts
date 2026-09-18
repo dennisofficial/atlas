@@ -446,8 +446,50 @@ describe('SandboxesService', () => {
     await expect(service.workspace({ threadId: THREAD })).resolves.toEqual({
       ...SPEC,
       githubToken: 'gho_user-token',
+      skillsBundle: null,
     })
     expect(github.findToken).toHaveBeenCalledWith({ userId: USER_A })
+  })
+
+  it('carries the skills bundle through to the workspace fetch and refreshes it on re-attach', async () => {
+    const bundle = JSON.stringify({ '.atlas/skills/review/SKILL.md': 'IyByZXZpZXc=' })
+    await service.attach({ userId: USER_A, threadId: THREAD, workspace: SPEC, skillsBundle: bundle })
+    await service.whenSettled({ threadId: THREAD })
+
+    await expect(service.workspace({ threadId: THREAD })).resolves.toMatchObject({
+      skillsBundle: bundle,
+    })
+
+    const fresher = JSON.stringify({ '.atlas/skills/review/SKILL.md': 'IyBuZXdlcg==' })
+    await service.attach({ userId: USER_A, threadId: THREAD, skillsBundle: fresher })
+    await service.whenSettled({ threadId: THREAD })
+
+    const fetched = await service.workspace({ threadId: THREAD })
+    expect(fetched.skillsBundle).toBe(fresher)
+    expect(fetched.patch).toBe(SPEC.patch)
+  })
+
+  it('keeps the stored skills bundle when a re-attach sends none', async () => {
+    const bundle = JSON.stringify({ '.atlas/skills/review/SKILL.md': 'IyByZXZpZXc=' })
+    await service.attach({ userId: USER_A, threadId: THREAD, workspace: SPEC, skillsBundle: bundle })
+    await service.whenSettled({ threadId: THREAD })
+
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+
+    await expect(service.workspace({ threadId: THREAD })).resolves.toMatchObject({
+      skillsBundle: bundle,
+      patch: SPEC.patch,
+    })
+  })
+
+  it('refuses a skills bundle over the limit before claiming anything', async () => {
+    const oversized = 'x'.repeat(4 * 1024 * 1024 + 1)
+
+    await expect(
+      service.attach({ userId: USER_A, threadId: THREAD, skillsBundle: oversized }),
+    ).rejects.toBeInstanceOf(PayloadTooLargeException)
+    expect(fake.cloudSandboxes).toHaveLength(0)
   })
 
   it('keeps the stored workspace when a re-attach sends none', async () => {
@@ -494,6 +536,7 @@ describe('SandboxesService', () => {
       commit: null,
       patch: '',
       githubToken: null,
+      skillsBundle: null,
     })
     expect(github.findToken).not.toHaveBeenCalled()
   })

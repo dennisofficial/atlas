@@ -77,6 +77,8 @@ export type LiftArgs = {
   setLocation: (location: EExecutionLocation) => void
   stopLocal: () => Promise<StoppedLocally>
   capture: (args: { cwd: string }) => Promise<LiftedWorkspace | null>
+  /** The operator's user-level skills, captured by the caller so a spec never touches the disk. */
+  skillsBundle?: string | undefined
   onProgress: (step: ELiftStep) => void
 }
 
@@ -274,7 +276,11 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
   let sandbox: CloudSandbox
   let url: string
   try {
-    sandbox = await args.bridge.sandboxes.create({ threadId, workspace })
+    sandbox = await args.bridge.sandboxes.create({
+      threadId,
+      workspace,
+      ...(args.skillsBundle === undefined ? {} : { skillsBundle: args.skillsBundle }),
+    })
     url = sandbox.url ?? (await waitForSandbox({ sandboxes: args.bridge.sandboxes, threadId })).url
   } catch (error) {
     await flipBack({ ...args, from })

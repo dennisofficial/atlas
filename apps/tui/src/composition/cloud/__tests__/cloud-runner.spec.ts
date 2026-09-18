@@ -36,12 +36,20 @@ describe('waking a cloud runner whose channel is not open', () => {
     const channel = fakeCloudChannel()
     channel.moveTo({ state: EChannelConnection.Closed, detail: null })
     const move = fakeMove()
-    const runner = createCloudRunner({ bridge, channel, threadId: CLOUD_THREAD, move })
+    const runner = createCloudRunner({
+      bridge,
+      channel,
+      threadId: CLOUD_THREAD,
+      move,
+      captureSkills: async () => 'bundle-json',
+    })
 
     const turn = runner.runTurn({ threadId: CLOUD_THREAD })
     await Bun.sleep(1)
 
-    expect(bridge.created).toEqual([{ threadId: CLOUD_THREAD, workspace: null }])
+    expect(bridge.created).toEqual([
+      { threadId: CLOUD_THREAD, workspace: null, skillsBundle: 'bundle-json' },
+    ])
     expect(channel.woken).toEqual([{ url: POLLED_URL, token: 'sandbox-token' }])
     expect(move.calls).toEqual([
       `begin:${EExecutionLocation.Cloud}`,
@@ -58,7 +66,12 @@ describe('waking a cloud runner whose channel is not open', () => {
     const bridge = fakeBridge({ status: { state: ECloudSandboxState.Running, url: POLLED_URL } })
     const channel = fakeCloudChannel()
     channel.moveTo({ state: EChannelConnection.Closed, detail: null })
-    const runner = createCloudRunner({ bridge, channel, threadId: CLOUD_THREAD })
+    const runner = createCloudRunner({
+      bridge,
+      channel,
+      threadId: CLOUD_THREAD,
+      captureSkills: async () => undefined,
+    })
 
     const turn = runner.runTurn({ threadId: CLOUD_THREAD })
     await Bun.sleep(1)
@@ -74,7 +87,13 @@ describe('waking a cloud runner whose channel is not open', () => {
     const channel = fakeCloudChannel()
     channel.moveTo({ state: EChannelConnection.Closed, detail: null })
     const move = fakeMove()
-    const runner = createCloudRunner({ bridge, channel, threadId: CLOUD_THREAD, move })
+    const runner = createCloudRunner({
+      bridge,
+      channel,
+      threadId: CLOUD_THREAD,
+      move,
+      captureSkills: async () => undefined,
+    })
 
     await expect(runner.runTurn({ threadId: CLOUD_THREAD })).rejects.toThrow('no capacity in iad1')
 

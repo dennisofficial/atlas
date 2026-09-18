@@ -141,7 +141,10 @@ await threads.createWithFirstEvents({
 log(`thread transferred up: ${threadId}`)
 
 const tokenHash = createHash('sha256').update(SANDBOX_TOKEN).digest('hex')
-const sql = `INSERT INTO "CloudSandbox" (id, "threadId", "userId", "sandboxId", name, region, state, "lastActivityAt", "tokenHash", "createdAt", "updatedAt") VALUES ('sbx_e2e_${Date.now()}', '${threadId}', '${userId}', 'vsbx_e2e', 'atlas-thread-e2e', 'iad1', 'running', now(), '${tokenHash}', now(), now()) ON CONFLICT ("threadId") DO UPDATE SET "tokenHash" = EXCLUDED."tokenHash", state = 'running', "lastActivityAt" = now()`
+const skillsBundle = JSON.stringify({
+  '.atlas/skills/e2e-skill/SKILL.md': Buffer.from('# e2e skill').toString('base64'),
+})
+const sql = `INSERT INTO "CloudSandbox" (id, "threadId", "userId", "sandboxId", name, region, state, "lastActivityAt", "tokenHash", "workspaceSkills", "createdAt", "updatedAt") VALUES ('sbx_e2e_${Date.now()}', '${threadId}', '${userId}', 'vsbx_e2e', 'atlas-thread-e2e', 'iad1', 'running', now(), '${tokenHash}', '${skillsBundle}', now(), now()) ON CONFLICT ("threadId") DO UPDATE SET "tokenHash" = EXCLUDED."tokenHash", state = 'running', "lastActivityAt" = now(), "workspaceSkills" = EXCLUDED."workspaceSkills"`
 const insert = Bun.spawnSync([
   'docker',
   'exec',
@@ -183,6 +186,16 @@ for (let attempt = 0; attempt < 60; attempt++) {
 }
 if (!healthy) fail('the serve never answered healthy')
 log('serve healthy')
+
+const skillText = await Bun.file(
+  '/tmp/e2e-cloud-serve-home/skills/e2e-skill/SKILL.md',
+)
+  .text()
+  .catch(() => null)
+if (skillText !== '# e2e skill') {
+  fail(`the skills bundle did not materialize on the serve: ${skillText}`)
+}
+log("the operator's skills bundle materialized on the serve")
 
 const channel = createRemoteDeltaChannel({
   threadId,

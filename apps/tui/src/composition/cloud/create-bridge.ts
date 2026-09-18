@@ -29,10 +29,11 @@ export function createCloudBridge(args: {
       ledger: new RemoteTurnLedger({ client: sessions }),
     },
     sandboxes: {
-      create: ({ threadId, workspace }) =>
+      create: ({ threadId, workspace, skillsBundle }) =>
         sandboxes.createSandbox({
           threadId,
           ...(workspace === null ? {} : { workspace }),
+          ...(skillsBundle === undefined ? {} : { skillsBundle }),
         }),
       find: ({ threadId }) => sandboxes.findSandbox({ threadId }),
     },
