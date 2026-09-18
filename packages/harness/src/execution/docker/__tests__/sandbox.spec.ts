@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EMountMode } from '../../image/mounts'
-import { ensureSandbox } from '../sandbox'
-import { fakeEngine, FAKE_CONFIG, systemMounts } from './fake-engine'
+import { declaredMountsLabel, encodeDeclaredMounts } from '../mount-drift'
+import { ensureSandbox, worktreeLabel } from '../sandbox'
+import { fakeEngine, FAKE_CONFIG, labelsFor, systemMounts } from './fake-engine'
 
 describe('ensureSandbox scripts and drift, against a fake engine', () => {
   it('prepares the container for the operator before any script: passwd entry, writable home, relaxed sockets', async () => {
@@ -61,14 +62,17 @@ describe('ensureSandbox scripts and drift, against a fake engine', () => {
   })
 
   it('runs start but not setup when reusing a container', async () => {
+    const config = { ...FAKE_CONFIG, setup: 'apt-get install -y git', start: 'docker compose up -d' }
     const { engine: fake, execs } = fakeEngine({
-      existing: { id: 'kept-1', state: 'running', mounts: systemMounts },
+      existing: {
+        id: 'kept-1',
+        state: 'running',
+        mounts: systemMounts,
+        labels: labelsFor(config),
+      },
     })
 
-    const sandbox = await ensureSandbox({
-      engine: fake,
-      config: { ...FAKE_CONFIG, setup: 'apt-get install -y git', start: 'docker compose up -d' },
-    })
+    const sandbox = await ensureSandbox({ engine: fake, config })
 
     expect(sandbox.created).toBe(false)
     expect(execs).toHaveLength(2)
@@ -105,14 +109,17 @@ describe('ensureSandbox scripts and drift, against a fake engine', () => {
       gpgPubringPath: '/Users/operator/.gnupg/pubring.kbx',
     },
   ])('reuses with a warning when a public identity file appears after creation: %j', async (identity) => {
+    const config = { ...FAKE_CONFIG, ...identity }
     const { engine: fake } = fakeEngine({
-      existing: { id: 'kept-1', state: 'running', mounts: systemMounts },
+      existing: {
+        id: 'kept-1',
+        state: 'running',
+        mounts: systemMounts,
+        labels: labelsFor(config),
+      },
     })
 
-    const sandbox = await ensureSandbox({
-      engine: fake,
-      config: { ...FAKE_CONFIG, ...identity },
-    })
+    const sandbox = await ensureSandbox({ engine: fake, config })
 
     expect(sandbox.created).toBe(false)
     expect(sandbox.id).toBe('kept-1')
@@ -220,6 +227,7 @@ describe('ensureSandbox scripts and drift, against a fake engine', () => {
         state: 'running',
         mounts: systemMounts,
         env: ['HOME=/Users/operator', 'TURBO_CACHE_DIR=/tmp/turbo-cache'],
+        labels: labelsFor(config),
       },
     })
     const reused = await ensureSandbox({ engine: matching.engine, config })
@@ -261,6 +269,44 @@ describe('ensureSandbox scripts and drift, against a fake engine', () => {
     expect(sandbox.created).toBe(true)
   })
 
+  it('recreates a container whose launch-config stamp no longer matches, warning as for any recreate', async () => {
+    const { engine, removals, creates } = fakeEngine({
+      existing: {
+        id: 'stale-1',
+        state: 'running',
+        mounts: systemMounts,
+        labels: labelsFor({ ...FAKE_CONFIG, limits: { cpus: 8, memoryBytes: 16 * 1024 ** 3 } }),
+      },
+    })
+
+    const sandbox = await ensureSandbox({ engine, config: FAKE_CONFIG })
+
+    expect(removals).toEqual(['stale-1'])
+    expect(creates).toEqual([FAKE_CONFIG.image])
+    expect(sandbox.created).toBe(true)
+    expect(sandbox.warnings.some((one) => one.includes('launch config changed'))).toBe(true)
+  })
+
+  it('recreates a container created before launch-config stamps existed, healing it once', async () => {
+    const { engine, removals } = fakeEngine({
+      existing: {
+        id: 'old-1',
+        state: 'running',
+        mounts: systemMounts,
+        labels: {
+          [worktreeLabel('atlas')]: FAKE_CONFIG.worktree,
+          [declaredMountsLabel('atlas')]: encodeDeclaredMounts([]),
+        },
+      },
+    })
+
+    const sandbox = await ensureSandbox({ engine, config: FAKE_CONFIG })
+
+    expect(removals).toEqual(['old-1'])
+    expect(sandbox.created).toBe(true)
+    expect(sandbox.warnings.some((one) => one.includes('launch config changed'))).toBe(true)
+  })
+
   it('does not drift on volatile host inputs: identity files that existed at creation but vanished since', async () => {
     const { engine: fake } = fakeEngine({
       existing: {
@@ -274,6 +320,10 @@ describe('ensureSandbox scripts and drift, against a fake engine', () => {
             readOnly: true,
           },
         ],
+        labels: labelsFor({
+          ...FAKE_CONFIG,
+          sshKnownHostsPath: '/Users/operator/.ssh/known_hosts',
+        }),
       },
     })
 
@@ -284,6 +334,10 @@ describe('ensureSandbox scripts and drift, against a fake engine', () => {
   })
 
   it('reuses a container whose mounts still match the config', async () => {
+    const config = {
+      ...FAKE_CONFIG,
+      mounts: [{ path: '/Users/operator/Developer/shared-lib', mode: EMountMode.ReadOnly }],
+    }
     const { engine: fake } = fakeEngine({
       existing: {
         id: 'kept-1',
@@ -296,16 +350,11 @@ describe('ensureSandbox scripts and drift, against a fake engine', () => {
             readOnly: true,
           },
         ],
+        labels: labelsFor(config),
       },
     })
 
-    const sandbox = await ensureSandbox({
-      engine: fake,
-      config: {
-        ...FAKE_CONFIG,
-        mounts: [{ path: '/Users/operator/Developer/shared-lib', mode: EMountMode.ReadOnly }],
-      },
-    })
+    const sandbox = await ensureSandbox({ engine: fake, config })
 
     expect(sandbox.created).toBe(false)
     expect(sandbox.id).toBe('kept-1')
@@ -324,6 +373,7 @@ describe('ensureSandbox scripts and drift, against a fake engine', () => {
             readOnly: true,
           },
         ],
+        labels: labelsFor(FAKE_CONFIG),
       },
     })
 

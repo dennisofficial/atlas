@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 
 import { EMountMode, type Mount } from '../image/mounts'
@@ -11,6 +12,20 @@ export const envDrift = (args: {
   Object.entries(args.declared).some(
     ([key, value]) => !args.actual.includes(`${key}=${value}`),
   )
+
+export const launchConfigLabel = (prefix: string): string => `${prefix}.launch-config`
+
+export const encodeLaunchConfig = (args: {
+  config: SandboxConfig
+  env: readonly string[]
+  binds: readonly string[]
+}): string => {
+  const system = systemMountDestinations(args.config)
+  const binds = args.binds.filter((bind) => !system.has(bind.split(':')[1] ?? ''))
+  return createHash('sha256')
+    .update(JSON.stringify({ env: args.env, binds, limits: args.config.limits }))
+    .digest('hex')
+}
 
 export const declaredMountsLabel = (prefix: string): string => `${prefix}.mounts`
 

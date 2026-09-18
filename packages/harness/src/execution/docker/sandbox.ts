@@ -7,7 +7,9 @@ import {
   declaredMountsDrift,
   declaredMountsLabel,
   encodeDeclaredMounts,
+  encodeLaunchConfig,
   envDrift,
+  launchConfigLabel,
   missingIdentityMounts,
 } from './mount-drift'
 import { publishPlanFor } from './ports'
@@ -136,6 +138,7 @@ export function sandboxCreateBody(config: SandboxConfig): CreateContainerBody {
     Labels: {
       [worktreeLabel(prefix)]: config.worktree,
       [declaredMountsLabel(prefix)]: encodeDeclaredMounts(config.mounts ?? []),
+      [launchConfigLabel(prefix)]: encodeLaunchConfig({ config, env, binds }),
     },
     ExposedPorts: Object.fromEntries(published.map((one) => [`${one.containerPort}/tcp`, {}])),
     HostConfig: {
@@ -215,14 +218,19 @@ export async function ensureSandbox(args: {
     const drifted = declaredMountsDrift({ config: args.config, details, prefix })
     const imageChanged = details.config.image !== wanted
     const envChanged = envDrift({ declared: args.config.env ?? {}, actual: details.config.env })
+    const launchChanged =
+      details.config.labels[launchConfigLabel(prefix)] !==
+      sandboxCreateBody({ ...args.config, image: wanted }).Labels?.[launchConfigLabel(prefix)]
 
-    if (drifted || imageChanged || envChanged) {
+    if (drifted || imageChanged || envChanged || launchChanged) {
       await args.engine.removeContainer({ id: existing.id })
       const why = drifted
         ? 'the declared mounts changed since it was created'
         : imageChanged
           ? `the image changed to ${wanted} since it was created`
-          : 'the declared env changed since it was created'
+          : envChanged
+            ? 'the declared env changed since it was created'
+            : 'its launch config changed since it was created'
       recreated.push(
         details.state.running
           ? `recreated ${name}: ${why} — it was running, so its shells were killed; anything long-lived in there needs a restart`
