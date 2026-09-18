@@ -75,8 +75,20 @@ describe('the container resource limits', () => {
     expect(rangeValueOf({ resolution, id: ESettingId.ContainerMemory, fallback: 8 })).toBe(12)
   })
 
+  it('take zero as the uncapped choice rather than a rejected one', () => {
+    const resolution = resolutionOver({
+      file: { [ESettingId.ContainerCpus]: 0, [ESettingId.ContainerMemory]: 0 },
+    })
+
+    expect(rangeValueOf({ resolution, id: ESettingId.ContainerCpus, fallback: 4 })).toBe(0)
+    expect(rangeValueOf({ resolution, id: ESettingId.ContainerMemory, fallback: 8 })).toBe(0)
+    expect(resolution.rejected).toEqual([])
+    expect(definitionOf(ESettingId.ContainerCpus).zeroLabel).toBe('no limit')
+    expect(definitionOf(ESettingId.ContainerMemory).zeroLabel).toBe('no limit')
+  })
+
   it('reject a limit outside the range rather than asking the daemon for it', () => {
-    const resolution = resolutionOver({ file: { [ESettingId.ContainerMemory]: 0 } })
+    const resolution = resolutionOver({ file: { [ESettingId.ContainerMemory]: 1024 } })
 
     expect(rangeValueOf({ resolution, id: ESettingId.ContainerMemory, fallback: 8 })).toBe(8)
     expect(resolution.rejected.map((one) => one.id)).toContain(ESettingId.ContainerMemory)

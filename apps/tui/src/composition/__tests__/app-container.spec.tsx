@@ -333,6 +333,30 @@ describe('the location pill in the footer', () => {
       await teardown(setup)
     }
   }, 60_000)
+
+  it('reads an uncapped sandbox as no cap rather than zero', async () => {
+    const app = fakeApp({
+      model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }),
+      settings: { values: { [ESettingId.ExecutionLocation]: 'docker' } },
+      containerLimits: { cpus: 0, memoryGb: 0 },
+    })
+    const setup = await testRender(<App app={app} opened={await spokenIn(app)} />, {
+      width: 140,
+      height: 40,
+    })
+
+    try {
+      await setup.flush()
+      await settle(250)
+      await setup.flush()
+
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain('no cpu cap · no memory cap')
+      expect(frame).not.toContain('0 cpu')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
 })
 
 describe('the container pill in the sidebar', () => {

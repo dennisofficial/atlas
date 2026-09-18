@@ -52,7 +52,9 @@ export function valueLabel(args: {
     return optionOf({ definition, value })?.label ?? value
   }
 
-  return `${typeof value === 'number' ? value : definition.fallback}${definition.unit}`
+  const amount = typeof value === 'number' ? value : definition.fallback
+  if (amount === 0 && definition.zeroLabel !== undefined) return definition.zeroLabel
+  return `${amount}${definition.unit}`
 }
 
 export function valueColour(args: { definition: SettingDefinition; value: SettingValue }): string {

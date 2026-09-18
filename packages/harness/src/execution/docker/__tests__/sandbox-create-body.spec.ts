@@ -87,6 +87,16 @@ describe('sandboxCreateBody', () => {
     expect(hostConfig?.Memory).toBe(4 * 1024 ** 3)
   })
 
+  it('leaves the limits unset when they are zero, which the daemon reads as no ceiling', () => {
+    const hostConfig = sandboxCreateBody({
+      ...CONFIG,
+      limits: { cpus: 0, memoryBytes: 0 },
+    }).HostConfig
+
+    expect(hostConfig?.NanoCpus).toBeUndefined()
+    expect(hostConfig?.Memory).toBeUndefined()
+  })
+
   it('mounts the host docker socket at its own path for the workload compose stack', () => {
     expect(bindsOf(CONFIG)).toContain('/var/run/docker.sock:/var/run/docker.sock')
   })
