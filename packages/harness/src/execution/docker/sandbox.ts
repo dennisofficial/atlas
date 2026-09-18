@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 
 import { mountBind, type Mount } from '../image/mounts'
 import { dockerfileImageReference, ensureBuiltImage, type DockerfileBuild } from '../image/build'
+import { gitConfigEnv } from './git-config-env'
 import {
   declaredMountsDrift,
   declaredMountsLabel,
@@ -104,17 +105,7 @@ export function sandboxCreateBody(config: SandboxConfig): CreateContainerBody {
   for (const subtree of config.atlasHomeSubtrees ?? []) binds.push(mountBind(subtree))
   for (const mount of config.mounts ?? []) binds.push(mountBind(mount))
 
-  // Scoped safe.directory wildcards require recent Git; Debian Bookworm's Git 2.39 ignores them.
-  // https://github.com/git/git/blob/v2.46.0/Documentation/config/safe.txt
-  env.push(
-    'GIT_CONFIG_COUNT=3',
-    'GIT_CONFIG_KEY_0=gpg.program',
-    'GIT_CONFIG_VALUE_0=gpg',
-    'GIT_CONFIG_KEY_1=safe.directory',
-    `GIT_CONFIG_VALUE_1=${config.worktree}`,
-    'GIT_CONFIG_KEY_2=safe.directory',
-    `GIT_CONFIG_VALUE_2=${config.worktree.replace(/\/$/, '')}/*`,
-  )
+  env.push(...gitConfigEnv({ worktree: config.worktree, githubToken: config.githubToken }))
   if (config.gpgAgentExtraSocket !== undefined) {
     // gpg derives its agent socket from GNUPGHOME and offers no path override, so the forwarded
     // agent-extra-socket has to land at the standard agent path of whichever home gpg is given.

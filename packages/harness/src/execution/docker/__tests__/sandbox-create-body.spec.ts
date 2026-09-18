@@ -183,6 +183,32 @@ describe('sandboxCreateBody', () => {
     expect(env).toContain(`GIT_CONFIG_VALUE_2=${CONFIG.worktree}/*`)
   })
 
+  it('authenticates github https traffic with the gh token, resetting helpers the mounted gitconfig names', () => {
+    const env = sandboxCreateBody({ ...CONFIG, githubToken: 'gho_fixture' }).Env ?? []
+
+    expect(env).toContain('GIT_CONFIG_COUNT=7')
+    expect(env).toContain('GIT_CONFIG_KEY_3=credential.helper')
+    expect(env).toContain('GIT_CONFIG_VALUE_3=')
+    expect(env).toContain('GIT_CONFIG_KEY_4=credential.https://github.com.helper')
+    expect(env).toContain('GIT_CONFIG_VALUE_4=!gh auth git-credential')
+  })
+
+  it('rewrites github ssh remotes to https so pushes authenticate with the token, not the agent', () => {
+    const env = sandboxCreateBody({ ...CONFIG, githubToken: 'gho_fixture' }).Env ?? []
+
+    expect(env).toContain('GIT_CONFIG_KEY_5=url.https://github.com/.insteadOf')
+    expect(env).toContain('GIT_CONFIG_VALUE_5=git@github.com:')
+    expect(env).toContain('GIT_CONFIG_KEY_6=url.https://github.com/.insteadOf')
+    expect(env).toContain('GIT_CONFIG_VALUE_6=ssh://git@github.com/')
+  })
+
+  it('leaves git auth untouched when the host probe found no gh token', () => {
+    const env = sandboxCreateBody(CONFIG).Env ?? []
+
+    expect(env).toContain('GIT_CONFIG_COUNT=3')
+    expect(env.some((one) => /^GIT_CONFIG_KEY_\d+=(credential|url\.)/.test(one))).toBe(false)
+  })
+
   it('never broadens safe.directory to a bare star, keeping the check scoped to the repo', () => {
     const env = sandboxCreateBody(CONFIG).Env ?? []
 
