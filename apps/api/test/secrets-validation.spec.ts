@@ -5,7 +5,7 @@ import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { EnvService } from '../src/_core/config/env/env.service'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
-import { SessionAuthGuard } from '../src/_module/session/session-auth.guard'
+import { SessionOrSandboxGuard } from '../src/api/sessions/session-or-sandbox.guard'
 import { SecretsController } from '../src/api/secrets/secrets.controller'
 import { SecretsService } from '../src/api/secrets/secrets.service'
 
@@ -30,7 +30,7 @@ describe('SecretsController validation (in-process)', () => {
         },
       ],
     })
-      .overrideGuard(SessionAuthGuard)
+      .overrideGuard(SessionOrSandboxGuard)
       .useValue({ canActivate: () => true })
       .compile()
 

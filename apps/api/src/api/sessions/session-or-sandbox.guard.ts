@@ -48,10 +48,11 @@ export class SessionOrSandboxGuard implements CanActivate {
     const threadId = threadIdOf(request)
     const token = bearerTokenOf(request)
 
-    if (threadId !== undefined && token !== undefined) {
-      const row = await this.sandboxes
-        .verifySessionToken({ threadId, token })
-        .catch(() => null)
+    if (token !== undefined) {
+      const row =
+        threadId !== undefined
+          ? await this.sandboxes.verifySessionToken({ threadId, token }).catch(() => null)
+          : await this.sandboxes.verifyTokenPrincipal({ token }).catch(() => null)
       if (row !== null) {
         request.auth = {
           userId: row.userId,

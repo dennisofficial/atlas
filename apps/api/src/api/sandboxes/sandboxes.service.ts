@@ -15,7 +15,7 @@ import { ownedThread } from '../sessions/ownership'
 import { ownedSandbox } from './ownership'
 import { toSandboxDto } from './rows'
 import { sandboxNameFor } from './sandbox-names'
-import { mintSessionToken, tokenMatches } from './sandbox-tokens'
+import { hashSessionToken, mintSessionToken, tokenMatches } from './sandbox-tokens'
 import type {
   SandboxAttachmentDto,
   SandboxStatusDto,
@@ -183,6 +183,14 @@ export class SandboxesService {
     if (row === null || !tokenMatches({ token: args.token, tokenHash: row.tokenHash })) {
       throw new UnauthorizedException('a valid sandbox session token is required')
     }
+    return row
+  }
+
+  async verifyTokenPrincipal(args: { token: string }): Promise<CloudSandboxModel> {
+    const row = await db.cloudSandbox.findFirst({
+      where: { tokenHash: hashSessionToken(args.token) },
+    })
+    if (row === null) throw new UnauthorizedException('a valid sandbox session token is required')
     return row
   }
 

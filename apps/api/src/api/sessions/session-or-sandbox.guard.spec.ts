@@ -96,13 +96,14 @@ describe('SessionOrSandboxGuard', () => {
     ).rejects.toBeInstanceOf(UnauthorizedException)
   })
 
-  it('asks only for a user session when the route names no thread', async () => {
+  it('asks only for a user session when the route names no thread and the bearer is no sandbox token', async () => {
     const verifySessionToken = vi.fn()
+    const verifyTokenPrincipal = vi.fn(async () => null)
     const verify = vi.fn(async () => session)
     const guard = new SessionOrSandboxGuard(
       { verify } as unknown as SessionVerifier,
       reflector,
-      { verifySessionToken } as unknown as SandboxesService,
+      { verifySessionToken, verifyTokenPrincipal } as unknown as SandboxesService,
     )
 
     const allowed = await guard.canActivate(
@@ -111,5 +112,29 @@ describe('SessionOrSandboxGuard', () => {
 
     expect(allowed).toBe(true)
     expect(verifySessionToken).not.toHaveBeenCalled()
+  })
+
+  it('authenticates a sandbox token by its hash alone on routes that name no thread', async () => {
+    const verifyTokenPrincipal = vi.fn(async () => sandboxRow('user-a'))
+    const verify = vi.fn()
+    const guard = new SessionOrSandboxGuard(
+      { verify } as unknown as SessionVerifier,
+      reflector,
+      {
+        verifySessionToken: vi.fn(),
+        verifyTokenPrincipal,
+      } as unknown as SandboxesService,
+    )
+    const { context, request } = contextWith({
+      params: {},
+      authorization: 'Bearer sandbox-token',
+    })
+
+    const allowed = await guard.canActivate(context)
+
+    expect(allowed).toBe(true)
+    expect(verifyTokenPrincipal).toHaveBeenCalledWith({ token: 'sandbox-token' })
+    expect(verify).not.toHaveBeenCalled()
+    expect(request.auth).toMatchObject({ userId: 'user-a' })
   })
 })
