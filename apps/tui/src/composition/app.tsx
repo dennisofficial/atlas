@@ -21,7 +21,7 @@ import {
   type EUsageWindow,
   type ModelCard,
 } from '@dltech/atlas-core'
-import { forkConversation, relocateSession, settingModelRef, suggestedModelRef, type DiscoveredSkill } from '@dltech/atlas-harness'
+import { EChannelConnection, forkConversation, relocateSession, settingModelRef, suggestedModelRef, type DiscoveredSkill } from '@dltech/atlas-harness'
 
 import { newestExpandableKey, type PendingSaid } from '../store'
 import { withCloud, withContainer, withSections } from '../store/sidebar-model'
@@ -102,7 +102,6 @@ import {
   moveFailedNotice,
   movingNotice,
   pendingSwitchNotice,
-  relocatedNotice,
 } from './container-notices'
 import { ELocalMoveStep } from './container-move'
 import { messageOf } from './error-text'
@@ -869,19 +868,9 @@ function Workspace(props: {
         services: props.app.services,
         agents: props.app.agents,
       })
-        .then((moved) => {
+        .then(() => {
           containerMove.handleSettle()
           void conversation.refresh()
-          notify({
-            key: 'container-switch',
-            tone: ENoticeTone.Warn,
-            ttlMs: NOTICE_WARN_MS,
-            text: relocatedNotice({
-              target,
-              stoppedServices: moved.stoppedServices.length,
-              relocatedAgents: moved.relocatedAgents.length,
-            }),
-          })
         })
         .catch((error: unknown) => {
           execution.handleSet(from)
@@ -1533,6 +1522,10 @@ function Workspace(props: {
                 now={conversation.now}
                 cwd={conversation.projectDirectory}
                 turn={conversation.turn}
+                reconnecting={
+                  cloudHealth?.connection?.state === EChannelConnection.Reconnecting ||
+                  cloudHealth?.connection?.state === EChannelConnection.Connecting
+                }
                 sends={sends}
                 pending={conversation.pending}
                 background={background}

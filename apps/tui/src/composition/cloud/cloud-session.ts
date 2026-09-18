@@ -70,7 +70,10 @@ export function createCloudSession(args: {
 
   const unsubscribeReload = channel.onReload((reload) => args.onReload(reload))
 
-  const unsubscribeError = channel.onError((failure) =>
+  // Transport errors are narrated by the connection state above — a socket blip that self-heals
+  // must not stick a warning. What stands here is what the sandbox itself refused, which arrives
+  // as an error frame over a healthy socket and is only ever superseded by the next one.
+  const unsubscribeError = channel.onServerError((failure) =>
     announce({ ...held, failure: failure.message }),
   )
 

@@ -108,4 +108,12 @@ describe('what the sandbox itself refuses', () => {
 
     expect(session.health().connection.detail).toBeNull()
   })
+
+  it('never sticks a transport error — the connection state already narrates it', () => {
+    const { channel, session } = sessionOn()
+
+    channel.failTransport('The session socket reported an error.')
+
+    expect(session.health().failure).toBeNull()
+  })
 })

@@ -5,7 +5,7 @@ import {
   type CloudConnection,
   type CloudSandboxStatus,
 } from './cloud-bridge'
-import { ELiftFault, ELiftStep, type LiftFailure, type LiftSuccess } from './lift'
+import { ELiftFault, ELiftStep, type LiftFailure } from './lift'
 
 export const CLOUD_LIFT_NOTICE_KEY = 'container-cloud'
 
@@ -13,8 +13,8 @@ export const CLOUD_CONNECTION_NOTICE_KEY = 'container-cloud-connection'
 
 export const CLOUD_SANDBOX_NOTICE_KEY = 'container-cloud-sandbox'
 
-const stoppedTail = (lifted: LiftSuccess | LiftFailure): string => {
-  const { shells, services } = lifted.stopped
+const stoppedTail = (failure: LiftFailure): string => {
+  const { shells, services } = failure.stopped
   const parts: string[] = []
   if (shells.length > 0) parts.push(`${shells.length} ${shells.length === 1 ? 'shell' : 'shells'}`)
   if (services.length > 0) {
@@ -23,9 +23,6 @@ const stoppedTail = (lifted: LiftSuccess | LiftFailure): string => {
 
   return parts.length === 0 ? '' : ` — stopped ${parts.join(' and ')}`
 }
-
-export const liftedNotice = (lifted: LiftSuccess): string =>
-  `this conversation now runs in a cloud sandbox${stoppedTail(lifted)}`
 
 const FAULT_HEAD: Record<ELiftFault, string> = {
   [ELiftFault.NotConfigured]: 'cloud sandboxes are not set up',
