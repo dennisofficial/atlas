@@ -12,6 +12,7 @@ export enum EKilledBy {
   Timeout = 'timeout',
   Rewind = 'rewind',
   ContainerSwitch = 'container-switch',
+  LostContact = 'lost-contact',
   Unrecorded = 'unrecorded',
 }
 
@@ -34,6 +35,7 @@ function killEnding(killedBy: EKilledBy | undefined): string {
   if (killedBy === EKilledBy.SessionEnd) return 'was killed because the session was closing'
   if (killedBy === EKilledBy.Timeout) return 'was killed for outliving its timeout'
   if (killedBy === EKilledBy.Rewind) return 'was killed by a rewind'
+  if (killedBy === EKilledBy.LostContact) return 'was killed because atlas lost contact with it'
   return 'was killed'
 }
 

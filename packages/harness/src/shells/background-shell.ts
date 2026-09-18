@@ -303,7 +303,10 @@ export function startBackgroundShell(spec: BackgroundShellSpec): StartedBackgrou
     try {
       exitCode = await awaitOutputThrough({ shell, drains })
     } catch (error) {
-      append(`\natlas could not read this shell to the end: ${messageOf(error)}\n`)
+      append(
+        `\natlas could not read this shell to the end: ${messageOf(error)} — the process was killed rather than left running untracked; if the kill could not be delivered, it may still be running\n`,
+      )
+      kill(EKilledBy.LostContact)
     } finally {
       endedAt = spec.clock.now()
       forgetPromptWatch()

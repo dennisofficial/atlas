@@ -130,6 +130,14 @@ describe('saying what a shell is doing', () => {
     ).toBe('timed out')
   })
 
+  it('says the harness lost contact rather than that the shell finished', () => {
+    expect(
+      shellStateLabel(
+        shell({ shellId: 'bash_1', status: EShellStatus.Killed, killedBy: EKilledBy.LostContact }),
+      ),
+    ).toBe('lost contact')
+  })
+
   it('says why an overflowed one was stopped', () => {
     expect(shellStateLabel(shell({ shellId: 'bash_1', status: EShellStatus.Overflowed }))).toContain(
       'too much output',

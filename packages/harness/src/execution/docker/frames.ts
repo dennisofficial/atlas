@@ -57,7 +57,35 @@ export type DemuxedExec = {
   done: Promise<void>
 }
 
-export function demuxExecStream(args: { stream: ReadableStream<Uint8Array> }): DemuxedExec {
+export enum EReadRecovery {
+  LastWord = 'last-word',
+  Ended = 'ended',
+  Unrecoverable = 'unrecoverable',
+}
+
+export type ReadRecovery =
+  | { kind: EReadRecovery.LastWord; lastWord: Uint8Array }
+  | { kind: EReadRecovery.Ended }
+  | { kind: EReadRecovery.Unrecoverable }
+
+const UNRECOVERABLE: ReadRecovery = { kind: EReadRecovery.Unrecoverable }
+
+const consult = async (
+  hook: ((error: unknown) => Promise<ReadRecovery>) | undefined,
+  error: unknown,
+): Promise<ReadRecovery> => {
+  if (hook === undefined) return UNRECOVERABLE
+  try {
+    return await hook(error)
+  } catch {
+    return UNRECOVERABLE
+  }
+}
+
+export function demuxExecStream(args: {
+  stream: ReadableStream<Uint8Array>
+  onReadFailure?: (error: unknown) => Promise<ReadRecovery>
+}): DemuxedExec {
   const parser = createFrameParser()
   let stdoutController: ReadableStreamDefaultController<Uint8Array> | undefined
   let stderrController: ReadableStreamDefaultController<Uint8Array> | undefined
@@ -92,14 +120,20 @@ export function demuxExecStream(args: { stream: ReadableStream<Uint8Array> }): D
       if (parser.rest().length > 0) {
         throw new Error('the exec stream ended in the middle of a frame')
       }
-
-      stdoutController?.close()
-      stderrController?.close()
     } catch (error) {
-      stdoutController?.error(error)
-      stderrController?.error(error)
-      throw error
+      const recovery = await consult(args.onReadFailure, error)
+      if (recovery.kind === EReadRecovery.Unrecoverable) {
+        stdoutController?.error(error)
+        stderrController?.error(error)
+        throw error
+      }
+      if (recovery.kind === EReadRecovery.LastWord && recovery.lastWord.length > 0) {
+        stderrController?.enqueue(recovery.lastWord)
+      }
     }
+
+    stdoutController?.close()
+    stderrController?.close()
   })()
 
   return { stdout, stderr, done }
