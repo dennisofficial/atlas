@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common'
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PrismaClient } from '../../generated/prisma/client'
 
@@ -73,6 +73,120 @@ describe('ThreadsService', () => {
 
     const found = await service.find({ userId: USER_A, threadId: 'brn_empty' })
     expect(found.executionLocation).toBe('cloud')
+  })
+
+  it('re-opening an existing thread appends only what the log has not seen', async () => {
+    const drafts = [
+      { type: 'user-said', body: JSON.stringify({ type: 'user-said', text: 'hi' }) },
+      { type: 'assistant-said', body: JSON.stringify({ type: 'assistant-said' }) },
+    ]
+    await service.open({
+      userId: USER_A,
+      draft: { threadId: 'brn_lifted', runId: 'run_1', drafts, executionLocation: 'cloud' },
+    })
+
+    const replayed = await service.open({
+      userId: USER_A,
+      draft: {
+        threadId: 'brn_lifted',
+        runId: 'run_2',
+        drafts: [
+          ...drafts,
+          { type: 'user-said', body: JSON.stringify({ type: 'user-said', text: 'and again' }) },
+        ],
+        executionLocation: 'cloud',
+      },
+    })
+
+    expect(replayed.thread.head).toBe(3)
+    expect(replayed.events.map((event) => event.seq)).toEqual([1, 2, 3])
+    expect(
+      fake.events.filter((row) => row.threadId === 'brn_lifted').map((row) => row.seq),
+    ).toEqual([1, 2, 3])
+  })
+
+  it('re-opening takes the columns the transfer declares', async () => {
+    await service.open({
+      userId: USER_A,
+      draft: { threadId: 'brn_lifted', runId: 'run_1', drafts: [] },
+    })
+
+    const replayed = await service.open({
+      userId: USER_A,
+      draft: {
+        threadId: 'brn_lifted',
+        runId: 'run_2',
+        drafts: [],
+        executionLocation: 'cloud',
+        title: 'lifted',
+      },
+    })
+
+    expect(replayed.thread.executionLocation).toBe('cloud')
+    expect(replayed.thread.title).toBe('lifted')
+  })
+
+  it('re-opening a diverged conversation refuses rather than clobbering the cloud copy', async () => {
+    await service.open({
+      userId: USER_A,
+      draft: {
+        threadId: 'brn_lifted',
+        runId: 'run_1',
+        drafts: [{ type: 'user-said', body: JSON.stringify({ type: 'user-said', text: 'hi' }) }],
+      },
+    })
+
+    await expect(
+      service.open({
+        userId: USER_A,
+        draft: {
+          threadId: 'brn_lifted',
+          runId: 'run_2',
+          drafts: [
+            { type: 'user-said', body: JSON.stringify({ type: 'user-said', text: 'edited!' }) },
+          ],
+        },
+      }),
+    ).rejects.toBeInstanceOf(ConflictException)
+  })
+
+  it('re-opening a shorter conversation refuses rather than truncating the cloud copy', async () => {
+    await service.open({
+      userId: USER_A,
+      draft: {
+        threadId: 'brn_lifted',
+        runId: 'run_1',
+        drafts: [
+          { type: 'user-said', body: JSON.stringify({ type: 'user-said', text: 'one' }) },
+          { type: 'user-said', body: JSON.stringify({ type: 'user-said', text: 'two' }) },
+        ],
+      },
+    })
+
+    await expect(
+      service.open({
+        userId: USER_A,
+        draft: {
+          threadId: 'brn_lifted',
+          runId: 'run_2',
+          drafts: [{ type: 'user-said', body: JSON.stringify({ type: 'user-said', text: 'one' }) }],
+        },
+      }),
+    ).rejects.toBeInstanceOf(ConflictException)
+  })
+
+  it('re-opening a thread owned by someone else refuses', async () => {
+    await service.open({
+      userId: USER_A,
+      draft: { threadId: 'brn_lifted', runId: 'run_1', drafts: [] },
+    })
+
+    await expect(
+      service.open({
+        userId: USER_B,
+        draft: { threadId: 'brn_lifted', runId: 'run_2', drafts: [] },
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException)
   })
 
   it('list scopes to project and user, newest first, and enriches from events', async () => {
