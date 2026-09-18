@@ -115,22 +115,31 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
    * Before anything can read a file: a sandbox boots with whatever its last snapshot held, which on
    * a first attach is nothing at all.
    */
+  const workspaceStartedAt = Date.now()
   const workspace = await (args.ensureWorkspace ?? materializeWorkspace)({
     cwd,
     fetchSpec: fetchSpecOnce,
   })
+  const workspaceMs = Date.now() - workspaceStartedAt
 
   if (workspace.state === EWorkspaceState.Failed) {
-    log({ event: EServeEvent.WorkspaceFailed, step: workspace.step, reason: workspace.reason })
+    log({
+      event: EServeEvent.WorkspaceFailed,
+      step: workspace.step,
+      reason: workspace.reason,
+      ms: workspaceMs,
+    })
   } else {
-    log({ event: EServeEvent.WorkspaceReady, state: workspace.state, cwd })
+    log({ event: EServeEvent.WorkspaceReady, state: workspace.state, cwd, ms: workspaceMs })
   }
 
+  const skillsStartedAt = Date.now()
   const skills = await materializeSkills({ fetchSpec: fetchSpecOnce, atlasHome: atlasDirectory() })
+  const skillsMs = Date.now() - skillsStartedAt
   if (skills.failed !== null) {
-    log({ event: EServeEvent.SkillsFailed, reason: skills.failed })
+    log({ event: EServeEvent.SkillsFailed, reason: skills.failed, ms: skillsMs })
   } else if (skills.written > 0) {
-    log({ event: EServeEvent.SkillsReady, written: skills.written })
+    log({ event: EServeEvent.SkillsReady, written: skills.written, ms: skillsMs })
   }
 
   const app = await (args.compose ?? composeServeApp)({
@@ -230,7 +239,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   })
 
   const port = server.port ?? wanted
-  log({ event: EServeEvent.Started, threadId, port })
+  log({ event: EServeEvent.Started, threadId, port, ms: Date.now() - startedAt })
 
   return {
     port,

@@ -1,5 +1,5 @@
-import { BadGatewayException, ServiceUnavailableException } from '@nestjs/common'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { BadGatewayException, Logger, ServiceUnavailableException } from '@nestjs/common'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EnvService } from '../../_core/config/env/env.service'
 import type { ServeBinaryService } from './serve-binary'
 
@@ -138,6 +138,10 @@ describe('VercelSandboxClient', () => {
     launch.readStamp = undefined
   })
 
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('snapshots the sandbox filesystem, mounts nothing, and declares the served port', async () => {
     const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
     const placement = await client.getOrCreate({
@@ -170,6 +174,25 @@ describe('VercelSandboxClient', () => {
       state: ESandboxState.Running,
     })
     expect(sdk.createParams[0]?.image).toBe('atlas-sandbox:sha-deadbeef')
+  })
+
+  it('logs how long the placement and the serve launch took', async () => {
+    const logged: string[] = []
+    vi.spyOn(Logger.prototype, 'log').mockImplementation((message: unknown) => {
+      logged.push(String(message))
+    })
+
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    await client.getOrCreate({ name: 'atlas-thread-abc', threadId: 'brn_thread_1', token: 't' })
+
+    expect(
+      logged.some(
+        (line) =>
+          line.includes('atlas-thread-abc') &&
+          /get-or-create \d+ms/.test(line) &&
+          /serve launch \d+ms/.test(line),
+      ),
+    ).toBe(true)
   })
 
   it('launches serve on creation and again on the SDK resume hook, reading the stamp lazily', async () => {
