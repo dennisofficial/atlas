@@ -2,10 +2,8 @@ import React from 'react'
 
 import { type SidebarTeammate } from '../../../store/sidebar-model'
 import {
-  FIGURE_SEPARATOR,
   isSubagentRunning,
   subagentContextLabel,
-  subagentFigures,
   subagentReading,
   type SidebarCrewFold,
   type SidebarSubagent,
@@ -13,10 +11,10 @@ import {
 import { plural } from '../../../store/tools/reading'
 import { contextUsageTone } from '../../context-bar'
 import { usePress } from '../../hooks/use-press'
-import { cellsOf } from '../../hint-layout'
 import { MARK_OF, NAME_INK_OF, STATE_INK_OF } from '../../subagent-ink'
 import { glyph, theme } from '../../theme'
-import { truncateCells } from './cells'
+import { Spans, type Span } from '../spans'
+import { justifySpans } from './cells'
 import { Row, Section } from './row'
 
 const IDLE = 'idle'
@@ -33,51 +31,26 @@ const valueFor = (subagent: SidebarSubagent) => [
 ]
 
 /**
- * A second line, and only when there is a reading to put on it. The model the child runs and how
- * full its own window has got are worth the row's height in every state — running, blocked and
- * settled alike — but an empty one would spend the height on nothing, which in a panel this narrow
- * is what makes a crew unreadable.
- *
- * Hung off the same right edge `Row` ends its value column on, so the two lines read as one row and
- * the figures stack into a column the eye can run down a whole crew. A window reading joins to the
- * right of the model, growing the line leftwards into the empty half.
+ * A second line, and only when there is a reading to put on it — the same pair the footer gives
+ * the main agent, with the child's own math: the model it runs on the left, what its own window
+ * holds on the right. Worth the row's height in every state — running, blocked and
+ * settled alike — but an empty one would spend the height on nothing, which in a panel this
+ * narrow is what makes a crew unreadable.
  */
 function FiguresLine(props: { subagent: SidebarSubagent; cells: number }): React.ReactNode {
-  const label = subagentFigures(props.subagent)
-  if (label === null) return null
-
   const context = subagentContextLabel(props.subagent.context)
-  const contextFg =
-    props.subagent.context === undefined
-      ? theme.dim
-      : contextUsageTone(props.subagent.context.tokens)
+  if (props.subagent.model === null && context === null) return null
 
-  const shown = truncateCells({ text: label, cells: props.cells })
-  const lead = ' '.repeat(Math.max(0, props.cells - cellsOf(shown)))
-
-  if (shown !== label) {
-    return (
-      <text>
-        <span>{lead}</span>
-        <span fg={theme.dim}>{shown}</span>
-      </text>
-    )
-  }
-
-  const figures = [
-    ...(props.subagent.model === null ? [] : [{ text: props.subagent.model, fg: theme.dim }]),
-    ...(context === null ? [] : [{ text: context, fg: contextFg }]),
-  ]
+  const model: readonly Span[] =
+    props.subagent.model === null ? [] : [{ text: props.subagent.model, fg: theme.dim }]
+  const reading: readonly Span[] =
+    context === null || props.subagent.context === undefined
+      ? []
+      : [{ text: context, fg: contextUsageTone(props.subagent.context.tokens) }]
 
   return (
     <text>
-      <span>{lead}</span>
-      {figures.map((figure, index) => (
-        <span key={index}>
-          {index === 0 ? '' : FIGURE_SEPARATOR}
-          <span fg={figure.fg}>{figure.text}</span>
-        </span>
-      ))}
+      <Spans spans={justifySpans({ left: model, right: reading, cells: props.cells })} />
     </text>
   )
 }

@@ -6,7 +6,6 @@ import { deriveSidebar, withCrew } from '../sidebar-model'
 import {
   subagentContextLabel,
   subagentElapsedMs,
-  subagentFigures,
   subagentRows,
   subagentStateLabel,
   type SubagentReadout,
@@ -43,14 +42,13 @@ const rows = (over: Partial<AgentSnapshot> = {}) =>
 
 const readout = (over: Partial<SubagentReadout> = {}): SubagentReadout => ({
   status: EAgentStatus.Running,
-  lastTool: null,
   startedAt: STARTED,
   endedAt: null,
   ...over,
 })
 
-const labelOf = (over: Partial<SubagentReadout> = {}): string =>
-  subagentStateLabel({ subagent: readout(over), now: NOW })
+const labelOf = (over: Partial<SubagentReadout> = {}, tokens?: number): string =>
+  subagentStateLabel({ subagent: readout(over), now: NOW, tokens })
 
 describe('a child row is derived from the child', () => {
   it('takes no turn count from the conversation it is listed beside', () => {
@@ -78,21 +76,25 @@ describe('a child row is derived from the child', () => {
   })
 
   it('carries the reading the row renders rather than making the view assemble it', () => {
-    expect(rows({ lastTool: 'grep', toolCalls: 4 })[0]?.state).toBe('grep · 1m 4s')
+    expect(rows({ context: { tokens: 68_000, window: 200_000 } })[0]?.state).toBe('1m 4s · 68.0k')
   })
 })
 
 describe('what the narrow value column says about a child', () => {
-  it('reads a working child as the tool it is on and how long it has been going', () => {
-    expect(labelOf({ lastTool: 'bash' })).toBe('bash · 1m 4s')
+  it('reads a working child as how long it has been going and what its window holds', () => {
+    expect(labelOf({}, 68_000)).toBe('1m 4s · 68.0k')
   })
 
-  it('still gives a working child that has called nothing yet its elapsed time', () => {
+  it('reads a working child nothing has measured as its elapsed time alone', () => {
     expect(labelOf()).toBe('1m 4s')
   })
 
+  it('keeps what the child is doing out of the column, however busy it is', () => {
+    expect(rows({ lastTool: 'grep', toolCalls: 4 })[0]?.state).toBe('1m 4s')
+  })
+
   it('says how long a blocked child has been stuck, which is the whole question', () => {
-    expect(labelOf({ status: EAgentStatus.Blocked, lastTool: 'bash' })).toBe('blocked · 1m 4s')
+    expect(labelOf({ status: EAgentStatus.Blocked })).toBe('blocked · 1m 4s')
   })
 
   it('reads a settled child as its outcome and nothing else', () => {
@@ -145,7 +147,7 @@ describe('which model the child runs', () => {
 
 describe("how full the child's own window is", () => {
   it('reads the child against the window the child runs, never the window the parent runs', () => {
-    expect(subagentContextLabel({ tokens: 68_000, window: 200_000 })).toBe('ctx 34%')
+    expect(subagentContextLabel({ tokens: 68_000, window: 200_000 })).toBe('68.0k')
   })
 
   it('says nothing when the window is unknown rather than reading the child as empty', () => {
@@ -155,7 +157,7 @@ describe("how full the child's own window is", () => {
   it('carries the reading the supervisor took onto the row, from the snapshot itself', () => {
     const built = rows({ context: { tokens: 68_000, window: 200_000 } })
 
-    expect(subagentContextLabel(built[0]?.context)).toBe('ctx 34%')
+    expect(subagentContextLabel(built[0]?.context)).toBe('68.0k')
   })
 
   it('leaves a child nothing has measured unmeasured rather than measured at zero', () => {
@@ -163,32 +165,8 @@ describe("how full the child's own window is", () => {
   })
 
   it('keeps a child measured as barely started apart from one nothing has measured', () => {
-    expect(subagentContextLabel({ tokens: 400, window: 200_000 })).toBe('ctx 0%')
+    expect(subagentContextLabel({ tokens: 400, window: 200_000 })).toBe('400')
     expect(subagentContextLabel(undefined)).toBe(null)
-  })
-})
-
-describe('the second line a child row hangs off its right edge', () => {
-  it('writes the model first and how full the window has got to the right of it', () => {
-    expect(
-      subagentFigures({ model: 'Claude Haiku 4.5', context: { tokens: 68_000, window: 200_000 } }),
-    ).toBe('Claude Haiku 4.5  ctx 34%')
-  })
-
-  it('writes the window reading alone for a child whose model was never observed', () => {
-    expect(subagentFigures({ model: null, context: { tokens: 68_000, window: 200_000 } })).toBe(
-      'ctx 34%',
-    )
-  })
-
-  it('writes the model alone when nothing has measured the child yet', () => {
-    expect(subagentFigures({ model: 'Claude Haiku 4.5', context: undefined })).toBe(
-      'Claude Haiku 4.5',
-    )
-  })
-
-  it('spends no row height on a child neither reading has reached', () => {
-    expect(subagentFigures({ model: null, context: undefined })).toBe(null)
   })
 })
 
@@ -219,7 +197,8 @@ describe('merging the crew into a sidebar', () => {
     const merged = withCrew({ model: parent, subagents: measured })
     const row = merged.subagents?.[0]
 
-    expect(row === undefined ? null : subagentFigures(row)).toBe('claude-haiku-4-5  ctx 34%')
+    expect(row?.model).toBe('claude-haiku-4-5')
+    expect(subagentContextLabel(row?.context)).toBe('68.0k')
     expect(merged.spend).toBe(parent.spend)
     expect(Object.keys(merged).filter((field) => !(field in parent))).toEqual(['subagents'])
   })

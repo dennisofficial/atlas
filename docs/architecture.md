@@ -713,7 +713,8 @@ role as the standing objective is an axis already carried by its position at the
 **Delegated spend is one conversation-level line, not a per-turn column.** A child's turns carry no
 parent `runId`, so attaching their cost to whichever parent turn happened to be open would be an
 invented attribution — and one that double-counts as soon as two children overlap. So
-`forThreadTree` surfaces at the foot of the transcript, for the conversation as a whole.
+`forThreadTree` surfaces in the session header, for the conversation as a whole: the counter up
+top is the session's cost, sub-agents included.
 
 **It is a tri-state rather than a number.** `ESpendReading` is `Counted` with totals or
 `Unavailable`, and a failed read renders "could not be totalled" rather than zero, because zero is
