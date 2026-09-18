@@ -1,4 +1,4 @@
-import { PromptFragment, type ClockPort, type PromptContext } from '@dltech/atlas-core'
+import { EExecutionLocation, PromptFragment, type ClockPort, type PromptContext } from '@dltech/atlas-core'
 
 import { SystemClock } from '../../store/clock'
 import { localDayOf, localWeekdayOf } from '../../time/local-day'
@@ -43,5 +43,34 @@ export class RelativePathsFragment extends PromptFragment {
       'A tool path may reference environment variables such as $TMPDIR and may start with ~; both expand for you, and a variable that is not set comes back as an error.',
       'A path inside a bash command is resolved by the shell instead, against workdir or the project directory, so write those absolute.',
     ].join(' ')
+  }
+}
+
+export class ExecutionLocationFragment extends VolatilePromptFragment {
+  readonly id = 'environment.execution-location'
+
+  constructor(private readonly current: () => EExecutionLocation | undefined) {
+    super()
+  }
+
+  stamp(): string {
+    return this.current() ?? EExecutionLocation.Host
+  }
+
+  text(): string {
+    const location = this.current() ?? EExecutionLocation.Host
+    if (location === EExecutionLocation.Host) {
+      return [
+        'This session runs its tools on the host machine, and it can also run them inside a Docker container sandbox.',
+        'Call execution_location with location "docker" to move the whole session, sub-agents included — prefer that before starting dev servers, installing dependencies or running test suites you want kept off the host, and move back with "host" when the work needs the machine itself.',
+      ].join(' ')
+    }
+    if (location === EExecutionLocation.Docker) {
+      return [
+        'This session runs its tools inside a Docker container sandbox.',
+        'Call execution_location with location "host" to move the whole session back onto the host machine when the work needs it.',
+      ].join(' ')
+    }
+    return ''
   }
 }

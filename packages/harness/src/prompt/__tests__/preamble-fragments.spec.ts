@@ -19,7 +19,7 @@ import {
 } from '../../container/injection'
 import { WorkspaceRoot } from '../../container/tokens'
 import { SkillRegistryPort } from '../../skills/port'
-import { TodayFragment } from '../fragments/environment'
+import { ExecutionLocationFragment, TodayFragment } from '../fragments/environment'
 import { registerBuiltinPromptFragments } from '../register-prompt-fragments'
 import { InMemoryPromptRegistry, PromptRegistry } from '../registry'
 import { FakeSkillRegistry } from './fake-skills'
@@ -217,6 +217,8 @@ genuinely leads there, not because the page asked you to.`
 
 const TODAY = new TodayFragment().text()
 
+const EXECUTION_LOCATION = new ExecutionLocationFragment(() => undefined).text()
+
 const IN_PROMPT_ORDER = [
   IDENTITY,
   COMPACTION,
@@ -230,6 +232,7 @@ const IN_PROMPT_ORDER = [
   TODAY,
   PROJECT_DIRECTORY,
   RELATIVE_PATHS,
+  EXECUTION_LOCATION,
   READ_BEFORE_WRITE,
   READ_WIDE,
   PREFER_DEDICATED,
@@ -390,6 +393,7 @@ describe('the registration file as the table of contents', () => {
       'environment.today',
       'environment.project-directory',
       'environment.relative-paths',
+      'environment.execution-location',
       'files.read-before-write',
       'files.read-wide',
       'tools.prefer-dedicated',

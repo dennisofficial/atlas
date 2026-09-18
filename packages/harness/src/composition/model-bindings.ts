@@ -73,7 +73,11 @@ export function childModelSource(args: {
   })
 }
 
-import { createExecutionLocationState, type ExecutionLocationState } from './execution-location-state'
+import {
+  createExecutionLocationState,
+  ExecutionLocationToken,
+  type ExecutionLocationState,
+} from './execution-location-state'
 import { executionPinned, resolveExecutionLocation } from './execution-preference'
 import { isRefReachable, modelCatalogue, type ModelCatalogue } from './model-catalogue'
 import { launchSelection, modelPinned } from './model-preference'
@@ -139,6 +143,10 @@ export async function bindModels(args: {
       settled,
     }),
   })
+  const pinned = executionPinned({ requested: launch.executionLocation })
+  container.register(ExecutionLocationToken, {
+    useValue: { state: executionLocation, pinned },
+  })
 
   const { sandbox, containerStatus, mounts } = await bindSandbox({
     container,
@@ -159,7 +167,7 @@ export async function bindModels(args: {
     model,
     modelPinned: modelPinned({ requested: { model: launch.model }, catalogue: models }),
     executionLocation,
-    executionPinned: executionPinned({ requested: launch.executionLocation }),
+    executionPinned: pinned,
     sandbox,
     containerStatus,
     mounts,

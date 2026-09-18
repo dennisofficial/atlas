@@ -1,16 +1,21 @@
 import {
   AgentFileSystemPort,
   DynamicToolSource,
+  EventLogPort,
   FileSystemPort,
+  IdPort,
   ProcessPort,
   ToolDefinition,
 } from '@dltech/atlas-core'
 
+import { AgentRegistryPort } from '../agents/registry/port'
+import { ExecutionLocationToken } from '../composition/execution-location-state'
 import { portToken, resolveSet, type DependencyContainer } from '../container/injection'
 import {
   ClientVersionToken,
   CloudRequiredToken,
   CloudSessionStoreToken,
+  DockerEngineToken,
   SecretsStoreToken,
   WebSearchBackendToken,
   WorktreeDirectoryToken,
@@ -20,6 +25,8 @@ import { FileWriteGuardPort } from '../files/write-guard'
 import { ServiceRegistryPort } from '../services/service-registry'
 import { ShellRegistryPort } from '../shells/shell-registry'
 import { SkillRegistryPort } from '../skills/port'
+import { ThreadStorePort } from '../store/thread-store'
+
 import { CompositeToolRegistry } from './composite-registry'
 import { AgentRegistrySourceToken, AgentTypesToken } from './builtin/agent-tokens'
 import { AgentListTool } from './builtin/agent-list'
@@ -30,6 +37,7 @@ import { AgentStopTool } from './builtin/agent-stop'
 import { BashTool } from './builtin/bash'
 import { EditTool } from './builtin/edit'
 import { EnterWorktreeTool } from './builtin/enter-worktree'
+import { ExecutionLocationTool } from './builtin/execution-location'
 import { ExitWorktreeTool } from './builtin/exit-worktree'
 import { GlobTool } from './builtin/glob'
 import { GrepTool } from './builtin/grep'
@@ -164,6 +172,21 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) => new ExitWorktreeTool(resolver.resolve(WorkspaceRoot)),
+  })
+  container.register(portToken(ToolDefinition), {
+    useFactory: (resolver) =>
+      new ExecutionLocationTool({
+        control: resolver.resolve(ExecutionLocationToken),
+        engine: resolver.resolve(DockerEngineToken),
+        ids: resolver.resolve(portToken(IdPort)),
+        services: serviceRegistry(resolver),
+        shells: shellRegistry(resolver),
+        stores: () => ({
+          threads: resolver.resolve(portToken(ThreadStorePort)),
+          log: resolver.resolve(portToken(EventLogPort)),
+          agents: resolver.resolve(portToken(AgentRegistryPort)),
+        }),
+      }),
   })
   container.register(portToken(ToolDefinition), { useClass: WorktreeListTool })
   container.register(portToken(ToolDefinition), { useClass: WebFetchTool })

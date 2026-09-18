@@ -4,6 +4,7 @@ import {
   ClockPort,
   CredentialPort,
   EDefinitionOrigin,
+  EExecutionLocation,
   ESettingId,
   ESettingsLayer,
   EventLogPort,
@@ -16,6 +17,11 @@ import {
   type SettingsLayerInput,
   type SettingsStorePort,
 } from '@dltech/atlas-core'
+
+import {
+  createExecutionLocationState,
+  ExecutionLocationToken,
+} from '../composition/execution-location-state'
 
 import { childRunnerSource, type ChildRunnerDepsSource } from '../agents/registry/child-runner'
 import { AgentRegistryPort } from '../agents/registry/port'
@@ -268,6 +274,14 @@ export function createHarnessContainer(): DependencyContainer {
   registerServices({ container: harness })
   registerSkills({ container: harness })
   registerAgents({ container: harness })
+  // bindModels re-registers this with the session's real state; the default only exists so a
+  // container that never binds models can still build the tool registry.
+  harness.register(ExecutionLocationToken, {
+    useValue: {
+      state: createExecutionLocationState({ initial: EExecutionLocation.Host }),
+      pinned: false,
+    },
+  })
   registerBuiltinTools({ container: harness })
   registerBuiltinHooks({ container: harness })
 

@@ -1,9 +1,11 @@
 import { PromptFragment } from '@dltech/atlas-core'
 
+import { ExecutionLocationToken } from '../composition/execution-location-state'
 import { SkillRegistryPort } from '../skills/port'
 import { instanceCachingFactory, portToken, type DependencyContainer } from '../container/injection'
 import { DelegationFragment } from './fragments/agents'
 import {
+  ExecutionLocationFragment,
   ProjectDirectoryFragment,
   RelativePathsFragment,
   TodayFragment,
@@ -58,6 +60,7 @@ export function registerBuiltinPromptFragments({
     TodayFragment,
     ProjectDirectoryFragment,
     RelativePathsFragment,
+    ExecutionLocationFragment,
     ReadBeforeWriteFragment,
     ReadWideFragment,
     PreferDedicatedToolsFragment,
@@ -84,6 +87,17 @@ export function registerBuiltinPromptFragments({
       container.register(portToken(PromptFragment), {
         useFactory: (resolver) =>
           new SkillListingFragment(resolver.resolve(portToken(SkillRegistryPort))),
+      })
+      continue
+    }
+    if (fragment === ExecutionLocationFragment) {
+      container.register(portToken(PromptFragment), {
+        useFactory: (resolver) =>
+          new ExecutionLocationFragment(
+            resolver.isRegistered(ExecutionLocationToken, true)
+              ? () => resolver.resolve(ExecutionLocationToken).state.current()
+              : () => undefined,
+          ),
       })
       continue
     }

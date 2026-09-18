@@ -46,6 +46,7 @@ const BUILTIN_NAMES = [
   'agent_stop',
   'enter_worktree',
   'exit_worktree',
+  'execution_location',
   'worktree_list',
   'web_fetch',
   'web_search',
