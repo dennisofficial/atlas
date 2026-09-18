@@ -10,6 +10,7 @@ import {
   type ServeFrame,
 } from '../cloud/channel-wire'
 import type { FileBrowser } from '../files/file-browser'
+import { captureWorkspace } from '../workspace/snapshot'
 
 export const MAX_COMPLETIONS = 50
 
@@ -23,6 +24,8 @@ const completePathsSchema = z.object({
 })
 
 const browseDirectorySchema = z.object({ directory: z.string() })
+
+const captureWorkspaceSchema = z.object({ cwd: z.string() })
 
 const refused = (args: { replyTo: string; message: string }): ReplyFrame => ({
   kind: EServeFrame.Reply,
@@ -70,10 +73,21 @@ async function browseDirectory(args: {
   return answered({ replyTo: args.frame.id, data: { directory: parsed.data.directory, entries } })
 }
 
+async function captureWorkspaceHandler(args: { frame: RequestFrame }): Promise<ReplyFrame> {
+  const parsed = captureWorkspaceSchema.safeParse(args.frame.params)
+  if (!parsed.success) {
+    return refused({ replyTo: args.frame.id, message: 'capture-workspace wants { cwd }' })
+  }
+
+  const snapshot = await captureWorkspace({ cwd: parsed.data.cwd })
+  return answered({ replyTo: args.frame.id, data: snapshot })
+}
+
 export async function answerRequest(args: {
   frame: RequestFrame
   files: Pick<FileBrowser, 'list'>
 }): Promise<ReplyFrame> {
   if (args.frame.op === EClientRequest.CompletePaths) return await completePaths(args)
-  return await browseDirectory(args)
+  if (args.frame.op === EClientRequest.BrowseDirectory) return await browseDirectory(args)
+  return await captureWorkspaceHandler(args)
 }

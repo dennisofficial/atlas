@@ -9,7 +9,7 @@ import {
   type IdPort,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { ETurnStatus } from '@dltech/atlas-harness'
+import { EClientRequest, ETurnStatus } from '@dltech/atlas-harness'
 
 import {
   fakeEventLog,
@@ -297,5 +297,73 @@ describe('bringing a cloud conversation home', () => {
     expect(
       (await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation,
     ).toBe(EExecutionLocation.Cloud)
+  })
+
+  it('captures the workspace patch from the cloud', async () => {
+    const bridge = fakeBridge()
+    await seedCloud(bridge, ['work happened in the cloud'])
+    const home = localHome({
+      events: [said({ seq: 1, text: 'work happened in the cloud' })],
+    })
+
+    const channel = bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' })
+    let capturedCwd: string | undefined
+    channel.request = async (args) => {
+      if (args.op === EClientRequest.CaptureWorkspace) {
+        capturedCwd = (args.params as { cwd: string }).cwd
+        return {
+          remoteUrl: null,
+          branch: null,
+          commit: null,
+          patch: '',
+        }
+      }
+      return undefined
+    }
+
+    await descendFromCloud({
+      threadId: CLOUD_THREAD,
+      target: EExecutionLocation.Host,
+      midTurn: false,
+      bridge,
+      channel,
+      localApp: home,
+      move: fakeMove(),
+    })
+
+    expect(capturedCwd).toBe('/work')
+  })
+
+  it('skips workspace transfer when the cloud has no uncommitted changes', async () => {
+    const bridge = fakeBridge()
+    await seedCloud(bridge, ['clean cloud session'])
+    const home = localHome({ events: [said({ seq: 1, text: 'clean cloud session' })] })
+
+    const channel = bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' })
+    let captureCalled = false
+    channel.request = async (args) => {
+      if (args.op === EClientRequest.CaptureWorkspace) {
+        captureCalled = true
+        return {
+          remoteUrl: null,
+          branch: null,
+          commit: null,
+          patch: '',
+        }
+      }
+      return undefined
+    }
+
+    await descendFromCloud({
+      threadId: CLOUD_THREAD,
+      target: EExecutionLocation.Host,
+      midTurn: false,
+      bridge,
+      channel,
+      localApp: home,
+      move: fakeMove(),
+    })
+
+    expect(captureCalled).toBe(true)
   })
 })

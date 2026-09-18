@@ -1,8 +1,13 @@
+import { unlinkSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
 import {
-  EExecutionLocation,
-  type ThreadId,
-} from '@dltech/atlas-core'
-import { relocateSession } from '@dltech/atlas-harness'
+  EClientRequest,
+  relocateSession,
+  runGit,
+  type WorkspaceSnapshot,
+} from '@dltech/atlas-harness'
 
 import type { AtlasApp } from '../compose'
 import { EOpenMode } from '../config'
@@ -83,6 +88,42 @@ const awaitTurnEnd = (args: { channel: CloudChannel; deadlineMs: number }): Prom
     }, args.deadlineMs)
   })
 
+async function captureWorkspaceFromCloud(args: {
+  channel: CloudChannel
+  cwd: string
+}): Promise<WorkspaceSnapshot | null> {
+  try {
+    const result = await args.channel.request({
+      op: EClientRequest.CaptureWorkspace,
+      params: { cwd: args.cwd },
+    })
+    return result as WorkspaceSnapshot | null
+  } catch {
+    return null
+  }
+}
+
+async function applyWorkspacePatch(args: {
+  cwd: string
+  patch: string
+}): Promise<void> {
+  if (args.patch.length === 0) return
+
+  const patchPath = join(args.cwd, '.git', 'atlas-descend.patch')
+  writeFileSync(patchPath, args.patch)
+
+  const applied = await runGit({
+    args: ['apply', '--whitespace=nowarn', patchPath],
+    cwd: args.cwd,
+  })
+
+  unlinkSync(patchPath)
+
+  if (!applied.ok) {
+    throw new Error(`failed to apply workspace patch: ${applied.stderr || applied.stdout}`)
+  }
+}
+
 /**
  * Bringing a cloud conversation home: stop the remote turn at a clean break, move the log's home
  * back (the cloud tail the local store missed, then the relocation marker into the local log),
@@ -128,6 +169,14 @@ export async function descendFromCloud(args: {
   const children = await bridge.stores.threads.spawned({ threadId })
   for (const child of children) {
     await transferThreadDown({ threadId: child.id, target, bridge, localApp })
+  }
+
+  const snapshot = await captureWorkspaceFromCloud({
+    channel,
+    cwd: localApp.workspace.workspace,
+  })
+  if (snapshot?.patch !== undefined && snapshot.patch.length > 0) {
+    await applyWorkspacePatch({ cwd: localApp.workspace.workspace, patch: snapshot.patch })
   }
 
   move.handleAdvance(ELiftStep.Flipping)
