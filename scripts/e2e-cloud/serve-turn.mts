@@ -86,10 +86,30 @@ const streamToolCall = (response: http.ServerResponse): void => {
   response.end()
 }
 
+const streamSlow = (response: http.ServerResponse): void => {
+  response.write(sse({ delta: { role: 'assistant', content: '' } }))
+  const parts = ['slow-one ', 'slow-two ', 'slow-three']
+  let index = 0
+  const tick = (): void => {
+    const part = parts[index]
+    if (part === undefined) {
+      response.write(sse({ delta: {}, finishReason: 'stop', usage: USAGE }))
+      response.write('data: [DONE]\n\n')
+      response.end()
+      return
+    }
+    index += 1
+    response.write(sse({ delta: { content: part } }))
+    setTimeout(tick, 600)
+  }
+  setTimeout(tick, 600)
+}
+
 // A canned OpenAI-compatible model. "send a helper" is answered with an agent_spawn tool call;
 // the sub-agent's own request (its brief says "look around") gets the child's report; a request
-// carrying a tool result is the parent continuing after the spawn. When told to stop answering,
-// it fails fast with a 400 (non-retryable), which is how the failure-surfacing leg is driven.
+// carrying a tool result is the parent continuing after the spawn. "take your time" streams over
+// two seconds, so a client can die mid-turn and another can resume the stream. When told to stop
+// answering, it fails fast with a 400 (non-retryable), which is how the failure leg is driven.
 let mockAnswers = true
 const mock = http.createServer((request, response) => {
   if (request.method !== 'POST' || request.url !== '/v1/chat/completions' || !mockAnswers) {
@@ -104,19 +124,25 @@ const mock = http.createServer((request, response) => {
   request.on('end', () => {
     response.writeHead(200, { 'content-type': 'text/event-stream' })
     const messages = (JSON.parse(body).messages ?? []) as MockMessage[]
-    if (messages.some((message) => message.role === 'tool')) {
-      streamText(response, 'The helper is on it.')
-      return
-    }
     const said = messages
       .filter((message) => message.role === 'user')
       .map((message) => textOf(message.content))
       .join('\n')
+    if (messages.at(-1)?.role === 'tool') {
+      streamText(response, 'The helper is on it.')
+      return
+    }
     if (said.includes('look around')) {
       streamText(response, 'child-report: all clear')
       return
     }
-    if (said.includes('send a helper')) {
+    if (said.includes('take your time')) {
+      streamSlow(response)
+      return
+    }
+    // Spawning is armed only while no turn has ever run a tool: any later request carries the
+    // spawn's own tool result in its history, and matching markers across history loops forever.
+    if (said.includes('send a helper') && !messages.some((message) => message.role === 'tool')) {
       streamToolCall(response)
       return
     }
@@ -286,41 +312,107 @@ if (!childAnswered) {
 }
 log("sub-agent's answer committed and readable with the sandbox token")
 
-mockAnswers = false
+const streamedText = (collected: StepSignal[]): string =>
+  collected
+    .filter((signal) => signal.type === 'chunk')
+    .map((signal) => (signal.chunk.type === 'text-delta' ? signal.chunk.text : ''))
+    .join('')
+
 await eventLog.append({
   threadId,
   runId: toRunId('run_e2e-turn-3'),
+  drafts: [{ type: 'user-said', text: 'take your time' }],
+})
+const abandonedTurn = runner.runTurn({ threadId })
+void abandonedTurn.catch(() => undefined)
+
+for (let attempt = 0; attempt < 40 && !streamedText(signals).includes('slow-one'); attempt++) {
+  await sleep(250)
+}
+if (!streamedText(signals).includes('slow-one')) fail('the slow turn never started streaming')
+log('turn 3 streaming; the client now dies mid-turn')
+
+channel.close()
+
+const resumedChannel = createRemoteDeltaChannel({
+  threadId,
+  url: SERVE_URL,
+  token: SANDBOX_TOKEN,
+  maxAttempts: 2,
+  backoffMs: () => 50,
+  lastEventSeq: () => 0,
+})
+const resumedSignals: StepSignal[] = []
+resumedChannel.subscribe({ threadId, listener: (signal) => resumedSignals.push(signal) })
+const turnEnded = new Promise<unknown>((resolve) => {
+  resumedChannel.onTurnEnded((outcome) => resolve(outcome))
+})
+const outcome3 = await Promise.race([turnEnded, sleep(20_000).then(() => null)])
+const status3 = (outcome3 as { status?: string } | null)?.status
+if (status3 !== ETurnStatus.Completed) {
+  fail(`turn 3 should have completed on the serve with the first client gone, got ${JSON.stringify(outcome3)}`)
+}
+const resumedText = streamedText(resumedSignals)
+if (
+  !resumedText.includes('slow-one') ||
+  !resumedText.includes('slow-two') ||
+  !resumedText.includes('slow-three')
+) {
+  fail(`the resumed stream lost part of the in-flight answer: ${resumedText}`)
+}
+log('the in-flight turn resumed on a fresh client and completed on the serve')
+
+const afterDeath = await eventLog.read({ threadId })
+const slowAnswers = afterDeath.filter(
+  (event) => event.type === 'assistant-said' && JSON.stringify(event).includes('slow-three'),
+)
+if (slowAnswers.length !== 1) {
+  fail(`the turn whose client died committed ${slowAnswers.length} times, not once`)
+}
+log('the turn ran exactly once — no restart on reconnect')
+
+const runnerOnResumed = new RemoteTurnRunner({
+  channel: resumedChannel,
+  wake: async () => {
+    throw new Error('wake should never fire while the serve is up')
+  },
+})
+
+mockAnswers = false
+await eventLog.append({
+  threadId,
+  runId: toRunId('run_e2e-turn-4'),
   drafts: [{ type: 'user-said', text: 'are you there' }],
 })
-const failedOutcome = await runner.runTurn({ threadId })
+const failedOutcome = await runnerOnResumed.runTurn({ threadId })
 if (failedOutcome.status !== ETurnStatus.Failed) {
-  fail(`turn 3 should have failed with the mock down, ended ${failedOutcome.status}`)
+  fail(`turn 4 should have failed with the mock down, ended ${failedOutcome.status}`)
 }
 const detail = failedOutcome.status === ETurnStatus.Failed ? failedOutcome.message : ''
-if (detail.length === 0) fail('turn 3 failed without a reason reaching the client')
-log(`turn 3 failed legibly: ${detail.slice(0, 120)}`)
+if (detail.length === 0) fail('turn 4 failed without a reason reaching the client')
+log(`turn 4 failed legibly: ${detail.slice(0, 120)}`)
 mockAnswers = true
 
 await serve.close()
 log('serve closed (parked)')
 
 serve = await startServe(serveArgs)
-channel.wake({ url: SERVE_URL, token: SANDBOX_TOKEN })
+resumedChannel.wake({ url: SERVE_URL, token: SANDBOX_TOKEN })
 
-const wakingRunner = new RemoteTurnRunner({ channel, wake: async () => undefined })
+const wakingRunner = new RemoteTurnRunner({ channel: resumedChannel, wake: async () => undefined })
 await eventLog.append({
   threadId,
-  runId: toRunId('run_e2e-turn-4'),
+  runId: toRunId('run_e2e-turn-5'),
   drafts: [{ type: 'user-said', text: 'welcome back' }],
 })
 const wokenOutcome = await wakingRunner.runTurn({ threadId })
 if (wokenOutcome.status !== ETurnStatus.Completed) {
-  fail(`turn 4 after the wake ended ${JSON.stringify(wokenOutcome)}`)
+  fail(`turn 5 after the wake ended ${JSON.stringify(wokenOutcome)}`)
 }
-log('turn 4 completed after the wake')
+log('turn 5 completed after the wake')
 
 await serve.close()
-channel.close()
+resumedChannel.close()
 mock.close()
 console.log('SERVE PHASE GREEN')
 process.exit(0)

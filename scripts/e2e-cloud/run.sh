@@ -46,6 +46,7 @@ fi
 DATABASE_URL="$DATABASE_URL" \
 SECRET_KEY='e2e-rig-secret-key-with-plenty-of-length' \
 SECRETS_ENCRYPTION_KEY='a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2' \
+RATE_LIMIT_PER_MINUTE=100000 \
 PORT=$API_PORT node --max-old-space-size=1024 dist/api/main.js >/tmp/e2e-cloud-api.log 2>&1 &
 API_PID=$!
 
