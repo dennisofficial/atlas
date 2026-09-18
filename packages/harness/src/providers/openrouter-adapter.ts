@@ -31,11 +31,17 @@ export class OpenRouterAdapter extends ProviderAdapter {
 
   private readonly credentials: CredentialPort
   private readonly catalogue: readonly ModelCard[]
+  private readonly baseUrl: string | undefined
 
-  constructor(args: { credentials: CredentialPort; cards: readonly ModelCard[] }) {
+  constructor(args: {
+    credentials: CredentialPort
+    cards: readonly ModelCard[]
+    baseUrl?: string | undefined
+  }) {
     super()
     this.credentials = args.credentials
     this.catalogue = args.cards
+    this.baseUrl = args.baseUrl
   }
 
   cards(): readonly ModelCard[] {
@@ -60,7 +66,7 @@ export class OpenRouterAdapter extends ProviderAdapter {
 
       return createOpenAICompatible({
         name: OPENROUTER_PROVIDER_ID,
-        baseURL: OPENROUTER_BASE_URL,
+        baseURL: this.baseUrl ?? OPENROUTER_BASE_URL,
         apiKey,
         headers: ATTRIBUTION_HEADERS,
       }).chatModel(args.card.ref.modelId)

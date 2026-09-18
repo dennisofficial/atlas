@@ -152,6 +152,7 @@ export async function composeHarness<TSurface = undefined, Command = never>(args
     credentials,
     accountList: await accountStore.list(),
     notice,
+    env: args.env,
   })
 
   const database = await openAtlasDatabase({

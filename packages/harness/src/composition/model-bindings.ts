@@ -92,6 +92,9 @@ export type ModelBindings = {
   mounts: readonly string[]
 }
 
+const emptyToUndefined = (value: string | undefined): string | undefined =>
+  value === undefined || value.length === 0 ? undefined : value
+
 export async function bindModels(args: {
   container: DependencyContainer
   launch: HarnessLaunch
@@ -102,6 +105,7 @@ export async function bindModels(args: {
   credentials: CredentialPort
   accountList: readonly Account[]
   notice: NoticePort
+  env: Record<string, string | undefined>
 }): Promise<ModelBindings> {
   const { container, launch, settled, settings, credentials, notice } = args
 
@@ -109,7 +113,11 @@ export async function bindModels(args: {
     adapters: [
       new AnthropicAdapter({ credentials, cards: cardsForProvider(ANTHROPIC_PROVIDER_ID) }),
       new OpenAiAdapter({ credentials, cards: cardsForProvider(OPENAI_PROVIDER_ID) }),
-      new OpenRouterAdapter({ credentials, cards: cardsForProvider(OPENROUTER_PROVIDER_ID) }),
+      new OpenRouterAdapter({
+        credentials,
+        cards: cardsForProvider(OPENROUTER_PROVIDER_ID),
+        baseUrl: emptyToUndefined(args.env.OPENROUTER_BASE_URL),
+      }),
       new InferenceAdapter({ credentials, cards: cardsForProvider(INFERENCE_PROVIDER_ID) }),
     ],
     accounts: args.accountList,
