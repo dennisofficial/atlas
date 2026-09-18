@@ -153,7 +153,7 @@ describe('a sub-agent in the sidebar', () => {
     }
   }, 60_000)
 
-  it("reads the child's own work, never the conversation it was spawned from", async () => {
+  it("shows the child's time on the row, never the tool it is on", async () => {
     const app = appWith()
     await app.log.append({
       threadId: THREAD,
@@ -169,7 +169,8 @@ describe('a sub-agent in the sidebar', () => {
     const setup = await opened(app)
 
     try {
-      expect(setup.captureCharFrame()).toContain('grep · ')
+      const running = setup.captureCharFrame().split('\n').find((line) => line.includes(CHILD_INTENT)) ?? ''
+      expect(running).not.toContain('grep')
 
       act(() => app.agents.end({ agentId: CHILD }))
       await setup.flush()
@@ -221,12 +222,12 @@ describe('a sub-agent in the sidebar', () => {
     const setup = await opened(app)
 
     try {
-      expect(setup.captureCharFrame()).not.toContain('ctx 34%')
+      expect(setup.captureCharFrame()).not.toContain('68.0k')
 
       act(() => app.agents.place({ ...child(), context: { tokens: 68_000, window: 200_000 } }))
       await setup.flush()
 
-      expect(setup.captureCharFrame()).toContain('ctx 34%')
+      expect(setup.captureCharFrame()).toContain('68.0k')
     } finally {
       await teardown(setup)
     }

@@ -1,13 +1,12 @@
-import { EAgentStatus, contextPressure, type ProviderIdentity } from '@dltech/atlas-core'
+import { EAgentStatus, type ProviderIdentity } from '@dltech/atlas-core'
 import type { AgentSnapshot, ChildContext } from '@dltech/atlas-harness'
 
 import { truncateCells } from '../ui/components/sidebar/cells'
-import { formatElapsed } from '../ui/theme'
+import { formatElapsed, formatTokens } from '../ui/theme'
 import { TITLE_CELLS, oneLineOf } from './sidebar-text'
 
 export type SubagentReadout = {
   status: EAgentStatus
-  lastTool: string | null
   startedAt: string
   endedAt: string | null
 }
@@ -43,8 +42,9 @@ export const subagentWentWrong = (subagent: Pick<SidebarSubagent, 'status'>): bo
   SUBAGENT_WENT_WRONG[subagent.status]
 
 /**
- * What the narrow value column spends its cells on. A child that is still going is judged by what
- * it is doing and for how long; one that has settled is judged by its outcome alone.
+ * What the narrow value column spends its cells on. A child that is still going is judged by how
+ * long it has been going and how much of its window it has spent; one that has settled is judged
+ * by its outcome alone.
  */
 export enum ESubagentReading {
   Live = 'live',
@@ -95,30 +95,33 @@ const READOUT_SEPARATOR = ' · '
 const stateWord = (subagent: Pick<SubagentReadout, 'status'>): string =>
   SUBAGENT_STATE_LABEL[subagent.status]
 
-type ReadoutParts = { subagent: SubagentReadout; since: string | null }
+type ReadoutParts = { subagent: SubagentReadout; since: string | null; spent: string | null }
 
 const SUBAGENT_READOUT: Record<
   ESubagentReading,
   (parts: ReadoutParts) => readonly (string | null)[]
 > = {
-  [ESubagentReading.Live]: ({ subagent, since }) => [subagent.lastTool, since],
+  [ESubagentReading.Live]: ({ since, spent }) => [since, spent],
   [ESubagentReading.Held]: ({ subagent, since }) => [stateWord(subagent), since],
   [ESubagentReading.Settled]: ({ subagent }) => [stateWord(subagent)],
 }
 
-export function subagentStateLabel(args: { subagent: SubagentReadout; now: number }): string {
+export function subagentStateLabel(args: {
+  subagent: SubagentReadout
+  now: number
+  tokens?: number | undefined
+}): string {
   const { subagent } = args
   const elapsed = subagentElapsedMs({ subagent, now: args.now })
   const parts = SUBAGENT_READOUT[subagentReading(subagent)]({
     subagent,
     since: elapsed === null ? null : formatElapsed(elapsed),
+    spent: args.tokens === undefined ? null : formatTokens(args.tokens),
   })
 
   const written = parts.filter((part): part is string => part !== null).join(READOUT_SEPARATOR)
   return written === '' ? stateWord(subagent) : written
 }
-
-export const FIGURE_SEPARATOR = '  '
 
 /**
  * A child's own window, never added to the parent's: a child may run a different model, so the two
@@ -129,22 +132,7 @@ export function subagentContextLabel(context: ChildContext | undefined): string 
   if (context === undefined) return null
   if (context.window <= 0) return null
 
-  const pressure = contextPressure({ used: context.tokens, window: context.window })
-  return `ctx ${pressure.percent}%`
-}
-
-/**
- * The second line: which model the child runs and how full its own window has got. A child whose
- * model this process never observed — one recovered from the log — shows its window alone.
- */
-export function subagentFigures(
-  subagent: Pick<SidebarSubagent, 'model' | 'context'>,
-): string | null {
-  const written = [subagent.model, subagentContextLabel(subagent.context)]
-    .filter((figure): figure is string => figure !== null)
-    .join(FIGURE_SEPARATOR)
-
-  return written === '' ? null : written
+  return formatTokens(context.tokens)
 }
 
 export function subagentRows(args: {
@@ -156,7 +144,6 @@ export function subagentRows(args: {
   return args.snapshots.map((snapshot) => {
     const readout: SubagentReadout = {
       status: snapshot.status,
-      lastTool: snapshot.lastTool ?? null,
       startedAt: snapshot.startedAt,
       endedAt: snapshot.endedAt ?? null,
     }
@@ -165,7 +152,11 @@ export function subagentRows(args: {
       ...readout,
       id: snapshot.agentId,
       name: subagentLabel(snapshot),
-      state: subagentStateLabel({ subagent: readout, now: args.now }),
+      state: subagentStateLabel({
+        subagent: readout,
+        now: args.now,
+        tokens: snapshot.context?.tokens,
+      }),
       model:
         snapshot.model === undefined
           ? null
