@@ -1,5 +1,5 @@
-import { EExecutionLocation, toThreadId } from '@dltech/atlas-core'
-import { mergedThreadListing, type ThreadStorePort } from '@dltech/atlas-harness'
+import { EExecutionLocation, projectOf, toThreadId } from '@dltech/atlas-core'
+import { mergedThreadListing, type ThreadStorePort, type ThreadSummary } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useRef } from 'react'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
@@ -9,7 +9,7 @@ import type { CloudSession } from './cloud/cloud-session'
 import type { AtlasApp } from './compose'
 import { EOpenMode } from './config'
 import type { LiftedAttachment } from './lifted-session'
-import { openConversation, type OpenedConversation } from './open-conversation'
+import { namedBy, openConversation, type OpenedConversation } from './open-conversation'
 import type { CloudBridgeFactory } from './use-cloud-lift'
 import type { ContainerMoveControl } from './use-container-move'
 
@@ -64,17 +64,26 @@ export function useThreadRouter(args: {
 
       const bridge = ensureBridge()
       const id = toThreadId(threadId)
-      const located =
+      const listing =
         bridge === null
+          ? null
+          : mergedThreadListing({ local: localApp.threads, remote: bridge.stores.threads })
+
+      let located =
+        listing === null
           ? await localApp.threads.find({ threadId: id })
-          : await mergedThreadListing({
-              local: localApp.threads,
-              remote: bridge.stores.threads,
-            }).find({ threadId: id })
+          : await listing.find({ threadId: id })
+
+      if (located === undefined && listing !== null) {
+        const rows = await listing.list({ project: projectOf(localApp.workspace) })
+        located = rows.find((row: ThreadSummary) => namedBy({ thread: row, handle: threadId }))
+      }
+
       const location = located?.executionLocation ?? EExecutionLocation.Host
+      const target = located === undefined ? threadId : (located.id as string)
 
       if (location === EExecutionLocation.Cloud) {
-        if (threadId === args.activeThreadId && cloudSession !== null) return
+        if (target === args.activeThreadId && cloudSession !== null) return
         if (bridge === null) {
           notify({
             key: 'cloud-open-signin',
@@ -88,7 +97,7 @@ export function useThreadRouter(args: {
         const attachment = await openCloudThread({
           app: localApp,
           bridge,
-          threadId: id,
+          threadId: toThreadId(target),
           move: containerMove,
         }).catch(() => null)
         if (attachment === null) return
@@ -96,21 +105,22 @@ export function useThreadRouter(args: {
         return
       }
 
-      if (threadId === args.activeThreadId && cloudSession === null) return
+      if (target === args.activeThreadId && cloudSession === null) return
 
       if (cloudSession === null) {
-        args.onLocalSwap(threadId)
+        args.onLocalSwap(target)
         return
       }
 
       const outcome = await openConversation({
         threads: localApp.threads,
+        ...(bridge === null ? {} : { remoteThreads: bridge.stores.threads }),
         log: localApp.log,
         ledger: localApp.ledger,
         agents: localApp.agents,
         ids: localApp.ids,
         workspace: localApp.workspace,
-        open: { mode: EOpenMode.Resume, threadId },
+        open: { mode: EOpenMode.Resume, threadId: target },
       })
       if (!outcome.ok) {
         notify({

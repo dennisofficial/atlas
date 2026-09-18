@@ -54,6 +54,18 @@ describe('listing threads across host and cloud', () => {
     expect(rows[2]?.executionLocation).toBe(EExecutionLocation.Host)
   })
 
+  it('trusts the location the cloud row carries, so a thread moved back reads as host', async () => {
+    const listing = mergedThreadListing({
+      local: reads([row('thr_back', '2026-09-16T10:00:00.000Z', EExecutionLocation.Cloud)]),
+      remote: reads([row('thr_back', '2026-09-16T12:00:00.000Z', EExecutionLocation.Host)]),
+    })
+
+    const rows = await listing.list({ project: PROJECT })
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.executionLocation).toBe(EExecutionLocation.Host)
+  })
+
   it('shows a thread known to both once, as the cloud row', async () => {
     const listing = mergedThreadListing({
       local: reads([row('thr_same', '2026-09-16T10:00:00.000Z', EExecutionLocation.Cloud)]),
