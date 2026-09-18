@@ -9,16 +9,24 @@ import {
   type ToolCall,
 } from '@dltech/atlas-core'
 
-import { worktreeLabel } from '../sandbox'
+import { sessionLabel, worktreeLabel } from '../sandbox'
 import {
   BashActivityHook,
   ReclaimWorktreeSandboxHook,
   removeSandbox,
+  removeSandboxesAtWorktree,
   startIdleStop,
   stopSandbox,
   sweepSandboxes,
   type LifecycleEngine,
 } from '../lifecycle'
+
+type Fixture = {
+  id: string
+  state: string
+  worktree?: string | undefined
+  session?: string | undefined
+}
 
 type Recorded = {
   stopped: string[]
@@ -26,19 +34,29 @@ type Recorded = {
 }
 
 const fakeEngine = (args: {
-  containers?: { id: string; state: string; worktree?: string | undefined }[]
+  containers?: Fixture[]
 }): { engine: LifecycleEngine; recorded: Recorded } => {
   const recorded: Recorded = { stopped: [], removed: [] }
 
   const engine: LifecycleEngine = {
-    listContainers: async () =>
-      (args.containers ?? []).map((one) => ({
-        id: one.id,
-        name: one.id,
-        state: one.state,
-        labels:
-          one.worktree === undefined ? {} : { [worktreeLabel('atlas-test')]: one.worktree },
-      })),
+    listContainers: async (query) => {
+      const wanted = query?.labels ?? {}
+      return (args.containers ?? [])
+        .map((one) => ({
+          id: one.id,
+          name: one.id,
+          state: one.state,
+          labels: {
+            ...(one.worktree === undefined ? {} : { [worktreeLabel('atlas-test')]: one.worktree }),
+            ...(one.session === undefined ? {} : { [sessionLabel('atlas-test')]: one.session }),
+          },
+        }))
+        .filter((one) =>
+          Object.entries(wanted).every(([key, value]) =>
+            value === undefined ? key in one.labels : one.labels[key] === value,
+          ),
+        )
+    },
     stopContainer: async ({ id }) => {
       recorded.stopped.push(id)
     },
@@ -51,46 +69,55 @@ const fakeEngine = (args: {
 }
 
 describe('stopSandbox', () => {
-  it('stops the running container labelled for the worktree', async () => {
+  it('stops the running container labelled for the session', async () => {
     const { engine, recorded } = fakeEngine({
-      containers: [{ id: 'one', state: 'running', worktree: '/repo/wt' }],
+      containers: [{ id: 'one', state: 'running', worktree: '/repo/wt', session: 'thread-a' }],
     })
 
-    expect(await stopSandbox({ engine, prefix: 'atlas-test', worktree: '/repo/wt' })).toBe(true)
+    expect(await stopSandbox({ engine, prefix: 'atlas-test', session: 'thread-a' })).toBe(true)
     expect(recorded.stopped).toEqual(['one'])
   })
 
   it('leaves an already-stopped container alone', async () => {
     const { engine, recorded } = fakeEngine({
-      containers: [{ id: 'one', state: 'exited', worktree: '/repo/wt' }],
+      containers: [{ id: 'one', state: 'exited', worktree: '/repo/wt', session: 'thread-a' }],
     })
 
-    expect(await stopSandbox({ engine, prefix: 'atlas-test', worktree: '/repo/wt' })).toBe(false)
+    expect(await stopSandbox({ engine, prefix: 'atlas-test', session: 'thread-a' })).toBe(false)
     expect(recorded.stopped).toEqual([])
   })
 
-  it('does nothing when no container carries the worktree', async () => {
+  it('does nothing when no container carries the session', async () => {
     const { engine, recorded } = fakeEngine({ containers: [] })
 
-    expect(await stopSandbox({ engine, prefix: 'atlas-test', worktree: '/repo/wt' })).toBe(false)
+    expect(await stopSandbox({ engine, prefix: 'atlas-test', session: 'thread-a' })).toBe(false)
+    expect(recorded.stopped).toEqual([])
+  })
+
+  it('never stops another session’s container over the same worktree', async () => {
+    const { engine, recorded } = fakeEngine({
+      containers: [{ id: 'theirs', state: 'running', worktree: '/repo/wt', session: 'thread-b' }],
+    })
+
+    expect(await stopSandbox({ engine, prefix: 'atlas-test', session: 'thread-a' })).toBe(false)
     expect(recorded.stopped).toEqual([])
   })
 })
 
 describe('removeSandbox', () => {
-  it('removes the container labelled for the worktree, running or not', async () => {
+  it('removes the container labelled for the session, running or not', async () => {
     const { engine, recorded } = fakeEngine({
-      containers: [{ id: 'one', state: 'running', worktree: '/repo/wt' }],
+      containers: [{ id: 'one', state: 'running', worktree: '/repo/wt', session: 'thread-a' }],
     })
 
-    expect(await removeSandbox({ engine, prefix: 'atlas-test', worktree: '/repo/wt' })).toBe(true)
+    expect(await removeSandbox({ engine, prefix: 'atlas-test', session: 'thread-a' })).toBe(true)
     expect(recorded.removed).toEqual(['one'])
   })
 
-  it('does nothing when no container carries the worktree', async () => {
+  it('does nothing when no container carries the session', async () => {
     const { engine, recorded } = fakeEngine({ containers: [] })
 
-    expect(await removeSandbox({ engine, prefix: 'atlas-test', worktree: '/repo/wt' })).toBe(false)
+    expect(await removeSandbox({ engine, prefix: 'atlas-test', session: 'thread-a' })).toBe(false)
     expect(recorded.removed).toEqual([])
   })
 })
@@ -144,7 +171,7 @@ describe('the idle stopwatch', () => {
 
   it('does not fire while a background shell is running, and fires once it ends', async () => {
     const { engine, recorded } = fakeEngine({
-      containers: [{ id: 'one', state: 'running', worktree: '/repo/wt' }],
+      containers: [{ id: 'one', state: 'running', worktree: '/repo/wt', session: 'thread-a' }],
     })
     let runningShells = 1
     let now = 1_000_000
@@ -152,7 +179,7 @@ describe('the idle stopwatch', () => {
     const idle = startIdleStop({
       engine,
       prefix: 'atlas-test',
-      worktree: '/repo/wt',
+      session: () => 'thread-a',
       runningShells: () => runningShells,
       idleMinutes: () => 1,
       now: () => now,
@@ -173,7 +200,7 @@ describe('the idle stopwatch', () => {
 
   it('does not fire while a dockerized service is running, and fires once it ends', async () => {
     const { engine, recorded } = fakeEngine({
-      containers: [{ id: 'one', state: 'running', worktree: '/repo/wt' }],
+      containers: [{ id: 'one', state: 'running', worktree: '/repo/wt', session: 'thread-a' }],
     })
     let runningServices = 1
     let now = 1_000_000
@@ -181,7 +208,7 @@ describe('the idle stopwatch', () => {
     const idle = startIdleStop({
       engine,
       prefix: 'atlas-test',
-      worktree: '/repo/wt',
+      session: () => 'thread-a',
       runningShells: () => 0,
       runningServices: () => runningServices,
       idleMinutes: () => 1,
@@ -201,16 +228,41 @@ describe('the idle stopwatch', () => {
     }
   })
 
-  it('starts the window over when a bash call lands', async () => {
+  it('never fires before the session has created its container', async () => {
     const { engine, recorded } = fakeEngine({
-      containers: [{ id: 'one', state: 'running', worktree: '/repo/wt' }],
+      containers: [{ id: 'theirs', state: 'running', worktree: '/repo/wt', session: 'thread-b' }],
     })
     let now = 1_000_000
 
     const idle = startIdleStop({
       engine,
       prefix: 'atlas-test',
-      worktree: '/repo/wt',
+      session: () => undefined,
+      runningShells: () => 0,
+      idleMinutes: () => 1,
+      now: () => now,
+      tickMs: 5,
+    })
+
+    try {
+      now += 5 * 60_000
+      expect(await until(() => recorded.stopped.length > 0, 40)).toBe(false)
+      expect(recorded.stopped).toEqual([])
+    } finally {
+      idle.halt()
+    }
+  })
+
+  it('starts the window over when a bash call lands', async () => {
+    const { engine, recorded } = fakeEngine({
+      containers: [{ id: 'one', state: 'running', worktree: '/repo/wt', session: 'thread-a' }],
+    })
+    let now = 1_000_000
+
+    const idle = startIdleStop({
+      engine,
+      prefix: 'atlas-test',
+      session: () => 'thread-a',
       runningShells: () => 0,
       idleMinutes: () => 1,
       now: () => now,
@@ -233,12 +285,20 @@ describe('the idle stopwatch', () => {
   it('reports when it stops the sandbox, and stays quiet while nothing is due', async () => {
     let state = 'running'
     const { engine, recorded } = fakeEngine({
-      containers: [{ id: 'one', state: 'running', worktree: '/repo/wt' }],
+      containers: [{ id: 'one', state: 'running', worktree: '/repo/wt', session: 'thread-a' }],
     })
     const stopping: LifecycleEngine = {
       ...engine,
       listContainers: async () => [
-        { id: 'one', name: 'one', state, labels: { [worktreeLabel('atlas-test')]: '/repo/wt' } },
+        {
+          id: 'one',
+          name: 'one',
+          state,
+          labels: {
+            [worktreeLabel('atlas-test')]: '/repo/wt',
+            [sessionLabel('atlas-test')]: 'thread-a',
+          },
+        },
       ],
       stopContainer: async ({ id }) => {
         recorded.stopped.push(id)
@@ -251,7 +311,7 @@ describe('the idle stopwatch', () => {
     const idle = startIdleStop({
       engine: stopping,
       prefix: 'atlas-test',
-      worktree: '/repo/wt',
+      session: () => 'thread-a',
       runningShells: () => 0,
       idleMinutes: () => 1,
       now: () => now,
@@ -325,11 +385,12 @@ describe('ReclaimWorktreeSandboxHook', () => {
     modelText: '',
   })
 
-  it('removes the sandbox of a worktree the session just removed', async () => {
+  it('removes every session’s sandbox anchored at the worktree the session just removed', async () => {
     const { engine, recorded } = fakeEngine({
       containers: [
-        { id: 'gone', state: 'running', worktree: '/repo/.atlas/worktrees/merged' },
-        { id: 'kept', state: 'running', worktree: '/repo/.atlas/worktrees/live' },
+        { id: 'gone-a', state: 'running', worktree: '/repo/.atlas/worktrees/merged', session: 'thread-a' },
+        { id: 'gone-b', state: 'exited', worktree: '/repo/.atlas/worktrees/merged', session: 'thread-b' },
+        { id: 'kept', state: 'running', worktree: '/repo/.atlas/worktrees/live', session: 'thread-c' },
       ],
     })
     const hook = new ReclaimWorktreeSandboxHook({ engine, prefix: 'atlas-test' })
@@ -341,7 +402,7 @@ describe('ReclaimWorktreeSandboxHook', () => {
       signal: new AbortController().signal,
     })
 
-    expect(recorded.removed).toEqual(['gone'])
+    expect(recorded.removed).toEqual(['gone-a', 'gone-b'])
   })
 
   it('leaves the sandbox alone when the worktree is kept', async () => {

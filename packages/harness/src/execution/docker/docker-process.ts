@@ -14,7 +14,7 @@ import { blockRefusal, portInBlock } from './ports'
 import {
   DEFAULT_LABEL_PREFIX,
   ensureSandbox,
-  worktreeLabel,
+  sessionLabel,
   type Sandbox,
   type SandboxConfig,
 } from './sandbox'
@@ -137,7 +137,7 @@ export class DockerProcessPort implements ProcessPort {
       'ls',
       '-q',
       '--filter',
-      `label=${worktreeLabel(prefix)}=${this.sandboxConfig.worktree}`,
+      `label=${sessionLabel(prefix)}=${this.sandboxConfig.session}`,
     ])
     const id = new TextDecoder().decode(listed.stdout).trim()
     if (id === '') return null

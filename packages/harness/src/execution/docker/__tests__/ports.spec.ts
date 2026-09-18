@@ -26,24 +26,24 @@ import {
 const WORKTREE = '/Users/operator/Developer/project/.atlas/worktrees/feature'
 
 describe('derivedHostPort', () => {
-  it('is a pure function of the worktree key and the container port', () => {
-    const first = derivedHostPort({ worktree: WORKTREE, containerPort: 3000 })
+  it('is a pure function of the session key and the container port', () => {
+    const first = derivedHostPort({ session: WORKTREE, containerPort: 3000 })
 
-    expect(first).toBe(derivedHostPort({ worktree: WORKTREE, containerPort: 3000 }))
+    expect(first).toBe(derivedHostPort({ session: WORKTREE, containerPort: 3000 }))
     expect(first).toBeGreaterThanOrEqual(20_000)
     expect(first).toBeLessThan(49_152)
   })
 
-  it('gives two worktrees different host ports for the same container port', () => {
-    const one = derivedHostPort({ worktree: '/work/one', containerPort: 3000 })
-    const two = derivedHostPort({ worktree: '/work/two', containerPort: 3000 })
+  it('gives two sessions different host ports for the same container port', () => {
+    const one = derivedHostPort({ session: '/work/one', containerPort: 3000 })
+    const two = derivedHostPort({ session: '/work/two', containerPort: 3000 })
 
     expect(one).not.toBe(two)
   })
 
-  it('spreads the block across different host ports within one worktree', () => {
+  it('spreads the block across different host ports within one session', () => {
     const ports = EXPOSED_PORT_BLOCK.map((containerPort) =>
-      derivedHostPort({ worktree: WORKTREE, containerPort }),
+      derivedHostPort({ session: WORKTREE, containerPort }),
     )
 
     expect(new Set(ports).size).toBe(EXPOSED_PORT_BLOCK.length)
@@ -75,21 +75,21 @@ describe('the published block', () => {
 
 describe('publishPlanFor', () => {
   it('binds every block port to a distinct host port', () => {
-    const plan = publishPlanFor({ worktree: WORKTREE })
+    const plan = publishPlanFor({ session: WORKTREE })
 
     expect(plan.map((one) => one.containerPort)).toEqual([...EXPOSED_PORT_BLOCK])
     expect(new Set(plan.map((one) => one.hostPort)).size).toBe(EXPOSED_PORT_BLOCK.length)
   })
 
   it('uses the derived host port while it is free', () => {
-    const plan = publishPlanFor({ worktree: WORKTREE })
+    const plan = publishPlanFor({ session: WORKTREE })
 
-    expect(plan[0]?.hostPort).toBe(derivedHostPort({ worktree: WORKTREE, containerPort: 3000 }))
+    expect(plan[0]?.hostPort).toBe(derivedHostPort({ session: WORKTREE, containerPort: 3000 }))
   })
 
   it('falls back to an ephemeral host port when the derived one is taken', () => {
-    const worktree = '/work/taken-fallback'
-    const derived = derivedHostPort({ worktree, containerPort: 3000 })
+    const session = '/work/taken-fallback'
+    const derived = derivedHostPort({ session, containerPort: 3000 })
     const occupant = Bun.listen({
       hostname: '127.0.0.1',
       port: derived,
@@ -97,7 +97,7 @@ describe('publishPlanFor', () => {
     })
 
     try {
-      const plan = publishPlanFor({ worktree })
+      const plan = publishPlanFor({ session })
       const first = plan[0]
 
       expect(first?.containerPort).toBe(3000)
@@ -119,6 +119,7 @@ describe('sandboxCreateBody publishing', () => {
   const config: SandboxConfig = {
     image: DEFAULT_SANDBOX_IMAGE,
     worktree: WORKTREE,
+    session: WORKTREE,
     uid: 501,
     gid: 20,
     home: '/Users/operator',
@@ -134,7 +135,7 @@ describe('sandboxCreateBody publishing', () => {
     )
 
     const bindings = body.HostConfig?.PortBindings ?? {}
-    for (const { containerPort, hostPort } of publishPlanFor({ worktree: WORKTREE })) {
+    for (const { containerPort, hostPort } of publishPlanFor({ session: WORKTREE })) {
       expect(bindings[`${containerPort}/tcp`]).toEqual([
         { HostIp: '127.0.0.1', HostPort: String(hostPort) },
       ])
@@ -166,6 +167,7 @@ describeDocker('published ports against a live daemon', () => {
   const configFor = (root: string): SandboxConfig => ({
     image: DEFAULT_SANDBOX_IMAGE,
     worktree: root,
+    session: root,
     uid: process.getuid?.() ?? 501,
     gid: process.getgid?.() ?? 20,
     home: '/Users/operator',
@@ -198,7 +200,7 @@ describeDocker('published ports against a live daemon', () => {
     expect(two.outcome.exposure.containerPort).toBe(3000)
     expect(one.outcome.exposure.hostPort).not.toBe(two.outcome.exposure.hostPort)
     expect(one.outcome.exposure.hostPort).toBe(
-      derivedHostPort({ worktree: one.root, containerPort: 3000 }),
+      derivedHostPort({ session: one.root, containerPort: 3000 }),
     )
     expect(one.outcome.exposure.url).toBe(`http://localhost:${one.outcome.exposure.hostPort}`)
   }, 60_000)

@@ -106,6 +106,7 @@ export type ShellAdapter = {
 const dockerSandbox = (root: string): SandboxConfig => ({
   image: DEFAULT_SANDBOX_IMAGE,
   worktree: root,
+  session: `shell-registry-${root}`,
   uid: process.getuid?.() ?? 501,
   gid: process.getgid?.() ?? 20,
   home: '/Users/operator',

@@ -53,6 +53,7 @@ const hostIdentity = (): { uid: number; gid: number } => {
 const configForWorktree = (worktree: string): SandboxConfig => ({
   ...sandboxConfigFromHost({
     worktree,
+    session: worktree,
     image: 'node:22-trixie-slim',
     limits: { cpus: 1, memoryBytes: 512 * 1024 ** 2 },
     labelPrefix: PREFIX,

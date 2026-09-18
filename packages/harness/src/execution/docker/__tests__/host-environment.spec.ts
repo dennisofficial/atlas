@@ -147,6 +147,7 @@ describe('hostSandboxEnvironment', () => {
   it('composes a sandbox config for a worktree out of the host environment and limits', () => {
     const config = sandboxConfigFromHost({
       worktree: '/Users/operator/Developer/project',
+      session: 'session-test',
       limits: { cpus: 2, memoryBytes: 4 * 1024 ** 3 },
     })
 
@@ -171,6 +172,7 @@ describe('hostSandboxEnvironment', () => {
   it('carries declared container env into the sandbox config', () => {
     const config = sandboxConfigFromHost({
       worktree: '/Users/operator/Developer/project',
+      session: 'session-test',
       limits: { cpus: 2, memoryBytes: 4 * 1024 ** 3 },
       resolution: {
         ...resolution({ kind: EImageKind.Image, reference: 'repo/toolchain:latest' }),
@@ -184,6 +186,7 @@ describe('hostSandboxEnvironment', () => {
   it('maps a resolved container config onto the sandbox config', () => {
     const config = sandboxConfigFromHost({
       worktree: '/Users/operator/Developer/project',
+      session: 'session-test',
       limits: { cpus: 2, memoryBytes: 4 * 1024 ** 3 },
       resolution: resolution({ kind: EImageKind.Image, reference: 'repo/toolchain:latest' }),
     })
@@ -199,6 +202,7 @@ describe('hostSandboxEnvironment', () => {
   it('maps a Dockerfile resolution onto the sandbox config as a path to build from', () => {
     const config = sandboxConfigFromHost({
       worktree: '/Users/operator/Developer/project',
+      session: 'session-test',
       limits: { cpus: 2, memoryBytes: 4 * 1024 ** 3 },
       resolution: resolution({
         kind: EImageKind.Dockerfile,
@@ -301,6 +305,7 @@ describe('mountedAtlasHomeSubtrees', () => {
       try {
         const probed = sandboxConfigFromHost({
           worktree: '/unrelated/worktree',
+          session: 'session-test',
           limits: { cpus: 1, memoryBytes: 1024 ** 3 },
         })
         expect(probed.atlasHomeSubtrees).toEqual([
@@ -309,6 +314,7 @@ describe('mountedAtlasHomeSubtrees', () => {
 
         const explicit = sandboxConfigFromHost({
           worktree: '/unrelated/worktree',
+          session: 'session-test',
           limits: { cpus: 1, memoryBytes: 1024 ** 3 },
           atlasHomeSubtrees: [{ path: '/elsewhere/memory', mode: EMountMode.ReadOnly }],
         })

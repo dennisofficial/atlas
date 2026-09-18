@@ -55,6 +55,7 @@ export async function bindSandbox(args: {
   container: DependencyContainer
   engine: DockerEngine
   cwd: string
+  sessionKey: () => string
   settings: SettingsService
   executionLocation: ExecutionLocationState
   notice: NoticePort
@@ -104,14 +105,17 @@ export async function bindSandbox(args: {
   })
 
   let dockerPort: DockerProcessPort | undefined
+  let boundSession: string | undefined
   const docker = (): DockerProcessPort => {
     if (dockerPort !== undefined) return dockerPort
 
     try {
+      boundSession = args.sessionKey()
       dockerPort = new DockerProcessPort({
         engine,
         sandbox: sandboxConfigFromHost({
           worktree: cwd,
+          session: boundSession,
           resolution,
           atlasHomeSubtrees: atlasSubtrees,
           limits: { cpus, memoryBytes: memoryGb * 1024 ** 3 },
@@ -171,7 +175,7 @@ export async function bindSandbox(args: {
 
   const idleStop = startIdleStop({
     engine,
-    worktree: cwd,
+    session: () => boundSession,
     runningShells: () =>
       container
         .resolve(portToken(ShellRegistryPort))
@@ -204,7 +208,8 @@ export async function bindSandbox(args: {
   const sandbox: SandboxControl = {
     noteBash: idleStop.noteBash,
     stop: async () => {
-      const stopped = await stopSandbox({ engine, worktree: cwd })
+      if (boundSession === undefined) return false
+      const stopped = await stopSandbox({ engine, session: boundSession })
       if (stopped) markStopped()
       return stopped
     },

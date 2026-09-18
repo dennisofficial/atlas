@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
 
 import {
@@ -105,6 +106,13 @@ export async function composeHarness<TSurface = undefined, Command = never>(args
 
   const settings = args.settings.service
   const settled = settings.snapshot().resolution
+
+  // The sandbox container is keyed to the session, not the project directory: two tiles working
+  // the same checkout get isolated containers, and resuming a thread reattaches to its own.
+  // Before any thread is open the key falls back to a per-process id.
+  const preThreadSessionKey = randomUUID()
+  let activeThread: ActiveConversation | null = null
+
   const cloudRequired = toggleValueOf({ resolution: settled, id: ESettingId.CloudRequired })
   const launchValue = (id: ESettingId): string | undefined => {
     const held = textValueOf({ resolution: settled, id })
@@ -147,6 +155,7 @@ export async function composeHarness<TSurface = undefined, Command = never>(args
     container,
     launch,
     anchor,
+    sessionKey: () => activeThread?.threadId ?? preThreadSessionKey,
     settled,
     settings,
     credentials,
@@ -228,8 +237,6 @@ export async function composeHarness<TSurface = undefined, Command = never>(args
 
   const channel = createDeltaChannel()
   const pending = createPendingQueues<Command>()
-
-  let activeThread: ActiveConversation | null = null
 
   const titlerModel = createUtilityModel({
     role: EUtilityModelRole.Titler,

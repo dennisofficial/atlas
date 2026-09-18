@@ -6,6 +6,7 @@ import {
   CONTAINER_GNUPG_HOME,
   sandboxCreateBody,
   sandboxNameFor,
+  sessionLabel,
   worktreeLabel,
   type SandboxConfig,
 } from '../sandbox'
@@ -13,6 +14,7 @@ import {
 const CONFIG: SandboxConfig = {
   image: 'node:22-slim',
   worktree: '/Users/operator/Developer/project/.atlas/worktrees/feature',
+  session: 'thread-feature',
   uid: 501,
   gid: 20,
   home: '/Users/operator',
@@ -62,8 +64,11 @@ describe('sandboxCreateBody', () => {
     expect(sandboxCreateBody(CONFIG).User).toBe('501:20')
   })
 
-  it('stamps the worktree label, which is the registry', () => {
-    expect(sandboxCreateBody(CONFIG).Labels?.[worktreeLabel('atlas')]).toBe(CONFIG.worktree)
+  it('stamps the worktree and session labels, which are the registry', () => {
+    const labels = sandboxCreateBody(CONFIG).Labels
+
+    expect(labels?.[worktreeLabel('atlas')]).toBe(CONFIG.worktree)
+    expect(labels?.[sessionLabel('atlas')]).toBe(CONFIG.session)
   })
 
   it('stamps the declared mounts label, which the drift check compares against later', () => {
@@ -91,21 +96,30 @@ describe('sandboxCreateBody', () => {
     expect(bindsOf(CONFIG)).toContain('/var/run/docker.sock:/var/run/docker.sock')
   })
 
-  it('names the compose project after the worktree key so stacks never collide', () => {
+  it('names the compose project after the session key so stacks never collide', () => {
     const env = sandboxCreateBody(CONFIG).Env ?? []
     const compose = env.find((one) => one.startsWith('COMPOSE_PROJECT_NAME='))
 
-    expect(compose).toBe(`COMPOSE_PROJECT_NAME=${sandboxNameFor({ prefix: 'atlas', worktree: CONFIG.worktree })}`)
+    expect(compose).toBe(`COMPOSE_PROJECT_NAME=${sandboxNameFor({ prefix: 'atlas', session: CONFIG.session })}`)
   })
 
-  it('derives a stable name from the worktree path', () => {
-    const first = sandboxNameFor({ prefix: 'atlas', worktree: CONFIG.worktree })
-    const again = sandboxNameFor({ prefix: 'atlas', worktree: CONFIG.worktree })
-    const other = sandboxNameFor({ prefix: 'atlas', worktree: '/Users/operator/Developer/other' })
+  it('derives a stable name from the session key', () => {
+    const first = sandboxNameFor({ prefix: 'atlas', session: CONFIG.session })
+    const again = sandboxNameFor({ prefix: 'atlas', session: CONFIG.session })
+    const other = sandboxNameFor({ prefix: 'atlas', session: 'thread-other' })
 
     expect(first).toBe(again)
     expect(first).not.toBe(other)
     expect(first).toMatch(/^atlas-[0-9a-f]{12}$/)
+  })
+
+  it('gives two sessions over the same worktree different names and port plans', () => {
+    const sibling = sandboxCreateBody({ ...CONFIG, session: 'thread-sibling' })
+    const own = sandboxCreateBody(CONFIG)
+
+    expect(sibling.Labels?.[worktreeLabel('atlas')]).toBe(own.Labels?.[worktreeLabel('atlas')])
+    expect(sibling.Labels?.[sessionLabel('atlas')]).not.toBe(own.Labels?.[sessionLabel('atlas')])
+    expect(sibling.HostConfig?.PortBindings).not.toEqual(own.HostConfig?.PortBindings)
   })
 
   it('forwards the ssh agent socket at its own path and points SSH_AUTH_SOCK at it', () => {
@@ -137,6 +151,7 @@ describe('sandboxCreateBody', () => {
     const bare: SandboxConfig = {
       image: CONFIG.image,
       worktree: CONFIG.worktree,
+      session: CONFIG.session,
       uid: CONFIG.uid,
       gid: CONFIG.gid,
       home: CONFIG.home,
@@ -249,6 +264,7 @@ describe('sandboxCreateBody', () => {
     const bare: SandboxConfig = {
       image: CONFIG.image,
       worktree: CONFIG.worktree,
+      session: CONFIG.session,
       uid: CONFIG.uid,
       gid: CONFIG.gid,
       home: CONFIG.home,

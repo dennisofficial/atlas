@@ -8,6 +8,7 @@ export type RecordedExec = { cmd: readonly string[]; user: string | undefined }
 export const FAKE_CONFIG: SandboxConfig = {
   image: 'node:22-slim',
   worktree: '/Users/operator/Developer/project',
+  session: 'session-test',
   uid: 501,
   gid: 20,
   home: '/Users/operator',

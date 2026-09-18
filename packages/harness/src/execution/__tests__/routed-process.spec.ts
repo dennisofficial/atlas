@@ -196,6 +196,7 @@ afterAll(async () => {
 const sandboxConfig = (): SandboxConfig => ({
   image: 'node:22-slim',
   worktree,
+  session: worktree,
   uid: 501,
   gid: 20,
   home: '/Users/operator',

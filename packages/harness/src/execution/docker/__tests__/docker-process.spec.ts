@@ -74,6 +74,7 @@ afterAll(async () => {
 const sandboxConfig = (): SandboxConfig => ({
   image: 'node:22-slim',
   worktree: dockerWorktree,
+  session: dockerWorktree,
   uid: process.getuid?.() ?? 501,
   gid: process.getgid?.() ?? 20,
   home: '/Users/operator',
@@ -209,11 +210,15 @@ describeDocker('DockerProcessPort specifically', () => {
 
   it('collects an oversubscription warning when the request outruns the daemon', async () => {
     const info = await engine.info()
+    const oversubscribedWorktree = await realpath(
+      await mkdtemp(join(tmpdir(), 'atlas-dev-port-oversubscribed-')),
+    )
     const port = new DockerProcessPort({
       engine,
       sandbox: {
         ...sandboxConfig(),
-        worktree: await realpath(await mkdtemp(join(tmpdir(), 'atlas-dev-port-oversubscribed-'))),
+        worktree: oversubscribedWorktree,
+        session: oversubscribedWorktree,
         limits: { cpus: 1, memoryBytes: info.memoryBytes * 2 },
       },
     })
@@ -232,7 +237,7 @@ describeDocker('DockerProcessPort specifically', () => {
     const agentWorktree = await realpath(await mkdtemp(join(tmpdir(), 'atlas-dev-port-agent-')))
     const port = new DockerProcessPort({
       engine,
-      sandbox: { ...sandboxConfig(), worktree: agentWorktree, sshAuthSock },
+      sandbox: { ...sandboxConfig(), worktree: agentWorktree, session: agentWorktree, sshAuthSock },
     })
 
     const script = `
