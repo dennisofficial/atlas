@@ -24,7 +24,12 @@ import { SessionsModule } from './sessions/sessions.module'
       envService: EnvService,
       validationSchema: envConfigValidation,
     }),
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
+    ThrottlerModule.forRootAsync({
+      inject: [EnvService],
+      useFactory: (env: EnvService) => [
+        { ttl: 60_000, limit: env.get('RATE_LIMIT_PER_MINUTE') },
+      ],
+    }),
     ScheduleModule.forRoot(),
     CryptoModule,
     ClientVersionModule,
