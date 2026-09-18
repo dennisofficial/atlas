@@ -68,8 +68,9 @@ describe('/container cloud', () => {
 
       const frame = await mounted.frame()
       expect(frame).toContain('parked')
-      expect(frame).toContain('asleep until the next message')
-      expect(frame).not.toContain('not answering')
+      expect(frame).toContain('☾')
+      expect(frame).not.toContain('asleep until the next message')
+      expect(frame).not.toContain('the cloud sandbox is parked')
     } finally {
       await mounted.done()
     }

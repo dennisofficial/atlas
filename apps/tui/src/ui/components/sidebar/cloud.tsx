@@ -5,7 +5,6 @@ import { EChannelConnection } from '@dltech/atlas-harness'
 import type { SidebarCloud } from '../../../store/cloud-state'
 import { glyph, theme } from '../../theme'
 import type { Span } from '../spans'
-import { truncateCells } from './cells'
 import { Row, Section } from './row'
 
 const markFor = (state: EChannelConnection): Span => {
@@ -22,31 +21,12 @@ const markFor = (state: EChannelConnection): Span => {
   }
 }
 
-const LABEL: Record<EChannelConnection, string> = {
-  [EChannelConnection.Connecting]: 'attaching',
-  [EChannelConnection.Open]: 'attached',
-  [EChannelConnection.Reconnecting]: 'reattaching',
-  [EChannelConnection.Parked]: 'asleep until the next message',
-  [EChannelConnection.Closed]: 'not answering',
-}
-
 export function CloudSection(props: { cloud: SidebarCloud; cells: number }): React.ReactNode {
   const { cloud, cells } = props
 
   return (
     <Section label="Cloud">
-      <Row
-        label={cloud.state}
-        labelFg={theme.hover}
-        cells={cells}
-        mark={markFor(cloud.state)}
-        value={[{ text: LABEL[cloud.state], fg: theme.hint }]}
-      />
-      {cloud.detail === null ? null : (
-        <text fg={cloud.state === EChannelConnection.Closed ? theme.warn : theme.meta}>
-          {truncateCells({ text: cloud.detail, cells })}
-        </text>
-      )}
+      <Row label={cloud.state} labelFg={theme.hover} cells={cells} mark={markFor(cloud.state)} />
     </Section>
   )
 }

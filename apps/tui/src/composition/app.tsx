@@ -149,7 +149,7 @@ import { settingTarget, useSwitcher } from './use-switcher'
 import { useThreadModel } from './use-thread-model'
 import { useContainerGuard } from './use-container-guard'
 import { useContainerPill } from './use-container-pill'
-import { useLocationPill } from './use-location-pill'
+import { useLocationItems } from './use-location-items'
 import { useExecutionLocation } from './use-execution-location'
 import { useThreads } from './use-threads'
 import { useUsageMeters } from './use-usage-meters'
@@ -399,7 +399,10 @@ function Workspace(props: {
     app: props.app,
     connection: cloudHealth?.connection ?? null,
   })
-  const locationPill = useLocationPill({ app: props.app })
+  const locationItems = useLocationItems({
+    app: props.app,
+    connection: cloudHealth?.connection ?? null,
+  })
 
   const { selection } = threadModel
 
@@ -1299,13 +1302,10 @@ function Workspace(props: {
         width: chromeWidth,
         model: card?.label ?? modelLabel(selection.ref.modelId),
         effort: selection.effort,
-        items:
-          locationPill === null
-            ? surfaces.footerItems
-            : [locationPill, ...surfaces.footerItems],
+        items: [...locationItems, ...surfaces.footerItems],
         context: readout,
       }),
-    [card, chromeWidth, locationPill, readout, selection.effort, selection.ref, surfaces.footerItems],
+    [card, chromeWidth, locationItems, readout, selection.effort, selection.ref, surfaces.footerItems],
   )
 
   const footerStrip = useFooterStrip({ items: footerRow.instruments.items, draft })
