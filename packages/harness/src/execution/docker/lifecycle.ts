@@ -15,20 +15,20 @@ import {
 } from '@dltech/atlas-core'
 
 import type { DockerEngine } from './engine'
-import { DEFAULT_LABEL_PREFIX, worktreeLabel } from './sandbox'
+import { DEFAULT_LABEL_PREFIX, sessionLabel, worktreeLabel } from './sandbox'
 
 export type LifecycleEngine = Pick<
   DockerEngine,
   'listContainers' | 'stopContainer' | 'removeContainer'
 >
 
-const findByWorktree = async (args: {
+const findBySession = async (args: {
   engine: LifecycleEngine
   prefix: string
-  worktree: string
+  session: string
 }) => {
   const matches = await args.engine.listContainers({
-    labels: { [worktreeLabel(args.prefix)]: args.worktree },
+    labels: { [sessionLabel(args.prefix)]: args.session },
     all: true,
   })
   return matches[0]
@@ -36,11 +36,11 @@ const findByWorktree = async (args: {
 
 export async function stopSandbox(args: {
   engine: LifecycleEngine
-  worktree: string
+  session: string
   prefix?: string | undefined
 }): Promise<boolean> {
   const prefix = args.prefix ?? DEFAULT_LABEL_PREFIX
-  const found = await findByWorktree({ engine: args.engine, prefix, worktree: args.worktree })
+  const found = await findBySession({ engine: args.engine, prefix, session: args.session })
   if (found === undefined || found.state !== 'running') return false
 
   await args.engine.stopContainer({ id: found.id })
@@ -49,15 +49,30 @@ export async function stopSandbox(args: {
 
 export async function removeSandbox(args: {
   engine: LifecycleEngine
-  worktree: string
+  session: string
   prefix?: string | undefined
 }): Promise<boolean> {
   const prefix = args.prefix ?? DEFAULT_LABEL_PREFIX
-  const found = await findByWorktree({ engine: args.engine, prefix, worktree: args.worktree })
+  const found = await findBySession({ engine: args.engine, prefix, session: args.session })
   if (found === undefined) return false
 
   await args.engine.removeContainer({ id: found.id })
   return true
+}
+
+export async function removeSandboxesAtWorktree(args: {
+  engine: LifecycleEngine
+  worktree: string
+  prefix?: string | undefined
+}): Promise<number> {
+  const prefix = args.prefix ?? DEFAULT_LABEL_PREFIX
+  const matches = await args.engine.listContainers({
+    labels: { [worktreeLabel(prefix)]: args.worktree },
+    all: true,
+  })
+
+  for (const one of matches) await args.engine.removeContainer({ id: one.id })
+  return matches.length
 }
 
 export async function sweepSandboxes(args: {
@@ -96,7 +111,7 @@ const IDLE_TICK_MS = 60_000
 
 export function startIdleStop(args: {
   engine: LifecycleEngine
-  worktree: string
+  session: () => string | undefined
   runningShells: () => number
   runningServices?: (() => number) | undefined
   idleMinutes: () => number
@@ -126,11 +141,14 @@ export function startIdleStop(args: {
     }
     if (!due) return
 
+    const session = args.session()
+    if (session === undefined) return
+
     stopping = true
     try {
       const stopped = await stopSandbox({
         engine: args.engine,
-        worktree: args.worktree,
+        session,
         prefix: args.prefix,
       })
       if (stopped) args.onStopped?.()
@@ -190,7 +208,7 @@ export class ReclaimWorktreeSandboxHook extends AfterToolHook {
     const exited = exitedWorktreeOf(result.output)
     if (exited === undefined || exited.action !== EWorktreeExit.Remove) return {}
 
-    await removeSandbox({ engine: this.engine, worktree: exited.path, prefix: this.prefix })
+    await removeSandboxesAtWorktree({ engine: this.engine, worktree: exited.path, prefix: this.prefix })
     return {}
   }
 }

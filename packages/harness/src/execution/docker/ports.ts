@@ -29,9 +29,9 @@ const HOST_PORT_BASE = 20_000
 // colliding with the OS's own assignments.
 const HOST_PORT_SPAN = 49_152 - HOST_PORT_BASE
 
-export function derivedHostPort(args: { worktree: string; containerPort: number }): number {
+export function derivedHostPort(args: { session: string; containerPort: number }): number {
   const digest = createHmac('sha256', 'atlas-port-exposure')
-    .update(`${args.worktree}\n${args.containerPort}`)
+    .update(`${args.session}\n${args.containerPort}`)
     .digest()
   return HOST_PORT_BASE + (digest.readUInt32BE(0) % HOST_PORT_SPAN)
 }
@@ -63,11 +63,11 @@ const ephemeralHostPort = (): number => {
   return port
 }
 
-export function publishPlanFor(args: { worktree: string }): readonly PublishedPort[] {
+export function publishPlanFor(args: { session: string }): readonly PublishedPort[] {
   const claimed = new Set<number>()
 
   return EXPOSED_PORT_BLOCK.map((containerPort) => {
-    const derived = derivedHostPort({ worktree: args.worktree, containerPort })
+    const derived = derivedHostPort({ session: args.session, containerPort })
     const hostPort = claimed.has(derived) || !hostPortFree(derived) ? ephemeralHostPort() : derived
     claimed.add(hostPort)
     return { containerPort, hostPort }

@@ -37,6 +37,7 @@ describe('Git metadata in host sandbox configuration', () => {
     for (const worktree of [root, join(root, 'repository')]) {
       const config = sandboxConfigFromHost({
         worktree,
+        session: worktree,
         limits: { cpus: 1, memoryBytes: 512 * 1024 ** 2 },
         atlasHomeSubtrees: [],
       })
@@ -51,6 +52,7 @@ describe('Git metadata in host sandbox configuration', () => {
 
     const config = sandboxConfigFromHost({
       worktree,
+      session: worktree,
       limits: { cpus: 1, memoryBytes: 512 * 1024 ** 2 },
       atlasHomeSubtrees: [],
     })
@@ -65,6 +67,7 @@ describe('Git metadata in host sandbox configuration', () => {
     git({ cwd: repository, argv: ['worktree', 'add', '-b', 'linked', worktree] })
     const configFor = (mode: EMountMode) => sandboxConfigFromHost({
       worktree,
+      session: worktree,
       limits: { cpus: 1, memoryBytes: 512 * 1024 ** 2 },
       atlasHomeSubtrees: [],
       resolution: {
@@ -88,6 +91,7 @@ describe('Git metadata in host sandbox configuration', () => {
 
     const body = sandboxCreateBody(sandboxConfigFromHost({
       worktree,
+      session: worktree,
       limits: { cpus: 1, memoryBytes: 512 * 1024 ** 2 },
       atlasHomeSubtrees: [],
     }))

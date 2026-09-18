@@ -47,6 +47,7 @@ describeDocker('ensureSandbox against a live daemon', () => {
   const liveConfig = (overrides?: Partial<SandboxConfig>): SandboxConfig => ({
     image: 'node:22-slim',
     worktree,
+    session: worktree,
     uid: process.getuid?.() ?? 501,
     gid: process.getgid?.() ?? 20,
     home: '/Users/operator',
@@ -81,7 +82,7 @@ describeDocker('ensureSandbox against a live daemon', () => {
     const created = await ensureSandbox({ engine, config: liveConfig() })
 
     const anotherClient = new DockerEngine({ socketPath: SOCKET })
-    const found = await findSandbox({ engine: anotherClient, prefix: PREFIX, worktree })
+    const found = await findSandbox({ engine: anotherClient, prefix: PREFIX, session: worktree })
 
     expect(found?.id).toBe(created.id)
   }, 60_000)

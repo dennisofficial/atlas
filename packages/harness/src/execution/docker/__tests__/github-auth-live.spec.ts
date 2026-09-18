@@ -46,6 +46,7 @@ describeDocker('github auth against a live daemon', () => {
     const config = {
       ...sandboxConfigFromHost({
         worktree,
+        session: worktree,
         image: DEFAULT_SANDBOX_IMAGE,
         limits: { cpus: 1, memoryBytes: 512 * 1024 ** 2 },
         labelPrefix: PREFIX,

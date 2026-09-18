@@ -36,6 +36,7 @@ describeDocker('lifecycle against a live daemon', () => {
   const liveConfig = (): SandboxConfig => ({
     image: DEFAULT_SANDBOX_IMAGE,
     worktree,
+    session: worktree,
     uid: process.getuid?.() ?? 501,
     gid: process.getgid?.() ?? 20,
     home: '/Users/operator',
@@ -72,7 +73,7 @@ describeDocker('lifecycle against a live daemon', () => {
         cmd: ['sh', '-c', 'echo warm > /tmp/atlas-dev-warm-marker'],
       })
 
-      expect(await stopSandbox({ engine, prefix: PREFIX, worktree })).toBe(true)
+      expect(await stopSandbox({ engine, prefix: PREFIX, session: worktree })).toBe(true)
       expect((await engine.inspectContainer({ id: created.id })).state.running).toBe(false)
 
       const resumed = await ensureSandbox({ engine, config: liveConfig() })
@@ -97,7 +98,7 @@ describeDocker('lifecycle against a live daemon', () => {
       const kept = await ensureSandbox({ engine, config: liveConfig() })
       const orphaned = await ensureSandbox({
         engine,
-        config: { ...liveConfig(), worktree: gone },
+        config: { ...liveConfig(), worktree: gone, session: gone },
       })
       await rm(gone, { recursive: true, force: true })
 

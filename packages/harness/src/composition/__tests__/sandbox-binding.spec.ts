@@ -40,6 +40,7 @@ const bindIn = (cwd: string, atlasHome?: string) =>
     container: createHarnessContainer(),
     engine: new DockerEngine({ socketPath: join(cwd, 'no-daemon.sock') }),
     cwd,
+    sessionKey: () => 'sandbox-binding-spec-session',
     settings: createSettingsService({
       definitions: ATLAS_SETTINGS,
       user: new MemorySettingsStore({ label: 'sandbox-binding spec' }),

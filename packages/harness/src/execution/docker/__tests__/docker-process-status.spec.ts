@@ -32,6 +32,7 @@ afterAll(async () => {
 const sandboxConfig = (image = 'node:22-slim'): SandboxConfig => ({
   image,
   worktree,
+  session: worktree,
   uid: 501,
   gid: 20,
   home: '/Users/operator',
@@ -59,7 +60,7 @@ describeDocker('DockerProcessPort sandbox status', () => {
     expect(seen.map((one) => one.state)).toEqual([ESandboxState.Starting, ESandboxState.Running])
     const running = seen[1]
     if (running?.state !== ESandboxState.Running) throw new Error('unreachable')
-    expect(running.name).toBe(sandboxNameFor({ prefix: PREFIX, worktree }))
+    expect(running.name).toBe(sandboxNameFor({ prefix: PREFIX, session: worktree }))
     expect(running.ports.length).toBeGreaterThan(0)
     expect(running.ports[0]?.hostPort).toBeGreaterThan(0)
   }, 60_000)
@@ -69,7 +70,11 @@ describeDocker('DockerProcessPort sandbox status', () => {
     const seen: SandboxStatus[] = []
     const port = new DockerProcessPort({
       engine,
-      sandbox: { ...sandboxConfig('atlas-dev-no-such-image:latest'), worktree: missingWorktree },
+      sandbox: {
+        ...sandboxConfig('atlas-dev-no-such-image:latest'),
+        worktree: missingWorktree,
+        session: missingWorktree,
+      },
       onStatus: (status) => seen.push(status),
     })
 

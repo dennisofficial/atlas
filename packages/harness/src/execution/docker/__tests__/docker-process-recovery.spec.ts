@@ -16,6 +16,7 @@ const CONTAINER_ID = 'atlas-dev-stub-container'
 const config = (): SandboxConfig => ({
   image: 'node:22-slim',
   worktree: '/work',
+  session: 'session-test',
   uid: 501,
   gid: 20,
   home: '/home/operator',

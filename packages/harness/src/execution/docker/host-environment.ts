@@ -131,6 +131,7 @@ export function mountedAtlasHomeSubtrees(args: {
 
 export function sandboxConfigFromHost(args: {
   worktree: string
+  session: string
   limits: SandboxLimits
   image?: string | undefined
   resolution?: ContainerResolution | undefined
@@ -147,6 +148,7 @@ export function sandboxConfigFromHost(args: {
   return {
     ...imageFields,
     worktree: args.worktree,
+    session: args.session,
     uid: host.uid,
     gid: host.gid,
     home: host.home,

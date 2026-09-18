@@ -90,6 +90,7 @@ describeDocker('fresh default sandbox toolchain acceptance', () => {
         config: {
           image: DEFAULT_SANDBOX_IMAGE,
           worktree,
+          session: `toolchain-acceptance-${process.pid}`,
           uid: 501,
           gid: 20,
           home: '/home/atlas-toolchain-acceptance',

@@ -49,6 +49,7 @@ export type SandboxLimits = {
 export type SandboxConfig = {
   image: string
   worktree: string
+  session: string
   uid: number
   gid: number
   home: string
@@ -78,19 +79,21 @@ export type Sandbox = {
 
 export const worktreeLabel = (prefix: string): string => `${prefix}.worktree`
 
-export const sandboxNameFor = (args: { prefix: string; worktree: string }): string =>
-  `${args.prefix}-${createHash('sha256').update(args.worktree).digest('hex').slice(0, 12)}`
+export const sessionLabel = (prefix: string): string => `${prefix}.session`
+
+export const sandboxNameFor = (args: { prefix: string; session: string }): string =>
+  `${args.prefix}-${createHash('sha256').update(args.session).digest('hex').slice(0, 12)}`
 
 export function sandboxCreateBody(config: SandboxConfig): CreateContainerBody {
   const prefix = config.labelPrefix ?? DEFAULT_LABEL_PREFIX
-  const published = publishPlanFor({ worktree: config.worktree })
+  const published = publishPlanFor({ session: config.session })
   const binds: string[] = [
     `${config.worktree}:${config.worktree}`,
     `${config.dockerSocket}:${config.dockerSocket}`,
   ]
   const env: string[] = [
     `HOME=${config.home}`,
-    `COMPOSE_PROJECT_NAME=${sandboxNameFor({ prefix, worktree: config.worktree })}`,
+    `COMPOSE_PROJECT_NAME=${sandboxNameFor({ prefix, session: config.session })}`,
     'NODE_ENV=development',
   ]
 
@@ -137,6 +140,7 @@ export function sandboxCreateBody(config: SandboxConfig): CreateContainerBody {
     Env: env,
     Labels: {
       [worktreeLabel(prefix)]: config.worktree,
+      [sessionLabel(prefix)]: config.session,
       [declaredMountsLabel(prefix)]: encodeDeclaredMounts(config.mounts ?? []),
       [launchConfigLabel(prefix)]: encodeLaunchConfig({ config, env, binds }),
     },
@@ -158,10 +162,10 @@ export function sandboxCreateBody(config: SandboxConfig): CreateContainerBody {
 export async function findSandbox(args: {
   engine: SandboxEngine
   prefix: string
-  worktree: string
+  session: string
 }): Promise<ContainerSummary | undefined> {
   const matches = await args.engine.listContainers({
-    labels: { [worktreeLabel(args.prefix)]: args.worktree },
+    labels: { [sessionLabel(args.prefix)]: args.session },
     all: true,
   })
   return matches[0]
@@ -209,11 +213,11 @@ export async function ensureSandbox(args: {
   config: SandboxConfig
 }): Promise<Sandbox> {
   const prefix = args.config.labelPrefix ?? DEFAULT_LABEL_PREFIX
-  const name = sandboxNameFor({ prefix, worktree: args.config.worktree })
+  const name = sandboxNameFor({ prefix, session: args.config.session })
 
   const recreated: string[] = []
 
-  const existing = await findSandbox({ engine: args.engine, prefix, worktree: args.config.worktree })
+  const existing = await findSandbox({ engine: args.engine, prefix, session: args.config.session })
   if (existing !== undefined) {
     const details = await args.engine.inspectContainer({ id: existing.id })
     const wanted =

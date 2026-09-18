@@ -104,6 +104,8 @@ export async function bindModels(args: {
   launch: HarnessLaunch
   /** The directory the sandbox binds and roots resolve against — the launch cwd, or the process directory for a workspace-less session. */
   anchor: string
+  /** The identity the sandbox container is keyed to — the active thread once one is open. */
+  sessionKey: () => string
   settled: SettingsResolution
   settings: SettingsService
   credentials: CredentialPort
@@ -152,6 +154,7 @@ export async function bindModels(args: {
     container,
     engine: container.resolve(DockerEngineToken),
     cwd: args.anchor,
+    sessionKey: args.sessionKey,
     settings,
     executionLocation,
     notice,

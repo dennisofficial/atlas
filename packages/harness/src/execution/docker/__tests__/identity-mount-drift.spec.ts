@@ -11,7 +11,7 @@ import type { ContainerDetails } from '../engine'
 import type { SandboxConfig } from '../sandbox'
 
 const config: SandboxConfig = {
-  image: 'node:22-trixie-slim', worktree: '/project', uid: 501, gid: 20,
+  image: 'node:22-trixie-slim', worktree: '/project', session: 'session-test', uid: 501, gid: 20,
   home: '/home/operator', dockerSocket: '/var/run/docker.sock',
   limits: { cpus: 1, memoryBytes: 1024 ** 3 },
   sshKnownHostsPath: '/home/operator/.ssh/known_hosts',
