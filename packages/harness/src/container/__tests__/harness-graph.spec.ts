@@ -49,6 +49,7 @@ describe('the harness container graph', () => {
       'bash',
       'edit',
       'enter_worktree',
+      'execution_location',
       'exit_worktree',
       'glob',
       'grep',

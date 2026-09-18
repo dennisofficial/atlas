@@ -40,6 +40,8 @@ export type RangeDefinition = SettingFacts & {
   maximum: number
   step: number
   unit: string
+  /** What the row reads at zero when zero is a named choice rather than an amount — "no limit". */
+  zeroLabel?: string
 }
 
 export type TextDefinition = SettingFacts & {

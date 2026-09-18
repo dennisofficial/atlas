@@ -143,8 +143,8 @@ export function sandboxCreateBody(config: SandboxConfig): CreateContainerBody {
     ExposedPorts: Object.fromEntries(published.map((one) => [`${one.containerPort}/tcp`, {}])),
     HostConfig: {
       Binds: binds,
-      NanoCpus: config.limits.cpus * 1e9,
-      Memory: config.limits.memoryBytes,
+      ...(config.limits.cpus === 0 ? {} : { NanoCpus: config.limits.cpus * 1e9 }),
+      ...(config.limits.memoryBytes === 0 ? {} : { Memory: config.limits.memoryBytes }),
       PortBindings: Object.fromEntries(
         published.map((one) => [
           `${one.containerPort}/tcp`,
@@ -186,6 +186,11 @@ export async function oversubscriptionWarnings(args: {
     details.reduce((total, one) => total + one.hostConfig.nanoCpus, 0) + args.adding.cpus * 1e9
 
   const warnings: string[] = []
+  if (args.adding.memoryBytes === 0) {
+    warnings.push(
+      'this sandbox has no memory limit — a runaway process in it can take the whole daemon down, other sandboxes included',
+    )
+  }
   if (memoryBytes > info.memoryBytes) {
     warnings.push(
       `the running sandboxes plus this one are limited to ${Math.round(memoryBytes / 1024 ** 3)} GB of memory against the daemon's ${Math.round(info.memoryBytes / 1024 ** 3)} GB — the OOM killer will arbitrate, not the limit`,

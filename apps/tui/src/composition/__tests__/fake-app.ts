@@ -668,6 +668,7 @@ export function fakeApp(args: {
   cloudRequired?: boolean
   models?: ModelCatalogue
   accountsSeed?: readonly AccountDraft[]
+  containerLimits?: { cpus: number; memoryGb: number }
 }): FakeApp {
   const channel = createDeltaChannel()
   const log = fakeEventLog()
@@ -821,7 +822,7 @@ export function fakeApp(args: {
     containerStatus: createSandboxStatusState({
       image: 'node:22-slim',
       label: 'node:22-slim',
-      limits: { cpus: 4, memoryGb: 8 },
+      limits: args.containerLimits ?? { cpus: 4, memoryGb: 8 },
     }),
     executionPinned: false,
     settings: createSettingsService({

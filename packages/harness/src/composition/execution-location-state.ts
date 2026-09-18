@@ -1,5 +1,7 @@
 import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
 
+import type { InjectionToken } from '../container/injection'
+
 export type ExecutionLocationState = {
   current: () => EExecutionLocation
   set: (location: EExecutionLocation) => void
@@ -34,3 +36,13 @@ export function createExecutionLocationState(args: {
     },
   }
 }
+
+export type ExecutionLocationControl = {
+  state: ExecutionLocationState
+  /** A location named on the command line outranks any move, so a pinned session cannot relocate itself. */
+  pinned: boolean
+}
+
+export const ExecutionLocationToken: InjectionToken<ExecutionLocationControl> = Symbol(
+  'atlas.ExecutionLocation',
+)

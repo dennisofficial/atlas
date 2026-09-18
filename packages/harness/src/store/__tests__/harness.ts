@@ -10,7 +10,7 @@ import { AgentRegistryPort, type RelocateChildrenArgs } from '../../agents/regis
 import type { AgentSnapshot } from '../../agents/registry/snapshot'
 import type { ServiceSnapshot } from '../../services/service-process'
 import { ServiceRegistryPort, type ServiceStopOutcome } from '../../services/service-registry'
-import type { ShellSnapshot } from '../../shells/background-shell'
+import type { ShellKillOutcome, ShellSnapshot } from '../../shells/background-shell'
 import { ShellRegistryPort } from '../../shells/shell-registry'
 import { openAtlasDatabase, type AtlasDatabase } from '../database'
 import { PrismaThreadStore } from '../thread-store'
@@ -90,7 +90,7 @@ export class UnstaffedShells extends ShellRegistryPort {
   peek() {
     return undefined
   }
-  kill() {
+  kill(): ShellKillOutcome {
     return { ok: false as const, reason: 'no shell registry in this fixture' }
   }
   removeShells(_args: { threadId: ThreadId; shellIds: readonly string[]; by: EKilledBy }): void {}
