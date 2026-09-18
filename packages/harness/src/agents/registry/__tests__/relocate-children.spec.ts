@@ -44,6 +44,7 @@ const recordingLog = (inner: EventLogPort, order: string[]): EventLogPort => ({
   read: (args) => inner.read(args),
   head: (args) => inner.head(args),
   readOwn: (args) => inner.readOwn(args),
+  replace: (args) => inner.replace(args),
 })
 
 const recordingRunners = (order: string[], started: HeldRun[]): ChildRunnerSource => {

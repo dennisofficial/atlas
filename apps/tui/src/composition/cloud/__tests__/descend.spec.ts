@@ -141,7 +141,7 @@ const descend = (args: {
   })
 
 describe('bringing a cloud conversation home', () => {
-  it('appends only the cloud tail to the local log and flips both stores', async () => {
+  it('rebuilds the local log from the cloud and flips both stores', async () => {
     const bridge = fakeBridge()
     await seedCloud(bridge, ['one', 'two', 'three', 'four'])
     const home = localHome({
@@ -209,15 +209,39 @@ describe('bringing a cloud conversation home', () => {
     expect(childRow?.agent?.spawnedBy).toBe(CLOUD_THREAD)
   })
 
-  it('refuses to clobber a local log that diverged while the conversation was away', async () => {
+  it('rebuilds the local log from the cloud when they diverged while away', async () => {
     const bridge = fakeBridge()
     await seedCloud(bridge, ['one', 'two'])
     const home = localHome({
       events: [said({ seq: 1, text: 'one' }), said({ seq: 2, text: 'something else entirely' })],
     })
 
-    await expect(descend({ bridge, home })).rejects.toThrow('diverged')
-    expect(await home.log.read({ threadId: CLOUD_THREAD })).toHaveLength(2)
+    await descend({ bridge, home })
+
+    const events = await home.log.read({ threadId: CLOUD_THREAD })
+    expect(
+      events.filter((event) => event.type === 'user-said').map((event) => event.text),
+    ).toEqual(['one', 'two'])
+  })
+
+  it('refuses to wipe a local log the cloud has no events for', async () => {
+    const bridge = fakeBridge()
+    await bridge.threads.createWithFirstEvents({
+      threadId: CLOUD_THREAD,
+      runId: toRunId('run_cloud_seed'),
+      drafts: [],
+      workspace: '/work',
+      executionLocation: EExecutionLocation.Cloud,
+    })
+    const home = localHome({ events: [said({ seq: 1, text: 'only ever local' })] })
+
+    await expect(descend({ bridge, home })).rejects.toThrow('refusing to wipe')
+    expect(
+      (await home.log.read({ threadId: CLOUD_THREAD })).map((event) => event.type),
+    ).toEqual(['user-said'])
+    expect(
+      (await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation,
+    ).toBe(EExecutionLocation.Cloud)
   })
 
   it('interrupts a turn in flight on the sandbox and marks the descent to resume locally', async () => {

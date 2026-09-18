@@ -49,6 +49,23 @@ const fakeLog = (): EventLogPort => {
       if (upTo === undefined) return [...stored]
       return stored.filter((event) => event.seq <= upTo)
     },
+    async replace({ threadId, runId, drafts }: { threadId: ThreadId; runId: RunId; drafts: readonly EventDraft[] }) {
+      const stamped = drafts.map((draft, index) =>
+        stampEvent({
+          draft,
+          envelope: {
+            id: toEventId(`evt-${index + 1}`),
+            seq: index + 1,
+            threadId,
+            runId,
+            depth: 0,
+            at: clock.now(),
+          },
+        }),
+      )
+      threads.set(threadId, [...stamped])
+      return stamped
+    },
   }
 }
 
@@ -100,5 +117,26 @@ describe('EventLogPort', () => {
 
   it('reports the head of a thread nothing has been appended to as zero', async () => {
     expect(await fakeLog().head({ threadId })).toBe(0)
+  })
+
+  it('replaces a thread log wholesale, re-stamping from sequence one', async () => {
+    const log = fakeLog()
+    await log.append({ threadId, runId, drafts: [{ type: 'user-said', text: 'stale' }] })
+
+    await log.replace({
+      threadId,
+      runId,
+      drafts: [
+        { type: 'user-said', text: 'first' },
+        { type: 'user-said', text: 'second' },
+      ],
+    })
+
+    const events = await log.read({ threadId })
+    expect(events.map((event) => [event.type, event.seq])).toEqual([
+      ['user-said', 1],
+      ['user-said', 2],
+    ])
+    expect(await log.head({ threadId })).toBe(2)
   })
 })

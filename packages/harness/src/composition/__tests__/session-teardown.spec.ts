@@ -42,6 +42,10 @@ const recordingLog = (calls: string[]): EventLogPort =>
     async readOwn(): Promise<never[]> {
       return []
     }
+
+    async replace(): Promise<never[]> {
+      return []
+    }
   })()
 
 describe('teardownSession', () => {

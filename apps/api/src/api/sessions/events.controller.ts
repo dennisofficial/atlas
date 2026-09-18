@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
@@ -12,7 +13,7 @@ import {
 import type { AuthenticatedRequest } from '../../_core/types/auth.types'
 import { SessionOrSandboxGuard } from './session-or-sandbox.guard'
 import { EventsService } from './events.service'
-import { AppendEventsDto } from './sessions.dto'
+import { AppendEventsDto, ReplaceEventsDto } from './sessions.dto'
 import { userIdOf } from './session-user'
 import type { EventDto } from './sessions.types'
 
@@ -37,6 +38,15 @@ export class EventsController {
     @Body() body: AppendEventsDto,
   ): Promise<EventDto[]> {
     return this.events.append({ userId: userIdOf(request), threadId, draft: body })
+  }
+
+  @Put()
+  handleReplace(
+    @Req() request: AuthenticatedRequest,
+    @Param('threadId') threadId: string,
+    @Body() body: ReplaceEventsDto,
+  ): Promise<EventDto[]> {
+    return this.events.replace({ userId: userIdOf(request), threadId, draft: body })
   }
 
   @Get()

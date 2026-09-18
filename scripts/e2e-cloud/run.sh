@@ -1,8 +1,9 @@
 #!/bin/sh
 # End-to-end proof of the cloud transition path, runnable on any dev machine:
 # transfer up (idempotent), the serve running a turn over the socket (streaming, ledger,
-# legible failure, wake after park), and transfer down + re-lift. Everything runs against a
-# throwaway Postgres container and a throwaway API boot; nothing touches production.
+# legible failure, wake after park), transfer down + re-lift, and the wholesale log replace a
+# re-lift or descend moves with. Everything runs against a throwaway Postgres container and a
+# throwaway API boot; nothing touches production.
 #
 #   sh scripts/e2e-cloud/run.sh
 #
@@ -19,9 +20,12 @@ SERVE_PORT=${E2E_SERVE_PORT:-3402}
 MOCK_PORT=${E2E_MOCK_PORT:-3403}
 API_URL=http://localhost:$API_PORT
 DATABASE_URL=postgresql://postgres:postgres@$PG_HOST:$PG_PORT/postgres
+TOKEN_FILE=$(mktemp -t e2e-cloud-token)
+rm -f "$TOKEN_FILE"
 
 cleanup() {
   [ "${API_PID:-}" = "" ] || kill "$API_PID" 2>/dev/null || true
+  rm -f "$TOKEN_FILE"
   docker rm -f "$PG_CONTAINER" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
@@ -61,11 +65,13 @@ echo "api healthy on $API_URL"
 rm -rf /tmp/e2e-cloud-serve-home /tmp/e2e-cloud-ws
 mkdir -p /tmp/e2e-cloud-serve-home /tmp/e2e-cloud-ws
 cd "$ROOT"
-E2E_API_URL=$API_URL E2E_PG_CONTAINER=$PG_CONTAINER E2E_SERVE_PORT=$SERVE_PORT E2E_MOCK_PORT=$MOCK_PORT \
+E2E_API_URL=$API_URL E2E_TOKEN_FILE=$TOKEN_FILE E2E_PG_CONTAINER=$PG_CONTAINER E2E_SERVE_PORT=$SERVE_PORT E2E_MOCK_PORT=$MOCK_PORT \
   bun scripts/e2e-cloud/transfer-up.mjs
-E2E_API_URL=$API_URL E2E_PG_CONTAINER=$PG_CONTAINER E2E_SERVE_PORT=$SERVE_PORT E2E_MOCK_PORT=$MOCK_PORT \
+E2E_API_URL=$API_URL E2E_TOKEN_FILE=$TOKEN_FILE E2E_PG_CONTAINER=$PG_CONTAINER E2E_SERVE_PORT=$SERVE_PORT E2E_MOCK_PORT=$MOCK_PORT \
   ATLAS_HOME=/tmp/e2e-cloud-serve-home bun scripts/e2e-cloud/serve-turn.mts
-E2E_API_URL=$API_URL E2E_PG_CONTAINER=$PG_CONTAINER E2E_SERVE_PORT=$SERVE_PORT E2E_MOCK_PORT=$MOCK_PORT \
+E2E_API_URL=$API_URL E2E_TOKEN_FILE=$TOKEN_FILE E2E_PG_CONTAINER=$PG_CONTAINER E2E_SERVE_PORT=$SERVE_PORT E2E_MOCK_PORT=$MOCK_PORT \
   bun scripts/e2e-cloud/transfer-down.mjs
+E2E_API_URL=$API_URL E2E_TOKEN_FILE=$TOKEN_FILE E2E_PG_CONTAINER=$PG_CONTAINER E2E_SERVE_PORT=$SERVE_PORT E2E_MOCK_PORT=$MOCK_PORT \
+  bun scripts/e2e-cloud/transfer-replace.mjs
 
 echo "E2E CLOUD: ALL PHASES GREEN"

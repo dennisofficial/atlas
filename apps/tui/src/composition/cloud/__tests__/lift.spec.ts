@@ -131,12 +131,12 @@ describe('lifting a conversation into the cloud', () => {
 const threadOf = (store: FakeThreadStore, threadId: ThreadId) => store.find({ threadId })
 
 describe('lifting a thread the cloud already knows', () => {
-  it('marks it as cloud rather than transferring it twice', async () => {
+  it('replaces the cloud log with the local one, then flips', async () => {
     const bridge = fakeBridge()
     await bridge.threads.createWithFirstEvents({
       threadId: CLOUD_THREAD,
       runId: toRunId('run_seed'),
-      drafts: [{ type: 'user-said', text: 'already there' }],
+      drafts: [{ type: 'user-said', text: 'stale cloud copy' }],
     })
     const test = harness({ bridge })
 
@@ -144,7 +144,33 @@ describe('lifting a thread the cloud already knows', () => {
 
     expect(lifted.ok).toBe(true)
     expect(test.bridge.trail).toEqual(['flip', 'sandbox', 'attach'])
-    expect(await threadOf(bridge.threads, CLOUD_THREAD)).toBeDefined()
+    expect(
+      bridge.log
+        .peek({ threadId: CLOUD_THREAD })
+        .filter((event) => event.type === 'user-said')
+        .map((event) => event.text),
+    ).toEqual(['take the linter to zero', 'and then ship it'])
+  })
+
+  it('refuses to wipe a cloud log when the local log is empty', async () => {
+    const bridge = fakeBridge()
+    await bridge.threads.createWithFirstEvents({
+      threadId: CLOUD_THREAD,
+      runId: toRunId('run_seed'),
+      drafts: [{ type: 'user-said', text: 'only ever in the cloud' }],
+    })
+    const test = harness({ bridge, localLog: fakeEventLog([]) })
+
+    const lifted = await liftToCloud(test.args)
+
+    if (lifted.ok) throw new Error('expected the lift to fail')
+    expect(lifted.detail).toContain('refusing to wipe')
+    expect(
+      bridge.log
+        .peek({ threadId: CLOUD_THREAD })
+        .filter((event) => event.type === 'user-said')
+        .map((event) => event.text),
+    ).toEqual(['only ever in the cloud'])
   })
 })
 

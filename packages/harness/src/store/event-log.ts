@@ -40,6 +40,10 @@ export class PrismaEventLog implements EventLogPort {
     return retryOnWriteConflict({ run: () => this.appendOnce(args) })
   }
 
+  async replace(args: ReplaceArgs): Promise<Event[]> {
+    return retryOnWriteConflict({ run: () => this.replaceOnce(args) })
+  }
+
   async read(args: { threadId: ThreadId; upTo?: number }): Promise<Event[]> {
     const decoded = await this.readDecoded(args)
     return decoded.events
@@ -68,6 +72,56 @@ export class PrismaEventLog implements EventLogPort {
       appendWithin({ tx, clock: this.clock, ids: this.ids, args, decodeCache: this.decodeCache }),
     )
   }
+
+  private replaceOnce(args: ReplaceArgs): Promise<Event[]> {
+    return this.prisma.$transaction((tx) => replaceWithin({ tx, clock: this.clock, ids: this.ids, args }))
+  }
+}
+
+export type ReplaceArgs = {
+  threadId: ThreadId
+  runId: RunId
+  drafts: readonly EventDraft[]
+}
+
+export async function replaceWithin({
+  tx,
+  clock,
+  ids,
+  args,
+}: {
+  tx: Prisma.TransactionClient
+  clock: ClockPort
+  ids: IdPort
+  args: ReplaceArgs
+}): Promise<Event[]> {
+  const at = clock.now()
+  await claimThread({ tx, threadId: args.threadId, at })
+  await tx.event.deleteMany({ where: { threadId: args.threadId } })
+
+  const prepared = args.drafts.map((draft, index) => {
+    const envelope: EventEnvelope = {
+      id: ids.nextEventId(),
+      seq: index + 1,
+      threadId: args.threadId,
+      runId: args.runId,
+      depth: 0,
+      at,
+    }
+    return { draft, envelope, row: toEventRow({ draft, envelope }) }
+  })
+
+  if (prepared.length > 0) await tx.event.createMany({ data: prepared.map((entry) => entry.row) })
+
+  await tx.thread.update({
+    where: { id: args.threadId },
+    data: { head: prepared.length, updatedAt: at },
+  })
+
+  return stampDrafts({
+    drafts: prepared.map((entry) => entry.draft),
+    envelopes: prepared.map((entry) => entry.envelope),
+  })
 }
 
 export async function appendWithin({

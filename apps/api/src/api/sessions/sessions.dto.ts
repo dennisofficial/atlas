@@ -118,6 +118,17 @@ export class AppendEventsDto {
   drafts!: EventDraftDto[]
 }
 
+export class ReplaceEventsDto {
+  @IsString()
+  @IsNotEmpty()
+  runId!: string
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EventDraftDto)
+  drafts!: EventDraftDto[]
+}
+
 export class RenameThreadDto {
   @IsString()
   title!: string

@@ -130,11 +130,28 @@ const failureOf = (args: {
  * The remote thread is opened by the same call that carries the transferred log, so a lift is one
  * batch rather than a create followed by a stream of appends. A thread nobody has spoken in opens
  * with no events at all — the sandbox attach needs the row to exist either way.
+ *
+ * A re-lift replaces the cloud's copy wholesale: the local log became the truth the moment the
+ * conversation came home, and anything the cloud kept from its own turn at hosting is stale. The
+ * one refusal is an empty local log over a non-empty cloud one — that can only mean the transfer
+ * down never landed, and replacing would erase the conversation.
  */
 async function transfer(args: LiftArgs): Promise<void> {
   const { bridge, threadId } = args
   const existing = await bridge.stores.threads.find({ threadId })
+  const events: readonly Event[] = await args.localLog.read({ threadId })
+
   if (existing !== undefined) {
+    if (events.length === 0 && (await bridge.stores.log.head({ threadId })) > 0) {
+      throw new Error(
+        'the local log is empty but the cloud still holds this conversation — refusing to wipe it',
+      )
+    }
+    await bridge.stores.log.replace({
+      threadId,
+      runId: args.ids.nextRunId(),
+      drafts: draftsOf(events),
+    })
     await bridge.stores.threads.chooseExecutionLocation({
       threadId,
       location: EExecutionLocation.Cloud,
@@ -142,7 +159,6 @@ async function transfer(args: LiftArgs): Promise<void> {
     return
   }
 
-  const events: readonly Event[] = await args.localLog.read({ threadId })
   await bridge.stores.threads.createWithFirstEvents({
     threadId,
     runId: args.ids.nextRunId(),
