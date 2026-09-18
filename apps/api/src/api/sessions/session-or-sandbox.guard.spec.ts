@@ -33,17 +33,27 @@ const session = {
 }
 
 const sandboxRow = (userId: string): CloudSandboxModel =>
-  ({ id: 'sbx_1', userId }) as unknown as CloudSandboxModel
+  ({ id: 'sbx_1', userId, threadId: 'brn_1' }) as unknown as CloudSandboxModel
+
+const guardWith = (args: {
+  verifier: SessionVerifier
+  sandboxes: Record<string, unknown>
+}): SessionOrSandboxGuard =>
+  new SessionOrSandboxGuard(
+    args.verifier,
+    reflector,
+    args.sandboxes as unknown as SandboxesService,
+  )
 
 describe('SessionOrSandboxGuard', () => {
   it('authenticates a sandbox token as the user the thread belongs to', async () => {
-    const verifySessionToken = vi.fn(async () => sandboxRow('user-a'))
+    const verifyTokenPrincipal = vi.fn(async () => sandboxRow('user-a'))
+    const assertThreadInFamily = vi.fn(async () => undefined)
     const verify = vi.fn()
-    const guard = new SessionOrSandboxGuard(
-      { verify } as unknown as SessionVerifier,
-      reflector,
-      { verifySessionToken } as unknown as SandboxesService,
-    )
+    const guard = guardWith({
+      verifier: { verify } as unknown as SessionVerifier,
+      sandboxes: { verifyTokenPrincipal, assertThreadInFamily },
+    })
     const { context, request } = contextWith({
       params: { threadId: 'brn_1' },
       authorization: 'Bearer sandbox-token',
@@ -52,21 +62,66 @@ describe('SessionOrSandboxGuard', () => {
     const allowed = await guard.canActivate(context)
 
     expect(allowed).toBe(true)
-    expect(verifySessionToken).toHaveBeenCalledWith({ threadId: 'brn_1', token: 'sandbox-token' })
+    expect(verifyTokenPrincipal).toHaveBeenCalledWith({ token: 'sandbox-token' })
+    expect(assertThreadInFamily).toHaveBeenCalledWith({
+      sandboxThreadId: 'brn_1',
+      threadId: 'brn_1',
+    })
     expect(verify).not.toHaveBeenCalled()
     expect(request.auth).toMatchObject({ userId: 'user-a' })
   })
 
+  it("authenticates a sandbox token against a sub-agent thread of the sandbox's family", async () => {
+    const verifyTokenPrincipal = vi.fn(async () => sandboxRow('user-a'))
+    const assertThreadInFamily = vi.fn(async () => undefined)
+    const guard = guardWith({
+      verifier: { verify: vi.fn() } as unknown as SessionVerifier,
+      sandboxes: { verifyTokenPrincipal, assertThreadInFamily },
+    })
+    const { context, request } = contextWith({
+      params: { threadId: 'brn_child' },
+      authorization: 'Bearer sandbox-token',
+    })
+
+    const allowed = await guard.canActivate(context)
+
+    expect(allowed).toBe(true)
+    expect(assertThreadInFamily).toHaveBeenCalledWith({
+      sandboxThreadId: 'brn_1',
+      threadId: 'brn_child',
+    })
+    expect(request.auth).toMatchObject({ userId: 'user-a' })
+  })
+
+  it('rejects a sandbox token reaching a thread outside its family', async () => {
+    const verifyTokenPrincipal = vi.fn(async () => sandboxRow('user-a'))
+    const assertThreadInFamily = vi.fn(async () => {
+      throw new UnauthorizedException(
+        'the sandbox token reaches only its own thread and its sub-agents',
+      )
+    })
+    const guard = guardWith({
+      verifier: { verify: vi.fn() } as unknown as SessionVerifier,
+      sandboxes: { verifyTokenPrincipal, assertThreadInFamily },
+    })
+
+    await expect(
+      guard.canActivate(
+        contextWith({ params: { threadId: 'brn_elsewhere' }, authorization: 'Bearer sandbox-token' })
+          .context,
+      ),
+    ).rejects.toBeInstanceOf(UnauthorizedException)
+  })
+
   it('falls back to the user session when the bearer is no sandbox token', async () => {
-    const verifySessionToken = vi.fn(async () => {
+    const verifyTokenPrincipal = vi.fn(async () => {
       throw new UnauthorizedException('a valid sandbox session token is required')
     })
     const verify = vi.fn(async () => session)
-    const guard = new SessionOrSandboxGuard(
-      { verify } as unknown as SessionVerifier,
-      reflector,
-      { verifySessionToken } as unknown as SandboxesService,
-    )
+    const guard = guardWith({
+      verifier: { verify } as unknown as SessionVerifier,
+      sandboxes: { verifyTokenPrincipal },
+    })
     const { context, request } = contextWith({
       params: { threadId: 'brn_1' },
       authorization: 'Bearer user-session-token',
@@ -79,15 +134,14 @@ describe('SessionOrSandboxGuard', () => {
   })
 
   it('rejects when neither a sandbox token nor a user session matches', async () => {
-    const verifySessionToken = vi.fn(async () => {
+    const verifyTokenPrincipal = vi.fn(async () => {
       throw new UnauthorizedException('a valid sandbox session token is required')
     })
     const verify = vi.fn(async () => null)
-    const guard = new SessionOrSandboxGuard(
-      { verify } as unknown as SessionVerifier,
-      reflector,
-      { verifySessionToken } as unknown as SandboxesService,
-    )
+    const guard = guardWith({
+      verifier: { verify } as unknown as SessionVerifier,
+      sandboxes: { verifyTokenPrincipal },
+    })
 
     await expect(
       guard.canActivate(
@@ -97,34 +151,30 @@ describe('SessionOrSandboxGuard', () => {
   })
 
   it('asks only for a user session when the route names no thread and the bearer is no sandbox token', async () => {
-    const verifySessionToken = vi.fn()
     const verifyTokenPrincipal = vi.fn(async () => null)
+    const assertThreadInFamily = vi.fn(async () => undefined)
     const verify = vi.fn(async () => session)
-    const guard = new SessionOrSandboxGuard(
-      { verify } as unknown as SessionVerifier,
-      reflector,
-      { verifySessionToken, verifyTokenPrincipal } as unknown as SandboxesService,
-    )
+    const guard = guardWith({
+      verifier: { verify } as unknown as SessionVerifier,
+      sandboxes: { verifyTokenPrincipal, assertThreadInFamily },
+    })
 
     const allowed = await guard.canActivate(
       contextWith({ params: {}, authorization: 'Bearer user-session-token' }).context,
     )
 
     expect(allowed).toBe(true)
-    expect(verifySessionToken).not.toHaveBeenCalled()
+    expect(assertThreadInFamily).not.toHaveBeenCalled()
   })
 
   it('authenticates a sandbox token by its hash alone on routes that name no thread', async () => {
     const verifyTokenPrincipal = vi.fn(async () => sandboxRow('user-a'))
+    const assertThreadInFamily = vi.fn(async () => undefined)
     const verify = vi.fn()
-    const guard = new SessionOrSandboxGuard(
-      { verify } as unknown as SessionVerifier,
-      reflector,
-      {
-        verifySessionToken: vi.fn(),
-        verifyTokenPrincipal,
-      } as unknown as SandboxesService,
-    )
+    const guard = guardWith({
+      verifier: { verify } as unknown as SessionVerifier,
+      sandboxes: { verifyTokenPrincipal, assertThreadInFamily },
+    })
     const { context, request } = contextWith({
       params: {},
       authorization: 'Bearer sandbox-token',
@@ -134,6 +184,7 @@ describe('SessionOrSandboxGuard', () => {
 
     expect(allowed).toBe(true)
     expect(verifyTokenPrincipal).toHaveBeenCalledWith({ token: 'sandbox-token' })
+    expect(assertThreadInFamily).not.toHaveBeenCalled()
     expect(verify).not.toHaveBeenCalled()
     expect(request.auth).toMatchObject({ userId: 'user-a' })
   })
