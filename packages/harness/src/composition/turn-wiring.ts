@@ -37,7 +37,7 @@ import { AgentRegistryPort } from '../agents/registry/port'
 import { childModelSource } from './model-bindings'
 import { ChildRunnerDepsToken } from '../container/create-harness-container'
 import { portToken, type DependencyContainer } from '../container/injection'
-import { HookChainToken } from '../container/tokens'
+import { DeltaChannelToken, HookChainToken } from '../container/tokens'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import type { TurnDeps } from '../loop/run-turn'
 import { TldrTurnRunner, type TldrFeed } from '../loop/tldr-turn-runner'
@@ -98,6 +98,10 @@ export function wireTurn<Command>(args: {
     pending,
     notice,
   } = args
+
+  // The channel is created per-compose, after the container, so it cannot be a container-native
+  // registration; the tool factories that consume it resolve lazily, after this runs.
+  container.register(DeltaChannelToken, { useValue: args.channel })
 
   const log = container.resolve(portToken(EventLogPort))
   const ids = container.resolve(portToken(IdPort))

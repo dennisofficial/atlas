@@ -9,6 +9,7 @@ import type {
 } from '@dltech/atlas-core'
 
 import type { PrismaClient } from '../../prisma/generated/client'
+import type { DeltaChannel } from '../channel/delta-channel'
 import type { CloudSessionStore } from '../cloud/cloud-session'
 import type { ClaudeCodeSource } from '../credentials/claude-code-source'
 import type { KeychainReader } from '../credentials/keychain-reader'
@@ -20,6 +21,8 @@ import type { ModelCardSource } from '../model/ai-sdk-model-port'
 import type { InjectionToken } from './injection'
 
 export const PrismaClientToken: InjectionToken<PrismaClient> = Symbol('atlas.PrismaClient')
+
+export const DeltaChannelToken: InjectionToken<DeltaChannel> = Symbol('atlas.DeltaChannel')
 
 export const WorkspaceRoot: InjectionToken<string> = Symbol('atlas.WorkspaceRoot')
 

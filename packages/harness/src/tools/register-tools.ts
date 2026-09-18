@@ -9,12 +9,14 @@ import {
 } from '@dltech/atlas-core'
 
 import { AgentRegistryPort } from '../agents/registry/port'
+import { withDeltaPublishing } from '../channel/publishing-event-log'
 import { ExecutionLocationToken } from '../composition/execution-location-state'
 import { portToken, resolveSet, type DependencyContainer } from '../container/injection'
 import {
   ClientVersionToken,
   CloudRequiredToken,
   CloudSessionStoreToken,
+  DeltaChannelToken,
   DockerEngineToken,
   SecretsStoreToken,
   WebSearchBackendToken,
@@ -58,6 +60,12 @@ import { WebSearchTool } from './builtin/web-search'
 import { WriteTool } from './builtin/write'
 import { WorktreeListTool } from './builtin/worktree-list'
 import { InMemoryToolRegistry, ToolRegistry } from './registry'
+
+const relocationLog = (resolver: DependencyContainer): EventLogPort => {
+  const log = resolver.resolve(portToken(EventLogPort))
+  if (!resolver.isRegistered(DeltaChannelToken, true)) return log
+  return withDeltaPublishing({ log, channel: resolver.resolve(DeltaChannelToken) })
+}
 
 export function registerBuiltinTools({ container }: { container: DependencyContainer }): void {
   const shellRegistry = (resolver: DependencyContainer) => resolver.resolve(portToken(ShellRegistryPort))
@@ -184,7 +192,7 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
         shells: shellRegistry(resolver),
         stores: () => ({
           threads: resolver.resolve(portToken(ThreadStorePort)),
-          log: resolver.resolve(portToken(EventLogPort)),
+          log: relocationLog(resolver),
           agents: resolver.resolve(portToken(AgentRegistryPort)),
         }),
       }),
