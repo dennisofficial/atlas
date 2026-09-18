@@ -1,11 +1,9 @@
-import { expect, it } from 'bun:test'
+import { describe, expect, it } from 'bun:test'
 
 import { randomUUID } from 'node:crypto'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-
-import { describe } from 'bun:test'
 
 import { DockerEngine } from '../engine'
 import { hostSandboxEnvironment, sandboxConfigFromHost } from '../host-environment'
@@ -26,14 +24,25 @@ const githubToken = hostSandboxEnvironment().githubToken
 if (githubToken === undefined) {
   console.warn('Skipping live github auth: the host probe found no gh token (gh auth token)')
 }
+const origin = ((): string | undefined => {
+  const probed = Bun.spawnSync(['git', 'remote', 'get-url', 'origin'])
+  if (!probed.success) return undefined
+  const url = new TextDecoder().decode(probed.stdout).trim()
+  return url.includes('github.com') ? url : undefined
+})()
+if (origin === undefined) {
+  console.warn('Skipping live github auth: this checkout has no github.com origin to push at')
+}
+
 const describeDocker =
-  githubToken === undefined
+  githubToken === undefined || origin === undefined
     ? describe.skip
     : await describeLiveDocker({ socket: SOCKET, what: 'live github auth' })
 
 describeDocker('github auth against a live daemon', () => {
-  it('answers github credential asks with the gh token and rewrites ssh remotes to https', async () => {
+  it('pushes to the repository over the ssh remote, authenticated by the gh token', async () => {
     const worktree = await realpath(await mkdtemp(join(tmpdir(), 'atlas-github-auth-')))
+    const branch = `atlas-live-github-auth-${process.pid}-${randomUUID().slice(0, 8)}`
     const config = {
       ...sandboxConfigFromHost({
         worktree,
@@ -53,7 +62,17 @@ describeDocker('github auth against a live daemon', () => {
         "test \"$(git config credential.https://github.com.helper)\" = '!gh auth git-credential'",
         "git config --get-all url.https://github.com/.insteadOf | grep -qx 'git@github.com:'",
         "printf 'protocol=https\\nhost=github.com\\n\\n' | git credential fill | grep -q '^username='",
-        'git ls-remote git@github.com:dennisofficial/atlas.git HEAD | grep -q HEAD',
+        'git init -b main .',
+        'git config user.name "Atlas Live Auth"',
+        'git config user.email atlas-live-auth@example.invalid',
+        'git config commit.gpgsign false',
+        'printf probe > probe.txt',
+        'git add probe.txt',
+        'git commit -qm probe',
+        `git remote add origin '${origin}'`,
+        `git push -q origin HEAD:refs/heads/${branch}`,
+        `git push -q origin --delete ${branch}`,
+        `test -z "$(git ls-remote origin 'refs/heads/${branch}')"`,
       ].join('\n')
       const outcome = await runSandboxScript({
         engine,

@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 
 import { mountBind, type Mount } from '../image/mounts'
 import { dockerfileImageReference, ensureBuiltImage, type DockerfileBuild } from '../image/build'
+import { gitConfigEnv } from './git-config-env'
 import {
   declaredMountsDrift,
   declaredMountsLabel,
@@ -104,29 +105,7 @@ export function sandboxCreateBody(config: SandboxConfig): CreateContainerBody {
   for (const subtree of config.atlasHomeSubtrees ?? []) binds.push(mountBind(subtree))
   for (const mount of config.mounts ?? []) binds.push(mountBind(mount))
 
-  // Scoped safe.directory wildcards require recent Git; Debian Bookworm's Git 2.39 ignores them.
-  // https://github.com/git/git/blob/v2.46.0/Documentation/config/safe.txt
-  const gitConfig: Array<readonly [key: string, value: string]> = [
-    ['gpg.program', 'gpg'],
-    ['safe.directory', config.worktree],
-    ['safe.directory', `${config.worktree.replace(/\/$/, '')}/*`],
-  ]
-  if (config.githubToken !== undefined) {
-    // SSH pushes authenticate through the forwarded agent, which may hold no identities; the gh
-    // token is the one credential the sandbox provably has, so github traffic goes over https.
-    // The empty helper resets the list the mounted host gitconfig names (osxkeychain is absent
-    // in the image). https://git-scm.com/docs/git-config#Documentation/git-config.txt-credentialhelper
-    gitConfig.push(
-      ['credential.helper', ''],
-      ['credential.https://github.com.helper', '!gh auth git-credential'],
-      ['url.https://github.com/.insteadOf', 'git@github.com:'],
-      ['url.https://github.com/.insteadOf', 'ssh://git@github.com/'],
-    )
-  }
-  env.push(`GIT_CONFIG_COUNT=${gitConfig.length}`)
-  gitConfig.forEach(([key, value], index) => {
-    env.push(`GIT_CONFIG_KEY_${index}=${key}`, `GIT_CONFIG_VALUE_${index}=${value}`)
-  })
+  env.push(...gitConfigEnv({ worktree: config.worktree, githubToken: config.githubToken }))
   if (config.gpgAgentExtraSocket !== undefined) {
     // gpg derives its agent socket from GNUPGHOME and offers no path override, so the forwarded
     // agent-extra-socket has to land at the standard agent path of whichever home gpg is given.
