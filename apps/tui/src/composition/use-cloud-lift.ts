@@ -4,6 +4,7 @@ import { useCallback, useRef } from 'react'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { cloudApp, openCloudConversation } from './cloud/cloud-app'
 import type { CloudBridge, LiftedWorkspace } from './cloud/cloud-bridge'
+import { captureSkillsBundle } from './cloud/skills-bundle'
 import { createCloudRunner } from './cloud/cloud-runner'
 import { liftToCloud } from './cloud/lift'
 import { CLOUD_LIFT_NOTICE_KEY, liftFailedNotice } from './cloud/lift-notices'
@@ -57,7 +58,9 @@ export function useCloudLift(args: {
     const { move } = latest.current
     move.handleBegin({ target: EExecutionLocation.Cloud, plan: cloudLiftPlan({ midTurn }) })
 
-    void liftToCloud({
+    void captureSkillsBundle()
+      .then((skillsBundle) =>
+        liftToCloud({
       threadId,
       cwd: latest.current.projectDirectory,
       started: latest.current.started,
@@ -76,7 +79,9 @@ export function useCloudLift(args: {
         stopLocalWork({ threadId, shells: app.shells, services: app.services }),
       capture: latest.current.capture,
       onProgress: (step) => move.handleAdvance(step),
-    })
+      skillsBundle,
+        }),
+      )
       .then(async (lifted) => {
         if (!lifted.ok) {
           const reason = liftFailedNotice(lifted)

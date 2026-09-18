@@ -55,6 +55,7 @@ export class SandboxClient {
   async createSandbox(args: {
     threadId: string
     workspace?: WorkspaceSpec | undefined
+    skillsBundle?: string | undefined
   }): Promise<WireSandbox> {
     const body = await this.request({
       method: 'POST',
@@ -62,6 +63,7 @@ export class SandboxClient {
       body: {
         threadId: args.threadId,
         ...(args.workspace === undefined ? {} : { workspace: args.workspace }),
+        ...(args.skillsBundle === undefined ? {} : { skillsBundle: args.skillsBundle }),
       },
     })
     return wireSandboxSchema.parse(body)

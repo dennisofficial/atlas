@@ -37,4 +37,8 @@ export class AttachSandboxDto {
   @ValidateNested()
   @Type(() => WorkspaceSpecDto)
   workspace?: WorkspaceSpecDto
+
+  @IsOptional()
+  @IsString()
+  skillsBundle?: string
 }

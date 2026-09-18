@@ -4,10 +4,13 @@ import type { StepId } from '../channel/signal'
 import { EServeFrame, type ServeFrame, type TurnOutcomeWire } from '../cloud/channel-wire'
 import { ETurnStatus, type TurnOutcome } from '../loop/turn-outcome'
 
+import { atlasDirectory } from '../store/paths'
+
 import { createChannelBridge } from './channel-bridge'
 import { composeServeApp } from './compose-serve'
 import { createFrameBuffer, DEFAULT_FRAME_BUFFER, type SignalFrame } from './frame-buffer'
 import { createHeartbeat, type Heartbeat } from './heartbeat'
+import { materializeSkills } from './materialize-skills'
 import {
   ensureWorkspace as materializeWorkspace,
   EWorkspaceState,
@@ -93,6 +96,11 @@ function adoptChildrenInBackground(args: {
   })
 }
 
+const lazy = <T>(fetch: () => Promise<T>): (() => Promise<T>) => {
+  let held: Promise<T> | undefined
+  return () => (held ??= fetch())
+}
+
 export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   const env = args.env ?? process.env
   const { threadId, port: wanted, token, controlPlaneUrl, cwd } = serveConfig({ ...args, env })
@@ -101,19 +109,28 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   const notice = new LoggingNoticePort({ log })
   const fetchFn = args.fetchFn ?? fetch
 
+  const fetchSpecOnce = lazy(workspaceSpecFetcher({ controlPlaneUrl, threadId, token, fetchFn }))
+
   /**
    * Before anything can read a file: a sandbox boots with whatever its last snapshot held, which on
    * a first attach is nothing at all.
    */
   const workspace = await (args.ensureWorkspace ?? materializeWorkspace)({
     cwd,
-    fetchSpec: workspaceSpecFetcher({ controlPlaneUrl, threadId, token, fetchFn }),
+    fetchSpec: fetchSpecOnce,
   })
 
   if (workspace.state === EWorkspaceState.Failed) {
     log({ event: EServeEvent.WorkspaceFailed, step: workspace.step, reason: workspace.reason })
   } else {
     log({ event: EServeEvent.WorkspaceReady, state: workspace.state, cwd })
+  }
+
+  const skills = await materializeSkills({ fetchSpec: fetchSpecOnce, atlasHome: atlasDirectory() })
+  if (skills.failed !== null) {
+    log({ event: EServeEvent.SkillsFailed, reason: skills.failed })
+  } else if (skills.written > 0) {
+    log({ event: EServeEvent.SkillsReady, written: skills.written })
   }
 
   const app = await (args.compose ?? composeServeApp)({

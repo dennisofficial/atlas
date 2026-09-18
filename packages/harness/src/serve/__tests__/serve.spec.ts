@@ -68,7 +68,7 @@ const start = async (args: {
     bufferSize: args.bufferSize,
     write: (line) => lines.push(line),
     fetchFn: (async (input: unknown) => {
-      beats.push(String(input))
+      if (String(input).endsWith('/heartbeat')) beats.push(String(input))
       return new Response(null, { status: 204 })
     }) as typeof fetch,
     compose: async () => app,

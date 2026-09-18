@@ -217,7 +217,11 @@ export type FakeBridge = CloudBridge & {
   readonly log: FakeEventLog
   readonly threads: FakeThreadStore
   readonly ledger: FakeLedger
-  readonly created: readonly { threadId: ThreadId; workspace: LiftedWorkspace | null }[]
+  readonly created: readonly {
+    threadId: ThreadId
+    workspace: LiftedWorkspace | null
+    skillsBundle?: string | undefined
+  }[]
   readonly attached: readonly { threadId: ThreadId; url: string; token: string }[]
   readonly channel: FakeCloudChannel
   readonly trail: readonly string[]
@@ -260,9 +264,13 @@ export function fakeBridge(
     trail,
     stores: { log, threads: watchedThreads, ledger },
     sandboxes: {
-      create: async ({ threadId, workspace }) => {
+      create: async ({ threadId, workspace, skillsBundle }) => {
         trail.push('sandbox')
-        created.push({ threadId, workspace })
+        created.push({
+          threadId,
+          workspace,
+          ...(skillsBundle === undefined ? {} : { skillsBundle }),
+        })
         if (args.createFails !== undefined) throw args.createFails
         return args.sandbox ?? RUNNING
       },
