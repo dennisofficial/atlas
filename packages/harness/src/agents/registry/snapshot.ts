@@ -1,4 +1,4 @@
-import type { EAgentStatus, EKilledBy, ThreadId } from '@dltech/atlas-core'
+import type { EAgentStatus, EKilledBy, ProviderIdentity, ThreadId } from '@dltech/atlas-core'
 
 export type ChildContext = {
   tokens: number
@@ -26,6 +26,8 @@ export type AgentSnapshot = {
   endedAt: string | undefined
   deliveredAt?: string | undefined
   context?: ChildContext | undefined
+  /** Absent for a child recovered from the log, whose model this process never observed. */
+  model?: ProviderIdentity | undefined
 }
 
 /**

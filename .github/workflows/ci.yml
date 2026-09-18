@@ -29,6 +29,10 @@ jobs:
       - name: build binary
         run: bun run build
 
+      - name: build serve binary
+        run: bun run db:ensure && bun run build:serve
+        working-directory: packages/harness
+
   # One TUI shard per runner: parallel bun processes on one 4-core runner starve the
   # settle-based render specs into flakes, but separate runners have separate cores
   test-tui:
@@ -57,6 +61,8 @@ jobs:
 
   test-packages:
     runs-on: ubuntu-latest
+    env:
+      ATLAS_LIVE_DOCKER: '1'
     steps:
       - uses: actions/checkout@v4
 
@@ -77,3 +83,26 @@ jobs:
 
       - name: test core, harness, ui, api
         run: bun run test --filter='!@dltech/atlas' --concurrency 1 --output-logs=full
+
+  # The api image is the deploy artifact, and its runtime stage copies explicit paths — a
+  # path-loaded asset missing from that list builds fine and only fails at deploy time (#474).
+  build-api-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: build the api image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: false
+          load: true
+          tags: atlas-api-ci
+          cache-from: type=gha,scope=api-image
+          cache-to: type=gha,mode=max,scope=api-image
+
+      - name: smoke-check the migrate entry
+        run: docker run --rm atlas-api-ci node --check scripts/migrate-deploy.mjs

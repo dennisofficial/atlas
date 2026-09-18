@@ -202,6 +202,7 @@ export function createHarnessContainer(): DependencyContainer {
           sessions: resolver.resolve(CloudSessionStoreToken),
           clientVersion: clientVersionOf(resolver),
           cloudRequired: liveCloudRequired(resolver),
+          clock: resolver.resolve(portToken(ClockPort)),
         }),
     ),
   })
@@ -254,6 +255,7 @@ export function createHarnessContainer(): DependencyContainer {
         brokered: new BrokeredCredentialPort({
           accounts,
           sessions,
+          clock,
           clientVersion: clientVersionOf(resolver),
         }),
       })

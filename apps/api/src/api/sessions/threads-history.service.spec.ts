@@ -155,7 +155,9 @@ describe('ThreadsHistoryService', () => {
 
     const copied = fake.events.filter((row) => row.threadId === forked.id)
     expect(copied.map((row) => row.seq)).toEqual([1, 2])
-    expect(copied.every((row) => !row.id.startsWith('evt_1') && row.id !== 'evt_2')).toBe(true)
+    // Fresh ids are `evt_<uuid>`, so a prefix check against the seeds flakes whenever the uuid
+    // opens with a colliding character; only reuse of the exact seeded ids proves a copy failed.
+    expect(copied.every((row) => !['evt_1', 'evt_2'].includes(row.id))).toBe(true)
     expect(copied.every((row) => row.userId === USER_A)).toBe(true)
   })
 

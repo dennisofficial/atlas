@@ -4,6 +4,7 @@ import {
   ECompactionAnchor,
   EExecutionLocation,
   projectDirectoryOf,
+  repoOf,
   treeMutationsOf,
   type ActiveWorktree,
   type ThreadId,
@@ -33,13 +34,13 @@ import type { AtlasApp } from './compose'
 import { changeDirectory, type DirectoryMove } from './directory-move'
 import type { OpenedConversation } from './open-conversation'
 import type { RecoveredAgents, ThreadModel } from '@dltech/atlas-harness'
-import { ECompactScope } from './compact-turn'
+import { ECompactScope } from '@dltech/atlas-harness'
 import { EOpenMode } from './config'
 import { useRevokeGrant } from './revoke-grant'
 import type { Renaming } from './session-rename'
 import { terminalTitleSequence } from './terminal-title'
-import { threadHandle } from './thread-slug'
-import { userSaidDraft } from './user-said'
+import { threadHandle } from '@dltech/atlas-harness'
+import { userSaidDraft } from '@dltech/atlas-harness'
 import { useCompaction } from './use-compaction'
 import { useDelegatedToolCalls } from '../ui/hooks/use-delegated-tool-calls'
 import { useSessionName } from './use-session-name'
@@ -72,12 +73,15 @@ export type Conversation = {
   turn: TurnClock
   now: number
   working: boolean
+  turnInFlight: () => boolean
   mutations: number
   contextTokens: number
   projectDirectory: string
   activeWorktree: ActiveWorktree | null
+  repo: string | null
   pending: readonly PendingRow[]
   readEvents: () => readonly Event[]
+  refresh: () => Promise<void>
   handleSend: (args: {
     text: string
     images?: readonly SaidImage[]
@@ -89,6 +93,8 @@ export type Conversation = {
   handleResume: (() => void) | null
   handleReportProblem: (reason: string) => void
   handleInterrupt: () => void
+  handleInterruptForMove: () => void
+  whenSettled: () => Promise<void>
   compacting: Compacting | null
   handleNewConversation: () => void
   handleOpenThread: (threadId: string) => void
@@ -262,8 +268,21 @@ export function useConversation(args: {
   })
 
   const resumeAtLaunch = useRef(app.config.open.mode !== EOpenMode.New)
+  const resumeOnArrival = useRef(opened.resumeOnArrival === true)
 
+  /**
+   * A lift that caught a turn mid-flight interrupted it to make the move safe, so the freshly
+   * attached cloud conversation resumes it itself — discarding the interrupted tail the same way
+   * an operator picking "resume fresh" would, but without asking, since the move is what asked.
+   */
   useEffect(() => {
+    if (resumeOnArrival.current) {
+      resumeOnArrival.current = false
+      resumeAtLaunch.current = false
+      turnDriver.handleResumeFresh()
+      return
+    }
+
     if (!resumeAtLaunch.current) return
     resumeAtLaunch.current = false
     if (turnDriver.isResumable) turnDriver.handleResume()
@@ -387,16 +406,18 @@ export function useConversation(args: {
   const workspace = useMemo((): {
     projectDirectory: string
     activeWorktree: ActiveWorktree | null
+    repo: string | null
   } => {
     const launchDirectory = app.workspace.workspace
     if (pendingMove !== null && events.length === 0) {
-      return { projectDirectory: pendingMove.path, activeWorktree: null }
+      return { projectDirectory: pendingMove.path, activeWorktree: null, repo: pendingMove.repo }
     }
     return {
       projectDirectory: projectDirectoryOf({ events, launchDirectory }),
       activeWorktree: activeWorktreeOf(events) ?? null,
+      repo: repoOf({ events, launchRepo: app.workspace.repo }),
     }
-  }, [events, pendingMove, app.workspace.workspace])
+  }, [events, pendingMove, app.workspace.workspace, app.workspace.repo])
 
   const holdMove = useCallback((move: DirectoryMove | null): void => {
     pendingMoveRef.current = move
@@ -442,6 +463,7 @@ export function useConversation(args: {
     rewindConfirm: turnDriver.rewindConfirm,
     projectDirectory: workspace.projectDirectory,
     activeWorktree: workspace.activeWorktree,
+    repo: workspace.repo,
     threadId,
     started,
     threadModel: opened.model,
@@ -453,11 +475,13 @@ export function useConversation(args: {
     turn,
     now: clockReadableAt({ now, clock: turn }),
     working,
+    turnInFlight: turnDriver.turnInFlight,
     mutations: mutations + delegatedToolCalls,
     contextTokens: used,
     pending: rows,
     handleSend,
     handleQueueSettled,
+    refresh,
     handleTakeBackPending,
     handleRetry: retryable ? turnDriver.handleRetry : null,
     handleResume: resumable ? turnDriver.handleResume : null,
@@ -465,6 +489,8 @@ export function useConversation(args: {
     compacting,
     handleReportProblem: setFailure,
     handleInterrupt: turnDriver.handleInterrupt,
+    handleInterruptForMove: turnDriver.handleInterruptForMove,
+    whenSettled: turnDriver.whenSettled,
     handleNewConversation,
     handleOpenThread,
     handleChangeDirectory,

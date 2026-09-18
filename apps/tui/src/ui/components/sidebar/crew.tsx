@@ -3,21 +3,24 @@ import React from 'react'
 import { type SidebarTeammate } from '../../../store/sidebar-model'
 import {
   isSubagentRunning,
-  subagentFigures,
+  subagentContextLabel,
   subagentReading,
-  subagentSpendIsUnavailable,
   type SidebarCrewFold,
   type SidebarSubagent,
 } from '../../../store/subagent-row'
 import { plural } from '../../../store/tools/reading'
+import { contextUsageTone } from '../../context-bar'
 import { usePress } from '../../hooks/use-press'
-import { cellsOf } from '../../hint-layout'
 import { MARK_OF, NAME_INK_OF, STATE_INK_OF } from '../../subagent-ink'
 import { glyph, theme } from '../../theme'
-import { truncateCells } from './cells'
+import { Spans, type Span } from '../spans'
+import { justifySpans } from './cells'
 import { Row, Section } from './row'
 
 const IDLE = 'idle'
+
+/** A mark and the space after it, so the second line's model sits where the title sits. */
+const TITLE_INDENT = '  '
 
 const markFor = (subagent: SidebarSubagent) => MARK_OF[subagentReading(subagent)]
 
@@ -31,28 +34,28 @@ const valueFor = (subagent: SidebarSubagent) => [
 ]
 
 /**
- * A second line, and only when there is a reading to put on it. What the child cost and how full
- * its own window has got are worth the row's height in every state — running, blocked and settled
- * alike — but an empty one would spend the height on nothing, which in a panel this narrow is
- * what makes a crew unreadable.
- *
- * Hung off the same right edge `Row` ends its value column on, so the two lines read as one row and
- * the figures stack into a column the eye can run down a whole crew. A window reading joins to the
- * right of the output count, growing the line leftwards into the empty half.
+ * A second line, and only when there is a reading to put on it — the same pair the footer gives
+ * the main agent, with the child's own math: the model it runs, lined up under the title, and
+ * what its own window holds on the right edge. Worth the row's height in every state — running,
+ * blocked and settled alike — but an empty one would spend the height on nothing, which in a
+ * panel this narrow is what makes a crew unreadable.
  */
 function FiguresLine(props: { subagent: SidebarSubagent; cells: number }): React.ReactNode {
-  const label = subagentFigures(props.subagent)
-  if (label === null) return null
+  const context = subagentContextLabel(props.subagent.context)
+  if (props.subagent.model === null && context === null) return null
 
-  const shown = truncateCells({ text: label, cells: props.cells })
-  const lead = ' '.repeat(Math.max(0, props.cells - cellsOf(shown)))
+  const model: readonly Span[] =
+    props.subagent.model === null
+      ? []
+      : [{ text: `${TITLE_INDENT}${props.subagent.model}`, fg: theme.dim }]
+  const reading: readonly Span[] =
+    context === null || props.subagent.context === undefined
+      ? []
+      : [{ text: context, fg: contextUsageTone(props.subagent.context.tokens) }]
 
   return (
     <text>
-      <span>{lead}</span>
-      <span fg={subagentSpendIsUnavailable(props.subagent.spend) ? theme.rule : theme.dim}>
-        {shown}
-      </span>
+      <Spans spans={justifySpans({ left: model, right: reading, cells: props.cells })} />
     </text>
   )
 }

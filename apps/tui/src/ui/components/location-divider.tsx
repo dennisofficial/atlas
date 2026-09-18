@@ -4,8 +4,12 @@ import { EExecutionLocation } from '@dltech/atlas-core'
 
 import { theme, TRANSCRIPT_INSET } from '../theme'
 
-const labelOf = (location: EExecutionLocation): string =>
-  location === EExecutionLocation.Docker ? ' docker container ' : ' host '
+const labelOf = (location: EExecutionLocation): string => {
+  if (location === EExecutionLocation.Docker) return ' docker container '
+  if (location === EExecutionLocation.Cloud) return ' cloud sandbox '
+
+  return ' host '
+}
 
 const STUB = 4
 

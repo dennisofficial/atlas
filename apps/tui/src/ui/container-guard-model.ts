@@ -22,9 +22,10 @@ export function openContainerGuard(): StopGuardState {
 }
 
 export function containerGuardHeading(target: EExecutionLocation): string {
-  return target === EExecutionLocation.Docker
-    ? 'Moving this conversation into a container'
-    : 'Moving this conversation back to the host'
+  if (target === EExecutionLocation.Docker) return 'Moving this conversation into a container'
+  if (target === EExecutionLocation.Cloud) return 'Moving this conversation to the cloud'
+
+  return 'Moving this conversation back to the host'
 }
 
 export const CONTAINER_GUARD_SUBTITLE = 'The following will be stopped for the switch:'

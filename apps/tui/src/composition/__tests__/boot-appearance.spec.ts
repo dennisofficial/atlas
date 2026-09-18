@@ -9,7 +9,7 @@ import { accentHex } from '../../ui/accents'
 import { appearanceOf, applyAppearance } from '../../ui/appearance'
 import { resetPalette } from '../../ui/palette-store'
 import { theme } from '../../ui/theme'
-import { loadSettings } from '../settings-binding'
+import { loadSettings } from '@dltech/atlas-harness'
 
 const BOOT = join(import.meta.dir, '..', 'boot.tsx')
 

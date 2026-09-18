@@ -135,6 +135,10 @@ describe('the settings page', () => {
 
       setup.mockInput.pressTab()
       await landed(setup)
+      expect(setup.captureCharFrame()).toContain('BACKGROUND PROCESSES')
+
+      setup.mockInput.pressTab()
+      await landed(setup)
 
       const frame = setup.captureCharFrame()
       expect(frame).toContain('COLOUR')
@@ -142,6 +146,10 @@ describe('the settings page', () => {
       expect(frame).toContain('COMPOSER')
       expect(frame).toContain('Composer edge')
       expect(frame).toContain('slab · bordered · claude')
+
+      setup.mockInput.pressTab({ shift: true })
+      await landed(setup)
+      expect(setup.captureCharFrame()).toContain('BACKGROUND PROCESSES')
 
       setup.mockInput.pressTab({ shift: true })
       await landed(setup)

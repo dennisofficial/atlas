@@ -36,6 +36,7 @@ const cmd = [
   'bun',
   'build',
   '--compile',
+  '--sourcemap',
   ...defines.flatMap((define) => ['--define', define]),
   ...(arg('--target') === undefined ? [] : ['--target', arg('--target') as string]),
   'src/main.tsx',

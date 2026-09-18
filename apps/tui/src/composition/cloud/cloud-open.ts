@@ -1,0 +1,47 @@
+import type { ThreadId } from '@dltech/atlas-core'
+
+import type { AtlasApp } from '../compose'
+import { messageOf } from '../error-text'
+import type { LiftedAttachment } from '../lifted-session'
+import type { ContainerMoveControl } from '../use-container-move'
+import { cloudApp, openCloudConversation } from './cloud-app'
+import type { CloudBridge } from './cloud-bridge'
+import { createCloudRunner, wakeSandbox } from './cloud-runner'
+
+/**
+ * Opening a thread that already lives in the cloud: re-attach (the API re-provisions and hands
+ * back a fresh token), wait out a cold pull, then open the conversation against the remote
+ * stores. The same attachment a lift ends with, reached from the other side.
+ */
+export async function openCloudThread(args: {
+  app: AtlasApp
+  bridge: CloudBridge
+  threadId: ThreadId
+  move?: ContainerMoveControl | undefined
+}): Promise<LiftedAttachment> {
+  const { app, bridge, threadId, move } = args
+
+  try {
+    const woken = await wakeSandbox({
+      bridge,
+      threadId,
+      ...(move === undefined ? {} : { move }),
+    })
+
+    const channel = bridge.attach({ threadId, url: woken.url, token: woken.token })
+    const runner = createCloudRunner({
+      bridge,
+      channel,
+      threadId,
+      ...(move === undefined ? {} : { move }),
+    })
+    const attached = cloudApp({ app, bridge, channel, runner })
+    const opened = await openCloudConversation({ app: attached, threadId })
+
+    move?.handleSettle()
+    return { app: attached, opened, bridge, channel }
+  } catch (error) {
+    move?.handleFail(messageOf(error))
+    throw error
+  }
+}

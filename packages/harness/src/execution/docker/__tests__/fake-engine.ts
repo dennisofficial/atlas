@@ -1,4 +1,7 @@
-import type { SandboxConfig, SandboxEngine } from '../sandbox'
+import { sandboxCreateBody, type SandboxConfig, type SandboxEngine } from '../sandbox'
+
+export const labelsFor = (config: SandboxConfig): Record<string, string> =>
+  sandboxCreateBody(config).Labels ?? {}
 
 export type RecordedExec = { cmd: readonly string[]; user: string | undefined }
 

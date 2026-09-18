@@ -92,9 +92,13 @@ function scriptedInner(outcomes: readonly TurnOutcome[]): TurnRunner {
   })()
 }
 
-async function settled(log: EventLogPort & { rows: Event[] }): Promise<void> {
+async function settled(args: {
+  log: EventLogPort & { rows: Event[] }
+  count?: number
+}): Promise<void> {
+  const wanted = args.count ?? 1
   for (let attempt = 0; attempt < 50; attempt++) {
-    if (log.rows.some((event) => event.type === 'tldr-written')) return
+    if (args.log.rows.filter((event) => event.type === 'tldr-written').length >= wanted) return
     await new Promise((resolve) => setTimeout(resolve, 10))
   }
 }
@@ -115,11 +119,11 @@ describe('TldrTurnRunner', () => {
       log,
       ids,
       model: tldrModel('Fixed the redirect loop.'),
-      modelId: 'test-model',
+      modelId: () => 'test-model',
     })
 
     await runner.say({ threadId: THREAD, text: 'ignored' })
-    await settled(log)
+    await settled({ log })
 
     const written = log.rows.filter((event) => event.type === 'tldr-written')
     expect(written).toHaveLength(1)
@@ -143,7 +147,7 @@ describe('TldrTurnRunner', () => {
       log,
       ids,
       model: tldrModel('should never be written'),
-      modelId: 'test-model',
+      modelId: () => 'test-model',
     })
 
     await runner.say({ threadId: THREAD, text: 'a' })
@@ -169,13 +173,47 @@ describe('TldrTurnRunner', () => {
       log,
       ids,
       model: tldrModel('duplicate'),
-      modelId: 'test-model',
+      modelId: () => 'test-model',
     })
 
     await runner.say({ threadId: THREAD, text: 'ignored' })
     await quiet()
 
     expect(log.rows.filter((event) => event.type === 'tldr-written')).toHaveLength(1)
+  })
+
+  it('stamps the model id the accessor reports at write time, not at construction', async () => {
+    const log = inMemoryLog()
+    await log.append({ threadId: THREAD, runId: RUN, drafts: seed })
+    let stampedId = 'model-a'
+    const runner = new TldrTurnRunner({
+      inner: scriptedInner([completed]),
+      log,
+      ids,
+      model: tldrModel('Fixed the redirect loop.'),
+      modelId: () => stampedId,
+    })
+
+    await runner.say({ threadId: THREAD, text: 'first' })
+    await settled({ log })
+
+    stampedId = 'model-b'
+    await log.append({
+      threadId: THREAD,
+      runId: RUN,
+      drafts: [
+        { type: 'user-said', text: 'now the logout' },
+        { type: 'assistant-said', parts: [{ type: 'text', text: 'done' }] },
+      ],
+    })
+    await runner.say({ threadId: THREAD, text: 'second' })
+    await settled({ log, count: 2 })
+
+    const written = log.rows.filter((event) => event.type === 'tldr-written')
+    expect(written.map((event) => (event.type === 'tldr-written' ? event.modelId : ''))).toEqual([
+      'model-a',
+      'model-b',
+    ])
   })
 
   it('reports started, streamed chunks and finished through the feed', async () => {
@@ -192,12 +230,12 @@ describe('TldrTurnRunner', () => {
       log,
       ids,
       model: chunkedModel(['{"status":"done","summary":"Fixed the', ' redirect loop."}']),
-      modelId: 'test-model',
+      modelId: () => 'test-model',
       feed,
     })
 
     await runner.say({ threadId: THREAD, text: 'ignored' })
-    await settled(log)
+    await settled({ log })
 
     expect(seen).toEqual([
       'started:1',
@@ -221,7 +259,7 @@ describe('TldrTurnRunner', () => {
       log,
       ids,
       model: scriptedModel({ script: [{ error: new Error('provider down') }] }),
-      modelId: 'test-model',
+      modelId: () => 'test-model',
       feed,
     })
 

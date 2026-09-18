@@ -15,8 +15,12 @@ const LAUNCH_SETTINGS: readonly ESettingId[] = [
   ESettingId.KeychainService,
 ]
 
-/** The pair the settings page owns now that the switcher writes the conversation instead. */
-const ON_THE_PAGE: readonly ESettingId[] = [ESettingId.ModelId, ESettingId.ModelEffort]
+/** The rows the models page owns now that the switcher writes the conversation instead. */
+const ON_THE_PAGE: readonly ESettingId[] = [
+  ESettingId.ModelId,
+  ESettingId.ModelEffort,
+  ESettingId.SubagentModel,
+]
 
 const definitionOf = (id: ESettingId) => {
   const found = ATLAS_SETTINGS.find((definition) => definition.id === id)
@@ -70,10 +74,10 @@ describe('the settings a launch used to carry in its environment', () => {
     expect(SETTING_PAGES.map((page) => page.id)).not.toContain(ESettingPage.Hidden)
   })
 
-  it('puts the default model and effort on a page, because they are the only way to set them', () => {
+  it('puts the model rows on the models page, because they are the only way to set them', () => {
     const shown = definitionsOfPage({
       definitions: ATLAS_SETTINGS,
-      page: ESettingPage.General,
+      page: ESettingPage.Models,
     }).map((definition) => definition.id)
 
     for (const id of ON_THE_PAGE) expect(shown).toContain(id)

@@ -1,4 +1,4 @@
-import { cloudOutageMessage } from './cloud-outage'
+import { cloudOutageMessage } from '@dltech/atlas-harness'
 
 export const BOOT_FAILURE_EXIT_CODE = 1
 

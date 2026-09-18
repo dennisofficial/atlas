@@ -1,0 +1,349 @@
+import { randomUUID } from 'node:crypto'
+import {
+  BadGatewayException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common'
+import { EnvService } from '../../_core/config/env/env.service'
+import type { CloudSandboxModel, ThreadModel } from '../../db'
+import { db } from '../../db'
+import { GithubService } from '../github/github.service'
+import { ownedThread } from '../sessions/ownership'
+import { ownedSandbox } from './ownership'
+import { toSandboxDto } from './rows'
+import { sandboxNameFor } from './sandbox-names'
+import { hashSessionToken, mintSessionToken, tokenMatches } from './sandbox-tokens'
+import type {
+  SandboxAttachmentDto,
+  SandboxStatusDto,
+  SandboxWorkspaceDto,
+  SandboxWorkspaceSpec,
+} from './sandboxes.types'
+import { ESandboxState } from './sandboxes.types'
+import { SANDBOX_REGION, SandboxMissingError, VercelSandboxClient } from './vercel-sandbox.client'
+import {
+  assertPatchWithinLimit,
+  assertSkillsBundleWithinLimit,
+  workspaceColumnsIn,
+  workspaceColumnsOf,
+  workspaceSpecOf,
+  type WorkspaceColumns,
+} from './workspace-spec'
+
+const MINUTE_MS = 60_000
+
+const nextSandboxId = (): string => `sbx_${randomUUID()}`
+const nowIso = (): string => new Date().toISOString()
+const messageOf = (failure: unknown): string =>
+  failure instanceof Error ? failure.message : String(failure)
+
+@Injectable()
+export class SandboxesService {
+  private readonly logger = new Logger(SandboxesService.name)
+  private readonly attachLocks = new Map<string, Promise<unknown>>()
+  private readonly provisionFailures = new Map<string, string>()
+
+  constructor(
+    private readonly vercel: VercelSandboxClient,
+    private readonly env: EnvService,
+    private readonly github: GithubService,
+  ) {}
+
+  /**
+   * The response awaits nothing but the ownership check: a cold image pull can take minutes, long
+   * enough for the DigitalOcean edge to 504 while the provision keeps running server-side and its
+   * answer is lost. The token is minted up front and the claim+provision chain runs in the
+   * background under the per-thread lock, so a second attach answers just as fast and simply
+   * queues its re-provision behind the first.
+   */
+  async attach(args: {
+    userId: string
+    threadId: string
+    workspace?: SandboxWorkspaceSpec | undefined
+    skillsBundle?: string | undefined
+  }): Promise<SandboxAttachmentDto> {
+    const thread = await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
+    if (args.workspace !== undefined) assertPatchWithinLimit({ patch: args.workspace.patch })
+    if (args.skillsBundle !== undefined) {
+      assertSkillsBundleWithinLimit({ bundle: args.skillsBundle })
+    }
+    const minted = mintSessionToken()
+
+    const previous = this.attachLocks.get(args.threadId) ?? Promise.resolve()
+    const chain = () =>
+      this.claimAndProvision({
+        thread,
+        workspace: args.workspace,
+        skillsBundle: args.skillsBundle,
+        token: minted.token,
+        tokenHash: minted.tokenHash,
+      })
+    const settled = previous.then(chain, chain)
+    this.attachLocks.set(args.threadId, settled)
+    const cleanup = () => {
+      if (this.attachLocks.get(args.threadId) === settled) this.attachLocks.delete(args.threadId)
+    }
+    void settled.then(cleanup, cleanup)
+
+    return {
+      threadId: args.threadId,
+      name: sandboxNameFor({ threadId: args.threadId }),
+      region: SANDBOX_REGION,
+      state: ESandboxState.Resuming,
+      lastActivityAt: nowIso(),
+      token: minted.token,
+    }
+  }
+
+  whenSettled(args: { threadId: string }): Promise<void> {
+    const chain = this.attachLocks.get(args.threadId) ?? Promise.resolve()
+    return chain.then(() => undefined)
+  }
+
+  private async claimAndProvision(args: {
+    thread: ThreadModel
+    workspace: SandboxWorkspaceSpec | undefined
+    skillsBundle: string | undefined
+    token: string
+    tokenHash: string
+  }): Promise<void> {
+    this.provisionFailures.delete(args.thread.id)
+    try {
+      const claim = await this.claimForAttach(args)
+      await this.provisionInBackground(claim)
+    } catch (failure) {
+      if (failure instanceof ConflictException) {
+        this.logger.log(
+          `attach for thread ${args.thread.id} lost the claim race — the winner is provisioning`,
+        )
+        return
+      }
+      this.logger.warn(`sandbox attach failed for thread ${args.thread.id}: ${messageOf(failure)}`)
+      this.provisionFailures.set(args.thread.id, messageOf(failure))
+    }
+  }
+
+  private async claimForAttach(args: {
+    thread: ThreadModel
+    workspace: SandboxWorkspaceSpec | undefined
+    skillsBundle: string | undefined
+    token: string
+    tokenHash: string
+  }): Promise<{ row: CloudSandboxModel; token: string }> {
+    const columns: WorkspaceColumns = {
+      ...workspaceColumnsOf(args.workspace),
+      workspaceSkills: args.skillsBundle ?? null,
+    }
+    const claimed = await this.claim({
+      thread: args.thread,
+      tokenHash: args.tokenHash,
+      columns,
+    })
+    if (claimed.tokenHash === args.tokenHash) {
+      return { row: claimed, token: args.token }
+    }
+
+    const stored = workspaceColumnsIn(claimed)
+    const kept: WorkspaceColumns = {
+      ...(args.workspace === undefined ? stored : columns),
+      workspaceSkills:
+        args.skillsBundle === undefined ? stored.workspaceSkills : columns.workspaceSkills,
+    }
+    await this.vercel.destroy({ name: claimed.name })
+    await db.cloudSandbox.delete({ where: { threadId: claimed.threadId } })
+    const reclaimed = await this.claim({ thread: args.thread, tokenHash: args.tokenHash, columns: kept })
+    if (reclaimed.tokenHash !== args.tokenHash) {
+      throw new ConflictException('another attach is provisioning this sandbox — retry in a moment')
+    }
+    return { row: reclaimed, token: args.token }
+  }
+
+  /**
+   * Answered to the sandbox rather than pushed into its environment: a patch outgrows what a
+   * process environment will carry. The git credential is read per request and never stored on the
+   * sandbox row.
+   */
+  async workspace(args: { threadId: string }): Promise<SandboxWorkspaceDto> {
+    const row = await db.cloudSandbox.findUnique({ where: { threadId: args.threadId } })
+    if (row === null) throw new NotFoundException('sandbox not found')
+    const spec = workspaceSpecOf(row)
+    const skillsBundle = row.workspaceSkills ?? null
+    if (spec.remoteUrl === null) return { ...spec, githubToken: null, skillsBundle }
+    const githubToken = await this.github.findToken({ userId: row.userId })
+    return { ...spec, githubToken: githubToken ?? null, skillsBundle }
+  }
+
+  async status(args: { userId: string; threadId: string }): Promise<SandboxStatusDto> {
+    const failed = this.provisionFailures.get(args.threadId)
+    if (failed !== undefined) throw new BadGatewayException(failed)
+
+    const row = await ownedSandbox(args)
+    try {
+      const observed = await this.vercel.inspect({ name: row.name })
+      return {
+        ...toSandboxDto(row),
+        state: observed.state,
+        ...(observed.url === undefined ? {} : { url: observed.url }),
+      }
+    } catch (failure) {
+      if (failure instanceof SandboxMissingError) return toSandboxDto(row)
+      throw failure
+    }
+  }
+
+  async stop(args: { userId: string; threadId: string }): Promise<SandboxStatusDto> {
+    const row = await ownedSandbox(args)
+    await this.park({ row })
+    return { ...toSandboxDto(row), state: ESandboxState.Parked }
+  }
+
+  async verifySessionToken(args: { threadId: string; token: string }): Promise<CloudSandboxModel> {
+    const row = await db.cloudSandbox.findUnique({ where: { threadId: args.threadId } })
+    if (row === null || !tokenMatches({ token: args.token, tokenHash: row.tokenHash })) {
+      throw new UnauthorizedException('a valid sandbox session token is required')
+    }
+    return row
+  }
+
+  async verifyTokenPrincipal(args: { token: string }): Promise<CloudSandboxModel> {
+    const row = await db.cloudSandbox.findFirst({
+      where: { tokenHash: hashSessionToken(args.token) },
+    })
+    if (row === null) throw new UnauthorizedException('a valid sandbox session token is required')
+    return row
+  }
+
+  /**
+   * A sandbox token reaches the conversation it serves: the sandbox's own thread plus the
+   * sub-agent threads it spawns (spawnerThreadId points at the root). Sub-agents cannot spawn
+   * sub-agents of their own, so the family is exactly one level deep.
+   */
+  async assertThreadInFamily(args: { sandboxThreadId: string; threadId: string }): Promise<void> {
+    if (args.threadId === args.sandboxThreadId) return
+    const child = await db.thread.findFirst({
+      where: { id: args.threadId, spawnerThreadId: args.sandboxThreadId },
+      select: { id: true },
+    })
+    if (child === null) {
+      throw new UnauthorizedException(
+        'the sandbox token reaches only its own thread and its sub-agents',
+      )
+    }
+  }
+
+  async heartbeat(args: { threadId: string }): Promise<void> {
+    const at = nowIso()
+    await db.cloudSandbox.updateMany({
+      where: { threadId: args.threadId },
+      data: { lastActivityAt: at, updatedAt: at },
+    })
+  }
+
+  async reap(): Promise<number> {
+    const quietSince = new Date(Date.now() - this.ttlMs()).toISOString()
+    const stale = await db.cloudSandbox.findMany({
+      where: {
+        state: { notIn: [ESandboxState.Parked] },
+        lastActivityAt: { lt: quietSince },
+      },
+    })
+
+    let parked = 0
+    for (const row of stale) {
+      try {
+        const fresh = await db.cloudSandbox.findUnique({
+          where: { threadId: row.threadId },
+          select: { lastActivityAt: true },
+        })
+        if (fresh === null || fresh.lastActivityAt >= quietSince) continue
+        await this.park({ row })
+        parked += 1
+      } catch (failure) {
+        this.logger.warn(`could not park sandbox ${row.name}: ${String(failure)}`)
+      }
+    }
+    return parked
+  }
+
+  async park(args: { row: CloudSandboxModel }): Promise<void> {
+    await this.vercel.stop({ name: args.row.name })
+    await db.cloudSandbox.update({
+      where: { threadId: args.row.threadId },
+      data: { state: ESandboxState.Parked, updatedAt: nowIso() },
+    })
+  }
+
+  private ttlMs(): number {
+    return this.env.get('SANDBOX_TTL_MINUTES') * MINUTE_MS
+  }
+
+  private claim(args: {
+    thread: ThreadModel
+    tokenHash: string
+    columns: WorkspaceColumns
+  }): Promise<CloudSandboxModel> {
+    const at = nowIso()
+    return db.cloudSandbox.upsert({
+      where: { threadId: args.thread.id },
+      create: {
+        id: nextSandboxId(),
+        threadId: args.thread.id,
+        userId: args.thread.userId,
+        sandboxId: '',
+        name: sandboxNameFor({ threadId: args.thread.id }),
+        region: SANDBOX_REGION,
+        state: ESandboxState.Parked,
+        lastActivityAt: at,
+        tokenHash: args.tokenHash,
+        ...args.columns,
+        createdAt: at,
+        updatedAt: at,
+      },
+      update: { lastActivityAt: at, updatedAt: at },
+    })
+  }
+
+  private async provisionInBackground(args: {
+    row: CloudSandboxModel
+    token: string
+  }): Promise<void> {
+    try {
+      const placement = await this.vercel.getOrCreate({
+        name: args.row.name,
+        threadId: args.row.threadId,
+        token: args.token,
+      })
+      await this.stamp({ row: args.row, placement })
+    } catch (failure) {
+      const message = messageOf(failure)
+      this.logger.warn(`sandbox provisioning failed for thread ${args.row.threadId}: ${message}`)
+      this.provisionFailures.set(args.row.threadId, message)
+      try {
+        await db.cloudSandbox.delete({ where: { threadId: args.row.threadId } })
+      } catch (deleteFailure) {
+        this.logger.warn(
+          `could not delete sandbox row for thread ${args.row.threadId} after a failed provision: ${messageOf(deleteFailure)}`,
+        )
+      }
+    }
+  }
+
+  private stamp(args: {
+    row: CloudSandboxModel
+    placement: { sessionId: string; state: ESandboxState }
+  }): Promise<CloudSandboxModel> {
+    const at = nowIso()
+    return db.cloudSandbox.update({
+      where: { threadId: args.row.threadId },
+      data: {
+        sandboxId: args.placement.sessionId,
+        state: args.placement.state,
+        lastActivityAt: at,
+        updatedAt: at,
+      },
+    })
+  }
+}

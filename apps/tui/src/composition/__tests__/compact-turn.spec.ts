@@ -14,7 +14,7 @@ import { durableEntries } from '../../store/durable-entries'
 import { EEntryKind } from '../../store/transcript-model'
 import { autoCompactAfterTurn, EAutoCompact } from '@dltech/atlas-core'
 
-import { compactTurn, ECompaction } from '../compact-turn'
+import { compactTurn, ECompaction } from '@dltech/atlas-harness'
 import { fakeAgentRegistry } from './fake-agents'
 import { fakeThreadStore, fakeEventLog } from './fake-backend'
 

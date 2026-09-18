@@ -13,7 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common'
 import type { AuthenticatedRequest } from '../../_core/types/auth.types'
-import { SessionAuthGuard } from '../../_module/session/session-auth.guard'
+import { SessionOrSandboxGuard } from '../sessions/session-or-sandbox.guard'
 import {
   AccessTokenRequestDto,
   CreateAccountDto,
@@ -37,7 +37,7 @@ function userIdOf(request: AuthenticatedRequest): string {
 }
 
 @Controller({ path: 'accounts', version: '1' })
-@UseGuards(SessionAuthGuard)
+@UseGuards(SessionOrSandboxGuard)
 export class AccountsController {
   constructor(
     private readonly accounts: AccountsService,

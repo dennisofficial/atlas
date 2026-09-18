@@ -71,7 +71,6 @@ export class OpenThreadDto {
   runId!: string
 
   @IsArray()
-  @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => EventDraftDto)
   drafts!: EventDraftDto[]

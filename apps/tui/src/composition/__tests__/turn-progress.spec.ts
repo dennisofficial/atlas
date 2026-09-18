@@ -1,4 +1,4 @@
-import { ERetryReason, type Chunk } from '@dltech/atlas-core'
+import { EFinishReason, ERetryReason, type Chunk } from '@dltech/atlas-core'
 import { ETurnStatus, toStepId, EStepEnd, type ChannelSignal } from '@dltech/atlas-harness'
 import { describe, expect, it } from 'bun:test'
 
@@ -170,6 +170,71 @@ describe('the clock the working line reads', () => {
     expect(turnAdvanced({ progress, signal: chunk({ type: 'text-end', id: 't' }), now: 0 })).toBe(
       progress,
     )
+  })
+
+  it('sums each finished step’s reported input, so the sidebar need not wait for turn end', () => {
+    const progress = absorbing([
+      chunk({
+        type: 'finish',
+        reason: EFinishReason.ToolCalls,
+        usage: { inputTokens: 30_000, outputTokens: 400, cacheReadTokens: 28_000, cacheWriteTokens: 0 },
+      }),
+      chunk({
+        type: 'finish',
+        reason: EFinishReason.Stop,
+        usage: { inputTokens: 31_500, outputTokens: 120, cacheReadTokens: 30_000, cacheWriteTokens: 0 },
+      }),
+    ])
+
+    expect(progress.clock.input).toEqual({
+      inputTokens: 61_500,
+      cacheReadTokens: 58_000,
+      cacheWriteTokens: 0,
+    })
+  })
+
+  it('leaves the progress untouched when a finish reports no usage', () => {
+    const progress = absorbing([chunk({ type: 'text-delta', id: 't', text: 'hi' })])
+
+    expect(
+      turnAdvanced({ progress, signal: chunk({ type: 'finish', reason: EFinishReason.Stop }), now: 0 }),
+    ).toBe(progress)
+  })
+
+  it('keeps the input a failed attempt’s earlier steps reported across a retry', () => {
+    const stepped = absorbing([
+      chunk({
+        type: 'finish',
+        reason: EFinishReason.ToolCalls,
+        usage: { inputTokens: 30_000, outputTokens: 400, cacheReadTokens: 28_000, cacheWriteTokens: 0 },
+      }),
+    ])
+
+    const waiting = turnAdvanced({
+      progress: stepped,
+      signal: {
+        type: 'retry-waiting',
+        attempt: 1,
+        maxAttempts: 10,
+        delayMs: 4_000,
+        reason: ERetryReason.Overloaded,
+      },
+      now: 5_000,
+    })
+
+    expect(waiting.clock.input.inputTokens).toBe(30_000)
+  })
+
+  it('hands the input tally to the ledger when the turn settles', () => {
+    const stepped = absorbing([
+      chunk({
+        type: 'finish',
+        reason: EFinishReason.Stop,
+        usage: { inputTokens: 30_000, outputTokens: 400, cacheReadTokens: 28_000, cacheWriteTokens: 0 },
+      }),
+    ])
+
+    expect(turnSettled({ progress: stepped, now: 9_000 }).clock.input.inputTokens).toBe(0)
   })
 
   it('is no longer thinking once the turn settles', () => {

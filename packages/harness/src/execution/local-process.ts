@@ -5,6 +5,7 @@ import {
   type SpawnCommand,
 } from '@dltech/atlas-core'
 
+import { withoutLauncherPrivateEnv } from './child-env'
 import { vendoredRipgrep } from './vendored-ripgrep'
 
 export const SIGKILL_GRACE_MS = 5_000
@@ -70,7 +71,7 @@ export class LocalProcessPort implements ProcessPort {
         stdout: 'pipe',
         stderr: 'pipe',
         detached: true,
-        ...(args.env === undefined ? {} : { env: args.env }),
+        env: withoutLauncherPrivateEnv(args.env ?? process.env),
       }),
     )
   }

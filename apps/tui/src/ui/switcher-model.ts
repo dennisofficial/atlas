@@ -1,5 +1,6 @@
 import {
   clampEffort,
+  ESettingId,
   isFavourite,
   nextEffort,
   refKey,
@@ -7,12 +8,9 @@ import {
   type ModelCard,
   type ModelRef,
 } from '@dltech/atlas-core'
+import type { CatalogueProvider } from '@dltech/atlas-harness'
 
-export type SwitcherProvider = {
-  id: string
-  label: string
-  cards: readonly ModelCard[]
-}
+export type SwitcherProvider = CatalogueProvider
 
 export type SwitcherAvailability = ReadonlySet<string> | ((providerId: string) => boolean)
 
@@ -33,6 +31,31 @@ export type SwitcherState = {
 export type SwitcherChoice = {
   ref: ModelRef | null
   effort: EEffort
+}
+
+export enum EModelScope {
+  Thread = 'thread',
+  Setting = 'setting',
+}
+
+export type SwitcherSettingTarget = {
+  scope: EModelScope.Setting
+  id: string
+  label: string
+  withEffort: boolean
+}
+
+export type SwitcherTarget = { scope: EModelScope.Thread } | SwitcherSettingTarget
+
+export const THREAD_TARGET: SwitcherTarget = { scope: EModelScope.Thread }
+
+export function settingTarget(args: { id: string; label: string }): SwitcherSettingTarget {
+  return {
+    scope: EModelScope.Setting,
+    id: args.id,
+    label: args.label,
+    withEffort: args.id === ESettingId.ModelId,
+  }
 }
 
 export function isProviderReachable(args: {

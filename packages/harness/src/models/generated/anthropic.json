@@ -11,7 +11,9 @@
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 10,
-      "outputPerMillion": 50
+      "outputPerMillion": 50,
+      "cacheReadPerMillion": 1,
+      "cacheWritePerMillion": 12.5
     },
     "effort": {
       "low": "low",
@@ -33,7 +35,9 @@
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 10,
-      "outputPerMillion": 50
+      "outputPerMillion": 50,
+      "cacheReadPerMillion": 0.25,
+      "cacheWritePerMillion": 12.5
     },
     "effort": {
       "low": "low",
@@ -55,7 +59,9 @@
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 1,
-      "outputPerMillion": 5
+      "outputPerMillion": 5,
+      "cacheReadPerMillion": 0.1,
+      "cacheWritePerMillion": 1.25
     },
     "effort": {
       "low": 1024,
@@ -75,7 +81,9 @@
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 1,
-      "outputPerMillion": 5
+      "outputPerMillion": 5,
+      "cacheReadPerMillion": 0.1,
+      "cacheWritePerMillion": 1.25
     },
     "effort": {
       "low": 1024,
@@ -95,7 +103,9 @@
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 5,
-      "outputPerMillion": 25
+      "outputPerMillion": 25,
+      "cacheReadPerMillion": 0.5,
+      "cacheWritePerMillion": 6.25
     },
     "effort": {
       "low": "low",
@@ -115,7 +125,9 @@
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 5,
-      "outputPerMillion": 25
+      "outputPerMillion": 25,
+      "cacheReadPerMillion": 0.5,
+      "cacheWritePerMillion": 6.25
     },
     "effort": {
       "low": "low",
@@ -135,7 +147,9 @@
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 5,
-      "outputPerMillion": 25
+      "outputPerMillion": 25,
+      "cacheReadPerMillion": 0.5,
+      "cacheWritePerMillion": 6.25
     },
     "effort": {
       "low": "low",
@@ -156,7 +170,9 @@
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 5,
-      "outputPerMillion": 25
+      "outputPerMillion": 25,
+      "cacheReadPerMillion": 0.5,
+      "cacheWritePerMillion": 6.25
     },
     "effort": {
       "low": "low",
@@ -178,7 +194,9 @@
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 5,
-      "outputPerMillion": 25
+      "outputPerMillion": 25,
+      "cacheReadPerMillion": 0.5,
+      "cacheWritePerMillion": 6.25
     },
     "effort": {
       "low": "low",
@@ -200,7 +218,9 @@
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 5,
-      "outputPerMillion": 25
+      "outputPerMillion": 25,
+      "cacheReadPerMillion": 0.5,
+      "cacheWritePerMillion": 6.25
     },
     "effort": {
       "low": "low",
@@ -222,7 +242,9 @@
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 3,
-      "outputPerMillion": 15
+      "outputPerMillion": 15,
+      "cacheReadPerMillion": 0.3,
+      "cacheWritePerMillion": 3.75
     },
     "effort": {
       "low": 1024,
@@ -242,7 +264,9 @@
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 3,
-      "outputPerMillion": 15
+      "outputPerMillion": 15,
+      "cacheReadPerMillion": 0.3,
+      "cacheWritePerMillion": 3.75
     },
     "effort": {
       "low": 1024,
@@ -262,7 +286,9 @@
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 3,
-      "outputPerMillion": 15
+      "outputPerMillion": 15,
+      "cacheReadPerMillion": 0.3,
+      "cacheWritePerMillion": 3.75
     },
     "effort": {
       "low": "low",
@@ -283,7 +309,9 @@
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 2,
-      "outputPerMillion": 10
+      "outputPerMillion": 10,
+      "cacheReadPerMillion": 0.2,
+      "cacheWritePerMillion": 2.5
     },
     "effort": {
       "low": "low",

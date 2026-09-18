@@ -12,7 +12,7 @@ import {
 } from '@dltech/atlas-core'
 import type { Event } from '@dltech/atlas-core'
 import type { TurnSpend } from '@dltech/atlas-harness'
-import type { ActiveConversation } from '../src/composition/resume-hint'
+import type { ActiveConversation } from '@dltech/atlas-harness'
 import {
   createAccountUsageService,
   createDeltaChannel,
@@ -33,9 +33,9 @@ import type { Renderable } from '@opentui/core'
 import { App } from '../src/composition/app'
 import type { AtlasApp } from '../src/composition/compose'
 import { DEFAULT_MODEL_REF, EOpenMode } from '../src/composition/config'
-import { createExecutionLocationState } from '../src/composition/execution-location-state'
-import { createSandboxStatusState } from '../src/composition/sandbox-status-state'
-import { heldChoice } from '../src/composition/model-selection'
+import { createExecutionLocationState } from '@dltech/atlas-harness'
+import { createSandboxStatusState } from '@dltech/atlas-harness'
+import { heldChoice } from '@dltech/atlas-harness'
 import { fakeAgentRegistry } from '../src/composition/__tests__/fake-agents'
 import {
   alwaysAuthorised,
@@ -84,6 +84,7 @@ const benchApp = (args: {
 
   return {
     config: { model: undefined, open: { mode: EOpenMode.New }, cwd: args.root, executionLocation: undefined },
+    launch: { cwd: args.root, command: 'atlas-dev', model: undefined, executionLocation: undefined },
     command: 'atlas-dev',
     journalResume: () => {},
     workspace: { workspace: args.root, repo: null },

@@ -1,4 +1,11 @@
-import { EAgentStatus, EDefinitionOrigin, toCallId, toRunId, toThreadId } from '@dltech/atlas-core'
+import {
+  EAgentStatus,
+  EDefinitionOrigin,
+  toCallId,
+  toRunId,
+  toThreadId,
+  type ProviderIdentity,
+} from '@dltech/atlas-core'
 import {
   EAgentTypeRefusal,
   EKilledBy,
@@ -69,7 +76,13 @@ const appWith = (): FakeApp =>
   fakeApp({ model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }) })
 
 const child = (
-  over: { turns?: number; toolCalls?: number; status?: EAgentStatus; lastTool?: string } = {},
+  over: {
+    turns?: number
+    toolCalls?: number
+    status?: EAgentStatus
+    lastTool?: string
+    model?: ProviderIdentity
+  } = {},
 ) =>
   fakeAgentSnapshot({
     agentId: CHILD,
@@ -140,7 +153,7 @@ describe('a sub-agent in the sidebar', () => {
     }
   }, 60_000)
 
-  it("counts the child's own turns and tool calls, never the conversation it was spawned from", async () => {
+  it("shows the child's time on the row, never the tool it is on", async () => {
     const app = appWith()
     await app.log.append({
       threadId: THREAD,
@@ -156,12 +169,29 @@ describe('a sub-agent in the sidebar', () => {
     const setup = await opened(app)
 
     try {
-      expect(setup.captureCharFrame()).toContain('grep · ')
+      const running = setup.captureCharFrame().split('\n').find((line) => line.includes(CHILD_INTENT)) ?? ''
+      expect(running).not.toContain('grep')
 
       act(() => app.agents.end({ agentId: CHILD }))
       await setup.flush()
 
-      expect(setup.captureCharFrame()).toContain('done · 7 calls')
+      const frame = setup.captureCharFrame()
+      const row = frame.split('\n').find((line) => line.includes(CHILD_INTENT)) ?? ''
+      expect(row).not.toContain('done')
+      expect(row).not.toContain('calls')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('names the model the child runs on a line under its own', async () => {
+    const app = appWith()
+    app.agents.place(child({ model: { id: 'anthropic', modelId: 'claude-sonnet-5' } }))
+
+    const setup = await opened(app)
+
+    try {
+      expect(setup.captureCharFrame()).toContain('sonnet-5')
     } finally {
       await teardown(setup)
     }
@@ -181,7 +211,9 @@ describe('a sub-agent in the sidebar', () => {
       const frame = setup.captureCharFrame()
       expect(frame).toContain('SUBAGENTS  0/1')
       expect(frame).toContain(`${CHILD_INTENT}`)
-      expect(frame).toContain('done')
+      expect(
+        frame.split('\n').find((line) => line.includes(CHILD_INTENT)) ?? '',
+      ).not.toContain('done')
     } finally {
       await teardown(setup)
     }
@@ -192,12 +224,12 @@ describe('a sub-agent in the sidebar', () => {
     const setup = await opened(app)
 
     try {
-      expect(setup.captureCharFrame()).not.toContain('ctx 34%')
+      expect(setup.captureCharFrame()).not.toContain('68.0k')
 
       act(() => app.agents.place({ ...child(), context: { tokens: 68_000, window: 200_000 } }))
       await setup.flush()
 
-      expect(setup.captureCharFrame()).toContain('ctx 34%')
+      expect(setup.captureCharFrame()).toContain('68.0k')
     } finally {
       await teardown(setup)
     }

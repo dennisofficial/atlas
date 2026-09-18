@@ -7,6 +7,8 @@ import type { Span } from '../ui/components/spans'
 import type { AccountRow } from '../ui/accounts-model'
 import { CompactingOverlay, type Compacting } from '../ui/components/compacting'
 import { ContainerGuard } from '../ui/components/container-guard'
+import { ContainerMoveOverlay } from '../ui/components/container-move'
+import type { ContainerMove } from './container-move'
 import { ExitGuard } from '../ui/components/exit-guard'
 import { exitGuardAgentRow, exitGuardRow, exitGuardServiceRow } from '../ui/exit-guard-model'
 import { Rewind } from '../ui/components/rewind'
@@ -17,6 +19,7 @@ import { Shells } from '../ui/components/shells'
 import { Switcher } from '../ui/components/switcher'
 import { Threads } from '../ui/components/threads'
 import { AgentsPicker } from '../ui/components/agents-picker'
+import { Onboarding } from '../ui/components/onboarding'
 import { useAppearance } from '../ui/hooks/use-appearance'
 import { isServiceAlive } from '../ui/services-model'
 import { isShellRunning } from '../ui/shells-model'
@@ -27,12 +30,13 @@ import type { AgentsPickerControl } from './use-agents-picker'
 import type { ApprovalControl } from './use-approval'
 import type { ContainerGuardControl } from './use-container-guard'
 import type { ExitGuardControl } from './use-exit-guard'
+import type { OnboardingControl } from './use-onboarding'
 import type { RewindControl } from './use-rewind'
 import type { RewindConfirmControl } from './use-rewind-confirm'
 import type { ServicesControl } from './use-services'
 import type { SettingsControl } from './use-settings'
 import type { ShellsControl } from './use-shells'
-import { EModelScope, type SwitcherControl } from './use-switcher'
+import { type SwitcherControl } from './use-switcher'
 import type { ThreadsControl } from './use-threads'
 
 function DerivedOverlayStack(props: {
@@ -46,6 +50,7 @@ function DerivedOverlayStack(props: {
   agents: AgentsControl
   agentsPicker: AgentsPickerControl
   settings: SettingsControl
+  onboarding: OnboardingControl
   accounts: AccountsControl
   threads: ThreadsControl
   accountMeters: (row: AccountRow) => readonly Span[]
@@ -55,6 +60,9 @@ function DerivedOverlayStack(props: {
   exitGuard: ExitGuardControl
   containerGuard: ContainerGuardControl
   compacting: Compacting | null
+  containerMove: ContainerMove | null
+  containerMoveNow: number
+  onDismissContainerMove: () => void
   now: number
 }): React.ReactNode {
   const {
@@ -63,6 +71,7 @@ function DerivedOverlayStack(props: {
     agents,
     agentsPicker,
     settings,
+    onboarding,
     accounts,
     threads,
     rewind,
@@ -77,6 +86,14 @@ function DerivedOverlayStack(props: {
     <>
       {props.compacting === null ? null : (
         <CompactingOverlay compacting={props.compacting} now={props.now} width={props.width} />
+      )}
+      {props.containerMove === null ? null : (
+        <ContainerMoveOverlay
+          move={props.containerMove}
+          now={props.containerMoveNow}
+          width={props.width}
+          onDismiss={props.onDismissContainerMove}
+        />
       )}
       {rewind.state === null ? null : (
         <Rewind
@@ -124,11 +141,12 @@ function DerivedOverlayStack(props: {
           active={props.active}
           total={switcher.total}
           query={switcher.query}
-          toDefault={switcher.scope === EModelScope.Default}
+          target={switcher.target}
           overlay
           onPick={switcher.handlePick}
           onSelect={switcher.handleSelect}
           onDismiss={switcher.handleDismiss}
+          onQueryChange={switcher.handleQuery}
         />
       )}
       {shells.state === null ? null : (
@@ -200,6 +218,15 @@ function DerivedOverlayStack(props: {
           onDismiss={containerGuard.handleDismiss}
         />
       )}
+      {onboarding.state === null ? null : (
+        <Onboarding
+          width={props.width}
+          rows={onboarding.rows}
+          rowIndex={onboarding.state.rowIndex}
+          onActivate={onboarding.handleActivate}
+          onDismiss={onboarding.handleDismiss}
+        />
+      )}
       {settings.state === null ? null : (
         <Settings
           width={props.width}
@@ -216,7 +243,7 @@ function DerivedOverlayStack(props: {
           cloudEmail={settings.cloudEmail}
           cloudSignedIn={settings.cloudSignedIn}
           onSignOut={settings.handleSignOut}
-          onActivate={settings.handleActivate}
+          onSelect={settings.handleSelect}
           onDismiss={settings.handleDismiss}
         />
       )}

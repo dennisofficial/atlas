@@ -2,6 +2,7 @@ import { ECompactionAnchor, type EventDraft } from '../../events/body'
 import type { Event } from '../../events/envelope'
 import { toThreadId, toCallId, toEventId, toRunId } from '../../events/ids'
 import { stampDrafts } from '../../events/stamp'
+import type { EExecutionLocation } from '../../execution/location'
 
 export const eventsFrom = (drafts: readonly EventDraft[]): Event[] =>
   stampDrafts({
@@ -76,6 +77,15 @@ export const compactedFrom = (fromSeq: number, summary: string): EventDraft => (
   throughSeq: fromSeq + 1,
   summary,
   replaced: 2,
+})
+
+export const movedLocation = (args: {
+  from: EExecutionLocation
+  to: EExecutionLocation
+}): EventDraft => ({
+  type: 'location-changed',
+  from: args.from,
+  to: args.to,
 })
 
 export const compactedRange = (args: {

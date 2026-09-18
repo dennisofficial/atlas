@@ -4,7 +4,14 @@ import { accessSync, constants, existsSync } from 'node:fs'
 
 export const quoted = (value: string): string => `'${value.replaceAll("'", "'\\''")}'`
 
+export const LIVE_DOCKER_ENV = 'ATLAS_LIVE_DOCKER'
+
+export const liveDockerOptedIn = (): boolean => process.env[LIVE_DOCKER_ENV] === '1'
+
 export const dockerUnavailableReason = async (socket: string): Promise<string | undefined> => {
+  if (!liveDockerOptedIn()) {
+    return `live Docker specs are opt-in — rerun with ${LIVE_DOCKER_ENV}=1 to enable them`
+  }
   if (existsSync('/.dockerenv')) {
     return 'this spec already runs inside a container — it verifies the host↔daemon boundary and only runs on the host'
   }

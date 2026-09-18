@@ -17,7 +17,7 @@ import React from 'react'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
-import { modelCatalogue } from '../providers'
+import { modelCatalogue } from '@dltech/atlas-harness'
 import { until } from './app-fixture'
 import { alwaysAuthorised, fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
@@ -304,6 +304,8 @@ describe('the two model preferences', () => {
 
     try {
       await openSettingsWith(setup)
+      setup.mockInput.pressTab()
+      await landed(setup)
       await downTo({ setup, needle: 'Default model' })
       await enter(setup)
 
@@ -449,6 +451,10 @@ describe('availability after accounts land mid-session', () => {
     const setup = await opened(app)
 
     try {
+      // No accounts yet, so the first-run picks are up — set them aside; this run is about
+      // accounts landing mid-session.
+      await escape(setup)
+
       await openSwitcherWith(setup)
       expect(setup.captureCharFrame()).toContain('no key')
       await escape(setup)

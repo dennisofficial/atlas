@@ -13,8 +13,9 @@ import { runClassify } from "./classify-run";
 import { resolveConfig } from "./config";
 import { ESession, openSession } from "./open-session";
 import { RESTART_EXIT_CODE, restartResumeHandle } from "./restart";
-import { resumeHint } from "./resume-hint";
-import { loadSettings } from "./settings-binding";
+import { launchLine, launchTitle, sessionIdentityLine } from "./session-identity";
+import { resumeHint, type ActiveConversation } from "@dltech/atlas-harness";
+import { loadSettings } from "@dltech/atlas-harness";
 import { trackTerminalFocus } from "./terminal-focus";
 import { terminalTitleSequence } from "./terminal-title";
 import { readTerminalSize, settleTerminalSize } from "./terminal-size";
@@ -53,6 +54,16 @@ export async function bootAtlas(args: {
     return await runClassify({ request: classify, cwd: config.cwd, env: args.env });
   }
 
+  process.stdout.write(
+    launchLine({
+      open: config.open,
+      directory: config.cwd,
+      home: args.env.HOME,
+      pid: process.pid,
+      at: new Date(),
+    }),
+  );
+
   const settings = loadSettings({ env: args.env, cwd: config.cwd });
   applyAppearance(appearanceOf({ resolution: settings.service.snapshot().resolution }));
 
@@ -77,7 +88,9 @@ export async function bootAtlas(args: {
   });
   renderer.once("destroy", untrackFocus);
 
-  process.stdout.write(terminalTitleSequence({ name: null, directory: config.cwd }));
+  process.stdout.write(
+    terminalTitleSequence({ name: launchTitle(config.open), directory: config.cwd }),
+  );
 
   const stopSettling = settleTerminalSize({
     read: () => readTerminalSize(process.stdout),
@@ -97,9 +110,19 @@ export async function bootAtlas(args: {
   const restartFile = args.env.ATLAS_DEV_RESTART_FILE;
   let restartRequested = false;
 
+  let activeThread: () => ActiveConversation | null = () => null;
+
+  const identity = (): string =>
+    sessionIdentityLine({
+      active: activeThread(),
+      directory: config.cwd,
+      home: args.env.HOME,
+      pid: process.pid,
+    });
+
   const root = createRoot(renderer);
   root.render(
-    <CrashBoundary>
+    <CrashBoundary identity={identity}>
       <BootScreen
         session={session}
         progress={progress}
@@ -121,6 +144,8 @@ export async function bootAtlas(args: {
   );
 
   const settled = await session;
+
+  if (settled.type === ESession.Ready) activeThread = () => settled.app.activeThread();
 
   if (settled.type === ESession.Failed) {
     takeDown({ root, renderer });

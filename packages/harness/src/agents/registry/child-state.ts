@@ -5,6 +5,7 @@ import {
   type AssistantPart,
   type EKilledBy,
   type EventDraft,
+  type ProviderIdentity,
   type RosteredAgent,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -29,6 +30,7 @@ export type ChildState = {
   abort: AbortController
   pending: SteerMessage[]
   context: ChildContext | undefined
+  model: ProviderIdentity | undefined
   projectDirectory: string | undefined
 }
 
@@ -69,6 +71,7 @@ export function freshChild({
     abort: new AbortController(),
     pending: [],
     context: undefined,
+    model: undefined,
     projectDirectory,
   }
 }
@@ -100,6 +103,7 @@ export function recoveredChild({
     abort: new AbortController(),
     pending: [],
     context: undefined,
+    model: undefined,
     projectDirectory: undefined,
   }
 }
@@ -120,6 +124,7 @@ export function snapshotOf(child: ChildState): AgentSnapshot {
     endedAt: child.endedAt,
     deliveredAt: child.deliveredAt,
     context: child.context,
+    model: child.model,
   }
 }
 

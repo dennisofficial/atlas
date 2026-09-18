@@ -13,12 +13,14 @@ import {
 import {
   EShellStatus,
   type BoundPort,
-  type ESandboxState,
+  type SandboxContainer,
+  type SandboxLimits,
   type ShellSnapshot,
   type TurnSpend,
 } from "@dltech/atlas-harness";
 
 import { classifierFold, type ClassifierFold } from "./classifier-fold";
+import type { SidebarCloud } from "./cloud-state";
 import { truncateCells } from "../ui/components/sidebar/cells";
 import { orderSections, type SidebarSection } from "../ui/sidebar-section";
 import type { TurnClock } from "../ui/turn-clock";
@@ -66,19 +68,12 @@ export type SidebarModel = {
   classifier?: ClassifierFold;
   grants?: readonly Grant[];
   container?: SidebarContainer;
+  cloud?: SidebarCloud;
 };
 
-export type SidebarLimits = { cpus: number; memoryGb: number };
+export type SidebarLimits = SandboxLimits;
 
-export type SidebarContainer = {
-  state: ESandboxState;
-  image: string;
-  label: string;
-  name?: string | undefined;
-  limits?: SidebarLimits | undefined;
-  ports: readonly BoundPort[];
-  reason?: string | undefined;
-};
+export type SidebarContainer = SandboxContainer;
 
 export const IDLE_SIDEBAR: SidebarModel = {
   title: null,
@@ -174,6 +169,7 @@ export function sidebarFrom(args: {
   const spend = sidebarSpendOf({
     turns: args.turns ?? [],
     liveOutputTokens: turn.startedAt === null ? 0 : turn.outputTokens,
+    liveInput: turn.startedAt === null ? undefined : turn.input,
     priceOf: args.priceOf,
   });
   const named = name === null ? null : oneLineOf(name);
@@ -254,7 +250,7 @@ export function containerPillOf(args: {
   container: SidebarContainer;
   exposed: readonly BoundPort[];
 }): SidebarContainer | null {
-  if (args.location === EExecutionLocation.Host) return null;
+  if (args.location !== EExecutionLocation.Docker) return null;
 
   const { state, image, label, name, limits, reason } = args.container;
   return {
@@ -275,4 +271,13 @@ export function withContainer(args: {
   if (args.container === null) return args.model;
 
   return { ...args.model, container: args.container };
+}
+
+export function withCloud(args: {
+  model: SidebarModel;
+  cloud: SidebarCloud | null;
+}): SidebarModel {
+  if (args.cloud === null) return args.model;
+
+  return { ...args.model, cloud: args.cloud };
 }

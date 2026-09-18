@@ -11,7 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common'
 import type { AuthenticatedRequest } from '../../_core/types/auth.types'
-import { SessionAuthGuard } from '../../_module/session/session-auth.guard'
+import { SessionOrSandboxGuard } from '../sessions/session-or-sandbox.guard'
 import { SetSecretDto } from './secrets.dto'
 import { SecretsService } from './secrets.service'
 import type { SecretListDto } from './secrets.types'
@@ -23,7 +23,7 @@ function userIdOf(request: AuthenticatedRequest): string {
 }
 
 @Controller({ path: 'secrets', version: '1' })
-@UseGuards(SessionAuthGuard)
+@UseGuards(SessionOrSandboxGuard)
 export class SecretsController {
   constructor(private readonly secrets: SecretsService) {}
 

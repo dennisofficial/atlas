@@ -13,7 +13,7 @@ import {
   ECompactScope,
   summariseAt,
   type Compaction,
-} from './compact-turn'
+} from '@dltech/atlas-harness'
 import type { AtlasApp } from './compose'
 
 const COMPACTION_CRASHED = 'compacting the history did not finish, so nothing was changed'

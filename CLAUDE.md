@@ -34,7 +34,7 @@ any inference from code, and `docs/core-contract.md` holds the seams it depends 
 | `@dltech/atlas-core`         | `zod` only     | Events, IDs, context assembly, hook and port contracts. Pure.  |
 | `@dltech/atlas-harness`      | core           | The loop, hooks, tools, model adapters, credentials, store.    |
 | `@dltech/atlas-ui`           | nothing        | Design tokens and web UI atoms; Storybook. No Atlas imports.   |
-| `@dltech/atlas` (`apps/tui`) | core, harness  | OpenTUI + React terminal app and the composition root.         |
+| `@dltech/atlas` (`apps/tui`) | core, harness  | OpenTUI + React terminal app; binds its stores into the shared root. |
 | `@dltech/atlas-api` (`apps/api`) | nothing in-repo | Atlas Cloud backend (NestJS + better-auth + Prisma/Neon). |
 | `web` (`apps/web`) | nothing in-repo | Atlas Cloud frontend (Next.js App Router; deploys to Vercel). |
 
@@ -49,8 +49,9 @@ atoms are honest web components (Radix + CVA + Tailwind v4); nothing in the pack
 pure functions and types. When something is hard to test, that is the signal to move the decision
 into `core`, not to add a mock.
 
-**`tui` never reaches past `harness`.** It talks to `harness` through its ports. The composition
-root in `apps/tui/src/composition` is the only place that knows which implementation is bound.
+**`tui` never reaches past `harness`.** It talks to `harness` through its ports. The shared
+composition root lives in `packages/harness/src/composition` (`composeHarness`); `apps/tui`
+supplies only its surface bindings (notices, tl;dr feed, plugins) through it.
 
 **`api` runs on Node, not Bun, and tests with vitest, not `bun test`.** Nest's dependency
 injection needs legacy decorators with emitted metadata, which Bun's transpiler silently drops —
@@ -136,6 +137,9 @@ classes only.
 - **Every new feature includes tests.** TDD preferred.
 - Tests live in a sibling `__tests__/` directory as `*.spec.ts(x)`.
 - `bun test` everywhere.
+- Live Docker specs (anything gating on `describeLiveDocker` / `dockerUnavailableReason`, plus the
+  docker shell-adapter specs) run only with `ATLAS_LIVE_DOCKER=1`; CI sets it. Locally they skip by
+  default so a running Docker Desktop doesn't turn every `bun test` pass into real containers.
 - Context assembly, hook resolution, and policy decisions are pure and belong to `core` — test them
   with plain data, never with a live model, a terminal, or a database.
 

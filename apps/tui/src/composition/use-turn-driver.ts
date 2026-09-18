@@ -72,12 +72,15 @@ export type TurnDriver = {
   rewindConfirm: RewindConfirmControl
   drive: (drafts: readonly EventDraft[]) => Promise<void>
   handleInterrupt: () => void
+  handleInterruptForMove: () => void
+  turnInFlight: () => boolean
   handleRetry: () => void
   handleResume: () => void
   handleResumeFresh: () => void
   handleRewindTo: (toSeq: number) => void
   isResumable: boolean
   settle: () => void
+  whenSettled: () => Promise<void>
 }
 
 /**
@@ -108,7 +111,15 @@ export function useTurnDriver(args: {
   const [working, setWorking] = useState(false)
   const workingRef = useRef(false)
   const abort = useRef<AbortController | null>(null)
+  const undoSuppressed = useRef(false)
+  const tailRef = useRef(false)
+
+  const fireSettleListeners = (): void => {
+    for (const listener of [...settleListeners.current]) listener()
+    settleListeners.current.clear()
+  }
   const driveLatest = useRef<(drafts: readonly EventDraft[]) => Promise<void>>(async () => undefined)
+  const settleListeners = useRef(new Set<() => void>())
 
   const handleAnswered = useCallback((drafts: readonly EventDraft[]) => {
     void driveLatest.current(drafts)
@@ -135,7 +146,10 @@ export function useTurnDriver(args: {
       pendingMove.current = null
       await app.threads.createWithFirstEvents({
         threadId,
-        drafts: move === null ? drafts : [{ type: 'directory-changed', path: move.path }, ...drafts],
+        drafts:
+          move === null
+            ? drafts
+            : [{ type: 'directory-changed', path: move.path, repo: move.repo }, ...drafts],
         runId,
         workspace: move?.path ?? app.workspace.workspace,
         repo: move === null ? app.workspace.repo : move.repo,
@@ -194,18 +208,22 @@ export function useTurnDriver(args: {
             pausedForApproval = true
             openApproval(asked)
           }
-          if (committedNothing(outcome)) await undo()
+          if (committedNothing(outcome) && !undoSuppressed.current) await undo()
         } catch (error) {
           setFailure(messageOf(error))
         } finally {
           gate.settle()
           abort.current = null
           workingRef.current = false
+          undoSuppressed.current = false
+          tailRef.current = true
           stamp((current) => turnSettled({ progress: current, now: readClock() }))
           await refresh().catch(() => undefined)
           if (!pausedForApproval) await onSettled().catch(() => undefined)
           setWorking(false)
           await compactIfFull(used.current).catch(() => undefined)
+          tailRef.current = false
+          fireSettleListeners()
         }
       })()
 
@@ -278,7 +296,7 @@ export function useTurnDriver(args: {
     })()
   }, [app.agents, app.log, app.services, app.shells, app.threads, drive, forgetUsage, refresh, rewindConfirm, setFailure, threadId, working])
 
-  const handleResumeFresh = useCallback(() => resumeFresh(false), [resumeFresh])
+  const handleResumeFresh = useCallback(() => resumeFresh(true), [resumeFresh])
 
   const rewindTo = useCallback(
     async (toSeq: number, confirmed = false): Promise<void> => {
@@ -334,6 +352,7 @@ export function useTurnDriver(args: {
       } finally {
         workingRef.current = false
         setWorking(false)
+        fireSettleListeners()
       }
     },
     [app.agents, app.log, app.services, app.shells, app.threads, cancelCompaction, forgetUsage, refresh, rewindConfirm, setFailure, store, threadId],
@@ -353,9 +372,26 @@ export function useTurnDriver(args: {
     controller.abort()
   }, [cancelCompaction, stamp])
 
+  /**
+   * A move interrupts on the operator's behalf, so the message stays committed and travels — the
+   * take-back that an esc would hand back to the composer belongs to the operator's own press.
+   */
+  const handleInterruptForMove = useCallback(() => {
+    if (abort.current === null) return
+    undoSuppressed.current = true
+    handleInterrupt()
+  }, [handleInterrupt])
+
   const handleRewindTo = useCallback((toSeq: number) => void rewindTo(toSeq), [rewindTo])
 
   const settle = useCallback(() => stamp(() => IDLE_PROGRESS), [stamp])
+
+  const whenSettled = useCallback((): Promise<void> => {
+    if (!workingRef.current && !tailRef.current) return Promise.resolve()
+    return new Promise((resolve) => settleListeners.current.add(resolve))
+  }, [])
+
+  const turnInFlight = useCallback((): boolean => abort.current !== null, [])
 
   return {
     working,
@@ -364,11 +400,14 @@ export function useTurnDriver(args: {
     rewindConfirm,
     drive,
     handleInterrupt,
+    handleInterruptForMove,
+    turnInFlight,
     handleRetry,
     handleResume,
     handleResumeFresh,
     handleRewindTo,
     isResumable: isResumable(events),
     settle,
+    whenSettled,
   }
 }

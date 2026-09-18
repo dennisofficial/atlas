@@ -132,7 +132,12 @@ describe('generated catalogue', () => {
     const card = cardFor('anthropic/claude-opus-5')
     expect(card.api).toBe('anthropic-messages')
     expect(card.contextWindow).toBe(1_000_000)
-    expect(card.cost).toEqual({ inputPerMillion: 5, outputPerMillion: 25 })
+    expect(card.cost).toEqual({
+      inputPerMillion: 5,
+      outputPerMillion: 25,
+      cacheReadPerMillion: 0.5,
+      cacheWritePerMillion: 6.25,
+    })
     expect(card.effort?.[EEffort.High]).toBe('high')
     expect(card.effort?.[EEffort.Off]).toBeUndefined()
   })

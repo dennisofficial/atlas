@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common'
 import type { AuthenticatedRequest } from '../../_core/types/auth.types'
-import { SessionAuthGuard } from '../../_module/session/session-auth.guard'
+import { SessionOrSandboxGuard } from './session-or-sandbox.guard'
 import { EventsService } from './events.service'
 import { AppendEventsDto } from './sessions.dto'
 import { userIdOf } from './session-user'
@@ -26,7 +26,7 @@ const upToOf = (upTo: string | undefined): number | undefined => {
 }
 
 @Controller({ path: 'threads/:threadId/events', version: '1' })
-@UseGuards(SessionAuthGuard)
+@UseGuards(SessionOrSandboxGuard)
 export class EventsController {
   constructor(private readonly events: EventsService) {}
 

@@ -20,7 +20,7 @@ import type {
 
 import { EOpenMode, type OpenRequest } from './config'
 import { readThreadSpend } from './thread-spend'
-import { slugOfTitle } from './thread-slug'
+import { slugOfTitle } from '@dltech/atlas-harness'
 
 /**
  * `started` is what the store knows, not what the screen shows: a conversation nobody has spoken in
@@ -36,6 +36,11 @@ export type OpenedConversation = {
   model?: ThreadModel | undefined
   executionLocation?: EExecutionLocation | undefined
   lost?: RecoveredAgents | undefined
+  /**
+   * Set only by a mid-turn lift: the turn it interrupted to move safely, so the conversation that
+   * mounts on the other side resumes it itself rather than leaving the operator to notice.
+   */
+  resumeOnArrival?: boolean | undefined
 }
 
 export const unstartedConversation = (args: { ids: IdPort }): OpenedConversation => ({
@@ -51,6 +56,7 @@ export type OpenOutcome =
 
 type Opening = {
   threads: ThreadStorePort
+  remoteThreads?: ThreadStorePort | undefined
   log: EventLogPort
   ledger: TurnLedgerPort
   agents: AgentRegistryPort
@@ -72,7 +78,7 @@ const reachableFrom = (args: { thread: ThreadSummary; project: string }): boolea
   args.thread.workspace === args.project ||
   args.thread.repo === args.project
 
-const namedBy = (args: { thread: ThreadSummary; handle: string }): boolean => {
+export const namedBy = (args: { thread: ThreadSummary; handle: string }): boolean => {
   const { title } = args.thread
   if (title === undefined) return false
 
@@ -98,7 +104,19 @@ async function resumed(args: Opening & { handle: string }): Promise<ThreadSummar
   }
 
   const listed = await threads.list({ project })
-  return listed.find((thread) => namedBy({ thread, handle }))
+  const named = listed.find((thread) => namedBy({ thread, handle }))
+  if (named !== undefined) return named
+
+  const remote = args.remoteThreads
+  if (remote === undefined) return undefined
+
+  const remoteById = await remote.find({ threadId: toThreadId(handle) }).catch(() => undefined)
+  if (remoteById !== undefined && reachableFrom({ thread: remoteById, project })) {
+    return remoteById
+  }
+
+  const remoteListed = await remote.list({ project }).catch(() => [] as readonly ThreadSummary[])
+  return remoteListed.find((thread) => namedBy({ thread, handle }))
 }
 
 type Found = ThreadSummary | { unstarted: true } | { reason: string }

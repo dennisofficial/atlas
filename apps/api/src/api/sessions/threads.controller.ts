@@ -12,7 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common'
 import type { AuthenticatedRequest } from '../../_core/types/auth.types'
-import { SessionAuthGuard } from '../../_module/session/session-auth.guard'
+import { SessionOrSandboxGuard } from './session-or-sandbox.guard'
 import {
   AdoptThreadDto,
   ChooseLocationDto,
@@ -47,7 +47,7 @@ const limitOf = (limit: string | undefined): number | undefined => {
 }
 
 @Controller({ path: 'threads', version: '1' })
-@UseGuards(SessionAuthGuard)
+@UseGuards(SessionOrSandboxGuard)
 export class ThreadsController {
   constructor(
     private readonly threads: ThreadsService,

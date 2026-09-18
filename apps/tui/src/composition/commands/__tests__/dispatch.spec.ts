@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { dispatchSubmission, EDispatch, type LoadedSkill } from '../dispatch'
 import { ECommandEcho, ECommandEffect, ECommandTiming, RAN, type LocalCommand } from '../local-command'
-import { ECompactScope } from '../../compact-turn'
+import { ECompactScope } from '@dltech/atlas-harness'
 import { ERenamed } from '../../session-rename'
 import { localCommands } from '../registry'
 import { handlers } from './local-handlers'
@@ -177,7 +177,14 @@ describe('localCommands', () => {
 
     const settled = commands.filter((one) => one.timing === ECommandTiming.Settled)
 
-    expect(settled.map((one) => one.name).sort()).toEqual(['cd', 'compact', 'new', 'resume', 'rewind'])
+    expect(settled.map((one) => one.name).sort()).toEqual([
+      'cd',
+      'compact',
+      'exit',
+      'new',
+      'resume',
+      'rewind',
+    ])
   })
 })
 
@@ -459,6 +466,7 @@ describe('the restart command', () => {
     expect(settled.map((one) => one.name).sort()).toEqual([
       'cd',
       'compact',
+      'exit',
       'new',
       'restart',
       'resume',
@@ -471,6 +479,50 @@ describe('the restart command', () => {
 
     const dropping = commands.filter((one) => one.dropsQueue === true)
 
-    expect(dropping.map((one) => one.name).sort()).toEqual(['new', 'restart', 'resume'])
+    expect(dropping.map((one) => one.name).sort()).toEqual(['exit', 'new', 'restart', 'resume'])
+  })
+})
+
+describe('the exit command', () => {
+  it('queues for when the turn settles, the way a quit would wait', async () => {
+    let quits = 0
+
+    const dispatched = await dispatchSubmission({
+      text: '/exit',
+      commands: localCommands(
+        handlers({
+          onQuit: () => {
+            quits += 1
+          },
+        }),
+      ),
+      skills: [],
+      working: true,
+    })
+
+    expect(dispatched.type).toBe(EDispatch.Queued)
+    if (dispatched.type !== EDispatch.Queued) return
+    expect(dispatched.entry.dropsQueue).toBe(true)
+    expect(dispatched.entry.losesWaiting).toBe(true)
+    expect(quits).toBe(0)
+  })
+
+  it('hands off to the same quit the ctrl+c chord runs', async () => {
+    let quits = 0
+
+    const dispatched = await dispatchSubmission({
+      text: '/exit',
+      commands: localCommands(
+        handlers({
+          onQuit: () => {
+            quits += 1
+          },
+        }),
+      ),
+      skills: [],
+    })
+
+    expect(dispatched).toEqual({ type: EDispatch.Ran })
+    expect(quits).toBe(1)
   })
 })

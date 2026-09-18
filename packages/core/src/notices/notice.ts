@@ -9,6 +9,10 @@ export enum ENoticePosition {
   Composer = 'composer',
 }
 
+export const NOTICE_MS = 2000
+
+export const NOTICE_WARN_MS = 6000
+
 export type Notice = {
   readonly key: string
   readonly text: string

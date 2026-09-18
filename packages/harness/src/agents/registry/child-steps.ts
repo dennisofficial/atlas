@@ -1,4 +1,10 @@
-import { EAgentStatus, type ClockPort, type EventDraft } from '@dltech/atlas-core'
+import {
+  EAgentStatus,
+  type ClockPort,
+  type EventDraft,
+  type ProviderIdentity,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import type { TurnOutcome } from '../../loop/turn-outcome'
 import type { TurnRunner } from '../../loop/turn-runner.port'
@@ -22,7 +28,7 @@ export class ChildSteps {
   private readonly roster: AgentRoster
   private readonly notices: AgentNoticeQueue
   private readonly clock: ClockPort
-  private readonly inFlight = new Set<Promise<void>>()
+  private readonly inFlight = new Map<ThreadId, Set<Promise<void>>>()
 
   constructor(args: {
     runners: ChildRunnerSource
@@ -60,12 +66,22 @@ export class ChildSteps {
       signal: child.abort.signal,
     }).then((status) => this.finish({ child, status }))
 
-    this.inFlight.add(settled)
-    void settled.finally(() => this.inFlight.delete(settled))
+    const forThread = this.inFlight.get(child.spawnedBy) ?? new Set<Promise<void>>()
+    this.inFlight.set(child.spawnedBy, forThread)
+    forThread.add(settled)
+    void settled.finally(() => {
+      forThread.delete(settled)
+      if (forThread.size === 0) this.inFlight.delete(child.spawnedBy)
+    })
   }
 
-  async whenSettled(): Promise<void> {
-    await Promise.all([...this.inFlight])
+  async whenSettled(args?: { threadId?: ThreadId | undefined }): Promise<void> {
+    if (args?.threadId === undefined) {
+      await Promise.all([...this.inFlight.values()].flatMap((settled) => [...settled]))
+      return
+    }
+
+    await Promise.all([...(this.inFlight.get(args.threadId) ?? [])])
   }
 
   private async stepped({
@@ -119,6 +135,13 @@ export class ChildSteps {
     this.roster.changed()
   }
 
+  private noteModel({ child, model }: { child: ChildState; model: ProviderIdentity }): void {
+    if (child.model?.id === model.id && child.model.modelId === model.modelId) return
+
+    child.model = model
+    this.roster.changed()
+  }
+
   private runnerFor({ child, agentType }: { child: ChildState; agentType: AgentType }): TurnRunner {
     return this.runners({
       agentType,
@@ -126,6 +149,7 @@ export class ChildSteps {
       projectDirectory: child.projectDirectory,
       observe: (drafts) => this.record({ child, drafts }),
       observeContext: ({ tokens, window }) => this.measure({ child, tokens, window }),
+      observeModel: (model) => this.noteModel({ child, model }),
       steering: () => child.pending.splice(0),
     })
   }

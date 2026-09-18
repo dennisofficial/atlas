@@ -4,9 +4,7 @@ import { EAgentStatus } from "@dltech/atlas-core";
 
 import {
   ESidebarTaskState,
-  ESpendReading,
   IDLE_SIDEBAR,
-  SPEND_UNAVAILABLE,
   type SidebarModel,
 } from "../src/store";
 import type { Hint } from "../src/ui/hint-layout";
@@ -63,34 +61,20 @@ export const FED_SIDEBAR: SidebarModel = {
       id: "s1",
       name: "test-writer",
       status: EAgentStatus.Running,
-      calls: 41,
-      lastTool: "edit",
       startedAt: "2026-01-01T00:00:00.000Z",
       endedAt: null,
-      state: "edit · 1m 4s",
-      spend: {
-        reading: ESpendReading.Counted,
-        totals: {
-          turns: 6,
-          steps: 12,
-          inputTokens: 48_200,
-          outputTokens: 3_100,
-          cacheReadTokens: 41_000,
-          cacheWriteTokens: 2_000,
-        },
-      },
+      state: "1m 4s",
+      model: "Claude Haiku 4.5",
       selected: false,
     },
     {
       id: "s2",
       name: "migration",
       status: EAgentStatus.Blocked,
-      calls: 3,
-      lastTool: "bash",
       startedAt: "2026-01-01T00:00:00.000Z",
       endedAt: null,
       state: "blocked · 12s",
-      spend: SPEND_UNAVAILABLE,
+      model: null,
       selected: false,
     },
   ],

@@ -713,7 +713,8 @@ role as the standing objective is an axis already carried by its position at the
 **Delegated spend is one conversation-level line, not a per-turn column.** A child's turns carry no
 parent `runId`, so attaching their cost to whichever parent turn happened to be open would be an
 invented attribution — and one that double-counts as soon as two children overlap. So
-`forThreadTree` surfaces at the foot of the transcript, for the conversation as a whole.
+`forThreadTree` surfaces in the session header, for the conversation as a whole: the counter up
+top is the session's cost, sub-agents included.
 
 **It is a tri-state rather than a number.** `ESpendReading` is `Counted` with totals or
 `Unavailable`, and a failed read renders "could not be totalled" rather than zero, because zero is
@@ -1192,10 +1193,10 @@ Atlas takes up a pair Claude Code refreshed first, and never pushes an older pai
 ## Which model answers
 
 **Two preferences, one picker.** A conversation carries the model it was last switched to, in
-`Thread.modelRef` / `Thread.modelEffort`; the settings page carries `model.id` / `model.effort`,
-which is only what a conversation with nothing of its own begins on. The switcher (`ctrl+p`,
-`/model`) writes the conversation. The `Default model` row on the settings page opens the same
-picker set on the default, and writes that instead.
+`Thread.modelRef` / `Thread.modelEffort`; the models settings page carries `model.id` /
+`model.effort`, which is only what a conversation with nothing of its own begins on. The switcher
+(`ctrl+p`, `/model`) writes the conversation. Every model row on the models page opens the same
+picker set on that row, and writes that instead.
 
 The split exists because the old arrangement had exactly one remembered pair for the whole machine,
 so two terminals on two conversations fought over it — switching one to Haiku switched the other on
@@ -1204,9 +1205,21 @@ worked rather than something that happened in it: rewinding past a switch should
 fork carries the parent's pair forward.
 
 Resolution order, most specific first: `--model` for the conversation the process launches on, then
-the thread's own pair, then the settings default, then `DEFAULT_MODEL_REF`. A thread naming a model
-that left the catalogue — or whose account is gone — falls back *whole*, so an effort never outlives
-the model that offered it.
+the thread's own pair, then the settings default, then `fallbackRef` — the shipped Anthropic
+default when its provider is set up, the first reachable provider's first card when it is not,
+because a default nobody can run is no default at all. A thread naming a model that left the
+catalogue — or whose account is gone — falls back *whole*, so an effort never outlives the model
+that offered it.
+
+**Every background call has a role, and every role has a row.** The tl;dr footer, the session
+titler and the nudge judge share the quick-calls row (`model.quickModel`); compaction has its own
+(`model.compactionModel`); sub-agents have theirs (`agents.subagentModel`), with one dynamically
+registered row per loaded agent type beneath it. A role left empty follows the default model —
+there is no hardcoded model id anywhere in the chain, because no provider can be assumed set up.
+Each call re-reads the settings, so a pick lands mid-session, and a role whose pick cannot run
+(provider account gone, model dropped from the catalogue) raises a standing notice that clears
+itself when the row is fixed. A first launch with no settings file and no reachable provider is
+held at an onboarding screen until the four picks are made.
 
 `useThreadModel` reads the default where a thread is adopted rather than following it, so raising
 the default reaches the next conversation instead of the one on screen. A conversation is written
@@ -1246,7 +1259,7 @@ atlas/
     harness/    the loop, hooks, tools, model adapters, credentials, store
     ui/         design tokens (pure TS, platform-agnostic) + web UI atoms + Storybook
   apps/
-    tui/        OpenTUI + React, and the composition root
+    tui/        OpenTUI + React; wraps the shared composition root with terminal bindings
     api/        Atlas Cloud backend (NestJS): auth, users, credential storage
   docs/
   deprecated/   frozen reference: the previous TUI, the never-run agent-engine and the codex-sdk
@@ -1266,6 +1279,16 @@ over HTTP. Its own conventions live in `apps/api/AGENTS.md`.
 into `core`, not to add a mock. `tui` never imports `store` or `providers` directly — it talks to
 `harness` through its ports, and the composition root is the only place that knows which
 implementation is bound.
+
+**The composition root is shared, and lives in `harness/src/composition`.** `composeHarness`
+assembles a whole session — container, settings policy, model selection, execution routing, sandbox,
+skills/MCP/agent types, credentials, turn wiring — knowing nothing about who asked. A surface (the
+TUI today; a serve mode or web app later) injects its half through `HarnessSurfaceBinding`: a
+`NoticePort` to report through, an optional `TldrFeed` to stream turn summaries into, and a `bind`
+callback for its own container registrations (the TUI's warp reporter and plugin assembly), which
+runs after every built-in registration and before the instance-cached `HookChain`/`ToolRegistry`
+first resolve. What `bind` returns rides out on `HarnessApp.surface`. The TUI's `composeAtlas` is
+that wrapper; anything UI-shaped — notice stores, plugin surfaces, argv parsing — stays in the app.
 
 A package boundary is worth it only where the compiler should enforce a dependency rule: `core` has
 no I/O, `harness` is importable without a terminal, `ui` imports nothing from Atlas. `store` and
@@ -1304,6 +1327,8 @@ packages/core/src/
   message/       Atlas's own message type (see below)
 
 packages/harness/src/
+  composition/   the shared composition root: composeHarness, surface binding, model/execution
+                 selection, sandbox and settings wiring, pending-input queues live in pending/
   loop/          runTurn, settlePending
   model/         ModelPort over AI SDK; the stream accumulator
   providers/     ProviderAdapter impls, one per vendor: anthropic, openai, openrouter, inference
@@ -1325,7 +1350,7 @@ packages/harness/src/
 
 apps/tui/src/
   main.tsx
-  composition/   the container bootstrap — the only place bindings are chosen
+  composition/   the surface wrapper: binds terminal stores into the shared root
   store/         ConversationStore: log + delta channel → useSyncExternalStore
   ui/            components, pages
   ui/markdown/            segmenter, prose, tables, fenced blocks; the renderer registry

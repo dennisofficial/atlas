@@ -9,13 +9,16 @@ import type { IGithubEnv } from './sections/github'
 import { githubEnvSchema } from './sections/github'
 import type { IRuntimeEnv } from './sections/runtime'
 import { runtimeEnvSchema } from './sections/runtime'
+import type { ISandboxEnv } from './sections/sandbox'
+import { sandboxEnvSchema } from './sections/sandbox'
 
 export interface IEnvConfig
   extends IRuntimeEnv,
     IAuthEnv,
     IDatabaseEnv,
     ICryptoEnv,
-    IGithubEnv {}
+    IGithubEnv,
+    ISandboxEnv {}
 
 export const envConfigValidation = Joi.object({
   ...runtimeEnvSchema,
@@ -23,4 +26,5 @@ export const envConfigValidation = Joi.object({
   ...databaseEnvSchema,
   ...cryptoEnvSchema,
   ...githubEnvSchema,
+  ...sandboxEnvSchema,
 })

@@ -40,6 +40,11 @@ build context) + `.do/app.yaml` (app spec: api service on port 3400 with a PRE_D
 job, region nyc). The only env the platform needs is `APP_TIER`, `MIGRATE_TIER` and
 `DOTENV_PRIVATE_KEY_API_PRODUCTION` — the tier file in the image carries the rest.
 
+The Dockerfile's runtime stage copies explicit paths (`dist`, `envs`, `prisma`, `scripts`,
+`prisma.config.ts`) — anything a package script loads by path must be added to that list or it
+exists locally and 404s in the deploy. CI does not build this image, so a missing copy only
+fails at deploy time.
+
 **`.do/app.yaml` is not read on push.** App Platform reads a spec file only when an app is
 created or updated through the API/CLI, so committing a change to it changes nothing on its own
 — the live spec is whatever was last applied. Migrations silently stopped running for exactly
@@ -84,6 +89,12 @@ a non-zero exit cancels the deployment with the previous release still serving. 
 is the only thing that applies schema in a deployed tier — never the app container, which holds
 no DDL rights by design. Locally the same command is `MIGRATE_TIER=production bun run
 db:migrate:deploy`.
+
+The job connects through `DIRECT_URL` (Neon's non-pooled endpoint) when the tier supplies one,
+falling back to `DATABASE_URL` — `prisma migrate deploy`'s session-level advisory lock does not
+survive the pooler: a killed job once left the lock pinned on a pooled backend and every later
+deploy timed out acquiring it (P1002). `scripts/migrate-deploy.mjs` also retries the deploy
+three times with a 20s backoff, so two overlapping PRE_DEPLOY jobs no longer fail a deployment.
 
 **Rollback does not unwind a migration.** App Platform can restore any of the last ten
 successful deployments, and it restores code, configuration and the app spec — never database

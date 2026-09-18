@@ -1,6 +1,6 @@
 import { ECommandGroup, ECommandKind, EExecutionLocation } from '@dltech/atlas-core'
 
-import { ECompactScope, scopeOfArgument } from '../compact-turn'
+import { ECompactScope, scopeOfArgument } from '@dltech/atlas-harness'
 import { ERenamed } from '../session-rename'
 import type { Renaming } from '../session-rename'
 import { reloadNotice, type SkillsReloaded } from '../skills-reload'
@@ -55,11 +55,12 @@ export const containerAskOfArgument = (
   if (asked === '') return EContainerAsk.Current
   if (asked === 'off' || asked === 'host') return EExecutionLocation.Host
   if (asked === 'docker') return EExecutionLocation.Docker
+  if (asked === 'cloud') return EExecutionLocation.Cloud
   return null
 }
 
 const unknownContainerArgument = (argumentText: string): string =>
-  `/container takes no argument to say where this conversation runs, or "off" | "docker" to move it — not ${argumentText.trim()}`
+  `/container takes no argument to say where this conversation runs, or "off" | "docker" | "cloud" to move it — not ${argumentText.trim()}`
 
 export type LocalCommandHandlers = {
   onChangeDirectory: (argumentText: string) => Promise<CommandEffect>
@@ -80,6 +81,7 @@ export type LocalCommandHandlers = {
   onReloadSkills: () => Promise<SkillsReloaded>
   onShowMcp: () => string
   onRestart: (() => void) | null
+  onQuit: () => void
 }
 
 const local = (command: Omit<LocalCommand, 'kind'>): LocalCommand => ({
@@ -118,8 +120,8 @@ export function localCommands(handlers: LocalCommandHandlers): readonly LocalCom
     }),
     local({
       name: 'container',
-      summary: 'move this conversation between the host and a docker container',
-      argumentHint: '[off|docker]',
+      summary: 'move this conversation between the host, a docker container and the cloud',
+      argumentHint: '[off|docker|cloud]',
       group: ECommandGroup.Session,
       timing: ECommandTiming.Immediate,
       echo: ECommandEcho.Output,
@@ -259,6 +261,19 @@ export function localCommands(handlers: LocalCommandHandlers): readonly LocalCom
       dropsQueue: true,
       run: () => {
         handlers.onNewConversation()
+        return RAN
+      },
+    }),
+    local({
+      name: 'exit',
+      summary: 'quit atlas',
+      group: ECommandGroup.Session,
+      timing: ECommandTiming.Settled,
+      echo: ECommandEcho.Silent,
+      dropsQueue: true,
+      losesWaiting: true,
+      run: () => {
+        handlers.onQuit()
         return RAN
       },
     }),

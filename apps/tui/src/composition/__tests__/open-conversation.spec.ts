@@ -1,5 +1,6 @@
 import {
   EAgentStatus,
+  EExecutionLocation,
   EKilledBy,
   toThreadId,
   toEventId,
@@ -18,8 +19,6 @@ import {
   type TurnLedgerPort,
   type TurnSpend,
 } from '@dltech/atlas-harness'
-
-import { ESpendReading } from '../../store'
 
 import { EOpenMode } from '../config'
 import { openConversation, type OpenOutcome, type OpenedConversation } from '../open-conversation'
@@ -140,6 +139,25 @@ describe('which conversation the app opens on', () => {
     })
 
     expect(opened(outcome).turns).toEqual([spent])
+  })
+
+  it('counts what its sub-agents spent alongside its own, because the counter is the session’s', async () => {
+    const threads = fakeThreadStore({ existing: [YESTERDAY] })
+
+    const outcome = await openConversation({
+      threads,
+      log: fakeEventLog([said('carry this on')]),
+      ledger: fakeLedger({
+        spent: [spent, byChild(FIRST_CHILD, 4_000), byChild(SECOND_CHILD, 2_000)],
+        children: { [YESTERDAY]: [FIRST_CHILD, SECOND_CHILD] },
+      }),
+      agents: fakeAgentRegistry(),
+      ids: fakeIds(),
+      workspace: HERE,
+      open: { mode: EOpenMode.Continue },
+    })
+
+    expect(opened(outcome).turns).toHaveLength(3)
   })
 
   it('still opens when the spend rollup refuses to answer, because the transcript is the product', async () => {
@@ -325,6 +343,71 @@ describe('which conversation the app opens on', () => {
     })
 
     expect(opened(outcome).threadId).toBe(YESTERDAY)
+  })
+
+  it('resumes by a title only the cloud remembers, when the local row predates the rename', async () => {
+    const remote = fakeThreadStore({
+      existing: [YESTERDAY],
+      titles: { [YESTERDAY]: 'Casual Greeting' },
+    })
+    await remote.chooseExecutionLocation({
+      threadId: YESTERDAY,
+      location: EExecutionLocation.Cloud,
+    })
+
+    const outcome = await openConversation({
+      threads: fakeThreadStore({
+        existing: [YESTERDAY],
+        titles: { [YESTERDAY]: 'Hello World Greeting' },
+      }),
+      remoteThreads: remote,
+      log: fakeEventLog([said('the renamed one')]),
+      ledger: fakeLedger(),
+      agents: fakeAgentRegistry(),
+      ids: fakeIds(),
+      workspace: HERE,
+      open: { mode: EOpenMode.Resume, threadId: 'casual-greeting' },
+    })
+
+    expect(opened(outcome).threadId).toBe(YESTERDAY)
+    expect(opened(outcome).executionLocation).toBe(EExecutionLocation.Cloud)
+  })
+
+  it('resumes a thread that only exists in the cloud at all', async () => {
+    const remote = fakeThreadStore({ existing: [YESTERDAY] })
+    await remote.chooseExecutionLocation({
+      threadId: YESTERDAY,
+      location: EExecutionLocation.Cloud,
+    })
+
+    const outcome = await openConversation({
+      threads: fakeThreadStore(),
+      remoteThreads: remote,
+      log: fakeEventLog(),
+      ledger: fakeLedger(),
+      agents: fakeAgentRegistry(),
+      ids: fakeIds(),
+      workspace: HERE,
+      open: { mode: EOpenMode.Resume, threadId: YESTERDAY },
+    })
+
+    expect(opened(outcome).threadId).toBe(YESTERDAY)
+    expect(opened(outcome).executionLocation).toBe(EExecutionLocation.Cloud)
+  })
+
+  it('still says no when neither store knows the conversation', async () => {
+    const outcome = await openConversation({
+      threads: fakeThreadStore(),
+      remoteThreads: fakeThreadStore(),
+      log: fakeEventLog(),
+      ledger: fakeLedger(),
+      agents: fakeAgentRegistry(),
+      ids: fakeIds(),
+      workspace: HERE,
+      open: { mode: EOpenMode.Resume, threadId: 'nobody-home' },
+    })
+
+    expect(outcome.ok).toBe(false)
   })
 
   it('resumes one recorded before conversations were attributed to a workspace', async () => {

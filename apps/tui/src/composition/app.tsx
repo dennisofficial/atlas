@@ -14,17 +14,17 @@ import React, {
 import {
   contextPressure,
   ECompactionAnchor,
+  EExecutionLocation,
   EForkMode,
   EKilledBy,
   launchWorktreeOf,
-  type EExecutionLocation,
   type EUsageWindow,
   type ModelCard,
 } from '@dltech/atlas-core'
-import { forkConversation, relocateSession, type DiscoveredSkill } from '@dltech/atlas-harness'
+import { EChannelConnection, forkConversation, relocateSession, settingModelRef, suggestedModelRef, type DiscoveredSkill } from '@dltech/atlas-harness'
 
 import { newestExpandableKey, type PendingSaid } from '../store'
-import { withContainer, withSections } from '../store/sidebar-model'
+import { withCloud, withContainer, withSections } from '../store/sidebar-model'
 import { accountMeterSpans } from '../ui/account-meters'
 import { accountOf, type AccountRow } from '../ui/accounts-model'
 import { isWaiting, type BackgroundWork } from '../ui/background-wait'
@@ -99,10 +99,14 @@ import { commandSpecs, dispatchSubmission, EContainerAsk, EDispatch, localComman
 import {
   currentLocationNotice,
   movedLocationNotice,
+  moveFailedNotice,
+  movingNotice,
   pendingSwitchNotice,
-  relocatedNotice,
 } from './container-notices'
-import { mcpReport } from './mcp-report'
+import { ELocalMoveStep } from './container-move'
+import { messageOf } from './error-text'
+import { useContainerMove } from './use-container-move'
+import { mcpReport } from '@dltech/atlas-harness'
 import { useComposerMenus } from './use-composer-menus'
 import { workspaceFileLoader } from './mentioned-files'
 import { useResolvedMentions } from './use-resolved-mentions'
@@ -111,7 +115,7 @@ import { reloadedSkills, type SkillsReloaded } from './skills-reload'
 import { globalBindings } from './global-bindings'
 import { applyTranscriptCovered } from '../ui/covered-store'
 import { OverlayStack } from './overlay-stack'
-import { unmeasuredWindowWarning } from './providers'
+import { unmeasuredWindowWarning } from '@dltech/atlas-harness'
 import { settleStaleness } from './auto-restart'
 import { checkForUpdate, sourceStalenessProbe, type SourceStaleness } from './update-check'
 import type { OpenedConversation } from './open-conversation'
@@ -125,6 +129,8 @@ import {
   type OverlayPresence,
 } from './overlay-presence'
 import { useOverlayKeys } from './use-overlay-keys'
+import { useModelChecks } from './use-model-checks'
+import { useOnboarding } from './use-onboarding'
 import { useSettings } from './use-settings'
 import { useServices } from './use-services'
 import { useShells } from './use-shells'
@@ -139,14 +145,27 @@ import { useAgents } from './use-agents'
 import { useAgentView } from './use-agent-view'
 import { SubagentTranscript } from './subagent-transcript'
 import { useAgentsPicker } from './use-agents-picker'
-import { EModelScope, useSwitcher } from './use-switcher'
+import { settingTarget, useSwitcher } from './use-switcher'
 import { useThreadModel } from './use-thread-model'
 import { useContainerGuard } from './use-container-guard'
 import { useContainerPill } from './use-container-pill'
-import { useLocationPill } from './use-location-pill'
+import { useLocationItems } from './use-location-items'
 import { useExecutionLocation } from './use-execution-location'
 import { useThreads } from './use-threads'
 import { useUsageMeters } from './use-usage-meters'
+import { createCloudBridge } from './cloud/create-bridge'
+import { createCloudSession, type CloudSession } from './cloud/cloud-session'
+import { descendFromCloud } from './cloud/descend'
+import { liftRefusal } from './cloud/lift-plan'
+import { openCloudConversation } from './cloud/cloud-app'
+import type { CloudBridge } from './cloud/cloud-bridge'
+import { useThreadRouter } from './use-thread-router'
+import type { CloudBridgeFactory, WorkspaceCapture } from './use-cloud-lift'
+import { useCloudLift } from './use-cloud-lift'
+import { captureWorkspace } from './cloud/workspace-snapshot'
+import { useCloudSession } from './use-cloud-session'
+import type { LiftedAttachment, LiftedSession } from './lifted-session'
+import { clientVersionHeader } from '../build/info'
 
 const STEER_PLACEHOLDER = 'Steer the turn'
 
@@ -187,6 +206,16 @@ const readoutOf = (args: {
   return { percent: pressure.percent, tokensUsed: pressure.used, meters: args.meters }
 }
 
+const liveBridge: CloudBridgeFactory = ({ url, token }) =>
+  createCloudBridge({ url, token, clientVersion: clientVersionHeader() })
+
+/**
+ * A lift is the conversation opened again as a cloud thread, not the running one rewired: the
+ * workspace remounts against the remote stores under a fresh key, so every hook below reads the
+ * cloud log from its first render rather than swapping ports out from under a live session. A
+ * reload — the channel saying its delta buffer could not resume — re-reads the durable log the
+ * same way, which is why it counts into the key.
+ */
 export function App(props: {
   app: AtlasApp
   opened: OpenedConversation
@@ -194,14 +223,69 @@ export function App(props: {
   covered?: boolean
   clipboard?: ClipboardImageReader
   onRestart?: () => void
+  createBridge?: CloudBridgeFactory
+  captureWorkspace?: WorkspaceCapture
 }): React.ReactNode {
   const registry = useMemo(() => createKeyRegistry(), [])
+  const [lifted, setLifted] = useState<LiftedSession | null>(null)
+  const [reopened, setReopened] = useState<OpenedConversation | null>(null)
+  const held = useRef<LiftedSession | null>(null)
+  held.current = lifted
+
+  const handleReload = useCallback(() => {
+    const attached = held.current
+    if (attached === null) return
+
+    void openCloudConversation({
+      app: attached.app,
+      threadId: attached.opened.threadId,
+    }).then((opened) =>
+      setLifted((current) =>
+        current === null ? current : { ...current, opened, reloads: current.reloads + 1 },
+      ),
+    )
+  }, [])
+
+  const handleLifted = useCallback(
+    (attachment: LiftedAttachment) => {
+      held.current?.session.close()
+
+      setLifted({
+        ...attachment,
+        session: createCloudSession({
+          channel: attachment.channel,
+          sandboxes: attachment.bridge.sandboxes,
+          onReload: handleReload,
+        }),
+        reloads: 0,
+      })
+    },
+    [handleReload],
+  )
+
+  const handleDescend = useCallback((opened: OpenedConversation) => {
+    held.current?.session.close()
+    setLifted(null)
+    setReopened(opened)
+  }, [])
 
   return (
     <KeyRegistryContext.Provider value={registry}>
       <Workspace
-        app={props.app}
-        opened={props.opened}
+        key={
+          lifted === null
+            ? `local:${reopened?.threadId ?? 'boot'}`
+            : `cloud:${lifted.opened.threadId}:${lifted.reloads}`
+        }
+        app={lifted?.app ?? props.app}
+        localApp={props.app}
+        opened={lifted?.opened ?? reopened ?? props.opened}
+        cloudSession={lifted?.session ?? null}
+        cloudBridge={lifted?.bridge ?? null}
+        createBridge={props.createBridge ?? liveBridge}
+        captureWorkspace={props.captureWorkspace ?? captureWorkspace}
+        onLifted={handleLifted}
+        onDescend={handleDescend}
         credentialNotice={props.credentialNotice ?? null}
         covered={props.covered === true}
         clipboard={props.clipboard ?? readClipboardImage}
@@ -213,11 +297,18 @@ export function App(props: {
 
 function Workspace(props: {
   app: AtlasApp
+  localApp: AtlasApp
   opened: OpenedConversation
   credentialNotice: string | null
   covered: boolean
   clipboard: ClipboardImageReader
   onRestart: (() => void) | null
+  cloudSession: CloudSession | null
+  cloudBridge: CloudBridge | null
+  createBridge: CloudBridgeFactory
+  captureWorkspace: WorkspaceCapture
+  onLifted: (attachment: LiftedAttachment) => void
+  onDescend: (opened: OpenedConversation) => void
 }): React.ReactNode {
   const renderer = useRenderer()
   const restarting = useRef(false)
@@ -237,10 +328,13 @@ function Workspace(props: {
   const usageVersion = useSyncExternalStore(props.app.usage.subscribe, props.app.usage.version)
   const accountsVersion = useSyncExternalStore(props.app.models.subscribe, props.app.models.version)
 
-  const chooseDefaultModel = useRef<(() => void) | null>(null)
-  const handleChooseDefaultModel = useCallback(() => chooseDefaultModel.current?.(), [])
+  const chooseModelSetting = useRef<((id: string) => void) | null>(null)
+  const handleChooseModelSetting = useCallback((id: string) => {
+    chooseModelSetting.current?.(id)
+  }, [])
 
-  const settings = useSettings({ app: props.app, onChooseModel: handleChooseDefaultModel })
+  const settings = useSettings({ app: props.app, onChooseModel: handleChooseModelSetting })
+  useModelChecks(props.app)
 
   useCopyOnSelect()
 
@@ -251,6 +345,8 @@ function Workspace(props: {
   const restoreUndone = useRef<(said: PendingSaid) => void>(() => undefined)
   const handleUndone = useCallback((said: PendingSaid) => restoreUndone.current(said), [])
 
+  const containerMove = useContainerMove()
+
   const conversation = useConversation({
     app: props.app,
     opened: props.opened,
@@ -259,7 +355,7 @@ function Workspace(props: {
     thinking: settings.thinking,
     tldrStatus: settings.tldrStatus,
     onUndone: handleUndone,
-    canWake: exitGuard.state === null,
+    canWake: exitGuard.state === null && containerMove.move === null,
   })
 
   const tokens = useDraftTokens({
@@ -298,8 +394,15 @@ function Workspace(props: {
     stored: conversation.executionLocation,
     started: conversation.started,
   })
-  const containerPill = useContainerPill({ app: props.app })
-  const locationPill = useLocationPill({ app: props.app })
+  const cloudHealth = useCloudSession({ session: props.cloudSession })
+  const containerPill = useContainerPill({
+    app: props.app,
+    connection: cloudHealth?.connection ?? null,
+  })
+  const locationItems = useLocationItems({
+    app: props.app,
+    connection: cloudHealth?.connection ?? null,
+  })
 
   const { selection } = threadModel
 
@@ -378,12 +481,24 @@ function Workspace(props: {
     conversation.handleNewConversation()
   }, [conversation, draft])
 
+  const heldSettingRef = useCallback(
+    (id: string) => {
+      const settled = props.app.settings.snapshot().resolution
+      return (
+        settingModelRef({ id, settled, catalogue: props.app.models }) ??
+        suggestedModelRef({ id, settled, catalogue: props.app.models })
+      )
+    },
+    [props.app],
+  )
+
   const switcher = useSwitcher({
     catalogue: props.app.models,
     accountsVersion,
     active: selection.ref,
     effort: selection.effort,
     fallback: threadModel.fallback,
+    settingRef: heldSettingRef,
     favourites: settings.modelFavourites,
     onPick: threadModel.handlePicked,
     onPin: settings.handlePinModels,
@@ -392,8 +507,11 @@ function Workspace(props: {
   const openSwitcher = switcher.handleOpen
 
   useEffect(() => {
-    chooseDefaultModel.current = () => openSwitcher(EModelScope.Default)
-  }, [openSwitcher])
+    chooseModelSetting.current = (id) => {
+      const definition = props.app.settings.definitions.find((one) => one.id === id)
+      openSwitcher(settingTarget({ id, label: definition?.label ?? id }))
+    }
+  }, [openSwitcher, props.app.settings.definitions])
 
   const shells = useShells({ app: props.app, threadId: conversation.threadId })
   const services = useServices({ app: props.app })
@@ -447,12 +565,14 @@ function Workspace(props: {
     configureNotices({ ttlMs: settings.noticeSeconds * 1000 })
   }, [settings.noticeSeconds])
 
+  const routeRef = useRef<(threadId: string) => void>(() => undefined)
+
   const handleOpenThread = useCallback(
     (threadId: string) => {
       draft.clear()
-      conversation.handleOpenThread(threadId)
+      routeRef.current(threadId)
     },
-    [conversation, draft],
+    [draft],
   )
 
   const agentView = useAgentView({
@@ -501,7 +621,7 @@ function Workspace(props: {
   const sidebarVisible = !welcome && sidebarShown({ layout, peeking })
   const overlay = sidebarVisible && !wide
 
-  const repoRoot = props.app.workspace.repo ?? props.app.config.cwd
+  const repoRoot = conversation.repo ?? conversation.projectDirectory
   const sidebarWorktree =
     conversation.activeWorktree?.path ??
     (conversation.projectDirectory.startsWith(`${repoRoot}/`)
@@ -519,10 +639,29 @@ function Workspace(props: {
   const chromeWidth = chromeWidthOf({ width, sidebarWidth, docked })
   const composerWidth = welcome ? welcomeCells({ width: chromeWidth }) : chromeWidth
 
+  const router = useThreadRouter({
+    localApp: props.localApp,
+    cloudBridge: props.cloudBridge,
+    cloudSession: props.cloudSession,
+    createBridge: props.createBridge,
+    containerMove,
+    working: conversation.working,
+    activeThreadId: conversation.threadId,
+    opened: props.opened,
+    onLifted: props.onLifted,
+    onDescend: props.onDescend,
+    onLocalSwap: conversation.handleOpenThread,
+  })
+
+  useEffect(() => {
+    routeRef.current = router.handleOpen
+  }, [router])
+
   const threads = useThreads({
     app: props.app,
     activeThreadId: conversation.threadId,
     onPick: handleOpenThread,
+    listing: router.listing,
   })
 
   /**
@@ -610,6 +749,12 @@ function Workspace(props: {
     accounts.handleOpen(notice ?? undefined)
   }, [accounts])
 
+  const onboarding = useOnboarding({
+    app: props.app,
+    onChooseModel: handleChooseModelSetting,
+    onOpenAccounts: handleOpenAccounts,
+  })
+
   const handleRewindChoice = useCallback(
     ({ point, verb }: RewindChoice) => {
       if (verb === ERewindVerb.Fork) {
@@ -681,17 +826,76 @@ function Workspace(props: {
     [conversation.threadId, props.app],
   )
 
+  const cloudLift = useCloudLift({
+    app: props.app,
+    threadId: conversation.threadId,
+    started: conversation.started,
+    midTurn: conversation.turnInFlight,
+    handleInterrupt: conversation.handleInterruptForMove,
+    whenSettled: conversation.whenSettled,
+    projectDirectory: conversation.projectDirectory,
+    setLocation: execution.handleSet,
+    createBridge: props.createBridge,
+    capture: props.captureWorkspace,
+    move: containerMove,
+    onLifted: props.onLifted,
+  })
+
   const applyContainerSwitch = useCallback(
     (target: EExecutionLocation) => {
+      if (target === EExecutionLocation.Cloud) {
+        cloudLift.handleLift()
+        return
+      }
+
+      if (props.cloudSession !== null && props.cloudBridge !== null) {
+        const { channel } = props.cloudSession
+        const bridge = props.cloudBridge
+        void descendFromCloud({
+          threadId: conversation.threadId,
+          target,
+          midTurn: conversation.turnInFlight(),
+          bridge,
+          channel,
+          localApp: props.localApp,
+          move: containerMove,
+        })
+          .then((opened) => {
+            containerMove.handleSettle()
+            props.onDescend(opened)
+          })
+          .catch((error: unknown) => {
+            const reason = moveFailedNotice({
+              target,
+              from: EExecutionLocation.Cloud,
+              detail: messageOf(error),
+            })
+            containerMove.handleFail(reason)
+            notify({
+              key: 'container-switch',
+              tone: ENoticeTone.Warn,
+              ttlMs: NOTICE_WARN_MS,
+              text: reason,
+            })
+          })
+        return
+      }
+
+      containerMove.handleBegin({ target })
       const threadId = conversation.threadId
       for (const shell of containerBlockers()) {
         props.app.shells.kill({ shellId: shell.shellId, by: EKilledBy.ContainerSwitch, threadId })
       }
 
+      containerMove.handleAdvance(ELocalMoveStep.Flipping)
       const from = execution.location
       execution.handleSet(target)
-      if (!conversation.started) return
+      if (!conversation.started) {
+        containerMove.handleSettle()
+        return
+      }
 
+      containerMove.handleAdvance(ELocalMoveStep.Relocating)
       void relocateSession({
         threadId,
         from,
@@ -701,21 +905,37 @@ function Workspace(props: {
         services: props.app.services,
         agents: props.app.agents,
       })
-        .then((moved) =>
+        .then(() => {
+          containerMove.handleSettle()
+          void conversation.refresh()
+        })
+        .catch((error: unknown) => {
+          execution.handleSet(from)
+          const reason = moveFailedNotice({ target, from, detail: messageOf(error) })
+          containerMove.handleFail(reason)
           notify({
             key: 'container-switch',
             tone: ENoticeTone.Warn,
             ttlMs: NOTICE_WARN_MS,
-            text: relocatedNotice({
-              target,
-              stoppedServices: moved.stoppedServices.length,
-              relocatedAgents: moved.relocatedAgents.length,
-            }),
-          }),
-        )
-        .catch(() => undefined)
+            text: reason,
+          })
+        })
     },
-    [containerBlockers, conversation.threadId, conversation.started, execution, props.app],
+    [
+      cloudLift,
+      containerBlockers,
+      containerMove,
+      conversation.refresh,
+      conversation.threadId,
+      conversation.started,
+      conversation.turnInFlight,
+      execution,
+      props.app,
+      props.localApp,
+      props.cloudSession,
+      props.cloudBridge,
+      props.onDescend,
+    ],
   )
 
   const containerGuard = useContainerGuard({ onSwitch: applyContainerSwitch })
@@ -753,6 +973,7 @@ function Workspace(props: {
           working: conversation.working,
           interrupting: conversation.turn.interrupting,
           compacting: conversation.compacting !== null,
+          containerMoveOpen: containerMove.move !== null,
           approvalOpen: conversation.approval.state !== null,
           exitGuardOpen: exitGuard.state !== null,
           containerGuardOpen: containerGuard.state !== null,
@@ -768,6 +989,7 @@ function Workspace(props: {
       conversation,
       exitGuard.state,
       containerGuard.state,
+      containerMove.move,
       shells.running,
       agents.running,
       services.running,
@@ -798,6 +1020,14 @@ function Workspace(props: {
     (asked: EExecutionLocation | EContainerAsk): string => {
       if (asked === EContainerAsk.Current) return currentLocationNotice(execution.location)
       if (asked === execution.location) return currentLocationNotice(execution.location)
+      if (containerMove.move !== null) {
+        return 'a move is already underway — wait for it to settle'
+      }
+
+      if (asked === EExecutionLocation.Cloud) {
+        const refusal = liftRefusal({ compacting: conversation.compacting !== null })
+        if (refusal !== null) return refusal
+      }
 
       const blockers = containerBlockers()
       if (blockers.length > 0) {
@@ -806,9 +1036,21 @@ function Workspace(props: {
       }
 
       applyContainerSwitch(asked)
-      return movedLocationNotice(asked)
+      if (!conversation.started && asked !== EExecutionLocation.Cloud) {
+        return movedLocationNotice(asked)
+      }
+
+      return movingNotice(asked)
     },
-    [applyContainerSwitch, containerBlockers, containerGuard, execution],
+    [
+      applyContainerSwitch,
+      containerBlockers,
+      containerGuard,
+      containerMove.move,
+      conversation.compacting,
+      conversation.started,
+      execution,
+    ],
   )
 
   useEffect(() => {
@@ -817,6 +1059,20 @@ function Workspace(props: {
 
     containerGuard.handleApply()
   }, [containerGuard, shells.running])
+
+  const handleQuit = useCallback(() => {
+    if (conversation.working) {
+      conversation.handleInterrupt()
+      return
+    }
+
+    if (shells.running + agents.running + services.running > 0) {
+      exitGuard.handleOpen()
+      return
+    }
+
+    renderer.destroy()
+  }, [agents.running, conversation, exitGuard, renderer, services.running, shells])
 
   const commands = useMemo(
     () =>
@@ -839,6 +1095,7 @@ function Workspace(props: {
         onReloadSkills: handleReloadSkills,
         onShowMcp: () => mcpReport({ servers: props.app.mcp() }),
         onRestart: props.onRestart === null ? null : handleRestart,
+        onQuit: handleQuit,
       }),
     [
       agentsPicker.handleOpen,
@@ -848,6 +1105,7 @@ function Workspace(props: {
       handleContainer,
       handleNewConversation,
       handleOpenAccounts,
+      handleQuit,
       handleReloadSkills,
       handleRestart,
       props.app,
@@ -1044,13 +1302,10 @@ function Workspace(props: {
         width: chromeWidth,
         model: card?.label ?? modelLabel(selection.ref.modelId),
         effort: selection.effort,
-        items:
-          locationPill === null
-            ? surfaces.footerItems
-            : [locationPill, ...surfaces.footerItems],
+        items: [...locationItems, ...surfaces.footerItems],
         context: readout,
       }),
-    [card, chromeWidth, locationPill, readout, selection.effort, selection.ref, surfaces.footerItems],
+    [card, chromeWidth, locationItems, readout, selection.effort, selection.ref, surfaces.footerItems],
   )
 
   const footerStrip = useFooterStrip({ items: footerRow.instruments.items, draft })
@@ -1085,20 +1340,6 @@ function Workspace(props: {
   useEffect(() => {
     setPeeking((open) => peekInForce({ layout, peeking: open }))
   }, [layout])
-
-  const handleQuit = useCallback(() => {
-    if (conversation.working) {
-      conversation.handleInterrupt()
-      return
-    }
-
-    if (shells.running + agents.running + services.running > 0) {
-      exitGuard.handleOpen()
-      return
-    }
-
-    renderer.destroy()
-  }, [agents.running, conversation, exitGuard, renderer, services.running, shells])
 
   useEffect(() => {
     if (exitGuard.state !== null && shells.running + agents.running + services.running === 0) {
@@ -1149,6 +1390,8 @@ function Workspace(props: {
 
   const { approval, rewindConfirm } = conversation
   const compacting = conversation.compacting !== null
+  const moving = containerMove.move !== null
+  const moveFailed = containerMove.move?.failure != null
 
   const overlays = useMemo(
     (): readonly OverlayPresence[] => [
@@ -1157,15 +1400,22 @@ function Workspace(props: {
       covering(rewindConfirm.state !== null, rewindConfirm.handleKey),
       covering(approval.state !== null, approval.handleKey),
       covering(rewind.state !== null, rewind.handleKey),
-      covering(switcher.state !== null, switcher.handleKey),
+      { ...covering(switcher.state !== null, switcher.handleKey), porous: true },
       covering(shells.state !== null, shells.handleKey),
       covering(services.state !== null, services.handleKey),
       covering(accounts.state !== null, accounts.handleKey),
       covering(threads.state !== null, threads.handleKey),
       covering(agentsPicker.state !== null, agentsPicker.handleKey),
+      { ...covering(onboarding.state !== null, onboarding.handleKey), porous: true },
       { ...covering(settings.state !== null, settings.handleKey), porous: true },
       { ...covering(footerStrip.state !== null, footerStrip.handleKey), coversTranscript: false },
       { open: compacting, coversComposer: true, coversTranscript: true },
+      {
+        open: moving,
+        handleKey: moveFailed ? containerMove.handleKey : undefined,
+        coversComposer: true,
+        coversTranscript: true,
+      },
       { open: overlay, coversComposer: true, coversTranscript: false },
     ],
     [
@@ -1176,10 +1426,15 @@ function Workspace(props: {
       approval.handleKey,
       approval.state,
       compacting,
+      containerMove.handleKey,
       exitGuard.handleKey,
       exitGuard.state,
       footerStrip.handleKey,
       footerStrip.state,
+      moveFailed,
+      moving,
+      onboarding.handleKey,
+      onboarding.state,
       overlay,
       rewind.handleKey,
       rewind.state,
@@ -1264,7 +1519,10 @@ function Workspace(props: {
   const sidebarModel = useMemo(
     () =>
       withSections({
-        model: withContainer({ model: agents.sidebar, container: containerPill }),
+        model: withCloud({
+          model: withContainer({ model: agents.sidebar, container: containerPill.container }),
+          cloud: containerPill.cloud,
+        }),
         sections: surfaces.sidebarSections,
       }),
     [agents.sidebar, containerPill, surfaces.sidebarSections],
@@ -1303,6 +1561,10 @@ function Workspace(props: {
                 now={conversation.now}
                 cwd={conversation.projectDirectory}
                 turn={conversation.turn}
+                reconnecting={
+                  cloudHealth?.connection?.state === EChannelConnection.Reconnecting ||
+                  cloudHealth?.connection?.state === EChannelConnection.Connecting
+                }
                 sends={sends}
                 pending={conversation.pending}
                 background={background}
@@ -1405,6 +1667,7 @@ function Workspace(props: {
           services={services}
           agents={agents}
           settings={settings}
+          onboarding={onboarding}
           accounts={accounts}
           threads={threads}
           agentsPicker={agentsPicker}
@@ -1414,6 +1677,9 @@ function Workspace(props: {
           exitGuard={exitGuard}
           containerGuard={containerGuard}
           compacting={conversation.compacting}
+          containerMove={containerMove.move}
+          containerMoveNow={containerMove.now}
+          onDismissContainerMove={containerMove.handleDismiss}
           now={conversation.now}
         />
       </SelectionSurface>

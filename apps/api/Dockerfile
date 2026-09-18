@@ -26,6 +26,32 @@ COPY apps/api ./apps/api
 COPY tsconfig.base.json ./tsconfig.base.json
 RUN cd apps/api && bun run build
 
+FROM ${BUN_IMAGE} AS serve-deps
+WORKDIR /app
+COPY package.json bun.lock bunfig.toml ./
+COPY apps/api/package.json ./apps/api/
+COPY apps/tui/package.json ./apps/tui/
+COPY apps/web/package.json ./apps/web/
+COPY packages/core/package.json ./packages/core/
+COPY packages/harness/package.json ./packages/harness/
+COPY packages/ui/package.json ./packages/ui/
+RUN --mount=type=cache,id=bun-install-cache,target=/root/.bun/install/cache \
+  bun install --frozen-lockfile --ignore-scripts --os='*' --cpu='*' --filter '@dltech/atlas-harness'
+
+# The target is pinned, not host-derived: an arm64 builder (every macOS laptop) must not
+# ship a binary the linux/amd64 sandbox cannot exec.
+FROM ${BUN_IMAGE} AS serve-binary
+WORKDIR /app
+COPY --from=serve-deps /app/node_modules ./node_modules
+COPY --from=serve-deps /app/packages/core/node_modules ./packages/core/node_modules
+COPY --from=serve-deps /app/packages/harness/node_modules ./packages/harness/node_modules
+COPY packages/core ./packages/core
+COPY packages/harness ./packages/harness
+COPY tsconfig.base.json ./tsconfig.base.json
+RUN cd packages/harness && bun run db:ensure \
+  && bun run build:serve -- --target bun-linux-x64 --outfile bin/atlas-serve \
+  && sha256sum bin/atlas-serve | cut -d' ' -f1 > bin/atlas-serve.sha256
+
 FROM node:22.13.1-slim AS runtime
 RUN apt-get update -y && apt-get install -y --no-install-recommends openssl \
   && rm -rf /var/lib/apt/lists/*
@@ -37,6 +63,9 @@ COPY --from=builder /app/apps/api/prisma.config.ts ./apps/api/prisma.config.ts
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/envs ./apps/api/envs
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
+COPY --from=serve-binary /app/packages/harness/bin/atlas-serve /app/atlas-serve
+COPY --from=serve-binary /app/packages/harness/bin/atlas-serve.sha256 /app/atlas-serve.sha256
+COPY --from=builder /app/apps/api/scripts ./apps/api/scripts
 
 WORKDIR /app/apps/api
 ENV NODE_ENV=production

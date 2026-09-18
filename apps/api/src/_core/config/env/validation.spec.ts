@@ -38,6 +38,18 @@ describe('envConfigValidation', () => {
     expect(error?.message).toContain('DATABASE_URL')
   })
 
+  it('defaults the sandbox lifetimes', () => {
+    const { error, value } = validate(VALID_ENV)
+    expect(error).toBeUndefined()
+    expect(value.SANDBOX_TTL_MINUTES).toBe(30)
+    expect(value.SANDBOX_MAX_SESSION_MINUTES).toBe(240)
+  })
+
+  it('boots a deployed tier that has no Vercel credentials', () => {
+    const { error } = validate({ ...VALID_ENV, APP_TIER: 'production' })
+    expect(error).toBeUndefined()
+  })
+
   it('coerces PORT to a number', () => {
     const { error, value } = validate({ ...VALID_ENV, PORT: '3600' })
     expect(error).toBeUndefined()

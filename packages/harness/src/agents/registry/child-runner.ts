@@ -4,6 +4,7 @@ import {
   type EventDraft,
   type EventLogPort,
   type ModelPort,
+  type ProviderIdentity,
   type ThreadId,
 } from '@dltech/atlas-core'
 
@@ -83,6 +84,7 @@ export type ChildRunnerRequest = {
   projectDirectory: string | undefined
   observe: (drafts: readonly EventDraft[]) => void
   observeContext: (args: { tokens: number; window: number }) => void
+  observeModel: (model: ProviderIdentity) => void
   steering: () => readonly SteerMessage[]
 }
 
@@ -111,10 +113,13 @@ export function buildChildRunner({
   projectDirectory,
   observe,
   observeContext,
+  observeModel,
   steering,
 }: ChildRunnerRequest & { deps: ChildRunnerDeps }): TurnRunner {
   const registry = withoutSessionShapingTools(toolRegistryFor({ registry: deps.tools, agentType }))
   const { turn } = deps
+  const model = deps.modelFor === undefined ? turn.model : deps.modelFor({ agentType })
+  observeModel(model.identity)
 
   return new PublishingTurnRunner({
     channel: deps.channel,
@@ -123,7 +128,7 @@ export function buildChildRunner({
       launchDirectory: projectDirectory ?? turn.launchDirectory,
       log: observingLog({ log: turn.log, threadId, observe }),
       onContext: observeContext,
-      model: deps.modelFor === undefined ? turn.model : deps.modelFor({ agentType }),
+      model,
       tools: () => registry.declarations(),
       dispatch: new HookedToolDispatcher({
         registry,

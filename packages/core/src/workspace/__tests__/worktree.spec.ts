@@ -8,6 +8,7 @@ import {
   homeDirectoryAfter,
   homeDirectoryOf,
   projectDirectoryOf,
+  repoOf,
 } from '../worktree'
 
 const LAUNCH = '/Users/dev/atlas'
@@ -42,7 +43,8 @@ const exited = (args: { path: string; action: EWorktreeExit; returnTo?: string }
     ...(args.returnTo === undefined ? {} : { returnTo: args.returnTo }),
   })
 
-const moved = (path: string) => event({ type: 'directory-changed', path })
+const moved = (path: string, repo?: string | null) =>
+  event({ type: 'directory-changed', path, ...(repo === undefined ? {} : { repo }) })
 
 describe('which worktree the session is in', () => {
   it('is in none until one is entered', () => {
@@ -208,6 +210,36 @@ describe('the home directory', () => {
       home: LAUNCH,
     })
     expect(movedHome).toBe('/Users/dev/other')
+  })
+})
+
+describe('which repo the session belongs to', () => {
+  it('is the launch repo until the session moves', () => {
+    expect(repoOf({ events: [said('hello')], launchRepo: LAUNCH })).toBe(LAUNCH)
+  })
+
+  it('is the repo the latest move recorded', () => {
+    const events = [moved('/Users/dev/other', '/Users/dev')]
+
+    expect(repoOf({ events, launchRepo: LAUNCH })).toBe('/Users/dev')
+  })
+
+  it('is none once the session moves out of any repo', () => {
+    const events = [moved('/Users/dev/other', null)]
+
+    expect(repoOf({ events, launchRepo: LAUNCH })).toBeNull()
+  })
+
+  it('follows only the latest move', () => {
+    const events = [moved('/Users/dev/other', '/Users/dev'), moved('/Users/dev/elsewhere', null)]
+
+    expect(repoOf({ events, launchRepo: LAUNCH })).toBeNull()
+  })
+
+  it('keeps the launch repo for a move recorded before moves carried one', () => {
+    const events = [moved('/Users/dev/other')]
+
+    expect(repoOf({ events, launchRepo: LAUNCH })).toBe(LAUNCH)
   })
 })
 

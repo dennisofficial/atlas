@@ -1,15 +1,6 @@
 export { agentEndedLine, agentEndingFailed, type AgentEndingRow } from './agent-ended-line'
 export { createConversationStore, type ConversationStore } from './conversation-store'
 export { sameEvents } from './same-log'
-export {
-  agentSpendOf,
-  ESpendReading,
-  NOTHING_COUNTED,
-  NOTHING_SPENT,
-  SPEND_UNAVAILABLE,
-  type AgentSpend,
-  type SpendTotals,
-} from './agent-spend'
 export { deriveTranscript } from './derive-transcript'
 export { durableEntries } from './durable-entries'
 export { isExpandable, newestExpandableKey } from './expandable'
@@ -24,11 +15,12 @@ export {
 } from './in-flight-steps'
 export {
   createPendingQueue,
+  createPendingQueues,
   type PendingMessage,
   type PendingQueue,
+  type PendingQueues,
   type PendingSaid,
-} from './pending-queue'
-export { createPendingQueues, type PendingQueues } from './pending-queues'
+} from '@dltech/atlas-harness'
 export { EPendingKind, pendingRows, type PendingRow } from './pending-rows'
 export {
   shellAwaitingInputLine,
@@ -95,6 +87,7 @@ export {
   type SidebarTask,
   type SidebarTeammate,
 } from './sidebar-model'
+export { cloudPillOf, isResting, type SidebarCloud } from './cloud-state'
 export { type SidebarCrewFold, type SidebarSubagent } from './subagent-row'
 export {
   IDLE_PROGRESS,

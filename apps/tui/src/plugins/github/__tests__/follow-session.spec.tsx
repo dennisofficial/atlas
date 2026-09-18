@@ -108,6 +108,23 @@ const branchRowOf = (probe: Probe): string | null => {
   return flattenedSpans({ row, cells: WIDE }).map((span) => span.text).join('')
 }
 
+const BRANCH_SETTLE_MS = 10_000
+
+const branchRowSettling = async (args: {
+  probe: Probe
+  flush: () => Promise<void>
+  to: string
+}): Promise<string | null> => {
+  const deadline = Date.now() + BRANCH_SETTLE_MS
+
+  for (;;) {
+    const row = branchRowOf(args.probe)
+    if (row === args.to || Date.now() >= deadline) return row
+
+    await args.flush()
+  }
+}
+
 /**
  * The whole runtime path the app takes, with nothing faked but the model: the plugin registers
  * through the same loader and the same chain resolver compose uses, the surface renders for real,
@@ -167,14 +184,14 @@ describe('the github section following the session, through the real wiring', ()
     const { probe, worktree, chain, flush, done } = await composed()
 
     try {
-      expect(branchRowOf(probe)).toBe('main')
+      expect(await branchRowSettling({ probe, flush, to: 'main' })).toBe('main')
 
       await act(async () => {
         await chain.beforeTurn({ threadId: THREAD, projectDirectory: worktree })
       })
       await flush()
 
-      expect(branchRowOf(probe)).toBe('dennis/thing')
+      expect(await branchRowSettling({ probe, flush, to: 'dennis/thing' })).toBe('dennis/thing')
     } finally {
       await done()
     }
@@ -184,14 +201,14 @@ describe('the github section following the session, through the real wiring', ()
     const { probe, worktree, chain, flush, done } = await composed()
 
     try {
-      expect(branchRowOf(probe)).toBe('main')
+      expect(await branchRowSettling({ probe, flush, to: 'main' })).toBe('main')
 
       await act(async () => {
         await chain.onThreadOpen({ threadId: THREAD, projectDirectory: worktree })
       })
       await flush()
 
-      expect(branchRowOf(probe)).toBe('dennis/thing')
+      expect(await branchRowSettling({ probe, flush, to: 'dennis/thing' })).toBe('dennis/thing')
     } finally {
       await done()
     }
@@ -201,23 +218,21 @@ describe('the github section following the session, through the real wiring', ()
     const { probe, worktree, chain, flush, done } = await composed()
 
     try {
-      expect(branchRowOf(probe)).toBe('main')
+      expect(await branchRowSettling({ probe, flush, to: 'main' })).toBe('main')
 
       await act(async () => {
         for (const hook of chain.afterTool) {
           await hook.run({ call: callNamed('enter_worktree'), result: entered(worktree), projectDirectory: '/repo', signal: NEVER_ABORTED })
         }
       })
-      await flush()
-      expect(branchRowOf(probe)).toBe('dennis/thing')
+      expect(await branchRowSettling({ probe, flush, to: 'dennis/thing' })).toBe('dennis/thing')
 
       await act(async () => {
         for (const hook of chain.afterTool) {
           await hook.run({ call: callNamed('exit_worktree'), result: exited(worktree), projectDirectory: '/repo', signal: NEVER_ABORTED })
         }
       })
-      await flush()
-      expect(branchRowOf(probe)).toBe('main')
+      expect(await branchRowSettling({ probe, flush, to: 'main' })).toBe('main')
     } finally {
       await done()
     }

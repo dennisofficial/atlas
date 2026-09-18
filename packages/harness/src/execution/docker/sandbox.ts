@@ -2,11 +2,14 @@ import { createHash } from 'node:crypto'
 
 import { mountBind, type Mount } from '../image/mounts'
 import { dockerfileImageReference, ensureBuiltImage, type DockerfileBuild } from '../image/build'
+import { gitConfigEnv } from './git-config-env'
 import {
   declaredMountsDrift,
   declaredMountsLabel,
   encodeDeclaredMounts,
+  encodeLaunchConfig,
   envDrift,
+  launchConfigLabel,
   missingIdentityMounts,
 } from './mount-drift'
 import { publishPlanFor } from './ports'
@@ -104,17 +107,7 @@ export function sandboxCreateBody(config: SandboxConfig): CreateContainerBody {
   for (const subtree of config.atlasHomeSubtrees ?? []) binds.push(mountBind(subtree))
   for (const mount of config.mounts ?? []) binds.push(mountBind(mount))
 
-  // Scoped safe.directory wildcards require recent Git; Debian Bookworm's Git 2.39 ignores them.
-  // https://github.com/git/git/blob/v2.46.0/Documentation/config/safe.txt
-  env.push(
-    'GIT_CONFIG_COUNT=3',
-    'GIT_CONFIG_KEY_0=gpg.program',
-    'GIT_CONFIG_VALUE_0=gpg',
-    'GIT_CONFIG_KEY_1=safe.directory',
-    `GIT_CONFIG_VALUE_1=${config.worktree}`,
-    'GIT_CONFIG_KEY_2=safe.directory',
-    `GIT_CONFIG_VALUE_2=${config.worktree.replace(/\/$/, '')}/*`,
-  )
+  env.push(...gitConfigEnv({ worktree: config.worktree, githubToken: config.githubToken }))
   if (config.gpgAgentExtraSocket !== undefined) {
     // gpg derives its agent socket from GNUPGHOME and offers no path override, so the forwarded
     // agent-extra-socket has to land at the standard agent path of whichever home gpg is given.
@@ -145,6 +138,7 @@ export function sandboxCreateBody(config: SandboxConfig): CreateContainerBody {
     Labels: {
       [worktreeLabel(prefix)]: config.worktree,
       [declaredMountsLabel(prefix)]: encodeDeclaredMounts(config.mounts ?? []),
+      [launchConfigLabel(prefix)]: encodeLaunchConfig({ config, env, binds }),
     },
     ExposedPorts: Object.fromEntries(published.map((one) => [`${one.containerPort}/tcp`, {}])),
     HostConfig: {
@@ -224,14 +218,19 @@ export async function ensureSandbox(args: {
     const drifted = declaredMountsDrift({ config: args.config, details, prefix })
     const imageChanged = details.config.image !== wanted
     const envChanged = envDrift({ declared: args.config.env ?? {}, actual: details.config.env })
+    const launchChanged =
+      details.config.labels[launchConfigLabel(prefix)] !==
+      sandboxCreateBody({ ...args.config, image: wanted }).Labels?.[launchConfigLabel(prefix)]
 
-    if (drifted || imageChanged || envChanged) {
+    if (drifted || imageChanged || envChanged || launchChanged) {
       await args.engine.removeContainer({ id: existing.id })
       const why = drifted
         ? 'the declared mounts changed since it was created'
         : imageChanged
           ? `the image changed to ${wanted} since it was created`
-          : 'the declared env changed since it was created'
+          : envChanged
+            ? 'the declared env changed since it was created'
+            : 'its launch config changed since it was created'
       recreated.push(
         details.state.running
           ? `recreated ${name}: ${why} — it was running, so its shells were killed; anything long-lived in there needs a restart`

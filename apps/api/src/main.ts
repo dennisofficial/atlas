@@ -6,6 +6,7 @@ import type { Express } from 'express'
 import helmet from 'helmet'
 import { envConfigValidation } from './_core/config/env/validation'
 import { hydrateEnvFromTierFile } from './api/hydrate-env'
+import { WORKSPACE_BODY_LIMIT } from './api/sandboxes/workspace-spec'
 
 const VALIDATION_PIPE_OPTIONS = {
   whitelist: true,
@@ -32,6 +33,7 @@ async function createApp(): Promise<NestExpressApplication> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule)
 
   app.use(helmet())
+  app.useBodyParser('json', { limit: WORKSPACE_BODY_LIMIT })
   app.set('trust proxy', 1)
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })
   app.useGlobalPipes(new ValidationPipe(VALIDATION_PIPE_OPTIONS))

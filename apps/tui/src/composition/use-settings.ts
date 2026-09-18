@@ -1,36 +1,22 @@
 import {
   activateSetting,
   adjustSetting,
-  choiceValueOf,
-  DEFAULT_WARN_PERCENT,
   ESettingId,
   ESettingKind,
   ESettingPage,
-  EUsageWindow,
   formatFavourites,
-  parseFavourites,
-  rangeValueOf,
-  textValueOf,
-  toggleValueOf,
+  type EUsageWindow,
   type ResolvedSetting,
   type SecretPrompt,
   type SettingValue,
-  type SettingsResolution,
 } from '@dltech/atlas-core'
+import type { SettingsWrite } from '@dltech/atlas-harness'
 import type { KeyEvent } from '@opentui/core'
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
 import { appearanceOf, applyAppearance, type Appearance } from '../ui/appearance'
-import {
-  EFooterMeters,
-  footerMetersOf,
-  SHIPPED_FOOTER_METERS,
-} from '../ui/usage-meters'
-import { SHIPPED_THINKING, thinkingVisibilityOf, type EThinkingVisibility } from '../store'
-
-const AUTO_COMPACT_AT_PERCENT = 90
-
-const NOTICE_SECONDS = 2
+import type { EFooterMeters } from '../ui/usage-meters'
+import type { EThinkingVisibility } from '../store'
 import {
   currentPage,
   currentRow,
@@ -41,9 +27,9 @@ import {
   type SettingsModel,
   type SettingsState,
 } from '../ui/settings-model'
-import { SIDEBAR_FOLD_BELOW, SIDEBAR_WIDTH } from '../ui/theme'
 import type { Span } from '../ui/components/spans'
 import type { AtlasApp } from './compose'
+import { preferencesOf } from './settings-preferences'
 import { useSecretPrompt } from './use-secret-prompt'
 
 export type SettingsControl = {
@@ -72,65 +58,13 @@ export type SettingsControl = {
   handlePinModels: (favourites: readonly string[]) => void
   handleOpen: () => void
   handleDismiss: () => void
-  handleActivate: (target: SettingsState) => void
+  handleSelect: (target: SettingsState) => void
   handleKey: (key: KeyEvent) => void
 }
 
-type Preferences = Pick<
-  SettingsControl,
-  | 'sidebarWidth'
-  | 'sidebarFoldBelow'
-  | 'autoCompactAtPercent'
-  | 'autoRestart'
-  | 'noticeSeconds'
-  | 'paceReveal'
-  | 'footerMeters'
-  | 'usageWarn'
-  | 'thinking'
-  | 'tldrStatus'
-  | 'modelFavourites'
->
-
-const preferencesOf = (resolution: SettingsResolution): Preferences => ({
-  sidebarWidth: rangeValueOf({ resolution, id: ESettingId.SidebarWidth, fallback: SIDEBAR_WIDTH }),
-  sidebarFoldBelow: rangeValueOf({
-    resolution,
-    id: ESettingId.SidebarFoldBelow,
-    fallback: SIDEBAR_FOLD_BELOW,
-  }),
-  autoCompactAtPercent: rangeValueOf({
-    resolution,
-    id: ESettingId.AutoCompact,
-    fallback: AUTO_COMPACT_AT_PERCENT,
-  }),
-  autoRestart: toggleValueOf({ resolution, id: ESettingId.AutoRestart }),
-  noticeSeconds: rangeValueOf({ resolution, id: ESettingId.NoticeSeconds, fallback: NOTICE_SECONDS }),
-  paceReveal: toggleValueOf({ resolution, id: ESettingId.SmoothStreaming }),
-  footerMeters: footerMetersOf(
-    choiceValueOf({ resolution, id: ESettingId.FooterMeters, fallback: SHIPPED_FOOTER_METERS }),
-  ),
-  usageWarn: {
-    [EUsageWindow.FiveHour]: rangeValueOf({
-      resolution,
-      id: ESettingId.WarnFiveHour,
-      fallback: DEFAULT_WARN_PERCENT[EUsageWindow.FiveHour],
-    }),
-    [EUsageWindow.SevenDay]: rangeValueOf({
-      resolution,
-      id: ESettingId.WarnWeekly,
-      fallback: DEFAULT_WARN_PERCENT[EUsageWindow.SevenDay],
-    }),
-  },
-  thinking: thinkingVisibilityOf(
-    choiceValueOf({ resolution, id: ESettingId.ThinkingBlocks, fallback: SHIPPED_THINKING }),
-  ),
-  tldrStatus: toggleValueOf({ resolution, id: ESettingId.TldrStatus }),
-  modelFavourites: parseFavourites(textValueOf({ resolution, id: ESettingId.ModelFavourites })),
-})
-
 export function useSettings(args: {
   app: AtlasApp
-  onChooseModel: () => void
+  onChooseModel: (id: string) => void
 }): SettingsControl {
   const { app, onChooseModel } = args
   useSyncExternalStore(app.settings.subscribe, app.settings.version)
@@ -139,7 +73,6 @@ export function useSettings(args: {
   const [state, setState] = useState<SettingsState | null>(null)
   const [refused, setRefused] = useState<string | null>(null)
   const [cloudSession, setCloudSession] = useState<{ email: string | null } | null>(null)
-
 
   const view = useMemo(
     () => settingsModel({ definitions: app.settings.definitions, resolution: held.resolution }),
@@ -159,15 +92,29 @@ export function useSettings(args: {
     applyAppearance(appearance)
   }, [appearance])
 
+  const settle = useCallback((result: SettingsWrite) => {
+    setRefused(result.ok ? null : result.message)
+  }, [])
+
   const write = useCallback(
     (target: SettingsState, next: (row: ResolvedSetting) => SettingValue) => {
       const row = currentRow({ state: target, model: view })
       if (row === undefined) return
 
-      const written = app.settings.set({ id: row.definition.id, value: next(row) })
-      setRefused(written.ok ? null : written.message)
+      settle(app.settings.set({ id: row.definition.id, value: next(row) }))
     },
-    [app.settings, view],
+    [app.settings, settle, view],
+  )
+
+  const handleClearModel = useCallback(
+    (target: SettingsState) => {
+      const row = currentRow({ state: target, model: view })
+      if (row === undefined || row.definition.kind !== ESettingKind.Model) return
+      if (typeof row.value !== 'string' || row.value.length === 0) return
+
+      settle(app.settings.clear({ id: row.definition.id }))
+    },
+    [app.settings, settle, view],
   )
 
   const readCloudSession = useCallback(() => {
@@ -202,6 +149,10 @@ export function useSettings(args: {
     secret.close()
   }, [secret])
 
+  const handleSelect = useCallback((target: SettingsState) => {
+    setState(target)
+  }, [])
+
   const handleActivate = useCallback(
     (target: SettingsState) => {
       setState(target)
@@ -220,7 +171,7 @@ export function useSettings(args: {
       }
 
       if (row.definition.kind === ESettingKind.Model) {
-        onChooseModel()
+        onChooseModel(row.definition.id)
         return
       }
 
@@ -259,6 +210,11 @@ export function useSettings(args: {
         return
       }
 
+      if (key.name === 'backspace' || key.name === 'delete') {
+        handleClearModel(state)
+        return
+      }
+
       if (key.name === 'left' || key.name === 'right') {
         write(state, (row) =>
           adjustSetting({
@@ -269,7 +225,7 @@ export function useSettings(args: {
         )
       }
     },
-    [handleActivate, handleDismiss, secret, state, view, write],
+    [handleActivate, handleClearModel, handleDismiss, secret, state, view, write],
   )
 
   const preferences = useMemo(() => preferencesOf(held.resolution), [held.resolution])
@@ -293,17 +249,17 @@ export function useSettings(args: {
       handlePinModels,
       handleOpen,
       handleDismiss,
-      handleActivate,
+      handleSelect,
       handleKey,
     }),
     [
       appearance,
       cloudSession,
-      handleActivate,
       handleDismiss,
       handleKey,
       handleOpen,
       handlePinModels,
+      handleSelect,
       handleSignOut,
       origin,
       preferences,

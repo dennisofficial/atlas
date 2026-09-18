@@ -9,6 +9,7 @@ export enum EWorkingVerb {
   Working = 'Working',
   Thinking = 'Thinking',
   Compacting = 'Compacting',
+  Reconnecting = 'Reconnecting',
 }
 
 const INTERRUPTING = 'Interrupting…'
@@ -46,6 +47,16 @@ export function WorkingLine(props: {
   }
 
   const verb = props.verb ?? EWorkingVerb.Working
+  if (verb === EWorkingVerb.Reconnecting) {
+    return (
+      <box flexDirection="column">
+        <ShimmerLine
+          label={`Reconnecting for ${formatElapsed(props.elapsedMs)} · the turn keeps running on the sandbox`}
+          base={theme.warn}
+        />
+      </box>
+    )
+  }
   const tokens =
     props.outputTokens > 0 ? `↓ ${formatTokens(props.outputTokens)} tokens · ` : ''
   const label = `${verb} for ${formatElapsed(props.elapsedMs)} (${tokens}esc to interrupt)`

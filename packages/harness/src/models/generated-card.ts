@@ -38,7 +38,12 @@ export type GeneratedCard = {
   contextWindow: number
   imageTier: string
   maxOutputTokens?: number
-  cost?: { inputPerMillion: number; outputPerMillion: number }
+  cost?: {
+    inputPerMillion: number
+    outputPerMillion: number
+    cacheReadPerMillion?: number
+    cacheWritePerMillion?: number
+  }
   effort?: Record<string, string | number>
 }
 
@@ -61,7 +66,16 @@ const EFFORT_BY_ID: Readonly<Record<string, EEffort>> = Object.fromEntries(
 
 function toCost(cost: GeneratedCard['cost']): ModelCost | undefined {
   if (cost === undefined) return undefined
-  return { inputPerMillion: cost.inputPerMillion, outputPerMillion: cost.outputPerMillion }
+  return {
+    inputPerMillion: cost.inputPerMillion,
+    outputPerMillion: cost.outputPerMillion,
+    ...(cost.cacheReadPerMillion === undefined
+      ? {}
+      : { cacheReadPerMillion: cost.cacheReadPerMillion }),
+    ...(cost.cacheWritePerMillion === undefined
+      ? {}
+      : { cacheWritePerMillion: cost.cacheWritePerMillion }),
+  }
 }
 
 function toEffortMap(effort: GeneratedCard['effort']): EffortMap | undefined {

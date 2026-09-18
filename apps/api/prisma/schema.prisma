@@ -27,6 +27,7 @@ model User {
   mcpServers    McpServerConfig[]
   githubConnection GithubConnection?
   threads       Thread[]
+  cloudSandboxes CloudSandbox[]
 }
 
 model Thread {
@@ -53,6 +54,7 @@ model Thread {
   spawned           Thread[] @relation("ThreadSupervision")
   events            Event[]
   turns             Turn[]
+  cloudSandbox      CloudSandbox?
 
   @@index([userId, updatedAt])
   @@index([parentThreadId])
@@ -102,6 +104,30 @@ model Turn {
 
   @@index([threadId, startedAt])
   @@index([userId])
+}
+
+model CloudSandbox {
+  id             String   @id
+  threadId       String   @unique
+  userId         String
+  sandboxId      String
+  name           String
+  region         String
+  state          String
+  lastActivityAt String
+  tokenHash      String
+  workspaceRemoteUrl String?
+  workspaceBranch    String?
+  workspaceCommit    String?
+  workspacePatch     String?
+  workspaceSkills    String?
+  createdAt      String
+  updatedAt      String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread         Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([state, lastActivityAt])
 }
 
 model AgentAccount {
