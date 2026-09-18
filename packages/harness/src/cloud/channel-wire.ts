@@ -51,6 +51,7 @@ export enum EClientFrame {
 export enum EClientRequest {
   CompletePaths = 'complete-paths',
   BrowseDirectory = 'browse-directory',
+  CaptureWorkspace = 'capture-workspace',
 }
 
 const seqSchema = z.number().int().nonnegative()
