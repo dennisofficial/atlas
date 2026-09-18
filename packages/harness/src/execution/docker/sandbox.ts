@@ -106,15 +106,27 @@ export function sandboxCreateBody(config: SandboxConfig): CreateContainerBody {
 
   // Scoped safe.directory wildcards require recent Git; Debian Bookworm's Git 2.39 ignores them.
   // https://github.com/git/git/blob/v2.46.0/Documentation/config/safe.txt
-  env.push(
-    'GIT_CONFIG_COUNT=3',
-    'GIT_CONFIG_KEY_0=gpg.program',
-    'GIT_CONFIG_VALUE_0=gpg',
-    'GIT_CONFIG_KEY_1=safe.directory',
-    `GIT_CONFIG_VALUE_1=${config.worktree}`,
-    'GIT_CONFIG_KEY_2=safe.directory',
-    `GIT_CONFIG_VALUE_2=${config.worktree.replace(/\/$/, '')}/*`,
-  )
+  const gitConfig: Array<readonly [key: string, value: string]> = [
+    ['gpg.program', 'gpg'],
+    ['safe.directory', config.worktree],
+    ['safe.directory', `${config.worktree.replace(/\/$/, '')}/*`],
+  ]
+  if (config.githubToken !== undefined) {
+    // SSH pushes authenticate through the forwarded agent, which may hold no identities; the gh
+    // token is the one credential the sandbox provably has, so github traffic goes over https.
+    // The empty helper resets the list the mounted host gitconfig names (osxkeychain is absent
+    // in the image). https://git-scm.com/docs/git-config#Documentation/git-config.txt-credentialhelper
+    gitConfig.push(
+      ['credential.helper', ''],
+      ['credential.https://github.com.helper', '!gh auth git-credential'],
+      ['url.https://github.com/.insteadOf', 'git@github.com:'],
+      ['url.https://github.com/.insteadOf', 'ssh://git@github.com/'],
+    )
+  }
+  env.push(`GIT_CONFIG_COUNT=${gitConfig.length}`)
+  gitConfig.forEach(([key, value], index) => {
+    env.push(`GIT_CONFIG_KEY_${index}=${key}`, `GIT_CONFIG_VALUE_${index}=${value}`)
+  })
   if (config.gpgAgentExtraSocket !== undefined) {
     // gpg derives its agent socket from GNUPGHOME and offers no path override, so the forwarded
     // agent-extra-socket has to land at the standard agent path of whichever home gpg is given.
