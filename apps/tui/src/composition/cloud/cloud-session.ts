@@ -65,7 +65,9 @@ export function createCloudSession(args: {
 
   const unsubscribeConnection = channel.onConnection((connection) => {
     announce({ ...held, connection })
-    if (connection.state === EChannelConnection.Closed) askControlPlane()
+    // A close right after a server error frame is already explained — the sandbox refused in its
+    // own words, and re-reading the control plane would replace that with "not answering".
+    if (connection.state === EChannelConnection.Closed && held.failure === null) askControlPlane()
   })
 
   const unsubscribeReload = channel.onReload((reload) => args.onReload(reload))

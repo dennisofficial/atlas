@@ -6,6 +6,7 @@ import { EStepEnd } from '../../channel/signal'
 import { ETurnStatus, type TurnOutcome } from '../../loop/turn-outcome'
 import {
   bearerSubprotocolOf,
+  CHANNEL_PROTOCOL_VERSION,
   CHANNEL_SUBPROTOCOL,
   EClientFrame,
   encodeFrame,
@@ -44,7 +45,45 @@ describe('opening the session socket', () => {
       threadId: THREAD,
       channelCursor: null,
       lastEventSeq: 12,
+      protocol: CHANNEL_PROTOCOL_VERSION,
     })
+  })
+
+  it('opens as before against a serve too old to stamp its ready', () => {
+    const { channel, open, receive } = harness()
+
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 4 })
+
+    expect(channel.connection().state).toBe(EChannelConnection.Open)
+  })
+
+  it('refuses a serve on a newer wire protocol, legibly and without reconnecting', () => {
+    const { channel, open, receive, live, retries } = harness()
+    const failures: string[] = []
+    channel.onServerError((failure) => void failures.push(failure.message))
+
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 4, protocol: CHANNEL_PROTOCOL_VERSION + 1 })
+
+    expect(channel.connection().state).toBe(EChannelConnection.Closed)
+    expect(channel.connection().detail).toContain('update Atlas')
+    expect(failures[0]).toContain('update Atlas')
+    expect(live().closed).toBe(true)
+    expect(retries).toEqual([])
+  })
+
+  it('refuses a serve on an older wire protocol, pointing at a re-open that rebuilds it', () => {
+    const { channel, open, receive } = harness()
+    const failures: string[] = []
+    channel.onServerError((failure) => void failures.push(failure.message))
+
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 4, protocol: CHANNEL_PROTOCOL_VERSION - 1 })
+
+    expect(channel.connection().state).toBe(EChannelConnection.Closed)
+    expect(channel.connection().detail).toContain('re-open the conversation')
+    expect(failures[0]).toContain('re-open the conversation')
   })
 
   it('reports itself connecting until the server is ready', () => {
@@ -200,6 +239,7 @@ describe('losing the socket', () => {
       threadId: THREAD,
       channelCursor: 5,
       lastEventSeq: 7,
+      protocol: CHANNEL_PROTOCOL_VERSION,
     })
   })
 
@@ -299,7 +339,13 @@ describe('driving a turn over the wire', () => {
     channel.run()
 
     expect(live().sent).toEqual([
-      { kind: EClientFrame.Hello, threadId: THREAD, channelCursor: null, lastEventSeq: 0 },
+      {
+        kind: EClientFrame.Hello,
+        threadId: THREAD,
+        channelCursor: null,
+        lastEventSeq: 0,
+        protocol: CHANNEL_PROTOCOL_VERSION,
+      },
       { kind: EClientFrame.Run },
     ])
   })
