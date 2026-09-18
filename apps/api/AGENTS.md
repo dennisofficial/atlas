@@ -131,8 +131,9 @@ better-auth: they depend on the `SESSION_VERIFIER` port (`src/_core/ports/sessio
 bound by `SessionModule.withVerifier(...)`. Feature routes opt into protection with
 `@UseGuards(SessionAuthGuard)` and opt out with `@Public()`.
 
-The device-authorization flow is how the TUI logs in. Until a web app exists, the API serves
-minimal `/sign-up`, `/sign-in`, and `/device` pages itself; the device page must claim the code
+The device-authorization flow is how the TUI logs in. The pages live in `apps/web` (Vercel,
+`byatlas.io`); the API only exposes the better-auth endpoints, and `WEB_ORIGIN` is what points
+the device `verificationUri` at the web app. The device page must claim the code
 (`GET /api/auth/device?user_code=…`) while signed in before approve/deny will work.
 
 ## Env
