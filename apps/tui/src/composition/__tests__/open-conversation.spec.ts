@@ -140,6 +140,25 @@ describe('which conversation the app opens on', () => {
     expect(opened(outcome).turns).toEqual([spent])
   })
 
+  it('counts what its sub-agents spent alongside its own, because the counter is the session’s', async () => {
+    const threads = fakeThreadStore({ existing: [YESTERDAY] })
+
+    const outcome = await openConversation({
+      threads,
+      log: fakeEventLog([said('carry this on')]),
+      ledger: fakeLedger({
+        spent: [spent, byChild(FIRST_CHILD, 4_000), byChild(SECOND_CHILD, 2_000)],
+        children: { [YESTERDAY]: [FIRST_CHILD, SECOND_CHILD] },
+      }),
+      agents: fakeAgentRegistry(),
+      ids: fakeIds(),
+      workspace: HERE,
+      open: { mode: EOpenMode.Continue },
+    })
+
+    expect(opened(outcome).turns).toHaveLength(3)
+  })
+
   it('still opens when the spend rollup refuses to answer, because the transcript is the product', async () => {
     const threads = fakeThreadStore({ existing: [YESTERDAY] })
     const refusing = refusingLedger()
