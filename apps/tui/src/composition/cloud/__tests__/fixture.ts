@@ -37,6 +37,7 @@ export type FakeCloudChannel = CloudChannel & {
   moveTo(connection: ChannelConnection): void
   reload(reload: CloudReload): void
   fail(message: string): void
+  failTransport(message: string): void
   endTurn(outcome: TurnOutcome): void
   readonly closed: boolean
   readonly runs: number
@@ -128,6 +129,9 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
     fail(message) {
       for (const listener of [...failures]) listener({ message })
       for (const listener of [...serverErrors]) listener({ message })
+    },
+    failTransport(message) {
+      for (const listener of [...failures]) listener({ message })
     },
     endTurn(outcome) {
       for (const listener of [...turnEndings]) listener(outcome)

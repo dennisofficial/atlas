@@ -209,6 +209,7 @@ export function transcript(args: {
   model: TranscriptModel
   width: number
   turn?: TurnClock
+  reconnecting?: boolean
   anchorKey?: string
   sends?: number
   pending?: readonly PendingRow[]
@@ -223,6 +224,7 @@ export function transcript(args: {
       now={NOW}
       cwd={CWD}
       {...(args.turn ? { turn: args.turn } : {})}
+      {...(args.reconnecting === undefined ? {} : { reconnecting: args.reconnecting })}
       {...(args.anchorKey ? { anchorKey: args.anchorKey } : {})}
       {...(args.sends === undefined ? {} : { sends: args.sends })}
       {...(args.pending ? { pending: args.pending } : {})}

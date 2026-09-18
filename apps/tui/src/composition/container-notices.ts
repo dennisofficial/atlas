@@ -41,22 +41,3 @@ export const pendingSwitchNotice = (args: {
   count: number
 }): string =>
   `moving ${whereItRuns(args.target)} stops ${args.count} running ${args.count === 1 ? 'shell' : 'shells'} — confirm below`
-
-export const relocatedNotice = (args: {
-  target: EExecutionLocation
-  stoppedServices: number
-  relocatedAgents: number
-}): string => {
-  const parts: string[] = []
-  if (args.stoppedServices > 0) {
-    parts.push(`stopped ${args.stoppedServices} ${args.stoppedServices === 1 ? 'service' : 'services'}`)
-  }
-  if (args.relocatedAgents > 0) {
-    parts.push(
-      `moved ${args.relocatedAgents} ${args.relocatedAgents === 1 ? 'sub-agent' : 'sub-agents'} with you`,
-    )
-  }
-
-  if (parts.length === 0) return movedLocationNotice(args.target)
-  return `${movedLocationNotice(args.target)} — ${parts.join(', ')}`
-}

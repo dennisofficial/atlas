@@ -34,6 +34,8 @@ function DerivedTranscript(props: {
   now: number
   cwd: string
   turn?: TurnClock
+  /** The cloud socket is down and being re-established; the turn itself runs on the sandbox. */
+  reconnecting?: boolean
   anchorKey?: string | null
   sends?: number
   pending?: readonly PendingRow[]
@@ -177,7 +179,13 @@ function DerivedTranscript(props: {
               elapsedMs={props.now - turn.startedAt}
               outputTokens={turn.outputTokens}
               interrupting={turn.interrupting}
-              verb={turn.reasoning ? EWorkingVerb.Thinking : EWorkingVerb.Working}
+              verb={
+                props.reconnecting === true
+                  ? EWorkingVerb.Reconnecting
+                  : turn.reasoning
+                    ? EWorkingVerb.Thinking
+                    : EWorkingVerb.Working
+              }
               retry={turn.retry}
             />
           </box>

@@ -6,7 +6,7 @@ import { cloudApp, openCloudConversation } from './cloud/cloud-app'
 import type { CloudBridge, LiftedWorkspace } from './cloud/cloud-bridge'
 import { createCloudRunner } from './cloud/cloud-runner'
 import { liftToCloud } from './cloud/lift'
-import { CLOUD_LIFT_NOTICE_KEY, liftedNotice, liftFailedNotice } from './cloud/lift-notices'
+import { CLOUD_LIFT_NOTICE_KEY, liftFailedNotice } from './cloud/lift-notices'
 import { stopLocalWork } from './cloud/stop-local'
 import { cloudLiftPlan } from './container-move'
 import type { AtlasApp } from './compose'
@@ -96,7 +96,6 @@ export function useCloudLift(args: {
         const arrived = lifted.resumeOnArrival ? { ...opened, resumeOnArrival: true } : opened
 
         move.handleSettle()
-        notify({ key: CLOUD_LIFT_NOTICE_KEY, text: liftedNotice(lifted), tone: ENoticeTone.Done })
         onLifted({ app: attached, opened: arrived, bridge, channel: lifted.channel })
       })
       .catch((error: unknown) => {
