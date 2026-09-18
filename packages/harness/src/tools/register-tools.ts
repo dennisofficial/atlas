@@ -110,7 +110,8 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
     useFactory: (resolver) => new ShellKillTool(shellRegistry(resolver)),
   })
   container.register(portToken(ToolDefinition), {
-    useFactory: (resolver) => new ServiceStartTool(serviceRegistry(resolver)),
+    useFactory: (resolver) =>
+      new ServiceStartTool(serviceRegistry(resolver), resolver.resolve(portToken(ProcessPort))),
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) => new ServiceStopTool(serviceRegistry(resolver)),

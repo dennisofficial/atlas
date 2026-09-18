@@ -8,19 +8,26 @@ import {
   EPathPresence,
   EServiceStatus,
   EToolEffect,
+  ProcessPort,
   SchemaTool,
   serviceEnding,
   type DeclaredPathField,
+  type PortExposure,
+  type ThreadId,
   type ToolOutcome,
   type ToolRun,
 } from '@dltech/atlas-core'
 
+import { EXPOSED_PORT_COUNT, EXPOSED_PORT_FIRST } from '../../execution/docker/ports'
+import { LocalProcessPort } from '../../execution/local-process'
 import { logTail, ServiceRegistryPort } from '../../services'
+import { exposureClause, exposureUnsupported } from './bash-prose'
 
 const inputSchema = z.strictObject({
   command: z.string().min(1),
   description: z.string().min(1),
   workdir: z.string().min(1).optional(),
+  exposePort: z.number().int().min(1).max(65_535).optional(),
 })
 
 const START_TAIL_CHARACTERS = 2_000
@@ -32,6 +39,8 @@ const description = [
   'Its stdout and stderr go to one log file, named in the reply; read or grep that file to check on it, and stop it with service_stop.',
   'In bash, pipe the log through the atlas-svc helper: `atlas-svc logs svc_1 | grep ...` resolves the id to its log and execs tail, so -n and -f pass straight through into whatever pipe you build.',
   'Its stdin is closed and it is its own process group, so nothing it forks outlives a stop.',
+  'exposePort publishes the port the service listens on so the operator can open it from this machine.',
+  `In a container sandbox only container ports ${EXPOSED_PORT_FIRST} through ${EXPOSED_PORT_FIRST + EXPOSED_PORT_COUNT - 1} are published, fixed when the container is created - have the service listen on one of them and pass that port as exposePort, never a port outside the block.`,
 ].join(' ')
 
 export class ServiceStartTool extends SchemaTool<typeof inputSchema> {
@@ -48,8 +57,26 @@ export class ServiceStartTool extends SchemaTool<typeof inputSchema> {
     },
   ]
 
-  constructor(private readonly services: ServiceRegistryPort) {
+  constructor(
+    private readonly services: ServiceRegistryPort,
+    private readonly processes: ProcessPort = new LocalProcessPort(),
+  ) {
     super()
+  }
+
+  private async resolveExposure(args: {
+    containerPort: number | undefined
+    threadId: ThreadId
+  }): Promise<{ ok: true; exposure: PortExposure | undefined } | { ok: false; reason: string }> {
+    if (args.containerPort === undefined) return { ok: true, exposure: undefined }
+    if (this.processes.exposePort === undefined) {
+      return { ok: false, reason: exposureUnsupported() }
+    }
+
+    return await this.processes.exposePort({
+      containerPort: args.containerPort,
+      threadId: args.threadId,
+    })
   }
 
   protected override async run({
@@ -68,6 +95,12 @@ export class ServiceStartTool extends SchemaTool<typeof inputSchema> {
         return { ok: false, reason: `workdir ${input.workdir} is a file, not a directory` }
       }
     }
+
+    const exposure = await this.resolveExposure({
+      containerPort: input.exposePort,
+      threadId,
+    })
+    if (!exposure.ok) return exposure
 
     const started = await this.services.start({
       threadId,
@@ -99,6 +132,7 @@ export class ServiceStartTool extends SchemaTool<typeof inputSchema> {
         status: snapshot.status,
         ...(snapshot.pid === undefined ? {} : { pid: snapshot.pid }),
         logPath: snapshot.logPath,
+        ...(exposure.exposure === undefined ? {} : { exposure: exposure.exposure }),
       },
       modelText: [
         snapshot.pid === undefined
@@ -106,6 +140,7 @@ export class ServiceStartTool extends SchemaTool<typeof inputSchema> {
           : `Started ${snapshot.serviceId} (pid ${snapshot.pid}) - ${snapshot.description}.`,
         `log: ${snapshot.logPath}`,
         'It keeps running after this turn ends and nobody waits on it; if it dies you will be told.',
+        ...exposureClause({ exposure: exposure.exposure }),
         `Read the log with the file tools you already have, or pipe it in bash: atlas-svc logs ${snapshot.serviceId} | grep ...`,
         `Stop it with service_stop({ id: "${snapshot.serviceId}" }).`,
       ].join('\n'),
