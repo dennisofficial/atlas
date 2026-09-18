@@ -177,7 +177,7 @@ describe('a sub-agent in the sidebar', () => {
 
       const frame = setup.captureCharFrame()
       const row = frame.split('\n').find((line) => line.includes(CHILD_INTENT)) ?? ''
-      expect(row).toContain('done')
+      expect(row).not.toContain('done')
       expect(row).not.toContain('calls')
     } finally {
       await teardown(setup)
@@ -211,7 +211,9 @@ describe('a sub-agent in the sidebar', () => {
       const frame = setup.captureCharFrame()
       expect(frame).toContain('SUBAGENTS  0/1')
       expect(frame).toContain(`${CHILD_INTENT}`)
-      expect(frame).toContain('done')
+      expect(
+        frame.split('\n').find((line) => line.includes(CHILD_INTENT)) ?? '',
+      ).not.toContain('done')
     } finally {
       await teardown(setup)
     }

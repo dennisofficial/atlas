@@ -19,6 +19,9 @@ import { Row, Section } from './row'
 
 const IDLE = 'idle'
 
+/** A mark and the space after it, so the second line's model sits where the title sits. */
+const TITLE_INDENT = '  '
+
 const markFor = (subagent: SidebarSubagent) => MARK_OF[subagentReading(subagent)]
 
 const labelFor = (subagent: SidebarSubagent): string => {
@@ -32,17 +35,19 @@ const valueFor = (subagent: SidebarSubagent) => [
 
 /**
  * A second line, and only when there is a reading to put on it — the same pair the footer gives
- * the main agent, with the child's own math: the model it runs on the left, what its own window
- * holds on the right. Worth the row's height in every state — running, blocked and
- * settled alike — but an empty one would spend the height on nothing, which in a panel this
- * narrow is what makes a crew unreadable.
+ * the main agent, with the child's own math: the model it runs, lined up under the title, and
+ * what its own window holds on the right edge. Worth the row's height in every state — running,
+ * blocked and settled alike — but an empty one would spend the height on nothing, which in a
+ * panel this narrow is what makes a crew unreadable.
  */
 function FiguresLine(props: { subagent: SidebarSubagent; cells: number }): React.ReactNode {
   const context = subagentContextLabel(props.subagent.context)
   if (props.subagent.model === null && context === null) return null
 
   const model: readonly Span[] =
-    props.subagent.model === null ? [] : [{ text: props.subagent.model, fg: theme.dim }]
+    props.subagent.model === null
+      ? []
+      : [{ text: `${TITLE_INDENT}${props.subagent.model}`, fg: theme.dim }]
   const reading: readonly Span[] =
     context === null || props.subagent.context === undefined
       ? []

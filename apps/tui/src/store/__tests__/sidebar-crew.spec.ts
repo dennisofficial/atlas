@@ -97,10 +97,10 @@ describe('what the narrow value column says about a child', () => {
     expect(labelOf({ status: EAgentStatus.Blocked })).toBe('blocked · 1m 4s')
   })
 
-  it('reads a settled child as its outcome and nothing else', () => {
+  it('says nothing for a child that finished, keeping the word for endings that need it', () => {
     const ended = { endedAt: '2026-01-01T00:00:30.000Z' }
 
-    expect(labelOf({ ...ended, status: EAgentStatus.Finished })).toBe('done')
+    expect(labelOf({ ...ended, status: EAgentStatus.Finished })).toBe('')
     expect(labelOf({ ...ended, status: EAgentStatus.Failed })).toBe('failed')
     expect(labelOf({ ...ended, status: EAgentStatus.Stopped })).toBe('stopped')
   })
@@ -150,8 +150,8 @@ describe("how full the child's own window is", () => {
     expect(subagentContextLabel({ tokens: 68_000, window: 200_000 })).toBe('68.0k')
   })
 
-  it('says nothing when the window is unknown rather than reading the child as empty', () => {
-    expect(subagentContextLabel({ tokens: 68_000, window: 0 })).toBe(null)
+  it('reads the tokens even when the window is unknown, now that no percentage needs it', () => {
+    expect(subagentContextLabel({ tokens: 68_000, window: 0 })).toBe('68.0k')
   })
 
   it('carries the reading the supervisor took onto the row, from the snapshot itself', () => {

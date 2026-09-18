@@ -43,8 +43,8 @@ export const subagentWentWrong = (subagent: Pick<SidebarSubagent, 'status'>): bo
 
 /**
  * What the narrow value column spends its cells on. A child that is still going is judged by how
- * long it has been going and how much of its window it has spent; one that has settled is judged
- * by its outcome alone.
+ * long it has been going and how much of its window it has spent; one that has settled says nothing
+ * unless the ending needs saying — a finished child reads as its title alone.
  */
 export enum ESubagentReading {
   Live = 'live',
@@ -103,7 +103,8 @@ const SUBAGENT_READOUT: Record<
 > = {
   [ESubagentReading.Live]: ({ since, spent }) => [since, spent],
   [ESubagentReading.Held]: ({ subagent, since }) => [stateWord(subagent), since],
-  [ESubagentReading.Settled]: ({ subagent }) => [stateWord(subagent)],
+  [ESubagentReading.Settled]: ({ subagent }) =>
+    subagent.status === EAgentStatus.Finished ? [] : [stateWord(subagent)],
 }
 
 export function subagentStateLabel(args: {
@@ -120,17 +121,17 @@ export function subagentStateLabel(args: {
   })
 
   const written = parts.filter((part): part is string => part !== null).join(READOUT_SEPARATOR)
-  return written === '' ? stateWord(subagent) : written
+  if (written !== '') return written
+
+  return subagentReading(subagent) === ESubagentReading.Settled ? '' : stateWord(subagent)
 }
 
 /**
  * A child's own window, never added to the parent's: a child may run a different model, so the two
  * are different windows and a sum of them would make the parent's remaining context read as a lie.
- * A window nothing has sized is unreadable rather than empty.
  */
 export function subagentContextLabel(context: ChildContext | undefined): string | null {
   if (context === undefined) return null
-  if (context.window <= 0) return null
 
   return formatTokens(context.tokens)
 }
