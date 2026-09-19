@@ -115,6 +115,7 @@ export function useConversation(args: {
   tldrStatus: boolean
   onUndone: (said: PendingSaid) => void
   canWake: boolean
+  interruptRefusal?: (() => string | null) | undefined
 }): Conversation {
   const { app, paceReveal, thinking, tldrStatus, onUndone } = args
   const [opened, setOpened] = useState<OpenedConversation>(args.opened)
@@ -265,6 +266,7 @@ export function useConversation(args: {
     onUndone,
     setFailure,
     forgetUsage,
+    interruptRefusal: args.interruptRefusal,
   })
 
   const resumeAtLaunch = useRef(app.config.open.mode !== EOpenMode.New)
