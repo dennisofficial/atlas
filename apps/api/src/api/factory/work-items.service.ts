@@ -4,10 +4,33 @@ import type { Prisma } from '../../generated/prisma/client'
 import { EFactoryWorkItemStatus, type SurfaceAliasDto, type WorkItemDto } from './factory.types'
 import { nextAliasId, nextWorkItemId, nowIso } from './ids'
 import { toAliasDto, toWorkItemDto } from './rows'
+import { isUniqueViolation } from './unique-violation'
 
 @Injectable()
 export class WorkItemsService {
   async intake(args: {
+    repo: string
+    sourceKind: string
+    surface: string
+    externalId: string
+    aliasKind: string
+  }): Promise<{ workItem: WorkItemDto; created: boolean }> {
+    try {
+      return await this.intakeOnce(args)
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error
+      const existing = await this.resolve({
+        surface: args.surface,
+        externalId: args.externalId,
+      })
+      if (existing === null) {
+        throw new Error('unique violation without a stored alias — the work-item store is inconsistent')
+      }
+      return { workItem: existing, created: false }
+    }
+  }
+
+  private intakeOnce(args: {
     repo: string
     sourceKind: string
     surface: string
@@ -73,6 +96,29 @@ export class WorkItemsService {
     kind: string
   }): Promise<SurfaceAliasDto> {
     await this.find({ workItemId: args.workItemId })
+    try {
+      return await this.registerAliasOnce(args)
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error
+      const existing = await db.factorySurfaceAlias.findFirst({
+        where: { surface: args.surface, externalId: args.externalId },
+      })
+      if (existing === null) {
+        throw new Error('unique violation without a stored alias — the work-item store is inconsistent')
+      }
+      if (existing.workItemId !== args.workItemId) {
+        throw new ConflictException('surface is already aliased to another work item')
+      }
+      return toAliasDto(existing)
+    }
+  }
+
+  private async registerAliasOnce(args: {
+    workItemId: string
+    surface: string
+    externalId: string
+    kind: string
+  }): Promise<SurfaceAliasDto> {
     const existing = await db.factorySurfaceAlias.findFirst({
       where: { surface: args.surface, externalId: args.externalId },
     })
