@@ -130,6 +130,52 @@ model CloudSandbox {
   @@index([state, lastActivityAt])
 }
 
+model FactoryWorkItem {
+  id                   String   @id
+  repo                 String
+  sourceKind           String
+  status               String
+  orchestratorThreadId String?
+  driveName            String?
+  revisionCycles       Int      @default(0)
+  lastActivityAt       String
+  createdAt            String
+  updatedAt            String
+  aliases              FactorySurfaceAlias[]
+  transcriptEvents     FactoryTranscriptEvent[]
+
+  @@index([repo, status])
+  @@index([status, lastActivityAt])
+}
+
+model FactorySurfaceAlias {
+  id         String   @id
+  workItemId String
+  surface    String
+  externalId String
+  kind       String
+  createdAt  String
+  workItem   FactoryWorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+
+  @@unique([surface, externalId])
+}
+
+model FactoryTranscriptEvent {
+  id                String   @id
+  workItemId        String
+  surface           String
+  deliveryId        String
+  author            String?
+  authorAssociation String?
+  kind              String
+  payload           String
+  receivedAt        String
+  workItem          FactoryWorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+
+  @@unique([surface, deliveryId])
+  @@index([workItemId, receivedAt])
+}
+
 model AgentAccount {
   id           String   @id
   provider     String
