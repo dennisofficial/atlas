@@ -23,6 +23,7 @@ import { createStepAliaser, endsAliasedStep, retagged, type StepAlias } from './
 import type { ServeTurnDriver } from './turn-driver'
 
 const POLICY_VIOLATION = 1008
+const GOING_AWAY = 1001
 
 export type SocketState = { helloed: boolean; alias: StepAlias | null }
 
@@ -33,6 +34,7 @@ export type SessionHandlers = {
   message: (args: { socket: SessionSocket; message: string | Buffer }) => void
   close: (args: { socket: SessionSocket }) => void
   broadcast: (frame: ServeFrame) => void
+  park: (args: { reason: string }) => void
   hangUp: () => void
   clients: () => number
 }
@@ -217,6 +219,21 @@ export function createSessionHandlers(args: {
           continue
         }
         socket.send(encodeFrame(forSocket({ socket, frame })))
+      }
+    },
+
+    /**
+     * A clean close, never terminate(): terminate is what leaves a client staring at a bare 1006
+     * until Vercel's edge notices the socket is dead, up to 340s later. The close code is asked for
+     * as 1001 (going away); Bun 1.3.14 delivers it to the client as an ordinary 1000 regardless —
+     * still a real handshake, not a hang, which is the part that matters.
+     */
+    park(args) {
+      const clients = [...attached]
+      log({ event: EServeEvent.ClientsParked, clients: clients.length, reason: args.reason })
+      for (const socket of clients) {
+        send({ socket, frame: { kind: EServeFrame.Parked, reason: args.reason } })
+        socket.close(GOING_AWAY, args.reason)
       }
     },
 

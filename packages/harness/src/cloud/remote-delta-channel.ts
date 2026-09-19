@@ -22,6 +22,11 @@ import {
   type ChannelSocketFactory,
 } from './remote-channel-socket'
 import { createUpstreamPipe, RemotePublishRefused } from './remote-channel-upstream'
+import {
+  DEFAULT_KEEPALIVE_MS,
+  intervalKeepaliveScheduler,
+  type ScheduleKeepalive,
+} from './keepalive'
 
 export {
   RemotePublishRefused,
@@ -103,12 +108,20 @@ export function createRemoteDeltaChannel(args: {
   socketFactory?: ChannelSocketFactory | undefined
   scheduleRetry?: ((retry: { delayMs: number; run: () => void }) => void) | undefined
   scheduleTimeout?: ((timeout: { delayMs: number; run: () => void }) => void) | undefined
+  scheduleKeepalive?: ScheduleKeepalive | undefined
   backoffMs?: ((args: { attempt: number }) => number) | undefined
   maxAttempts?: number | undefined
   requestTimeoutMs?: number | undefined
+  keepaliveMs?: number | undefined
   /** Once the socket retries are spent, re-attach through the API; the relaunched serve kills the turn in flight. */
   reattach?: (() => Promise<{ url: string; token: string }>) | undefined
   maxReattachments?: number | undefined
+  /**
+   * A dead sandbox fails a WS connect in ~150ms and a parked one never answers, so waiting out
+   * the full backoff (~91.5s) before `reattach` is pure waste. Called once per retry cycle; a
+   * settled `true` escalates immediately instead of waiting out the rest of the backoff.
+   */
+  shouldEscalate?: (() => Promise<boolean>) | undefined
 }): RemoteDeltaChannel {
   const lastEventSeq = args.lastEventSeq ?? (() => 0)
   const socketFactory = args.socketFactory ?? webSocketFactory
@@ -116,6 +129,8 @@ export function createRemoteDeltaChannel(args: {
   const maxAttempts = args.maxAttempts ?? DEFAULT_MAX_ATTEMPTS
   const maxReattachments = args.maxReattachments ?? DEFAULT_MAX_REATTACHMENTS
   const scheduleRetry = args.scheduleRetry ?? afterDelay
+  const keepaliveMs = args.keepaliveMs ?? DEFAULT_KEEPALIVE_MS
+  const scheduleKeepalive = args.scheduleKeepalive ?? intervalKeepaliveScheduler
 
   const listeners = new Set<ChannelListener>()
   const connections = registryOf<ChannelConnection>()
@@ -135,6 +150,7 @@ export function createRemoteDeltaChannel(args: {
   let attempt = 0
   let reattachments = 0
   let socket: ChannelSocket | null = null
+  let stopKeepalive: (() => void) | null = null
   let abandoned = false
   let generation = 0
   let url = args.url
@@ -148,6 +164,19 @@ export function createRemoteDeltaChannel(args: {
 
     live.send(data)
     return true
+  }
+
+  const clearKeepalive = () => {
+    stopKeepalive?.()
+    stopKeepalive = null
+  }
+
+  const startKeepalive = () => {
+    clearKeepalive()
+    stopKeepalive = scheduleKeepalive({
+      intervalMs: keepaliveMs,
+      run: () => write(encodeFrame({ kind: EClientFrame.Pong })),
+    })
   }
 
   const stableReplay = (): readonly StepSignal[] => {
@@ -255,6 +284,7 @@ export function createRemoteDeltaChannel(args: {
   }
 
   const handleOpen = () => {
+    startKeepalive()
     write(
       encodeFrame({
         kind: EClientFrame.Hello,
@@ -282,6 +312,7 @@ export function createRemoteDeltaChannel(args: {
     token = next.token
     attempt = 0
     generation += 1
+    clearKeepalive()
     const stale = socket
     socket = null
     stale?.close()
@@ -290,6 +321,7 @@ export function createRemoteDeltaChannel(args: {
   }
 
   const escalate = (reattach: () => Promise<{ url: string; token: string }>) => {
+    generation += 1
     reattachments += 1
     endStrandedStep()
     moveTo({ state: EChannelConnection.Reattaching, detail: null })
@@ -315,8 +347,13 @@ export function createRemoteDeltaChannel(args: {
 
   const handleClose = () => {
     socket = null
+    clearKeepalive()
     upstream.detach({ reason: 'the session socket closed' })
     if (abandoned) return
+
+    // Told in words (EServeFrame.Parked) before the close: the sandbox is gone on purpose, so
+    // retrying its URL is futile — waking it is the turn runner's job on the next action.
+    if (connection.state === EChannelConnection.Parked) return
 
     if (attempt >= maxAttempts) {
       if (args.reattach !== undefined && reattachments < maxReattachments) {
@@ -331,6 +368,7 @@ export function createRemoteDeltaChannel(args: {
       return
     }
 
+    const startingRetryCycle = attempt === 0
     const delayMs = backoffMs({ attempt })
     attempt += 1
     moveTo({ state: EChannelConnection.Reconnecting, detail: null })
@@ -341,6 +379,23 @@ export function createRemoteDeltaChannel(args: {
         if (scheduled === generation) connect()
       },
     })
+
+    const reattach = args.reattach
+    const shouldEscalate = args.shouldEscalate
+    if (
+      startingRetryCycle &&
+      reattach !== undefined &&
+      shouldEscalate !== undefined &&
+      reattachments < maxReattachments
+    ) {
+      shouldEscalate().then(
+        (escalateNow) => {
+          if (scheduled !== generation || !escalateNow) return
+          escalate(reattach)
+        },
+        () => undefined,
+      )
+    }
   }
 
   const handleError = (message: string) => failures.emit({ message })
@@ -422,6 +477,7 @@ export function createRemoteDeltaChannel(args: {
       abandoned = true
       endStrandedStep()
       upstream.detach({ reason: 'the channel was closed' })
+      clearKeepalive()
       socket?.close()
       socket = null
       moveTo({ state: EChannelConnection.Closed, detail: null })

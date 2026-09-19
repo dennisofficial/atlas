@@ -112,6 +112,7 @@ const stubClient = () => ({
   stop: vi.fn(async () => undefined),
   extendTimeout: vi.fn(async () => undefined),
   exposePort: vi.fn(async (args: { name: string; port: number }) => `https://atlas-${args.port}.vercel.run`),
+  notifyParked: vi.fn(async () => undefined),
 })
 
 describe('SandboxesService', () => {
@@ -455,6 +456,38 @@ describe('SandboxesService', () => {
     )
   })
 
+  it('notifies the sandbox before stopping it, with the operator-stop reason', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+    const order: string[] = []
+    client.notifyParked.mockImplementationOnce(async () => {
+      order.push('notify')
+    })
+    client.stop.mockImplementationOnce(async () => {
+      order.push('stop')
+    })
+
+    await service.stop({ userId: USER_A, threadId: THREAD })
+
+    expect(client.notifyParked).toHaveBeenCalledWith({
+      name: fake.cloudSandboxes[0]?.name,
+      reason: 'the sandbox was stopped',
+    })
+    expect(order).toEqual(['notify', 'stop'])
+  })
+
+  it('still stops the sandbox when the in-sandbox notify fails', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+    client.notifyParked.mockRejectedValueOnce(new Error('the sandbox is wedged'))
+
+    const stopped = await service.stop({ userId: USER_A, threadId: THREAD })
+
+    expect(client.stop).toHaveBeenCalledWith({ name: fake.cloudSandboxes[0]?.name })
+    expect(stopped.state).toBe(ESandboxState.Parked)
+    expect(fake.cloudSandboxes[0]?.state).toBe(ESandboxState.Parked)
+  })
+
   it('reaps only the sandboxes quiet past the TTL', async () => {
     const quiet = new Date(Date.now() - (TTL_MINUTES + 5) * 60_000).toISOString()
     const fresh = new Date(Date.now() - 60_000).toISOString()
@@ -474,8 +507,26 @@ describe('SandboxesService', () => {
     expect(parked).toBe(1)
     expect(client.stop).toHaveBeenCalledTimes(1)
     expect(client.stop).toHaveBeenCalledWith({ name: 'atlas-stale' })
+    expect(client.notifyParked).toHaveBeenCalledWith({
+      name: 'atlas-stale',
+      reason: 'the sandbox parked after sitting idle',
+    })
     expect(fake.cloudSandboxes[0]?.state).toBe(ESandboxState.Parked)
     expect(fake.cloudSandboxes[1]?.state).toBe(ESandboxState.Running)
+  })
+
+  it('still parks a stale sandbox the reaper cannot notify', async () => {
+    const quiet = new Date(Date.now() - (TTL_MINUTES + 5) * 60_000).toISOString()
+    fake.cloudSandboxes.push(
+      sandboxRow({ threadId: 'brn_wedged', name: 'atlas-wedged', lastActivityAt: quiet }),
+    )
+    client.notifyParked.mockRejectedValueOnce(new Error('connection refused'))
+
+    const parked = await service.reap()
+
+    expect(parked).toBe(1)
+    expect(client.stop).toHaveBeenCalledWith({ name: 'atlas-wedged' })
+    expect(fake.cloudSandboxes[0]?.state).toBe(ESandboxState.Parked)
   })
 
   it('spares a sandbox a heartbeat refreshed after the sweep began', async () => {

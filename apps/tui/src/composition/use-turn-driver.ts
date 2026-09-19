@@ -103,9 +103,10 @@ export function useTurnDriver(args: {
   onUndone: (said: PendingSaid) => void
   setFailure: (reason: string | null) => void
   forgetUsage: () => void
+  interruptRefusal?: (() => string | null) | undefined
 }): TurnDriver {
   const { app, threadId, started, pendingMove, view, readClock, used, compactIfFull } = args
-  const { cancelCompaction, onSettled, onUndone, setFailure, forgetUsage } = args
+  const { cancelCompaction, onSettled, onUndone, setFailure, forgetUsage, interruptRefusal } = args
   const { store, events, refresh, stamp } = view
 
   const [working, setWorking] = useState(false)
@@ -358,29 +359,44 @@ export function useTurnDriver(args: {
     [app.agents, app.log, app.services, app.shells, app.threads, cancelCompaction, forgetUsage, refresh, rewindConfirm, setFailure, store, threadId],
   )
 
-  /**
-   * One key stops whatever is running, and a compaction is not a turn — so the compaction is
-   * offered the press first and the turn only aborts if it was not taken.
-   */
-  const handleInterrupt = useCallback(() => {
-    if (cancelCompaction()) return
-
+  const abortTurn = useCallback(() => {
     const controller = abort.current
     if (controller === null) return
 
     stamp(turnInterrupting)
     controller.abort()
-  }, [cancelCompaction, stamp])
+  }, [stamp])
+
+  /**
+   * One key stops whatever is running, and a compaction is not a turn — so the compaction is
+   * offered the press first and the turn only aborts if it was not taken. A turn whose only path
+   * to the sandbox is a dead socket cannot actually be stopped from here either — the frame would
+   * queue into nothing — so a caller that names a reason refuses the press instead of pretending
+   * it worked.
+   */
+  const handleInterrupt = useCallback(() => {
+    if (cancelCompaction()) return
+
+    const refusal = interruptRefusal?.() ?? null
+    if (refusal !== null) {
+      notify({ key: 'interrupt-unavailable', tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS, text: refusal })
+      return
+    }
+
+    abortTurn()
+  }, [abortTurn, cancelCompaction, interruptRefusal])
 
   /**
    * A move interrupts on the operator's behalf, so the message stays committed and travels — the
-   * take-back that an esc would hand back to the composer belongs to the operator's own press.
+   * take-back that an esc would hand back to the composer belongs to the operator's own press. It
+   * bypasses the same gate that guards Esc: the move already decided the turn has to stop, whatever
+   * the socket is doing.
    */
   const handleInterruptForMove = useCallback(() => {
     if (abort.current === null) return
     undoSuppressed.current = true
-    handleInterrupt()
-  }, [handleInterrupt])
+    abortTurn()
+  }, [abortTurn])
 
   const handleRewindTo = useCallback((toSeq: number) => void rewindTo(toSeq), [rewindTo])
 

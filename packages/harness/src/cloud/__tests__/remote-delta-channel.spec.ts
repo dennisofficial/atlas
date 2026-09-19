@@ -8,14 +8,19 @@ import {
   bearerSubprotocolOf,
   CHANNEL_PROTOCOL_VERSION,
   CHANNEL_SUBPROTOCOL,
+  decodeClientFrame,
   EClientFrame,
   encodeFrame,
   EServeFrame,
+  type ClientFrame,
+  type ServeFrame,
 } from '../channel-wire'
 import {
+  createRemoteDeltaChannel,
   EChannelConnection,
   RemotePublishRefused,
   type ChannelReload,
+  type ChannelSocketHandlers,
 } from '../remote-delta-channel'
 import {
   chunkSignal,
@@ -26,6 +31,73 @@ import {
   STEP,
   THREAD,
 } from './remote-channel-fixture'
+
+type FakeSocket = {
+  url: string
+  protocols: readonly string[]
+  handlers: ChannelSocketHandlers
+  sent: ClientFrame[]
+  closed: boolean
+}
+
+type Keepalive = { intervalMs: number; run: () => void }
+
+/**
+ * A local stand-in for the shared `harness()` fixture, threading the escalation-probe and
+ * keepalive factory args the shared fixture does not carry.
+ */
+const wiredHarness = (options: {
+  maxAttempts?: number | undefined
+  maxReattachments?: number | undefined
+  reattach?: (() => Promise<{ url: string; token: string }>) | undefined
+  shouldEscalate?: (() => Promise<boolean>) | undefined
+  keepaliveMs?: number | undefined
+  scheduleKeepalive?: ((keepalive: Keepalive) => () => void) | undefined
+} = {}) => {
+  const sockets: FakeSocket[] = []
+  const retries: { delayMs: number; run: () => void }[] = []
+
+  const channel = createRemoteDeltaChannel({
+    threadId: THREAD,
+    url: 'https://sandbox.test/',
+    token: 'tok_session',
+    maxAttempts: options.maxAttempts,
+    maxReattachments: options.maxReattachments,
+    reattach: options.reattach,
+    shouldEscalate: options.shouldEscalate,
+    keepaliveMs: options.keepaliveMs,
+    scheduleKeepalive: options.scheduleKeepalive,
+    scheduleRetry: (retry) => void retries.push(retry),
+    socketFactory: ({ url, protocols, handlers }) => {
+      const fake: FakeSocket = { url, protocols, handlers, sent: [], closed: false }
+      sockets.push(fake)
+      return {
+        send: (data) => {
+          const frame = decodeClientFrame(data)
+          if (frame === null) throw new Error(`unreadable client frame: ${data}`)
+          fake.sent.push(frame)
+        },
+        close: () => void (fake.closed = true),
+      }
+    },
+  })
+
+  const live = (): FakeSocket => {
+    const socket = sockets.at(-1)
+    if (socket === undefined) throw new Error('no socket was opened')
+    return socket
+  }
+
+  return {
+    channel,
+    sockets,
+    retries,
+    live,
+    open: () => live().handlers.handleOpen(),
+    receive: (frame: ServeFrame) => live().handlers.handleMessage(encodeFrame(frame)),
+    drop: () => live().handlers.handleClose(),
+  }
+}
 
 describe('opening the session socket', () => {
   it('dials the sandbox session path over wss with the auth subprotocols', () => {
@@ -304,6 +376,16 @@ describe('a sandbox that parked', () => {
 
     expect(seen.at(-1)).toMatchObject({ type: 'step-ended', end: EStepEnd.Failed })
   })
+
+  it('stays parked when the socket closes behind the parked frame', () => {
+    const { channel, open, receive, drop } = harness()
+    open()
+    receive({ kind: EServeFrame.Parked, reason: 'idle past the ttl' })
+
+    drop()
+
+    expect(channel.connection().state).toBe(EChannelConnection.Parked)
+  })
 })
 
 describe('what the channel refuses to swallow', () => {
@@ -442,5 +524,224 @@ describe('closing the channel', () => {
     expect(socket.closed).toBe(true)
     expect(channel.connection().state).toBe(EChannelConnection.Closed)
     expect(retries).toEqual([])
+  })
+})
+
+describe('probing for an early escalation', () => {
+  const freshAttachment = { url: 'https://fresh.test/', token: 'tok_fresh' }
+
+  it('asks once a retry cycle begins, and escalates right away when the answer is yes', async () => {
+    const { channel, open, receive, drop, sockets, retries } = wiredHarness({
+      shouldEscalate: () => Promise.resolve(true),
+      reattach: () => Promise.resolve(freshAttachment),
+    })
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+
+    drop()
+    expect(channel.connection().state).toBe(EChannelConnection.Reconnecting)
+
+    await Bun.sleep(1)
+
+    expect(channel.connection().state).toBe(EChannelConnection.Connecting)
+    expect(sockets).toHaveLength(2)
+
+    retries[0]?.run()
+    expect(sockets).toHaveLength(2)
+  })
+
+  it('treats a rejecting probe as a no, so the backoff still runs its course', async () => {
+    let reattachCalls = 0
+    const { channel, open, receive, drop, sockets } = wiredHarness({
+      shouldEscalate: () => Promise.reject(new Error('probe unreachable')),
+      reattach: () => {
+        reattachCalls += 1
+        return Promise.resolve(freshAttachment)
+      },
+    })
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+
+    drop()
+    await Bun.sleep(1)
+
+    expect(channel.connection().state).toBe(EChannelConnection.Reconnecting)
+    expect(reattachCalls).toBe(0)
+    expect(sockets).toHaveLength(1)
+  })
+
+  it('does not ask again later in the same retry cycle', () => {
+    let probeCalls = 0
+    const { open, receive, drop, retries, live } = wiredHarness({
+      shouldEscalate: () => {
+        probeCalls += 1
+        return new Promise<boolean>(() => undefined)
+      },
+      reattach: () => Promise.resolve(freshAttachment),
+    })
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+
+    drop()
+    expect(probeCalls).toBe(1)
+
+    retries[0]?.run()
+    live().handlers.handleClose()
+
+    expect(probeCalls).toBe(1)
+  })
+
+  it('asks again once a fresh retry cycle begins after a clean reconnect', () => {
+    let probeCalls = 0
+    const { open, receive, drop, retries, live } = wiredHarness({
+      shouldEscalate: () => {
+        probeCalls += 1
+        return new Promise<boolean>(() => undefined)
+      },
+      reattach: () => Promise.resolve(freshAttachment),
+    })
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    drop()
+    expect(probeCalls).toBe(1)
+
+    retries[0]?.run()
+    live().handlers.handleOpen()
+    live().handlers.handleMessage(encodeFrame({ kind: EServeFrame.Ready, seq: 1 }))
+
+    drop()
+    expect(probeCalls).toBe(2)
+  })
+
+  it('never asks when there is no reattach to escalate into', () => {
+    let probeCalls = 0
+    const { open, receive, drop } = wiredHarness({
+      shouldEscalate: () => {
+        probeCalls += 1
+        return Promise.resolve(true)
+      },
+    })
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+
+    drop()
+
+    expect(probeCalls).toBe(0)
+  })
+
+  it('never asks once the re-attach budget is already spent', () => {
+    let probeCalls = 0
+    const { open, receive, drop } = wiredHarness({
+      maxReattachments: 0,
+      shouldEscalate: () => {
+        probeCalls += 1
+        return Promise.resolve(true)
+      },
+      reattach: () => Promise.resolve(freshAttachment),
+    })
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+
+    drop()
+
+    expect(probeCalls).toBe(0)
+  })
+
+  it('ignores a late yes once a wake already moved the channel on', async () => {
+    let resolveProbe: (escalateNow: boolean) => void = () => undefined
+    const { sockets, open, receive, drop, channel } = wiredHarness({
+      shouldEscalate: () => new Promise<boolean>((resolve) => void (resolveProbe = resolve)),
+      reattach: () => Promise.resolve(freshAttachment),
+    })
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    drop()
+
+    channel.wake({ url: 'https://woken.test/', token: 'tok_woken' })
+    resolveProbe(true)
+    await Bun.sleep(1)
+
+    expect(sockets.some((socket) => socket.url.includes('fresh'))).toBe(false)
+    expect(channel.connection().state).toBe(EChannelConnection.Connecting)
+  })
+
+})
+
+describe('the client-side keepalive', () => {
+  it('starts sending pong frames once the socket opens, on the default interval', () => {
+    const keepalives: Keepalive[] = []
+    const { open, live } = wiredHarness({
+      scheduleKeepalive: (keepalive) => {
+        keepalives.push(keepalive)
+        return () => undefined
+      },
+    })
+
+    open()
+
+    expect(keepalives).toHaveLength(1)
+    expect(keepalives[0]?.intervalMs).toBe(30_000)
+
+    keepalives[0]?.run()
+
+    expect(live().sent.at(-1)).toEqual({ kind: EClientFrame.Pong })
+  })
+
+  it('honors a custom keepalive interval', () => {
+    const keepalives: Keepalive[] = []
+    const { open } = wiredHarness({
+      keepaliveMs: 5_000,
+      scheduleKeepalive: (keepalive) => {
+        keepalives.push(keepalive)
+        return () => undefined
+      },
+    })
+
+    open()
+
+    expect(keepalives[0]?.intervalMs).toBe(5_000)
+  })
+
+  it('stops the keepalive once the socket closes', () => {
+    let stopped = false
+    const { open, drop } = wiredHarness({
+      scheduleKeepalive: () => () => void (stopped = true),
+    })
+
+    open()
+    drop()
+
+    expect(stopped).toBe(true)
+  })
+
+  it('stops the keepalive once the channel is closed', () => {
+    let stopped = false
+    const { channel, open } = wiredHarness({
+      scheduleKeepalive: () => () => void (stopped = true),
+    })
+
+    open()
+    channel.close()
+
+    expect(stopped).toBe(true)
+  })
+
+  it('clears the old keepalive and starts a fresh one when a wake swaps the socket', () => {
+    const stops: boolean[] = []
+    const { channel, open, receive, live } = wiredHarness({
+      scheduleKeepalive: () => {
+        const index = stops.push(false) - 1
+        return () => void (stops[index] = true)
+      },
+    })
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    expect(stops).toEqual([false])
+
+    channel.wake({ url: 'https://fresh.test/', token: 'tok_fresh' })
+    expect(stops).toEqual([true])
+
+    live().handlers.handleOpen()
+    expect(stops).toEqual([true, false])
   })
 })

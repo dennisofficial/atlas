@@ -108,6 +108,15 @@ describe('what the transcript actually says', () => {
     expect(frame).not.toContain('Working for')
   })
 
+  it('keeps reading Reconnecting when a turn was interrupted before the socket dropped', async () => {
+    const frame = await frameOf(
+      transcript({ model: STREAMING, width: 80, turn: INTERRUPTING, reconnecting: true }),
+      80,
+    )
+    expect(frame).toContain('Reconnecting for')
+    expect(frame).not.toContain('Interrupting…')
+  })
+
   it('leaves a finished turn pinned to the reply it measured, with what it cost and when', async () => {
     const rows = (await frameOf(transcript({ model: TURN_DONE, width: 80 }), 80)).split('\n')
 
