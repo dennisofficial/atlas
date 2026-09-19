@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import { EForkMode, EWorktreeExit, toThreadId, toRunId, type EventDraft } from '@dltech/atlas-core'
 
 import type { PrismaClient } from '../../../prisma/generated/client'
+import { THREAD_LISTING_LIMIT } from '../thread-store'
 import { openSecondWriter, openStoreFixture, type StoreFixture } from './harness'
 
 let fixture: StoreFixture
@@ -382,6 +383,41 @@ describe('threads scoped to a project', () => {
     expect(forked.workspace).toBe('/here')
     expect(forked.repo).toBe('/repo')
     expect((await threads.list({ project: '/here' })).map((row) => row.id)).toContain(forked.id)
+  })
+
+  it('finds a thread by name however far down the picker’s window it has fallen', async () => {
+    const { threads } = await openFixture()
+
+    const target = await threads.create({
+      title: 'Migrating to prod GHCR binary',
+      workspace: '/here',
+    })
+    for (let newer = 0; newer < THREAD_LISTING_LIMIT; newer += 1) {
+      await threads.create({ title: `newer ${newer}`, workspace: '/here' })
+    }
+
+    expect(await threads.list({ project: '/here' })).toHaveLength(THREAD_LISTING_LIMIT)
+    expect(
+      (await threads.findNamed({ project: '/here', handle: 'migrating-to-prod-ghcr-binary' }))?.id,
+    ).toBe(target.id)
+  })
+
+  it('finds a thread by its title as written, without asking for the slug', async () => {
+    const { threads } = await openFixture()
+    const target = await threads.create({ title: 'Daily Driver Setup', workspace: '/here' })
+
+    expect((await threads.findNamed({ project: '/here', handle: 'daily driver setup' }))?.id).toBe(
+      target.id,
+    )
+  })
+
+  it('finds no thread for a name the project has never had', async () => {
+    const { threads } = await openFixture()
+    await threads.create({ title: 'theirs', workspace: '/other' })
+    await threads.create({ title: 'mine', workspace: '/here' })
+
+    expect(await threads.findNamed({ project: '/here', handle: 'theirs' })).toBeUndefined()
+    expect(await threads.findNamed({ project: '/here', handle: 'nobody' })).toBeUndefined()
   })
 })
 

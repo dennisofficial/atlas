@@ -14,6 +14,7 @@ import {
 } from '@dltech/atlas-core'
 
 import type { Prisma, PrismaClient } from '../../prisma/generated/client'
+import { titleMatchesHandle } from '../composition/thread-slug'
 import { PrismaClientToken } from '../container/tokens'
 import { createThreadWithEvents, type OpenThreadArgs } from './create-with-events'
 import { toEventRow } from './event-row'
@@ -64,6 +65,11 @@ export abstract class ThreadStorePort {
     project: string
     limit?: number | undefined
   }): Promise<readonly ThreadSummary[]>
+  /** Resume-by-name lookup; uncapped, where `list`'s limit is the picker's display window. */
+  abstract findNamed(args: {
+    project: string
+    handle: string
+  }): Promise<ThreadSummary | undefined>
   abstract rename(args: { threadId: ThreadId; title: string }): Promise<void>
   abstract chooseModel(args: { threadId: ThreadId; model: ThreadModel }): Promise<void>
   abstract chooseExecutionLocation(args: {
@@ -213,6 +219,24 @@ export class PrismaThreadStore implements ThreadStorePort {
         }
       }),
     )
+  }
+
+  async findNamed({
+    project,
+    handle,
+  }: {
+    project: string
+    handle: string
+  }): Promise<ThreadSummary | undefined> {
+    const rows = await this.prisma.thread.findMany({
+      where: { AND: [inProject(project), { title: { not: null } }] },
+    })
+    return rows
+      .map(toThreadSummary)
+      .find(
+        (thread) =>
+          thread.title !== undefined && titleMatchesHandle({ title: thread.title, handle }),
+      )
   }
 
   async rename({ threadId, title }: { threadId: ThreadId; title: string }): Promise<void> {
