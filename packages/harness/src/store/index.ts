@@ -1,6 +1,7 @@
 export {
   ThreadStorePort,
   PrismaThreadStore,
+  THREAD_LISTING_LIMIT,
   type SupervisedAgent,
   type ThreadModel,
   type ThreadSummary,

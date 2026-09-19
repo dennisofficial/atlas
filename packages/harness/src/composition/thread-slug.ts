@@ -13,6 +13,11 @@ export function slugOfTitle(title: string): string {
     .replace(EDGES, '')
 }
 
+export function titleMatchesHandle(args: { title: string; handle: string }): boolean {
+  const asked = args.handle.toLowerCase()
+  return args.title.toLowerCase() === asked || slugOfTitle(args.title) === slugOfTitle(args.handle)
+}
+
 export function threadHandle(args: { threadId: string; title: string | null }): string {
   if (args.title === null) return args.threadId
 

@@ -20,7 +20,7 @@ import type {
 
 import { EOpenMode, type OpenRequest } from './config'
 import { readThreadSpend } from './thread-spend'
-import { slugOfTitle } from '@dltech/atlas-harness'
+import { titleMatchesHandle } from '@dltech/atlas-harness'
 
 /**
  * `started` is what the store knows, not what the screen shows: a conversation nobody has spoken in
@@ -78,13 +78,9 @@ const reachableFrom = (args: { thread: ThreadSummary; project: string }): boolea
   args.thread.workspace === args.project ||
   args.thread.repo === args.project
 
-export const namedBy = (args: { thread: ThreadSummary; handle: string }): boolean => {
-  const { title } = args.thread
-  if (title === undefined) return false
-
-  const asked = args.handle.toLowerCase()
-  return title.toLowerCase() === asked || slugOfTitle(title) === slugOfTitle(args.handle)
-}
+export const namedBy = (args: { thread: ThreadSummary; handle: string }): boolean =>
+  args.thread.title !== undefined &&
+  titleMatchesHandle({ title: args.thread.title, handle: args.handle })
 
 async function resumed(args: Opening & { handle: string }): Promise<ThreadSummary | undefined> {
   const { handle, threads, workspace } = args
@@ -103,8 +99,7 @@ async function resumed(args: Opening & { handle: string }): Promise<ThreadSummar
     return byId
   }
 
-  const listed = await threads.list({ project })
-  const named = listed.find((thread) => namedBy({ thread, handle }))
+  const named = await threads.findNamed({ project, handle })
   if (named !== undefined) return named
 
   const remote = args.remoteThreads
@@ -115,8 +110,7 @@ async function resumed(args: Opening & { handle: string }): Promise<ThreadSummar
     return remoteById
   }
 
-  const remoteListed = await remote.list({ project }).catch(() => [] as readonly ThreadSummary[])
-  return remoteListed.find((thread) => namedBy({ thread, handle }))
+  return remote.findNamed({ project, handle }).catch(() => undefined)
 }
 
 type Found = ThreadSummary | { unstarted: true } | { reason: string }

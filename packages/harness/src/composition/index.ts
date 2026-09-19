@@ -24,4 +24,4 @@ export { createSandboxStatusState, type SandboxContainer, type SandboxLimits, ty
 export { teardownSession, type TeardownSource } from './session-teardown'
 export { loadSettings, type SettingsBinding } from './settings-binding'
 export { bindSkillRegistry, liveSkillRegistry, SkillRegistryNotBound } from './skills-binding'
-export { slugOfTitle, threadHandle } from './thread-slug'
+export { slugOfTitle, threadHandle, titleMatchesHandle } from './thread-slug'

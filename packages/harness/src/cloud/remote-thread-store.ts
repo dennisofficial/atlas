@@ -6,11 +6,14 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import { titleMatchesHandle } from '../composition/thread-slug'
 import type { OpenThreadArgs } from '../store/create-with-events'
 import type { SupervisedAgent, ThreadModel, ThreadSummary } from '../store/thread-store'
 import { ThreadStorePort } from '../store/thread-store'
 import type { SessionsClient } from './sessions-client'
 import { eventFromWire, threadFromWire, wireDraftOf } from './session-wire'
+
+const NAME_LOOKUP_LIMIT = 1000
 
 export class RemoteThreadStore extends ThreadStorePort {
   private readonly client: SessionsClient
@@ -81,6 +84,23 @@ export class RemoteThreadStore extends ThreadStorePort {
       ...(args.limit === undefined ? {} : { limit: args.limit }),
     })
     return wire.map(threadFromWire)
+  }
+
+  async findNamed(args: {
+    project: string
+    handle: string
+  }): Promise<ThreadSummary | undefined> {
+    const wire = await this.client.listThreads({
+      project: args.project,
+      limit: NAME_LOOKUP_LIMIT,
+    })
+    return wire
+      .map(threadFromWire)
+      .find(
+        (thread) =>
+          thread.title !== undefined &&
+          titleMatchesHandle({ title: thread.title, handle: args.handle }),
+      )
   }
 
   async rename(args: { threadId: ThreadId; title: string }): Promise<void> {

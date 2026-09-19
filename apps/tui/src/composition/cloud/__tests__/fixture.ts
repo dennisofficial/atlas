@@ -179,6 +179,10 @@ class WatchedThreadStore extends ThreadStorePort {
     return this.inner.list(args)
   }
 
+  findNamed(args: Parameters<ThreadStorePort['findNamed']>[0]) {
+    return this.inner.findNamed(args)
+  }
+
   rename(args: Parameters<ThreadStorePort['rename']>[0]) {
     return this.inner.rename(args)
   }

@@ -13,6 +13,7 @@ import {
   type Event,
   type EventLogPort,
 } from '@dltech/atlas-core'
+import { titleMatchesHandle, THREAD_LISTING_LIMIT } from '@dltech/atlas-harness'
 import type {
   SupervisedAgent,
   ThreadModel,
@@ -237,7 +238,7 @@ export function fakeThreadStore(
       const scoped = rows
         .filter((row) => row.workspace === project || row.repo === project)
         .reverse()
-      const taken = limit === undefined ? scoped : scoped.slice(0, limit)
+      const taken = scoped.slice(0, limit ?? THREAD_LISTING_LIMIT)
       if (args.log === undefined) return taken
 
       return taken.map((row) => {
@@ -246,6 +247,15 @@ export function fakeThreadStore(
           ? row
           : { ...row, worktree: { path: worktree.path, branch: worktree.branch } }
       })
+    },
+
+    async findNamed({ project, handle }) {
+      return rows.find(
+        (row) =>
+          (row.workspace === project || row.repo === project) &&
+          row.title !== undefined &&
+          titleMatchesHandle({ title: row.title, handle }),
+      )
     },
 
     async rename({ threadId, title }) {

@@ -328,6 +328,27 @@ describe('which conversation the app opens on', () => {
     expect(threads.created).toBe(0)
   })
 
+  it('resumes by name a conversation that has fallen out of the picker’s window', async () => {
+    const newer = Array.from({ length: 50 }, (_, index) => toThreadId(`newer-${index}`))
+    const threads = fakeThreadStore({
+      existing: [YESTERDAY, ...newer],
+      titles: { [YESTERDAY]: 'Atlas Daily Driver Setup' },
+    })
+    expect(await threads.list({ project: FAKE_WORKSPACE })).toHaveLength(50)
+
+    const outcome = await openConversation({
+      threads,
+      log: fakeEventLog([said('the one with a name')]),
+      ledger: fakeLedger(),
+      agents: fakeAgentRegistry(),
+      ids: fakeIds(),
+      workspace: HERE,
+      open: { mode: EOpenMode.Resume, threadId: 'atlas-daily-driver-setup' },
+    })
+
+    expect(opened(outcome).threadId).toBe(YESTERDAY)
+  })
+
   it('takes the title as it was written, without asking for the slug', async () => {
     const outcome = await openConversation({
       threads: fakeThreadStore({
