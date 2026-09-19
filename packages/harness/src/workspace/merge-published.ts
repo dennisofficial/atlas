@@ -94,7 +94,10 @@ export async function mergePublishedWorkspace(args: {
     if (!moved.ok) throw new Error(`the merge could not set up: ${gitMessageOf(moved)}`)
     detached = true
 
-    const merged = await git({ args: ['merge', '--squash', 'FETCH_HEAD'], cwd })
+    const merged = await git({
+      args: [...ATLAS_GIT_IDENTITY, 'merge', '--squash', 'FETCH_HEAD'],
+      cwd,
+    })
     if (!merged.ok) {
       const conflicts = gitLines(await git({ args: ['diff', '--name-only', '--diff-filter=U'], cwd }))
       if (conflicts.length === 0) {
