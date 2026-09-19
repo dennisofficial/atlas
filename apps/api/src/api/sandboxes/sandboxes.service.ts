@@ -1,7 +1,5 @@
-import { randomUUID } from 'node:crypto'
 import {
   BadGatewayException,
-  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -14,6 +12,7 @@ import { GithubService } from '../github/github.service'
 import { ownedThread } from '../sessions/ownership'
 import { ownedSandbox } from './ownership'
 import { toSandboxDto } from './rows'
+import { claimSandboxRow } from './sandbox-claim'
 import { sandboxNameFor } from './sandbox-names'
 import { hashSessionToken, mintSessionToken, tokenMatches } from './sandbox-tokens'
 import type {
@@ -27,15 +26,11 @@ import { SANDBOX_REGION, SandboxMissingError, VercelSandboxClient } from './verc
 import {
   assertPatchWithinLimit,
   assertSkillsBundleWithinLimit,
-  workspaceColumnsIn,
-  workspaceColumnsOf,
   workspaceSpecOf,
-  type WorkspaceColumns,
 } from './workspace-spec'
 
 const MINUTE_MS = 60_000
 
-const nextSandboxId = (): string => `sbx_${randomUUID()}`
 const nowIso = (): string => new Date().toISOString()
 const messageOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
@@ -45,6 +40,7 @@ export class SandboxesService {
   private readonly logger = new Logger(SandboxesService.name)
   private readonly attachLocks = new Map<string, Promise<unknown>>()
   private readonly provisionFailures = new Map<string, string>()
+  private readonly sessionClockExtendedAt = new Map<string, number>()
 
   constructor(
     private readonly vercel: VercelSandboxClient,
@@ -112,53 +108,17 @@ export class SandboxesService {
   }): Promise<void> {
     this.provisionFailures.delete(args.thread.id)
     try {
-      const claim = await this.claimForAttach(args)
-      await this.provisionInBackground(claim)
+      const row = await claimSandboxRow({
+        thread: args.thread,
+        tokenHash: args.tokenHash,
+        workspace: args.workspace,
+        skillsBundle: args.skillsBundle,
+      })
+      await this.provisionInBackground({ row, token: args.token })
     } catch (failure) {
-      if (failure instanceof ConflictException) {
-        this.logger.log(
-          `attach for thread ${args.thread.id} lost the claim race — the winner is provisioning`,
-        )
-        return
-      }
       this.logger.warn(`sandbox attach failed for thread ${args.thread.id}: ${messageOf(failure)}`)
       this.provisionFailures.set(args.thread.id, messageOf(failure))
     }
-  }
-
-  private async claimForAttach(args: {
-    thread: ThreadModel
-    workspace: SandboxWorkspaceSpec | undefined
-    skillsBundle: string | undefined
-    token: string
-    tokenHash: string
-  }): Promise<{ row: CloudSandboxModel; token: string }> {
-    const columns: WorkspaceColumns = {
-      ...workspaceColumnsOf(args.workspace),
-      workspaceSkills: args.skillsBundle ?? null,
-    }
-    const claimed = await this.claim({
-      thread: args.thread,
-      tokenHash: args.tokenHash,
-      columns,
-    })
-    if (claimed.tokenHash === args.tokenHash) {
-      return { row: claimed, token: args.token }
-    }
-
-    const stored = workspaceColumnsIn(claimed)
-    const kept: WorkspaceColumns = {
-      ...(args.workspace === undefined ? stored : columns),
-      workspaceSkills:
-        args.skillsBundle === undefined ? stored.workspaceSkills : columns.workspaceSkills,
-    }
-    await this.vercel.destroy({ name: claimed.name })
-    await db.cloudSandbox.delete({ where: { threadId: claimed.threadId } })
-    const reclaimed = await this.claim({ thread: args.thread, tokenHash: args.tokenHash, columns: kept })
-    if (reclaimed.tokenHash !== args.tokenHash) {
-      throw new ConflictException('another attach is provisioning this sandbox — retry in a moment')
-    }
-    return { row: reclaimed, token: args.token }
   }
 
   /**
@@ -240,6 +200,29 @@ export class SandboxesService {
       where: { threadId: args.threadId },
       data: { lastActivityAt: at, updatedAt: at },
     })
+    if (!this.sessionClockDue(args.threadId)) return
+    const row = await db.cloudSandbox.findUnique({
+      where: { threadId: args.threadId },
+      select: { name: true },
+    })
+    if (row === null) return
+    await this.extendSessionClock({ threadId: args.threadId, name: row.name })
+  }
+
+  private sessionClockDue(threadId: string): boolean {
+    const extendedAt = this.sessionClockExtendedAt.get(threadId)
+    return extendedAt === undefined || Date.now() - extendedAt >= this.ttlMs() / 2
+  }
+
+  private async extendSessionClock(args: { threadId: string; name: string }): Promise<void> {
+    this.sessionClockExtendedAt.set(args.threadId, Date.now())
+    try {
+      await this.vercel.extendTimeout({ name: args.name, durationMs: this.ttlMs() })
+    } catch (failure) {
+      this.logger.warn(
+        `could not extend the session clock of sandbox ${args.name}: ${messageOf(failure)}`,
+      )
+    }
   }
 
   async reap(): Promise<number> {
@@ -278,32 +261,6 @@ export class SandboxesService {
 
   private ttlMs(): number {
     return this.env.get('SANDBOX_TTL_MINUTES') * MINUTE_MS
-  }
-
-  private claim(args: {
-    thread: ThreadModel
-    tokenHash: string
-    columns: WorkspaceColumns
-  }): Promise<CloudSandboxModel> {
-    const at = nowIso()
-    return db.cloudSandbox.upsert({
-      where: { threadId: args.thread.id },
-      create: {
-        id: nextSandboxId(),
-        threadId: args.thread.id,
-        userId: args.thread.userId,
-        sandboxId: '',
-        name: sandboxNameFor({ threadId: args.thread.id }),
-        region: SANDBOX_REGION,
-        state: ESandboxState.Parked,
-        lastActivityAt: at,
-        tokenHash: args.tokenHash,
-        ...args.columns,
-        createdAt: at,
-        updatedAt: at,
-      },
-      update: { lastActivityAt: at, updatedAt: at },
-    })
   }
 
   private async provisionInBackground(args: {

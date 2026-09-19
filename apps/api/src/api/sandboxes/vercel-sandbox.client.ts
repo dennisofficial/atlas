@@ -1,9 +1,15 @@
-import { BadGatewayException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
-import { APIError, Sandbox } from '@vercel/sandbox'
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
+import { Sandbox } from '@vercel/sandbox'
 import { EnvService } from '../../_core/config/env/env.service'
 import { ESandboxState } from './sandboxes.types'
 import { ServeBinaryService } from './serve-binary'
 import { createServeLauncher, StaleSandboxTokenError, type ServeLauncher } from './serve-launch'
+import {
+  asBadGateway,
+  failureTextOf,
+  isSandboxMissing,
+  isSandboxUnavailable,
+} from './vercel-sandbox.errors'
 
 export const SANDBOX_REGION = 'iad1'
 export const SANDBOX_SERVE_PORT = 3000
@@ -49,43 +55,6 @@ export class SandboxMissingError extends Error {
   }
 }
 
-const snapshotCodeOf = (json: unknown): string | undefined => {
-  if (typeof json !== 'object' || json === null) return undefined
-  const error = (json as { error?: unknown }).error
-  if (typeof error !== 'object' || error === null) return undefined
-  const code = (error as { code?: unknown }).code
-  return typeof code === 'string' ? code : undefined
-}
-
-const vercelMessageOf = (error: APIError<unknown>): string => {
-  if (typeof error.json === 'object' && error.json !== null) {
-    const errorField = (error.json as { error?: unknown }).error
-    if (typeof errorField === 'object' && errorField !== null) {
-      const message = (errorField as { message?: unknown }).message
-      if (typeof message === 'string') return message
-    }
-  }
-  return error.message
-}
-
-const failureTextOf = (failure: unknown): string => {
-  if (failure instanceof APIError) return vercelMessageOf(failure)
-  if (failure instanceof Error) return failure.message
-  return String(failure)
-}
-
-const isSandboxMissing = (error: unknown): boolean => {
-  if (!(error instanceof APIError)) return false
-  if (error.response.status === 404) return true
-  return error.response.status === 410 && snapshotCodeOf(error.json) === 'snapshot_not_found'
-}
-
-const asBadGateway = (failure: unknown): BadGatewayException => {
-  if (failure instanceof APIError) return new BadGatewayException(vercelMessageOf(failure))
-  if (failure instanceof Error) return new BadGatewayException(failure.message)
-  return new BadGatewayException('the sandbox provider failed unexpectedly')
-}
-
 const stateOf = (status: string): ESandboxState => {
   if (status === 'running') return ESandboxState.Running
   if (status === 'pending') return ESandboxState.Resuming
@@ -124,7 +93,7 @@ export class VercelSandboxClient {
     serveBinary: ServeBinaryService,
   ) {
     const launch = createServeLauncher({ readStamp: () => serveBinary.stamp() })
-    this.launchServe = (sandbox) => this.dedupedLaunch(sandbox, launch)
+    this.launchServe = ({ sandbox, token }) => this.dedupedLaunch({ sandbox, launch, token })
   }
 
   async getOrCreate(args: {
@@ -144,7 +113,7 @@ export class VercelSandboxClient {
         persistent: true,
         resume: true,
         image: configuration.image,
-        onResume: this.launchServe,
+        onResume: (sandbox) => this.launchServe({ sandbox, token: args.token }),
         env: {
           ATLAS_SERVE_TOKEN: args.token,
           ATLAS_SERVE_PORT: String(SANDBOX_SERVE_PORT),
@@ -156,7 +125,7 @@ export class VercelSandboxClient {
       })
       const createMs = Date.now() - createStartedAt
       const serveStartedAt = Date.now()
-      await this.launchServe(sandbox)
+      await this.launchServe({ sandbox, token: args.token })
       this.logger.log(
         `sandbox ${args.name} provisioned: get-or-create ${createMs}ms, serve launch ${Date.now() - serveStartedAt}ms`,
       )
@@ -201,6 +170,23 @@ export class VercelSandboxClient {
     }
   }
 
+  async extendTimeout(args: { name: string; durationMs: number }): Promise<void> {
+    const credentials = this.credentials()
+    try {
+      const sandbox = await Sandbox.get({
+        ...credentials,
+        name: args.name,
+        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
+      })
+      await sandbox.extendTimeout(args.durationMs, {
+        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
+      })
+    } catch (failure) {
+      if (isSandboxUnavailable(failure)) return
+      throw asBadGateway(failure)
+    }
+  }
+
   async stop(args: { name: string }): Promise<void> {
     const credentials = this.credentials()
     try {
@@ -216,25 +202,33 @@ export class VercelSandboxClient {
     }
   }
 
-  private async dedupedLaunch(sandbox: Sandbox, launch: ServeLauncher): Promise<void> {
-    const existing = this.inflightLaunches.get(sandbox)
+  private async dedupedLaunch(args: {
+    sandbox: Sandbox
+    launch: ServeLauncher
+    token?: string | undefined
+  }): Promise<void> {
+    const existing = this.inflightLaunches.get(args.sandbox)
     if (existing !== undefined) return existing
-    const attempt = this.healedLaunch(sandbox, launch).finally(() => {
-      this.inflightLaunches.delete(sandbox)
+    const attempt = this.healedLaunch(args).finally(() => {
+      this.inflightLaunches.delete(args.sandbox)
     })
-    this.inflightLaunches.set(sandbox, attempt)
+    this.inflightLaunches.set(args.sandbox, attempt)
     return attempt
   }
 
-  private async healedLaunch(sandbox: Sandbox, launch: ServeLauncher): Promise<void> {
+  private async healedLaunch(args: {
+    sandbox: Sandbox
+    launch: ServeLauncher
+    token?: string | undefined
+  }): Promise<void> {
     try {
-      await launch(sandbox)
+      await args.launch({ sandbox: args.sandbox, ...(args.token === undefined ? {} : { token: args.token }) })
     } catch (failure) {
       if (!(failure instanceof StaleSandboxTokenError)) throw failure
-      await sandbox
+      await args.sandbox
         .delete({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
         .catch(() => undefined)
-      throw new SandboxMissingError(sandbox.name)
+      throw new SandboxMissingError(args.sandbox.name)
     }
   }
 

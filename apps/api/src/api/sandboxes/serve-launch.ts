@@ -3,6 +3,7 @@ import type { Sandbox } from '@vercel/sandbox'
 export const SERVE_BINARY_PATH = '/vercel/sandbox/atlas-serve'
 export const SERVE_LOG_PATH = '/vercel/sandbox/atlas-serve.log'
 export const SERVE_LOCK_PATH = '/vercel/sandbox/atlas-serve.lock'
+export const SERVE_TOKEN_PATH = '/vercel/sandbox/atlas-serve.token'
 
 const HEALTH_ATTEMPTS = 90
 const HEALTH_INTERVAL_SECONDS = 2
@@ -18,7 +19,13 @@ export class StaleSandboxTokenError extends Error {
   }
 }
 
-export const HEALTH_PROBE = `curl -sf -m 5 --connect-timeout 2 -H "Authorization: Bearer $ATLAS_SERVE_TOKEN" "http://localhost:$ATLAS_SERVE_PORT/v1/health" -o /dev/null`
+const withServeToken = (script: string): string =>
+  `_serve_token=$(cat ${SERVE_TOKEN_PATH} 2>/dev/null || true); ` +
+  `[ -n "$_serve_token" ] && export ATLAS_SERVE_TOKEN="$_serve_token"; true; ${script}`
+
+export const HEALTH_PROBE = withServeToken(
+  `curl -sf -m 5 --connect-timeout 2 -H "Authorization: Bearer $ATLAS_SERVE_TOKEN" "http://localhost:$ATLAS_SERVE_PORT/v1/health" -o /dev/null`,
+)
 
 const sh = (args: { sandbox: Sandbox; script: string; timeoutMs?: number }) =>
   args.sandbox.runCommand({
@@ -57,14 +64,14 @@ for pid in /proc/[0-9]*; do
 done
 true`
 
-const downloadBinary = `mkdir -p /vercel/sandbox && ` +
+const downloadBinary = withServeToken(`mkdir -p /vercel/sandbox && ` +
   `code=$(curl -sS --retry 3 --retry-all-errors --connect-timeout 10 -m 240 ` +
   `-H "Authorization: Bearer $ATLAS_SERVE_TOKEN" ` +
   `"$ATLAS_CLOUD_URL/v1/sandboxes/$ATLAS_THREAD_ID/serve-binary" ` +
   `-o ${SERVE_BINARY_PATH} -w '%{http_code}') || exit $?; ` +
   `if [ "$code" = "401" ]; then exit ${EXIT_AUTH_STALE}; fi; ` +
   `if [ "$code" != "200" ]; then echo "download answered HTTP $code" >&2; exit 22; fi; ` +
-  `chmod 755 ${SERVE_BINARY_PATH}`
+  `chmod 755 ${SERVE_BINARY_PATH}`)
 
 const serveLogTail = async (sandbox: Sandbox): Promise<string> => {
   const tail = await sh({
@@ -77,12 +84,15 @@ const serveLogTail = async (sandbox: Sandbox): Promise<string> => {
   return content.length > 0 ? content : '<serve log is empty or missing>'
 }
 
-export type ServeLauncher = (sandbox: Sandbox) => Promise<void>
+export type ServeLauncher = (args: { sandbox: Sandbox; token?: string }) => Promise<void>
 
 export function createServeLauncher(args: {
   readStamp: () => Promise<string>
 }): ServeLauncher {
-  return async (sandbox) => {
+  return async ({ sandbox, token }) => {
+    if (token !== undefined) {
+      await sandbox.writeFiles([{ path: SERVE_TOKEN_PATH, content: token, mode: 0o600 }])
+    }
     const stamp = await args.readStamp()
     const [healthy, installed] = await Promise.all([serveHealthy(sandbox), installedHash(sandbox)])
     if (healthy && installed === stamp) return
@@ -103,7 +113,9 @@ export function createServeLauncher(args: {
       cmd: 'sh',
       args: [
         '-c',
-        `exec flock -n ${SERVE_LOCK_PATH} ${SERVE_BINARY_PATH} >> ${SERVE_LOG_PATH} 2>&1`,
+        withServeToken(
+          `exec flock -n ${SERVE_LOCK_PATH} ${SERVE_BINARY_PATH} >> ${SERVE_LOG_PATH} 2>&1`,
+        ),
       ],
       detached: true,
     })

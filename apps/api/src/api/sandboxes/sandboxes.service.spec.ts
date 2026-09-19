@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto'
 import {
-  BadGatewayException,
   NotFoundException,
   PayloadTooLargeException,
   ServiceUnavailableException,
@@ -31,6 +30,7 @@ const USER_A = 'user-a'
 const USER_B = 'user-b'
 const THREAD = 'brn_thread_1'
 const TTL_MINUTES = 30
+const MAX_SESSION_MINUTES = 240
 
 const fake = fakeSessionDb()
 
@@ -93,7 +93,11 @@ const SPEC = {
   patch: PATCH,
 }
 
-const env = { get: () => TTL_MINUTES } as unknown as EnvService
+const ENV: Record<string, number> = {
+  SANDBOX_TTL_MINUTES: TTL_MINUTES,
+  SANDBOX_MAX_SESSION_MINUTES: MAX_SESSION_MINUTES,
+}
+const env = { get: (key: string) => ENV[key] } as unknown as EnvService
 
 const stubGithub = () => ({ findToken: vi.fn(async () => 'gho_user-token') })
 
@@ -106,6 +110,7 @@ const stubClient = () => ({
   destroy: vi.fn(async () => undefined),
   inspect: vi.fn(async () => ({ state: ESandboxState.Parked })),
   stop: vi.fn(async () => undefined),
+  extendTimeout: vi.fn(async () => undefined),
 })
 
 describe('SandboxesService', () => {
@@ -147,9 +152,13 @@ describe('SandboxesService', () => {
     await service.whenSettled({ threadId: THREAD })
 
     expect(second.state).toBe(ESandboxState.Resuming)
-    expect(client.destroy).toHaveBeenCalledTimes(1)
-    expect(client.destroy).toHaveBeenCalledWith({ name: fake.cloudSandboxes[0]?.name })
+    expect(client.destroy).not.toHaveBeenCalled()
     expect(client.getOrCreate).toHaveBeenCalledTimes(2)
+    expect(client.getOrCreate).toHaveBeenNthCalledWith(2, {
+      name: fake.cloudSandboxes[0]?.name,
+      threadId: THREAD,
+      token: second.token,
+    })
     expect(second.token).toBeDefined()
     expect(second.token).not.toBe(first.token)
     expect(fake.cloudSandboxes).toHaveLength(1)
@@ -211,7 +220,7 @@ describe('SandboxesService', () => {
     releaseCreate?.()
     await service.whenSettled({ threadId: THREAD })
 
-    expect(client.destroy).toHaveBeenCalledTimes(1)
+    expect(client.destroy).not.toHaveBeenCalled()
     expect(client.getOrCreate).toHaveBeenCalledTimes(2)
     expect(fake.cloudSandboxes).toHaveLength(1)
   })
@@ -225,7 +234,7 @@ describe('SandboxesService', () => {
 
     expect(fake.cloudSandboxes).toHaveLength(1)
     expect(client.getOrCreate).toHaveBeenCalledTimes(2)
-    expect(client.destroy).toHaveBeenCalledTimes(1)
+    expect(client.destroy).not.toHaveBeenCalled()
     expect(attached.every((one) => one.token !== undefined)).toBe(true)
   })
 
@@ -253,30 +262,37 @@ describe('SandboxesService', () => {
     await service.whenSettled({ threadId: THREAD })
 
     expect(client.getOrCreate).toHaveBeenCalledTimes(2)
-    expect(client.destroy).toHaveBeenCalledTimes(1)
+    expect(client.destroy).not.toHaveBeenCalled()
     expect(firstAttached.token).toBeDefined()
     expect(secondAttached.token).toBeDefined()
   })
 
-  it('bumps activity when claiming an existing row, before the old sandbox is destroyed', async () => {
+  it('bumps activity when claiming an existing row, before the re-provision starts', async () => {
     await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
     fake.cloudSandboxes[0]!.lastActivityAt = '2020-01-01T00:00:00.000Z'
 
-    let releaseDestroy: (() => void) | undefined
+    let releaseCreate: (() => void) | undefined
     const gate = new Promise<void>((resolve) => {
-      releaseDestroy = resolve
+      releaseCreate = resolve
     })
-    client.destroy.mockImplementationOnce(async () => {
+    client.getOrCreate.mockImplementationOnce(async () => {
       await gate
+      return {
+        sessionId: 'ses_created',
+        url: 'https://atlas-3000.vercel.run',
+        state: ESandboxState.Running,
+      }
     })
 
     const attaching = service.attach({ userId: USER_A, threadId: THREAD })
-    await vi.waitFor(() => expect(client.destroy).toHaveBeenCalledTimes(1))
+    await vi.waitFor(() => expect(client.getOrCreate).toHaveBeenCalledTimes(2))
 
     expect(fake.cloudSandboxes[0]?.lastActivityAt).not.toBe('2020-01-01T00:00:00.000Z')
 
-    releaseDestroy?.()
+    releaseCreate?.()
     await attaching
+    await service.whenSettled({ threadId: THREAD })
   })
 
   it('returns a fresh token on every attach and stores only its hash', async () => {
@@ -352,6 +368,40 @@ describe('SandboxesService', () => {
     await expect(
       service.verifySessionToken({ threadId: THREAD, token: 'not-the-token' }),
     ).rejects.toBeInstanceOf(UnauthorizedException)
+  })
+
+  it('extends the session clock by a TTL slice on a heartbeat, so a busy turn outlives it', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+
+    await service.heartbeat({ threadId: THREAD })
+
+    expect(client.extendTimeout).toHaveBeenCalledWith({
+      name: fake.cloudSandboxes[0]?.name,
+      durationMs: TTL_MINUTES * 60_000,
+    })
+  })
+
+  it('throttles the extension so a chatty turn cannot burst the provider api', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+
+    await service.heartbeat({ threadId: THREAD })
+    await service.heartbeat({ threadId: THREAD })
+    await service.heartbeat({ threadId: THREAD })
+
+    expect(client.extendTimeout).toHaveBeenCalledTimes(1)
+  })
+
+  it('answers the heartbeat even when the extension is refused', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+    client.extendTimeout.mockRejectedValue(new Error('the plan caps the session'))
+    fake.cloudSandboxes[0]!.lastActivityAt = '2026-09-16T00:00:00.000Z'
+
+    await expect(service.heartbeat({ threadId: THREAD })).resolves.toBeUndefined()
+    await expect(service.heartbeat({ threadId: THREAD })).resolves.toBeUndefined()
+    expect(fake.cloudSandboxes[0]?.lastActivityAt).not.toBe('2026-09-16T00:00:00.000Z')
   })
 
   it('heartbeats without throwing when the row is gone', async () => {
@@ -556,39 +606,26 @@ describe('SandboxesService', () => {
     expect(client.getOrCreate).not.toHaveBeenCalled()
   })
 
-  it('destroys the sandbox the row points at before re-provisioning', async () => {
+  it('rotates the session token on the same row instead of recreating the sandbox', async () => {
     const first = await service.attach({ userId: USER_A, threadId: THREAD })
     await service.whenSettled({ threadId: THREAD })
+    const rowId = fake.cloudSandboxes[0]?.id
     const name = fake.cloudSandboxes[0]?.name
 
     const attached = await service.attach({ userId: USER_A, threadId: THREAD })
     await service.whenSettled({ threadId: THREAD })
 
-    expect(client.destroy).toHaveBeenCalledWith({ name })
+    expect(client.destroy).not.toHaveBeenCalled()
     expect(attached.token).toBeDefined()
     expect(attached.token).not.toBe(first.token)
     expect(client.getOrCreate).toHaveBeenCalledTimes(2)
     expect(fake.cloudSandboxes).toHaveLength(1)
+    expect(fake.cloudSandboxes[0]?.id).toBe(rowId)
+    expect(fake.cloudSandboxes[0]?.name).toBe(name)
     expect(fake.cloudSandboxes[0]?.tokenHash).toBe(
       createHash('sha256')
         .update(attached.token as string)
         .digest('hex'),
-    )
-  })
-
-  it('keeps the row and reports the reason when destroying the old sandbox fails', async () => {
-    await service.attach({ userId: USER_A, threadId: THREAD })
-    await service.whenSettled({ threadId: THREAD })
-    client.destroy.mockRejectedValueOnce(new BadGatewayException('vercel is unhappy'))
-
-    const attached = await service.attach({ userId: USER_A, threadId: THREAD })
-    expect(attached.state).toBe(ESandboxState.Resuming)
-
-    await service.whenSettled({ threadId: THREAD })
-    expect(fake.cloudSandboxes).toHaveLength(1)
-    expect(client.getOrCreate).toHaveBeenCalledTimes(1)
-    await expect(service.status({ userId: USER_A, threadId: THREAD })).rejects.toThrow(
-      'vercel is unhappy',
     )
   })
 
