@@ -88,6 +88,36 @@ describe('creating a sandbox', () => {
   })
 })
 
+describe('exposing a port', () => {
+  it('posts the port to the expose path and answers the routed url', async () => {
+    const { client, calls } = harness([{ body: { url: 'https://sb-x.vercel.run' } }])
+
+    const url = await client.exposePort({ threadId: 'brn_cloud', port: 3001 })
+
+    expect(calls[0]?.method).toBe('POST')
+    expect(calls[0]?.url).toBe('https://cloud.test/v1/sandboxes/brn_cloud/expose')
+    expect(calls[0]?.body).toEqual({ port: 3001 })
+    expect(url).toBe('https://sb-x.vercel.run')
+  })
+
+  it('refuses a response that is not the exposure shape', async () => {
+    const { client } = harness([{ body: { state: 'running' } }])
+
+    await expect(client.exposePort({ threadId: 'brn_cloud', port: 3001 })).rejects.toThrow()
+  })
+
+  it('surfaces a refusal — wrong token, missing sandbox, port ceiling — as a CloudError', async () => {
+    const { client } = harness([{ status: 400, body: { message: 'at most 15 ports' } }])
+
+    const failure = await client
+      .exposePort({ threadId: 'brn_cloud', port: 3001 })
+      .catch((error) => error)
+
+    expect(failure).toBeInstanceOf(CloudError)
+    expect((failure as CloudError).message).toContain('at most 15 ports')
+  })
+})
+
 describe('stopping a sandbox', () => {
   it('posts to the stop path and answers nothing', async () => {
     const { client, calls } = harness([{}])

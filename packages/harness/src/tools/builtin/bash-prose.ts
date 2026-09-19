@@ -40,7 +40,7 @@ export function bashDescription({
     `After ${MATCHED_LINES_CAP} matched lines the watch disarms and says so; the shell keeps running and still delivers its ending.`,
     'So never wait on one: no sleeping, no polling, no idle loop, and no do-nothing call to tick the time away - ticking only spins the turn. Move on to other work, or end the turn and be woken.',
     'shell_output reads a shell that will not end on its own, shell_list shows what is running, and shell_kill stops one.',
-    'exposePort publishes the port a background server listens on so the operator can open it from this machine; it requires runInBackground.',
+    'exposePort publishes the port a background server listens on and answers with the URL to hand the operator; it requires runInBackground.',
     'In a container sandbox any port can be exposed: have the server listen on 0.0.0.0 - 127.0.0.1 is invisible outside the container - and pass the port it listens on; the reply carries the URL to hand the operator.',
   ].join(' ')
 }
@@ -48,7 +48,7 @@ export function bashDescription({
 export function exposureClause({ exposure }: { exposure: PortExposure | undefined }): readonly string[] {
   if (exposure === undefined) return []
   if (exposure.hostPort === exposure.containerPort) {
-    return [`It is reachable from this machine at ${exposure.url}.`]
+    return [`It is reachable at ${exposure.url}.`]
   }
 
   return [

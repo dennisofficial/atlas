@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common'
 import { GithubModule } from '../github/github.module'
+import { SandboxExposeController } from './expose.controller'
 import { SandboxHeartbeatController } from './heartbeat.controller'
 import { SandboxReaperService } from './sandbox-reaper.service'
 import { SandboxTokenGuard } from './sandbox-token.guard'
@@ -17,6 +18,7 @@ import { SandboxWorkspaceController } from './workspace.controller'
     SandboxHeartbeatController,
     SandboxWorkspaceController,
     ServeBinaryController,
+    SandboxExposeController,
   ],
   providers: [
     SandboxesService,
