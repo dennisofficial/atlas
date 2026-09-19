@@ -11,14 +11,12 @@ const freshDirectory = async (prefix: string): Promise<string> => mkdtemp(join(t
 
 const SESSION = { url: 'https://cloud.test', token: 'sess_test' }
 
-const NOTICE_KEY = 'remote-memory-merge-timeout'
-
 beforeEach(() => {
   dismissNotice()
 })
 
 describe('mergeRemoteMemoryBounded', () => {
-  it('resolves promptly and warns when the control plane never answers', async () => {
+  it('resolves promptly and silently when the control plane never answers', async () => {
     const cwd = await freshDirectory('atlas-bounded-merge-cwd-')
     const fetchFn = ((_input: unknown, init?: RequestInit) =>
       new Promise((_resolve, reject) => {
@@ -30,9 +28,7 @@ describe('mergeRemoteMemoryBounded', () => {
     const elapsedMs = Date.now() - startedAt
 
     expect(elapsedMs).toBeLessThan(1_000)
-    const notice = currentNotices().find((entry) => entry.key === NOTICE_KEY)
-    expect(notice).toBeDefined()
-    expect(notice?.text).toContain('did not finish in time')
+    expect(currentNotices()).toHaveLength(0)
   })
 
   it('resolves without a notice when the merge finishes inside the bound', async () => {
@@ -42,7 +38,7 @@ describe('mergeRemoteMemoryBounded', () => {
 
     await mergeRemoteMemoryBounded({ session: SESSION, cwd, timeoutMs: 5_000, fetchFn })
 
-    expect(currentNotices().find((entry) => entry.key === NOTICE_KEY)).toBeUndefined()
+    expect(currentNotices()).toHaveLength(0)
   })
 
   it('never rejects, even when the underlying fetch throws outright', async () => {
