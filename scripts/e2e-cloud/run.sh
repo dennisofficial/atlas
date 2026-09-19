@@ -62,8 +62,8 @@ done
 if [ "$ready" != "1" ]; then echo "API never became healthy"; tail -20 /tmp/e2e-cloud-api.log; exit 1; fi
 echo "api healthy on $API_URL"
 
-rm -rf /tmp/e2e-cloud-serve-home /tmp/e2e-cloud-ws
-mkdir -p /tmp/e2e-cloud-serve-home /tmp/e2e-cloud-ws
+rm -rf /tmp/e2e-cloud-serve-home /tmp/e2e-cloud-ws /tmp/e2e-cloud-ws-home
+mkdir -p /tmp/e2e-cloud-serve-home /tmp/e2e-cloud-ws /tmp/e2e-cloud-ws-home
 cd "$ROOT"
 E2E_API_URL=$API_URL E2E_TOKEN_FILE=$TOKEN_FILE E2E_PG_CONTAINER=$PG_CONTAINER E2E_SERVE_PORT=$SERVE_PORT E2E_MOCK_PORT=$MOCK_PORT \
   bun scripts/e2e-cloud/transfer-up.mjs
@@ -73,5 +73,7 @@ E2E_API_URL=$API_URL E2E_TOKEN_FILE=$TOKEN_FILE E2E_PG_CONTAINER=$PG_CONTAINER E
   bun scripts/e2e-cloud/transfer-down.mjs
 E2E_API_URL=$API_URL E2E_TOKEN_FILE=$TOKEN_FILE E2E_PG_CONTAINER=$PG_CONTAINER E2E_SERVE_PORT=$SERVE_PORT E2E_MOCK_PORT=$MOCK_PORT \
   bun scripts/e2e-cloud/transfer-replace.mjs
+E2E_API_URL=$API_URL E2E_TOKEN_FILE=$TOKEN_FILE E2E_PG_CONTAINER=$PG_CONTAINER E2E_SERVE_PORT=$SERVE_PORT E2E_MOCK_PORT=$MOCK_PORT \
+  ATLAS_HOME=/tmp/e2e-cloud-ws-home bun scripts/e2e-cloud/workspace-down.mjs
 
 echo "E2E CLOUD: ALL PHASES GREEN"

@@ -68,7 +68,7 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
       runs += 1
     },
     interrupt: () => undefined,
-    request: async () => undefined,
+    request: async () => null,
     connection: () => held,
     onConnection: (listener) => {
       connections.add(listener)

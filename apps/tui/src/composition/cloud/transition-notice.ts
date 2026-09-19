@@ -55,7 +55,7 @@ const rebuiltSentence = (workspace: LiftedWorkspace | null): string => {
     return `The workspace was rebuilt here${from}${on} at ${at}, with nothing uncommitted to carry.`
   }
 
-  return `The workspace was rebuilt here${from}${on} at ${at}, and the uncommitted work — tracked edits and untracked files alike — was applied on top as a patch. Nothing was committed to move it, so the branch reads exactly as it did before.`
+  return `The workspace was rebuilt here${from}${on} at ${at}, and the uncommitted work — tracked edits and untracked files alike — came along as a scratch baseline commit, so the tree here reads clean while the operator's branch back home is untouched.`
 }
 
 /**
@@ -81,4 +81,22 @@ export const liftedDraft = (args: {
   slot: CLOUD_NOTICE_SLOT,
   key: CLOUD_NOTICE_KEY,
   content: liftedProse(args),
+})
+
+/**
+ * The mirror image on the way down, spoken only when the merge could not settle everything
+ * itself: the files named carry ordinary conflict markers, and the model resuming locally needs
+ * to know its tree has them.
+ */
+export const descendedConflictsDraft = (args: {
+  conflicts: readonly string[]
+}): EventDraft => ({
+  type: 'context-loaded',
+  slot: CLOUD_NOTICE_SLOT,
+  key: CLOUD_NOTICE_KEY,
+  content: [
+    'This session has moved: it now runs on the operator’s machine again, and the cloud workspace came with it as uncommitted changes.',
+    `${plural({ count: args.conflicts.length, one: 'One file', many: `${args.conflicts.length} files` })} had been edited on both sides and now ${args.conflicts.length === 1 ? 'carries' : 'carry'} ordinary git conflict markers: ${args.conflicts.join(', ')}.`,
+    'Nothing else is blocked — resolve them whenever.',
+  ].join(' '),
 })

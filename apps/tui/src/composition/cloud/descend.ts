@@ -1,12 +1,11 @@
-import { unlinkSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-
 import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
 import {
   EClientRequest,
+  mergePublishedWorkspace,
+  publishedWorkspaceWireSchema,
   relocateSession,
-  runGit,
-  type WorkspaceSnapshot,
+  type MergedWorkspace,
+  type PublishedWorkspaceWire,
 } from '@dltech/atlas-harness'
 
 import type { AtlasApp } from '../compose'
@@ -18,6 +17,7 @@ import type { CloudBridge, CloudChannel } from './cloud-bridge'
 import { draftsOf } from './event-drafts'
 import { ELiftStep } from './lift'
 import { flipChildrenBack } from './lift-children'
+import { descendedConflictsDraft } from './transition-notice'
 
 const INTERRUPT_DEADLINE_MS = 30_000
 
@@ -88,40 +88,17 @@ const awaitTurnEnd = (args: { channel: CloudChannel; deadlineMs: number }): Prom
     }, args.deadlineMs)
   })
 
-async function captureWorkspaceFromCloud(args: {
+export type WorkspaceMerger = (args: {
+  cwd: string
+  ref: string
+  base: string | null
+}) => Promise<MergedWorkspace>
+
+async function publishWorkspaceHome(args: {
   channel: CloudChannel
-  cwd: string
-}): Promise<WorkspaceSnapshot | null> {
-  try {
-    const result = await args.channel.request({
-      op: EClientRequest.CaptureWorkspace,
-      params: { cwd: args.cwd },
-    })
-    return result as WorkspaceSnapshot | null
-  } catch {
-    return null
-  }
-}
-
-async function applyWorkspacePatch(args: {
-  cwd: string
-  patch: string
-}): Promise<void> {
-  if (args.patch.length === 0) return
-
-  const patchPath = join(args.cwd, '.git', 'atlas-descend.patch')
-  writeFileSync(patchPath, args.patch)
-
-  const applied = await runGit({
-    args: ['apply', '--whitespace=nowarn', patchPath],
-    cwd: args.cwd,
-  })
-
-  unlinkSync(patchPath)
-
-  if (!applied.ok) {
-    throw new Error(`failed to apply workspace patch: ${applied.stderr || applied.stdout}`)
-  }
+}): Promise<PublishedWorkspaceWire> {
+  const result = await args.channel.request({ op: EClientRequest.PublishWorkspace, params: {} })
+  return publishedWorkspaceWireSchema.parse(result)
 }
 
 /**
@@ -139,6 +116,7 @@ export async function descendFromCloud(args: {
   localApp: DescendLocalHome
   move: ContainerMoveControl
   interruptDeadlineMs?: number | undefined
+  mergeWorkspace?: WorkspaceMerger | undefined
 }): Promise<OpenedConversation> {
   const { threadId, target, bridge, channel, localApp, move } = args
 
@@ -171,13 +149,15 @@ export async function descendFromCloud(args: {
     await transferThreadDown({ threadId: child.id, target, bridge, localApp })
   }
 
-  const snapshot = await captureWorkspaceFromCloud({
-    channel,
-    cwd: localApp.workspace.workspace,
-  })
-  if (snapshot?.patch !== undefined && snapshot.patch.length > 0) {
-    await applyWorkspacePatch({ cwd: localApp.workspace.workspace, patch: snapshot.patch })
-  }
+  const published = await publishWorkspaceHome({ channel })
+  const merged: MergedWorkspace =
+    published === null
+      ? { conflicts: [] }
+      : await (args.mergeWorkspace ?? mergePublishedWorkspace)({
+          cwd: localApp.workspace.workspace,
+          ref: published.ref,
+          base: published.base,
+        })
 
   move.handleAdvance(ELiftStep.Flipping)
   await localApp.threads.chooseExecutionLocation({ threadId, location: target })
@@ -196,6 +176,13 @@ export async function descendFromCloud(args: {
     services: localApp.services,
     agents: localApp.agents,
   })
+  if (merged.conflicts.length > 0) {
+    await localApp.log.append({
+      threadId,
+      runId: localApp.ids.nextRunId(),
+      drafts: [descendedConflictsDraft({ conflicts: merged.conflicts })],
+    })
+  }
 
   const opened = await openConversation({
     threads: localApp.threads,

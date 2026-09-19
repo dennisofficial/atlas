@@ -31,6 +31,7 @@ type Attempt = { args: readonly string[]; cwd: string }
 const harness = (args: {
   present?: readonly string[] | undefined
   fails?: ((attempt: Attempt) => { stderr: string } | undefined) | undefined
+  answers?: ((attempt: Attempt) => string | undefined) | undefined
 }) => {
   const attempts: Attempt[] = []
   const written: { path: string; text: string }[] = []
@@ -41,7 +42,7 @@ const harness = (args: {
     attempts.push(attempt)
     const failure = args.fails?.(attempt)
     if (failure !== undefined) return { ok: false, stdout: '', stderr: failure.stderr }
-    return { ok: true, stdout: '', stderr: '' }
+    return { ok: true, stdout: args.answers?.(attempt) ?? '', stderr: '' }
   }
 
   const files: WorkspaceFiles = {
@@ -63,7 +64,12 @@ const argsOf = (attempts: readonly Attempt[]): string[][] =>
 
 describe('ensureWorkspace', () => {
   it('clones, detaches at the commit and applies the patch', async () => {
-    const { ensure, attempts, written, emptied } = harness({})
+    const { ensure, attempts, written, emptied } = harness({
+      answers: (attempt) =>
+        attempt.args[0] === 'rev-parse'
+          ? 'ba51e1e0000000000000000000000000000000ff\n'
+          : undefined,
+    })
 
     const readiness = await ensure({
       cwd: CWD,
@@ -82,8 +88,74 @@ describe('ensureWorkspace', () => {
       ['remote', 'set-url', 'origin', 'https://github.com/dennisofficial/atlas.git'],
       ['checkout', '--detach', '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c'],
       ['apply', '--whitespace=nowarn', `${CWD}/.git/atlas-workspace.patch`],
+      ['add', '-A'],
+      [
+        '-c',
+        'user.name=Atlas',
+        '-c',
+        'user.email=atlas@localhost',
+        'commit',
+        '-m',
+        'atlas: lifted workspace baseline',
+      ],
+      ['rev-parse', '--verify', 'HEAD'],
     ])
     expect(written.at(-1)?.path).toBe(`${CWD}/${WORKSPACE_SENTINEL}`)
+  })
+
+  it('records the baseline commit in the sentinel for the descend to merge against', async () => {
+    const baseline = 'ba51e1e0000000000000000000000000000000ff'
+    const { ensure, written } = harness({
+      answers: (attempt) => (attempt.args[0] === 'rev-parse' ? `${baseline}\n` : undefined),
+    })
+
+    const readiness = await ensure({
+      cwd: CWD,
+      fetchSpec: async () => spec({ patch: 'diff --git a/x b/x\n' }),
+    })
+
+    expect(readiness).toEqual({ state: EWorkspaceState.Materialized })
+    const sentinel = written.find((one) => one.path.endsWith(WORKSPACE_SENTINEL))
+    expect(JSON.parse(sentinel?.text ?? '{}')).toMatchObject({
+      commit: '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c',
+      baseline,
+    })
+  })
+
+  it('commits no baseline when nothing uncommitted rode up with the lift', async () => {
+    const { ensure, attempts, written } = harness({})
+
+    const readiness = await ensure({ cwd: CWD, fetchSpec: async () => spec() })
+
+    expect(readiness).toEqual({ state: EWorkspaceState.Materialized })
+    expect(argsOf(attempts).at(-1)).toEqual([
+      'checkout',
+      '--detach',
+      '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c',
+    ])
+    const sentinel = written.find((one) => one.path.endsWith(WORKSPACE_SENTINEL))
+    expect(JSON.parse(sentinel?.text ?? '{}')).toMatchObject({
+      baseline: '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c',
+    })
+  })
+
+  it('surfaces a baseline that would not commit rather than serving an unmergeable tree', async () => {
+    const { ensure, written } = harness({
+      fails: (attempt) =>
+        attempt.args.includes('commit') ? { stderr: 'nothing to commit' } : undefined,
+    })
+
+    const readiness = await ensure({
+      cwd: CWD,
+      fetchSpec: async () => spec({ patch: 'diff --git a/x b/x\n' }),
+    })
+
+    expect(readiness).toEqual({
+      state: EWorkspaceState.Failed,
+      step: EWorkspaceStep.Baseline,
+      reason: 'nothing to commit',
+    })
+    expect(written.some((one) => one.path.endsWith(WORKSPACE_SENTINEL))).toBe(false)
   })
 
   it('does nothing at all when the sentinel is already there', async () => {

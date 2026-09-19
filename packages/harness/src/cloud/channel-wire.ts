@@ -14,7 +14,7 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
  * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
  */
-export const CHANNEL_PROTOCOL_VERSION = 1
+export const CHANNEL_PROTOCOL_VERSION = 2
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
@@ -51,8 +51,14 @@ export enum EClientFrame {
 export enum EClientRequest {
   CompletePaths = 'complete-paths',
   BrowseDirectory = 'browse-directory',
-  CaptureWorkspace = 'capture-workspace',
+  PublishWorkspace = 'publish-workspace',
 }
+
+export const publishedWorkspaceWireSchema = z
+  .object({ ref: z.string(), commit: z.string(), base: z.string().nullable() })
+  .nullable()
+
+export type PublishedWorkspaceWire = z.infer<typeof publishedWorkspaceWireSchema>
 
 const seqSchema = z.number().int().nonnegative()
 
