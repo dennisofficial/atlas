@@ -3,7 +3,8 @@ import { Sandbox } from '@vercel/sandbox'
 import { EnvService } from '../../_core/config/env/env.service'
 import { ESandboxState } from './sandboxes.types'
 import { ServeBinaryService } from './serve-binary'
-import { createServeLauncher, StaleSandboxTokenError, type ServeLauncher } from './serve-launch'
+import { createServeLauncher, SERVE_TOKEN_PATH, StaleSandboxTokenError } from './serve-launch'
+import type { ServeLauncher } from './serve-launch'
 import {
   asBadGateway,
   failureTextOf,
@@ -24,6 +25,20 @@ const SANDBOX_LAUNCH_TIMEOUT_MS = 60_000
 const SANDBOX_QUICK_TIMEOUT_MS = 30_000
 const ROUTE_RETRY_ATTEMPTS = 3
 const ROUTE_RETRY_DELAY_MS = 1_000
+const PARK_PATH = '/v1/park'
+const PARK_NOTIFY_TIMEOUT_MS = 3_000
+
+/**
+ * The API only stores a hash of serve's session token, so it cannot call serve's authed endpoints
+ * directly — this curls localhost from inside the sandbox instead, reading the plaintext token the
+ * serve launcher already wrote to disk there. The reason rides an env var rather than the script
+ * text, so it can never break out of the curl payload.
+ */
+const parkNoticeScript = (port: number): string =>
+  `_serve_token=$(cat ${SERVE_TOKEN_PATH} 2>/dev/null || true); ` +
+  `curl -sf -m 2 --connect-timeout 1 -X POST ` +
+  `-H "Authorization: Bearer $_serve_token" -H "Content-Type: application/json" ` +
+  `-d "$ATLAS_PARK_REASON" "http://localhost:${port}${PARK_PATH}"`
 
 export interface SandboxPlacement {
   sessionId: string
@@ -200,6 +215,22 @@ export class VercelSandboxClient {
       if (isSandboxMissing(failure)) return
       throw asBadGateway(failure)
     }
+  }
+
+  /** Throws on any failure; swallowing it is the caller's job, so a wedged sandbox still stops. */
+  async notifyParked(args: { name: string; reason: string }): Promise<void> {
+    const credentials = this.credentials()
+    const sandbox = await Sandbox.get({
+      ...credentials,
+      name: args.name,
+      signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
+    })
+    await sandbox.runCommand({
+      cmd: 'sh',
+      args: ['-c', parkNoticeScript(SANDBOX_SERVE_PORT)],
+      env: { ATLAS_PARK_REASON: JSON.stringify({ reason: args.reason }) },
+      timeoutMs: PARK_NOTIFY_TIMEOUT_MS,
+    })
   }
 
   private async dedupedLaunch(args: {

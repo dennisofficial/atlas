@@ -8,6 +8,7 @@ export enum EServeEvent {
   ClientAttached = 'serve.client-attached',
   ClientRefused = 'serve.client-refused',
   ClientDetached = 'serve.client-detached',
+  ClientsParked = 'serve.clients-parked',
   TurnStarted = 'serve.turn-started',
   TurnEnded = 'serve.turn-ended',
   TurnFailed = 'serve.turn-failed',

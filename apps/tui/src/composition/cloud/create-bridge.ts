@@ -1,5 +1,7 @@
+import type { ThreadId } from '@dltech/atlas-core'
 import {
   createRemoteDeltaChannel,
+  ECloudSandboxState,
   RemoteEventLog,
   RemoteThreadStore,
   RemoteTurnLedger,
@@ -9,6 +11,24 @@ import {
 
 import type { CloudBridge, CloudSandboxes } from './cloud-bridge'
 import { reattachSandbox } from './reattach-sandbox'
+
+/**
+ * The socket cannot tell resting from broken on its own — a parked sandbox stops answering pings
+ * the same way a dead one would — so the channel asks the control plane rather than waiting out
+ * its own retry budget. A failed status read is not evidence of parking either, so it stays put
+ * rather than escalating on a guess.
+ */
+export const parkedEscalationOf = (args: {
+  sandboxes: SandboxClient
+  threadId: ThreadId
+}): (() => Promise<boolean>) => {
+  const { sandboxes, threadId } = args
+  return () =>
+    sandboxes.findSandbox({ threadId }).then(
+      (status) => status?.state === ECloudSandboxState.Parked,
+      () => false,
+    )
+}
 
 export function createCloudBridge(args: {
   url: string
@@ -47,6 +67,7 @@ export function createCloudBridge(args: {
         token,
         ...(args.lastEventSeq === undefined ? {} : { lastEventSeq: args.lastEventSeq }),
         reattach: () => reattachSandbox({ sandboxes: bridgeSandboxes, threadId }),
+        shouldEscalate: parkedEscalationOf({ sandboxes, threadId }),
       }),
   }
 }

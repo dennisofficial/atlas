@@ -175,6 +175,10 @@ const HELP_KEY = '?'
 
 const STALE_CHECK_MS = 60_000
 
+const SOCKET_DOWN_REFUSAL = "the sandbox socket is down — esc will interrupt once it's back"
+
+const SANDBOX_PARKED_REFUSAL = 'the sandbox is parked — send a message to wake it first'
+
 /**
  * Reference the operator reads and dismisses, drawn above the composer rather than over it. One at
  * a time, and any key puts it away, which is what makes it a veil rather than an overlay.
@@ -347,6 +351,21 @@ function Workspace(props: {
 
   const containerMove = useContainerMove()
 
+  const cloudHealth = useCloudSession({ session: props.cloudSession })
+
+  /**
+   * A turn on a cloud thread keeps running on the sandbox through a reconnect by design, so Esc
+   * cannot actually stop it while the socket that would carry the frame is down — it would only
+   * queue an interrupt nothing delivers. Every state but Open reads as down for this purpose;
+   * Parked gets its own reason because waking it takes a message, not a keystroke.
+   */
+  const interruptRefusal = useCallback((): string | null => {
+    const state = cloudHealth?.connection?.state
+    if (state === undefined || state === EChannelConnection.Open) return null
+    if (state === EChannelConnection.Parked) return SANDBOX_PARKED_REFUSAL
+    return SOCKET_DOWN_REFUSAL
+  }, [cloudHealth])
+
   const conversation = useConversation({
     app: props.app,
     opened: props.opened,
@@ -356,6 +375,7 @@ function Workspace(props: {
     tldrStatus: settings.tldrStatus,
     onUndone: handleUndone,
     canWake: exitGuard.state === null && containerMove.move === null,
+    interruptRefusal,
   })
 
   const tokens = useDraftTokens({
@@ -394,7 +414,6 @@ function Workspace(props: {
     stored: conversation.executionLocation,
     started: conversation.started,
   })
-  const cloudHealth = useCloudSession({ session: props.cloudSession })
   const containerPill = useContainerPill({
     app: props.app,
     connection: cloudHealth?.connection ?? null,

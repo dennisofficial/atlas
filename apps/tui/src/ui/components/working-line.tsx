@@ -35,6 +35,24 @@ export function WorkingLine(props: {
     )
   }
 
+  const verb = props.verb ?? EWorkingVerb.Working
+
+  /**
+   * A turn dropped before the socket did keeps reading Reconnecting rather than Interrupting: the
+   * abort still queued into a dead channel and the sandbox never saw it, so nothing is actually
+   * interrupting until the socket comes back to carry the frame.
+   */
+  if (verb === EWorkingVerb.Reconnecting) {
+    return (
+      <box flexDirection="column">
+        <ShimmerLine
+          label={`Reconnecting for ${formatElapsed(props.elapsedMs)} · the turn keeps running on the sandbox`}
+          base={theme.warn}
+        />
+      </box>
+    )
+  }
+
   if (props.interrupting) {
     return (
       <box flexDirection="column">
@@ -46,17 +64,6 @@ export function WorkingLine(props: {
     )
   }
 
-  const verb = props.verb ?? EWorkingVerb.Working
-  if (verb === EWorkingVerb.Reconnecting) {
-    return (
-      <box flexDirection="column">
-        <ShimmerLine
-          label={`Reconnecting for ${formatElapsed(props.elapsedMs)} · the turn keeps running on the sandbox`}
-          base={theme.warn}
-        />
-      </box>
-    )
-  }
   const tokens =
     props.outputTokens > 0 ? `↓ ${formatTokens(props.outputTokens)} tokens · ` : ''
   const label = `${verb} for ${formatElapsed(props.elapsedMs)} (${tokens}esc to interrupt)`
