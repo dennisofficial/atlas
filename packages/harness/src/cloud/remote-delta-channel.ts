@@ -38,6 +38,7 @@ export enum EChannelConnection {
   Connecting = 'connecting',
   Open = 'open',
   Reconnecting = 'reconnecting',
+  Reattaching = 'reattaching',
   Parked = 'parked',
   Closed = 'closed',
 }
@@ -67,6 +68,7 @@ export type RemoteDeltaChannel = DeltaChannel & {
 const RETRY_CEILING_MS = 30_000
 const FIRST_RETRY_MS = 500
 const DEFAULT_MAX_ATTEMPTS = 8
+const DEFAULT_MAX_REATTACHMENTS = 3
 const DEFAULT_REQUEST_TIMEOUT_MS = 10_000
 
 const NOTHING_IN_FLIGHT: readonly StepSignal[] = Object.freeze([])
@@ -104,11 +106,15 @@ export function createRemoteDeltaChannel(args: {
   backoffMs?: ((args: { attempt: number }) => number) | undefined
   maxAttempts?: number | undefined
   requestTimeoutMs?: number | undefined
+  /** Once the socket retries are spent, re-attach through the API; the relaunched serve kills the turn in flight. */
+  reattach?: (() => Promise<{ url: string; token: string }>) | undefined
+  maxReattachments?: number | undefined
 }): RemoteDeltaChannel {
   const lastEventSeq = args.lastEventSeq ?? (() => 0)
   const socketFactory = args.socketFactory ?? webSocketFactory
   const backoffMs = args.backoffMs ?? defaultBackoffMs
   const maxAttempts = args.maxAttempts ?? DEFAULT_MAX_ATTEMPTS
+  const maxReattachments = args.maxReattachments ?? DEFAULT_MAX_REATTACHMENTS
   const scheduleRetry = args.scheduleRetry ?? afterDelay
 
   const listeners = new Set<ChannelListener>()
@@ -127,6 +133,7 @@ export function createRemoteDeltaChannel(args: {
   let stepId: StepId | undefined
   let channelCursor: number | null = null
   let attempt = 0
+  let reattachments = 0
   let socket: ChannelSocket | null = null
   let abandoned = false
   let generation = 0
@@ -212,6 +219,7 @@ export function createRemoteDeltaChannel(args: {
         return
       }
       attempt = 0
+      reattachments = 0
       upstream.attach({ write })
       moveTo({ state: EChannelConnection.Open, detail: null })
       return
@@ -269,12 +277,52 @@ export function createRemoteDeltaChannel(args: {
 
   const handlePing = () => write(encodeFrame({ kind: EClientFrame.Pong }))
 
+  const applyAttachment = (next: { url: string; token: string }) => {
+    url = next.url
+    token = next.token
+    attempt = 0
+    generation += 1
+    const stale = socket
+    socket = null
+    stale?.close()
+    moveTo({ state: EChannelConnection.Connecting, detail: null })
+    connect()
+  }
+
+  const escalate = (reattach: () => Promise<{ url: string; token: string }>) => {
+    reattachments += 1
+    endStrandedStep()
+    moveTo({ state: EChannelConnection.Reattaching, detail: null })
+    const scheduled = generation
+    reattach().then(
+      (next) => {
+        if (abandoned || scheduled !== generation) return
+        applyAttachment(next)
+      },
+      (failure) => {
+        if (abandoned || scheduled !== generation) return
+        moveTo({
+          state: EChannelConnection.Closed,
+          detail:
+            `The session socket closed and did not reopen after ${maxAttempts} attempts, ` +
+            `and re-attaching to the sandbox failed: ${
+              failure instanceof Error ? failure.message : String(failure)
+            }`,
+        })
+      },
+    )
+  }
+
   const handleClose = () => {
     socket = null
     upstream.detach({ reason: 'the session socket closed' })
     if (abandoned) return
 
     if (attempt >= maxAttempts) {
+      if (args.reattach !== undefined && reattachments < maxReattachments) {
+        escalate(args.reattach)
+        return
+      }
       endStrandedStep()
       moveTo({
         state: EChannelConnection.Closed,
@@ -366,15 +414,8 @@ export function createRemoteDeltaChannel(args: {
     wake({ url: nextUrl, token: nextToken }) {
       if (abandoned) return
 
-      url = nextUrl
-      token = nextToken
-      attempt = 0
-      generation += 1
-      const stale = socket
-      socket = null
-      stale?.close()
-      moveTo({ state: EChannelConnection.Connecting, detail: null })
-      connect()
+      reattachments = 0
+      applyAttachment({ url: nextUrl, token: nextToken })
     },
 
     close() {

@@ -33,7 +33,11 @@ describe('the cloud-connection icon', () => {
   })
 
   it('spins while attaching, and follows the clock', () => {
-    for (const state of [EChannelConnection.Connecting, EChannelConnection.Reconnecting]) {
+    for (const state of [
+      EChannelConnection.Connecting,
+      EChannelConnection.Reconnecting,
+      EChannelConnection.Reattaching,
+    ]) {
       const early = cloudConnectionItemOf({ connection: { state, detail: null }, now: 0 })
       const late = cloudConnectionItemOf({ connection: { state, detail: null }, now: 80 })
 
@@ -46,6 +50,7 @@ describe('the cloud-connection icon', () => {
   it('counts only the attaching states as animated', () => {
     expect(isAttaching(EChannelConnection.Connecting)).toBe(true)
     expect(isAttaching(EChannelConnection.Reconnecting)).toBe(true)
+    expect(isAttaching(EChannelConnection.Reattaching)).toBe(true)
     expect(isAttaching(EChannelConnection.Open)).toBe(false)
     expect(isAttaching(EChannelConnection.Parked)).toBe(false)
     expect(isAttaching(EChannelConnection.Closed)).toBe(false)

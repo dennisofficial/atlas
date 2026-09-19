@@ -28,6 +28,10 @@ export class RemoteTurnRunner extends TurnRunner {
       this.waiters.shift()?.resolve(outcome)
     })
     this.channel.onConnection((connection) => {
+      if (connection.state === EChannelConnection.Reattaching) {
+        this.failAll('The sandbox is being re-attached — the turn it was running did not survive.')
+        return
+      }
       if (connection.state !== EChannelConnection.Closed) return
       this.failAll(connection.detail ?? 'The session socket closed mid-turn.')
     })

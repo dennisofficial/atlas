@@ -36,9 +36,10 @@ describe('the cloud pill', () => {
     expect(withCloud({ model: IDLE_SIDEBAR, cloud: null }).cloud).toBeUndefined()
   })
 
-  it('treats connecting, reconnecting and parked as resting, and closed as not', () => {
+  it('treats connecting, reconnecting, reattaching and parked as resting, and closed as not', () => {
     expect(isResting(EChannelConnection.Connecting)).toBe(true)
     expect(isResting(EChannelConnection.Reconnecting)).toBe(true)
+    expect(isResting(EChannelConnection.Reattaching)).toBe(true)
     expect(isResting(EChannelConnection.Parked)).toBe(true)
     expect(isResting(EChannelConnection.Open)).toBe(false)
     expect(isResting(EChannelConnection.Closed)).toBe(false)

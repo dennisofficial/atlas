@@ -198,6 +198,23 @@ describe('a turn the socket outlives', () => {
     await expect(turn).rejects.toThrow()
   })
 
+  it('fails the pending turn when the channel starts re-attaching, since the relaunch kills it', async () => {
+    const { channel, open, receive, drop, retries, live } = harness({
+      maxAttempts: 1,
+      reattach: () => new Promise(() => undefined),
+    })
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
+
+    const turn = runner.runTurn({ threadId: THREAD })
+    drop()
+    retries[0]?.run()
+    live().handlers.handleClose()
+
+    await expect(turn).rejects.toThrow('did not survive')
+  })
+
   it('keeps waiting through a reconnect, since the turn runs on server-side', async () => {
     const { channel, open, receive, drop, retries, live } = harness()
     open()

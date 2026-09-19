@@ -8,14 +8,17 @@ const sdk = vi.hoisted(() => ({
   getParams: [] as Record<string, unknown>[],
   stopped: [] as string[],
   deleted: [] as string[],
+  extended: [] as number[],
   status: 'running',
   getFailure: null as Error | null,
   createFailure: null as Error | null,
+  extendFailure: null as Error | null,
   sandboxRef: null as unknown,
 }))
 
 const launch = vi.hoisted(() => ({
   launched: 0,
+  tokens: [] as (string | undefined)[],
   failLaunch: false,
   failWithStaleToken: false,
   gate: null as Promise<void> | null,
@@ -42,6 +45,10 @@ vi.mock('@vercel/sandbox', () => {
     domain: (port: number) => `https://atlas-${port}.vercel.run`,
     stop: async () => {
       sdk.stopped.push('stopped')
+    },
+    extendTimeout: async (duration: number) => {
+      if (sdk.extendFailure !== null) throw sdk.extendFailure
+      sdk.extended.push(duration)
     },
     delete: async () => {
       sdk.deleted.push('deleted')
@@ -76,7 +83,8 @@ vi.mock('./serve-launch', () => {
     StaleSandboxTokenError,
     createServeLauncher: (args: { readStamp: () => Promise<string> }) => {
       launch.readStamp = args.readStamp
-      return async () => {
+      return async (call: { sandbox: unknown; token?: string }) => {
+        launch.tokens.push(call.token)
         if (launch.failWithStaleToken) throw new StaleSandboxTokenError()
         if (launch.failLaunch) throw new Error('atlas serve did not answer')
         if (launch.gate !== null) await launch.gate
@@ -128,10 +136,13 @@ describe('VercelSandboxClient', () => {
     sdk.getParams.length = 0
     sdk.stopped.length = 0
     sdk.deleted.length = 0
+    sdk.extended.length = 0
     sdk.status = 'running'
     sdk.getFailure = null
     sdk.createFailure = null
+    sdk.extendFailure = null
     launch.launched = 0
+    launch.tokens.length = 0
     launch.failLaunch = false
     launch.failWithStaleToken = false
     launch.gate = null
@@ -195,6 +206,20 @@ describe('VercelSandboxClient', () => {
     ).toBe(true)
   })
 
+  it('hands the session token to the serve launch, on creation and on the resume hook alike', async () => {
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    await client.getOrCreate({
+      name: 'atlas-thread-abc',
+      threadId: 'brn_thread_1',
+      token: 'tok_fresh',
+    })
+    expect(launch.tokens).toEqual(['tok_fresh'])
+
+    const hooks = hooksOf(sdk.createParams[0])
+    await hooks.onResume(sdk.sandboxRef)
+    expect(launch.tokens).toEqual(['tok_fresh', 'tok_fresh'])
+  })
+
   it('launches serve on creation and again on the SDK resume hook, reading the stamp lazily', async () => {
     const serveBinary = fakeServeBinary()
     const client = new VercelSandboxClient(envWith(CONFIGURED), serveBinary.asService)
@@ -248,6 +273,24 @@ describe('VercelSandboxClient', () => {
       { json: { error: { code: 'snapshot_not_found' } } },
     )
     await expect(client.destroy({ name: 'atlas-thread-gone' })).resolves.toBeUndefined()
+  })
+
+  it('extends the session clock, tolerating a sandbox that stopped or went away', async () => {
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+
+    await client.extendTimeout({ name: 'atlas-thread-abc', durationMs: 240 * 60_000 })
+    expect(sdk.extended).toEqual([240 * 60_000])
+
+    sdk.getFailure = new APIError({ status: 404 } as Response)
+    await expect(
+      client.extendTimeout({ name: 'atlas-thread-gone', durationMs: 60_000 }),
+    ).resolves.toBeUndefined()
+
+    sdk.getFailure = null
+    sdk.extendFailure = new APIError({ status: 410 } as Response)
+    await expect(
+      client.extendTimeout({ name: 'atlas-thread-abc', durationMs: 60_000 }),
+    ).resolves.toBeUndefined()
   })
 
   it('answers 503 when the deployment is unconfigured, whole or missing only the image', async () => {
