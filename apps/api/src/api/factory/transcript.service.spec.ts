@@ -79,6 +79,31 @@ describe('TranscriptService', () => {
     expect(fake.transcriptEvents).toHaveLength(2)
   })
 
+  it('a redelivery that loses the create race reports the replay instead of erroring', async () => {
+    const first = await transcript.append({ ...COMMENT, deliveryId: 'd-race' })
+
+    const findFirst = fake.db.factoryTranscriptEvent.findFirst.bind(fake.db.factoryTranscriptEvent)
+    let missesLeft = 1
+    fake.db.factoryTranscriptEvent.findFirst = (async (args: Parameters<typeof findFirst>[0]) => {
+      if (missesLeft > 0) {
+        missesLeft -= 1
+        return null
+      }
+      return findFirst(args)
+    }) as unknown as typeof findFirst
+
+    let raced: Awaited<ReturnType<TranscriptService['append']>>
+    try {
+      raced = await transcript.append({ ...COMMENT, deliveryId: 'd-race' })
+    } finally {
+      fake.db.factoryTranscriptEvent.findFirst = findFirst
+    }
+
+    expect(raced?.appended).toBe(false)
+    expect(raced?.event.id).toBe(first?.event.id)
+    expect(fake.transcriptEvents.filter((one) => one.deliveryId === 'd-race')).toHaveLength(1)
+  })
+
   it('an event on an unknown surface is dropped, not stored', async () => {
     const result = await transcript.append({
       ...COMMENT,

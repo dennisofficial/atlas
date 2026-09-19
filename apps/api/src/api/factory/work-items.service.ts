@@ -4,10 +4,34 @@ import type { Prisma } from '../../generated/prisma/client'
 import { EFactoryWorkItemStatus, type SurfaceAliasDto, type WorkItemDto } from './factory.types'
 import { nextAliasId, nextWorkItemId, nowIso } from './ids'
 import { toAliasDto, toWorkItemDto } from './rows'
+import { inconsistentStore, isUniqueViolation } from './unique-violation'
+
+const ALIAS_UNIQUE_TARGET = ['surface', 'externalId'] as const
 
 @Injectable()
 export class WorkItemsService {
   async intake(args: {
+    repo: string
+    sourceKind: string
+    surface: string
+    externalId: string
+    aliasKind: string
+  }): Promise<{ workItem: WorkItemDto; created: boolean }> {
+    try {
+      return await this.intakeOnce(args)
+    } catch (error) {
+      if (!isUniqueViolation(error, ALIAS_UNIQUE_TARGET)) throw error
+      const alias = await db.factorySurfaceAlias.findFirst({
+        where: { surface: args.surface, externalId: args.externalId },
+      })
+      if (alias === null) throw inconsistentStore('alias')
+      const row = await db.factoryWorkItem.findUnique({ where: { id: alias.workItemId } })
+      if (row === null) throw new NotFoundException('alias points at a missing work item')
+      return { workItem: toWorkItemDto(row), created: false }
+    }
+  }
+
+  private intakeOnce(args: {
     repo: string
     sourceKind: string
     surface: string
@@ -73,6 +97,27 @@ export class WorkItemsService {
     kind: string
   }): Promise<SurfaceAliasDto> {
     await this.find({ workItemId: args.workItemId })
+    try {
+      return await this.registerAliasOnce(args)
+    } catch (error) {
+      if (!isUniqueViolation(error, ALIAS_UNIQUE_TARGET)) throw error
+      const existing = await db.factorySurfaceAlias.findFirst({
+        where: { surface: args.surface, externalId: args.externalId },
+      })
+      if (existing === null) throw inconsistentStore('alias')
+      if (existing.workItemId !== args.workItemId) {
+        throw new ConflictException('surface is already aliased to another work item')
+      }
+      return toAliasDto(existing)
+    }
+  }
+
+  private async registerAliasOnce(args: {
+    workItemId: string
+    surface: string
+    externalId: string
+    kind: string
+  }): Promise<SurfaceAliasDto> {
     const existing = await db.factorySurfaceAlias.findFirst({
       where: { surface: args.surface, externalId: args.externalId },
     })

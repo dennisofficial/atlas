@@ -52,6 +52,32 @@ describe('WorkItemsService', () => {
     expect(fake.aliases).toHaveLength(1)
   })
 
+  it('a concurrent intake that loses the create race returns the existing work item', async () => {
+    const first = await service.intake(INTAKE)
+
+    const findFirst = fake.db.factorySurfaceAlias.findFirst.bind(fake.db.factorySurfaceAlias)
+    let missesLeft = 1
+    fake.db.factorySurfaceAlias.findFirst = (async (args: Parameters<typeof findFirst>[0]) => {
+      if (missesLeft > 0) {
+        missesLeft -= 1
+        return null
+      }
+      return findFirst(args)
+    }) as unknown as typeof findFirst
+
+    let raced: Awaited<ReturnType<WorkItemsService['intake']>>
+    try {
+      raced = await service.intake(INTAKE)
+    } finally {
+      fake.db.factorySurfaceAlias.findFirst = findFirst
+    }
+
+    expect(raced.created).toBe(false)
+    expect(raced.workItem.id).toBe(first.workItem.id)
+    expect(fake.workItems).toHaveLength(1)
+    expect(fake.aliases).toHaveLength(1)
+  })
+
   it('resolve routes a surface id to its work item, and misses cleanly', async () => {
     const { workItem } = await service.intake(INTAKE)
 
@@ -101,6 +127,56 @@ describe('WorkItemsService', () => {
         kind: 'issue',
       }),
     ).rejects.toBeInstanceOf(ConflictException)
+  })
+
+  it('registerAlias losing the create race returns the stored alias, or conflicts on another item', async () => {
+    const first = await service.intake(INTAKE)
+    const second = await service.intake({ ...INTAKE, externalId: 'compai/atlas#342' })
+    await service.registerAlias({
+      workItemId: first.workItem.id,
+      surface: 'github',
+      externalId: 'compai/atlas/pull/87',
+      kind: 'pull-request',
+    })
+
+    const findFirst = fake.db.factorySurfaceAlias.findFirst.bind(fake.db.factorySurfaceAlias)
+    const missNextLookupOnce = (): void => {
+      let missed = false
+      fake.db.factorySurfaceAlias.findFirst = (async (args: Parameters<typeof findFirst>[0]) => {
+        if (!missed) {
+          missed = true
+          return null
+        }
+        return findFirst(args)
+      }) as unknown as typeof findFirst
+    }
+    const restoreLookup = (): void => {
+      fake.db.factorySurfaceAlias.findFirst = findFirst
+    }
+
+    try {
+      missNextLookupOnce()
+      const same = await service.registerAlias({
+        workItemId: first.workItem.id,
+        surface: 'github',
+        externalId: 'compai/atlas/pull/87',
+        kind: 'pull-request',
+      })
+      expect(same.workItemId).toBe(first.workItem.id)
+      expect(fake.aliases).toHaveLength(3)
+
+      missNextLookupOnce()
+      await expect(
+        service.registerAlias({
+          workItemId: second.workItem.id,
+          surface: 'github',
+          externalId: 'compai/atlas/pull/87',
+          kind: 'pull-request',
+        }),
+      ).rejects.toBeInstanceOf(ConflictException)
+    } finally {
+      restoreLookup()
+    }
   })
 
   it('registerAlias refuses an unknown work item', async () => {
