@@ -1,0 +1,1 @@
+export const CLIENT_READ_LIMIT_PER_MINUTE = 600
