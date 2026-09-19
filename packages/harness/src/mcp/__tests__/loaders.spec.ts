@@ -2,6 +2,7 @@ import { EDefinitionOrigin } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
 import { resolveMcpSpecs } from '../config/loaders'
+import { RemoteMcpSource } from '../config/remote-mcp-source'
 import {
   CompatMcpSource,
   EMcpRejection,
@@ -20,6 +21,16 @@ const projectSource = (json: unknown) =>
   FileMcpSource.project({ cwd: '/repo', read: text(json) })
 const compatSource = (json: unknown) =>
   new CompatMcpSource({ cwd: '/repo', read: text(json) })
+
+const remoteSource = (servers: readonly Record<string, unknown>[]) =>
+  new RemoteMcpSource({
+    session: { url: 'http://cloud.test', token: 'sess_test', email: null },
+    fetchFn: (async (_input: unknown, _init?: RequestInit) =>
+      new Response(JSON.stringify({ servers }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })) as typeof fetch,
+  })
 
 describe('resolveMcpSpecs', () => {
   it('yields one spec per name, with the project file shadowing the user file', async () => {
@@ -73,6 +84,20 @@ describe('resolveMcpSpecs', () => {
     expect(linear?.transport).toEqual(stdio)
     expect(linear?.definedIn).toContain('.atlas')
     expect(resolved.shadowed).toEqual([])
+  })
+
+  it('lets the remote server win a same-rank tie against the local user file', async () => {
+    const resolved = await resolveMcpSpecs({
+      sources: [
+        remoteSource([{ name: 'linear', transport: httpLinear, updatedAt: '2026-01-01T00:00:00.000Z' }]),
+        userSource({ linear: { transport: stdio } }),
+      ],
+    })
+
+    expect(resolved.specs).toHaveLength(1)
+    expect(resolved.specs[0]?.transport).toEqual(httpLinear)
+    expect(resolved.specs[0]?.origin).toBe(EDefinitionOrigin.User)
+    expect(resolved.shadowed.map((spec) => spec.transport)).toEqual([stdio])
   })
 
   it('holds the compat pin whatever order the sources arrive in', async () => {

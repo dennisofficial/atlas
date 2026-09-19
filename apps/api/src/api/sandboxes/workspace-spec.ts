@@ -4,7 +4,12 @@ import type { SandboxWorkspaceSpec } from './sandboxes.types'
 
 export const MAX_WORKSPACE_PATCH_BYTES = 5 * 1024 * 1024
 
-export const MAX_SKILLS_BUNDLE_BYTES = 4 * 1024 * 1024
+/**
+ * Kept in lockstep with `MAX_CONTEXT_BUNDLE_BYTES` in
+ * `packages/harness/src/cloud/sandbox-client.ts` — `apps/api` carries no in-repo dependency by
+ * design (see its AGENTS.md), so the value is duplicated rather than imported.
+ */
+export const MAX_CONTEXT_BUNDLE_BYTES = 64 * 1024 * 1024
 
 export const WORKSPACE_BODY_LIMIT = '8mb'
 
@@ -15,14 +20,14 @@ export interface WorkspaceColumns {
   workspaceBranch: string | null
   workspaceCommit: string | null
   workspacePatch: string | null
-  workspaceSkills: string | null
+  workspaceContext: string | null
 }
 
-export function assertSkillsBundleWithinLimit(args: { bundle: string }): void {
+export function assertContextBundleWithinLimit(args: { bundle: string }): void {
   const bytes = Buffer.byteLength(args.bundle, 'utf8')
-  if (bytes <= MAX_SKILLS_BUNDLE_BYTES) return
+  if (bytes <= MAX_CONTEXT_BUNDLE_BYTES) return
   throw new PayloadTooLargeException(
-    `the skills bundle is ${mebibytes(bytes)}, over the ${mebibytes(MAX_SKILLS_BUNDLE_BYTES)} limit — the conversation lifts without the user-level skills`,
+    `the context bundle is ${mebibytes(bytes)}, over the ${mebibytes(MAX_CONTEXT_BUNDLE_BYTES)} limit — the conversation lifts without the user-level context`,
   )
 }
 
@@ -41,7 +46,7 @@ export function workspaceColumnsOf(spec: SandboxWorkspaceSpec | undefined): Work
       workspaceBranch: null,
       workspaceCommit: null,
       workspacePatch: null,
-      workspaceSkills: null,
+      workspaceContext: null,
     }
   }
   assertPatchWithinLimit({ patch: spec.patch })
@@ -50,7 +55,7 @@ export function workspaceColumnsOf(spec: SandboxWorkspaceSpec | undefined): Work
     workspaceBranch: spec.branch,
     workspaceCommit: spec.commit,
     workspacePatch: spec.patch,
-    workspaceSkills: null,
+    workspaceContext: null,
   }
 }
 

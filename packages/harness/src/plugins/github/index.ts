@@ -1,10 +1,6 @@
 import { EHookPhase, EStage, type HookOrder } from '@dltech/atlas-core'
-import {
-  createUrlOpener,
-  portToken,
-  WorkspaceRoot,
-  type DependencyContainer,
-} from '@dltech/atlas-harness'
+import { portToken, type DependencyContainer } from '../../container/injection'
+import { WorkspaceRoot } from '../../container/tokens'
 
 import { NativePlugin, type PluginContribution } from '../plugin'
 import { GhPullRequestPort } from './gh-pull-requests'
@@ -13,7 +9,7 @@ import { createPullRequestLinks } from './links'
 import { createPullRequestService } from './pull-request-service'
 import { PullRequestPort } from './pure'
 import { createSessionFacts } from './session'
-import { pullRequestSurface } from './surface'
+import { GithubUiBridgePort } from './ui-bridge'
 
 const OBSERVE: HookOrder = { stage: EStage.Observe, nudge: 0 }
 
@@ -23,6 +19,11 @@ const OBSERVE: HookOrder = { stage: EStage.Observe, nudge: 0 }
  *
  * Nothing starts in the constructor. The loader builds every native before shadowing has decided
  * which of them survive, so a poller armed here would outlive a plugin that never loads.
+ *
+ * `contribute()` hands out no UI: the footer chip and sidebar section are React, and React lives
+ * only in the TUI. `GithubUiBridgePort` is how the TUI reaches the same `service`/`facts`/`links`
+ * this plugin builds, so a serve session that never renders anything still gets the hooks and the
+ * durable link recording, and the TUI keeps the identical live poller it always had.
  */
 export default class GithubPlugin extends NativePlugin {
   readonly id = 'github'
@@ -92,11 +93,11 @@ export default class GithubPlugin extends NativePlugin {
           run: afterShell.run,
         },
       ],
-      ports: [{ token: PullRequestPort, use: adapter }],
-      projections: [links.projection],
-      surfaces: [
-        pullRequestSurface({ service, facts, links: links.projection, openUrl: createUrlOpener() }),
+      ports: [
+        { token: PullRequestPort, use: adapter },
+        { token: GithubUiBridgePort, use: { service, facts, links: links.projection } },
       ],
+      projections: [links.projection],
       dispose: () => service.dispose(),
     }
   }

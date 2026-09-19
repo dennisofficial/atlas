@@ -61,6 +61,7 @@ import { mcpBootNotice } from './mcp-report'
 import { knownRefs } from './model-catalogue'
 import { bindModels } from './model-bindings'
 import { bindSettingsPolicy } from './policy-bindings'
+import { loadSessionPlugins } from './plugin-loading'
 import { createUtilityModel } from './utility-model'
 import { reachableRootsFor } from './reachable-files'
 import { journalResume } from './resume-journal'
@@ -121,6 +122,9 @@ export async function composeHarness<TSurface = undefined, Command = never>(args
 
   registerBuiltinPromptFragments({ container })
   container.register(WorkspaceRoot, { useValue: workspace.workspace })
+
+  const plugins = await loadSessionPlugins({ container, cwd: anchor, atlasHome: atlasDirectory(), notice })
+
   bindKeychainSource({ container, launchValue })
 
   const accountStore = container.resolve(portToken(AccountStorePort))
@@ -330,6 +334,8 @@ export async function composeHarness<TSurface = undefined, Command = never>(args
     threadOpened: threadOpenedHandler({ container, log, threads, ids, notice }),
     journalResume: ({ active, directory }) =>
       journalResume({ active, command: launch.command, directory }),
+    pluginProjections: plugins.projections,
+    pluginSurfaces: plugins.surfaces,
     cloudRequired,
     model,
     modelPinned,

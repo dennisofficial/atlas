@@ -1,6 +1,7 @@
+import { EChecksState, EPullRequestState, type PullRequestBadge } from '@dltech/atlas-harness'
+
 import type { Span } from '../../ui/components/spans'
 import { theme } from '../../ui/theme'
-import { EChecksState, EPullRequestState, type PullRequestBadge } from './pure'
 
 export type PullRequestChip = {
   spans: readonly Span[]

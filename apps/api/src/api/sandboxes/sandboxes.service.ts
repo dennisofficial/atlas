@@ -24,8 +24,8 @@ import type {
 import { ESandboxState } from './sandboxes.types'
 import { SANDBOX_REGION, SandboxMissingError, VercelSandboxClient } from './vercel-sandbox.client'
 import {
+  assertContextBundleWithinLimit,
   assertPatchWithinLimit,
-  assertSkillsBundleWithinLimit,
   workspaceSpecOf,
 } from './workspace-spec'
 
@@ -59,12 +59,12 @@ export class SandboxesService {
     userId: string
     threadId: string
     workspace?: SandboxWorkspaceSpec | undefined
-    skillsBundle?: string | undefined
+    contextBundle?: string | undefined
   }): Promise<SandboxAttachmentDto> {
     const thread = await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
     if (args.workspace !== undefined) assertPatchWithinLimit({ patch: args.workspace.patch })
-    if (args.skillsBundle !== undefined) {
-      assertSkillsBundleWithinLimit({ bundle: args.skillsBundle })
+    if (args.contextBundle !== undefined) {
+      assertContextBundleWithinLimit({ bundle: args.contextBundle })
     }
     const minted = mintSessionToken()
 
@@ -73,7 +73,7 @@ export class SandboxesService {
       this.claimAndProvision({
         thread,
         workspace: args.workspace,
-        skillsBundle: args.skillsBundle,
+        contextBundle: args.contextBundle,
         token: minted.token,
         tokenHash: minted.tokenHash,
       })
@@ -102,7 +102,7 @@ export class SandboxesService {
   private async claimAndProvision(args: {
     thread: ThreadModel
     workspace: SandboxWorkspaceSpec | undefined
-    skillsBundle: string | undefined
+    contextBundle: string | undefined
     token: string
     tokenHash: string
   }): Promise<void> {
@@ -112,7 +112,7 @@ export class SandboxesService {
         thread: args.thread,
         tokenHash: args.tokenHash,
         workspace: args.workspace,
-        skillsBundle: args.skillsBundle,
+        contextBundle: args.contextBundle,
       })
       await this.provisionInBackground({ row, token: args.token })
     } catch (failure) {
@@ -130,10 +130,10 @@ export class SandboxesService {
     const row = await db.cloudSandbox.findUnique({ where: { threadId: args.threadId } })
     if (row === null) throw new NotFoundException('sandbox not found')
     const spec = workspaceSpecOf(row)
-    const skillsBundle = row.workspaceSkills ?? null
-    if (spec.remoteUrl === null) return { ...spec, githubToken: null, skillsBundle }
+    const contextBundle = row.workspaceContext ?? null
+    if (spec.remoteUrl === null) return { ...spec, githubToken: null, contextBundle }
     const githubToken = await this.github.findToken({ userId: row.userId })
-    return { ...spec, githubToken: githubToken ?? null, skillsBundle }
+    return { ...spec, githubToken: githubToken ?? null, contextBundle }
   }
 
   async status(args: { userId: string; threadId: string }): Promise<SandboxStatusDto> {

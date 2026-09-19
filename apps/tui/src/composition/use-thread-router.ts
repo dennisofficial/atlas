@@ -94,11 +94,13 @@ export function useThreadRouter(args: {
           return
         }
 
+        const projectDirectory = located?.workspace ?? undefined
         const attachment = await openCloudThread({
           app: localApp,
           bridge,
           threadId: toThreadId(target),
           move: containerMove,
+          ...(projectDirectory === undefined ? {} : { projectDirectory }),
         }).catch(() => null)
         if (attachment === null) return
         args.onLifted(attachment)

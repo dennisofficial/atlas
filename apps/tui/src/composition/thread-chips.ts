@@ -1,15 +1,15 @@
 import type { LinkedPullRequest } from '@dltech/atlas-core'
-
-import { probeCheckout } from '../plugins/github/checkout-probe'
-import { pullRequestChip } from '../plugins/github/pull-request-pill'
 import {
   checkoutKey,
   EPullRequestLookup,
+  probeCheckout,
   pullRequestBadge,
   type PullRequestPort,
   type PullRequestReading,
   type RepositoryCheckout,
-} from '../plugins/github/pure'
+} from '@dltech/atlas-harness'
+
+import { pullRequestChip } from '../plugins/github/pull-request-pill'
 import { theme } from '../ui/theme'
 import type { ThreadChip, ThreadRow } from '../ui/threads-model'
 

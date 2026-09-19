@@ -6,17 +6,18 @@ import { join } from 'node:path'
 import React, { act } from 'react'
 
 import type { LinkedPullRequest } from '@dltech/atlas-core'
-
-import type { SidebarSection } from '../../surface'
-import { settle, teardown } from '../../../ui/markdown/__tests__/harness'
-import { createPullRequestService, type PullRequestService } from '../pull-request-service'
 import {
+  createPullRequestService,
   EChecksState,
   EPullRequestLookup,
   EPullRequestState,
   PullRequestPort,
   type PullRequestReading,
-} from '../pure'
+  type PullRequestService,
+} from '@dltech/atlas-harness'
+
+import type { SidebarSection } from '../../surface'
+import { settle, teardown } from '../../../ui/markdown/__tests__/harness'
 import { usePullRequest, type PullRequestControl } from '../use-pull-request'
 
 import { flattenedSpans } from '../../../ui/sidebar-section'

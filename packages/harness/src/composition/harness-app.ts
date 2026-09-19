@@ -22,6 +22,8 @@ import type { TldrFeed } from '../loop/tldr-turn-runner'
 import type { TurnRunner } from '../loop/turn-runner.port'
 import type { McpServerStatus } from '../mcp/registry/handle-status'
 import type { PendingQueues } from '../pending'
+import type { ContributedProjection } from '../plugins/projection'
+import type { ContributedSurface } from '../plugins/surface'
 import type { ServiceRegistryPort } from '../services/service-registry'
 import type { SettingsService } from '../settings/service'
 import type { ShellRegistryPort } from '../shells/shell-registry'
@@ -47,9 +49,10 @@ export type SessionTitler = (args: {
 }) => Promise<string | null>
 
 /**
- * The surface's half of the composition contract. `bind` runs after every built-in registration
- * and before the instance-cached HookChain/ToolRegistry first resolve; its return rides out on
- * `HarnessApp.surface`.
+ * The surface's half of the composition contract. `bind` runs after every built-in registration —
+ * including native and repo plugin contributions, assembled by `composeHarness` itself so every
+ * surface gets them — and before the instance-cached HookChain/ToolRegistry first resolve; its
+ * return rides out on `HarnessApp.surface`.
  */
 export type HarnessSurfaceBinding<TSurface = undefined> = {
   notice: NoticePort
@@ -102,6 +105,8 @@ export type HarnessApp<TSurface = undefined, Command = never> = {
   mcp: () => readonly McpServerStatus[]
   threadOpened: (args: { threadId: ThreadId; projectDirectory: string }) => Promise<void>
   journalResume: (args: { active: ActiveConversation; directory: string }) => void
+  pluginProjections: readonly ContributedProjection[]
+  pluginSurfaces: readonly ContributedSurface[]
   surface: TSurface
   close: () => Promise<void>
 }

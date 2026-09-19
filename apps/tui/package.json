@@ -24,10 +24,9 @@
     "test:serial": "bun test",
     "grammars:update": "bun scripts/update-grammars.ts",
     "grammars:build-dockerfile": "bun scripts/build-dockerfile-grammar.ts",
-    "build:prepare": "bun run --filter @dltech/atlas-harness db:ensure && bun scripts/generate-manifest.ts && bun scripts/generate-skills.ts && bun scripts/generate-plugins.ts",
+    "build:prepare": "bun run --filter @dltech/atlas-harness db:ensure && bun run --filter @dltech/atlas-harness plugins:generate && bun scripts/generate-manifest.ts && bun scripts/generate-skills.ts",
     "build": "bun run build:prepare && bun scripts/build.ts",
-    "skills:generate": "bun scripts/generate-skills.ts",
-    "plugins:generate": "bun scripts/generate-plugins.ts"
+    "skills:generate": "bun scripts/generate-skills.ts"
   },
   "dependencies": {
     "@dltech/atlas-core": "workspace:*",
@@ -38,8 +37,7 @@
     "marked": "^18.0.7",
     "react": "19.2.7",
     "reflect-metadata": "^0.2.2",
-    "tsyringe": "4.10.0",
-    "zod": "^4.4.3"
+    "tsyringe": "4.10.0"
   },
   "devDependencies": {
     "@types/bun": "latest",

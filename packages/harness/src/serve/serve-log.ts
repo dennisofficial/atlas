@@ -15,8 +15,8 @@ export enum EServeEvent {
   HeartbeatFailed = 'serve.heartbeat-failed',
   WorkspaceReady = 'serve.workspace-ready',
   WorkspaceFailed = 'serve.workspace-failed',
-  SkillsReady = 'serve.skills-ready',
-  SkillsFailed = 'serve.skills-failed',
+  ContextReady = 'serve.context-ready',
+  ContextFailed = 'serve.context-failed',
   ChildrenAdopted = 'serve.children-adopted',
   ChildAdoptionFailed = 'serve.child-adoption-failed',
 }

@@ -1,14 +1,11 @@
 import { useMemo, useSyncExternalStore } from 'react'
 
 import type { LinkedPullRequest } from '@dltech/atlas-core'
-import type { UrlOpener } from '@dltech/atlas-harness'
+import type { PluginProjection, PullRequestService, SessionFacts, UrlOpener } from '@dltech/atlas-harness'
 
 import { EFooterItemReach, type FooterItem } from '../../ui/footer-item'
-import type { PluginProjection } from '../projection'
-import type { PluginSurface, PluginSurfaceHook } from '../surface'
+import type { ContributedSurface, PluginSurface } from '../surface'
 import { pullRequestChip, pullRequestFallbackChip } from './pull-request-pill'
-import type { PullRequestService } from './pull-request-service'
-import type { SessionFacts } from './session'
 import { usePullRequest, type FooterPullRequest } from './use-pull-request'
 
 export function pullRequestItem(args: {
@@ -43,23 +40,27 @@ export const pullRequestSurface = (args: {
   facts: SessionFacts
   links: PluginProjection<readonly LinkedPullRequest[]>
   openUrl: UrlOpener
-}): PluginSurfaceHook => {
+}): ContributedSurface => {
   const { service, facts, links, openUrl } = args
 
-  return (): PluginSurface => {
-    useSyncExternalStore(facts.subscribe, facts.version)
+  return {
+    pluginId: 'github',
+    use: (): PluginSurface => {
+      useSyncExternalStore(facts.subscribe, facts.version)
+      useSyncExternalStore(links.subscribe, links.version)
 
-    const linked = links.use()
-    const { footer, section } = usePullRequest({
-      service,
-      projectDirectory: facts.directory(),
-      working: facts.working(),
-      linked,
-      onOpen: openUrl,
-    })
+      const linked = links.current()
+      const { footer, section } = usePullRequest({
+        service,
+        projectDirectory: facts.directory(),
+        working: facts.working(),
+        linked,
+        onOpen: openUrl,
+      })
 
-    const footerItem = useMemo(() => pullRequestItem({ footer, onOpen: openUrl }), [footer, openUrl])
+      const footerItem = useMemo(() => pullRequestItem({ footer, onOpen: openUrl }), [footer, openUrl])
 
-    return useMemo(() => ({ footerItem, sidebarSection: section }), [footerItem, section])
+      return useMemo(() => ({ footerItem, sidebarSection: section }), [footerItem, section])
+    },
   }
 }

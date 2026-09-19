@@ -15,13 +15,9 @@ import {
   ToolDefinition,
   resolveShadowing,
 } from '@dltech/atlas-core'
-import {
-  portToken,
-  registerDisposable,
-  withinBudget,
-  type DependencyContainer,
-  type PortConstructor,
-} from '@dltech/atlas-harness'
+import { portToken, type DependencyContainer, type PortConstructor } from '../container/injection'
+import { registerDisposable } from '../container/disposal'
+import { withinBudget } from '../hooks/budget'
 
 import {
   NativePlugin,

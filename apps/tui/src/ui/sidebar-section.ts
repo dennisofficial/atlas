@@ -1,15 +1,9 @@
+import { ESidebarPlace } from '@dltech/atlas-harness'
+
 import { justifySpans } from './components/sidebar/cells'
 import type { Span } from './components/spans'
 
-/**
- * Two anchors rather than a free ordinal: the head of the column reads as facts about where the
- * session is, and everything below it is a panel with a heading. A contributed section names which
- * of the two it belongs to and takes its turn there in contribution order.
- */
-export enum ESidebarPlace {
-  Facts = 'facts',
-  Panels = 'panels',
-}
+export { ESidebarPlace } from '@dltech/atlas-harness'
 
 /**
  * A split row anchors one group of spans to the left edge and another to the right, with the gap

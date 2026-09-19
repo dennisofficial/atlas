@@ -7,7 +7,7 @@ import {
   type BeforeTool,
   type HookOrder,
 } from '@dltech/atlas-core'
-import { portToken, type DependencyContainer } from '@dltech/atlas-harness'
+import { portToken, type DependencyContainer } from '../../container/injection'
 
 import { NativePlugin, type PluginContribution } from '../plugin'
 

@@ -4,15 +4,18 @@ import { RemoteEventLog } from '../cloud/remote-event-log'
 import { RemoteThreadStore } from '../cloud/remote-thread-store'
 import { RemoteTurnLedger } from '../cloud/remote-turn-ledger'
 import { SessionsClient } from '../cloud/sessions-client'
+import { UserContextClient } from '../cloud/user-context-client'
 import { composeHarness } from '../composition/compose'
 import { loadSettings } from '../composition/settings-binding'
 import { portToken } from '../container/injection'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
+import { atlasDirectory } from '../store/paths'
 import { ThreadStorePort } from '../store/thread-store'
 
 import { adoptChildren } from './adopt-children'
 import type { ServeApp, ServeCompose } from './serve-app'
 import { seedServeSession } from './serve-session'
+import { createMemoryUploader } from './upload-memory'
 
 export const SERVE_COMMAND = 'serve'
 
@@ -58,6 +61,17 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     clientVersion: args.clientVersion,
   })
 
+  const memory = createMemoryUploader({
+    client: new UserContextClient({
+      url: args.controlPlaneUrl,
+      token: args.token,
+      clientVersion: args.clientVersion,
+    }),
+    atlasHome: atlasDirectory(),
+    cwd: args.cwd,
+    notice: args.notice,
+  })
+
   const app = await composeHarness<ServeStores>({
     launch: {
       cwd: args.cwd,
@@ -94,6 +108,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     adoptChildren: ({ threadId }) =>
       adoptChildren({ agents: app.agents, log: app.surface.log, threadId }),
     whenChildrenSettled: ({ threadId }) => app.agents.whenChildrenSettled({ threadId }),
+    syncMemoryAfterTurn: memory.syncAfterTurn,
     close: app.close,
   }
 }

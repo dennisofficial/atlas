@@ -21,29 +21,37 @@ import { HandleStore } from '../bridge/handle-store'
 import { McpInstructionsHook } from '../instructions/instructions-hook'
 import { McpHandleTrust } from './workspace-boundary-hook'
 
+const userSourcesFor = (args: {
+  session: CloudSession | null
+  clientVersion?: string
+  cloudRequired: boolean
+}): readonly McpSource[] => {
+  if (args.session !== null) {
+    const remote = new RemoteMcpSource({
+      session: args.session,
+      ...(args.clientVersion === undefined ? {} : { clientVersion: args.clientVersion }),
+    })
+    return [remote, FileMcpSource.user()]
+  }
+  if (args.cloudRequired) return []
+  return [FileMcpSource.user()]
+}
+
 export const mcpSourcesFor = (args: {
   session: CloudSession | null
   cwd: string
   clientVersion?: string
   cloudRequired?: boolean
-}): readonly McpSource[] => {
-  const user =
-    args.session !== null
-      ? new RemoteMcpSource({
-          session: args.session,
-          ...(args.clientVersion === undefined ? {} : { clientVersion: args.clientVersion }),
-        })
-      : args.cloudRequired === true
-        ? null
-        : FileMcpSource.user()
-
-  return [
-    new BuiltInMcpSource(),
-    ...(user === null ? [] : [user]),
-    FileMcpSource.project({ cwd: args.cwd }),
-    new CompatMcpSource({ cwd: args.cwd }),
-  ]
-}
+}): readonly McpSource[] => [
+  new BuiltInMcpSource(),
+  ...userSourcesFor({
+    session: args.session,
+    cloudRequired: args.cloudRequired === true,
+    ...(args.clientVersion === undefined ? {} : { clientVersion: args.clientVersion }),
+  }),
+  FileMcpSource.project({ cwd: args.cwd }),
+  new CompatMcpSource({ cwd: args.cwd }),
+]
 
 const sessionFrom = (container: DependencyContainer): CloudSession | null =>
   container.isRegistered(CloudSessionStoreToken, true)

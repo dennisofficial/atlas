@@ -20,7 +20,7 @@ export class SandboxesController {
       userId: userIdOf(request),
       threadId: body.threadId,
       workspace: body.workspace,
-      skillsBundle: body.skillsBundle,
+      contextBundle: body.contextBundle,
     })
   }
 

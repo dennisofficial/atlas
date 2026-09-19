@@ -42,7 +42,7 @@ describe('the shipped types and the curated api', () => {
 
   it('points every declaration at the declaration root it was handed', () => {
     expect(rendered).toContain("import('/declarations/packages/core/src/index')")
-    expect(rendered).toContain("import('/declarations/apps/tui/src/plugins/plugin')")
+    expect(rendered).toContain("import('/declarations/packages/harness/src/plugins/plugin')")
   })
 })
 

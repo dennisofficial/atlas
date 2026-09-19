@@ -23,6 +23,8 @@ export type ServeApp = {
   /** Resumes the served thread's transferred children — see adopt-children.ts for why it must. */
   adoptChildren: (args: { threadId: ThreadId }) => Promise<readonly ThreadId[]>
   whenChildrenSettled: (args: { threadId: ThreadId }) => Promise<void>
+  /** Carries this sandbox's memory back to the control plane — see upload-memory.ts. */
+  syncMemoryAfterTurn: () => Promise<void>
   close: () => Promise<void>
 }
 

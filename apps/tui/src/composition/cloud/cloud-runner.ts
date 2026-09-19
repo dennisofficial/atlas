@@ -6,7 +6,7 @@ import { messageOf } from '../error-text'
 import type { ContainerMoveControl } from '../use-container-move'
 import type { CloudBridge, CloudChannel } from './cloud-bridge'
 import { ELiftStep } from './lift'
-import { captureSkillsBundle } from './skills-bundle'
+import { captureContextBundle } from './context-bundle'
 import { waitForSandbox } from './wait-for-sandbox'
 
 /**
@@ -14,13 +14,13 @@ import { waitForSandbox } from './wait-for-sandbox'
  * status route is polled until the sandbox is actually running. Narrated through `move` when one
  * is given, so a wake reached from an idle conversation reads as progress rather than as a stall.
  */
-export type CaptureSkills = () => Promise<string | undefined>
+export type CaptureContext = () => Promise<string | undefined>
 
 export async function wakeSandbox(args: {
   bridge: CloudBridge
   threadId: ThreadId
   move?: ContainerMoveControl | undefined
-  captureSkills?: CaptureSkills | undefined
+  captureContext?: CaptureContext | undefined
 }): Promise<{ url: string; token: string }> {
   args.move?.handleBegin({ target: EExecutionLocation.Cloud, plan: WAKE_PLAN, heading: WAKE_HEADING })
   args.move?.handleAdvance(ELiftStep.Starting)
@@ -28,7 +28,7 @@ export async function wakeSandbox(args: {
   const woken = await args.bridge.sandboxes.create({
     threadId: args.threadId,
     workspace: null,
-    skillsBundle: await (args.captureSkills ?? captureSkillsBundle)(),
+    contextBundle: await (args.captureContext ?? captureContextBundle)(),
   })
   const ready = await waitForSandbox({
     sandboxes: args.bridge.sandboxes,
@@ -44,7 +44,7 @@ export function createCloudRunner(args: {
   channel: CloudChannel
   threadId: ThreadId
   move?: ContainerMoveControl | undefined
-  captureSkills?: CaptureSkills | undefined
+  captureContext?: CaptureContext | undefined
 }): RemoteTurnRunner {
   const wake = async (): Promise<void> => {
     try {
@@ -52,7 +52,7 @@ export function createCloudRunner(args: {
         bridge: args.bridge,
         threadId: args.threadId,
         ...(args.move === undefined ? {} : { move: args.move }),
-        ...(args.captureSkills === undefined ? {} : { captureSkills: args.captureSkills }),
+        ...(args.captureContext === undefined ? {} : { captureContext: args.captureContext }),
       })
       args.channel.wake({ url: woken.url, token: woken.token })
       args.move?.handleSettle()

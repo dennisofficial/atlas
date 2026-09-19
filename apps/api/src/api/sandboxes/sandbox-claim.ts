@@ -14,7 +14,7 @@ export type ClaimUpdate = Partial<WorkspaceColumns> & {
 
 export function rotationOf(args: {
   workspace: SandboxWorkspaceSpec | undefined
-  skillsBundle: string | undefined
+  contextBundle: string | undefined
   tokenHash: string
   at: string
 }): ClaimUpdate {
@@ -30,7 +30,7 @@ export function rotationOf(args: {
     rotation.workspaceCommit = columns.workspaceCommit
     rotation.workspacePatch = columns.workspacePatch
   }
-  if (args.skillsBundle !== undefined) rotation.workspaceSkills = args.skillsBundle
+  if (args.contextBundle !== undefined) rotation.workspaceContext = args.contextBundle
   return rotation
 }
 
@@ -38,12 +38,12 @@ export function claimSandboxRow(args: {
   thread: ThreadModel
   tokenHash: string
   workspace: SandboxWorkspaceSpec | undefined
-  skillsBundle: string | undefined
+  contextBundle: string | undefined
 }): Promise<CloudSandboxModel> {
   const at = new Date().toISOString()
   const columns: WorkspaceColumns = {
     ...workspaceColumnsOf(args.workspace),
-    workspaceSkills: args.skillsBundle ?? null,
+    workspaceContext: args.contextBundle ?? null,
   }
   return db.cloudSandbox.upsert({
     where: { threadId: args.thread.id },

@@ -1,4 +1,4 @@
-import { EChecksState, EPullRequestState, type PullRequestBadge } from '../pure'
+import { EChecksState, EPullRequestState, type PullRequestBadge } from '@dltech/atlas-harness'
 import { describe, expect, it } from 'bun:test'
 
 import { EFooterItemReach } from '../../../ui/footer-item'

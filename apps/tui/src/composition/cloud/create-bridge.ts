@@ -44,11 +44,11 @@ export function createCloudBridge(args: {
   const sandboxes = new SandboxClient(shared)
 
   const bridgeSandboxes: CloudSandboxes = {
-    create: ({ threadId, workspace, skillsBundle }) =>
+    create: ({ threadId, workspace, contextBundle }) =>
       sandboxes.createSandbox({
         threadId,
         ...(workspace === null ? {} : { workspace }),
-        ...(skillsBundle === undefined ? {} : { skillsBundle }),
+        ...(contextBundle === undefined ? {} : { contextBundle }),
       }),
     find: ({ threadId }) => sandboxes.findSandbox({ threadId }),
   }

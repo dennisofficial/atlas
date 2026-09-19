@@ -1,3 +1,5 @@
+import type { PluginSurfaceHook as GenericPluginSurfaceHook } from '@dltech/atlas-harness'
+
 import type { FooterItem } from '../ui/footer-item'
 import type { SidebarSection } from '../ui/sidebar-section'
 
@@ -9,7 +11,7 @@ export type PluginSurface = {
   sidebarSection?: SidebarSection | null
 }
 
-export type PluginSurfaceHook = () => PluginSurface
+export type PluginSurfaceHook = GenericPluginSurfaceHook<PluginSurface>
 
 export const SURFACES_NOTHING: PluginSurface = Object.freeze({})
 

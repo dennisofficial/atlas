@@ -40,5 +40,5 @@ export class AttachSandboxDto {
 
   @IsOptional()
   @IsString()
-  skillsBundle?: string
+  contextBundle?: string
 }

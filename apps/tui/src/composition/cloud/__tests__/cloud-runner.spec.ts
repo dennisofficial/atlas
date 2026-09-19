@@ -41,14 +41,14 @@ describe('waking a cloud runner whose channel is not open', () => {
       channel,
       threadId: CLOUD_THREAD,
       move,
-      captureSkills: async () => 'bundle-json',
+      captureContext: async () => 'bundle-json',
     })
 
     const turn = runner.runTurn({ threadId: CLOUD_THREAD })
     await Bun.sleep(1)
 
     expect(bridge.created).toEqual([
-      { threadId: CLOUD_THREAD, workspace: null, skillsBundle: 'bundle-json' },
+      { threadId: CLOUD_THREAD, workspace: null, contextBundle: 'bundle-json' },
     ])
     expect(channel.woken).toEqual([{ url: POLLED_URL, token: 'sandbox-token' }])
     expect(move.calls).toEqual([
@@ -70,7 +70,7 @@ describe('waking a cloud runner whose channel is not open', () => {
       bridge,
       channel,
       threadId: CLOUD_THREAD,
-      captureSkills: async () => undefined,
+      captureContext: async () => undefined,
     })
 
     const turn = runner.runTurn({ threadId: CLOUD_THREAD })
@@ -92,7 +92,7 @@ describe('waking a cloud runner whose channel is not open', () => {
       channel,
       threadId: CLOUD_THREAD,
       move,
-      captureSkills: async () => undefined,
+      captureContext: async () => undefined,
     })
 
     await expect(runner.runTurn({ threadId: CLOUD_THREAD })).rejects.toThrow('no capacity in iad1')

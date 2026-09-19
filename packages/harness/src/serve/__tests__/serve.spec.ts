@@ -481,7 +481,7 @@ describe('startServe', () => {
               commit: null,
               patch: '',
               githubToken: null,
-              skillsBundle: null,
+              contextBundle: null,
             }),
           )
         }
@@ -687,15 +687,15 @@ describe('startServe', () => {
     expect(ms).toBeGreaterThanOrEqual(20)
   })
 
-  it('times the skills materialization in its boot log', async () => {
+  it('times the context materialization in its boot log', async () => {
     const { lines } = await start({})
 
-    const skills = lines.find(
+    const context = lines.find(
       (line) =>
-        line.includes(EServeEvent.SkillsReady) || line.includes(EServeEvent.SkillsFailed),
+        line.includes(EServeEvent.ContextReady) || line.includes(EServeEvent.ContextFailed),
     )
-    expect(skills).toBeDefined()
-    expect(JSON.parse(skills ?? '{}').ms).toEqual(expect.any(Number))
+    expect(context).toBeDefined()
+    expect(JSON.parse(context ?? '{}').ms).toEqual(expect.any(Number))
   })
 
   it('stamps the whole boot on the started line', async () => {

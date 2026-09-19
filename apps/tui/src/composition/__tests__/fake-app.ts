@@ -74,7 +74,7 @@ import {
 
 import { FileBrowser } from '@dltech/atlas-harness'
 
-import type { PullRequestPort } from '../../plugins/github/pure'
+import type { PullRequestPort } from '@dltech/atlas-harness'
 
 import { createPendingQueues } from '../../store'
 import type { QueuedSettled } from '../commands'

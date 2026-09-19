@@ -2,15 +2,17 @@ import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React, { act, useState } from 'react'
 
-import { settle, teardown } from '../../../ui/markdown/__tests__/harness'
-import { createPullRequestService, type PullRequestService } from '../pull-request-service'
 import {
+  createPullRequestService,
   EForge,
   EPullRequestLookup,
   PullRequestPort,
   type PullRequestReading,
+  type PullRequestService,
   type RepositoryCheckout,
-} from '../pure'
+} from '@dltech/atlas-harness'
+
+import { settle, teardown } from '../../../ui/markdown/__tests__/harness'
 import { usePullRequest, type CheckoutProbe, type PullRequestControl } from '../use-pull-request'
 
 import { flattenedSpans } from '../../../ui/sidebar-section'

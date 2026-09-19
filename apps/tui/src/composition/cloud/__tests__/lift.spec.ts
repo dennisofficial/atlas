@@ -88,13 +88,13 @@ describe('lifting a conversation into the cloud', () => {
     expect(test.bridge.created).toEqual([{ threadId: CLOUD_THREAD, workspace: dirty }])
   })
 
-  it("carries the operator's skills bundle to the sandbox request", async () => {
-    const test = harness({ skillsBundle: 'bundle-json' })
+  it("carries the operator's context bundle to the sandbox request", async () => {
+    const test = harness({ contextBundle: 'bundle-json' })
 
     await liftToCloud(test.args)
 
     expect(test.bridge.created).toEqual([
-      { threadId: CLOUD_THREAD, workspace: CLEAN_WORKSPACE, skillsBundle: 'bundle-json' },
+      { threadId: CLOUD_THREAD, workspace: CLEAN_WORKSPACE, contextBundle: 'bundle-json' },
     ])
   })
 

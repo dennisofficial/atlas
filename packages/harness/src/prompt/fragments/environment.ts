@@ -71,6 +71,9 @@ export class ExecutionLocationFragment extends VolatilePromptFragment {
         'Call execution_location with location "host" to move the whole session back onto the host machine when the work needs it.',
       ].join(' ')
     }
-    return ''
+    return [
+      'This session runs its tools inside a cloud sandbox, not the operator’s machine, and it cannot move itself to the host or into Docker — moving to or from the cloud is the operator’s call.',
+      'A port it publishes through service_start’s exposePort is reachable at a URL the operator can open, not at a local address, since the two of you share no machine.',
+    ].join(' ')
   }
 }

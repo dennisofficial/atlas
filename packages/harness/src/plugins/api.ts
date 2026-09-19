@@ -129,7 +129,7 @@ const CORE_TYPES = [
 
 const PLUGIN_TYPES = ['PluginContribution', 'PluginHook', 'PluginHost', 'PortBinding', 'RepoPlugin']
 
-const SURFACE_TYPES = ['PluginSurface', 'PluginSurfaceHook', 'SidebarSection', 'SidebarSectionRow']
+const SURFACE_TYPES = ['PluginSurfaceHook']
 
 export const PLUGIN_API_MODULES: readonly PluginApiModule[] = [
   {
@@ -139,13 +139,13 @@ export const PLUGIN_API_MODULES: readonly PluginApiModule[] = [
     types: CORE_TYPES,
   },
   {
-    path: ['apps', 'tui', 'src', 'plugins', 'plugin'],
+    path: ['packages', 'harness', 'src', 'plugins', 'plugin'],
     values: Object.keys(fromPlugin),
     valueTypes: [],
     types: PLUGIN_TYPES,
   },
   {
-    path: ['apps', 'tui', 'src', 'plugins', 'surface'],
+    path: ['packages', 'harness', 'src', 'plugins', 'surface'],
     values: Object.keys(fromSurface),
     valueTypes: ['ESidebarPlace'],
     types: SURFACE_TYPES,
