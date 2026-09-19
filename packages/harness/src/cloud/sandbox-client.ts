@@ -31,6 +31,10 @@ export const wireSandboxStatusSchema = z.object({
 
 export type WireSandboxStatus = z.infer<typeof wireSandboxStatusSchema>
 
+export const wireSandboxExposureSchema = z.object({
+  url: z.string().min(1),
+})
+
 export const workspaceSpecSchema = z.object({
   remoteUrl: z.string().nullable(),
   branch: z.string().nullable(),
@@ -77,6 +81,15 @@ export class SandboxClient {
 
   async stopSandbox(args: { threadId: string }): Promise<void> {
     await this.request({ method: 'POST', path: `/v1/sandboxes/${args.threadId}/stop` })
+  }
+
+  async exposePort(args: { threadId: string; port: number }): Promise<string> {
+    const body = await this.request({
+      method: 'POST',
+      path: `/v1/sandboxes/${args.threadId}/expose`,
+      body: { port: args.port },
+    })
+    return wireSandboxExposureSchema.parse(body).url
   }
 
   async findSandbox(args: { threadId: string }): Promise<WireSandboxStatus | undefined> {

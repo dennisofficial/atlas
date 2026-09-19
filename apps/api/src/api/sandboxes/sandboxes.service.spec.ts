@@ -111,6 +111,7 @@ const stubClient = () => ({
   inspect: vi.fn(async () => ({ state: ESandboxState.Parked })),
   stop: vi.fn(async () => undefined),
   extendTimeout: vi.fn(async () => undefined),
+  exposePort: vi.fn(async (args: { name: string; port: number }) => `https://atlas-${args.port}.vercel.run`),
   notifyParked: vi.fn(async () => undefined),
 })
 
@@ -423,6 +424,36 @@ describe('SandboxesService', () => {
     expect(client.stop).toHaveBeenCalledWith({ name: fake.cloudSandboxes[0]?.name })
     expect(stopped.state).toBe(ESandboxState.Parked)
     expect(fake.cloudSandboxes[0]?.state).toBe(ESandboxState.Parked)
+  })
+
+  it("exposes a port on the thread's sandbox and hands back the routed url", async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+
+    const exposure = await service.expose({ threadId: THREAD, port: 3001 })
+
+    expect(client.exposePort).toHaveBeenCalledWith({
+      name: fake.cloudSandboxes[0]?.name,
+      port: 3001,
+    })
+    expect(exposure).toEqual({
+      threadId: THREAD,
+      port: 3001,
+      url: 'https://atlas-3001.vercel.run',
+    })
+  })
+
+  it('answers 404 when exposing on a thread with no sandbox or one Vercel has dropped', async () => {
+    await expect(service.expose({ threadId: THREAD, port: 3001 })).rejects.toBeInstanceOf(
+      NotFoundException,
+    )
+
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+    client.exposePort.mockRejectedValueOnce(new SandboxMissingError('atlas-thread-gone'))
+    await expect(service.expose({ threadId: THREAD, port: 3001 })).rejects.toBeInstanceOf(
+      NotFoundException,
+    )
   })
 
   it('notifies the sandbox before stopping it, with the operator-stop reason', async () => {

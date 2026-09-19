@@ -118,7 +118,7 @@ import { OverlayStack } from './overlay-stack'
 import { unmeasuredWindowWarning } from '@dltech/atlas-harness'
 import { settleStaleness } from './auto-restart'
 import { checkForUpdate, sourceStalenessProbe, type SourceStaleness } from './update-check'
-import type { OpenedConversation } from './open-conversation'
+import { unstartedConversation, type OpenedConversation } from './open-conversation'
 import { useConversation } from './use-conversation'
 import { useExitGuard } from './use-exit-guard'
 import {
@@ -236,18 +236,34 @@ export function App(props: {
   const held = useRef<LiftedSession | null>(null)
   held.current = lifted
 
+  const reloading = useRef(false)
+  const reloadPending = useRef(false)
+
   const handleReload = useCallback(() => {
     const attached = held.current
     if (attached === null) return
+    if (reloading.current) {
+      reloadPending.current = true
+      return
+    }
 
+    reloading.current = true
     void openCloudConversation({
       app: attached.app,
       threadId: attached.opened.threadId,
-    }).then((opened) =>
-      setLifted((current) =>
-        current === null ? current : { ...current, opened, reloads: current.reloads + 1 },
-      ),
-    )
+    })
+      .then((opened) =>
+        setLifted((current) =>
+          current === null ? current : { ...current, opened, reloads: current.reloads + 1 },
+        ),
+      )
+      .catch(() => undefined)
+      .finally(() => {
+        reloading.current = false
+        if (!reloadPending.current) return
+        reloadPending.current = false
+        handleReload()
+      })
   }, [])
 
   const handleLifted = useCallback(
@@ -497,8 +513,14 @@ function Workspace(props: {
 
   const handleNewConversation = useCallback(() => {
     draft.clear()
-    conversation.handleNewConversation()
-  }, [conversation, draft])
+    if (props.cloudSession === null) {
+      conversation.handleNewConversation()
+      return
+    }
+    if (working) return
+
+    props.onDescend(unstartedConversation({ ids: props.localApp.ids }))
+  }, [conversation, draft, working, props.cloudSession, props.localApp, props.onDescend])
 
   const heldSettingRef = useCallback(
     (id: string) => {

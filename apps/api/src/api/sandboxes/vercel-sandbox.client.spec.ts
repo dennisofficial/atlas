@@ -1,4 +1,9 @@
-import { BadGatewayException, Logger, ServiceUnavailableException } from '@nestjs/common'
+import {
+  BadGatewayException,
+  BadRequestException,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EnvService } from '../../_core/config/env/env.service'
 import type { ServeBinaryService } from './serve-binary'
@@ -9,11 +14,14 @@ const sdk = vi.hoisted(() => ({
   stopped: [] as string[],
   deleted: [] as string[],
   extended: [] as number[],
+  updated: [] as Record<string, unknown>[],
+  routedPorts: [3000],
   ranCommands: [] as Record<string, unknown>[],
   status: 'running',
   getFailure: null as Error | null,
   createFailure: null as Error | null,
   extendFailure: null as Error | null,
+  updateFailure: null as Error | null,
   runCommandFailure: null as Error | null,
   sandboxRef: null as unknown,
 }))
@@ -45,6 +53,18 @@ vi.mock('@vercel/sandbox', () => {
     },
     currentSession: () => ({ sessionId: 'ses_live' }),
     domain: (port: number) => `https://atlas-${port}.vercel.run`,
+    get routes() {
+      return sdk.routedPorts.map((port) => ({
+        port,
+        subdomain: `atlas-${port}`,
+        url: `https://atlas-${port}.vercel.run`,
+      }))
+    },
+    update: async (params: { ports?: number[] }) => {
+      if (sdk.updateFailure !== null) throw sdk.updateFailure
+      sdk.updated.push(params)
+      if (params.ports !== undefined) sdk.routedPorts = params.ports
+    },
     stop: async () => {
       sdk.stopped.push('stopped')
     },
@@ -145,11 +165,14 @@ describe('VercelSandboxClient', () => {
     sdk.stopped.length = 0
     sdk.deleted.length = 0
     sdk.extended.length = 0
+    sdk.updated.length = 0
+    sdk.routedPorts = [3000]
     sdk.ranCommands.length = 0
     sdk.status = 'running'
     sdk.getFailure = null
     sdk.createFailure = null
     sdk.extendFailure = null
+    sdk.updateFailure = null
     sdk.runCommandFailure = null
     launch.launched = 0
     launch.tokens.length = 0
@@ -301,6 +324,52 @@ describe('VercelSandboxClient', () => {
     await expect(
       client.extendTimeout({ name: 'atlas-thread-abc', durationMs: 60_000 }),
     ).resolves.toBeUndefined()
+  })
+
+  it('exposes an unrouted port by growing the port list, keeping the ones already routed', async () => {
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+
+    const url = await client.exposePort({ name: 'atlas-thread-abc', port: 3001 })
+
+    expect(url).toBe('https://atlas-3001.vercel.run')
+    expect(sdk.updated).toEqual([{ ports: [3000, 3001] }])
+  })
+
+  it('answers an already-routed port without touching the port list', async () => {
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+
+    const url = await client.exposePort({ name: 'atlas-thread-abc', port: 3000 })
+
+    expect(url).toBe(`https://atlas-${SANDBOX_SERVE_PORT}.vercel.run`)
+    expect(sdk.updated).toHaveLength(0)
+  })
+
+  it('refuses a port past the sandbox ceiling instead of deregistering the serve port', async () => {
+    sdk.routedPorts = Array.from({ length: 15 }, (_, index) => 3000 + index)
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+
+    const failure = client.exposePort({ name: 'atlas-thread-abc', port: 4000 })
+    await expect(failure).rejects.toBeInstanceOf(BadRequestException)
+    await expect(failure).rejects.toThrow('at most 15 ports')
+    expect(sdk.updated).toHaveLength(0)
+  })
+
+  it('reports a gone sandbox as missing and an unroutable one as bad gateway', async () => {
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+
+    sdk.getFailure = new APIError({ status: 404 } as Response)
+    await expect(
+      client.exposePort({ name: 'atlas-thread-gone', port: 3001 }),
+    ).rejects.toBeInstanceOf(SandboxMissingError)
+
+    sdk.getFailure = null
+    sdk.updateFailure = new APIError(
+      { status: 500 } as Response,
+      { json: { error: { message: 'route table wedged' } } },
+    )
+    const failure = client.exposePort({ name: 'atlas-thread-abc', port: 3001 })
+    await expect(failure).rejects.toBeInstanceOf(BadGatewayException)
+    await expect(failure).rejects.toThrow('route table wedged')
   })
 
   it('answers 503 when the deployment is unconfigured, whole or missing only the image', async () => {

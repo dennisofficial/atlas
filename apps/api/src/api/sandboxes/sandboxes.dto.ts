@@ -1,9 +1,12 @@
 import { Type } from 'class-transformer'
 import {
+  IsInt,
   IsNotEmpty,
   IsObject,
   IsOptional,
   IsString,
+  Max,
+  Min,
   ValidateIf,
   ValidateNested,
 } from 'class-validator'
@@ -41,4 +44,11 @@ export class AttachSandboxDto {
   @IsOptional()
   @IsString()
   contextBundle?: string
+}
+
+export class ExposeSandboxDto {
+  @IsInt()
+  @Min(1)
+  @Max(65_535)
+  port!: number
 }
