@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common'
 import { EnvService } from '../../_core/config/env/env.service'
+import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import type { CloudSandboxModel, ThreadModel } from '../../db'
 import { db } from '../../db'
 import { GithubService } from '../github/github.service'
@@ -22,7 +23,12 @@ import type {
   SandboxWorkspaceSpec,
 } from './sandboxes.types'
 import { ESandboxState } from './sandboxes.types'
-import { SANDBOX_REGION, SandboxMissingError, VercelSandboxClient } from './vercel-sandbox.client'
+import {
+  SANDBOX_REGION,
+  SandboxMissingError,
+  VercelSandboxClient,
+  type SandboxObservation,
+} from './vercel-sandbox.client'
 import {
   assertPatchWithinLimit,
   assertSkillsBundleWithinLimit,
@@ -46,6 +52,7 @@ export class SandboxesService {
     private readonly vercel: VercelSandboxClient,
     private readonly env: EnvService,
     private readonly github: GithubService,
+    private readonly cipher: SecretCipherService,
   ) {}
 
   /**
@@ -60,6 +67,7 @@ export class SandboxesService {
     threadId: string
     workspace?: SandboxWorkspaceSpec | undefined
     skillsBundle?: string | undefined
+    name?: string | undefined
   }): Promise<SandboxAttachmentDto> {
     const thread = await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
     if (args.workspace !== undefined) assertPatchWithinLimit({ patch: args.workspace.patch })
@@ -67,6 +75,11 @@ export class SandboxesService {
       assertSkillsBundleWithinLimit({ bundle: args.skillsBundle })
     }
     const minted = mintSessionToken()
+    const existing = await db.cloudSandbox.findUnique({
+      where: { threadId: args.threadId },
+      select: { name: true },
+    })
+    const name = existing?.name ?? args.name ?? sandboxNameFor({ threadId: args.threadId })
 
     const previous = this.attachLocks.get(args.threadId) ?? Promise.resolve()
     const chain = () =>
@@ -76,6 +89,8 @@ export class SandboxesService {
         skillsBundle: args.skillsBundle,
         token: minted.token,
         tokenHash: minted.tokenHash,
+        sealedToken: this.cipher.encrypt(minted.token),
+        name,
       })
     const settled = previous.then(chain, chain)
     this.attachLocks.set(args.threadId, settled)
@@ -86,12 +101,44 @@ export class SandboxesService {
 
     return {
       threadId: args.threadId,
-      name: sandboxNameFor({ threadId: args.threadId }),
+      name,
       region: SANDBOX_REGION,
       state: ESandboxState.Resuming,
       lastActivityAt: nowIso(),
       token: minted.token,
     }
+  }
+
+  /**
+   * A wake against a running sandbox must not re-attach: a fresh attach rotates the token, and the
+   * launcher would read the running serve's stale-token 401 as a wedge and restart it mid-turn.
+   * The sealed token lets the control plane reach the live serve with the credential it booted with.
+   */
+  async runningEndpoint(args: {
+    userId: string
+    threadId: string
+  }): Promise<{ token: string; url: string } | null> {
+    const row = await db.cloudSandbox.findFirst({
+      where: { threadId: args.threadId, userId: args.userId },
+    })
+    if (row === null || row.sealedToken === null) return null
+    let observed: SandboxObservation
+    try {
+      observed = await this.vercel.inspect({ name: row.name })
+    } catch {
+      return null
+    }
+    if (observed.state !== ESandboxState.Running || observed.url === undefined) return null
+    let token: string
+    try {
+      token = this.cipher.decrypt(row.sealedToken)
+    } catch (failure) {
+      this.logger.warn(
+        `the sealed token on sandbox ${row.name} does not decrypt; the next attach re-seals it: ${messageOf(failure)}`,
+      )
+      return null
+    }
+    return { token, url: observed.url }
   }
 
   whenSettled(args: { threadId: string }): Promise<void> {
@@ -105,14 +152,18 @@ export class SandboxesService {
     skillsBundle: string | undefined
     token: string
     tokenHash: string
+    sealedToken: string
+    name: string | undefined
   }): Promise<void> {
     this.provisionFailures.delete(args.thread.id)
     try {
       const row = await claimSandboxRow({
         thread: args.thread,
         tokenHash: args.tokenHash,
+        sealedToken: args.sealedToken,
         workspace: args.workspace,
         skillsBundle: args.skillsBundle,
+        name: args.name,
       })
       await this.provisionInBackground({ row, token: args.token })
     } catch (failure) {
@@ -255,7 +306,7 @@ export class SandboxesService {
     await this.vercel.stop({ name: args.row.name })
     await db.cloudSandbox.update({
       where: { threadId: args.row.threadId },
-      data: { state: ESandboxState.Parked, updatedAt: nowIso() },
+      data: { state: ESandboxState.Parked, sealedToken: null, updatedAt: nowIso() },
     })
   }
 

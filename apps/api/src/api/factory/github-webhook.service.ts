@@ -8,6 +8,7 @@ import type {
   GithubPullRequestReviewEventPayload,
   GithubWebhookOutcome,
 } from './github-webhook.types'
+import { OrchestratorService } from './orchestrator/orchestrator.service'
 import { TranscriptService } from './transcript.service'
 import { WorkItemsService } from './work-items.service'
 
@@ -29,6 +30,7 @@ export class GithubWebhookService {
   constructor(
     private readonly workItems: WorkItemsService,
     private readonly transcript: TranscriptService,
+    private readonly orchestrator: OrchestratorService,
   ) {}
 
   async handle(args: { event: string; deliveryId: string; payload: unknown }): Promise<GithubWebhookOutcome> {
@@ -179,9 +181,11 @@ export class GithubWebhookService {
       kind: EFactoryEventKind.Merged,
       author: payload.sender.login,
       payload,
+      deferWake: true,
     })
     if (outcome.workItemId !== undefined && outcome.appended === true) {
       await this.workItems.transition({ workItemId: outcome.workItemId, status: EFactoryWorkItemStatus.Merged })
+      this.orchestrator.wake({ workItemId: outcome.workItemId, externalId })
     }
     return outcome
   }
@@ -193,6 +197,7 @@ export class GithubWebhookService {
     author: string
     payload: unknown
     authorAssociation?: string
+    deferWake?: boolean
   }): Promise<GithubWebhookOutcome> {
     const result = await this.transcript.append({
       surface: EFactorySurface.GitHub,
@@ -206,6 +211,12 @@ export class GithubWebhookService {
     if (result === null) {
       this.logger.log(`dropped github event for untracked surface: ${args.externalId}`)
       return NOT_HANDLED
+    }
+    if (result.appended && args.deferWake !== true) {
+      this.orchestrator.wake({
+        workItemId: result.workItemId,
+        externalId: args.externalId,
+      })
     }
     return { handled: true, workItemId: result.workItemId, kind: args.kind, appended: result.appended }
   }

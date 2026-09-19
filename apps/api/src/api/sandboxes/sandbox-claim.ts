@@ -8,6 +8,7 @@ import { workspaceColumnsOf, type WorkspaceColumns } from './workspace-spec'
 
 export type ClaimUpdate = Partial<WorkspaceColumns> & {
   tokenHash: string
+  sealedToken: string
   lastActivityAt: string
   updatedAt: string
 }
@@ -16,10 +17,12 @@ export function rotationOf(args: {
   workspace: SandboxWorkspaceSpec | undefined
   skillsBundle: string | undefined
   tokenHash: string
+  sealedToken: string
   at: string
 }): ClaimUpdate {
   const rotation: ClaimUpdate = {
     tokenHash: args.tokenHash,
+    sealedToken: args.sealedToken,
     lastActivityAt: args.at,
     updatedAt: args.at,
   }
@@ -37,8 +40,10 @@ export function rotationOf(args: {
 export function claimSandboxRow(args: {
   thread: ThreadModel
   tokenHash: string
+  sealedToken: string
   workspace: SandboxWorkspaceSpec | undefined
   skillsBundle: string | undefined
+  name?: string | undefined
 }): Promise<CloudSandboxModel> {
   const at = new Date().toISOString()
   const columns: WorkspaceColumns = {
@@ -52,11 +57,12 @@ export function claimSandboxRow(args: {
       threadId: args.thread.id,
       userId: args.thread.userId,
       sandboxId: '',
-      name: sandboxNameFor({ threadId: args.thread.id }),
+      name: args.name ?? sandboxNameFor({ threadId: args.thread.id }),
       region: SANDBOX_REGION,
       state: ESandboxState.Parked,
       lastActivityAt: at,
       tokenHash: args.tokenHash,
+      sealedToken: args.sealedToken,
       ...columns,
       createdAt: at,
       updatedAt: at,

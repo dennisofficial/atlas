@@ -11,6 +11,7 @@ export const toWorkItemDto = (row: FactoryWorkItemModel): WorkItemDto => ({
   sourceKind: row.sourceKind,
   status: row.status,
   orchestratorThreadId: row.orchestratorThreadId,
+  orchestratorDeliveredEventId: row.orchestratorDeliveredEventId,
   driveName: row.driveName,
   revisionCycles: row.revisionCycles,
   lastActivityAt: row.lastActivityAt,

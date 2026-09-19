@@ -94,7 +94,7 @@ export class TranscriptService {
   async list(args: { workItemId: string }): Promise<TranscriptEventDto[]> {
     const rows = await db.factoryTranscriptEvent.findMany({
       where: { workItemId: args.workItemId },
-      orderBy: { receivedAt: 'asc' },
+      orderBy: { seq: 'asc' },
     })
     return rows.map(toTranscriptEventDto)
   }
