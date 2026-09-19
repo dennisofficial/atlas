@@ -1,4 +1,9 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common'
 import { Sandbox } from '@vercel/sandbox'
 import { EnvService } from '../../_core/config/env/env.service'
 import { ESandboxState } from './sandboxes.types'
@@ -13,6 +18,8 @@ import {
 
 export const SANDBOX_REGION = 'iad1'
 export const SANDBOX_SERVE_PORT = 3000
+/** The SDK's per-sandbox ceiling; the serve port occupies one slot. */
+export const SANDBOX_MAX_PORTS = 15
 /**
  * The workspace lives on the sandbox's own filesystem, which `persistent: true` snapshots on stop
  * and restores on resume. The path is told to serve rather than inferred, so both halves agree.
@@ -135,6 +142,38 @@ export class VercelSandboxClient {
       this.logger.warn(
         `sandbox ${args.name} provision failed ${Date.now() - createStartedAt}ms in: ${failureTextOf(failure)}`,
       )
+      throw asBadGateway(failure)
+    }
+  }
+
+  /**
+   * `update` replaces the whole port list, so the already-routed ports go back in alongside the
+   * new one — omitting them would deregister the serve port and cut the session's own channel.
+   */
+  async exposePort(args: { name: string; port: number }): Promise<string> {
+    const credentials = this.credentials()
+    try {
+      const sandbox = await Sandbox.get({
+        ...credentials,
+        name: args.name,
+        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
+      })
+      const routed = sandbox.routes.map((route) => route.port)
+      if (!routed.includes(args.port)) {
+        if (routed.length >= SANDBOX_MAX_PORTS) {
+          throw new BadRequestException(
+            `a sandbox exposes at most ${SANDBOX_MAX_PORTS} ports and this one is at the limit`,
+          )
+        }
+        await sandbox.update(
+          { ports: [...routed, args.port] },
+          { signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) },
+        )
+      }
+      return sandbox.domain(args.port)
+    } catch (failure) {
+      if (failure instanceof BadRequestException) throw failure
+      if (isSandboxMissing(failure)) throw new SandboxMissingError(args.name)
       throw asBadGateway(failure)
     }
   }

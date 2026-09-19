@@ -1,8 +1,9 @@
-import { ENoticeTone, EventLogPort, type NoticePort } from '@dltech/atlas-core'
+import { ENoticeTone, EventLogPort, ProcessPort, type NoticePort } from '@dltech/atlas-core'
 
 import { RemoteEventLog } from '../cloud/remote-event-log'
 import { RemoteThreadStore } from '../cloud/remote-thread-store'
 import { RemoteTurnLedger } from '../cloud/remote-turn-ledger'
+import { SandboxClient } from '../cloud/sandbox-client'
 import { SessionsClient } from '../cloud/sessions-client'
 import { composeHarness } from '../composition/compose'
 import { loadSettings } from '../composition/settings-binding'
@@ -12,6 +13,7 @@ import { ThreadStorePort } from '../store/thread-store'
 
 import { adoptChildren } from './adopt-children'
 import type { ServeApp, ServeCompose } from './serve-app'
+import { ServeProcessPort } from './serve-process'
 import { seedServeSession } from './serve-session'
 
 export const SERVE_COMMAND = 'serve'
@@ -77,6 +79,16 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
         container.register(portToken(EventLogPort), { useValue: log })
         container.register(portToken(ThreadStorePort), { useValue: threads })
         container.register(portToken(TurnLedgerPort), { useValue: new RemoteTurnLedger({ client }) })
+        container.register(portToken(ProcessPort), {
+          useValue: new ServeProcessPort({
+            client: new SandboxClient({
+              url: args.controlPlaneUrl,
+              token: args.token,
+              clientVersion: args.clientVersion,
+            }),
+            threadId: args.threadId,
+          }),
+        })
 
         return { log, threads }
       },

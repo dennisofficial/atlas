@@ -17,6 +17,7 @@ import { sandboxNameFor } from './sandbox-names'
 import { hashSessionToken, mintSessionToken, tokenMatches } from './sandbox-tokens'
 import type {
   SandboxAttachmentDto,
+  SandboxExposureDto,
   SandboxStatusDto,
   SandboxWorkspaceDto,
   SandboxWorkspaceSpec,
@@ -150,6 +151,18 @@ export class SandboxesService {
       }
     } catch (failure) {
       if (failure instanceof SandboxMissingError) return toSandboxDto(row)
+      throw failure
+    }
+  }
+
+  async expose(args: { threadId: string; port: number }): Promise<SandboxExposureDto> {
+    const row = await db.cloudSandbox.findUnique({ where: { threadId: args.threadId } })
+    if (row === null) throw new NotFoundException('sandbox not found')
+    try {
+      const url = await this.vercel.exposePort({ name: row.name, port: args.port })
+      return { threadId: args.threadId, port: args.port, url }
+    } catch (failure) {
+      if (failure instanceof SandboxMissingError) throw new NotFoundException('sandbox not found')
       throw failure
     }
   }

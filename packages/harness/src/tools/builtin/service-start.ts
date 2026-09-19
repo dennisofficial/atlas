@@ -38,7 +38,7 @@ const description = [
   'Its stdout and stderr go to one log file, named in the reply; read or grep that file to check on it, and stop it with service_stop.',
   'In bash, pipe the log through the atlas-svc helper: `atlas-svc logs svc_1 | grep ...` resolves the id to its log and execs tail, so -n and -f pass straight through into whatever pipe you build.',
   'Its stdin is closed and it is its own process group, so nothing it forks outlives a stop.',
-  'exposePort publishes the port the service listens on so the operator can open it from this machine.',
+  'exposePort publishes the port the service listens on and answers with the URL to hand the operator.',
   'In a container sandbox any port can be exposed: have the service listen on 0.0.0.0 - 127.0.0.1 is invisible outside the container - and pass the port it listens on; the reply carries the URL to hand the operator.',
 ].join(' ')
 
