@@ -49,6 +49,7 @@ const start = async (args: {
   adoptChildren?: ((args: { threadId: ThreadId }) => Promise<readonly ThreadId[]>) | undefined
   whenChildrenSettled?: (() => Promise<void>) | undefined
   heartbeatIntervalMs?: number | undefined
+  fetchFn?: typeof fetch | undefined
 }): Promise<Started> => {
   const beats: string[] = []
   const lines: string[] = []
@@ -71,10 +72,12 @@ const start = async (args: {
     cwd: '/workspace',
     bufferSize: args.bufferSize,
     write: (line) => lines.push(line),
-    fetchFn: (async (input: unknown) => {
-      if (String(input).endsWith('/heartbeat')) beats.push(String(input))
-      return new Response(null, { status: 204 })
-    }) as typeof fetch,
+    fetchFn:
+      args.fetchFn ??
+      ((async (input: unknown) => {
+        if (String(input).endsWith('/heartbeat')) beats.push(String(input))
+        return new Response(null, { status: 204 })
+      }) as typeof fetch),
     compose: async () => app,
     ensureWorkspace:
       args.ensureWorkspace ?? (async () => args.workspace ?? { state: EWorkspaceState.Skipped }),
@@ -390,6 +393,45 @@ describe('startServe', () => {
         base: 'ba51e1e0ba51e1e0ba51e1e0ba51e1e0ba51e1e0',
       },
     })
+  })
+
+  it('re-fetches the workspace spec on every publish, so a rotated token self-heals on retry', async () => {
+    let specFetches = 0
+    const { handle } = await start({
+      workspace: { state: EWorkspaceState.Materialized },
+      fetchFn: (async (input: unknown) => {
+        if (String(input).endsWith('/workspace')) {
+          specFetches += 1
+          return new Response(
+            JSON.stringify({
+              remoteUrl: null,
+              branch: null,
+              commit: null,
+              patch: '',
+              githubToken: null,
+              skillsBundle: null,
+            }),
+          )
+        }
+        return new Response(null, { status: 204 })
+      }) as typeof fetch,
+    })
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    const ask = (id: string) =>
+      client.send({ kind: EClientFrame.Request, id, op: EClientRequest.PublishWorkspace, params: {} })
+    ask('pub-1')
+    await client.waitFor((frame) => frame.kind === EServeFrame.Reply && frame.replyTo === 'pub-1')
+    ask('pub-2')
+    const reply = await client.waitFor(
+      (frame) => frame.kind === EServeFrame.Reply && frame.replyTo === 'pub-2',
+    )
+
+    expect(reply).toMatchObject({ ok: true, data: null })
+    expect(specFetches).toBe(3)
   })
 
   it('answers publish-workspace with null when no workspace materialized', async () => {
