@@ -30,7 +30,7 @@ async function createApp(): Promise<NestExpressApplication> {
   validateEnvironment()
 
   const { AppModule } = await import('./api/app.module.js')
-  const app = await NestFactory.create<NestExpressApplication>(AppModule)
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true })
 
   app.use(helmet())
   app.useBodyParser('json', { limit: WORKSPACE_BODY_LIMIT })
