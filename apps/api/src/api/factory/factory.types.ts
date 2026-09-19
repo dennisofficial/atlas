@@ -35,6 +35,7 @@ export type WorkItemDto = {
   sourceKind: string
   status: string
   orchestratorThreadId: string | null
+  orchestratorDeliveredEventId: string | null
   driveName: string | null
   revisionCycles: number
   lastActivityAt: string
