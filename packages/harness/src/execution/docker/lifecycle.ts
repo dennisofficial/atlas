@@ -19,19 +19,30 @@ import { DEFAULT_LABEL_PREFIX, sessionLabel, worktreeLabel } from './sandbox'
 
 export type LifecycleEngine = Pick<
   DockerEngine,
-  'listContainers' | 'stopContainer' | 'removeContainer'
+  'listContainers' | 'listNetworks' | 'stopContainer' | 'removeContainer' | 'removeNetwork'
 >
 
 const findBySession = async (args: {
   engine: LifecycleEngine
   prefix: string
   session: string
-}) => {
-  const matches = await args.engine.listContainers({
+}) =>
+  args.engine.listContainers({
     labels: { [sessionLabel(args.prefix)]: args.session },
     all: true,
   })
-  return matches[0]
+
+const removeSessionNetworks = async (args: {
+  engine: LifecycleEngine
+  prefix: string
+  session: string
+}): Promise<void> => {
+  const networks = await args.engine.listNetworks({
+    labels: { [sessionLabel(args.prefix)]: args.session },
+  })
+  for (const network of networks) {
+    await args.engine.removeNetwork({ id: network.id }).catch(() => undefined)
+  }
 }
 
 export async function stopSandbox(args: {
@@ -41,10 +52,14 @@ export async function stopSandbox(args: {
 }): Promise<boolean> {
   const prefix = args.prefix ?? DEFAULT_LABEL_PREFIX
   const found = await findBySession({ engine: args.engine, prefix, session: args.session })
-  if (found === undefined || found.state !== 'running') return false
 
-  await args.engine.stopContainer({ id: found.id })
-  return true
+  let stopped = false
+  for (const one of found) {
+    if (one.state !== 'running') continue
+    await args.engine.stopContainer({ id: one.id })
+    stopped = true
+  }
+  return stopped
 }
 
 export async function removeSandbox(args: {
@@ -54,10 +69,10 @@ export async function removeSandbox(args: {
 }): Promise<boolean> {
   const prefix = args.prefix ?? DEFAULT_LABEL_PREFIX
   const found = await findBySession({ engine: args.engine, prefix, session: args.session })
-  if (found === undefined) return false
 
-  await args.engine.removeContainer({ id: found.id })
-  return true
+  for (const one of found) await args.engine.removeContainer({ id: one.id })
+  await removeSessionNetworks({ engine: args.engine, prefix, session: args.session })
+  return found.length > 0
 }
 
 export async function removeSandboxesAtWorktree(args: {
@@ -72,6 +87,13 @@ export async function removeSandboxesAtWorktree(args: {
   })
 
   for (const one of matches) await args.engine.removeContainer({ id: one.id })
+
+  const networks = await args.engine.listNetworks({
+    labels: { [worktreeLabel(prefix)]: args.worktree },
+  })
+  for (const network of networks) {
+    await args.engine.removeNetwork({ id: network.id }).catch(() => undefined)
+  }
   return matches.length
 }
 
@@ -98,6 +120,18 @@ export async function sweepSandboxes(args: {
   for (const one of stale) {
     await args.engine.removeContainer({ id: one.id })
     if (one.worktree !== undefined) removed.push(one.worktree)
+  }
+
+  const networks = await args.engine.listNetworks({
+    labels: { [worktreeLabel(prefix)]: undefined },
+  })
+  const staleNetworks = staleSandboxes({
+    sandboxes: networks.map((one) => ({ id: one.id, worktree: one.labels[worktreeLabel(prefix)] })),
+    worktrees: args.worktrees,
+    exists,
+  })
+  for (const network of staleNetworks) {
+    await args.engine.removeNetwork({ id: network.id }).catch(() => undefined)
   }
   return removed
 }

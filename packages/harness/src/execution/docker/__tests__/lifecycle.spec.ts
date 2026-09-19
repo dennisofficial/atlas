@@ -28,15 +28,23 @@ type Fixture = {
   session?: string | undefined
 }
 
+type NetworkFixture = {
+  id: string
+  worktree?: string | undefined
+  session?: string | undefined
+}
+
 type Recorded = {
   stopped: string[]
   removed: string[]
+  removedNetworks: string[]
 }
 
 const fakeEngine = (args: {
   containers?: Fixture[]
+  networks?: NetworkFixture[]
 }): { engine: LifecycleEngine; recorded: Recorded } => {
-  const recorded: Recorded = { stopped: [], removed: [] }
+  const recorded: Recorded = { stopped: [], removed: [], removedNetworks: [] }
 
   const engine: LifecycleEngine = {
     listContainers: async (query) => {
@@ -57,11 +65,31 @@ const fakeEngine = (args: {
           ),
         )
     },
+    listNetworks: async (query) => {
+      const wanted = query?.labels ?? {}
+      return (args.networks ?? [])
+        .map((one) => ({
+          id: one.id,
+          name: one.id,
+          labels: {
+            ...(one.worktree === undefined ? {} : { [worktreeLabel('atlas-test')]: one.worktree }),
+            ...(one.session === undefined ? {} : { [sessionLabel('atlas-test')]: one.session }),
+          },
+        }))
+        .filter((one) =>
+          Object.entries(wanted).every(([key, value]) =>
+            value === undefined ? key in one.labels : one.labels[key] === value,
+          ),
+        )
+    },
     stopContainer: async ({ id }) => {
       recorded.stopped.push(id)
     },
     removeContainer: async ({ id }) => {
       recorded.removed.push(id)
+    },
+    removeNetwork: async ({ id }) => {
+      recorded.removedNetworks.push(id)
     },
   }
 
@@ -102,6 +130,18 @@ describe('stopSandbox', () => {
     expect(await stopSandbox({ engine, prefix: 'atlas-test', session: 'thread-a' })).toBe(false)
     expect(recorded.stopped).toEqual([])
   })
+
+  it('stops the expose proxy alongside the sandbox it serves', async () => {
+    const { engine, recorded } = fakeEngine({
+      containers: [
+        { id: 'sandbox', state: 'running', worktree: '/repo/wt', session: 'thread-a' },
+        { id: 'proxy', state: 'running', worktree: '/repo/wt', session: 'thread-a' },
+      ],
+    })
+
+    expect(await stopSandbox({ engine, prefix: 'atlas-test', session: 'thread-a' })).toBe(true)
+    expect(recorded.stopped).toEqual(['sandbox', 'proxy'])
+  })
 })
 
 describe('removeSandbox', () => {
@@ -112,6 +152,30 @@ describe('removeSandbox', () => {
 
     expect(await removeSandbox({ engine, prefix: 'atlas-test', session: 'thread-a' })).toBe(true)
     expect(recorded.removed).toEqual(['one'])
+  })
+
+  it('removes the session’s network alongside its containers', async () => {
+    const { engine, recorded } = fakeEngine({
+      containers: [{ id: 'one', state: 'running', worktree: '/repo/wt', session: 'thread-a' }],
+      networks: [
+        { id: 'net-a', worktree: '/repo/wt', session: 'thread-a' },
+        { id: 'net-b', worktree: '/repo/wt', session: 'thread-b' },
+      ],
+    })
+
+    expect(await removeSandbox({ engine, prefix: 'atlas-test', session: 'thread-a' })).toBe(true)
+    expect(recorded.removed).toEqual(['one'])
+    expect(recorded.removedNetworks).toEqual(['net-a'])
+  })
+
+  it('removes an orphaned session network even when its containers are already gone', async () => {
+    const { engine, recorded } = fakeEngine({
+      containers: [],
+      networks: [{ id: 'net-a', worktree: '/repo/wt', session: 'thread-a' }],
+    })
+
+    expect(await removeSandbox({ engine, prefix: 'atlas-test', session: 'thread-a' })).toBe(false)
+    expect(recorded.removedNetworks).toEqual(['net-a'])
   })
 
   it('does nothing when no container carries the session', async () => {
@@ -141,6 +205,25 @@ describe('sweepSandboxes', () => {
 
     expect(recorded.removed).toEqual(['orphan'])
     expect(removed).toEqual(['/repo/.atlas/worktrees/merged'])
+  })
+
+  it('removes networks whose worktree is gone and keeps the rest', async () => {
+    const { engine, recorded } = fakeEngine({
+      containers: [],
+      networks: [
+        { id: 'net-live', worktree: '/repo/.atlas/worktrees/live' },
+        { id: 'net-orphan', worktree: '/repo/.atlas/worktrees/merged' },
+      ],
+    })
+
+    await sweepSandboxes({
+      engine,
+      prefix: 'atlas-test',
+      worktrees: ['/repo', '/repo/.atlas/worktrees/live'],
+      exists: () => false,
+    })
+
+    expect(recorded.removedNetworks).toEqual(['net-orphan'])
   })
 
   it('keeps a container whose worktree another repository still holds on disk', async () => {
@@ -386,14 +469,18 @@ describe('ReclaimWorktreeSandboxHook', () => {
   })
 
   it('removes every session’s sandbox anchored at the worktree the session just removed', async () => {
-    const { engine, recorded } = fakeEngine({
+    const { engine: withNetworks, recorded: withNetworksRecorded } = fakeEngine({
       containers: [
         { id: 'gone-a', state: 'running', worktree: '/repo/.atlas/worktrees/merged', session: 'thread-a' },
         { id: 'gone-b', state: 'exited', worktree: '/repo/.atlas/worktrees/merged', session: 'thread-b' },
         { id: 'kept', state: 'running', worktree: '/repo/.atlas/worktrees/live', session: 'thread-c' },
       ],
+      networks: [
+        { id: 'net-merged', worktree: '/repo/.atlas/worktrees/merged', session: 'thread-a' },
+        { id: 'net-live', worktree: '/repo/.atlas/worktrees/live', session: 'thread-c' },
+      ],
     })
-    const hook = new ReclaimWorktreeSandboxHook({ engine, prefix: 'atlas-test' })
+    const hook = new ReclaimWorktreeSandboxHook({ engine: withNetworks, prefix: 'atlas-test' })
 
     await hook.run({
       call: bashCall('exit_worktree'),
@@ -402,7 +489,8 @@ describe('ReclaimWorktreeSandboxHook', () => {
       signal: new AbortController().signal,
     })
 
-    expect(recorded.removed).toEqual(['gone-a', 'gone-b'])
+    expect(withNetworksRecorded.removed).toEqual(['gone-a', 'gone-b'])
+    expect(withNetworksRecorded.removedNetworks).toEqual(['net-merged'])
   })
 
   it('leaves the sandbox alone when the worktree is kept', async () => {

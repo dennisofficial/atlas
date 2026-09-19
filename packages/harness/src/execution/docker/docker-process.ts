@@ -1,5 +1,6 @@
 import {
   ProcessPort,
+  exposureUrlFor,
   type PortExposureOutcome,
   type ProcessHandle,
   type SpawnCommand,
@@ -10,7 +11,7 @@ import { atlasBinDirectory } from '../../store/paths'
 import { execEnvFor } from './exec-environment'
 import { trackExec } from './exec-tracker'
 import { EngineRequestFailed, type ContainerDetails, type DockerEngine } from './engine'
-import { blockRefusal, portInBlock } from './ports'
+import { ensureSandboxProxy } from './expose-proxy'
 import {
   DEFAULT_LABEL_PREFIX,
   ensureSandbox,
@@ -103,26 +104,19 @@ export class DockerProcessPort implements ProcessPort {
   }
 
   async exposePort(args: { containerPort: number }): Promise<PortExposureOutcome> {
-    if (!portInBlock(args.containerPort)) {
-      return { ok: false, reason: blockRefusal({ containerPort: args.containerPort }) }
-    }
-
     const sandbox = await this.ensure()
-    const details = await this.engine.inspectContainer({ id: sandbox.id })
-    const bound = details.ports.find((one) => one.containerPort === args.containerPort)
-    if (bound === undefined) {
-      return {
-        ok: false,
-        reason: `this sandbox was created without published ports, and Docker cannot publish one onto a running container; remove the sandbox container so the next command creates it with the block`,
-      }
-    }
+    const proxy = await ensureSandboxProxy({
+      engine: this.engine,
+      config: this.sandboxConfig,
+      sandboxName: sandbox.name,
+    })
 
     return {
       ok: true,
       exposure: {
         containerPort: args.containerPort,
-        hostPort: bound.hostPort,
-        url: `http://localhost:${bound.hostPort}`,
+        hostPort: proxy.hostPort,
+        url: exposureUrlFor({ containerPort: args.containerPort, hostPort: proxy.hostPort }),
       },
     }
   }

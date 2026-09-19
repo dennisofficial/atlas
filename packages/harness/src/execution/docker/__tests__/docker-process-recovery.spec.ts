@@ -7,6 +7,7 @@ import {
   type ContainerDetails,
   type ContainerSummary,
   type ExecState,
+  type NetworkSummary,
 } from '../engine'
 import { sandboxCreateBody, type SandboxConfig } from '../sandbox'
 import { ESandboxState, type SandboxStatus } from '../status'
@@ -74,6 +75,14 @@ class StubEngine extends DockerEngine {
 
   override async info(): Promise<{ cpus: number; memoryBytes: number }> {
     return { cpus: 64, memoryBytes: 1024 ** 4 }
+  }
+
+  override async listNetworks(): Promise<NetworkSummary[]> {
+    return [{ id: 'net-stub', name: 'atlas-net-stub', labels: {} }]
+  }
+
+  override async createNetwork(args: { name: string }): Promise<{ id: string }> {
+    return { id: `net-${args.name}` }
   }
 
   override async createContainer(args: { body: { Image: string } }): Promise<{ id: string; warnings: string[] }> {

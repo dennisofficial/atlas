@@ -19,11 +19,14 @@ export const encodeLaunchConfig = (args: {
   config: SandboxConfig
   env: readonly string[]
   binds: readonly string[]
+  network: string
 }): string => {
   const system = systemMountDestinations(args.config)
   const binds = args.binds.filter((bind) => !system.has(bind.split(':')[1] ?? ''))
   return createHash('sha256')
-    .update(JSON.stringify({ env: args.env, binds, limits: args.config.limits }))
+    .update(
+      JSON.stringify({ env: args.env, binds, limits: args.config.limits, network: args.network }),
+    )
     .digest('hex')
 }
 

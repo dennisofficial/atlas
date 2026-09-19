@@ -123,13 +123,15 @@ describe('sandboxCreateBody', () => {
     expect(first).toMatch(/^atlas-[0-9a-f]{12}$/)
   })
 
-  it('gives two sessions over the same worktree different names and port plans', () => {
+  it('gives two sessions over the same worktree different names and networks', () => {
     const sibling = sandboxCreateBody({ ...CONFIG, session: 'thread-sibling' })
     const own = sandboxCreateBody(CONFIG)
 
     expect(sibling.Labels?.[worktreeLabel('atlas')]).toBe(own.Labels?.[worktreeLabel('atlas')])
     expect(sibling.Labels?.[sessionLabel('atlas')]).not.toBe(own.Labels?.[sessionLabel('atlas')])
-    expect(sibling.HostConfig?.PortBindings).not.toEqual(own.HostConfig?.PortBindings)
+    expect(sibling.NetworkingConfig?.EndpointsConfig).not.toEqual(
+      own.NetworkingConfig?.EndpointsConfig,
+    )
   })
 
   it('forwards the ssh agent socket at its own path and points SSH_AUTH_SOCK at it', () => {
