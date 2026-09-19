@@ -113,7 +113,7 @@ async function startSession(args: {
 
   const signedIn = app.cloud.session()
   if (signedIn !== null) {
-    await mergeRemoteMemoryBounded({ session: signedIn, cwd: config.cwd })
+    void mergeRemoteMemoryBounded({ session: signedIn, cwd: config.cwd })
   }
 
   progress.report(EBootStep.Authorising)

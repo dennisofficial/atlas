@@ -8,7 +8,7 @@ import { captureContextBundle } from './cloud/context-bundle'
 import { createCloudRunner } from './cloud/cloud-runner'
 import { liftToCloud } from './cloud/lift'
 import { CLOUD_LIFT_NOTICE_KEY, liftFailedNotice } from './cloud/lift-notices'
-import { mergeRemoteMemory } from './cloud/merge-remote-memory'
+import { mergeRemoteMemoryBounded } from './cloud/bounded-merge-remote-memory'
 import { stopLocalWork } from './cloud/stop-local'
 import { cloudLiftPlan } from './container-move'
 import type { AtlasApp } from './compose'
@@ -59,9 +59,9 @@ export function useCloudLift(args: {
     const { move } = latest.current
     move.handleBegin({ target: EExecutionLocation.Cloud, plan: cloudLiftPlan({ midTurn }) })
 
-    void mergeRemoteMemory({ session: signedIn, cwd: latest.current.projectDirectory })
-      .catch(() => undefined)
-      .then(() => captureContextBundle({ cwd: latest.current.projectDirectory }))
+    void mergeRemoteMemoryBounded({ session: signedIn, cwd: latest.current.projectDirectory })
+
+    void captureContextBundle({ cwd: latest.current.projectDirectory })
       .then((contextBundle) =>
         liftToCloud({
       threadId,
