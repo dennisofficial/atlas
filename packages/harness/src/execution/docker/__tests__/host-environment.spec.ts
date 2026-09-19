@@ -240,13 +240,13 @@ describe('mountedAtlasHomeSubtrees', () => {
       expect(
         mountedAtlasHomeSubtrees({ worktree: '/unrelated/worktree', atlasHome }),
       ).toEqual([
-        { path: join(atlasHome, 'memory'), mode: EMountMode.ReadOnly },
-        { path: join(atlasHome, 'skills'), mode: EMountMode.ReadOnly },
+        { path: join(atlasHome, 'memory'), mode: EMountMode.ReadWrite },
+        { path: join(atlasHome, 'skills'), mode: EMountMode.ReadWrite },
       ])
     })
   })
 
-  it('mounts the services log directory writable and the bin directory read-only', async () => {
+  it('mounts the services log and bin directories writable, like every subtree', async () => {
     await withAtlasHome(async (atlasHome) => {
       await mkdir(join(atlasHome, 'services'))
       await mkdir(join(atlasHome, 'bin'))
@@ -255,7 +255,7 @@ describe('mountedAtlasHomeSubtrees', () => {
         mountedAtlasHomeSubtrees({ worktree: '/unrelated/worktree', atlasHome }),
       ).toEqual([
         { path: join(atlasHome, 'services'), mode: EMountMode.ReadWrite },
-        { path: join(atlasHome, 'bin'), mode: EMountMode.ReadOnly },
+        { path: join(atlasHome, 'bin'), mode: EMountMode.ReadWrite },
       ])
     })
   })
@@ -309,7 +309,7 @@ describe('mountedAtlasHomeSubtrees', () => {
           limits: { cpus: 1, memoryBytes: 1024 ** 3 },
         })
         expect(probed.atlasHomeSubtrees).toEqual([
-          { path: join(atlasHome, 'memory'), mode: EMountMode.ReadOnly },
+          { path: join(atlasHome, 'memory'), mode: EMountMode.ReadWrite },
         ])
 
         const explicit = sandboxConfigFromHost({
