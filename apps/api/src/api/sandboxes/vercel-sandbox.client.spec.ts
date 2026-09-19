@@ -9,10 +9,12 @@ const sdk = vi.hoisted(() => ({
   stopped: [] as string[],
   deleted: [] as string[],
   extended: [] as number[],
+  ranCommands: [] as Record<string, unknown>[],
   status: 'running',
   getFailure: null as Error | null,
   createFailure: null as Error | null,
   extendFailure: null as Error | null,
+  runCommandFailure: null as Error | null,
   sandboxRef: null as unknown,
 }))
 
@@ -52,6 +54,11 @@ vi.mock('@vercel/sandbox', () => {
     },
     delete: async () => {
       sdk.deleted.push('deleted')
+    },
+    runCommand: async (params: Record<string, unknown>) => {
+      sdk.ranCommands.push(params)
+      if (sdk.runCommandFailure !== null) throw sdk.runCommandFailure
+      return { exitCode: 0 }
     },
   }
   sdk.sandboxRef = sandbox
@@ -93,6 +100,7 @@ vi.mock('./serve-launch', () => {
     },
     SERVE_BINARY_PATH: '/vercel/sandbox/atlas-serve',
     SERVE_LOG_PATH: '/vercel/sandbox/atlas-serve.log',
+    SERVE_TOKEN_PATH: '/vercel/sandbox/atlas-serve.token',
   }
 })
 
@@ -137,10 +145,12 @@ describe('VercelSandboxClient', () => {
     sdk.stopped.length = 0
     sdk.deleted.length = 0
     sdk.extended.length = 0
+    sdk.ranCommands.length = 0
     sdk.status = 'running'
     sdk.getFailure = null
     sdk.createFailure = null
     sdk.extendFailure = null
+    sdk.runCommandFailure = null
     launch.launched = 0
     launch.tokens.length = 0
     launch.failLaunch = false
@@ -335,6 +345,49 @@ describe('VercelSandboxClient', () => {
     })
     await expect(failure).rejects.toBeInstanceOf(BadGatewayException)
     await expect(failure).rejects.toThrow('quota exceeded')
+  })
+
+  it('curls the sandbox-local park endpoint with the reason and a hard timeout', async () => {
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+
+    await client.notifyParked({
+      name: 'atlas-thread-abc',
+      reason: 'the sandbox parked after sitting idle',
+    })
+
+    expect(sdk.ranCommands).toHaveLength(1)
+    const call = sdk.ranCommands[0] as {
+      cmd: string
+      args: string[]
+      env: Record<string, string>
+      timeoutMs: number
+    }
+    expect(call.cmd).toBe('sh')
+    expect(call.args[1]).toContain('/vercel/sandbox/atlas-serve.token')
+    expect(call.args[1]).toContain(`http://localhost:${SANDBOX_SERVE_PORT}/v1/park`)
+    expect(call.args[1]).toContain('$ATLAS_PARK_REASON')
+    expect(call.env).toEqual({
+      ATLAS_PARK_REASON: JSON.stringify({ reason: 'the sandbox parked after sitting idle' }),
+    })
+    expect(call.timeoutMs).toBeLessThanOrEqual(3_000)
+  })
+
+  it('propagates a failure notifying a sandbox that has gone missing', async () => {
+    sdk.getFailure = new APIError({ status: 404 } as Response)
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+
+    await expect(
+      client.notifyParked({ name: 'atlas-thread-gone', reason: 'the sandbox was stopped' }),
+    ).rejects.toThrow()
+  })
+
+  it('propagates a failure when the in-sandbox curl itself fails', async () => {
+    sdk.runCommandFailure = new Error('command timed out')
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+
+    await expect(
+      client.notifyParked({ name: 'atlas-thread-abc', reason: 'the sandbox was stopped' }),
+    ).rejects.toThrow('command timed out')
   })
 
   it('joins a launch already in flight for the same sandbox instead of running it twice', async () => {

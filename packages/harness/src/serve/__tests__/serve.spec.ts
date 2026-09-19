@@ -136,6 +136,78 @@ describe('startServe', () => {
     expect(await allowed.json()).toMatchObject({ ok: true, threadId, turnRunning: false })
   })
 
+  it('parks attached clients: broadcasts the reason, then closes them cleanly at 1001', async () => {
+    const { handle, lines } = await start({})
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    const response = await fetch(`http://127.0.0.1:${handle.port}/v1/park`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ reason: 'the sandbox parked after sitting idle' }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ ok: true })
+
+    const parked = await client.waitFor((frame) => frame.kind === EServeFrame.Parked)
+    expect(parked).toEqual({
+      kind: EServeFrame.Parked,
+      reason: 'the sandbox parked after sitting idle',
+    })
+    /**
+     * Bun 1.3.14 rewrites a server-initiated ws.close(1001, ...) to 1000 on the wire; what this
+     * asserts is a real close handshake following the frame, never a hang to a bare 1006.
+     */
+    expect(await client.closed).toBe(1000)
+    expect(lines.some((line) => line.includes('serve.clients-parked'))).toBe(true)
+  })
+
+  it('refuses a park request without the session token', async () => {
+    const { handle } = await start({})
+
+    const response = await fetch(`http://127.0.0.1:${handle.port}/v1/park`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: 'the sandbox was stopped' }),
+    })
+
+    expect(response.status).toBe(401)
+  })
+
+  it('rejects a park request missing a reason and never touches attached clients', async () => {
+    const { handle } = await start({})
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    const response = await fetch(`http://127.0.0.1:${handle.port}/v1/park`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${TOKEN}` },
+      body: JSON.stringify({}),
+    })
+
+    expect(response.status).toBe(400)
+    await Bun.sleep(10)
+    expect(client.frames.some((frame) => frame.kind === EServeFrame.Parked)).toBe(false)
+  })
+
+  it('never sends a parked frame to a socket that has not said hello', async () => {
+    const { handle } = await start({})
+    const client = await connect({ port: handle.port, token: TOKEN })
+
+    const response = await fetch(`http://127.0.0.1:${handle.port}/v1/park`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ reason: 'the sandbox was stopped' }),
+    })
+
+    expect(response.status).toBe(200)
+    await Bun.sleep(10)
+    expect(client.frames).toEqual([])
+    client.close()
+  })
+
   it('closes a socket whose first frame is not hello', async () => {
     const { handle } = await start({})
     const client = await connect({ port: handle.port, token: TOKEN })

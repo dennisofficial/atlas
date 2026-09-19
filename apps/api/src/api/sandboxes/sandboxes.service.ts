@@ -156,7 +156,7 @@ export class SandboxesService {
 
   async stop(args: { userId: string; threadId: string }): Promise<SandboxStatusDto> {
     const row = await ownedSandbox(args)
-    await this.park({ row })
+    await this.park({ row, reason: 'the sandbox was stopped' })
     return { ...toSandboxDto(row), state: ESandboxState.Parked }
   }
 
@@ -242,7 +242,7 @@ export class SandboxesService {
           select: { lastActivityAt: true },
         })
         if (fresh === null || fresh.lastActivityAt >= quietSince) continue
-        await this.park({ row })
+        await this.park({ row, reason: 'the sandbox parked after sitting idle' })
         parked += 1
       } catch (failure) {
         this.logger.warn(`could not park sandbox ${row.name}: ${String(failure)}`)
@@ -251,12 +251,24 @@ export class SandboxesService {
     return parked
   }
 
-  async park(args: { row: CloudSandboxModel }): Promise<void> {
+  async park(args: { row: CloudSandboxModel; reason: string }): Promise<void> {
+    await this.notifyParked(args)
     await this.vercel.stop({ name: args.row.name })
     await db.cloudSandbox.update({
       where: { threadId: args.row.threadId },
       data: { state: ESandboxState.Parked, updatedAt: nowIso() },
     })
+  }
+
+  /** Best-effort: a sandbox that cannot be reached must still stop, so every failure is swallowed. */
+  private async notifyParked(args: { row: CloudSandboxModel; reason: string }): Promise<void> {
+    try {
+      await this.vercel.notifyParked({ name: args.row.name, reason: args.reason })
+    } catch (failure) {
+      this.logger.warn(
+        `could not notify sandbox ${args.row.name} before parking it: ${messageOf(failure)}`,
+      )
+    }
   }
 
   private ttlMs(): number {

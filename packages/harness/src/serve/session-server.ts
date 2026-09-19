@@ -7,11 +7,25 @@ import { bearerToken, offeredSubprotocols, tokenMatches } from './token-guard'
 
 export const HEALTH_PATH = '/v1/health'
 
+export const PARK_PATH = '/v1/park'
+
 export const SESSION_PATH = '/v1/session'
 
 const MAX_IDLE_SECONDS = 255
 
 const unauthorized = (): Response => new Response('unauthorized', { status: 401 })
+
+const parkReasonOf = async (request: Request): Promise<string | null> => {
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return null
+  }
+  if (typeof body !== 'object' || body === null) return null
+  const reason = (body as { reason?: unknown }).reason
+  return typeof reason === 'string' && reason.length > 0 ? reason : null
+}
 
 export function startSessionServer(args: {
   port: number
@@ -24,7 +38,7 @@ export function startSessionServer(args: {
   return Bun.serve<SocketState, never>({
     port: args.port,
 
-    fetch(request, server) {
+    async fetch(request, server) {
       const { pathname } = new URL(request.url)
 
       if (pathname === HEALTH_PATH) {
@@ -32,6 +46,16 @@ export function startSessionServer(args: {
         const offered = bearerToken(request.headers.get('authorization'))
         if (!tokenMatches({ expected: token, offered })) return unauthorized()
         return Response.json(args.health())
+      }
+
+      if (pathname === PARK_PATH) {
+        if (request.method !== 'POST') return new Response('method not allowed', { status: 405 })
+        const offered = bearerToken(request.headers.get('authorization'))
+        if (!tokenMatches({ expected: token, offered })) return unauthorized()
+        const reason = await parkReasonOf(request)
+        if (reason === null) return new Response('a reason is required', { status: 400 })
+        handlers.park({ reason })
+        return Response.json({ ok: true })
       }
 
       if (pathname !== SESSION_PATH) return new Response('not found', { status: 404 })
