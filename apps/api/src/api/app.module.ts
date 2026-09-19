@@ -10,6 +10,7 @@ import { ClientVersionGuard } from '../_module/client-version/client-version.gua
 import { ClientVersionModule } from '../_module/client-version/client-version.module'
 import { AccountsModule } from './accounts/accounts.module'
 import { AuthModule } from './auth/auth.module'
+import { FactoryModule } from './factory/factory.module'
 import { GithubModule } from './github/github.module'
 import { HealthController } from './health/health.controller'
 import { MigrationStateService } from './health/migration-state.service'
@@ -40,6 +41,7 @@ import { SessionsModule } from './sessions/sessions.module'
     GithubModule,
     SessionsModule,
     SandboxesModule,
+    FactoryModule,
   ],
   controllers: [HealthController],
   providers: [
