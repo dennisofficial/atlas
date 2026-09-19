@@ -18,7 +18,6 @@ import {
   type ToolRun,
 } from '@dltech/atlas-core'
 
-import { EXPOSED_PORT_COUNT, EXPOSED_PORT_FIRST } from '../../execution/docker/ports'
 import { LocalProcessPort } from '../../execution/local-process'
 import { logTail, ServiceRegistryPort } from '../../services'
 import { exposureClause, exposureUnsupported } from './bash-prose'
@@ -40,7 +39,7 @@ const description = [
   'In bash, pipe the log through the atlas-svc helper: `atlas-svc logs svc_1 | grep ...` resolves the id to its log and execs tail, so -n and -f pass straight through into whatever pipe you build.',
   'Its stdin is closed and it is its own process group, so nothing it forks outlives a stop.',
   'exposePort publishes the port the service listens on so the operator can open it from this machine.',
-  `In a container sandbox only container ports ${EXPOSED_PORT_FIRST} through ${EXPOSED_PORT_FIRST + EXPOSED_PORT_COUNT - 1} are published, fixed when the container is created - have the service listen on one of them and pass that port as exposePort, never a port outside the block.`,
+  'In a container sandbox any port can be exposed: have the service listen on 0.0.0.0 - 127.0.0.1 is invisible outside the container - and pass the port it listens on; the reply carries the URL to hand the operator.',
 ].join(' ')
 
 export class ServiceStartTool extends SchemaTool<typeof inputSchema> {

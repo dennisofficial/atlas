@@ -1,9 +1,5 @@
 import { readIdling, type PortExposure } from '@dltech/atlas-core'
 
-import {
-  EXPOSED_PORT_COUNT,
-  EXPOSED_PORT_FIRST,
-} from '../../execution/docker/ports'
 import { MATCHED_LINES_CAP } from '../../shells/shell-watch'
 
 export function bashDescription({
@@ -45,7 +41,7 @@ export function bashDescription({
     'So never wait on one: no sleeping, no polling, no idle loop, and no do-nothing call to tick the time away - ticking only spins the turn. Move on to other work, or end the turn and be woken.',
     'shell_output reads a shell that will not end on its own, shell_list shows what is running, and shell_kill stops one.',
     'exposePort publishes the port a background server listens on so the operator can open it from this machine; it requires runInBackground.',
-    `In a container sandbox only container ports ${EXPOSED_PORT_FIRST} through ${EXPOSED_PORT_FIRST + EXPOSED_PORT_COUNT - 1} are published, fixed when the container is created - have the server listen on one of them and pass that port as exposePort, never a port outside the block.`,
+    'In a container sandbox any port can be exposed: have the server listen on 0.0.0.0 - 127.0.0.1 is invisible outside the container - and pass the port it listens on; the reply carries the URL to hand the operator.',
   ].join(' ')
 }
 
@@ -56,8 +52,8 @@ export function exposureClause({ exposure }: { exposure: PortExposure | undefine
   }
 
   return [
-    `It is reachable from this machine at ${exposure.url} - container port ${exposure.containerPort} is published as host port ${exposure.hostPort},`,
-    `so localhost:${exposure.containerPort} answers only inside the container and the URL to hand the operator is ${exposure.url}.`,
+    `It is reachable from this machine at ${exposure.url}, where a proxy forwards to port ${exposure.containerPort} in the sandbox -`,
+    'if the server bound 127.0.0.1 instead of 0.0.0.0 the proxy cannot reach it, so rebind before handing the URL over.',
   ]
 }
 

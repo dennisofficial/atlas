@@ -12,7 +12,6 @@ import {
   launchConfigLabel,
   missingIdentityMounts,
 } from './mount-drift'
-import { publishPlanFor } from './ports'
 import { prepareContainerForOperator } from './operator-setup'
 import { runSandboxScripts } from './sandbox-scripts'
 import type { ContainerSummary, CreateContainerBody, DockerEngine } from './engine'
@@ -30,10 +29,12 @@ export type SandboxEngine = Pick<
   DockerEngine,
   | 'createContainer'
   | 'createExec'
+  | 'createNetwork'
   | 'info'
   | 'inspectContainer'
   | 'inspectExec'
   | 'listContainers'
+  | 'listNetworks'
   | 'removeContainer'
   | 'startContainer'
   | 'startExec'
@@ -81,12 +82,22 @@ export const worktreeLabel = (prefix: string): string => `${prefix}.worktree`
 
 export const sessionLabel = (prefix: string): string => `${prefix}.session`
 
+export const roleLabel = (prefix: string): string => `${prefix}.role`
+
+export const EXPOSE_PROXY_ROLE = 'expose-proxy'
+
+export const sessionHashFor = (session: string): string =>
+  createHash('sha256').update(session).digest('hex').slice(0, 12)
+
 export const sandboxNameFor = (args: { prefix: string; session: string }): string =>
-  `${args.prefix}-${createHash('sha256').update(args.session).digest('hex').slice(0, 12)}`
+  `${args.prefix}-${sessionHashFor(args.session)}`
+
+export const sandboxNetworkNameFor = (args: { prefix: string; session: string }): string =>
+  `${args.prefix}-net-${sessionHashFor(args.session)}`
 
 export function sandboxCreateBody(config: SandboxConfig): CreateContainerBody {
   const prefix = config.labelPrefix ?? DEFAULT_LABEL_PREFIX
-  const published = publishPlanFor({ session: config.session })
+  const network = sandboxNetworkNameFor({ prefix, session: config.session })
   const binds: string[] = [
     `${config.worktree}:${config.worktree}`,
     `${config.dockerSocket}:${config.dockerSocket}`,
@@ -142,21 +153,39 @@ export function sandboxCreateBody(config: SandboxConfig): CreateContainerBody {
       [worktreeLabel(prefix)]: config.worktree,
       [sessionLabel(prefix)]: config.session,
       [declaredMountsLabel(prefix)]: encodeDeclaredMounts(config.mounts ?? []),
-      [launchConfigLabel(prefix)]: encodeLaunchConfig({ config, env, binds }),
+      [launchConfigLabel(prefix)]: encodeLaunchConfig({ config, env, binds, network }),
     },
-    ExposedPorts: Object.fromEntries(published.map((one) => [`${one.containerPort}/tcp`, {}])),
     HostConfig: {
       Binds: binds,
       ...(config.limits.cpus === 0 ? {} : { NanoCpus: config.limits.cpus * 1e9 }),
       ...(config.limits.memoryBytes === 0 ? {} : { Memory: config.limits.memoryBytes }),
-      PortBindings: Object.fromEntries(
-        published.map((one) => [
-          `${one.containerPort}/tcp`,
-          [{ HostIp: '127.0.0.1', HostPort: String(one.hostPort) }],
-        ]),
-      ),
+    },
+    NetworkingConfig: {
+      EndpointsConfig: { [network]: {} },
     },
   }
+}
+
+export async function ensureSandboxNetwork(args: {
+  engine: SandboxEngine
+  prefix: string
+  session: string
+  worktree: string
+}): Promise<string> {
+  const name = sandboxNetworkNameFor({ prefix: args.prefix, session: args.session })
+  const existing = await args.engine.listNetworks({
+    labels: { [sessionLabel(args.prefix)]: args.session },
+  })
+  if (existing.length > 0) return name
+
+  await args.engine.createNetwork({
+    name,
+    labels: {
+      [worktreeLabel(args.prefix)]: args.worktree,
+      [sessionLabel(args.prefix)]: args.session,
+    },
+  })
+  return name
 }
 
 export async function findSandbox(args: {
@@ -168,7 +197,7 @@ export async function findSandbox(args: {
     labels: { [sessionLabel(args.prefix)]: args.session },
     all: true,
   })
-  return matches[0]
+  return matches.find((one) => one.labels[roleLabel(args.prefix)] !== EXPOSE_PROXY_ROLE)
 }
 
 export async function oversubscriptionWarnings(args: {
@@ -247,6 +276,12 @@ export async function ensureSandbox(args: {
       )
     } else {
       if (!details.state.running) await args.engine.startContainer({ id: existing.id })
+      await ensureSandboxNetwork({
+        engine: args.engine,
+        prefix,
+        session: args.config.session,
+        worktree: args.config.worktree,
+      })
       await prepareContainerForOperator({
         engine: args.engine,
         containerId: existing.id,
@@ -280,6 +315,12 @@ export async function ensureSandbox(args: {
     args.config.dockerfile === undefined
       ? args.config.image
       : await ensureBuiltImage({ builder: args.engine.images, dockerfile: args.config.dockerfile })
+  await ensureSandboxNetwork({
+    engine: args.engine,
+    prefix,
+    session: args.config.session,
+    worktree: args.config.worktree,
+  })
   const created = await args.engine.createContainer({
     name,
     body: sandboxCreateBody({ ...args.config, image }),

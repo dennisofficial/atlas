@@ -1,18 +1,5 @@
 import { createHmac } from 'node:crypto'
 
-export const EXPOSED_PORT_FIRST = 3000
-export const EXPOSED_PORT_COUNT = 4
-
-export const EXPOSED_PORT_BLOCK: readonly number[] = Array.from(
-  { length: EXPOSED_PORT_COUNT },
-  (_, index) => EXPOSED_PORT_FIRST + index,
-)
-
-export type PublishedPort = {
-  containerPort: number
-  hostPort: number
-}
-
 export type BoundPort = {
   containerPort: number
   hostPort: number
@@ -36,14 +23,6 @@ export function derivedHostPort(args: { session: string; containerPort: number }
   return HOST_PORT_BASE + (digest.readUInt32BE(0) % HOST_PORT_SPAN)
 }
 
-export const portInBlock = (containerPort: number): boolean =>
-  containerPort >= EXPOSED_PORT_FIRST && containerPort < EXPOSED_PORT_FIRST + EXPOSED_PORT_COUNT
-
-export function blockRefusal(args: { containerPort: number }): string {
-  const last = EXPOSED_PORT_FIRST + EXPOSED_PORT_COUNT - 1
-  return `port ${args.containerPort} is outside this sandbox's published block (${EXPOSED_PORT_FIRST}-${last}); Docker can only publish ports when the container is created, so the block is fixed and no port beyond it can be published without recreating the container — have the server listen on one of the block's ports and expose that`
-}
-
 const listen = (port: number): Bun.TCPSocketListener =>
   Bun.listen({ hostname: '127.0.0.1', port, socket: { data() {} } })
 
@@ -63,15 +42,9 @@ const ephemeralHostPort = (): number => {
   return port
 }
 
-export function publishPlanFor(args: { session: string }): readonly PublishedPort[] {
-  const claimed = new Set<number>()
-
-  return EXPOSED_PORT_BLOCK.map((containerPort) => {
-    const derived = derivedHostPort({ session: args.session, containerPort })
-    const hostPort = claimed.has(derived) || !hostPortFree(derived) ? ephemeralHostPort() : derived
-    claimed.add(hostPort)
-    return { containerPort, hostPort }
-  })
+export function hostPortFor(args: { session: string; containerPort: number }): number {
+  const derived = derivedHostPort(args)
+  return hostPortFree(derived) ? derived : ephemeralHostPort()
 }
 
 export function parseBoundPorts(value: unknown): BoundPort[] {

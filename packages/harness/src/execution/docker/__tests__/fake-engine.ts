@@ -37,11 +37,13 @@ export const fakeEngine = (args?: {
   builds: string[]
   creates: string[]
   removals: string[]
+  networks: string[]
 } => {
   const execs: RecordedExec[] = []
   const builds: string[] = []
   const creates: string[] = []
   const removals: string[] = []
+  const networks: string[] = []
   const exitCodes = [...(args?.exitCodes ?? [])]
   let created: { image: string; labels: Record<string, string> } | undefined
 
@@ -71,6 +73,11 @@ export const fakeEngine = (args?: {
       hostConfig: { nanoCpus: 0, memoryBytes: 0 },
     }),
     info: async () => ({ cpus: 64, memoryBytes: 1024 ** 4 }),
+    listNetworks: async () => networks.map((name, index) => ({ id: `net-${index}`, name, labels: {} })),
+    createNetwork: async (network) => {
+      networks.push(network.name)
+      return { id: `net-${networks.length - 1}` }
+    },
     createContainer: async (createArgs) => {
       creates.push(createArgs.body.Image)
       created = { image: createArgs.body.Image, labels: createArgs.body.Labels ?? {} }
@@ -94,5 +101,5 @@ export const fakeEngine = (args?: {
     },
   }
 
-  return { engine, execs, builds, creates, removals }
+  return { engine, execs, builds, creates, removals, networks }
 }

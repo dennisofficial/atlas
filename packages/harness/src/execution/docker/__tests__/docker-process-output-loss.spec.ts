@@ -6,6 +6,7 @@ import {
   type ContainerDetails,
   type ContainerSummary,
   type ExecState,
+  type NetworkSummary,
 } from '../engine'
 import { EExecStream } from '../frames'
 import { sandboxCreateBody, type SandboxConfig } from '../sandbox'
@@ -75,6 +76,14 @@ class OutputLossEngine extends DockerEngine {
 
   override async info(): Promise<{ cpus: number; memoryBytes: number }> {
     return { cpus: 64, memoryBytes: 1024 ** 4 }
+  }
+
+  override async listNetworks(): Promise<NetworkSummary[]> {
+    return [{ id: 'net-stub', name: 'atlas-net-stub', labels: {} }]
+  }
+
+  override async createNetwork(args: { name: string }): Promise<{ id: string }> {
+    return { id: `net-${args.name}` }
   }
 
   override async createExec(args: { cmd: readonly string[] }): Promise<{ id: string }> {

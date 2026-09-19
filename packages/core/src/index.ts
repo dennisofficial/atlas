@@ -187,6 +187,7 @@ export * from './web/untrusted'
 export * from './web/search'
 export * from './web/find'
 export * from './web/render'
+export * from './execution/exposure'
 export * from './execution/location'
 export * from './execution/lifecycle'
 

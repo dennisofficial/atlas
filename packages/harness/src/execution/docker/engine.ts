@@ -47,7 +47,17 @@ export type CreateContainerBody = {
     NanoCpus?: number
     Memory?: number
     PortBindings?: Record<string, readonly PortBinding[]>
+    RestartPolicy?: { Name: string }
   }
+  NetworkingConfig?: {
+    EndpointsConfig: Record<string, Record<string, never>>
+  }
+}
+
+export type NetworkSummary = {
+  id: string
+  name: string
+  labels: Record<string, string>
 }
 
 export type ExecState = {
@@ -165,6 +175,45 @@ export class DockerEngine {
 
   async startContainer(args: { id: string }): Promise<void> {
     await this.request({ method: 'POST', path: `/containers/${args.id}/start` })
+  }
+
+  async createNetwork(args: {
+    name: string
+    labels: Record<string, string>
+  }): Promise<{ id: string }> {
+    const body = asRecord(
+      await this.request({
+        method: 'POST',
+        path: '/networks/create',
+        body: { Name: args.name, Labels: args.labels },
+      }),
+    )
+    return { id: asString(body.Id) }
+  }
+
+  async listNetworks(args: {
+    labels: Record<string, string | undefined>
+  }): Promise<NetworkSummary[]> {
+    const filters = JSON.stringify({
+      label: Object.entries(args.labels).map(([key, value]) =>
+        value === undefined ? key : `${key}=${value}`,
+      ),
+    })
+    const body = await this.request({ method: 'GET', path: '/networks', query: { filters } })
+    if (!Array.isArray(body)) throw new Error('the daemon answered out of shape')
+
+    return body.map((entry) => {
+      const record = asRecord(entry)
+      return {
+        id: asString(record.Id),
+        name: asString(record.Name),
+        labels: asLabels(record.Labels),
+      }
+    })
+  }
+
+  async removeNetwork(args: { id: string }): Promise<void> {
+    await this.request({ method: 'DELETE', path: `/networks/${args.id}` })
   }
 
   async stopContainer(args: { id: string }): Promise<void> {
