@@ -200,7 +200,15 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
 
   const publishWorkspace: WorkspacePublisher =
     args.publishWorkspace ??
-    workspacePublisherFor({ workspace, threadId, fetchSpec: fetchSpecOnce, cwd })
+    workspacePublisherFor({
+      workspace,
+      threadId,
+      // Deliberately not fetchSpecOnce: the token rides the spec, and a GitHub reconnect mints a
+      // new one — a publisher that cached the boot-time spec would wedge every descend until the
+      // sandbox process died (that wedged a real session on 2026-09-19).
+      fetchSpec: workspaceSpecFetcher({ controlPlaneUrl, threadId, token, fetchFn }),
+      cwd,
+    })
 
   const handlers = createSessionHandlers({
     threadId,
