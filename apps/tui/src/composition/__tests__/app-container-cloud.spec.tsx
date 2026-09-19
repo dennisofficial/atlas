@@ -251,6 +251,92 @@ describe('the move overview', () => {
   }, 60_000)
 })
 
+describe('switching conversations while attached', () => {
+  it('starts fresh on the host on /new, releasing the cloud attachment', async () => {
+    const app = speaking()
+    const bridge = fakeBridge()
+    const mounted = await mount({ app, bridge })
+
+    try {
+      await mounted.run('cloud')
+      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+      expect(await mounted.frame()).toContain('CLOUD')
+      const lifted = bridge.channel
+
+      await mounted.command('/new')
+
+      expect(lifted.closed).toBe(true)
+      expect(await mounted.frame()).not.toContain('CLOUD')
+
+      await mounted.say('back on the host')
+      expect(app.turnsDriven).toBe(1)
+      expect(lifted.runs).toBe(0)
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('re-attaches when the cloud conversation is picked back up', async () => {
+    const app = speaking()
+    const bridge = fakeBridge({
+      status: { state: ECloudSandboxState.Running, url: 'https://sandbox.example/thread' },
+    })
+    const mounted = await mount({ app, bridge })
+
+    try {
+      await mounted.run('cloud')
+      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+      expect(await mounted.frame()).toContain('CLOUD')
+
+      await mounted.command('/new')
+      expect(await mounted.frame()).not.toContain('CLOUD')
+
+      await mounted.command('/resume opened-thread')
+
+      expect(await until({ holds: async () => bridge.attached.length === 2, within: 20_000 })).toBe(
+        true,
+      )
+      expect(bridge.attached[1]?.threadId).toBe(THREAD)
+
+      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+      expect(await mounted.frame()).toContain('CLOUD')
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('coalesces a burst of reload frames into one trailing re-read', async () => {
+    const app = speaking()
+    const bridge = fakeBridge()
+    const mounted = await mount({ app, bridge })
+
+    try {
+      await mounted.run('cloud')
+      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+      await mounted.frame()
+
+      const { gate, release } = promiseGate()
+      const original = bridge.log.read.bind(bridge.log)
+      let reads = 0
+      bridge.log.read = async (args: Parameters<typeof bridge.log.read>[0]) => {
+        reads += 1
+        await gate
+        return original(args)
+      }
+
+      bridge.channel.reload({ sinceEventSeq: 0 })
+      bridge.channel.reload({ sinceEventSeq: 0 })
+      bridge.channel.reload({ sinceEventSeq: 0 })
+      release()
+      await mounted.frame()
+
+      expect(reads).toBe(2)
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+})
+
 describe('a sandbox whose workspace would not materialise', () => {
   it('renders the git step and git’s own words rather than an empty directory', async () => {
     const app = speaking()

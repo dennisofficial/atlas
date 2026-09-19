@@ -11,7 +11,9 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common'
+import { Throttle } from '@nestjs/throttler'
 import type { AuthenticatedRequest } from '../../_core/types/auth.types'
+import { CLIENT_READ_LIMIT_PER_MINUTE } from '../client-rate-limit'
 import { SessionOrSandboxGuard } from './session-or-sandbox.guard'
 import {
   AdoptThreadDto,
@@ -48,6 +50,7 @@ const limitOf = (limit: string | undefined): number | undefined => {
 
 @Controller({ path: 'threads', version: '1' })
 @UseGuards(SessionOrSandboxGuard)
+@Throttle({ default: { limit: CLIENT_READ_LIMIT_PER_MINUTE, ttl: 60_000 } })
 export class ThreadsController {
   constructor(
     private readonly threads: ThreadsService,
