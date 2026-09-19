@@ -99,16 +99,18 @@ const imageFieldsOf = (
   }
 }
 
-// Security invariant: the atlas-home root itself must never become reachable by widening this
-// list. Mounting only these named subtrees is what keeps auth.json, the vault key and
-// harness.db out of the container — credentials never enter the sandbox.
+// The atlas-home root itself must never become reachable by widening this list. Mounting only
+// these named subtrees is what keeps auth.json, the vault key and harness.db out of the
+// container — credentials never enter the sandbox. The subtrees mount read-write: a container
+// session is the same agent with the same capabilities, so it saves memories and installs
+// skills exactly as it would on the host.
 export const ATLAS_HOME_MOUNTED_SUBTREES = [
-  { name: 'memory', mode: EMountMode.ReadOnly },
-  { name: 'skills', mode: EMountMode.ReadOnly },
-  { name: 'agents', mode: EMountMode.ReadOnly },
-  { name: 'projects', mode: EMountMode.ReadOnly },
-  { name: 'services', mode: EMountMode.ReadWrite },
-  { name: 'bin', mode: EMountMode.ReadOnly },
+  'memory',
+  'skills',
+  'agents',
+  'projects',
+  'services',
+  'bin',
 ] as const
 
 export function mountedAtlasHomeSubtrees(args: {
@@ -119,9 +121,9 @@ export function mountedAtlasHomeSubtrees(args: {
   const atlasHome = args.atlasHome ?? atlasHomeFrom({ env: process.env, home: homedir() })
   const covered = [args.worktree, ...(args.declared ?? []).map((mount) => mount.path)]
 
-  return ATLAS_HOME_MOUNTED_SUBTREES.map(({ name, mode }) => ({
+  return ATLAS_HOME_MOUNTED_SUBTREES.map((name) => ({
     path: join(atlasHome, name),
-    mode,
+    mode: EMountMode.ReadWrite,
   })).filter(
     (subtree) =>
       existsSync(subtree.path) &&

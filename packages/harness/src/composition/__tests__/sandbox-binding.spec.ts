@@ -83,7 +83,7 @@ describe('the mounts bindSandbox hands the tail block', () => {
     expect(note).toContain('A path outside the project is not mounted')
   })
 
-  it('tells the model it can read the mounted atlas home subtrees, never the home root', async () => {
+  it('tells the model it can reach the mounted atlas home subtrees, never the home root', async () => {
     const cwd = await freshProject()
     const atlasHome = await mkdtemp(join(tmpdir(), 'atlas-sandbox-home-'))
     projects.push(atlasHome)
