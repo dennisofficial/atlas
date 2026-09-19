@@ -40,6 +40,7 @@ export const workspaceSpecSchema = z.object({
   branch: z.string().nullable(),
   commit: z.string().nullable(),
   patch: z.string(),
+  projectDirectory: z.string().nullish(),
 })
 
 export type WorkspaceSpec = z.infer<typeof workspaceSpecSchema>

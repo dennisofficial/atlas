@@ -22,7 +22,7 @@ export type PluginSurfaceHook<TSurface = unknown> = () => TSurface
 
 export const SURFACES_NOTHING = Object.freeze({})
 
-export type ContributedSurface = {
+export type ContributedSurface<TSurface = unknown> = {
   pluginId: string
-  use: PluginSurfaceHook
+  use: PluginSurfaceHook<TSurface>
 }

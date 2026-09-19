@@ -51,6 +51,10 @@ const harness = (args: {
       written.push(given)
       present.add(given.path)
     },
+    writeBytes: async ({ path, bytes }) => {
+      written.push({ path, text: bytes.toString('utf8') })
+      present.add(path)
+    },
     empty: async (path) => {
       emptied.push(path)
     },

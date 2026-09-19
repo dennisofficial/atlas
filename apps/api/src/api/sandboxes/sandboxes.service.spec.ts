@@ -79,6 +79,9 @@ const sandboxRow = (
   workspaceBranch: null,
   workspaceCommit: null,
   workspacePatch: null,
+  workspaceSkills: null,
+  workspaceContext: null,
+  workspaceProjectDirectory: null,
   createdAt: '2026-09-16T00:00:00.000Z',
   updatedAt: '2026-09-16T00:00:00.000Z',
   ...partial,
@@ -577,10 +580,44 @@ describe('SandboxesService', () => {
     expect(fake.cloudSandboxes[0]?.workspaceCommit).toBe(SPEC.commit)
     await expect(service.workspace({ threadId: THREAD })).resolves.toEqual({
       ...SPEC,
+      projectDirectory: null,
       githubToken: 'gho_user-token',
       contextBundle: null,
     })
     expect(github.findToken).toHaveBeenCalledWith({ userId: USER_A })
+  })
+
+  it('carries the project directory from create through to the sandbox fetch', async () => {
+    const spec = { ...SPEC, projectDirectory: '/Users/dennis/repos/atlas' }
+    await service.attach({ userId: USER_A, threadId: THREAD, workspace: spec })
+    await service.whenSettled({ threadId: THREAD })
+
+    expect(fake.cloudSandboxes[0]?.workspaceProjectDirectory).toBe(spec.projectDirectory)
+    await expect(service.workspace({ threadId: THREAD })).resolves.toMatchObject({
+      projectDirectory: spec.projectDirectory,
+    })
+  })
+
+  it('falls back to the outgoing workspaceSkills column when workspaceContext is unset', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD, workspace: SPEC })
+    await service.whenSettled({ threadId: THREAD })
+    const row = fake.cloudSandboxes[0]
+    if (row === undefined) throw new Error('expected a sandbox row')
+    row.workspaceSkills = JSON.stringify({ '.atlas/skills/review/SKILL.md': 'IyByZXZpZXc=' })
+    row.workspaceContext = null
+
+    await expect(service.workspace({ threadId: THREAD })).resolves.toMatchObject({
+      contextBundle: row.workspaceSkills,
+    })
+  })
+
+  it('never writes the outgoing workspaceSkills column on a fresh attach', async () => {
+    const bundle = JSON.stringify({ '.atlas/skills/review/SKILL.md': 'IyByZXZpZXc=' })
+    await service.attach({ userId: USER_A, threadId: THREAD, workspace: SPEC, contextBundle: bundle })
+    await service.whenSettled({ threadId: THREAD })
+
+    expect(fake.cloudSandboxes[0]?.workspaceContext).toBe(bundle)
+    expect(fake.cloudSandboxes[0]?.workspaceSkills).toBeFalsy()
   })
 
   it('carries the context bundle through to the workspace fetch and refreshes it on re-attach', async () => {
@@ -667,6 +704,7 @@ describe('SandboxesService', () => {
       branch: null,
       commit: null,
       patch: '',
+      projectDirectory: null,
       githubToken: null,
       contextBundle: null,
     })

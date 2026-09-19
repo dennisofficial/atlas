@@ -62,7 +62,7 @@ describe('captureMemoryBundle', () => {
     expect(decoded['user/MEMORY.md']?.mtime).toBeGreaterThan(0)
   })
 
-  it('carries this workspace’s project memory under the project/ prefix', async () => {
+  it('carries this workspace’s project memory under a bare project/ prefix when the Mac-side directory is unknown', async () => {
     const atlasHome = await freshDirectory('atlas-upload-home-')
     const cwd = await freshDirectory('atlas-upload-cwd-')
     const projectMemory = memoryDirectoriesFor({ atlasHome, repoRoot: cwd }).project
@@ -74,6 +74,41 @@ describe('captureMemoryBundle', () => {
     expect(decode(bundle)).toEqual({
       'project/MEMORY.md': { content: '# project memory', mtime: expect.any(Number) },
     })
+  })
+
+  it('keys project memory by the Mac-side project directory when the workspace spec named one', async () => {
+    const atlasHome = await freshDirectory('atlas-upload-home-')
+    const cwd = await freshDirectory('atlas-upload-cwd-')
+    const projectMemory = memoryDirectoriesFor({ atlasHome, repoRoot: cwd }).project
+    await writeUnder({ directory: projectMemory, name: 'MEMORY.md', content: '# project memory' })
+
+    const bundle = await captureMemoryBundle({
+      atlasHome,
+      cwd,
+      projectDirectory: '/Users/dennis/dev/atlas',
+    })
+    if (bundle === undefined) throw new Error('expected a bundle')
+
+    expect(decode(bundle)).toEqual({
+      'project/%2FUsers%2Fdennis%2Fdev%2Fatlas/MEMORY.md': {
+        content: '# project memory',
+        mtime: expect.any(Number),
+      },
+    })
+  })
+
+  it('captures a non-UTF8 file without corrupting its bytes', async () => {
+    const atlasHome = await freshDirectory('atlas-upload-home-')
+    const cwd = await freshDirectory('atlas-upload-cwd-')
+    const rawBytes = Buffer.from([0xff, 0xfe, 0x00, 0x01, 0x02])
+    await mkdir(join(atlasHome, 'memory'), { recursive: true })
+    await writeFile(join(atlasHome, 'memory', 'icon.png'), rawBytes)
+
+    const bundle = await captureMemoryBundle({ atlasHome, cwd })
+    if (bundle === undefined) throw new Error('expected a bundle')
+    const entries = JSON.parse(bundle) as Record<string, { content: string; mtime: number }>
+
+    expect(Buffer.from(entries['user/icon.png']?.content ?? '', 'base64')).toEqual(rawBytes)
   })
 })
 
@@ -143,5 +178,28 @@ describe('createMemoryUploader', () => {
     expect(notice.posts()).toHaveLength(1)
     expect(notice.posts()[0]?.tone).toBe(ENoticeTone.Warn)
     expect(notice.posts()[0]?.text).toContain('the control plane said no')
+  })
+
+  it('carries the projectDirectory through to the keys it uploads', async () => {
+    const atlasHome = await freshDirectory('atlas-upload-home-')
+    const cwd = await freshDirectory('atlas-upload-cwd-')
+    const projectMemory = memoryDirectoriesFor({ atlasHome, repoRoot: cwd }).project
+    await writeUnder({ directory: projectMemory, name: 'MEMORY.md', content: '# project memory' })
+
+    const uploaded: string[] = []
+    const client = { writeMemoryBundle: async (bundle: string) => void uploaded.push(bundle) }
+    const uploader = createMemoryUploader({
+      client,
+      atlasHome,
+      cwd,
+      projectDirectory: '/Users/dennis/dev/atlas',
+      notice: fakeNotice(),
+    })
+
+    await uploader.syncAfterTurn()
+
+    expect(Object.keys(JSON.parse(uploaded[0] ?? '{}'))).toEqual([
+      'project/%2FUsers%2Fdennis%2Fdev%2Fatlas/MEMORY.md',
+    ])
   })
 })

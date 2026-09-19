@@ -13,6 +13,8 @@ export const wireWorkspaceSpecSchema = z.object({
   patch: z.string(),
   githubToken: z.string().nullable(),
   contextBundle: z.string().nullish(),
+  /** The Mac-side project directory the thread was lifted from, absent on an older control plane. */
+  projectDirectory: z.string().nullish(),
 })
 
 export type WorkspaceSpec = z.infer<typeof wireWorkspaceSpecSchema>

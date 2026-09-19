@@ -71,6 +71,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     }),
     atlasHome: atlasDirectory(),
     cwd: args.cwd,
+    projectDirectory: args.projectDirectory,
     notice: args.notice,
   })
 

@@ -50,6 +50,7 @@ import { atlasDatabaseUrl, atlasDirectory } from '../store/paths'
 import { ThreadStorePort } from '../store/thread-store'
 import { ToolRegistry } from '../tools/registry'
 import { probeWorkspace } from '../workspace/probe'
+import type { ContributedSurface } from '../plugins/surface'
 
 import { bindAccounts, bindKeychainSource } from './account-bindings'
 import type { Summariser } from './compact-turn'
@@ -71,14 +72,26 @@ import { bindSkillRegistry, liveSkillRegistry } from './skills-binding'
 import { wireTurn } from './turn-wiring'
 import { claimLaunchWorktree, threadOpenedHandler } from './worktree-claims'
 
-export async function composeHarness<TSurface = undefined, Command = never>(args: {
+/**
+ * A repo or native plugin's surface hook is opaque to the loader by design (see plugins/surface.ts)
+ * — it returns whatever the composing app expects, and the loader never inspects it. `TPluginSurface`
+ * is that app-chosen shape; `asPluginSurfaces` is the one place the loader's `unknown` is asserted
+ * into it, so every other caller sees a properly typed `ContributedSurface<TPluginSurface>[]`
+ * instead of reaching for its own cast.
+ */
+const asPluginSurfaces = <TPluginSurface>(
+  surfaces: readonly ContributedSurface[],
+): readonly ContributedSurface<TPluginSurface>[] =>
+  surfaces as unknown as readonly ContributedSurface<TPluginSurface>[]
+
+export async function composeHarness<TSurface = undefined, Command = never, TPluginSurface = unknown>(args: {
   launch: HarnessLaunch
   env: Record<string, string | undefined>
   settings: SettingsBinding
   clientVersion: string
   surface: HarnessSurfaceBinding<TSurface>
   stores?: HarnessStoreBinding | undefined
-}): Promise<HarnessApp<TSurface, Command>> {
+}): Promise<HarnessApp<TSurface, Command, TPluginSurface>> {
   const { launch, surface } = args
   const notice: NoticePort = surface.notice
   const container = createHarnessContainer()
@@ -122,8 +135,6 @@ export async function composeHarness<TSurface = undefined, Command = never>(args
 
   registerBuiltinPromptFragments({ container })
   container.register(WorkspaceRoot, { useValue: workspace.workspace })
-
-  const plugins = await loadSessionPlugins({ container, cwd: anchor, atlasHome: atlasDirectory(), notice })
 
   bindKeychainSource({ container, launchValue })
 
@@ -214,6 +225,15 @@ export async function composeHarness<TSurface = undefined, Command = never>(args
   })
 
   if (args.stores !== undefined) await args.stores.bind({ container })
+
+  /**
+   * Plugin loading resolves `EventLogPort`/`ThreadStorePort`/`TurnLedgerPort` for the host it hands
+   * a repo plugin, so it has to run after `stores.bind` has had its chance to override them — a
+   * serve session's plugins would otherwise be handed the default `PrismaClientToken`-backed
+   * stores, or fail outright before `PrismaClientToken` is even registered. It still has to run
+   * before `surface.bind` and before `ToolRegistry`/`HookChain` first resolve.
+   */
+  const plugins = await loadSessionPlugins({ container, cwd: anchor, atlasHome: atlasDirectory(), notice })
 
   const log = container.resolve(portToken(EventLogPort))
   const ids = container.resolve(portToken(IdPort))
@@ -335,7 +355,7 @@ export async function composeHarness<TSurface = undefined, Command = never>(args
     journalResume: ({ active, directory }) =>
       journalResume({ active, command: launch.command, directory }),
     pluginProjections: plugins.projections,
-    pluginSurfaces: plugins.surfaces,
+    pluginSurfaces: asPluginSurfaces<TPluginSurface>(plugins.surfaces),
     cloudRequired,
     model,
     modelPinned,

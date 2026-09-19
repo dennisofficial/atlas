@@ -131,7 +131,9 @@ export class SandboxesService {
     const row = await db.cloudSandbox.findUnique({ where: { threadId: args.threadId } })
     if (row === null) throw new NotFoundException('sandbox not found')
     const spec = workspaceSpecOf(row)
-    const contextBundle = row.workspaceContext ?? null
+    // workspaceSkills is the outgoing column: a row written between this deploy's PRE_DEPLOY
+    // migration and its container swap still carries only workspaceSkills.
+    const contextBundle = row.workspaceContext ?? row.workspaceSkills ?? null
     if (spec.remoteUrl === null) return { ...spec, githubToken: null, contextBundle }
     const githubToken = await this.github.findToken({ userId: row.userId })
     return { ...spec, githubToken: githubToken ?? null, contextBundle }

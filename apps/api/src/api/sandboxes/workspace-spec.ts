@@ -11,7 +11,13 @@ export const MAX_WORKSPACE_PATCH_BYTES = 5 * 1024 * 1024
  */
 export const MAX_CONTEXT_BUNDLE_BYTES = 64 * 1024 * 1024
 
-export const WORKSPACE_BODY_LIMIT = '8mb'
+/**
+ * Must clear `MAX_CONTEXT_BUNDLE_BYTES` with headroom to spare: the bundle rides inside a JSON
+ * string field of the request body, and base64 plus JSON escaping inflate it past the raw byte
+ * count. A limit at or below the cap would 413 at the body parser before
+ * `assertContextBundleWithinLimit` ever runs, so the friendlier error is unreachable.
+ */
+export const WORKSPACE_BODY_LIMIT = '96mb'
 
 const mebibytes = (bytes: number): string => `${(bytes / (1024 * 1024)).toFixed(1)}MiB`
 
@@ -21,6 +27,7 @@ export interface WorkspaceColumns {
   workspaceCommit: string | null
   workspacePatch: string | null
   workspaceContext: string | null
+  workspaceProjectDirectory: string | null
 }
 
 export function assertContextBundleWithinLimit(args: { bundle: string }): void {
@@ -47,6 +54,7 @@ export function workspaceColumnsOf(spec: SandboxWorkspaceSpec | undefined): Work
       workspaceCommit: null,
       workspacePatch: null,
       workspaceContext: null,
+      workspaceProjectDirectory: null,
     }
   }
   assertPatchWithinLimit({ patch: spec.patch })
@@ -56,6 +64,7 @@ export function workspaceColumnsOf(spec: SandboxWorkspaceSpec | undefined): Work
     workspaceCommit: spec.commit,
     workspacePatch: spec.patch,
     workspaceContext: null,
+    workspaceProjectDirectory: spec.projectDirectory ?? null,
   }
 }
 
@@ -65,5 +74,6 @@ export function workspaceSpecOf(row: CloudSandboxModel): SandboxWorkspaceSpec {
     branch: row.workspaceBranch,
     commit: row.workspaceCommit,
     patch: row.workspacePatch ?? '',
+    projectDirectory: row.workspaceProjectDirectory,
   }
 }

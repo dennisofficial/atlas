@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 export type WorkspaceFiles = {
   exists: (path: string) => Promise<boolean>
   write: (args: { path: string; text: string }) => Promise<void>
+  writeBytes: (args: { path: string; bytes: Buffer }) => Promise<void>
   empty: (path: string) => Promise<void>
 }
 
@@ -20,6 +21,11 @@ export const nodeWorkspaceFiles: WorkspaceFiles = {
   write: async ({ path, text }) => {
     await mkdir(dirname(path), { recursive: true })
     await writeFile(path, text, 'utf8')
+  },
+
+  writeBytes: async ({ path, bytes }) => {
+    await mkdir(dirname(path), { recursive: true })
+    await writeFile(path, bytes)
   },
 
   /** Only ever reached before the sentinel exists, where whatever is there is a half-materialization. */

@@ -1,7 +1,12 @@
 import { mkdir, stat, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 
-import { atlasDirectory, memoryDirectoriesFor, UserContextClient } from '@dltech/atlas-harness'
+import {
+  atlasDirectory,
+  memoryDirectoriesFor,
+  safeRelativeSegment,
+  UserContextClient,
+} from '@dltech/atlas-harness'
 
 import { clientVersionHeader } from '../../build/info'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
@@ -12,6 +17,8 @@ const USER_PREFIX = 'user/'
 const PROJECT_PREFIX = 'project/'
 
 type RemoteMemoryFile = { content: string; mtime: number }
+
+type ParsedProjectKey = { projectDirectory: string; name: string }
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
@@ -29,19 +36,65 @@ const writeRemoteFile = async (args: { path: string; entry: RemoteMemoryFile }):
   await writeFile(args.path, Buffer.from(args.entry.content, 'base64'))
 }
 
+const withinRoot = (args: { root: string; relative: string }): string | null => {
+  const safe = safeRelativeSegment(args.relative)
+  if (safe === null) return null
+  return join(args.root, safe)
+}
+
+/**
+ * `project/<encodeURIComponent(projectDirectory)>/<name>` — the first path segment after the
+ * prefix is the repo the sandbox recorded the file against; anything after that is the filename.
+ * A bare `project/<name>` (no slash left over, from a control plane too old to have named a
+ * project directory) carries no repo identity and cannot be matched, so it parses to `null`.
+ */
+const parseProjectKey = (key: string): ParsedProjectKey | null => {
+  const rest = key.slice(PROJECT_PREFIX.length)
+  const slash = rest.indexOf('/')
+  if (slash < 1) return null
+
+  const encoded = rest.slice(0, slash)
+  const name = rest.slice(slash + 1)
+  if (name === '') return null
+
+  try {
+    return { projectDirectory: decodeURIComponent(encoded), name }
+  } catch {
+    return null
+  }
+}
+
+const samePath = (a: string, b: string): boolean => resolve(a) === resolve(b)
+
+/**
+ * A project entry only ever lands when its recorded `projectDirectory` names this same repo —
+ * unrecorded (legacy) and cross-repo entries are skipped rather than written, since applying one
+ * blind would plant another repo's memory notes into whichever project the operator happens to
+ * have open.
+ */
 const targetOf = (args: {
   key: string
   atlasHome: string
   cwd: string | undefined
 }): string | null => {
   if (args.key.startsWith(USER_PREFIX)) {
-    return join(args.atlasHome, 'memory', args.key.slice(USER_PREFIX.length))
+    return withinRoot({
+      root: join(args.atlasHome, 'memory'),
+      relative: args.key.slice(USER_PREFIX.length),
+    })
   }
+
   if (args.key.startsWith(PROJECT_PREFIX)) {
     if (args.cwd === undefined) return null
+
+    const parsed = parseProjectKey(args.key)
+    if (parsed === null) return null
+    if (!samePath(parsed.projectDirectory, args.cwd)) return null
+
     const projectMemory = memoryDirectoriesFor({ atlasHome: args.atlasHome, repoRoot: args.cwd }).project
-    return join(projectMemory, args.key.slice(PROJECT_PREFIX.length))
+    return withinRoot({ root: projectMemory, relative: parsed.name })
   }
+
   return null
 }
 

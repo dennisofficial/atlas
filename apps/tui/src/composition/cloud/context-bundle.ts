@@ -8,6 +8,7 @@ import {
   MAX_CONTEXT_BUNDLE_BYTES,
   memoryDirectoriesFor,
   resolveSkillRoots,
+  walkMemoryDirectory,
 } from '@dltech/atlas-harness'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
@@ -51,20 +52,8 @@ const addFlatMemoryDirectory = async (args: {
   directory: string
   keyPrefix: string
 }): Promise<void> => {
-  let entries
-  try {
-    entries = await readdir(args.directory, { withFileTypes: true })
-  } catch {
-    return
-  }
-
-  for (const entry of entries) {
-    if (!entry.isFile()) continue
-    await addFile({
-      files: args.files,
-      key: `${args.keyPrefix}/${entry.name}`,
-      path: join(args.directory, entry.name),
-    })
+  for (const entry of await walkMemoryDirectory(args.directory)) {
+    args.files[`${args.keyPrefix}/${entry.name}`] = entry.content
   }
 }
 

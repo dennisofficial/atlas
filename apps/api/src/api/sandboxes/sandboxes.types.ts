@@ -32,6 +32,8 @@ export interface SandboxWorkspaceSpec {
   branch: string | null
   commit: string | null
   patch: string
+  /** The Mac-side project directory of the lifted thread, absent for clients that predate it. */
+  projectDirectory?: string | null
 }
 
 export interface SandboxWorkspaceDto extends SandboxWorkspaceSpec {

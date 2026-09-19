@@ -28,6 +28,10 @@ export class WorkspaceSpecDto {
 
   @IsString()
   patch!: string
+
+  @IsOptional()
+  @IsString()
+  projectDirectory?: string | null
 }
 
 export class AttachSandboxDto {

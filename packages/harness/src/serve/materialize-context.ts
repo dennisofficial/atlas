@@ -1,12 +1,17 @@
 import { homedir } from 'node:os'
-import { join, normalize, sep } from 'node:path'
+import { join, sep } from 'node:path'
 
+import { safeRelativeSegment } from '../files/safe-relative-path'
 import { memoryDirectoriesFor } from '../memory/read-memory'
 
 import { nodeWorkspaceFiles, type WorkspaceFiles } from './workspace-files'
 import type { FetchWorkspaceSpec } from './workspace-spec'
 
-export type ContextReadiness = { written: number; failed: string | null }
+export type ContextReadiness = {
+  written: number
+  failed: string | null
+  projectDirectory: string | null
+}
 
 const SKILL_FLAVOURS = ['.agents', '.claude'] as const
 
@@ -32,8 +37,8 @@ const targetOf = (args: {
   workspaceRoot: string
   projectMemoryDirectory: string
 }): string | null => {
-  const normalized = normalize(args.path)
-  if (normalized.startsWith('..') || normalized.startsWith(sep)) return null
+  const normalized = safeRelativeSegment(args.path)
+  if (normalized === null) return null
 
   if (normalized === ATLAS_ATLAS_MD) return join(args.atlasHome, 'ATLAS.md')
   if (normalized === ATLAS_MCP_JSON) return join(args.atlasHome, 'mcp.json')
@@ -89,17 +94,20 @@ export async function materializeContext(args: {
     return {
       written: 0,
       failed: `the workspace spec did not answer: ${error instanceof Error ? error.message : String(error)}`,
+      projectDirectory: null,
     }
   }
+  const projectDirectory = spec.projectDirectory ?? null
+
   if (spec.contextBundle === null || spec.contextBundle === undefined) {
-    return { written: 0, failed: null }
+    return { written: 0, failed: null, projectDirectory }
   }
 
   let entries: Record<string, string>
   try {
     entries = JSON.parse(spec.contextBundle) as Record<string, string>
   } catch {
-    return { written: 0, failed: 'the context bundle did not parse' }
+    return { written: 0, failed: 'the context bundle did not parse', projectDirectory }
   }
 
   let written = 0
@@ -107,15 +115,16 @@ export async function materializeContext(args: {
     const target = targetOf({ path, atlasHome: args.atlasHome, home, workspaceRoot: args.cwd, projectMemoryDirectory })
     if (target === null) continue
     try {
-      await files.write({ path: target, text: Buffer.from(content, 'base64').toString('utf8') })
+      await files.writeBytes({ path: target, bytes: Buffer.from(content, 'base64') })
       written += 1
     } catch (error) {
       return {
         written,
         failed: `could not write ${path}: ${error instanceof Error ? error.message : String(error)}`,
+        projectDirectory,
       }
     }
   }
 
-  return { written, failed: null }
+  return { written, failed: null, projectDirectory }
 }

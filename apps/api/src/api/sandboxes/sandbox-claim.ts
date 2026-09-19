@@ -29,6 +29,7 @@ export function rotationOf(args: {
     rotation.workspaceBranch = columns.workspaceBranch
     rotation.workspaceCommit = columns.workspaceCommit
     rotation.workspacePatch = columns.workspacePatch
+    rotation.workspaceProjectDirectory = columns.workspaceProjectDirectory
   }
   if (args.contextBundle !== undefined) rotation.workspaceContext = args.contextBundle
   return rotation

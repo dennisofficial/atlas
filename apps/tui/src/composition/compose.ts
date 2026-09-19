@@ -16,7 +16,7 @@ import {
 
 import { clientVersionHeader } from '../build/info'
 import { pullRequestSurface } from '../plugins/github/surface'
-import type { ContributedSurface } from '../plugins/surface'
+import type { ContributedSurface, PluginSurface } from '../plugins/surface'
 import { tldrFeed } from '../ui/tldr-feed-store'
 
 import type { QueuedSettled } from './commands'
@@ -32,7 +32,7 @@ type TuiSurface = {
 }
 
 export type AtlasApp = Omit<
-  HarnessApp<TuiSurface, QueuedSettled>,
+  HarnessApp<TuiSurface, QueuedSettled, PluginSurface>,
   'surface' | 'pluginProjections' | 'pluginSurfaces'
 > & {
   pluginProjections: readonly ContributedProjection[]
@@ -62,7 +62,7 @@ export async function composeAtlas(args: {
   env: Record<string, string | undefined>
   settings: SettingsBinding
 }): Promise<AtlasApp> {
-  const app = await composeHarness<TuiSurface, QueuedSettled>({
+  const app = await composeHarness<TuiSurface, QueuedSettled, PluginSurface>({
     launch: {
       cwd: args.config.cwd,
       command: args.command,
@@ -115,7 +115,6 @@ export async function composeAtlas(args: {
   })
 
   const { surface, pluginSurfaces, pluginProjections, ...harness } = app
-  const harnessSurfaces = pluginSurfaces as unknown as readonly ContributedSurface[]
 
   return {
     ...harness,
@@ -123,7 +122,7 @@ export async function composeAtlas(args: {
     command: args.command,
     pluginProjections,
     pluginSurfaces:
-      surface.githubSurface === null ? harnessSurfaces : [...harnessSurfaces, surface.githubSurface],
+      surface.githubSurface === null ? pluginSurfaces : [...pluginSurfaces, surface.githubSurface],
     pullRequests: surface.pullRequests,
   }
 }

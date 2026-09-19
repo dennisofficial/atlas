@@ -161,6 +161,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     env,
     model: args.model,
     notice,
+    projectDirectory: context.projectDirectory,
   })
 
   const buffer = createFrameBuffer({ capacity: args.bufferSize ?? DEFAULT_FRAME_BUFFER })

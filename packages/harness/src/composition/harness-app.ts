@@ -65,7 +65,7 @@ export type HarnessStoreBinding = {
 }
 
 /** What a composed session hands its surface. Nothing here renders. */
-export type HarnessApp<TSurface = undefined, Command = never> = {
+export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = unknown> = {
   launch: HarnessLaunch
   workspace: WorkspaceIdentity
   tools: ToolRegistry
@@ -106,7 +106,7 @@ export type HarnessApp<TSurface = undefined, Command = never> = {
   threadOpened: (args: { threadId: ThreadId; projectDirectory: string }) => Promise<void>
   journalResume: (args: { active: ActiveConversation; directory: string }) => void
   pluginProjections: readonly ContributedProjection[]
-  pluginSurfaces: readonly ContributedSurface[]
+  pluginSurfaces: readonly ContributedSurface<TPluginSurface>[]
   surface: TSurface
   close: () => Promise<void>
 }
