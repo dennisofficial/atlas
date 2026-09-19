@@ -19,6 +19,7 @@ import {
   startServe,
   type EnsureWorkspace,
   type ServeHandle,
+  type WorkspacePublisher,
   type WorkspaceReadiness,
 } from '../index'
 
@@ -44,6 +45,7 @@ const start = async (args: {
   env?: Record<string, string | undefined> | undefined
   workspace?: WorkspaceReadiness | undefined
   ensureWorkspace?: EnsureWorkspace | undefined
+  publishWorkspace?: WorkspacePublisher | undefined
   adoptChildren?: ((args: { threadId: ThreadId }) => Promise<readonly ThreadId[]>) | undefined
   whenChildrenSettled?: (() => Promise<void>) | undefined
   heartbeatIntervalMs?: number | undefined
@@ -76,6 +78,7 @@ const start = async (args: {
     compose: async () => app,
     ensureWorkspace:
       args.ensureWorkspace ?? (async () => args.workspace ?? { state: EWorkspaceState.Skipped }),
+    publishWorkspace: args.publishWorkspace,
     heartbeatIntervalMs: args.heartbeatIntervalMs,
   })
 
@@ -354,6 +357,57 @@ describe('startServe', () => {
     held.open()
     await client.waitFor((frame) => frame.kind === EServeFrame.Signal && frame.seq === 2)
     expect(app.appended).toEqual([{ type: 'user-said', text: 'go' }])
+  })
+
+  it('answers a publish-workspace request with the ref the workspace pushed', async () => {
+    const { handle } = await start({
+      publishWorkspace: async () => ({
+        ref: 'refs/atlas/descend/thread-serve-0123456789ab',
+        commit: '0123456789abcdef',
+        base: 'ba51e1e0ba51e1e0ba51e1e0ba51e1e0ba51e1e0',
+      }),
+    })
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    client.send({
+      kind: EClientFrame.Request,
+      id: 'pub-1',
+      op: EClientRequest.PublishWorkspace,
+      params: {},
+    })
+    const reply = await client.waitFor((frame) => frame.kind === EServeFrame.Reply)
+
+    expect(reply).toEqual({
+      kind: EServeFrame.Reply,
+      replyTo: 'pub-1',
+      ok: true,
+      data: {
+        ref: 'refs/atlas/descend/thread-serve-0123456789ab',
+        commit: '0123456789abcdef',
+        base: 'ba51e1e0ba51e1e0ba51e1e0ba51e1e0ba51e1e0',
+      },
+    })
+  })
+
+  it('answers publish-workspace with null when no workspace materialized', async () => {
+    const { handle } = await start({})
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    client.send({
+      kind: EClientFrame.Request,
+      id: 'pub-1',
+      op: EClientRequest.PublishWorkspace,
+      params: {},
+    })
+    const reply = await client.waitFor((frame) => frame.kind === EServeFrame.Reply)
+
+    expect(reply).toEqual({ kind: EServeFrame.Reply, replyTo: 'pub-1', ok: true, data: null })
   })
 
   it('heartbeats for a turn and never for a socket that is merely open', async () => {

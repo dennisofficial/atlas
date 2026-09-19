@@ -17,6 +17,10 @@ import {
   workspaceRefusalOf,
   type EnsureWorkspace,
 } from './materialize-workspace'
+import {
+  workspacePublisherFor,
+  type WorkspacePublisher,
+} from './publish-workspace'
 import type { ServeApp, ServeCompose } from './serve-app'
 import { serveConfig } from './serve-config'
 import { createServeLog, EServeEvent, LoggingNoticePort, type LogWrite, type ServeLog } from './serve-log'
@@ -38,6 +42,7 @@ export * from './session-server'
 export * from './socket-session'
 export * from './step-alias'
 export * from './materialize-workspace'
+export * from './publish-workspace'
 export * from './token-guard'
 export * from './turn-driver'
 export * from './workspace-files'
@@ -59,6 +64,7 @@ export type ServeArgs = {
   write?: LogWrite | undefined
   compose?: ServeCompose | undefined
   ensureWorkspace?: EnsureWorkspace | undefined
+  publishWorkspace?: WorkspacePublisher | undefined
 }
 
 export type ServeHandle = {
@@ -192,6 +198,10 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     },
   })
 
+  const publishWorkspace: WorkspacePublisher =
+    args.publishWorkspace ??
+    workspacePublisherFor({ workspace, threadId, fetchSpec: fetchSpecOnce, cwd })
+
   const handlers = createSessionHandlers({
     threadId,
     buffer,
@@ -199,6 +209,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     liveStepId: () => liveStepId(),
     driver,
     files: app.files,
+    publish: publishWorkspace,
     refusal: () => workspaceRefusalOf(workspace) ?? null,
     log,
   })

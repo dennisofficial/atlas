@@ -16,6 +16,7 @@ import {
 import type { FileBrowser } from '../files/file-browser'
 
 import type { FrameBuffer, SignalFrame } from './frame-buffer'
+import type { WorkspacePublisher } from './publish-workspace'
 import { answerRequest } from './requests'
 import { EServeEvent, type ServeLog } from './serve-log'
 import { createStepAliaser, endsAliasedStep, retagged, type StepAlias } from './step-alias'
@@ -48,10 +49,11 @@ export function createSessionHandlers(args: {
   liveStepId: () => StepId | null
   driver: ServeTurnDriver
   files: Pick<FileBrowser, 'list'>
+  publish: WorkspacePublisher
   refusal: () => string | null
   log: ServeLog
 }): SessionHandlers {
-  const { threadId, buffer, inFlight, liveStepId, driver, files, refusal, log } = args
+  const { threadId, buffer, inFlight, liveStepId, driver, files, publish, refusal, log } = args
   const live = new Set<SessionSocket>()
   const attached = new Set<SessionSocket>()
   const aliaser = createStepAliaser()
@@ -145,7 +147,7 @@ export function createSessionHandlers(args: {
 
     if (frame.kind !== EClientFrame.Request) return
 
-    void answerRequest({ frame, files })
+    void answerRequest({ frame, files, publish })
       .then((reply) => send({ socket, frame: reply }))
       .catch((error: unknown) =>
         send({

@@ -1,5 +1,6 @@
 import { join } from 'node:path'
 
+import { ATLAS_GIT_IDENTITY, gitMessageOf, gitOneLine } from '../workspace/git-text'
 import { runGit, type GitRun } from '../workspace/run-git'
 
 import { nodeWorkspaceFiles, type WorkspaceFiles } from './workspace-files'
@@ -22,6 +23,7 @@ export enum EWorkspaceStep {
   Clone = 'clone',
   Checkout = 'checkout',
   Apply = 'apply',
+  Baseline = 'baseline',
   Sentinel = 'sentinel',
 }
 
@@ -41,10 +43,7 @@ const SSH_REMOTE = /^(?:ssh:\/\/)?git@([^/:]+)[:/](.+)$/
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : 'it failed for a reason it did not name'
 
-const reasonOf = (run: GitRun): string => {
-  const said = `${run.stderr}${run.stdout}`.trim()
-  return said.length === 0 ? 'git said nothing and exited non-zero' : said
-}
+const reasonOf = (run: GitRun): string => gitMessageOf(run)
 
 const failed = (step: EWorkspaceStep, reason: string): WorkspaceReadiness => ({
   state: EWorkspaceState.Failed,
@@ -72,7 +71,10 @@ const checkoutArgsFor = (spec: WorkspaceSpec): readonly string[] | null => {
 
 /**
  * The commit is the truth and the branch only its name, so a detached head is the honest result: a
- * lifted session reproduces the tree the operator was looking at, uncommitted work included.
+ * lifted session reproduces the tree the operator was looking at, uncommitted work included. That
+ * uncommitted work is then committed as a scratch baseline — never pushed to any of the
+ * operator's refs — so the descend can merge the sandbox's delta against it instead of tripping
+ * over the same patch living uncommitted on both sides.
  */
 export function createEnsureWorkspace(args: {
   git?: GitRunner | undefined
@@ -122,6 +124,7 @@ export function createEnsureWorkspace(args: {
       if (!moved.ok) return failed(EWorkspaceStep.Checkout, scrub(reasonOf(moved)))
     }
 
+    let baseline = spec.commit
     if (spec.patch.length > 0) {
       const patchPath = join(cwd, PATCH_FILE)
       try {
@@ -131,12 +134,24 @@ export function createEnsureWorkspace(args: {
       }
       const applied = await git({ args: ['apply', '--whitespace=nowarn', patchPath], cwd })
       if (!applied.ok) return failed(EWorkspaceStep.Apply, scrub(reasonOf(applied)))
+
+      const staged = await git({ args: ['add', '-A'], cwd })
+      if (!staged.ok) return failed(EWorkspaceStep.Baseline, scrub(reasonOf(staged)))
+      const committed = await git({
+        args: [...ATLAS_GIT_IDENTITY, 'commit', '-m', 'atlas: lifted workspace baseline'],
+        cwd,
+      })
+      if (!committed.ok) return failed(EWorkspaceStep.Baseline, scrub(reasonOf(committed)))
+      baseline = gitOneLine(await git({ args: ['rev-parse', '--verify', 'HEAD'], cwd }))
+      if (baseline === null) {
+        return failed(EWorkspaceStep.Baseline, 'the baseline commit has no id')
+      }
     }
 
     try {
       await files.write({
         path: sentinel,
-        text: JSON.stringify({ at: new Date().toISOString(), commit: spec.commit }),
+        text: JSON.stringify({ at: new Date().toISOString(), commit: spec.commit, baseline }),
       })
     } catch (error) {
       return failed(EWorkspaceStep.Sentinel, messageOf(error))
