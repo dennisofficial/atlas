@@ -5,6 +5,7 @@ export type SidebarCloud = { state: EChannelConnection }
 const RESTING: ReadonlySet<EChannelConnection> = new Set([
   EChannelConnection.Connecting,
   EChannelConnection.Reconnecting,
+  EChannelConnection.Reattaching,
   EChannelConnection.Parked,
 ])
 

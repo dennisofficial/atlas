@@ -13,6 +13,7 @@ const markFor = (state: EChannelConnection): Span => {
       return { text: glyph.active, fg: theme.ok }
     case EChannelConnection.Connecting:
     case EChannelConnection.Reconnecting:
+    case EChannelConnection.Reattaching:
       return { text: glyph.active, fg: theme.warn }
     case EChannelConnection.Parked:
       return { text: glyph.available, fg: theme.rule }

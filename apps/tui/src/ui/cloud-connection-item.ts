@@ -8,6 +8,7 @@ const spanFor = (state: EChannelConnection, now: number): Span => {
   switch (state) {
     case EChannelConnection.Connecting:
     case EChannelConnection.Reconnecting:
+    case EChannelConnection.Reattaching:
       return { text: spinnerFrame(now), fg: theme.warn }
     case EChannelConnection.Open:
       return { text: '☁', fg: theme.ok }
@@ -19,7 +20,9 @@ const spanFor = (state: EChannelConnection, now: number): Span => {
 }
 
 export const isAttaching = (state: EChannelConnection): boolean =>
-  state === EChannelConnection.Connecting || state === EChannelConnection.Reconnecting
+  state === EChannelConnection.Connecting ||
+  state === EChannelConnection.Reconnecting ||
+  state === EChannelConnection.Reattaching
 
 export function cloudConnectionItemOf(args: {
   connection: ChannelConnection | null

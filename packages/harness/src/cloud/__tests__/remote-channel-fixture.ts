@@ -39,6 +39,8 @@ export const recorder = () => {
 export const harness = (options?: {
   lastEventSeq?: number | undefined
   maxAttempts?: number | undefined
+  maxReattachments?: number | undefined
+  reattach?: (() => Promise<{ url: string; token: string }>) | undefined
   requestTimeoutMs?: number | undefined
 }) => {
   const sockets: FakeSocket[] = []
@@ -51,6 +53,8 @@ export const harness = (options?: {
     token: 'tok_session',
     lastEventSeq: () => options?.lastEventSeq ?? 0,
     maxAttempts: options?.maxAttempts,
+    maxReattachments: options?.maxReattachments,
+    reattach: options?.reattach,
     requestTimeoutMs: options?.requestTimeoutMs,
     scheduleRetry: (retry) => void retries.push(retry),
     scheduleTimeout: (timeout) => void timeouts.push(timeout),
