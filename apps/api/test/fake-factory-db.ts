@@ -1,11 +1,20 @@
 import { Prisma } from '../src/generated/prisma/client'
 import { applyUpdate, matchesValue, project, sortRows, type Where } from './fake-db-support'
 
-const uniqueViolation = (fields: string): Prisma.PrismaClientKnownRequestError =>
-  new Prisma.PrismaClientKnownRequestError(`Unique constraint failed on the fields: (${fields})`, {
-    code: 'P2002',
-    clientVersion: '7.9.1',
-  })
+export const uniqueViolation = (target: readonly string[]): Prisma.PrismaClientKnownRequestError =>
+  new Prisma.PrismaClientKnownRequestError(
+    `Unique constraint failed on the fields: (${target.map((field) => `\`${field}\``).join(',')})`,
+    {
+      code: 'P2002',
+      clientVersion: Prisma.prismaVersion.client,
+      meta: {
+        driverAdapterError: {
+          name: 'DriverAdapterError',
+          cause: { kind: 'UniqueConstraintViolation', constraint: { fields: [...target] } },
+        },
+      },
+    },
+  )
 
 export type FakeWorkItemRow = {
   id: string
@@ -56,6 +65,7 @@ export function createFakeFactoryDb() {
   const db = {
     factoryWorkItem: {
       create: async (args: { data: Where }) => {
+        if (workItems.some((one) => one.id === args.data.id)) throw uniqueViolation(['id'])
         const row: FakeWorkItemRow = {
           orchestratorThreadId: null,
           driveName: null,
@@ -87,10 +97,11 @@ export function createFakeFactoryDb() {
     },
     factorySurfaceAlias: {
       create: async (args: { data: FakeAliasRow }) => {
+        if (aliases.some((one) => one.id === args.data.id)) throw uniqueViolation(['id'])
         const clash = aliases.some(
           (one) => one.surface === args.data.surface && one.externalId === args.data.externalId,
         )
-        if (clash) throw uniqueViolation('(surface, "externalId")')
+        if (clash) throw uniqueViolation(['surface', 'externalId'])
         aliases.push(args.data)
         return args.data
       },
@@ -103,10 +114,11 @@ export function createFakeFactoryDb() {
     },
     factoryTranscriptEvent: {
       create: async (args: { data: FakeTranscriptEventRow }) => {
+        if (transcriptEvents.some((one) => one.id === args.data.id)) throw uniqueViolation(['id'])
         const clash = transcriptEvents.some(
           (one) => one.surface === args.data.surface && one.deliveryId === args.data.deliveryId,
         )
-        if (clash) throw uniqueViolation('(surface, "deliveryId")')
+        if (clash) throw uniqueViolation(['surface', 'deliveryId'])
         transcriptEvents.push(args.data)
         return args.data
       },
@@ -123,9 +135,9 @@ export function createFakeFactoryDb() {
     },
     $transaction: async (callback: (tx: unknown) => Promise<unknown>) => {
       const snapshot = {
-        workItems: [...workItems],
-        aliases: [...aliases],
-        transcriptEvents: [...transcriptEvents],
+        workItems: workItems.map((one) => ({ ...one })),
+        aliases: aliases.map((one) => ({ ...one })),
+        transcriptEvents: transcriptEvents.map((one) => ({ ...one })),
       }
       try {
         return await callback(db)

@@ -3,7 +3,9 @@ import { db } from '../../db'
 import type { TranscriptEventDto } from './factory.types'
 import { nextTranscriptEventId, nowIso } from './ids'
 import { toTranscriptEventDto } from './rows'
-import { isUniqueViolation } from './unique-violation'
+import { inconsistentStore, isUniqueViolation } from './unique-violation'
+
+const DELIVERY_UNIQUE_TARGET = ['surface', 'deliveryId'] as const
 
 export type AppendResult = {
   workItemId: string
@@ -25,7 +27,7 @@ export class TranscriptService {
     try {
       return await this.appendOnce(args)
     } catch (error) {
-      if (!isUniqueViolation(error)) throw error
+      if (!isUniqueViolation(error, DELIVERY_UNIQUE_TARGET)) throw error
       return this.racedReplay(args)
     }
   }
@@ -41,9 +43,7 @@ export class TranscriptService {
     const seen = await db.factoryTranscriptEvent.findFirst({
       where: { surface: args.surface, deliveryId: args.deliveryId },
     })
-    if (alias === null || seen === null) {
-      throw new Error('unique violation without a stored event — the transcript is inconsistent')
-    }
+    if (alias === null || seen === null) throw inconsistentStore('event')
     return { workItemId: alias.workItemId, event: toTranscriptEventDto(seen), appended: false }
   }
 
