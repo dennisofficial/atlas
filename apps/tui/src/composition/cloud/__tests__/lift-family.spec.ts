@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EAgentStatus, EExecutionLocation, toRunId } from '@dltech/atlas-core'
+import { EAgentStatus, EExecutionLocation, toRunId, type ThreadId } from '@dltech/atlas-core'
+import type { ThreadStorePort } from '@dltech/atlas-harness'
 
 import { fakeAgentSnapshot } from '../../__tests__/fake-agents'
 import { ELiftStep, liftToCloud } from '../lift'
@@ -8,6 +9,25 @@ import { CLOUD_THREAD } from './fixture'
 import { CHILD, SETTLED_CHILD, fakeLiftAgents, harness } from './lift-fixture'
 
 describe('lifting the family along with the conversation', () => {
+  it('opens the parent in the cloud before any child, whose row references it', async () => {
+    const child = fakeAgentSnapshot({ agentId: 'child-1', spawnedBy: CLOUD_THREAD })
+    const test = harness({ agents: fakeLiftAgents([child]) })
+    const opened: ThreadId[] = []
+    const store = test.bridge.stores.threads
+    const create = store.createWithFirstEvents.bind(store)
+    store.createWithFirstEvents = async (
+      createArgs: Parameters<ThreadStorePort['createWithFirstEvents']>[0],
+    ) => {
+      if (createArgs.threadId !== undefined) opened.push(createArgs.threadId)
+      return create(createArgs)
+    }
+
+    const lifted = await liftToCloud(test.args)
+
+    expect(lifted.ok).toBe(true)
+    expect(opened).toEqual([CLOUD_THREAD, CHILD])
+  })
+
   it('stops stepping children before transferring anything', async () => {
     const child = fakeAgentSnapshot({ agentId: 'child-1', spawnedBy: CLOUD_THREAD })
     const agents = fakeLiftAgents([child])
