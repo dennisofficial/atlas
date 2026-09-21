@@ -8,7 +8,7 @@ import { ECloudSandboxState } from '../cloud-bridge'
 import { ELiftFault, ELiftStep, liftToCloud } from '../lift'
 import { CLOUD_NOTICE_KEY } from '../transition-notice'
 import { CLEAN_WORKSPACE, CLOUD_THREAD, fakeBridge } from './fixture'
-import { harness } from './lift-fixture'
+import { FOOTER_SELECTION, harness } from './lift-fixture'
 
 describe('lifting a conversation into the cloud', () => {
   it('stops what is running here, transfers the log, flips the thread and only then attaches', async () => {
@@ -144,17 +144,23 @@ describe('lifting a conversation into the cloud', () => {
     expect(events.indexOf(marker)).toBeLessThan(noticeIndex)
   })
 
-  it('carries the thread model to the cloud store, so serve picks it up', async () => {
+  it('carries the footer selection to the cloud store, so serve picks it up', async () => {
     const test = harness()
-    await test.localThreads.chooseModel({
-      threadId: CLOUD_THREAD,
-      model: { ref: 'inference-net/kimi-k3-fast', effort: 'high' },
-    })
 
     await liftToCloud(test.args)
 
     const cloud = await test.bridge.threads.find({ threadId: CLOUD_THREAD })
-    expect(cloud?.model).toEqual({ ref: 'inference-net/kimi-k3-fast', effort: 'high' })
+    expect(cloud?.model).toEqual(FOOTER_SELECTION)
+  })
+
+  it('carries the selection even when the thread never persisted a model locally', async () => {
+    const test = harness({ started: false, localLog: fakeEventLog([]) })
+
+    const lifted = await liftToCloud(test.args)
+
+    expect(lifted.ok).toBe(true)
+    const cloud = await test.bridge.threads.find({ threadId: CLOUD_THREAD })
+    expect(cloud?.model).toEqual(FOOTER_SELECTION)
   })
 
   it('opens the remote thread for a conversation nobody has spoken in, so the sandbox can attach', async () => {

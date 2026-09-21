@@ -7,7 +7,7 @@ import {
   type ThreadId,
   type WorkspaceIdentity,
 } from '@dltech/atlas-core'
-import { CloudError, type ThreadStorePort } from '@dltech/atlas-harness'
+import { CloudError, type ThreadModel, type ThreadStorePort } from '@dltech/atlas-harness'
 
 import type { CloudBridge, CloudChannel, CloudSandbox, LiftedWorkspace } from './cloud-bridge'
 import { draftsOf } from './event-drafts'
@@ -71,6 +71,8 @@ export type LiftArgs = {
   interruptDeadlineMs?: number | undefined
   identity: WorkspaceIdentity
   title: string | null
+  /** The selection the footer shows, persisted or not — the cloud thread runs on it. */
+  model: ThreadModel
   bridge: CloudBridge
   localThreads: ThreadStorePort
   localLog: EventLogPort
@@ -137,6 +139,10 @@ const failureOf = (args: {
  * conversation came home, and anything the cloud kept from its own turn at hosting is stale. The
  * one refusal is an empty local log over a non-empty cloud one — that can only mean the transfer
  * down never landed, and replacing would erase the conversation.
+ *
+ * The model rides with the log: the live selection is written whether or not the thread ever
+ * persisted one locally (an unstarted thread has no row to hold it), because the serve's fallback
+ * when the cloud record carries none is a hardcoded default rather than an error.
  */
 async function transfer(args: LiftArgs): Promise<void> {
   const { bridge, threadId } = args
@@ -170,10 +176,7 @@ async function transfer(args: LiftArgs): Promise<void> {
     })
   }
 
-  const local = await args.localThreads.find({ threadId })
-  if (local?.model !== undefined) {
-    await bridge.stores.threads.chooseModel({ threadId, model: local.model })
-  }
+  await bridge.stores.threads.chooseModel({ threadId, model: args.model })
 }
 
 const flipBack = async (args: LiftArgs & { from: EExecutionLocation }): Promise<void> => {
