@@ -52,13 +52,13 @@ describe('settingsModel', () => {
       ['Context window', 1],
       ['Worktrees', 1],
       ['Usage meters', 3],
-      ['Nudges', 1],
+      ['Nudges', 3],
       ['Notifications', 1],
       ['Development', 1],
       ['Web', 2],
       ['Execution', 4],
     ])
-    expect(general?.rows).toHaveLength(26)
+    expect(general?.rows).toHaveLength(28)
   })
 
   it('gathers the model rows on the models page, default pair first', () => {
@@ -112,7 +112,7 @@ describe('moving around the page', () => {
     const top = openSettings()
 
     expect(moveRow({ state: top, model, delta: -1 })).toEqual({ pageIndex: 0, rowIndex: 0 })
-    expect(moveRow({ state: top, model, delta: 99 })).toEqual({ pageIndex: 0, rowIndex: 25 })
+    expect(moveRow({ state: top, model, delta: 99 })).toEqual({ pageIndex: 0, rowIndex: 27 })
   })
 
   it('wraps around the tab strip and lands on its first row', () => {
