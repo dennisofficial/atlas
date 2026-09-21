@@ -54,6 +54,8 @@ export const LOCAL_LOG: readonly Event[] = [
 export const CHILD = toThreadId('child-1')
 export const SETTLED_CHILD = toThreadId('child-done')
 
+export const FOOTER_SELECTION = { ref: 'inference-net/kimi-k3-fast', effort: 'high' } as const
+
 export type FakeLiftAgents = LiftAgentsPort & {
   readonly stopCalls: number
   readonly relocatedTo: readonly EExecutionLocation[]
@@ -131,6 +133,7 @@ export const harness = (over: Partial<LiftArgs> & { bridge?: FakeBridge } = {}):
     },
     identity: { workspace: '/work', repo: '/work' },
     title: null,
+    model: FOOTER_SELECTION,
     bridge,
     localThreads,
     localLog,

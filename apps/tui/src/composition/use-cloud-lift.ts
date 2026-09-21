@@ -1,4 +1,5 @@
 import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
+import { storedModel } from '@dltech/atlas-harness'
 import { useCallback, useRef } from 'react'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
@@ -72,6 +73,7 @@ export function useCloudLift(args: {
           whenSettled: latest.current.whenSettled,
           identity: app.workspace,
           title: null,
+          model: storedModel(app.model.choice()),
           bridge,
           localThreads: app.threads,
           localLog: app.log,
