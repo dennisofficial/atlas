@@ -33,6 +33,7 @@ import {
 import { ESandboxState } from '../execution/docker/status'
 import { EImageKind, resolveContainerConfig } from '../execution/image/resolve'
 import { LocalProcessPort } from '../execution/local-process'
+import { LoginEnvProcessPort } from '../execution/login-env-process'
 import { RoutedFileSystemPort } from '../execution/routed-filesystem'
 import { RoutedProcessPort } from '../execution/routed-process'
 import { ServiceRegistryPort } from '../services/service-registry'
@@ -143,7 +144,7 @@ export async function bindSandbox(args: {
 
   container.register(portToken(ProcessPort), {
     useValue: new RoutedProcessPort({
-      local: new LocalProcessPort(),
+      local: new LoginEnvProcessPort(new LocalProcessPort()),
       docker,
       locationOf: (threadId) =>
         (threadId === undefined ? undefined : executionLocation.of(threadId)) ??

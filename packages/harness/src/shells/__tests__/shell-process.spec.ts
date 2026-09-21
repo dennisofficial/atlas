@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { ToolOutputChunk } from '@dltech/atlas-core'
+import type {
+  ProcessHandle,
+  ProcessPort,
+  SpawnCommand,
+  ThreadId,
+  ToolOutputChunk,
+} from '@dltech/atlas-core'
 
+import { LOGIN_ENV_MARKER } from '../../execution/login-env-process'
 import { readShell, startShell, type Shell } from '../shell-process'
 
 const after = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
@@ -17,6 +24,38 @@ const stdoutOf = (chunks: readonly ToolOutputChunk[]): string =>
 
 const stderrOf = (chunks: readonly ToolOutputChunk[]): string =>
   chunks.flatMap((chunk) => (chunk.stream === 'stderr' ? [chunk.text] : [])).join('')
+
+const idleHandle = (): ProcessHandle => ({
+  stdout: new ReadableStream({ start: (controller) => controller.close() }),
+  stderr: new ReadableStream({ start: (controller) => controller.close() }),
+  exited: Promise.resolve(0),
+  terminate: () => undefined,
+})
+
+class RecordingProcesses implements ProcessPort {
+  readonly spawned: SpawnCommand[] = []
+
+  spawn(args: SpawnCommand): ProcessHandle {
+    this.spawned.push(args)
+    return idleHandle()
+  }
+
+  which(_args: { command: string; threadId?: ThreadId | undefined }): string | null {
+    return null
+  }
+}
+
+describe('starting a shell', () => {
+  it('marks the spawn so a host-side port can resolve the login-shell environment', () => {
+    const processes = new RecordingProcesses()
+
+    const started = startShell({ command: 'node -v', cwd: '/tmp/project', processes })
+
+    expect(started.ok).toBe(true)
+    expect(processes.spawned[0]?.cmd).toEqual(['bash', '-c', 'node -v'])
+    expect(processes.spawned[0]?.env?.[LOGIN_ENV_MARKER]).toBe('1')
+  })
+})
 
 describe('tapping a foreground shell while it runs', () => {
   it('hands every chunk to the listener, tagged with the stream it came from', async () => {
