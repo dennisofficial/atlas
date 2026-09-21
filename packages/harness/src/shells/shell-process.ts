@@ -1,5 +1,6 @@
 import type { ProcessHandle, ProcessPort, ThreadId, ToolOutputChunk } from '@dltech/atlas-core'
 
+import { LOGIN_ENV_MARKER } from '../execution/login-env-process'
 import { LocalProcessPort } from '../execution/local-process'
 import { atlasBinDirectory } from '../store/paths'
 
@@ -9,9 +10,10 @@ const READ_GRACE_MS = 1_000
 
 const localProcesses = new LocalProcessPort()
 
-const withAtlasBinOnPath = (): Record<string, string | undefined> => ({
+const withShellEnv = (): Record<string, string | undefined> => ({
   ...process.env,
   PATH: `${atlasBinDirectory()}:${process.env.PATH ?? ''}`,
+  [LOGIN_ENV_MARKER]: '1',
 })
 
 export type Shell = ProcessHandle & { readonly pid?: number | undefined }
@@ -44,7 +46,7 @@ export function startShell(args: {
       shell: processes.spawn({
         cmd: ['bash', '-c', args.command],
         cwd: args.cwd,
-        env: withAtlasBinOnPath(),
+        env: withShellEnv(),
         threadId: args.threadId,
       }),
     }

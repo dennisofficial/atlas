@@ -127,6 +127,23 @@ describe('lifting a conversation into the cloud', () => {
     expect(notice.content).toContain('api')
   })
 
+  it('marks the location change in the cloud log, before the transition notice', async () => {
+    const test = harness()
+
+    await liftToCloud(test.args)
+
+    const events = test.bridge.log.peek({ threadId: CLOUD_THREAD })
+    const marker = events.find((event) => event.type === 'location-changed')
+    if (marker === undefined || marker.type !== 'location-changed') {
+      throw new Error('expected a location-changed event in the cloud log')
+    }
+    expect(marker.from).toBe(EExecutionLocation.Host)
+    expect(marker.to).toBe(EExecutionLocation.Cloud)
+
+    const noticeIndex = events.findIndex((event) => event.type === 'context-loaded')
+    expect(events.indexOf(marker)).toBeLessThan(noticeIndex)
+  })
+
   it('opens the remote thread for a conversation nobody has spoken in, so the sandbox can attach', async () => {
     const test = harness({ started: false, localLog: fakeEventLog([]) })
 
