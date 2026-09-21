@@ -13,7 +13,7 @@ import {
 } from '@dltech/atlas-core'
 
 import type { ThreadStorePort } from '../../store'
-import type { AgentType } from '../types'
+import { isTeammateType, type AgentType } from '../types'
 import { ChildSteps } from './child-steps'
 import { agentTypeNamed, type SupervisorDeps } from './deps'
 import { freshChild, isStepping, snapshotOf, type ChildState } from './child-state'
@@ -34,7 +34,10 @@ import {
 import {
   alreadyStepping,
   EMPTY_BRIEF,
+  NOT_A_TEAMMATE,
+  notYourTeammate,
   retiredAgentType,
+  TEAMMATE_FROM_MAIN_ONLY,
   unknownAgent,
   unknownAgentType,
 } from './reasons'
@@ -105,6 +108,11 @@ export class AgentSupervisor extends AgentRegistryPort {
       return { ok: false, reason: unknownAgentType({ agentType, known: this.agentTypes }) }
     }
     if (brief.trim() === '') return { ok: false, reason: EMPTY_BRIEF }
+
+    if (isTeammateType(type.name)) {
+      const caller = await this.threads.find({ threadId })
+      if (caller?.agent !== undefined) return { ok: false, reason: TEAMMATE_FROM_MAIN_ONLY }
+    }
 
     const { threadId: agentId, inheritedLocation } = await openChildThread({
       threads: this.threads,
@@ -187,6 +195,75 @@ export class AgentSupervisor extends AgentRegistryPort {
 
   resume(args: { agentId: ThreadId; threadId: ThreadId }): Promise<AgentOutcome> {
     return resumeChild({ ...args, ...this.relocation })
+  }
+
+  async sayToPeer({
+    agentId,
+    threadId,
+    text,
+    images,
+  }: {
+    agentId: ThreadId
+    threadId: ThreadId
+    text: string
+    images?: readonly SaidImage[] | undefined
+  }): Promise<AgentOutcome> {
+    const caller = this.roster.find(threadId)
+    const target = this.roster.find(agentId)
+
+    if (caller === undefined || !isTeammateType(caller.agentType)) {
+      return { ok: false, reason: NOT_A_TEAMMATE }
+    }
+    if (
+      target === undefined ||
+      !isTeammateType(target.agentType) ||
+      target.spawnedBy !== caller.spawnedBy
+    ) {
+      return { ok: false, reason: notYourTeammate({ agentId, known: this.teammatesOf(caller) }) }
+    }
+
+    if (isStepping(target)) {
+      target.pending.push({ text, ...(images === undefined ? {} : { images }), via: EMessageOrigin.PeerAgent })
+      return { ok: true, snapshot: snapshotOf(target) }
+    }
+
+    const agentType = agentTypeNamed({ agentTypes: this.agentTypes, name: target.agentType })
+    if (agentType === undefined) {
+      return { ok: false, reason: retiredAgentType(target.agentType) }
+    }
+
+    await this.log.append({
+      threadId: agentId,
+      runId: this.ids.nextRunId(),
+      drafts: [
+        {
+          type: 'user-said',
+          text,
+          via: EMessageOrigin.PeerAgent,
+          ...(images === undefined || images.length === 0 ? {} : { images }),
+        },
+      ],
+    })
+    target.projectDirectory ??= await childDirectory({ deps: this.deps, threadId: target.spawnedBy })
+    this.steps.take({
+      child: target,
+      agentType,
+      step: ({ runner, signal }) => runner.runTurn({ threadId: agentId, signal }),
+    })
+
+    return { ok: true, snapshot: snapshotOf(target) }
+  }
+
+  private teammatesOf(caller: ChildState): readonly AgentSnapshot[] {
+    return this.roster
+      .states()
+      .filter(
+        (child) =>
+          child.agentId !== caller.agentId &&
+          child.spawnedBy === caller.spawnedBy &&
+          isTeammateType(child.agentType),
+      )
+      .map(snapshotOf)
   }
 
   relocateChildren(args: RelocateChildrenArgs): Promise<readonly ThreadId[]> {

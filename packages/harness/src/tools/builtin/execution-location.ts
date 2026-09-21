@@ -14,6 +14,7 @@ import {
   type ToolRun,
 } from '@dltech/atlas-core'
 
+import { isTeammateType } from '../../agents/types'
 import type { AgentRegistryPort } from '../../agents/registry/port'
 import type { ExecutionLocationControl } from '../../composition/execution-location-state'
 import type { DockerEngine } from '../../execution/docker/engine'
@@ -27,9 +28,10 @@ const inputSchema = z.strictObject({
 })
 
 const description = [
-  'Move this session between the host machine and its Docker container sandbox, carrying the whole family - a sub-agent calling it moves the session it belongs to, sub-agents included.',
+  'Move this session between the host machine and its Docker container sandbox, carrying the whole family - a sub-agent calling it moves the session it belongs to, sub-agents included, while a teammate calling it moves only itself and its own sub-agents.',
   'Pass location "docker" so later bash, read and write calls run inside the container - prefer it before starting dev servers, installing dependencies or running test suites you want kept off the host - or "host" to run on this machine directly.',
   'The move kills running background shells and stops services, so restart anything long-lived afterwards, in the new location.',
+  'Sub-agents move with the session that calls this; teammates own their execution location independently and never move along with the main session or a sibling teammate.',
   'Asking for the location the session already runs in just answers where it is.',
   'The cloud is never a target: moving to or from it is the operator’s call.',
 ].join(' ')
@@ -167,7 +169,7 @@ export class ExecutionLocationTool extends SchemaTool<typeof inputSchema> {
     }
     if (args.moved.relocatedAgents.length > 0) {
       sentences.push(
-        `${args.moved.relocatedAgents.length} ${args.moved.relocatedAgents.length === 1 ? 'sub-agent' : 'sub-agents'} moved with the session.`,
+        `${args.moved.relocatedAgents.length} ${args.moved.relocatedAgents.length === 1 ? 'sub-agent' : 'sub-agents'} moved with the session (teammates were not).`,
       )
     }
     return sentences.join(' ')
@@ -177,6 +179,7 @@ export class ExecutionLocationTool extends SchemaTool<typeof inputSchema> {
     let root = threadId
     for (let depth = 0; depth < 32; depth += 1) {
       const summary = await threads.find({ threadId: root })
+      if (isTeammateType(summary?.agent?.type ?? '')) return root
       const spawnedBy = summary?.agent?.spawnedBy
       if (spawnedBy === undefined) return root
       root = spawnedBy

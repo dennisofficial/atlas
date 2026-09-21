@@ -26,6 +26,9 @@ export class UnstaffedAgents extends AgentRegistryPort {
   say() {
     return Promise.resolve({ ok: false as const, reason: 'no agent registry in this fixture' })
   }
+  sayToPeer() {
+    return Promise.resolve({ ok: false as const, reason: 'no agent registry in this fixture' })
+  }
   resume() {
     return Promise.resolve({ ok: false as const, reason: 'no agent registry in this fixture' })
   }

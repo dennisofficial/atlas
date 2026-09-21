@@ -156,6 +156,8 @@ export function fakeAgentRegistry(args: { threads?: FakeThreadStore | undefined 
       return { ok: true, snapshot: found }
     },
 
+    sayToPeer: async ({ agentId }) => refused(agentId),
+
     resume: async ({ agentId }) => refused(agentId),
 
     stop: ({ agentId, by }) => {

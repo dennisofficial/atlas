@@ -72,6 +72,9 @@ const dispatchTo = async (args: { agentType: AgentType; name: string }): Promise
 describe('a dispatcher over a registry narrowed for a built-in agent type', () => {
   it('refuses agent_spawn called by name, so depth caps at one by construction', async () => {
     for (const agentType of await builtInTypes()) {
+      // The teammate keeps agent_spawn — it runs sub-agents of its own — and its inability to
+      // spawn another teammate is enforced by the supervisor, covered in registry/__tests__/teammate.spec.ts.
+      if (agentType.name === 'teammate') continue
       const message = await dispatchTo({ agentType, name: AGENT_SPAWN_TOOL_NAME })
 
       expect(ran).toEqual([])
@@ -88,8 +91,9 @@ describe('a dispatcher over a registry narrowed for a built-in agent type', () =
     }
   })
 
-  it('offers every built-in the whole toolset apart from the spawn tool', async () => {
+  it('offers every built-in sub-agent the whole toolset apart from the spawn tool', async () => {
     for (const agentType of await builtInTypes()) {
+      if (agentType.name === 'teammate') continue
       const narrowed = toolRegistryFor({ registry: wholeToolset(), agentType })
 
       expect(narrowed.declarations().map((declaration) => declaration.name)).toEqual([
@@ -101,6 +105,17 @@ describe('a dispatcher over a registry narrowed for a built-in agent type', () =
         'bash',
       ])
     }
+  })
+
+  it('offers the teammate the spawn tool too, since its sub-agents are its hands', async () => {
+    const teammate = (await builtInTypes()).find((agentType) => agentType.name === 'teammate')
+    if (teammate === undefined) throw new Error('no built-in teammate type')
+
+    const narrowed = toolRegistryFor({ registry: wholeToolset(), agentType: teammate })
+
+    expect(narrowed.declarations().map((declaration) => declaration.name)).toContain(
+      AGENT_SPAWN_TOOL_NAME,
+    )
   })
 })
 

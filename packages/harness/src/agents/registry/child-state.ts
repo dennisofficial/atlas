@@ -4,6 +4,7 @@ import {
   EAgentStatus,
   type AssistantPart,
   type EKilledBy,
+  type EMessageOrigin,
   type EventDraft,
   type ProviderIdentity,
   type RosteredAgent,
@@ -34,7 +35,12 @@ export type ChildState = {
   projectDirectory: string | undefined
 }
 
-export type SteerMessage = { text: string; images?: readonly SaidImage[] | undefined }
+export type SteerMessage = {
+  text: string
+  images?: readonly SaidImage[] | undefined
+  /** Absent means the spawner steered; a teammate's peers steer with PeerAgent so the log stays attributable. */
+  via?: EMessageOrigin | undefined
+}
 
 export const isStepping = (child: ChildState): boolean => child.status === EAgentStatus.Running
 

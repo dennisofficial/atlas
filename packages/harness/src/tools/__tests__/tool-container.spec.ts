@@ -44,6 +44,7 @@ const BUILTIN_NAMES = [
   'agent_resume',
   'agent_list',
   'agent_stop',
+  'teammate_message',
   'enter_worktree',
   'exit_worktree',
   'execution_location',

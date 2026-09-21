@@ -18,6 +18,7 @@ import { EApprovalRouting, HookedToolDispatcher } from '../../tools/dispatch'
 import { filteredToolRegistry, type ToolRegistry } from '../../tools/registry'
 import {
   AGENT_TOOL_NAMES,
+  isTeammateType,
   SERVICE_CONTROL_TOOL_NAMES,
   WORKTREE_TOOL_NAMES,
   toolRegistryFor,
@@ -49,11 +50,20 @@ export type ChildRunnerDeps = {
  */
 export type ChildRunnerDepsSource = () => ChildRunnerDeps
 
-const withoutSessionShapingTools = (registry: ToolRegistry): ToolRegistry =>
-  filteredToolRegistry({
-    registry,
-    deny: [...AGENT_TOOL_NAMES, ...WORKTREE_TOOL_NAMES, ...SERVICE_CONTROL_TOOL_NAMES],
-  })
+const SUB_AGENT_DENIED: readonly string[] = [
+  ...AGENT_TOOL_NAMES,
+  ...WORKTREE_TOOL_NAMES,
+  ...SERVICE_CONTROL_TOOL_NAMES,
+]
+
+/**
+ * A teammate shapes its own session — its own worktree, its own sub-agents, its own execution
+ * location — so only the service-control denial carries over: a service's ending routes to the
+ * thread that started it, and a stopped teammate's thread has nothing left to deliver it.
+ * Spawning another teammate is refused upstream, in the supervisor, where the reason can teach.
+ */
+const deniedFor = (agentType: AgentType): readonly string[] =>
+  isTeammateType(agentType.name) ? SERVICE_CONTROL_TOOL_NAMES : SUB_AGENT_DENIED
 
 function observingLog({
   log,
@@ -103,7 +113,7 @@ export const steerDrafts = (said: readonly SteerMessage[]): readonly EventDraft[
   said.map((one) => ({
     type: 'user-said',
     text: one.text,
-    via: EMessageOrigin.ParentAgent,
+    via: one.via ?? EMessageOrigin.ParentAgent,
     ...(one.images === undefined || one.images.length === 0 ? {} : { images: one.images }),
   }))
 
@@ -117,7 +127,10 @@ export function buildChildRunner({
   observeModel,
   steering,
 }: ChildRunnerRequest & { deps: ChildRunnerDeps }): TurnRunner {
-  const registry = withoutSessionShapingTools(toolRegistryFor({ registry: deps.tools, agentType }))
+  const registry = filteredToolRegistry({
+    registry: toolRegistryFor({ registry: deps.tools, agentType }),
+    deny: deniedFor(agentType),
+  })
   const { turn } = deps
   const model = deps.modelFor === undefined ? turn.model : deps.modelFor({ agentType })
   observeModel(model.identity)

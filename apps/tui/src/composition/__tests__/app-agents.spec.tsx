@@ -203,13 +203,13 @@ describe('a sub-agent in the sidebar', () => {
     const setup = await opened(app)
 
     try {
-      expect(setup.captureCharFrame()).toContain('SUBAGENTS  1/1')
+      expect(setup.captureCharFrame()).toContain('SUB-AGENTS  1/1')
 
       act(() => app.agents.end({ agentId: CHILD }))
       await setup.flush()
 
       const frame = setup.captureCharFrame()
-      expect(frame).toContain('SUBAGENTS  0/1')
+      expect(frame).toContain('SUB-AGENTS  0/1')
       expect(frame).toContain(`${CHILD_INTENT}`)
       expect(
         frame.split('\n').find((line) => line.includes(CHILD_INTENT)) ?? '',

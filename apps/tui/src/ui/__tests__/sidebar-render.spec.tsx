@@ -294,7 +294,7 @@ describe("what the sidebar says", () => {
     const rows = await rowsOf({ model: IDLE_SIDEBAR });
     const frame = rows.join("\n");
 
-    for (const header of ["APPROVALS", "TODO", "SUBAGENTS", "TEAMMATES"])
+    for (const header of ["APPROVALS", "TODO", "SUB-AGENTS", "TEAMMATES"])
       expect(frame).not.toContain(header);
 
     expect(frame).not.toContain("turns");
@@ -435,7 +435,7 @@ describe("what the sidebar says", () => {
   it("says how long each subagent has been at it and what each teammate is doing", async () => {
     const rows = await rowsOf({ model: FED });
 
-    expect(rowWith({ rows, text: "SUBAGENTS" })).toContain("2");
+    expect(rowWith({ rows, text: "SUB-AGENTS" })).toContain("2");
     expect(rowWith({ rows, text: "test-writer" })).toContain("1m 4s");
     expect(rowWith({ rows, text: "test-writer" })).not.toContain("edit");
     expect(rowWith({ rows, text: "migration" })).toContain("blocked · 12s");

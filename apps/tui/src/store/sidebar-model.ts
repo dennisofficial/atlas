@@ -12,6 +12,7 @@ import {
 
 import {
   EShellStatus,
+  TEAMMATE_AGENT_TYPE,
   type BoundPort,
   type SandboxContainer,
   type SandboxLimits,
@@ -221,6 +222,22 @@ export function withCrew(args: {
   if (fold === undefined || fold.hidden === 0) return { ...model, subagents };
 
   return { ...model, subagents, crewFold: fold };
+}
+
+export type CrewTiers = {
+  teammates: readonly SidebarSubagent[];
+  subagents: readonly SidebarSubagent[];
+};
+
+/**
+ * The roster mixes two kinds of rostered child in one array, told apart only by `agentType`: a
+ * teammate is a full session the main agent manages, everything else is a brief-scoped sub-agent.
+ */
+export function crewTiersOf(subagents: readonly SidebarSubagent[]): CrewTiers {
+  return {
+    teammates: subagents.filter((subagent) => subagent.agentType === TEAMMATE_AGENT_TYPE),
+    subagents: subagents.filter((subagent) => subagent.agentType !== TEAMMATE_AGENT_TYPE),
+  };
 }
 
 export function withSections(args: {

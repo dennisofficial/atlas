@@ -29,6 +29,7 @@ export enum EWorktreeExit {
 export enum EMessageOrigin {
   Operator = 'operator',
   ParentAgent = 'parent-agent',
+  PeerAgent = 'peer-agent',
 }
 
 export const saidBy = (said: { via?: EMessageOrigin | undefined }): EMessageOrigin =>

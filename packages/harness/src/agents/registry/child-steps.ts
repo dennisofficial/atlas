@@ -77,17 +77,18 @@ export class ChildSteps {
 
   async whenSettled(args?: {
     threadId?: ThreadId | undefined
-    excluding?: ThreadId | undefined
+    excluding?: readonly ThreadId[] | undefined
   }): Promise<void> {
     if (args?.threadId === undefined) {
       await Promise.all([...this.inFlight.values()].flatMap((byChild) => [...byChild.values()]))
       return
     }
 
+    const excluded = new Set(args.excluding ?? [])
     const forThread = this.inFlight.get(args.threadId) ?? new Map<ThreadId, Promise<void>>()
     await Promise.all(
       [...forThread.entries()].flatMap(([childId, settled]) =>
-        childId === args.excluding ? [] : [settled],
+        excluded.has(childId) ? [] : [settled],
       ),
     )
   }

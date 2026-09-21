@@ -7,12 +7,23 @@ import {
 
 export const AGENT_SPAWN_TOOL_NAME = 'agent_spawn'
 
+/**
+ * A teammate is a full session the main agent manages, not a constrained sub-agent, so the name
+ * is reserved: the spawn guard, the runner's tool policy, the relocation scoping and the sidebar
+ * all key on it, and a user-defined type wearing the name would inherit every one of those
+ * behaviours without the contract.
+ */
+export const TEAMMATE_AGENT_TYPE = 'teammate'
+
+export const isTeammateType = (name: string): boolean => name === TEAMMATE_AGENT_TYPE
+
 export const AGENT_TOOL_NAMES: readonly string[] = [
   AGENT_SPAWN_TOOL_NAME,
   'agent_say',
   'agent_resume',
   'agent_list',
   'agent_stop',
+  'teammate_message',
 ]
 
 export const WORKTREE_TOOL_NAMES: readonly string[] = [
@@ -46,6 +57,7 @@ export type AgentType = {
 export enum EAgentTypeRefusal {
   Empty = 'empty',
   BadName = 'bad-name',
+  ReservedName = 'reserved-name',
   NoDescription = 'no-description',
   NoPrompt = 'no-prompt',
   BadMaxEffect = 'bad-max-effect',
@@ -129,6 +141,12 @@ export function parseAgentType(args: {
   const name = named({ written: fields.get('name'), fallback: args.fallbackName })
   if (!NAME_PATTERN.test(name)) {
     return refused(EAgentTypeRefusal.BadName, `"${name}" cannot name an agent type: ${BAD_NAME}`)
+  }
+  if (isTeammateType(name) && args.origin !== EDefinitionOrigin.BuiltIn) {
+    return refused(
+      EAgentTypeRefusal.ReservedName,
+      `"${name}" is reserved for the built-in teammate, a full session the main agent manages`,
+    )
   }
 
   const whenToUse = fields.get('description')?.trim()

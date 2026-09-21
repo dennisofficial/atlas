@@ -6,6 +6,7 @@ import { AgentRegistryPort } from '../../agents/registry/port'
 import {
   AGENT_SPAWN_TOOL_NAME,
   EAgentTypeRefusal,
+  TEAMMATE_AGENT_TYPE,
   type AgentType,
   type AgentTypeSource,
 } from '../../agents/types'
@@ -179,6 +180,7 @@ describe('agent types loaded from a directory', () => {
     expect(recursive?.disallowedTools).toEqual([AGENT_SPAWN_TOOL_NAME])
 
     for (const agentType of types) {
+      if (agentType.name === TEAMMATE_AGENT_TYPE) continue
       expect(agentType.disallowedTools).toContain(AGENT_SPAWN_TOOL_NAME)
     }
   })
@@ -283,6 +285,7 @@ describe('the container with nothing bound over it', () => {
     const container = await harnessContainer()
 
     expect(spawnableTypes(container).map((agentType) => agentType.name)).toEqual([
+      'teammate',
       'general-purpose',
       'explore',
       'builder',

@@ -40,3 +40,20 @@ export const retiredAgentType = (agentType: string): string =>
 
 export const alreadyStepping = (agentId: ThreadId): string =>
   `agent ${agentId} is already taking a step; steer it with a message or stop it first`
+
+export const TEAMMATE_FROM_MAIN_ONLY =
+  'only the main session spawns teammates — end your turn asking for one, and the main agent will spawn it and hand you its id'
+
+export const NOT_A_TEAMMATE =
+  'teammate_message is how one teammate reaches another; you are not a teammate, so message your own agents with agent_say or end your turn to reach the main agent'
+
+export function notYourTeammate({
+  agentId,
+  known,
+}: {
+  agentId: ThreadId
+  known: readonly AgentSnapshot[]
+}): string {
+  const ids = known.length === 0 ? 'none' : known.map((one) => one.agentId).join(', ')
+  return `${agentId} is not a teammate of yours; your teammates: ${ids}`
+}

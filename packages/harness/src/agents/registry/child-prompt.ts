@@ -18,15 +18,18 @@ export function subAgentPrompt({
   provider,
   model,
   projectDirectory,
+  agent = EPromptAgent.Sub,
 }: {
   prompts: PromptRegistry
   agentType: AgentType
   provider: ProviderIdentity
   model: PromptModel
   projectDirectory: string
+  /** A teammate compiles as Main: it is a full session, so it gets the identity, memory and instruction fragments a sub-agent is spared. */
+  agent?: EPromptAgent | undefined
 }): CompiledPrompt {
   const compiled = prompts.compile(
-    promptContextFor({ agent: EPromptAgent.Sub, provider, model, projectDirectory }),
+    promptContextFor({ agent, provider, model, projectDirectory }),
   )
   const identity = agentType.prompt.trim()
 

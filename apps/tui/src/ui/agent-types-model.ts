@@ -41,6 +41,7 @@ const ORIGIN_LABEL: Record<EDefinitionOrigin, string> = {
 const REFUSAL_LABEL: Record<EAgentTypeRefusal, string> = {
   [EAgentTypeRefusal.Empty]: 'the file is empty',
   [EAgentTypeRefusal.BadName]: 'the name cannot be used',
+  [EAgentTypeRefusal.ReservedName]: 'the name is reserved for a built-in type',
   [EAgentTypeRefusal.NoDescription]: 'no description, so nothing says when to use it',
   [EAgentTypeRefusal.NoPrompt]: 'no prompt under the front matter',
   [EAgentTypeRefusal.BadMaxEffect]: 'the max effect is not one of the effects',

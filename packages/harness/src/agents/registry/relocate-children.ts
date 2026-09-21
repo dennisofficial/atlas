@@ -6,6 +6,7 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import { isTeammateType } from '../types'
 import { isStepping, snapshotOf, type ChildState } from './child-state'
 import type { ChildSteps } from './child-steps'
 import { agentTypeNamed, type SupervisorDeps } from './deps'
@@ -45,6 +46,7 @@ export async function stopThreadChildren({
   threadId,
   by,
   caller,
+  skipTeammates = false,
   roster,
   steps,
   recovery,
@@ -52,16 +54,31 @@ export async function stopThreadChildren({
   threadId: ThreadId
   by: EKilledBy
   caller?: ThreadId | undefined
+  /** A teammate is its own family root, so a relocation of its spawner must leave it running untouched; teardown still stops everything. */
+  skipTeammates?: boolean
 } & Pick<Relocation, 'roster' | 'steps' | 'recovery'>): Promise<readonly ChildState[]> {
   await recovery.hydrate({ threadId })
 
   const stepping = roster
     .states()
     .filter(
-      (child) => child.spawnedBy === threadId && child.agentId !== caller && isStepping(child),
+      (child) =>
+        child.spawnedBy === threadId &&
+        child.agentId !== caller &&
+        isStepping(child) &&
+        (!skipTeammates || !isTeammateType(child.agentType)),
     )
   for (const child of stepping) stopChild({ child, by })
-  await steps.whenSettled({ threadId, excluding: caller }).catch(() => undefined)
+
+  const kept = skipTeammates
+    ? roster
+        .states()
+        .filter((child) => child.spawnedBy === threadId && isTeammateType(child.agentType))
+        .map((child) => child.agentId)
+    : []
+  await steps
+    .whenSettled({ threadId, excluding: [...(caller === undefined ? [] : [caller]), ...kept] })
+    .catch(() => undefined)
 
   return stepping
 }
@@ -74,6 +91,7 @@ export async function stopThreadChildren({
 export async function markThreadChildrenRelocated({
   threadId,
   location,
+  skipTeammates = false,
   deps,
   sink,
   roster,
@@ -81,10 +99,14 @@ export async function markThreadChildrenRelocated({
 }: {
   threadId: ThreadId
   location: EExecutionLocation
+  /** A teammate owns its execution location independently, so a relocation of its spawner must leave its stored location untouched. */
+  skipTeammates?: boolean
 } & Pick<Relocation, 'deps' | 'sink' | 'roster' | 'recovery'>): Promise<void> {
   await recovery.hydrate({ threadId })
 
-  const children = roster.states().filter((child) => child.spawnedBy === threadId)
+  const children = roster
+    .states()
+    .filter((child) => child.spawnedBy === threadId && (!skipTeammates || !isTeammateType(child.agentType)))
   for (const child of children) {
     await deps.threads.chooseExecutionLocation({ threadId: child.agentId, location })
     sink.note({ threadId: child.agentId, location })
@@ -96,16 +118,18 @@ export async function relocateThreadChildren(
 ): Promise<readonly ThreadId[]> {
   const { threadId, location, deps, roster } = args
 
-  const stepping = await stopThreadChildren({ ...args, by: EKilledBy.ContainerSwitch })
+  const stepping = await stopThreadChildren({ ...args, by: EKilledBy.ContainerSwitch, skipTeammates: true })
 
-  const children = roster.states().filter((child) => child.spawnedBy === threadId)
+  const children = roster
+    .states()
+    .filter((child) => child.spawnedBy === threadId && !isTeammateType(child.agentType))
   const froms = new Map<ThreadId, EExecutionLocation>()
   for (const child of children) {
     const stored = await deps.threads.find({ threadId: child.agentId })
     froms.set(child.agentId, stored?.executionLocation ?? EExecutionLocation.Host)
   }
 
-  await markThreadChildrenRelocated(args)
+  await markThreadChildrenRelocated({ ...args, skipTeammates: true })
 
   for (const child of children) {
     await deps.log.append({
