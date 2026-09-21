@@ -158,14 +158,36 @@ describe('spend rolled up across a thread and the agents it spawned', () => {
     expect(rolled.own).toEqual(await ledger.forThread({ threadId: parent.id }))
   })
 
-  it('refuses to answer rather than under-count when a sub-agent has spawned its own', async () => {
+  it("counts a teammate's sub-agent, since teammates legitimately spawn their own", async () => {
     const { ledger, threads } = await open()
     const parent = await threads.create({})
-    const child = await threads.create({ agent: { spawnedBy: parent.id, type: 'researcher' } })
+    const teammate = await threads.create({ agent: { spawnedBy: parent.id, type: 'teammate' } })
+    const grandchild = await threads.create({
+      agent: { spawnedBy: teammate.id, type: 'researcher' },
+    })
+
+    const own = spendOf({ threadId: parent.id })
+    const delegated = spendOf({ threadId: teammate.id })
+    const deepest = spendOf({ threadId: grandchild.id })
+    for (const spend of [own, delegated, deepest]) await ledger.record(spend)
+
+    expect(await ledger.forThreadTree({ threadId: parent.id })).toEqual({
+      own: [own],
+      delegated: [delegated, deepest],
+    })
+  })
+
+  it('refuses to answer rather than under-count past the fixed-depth graph', async () => {
+    const { ledger, threads } = await open()
+    const parent = await threads.create({})
+    const child = await threads.create({ agent: { spawnedBy: parent.id, type: 'teammate' } })
     const grandchild = await threads.create({
       agent: { spawnedBy: child.id, type: 'researcher' },
     })
-    await ledger.record(spendOf({ threadId: grandchild.id }))
+    const tooDeep = await threads.create({
+      agent: { spawnedBy: grandchild.id, type: 'researcher' },
+    })
+    await ledger.record(spendOf({ threadId: tooDeep.id }))
 
     await expect(ledger.forThreadTree({ threadId: parent.id })).rejects.toThrow(
       SupervisionTreeTooDeep,

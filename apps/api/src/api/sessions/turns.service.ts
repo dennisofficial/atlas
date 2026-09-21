@@ -5,7 +5,7 @@ import { toTurnDto } from './rows'
 import type { RecordTurnDto } from './sessions.dto'
 import type { TurnDto, TurnTreeDto } from './sessions.types'
 
-const SUPERVISION_DEPTH_LIMIT = 1
+const SUPERVISION_DEPTH_LIMIT = 2
 
 async function readSpawnedThreadIds(args: {
   userId: string
