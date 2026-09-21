@@ -31,6 +31,7 @@ import {
   EStationKind,
   EStationRunStatus,
   MAX_REVISION_CYCLES,
+  parseStationKind,
   STATION_MESSAGE_CAP,
   type StationSpawnResult,
 } from './station.types'
@@ -66,12 +67,7 @@ export class StationsService {
     message: string
   }): Promise<StationSpawnResult> {
     const item = await orchestratedItem({ threadId: args.orchestratorThreadId })
-    const kind =
-      args.kind === EStationKind.Implementer
-        ? EStationKind.Implementer
-        : args.kind === EStationKind.Reviewer
-          ? EStationKind.Reviewer
-          : undefined
+    const kind = parseStationKind(args.kind)
     if (kind === undefined) {
       throw new BadRequestException(`unknown station kind ${args.kind}`)
     }

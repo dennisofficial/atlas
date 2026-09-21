@@ -3,6 +3,13 @@ export enum EStationKind {
   Reviewer = 'reviewer',
 }
 
+export const parseStationKind = (value: string): EStationKind | undefined =>
+  value === EStationKind.Implementer
+    ? EStationKind.Implementer
+    : value === EStationKind.Reviewer
+      ? EStationKind.Reviewer
+      : undefined
+
 export enum EReviewVerdict {
   Approve = 'approve',
   RequestChanges = 'request_changes',
