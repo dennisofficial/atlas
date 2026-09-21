@@ -16,8 +16,8 @@ import type { ContextArchiveStore } from '../context-archive/context-archive.sto
 import { SandboxGitCredentials } from './git-credentials'
 import { ownedThread } from '../sessions/ownership'
 import { ownedSandbox } from './ownership'
-import { toSandboxDto } from './rows'
-import { claimSandboxRow } from './sandbox-claim'
+import { toSandboxDto, type SandboxPrincipal, type SandboxStatusColumns } from './rows'
+import { claimSandboxRow, type ClaimedSandbox } from './sandbox-claim'
 import { sandboxNameFor } from './sandbox-names'
 import { sessionCredentialOf } from './sandbox-session-credential'
 import { hashSessionToken, tokenMatches } from './sandbox-tokens'
@@ -44,7 +44,7 @@ const messageOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
 
 const driveOf = (
-  row: CloudSandboxModel,
+  row: Pick<CloudSandboxModel, 'driveName' | 'driveMode'>,
 ): { name: string; mode: ESandboxDriveMode } | undefined => {
   if (row.driveName === null) return undefined
   return {
@@ -149,6 +149,7 @@ export class SandboxesService {
   }): Promise<{ token: string; url: string } | null> {
     const row = await db.cloudSandbox.findFirst({
       where: { threadId: args.threadId, userId: args.userId },
+      select: { name: true, sealedToken: true },
     })
     if (row === null || row.sealedToken === null) return null
     let observed: SandboxObservation
@@ -213,7 +214,20 @@ export class SandboxesService {
    * sandbox row.
    */
   async workspace(args: { threadId: string }): Promise<SandboxWorkspaceDto> {
-    const row = await db.cloudSandbox.findUnique({ where: { threadId: args.threadId } })
+    const row = await db.cloudSandbox.findUnique({
+      where: { threadId: args.threadId },
+      select: {
+        userId: true,
+        threadId: true,
+        workspaceRemoteUrl: true,
+        workspaceBranch: true,
+        workspaceCommit: true,
+        workspacePatch: true,
+        workspaceContext: true,
+        workspaceSkills: true,
+        workspaceProjectDirectory: true,
+      },
+    })
     if (row === null) throw new NotFoundException('sandbox not found')
     const spec = workspaceSpecOf(row)
     // workspaceSkills is the outgoing column: a row written between this deploy's PRE_DEPLOY
@@ -261,7 +275,10 @@ export class SandboxesService {
   }
 
   async expose(args: { threadId: string; port: number }): Promise<SandboxExposureDto> {
-    const row = await db.cloudSandbox.findUnique({ where: { threadId: args.threadId } })
+    const row = await db.cloudSandbox.findUnique({
+      where: { threadId: args.threadId },
+      select: { name: true },
+    })
     if (row === null) throw new NotFoundException('sandbox not found')
     try {
       const url = await this.vercel.exposePort({ name: row.name, port: args.port })
@@ -278,17 +295,20 @@ export class SandboxesService {
     return { ...toSandboxDto(row), state: ESandboxState.Parked }
   }
 
-  async verifySessionToken(args: { threadId: string; token: string }): Promise<CloudSandboxModel> {
-    const row = await db.cloudSandbox.findUnique({ where: { threadId: args.threadId } })
+  async verifySessionToken(args: { threadId: string; token: string }): Promise<void> {
+    const row = await db.cloudSandbox.findUnique({
+      where: { threadId: args.threadId },
+      select: { tokenHash: true },
+    })
     if (row === null || !tokenMatches({ token: args.token, tokenHash: row.tokenHash })) {
       throw new UnauthorizedException('a valid sandbox session token is required')
     }
-    return row
   }
 
-  async verifyTokenPrincipal(args: { token: string }): Promise<CloudSandboxModel> {
+  async verifyTokenPrincipal(args: { token: string }): Promise<SandboxPrincipal> {
     const row = await db.cloudSandbox.findFirst({
       where: { tokenHash: hashSessionToken(args.token) },
+      select: { id: true, threadId: true, userId: true },
     })
     if (row === null) throw new UnauthorizedException('a valid sandbox session token is required')
     return row
@@ -350,6 +370,7 @@ export class SandboxesService {
         state: { notIn: [ESandboxState.Parked] },
         lastActivityAt: { lt: quietSince },
       },
+      select: { threadId: true, name: true },
     })
 
     let parked = 0
@@ -369,7 +390,7 @@ export class SandboxesService {
     return parked
   }
 
-  async park(args: { row: CloudSandboxModel; reason: string }): Promise<void> {
+  async park(args: { row: Pick<CloudSandboxModel, 'threadId' | 'name'>; reason: string }): Promise<void> {
     await this.notifyParked(args)
     await this.vercel.stop({ name: args.row.name })
     await db.cloudSandbox.update({
@@ -379,7 +400,10 @@ export class SandboxesService {
   }
 
   /** Best-effort: a sandbox that cannot be reached must still stop, so every failure is swallowed. */
-  private async notifyParked(args: { row: CloudSandboxModel; reason: string }): Promise<void> {
+  private async notifyParked(args: {
+    row: Pick<CloudSandboxModel, 'threadId' | 'name'>
+    reason: string
+  }): Promise<void> {
     try {
       await this.vercel.notifyParked({ name: args.row.name, reason: args.reason })
     } catch (failure) {
@@ -394,7 +418,7 @@ export class SandboxesService {
   }
 
   private async provisionInBackground(args: {
-    row: CloudSandboxModel
+    row: ClaimedSandbox
     token: string
   }): Promise<void> {
     try {
@@ -414,13 +438,14 @@ export class SandboxesService {
     }
   }
 
-  private stamp(args: {
-    row: CloudSandboxModel
+  private async stamp(args: {
+    row: Pick<CloudSandboxModel, 'threadId'>
     placement: { sessionId: string; state: ESandboxState }
-  }): Promise<CloudSandboxModel> {
+  }): Promise<void> {
     const at = nowIso()
-    return db.cloudSandbox.update({
+    await db.cloudSandbox.update({
       where: { threadId: args.row.threadId },
+      select: { threadId: true },
       data: {
         sandboxId: args.placement.sessionId,
         state: args.placement.state,

@@ -1,10 +1,10 @@
 import type { CanActivate, ExecutionContext } from '@nestjs/common'
 import { Injectable, UnauthorizedException } from '@nestjs/common'
 import type { Request } from 'express'
-import type { CloudSandboxModel } from '../../../db'
+import type { SandboxPrincipal } from '../../sandboxes/rows'
 import { SandboxesService } from '../../sandboxes/sandboxes.service'
 
-export type OrchestratorSandboxRequest = Request & { orchestratorSandbox?: CloudSandboxModel }
+export type OrchestratorSandboxRequest = Request & { orchestratorSandbox?: SandboxPrincipal }
 
 const bearerTokenOf = (request: Request): string | undefined => {
   const header = request.headers.authorization

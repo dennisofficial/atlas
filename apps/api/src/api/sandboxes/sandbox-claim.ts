@@ -6,6 +6,12 @@ import { ESandboxState, type SandboxWorkspaceSpec } from './sandboxes.types'
 import { SANDBOX_REGION } from './vercel-sandbox.client'
 import { workspaceColumnsOf, type WorkspaceColumns } from './workspace-spec'
 
+/** The columns provisioning reads back; the blob columns written by the upsert never return. */
+export type ClaimedSandbox = Pick<
+  CloudSandboxModel,
+  'threadId' | 'name' | 'driveName' | 'driveMode' | 'pinnedModel'
+>
+
 export type ClaimUpdate = Partial<WorkspaceColumns> & {
   tokenHash?: string
   sealedToken?: string
@@ -63,7 +69,7 @@ export function claimSandboxRow(args: {
   name?: string | undefined
   drive?: { name: string; mode: string } | undefined
   pinnedModel?: string | undefined
-}): Promise<CloudSandboxModel> {
+}): Promise<ClaimedSandbox> {
   const at = new Date().toISOString()
   const columns: WorkspaceColumns = {
     ...workspaceColumnsOf(args.workspace),
@@ -71,6 +77,13 @@ export function claimSandboxRow(args: {
   }
   return db.cloudSandbox.upsert({
     where: { threadId: args.thread.id },
+    select: {
+      threadId: true,
+      name: true,
+      driveName: true,
+      driveMode: true,
+      pinnedModel: true,
+    },
     create: {
       id: `sbx_${randomUUID()}`,
       threadId: args.thread.id,
