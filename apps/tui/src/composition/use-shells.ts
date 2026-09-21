@@ -33,6 +33,7 @@ export type ShellsControl = {
   fold: SidebarCrewFold
   everywhere: readonly ShellSnapshot[]
   running: number
+  runningEverywhere: number
   now: number
   state: ShellsState | null
   selected: ShellSnapshot | undefined
@@ -106,7 +107,9 @@ function useShellSnapshots(args: {
  */
 /**
  * The scoped list is what a conversation may see and act on; the unscoped one exists for the exit
- * guard alone, because quitting kills every shell in the process whoever started it.
+ * guard alone, because quitting kills every shell in the process whoever started it. The counts
+ * follow the same split: `running` answers what the footer pill opens, `runningEverywhere` what
+ * quitting kills.
  */
 export function useShells({ app, threadId }: { app: AtlasApp; threadId: ThreadId }): ShellsControl {
   const read = useCallback(
@@ -193,7 +196,8 @@ export function useShells({ app, threadId }: { app: AtlasApp; threadId: ThreadId
       folded,
       fold: { hidden: shells.length - folded.length, hiddenFailed: false },
       everywhere,
-      running: runningCount(everywhere),
+      running: runningCount(shells),
+      runningEverywhere: runningCount(everywhere),
       now,
       state,
       selected,

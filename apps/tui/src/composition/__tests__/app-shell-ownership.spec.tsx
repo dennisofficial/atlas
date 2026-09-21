@@ -106,6 +106,31 @@ describe('a background shell belongs to the conversation that started it', () =>
     }
   }, 60_000)
 
+  it('does not count it in the footer pill of a conversation that did not start it', async () => {
+    const app = appWith()
+    await seedOtherThread(app)
+    app.shells.place(running({ shellId: 'bash_1', command: 'bun run dev' }), OTHER)
+    const setup = await opened(app)
+
+    try {
+      expect(setup.captureCharFrame()).not.toContain('1 shell')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('counts it in the footer pill of the conversation that started it', async () => {
+    const app = appWith()
+    app.shells.place(running({ shellId: 'bash_1', command: 'bun run dev' }), THREAD)
+    const setup = await opened(app)
+
+    try {
+      expect(setup.captureCharFrame()).toContain('1 shell')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
   it('still names it on the way out, because quitting kills it whoever started it', async () => {
     const app = appWith()
     await seedOtherThread(app)
