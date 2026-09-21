@@ -1,13 +1,14 @@
 import type { Sandbox } from '@vercel/sandbox'
 import { SERVE_BINARY_SHA256_HEADER } from './serve-binary'
 
-export const SERVE_BINARY_PATH = '/vercel/sandbox/atlas-serve'
+export const SERVE_HOME = '/opt/atlas'
+export const SERVE_BINARY_PATH = `${SERVE_HOME}/atlas-serve`
 export const SERVE_NEXT_BINARY_PATH = `${SERVE_BINARY_PATH}.next`
 export const SERVE_STAMP_PATH = `${SERVE_BINARY_PATH}.stamp`
-export const SERVE_LOG_PATH = '/vercel/sandbox/atlas-serve.log'
-export const SERVE_LOCK_PATH = '/vercel/sandbox/atlas-serve.lock'
-export const SERVE_TOKEN_PATH = '/vercel/sandbox/atlas-serve.token'
-export const SERVE_HEADERS_PATH = '/vercel/sandbox/atlas-serve.headers'
+export const SERVE_LOG_PATH = `${SERVE_HOME}/atlas-serve.log`
+export const SERVE_LOCK_PATH = `${SERVE_HOME}/atlas-serve.lock`
+export const SERVE_TOKEN_PATH = `${SERVE_HOME}/atlas-serve.token`
+export const SERVE_HEADERS_PATH = `${SERVE_HOME}/atlas-serve.headers`
 
 const HEALTH_ATTEMPTS = 90
 const HEALTH_INTERVAL_SECONDS = 2
@@ -52,8 +53,8 @@ const serveHealthy = async (sandbox: Sandbox): Promise<boolean> =>
  * Freshness rides with the install rather than with the binary: a compiled binary's sha256 can
  * never equal the source-hash stamp the image build writes, so "is this install current" is
  * answered by a stamp file written at install time, not by re-hashing 109MB on every attach. A
- * sandbox loses its filesystem on park, so a missing stamp file here reads as stale exactly once
- * and self-heals through the same download path as a genuinely outdated install.
+ * sandbox restores its filesystem from a snapshot on resume, so the stamp survives park/wake and
+ * a missing one means a genuinely fresh or wiped sandbox, not a parked one.
  */
 const installedStamp = async (sandbox: Sandbox): Promise<string> => {
   const read = await sh({
@@ -89,7 +90,7 @@ true`
  * can be verified for integrity before anything is swapped in — see `verifyDownloadedHash` below.
  */
 const downloadBinary = withServeToken(
-  `mkdir -p /vercel/sandbox && ` +
+  `mkdir -p ${SERVE_HOME} && ` +
     `code=$(curl -sS --retry 3 --retry-all-errors --connect-timeout 10 -m 240 ` +
     `-D ${SERVE_HEADERS_PATH} ` +
     `-H "Authorization: Bearer $ATLAS_SERVE_TOKEN" ` +
@@ -136,6 +137,11 @@ export function createServeLauncher(args: {
 }): ServeLauncher {
   return async ({ sandbox, token }) => {
     if (token !== undefined) {
+      await sh({
+        sandbox,
+        script: `mkdir -p ${SERVE_HOME}`,
+        timeoutMs: QUICK_COMMAND_TIMEOUT_MS,
+      })
       await sandbox.writeFiles([{ path: SERVE_TOKEN_PATH, content: token, mode: 0o600 }])
     }
     const stamp = await args.readStamp()

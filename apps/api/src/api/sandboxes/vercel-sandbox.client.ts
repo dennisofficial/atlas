@@ -25,9 +25,12 @@ export const SANDBOX_DRIVE_MAX_BYTES = 50 * 1024 ** 3
 export const SANDBOX_MAX_PORTS = 15
 /**
  * The workspace lives on the sandbox's own filesystem, which `persistent: true` snapshots on stop
- * and restores on resume. The path is told to serve rather than inferred, so both halves agree.
+ * and restores on resume. It sits at the root rather than under the SDK's session cwd
+ * (/vercel/sandbox): that directory's snapshot semantics are undocumented and have flipped on us
+ * once, so Atlas state keeps off it. The path is told to serve rather than inferred, so both
+ * halves agree.
  */
-export const WORKSPACE_PATH = '/vercel/sandbox/workspace'
+export const WORKSPACE_PATH = '/workspace'
 
 const MINUTE_MS = 60_000
 const SANDBOX_LAUNCH_TIMEOUT_MS = 60_000

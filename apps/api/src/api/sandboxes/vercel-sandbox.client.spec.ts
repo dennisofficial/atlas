@@ -157,9 +157,9 @@ vi.mock('./serve-launch', () => {
         launch.launched += 1
       }
     },
-    SERVE_BINARY_PATH: '/vercel/sandbox/atlas-serve',
-    SERVE_LOG_PATH: '/vercel/sandbox/atlas-serve.log',
-    SERVE_TOKEN_PATH: '/vercel/sandbox/atlas-serve.token',
+    SERVE_BINARY_PATH: '/opt/atlas/atlas-serve',
+    SERVE_LOG_PATH: '/opt/atlas/atlas-serve.log',
+    SERVE_TOKEN_PATH: '/opt/atlas/atlas-serve.token',
   }
 })
 
@@ -535,7 +535,7 @@ describe('VercelSandboxClient', () => {
       timeoutMs: number
     }
     expect(call.cmd).toBe('sh')
-    expect(call.args[1]).toContain('/vercel/sandbox/atlas-serve.token')
+    expect(call.args[1]).toContain('/opt/atlas/atlas-serve.token')
     expect(call.args[1]).toContain(`http://localhost:${SANDBOX_SERVE_PORT}/v1/park`)
     expect(call.args[1]).toContain('$ATLAS_PARK_REASON')
     expect(call.env).toEqual({

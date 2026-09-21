@@ -12,7 +12,7 @@ import {
 import type { WorkspaceFiles } from '../workspace-files'
 import type { WorkspaceSpec } from '../workspace-spec'
 
-const CWD = '/vercel/sandbox/workspace'
+const CWD = '/workspace'
 
 const TOKEN = 'gho_secret-token'
 
