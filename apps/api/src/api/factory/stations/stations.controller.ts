@@ -1,6 +1,6 @@
 import { Body, Controller, Param, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common'
 import { SkipThrottle } from '@nestjs/throttler'
-import type { CloudSandboxModel } from '../../../db'
+import type { SandboxPrincipal } from '../../sandboxes/rows'
 import {
   OrchestratorSandboxGuard,
   type OrchestratorSandboxRequest,
@@ -16,7 +16,7 @@ import { StationTokensService } from './station-tokens.service'
 import { StationsService } from './stations.service'
 import type { StationGitToken, StationResultAccepted, StationSpawnResult } from './station.types'
 
-const callerOf = (request: OrchestratorSandboxRequest): CloudSandboxModel => {
+const callerOf = (request: OrchestratorSandboxRequest): SandboxPrincipal => {
   const sandbox = request.orchestratorSandbox
   if (sandbox === undefined) throw new UnauthorizedException('a sandbox session token is required')
   return sandbox
