@@ -9,11 +9,13 @@ import {
 
 import type { AgentRegistryPort } from '../agents/registry/port'
 import type { ServiceSnapshot } from '../services/service-process'
-import type { ServiceRegistryPort } from '../services/service-registry'
+import { STOP_SETTLE_MS, type ServiceRegistryPort } from '../services/service-registry'
 
 export type RelocatedSession = {
   stoppedServices: readonly ServiceSnapshot[]
   relocatedAgents: readonly ThreadId[]
+  /** Services that had not recorded their exit within the settle bound; their endings arrive later. */
+  stillStopping: number
 }
 
 export async function relocateSession({
@@ -49,7 +51,9 @@ export async function relocateSession({
       return stopped.ok ? [stopped.snapshot] : []
     })
 
+  const endingsSettled = services.awaitEndings({ ms: STOP_SETTLE_MS })
   const relocatedAgents = await agents.relocateChildren({ threadId, location, caller })
+  const stillStopping = await endingsSettled
 
-  return { stoppedServices, relocatedAgents }
+  return { stoppedServices, relocatedAgents, stillStopping }
 }
