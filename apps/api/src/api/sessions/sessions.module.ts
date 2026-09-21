@@ -19,6 +19,6 @@ import { TurnsService } from './turns.service'
     TurnsService,
     SessionOrSandboxGuard,
   ],
-  exports: [SessionOrSandboxGuard, SandboxesModule],
+  exports: [SessionOrSandboxGuard, SandboxesModule, ThreadsService],
 })
 export class SessionsModule {}

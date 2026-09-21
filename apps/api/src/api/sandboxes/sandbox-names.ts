@@ -9,3 +9,9 @@ const digestOf = (value: string): string =>
 export function sandboxNameFor(args: { threadId: string }): string {
   return `${SANDBOX_NAME_PREFIX}-${digestOf(args.threadId)}`
 }
+
+const FACTORY_NAME_PREFIX = 'factory'
+
+export function factorySandboxNameFor(args: { workItemId: string }): string {
+  return `${FACTORY_NAME_PREFIX}-${args.workItemId.replaceAll('_', '-')}`
+}

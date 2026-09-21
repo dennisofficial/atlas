@@ -20,6 +20,7 @@ import {
   type FakeThreadRow,
 } from '../../../test/fake-session-db.js'
 import type { EnvService } from '../../_core/config/env/env.service'
+import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import type { GithubService } from '../github/github.service'
 import { SandboxesService } from './sandboxes.service'
 import { ESandboxState } from './sandboxes.types'
@@ -82,6 +83,7 @@ const sandboxRow = (
   workspaceSkills: null,
   workspaceContext: null,
   workspaceProjectDirectory: null,
+  sealedToken: null,
   createdAt: '2026-09-16T00:00:00.000Z',
   updatedAt: '2026-09-16T00:00:00.000Z',
   ...partial,
@@ -102,6 +104,10 @@ const ENV: Record<string, number> = {
 }
 const env = { get: (key: string) => ENV[key] } as unknown as EnvService
 
+const cipher = new SecretCipherService({
+  get: (key: string) => (key === 'SECRETS_ENCRYPTION_KEY' ? '0'.repeat(64) : undefined),
+} as unknown as EnvService)
+
 const stubGithub = () => ({ findToken: vi.fn(async () => 'gho_user-token') })
 
 const stubClient = () => ({
@@ -111,7 +117,9 @@ const stubClient = () => ({
     state: ESandboxState.Running,
   })),
   destroy: vi.fn(async () => undefined),
-  inspect: vi.fn(async () => ({ state: ESandboxState.Parked })),
+  inspect: vi.fn(async (): Promise<{ state: ESandboxState; url?: string }> => ({
+    state: ESandboxState.Parked,
+  })),
   stop: vi.fn(async () => undefined),
   extendTimeout: vi.fn(async () => undefined),
   exposePort: vi.fn(async (args: { name: string; port: number }) => `https://atlas-${args.port}.vercel.run`),
@@ -132,6 +140,7 @@ describe('SandboxesService', () => {
       client as unknown as VercelSandboxClient,
       env,
       github as unknown as GithubService,
+      cipher,
     )
   })
 
@@ -167,6 +176,98 @@ describe('SandboxesService', () => {
     expect(second.token).toBeDefined()
     expect(second.token).not.toBe(first.token)
     expect(fake.cloudSandboxes).toHaveLength(1)
+  })
+
+  it('an attach with a caller-supplied name claims and provisions under that name', async () => {
+    const attached = await service.attach({ userId: USER_A, threadId: THREAD, name: 'factory-fwi-1' })
+    await service.whenSettled({ threadId: THREAD })
+
+    expect(attached.name).toBe('factory-fwi-1')
+    expect(fake.cloudSandboxes[0]?.name).toBe('factory-fwi-1')
+    expect(client.getOrCreate).toHaveBeenCalledWith({
+      name: 'factory-fwi-1',
+      threadId: THREAD,
+      token: attached.token,
+    })
+  })
+
+  it('an attach without a name keeps the name the row was claimed under', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD, name: 'factory-fwi-1' })
+    await service.whenSettled({ threadId: THREAD })
+
+    const second = await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+
+    expect(second.name).toBe('factory-fwi-1')
+    expect(client.getOrCreate).toHaveBeenNthCalledWith(2, {
+      name: 'factory-fwi-1',
+      threadId: THREAD,
+      token: second.token,
+    })
+  })
+
+  it('attach seals the session token onto the row', async () => {
+    const attached = await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+
+    const sealed = fake.cloudSandboxes[0]?.sealedToken
+    expect(sealed).toBeTruthy()
+    expect(cipher.decrypt(sealed as string)).toBe(attached.token)
+  })
+
+  it('runningEndpoint reaches a live serve with its sealed token, without rotating it', async () => {
+    const attached = await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+    client.inspect.mockResolvedValue({
+      state: ESandboxState.Running,
+      url: 'https://atlas-3000.vercel.run',
+    })
+
+    const endpoint = await service.runningEndpoint({ userId: USER_A, threadId: THREAD })
+
+    expect(endpoint).toEqual({ token: attached.token, url: 'https://atlas-3000.vercel.run' })
+    expect(client.getOrCreate).toHaveBeenCalledTimes(1)
+  })
+
+  it('runningEndpoint stands down when the sandbox is not running, unclaimed, or owned by another user', async () => {
+    expect(await service.runningEndpoint({ userId: USER_A, threadId: THREAD })).toBeNull()
+
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+    client.inspect.mockResolvedValue({ state: ESandboxState.Parked })
+
+    expect(await service.runningEndpoint({ userId: USER_A, threadId: THREAD })).toBeNull()
+
+    client.inspect.mockResolvedValue({
+      state: ESandboxState.Running,
+      url: 'https://atlas-3000.vercel.run',
+    })
+    expect(await service.runningEndpoint({ userId: USER_B, threadId: THREAD })).toBeNull()
+  })
+
+  it('runningEndpoint stands down when the sealed token does not decrypt, so an attach re-seals it', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+    const row = fake.cloudSandboxes[0]
+    if (row === undefined) throw new Error('expected a claimed row')
+    row.sealedToken = 'not-a-valid-blob'
+    client.inspect.mockResolvedValue({
+      state: ESandboxState.Running,
+      url: 'https://atlas-3000.vercel.run',
+    })
+
+    expect(await service.runningEndpoint({ userId: USER_A, threadId: THREAD })).toBeNull()
+  })
+
+  it('park clears the sealed token', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+    expect(fake.cloudSandboxes[0]?.sealedToken).toBeTruthy()
+
+    await service.stop({ userId: USER_A, threadId: THREAD })
+
+    expect(fake.cloudSandboxes[0]?.sealedToken).toBeNull()
+    expect(fake.cloudSandboxes[0]?.state).toBe(ESandboxState.Parked)
   })
 
   it('resolves promptly with a resuming state and no url while the provision is still in flight', async () => {

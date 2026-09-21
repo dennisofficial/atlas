@@ -9,6 +9,7 @@ vi.mock('../../db', async () => {
 import { fakeFactoryDb } from '../../../test/fake-factory-db.js'
 import { EFactoryEventKind, EFactoryWorkItemStatus } from './factory.types'
 import { GithubWebhookService } from './github-webhook.service'
+import type { OrchestratorService } from './orchestrator/orchestrator.service'
 import { TranscriptService } from './transcript.service'
 import { WorkItemsService } from './work-items.service'
 
@@ -47,11 +48,17 @@ describe('GithubWebhookService', () => {
   const fake = fakeFactoryDb()
   let service: GithubWebhookService
   let workItems: WorkItemsService
+  let orchestrator: { wake: ReturnType<typeof vi.fn> }
 
   beforeEach(() => {
     fake.reset()
     workItems = new WorkItemsService()
-    service = new GithubWebhookService(workItems, new TranscriptService())
+    orchestrator = { wake: vi.fn() }
+    service = new GithubWebhookService(
+      workItems,
+      new TranscriptService(),
+      orchestrator as unknown as OrchestratorService,
+    )
   })
 
   it('acknowledges ping without storing anything', async () => {
@@ -270,5 +277,34 @@ describe('GithubWebhookService', () => {
     const outcome = await service.handle({ event: 'star', deliveryId: 'd-1', payload: {} })
 
     expect(outcome).toEqual({ handled: false })
+  })
+
+  it('an appended event wakes the orchestrator for that work item', async () => {
+    const outcome = await service.handle({
+      event: 'issues',
+      deliveryId: 'd-1',
+      payload: issuesLabeledPayload(),
+    })
+
+    expect(orchestrator.wake).toHaveBeenCalledTimes(1)
+    const wakeArgs = orchestrator.wake.mock.calls[0]?.[0] as {
+      workItemId: string
+      externalId: string
+    }
+    expect(wakeArgs.workItemId).toBe(outcome.workItemId)
+    expect(wakeArgs.externalId).toBe(`${REPO}#341`)
+  })
+
+  it('a deduplicated redelivery does not wake the orchestrator again', async () => {
+    await service.handle({ event: 'issues', deliveryId: 'd-1', payload: issuesLabeledPayload() })
+    await service.handle({ event: 'issues', deliveryId: 'd-1', payload: issuesLabeledPayload() })
+
+    expect(orchestrator.wake).toHaveBeenCalledTimes(1)
+  })
+
+  it('an event on an untracked surface does not wake the orchestrator', async () => {
+    await service.handle({ event: 'issue_comment', deliveryId: 'd-1', payload: issueCommentPayload() })
+
+    expect(orchestrator.wake).not.toHaveBeenCalled()
   })
 })

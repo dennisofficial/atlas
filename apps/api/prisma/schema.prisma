@@ -116,6 +116,7 @@ model CloudSandbox {
   state          String
   lastActivityAt String
   tokenHash      String
+  sealedToken    String?
   workspaceRemoteUrl String?
   workspaceBranch    String?
   workspaceCommit    String?
@@ -133,13 +134,14 @@ model CloudSandbox {
 }
 
 model FactoryWorkItem {
-  id                   String   @id
-  repo                 String
-  sourceKind           String
-  status               String
-  orchestratorThreadId String?
-  driveName            String?
-  revisionCycles       Int      @default(0)
+  id                           String   @id
+  repo                         String
+  sourceKind                   String
+  status                       String
+  orchestratorThreadId         String?
+  orchestratorDeliveredEventId String?
+  driveName                    String?
+  revisionCycles               Int      @default(0)
   lastActivityAt       String
   createdAt            String
   updatedAt            String
@@ -164,6 +166,7 @@ model FactorySurfaceAlias {
 
 model FactoryTranscriptEvent {
   id                String   @id
+  seq               BigInt   @default(autoincrement())
   workItemId        String
   surface           String
   deliveryId        String
@@ -175,7 +178,7 @@ model FactoryTranscriptEvent {
   workItem          FactoryWorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
 
   @@unique([surface, deliveryId])
-  @@index([workItemId, receivedAt])
+  @@index([workItemId, seq])
 }
 
 model AgentAccount {

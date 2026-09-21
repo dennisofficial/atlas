@@ -140,8 +140,30 @@ export class WorkItemsService {
     return toAliasDto(row)
   }
 
-  async attachOrchestrator(args: { workItemId: string; threadId: string }): Promise<void> {
-    await this.touch({ workItemId: args.workItemId, data: { orchestratorThreadId: args.threadId } })
+  /**
+   * Two deliveries racing a first wake would each create a thread; only the first claim wins, and
+   * the loser adopts the winner's thread so the work item keeps exactly one orchestrator.
+   */
+  async claimOrchestrator(args: {
+    workItemId: string
+    threadId: string
+  }): Promise<{ threadId: string; claimed: boolean }> {
+    const at = nowIso()
+    const claimed = await db.factoryWorkItem.updateMany({
+      where: { id: args.workItemId, orchestratorThreadId: null },
+      data: { orchestratorThreadId: args.threadId, lastActivityAt: at, updatedAt: at },
+    })
+    if (claimed.count === 1) return { threadId: args.threadId, claimed: true }
+    const row = await db.factoryWorkItem.findUnique({ where: { id: args.workItemId } })
+    if (row?.orchestratorThreadId == null) throw inconsistentStore('work item')
+    return { threadId: row.orchestratorThreadId, claimed: false }
+  }
+
+  async markOrchestratorDelivered(args: { workItemId: string; eventId: string }): Promise<void> {
+    await this.touch({
+      workItemId: args.workItemId,
+      data: { orchestratorDeliveredEventId: args.eventId },
+    })
   }
 
   async attachDrive(args: { workItemId: string; driveName: string }): Promise<void> {

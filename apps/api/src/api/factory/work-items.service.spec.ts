@@ -190,10 +190,11 @@ describe('WorkItemsService', () => {
     ).rejects.toBeInstanceOf(NotFoundException)
   })
 
-  it('attachOrchestrator, attachDrive, transition and countRevision write their fields', async () => {
+  it('claimOrchestrator, markOrchestratorDelivered, attachDrive, transition and countRevision write their fields', async () => {
     const { workItem } = await service.intake(INTAKE)
 
-    await service.attachOrchestrator({ workItemId: workItem.id, threadId: 'brn_orch' })
+    const claim = await service.claimOrchestrator({ workItemId: workItem.id, threadId: 'brn_orch' })
+    await service.markOrchestratorDelivered({ workItemId: workItem.id, eventId: 'fev_1' })
     await service.attachDrive({ workItemId: workItem.id, driveName: 'factory-compai-atlas-341' })
     await service.countRevision({ workItemId: workItem.id })
     const moved = await service.transition({
@@ -201,13 +202,26 @@ describe('WorkItemsService', () => {
       status: EFactoryWorkItemStatus.Active,
     })
 
+    expect(claim).toEqual({ threadId: 'brn_orch', claimed: true })
     const found = await service.find({ workItemId: workItem.id })
     expect(found).toMatchObject({
       orchestratorThreadId: 'brn_orch',
+      orchestratorDeliveredEventId: 'fev_1',
       driveName: 'factory-compai-atlas-341',
       revisionCycles: 1,
       status: EFactoryWorkItemStatus.Active,
     })
     expect(Date.parse(moved.lastActivityAt)).toBeGreaterThanOrEqual(Date.parse(workItem.lastActivityAt))
+  })
+
+  it('a second claimOrchestrator loses the race and adopts the winner', async () => {
+    const { workItem } = await service.intake(INTAKE)
+
+    const first = await service.claimOrchestrator({ workItemId: workItem.id, threadId: 'brn_a' })
+    const second = await service.claimOrchestrator({ workItemId: workItem.id, threadId: 'brn_b' })
+
+    expect(first).toEqual({ threadId: 'brn_a', claimed: true })
+    expect(second).toEqual({ threadId: 'brn_a', claimed: false })
+    expect((await service.find({ workItemId: workItem.id })).orchestratorThreadId).toBe('brn_a')
   })
 })
