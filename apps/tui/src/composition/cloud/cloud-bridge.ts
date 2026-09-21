@@ -27,7 +27,7 @@ export type CloudSandboxes = {
   create(args: {
     threadId: ThreadId
     workspace: LiftedWorkspace | null
-    skillsBundle?: string | undefined
+    contextBundle?: string | undefined
   }): Promise<CloudSandbox>
   find(args: { threadId: ThreadId }): Promise<CloudSandboxStatus | undefined>
 }

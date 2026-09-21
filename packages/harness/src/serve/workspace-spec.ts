@@ -14,7 +14,9 @@ export const wireWorkspaceSpecSchema = z.object({
   commit: z.string().nullable(),
   patch: z.string(),
   githubToken: z.string().nullable(),
-  skillsBundle: z.string().nullish(),
+  contextBundle: z.string().nullish(),
+  /** The Mac-side project directory the thread was lifted from, absent on an older control plane. */
+  projectDirectory: z.string().nullish(),
 })
 
 export type WorkspaceSpec = z.infer<typeof wireWorkspaceSpecSchema>

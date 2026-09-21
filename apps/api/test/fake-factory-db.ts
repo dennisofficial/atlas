@@ -1,20 +1,14 @@
-import { Prisma } from '../src/generated/prisma/client'
-import { applyUpdate, matchesValue, project, sortRows, type Where } from './fake-db-support'
+import { createFakeAccountTables } from './fake-accounts-db'
+import {
+  applyUpdate,
+  matchesValue,
+  project,
+  sortRows,
+  uniqueViolation,
+  type Where,
+} from './fake-db-support'
 
-export const uniqueViolation = (target: readonly string[]): Prisma.PrismaClientKnownRequestError =>
-  new Prisma.PrismaClientKnownRequestError(
-    `Unique constraint failed on the fields: (${target.map((field) => `\`${field}\``).join(',')})`,
-    {
-      code: 'P2002',
-      clientVersion: Prisma.prismaVersion.client,
-      meta: {
-        driverAdapterError: {
-          name: 'DriverAdapterError',
-          cause: { kind: 'UniqueConstraintViolation', constraint: { fields: [...target] } },
-        },
-      },
-    },
-  )
+export { uniqueViolation } from './fake-db-support'
 
 export type FakeWorkItemRow = {
   id: string
@@ -83,11 +77,16 @@ export function createFakeFactoryDb() {
   const aliases: FakeAliasRow[] = []
   const transcriptEvents: FakeTranscriptEventRow[] = []
   const users: FakeUserRow[] = []
+  const accounts = createFakeAccountTables()
   const threads: FakeOrchestratorThreadRow[] = []
   const events: FakeOrchestratorEventRow[] = []
 
   const db = {
     factoryWorkItem: {
+      findFirst: async (args: { where: Where; select?: Record<string, boolean> }) => {
+        const found = workItems.find((one) => matchesRow(one, args.where)) ?? null
+        return found === null ? null : project(found, args.select)
+      },
       create: async (args: { data: Where }) => {
         if (workItems.some((one) => one.id === args.data.id)) throw uniqueViolation(['id'])
         const row: FakeWorkItemRow = {
@@ -166,6 +165,10 @@ export function createFakeFactoryDb() {
         )
         return args.orderBy === undefined ? matched : sortRows(matched, args.orderBy)
       },
+      count: async (args: { where?: Where }) =>
+        transcriptEvents.filter(
+          (one) => args.where === undefined || matchesRow(one, args.where),
+        ).length,
     },
     user: {
       upsert: async (args: {
@@ -179,6 +182,7 @@ export function createFakeFactoryDb() {
         return args.create
       },
     },
+    ...accounts.db,
     thread: {
       delete: async (args: { where: { id: string } }) => {
         const index = threads.findIndex((one) => one.id === args.where.id)
@@ -227,6 +231,8 @@ export function createFakeFactoryDb() {
     aliases,
     transcriptEvents,
     users,
+    agentAccounts: accounts.agentAccounts,
+    activeAccounts: accounts.activeAccounts,
     threads,
     events,
     reset: () => {
@@ -234,6 +240,7 @@ export function createFakeFactoryDb() {
       aliases.length = 0
       transcriptEvents.length = 0
       users.length = 0
+      accounts.reset()
       threads.length = 0
       events.length = 0
     },

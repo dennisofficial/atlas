@@ -12,6 +12,7 @@ import type { ThreadsService } from '../../sessions/threads.service'
 import { EFactoryEventKind } from '../factory.types'
 import { TranscriptService } from '../transcript.service'
 import { WorkItemsService } from '../work-items.service'
+import type { FactoryCredentialService } from './factory-credentials'
 import { FACTORY_USER_EMAIL, FactoryIdentityService } from './factory-identity'
 import type { OrchestratorChannel } from './orchestrator-channel'
 import { OrchestratorService } from './orchestrator.service'
@@ -41,6 +42,7 @@ describe('OrchestratorService', () => {
     status: ReturnType<typeof vi.fn>
   }
   let channel: { inject: ReturnType<typeof vi.fn> }
+  let credentials: { ensureSeeded: ReturnType<typeof vi.fn> }
   let service: OrchestratorService
   let eventSeq: number
 
@@ -100,6 +102,7 @@ describe('OrchestratorService', () => {
         url: 'https://factory-x-3000.vercel.run',
       })),
     }
+    credentials = { ensureSeeded: vi.fn(async () => undefined) }
     channel = {
       inject: vi.fn(async (args: InjectCall & { threadId: string }) => {
         fake.events.push({
@@ -118,6 +121,7 @@ describe('OrchestratorService', () => {
       threads as unknown as ThreadsService,
       sandboxes as unknown as SandboxesService,
       identity,
+      credentials as unknown as FactoryCredentialService,
       channel as OrchestratorChannel,
     )
   })
@@ -204,6 +208,42 @@ describe('OrchestratorService', () => {
     expect(text).toContain(`[factory event] ${event?.id ?? ''}`)
     const updated = await workItems.find({ workItemId: workItem.id })
     expect(updated.orchestratorDeliveredEventId).toBe(event?.id ?? '')
+  })
+
+  it('a wake seeds the factory model credentials before provisioning', async () => {
+    const { workItem } = await workItems.intake(INTAKE)
+    await appendEvent(workItem.id, 'seeded')
+    await wake(workItem.id)
+
+    expect(credentials.ensureSeeded).toHaveBeenCalledWith({ userId: fake.users[0]?.id })
+    expect(sandboxes.attach).toHaveBeenCalledTimes(1)
+  })
+
+  it('reply events the orchestrator caused are never delivered back to it', async () => {
+    const { workItem } = await workItems.intake(INTAKE)
+    await appendEvent(workItem.id, 'first')
+    await wake(workItem.id)
+
+    const transcriptService = transcript
+    await transcriptService.append({
+      surface: 'github',
+      externalId: INTAKE.externalId,
+      deliveryId: 'reply:self-1',
+      kind: EFactoryEventKind.Reply,
+      author: 'atlas-factory',
+      payload: '{"body":"triage"}',
+    })
+
+    sandboxes.runningEndpoint.mockResolvedValue(LIVE_ENDPOINT)
+    await wake(workItem.id)
+    expect(channel.inject).toHaveBeenCalledTimes(1)
+
+    await appendEvent(workItem.id, 'second')
+    await wake(workItem.id)
+    const texts = injectedTexts()
+    expect(texts).toHaveLength(2)
+    expect(texts[1]).toContain('{"marker":"second"}')
+    expect(texts.some((text) => text.includes('reply:self-1'))).toBe(false)
   })
 
   it('one wake drains every pending event in order', async () => {

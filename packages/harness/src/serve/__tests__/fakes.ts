@@ -96,6 +96,8 @@ export function fakeServeApp(args: {
 
     whenChildrenSettled: () => (args.whenChildrenSettled ?? (async () => undefined))(),
 
+    syncMemoryAfterTurn: async () => undefined,
+
     close: async () => {
       closed = true
     },

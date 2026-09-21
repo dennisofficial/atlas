@@ -1,22 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import type { LinkedPullRequest } from '@dltech/atlas-core'
+import {
+  checkoutKey,
+  EPullRequestLookup,
+  probeCheckout,
+  pullRequestBadge,
+  pullRequestEntries,
+  type PullRequestBadge,
+  type PullRequestEntry,
+  type PullRequestService,
+  type RepositoryCheckout,
+} from '@dltech/atlas-harness'
 
 import { useShimmerClock } from '../../ui/hooks/use-shimmer-clock'
 import type { SidebarRowSplit } from '../../ui/sidebar-section'
 import { SPINNER_FRAME_MS, theme } from '../../ui/theme'
 import { ESidebarPlace, type SidebarSection, type SidebarSectionRow } from '../surface'
-import { probeCheckout } from './checkout-probe'
-import { pullRequestEntries, type PullRequestEntry } from './pull-request-entries'
-import {
-  checkoutKey,
-  EPullRequestLookup,
-  pullRequestBadge,
-  type PullRequestBadge,
-  type RepositoryCheckout,
-} from './pure'
 import { pullRequestRow } from './pull-request-row'
-import type { PullRequestService } from './pull-request-service'
 
 export type FooterPullRequest = {
   badge: PullRequestBadge | null

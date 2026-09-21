@@ -47,6 +47,7 @@ describe('the git identity a lift sends with the sandbox', () => {
       branch: 'dennis/container-cloud',
       commit: HEAD_SHA,
       patch: '',
+      projectDirectory: '/work',
     })
   })
 

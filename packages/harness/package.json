@@ -11,6 +11,7 @@
     "test": "bun run db:ensure && bun test",
     "build:serve": "bun scripts/build-serve.ts",
     "generate:catalogue": "bun scripts/generate-catalogue.ts",
+    "plugins:generate": "bun scripts/generate-plugins.ts",
     "db:generate": "prisma generate",
     "db:ensure": "bun prisma/ensure-client.ts && bun prisma/embed-migrations.ts",
     "db:migrate": "prisma migrate dev"

@@ -12,7 +12,7 @@ import {
   PullRequestPort,
   type PullRequestReading,
   type RepositoryCheckout,
-} from '../../plugins/github/pure'
+} from '@dltech/atlas-harness'
 import { threadChips } from '../thread-chips'
 
 const HOME = '/repo'

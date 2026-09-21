@@ -11,7 +11,7 @@ import { composeServeApp } from './compose-serve'
 import { DEFAULT_DRAIN_DEADLINE_MS, withDeadline } from './drain-deadline'
 import { createFrameBuffer, DEFAULT_FRAME_BUFFER, type SignalFrame } from './frame-buffer'
 import { createHeartbeat, type Heartbeat } from './heartbeat'
-import { materializeSkills } from './materialize-skills'
+import { materializeContext } from './materialize-context'
 import {
   ensureWorkspace as materializeWorkspace,
   EWorkspaceState,
@@ -142,13 +142,17 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     log({ event: EServeEvent.WorkspaceReady, state: workspace.state, cwd, ms: workspaceMs })
   }
 
-  const skillsStartedAt = Date.now()
-  const skills = await materializeSkills({ fetchSpec: fetchSpecOnce, atlasHome: atlasDirectory() })
-  const skillsMs = Date.now() - skillsStartedAt
-  if (skills.failed !== null) {
-    log({ event: EServeEvent.SkillsFailed, reason: skills.failed, ms: skillsMs })
-  } else if (skills.written > 0) {
-    log({ event: EServeEvent.SkillsReady, written: skills.written, ms: skillsMs })
+  const contextStartedAt = Date.now()
+  const context = await materializeContext({
+    fetchSpec: fetchSpecOnce,
+    atlasHome: atlasDirectory(),
+    cwd,
+  })
+  const contextMs = Date.now() - contextStartedAt
+  if (context.failed !== null) {
+    log({ event: EServeEvent.ContextFailed, reason: context.failed, ms: contextMs })
+  } else if (context.written > 0) {
+    log({ event: EServeEvent.ContextReady, written: context.written, ms: contextMs })
   }
 
   const app = await (args.compose ?? composeServeApp)({
@@ -160,6 +164,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     env,
     model: args.model,
     notice,
+    projectDirectory: context.projectDirectory,
   })
 
   const buffer = createFrameBuffer({ capacity: args.bufferSize ?? DEFAULT_FRAME_BUFFER })
@@ -190,6 +195,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     onTurnEnded: () => {
       heartbeat.turnEnded()
       app.files.forget()
+      void app.syncMemoryAfterTurn().catch(() => undefined)
     },
     onOutcome: (outcome) => {
       log({ event: EServeEvent.TurnEnded, status: outcome.status })

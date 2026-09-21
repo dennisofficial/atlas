@@ -15,6 +15,8 @@ import {
 } from '@dltech/atlas-core'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
+import { publishProjections } from '@dltech/atlas-harness'
+
 import {
   pendingRows,
   type EThinkingVisibility,
@@ -25,7 +27,6 @@ import {
 } from '../store'
 import type { Compacting } from '../ui/components/compacting'
 import type { TurnClock } from '../ui/turn-clock'
-import { publishProjections } from '../plugins/projection'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { createAwakeClock } from './awake-clock'
 import { droppedNotice, type QueuedSettled } from './commands'

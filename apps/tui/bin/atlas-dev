@@ -31,9 +31,9 @@ quietly() {
 generate() {
   if [ "${ATLAS_DEV_SKIP_GENERATE:-}" = "" ]; then
     quietly bun run --filter @dltech/atlas-harness db:ensure
+    quietly bun run --filter @dltech/atlas-harness plugins:generate
     quietly bun scripts/generate-manifest.ts
     quietly bun scripts/generate-skills.ts
-    quietly bun scripts/generate-plugins.ts
   fi
 }
 

@@ -167,10 +167,10 @@ await threads.createWithFirstEvents({
 log(`thread transferred up: ${threadId}`)
 
 const tokenHash = createHash('sha256').update(SANDBOX_TOKEN).digest('hex')
-const skillsBundle = JSON.stringify({
+const contextBundle = JSON.stringify({
   '.atlas/skills/e2e-skill/SKILL.md': Buffer.from('# e2e skill').toString('base64'),
 })
-const sql = `INSERT INTO "CloudSandbox" (id, "threadId", "userId", "sandboxId", name, region, state, "lastActivityAt", "tokenHash", "workspaceSkills", "createdAt", "updatedAt") VALUES ('sbx_e2e_${Date.now()}', '${threadId}', '${userId}', 'vsbx_e2e', 'atlas-thread-e2e', 'iad1', 'running', now(), '${tokenHash}', '${skillsBundle}', now(), now()) ON CONFLICT ("threadId") DO UPDATE SET "tokenHash" = EXCLUDED."tokenHash", state = 'running', "lastActivityAt" = now(), "workspaceSkills" = EXCLUDED."workspaceSkills"`
+const sql = `INSERT INTO "CloudSandbox" (id, "threadId", "userId", "sandboxId", name, region, state, "lastActivityAt", "tokenHash", "workspaceContext", "createdAt", "updatedAt") VALUES ('sbx_e2e_${Date.now()}', '${threadId}', '${userId}', 'vsbx_e2e', 'atlas-thread-e2e', 'iad1', 'running', now(), '${tokenHash}', '${contextBundle}', now(), now()) ON CONFLICT ("threadId") DO UPDATE SET "tokenHash" = EXCLUDED."tokenHash", state = 'running', "lastActivityAt" = now(), "workspaceContext" = EXCLUDED."workspaceContext"`
 const insert = Bun.spawnSync([
   'docker',
   'exec',

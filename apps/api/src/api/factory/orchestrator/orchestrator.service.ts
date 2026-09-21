@@ -3,9 +3,10 @@ import { db } from '../../../db'
 import { factorySandboxNameFor } from '../../sandboxes/sandbox-names'
 import { SandboxesService } from '../../sandboxes/sandboxes.service'
 import { ThreadsService } from '../../sessions/threads.service'
-import type { TranscriptEventDto, WorkItemDto } from '../factory.types'
+import { EFactoryEventKind, type TranscriptEventDto, type WorkItemDto } from '../factory.types'
 import { TranscriptService } from '../transcript.service'
 import { WorkItemsService } from '../work-items.service'
+import { FactoryCredentialService } from './factory-credentials'
 import { FactoryIdentityService } from './factory-identity'
 import { ORCHESTRATOR_CHANNEL, type OrchestratorChannel } from './orchestrator-channel'
 import { orchestratorInstructions, wakeMessageFor } from './orchestrator-prompt'
@@ -26,6 +27,7 @@ export class OrchestratorService {
     private readonly threads: ThreadsService,
     private readonly sandboxes: SandboxesService,
     private readonly identity: FactoryIdentityService,
+    private readonly credentials: FactoryCredentialService,
     @Inject(ORCHESTRATOR_CHANNEL) private readonly channel: OrchestratorChannel,
   ) {}
 
@@ -57,6 +59,7 @@ export class OrchestratorService {
     if (pending.length === 0) return
 
     const userId = await this.identity.userId()
+    await this.credentials.ensureSeeded({ userId })
     const threadId = await this.ensureThread({ item, externalId: args.externalId, userId })
     const fresh = item.orchestratorDeliveredEventId === null
     let endpoint: OrchestratorEndpoint | null = await this.sandboxes.runningEndpoint({
@@ -81,8 +84,14 @@ export class OrchestratorService {
     }
   }
 
+  /**
+   * Reply events record what the orchestrator itself posted; feeding them back would be its own
+   * words arriving as news. The webhook echo never reaches the transcript — ingress drops it.
+   */
   private async pendingEvents(item: WorkItemDto): Promise<TranscriptEventDto[]> {
-    const events = await this.transcript.list({ workItemId: item.id })
+    const events = (await this.transcript.list({ workItemId: item.id })).filter(
+      (event) => event.kind !== EFactoryEventKind.Reply,
+    )
     const watermark = item.orchestratorDeliveredEventId
     if (watermark === null) return events
     const index = events.findIndex((event) => event.id === watermark)

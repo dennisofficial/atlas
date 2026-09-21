@@ -1,4 +1,21 @@
+import { Prisma } from '../src/generated/prisma/client'
+
 export type Where = Record<string, unknown>
+
+export const uniqueViolation = (target: readonly string[]): Prisma.PrismaClientKnownRequestError =>
+  new Prisma.PrismaClientKnownRequestError(
+    `Unique constraint failed on the fields: (${target.map((field) => `\`${field}\``).join(',')})`,
+    {
+      code: 'P2002',
+      clientVersion: Prisma.prismaVersion.client,
+      meta: {
+        driverAdapterError: {
+          name: 'DriverAdapterError',
+          cause: { kind: 'UniqueConstraintViolation', constraint: { fields: [...target] } },
+        },
+      },
+    },
+  )
 
 export const matchesValue = (value: unknown, condition: unknown): boolean => {
   if (typeof condition === 'object' && condition !== null) {

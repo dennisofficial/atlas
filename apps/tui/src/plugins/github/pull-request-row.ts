@@ -1,9 +1,10 @@
+import { pullRequestBadge, type PullRequest } from '@dltech/atlas-harness'
+
 import type { Span } from '../../ui/components/spans'
 import { cellsOf } from '../../ui/hint-layout'
 import type { SidebarRowSplit } from '../../ui/sidebar-section'
 import { spinnerFrame, theme } from '../../ui/theme'
 import { pullRequestStatusColor } from './pull-request-pill'
-import { pullRequestBadge, type PullRequest } from './pure'
 
 const PASSED = '✓'
 

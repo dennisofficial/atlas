@@ -32,8 +32,8 @@ import {
   type SandboxObservation,
 } from './vercel-sandbox.client'
 import {
+  assertContextBundleWithinLimit,
   assertPatchWithinLimit,
-  assertSkillsBundleWithinLimit,
   workspaceSpecOf,
 } from './workspace-spec'
 
@@ -69,13 +69,13 @@ export class SandboxesService {
     userId: string
     threadId: string
     workspace?: SandboxWorkspaceSpec | undefined
-    skillsBundle?: string | undefined
+    contextBundle?: string | undefined
     name?: string | undefined
   }): Promise<SandboxAttachmentDto> {
     const thread = await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
     if (args.workspace !== undefined) assertPatchWithinLimit({ patch: args.workspace.patch })
-    if (args.skillsBundle !== undefined) {
-      assertSkillsBundleWithinLimit({ bundle: args.skillsBundle })
+    if (args.contextBundle !== undefined) {
+      assertContextBundleWithinLimit({ bundle: args.contextBundle })
     }
     const existing = await db.cloudSandbox.findUnique({
       where: { threadId: args.threadId },
@@ -96,7 +96,7 @@ export class SandboxesService {
       this.claimAndProvision({
         thread,
         workspace: args.workspace,
-        skillsBundle: args.skillsBundle,
+        contextBundle: args.contextBundle,
         token: credential.token,
         tokenHash: credential.tokenHash,
         sealedToken: credential.sealedToken,
@@ -160,7 +160,7 @@ export class SandboxesService {
   private async claimAndProvision(args: {
     thread: ThreadModel
     workspace: SandboxWorkspaceSpec | undefined
-    skillsBundle: string | undefined
+    contextBundle: string | undefined
     token: string
     tokenHash: string
     sealedToken: string
@@ -175,7 +175,7 @@ export class SandboxesService {
         sealedToken: args.sealedToken,
         rotated: args.rotated,
         workspace: args.workspace,
-        skillsBundle: args.skillsBundle,
+        contextBundle: args.contextBundle,
         name: args.name,
       })
       await this.provisionInBackground({ row, token: args.token })
@@ -194,10 +194,12 @@ export class SandboxesService {
     const row = await db.cloudSandbox.findUnique({ where: { threadId: args.threadId } })
     if (row === null) throw new NotFoundException('sandbox not found')
     const spec = workspaceSpecOf(row)
-    const skillsBundle = row.workspaceSkills ?? null
-    if (spec.remoteUrl === null) return { ...spec, githubToken: null, skillsBundle }
+    // workspaceSkills is the outgoing column: a row written between this deploy's PRE_DEPLOY
+    // migration and its container swap still carries only workspaceSkills.
+    const contextBundle = row.workspaceContext ?? row.workspaceSkills ?? null
+    if (spec.remoteUrl === null) return { ...spec, githubToken: null, contextBundle }
     const githubToken = await this.github.findToken({ userId: row.userId })
-    return { ...spec, githubToken: githubToken ?? null, skillsBundle }
+    return { ...spec, githubToken: githubToken ?? null, contextBundle }
   }
 
   async status(args: { userId: string; threadId: string }): Promise<SandboxStatusDto> {

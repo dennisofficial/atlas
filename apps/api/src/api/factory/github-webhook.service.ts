@@ -9,6 +9,7 @@ import type {
   GithubWebhookOutcome,
 } from './github-webhook.types'
 import { OrchestratorService } from './orchestrator/orchestrator.service'
+import { GithubAppService } from './reply/github-app.service'
 import { TranscriptService } from './transcript.service'
 import { WorkItemsService } from './work-items.service'
 
@@ -31,7 +32,25 @@ export class GithubWebhookService {
     private readonly workItems: WorkItemsService,
     private readonly transcript: TranscriptService,
     private readonly orchestrator: OrchestratorService,
+    private readonly githubApp: GithubAppService,
   ) {}
+
+  /**
+   * The factory's own replies arrive back over the webhook as comments authored by the app bot.
+   * They are already on the transcript (recorded at post time), so the echo is dropped here —
+   * feeding it back would wake the orchestrator to read its own words and invite a reply loop.
+   * The payload's performed_via_github_app id is the offline check; the bot-login lookup (which
+   * fails open on a network error) is the fallback for deliveries that lack it.
+   */
+  private async isOwnEcho(args: {
+    login: string
+    viaAppId: number | undefined
+  }): Promise<boolean> {
+    if (this.githubApp.ownsAppId(args.viaAppId)) return true
+    const bot = await this.githubApp.botLogin()
+    if (bot === null) return false
+    return args.login.toLowerCase() === bot
+  }
 
   async handle(args: { event: string; deliveryId: string; payload: unknown }): Promise<GithubWebhookOutcome> {
     switch (args.event) {
@@ -107,6 +126,15 @@ export class GithubWebhookService {
   }): Promise<GithubWebhookOutcome> {
     const { payload } = args
     if (payload.action !== 'created') return NOT_HANDLED
+    if (
+      await this.isOwnEcho({
+        login: payload.sender.login,
+        viaAppId: payload.comment.performed_via_github_app?.id,
+      })
+    ) {
+      this.logger.log(`dropped the factory's own comment echo on ${payload.repository.full_name}#${payload.issue.number}`)
+      return NOT_HANDLED
+    }
 
     const externalId =
       payload.issue.pull_request === undefined

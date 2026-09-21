@@ -80,7 +80,9 @@ type Opened = {
   close: () => Promise<void>
 }
 
-const open = async (): Promise<Opened> => {
+const open = async (args?: {
+  runners?: (ctx: { order: string[]; started: HeldRun[] }) => ChildRunnerSource
+}): Promise<Opened> => {
   const temp = createTempDatabase()
   const harness = await buildHarness({
     databaseUrl: temp.databaseUrl,
@@ -101,7 +103,10 @@ const open = async (): Promise<Opened> => {
       ids: harness.ids,
       clock: harness.clock,
       agentTypes: [agentTypeNamed({ name: 'explore' })],
-      runners: recordingRunners(order, started),
+      runners:
+        args?.runners === undefined
+          ? recordingRunners(order, started)
+          : args.runners({ order, started }),
       launchDirectory: '/launch',
       sink,
     }),
@@ -236,5 +241,76 @@ describe("relocating one thread's children", () => {
 
     runOf(entry, mine, 'resume').settle(finished())
     await settled()
+  })
+})
+
+describe('relocating while the caller itself is a stepping child', () => {
+  it('moves the caller without stopping or awaiting its in-flight step', async () => {
+    const box: {
+      supervisor?: AgentSupervisor
+      parent?: ThreadId
+      relocation?: Promise<readonly ThreadId[]>
+    } = {}
+    const entry = await open({
+      runners: ({ order, started }) => {
+        const cooperative = recordingRunners(order, started)
+        return (request) => {
+          const inner = cooperative(request)
+          return {
+            say: inner.say,
+            resume: inner.resume,
+            runTurn: () => {
+              order.push(`run:${request.threadId}`)
+              const { supervisor, parent } = box
+              if (supervisor === undefined || parent === undefined) {
+                throw new Error('the child ran before the test wired its supervisor')
+              }
+              box.relocation = supervisor.relocateChildren({
+                threadId: parent,
+                location: EExecutionLocation.Docker,
+                caller: request.threadId,
+              })
+              return new Promise<TurnOutcome>((resolve) => {
+                started.push({ threadId: request.threadId, kind: 'run', settle: resolve })
+              })
+            },
+          }
+        }
+      },
+    })
+    opened.push(entry)
+    box.supervisor = entry.supervisor
+    box.parent = entry.parent
+    const childId = await spawnChild(entry, entry.parent)
+    const relocation = box.relocation
+    if (relocation === undefined) throw new Error('the child never started its relocation')
+
+    try {
+      await Promise.race([
+        relocation,
+        new Promise<never>((_, reject) => {
+          setTimeout(
+            () => reject(new Error('the relocation waited on its own caller and deadlocked')),
+            2000,
+          )
+        }),
+      ])
+    } finally {
+      runOf(entry, childId, 'run').settle(finished())
+      await settled()
+    }
+
+    expect(entry.order).not.toContain(`abort:${childId}`)
+    expect(entry.order).not.toContain(`resume:${childId}`)
+    expect(entry.order).toContain(`note:${childId}:${EExecutionLocation.Docker}`)
+    expect(entry.order).toContain(`append:${childId}:location-changed`)
+
+    const stored = await entry.harness.threads.find({ threadId: childId })
+    expect(stored?.executionLocation).toBe(EExecutionLocation.Docker)
+
+    const snapshot = entry.supervisor
+      .list({ threadId: entry.parent })
+      .find((one) => one.agentId === childId)
+    expect(snapshot?.status).toBe(EAgentStatus.Finished)
   })
 })

@@ -14,6 +14,7 @@ import { EBootStep, type BootProgress } from './boot-progress'
 import { composeAtlas, type AtlasApp } from './compose'
 import type { AtlasConfig } from './config'
 import { diagnoseCredentialFailure, type CredentialDiagnosis } from './credential-diagnosis'
+import { mergeRemoteMemoryBounded } from './cloud/bounded-merge-remote-memory'
 import { openConversation, type OpenedConversation } from './open-conversation'
 import {
   RemoteThreadStore,
@@ -109,6 +110,11 @@ async function startSession(args: {
     env: args.env,
     settings: args.settings,
   })
+
+  const signedIn = app.cloud.session()
+  if (signedIn !== null) {
+    void mergeRemoteMemoryBounded({ session: signedIn, cwd: config.cwd })
+  }
 
   progress.report(EBootStep.Authorising)
   const refused = await credentialRefusal(app)

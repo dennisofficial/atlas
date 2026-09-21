@@ -18,6 +18,7 @@ import { McpServersModule } from './mcp-servers/mcp-servers.module'
 import { SandboxesModule } from './sandboxes/sandboxes.module'
 import { SecretsModule } from './secrets/secrets.module'
 import { SessionsModule } from './sessions/sessions.module'
+import { UserContextModule } from './user-context/user-context.module'
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { SessionsModule } from './sessions/sessions.module'
     SessionsModule,
     SandboxesModule,
     FactoryModule,
+    UserContextModule,
   ],
   controllers: [HealthController],
   providers: [

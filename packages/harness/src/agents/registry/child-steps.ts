@@ -28,7 +28,7 @@ export class ChildSteps {
   private readonly roster: AgentRoster
   private readonly notices: AgentNoticeQueue
   private readonly clock: ClockPort
-  private readonly inFlight = new Map<ThreadId, Set<Promise<void>>>()
+  private readonly inFlight = new Map<ThreadId, Map<ThreadId, Promise<void>>>()
 
   constructor(args: {
     runners: ChildRunnerSource
@@ -66,22 +66,30 @@ export class ChildSteps {
       signal: child.abort.signal,
     }).then((status) => this.finish({ child, status }))
 
-    const forThread = this.inFlight.get(child.spawnedBy) ?? new Set<Promise<void>>()
+    const forThread = this.inFlight.get(child.spawnedBy) ?? new Map<ThreadId, Promise<void>>()
     this.inFlight.set(child.spawnedBy, forThread)
-    forThread.add(settled)
+    forThread.set(child.agentId, settled)
     void settled.finally(() => {
-      forThread.delete(settled)
+      forThread.delete(child.agentId)
       if (forThread.size === 0) this.inFlight.delete(child.spawnedBy)
     })
   }
 
-  async whenSettled(args?: { threadId?: ThreadId | undefined }): Promise<void> {
+  async whenSettled(args?: {
+    threadId?: ThreadId | undefined
+    excluding?: ThreadId | undefined
+  }): Promise<void> {
     if (args?.threadId === undefined) {
-      await Promise.all([...this.inFlight.values()].flatMap((settled) => [...settled]))
+      await Promise.all([...this.inFlight.values()].flatMap((byChild) => [...byChild.values()]))
       return
     }
 
-    await Promise.all([...(this.inFlight.get(args.threadId) ?? [])])
+    const forThread = this.inFlight.get(args.threadId) ?? new Map<ThreadId, Promise<void>>()
+    await Promise.all(
+      [...forThread.entries()].flatMap(([childId, settled]) =>
+        childId === args.excluding ? [] : [settled],
+      ),
+    )
   }
 
   private async stepped({
