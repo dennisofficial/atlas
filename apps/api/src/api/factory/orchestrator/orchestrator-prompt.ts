@@ -42,6 +42,15 @@ export function orchestratorInstructions(args: {
     '    -d \'{"message":"<added direction>"}\'',
     '',
     '  and POST .../stations/<stationRunId>/stop with an empty body kills a run. When an event calls for implementation work, spawn the station rather than describing what could be done.',
+    '',
+    'The path to delivery is a loop you drive:',
+    '',
+    '  1. Spawn kind "implementer" with the assignment.',
+    '  2. When its station-result event arrives and it pushed a branch, spawn kind "reviewer" — its message carries the work item and the implementer\'s result fields (branch, base, head_sha, change_summary, verification, deviations, known_limitations), nothing from the implementer\'s session. The reviewer reads a read-only snapshot of the drive and returns a verdict.',
+    '  3. On request_changes, spawn the implementer again with the existing branch and the reviewer\'s findings. The control plane allows at most 2 revision cycles and refuses past that — then report on the issue and stop; do not improvise around the cap.',
+    '  4. On approve, deliver: POST "$ATLAS_CLOUD_URL/v1/factory/deliveries" with the same auth header and {"title","body"}. The control plane re-verifies everything itself (pushed factory branch, head SHA still matching the remote, verification evidence, approving review) and opens a DRAFT PR as the factory app, refusing with the reason otherwise. Never mark ready — that is a human click, always.',
+    '',
+    'The new PR is registered as a surface of this work item the moment it opens, so its comments, reviews, and checks wake you here. Reply to discussion on the PR surface (its surface id is owner/repo/pull/<number>).',
   ].join('\n')
 }
 

@@ -159,4 +159,50 @@ describe('StationResultsService', () => {
     })
     expect(githubApp.branchHead).not.toHaveBeenCalled()
   })
+
+  describe('reviewer runs', () => {
+    const verdictPayload = (verdict: string) => ({
+      verdict,
+      summary: 'reviewed the branch',
+      criteria: [{ criterion: 'does the thing', pass: verdict === 'approve', note: 'checked' }],
+      findings:
+        verdict === 'approve'
+          ? []
+          : [{ severity: 'blocker', path: 'src/thing.ts', summary: 'wrong shape' }],
+    })
+
+    beforeEach(() => {
+      const run = fake.stationRuns[0]
+      if (run === undefined) throw new Error('missing run')
+      run.kind = 'reviewer'
+    })
+
+    it('validates the verdict contract, not the implementer contract', async () => {
+      await expect(submit(stationThreadId, resultPayload())).rejects.toThrow('verdict')
+      expect(fake.stationRuns[0]?.status).toBe(EStationRunStatus.Running)
+      expect(githubApp.branchHead).not.toHaveBeenCalled()
+    })
+
+    it('an approve verdict records and finishes the run', async () => {
+      await expect(submit(stationThreadId, verdictPayload('approve'))).resolves.toEqual({
+        recorded: true,
+        stationRunId: runId,
+      })
+      const event = fake.transcriptEvents.find(
+        (one) => one.kind === EFactoryEventKind.StationResult,
+      )
+      expect(event?.payload).toContain('"approve"')
+      expect(fake.workItems[0]?.revisionCycles).toBe(0)
+      expect(orchestrator.wake).toHaveBeenCalled()
+    })
+
+    it('a request_changes verdict counts a revision cycle', async () => {
+      await submit(stationThreadId, verdictPayload('request_changes'))
+      expect(fake.workItems[0]?.revisionCycles).toBe(1)
+      const event = fake.transcriptEvents.find(
+        (one) => one.kind === EFactoryEventKind.StationResult,
+      )
+      expect(event?.payload).toContain('request_changes')
+    })
+  })
 })

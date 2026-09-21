@@ -99,6 +99,32 @@ export class GithubAppService {
     }
   }
 
+  /** Draft, always: ready-for-review is a human click, not a factory call. */
+  async createPullRequest(args: {
+    owner: string
+    repo: string
+    head: string
+    base: string
+    title: string
+    body: string
+  }): Promise<{ number: number; url: string }> {
+    const token = await this.installationToken({ owner: args.owner, repo: args.repo })
+    const pr = await this.request<{ number: number; html_url: string }>({
+      method: 'POST',
+      path: `/repos/${args.owner}/${args.repo}/pulls`,
+      as: 'installation',
+      token,
+      body: {
+        title: args.title,
+        head: args.head,
+        base: args.base,
+        body: args.body,
+        draft: true,
+      },
+    })
+    return { number: pr.number, url: pr.html_url }
+  }
+
   async createComment(args: {
     owner: string
     repo: string

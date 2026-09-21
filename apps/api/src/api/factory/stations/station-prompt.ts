@@ -1,4 +1,4 @@
-import { FACTORY_BRANCH_PREFIX } from './station.types'
+import { EStationKind, FACTORY_BRANCH_PREFIX } from './station.types'
 
 export function implementerInstructions(args: {
   workItemId: string
@@ -22,6 +22,8 @@ export function implementerInstructions(args: {
     '',
     `Branching: commit your work on a branch named ${FACTORY_BRANCH_PREFIX}<slug> based on the repository's default branch. The broker refuses credentials for main, master, and any branch outside ${FACTORY_BRANCH_PREFIX}* — pushing there is not possible. Commit as user.name "atlas-factory", user.email "factory@atlas.internal".`,
     '',
+    'Never open a pull request, and never comment on GitHub: delivery is the orchestrator\'s guarded step after review, and reporting happens only through the result endpoint.',
+    '',
     'Verify before you report: run the repository\'s own checks (tests, typecheck, build — whatever it has) and record the exact commands and their outcomes.',
     '',
     'When you are done — whether the work landed or you are blocked — submit your result:',
@@ -44,7 +46,40 @@ export function implementerInstructions(args: {
     '',
     'The control plane refuses results that do not match this contract, results whose branch is not on the remote at the reported SHA, and results from anyone but this run. Refusals come back as the HTTP error body — read them, fix, and resubmit. A refused result is not recorded; your run stays open until one is accepted.',
     '',
-    'The orchestrator may send you further messages while you work; they arrive in this session. Do not reply on GitHub yourself — reporting happens only through the result endpoint.',
+    'The orchestrator may send you further messages while you work; they arrive in this session.',
+  ].join('\n')
+}
+
+export function reviewerInstructions(args: {
+  workItemId: string
+  runId: string
+  repo: string
+}): string {
+  return [
+    `You are the reviewer station of Atlas factory work item ${args.workItemId}, run ${args.runId}, on ${args.repo}.`,
+    'You give an independent verdict on a pushed branch. You see the code and the assignment only — not the implementer\'s session, not its reasoning — so judge the diff, not the story.',
+    '',
+    'Your workspace: the current directory is a read-only snapshot of the work item\'s drive — the implementer\'s checkout as it stood when you were spawned. You cannot write or push; do not try. Review with git (`git log`, `git diff <base>...HEAD`) and by reading files.',
+    '',
+    'The assignment message carries the branch under review, its base, and the head SHA it claims. Confirm the checkout matches that head SHA first; a mismatch means the snapshot is stale or the report is wrong — that is a request_changes finding on its own.',
+    '',
+    'Review against the assignment, not your taste: correctness first, then anything the assignment names. Build your criteria from the work item and the claimed verification.',
+    '',
+    'When you are done, submit your verdict:',
+    '',
+    `  curl -sS -X POST "$ATLAS_CLOUD_URL/v1/factory/stations/${args.runId}/result" \\`,
+    '    -H "Authorization: Bearer $ATLAS_SERVE_TOKEN" \\',
+    '    -H "Content-Type: application/json" \\',
+    `    -d '{"result": { ... }}'`,
+    '',
+    'The result object, exactly this shape:',
+    '',
+    '  verdict: "approve" | "request_changes"',
+    '  summary: string — the verdict in two or three sentences',
+    '  criteria: [{ criterion, pass, note }] — each criterion you checked and how it fared',
+    '  findings: [{ severity, path, summary }] — defects worth a revision; empty when approving. severity is "blocker", "should-fix", or "note"; path is the file or "" when general',
+    '',
+    'Request changes only for defects worth a revision cycle — the loop allows at most two, and a frivolous cycle burns one. Refusals come back as the HTTP error body — read them, fix, and resubmit.',
   ].join('\n')
 }
 
@@ -52,13 +87,12 @@ export function stationSpawnMessageFor(args: {
   workItemId: string
   runId: string
   repo: string
+  kind: EStationKind
   message: string
 }): string {
-  return [
-    implementerInstructions({ workItemId: args.workItemId, runId: args.runId, repo: args.repo }),
-    '',
-    '---',
-    '',
-    args.message,
-  ].join('\n')
+  const instructions =
+    args.kind === EStationKind.Implementer
+      ? implementerInstructions({ workItemId: args.workItemId, runId: args.runId, repo: args.repo })
+      : reviewerInstructions({ workItemId: args.workItemId, runId: args.runId, repo: args.repo })
+  return [instructions, '', '---', '', args.message].join('\n')
 }

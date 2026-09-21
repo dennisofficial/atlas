@@ -88,14 +88,18 @@ export class OrchestratorService {
   }
 
   /**
-   * Reply and station-request events record what the orchestrator itself did; feeding them back
-   * would be its own words arriving as news. The webhook echo of a reply never reaches the
-   * transcript — ingress drops it.
+   * Reply, station-request, and delivery events record what the orchestrator itself did; feeding
+   * them back would be its own words arriving as news. The webhook echo of a reply never reaches
+   * the transcript — ingress drops it.
    */
   private async pendingEvents(item: WorkItemDto): Promise<TranscriptEventDto[]> {
+    const own: readonly string[] = [
+      EFactoryEventKind.Reply,
+      EFactoryEventKind.StationRequest,
+      EFactoryEventKind.Delivery,
+    ]
     const events = (await this.transcript.list({ workItemId: item.id })).filter(
-      (event) =>
-        event.kind !== EFactoryEventKind.Reply && event.kind !== EFactoryEventKind.StationRequest,
+      (event) => !own.includes(event.kind),
     )
     const watermark = item.orchestratorDeliveredEventId
     if (watermark === null) return events

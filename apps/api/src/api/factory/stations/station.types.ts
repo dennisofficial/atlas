@@ -1,6 +1,15 @@
 export enum EStationKind {
   Implementer = 'implementer',
+  Reviewer = 'reviewer',
 }
+
+export enum EReviewVerdict {
+  Approve = 'approve',
+  RequestChanges = 'request_changes',
+}
+
+/** Initial implementation plus this many review-driven revisions; past it the run reports instead. */
+export const MAX_REVISION_CYCLES = 2
 
 export enum EStationRunStatus {
   Running = 'running',
@@ -27,4 +36,11 @@ export type StationResultAccepted = {
 export type StationGitToken = {
   token: string
   expiresInSeconds: number
+}
+
+export type DeliveryResult = {
+  delivered: true
+  number: number
+  url: string
+  branch: string
 }

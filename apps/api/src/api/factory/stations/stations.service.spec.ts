@@ -86,7 +86,11 @@ describe('StationsService', () => {
     workItems = new WorkItemsService()
     transcript = new TranscriptService()
     threads = {
-      create: vi.fn(async () => ({ id: `brn_station_${fake.threads.length + 1}` })),
+      create: vi.fn(async () => {
+        const id = `brn_station_${fake.threads.length + 1}`
+        fake.threads.push({ id, head: 0 })
+        return { id }
+      }),
     }
     sandboxes = stubFactorySandboxes()
     channel = stubFactoryChannel(fake)
@@ -176,6 +180,35 @@ describe('StationsService', () => {
 
       const updated = await workItems.find({ workItemId: item.id })
       expect(updated.status).toBe(EFactoryWorkItemStatus.Active)
+    })
+
+    it('spawns a reviewer on a drive snapshot, allowed while the writer runs', async () => {
+      await spawnOrchestrated()
+      await spawn('first implementer')
+      await flushSpawn()
+
+      const reviewed = await service.spawn({
+        orchestratorThreadId: 'brn_orchestrator_1',
+        kind: 'reviewer',
+        message: 'review branch atlas-factory/add-the-thing',
+      })
+      await vi.waitFor(() => expect(channel.inject).toHaveBeenCalledTimes(2))
+
+      const run = fake.stationRuns.find((one) => one.id === reviewed.stationRunId)
+      expect(run?.driveMode).toBe(ESandboxDriveMode.Snapshot)
+      expect(run?.kind).toBe('reviewer')
+      const attachCalls = sandboxes.attach.mock.calls as unknown as Array<
+        [{ drive: { mode: ESandboxDriveMode } }]
+      >
+      expect(attachCalls[1]?.[0].drive.mode).toBe(ESandboxDriveMode.Snapshot)
+    })
+
+    it('refuses the implementer past the revision cap', async () => {
+      const item = await spawnOrchestrated()
+      fake.workItems[0]!.revisionCycles = 3
+      await expect(spawn()).rejects.toThrow('revision cycles')
+      const fresh = await workItems.find({ workItemId: item.id })
+      expect(fresh.revisionCycles).toBe(3)
     })
 
     it('a spawn whose message cannot be delivered stops the sandbox before failing the run', async () => {

@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common'
 import { EnvService } from '../../_core/config/env/env.service'
 import { SessionsModule } from '../sessions/sessions.module'
+import { FactoryDeliveriesController } from './delivery/deliveries.controller'
+import { DeliveriesService } from './delivery/deliveries.service'
 import { FactoryDriveSweeperService } from './drives/drive-sweeper.service'
 import { FactoryDrivesService } from './drives/drives.service'
 import { GithubWebhookController } from './github-webhook.controller'
@@ -26,7 +28,12 @@ import { WorkItemsService } from './work-items.service'
 
 @Module({
   imports: [SessionsModule],
-  controllers: [GithubWebhookController, FactoryRepliesController, FactoryStationsController],
+  controllers: [
+    GithubWebhookController,
+    FactoryRepliesController,
+    FactoryStationsController,
+    FactoryDeliveriesController,
+  ],
   providers: [
     WorkItemsService,
     TranscriptService,
@@ -41,6 +48,7 @@ import { WorkItemsService } from './work-items.service'
     StationsService,
     StationResultsService,
     StationTokensService,
+    DeliveriesService,
     FactoryGitCredentialSource,
     {
       provide: GithubAppService,

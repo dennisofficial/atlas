@@ -18,7 +18,14 @@ import { TranscriptService } from '../transcript.service'
 import { WorkItemsService } from '../work-items.service'
 import { repoCoordinatesOf, ticketAliasOf } from './station-lookup'
 import { parseStationResult } from './station-result'
-import { EStationRunStatus, FACTORY_BRANCH_PREFIX, type StationResultAccepted } from './station.types'
+import { parseReviewVerdict } from './station-verdict'
+import {
+  EReviewVerdict,
+  EStationKind,
+  EStationRunStatus,
+  FACTORY_BRANCH_PREFIX,
+  type StationResultAccepted,
+} from './station.types'
 
 const messageOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
@@ -63,11 +70,21 @@ export class StationResultsService {
       throw new ConflictException(`station run ${run.id} is ${run.status}; it records no result`)
     }
 
-    const parsed = parseStationResult(args.result)
-    if (!parsed.ok) throw new BadRequestException(parsed.error)
-    const result = parsed.result
-
-    if (result.pushed) await this.verifyPushed({ item, branch: result.branch, headSha: result.head_sha })
+    let result: unknown
+    let requestsChanges = false
+    if (run.kind === EStationKind.Reviewer) {
+      const parsed = parseReviewVerdict(args.result)
+      if (!parsed.ok) throw new BadRequestException(parsed.error)
+      result = parsed.verdict
+      requestsChanges = parsed.verdict.verdict === EReviewVerdict.RequestChanges
+    } else {
+      const parsed = parseStationResult(args.result)
+      if (!parsed.ok) throw new BadRequestException(parsed.error)
+      if (parsed.result.pushed) {
+        await this.verifyPushed({ item, branch: parsed.result.branch, headSha: parsed.result.head_sha })
+      }
+      result = parsed.result
+    }
 
     const appended = await this.transcript.append({
       surface: alias.surface,
@@ -81,6 +98,9 @@ export class StationResultsService {
       throw new InternalServerErrorException(
         `station result for run ${run.id} found no aliased surface to land on`,
       )
+    }
+    if (requestsChanges) {
+      await this.workItems.countRevision({ workItemId: item.id })
     }
 
     const at = new Date().toISOString()
