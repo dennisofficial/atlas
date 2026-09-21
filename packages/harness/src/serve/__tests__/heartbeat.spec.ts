@@ -97,6 +97,35 @@ describe('createHeartbeat', () => {
     await Bun.sleep(1)
     heartbeat.stop()
 
-    expect(refusals).toEqual(['the control plane answered 401'])
+    expect(refusals).toEqual([
+      'The Atlas Cloud API answered POST /v1/sandboxes/thread-heartbeat/heartbeat with 401.',
+    ])
+  })
+
+  it('retries a throttled beat instead of reporting it as a failure', async () => {
+    const refusals: string[] = []
+    const delays: number[] = []
+    let at = 0
+    const fetchFn = (async (_input: unknown) => {
+      at += 1
+      return new Response(null, { status: at === 1 ? 429 : 204 })
+    }) as typeof fetch
+
+    const heartbeat = createHeartbeat({
+      controlPlaneUrl: 'https://api.example.com',
+      threadId,
+      token: 'secret',
+      fetchFn,
+      sleep: async (ms) => void delays.push(ms),
+      onFailure: (reason) => refusals.push(reason),
+    })
+
+    heartbeat.beat()
+    await Bun.sleep(1)
+    heartbeat.stop()
+
+    expect(at).toBe(2)
+    expect(delays).toHaveLength(1)
+    expect(refusals).toEqual([])
   })
 })

@@ -3,6 +3,7 @@ import {
   EChannelConnection,
   ThreadStorePort,
   type ChannelConnection,
+  type ChannelReady,
   type TurnOutcome,
 } from '@dltech/atlas-harness'
 
@@ -36,6 +37,7 @@ export const CLEAN_WORKSPACE: LiftedWorkspace = {
 export type FakeCloudChannel = CloudChannel & {
   moveTo(connection: ChannelConnection): void
   reload(reload: CloudReload): void
+  ready(ready: ChannelReady): void
   fail(message: string): void
   failTransport(message: string): void
   endTurn(outcome: TurnOutcome): void
@@ -47,6 +49,7 @@ export type FakeCloudChannel = CloudChannel & {
 export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudChannel {
   const connections = new Set<(connection: ChannelConnection) => void>()
   const reloads = new Set<(reload: CloudReload) => void>()
+  const readies = new Set<(ready: ChannelReady) => void>()
   const failures = new Set<(failure: { message: string }) => void>()
   const serverErrors = new Set<(failure: { message: string }) => void>()
   const turnEndings = new Set<(outcome: TurnOutcome) => void>()
@@ -80,6 +83,12 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
       reloads.add(listener)
       return () => {
         reloads.delete(listener)
+      }
+    },
+    onReady: (listener) => {
+      readies.add(listener)
+      return () => {
+        readies.delete(listener)
       }
     },
     onTurnEnded: (listener) => {
@@ -125,6 +134,9 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
     },
     reload(reload) {
       for (const listener of [...reloads]) listener(reload)
+    },
+    ready(ready) {
+      for (const listener of [...readies]) listener(ready)
     },
     fail(message) {
       for (const listener of [...failures]) listener({ message })

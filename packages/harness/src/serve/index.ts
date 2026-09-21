@@ -8,6 +8,7 @@ import { atlasDirectory } from '../store/paths'
 
 import { createChannelBridge } from './channel-bridge'
 import { composeServeApp } from './compose-serve'
+import { DEFAULT_DRAIN_DEADLINE_MS, withDeadline } from './drain-deadline'
 import { createFrameBuffer, DEFAULT_FRAME_BUFFER, type SignalFrame } from './frame-buffer'
 import { createHeartbeat, type Heartbeat } from './heartbeat'
 import { materializeSkills } from './materialize-skills'
@@ -31,6 +32,7 @@ import { workspaceSpecFetcher } from './workspace-spec'
 
 export * from './channel-bridge'
 export * from './compose-serve'
+export * from './drain-deadline'
 export * from './frame-buffer'
 export * from './heartbeat'
 export * from './requests'
@@ -60,6 +62,7 @@ export type ServeArgs = {
   env?: Record<string, string | undefined> | undefined
   bufferSize?: number | undefined
   heartbeatIntervalMs?: number | undefined
+  drainDeadlineMs?: number | undefined
   fetchFn?: typeof fetch | undefined
   write?: LogWrite | undefined
   compose?: ServeCompose | undefined
@@ -264,7 +267,10 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     port,
     close: async () => {
       driver.interrupt()
-      await driver.settled().catch(() => undefined)
+      await withDeadline({
+        task: driver.settled().catch(() => undefined),
+        ms: args.drainDeadlineMs ?? DEFAULT_DRAIN_DEADLINE_MS,
+      })
       bridge.close()
       heartbeat.stop()
       handlers.hangUp()

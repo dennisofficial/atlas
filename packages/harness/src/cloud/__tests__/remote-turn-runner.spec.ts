@@ -198,10 +198,10 @@ describe('a turn the socket outlives', () => {
     await expect(turn).rejects.toThrow()
   })
 
-  it('fails the pending turn when the channel starts re-attaching, since the relaunch kills it', async () => {
+  it('holds the pending turn through a re-attach, then fails it once the fresh serve says the turn did not survive', async () => {
     const { channel, open, receive, drop, retries, live } = harness({
       maxAttempts: 1,
-      reattach: () => new Promise(() => undefined),
+      reattach: async () => ({ url: 'https://fresh.test/', token: 'tok_fresh' }),
     })
     open()
     receive({ kind: EServeFrame.Ready, seq: 1 })
@@ -211,6 +211,99 @@ describe('a turn the socket outlives', () => {
     drop()
     retries[0]?.run()
     live().handlers.handleClose()
+    expect(channel.connection().state).toBe(EChannelConnection.Reattaching)
+    await Bun.sleep(1)
+
+    let settled = false
+    void turn.then(
+      () => void (settled = true),
+      () => void (settled = true),
+    )
+    await Bun.sleep(1)
+    expect(settled).toBe(false)
+
+    live().handlers.handleOpen()
+    live().handlers.handleMessage('{"kind":"ready","seq":2,"turnInFlight":false}')
+
+    await expect(turn).rejects.toThrow('did not survive')
+  })
+
+  it('keeps waiting once the fresh serve reports the turn survived the re-attach', async () => {
+    const { channel, open, receive, drop, retries, live } = harness({
+      maxAttempts: 1,
+      reattach: async () => ({ url: 'https://fresh.test/', token: 'tok_fresh' }),
+    })
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
+
+    const turn = runner.runTurn({ threadId: THREAD })
+    drop()
+    retries[0]?.run()
+    live().handlers.handleClose()
+    await Bun.sleep(1)
+
+    live().handlers.handleOpen()
+    live().handlers.handleMessage('{"kind":"ready","seq":2,"turnInFlight":true}')
+
+    let settled = false
+    void turn.then(
+      () => void (settled = true),
+      () => void (settled = true),
+    )
+    await Bun.sleep(1)
+    expect(settled).toBe(false)
+
+    receive({ kind: EServeFrame.TurnEnded, outcome: completed('run-1') })
+    await expect(turn).resolves.toEqual(completed('run-1'))
+  })
+
+  it('still delivers an interrupt asked for while held, once the re-attach lands', async () => {
+    const { channel, open, receive, drop, retries, live } = harness({
+      maxAttempts: 1,
+      reattach: async () => ({ url: 'https://fresh.test/', token: 'tok_fresh' }),
+    })
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
+    const controller = new AbortController()
+
+    const turn = runner.runTurn({ threadId: THREAD, signal: controller.signal })
+    drop()
+    retries[0]?.run()
+    live().handlers.handleClose()
+    controller.abort()
+    await Bun.sleep(1)
+
+    live().handlers.handleOpen()
+    live().handlers.handleMessage('{"kind":"ready","seq":2,"turnInFlight":true}')
+
+    expect(live().sent).toContainEqual({ kind: EClientFrame.Interrupt })
+
+    receive({
+      kind: EServeFrame.TurnEnded,
+      outcome: { status: ETurnStatus.Interrupted, runId: toRunId('run-1'), committed: true },
+    })
+    await expect(turn).resolves.toMatchObject({ status: ETurnStatus.Interrupted })
+  })
+
+  it('fails the pending turn when a re-attached serve omits turnInFlight, as a serve built before this field existed would', async () => {
+    const { channel, open, receive, drop, retries, live } = harness({
+      maxAttempts: 1,
+      reattach: async () => ({ url: 'https://fresh.test/', token: 'tok_fresh' }),
+    })
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
+
+    const turn = runner.runTurn({ threadId: THREAD })
+    drop()
+    retries[0]?.run()
+    live().handlers.handleClose()
+    await Bun.sleep(1)
+
+    live().handlers.handleOpen()
+    live().handlers.handleMessage('{"kind":"ready","seq":2}')
 
     await expect(turn).rejects.toThrow('did not survive')
   })

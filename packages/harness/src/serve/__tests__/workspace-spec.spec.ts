@@ -45,6 +45,6 @@ describe('workspaceSpecFetcher', () => {
   it('names the status the control plane refused with', async () => {
     const fetchSpec = fetcher(() => new Response('unauthorized', { status: 401 }))
 
-    await expect(fetchSpec()).rejects.toThrow('answered 401')
+    await expect(fetchSpec()).rejects.toThrow('with 401')
   })
 })

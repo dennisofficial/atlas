@@ -18,6 +18,7 @@ export class RemoteTurnRunner extends TurnRunner {
   private readonly channel: RemoteDeltaChannel
   private readonly wake: () => Promise<void>
   private readonly waiters: Waiter[] = []
+  private heldForReattach = false
 
   constructor(args: { channel: RemoteDeltaChannel; wake: () => Promise<void> }) {
     super()
@@ -29,11 +30,20 @@ export class RemoteTurnRunner extends TurnRunner {
     })
     this.channel.onConnection((connection) => {
       if (connection.state === EChannelConnection.Reattaching) {
-        this.failAll('The sandbox is being re-attached — the turn it was running did not survive.')
+        // Held rather than failed: serve keeps a turn running with zero clients attached, and the
+        // reattached channel's next Ready frame says whether this one actually survived.
+        this.heldForReattach = true
         return
       }
       if (connection.state !== EChannelConnection.Closed) return
+      this.heldForReattach = false
       this.failAll(connection.detail ?? 'The session socket closed mid-turn.')
+    })
+    this.channel.onReady((ready) => {
+      if (!this.heldForReattach) return
+      this.heldForReattach = false
+      if (ready.turnInFlight) return
+      this.failAll('The sandbox was re-attached — the turn it was running did not survive.')
     })
     this.channel.onServerError((failure) => {
       this.waiters.shift()?.reject(new Error(failure.message))

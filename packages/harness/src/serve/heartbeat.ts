@@ -1,5 +1,7 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
+import { cloudRequest } from '../cloud/cloud-transport'
+
 export const HEARTBEAT_INTERVAL_MS = 20_000
 
 /**
@@ -24,18 +26,25 @@ export function createHeartbeat(args: {
   fetchFn: typeof fetch
   intervalMs?: number | undefined
   onFailure?: ((reason: string) => void) | undefined
+  sleep?: ((ms: number) => Promise<void>) | undefined
 }): Heartbeat {
-  const url = `${args.controlPlaneUrl.replace(/\/+$/, '')}/v1/sandboxes/${args.threadId}/heartbeat`
+  const url = args.controlPlaneUrl.replace(/\/+$/, '')
+  const path = `/v1/sandboxes/${args.threadId}/heartbeat`
   let timer: ReturnType<typeof setInterval> | null = null
   let holds = 0
 
+  /** An idempotent lastActivity bump — a throttled or reset beat is worth retrying, not skipping. */
   const beat = (): void => {
-    void args
-      .fetchFn(url, { method: 'POST', headers: { authorization: `Bearer ${args.token}` } })
-      .then((response) => {
-        if (!response.ok) args.onFailure?.(`the control plane answered ${response.status}`)
-      })
-      .catch((cause: unknown) => args.onFailure?.(messageOf(cause)))
+    void cloudRequest({
+      url,
+      token: args.token,
+      clientVersion: 'dev',
+      fetchFn: args.fetchFn,
+      method: 'POST',
+      path,
+      retry: true,
+      ...(args.sleep === undefined ? {} : { sleep: args.sleep }),
+    }).catch((cause: unknown) => args.onFailure?.(messageOf(cause)))
   }
 
   const stop = (): void => {

@@ -83,4 +83,41 @@ describe('ServeBinaryService', () => {
 
     await expect(service.stream()).rejects.toBeInstanceOf(ServiceUnavailableException)
   })
+
+  it('hashes the binary itself for integrity, regardless of a build-stamp sidecar', async () => {
+    files.contents.set(`${DEFAULT_SERVE_BINARY_PATH}.sha256`, 'build-stamp\n')
+    files.contents.set(DEFAULT_SERVE_BINARY_PATH, binary)
+    const service = new ServeBinaryService(envWith({}))
+
+    await expect(service.binaryHash()).resolves.toBe(binaryStamp)
+    await expect(service.stamp()).resolves.toBe('build-stamp')
+  })
+
+  it('memoizes the binary hash so a second call never re-reads the binary', async () => {
+    files.contents.set(DEFAULT_SERVE_BINARY_PATH, binary)
+    const service = new ServeBinaryService(envWith({}))
+
+    await expect(service.binaryHash()).resolves.toBe(binaryStamp)
+    await expect(service.binaryHash()).resolves.toBe(binaryStamp)
+
+    expect(files.readFileCalls).toBe(1)
+  })
+
+  it('shares its one binary read with the dev-override stamp fallback', async () => {
+    files.contents.set('/opt/atlas/atlas-serve', binary)
+    const service = new ServeBinaryService(envWith({ SANDBOX_SERVE_BINARY: '/opt/atlas/atlas-serve' }))
+
+    await expect(service.stamp()).resolves.toBe(binaryStamp)
+    const readsAfterStamp = files.readFileCalls
+
+    await expect(service.binaryHash()).resolves.toBe(binaryStamp)
+
+    expect(files.readFileCalls).toBe(readsAfterStamp)
+  })
+
+  it('503s hashing the binary when it is missing', async () => {
+    const service = new ServeBinaryService(envWith({}))
+
+    await expect(service.binaryHash()).rejects.toBeInstanceOf(ServiceUnavailableException)
+  })
 })

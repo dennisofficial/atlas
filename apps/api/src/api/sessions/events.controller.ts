@@ -10,7 +10,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common'
-import { Throttle } from '@nestjs/throttler'
+import { SkipThrottle, Throttle } from '@nestjs/throttler'
 import type { AuthenticatedRequest } from '../../_core/types/auth.types'
 import { CLIENT_READ_LIMIT_PER_MINUTE } from '../client-rate-limit'
 import { SessionOrSandboxGuard } from './session-or-sandbox.guard'
@@ -52,7 +52,9 @@ export class EventsController {
     return this.events.replace({ userId: userIdOf(request), threadId, draft: body })
   }
 
+  /** Serve re-reads this several times per turn iteration; a global throttle here would kill a running turn. */
   @Get()
+  @SkipThrottle()
   handleRead(
     @Req() request: AuthenticatedRequest,
     @Param('threadId') threadId: string,

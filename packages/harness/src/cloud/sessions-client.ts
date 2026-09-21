@@ -263,6 +263,7 @@ export class SessionsClient {
     const body = await this.request({
       method: 'GET',
       path: `/v1/threads/${args.threadId}/events${upTo}${own}`,
+      retry: true,
     })
     return z.array(wireEventSchema).parse(body)
   }
@@ -327,6 +328,7 @@ export class SessionsClient {
     path: string
     body?: unknown
     allowMissing?: boolean
+    retry?: boolean
   }): Promise<unknown> {
     return cloudRequest({
       url: this.url,
@@ -337,6 +339,7 @@ export class SessionsClient {
       path: args.path,
       ...(args.body === undefined ? {} : { body: args.body }),
       ...(args.allowMissing === undefined ? {} : { allowMissing: args.allowMissing }),
+      ...(args.retry === undefined ? {} : { retry: args.retry }),
     })
   }
 }

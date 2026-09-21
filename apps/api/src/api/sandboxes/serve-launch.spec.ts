@@ -4,17 +4,22 @@ import {
   createServeLauncher,
   HEALTH_PROBE,
   SERVE_BINARY_PATH,
+  SERVE_HEADERS_PATH,
   SERVE_LOCK_PATH,
   SERVE_LOG_PATH,
+  SERVE_NEXT_BINARY_PATH,
+  SERVE_STAMP_PATH,
   SERVE_TOKEN_PATH,
   StaleSandboxTokenError,
 } from './serve-launch'
+import { SERVE_BINARY_SHA256_HEADER } from './serve-binary'
 
 interface RecordedCommand {
   cmd: string
   args?: string[]
   detached?: boolean
   timeoutMs?: number
+  env?: Record<string, string>
 }
 
 const BUILD_STAMP = 'a'.repeat(64)
@@ -27,9 +32,12 @@ interface RecordedWrite {
 
 const fakeSandbox = (args: {
   healthy: boolean
-  hash?: string
+  installedStamp?: string
   downloadExit?: number
   downloadStderr?: string
+  verifyExit?: number
+  verifyStderr?: string
+  swapExit?: number
   waitSucceeds?: boolean
   logTail?: string
 }) => {
@@ -49,8 +57,17 @@ const fakeSandbox = (args: {
       if (script.startsWith('for i in')) {
         return { exitCode: args.waitSucceeds === false ? 1 : 0 }
       }
-      if (script.startsWith('sha256sum ')) {
-        return { exitCode: 0, stdout: async () => args.hash ?? '' }
+      if (script.startsWith('cat ')) {
+        return { exitCode: 0, stdout: async () => args.installedStamp ?? '' }
+      }
+      if (script.startsWith('expected=$(grep')) {
+        return {
+          exitCode: args.verifyExit ?? 0,
+          stderr: async () => args.verifyStderr ?? '',
+        }
+      }
+      if (script.startsWith('mv ')) {
+        return { exitCode: args.swapExit ?? 0 }
       }
       if (script.includes('curl -sS')) {
         return {
@@ -75,7 +92,7 @@ const scriptsOf = (commands: RecordedCommand[]): string[] =>
 
 describe('createServeLauncher', () => {
   it('writes the session token into the sandbox before anything else when one is given', async () => {
-    const { sandbox, writes, ops } = fakeSandbox({ healthy: true, hash: BUILD_STAMP })
+    const { sandbox, writes, ops } = fakeSandbox({ healthy: true, installedStamp: BUILD_STAMP })
 
     await createServeLauncher({ readStamp })({ sandbox, token: 'tok_fresh' })
 
@@ -84,7 +101,7 @@ describe('createServeLauncher', () => {
   })
 
   it('leaves the sandbox filesystem alone when no token is given', async () => {
-    const { sandbox, writes } = fakeSandbox({ healthy: true, hash: BUILD_STAMP })
+    const { sandbox, writes } = fakeSandbox({ healthy: true, installedStamp: BUILD_STAMP })
 
     await createServeLauncher({ readStamp })({ sandbox })
 
@@ -92,7 +109,7 @@ describe('createServeLauncher', () => {
   })
 
   it('authenticates the health probe with the token file, falling back to the launch environment', async () => {
-    const { sandbox } = fakeSandbox({ healthy: true, hash: BUILD_STAMP })
+    const { sandbox } = fakeSandbox({ healthy: true, installedStamp: BUILD_STAMP })
 
     await createServeLauncher({ readStamp })({ sandbox })
 
@@ -101,8 +118,8 @@ describe('createServeLauncher', () => {
     expect(HEALTH_PROBE).toContain('Authorization: Bearer $ATLAS_SERVE_TOKEN')
   })
 
-  it('does nothing when serve is healthy and the installed binary matches this build', async () => {
-    const { sandbox, commands } = fakeSandbox({ healthy: true, hash: BUILD_STAMP })
+  it('does nothing when serve is healthy and the installed stamp matches this build', async () => {
+    const { sandbox, commands } = fakeSandbox({ healthy: true, installedStamp: BUILD_STAMP })
 
     await createServeLauncher({ readStamp })({ sandbox })
 
@@ -110,8 +127,20 @@ describe('createServeLauncher', () => {
     expect(scriptsOf(commands).some((script) => script.includes('curl -sS'))).toBe(false)
   })
 
-  it('reinstalls when serve answers but the running binary is from another build', async () => {
-    const { sandbox, commands } = fakeSandbox({ healthy: true, hash: 'older-build' })
+  it('checks freshness against a stamp file, never by hashing the installed binary', async () => {
+    const { sandbox, commands } = fakeSandbox({ healthy: true, installedStamp: BUILD_STAMP })
+
+    await createServeLauncher({ readStamp })({ sandbox })
+
+    const stampRead = scriptsOf(commands).find((script) => script.startsWith('cat '))
+    expect(stampRead).toBe(`cat ${SERVE_STAMP_PATH} 2>/dev/null || true`)
+    expect(
+      scriptsOf(commands).some((script) => script.startsWith(`sha256sum ${SERVE_BINARY_PATH}`)),
+    ).toBe(false)
+  })
+
+  it('reinstalls when serve answers but the installed stamp is from another build', async () => {
+    const { sandbox, commands } = fakeSandbox({ healthy: true, installedStamp: 'older-build' })
 
     await createServeLauncher({ readStamp })({ sandbox })
 
@@ -119,8 +148,18 @@ describe('createServeLauncher', () => {
     expect(commands.at(-2)?.detached).toBe(true)
   })
 
+  it('treats a missing stamp file as stale exactly once and self-heals through the same download path', async () => {
+    const { sandbox, commands } = fakeSandbox({ healthy: false })
+
+    await createServeLauncher({ readStamp })({ sandbox })
+
+    expect(scriptsOf(commands).some((script) => script.includes('curl -sS'))).toBe(true)
+    const swap = scriptsOf(commands).find((script) => script.startsWith('mv '))
+    expect(swap).toContain(SERVE_STAMP_PATH)
+  })
+
   it('bounds the health probe so a hung listener cannot stall the launch', async () => {
-    const { sandbox, commands } = fakeSandbox({ healthy: true, hash: BUILD_STAMP })
+    const { sandbox, commands } = fakeSandbox({ healthy: true, installedStamp: BUILD_STAMP })
 
     await createServeLauncher({ readStamp })({ sandbox })
 
@@ -130,7 +169,7 @@ describe('createServeLauncher', () => {
   })
 
   it('kills a wedged serve by exact executable match, escalating to SIGKILL, then starts under a lock', async () => {
-    const { sandbox, commands } = fakeSandbox({ healthy: false, hash: BUILD_STAMP })
+    const { sandbox, commands } = fakeSandbox({ healthy: false, installedStamp: BUILD_STAMP })
 
     await createServeLauncher({ readStamp })({ sandbox })
 
@@ -150,16 +189,16 @@ describe('createServeLauncher', () => {
     expect(wait?.timeoutMs).toBeGreaterThan(90 * 2 * 1000)
   })
 
-  it('does not download when the installed binary already hashes to this build', async () => {
-    const { sandbox, commands } = fakeSandbox({ healthy: false, hash: BUILD_STAMP })
+  it('does not download when the installed stamp already matches this build', async () => {
+    const { sandbox, commands } = fakeSandbox({ healthy: false, installedStamp: BUILD_STAMP })
 
     await createServeLauncher({ readStamp })({ sandbox })
 
     expect(scriptsOf(commands).some((script) => script.includes('curl -sS'))).toBe(false)
   })
 
-  it('downloads with retries and a status check when the binary is missing or stale', async () => {
-    const { sandbox, commands } = fakeSandbox({ healthy: false, hash: 'older-build' })
+  it('downloads to the .next path beside the live binary, capturing the response headers', async () => {
+    const { sandbox, commands } = fakeSandbox({ healthy: false, installedStamp: 'older-build' })
 
     await createServeLauncher({ readStamp })({ sandbox })
 
@@ -167,11 +206,56 @@ describe('createServeLauncher', () => {
     expect(download).toContain(`_serve_token=$(cat ${SERVE_TOKEN_PATH} 2>/dev/null || true)`)
     expect(download).toContain('mkdir -p /vercel/sandbox && ')
     expect(download).toContain('--retry 3 --retry-all-errors')
+    expect(download).toContain(`-D ${SERVE_HEADERS_PATH}`)
     expect(download).toContain('Authorization: Bearer $ATLAS_SERVE_TOKEN')
     expect(download).toContain(`"$ATLAS_CLOUD_URL/v1/sandboxes/$ATLAS_THREAD_ID/serve-binary"`)
-    expect(download).toContain(`-o ${SERVE_BINARY_PATH}`)
-    expect(download).toContain(`chmod 755 ${SERVE_BINARY_PATH}`)
-    expect(commands.at(-2)?.detached).toBe(true)
+    expect(download).toContain(`-o ${SERVE_NEXT_BINARY_PATH}`)
+    expect(download).not.toContain(`-o ${SERVE_BINARY_PATH} `)
+    expect(download).not.toContain('chmod')
+  })
+
+  it('verifies the download against the response header hash, kills the wedged serve, then swaps the binary and writes the stamp before launching', async () => {
+    const { sandbox, commands } = fakeSandbox({ healthy: false, installedStamp: 'older-build' })
+
+    await createServeLauncher({ readStamp })({ sandbox })
+
+    const scripts = scriptsOf(commands)
+    const downloadIndex = scripts.findIndex((script) => script.includes('curl -sS'))
+    const verifyIndex = scripts.findIndex((script) => script.startsWith('expected=$(grep'))
+    const killIndex = scripts.findIndex((script) => script.startsWith('for pid in'))
+    const swapIndex = scripts.findIndex((script) => script.startsWith('mv '))
+    const launchIndex = commands.findIndex((command) => command.detached === true)
+
+    expect(scripts[verifyIndex]).toContain(SERVE_HEADERS_PATH)
+    expect(scripts[verifyIndex]).toContain(SERVE_BINARY_SHA256_HEADER)
+    expect(scripts[verifyIndex]).toContain(SERVE_NEXT_BINARY_PATH)
+    expect(scripts[swapIndex]).toBe(
+      `mv ${SERVE_NEXT_BINARY_PATH} ${SERVE_BINARY_PATH} && chmod 755 ${SERVE_BINARY_PATH} && ` +
+        `printf '%s' "$ATLAS_INSTALL_STAMP" > ${SERVE_STAMP_PATH}.next && mv ${SERVE_STAMP_PATH}.next ${SERVE_STAMP_PATH}`,
+    )
+    expect(commands[swapIndex]?.env).toEqual({ ATLAS_INSTALL_STAMP: BUILD_STAMP })
+    expect(downloadIndex).toBeLessThan(verifyIndex)
+    expect(verifyIndex).toBeLessThan(killIndex)
+    expect(killIndex).toBeLessThan(swapIndex)
+    expect(swapIndex).toBeLessThan(launchIndex)
+  })
+
+  it('fails before touching the running serve when the downloaded binary does not match the response header hash', async () => {
+    const { sandbox, commands } = fakeSandbox({
+      healthy: false,
+      installedStamp: 'older-build',
+      verifyExit: 42,
+      verifyStderr: 'downloaded serve binary hash deadbeef does not match the response header',
+    })
+
+    await expect(createServeLauncher({ readStamp })({ sandbox })).rejects.toThrow(
+      'downloaded serve binary hash deadbeef does not match the response header',
+    )
+
+    const scripts = scriptsOf(commands)
+    expect(scripts.some((script) => script.startsWith('for pid in'))).toBe(false)
+    expect(scripts.some((script) => script.startsWith('mv '))).toBe(false)
+    expect(commands.some((command) => command.detached === true)).toBe(false)
   })
 
   it('throws StaleSandboxTokenError when the download is rejected as unauthorized', async () => {
@@ -192,10 +276,18 @@ describe('createServeLauncher', () => {
     await expect(createServeLauncher({ readStamp })({ sandbox })).rejects.toThrow('HTTP 500')
   })
 
+  it('fails loudly when the verified binary cannot be swapped into place', async () => {
+    const { sandbox } = fakeSandbox({ healthy: false, installedStamp: 'older-build', swapExit: 1 })
+
+    await expect(createServeLauncher({ readStamp })({ sandbox })).rejects.toThrow(
+      'swapping the verified atlas serve binary into place failed',
+    )
+  })
+
   it('includes the serve log tail when health never answers', async () => {
     const { sandbox } = fakeSandbox({
       healthy: false,
-      hash: BUILD_STAMP,
+      installedStamp: BUILD_STAMP,
       waitSucceeds: false,
       logTail: 'Error: EADDRINUSE: address already in use',
     })
@@ -206,7 +298,7 @@ describe('createServeLauncher', () => {
   })
 
   it('degrades to a marker when the serve log cannot be read', async () => {
-    const { sandbox } = fakeSandbox({ healthy: false, hash: BUILD_STAMP, waitSucceeds: false })
+    const { sandbox } = fakeSandbox({ healthy: false, installedStamp: BUILD_STAMP, waitSucceeds: false })
 
     await expect(createServeLauncher({ readStamp })({ sandbox })).rejects.toThrow(
       '<serve log is empty or missing>',

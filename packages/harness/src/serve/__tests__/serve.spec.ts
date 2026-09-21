@@ -10,7 +10,7 @@ import {
   EServeFrame,
   type ServeFrame,
 } from '../../cloud/channel-wire'
-import { ETurnStatus } from '../../loop/turn-outcome'
+import { ETurnStatus, type TurnOutcome } from '../../loop/turn-outcome'
 import {
   EServeEnv,
   EServeEvent,
@@ -273,6 +273,7 @@ describe('startServe', () => {
       kind: EServeFrame.Ready,
       seq: 3,
       protocol: CHANNEL_PROTOCOL_VERSION,
+      turnInFlight: false,
     })
     expect(seqsOf(client.frames)).toEqual([1, 2])
   })
@@ -292,6 +293,7 @@ describe('startServe', () => {
       kind: EServeFrame.Ready,
       seq: 3,
       protocol: CHANNEL_PROTOCOL_VERSION,
+      turnInFlight: false,
     })
     expect(seqsOf(client.frames)).toEqual([0, 1, 2])
   })
@@ -832,5 +834,37 @@ describe('startServe', () => {
     await Bun.sleep(10)
 
     expect(aborted).toBe(true)
+  })
+
+  it('gives up draining a step that ignores its abort, once the drain deadline lapses', async () => {
+    const app = fakeServeApp({
+      threadId,
+      root: '/workspace',
+      runTurn: () => new Promise<TurnOutcome>(() => undefined),
+    })
+
+    const handle = await startServe({
+      threadId,
+      port: 0,
+      token: TOKEN,
+      controlPlaneUrl: CONTROL_PLANE,
+      env: {},
+      cwd: '/workspace',
+      compose: async () => app,
+      ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
+      fetchFn: (async (_input: unknown) => new Response(null, { status: 204 })) as typeof fetch,
+      drainDeadlineMs: 5,
+    })
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+    client.send({ kind: EClientFrame.Run })
+    await Bun.sleep(10)
+
+    const startedAt = Date.now()
+    await handle.close()
+
+    expect(Date.now() - startedAt).toBeLessThan(200)
   })
 })

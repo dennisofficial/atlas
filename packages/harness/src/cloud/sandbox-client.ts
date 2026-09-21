@@ -91,6 +91,7 @@ export class SandboxClient {
       method: 'GET',
       path: `/v1/sandboxes/${args.threadId}`,
       allowMissing: true,
+      retry: true,
     })
     if (body === undefined || body === null) return undefined
     return wireSandboxStatusSchema.parse(body)
@@ -101,6 +102,7 @@ export class SandboxClient {
     path: string
     body?: unknown
     allowMissing?: boolean
+    retry?: boolean
   }): Promise<unknown> {
     return cloudRequest({
       url: this.url,
@@ -111,6 +113,7 @@ export class SandboxClient {
       path: args.path,
       ...(args.body === undefined ? {} : { body: args.body }),
       ...(args.allowMissing === undefined ? {} : { allowMissing: args.allowMissing }),
+      ...(args.retry === undefined ? {} : { retry: args.retry }),
     })
   }
 }
