@@ -11,17 +11,34 @@ export class CloudError extends Error {
 export const isCloudUnavailable = (error: unknown): boolean =>
   error instanceof CloudError && (error.status === 0 || error.status >= 500)
 
-const MAX_THROTTLE_RETRIES = 3
+/**
+ * A 429 or a reset mid-turn must never be fatal: these are the injectable defaults behind the
+ * opt-in `retry` flag, sized so a throttled read settles well inside a client's own reconnect
+ * window rather than compounding it.
+ */
+export const DEFAULT_RETRY_MAX_ATTEMPTS = 4
+export const DEFAULT_RETRY_BASE_DELAY_MS = 500
+export const DEFAULT_RETRY_CEILING_DELAY_MS = 8_000
 
 const defaultSleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
-const throttleDelayMs = (args: { response: Response; attempt: number }): number => {
-  const retryAfter = args.response.headers.get('retry-after')
-  if (retryAfter !== null) {
-    const seconds = Number.parseFloat(retryAfter)
-    if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1000, 30_000)
-  }
-  return 1000 * 2 ** args.attempt
+const isRetryableStatus = (status: number): boolean => status === 429 || status >= 500
+
+const retryAfterMs = (response: Response): number | undefined => {
+  const retryAfter = response.headers.get('retry-after')
+  if (retryAfter === null) return undefined
+  const seconds = Number.parseFloat(retryAfter)
+  return Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : undefined
+}
+
+const backoffDelayMs = (args: {
+  attempt: number
+  baseDelayMs: number
+  ceilingDelayMs: number
+  randomFn: () => number
+}): number => {
+  const exponential = Math.min(args.ceilingDelayMs, args.baseDelayMs * 2 ** args.attempt)
+  return exponential * args.randomFn()
 }
 
 const detailFrom = (body: unknown): string | undefined => {
@@ -55,11 +72,24 @@ export const cloudRequest = async (args: {
   path: string
   body?: unknown
   allowMissing?: boolean
+  /** Opt in for GETs and other idempotent calls only — a mutation stays single-shot. */
+  retry?: boolean
   sleep?: ((ms: number) => Promise<void>) | undefined
+  randomFn?: (() => number) | undefined
+  maxAttempts?: number
+  baseDelayMs?: number
+  ceilingDelayMs?: number
 }): Promise<unknown> => {
   const sleep = args.sleep ?? defaultSleep
+  const randomFn = args.randomFn ?? Math.random
+  const retry = args.retry === true
+  const maxAttempts = args.maxAttempts ?? DEFAULT_RETRY_MAX_ATTEMPTS
+  const baseDelayMs = args.baseDelayMs ?? DEFAULT_RETRY_BASE_DELAY_MS
+  const ceilingDelayMs = args.ceilingDelayMs ?? DEFAULT_RETRY_CEILING_DELAY_MS
 
   for (let attempt = 0; ; attempt += 1) {
+    const attemptsLeft = retry && attempt < maxAttempts - 1
+
     let response: Response
     try {
       response = await args.fetchFn(`${args.url}${args.path}`, {
@@ -72,6 +102,10 @@ export const cloudRequest = async (args: {
         ...(args.body === undefined ? {} : { body: JSON.stringify(args.body) }),
       })
     } catch (cause) {
+      if (attemptsLeft) {
+        await sleep(backoffDelayMs({ attempt, baseDelayMs, ceilingDelayMs, randomFn }))
+        continue
+      }
       throw new CloudError({
         status: 0,
         message: `The Atlas Cloud API at ${args.url} could not be reached: ${cause instanceof Error ? cause.message : String(cause)}.`,
@@ -80,8 +114,13 @@ export const cloudRequest = async (args: {
 
     const text = await response.text()
 
-    if (response.status === 429 && attempt < MAX_THROTTLE_RETRIES) {
-      await sleep(throttleDelayMs({ response, attempt }))
+    if (attemptsLeft && isRetryableStatus(response.status)) {
+      const afterMs = retryAfterMs(response)
+      await sleep(
+        afterMs === undefined
+          ? backoffDelayMs({ attempt, baseDelayMs, ceilingDelayMs, randomFn })
+          : Math.min(afterMs, ceilingDelayMs),
+      )
       continue
     }
 
@@ -141,8 +180,18 @@ export const cloudRawRequest = async (args: {
       })
     }
 
-    if (response.status === 429 && attempt < MAX_THROTTLE_RETRIES) {
-      await sleep(throttleDelayMs({ response, attempt }))
+    if (response.status === 429 && attempt < DEFAULT_RETRY_MAX_ATTEMPTS - 1) {
+      const afterMs = retryAfterMs(response)
+      await sleep(
+        afterMs === undefined
+          ? backoffDelayMs({
+              attempt,
+              baseDelayMs: DEFAULT_RETRY_BASE_DELAY_MS,
+              ceilingDelayMs: DEFAULT_RETRY_CEILING_DELAY_MS,
+              randomFn: Math.random,
+            })
+          : Math.min(afterMs, DEFAULT_RETRY_CEILING_DELAY_MS),
+      )
       continue
     }
 
@@ -188,6 +237,7 @@ export class CloudTransport {
     path: string
     body?: unknown
     allowMissing?: boolean
+    retry?: boolean
   }): Promise<unknown> {
     return cloudRequest({
       url: this.url,
@@ -198,6 +248,7 @@ export class CloudTransport {
       path: args.path,
       ...(args.body === undefined ? {} : { body: args.body }),
       ...(args.allowMissing === undefined ? {} : { allowMissing: args.allowMissing }),
+      ...(args.retry === undefined ? {} : { retry: args.retry }),
     })
   }
 

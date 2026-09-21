@@ -108,6 +108,7 @@ export class SandboxClient {
       method: 'GET',
       path: `/v1/sandboxes/${args.threadId}`,
       allowMissing: true,
+      retry: true,
     })
     if (body === undefined || body === null) return undefined
     return wireSandboxStatusSchema.parse(body)
@@ -118,6 +119,7 @@ export class SandboxClient {
     path: string
     body?: unknown
     allowMissing?: boolean
+    retry?: boolean
   }): Promise<unknown> {
     return this.transport.request(args)
   }

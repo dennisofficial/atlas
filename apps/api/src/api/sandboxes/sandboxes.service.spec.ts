@@ -165,7 +165,7 @@ describe('SandboxesService', () => {
     await service.whenSettled({ threadId: THREAD })
   })
 
-  it('re-provisions on every attach, returning a fresh token each time', async () => {
+  it('re-provisions on every attach, reissuing the same stored token', async () => {
     const first = await service.attach({ userId: USER_A, threadId: THREAD })
     await service.whenSettled({ threadId: THREAD })
 
@@ -191,7 +191,7 @@ describe('SandboxesService', () => {
       token: second.token,
     })
     expect(second.token).toBeDefined()
-    expect(second.token).not.toBe(first.token)
+    expect(second.token).toBe(first.token)
     expect(fake.cloudSandboxes).toHaveLength(1)
   })
 
@@ -287,6 +287,32 @@ describe('SandboxesService', () => {
     expect(fake.cloudSandboxes[0]?.state).toBe(ESandboxState.Parked)
   })
 
+  /**
+   * A parked sandbox loses its filesystem, so the serve it resumes into has no memory of the old
+   * token — reissuing it would leave the new serve booted under a credential nothing has. The
+   * resume must mint fresh and hand that exact token to `getOrCreate`, which is what the launcher
+   * writes into the sandbox before starting serve.
+   */
+  it('mints a fresh token on resume from a park and hands it to provisioning, so serve boots with a token that still works', async () => {
+    const first = await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+
+    await service.stop({ userId: USER_A, threadId: THREAD })
+    expect(fake.cloudSandboxes[0]?.sealedToken).toBeNull()
+
+    const resumed = await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+
+    expect(resumed.token).toBeDefined()
+    expect(resumed.token).not.toBe(first.token)
+    expect(client.getOrCreate).toHaveBeenLastCalledWith({
+      name: fake.cloudSandboxes[0]?.name,
+      threadId: THREAD,
+      token: resumed.token,
+    })
+    expect(cipher.decrypt(fake.cloudSandboxes[0]?.sealedToken as string)).toBe(resumed.token)
+  })
+
   it('resolves promptly with a resuming state and no url while the provision is still in flight', async () => {
     let releaseCreate: (() => void) | undefined
     const gate = new Promise<void>((resolve) => {
@@ -337,7 +363,7 @@ describe('SandboxesService', () => {
 
     const second = await service.attach({ userId: USER_A, threadId: THREAD })
     expect(second.state).toBe(ESandboxState.Resuming)
-    expect(second.token).not.toBe(first.token)
+    expect(second.token).toBe(first.token)
     expect(client.destroy).not.toHaveBeenCalled()
 
     releaseCreate?.()
@@ -418,7 +444,7 @@ describe('SandboxesService', () => {
     await service.whenSettled({ threadId: THREAD })
   })
 
-  it('returns a fresh token on every attach and stores only its hash', async () => {
+  it('returns the same stored token on every attach and stores only its hash in the clear', async () => {
     const first = await service.attach({ userId: USER_A, threadId: THREAD })
     const token = first.token
     await service.whenSettled({ threadId: THREAD })
@@ -434,7 +460,7 @@ describe('SandboxesService', () => {
     const second = await service.attach({ userId: USER_A, threadId: THREAD })
     await service.whenSettled({ threadId: THREAD })
     expect(second.token).toBeDefined()
-    expect(second.token).not.toBe(token)
+    expect(second.token).toBe(token)
     expect(fake.cloudSandboxes[0]?.tokenHash).toBe(
       createHash('sha256')
         .update(second.token as string)
@@ -844,22 +870,24 @@ describe('SandboxesService', () => {
     expect(client.getOrCreate).not.toHaveBeenCalled()
   })
 
-  it('rotates the session token on the same row instead of recreating the sandbox', async () => {
+  it('reissues the same session token on the same row instead of recreating the sandbox', async () => {
     const first = await service.attach({ userId: USER_A, threadId: THREAD })
     await service.whenSettled({ threadId: THREAD })
     const rowId = fake.cloudSandboxes[0]?.id
     const name = fake.cloudSandboxes[0]?.name
+    const sealedBefore = fake.cloudSandboxes[0]?.sealedToken
 
     const attached = await service.attach({ userId: USER_A, threadId: THREAD })
     await service.whenSettled({ threadId: THREAD })
 
     expect(client.destroy).not.toHaveBeenCalled()
     expect(attached.token).toBeDefined()
-    expect(attached.token).not.toBe(first.token)
+    expect(attached.token).toBe(first.token)
     expect(client.getOrCreate).toHaveBeenCalledTimes(2)
     expect(fake.cloudSandboxes).toHaveLength(1)
     expect(fake.cloudSandboxes[0]?.id).toBe(rowId)
     expect(fake.cloudSandboxes[0]?.name).toBe(name)
+    expect(fake.cloudSandboxes[0]?.sealedToken).toBe(sealedBefore)
     expect(fake.cloudSandboxes[0]?.tokenHash).toBe(
       createHash('sha256')
         .update(attached.token as string)
@@ -867,24 +895,51 @@ describe('SandboxesService', () => {
     )
   })
 
-  it('deletes the row when the background provision fails, without rejecting the attach response', async () => {
-    client.getOrCreate.mockRejectedValueOnce(new Error('vercel is unhappy'))
+  it('mints a fresh token for a row that predates the stable-token change', async () => {
+    fake.cloudSandboxes.push(sandboxRow({ threadId: THREAD, sealedToken: null }))
 
     const attached = await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+
+    expect(attached.token).toBeDefined()
+    expect(fake.cloudSandboxes[0]?.sealedToken).toBeTruthy()
+    expect(cipher.decrypt(fake.cloudSandboxes[0]?.sealedToken as string)).toBe(attached.token)
+  })
+
+  it('mints a fresh token instead of failing when the stored sealed token does not decrypt', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+    fake.cloudSandboxes[0]!.sealedToken = 'not-a-valid-blob'
+
+    const attached = await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+
+    expect(attached.token).toBeDefined()
+    expect(cipher.decrypt(fake.cloudSandboxes[0]?.sealedToken as string)).toBe(attached.token)
+  })
+
+  it('keeps the row and its workspace binding when the background provision fails, without rejecting the attach response', async () => {
+    client.getOrCreate.mockRejectedValueOnce(new Error('vercel is unhappy'))
+
+    const attached = await service.attach({ userId: USER_A, threadId: THREAD, workspace: SPEC })
 
     expect(attached.state).toBe(ESandboxState.Resuming)
     expect(attached.token).toBeDefined()
 
     await service.whenSettled({ threadId: THREAD })
-    expect(fake.cloudSandboxes).toHaveLength(0)
+    expect(fake.cloudSandboxes).toHaveLength(1)
+    expect(fake.cloudSandboxes[0]?.workspaceCommit).toBe(SPEC.commit)
     await expect(service.status({ userId: USER_A, threadId: THREAD })).rejects.toThrow(
       'vercel is unhappy',
     )
 
     const retried = await service.attach({ userId: USER_A, threadId: THREAD })
     expect(retried.token).toBeDefined()
+    expect(retried.token).toBe(attached.token)
     await service.whenSettled({ threadId: THREAD })
     await expect(service.status({ userId: USER_A, threadId: THREAD })).resolves.toBeDefined()
+    expect(fake.cloudSandboxes).toHaveLength(1)
+    expect(fake.cloudSandboxes[0]?.workspaceCommit).toBe(SPEC.commit)
   })
 
   it('stores and fetches the context archive through the store', async () => {
@@ -926,13 +981,13 @@ describe('SandboxesService', () => {
     expect(archives.writeSandboxArchive).not.toHaveBeenCalled()
   })
 
-  it('tolerates an HttpException from the client during background provisioning too', async () => {
+  it('tolerates an HttpException from the client during background provisioning too, keeping the row', async () => {
     client.getOrCreate.mockRejectedValueOnce(new ServiceUnavailableException('not configured'))
 
     const attached = await service.attach({ userId: USER_A, threadId: THREAD })
     expect(attached.state).toBe(ESandboxState.Resuming)
 
     await service.whenSettled({ threadId: THREAD })
-    expect(fake.cloudSandboxes).toHaveLength(0)
+    expect(fake.cloudSandboxes).toHaveLength(1)
   })
 })

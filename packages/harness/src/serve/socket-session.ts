@@ -96,7 +96,12 @@ export function createSessionHandlers(args: {
 
     send({
       socket,
-      frame: { kind: EServeFrame.Ready, seq: buffer.nextSeq(), protocol: CHANNEL_PROTOCOL_VERSION },
+      frame: {
+        kind: EServeFrame.Ready,
+        seq: buffer.nextSeq(),
+        protocol: CHANNEL_PROTOCOL_VERSION,
+        turnInFlight: driver.running(),
+      },
     })
 
     const blocked = refusal()

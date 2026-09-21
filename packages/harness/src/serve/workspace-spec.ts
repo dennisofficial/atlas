@@ -2,6 +2,8 @@ import { z } from 'zod'
 
 import type { ThreadId } from '@dltech/atlas-core'
 
+import { cloudRequest } from '../cloud/cloud-transport'
+
 /**
  * Fetched rather than injected: a patch carrying every uncommitted change outgrows what a process
  * environment will hold, and the sandbox already holds a token that authenticates the read.
@@ -27,16 +29,19 @@ export function workspaceSpecFetcher(args: {
   token: string
   fetchFn: typeof fetch
 }): FetchWorkspaceSpec {
-  const url = `${args.controlPlaneUrl.replace(/\/+$/, '')}/v1/sandboxes/${args.threadId}/workspace`
+  const url = args.controlPlaneUrl.replace(/\/+$/, '')
 
   return async () => {
-    const response = await args.fetchFn(url, {
-      headers: { authorization: `Bearer ${args.token}` },
+    const body = await cloudRequest({
+      url,
+      token: args.token,
+      clientVersion: 'dev',
+      fetchFn: args.fetchFn,
+      method: 'GET',
+      path: `/v1/sandboxes/${args.threadId}/workspace`,
+      retry: true,
     })
-    if (!response.ok) {
-      throw new Error(`the control plane answered ${response.status} for the workspace spec`)
-    }
-    return wireWorkspaceSpecSchema.parse(await response.json())
+    return wireWorkspaceSpecSchema.parse(body)
   }
 }
 

@@ -7,8 +7,8 @@ import { SANDBOX_REGION } from './vercel-sandbox.client'
 import { workspaceColumnsOf, type WorkspaceColumns } from './workspace-spec'
 
 export type ClaimUpdate = Partial<WorkspaceColumns> & {
-  tokenHash: string
-  sealedToken: string
+  tokenHash?: string
+  sealedToken?: string
   lastActivityAt: string
   updatedAt: string
 }
@@ -18,13 +18,13 @@ export function rotationOf(args: {
   contextBundle: string | undefined
   tokenHash: string
   sealedToken: string
+  rotated: boolean
   at: string
 }): ClaimUpdate {
   const rotation: ClaimUpdate = {
-    tokenHash: args.tokenHash,
-    sealedToken: args.sealedToken,
     lastActivityAt: args.at,
     updatedAt: args.at,
+    ...(args.rotated ? { tokenHash: args.tokenHash, sealedToken: args.sealedToken } : {}),
   }
   if (args.workspace !== undefined) {
     const columns = workspaceColumnsOf(args.workspace)
@@ -38,10 +38,16 @@ export function rotationOf(args: {
   return rotation
 }
 
+/**
+ * `rotated` is false whenever the caller reissued the sandbox's already-stored token rather than
+ * minting a fresh one, so the update leaves `tokenHash`/`sealedToken` untouched — writing the
+ * unchanged values back would just be a no-op read-modify-write on every attach.
+ */
 export function claimSandboxRow(args: {
   thread: ThreadModel
   tokenHash: string
   sealedToken: string
+  rotated: boolean
   workspace: SandboxWorkspaceSpec | undefined
   contextBundle: string | undefined
   name?: string | undefined

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'bun:test'
 
 import { CloudError, cloudRequest } from '../cloud-transport'
 
-const harness = (args: { replies: readonly { status: number; body?: unknown; retryAfter?: string }[] }) => {
+type Reply = { status: number; body?: unknown; retryAfter?: string; networkError?: boolean }
+
+const harness = (args: { replies: readonly Reply[] }) => {
   const calls: string[] = []
   const delays: number[] = []
   let at = 0
@@ -11,6 +13,7 @@ const harness = (args: { replies: readonly { status: number; body?: unknown; ret
     calls.push(String(input))
     const reply = args.replies[Math.min(at, args.replies.length - 1)]
     at += 1
+    if (reply?.networkError === true) throw new Error('the connection was reset')
     return new Response(reply?.body === undefined ? '' : JSON.stringify(reply.body), {
       status: reply?.status ?? 200,
       headers: reply?.retryAfter === undefined ? {} : { 'retry-after': reply.retryAfter },
@@ -21,7 +24,7 @@ const harness = (args: { replies: readonly { status: number; body?: unknown; ret
     delays.push(ms)
   }
 
-  const request = () =>
+  const request = (overrides?: { retry?: boolean; randomFn?: () => number }) =>
     cloudRequest({
       url: 'https://cloud.test',
       token: 'sess_test',
@@ -30,12 +33,13 @@ const harness = (args: { replies: readonly { status: number; body?: unknown; ret
       method: 'GET',
       path: '/v1/threads/thread-1/events',
       sleep,
+      ...overrides,
     })
 
   return { request, calls, delays }
 }
 
-describe('cloudRequest against a throttled API', () => {
+describe('cloudRequest with retry opted in', () => {
   it('retries a 429 and returns the answer that eventually lands', async () => {
     const { request, calls } = harness({
       replies: [
@@ -45,8 +49,26 @@ describe('cloudRequest against a throttled API', () => {
       ],
     })
 
-    expect(await request()).toEqual([{ id: 'event-1' }])
+    expect(await request({ retry: true })).toEqual([{ id: 'event-1' }])
     expect(calls).toHaveLength(3)
+  })
+
+  it('retries a 5xx the same as a 429', async () => {
+    const { request, calls } = harness({
+      replies: [{ status: 503 }, { status: 200, body: [] }],
+    })
+
+    expect(await request({ retry: true })).toEqual([])
+    expect(calls).toHaveLength(2)
+  })
+
+  it('retries a fetch-level network failure', async () => {
+    const { request, calls } = harness({
+      replies: [{ status: 200, networkError: true }, { status: 200, body: [] }],
+    })
+
+    expect(await request({ retry: true })).toEqual([])
+    expect(calls).toHaveLength(2)
   })
 
   it('backs off exponentially, preferring the retry-after header when one is sent', async () => {
@@ -59,8 +81,8 @@ describe('cloudRequest against a throttled API', () => {
       ],
     })
 
-    await request()
-    expect(delays).toEqual([1000, 5000, 4000])
+    await request({ retry: true, randomFn: () => 1 })
+    expect(delays).toEqual([500, 5000, 2000])
   })
 
   it('gives up after the retries and throws the 429 it last heard', async () => {
@@ -68,21 +90,52 @@ describe('cloudRequest against a throttled API', () => {
       replies: [{ status: 429, body: { message: 'ThrottlerException: Too Many Requests' } }],
     })
 
-    const failure = await request().catch((error: unknown) => error)
+    const failure = await request({ retry: true }).catch((error: unknown) => error)
     expect(failure).toBeInstanceOf(CloudError)
     expect((failure as CloudError).status).toBe(429)
     expect((failure as CloudError).message).toContain('ThrottlerException: Too Many Requests')
     expect(calls).toHaveLength(4)
   })
 
-  it('never retries a failure that is not a throttle', async () => {
+  it('gives up after the retries and throws the network failure it last heard', async () => {
+    const { request, calls } = harness({ replies: [{ status: 200, networkError: true }] })
+
+    const failure = await request({ retry: true }).catch((error: unknown) => error)
+    expect(failure).toBeInstanceOf(CloudError)
+    expect((failure as CloudError).status).toBe(0)
+    expect(calls).toHaveLength(4)
+  })
+
+  it('never retries a failure that is not a throttle or a reset', async () => {
     const { request, calls, delays } = harness({
       replies: [{ status: 400, body: { message: 'bad request' } }],
     })
 
-    const failure = await request().catch((error: unknown) => error)
+    const failure = await request({ retry: true }).catch((error: unknown) => error)
     expect((failure as CloudError).status).toBe(400)
     expect(calls).toHaveLength(1)
     expect(delays).toEqual([])
+  })
+})
+
+describe('cloudRequest without retry (the mutation default)', () => {
+  it('throws on the first 429 rather than retrying', async () => {
+    const { request, calls } = harness({
+      replies: [{ status: 429, body: { message: 'ThrottlerException: Too Many Requests' } }],
+    })
+
+    const failure = await request().catch((error: unknown) => error)
+    expect(failure).toBeInstanceOf(CloudError)
+    expect((failure as CloudError).status).toBe(429)
+    expect(calls).toHaveLength(1)
+  })
+
+  it('throws on the first network failure rather than retrying', async () => {
+    const { request, calls } = harness({ replies: [{ status: 200, networkError: true }] })
+
+    const failure = await request().catch((error: unknown) => error)
+    expect(failure).toBeInstanceOf(CloudError)
+    expect((failure as CloudError).status).toBe(0)
+    expect(calls).toHaveLength(1)
   })
 })

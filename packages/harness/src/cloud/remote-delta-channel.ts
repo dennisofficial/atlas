@@ -54,6 +54,9 @@ export type ChannelReload = { sinceEventSeq: number }
 
 export type ChannelFailure = { message: string }
 
+/** What the serve said about itself at greet — whether the turn it was running survived. */
+export type ChannelReady = { turnInFlight: boolean }
+
 export type RemoteDeltaChannel = DeltaChannel & {
   readonly threadId: ThreadId
   send(args: { text: string }): void
@@ -63,6 +66,7 @@ export type RemoteDeltaChannel = DeltaChannel & {
   connection(): ChannelConnection
   onConnection(listener: (connection: ChannelConnection) => void): Unsubscribe
   onReload(listener: (reload: ChannelReload) => void): Unsubscribe
+  onReady(listener: (ready: ChannelReady) => void): Unsubscribe
   onTurnEnded(listener: (outcome: TurnOutcome) => void): Unsubscribe
   onError(listener: (failure: ChannelFailure) => void): Unsubscribe
   onServerError(listener: (failure: ChannelFailure) => void): Unsubscribe
@@ -113,7 +117,12 @@ export function createRemoteDeltaChannel(args: {
   maxAttempts?: number | undefined
   requestTimeoutMs?: number | undefined
   keepaliveMs?: number | undefined
-  /** Once the socket retries are spent, re-attach through the API; the relaunched serve kills the turn in flight. */
+  /**
+   * Once the socket retries are spent, re-attach through the API. The relaunched serve keeps
+   * whatever turn was already running — a re-attach loses the client's own in-flight step (it has
+   * no durable replay), not the turn on the far side, which the reported `Ready.turnInFlight`
+   * settles for the caller.
+   */
   reattach?: (() => Promise<{ url: string; token: string }>) | undefined
   maxReattachments?: number | undefined
   /**
@@ -135,6 +144,7 @@ export function createRemoteDeltaChannel(args: {
   const listeners = new Set<ChannelListener>()
   const connections = registryOf<ChannelConnection>()
   const reloads = registryOf<ChannelReload>()
+  const readies = registryOf<ChannelReady>()
   const turnEndings = registryOf<TurnOutcome>()
   const failures = registryOf<ChannelFailure>()
   const serverErrors = registryOf<ChannelFailure>()
@@ -250,6 +260,7 @@ export function createRemoteDeltaChannel(args: {
       attempt = 0
       reattachments = 0
       upstream.attach({ write })
+      readies.emit({ turnInFlight: frame.turnInFlight === true })
       moveTo({ state: EChannelConnection.Open, detail: null })
       return
     }
@@ -459,6 +470,8 @@ export function createRemoteDeltaChannel(args: {
     onConnection: (listener) => connections.add(listener),
 
     onReload: (listener) => reloads.add(listener),
+
+    onReady: (listener) => readies.add(listener),
 
     onTurnEnded: (listener) => turnEndings.add(listener),
 

@@ -19,7 +19,8 @@ import { ownedSandbox } from './ownership'
 import { toSandboxDto } from './rows'
 import { claimSandboxRow } from './sandbox-claim'
 import { sandboxNameFor } from './sandbox-names'
-import { hashSessionToken, mintSessionToken, tokenMatches } from './sandbox-tokens'
+import { sessionCredentialOf } from './sandbox-session-credential'
+import { hashSessionToken, tokenMatches } from './sandbox-tokens'
 import type {
   SandboxAttachmentDto,
   SandboxExposureDto,
@@ -60,9 +61,10 @@ export class SandboxesService {
   /**
    * The response awaits nothing but the ownership check: a cold image pull can take minutes, long
    * enough for the DigitalOcean edge to 504 while the provision keeps running server-side and its
-   * answer is lost. The token is minted up front and the claim+provision chain runs in the
-   * background under the per-thread lock, so a second attach answers just as fast and simply
-   * queues its re-provision behind the first.
+   * answer is lost. The session credential is resolved up front — reissuing the sandbox's stored
+   * token, or minting one the first time — and the claim+provision chain runs in the background
+   * under the per-thread lock, so a second attach answers just as fast and simply queues its
+   * re-provision behind the first.
    */
   async attach(args: {
     userId: string
@@ -76,12 +78,19 @@ export class SandboxesService {
     if (args.contextBundle !== undefined) {
       assertContextBundleWithinLimit({ bundle: args.contextBundle })
     }
-    const minted = mintSessionToken()
     const existing = await db.cloudSandbox.findUnique({
       where: { threadId: args.threadId },
-      select: { name: true },
+      select: { name: true, sealedToken: true },
     })
     const name = existing?.name ?? args.name ?? sandboxNameFor({ threadId: args.threadId })
+    const credential = sessionCredentialOf({
+      cipher: this.cipher,
+      sealedToken: existing?.sealedToken ?? null,
+      onStaleToken: (failure) =>
+        this.logger.warn(
+          `the stored sandbox token does not decrypt; minting a fresh one: ${messageOf(failure)}`,
+        ),
+    })
 
     const previous = this.attachLocks.get(args.threadId) ?? Promise.resolve()
     const chain = () =>
@@ -89,9 +98,10 @@ export class SandboxesService {
         thread,
         workspace: args.workspace,
         contextBundle: args.contextBundle,
-        token: minted.token,
-        tokenHash: minted.tokenHash,
-        sealedToken: this.cipher.encrypt(minted.token),
+        token: credential.token,
+        tokenHash: credential.tokenHash,
+        sealedToken: credential.sealedToken,
+        rotated: credential.rotated,
         name,
       })
     const settled = previous.then(chain, chain)
@@ -107,14 +117,14 @@ export class SandboxesService {
       region: SANDBOX_REGION,
       state: ESandboxState.Resuming,
       lastActivityAt: nowIso(),
-      token: minted.token,
+      token: credential.token,
     }
   }
 
   /**
-   * A wake against a running sandbox must not re-attach: a fresh attach rotates the token, and the
-   * launcher would read the running serve's stale-token 401 as a wedge and restart it mid-turn.
-   * The sealed token lets the control plane reach the live serve with the credential it booted with.
+   * A wake against a running sandbox must not re-attach: attach() still calls into Vercel's
+   * get-or-create and the serve launcher on every call, so reaching in through the sealed token
+   * avoids that round trip entirely for a sandbox already known to be running.
    */
   async runningEndpoint(args: {
     userId: string
@@ -155,6 +165,7 @@ export class SandboxesService {
     token: string
     tokenHash: string
     sealedToken: string
+    rotated: boolean
     name: string | undefined
   }): Promise<void> {
     this.provisionFailures.delete(args.thread.id)
@@ -163,6 +174,7 @@ export class SandboxesService {
         thread: args.thread,
         tokenHash: args.tokenHash,
         sealedToken: args.sealedToken,
+        rotated: args.rotated,
         workspace: args.workspace,
         contextBundle: args.contextBundle,
         name: args.name,
@@ -371,13 +383,6 @@ export class SandboxesService {
       const message = messageOf(failure)
       this.logger.warn(`sandbox provisioning failed for thread ${args.row.threadId}: ${message}`)
       this.provisionFailures.set(args.row.threadId, message)
-      try {
-        await db.cloudSandbox.delete({ where: { threadId: args.row.threadId } })
-      } catch (deleteFailure) {
-        this.logger.warn(
-          `could not delete sandbox row for thread ${args.row.threadId} after a failed provision: ${messageOf(deleteFailure)}`,
-        )
-      }
     }
   }
 

@@ -91,6 +91,11 @@ export const serveFrameSchema = z.discriminatedUnion('kind', [
     kind: z.literal(EServeFrame.Ready),
     seq: seqSchema,
     protocol: z.number().int().nonnegative().optional(),
+    /**
+     * Absent on a serve built before this field existed; a client must treat that as `false`,
+     * which reproduces the old fail-fast behaviour against an old serve rather than hanging.
+     */
+    turnInFlight: z.boolean().optional(),
   }),
   z.object({ kind: z.literal(EServeFrame.Signal), seq: seqSchema, signal: channelSignalSchema }),
   z.object({
