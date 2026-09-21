@@ -56,6 +56,9 @@ async function transferThreadDown(args: {
       ...(remote?.repo === undefined ? {} : { repo: remote.repo }),
       ...(remote?.agent === undefined ? {} : { agent: remote.agent }),
     })
+    if (remote?.model !== undefined) {
+      await localApp.threads.chooseModel({ threadId, model: remote.model })
+    }
     return
   }
 
@@ -73,6 +76,11 @@ async function transferThreadDown(args: {
     runId: localApp.ids.nextRunId(),
     drafts: draftsOf(events),
   })
+
+  const remote = await bridge.stores.threads.find({ threadId })
+  if (remote?.model !== undefined) {
+    await localApp.threads.chooseModel({ threadId, model: remote.model })
+  }
 }
 
 const awaitTurnEnd = (args: { channel: CloudChannel; deadlineMs: number }): Promise<boolean> =>
