@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common'
 import { EnvService } from '../../_core/config/env/env.service'
 import { SessionsModule } from '../sessions/sessions.module'
+import { FactoryDriveSweeperService } from './drives/drive-sweeper.service'
+import { FactoryDrivesService } from './drives/drives.service'
 import { GithubWebhookController } from './github-webhook.controller'
 import { GithubWebhookService } from './github-webhook.service'
 import { FactoryCredentialService } from './orchestrator/factory-credentials'
@@ -14,12 +16,15 @@ import { GithubAppService } from './reply/github-app.service'
 import { GuardedReplyService } from './reply/guarded-reply.service'
 import { OrchestratorSandboxGuard } from './reply/orchestrator-sandbox.guard'
 import { FactoryRepliesController } from './reply/replies.controller'
+import { FactoryGitCredentialSource } from './stations/factory-git-credentials'
+import { StationsService } from './stations/stations.service'
+import { FactoryStationsController } from './stations/stations.controller'
 import { TranscriptService } from './transcript.service'
 import { WorkItemsService } from './work-items.service'
 
 @Module({
   imports: [SessionsModule],
-  controllers: [GithubWebhookController, FactoryRepliesController],
+  controllers: [GithubWebhookController, FactoryRepliesController, FactoryStationsController],
   providers: [
     WorkItemsService,
     TranscriptService,
@@ -29,6 +34,10 @@ import { WorkItemsService } from './work-items.service'
     OrchestratorService,
     GuardedReplyService,
     OrchestratorSandboxGuard,
+    FactoryDrivesService,
+    FactoryDriveSweeperService,
+    StationsService,
+    FactoryGitCredentialSource,
     {
       provide: GithubAppService,
       useFactory: (env: EnvService) => new GithubAppService(env),

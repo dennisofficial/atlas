@@ -7,6 +7,7 @@ vi.mock('../../db', async () => {
 })
 
 import { fakeFactoryDb } from '../../../test/fake-factory-db.js'
+import type { FactoryDrivesService } from './drives/drives.service'
 import { EFactoryEventKind, EFactoryWorkItemStatus } from './factory.types'
 import { GithubWebhookService } from './github-webhook.service'
 import type { OrchestratorService } from './orchestrator/orchestrator.service'
@@ -51,6 +52,7 @@ describe('GithubWebhookService', () => {
   let workItems: WorkItemsService
   let orchestrator: { wake: ReturnType<typeof vi.fn> }
   let githubApp: { botLogin: ReturnType<typeof vi.fn>; ownsAppId: ReturnType<typeof vi.fn> }
+  let drives: { release: ReturnType<typeof vi.fn> }
 
   beforeEach(() => {
     fake.reset()
@@ -60,11 +62,13 @@ describe('GithubWebhookService', () => {
       botLogin: vi.fn(async () => 'atlas-factory[bot]'),
       ownsAppId: vi.fn((id: number | undefined) => id === 4275284),
     }
+    drives = { release: vi.fn(async () => true) }
     service = new GithubWebhookService(
       workItems,
       new TranscriptService(),
       orchestrator as unknown as OrchestratorService,
       githubApp as unknown as GithubAppService,
+      drives as unknown as FactoryDrivesService,
     )
   })
 

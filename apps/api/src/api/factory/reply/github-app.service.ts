@@ -11,6 +11,8 @@ const GITHUB_API = 'https://api.github.com'
 const APP_JWT_REFRESH_MS = 8 * 60 * 1000
 const DETAIL_CAP = 300
 
+class BranchNotOnRemote extends Error {}
+
 export type GithubFetch = typeof fetch
 
 export class GithubAppNotInstalled extends BadGatewayException {
@@ -75,6 +77,26 @@ export class GithubAppService {
       as: 'app',
     })
     return minted.token
+  }
+
+  /** Null when the branch is not on the remote — the delivery gate's "pushed" check. */
+  async branchHead(args: { owner: string; repo: string; branch: string }): Promise<string | null> {
+    const token = await this.installationToken({ owner: args.owner, repo: args.repo })
+    try {
+      const branch = await this.request<{ commit: { sha: string } }>({
+        method: 'GET',
+        path: `/repos/${args.owner}/${args.repo}/branches/${encodeURIComponent(args.branch)}`,
+        as: 'installation',
+        token,
+        onNotFound: () => {
+          throw new BranchNotOnRemote()
+        },
+      })
+      return branch.commit.sha
+    } catch (failure) {
+      if (failure instanceof BranchNotOnRemote) return null
+      throw failure
+    }
   }
 
   async createComment(args: {

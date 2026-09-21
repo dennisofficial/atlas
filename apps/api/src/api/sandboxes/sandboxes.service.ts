@@ -13,7 +13,7 @@ import { db } from '../../db'
 import { assertArchiveWithinLimit } from '../context-archive/context-archive-limits'
 import { CONTEXT_ARCHIVE_STORE } from '../context-archive/context-archive.store'
 import type { ContextArchiveStore } from '../context-archive/context-archive.store'
-import { GithubService } from '../github/github.service'
+import { SandboxGitCredentials } from './git-credentials'
 import { ownedThread } from '../sessions/ownership'
 import { ownedSandbox } from './ownership'
 import { toSandboxDto } from './rows'
@@ -28,7 +28,7 @@ import type {
   SandboxWorkspaceDto,
   SandboxWorkspaceSpec,
 } from './sandboxes.types'
-import { ESandboxState } from './sandboxes.types'
+import { ESandboxDriveMode, ESandboxState } from './sandboxes.types'
 import {
   SANDBOX_REGION,
   SandboxMissingError,
@@ -43,6 +43,19 @@ const nowIso = (): string => new Date().toISOString()
 const messageOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
 
+const driveOf = (
+  row: CloudSandboxModel,
+): { name: string; mode: ESandboxDriveMode } | undefined => {
+  if (row.driveName === null) return undefined
+  return {
+    name: row.driveName,
+    mode:
+      row.driveMode === ESandboxDriveMode.Snapshot
+        ? ESandboxDriveMode.Snapshot
+        : ESandboxDriveMode.ReadWrite,
+  }
+}
+
 @Injectable()
 export class SandboxesService {
   private readonly logger = new Logger(SandboxesService.name)
@@ -53,7 +66,7 @@ export class SandboxesService {
   constructor(
     private readonly vercel: VercelSandboxClient,
     private readonly env: EnvService,
-    private readonly github: GithubService,
+    private readonly gitCredentials: SandboxGitCredentials,
     private readonly cipher: SecretCipherService,
     @Inject(CONTEXT_ARCHIVE_STORE) private readonly archives: ContextArchiveStore,
   ) {}
@@ -72,6 +85,8 @@ export class SandboxesService {
     workspace?: SandboxWorkspaceSpec | undefined
     contextBundle?: string | undefined
     name?: string | undefined
+    drive?: { name: string; mode: ESandboxDriveMode } | undefined
+    pinnedModel?: string | undefined
   }): Promise<SandboxAttachmentDto> {
     const thread = await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
     if (args.workspace !== undefined) assertPatchWithinLimit({ patch: args.workspace.patch })
@@ -103,6 +118,8 @@ export class SandboxesService {
         sealedToken: credential.sealedToken,
         rotated: credential.rotated,
         name,
+        drive: args.drive,
+        pinnedModel: args.pinnedModel,
       })
     const settled = previous.then(chain, chain)
     this.attachLocks.set(args.threadId, settled)
@@ -167,6 +184,8 @@ export class SandboxesService {
     sealedToken: string
     rotated: boolean
     name: string | undefined
+    drive: { name: string; mode: ESandboxDriveMode } | undefined
+    pinnedModel: string | undefined
   }): Promise<void> {
     this.provisionFailures.delete(args.thread.id)
     try {
@@ -178,6 +197,8 @@ export class SandboxesService {
         workspace: args.workspace,
         contextBundle: args.contextBundle,
         name: args.name,
+        drive: args.drive,
+        pinnedModel: args.pinnedModel,
       })
       await this.provisionInBackground({ row, token: args.token })
     } catch (failure) {
@@ -199,8 +220,12 @@ export class SandboxesService {
     // migration and its container swap still carries only workspaceSkills.
     const contextBundle = row.workspaceContext ?? row.workspaceSkills ?? null
     if (spec.remoteUrl === null) return { ...spec, githubToken: null, contextBundle }
-    const githubToken = await this.github.findToken({ userId: row.userId })
-    return { ...spec, githubToken: githubToken ?? null, contextBundle }
+    const githubToken = await this.gitCredentials.findToken({
+      userId: row.userId,
+      threadId: row.threadId,
+      remoteUrl: spec.remoteUrl,
+    })
+    return { ...spec, githubToken, contextBundle }
   }
 
   async putContextArchive(args: {
@@ -373,10 +398,13 @@ export class SandboxesService {
     token: string
   }): Promise<void> {
     try {
+      const drive = driveOf(args.row)
       const placement = await this.vercel.getOrCreate({
         name: args.row.name,
         threadId: args.row.threadId,
         token: args.token,
+        ...(drive === undefined ? {} : { drive }),
+        ...(args.row.pinnedModel === null ? {} : { pinnedModel: args.row.pinnedModel }),
       })
       await this.stamp({ row: args.row, placement })
     } catch (failure) {

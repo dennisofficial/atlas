@@ -71,6 +71,9 @@ export type FakeCloudSandboxRow = {
   workspaceContext: string | null
   workspaceContextArchive?: Buffer | null
   workspaceProjectDirectory: string | null
+  driveName?: string | null
+  driveMode?: string | null
+  pinnedModel?: string | null
   createdAt: string
   updatedAt: string
 }

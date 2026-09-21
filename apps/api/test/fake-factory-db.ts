@@ -65,7 +65,19 @@ export type FakeUserRow = {
   email: string
 }
 
-type FakeRow = FakeWorkItemRow | FakeAliasRow | FakeTranscriptEventRow
+export type FakeStationRunRow = {
+  id: string
+  workItemId: string
+  kind: string
+  threadId: string
+  status: string
+  driveMode: string
+  createdAt: string
+  updatedAt: string
+  finishedAt: string | null
+}
+
+type FakeRow = FakeWorkItemRow | FakeAliasRow | FakeTranscriptEventRow | FakeStationRunRow
 
 const matchesRow = (row: FakeRow, where: Where): boolean =>
   Object.entries(where).every(([key, condition]) =>
@@ -80,6 +92,7 @@ export function createFakeFactoryDb() {
   const accounts = createFakeAccountTables()
   const threads: FakeOrchestratorThreadRow[] = []
   const events: FakeOrchestratorEventRow[] = []
+  const stationRuns: FakeStationRunRow[] = []
 
   const db = {
     factoryWorkItem: {
@@ -170,6 +183,32 @@ export function createFakeFactoryDb() {
           (one) => args.where === undefined || matchesRow(one, args.where),
         ).length,
     },
+    factoryStationRun: {
+      create: async (args: { data: FakeStationRunRow }) => {
+        if (stationRuns.some((one) => one.id === args.data.id)) throw uniqueViolation(['id'])
+        if (stationRuns.some((one) => one.threadId === args.data.threadId)) {
+          throw uniqueViolation(['threadId'])
+        }
+        stationRuns.push(args.data)
+        return args.data
+      },
+      findFirst: async (args: { where: Where; select?: Record<string, boolean> }) => {
+        const found = stationRuns.find((one) => matchesRow(one, args.where)) ?? null
+        return found === null ? null : project(found, args.select)
+      },
+      findUnique: async (args: { where: { id: string }; select?: Record<string, boolean> }) => {
+        const found = stationRuns.find((one) => one.id === args.where.id) ?? null
+        return found === null ? null : project(found, args.select)
+      },
+      findMany: async (args: { where?: Where }) =>
+        stationRuns.filter((one) => args.where === undefined || matchesRow(one, args.where)),
+      update: async (args: { where: { id: string }; data: Where }) => {
+        const row = stationRuns.find((one) => one.id === args.where.id)
+        if (row === undefined) throw new Error('record not found')
+        applyUpdate(row as unknown as Record<string, unknown>, args.data)
+        return row
+      },
+    },
     user: {
       upsert: async (args: {
         where: { email: string }
@@ -184,6 +223,10 @@ export function createFakeFactoryDb() {
     },
     ...accounts.db,
     thread: {
+      create: async (args: { data: { id: string } }) => {
+        threads.push({ id: args.data.id, head: 0 })
+        return args.data
+      },
       delete: async (args: { where: { id: string } }) => {
         const index = threads.findIndex((one) => one.id === args.where.id)
         if (index === -1) throw new Error('record not found')
@@ -212,6 +255,7 @@ export function createFakeFactoryDb() {
         aliases: aliases.map((one) => ({ ...one })),
         transcriptEvents: transcriptEvents.map((one) => ({ ...one })),
         users: users.map((one) => ({ ...one })),
+        stationRuns: stationRuns.map((one) => ({ ...one })),
       }
       try {
         return await callback(db)
@@ -220,6 +264,7 @@ export function createFakeFactoryDb() {
         aliases.splice(0, aliases.length, ...snapshot.aliases)
         transcriptEvents.splice(0, transcriptEvents.length, ...snapshot.transcriptEvents)
         users.splice(0, users.length, ...snapshot.users)
+        stationRuns.splice(0, stationRuns.length, ...snapshot.stationRuns)
         throw error
       }
     },
@@ -235,6 +280,7 @@ export function createFakeFactoryDb() {
     activeAccounts: accounts.activeAccounts,
     threads,
     events,
+    stationRuns,
     reset: () => {
       workItems.length = 0
       aliases.length = 0
@@ -243,6 +289,7 @@ export function createFakeFactoryDb() {
       accounts.reset()
       threads.length = 0
       events.length = 0
+      stationRuns.length = 0
     },
   }
 }

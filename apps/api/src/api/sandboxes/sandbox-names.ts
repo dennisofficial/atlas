@@ -15,3 +15,7 @@ const FACTORY_NAME_PREFIX = 'factory'
 export function factorySandboxNameFor(args: { workItemId: string }): string {
   return `${FACTORY_NAME_PREFIX}-${args.workItemId.replaceAll('_', '-')}`
 }
+
+export function factoryStationSandboxNameFor(args: { runId: string }): string {
+  return `${FACTORY_NAME_PREFIX}-st-${args.runId.replaceAll('_', '-')}`
+}

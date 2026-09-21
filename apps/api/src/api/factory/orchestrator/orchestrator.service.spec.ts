@@ -42,7 +42,10 @@ describe('OrchestratorService', () => {
     status: ReturnType<typeof vi.fn>
   }
   let channel: { inject: ReturnType<typeof vi.fn> }
-  let credentials: { ensureSeeded: ReturnType<typeof vi.fn> }
+  let credentials: {
+    ensureSeeded: ReturnType<typeof vi.fn>
+    modelRef: ReturnType<typeof vi.fn>
+  }
   let service: OrchestratorService
   let eventSeq: number
 
@@ -102,7 +105,10 @@ describe('OrchestratorService', () => {
         url: 'https://factory-x-3000.vercel.run',
       })),
     }
-    credentials = { ensureSeeded: vi.fn(async () => undefined) }
+    credentials = {
+      ensureSeeded: vi.fn(async () => undefined),
+      modelRef: vi.fn(() => 'inference/kimi-k3-fast'),
+    }
     channel = {
       inject: vi.fn(async (args: InjectCall & { threadId: string }) => {
         fake.events.push({
