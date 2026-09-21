@@ -81,6 +81,7 @@ describe('the harness container graph', () => {
       'resolveProjectPaths',
       'readBeforeWrite',
       'classifyCall',
+      'serviceShape',
     ])
     expect(hooks.afterTool.map((hook) => hook.name)).toEqual([
       'plan',
