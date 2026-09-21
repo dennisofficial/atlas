@@ -20,6 +20,7 @@ export async function relocateSession({
   threadId,
   from,
   location,
+  caller,
   log,
   ids,
   services,
@@ -28,6 +29,7 @@ export async function relocateSession({
   threadId: ThreadId
   from: EExecutionLocation
   location: EExecutionLocation
+  caller?: ThreadId | undefined
   log: EventLogPort
   ids: IdPort
   services: ServiceRegistryPort
@@ -47,7 +49,7 @@ export async function relocateSession({
       return stopped.ok ? [stopped.snapshot] : []
     })
 
-  const relocatedAgents = await agents.relocateChildren({ threadId, location })
+  const relocatedAgents = await agents.relocateChildren({ threadId, location, caller })
 
   return { stoppedServices, relocatedAgents }
 }

@@ -5,7 +5,12 @@ import type { AgentSnapshot, RecoveredAgents } from './snapshot'
 
 export type AgentOutcome = { ok: true; snapshot: AgentSnapshot } | { ok: false; reason: string }
 
-export type RelocateChildrenArgs = { threadId: ThreadId; location: EExecutionLocation }
+export type RelocateChildrenArgs = {
+  threadId: ThreadId
+  location: EExecutionLocation
+  /** The thread executing the relocation: its own in-flight step can never settle into the wait, so it is re-routed without being stopped. */
+  caller?: ThreadId | undefined
+}
 
 /**
  * A sub-agent belongs to the thread that spawned it, so every read and every steer is scoped to

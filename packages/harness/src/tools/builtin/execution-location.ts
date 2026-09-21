@@ -117,6 +117,7 @@ export class ExecutionLocationTool extends SchemaTool<typeof inputSchema> {
         threadId: root,
         from,
         location: target,
+        caller: threadId,
         log: stores.log,
         ids: this.deps.ids,
         services: this.deps.services,
