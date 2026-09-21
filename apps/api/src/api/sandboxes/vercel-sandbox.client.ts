@@ -204,14 +204,17 @@ export class VercelSandboxClient {
     await this.driveFor({ name: args.name, timeoutMs: SANDBOX_LAUNCH_TIMEOUT_MS })
   }
 
-  /**
-   * The SDK exposes no get-by-name, only getOrCreate: releasing a drive that was never actually
-   * created provisions an empty one and deletes it in the same call, which is harmless.
-   */
   async deleteDrive(args: { name: string }): Promise<void> {
     try {
-      const drive = await this.driveFor({ name: args.name, timeoutMs: SANDBOX_QUICK_TIMEOUT_MS })
-      await drive.delete({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
+      const drives = await Drive.list({
+        ...this.credentials(),
+        namePrefix: args.name,
+        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
+      })
+      for await (const drive of drives) {
+        if (drive.name !== args.name) continue
+        await drive.delete({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
+      }
     } catch (failure) {
       if (isSandboxMissing(failure)) return
       throw asBadGateway(failure)

@@ -1,6 +1,5 @@
 import { IsIn, IsNotEmpty, IsObject, IsString, MaxLength } from 'class-validator'
-
-const MESSAGE_MAX_LENGTH = 60_000
+import { STATION_MESSAGE_CAP } from './station.types'
 
 export class SpawnStationDto {
   @IsString()
@@ -9,14 +8,14 @@ export class SpawnStationDto {
 
   @IsString()
   @IsNotEmpty()
-  @MaxLength(MESSAGE_MAX_LENGTH)
+  @MaxLength(STATION_MESSAGE_CAP)
   message!: string
 }
 
 export class SteerStationDto {
   @IsString()
   @IsNotEmpty()
-  @MaxLength(MESSAGE_MAX_LENGTH)
+  @MaxLength(STATION_MESSAGE_CAP)
   message!: string
 }
 

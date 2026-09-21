@@ -2,12 +2,10 @@ import { randomUUID } from 'node:crypto'
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   Inject,
   Injectable,
+  InternalServerErrorException,
   Logger,
-  NotFoundException,
-  UnprocessableEntityException,
 } from '@nestjs/common'
 import { db } from '../../../db'
 import { factoryStationSandboxNameFor } from '../../sandboxes/sandbox-names'
@@ -15,12 +13,7 @@ import { ESandboxDriveMode } from '../../sandboxes/sandboxes.types'
 import { SandboxesService } from '../../sandboxes/sandboxes.service'
 import { ThreadsService } from '../../sessions/threads.service'
 import { FactoryDrivesService } from '../drives/drives.service'
-import {
-  EFactoryAliasKind,
-  EFactoryEventKind,
-  EFactoryWorkItemStatus,
-  type WorkItemDto,
-} from '../factory.types'
+import { EFactoryEventKind, EFactoryWorkItemStatus, type WorkItemDto } from '../factory.types'
 import { nextStationRunId, nowIso } from '../ids'
 import { FactoryCredentialService } from '../orchestrator/factory-credentials'
 import { FactoryIdentityService } from '../orchestrator/factory-identity'
@@ -28,43 +21,21 @@ import {
   ORCHESTRATOR_CHANNEL,
   type OrchestratorChannel,
 } from '../orchestrator/orchestrator-channel'
-import { OrchestratorService } from '../orchestrator/orchestrator.service'
 import { deliverToServeThread, injectIntoServeThread } from '../orchestrator/serve-delivery'
-import { GithubAppService } from '../reply/github-app.service'
 import { TranscriptService } from '../transcript.service'
 import { WorkItemsService } from '../work-items.service'
+import { isUniqueViolation } from '../unique-violation'
+import { orchestratedItem, runningRunOf, ticketAliasOf } from './station-lookup'
 import { stationSpawnMessageFor } from './station-prompt'
-import { parseStationResult } from './station-result'
 import {
   EStationKind,
   EStationRunStatus,
-  FACTORY_BRANCH_PREFIX,
-  type StationGitToken,
-  type StationResultAccepted,
+  STATION_MESSAGE_CAP,
   type StationSpawnResult,
 } from './station.types'
 
-const GIT_TOKEN_EXPIRY_SECONDS = 3600
-const MESSAGE_CAP = 60_000
-
 const messageOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
-
-const repoCoordinatesOf = (repo: string): { owner: string; repo: string } => {
-  const [owner, name] = repo.split('/')
-  if (owner === undefined || name === undefined || owner.length === 0 || name.length === 0) {
-    throw new UnprocessableEntityException(`work item repo ${repo} is not owner/repo`)
-  }
-  return { owner, repo: name }
-}
-
-type StationRunRow = {
-  id: string
-  workItemId: string
-  kind: string
-  threadId: string
-  status: string
-}
 
 /**
  * Station mechanics, spec option B: the orchestrator calls in with its sandbox token, validation
@@ -82,8 +53,6 @@ export class StationsService {
     private readonly identity: FactoryIdentityService,
     private readonly credentials: FactoryCredentialService,
     private readonly drives: FactoryDrivesService,
-    private readonly githubApp: GithubAppService,
-    private readonly orchestrator: OrchestratorService,
     @Inject(ORCHESTRATOR_CHANNEL) private readonly channel: OrchestratorChannel,
   ) {}
 
@@ -92,7 +61,7 @@ export class StationsService {
     kind: string
     message: string
   }): Promise<StationSpawnResult> {
-    const item = await this.orchestratedItem({ threadId: args.orchestratorThreadId })
+    const item = await orchestratedItem({ threadId: args.orchestratorThreadId })
     if (args.kind !== EStationKind.Implementer) {
       throw new BadRequestException(`unknown station kind ${args.kind}`)
     }
@@ -116,8 +85,10 @@ export class StationsService {
         `station run ${holdingDrive.id} still holds this work item's drive — stop it or let it finish first`,
       )
     }
-    if (args.message.length > MESSAGE_CAP) {
-      throw new BadRequestException(`the spawn message is over the ${MESSAGE_CAP} character cap`)
+    if (args.message.length > STATION_MESSAGE_CAP) {
+      throw new BadRequestException(
+        `the spawn message is over the ${STATION_MESSAGE_CAP} character cap`,
+      )
     }
 
     const userId = await this.identity.userId()
@@ -129,20 +100,7 @@ export class StationsService {
       userId,
       draft: { title: `factory ${args.kind}: ${item.repo}`, repo: item.repo },
     })
-    const at = nowIso()
-    await db.factoryStationRun.create({
-      data: {
-        id: runId,
-        workItemId: item.id,
-        kind: args.kind,
-        threadId: thread.id,
-        status: EStationRunStatus.Running,
-        driveMode: ESandboxDriveMode.ReadWrite,
-        createdAt: at,
-        updatedAt: at,
-        finishedAt: null,
-      },
-    })
+    await this.createRun({ item, kind: args.kind, runId, threadId: thread.id })
     if (item.status === EFactoryWorkItemStatus.Intake) {
       await this.workItems.transition({
         workItemId: item.id,
@@ -164,8 +122,8 @@ export class StationsService {
       pinnedModel: this.credentials.modelRef(),
     })
 
-    const alias = await this.ticketAliasOf(item)
-    await this.transcript.append({
+    const alias = await ticketAliasOf({ workItems: this.workItems, item })
+    const requestEvent = await this.transcript.append({
       surface: alias.surface,
       externalId: alias.externalId,
       deliveryId: `station-request:${runId}`,
@@ -173,6 +131,11 @@ export class StationsService {
       author: 'atlas-factory',
       payload: JSON.stringify({ runId, kind: args.kind, message: args.message }),
     })
+    if (requestEvent === null) {
+      throw new InternalServerErrorException(
+        `station request for run ${runId} found no aliased surface to land on`,
+      )
+    }
 
     const text = stationSpawnMessageFor({
       workItemId: item.id,
@@ -180,11 +143,8 @@ export class StationsService {
       repo: item.repo,
       message: args.message,
     })
-    void this.injectSpawn({ userId, threadId: thread.id, runId, text }).catch(
-      async (failure: unknown) => {
-        this.logger.warn(`station run ${runId} could not be given its spawn message: ${messageOf(failure)}`)
-        await this.markRun({ runId, status: EStationRunStatus.Failed })
-      },
+    void this.injectSpawn({ userId, threadId: thread.id, runId, text }).catch((failure: unknown) =>
+      this.handleSpawnFailure({ runId, userId, threadId: thread.id, failure }),
     )
 
     this.logger.log(`station run ${runId} (${args.kind}) spawned for work item ${item.id}`)
@@ -196,8 +156,8 @@ export class StationsService {
     runId: string
     message: string
   }): Promise<{ steered: true }> {
-    const item = await this.orchestratedItem({ threadId: args.orchestratorThreadId })
-    const run = await this.runningRunOf({ item, runId: args.runId })
+    const item = await orchestratedItem({ threadId: args.orchestratorThreadId })
+    const run = await this.runningRun({ item, runId: args.runId })
     const marker = `steer:${randomUUID()}`
     await deliverToServeThread({
       deps: { sandboxes: this.sandboxes, channel: this.channel },
@@ -211,139 +171,68 @@ export class StationsService {
   }
 
   async stop(args: { orchestratorThreadId: string; runId: string }): Promise<{ stopped: true }> {
-    const item = await this.orchestratedItem({ threadId: args.orchestratorThreadId })
-    const run = await this.runningRunOf({ item, runId: args.runId })
+    const item = await orchestratedItem({ threadId: args.orchestratorThreadId })
+    const run = await this.runningRun({ item, runId: args.runId })
     await this.sandboxes.stop({ userId: await this.identity.userId(), threadId: run.threadId })
     await this.markRun({ runId: run.id, status: EStationRunStatus.Stopped })
     return { stopped: true }
   }
 
-  async submitResult(args: {
-    stationThreadId: string
-    runId: string
-    result: unknown
-  }): Promise<StationResultAccepted> {
-    const run = await db.factoryStationRun.findUnique({ where: { id: args.runId } })
-    if (run === null) throw new NotFoundException(`unknown station run ${args.runId}`)
-    if (run.threadId !== args.stationThreadId) {
-      throw new ForbiddenException(`this sandbox is not station run ${args.runId}`)
-    }
-    if (run.status !== EStationRunStatus.Running) {
-      const recorded = await db.factoryTranscriptEvent.findFirst({
-        where: { surface: 'github', deliveryId: `station-result:${run.id}` },
-        select: { id: true },
-      })
-      if (recorded !== null) return { recorded: true, stationRunId: run.id }
-      throw new ConflictException(`station run ${run.id} is ${run.status}; it records no result`)
-    }
-
-    const parsed = parseStationResult(args.result)
-    if (!parsed.ok) throw new BadRequestException(parsed.error)
-    const result = parsed.result
-
-    const item = await this.workItems.find({ workItemId: run.workItemId })
-    if (result.pushed) await this.verifyPushed({ item, branch: result.branch, headSha: result.head_sha })
-
-    const alias = await this.ticketAliasOf(item)
-    await this.transcript.append({
-      surface: alias.surface,
-      externalId: alias.externalId,
-      deliveryId: `station-result:${run.id}`,
-      kind: EFactoryEventKind.StationResult,
-      author: 'atlas-factory',
-      payload: JSON.stringify({ runId: run.id, kind: run.kind, result }),
+  /**
+   * Terminal work items (merge, close) release the drive — any station still holding it is stopped
+   * first, or the drive delete fails on the attached mount and the sweeper owns the retry.
+   */
+  async stopRunningFor(args: { workItemId: string }): Promise<void> {
+    const running = await db.factoryStationRun.findMany({
+      where: { workItemId: args.workItemId, status: EStationRunStatus.Running },
     })
-    await this.markRun({ runId: run.id, status: EStationRunStatus.Finished })
-
+    if (running.length === 0) return
     const userId = await this.identity.userId()
-    await this.sandboxes.stop({ userId, threadId: run.threadId }).catch((failure: unknown) => {
-      this.logger.warn(`could not stop station sandbox for run ${run.id}: ${messageOf(failure)}`)
-    })
-    this.orchestrator.wake({ workItemId: item.id, externalId: alias.externalId })
-    this.logger.log(`station run ${run.id} recorded its result for work item ${item.id}`)
-    return { recorded: true, stationRunId: run.id }
+    for (const run of running) {
+      await this.sandboxes.stop({ userId, threadId: run.threadId }).catch((failure: unknown) => {
+        this.logger.warn(`could not stop station run ${run.id}: ${messageOf(failure)}`)
+      })
+      await this.markRun({ runId: run.id, status: EStationRunStatus.Stopped })
+    }
   }
 
-  async mintGitToken(args: {
-    stationThreadId: string
-    branch: string
-  }): Promise<StationGitToken> {
-    const run = await db.factoryStationRun.findFirst({
-      where: { threadId: args.stationThreadId, status: EStationRunStatus.Running },
-    })
-    if (run === null) {
-      throw new ForbiddenException('this sandbox is not a running factory station')
-    }
-    if (args.branch === 'main' || args.branch === 'master') {
-      throw new BadRequestException(`pushing to ${args.branch} is refused — stations never touch it`)
-    }
-    if (!args.branch.startsWith(FACTORY_BRANCH_PREFIX)) {
-      throw new BadRequestException(
-        `factory stations push only ${FACTORY_BRANCH_PREFIX}* branches; ${args.branch} is refused`,
-      )
-    }
-    const item = await this.workItems.find({ workItemId: run.workItemId })
-    const { owner, repo } = repoCoordinatesOf(item.repo)
-    const token = await this.githubApp.installationToken({ owner, repo })
-    return { token, expiresInSeconds: GIT_TOKEN_EXPIRY_SECONDS }
-  }
-
-  private async orchestratedItem(args: { threadId: string }): Promise<WorkItemDto> {
-    const item = await db.factoryWorkItem.findFirst({
-      where: { orchestratorThreadId: args.threadId },
-    })
-    if (item === null) {
-      throw new ForbiddenException('this sandbox is not the orchestrator of any work item')
-    }
-    return item
-  }
-
-  private async runningRunOf(args: {
+  private async createRun(args: {
     item: WorkItemDto
+    kind: string
     runId: string
-  }): Promise<StationRunRow> {
-    const run = await db.factoryStationRun.findUnique({ where: { id: args.runId } })
-    if (run === null || run.workItemId !== args.item.id) {
-      throw new NotFoundException(`unknown station run ${args.runId} on this work item`)
-    }
-    if (run.status !== EStationRunStatus.Running) {
-      throw new ConflictException(`station run ${run.id} is ${run.status}`)
-    }
-    return run
-  }
-
-  private async verifyPushed(args: {
-    item: WorkItemDto
-    branch: string
-    headSha: string
+    threadId: string
   }): Promise<void> {
-    if (!args.branch.startsWith(FACTORY_BRANCH_PREFIX)) {
-      throw new UnprocessableEntityException(
-        `the reported branch ${args.branch} is not a factory branch (${FACTORY_BRANCH_PREFIX}*) — the result is refused`,
-      )
-    }
-    const { owner, repo } = repoCoordinatesOf(args.item.repo)
-    const head = await this.githubApp.branchHead({ owner, repo, branch: args.branch })
-    if (head === null) {
-      throw new UnprocessableEntityException(
-        `branch ${args.branch} is not on the remote — push it, then resubmit the result`,
-      )
-    }
-    if (head !== args.headSha) {
-      throw new UnprocessableEntityException(
-        `the remote head of ${args.branch} is ${head}, not the reported ${args.headSha} — push and resubmit`,
-      )
+    const at = nowIso()
+    try {
+      await db.factoryStationRun.create({
+        data: {
+          id: args.runId,
+          workItemId: args.item.id,
+          kind: args.kind,
+          threadId: args.threadId,
+          status: EStationRunStatus.Running,
+          driveMode: ESandboxDriveMode.ReadWrite,
+          createdAt: at,
+          updatedAt: at,
+          finishedAt: null,
+        },
+      })
+    } catch (error) {
+      if (isUniqueViolation(error, ['workItemId'])) {
+        throw new ConflictException(
+          "another station run took this work item's drive — stop it or let it finish first",
+        )
+      }
+      throw error
     }
   }
 
-  private async ticketAliasOf(
-    item: WorkItemDto,
-  ): Promise<{ surface: string; externalId: string }> {
-    const aliases = await this.workItems.listAliases({ workItemId: item.id })
-    const ticket = aliases.find(
-      (alias) => alias.kind === EFactoryAliasKind.Issue || alias.kind === EFactoryAliasKind.Ticket,
-    )
-    return ticket ?? { surface: item.sourceKind, externalId: item.repo }
+  private runningRun(args: { item: WorkItemDto; runId: string }) {
+    return runningRunOf({
+      item: args.item,
+      runId: args.runId,
+      notRunning: (run) => new ConflictException(`station run ${run.id} is ${run.status}`),
+    })
   }
 
   private async injectSpawn(args: {
@@ -360,6 +249,31 @@ export class StationsService {
       text: args.text,
       marker: args.runId,
     })
+  }
+
+  /**
+   * A station that never got its spawn message still holds the drive RW — stop its sandbox before
+   * failing the run, or the next spawn's single-writer check passes over a live mount.
+   */
+  private async handleSpawnFailure(args: {
+    runId: string
+    userId: string
+    threadId: string
+    failure: unknown
+  }): Promise<void> {
+    this.logger.warn(
+      `station run ${args.runId} could not be given its spawn message: ${messageOf(args.failure)}`,
+    )
+    await this.sandboxes
+      .stop({ userId: args.userId, threadId: args.threadId })
+      .catch((failure: unknown) => {
+        this.logger.warn(`could not stop the failed station sandbox ${args.runId}: ${messageOf(failure)}`)
+      })
+    await this.markRun({ runId: args.runId, status: EStationRunStatus.Failed }).catch(
+      (failure: unknown) => {
+        this.logger.warn(`could not mark station run ${args.runId} failed: ${messageOf(failure)}`)
+      },
+    )
   }
 
   private async markRun(args: { runId: string; status: EStationRunStatus }): Promise<void> {

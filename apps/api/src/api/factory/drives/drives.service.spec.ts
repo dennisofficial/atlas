@@ -8,6 +8,7 @@ vi.mock('../../../db', async () => {
 
 import { fakeFactoryDb } from '../../../../test/fake-factory-db.js'
 import type { VercelSandboxClient } from '../../sandboxes/vercel-sandbox.client'
+import { EFactoryWorkItemStatus } from '../factory.types'
 import { WorkItemsService } from '../work-items.service'
 import { FactoryDrivesService } from './drives.service'
 
@@ -101,5 +102,17 @@ describe('FactoryDrivesService', () => {
     expect(vercel.deleteDrive).toHaveBeenCalledTimes(1)
     expect((await workItems.find({ workItemId: idle.workItem.id })).driveName).toBeNull()
     expect((await workItems.find({ workItemId: fresh.workItem.id })).driveName).not.toBeNull()
+  })
+
+  it('the sweeper retries terminal work items whose merge-time release failed, without waiting for idle', async () => {
+    const { workItem } = await workItems.intake(INTAKE)
+    await drives.ensure({ workItemId: workItem.id })
+    await workItems.transition({ workItemId: workItem.id, status: EFactoryWorkItemStatus.Merged })
+    vercel.deleteDrive.mockClear()
+
+    await expect(drives.sweepIdle()).resolves.toBe(1)
+    expect(vercel.deleteDrive).toHaveBeenCalledWith({
+      name: 'factory-dennisofficial-factory-scratch-12',
+    })
   })
 })

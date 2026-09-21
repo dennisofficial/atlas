@@ -17,6 +17,8 @@ import { GuardedReplyService } from './reply/guarded-reply.service'
 import { OrchestratorSandboxGuard } from './reply/orchestrator-sandbox.guard'
 import { FactoryRepliesController } from './reply/replies.controller'
 import { FactoryGitCredentialSource } from './stations/factory-git-credentials'
+import { StationResultsService } from './stations/station-results.service'
+import { StationTokensService } from './stations/station-tokens.service'
 import { StationsService } from './stations/stations.service'
 import { FactoryStationsController } from './stations/stations.controller'
 import { TranscriptService } from './transcript.service'
@@ -37,6 +39,8 @@ import { WorkItemsService } from './work-items.service'
     FactoryDrivesService,
     FactoryDriveSweeperService,
     StationsService,
+    StationResultsService,
+    StationTokensService,
     FactoryGitCredentialSource,
     {
       provide: GithubAppService,

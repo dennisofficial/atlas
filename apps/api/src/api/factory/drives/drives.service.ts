@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { db } from '../../../db'
 import { VercelSandboxClient } from '../../sandboxes/vercel-sandbox.client'
-import { EFactoryAliasKind, type WorkItemDto } from '../factory.types'
+import { EFactoryAliasKind, EFactoryWorkItemStatus, type WorkItemDto } from '../factory.types'
 import { WorkItemsService } from '../work-items.service'
 import { driveNameFor, fallbackDriveNameFor, issueNumberOf } from './drive-names'
 
@@ -52,14 +52,25 @@ export class FactoryDrivesService {
     return true
   }
 
+  /**
+   * Two populations carry a drive past its welcome: items idle past the threshold, and terminal
+   * items whose merge/close release failed under an attached mount — the merge bumps
+   * lastActivityAt, so keying only on idle time would strand those for a fortnight.
+   */
   async sweepIdle(): Promise<number> {
     const quietSince = new Date(Date.now() - IDLE_DRIVE_LIMIT_MS).toISOString()
-    const idle = await db.factoryWorkItem.findMany({
-      where: { driveName: { not: null }, lastActivityAt: { lt: quietSince } },
+    const stale = await db.factoryWorkItem.findMany({
+      where: {
+        driveName: { not: null },
+        OR: [
+          { lastActivityAt: { lt: quietSince } },
+          { status: { in: [EFactoryWorkItemStatus.Merged, EFactoryWorkItemStatus.Closed] } },
+        ],
+      },
       select: { id: true },
     })
     let released = 0
-    for (const item of idle) {
+    for (const item of stale) {
       if (await this.release({ workItemId: item.id })) released += 1
     }
     return released

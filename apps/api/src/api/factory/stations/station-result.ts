@@ -1,6 +1,7 @@
 const HEAD_SHA = /^[0-9a-f]{40}$/
 const MAX_ENTRIES = 200
 const MAX_FIELD_LENGTH = 20_000
+const MAX_RESULT_BYTES = 100_000
 
 export type StationChangeSummaryEntry = { path: string; change: string }
 export type StationVerificationEntry = { command: string; result: string }
@@ -70,5 +71,21 @@ export function parseStationResult(raw: unknown): StationResultParse {
     return fail('result.known_limitations must be a list of strings')
   }
 
-  return { ok: true, result: raw as unknown as StationResultPayload }
+  const result: StationResultPayload = {
+    branch,
+    base,
+    pushed,
+    head_sha,
+    change_summary: raw.change_summary.map((entry) => ({ path: entry.path, change: entry.change })),
+    verification: raw.verification.map((entry) => ({ command: entry.command, result: entry.result })),
+    deviations: [...raw.deviations],
+    known_limitations: [...raw.known_limitations],
+  }
+  const bytes = Buffer.byteLength(JSON.stringify(result), 'utf8')
+  if (bytes > MAX_RESULT_BYTES) {
+    return fail(
+      `the result is ${bytes} bytes, over the ${MAX_RESULT_BYTES} cap — summarize and resubmit`,
+    )
+  }
+  return { ok: true, result }
 }

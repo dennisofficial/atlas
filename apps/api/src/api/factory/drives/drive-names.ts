@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+
 const DRIVE_NAME_CAP = 60
 
 const sanitize = (value: string): string =>
@@ -6,9 +8,15 @@ const sanitize = (value: string): string =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
 
+const disambiguatorOf = (value: string): string =>
+  createHash('sha256').update(value).digest('hex').slice(0, 6)
+
 export function driveNameFor(args: { repo: string; number: number }): string {
-  const name = sanitize(`factory-${args.repo}-${args.number}`)
-  return name.length <= DRIVE_NAME_CAP ? name : name.slice(0, DRIVE_NAME_CAP).replace(/-+$/, '')
+  const full = `factory-${args.repo}-${args.number}`
+  const name = sanitize(full)
+  if (name.length <= DRIVE_NAME_CAP) return name
+  const suffix = `-${disambiguatorOf(full)}`
+  return `${name.slice(0, DRIVE_NAME_CAP - suffix.length).replace(/-+$/, '')}${suffix}`
 }
 
 /** Intakes that carry no ticket number yet (a Linear intake, later) fall back to the item id. */

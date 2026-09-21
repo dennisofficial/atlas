@@ -11,6 +11,8 @@ import {
   SteerStationDto,
   SubmitStationResultDto,
 } from './stations.dto'
+import { StationResultsService } from './station-results.service'
+import { StationTokensService } from './station-tokens.service'
 import { StationsService } from './stations.service'
 import type { StationGitToken, StationResultAccepted, StationSpawnResult } from './station.types'
 
@@ -24,7 +26,11 @@ const callerOf = (request: OrchestratorSandboxRequest): CloudSandboxModel => {
 @SkipThrottle()
 @UseGuards(OrchestratorSandboxGuard)
 export class FactoryStationsController {
-  constructor(private readonly stations: StationsService) {}
+  constructor(
+    private readonly stations: StationsService,
+    private readonly results: StationResultsService,
+    private readonly tokens: StationTokensService,
+  ) {}
 
   @Post('stations')
   handleSpawn(
@@ -65,7 +71,7 @@ export class FactoryStationsController {
     @Param('runId') runId: string,
     @Body() body: SubmitStationResultDto,
   ): Promise<StationResultAccepted> {
-    return this.stations.submitResult({
+    return this.results.submitResult({
       stationThreadId: callerOf(request).threadId,
       runId,
       result: body.result,
@@ -77,7 +83,7 @@ export class FactoryStationsController {
     @Req() request: OrchestratorSandboxRequest,
     @Body() body: MintGitTokenDto,
   ): Promise<StationGitToken> {
-    return this.stations.mintGitToken({
+    return this.tokens.mintGitToken({
       stationThreadId: callerOf(request).threadId,
       branch: body.branch,
     })

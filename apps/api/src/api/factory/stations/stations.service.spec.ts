@@ -10,13 +10,11 @@ import { fakeFactoryDb } from '../../../../test/fake-factory-db.js'
 import type { SandboxesService } from '../../sandboxes/sandboxes.service'
 import { ESandboxDriveMode } from '../../sandboxes/sandboxes.types'
 import type { ThreadsService } from '../../sessions/threads.service'
-import { FactoryDrivesService } from '../drives/drives.service'
+import type { FactoryDrivesService } from '../drives/drives.service'
 import { EFactoryEventKind, EFactoryWorkItemStatus } from '../factory.types'
 import type { FactoryCredentialService } from '../orchestrator/factory-credentials'
 import { FactoryIdentityService } from '../orchestrator/factory-identity'
 import type { OrchestratorChannel } from '../orchestrator/orchestrator-channel'
-import type { OrchestratorService } from '../orchestrator/orchestrator.service'
-import type { GithubAppService } from '../reply/github-app.service'
 import { TranscriptService } from '../transcript.service'
 import { WorkItemsService } from '../work-items.service'
 import { EStationRunStatus } from './station.types'
@@ -30,18 +28,33 @@ const INTAKE = {
   aliasKind: 'issue',
 }
 
-const SHA = 'b'.repeat(40)
 const LIVE_ENDPOINT = { token: 'tok_station', url: 'https://factory-st-x-3000.vercel.run' }
 
-const resultPayload = () => ({
-  branch: 'atlas-factory/add-the-thing',
-  base: 'main',
-  pushed: true,
-  head_sha: SHA,
-  change_summary: [{ path: 'src/thing.ts', change: 'added it' }],
-  verification: [{ command: 'bun test', result: '12 pass' }],
-  deviations: [],
-  known_limitations: [],
+type Endpoint = { token: string; url: string } | null
+
+export const stubFactorySandboxes = () => ({
+  runningEndpoint: vi.fn(async (): Promise<Endpoint> => LIVE_ENDPOINT),
+  attach: vi.fn(async () => ({ token: 'tok_fresh' })),
+  whenSettled: vi.fn(async () => undefined),
+  status: vi.fn(async () => ({ name: 'factory-st-x', url: LIVE_ENDPOINT.url })),
+  stop: vi.fn(async () => undefined),
+})
+
+export const stubFactoryChannel = (
+  fake: ReturnType<typeof fakeFactoryDb>,
+): { inject: ReturnType<typeof vi.fn> } => ({
+  inject: vi.fn(
+    async (args: { threadId: string; text: string; accepted: () => Promise<boolean> }) => {
+      fake.events.push({
+        id: `evt_${fake.events.length + 1}`,
+        threadId: args.threadId,
+        seq: fake.events.length + 1,
+        type: 'user-said',
+        body: JSON.stringify({ type: 'user-said', text: args.text }),
+      })
+      if (!(await args.accepted())) throw new Error('the fake commit was not accepted')
+    },
+  ),
 })
 
 describe('StationsService', () => {
@@ -49,21 +62,10 @@ describe('StationsService', () => {
   let workItems: WorkItemsService
   let transcript: TranscriptService
   let threads: { create: ReturnType<typeof vi.fn> }
-  let sandboxes: {
-    runningEndpoint: ReturnType<typeof vi.fn>
-    attach: ReturnType<typeof vi.fn>
-    whenSettled: ReturnType<typeof vi.fn>
-    status: ReturnType<typeof vi.fn>
-    stop: ReturnType<typeof vi.fn>
-  }
+  let sandboxes: ReturnType<typeof stubFactorySandboxes>
   let channel: { inject: ReturnType<typeof vi.fn> }
   let credentials: { ensureSeeded: ReturnType<typeof vi.fn>; modelRef: ReturnType<typeof vi.fn> }
   let drives: { ensure: ReturnType<typeof vi.fn> }
-  let githubApp: {
-    installationToken: ReturnType<typeof vi.fn>
-    branchHead: ReturnType<typeof vi.fn>
-  }
-  let orchestrator: { wake: ReturnType<typeof vi.fn> }
   let service: StationsService
 
   const spawnOrchestrated = async () => {
@@ -86,35 +88,13 @@ describe('StationsService', () => {
     threads = {
       create: vi.fn(async () => ({ id: `brn_station_${fake.threads.length + 1}` })),
     }
-    sandboxes = {
-      runningEndpoint: vi.fn(async () => LIVE_ENDPOINT),
-      attach: vi.fn(async () => ({ token: 'tok_fresh' })),
-      whenSettled: vi.fn(async () => undefined),
-      status: vi.fn(async () => ({ name: 'factory-st-x', url: LIVE_ENDPOINT.url })),
-      stop: vi.fn(async () => undefined),
-    }
-    channel = {
-      inject: vi.fn(async (args: { threadId: string; text: string; accepted: () => Promise<boolean> }) => {
-        fake.events.push({
-          id: `evt_${fake.events.length + 1}`,
-          threadId: args.threadId,
-          seq: fake.events.length + 1,
-          type: 'user-said',
-          body: JSON.stringify({ type: 'user-said', text: args.text }),
-        })
-        if (!(await args.accepted())) throw new Error('the fake commit was not accepted')
-      }),
-    }
+    sandboxes = stubFactorySandboxes()
+    channel = stubFactoryChannel(fake)
     credentials = {
       ensureSeeded: vi.fn(async () => undefined),
       modelRef: vi.fn(() => 'inference/kimi-k3-fast'),
     }
     drives = { ensure: vi.fn(async () => 'factory-dennisofficial-factory-scratch-12') }
-    githubApp = {
-      installationToken: vi.fn(async () => 'ghs_installation'),
-      branchHead: vi.fn(async () => SHA),
-    }
-    orchestrator = { wake: vi.fn() }
     service = new StationsService(
       workItems,
       transcript,
@@ -123,8 +103,6 @@ describe('StationsService', () => {
       new FactoryIdentityService(),
       credentials as unknown as FactoryCredentialService,
       drives as unknown as FactoryDrivesService,
-      githubApp as unknown as GithubAppService,
-      orchestrator as unknown as OrchestratorService,
       channel as OrchestratorChannel,
     )
   })
@@ -155,7 +133,7 @@ describe('StationsService', () => {
       await expect(spawn('second')).rejects.toThrow('still holds')
     })
 
-    it('provisions a drive-backed sandbox with the model pin and records the request', async () => {
+    it('provisions a drive-backed sandbox with the model default and records the request', async () => {
       const item = await spawnOrchestrated()
       const spawned = await spawn()
       await flushSpawn()
@@ -166,12 +144,18 @@ describe('StationsService', () => {
       expect(run?.status).toBe(EStationRunStatus.Running)
       expect(run?.driveMode).toBe(ESandboxDriveMode.ReadWrite)
 
-      const attachArgs = sandboxes.attach.mock.calls[0]?.[0] as {
-        name: string
-        workspace: { remoteUrl: string | null }
-        drive: { name: string; mode: ESandboxDriveMode }
-        pinnedModel: string
-      }
+      const attachCalls = sandboxes.attach.mock.calls as unknown as Array<
+        [
+          {
+            name: string
+            workspace: { remoteUrl: string | null }
+            drive: { name: string; mode: ESandboxDriveMode }
+            pinnedModel: string
+          },
+        ]
+      >
+      const attachArgs = attachCalls[0]?.[0]
+      if (attachArgs === undefined) throw new Error('expected an attach call')
       expect(attachArgs.name).toBe(`factory-st-${spawned.stationRunId.replaceAll('_', '-')}`)
       expect(attachArgs.workspace.remoteUrl).toBe('https://github.com/dennisofficial/factory-scratch.git')
       expect(attachArgs.drive).toEqual({
@@ -184,7 +168,6 @@ describe('StationsService', () => {
         (one) => one.kind === EFactoryEventKind.StationRequest,
       )
       expect(requestEvent?.deliveryId).toBe(`station-request:${spawned.stationRunId}`)
-      expect(orchestrator.wake).not.toHaveBeenCalled()
 
       const text = (channel.inject.mock.calls[0]?.[0] as { text: string }).text
       expect(text).toContain(spawned.stationRunId)
@@ -195,154 +178,17 @@ describe('StationsService', () => {
       expect(updated.status).toBe(EFactoryWorkItemStatus.Active)
     })
 
-    it('marks the run failed when the spawn message cannot be delivered', async () => {
+    it('a spawn whose message cannot be delivered stops the sandbox before failing the run', async () => {
       await spawnOrchestrated()
       sandboxes.runningEndpoint.mockResolvedValue(null)
-      const spawned = await spawn()
+      await spawn()
       await vi.waitFor(() => {
         expect(fake.stationRuns[0]?.status).toBe(EStationRunStatus.Failed)
       })
       expect(channel.inject).not.toHaveBeenCalled()
-    })
-  })
-
-  describe('submitResult', () => {
-    const spawnAndGetRun = async () => {
-      await spawnOrchestrated()
-      const spawned = await spawn()
-      await flushSpawn()
-      const run = fake.stationRuns[0]
-      if (run === undefined) throw new Error('missing run')
-      return { spawned, run }
-    }
-
-    const submit = (threadId: string, runId: string, result: unknown) =>
-      service.submitResult({ stationThreadId: threadId, runId, result })
-
-    it('refuses a result from anyone but the run’s own sandbox', async () => {
-      const { spawned } = await spawnAndGetRun()
-      await expect(submit('brn_impostor', spawned.stationRunId, resultPayload())).rejects.toThrow(
-        'is not station run',
-      )
-    })
-
-    it('refuses an off-contract result and keeps the run open', async () => {
-      const { spawned, run } = await spawnAndGetRun()
-      await expect(submit(run.threadId, spawned.stationRunId, { branch: 'x' })).rejects.toThrow(
-        'result.',
-      )
-      expect(fake.stationRuns[0]?.status).toBe(EStationRunStatus.Running)
-    })
-
-    it('refuses a result whose branch is not a factory branch', async () => {
-      const { spawned, run } = await spawnAndGetRun()
-      await expect(
-        submit(run.threadId, spawned.stationRunId, { ...resultPayload(), branch: 'main' }),
-      ).rejects.toThrow('not a factory branch')
-    })
-
-    it('refuses a result whose branch is not on the remote at the reported SHA', async () => {
-      const { spawned, run } = await spawnAndGetRun()
-      githubApp.branchHead.mockResolvedValueOnce(null)
-      await expect(submit(run.threadId, spawned.stationRunId, resultPayload())).rejects.toThrow(
-        'not on the remote',
-      )
-
-      githubApp.branchHead.mockResolvedValueOnce('c'.repeat(40))
-      await expect(submit(run.threadId, spawned.stationRunId, resultPayload())).rejects.toThrow(
-        'not the reported',
-      )
-      expect(fake.stationRuns[0]?.status).toBe(EStationRunStatus.Running)
-    })
-
-    it('records the result, finishes the run, stops the sandbox, and wakes the orchestrator', async () => {
-      const { spawned, run } = await spawnAndGetRun()
-      const accepted = await submit(run.threadId, spawned.stationRunId, resultPayload())
-
-      expect(accepted).toEqual({ recorded: true, stationRunId: spawned.stationRunId })
-      const event = fake.transcriptEvents.find(
-        (one) => one.kind === EFactoryEventKind.StationResult,
-      )
-      expect(event?.deliveryId).toBe(`station-result:${spawned.stationRunId}`)
-      expect(event?.payload).toContain('atlas-factory/add-the-thing')
-
-      const finished = fake.stationRuns[0]
-      expect(finished?.status).toBe(EStationRunStatus.Finished)
-      expect(finished?.finishedAt).not.toBeNull()
-      expect(sandboxes.stop).toHaveBeenCalledWith({ userId: fake.users[0]?.id, threadId: run.threadId })
-      expect(orchestrator.wake).toHaveBeenCalledWith({
-        workItemId: run.workItemId,
-        externalId: INTAKE.externalId,
-      })
-    })
-
-    it('a replayed submission is recorded once', async () => {
-      const { spawned, run } = await spawnAndGetRun()
-      await submit(run.threadId, spawned.stationRunId, resultPayload())
-      const replay = await submit(run.threadId, spawned.stationRunId, resultPayload())
-
-      expect(replay.recorded).toBe(true)
-      expect(
-        fake.transcriptEvents.filter((one) => one.kind === EFactoryEventKind.StationResult),
-      ).toHaveLength(1)
-    })
-
-    it('records an unpushed result without calling github', async () => {
-      const { spawned, run } = await spawnAndGetRun()
-      const blocked = { ...resultPayload(), branch: '', pushed: false, head_sha: '' }
-      await expect(submit(run.threadId, spawned.stationRunId, blocked)).resolves.toEqual({
-        recorded: true,
-        stationRunId: spawned.stationRunId,
-      })
-      expect(githubApp.branchHead).not.toHaveBeenCalled()
-    })
-  })
-
-  describe('mintGitToken', () => {
-    const spawnAndGetRun = async () => {
-      await spawnOrchestrated()
-      const spawned = await spawn()
-      await flushSpawn()
-      const run = fake.stationRuns[0]
-      if (run === undefined) throw new Error('missing run')
-      return { spawned, run }
-    }
-
-    it('refuses a caller that is not a running station', async () => {
-      await spawnOrchestrated()
-      await expect(
-        service.mintGitToken({ stationThreadId: 'brn_orchestrator_1', branch: 'atlas-factory/x' }),
-      ).rejects.toThrow('not a running factory station')
-    })
-
-    it('refuses main and master by name', async () => {
-      const { run } = await spawnAndGetRun()
-      await expect(
-        service.mintGitToken({ stationThreadId: run.threadId, branch: 'main' }),
-      ).rejects.toThrow('refused')
-      await expect(
-        service.mintGitToken({ stationThreadId: run.threadId, branch: 'master' }),
-      ).rejects.toThrow('refused')
-      expect(githubApp.installationToken).not.toHaveBeenCalled()
-    })
-
-    it('refuses branches outside the factory prefix', async () => {
-      const { run } = await spawnAndGetRun()
-      await expect(
-        service.mintGitToken({ stationThreadId: run.threadId, branch: 'dennis/feature' }),
-      ).rejects.toThrow('atlas-factory/')
-    })
-
-    it('mints an installation token for the work item repo', async () => {
-      const { run } = await spawnAndGetRun()
-      const minted = await service.mintGitToken({
-        stationThreadId: run.threadId,
-        branch: 'atlas-factory/add-the-thing',
-      })
-      expect(minted.token).toBe('ghs_installation')
-      expect(githubApp.installationToken).toHaveBeenCalledWith({
-        owner: 'dennisofficial',
-        repo: 'factory-scratch',
+      expect(sandboxes.stop).toHaveBeenCalledWith({
+        userId: fake.users[0]?.id,
+        threadId: fake.stationRuns[0]?.threadId,
       })
     })
   })
@@ -369,17 +215,15 @@ describe('StationsService', () => {
       const text = (channel.inject.mock.calls[0]?.[0] as { text: string }).text
       expect(text).toContain('[station steer]')
       expect(text).toContain('also cover the edge case')
-      const event = fake.events.find((one) => one.threadId === run.threadId && one.body.includes('steer:'))
+      const event = fake.events.find(
+        (one) => one.threadId === run.threadId && one.body.includes('steer:'),
+      )
       expect(event).toBeDefined()
     })
 
     it('refuses to steer a finished run', async () => {
-      const { spawned, run } = await spawnAndGetRun()
-      await service.submitResult({
-        stationThreadId: run.threadId,
-        runId: spawned.stationRunId,
-        result: resultPayload(),
-      })
+      const { spawned } = await spawnAndGetRun()
+      fake.stationRuns[0]!.status = EStationRunStatus.Finished
       await expect(
         service.steer({
           orchestratorThreadId: 'brn_orchestrator_1',
@@ -392,18 +236,47 @@ describe('StationsService', () => {
     it('stop parks the sandbox and marks the run', async () => {
       const { spawned, run } = await spawnAndGetRun()
       await service.stop({ orchestratorThreadId: 'brn_orchestrator_1', runId: spawned.stationRunId })
-      expect(sandboxes.stop).toHaveBeenCalledWith({ userId: fake.users[0]?.id, threadId: run.threadId })
+      expect(sandboxes.stop).toHaveBeenCalledWith({
+        userId: fake.users[0]?.id,
+        threadId: run.threadId,
+      })
       expect(fake.stationRuns[0]?.status).toBe(EStationRunStatus.Stopped)
     })
 
     it('refuses steer and stop from a non-orchestrator caller', async () => {
       const { spawned } = await spawnAndGetRun()
       await expect(
-        service.steer({ orchestratorThreadId: 'brn_other', runId: spawned.stationRunId, message: 'x' }),
+        service.steer({
+          orchestratorThreadId: 'brn_other',
+          runId: spawned.stationRunId,
+          message: 'x',
+        }),
       ).rejects.toThrow('not the orchestrator')
       await expect(
         service.stop({ orchestratorThreadId: 'brn_other', runId: spawned.stationRunId }),
       ).rejects.toThrow('not the orchestrator')
+    })
+  })
+
+  describe('stopRunningFor', () => {
+    it('stops every running station of the work item and marks them stopped', async () => {
+      await spawnOrchestrated()
+      await spawn()
+      await flushSpawn()
+
+      await service.stopRunningFor({ workItemId: fake.workItems[0]!.id })
+
+      expect(fake.stationRuns[0]?.status).toBe(EStationRunStatus.Stopped)
+      expect(sandboxes.stop).toHaveBeenCalledWith({
+        userId: fake.users[0]?.id,
+        threadId: fake.stationRuns[0]?.threadId,
+      })
+    })
+
+    it('is a no-op when nothing runs', async () => {
+      await spawnOrchestrated()
+      await service.stopRunningFor({ workItemId: fake.workItems[0]!.id })
+      expect(sandboxes.stop).not.toHaveBeenCalled()
     })
   })
 })

@@ -11,6 +11,7 @@ import type {
 import { FactoryDrivesService } from './drives/drives.service'
 import { OrchestratorService } from './orchestrator/orchestrator.service'
 import { GithubAppService } from './reply/github-app.service'
+import { StationsService } from './stations/stations.service'
 import { TranscriptService } from './transcript.service'
 import { WorkItemsService } from './work-items.service'
 
@@ -35,6 +36,7 @@ export class GithubWebhookService {
     private readonly orchestrator: OrchestratorService,
     private readonly githubApp: GithubAppService,
     private readonly drives: FactoryDrivesService,
+    private readonly stations: StationsService,
   ) {}
 
   /**
@@ -107,7 +109,27 @@ export class GithubWebhookService {
       })
       if (outcome.workItemId !== undefined && outcome.appended === true) {
         await this.workItems.transition({ workItemId: outcome.workItemId, status: EFactoryWorkItemStatus.Closed })
+        await this.stations.stopRunningFor({ workItemId: outcome.workItemId })
         await this.drives.release({ workItemId: outcome.workItemId })
+        this.orchestrator.wake({ workItemId: outcome.workItemId, externalId })
+      }
+      return outcome
+    }
+
+    if (payload.action === 'reopened') {
+      const outcome = await this.append({
+        externalId,
+        deliveryId: args.deliveryId,
+        kind: EFactoryEventKind.StatusChange,
+        author: payload.sender.login,
+        payload,
+        deferWake: true,
+      })
+      if (outcome.workItemId !== undefined && outcome.appended === true) {
+        const item = await this.workItems.find({ workItemId: outcome.workItemId })
+        if (item.status === EFactoryWorkItemStatus.Closed) {
+          await this.workItems.transition({ workItemId: item.id, status: EFactoryWorkItemStatus.Active })
+        }
         this.orchestrator.wake({ workItemId: outcome.workItemId, externalId })
       }
       return outcome
@@ -232,6 +254,7 @@ export class GithubWebhookService {
     })
     if (outcome.workItemId !== undefined && outcome.appended === true) {
       await this.workItems.transition({ workItemId: outcome.workItemId, status: EFactoryWorkItemStatus.Merged })
+      await this.stations.stopRunningFor({ workItemId: outcome.workItemId })
       await this.drives.release({ workItemId: outcome.workItemId })
       this.orchestrator.wake({ workItemId: outcome.workItemId, externalId })
     }

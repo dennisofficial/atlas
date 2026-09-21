@@ -11,6 +11,8 @@ export enum EStationRunStatus {
 
 export const FACTORY_BRANCH_PREFIX = 'atlas-factory/'
 
+export const STATION_MESSAGE_CAP = 60_000
+
 export type StationSpawnResult = {
   stationRunId: string
   threadId: string

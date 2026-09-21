@@ -71,4 +71,14 @@ describe('parseStationResult', () => {
     const many = Array.from({ length: 201 }, (_, i) => ({ path: `f${i}.ts`, change: 'c' }))
     expect(parseStationResult({ ...validResult(), change_summary: many }).ok).toBe(false)
   })
+
+  it('refuses results over the total payload cap', () => {
+    const verification = Array.from({ length: 200 }, (_, i) => ({
+      command: `check ${i}`,
+      result: 'x'.repeat(600),
+    }))
+    const parsed = parseStationResult({ ...validResult(), verification })
+    expect(parsed.ok).toBe(false)
+    if (!parsed.ok) expect(parsed.error).toContain('cap')
+  })
 })

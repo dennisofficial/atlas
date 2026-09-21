@@ -17,6 +17,14 @@ describe('driveNameFor', () => {
     expect(name.length).toBeLessThanOrEqual(60)
     expect(name.endsWith('-')).toBe(false)
   })
+
+  it('disambiguates truncated names so long repos never silently share a drive', () => {
+    const one = driveNameFor({ repo: `${'a'.repeat(40)}/${'b'.repeat(40)}`, number: 1 })
+    const two = driveNameFor({ repo: `${'a'.repeat(40)}/${'b'.repeat(39)}c`, number: 1 })
+    expect(one).not.toBe(two)
+    expect(one.length).toBeLessThanOrEqual(60)
+    expect(two.length).toBeLessThanOrEqual(60)
+  })
 })
 
 describe('fallbackDriveNameFor', () => {

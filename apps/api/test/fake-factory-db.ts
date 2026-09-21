@@ -80,9 +80,12 @@ export type FakeStationRunRow = {
 type FakeRow = FakeWorkItemRow | FakeAliasRow | FakeTranscriptEventRow | FakeStationRunRow
 
 const matchesRow = (row: FakeRow, where: Where): boolean =>
-  Object.entries(where).every(([key, condition]) =>
-    matchesValue((row as unknown as Where)[key], condition),
-  )
+  Object.entries(where).every(([key, condition]) => {
+    if (key === 'OR' && Array.isArray(condition)) {
+      return (condition as Where[]).some((branch) => matchesRow(row, branch))
+    }
+    return matchesValue((row as unknown as Where)[key], condition)
+  })
 
 export function createFakeFactoryDb() {
   const workItems: FakeWorkItemRow[] = []

@@ -26,7 +26,9 @@ const sdk = vi.hoisted(() => ({
   sandboxRef: null as unknown,
   driveGetOrCreate: [] as Record<string, unknown>[],
   driveDeleted: [] as string[],
+  driveListParams: [] as Array<Record<string, unknown> | undefined>,
   lastDrive: null as unknown,
+  driveStore: new Map<string, { name: string }>(),
 }))
 
 const launch = vi.hoisted(() => ({
@@ -87,11 +89,15 @@ vi.mock('@vercel/sandbox', () => {
   sdk.sandboxRef = sandbox
   class FakeDrive {
     constructor(readonly meta: Record<string, unknown>) {}
+    get name() {
+      return String(this.meta.name)
+    }
     snapshot() {
       return { drive: this.meta.name, mode: 'snapshot' }
     }
     async delete() {
-      sdk.driveDeleted.push(String(this.meta.name))
+      sdk.driveDeleted.push(this.name)
+      sdk.driveStore.delete(this.name)
     }
   }
   return {
@@ -100,8 +106,21 @@ vi.mock('@vercel/sandbox', () => {
       getOrCreate: async (params: Record<string, unknown>) => {
         sdk.driveGetOrCreate.push(params)
         const drive = new FakeDrive(params)
+        sdk.driveStore.set(drive.name, drive)
         sdk.lastDrive = drive
         return drive
+      },
+      list: async (params?: Record<string, unknown>) => {
+        sdk.driveListParams.push(params)
+        const prefix = String(params?.namePrefix ?? '')
+        const matched = [...sdk.driveStore.values()].filter((drive) =>
+          drive.name.startsWith(prefix),
+        )
+        return {
+          async *[Symbol.asyncIterator]() {
+            for (const drive of matched) yield drive
+          },
+        }
       },
     },
     Sandbox: {
@@ -190,7 +209,9 @@ describe('VercelSandboxClient', () => {
     sdk.ranCommands.length = 0
     sdk.driveGetOrCreate.length = 0
     sdk.driveDeleted.length = 0
+    sdk.driveListParams.length = 0
     sdk.lastDrive = null
+    sdk.driveStore.clear()
     sdk.status = 'running'
     sdk.getFailure = null
     sdk.createFailure = null
@@ -286,10 +307,20 @@ describe('VercelSandboxClient', () => {
 
   it('deletes a drive by name through the SDK', async () => {
     const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    await client.ensureDrive({ name: 'factory-compai-atlas-341' })
     await client.deleteDrive({ name: 'factory-compai-atlas-341' })
 
-    expect(sdk.driveGetOrCreate[0]?.name).toBe('factory-compai-atlas-341')
+    expect(sdk.driveListParams[0]).toMatchObject({ namePrefix: 'factory-compai-atlas-341' })
     expect(sdk.driveDeleted).toEqual(['factory-compai-atlas-341'])
+  })
+
+  it('deleting a drive that was never created does not provision one first', async () => {
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    const created = sdk.driveGetOrCreate.length
+    await client.deleteDrive({ name: 'factory-never-existed' })
+
+    expect(sdk.driveGetOrCreate.length).toBe(created)
+    expect(sdk.driveDeleted).toEqual([])
   })
 
   it('logs how long the placement and the serve launch took', async () => {
