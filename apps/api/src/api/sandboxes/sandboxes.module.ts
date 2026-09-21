@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { ContextArchiveModule } from '../context-archive/context-archive.module'
 import { GithubModule } from '../github/github.module'
+import { SandboxGitCredentials } from './git-credentials'
 import { SandboxContextController } from './sandbox-context.controller'
 import { SandboxExposeController } from './expose.controller'
 import { SandboxHeartbeatController } from './heartbeat.controller'
@@ -27,9 +28,10 @@ import { SandboxWorkspaceController } from './workspace.controller'
     SandboxesService,
     SandboxReaperService,
     SandboxTokenGuard,
+    SandboxGitCredentials,
     ServeBinaryService,
     VercelSandboxClient,
   ],
-  exports: [SandboxesService],
+  exports: [SandboxesService, SandboxGitCredentials, VercelSandboxClient],
 })
 export class SandboxesModule {}

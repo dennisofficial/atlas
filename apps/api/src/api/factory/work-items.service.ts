@@ -170,6 +170,17 @@ export class WorkItemsService {
     await this.touch({ workItemId: args.workItemId, data: { driveName: args.driveName } })
   }
 
+  async releaseDrive(args: { workItemId: string }): Promise<void> {
+    await this.touch({ workItemId: args.workItemId, data: { driveName: null } })
+  }
+
+  async listAliases(args: { workItemId: string }): Promise<SurfaceAliasDto[]> {
+    const rows = await db.factorySurfaceAlias.findMany({
+      where: { workItemId: args.workItemId },
+    })
+    return rows.map(toAliasDto)
+  }
+
   async transition(args: {
     workItemId: string
     status: EFactoryWorkItemStatus

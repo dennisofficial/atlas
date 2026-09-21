@@ -24,8 +24,9 @@ import type { EnvService } from '../../_core/config/env/env.service'
 import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import { MAX_CONTEXT_ARCHIVE_BYTES } from '../context-archive/context-archive-limits'
 import type { GithubService } from '../github/github.service'
+import { SandboxGitCredentials } from './git-credentials'
 import { SandboxesService } from './sandboxes.service'
-import { ESandboxState } from './sandboxes.types'
+import { ESandboxDriveMode, ESandboxState } from './sandboxes.types'
 import { SandboxMissingError, type VercelSandboxClient } from './vercel-sandbox.client'
 import { MAX_CONTEXT_BUNDLE_BYTES, MAX_WORKSPACE_PATCH_BYTES } from './workspace-spec'
 
@@ -155,7 +156,7 @@ describe('SandboxesService', () => {
     service = new SandboxesService(
       client as unknown as VercelSandboxClient,
       env,
-      github as unknown as GithubService,
+      new SandboxGitCredentials(github as unknown as GithubService),
       cipher,
       archives as unknown as ContextArchiveStore,
     )
@@ -163,6 +164,32 @@ describe('SandboxesService', () => {
 
   afterEach(async () => {
     await service.whenSettled({ threadId: THREAD })
+  })
+
+  it('carries a drive mount and model pin from attach through provisioning', async () => {
+    await service.attach({
+      userId: USER_A,
+      threadId: THREAD,
+      drive: { name: 'factory-compai-atlas-341', mode: ESandboxDriveMode.ReadWrite },
+      pinnedModel: 'inference/kimi-k3-fast',
+    })
+    await service.whenSettled({ threadId: THREAD })
+
+    const row = fake.cloudSandboxes[0]
+    expect(row?.driveName).toBe('factory-compai-atlas-341')
+    expect(row?.driveMode).toBe(ESandboxDriveMode.ReadWrite)
+    expect(row?.pinnedModel).toBe('inference/kimi-k3-fast')
+
+    const provisionCalls = client.getOrCreate.mock.calls as unknown as Array<
+      [{ drive?: { name: string; mode: string }; pinnedModel?: string }]
+    >
+    const provision = provisionCalls[0]?.[0]
+    if (provision === undefined) throw new Error('expected a provisioning call')
+    expect(provision.drive).toEqual({
+      name: 'factory-compai-atlas-341',
+      mode: ESandboxDriveMode.ReadWrite,
+    })
+    expect(provision.pinnedModel).toBe('inference/kimi-k3-fast')
   })
 
   it('re-provisions on every attach, reissuing the same stored token', async () => {

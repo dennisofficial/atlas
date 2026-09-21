@@ -125,6 +125,9 @@ model CloudSandbox {
   workspaceContext   String?  @db.Text
   workspaceContextArchive Bytes?
   workspaceProjectDirectory String?
+  driveName      String?
+  driveMode      String?
+  pinnedModel    String?
   createdAt      String
   updatedAt      String
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -148,9 +151,25 @@ model FactoryWorkItem {
   updatedAt            String
   aliases              FactorySurfaceAlias[]
   transcriptEvents     FactoryTranscriptEvent[]
+  stationRuns          FactoryStationRun[]
 
   @@index([repo, status])
   @@index([status, lastActivityAt])
+}
+
+model FactoryStationRun {
+  id         String   @id
+  workItemId String
+  kind       String
+  threadId   String   @unique
+  status     String
+  driveMode  String
+  createdAt  String
+  updatedAt  String
+  finishedAt String?
+  workItem   FactoryWorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+
+  @@index([workItemId, status])
 }
 
 model FactorySurfaceAlias {

@@ -9,6 +9,9 @@ import { workspaceColumnsOf, type WorkspaceColumns } from './workspace-spec'
 export type ClaimUpdate = Partial<WorkspaceColumns> & {
   tokenHash?: string
   sealedToken?: string
+  driveName?: string | null
+  driveMode?: string | null
+  pinnedModel?: string | null
   lastActivityAt: string
   updatedAt: string
 }
@@ -19,6 +22,8 @@ export function rotationOf(args: {
   tokenHash: string
   sealedToken: string
   rotated: boolean
+  drive?: { name: string; mode: string } | undefined
+  pinnedModel?: string | undefined
   at: string
 }): ClaimUpdate {
   const rotation: ClaimUpdate = {
@@ -35,6 +40,11 @@ export function rotationOf(args: {
     rotation.workspaceProjectDirectory = columns.workspaceProjectDirectory
   }
   if (args.contextBundle !== undefined) rotation.workspaceContext = args.contextBundle
+  if (args.drive !== undefined) {
+    rotation.driveName = args.drive.name
+    rotation.driveMode = args.drive.mode
+  }
+  if (args.pinnedModel !== undefined) rotation.pinnedModel = args.pinnedModel
   return rotation
 }
 
@@ -51,6 +61,8 @@ export function claimSandboxRow(args: {
   workspace: SandboxWorkspaceSpec | undefined
   contextBundle: string | undefined
   name?: string | undefined
+  drive?: { name: string; mode: string } | undefined
+  pinnedModel?: string | undefined
 }): Promise<CloudSandboxModel> {
   const at = new Date().toISOString()
   const columns: WorkspaceColumns = {
@@ -71,6 +83,9 @@ export function claimSandboxRow(args: {
       tokenHash: args.tokenHash,
       sealedToken: args.sealedToken,
       ...columns,
+      driveName: args.drive?.name ?? null,
+      driveMode: args.drive?.mode ?? null,
+      pinnedModel: args.pinnedModel ?? null,
       createdAt: at,
       updatedAt: at,
     },

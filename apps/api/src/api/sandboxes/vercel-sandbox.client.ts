@@ -4,9 +4,9 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common'
-import { Sandbox } from '@vercel/sandbox'
+import { Drive, Sandbox, type SandboxMounts } from '@vercel/sandbox'
 import { EnvService } from '../../_core/config/env/env.service'
-import { ESandboxState } from './sandboxes.types'
+import { ESandboxDriveMode, ESandboxState } from './sandboxes.types'
 import { ServeBinaryService } from './serve-binary'
 import { createServeLauncher, SERVE_TOKEN_PATH, StaleSandboxTokenError } from './serve-launch'
 import type { ServeLauncher } from './serve-launch'
@@ -19,6 +19,8 @@ import {
 
 export const SANDBOX_REGION = 'iad1'
 export const SANDBOX_SERVE_PORT = 3000
+/** Small per-workspace drives; the SDK's default is 1 TiB. */
+export const SANDBOX_DRIVE_MAX_BYTES = 50 * 1024 ** 3
 /** The SDK's per-sandbox ceiling; the serve port occupies one slot. */
 export const SANDBOX_MAX_PORTS = 15
 /**
@@ -122,10 +124,13 @@ export class VercelSandboxClient {
     name: string
     threadId: string
     token: string
+    drive?: { name: string; mode: ESandboxDriveMode } | undefined
+    pinnedModel?: string | undefined
   }): Promise<SandboxPlacement> {
     const configuration = this.configuration()
     const createStartedAt = Date.now()
     try {
+      const mounts = await this.mountsOf(args.drive)
       const sandbox = await Sandbox.getOrCreate({
         ...this.credentialsOf(configuration),
         name: args.name,
@@ -142,7 +147,9 @@ export class VercelSandboxClient {
           ATLAS_THREAD_ID: args.threadId,
           ATLAS_CLOUD_URL: configuration.cloudUrl,
           ATLAS_WORKSPACE_DIR: WORKSPACE_PATH,
+          ...(args.pinnedModel === undefined ? {} : { ATLAS_MODEL: args.pinnedModel }),
         },
+        ...(mounts === undefined ? {} : { mounts }),
         signal: AbortSignal.timeout(SANDBOX_LAUNCH_TIMEOUT_MS),
       })
       const createMs = Date.now() - createStartedAt
@@ -189,6 +196,27 @@ export class VercelSandboxClient {
     } catch (failure) {
       if (failure instanceof BadRequestException) throw failure
       if (isSandboxMissing(failure)) throw new SandboxMissingError(args.name)
+      throw asBadGateway(failure)
+    }
+  }
+
+  async ensureDrive(args: { name: string }): Promise<void> {
+    await this.driveFor({ name: args.name, timeoutMs: SANDBOX_LAUNCH_TIMEOUT_MS })
+  }
+
+  async deleteDrive(args: { name: string }): Promise<void> {
+    try {
+      const drives = await Drive.list({
+        ...this.credentials(),
+        namePrefix: args.name,
+        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
+      })
+      for await (const drive of drives) {
+        if (drive.name !== args.name) continue
+        await drive.delete({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
+      }
+    } catch (failure) {
+      if (isSandboxMissing(failure)) return
       throw asBadGateway(failure)
     }
   }
@@ -269,6 +297,30 @@ export class VercelSandboxClient {
       args: ['-c', parkNoticeScript(SANDBOX_SERVE_PORT)],
       env: { ATLAS_PARK_REASON: JSON.stringify({ reason: args.reason }) },
       timeoutMs: PARK_NOTIFY_TIMEOUT_MS,
+    })
+  }
+
+  private async mountsOf(
+    drive: { name: string; mode: ESandboxDriveMode } | undefined,
+  ): Promise<SandboxMounts | undefined> {
+    if (drive === undefined) return undefined
+    const created = await this.driveFor({
+      name: drive.name,
+      timeoutMs: SANDBOX_LAUNCH_TIMEOUT_MS,
+    })
+    return {
+      [WORKSPACE_PATH]:
+        drive.mode === ESandboxDriveMode.Snapshot ? created.snapshot() : created,
+    }
+  }
+
+  private driveFor(args: { name: string; timeoutMs: number }): Promise<Drive> {
+    return Drive.getOrCreate({
+      ...this.credentials(),
+      name: args.name,
+      region: SANDBOX_REGION,
+      maxSize: SANDBOX_DRIVE_MAX_BYTES,
+      signal: AbortSignal.timeout(args.timeoutMs),
     })
   }
 

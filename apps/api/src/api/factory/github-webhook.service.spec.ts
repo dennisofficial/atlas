@@ -7,10 +7,12 @@ vi.mock('../../db', async () => {
 })
 
 import { fakeFactoryDb } from '../../../test/fake-factory-db.js'
+import type { FactoryDrivesService } from './drives/drives.service'
 import { EFactoryEventKind, EFactoryWorkItemStatus } from './factory.types'
 import { GithubWebhookService } from './github-webhook.service'
 import type { OrchestratorService } from './orchestrator/orchestrator.service'
 import type { GithubAppService } from './reply/github-app.service'
+import type { StationsService } from './stations/stations.service'
 import { TranscriptService } from './transcript.service'
 import { WorkItemsService } from './work-items.service'
 
@@ -51,6 +53,8 @@ describe('GithubWebhookService', () => {
   let workItems: WorkItemsService
   let orchestrator: { wake: ReturnType<typeof vi.fn> }
   let githubApp: { botLogin: ReturnType<typeof vi.fn>; ownsAppId: ReturnType<typeof vi.fn> }
+  let drives: { release: ReturnType<typeof vi.fn> }
+  let stations: { stopRunningFor: ReturnType<typeof vi.fn> }
 
   beforeEach(() => {
     fake.reset()
@@ -60,11 +64,15 @@ describe('GithubWebhookService', () => {
       botLogin: vi.fn(async () => 'atlas-factory[bot]'),
       ownsAppId: vi.fn((id: number | undefined) => id === 4275284),
     }
+    drives = { release: vi.fn(async () => true) }
+    stations = { stopRunningFor: vi.fn(async () => undefined) }
     service = new GithubWebhookService(
       workItems,
       new TranscriptService(),
       orchestrator as unknown as OrchestratorService,
       githubApp as unknown as GithubAppService,
+      drives as unknown as FactoryDrivesService,
+      stations as unknown as StationsService,
     )
   })
 
@@ -314,6 +322,66 @@ describe('GithubWebhookService', () => {
     })
     const found = await workItems.find({ workItemId: workItem.id })
     expect(found.status).toBe(EFactoryWorkItemStatus.Merged)
+    expect(stations.stopRunningFor).toHaveBeenCalledWith({ workItemId: workItem.id })
+    expect(drives.release).toHaveBeenCalledWith({ workItemId: workItem.id })
+  })
+
+  it('a closed issue stops its stations, releases the drive, and closes the work item', async () => {
+    const { workItem } = await workItems.intake({
+      repo: REPO,
+      sourceKind: 'github',
+      surface: 'github',
+      externalId: `${REPO}#341`,
+      aliasKind: 'issue',
+    })
+
+    const outcome = await service.handle({
+      event: 'issues',
+      deliveryId: 'd-closed',
+      payload: {
+        action: 'closed',
+        issue: { number: 341 },
+        repository: { full_name: REPO },
+        sender: { login: 'dennislysenko' },
+      },
+    })
+
+    expect(outcome).toMatchObject({ handled: true, workItemId: workItem.id, appended: true })
+    expect((await workItems.find({ workItemId: workItem.id })).status).toBe(
+      EFactoryWorkItemStatus.Closed,
+    )
+    expect(stations.stopRunningFor).toHaveBeenCalledWith({ workItemId: workItem.id })
+    expect(drives.release).toHaveBeenCalledWith({ workItemId: workItem.id })
+    expect(orchestrator.wake).toHaveBeenCalled()
+  })
+
+  it('a reopened issue returns the work item to active and wakes the orchestrator', async () => {
+    const { workItem } = await workItems.intake({
+      repo: REPO,
+      sourceKind: 'github',
+      surface: 'github',
+      externalId: `${REPO}#341`,
+      aliasKind: 'issue',
+    })
+    await workItems.transition({ workItemId: workItem.id, status: EFactoryWorkItemStatus.Closed })
+
+    const outcome = await service.handle({
+      event: 'issues',
+      deliveryId: 'd-reopened',
+      payload: {
+        action: 'reopened',
+        issue: { number: 341 },
+        repository: { full_name: REPO },
+        sender: { login: 'dennislysenko' },
+      },
+    })
+
+    expect(outcome).toMatchObject({ handled: true, workItemId: workItem.id, appended: true })
+    expect((await workItems.find({ workItemId: workItem.id })).status).toBe(
+      EFactoryWorkItemStatus.Active,
+    )
+    expect(orchestrator.wake).toHaveBeenCalled()
+    expect(drives.release).not.toHaveBeenCalled()
   })
 
   it('a closed but unmerged pull request is not handled', async () => {

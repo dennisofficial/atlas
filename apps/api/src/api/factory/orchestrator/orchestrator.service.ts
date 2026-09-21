@@ -10,11 +10,10 @@ import { FactoryCredentialService } from './factory-credentials'
 import { FactoryIdentityService } from './factory-identity'
 import { ORCHESTRATOR_CHANNEL, type OrchestratorChannel } from './orchestrator-channel'
 import { orchestratorInstructions, wakeMessageFor } from './orchestrator-prompt'
+import { deliverToServeThread } from './serve-delivery'
 
 const messageOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
-
-type OrchestratorEndpoint = { token: string; url: string }
 
 @Injectable()
 export class OrchestratorService {
@@ -62,10 +61,6 @@ export class OrchestratorService {
     await this.credentials.ensureSeeded({ userId })
     const threadId = await this.ensureThread({ item, externalId: args.externalId, userId })
     const fresh = item.orchestratorDeliveredEventId === null
-    let endpoint: OrchestratorEndpoint | null = await this.sandboxes.runningEndpoint({
-      userId,
-      threadId,
-    })
 
     for (const [index, event] of pending.entries()) {
       const text =
@@ -73,7 +68,15 @@ export class OrchestratorService {
           ? `${orchestratorInstructions({ workItemId: item.id, repo: item.repo, sourceKind: item.sourceKind })}\n\n---\n\n${wakeMessageFor({ event })}`
           : wakeMessageFor({ event })
       try {
-        endpoint = await this.deliverEvent({ item, userId, threadId, event, text, endpoint })
+        await deliverToServeThread({
+          deps: { sandboxes: this.sandboxes, channel: this.channel },
+          userId,
+          threadId,
+          sandboxName: factorySandboxNameFor({ workItemId: item.id }),
+          text,
+          marker: event.id,
+          extras: { pinnedModel: this.credentials.modelRef() },
+        })
       } catch (failure) {
         this.logger.warn(
           `orchestrator delivery failed for work item ${item.id}, event ${event.id} (delivery ${event.deliveryId}): ${messageOf(failure)}`,
@@ -85,12 +88,14 @@ export class OrchestratorService {
   }
 
   /**
-   * Reply events record what the orchestrator itself posted; feeding them back would be its own
-   * words arriving as news. The webhook echo never reaches the transcript — ingress drops it.
+   * Reply and station-request events record what the orchestrator itself did; feeding them back
+   * would be its own words arriving as news. The webhook echo of a reply never reaches the
+   * transcript — ingress drops it.
    */
   private async pendingEvents(item: WorkItemDto): Promise<TranscriptEventDto[]> {
     const events = (await this.transcript.list({ workItemId: item.id })).filter(
-      (event) => event.kind !== EFactoryEventKind.Reply,
+      (event) =>
+        event.kind !== EFactoryEventKind.Reply && event.kind !== EFactoryEventKind.StationRequest,
     )
     const watermark = item.orchestratorDeliveredEventId
     if (watermark === null) return events
@@ -118,103 +123,5 @@ export class OrchestratorService {
       })
     }
     return claim.threadId
-  }
-
-  private async deliverEvent(args: {
-    item: WorkItemDto
-    userId: string
-    threadId: string
-    event: TranscriptEventDto
-    text: string
-    endpoint: OrchestratorEndpoint | null
-  }): Promise<OrchestratorEndpoint> {
-    if (args.endpoint !== null) {
-      const retried = await this.tryEndpoint({
-        endpoint: args.endpoint,
-        threadId: args.threadId,
-        event: args.event,
-        text: args.text,
-      })
-      if (retried) return args.endpoint
-      this.logger.log(
-        `cached orchestrator endpoint for work item ${args.item.id} is dead, re-attaching`,
-      )
-    }
-    const attached = await this.attachEndpoint({
-      item: args.item,
-      userId: args.userId,
-      threadId: args.threadId,
-    })
-    await this.injectEvent({
-      endpoint: attached,
-      threadId: args.threadId,
-      event: args.event,
-      text: args.text,
-    })
-    return attached
-  }
-
-  /**
-   * One fresh-socket retry before escalating: an attach rotates the token, and the launcher reads
-   * the running serve's stale-token 401 as a wedge and restarts it — so anything that might be a
-   * transient socket error gets a second chance on the credential the serve actually booted with.
-   */
-  private async tryEndpoint(args: {
-    endpoint: OrchestratorEndpoint
-    threadId: string
-    event: TranscriptEventDto
-    text: string
-  }): Promise<boolean> {
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      try {
-        await this.injectEvent(args)
-        return true
-      } catch {
-        if (await this.committed({ threadId: args.threadId, marker: args.event.id })) return true
-      }
-    }
-    return false
-  }
-
-  private async attachEndpoint(args: {
-    item: WorkItemDto
-    userId: string
-    threadId: string
-  }): Promise<OrchestratorEndpoint> {
-    const attachment = await this.sandboxes.attach({
-      userId: args.userId,
-      threadId: args.threadId,
-      name: factorySandboxNameFor({ workItemId: args.item.id }),
-    })
-    await this.sandboxes.whenSettled({ threadId: args.threadId })
-    const status = await this.sandboxes.status({ userId: args.userId, threadId: args.threadId })
-    if (status.url === undefined) {
-      throw new Error(`orchestrator sandbox ${status.name} has no serve route`)
-    }
-    return { token: attachment.token, url: status.url }
-  }
-
-  private async injectEvent(args: {
-    endpoint: OrchestratorEndpoint
-    threadId: string
-    event: TranscriptEventDto
-    text: string
-  }): Promise<void> {
-    if (await this.committed({ threadId: args.threadId, marker: args.event.id })) return
-    await this.channel.inject({
-      url: args.endpoint.url,
-      token: args.endpoint.token,
-      threadId: args.threadId,
-      text: args.text,
-      accepted: () => this.committed({ threadId: args.threadId, marker: args.event.id }),
-    })
-  }
-
-  private async committed(args: { threadId: string; marker: string }): Promise<boolean> {
-    const landed = await db.event.findFirst({
-      where: { threadId: args.threadId, type: 'user-said', body: { contains: args.marker } },
-      select: { id: true },
-    })
-    return landed !== null
   }
 }

@@ -7,6 +7,7 @@ import { EAccountOrigin, EAccountStatus, EAuthKind } from '../../accounts/accoun
 import { isUniqueViolation } from '../unique-violation'
 
 const DEFAULT_PROVIDER = 'anthropic'
+export const DEFAULT_FACTORY_MODEL_REF = 'inference/kimi-k3-fast'
 const POINTER_UNIQUE_TARGET = ['userId', 'provider'] as const
 
 export class FactoryCredentialsNotConfigured extends Error {
@@ -42,6 +43,15 @@ export class FactoryCredentialService {
 
   private provider(): string {
     return this.env.get('FACTORY_MODEL_PROVIDER') ?? DEFAULT_PROVIDER
+  }
+
+  /**
+   * The model every factory sandbox launches on (ATLAS_MODEL in its environment). It is the
+   * launch-level default for the session — it outranks the settings file, and nothing pins a
+   * session against a later switch.
+   */
+  modelRef(): string {
+    return this.env.get('FACTORY_MODEL_ID') ?? DEFAULT_FACTORY_MODEL_REF
   }
 
   private async seed(args: { userId: string }): Promise<void> {

@@ -24,6 +24,11 @@ const sdk = vi.hoisted(() => ({
   updateFailure: null as Error | null,
   runCommandFailure: null as Error | null,
   sandboxRef: null as unknown,
+  driveGetOrCreate: [] as Record<string, unknown>[],
+  driveDeleted: [] as string[],
+  driveListParams: [] as Array<Record<string, unknown> | undefined>,
+  lastDrive: null as unknown,
+  driveStore: new Map<string, { name: string }>(),
 }))
 
 const launch = vi.hoisted(() => ({
@@ -82,8 +87,42 @@ vi.mock('@vercel/sandbox', () => {
     },
   }
   sdk.sandboxRef = sandbox
+  class FakeDrive {
+    constructor(readonly meta: Record<string, unknown>) {}
+    get name() {
+      return String(this.meta.name)
+    }
+    snapshot() {
+      return { drive: this.meta.name, mode: 'snapshot' }
+    }
+    async delete() {
+      sdk.driveDeleted.push(this.name)
+      sdk.driveStore.delete(this.name)
+    }
+  }
   return {
     APIError,
+    Drive: {
+      getOrCreate: async (params: Record<string, unknown>) => {
+        sdk.driveGetOrCreate.push(params)
+        const drive = new FakeDrive(params)
+        sdk.driveStore.set(drive.name, drive)
+        sdk.lastDrive = drive
+        return drive
+      },
+      list: async (params?: Record<string, unknown>) => {
+        sdk.driveListParams.push(params)
+        const prefix = String(params?.namePrefix ?? '')
+        const matched = [...sdk.driveStore.values()].filter((drive) =>
+          drive.name.startsWith(prefix),
+        )
+        return {
+          async *[Symbol.asyncIterator]() {
+            for (const drive of matched) yield drive
+          },
+        }
+      },
+    },
     Sandbox: {
       getOrCreate: async (params: Record<string, unknown>) => {
         sdk.createParams.push(params)
@@ -132,7 +171,7 @@ import {
   VercelSandboxClient,
   WORKSPACE_PATH,
 } from './vercel-sandbox.client'
-import { ESandboxState } from './sandboxes.types'
+import { ESandboxDriveMode, ESandboxState } from './sandboxes.types'
 
 const CONFIGURED: Record<string, string | number> = {
   VERCEL_TOKEN: 'vercel-token',
@@ -168,6 +207,11 @@ describe('VercelSandboxClient', () => {
     sdk.updated.length = 0
     sdk.routedPorts = [3000]
     sdk.ranCommands.length = 0
+    sdk.driveGetOrCreate.length = 0
+    sdk.driveDeleted.length = 0
+    sdk.driveListParams.length = 0
+    sdk.lastDrive = null
+    sdk.driveStore.clear()
     sdk.status = 'running'
     sdk.getFailure = null
     sdk.createFailure = null
@@ -218,6 +262,65 @@ describe('VercelSandboxClient', () => {
       state: ESandboxState.Running,
     })
     expect(sdk.createParams[0]?.image).toBe('atlas-sandbox:sha-deadbeef')
+  })
+
+  it('mounts a drive at the workspace path and pins the model when told to', async () => {
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    await client.getOrCreate({
+      name: 'factory-st-fsr-1',
+      threadId: 'brn_station_1',
+      token: 'session-token',
+      drive: { name: 'factory-compai-atlas-341', mode: ESandboxDriveMode.ReadWrite },
+      pinnedModel: 'inference/kimi-k3-fast',
+    })
+
+    expect(sdk.driveGetOrCreate[0]).toMatchObject({
+      name: 'factory-compai-atlas-341',
+      region: SANDBOX_REGION,
+      maxSize: 50 * 1024 ** 3,
+      token: 'vercel-token',
+      teamId: 'team_1',
+      projectId: 'prj_1',
+    })
+    const mounts = sdk.createParams[0]?.mounts as Record<string, unknown>
+    expect(mounts[WORKSPACE_PATH]).toBe(sdk.lastDrive)
+    expect((sdk.createParams[0]?.env as Record<string, string>).ATLAS_MODEL).toBe(
+      'inference/kimi-k3-fast',
+    )
+  })
+
+  it('mounts a snapshot mode drive as a read-only snapshot', async () => {
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    await client.getOrCreate({
+      name: 'factory-st-fsr-2',
+      threadId: 'brn_station_2',
+      token: 'session-token',
+      drive: { name: 'factory-compai-atlas-341', mode: ESandboxDriveMode.Snapshot },
+    })
+
+    const mounts = sdk.createParams[0]?.mounts as Record<string, unknown>
+    expect(mounts[WORKSPACE_PATH]).toEqual({
+      drive: 'factory-compai-atlas-341',
+      mode: 'snapshot',
+    })
+  })
+
+  it('deletes a drive by name through the SDK', async () => {
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    await client.ensureDrive({ name: 'factory-compai-atlas-341' })
+    await client.deleteDrive({ name: 'factory-compai-atlas-341' })
+
+    expect(sdk.driveListParams[0]).toMatchObject({ namePrefix: 'factory-compai-atlas-341' })
+    expect(sdk.driveDeleted).toEqual(['factory-compai-atlas-341'])
+  })
+
+  it('deleting a drive that was never created does not provision one first', async () => {
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    const created = sdk.driveGetOrCreate.length
+    await client.deleteDrive({ name: 'factory-never-existed' })
+
+    expect(sdk.driveGetOrCreate.length).toBe(created)
+    expect(sdk.driveDeleted).toEqual([])
   })
 
   it('logs how long the placement and the serve launch took', async () => {
