@@ -3,16 +3,17 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import {
-  EContentAccess,
-  EPathForm,
-  EPathPresence,
+  EBeforeToolDecision,
   EToolEffect,
+  TAKES_NO_PATHS,
+  toCallId,
   toThreadId,
   type ToolOutcome,
 } from '@dltech/atlas-core'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import { CloudSessionStore } from '../../../cloud/cloud-session'
+import { ResolveProjectPathsHook } from '../../../hooks/resolve-project-paths'
 import { McpEditTool } from '../mcp-edit'
 
 let root = ''
@@ -31,19 +32,48 @@ const invoke = async (input: unknown): Promise<ToolOutcome> =>
   })
 
 describe('McpEditTool', () => {
-  it('is a write over the layer file it resolves', () => {
+  it('is a write that declares no path fields, since layer is an enum rather than a path', () => {
     const tool = new McpEditTool()
 
     expect(tool.name).toBe('mcp-edit')
     expect(tool.effect).toBe(EToolEffect.Write)
-    expect(tool.pathFields).toEqual([
-      {
-        field: 'layer',
-        presence: EPathPresence.Required,
-        form: EPathForm.Absolute,
-        content: EContentAccess.Amends,
+    expect(tool.pathFields).toBe(TAKES_NO_PATHS)
+  })
+
+  it('accepts the input the dispatcher hands it after resolveProjectPaths ran', async () => {
+    const tool = new McpEditTool()
+    const input = {
+      layer: 'project',
+      name: 'linear',
+      transport: { kind: 'stdio', command: 'npx' },
+      action: 'upsert',
+    }
+
+    const hook = await new ResolveProjectPathsHook([tool]).run({
+      call: {
+        callId: toCallId('call-1'),
+        name: tool.name,
+        input,
+        effect: tool.effect,
+        threadId: toThreadId('thread-1'),
       },
-    ])
+      projectDirectory: root,
+      events: [],
+      signal: new AbortController().signal,
+    })
+
+    expect(hook.decision).toBe(EBeforeToolDecision.Allow)
+    if (hook.decision !== EBeforeToolDecision.Allow) return
+    expect(hook.input).toEqual(input)
+
+    const outcome = await tool.invoke({
+      input: hook.input,
+      signal: new AbortController().signal,
+      idempotencyKey: 'edit-1',
+      projectDirectory: root,
+      threadId: toThreadId('thread-1'),
+    })
+    expect(outcome).toMatchObject({ ok: true })
   })
 
   it('upserts through invoke end to end', async () => {
