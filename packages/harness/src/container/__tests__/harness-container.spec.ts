@@ -4,7 +4,7 @@ import { ClockPort, CredentialPort, EventLogPort, FileSystemPort, IdPort, Proces
 
 import type { KeychainReader } from '../../credentials/keychain-reader'
 import { LocalFileSystemPort } from '../../execution/local-filesystem'
-import { LocalProcessPort } from '../../execution/local-process'
+import { LoginEnvProcessPort } from '../../execution/login-env-process'
 import { CredentialPortProxy } from '../../cloud/credential-port-proxy'
 import {
   ThreadStorePort,
@@ -65,8 +65,8 @@ describe('createHarnessContainer', () => {
     expect(harness.resolve(portToken(CredentialPort))).toBeInstanceOf(CredentialPortProxy)
   })
 
-  it('resolves the process port to the local adapter', () => {
-    expect(harness.resolve(portToken(ProcessPort))).toBeInstanceOf(LocalProcessPort)
+  it('resolves the process port to the login-resolving local adapter', () => {
+    expect(harness.resolve(portToken(ProcessPort))).toBeInstanceOf(LoginEnvProcessPort)
   })
 
   it('resolves the filesystem port to the local adapter', () => {

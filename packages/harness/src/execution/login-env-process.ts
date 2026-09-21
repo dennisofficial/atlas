@@ -6,9 +6,12 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import { signalGroup, type LocalProcessHandle, type LocalProcessPort } from './local-process'
+
 export const LOGIN_ENV_MARKER = 'ATLAS_RESOLVE_LOGIN_ENV'
 
 const RUN_COMMAND_THEN_REPLACE = 'exec bash -c "$ATLAS_SHELL_COMMAND"'
+const SIGTERM_RETRY_MS = 300
 
 /**
  * Toolchain managers (fnm, direnv, corepack) install their resolution hooks in the interactive
@@ -44,11 +47,39 @@ const throughLoginShell = (args: SpawnCommand): SpawnCommand => {
  * the host's rc files.
  */
 export class LoginEnvProcessPort implements ProcessPort {
-  constructor(private readonly inner: ProcessPort) {}
+  constructor(private readonly inner: LocalProcessPort) {}
 
   spawn(args: SpawnCommand): ProcessHandle {
     if (args.env?.[LOGIN_ENV_MARKER] === undefined) return this.inner.spawn(args)
-    return this.inner.spawn(throughLoginShell(args))
+    return this.withStartupKillRetry(this.inner.spawn(throughLoginShell(args)))
+  }
+
+  /**
+   * An interactive zsh defers SIGTERM while its rc files are still running (measured: a TERM sent
+   * 150ms into a ~200ms startup is never delivered; at 600ms it kills as usual). A kill that
+   * lands in that window would otherwise wait for the 5s SIGKILL grace, so terminate re-sends
+   * TERM on a short interval until the process exits; the inner handle's SIGKILL escalation is
+   * unchanged as the backstop.
+   */
+  private withStartupKillRetry(handle: LocalProcessHandle): ProcessHandle {
+    let terminating = false
+    let retry: ReturnType<typeof setInterval> | undefined
+
+    return {
+      ...handle,
+      terminate: () => {
+        if (terminating) return
+        terminating = true
+        handle.terminate()
+        const group = { pid: handle.pid, kill: () => undefined }
+        retry = setInterval(() => signalGroup({ child: group, signal: 'SIGTERM' }), SIGTERM_RETRY_MS)
+        retry.unref()
+        void handle.exited.then(() => {
+          if (retry !== undefined) clearInterval(retry)
+          retry = undefined
+        })
+      },
+    }
   }
 
   which(args: { command: string; threadId?: ThreadId | undefined }): string | null {
