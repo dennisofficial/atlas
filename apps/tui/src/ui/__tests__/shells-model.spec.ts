@@ -176,6 +176,24 @@ describe('laying a shell tail out in the scrollback on offer', () => {
     expect(outputRows({ text: 'a\tb', cells: 20, limit: 4 })).toEqual(['a  b'])
   })
 
+  it('strips color sequences, which would otherwise print as literal fragments', () => {
+    const text = '\x1b[38;2;255;71;133mcolored\x1b[0m plain'
+
+    expect(outputRows({ text, cells: 40, limit: 4 })).toEqual(['colored plain'])
+  })
+
+  it('wraps a colored line at its visible width rather than its byte width', () => {
+    const text = `\x1b[32m${'abcdefgh'}\x1b[0m`
+
+    expect(outputRows({ text, cells: 3, limit: 10 })).toEqual(['abc', 'def', 'gh'])
+  })
+
+  it('collapses the carriage returns a progress line rewrites itself with', () => {
+    expect(outputRows({ text: 'building 10%\rbuilding 90%\rdone', cells: 40, limit: 4 })).toEqual([
+      'building 10%building 90%done',
+    ])
+  })
+
   it('returns nothing when there are no rows to fill', () => {
     expect(outputRows({ text: 'anything', cells: 20, limit: 0 })).toEqual([])
   })

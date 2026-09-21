@@ -1,5 +1,6 @@
 import { EKilledBy, EShellStatus, type ShellSnapshot } from '@dltech/atlas-harness'
 
+import { stripAnsi } from './ansi'
 import { formatElapsed } from './theme'
 
 export type ShellsState = { index: number }
@@ -116,14 +117,14 @@ function wrapped(args: { line: string; cells: number }): string[] {
 }
 
 /**
- * The tail of a shell's output, hard-wrapped and cut to the scrollback on offer. Wrapping rather
- * than clipping because a shell prints progress bars and stack traces, where the end of the line is
- * usually the part worth reading.
+ * The tail of a shell's output, hard-wrapped and cut to the scrollback on offer. Escape sequences
+ * are stripped rather than honored: each row renders as its own flat-colored `<text>`, and a
+ * sequence counted toward the wrap width (or split across rows) prints as literal garbage.
  */
 export function outputRows(args: { text: string; cells: number; limit: number }): readonly string[] {
   if (args.limit <= 0) return []
 
-  const printed = args.text.replace(/\n+$/, '')
+  const printed = stripAnsi(args.text).replace(/\n+$/, '')
   if (printed === '') return []
 
   const lines = printed.split('\n')
