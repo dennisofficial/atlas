@@ -2,7 +2,7 @@ import { toThreadId, type ThreadId } from '@dltech/atlas-core'
 
 import type { PrismaClient } from '../../prisma/generated/client'
 
-export const SUPERVISION_DEPTH_LIMIT = 1
+export const SUPERVISION_DEPTH_LIMIT = 2
 
 export class SupervisionTreeTooDeep extends Error {
   constructor({ threadId, limit }: { threadId: ThreadId; limit: number }) {
