@@ -16,10 +16,8 @@ import {
   resolveMcpSpecs,
   type McpSource,
 } from '../config'
-import { TrustResolver } from '../bridge/trust-resolver'
 import { HandleStore } from '../bridge/handle-store'
 import { McpInstructionsHook } from '../instructions/instructions-hook'
-import { McpHandleTrust } from './workspace-boundary-hook'
 
 const userSourcesFor = (args: {
   session: CloudSession | null
@@ -81,7 +79,6 @@ export async function registerMcp(args: {
   await store.connectAll()
 
   args.container.register(portToken(DynamicToolSource), { useValue: store })
-  args.container.register(portToken(McpHandleTrust), { useValue: new TrustResolver({ store }) })
   args.container.register(portToken(BeforeTurnHook), { useValue: new McpInstructionsHook({ store }) })
   registerDisposable({ container: args.container, close: () => store.closeAll() })
 
