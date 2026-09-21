@@ -65,7 +65,7 @@ describe('createHarnessContainer', () => {
     expect(harness.resolve(portToken(CredentialPort))).toBeInstanceOf(CredentialPortProxy)
   })
 
-  it('resolves the process port to the local adapter behind the login-shell wrapper', () => {
+  it('resolves the process port to the login-resolving local adapter', () => {
     expect(harness.resolve(portToken(ProcessPort))).toBeInstanceOf(LoginEnvProcessPort)
   })
 
