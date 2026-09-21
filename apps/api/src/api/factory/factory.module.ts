@@ -49,6 +49,6 @@ import { WorkItemsService } from './work-items.service'
     },
     { provide: ORCHESTRATOR_CHANNEL, useFactory: () => createOrchestratorChannel() },
   ],
-  exports: [WorkItemsService, TranscriptService, OrchestratorService],
+  exports: [WorkItemsService, TranscriptService, OrchestratorService, GithubWebhookService],
 })
 export class FactoryModule {}

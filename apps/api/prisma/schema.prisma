@@ -361,3 +361,35 @@ model DeviceCode {
   userId          String?
   user            User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+model GithubWebhookEvent {
+  id           String   @id
+  event        String
+  repoFullName String
+  prNumber     Int?
+  branch       String?
+  payload      String
+  receivedAt   DateTime @default(now())
+
+  @@index([repoFullName, receivedAt])
+}
+
+model GithubPullRequest {
+  repoFullName   String
+  number         Int
+  title          String
+  url            String
+  state          String
+  headBranch     String
+  headSha        String
+  checksRunning  Int      @default(0)
+  checksPassed   Int      @default(0)
+  checksFailed   Int      @default(0)
+  mergeable      Boolean?
+  mergeableState String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@id([repoFullName, number])
+  @@index([repoFullName, headBranch])
+}
