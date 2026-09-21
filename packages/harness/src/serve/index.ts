@@ -27,7 +27,7 @@ import { createServeLog, EServeEvent, LoggingNoticePort, type LogWrite, type Ser
 import { startSessionServer } from './session-server'
 import { createSessionHandlers } from './socket-session'
 import { createTurnDriver } from './turn-driver'
-import { workspaceSpecFetcher } from './workspace-spec'
+import { contextArchiveFetcher, workspaceSpecFetcher } from './workspace-spec'
 
 export * from './channel-bridge'
 export * from './compose-serve'
@@ -142,6 +142,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   const contextStartedAt = Date.now()
   const context = await materializeContext({
     fetchSpec: fetchSpecOnce,
+    fetchArchive: contextArchiveFetcher({ controlPlaneUrl, token, fetchFn }),
     atlasHome: atlasDirectory(),
     cwd,
   })

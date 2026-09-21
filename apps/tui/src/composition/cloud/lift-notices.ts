@@ -28,6 +28,7 @@ const FAULT_HEAD: Record<ELiftFault, string> = {
   [ELiftFault.PatchTooLarge]: 'the uncommitted work is too large to carry',
   [ELiftFault.Transfer]: 'the conversation could not be transferred',
   [ELiftFault.Sandbox]: 'the sandbox would not start',
+  [ELiftFault.Context]: 'the context could not reach the sandbox',
 }
 
 const stillHere = (failure: LiftFailure): string =>

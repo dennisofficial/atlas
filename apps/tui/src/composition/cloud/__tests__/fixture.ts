@@ -221,11 +221,8 @@ export type FakeBridge = CloudBridge & {
   readonly log: FakeEventLog
   readonly threads: FakeThreadStore
   readonly ledger: FakeLedger
-  readonly created: readonly {
-    threadId: ThreadId
-    workspace: LiftedWorkspace | null
-    contextBundle?: string | undefined
-  }[]
+  readonly created: readonly { threadId: ThreadId; workspace: LiftedWorkspace | null }[]
+  readonly contextPuts: readonly { threadId: ThreadId; archive: Buffer }[]
   readonly attached: readonly { threadId: ThreadId; url: string; token: string }[]
   readonly channel: FakeCloudChannel
   readonly trail: readonly string[]
@@ -241,6 +238,7 @@ export function fakeBridge(
   args: {
     sandbox?: CloudSandbox
     createFails?: unknown
+    putContextFails?: unknown
     status?: CloudSandboxStatus | undefined
     threadStore?: FakeThreadStore
   } = {},
@@ -250,6 +248,7 @@ export function fakeBridge(
   const ledger = fakeLedger()
   let channel: FakeCloudChannel | null = null
   const created: { threadId: ThreadId; workspace: LiftedWorkspace | null }[] = []
+  const contextPuts: { threadId: ThreadId; archive: Buffer }[] = []
   const attached: { threadId: ThreadId; url: string; token: string }[] = []
   const trail: string[] = []
 
@@ -260,6 +259,7 @@ export function fakeBridge(
     threads,
     ledger,
     created,
+    contextPuts,
     attached,
     get channel() {
       if (channel === null) throw new Error('nothing has attached yet')
@@ -268,15 +268,16 @@ export function fakeBridge(
     trail,
     stores: { log, threads: watchedThreads, ledger },
     sandboxes: {
-      create: async ({ threadId, workspace, contextBundle }) => {
+      create: async ({ threadId, workspace }) => {
         trail.push('sandbox')
-        created.push({
-          threadId,
-          workspace,
-          ...(contextBundle === undefined ? {} : { contextBundle }),
-        })
+        created.push({ threadId, workspace })
         if (args.createFails !== undefined) throw args.createFails
         return args.sandbox ?? RUNNING
+      },
+      putContext: async ({ threadId, archive }) => {
+        trail.push('put-context')
+        contextPuts.push({ threadId, archive: Buffer.from(archive) })
+        if (args.putContextFails !== undefined) throw args.putContextFails
       },
       find: async () => args.status,
     },

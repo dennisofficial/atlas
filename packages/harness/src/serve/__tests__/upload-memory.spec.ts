@@ -1,13 +1,19 @@
 import { describe, expect, it } from 'bun:test'
 
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { ENoticeTone, type NoticePort, type NoticePost } from '@dltech/atlas-core'
 
+import { extractContextArchive } from '../../cloud/context-archive'
 import { memoryDirectoriesFor } from '../../memory/read-memory'
-import { captureMemoryBundle, createMemoryUploader } from '../upload-memory'
+import {
+  captureMemoryArchive,
+  createMemoryUploader,
+  memoryManifestOf,
+  walkMemorySet,
+} from '../upload-memory'
 
 const freshDirectory = async (prefix: string): Promise<string> => mkdtemp(join(tmpdir(), prefix))
 
@@ -17,14 +23,17 @@ const writeUnder = async (args: { directory: string; name: string; content: stri
   await writeFile(path, args.content, 'utf8')
 }
 
-const decode = (bundle: string): Record<string, { content: string; mtime: number }> => {
-  const entries = JSON.parse(bundle) as Record<string, { content: string; mtime: number }>
-  return Object.fromEntries(
-    Object.entries(entries).map(([key, entry]) => [
-      key,
-      { content: Buffer.from(entry.content, 'base64').toString('utf8'), mtime: entry.mtime },
-    ]),
-  )
+const decode = async (archive: Buffer): Promise<Record<string, string>> => {
+  const extracted = await extractContextArchive({ archive })
+  try {
+    const decoded: Record<string, string> = {}
+    for (const entry of extracted.entries) {
+      decoded[entry.key] = (await readFile(entry.path)).toString('utf8')
+    }
+    return decoded
+  } finally {
+    await extracted.cleanup()
+  }
 }
 
 const fakeNotice = (): NoticePort & { posts: () => readonly NoticePost[] } => {
@@ -35,15 +44,15 @@ const fakeNotice = (): NoticePort & { posts: () => readonly NoticePost[] } => {
   }
 }
 
-describe('captureMemoryBundle', () => {
-  it('returns undefined when there is nothing to carry', async () => {
+describe('walkMemorySet', () => {
+  it('returns nothing when there is nothing to carry', async () => {
     const atlasHome = await freshDirectory('atlas-upload-home-')
     const cwd = await freshDirectory('atlas-upload-cwd-')
 
-    expect(await captureMemoryBundle({ atlasHome, cwd })).toBeUndefined()
+    expect(await walkMemorySet({ atlasHome, cwd })).toEqual([])
   })
 
-  it('carries the flat user memory files with an mtime, but not a nested project directory', async () => {
+  it('carries the flat user memory files with an mtime and size, but not a nested project directory', async () => {
     const atlasHome = await freshDirectory('atlas-upload-home-')
     const cwd = await freshDirectory('atlas-upload-cwd-')
     await writeUnder({ directory: join(atlasHome, 'memory'), name: 'MEMORY.md', content: '# user memory' })
@@ -53,13 +62,11 @@ describe('captureMemoryBundle', () => {
       content: '# nested, not ours to carry here',
     })
 
-    const bundle = await captureMemoryBundle({ atlasHome, cwd })
-    if (bundle === undefined) throw new Error('expected a bundle')
-    const decoded = decode(bundle)
+    const entries = await walkMemorySet({ atlasHome, cwd })
 
-    expect(Object.keys(decoded)).toEqual(['user/MEMORY.md'])
-    expect(decoded['user/MEMORY.md']?.content).toBe('# user memory')
-    expect(decoded['user/MEMORY.md']?.mtime).toBeGreaterThan(0)
+    expect(entries.map((entry) => entry.key)).toEqual(['user/MEMORY.md'])
+    expect(entries[0]?.mtimeMs).toBeGreaterThan(0)
+    expect(entries[0]?.size).toBeGreaterThan(0)
   })
 
   it('carries this workspace’s project memory under a bare project/ prefix when the Mac-side directory is unknown', async () => {
@@ -68,12 +75,9 @@ describe('captureMemoryBundle', () => {
     const projectMemory = memoryDirectoriesFor({ atlasHome, repoRoot: cwd }).project
     await writeUnder({ directory: projectMemory, name: 'MEMORY.md', content: '# project memory' })
 
-    const bundle = await captureMemoryBundle({ atlasHome, cwd })
-    if (bundle === undefined) throw new Error('expected a bundle')
+    const entries = await walkMemorySet({ atlasHome, cwd })
 
-    expect(decode(bundle)).toEqual({
-      'project/MEMORY.md': { content: '# project memory', mtime: expect.any(Number) },
-    })
+    expect(entries.map((entry) => entry.key)).toEqual(['project/MEMORY.md'])
   })
 
   it('keys project memory by the Mac-side project directory when the workspace spec named one', async () => {
@@ -82,19 +86,42 @@ describe('captureMemoryBundle', () => {
     const projectMemory = memoryDirectoriesFor({ atlasHome, repoRoot: cwd }).project
     await writeUnder({ directory: projectMemory, name: 'MEMORY.md', content: '# project memory' })
 
-    const bundle = await captureMemoryBundle({
-      atlasHome,
-      cwd,
-      projectDirectory: '/Users/dennis/dev/atlas',
-    })
-    if (bundle === undefined) throw new Error('expected a bundle')
+    const entries = await walkMemorySet({ atlasHome, cwd, projectDirectory: '/Users/dennis/dev/atlas' })
 
-    expect(decode(bundle)).toEqual({
-      'project/%2FUsers%2Fdennis%2Fdev%2Fatlas/MEMORY.md': {
-        content: '# project memory',
-        mtime: expect.any(Number),
-      },
-    })
+    expect(entries.map((entry) => entry.key)).toEqual([
+      'project/%2FUsers%2Fdennis%2Fdev%2Fatlas/MEMORY.md',
+    ])
+  })
+})
+
+describe('memoryManifestOf', () => {
+  const entryA = { key: 'user/a.md', path: '/a', mtimeMs: 1, size: 2 }
+  const entryB = { key: 'user/b.md', path: '/b', mtimeMs: 3, size: 4 }
+
+  it('is stable for the same walked set regardless of input order', () => {
+    expect(memoryManifestOf([entryA, entryB])).toBe(memoryManifestOf([entryB, entryA]))
+  })
+
+  it('changes when the mtime of an entry changes', () => {
+    expect(memoryManifestOf([entryA])).not.toBe(memoryManifestOf([{ ...entryA, mtimeMs: 2 }]))
+  })
+
+  it('changes when the size of an entry changes', () => {
+    expect(memoryManifestOf([entryA])).not.toBe(memoryManifestOf([{ ...entryA, size: 9 }]))
+  })
+})
+
+describe('captureMemoryArchive', () => {
+  it('archives the same content and mtime walkMemorySet reported', async () => {
+    const atlasHome = await freshDirectory('atlas-upload-home-')
+    const cwd = await freshDirectory('atlas-upload-cwd-')
+    await writeUnder({ directory: join(atlasHome, 'memory'), name: 'MEMORY.md', content: '# user memory' })
+
+    const entries = await walkMemorySet({ atlasHome, cwd })
+    const archive = await captureMemoryArchive({ entries })
+    if (archive === undefined) throw new Error('expected an archive')
+
+    expect(await decode(archive)).toEqual({ 'user/MEMORY.md': '# user memory' })
   })
 
   it('captures a non-UTF8 file without corrupting its bytes', async () => {
@@ -104,22 +131,33 @@ describe('captureMemoryBundle', () => {
     await mkdir(join(atlasHome, 'memory'), { recursive: true })
     await writeFile(join(atlasHome, 'memory', 'icon.png'), rawBytes)
 
-    const bundle = await captureMemoryBundle({ atlasHome, cwd })
-    if (bundle === undefined) throw new Error('expected a bundle')
-    const entries = JSON.parse(bundle) as Record<string, { content: string; mtime: number }>
+    const entries = await walkMemorySet({ atlasHome, cwd })
+    const archive = await captureMemoryArchive({ entries })
+    if (archive === undefined) throw new Error('expected an archive')
 
-    expect(Buffer.from(entries['user/icon.png']?.content ?? '', 'base64')).toEqual(rawBytes)
+    const extracted = await extractContextArchive({ archive })
+    try {
+      const entry = extracted.entries.find((candidate) => candidate.key === 'user/icon.png')
+      if (entry === undefined) throw new Error('expected user/icon.png in the archive')
+      expect(await readFile(entry.path)).toEqual(rawBytes)
+    } finally {
+      await extracted.cleanup()
+    }
+  })
+
+  it('returns undefined for an empty walked set', async () => {
+    expect(await captureMemoryArchive({ entries: [] })).toBeUndefined()
   })
 })
 
 describe('createMemoryUploader', () => {
-  it('uploads the captured bundle once and skips a byte-identical re-capture', async () => {
+  it('uploads the captured archive once and skips a re-capture whose manifest has not changed', async () => {
     const atlasHome = await freshDirectory('atlas-upload-home-')
     const cwd = await freshDirectory('atlas-upload-cwd-')
     await writeUnder({ directory: join(atlasHome, 'memory'), name: 'MEMORY.md', content: '# note' })
 
-    const uploaded: string[] = []
-    const client = { writeMemoryBundle: async (bundle: string) => void uploaded.push(bundle) }
+    const uploaded: Buffer[] = []
+    const client = { writeMemoryArchive: async (archive: Buffer) => void uploaded.push(archive) }
     const notice = fakeNotice()
     const uploader = createMemoryUploader({ client, atlasHome, cwd, notice })
 
@@ -130,29 +168,31 @@ describe('createMemoryUploader', () => {
     expect(notice.posts()).toHaveLength(0)
   })
 
-  it('uploads again once the captured bundle actually changes', async () => {
+  it('uploads again once the walked set actually changes', async () => {
     const atlasHome = await freshDirectory('atlas-upload-home-')
     const cwd = await freshDirectory('atlas-upload-cwd-')
     await writeUnder({ directory: join(atlasHome, 'memory'), name: 'MEMORY.md', content: '# note' })
 
-    const uploaded: string[] = []
-    const client = { writeMemoryBundle: async (bundle: string) => void uploaded.push(bundle) }
+    const uploaded: Buffer[] = []
+    const client = { writeMemoryArchive: async (archive: Buffer) => void uploaded.push(archive) }
     const uploader = createMemoryUploader({ client, atlasHome, cwd, notice: fakeNotice() })
 
     await uploader.syncAfterTurn()
-    await writeUnder({ directory: join(atlasHome, 'memory'), name: 'MEMORY.md', content: '# note, revised' })
+    await writeUnder({ directory: join(atlasHome, 'memory'), name: 'MEMORY.md', content: '# note, revised, and longer' })
     await uploader.syncAfterTurn()
 
     expect(uploaded).toHaveLength(2)
-    expect(uploaded[0]).not.toBe(uploaded[1])
+    expect(await decode(uploaded[1] as Buffer)).toEqual({
+      'user/MEMORY.md': '# note, revised, and longer',
+    })
   })
 
   it('never uploads when there is nothing captured', async () => {
     const atlasHome = await freshDirectory('atlas-upload-home-')
     const cwd = await freshDirectory('atlas-upload-cwd-')
 
-    const uploaded: string[] = []
-    const client = { writeMemoryBundle: async (bundle: string) => void uploaded.push(bundle) }
+    const uploaded: Buffer[] = []
+    const client = { writeMemoryArchive: async (archive: Buffer) => void uploaded.push(archive) }
     const uploader = createMemoryUploader({ client, atlasHome, cwd, notice: fakeNotice() })
 
     await uploader.syncAfterTurn()
@@ -166,7 +206,7 @@ describe('createMemoryUploader', () => {
     await writeUnder({ directory: join(atlasHome, 'memory'), name: 'MEMORY.md', content: '# note' })
 
     const client = {
-      writeMemoryBundle: async () => {
+      writeMemoryArchive: async () => {
         throw new Error('the control plane said no')
       },
     }
@@ -186,8 +226,8 @@ describe('createMemoryUploader', () => {
     const projectMemory = memoryDirectoriesFor({ atlasHome, repoRoot: cwd }).project
     await writeUnder({ directory: projectMemory, name: 'MEMORY.md', content: '# project memory' })
 
-    const uploaded: string[] = []
-    const client = { writeMemoryBundle: async (bundle: string) => void uploaded.push(bundle) }
+    const uploaded: Buffer[] = []
+    const client = { writeMemoryArchive: async (archive: Buffer) => void uploaded.push(archive) }
     const uploader = createMemoryUploader({
       client,
       atlasHome,
@@ -198,7 +238,7 @@ describe('createMemoryUploader', () => {
 
     await uploader.syncAfterTurn()
 
-    expect(Object.keys(JSON.parse(uploaded[0] ?? '{}'))).toEqual([
+    expect(Object.keys(await decode(uploaded[0] as Buffer))).toEqual([
       'project/%2FUsers%2Fdennis%2Fdev%2Fatlas/MEMORY.md',
     ])
   })

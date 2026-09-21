@@ -5,7 +5,8 @@ import type { SandboxWorkspaceSpec } from './sandboxes.types'
 export const MAX_WORKSPACE_PATCH_BYTES = 5 * 1024 * 1024
 
 /**
- * Kept in lockstep with `MAX_CONTEXT_BUNDLE_BYTES` in
+ * The legacy JSON `contextBundle` field, kept only for clients that predate the context-archive
+ * endpoints. Kept in lockstep with `MAX_CONTEXT_BUNDLE_BYTES` in
  * `packages/harness/src/cloud/sandbox-client.ts` — `apps/api` carries no in-repo dependency by
  * design (see its AGENTS.md), so the value is duplicated rather than imported.
  */

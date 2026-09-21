@@ -39,6 +39,7 @@ const STEP_TEXT: Record<MoveStepId, string> = {
   [ELiftStep.Flipping]: 'handing the conversation over',
   [ELiftStep.Capturing]: 'packing the uncommitted work',
   [ELiftStep.Starting]: 'waiting for the sandbox',
+  [ELiftStep.UploadingContext]: 'sending skills and memory to the sandbox',
   [ELiftStep.Attaching]: 'attaching to the sandbox',
   [ELiftStep.Resuming]: 'resuming the turn in the cloud',
   [ELocalMoveStep.Relocating]: 'stopping services, moving sub-agents',
@@ -50,6 +51,7 @@ const CLOUD_PLAN: readonly MoveStepId[] = [
   ELiftStep.Flipping,
   ELiftStep.Capturing,
   ELiftStep.Starting,
+  ELiftStep.UploadingContext,
   ELiftStep.Attaching,
 ]
 

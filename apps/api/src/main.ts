@@ -5,6 +5,8 @@ import type { NestExpressApplication } from '@nestjs/platform-express'
 import type { Express } from 'express'
 import helmet from 'helmet'
 import { envConfigValidation } from './_core/config/env/validation'
+import { contextArchiveRawParser } from './api/context-archive/context-archive-http'
+import { MAX_CONTEXT_ARCHIVE_BYTES } from './api/context-archive/context-archive-limits'
 import { hydrateEnvFromTierFile } from './api/hydrate-env'
 import { WORKSPACE_BODY_LIMIT } from './api/sandboxes/workspace-spec'
 
@@ -33,6 +35,9 @@ async function createApp(): Promise<NestExpressApplication> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true })
 
   app.use(helmet())
+  const rawArchiveParser = contextArchiveRawParser({ limitBytes: MAX_CONTEXT_ARCHIVE_BYTES })
+  app.use('/v1/sandboxes/:threadId/context', rawArchiveParser)
+  app.use('/v1/user-context/memory', rawArchiveParser)
   app.useBodyParser('json', { limit: WORKSPACE_BODY_LIMIT })
   app.set('trust proxy', 1)
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })

@@ -24,6 +24,7 @@ describe('lifting a conversation into the cloud', () => {
       ELiftStep.Flipping,
       ELiftStep.Capturing,
       ELiftStep.Starting,
+      ELiftStep.UploadingContext,
       ELiftStep.Attaching,
     ])
   })
@@ -88,14 +89,24 @@ describe('lifting a conversation into the cloud', () => {
     expect(test.bridge.created).toEqual([{ threadId: CLOUD_THREAD, workspace: dirty }])
   })
 
-  it("carries the operator's context bundle to the sandbox request", async () => {
-    const test = harness({ contextBundle: 'bundle-json' })
+  it("carries the operator's context archive to the sandbox after it is created", async () => {
+    const archive = Buffer.from('a fake tar.gz')
+    const test = harness({ contextArchive: archive })
 
     await liftToCloud(test.args)
 
-    expect(test.bridge.created).toEqual([
-      { threadId: CLOUD_THREAD, workspace: CLEAN_WORKSPACE, contextBundle: 'bundle-json' },
-    ])
+    expect(test.bridge.created).toEqual([{ threadId: CLOUD_THREAD, workspace: CLEAN_WORKSPACE }])
+    expect(test.bridge.contextPuts).toEqual([{ threadId: CLOUD_THREAD, archive }])
+    expect(test.bridge.trail).toEqual(['transfer', 'sandbox', 'put-context', 'attach'])
+  })
+
+  it('sends no context archive request when there is nothing to carry', async () => {
+    const test = harness()
+
+    await liftToCloud(test.args)
+
+    expect(test.bridge.contextPuts).toEqual([])
+    expect(test.bridge.trail).toEqual(['transfer', 'sandbox', 'attach'])
   })
 
   it('tells the agent it moved, naming what the move closed', async () => {

@@ -44,12 +44,9 @@ export function createCloudBridge(args: {
   const sandboxes = new SandboxClient(shared)
 
   const bridgeSandboxes: CloudSandboxes = {
-    create: ({ threadId, workspace, contextBundle }) =>
-      sandboxes.createSandbox({
-        threadId,
-        ...(workspace === null ? {} : { workspace }),
-        ...(contextBundle === undefined ? {} : { contextBundle }),
-      }),
+    create: ({ threadId, workspace }) =>
+      sandboxes.createSandbox({ threadId, ...(workspace === null ? {} : { workspace }) }),
+    putContext: ({ threadId, archive }) => sandboxes.putContextArchive({ threadId, archive }),
     find: ({ threadId }) => sandboxes.findSandbox({ threadId }),
   }
 
