@@ -3,6 +3,10 @@ import { Injectable, UnauthorizedException } from '@nestjs/common'
 import type { Request } from 'express'
 import { SandboxesService } from './sandboxes.service'
 
+export interface SandboxAuthenticatedRequest extends Request {
+  sandbox?: { threadId: string }
+}
+
 const threadIdOf = (request: Request): string | undefined => {
   const value = request.params.threadId
   if (typeof value !== 'string' || value.length === 0) return undefined
@@ -18,18 +22,31 @@ const bearerTokenOf = (request: Request): string | undefined => {
   return value
 }
 
+/**
+ * A route named by `:threadId` verifies the bearer token against that exact thread. A route
+ * with no thread in its path (the sandbox-side context download) instead resolves the sandbox
+ * the token itself names, and stashes its thread onto the request for the handler to read.
+ */
 @Injectable()
 export class SandboxTokenGuard implements CanActivate {
   constructor(private readonly sandboxes: SandboxesService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<Request>()
+    const request = context.switchToHttp().getRequest<SandboxAuthenticatedRequest>()
     const threadId = threadIdOf(request)
     const token = bearerTokenOf(request)
-    if (threadId === undefined || token === undefined) {
+    if (token === undefined) {
       throw new UnauthorizedException('a sandbox session token is required')
     }
-    await this.sandboxes.verifySessionToken({ threadId, token })
+
+    if (threadId !== undefined) {
+      await this.sandboxes.verifySessionToken({ threadId, token })
+      request.sandbox = { threadId }
+      return true
+    }
+
+    const row = await this.sandboxes.verifyTokenPrincipal({ token })
+    request.sandbox = { threadId: row.threadId }
     return true
   }
 }

@@ -24,11 +24,9 @@ export type CloudSandbox = WireSandbox
 export type CloudSandboxStatus = WireSandboxStatus
 
 export type CloudSandboxes = {
-  create(args: {
-    threadId: ThreadId
-    workspace: LiftedWorkspace | null
-    contextBundle?: string | undefined
-  }): Promise<CloudSandbox>
+  create(args: { threadId: ThreadId; workspace: LiftedWorkspace | null }): Promise<CloudSandbox>
+  /** Operator-session auth, same as `create` — the archive lands on the row `create` just opened. */
+  putContext(args: { threadId: ThreadId; archive: Uint8Array }): Promise<void>
   find(args: { threadId: ThreadId }): Promise<CloudSandboxStatus | undefined>
 }
 

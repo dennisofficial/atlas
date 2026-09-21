@@ -1,11 +1,14 @@
+import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join, sep } from 'node:path'
 
+import { extractContextArchive, type ExtractedArchiveEntry } from '../cloud/context-archive'
 import { safeRelativeSegment } from '../files/safe-relative-path'
 import { memoryDirectoriesFor } from '../memory/read-memory'
 
+import { fetchArchiveWithRetry, type ArchiveRetry } from './context-archive-retry'
 import { nodeWorkspaceFiles, type WorkspaceFiles } from './workspace-files'
-import type { FetchWorkspaceSpec } from './workspace-spec'
+import type { FetchContextArchive, FetchWorkspaceSpec } from './workspace-spec'
 
 export type ContextReadiness = {
   written: number
@@ -22,13 +25,16 @@ const ATLAS_MEMORY_PREFIX = `.atlas${sep}memory${sep}`
 const PROJECT_MEMORY_PREFIX = `project-memory${sep}`
 const PROJECT_PREFIX = `project${sep}`
 
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
 /**
  * The bundle is the operator's user-level context — skills, global instructions, local MCP
- * config, user and project memory, and gitignored project-local instruction files — captured at
- * attach as a JSON map of relative path to base64 content. `.atlas/...` maps onto the serve's own
- * atlas home, `project-memory/...` and `project/...` map onto the serve's own workspace, and the
- * other skill flavours land under the sandbox's home directory, mirroring where the registry
- * looks.
+ * config, user and project memory, and gitignored project-local instruction files. `.atlas/...`
+ * maps onto the serve's own atlas home, `project-memory/...` and `project/...` map onto the
+ * serve's own workspace, and the other skill flavours land under the sandbox's home directory,
+ * mirroring where the registry looks. Shared by both the archive path and the legacy JSON path —
+ * only the container the keys travel in changed.
  */
 const targetOf = (args: {
   path: string
@@ -70,12 +76,104 @@ const targetOf = (args: {
   return null
 }
 
+type MaterializeRoots = {
+  atlasHome: string
+  home: string
+  cwd: string
+  projectMemoryDirectory: string
+  projectDirectory: string | null
+  files: WorkspaceFiles
+}
+
+const writeEntries = async (args: {
+  roots: MaterializeRoots
+  entries: readonly { path: string; readBytes: () => Promise<Buffer> }[]
+}): Promise<ContextReadiness> => {
+  const { roots } = args
+  let written = 0
+  for (const entry of args.entries) {
+    const target = targetOf({
+      path: entry.path,
+      atlasHome: roots.atlasHome,
+      home: roots.home,
+      workspaceRoot: roots.cwd,
+      projectMemoryDirectory: roots.projectMemoryDirectory,
+    })
+    if (target === null) continue
+    try {
+      await roots.files.writeBytes({ path: target, bytes: await entry.readBytes() })
+      written += 1
+    } catch (error) {
+      return {
+        written,
+        failed: `could not write ${entry.path}: ${messageOf(error)}`,
+        projectDirectory: roots.projectDirectory,
+      }
+    }
+  }
+
+  return { written, failed: null, projectDirectory: roots.projectDirectory }
+}
+
+const materializeFromArchive = async (args: {
+  archive: Uint8Array
+  roots: MaterializeRoots
+}): Promise<ContextReadiness> => {
+  let entries: readonly ExtractedArchiveEntry[]
+  let cleanup: () => Promise<void>
+  try {
+    const extracted = await extractContextArchive({ archive: args.archive })
+    entries = extracted.entries
+    cleanup = extracted.cleanup
+  } catch (error) {
+    return {
+      written: 0,
+      failed: `the context archive did not extract: ${messageOf(error)}`,
+      projectDirectory: args.roots.projectDirectory,
+    }
+  }
+
+  try {
+    return await writeEntries({
+      roots: args.roots,
+      entries: entries.map((entry) => ({ path: entry.key, readBytes: () => readFile(entry.path) })),
+    })
+  } finally {
+    await cleanup().catch(() => undefined)
+  }
+}
+
+const materializeFromLegacyBundle = async (args: {
+  bundle: string
+  roots: MaterializeRoots
+}): Promise<ContextReadiness> => {
+  let parsed: Record<string, string>
+  try {
+    parsed = JSON.parse(args.bundle) as Record<string, string>
+  } catch {
+    return { written: 0, failed: 'the context bundle did not parse', projectDirectory: args.roots.projectDirectory }
+  }
+
+  return writeEntries({
+    roots: args.roots,
+    entries: Object.entries(parsed).map(([path, content]) => ({
+      path,
+      readBytes: () => Promise.resolve(Buffer.from(content, 'base64')),
+    })),
+  })
+}
+
 /**
- * Context is accessory: a bundle that will not parse or write is logged by the caller and the
- * boot carries on without it, unlike the workspace, whose absence hard-blocks the thread.
+ * Context is accessory: a bundle that will not fetch, extract or parse is logged by the caller and
+ * the boot carries on without it, unlike the workspace, whose absence hard-blocks the thread. The
+ * archive is tried first when a fetcher is given; a 404 from it is retried on a bounded schedule
+ * (see `fetchArchiveWithRetry`) before falling back to the workspace spec's legacy `contextBundle`
+ * JSON, which an older control plane still fills in.
  */
 export async function materializeContext(args: {
   fetchSpec: FetchWorkspaceSpec
+  fetchArchive?: FetchContextArchive | undefined
+  archiveRetry?: ArchiveRetry | undefined
   atlasHome: string
   cwd: string
   files?: WorkspaceFiles | undefined
@@ -93,38 +191,38 @@ export async function materializeContext(args: {
   } catch (error) {
     return {
       written: 0,
-      failed: `the workspace spec did not answer: ${error instanceof Error ? error.message : String(error)}`,
+      failed: `the workspace spec did not answer: ${messageOf(error)}`,
       projectDirectory: null,
     }
   }
   const projectDirectory = spec.projectDirectory ?? null
 
+  const roots: MaterializeRoots = {
+    atlasHome: args.atlasHome,
+    home,
+    cwd: args.cwd,
+    projectMemoryDirectory,
+    projectDirectory,
+    files,
+  }
+
+  if (args.fetchArchive !== undefined) {
+    let archive: Uint8Array | null
+    try {
+      archive = await fetchArchiveWithRetry({ fetchArchive: args.fetchArchive, retry: args.archiveRetry })
+    } catch (error) {
+      return {
+        written: 0,
+        failed: `the context archive did not answer: ${messageOf(error)}`,
+        projectDirectory,
+      }
+    }
+    if (archive !== null) return materializeFromArchive({ archive, roots })
+  }
+
   if (spec.contextBundle === null || spec.contextBundle === undefined) {
     return { written: 0, failed: null, projectDirectory }
   }
 
-  let entries: Record<string, string>
-  try {
-    entries = JSON.parse(spec.contextBundle) as Record<string, string>
-  } catch {
-    return { written: 0, failed: 'the context bundle did not parse', projectDirectory }
-  }
-
-  let written = 0
-  for (const [path, content] of Object.entries(entries)) {
-    const target = targetOf({ path, atlasHome: args.atlasHome, home, workspaceRoot: args.cwd, projectMemoryDirectory })
-    if (target === null) continue
-    try {
-      await files.writeBytes({ path: target, bytes: Buffer.from(content, 'base64') })
-      written += 1
-    } catch (error) {
-      return {
-        written,
-        failed: `could not write ${path}: ${error instanceof Error ? error.message : String(error)}`,
-        projectDirectory,
-      }
-    }
-  }
-
-  return { written, failed: null, projectDirectory }
+  return materializeFromLegacyBundle({ bundle: spec.contextBundle, roots })
 }

@@ -51,6 +51,24 @@ describe('a lift that does not finish', () => {
     expect(test.bridge.attached).toEqual([])
   })
 
+  it('puts the conversation back on the host when the context archive will not reach the sandbox', async () => {
+    const bridge = fakeBridge({
+      putContextFails: new CloudError({ status: 500, message: 'the control plane fell over' }),
+    })
+    const test = harness({ bridge, contextArchive: Buffer.from('a fake tar.gz') })
+
+    const lifted = await liftToCloud(test.args)
+
+    expect(lifted.ok).toBe(false)
+    if (lifted.ok) return
+
+    expect(lifted.fault).toBe(ELiftFault.Context)
+    expect(lifted.step).toBe(ELiftStep.UploadingContext)
+    expect(lifted.detail).toContain('the control plane fell over')
+    expect(test.located).toEqual([EExecutionLocation.Cloud, EExecutionLocation.Host])
+    expect(test.bridge.attached).toEqual([])
+  })
+
   it('reads a 503 from the sandbox routes as the cloud not being set up', async () => {
     const bridge = fakeBridge({
       createFails: new CloudError({ status: 503, message: 'sandboxes are not configured' }),

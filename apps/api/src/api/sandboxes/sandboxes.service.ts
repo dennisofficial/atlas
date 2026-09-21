@@ -1,5 +1,6 @@
 import {
   BadGatewayException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -9,6 +10,9 @@ import { EnvService } from '../../_core/config/env/env.service'
 import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import type { CloudSandboxModel, ThreadModel } from '../../db'
 import { db } from '../../db'
+import { assertArchiveWithinLimit } from '../context-archive/context-archive-limits'
+import { CONTEXT_ARCHIVE_STORE } from '../context-archive/context-archive.store'
+import type { ContextArchiveStore } from '../context-archive/context-archive.store'
 import { GithubService } from '../github/github.service'
 import { ownedThread } from '../sessions/ownership'
 import { ownedSandbox } from './ownership'
@@ -31,11 +35,7 @@ import {
   VercelSandboxClient,
   type SandboxObservation,
 } from './vercel-sandbox.client'
-import {
-  assertContextBundleWithinLimit,
-  assertPatchWithinLimit,
-  workspaceSpecOf,
-} from './workspace-spec'
+import { assertContextBundleWithinLimit, assertPatchWithinLimit, workspaceSpecOf } from './workspace-spec'
 
 const MINUTE_MS = 60_000
 
@@ -55,6 +55,7 @@ export class SandboxesService {
     private readonly env: EnvService,
     private readonly github: GithubService,
     private readonly cipher: SecretCipherService,
+    @Inject(CONTEXT_ARCHIVE_STORE) private readonly archives: ContextArchiveStore,
   ) {}
 
   /**
@@ -200,6 +201,20 @@ export class SandboxesService {
     if (spec.remoteUrl === null) return { ...spec, githubToken: null, contextBundle }
     const githubToken = await this.github.findToken({ userId: row.userId })
     return { ...spec, githubToken: githubToken ?? null, contextBundle }
+  }
+
+  async putContextArchive(args: {
+    userId: string
+    threadId: string
+    archive: Buffer
+  }): Promise<void> {
+    await ownedSandbox({ userId: args.userId, threadId: args.threadId })
+    assertArchiveWithinLimit({ bytes: args.archive.byteLength })
+    await this.archives.writeSandboxArchive({ threadId: args.threadId, archive: args.archive })
+  }
+
+  getContextArchive(args: { threadId: string }): Promise<Buffer | null> {
+    return this.archives.readSandboxArchive({ threadId: args.threadId })
   }
 
   async status(args: { userId: string; threadId: string }): Promise<SandboxStatusDto> {

@@ -20,6 +20,7 @@ const stubSandboxes = (args: {
         token: args.token ?? 'tok_fresh',
       }
     },
+    putContext: async () => undefined,
     find: async () => args.statuses.shift(),
   }
   return { sandboxes, created }

@@ -123,6 +123,7 @@ model CloudSandbox {
   workspacePatch     String?
   workspaceSkills    String? // outgoing column from the release ahead of the workspaceContext rename; drop once every release writes workspaceContext only
   workspaceContext   String?  @db.Text
+  workspaceContextArchive Bytes?
   workspaceProjectDirectory String?
   createdAt      String
   updatedAt      String
@@ -238,6 +239,7 @@ model McpServerConfig {
 model UserContextSync {
   userId       String   @id
   memoryBundle String   @db.Text
+  memoryArchive Bytes?
   updatedAt    DateTime @updatedAt
 }
 

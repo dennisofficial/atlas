@@ -6,7 +6,7 @@ import type { LiftedAttachment } from '../lifted-session'
 import type { ContainerMoveControl } from '../use-container-move'
 import { cloudApp, openCloudConversation } from './cloud-app'
 import type { CloudBridge } from './cloud-bridge'
-import { captureContextBundle } from './context-bundle'
+import { captureContextArchive } from './context-archive'
 import { createCloudRunner, wakeSandbox } from './cloud-runner'
 
 /**
@@ -31,7 +31,7 @@ export async function openCloudThread(args: {
       ...(move === undefined ? {} : { move }),
       ...(projectDirectory === undefined
         ? {}
-        : { captureContext: () => captureContextBundle({ cwd: projectDirectory }) }),
+        : { captureContext: () => captureContextArchive({ cwd: projectDirectory }) }),
     })
 
     const channel = bridge.attach({ threadId, url: woken.url, token: woken.token })

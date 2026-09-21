@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CloudSandboxModel } from '../../db'
 import type { SandboxWorkspaceSpec } from './sandboxes.types'
-import {
-  MAX_CONTEXT_BUNDLE_BYTES,
-  WORKSPACE_BODY_LIMIT,
-  workspaceColumnsOf,
-  workspaceSpecOf,
-} from './workspace-spec'
+import { MAX_CONTEXT_BUNDLE_BYTES, WORKSPACE_BODY_LIMIT, workspaceColumnsOf, workspaceSpecOf } from './workspace-spec'
 
 const bodyLimitBytes = (limit: string): number => {
   const megabytes = limit.match(/^(\d+)mb$/)

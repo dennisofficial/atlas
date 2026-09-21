@@ -118,6 +118,55 @@ describe('exposing a port', () => {
   })
 })
 
+describe('putting a context archive', () => {
+  it('puts the raw gzip bytes to the thread’s context route with operator-session auth', async () => {
+    const calls: { url: string; method: string; headers: Record<string, string>; body?: Uint8Array }[] = []
+    const bytes = new Uint8Array([0x1f, 0x8b, 0, 1, 2])
+    const fetchFn = (async (input: unknown, init?: RequestInit) => {
+      const headers = init?.headers as Record<string, string> | undefined
+      calls.push({
+        url: String(input),
+        method: init?.method ?? 'GET',
+        headers: headers ?? {},
+        ...(init?.body === undefined ? {} : { body: init.body as Uint8Array }),
+      })
+      return new Response(null, { status: 204 })
+    }) as typeof fetch
+    const client = new SandboxClient({
+      url: 'https://cloud.test/',
+      token: 'sess_test',
+      clientVersion: '1.2.3',
+      fetchFn,
+    })
+
+    await client.putContextArchive({ threadId: 'brn_cloud', archive: bytes })
+
+    expect(calls[0]?.method).toBe('PUT')
+    expect(calls[0]?.url).toBe('https://cloud.test/v1/sandboxes/brn_cloud/context')
+    expect(calls[0]?.headers.authorization).toBe('Bearer sess_test')
+    expect(calls[0]?.headers['content-type']).toBe('application/gzip')
+    expect(calls[0]?.body).toEqual(bytes)
+  })
+
+  it('surfaces a failure as a CloudError', async () => {
+    const fetchFn = (async (_input: unknown, _init?: RequestInit) =>
+      new Response(JSON.stringify({ message: 'over the limit' }), { status: 413 })) as typeof fetch
+    const client = new SandboxClient({
+      url: 'https://cloud.test/',
+      token: 'sess_test',
+      clientVersion: '1.2.3',
+      fetchFn,
+    })
+
+    const failure = await client
+      .putContextArchive({ threadId: 'brn_cloud', archive: new Uint8Array(0) })
+      .catch((error) => error)
+
+    expect(failure).toBeInstanceOf(CloudError)
+    expect((failure as CloudError).status).toBe(413)
+  })
+})
+
 describe('stopping a sandbox', () => {
   it('posts to the stop path and answers nothing', async () => {
     const { client, calls } = harness([{}])

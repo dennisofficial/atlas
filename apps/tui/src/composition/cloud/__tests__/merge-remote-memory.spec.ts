@@ -4,7 +4,7 @@ import { access, mkdir, mkdtemp, readFile, utimes, writeFile } from 'node:fs/pro
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { memoryDirectoriesFor } from '@dltech/atlas-harness'
+import { buildContextArchive, memoryDirectoriesFor } from '@dltech/atlas-harness'
 
 import { currentNotices, dismissNotice } from '../../../ui/notice-store'
 import { mergeRemoteMemory } from '../merge-remote-memory'
@@ -175,5 +175,76 @@ describe('mergeRemoteMemory', () => {
     await mergeRemoteMemory({ session: SESSION, atlasHome, fetchFn })
 
     expect(currentNotices().find((entry) => entry.key === 'remote-memory-merge')).toBeUndefined()
+  })
+})
+
+const acceptOf = (init: RequestInit | undefined): string | undefined => {
+  const headers = init?.headers as Record<string, string> | undefined
+  return headers?.accept
+}
+
+/**
+ * Answers a real gzip archive to the `Accept: application/gzip` request and 404s every other
+ * request — the shape a control plane with only an archive stored actually sends.
+ */
+const fetchServingArchive = (archive: Buffer): typeof fetch =>
+  (async (_input: unknown, init?: RequestInit) => {
+    if (acceptOf(init) === 'application/gzip') {
+      return new Response(new Uint8Array(archive), { status: 200 })
+    }
+    return new Response('', { status: 404 })
+  }) as typeof fetch
+
+/** 404s the archive request and answers the legacy JSON bundle to everything else. */
+const fetchServingLegacyOnly = (
+  bundle: Record<string, { content: string; mtime: number }> | null,
+): typeof fetch =>
+  (async (_input: unknown, init?: RequestInit) => {
+    if (acceptOf(init) === 'application/gzip') return new Response('', { status: 404 })
+    return new Response(JSON.stringify({ bundle: bundle === null ? null : JSON.stringify(bundle) }), {
+      status: 200,
+    })
+  }) as typeof fetch
+
+describe('mergeRemoteMemory reading a real archive', () => {
+  it('untars the archive and applies last-writer-wins by the mtime tar restored', async () => {
+    const atlasHome = await freshDirectory('atlas-merge-home-')
+    const staged = await freshDirectory('atlas-merge-staged-')
+    await writeFile(join(staged, 'MEMORY.md'), '# from the cloud archive', 'utf8')
+    await setMtime(join(staged, 'MEMORY.md'), 5_000)
+    const archive = await buildContextArchive({ files: [{ key: 'user/MEMORY.md', path: join(staged, 'MEMORY.md') }] })
+    if (archive === undefined) throw new Error('expected an archive')
+
+    const result = await mergeRemoteMemory({
+      session: SESSION,
+      atlasHome,
+      fetchFn: fetchServingArchive(archive),
+    })
+
+    expect(result.replaced).toBe(1)
+    expect(await readFile(join(atlasHome, 'memory', 'MEMORY.md'), 'utf8')).toBe(
+      '# from the cloud archive',
+    )
+  })
+
+  it('falls back to the legacy JSON bundle when the archive route 404s', async () => {
+    const atlasHome = await freshDirectory('atlas-merge-home-')
+    const fetchFn = fetchServingLegacyOnly({ 'user/MEMORY.md': entryFor('# from the legacy route', 1_000) })
+
+    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, fetchFn })
+
+    expect(result.replaced).toBe(1)
+    expect(await readFile(join(atlasHome, 'memory', 'MEMORY.md'), 'utf8')).toBe(
+      '# from the legacy route',
+    )
+  })
+
+  it('answers nothing when both the archive and the legacy route report nothing stored', async () => {
+    const atlasHome = await freshDirectory('atlas-merge-home-')
+    const fetchFn = fetchServingLegacyOnly(null)
+
+    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, fetchFn })
+
+    expect(result.replaced).toBe(0)
   })
 })

@@ -30,6 +30,9 @@ describe('waiting for a sandbox to come up', () => {
         create: async () => {
           throw new Error('unused')
         },
+        putContext: async () => {
+          throw new Error('unused')
+        },
         find: async () => {
           finds.push(1)
           return { state: ECloudSandboxState.Running, url: 'https://sandbox.example/thread' }
@@ -58,6 +61,9 @@ describe('waiting for a sandbox to come up', () => {
         create: async () => {
           throw new Error('unused')
         },
+        putContext: async () => {
+          throw new Error('unused')
+        },
         find: async () => statuses.shift(),
       },
       threadId: THREAD_ID,
@@ -82,6 +88,9 @@ describe('waiting for a sandbox to come up', () => {
         create: async () => {
           throw new Error('unused')
         },
+        putContext: async () => {
+          throw new Error('unused')
+        },
         find: async () => statuses.shift(),
       },
       threadId: THREAD_ID,
@@ -101,6 +110,9 @@ describe('waiting for a sandbox to come up', () => {
           create: async () => {
             throw new Error('unused')
           },
+          putContext: async () => {
+            throw new Error('unused')
+          },
           find: async () => undefined,
         },
         threadId: THREAD_ID,
@@ -117,6 +129,9 @@ describe('waiting for a sandbox to come up', () => {
       waitForSandbox({
         sandboxes: {
           create: async () => {
+            throw new Error('unused')
+          },
+          putContext: async () => {
             throw new Error('unused')
           },
           find: async () => ({ state: ECloudSandboxState.Resuming }),

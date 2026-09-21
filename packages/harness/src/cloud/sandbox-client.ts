@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { cloudRequest } from './cloud-transport'
+import { CloudTransport } from './cloud-transport'
 
 export enum ECloudSandboxState {
   Running = 'running',
@@ -11,10 +11,15 @@ export enum ECloudSandboxState {
 export const sandboxStateSchema = z.nativeEnum(ECloudSandboxState)
 
 /**
- * Shared with `apps/api/src/api/sandboxes/workspace-spec.ts`, which duplicates this value rather
- * than importing it — `apps/api` carries no in-repo dependency by design (see its AGENTS.md).
+ * Shared with `apps/api/src/api/context-archive/context-archive-limits.ts`, which duplicates this
+ * value rather than importing it — `apps/api` carries no in-repo dependency by design (see its
+ * AGENTS.md). The API buffers the whole request body before a handler ever sees it (`express.raw`
+ * concatenates it, Prisma returns the whole bytea column), so this is a deliberate per-request
+ * memory budget sized against the API container rather than a streaming limit. The #485 OOM was a
+ * 109MB `writeFiles` push through an SDK that multiplied the buffer several times over; a single
+ * buffered body at this cap is the accepted bound.
  */
-export const MAX_CONTEXT_BUNDLE_BYTES = 64 * 1024 * 1024
+export const MAX_CONTEXT_ARCHIVE_BYTES = 256 * 1024 * 1024
 
 export const wireSandboxSchema = z.object({
   url: z.string().min(1).optional(),
@@ -46,10 +51,7 @@ export const workspaceSpecSchema = z.object({
 export type WorkspaceSpec = z.infer<typeof workspaceSpecSchema>
 
 export class SandboxClient {
-  private readonly url: string
-  private readonly token: string
-  private readonly clientVersion: string
-  private readonly fetchFn: typeof fetch
+  private readonly transport: CloudTransport
 
   constructor(args: {
     url: string
@@ -57,16 +59,12 @@ export class SandboxClient {
     clientVersion?: string | undefined
     fetchFn?: typeof fetch | undefined
   }) {
-    this.url = args.url.replace(/\/+$/, '')
-    this.token = args.token
-    this.clientVersion = args.clientVersion ?? 'dev'
-    this.fetchFn = args.fetchFn ?? fetch
+    this.transport = new CloudTransport(args)
   }
 
   async createSandbox(args: {
     threadId: string
     workspace?: WorkspaceSpec | undefined
-    contextBundle?: string | undefined
   }): Promise<WireSandbox> {
     const body = await this.request({
       method: 'POST',
@@ -74,10 +72,22 @@ export class SandboxClient {
       body: {
         threadId: args.threadId,
         ...(args.workspace === undefined ? {} : { workspace: args.workspace }),
-        ...(args.contextBundle === undefined ? {} : { contextBundle: args.contextBundle }),
       },
     })
     return wireSandboxSchema.parse(body)
+  }
+
+  /**
+   * Operator-session auth, the same guard as `createSandbox` — the sandbox row the archive lands
+   * on already exists by the time this runs, but the sandbox's own token does not need to.
+   */
+  async putContextArchive(args: { threadId: string; archive: Uint8Array }): Promise<void> {
+    await this.transport.rawRequest({
+      method: 'PUT',
+      path: `/v1/sandboxes/${args.threadId}/context`,
+      body: args.archive,
+      contentType: 'application/gzip',
+    })
   }
 
   async stopSandbox(args: { threadId: string }): Promise<void> {
@@ -111,16 +121,6 @@ export class SandboxClient {
     allowMissing?: boolean
     retry?: boolean
   }): Promise<unknown> {
-    return cloudRequest({
-      url: this.url,
-      token: this.token,
-      clientVersion: this.clientVersion,
-      fetchFn: this.fetchFn,
-      method: args.method,
-      path: args.path,
-      ...(args.body === undefined ? {} : { body: args.body }),
-      ...(args.allowMissing === undefined ? {} : { allowMissing: args.allowMissing }),
-      ...(args.retry === undefined ? {} : { retry: args.retry }),
-    })
+    return this.transport.request(args)
   }
 }

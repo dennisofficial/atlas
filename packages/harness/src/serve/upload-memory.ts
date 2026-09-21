@@ -2,24 +2,23 @@ import { join } from 'node:path'
 
 import { ENoticeTone, MEMORY_DIRECTORY_NAME, type NoticePort } from '@dltech/atlas-core'
 
+import { buildContextArchive } from '../cloud/context-archive'
 import type { UserContextClient } from '../cloud/user-context-client'
 import { memoryDirectoriesFor } from '../memory/read-memory'
-import { walkMemoryDirectory } from '../memory/walk-memory'
+import { statMemoryDirectory, type MemoryFileStat } from '../memory/walk-memory'
 
-export type MemoryFileEntry = { content: string; mtime: number }
+export type MemoryManifestEntry = { key: string; path: string; mtimeMs: number; size: number }
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
-const addFlatDirectory = async (args: {
-  files: Record<string, MemoryFileEntry>
-  directory: string
-  keyPrefix: string
-}): Promise<void> => {
-  for (const entry of await walkMemoryDirectory(args.directory)) {
-    args.files[`${args.keyPrefix}/${entry.name}`] = { content: entry.content, mtime: entry.mtime }
-  }
-}
+const entriesOf = (args: { files: readonly MemoryFileStat[]; keyPrefix: string }): MemoryManifestEntry[] =>
+  args.files.map((file) => ({
+    key: `${args.keyPrefix}/${file.name}`,
+    path: file.path,
+    mtimeMs: file.mtimeMs,
+    size: file.size,
+  }))
 
 /**
  * `project/<encodeURIComponent(projectDirectory)>/<name>` records which Mac-side repo a project
@@ -32,57 +31,72 @@ const projectKeyPrefix = (projectDirectory: string | null): string =>
   projectDirectory === null ? 'project' : `project/${encodeURIComponent(projectDirectory)}`
 
 /**
- * The sandbox's own memory — user memory plus this workspace's project memory — as a JSON map of
- * wire keys to base64 content and mtime, ready to hand the control plane so it survives the
- * sandbox dying. Mirrors the flat, non-recursive walk `captureContextBundle` uses on the Mac side,
- * so a nested `projects/` directory under user memory is never swept in.
+ * The sandbox's own memory — user memory plus this workspace's project memory — as a flat manifest
+ * of wire key, on-disk path, mtime and size. Mirrors the flat, non-recursive walk the Mac-side
+ * context archive uses, so a nested `projects/` directory under user memory is never swept in. No
+ * content is read here: the manifest exists so the uploader can tell whether anything changed
+ * before it pays to read and pack a single byte.
  */
-export async function captureMemoryBundle(args: {
+export async function walkMemorySet(args: {
   atlasHome: string
   cwd: string
   projectDirectory?: string | null | undefined
-}): Promise<string | undefined> {
-  const files: Record<string, MemoryFileEntry> = {}
-
-  await addFlatDirectory({
-    files,
-    directory: join(args.atlasHome, MEMORY_DIRECTORY_NAME),
+}): Promise<readonly MemoryManifestEntry[]> {
+  const user = entriesOf({
+    files: await statMemoryDirectory(join(args.atlasHome, MEMORY_DIRECTORY_NAME)),
     keyPrefix: 'user',
   })
 
   const projectMemory = memoryDirectoriesFor({ atlasHome: args.atlasHome, repoRoot: args.cwd }).project
-  await addFlatDirectory({
-    files,
-    directory: projectMemory,
+  const project = entriesOf({
+    files: await statMemoryDirectory(projectMemory),
     keyPrefix: projectKeyPrefix(args.projectDirectory ?? null),
   })
 
-  if (Object.keys(files).length === 0) return undefined
-  return JSON.stringify(files)
+  return [...user, ...project]
+}
+
+/**
+ * A stable summary of the walked set that never touches file content: tar bytes embed the moment
+ * they were built into the gzip header, so two archives of byte-identical files never compare
+ * equal even when nothing changed. Comparing this manifest instead is what makes the upload
+ * skippable.
+ */
+export function memoryManifestOf(entries: readonly MemoryManifestEntry[]): string {
+  return [...entries]
+    .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))
+    .map((entry) => `${entry.key}:${entry.mtimeMs}:${entry.size}`)
+    .join('\n')
+}
+
+export async function captureMemoryArchive(args: {
+  entries: readonly MemoryManifestEntry[]
+}): Promise<Buffer | undefined> {
+  return buildContextArchive({ files: args.entries.map((entry) => ({ key: entry.key, path: entry.path })) })
 }
 
 export type MemoryUploader = { syncAfterTurn: () => Promise<void> }
 
 /**
  * Uploads the sandbox's memory to the control plane after a turn settles, skipping the call
- * entirely when the captured bundle byte-matches the last one sent. A capture or upload failure
- * is reported through the notice port and never rethrown — memory sync is accessory to the turn,
- * never a reason to fail it.
+ * entirely when the walked file set manifest-matches the last one sent. A capture, pack or upload
+ * failure is reported through the notice port and never rethrown — memory sync is accessory to the
+ * turn, never a reason to fail it.
  */
 export function createMemoryUploader(args: {
-  client: Pick<UserContextClient, 'writeMemoryBundle'>
+  client: Pick<UserContextClient, 'writeMemoryArchive'>
   atlasHome: string
   cwd: string
   projectDirectory?: string | null | undefined
   notice: NoticePort
 }): MemoryUploader {
-  let lastUploaded: string | undefined
+  let lastManifest: string | undefined
 
   return {
     async syncAfterTurn(): Promise<void> {
-      let bundle: string | undefined
+      let entries: readonly MemoryManifestEntry[]
       try {
-        bundle = await captureMemoryBundle({
+        entries = await walkMemorySet({
           atlasHome: args.atlasHome,
           cwd: args.cwd,
           projectDirectory: args.projectDirectory,
@@ -95,11 +109,28 @@ export function createMemoryUploader(args: {
         return
       }
 
-      if (bundle === undefined || bundle === lastUploaded) return
+      const manifest = memoryManifestOf(entries)
+      if (manifest === lastManifest) return
+
+      let archive: Buffer | undefined
+      try {
+        archive = await captureMemoryArchive({ entries })
+      } catch (error) {
+        args.notice.notify({
+          tone: ENoticeTone.Warn,
+          text: `memory could not be packed for the cloud: ${messageOf(error)}`,
+        })
+        return
+      }
+
+      if (archive === undefined) {
+        lastManifest = manifest
+        return
+      }
 
       try {
-        await args.client.writeMemoryBundle(bundle)
-        lastUploaded = bundle
+        await args.client.writeMemoryArchive(archive)
+        lastManifest = manifest
       } catch (error) {
         args.notice.notify({
           tone: ENoticeTone.Warn,

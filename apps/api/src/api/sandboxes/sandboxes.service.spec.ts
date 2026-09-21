@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PrismaClient } from '../../generated/prisma/client'
+import type { ContextArchiveStore } from '../context-archive/context-archive.store'
 
 vi.mock('../../db', async () => {
   const { fakeSessionDb } = await import('../../../test/fake-session-db.js')
@@ -21,6 +22,7 @@ import {
 } from '../../../test/fake-session-db.js'
 import type { EnvService } from '../../_core/config/env/env.service'
 import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
+import { MAX_CONTEXT_ARCHIVE_BYTES } from '../context-archive/context-archive-limits'
 import type { GithubService } from '../github/github.service'
 import { SandboxesService } from './sandboxes.service'
 import { ESandboxState } from './sandboxes.types'
@@ -110,6 +112,18 @@ const cipher = new SecretCipherService({
 
 const stubGithub = () => ({ findToken: vi.fn(async () => 'gho_user-token') })
 
+const stubArchives = () => {
+  const sandboxArchives = new Map<string, Buffer>()
+  return {
+    readSandboxArchive: vi.fn(async (a: { threadId: string }) => sandboxArchives.get(a.threadId) ?? null),
+    writeSandboxArchive: vi.fn(async (a: { threadId: string; archive: Buffer }) => {
+      sandboxArchives.set(a.threadId, a.archive)
+    }),
+    readUserArchive: vi.fn(async () => null),
+    writeUserArchive: vi.fn(async () => undefined),
+  }
+}
+
 const stubClient = () => ({
   getOrCreate: vi.fn(async () => ({
     sessionId: 'ses_created',
@@ -129,6 +143,7 @@ const stubClient = () => ({
 describe('SandboxesService', () => {
   let client: ReturnType<typeof stubClient>
   let github: ReturnType<typeof stubGithub>
+  let archives: ReturnType<typeof stubArchives>
   let service: SandboxesService
 
   beforeEach(() => {
@@ -136,11 +151,13 @@ describe('SandboxesService', () => {
     fake.threads.push(threadRow({ id: THREAD }))
     client = stubClient()
     github = stubGithub()
+    archives = stubArchives()
     service = new SandboxesService(
       client as unknown as VercelSandboxClient,
       env,
       github as unknown as GithubService,
       cipher,
+      archives as unknown as ContextArchiveStore,
     )
   })
 
@@ -923,6 +940,45 @@ describe('SandboxesService', () => {
     await expect(service.status({ userId: USER_A, threadId: THREAD })).resolves.toBeDefined()
     expect(fake.cloudSandboxes).toHaveLength(1)
     expect(fake.cloudSandboxes[0]?.workspaceCommit).toBe(SPEC.commit)
+  })
+
+  it('stores and fetches the context archive through the store', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+    const archive = Buffer.from('tar-gz-bytes')
+
+    await service.putContextArchive({ userId: USER_A, threadId: THREAD, archive })
+
+    expect(archives.writeSandboxArchive).toHaveBeenCalledWith({ threadId: THREAD, archive })
+    await expect(service.getContextArchive({ threadId: THREAD })).resolves.toEqual(archive)
+  })
+
+  it('answers null from getContextArchive when nothing has ever been stored', async () => {
+    await expect(service.getContextArchive({ threadId: THREAD })).resolves.toBeNull()
+  })
+
+  it('refuses to store a context archive for a sandbox owned by another user', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+
+    await expect(
+      service.putContextArchive({ userId: USER_B, threadId: THREAD, archive: Buffer.from('x') }),
+    ).rejects.toBeInstanceOf(NotFoundException)
+    expect(archives.writeSandboxArchive).not.toHaveBeenCalled()
+  })
+
+  it('refuses a context archive over the sanity cap', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+
+    await expect(
+      service.putContextArchive({
+        userId: USER_A,
+        threadId: THREAD,
+        archive: { byteLength: MAX_CONTEXT_ARCHIVE_BYTES + 1 } as unknown as Buffer,
+      }),
+    ).rejects.toBeInstanceOf(PayloadTooLargeException)
+    expect(archives.writeSandboxArchive).not.toHaveBeenCalled()
   })
 
   it('tolerates an HttpException from the client during background provisioning too, keeping the row', async () => {

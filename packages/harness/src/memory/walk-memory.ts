@@ -32,3 +32,34 @@ export async function walkMemoryDirectory(directory: string): Promise<readonly M
 
   return files
 }
+
+export type MemoryFileStat = { name: string; path: string; mtimeMs: number; size: number }
+
+/**
+ * The metadata-only sibling of `walkMemoryDirectory`: no content read, so the caller can decide
+ * whether anything actually changed before paying for a read at all. The archive capture path
+ * uses this to build its change-detection manifest, then reads each file's bytes only when the
+ * manifest says something moved.
+ */
+export async function statMemoryDirectory(directory: string): Promise<readonly MemoryFileStat[]> {
+  let entries
+  try {
+    entries = await readdir(directory, { withFileTypes: true })
+  } catch {
+    return []
+  }
+
+  const files: MemoryFileStat[] = []
+  for (const entry of entries) {
+    if (!entry.isFile()) continue
+    const path = join(directory, entry.name)
+    try {
+      const stats = await stat(path)
+      files.push({ name: entry.name, path, mtimeMs: stats.mtimeMs, size: stats.size })
+    } catch {
+      continue
+    }
+  }
+
+  return files
+}
