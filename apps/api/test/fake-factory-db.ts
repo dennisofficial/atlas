@@ -71,6 +71,26 @@ export type FakeUserRow = {
   email: string
 }
 
+export type FakeAgentAccountRow = {
+  id: string
+  provider: string
+  kind: string
+  origin: string
+  label: string
+  status: string
+  email: string | null
+  subscription: string | null
+  importedFrom: string | null
+  sealedSecret: string
+  userId: string
+}
+
+export type FakeActiveAccountRow = {
+  userId: string
+  provider: string
+  accountId: string
+}
+
 type FakeRow = FakeWorkItemRow | FakeAliasRow | FakeTranscriptEventRow
 
 const matchesRow = (row: FakeRow, where: Where): boolean =>
@@ -83,11 +103,17 @@ export function createFakeFactoryDb() {
   const aliases: FakeAliasRow[] = []
   const transcriptEvents: FakeTranscriptEventRow[] = []
   const users: FakeUserRow[] = []
+  const agentAccounts: FakeAgentAccountRow[] = []
+  const activeAccounts: FakeActiveAccountRow[] = []
   const threads: FakeOrchestratorThreadRow[] = []
   const events: FakeOrchestratorEventRow[] = []
 
   const db = {
     factoryWorkItem: {
+      findFirst: async (args: { where: Where; select?: Record<string, boolean> }) => {
+        const found = workItems.find((one) => matchesRow(one, args.where)) ?? null
+        return found === null ? null : project(found, args.select)
+      },
       create: async (args: { data: Where }) => {
         if (workItems.some((one) => one.id === args.data.id)) throw uniqueViolation(['id'])
         const row: FakeWorkItemRow = {
@@ -166,6 +192,10 @@ export function createFakeFactoryDb() {
         )
         return args.orderBy === undefined ? matched : sortRows(matched, args.orderBy)
       },
+      count: async (args: { where?: Where }) =>
+        transcriptEvents.filter(
+          (one) => args.where === undefined || matchesRow(one, args.where),
+        ).length,
     },
     user: {
       upsert: async (args: {
@@ -177,6 +207,34 @@ export function createFakeFactoryDb() {
         if (found !== undefined) return found
         users.push(args.create)
         return args.create
+      },
+    },
+    agentAccount: {
+      create: async (args: { data: FakeAgentAccountRow }) => {
+        if (agentAccounts.some((one) => one.id === args.data.id)) throw uniqueViolation(['id'])
+        agentAccounts.push(args.data)
+        return args.data
+      },
+      delete: async (args: { where: { id: string } }) => {
+        const index = agentAccounts.findIndex((one) => one.id === args.where.id)
+        if (index === -1) throw new Error('record not found')
+        agentAccounts.splice(index, 1)
+      },
+    },
+    activeAccount: {
+      findUnique: async (args: { where: { userId_provider: { userId: string; provider: string } } }) =>
+        activeAccounts.find(
+          (one) =>
+            one.userId === args.where.userId_provider.userId &&
+            one.provider === args.where.userId_provider.provider,
+        ) ?? null,
+      create: async (args: { data: FakeActiveAccountRow }) => {
+        const clash = activeAccounts.some(
+          (one) => one.userId === args.data.userId && one.provider === args.data.provider,
+        )
+        if (clash) throw uniqueViolation(['userId', 'provider'])
+        activeAccounts.push(args.data)
+        return args.data
       },
     },
     thread: {
@@ -227,6 +285,8 @@ export function createFakeFactoryDb() {
     aliases,
     transcriptEvents,
     users,
+    agentAccounts,
+    activeAccounts,
     threads,
     events,
     reset: () => {
@@ -234,6 +294,8 @@ export function createFakeFactoryDb() {
       aliases.length = 0
       transcriptEvents.length = 0
       users.length = 0
+      agentAccounts.length = 0
+      activeAccounts.length = 0
       threads.length = 0
       events.length = 0
     },
