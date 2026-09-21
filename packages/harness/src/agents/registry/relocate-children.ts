@@ -44,20 +44,24 @@ export async function childDirectory({
 export async function stopThreadChildren({
   threadId,
   by,
+  caller,
   roster,
   steps,
   recovery,
 }: {
   threadId: ThreadId
   by: EKilledBy
+  caller?: ThreadId | undefined
 } & Pick<Relocation, 'roster' | 'steps' | 'recovery'>): Promise<readonly ChildState[]> {
   await recovery.hydrate({ threadId })
 
   const stepping = roster
     .states()
-    .filter((child) => child.spawnedBy === threadId && isStepping(child))
+    .filter(
+      (child) => child.spawnedBy === threadId && child.agentId !== caller && isStepping(child),
+    )
   for (const child of stepping) stopChild({ child, by })
-  await steps.whenSettled({ threadId }).catch(() => undefined)
+  await steps.whenSettled({ threadId, excluding: caller }).catch(() => undefined)
 
   return stepping
 }

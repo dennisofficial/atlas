@@ -173,7 +173,9 @@ describe('execution_location', () => {
       { shellId: 'sh_1', by: EKilledBy.ContainerSwitch, threadId },
     ])
     expect(services.stops).toEqual([{ serviceId: 'svc_1', by: EKilledBy.ContainerSwitch }])
-    expect(agents.relocations).toEqual([{ threadId, location: EExecutionLocation.Docker }])
+    expect(agents.relocations).toEqual([
+      { threadId, location: EExecutionLocation.Docker, caller: threadId },
+    ])
     if (outcome.ok) {
       expect(outcome.modelText).toContain('Docker container sandbox')
       expect(outcome.modelText).toContain('killed 1 running background shell')
@@ -265,7 +267,9 @@ describe('execution_location', () => {
 
     expect(outcome.ok).toBe(true)
     expect(control.state.of(parent)).toBe(EExecutionLocation.Docker)
-    expect(agents.relocations).toEqual([{ threadId: parent, location: EExecutionLocation.Docker }])
+    expect(agents.relocations).toEqual([
+      { threadId: parent, location: EExecutionLocation.Docker, caller: child },
+    ])
     const events = await fixture.log.readOwn({ threadId: parent })
     expect(events.filter((one) => one.type === 'location-changed')).toHaveLength(1)
     const stored = await fixture.threads.find({ threadId: parent })
