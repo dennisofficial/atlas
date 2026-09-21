@@ -3,7 +3,7 @@ import { STATION_MESSAGE_CAP } from './station.types'
 
 export class SpawnStationDto {
   @IsString()
-  @IsIn(['implementer'])
+  @IsIn(['implementer', 'reviewer'])
   kind!: string
 
   @IsString()

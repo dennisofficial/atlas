@@ -30,9 +30,14 @@ import { stationSpawnMessageFor } from './station-prompt'
 import {
   EStationKind,
   EStationRunStatus,
+  MAX_REVISION_CYCLES,
+  parseStationKind,
   STATION_MESSAGE_CAP,
   type StationSpawnResult,
 } from './station.types'
+
+const driveModeFor = (kind: EStationKind): ESandboxDriveMode =>
+  kind === EStationKind.Implementer ? ESandboxDriveMode.ReadWrite : ESandboxDriveMode.Snapshot
 
 const messageOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
@@ -62,7 +67,8 @@ export class StationsService {
     message: string
   }): Promise<StationSpawnResult> {
     const item = await orchestratedItem({ threadId: args.orchestratorThreadId })
-    if (args.kind !== EStationKind.Implementer) {
+    const kind = parseStationKind(args.kind)
+    if (kind === undefined) {
       throw new BadRequestException(`unknown station kind ${args.kind}`)
     }
     if (
@@ -72,23 +78,28 @@ export class StationsService {
     ) {
       throw new ConflictException(`work item ${item.id} is ${item.status}; no stations run on it`)
     }
-    const holdingDrive = await db.factoryStationRun.findFirst({
-      where: {
-        workItemId: item.id,
-        status: EStationRunStatus.Running,
-        driveMode: ESandboxDriveMode.ReadWrite,
-      },
-      select: { id: true },
-    })
-    if (holdingDrive !== null) {
-      throw new ConflictException(
-        `station run ${holdingDrive.id} still holds this work item's drive — stop it or let it finish first`,
-      )
+    if (kind === EStationKind.Implementer) {
+      if (item.revisionCycles > MAX_REVISION_CYCLES) {
+        throw new ConflictException(
+          `work item ${item.id} has burned its ${MAX_REVISION_CYCLES} revision cycles — report on the surface instead of spawning another implementer`,
+        )
+      }
+      const holdingDrive = await db.factoryStationRun.findFirst({
+        where: {
+          workItemId: item.id,
+          status: EStationRunStatus.Running,
+          driveMode: ESandboxDriveMode.ReadWrite,
+        },
+        select: { id: true },
+      })
+      if (holdingDrive !== null) {
+        throw new ConflictException(
+          `station run ${holdingDrive.id} still holds this work item's drive — stop it or let it finish first`,
+        )
+      }
     }
     if (args.message.length > STATION_MESSAGE_CAP) {
-      throw new BadRequestException(
-        `the spawn message is over the ${STATION_MESSAGE_CAP} character cap`,
-      )
+      throw new BadRequestException(`the spawn message is over the ${STATION_MESSAGE_CAP} character cap`)
     }
 
     const userId = await this.identity.userId()
@@ -98,9 +109,9 @@ export class StationsService {
     const runId = nextStationRunId()
     const thread = await this.threads.create({
       userId,
-      draft: { title: `factory ${args.kind}: ${item.repo}`, repo: item.repo },
+      draft: { title: `factory ${kind}: ${item.repo}`, repo: item.repo },
     })
-    await this.createRun({ item, kind: args.kind, runId, threadId: thread.id })
+    await this.createRun({ item, kind, runId, threadId: thread.id })
     if (item.status === EFactoryWorkItemStatus.Intake) {
       await this.workItems.transition({
         workItemId: item.id,
@@ -118,7 +129,7 @@ export class StationsService {
         commit: null,
         patch: '',
       },
-      drive: { name: driveName, mode: ESandboxDriveMode.ReadWrite },
+      drive: { name: driveName, mode: driveModeFor(kind) },
       pinnedModel: this.credentials.modelRef(),
     })
 
@@ -129,7 +140,7 @@ export class StationsService {
       deliveryId: `station-request:${runId}`,
       kind: EFactoryEventKind.StationRequest,
       author: 'atlas-factory',
-      payload: JSON.stringify({ runId, kind: args.kind, message: args.message }),
+      payload: JSON.stringify({ runId, kind, message: args.message }),
     })
     if (requestEvent === null) {
       throw new InternalServerErrorException(
@@ -141,13 +152,14 @@ export class StationsService {
       workItemId: item.id,
       runId,
       repo: item.repo,
+      kind,
       message: args.message,
     })
     void this.injectSpawn({ userId, threadId: thread.id, runId, text }).catch((failure: unknown) =>
       this.handleSpawnFailure({ runId, userId, threadId: thread.id, failure }),
     )
 
-    this.logger.log(`station run ${runId} (${args.kind}) spawned for work item ${item.id}`)
+    this.logger.log(`station run ${runId} (${kind}) spawned for work item ${item.id}`)
     return { stationRunId: runId, threadId: thread.id, status: EStationRunStatus.Running }
   }
 
@@ -198,7 +210,7 @@ export class StationsService {
 
   private async createRun(args: {
     item: WorkItemDto
-    kind: string
+    kind: EStationKind
     runId: string
     threadId: string
   }): Promise<void> {
@@ -211,7 +223,7 @@ export class StationsService {
           kind: args.kind,
           threadId: args.threadId,
           status: EStationRunStatus.Running,
-          driveMode: ESandboxDriveMode.ReadWrite,
+          driveMode: driveModeFor(args.kind),
           createdAt: at,
           updatedAt: at,
           finishedAt: null,
@@ -252,8 +264,9 @@ export class StationsService {
   }
 
   /**
-   * A station that never got its spawn message still holds the drive RW — stop its sandbox before
-   * failing the run, or the next spawn's single-writer check passes over a live mount.
+   * A station that never got its spawn message leaves its sandbox up holding its mount — stop it
+   * before failing the run, or the next implementer spawn's single-writer check passes over a
+   * live RW mount.
    */
   private async handleSpawnFailure(args: {
     runId: string

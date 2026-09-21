@@ -28,6 +28,7 @@ export enum EFactoryEventKind {
   StationRequest = 'station-request',
   StationResult = 'station-result',
   Reply = 'reply',
+  Delivery = 'delivery',
 }
 
 export type WorkItemDto = {
