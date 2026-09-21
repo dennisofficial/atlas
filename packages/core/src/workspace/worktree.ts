@@ -25,6 +25,7 @@ export function activeWorktreeOf(events: readonly Event[]): ActiveWorktree | und
     const event = events[index]
     if (event?.type === 'worktree-exited') return undefined
     if (event?.type === 'directory-changed') return undefined
+    if (event?.type === 'location-changed') return undefined
     if (event?.type === 'worktree-entered') return activeFrom(event)
   }
 
@@ -39,6 +40,7 @@ export function activeWorktreeAfter(args: {
     const draft = args.drafts[index]
     if (draft?.type === 'worktree-exited') return undefined
     if (draft?.type === 'directory-changed') return undefined
+    if (draft?.type === 'location-changed') return undefined
     if (draft?.type === 'worktree-entered') return activeFrom(draft)
   }
 
@@ -51,6 +53,7 @@ export function homeDirectoryOf(args: {
 }): string {
   let home = args.launchDirectory
   for (const event of args.events) {
+    if (event.type === 'location-changed') home = args.launchDirectory
     if (event.type === 'worktree-exited' && event.returnTo !== undefined) home = event.returnTo
     if (event.type === 'directory-changed') home = event.path
   }
@@ -75,6 +78,7 @@ export function repoOf(args: {
 }): string | null {
   for (let index = args.events.length - 1; index >= 0; index -= 1) {
     const event = args.events[index]
+    if (event?.type === 'location-changed') return args.launchRepo
     if (event?.type === 'directory-changed' && event.repo !== undefined) return event.repo
   }
   return args.launchRepo

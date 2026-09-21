@@ -46,6 +46,8 @@ const exited = (args: { path: string; action: EWorktreeExit; returnTo?: string }
 const moved = (path: string, repo?: string | null) =>
   event({ type: 'directory-changed', path, ...(repo === undefined ? {} : { repo }) })
 
+const relocated = (to: string) => event({ type: 'location-changed', from: 'host', to })
+
 describe('which worktree the session is in', () => {
   it('is in none until one is entered', () => {
     expect(activeWorktreeOf([said('hello'), said('again')])).toBeUndefined()
@@ -95,6 +97,18 @@ describe('which worktree the session is in', () => {
     const events = [entered({ path: TREE, branch: 'dennis/eng-327' }), moved('/Users/dev/other')]
 
     expect(activeWorktreeOf(events)).toBeUndefined()
+  })
+
+  it('is in none once the session changes location, even if a worktree was active', () => {
+    const events = [entered({ path: TREE, branch: 'dennis/eng-327' }), relocated('cloud')]
+
+    expect(activeWorktreeOf(events)).toBeUndefined()
+  })
+
+  it('is the worktree entered after a location change', () => {
+    const events = [relocated('cloud'), entered({ path: TREE, branch: 'dennis/eng-327' })]
+
+    expect(activeWorktreeOf(events)?.path).toBe(TREE)
   })
 
   it('is the worktree entered after a move', () => {
@@ -196,6 +210,39 @@ describe('the home directory', () => {
     expect(homeDirectoryOf({ events, launchDirectory: OTHER })).toBe(TREE)
   })
 
+  it('resets to the launch directory when the location changes', () => {
+    const events = [
+      exited({ path: TREE, action: EWorktreeExit.Keep, returnTo: LAUNCH }),
+      relocated('cloud'),
+    ]
+
+    expect(homeDirectoryOf({ events, launchDirectory: '/vercel/sandbox/workspace' })).toBe(
+      '/vercel/sandbox/workspace',
+    )
+  })
+
+  it('picks up a directory change made after a location change', () => {
+    const events = [
+      exited({ path: TREE, action: EWorktreeExit.Keep, returnTo: LAUNCH }),
+      relocated('cloud'),
+      moved('/vercel/sandbox/workspace/subdir'),
+    ]
+
+    expect(homeDirectoryOf({ events, launchDirectory: '/vercel/sandbox/workspace' })).toBe(
+      '/vercel/sandbox/workspace/subdir',
+    )
+  })
+
+  it('resets again on the way back', () => {
+    const events = [
+      relocated('cloud'),
+      moved('/vercel/sandbox/workspace'),
+      relocated('host'),
+    ]
+
+    expect(homeDirectoryOf({ events, launchDirectory: LAUNCH })).toBe(LAUNCH)
+  })
+
   it('folds unwritten drafts the same way', () => {
     expect(homeDirectoryAfter({ drafts: [{ type: 'user-said', text: 'hi' }], home: LAUNCH })).toBe(LAUNCH)
 
@@ -240,6 +287,18 @@ describe('which repo the session belongs to', () => {
     const events = [moved('/Users/dev/other')]
 
     expect(repoOf({ events, launchRepo: LAUNCH })).toBe(LAUNCH)
+  })
+
+  it('resets to the launch repo when the location changes', () => {
+    const events = [moved('/Users/dev/other', '/Users/dev'), relocated('cloud')]
+
+    expect(repoOf({ events, launchRepo: LAUNCH })).toBe(LAUNCH)
+  })
+
+  it('follows a repo move made after a location change', () => {
+    const events = [relocated('cloud'), moved('/vercel/sandbox/workspace', '/vercel/sandbox')]
+
+    expect(repoOf({ events, launchRepo: null })).toBe('/vercel/sandbox')
   })
 })
 
