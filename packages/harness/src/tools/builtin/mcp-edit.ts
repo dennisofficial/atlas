@@ -1,13 +1,4 @@
-import {
-  EContentAccess,
-  EPathForm,
-  EPathPresence,
-  EToolEffect,
-  SchemaTool,
-  type DeclaredPathField,
-  type ToolOutcome,
-  type ToolRun,
-} from '@dltech/atlas-core'
+import { EToolEffect, SchemaTool, TAKES_NO_PATHS, type ToolOutcome, type ToolRun } from '@dltech/atlas-core'
 
 import { cloudClientFor } from '../../cloud/cloud-client'
 import type { CloudSessionStore } from '../../cloud/cloud-session'
@@ -27,14 +18,7 @@ export class McpEditTool extends SchemaTool<typeof inputSchema> {
   readonly description = description
   readonly effect = EToolEffect.Write
   readonly inputSchema = inputSchema
-  override readonly pathFields: readonly DeclaredPathField[] = [
-    {
-      field: 'layer',
-      presence: EPathPresence.Required,
-      form: EPathForm.Absolute,
-      content: EContentAccess.Amends,
-    },
-  ]
+  override readonly pathFields = TAKES_NO_PATHS
 
   constructor(
     private readonly args: {
