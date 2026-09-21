@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { ProcessHandle, ProcessPort, SpawnCommand, ThreadId } from '@dltech/atlas-core'
+import type { SpawnCommand, ThreadId } from '@dltech/atlas-core'
 
+import { LocalProcessPort, type LocalProcessHandle } from '../local-process'
 import { LOGIN_ENV_MARKER, LoginEnvProcessPort } from '../login-env-process'
 
 const streamOf = (text: string): ReadableStream<Uint8Array> =>
@@ -12,23 +13,24 @@ const streamOf = (text: string): ReadableStream<Uint8Array> =>
     },
   })
 
-const idleHandle = (): ProcessHandle => ({
+const idleHandle = (): LocalProcessHandle => ({
+  pid: 424242,
   stdout: streamOf(''),
   stderr: streamOf(''),
   exited: Promise.resolve(0),
   terminate: () => undefined,
 })
 
-class RecordingProcesses implements ProcessPort {
+class RecordingProcesses extends LocalProcessPort {
   readonly spawned: SpawnCommand[] = []
   readonly probed: { command: string; threadId?: ThreadId | undefined }[] = []
 
-  spawn(args: SpawnCommand): ProcessHandle {
+  override spawn(args: SpawnCommand): LocalProcessHandle {
     this.spawned.push(args)
     return idleHandle()
   }
 
-  which(args: { command: string; threadId?: ThreadId | undefined }): string | null {
+  override which(args: { command: string; threadId?: ThreadId | undefined }): string | null {
     this.probed.push(args)
     return '/usr/bin/false'
   }
@@ -108,5 +110,14 @@ describe('LoginEnvProcessPort', () => {
 
     expect(port.which({ command: 'git' })).toBe('/usr/bin/false')
     expect(inner.probed).toEqual([{ command: 'git' }])
+  })
+
+  it('keeps terminate idempotent across the startup retry wrapper', () => {
+    const inner = new RecordingProcesses()
+    const port = new LoginEnvProcessPort(inner)
+
+    const handle = port.spawn(markedShellCommand)
+    handle.terminate()
+    handle.terminate()
   })
 })
