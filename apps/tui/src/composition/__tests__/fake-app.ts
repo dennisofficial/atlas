@@ -496,6 +496,8 @@ export function fakeShellRegistry(): FakeShells {
       return { ok: true, snapshot }
     },
 
+    awaitEndings: () => Promise.resolve(0),
+
     removeShells: ({ threadId, shellIds, by }) => {
       let removedAny = false
       for (let index = owned.length - 1; index >= 0; index -= 1) {

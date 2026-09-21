@@ -22,6 +22,9 @@ import {
 export const CLOSE_GRACE_MS = 300
 export const KILLED_GRACE_MS = 5_000
 
+/** The escalation window plus slack: a stop that outlives this is handed back to the announcement path. */
+export const STOP_SETTLE_MS = KILLED_GRACE_MS + 2_000
+
 export type StartedServiceOutcome =
   | { ok: true; snapshot: ServiceSnapshot }
   | { ok: false; reason: string }
@@ -43,6 +46,14 @@ export abstract class ServiceRegistryPort {
     cwd?: string | undefined
   }): Promise<StartedServiceOutcome>
   abstract stop(args: { serviceId: string; by: EKilledBy }): ServiceStopOutcome
+  /**
+   * A caller that just stopped services is already waiting, so the endings it caused should sit in
+   * the notice queue when it moves on: an exit that lands after the caller's next drain would hang
+   * in the queue for a whole model step. Waits, bounded per service by `ms`, for every signalled
+   * service to record its exit, and answers how many had not — their endings announce whenever they
+   * do exit, the same as any other ending.
+   */
+  abstract awaitEndings(args: { ms: number }): Promise<number>
   /**
    * A rewind disowns the services it cut: they die with the transcript that started them, and
    * their endings announce nothing — the rewound thread holds no tool call the announcement could
@@ -74,6 +85,16 @@ const within = async (ms: number, promise: Promise<unknown>): Promise<void> => {
   })
   await Promise.race([promise.then(() => undefined).catch(() => undefined), grace])
   clearTimeout(timer)
+}
+
+const diedWithin = async (ms: number, promise: Promise<unknown>): Promise<boolean> => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const grace = new Promise<false>((resolve) => {
+    timer = setTimeout(() => resolve(false), ms)
+  })
+  const died = await Promise.race([promise.then(() => true).catch(() => true), grace])
+  clearTimeout(timer)
+  return died
 }
 
 export class BunServiceRegistry extends ServiceRegistryPort {
@@ -173,6 +194,16 @@ export class BunServiceRegistry extends ServiceRegistryPort {
 
     const action = entry.service.stop(by)
     return { ok: true, snapshot: entry.service.snapshot(), action }
+  }
+
+  async awaitEndings({ ms }: { ms: number }): Promise<number> {
+    const signalled = [...this.tracked.values()].filter(
+      (entry) => entry.service.snapshot().status !== EServiceStatus.Running,
+    )
+    const deaths = await Promise.all(
+      signalled.map((entry) => diedWithin(ms, entry.service.exited)),
+    )
+    return deaths.filter((died) => !died).length
   }
 
   removeServices({ serviceIds, by }: { serviceIds: readonly string[]; by: EKilledBy }): void {

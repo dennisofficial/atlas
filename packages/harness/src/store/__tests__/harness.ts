@@ -96,6 +96,9 @@ export class UnstaffedShells extends ShellRegistryPort {
   kill(): ShellKillOutcome {
     return { ok: false as const, reason: 'no shell registry in this fixture' }
   }
+  awaitEndings(_args: { threadId: ThreadId; ms: number }) {
+    return Promise.resolve(0)
+  }
   removeShells(_args: { threadId: ThreadId; shellIds: readonly string[]; by: EKilledBy }): void {}
   list(_args: { threadId: ThreadId }): readonly ShellSnapshot[] {
     return []
@@ -133,6 +136,9 @@ export class UnstaffedServices extends ServiceRegistryPort {
   }
   stop(_args: { serviceId: string; by: EKilledBy }): ServiceStopOutcome {
     return { ok: false as const, reason: 'no service registry in this fixture' }
+  }
+  awaitEndings(_args: { ms: number }) {
+    return Promise.resolve(0)
   }
   removeServices(_args: { serviceIds: readonly string[]; by: EKilledBy }): void {}
   list(): readonly ServiceSnapshot[] {
