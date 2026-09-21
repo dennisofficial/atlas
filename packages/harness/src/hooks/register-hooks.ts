@@ -3,11 +3,13 @@ import {
   AgentFileSystemPort,
   BeforeToolHook,
   BeforeTurnHook,
+  DecisionPort,
   ToolDefinition,
   WorkspaceFactsPort,
 } from '@dltech/atlas-core'
 
 import { registerClassifier } from '../classifier/register-classifier'
+import { JevDecisionClient } from '../classifier/jev-client'
 import { GitWorkspaceFacts } from '../classifier/workspace-facts'
 import { instanceCachingFactory, portToken, type DependencyContainer } from '../container/injection'
 import { WorkspaceRoot } from '../container/tokens'
@@ -18,6 +20,7 @@ import { OutsideProjectHook } from './outside-project'
 import { PrewarmFactsHook } from './prewarm-facts'
 import { ReadBeforeWriteHook } from './read-before-write'
 import { ResolveProjectPathsHook } from './resolve-project-paths'
+import { ServiceShapeHook } from './service-shape-hook'
 import { RecordFileStateHook } from './record-file-state'
 import { TrackWorktreeHook } from './track-worktree'
 
@@ -39,6 +42,14 @@ export function registerBuiltinHooks({ container }: { container: DependencyConta
       ),
   })
   registerClassifier({ container })
+  container.register(portToken(BeforeToolHook), {
+    useFactory: (resolver) =>
+      new ServiceShapeHook({
+        decisions: resolver.isRegistered(portToken(DecisionPort), true)
+          ? resolver.resolve(portToken(DecisionPort))
+          : new JevDecisionClient({ config: () => undefined }),
+      }),
+  })
   container.register(portToken(BeforeTurnHook), {
     useFactory: (resolver) =>
       new PrewarmFactsHook(

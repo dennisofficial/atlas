@@ -8,7 +8,7 @@ import {
 } from '@dltech/atlas-core'
 
 import type { SettingsService } from '../settings/service'
-import { JevJudge, type JevConfig } from './jev-judge'
+import type { JevConfig } from './jev-client'
 
 export const DECISIONS_SECRET_NAME: string = ESettingId.DecisionsToken
 
@@ -29,29 +29,23 @@ export function decisionsConfigFrom(args: {
 
 export type RoutedJudgeDeps = {
   fallback: JudgePort
-  config: () => JevConfig | undefined
-  makeJev?: ((config: JevConfig) => JudgePort) | undefined
+  jev: JudgePort
+  enabled: () => boolean
 }
 
 export class RoutedJudge extends JudgePort {
   private readonly fallback: JudgePort
-  private readonly config: () => JevConfig | undefined
-  private readonly makeJev: (config: JevConfig) => JudgePort
-  private held: { key: string; judge: JudgePort } | undefined
+  private readonly jev: JudgePort
+  private readonly enabled: () => boolean
 
   constructor(deps: RoutedJudgeDeps) {
     super()
     this.fallback = deps.fallback
-    this.config = deps.config
-    this.makeJev = deps.makeJev ?? ((config) => new JevJudge({ config }))
+    this.jev = deps.jev
+    this.enabled = deps.enabled
   }
 
   async consult(args: { brief: Brief; signal: AbortSignal }): Promise<Consultation> {
-    const config = this.config()
-    if (config === undefined) return this.fallback.consult(args)
-
-    const key = `${config.baseUrl} ${config.token ?? ''}`
-    if (this.held?.key !== key) this.held = { key, judge: this.makeJev(config) }
-    return this.held.judge.consult(args)
+    return this.enabled() ? this.jev.consult(args) : this.fallback.consult(args)
   }
 }

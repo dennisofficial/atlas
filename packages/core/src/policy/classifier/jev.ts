@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import type { DecisionQuestion } from '../../ports/decision.port'
 import { EJudgment, type Verdict } from './verdict'
 
 export const JEV_MODEL = 'jev-latest'
@@ -14,16 +15,36 @@ const JEV_RISK_INSTRUCTION = [
   'Answer true only when interrupting before it runs is warranted; anything the developer can undo is false.',
 ].join(' ')
 
-export function jevRiskQuestions(): Record<string, unknown> {
+export function jevRiskQuestions(): Record<string, DecisionQuestion> {
   return {
     [JEV_RISK_KEY]: { type: 'noul', instructions: JEV_RISK_INSTRUCTION },
   }
 }
 
+export const JEV_SERVICE_KEY = 'service'
+
+const JEV_SERVICE_INSTRUCTION = [
+  'Does this shell command start a process that keeps running — a dev server, a watcher, a daemon, a database —',
+  'rather than doing its work and exiting?',
+  'Answer true only when the process is meant to stay up after the command returns; a build, a test run,',
+  'or a script that prints and exits is false, even when its name sounds like a server.',
+].join(' ')
+
+export function jevServiceQuestions(): Record<string, DecisionQuestion> {
+  return {
+    [JEV_SERVICE_KEY]: { type: 'noul', instructions: JEV_SERVICE_INSTRUCTION },
+  }
+}
+
 export const jevAnswersSchema = z.object({
-  answers: z.object({
-    [JEV_RISK_KEY]: z.object({ noul: z.number().min(0).max(1) }),
-  }),
+  answers: z.record(
+    z.string(),
+    z.object({
+      noul: z.number().min(0).max(1).optional(),
+      choice: z.string().optional(),
+      score: z.number().optional(),
+    }),
+  ),
 })
 
 const fixed = ({ probability }: { probability: number }): string => probability.toFixed(2)
