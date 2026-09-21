@@ -244,6 +244,7 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
 
   onProgress(ELiftStep.Transferring)
   try {
+    await transfer(args)
     await transferChildLogs({
       threadId,
       bridge: args.bridge,
@@ -252,7 +253,6 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
       localThreads: args.localThreads,
       localLog: args.localLog,
     })
-    await transfer(args)
   } catch (error) {
     await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })
     return failureOf({ error, step: ELiftStep.Transferring, fallback: ELiftFault.Transfer, stopped })
