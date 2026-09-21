@@ -28,6 +28,7 @@ const settled = (args: {
   agentId: string
   intent: string
   status?: EAgentStatus
+  agentType?: string
   deliveredAt?: string | undefined
 }): AgentSnapshot => ({
   ...fakeAgentSnapshot({
@@ -35,6 +36,7 @@ const settled = (args: {
     intent: args.intent,
     status: args.status ?? EAgentStatus.Finished,
     toolCalls: 3,
+    ...(args.agentType === undefined ? {} : { agentType: args.agentType }),
   }),
   endedAt: LONG_AGO,
   deliveredAt: args.deliveredAt,
@@ -138,6 +140,39 @@ describe('a settled sub-agent leaving the sidebar', () => {
       await setup.flush()
 
       expect(setup.captureCharFrame()).toContain(CHILD_SAID)
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('counts a retired teammate against the teammate tier, not the sub-agent one', async () => {
+    const app = appWith()
+    const setup = await opened(app)
+
+    try {
+      act(() => {
+        app.agents.place(
+          fakeAgentSnapshot({ agentId: 'thr_mate_live', intent: 'live fix', agentType: 'teammate' }),
+        )
+        app.agents.place(
+          settled({
+            agentId: 'thr_mate_gone',
+            intent: 'consumed fix',
+            agentType: 'teammate',
+            deliveredAt: LONG_AGO,
+          }),
+        )
+        app.agents.place(settled({ agentId: 'thr_held', intent: 'pending audit' }))
+        app.agents.place(
+          settled({ agentId: 'thr_gone', intent: 'consumed audit', deliveredAt: LONG_AGO }),
+        )
+      })
+      await setup.flush()
+
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain('TEAMMATES  1/2')
+      expect(frame).toContain('SUB-AGENTS  0/2')
+      expect(frame).toContain('2 mores in /agents')
     } finally {
       await teardown(setup)
     }

@@ -88,7 +88,7 @@ export {
   type SidebarTeammate,
 } from './sidebar-model'
 export { cloudPillOf, isResting, type SidebarCloud } from './cloud-state'
-export { type SidebarCrewFold, type SidebarSubagent } from './subagent-row'
+export { type SidebarAgentFold, type SidebarCrewFold, type SidebarSubagent } from './subagent-row'
 export {
   IDLE_PROGRESS,
   turnAdvanced,

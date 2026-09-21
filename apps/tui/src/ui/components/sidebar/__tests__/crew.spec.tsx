@@ -108,12 +108,29 @@ describe('the crew panel splits into a teammate tier and a sub-agent tier', () =
           row({ id: 't1', agentType: 'teammate' }),
           row({ id: 's1', agentType: 'explore' }),
         ],
-        fold: { hidden: 2, hiddenFailed: false },
+        fold: { hidden: 2, hiddenFailed: false, hiddenTeammates: 0 },
         cells: WIDTH,
       })
     ).join('\n')
 
     expect(frame).toContain('in /agents')
+  })
+
+  it('counts retired rows against the tier they retired from', async () => {
+    const frame = (
+      await rowsOf({
+        subagents: [
+          row({ id: 't1', agentType: 'teammate' }),
+          row({ id: 's1', agentType: 'explore' }),
+        ],
+        fold: { hidden: 3, hiddenFailed: false, hiddenTeammates: 2 },
+        cells: WIDTH,
+      })
+    ).join('\n')
+
+    expect(frame).toContain('TEAMMATES  1/3')
+    expect(frame).toContain('SUB-AGENTS  1/2')
+    expect(frame).toContain('3 mores in /agents')
   })
 
   it('treats a row with no agentType as a sub-agent rather than dropping it', async () => {

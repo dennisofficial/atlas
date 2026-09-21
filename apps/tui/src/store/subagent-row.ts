@@ -23,6 +23,14 @@ export type SidebarSubagent = SubagentReadout & {
 
 export type SidebarCrewFold = { hidden: number; hiddenFailed: boolean }
 
+/**
+ * The crew's fold hides both tiers but hangs its tally under the sub-agent one, so the per-tier
+ * header counts need the split spelled out: `hidden` stays the whole retirement for the "more in
+ * /agents" line, `hiddenTeammates` is what the teammate header adds back instead of the sub-agent
+ * header swallowing it.
+ */
+export type SidebarAgentFold = SidebarCrewFold & { hiddenTeammates: number }
+
 export const subagentLabel = (snapshot: Pick<AgentSnapshot, 'intent' | 'agentType'>): string => {
   const intent = oneLineOf(snapshot.intent)
   return truncateCells({ text: intent ?? snapshot.agentType, cells: TITLE_CELLS })

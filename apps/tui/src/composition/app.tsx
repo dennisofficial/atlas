@@ -984,14 +984,14 @@ function Workspace(props: {
   const handleRestart = useCallback(() => {
     if (props.onRestart === null) return
 
-    if (shells.running + agents.running + services.running > 0) {
+    if (shells.runningEverywhere + agents.running + services.running > 0) {
       restarting.current = true
       exitGuard.handleOpen()
       return
     }
 
     props.onRestart()
-  }, [agents.running, exitGuard, props.onRestart, services.running, shells.running])
+  }, [agents.running, exitGuard, props.onRestart, services.running, shells.runningEverywhere])
 
   useEffect(() => {
     if (exitGuard.state === null) restarting.current = false
@@ -1019,7 +1019,7 @@ function Workspace(props: {
           exitGuardOpen: exitGuard.state !== null,
           containerGuardOpen: containerGuard.state !== null,
           queuedMessages: props.app.pending.waitingCount(),
-          runningTasks: shells.running + agents.running + services.running,
+          runningTasks: shells.runningEverywhere + agents.running + services.running,
           draftEmpty: (draft.editor.current?.plainText ?? draft.value).length === 0,
         }),
       }),
@@ -1031,7 +1031,7 @@ function Workspace(props: {
       exitGuard.state,
       containerGuard.state,
       containerMove.move,
-      shells.running,
+      shells.runningEverywhere,
       agents.running,
       services.running,
       draft,
@@ -1107,7 +1107,7 @@ function Workspace(props: {
       return
     }
 
-    if (shells.running + agents.running + services.running > 0) {
+    if (shells.runningEverywhere + agents.running + services.running > 0) {
       exitGuard.handleOpen()
       return
     }
@@ -1383,10 +1383,10 @@ function Workspace(props: {
   }, [layout])
 
   useEffect(() => {
-    if (exitGuard.state !== null && shells.running + agents.running + services.running === 0) {
+    if (exitGuard.state !== null && shells.runningEverywhere + agents.running + services.running === 0) {
       exitGuard.handleDismiss()
     }
-  }, [agents.running, exitGuard, services.running, shells.running])
+  }, [agents.running, exitGuard, services.running, shells.runningEverywhere])
 
   useKeyBindings(
     globalBindings({
