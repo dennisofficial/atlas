@@ -6,7 +6,7 @@ import { createIsolatedContainer, portToken } from '../../container/injection'
 import { DockerEngineToken } from '../../container/tokens'
 import { DockerEngine } from '../docker/engine'
 import { LocalFileSystemPort } from '../local-filesystem'
-import { LocalProcessPort } from '../local-process'
+import { LoginEnvProcessPort } from '../login-env-process'
 import { registerExecution } from '../register-execution'
 
 const wired = () => {
@@ -16,8 +16,8 @@ const wired = () => {
 }
 
 describe('registerExecution', () => {
-  it('binds the process port to the local adapter', () => {
-    expect(wired().resolve(portToken(ProcessPort))).toBeInstanceOf(LocalProcessPort)
+  it('binds the process port to the login-resolving local adapter', () => {
+    expect(wired().resolve(portToken(ProcessPort))).toBeInstanceOf(LoginEnvProcessPort)
   })
 
   it('binds the filesystem port to the local adapter', () => {
@@ -50,6 +50,6 @@ describe('registerExecution', () => {
     second.register(portToken(ProcessPort), { useClass: OtherProcesses })
 
     expect(second.resolve(portToken(ProcessPort))).toBeInstanceOf(OtherProcesses)
-    expect(first.resolve(portToken(ProcessPort))).toBeInstanceOf(LocalProcessPort)
+    expect(first.resolve(portToken(ProcessPort))).toBeInstanceOf(LoginEnvProcessPort)
   })
 })

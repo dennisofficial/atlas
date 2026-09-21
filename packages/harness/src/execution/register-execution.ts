@@ -6,9 +6,12 @@ import { DockerEngine } from './docker/engine'
 import { DEFAULT_DOCKER_SOCKET } from './docker/sandbox'
 import { LocalFileSystemPort } from './local-filesystem'
 import { LocalProcessPort } from './local-process'
+import { LoginEnvProcessPort } from './login-env-process'
 
 export function registerExecution({ container }: { container: DependencyContainer }): void {
-  container.register(portToken(ProcessPort), { useClass: LocalProcessPort })
+  container.register(portToken(ProcessPort), {
+    useFactory: () => new LoginEnvProcessPort(new LocalProcessPort()),
+  })
   container.register(portToken(FileSystemPort), { useClass: LocalFileSystemPort })
   container.register(portToken(AgentFileSystemPort), {
     useFactory: (resolver) => resolver.resolve(portToken(FileSystemPort)),
