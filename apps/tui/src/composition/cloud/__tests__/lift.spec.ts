@@ -144,6 +144,19 @@ describe('lifting a conversation into the cloud', () => {
     expect(events.indexOf(marker)).toBeLessThan(noticeIndex)
   })
 
+  it('carries the thread model to the cloud store, so serve picks it up', async () => {
+    const test = harness()
+    await test.localThreads.chooseModel({
+      threadId: CLOUD_THREAD,
+      model: { ref: 'inference-net/kimi-k3-fast', effort: 'high' },
+    })
+
+    await liftToCloud(test.args)
+
+    const cloud = await test.bridge.threads.find({ threadId: CLOUD_THREAD })
+    expect(cloud?.model).toEqual({ ref: 'inference-net/kimi-k3-fast', effort: 'high' })
+  })
+
   it('opens the remote thread for a conversation nobody has spoken in, so the sandbox can attach', async () => {
     const test = harness({ started: false, localLog: fakeEventLog([]) })
 

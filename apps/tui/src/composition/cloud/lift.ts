@@ -158,18 +158,22 @@ async function transfer(args: LiftArgs): Promise<void> {
       threadId,
       location: EExecutionLocation.Cloud,
     })
-    return
+  } else {
+    await bridge.stores.threads.createWithFirstEvents({
+      threadId,
+      runId: args.ids.nextRunId(),
+      drafts: draftsOf(events),
+      workspace: args.identity.workspace,
+      repo: args.identity.repo,
+      executionLocation: EExecutionLocation.Cloud,
+      ...(args.title === null ? {} : { title: args.title }),
+    })
   }
 
-  await bridge.stores.threads.createWithFirstEvents({
-    threadId,
-    runId: args.ids.nextRunId(),
-    drafts: draftsOf(events),
-    workspace: args.identity.workspace,
-    repo: args.identity.repo,
-    executionLocation: EExecutionLocation.Cloud,
-    ...(args.title === null ? {} : { title: args.title }),
-  })
+  const local = await args.localThreads.find({ threadId })
+  if (local?.model !== undefined) {
+    await bridge.stores.threads.chooseModel({ threadId, model: local.model })
+  }
 }
 
 const flipBack = async (args: LiftArgs & { from: EExecutionLocation }): Promise<void> => {
