@@ -1,20 +1,14 @@
-import { Prisma } from '../src/generated/prisma/client'
-import { applyUpdate, matchesValue, project, sortRows, type Where } from './fake-db-support'
+import { createFakeAccountTables } from './fake-accounts-db'
+import {
+  applyUpdate,
+  matchesValue,
+  project,
+  sortRows,
+  uniqueViolation,
+  type Where,
+} from './fake-db-support'
 
-export const uniqueViolation = (target: readonly string[]): Prisma.PrismaClientKnownRequestError =>
-  new Prisma.PrismaClientKnownRequestError(
-    `Unique constraint failed on the fields: (${target.map((field) => `\`${field}\``).join(',')})`,
-    {
-      code: 'P2002',
-      clientVersion: Prisma.prismaVersion.client,
-      meta: {
-        driverAdapterError: {
-          name: 'DriverAdapterError',
-          cause: { kind: 'UniqueConstraintViolation', constraint: { fields: [...target] } },
-        },
-      },
-    },
-  )
+export { uniqueViolation } from './fake-db-support'
 
 export type FakeWorkItemRow = {
   id: string
@@ -71,26 +65,6 @@ export type FakeUserRow = {
   email: string
 }
 
-export type FakeAgentAccountRow = {
-  id: string
-  provider: string
-  kind: string
-  origin: string
-  label: string
-  status: string
-  email: string | null
-  subscription: string | null
-  importedFrom: string | null
-  sealedSecret: string
-  userId: string
-}
-
-export type FakeActiveAccountRow = {
-  userId: string
-  provider: string
-  accountId: string
-}
-
 type FakeRow = FakeWorkItemRow | FakeAliasRow | FakeTranscriptEventRow
 
 const matchesRow = (row: FakeRow, where: Where): boolean =>
@@ -103,8 +77,7 @@ export function createFakeFactoryDb() {
   const aliases: FakeAliasRow[] = []
   const transcriptEvents: FakeTranscriptEventRow[] = []
   const users: FakeUserRow[] = []
-  const agentAccounts: FakeAgentAccountRow[] = []
-  const activeAccounts: FakeActiveAccountRow[] = []
+  const accounts = createFakeAccountTables()
   const threads: FakeOrchestratorThreadRow[] = []
   const events: FakeOrchestratorEventRow[] = []
 
@@ -209,34 +182,7 @@ export function createFakeFactoryDb() {
         return args.create
       },
     },
-    agentAccount: {
-      create: async (args: { data: FakeAgentAccountRow }) => {
-        if (agentAccounts.some((one) => one.id === args.data.id)) throw uniqueViolation(['id'])
-        agentAccounts.push(args.data)
-        return args.data
-      },
-      delete: async (args: { where: { id: string } }) => {
-        const index = agentAccounts.findIndex((one) => one.id === args.where.id)
-        if (index === -1) throw new Error('record not found')
-        agentAccounts.splice(index, 1)
-      },
-    },
-    activeAccount: {
-      findUnique: async (args: { where: { userId_provider: { userId: string; provider: string } } }) =>
-        activeAccounts.find(
-          (one) =>
-            one.userId === args.where.userId_provider.userId &&
-            one.provider === args.where.userId_provider.provider,
-        ) ?? null,
-      create: async (args: { data: FakeActiveAccountRow }) => {
-        const clash = activeAccounts.some(
-          (one) => one.userId === args.data.userId && one.provider === args.data.provider,
-        )
-        if (clash) throw uniqueViolation(['userId', 'provider'])
-        activeAccounts.push(args.data)
-        return args.data
-      },
-    },
+    ...accounts.db,
     thread: {
       delete: async (args: { where: { id: string } }) => {
         const index = threads.findIndex((one) => one.id === args.where.id)
@@ -285,8 +231,8 @@ export function createFakeFactoryDb() {
     aliases,
     transcriptEvents,
     users,
-    agentAccounts,
-    activeAccounts,
+    agentAccounts: accounts.agentAccounts,
+    activeAccounts: accounts.activeAccounts,
     threads,
     events,
     reset: () => {
@@ -294,8 +240,7 @@ export function createFakeFactoryDb() {
       aliases.length = 0
       transcriptEvents.length = 0
       users.length = 0
-      agentAccounts.length = 0
-      activeAccounts.length = 0
+      accounts.reset()
       threads.length = 0
       events.length = 0
     },

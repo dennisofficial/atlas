@@ -27,6 +27,11 @@ describe('parseReplyTarget', () => {
       'compai#341',
       'COMP-88',
       'https://github.com/compai/atlas/issues/341',
+      '../..#1',
+      'compai/.#1',
+      'compai/..#1',
+      '.github/atlas#1',
+      '-compai/atlas#1',
       '',
     ]
     for (const id of refused) {

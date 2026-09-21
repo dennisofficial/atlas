@@ -13,7 +13,7 @@ const DETAIL_CAP = 300
 
 export type GithubFetch = typeof fetch
 
-export class GithubAppNotInstalled extends Error {
+export class GithubAppNotInstalled extends BadGatewayException {
   constructor(args: { owner: string; repo: string }) {
     super(`the factory github app is not installed on ${args.owner}/${args.repo}`)
     this.name = 'GithubAppNotInstalled'
@@ -40,6 +40,12 @@ export class GithubAppService {
     return this.readConfig() !== null
   }
 
+  /** Offline echo check: the webhook payload names the app that wrote the comment. */
+  ownsAppId(id: number | undefined): boolean {
+    if (id === undefined) return false
+    return this.env.get('GITHUB_APP_ID') === String(id)
+  }
+
   /**
    * The login our own comments arrive under on webhooks (`<slug>[bot]`); null when the app is not
    * configured, so ingress simply never filters. Cached per process; failures do not cache.
@@ -59,6 +65,9 @@ export class GithubAppService {
       method: 'GET',
       path: `/repos/${args.owner}/${args.repo}/installation`,
       as: 'app',
+      onNotFound: () => {
+        throw new GithubAppNotInstalled({ owner: args.owner, repo: args.repo })
+      },
     })
     const minted = await this.request<{ token: string }>({
       method: 'POST',
@@ -121,15 +130,16 @@ export class GithubAppService {
     return `${app.slug}[bot]`.toLowerCase()
   }
 
-  private async request<T>(args: {
-    method: 'GET' | 'POST'
-    path: string
-    as: 'app' | 'installation'
-    token?: string
-    body?: Record<string, unknown>
-  }): Promise<T> {
+  private async request<T>(
+    args: {
+      method: 'GET' | 'POST'
+      path: string
+      body?: Record<string, unknown>
+      onNotFound?: () => never
+    } & ({ as: 'app' } | { as: 'installation'; token: string }),
+  ): Promise<T> {
     const authorization =
-      args.as === 'app' ? `Bearer ${this.appJwt()}` : `Bearer ${args.token as string}`
+      args.as === 'app' ? `Bearer ${this.appJwt()}` : `Bearer ${args.token}`
     const response = await this.fetchFn(`${GITHUB_API}${args.path}`, {
       method: args.method,
       headers: {
@@ -141,10 +151,7 @@ export class GithubAppService {
       ...(args.body === undefined ? {} : { body: JSON.stringify(args.body) }),
     })
 
-    if (response.status === 404 && args.path.endsWith('/installation')) {
-      const [, owner, repo] = args.path.split('/') as [string, string, string]
-      throw new GithubAppNotInstalled({ owner, repo })
-    }
+    if (response.status === 404 && args.onNotFound !== undefined) args.onNotFound()
     if (!response.ok) {
       const detail = (await response.text()).slice(0, DETAIL_CAP)
       throw new BadGatewayException(

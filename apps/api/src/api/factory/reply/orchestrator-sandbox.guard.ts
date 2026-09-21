@@ -17,8 +17,10 @@ const bearerTokenOf = (request: Request): string | undefined => {
 }
 
 /**
- * The reply route answers the orchestrator sandbox and nothing else: a user session carries no
- * sandbox row, so there is no work item to attribute a reply to and the request fails here.
+ * The reply route authenticates a live sandbox session token and nothing else — a better-auth
+ * user session never gets through. Any live sandbox passes this gate; the authorization half
+ * (this thread orchestrates this work item, and the target surface is its alias) is
+ * GuardedReplyService's, where the work-item resolution lives.
  */
 @Injectable()
 export class OrchestratorSandboxGuard implements CanActivate {

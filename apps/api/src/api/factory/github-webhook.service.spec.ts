@@ -50,13 +50,16 @@ describe('GithubWebhookService', () => {
   let service: GithubWebhookService
   let workItems: WorkItemsService
   let orchestrator: { wake: ReturnType<typeof vi.fn> }
-  let githubApp: { botLogin: ReturnType<typeof vi.fn> }
+  let githubApp: { botLogin: ReturnType<typeof vi.fn>; ownsAppId: ReturnType<typeof vi.fn> }
 
   beforeEach(() => {
     fake.reset()
     workItems = new WorkItemsService()
     orchestrator = { wake: vi.fn() }
-    githubApp = { botLogin: vi.fn(async () => 'atlas-factory[bot]') }
+    githubApp = {
+      botLogin: vi.fn(async () => 'atlas-factory[bot]'),
+      ownsAppId: vi.fn((id: number | undefined) => id === 4275284),
+    }
     service = new GithubWebhookService(
       workItems,
       new TranscriptService(),
@@ -117,7 +120,36 @@ describe('GithubWebhookService', () => {
     expect(orchestrator.wake).not.toHaveBeenCalled()
   })
 
-  it('filters nothing when the app bot login cannot be resolved', async () => {
+  it('drops the echo on the payload\'s own app id even when the bot-login lookup fails', async () => {
+    githubApp.botLogin.mockRejectedValue(new Error('github unreachable'))
+    await service.handle({ event: 'issues', deliveryId: 'd-1', payload: issuesLabeledPayload() })
+    orchestrator.wake.mockClear()
+
+    const echo = issueCommentPayload() as {
+      comment: { performed_via_github_app?: { id: number; slug: string } }
+    }
+    echo.comment.performed_via_github_app = { id: 4275284, slug: 'atlas-by-dl' }
+    const outcome = await service.handle({ event: 'issue_comment', deliveryId: 'd-echo', payload: echo })
+
+    expect(outcome).toEqual({ handled: false })
+    expect(fake.transcriptEvents).toHaveLength(1)
+    expect(orchestrator.wake).not.toHaveBeenCalled()
+  })
+
+  it('a comment written through a different app is not the echo', async () => {
+    await service.handle({ event: 'issues', deliveryId: 'd-1', payload: issuesLabeledPayload() })
+
+    const comment = issueCommentPayload() as {
+      comment: { performed_via_github_app?: { id: number; slug: string } }
+    }
+    comment.comment.performed_via_github_app = { id: 999, slug: 'dependabot' }
+    const outcome = await service.handle({ event: 'issue_comment', deliveryId: 'd-2', payload: comment })
+
+    expect(outcome.handled).toBe(true)
+    expect(fake.transcriptEvents).toHaveLength(2)
+  })
+
+  it('filters nothing when neither echo signal matches', async () => {
     githubApp.botLogin.mockResolvedValue(null)
     await service.handle({ event: 'issues', deliveryId: 'd-1', payload: issuesLabeledPayload() })
 

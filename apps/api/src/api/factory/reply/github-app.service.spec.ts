@@ -117,10 +117,13 @@ describe('GithubAppService', () => {
       expect(calls).toHaveLength(2)
     })
 
-    it('a missing installation is its own refusal, not a generic gateway error', async () => {
+    it('a missing installation is its own refusal, naming the repo the model asked about', async () => {
       const { fetchFn } = fakeFetch({})
       service = new GithubAppService(fakeEnv({ configured: true }), fetchFn)
 
+      await expect(
+        service.installationToken({ owner: 'compai', repo: 'uninstalled' }),
+      ).rejects.toThrow('the factory github app is not installed on compai/uninstalled')
       await expect(
         service.installationToken({ owner: 'compai', repo: 'uninstalled' }),
       ).rejects.toBeInstanceOf(GithubAppNotInstalled)
