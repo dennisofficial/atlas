@@ -41,7 +41,10 @@ const isShellNotice = (event: Event): event is EventOfType<ShellNoticeType> =>
   event.type.startsWith('background-shell-')
 
 const isNotice = (event: Event): boolean =>
-  isShellNotice(event) || event.type === 'service-ended' || event.type === 'agent-ended'
+  isShellNotice(event) ||
+  event.type === 'service-ended' ||
+  event.type === 'agent-ended' ||
+  event.type === 'location-changed'
 
 const recordOf = (input: unknown): Record<string, unknown> | undefined =>
   typeof input === 'object' && input !== null ? (input as Record<string, unknown>) : undefined
@@ -131,6 +134,7 @@ export function rewindPlan({
   }
 
   const survives = (event: Event): boolean => {
+    if (event.type === 'location-changed') return true
     if (isShellNotice(event)) return !cutShellIds.has(event.shellId)
     if (event.type === 'service-ended') return !cutServiceIds.has(event.serviceId)
     if (event.type === 'agent-ended') return !cutAgentIds.has(event.agentId)

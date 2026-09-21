@@ -867,4 +867,108 @@ describe('startServe', () => {
 
     expect(Date.now() - startedAt).toBeLessThan(200)
   })
+
+  it('reads the thread model from the control plane when none is given', async () => {
+    let composedWith: string | undefined
+    const app = fakeServeApp({ threadId, root: '/workspace' })
+
+    const handle = await startServe({
+      threadId,
+      port: 0,
+      token: TOKEN,
+      controlPlaneUrl: CONTROL_PLANE,
+      env: {},
+      cwd: '/workspace',
+      compose: async (args) => {
+        composedWith = args.model
+        return app
+      },
+      ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
+      fetchFn: (async (input: unknown) => {
+        const url = String(input)
+        if (url.endsWith(`/v1/threads/${threadId}`)) {
+          return new Response(
+            JSON.stringify({
+              id: threadId,
+              head: 0,
+              createdAt: '2026-09-21T00:00:00.000Z',
+              updatedAt: '2026-09-21T00:00:00.000Z',
+              workspace: '/workspace',
+              repo: null,
+              model: { ref: 'inference-net/kimi-k3-fast', effort: 'high' },
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          )
+        }
+        return new Response(null, { status: 204 })
+      }) as typeof fetch,
+    })
+
+    expect(composedWith).toBe('inference-net/kimi-k3-fast')
+    await handle.close()
+  })
+
+  it('prefers an explicit model over the thread store', async () => {
+    let composedWith: string | undefined
+    const app = fakeServeApp({ threadId, root: '/workspace' })
+
+    const handle = await startServe({
+      threadId,
+      port: 0,
+      token: TOKEN,
+      controlPlaneUrl: CONTROL_PLANE,
+      env: {},
+      cwd: '/workspace',
+      model: 'anthropic/claude-sonnet-4-5',
+      compose: async (args) => {
+        composedWith = args.model
+        return app
+      },
+      ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
+      fetchFn: (async (_input: unknown) =>
+        new Response(null, { status: 204 })) as unknown as typeof fetch,
+    })
+
+    expect(composedWith).toBe('anthropic/claude-sonnet-4-5')
+    await handle.close()
+  })
+
+  it('composes with no model when the thread has none stored', async () => {
+    let composedWith: string | undefined
+    const app = fakeServeApp({ threadId, root: '/workspace' })
+
+    const handle = await startServe({
+      threadId,
+      port: 0,
+      token: TOKEN,
+      controlPlaneUrl: CONTROL_PLANE,
+      env: {},
+      cwd: '/workspace',
+      compose: async (args) => {
+        composedWith = args.model
+        return app
+      },
+      ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
+      fetchFn: (async (input: unknown) => {
+        const url = String(input)
+        if (url.endsWith(`/v1/threads/${threadId}`)) {
+          return new Response(
+            JSON.stringify({
+              id: threadId,
+              head: 0,
+              createdAt: '2026-09-21T00:00:00.000Z',
+              updatedAt: '2026-09-21T00:00:00.000Z',
+              workspace: '/workspace',
+              repo: null,
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          )
+        }
+        return new Response(null, { status: 204 })
+      }) as typeof fetch,
+    })
+
+    expect(composedWith).toBeUndefined()
+    await handle.close()
+  })
 })

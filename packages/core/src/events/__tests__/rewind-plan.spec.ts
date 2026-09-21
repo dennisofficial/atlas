@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EExecutionLocation } from '../../execution/location'
 import { EServiceStatus } from '../../services/status'
 import { EShellStatus } from '../../shells/status'
 import type { EventDraft } from '../body'
@@ -241,5 +242,43 @@ describe('rewindPlan for services', () => {
 
     expect(plan.cuts).toEqual([])
     expect(plan.reappend).toHaveLength(1)
+  })
+})
+
+describe('rewindPlan for location changes', () => {
+  it('keeps a location-changed above the cut, since the move is still true', () => {
+    const events = eventsFrom([
+      said('msg_1'),
+      { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud },
+      said('msg_2'),
+      replied('on it'),
+    ])
+
+    const plan = rewindPlan({ events, toSeq: 1 })
+
+    expect(plan.cuts).toEqual([])
+    expect(plan.reappend).toHaveLength(1)
+    expect(plan.reappend[0]?.draft).toEqual({
+      type: 'location-changed',
+      from: EExecutionLocation.Host,
+      to: EExecutionLocation.Cloud,
+    })
+  })
+
+  it('keeps every move when the log holds several', () => {
+    const events = eventsFrom([
+      said('msg_1'),
+      { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud },
+      said('msg_2'),
+      { type: 'location-changed', from: EExecutionLocation.Cloud, to: EExecutionLocation.Host },
+      said('msg_3'),
+    ])
+
+    const plan = rewindPlan({ events, toSeq: 1 })
+
+    expect(plan.reappend.map((notice) => notice.draft)).toEqual([
+      { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud },
+      { type: 'location-changed', from: EExecutionLocation.Cloud, to: EExecutionLocation.Host },
+    ])
   })
 })

@@ -2,6 +2,7 @@ import { isResumable, type ThreadId } from '@dltech/atlas-core'
 
 import type { StepId } from '../channel/signal'
 import { EServeFrame, type ServeFrame, type TurnOutcomeWire } from '../cloud/channel-wire'
+import { SessionsClient } from '../cloud/sessions-client'
 import { ETurnStatus, type TurnOutcome } from '../loop/turn-outcome'
 
 import { atlasDirectory } from '../store/paths'
@@ -110,6 +111,26 @@ const lazy = <T>(fetch: () => Promise<T>): (() => Promise<T>) => {
   return () => (held ??= fetch())
 }
 
+/**
+ * The thread's own model preference, read from the control plane so the sandbox runs the model the
+ * conversation was already on rather than whatever the sandbox's bare settings would default to.
+ */
+const readThreadModel = async (args: {
+  controlPlaneUrl: string
+  token: string
+  threadId: ThreadId
+  fetchFn: typeof fetch
+}): Promise<string | undefined> => {
+  const client = new SessionsClient({
+    url: args.controlPlaneUrl,
+    token: args.token,
+    clientVersion: 'dev',
+    fetchFn: args.fetchFn,
+  })
+  const thread = await client.findThread({ threadId: args.threadId }).catch(() => undefined)
+  return thread?.model?.ref
+}
+
 export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   const env = args.env ?? process.env
   const { threadId, port: wanted, token, controlPlaneUrl, cwd } = serveConfig({ ...args, env })
@@ -156,6 +177,8 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     log({ event: EServeEvent.ContextReady, written: context.written, ms: contextMs })
   }
 
+  const threadModel = args.model ?? (await readThreadModel({ controlPlaneUrl, token, threadId, fetchFn }))
+
   const app = await (args.compose ?? composeServeApp)({
     threadId,
     cwd,
@@ -163,7 +186,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     token,
     clientVersion: args.clientVersion ?? 'dev',
     env,
-    model: args.model,
+    model: threadModel,
     notice,
     projectDirectory: context.projectDirectory,
   })
