@@ -115,29 +115,22 @@ export function useAgentView(args: {
 
   const stoppable = selected !== undefined && isSubagentRunning(selected)
 
+  /**
+   * The child's working line already promises "esc to interrupt", so escape keeps that promise while
+   * the child is running and only walks back to the parent once it has settled. The cycle chord
+   * remains the way out that leaves a running child alone.
+   */
   useKeyBindings(
     viewing === null
       ? []
       : [
           {
             chord: 'escape',
-            hint: 'back to the parent',
+            hint: stoppable ? 'stop this sub-agent' : 'back to the parent',
             layer: EKeyLayer.Block,
             group: EKeyGroup.Session,
-            run: handleBack,
+            run: stoppable ? handleStop : handleBack,
           },
-          ...(stoppable
-            ? [
-                {
-                  chord: 'ctrl+k',
-                  hint: 'stop this sub-agent',
-                  describe: 'stop the sub-agent you are reading, the way ctrl+t stops a shell',
-                  layer: EKeyLayer.Block,
-                  group: EKeyGroup.Session,
-                  run: handleStop,
-                },
-              ]
-            : []),
         ],
   )
 

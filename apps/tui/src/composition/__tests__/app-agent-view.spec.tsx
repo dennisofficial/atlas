@@ -178,10 +178,7 @@ describe('viewing a sub-agent', () => {
 
       expect(setup.captureCharFrame()).not.toContain('background agent')
 
-      setup.mockInput.pressEscape()
-      await setup.flush()
-      await settle(250)
-      await setup.flush()
+      await pressChord(setup, 'g')
 
       expect(setup.captureCharFrame()).toContain('1 background agent to finish')
     } finally {
@@ -226,7 +223,7 @@ describe('viewing a sub-agent', () => {
     }
   }, 60_000)
 
-  it('comes back to the parent on escape', async () => {
+  it('comes back to the parent on escape once the child has settled', async () => {
     const app = appWith()
     await seed(app)
     app.agents.place(child())
@@ -236,6 +233,11 @@ describe('viewing a sub-agent', () => {
       await selectChild(setup)
       expect(setup.captureCharFrame()).toContain(CHILD_SAID)
 
+      act(() => app.agents.end({ agentId: CHILD }))
+      await setup.flush()
+      await settle(250)
+      await setup.flush()
+
       setup.mockInput.pressEscape()
       await setup.flush()
       await settle(250)
@@ -244,6 +246,7 @@ describe('viewing a sub-agent', () => {
       const frame = setup.captureCharFrame()
       expect(frame).toContain(PARENT_SAID)
       expect(frame).not.toContain(CHILD_SAID)
+      expect(app.agents.stopped).toEqual([])
     } finally {
       await teardown(setup)
     }
@@ -331,6 +334,11 @@ describe('viewing a sub-agent', () => {
       expect(frame).toContain(CHILD_SAID)
       expect(frame).not.toContain(STEERING)
       expect(frame).toContain(ADDRESSING)
+
+      act(() => app.agents.end({ agentId: CHILD }))
+      await setup.flush()
+      await settle(200)
+      await setup.flush()
 
       setup.mockInput.pressEscape()
       await setup.flush()
@@ -447,7 +455,7 @@ describe('reaching a sub-agent without the mouse', () => {
     }
   }, 60_000)
 
-  it('stops the child the operator is reading, and says the operator did it', async () => {
+  it('stops the running child on escape, the way the working line promises', async () => {
     const app = appWith()
     await seed(app)
     app.agents.place(child())
@@ -461,7 +469,10 @@ describe('reaching a sub-agent without the mouse', () => {
       expect(before).toContain('SUBAGENTS  1/1')
       expect(app.agents.stopped).toEqual([])
 
-      await pressChord(setup, 'k')
+      setup.mockInput.pressEscape()
+      await setup.flush()
+      await settle(250)
+      await setup.flush()
 
       expect(app.agents.stopped).toEqual([{ agentId: CHILD, by: EKilledBy.User }])
       const after = setup.captureCharFrame()
@@ -480,7 +491,11 @@ describe('reaching a sub-agent without the mouse', () => {
 
     try {
       await pressChord(setup, 'g')
-      await pressChord(setup, 'k')
+
+      setup.mockInput.pressEscape()
+      await setup.flush()
+      await settle(250)
+      await setup.flush()
 
       const frame = setup.captureCharFrame()
       expect(frame).toContain(CHILD_SAID)
@@ -490,7 +505,7 @@ describe('reaching a sub-agent without the mouse', () => {
     }
   }, 60_000)
 
-  it('offers no stop on a child that already ended, where it would do nothing', async () => {
+  it('offers no stop on a child that already ended, where escape walks back instead', async () => {
     const app = appWith()
     await seed(app)
     app.agents.place(child())
@@ -505,15 +520,19 @@ describe('reaching a sub-agent without the mouse', () => {
       await settle(250)
       await setup.flush()
 
-      await pressChord(setup, 'k')
+      setup.mockInput.pressEscape()
+      await setup.flush()
+      await settle(250)
+      await setup.flush()
 
       expect(app.agents.stopped).toEqual([])
+      expect(setup.captureCharFrame()).toContain(PARENT_SAID)
     } finally {
       await teardown(setup)
     }
   }, 60_000)
 
-  it('leaves escape owning the way back, so the chord never fights it', async () => {
+  it('walks back to the parent on the escape after the stop', async () => {
     const app = appWith()
     await seed(app)
     app.agents.place(child())
@@ -528,7 +547,17 @@ describe('reaching a sub-agent without the mouse', () => {
       await settle(250)
       await setup.flush()
 
-      expect(setup.captureCharFrame()).toContain(PARENT_SAID)
+      expect(app.agents.stopped).toEqual([{ agentId: CHILD, by: EKilledBy.User }])
+      expect(setup.captureCharFrame()).toContain(CHILD_SAID)
+
+      setup.mockInput.pressEscape()
+      await setup.flush()
+      await settle(250)
+      await setup.flush()
+
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain(PARENT_SAID)
+      expect(frame).not.toContain(CHILD_SAID)
     } finally {
       await teardown(setup)
     }
