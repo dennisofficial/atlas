@@ -69,6 +69,7 @@ export type FakeCloudSandboxRow = {
   workspacePatch: string | null
   workspaceSkills: string | null
   workspaceContext: string | null
+  workspaceContextArchive?: Buffer | null
   workspaceProjectDirectory: string | null
   createdAt: string
   updatedAt: string

@@ -1,21 +1,23 @@
-import { readdir, readFile } from 'node:fs/promises'
+import { readdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join, relative } from 'node:path'
 
 import { EDefinitionOrigin, MEMORY_DIRECTORY_NAME, skillRootPlan } from '@dltech/atlas-core'
 import {
   atlasDirectory,
-  MAX_CONTEXT_BUNDLE_BYTES,
+  buildContextArchive,
+  MAX_CONTEXT_ARCHIVE_BYTES,
   memoryDirectoriesFor,
   resolveSkillRoots,
-  walkMemoryDirectory,
+  type ArchiveFileSource,
+  statMemoryDirectory,
 } from '@dltech/atlas-harness'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
 
 const SKILLS_DIRECTORY_NAME = 'skills'
 const LOCAL_INSTRUCTION_SUFFIX = '.local.md'
-const CONTEXT_OVERFLOW_NOTICE_KEY = 'context-bundle-overflow'
+const CONTEXT_OVERFLOW_NOTICE_KEY = 'context-archive-overflow'
 
 const mebibytes = (bytes: number): string => `${(bytes / (1024 * 1024)).toFixed(1)}MiB`
 
@@ -28,37 +30,32 @@ const walk = async (directory: string): Promise<readonly string[]> => {
   }
 }
 
-const addFile = async (args: { files: Record<string, string>; key: string; path: string }): Promise<void> => {
-  try {
-    args.files[args.key] = (await readFile(args.path)).toString('base64')
-  } catch {
-    return
-  }
+const addFile = (args: { sources: ArchiveFileSource[]; key: string; path: string }): void => {
+  args.sources.push({ key: args.key, path: args.path })
 }
 
 const addDirectory = async (args: {
-  files: Record<string, string>
+  sources: ArchiveFileSource[]
   directory: string
   keyPrefix: string
 }): Promise<void> => {
   for (const path of await walk(args.directory)) {
-    const key = `${args.keyPrefix}/${relative(args.directory, path)}`
-    args.files[key] = (await readFile(path)).toString('base64')
+    args.sources.push({ key: `${args.keyPrefix}/${relative(args.directory, path)}`, path })
   }
 }
 
 const addFlatMemoryDirectory = async (args: {
-  files: Record<string, string>
+  sources: ArchiveFileSource[]
   directory: string
   keyPrefix: string
 }): Promise<void> => {
-  for (const entry of await walkMemoryDirectory(args.directory)) {
-    args.files[`${args.keyPrefix}/${entry.name}`] = entry.content
+  for (const file of await statMemoryDirectory(args.directory)) {
+    args.sources.push({ key: `${args.keyPrefix}/${file.name}`, path: file.path })
   }
 }
 
 const addSkillRoots = async (args: {
-  files: Record<string, string>
+  sources: ArchiveFileSource[]
   atlasHome: string
   home: string
 }): Promise<void> => {
@@ -74,14 +71,14 @@ const addSkillRoots = async (args: {
   for (const root of roots) {
     if (root.origin !== EDefinitionOrigin.User) continue
     await addDirectory({
-      files: args.files,
+      sources: args.sources,
       directory: root.directory,
       keyPrefix: `${root.flavour}/${SKILLS_DIRECTORY_NAME}`,
     })
   }
 }
 
-const addProjectLocals = async (args: { files: Record<string, string>; cwd: string }): Promise<void> => {
+const addProjectLocals = async (args: { sources: ArchiveFileSource[]; cwd: string }): Promise<void> => {
   let entries
   try {
     entries = await readdir(args.cwd, { withFileTypes: true })
@@ -91,14 +88,14 @@ const addProjectLocals = async (args: { files: Record<string, string>; cwd: stri
 
   for (const entry of entries) {
     if (!entry.isFile() || !entry.name.endsWith(LOCAL_INSTRUCTION_SUFFIX)) continue
-    await addFile({ files: args.files, key: `project/${entry.name}`, path: join(args.cwd, entry.name) })
+    addFile({ sources: args.sources, key: `project/${entry.name}`, path: join(args.cwd, entry.name) })
   }
 }
 
-const overflowNotice = (bytes: number): void => {
+const overflowNotice = (args: { bytes: number; maxBytes: number }): void => {
   notify({
     key: CONTEXT_OVERFLOW_NOTICE_KEY,
-    text: `the cloud context bundle is ${mebibytes(bytes)}, over the ${mebibytes(MAX_CONTEXT_BUNDLE_BYTES)} limit — the cloud session lifts without the extra skills, memory and instructions this machine holds`,
+    text: `the cloud context archive is ${mebibytes(args.bytes)}, over the ${mebibytes(args.maxBytes)} limit — the cloud session lifts without the extra skills, memory and instructions this machine holds`,
     tone: ENoticeTone.Warn,
     ttlMs: NOTICE_WARN_MS,
   })
@@ -107,42 +104,42 @@ const overflowNotice = (bytes: number): void => {
 /**
  * The operator's user-level context — skill roots, global instructions, local MCP config, user
  * memory, and (when `cwd` names the repo being lifted) its project memory and gitignored
- * project-local instruction files — as a JSON map of relative path to base64 content. The serve
- * unpacks it into its own home and workspace, so a cloud thread sees the same context as this
- * machine. Everything committed to the repository rides the git transfer instead and is not
- * duplicated here. Returns undefined when there is nothing to carry, and — past the wire limit —
- * warns rather than silently dropping the lift's context.
+ * project-local instruction files — staged and packed into a `.tar.gz`. The serve unpacks it into
+ * its own home and workspace, so a cloud thread sees the same context as this machine. Everything
+ * committed to the repository rides the git transfer instead and is not duplicated here. Returns
+ * undefined when there is nothing to carry, and — past the sanity ceiling — warns rather than
+ * silently dropping the lift's context.
  */
-export async function captureContextBundle(args: {
+export async function captureContextArchive(args: {
   cwd?: string | undefined
   home?: string | undefined
   atlasHome?: string | undefined
-} = {}): Promise<string | undefined> {
+  maxArchiveBytes?: number | undefined
+} = {}): Promise<Buffer | undefined> {
   const home = args.home ?? homedir()
   const atlasHome = args.atlasHome ?? atlasDirectory()
-  const files: Record<string, string> = {}
+  const maxBytes = args.maxArchiveBytes ?? MAX_CONTEXT_ARCHIVE_BYTES
+  const sources: ArchiveFileSource[] = []
 
-  await addSkillRoots({ files, atlasHome, home })
-  await addFile({ files, key: '.atlas/ATLAS.md', path: join(atlasHome, 'ATLAS.md') })
-  await addFile({ files, key: '.atlas/mcp.json', path: join(atlasHome, 'mcp.json') })
+  await addSkillRoots({ sources, atlasHome, home })
+  addFile({ sources, key: '.atlas/ATLAS.md', path: join(atlasHome, 'ATLAS.md') })
+  addFile({ sources, key: '.atlas/mcp.json', path: join(atlasHome, 'mcp.json') })
   await addFlatMemoryDirectory({
-    files,
+    sources,
     directory: join(atlasHome, MEMORY_DIRECTORY_NAME),
     keyPrefix: `.atlas/${MEMORY_DIRECTORY_NAME}`,
   })
 
   if (args.cwd !== undefined) {
     const projectMemory = memoryDirectoriesFor({ atlasHome, repoRoot: args.cwd }).project
-    await addFlatMemoryDirectory({ files, directory: projectMemory, keyPrefix: 'project-memory' })
-    await addProjectLocals({ files, cwd: args.cwd })
+    await addFlatMemoryDirectory({ sources, directory: projectMemory, keyPrefix: 'project-memory' })
+    await addProjectLocals({ sources, cwd: args.cwd })
   }
 
-  if (Object.keys(files).length === 0) return undefined
+  const archive = await buildContextArchive({ files: sources })
+  if (archive === undefined) return undefined
+  if (archive.byteLength <= maxBytes) return archive
 
-  const bundle = JSON.stringify(files)
-  const bytes = Buffer.byteLength(bundle, 'utf8')
-  if (bytes <= MAX_CONTEXT_BUNDLE_BYTES) return bundle
-
-  overflowNotice(bytes)
+  overflowNotice({ bytes: archive.byteLength, maxBytes })
   return undefined
 }

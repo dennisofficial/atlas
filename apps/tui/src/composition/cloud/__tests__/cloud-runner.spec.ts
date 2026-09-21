@@ -1,13 +1,18 @@
-import { describe, expect, it } from 'bun:test'
+import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation, toRunId } from '@dltech/atlas-core'
 import { EChannelConnection, ETurnStatus } from '@dltech/atlas-harness'
 
+import { currentNotices, dismissNotice, ENoticeTone } from '../../../ui/notice-store'
 import type { ContainerMoveControl } from '../../use-container-move'
 import { createCloudRunner } from '../cloud-runner'
 import { ECloudSandboxState } from '../cloud-bridge'
 import { ELiftStep } from '../lift'
 import { CLOUD_THREAD, fakeBridge, fakeCloudChannel } from './fixture'
+
+beforeEach(() => {
+  dismissNotice()
+})
 
 type FakeMove = ContainerMoveControl & { readonly calls: readonly string[] }
 
@@ -36,20 +41,20 @@ describe('waking a cloud runner whose channel is not open', () => {
     const channel = fakeCloudChannel()
     channel.moveTo({ state: EChannelConnection.Closed, detail: null })
     const move = fakeMove()
+    const archive = Buffer.from('a fake tar.gz')
     const runner = createCloudRunner({
       bridge,
       channel,
       threadId: CLOUD_THREAD,
       move,
-      captureContext: async () => 'bundle-json',
+      captureContext: async () => archive,
     })
 
     const turn = runner.runTurn({ threadId: CLOUD_THREAD })
     await Bun.sleep(1)
 
-    expect(bridge.created).toEqual([
-      { threadId: CLOUD_THREAD, workspace: null, contextBundle: 'bundle-json' },
-    ])
+    expect(bridge.created).toEqual([{ threadId: CLOUD_THREAD, workspace: null }])
+    expect(bridge.contextPuts).toEqual([{ threadId: CLOUD_THREAD, archive }])
     expect(channel.woken).toEqual([{ url: POLLED_URL, token: 'sandbox-token' }])
     expect(move.calls).toEqual([
       `begin:${EExecutionLocation.Cloud}`,
@@ -80,6 +85,38 @@ describe('waking a cloud runner whose channel is not open', () => {
 
     channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-2') })
     await expect(turn).resolves.toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-2') })
+  })
+
+  it('warns rather than failing the wake when the context re-upload fails', async () => {
+    const bridge = fakeBridge({
+      status: { state: ECloudSandboxState.Running, url: POLLED_URL },
+      putContextFails: new Error('the control plane fell over'),
+    })
+    const channel = fakeCloudChannel()
+    channel.moveTo({ state: EChannelConnection.Closed, detail: null })
+    const move = fakeMove()
+    const archive = Buffer.from('a fake tar.gz')
+    const runner = createCloudRunner({
+      bridge,
+      channel,
+      threadId: CLOUD_THREAD,
+      move,
+      captureContext: async () => archive,
+    })
+
+    const turn = runner.runTurn({ threadId: CLOUD_THREAD })
+    await Bun.sleep(1)
+
+    expect(bridge.contextPuts).toEqual([{ threadId: CLOUD_THREAD, archive }])
+    expect(channel.woken).toEqual([{ url: POLLED_URL, token: 'sandbox-token' }])
+    expect(move.calls.some((call) => call.startsWith('fail:'))).toBe(false)
+    const notice = currentNotices().find((entry) => entry.key === 'wake-context-put-failed')
+    expect(notice).toBeDefined()
+    expect(notice?.tone).toBe(ENoticeTone.Warn)
+    expect(notice?.text).toContain('the control plane fell over')
+
+    channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-3') })
+    await expect(turn).resolves.toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-3') })
   })
 
   it('fails the move and propagates the error when waking cannot re-provision the sandbox', async () => {

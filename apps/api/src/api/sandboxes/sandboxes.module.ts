@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common'
+import { ContextArchiveModule } from '../context-archive/context-archive.module'
 import { GithubModule } from '../github/github.module'
+import { SandboxContextController } from './sandbox-context.controller'
 import { SandboxExposeController } from './expose.controller'
 import { SandboxHeartbeatController } from './heartbeat.controller'
 import { SandboxReaperService } from './sandbox-reaper.service'
@@ -12,8 +14,9 @@ import { VercelSandboxClient } from './vercel-sandbox.client'
 import { SandboxWorkspaceController } from './workspace.controller'
 
 @Module({
-  imports: [GithubModule],
+  imports: [ContextArchiveModule, GithubModule],
   controllers: [
+    SandboxContextController,
     SandboxesController,
     SandboxHeartbeatController,
     SandboxWorkspaceController,

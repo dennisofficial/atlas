@@ -28,6 +28,7 @@ export enum ELiftStep {
   Flipping = 'flipping',
   Capturing = 'capturing',
   Starting = 'starting',
+  UploadingContext = 'uploading-context',
   Attaching = 'attaching',
   Resuming = 'resuming',
 }
@@ -38,6 +39,7 @@ export enum ELiftFault {
   PatchTooLarge = 'patch-too-large',
   Transfer = 'transfer',
   Sandbox = 'sandbox',
+  Context = 'context',
 }
 
 export type LiftFailure = {
@@ -78,7 +80,7 @@ export type LiftArgs = {
   stopLocal: () => Promise<StoppedLocally>
   capture: (args: { cwd: string }) => Promise<LiftedWorkspace | null>
   /** The operator's user-level context, captured by the caller so a spec never touches the disk. */
-  contextBundle?: string | undefined
+  contextArchive?: Buffer | undefined
   onProgress: (step: ELiftStep) => void
 }
 
@@ -292,16 +294,23 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
   let sandbox: CloudSandbox
   let url: string
   try {
-    sandbox = await args.bridge.sandboxes.create({
-      threadId,
-      workspace,
-      ...(args.contextBundle === undefined ? {} : { contextBundle: args.contextBundle }),
-    })
+    sandbox = await args.bridge.sandboxes.create({ threadId, workspace })
     url = sandbox.url ?? (await waitForSandbox({ sandboxes: args.bridge.sandboxes, threadId })).url
   } catch (error) {
     await flipBack({ ...args, from })
     await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })
     return failureOf({ error, step: ELiftStep.Starting, fallback: ELiftFault.Sandbox, stopped })
+  }
+
+  onProgress(ELiftStep.UploadingContext)
+  if (args.contextArchive !== undefined) {
+    try {
+      await args.bridge.sandboxes.putContext({ threadId, archive: args.contextArchive })
+    } catch (error) {
+      await flipBack({ ...args, from })
+      await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })
+      return failureOf({ error, step: ELiftStep.UploadingContext, fallback: ELiftFault.Context, stopped })
+    }
   }
 
   await args.bridge.stores.log

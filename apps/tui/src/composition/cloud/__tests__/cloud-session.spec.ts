@@ -13,7 +13,11 @@ const sessionOn = (args: { status?: CloudSandboxStatus | undefined } = {}) => {
   const reloads: CloudReload[] = []
   const session = createCloudSession({
     channel,
-    sandboxes: { create: async () => ({ url: '', token: '', state: ECloudSandboxState.Running }), find: async () => args.status },
+    sandboxes: {
+      create: async () => ({ url: '', token: '', state: ECloudSandboxState.Running }),
+      putContext: async () => undefined,
+      find: async () => args.status,
+    },
     onReload: (reload) => reloads.push(reload),
   })
 

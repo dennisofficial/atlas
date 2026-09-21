@@ -25,6 +25,7 @@ describe('the steps a move narrates', () => {
       ELiftStep.Flipping,
       ELiftStep.Capturing,
       ELiftStep.Starting,
+      ELiftStep.UploadingContext,
       ELiftStep.Attaching,
     ])
   })
@@ -51,6 +52,7 @@ describe('the steps a move narrates', () => {
       EStepMark.Pending,
       EStepMark.Pending,
       EStepMark.Pending,
+      EStepMark.Pending,
     ])
     expect(move.startedAt).toBe(STARTED_AT)
     expect(move.activeSince).toBe(STARTED_AT)
@@ -70,6 +72,7 @@ describe('advancing through a move', () => {
       EStepMark.Done,
       EStepMark.Done,
       EStepMark.Active,
+      EStepMark.Pending,
       EStepMark.Pending,
     ])
     expect(move.activeSince).toBe(STARTED_AT + 4_000)
@@ -91,6 +94,7 @@ describe('a move that does not finish', () => {
       EStepMark.Done,
       EStepMark.Failed,
       EStepMark.Pending,
+      EStepMark.Pending,
     ])
     expect(move.failure).toBe('no capacity in iad1')
   })
@@ -105,13 +109,14 @@ describe('the heading over the steps', () => {
 })
 
 describe('the plan a cloud lift narrates', () => {
-  it('is the plain six steps when nothing was running', () => {
+  it('is the plain seven steps when nothing was running', () => {
     expect(cloudLiftPlan({ midTurn: false })).toEqual([
       ELiftStep.Stopping,
       ELiftStep.Transferring,
       ELiftStep.Flipping,
       ELiftStep.Capturing,
       ELiftStep.Starting,
+      ELiftStep.UploadingContext,
       ELiftStep.Attaching,
     ])
   })
@@ -124,6 +129,7 @@ describe('the plan a cloud lift narrates', () => {
       ELiftStep.Flipping,
       ELiftStep.Capturing,
       ELiftStep.Starting,
+      ELiftStep.UploadingContext,
       ELiftStep.Attaching,
       ELiftStep.Resuming,
     ])

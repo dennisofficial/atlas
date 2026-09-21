@@ -1,21 +1,27 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { MAX_CONTEXT_BUNDLE_BYTES, memoryDirectoriesFor } from '@dltech/atlas-harness'
+import { extractContextArchive, memoryDirectoriesFor } from '@dltech/atlas-harness'
 
-import { captureContextBundle } from '../context-bundle'
+import { captureContextArchive } from '../context-archive'
 import { currentNotices, dismissNotice, ENoticeTone } from '../../../ui/notice-store'
 
 const freshDirectory = async (prefix: string): Promise<string> => mkdtemp(join(tmpdir(), prefix))
 
-const decode = (bundle: string): Record<string, string> => {
-  const entries = JSON.parse(bundle) as Record<string, string>
-  return Object.fromEntries(
-    Object.entries(entries).map(([path, base64]) => [path, Buffer.from(base64, 'base64').toString('utf8')]),
-  )
+const decode = async (archive: Buffer): Promise<Record<string, string>> => {
+  const extracted = await extractContextArchive({ archive })
+  try {
+    const decoded: Record<string, string> = {}
+    for (const entry of extracted.entries) {
+      decoded[entry.key] = (await readFile(entry.path)).toString('utf8')
+    }
+    return decoded
+  } finally {
+    await extracted.cleanup()
+  }
 }
 
 const writeUnder = async (args: { directory: string; name: string; content: string }): Promise<void> => {
@@ -28,12 +34,12 @@ beforeEach(() => {
   dismissNotice()
 })
 
-describe('captureContextBundle', () => {
+describe('captureContextArchive', () => {
   it('returns undefined when there is nothing on this machine to carry', async () => {
     const home = await freshDirectory('atlas-context-home-')
     const atlasHome = await freshDirectory('atlas-context-atlashome-')
 
-    await expect(captureContextBundle({ home, atlasHome })).resolves.toBeUndefined()
+    await expect(captureContextArchive({ home, atlasHome })).resolves.toBeUndefined()
   })
 
   it('carries the operator’s user-level skill roots', async () => {
@@ -50,10 +56,10 @@ describe('captureContextBundle', () => {
       content: '# explore',
     })
 
-    const bundle = await captureContextBundle({ home, atlasHome })
+    const bundle = await captureContextArchive({ home, atlasHome })
     if (bundle === undefined) throw new Error('expected a bundle')
 
-    expect(decode(bundle)).toEqual({
+    expect(await decode(bundle)).toEqual({
       '.atlas/skills/review/SKILL.md': '# review',
       '.agents/skills/explore/SKILL.md': '# explore',
     })
@@ -65,10 +71,10 @@ describe('captureContextBundle', () => {
     await writeFile(join(atlasHome, 'ATLAS.md'), '# global instructions', 'utf8')
     await writeFile(join(atlasHome, 'mcp.json'), '{"mcpServers":{}}', 'utf8')
 
-    const bundle = await captureContextBundle({ home, atlasHome })
+    const bundle = await captureContextArchive({ home, atlasHome })
     if (bundle === undefined) throw new Error('expected a bundle')
 
-    expect(decode(bundle)).toEqual({
+    expect(await decode(bundle)).toEqual({
       '.atlas/ATLAS.md': '# global instructions',
       '.atlas/mcp.json': '{"mcpServers":{}}',
     })
@@ -85,10 +91,10 @@ describe('captureContextBundle', () => {
       content: '# someone else’s project memory',
     })
 
-    const bundle = await captureContextBundle({ home, atlasHome })
+    const bundle = await captureContextArchive({ home, atlasHome })
     if (bundle === undefined) throw new Error('expected a bundle')
 
-    expect(decode(bundle)).toEqual({
+    expect(await decode(bundle)).toEqual({
       '.atlas/memory/MEMORY.md': '# user memory',
       '.atlas/memory/topic.md': '# a topic',
     })
@@ -99,10 +105,10 @@ describe('captureContextBundle', () => {
     const atlasHome = await freshDirectory('atlas-context-atlashome-')
     await writeFile(join(atlasHome, 'ATLAS.md'), '# global instructions', 'utf8')
 
-    const bundle = await captureContextBundle({ home, atlasHome })
+    const bundle = await captureContextArchive({ home, atlasHome })
     if (bundle === undefined) throw new Error('expected a bundle')
 
-    expect(Object.keys(decode(bundle))).toEqual(['.atlas/ATLAS.md'])
+    expect(Object.keys(await decode(bundle))).toEqual(['.atlas/ATLAS.md'])
   })
 
   it('carries this repo’s project memory, keyed by the Mac-side project memory directory', async () => {
@@ -112,10 +118,10 @@ describe('captureContextBundle', () => {
     const projectMemory = memoryDirectoriesFor({ atlasHome, repoRoot: cwd }).project
     await writeUnder({ directory: projectMemory, name: 'MEMORY.md', content: '# project memory' })
 
-    const bundle = await captureContextBundle({ home, atlasHome, cwd })
+    const bundle = await captureContextArchive({ home, atlasHome, cwd })
     if (bundle === undefined) throw new Error('expected a bundle')
 
-    expect(decode(bundle)).toEqual({ 'project-memory/MEMORY.md': '# project memory' })
+    expect(await decode(bundle)).toEqual({ 'project-memory/MEMORY.md': '# project memory' })
   })
 
   it('carries gitignored *.local.md instruction files at the repo root, but nothing nested', async () => {
@@ -127,21 +133,42 @@ describe('captureContextBundle', () => {
     await writeFile(join(cwd, 'nested', 'CLAUDE.local.md'), '# not at the root', 'utf8')
     await writeFile(join(cwd, 'README.md'), '# not local', 'utf8')
 
-    const bundle = await captureContextBundle({ home, atlasHome, cwd })
+    const bundle = await captureContextArchive({ home, atlasHome, cwd })
     if (bundle === undefined) throw new Error('expected a bundle')
 
-    expect(decode(bundle)).toEqual({ 'project/ATLAS.local.md': '# only on this machine' })
+    expect(await decode(bundle)).toEqual({ 'project/ATLAS.local.md': '# only on this machine' })
   })
 
-  it('warns and returns undefined rather than silently dropping an oversized bundle', async () => {
+  it('preserves the source mtime through the archive, within tar’s one-second granularity', async () => {
     const home = await freshDirectory('atlas-context-home-')
     const atlasHome = await freshDirectory('atlas-context-atlashome-')
-    await writeFile(join(atlasHome, 'ATLAS.md'), Buffer.alloc(MAX_CONTEXT_BUNDLE_BYTES + 1, 'x'))
+    const source = join(atlasHome, 'ATLAS.md')
+    await writeFile(source, '# global instructions', 'utf8')
+    const sourceMtimeMs = (await stat(source)).mtimeMs
 
-    const bundle = await captureContextBundle({ home, atlasHome })
+    const bundle = await captureContextArchive({ home, atlasHome })
+    if (bundle === undefined) throw new Error('expected a bundle')
+
+    const extracted = await extractContextArchive({ archive: bundle })
+    try {
+      const entry = extracted.entries.find((candidate) => candidate.key === '.atlas/ATLAS.md')
+      if (entry === undefined) throw new Error('expected the archive to carry ATLAS.md')
+      expect(Math.abs(entry.mtimeMs - sourceMtimeMs)).toBeLessThan(1_000)
+    } finally {
+      await extracted.cleanup()
+    }
+  })
+
+  it('warns and returns undefined rather than silently dropping an oversized archive', async () => {
+    const home = await freshDirectory('atlas-context-home-')
+    const atlasHome = await freshDirectory('atlas-context-atlashome-')
+    // Random bytes so gzip cannot compress the payload back under the tiny test ceiling.
+    await writeFile(join(atlasHome, 'ATLAS.md'), crypto.getRandomValues(new Uint8Array(4_096)))
+
+    const bundle = await captureContextArchive({ home, atlasHome, maxArchiveBytes: 1_024 })
 
     expect(bundle).toBeUndefined()
-    const overflow = currentNotices().find((notice) => notice.key === 'context-bundle-overflow')
+    const overflow = currentNotices().find((notice) => notice.key === 'context-archive-overflow')
     expect(overflow).toBeDefined()
     expect(overflow?.tone).toBe(ENoticeTone.Warn)
     expect(overflow?.text).toContain('over the')

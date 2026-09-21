@@ -1,14 +1,13 @@
 import { z } from 'zod'
 
-import { cloudRequest } from './cloud-transport'
+import { CloudTransport } from './cloud-transport'
 
 const memoryBundleSchema = z.object({ bundle: z.string().nullable() })
 
+const GZIP_ACCEPT = 'application/gzip'
+
 export class UserContextClient {
-  private readonly url: string
-  private readonly token: string
-  private readonly clientVersion: string
-  private readonly fetchFn: typeof fetch
+  private readonly transport: CloudTransport
 
   constructor(args: {
     url: string
@@ -16,10 +15,7 @@ export class UserContextClient {
     clientVersion?: string | undefined
     fetchFn?: typeof fetch | undefined
   }) {
-    this.url = args.url.replace(/\/+$/, '')
-    this.token = args.token
-    this.clientVersion = args.clientVersion ?? 'dev'
-    this.fetchFn = args.fetchFn ?? fetch
+    this.transport = new CloudTransport(args)
   }
 
   async readMemoryBundle(): Promise<string | null> {
@@ -31,15 +27,26 @@ export class UserContextClient {
     await this.request({ method: 'PUT', path: '/v1/user-context/memory', body: { bundle } })
   }
 
-  private request(args: { method: string; path: string; body?: unknown }): Promise<unknown> {
-    return cloudRequest({
-      url: this.url,
-      token: this.token,
-      clientVersion: this.clientVersion,
-      fetchFn: this.fetchFn,
-      method: args.method,
-      path: args.path,
-      ...(args.body === undefined ? {} : { body: args.body }),
+  /** `null` when nothing has ever synced as an archive \u2014 the caller falls back to the JSON bundle. */
+  async readMemoryArchive(): Promise<Uint8Array | null> {
+    return this.transport.rawRequest({
+      method: 'GET',
+      path: '/v1/user-context/memory',
+      accept: GZIP_ACCEPT,
+      allowMissing: true,
     })
+  }
+
+  async writeMemoryArchive(archive: Uint8Array): Promise<void> {
+    await this.transport.rawRequest({
+      method: 'PUT',
+      path: '/v1/user-context/memory',
+      body: archive,
+      contentType: GZIP_ACCEPT,
+    })
+  }
+
+  private request(args: { method: string; path: string; body?: unknown }): Promise<unknown> {
+    return this.transport.request(args)
   }
 }
