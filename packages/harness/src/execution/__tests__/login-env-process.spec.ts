@@ -77,6 +77,17 @@ describe('LoginEnvProcessPort', () => {
     expect(inner.spawned[0]?.env?.[LOGIN_ENV_MARKER]).toBeUndefined()
   })
 
+  it('quiets fnm chatter, overriding the FNM_LOGLEVEL=info fnm itself exports into every shell', () => {
+    const inner = new RecordingProcesses()
+    const port = new LoginEnvProcessPort(inner)
+
+    withShell('/bin/zsh', () =>
+      port.spawn({ ...markedShellCommand, env: { ...markedShellCommand.env, FNM_LOGLEVEL: 'info' } }),
+    )
+
+    expect(inner.spawned[0]?.env?.FNM_LOGLEVEL).toBe('quiet')
+  })
+
   it('gives bash login-only flags, because bash -i without a tty prints job-control noise', () => {
     const inner = new RecordingProcesses()
     const port = new LoginEnvProcessPort(inner)
