@@ -9,6 +9,7 @@ import {
   ESettingId,
   EUtilityModelRole,
   IdPort,
+  DecisionPort,
   JudgePort,
   ModelPort,
   NOTICE_WARN_MS,
@@ -36,6 +37,8 @@ import {
 import type { HookMishap } from '../hooks/budget'
 import { HaikuJudge } from '../classifier/judge'
 import { decisionsConfigFrom, RoutedJudge } from '../classifier/routed-judge'
+import { JevDecisionClient } from '../classifier/jev-client'
+import { JevJudge } from '../classifier/jev-judge'
 import { FileBrowser } from '../files/file-browser'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import { summaryFor } from '../model/summariser'
@@ -214,6 +217,10 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     agentTypeModelDefinitions({ typeNames: agentTypes.types.map((type) => type.name) }),
   )
 
+  const decisionsConfig = decisionsConfigFrom({ settings, secrets })
+  const decisions = new JevDecisionClient({ config: decisionsConfig })
+  container.register(portToken(DecisionPort), { useValue: decisions })
+
   container.register(portToken(JudgePort), {
     useValue: new RoutedJudge({
       fallback: new HaikuJudge({
@@ -224,7 +231,8 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
           notice,
         }),
       }),
-      config: decisionsConfigFrom({ settings, secrets }),
+      jev: new JevJudge({ decisions }),
+      enabled: () => decisionsConfig() !== undefined,
     }),
   })
 
