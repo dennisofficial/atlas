@@ -14,6 +14,7 @@ export type SubagentReadout = {
 export type SidebarSubagent = SubagentReadout & {
   id: string
   name: string
+  agentType?: string | undefined
   state: string
   model: string | null
   context?: ChildContext | undefined
@@ -148,6 +149,7 @@ export function subagentRows(args: {
       ...readout,
       id: snapshot.agentId,
       name: subagentLabel(snapshot),
+      agentType: snapshot.agentType,
       state: subagentStateLabel({ subagent: readout, now: args.now }),
       model:
         snapshot.model === undefined

@@ -218,6 +218,7 @@ describe("a child's tools", () => {
       'agent_resume',
       'agent_list',
       'agent_stop',
+      'teammate_message',
     ])
     expect(spawned.model.doStreamCalls[0]?.tools?.map((tool) => tool.name)).toEqual(['read'])
   })
@@ -235,9 +236,9 @@ describe("a child's tools", () => {
     const events = await spawned.harness.log.read({ threadId: spawned.agentId })
     const results = events.filter((event) => event.type === 'tool-result')
     expect(results).toHaveLength(AGENT_TOOL_NAMES.length)
-    for (const result of results) {
+    for (const [index, result] of results.entries()) {
       expect(result.type === 'tool-result' ? result.error?.message : '').toMatch(
-        /no tool named "agent_\w+" is registered/,
+        new RegExp(`no tool named "${AGENT_TOOL_NAMES[index]}" is registered`),
       )
     }
     expect(invoked).toEqual([])

@@ -4,6 +4,7 @@ import {
   EAgentStatus,
   type AssistantPart,
   type EKilledBy,
+  type EMessageOrigin,
   type EventDraft,
   type ProviderIdentity,
   type RosteredAgent,
@@ -34,7 +35,11 @@ export type ChildState = {
   projectDirectory: string | undefined
 }
 
-export type SteerMessage = { text: string; images?: readonly SaidImage[] | undefined }
+export type SteerMessage = {
+  text: string
+  images?: readonly SaidImage[] | undefined
+  via?: EMessageOrigin | undefined
+}
 
 export const isStepping = (child: ChildState): boolean => child.status === EAgentStatus.Running
 

@@ -4,6 +4,7 @@ import { modelsWorthOffering, offerSentence } from './model-offer'
 import {
   AGENT_SPAWN_TOOL_NAME,
   EAgentTypeRefusal,
+  isTeammateType,
   type AgentType,
   type AgentTypeRefusal,
   type AgentTypeSource,
@@ -35,11 +36,15 @@ const anyModelWhenNoneWereNamed = (
 ): ModelIsUsable =>
   reachableModelIds === undefined ? () => true : (modelId) => reachableModelIds.includes(modelId)
 
-const withoutSelfSpawn = (agentType: AgentType): AgentType => ({
-  ...agentType,
-  tools: agentType.tools?.filter((tool) => tool !== AGENT_SPAWN_TOOL_NAME),
-  disallowedTools: [...new Set([...(agentType.disallowedTools ?? []), AGENT_SPAWN_TOOL_NAME])],
-})
+const withoutSelfSpawn = (agentType: AgentType): AgentType => {
+  if (isTeammateType(agentType.name)) return agentType
+
+  return {
+    ...agentType,
+    tools: agentType.tools?.filter((tool) => tool !== AGENT_SPAWN_TOOL_NAME),
+    disallowedTools: [...new Set([...(agentType.disallowedTools ?? []), AGENT_SPAWN_TOOL_NAME])],
+  }
+}
 
 function unusableModelDetail(args: { modelId: string; reachable: readonly string[] }): string {
   return [

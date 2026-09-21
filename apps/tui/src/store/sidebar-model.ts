@@ -12,6 +12,7 @@ import {
 
 import {
   EShellStatus,
+  TEAMMATE_AGENT_TYPE,
   type BoundPort,
   type SandboxContainer,
   type SandboxLimits,
@@ -221,6 +222,18 @@ export function withCrew(args: {
   if (fold === undefined || fold.hidden === 0) return { ...model, subagents };
 
   return { ...model, subagents, crewFold: fold };
+}
+
+export type CrewTiers = {
+  teammates: readonly SidebarSubagent[];
+  subagents: readonly SidebarSubagent[];
+};
+
+export function crewTiersOf(subagents: readonly SidebarSubagent[]): CrewTiers {
+  return {
+    teammates: subagents.filter((subagent) => subagent.agentType === TEAMMATE_AGENT_TYPE),
+    subagents: subagents.filter((subagent) => subagent.agentType !== TEAMMATE_AGENT_TYPE),
+  };
 }
 
 export function withSections(args: {

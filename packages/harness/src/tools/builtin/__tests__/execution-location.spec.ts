@@ -275,4 +275,51 @@ describe('execution_location', () => {
     const stored = await fixture.threads.find({ threadId: parent })
     expect(stored?.executionLocation).toBe(EExecutionLocation.Docker)
   })
+
+  it('treats a teammate as its own family root, never reaching up to main', async () => {
+    const control = controlOver({ initial: EExecutionLocation.Host })
+    const agents = new FakeAgents()
+    const { tool, fixture } = await open({ control, agents })
+    const main = (await fixture.threads.create({})).id
+    const teammate = (
+      await fixture.threads.create({ agent: { spawnedBy: main, type: 'teammate' } })
+    ).id
+
+    const outcome = await call(tool, { threadId: teammate, location: 'docker' })
+
+    expect(outcome.ok).toBe(true)
+    expect(control.state.of(teammate)).toBe(EExecutionLocation.Docker)
+    expect(control.state.of(main)).toBeUndefined()
+    expect(agents.relocations).toEqual([
+      { threadId: teammate, location: EExecutionLocation.Docker, caller: teammate },
+    ])
+    const teammateStored = await fixture.threads.find({ threadId: teammate })
+    expect(teammateStored?.executionLocation).toBe(EExecutionLocation.Docker)
+    const mainStored = await fixture.threads.find({ threadId: main })
+    expect(mainStored?.executionLocation).toBeUndefined()
+  })
+
+  it("stops at the teammate that owns the family when the teammate's own sub-agent calls it", async () => {
+    const control = controlOver({ initial: EExecutionLocation.Host })
+    const agents = new FakeAgents()
+    const { tool, fixture } = await open({ control, agents })
+    const main = (await fixture.threads.create({})).id
+    const teammate = (
+      await fixture.threads.create({ agent: { spawnedBy: main, type: 'teammate' } })
+    ).id
+    const subAgent = (
+      await fixture.threads.create({ agent: { spawnedBy: teammate, type: 'explore' } })
+    ).id
+
+    const outcome = await call(tool, { threadId: subAgent, location: 'docker' })
+
+    expect(outcome.ok).toBe(true)
+    expect(control.state.of(teammate)).toBe(EExecutionLocation.Docker)
+    expect(control.state.of(main)).toBeUndefined()
+    expect(agents.relocations).toEqual([
+      { threadId: teammate, location: EExecutionLocation.Docker, caller: subAgent },
+    ])
+    const mainStored = await fixture.threads.find({ threadId: main })
+    expect(mainStored?.executionLocation).toBeUndefined()
+  })
 })

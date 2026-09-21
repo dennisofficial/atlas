@@ -141,7 +141,7 @@ describe('viewing a sub-agent', () => {
 
       const after = setup.captureCharFrame()
       expect(after).toContain('the parent')
-      expect(after).toContain('SUBAGENTS  1/1')
+      expect(after).toContain('SUB-AGENTS  1/1')
       expect(after).toContain(CHILD_INTENT)
     } finally {
       await teardown(setup)
@@ -466,7 +466,7 @@ describe('reaching a sub-agent without the mouse', () => {
 
       const before = setup.captureCharFrame()
       expect(before).toContain(CHILD_SAID)
-      expect(before).toContain('SUBAGENTS  1/1')
+      expect(before).toContain('SUB-AGENTS  1/1')
       expect(app.agents.stopped).toEqual([])
 
       setup.mockInput.pressEscape()
@@ -476,7 +476,7 @@ describe('reaching a sub-agent without the mouse', () => {
 
       expect(app.agents.stopped).toEqual([{ agentId: CHILD, by: EKilledBy.User }])
       const after = setup.captureCharFrame()
-      expect(after).toContain('SUBAGENTS  0/1')
+      expect(after).toContain('SUB-AGENTS  0/1')
       expect(after).toContain('stopped')
     } finally {
       await teardown(setup)

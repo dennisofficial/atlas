@@ -33,6 +33,7 @@ import { withDeltaPublishing } from '../channel/publishing-event-log'
 import { PublishingTurnRunner } from '../channel/publishing-turn-runner'
 import type { ChildRunnerDeps } from '../agents/registry/child-runner'
 import { subAgentPrompt } from '../agents/registry/child-prompt'
+import { isTeammateType } from '../agents/types'
 import { AgentRegistryPort } from '../agents/registry/port'
 import { childModelSource } from './model-bindings'
 import { ChildRunnerDepsToken } from '../container/create-harness-container'
@@ -263,6 +264,7 @@ export function wireTurn<Command>(args: {
             subAgentPrompt({
               prompts,
               agentType,
+              agent: isTeammateType(agentType.name) ? EPromptAgent.Main : EPromptAgent.Sub,
               provider: modelPort.identity,
               model: promptModelOf(
                 cardPinnedTo(

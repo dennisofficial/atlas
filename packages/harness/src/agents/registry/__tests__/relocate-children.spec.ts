@@ -102,7 +102,7 @@ const open = async (args?: {
       threads: harness.threads,
       ids: harness.ids,
       clock: harness.clock,
-      agentTypes: [agentTypeNamed({ name: 'explore' })],
+      agentTypes: [agentTypeNamed({ name: 'explore' }), agentTypeNamed({ name: 'teammate' })],
       runners:
         args?.runners === undefined
           ? recordingRunners(order, started)
@@ -130,6 +130,17 @@ const spawnChild = async (entry: Opened, threadId: ThreadId): Promise<ThreadId> 
     agentType: 'explore',
     brief: 'look around',
     intent: 'a look around',
+  })
+  if (!outcome.ok) throw new Error(outcome.reason)
+  return outcome.snapshot.agentId
+}
+
+const spawnTeammate = async (entry: Opened, threadId: ThreadId): Promise<ThreadId> => {
+  const outcome = await entry.supervisor.spawn({
+    threadId,
+    agentType: 'teammate',
+    brief: 'own this workstream',
+    intent: 'own this workstream',
   })
   if (!outcome.ok) throw new Error(outcome.reason)
   return outcome.snapshot.agentId
@@ -241,6 +252,115 @@ describe("relocating one thread's children", () => {
 
     runOf(entry, mine, 'resume').settle(finished())
     await settled()
+  })
+})
+
+describe('relocating a thread that owns a teammate alongside a sub-agent', () => {
+  it('moves the sub-agent but leaves an idle teammate at its stored location', async () => {
+    const entry = await open()
+    opened.push(entry)
+    const subAgentId = await spawnChild(entry, entry.parent)
+    runOf(entry, subAgentId, 'run').settle(finished())
+    await settled()
+    const teammateId = await spawnTeammate(entry, entry.parent)
+    runOf(entry, teammateId, 'run').settle(finished())
+    await settled()
+
+    await entry.supervisor.relocateChildren({
+      threadId: entry.parent,
+      location: EExecutionLocation.Docker,
+    })
+
+    expect(entry.order).toContain(`append:${subAgentId}:location-changed`)
+    expect(entry.order).not.toContain(`append:${teammateId}:location-changed`)
+    expect(entry.sink.noted).toEqual([
+      { threadId: subAgentId, location: EExecutionLocation.Docker },
+    ])
+
+    const subAgentStored = await entry.harness.threads.find({ threadId: subAgentId })
+    expect(subAgentStored?.executionLocation).toBe(EExecutionLocation.Docker)
+
+    const teammateStored = await entry.harness.threads.find({ threadId: teammateId })
+    expect(teammateStored?.executionLocation).toBeUndefined()
+  })
+
+  it('does not stop or resume a teammate that is mid-turn when its spawner relocates', async () => {
+    const entry = await open()
+    opened.push(entry)
+    const teammateId = await spawnTeammate(entry, entry.parent)
+
+    const relocating = entry.supervisor.relocateChildren({
+      threadId: entry.parent,
+      location: EExecutionLocation.Docker,
+    })
+    runOf(entry, teammateId, 'run').settle(finished())
+    await relocating
+
+    expect(entry.order).not.toContain(`abort:${teammateId}`)
+    expect(entry.order).not.toContain(`resume:${teammateId}`)
+    expect(entry.order).not.toContain(`note:${teammateId}:${EExecutionLocation.Docker}`)
+
+    const stored = await entry.harness.threads.find({ threadId: teammateId })
+    expect(stored?.executionLocation).toBeUndefined()
+
+    const snapshot = entry.supervisor
+      .list({ threadId: entry.parent })
+      .find((one) => one.agentId === teammateId)
+    expect(snapshot?.status).toBe(EAgentStatus.Finished)
+  })
+
+  it('does not wait for a mid-turn teammate it left running — the relocation completes without it settling', async () => {
+    const entry = await open()
+    opened.push(entry)
+    const teammateId = await spawnTeammate(entry, entry.parent)
+
+    await entry.supervisor.relocateChildren({
+      threadId: entry.parent,
+      location: EExecutionLocation.Docker,
+    })
+
+    const snapshot = entry.supervisor
+      .list({ threadId: entry.parent })
+      .find((one) => one.agentId === teammateId)
+    expect(snapshot?.status).toBe(EAgentStatus.Running)
+
+    runOf(entry, teammateId, 'run').settle(finished())
+    await settled()
+  })
+})
+
+describe("relocating a teammate's own children", () => {
+  it("moves the teammate's sub-agent while leaving main and a sibling teammate untouched", async () => {
+    const entry = await open()
+    opened.push(entry)
+    const teammateId = await spawnTeammate(entry, entry.parent)
+    runOf(entry, teammateId, 'run').settle(finished())
+    await settled()
+    const siblingTeammateId = await spawnTeammate(entry, entry.parent)
+    runOf(entry, siblingTeammateId, 'run').settle(finished())
+    await settled()
+
+    const teammateSubAgentId = await spawnChild(entry, teammateId)
+    runOf(entry, teammateSubAgentId, 'run').settle(finished())
+    await settled()
+
+    await entry.supervisor.relocateChildren({
+      threadId: teammateId,
+      location: EExecutionLocation.Docker,
+    })
+
+    expect(entry.sink.noted).toEqual([
+      { threadId: teammateSubAgentId, location: EExecutionLocation.Docker },
+    ])
+
+    const subStored = await entry.harness.threads.find({ threadId: teammateSubAgentId })
+    expect(subStored?.executionLocation).toBe(EExecutionLocation.Docker)
+
+    const siblingStored = await entry.harness.threads.find({ threadId: siblingTeammateId })
+    expect(siblingStored?.executionLocation).toBeUndefined()
+
+    const mainStored = await entry.harness.threads.find({ threadId: entry.parent })
+    expect(mainStored?.executionLocation).toBeUndefined()
   })
 })
 

@@ -65,6 +65,7 @@ describe('the harness container graph', () => {
       'skill',
       'skill_install',
       'task_write',
+      'teammate_message',
       'web_fetch',
       'web_search',
       'worktree_list',

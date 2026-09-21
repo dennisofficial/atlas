@@ -2,12 +2,13 @@ import { EAgentStatus, toThreadId, type ProviderIdentity } from '@dltech/atlas-c
 import type { AgentSnapshot } from '@dltech/atlas-harness'
 import { describe, expect, it } from 'bun:test'
 
-import { deriveSidebar, withCrew } from '../sidebar-model'
+import { crewTiersOf, deriveSidebar, withCrew } from '../sidebar-model'
 import {
   subagentContextLabel,
   subagentElapsedMs,
   subagentRows,
   subagentStateLabel,
+  type SidebarSubagent,
   type SubagentReadout,
 } from '../subagent-row'
 import { IDLE_TURN } from '../../ui/turn-clock'
@@ -201,5 +202,40 @@ describe('merging the crew into a sidebar', () => {
     expect(subagentContextLabel(row?.context)).toBe('68.0k')
     expect(merged.spend).toBe(parent.spend)
     expect(Object.keys(merged).filter((field) => !(field in parent))).toEqual(['subagents'])
+  })
+})
+
+describe('grouping the crew into tiers', () => {
+  it('sorts a mixed roster into teammates and sub-agents by agentType', () => {
+    const mixed = subagentRows({
+      snapshots: [
+        snapshot({ agentId: toThreadId('thr_a'), agentType: 'teammate' }),
+        snapshot({ agentId: toThreadId('thr_b'), agentType: 'explore' }),
+      ],
+      now: NOW,
+    })
+
+    const tiers = crewTiersOf(mixed)
+
+    expect(tiers.teammates.map((row) => row.id)).toEqual(['thr_a'])
+    expect(tiers.subagents.map((row) => row.id)).toEqual(['thr_b'])
+  })
+
+  it('reads a row with no agentType as a sub-agent rather than dropping it', () => {
+    const untyped: SidebarSubagent = {
+      id: 'thr_untyped',
+      name: 'vault audit',
+      status: EAgentStatus.Running,
+      startedAt: STARTED,
+      endedAt: null,
+      state: '1m 4s',
+      model: null,
+      selected: false,
+    }
+
+    const tiers = crewTiersOf([untyped])
+
+    expect(tiers.teammates).toEqual([])
+    expect(tiers.subagents).toEqual([untyped])
   })
 })

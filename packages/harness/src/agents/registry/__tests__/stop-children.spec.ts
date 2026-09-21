@@ -58,7 +58,7 @@ const open = async (): Promise<Opened> => {
       threads: harness.threads,
       ids: harness.ids,
       clock: harness.clock,
-      agentTypes: [agentTypeNamed({ name: 'explore' })],
+      agentTypes: [agentTypeNamed({ name: 'explore' }), agentTypeNamed({ name: 'teammate' })],
       runners: abortAwareRunners(started),
       launchDirectory: '/launch',
     }),
@@ -82,6 +82,17 @@ const spawnChild = async (args: { entry: Opened; threadId: ThreadId }): Promise<
     agentType: 'explore',
     brief: 'look around',
     intent: 'a look around',
+  })
+  if (!outcome.ok) throw new Error(outcome.reason)
+  return outcome.snapshot.agentId
+}
+
+const spawnTeammate = async (args: { entry: Opened; threadId: ThreadId }): Promise<ThreadId> => {
+  const outcome = await args.entry.supervisor.spawn({
+    threadId: args.threadId,
+    agentType: 'teammate',
+    brief: 'own this workstream',
+    intent: 'own this workstream',
   })
   if (!outcome.ok) throw new Error(outcome.reason)
   return outcome.snapshot.agentId
@@ -155,5 +166,24 @@ describe("stopping a thread's stepping children", () => {
       .listEverywhere()
       .find((one) => one.agentId === theirs)
     expect(theirSnapshot?.killedBy).toBeUndefined()
+  })
+
+  it('still stops a stepping teammate, since teardown is where the session owns teammate lifecycle', async () => {
+    const entry = await open()
+    opened.push(entry)
+    const teammateId = await spawnTeammate({ entry, threadId: entry.parent })
+
+    const stopped = await entry.supervisor.stopChildren({
+      threadId: entry.parent,
+      by: EKilledBy.SessionEnd,
+    })
+
+    expect(stopped).toEqual([teammateId])
+
+    const snapshot = entry.supervisor
+      .list({ threadId: entry.parent })
+      .find((one) => one.agentId === teammateId)
+    expect(snapshot?.status).toBe(EAgentStatus.Stopped)
+    expect(snapshot?.killedBy).toBe(EKilledBy.SessionEnd)
   })
 })

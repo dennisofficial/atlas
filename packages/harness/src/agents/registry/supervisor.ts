@@ -13,7 +13,7 @@ import {
 } from '@dltech/atlas-core'
 
 import type { ThreadStorePort } from '../../store'
-import type { AgentType } from '../types'
+import { isTeammateType, type AgentType } from '../types'
 import { ChildSteps } from './child-steps'
 import { agentTypeNamed, type SupervisorDeps } from './deps'
 import { freshChild, isStepping, snapshotOf, type ChildState } from './child-state'
@@ -35,9 +35,11 @@ import {
   alreadyStepping,
   EMPTY_BRIEF,
   retiredAgentType,
+  TEAMMATE_FROM_MAIN_ONLY,
   unknownAgent,
   unknownAgentType,
 } from './reasons'
+import { say, sayToPeer } from './say'
 import { AgentRoster } from './roster'
 import type { AgentSnapshot, RecoveredAgents } from './snapshot'
 import { stopAllChildren, stopChild } from './stop-all'
@@ -106,6 +108,11 @@ export class AgentSupervisor extends AgentRegistryPort {
     }
     if (brief.trim() === '') return { ok: false, reason: EMPTY_BRIEF }
 
+    if (isTeammateType(type.name)) {
+      const caller = await this.threads.find({ threadId })
+      if (caller?.agent !== undefined) return { ok: false, reason: TEAMMATE_FROM_MAIN_ONLY }
+    }
+
     const { threadId: agentId, inheritedLocation } = await openChildThread({
       threads: this.threads,
       log: this.log,
@@ -137,56 +144,42 @@ export class AgentSupervisor extends AgentRegistryPort {
     return { ok: true, snapshot: snapshotOf(child) }
   }
 
-  async say({
-    agentId,
-    threadId,
-    text,
-    images,
-  }: {
+  say(args: {
     agentId: ThreadId
     threadId: ThreadId
     text: string
     images?: readonly SaidImage[] | undefined
   }): Promise<AgentOutcome> {
-    const child = this.childFor({ agentId, threadId })
-    if (child === undefined) {
-      return { ok: false, reason: unknownAgent({ agentId, known: this.list({ threadId }) }) }
-    }
-
-    if (isStepping(child)) {
-      child.pending.push({ text, images })
-      return { ok: true, snapshot: snapshotOf(child) }
-    }
-
-    const agentType = agentTypeNamed({ agentTypes: this.agentTypes, name: child.agentType })
-    if (agentType === undefined) {
-      return { ok: false, reason: retiredAgentType(child.agentType) }
-    }
-
-    await this.log.append({
-      threadId: agentId,
-      runId: this.ids.nextRunId(),
-      drafts: [
-        {
-          type: 'user-said',
-          text,
-          via: EMessageOrigin.ParentAgent,
-          ...(images === undefined || images.length === 0 ? {} : { images }),
-        },
-      ],
+    return say({
+      ...args,
+      log: this.log,
+      ids: this.ids,
+      agentTypes: this.agentTypes,
+      roster: this.roster,
+      steps: this.steps,
+      deps: this.deps,
     })
-    child.projectDirectory ??= await childDirectory({ deps: this.deps, threadId })
-    this.steps.take({
-      child,
-      agentType,
-      step: ({ runner, signal }) => runner.runTurn({ threadId: agentId, signal }),
-    })
-
-    return { ok: true, snapshot: snapshotOf(child) }
   }
 
   resume(args: { agentId: ThreadId; threadId: ThreadId }): Promise<AgentOutcome> {
     return resumeChild({ ...args, ...this.relocation })
+  }
+
+  sayToPeer(args: {
+    agentId: ThreadId
+    threadId: ThreadId
+    text: string
+    images?: readonly SaidImage[] | undefined
+  }): Promise<AgentOutcome> {
+    return sayToPeer({
+      ...args,
+      log: this.log,
+      ids: this.ids,
+      agentTypes: this.agentTypes,
+      roster: this.roster,
+      steps: this.steps,
+      deps: this.deps,
+    })
   }
 
   relocateChildren(args: RelocateChildrenArgs): Promise<readonly ThreadId[]> {

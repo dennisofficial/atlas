@@ -85,7 +85,7 @@ describe('a settled sub-agent leaving the sidebar', () => {
 
       const frame = setup.captureCharFrame()
       expect(frame).not.toContain('consumed audit')
-      expect(frame).not.toContain('SUBAGENTS')
+      expect(frame).not.toContain('SUB-AGENTS')
     } finally {
       await teardown(setup)
     }
@@ -107,7 +107,7 @@ describe('a settled sub-agent leaving the sidebar', () => {
       const frame = setup.captureCharFrame()
       expect(frame).toContain('pending audit')
       expect(frame).not.toContain('consumed audit')
-      expect(frame).toContain('SUBAGENTS  0/2')
+      expect(frame).toContain('SUB-AGENTS  0/2')
       expect(frame).toContain('1 more in /agents')
     } finally {
       await teardown(setup)
@@ -182,7 +182,7 @@ describe('a settled sub-agent leaving the sidebar', () => {
       const frame = setup.captureCharFrame()
       expect(frame).toContain('live audit')
       expect(frame).not.toContain('consumed audit')
-      expect(frame).toContain('SUBAGENTS  1/2')
+      expect(frame).toContain('SUB-AGENTS  1/2')
     } finally {
       await teardown(setup)
     }

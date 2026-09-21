@@ -36,6 +36,7 @@ import { AgentResumeTool } from './builtin/agent-resume'
 import { AgentSayTool } from './builtin/agent-say'
 import { AgentSpawnTool } from './builtin/agent-spawn'
 import { AgentStopTool } from './builtin/agent-stop'
+import { TeammateMessageTool } from './builtin/teammate-message'
 import { BashTool } from './builtin/bash'
 import { EditTool } from './builtin/edit'
 import { EnterWorktreeTool } from './builtin/enter-worktree'
@@ -171,6 +172,9 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) => new AgentStopTool(agentRegistry(resolver)),
+  })
+  container.register(portToken(ToolDefinition), {
+    useFactory: (resolver) => new TeammateMessageTool(agentRegistry(resolver)),
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) =>

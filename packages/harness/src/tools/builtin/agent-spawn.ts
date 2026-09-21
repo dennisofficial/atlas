@@ -9,7 +9,7 @@ import {
 } from '@dltech/atlas-core'
 
 import type { AgentSnapshot } from '../../agents/registry/snapshot'
-import { AGENT_SPAWN_TOOL_NAME, type AgentType } from '../../agents/types/agent-type'
+import { AGENT_SPAWN_TOOL_NAME, isTeammateType, type AgentType } from '../../agents/types/agent-type'
 import { AgentRegistrySourceToken, AgentTypesToken, type AgentRegistrySource } from './agent-tokens'
 
 const inputSchema = z.strictObject({
@@ -20,7 +20,7 @@ const inputSchema = z.strictObject({
 
 const PROSE = [
   'Start a sub-agent: a second agent with its own conversation and its own context window, working on one task you hand it.',
-  'It has the same tools you have and cannot spawn sub-agents of its own.',
+  'It has the same tools you have; the ordinary types cannot spawn sub-agents of their own, while the teammate type is a full session that can — and only the main session may spawn a teammate.',
   'It runs in the background, so this returns its agentId at once and its answer reaches you on its own when it stops; never poll for it.',
   'brief is the whole of what it will ever know about the task, because it does not read your conversation: state the goal, the files and facts it needs, and what to report back.',
   'intent is one short line naming what it is doing, which is how you and the person watching tell your agents apart.',
@@ -75,7 +75,7 @@ export class AgentSpawnTool extends SchemaTool<typeof inputSchema> {
         intent: snapshot.intent,
       },
       modelText: [
-        'Started a sub-agent.',
+        isTeammateType(snapshot.agentType) ? 'Started a teammate.' : 'Started a sub-agent.',
         lineFor(snapshot),
         'It runs in the background, and hands you its answer the moment it stops.',
       ].join('\n'),

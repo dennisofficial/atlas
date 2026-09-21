@@ -33,6 +33,7 @@ describe('the built-in agent types', () => {
       'explore',
       'general-purpose',
       'reviewer',
+      'teammate',
     ])
     for (const agentType of loaded) {
       expect(agentType.origin).toBe(EDefinitionOrigin.BuiltIn)
@@ -52,11 +53,19 @@ describe('the built-in agent types', () => {
     }
   })
 
-  it('denies agent_spawn to every built-in, so a child cannot spawn its own children', async () => {
+  it('denies agent_spawn to every built-in sub-agent, so a child cannot spawn its own children', async () => {
     for (const agentType of await load()) {
+      if (agentType.name === 'teammate') continue
       expect(agentType.disallowedTools).toContain(AGENT_SPAWN_TOOL_NAME)
       expect(agentType.tools ?? []).not.toContain(AGENT_SPAWN_TOOL_NAME)
     }
+  })
+
+  it('denies nothing to the teammate: it runs sub-agents of its own, and the supervisor refuses it teammate spawns', async () => {
+    const teammate = await named('teammate')
+
+    expect(teammate.disallowedTools).toBeUndefined()
+    expect(teammate.tools).toBeUndefined()
   })
 
   it('narrows no built-in, so every one has the capabilities of the agent that spawned it', async () => {
@@ -66,18 +75,28 @@ describe('the built-in agent types', () => {
     }
   })
 
-  it('denies nothing but the spawn tool', async () => {
+  it('denies nothing but the spawn tool to the sub-agents', async () => {
     for (const agentType of await load()) {
+      if (agentType.name === 'teammate') continue
       expect(agentType.disallowedTools).toEqual([AGENT_SPAWN_TOOL_NAME])
     }
   })
 
-  it('tells every built-in that only its final message reaches the caller', async () => {
+  it('tells every sub-agent that only its final message reaches the caller', async () => {
     for (const agentType of await load()) {
+      if (agentType.name === 'teammate') continue
       expect(agentType.prompt).toContain('Only your final message reaches the caller')
       expect(agentType.prompt).toContain('Do not gold-plate')
       expect(agentType.prompt).toContain('Do not leave it half-done')
     }
+  })
+
+  it('tells the teammate that its turn-end report reaches the main agent, and why', async () => {
+    const teammate = await named('teammate')
+
+    expect(teammate.prompt).toContain('your last message reaches the main agent')
+    expect(teammate.prompt).toContain('cannot ask the developer')
+    expect(teammate.prompt).toContain('cannot spawn teammates')
   })
 
   it('claims no capability limit the mechanism does not enforce, in prompt or in whenToUse', async () => {

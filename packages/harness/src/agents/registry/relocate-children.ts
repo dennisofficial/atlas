@@ -6,6 +6,7 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import { isTeammateType } from '../types'
 import { isStepping, snapshotOf, type ChildState } from './child-state'
 import type { ChildSteps } from './child-steps'
 import { agentTypeNamed, type SupervisorDeps } from './deps'
@@ -45,6 +46,7 @@ export async function stopThreadChildren({
   threadId,
   by,
   caller,
+  skipTeammates = false,
   roster,
   steps,
   recovery,
@@ -52,16 +54,21 @@ export async function stopThreadChildren({
   threadId: ThreadId
   by: EKilledBy
   caller?: ThreadId | undefined
+  skipTeammates?: boolean
 } & Pick<Relocation, 'roster' | 'steps' | 'recovery'>): Promise<readonly ChildState[]> {
   await recovery.hydrate({ threadId })
 
-  const stepping = roster
-    .states()
-    .filter(
-      (child) => child.spawnedBy === threadId && child.agentId !== caller && isStepping(child),
-    )
+  const stepping = relocatableChildren({ roster, threadId, skipTeammates }).filter(
+    (child) => child.agentId !== caller && isStepping(child),
+  )
   for (const child of stepping) stopChild({ child, by })
-  await steps.whenSettled({ threadId, excluding: caller }).catch(() => undefined)
+
+  const kept = skipTeammates
+    ? teammateChildren({ roster, threadId }).map((child) => child.agentId)
+    : []
+  await steps
+    .whenSettled({ threadId, excluding: [...(caller === undefined ? [] : [caller]), ...kept] })
+    .catch(() => undefined)
 
   return stepping
 }
@@ -74,6 +81,7 @@ export async function stopThreadChildren({
 export async function markThreadChildrenRelocated({
   threadId,
   location,
+  skipTeammates = false,
   deps,
   sink,
   roster,
@@ -81,11 +89,11 @@ export async function markThreadChildrenRelocated({
 }: {
   threadId: ThreadId
   location: EExecutionLocation
+  skipTeammates?: boolean
 } & Pick<Relocation, 'deps' | 'sink' | 'roster' | 'recovery'>): Promise<void> {
   await recovery.hydrate({ threadId })
 
-  const children = roster.states().filter((child) => child.spawnedBy === threadId)
-  for (const child of children) {
+  for (const child of relocatableChildren({ roster, threadId, skipTeammates })) {
     await deps.threads.chooseExecutionLocation({ threadId: child.agentId, location })
     sink.note({ threadId: child.agentId, location })
   }
@@ -96,16 +104,16 @@ export async function relocateThreadChildren(
 ): Promise<readonly ThreadId[]> {
   const { threadId, location, deps, roster } = args
 
-  const stepping = await stopThreadChildren({ ...args, by: EKilledBy.ContainerSwitch })
+  const stepping = await stopThreadChildren({ ...args, by: EKilledBy.ContainerSwitch, skipTeammates: true })
 
-  const children = roster.states().filter((child) => child.spawnedBy === threadId)
+  const children = relocatableChildren({ roster, threadId, skipTeammates: true })
   const froms = new Map<ThreadId, EExecutionLocation>()
   for (const child of children) {
     const stored = await deps.threads.find({ threadId: child.agentId })
     froms.set(child.agentId, stored?.executionLocation ?? EExecutionLocation.Host)
   }
 
-  await markThreadChildrenRelocated(args)
+  await markThreadChildrenRelocated({ ...args, skipTeammates: true })
 
   for (const child of children) {
     await deps.log.append({
@@ -126,6 +134,37 @@ export async function relocateThreadChildren(
   }
 
   return stepping.map((child) => child.agentId)
+}
+
+function teammateChildren({
+  roster,
+  threadId,
+}: {
+  roster: AgentRoster
+  threadId: ThreadId
+}): readonly ChildState[] {
+  return roster
+    .states()
+    .filter((child) => child.spawnedBy === threadId && isTeammateType(child.agentType))
+}
+
+function relocatableChildren({
+  roster,
+  threadId,
+  skipTeammates,
+}: {
+  roster: AgentRoster
+  threadId: ThreadId
+  skipTeammates: boolean
+}): readonly ChildState[] {
+  if (!skipTeammates) return roster.states().filter((child) => child.spawnedBy === threadId)
+
+  const teammates = new Set(
+    teammateChildren({ roster, threadId }).map((child) => child.agentId),
+  )
+  return roster
+    .states()
+    .filter((child) => child.spawnedBy === threadId && !teammates.has(child.agentId))
 }
 
 export async function resumeChild(

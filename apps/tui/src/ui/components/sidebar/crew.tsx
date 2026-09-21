@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { type SidebarTeammate } from '../../../store/sidebar-model'
+import { crewTiersOf, type SidebarTeammate } from '../../../store/sidebar-model'
 import {
   isSubagentRunning,
   subagentContextLabel,
@@ -81,20 +81,15 @@ function RetiredLine(props: { fold: SidebarCrewFold; cells: number }): React.Rea
  * Selecting a row moves the transcript alone, so the highlight is the only thing that says where
  * the operator is reading — the rest of this panel still describes the thread that spawned them.
  */
-export function SubagentsSection(props: {
+function CrewRows(props: {
   subagents: readonly SidebarSubagent[]
   cells: number
-  fold?: SidebarCrewFold | undefined
-  onOpen?: (agentId: string) => void
+  onOpen?: ((agentId: string) => void) | undefined
 }): React.ReactNode {
   const press = usePress()
-  if (props.subagents.length === 0) return null
-
-  const running = props.subagents.filter(isSubagentRunning).length
-  const total = props.subagents.length + (props.fold?.hidden ?? 0)
 
   return (
-    <Section label="Subagents" count={`${running}/${total}`}>
+    <>
       {props.subagents.map((subagent) => (
         <box
           key={subagent.id}
@@ -113,8 +108,42 @@ export function SubagentsSection(props: {
           <FiguresLine subagent={subagent} cells={props.cells} />
         </box>
       ))}
-      {props.fold === undefined ? null : <RetiredLine fold={props.fold} cells={props.cells} />}
-    </Section>
+    </>
+  )
+}
+
+export function SubagentsSection(props: {
+  subagents: readonly SidebarSubagent[]
+  cells: number
+  fold?: SidebarCrewFold | undefined
+  onOpen?: (agentId: string) => void
+}): React.ReactNode {
+  if (props.subagents.length === 0) return null
+
+  const { teammates, subagents } = crewTiersOf(props.subagents)
+
+  return (
+    <>
+      {teammates.length === 0 ? null : (
+        <Section
+          label="Teammates"
+          count={`${teammates.filter(isSubagentRunning).length}/${teammates.length}`}
+        >
+          <CrewRows subagents={teammates} cells={props.cells} onOpen={props.onOpen} />
+        </Section>
+      )}
+      {subagents.length === 0 ? null : (
+        <Section
+          label="Sub-agents"
+          count={`${subagents.filter(isSubagentRunning).length}/${subagents.length + (props.fold?.hidden ?? 0)}`}
+        >
+          <CrewRows subagents={subagents} cells={props.cells} onOpen={props.onOpen} />
+          {props.fold === undefined ? null : (
+            <RetiredLine fold={props.fold} cells={props.cells} />
+          )}
+        </Section>
+      )}
+    </>
   )
 }
 
