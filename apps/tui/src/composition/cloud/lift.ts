@@ -317,7 +317,10 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
     .append({
       threadId,
       runId: args.ids.nextRunId(),
-      drafts: [liftedDraft({ workspace, stopped })],
+      drafts: [
+        { type: 'location-changed', from, to: EExecutionLocation.Cloud },
+        liftedDraft({ workspace, stopped }),
+      ],
     })
     .catch(() => undefined)
 
