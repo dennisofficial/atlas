@@ -115,6 +115,15 @@ describe('PullRequestsService', () => {
     ).rejects.toBeInstanceOf(ForbiddenException)
   })
 
+  it('reads a 401 from github as an expired token and says to reconnect', async () => {
+    const rejected = async () => new Response('{}', { status: 401 })
+    const service = serviceWith({ token: 'ghu_dead', reads: {}, fetchImpl: rejected as typeof fetch })
+
+    await expect(
+      service.readByBranch({ userId: 'usr_1', repoFullName: 'compai/app', branch: 'x/y' }),
+    ).rejects.toThrow(/reconnect github/)
+  })
+
   it('refuses callers who never connected github', async () => {
     const service = serviceWith({ reads: {} })
 
