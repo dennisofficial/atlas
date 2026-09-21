@@ -37,6 +37,9 @@ const throughLoginShell = (args: SpawnCommand): SpawnCommand => {
   const login = loginShellInvocation()
   const env: Record<string, string | undefined> = { ...args.env, ATLAS_SHELL_COMMAND: command }
   delete env[LOGIN_ENV_MARKER]
+  // FNM_LOGLEVEL arrives via fnm env's own default export, not a user choice; an explicit
+  // `--log-level` in the rc files still wins because that eval runs after this env is set.
+  env.FNM_LOGLEVEL = 'quiet'
   return { ...args, cmd: [login.path, login.flags, RUN_COMMAND_THEN_REPLACE], env }
 }
 
