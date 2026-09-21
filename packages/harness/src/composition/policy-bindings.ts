@@ -5,9 +5,11 @@ import {
   DEFAULT_WORKTREE_DIRECTORY,
   EClassifierMode,
   ESettingId,
+  ESettingsLayer,
   EWebSearchBackend,
   backendOf,
   environmentFor,
+  textValueOf,
   type CredentialPort,
   type WorkspaceIdentity,
 } from '@dltech/atlas-core'
@@ -54,18 +56,26 @@ export async function bindSettingsPolicy(args: {
   })
 
   container.register(ClassifierPolicyToken, {
-    useValue: () => ({
-      ...DEFAULT_CLASSIFIER_POLICY,
-      environment,
-      mode:
+    useValue: () => {
+      const resolution = settings.snapshot().resolution
+      const chosen =
         classifierModeOf(
           choiceValueOf({
-            resolution: settings.snapshot().resolution,
+            resolution,
             id: ESettingId.ClassifierMode,
             fallback: EClassifierMode.Shadow,
           }),
-        ) ?? EClassifierMode.Shadow,
-    }),
+        ) ?? EClassifierMode.Shadow
+      const defaulted =
+        resolution.settings.get(ESettingId.ClassifierMode)?.layer === ESettingsLayer.Default
+      const decisionsLive = textValueOf({ resolution, id: ESettingId.DecisionsUrl }).length > 0
+
+      return {
+        ...DEFAULT_CLASSIFIER_POLICY,
+        environment,
+        mode: defaulted && decisionsLive ? EClassifierMode.Nudge : chosen,
+      }
+    },
   })
 
   container.register(WebSearchBackendToken, {

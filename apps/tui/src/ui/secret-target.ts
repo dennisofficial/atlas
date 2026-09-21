@@ -20,6 +20,16 @@ export function secretTargetOf(args: {
   id: string
   resolution: SettingsResolution
 }): SecretTarget | undefined {
+  if (args.id === ESettingId.DecisionsToken) {
+    return {
+      name: ESettingId.DecisionsToken,
+      label: 'decision API key',
+      masked: true,
+      required: false,
+      takesOne: true,
+    }
+  }
+
   if (args.id !== ESettingId.WebSearchKey) return undefined
 
   const chosen = choiceValueOf({

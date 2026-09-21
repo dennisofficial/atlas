@@ -79,4 +79,16 @@ describe('secretTargetOf', () => {
       secretTargetOf({ id: ESettingId.WebSearchBackend, resolution: resolutionOn() }),
     ).toBeUndefined()
   })
+
+  it('seals the decisions token under its own setting id', () => {
+    expect(
+      secretTargetOf({ id: ESettingId.DecisionsToken, resolution: resolutionOn() }),
+    ).toEqual({
+      name: 'decisions.token',
+      label: 'decision API key',
+      masked: true,
+      required: false,
+      takesOne: true,
+    })
+  })
 })

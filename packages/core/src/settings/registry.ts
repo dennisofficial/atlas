@@ -34,6 +34,8 @@ export enum ESettingId {
   BlockPadding = 'appearance.blockPadding',
   ComposerEdge = 'appearance.composerEdge',
   ClassifierMode = 'classifier.mode',
+  DecisionsUrl = 'decisions.url',
+  DecisionsToken = 'decisions.token',
   NoticeSeconds = 'notifications.seconds',
   WebSearchBackend = 'web.searchBackend',
   WebSearchKey = 'web.searchKey',
@@ -407,6 +409,28 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
         note: 'Your own metasearch instance, so the queries leave no account behind. Set the row below to its address. Public instances almost always disable the JSON output this needs, so in practice this means one you run.',
       },
     ],
+  },
+  {
+    id: ESettingId.DecisionsUrl,
+    page: ESettingPage.General,
+    group: 'Nudges',
+    label: 'Decision model',
+    description:
+      'Where typed decisions are answered — a System-1 model that judges a flagged tool call by calibrated probability instead of a small generative model reading a brief. Point it at the hosted Jev endpoint (https://tokenra.io/v1/decisions) or at a Laya server of your own. Left empty, the judge stays the generative one.',
+    environmentVariable: 'ATLAS_DECISIONS_URL',
+    kind: ESettingKind.Text,
+    fallback: '',
+  },
+  {
+    id: ESettingId.DecisionsToken,
+    page: ESettingPage.General,
+    group: 'Nudges',
+    label: 'Decision key',
+    description:
+      'The bearer key the decision endpoint expects — for the hosted Jev API, the key from your Jev account. A local Laya server ignores it. Atlas never reads it from the environment and never writes it to a settings file: it is sealed in the secrets file beside the account vault, and only the last four characters are ever shown again.',
+    kind: ESettingKind.Secret,
+    fallback: '',
+    masked: true,
   },
   {
     id: ESettingId.WebSearchKey,

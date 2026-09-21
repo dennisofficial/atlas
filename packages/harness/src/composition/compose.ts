@@ -35,6 +35,7 @@ import {
 } from '../container/tokens'
 import type { HookMishap } from '../hooks/budget'
 import { HaikuJudge } from '../classifier/judge'
+import { decisionsConfigFrom, RoutedJudge } from '../classifier/routed-judge'
 import { FileBrowser } from '../files/file-browser'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import { summaryFor } from '../model/summariser'
@@ -214,13 +215,16 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   )
 
   container.register(portToken(JudgePort), {
-    useValue: new HaikuJudge({
-      model: createUtilityModel({
-        role: EUtilityModelRole.Judge,
-        settings,
-        catalogue: models,
-        notice,
+    useValue: new RoutedJudge({
+      fallback: new HaikuJudge({
+        model: createUtilityModel({
+          role: EUtilityModelRole.Judge,
+          settings,
+          catalogue: models,
+          notice,
+        }),
       }),
+      config: decisionsConfigFrom({ settings, secrets }),
     }),
   })
 
