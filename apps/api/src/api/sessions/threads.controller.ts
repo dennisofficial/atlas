@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   Param,
@@ -12,8 +13,10 @@ import {
   UseGuards,
 } from '@nestjs/common'
 import { Throttle } from '@nestjs/throttler'
+import { SandboxReachable } from '../../_core/decorators/sandbox-reachable.decorator'
 import type { AuthenticatedRequest } from '../../_core/types/auth.types'
 import { CLIENT_READ_LIMIT_PER_MINUTE } from '../client-rate-limit'
+import { SandboxesService } from '../sandboxes/sandboxes.service'
 import { SessionOrSandboxGuard } from './session-or-sandbox.guard'
 import {
   AdoptThreadDto,
@@ -26,6 +29,7 @@ import {
   RenameThreadDto,
   RewindThreadDto,
   SummariseThreadDto,
+  type SupervisedAgentInput,
 } from './sessions.dto'
 import { userIdOf } from './session-user'
 import type { ThreadDto } from './sessions.types'
@@ -55,19 +59,44 @@ export class ThreadsController {
   constructor(
     private readonly threads: ThreadsService,
     private readonly history: ThreadsHistoryService,
+    private readonly sandboxes: SandboxesService,
   ) {}
 
   @Post()
-  handleCreate(
+  @SandboxReachable()
+  async handleCreate(
     @Req() request: AuthenticatedRequest,
     @Body() body: CreateThreadDto,
   ): Promise<ThreadDto> {
+    await this.assertSandboxSpawn(request, body.agent)
     return this.threads.create({ userId: userIdOf(request), draft: body })
   }
 
   @Post('open')
-  handleOpen(@Req() request: AuthenticatedRequest, @Body() body: OpenThreadDto) {
+  @SandboxReachable()
+  async handleOpen(@Req() request: AuthenticatedRequest, @Body() body: OpenThreadDto) {
+    await this.assertSandboxSpawn(request, body.agent)
     return this.threads.open({ userId: userIdOf(request), draft: body })
+  }
+
+  /**
+   * A serve process creates threads only to spawn its own sub-agents, so a sandbox token must
+   * name a spawner inside the family the token already reaches — never a bare thread, and never
+   * one hanging off somebody else's conversation.
+   */
+  private async assertSandboxSpawn(
+    request: AuthenticatedRequest,
+    agent: SupervisedAgentInput | undefined,
+  ): Promise<void> {
+    const sandbox = request.sandbox
+    if (sandbox === undefined) return
+    if (agent === undefined) {
+      throw new ForbiddenException('a sandbox token creates only sub-agent threads of its own family')
+    }
+    await this.sandboxes.assertThreadInFamily({
+      sandboxThreadId: sandbox.threadId,
+      threadId: agent.spawnedBy,
+    })
   }
 
   @Get('recent')

@@ -1,8 +1,9 @@
 import type { CanActivate, ExecutionContext } from '@nestjs/common'
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common'
+import { ForbiddenException, Inject, Injectable, UnauthorizedException } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import type { Request } from 'express'
 import { IS_PUBLIC_KEY } from '../../_core/decorators/public.decorator'
+import { SANDBOX_REACHABLE_KEY } from '../../_core/decorators/sandbox-reachable.decorator'
 import { SESSION_VERIFIER } from '../../_core/ports/session-verifier'
 import type { SessionVerifier } from '../../_core/ports/session-verifier'
 import type { AuthenticatedRequest } from '../../_core/types/auth.types'
@@ -26,10 +27,13 @@ const bearerTokenOf = (request: Request): string | undefined => {
 /**
  * The sessions routes serve two principals for the same thread: the operator (a better-auth
  * session) and the sandbox running that thread (its session token, the same one the heartbeat,
- * workspace, and serve-binary routes already trust). A bearer that matches a sandbox row
- * authenticates as the thread's owner, and may reach the conversation family the sandbox serves:
- * the sandbox's own thread plus its sub-agent threads. Anything else falls through to the user
- * session.
+ * workspace, and serve-binary routes already trust).
+ *
+ * A sandbox token is a machine credential any process inside the sandbox can read, so it never
+ * authenticates as the owner at large: on a route naming `:threadId` it reaches only that
+ * thread's family (the sandbox's own thread plus its sub-agent threads), and on a threadless
+ * route it is refused unless the route opts in with `@SandboxReachable()`. Anything else falls
+ * through to the user session.
  */
 @Injectable()
 export class SessionOrSandboxGuard implements CanActivate {
@@ -55,6 +59,8 @@ export class SessionOrSandboxGuard implements CanActivate {
       if (row !== null) {
         if (threadId !== undefined) {
           await this.sandboxes.assertThreadInFamily({ sandboxThreadId: row.threadId, threadId })
+        } else if (!this.sandboxReachable(context)) {
+          throw new ForbiddenException('a sandbox session token does not reach this route')
         }
         request.auth = {
           userId: row.userId,
@@ -62,6 +68,7 @@ export class SessionOrSandboxGuard implements CanActivate {
           email: '',
           activeOrganizationId: null,
         }
+        request.sandbox = { sandboxId: row.id, threadId: row.threadId }
         return true
       }
     }
@@ -71,5 +78,12 @@ export class SessionOrSandboxGuard implements CanActivate {
 
     request.auth = session
     return true
+  }
+
+  private sandboxReachable(context: ExecutionContext): boolean {
+    return this.reflector.getAllAndOverride<boolean>(SANDBOX_REACHABLE_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]) === true
   }
 }

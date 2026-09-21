@@ -12,6 +12,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common'
+import { SandboxReachable } from '../../_core/decorators/sandbox-reachable.decorator'
 import type { AuthenticatedRequest } from '../../_core/types/auth.types'
 import {
   bufferBodyOf,
@@ -55,6 +56,7 @@ export class UserContextController {
 
   @Put('memory')
   @HttpCode(204)
+  @SandboxReachable()
   async handlePut(
     @Req() request: AuthenticatedRequest,
     @Body() body: unknown,

@@ -308,14 +308,15 @@ export class SandboxesService {
     await db.cloudSandbox.delete({ where: { threadId: args.threadId } })
   }
 
-  async verifySessionToken(args: { threadId: string; token: string }): Promise<void> {
+  async verifySessionToken(args: { threadId: string; token: string }): Promise<{ userId: string }> {
     const row = await db.cloudSandbox.findUnique({
       where: { threadId: args.threadId },
-      select: { tokenHash: true },
+      select: { tokenHash: true, userId: true },
     })
     if (row === null || !tokenMatches({ token: args.token, tokenHash: row.tokenHash })) {
       throw new UnauthorizedException('a valid sandbox session token is required')
     }
+    return { userId: row.userId }
   }
 
   async verifyTokenPrincipal(args: { token: string }): Promise<SandboxPrincipal> {
