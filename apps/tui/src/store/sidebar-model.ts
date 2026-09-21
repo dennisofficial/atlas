@@ -32,7 +32,7 @@ import {
   type SidebarSpend,
 } from "./sidebar-spend";
 import { TITLE_CELLS, oneLineOf } from "./sidebar-text";
-import type { SidebarCrewFold, SidebarSubagent } from "./subagent-row";
+import type { SidebarAgentFold, SidebarSubagent } from "./subagent-row";
 
 export type SidebarApproval = { callId: CallId; reason: string };
 
@@ -63,7 +63,7 @@ export type SidebarModel = {
   lastActivity: string | null;
   todo?: readonly SidebarTask[];
   subagents?: readonly SidebarSubagent[];
-  crewFold?: SidebarCrewFold;
+  crewFold?: SidebarAgentFold;
   teammates?: readonly SidebarTeammate[];
   sections?: readonly SidebarSection[];
   classifier?: ClassifierFold;
@@ -213,7 +213,7 @@ export function deriveSidebar(args: {
 export function withCrew(args: {
   model: SidebarModel;
   subagents: readonly SidebarSubagent[];
-  fold?: SidebarCrewFold;
+  fold?: SidebarAgentFold;
 }): SidebarModel {
   const { model, subagents } = args;
   if (subagents.length === 0) return model;

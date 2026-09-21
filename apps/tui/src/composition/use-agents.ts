@@ -1,5 +1,5 @@
 import type { ProviderIdentity, ThreadId } from '@dltech/atlas-core'
-import type { AgentSnapshot } from '@dltech/atlas-harness'
+import { TEAMMATE_AGENT_TYPE, type AgentSnapshot } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
 import { DEFAULT_CREW_CAP, foldCrew } from '../store/crew-fold'
@@ -140,9 +140,18 @@ export function useAgents({
       keyOf: (row) => row.id,
       wentWrong: subagentWentWrong,
     })
+    const shownIds = new Set(folded.shown.map((row) => row.id))
+    const hiddenTeammates = subagents.filter(
+      (row) => !shownIds.has(row.id) && row.agentType === TEAMMATE_AGENT_TYPE,
+    ).length
 
     return {
       folded,
+      fold: {
+        hidden: folded.hidden,
+        hiddenFailed: folded.hiddenFailed,
+        hiddenTeammates,
+      },
       running: subagents.filter(isSubagentRunning).length,
       count: subagents.length,
     }
@@ -150,7 +159,7 @@ export function useAgents({
 
   return useMemo(
     () => ({
-      sidebar: withCrew({ model: sidebar, subagents: crew.folded.shown, fold: crew.folded }),
+      sidebar: withCrew({ model: sidebar, subagents: crew.folded.shown, fold: crew.fold }),
       own,
       everywhere,
       visits,

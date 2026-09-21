@@ -5,6 +5,7 @@ import {
   isSubagentRunning,
   subagentContextLabel,
   subagentReading,
+  type SidebarAgentFold,
   type SidebarCrewFold,
   type SidebarSubagent,
 } from '../../../store/subagent-row'
@@ -115,19 +116,21 @@ function CrewRows(props: {
 export function SubagentsSection(props: {
   subagents: readonly SidebarSubagent[]
   cells: number
-  fold?: SidebarCrewFold | undefined
+  fold?: SidebarAgentFold | undefined
   onOpen?: (agentId: string) => void
 }): React.ReactNode {
   if (props.subagents.length === 0) return null
 
   const { teammates, subagents } = crewTiersOf(props.subagents)
+  const hiddenTeammates = props.fold?.hiddenTeammates ?? 0
+  const hiddenSubagents = (props.fold?.hidden ?? 0) - hiddenTeammates
 
   return (
     <>
       {teammates.length === 0 ? null : (
         <Section
           label="Teammates"
-          count={`${teammates.filter(isSubagentRunning).length}/${teammates.length}`}
+          count={`${teammates.filter(isSubagentRunning).length}/${teammates.length + hiddenTeammates}`}
         >
           <CrewRows subagents={teammates} cells={props.cells} onOpen={props.onOpen} />
         </Section>
@@ -135,7 +138,7 @@ export function SubagentsSection(props: {
       {subagents.length === 0 ? null : (
         <Section
           label="Sub-agents"
-          count={`${subagents.filter(isSubagentRunning).length}/${subagents.length + (props.fold?.hidden ?? 0)}`}
+          count={`${subagents.filter(isSubagentRunning).length}/${subagents.length + hiddenSubagents}`}
         >
           <CrewRows subagents={subagents} cells={props.cells} onOpen={props.onOpen} />
           {props.fold === undefined ? null : (
