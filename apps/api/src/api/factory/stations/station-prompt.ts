@@ -75,9 +75,10 @@ export function reviewerInstructions(args: {
     'The result object, exactly this shape:',
     '',
     '  verdict: "approve" | "request_changes"',
+    '  head_sha: string — the 40-char hex head SHA you actually reviewed (the checkout\'s HEAD)',
     '  summary: string — the verdict in two or three sentences',
     '  criteria: [{ criterion, pass, note }] — each criterion you checked and how it fared',
-    '  findings: [{ severity, path, summary }] — defects worth a revision; empty when approving. severity is "blocker", "should-fix", or "note"; path is the file or "" when general',
+    '  findings: [{ severity, path, summary }] — defects worth a revision; severity is "blocker", "should-fix", or "note"; path is the file or "" when general. At least one finding is required to request changes; empty when approving',
     '',
     'Request changes only for defects worth a revision cycle — the loop allows at most two, and a frivolous cycle burns one. Refusals come back as the HTTP error body — read them, fix, and resubmit.',
   ].join('\n')

@@ -99,9 +99,7 @@ export class StationsService {
       }
     }
     if (args.message.length > STATION_MESSAGE_CAP) {
-      throw new BadRequestException(
-        `the spawn message is over the ${STATION_MESSAGE_CAP} character cap`,
-      )
+      throw new BadRequestException(`the spawn message is over the ${STATION_MESSAGE_CAP} character cap`)
     }
 
     const userId = await this.identity.userId()
@@ -266,8 +264,9 @@ export class StationsService {
   }
 
   /**
-   * A station that never got its spawn message still holds the drive RW — stop its sandbox before
-   * failing the run, or the next spawn's single-writer check passes over a live mount.
+   * A station that never got its spawn message leaves its sandbox up holding its mount — stop it
+   * before failing the run, or the next implementer spawn's single-writer check passes over a
+   * live RW mount.
    */
   private async handleSpawnFailure(args: {
     runId: string

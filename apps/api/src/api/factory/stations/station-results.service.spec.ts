@@ -163,6 +163,7 @@ describe('StationResultsService', () => {
   describe('reviewer runs', () => {
     const verdictPayload = (verdict: string) => ({
       verdict,
+      head_sha: SHA,
       summary: 'reviewed the branch',
       criteria: [{ criterion: 'does the thing', pass: verdict === 'approve', note: 'checked' }],
       findings:
@@ -203,6 +204,12 @@ describe('StationResultsService', () => {
         (one) => one.kind === EFactoryEventKind.StationResult,
       )
       expect(event?.payload).toContain('request_changes')
+    })
+
+    it('a replayed request_changes does not burn a second cycle', async () => {
+      await submit(stationThreadId, verdictPayload('request_changes'))
+      await submit(stationThreadId, verdictPayload('request_changes'))
+      expect(fake.workItems[0]?.revisionCycles).toBe(1)
     })
   })
 })

@@ -3,12 +3,20 @@ import { EReviewVerdict } from './station.types'
 const MAX_ENTRIES = 200
 const MAX_FIELD_LENGTH = 20_000
 const MAX_VERDICT_BYTES = 100_000
+const HEAD_SHA = /^[0-9a-f]{40}$/
+
+export enum EFindingSeverity {
+  Blocker = 'blocker',
+  ShouldFix = 'should-fix',
+  Note = 'note',
+}
 
 export type ReviewCriterion = { criterion: string; pass: boolean; note: string }
-export type ReviewFinding = { severity: string; path: string; summary: string }
+export type ReviewFinding = { severity: EFindingSeverity; path: string; summary: string }
 
 export type ReviewVerdictPayload = {
   verdict: EReviewVerdict
+  head_sha: string
   summary: string
   criteria: ReviewCriterion[]
   findings: ReviewFinding[]
@@ -35,8 +43,9 @@ const isCriterion = (value: unknown): value is ReviewCriterion =>
 
 const isFinding = (value: unknown): value is ReviewFinding =>
   isRecord(value) &&
-  shortString(value.severity) &&
-  value.severity.length > 0 &&
+  (value.severity === EFindingSeverity.Blocker ||
+    value.severity === EFindingSeverity.ShouldFix ||
+    value.severity === EFindingSeverity.Note) &&
   shortString(value.path) &&
   shortString(value.summary) &&
   value.summary.length > 0
@@ -55,6 +64,9 @@ export function parseReviewVerdict(raw: unknown): ReviewVerdictParse {
   if (!shortString(raw.summary) || raw.summary.length === 0) {
     return fail('verdict.summary must be a non-empty string')
   }
+  if (typeof raw.head_sha !== 'string' || !HEAD_SHA.test(raw.head_sha)) {
+    return fail('verdict.head_sha must be the 40-character hex SHA of the head you reviewed')
+  }
   if (!Array.isArray(raw.criteria) || raw.criteria.length > MAX_ENTRIES) {
     return fail('verdict.criteria must be a list')
   }
@@ -71,13 +83,19 @@ export function parseReviewVerdict(raw: unknown): ReviewVerdictParse {
   const findings: ReviewFinding[] = []
   for (const entry of raw.findings) {
     if (!isFinding(entry)) {
-      return fail('every finding needs severity, path, and summary strings')
+      return fail('every finding needs a blocker/should-fix/note severity, a path, and a summary')
     }
     findings.push({ severity: entry.severity, path: entry.path, summary: entry.summary })
   }
+  if (verdictValue === EReviewVerdict.RequestChanges && findings.length === 0) {
+    return fail('a request_changes verdict needs at least one finding to act on')
+  }
 
+  const verdictKind =
+    verdictValue === EReviewVerdict.Approve ? EReviewVerdict.Approve : EReviewVerdict.RequestChanges
   const verdict: ReviewVerdictPayload = {
-    verdict: verdictValue,
+    verdict: verdictKind,
+    head_sha: raw.head_sha,
     summary: raw.summary,
     criteria,
     findings,

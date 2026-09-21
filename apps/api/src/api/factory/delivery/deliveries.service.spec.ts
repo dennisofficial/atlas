@@ -40,9 +40,13 @@ const implementerResult = () => ({
 
 const reviewerVerdict = (verdict: string) => ({
   verdict,
+  head_sha: SHA,
   summary: 'reviewed',
   criteria: [{ criterion: 'works', pass: verdict === 'approve', note: 'checked' }],
-  findings: [],
+  findings:
+    verdict === 'approve'
+      ? []
+      : [{ severity: 'should-fix', path: 'src/thing.ts', summary: 'needs work' }],
 })
 
 describe('DeliveriesService', () => {
@@ -179,6 +183,21 @@ describe('DeliveriesService', () => {
     await appendResult('implementer', implementerResult())
     githubApp.branchHead.mockResolvedValueOnce('c'.repeat(40))
     await expect(deliver()).rejects.toThrow('not the implementer')
+  })
+
+  it('refuses when the approving review covered a different head', async () => {
+    await readyWorkItem()
+    await appendResult('implementer', implementerResult())
+    await appendResult('reviewer', { ...reviewerVerdict('approve'), head_sha: 'e'.repeat(40) })
+    await expect(deliver()).rejects.toThrow('re-review the current head')
+    expect(githubApp.createPullRequest).not.toHaveBeenCalled()
+  })
+
+  it('refuses past the revision cap even with an approving review', async () => {
+    await deliverableWorkItem()
+    fake.workItems[0]!.revisionCycles = 3
+    await expect(deliver()).rejects.toThrow('revision cycles')
+    expect(githubApp.createPullRequest).not.toHaveBeenCalled()
   })
 
   it('refuses without an approving review', async () => {

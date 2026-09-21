@@ -5,8 +5,7 @@ import {
   OrchestratorSandboxGuard,
   type OrchestratorSandboxRequest,
 } from '../reply/orchestrator-sandbox.guard'
-import type { DeliveryResult } from '../stations/station.types'
-import { DeliveriesService } from './deliveries.service'
+import { DeliveriesService, type DeliveryResult } from './deliveries.service'
 
 const TITLE_MAX_LENGTH = 250
 const BODY_MAX_LENGTH = 60_000

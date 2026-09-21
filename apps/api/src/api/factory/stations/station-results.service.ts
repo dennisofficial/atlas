@@ -99,7 +99,8 @@ export class StationResultsService {
         `station result for run ${run.id} found no aliased surface to land on`,
       )
     }
-    if (requestsChanges) {
+    // A duplicate delivery id returns appended:false — only a fresh verdict burns a cycle.
+    if (requestsChanges && appended.appended) {
       await this.workItems.countRevision({ workItemId: item.id })
     }
 

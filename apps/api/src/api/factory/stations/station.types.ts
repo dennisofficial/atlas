@@ -44,10 +44,3 @@ export type StationGitToken = {
   token: string
   expiresInSeconds: number
 }
-
-export type DeliveryResult = {
-  delivered: true
-  number: number
-  url: string
-  branch: string
-}

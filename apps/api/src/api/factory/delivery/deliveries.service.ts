@@ -13,8 +13,23 @@ import {
   EReviewVerdict,
   EStationKind,
   FACTORY_BRANCH_PREFIX,
-  type DeliveryResult,
+  MAX_REVISION_CYCLES,
 } from '../stations/station.types'
+
+export type DeliveryResult = {
+  delivered: true
+  number: number
+  url: string
+  branch: string
+}
+
+const parseStored = (payload: string): { kind: string; result: unknown } => {
+  try {
+    return JSON.parse(payload) as { kind: string; result: unknown }
+  } catch {
+    return { kind: '', result: null }
+  }
+}
 import { TranscriptService } from '../transcript.service'
 import { WorkItemsService } from '../work-items.service'
 
@@ -51,6 +66,11 @@ export class DeliveriesService {
     ) {
       throw new ConflictException(`work item ${item.id} is ${item.status}; it does not deliver`)
     }
+    if (item.revisionCycles > MAX_REVISION_CYCLES) {
+      throw new ConflictException(
+        `work item ${item.id} burned its ${MAX_REVISION_CYCLES} revision cycles without landing — it reports instead of delivering`,
+      )
+    }
     const aliases = await this.workItems.listAliases({ workItemId: item.id })
     const existingPr = aliases.find((alias) => alias.kind === EFactoryAliasKind.PullRequest)
     if (existingPr !== undefined) {
@@ -62,7 +82,7 @@ export class DeliveriesService {
     const events = await this.transcript.list({ workItemId: item.id })
     const results = events
       .filter((event) => event.kind === EFactoryEventKind.StationResult)
-      .map((event) => JSON.parse(event.payload) as { kind: string; result: unknown })
+      .map((event) => parseStored(event.payload))
     const implementer = [...results].reverse().find((one) => one.kind === EStationKind.Implementer)
     const reviewer = [...results].reverse().find((one) => one.kind === EStationKind.Reviewer)
 
@@ -92,6 +112,11 @@ export class DeliveriesService {
     if (!parsedVerdict.ok) throw unprocessable(`the stored reviewer verdict is unreadable: ${parsedVerdict.error}`)
     if (parsedVerdict.verdict.verdict !== EReviewVerdict.Approve) {
       throw unprocessable('the latest review requested changes')
+    }
+    if (parsedVerdict.verdict.head_sha !== result.head_sha) {
+      throw unprocessable(
+        `the review approved head ${parsedVerdict.verdict.head_sha}, not the implementer's ${result.head_sha} — re-review the current head`,
+      )
     }
 
     const pr = await this.githubApp.createPullRequest({

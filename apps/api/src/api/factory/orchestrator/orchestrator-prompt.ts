@@ -50,7 +50,7 @@ export function orchestratorInstructions(args: {
     '  3. On request_changes, spawn the implementer again with the existing branch and the reviewer\'s findings. The control plane allows at most 2 revision cycles and refuses past that — then report on the issue and stop; do not improvise around the cap.',
     '  4. On approve, deliver: POST "$ATLAS_CLOUD_URL/v1/factory/deliveries" with the same auth header and {"title","body"}. The control plane re-verifies everything itself (pushed factory branch, head SHA still matching the remote, verification evidence, approving review) and opens a DRAFT PR as the factory app, refusing with the reason otherwise. Never mark ready — that is a human click, always.',
     '',
-    'The new PR is registered as a surface of this work item the moment it opens, so its comments, reviews, and checks wake you here. Reply to discussion on the PR surface (its surface id is owner/repo/pull/<number>).',
+    'The new PR is registered as a surface of this work item the moment it opens, so its comments and reviews wake you here. Reply to discussion on the PR surface (its surface id is owner/repo/pull/<number>).',
   ].join('\n')
 }
 
