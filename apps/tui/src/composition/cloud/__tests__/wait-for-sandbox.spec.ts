@@ -154,6 +154,7 @@ describe('waiting for a sandbox to come up', () => {
         create: async () => {
           throw new Error('unused')
         },
+        putContext: async () => undefined,
         find: async () => {
           polls += 1
           if (polls <= 2) throw new Error('502 Bad Gateway')
@@ -178,6 +179,7 @@ describe('waiting for a sandbox to come up', () => {
           create: async () => {
             throw new Error('unused')
           },
+          putContext: async () => undefined,
           find: async () => {
             throw new Error('provision blew up')
           },
@@ -205,6 +207,7 @@ describe('waiting for a sandbox to come up', () => {
         create: async () => {
           throw new Error('unused')
         },
+        putContext: async () => undefined,
         find: async () => {
           const answer = answers.shift()
           if (answer instanceof Error) throw answer
