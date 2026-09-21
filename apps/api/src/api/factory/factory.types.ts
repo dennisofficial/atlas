@@ -27,6 +27,7 @@ export enum EFactoryEventKind {
   Merged = 'merged',
   StationRequest = 'station-request',
   StationResult = 'station-result',
+  Reply = 'reply',
 }
 
 export type WorkItemDto = {

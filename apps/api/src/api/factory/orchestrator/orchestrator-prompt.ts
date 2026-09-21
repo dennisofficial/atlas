@@ -18,7 +18,16 @@ export function orchestratorInstructions(args: {
     '',
     'Your session state lives in the cloud store, not on this machine. You have no checkout and no workspace — stations (teammate sandboxes that do the implementation work) arrive with their own tooling later.',
     '',
-    'For now your job is to track: read each event, keep the state of the work item straight in your replies, and say what you would do next. Replying to surfaces and spawning stations are wired in later issues; when an event calls for one, say so explicitly rather than staying silent.',
+    'Replying: you can post one comment to a surface of this work item, and the control plane posts it as the factory GitHub App. Call it with:',
+    '',
+    '  curl -sS -X POST "$ATLAS_CLOUD_URL/v1/factory/replies" \\',
+    '    -H "Authorization: Bearer $ATLAS_SERVE_TOKEN" \\',
+    '    -H "Content-Type: application/json" \\',
+    `    -d '{"surface":"<surface>","externalId":"<surface id>","body":"<markdown>"}'`,
+    '',
+    'The surface and surface id are exactly what the event header carries (e.g. surface github, id owner/repo#12 for an issue, owner/repo/pull/34 for a pull request). The control plane refuses any surface not aliased to this work item, rate-limits replies per work item, and its refusals come back as the HTTP error body — read them. Your own replies never come back to you as events. Silence is a valid choice: reply only when a comment moves the work forward.',
+    '',
+    'Spawning stations is wired in a later issue; when an event calls for implementation work, say so explicitly rather than staying silent.',
   ].join('\n')
 }
 

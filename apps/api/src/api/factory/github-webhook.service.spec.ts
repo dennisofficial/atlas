@@ -10,6 +10,7 @@ import { fakeFactoryDb } from '../../../test/fake-factory-db.js'
 import { EFactoryEventKind, EFactoryWorkItemStatus } from './factory.types'
 import { GithubWebhookService } from './github-webhook.service'
 import type { OrchestratorService } from './orchestrator/orchestrator.service'
+import type { GithubAppService } from './reply/github-app.service'
 import { TranscriptService } from './transcript.service'
 import { WorkItemsService } from './work-items.service'
 
@@ -49,15 +50,21 @@ describe('GithubWebhookService', () => {
   let service: GithubWebhookService
   let workItems: WorkItemsService
   let orchestrator: { wake: ReturnType<typeof vi.fn> }
+  let githubApp: { botLogin: ReturnType<typeof vi.fn>; ownsAppId: ReturnType<typeof vi.fn> }
 
   beforeEach(() => {
     fake.reset()
     workItems = new WorkItemsService()
     orchestrator = { wake: vi.fn() }
+    githubApp = {
+      botLogin: vi.fn(async () => 'atlas-factory[bot]'),
+      ownsAppId: vi.fn((id: number | undefined) => id === 4275284),
+    }
     service = new GithubWebhookService(
       workItems,
       new TranscriptService(),
       orchestrator as unknown as OrchestratorService,
+      githubApp as unknown as GithubAppService,
     )
   })
 
@@ -98,6 +105,60 @@ describe('GithubWebhookService', () => {
       { kind: EFactoryEventKind.Intake },
       { kind: EFactoryEventKind.Comment, author: 'dennislysenko', authorAssociation: 'member' },
     ])
+  })
+
+  it("drops the factory's own comment echo instead of waking the orchestrator with it", async () => {
+    await service.handle({ event: 'issues', deliveryId: 'd-1', payload: issuesLabeledPayload() })
+    orchestrator.wake.mockClear()
+
+    const echo = issueCommentPayload() as { sender: { login: string } }
+    echo.sender.login = 'Atlas-Factory[bot]'
+    const outcome = await service.handle({ event: 'issue_comment', deliveryId: 'd-echo', payload: echo })
+
+    expect(outcome).toEqual({ handled: false })
+    expect(fake.transcriptEvents).toHaveLength(1)
+    expect(orchestrator.wake).not.toHaveBeenCalled()
+  })
+
+  it('drops the echo on the payload\'s own app id even when the bot-login lookup fails', async () => {
+    githubApp.botLogin.mockRejectedValue(new Error('github unreachable'))
+    await service.handle({ event: 'issues', deliveryId: 'd-1', payload: issuesLabeledPayload() })
+    orchestrator.wake.mockClear()
+
+    const echo = issueCommentPayload() as {
+      comment: { performed_via_github_app?: { id: number; slug: string } }
+    }
+    echo.comment.performed_via_github_app = { id: 4275284, slug: 'atlas-by-dl' }
+    const outcome = await service.handle({ event: 'issue_comment', deliveryId: 'd-echo', payload: echo })
+
+    expect(outcome).toEqual({ handled: false })
+    expect(fake.transcriptEvents).toHaveLength(1)
+    expect(orchestrator.wake).not.toHaveBeenCalled()
+  })
+
+  it('a comment written through a different app is not the echo', async () => {
+    await service.handle({ event: 'issues', deliveryId: 'd-1', payload: issuesLabeledPayload() })
+
+    const comment = issueCommentPayload() as {
+      comment: { performed_via_github_app?: { id: number; slug: string } }
+    }
+    comment.comment.performed_via_github_app = { id: 999, slug: 'dependabot' }
+    const outcome = await service.handle({ event: 'issue_comment', deliveryId: 'd-2', payload: comment })
+
+    expect(outcome.handled).toBe(true)
+    expect(fake.transcriptEvents).toHaveLength(2)
+  })
+
+  it('filters nothing when neither echo signal matches', async () => {
+    githubApp.botLogin.mockResolvedValue(null)
+    await service.handle({ event: 'issues', deliveryId: 'd-1', payload: issuesLabeledPayload() })
+
+    const echo = issueCommentPayload() as { sender: { login: string } }
+    echo.sender.login = 'atlas-factory[bot]'
+    const outcome = await service.handle({ event: 'issue_comment', deliveryId: 'd-echo', payload: echo })
+
+    expect(outcome.handled).toBe(true)
+    expect(fake.transcriptEvents).toHaveLength(2)
   })
 
   it('the same delivery id redelivered appends only once', async () => {

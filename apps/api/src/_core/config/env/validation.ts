@@ -5,6 +5,8 @@ import type { ICryptoEnv } from './sections/crypto'
 import { cryptoEnvSchema } from './sections/crypto'
 import type { IDatabaseEnv } from './sections/database'
 import { databaseEnvSchema } from './sections/database'
+import type { IFactoryEnv } from './sections/factory'
+import { factoryEnvSchema } from './sections/factory'
 import type { IGithubEnv } from './sections/github'
 import { githubEnvSchema } from './sections/github'
 import type { IRuntimeEnv } from './sections/runtime'
@@ -18,6 +20,7 @@ export interface IEnvConfig
     IDatabaseEnv,
     ICryptoEnv,
     IGithubEnv,
+    IFactoryEnv,
     ISandboxEnv {}
 
 export const envConfigValidation = Joi.object({
@@ -26,5 +29,6 @@ export const envConfigValidation = Joi.object({
   ...databaseEnvSchema,
   ...cryptoEnvSchema,
   ...githubEnvSchema,
+  ...factoryEnvSchema,
   ...sandboxEnvSchema,
 })
