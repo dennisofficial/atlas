@@ -11,6 +11,7 @@ import {
 import type { SteerMessage } from './child-state'
 import type { DeltaChannel } from '../../channel/delta-channel'
 import { PublishingTurnRunner } from '../../channel/publishing-turn-runner'
+import { withoutSpawnableListing } from '../../tools/builtin/agent-spawn'
 import type { HookChain } from '../../hooks/registry'
 import type { TurnDeps } from '../../loop/run-turn'
 import type { TurnRunner } from '../../loop/turn-runner.port'
@@ -20,6 +21,7 @@ import {
   AGENT_TOOL_NAMES,
   isTeammateType,
   SERVICE_CONTROL_TOOL_NAMES,
+  TEAMMATE_AGENT_TYPE,
   WORKTREE_TOOL_NAMES,
   toolRegistryFor,
   type AgentType,
@@ -121,10 +123,13 @@ export function buildChildRunner({
   observeModel,
   steering,
 }: ChildRunnerRequest & { deps: ChildRunnerDeps }): TurnRunner {
-  const registry = filteredToolRegistry({
+  const narrowed = filteredToolRegistry({
     registry: toolRegistryFor({ registry: deps.tools, agentType }),
     deny: deniedFor(agentType),
   })
+  const registry = isTeammateType(agentType.name)
+    ? withoutSpawnableListing({ registry: narrowed, hidden: [TEAMMATE_AGENT_TYPE] })
+    : narrowed
   const { turn } = deps
   const model = deps.modelFor === undefined ? turn.model : deps.modelFor({ agentType })
   observeModel(model.identity)

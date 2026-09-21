@@ -61,7 +61,7 @@ describe('the built-in agent types', () => {
     }
   })
 
-  it('denies nothing to the teammate: it runs sub-agents of its own, and the supervisor refuses it teammate spawns', async () => {
+  it('denies nothing to the teammate: it runs sub-agents of its own, and the spawn listing it is shown never mentions teammates', async () => {
     const teammate = await named('teammate')
 
     expect(teammate.disallowedTools).toBeUndefined()
@@ -96,7 +96,12 @@ describe('the built-in agent types', () => {
 
     expect(teammate.prompt).toContain('your last message reaches the main agent')
     expect(teammate.prompt).toContain('cannot ask the developer')
-    expect(teammate.prompt).toContain('cannot spawn teammates')
+  })
+
+  it('never tells the teammate that spawning teammates is a thing', async () => {
+    const teammate = await named('teammate')
+
+    expect(teammate.prompt).not.toMatch(/spawn.*teammate/i)
   })
 
   it('claims no capability limit the mechanism does not enforce, in prompt or in whenToUse', async () => {

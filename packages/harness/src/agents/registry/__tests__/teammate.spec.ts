@@ -15,6 +15,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { createDeltaChannel } from '../../../channel/delta-channel'
+import { AgentSpawnTool } from '../../../tools/builtin/agent-spawn'
 import { HookChain } from '../../../hooks/registry'
 import { buildHarness, type AtlasHarness } from '../../../loop/build-harness'
 import { createTempDatabase, type TempDatabase } from '../../../loop/__tests__/temp-database'
@@ -288,7 +289,9 @@ describe("a teammate's session", () => {
     const prompts = new InMemoryPromptRegistry([new AtlasIdentityFragment(), new MainOnlyFragment()])
     const tools = new InMemoryToolRegistry([
       toolNamed('read'),
-      toolNamed('agent_spawn'),
+      new AgentSpawnTool(() => {
+        throw new Error('the listing never resolves the registry')
+      }, [TEAMMATE, BUILDER]),
       toolNamed('enter_worktree'),
       toolNamed('execution_location'),
       toolNamed('service_start'),
@@ -360,6 +363,17 @@ describe("a teammate's session", () => {
       'enter_worktree',
       'execution_location',
     ])
+  })
+
+  it('is shown a spawn listing that never mentions the teammate type', async () => {
+    const { model } = await spawnTeammate({ script: [{ text: 'done' }] })
+
+    const declaration = model.doStreamCalls[0]?.tools?.find((tool) => tool.name === 'agent_spawn')
+    if (declaration?.type !== 'function') {
+      throw new Error('agent_spawn was not offered as a function tool')
+    }
+    expect(declaration.description).toContain('builder')
+    expect(declaration.description).not.toContain(TEAMMATE_AGENT_TYPE)
   })
 
   it('compiles the full session prompt, with its contract ahead of the shared fragments', async () => {
