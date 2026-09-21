@@ -28,6 +28,10 @@ export class WorkspaceSpecDto {
 
   @IsString()
   patch!: string
+
+  @IsOptional()
+  @IsString()
+  projectDirectory?: string | null
 }
 
 export class AttachSandboxDto {
@@ -43,7 +47,7 @@ export class AttachSandboxDto {
 
   @IsOptional()
   @IsString()
-  skillsBundle?: string
+  contextBundle?: string
 }
 
 export class ExposeSandboxDto {

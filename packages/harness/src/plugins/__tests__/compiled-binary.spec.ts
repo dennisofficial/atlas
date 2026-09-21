@@ -34,14 +34,14 @@ const runCapturing = async (args: {
 
 describe('a plugin loaded by a compiled binary', () => {
   it('gets the host own class and enum, not a second copy', async () => {
-    const tuiRoot = join(import.meta.dir, '..', '..', '..')
+    const harnessRoot = join(import.meta.dir, '..', '..', '..')
     const pluginDirectory = mkdtempSync(join(tmpdir(), 'atlas-compiled-plugins-'))
     const binary = join(mkdtempSync(join(tmpdir(), 'atlas-compiled-bin-')), 'probe')
 
     writeFileSync(join(pluginDirectory, 'identity.ts'), IDENTITY_PLUGIN)
 
     const built = await runCapturing({
-      cwd: tuiRoot,
+      cwd: harnessRoot,
       command: [
         'bun',
         'build',
@@ -55,7 +55,7 @@ describe('a plugin loaded by a compiled binary', () => {
     expect(built.stderr).not.toContain('error:')
     expect(built.code).toBe(0)
 
-    const ran = await runCapturing({ cwd: tuiRoot, command: [binary, pluginDirectory] })
+    const ran = await runCapturing({ cwd: harnessRoot, command: [binary, pluginDirectory] })
 
     expect(ran.stderr).toBe('')
     expect(ran.code).toBe(0)

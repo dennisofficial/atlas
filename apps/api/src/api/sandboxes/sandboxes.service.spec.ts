@@ -25,7 +25,7 @@ import type { GithubService } from '../github/github.service'
 import { SandboxesService } from './sandboxes.service'
 import { ESandboxState } from './sandboxes.types'
 import { SandboxMissingError, type VercelSandboxClient } from './vercel-sandbox.client'
-import { MAX_WORKSPACE_PATCH_BYTES } from './workspace-spec'
+import { MAX_CONTEXT_BUNDLE_BYTES, MAX_WORKSPACE_PATCH_BYTES } from './workspace-spec'
 
 const USER_A = 'user-a'
 const USER_B = 'user-b'
@@ -80,6 +80,9 @@ const sandboxRow = (
   workspaceBranch: null,
   workspaceCommit: null,
   workspacePatch: null,
+  workspaceSkills: null,
+  workspaceContext: null,
+  workspaceProjectDirectory: null,
   sealedToken: null,
   createdAt: '2026-09-16T00:00:00.000Z',
   updatedAt: '2026-09-16T00:00:00.000Z',
@@ -678,49 +681,83 @@ describe('SandboxesService', () => {
     expect(fake.cloudSandboxes[0]?.workspaceCommit).toBe(SPEC.commit)
     await expect(service.workspace({ threadId: THREAD })).resolves.toEqual({
       ...SPEC,
+      projectDirectory: null,
       githubToken: 'gho_user-token',
-      skillsBundle: null,
+      contextBundle: null,
     })
     expect(github.findToken).toHaveBeenCalledWith({ userId: USER_A })
   })
 
-  it('carries the skills bundle through to the workspace fetch and refreshes it on re-attach', async () => {
+  it('carries the project directory from create through to the sandbox fetch', async () => {
+    const spec = { ...SPEC, projectDirectory: '/Users/dennis/repos/atlas' }
+    await service.attach({ userId: USER_A, threadId: THREAD, workspace: spec })
+    await service.whenSettled({ threadId: THREAD })
+
+    expect(fake.cloudSandboxes[0]?.workspaceProjectDirectory).toBe(spec.projectDirectory)
+    await expect(service.workspace({ threadId: THREAD })).resolves.toMatchObject({
+      projectDirectory: spec.projectDirectory,
+    })
+  })
+
+  it('falls back to the outgoing workspaceSkills column when workspaceContext is unset', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD, workspace: SPEC })
+    await service.whenSettled({ threadId: THREAD })
+    const row = fake.cloudSandboxes[0]
+    if (row === undefined) throw new Error('expected a sandbox row')
+    row.workspaceSkills = JSON.stringify({ '.atlas/skills/review/SKILL.md': 'IyByZXZpZXc=' })
+    row.workspaceContext = null
+
+    await expect(service.workspace({ threadId: THREAD })).resolves.toMatchObject({
+      contextBundle: row.workspaceSkills,
+    })
+  })
+
+  it('never writes the outgoing workspaceSkills column on a fresh attach', async () => {
     const bundle = JSON.stringify({ '.atlas/skills/review/SKILL.md': 'IyByZXZpZXc=' })
-    await service.attach({ userId: USER_A, threadId: THREAD, workspace: SPEC, skillsBundle: bundle })
+    await service.attach({ userId: USER_A, threadId: THREAD, workspace: SPEC, contextBundle: bundle })
+    await service.whenSettled({ threadId: THREAD })
+
+    expect(fake.cloudSandboxes[0]?.workspaceContext).toBe(bundle)
+    expect(fake.cloudSandboxes[0]?.workspaceSkills).toBeFalsy()
+  })
+
+  it('carries the context bundle through to the workspace fetch and refreshes it on re-attach', async () => {
+    const bundle = JSON.stringify({ '.atlas/skills/review/SKILL.md': 'IyByZXZpZXc=' })
+    await service.attach({ userId: USER_A, threadId: THREAD, workspace: SPEC, contextBundle: bundle })
     await service.whenSettled({ threadId: THREAD })
 
     await expect(service.workspace({ threadId: THREAD })).resolves.toMatchObject({
-      skillsBundle: bundle,
+      contextBundle: bundle,
     })
 
     const fresher = JSON.stringify({ '.atlas/skills/review/SKILL.md': 'IyBuZXdlcg==' })
-    await service.attach({ userId: USER_A, threadId: THREAD, skillsBundle: fresher })
+    await service.attach({ userId: USER_A, threadId: THREAD, contextBundle: fresher })
     await service.whenSettled({ threadId: THREAD })
 
     const fetched = await service.workspace({ threadId: THREAD })
-    expect(fetched.skillsBundle).toBe(fresher)
+    expect(fetched.contextBundle).toBe(fresher)
     expect(fetched.patch).toBe(SPEC.patch)
   })
 
-  it('keeps the stored skills bundle when a re-attach sends none', async () => {
+  it('keeps the stored context bundle when a re-attach sends none', async () => {
     const bundle = JSON.stringify({ '.atlas/skills/review/SKILL.md': 'IyByZXZpZXc=' })
-    await service.attach({ userId: USER_A, threadId: THREAD, workspace: SPEC, skillsBundle: bundle })
+    await service.attach({ userId: USER_A, threadId: THREAD, workspace: SPEC, contextBundle: bundle })
     await service.whenSettled({ threadId: THREAD })
 
     await service.attach({ userId: USER_A, threadId: THREAD })
     await service.whenSettled({ threadId: THREAD })
 
     await expect(service.workspace({ threadId: THREAD })).resolves.toMatchObject({
-      skillsBundle: bundle,
+      contextBundle: bundle,
       patch: SPEC.patch,
     })
   })
 
-  it('refuses a skills bundle over the limit before claiming anything', async () => {
-    const oversized = 'x'.repeat(4 * 1024 * 1024 + 1)
+  it('refuses a context bundle over the limit before claiming anything', async () => {
+    const oversized = 'x'.repeat(MAX_CONTEXT_BUNDLE_BYTES + 1)
 
     await expect(
-      service.attach({ userId: USER_A, threadId: THREAD, skillsBundle: oversized }),
+      service.attach({ userId: USER_A, threadId: THREAD, contextBundle: oversized }),
     ).rejects.toBeInstanceOf(PayloadTooLargeException)
     expect(fake.cloudSandboxes).toHaveLength(0)
   })
@@ -768,8 +805,9 @@ describe('SandboxesService', () => {
       branch: null,
       commit: null,
       patch: '',
+      projectDirectory: null,
       githubToken: null,
-      skillsBundle: null,
+      contextBundle: null,
     })
     expect(github.findToken).not.toHaveBeenCalled()
   })

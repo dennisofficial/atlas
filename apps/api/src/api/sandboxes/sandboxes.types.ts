@@ -32,10 +32,12 @@ export interface SandboxWorkspaceSpec {
   branch: string | null
   commit: string | null
   patch: string
+  /** The Mac-side project directory of the lifted thread, absent for clients that predate it. */
+  projectDirectory?: string | null
 }
 
 export interface SandboxWorkspaceDto extends SandboxWorkspaceSpec {
   githubToken: string | null
-  /** The operator's user-level skills as a JSON map of relative path to base64 content. */
-  skillsBundle: string | null
+  /** The operator's user-level context as a JSON map of relative path to base64 content. */
+  contextBundle: string | null
 }

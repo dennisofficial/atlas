@@ -5,13 +5,8 @@ import {
   IdPort,
   WorkspacePort,
 } from '@dltech/atlas-core'
-import {
-  portToken,
-  projectPluginsDirectory,
-  resolveSet,
-  userPluginsDirectory,
-  type DependencyContainer,
-} from '@dltech/atlas-harness'
+import { portToken, resolveSet, type DependencyContainer } from '../container/injection'
+import { projectPluginsDirectory, userPluginsDirectory } from '../settings/paths'
 
 import { loadPluginDirectory } from './directory-source'
 import { installPluginApi } from './install-api'

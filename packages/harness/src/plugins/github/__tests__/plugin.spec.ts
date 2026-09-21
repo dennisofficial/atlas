@@ -1,10 +1,13 @@
 import { EHookPhase } from '@dltech/atlas-core'
-import { createIsolatedContainer, portToken, WorkspaceRoot } from '@dltech/atlas-harness'
 import { describe, expect, it } from 'bun:test'
+
+import { createIsolatedContainer, portToken } from '../../../container/injection'
+import { WorkspaceRoot } from '../../../container/tokens'
 
 import { NativePlugin } from '../../plugin'
 import GithubPlugin, { registerPlugin } from '../index'
 import { PullRequestPort } from '../pure'
+import { GithubUiBridgePort } from '../ui-bridge'
 
 const resolved = (): GithubPlugin => {
   const container = createIsolatedContainer()
@@ -51,7 +54,7 @@ describe('the github plugin as the loader sees it', () => {
     }
   })
 
-  it('contributes the hooks the feature listens on, one surface, its port and its links', async () => {
+  it('contributes the hooks the feature listens on, its ports and its links, but no UI surface', async () => {
     const plugin = resolved()
     const contribution = await plugin.contribute()
 
@@ -65,11 +68,14 @@ describe('the github plugin as the loader sees it', () => {
       `${EHookPhase.AfterTool}:refresh-pull-request`,
       `${EHookPhase.AfterShell}:refresh-pull-request-after-shell`,
     ])
-    expect(contribution.surfaces).toHaveLength(1)
+    expect(contribution.surfaces ?? []).toEqual([])
     expect((contribution.projections ?? []).map((projection) => projection.id)).toEqual([
       'pull-requests',
     ])
-    expect((contribution.ports ?? []).map((binding) => binding.token)).toEqual([PullRequestPort])
+    expect((contribution.ports ?? []).map((binding) => binding.token)).toEqual([
+      PullRequestPort,
+      GithubUiBridgePort,
+    ])
     expect(contribution.tools ?? []).toEqual([])
 
     await contribution.dispose?.()

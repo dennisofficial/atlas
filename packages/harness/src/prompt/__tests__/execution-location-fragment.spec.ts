@@ -20,8 +20,14 @@ describe('the execution-location fragment', () => {
     expect(fragment.text()).toContain('"host"')
   })
 
-  it('says nothing in the cloud, where moving is the operator’s call', () => {
-    expect(new ExecutionLocationFragment(() => EExecutionLocation.Cloud).text()).toBe('')
+  it('tells a cloud session it runs sandboxed and cannot move itself', () => {
+    const fragment = new ExecutionLocationFragment(() => EExecutionLocation.Cloud)
+
+    expect(fragment.text()).toContain('cloud sandbox')
+    expect(fragment.text()).toContain('operator’s machine')
+    expect(fragment.text()).toContain('operator’s call')
+    expect(fragment.text()).toContain('exposePort')
+    expect(fragment.stamp()).toBe(EExecutionLocation.Cloud)
   })
 
   it('reads an unwired container as the host, which is where such a session runs', () => {

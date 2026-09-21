@@ -8,6 +8,8 @@ export type WorkspaceSnapshot = {
   branch: string | null
   commit: string | null
   patch: string
+  /** The Mac-side project directory, carried so a sandbox can key its own memory uploads by repo. */
+  projectDirectory: string
 }
 
 const DETACHED = 'HEAD'
@@ -113,5 +115,5 @@ export async function captureWorkspace(args: {
     uncommittedPatch({ cwd: args.cwd, since: commit, read }),
   ])
 
-  return { remoteUrl, branch, commit, patch }
+  return { remoteUrl, branch, commit, patch, projectDirectory: args.cwd }
 }

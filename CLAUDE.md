@@ -51,7 +51,9 @@ into `core`, not to add a mock.
 
 **`tui` never reaches past `harness`.** It talks to `harness` through its ports. The shared
 composition root lives in `packages/harness/src/composition` (`composeHarness`); `apps/tui`
-supplies only its surface bindings (notices, tl;dr feed, plugins) through it.
+supplies only its surface bindings (notices, tl;dr feed) through it. Plugins are loaded by the
+shared root itself (`packages/harness/src/plugins`), so serve sessions get the same hooks, tools,
+and prompt fragments; only the UI contributions (projections, surfaces) are TUI-concrete.
 
 **`api` runs on Node, not Bun, and tests with vitest, not `bun test`.** Nest's dependency
 injection needs legacy decorators with emitted metadata, which Bun's transpiler silently drops —

@@ -6,6 +6,7 @@ import type { LiftedAttachment } from '../lifted-session'
 import type { ContainerMoveControl } from '../use-container-move'
 import { cloudApp, openCloudConversation } from './cloud-app'
 import type { CloudBridge } from './cloud-bridge'
+import { captureContextBundle } from './context-bundle'
 import { createCloudRunner, wakeSandbox } from './cloud-runner'
 
 /**
@@ -18,14 +19,19 @@ export async function openCloudThread(args: {
   bridge: CloudBridge
   threadId: ThreadId
   move?: ContainerMoveControl | undefined
+  /** Where this thread lives on this machine, when it does — see cloud-runner.ts's wake. */
+  projectDirectory?: string | undefined
 }): Promise<LiftedAttachment> {
-  const { app, bridge, threadId, move } = args
+  const { app, bridge, threadId, move, projectDirectory } = args
 
   try {
     const woken = await wakeSandbox({
       bridge,
       threadId,
       ...(move === undefined ? {} : { move }),
+      ...(projectDirectory === undefined
+        ? {}
+        : { captureContext: () => captureContextBundle({ cwd: projectDirectory }) }),
     })
 
     const channel = bridge.attach({ threadId, url: woken.url, token: woken.token })

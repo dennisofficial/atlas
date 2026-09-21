@@ -22,7 +22,7 @@ const spec = (partial: Partial<WorkspaceSpec> = {}): WorkspaceSpec => ({
   commit: '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c',
   patch: '',
   githubToken: TOKEN,
-  skillsBundle: null,
+  contextBundle: null,
   ...partial,
 })
 
@@ -50,6 +50,10 @@ const harness = (args: {
     write: async (given) => {
       written.push(given)
       present.add(given.path)
+    },
+    writeBytes: async ({ path, bytes }) => {
+      written.push({ path, text: bytes.toString('utf8') })
+      present.add(path)
     },
     empty: async (path) => {
       emptied.push(path)

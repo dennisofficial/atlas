@@ -23,6 +23,8 @@ export type ServeApp = {
   /** Resumes the served thread's transferred children — see adopt-children.ts for why it must. */
   adoptChildren: (args: { threadId: ThreadId }) => Promise<readonly ThreadId[]>
   whenChildrenSettled: (args: { threadId: ThreadId }) => Promise<void>
+  /** Carries this sandbox's memory back to the control plane — see upload-memory.ts. */
+  syncMemoryAfterTurn: () => Promise<void>
   close: () => Promise<void>
 }
 
@@ -35,6 +37,8 @@ export type ServeComposeArgs = {
   env: Record<string, string | undefined>
   model: string | undefined
   notice: NoticePort
+  /** The Mac-side project directory, so memory this sandbox uploads is keyed by the right repo. */
+  projectDirectory?: string | null | undefined
 }
 
 export type ServeCompose = (args: ServeComposeArgs) => Promise<ServeApp>

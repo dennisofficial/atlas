@@ -62,7 +62,7 @@ const specOf = (partial: Partial<WorkspaceSpec>): WorkspaceSpec => ({
   commit: null,
   patch: '',
   githubToken: null,
-  skillsBundle: null,
+  contextBundle: null,
   ...partial,
 })
 

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EChecksState, EPullRequestState, pullRequestBadge, type PullRequest } from '@dltech/atlas-harness'
+
 import { justifySpans } from '../../../ui/components/sidebar/cells'
 import type { SidebarRowSplit } from '../../../ui/sidebar-section'
 import { theme } from '../../../ui/theme'
-import { EChecksState, EPullRequestState, pullRequestBadge, type PullRequest } from '../pure'
 import { pullRequestStatusColor } from '../pull-request-pill'
 import { pullRequestRow } from '../pull-request-row'
 

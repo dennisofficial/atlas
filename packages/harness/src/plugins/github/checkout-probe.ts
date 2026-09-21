@@ -1,4 +1,4 @@
-import { runGit } from '@dltech/atlas-harness'
+import { runGit } from '../../workspace/run-git'
 
 import { checkoutOf, type NamedRemote, type RepositoryCheckout } from './pure'
 

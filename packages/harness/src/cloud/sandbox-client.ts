@@ -10,6 +10,12 @@ export enum ECloudSandboxState {
 
 export const sandboxStateSchema = z.nativeEnum(ECloudSandboxState)
 
+/**
+ * Shared with `apps/api/src/api/sandboxes/workspace-spec.ts`, which duplicates this value rather
+ * than importing it — `apps/api` carries no in-repo dependency by design (see its AGENTS.md).
+ */
+export const MAX_CONTEXT_BUNDLE_BYTES = 64 * 1024 * 1024
+
 export const wireSandboxSchema = z.object({
   url: z.string().min(1).optional(),
   token: z.string().min(1),
@@ -34,6 +40,7 @@ export const workspaceSpecSchema = z.object({
   branch: z.string().nullable(),
   commit: z.string().nullable(),
   patch: z.string(),
+  projectDirectory: z.string().nullish(),
 })
 
 export type WorkspaceSpec = z.infer<typeof workspaceSpecSchema>
@@ -59,7 +66,7 @@ export class SandboxClient {
   async createSandbox(args: {
     threadId: string
     workspace?: WorkspaceSpec | undefined
-    skillsBundle?: string | undefined
+    contextBundle?: string | undefined
   }): Promise<WireSandbox> {
     const body = await this.request({
       method: 'POST',
@@ -67,7 +74,7 @@ export class SandboxClient {
       body: {
         threadId: args.threadId,
         ...(args.workspace === undefined ? {} : { workspace: args.workspace }),
-        ...(args.skillsBundle === undefined ? {} : { skillsBundle: args.skillsBundle }),
+        ...(args.contextBundle === undefined ? {} : { contextBundle: args.contextBundle }),
       },
     })
     return wireSandboxSchema.parse(body)

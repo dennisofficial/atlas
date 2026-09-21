@@ -121,7 +121,9 @@ model CloudSandbox {
   workspaceBranch    String?
   workspaceCommit    String?
   workspacePatch     String?
-  workspaceSkills    String?
+  workspaceSkills    String? // outgoing column from the release ahead of the workspaceContext rename; drop once every release writes workspaceContext only
+  workspaceContext   String?  @db.Text
+  workspaceProjectDirectory String?
   createdAt      String
   updatedAt      String
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -231,6 +233,12 @@ model McpServerConfig {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, name])
+}
+
+model UserContextSync {
+  userId       String   @id
+  memoryBundle String   @db.Text
+  updatedAt    DateTime @updatedAt
 }
 
 model GithubConnection {

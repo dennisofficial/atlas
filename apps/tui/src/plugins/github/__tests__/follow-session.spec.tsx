@@ -16,15 +16,19 @@ import {
 } from '@dltech/atlas-core'
 import {
   createIsolatedContainer,
+  GithubPlugin,
+  GithubUiBridgePort,
+  loadPlugins,
+  NativePlugin,
   portToken,
+  registerGithubPlugin,
   resolveHookChain,
   WorkspaceRoot,
+  type PluginHost,
 } from '@dltech/atlas-harness'
 
-import { loadPlugins } from '../../load'
-import { NativePlugin, type PluginHost } from '../../plugin'
 import type { PluginSurface } from '../../surface'
-import GithubPlugin, { registerPlugin } from '../index'
+import { pullRequestSurface } from '../surface'
 
 import { settle, teardown } from '../../../ui/markdown/__tests__/harness'
 import { flattenedSpans } from '../../../ui/sidebar-section'
@@ -127,8 +131,9 @@ const branchRowSettling = async (args: {
 
 /**
  * The whole runtime path the app takes, with nothing faked but the model: the plugin registers
- * through the same loader and the same chain resolver compose uses, the surface renders for real,
- * and the git checkouts are real directories on disk.
+ * through the same loader compose uses, the bridge port is how the TUI reaches the same live
+ * `service`/`facts`/`links` the plugin built, the surface renders for real, and the git checkouts
+ * are real directories on disk.
  */
 const composed = async (): Promise<{
   probe: Probe
@@ -141,12 +146,12 @@ const composed = async (): Promise<{
 
   const container = createIsolatedContainer()
   container.register(WorkspaceRoot, { useValue: root })
-  registerPlugin({ container })
+  registerGithubPlugin({ container })
 
   const plugin = container.resolve(portToken(NativePlugin))
   if (!(plugin instanceof GithubPlugin)) throw new Error('the container answered something else')
 
-  const loaded = await loadPlugins({
+  await loadPlugins({
     plugins: [{ origin: EDefinitionOrigin.BuiltIn, plugin }],
     host: (): PluginHost => {
       throw new Error('a native never receives a host')
@@ -155,8 +160,13 @@ const composed = async (): Promise<{
   })
 
   const chain = resolveHookChain({ container })
-  const surface = loaded.surfaces[0]
-  if (surface === undefined) throw new Error('the plugin contributed no surface')
+  const bridge = container.resolve(portToken(GithubUiBridgePort))
+  const surface = pullRequestSurface({
+    service: bridge.service,
+    facts: bridge.facts,
+    links: bridge.links,
+    openUrl: () => undefined,
+  })
 
   const probe: Probe = { surface: null }
   const setup = await testRender(<Host use={surface.use} probe={probe} />, { width: 60, height: 4 })
