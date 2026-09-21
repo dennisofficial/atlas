@@ -41,10 +41,15 @@ export class TeammateMessageTool extends SchemaTool<typeof inputSchema> {
     threadId,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     const agentId = toThreadId(input.agentId)
-    const outcome = await this.agents().sayToPeer({ agentId, threadId, text: input.text })
+    const registry = this.agents()
+    const before = registry
+      .listEverywhere()
+      .find((snapshot) => snapshot.agentId === agentId)?.status
+
+    const outcome = await registry.sayToPeer({ agentId, threadId, text: input.text })
     if (!outcome.ok) return outcome
 
-    const queued = outcome.snapshot.status === EAgentStatus.Running
+    const queued = before === EAgentStatus.Running
 
     return {
       ok: true,

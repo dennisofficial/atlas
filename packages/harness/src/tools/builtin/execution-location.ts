@@ -179,10 +179,10 @@ export class ExecutionLocationTool extends SchemaTool<typeof inputSchema> {
     let root = threadId
     for (let depth = 0; depth < 32; depth += 1) {
       const summary = await threads.find({ threadId: root })
-      if (isTeammateType(summary?.agent?.type ?? '')) return root
-      const spawnedBy = summary?.agent?.spawnedBy
-      if (spawnedBy === undefined) return root
-      root = spawnedBy
+      const agent = summary?.agent
+      if (agent === undefined) return root
+      if (isTeammateType(agent.type)) return root
+      root = agent.spawnedBy
     }
     return root
   }

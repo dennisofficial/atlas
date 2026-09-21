@@ -112,12 +112,6 @@ function CrewRows(props: {
   )
 }
 
-/**
- * The roster mixes two kinds of rostered child in one array, told apart only by `agentType`: a
- * teammate is a peer session the main agent manages, a sub-agent is a brief-scoped hand. They read
- * as one tier apiece — teammates first, since they outlast a single brief — and a tier that has
- * nothing to show takes its heading with it rather than leaving an empty label in the panel.
- */
 export function SubagentsSection(props: {
   subagents: readonly SidebarSubagent[]
   cells: number

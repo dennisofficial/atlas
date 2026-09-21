@@ -38,7 +38,6 @@ export type ChildState = {
 export type SteerMessage = {
   text: string
   images?: readonly SaidImage[] | undefined
-  /** Absent means the spawner steered; a teammate's peers steer with PeerAgent so the log stays attributable. */
   via?: EMessageOrigin | undefined
 }
 

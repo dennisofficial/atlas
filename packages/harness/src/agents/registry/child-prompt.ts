@@ -25,7 +25,6 @@ export function subAgentPrompt({
   provider: ProviderIdentity
   model: PromptModel
   projectDirectory: string
-  /** A teammate compiles as Main: it is a full session, so it gets the identity, memory and instruction fragments a sub-agent is spared. */
   agent?: EPromptAgent | undefined
 }): CompiledPrompt {
   const compiled = prompts.compile(

@@ -229,10 +229,6 @@ export type CrewTiers = {
   subagents: readonly SidebarSubagent[];
 };
 
-/**
- * The roster mixes two kinds of rostered child in one array, told apart only by `agentType`: a
- * teammate is a full session the main agent manages, everything else is a brief-scoped sub-agent.
- */
 export function crewTiersOf(subagents: readonly SidebarSubagent[]): CrewTiers {
   return {
     teammates: subagents.filter((subagent) => subagent.agentType === TEAMMATE_AGENT_TYPE),

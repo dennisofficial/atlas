@@ -7,12 +7,6 @@ import {
 
 export const AGENT_SPAWN_TOOL_NAME = 'agent_spawn'
 
-/**
- * A teammate is a full session the main agent manages, not a constrained sub-agent, so the name
- * is reserved: the spawn guard, the runner's tool policy, the relocation scoping and the sidebar
- * all key on it, and a user-defined type wearing the name would inherit every one of those
- * behaviours without the contract.
- */
 export const TEAMMATE_AGENT_TYPE = 'teammate'
 
 export const isTeammateType = (name: string): boolean => name === TEAMMATE_AGENT_TYPE

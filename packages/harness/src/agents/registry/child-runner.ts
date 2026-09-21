@@ -56,12 +56,6 @@ const SUB_AGENT_DENIED: readonly string[] = [
   ...SERVICE_CONTROL_TOOL_NAMES,
 ]
 
-/**
- * A teammate shapes its own session — its own worktree, its own sub-agents, its own execution
- * location — so only the service-control denial carries over: a service's ending routes to the
- * thread that started it, and a stopped teammate's thread has nothing left to deliver it.
- * Spawning another teammate is refused upstream, in the supervisor, where the reason can teach.
- */
 const deniedFor = (agentType: AgentType): readonly string[] =>
   isTeammateType(agentType.name) ? SERVICE_CONTROL_TOOL_NAMES : SUB_AGENT_DENIED
 

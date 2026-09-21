@@ -30,10 +30,6 @@ export abstract class AgentRegistryPort {
     text: string
     images?: readonly SaidImage[] | undefined
   }): Promise<AgentOutcome>
-  /**
-   * Sibling messaging between teammates: the caller and the target must both be teammates of the
-   * same spawner. Lifecycle stays with the spawner — this carries words, never control.
-   */
   abstract sayToPeer(args: {
     agentId: ThreadId
     threadId: ThreadId

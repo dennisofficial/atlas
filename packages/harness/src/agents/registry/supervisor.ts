@@ -34,13 +34,12 @@ import {
 import {
   alreadyStepping,
   EMPTY_BRIEF,
-  NOT_A_TEAMMATE,
-  notYourTeammate,
   retiredAgentType,
   TEAMMATE_FROM_MAIN_ONLY,
   unknownAgent,
   unknownAgentType,
 } from './reasons'
+import { say, sayToPeer } from './say'
 import { AgentRoster } from './roster'
 import type { AgentSnapshot, RecoveredAgents } from './snapshot'
 import { stopAllChildren, stopChild } from './stop-all'
@@ -145,125 +144,42 @@ export class AgentSupervisor extends AgentRegistryPort {
     return { ok: true, snapshot: snapshotOf(child) }
   }
 
-  async say({
-    agentId,
-    threadId,
-    text,
-    images,
-  }: {
+  say(args: {
     agentId: ThreadId
     threadId: ThreadId
     text: string
     images?: readonly SaidImage[] | undefined
   }): Promise<AgentOutcome> {
-    const child = this.childFor({ agentId, threadId })
-    if (child === undefined) {
-      return { ok: false, reason: unknownAgent({ agentId, known: this.list({ threadId }) }) }
-    }
-
-    if (isStepping(child)) {
-      child.pending.push({ text, images })
-      return { ok: true, snapshot: snapshotOf(child) }
-    }
-
-    const agentType = agentTypeNamed({ agentTypes: this.agentTypes, name: child.agentType })
-    if (agentType === undefined) {
-      return { ok: false, reason: retiredAgentType(child.agentType) }
-    }
-
-    await this.log.append({
-      threadId: agentId,
-      runId: this.ids.nextRunId(),
-      drafts: [
-        {
-          type: 'user-said',
-          text,
-          via: EMessageOrigin.ParentAgent,
-          ...(images === undefined || images.length === 0 ? {} : { images }),
-        },
-      ],
+    return say({
+      ...args,
+      log: this.log,
+      ids: this.ids,
+      agentTypes: this.agentTypes,
+      roster: this.roster,
+      steps: this.steps,
+      deps: this.deps,
     })
-    child.projectDirectory ??= await childDirectory({ deps: this.deps, threadId })
-    this.steps.take({
-      child,
-      agentType,
-      step: ({ runner, signal }) => runner.runTurn({ threadId: agentId, signal }),
-    })
-
-    return { ok: true, snapshot: snapshotOf(child) }
   }
 
   resume(args: { agentId: ThreadId; threadId: ThreadId }): Promise<AgentOutcome> {
     return resumeChild({ ...args, ...this.relocation })
   }
 
-  async sayToPeer({
-    agentId,
-    threadId,
-    text,
-    images,
-  }: {
+  sayToPeer(args: {
     agentId: ThreadId
     threadId: ThreadId
     text: string
     images?: readonly SaidImage[] | undefined
   }): Promise<AgentOutcome> {
-    const caller = this.roster.find(threadId)
-    const target = this.roster.find(agentId)
-
-    if (caller === undefined || !isTeammateType(caller.agentType)) {
-      return { ok: false, reason: NOT_A_TEAMMATE }
-    }
-    if (
-      target === undefined ||
-      !isTeammateType(target.agentType) ||
-      target.spawnedBy !== caller.spawnedBy
-    ) {
-      return { ok: false, reason: notYourTeammate({ agentId, known: this.teammatesOf(caller) }) }
-    }
-
-    if (isStepping(target)) {
-      target.pending.push({ text, ...(images === undefined ? {} : { images }), via: EMessageOrigin.PeerAgent })
-      return { ok: true, snapshot: snapshotOf(target) }
-    }
-
-    const agentType = agentTypeNamed({ agentTypes: this.agentTypes, name: target.agentType })
-    if (agentType === undefined) {
-      return { ok: false, reason: retiredAgentType(target.agentType) }
-    }
-
-    await this.log.append({
-      threadId: agentId,
-      runId: this.ids.nextRunId(),
-      drafts: [
-        {
-          type: 'user-said',
-          text,
-          via: EMessageOrigin.PeerAgent,
-          ...(images === undefined || images.length === 0 ? {} : { images }),
-        },
-      ],
+    return sayToPeer({
+      ...args,
+      log: this.log,
+      ids: this.ids,
+      agentTypes: this.agentTypes,
+      roster: this.roster,
+      steps: this.steps,
+      deps: this.deps,
     })
-    target.projectDirectory ??= await childDirectory({ deps: this.deps, threadId: target.spawnedBy })
-    this.steps.take({
-      child: target,
-      agentType,
-      step: ({ runner, signal }) => runner.runTurn({ threadId: agentId, signal }),
-    })
-
-    return { ok: true, snapshot: snapshotOf(target) }
-  }
-
-  private teammatesOf(caller: ChildState): readonly AgentSnapshot[] {
-    return this.roster
-      .states()
-      .filter(
-        (child) =>
-          child.agentId !== caller.agentId &&
-          child.spawnedBy === caller.spawnedBy &&
-          isTeammateType(child.agentType),
-      )
-      .map(snapshotOf)
   }
 
   relocateChildren(args: RelocateChildrenArgs): Promise<readonly ThreadId[]> {
