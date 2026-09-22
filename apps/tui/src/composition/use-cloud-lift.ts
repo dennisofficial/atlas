@@ -26,6 +26,13 @@ export type WorkspaceCapture = (args: { cwd: string }) => Promise<LiftedWorkspac
 
 export type CloudLiftControl = { handleLift: () => void }
 
+/**
+ * Answers the refusal to show, or null when the lift may proceed. Runs before anything stops or
+ * transfers: a missing Vercel token or gh login must fail the moment /container cloud is typed,
+ * not four steps in at the sandbox wait.
+ */
+export type LiftPreflight = () => Promise<string | null>
+
 export function useCloudLift(args: {
   app: AtlasApp
   threadId: ThreadId
@@ -36,6 +43,7 @@ export function useCloudLift(args: {
   projectDirectory: string
   setLocation: (location: EExecutionLocation) => void
   createBridge: CloudBridgeFactory
+  preflightLift?: LiftPreflight | undefined
   capture: WorkspaceCapture
   captureContext?: CaptureContext | undefined
   move: ContainerMoveControl
@@ -57,16 +65,29 @@ export function useCloudLift(args: {
     }
 
     lifting.current = true
-    const bridge = createBridge({ url: signedIn.url, token: signedIn.token })
-    const { move } = latest.current
-    move.handleBegin({ target: EExecutionLocation.Cloud, plan: cloudLiftPlan({ midTurn }) })
+    void Promise.resolve()
+      .then(() => latest.current.preflightLift?.() ?? null)
+      .then(async (refusal) => {
+        if (refusal !== null) {
+          notify({
+            key: CLOUD_LIFT_NOTICE_KEY,
+            text: refusal,
+            tone: ENoticeTone.Warn,
+            ttlMs: NOTICE_WARN_MS,
+          })
+          return
+        }
 
-    void mergeRemoteMemoryBounded({
-      session: signedIn,
-      cwd: latest.current.projectDirectory,
-    }).catch(() => undefined)
+        const bridge = createBridge({ url: signedIn.url, token: signedIn.token })
+        const { move } = latest.current
+        move.handleBegin({ target: EExecutionLocation.Cloud, plan: cloudLiftPlan({ midTurn }) })
 
-    void liftToCloud({
+        void mergeRemoteMemoryBounded({
+          session: signedIn,
+          cwd: latest.current.projectDirectory,
+        }).catch(() => undefined)
+
+        const lifted = await liftToCloud({
       threadId,
       cwd: latest.current.projectDirectory,
       started: latest.current.started,
@@ -90,7 +111,7 @@ export function useCloudLift(args: {
         latest.current.captureContext ??
         (() => captureContextArchive({ cwd: latest.current.projectDirectory })),
     })
-      .then(async (lifted) => {
+
         if (!lifted.ok) {
           const reason = liftFailedNotice(lifted)
           move.handleFail(reason)
@@ -113,7 +134,7 @@ export function useCloudLift(args: {
       })
       .catch((error: unknown) => {
         const reason = `moving to the cloud failed — ${messageOf(error)}`
-        move.handleFail(reason)
+        latest.current.move.handleFail(reason)
         notify({
           key: CLOUD_LIFT_NOTICE_KEY,
           text: reason,

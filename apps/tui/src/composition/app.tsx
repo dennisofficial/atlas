@@ -161,7 +161,7 @@ import { liftRefusal } from './cloud/lift-plan'
 import { openCloudConversation } from './cloud/cloud-app'
 import type { CloudBridge } from './cloud/cloud-bridge'
 import { useThreadRouter } from './use-thread-router'
-import type { CloudBridgeFactory, WorkspaceCapture } from './use-cloud-lift'
+import type { CloudBridgeFactory, LiftPreflight, WorkspaceCapture } from './use-cloud-lift'
 import { useCloudLift } from './use-cloud-lift'
 import { captureWorkspace } from './cloud/workspace-snapshot'
 import type { CaptureContext } from './cloud/context-archive'
@@ -232,6 +232,23 @@ const liveBridgeFor = (app: AtlasApp): CloudBridgeFactory => {
 }
 
 /**
+ * The same checks the bridge's create would hit, run up front: a lift with no Vercel credentials
+ * or no gh login refuses before anything stops or transfers, instead of failing at the sandbox
+ * wait four steps in.
+ */
+const liveLiftPreflightFor =
+  (app: AtlasApp): LiftPreflight =>
+  async () => {
+    try {
+      requireVercelCredentials({ settings: app.settings, secrets: app.secrets })
+      await readGhAuthToken()
+      return null
+    } catch (error) {
+      return messageOf(error)
+    }
+  }
+
+/**
  * A lift is the conversation opened again as a cloud thread, not the running one rewired: the
  * workspace remounts against the remote stores under a fresh key, so every hook below reads the
  * cloud log from its first render rather than swapping ports out from under a live session. A
@@ -246,6 +263,7 @@ export function App(props: {
   clipboard?: ClipboardImageReader
   onRestart?: () => void
   createBridge?: CloudBridgeFactory
+  preflightLift?: LiftPreflight
   captureWorkspace?: WorkspaceCapture
   captureContext?: CaptureContext
 }): React.ReactNode {
@@ -322,6 +340,7 @@ export function App(props: {
         cloudSession={lifted?.session ?? null}
         cloudBridge={lifted?.bridge ?? null}
         createBridge={props.createBridge ?? liveBridgeFor(props.app)}
+        preflightLift={props.preflightLift ?? liveLiftPreflightFor(props.app)}
         captureWorkspace={props.captureWorkspace ?? captureWorkspace}
         captureContext={props.captureContext}
         onLifted={handleLifted}
@@ -346,6 +365,7 @@ function Workspace(props: {
   cloudSession: CloudSession | null
   cloudBridge: CloudBridge | null
   createBridge: CloudBridgeFactory
+  preflightLift: LiftPreflight
   captureWorkspace: WorkspaceCapture
   captureContext: CaptureContext | undefined
   onLifted: (attachment: LiftedAttachment) => void
@@ -909,6 +929,7 @@ function Workspace(props: {
     projectDirectory: conversation.projectDirectory,
     setLocation: execution.handleSet,
     createBridge: props.createBridge,
+    preflightLift: props.preflightLift,
     capture: props.captureWorkspace,
     captureContext: props.captureContext,
     move: containerMove,
@@ -1098,7 +1119,7 @@ function Workspace(props: {
   }, [])
 
   const handleContainer = useCallback(
-    (asked: EExecutionLocation | EContainerAsk): string => {
+    (asked: EExecutionLocation | EContainerAsk): string | undefined => {
       if (asked === EContainerAsk.Current) return currentLocationNotice(execution.location)
       if (asked === execution.location) return currentLocationNotice(execution.location)
       if (containerMove.move !== null) {
@@ -1121,6 +1142,7 @@ function Workspace(props: {
         return movedLocationNotice(asked)
       }
 
+      if (asked === EExecutionLocation.Cloud) return undefined
       return movingNotice(asked)
     },
     [

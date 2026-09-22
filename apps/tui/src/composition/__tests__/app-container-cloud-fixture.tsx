@@ -4,7 +4,7 @@ import { testRender } from '@opentui/react/test-utils'
 import { settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
 import { CLEAN_WORKSPACE, type FakeBridge } from '../cloud/__tests__/fixture'
-import type { CloudBridgeFactory, WorkspaceCapture } from '../use-cloud-lift'
+import type { CloudBridgeFactory, LiftPreflight, WorkspaceCapture } from '../use-cloud-lift'
 import { editorIn, spokenIn, REPLY, THINKING } from './app-fixture'
 import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
@@ -27,13 +27,18 @@ export const slowlySpeaking = (): FakeApp =>
     model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY }, perChunkMs: 300 }),
   })
 
-export const mount = async (args: { app: FakeApp; bridge: FakeBridge }) => {
+export const mount = async (args: {
+  app: FakeApp
+  bridge: FakeBridge
+  preflightLift?: LiftPreflight
+}) => {
   const createBridge: CloudBridgeFactory = () => args.bridge
   const setup = await testRender(
     <App
       app={args.app}
       opened={await spokenIn(args.app)}
       createBridge={createBridge}
+      preflightLift={args.preflightLift ?? (async () => null)}
       captureWorkspace={DIRTY}
       captureContext={STUB_CONTEXT}
     />,

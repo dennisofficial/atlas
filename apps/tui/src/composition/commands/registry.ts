@@ -64,7 +64,7 @@ const unknownContainerArgument = (argumentText: string): string =>
 
 export type LocalCommandHandlers = {
   onChangeDirectory: (argumentText: string) => Promise<CommandEffect>
-  onContainer: (asked: EExecutionLocation | EContainerAsk) => string
+  onContainer: (asked: EExecutionLocation | EContainerAsk) => string | undefined
   onCompact: (scope: ECompactScope) => void
   onRewind: () => void
   onShortcuts: () => void
