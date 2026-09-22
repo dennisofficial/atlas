@@ -88,11 +88,11 @@ describe('jevLoopWatch', () => {
     expect(decisions.calls).toBe(0)
   })
 
-  it('does not consult below the speech floor', async () => {
+  it('holds its verdict below the speech floor rather than clearing', async () => {
     const decisions = new FakeDecisions(looping(0.99))
     const watch = jevLoopWatch({ decisions, enabled: () => true })
 
-    expect(await watch({ events: [], signal: SIGNAL })).toBe(ELoopWatch.Clear)
+    expect(await watch({ events: [], signal: SIGNAL })).toBe(ELoopWatch.NoVerdict)
     expect(decisions.calls).toBe(0)
   })
 
@@ -166,7 +166,7 @@ async function openWatched(args: {
 }
 
 describe('the loop watchdog in a turn', () => {
-  it('nudges on the first looping verdict and fails the turn when it keeps looping', async () => {
+  it('nudges on the first looping verdict and ends the turn idle when it keeps looping', async () => {
     const { harness } = await openWatched({
       script: varyingSteps(20),
       watch: () => ELoopWatch.Looping,
@@ -175,10 +175,22 @@ describe('the loop watchdog in a turn', () => {
 
     const outcome = await harness.runner.say({ threadId: thread.id, text: 'verify the deploy' })
 
-    expect(outcome.status).toBe(ETurnStatus.Failed)
-    if (outcome.status !== ETurnStatus.Failed) return
-    expect(outcome.message).toContain('watchdog')
-    expect(outcome.message).toContain('nudged')
+    expect(outcome.status).toBe(ETurnStatus.Idle)
+
+    const events = await harness.log.read({ threadId: thread.id })
+    expect(events.filter((event) => event.type === 'nudge')).toHaveLength(1)
+  })
+
+  it('keeps the warning armed through steps too small to judge, so escalation still lands', async () => {
+    const { harness } = await openWatched({
+      script: varyingSteps(20),
+      watch: (callCount) => (callCount === 2 ? ELoopWatch.NoVerdict : ELoopWatch.Looping),
+    })
+    const thread = await harness.threads.create({})
+
+    const outcome = await harness.runner.say({ threadId: thread.id, text: 'verify the deploy' })
+
+    expect(outcome.status).toBe(ETurnStatus.Idle)
 
     const events = await harness.log.read({ threadId: thread.id })
     expect(events.filter((event) => event.type === 'nudge')).toHaveLength(1)

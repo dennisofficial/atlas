@@ -13,6 +13,9 @@ const RESULT_CLIP = 100
 const clip = (text: string, limit: number): string =>
   text.length <= limit ? text : `${text.slice(0, limit - 1)}…`
 
+const labelOf = (event: { description?: string | undefined; command: string }): string =>
+  event.description ?? clip(event.command, 80)
+
 const speechOf = (event: Event & { type: 'assistant-said' }): string =>
   event.parts
     .filter((part) => part.type === 'text')
@@ -38,17 +41,37 @@ const lineOf = (event: Event): string | undefined => {
   if (event.type === 'nudge') {
     return `- harness: ${clip(event.text, RESULT_CLIP)}`
   }
+  if (event.type === 'agent-ended') {
+    return `- sub-agent "${clip(event.intent, 120)}" (${event.agentType}) ${event.status}: ${clip(event.prose, 160)}`
+  }
+  if (event.type === 'background-shell-ended') {
+    const exit = event.exitCode === undefined ? '' : `, exit ${event.exitCode}`
+    return `- shell "${labelOf(event)}" ended (${event.status}${exit})`
+  }
+  if (event.type === 'background-shell-awaiting-input') {
+    return `- shell "${labelOf(event)}" is waiting for input`
+  }
+  if (event.type === 'background-shell-matched') {
+    return `- shell "${labelOf(event)}" matched its watch (${event.matchCount} lines)`
+  }
+  if (event.type === 'service-ended') {
+    return `- service "${labelOf(event)}" ended (${event.status})`
+  }
   return undefined
 }
 
 /**
- * Renders what the agent has done since the operator last spoke, for the decision model's loop
+ * Renders what the agent has done since the last steering event, for the decision model's loop
  * question. Below LOOP_WATCH_MIN_SPEECHES there is no pattern to judge, so the caller skips the
- * consultation entirely; a user message resets the window because steering is new information.
+ * consultation entirely. A user message resets the window because steering is new information, and
+ * a nudge resets it for the same reason — the judgement after a warning must grade what the agent
+ * did next, not the pattern it was already warned about.
  */
 export function loopWatchState({ events }: { events: readonly Event[] }): string | undefined {
-  const lastSpoken = events.findLastIndex((event) => event.type === 'user-said')
-  const since = events.slice(lastSpoken + 1)
+  const lastSteering = events.findLastIndex(
+    (event) => event.type === 'user-said' || event.type === 'nudge',
+  )
+  const since = events.slice(lastSteering + 1)
 
   const speeches = since.filter(
     (event) => event.type === 'assistant-said' && speechOf(event).length > 0,
