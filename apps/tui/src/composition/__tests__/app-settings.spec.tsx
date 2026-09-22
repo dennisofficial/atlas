@@ -61,6 +61,8 @@ const valueOf = (app: FakeApp, id: ESettingId): unknown =>
 
 const SIDEBAR_WIDTH_ROW = 6
 
+const DECISIONS_URL_ROW = 19
+
 async function downTo(args: { setup: Mounted; row: number }): Promise<void> {
   for (let step = 0; step < args.row; step += 1) {
     args.setup.mockInput.pressArrow('down')
@@ -213,6 +215,57 @@ describe('the settings page', () => {
 
     expect(columns[0]).toBeGreaterThan(0)
     expect((columns[0] ?? 0) - (columns[1] ?? 0)).toBe(14)
+  }, 60_000)
+
+  it('edits a text row in place and saves it', async () => {
+    const app = appWith()
+    const setup = await onSettings(app)
+
+    try {
+      await downTo({ setup, row: DECISIONS_URL_ROW })
+
+      setup.mockInput.pressEnter()
+      await landed(setup)
+      expect(setup.captureCharFrame()).toContain('DECISION MODEL')
+
+      await setup.mockInput.typeText('https://api.typesafe.ai/v1/systemone')
+      await landed(setup)
+
+      setup.mockInput.pressEnter()
+      await landed(setup)
+
+      expect(valueOf(app, ESettingId.DecisionsUrl)).toBe('https://api.typesafe.ai/v1/systemone')
+      expect(app.settings.snapshot().document.values[ESettingId.DecisionsUrl]).toBe(
+        'https://api.typesafe.ai/v1/systemone',
+      )
+      expect(setup.captureCharFrame()).toContain('https://api.typesafe.ai/v1/systemone')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('opens a text row holding its current value, and clears the row on backspace', async () => {
+    const app = appWith({ values: { [ESettingId.DecisionsUrl]: 'https://jev.example/v1' } })
+    const setup = await onSettings(app)
+
+    try {
+      await downTo({ setup, row: DECISIONS_URL_ROW })
+
+      setup.mockInput.pressEnter()
+      await landed(setup)
+      expect(setup.captureCharFrame()).toContain('https://jev.example/v1')
+
+      setup.mockInput.pressEscape()
+      await landed(setup)
+
+      setup.mockInput.pressBackspace()
+      await landed(setup)
+
+      expect(valueOf(app, ESettingId.DecisionsUrl)).toBe('')
+      expect(app.settings.snapshot().document.values[ESettingId.DecisionsUrl]).toBeUndefined()
+    } finally {
+      await teardown(setup)
+    }
   }, 60_000)
 
   it('keeps the keys to itself while it is open', async () => {

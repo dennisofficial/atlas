@@ -4,7 +4,9 @@ import {
   ESettingsLayer,
   resolveSettings,
   type SecretPrompt,
+  type SettingDefinition,
   type SettingsLayerInput,
+  type TextPrompt,
 } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
@@ -14,7 +16,7 @@ import { EAccountAction } from '../components/settings/account'
 import type { Span } from '../components/spans'
 import { cellsOf } from '../hint-layout'
 import { grammarsReady } from '../markdown/__tests__/harness'
-import { OPTION_SEPARATOR, RANGE_HINT, TOGGLE_HINT } from '../settings-format'
+import { OPTION_SEPARATOR, RANGE_HINT, TEXT_HINT, TOGGLE_HINT } from '../settings-format'
 import { SHIPPED_ACCENT, type Appearance } from '../appearance'
 import { SHIPPED_IMAGE_ROWS } from '../image-rows-store'
 import { SHIPPED_FENCE_WRAP } from '../fence-wrap-store'
@@ -50,20 +52,24 @@ const page = (args: {
   layers?: readonly SettingsLayerInput[]
   problem?: string
   prompt?: SecretPrompt
+  textPrompt?: TextPrompt
   secretOf?: (id: string) => Span | undefined
+  definitions?: readonly SettingDefinition[]
 }): React.ReactNode => {
-  const resolution = resolveSettings({ definitions: ATLAS_SETTINGS, layers: args.layers ?? [] })
+  const definitions = args.definitions ?? ATLAS_SETTINGS
+  const resolution = resolveSettings({ definitions, layers: args.layers ?? [] })
 
   return (
     <Settings
       width={args.width ?? WIDE}
       sidebarWidth={args.sidebarWidth ?? SIDEBAR_WIDTH}
-      model={settingsModel({ definitions: ATLAS_SETTINGS, resolution })}
+      model={settingsModel({ definitions, resolution })}
       state={args.state ?? { pageIndex: 0, rowIndex: 0 }}
       cwd="/Users/dennis/Developer/atlas"
       origin={ORIGIN}
       appearance={SHIPPED_APPEARANCE}
       prompt={args.prompt ?? null}
+      textPrompt={args.textPrompt ?? null}
       secretOf={args.secretOf ?? (() => undefined)}
       secretOrigin={SECRETS_ORIGIN}
       {...(args.problem === undefined ? {} : { problem: args.problem })}
@@ -140,6 +146,10 @@ describe('the settings page', () => {
     expect(rowWith(rows, 'Smooth streaming')).toContain(TOGGLE_HINT)
     expect(rowWith(rows, 'Sidebar width')).toContain(RANGE_HINT)
     expect(rowWith(rows, 'Accent')).toBe('')
+
+    const textOnly = ATLAS_SETTINGS.filter((row) => row.id === ESettingId.DecisionsUrl)
+    const textRows = await rowsOf(page({ definitions: textOnly }), WIDE)
+    expect(rowWith(textRows, 'Decision model')).toContain(TEXT_HINT)
   })
 
   it('lists the options a choice offers', async () => {
@@ -309,5 +319,33 @@ describe('the search key row', () => {
     const rows = await rowsOf(page({ state: KEY_ROW, prompt }), WIDE)
 
     expect(rows.some((row) => row.includes(SECRETS_ORIGIN))).toBe(true)
+  })
+})
+
+describe('the text setting prompt', () => {
+  const URL_ROW = stateOf(ESettingId.DecisionsUrl)
+
+  it('offers the field instead of the preview band once the row is being edited', async () => {
+    const textPrompt: TextPrompt = {
+      id: ESettingId.DecisionsUrl,
+      label: 'Decision model',
+      typed: 'https://api.typesafe.ai/v1/systemone',
+    }
+    const rows = await rowsOf(page({ state: URL_ROW, textPrompt }), WIDE)
+
+    expect(rows.some((row) => row.includes('DECISION MODEL'))).toBe(true)
+    expect(rows.some((row) => row.includes('https://api.typesafe.ai/v1/systemone'))).toBe(true)
+  })
+
+  it('writes to the settings file, so it says so rather than naming a vault', async () => {
+    const textPrompt: TextPrompt = {
+      id: ESettingId.DecisionsUrl,
+      label: 'Decision model',
+      typed: '',
+    }
+    const rows = await rowsOf(page({ state: URL_ROW, textPrompt }), WIDE)
+
+    expect(rows.some((row) => row.includes(`edits write to ${ORIGIN}`))).toBe(true)
+    expect(rows.some((row) => row.includes(SECRETS_ORIGIN))).toBe(false)
   })
 })

@@ -21,6 +21,7 @@ import {
 import type { AtlasApp } from './compose'
 import type { AccountPageControl } from './use-account-page'
 import type { SecretPromptControl } from './use-secret-prompt'
+import type { TextPromptControl } from './use-text-prompt'
 import type { SettingsCloudLoginControl } from './use-settings-cloud-login'
 
 export function useSettingsKeys(args: {
@@ -30,6 +31,7 @@ export function useSettingsKeys(args: {
   select: (target: SettingsState) => void
   settle: (result: SettingsWrite) => void
   secret: SecretPromptControl
+  text: TextPromptControl
   account: AccountPageControl
   login: SettingsCloudLoginControl
   signedIn: boolean
@@ -43,6 +45,7 @@ export function useSettingsKeys(args: {
     select,
     settle,
     secret,
+    text,
     account,
     login,
     signedIn,
@@ -60,10 +63,13 @@ export function useSettingsKeys(args: {
     [app.settings, settle, view],
   )
 
-  const handleClearModel = useCallback(
+  const handleClearValue = useCallback(
     (target: SettingsState) => {
       const row = currentRow({ state: target, model: view })
-      if (row === undefined || row.definition.kind !== ESettingKind.Model) return
+      if (row === undefined) return
+      if (row.definition.kind !== ESettingKind.Model && row.definition.kind !== ESettingKind.Text) {
+        return
+      }
       if (typeof row.value !== 'string' || row.value.length === 0) return
 
       settle(app.settings.clear({ id: row.definition.id }))
@@ -93,9 +99,14 @@ export function useSettingsKeys(args: {
         return
       }
 
+      if (row.definition.kind === ESettingKind.Text) {
+        text.open(row.definition, row.value)
+        return
+      }
+
       write(target, (held) => activateSetting({ definition: held.definition, current: held.value }))
     },
-    [account, onChooseModel, secret, select, view, write],
+    [account, onChooseModel, secret, select, text, view, write],
   )
 
   const handleKey = useCallback(
@@ -105,6 +116,11 @@ export function useSettingsKeys(args: {
 
       if (secret.prompt !== null) {
         secret.handleKey(key, secret.prompt)
+        return
+      }
+
+      if (text.prompt !== null) {
+        text.handleKey(key, text.prompt)
         return
       }
 
@@ -134,7 +150,7 @@ export function useSettingsKeys(args: {
       }
 
       if (key.name === 'backspace' || key.name === 'delete') {
-        handleClearModel(state)
+        handleClearValue(state)
         return
       }
 
@@ -151,13 +167,14 @@ export function useSettingsKeys(args: {
     [
       account,
       handleActivate,
-      handleClearModel,
+      handleClearValue,
       login,
       onDismiss,
       secret,
       select,
       signedIn,
       state,
+      text,
       view,
       write,
     ],

@@ -202,6 +202,7 @@ export * from './settings/document'
 export * from './settings/layers'
 export * from './settings/resolve'
 export * from './settings/edit'
+export * from './settings/text-prompt'
 export * from './settings/registry'
 export * from './settings/agent-type-rows'
 
