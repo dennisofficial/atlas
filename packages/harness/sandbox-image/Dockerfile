@@ -3,6 +3,12 @@
 # https://github.com/git/git/blob/v2.46.0/Documentation/config/safe.txt
 FROM node:22-trixie-slim
 
+# Browser-launch validations below run only on native builds: chrome dies under qemu when the
+# arm64 variant is cross-built from amd64 CI (GPU process launch failures, target signal 5),
+# while the downloads and installs work fine emulated.
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
 ENV DEBIAN_FRONTEND=noninteractive \
     TERM=xterm \
     GIT_TERMINAL_PROMPT=0 \
@@ -50,11 +56,9 @@ RUN mkdir -p /opt/playwright-runner /opt/playwright \
   && rm -rf /var/lib/apt/lists/* \
   && chmod -R a+rwX /opt/playwright \
   && ./node_modules/.bin/playwright --version \
-  && node -e "const{chromium}=require('/opt/playwright-runner/node_modules/playwright');chromium.launch({headless:true,args:['--no-sandbox']}).then(b=>b.close()).then(()=>console.log('chromium launch OK')).catch(e=>{console.error(e);process.exit(1)})"
+  && if [ "$TARGETPLATFORM" = "$BUILDPLATFORM" ]; then node -e "const{chromium}=require('/opt/playwright-runner/node_modules/playwright');chromium.launch({headless:true,args:['--no-sandbox']}).then(b=>b.close()).then(()=>console.log('chromium launch OK')).catch(e=>{console.error(e);process.exit(1)})"; fi
 
 ARG PLAYWRIGHT_CLI_VERSION=0.1.20
-ARG TARGETPLATFORM
-ARG BUILDPLATFORM
 # The agent CLI bundles its own playwright-core with its own browser revision, so it installs
 # its browser itself into the shared browsers path; the playwright-runner build above does not
 # satisfy it. Its default browser is the Google Chrome *channel* (an executable the image does
@@ -69,8 +73,6 @@ RUN mkdir -p /opt/playwright-cli \
   && playwright-cli install-browser chrome-for-testing \
   && chmod -R a+rwX /opt/playwright /opt/playwright-cli \
   && playwright-cli --version \
-  # chrome-for-testing dies under qemu (uncaught target signal 5) when this arm64 variant is
-  # cross-built from amd64 CI, so the launch validation only runs on native builds
   && if [ "$TARGETPLATFORM" = "$BUILDPLATFORM" ]; then playwright-cli open about:blank && playwright-cli close; fi \
   # the validation open above leaves a root-owned daemon socket dir that a non-root runtime
   # user cannot write into
