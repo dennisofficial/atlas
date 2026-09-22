@@ -19,7 +19,11 @@ src/
   _core/      kernel: env module, decorators, ports, types. Imports nothing from slices.
   _lib/       infra adapters (crypto). Framework-light.
   _module/    shared injectable modules (session guard + verifier port).
-  api/        the deployable app: app.module.ts + feature modules (auth, health, …).
+  api/        the deployable app: app.module.ts + feature modules in three layers —
+              platform/ (auth, accounts, sessions, sandboxes, health), cloud/ (secrets,
+              mcp-servers, user-context, context-archive, github), factory/. One-way rule:
+              cloud and factory may import platform, platform imports neither, cloud and
+              factory never import each other; enforced by src/api/architecture.spec.ts.
   db/         the lazy `db` client proxy + generated-client type re-exports.
   main.ts     the entrypoint — boots the app, hydrating env from the tier file when a
               DOTENV_PRIVATE_KEY is present; also default-exports the handler (harmless).
@@ -125,7 +129,7 @@ not drift.
 
 ## Auth
 
-better-auth is mounted through `@thallesp/nestjs-better-auth` in `src/api/auth/auth.module.ts`,
+better-auth is mounted through `@thallesp/nestjs-better-auth` in `src/api/platform/auth/auth.module.ts`,
 with `organization`, `bearer`, and `deviceAuthorization` plugins. Guards never import
 better-auth: they depend on the `SESSION_VERIFIER` port (`src/_core/ports/session-verifier.ts`),
 bound by `SessionModule.withVerifier(...)`. Feature routes opt into protection with
