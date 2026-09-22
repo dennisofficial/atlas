@@ -3,11 +3,13 @@ const LINEAR_GRAPHQL_URL = 'https://api.linear.app/graphql'
 
 export interface LinearTokenResponse {
   accessToken: string
+  refreshToken: string | null
   expiresIn: number
 }
 
 interface LinearTokenBody {
   access_token?: unknown
+  refresh_token?: unknown
   expires_in?: unknown
 }
 
@@ -24,9 +26,13 @@ async function postTokenRequest(args: { body: URLSearchParams }): Promise<Linear
   if (typeof body.access_token !== 'string') {
     throw new Error('linear token request returned no access token')
   }
+  if (typeof body.expires_in !== 'number') {
+    throw new Error('linear token request returned no expires_in')
+  }
   return {
     accessToken: body.access_token,
-    expiresIn: typeof body.expires_in === 'number' ? body.expires_in : 0,
+    refreshToken: typeof body.refresh_token === 'string' ? body.refresh_token : null,
+    expiresIn: body.expires_in,
   }
 }
 
@@ -48,34 +54,19 @@ export async function exchangeCodeForToken(args: {
   })
 }
 
-export async function mintClientCredentialsToken(args: {
+export async function refreshAccessToken(args: {
   clientId: string
   clientSecret: string
-  scope: string
+  refreshToken: string
 }): Promise<LinearTokenResponse> {
-  const basic = Buffer.from(`${args.clientId}:${args.clientSecret}`).toString('base64')
-  const response = await fetch(LINEAR_TOKEN_URL, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/x-www-form-urlencoded',
-      authorization: `Basic ${basic}`,
-    },
+  return postTokenRequest({
     body: new URLSearchParams({
-      grant_type: 'client_credentials',
-      scope: args.scope,
-    }).toString(),
+      grant_type: 'refresh_token',
+      refresh_token: args.refreshToken,
+      client_id: args.clientId,
+      client_secret: args.clientSecret,
+    }),
   })
-  if (!response.ok) {
-    throw new Error(`linear client credentials request failed with status ${response.status}`)
-  }
-  const body = (await response.json()) as LinearTokenBody
-  if (typeof body.access_token !== 'string') {
-    throw new Error('linear client credentials request returned no access token')
-  }
-  return {
-    accessToken: body.access_token,
-    expiresIn: typeof body.expires_in === 'number' ? body.expires_in : 0,
-  }
 }
 
 // The app-actor token answers for the workspace it was minted in, so organization.id is the

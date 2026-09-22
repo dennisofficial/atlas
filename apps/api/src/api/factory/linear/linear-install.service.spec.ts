@@ -9,18 +9,26 @@ vi.mock('../../../db', async () => {
 
 import { fakeFactoryDb } from '../../../../test/fake-factory-db.js'
 import { EnvService } from '../../../_core/config/env/env.service'
+import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { FactoryConnectionsService } from '../connections/connections.service'
+import type { LinearConnectionCredentials } from './linear-credentials'
 import { LinearInstallService } from './linear-install.service'
 
 const ENV = {
   LINEAR_CLIENT_ID: 'linear-client-id',
   LINEAR_CLIENT_SECRET: 'linear-client-secret',
+  SECRETS_ENCRYPTION_KEY: 'a'.repeat(64),
 }
 const API_ORIGIN = 'https://api.byatlas.io'
 
-function tokenResponse(): Response {
+function tokenResponse(args: { accessToken?: string } = {}): Response {
   return new Response(
-    JSON.stringify({ access_token: 'app-actor-token', expires_in: 86399, scope: 'read write' }),
+    JSON.stringify({
+      access_token: args.accessToken ?? 'app-actor-token',
+      refresh_token: 'refresh-1',
+      expires_in: 86399,
+      scope: 'read write',
+    }),
     { status: 200 },
   )
 }
@@ -46,7 +54,18 @@ describe('LinearInstallService', () => {
   })
 
   function service(env: Record<string, string> = ENV): LinearInstallService {
-    return new LinearInstallService(new EnvService(env), new FactoryConnectionsService())
+    return new LinearInstallService(
+      new EnvService(env),
+      new FactoryConnectionsService(),
+      new SecretCipherService(new EnvService(env)),
+    )
+  }
+
+  function openSealed(): LinearConnectionCredentials {
+    const cipher = new SecretCipherService(new EnvService(ENV))
+    return JSON.parse(
+      cipher.decrypt(fake.connections[0]?.sealedCredentials ?? ''),
+    ) as LinearConnectionCredentials
   }
 
   it('beginInstall refuses when the oauth app is not configured', () => {
@@ -92,7 +111,53 @@ describe('LinearInstallService', () => {
       externalAccountId: 'ws-linear-1',
       organizationId: 'org_compai',
       status: 'active',
+      scopes: 'read,write,app:assignable,app:mentionable',
     })
+  })
+
+  it('completeInstall seals the workspace token into the connection, never in plaintext', async () => {
+    const install = service()
+    const url = new URL(install.beginInstall({ organizationId: 'org_compai', apiOrigin: API_ORIGIN }))
+    const state = url.searchParams.get('state') as string
+    fetchMock.mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(organizationResponse())
+
+    await install.completeInstall({ code: 'code-1', state, apiOrigin: API_ORIGIN })
+
+    const sealed = fake.connections[0]?.sealedCredentials ?? ''
+    expect(sealed).not.toBe('')
+    expect(sealed).not.toContain('app-actor-token')
+    expect(sealed).not.toContain('refresh-1')
+
+    const credentials = openSealed()
+    expect(credentials.accessToken).toBe('app-actor-token')
+    expect(credentials.refreshToken).toBe('refresh-1')
+    expect(credentials.expiresAt).toBeGreaterThan(Date.now())
+  })
+
+  it('reinstalling the same workspace reseals the connection with the new token', async () => {
+    const install = service()
+    const first = new URL(install.beginInstall({ organizationId: 'org_compai', apiOrigin: API_ORIGIN }))
+    fetchMock.mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(organizationResponse())
+    await install.completeInstall({
+      code: 'code-1',
+      state: first.searchParams.get('state') as string,
+      apiOrigin: API_ORIGIN,
+    })
+
+    const second = new URL(
+      install.beginInstall({ organizationId: 'org_compai', apiOrigin: API_ORIGIN }),
+    )
+    fetchMock
+      .mockResolvedValueOnce(tokenResponse({ accessToken: 'rotated-token' }))
+      .mockResolvedValueOnce(organizationResponse())
+    await install.completeInstall({
+      code: 'code-2',
+      state: second.searchParams.get('state') as string,
+      apiOrigin: API_ORIGIN,
+    })
+
+    expect(fake.connections).toHaveLength(1)
+    expect(openSealed().accessToken).toBe('rotated-token')
   })
 
   it('completeInstall consumes the state so a replay is rejected', async () => {
