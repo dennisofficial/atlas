@@ -1686,6 +1686,7 @@ function Workspace(props: {
             model={sidebarModel}
             root={projectRoot}
             worktree={sidebarWorktree}
+            version={versionLabel()}
             overlay={overlay}
             shells={shells.folded}
             shellNow={shells.now}

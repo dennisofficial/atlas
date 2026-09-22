@@ -140,6 +140,7 @@ async function rowsOf(args: {
   root?: string;
   worktree?: string | null;
   width?: number;
+  version?: string;
 }): Promise<string[]> {
   const height = args.height ?? HEIGHT;
   const setup = await testRender(
@@ -149,6 +150,7 @@ async function rowsOf(args: {
         model={args.model}
         root={args.root ?? CWD}
         worktree={args.worktree ?? null}
+        version={args.version ?? "v1.2.3"}
       />
     </box>,
     { width: TERMINAL_WIDTH, height },
@@ -213,6 +215,7 @@ describe("the scroll gutter", () => {
           model={{ ...IDLE_SIDEBAR, title: "Barely over", todo: MANY_TASKS }}
           root={CWD}
           worktree={null}
+          version="v1.2.3"
         />
       </box>,
       { width: TERMINAL_WIDTH, height: BARELY_OVERFLOWING_HEIGHT },
@@ -366,7 +369,7 @@ describe("what the sidebar says", () => {
     opened.length = 0;
     const setup = await testRender(
       <box flexDirection="row" width={TERMINAL_WIDTH} height={HEIGHT}>
-        <Sidebar width={SIDEBAR_WIDTH} model={FED} root={CWD} worktree={null} />
+        <Sidebar width={SIDEBAR_WIDTH} model={FED} root={CWD} worktree={null} version="v1.2.3" />
       </box>,
       { width: TERMINAL_WIDTH, height: HEIGHT },
     );
@@ -394,7 +397,7 @@ describe("what the sidebar says", () => {
     opened.length = 0;
     const setup = await testRender(
       <box flexDirection="row" width={TERMINAL_WIDTH} height={HEIGHT}>
-        <Sidebar width={SIDEBAR_WIDTH} model={FED} root={CWD} worktree={null} />
+        <Sidebar width={SIDEBAR_WIDTH} model={FED} root={CWD} worktree={null} version="v1.2.3" />
       </box>,
       { width: TERMINAL_WIDTH, height: HEIGHT },
     );
@@ -581,6 +584,7 @@ function Beside(props: { handle: OverlayHandle }): React.ReactNode {
         root={CWD}
         worktree={null}
         overlay={overlay}
+        version="v1.2.3"
       />
     </box>
   );
@@ -637,6 +641,14 @@ describe("the footer", () => {
     const mark = rows.findIndex((row) => row.includes("● atlas"));
 
     expect(written(rows[mark - 1] ?? "").trim()).toBe("~/Developer/comp-v3");
+  }, 30_000);
+
+  it("pins the version against the right edge of the brand row", async () => {
+    const rows = await rowsOf({ model: IDLE_SIDEBAR });
+    const mark = rows.find((row) => row.includes("● atlas")) ?? "";
+
+    expect(mark).toMatch(/atlas\s+v1\.2\.3/);
+    expect(written(mark).trimEnd().endsWith("v1.2.3")).toBe(true);
   }, 30_000);
 
   it("hangs the worktree under the repository, relative to it", async () => {
