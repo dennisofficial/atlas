@@ -23,13 +23,13 @@ const SPEC = {
 }
 
 const sandboxes = {
-  attach: vi.fn(async () => ({
+  claim: vi.fn(async () => ({
     threadId: THREAD,
     name: 'atlas-thread-abc',
     region: 'iad1',
-    state: 'running',
+    state: 'resuming',
     lastActivityAt: '2026-09-16T00:00:00.000Z',
-    url: 'https://atlas-3000.vercel.run',
+    contextPending: true,
     token: SANDBOX_TOKEN,
   })),
   workspace: vi.fn(async () => ({ ...SPEC, githubToken: 'gho_user-token' })),
@@ -78,30 +78,61 @@ describe('sandbox workspace endpoint', () => {
   })
 
   beforeEach(() => {
-    sandboxes.attach.mockClear()
+    sandboxes.claim.mockClear()
+    sandboxes.claim.mockResolvedValue({
+      threadId: THREAD,
+      name: 'atlas-thread-abc',
+      region: 'iad1',
+      state: 'resuming',
+      lastActivityAt: '2026-09-16T00:00:00.000Z',
+      contextPending: true,
+      token: SANDBOX_TOKEN,
+    })
     sandboxes.workspace.mockClear()
   })
 
-  it('carries the workspace spec on the create body', async () => {
+  it('carries the workspace spec on the claim body', async () => {
     const response = await request(app.getHttpServer())
       .post('/sandboxes')
       .send({ threadId: THREAD, workspace: SPEC })
 
     expect(response.status).toBe(201)
-    expect(sandboxes.attach).toHaveBeenCalledWith({
+    expect(sandboxes.claim).toHaveBeenCalledWith({
       userId: 'user-a',
       threadId: THREAD,
       workspace: SPEC,
+      contextBundle: undefined,
+      gitToken: undefined,
+      contextPending: undefined,
     })
   })
 
-  it('creates without a workspace for a session that has no repo', async () => {
+  it('carries the git token and the context-pending flag on the claim body', async () => {
+    await request(app.getHttpServer())
+      .post('/sandboxes')
+      .send({ threadId: THREAD, workspace: SPEC, gitToken: 'gho_fresh', contextPending: false })
+      .expect(201)
+
+    expect(sandboxes.claim).toHaveBeenCalledWith({
+      userId: 'user-a',
+      threadId: THREAD,
+      workspace: SPEC,
+      contextBundle: undefined,
+      gitToken: 'gho_fresh',
+      contextPending: false,
+    })
+  })
+
+  it('claims without a workspace for a session that has no repo', async () => {
     await request(app.getHttpServer()).post('/sandboxes').send({ threadId: THREAD }).expect(201)
 
-    expect(sandboxes.attach).toHaveBeenCalledWith({
+    expect(sandboxes.claim).toHaveBeenCalledWith({
       userId: 'user-a',
       threadId: THREAD,
       workspace: undefined,
+      contextBundle: undefined,
+      gitToken: undefined,
+      contextPending: undefined,
     })
   })
 

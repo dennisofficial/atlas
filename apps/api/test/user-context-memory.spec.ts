@@ -13,11 +13,13 @@ import { UserContextController } from '../src/api/user-context/user-context.cont
 import { UserContextService } from '../src/api/user-context/user-context.service'
 
 const USER_SESSION = 'a-user-session'
+const SANDBOX_TOKEN = 'sandbox-session-token'
 const ARCHIVE_LIMIT_BYTES = 32
 
 const userContext = {
   getMemory: vi.fn(async (): Promise<string | null> => null),
   putMemory: vi.fn(async () => undefined),
+  deleteMemory: vi.fn(async () => undefined),
   getMemoryArchive: vi.fn(async (): Promise<Buffer | null> => null),
   putMemoryArchive: vi.fn(async () => undefined),
 }
@@ -30,8 +32,11 @@ const verifier: SessionVerifier = {
 }
 
 const sandboxes = {
-  verifyTokenPrincipal: vi.fn(async () => {
-    throw new UnauthorizedException('a valid sandbox session token is required')
+  verifyTokenPrincipal: vi.fn(async (args: { token: string }) => {
+    if (args.token !== SANDBOX_TOKEN) {
+      throw new UnauthorizedException('a valid sandbox session token is required')
+    }
+    return { id: 'sbx_1', threadId: 'brn_thread_1', userId: 'user-a' }
   }),
 }
 
@@ -70,6 +75,7 @@ describe('user-context memory endpoints', () => {
   beforeEach(() => {
     userContext.getMemory.mockClear()
     userContext.putMemory.mockClear()
+    userContext.deleteMemory.mockClear()
     userContext.getMemoryArchive.mockClear()
     userContext.putMemoryArchive.mockClear()
   })
@@ -145,8 +151,34 @@ describe('user-context memory endpoints', () => {
     expect(userContext.putMemoryArchive).not.toHaveBeenCalled()
   })
 
-  it('rejects an unauthenticated request on both routes', async () => {
+  it('rejects an unauthenticated request on all three routes', async () => {
     await request(app.getHttpServer()).get('/user-context/memory').expect(401)
     await request(app.getHttpServer()).put('/user-context/memory').send({ bundle: '{}' }).expect(401)
+    await request(app.getHttpServer()).delete('/user-context/memory').expect(401)
+
+    expect(userContext.deleteMemory).not.toHaveBeenCalled()
+  })
+
+  it("deletes the operator's memory row on their session", async () => {
+    await request(app.getHttpServer())
+      .delete('/user-context/memory')
+      .set('cookie', `better-auth.session_token=${USER_SESSION}`)
+      .expect(204)
+
+    expect(userContext.deleteMemory).toHaveBeenCalledWith({ userId: 'user-a' })
+  })
+
+  it('refuses a valid sandbox token on the delete: purging is a human action', async () => {
+    await request(app.getHttpServer())
+      .get('/user-context/memory')
+      .set('authorization', `Bearer ${SANDBOX_TOKEN}`)
+      .expect(200)
+
+    await request(app.getHttpServer())
+      .delete('/user-context/memory')
+      .set('authorization', `Bearer ${SANDBOX_TOKEN}`)
+      .expect(401)
+
+    expect(userContext.deleteMemory).not.toHaveBeenCalled()
   })
 })

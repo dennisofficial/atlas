@@ -6,7 +6,6 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common'
-import { EnvService } from '../../_core/config/env/env.service'
 import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import type { CloudSandboxModel, ThreadModel } from '../../db'
 import { db } from '../../db'
@@ -20,10 +19,9 @@ import { toSandboxDto, type SandboxPrincipal, type SandboxStatusColumns } from '
 import { claimSandboxRow, type ClaimedSandbox } from './sandbox-claim'
 import { sandboxNameFor } from './sandbox-names'
 import { sessionCredentialOf } from './sandbox-session-credential'
-import { hashSessionToken, tokenMatches } from './sandbox-tokens'
+import { hashSessionToken, mintSessionToken, tokenMatches } from './sandbox-tokens'
 import type {
   SandboxAttachmentDto,
-  SandboxExposureDto,
   SandboxStatusDto,
   SandboxWorkspaceDto,
   SandboxWorkspaceSpec,
@@ -36,8 +34,6 @@ import {
   type SandboxObservation,
 } from './vercel-sandbox.client'
 import { assertContextBundleWithinLimit, assertPatchWithinLimit, workspaceSpecOf } from './workspace-spec'
-
-const MINUTE_MS = 60_000
 
 const nowIso = (): string => new Date().toISOString()
 const messageOf = (failure: unknown): string =>
@@ -61,11 +57,9 @@ export class SandboxesService {
   private readonly logger = new Logger(SandboxesService.name)
   private readonly attachLocks = new Map<string, Promise<unknown>>()
   private readonly provisionFailures = new Map<string, string>()
-  private readonly sessionClockExtendedAt = new Map<string, number>()
 
   constructor(
     private readonly vercel: VercelSandboxClient,
-    private readonly env: EnvService,
     private readonly gitCredentials: SandboxGitCredentials,
     private readonly cipher: SecretCipherService,
     @Inject(CONTEXT_ARCHIVE_STORE) private readonly archives: ContextArchiveStore,
@@ -136,6 +130,47 @@ export class SandboxesService {
       lastActivityAt: nowIso(),
       contextPending: existing?.contextPending ?? true,
       token: credential.token,
+    }
+  }
+
+  /**
+   * The rendezvous half of a BYO lift: the harness drives Vercel with the operator's own token,
+   * so a claim only writes the row and mints the session credential — nothing here calls Vercel.
+   * Every claim mints a fresh session token, and re-seals the git credential that rode up with
+   * the claim; a claim that omits it leaves the stored one in place.
+   */
+  async claim(args: {
+    userId: string
+    threadId: string
+    workspace?: SandboxWorkspaceSpec | undefined
+    contextBundle?: string | undefined
+    gitToken?: string | undefined
+    contextPending?: boolean | undefined
+  }): Promise<SandboxAttachmentDto> {
+    const thread = await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
+    if (args.workspace !== undefined) assertPatchWithinLimit({ patch: args.workspace.patch })
+    if (args.contextBundle !== undefined) {
+      assertContextBundleWithinLimit({ bundle: args.contextBundle })
+    }
+    const minted = mintSessionToken()
+    const row = await claimSandboxRow({
+      thread,
+      tokenHash: minted.tokenHash,
+      sealedToken: this.cipher.encrypt(minted.token),
+      rotated: true,
+      workspace: args.workspace,
+      contextBundle: args.contextBundle,
+      ...(args.gitToken === undefined ? {} : { sealedGitToken: this.cipher.encrypt(args.gitToken) }),
+      ...(args.contextPending === undefined ? {} : { contextPending: args.contextPending }),
+    })
+    return {
+      threadId: args.threadId,
+      name: row.name,
+      region: SANDBOX_REGION,
+      state: ESandboxState.Resuming,
+      lastActivityAt: nowIso(),
+      contextPending: row.contextPending,
+      token: minted.token,
     }
   }
 
@@ -211,8 +246,8 @@ export class SandboxesService {
 
   /**
    * Answered to the sandbox rather than pushed into its environment: a patch outgrows what a
-   * process environment will carry. The git credential is read per request and never stored on the
-   * sandbox row.
+   * process environment will carry. The git credential rides the claim and sits sealed on the row;
+   * factory station sandboxes claim no git token, so their credential still comes from the broker.
    */
   async workspace(args: { threadId: string }): Promise<SandboxWorkspaceDto> {
     const row = await db.cloudSandbox.findUnique({
@@ -220,6 +255,8 @@ export class SandboxesService {
       select: {
         userId: true,
         threadId: true,
+        name: true,
+        sealedGitToken: true,
         workspaceRemoteUrl: true,
         workspaceBranch: true,
         workspaceCommit: true,
@@ -235,12 +272,29 @@ export class SandboxesService {
     // migration and its container swap still carries only workspaceSkills.
     const contextBundle = row.workspaceContext ?? row.workspaceSkills ?? null
     if (spec.remoteUrl === null) return { ...spec, githubToken: null, contextBundle }
+    const claimed = this.claimedGitToken({ name: row.name, sealedGitToken: row.sealedGitToken })
+    if (claimed !== null) return { ...spec, githubToken: claimed, contextBundle }
     const githubToken = await this.gitCredentials.findToken({
       userId: row.userId,
       threadId: row.threadId,
       remoteUrl: spec.remoteUrl,
     })
     return { ...spec, githubToken, contextBundle }
+  }
+
+  private claimedGitToken(args: {
+    name: string
+    sealedGitToken: string | null
+  }): string | null {
+    if (args.sealedGitToken === null) return null
+    try {
+      return this.cipher.decrypt(args.sealedGitToken)
+    } catch (failure) {
+      this.logger.warn(
+        `the sealed git token on sandbox ${args.name} does not decrypt; the credential broker answers instead: ${messageOf(failure)}`,
+      )
+      return null
+    }
   }
 
   async putContextArchive(args: {
@@ -280,31 +334,19 @@ export class SandboxesService {
     }
   }
 
-  async expose(args: { threadId: string; port: number }): Promise<SandboxExposureDto> {
-    const row = await db.cloudSandbox.findUnique({
-      where: { threadId: args.threadId },
-      select: { name: true },
-    })
-    if (row === null) throw new NotFoundException('sandbox not found')
-    try {
-      const url = await this.vercel.exposePort({ name: row.name, port: args.port })
-      return { threadId: args.threadId, port: args.port, url }
-    } catch (failure) {
-      if (failure instanceof SandboxMissingError) throw new NotFoundException('sandbox not found')
-      throw failure
-    }
-  }
-
   async stop(args: { userId: string; threadId: string }): Promise<SandboxStatusDto> {
     const row = await ownedSandbox(args)
     await this.park({ row, reason: 'the sandbox was stopped' })
     return { ...toSandboxDto(row), state: ESandboxState.Parked }
   }
 
+  /**
+   * The harness owns the Vercel side of a BYO sandbox and has already destroyed it by the time it
+   * calls destroy; the API only ever owned the row.
+   */
   async destroy(args: { userId: string; threadId: string }): Promise<void> {
-    const row = await ownedSandbox(args)
+    await ownedSandbox(args)
     this.provisionFailures.delete(args.threadId)
-    await this.vercel.destroy({ name: row.name })
     await db.cloudSandbox.delete({ where: { threadId: args.threadId } })
   }
 
@@ -345,64 +387,6 @@ export class SandboxesService {
     }
   }
 
-  async heartbeat(args: { threadId: string }): Promise<void> {
-    const at = nowIso()
-    await db.cloudSandbox.updateMany({
-      where: { threadId: args.threadId },
-      data: { lastActivityAt: at, updatedAt: at },
-    })
-    if (!this.sessionClockDue(args.threadId)) return
-    const row = await db.cloudSandbox.findUnique({
-      where: { threadId: args.threadId },
-      select: { name: true },
-    })
-    if (row === null) return
-    await this.extendSessionClock({ threadId: args.threadId, name: row.name })
-  }
-
-  private sessionClockDue(threadId: string): boolean {
-    const extendedAt = this.sessionClockExtendedAt.get(threadId)
-    return extendedAt === undefined || Date.now() - extendedAt >= this.ttlMs() / 2
-  }
-
-  private async extendSessionClock(args: { threadId: string; name: string }): Promise<void> {
-    this.sessionClockExtendedAt.set(args.threadId, Date.now())
-    try {
-      await this.vercel.extendTimeout({ name: args.name, durationMs: this.ttlMs() })
-    } catch (failure) {
-      this.logger.warn(
-        `could not extend the session clock of sandbox ${args.name}: ${messageOf(failure)}`,
-      )
-    }
-  }
-
-  async reap(): Promise<number> {
-    const quietSince = new Date(Date.now() - this.ttlMs()).toISOString()
-    const stale = await db.cloudSandbox.findMany({
-      where: {
-        state: { notIn: [ESandboxState.Parked] },
-        lastActivityAt: { lt: quietSince },
-      },
-      select: { threadId: true, name: true },
-    })
-
-    let parked = 0
-    for (const row of stale) {
-      try {
-        const fresh = await db.cloudSandbox.findUnique({
-          where: { threadId: row.threadId },
-          select: { lastActivityAt: true },
-        })
-        if (fresh === null || fresh.lastActivityAt >= quietSince) continue
-        await this.park({ row, reason: 'the sandbox parked after sitting idle' })
-        parked += 1
-      } catch (failure) {
-        this.logger.warn(`could not park sandbox ${row.name}: ${String(failure)}`)
-      }
-    }
-    return parked
-  }
-
   async park(args: { row: Pick<CloudSandboxModel, 'threadId' | 'name'>; reason: string }): Promise<void> {
     await this.notifyParked(args)
     await this.vercel.stop({ name: args.row.name })
@@ -424,10 +408,6 @@ export class SandboxesService {
         `could not notify sandbox ${args.row.name} before parking it: ${messageOf(failure)}`,
       )
     }
-  }
-
-  private ttlMs(): number {
-    return this.env.get('SANDBOX_TTL_MINUTES') * MINUTE_MS
   }
 
   private async provisionInBackground(args: {

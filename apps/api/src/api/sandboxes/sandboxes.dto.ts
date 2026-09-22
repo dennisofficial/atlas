@@ -1,12 +1,10 @@
 import { Type } from 'class-transformer'
 import {
-  IsInt,
+  IsBoolean,
   IsNotEmpty,
   IsObject,
   IsOptional,
   IsString,
-  Max,
-  Min,
   ValidateIf,
   ValidateNested,
 } from 'class-validator'
@@ -34,7 +32,7 @@ export class WorkspaceSpecDto {
   projectDirectory?: string | null
 }
 
-export class AttachSandboxDto {
+export class ClaimSandboxDto {
   @IsString()
   @IsNotEmpty()
   threadId!: string
@@ -48,11 +46,12 @@ export class AttachSandboxDto {
   @IsOptional()
   @IsString()
   contextBundle?: string
-}
 
-export class ExposeSandboxDto {
-  @IsInt()
-  @Min(1)
-  @Max(65_535)
-  port!: number
+  @IsOptional()
+  @IsString()
+  gitToken?: string
+
+  @IsOptional()
+  @IsBoolean()
+  contextPending?: boolean
 }

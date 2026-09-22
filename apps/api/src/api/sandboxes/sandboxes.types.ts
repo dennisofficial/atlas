@@ -27,12 +27,6 @@ export interface SandboxAttachmentDto extends SandboxStatusDto {
   token: string
 }
 
-export interface SandboxExposureDto {
-  threadId: string
-  port: number
-  url: string
-}
-
 /**
  * The local workspace as the sandbox must reproduce it: a commit to check out and a unified diff
  * carrying everything not committed, so lifting a session never asks the operator to commit first.

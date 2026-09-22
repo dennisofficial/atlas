@@ -3,9 +3,6 @@ import { ContextArchiveModule } from '../context-archive/context-archive.module'
 import { GithubModule } from '../github/github.module'
 import { SandboxGitCredentials } from './git-credentials'
 import { SandboxContextController } from './sandbox-context.controller'
-import { SandboxExposeController } from './expose.controller'
-import { SandboxHeartbeatController } from './heartbeat.controller'
-import { SandboxReaperService } from './sandbox-reaper.service'
 import { SandboxTokenGuard } from './sandbox-token.guard'
 import { SandboxesController } from './sandboxes.controller'
 import { SandboxesService } from './sandboxes.service'
@@ -19,14 +16,11 @@ import { SandboxWorkspaceController } from './workspace.controller'
   controllers: [
     SandboxContextController,
     SandboxesController,
-    SandboxHeartbeatController,
     SandboxWorkspaceController,
     ServeBinaryController,
-    SandboxExposeController,
   ],
   providers: [
     SandboxesService,
-    SandboxReaperService,
     SandboxTokenGuard,
     SandboxGitCredentials,
     ServeBinaryService,

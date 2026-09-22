@@ -23,6 +23,10 @@ export class UserContextService {
     })
   }
 
+  async deleteMemory(args: { userId: string }): Promise<void> {
+    await db.userContextSync.deleteMany({ where: { userId: args.userId } })
+  }
+
   getMemoryArchive(args: { userId: string }): Promise<Buffer | null> {
     return this.archives.readUserArchive({ userId: args.userId })
   }

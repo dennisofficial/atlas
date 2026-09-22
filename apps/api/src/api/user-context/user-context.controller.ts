@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   HttpCode,
@@ -13,6 +14,7 @@ import {
   UseGuards,
 } from '@nestjs/common'
 import type { AuthenticatedRequest } from '../../_core/types/auth.types'
+import { SessionAuthGuard } from '../../_module/session/session-auth.guard'
 import {
   bufferBodyOf,
   isGzipContentType,
@@ -66,5 +68,17 @@ export class UserContextController {
       return
     }
     await this.userContext.putMemory({ userId, bundle: legacyBundleOf(body) })
+  }
+
+  /**
+   * Purging the cloud copy is the download-and-purge flow, a human action: the method-level
+   * guard stacks onto the controller's, so a sandbox token that passes SessionOrSandboxGuard
+   * still fails here for want of a session.
+   */
+  @Delete('memory')
+  @HttpCode(204)
+  @UseGuards(SessionAuthGuard)
+  async handleDelete(@Req() request: AuthenticatedRequest): Promise<void> {
+    await this.userContext.deleteMemory({ userId: userIdOf(request) })
   }
 }
