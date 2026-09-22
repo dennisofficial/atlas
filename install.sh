@@ -1,18 +1,13 @@
 #!/usr/bin/env sh
 set -eu
 
-# The repo is private, so every download rides on gh auth — there is no unauthenticated URL to
-# curl. The installed binary self-updates from then on; this script is only ever a bootstrap.
+# The releases are public, so downloads are unauthenticated. The installed binary self-updates
+# from then on; this script is only ever a bootstrap.
 
 REPO=dennisofficial/atlas
 
-if ! command -v gh >/dev/null 2>&1; then
-  printf 'install.sh: gh is required (the releases are private) — https://cli.github.com\n' >&2
-  exit 1
-fi
-
-if ! gh auth status >/dev/null 2>&1; then
-  printf 'install.sh: gh is not authenticated — run gh auth login first\n' >&2
+if ! command -v curl >/dev/null 2>&1; then
+  printf 'install.sh: curl is required\n' >&2
   exit 1
 fi
 
@@ -32,7 +27,9 @@ dest="$dest_dir/atlas"
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/atlas-install.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 
-gh release download --repo "$REPO" --pattern "$asset" --pattern "$asset.sha256" --dir "$tmp" --clobber
+base="https://github.com/$REPO/releases/latest/download"
+curl -fsSL "$base/$asset" -o "$tmp/$asset"
+curl -fsSL "$base/$asset.sha256" -o "$tmp/$asset.sha256"
 
 if command -v shasum >/dev/null 2>&1; then
   actual=$(shasum -a 256 "$tmp/$asset" | awk '{print $1}')
@@ -52,6 +49,32 @@ install "$tmp/$asset" "$dest"
 printf 'installed %s to %s\n' "$asset" "$dest"
 
 case ":$PATH:" in
-  *":$dest_dir:"*) ;;
-  *) printf 'note: %s is not on your PATH\n' "$dest_dir" ;;
+  *":$dest_dir:"*) exit 0 ;;
 esac
+
+display_dir=$dest_dir
+case "$dest_dir" in
+  "$HOME"/*) display_dir="\$HOME/${dest_dir#"$HOME"/}" ;;
+esac
+line="export PATH=\"$display_dir:\$PATH\""
+
+rc=
+case "${SHELL:-}" in
+  */zsh) rc="$HOME/.zshrc" ;;
+  */bash)
+    if [ -f "$HOME/.bash_profile" ]; then
+      rc="$HOME/.bash_profile"
+    else
+      rc="$HOME/.bashrc"
+    fi
+    ;;
+esac
+
+if [ -z "$rc" ]; then
+  printf 'note: %s is not on your PATH — add it to your shell profile: %s\n' "$dest_dir" "$line"
+elif [ -f "$rc" ] && grep -qF "$display_dir" "$rc"; then
+  printf 'note: %s already puts %s on your PATH — restart your shell to pick it up\n' "$rc" "$dest_dir"
+else
+  printf '\n%s\n' "$line" >> "$rc"
+  printf 'added %s to your PATH in %s — restart your shell to pick it up\n' "$dest_dir" "$rc"
+fi

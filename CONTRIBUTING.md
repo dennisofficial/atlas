@@ -28,8 +28,8 @@ All root scripts are turbo tasks:
 
 Run the prod binary, not source. It self-updates from GitHub releases on `/restart`. Install:
 
-```
-gh api repos/dennisofficial/atlas/contents/install.sh --jq .content | base64 -d | bash
+```sh
+curl -fsSL https://raw.githubusercontent.com/dennisofficial/atlas/main/install.sh | bash
 ```
 
 `install.sh` detects your platform, verifies the sha256, and installs to `~/.local/bin/atlas`
