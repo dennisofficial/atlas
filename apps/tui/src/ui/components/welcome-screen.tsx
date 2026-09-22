@@ -18,6 +18,7 @@ export function WelcomeScreen(props: {
   cwd: string
   home: string
   modelId: string
+  version: string
   width: number
 }): React.ReactNode {
   const marked = props.width >= WORDMARK_CELLS
@@ -48,6 +49,8 @@ export function WelcomeScreen(props: {
         <span fg={theme.hint}>{collapseHome({ cwd: props.cwd, home: props.home })}</span>
         <span fg={theme.rule}>{SEPARATOR}</span>
         <span fg={theme.hint}>{modelLabel(props.modelId)}</span>
+        <span fg={theme.rule}>{SEPARATOR}</span>
+        <span fg={theme.hint}>{props.version}</span>
       </text>
       <text> </text>
       <text fg={theme.meta}>{ACTION}</text>

@@ -27,6 +27,15 @@ export function clientVersionHeader(): string {
   return clientVersionOf(buildInfo())
 }
 
+export function versionLabelOf(build: BuildInfo): string {
+  if (build.kind === EBuildKind.Release) return `v${build.version}`
+  return clientVersionOf(build)
+}
+
+export function versionLabel(): string {
+  return versionLabelOf(buildInfo())
+}
+
 export function buildInfo(): BuildInfo {
   const version = typeof ATLAS_VERSION === 'undefined' ? undefined : present(ATLAS_VERSION)
   if (version !== undefined) {
