@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: release
@@ -66,3 +67,9 @@ jobs:
             args+=(--notes-start-tag "$PREV_TAG")
           fi
           gh release create "tui-v${VERSION}" dist/* "${args[@]}"
+
+      - name: dispatch sandbox image retag
+        if: steps.version.outputs.skip != 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: gh workflow run sandbox-image.yml -f release_tag="tui-v${VERSION}" -f release_sha="$GITHUB_SHA"
