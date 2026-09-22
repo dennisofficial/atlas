@@ -5,6 +5,8 @@ import {
   JEV_RISK_THRESHOLD,
   JEV_SERVICE_KEY,
   jevAnswersSchema,
+  JEV_LOOP_KEY,
+  jevLoopQuestions,
   jevRiskQuestions,
   jevServiceQuestions,
   verdictFromRisk,
@@ -55,6 +57,18 @@ describe('jevServiceQuestions', () => {
     const questions = jevServiceQuestions()
     expect(Object.keys(questions)).toEqual([JEV_SERVICE_KEY])
     expect(questions[JEV_SERVICE_KEY]?.type).toBe('noul')
+  })
+})
+
+describe('jevLoopQuestions', () => {
+  it('asks exactly one noul question', () => {
+    const questions = jevLoopQuestions()
+    expect(Object.keys(questions)).toEqual([JEV_LOOP_KEY])
+    expect(questions[JEV_LOOP_KEY]?.type).toBe('noul')
+  })
+
+  it('names the difference between a loop and honest iteration', () => {
+    expect(jevLoopQuestions()[JEV_LOOP_KEY]?.instructions).toContain('progress, not a loop')
   })
 })
 

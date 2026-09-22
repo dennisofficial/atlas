@@ -14,6 +14,7 @@ import {
   textValueOf,
   toggleValueOf,
   ClockPort,
+  DecisionPort,
   EventLogPort,
   IdPort,
   ModelPort,
@@ -40,6 +41,7 @@ import { ChildRunnerDepsToken } from '../container/create-harness-container'
 import { portToken, type DependencyContainer } from '../container/injection'
 import { DeltaChannelToken, HookChainToken } from '../container/tokens'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
+import { jevLoopWatch } from '../loop/loop-watchdog'
 import type { TurnDeps } from '../loop/run-turn'
 import { TldrTurnRunner, type TldrFeed } from '../loop/tldr-turn-runner'
 import type { TurnRunner } from '../loop/turn-runner.port'
@@ -83,6 +85,7 @@ export function wireTurn<Command>(args: {
   notice: NoticePort
   summarise: Summariser
   settings: SettingsService
+  decisionsEnabled: () => boolean
   stopSandbox: () => Promise<boolean>
   settled: SettingsResolution
   tldr: { feed: TldrFeed | undefined; model: LanguageModel; modelId: () => string }
@@ -217,6 +220,16 @@ export function wireTurn<Command>(args: {
     spend: { ledger, clock: container.resolve(portToken(ClockPort)) },
     compact: compactBeforeOverflow,
     applyLoopCut: createLoopCut({ threads, log, ids }),
+    watchLoop: jevLoopWatch({
+      decisions: container.resolve(portToken(DecisionPort)),
+      enabled: args.decisionsEnabled,
+    }),
+    onLoopWatch: () =>
+      notice.notify({
+        tone: ENoticeTone.Warn,
+        text: 'the watchdog judged this turn to be looping — the agent was nudged to break the pattern, and the turn will fail if it keeps going',
+        ttlMs: NOTICE_WARN_MS,
+      }),
     onLoopCut: (cut) =>
       notice.notify({
         tone: ENoticeTone.Warn,

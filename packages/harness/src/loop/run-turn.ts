@@ -13,6 +13,7 @@ import {
   exchangeFaults,
   loopCutNoticeDraft,
   loopCutPlan,
+  loopWatchNudgeDraft,
   pendingCalls,
   projectDirectoryOf,
   rowsOwnedBy,
@@ -36,12 +37,13 @@ import type { HookChain } from '../hooks/registry'
 import type { ApplyLoopCut } from '../store/cut-loop'
 import type { ToolDispatcher } from '../tools/dispatch'
 import { MAX_LOOP_CUTS_PER_TURN, repeatableFor } from './loop-guard'
+import { ELoopWatch, type LoopWatch } from './loop-watchdog'
 import { takeModelStepWithRetry, type RetryDeps } from './retrying-step'
 import { openTurnSpend, TURN_CRASHED, type TurnLedgerDeps, type TurnSpendTally } from '../ledger/record-turn-spend'
 import { appendResumeDrafts } from './resume-turn'
 import { createSettlePending, type OnToolOutputNotice, type SettlePending } from './settle-pending'
 import { draftsFor, interruptedDrafts } from './step-drafts'
-import { faultReport, loopReport, overflowReport, stalledReport, swallowedReport } from './turn-faults'
+import { faultReport, loopReport, overflowReport, stalledReport, swallowedReport, watchdogReport } from './turn-faults'
 import { committedSinceLastMessage, messageArrivedSince } from './turn-position'
 import { ETurnStatus, type TurnOutcome } from './turn-outcome'
 import { TurnRunner } from './turn-runner.port'
@@ -65,6 +67,8 @@ export type TurnDeps = {
   compact?: ((args: { threadId: ThreadId }) => Promise<boolean>) | undefined
   applyLoopCut?: ApplyLoopCut | undefined
   onLoopCut?: ((cut: LoopCut) => void) | undefined
+  watchLoop?: LoopWatch | undefined
+  onLoopWatch?: (() => void) | undefined
   autoCompactAtPercent?: (() => number) | undefined
   launchDirectory?: string | undefined
   retry?: RetryDeps | undefined
@@ -88,6 +92,8 @@ export class LoopTurnRunner extends TurnRunner {
   private readonly compact: ((args: { threadId: ThreadId }) => Promise<boolean>) | undefined
   private readonly applyLoopCut: ApplyLoopCut | undefined
   private readonly onLoopCut: ((cut: LoopCut) => void) | undefined
+  private readonly watchLoop: LoopWatch | undefined
+  private readonly onLoopWatch: (() => void) | undefined
   private readonly autoCompactAtPercent: () => number
   private readonly launchDirectory: string
   private readonly retry: RetryDeps | undefined
@@ -110,6 +116,8 @@ export class LoopTurnRunner extends TurnRunner {
     this.compact = deps.compact
     this.applyLoopCut = deps.applyLoopCut
     this.onLoopCut = deps.onLoopCut
+    this.watchLoop = deps.watchLoop
+    this.onLoopWatch = deps.onLoopWatch
     this.autoCompactAtPercent = deps.autoCompactAtPercent ?? (() => AUTO_COMPACT_OFF)
     this.launchDirectory = deps.launchDirectory ?? process.cwd()
     this.retry = deps.retry
@@ -194,6 +202,7 @@ export class LoopTurnRunner extends TurnRunner {
     let settleAttempted: CallId | undefined
     let compacted = false
     let loopCuts = 0
+    let loopWatchWarned = false
     const committedCalls: ModelToolCall[] = []
 
     const interrupted = async (): Promise<TurnOutcome> => ({
@@ -267,6 +276,22 @@ export class LoopTurnRunner extends TurnRunner {
           return { status: ETurnStatus.Failed, runId, message: swallowedReport(swallowed), cause: swallowed }
         }
         return { status: ETurnStatus.Idle, runId }
+      }
+
+      if (this.watchLoop !== undefined && !abortSignal.aborted) {
+        const watch = await this.watchLoop({ events: owned, signal: abortSignal })
+        if (watch === ELoopWatch.Looping) {
+          if (loopWatchWarned) {
+            return { status: ETurnStatus.Failed, runId, message: watchdogReport(), cause: watch }
+          }
+          loopWatchWarned = true
+          await this.log.append({ threadId, runId, drafts: [loopWatchNudgeDraft()] })
+          this.onLoopWatch?.()
+          previous = undefined
+          seenThrough = undefined
+          continue
+        }
+        if (watch === ELoopWatch.Clear) loopWatchWarned = false
       }
 
       seenThrough = owned.at(-1)?.seq

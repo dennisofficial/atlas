@@ -15,5 +15,8 @@ export const faultReport = (faults: readonly ExchangeFault[]): string =>
 export const loopReport = (cut: LoopCut): string =>
   `the turn repeated identical ${cut.names.join(', ')} calls with identical results, its context was rewound past the repetition twice already, and it looped again — a turn this stuck fails rather than spins`
 
+export const watchdogReport = (): string =>
+  `the watchdog judged this turn to be looping, the turn was nudged to break the pattern, and it kept looping anyway — a turn this stuck fails rather than spins`
+
 export const overflowReport = ({ tokens, window }: { tokens: number; window: number }): string =>
   `this conversation no longer fits the model's context window — about ${tokens.toLocaleString('en-US')} tokens against ${window.toLocaleString('en-US')}. Run /compact to replace the older turns with a summary, or raise the automatic threshold in settings.`

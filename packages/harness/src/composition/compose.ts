@@ -324,6 +324,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     notice,
     summarise,
     settings,
+    decisionsEnabled: () => decisionsConfig() !== undefined,
     stopSandbox: sandbox.stop,
     settled,
     tldr: { feed: surface.tldrFeed, model: tldrModel, modelId: () => tldrModel.modelId },

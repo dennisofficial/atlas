@@ -1,4 +1,5 @@
 export * from './build-harness'
+export * from './loop-watchdog'
 export * from './model-step'
 export * from './resume-turn'
 export * from './run-turn'
