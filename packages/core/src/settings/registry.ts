@@ -341,7 +341,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Nudges',
     label: 'Decision model',
     description:
-      'Where typed decisions are answered — a System-1 model that judges a flagged tool call by calibrated probability instead of a small generative model reading a brief. Point it at the hosted Jev endpoint (https://tokenra.io/v1/decisions) or at a Laya server of your own. Left empty, the judge stays the generative one.',
+      'Where typed decisions are answered — a System-1 model that judges a flagged tool call by calibrated probability instead of a small generative model reading a brief. Point it at the hosted Jev endpoint (https://api.typesafe.ai/v1/systemone) or at a Laya server of your own. Left empty, the judge stays the generative one.',
     environmentVariable: 'ATLAS_DECISIONS_URL',
     kind: ESettingKind.Text,
     fallback: '',
