@@ -7,6 +7,7 @@ import {
   ClaudeCodeSourceToken,
   CloudSessionStoreToken,
   LocalAccountStoreToken,
+  LocalSecretsStoreToken,
   SecretsStoreToken,
 } from '../container/tokens'
 import { AccountsService } from '../credentials/accounts-service'
@@ -79,6 +80,7 @@ export async function bindAccounts(args: {
   const cloud = new CloudService({
     sessions: container.resolve(CloudSessionStoreToken),
     localAccounts: container.resolve(LocalAccountStoreToken),
+    localSecrets: container.resolve(LocalSecretsStoreToken),
     defaultUrl: args.cloudUrl ?? 'http://localhost:3400',
     clientVersion: args.clientVersion,
   })

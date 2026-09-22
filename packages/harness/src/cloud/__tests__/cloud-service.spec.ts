@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -273,6 +273,40 @@ describe('CloudService', () => {
 
     service.logout()
     expect(service.session()).toBeNull()
+  })
+
+  it('logout restores the local files sign-in archived, so the local vault serves again', async () => {
+    const fake = cloudFake()
+    const service = serviceOver(fake.fetchFn)
+    writeFileSync(join(directory, 'auth.json'), '{"version":1,"accounts":[]}')
+
+    const ticket = await service.beginLogin()
+    await service.finishLogin({ ticket, token: 'sess_new' })
+    expect(existsSync(join(directory, 'auth.json'))).toBe(false)
+    expect(existsSync(join(directory, 'auth.json.archived'))).toBe(true)
+
+    service.logout()
+
+    expect(existsSync(join(directory, 'auth.json'))).toBe(true)
+    expect(existsSync(join(directory, 'auth.json.archived'))).toBe(false)
+  })
+
+  it('logout never clobbers a live local file with an archived one', async () => {
+    const fake = cloudFake()
+    const service = serviceOver(fake.fetchFn)
+    writeFileSync(join(directory, 'auth.json'), '{"version":1,"accounts":[]}')
+
+    const ticket = await service.beginLogin()
+    await service.finishLogin({ ticket, token: 'sess_new' })
+    writeFileSync(join(directory, 'auth.json'), '{"version":1,"accounts":["fresh"]}')
+
+    service.logout()
+
+    expect(existsSync(join(directory, 'auth.json.archived'))).toBe(true)
+    expect(JSON.parse(readFileSync(join(directory, 'auth.json'), 'utf8'))).toEqual({
+      version: 1,
+      accounts: ['fresh'],
+    })
   })
 
   it('finishLogin imports local secrets and the user mcp layer when the cloud is empty', async () => {

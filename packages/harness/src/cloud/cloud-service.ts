@@ -1,4 +1,4 @@
-import { renameSync } from 'node:fs'
+import { existsSync, renameSync } from 'node:fs'
 
 import {
   AccountStorePort,
@@ -54,6 +54,23 @@ const archiveImportedLocalFiles = (): string[] =>
     const archived = archiveIfPresent(file)
     return archived === null ? [] : [archived]
   })
+
+/**
+ * Sign-in moved the local files aside; sign-out hands them back, so a signed-out Atlas has its
+ * accounts, secrets and mcp layer again. A live file already sitting at the path wins — the purge
+ * flow writes fresh downloads there before clearing the session, and an archived snapshot must
+ * never overwrite them.
+ */
+const restoreArchivedLocalFiles = (): void => {
+  for (const file of [atlasVaultFile(), atlasSecretsFile(), userMcpFile()]) {
+    if (existsSync(file)) continue
+    try {
+      renameSync(`${file}.archived`, file)
+    } catch (cause) {
+      if (!isAbsentFile(cause)) throw cause
+    }
+  }
+}
 
 export class CloudService {
   private readonly sessions: CloudSessionStore
@@ -152,6 +169,7 @@ export class CloudService {
 
   logout(): void {
     this.sessions.clear()
+    restoreArchivedLocalFiles()
   }
 
   /**
