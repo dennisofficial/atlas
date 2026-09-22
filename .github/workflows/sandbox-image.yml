@@ -3,9 +3,17 @@ name: sandbox-image
 on:
   push:
     branches: [main]
+  # The retag job runs by dispatch, not on the release event: release.yml creates the
+  # release with GITHUB_TOKEN, and GitHub never starts workflow runs from events that
+  # token caused. https://docs.github.com/actions/using-workflows/triggering-a-workflow
   workflow_dispatch:
-  release:
-    types: [published]
+    inputs:
+      release_tag:
+        description: tui release tag to retag the sandbox image for (tui-vX.Y.Z)
+        required: true
+      release_sha:
+        description: full commit sha the release was cut from
+        required: true
 
 permissions:
   contents: read
@@ -96,8 +104,8 @@ jobs:
 
   retag:
     # release-on-main (.github/workflows/release.yml) tags tui releases as tui-vX.Y.Z
-    # (apps/tui/scripts/release-version.ts); those are the only releases this repo cuts.
-    if: github.event_name == 'release' && startsWith(github.event.release.tag_name, 'tui-v')
+    # (apps/tui/scripts/release-version.ts) and dispatches here after each one.
+    if: github.event_name == 'workflow_dispatch' && startsWith(inputs.release_tag, 'tui-v')
     runs-on: ubuntu-latest
     steps:
       - uses: docker/setup-buildx-action@v3
@@ -110,8 +118,8 @@ jobs:
 
       - name: retag existing image
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-          RELEASE_SHA: ${{ github.sha }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_SHA: ${{ inputs.release_sha }}
         run: |
           set -euo pipefail
           VERSION="${RELEASE_TAG#tui-v}"
