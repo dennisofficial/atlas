@@ -21,6 +21,7 @@ export enum ESettingId {
   UserInstructions = 'context.userInstructions',
   InstructionFilenames = 'context.filenames',
   ReloadInstructions = 'context.reload',
+  SkillSuggest = 'skills.suggest',
   AutoCompact = 'context.autoCompact',
   ImageRows = 'transcript.imageRows',
   FenceWrap = 'transcript.fenceWrap',
@@ -228,6 +229,17 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     description:
       'Re-read the instruction files at every turn, so editing one takes effect in the conversation you are already in. Unchanged files cost nothing; a changed one is appended again and supersedes what the model was reading. Turning this off freezes the instructions as they were when the conversation opened.',
     environmentVariable: 'ATLAS_RELOAD_INSTRUCTIONS',
+    kind: ESettingKind.Toggle,
+    fallback: true,
+  },
+  {
+    id: ESettingId.SkillSuggest,
+    page: ESettingPage.General,
+    group: 'Skills',
+    label: 'Suggest a skill per turn',
+    description:
+      'Before each turn, the decision model from the Nudges group ranks every skill against your message, re-reads the top three in full, and names at most one to the agent as a hint it is free to ignore — or says that nothing fits, which is what talks the roster out of loads that never should have happened. The roster itself never changes, so prompt caching over it still holds. Without a decision endpoint configured, no ranking happens and turns cost nothing extra.',
+    environmentVariable: 'ATLAS_SKILL_SUGGEST',
     kind: ESettingKind.Toggle,
     fallback: true,
   },

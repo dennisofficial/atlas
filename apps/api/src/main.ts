@@ -5,10 +5,10 @@ import type { NestExpressApplication } from '@nestjs/platform-express'
 import type { Express } from 'express'
 import helmet from 'helmet'
 import { envConfigValidation } from './_core/config/env/validation'
-import { contextArchiveRawParser } from './api/context-archive/context-archive-http'
-import { MAX_CONTEXT_ARCHIVE_BYTES } from './api/context-archive/context-archive-limits'
+import { contextArchiveRawParser } from './api/cloud/context-archive/context-archive-http'
+import { MAX_CONTEXT_ARCHIVE_BYTES } from './api/cloud/context-archive/context-archive-limits'
 import { hydrateEnvFromTierFile } from './api/hydrate-env'
-import { WORKSPACE_BODY_LIMIT } from './api/sandboxes/workspace-spec'
+import { WORKSPACE_BODY_LIMIT } from './api/platform/sandboxes/workspace-spec'
 
 const VALIDATION_PIPE_OPTIONS = {
   whitelist: true,

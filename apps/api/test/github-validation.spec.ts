@@ -7,10 +7,10 @@ import { EnvService } from '../src/_core/config/env/env.service'
 import type { AuthenticatedRequest } from '../src/_core/types/auth.types'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
 import { SessionAuthGuard } from '../src/_module/session/session-auth.guard'
-import { GithubDeviceClient } from '../src/api/github/github-device-client'
-import type { FetchFn } from '../src/api/github/github-device-client'
-import { GithubController } from '../src/api/github/github.controller'
-import { GithubService } from '../src/api/github/github.service'
+import { GithubDeviceClient } from '../src/api/cloud/github/github-device-client'
+import type { FetchFn } from '../src/api/cloud/github/github-device-client'
+import { GithubController } from '../src/api/cloud/github/github.controller'
+import { GithubService } from '../src/api/cloud/github/github.service'
 
 vi.mock('../src/db', () => ({ db: {} }))
 

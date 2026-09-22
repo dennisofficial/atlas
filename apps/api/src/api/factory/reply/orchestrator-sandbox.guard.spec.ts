@@ -1,7 +1,7 @@
 import type { ExecutionContext } from '@nestjs/common'
 import { UnauthorizedException } from '@nestjs/common'
 import { describe, expect, it, vi } from 'vitest'
-import type { SandboxesService } from '../../sandboxes/sandboxes.service'
+import type { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import { OrchestratorSandboxGuard, type OrchestratorSandboxRequest } from './orchestrator-sandbox.guard'
 
 const SANDBOX_ROW = { id: 'csb_1', threadId: 'brn_orchestrator', userId: 'usr_factory' }

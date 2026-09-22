@@ -63,6 +63,7 @@ export const jevAnswersSchema = z.object({
       noul: z.number().min(0).max(1).optional(),
       choice: z.string().optional(),
       score: z.number().optional(),
+      probabilities: z.record(z.string(), z.number()).optional(),
     }),
   ),
 })

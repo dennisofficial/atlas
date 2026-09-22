@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { EnvService } from '../../_core/config/env/env.service'
-import { SessionsModule } from '../sessions/sessions.module'
+import { SessionsModule } from '../platform/sessions/sessions.module'
+import { FactoryConnectionsService } from './connections/connections.service'
 import { FactoryDeliveriesController } from './delivery/deliveries.controller'
 import { DeliveriesService } from './delivery/deliveries.service'
 import { FactoryDriveSweeperService } from './drives/drive-sweeper.service'
@@ -36,6 +37,7 @@ import { WorkItemsService } from './work-items.service'
   ],
   providers: [
     WorkItemsService,
+    FactoryConnectionsService,
     TranscriptService,
     GithubWebhookService,
     FactoryIdentityService,
@@ -57,6 +59,12 @@ import { WorkItemsService } from './work-items.service'
     },
     { provide: ORCHESTRATOR_CHANNEL, useFactory: () => createOrchestratorChannel() },
   ],
-  exports: [WorkItemsService, TranscriptService, OrchestratorService, GithubWebhookService],
+  exports: [
+    WorkItemsService,
+    FactoryConnectionsService,
+    TranscriptService,
+    OrchestratorService,
+    GithubWebhookService,
+  ],
 })
 export class FactoryModule {}

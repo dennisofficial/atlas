@@ -7,7 +7,7 @@ export const SKILL_LISTING_MIN_DESCRIPTION_CHARS = 96
 const WHEN_TO_USE_LEAD = 'Use when:'
 const ELLIPSIS = '…'
 
-const combinedOf = (entry: SkillListingEntry): string => {
+export const skillSummaryOf = (entry: SkillListingEntry): string => {
   const description = entry.description.trim()
   const whenToUse = entry.whenToUse?.trim()
   if (whenToUse === undefined || whenToUse === '') return description
@@ -28,7 +28,7 @@ const lineOf = (args: {
 }): string => {
   if (!args.described) return `- ${args.entry.name}`
 
-  const combined = truncated({ text: combinedOf(args.entry), maximum: args.maximum })
+  const combined = truncated({ text: skillSummaryOf(args.entry), maximum: args.maximum })
   return combined === '' ? `- ${args.entry.name}` : `- ${args.entry.name}: ${combined}`
 }
 

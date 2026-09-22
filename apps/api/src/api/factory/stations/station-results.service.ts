@@ -9,7 +9,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common'
 import { db } from '../../../db'
-import { SandboxesService } from '../../sandboxes/sandboxes.service'
+import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import { EFactoryEventKind, type WorkItemDto } from '../factory.types'
 import { FactoryIdentityService } from '../orchestrator/factory-identity'
 import { OrchestratorService } from '../orchestrator/orchestrator.service'

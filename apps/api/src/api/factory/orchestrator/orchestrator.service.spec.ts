@@ -7,9 +7,9 @@ vi.mock('../../../db', async () => {
 })
 
 import { fakeFactoryDb } from '../../../../test/fake-factory-db.js'
-import type { SandboxesService } from '../../sandboxes/sandboxes.service'
-import type { ThreadsService } from '../../sessions/threads.service'
-import { EFactoryEventKind } from '../factory.types'
+import type { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
+import type { ThreadsService } from '../../platform/sessions/threads.service'
+import { DEFAULT_ORGANIZATION_ID, EFactoryEventKind } from '../factory.types'
 import { TranscriptService } from '../transcript.service'
 import { WorkItemsService } from '../work-items.service'
 import type { FactoryCredentialService } from './factory-credentials'
@@ -18,6 +18,7 @@ import type { OrchestratorChannel } from './orchestrator-channel'
 import { OrchestratorService } from './orchestrator.service'
 
 const INTAKE = {
+  organizationId: DEFAULT_ORGANIZATION_ID,
   repo: 'compai/atlas',
   sourceKind: 'github',
   surface: 'github',

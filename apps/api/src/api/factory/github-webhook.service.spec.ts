@@ -7,8 +7,9 @@ vi.mock('../../db', async () => {
 })
 
 import { fakeFactoryDb } from '../../../test/fake-factory-db.js'
+import { FactoryConnectionsService } from './connections/connections.service'
 import type { FactoryDrivesService } from './drives/drives.service'
-import { EFactoryEventKind, EFactoryWorkItemStatus } from './factory.types'
+import { DEFAULT_ORGANIZATION_ID, EFactoryEventKind, EFactoryWorkItemStatus } from './factory.types'
 import { GithubWebhookService } from './github-webhook.service'
 import type { OrchestratorService } from './orchestrator/orchestrator.service'
 import type { GithubAppService } from './reply/github-app.service'
@@ -68,6 +69,7 @@ describe('GithubWebhookService', () => {
     stations = { stopRunningFor: vi.fn(async () => undefined) }
     service = new GithubWebhookService(
       workItems,
+      new FactoryConnectionsService(),
       new TranscriptService(),
       orchestrator as unknown as OrchestratorService,
       githubApp as unknown as GithubAppService,
@@ -191,6 +193,7 @@ describe('GithubWebhookService', () => {
 
   it('issue_comment on a pull request routes to the pull-request alias, not an issue alias', async () => {
     const { workItem } = await workItems.intake({
+      organizationId: DEFAULT_ORGANIZATION_ID,
       repo: REPO,
       sourceKind: 'github',
       surface: 'github',
@@ -221,6 +224,7 @@ describe('GithubWebhookService', () => {
 
   it('a redelivered merge does not re-transition the work item', async () => {
     const { workItem } = await workItems.intake({
+      organizationId: DEFAULT_ORGANIZATION_ID,
       repo: REPO,
       sourceKind: 'github',
       surface: 'github',
@@ -261,6 +265,7 @@ describe('GithubWebhookService', () => {
 
   it('pull_request_review submitted and review comments append review events with association', async () => {
     await workItems.intake({
+      organizationId: DEFAULT_ORGANIZATION_ID,
       repo: REPO,
       sourceKind: 'github',
       surface: 'github',
@@ -301,6 +306,7 @@ describe('GithubWebhookService', () => {
 
   it('a merged pull request appends a merged event and transitions the work item', async () => {
     const { workItem } = await workItems.intake({
+      organizationId: DEFAULT_ORGANIZATION_ID,
       repo: REPO,
       sourceKind: 'github',
       surface: 'github',
@@ -328,6 +334,7 @@ describe('GithubWebhookService', () => {
 
   it('a closed issue stops its stations, releases the drive, and closes the work item', async () => {
     const { workItem } = await workItems.intake({
+      organizationId: DEFAULT_ORGANIZATION_ID,
       repo: REPO,
       sourceKind: 'github',
       surface: 'github',
@@ -357,6 +364,7 @@ describe('GithubWebhookService', () => {
 
   it('a reopened issue returns the work item to active and wakes the orchestrator', async () => {
     const { workItem } = await workItems.intake({
+      organizationId: DEFAULT_ORGANIZATION_ID,
       repo: REPO,
       sourceKind: 'github',
       surface: 'github',
@@ -386,6 +394,7 @@ describe('GithubWebhookService', () => {
 
   it('a closed but unmerged pull request is not handled', async () => {
     await workItems.intake({
+      organizationId: DEFAULT_ORGANIZATION_ID,
       repo: REPO,
       sourceKind: 'github',
       surface: 'github',

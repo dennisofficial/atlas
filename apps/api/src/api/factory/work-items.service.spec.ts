@@ -8,10 +8,11 @@ vi.mock('../../db', async () => {
 })
 
 import { fakeFactoryDb } from '../../../test/fake-factory-db.js'
-import { EFactoryWorkItemStatus } from './factory.types'
+import { DEFAULT_ORGANIZATION_ID, EFactoryWorkItemStatus } from './factory.types'
 import { WorkItemsService } from './work-items.service'
 
 const INTAKE = {
+  organizationId: DEFAULT_ORGANIZATION_ID,
   repo: 'compai/atlas',
   sourceKind: 'github',
   surface: 'github',
@@ -40,6 +41,23 @@ describe('WorkItemsService', () => {
       surface: 'github',
       externalId: 'compai/atlas#341',
     })
+  })
+
+  it('intake stores the organization on the created work item', async () => {
+    const { workItem } = await service.intake(INTAKE)
+
+    expect(workItem.organizationId).toBe(DEFAULT_ORGANIZATION_ID)
+    expect(fake.workItems[0]?.organizationId).toBe(DEFAULT_ORGANIZATION_ID)
+  })
+
+  it('intake on an already-aliased surface keeps the stored organization', async () => {
+    const first = await service.intake(INTAKE)
+
+    const second = await service.intake({ ...INTAKE, organizationId: 'org_other' })
+
+    expect(second.created).toBe(false)
+    expect(second.workItem.organizationId).toBe(first.workItem.organizationId)
+    expect(fake.workItems).toHaveLength(1)
   })
 
   it('intake on an already-aliased surface returns the existing work item', async () => {

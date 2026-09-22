@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common'
 import { db } from '../../../db'
-import { ESandboxDriveMode } from '../../sandboxes/sandboxes.types'
-import { SandboxesService } from '../../sandboxes/sandboxes.service'
+import { ESandboxDriveMode } from '../../platform/sandboxes/sandboxes.types'
+import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import type { OrchestratorChannel } from './orchestrator-channel'
 
 const logger = new Logger('FactoryServeDelivery')

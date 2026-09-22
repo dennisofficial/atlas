@@ -27,3 +27,18 @@ export const resolveSet = <T>(args: {
   token: InjectionToken<T>
 }): readonly T[] =>
   args.container.isRegistered(args.token, true) ? args.container.resolveAll(args.token) : []
+
+// `isRegistered` answers only that a registration exists, not that its factory can run: the
+// default EventLogPort registration resolves PrismaClientToken, which a bare container never
+// binds, so resolving it throws from inside the factory rather than on the token itself.
+export const resolveIfPossible = <T>(args: {
+  container: DependencyContainer
+  token: InjectionToken<T>
+}): T | undefined => {
+  if (!args.container.isRegistered(args.token, true)) return undefined
+  try {
+    return args.container.resolve(args.token)
+  } catch {
+    return undefined
+  }
+}

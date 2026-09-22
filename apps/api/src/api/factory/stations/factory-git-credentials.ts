@@ -3,7 +3,7 @@ import { db } from '../../../db'
 import {
   SandboxGitCredentials,
   type SandboxGitCredentialSource,
-} from '../../sandboxes/git-credentials'
+} from '../../platform/sandboxes/git-credentials'
 import { GithubAppService } from '../reply/github-app.service'
 
 /**

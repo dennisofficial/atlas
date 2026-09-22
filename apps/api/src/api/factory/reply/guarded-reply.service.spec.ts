@@ -8,13 +8,14 @@ vi.mock('../../../db', async () => {
 })
 
 import { fakeFactoryDb } from '../../../../test/fake-factory-db.js'
-import { EFactoryEventKind } from '../factory.types'
+import { DEFAULT_ORGANIZATION_ID, EFactoryEventKind } from '../factory.types'
 import { TranscriptService } from '../transcript.service'
 import { WorkItemsService } from '../work-items.service'
 import type { GithubAppService } from './github-app.service'
 import { GuardedReplyService } from './guarded-reply.service'
 
 const INTAKE = {
+  organizationId: DEFAULT_ORGANIZATION_ID,
   repo: 'compai/atlas',
   sourceKind: 'github',
   surface: 'github',

@@ -7,12 +7,13 @@ vi.mock('../../../db', async () => {
 })
 
 import { fakeFactoryDb } from '../../../../test/fake-factory-db.js'
-import type { VercelSandboxClient } from '../../sandboxes/vercel-sandbox.client'
-import { EFactoryWorkItemStatus } from '../factory.types'
+import type { VercelSandboxClient } from '../../platform/sandboxes/vercel-sandbox.client'
+import { DEFAULT_ORGANIZATION_ID, EFactoryWorkItemStatus } from '../factory.types'
 import { WorkItemsService } from '../work-items.service'
 import { FactoryDrivesService } from './drives.service'
 
 const INTAKE = {
+  organizationId: DEFAULT_ORGANIZATION_ID,
   repo: 'dennisofficial/factory-scratch',
   sourceKind: 'github',
   surface: 'github',

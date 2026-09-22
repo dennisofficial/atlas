@@ -7,9 +7,10 @@ vi.mock('../../../db', async () => {
 })
 
 import { fakeFactoryDb } from '../../../../test/fake-factory-db.js'
-import type { SandboxesService } from '../../sandboxes/sandboxes.service'
-import type { ThreadsService } from '../../sessions/threads.service'
+import type { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
+import type { ThreadsService } from '../../platform/sessions/threads.service'
 import type { FactoryDrivesService } from '../drives/drives.service'
+import { DEFAULT_ORGANIZATION_ID } from '../factory.types'
 import type { FactoryCredentialService } from '../orchestrator/factory-credentials'
 import { FactoryIdentityService } from '../orchestrator/factory-identity'
 import type { OrchestratorChannel } from '../orchestrator/orchestrator-channel'
@@ -20,6 +21,7 @@ import { StationsService } from './stations.service'
 import { stubFactoryChannel, stubFactorySandboxes } from './stations.service.spec'
 
 const INTAKE = {
+  organizationId: DEFAULT_ORGANIZATION_ID,
   repo: 'dennisofficial/factory-scratch',
   sourceKind: 'github',
   surface: 'github',

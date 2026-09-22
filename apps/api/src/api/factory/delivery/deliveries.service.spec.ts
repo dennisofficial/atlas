@@ -8,6 +8,7 @@ vi.mock('../../../db', async () => {
 
 import { fakeFactoryDb } from '../../../../test/fake-factory-db.js'
 import {
+  DEFAULT_ORGANIZATION_ID,
   EFactoryAliasKind,
   EFactoryEventKind,
   EFactoryWorkItemStatus,
@@ -18,6 +19,7 @@ import { WorkItemsService } from '../work-items.service'
 import { DeliveriesService } from './deliveries.service'
 
 const INTAKE = {
+  organizationId: DEFAULT_ORGANIZATION_ID,
   repo: 'dennisofficial/factory-scratch',
   sourceKind: 'github',
   surface: 'github',

@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { db } from '../../../db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { EAccountOrigin, EAccountStatus, EAuthKind } from '../../accounts/accounts.types'
+import { EAccountOrigin, EAccountStatus, EAuthKind } from '../../platform/accounts/accounts.types'
 import { isUniqueViolation } from '../unique-violation'
 
 const DEFAULT_PROVIDER = 'anthropic'
