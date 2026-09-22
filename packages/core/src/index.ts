@@ -110,7 +110,6 @@ export * from './prompt/compiled'
 export * from './prompt/coverage'
 export * from './prompt/model'
 
-export * from './policy/approval'
 export * from './policy/before-tool'
 export * from './policy/concurrency'
 export * from './policy/service-shape'

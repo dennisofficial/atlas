@@ -1015,7 +1015,6 @@ function Workspace(props: {
           interrupting: conversation.turn.interrupting,
           compacting: conversation.compacting !== null,
           containerMoveOpen: containerMove.move !== null,
-          approvalOpen: conversation.approval.state !== null,
           exitGuardOpen: exitGuard.state !== null,
           containerGuardOpen: containerGuard.state !== null,
           queuedMessages: props.app.pending.waitingCount(),
@@ -1429,7 +1428,7 @@ function Workspace(props: {
 
   const registry = useKeyRegistry()
 
-  const { approval, rewindConfirm } = conversation
+  const { rewindConfirm } = conversation
   const compacting = conversation.compacting !== null
   const moving = containerMove.move !== null
   const moveFailed = containerMove.move?.failure != null
@@ -1439,7 +1438,6 @@ function Workspace(props: {
       covering(exitGuard.state !== null, exitGuard.handleKey),
       covering(containerGuard.state !== null, containerGuard.handleKey),
       covering(rewindConfirm.state !== null, rewindConfirm.handleKey),
-      covering(approval.state !== null, approval.handleKey),
       covering(rewind.state !== null, rewind.handleKey),
       { ...covering(switcher.state !== null, switcher.handleKey), porous: true },
       covering(shells.state !== null, shells.handleKey),
@@ -1464,8 +1462,6 @@ function Workspace(props: {
       accounts.state,
       agentsPicker.handleKey,
       agentsPicker.state,
-      approval.handleKey,
-      approval.state,
       compacting,
       containerMove.handleKey,
       exitGuard.handleKey,
@@ -1714,7 +1710,6 @@ function Workspace(props: {
           agentsPicker={agentsPicker}
           rewind={rewind}
           rewindConfirm={conversation.rewindConfirm}
-          approval={conversation.approval}
           exitGuard={exitGuard}
           containerGuard={containerGuard}
           compacting={conversation.compacting}

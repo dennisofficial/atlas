@@ -24,7 +24,7 @@ import {
   SIBLING,
 } from '../../classifier/__tests__/fixtures'
 import { HookChain } from '../../hooks/registry'
-import { EApprovalRouting, HookedToolDispatcher, type DispatchableCall } from '../dispatch'
+import { HookedToolDispatcher, type DispatchableCall } from '../dispatch'
 import { InMemoryToolRegistry } from '../registry'
 
 const A_BUDGET_SHORTER_THAN_THE_HOOK = 20
@@ -55,7 +55,6 @@ const dispatcherOver = (args: {
   invoked: ToolInvocation[]
 }): HookedToolDispatcher =>
   new HookedToolDispatcher({
-    approvals: EApprovalRouting.Operator,
     registry: new InMemoryToolRegistry([bashTool({ invoked: args.invoked })]),
     hooks: args.hooks,
   })

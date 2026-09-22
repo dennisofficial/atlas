@@ -1,19 +1,15 @@
 import {
   isResumable,
   resumeDrafts,
-  rowsOwnedBy,
   type EventDraft,
-  type EventLogPort,
   type ThreadId,
 } from '@dltech/atlas-core'
 import { ETurnStatus, rewindThread, type RewindKill, type TurnOutcome } from '@dltech/atlas-harness'
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import { useCallback, useRef, useState, type RefObject } from 'react'
 
 import type { PendingSaid } from '../store'
-import { unansweredApproval, type ApprovalQuestion } from '../ui/approval-model'
 import type { DirectoryMove } from './directory-move'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
-import { useApproval, type ApprovalControl } from './use-approval'
 import type { AtlasApp } from './compose'
 import { discardInterrupted, EDiscard } from './resume-turn'
 import { useRewindConfirm, type RewindConfirmControl } from './use-rewind-confirm'
@@ -40,20 +36,6 @@ const messageOf = (error: unknown): string => (error instanceof Error ? error.me
 const committedNothing = (outcome: TurnOutcome): boolean =>
   outcome.status === ETurnStatus.Interrupted && !outcome.committed
 
-async function pausedOnApproval(args: {
-  log: EventLogPort
-  threadId: ThreadId
-  outcome: TurnOutcome
-}): Promise<ApprovalQuestion | null> {
-  if (args.outcome.status !== ETurnStatus.Paused) return null
-
-  const events = await args.log.read({ threadId: args.threadId })
-  return unansweredApproval({
-    events: rowsOwnedBy({ events, threadId: args.threadId }),
-    callId: args.outcome.callId,
-  })
-}
-
 type CommitGate = { reached: Promise<void>; settle: () => void }
 
 const commitGate = (): CommitGate => {
@@ -68,7 +50,6 @@ const commitGate = (): CommitGate => {
 export type TurnDriver = {
   working: boolean
   workingRef: RefObject<boolean>
-  approval: ApprovalControl
   rewindConfirm: RewindConfirmControl
   drive: (drafts: readonly EventDraft[]) => Promise<void>
   handleInterrupt: () => void
@@ -119,15 +100,7 @@ export function useTurnDriver(args: {
     for (const listener of [...settleListeners.current]) listener()
     settleListeners.current.clear()
   }
-  const driveLatest = useRef<(drafts: readonly EventDraft[]) => Promise<void>>(async () => undefined)
   const settleListeners = useRef(new Set<() => void>())
-
-  const handleAnswered = useCallback((drafts: readonly EventDraft[]) => {
-    void driveLatest.current(drafts)
-  }, [])
-
-  const approval = useApproval({ onAnswer: handleAnswered })
-  const { handleOpen: openApproval } = approval
 
   /**
    * A conversation nobody has spoken in has an id but no thread behind it, so the first drafts open
@@ -195,7 +168,6 @@ export function useTurnDriver(args: {
       stamp(() => turnStarted({ now: readClock() }))
 
       void (async () => {
-        let pausedForApproval = false
         try {
           if (drafts.length > 0) {
             await commit(drafts)
@@ -203,12 +175,7 @@ export function useTurnDriver(args: {
           }
           gate.settle()
           const outcome = await app.runner.runTurn({ threadId, signal: controller.signal })
-          const asked = await pausedOnApproval({ log: app.log, threadId, outcome })
-          if (asked === null) setFailure(stoppageOf(outcome))
-          else {
-            pausedForApproval = true
-            openApproval(asked)
-          }
+          setFailure(stoppageOf(outcome))
           if (committedNothing(outcome) && !undoSuppressed.current) await undo()
         } catch (error) {
           setFailure(messageOf(error))
@@ -220,7 +187,7 @@ export function useTurnDriver(args: {
           tailRef.current = true
           stamp((current) => turnSettled({ progress: current, now: readClock() }))
           await refresh().catch(() => undefined)
-          if (!pausedForApproval) await onSettled().catch(() => undefined)
+          await onSettled().catch(() => undefined)
           setWorking(false)
           await compactIfFull(used.current).catch(() => undefined)
           tailRef.current = false
@@ -235,7 +202,6 @@ export function useTurnDriver(args: {
       commit,
       compactIfFull,
       onSettled,
-      openApproval,
       readClock,
       refresh,
       setFailure,
@@ -245,10 +211,6 @@ export function useTurnDriver(args: {
       used,
     ],
   )
-
-  useEffect(() => {
-    driveLatest.current = drive
-  }, [drive])
 
   /**
    * A failed turn leaves its events durable, so retrying is the same turn run again with nothing
@@ -412,7 +374,6 @@ export function useTurnDriver(args: {
   return {
     working,
     workingRef,
-    approval,
     rewindConfirm,
     drive,
     handleInterrupt,

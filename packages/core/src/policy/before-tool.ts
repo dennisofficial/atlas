@@ -3,13 +3,11 @@ import type { ToolCall } from '../tools/tool'
 
 export enum EBeforeToolDecision {
   Allow = 'allow',
-  Ask = 'ask',
   Deny = 'deny',
 }
 
 export type BeforeToolOutcome =
   | { decision: EBeforeToolDecision.Allow; input: unknown; drafts?: readonly EventDraft[] | undefined }
-  | { decision: EBeforeToolDecision.Ask; reason: string; drafts?: readonly EventDraft[] | undefined }
   | { decision: EBeforeToolDecision.Deny; reason: string; drafts?: readonly EventDraft[] | undefined }
 
 export type HookDissent = { hookName: string; decision: EBeforeToolDecision; reason: string }
@@ -30,11 +28,8 @@ function dissentsAmong(outcomes: readonly ConsultedHook[]): HookDissent[] {
   )
 }
 
-function firstDissentFor(args: {
-  dissenters: readonly HookDissent[]
-  decision: EBeforeToolDecision.Ask | EBeforeToolDecision.Deny
-}): HookDissent | undefined {
-  return args.dissenters.find((dissent) => dissent.decision === args.decision)
+function firstDenialAmong(dissenters: readonly HookDissent[]): HookDissent | undefined {
+  return dissenters.find((dissent) => dissent.decision === EBeforeToolDecision.Deny)
 }
 
 function reasonOf(dissent: HookDissent): string {
@@ -62,19 +57,10 @@ export function resolveBeforeTool(args: {
   const dissenters = dissentsAmong(args.outcomes)
   const drafts = draftsAmong(args.outcomes)
 
-  const denial = firstDissentFor({ dissenters, decision: EBeforeToolDecision.Deny })
+  const denial = firstDenialAmong(dissenters)
   if (denial !== undefined) {
     return {
       outcome: { decision: EBeforeToolDecision.Deny, reason: reasonOf(denial) },
-      dissenters,
-      drafts,
-    }
-  }
-
-  const question = firstDissentFor({ dissenters, decision: EBeforeToolDecision.Ask })
-  if (question !== undefined) {
-    return {
-      outcome: { decision: EBeforeToolDecision.Ask, reason: reasonOf(question) },
       dissenters,
       drafts,
     }

@@ -21,7 +21,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { HookChain, type RegisteredHook } from '../../hooks/registry'
-import { EApprovalRouting, HookedToolDispatcher } from '../dispatch'
+import { HookedToolDispatcher } from '../dispatch'
 import { InMemoryToolRegistry } from '../registry'
 import { readCall, toolNamed } from './fixtures'
 
@@ -30,7 +30,6 @@ const SESSION_DIRECTORY = '/workspace'
 describe('dispatching a call for a tool nobody registered', () => {
   it('answers the model with an error result naming the tool and what is available', async () => {
     const dispatcher = new HookedToolDispatcher({
-      approvals: EApprovalRouting.Operator,
       registry: new InMemoryToolRegistry([toolNamed({ name: 'glob', invoke: async () => ({ ok: true, output: '', modelText: 'rendered' }) })]),
       hooks: new HookChain({}),
     })
@@ -49,7 +48,6 @@ describe('dispatching a call no hook objects to', () => {
   it('invokes the tool and reports its output, keyed by the run that emitted the call', async () => {
     const invocations: ToolInvocation[] = []
     const dispatcher = new HookedToolDispatcher({
-      approvals: EApprovalRouting.Operator,
       registry: new InMemoryToolRegistry([
         toolNamed({
           name: 'read',
@@ -81,7 +79,6 @@ describe('dispatching a call no hook objects to', () => {
 describe('dispatching a call the tool itself cannot complete', () => {
   it('renders a refused invocation as an error result the model can read', async () => {
     const dispatcher = new HookedToolDispatcher({
-      approvals: EApprovalRouting.Operator,
       registry: new InMemoryToolRegistry([
         toolNamed({ name: 'read', invoke: async () => ({ ok: false, reason: 'a.ts does not exist' }) }),
       ]),
@@ -103,7 +100,6 @@ describe('dispatching a call the tool itself cannot complete', () => {
 
   it('survives a tool that throws rather than letting it kill the turn', async () => {
     const dispatcher = new HookedToolDispatcher({
-      approvals: EApprovalRouting.Operator,
       registry: new InMemoryToolRegistry([
         toolNamed({
           name: 'read',
@@ -126,7 +122,6 @@ describe('dispatching a call the tool itself cannot complete', () => {
 describe('the two projections of a successful result', () => {
   it("carries the tool's model-facing text onto the draft", async () => {
     const dispatcher = new HookedToolDispatcher({
-      approvals: EApprovalRouting.Operator,
       registry: new InMemoryToolRegistry([
         toolNamed({
           name: 'read',
@@ -155,7 +150,6 @@ describe('the two projections of a successful result', () => {
 
   it('leaves an empty model-facing text empty rather than deciding what the model reads', async () => {
     const dispatcher = new HookedToolDispatcher({
-      approvals: EApprovalRouting.Operator,
       registry: new InMemoryToolRegistry([
         toolNamed({ name: 'read', invoke: async () => ({ ok: true, output: 'contents', modelText: '' }) }),
       ]),
@@ -169,7 +163,6 @@ describe('the two projections of a successful result', () => {
 
   it('leaves the model-facing text off a failure, whose voice is the error', async () => {
     const dispatcher = new HookedToolDispatcher({
-      approvals: EApprovalRouting.Operator,
       registry: new InMemoryToolRegistry([
         toolNamed({ name: 'read', invoke: async () => ({ ok: false, reason: 'a.ts does not exist' }) }),
       ]),
@@ -186,7 +179,6 @@ describe('dispatching a call whose input the tool schema rejects', () => {
   it('answers with an error result and never invokes the tool', async () => {
     let invoked = false
     const dispatcher = new HookedToolDispatcher({
-      approvals: EApprovalRouting.Operator,
       registry: new InMemoryToolRegistry([
         toolNamed({
           name: 'read',
@@ -231,7 +223,6 @@ describe('dispatching a call carrying a key the tool never declared', () => {
   it('rejects it rather than quietly ignoring it, as strictObject asks', async () => {
     let invoked = false
     const dispatcher = new HookedToolDispatcher({
-      approvals: EApprovalRouting.Operator,
       registry: new InMemoryToolRegistry([
         strictReadTool({
           invoke: async () => {
@@ -260,7 +251,6 @@ describe('dispatching a call the schema accepts and completes', () => {
   it('hands the tool the parsed input, not the raw input the model sent', async () => {
     const invocations: ToolInvocation[] = []
     const dispatcher = new HookedToolDispatcher({
-      approvals: EApprovalRouting.Operator,
       registry: new InMemoryToolRegistry([
         strictReadTool({
           invoke: async (invocation) => {
@@ -285,7 +275,6 @@ describe('dispatching a call the schema accepts and completes', () => {
     }
 
     const dispatcher = new HookedToolDispatcher({
-      approvals: EApprovalRouting.Operator,
       registry: new InMemoryToolRegistry([strictReadTool({ invoke: succeeds })]),
       hooks: new HookChain({
         beforeTool: [{ name: 'watcher', order: { stage: EStage.Guard, nudge: 0 }, run: watching }],
@@ -315,7 +304,6 @@ const dispatcherHearing = (
   hooks: readonly RegisteredHook<BeforeTool>[],
 ): HookedToolDispatcher =>
   new HookedToolDispatcher({
-    approvals: EApprovalRouting.Operator,
     registry: new InMemoryToolRegistry([toolNamed({ name: 'read', invoke: succeeds })]),
     hooks: new HookChain({ beforeTool: hooks }),
   })
@@ -343,20 +331,6 @@ describe('what a before-tool hook says while the dispatcher decides', () => {
     expect(drafts.map((draft) => draft.type)).toEqual(['nudge', 'tool-result'])
   })
 
-  it('records the draft ahead of the question when the call was paused', async () => {
-    const drafts = await dispatched(
-      dispatcherHearing([
-        speaking({
-          name: 'classify',
-          text: 'judged check',
-          outcome: () => ({ decision: EBeforeToolDecision.Ask, reason: 'reach: outside the project' }),
-        }),
-      ]),
-    )
-
-    expect(drafts.map((draft) => draft.type)).toEqual(['nudge', 'approval-requested'])
-  })
-
   it('records the draft ahead of the refusal when the call was denied', async () => {
     const drafts = await dispatched(
       dispatcherHearing([
@@ -380,18 +354,18 @@ describe('what a before-tool hook says while the dispatcher decides', () => {
           outcome: (call) => ({ decision: EBeforeToolDecision.Allow, input: call.input }),
         }),
         speaking({
-          name: 'approvals',
-          text: 'asked the operator',
+          name: 'boundary',
+          text: 'denied by boundary',
           nudge: 1,
-          outcome: () => ({ decision: EBeforeToolDecision.Ask, reason: 'writes need a human' }),
+          outcome: () => ({ decision: EBeforeToolDecision.Deny, reason: 'writes need a human' }),
         }),
       ]),
     )
 
     expect(drafts).toEqual([
       noted('judged clear'),
-      noted('asked the operator'),
-      { type: 'approval-requested', callId: toCallId('call-1'), reason: 'writes need a human' },
+      noted('denied by boundary'),
+      { type: 'tool-denied', callId: toCallId('call-1'), name: 'read', reason: 'writes need a human' },
     ])
   })
 
@@ -428,7 +402,6 @@ describe('what a before-tool hook is handed beyond the call', () => {
     })
 
     const dispatcher = new HookedToolDispatcher({
-      approvals: EApprovalRouting.Operator,
       registry: new InMemoryToolRegistry([toolNamed({ name: 'read', invoke: succeeds })]),
       hooks: new HookChain({
         beforeTool: [
@@ -458,7 +431,6 @@ describe('what a before-tool hook is handed beyond the call', () => {
     const controller = new AbortController()
     let aborted: boolean | undefined
     const dispatcher = new HookedToolDispatcher({
-      approvals: EApprovalRouting.Operator,
       registry: new InMemoryToolRegistry([toolNamed({ name: 'read', invoke: succeeds })]),
       hooks: new HookChain({
         beforeTool: [

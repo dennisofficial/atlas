@@ -30,11 +30,11 @@ describe('the critique of the configuration itself', () => {
     expect(request.prompt).toContain(`dimensions switched off entirely: ${ERiskDimension.Exposure}`)
   })
 
-  it('states the thresholds an interruption depends on', () => {
+  it('states the thresholds a denial depends on', () => {
     const request = requestFor([])
 
     expect(request.prompt).toContain(
-      `at most ${DEFAULT_CLASSIFIER_POLICY.asksPerThread} interruptions`,
+      `when the judge cannot be reached, the call is denied with a teaching reason at severity ${DEFAULT_CLASSIFIER_POLICY.askWhenUnreachableAtOrAbove} or above`,
     )
     expect(request.prompt).toContain(DEFAULT_CLASSIFIER_POLICY.consultAtOrAbove)
   })

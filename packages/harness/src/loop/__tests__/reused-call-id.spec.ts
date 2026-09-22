@@ -15,7 +15,7 @@ import {
 import { buildHarness, ETurnStatus, LoopTurnRunner, type AtlasHarness } from '..'
 import { scriptedModel } from '../../model/testing/scripted-model'
 import { HookChain } from '../../hooks/registry'
-import { EApprovalRouting, HookedToolDispatcher } from '../../tools/dispatch'
+import { HookedToolDispatcher } from '../../tools/dispatch'
 import { InMemoryToolRegistry } from '../../tools/registry'
 import { createTempDatabase, type TempDatabase } from './temp-database'
 import { COLLISION_TRANSCRIPT } from './reused-call-id.transcript'
@@ -74,7 +74,7 @@ function runnerFor(harness: AtlasHarness, root: string, log?: EventLogPort): Loo
     ids: harness.ids,
     assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY }),
     tools: () => registry.declarations(),
-    dispatch: new HookedToolDispatcher({ approvals: EApprovalRouting.Operator, registry, hooks: new HookChain({}) }),
+    dispatch: new HookedToolDispatcher({ registry, hooks: new HookChain({}) }),
   })
 }
 
@@ -170,7 +170,7 @@ describe('the transcript where it happened (thread brn_55fd05fb, kimi-k3-fast, 2
       ids: harness.ids,
       assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY }),
       tools: () => registry.declarations(),
-      dispatch: new HookedToolDispatcher({ approvals: EApprovalRouting.Operator, registry, hooks: new HookChain({}) }),
+      dispatch: new HookedToolDispatcher({ registry, hooks: new HookChain({}) }),
     })
 
     const outcome = await runner.say({ threadId: thread.id, text: 'continue' })

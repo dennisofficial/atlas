@@ -25,17 +25,6 @@ import {
 } from './adjudicate-fixtures'
 
 describe('adjudicate', () => {
-  it('never asks the operator, for any combination of triage, consultation and mode', () => {
-    for (const mode of EVERY_MODE) {
-      for (const triage of EVERY_TRIAGE) {
-        for (const consultation of EVERY_CONSULTATION) {
-          const outcome = decide({ mode, triage, consultation })
-          expect(outcome.decision).not.toBe(EBeforeToolDecision.Ask)
-        }
-      }
-    }
-  })
-
   it('never refuses without saying what it would cost and what to do instead', () => {
     for (const mode of EVERY_MODE) {
       for (const triage of EVERY_TRIAGE) {

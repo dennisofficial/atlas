@@ -2,7 +2,6 @@ import type { ModelRef } from '@dltech/atlas-core'
 import React from 'react'
 
 import { Accounts } from '../ui/components/accounts'
-import { Approval } from '../ui/components/approval'
 import type { Span } from '../ui/components/spans'
 import type { AccountRow } from '../ui/accounts-model'
 import { CompactingOverlay, type Compacting } from '../ui/components/compacting'
@@ -27,7 +26,6 @@ import { isSubagentRunning } from '../store/subagent-row'
 import type { AccountsControl } from './use-accounts'
 import type { AgentsControl } from './use-agents'
 import type { AgentsPickerControl } from './use-agents-picker'
-import type { ApprovalControl } from './use-approval'
 import type { ContainerGuardControl } from './use-container-guard'
 import type { ExitGuardControl } from './use-exit-guard'
 import type { OnboardingControl } from './use-onboarding'
@@ -56,7 +54,6 @@ function DerivedOverlayStack(props: {
   accountMeters: (row: AccountRow) => readonly Span[]
   rewind: RewindControl
   rewindConfirm: RewindConfirmControl
-  approval: ApprovalControl
   exitGuard: ExitGuardControl
   containerGuard: ContainerGuardControl
   compacting: Compacting | null
@@ -78,7 +75,6 @@ function DerivedOverlayStack(props: {
     exitGuard,
     containerGuard,
   } = props
-  const { approval } = props
   useAppearance()
   const sidebarWidth = Math.min(settings.sidebarWidth, props.width)
 
@@ -173,15 +169,6 @@ function DerivedOverlayStack(props: {
           overlay
           onStop={props.services.handleStop}
           onDismiss={props.services.handleDismiss}
-        />
-      )}
-      {approval.state === null ? null : (
-        <Approval
-          width={Math.min(props.contentWidth, props.width)}
-          state={approval.state}
-          overlay
-          onPick={approval.handlePick}
-          onDismiss={approval.handleDismiss}
         />
       )}
       {props.rewindConfirm.state === null ? null : (

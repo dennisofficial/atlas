@@ -1,6 +1,5 @@
 import {
   EClassifierMode,
-  EDecision,
   EGrantScope,
   EJudgment,
   ERiskDimension,
@@ -50,61 +49,9 @@ describe("an empty thread", () => {
   it("derives an idle sidebar with nothing to show", () => {
     const model = deriveSidebar({ events: [], turn: IDLE_TURN });
 
-    expect(model.approvals).toEqual([]);
     expect(model.lastActivity).toBeNull();
     expect(model.spend.totals).toEqual(NOTHING_SPENT);
     expect(model.spend.costUsd).toBeNull();
-  });
-});
-
-describe("approvals", () => {
-  it("shows an outstanding approval", () => {
-    const events = log([
-      {
-        type: "tool-called",
-        callId: CALL_ONE,
-        name: "bash",
-        input: {},
-        ordinal: 0,
-      },
-      {
-        type: "approval-requested",
-        callId: CALL_ONE,
-        reason: "runs a shell command",
-      },
-    ]);
-
-    const model = deriveSidebar({ events, turn: IDLE_TURN });
-
-    expect(model.approvals).toEqual([
-      { callId: CALL_ONE, reason: "runs a shell command" },
-    ]);
-  });
-
-  it("clears the approval once it is answered", () => {
-    const events = log([
-      {
-        type: "tool-called",
-        callId: CALL_ONE,
-        name: "bash",
-        input: {},
-        ordinal: 0,
-      },
-      {
-        type: "approval-requested",
-        callId: CALL_ONE,
-        reason: "runs a shell command",
-      },
-      {
-        type: "approval-answered",
-        callId: CALL_ONE,
-        decision: EDecision.Allow,
-      },
-    ]);
-
-    const model = deriveSidebar({ events, turn: IDLE_TURN });
-
-    expect(model.approvals).toEqual([]);
   });
 });
 
@@ -342,7 +289,6 @@ describe("the nudge figure the operator reads before arming it", () => {
         reason: "contention: eng-412-sidebar is held by another live session",
         consulted: true,
         wouldAsk: true,
-        fatigued: false,
         elapsedMs: 610,
       },
     ]);
@@ -353,7 +299,6 @@ describe("the nudge figure the operator reads before arming it", () => {
       pauses: 1,
       turns: 1,
       topDimension: ERiskDimension.Contention,
-      quietedCalls: 0,
       judgeUnreachable: false,
     });
   });

@@ -39,20 +39,6 @@ describe('the row a shadow run leaves behind', () => {
     }
   })
 
-  it('says the thread went quiet rather than leaving the silence unexplained', () => {
-    const draft = draftOf(
-      decide({
-        mode: EClassifierMode.Nudge,
-        triage: triageOver({ triage: ETriage.Clear, standing: [GRAVE], fatigued: true }),
-        consultation: undefined,
-      }),
-    )
-
-    expect(draft.fatigued).toBe(true)
-    expect(draft.wouldAsk).toBe(false)
-    expect(draft.reason).toContain('this thread has spent its interruptions')
-  })
-
   it('carries the surviving signals own words, which the drawer shows as evidence', () => {
     const draft = draftOf(
       decide({
@@ -102,6 +88,5 @@ describe('the row a shadow run leaves behind', () => {
 
     expect(draft.details).toEqual([])
     expect(draft.grantables).toBeUndefined()
-    expect(draft.fatigued).toBe(false)
   })
 })

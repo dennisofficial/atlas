@@ -10,7 +10,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { HookChain, type RegisteredHook } from '../../hooks/registry'
-import { EApprovalRouting, HookedToolDispatcher } from '../dispatch'
+import { HookedToolDispatcher } from '../dispatch'
 import { InMemoryToolRegistry } from '../registry'
 import { readCall, toolNamed } from './fixtures'
 
@@ -46,7 +46,6 @@ function dispatcherFor(args: {
   ])
 
   return new HookedToolDispatcher({
-    approvals: EApprovalRouting.Operator,
     registry,
     hooks: new HookChain({
       ...(args.beforeTool === undefined ? {} : { beforeTool: args.beforeTool }),

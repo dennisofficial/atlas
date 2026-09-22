@@ -56,40 +56,6 @@ describe('resolveBeforeTool', () => {
     })
   })
 
-  it('asks when a hook asks and nobody denies', () => {
-    const resolution = resolveBeforeTool({
-      call,
-      outcomes: [
-        { hookName: 'approvals', outcome: { decision: EBeforeToolDecision.Ask, reason: 'writes need a human' } },
-      ],
-    })
-
-    expect(resolution).toEqual({
-      outcome: { decision: EBeforeToolDecision.Ask, reason: 'writes need a human' },
-      dissenters: [{ hookName: 'approvals', decision: EBeforeToolDecision.Ask, reason: 'writes need a human' }],
-      drafts: [],
-    })
-  })
-
-  it('lets a deny outrank an earlier ask while still naming the asker', () => {
-    const resolution = resolveBeforeTool({
-      call,
-      outcomes: [
-        { hookName: 'approvals', outcome: { decision: EBeforeToolDecision.Ask, reason: 'writes need a human' } },
-        { hookName: 'boundary', outcome: { decision: EBeforeToolDecision.Deny, reason: 'outside the workspace root' } },
-      ],
-    })
-
-    expect(resolution).toEqual({
-      outcome: { decision: EBeforeToolDecision.Deny, reason: 'outside the workspace root' },
-      dissenters: [
-        { hookName: 'approvals', decision: EBeforeToolDecision.Ask, reason: 'writes need a human' },
-        { hookName: 'boundary', decision: EBeforeToolDecision.Deny, reason: 'outside the workspace root' },
-      ],
-      drafts: [],
-    })
-  })
-
   it('reports the first denial when two hooks deny', () => {
     const resolution = resolveBeforeTool({
       call,
@@ -119,7 +85,7 @@ describe('resolveBeforeTool when a hook returns a decision without a reason', ()
   const acrossABoundary = (outcome: { decision: EBeforeToolDecision }): BeforeToolOutcome =>
     JSON.parse(JSON.stringify(outcome))
 
-  const reasonless = (decision: EBeforeToolDecision.Ask | EBeforeToolDecision.Deny) =>
+  const reasonless = (decision: EBeforeToolDecision.Deny) =>
     resolveBeforeTool({
       call,
       outcomes: [{ hookName: 'silentGuard', outcome: acrossABoundary({ decision }) }],
@@ -136,31 +102,28 @@ describe('resolveBeforeTool when a hook returns a decision without a reason', ()
     expect(outcome.reason).toContain('silentGuard')
   })
 
-  it('still asks, rather than falling through to allow', () => {
-    const { outcome } = reasonless(EBeforeToolDecision.Ask)
-    expect(outcome.decision).toBe(EBeforeToolDecision.Ask)
-  })
-
-  it('prefers a reasonless denial over a later well-formed ask', () => {
+  it('prefers a reasonless denial over a later well-formed denial', () => {
     const { outcome } = resolveBeforeTool({
       call,
       outcomes: [
         { hookName: 'silentGuard', outcome: acrossABoundary({ decision: EBeforeToolDecision.Deny }) },
         {
-          hookName: 'approvals',
-          outcome: { decision: EBeforeToolDecision.Ask, reason: 'are you sure?' },
+          hookName: 'boundary',
+          outcome: { decision: EBeforeToolDecision.Deny, reason: 'are you sure?' },
         },
       ],
     })
 
     expect(outcome.decision).toBe(EBeforeToolDecision.Deny)
+    if (outcome.decision !== EBeforeToolDecision.Deny) throw new Error('expected a denial')
+    expect(outcome.reason).toContain('silentGuard')
   })
 })
 
 describe('the drafts a consulted hook leaves behind', () => {
   const noted = (text: string): EventDraft => ({ type: 'nudge', text, lifetimeSteps: 1 })
 
-  it('carries a draft written by an allowing hook even though a later hook asked', () => {
+  it('carries a draft written by an allowing hook even though a later hook denied', () => {
     const { outcome, drafts } = resolveBeforeTool({
       call,
       outcomes: [
@@ -172,22 +135,22 @@ describe('the drafts a consulted hook leaves behind', () => {
             drafts: [noted('judged clear')],
           },
         },
-        { hookName: 'approvals', outcome: { decision: EBeforeToolDecision.Ask, reason: 'writes need a human' } },
+        { hookName: 'boundary', outcome: { decision: EBeforeToolDecision.Deny, reason: 'outside the workspace root' } },
       ],
     })
 
-    expect(outcome.decision).toBe(EBeforeToolDecision.Ask)
+    expect(outcome.decision).toBe(EBeforeToolDecision.Deny)
     expect(drafts).toEqual([noted('judged clear')])
   })
 
-  it('carries a draft written by the asking hook itself', () => {
+  it('carries a draft written by the denying hook itself', () => {
     const { drafts } = resolveBeforeTool({
       call,
       outcomes: [
         {
           hookName: 'classify',
           outcome: {
-            decision: EBeforeToolDecision.Ask,
+            decision: EBeforeToolDecision.Deny,
             reason: 'contention: eng-412-sidebar is dirty',
             drafts: [noted('judged check')],
           },

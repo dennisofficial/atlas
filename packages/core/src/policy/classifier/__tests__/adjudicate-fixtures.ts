@@ -43,12 +43,10 @@ export const GRAVE = signalOf({ severity: ESeverity.Grave })
 export const triageOver = (args: {
   triage: ETriage
   standing: readonly RiskSignal[]
-  fatigued?: boolean | undefined
 }): Triage => ({
   triage: args.triage,
   standing: args.standing,
   cleared: [],
-  fatigued: args.fatigued ?? false,
 })
 
 export const CHECK: Consultation = {
@@ -97,7 +95,7 @@ export const draftOf = (outcome: ReturnType<typeof decide>): JudgedDraft => {
 
 export const EVERY_TRIAGE: readonly Triage[] = [
   triageOver({ triage: ETriage.Clear, standing: [] }),
-  triageOver({ triage: ETriage.Clear, standing: [SERIOUS], fatigued: true }),
+  triageOver({ triage: ETriage.Clear, standing: [SERIOUS] }),
   triageOver({ triage: ETriage.Consult, standing: [NOTE] }),
   triageOver({ triage: ETriage.Consult, standing: [SERIOUS] }),
   triageOver({ triage: ETriage.Consult, standing: [SERIOUS_UNGRANTABLE] }),
