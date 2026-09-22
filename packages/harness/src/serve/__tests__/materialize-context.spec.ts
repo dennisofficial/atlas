@@ -26,10 +26,16 @@ const SPEC: WorkspaceSpec = {
 const fakeFiles = () => {
   const written = new Map<string, string>()
   const writtenBytes = new Map<string, Buffer>()
+  const stamped = new Map<string, string>()
   const files: WorkspaceFiles = {
-    exists: async () => false,
+    exists: async (path) => stamped.has(path),
+    read: async (path) => {
+      const text = stamped.get(path)
+      if (text === undefined) throw new Error(`no such file: ${path}`)
+      return text
+    },
     write: async ({ path, text }) => {
-      written.set(path, text)
+      stamped.set(path, text)
     },
     writeBytes: async ({ path, bytes }) => {
       writtenBytes.set(path, bytes)
@@ -37,8 +43,10 @@ const fakeFiles = () => {
     },
     empty: async () => undefined,
   }
-  return { files, written, writtenBytes }
+  return { files, written, writtenBytes, stamped }
 }
+
+const CONTEXT_STAMP_PATH = join(ATLAS_HOME, 'context.stamp')
 
 const bundle = (entries: Record<string, string>): string =>
   JSON.stringify(
@@ -362,5 +370,95 @@ describe('materializeContext with an archive fetcher', () => {
 
     expect(readiness.written).toBe(0)
     expect(readiness.failed).toContain('did not extract')
+  })
+})
+
+describe('materializeContext with a resume stamp', () => {
+  it('skips materialization entirely once a resumed sandbox finds its stamp already on disk', async () => {
+    const { files, written } = fakeFiles()
+    await files.write({
+      path: CONTEXT_STAMP_PATH,
+      text: JSON.stringify({ projectDirectory: '/Users/dennis/dev/atlas' }),
+    })
+    let specCalls = 0
+    let archiveCalls = 0
+
+    const readiness = await materializeContext({
+      fetchSpec: async () => {
+        specCalls += 1
+        return SPEC
+      },
+      fetchArchive: async () => {
+        archiveCalls += 1
+        return null
+      },
+      atlasHome: ATLAS_HOME,
+      cwd: CWD,
+      files,
+    })
+
+    expect(readiness).toEqual({
+      written: 0,
+      failed: null,
+      projectDirectory: '/Users/dennis/dev/atlas',
+    })
+    expect(specCalls).toBe(0)
+    expect(archiveCalls).toBe(0)
+    expect(written.size).toBe(0)
+  })
+
+  it('writes the stamp once a fresh boot materializes its bundle, keyed to the spec’s projectDirectory', async () => {
+    const { files, stamped } = fakeFiles()
+    const spec: WorkspaceSpec = {
+      ...SPEC,
+      contextBundle: bundle({ '.atlas/ATLAS.md': '# global instructions' }),
+      projectDirectory: '/Users/dennis/dev/atlas',
+    }
+
+    const readiness = await materialize({ spec, files })
+
+    expect(readiness).toEqual({
+      written: 1,
+      failed: null,
+      projectDirectory: '/Users/dennis/dev/atlas',
+    })
+    expect(JSON.parse(stamped.get(CONTEXT_STAMP_PATH) ?? '')).toEqual({
+      projectDirectory: '/Users/dennis/dev/atlas',
+    })
+  })
+
+  it('treats a stamp that will not parse as though a stamp had never been written', async () => {
+    const { files, written } = fakeFiles()
+    await files.write({ path: CONTEXT_STAMP_PATH, text: 'not json' })
+    const spec: WorkspaceSpec = {
+      ...SPEC,
+      contextBundle: bundle({ '.atlas/ATLAS.md': '# from the corrupt-stamp boot' }),
+    }
+
+    const readiness = await materialize({ spec, files })
+
+    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null })
+    expect(written.get(join(ATLAS_HOME, 'ATLAS.md'))).toBe('# from the corrupt-stamp boot')
+  })
+
+  it('does not fail the boot when the stamp itself cannot be written', async () => {
+    const { files, written } = fakeFiles()
+    const unwritable: WorkspaceFiles = {
+      ...files,
+      write: async () => {
+        throw new Error('disk is read-only')
+      },
+    }
+    const spec: WorkspaceSpec = {
+      ...SPEC,
+      contextBundle: bundle({ '.atlas/ATLAS.md': '# still lands even though the stamp cannot' }),
+    }
+
+    const readiness = await materialize({ spec, files: unwritable })
+
+    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null })
+    expect(written.get(join(ATLAS_HOME, 'ATLAS.md'))).toBe(
+      '# still lands even though the stamp cannot',
+    )
   })
 })

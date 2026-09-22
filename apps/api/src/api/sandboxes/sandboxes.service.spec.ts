@@ -85,6 +85,7 @@ const sandboxRow = (
   workspacePatch: null,
   workspaceSkills: null,
   workspaceContext: null,
+  contextPending: true,
   workspaceProjectDirectory: null,
   sealedToken: null,
   createdAt: '2026-09-16T00:00:00.000Z',
@@ -130,6 +131,7 @@ const stubClient = () => ({
     sessionId: 'ses_created',
     url: 'https://atlas-3000.vercel.run',
     state: ESandboxState.Running,
+    created: true,
   })),
   destroy: vi.fn(async () => undefined),
   inspect: vi.fn(async (): Promise<{ state: ESandboxState; url?: string }> => ({
@@ -220,6 +222,27 @@ describe('SandboxesService', () => {
     expect(second.token).toBeDefined()
     expect(second.token).toBe(first.token)
     expect(fake.cloudSandboxes).toHaveLength(1)
+  })
+
+  it('marks a freshly created sandbox as owing a context upload', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+
+    expect(fake.cloudSandboxes[0]?.contextPending).toBe(true)
+  })
+
+  it('clears the pending flag when the sandbox resumes from its snapshot instead of being created fresh', async () => {
+    client.getOrCreate.mockResolvedValueOnce({
+      sessionId: 'ses_resumed',
+      url: 'https://atlas-3000.vercel.run',
+      state: ESandboxState.Running,
+      created: false,
+    })
+
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+
+    expect(fake.cloudSandboxes[0]?.contextPending).toBe(false)
   })
 
   it('an attach with a caller-supplied name claims and provisions under that name', async () => {
@@ -351,6 +374,7 @@ describe('SandboxesService', () => {
         sessionId: 'ses_created',
         url: 'https://atlas-3000.vercel.run',
         state: ESandboxState.Running,
+        created: true,
       }
     })
 
@@ -380,6 +404,7 @@ describe('SandboxesService', () => {
         sessionId: 'ses_created',
         url: 'https://atlas-3000.vercel.run',
         state: ESandboxState.Running,
+        created: true,
       }
     })
 
@@ -425,6 +450,7 @@ describe('SandboxesService', () => {
         sessionId: 'ses_created',
         url: 'https://atlas-3000.vercel.run',
         state: ESandboxState.Running,
+        created: true,
       }
     })
 
@@ -458,6 +484,7 @@ describe('SandboxesService', () => {
         sessionId: 'ses_created',
         url: 'https://atlas-3000.vercel.run',
         state: ESandboxState.Running,
+        created: true,
       }
     })
 
@@ -518,6 +545,17 @@ describe('SandboxesService', () => {
 
     expect(status.state).toBe(ESandboxState.Parked)
     expect(status.threadId).toBe(THREAD)
+  })
+
+  it('carries whether the context upload is still pending in the status dto', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+
+    expect((await service.status({ userId: USER_A, threadId: THREAD })).contextPending).toBe(true)
+
+    await service.putContextArchive({ userId: USER_A, threadId: THREAD, archive: Buffer.from('x') })
+
+    expect((await service.status({ userId: USER_A, threadId: THREAD })).contextPending).toBe(false)
   })
 
   it('answers the stored state without a url when a poll lands mid-provision', async () => {
@@ -598,6 +636,37 @@ describe('SandboxesService', () => {
     expect(client.stop).toHaveBeenCalledWith({ name: fake.cloudSandboxes[0]?.name })
     expect(stopped.state).toBe(ESandboxState.Parked)
     expect(fake.cloudSandboxes[0]?.state).toBe(ESandboxState.Parked)
+  })
+
+  it('destroys the sandbox through vercel and deletes its row', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+    const name = fake.cloudSandboxes[0]?.name
+
+    await service.destroy({ userId: USER_A, threadId: THREAD })
+
+    expect(client.destroy).toHaveBeenCalledWith({ name })
+    expect(fake.cloudSandboxes).toHaveLength(0)
+  })
+
+  it('destroy tolerates a sandbox vercel already dropped, still deleting the row', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+    client.destroy.mockResolvedValueOnce(undefined)
+
+    await expect(service.destroy({ userId: USER_A, threadId: THREAD })).resolves.toBeUndefined()
+    expect(fake.cloudSandboxes).toHaveLength(0)
+  })
+
+  it('answers 404 destroying a sandbox owned by another user, leaving it in place', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+
+    await expect(
+      service.destroy({ userId: USER_B, threadId: THREAD }),
+    ).rejects.toBeInstanceOf(NotFoundException)
+    expect(client.destroy).not.toHaveBeenCalled()
+    expect(fake.cloudSandboxes).toHaveLength(1)
   })
 
   it("exposes a port on the thread's sandbox and hands back the routed url", async () => {
@@ -978,6 +1047,20 @@ describe('SandboxesService', () => {
 
     expect(archives.writeSandboxArchive).toHaveBeenCalledWith({ threadId: THREAD, archive })
     await expect(service.getContextArchive({ threadId: THREAD })).resolves.toEqual(archive)
+  })
+
+  it('clears the pending context flag once the archive lands', async () => {
+    await service.attach({ userId: USER_A, threadId: THREAD })
+    await service.whenSettled({ threadId: THREAD })
+    expect(fake.cloudSandboxes[0]?.contextPending).toBe(true)
+
+    await service.putContextArchive({
+      userId: USER_A,
+      threadId: THREAD,
+      archive: Buffer.from('tar-gz-bytes'),
+    })
+
+    expect(fake.cloudSandboxes[0]?.contextPending).toBe(false)
   })
 
   it('answers null from getContextArchive when nothing has ever been stored', async () => {

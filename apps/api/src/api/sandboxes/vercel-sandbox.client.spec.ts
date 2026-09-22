@@ -29,6 +29,7 @@ const sdk = vi.hoisted(() => ({
   driveListParams: [] as Array<Record<string, unknown> | undefined>,
   lastDrive: null as unknown,
   driveStore: new Map<string, { name: string }>(),
+  resumesInsteadOfCreating: false,
 }))
 
 const launch = vi.hoisted(() => ({
@@ -127,6 +128,11 @@ vi.mock('@vercel/sandbox', () => {
       getOrCreate: async (params: Record<string, unknown>) => {
         sdk.createParams.push(params)
         if (sdk.createFailure !== null) throw sdk.createFailure
+        if (sdk.resumesInsteadOfCreating) {
+          await (params.onResume as ((sandbox: unknown) => Promise<void>) | undefined)?.(sandbox)
+        } else {
+          await (params.onCreate as (() => Promise<void>) | undefined)?.()
+        }
         return sandbox
       },
       get: async (params: Record<string, unknown>) => {
@@ -157,9 +163,9 @@ vi.mock('./serve-launch', () => {
         launch.launched += 1
       }
     },
-    SERVE_BINARY_PATH: '/vercel/sandbox/atlas-serve',
-    SERVE_LOG_PATH: '/vercel/sandbox/atlas-serve.log',
-    SERVE_TOKEN_PATH: '/vercel/sandbox/atlas-serve.token',
+    SERVE_BINARY_PATH: '/opt/atlas/atlas-serve',
+    SERVE_LOG_PATH: '/opt/atlas/atlas-serve.log',
+    SERVE_TOKEN_PATH: '/opt/atlas/atlas-serve.token',
   }
 })
 
@@ -212,6 +218,7 @@ describe('VercelSandboxClient', () => {
     sdk.driveListParams.length = 0
     sdk.lastDrive = null
     sdk.driveStore.clear()
+    sdk.resumesInsteadOfCreating = false
     sdk.status = 'running'
     sdk.getFailure = null
     sdk.createFailure = null
@@ -260,8 +267,22 @@ describe('VercelSandboxClient', () => {
       sessionId: 'ses_live',
       url: `https://atlas-${SANDBOX_SERVE_PORT}.vercel.run`,
       state: ESandboxState.Running,
+      created: true,
     })
     expect(sdk.createParams[0]?.image).toBe('atlas-sandbox:sha-deadbeef')
+  })
+
+  it('reports created: false when the SDK resumes an existing sandbox instead of creating one', async () => {
+    sdk.resumesInsteadOfCreating = true
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+
+    const placement = await client.getOrCreate({
+      name: 'atlas-thread-abc',
+      threadId: 'brn_thread_1',
+      token: 'tok_resume',
+    })
+
+    expect(placement.created).toBe(false)
   })
 
   it('mounts a drive at the workspace path and pins the model when told to', async () => {
@@ -535,7 +556,7 @@ describe('VercelSandboxClient', () => {
       timeoutMs: number
     }
     expect(call.cmd).toBe('sh')
-    expect(call.args[1]).toContain('/vercel/sandbox/atlas-serve.token')
+    expect(call.args[1]).toContain('/opt/atlas/atlas-serve.token')
     expect(call.args[1]).toContain(`http://localhost:${SANDBOX_SERVE_PORT}/v1/park`)
     expect(call.args[1]).toContain('$ATLAS_PARK_REASON')
     expect(call.env).toEqual({

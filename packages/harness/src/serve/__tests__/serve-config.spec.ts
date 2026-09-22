@@ -28,9 +28,9 @@ describe('serveConfig', () => {
   })
 
   it('serves the workspace directory the sandbox was told to hold it in', () => {
-    const told = { ...injected, [EServeEnv.WorkspaceDir]: '/vercel/sandbox/workspace' }
+    const told = { ...injected, [EServeEnv.WorkspaceDir]: '/workspace' }
 
-    expect(serveConfig({ env: told }).cwd).toBe('/vercel/sandbox/workspace')
+    expect(serveConfig({ env: told }).cwd).toBe('/workspace')
     expect(serveConfig({ env: told, cwd: '/given' }).cwd).toBe('/given')
   })
 

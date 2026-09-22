@@ -6,21 +6,21 @@ import { WAKE_HEADING, WAKE_PLAN } from '../container-move'
 import { messageOf } from '../error-text'
 import type { ContainerMoveControl } from '../use-container-move'
 import type { CloudBridge, CloudChannel } from './cloud-bridge'
-import { captureContextArchive } from './context-archive'
+import { captureContextArchive, type CaptureContext } from './context-archive'
 import { ELiftStep } from './lift'
 import { waitForSandbox } from './wait-for-sandbox'
+
+export type { CaptureContext }
 
 const WAKE_CONTEXT_NOTICE_KEY = 'wake-context-put-failed'
 
 /**
- * Re-attaching to a thread's sandbox: the API re-provisions and hands back a fresh token, the
- * operator's context is sent up again since the fresh sandbox starts with nothing on disk, then
- * the status route is polled until the sandbox is actually running. Narrated through `move` when
- * one is given, so a wake reached from an idle conversation reads as progress rather than as a
- * stall.
+ * Re-attaching to a thread's sandbox: the API re-provisions and hands back a fresh token, then the
+ * status route is polled until the sandbox is actually running. The operator's context is only
+ * sent up again when the status says the sandbox needs it — a resumed sandbox's snapshot already
+ * has it, so neither the (expensive) tar nor the upload runs. Narrated through `move` when one is
+ * given, so a wake reached from an idle conversation reads as progress rather than as a stall.
  */
-export type CaptureContext = () => Promise<Buffer | undefined>
-
 export async function wakeSandbox(args: {
   bridge: CloudBridge
   threadId: ThreadId
@@ -30,23 +30,25 @@ export async function wakeSandbox(args: {
   args.move?.handleBegin({ target: EExecutionLocation.Cloud, plan: WAKE_PLAN, heading: WAKE_HEADING })
   args.move?.handleAdvance(ELiftStep.Starting)
 
-  const contextArchive = await (args.captureContext ?? captureContextArchive)()
   const woken = await args.bridge.sandboxes.create({ threadId: args.threadId, workspace: null })
   const ready = await waitForSandbox({
     sandboxes: args.bridge.sandboxes,
     threadId: args.threadId,
   })
 
-  if (contextArchive !== undefined) {
-    try {
-      await args.bridge.sandboxes.putContext({ threadId: args.threadId, archive: contextArchive })
-    } catch (error) {
-      notify({
-        key: WAKE_CONTEXT_NOTICE_KEY,
-        text: `the fresh sandbox woke without this machine's context — ${messageOf(error)}`,
-        tone: ENoticeTone.Warn,
-        ttlMs: NOTICE_WARN_MS,
-      })
+  if (ready.contextPending !== false) {
+    const contextArchive = await (args.captureContext ?? captureContextArchive)()
+    if (contextArchive !== undefined) {
+      try {
+        await args.bridge.sandboxes.putContext({ threadId: args.threadId, archive: contextArchive })
+      } catch (error) {
+        notify({
+          key: WAKE_CONTEXT_NOTICE_KEY,
+          text: `the fresh sandbox woke without this machine's context — ${messageOf(error)}`,
+          tone: ENoticeTone.Warn,
+          ttlMs: NOTICE_WARN_MS,
+        })
+      }
     }
   }
 

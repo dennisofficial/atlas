@@ -66,7 +66,8 @@ function lineOf(event: Event, payloadLimit: number): string | undefined {
   }
 
   if (event.type === 'location-changed') {
-    return `Atlas moved this conversation's processing to ${locationPhrase(event.to)} — earlier tool results came from ${locationPhrase(event.from)}`
+    const base = `Atlas moved this conversation's processing to ${locationPhrase(event.to)} — earlier tool results came from ${locationPhrase(event.from)}`
+    return event.cwd === undefined ? base : `${base} — the working directory is now ${event.cwd}`
   }
   if (event.type === 'worktree-entered') return `Atlas entered worktree ${event.path} (${event.branch})`
   if (event.type === 'worktree-exited') return `Atlas left worktree ${event.path} (${event.action})`

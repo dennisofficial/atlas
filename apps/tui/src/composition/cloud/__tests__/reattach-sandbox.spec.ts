@@ -22,6 +22,7 @@ const stubSandboxes = (args: {
     },
     putContext: async () => undefined,
     find: async () => args.statuses.shift(),
+    destroy: async () => undefined,
   }
   return { sandboxes, created }
 }

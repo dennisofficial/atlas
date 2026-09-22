@@ -19,6 +19,8 @@ const SKILLS_DIRECTORY_NAME = 'skills'
 const LOCAL_INSTRUCTION_SUFFIX = '.local.md'
 const CONTEXT_OVERFLOW_NOTICE_KEY = 'context-archive-overflow'
 
+export type CaptureContext = () => Promise<Buffer | undefined>
+
 const mebibytes = (bytes: number): string => `${(bytes / (1024 * 1024)).toFixed(1)}MiB`
 
 const walk = async (directory: string): Promise<readonly string[]> => {

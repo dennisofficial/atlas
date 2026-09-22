@@ -146,6 +146,7 @@ export const harness = (over: Partial<LiftArgs> & { bridge?: FakeBridge } = {}):
     },
     capture: async () => CLEAN_WORKSPACE,
     onProgress: (step) => steps.push(step),
+    captureContext: async () => undefined,
     ...over,
   }
 

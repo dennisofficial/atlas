@@ -25,9 +25,12 @@ export const SANDBOX_DRIVE_MAX_BYTES = 50 * 1024 ** 3
 export const SANDBOX_MAX_PORTS = 15
 /**
  * The workspace lives on the sandbox's own filesystem, which `persistent: true` snapshots on stop
- * and restores on resume. The path is told to serve rather than inferred, so both halves agree.
+ * and restores on resume. It sits at the root rather than under the SDK's session cwd
+ * (/vercel/sandbox): that directory's snapshot semantics are undocumented and have flipped on us
+ * once, so Atlas state keeps off it. The path is told to serve rather than inferred, so both
+ * halves agree.
  */
-export const WORKSPACE_PATH = '/vercel/sandbox/workspace'
+export const WORKSPACE_PATH = '/workspace'
 
 const MINUTE_MS = 60_000
 const SANDBOX_LAUNCH_TIMEOUT_MS = 60_000
@@ -53,6 +56,8 @@ export interface SandboxPlacement {
   sessionId: string
   url: string
   state: ESandboxState
+  /** True only when the SDK's `onCreate` hook fired: a genuinely new sandbox, not a resumed one. */
+  created: boolean
 }
 
 export interface SandboxObservation {
@@ -129,6 +134,7 @@ export class VercelSandboxClient {
   }): Promise<SandboxPlacement> {
     const configuration = this.configuration()
     const createStartedAt = Date.now()
+    let created = false
     try {
       const mounts = await this.mountsOf(args.drive)
       const sandbox = await Sandbox.getOrCreate({
@@ -140,6 +146,10 @@ export class VercelSandboxClient {
         persistent: true,
         resume: true,
         image: configuration.image,
+        onCreate: () => {
+          created = true
+          return Promise.resolve()
+        },
         onResume: (sandbox) => this.launchServe({ sandbox, token: args.token }),
         env: {
           ATLAS_SERVE_TOKEN: args.token,
@@ -158,7 +168,7 @@ export class VercelSandboxClient {
       this.logger.log(
         `sandbox ${args.name} provisioned: get-or-create ${createMs}ms, serve launch ${Date.now() - serveStartedAt}ms`,
       )
-      return await this.placementOf(sandbox)
+      return { ...(await this.placementOf(sandbox)), created }
     } catch (failure) {
       if (failure instanceof SandboxMissingError) throw failure
       this.logger.warn(
@@ -354,7 +364,7 @@ export class VercelSandboxClient {
     }
   }
 
-  private async placementOf(sandbox: Sandbox): Promise<SandboxPlacement> {
+  private async placementOf(sandbox: Sandbox): Promise<Omit<SandboxPlacement, 'created'>> {
     return {
       sessionId: sandbox.currentSession().sessionId,
       url: await routedUrlWithRetries(sandbox),

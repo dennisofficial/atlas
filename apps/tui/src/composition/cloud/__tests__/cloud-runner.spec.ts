@@ -67,6 +67,34 @@ describe('waking a cloud runner whose channel is not open', () => {
     await expect(turn).resolves.toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-1') })
   })
 
+  it('skips capturing and uploading the context archive when the sandbox already has it', async () => {
+    const bridge = fakeBridge({
+      status: { state: ECloudSandboxState.Running, url: POLLED_URL, contextPending: false },
+    })
+    const channel = fakeCloudChannel()
+    channel.moveTo({ state: EChannelConnection.Closed, detail: null })
+    let captureCalls = 0
+    const runner = createCloudRunner({
+      bridge,
+      channel,
+      threadId: CLOUD_THREAD,
+      captureContext: async () => {
+        captureCalls += 1
+        return Buffer.from('a fake tar.gz')
+      },
+    })
+
+    const turn = runner.runTurn({ threadId: CLOUD_THREAD })
+    await Bun.sleep(1)
+
+    expect(captureCalls).toBe(0)
+    expect(bridge.contextPuts).toEqual([])
+    expect(channel.woken).toEqual([{ url: POLLED_URL, token: 'sandbox-token' }])
+
+    channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-4') })
+    await expect(turn).resolves.toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-4') })
+  })
+
   it('touches nothing move-shaped when no move control was given', async () => {
     const bridge = fakeBridge({ status: { state: ECloudSandboxState.Running, url: POLLED_URL } })
     const channel = fakeCloudChannel()

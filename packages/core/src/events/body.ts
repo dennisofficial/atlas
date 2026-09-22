@@ -77,7 +77,12 @@ export type EventBody =
       adopted?: boolean | undefined
     }
   | { type: 'worktree-exited'; path: string; action: EWorktreeExit; returnTo?: string | undefined }
-  | { type: 'location-changed'; from: EExecutionLocation; to: EExecutionLocation }
+  | {
+      type: 'location-changed'
+      from: EExecutionLocation
+      to: EExecutionLocation
+      cwd?: string | undefined
+    }
   | { type: 'directory-changed'; path: string; repo?: string | null | undefined }
   | {
       type: 'pull-request-linked'

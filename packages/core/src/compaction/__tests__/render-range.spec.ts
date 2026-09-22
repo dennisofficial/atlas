@@ -89,6 +89,16 @@ describe('transcriptOfRange', () => {
     )
   })
 
+  it('names the new working directory when the move carries one', () => {
+    const events = eventsFrom([
+      movedLocation({ from: EExecutionLocation.Host, to: EExecutionLocation.Cloud, cwd: '/workspace' }),
+    ])
+
+    expect(transcriptOfRange({ events, throughSeq: 1 })).toBe(
+      "Atlas moved this conversation's processing to a cloud sandbox — earlier tool results came from the host — the working directory is now /workspace",
+    )
+  })
+
   it('drops tool lines when only prose is wanted, keeping speech and summaries', () => {
     const events = eventsFrom([
       compacted(0, 'A parser was written.'),

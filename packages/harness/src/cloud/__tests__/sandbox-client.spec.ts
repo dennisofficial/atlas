@@ -183,6 +183,31 @@ describe('stopping a sandbox', () => {
   })
 })
 
+describe('destroying a sandbox', () => {
+  it('posts to the destroy path and answers nothing', async () => {
+    const { client, calls } = harness([{}])
+
+    expect(await client.destroySandbox({ threadId: 'brn_cloud' })).toBeUndefined()
+    expect(calls[0]?.method).toBe('POST')
+    expect(calls[0]?.url).toBe('https://cloud.test/v1/sandboxes/brn_cloud/destroy')
+    expect(calls[0]?.headers.authorization).toBe('Bearer sess_test')
+  })
+
+  it('treats a sandbox already gone as success rather than a failure', async () => {
+    const { client } = harness([{ status: 404, body: { message: 'not found' } }])
+
+    expect(await client.destroySandbox({ threadId: 'brn_cloud' })).toBeUndefined()
+  })
+
+  it('surfaces any other failure as a CloudError', async () => {
+    const { client } = harness([{ status: 500, body: { message: 'vercel said no' } }])
+
+    await expect(client.destroySandbox({ threadId: 'brn_cloud' })).rejects.toBeInstanceOf(
+      CloudError,
+    )
+  })
+})
+
 describe('reading sandbox state', () => {
   it('answers the state and the url when there is one', async () => {
     const { client, calls } = harness([
@@ -216,6 +241,23 @@ describe('reading sandbox state', () => {
     const { client } = harness([{ status: 404, body: { message: 'not found' } }])
 
     expect(await client.findSandbox({ threadId: 'brn_cloud' })).toBeUndefined()
+  })
+
+  it('carries contextPending through so the caller knows whether to upload', async () => {
+    const { client } = harness([{ body: { state: 'running', contextPending: false } }])
+
+    expect(await client.findSandbox({ threadId: 'brn_cloud' })).toEqual({
+      state: ECloudSandboxState.Running,
+      contextPending: false,
+    })
+  })
+
+  it('tolerates an older control plane that does not know contextPending yet', async () => {
+    const { client } = harness([{ body: { state: 'running' } }])
+
+    expect(await client.findSandbox({ threadId: 'brn_cloud' })).toEqual({
+      state: ECloudSandboxState.Running,
+    })
   })
 
   it('surfaces any other failure as a CloudError', async () => {

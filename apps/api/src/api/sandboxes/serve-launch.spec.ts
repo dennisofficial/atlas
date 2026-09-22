@@ -97,7 +97,7 @@ describe('createServeLauncher', () => {
     await createServeLauncher({ readStamp })({ sandbox, token: 'tok_fresh' })
 
     expect(writes).toEqual([{ path: SERVE_TOKEN_PATH, content: 'tok_fresh', mode: 0o600 }])
-    expect(ops[0]).toBe('write')
+    expect(ops.slice(0, 2)).toEqual(['command', 'write'])
   })
 
   it('leaves the sandbox filesystem alone when no token is given', async () => {
@@ -204,7 +204,7 @@ describe('createServeLauncher', () => {
 
     const download = scriptsOf(commands).find((script) => script.includes('curl -sS'))
     expect(download).toContain(`_serve_token=$(cat ${SERVE_TOKEN_PATH} 2>/dev/null || true)`)
-    expect(download).toContain('mkdir -p /vercel/sandbox && ')
+    expect(download).toContain('mkdir -p /opt/atlas && ')
     expect(download).toContain('--retry 3 --retry-all-errors')
     expect(download).toContain(`-D ${SERVE_HEADERS_PATH}`)
     expect(download).toContain('Authorization: Bearer $ATLAS_SERVE_TOKEN')

@@ -48,6 +48,7 @@ export function createCloudBridge(args: {
       sandboxes.createSandbox({ threadId, ...(workspace === null ? {} : { workspace }) }),
     putContext: ({ threadId, archive }) => sandboxes.putContextArchive({ threadId, archive }),
     find: ({ threadId }) => sandboxes.findSandbox({ threadId }),
+    destroy: ({ threadId }) => sandboxes.destroySandbox({ threadId }),
   }
 
   return {

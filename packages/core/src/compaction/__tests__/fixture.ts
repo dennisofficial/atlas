@@ -82,10 +82,12 @@ export const compactedFrom = (fromSeq: number, summary: string): EventDraft => (
 export const movedLocation = (args: {
   from: EExecutionLocation
   to: EExecutionLocation
+  cwd?: string
 }): EventDraft => ({
   type: 'location-changed',
   from: args.from,
   to: args.to,
+  ...(args.cwd === undefined ? {} : { cwd: args.cwd }),
 })
 
 export const compactedRange = (args: {

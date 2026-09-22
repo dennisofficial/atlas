@@ -12,7 +12,7 @@ import {
 import type { WorkspaceFiles } from '../workspace-files'
 import type { WorkspaceSpec } from '../workspace-spec'
 
-const CWD = '/vercel/sandbox/workspace'
+const CWD = '/workspace'
 
 const TOKEN = 'gho_secret-token'
 
@@ -47,6 +47,9 @@ const harness = (args: {
 
   const files: WorkspaceFiles = {
     exists: async (path) => present.has(path),
+    read: async () => {
+      throw new Error('not exercised in these specs')
+    },
     write: async (given) => {
       written.push(given)
       present.add(given.path)

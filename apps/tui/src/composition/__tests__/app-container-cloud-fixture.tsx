@@ -13,6 +13,8 @@ const DIRTY: WorkspaceCapture = async () => ({
   patch: 'diff --git a/src/app.ts b/src/app.ts\n',
 })
 
+const STUB_CONTEXT = async (): Promise<Buffer> => Buffer.from('stub-context-archive')
+
 export const speaking = (): FakeApp =>
   fakeApp({ model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }) })
 
@@ -33,6 +35,7 @@ export const mount = async (args: { app: FakeApp; bridge: FakeBridge }) => {
       opened={await spokenIn(args.app)}
       createBridge={createBridge}
       captureWorkspace={DIRTY}
+      captureContext={STUB_CONTEXT}
     />,
     { width: 140, height: 40 },
   )
