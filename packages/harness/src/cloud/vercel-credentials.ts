@@ -4,7 +4,7 @@ import type { SettingsService } from '../settings/service'
 
 import type { VercelCredentials } from './vercel-driver'
 
-const SETTINGS_POINTER = 'settings (ctrl+o) › general › cloud sandboxes'
+const SETTINGS_POINTER = 'settings (ctrl+o) › cloud'
 
 export class VercelNotConfiguredError extends Error {
   constructor(detail: string) {

@@ -9,6 +9,7 @@ export const SETTING_PAGES: readonly SettingPage[] = [
   { id: ESettingPage.General, label: 'general' },
   { id: ESettingPage.Models, label: 'models' },
   { id: ESettingPage.Appearance, label: 'appearance' },
+  { id: ESettingPage.Cloud, label: 'cloud' },
   { id: ESettingPage.Account, label: 'account' },
 ]
 
@@ -641,7 +642,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.VercelToken,
-    page: ESettingPage.General,
+    page: ESettingPage.Cloud,
     group: 'Cloud sandboxes',
     label: 'Vercel token',
     description:
@@ -652,7 +653,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.VercelTeamId,
-    page: ESettingPage.General,
+    page: ESettingPage.Cloud,
     group: 'Cloud sandboxes',
     label: 'Vercel team',
     description:
@@ -663,7 +664,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.VercelProjectId,
-    page: ESettingPage.General,
+    page: ESettingPage.Cloud,
     group: 'Cloud sandboxes',
     label: 'Vercel project',
     description:
@@ -674,7 +675,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.SandboxImage,
-    page: ESettingPage.General,
+    page: ESettingPage.Cloud,
     group: 'Cloud sandboxes',
     label: 'Sandbox image',
     description:
