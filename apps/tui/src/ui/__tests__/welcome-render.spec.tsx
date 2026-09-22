@@ -14,7 +14,7 @@ const WIDE = WORDMARK_CELLS + 20
 const HALF_CELL = '\u2580'
 
 const screen = (width: number): React.ReactNode => (
-  <WelcomeScreen cwd={CWD} home={HOME} modelId={MODEL_ID} width={width} />
+  <WelcomeScreen cwd={CWD} home={HOME} modelId={MODEL_ID} version="v1.2.3" width={width} />
 )
 
 describe('the welcome screen', () => {
@@ -23,6 +23,7 @@ describe('the welcome screen', () => {
 
     expect(frame).toContain('~/Developer/atlas')
     expect(frame).toContain(MODEL_ID)
+    expect(frame).toContain('v1.2.3')
     expect(frame).toContain('Describe the work')
   })
 
