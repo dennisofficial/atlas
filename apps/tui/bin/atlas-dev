@@ -18,6 +18,28 @@ done
 tui=$(cd "$(dirname "$self")/.." && pwd)
 project=$PWD
 
+if [ "${1:-}" = "--worktree" ]; then
+  if [ $# -lt 2 ]; then
+    printf 'usage: atlas-dev --worktree <slug> [atlas args...]\n' >&2
+    exit 2
+  fi
+  slug=$2
+  case $slug in
+    */*)
+      printf 'atlas-dev: bad worktree slug %s\n' "$slug" >&2
+      exit 2
+      ;;
+  esac
+  root=$(dirname "$(dirname "$tui")")
+  target="$root/.atlas/worktrees/$slug/apps/tui/bin/atlas-dev"
+  if [ ! -x "$target" ]; then
+    printf 'atlas-dev: no runnable worktree %s (expected %s — created and bun-installed?)\n' "$slug" "$target" >&2
+    exit 1
+  fi
+  shift 2
+  exec "$target" "$@"
+fi
+
 cd "$tui"
 
 quietly() {
