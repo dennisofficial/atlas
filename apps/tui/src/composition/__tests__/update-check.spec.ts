@@ -4,6 +4,7 @@ import {
   createSourceStaleness,
   latestRelease,
   releaseNotice,
+  releaseStaged,
   RELEASE_TAG_PREFIX,
   SOURCE_STALE_NOTICE,
   sourceBehindNotice,
@@ -64,6 +65,28 @@ describe('sourceBehindNotice', () => {
 
     expect(text).toContain('4 commits behind origin/main')
     expect(text).toContain('git pull')
+  })
+})
+
+describe('releaseStaged', () => {
+  it('is staged while the marker names a version ahead of what is running', () => {
+    expect(releaseStaged({ running: '0.2.0', staged: '0.3.0' })).toBe(true)
+  })
+
+  it('is not staged once the running version has caught up to the marker', () => {
+    expect(releaseStaged({ running: '0.3.0', staged: '0.3.0' })).toBe(false)
+  })
+
+  it('is not staged when the marker is left over from an older self-update', () => {
+    expect(releaseStaged({ running: '0.3.0', staged: '0.2.0' })).toBe(false)
+  })
+
+  it('is not staged when nothing has been staged', () => {
+    expect(releaseStaged({ running: '0.2.0', staged: null })).toBe(false)
+  })
+
+  it('is not staged when the marker cannot be read as a version', () => {
+    expect(releaseStaged({ running: '0.2.0', staged: 'not-a-version' })).toBe(false)
   })
 })
 

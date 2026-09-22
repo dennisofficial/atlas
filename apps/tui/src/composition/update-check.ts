@@ -210,11 +210,26 @@ export async function checkForUpdate(): Promise<void> {
   notify({ key: 'release-available', tone: ENoticeTone.Info, sticky: true, text })
 }
 
+export function releaseStaged(args: { running: string; staged: string | null }): boolean {
+  if (args.staged === null) return false
+
+  const running = parseSemver(args.running)
+  const staged = parseSemver(args.staged)
+  if (running === null || staged === null) return false
+
+  return isNewerSemver({ candidate: staged, current: running })
+}
+
 export async function releaseStalenessProbe(): Promise<SourceStaleness | null> {
-  if (buildInfo().kind !== EBuildKind.Release) return null
+  const build = buildInfo()
+  if (build.kind !== EBuildKind.Release) return null
 
   return {
-    stale: async () => (await readStagedVersionMarker(process.execPath)) !== null,
+    stale: async () =>
+      releaseStaged({
+        running: build.version,
+        staged: await readStagedVersionMarker(process.execPath),
+      }),
     check: async () => {},
   }
 }
