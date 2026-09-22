@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EAgentStatus } from '../../agents/status'
+import { EServiceStatus } from '../../services/status'
+import { EShellStatus } from '../../shells/status'
 import type { EventDraft } from '../body'
 import type { Event } from '../envelope'
 import { toCallId, toEventId, toRunId, toThreadId } from '../ids'
@@ -48,6 +51,58 @@ const round = (ordinal: number, text?: string): EventDraft[] => [
   resulted({ callId: `call-${ordinal}` }),
 ]
 
+const agentEnded = (intent: string): EventDraft => ({
+  type: 'agent-ended',
+  agentId: toThreadId('brn-child'),
+  agentType: 'builder',
+  intent,
+  status: EAgentStatus.Finished,
+  prose: 'Done. Draft PR #598 opened.',
+  turns: 33,
+  toolCalls: 74,
+})
+
+const shellEnded = (): EventDraft => ({
+  type: 'background-shell-ended',
+  shellId: 'shell-1',
+  command: 'gh run watch 35771433263',
+  description: 'Watch CI run',
+  status: EShellStatus.Exited,
+  exitCode: 0,
+  output: '',
+  droppedCharacters: 0,
+  remainingCharacters: 0,
+})
+
+const shellWaiting = (): EventDraft => ({
+  type: 'background-shell-awaiting-input',
+  shellId: 'shell-2',
+  command: 'ssh prod',
+  output: 'password:',
+  droppedCharacters: 0,
+  remainingCharacters: 0,
+})
+
+const shellMatched = (): EventDraft => ({
+  type: 'background-shell-matched',
+  shellId: 'shell-1',
+  command: 'gh run watch 35771433263',
+  description: 'Watch CI run',
+  pattern: 'completed',
+  lines: 'completed success',
+  matchCount: 1,
+})
+
+const serviceEnded = (): EventDraft => ({
+  type: 'service-ended',
+  serviceId: 'svc-1',
+  command: 'bun run dev',
+  description: 'api dev server',
+  status: EServiceStatus.Exited,
+  logPath: '/tmp/svc.log',
+  tail: '',
+})
+
 describe('loopWatchState', () => {
   it('stays silent below three agent speeches, where there is no pattern to judge', () => {
     const events = eventsFrom([heard('ship it'), ...round(1), ...round(2)])
@@ -77,13 +132,38 @@ describe('loopWatchState', () => {
     expect(after).not.toContain('(1)')
   })
 
-  it('quotes a nudge it already issued, so a second judgement sees the warning', () => {
+  it('restarts the window at the latest nudge, grading what followed the warning', () => {
     const events = eventsFrom([heard('ship it'), ...round(1), ...round(2), loopWatchNudgeDraft(), ...round(3)])
+    expect(loopWatchState({ events })).toBeUndefined()
 
-    const state = loopWatchState({ events })
+    const later = eventsFrom([...events, ...round(4), ...round(5)])
+    const state = loopWatchState({ events: later }) ?? ''
+    expect(state).toContain('(3)')
+    expect(state).toContain('(5)')
+    expect(state).not.toContain('(1)')
+    expect(state).not.toContain('- harness:')
+  })
 
-    expect(state).toContain('- harness:')
-    expect(state).toContain('watchdog')
+  it('renders sub-agent, shell, and service events as new information arriving', () => {
+    const events = eventsFrom([
+      heard('run the deploy'),
+      ...round(1),
+      agentEnded('deploy the thing'),
+      shellEnded(),
+      shellWaiting(),
+      shellMatched(),
+      serviceEnded(),
+      ...round(2),
+      ...round(3),
+    ])
+
+    const state = loopWatchState({ events }) ?? ''
+
+    expect(state).toContain('- sub-agent "deploy the thing" (builder) finished: Done. Draft PR #598 opened.')
+    expect(state).toContain('- shell "Watch CI run" ended (exited, exit 0)')
+    expect(state).toContain('- shell "ssh prod" is waiting for input')
+    expect(state).toContain('- shell "Watch CI run" matched its watch (1 lines)')
+    expect(state).toContain('- service "api dev server" ended (exited)')
   })
 
   it('clips long speeches and inputs rather than handing the model a whole transcript', () => {

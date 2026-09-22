@@ -227,7 +227,13 @@ export function wireTurn<Command>(args: {
     onLoopWatch: () =>
       notice.notify({
         tone: ENoticeTone.Warn,
-        text: 'the watchdog judged this turn to be looping — the agent was nudged to break the pattern, and the turn will fail if it keeps going',
+        text: 'the watchdog judged this turn to be looping — the agent was nudged to break the pattern, and the turn will stop if it keeps going',
+        ttlMs: NOTICE_WARN_MS,
+      }),
+    onLoopStop: () =>
+      notice.notify({
+        tone: ENoticeTone.Warn,
+        text: 'the watchdog stopped this turn — it still looked stuck after a warning, so the turn ended instead of spinning. Send a message to pick it back up',
         ttlMs: NOTICE_WARN_MS,
       }),
     onLoopCut: (cut) =>

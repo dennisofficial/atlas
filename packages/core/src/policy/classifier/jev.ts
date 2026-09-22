@@ -45,8 +45,9 @@ export const JEV_LOOP_THRESHOLD = 0.5
 const JEV_LOOP_INSTRUCTION = [
   'Is the agent stuck in a loop — repeating the same kind of step, such as re-checking, re-verifying,',
   'or re-deploying, without new information arriving between rounds, even when the exact words or commands differ?',
-  "The state quotes the agent's steps since the operator last spoke, oldest first.",
+  "The state quotes the agent's steps since the last user message or harness nudge, oldest first.",
   'A build-test-fix cycle where each round acts on what the previous one found is progress, not a loop.',
+  'Sub-agent, shell, and service status lines are new information arriving; work that reacts to them is not a loop.',
   'Answer true only when another round of the same is unlikely to produce anything the earlier rounds did not.',
 ].join(' ')
 
