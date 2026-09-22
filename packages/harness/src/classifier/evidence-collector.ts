@@ -6,6 +6,7 @@ import {
   NO_FACTS,
   operatorUtterances,
   recentActs,
+  transcriptMessages,
   WorkspaceFactsPort,
   type CallEvidence,
   type CommandReading,
@@ -20,6 +21,8 @@ import type { ToolLens } from './tool-lens'
 
 export const RECENT_ACT_LIMIT = 20
 export const OPERATOR_UTTERANCE_LIMIT = 6
+export const TRANSCRIPT_MESSAGE_LIMIT = 12
+export const TRANSCRIPT_TEXT_LIMIT = 1200
 
 const REWRITES_OWN_HISTORY: ReadonlySet<EDeed> = new Set([EDeed.RewriteHistory, EDeed.ForcePush])
 
@@ -118,6 +121,11 @@ export async function collectEvidence({
       lens: lens.actLensFor({ projectDirectory }),
     }),
     said: operatorUtterances({ events, limit: OPERATOR_UTTERANCE_LIMIT }),
+    transcript: transcriptMessages({
+      events,
+      limit: TRANSCRIPT_MESSAGE_LIMIT,
+      textLimit: TRANSCRIPT_TEXT_LIMIT,
+    }),
     grants: grantsFrom(events),
   }
 }

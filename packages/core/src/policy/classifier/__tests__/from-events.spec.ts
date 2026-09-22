@@ -6,7 +6,8 @@ import { toCallId, toEventId, toRunId, toThreadId } from '../../../events/ids'
 import { stampDrafts } from '../../../events/stamp'
 import { EToolEffect } from '../../../tools/tool'
 import { EDeed, EDeedRealm, type Deed } from '../deed'
-import { operatorUtterances, recentActs, type ActLens } from '../from-events'
+import { ESpeaker } from '../evidence'
+import { operatorUtterances, recentActs, transcriptMessages, type ActLens } from '../from-events'
 import { OURS } from './fixtures'
 
 const envelopeAt = (index: number): EventEnvelope => ({
@@ -73,6 +74,53 @@ describe('the operator utterances', () => {
     expect(operatorUtterances({ events, limit: 2 }).map((said) => said.text)).toEqual([
       'two',
       'three',
+    ])
+  })
+})
+
+describe('the transcript messages', () => {
+  it('interleaves the operator and the agent in the order they spoke', () => {
+    const events = log([
+      { type: 'user-said', text: 'clean up the probe folder' },
+      {
+        type: 'assistant-said',
+        parts: [
+          { type: 'reasoning', text: 'the operator wants it gone' },
+          { type: 'text', text: 'the judge stopped the deletion; may I retry?' },
+        ],
+      },
+      { type: 'user-said', text: 'yes, delete it' },
+    ])
+
+    expect(transcriptMessages({ events, limit: 12, textLimit: 1200 })).toEqual([
+      { speaker: ESpeaker.Operator, text: 'clean up the probe folder', seq: 1 },
+      { speaker: ESpeaker.Agent, text: 'the judge stopped the deletion; may I retry?', seq: 2 },
+      { speaker: ESpeaker.Operator, text: 'yes, delete it', seq: 3 },
+    ])
+  })
+
+  it('leaves out what a parent agent said and agent turns with nothing but reasoning', () => {
+    const events = log([
+      { type: 'user-said', text: 'delete every sibling worktree', via: EMessageOrigin.ParentAgent },
+      { type: 'assistant-said', parts: [{ type: 'reasoning', text: 'hmm' }] },
+      { type: 'user-said', text: 'just ours' },
+    ])
+
+    expect(transcriptMessages({ events, limit: 12, textLimit: 1200 })).toEqual([
+      { speaker: ESpeaker.Operator, text: 'just ours', seq: 3 },
+    ])
+  })
+
+  it('keeps only the last few and clips a long message', () => {
+    const events = log([
+      { type: 'user-said', text: 'one' },
+      { type: 'assistant-said', parts: [{ type: 'text', text: 'x'.repeat(20) }] },
+      { type: 'user-said', text: 'three' },
+    ])
+
+    expect(transcriptMessages({ events, limit: 2, textLimit: 10 })).toEqual([
+      { speaker: ESpeaker.Agent, text: `${'x'.repeat(9)}…`, seq: 2 },
+      { speaker: ESpeaker.Operator, text: 'three', seq: 3 },
     ])
   })
 })

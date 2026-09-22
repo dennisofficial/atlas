@@ -40,6 +40,7 @@ function ev({ name, effect }: { name: string; effect: EToolEffect }): CallEviden
     facts,
     recent: [],
     said: [],
+    transcript: [],
     grants: [],
   }
 }

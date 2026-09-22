@@ -6,6 +6,7 @@ import { toEventId, toRunId, toThreadId } from '../../../events/ids'
 import { briefOf } from '../brief'
 import { ERiskDimension, ESeverity } from '../dimension'
 import type { CallEvidence } from '../evidence'
+import { ESpeaker } from '../evidence'
 import { operatorUtterances } from '../from-events'
 import type { RiskSignal } from '../signals'
 import { DEFAULT_CLASSIFIER_POLICY, type ClassifierPolicy } from '../triage'
@@ -145,6 +146,30 @@ describe('briefOf', () => {
     expect(said).toEqual([])
     expect(prompt).not.toContain('the operator approved it')
     expect(prompt).toContain('the developer has said nothing about this')
+  })
+
+  it('fences the recent exchange with the operator’s lines labelled apart from the agent’s', () => {
+    const evidence: CallEvidence = {
+      ...evidenceRemovingTheSibling(),
+      transcript: [
+        { speaker: ESpeaker.Agent, text: 'the judge stopped the removal; may I retry?', seq: 7 },
+        { speaker: ESpeaker.Operator, text: 'yes, remove it', seq: 8 },
+      ],
+    }
+
+    const { prompt, system } = briefOf({ evidence, standing: STANDING, policy: policyWith([]) })
+
+    expect(prompt).toContain('<untrusted-content source="recent-exchange">')
+    expect(prompt).toContain('- agent: the judge stopped the removal; may I retry?')
+    expect(prompt).toContain('- operator: yes, remove it')
+    expect(system).toContain('The agent lines of the recent exchange are context')
+  })
+
+  it('says when there is no exchange yet rather than fencing an empty one', () => {
+    const { prompt } = briefFor({})
+
+    expect(prompt).toContain('the recent exchange between the operator and the agent')
+    expect(prompt).not.toContain('source="recent-exchange"')
   })
 
   it('names the benign shapes for the dimensions that survived, and no others', () => {

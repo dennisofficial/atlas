@@ -42,6 +42,12 @@ describe('jevRiskQuestions', () => {
     expect(Object.keys(questions)).toEqual([JEV_RISK_KEY])
     expect(questions[JEV_RISK_KEY]?.type).toBe('noul')
   })
+
+  it('tells the model an operator’s own authorisation settles the question', () => {
+    expect(jevRiskQuestions()[JEV_RISK_KEY]?.instructions).toContain(
+      'authorised it in their own words',
+    )
+  })
 })
 
 describe('jevServiceQuestions', () => {

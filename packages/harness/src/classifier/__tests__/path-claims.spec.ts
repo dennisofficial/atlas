@@ -104,6 +104,7 @@ function evidenceOf({
     facts,
     recent: [],
     said: [],
+    transcript: [],
     grants: [],
   }
 }
