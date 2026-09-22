@@ -23,6 +23,8 @@ import { descendedConflictsDraft } from './transition-notice'
 
 const DESCEND_DESTROY_NOTICE_KEY = 'descend-sandbox-destroy-failed'
 
+const DESCEND_MEMORY_NOTICE_KEY = 'descend-memory-pull-failed'
+
 const INTERRUPT_DEADLINE_MS = 30_000
 
 export type DescendLocalHome = Pick<
@@ -129,6 +131,11 @@ export async function descendFromCloud(args: {
   move: ContainerMoveControl
   interruptDeadlineMs?: number | undefined
   mergeWorkspace?: WorkspaceMerger | undefined
+  /**
+   * Pulls the cloud's memory archive down over the local one — the cloud copy is newer at descend.
+   * Optional so a spec never fetches; a failure warns and never blocks the descend.
+   */
+  pullMemory?: (() => Promise<void>) | undefined
 }): Promise<OpenedConversation> {
   const { threadId, target, bridge, channel, localApp, move } = args
 
@@ -170,6 +177,17 @@ export async function descendFromCloud(args: {
           ref: published.ref,
           base: published.base,
         })
+
+  if (args.pullMemory !== undefined) {
+    await args.pullMemory().catch((error: unknown) => {
+      notify({
+        key: DESCEND_MEMORY_NOTICE_KEY,
+        text: `this conversation is home, but the cloud's memory did not come down with it — ${messageOf(error)}`,
+        tone: ENoticeTone.Warn,
+        ttlMs: NOTICE_WARN_MS,
+      })
+    })
+  }
 
   move.handleAdvance(ELiftStep.Flipping)
   await localApp.threads.chooseExecutionLocation({ threadId, location: target })

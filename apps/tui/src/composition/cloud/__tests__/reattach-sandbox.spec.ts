@@ -7,51 +7,41 @@ import { reattachSandbox } from '../reattach-sandbox'
 
 const THREAD = toThreadId('brn_cloud')
 
-const stubSandboxes = (args: {
-  token?: string
-  statuses: ({ state: ECloudSandboxState; url?: string } | undefined)[]
-}) => {
+const stubSandboxes = (args: { token?: string; createFails?: unknown }) => {
   const created: Parameters<CloudSandboxes['create']>[0][] = []
   const sandboxes: CloudSandboxes = {
     create: async (request) => {
       created.push(request)
+      if (args.createFails !== undefined) throw args.createFails
       return {
-        state: ECloudSandboxState.Resuming,
+        state: ECloudSandboxState.Running,
+        url: 'https://atlas-3000.vercel.run',
         token: args.token ?? 'tok_fresh',
+        created: false,
       }
     },
     putContext: async () => undefined,
-    find: async () => args.statuses.shift(),
+    find: async () => undefined,
     destroy: async () => undefined,
   }
   return { sandboxes, created }
 }
 
 describe('reattachSandbox', () => {
-  it('re-creates the attachment without touching the stored workspace, then waits for the url', async () => {
-    const { sandboxes, created } = stubSandboxes({
-      token: 'tok_fresh',
-      statuses: [
-        { state: ECloudSandboxState.Resuming },
-        { state: ECloudSandboxState.Running, url: 'https://atlas-3000.vercel.run' },
-      ],
-    })
+  it('re-claims and re-provisions without touching the stored workspace, handing back the fresh url and token', async () => {
+    const { sandboxes, created } = stubSandboxes({ token: 'tok_fresh' })
 
-    const attachment = await reattachSandbox({
-      sandboxes,
-      threadId: THREAD,
-      sleep: async () => undefined,
-    })
+    const attachment = await reattachSandbox({ sandboxes, threadId: THREAD })
 
     expect(created).toEqual([{ threadId: THREAD, workspace: null }])
     expect(attachment).toEqual({ url: 'https://atlas-3000.vercel.run', token: 'tok_fresh' })
   })
 
-  it('fails when the provision died server-side, so the channel can say so', async () => {
-    const { sandboxes } = stubSandboxes({ statuses: [undefined] })
+  it('propagates a provisioning failure, so the channel can say so', async () => {
+    const { sandboxes } = stubSandboxes({ createFails: new Error('no capacity in iad1') })
 
-    await expect(
-      reattachSandbox({ sandboxes, threadId: THREAD, sleep: async () => undefined }),
-    ).rejects.toThrow('failed to start')
+    await expect(reattachSandbox({ sandboxes, threadId: THREAD })).rejects.toThrow(
+      'no capacity in iad1',
+    )
   })
 })

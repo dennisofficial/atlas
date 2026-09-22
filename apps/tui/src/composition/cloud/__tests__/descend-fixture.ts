@@ -126,6 +126,7 @@ export const descend = (args: {
   midTurn?: boolean
   interruptDeadlineMs?: number
   mergeWorkspace?: WorkspaceMerger
+  pullMemory?: () => Promise<void>
 }) =>
   descendFromCloud({
     threadId: CLOUD_THREAD,
@@ -139,4 +140,5 @@ export const descend = (args: {
       ? {}
       : { interruptDeadlineMs: args.interruptDeadlineMs }),
     ...(args.mergeWorkspace === undefined ? {} : { mergeWorkspace: args.mergeWorkspace }),
+    ...(args.pullMemory === undefined ? {} : { pullMemory: args.pullMemory }),
   })

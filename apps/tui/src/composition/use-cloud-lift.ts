@@ -61,7 +61,10 @@ export function useCloudLift(args: {
     const { move } = latest.current
     move.handleBegin({ target: EExecutionLocation.Cloud, plan: cloudLiftPlan({ midTurn }) })
 
-    void mergeRemoteMemoryBounded({ session: signedIn, cwd: latest.current.projectDirectory })
+    void mergeRemoteMemoryBounded({
+      session: signedIn,
+      cwd: latest.current.projectDirectory,
+    }).catch(() => undefined)
 
     void liftToCloud({
       threadId,

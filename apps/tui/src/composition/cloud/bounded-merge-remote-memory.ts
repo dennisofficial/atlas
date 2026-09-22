@@ -17,9 +17,7 @@ export async function mergeRemoteMemoryBounded(args: {
     fetchFn(input, { ...init, signal: controller.signal })) as typeof fetch
 
   try {
-    await mergeRemoteMemory({ session: args.session, cwd: args.cwd, fetchFn: abortableFetch }).catch(
-      () => undefined,
-    )
+    await mergeRemoteMemory({ session: args.session, cwd: args.cwd, fetchFn: abortableFetch })
   } finally {
     clearTimeout(timer)
   }

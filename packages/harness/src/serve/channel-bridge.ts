@@ -25,7 +25,7 @@ export function createChannelBridge(args: {
   threadId: ThreadId
   buffer: FrameBuffer
   onFrame: (frame: SignalFrame) => void
-  onToolOutput: () => void
+  onToolOutput?: (() => void) | undefined
 }): ChannelBridge {
   let stepFrom: number | null = null
   let stepId: StepId | null = null
@@ -42,7 +42,7 @@ export function createChannelBridge(args: {
         stepFrom = null
         stepId = null
       }
-      if (signal.type === 'tool-output') args.onToolOutput()
+      if (signal.type === 'tool-output') args.onToolOutput?.()
       args.onFrame(frame)
     },
   })

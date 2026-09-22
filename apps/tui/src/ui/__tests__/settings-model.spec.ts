@@ -57,8 +57,9 @@ describe('settingsModel', () => {
       ['Development', 1],
       ['Web', 2],
       ['Execution', 4],
+      ['Cloud sandboxes', 4],
     ])
-    expect(general?.rows).toHaveLength(28)
+    expect(general?.rows).toHaveLength(32)
   })
 
   it('gathers the model rows on the models page, default pair first', () => {
@@ -112,7 +113,7 @@ describe('moving around the page', () => {
     const top = openSettings()
 
     expect(moveRow({ state: top, model, delta: -1 })).toEqual({ pageIndex: 0, rowIndex: 0 })
-    expect(moveRow({ state: top, model, delta: 99 })).toEqual({ pageIndex: 0, rowIndex: 27 })
+    expect(moveRow({ state: top, model, delta: 99 })).toEqual({ pageIndex: 0, rowIndex: 31 })
   })
 
   it('wraps around the tab strip and lands on its first row', () => {

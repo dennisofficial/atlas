@@ -51,32 +51,14 @@ describe('lifting a conversation into the cloud', () => {
     ])
   })
 
-  it('attaches to the sandbox the control plane handed back', async () => {
+  it('attaches to the sandbox the provision handed back', async () => {
     const test = harness()
 
     const lifted = await liftToCloud(test.args)
     if (!lifted.ok) throw new Error('expected the lift to succeed')
-    if (lifted.sandbox.url === undefined) throw new Error('expected the sandbox to carry a url')
 
     expect(test.bridge.attached).toEqual([
       { threadId: CLOUD_THREAD, url: lifted.sandbox.url, token: lifted.sandbox.token },
-    ])
-  })
-
-  it('attaches once the poll finds a url, when create answers with none yet', async () => {
-    const polledUrl = 'https://sandbox.example/polled'
-    const bridge = fakeBridge({
-      sandbox: { token: 'sandbox-token', state: ECloudSandboxState.Resuming },
-      status: { state: ECloudSandboxState.Running, url: polledUrl },
-    })
-    const test = harness({ bridge })
-
-    const lifted = await liftToCloud(test.args)
-
-    expect(lifted.ok).toBe(true)
-    expect(test.bridge.trail).toEqual(['transfer', 'sandbox', 'attach'])
-    expect(test.bridge.attached).toEqual([
-      { threadId: CLOUD_THREAD, url: polledUrl, token: 'sandbox-token' },
     ])
   })
 
@@ -266,9 +248,16 @@ describe('the workspace a lift carries', () => {
 })
 
 describe('gating the context archive on whether the sandbox already has it', () => {
-  it('skips capturing and uploading when the sandbox handed back its url already carrying it', async () => {
+  it('skips capturing and uploading when the sandbox resumed from its snapshot', async () => {
     let captureCalls = 0
-    const bridge = fakeBridge({ status: { state: ECloudSandboxState.Running, contextPending: false } })
+    const bridge = fakeBridge({
+      sandbox: {
+        url: 'https://sandbox.example/resumed',
+        token: 'sandbox-token',
+        state: ECloudSandboxState.Running,
+        created: false,
+      },
+    })
     const test = harness({
       bridge,
       captureContext: async () => {
@@ -285,43 +274,7 @@ describe('gating the context archive on whether the sandbox already has it', () 
     expect(test.bridge.trail).toEqual(['transfer', 'sandbox', 'attach'])
   })
 
-  it('skips capturing and uploading when a polled status says the sandbox already has it', async () => {
-    let captureCalls = 0
-    const bridge = fakeBridge({
-      sandbox: { token: 'sandbox-token', state: ECloudSandboxState.Resuming },
-      status: {
-        state: ECloudSandboxState.Running,
-        url: 'https://sandbox.example/polled',
-        contextPending: false,
-      },
-    })
-    const test = harness({
-      bridge,
-      captureContext: async () => {
-        captureCalls += 1
-        return Buffer.from('a fake tar.gz')
-      },
-    })
-
-    const lifted = await liftToCloud(test.args)
-
-    expect(lifted.ok).toBe(true)
-    expect(captureCalls).toBe(0)
-    expect(test.bridge.contextPuts).toEqual([])
-  })
-
-  it('still captures and uploads when the status says the sandbox needs it', async () => {
-    const archive = Buffer.from('a fake tar.gz')
-    const bridge = fakeBridge({ status: { state: ECloudSandboxState.Running, contextPending: true } })
-    const test = harness({ bridge, captureContext: async () => archive })
-
-    const lifted = await liftToCloud(test.args)
-
-    expect(lifted.ok).toBe(true)
-    expect(test.bridge.contextPuts).toEqual([{ threadId: CLOUD_THREAD, archive }])
-  })
-
-  it('still captures and uploads when an older control plane never says either way', async () => {
+  it('captures and uploads when the sandbox was created fresh', async () => {
     const archive = Buffer.from('a fake tar.gz')
     const test = harness({ captureContext: async () => archive })
 

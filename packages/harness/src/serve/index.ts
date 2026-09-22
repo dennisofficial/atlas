@@ -11,7 +11,7 @@ import { createChannelBridge } from './channel-bridge'
 import { composeServeApp } from './compose-serve'
 import { DEFAULT_DRAIN_DEADLINE_MS, withDeadline } from './drain-deadline'
 import { createFrameBuffer, DEFAULT_FRAME_BUFFER, type SignalFrame } from './frame-buffer'
-import { createHeartbeat, type Heartbeat } from './heartbeat'
+import { startServeIdleStop } from './idle-stop'
 import { materializeContext } from './materialize-context'
 import {
   ensureWorkspace as materializeWorkspace,
@@ -36,7 +36,7 @@ export * from './channel-bridge'
 export * from './compose-serve'
 export * from './drain-deadline'
 export * from './frame-buffer'
-export * from './heartbeat'
+export * from './idle-stop'
 export * from './requests'
 export * from './serve-app'
 export * from './serve-config'
@@ -63,8 +63,12 @@ export type ServeArgs = {
   clientVersion?: string | undefined
   env?: Record<string, string | undefined> | undefined
   bufferSize?: number | undefined
-  heartbeatIntervalMs?: number | undefined
   drainDeadlineMs?: number | undefined
+  idleMinutes?: number | undefined
+  idleMinutesWithServices?: number | undefined
+  idleTickMs?: number | undefined
+  /** What an idle serve does after closing — injectable so a spec's process survives it. */
+  exit?: ((code: number) => void) | undefined
   fetchFn?: typeof fetch | undefined
   write?: LogWrite | undefined
   compose?: ServeCompose | undefined
@@ -90,18 +94,21 @@ function adoptChildrenInBackground(args: {
   app: Pick<ServeApp, 'adoptChildren' | 'whenChildrenSettled'>
   threadId: ThreadId
   log: ServeLog
-  heartbeat: Pick<Heartbeat, 'turnStarted' | 'turnEnded'>
+  settling: { count: number }
+  note: () => void
 }): void {
   void (async () => {
     const resumed = await args.app.adoptChildren({ threadId: args.threadId })
     if (resumed.length === 0) return
 
     args.log({ event: EServeEvent.ChildrenAdopted, agentIds: resumed })
-    args.heartbeat.turnStarted()
+    args.settling.count += 1
+    args.note()
     try {
       await args.app.whenChildrenSettled({ threadId: args.threadId })
     } finally {
-      args.heartbeat.turnEnded()
+      args.settling.count -= 1
+      args.note()
     }
   })().catch((error: unknown) => {
     args.log({ event: EServeEvent.ChildAdoptionFailed, reason: messageOf(error) })
@@ -196,16 +203,10 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
 
   const buffer = createFrameBuffer({ capacity: args.bufferSize ?? DEFAULT_FRAME_BUFFER })
 
-  const heartbeat = createHeartbeat({
-    controlPlaneUrl,
-    threadId,
-    token,
-    fetchFn,
-    intervalMs: args.heartbeatIntervalMs,
-    onFailure: (reason) => log({ event: EServeEvent.HeartbeatFailed, reason }),
-  })
+  const settling = { count: 0 }
+  let idleStop: { note: () => void; halt: () => void } = { note: () => undefined, halt: () => undefined }
 
-  adoptChildrenInBackground({ app, threadId, log, heartbeat })
+  adoptChildrenInBackground({ app, threadId, log, settling, note: () => idleStop.note() })
 
   let inFlight: () => readonly SignalFrame[] = () => []
   let liveStepId: () => StepId | null = () => null
@@ -216,11 +217,11 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     threadId,
     refusal: () => workspaceRefusalOf(workspace),
     onTurnStarted: () => {
-      heartbeat.turnStarted()
+      idleStop.note()
       log({ event: EServeEvent.TurnStarted })
     },
     onTurnEnded: () => {
-      heartbeat.turnEnded()
+      idleStop.note()
       app.files.forget()
       void app.syncMemoryAfterTurn().catch(() => undefined)
     },
@@ -263,7 +264,6 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     threadId,
     buffer,
     onFrame: handlers.broadcast,
-    onToolOutput: heartbeat.beat,
   })
   inFlight = bridge.inFlight
   liveStepId = bridge.liveStepId
@@ -296,24 +296,37 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   const port = server.port ?? wanted
   log({ event: EServeEvent.Started, threadId, port, ms: Date.now() - startedAt })
 
-  return {
-    port,
-    close: async () => {
-      driver.interrupt()
-      await withDeadline({
-        task: driver.settled().catch(() => undefined),
-        ms: args.drainDeadlineMs ?? DEFAULT_DRAIN_DEADLINE_MS,
-      })
-      bridge.close()
-      heartbeat.stop()
-      handlers.hangUp()
-      /**
-       * Bun 1.3.14: the promise `stop` returns never settles once the server has itself closed a
-       * WebSocket, though the listener does stop and the port is released. Awaiting it hangs.
-       */
-      void server.stop(true)
-      await app.close()
-      log({ event: EServeEvent.Stopped, threadId })
-    },
+  const close = async (): Promise<void> => {
+    idleStop.halt()
+    driver.interrupt()
+    await withDeadline({
+      task: driver.settled().catch(() => undefined),
+      ms: args.drainDeadlineMs ?? DEFAULT_DRAIN_DEADLINE_MS,
+    })
+    bridge.close()
+    handlers.hangUp()
+    /**
+     * Bun 1.3.14: the promise `stop` returns never settles once the server has itself closed a
+     * WebSocket, though the listener does stop and the port is released. Awaiting it hangs.
+     */
+    void server.stop(true)
+    await app.close()
+    log({ event: EServeEvent.Stopped, threadId })
   }
+
+  idleStop = startServeIdleStop({
+    turnRunning: () => driver.running(),
+    childrenSettling: () => settling.count > 0,
+    runningShells: () => app.runningShells?.() ?? 0,
+    runningServices: () => app.runningServices?.() ?? 0,
+    idleMinutes: args.idleMinutes,
+    idleMinutesWithServices: args.idleMinutesWithServices,
+    tickMs: args.idleTickMs,
+    onDue: () => {
+      log({ event: EServeEvent.IdleStop, threadId })
+      void close().then(() => (args.exit ?? process.exit)(0))
+    },
+  })
+
+  return { port, close }
 }

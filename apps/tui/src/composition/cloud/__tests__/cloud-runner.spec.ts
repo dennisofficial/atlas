@@ -35,9 +35,18 @@ const fakeMove = (): FakeMove => {
 
 const POLLED_URL = 'https://polled.example/thread'
 
+const RESUMED = {
+  url: POLLED_URL,
+  token: 'sandbox-token',
+  state: ECloudSandboxState.Running,
+  created: false,
+} as const
+
+const CREATED = { ...RESUMED, created: true } as const
+
 describe('waking a cloud runner whose channel is not open', () => {
-  it('re-provisions, polls, and wakes the channel with the fresh url and token', async () => {
-    const bridge = fakeBridge({ status: { state: ECloudSandboxState.Running, url: POLLED_URL } })
+  it('re-provisions and wakes the channel with the fresh url and token', async () => {
+    const bridge = fakeBridge({ sandbox: CREATED })
     const channel = fakeCloudChannel()
     channel.moveTo({ state: EChannelConnection.Closed, detail: null })
     const move = fakeMove()
@@ -67,10 +76,8 @@ describe('waking a cloud runner whose channel is not open', () => {
     await expect(turn).resolves.toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-1') })
   })
 
-  it('skips capturing and uploading the context archive when the sandbox already has it', async () => {
-    const bridge = fakeBridge({
-      status: { state: ECloudSandboxState.Running, url: POLLED_URL, contextPending: false },
-    })
+  it('skips capturing and uploading the context archive when the sandbox resumed with it', async () => {
+    const bridge = fakeBridge({ sandbox: RESUMED })
     const channel = fakeCloudChannel()
     channel.moveTo({ state: EChannelConnection.Closed, detail: null })
     let captureCalls = 0
@@ -96,7 +103,7 @@ describe('waking a cloud runner whose channel is not open', () => {
   })
 
   it('touches nothing move-shaped when no move control was given', async () => {
-    const bridge = fakeBridge({ status: { state: ECloudSandboxState.Running, url: POLLED_URL } })
+    const bridge = fakeBridge({ sandbox: CREATED })
     const channel = fakeCloudChannel()
     channel.moveTo({ state: EChannelConnection.Closed, detail: null })
     const runner = createCloudRunner({
@@ -117,7 +124,7 @@ describe('waking a cloud runner whose channel is not open', () => {
 
   it('warns rather than failing the wake when the context re-upload fails', async () => {
     const bridge = fakeBridge({
-      status: { state: ECloudSandboxState.Running, url: POLLED_URL },
+      sandbox: CREATED,
       putContextFails: new Error('the control plane fell over'),
     })
     const channel = fakeCloudChannel()

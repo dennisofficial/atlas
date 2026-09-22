@@ -1,17 +1,18 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { SandboxClient } from '../../cloud/sandbox-client'
+import type { VercelDriver } from '../../cloud/vercel-driver'
 import { ServeProcessPort } from '../serve-process'
 
-const clientWith = (exposePort: SandboxClient['exposePort']): SandboxClient =>
-  ({ exposePort }) as unknown as SandboxClient
+const driverWith = (exposePort: VercelDriver['exposePort']): Pick<VercelDriver, 'exposePort'> => ({
+  exposePort,
+})
 
 describe('ServeProcessPort', () => {
-  it('answers an exposure with the control-plane url rather than a sandbox-local one', async () => {
-    const seen: { threadId: string; port: number }[] = []
+  it('answers an exposure with the Vercel-routed url rather than a sandbox-local one', async () => {
+    const seen: { name: string; port: number }[] = []
     const port = new ServeProcessPort({
-      threadId: 'brn_root',
-      client: clientWith(async (args) => {
+      name: 'atlas-thread-deadbeef',
+      driver: driverWith(async (args) => {
         seen.push(args)
         return 'https://sb-unguessable.vercel.run'
       }),
@@ -19,7 +20,7 @@ describe('ServeProcessPort', () => {
 
     const outcome = await port.exposePort({ containerPort: 3001 })
 
-    expect(seen).toEqual([{ threadId: 'brn_root', port: 3001 }])
+    expect(seen).toEqual([{ name: 'atlas-thread-deadbeef', port: 3001 }])
     expect(outcome).toEqual({
       ok: true,
       exposure: {
@@ -30,11 +31,11 @@ describe('ServeProcessPort', () => {
     })
   })
 
-  it('reads a control-plane refusal as a reason, never as a localhost url', async () => {
+  it('reads a Vercel refusal as a reason, never as a localhost url', async () => {
     const port = new ServeProcessPort({
-      threadId: 'brn_root',
-      client: clientWith(async () => {
-        throw new Error('The Atlas Cloud API answered POST /v1/sandboxes/brn_root/expose with 400: at most 15 ports.')
+      name: 'atlas-thread-deadbeef',
+      driver: driverWith(async () => {
+        throw new Error('a sandbox exposes at most 15 ports and this one is at the limit')
       }),
     })
 
@@ -46,11 +47,19 @@ describe('ServeProcessPort', () => {
     expect(outcome.reason).not.toContain('localhost')
   })
 
+  it('refuses with a teaching reason when the sandbox carries no Vercel credentials', async () => {
+    const port = new ServeProcessPort(null)
+
+    const outcome = await port.exposePort({ containerPort: 3001 })
+
+    expect(outcome.ok).toBe(false)
+    if (outcome.ok) return
+    expect(outcome.reason).toContain('no Vercel credentials')
+    expect(outcome.reason).not.toContain('localhost')
+  })
+
   it('keeps the local spawn and which behaviour of the sandbox it runs in', () => {
-    const port = new ServeProcessPort({
-      threadId: 'brn_root',
-      client: clientWith(async () => 'https://sb-x.vercel.run'),
-    })
+    const port = new ServeProcessPort(null)
 
     expect(port.which({ command: 'sh' })).toBeString()
   })

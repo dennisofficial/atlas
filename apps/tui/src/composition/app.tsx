@@ -21,7 +21,7 @@ import {
   type EUsageWindow,
   type ModelCard,
 } from '@dltech/atlas-core'
-import { EChannelConnection, forkConversation, relocateSession, settingModelRef, suggestedModelRef, type DiscoveredSkill } from '@dltech/atlas-harness'
+import { EChannelConnection, forkConversation, readGhAuthToken, relocateSession, requireVercelCredentials, sandboxImageOf, settingModelRef, suggestedModelRef, type DiscoveredSkill } from '@dltech/atlas-harness'
 
 import { newestExpandableKey, type PendingSaid } from '../store'
 import { withCloud, withContainer, withSections } from '../store/sidebar-model'
@@ -154,6 +154,7 @@ import { useExecutionLocation } from './use-execution-location'
 import { useThreads } from './use-threads'
 import { useUsageMeters } from './use-usage-meters'
 import { createCloudBridge } from './cloud/create-bridge'
+import { mergeRemoteMemoryBounded } from './cloud/bounded-merge-remote-memory'
 import { createCloudSession, type CloudSession } from './cloud/cloud-session'
 import { descendFromCloud } from './cloud/descend'
 import { liftRefusal } from './cloud/lift-plan'
@@ -211,8 +212,24 @@ const readoutOf = (args: {
   return { percent: pressure.percent, tokensUsed: pressure.used, meters: args.meters }
 }
 
-const liveBridge: CloudBridgeFactory = ({ url, token }) =>
-  createCloudBridge({ url, token, clientVersion: clientVersionHeader() })
+/**
+ * The live bridge closes over the app's settings and secrets: the claim rides the Atlas Cloud
+ * session, but every Vercel call is driven with the operator's own token, read fresh from the
+ * sealed secrets file at each attach so a rotated token is picked up without a restart.
+ */
+const liveBridgeFor = (app: AtlasApp): CloudBridgeFactory => {
+  return ({ url, token }) =>
+    createCloudBridge({
+      url,
+      token,
+      clientVersion: clientVersionHeader(),
+      vercel: () => ({
+        credentials: requireVercelCredentials({ settings: app.settings, secrets: app.secrets }),
+        image: sandboxImageOf({ settings: app.settings }),
+      }),
+      readGitToken: () => readGhAuthToken(),
+    })
+}
 
 /**
  * A lift is the conversation opened again as a cloud thread, not the running one rewired: the
@@ -304,7 +321,7 @@ export function App(props: {
         opened={lifted?.opened ?? reopened ?? props.opened}
         cloudSession={lifted?.session ?? null}
         cloudBridge={lifted?.bridge ?? null}
-        createBridge={props.createBridge ?? liveBridge}
+        createBridge={props.createBridge ?? liveBridgeFor(props.app)}
         captureWorkspace={props.captureWorkspace ?? captureWorkspace}
         captureContext={props.captureContext}
         onLifted={handleLifted}
@@ -915,6 +932,14 @@ function Workspace(props: {
           channel,
           localApp: props.localApp,
           move: containerMove,
+          pullMemory: () => {
+            const signedIn = props.localApp.cloud.session()
+            if (signedIn === null) return Promise.resolve()
+            return mergeRemoteMemoryBounded({
+              session: signedIn,
+              cwd: props.localApp.workspace.workspace,
+            })
+          },
         })
           .then((opened) => {
             containerMove.handleSettle()

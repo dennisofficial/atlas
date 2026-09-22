@@ -14,7 +14,7 @@ const sessionOn = (args: { status?: CloudSandboxStatus | undefined } = {}) => {
   const session = createCloudSession({
     channel,
     sandboxes: {
-      create: async () => ({ url: '', token: '', state: ECloudSandboxState.Running }),
+      create: async () => ({ url: '', token: '', state: ECloudSandboxState.Running, created: false }),
       putContext: async () => undefined,
       find: async () => args.status,
       destroy: async () => undefined,

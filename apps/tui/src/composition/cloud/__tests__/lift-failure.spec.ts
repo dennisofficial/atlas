@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation, toRunId } from '@dltech/atlas-core'
-import { CloudError } from '@dltech/atlas-harness'
+import { CloudError, GitCredentialError, VercelNotConfiguredError } from '@dltech/atlas-harness'
 
 import { fakeAgentSnapshot } from '../../__tests__/fake-agents'
 import { fakeThreadStore } from '../../__tests__/fake-backend'
@@ -81,8 +81,40 @@ describe('a lift that does not finish', () => {
     if (lifted.ok) return
 
     expect(lifted.fault).toBe(ELiftFault.NotConfigured)
-    expect(lifted.detail).toContain('no sandbox provider configured')
-    expect(lifted.detail).not.toContain('503')
+    expect(lifted.detail).toContain('not configured')
+  })
+
+  it('reads a missing Vercel token as the cloud sandboxes not being set up, with the teaching intact', async () => {
+    const bridge = fakeBridge({
+      createFails: new VercelNotConfiguredError('add your Vercel token'),
+    })
+    const test = harness({ bridge })
+
+    const lifted = await liftToCloud(test.args)
+
+    expect(lifted.ok).toBe(false)
+    if (lifted.ok) return
+
+    expect(lifted.fault).toBe(ELiftFault.NotConfigured)
+    expect(lifted.detail).toContain('add your Vercel token')
+    expect(lifted.detail).toContain('cloud sandboxes')
+  })
+
+  it('reads a gh failure as git access missing, teaching the login', async () => {
+    const bridge = fakeBridge({
+      createFails: new GitCredentialError('run `gh auth login`, then try again'),
+    })
+    const test = harness({ bridge })
+
+    const lifted = await liftToCloud(test.args)
+
+    expect(lifted.ok).toBe(false)
+    if (lifted.ok) return
+
+    expect(lifted.fault).toBe(ELiftFault.GitAuth)
+    expect(lifted.step).toBe(ELiftStep.Starting)
+    expect(lifted.detail).toContain('gh auth login')
+    expect(test.located).toEqual([EExecutionLocation.Cloud, EExecutionLocation.Host])
   })
 
   it('keeps the real message of a 503 that is not the not-configured one', async () => {
@@ -101,7 +133,6 @@ describe('a lift that does not finish', () => {
 
     expect(lifted.fault).toBe(ELiftFault.Sandbox)
     expect(lifted.detail).toContain('no atlas serve binary')
-    expect(lifted.detail).not.toContain('no sandbox provider configured')
   })
 
   it('reads an unreachable API as unreachable rather than as a refusal', async () => {

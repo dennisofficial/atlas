@@ -33,9 +33,7 @@ const threadId = toThreadId('thread-serve')
 
 const CONTROL_PLANE = 'https://api.example.com'
 
-const HEARTBEAT_URL = `${CONTROL_PLANE}/v1/sandboxes/thread-serve/heartbeat`
-
-type Started = { handle: ServeHandle; app: FakeServeApp; beats: string[]; lines: string[] }
+type Started = { handle: ServeHandle; app: FakeServeApp; lines: string[] }
 
 const running: ServeHandle[] = []
 
@@ -73,11 +71,12 @@ const start = async (args: {
   publishWorkspace?: WorkspacePublisher | undefined
   adoptChildren?: ((args: { threadId: ThreadId }) => Promise<readonly ThreadId[]>) | undefined
   whenChildrenSettled?: (() => Promise<void>) | undefined
-  heartbeatIntervalMs?: number | undefined
+  idleMinutes?: number | undefined
+  idleTickMs?: number | undefined
+  exit?: ((code: number) => void) | undefined
   fetchFn?: typeof fetch | undefined
   contextFiles?: WorkspaceFiles | undefined
 }): Promise<Started> => {
-  const beats: string[] = []
   const lines: string[] = []
   const app = fakeServeApp({
     threadId,
@@ -100,20 +99,19 @@ const start = async (args: {
     write: (line) => lines.push(line),
     fetchFn:
       args.fetchFn ??
-      ((async (input: unknown) => {
-        if (String(input).endsWith('/heartbeat')) beats.push(String(input))
-        return new Response(null, { status: 204 })
-      }) as typeof fetch),
+      ((async (_input: unknown) => new Response(null, { status: 204 })) as typeof fetch),
     compose: async () => app,
     ensureWorkspace:
       args.ensureWorkspace ?? (async () => args.workspace ?? { state: EWorkspaceState.Skipped }),
     publishWorkspace: args.publishWorkspace,
-    heartbeatIntervalMs: args.heartbeatIntervalMs,
+    idleMinutes: args.idleMinutes,
+    idleTickMs: args.idleTickMs,
+    exit: args.exit,
     contextFiles: args.contextFiles ?? inMemoryContextFiles(),
   })
 
   running.push(handle)
-  return { handle, app, beats, lines }
+  return { handle, app, lines }
 }
 
 const hello = (args: { channelCursor: number | null; lastEventSeq: number; protocol?: number }) =>
@@ -553,81 +551,6 @@ describe('startServe', () => {
     expect(reply).toEqual({ kind: EServeFrame.Reply, replyTo: 'pub-1', ok: true, data: null })
   })
 
-  it('heartbeats for a turn and never for a socket that is merely open', async () => {
-    const { handle, beats } = await start({})
-    const client = await connect({ port: handle.port, token: TOKEN })
-    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
-    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
-    await Bun.sleep(20)
-
-    expect(beats).toEqual([])
-
-    client.send({ kind: EClientFrame.Send, text: 'go' })
-    await Bun.sleep(20)
-
-    expect(beats).toEqual([HEARTBEAT_URL])
-  })
-
-  it('heartbeats while adopted children settle, and stops when they have', async () => {
-    let release = (): void => undefined
-    const settled = new Promise<void>((resolve) => {
-      release = resolve
-    })
-    const { beats } = await start({
-      adoptChildren: async () => [toThreadId('thread-child')],
-      whenChildrenSettled: () => settled,
-      heartbeatIntervalMs: 10,
-    })
-    await Bun.sleep(35)
-
-    expect(beats.length).toBeGreaterThan(1)
-    expect(new Set(beats)).toEqual(new Set([HEARTBEAT_URL]))
-
-    release()
-    await Bun.sleep(20)
-    const stoppedAt = beats.length
-    await Bun.sleep(35)
-    expect(beats.length).toBe(stoppedAt)
-  })
-
-  it('keeps the heartbeat when a turn ends while adopted children still settle', async () => {
-    let releaseChildren = (): void => undefined
-    let releaseTurn = (): void => undefined
-    const children = new Promise<void>((resolve) => {
-      releaseChildren = resolve
-    })
-    const turn = new Promise<void>((resolve) => {
-      releaseTurn = resolve
-    })
-    const { handle, beats } = await start({
-      adoptChildren: async () => [toThreadId('thread-child')],
-      whenChildrenSettled: () => children,
-      heartbeatIntervalMs: 10,
-      runTurn: async () => {
-        await turn
-        return { status: ETurnStatus.Completed, runId: toRunId('run-1') }
-      },
-    })
-
-    const client = await connect({ port: handle.port, token: TOKEN })
-    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
-    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
-    client.send({ kind: EClientFrame.Send, text: 'go' })
-    await Bun.sleep(35)
-
-    releaseTurn()
-    await client.waitFor((frame) => frame.kind === EServeFrame.TurnEnded)
-    const afterTurn = beats.length
-    await Bun.sleep(35)
-    expect(beats.length).toBeGreaterThan(afterTurn)
-
-    releaseChildren()
-    await Bun.sleep(20)
-    const stoppedAt = beats.length
-    await Bun.sleep(35)
-    expect(beats.length).toBe(stoppedAt)
-  })
-
   it('boots from the variables the sandbox was created with, and logs none of them', async () => {
     const { handle, lines } = await start({
       env: {
@@ -644,6 +567,50 @@ describe('startServe', () => {
 
     expect(lines.some((line) => line.includes(EServeEvent.Started))).toBe(true)
     expect(lines.some((line) => line.includes(TOKEN))).toBe(false)
+  })
+
+  it('closes and exits once the conversation has gone quiet past the idle TTL', async () => {
+    const exits: number[] = []
+    const { app, lines } = await start({
+      idleMinutes: 0.001,
+      idleTickMs: 5,
+      exit: (code) => exits.push(code),
+    })
+
+    await Bun.sleep(200)
+
+    expect(app.closed()).toBe(true)
+    expect(exits).toEqual([0])
+    expect(lines.some((line) => line.includes(EServeEvent.IdleStop))).toBe(true)
+  })
+
+  it('never parks itself mid-turn', async () => {
+    let release = (): void => undefined
+    const turn = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const exits: number[] = []
+    const { handle, app } = await start({
+      idleMinutes: 0.001,
+      idleTickMs: 5,
+      exit: (code) => exits.push(code),
+      runTurn: async () => {
+        await turn
+        return { status: ETurnStatus.Completed, runId: toRunId('run-1') }
+      },
+    })
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+    client.send({ kind: EClientFrame.Send, text: 'go' })
+    await Bun.sleep(100)
+
+    expect(app.closed()).toBe(false)
+    expect(exits).toEqual([])
+
+    release()
+    await client.waitFor((frame) => frame.kind === EServeFrame.TurnEnded)
   })
 
   it('reports a workspace it could not materialize, and refuses to work in an empty tree', async () => {

@@ -1,18 +1,15 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
 import type { CloudSandboxes } from './cloud-bridge'
-import { waitForSandbox } from './wait-for-sandbox'
 
+/**
+ * Re-claiming is re-provisioning: the claim mints a fresh session token and git credential, and
+ * `create` awaits the sandbox actually running before answering, so its result attaches directly.
+ */
 export async function reattachSandbox(args: {
   sandboxes: CloudSandboxes
   threadId: ThreadId
-  sleep?: ((ms: number) => Promise<void>) | undefined
 }): Promise<{ url: string; token: string }> {
   const woken = await args.sandboxes.create({ threadId: args.threadId, workspace: null })
-  const ready = await waitForSandbox({
-    sandboxes: args.sandboxes,
-    threadId: args.threadId,
-    ...(args.sleep === undefined ? {} : { sleep: args.sleep }),
-  })
-  return { url: ready.url, token: woken.token }
+  return { url: woken.url, token: woken.token }
 }
