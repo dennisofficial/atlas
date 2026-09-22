@@ -263,10 +263,12 @@ class FakeCloudService extends CloudService {
     })
     if (args.session !== null) sessions.write(args.session)
 
+    let offered = false
     super({
       sessions,
       localAccounts: memoryAccountStore({ clock: new SystemClock() }),
       defaultUrl: 'http://localhost:3400',
+      signInOffer: { offered: () => offered, markOffered: () => { offered = true } },
     })
     this.fakeClient = args.client
   }

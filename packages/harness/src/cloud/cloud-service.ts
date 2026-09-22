@@ -21,6 +21,7 @@ import {
 } from './device-login'
 import { downloadAndPurgeCloudData, type CloudPurgeResult } from './download-purge'
 import { RemoteAccountStore } from './remote-account-store'
+import { fileSignInOffer, type SignInOffer } from './sign-in-offer'
 import { UserContextClient } from './user-context-client'
 
 const getSessionResponseSchema = z.object({
@@ -79,6 +80,7 @@ export class CloudService {
   private readonly defaultUrl: string
   private readonly clientVersion: string | undefined
   private readonly fetchFn: typeof fetch
+  private readonly signInOffer: SignInOffer
   private cached: { token: string; client: CloudClient } | undefined
 
   constructor(args: {
@@ -88,6 +90,7 @@ export class CloudService {
     localSecrets?: FileSecretsStore
     clientVersion?: string
     fetchFn?: typeof fetch
+    signInOffer?: SignInOffer
   }) {
     this.sessions = args.sessions
     this.localAccounts = args.localAccounts
@@ -95,6 +98,7 @@ export class CloudService {
     this.defaultUrl = args.defaultUrl
     this.clientVersion = args.clientVersion
     this.fetchFn = args.fetchFn ?? fetch
+    this.signInOffer = args.signInOffer ?? fileSignInOffer()
   }
 
   private clientFor(args: { session: CloudSession }): CloudClient {
@@ -107,6 +111,18 @@ export class CloudService {
 
   session(): CloudSession | null {
     return this.sessions.read()
+  }
+
+  /**
+   * The signed-out boot notice is an offer read once ever, not a per-boot nag — the marker lives
+   * beside the vault so a never-signing-in operator is never asked twice.
+   */
+  signInOffered(): boolean {
+    return this.signInOffer.offered()
+  }
+
+  markSignInOffered(): void {
+    this.signInOffer.markOffered()
   }
 
   client(): CloudClient | null {

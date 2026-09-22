@@ -13,6 +13,7 @@ export enum EServeEvent {
   TurnEnded = 'serve.turn-ended',
   TurnFailed = 'serve.turn-failed',
   IdleStop = 'serve.idle-stop',
+  IdleCheckFailed = 'serve.idle-check-failed',
   WorkspaceReady = 'serve.workspace-ready',
   WorkspaceFailed = 'serve.workspace-failed',
   ContextReady = 'serve.context-ready',

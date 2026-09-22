@@ -1,5 +1,5 @@
 import type { KeyEvent } from '@opentui/core'
-import type { CloudPurgeResult, CloudService } from '@dltech/atlas-harness'
+import { CLOUD_PURGE_DOMAINS, type CloudPurgeResult, type CloudService } from '@dltech/atlas-harness'
 import { useCallback, useMemo, useState } from 'react'
 
 import { ENoticeTone, notify } from '../ui/notice-store'
@@ -17,15 +17,13 @@ export type PurgeConfirmControl = {
   handleKey: (key: KeyEvent) => void
 }
 
-const plural = (count: number, noun: string): string =>
-  `${count} ${noun}${count === 1 ? '' : 's'}`
-
 export const purgedNotice = (result: CloudPurgeResult): string => {
   const moved: string[] = []
-  if (result.accounts > 0) moved.push(plural(result.accounts, 'account'))
-  if (result.secrets > 0) moved.push(plural(result.secrets, 'secret'))
-  if (result.mcpServers > 0) moved.push(plural(result.mcpServers, 'MCP server'))
-  if (result.memoryFiles > 0) moved.push('your memory')
+  for (const domain of CLOUD_PURGE_DOMAINS) {
+    if (domain.count === undefined) continue
+    const count = domain.count(result)
+    if (count > 0) moved.push(domain.movedLabel(count))
+  }
   if (moved.length === 0) return 'The cloud held nothing of yours to move — you are signed out.'
   const list = moved.length === 1 ? moved[0] : `${moved.slice(0, -1).join(', ')} and ${moved.at(-1)}`
   return `Moved ${list} to this machine, deleted them from the cloud, and signed you out.`

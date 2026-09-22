@@ -1,3 +1,5 @@
+import { CLOUD_PURGE_DOMAINS } from '@dltech/atlas-harness'
+
 export type PurgeConfirmRow = {
   id: string
   label: string
@@ -8,13 +10,10 @@ export type PurgeConfirmState = {
   rows: readonly PurgeConfirmRow[]
 }
 
-const MOVES: readonly PurgeConfirmRow[] = [
-  { id: 'accounts', label: 'model accounts and their credentials' },
-  { id: 'secrets', label: 'secrets' },
-  { id: 'mcp', label: 'MCP servers' },
-  { id: 'memory', label: 'your memory' },
-  { id: 'github', label: 'your GitHub connection (deleted, not moved)' },
-]
+const MOVES: readonly PurgeConfirmRow[] = CLOUD_PURGE_DOMAINS.map((domain) => ({
+  id: domain.id,
+  label: domain.drawerLabel,
+}))
 
 export function openPurgeConfirm(): PurgeConfirmState {
   return { running: false, rows: MOVES }

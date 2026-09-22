@@ -26,6 +26,7 @@ export function startServeIdleStop(args: {
   idleMinutesWithServices?: number | undefined
   tickMs?: number | undefined
   now?: (() => number) | undefined
+  log?: ((line: string) => void) | undefined
 }): ServeIdleStop {
   const now = args.now ?? Date.now
   let lastActivityAt = now()
@@ -46,7 +47,10 @@ export function startServeIdleStop(args: {
         idleMinutesWithServices: args.idleMinutesWithServices ?? SERVE_IDLE_MINUTES_WITH_SERVICES,
         now: now(),
       })
-    } catch {
+    } catch (failure) {
+      args.log?.(
+        `idle check failed, the sandbox stays up this tick: ${failure instanceof Error ? failure.message : String(failure)}`,
+      )
       return
     }
     if (!due) return

@@ -58,28 +58,40 @@ const writeUnlessHeld = async (args: {
   return true
 }
 
+type MemoryEntry = { key: string; write: (target: string) => Promise<void> }
+
+const restoreEntries = async (args: {
+  entries: readonly MemoryEntry[]
+  atlasHome: string
+}): Promise<MemoryDownload> => {
+  let restored = 0
+  let skipped = 0
+  for (const entry of args.entries) {
+    const target = targetFor({ key: entry.key, atlasHome: args.atlasHome })
+    if (target === null) {
+      skipped += 1
+      continue
+    }
+    const wrote = await writeUnlessHeld({ target, write: () => entry.write(target) })
+    if (wrote) restored += 1
+    else skipped += 1
+  }
+  return { restored, skipped }
+}
+
 const restoreArchive = async (args: {
   archive: Uint8Array
   atlasHome: string
 }): Promise<MemoryDownload> => {
   const extracted = await extractContextArchive({ archive: args.archive })
   try {
-    let restored = 0
-    let skipped = 0
-    for (const entry of extracted.entries) {
-      const target = targetFor({ key: entry.key, atlasHome: args.atlasHome })
-      if (target === null) {
-        skipped += 1
-        continue
-      }
-      const wrote = await writeUnlessHeld({
-        target,
-        write: () => cp(entry.path, target, { preserveTimestamps: true }),
-      })
-      if (wrote) restored += 1
-      else skipped += 1
-    }
-    return { restored, skipped }
+    return await restoreEntries({
+      entries: extracted.entries.map((entry) => ({
+        key: entry.key,
+        write: (target) => cp(entry.path, target, { preserveTimestamps: true }),
+      })),
+      atlasHome: args.atlasHome,
+    })
   } finally {
     await extracted.cleanup()
   }
@@ -103,24 +115,14 @@ const bundleEntries = (bundle: string): readonly { key: string; content: string 
 const restoreBundle = async (args: {
   bundle: string
   atlasHome: string
-}): Promise<MemoryDownload> => {
-  let restored = 0
-  let skipped = 0
-  for (const entry of bundleEntries(args.bundle)) {
-    const target = targetFor({ key: entry.key, atlasHome: args.atlasHome })
-    if (target === null) {
-      skipped += 1
-      continue
-    }
-    const wrote = await writeUnlessHeld({
-      target,
-      write: () => writeFile(target, entry.content, 'utf8'),
-    })
-    if (wrote) restored += 1
-    else skipped += 1
-  }
-  return { restored, skipped }
-}
+}): Promise<MemoryDownload> =>
+  restoreEntries({
+    entries: bundleEntries(args.bundle).map((entry) => ({
+      key: entry.key,
+      write: (target) => writeFile(target, entry.content, 'utf8'),
+    })),
+    atlasHome: args.atlasHome,
+  })
 
 /**
  * Pulls the cloud-held memory down into the local memory directories. A local file always wins

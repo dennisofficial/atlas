@@ -23,6 +23,62 @@ export type CloudPurgeResult = {
   githubDisconnected: boolean
 }
 
+export type CloudPurgeDomainId = 'accounts' | 'secrets' | 'mcpServers' | 'memory' | 'github'
+
+export type CloudPurgeDomain = {
+  id: CloudPurgeDomainId
+  /** Names the step when a mid-purge failure message says which one broke. */
+  step: string
+  /** The confirm drawer's one-line description of what happens to it. */
+  drawerLabel: string
+} & (
+  | {
+      count: (result: CloudPurgeResult) => number
+      /** The phrase the count lands as in the moved list of a success notice. */
+      movedLabel: (count: number) => string
+    }
+  | { count?: undefined; movedLabel?: undefined }
+)
+
+const plural = (count: number, noun: string): string =>
+  `${count} ${noun}${count === 1 ? '' : 's'}`
+
+export const CLOUD_PURGE_DOMAINS: readonly CloudPurgeDomain[] = [
+  {
+    id: 'accounts',
+    step: 'accounts',
+    drawerLabel: 'model accounts and their credentials',
+    count: (result) => result.accounts,
+    movedLabel: (count) => plural(count, 'account'),
+  },
+  {
+    id: 'secrets',
+    step: 'secrets',
+    drawerLabel: 'secrets',
+    count: (result) => result.secrets,
+    movedLabel: (count) => plural(count, 'secret'),
+  },
+  {
+    id: 'mcpServers',
+    step: 'mcp servers',
+    drawerLabel: 'MCP servers',
+    count: (result) => result.mcpServers,
+    movedLabel: (count) => plural(count, 'MCP server'),
+  },
+  {
+    id: 'memory',
+    step: 'memory',
+    drawerLabel: 'your memory',
+    count: (result) => result.memoryFiles,
+    movedLabel: () => 'your memory',
+  },
+  {
+    id: 'github',
+    step: 'github connection',
+    drawerLabel: 'your GitHub connection (deleted, not moved)',
+  },
+]
+
 export type CloudPurgeStores = {
   accounts: AccountStorePort
   secrets: FileSecretsStore | undefined
@@ -166,9 +222,6 @@ const disconnectGithub = async (args: { client: CloudClient }): Promise<boolean>
   return true
 }
 
-const plural = (count: number, noun: string): string =>
-  `${count} ${noun}${count === 1 ? '' : 's'}`
-
 const failureMessage = (args: {
   landed: readonly string[]
   domain: string
@@ -200,50 +253,35 @@ export async function downloadAndPurgeCloudData(args: {
   }
   const landed: string[] = []
 
-  const steps: readonly { domain: string; run: () => Promise<void> }[] = [
-    {
-      domain: 'accounts',
-      run: async () => {
-        result.accounts = await downloadAccounts({ client: args.client, store: args.stores.accounts })
-        if (result.accounts > 0) landed.push(plural(result.accounts, 'account'))
-      },
+  const runs: Record<CloudPurgeDomainId, () => Promise<void>> = {
+    accounts: async () => {
+      result.accounts = await downloadAccounts({ client: args.client, store: args.stores.accounts })
     },
-    {
-      domain: 'secrets',
-      run: async () => {
-        result.secrets = await downloadSecrets({ client: args.client, store: args.stores.secrets })
-        if (result.secrets > 0) landed.push(plural(result.secrets, 'secret'))
-      },
+    secrets: async () => {
+      result.secrets = await downloadSecrets({ client: args.client, store: args.stores.secrets })
     },
-    {
-      domain: 'mcp servers',
-      run: async () => {
-        result.mcpServers = await downloadMcpServers({ client: args.client })
-        if (result.mcpServers > 0) landed.push(plural(result.mcpServers, 'MCP server'))
-      },
+    mcpServers: async () => {
+      result.mcpServers = await downloadMcpServers({ client: args.client })
     },
-    {
-      domain: 'memory',
-      run: async () => {
-        result.memoryFiles = await downloadMemory({ client: args.client, context: args.stores.context })
-        if (result.memoryFiles > 0) landed.push('your memory')
-      },
+    memory: async () => {
+      result.memoryFiles = await downloadMemory({ client: args.client, context: args.stores.context })
     },
-    {
-      domain: 'github connection',
-      run: async () => {
-        result.githubDisconnected = await disconnectGithub({ client: args.client })
-      },
+    github: async () => {
+      result.githubDisconnected = await disconnectGithub({ client: args.client })
     },
-  ]
+  }
 
-  for (const step of steps) {
+  for (const domain of CLOUD_PURGE_DOMAINS) {
     try {
-      await step.run()
+      await runs[domain.id]()
+      if (domain.count !== undefined) {
+        const moved = domain.count(result)
+        if (moved > 0) landed.push(domain.movedLabel(moved))
+      }
     } catch (cause) {
       throw new CloudError({
         status: cause instanceof CloudError ? cause.status : 0,
-        message: failureMessage({ landed, domain: step.domain, cause }),
+        message: failureMessage({ landed, domain: domain.step, cause }),
       })
     }
   }

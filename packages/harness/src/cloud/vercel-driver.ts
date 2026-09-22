@@ -36,6 +36,8 @@ const ROUTE_RETRY_DELAY_MS = 1_000
 
 export type VercelCredentials = { token: string; teamId: string; projectId: string }
 
+export type VercelSandboxConfig = { credentials: VercelCredentials; image: string }
+
 export type SandboxPlacement = {
   sessionId: string
   url: string
@@ -107,10 +109,10 @@ export class VercelDriver {
       image?: string | undefined
       timeoutMs?: number | undefined
       log?: ((line: string) => void) | undefined
+      sdk?: VercelSdk | undefined
     },
-    sdk?: VercelSdk,
   ) {
-    this.sdk = sdk ?? liveSdk
+    this.sdk = args.sdk ?? liveSdk
   }
 
   async createOrResume(args: {

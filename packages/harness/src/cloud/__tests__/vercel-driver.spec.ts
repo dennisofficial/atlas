@@ -83,13 +83,15 @@ const notFound = (): APIError<unknown> =>
   new APIError(new Response(null, { status: 404 }), { message: 'sandbox not found' })
 
 const driverWith = (sdk: Partial<VercelSdk>): { driver: VercelDriver } => ({
-  driver: new VercelDriver(
-    { credentials: CREDENTIALS, cloudUrl: 'https://api.example.com', image: 'atlas-sandbox:latest' },
-    {
+  driver: new VercelDriver({
+    credentials: CREDENTIALS,
+    cloudUrl: 'https://api.example.com',
+    image: 'atlas-sandbox:latest',
+    sdk: {
       getOrCreate: sdk.getOrCreate ?? (async () => fakeSandbox()),
       get: sdk.get ?? (async () => fakeSandbox()),
     },
-  ),
+  }),
 })
 
 describe('createOrResume', () => {
@@ -224,19 +226,21 @@ describe('inspect', () => {
       url: 'https://sb-3000.vercel.run',
     })
 
-    const pending = new VercelDriver(
-      { credentials: CREDENTIALS, cloudUrl: 'https://api.example.com' },
-      { get: async () => fakeSandbox({ status: 'pending' }), getOrCreate: async () => fakeSandbox() },
-    )
+    const pending = new VercelDriver({
+      credentials: CREDENTIALS,
+      cloudUrl: 'https://api.example.com',
+      sdk: { get: async () => fakeSandbox({ status: 'pending' }), getOrCreate: async () => fakeSandbox() },
+    })
     expect(await pending.inspect({ name: 'x' })).toEqual({
       state: ECloudSandboxState.Resuming,
       url: 'https://sb-3000.vercel.run',
     })
 
-    const stopped = new VercelDriver(
-      { credentials: CREDENTIALS, cloudUrl: 'https://api.example.com' },
-      { get: async () => fakeSandbox({ status: 'stopped' }), getOrCreate: async () => fakeSandbox() },
-    )
+    const stopped = new VercelDriver({
+      credentials: CREDENTIALS,
+      cloudUrl: 'https://api.example.com',
+      sdk: { get: async () => fakeSandbox({ status: 'stopped' }), getOrCreate: async () => fakeSandbox() },
+    })
     expect(await stopped.inspect({ name: 'x' })).toEqual({ state: ECloudSandboxState.Parked })
   })
 

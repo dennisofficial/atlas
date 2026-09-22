@@ -2,7 +2,7 @@ import React from 'react'
 
 import type { PurgeConfirmState } from '../purge-confirm-model'
 import { type Hint } from '../hint-layout'
-import { usePress, type PressHandlers } from '../hooks/use-press'
+import { useClickRegion, type ClickRegion } from '../hooks/use-click-region'
 import { theme } from '../theme'
 import { BottomDrawer, drawerCells, DrawerHints, DrawerLine } from './drawer'
 import { clipSpans, truncateCells } from './sidebar/cells'
@@ -30,10 +30,15 @@ const HINTS: readonly Hint[] = [
 function Line(props: {
   spans: readonly Span[]
   cells: number
-  press?: PressHandlers
+  region?: ClickRegion
 }): React.ReactNode {
+  const region = props.region
   return (
-    <DrawerLine {...(props.press === undefined ? {} : { press: props.press })}>
+    <DrawerLine
+      {...(region === undefined
+        ? {}
+        : { press: region.handlers, hover: region.handlers, band: region.wash.bg })}
+    >
       <text>
         <Spans spans={clipSpans({ spans: props.spans, cells: props.cells })} />
       </text>
@@ -54,8 +59,9 @@ export function PurgeConfirm(props: {
   onDismiss: () => void
 }): React.ReactNode {
   const cells = drawerCells({ width: props.width })
-  const press = usePress()
   const running = props.state.running
+  const confirm = useClickRegion(running ? undefined : props.onConfirm)
+  const cancel = useClickRegion(props.onDismiss)
 
   return (
     <BottomDrawer overlay={props.overlay === true}>
@@ -79,9 +85,9 @@ export function PurgeConfirm(props: {
       {running ? (
         <Line spans={[{ text: RUNNING_LABEL, fg: theme.hint }]} cells={cells} />
       ) : (
-        <Line spans={[{ text: CONFIRM_LABEL, fg: theme.warn }]} cells={cells} press={press(props.onConfirm)} />
+        <Line spans={[{ text: CONFIRM_LABEL, fg: theme.warn }]} cells={cells} region={confirm} />
       )}
-      <Line spans={[{ text: CANCEL_LABEL, fg: theme.body }]} cells={cells} press={press(props.onDismiss)} />
+      <Line spans={[{ text: CANCEL_LABEL, fg: theme.body }]} cells={cells} region={cancel} />
       <box height={1} flexShrink={0} />
       <DrawerHints hints={HINTS} cells={cells} onDismiss={props.onDismiss} />
     </BottomDrawer>

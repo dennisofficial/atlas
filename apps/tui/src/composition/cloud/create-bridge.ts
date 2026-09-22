@@ -10,7 +10,7 @@ import {
   serveStampReader,
   SessionsClient,
   VercelDriver,
-  type VercelCredentials,
+  type VercelSandboxConfig,
 } from '@dltech/atlas-harness'
 
 import type { CloudBridge, CloudSandbox, CloudSandboxes, CloudSandboxStatus } from './cloud-bridge'
@@ -41,7 +41,7 @@ export function createCloudBridge(args: {
   fetchFn?: typeof fetch | undefined
   lastEventSeq?: (() => number) | undefined
   /** Throwing resolver — a lift with no Vercel credentials fails before anything is claimed. */
-  vercel: () => { credentials: VercelCredentials; image: string }
+  vercel: () => VercelSandboxConfig
   /** Fresh on every claim — `gh auth token`, throwing GitCredentialError when it cannot. */
   readGitToken: () => Promise<string>
 }): CloudBridge {
@@ -51,7 +51,7 @@ export function createCloudBridge(args: {
   const sessions = new SessionsClient(shared)
   const sandboxes = new SandboxClient(shared)
 
-  const driverWith = (config: { credentials: VercelCredentials; image: string }): VercelDriver =>
+  const driverWith = (config: VercelSandboxConfig): VercelDriver =>
     new VercelDriver({
       credentials: config.credentials,
       cloudUrl: args.url,
@@ -119,7 +119,7 @@ export function createCloudBridge(args: {
    */
   const destroy = async (destroyArgs: { threadId: ThreadId }): Promise<void> => {
     const name = sandboxNameFor({ threadId: destroyArgs.threadId })
-    let config: { credentials: VercelCredentials; image: string } | null = null
+    let config: VercelSandboxConfig | null = null
     try {
       config = args.vercel()
     } catch {

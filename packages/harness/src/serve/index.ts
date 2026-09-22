@@ -322,6 +322,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     idleMinutes: args.idleMinutes,
     idleMinutesWithServices: args.idleMinutesWithServices,
     tickMs: args.idleTickMs,
+    log: (line) => log({ event: EServeEvent.IdleCheckFailed, reason: line }),
     onDue: () => {
       log({ event: EServeEvent.IdleStop, threadId })
       void close().then(() => (args.exit ?? process.exit)(0))

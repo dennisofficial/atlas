@@ -11,6 +11,12 @@ export type ExecOutcome = { stdout: string; stderr: string }
 
 export type ExecFileFn = (args: { cmd: string; args: readonly string[] }) => Promise<ExecOutcome>
 
+const errnoCodeOf = (failure: unknown): string | undefined => {
+  if (!(failure instanceof Error)) return undefined
+  if (!('code' in failure)) return undefined
+  return typeof failure.code === 'string' ? failure.code : undefined
+}
+
 const liveExec: ExecFileFn = ({ cmd, args }) =>
   new Promise((resolve, reject) => {
     execFile(cmd, [...args], (error, stdout, stderr) => {
@@ -37,8 +43,7 @@ export async function readGhAuthToken(args?: {
   try {
     outcome = await exec({ cmd: 'gh', args: ['auth', 'token'] })
   } catch (failure) {
-    const code = (failure as NodeJS.ErrnoException).code
-    if (code === 'ENOENT') {
+    if (errnoCodeOf(failure) === 'ENOENT') {
       throw new GitCredentialError('install the GitHub CLI and run `gh auth login`, then try again')
     }
     throw new GitCredentialError('run `gh auth login`, then try again')

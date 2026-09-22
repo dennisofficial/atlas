@@ -777,15 +777,16 @@ function Workspace(props: {
 
   /**
    * A signed-out boot is a steady state Atlas serves fine from the local vault, so this is an offer
-   * read once and left alone rather than a gate. Fires at most once per boot, the same shape as the
-   * credential-failure chip below it.
+   * read once ever — the marker sits beside the vault — rather than a gate or a per-boot nag.
    */
   const cloudSignInNoticed = useRef(false)
   useEffect(() => {
     if (cloudSignInNoticed.current) return
     cloudSignInNoticed.current = true
     if (props.app.cloud.session() !== null) return
+    if (props.app.cloud.signInOffered()) return
 
+    props.app.cloud.markSignInOffered()
     notify({
       key: 'cloud-sign-in-offer',
       text: 'sign in to Atlas Cloud to unlock cloud sandboxes and remote control — settings (ctrl+o) › account',
