@@ -29,6 +29,7 @@ import { createServeLog, EServeEvent, LoggingNoticePort, type LogWrite, type Ser
 import { startSessionServer } from './session-server'
 import { createSessionHandlers } from './socket-session'
 import { createTurnDriver } from './turn-driver'
+import type { WorkspaceFiles } from './workspace-files'
 import { contextArchiveFetcher, workspaceSpecFetcher } from './workspace-spec'
 
 export * from './channel-bridge'
@@ -69,6 +70,7 @@ export type ServeArgs = {
   compose?: ServeCompose | undefined
   ensureWorkspace?: EnsureWorkspace | undefined
   publishWorkspace?: WorkspacePublisher | undefined
+  contextFiles?: WorkspaceFiles | undefined
 }
 
 export type ServeHandle = {
@@ -169,6 +171,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     fetchArchive: contextArchiveFetcher({ controlPlaneUrl, token, fetchFn }),
     atlasHome: atlasDirectory(),
     cwd,
+    files: args.contextFiles,
   })
   const contextMs = Date.now() - contextStartedAt
   if (context.failed !== null) {

@@ -28,6 +28,57 @@ const PROJECT_PREFIX = `project${sep}`
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
+const CONTEXT_STAMP_FILE = 'context.stamp'
+
+type ContextStamp = { projectDirectory: string | null }
+
+const contextStampPath = (atlasHome: string): string => join(atlasHome, CONTEXT_STAMP_FILE)
+
+const parseContextStamp = (text: string): ContextStamp | null => {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    return null
+  }
+  if (typeof parsed !== 'object' || parsed === null) return null
+  const projectDirectory = Reflect.get(parsed, 'projectDirectory')
+  if (projectDirectory === null || projectDirectory === undefined) {
+    return { projectDirectory: null }
+  }
+  return typeof projectDirectory === 'string' ? { projectDirectory } : null
+}
+
+/**
+ * A sandbox snapshot restores the whole filesystem across stop/resume, this stamp included, so its
+ * presence is what tells a resumed boot apart from a freshly created one that has never received
+ * context yet.
+ */
+const readContextStamp = async (args: {
+  files: WorkspaceFiles
+  atlasHome: string
+}): Promise<ContextStamp | null> => {
+  const path = contextStampPath(args.atlasHome)
+  if (!(await args.files.exists(path))) return null
+  try {
+    return parseContextStamp(await args.files.read(path))
+  } catch {
+    return null
+  }
+}
+
+const stampContextWithoutFailingBoot = (args: {
+  files: WorkspaceFiles
+  atlasHome: string
+  projectDirectory: string | null
+}): Promise<void> =>
+  args.files
+    .write({
+      path: contextStampPath(args.atlasHome),
+      text: JSON.stringify({ projectDirectory: args.projectDirectory }),
+    })
+    .catch(() => undefined)
+
 /**
  * The bundle is the operator's user-level context — skills, global instructions, local MCP
  * config, user and project memory, and gitignored project-local instruction files. `.atlas/...`
@@ -112,6 +163,12 @@ const writeEntries = async (args: {
     }
   }
 
+  await stampContextWithoutFailingBoot({
+    files: roots.files,
+    atlasHome: roots.atlasHome,
+    projectDirectory: roots.projectDirectory,
+  })
+
   return { written, failed: null, projectDirectory: roots.projectDirectory }
 }
 
@@ -179,6 +236,10 @@ export async function materializeContext(args: {
   files?: WorkspaceFiles | undefined
 }): Promise<ContextReadiness> {
   const files = args.files ?? nodeWorkspaceFiles
+
+  const stamp = await readContextStamp({ files, atlasHome: args.atlasHome })
+  if (stamp !== null) return { written: 0, failed: null, projectDirectory: stamp.projectDirectory }
+
   const home = homedir()
   const projectMemoryDirectory = memoryDirectoriesFor({
     atlasHome: args.atlasHome,

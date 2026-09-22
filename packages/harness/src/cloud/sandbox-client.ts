@@ -32,6 +32,7 @@ export type WireSandbox = z.infer<typeof wireSandboxSchema>
 export const wireSandboxStatusSchema = z.object({
   state: sandboxStateSchema,
   url: z.string().min(1).optional(),
+  contextPending: z.boolean().optional(),
 })
 
 export type WireSandboxStatus = z.infer<typeof wireSandboxStatusSchema>
@@ -92,6 +93,15 @@ export class SandboxClient {
 
   async stopSandbox(args: { threadId: string }): Promise<void> {
     await this.request({ method: 'POST', path: `/v1/sandboxes/${args.threadId}/stop` })
+  }
+
+  /** A sandbox already gone is the caller's desired end state, so a 404 here is success, not an error. */
+  async destroySandbox(args: { threadId: string }): Promise<void> {
+    await this.request({
+      method: 'POST',
+      path: `/v1/sandboxes/${args.threadId}/destroy`,
+      allowMissing: true,
+    })
   }
 
   async exposePort(args: { threadId: string; port: number }): Promise<string> {

@@ -19,6 +19,7 @@ import {
   startServe,
   type EnsureWorkspace,
   type ServeHandle,
+  type WorkspaceFiles,
   type WorkspacePublisher,
   type WorkspaceReadiness,
 } from '../index'
@@ -38,6 +39,30 @@ type Started = { handle: ServeHandle; app: FakeServeApp; beats: string[]; lines:
 
 const running: ServeHandle[] = []
 
+/**
+ * `startServe` defaults its context materialization to the real filesystem, so a spec that never
+ * injects one would otherwise stamp the developer's own Atlas home the moment a fetchFn override
+ * lets the workspace spec resolve.
+ */
+const inMemoryContextFiles = (): WorkspaceFiles => {
+  const stored = new Map<string, string>()
+  return {
+    exists: async (path) => stored.has(path),
+    read: async (path) => {
+      const text = stored.get(path)
+      if (text === undefined) throw new Error(`no such file: ${path}`)
+      return text
+    },
+    write: async ({ path, text }) => {
+      stored.set(path, text)
+    },
+    writeBytes: async ({ path, bytes }) => {
+      stored.set(path, bytes.toString('utf8'))
+    },
+    empty: async () => undefined,
+  }
+}
+
 const start = async (args: {
   runTurn?: RunTurn | undefined
   entries?: Record<string, readonly { name: string; isDirectory: boolean }[]> | undefined
@@ -50,6 +75,7 @@ const start = async (args: {
   whenChildrenSettled?: (() => Promise<void>) | undefined
   heartbeatIntervalMs?: number | undefined
   fetchFn?: typeof fetch | undefined
+  contextFiles?: WorkspaceFiles | undefined
 }): Promise<Started> => {
   const beats: string[] = []
   const lines: string[] = []
@@ -83,6 +109,7 @@ const start = async (args: {
       args.ensureWorkspace ?? (async () => args.workspace ?? { state: EWorkspaceState.Skipped }),
     publishWorkspace: args.publishWorkspace,
     heartbeatIntervalMs: args.heartbeatIntervalMs,
+    contextFiles: args.contextFiles ?? inMemoryContextFiles(),
   })
 
   running.push(handle)

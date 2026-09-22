@@ -47,6 +47,9 @@ const harness = (args: {
 
   const files: WorkspaceFiles = {
     exists: async (path) => present.has(path),
+    read: async () => {
+      throw new Error('not exercised in these specs')
+    },
     write: async (given) => {
       written.push(given)
       present.add(given.path)
