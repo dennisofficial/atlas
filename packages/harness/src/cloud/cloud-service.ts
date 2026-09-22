@@ -19,7 +19,9 @@ import {
   beginCloudLogin,
   type CloudLoginTicket,
 } from './device-login'
+import { downloadAndPurgeCloudData, type CloudPurgeResult } from './download-purge'
 import { RemoteAccountStore } from './remote-account-store'
+import { UserContextClient } from './user-context-client'
 
 const getSessionResponseSchema = z.object({
   user: z.object({ email: z.string().optional() }),
@@ -150,6 +152,36 @@ export class CloudService {
 
   logout(): void {
     this.sessions.clear()
+  }
+
+  /**
+   * Pulls everything the cloud holds into the local stores, deletes it server-side domain by
+   * domain, then clears the session — a signed-in session serves the (now empty) remote stores,
+   * so staying signed in would hide what just landed locally. A failure throws before the
+   * session is touched, leaving the remaining domains in the cloud for a retry.
+   */
+  async downloadAndPurge(): Promise<CloudPurgeResult> {
+    const session = this.sessions.read()
+    if (session === null)
+      throw new CloudError({
+        status: 0,
+        message: 'There is no Atlas Cloud sign-in to purge — sign in first.',
+      })
+
+    const client = this.clientFor({ session })
+    const context = new UserContextClient({
+      url: session.url,
+      token: session.token,
+      ...(this.clientVersion === undefined ? {} : { clientVersion: this.clientVersion }),
+      fetchFn: this.fetchFn,
+    })
+
+    const result = await downloadAndPurgeCloudData({
+      client,
+      stores: { accounts: this.localAccounts, secrets: this.localSecrets, context },
+    })
+    this.sessions.clear()
+    return result
   }
 
   private async readSignedInEmail(args: { url: string; token: string }): Promise<string | null> {

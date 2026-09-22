@@ -31,6 +31,7 @@ import {
 import type { Span } from '../ui/components/spans'
 import type { AtlasApp } from './compose'
 import { preferencesOf } from './settings-preferences'
+import { useAccountPage, type AccountPageControl } from './use-account-page'
 import { useSecretPrompt } from './use-secret-prompt'
 import { useSettingsCloudLogin } from './use-settings-cloud-login'
 
@@ -46,6 +47,7 @@ export type SettingsControl = {
   cloudEmail: string | null
   cloudSignedIn: boolean
   cloudSignIn: SettingsLoginState
+  account: AccountPageControl
   handleSignOut: () => void
   handleSignIn: () => void
   handleOpenSignInUrl: () => void
@@ -138,6 +140,14 @@ export function useSettings(args: {
 
   const cloudLogin = useSettingsCloudLogin({ cloud: app.cloud, openUrl: app.openUrl, onSignedIn: readCloudSession })
 
+  const account = useAccountPage({
+    cloud: app.cloud,
+    loginStatus: cloudLogin.state.status,
+    onSignOut: handleSignOut,
+    onBeginSignIn: cloudLogin.begin,
+    onSettled: readCloudSession,
+  })
+
   const handleOpenSignInUrl = useCallback(() => {
     const url = cloudLogin.state.prompt?.url
     if (url === undefined || url.length === 0) return
@@ -162,7 +172,8 @@ export function useSettings(args: {
     setRefused(null)
     secret.close()
     cloudLogin.stop()
-  }, [cloudLogin, secret])
+    account.purge.handleDismiss()
+  }, [account.purge, cloudLogin, secret])
 
   const handleSelect = useCallback((target: SettingsState) => {
     setState(target)
@@ -173,11 +184,7 @@ export function useSettings(args: {
       setState(target)
 
       if (currentPage({ state: target, model: view })?.page.id === ESettingPage.Account) {
-        if (app.cloud.session() !== null) {
-          handleSignOut()
-          return
-        }
-        if (cloudLogin.state.status === ESettingsLogin.Idle) cloudLogin.begin()
+        account.handleActivate()
         return
       }
 
@@ -196,7 +203,7 @@ export function useSettings(args: {
 
       write(target, (held) => activateSetting({ definition: held.definition, current: held.value }))
     },
-    [app.cloud, cloudLogin, handleSignOut, onChooseModel, secret, view, write],
+    [account, onChooseModel, secret, view, write],
   )
 
   const handleKey = useCallback(
@@ -209,13 +216,17 @@ export function useSettings(args: {
         return
       }
 
+      const onAccountPage = currentPage({ state, model: view })?.page.id === ESettingPage.Account
+      if (account.handleKey(key, { onAccountPage, signedIn: cloudSession !== null })) return
+
       if (key.name === 'escape') {
         handleDismiss()
         return
       }
 
       if (key.name === 'tab') {
-        if (currentPage({ state, model: view })?.page.id === ESettingPage.Account) cloudLogin.stop()
+        if (onAccountPage) cloudLogin.stop()
+        account.handleResetAction()
         setState(movePage({ state, model: view, delta: key.shift ? -1 : 1 }))
         return
       }
@@ -245,7 +256,18 @@ export function useSettings(args: {
         )
       }
     },
-    [cloudLogin, handleActivate, handleClearModel, handleDismiss, secret, state, view, write],
+    [
+      account,
+      cloudLogin,
+      cloudSession,
+      handleActivate,
+      handleClearModel,
+      handleDismiss,
+      secret,
+      state,
+      view,
+      write,
+    ],
   )
 
   const preferences = useMemo(() => preferencesOf(held.resolution), [held.resolution])
@@ -265,6 +287,7 @@ export function useSettings(args: {
       cloudEmail: cloudSession?.email ?? null,
       cloudSignedIn: cloudSession !== null,
       cloudSignIn: cloudLogin.state,
+      account,
       handleSignOut,
       handleSignIn: cloudLogin.begin,
       handleOpenSignInUrl,
@@ -276,6 +299,7 @@ export function useSettings(args: {
       handleKey,
     }),
     [
+      account,
       appearance,
       cloudLogin.begin,
       cloudLogin.state,

@@ -8,7 +8,7 @@ import { currentPage, type SettingsModel, type SettingsState } from '../settings
 import { ESettingsLogin, type SettingsLoginState } from '../settings-login-model'
 import { theme } from '../theme'
 import type { Appearance } from '../appearance'
-import { SettingsAccount } from './settings/account'
+import { EAccountAction, SettingsAccount } from './settings/account'
 import { SettingsBand } from './settings/band'
 import { SettingsDetail } from './settings/detail'
 import { SettingsHead } from './settings/head'
@@ -27,7 +27,8 @@ const HINTS: readonly Hint[] = [
 ]
 
 const ACCOUNT_HINTS_SIGNED_IN: readonly Hint[] = [
-  { key: '⏎', label: 'sign out' },
+  { key: '↑↓', label: 'row' },
+  { key: '⏎', label: 'choose' },
   { key: '⇥', label: 'tab' },
   { key: 'esc', label: 'back' },
 ]
@@ -99,9 +100,11 @@ export function Settings(props: {
   cloudEmail: string | null
   cloudSignedIn: boolean
   cloudSignIn: SettingsLoginState
+  accountAction: EAccountAction
   onSignOut: () => void
   onSignIn: () => void
   onOpenSignInUrl: () => void
+  onDownloadPurge: () => void
   onSelect: (target: SettingsState) => void
   onDismiss: () => void
 }): React.ReactNode {
@@ -168,7 +171,9 @@ export function Settings(props: {
                   cells={cells}
                   email={props.cloudEmail}
                   signedIn={props.cloudSignedIn}
+                  action={props.accountAction}
                   onSignOut={props.onSignOut}
+                  onDownloadPurge={props.onDownloadPurge}
                   cloudSignIn={props.cloudSignIn}
                   onSignIn={props.onSignIn}
                   onOpenSignInUrl={props.onOpenSignInUrl}
