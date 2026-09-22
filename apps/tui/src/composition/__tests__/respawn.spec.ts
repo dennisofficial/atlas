@@ -45,9 +45,10 @@ describe('respawnArgv', () => {
   })
 })
 
-function rig(args: { nextExists: boolean; promoteFails?: boolean }) {
+function rig(args: { nextExists: boolean; promoteFails?: boolean; execThrows?: boolean }) {
   const calls = {
     promoted: 0,
+    execed: [] as (readonly string[])[],
     reported: [] as unknown[],
     spawned: [] as (readonly string[])[],
     exited: [] as number[],
@@ -58,6 +59,10 @@ function rig(args: { nextExists: boolean; promoteFails?: boolean }) {
     promoteNextBinary: () => {
       calls.promoted += 1
       if (args.promoteFails) throw new Error('rename refused')
+    },
+    execInPlace: (argv) => {
+      calls.execed.push(argv)
+      if (args.execThrows === true) throw new Error('execve refused')
     },
     reportPromotionFailure: (error) => {
       calls.reported.push(error)
@@ -74,14 +79,13 @@ function rig(args: { nextExists: boolean; promoteFails?: boolean }) {
 }
 
 describe('performRespawn', () => {
-  it('promotes a staged binary before spawning the replacement process', () => {
+  it('promotes a staged binary before attempting the in-place exec', () => {
     const { ports, calls } = rig({ nextExists: true })
 
     performRespawn({ execPath: '/opt/atlas/atlas', cwd: '/repo', resumeHandle: null, ports })
 
     expect(calls.promoted).toBe(1)
-    expect(calls.spawned).toEqual([['/opt/atlas/atlas', '--cwd', '/repo']])
-    expect(calls.exited).toEqual([0])
+    expect(calls.execed).toEqual([['/opt/atlas/atlas', '--cwd', '/repo']])
   })
 
   it('respawns the running binary as-is when nothing was staged', () => {
@@ -90,16 +94,34 @@ describe('performRespawn', () => {
     performRespawn({ execPath: '/opt/atlas/atlas', cwd: '/repo', resumeHandle: 'brn_1', ports })
 
     expect(calls.promoted).toBe(0)
-    expect(calls.spawned).toEqual([['/opt/atlas/atlas', '--cwd', '/repo', '--resume', 'brn_1']])
+    expect(calls.execed).toEqual([['/opt/atlas/atlas', '--cwd', '/repo', '--resume', 'brn_1']])
   })
 
-  it('reports a failed promotion and still respawns on the old binary', () => {
+  it('reports a failed promotion and still execs on the old binary', () => {
     const { ports, calls } = rig({ nextExists: true, promoteFails: true })
 
     performRespawn({ execPath: '/opt/atlas/atlas', cwd: '/repo', resumeHandle: null, ports })
 
     expect(calls.promoted).toBe(1)
     expect(calls.reported).toHaveLength(1)
+    expect(calls.execed).toEqual([['/opt/atlas/atlas', '--cwd', '/repo']])
+  })
+
+  it('falls back to the detached spawn and exit when the exec port returns', () => {
+    const { ports, calls } = rig({ nextExists: false })
+
+    performRespawn({ execPath: '/opt/atlas/atlas', cwd: '/repo', resumeHandle: null, ports })
+
+    expect(calls.execed).toEqual([['/opt/atlas/atlas', '--cwd', '/repo']])
+    expect(calls.spawned).toEqual([['/opt/atlas/atlas', '--cwd', '/repo']])
+    expect(calls.exited).toEqual([0])
+  })
+
+  it('falls back the same way when the exec port throws', () => {
+    const { ports, calls } = rig({ nextExists: false, execThrows: true })
+
+    performRespawn({ execPath: '/opt/atlas/atlas', cwd: '/repo', resumeHandle: null, ports })
+
     expect(calls.spawned).toEqual([['/opt/atlas/atlas', '--cwd', '/repo']])
     expect(calls.exited).toEqual([0])
   })
