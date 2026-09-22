@@ -184,7 +184,10 @@ throwaway probe that produced the numbers is `apps/tui/scripts/proto-shimmer.tsx
   fails on the local `main` checkout after the merge has already landed.
 - Never force-push, never `--no-verify`.
 - **Never use `git stash`** unless explicitly asked.
-- Conventional commits: `<type>(<scope>): <description>` — imperative, lowercase.
+- Conventional commits: `<type>(<scope>): <description>` — imperative, lowercase. The merged PR
+  title is the release decision: `feat` cuts a minor, `fix` a patch, anything else no release.
+  Reserve `feat` for "a user can do something today they couldn't yesterday" — cosmetic tweaks,
+  restyles, and behavior polish are `fix` or `refactor`.
 - No `Co-Authored-By` or "Generated with Claude" trailers.
 
 ## Workspace mechanics
