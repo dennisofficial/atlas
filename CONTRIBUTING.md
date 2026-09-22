@@ -29,11 +29,11 @@ All root scripts are turbo tasks:
 Run the prod binary, not source. It self-updates from GitHub releases on `/restart`. Install:
 
 ```
-gh release download --repo dennisofficial/atlas --pattern 'atlas-darwin-arm64' --dir /tmp --clobber
-install /tmp/atlas-darwin-arm64 ~/.local/bin/atlas
+gh api repos/dennisofficial/atlas/contents/install.sh --jq .content | base64 -d | bash
 ```
 
-(use `atlas-darwin-x64` or `atlas-linux-x64` to match your machine).
+`install.sh` detects your platform, verifies the sha256, and installs to `~/.local/bin/atlas`
+(override with `ATLAS_INSTALL_DIR`).
 
 Run one package with `turbo run <task> --filter @dltech/atlas-core`, or `bun run <script>` inside
 the package.

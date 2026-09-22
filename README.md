@@ -10,8 +10,13 @@ Built with OpenTUI, React, and Bun. Ships as a single compiled binary.
 
 ## Install
 
-Download a binary from
-[Releases](https://github.com/dennisofficial/atlas/releases), or run from source:
+```sh
+gh api repos/dennisofficial/atlas/contents/install.sh --jq .content | base64 -d | bash
+```
+
+Needs an authenticated `gh` — the repo is private, so downloads ride on GitHub auth. The script
+verifies the sha256 and puts `atlas` at `~/.local/bin`; the binary self-updates from then on.
+To run from source instead:
 
 ```sh
 bun install
