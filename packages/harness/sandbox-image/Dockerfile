@@ -53,6 +53,8 @@ RUN mkdir -p /opt/playwright-runner /opt/playwright \
   && node -e "const{chromium}=require('/opt/playwright-runner/node_modules/playwright');chromium.launch({headless:true,args:['--no-sandbox']}).then(b=>b.close()).then(()=>console.log('chromium launch OK')).catch(e=>{console.error(e);process.exit(1)})"
 
 ARG PLAYWRIGHT_CLI_VERSION=0.1.20
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
 # The agent CLI bundles its own playwright-core with its own browser revision, so it installs
 # its browser itself into the shared browsers path; the playwright-runner build above does not
 # satisfy it. Its default browser is the Google Chrome *channel* (an executable the image does
@@ -67,8 +69,9 @@ RUN mkdir -p /opt/playwright-cli \
   && playwright-cli install-browser chrome-for-testing \
   && chmod -R a+rwX /opt/playwright /opt/playwright-cli \
   && playwright-cli --version \
-  && playwright-cli open about:blank \
-  && playwright-cli close \
+  # chrome-for-testing dies under qemu (uncaught target signal 5) when this arm64 variant is
+  # cross-built from amd64 CI, so the launch validation only runs on native builds
+  && if [ "$TARGETPLATFORM" = "$BUILDPLATFORM" ]; then playwright-cli open about:blank && playwright-cli close; fi \
   # the validation open above leaves a root-owned daemon socket dir that a non-root runtime
   # user cannot write into
   && rm -rf /tmp/pw-* /opt/playwright-cli/.playwright-cli

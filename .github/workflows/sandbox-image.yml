@@ -19,9 +19,10 @@ permissions:
   contents: read
   packages: write
 
-concurrency:
-  group: sandbox-image
-  cancel-in-progress: false
+# No concurrency group, deliberately: a group keeps one running + one pending run and cancels
+# older pending runs, so merges landing close together silently skipped publishing their
+# sha-<commit> tags — and every merge can be a release whose retag polls for exactly that tag.
+# Runs must stack up and each publish its own sha tag; latest is last-writer-wins and self-heals.
 
 env:
   IMAGE: ghcr.io/${{ github.repository_owner }}/atlas-sandbox
