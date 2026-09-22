@@ -60,3 +60,26 @@ export interface AccessTokenDto {
   accessToken: string
   expiresAt: string | null
 }
+
+export interface ActiveAccountPointerDto {
+  provider: string
+  accountId: string
+}
+
+export interface SandboxAccountsDto {
+  accounts: AccountDto[]
+  active: ActiveAccountPointerDto[]
+}
+
+/**
+ * The thread-scoped broker's mint answer: everything the serve process needs to build a
+ * credential, and nothing more — the account's sealed secret (refresh token included) never
+ * leaves the control plane.
+ */
+export interface SandboxAccessTokenDto {
+  accountId: string
+  kind: EAuthKind
+  accessToken: string
+  expiresAt: string | null
+  providerAccountId?: string
+}

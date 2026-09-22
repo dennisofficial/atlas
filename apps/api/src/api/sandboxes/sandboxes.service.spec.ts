@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import {
+  HttpException,
   NotFoundException,
   PayloadTooLargeException,
   ServiceUnavailableException,
@@ -102,9 +103,12 @@ const SPEC = {
   patch: PATCH,
 }
 
+const MAX_ACTIVE_PER_USER = 3
+
 const ENV: Record<string, number> = {
   SANDBOX_TTL_MINUTES: TTL_MINUTES,
   SANDBOX_MAX_SESSION_MINUTES: MAX_SESSION_MINUTES,
+  SANDBOX_MAX_ACTIVE_PER_USER: MAX_ACTIVE_PER_USER,
 }
 const env = { get: (key: string) => ENV[key] } as unknown as EnvService
 
@@ -141,6 +145,72 @@ const stubClient = () => ({
   extendTimeout: vi.fn(async () => undefined),
   exposePort: vi.fn(async (args: { name: string; port: number }) => `https://atlas-${args.port}.vercel.run`),
   notifyParked: vi.fn(async () => undefined),
+})
+
+describe('SandboxesService quota', () => {
+  let client: ReturnType<typeof stubClient>
+  let service: SandboxesService
+
+  const activeSandbox = (threadId: string) =>
+    sandboxRow({
+      threadId,
+      userId: USER_A,
+      lastActivityAt: new Date().toISOString(),
+    })
+
+  beforeEach(() => {
+    fake.reset()
+    fake.threads.push(threadRow({ id: THREAD }))
+    client = stubClient()
+    service = new SandboxesService(
+      client as unknown as VercelSandboxClient,
+      env,
+      new SandboxGitCredentials(stubGithub() as unknown as GithubService),
+      cipher,
+      stubArchives() as unknown as ContextArchiveStore,
+    )
+  })
+
+  it('refuses a first attach when the account is already at the active-sandbox cap', async () => {
+    for (let i = 0; i < MAX_ACTIVE_PER_USER; i += 1) {
+      fake.cloudSandboxes.push(activeSandbox(`brn_other_${i}`))
+    }
+
+    await expect(service.attach({ userId: USER_A, threadId: THREAD })).rejects.toMatchObject({
+      status: 429,
+    })
+    await expect(service.attach({ userId: USER_A, threadId: THREAD })).rejects.toBeInstanceOf(
+      HttpException,
+    )
+    expect(client.getOrCreate).not.toHaveBeenCalled()
+  })
+
+  it('ignores sandboxes that have been quiet longer than the TTL', async () => {
+    for (let i = 0; i < MAX_ACTIVE_PER_USER; i += 1) {
+      fake.cloudSandboxes.push(
+        sandboxRow({
+          threadId: `brn_stale_${i}`,
+          userId: USER_A,
+          lastActivityAt: '2020-01-01T00:00:00.000Z',
+        }),
+      )
+    }
+
+    const attachment = await service.attach({ userId: USER_A, threadId: THREAD })
+
+    expect(attachment.threadId).toBe(THREAD)
+  })
+
+  it('lets an already-active thread re-attach without consuming another slot', async () => {
+    for (let i = 0; i < MAX_ACTIVE_PER_USER - 1; i += 1) {
+      fake.cloudSandboxes.push(activeSandbox(`brn_other_${i}`))
+    }
+    fake.cloudSandboxes.push(activeSandbox(THREAD))
+
+    const attachment = await service.attach({ userId: USER_A, threadId: THREAD })
+
+    expect(attachment.threadId).toBe(THREAD)
+  })
 })
 
 describe('SandboxesService', () => {

@@ -19,7 +19,7 @@ const contextWith = (args: {
 
 describe('SandboxTokenGuard', () => {
   it('verifies the bearer token against the thread it names', async () => {
-    const verifySessionToken = vi.fn(async () => undefined)
+    const verifySessionToken = vi.fn(async () => ({ threadId: 'brn_1', userId: 'user-a' }))
     const guard = new SandboxTokenGuard({
       verifySessionToken,
     } as unknown as SandboxesService)
@@ -49,7 +49,7 @@ describe('SandboxTokenGuard', () => {
   })
 
   it('resolves the thread from the token alone on a route with no :threadId', async () => {
-    const verifyTokenPrincipal = vi.fn(async () => ({ threadId: 'brn_resolved' }))
+    const verifyTokenPrincipal = vi.fn(async () => ({ threadId: 'brn_resolved', userId: 'user-a' }))
     const guard = new SandboxTokenGuard({
       verifyTokenPrincipal,
     } as unknown as SandboxesService)

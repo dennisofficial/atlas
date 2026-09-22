@@ -35,7 +35,7 @@ const sandboxes = {
   workspace: vi.fn(async () => ({ ...SPEC, githubToken: 'gho_user-token' })),
   verifySessionToken: vi.fn(async (args: { threadId: string; token: string }) => {
     if (args.token !== SANDBOX_TOKEN) throw new UnauthorizedException('nope')
-    return undefined
+    return { threadId: args.threadId, userId: 'user-a' }
   }),
 }
 
