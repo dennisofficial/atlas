@@ -45,6 +45,8 @@ async function onAccountTab(app: FakeApp): Promise<Mounted> {
   await landed(setup)
   setup.mockInput.pressTab()
   await landed(setup)
+  setup.mockInput.pressTab()
+  await landed(setup)
   return setup
 }
 

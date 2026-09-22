@@ -45,6 +45,7 @@ const mount = async (args: {
       app={args.app}
       opened={args.opened ?? (await spokenIn(args.app))}
       createBridge={createBridge}
+      preflightLift={async () => null}
       captureWorkspace={async () => CLEAN_WORKSPACE}
     />,
     WIDE,

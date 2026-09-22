@@ -121,6 +121,8 @@ describe('the settings download & purge flow', () => {
       mounted.pressTab()
       await mounted.frame()
       mounted.pressTab()
+      await mounted.frame()
+      mounted.pressTab()
       const accountPage = await mounted.frame()
       expect(accountPage).toContain(DOWNLOAD_PURGE_LABEL)
       expect(accountPage).toContain('dev@example.com')
@@ -162,6 +164,8 @@ describe('the settings download & purge flow', () => {
 
     try {
       mounted.pressCtrl('o')
+      await mounted.frame()
+      mounted.pressTab()
       await mounted.frame()
       mounted.pressTab()
       await mounted.frame()
