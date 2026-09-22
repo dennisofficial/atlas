@@ -1165,6 +1165,18 @@ Code login on first run, so nobody is asked to sign in twice — but refreshing 
 source, and the rotated pair goes back the way it came, guarded by `adoptionOf` in both directions:
 Atlas takes up a pair Claude Code refreshed first, and never pushes an older pair over a newer one.
 
+**The local vault is the whole store; Atlas Cloud is opt-in.** A signed-out Atlas is complete:
+accounts, secrets, settings and the user MCP layer all live on the machine, and nothing asks for a
+sign-in to work. Signing in (settings › account) syncs those stores with the cloud — the first
+sign-in imports what the machine holds and archives the local files aside — so a session can be
+lifted to a cloud sandbox or driven remotely. Signing out leaves the cloud copies in place; the
+"download & purge" action on the same settings page is the exit: it pulls every domain down
+(accounts, secrets, MCP servers, memory, the GitHub connection), deletes it server-side, and signs
+out, because the store proxies would otherwise keep serving the now-empty remote. The proxies
+(`AccountStoreProxy`, `SecretsStoreProxy`, the credential proxy) answer from the remote stores when
+a session exists and from the local ones when not — there is no third mode, and an outage surfaces
+as a failed call, never a silent switch.
+
 ## Which model answers
 
 **Two preferences, one picker.** A conversation carries the model it was last switched to, in
