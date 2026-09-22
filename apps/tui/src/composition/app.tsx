@@ -117,7 +117,7 @@ import { applyTranscriptCovered } from '../ui/covered-store'
 import { OverlayStack } from './overlay-stack'
 import { unmeasuredWindowWarning } from '@dltech/atlas-harness'
 import { settleStaleness } from './auto-restart'
-import { checkForUpdate, sourceStalenessProbe, type SourceStaleness } from './update-check'
+import { checkForUpdate, releaseStalenessProbe, sourceStalenessProbe, type SourceStaleness } from './update-check'
 import { unstartedConversation, type OpenedConversation } from './open-conversation'
 import { useConversation } from './use-conversation'
 import { useExitGuard } from './use-exit-guard'
@@ -495,8 +495,8 @@ function Workspace(props: {
     void checkForUpdate()
 
     let mounted = true
-    void sourceStalenessProbe().then((probe) => {
-      if (mounted) staleness.current = probe
+    void Promise.all([sourceStalenessProbe(), releaseStalenessProbe()]).then(([source, release]) => {
+      if (mounted) staleness.current = source ?? release
     })
 
     return () => {

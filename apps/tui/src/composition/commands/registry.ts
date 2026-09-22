@@ -282,7 +282,7 @@ export function localCommands(handlers: LocalCommandHandlers): readonly LocalCom
       : [
           local({
             name: 'restart',
-            summary: 'rebuild from source and restart, resuming this conversation',
+            summary: 'restart atlas, resuming this conversation',
             group: ECommandGroup.Session,
             timing: ECommandTiming.Settled,
             echo: ECommandEcho.Silent,

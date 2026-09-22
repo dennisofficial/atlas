@@ -8,6 +8,13 @@ import {
 } from '@dltech/atlas-core'
 
 import { buildInfo, EBuildKind } from '../build/info'
+import {
+  EStageOutcome,
+  readStagedVersionMarker,
+  realSelfUpdatePorts,
+  stagedNotice,
+  stageUpdate,
+} from '../build/self-update'
 import { repoRootOf, sourceStateStamp } from '../build/stamp'
 import { ENoticeTone, notify } from '../ui/notice-store'
 
@@ -180,5 +187,49 @@ export async function checkForUpdate(): Promise<void> {
   const text = releaseNotice({ current: build.version, latest })
   if (text === null) return
 
+  const staged = await stageUpdate({
+    tag: latest.tag,
+    version: formatSemver(latest.version),
+    repo: build.releaseRepo,
+    execPath: process.execPath,
+    platform: process.platform,
+    arch: process.arch,
+    ports: realSelfUpdatePorts(),
+  })
+
+  if (staged.outcome === EStageOutcome.Staged || staged.outcome === EStageOutcome.AlreadyStaged) {
+    notify({
+      key: 'release-staged',
+      tone: ENoticeTone.Info,
+      sticky: true,
+      text: stagedNotice(staged.version),
+    })
+    return
+  }
+
   notify({ key: 'release-available', tone: ENoticeTone.Info, sticky: true, text })
+}
+
+export function releaseStaged(args: { running: string; staged: string | null }): boolean {
+  if (args.staged === null) return false
+
+  const running = parseSemver(args.running)
+  const staged = parseSemver(args.staged)
+  if (running === null || staged === null) return false
+
+  return isNewerSemver({ candidate: staged, current: running })
+}
+
+export async function releaseStalenessProbe(): Promise<SourceStaleness | null> {
+  const build = buildInfo()
+  if (build.kind !== EBuildKind.Release) return null
+
+  return {
+    stale: async () =>
+      releaseStaged({
+        running: build.version,
+        staged: await readStagedVersionMarker(process.execPath),
+      }),
+    check: async () => {},
+  }
 }
