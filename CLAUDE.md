@@ -173,14 +173,15 @@ throwaway probe that produced the numbers is `apps/tui/scripts/proto-shimmer.tsx
 - **Branch from `origin/main`, ship as a PR.** Branch as `<you>/<slug>` (e.g.
   `dennis/add-the-thing`), push, `gh pr create`, and merge with `gh pr merge --squash` once CI is
   green. Keep PRs small enough to review in one sitting.
-- **If you run `atlas-dev` from the main checkout, that checkout is read-only.** It is
-  load-bearing, not hygiene: `atlas-dev` flags every running terminal as stale the moment the
-  tree moves, so direct edits in the main checkout turn that notice into noise. Cut a worktree
-  under `.atlas/worktrees/<slug>`, do the work there, and after the merge remove the worktree,
-  delete the local branch, and `git pull --ff-only` in the main checkout — until main is pulled,
-  every running terminal is a release behind what was just shipped. Merge from inside a worktree
-  with plain `gh pr merge --squash`, never `--delete-branch`, which fails on the local `main`
-  checkout after the merge has already landed.
+- **Daily driving is the prod `atlas` binary; `atlas-dev` is for developing.** The binary
+  updates itself from GitHub releases, which are cut on every release-worthy merge to main.
+  `atlas-dev` runs from source and takes `--worktree <slug>` to run a worktree's code instead of
+  the main checkout's. The main checkout stays read-only: `atlas-dev` flags every running
+  terminal as stale the moment the tree moves, so direct edits there turn that notice into
+  noise. Cut a worktree under `.atlas/worktrees/<slug>`, do the work there, and after the merge
+  remove the worktree, delete the local branch, and `git pull --ff-only` in the main checkout.
+  Merge from inside a worktree with plain `gh pr merge --squash`, never `--delete-branch`, which
+  fails on the local `main` checkout after the merge has already landed.
 - Never force-push, never `--no-verify`.
 - **Never use `git stash`** unless explicitly asked.
 - Conventional commits: `<type>(<scope>): <description>` — imperative, lowercase.
