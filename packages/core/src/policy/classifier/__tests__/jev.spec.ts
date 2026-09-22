@@ -6,6 +6,7 @@ import {
   JEV_SERVICE_KEY,
   jevAnswersSchema,
   JEV_LOOP_KEY,
+  JEV_LOOP_START_KEY,
   jevLoopQuestions,
   jevRiskQuestions,
   jevServiceQuestions,
@@ -61,14 +62,25 @@ describe('jevServiceQuestions', () => {
 })
 
 describe('jevLoopQuestions', () => {
-  it('asks exactly one noul question', () => {
-    const questions = jevLoopQuestions()
-    expect(Object.keys(questions)).toEqual([JEV_LOOP_KEY])
+  const steps = [
+    { seq: 12, line: 'agent: deploying again' },
+    { seq: 14, line: 'result: 200 OK' },
+  ]
+
+  it('asks whether it is looping and where the loop began', () => {
+    const questions = jevLoopQuestions({ steps })
+    expect(Object.keys(questions).sort()).toEqual([JEV_LOOP_KEY, JEV_LOOP_START_KEY].sort())
     expect(questions[JEV_LOOP_KEY]?.type).toBe('noul')
+
+    const start = questions[JEV_LOOP_START_KEY]
+    expect(start?.type).toBe('choice')
+    if (start?.type !== 'choice') return
+    expect(Object.keys(start.criteria)).toEqual(['12', '14'])
+    expect(start.instructions).toContain('earliest step')
   })
 
   it('names the difference between a loop and honest iteration', () => {
-    expect(jevLoopQuestions()[JEV_LOOP_KEY]?.instructions).toContain('progress, not a loop')
+    expect(jevLoopQuestions({ steps })[JEV_LOOP_KEY]?.instructions).toContain('progress, not a loop')
   })
 })
 

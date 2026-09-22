@@ -15,7 +15,7 @@ import {
   type ToolDefinition,
 } from '@dltech/atlas-core'
 
-import { buildHarness, ELoopWatch, ETurnStatus, jevLoopWatch, type AtlasHarness } from '..'
+import { buildHarness, ELoopWatch, ETurnStatus, jevLoopWatch, type AtlasHarness, type LoopVerdict } from '..'
 import { HookChain } from '../../hooks/registry'
 import { scriptedModel, type ScriptedStep } from '../../model/testing/scripted-model'
 import { HookedToolDispatcher } from '../../tools/dispatch'
@@ -35,9 +35,12 @@ class FakeDecisions extends DecisionPort {
   }
 }
 
-const looping = (probability: number): DecisionOutcome => ({
+const looping = (probability: number, loopStart?: string): DecisionOutcome => ({
   ok: true,
-  answers: { loop: { noul: probability } },
+  answers: {
+    loop: { noul: probability },
+    ...(loopStart === undefined ? {} : { 'loop-start': { choice: loopStart } }),
+  },
 })
 
 const eventsFrom = (drafts: readonly EventDraft[]): Event[] =>
@@ -84,7 +87,7 @@ describe('jevLoopWatch', () => {
     const decisions = new FakeDecisions(looping(0.99))
     const watch = jevLoopWatch({ decisions, enabled: () => false })
 
-    expect(await watch({ events: watchableEvents(), signal: SIGNAL })).toBe(ELoopWatch.Clear)
+    expect((await watch({ events: watchableEvents(), signal: SIGNAL })).verdict).toBe(ELoopWatch.Clear)
     expect(decisions.calls).toBe(0)
   })
 
@@ -92,7 +95,7 @@ describe('jevLoopWatch', () => {
     const decisions = new FakeDecisions(looping(0.99))
     const watch = jevLoopWatch({ decisions, enabled: () => true })
 
-    expect(await watch({ events: [], signal: SIGNAL })).toBe(ELoopWatch.NoVerdict)
+    expect((await watch({ events: [], signal: SIGNAL })).verdict).toBe(ELoopWatch.NoVerdict)
     expect(decisions.calls).toBe(0)
   })
 
@@ -100,8 +103,27 @@ describe('jevLoopWatch', () => {
     const high = jevLoopWatch({ decisions: new FakeDecisions(looping(0.8)), enabled: () => true })
     const low = jevLoopWatch({ decisions: new FakeDecisions(looping(0.1)), enabled: () => true })
 
-    expect(await high({ events: watchableEvents(), signal: SIGNAL })).toBe(ELoopWatch.Looping)
-    expect(await low({ events: watchableEvents(), signal: SIGNAL })).toBe(ELoopWatch.Clear)
+    expect((await high({ events: watchableEvents(), signal: SIGNAL })).verdict).toBe(ELoopWatch.Looping)
+    expect((await low({ events: watchableEvents(), signal: SIGNAL })).verdict).toBe(ELoopWatch.Clear)
+  })
+
+  it('reads the judge\'s loop-start pick only when it names a rendered step', async () => {
+    const pointed = jevLoopWatch({
+      decisions: new FakeDecisions(looping(0.8, '2')),
+      enabled: () => true,
+    })
+    const unreadable = jevLoopWatch({
+      decisions: new FakeDecisions(looping(0.8, 'the second one')),
+      enabled: () => true,
+    })
+    const offWindow = jevLoopWatch({
+      decisions: new FakeDecisions(looping(0.8, '999')),
+      enabled: () => true,
+    })
+
+    expect((await pointed({ events: watchableEvents(), signal: SIGNAL })).loopStartSeq).toBe(2)
+    expect((await unreadable({ events: watchableEvents(), signal: SIGNAL })).loopStartSeq).toBeUndefined()
+    expect((await offWindow({ events: watchableEvents(), signal: SIGNAL })).loopStartSeq).toBeUndefined()
   })
 
   it('fails open when the decision model cannot answer', async () => {
@@ -114,8 +136,8 @@ describe('jevLoopWatch', () => {
       enabled: () => true,
     })
 
-    expect(await down({ events: watchableEvents(), signal: SIGNAL })).toBe(ELoopWatch.Unreachable)
-    expect(await mute({ events: watchableEvents(), signal: SIGNAL })).toBe(ELoopWatch.Unreachable)
+    expect((await down({ events: watchableEvents(), signal: SIGNAL })).verdict).toBe(ELoopWatch.Unreachable)
+    expect((await mute({ events: watchableEvents(), signal: SIGNAL })).verdict).toBe(ELoopWatch.Unreachable)
   })
 })
 
@@ -144,7 +166,7 @@ afterEach(async () => {
 
 async function openWatched(args: {
   script: readonly ScriptedStep[]
-  watch: (callCount: number) => ELoopWatch
+  watch: (callCount: number, events: readonly Event[]) => LoopVerdict
 }): Promise<{ harness: AtlasHarness; watches: number }> {
   const temp = createTempDatabase()
   const model = scriptedModel({ script: args.script })
@@ -156,20 +178,26 @@ async function openWatched(args: {
     tools: () => registry.declarations(),
     dispatch: new HookedToolDispatcher({ registry, hooks: new HookChain({}) }),
     launchDirectory: '/w',
-    watchLoop: async () => {
+    watchLoop: async ({ events }) => {
       counter.watches += 1
-      return args.watch(counter.watches)
+      return args.watch(counter.watches, events)
     },
   })
   opened.push({ harness, temp })
   return { harness, watches: counter.watches }
 }
 
+const earliestSpeech = (events: readonly Event[]): number | undefined =>
+  events.find((event) => event.type === 'assistant-said')?.seq
+
+const nudgeTexts = (events: readonly Event[]): string[] =>
+  events.flatMap((event) => (event.type === 'nudge' ? [event.text] : []))
+
 describe('the loop watchdog in a turn', () => {
   it('nudges on the first looping verdict and ends the turn idle when it keeps looping', async () => {
     const { harness } = await openWatched({
       script: varyingSteps(20),
-      watch: () => ELoopWatch.Looping,
+      watch: () => ({ verdict: ELoopWatch.Looping }),
     })
     const thread = await harness.threads.create({})
 
@@ -184,7 +212,8 @@ describe('the loop watchdog in a turn', () => {
   it('keeps the warning armed through steps too small to judge, so escalation still lands', async () => {
     const { harness } = await openWatched({
       script: varyingSteps(20),
-      watch: (callCount) => (callCount === 2 ? ELoopWatch.NoVerdict : ELoopWatch.Looping),
+      watch: (callCount) =>
+        callCount === 2 ? { verdict: ELoopWatch.NoVerdict } : { verdict: ELoopWatch.Looping },
     })
     const thread = await harness.threads.create({})
 
@@ -199,7 +228,7 @@ describe('the loop watchdog in a turn', () => {
   it('stays out of the way of a turn the watchdog clears', async () => {
     const { harness } = await openWatched({
       script: [...varyingSteps(3), { text: 'all verified' }],
-      watch: () => ELoopWatch.Clear,
+      watch: () => ({ verdict: ELoopWatch.Clear }),
     })
     const thread = await harness.threads.create({})
 
@@ -213,7 +242,7 @@ describe('the loop watchdog in a turn', () => {
   it('treats an unreachable watchdog as clear and never blocks the turn', async () => {
     const { harness } = await openWatched({
       script: [...varyingSteps(3), { text: 'all verified' }],
-      watch: () => ELoopWatch.Unreachable,
+      watch: () => ({ verdict: ELoopWatch.Unreachable }),
     })
     const thread = await harness.threads.create({})
 
@@ -225,7 +254,8 @@ describe('the loop watchdog in a turn', () => {
   it('forgives a turn that breaks the pattern after the nudge', async () => {
     const { harness } = await openWatched({
       script: [...varyingSteps(3), { text: 'the probe told me what I needed' }],
-      watch: (callCount) => (callCount <= 1 ? ELoopWatch.Looping : ELoopWatch.Clear),
+      watch: (callCount) =>
+        callCount <= 1 ? { verdict: ELoopWatch.Looping } : { verdict: ELoopWatch.Clear },
     })
     const thread = await harness.threads.create({})
 
@@ -234,5 +264,47 @@ describe('the loop watchdog in a turn', () => {
     expect(outcome.status).toBe(ETurnStatus.Completed)
     const events = await harness.log.read({ threadId: thread.id })
     expect(events.filter((event) => event.type === 'nudge')).toHaveLength(1)
+  })
+
+  it('cuts the steps the judge points at instead of nudging first', async () => {
+    const { harness } = await openWatched({
+      script: [...varyingSteps(3), { text: 'all verified' }],
+      watch: (_callCount, events) => {
+        const speech = earliestSpeech(events)
+        if (speech === undefined) return { verdict: ELoopWatch.NoVerdict }
+        if (speech !== 2) return { verdict: ELoopWatch.Clear }
+        return { verdict: ELoopWatch.Looping, loopStartSeq: speech }
+      },
+    })
+    const thread = await harness.threads.create({})
+
+    const outcome = await harness.runner.say({ threadId: thread.id, text: 'verify the deploy' })
+
+    expect(outcome.status).toBe(ETurnStatus.Completed)
+    const events = await harness.log.read({ threadId: thread.id })
+    const nudges = nudgeTexts(events)
+    expect(nudges).toHaveLength(1)
+    expect(nudges[0]).toContain('cut')
+    expect(events.some((event) => event.type === 'assistant-said' && event.parts.some((part) => part.type === 'text' && part.text.includes('(1)')))).toBe(false)
+  })
+
+  it('gives a re-forming loop two cuts, then nudges, then stops the turn idle', async () => {
+    const { harness } = await openWatched({
+      script: varyingSteps(20),
+      watch: (_callCount, events) => {
+        const speech = earliestSpeech(events)
+        if (speech === undefined) return { verdict: ELoopWatch.NoVerdict }
+        return { verdict: ELoopWatch.Looping, loopStartSeq: speech }
+      },
+    })
+    const thread = await harness.threads.create({})
+
+    const outcome = await harness.runner.say({ threadId: thread.id, text: 'verify the deploy' })
+
+    expect(outcome.status).toBe(ETurnStatus.Idle)
+    const events = await harness.log.read({ threadId: thread.id })
+    const nudges = nudgeTexts(events)
+    expect(nudges.filter((text) => text.includes('cut'))).toHaveLength(2)
+    expect(nudges.filter((text) => text.includes('judged this turn to be looping'))).toHaveLength(1)
   })
 })

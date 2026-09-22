@@ -6,7 +6,15 @@ import { EShellStatus } from '../../shells/status'
 import type { EventDraft } from '../body'
 import type { Event } from '../envelope'
 import { toCallId, toEventId, toRunId, toThreadId } from '../ids'
-import { loopWatchNudgeDraft, loopWatchState, LOOP_WATCH_WINDOW } from '../loop-watch'
+import {
+  loopCutTarget,
+  loopWatchCutAllowed,
+  loopWatchCutNoticeDraft,
+  loopWatchNudgeDraft,
+  loopWatchState,
+  LOOP_WATCH_CUT_SAME_ANCHOR_MAX,
+  LOOP_WATCH_WINDOW,
+} from '../loop-watch'
 import { stampDrafts } from '../stamp'
 
 const eventsFrom = (drafts: readonly EventDraft[]): Event[] =>
@@ -115,9 +123,9 @@ describe('loopWatchState', () => {
     const state = loopWatchState({ events })
 
     expect(state).toContain('<untrusted-content source="agent-steps">')
-    expect(state).toContain('- agent: Deployed. Verifying what shipped (1)')
-    expect(state).toContain('- tool bash: {"command":"curl -s https://factory.example.com/health"}')
-    expect(state).toContain('- result: 200 OK')
+    expect(state).toContain('- [2] agent: Deployed. Verifying what shipped (1)')
+    expect(state).toContain('- [3] tool bash: {"command":"curl -s https://factory.example.com/health"}')
+    expect(state).toContain('- [4] result: 200 OK')
   })
 
   it('resets the window at the operator’s latest word', () => {
@@ -159,11 +167,11 @@ describe('loopWatchState', () => {
 
     const state = loopWatchState({ events }) ?? ''
 
-    expect(state).toContain('- sub-agent "deploy the thing" (builder) finished: Done. Draft PR #598 opened.')
-    expect(state).toContain('- shell "Watch CI run" ended (exited, exit 0)')
-    expect(state).toContain('- shell "ssh prod" is waiting for input')
-    expect(state).toContain('- shell "Watch CI run" matched its watch (1 lines)')
-    expect(state).toContain('- service "api dev server" ended (exited)')
+    expect(state).toContain('- [5] sub-agent "deploy the thing" (builder) finished: Done. Draft PR #598 opened.')
+    expect(state).toContain('- [6] shell "Watch CI run" ended (exited, exit 0)')
+    expect(state).toContain('- [7] shell "ssh prod" is waiting for input')
+    expect(state).toContain('- [8] shell "Watch CI run" matched its watch (1 lines)')
+    expect(state).toContain('- [9] service "api dev server" ended (exited)')
   })
 
   it('clips long speeches and inputs rather than handing the model a whole transcript', () => {
@@ -222,5 +230,39 @@ describe('loopWatchNudgeDraft', () => {
     if (draft.type !== 'nudge') return
     expect(draft.text).toContain('end the turn')
     expect(draft.lifetimeSteps).toBeGreaterThan(0)
+  })
+})
+
+describe('loopCutTarget', () => {
+  it('cuts from the speech at or before the judge\'s pick, so the cut never lands mid-call', () => {
+    const events = eventsFrom([heard('ship it'), ...round(1), ...round(2), ...round(3)])
+
+    expect(loopCutTarget({ events, seq: 8 })).toBe(7)
+    expect(loopCutTarget({ events, seq: 9 })).toBe(7)
+  })
+
+  it('holds its answer when no speech in the window reaches the pick', () => {
+    const events = eventsFrom([...round(1), ...round(2), ...round(3), heard('stop'), said('ok')])
+
+    expect(loopCutTarget({ events, seq: 10 })).toBeUndefined()
+  })
+})
+
+describe('loopWatchCutAllowed', () => {
+  it('gives a neighbourhood its cuts, then escalates', () => {
+    const previous = [100, 104]
+    expect(loopWatchCutAllowed({ previous, anchor: 102 })).toBe(false)
+    expect(loopWatchCutAllowed({ previous: previous.slice(0, LOOP_WATCH_CUT_SAME_ANCHOR_MAX - 1), anchor: 102 })).toBe(true)
+    expect(loopWatchCutAllowed({ previous, anchor: 120 })).toBe(true)
+  })
+})
+
+describe('loopWatchCutNoticeDraft', () => {
+  it('says what was cut and forbids resuming the pattern', () => {
+    const draft = loopWatchCutNoticeDraft({ steps: 9 })
+    expect(draft.type).toBe('nudge')
+    if (draft.type !== 'nudge') return
+    expect(draft.text).toContain('cut 9 steps')
+    expect(draft.text).toContain('Do not resume the pattern')
   })
 })

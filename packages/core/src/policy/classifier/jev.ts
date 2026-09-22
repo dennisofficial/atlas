@@ -40,6 +40,8 @@ export function jevServiceQuestions(): Record<string, DecisionQuestion> {
 
 export const JEV_LOOP_KEY = 'loop'
 
+export const JEV_LOOP_START_KEY = 'loop-start'
+
 export const JEV_LOOP_THRESHOLD = 0.5
 
 const JEV_LOOP_INSTRUCTION = [
@@ -51,9 +53,26 @@ const JEV_LOOP_INSTRUCTION = [
   'Answer true only when another round of the same is unlikely to produce anything the earlier rounds did not.',
 ].join(' ')
 
-export function jevLoopQuestions(): Record<string, DecisionQuestion> {
+const JEV_LOOP_START_INSTRUCTION = [
+  'The steps in the state are numbered in brackets, oldest first.',
+  'If the agent is looping, answer with the number of the step where the repetition began — the first step',
+  'that repeats earlier work without new information having arrived since. The steps it and everything after',
+  'it will be cut from the history, so pick the earliest step that is part of the loop, not a step before it.',
+  'If the agent is not looping, answer with the number of the last step.',
+].join(' ')
+
+export function jevLoopQuestions({
+  steps,
+}: {
+  steps: readonly { seq: number; line: string }[]
+}): Record<string, DecisionQuestion> {
   return {
     [JEV_LOOP_KEY]: { type: 'noul', instructions: JEV_LOOP_INSTRUCTION },
+    [JEV_LOOP_START_KEY]: {
+      type: 'choice',
+      instructions: JEV_LOOP_START_INSTRUCTION,
+      criteria: Object.fromEntries(steps.map((step) => [String(step.seq), step.line])),
+    },
   }
 }
 
