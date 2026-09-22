@@ -266,6 +266,7 @@ function SidebarPage(): React.ReactNode {
         model={FED_SIDEBAR}
         root={process.cwd()}
         worktree={null}
+        version="v1.2.3"
         shells={SIDEBAR_SHELLS}
         shellNow={NOW}
       />

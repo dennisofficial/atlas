@@ -31,6 +31,7 @@ const worktreeLabel = (args: { worktree: string; root: string }): string =>
 function SidebarFooter(props: {
   root: string;
   worktree: string | null;
+  version: string;
   cells: number;
 }): React.ReactNode {
   const where = collapseHome({ cwd: props.root, home: homedir() });
@@ -53,10 +54,13 @@ function SidebarFooter(props: {
           })}
         </text>
       )}
-      <text>
-        <span fg={theme.accent}>● </span>
-        <span fg={theme.hover}>atlas</span>
-      </text>
+      <box flexDirection="row" justifyContent="space-between">
+        <text>
+          <span fg={theme.accent}>● </span>
+          <span fg={theme.hover}>atlas</span>
+        </text>
+        <text fg={theme.dim}>{props.version}</text>
+      </box>
     </box>
   );
 }
@@ -92,6 +96,7 @@ function DerivedSidebar(props: {
   model: SidebarModel;
   root: string;
   worktree: string | null;
+  version: string;
   overlay?: boolean;
   shells?: readonly ShellSnapshot[];
   shellNow?: number;
@@ -192,6 +197,7 @@ function DerivedSidebar(props: {
         <SidebarFooter
           root={props.root}
           worktree={props.worktree}
+          version={props.version}
           cells={cells}
         />
       </box>

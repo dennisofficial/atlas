@@ -97,6 +97,7 @@ function Page(props: { page: Page; width: number }): React.ReactNode {
         model={FED_SIDEBAR}
         root={process.cwd()}
         worktree={null}
+        version="v1.2.3"
       />
     );
   }

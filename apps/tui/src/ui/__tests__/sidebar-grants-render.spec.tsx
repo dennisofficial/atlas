@@ -36,6 +36,7 @@ async function mounted(args: { model: SidebarModel; onRevoke?: (grantId: string)
         model={args.model}
         root={CWD}
         worktree={null}
+        version="v1.2.3"
         {...(args.onRevoke === undefined ? {} : { onRevokeGrant: args.onRevoke })}
       />
     </box>,
