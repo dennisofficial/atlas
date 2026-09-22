@@ -44,6 +44,9 @@ const closedSentence = (stopped: StoppedLocally): string => {
 const NO_REPOSITORY =
   'There was no git repository behind the old working directory, so the sandbox starts with an empty one.'
 
+const CARRY_RULE =
+  'Work on the checked-out branch here — a descend carries only it, and refuses to come home while side branches or nested worktrees hold work it cannot carry.'
+
 const rebuiltSentence = (workspace: LiftedWorkspace | null): string => {
   if (workspace === null) return NO_REPOSITORY
 
@@ -70,8 +73,11 @@ export const liftedProse = (args: {
   [
     'This session has moved: it now runs in a cloud sandbox rather than on the operator’s machine.',
     rebuiltSentence(args.workspace),
+    args.workspace === null ? null : CARRY_RULE,
     closedSentence(args.stopped),
-  ].join(' ')
+  ]
+    .filter((sentence) => sentence !== null)
+    .join(' ')
 
 export const liftedDraft = (args: {
   workspace: LiftedWorkspace | null
