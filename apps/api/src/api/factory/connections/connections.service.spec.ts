@@ -113,4 +113,54 @@ describe('FactoryConnectionsService', () => {
     expect(fake.connections).toHaveLength(2)
     expect(fake.connections[0]?.organizationId).toBe('org_compai')
   })
+
+  it('upsert stores sealed credentials and scopes on create', async () => {
+    await service.upsert({
+      provider: EFactoryConnectionProvider.Linear,
+      externalAccountId: 'ws-1',
+      organizationId: 'org_compai',
+      status: 'active',
+      sealedCredentials: 'sealed-blob',
+      scopes: 'read,write',
+    })
+
+    expect(fake.connections[0]).toMatchObject({
+      sealedCredentials: 'sealed-blob',
+      scopes: 'read,write',
+    })
+  })
+
+  it('upsert replaces credentials on repoint when given, and keeps them when omitted', async () => {
+    seedConnection({ sealedCredentials: 'sealed-before', scopes: 'read' })
+
+    await service.upsert({
+      provider: EFactoryConnectionProvider.GitHub,
+      externalAccountId: '87123',
+      organizationId: 'org_compai',
+      status: 'active',
+    })
+    expect(fake.connections[0]?.sealedCredentials).toBe('sealed-before')
+
+    await service.upsert({
+      provider: EFactoryConnectionProvider.GitHub,
+      externalAccountId: '87123',
+      organizationId: 'org_compai',
+      status: 'active',
+      sealedCredentials: 'sealed-after',
+      scopes: 'read,write',
+    })
+    expect(fake.connections[0]).toMatchObject({
+      sealedCredentials: 'sealed-after',
+      scopes: 'read,write',
+    })
+  })
+
+  it('updateCredentials reseals the connection', async () => {
+    seedConnection({ sealedCredentials: 'sealed-before' })
+
+    await service.updateCredentials({ id: 'fco_1', sealedCredentials: 'sealed-after' })
+
+    expect(fake.connections[0]?.sealedCredentials).toBe('sealed-after')
+    expect(fake.connections[0]?.updatedAt).not.toBe('2026-09-22T00:00:00.000Z')
+  })
 })

@@ -24,6 +24,8 @@ export class FactoryConnectionsService {
     externalAccountId: string
     organizationId: string
     status: string
+    sealedCredentials?: string
+    scopes?: string
   }): Promise<FactoryConnectionDto> {
     const existing = await this.resolve({
       provider: args.provider,
@@ -40,6 +42,8 @@ export class FactoryConnectionsService {
           provider: args.provider,
           externalAccountId: args.externalAccountId,
           status: args.status,
+          sealedCredentials: args.sealedCredentials ?? null,
+          scopes: args.scopes ?? null,
           createdAt: at,
           updatedAt: at,
         },
@@ -56,15 +60,35 @@ export class FactoryConnectionsService {
     }
   }
 
+  async updateCredentials(args: {
+    id: string
+    sealedCredentials: string
+  }): Promise<FactoryConnectionDto> {
+    const row = await db.factoryConnection.update({
+      where: { id: args.id },
+      data: { sealedCredentials: args.sealedCredentials, updatedAt: nowIso() },
+    })
+    return toConnectionDto(row)
+  }
+
   private async repoint(args: {
     id: string
-    args: { organizationId: string; status: string }
+    args: {
+      organizationId: string
+      status: string
+      sealedCredentials?: string
+      scopes?: string
+    }
   }): Promise<FactoryConnectionDto> {
     const row = await db.factoryConnection.update({
       where: { id: args.id },
       data: {
         organizationId: args.args.organizationId,
         status: args.args.status,
+        ...(args.args.sealedCredentials === undefined
+          ? {}
+          : { sealedCredentials: args.args.sealedCredentials }),
+        ...(args.args.scopes === undefined ? {} : { scopes: args.args.scopes }),
         updatedAt: nowIso(),
       },
     })

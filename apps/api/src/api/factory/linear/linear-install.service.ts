@@ -5,8 +5,10 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common'
 import { EnvService } from '../../../_core/config/env/env.service'
+import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { FactoryConnectionsService } from '../connections/connections.service'
 import { EFactoryConnectionProvider } from '../factory.types'
+import { credentialsFromToken, sealCredentials } from './linear-credentials'
 import { exchangeCodeForToken, fetchOrganizationId } from './linear-oauth'
 
 const AUTHORIZE_URL = 'https://linear.app/oauth/authorize'
@@ -27,6 +29,7 @@ export class LinearInstallService {
   constructor(
     private readonly env: EnvService,
     private readonly connections: FactoryConnectionsService,
+    private readonly cipher: SecretCipherService,
   ) {}
 
   beginInstall(args: { organizationId: string; apiOrigin: string }): string {
@@ -63,11 +66,18 @@ export class LinearInstallService {
       redirectUri: callbackUrl({ apiOrigin: args.apiOrigin }),
     })
     const workspaceId = await fetchOrganizationId({ accessToken: token.accessToken })
+    const credentials = credentialsFromToken({
+      accessToken: token.accessToken,
+      refreshToken: token.refreshToken,
+      expiresIn: token.expiresIn,
+    })
     await this.connections.upsert({
       provider: EFactoryConnectionProvider.Linear,
       externalAccountId: workspaceId,
       organizationId: entry.organizationId,
       status: 'active',
+      sealedCredentials: sealCredentials({ cipher: this.cipher, credentials }),
+      scopes: INSTALL_SCOPE,
     })
   }
 
