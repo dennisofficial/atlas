@@ -11,7 +11,7 @@ Built with OpenTUI, React, and Bun. Ships as a single compiled binary.
 ## Install
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/dennisofficial/atlas/main/install.sh | bash
+curl -fsSL https://install.byatlas.io | bash
 ```
 
 No GitHub auth needed — the script verifies the sha256 and puts `atlas` at `~/.local/bin`; the
