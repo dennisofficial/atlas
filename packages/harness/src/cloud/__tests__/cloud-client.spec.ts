@@ -360,7 +360,6 @@ describe('CloudClient', () => {
           {
             name: 'linear',
             transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' },
-            trusted: true,
             updatedAt: '2026-01-01T00:00:00.000Z',
           },
           { name: 'paused', disabled: true, updatedAt: '2026-01-01T00:00:00.000Z' },
@@ -375,7 +374,6 @@ describe('CloudClient', () => {
       {
         name: 'linear',
         transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' },
-        trusted: true,
         updatedAt: '2026-01-01T00:00:00.000Z',
       },
       { name: 'paused', disabled: true, updatedAt: '2026-01-01T00:00:00.000Z' },
@@ -397,7 +395,6 @@ describe('CloudClient', () => {
     await client.putMcpServer({
       name: 'linear',
       transport: { kind: 'stdio', command: 'npx', args: ['-y', 'linear-mcp'] },
-      trusted: true,
     })
 
     expect(calls[0]).toMatchObject({
@@ -405,7 +402,6 @@ describe('CloudClient', () => {
       url: 'http://cloud.test/v1/mcp-servers/linear',
       body: {
         transport: { kind: 'stdio', command: 'npx', args: ['-y', 'linear-mcp'] },
-        trusted: true,
       },
     })
   })

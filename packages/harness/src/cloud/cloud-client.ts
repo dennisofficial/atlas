@@ -49,7 +49,6 @@ const cloudMcpServerWireSchema = z.strictObject({
   name: mcpSpecSchema.shape.name,
   transport: mcpSpecSchema.shape.transport,
   disabled: mcpSpecSchema.shape.disabled,
-  trusted: mcpSpecSchema.shape.trusted,
   updatedAt: z.string(),
 })
 
@@ -215,7 +214,6 @@ export class CloudClient {
     name: string
     transport?: McpTransport
     disabled?: boolean
-    trusted?: boolean
   }): Promise<void> {
     await this.request({
       method: 'PUT',
@@ -223,7 +221,6 @@ export class CloudClient {
       body: {
         ...(args.transport === undefined ? {} : { transport: args.transport }),
         ...(args.disabled === undefined ? {} : { disabled: args.disabled }),
-        ...(args.trusted === undefined ? {} : { trusted: args.trusted }),
       },
     })
   }

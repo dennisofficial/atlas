@@ -8,7 +8,7 @@ import { EMcpEditLayer, inputSchema, run, runRemote } from '../../mcp/config/wri
 const description = [
   'Edit the mcp server list in one config file: install a server, disable it, enable it, or remove it.',
   'The layer picks the target: user is the Atlas Cloud account (requires sign-in), project is <cwd>/.atlas/mcp.json, project-compat is <cwd>/.mcp.json.',
-  'upsert writes { transport, trusted? }; disable writes a stub with disabled: true; enable re-writes the stub without disabled; remove deletes the entry.',
+  'upsert writes { transport }; disable writes a stub with disabled: true; enable re-writes the stub without disabled; remove deletes the entry.',
   'The name and transport are validated the same way the loaders read them, so an invalid one fails before the file is touched.',
   'Remove of an unknown name succeeds; the file is simply left as it was.',
 ].join(' ')

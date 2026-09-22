@@ -78,7 +78,6 @@ export function toMcpSpec(draft: UpsertMcpServerDto & { name: string }): McpSpec
     name: draft.name,
     ...(transport === undefined ? {} : { transport }),
     ...(draft.disabled === undefined ? {} : { disabled: draft.disabled }),
-    ...(draft.trusted === undefined ? {} : { trusted: draft.trusted }),
   }
 }
 

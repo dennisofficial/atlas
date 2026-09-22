@@ -16,7 +16,6 @@ export interface McpSpec {
   name: string
   transport?: McpTransport
   disabled?: boolean
-  trusted?: boolean
 }
 
 export interface McpServerDto extends McpSpec {
