@@ -29,7 +29,7 @@ All root scripts are turbo tasks:
 Run the prod binary, not source. It self-updates from GitHub releases on `/restart`. Install:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/dennisofficial/atlas/main/install.sh | bash
+curl -fsSL https://install.byatlas.io | bash
 ```
 
 `install.sh` detects your platform, verifies the sha256, and installs to `~/.local/bin/atlas`
