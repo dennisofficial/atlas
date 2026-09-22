@@ -59,9 +59,22 @@ export type VercelSdk = {
   get: (params: Parameters<typeof Sandbox.get>[0]) => Promise<Sandbox>
 }
 
+/**
+ * Bun's fetch throws BrotliDecompressionError on Vercel's streamed cmd responses, so the driver
+ * negotiates gzip — the one content-coding Bun decompresses reliably here.
+ */
+const gzipOnlyFetch = Object.assign(
+  (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    const headers = new Headers(init?.headers)
+    headers.set('accept-encoding', 'gzip, deflate')
+    return fetch(input, { ...init, headers })
+  },
+  { preconnect: fetch.preconnect },
+)
+
 const liveSdk: VercelSdk = {
-  getOrCreate: (params) => Sandbox.getOrCreate(params),
-  get: (params) => Sandbox.get(params),
+  getOrCreate: (params) => Sandbox.getOrCreate({ ...params, fetch: gzipOnlyFetch }),
+  get: (params) => Sandbox.get({ ...params, fetch: gzipOnlyFetch }),
 }
 
 const stateOf = (status: string): ECloudSandboxState => {
