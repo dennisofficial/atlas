@@ -15,6 +15,7 @@ import type { KeyEvent } from '@opentui/core'
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
 import { appearanceOf, applyAppearance, type Appearance } from '../ui/appearance'
+import { ESettingsLogin, type SettingsLoginState } from '../ui/settings-login-model'
 import type { EFooterMeters } from '../ui/usage-meters'
 import type { EThinkingVisibility } from '../store'
 import {
@@ -31,6 +32,7 @@ import type { Span } from '../ui/components/spans'
 import type { AtlasApp } from './compose'
 import { preferencesOf } from './settings-preferences'
 import { useSecretPrompt } from './use-secret-prompt'
+import { useSettingsCloudLogin } from './use-settings-cloud-login'
 
 export type SettingsControl = {
   view: SettingsModel
@@ -43,7 +45,10 @@ export type SettingsControl = {
   problem: string | undefined
   cloudEmail: string | null
   cloudSignedIn: boolean
+  cloudSignIn: SettingsLoginState
   handleSignOut: () => void
+  handleSignIn: () => void
+  handleOpenSignInUrl: () => void
   sidebarWidth: number
   sidebarFoldBelow: number
   autoCompactAtPercent: number
@@ -131,6 +136,15 @@ export function useSettings(args: {
     readCloudSession()
   }, [app.cloud, readCloudSession])
 
+  const cloudLogin = useSettingsCloudLogin({ cloud: app.cloud, openUrl: app.openUrl, onSignedIn: readCloudSession })
+
+  const handleOpenSignInUrl = useCallback(() => {
+    const url = cloudLogin.state.prompt?.url
+    if (url === undefined || url.length === 0) return
+
+    app.openUrl(url)
+  }, [app, cloudLogin.state.prompt])
+
   const handlePinModels = useCallback(
     (favourites: readonly string[]) => {
       app.settings.set({
@@ -147,7 +161,8 @@ export function useSettings(args: {
     setState(null)
     setRefused(null)
     secret.close()
-  }, [secret])
+    cloudLogin.stop()
+  }, [cloudLogin, secret])
 
   const handleSelect = useCallback((target: SettingsState) => {
     setState(target)
@@ -158,7 +173,11 @@ export function useSettings(args: {
       setState(target)
 
       if (currentPage({ state: target, model: view })?.page.id === ESettingPage.Account) {
-        if (app.cloud.session() !== null) handleSignOut()
+        if (app.cloud.session() !== null) {
+          handleSignOut()
+          return
+        }
+        if (cloudLogin.state.status === ESettingsLogin.Idle) cloudLogin.begin()
         return
       }
 
@@ -177,7 +196,7 @@ export function useSettings(args: {
 
       write(target, (held) => activateSetting({ definition: held.definition, current: held.value }))
     },
-    [app.cloud, handleSignOut, onChooseModel, secret, view, write],
+    [app.cloud, cloudLogin, handleSignOut, onChooseModel, secret, view, write],
   )
 
   const handleKey = useCallback(
@@ -196,6 +215,7 @@ export function useSettings(args: {
       }
 
       if (key.name === 'tab') {
+        if (currentPage({ state, model: view })?.page.id === ESettingPage.Account) cloudLogin.stop()
         setState(movePage({ state, model: view, delta: key.shift ? -1 : 1 }))
         return
       }
@@ -225,7 +245,7 @@ export function useSettings(args: {
         )
       }
     },
-    [handleActivate, handleClearModel, handleDismiss, secret, state, view, write],
+    [cloudLogin, handleActivate, handleClearModel, handleDismiss, secret, state, view, write],
   )
 
   const preferences = useMemo(() => preferencesOf(held.resolution), [held.resolution])
@@ -244,7 +264,10 @@ export function useSettings(args: {
       problem,
       cloudEmail: cloudSession?.email ?? null,
       cloudSignedIn: cloudSession !== null,
+      cloudSignIn: cloudLogin.state,
       handleSignOut,
+      handleSignIn: cloudLogin.begin,
+      handleOpenSignInUrl,
       ...preferences,
       handlePinModels,
       handleOpen,
@@ -254,10 +277,13 @@ export function useSettings(args: {
     }),
     [
       appearance,
+      cloudLogin.begin,
+      cloudLogin.state,
       cloudSession,
       handleDismiss,
       handleKey,
       handleOpen,
+      handleOpenSignInUrl,
       handlePinModels,
       handleSelect,
       handleSignOut,

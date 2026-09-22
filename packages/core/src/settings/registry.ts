@@ -640,7 +640,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Cloud',
     label: 'Cloud API',
     description:
-      'Where the Atlas Cloud API lives — the backend that is the source of truth for accounts, secrets and the user MCP layer. The fallback is the production deployment; an Atlas contributor running apps/api next to the TUI points this at the local development server instead.',
+      'Where the Atlas Cloud API lives — the backend a signed-in session syncs accounts, secrets and the user MCP layer with; signed out, the local vault is the whole store. The fallback is the production deployment; an Atlas contributor running apps/api next to the TUI points this at the local development server instead.',
     environmentVariable: 'ATLAS_CLOUD_URL',
     kind: ESettingKind.Text,
     fallback: 'https://api.byatlas.io',

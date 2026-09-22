@@ -759,6 +759,25 @@ function Workspace(props: {
   )
 
   /**
+   * A signed-out boot is a steady state Atlas serves fine from the local vault, so this is an offer
+   * read once and left alone rather than a gate. Fires at most once per boot, the same shape as the
+   * credential-failure chip below it.
+   */
+  const cloudSignInNoticed = useRef(false)
+  useEffect(() => {
+    if (cloudSignInNoticed.current) return
+    cloudSignInNoticed.current = true
+    if (props.app.cloud.session() !== null) return
+
+    notify({
+      key: 'cloud-sign-in-offer',
+      text: 'sign in to Atlas Cloud to unlock cloud sandboxes and remote control — settings (ctrl+o) › account',
+      tone: ENoticeTone.Info,
+      ttlMs: 20_000,
+    })
+  }, [props.app.cloud])
+
+  /**
    * A boot-time auth failure is usually ambient (DNS down, a revoked refresh token), so it earns a
    * chip rather than the screen. The full diagnosis waits for the first manual open of the overlay,
    * which is what the chip points at.

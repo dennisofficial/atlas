@@ -9,7 +9,6 @@ export enum EAccountsView {
   List = 'list',
   PastedCode = 'pasted-code',
   DeviceCode = 'device-code',
-  CloudDevice = 'cloud-device',
   GithubDevice = 'github-device',
   ApiKey = 'api-key',
 }
@@ -25,11 +24,8 @@ export type AccountsWindow = {
 export enum EAccountRow {
   Account = 'account',
   SignedOut = 'signed-out',
-  Cloud = 'cloud',
   Github = 'github',
 }
-
-export type CloudIdentity = { email: string | null }
 
 export type GithubIdentity = { login: string }
 
@@ -37,19 +33,17 @@ export type GithubRowState = { connection: GithubIdentity | null; unreachable: b
 
 /**
  * A provider Atlas can answer for but nothing has signed into still gets a row, because the sign-in
- * flows are reached by selecting one. The cloud row leads the list only while there is no session,
- * because signing in is reached by selecting it — once signed in, identity and sign-out belong to
- * the settings account tab. Discriminated rather than optional so every reader that wants an
- * account id has to say what it does without one.
+ * flows are reached by selecting one. Atlas Cloud is never a row here — sign-in lives in settings —
+ * so a session is only ever read to decide whether the GitHub row belongs. Discriminated rather
+ * than optional so every reader that wants an account id has to say what it does without one.
  */
 export type AccountRow =
   | { kind: EAccountRow.Account; account: Account; active: boolean }
   | { kind: EAccountRow.SignedOut; provider: EAuthProvider; active: false }
-  | { kind: EAccountRow.Cloud; active: false }
   | { kind: EAccountRow.Github; github: GithubRowState; active: false }
 
 export const rowProvider = (row: AccountRow): EAuthProvider | undefined => {
-  if (row.kind === EAccountRow.Cloud || row.kind === EAccountRow.Github) return undefined
+  if (row.kind === EAccountRow.Github) return undefined
   return row.kind === EAccountRow.Account ? row.account.provider : row.provider
 }
 
@@ -57,7 +51,6 @@ export const accountOf = (row: AccountRow): Account | undefined =>
   row.kind === EAccountRow.Account ? row.account : undefined
 
 export const rowKey = (row: AccountRow): string => {
-  if (row.kind === EAccountRow.Cloud) return 'cloud'
   if (row.kind === EAccountRow.Github) return 'github'
   return row.kind === EAccountRow.Account ? String(row.account.id) : `signed-out:${row.provider}`
 }
@@ -78,7 +71,6 @@ export type AccountsState = {
   index: number
   rows: readonly AccountRow[]
   prompt: AccountsPrompt | null
-  cloudPrompt: CloudPrompt | null
   githubPrompt: CloudPrompt | null
   typed: string
   notice: string | null
@@ -108,7 +100,6 @@ const openedAt = (row: AccountRow): string => accountOf(row)?.createdAt ?? ''
 export function accountRows(args: {
   accounts: readonly Account[]
   active: Partial<Record<EAuthProvider, AccountId | undefined>>
-  cloud: CloudIdentity | null
   github?: GithubRowState | undefined
 }): readonly AccountRow[] {
   const held = new Set(args.accounts.map((account) => account.provider))
@@ -128,15 +119,12 @@ export function accountRows(args: {
       })),
   ]
 
-  const cloudRows: AccountRow[] =
-    args.cloud === null ? [{ kind: EAccountRow.Cloud, active: false }] : []
   const githubRows: AccountRow[] =
     args.github === undefined
       ? []
       : [{ kind: EAccountRow.Github, github: args.github, active: false }]
 
   return [
-    ...cloudRows,
     ...githubRows,
     ...rows.sort(
       (left, right) =>
@@ -158,7 +146,6 @@ export function openAccounts(args: {
     index: active < 0 ? 0 : active,
     rows: args.rows,
     prompt: null,
-    cloudPrompt: null,
     githubPrompt: null,
     typed: '',
     notice: args.notice ?? null,
@@ -212,21 +199,6 @@ export function askForDeviceCode(args: {
   }
 }
 
-export function askForCloudCode(args: {
-  state: AccountsState
-  prompt?: CloudPrompt | undefined
-}): AccountsState {
-  return {
-    ...args.state,
-    view: EAccountsView.CloudDevice,
-    cloudPrompt: args.prompt ?? null,
-    typed: '',
-    failure: null,
-    notice: null,
-    busy: false,
-  }
-}
-
 export function askForGithubCode(args: {
   state: AccountsState
   prompt?: CloudPrompt | undefined
@@ -265,7 +237,7 @@ export function backspace(state: AccountsState): AccountsState {
 }
 
 export function backToList(state: AccountsState): AccountsState {
-  const cleared = { prompt: null, cloudPrompt: null, githubPrompt: null }
+  const cleared = { prompt: null, githubPrompt: null }
   return { ...state, ...cleared, view: EAccountsView.List, typed: '', busy: false }
 }
 

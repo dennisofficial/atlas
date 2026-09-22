@@ -20,6 +20,7 @@ import { SHIPPED_FENCE_WRAP } from '../fence-wrap-store'
 import { CHOSEN, COMPOSER_DRAFT, DIFF_PATH, UNCHOSEN } from '../components/settings/previews'
 import { EComposerEdge } from '../composer-edge-store'
 import { EBlockDensity } from '../density-store'
+import { idleLogin } from '../settings-login-model'
 import { settingsModel, type SettingsState } from '../settings-model'
 import { glyph, SIDEBAR_WIDTH, theme } from '../theme'
 import { frameOf } from './transcript-fixture'
@@ -67,7 +68,10 @@ const page = (args: {
       {...(args.problem === undefined ? {} : { problem: args.problem })}
       cloudEmail={null}
       cloudSignedIn={false}
+      cloudSignIn={idleLogin()}
       onSignOut={() => {}}
+      onSignIn={() => {}}
+      onOpenSignInUrl={() => {}}
       onSelect={() => {}}
       onDismiss={() => {}}
     />

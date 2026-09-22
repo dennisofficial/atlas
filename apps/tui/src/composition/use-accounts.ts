@@ -47,7 +47,6 @@ import {
 } from '../ui/accounts-model'
 import { pastedText } from '../ui/pasted-text'
 
-import { useCloudLogin } from './use-cloud-login'
 import { githubRow, useGithubConnect } from './use-github-connect'
 
 export type AccountsControl = {
@@ -115,7 +114,6 @@ export function useAccounts(args: {
     return accountRows({
       accounts: stored,
       active,
-      cloud: session === null ? null : { email: session.email },
       ...(github === undefined ? {} : { github }),
     })
   }, [accounts, cloud, onAccounts])
@@ -147,16 +145,14 @@ export function useAccounts(args: {
     [put, rows],
   )
 
-  const cloudLogin = useCloudLogin({ cloud, openUrl, held, put, refresh })
   const githubConnect = useGithubConnect({ cloud, openUrl, held, put, refresh })
 
   const handleDismiss = useCallback(() => {
     ticket.current = null
     stopDevice()
-    cloudLogin.stop()
     githubConnect.stop()
     put(null)
-  }, [cloudLogin, githubConnect, put, stopDevice])
+  }, [githubConnect, put, stopDevice])
 
   /**
    * A row for a provider nothing has signed into exists to be signed into, so the key that activates
@@ -174,12 +170,6 @@ export function useAccounts(args: {
 
   const handlePick = useCallback(
     (row: AccountRow) => {
-      if (row.kind === EAccountRow.Cloud) {
-        const current = held.current
-        if (current !== null) cloudLogin.begin(current)
-        return
-      }
-
       if (row.kind === EAccountRow.Github) {
         const current = held.current
         if (row.github.connection === null && !row.github.unreachable && current !== null)
@@ -196,7 +186,7 @@ export function useAccounts(args: {
 
       void accounts.use({ provider: account.provider, accountId: account.id }).then(() => refresh())
     },
-    [accounts, askForKey, cloudLogin, githubConnect, refresh],
+    [accounts, askForKey, githubConnect, refresh],
   )
 
   /**
@@ -295,7 +285,7 @@ export function useAccounts(args: {
 
   const handleOpenUrl = useCallback(() => {
     const current = held.current
-    const url = current?.prompt?.url ?? current?.cloudPrompt?.url ?? current?.githubPrompt?.url
+    const url = current?.prompt?.url ?? current?.githubPrompt?.url
     if (url === undefined || url.length === 0) return
 
     openUrl(url)
@@ -305,8 +295,6 @@ export function useAccounts(args: {
     (current: AccountsState) => {
       const row = selectedRow(current)
       if (row === undefined) return
-
-      if (row.kind === EAccountRow.Cloud) return
 
       if (row.kind === EAccountRow.Github) {
         if (row.github.connection !== null) githubConnect.disconnect()
@@ -318,7 +306,7 @@ export function useAccounts(args: {
 
       void accounts.remove(account.id).then(() => refresh())
     },
-    [accounts, cloudLogin, githubConnect, refresh],
+    [accounts, githubConnect, refresh],
   )
 
   const submit = useCallback(
@@ -388,17 +376,12 @@ export function useAccounts(args: {
       if (key.name === 'escape') {
         ticket.current = null
         stopDevice()
-        cloudLogin.stop()
         githubConnect.stop()
         put(backToList(current))
         return
       }
 
-      if (
-        current.view === EAccountsView.DeviceCode ||
-        current.view === EAccountsView.CloudDevice ||
-        current.view === EAccountsView.GithubDevice
-      )
+      if (current.view === EAccountsView.DeviceCode || current.view === EAccountsView.GithubDevice)
         return
 
       if (key.name === 'return') {
@@ -413,7 +396,7 @@ export function useAccounts(args: {
 
       if (isPrintable(key)) put(typeInto({ state: current, text: key.sequence ?? '' }))
     },
-    [cloudLogin, githubConnect, put, stopDevice, submit],
+    [githubConnect, put, stopDevice, submit],
   )
 
   const handleKey = useCallback(

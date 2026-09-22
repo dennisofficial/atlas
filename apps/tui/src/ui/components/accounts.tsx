@@ -54,9 +54,7 @@ const DEVICE_HINTS: readonly Hint[] = [
 ]
 
 const showsDeviceHints = (view: EAccountsView): boolean =>
-  view === EAccountsView.DeviceCode ||
-  view === EAccountsView.CloudDevice ||
-  view === EAccountsView.GithubDevice
+  view === EAccountsView.DeviceCode || view === EAccountsView.GithubDevice
 
 function AccountLine(props: {
   row: AccountRow

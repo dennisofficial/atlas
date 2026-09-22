@@ -18,7 +18,7 @@ import type { LiftedAttachment } from './lifted-session'
 import type { ContainerMoveControl } from './use-container-move'
 
 const NOT_SIGNED_IN =
-  'moving to the cloud needs an Atlas Cloud sign-in — press ctrl+a or run /auth, then try again'
+  'moving to the cloud needs an Atlas Cloud sign-in — settings (ctrl+o) › account, then try again'
 
 export type CloudBridgeFactory = (args: { url: string; token: string }) => CloudBridge
 

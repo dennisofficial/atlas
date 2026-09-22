@@ -82,15 +82,48 @@ describe('the settings account tab', () => {
     }
   }, 60_000)
 
-  it('points a signed-out session at the accounts overlay instead of offering sign-out', async () => {
+  it('offers a real sign-in row instead of pointing at the accounts overlay', async () => {
     const app = appWith({ signedOut: true })
     const setup = await onAccountTab(app)
 
     try {
       const frame = setup.captureCharFrame()
       expect(frame).toContain('not signed in')
-      expect(frame).toContain('ctrl+a')
+      expect(frame).toContain('Sign in')
+      expect(frame).not.toContain('from the accounts overlay')
       expect(frame).not.toContain('Sign out')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('begins the device flow on \u23ce and fails cleanly once the cloud cannot be reached', async () => {
+    const app = appWith({ signedOut: true })
+    const setup = await onAccountTab(app)
+
+    try {
+      setup.mockInput.pressEnter()
+      await settle(600)
+      await setup.flush()
+
+      const failed = setup.captureCharFrame()
+      expect(failed).toContain('unreachable')
+      expect(app.cloud.session()).toBeNull()
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('stops the flow when escape closes settings mid sign-in', async () => {
+    const app = appWith({ signedOut: true })
+    const setup = await onAccountTab(app)
+
+    try {
+      setup.mockInput.pressEnter()
+      setup.mockInput.pressEscape()
+      await landed(setup)
+
+      expect(setup.captureCharFrame()).not.toContain('ATLAS CLOUD')
     } finally {
       await teardown(setup)
     }

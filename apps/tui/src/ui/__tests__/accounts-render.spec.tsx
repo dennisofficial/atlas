@@ -72,7 +72,6 @@ const stateWith = (rows: readonly AccountRow[]): AccountsState => ({
   index: 0,
   rows,
   prompt: null,
-  cloudPrompt: null,
   githubPrompt: null,
   typed: '',
   notice: null,
