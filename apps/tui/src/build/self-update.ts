@@ -126,14 +126,13 @@ export async function readStagedVersionMarker(execPath: string): Promise<string 
   return (await file.text()).trim()
 }
 
-const run = async (cmd: readonly string[], timeoutMs = 60_000): Promise<boolean> => {
+const downloadAsset = async (args: { url: string; dest: string }): Promise<boolean> => {
   try {
-    const proc = Bun.spawn([...cmd], { stdout: 'ignore', stderr: 'ignore' })
-    const timer = setTimeout(() => proc.kill(), timeoutMs)
-    timer.unref?.()
-    const code = await proc.exited
-    clearTimeout(timer)
-    return code === 0
+    const res = await fetch(args.url, { signal: AbortSignal.timeout(300_000) })
+    if (!res.ok || res.body === null) return false
+
+    await Bun.write(args.dest, res)
+    return true
   } catch {
     return false
   }
@@ -141,22 +140,13 @@ const run = async (cmd: readonly string[], timeoutMs = 60_000): Promise<boolean>
 
 export function realSelfUpdatePorts(): SelfUpdatePorts {
   return {
-    download: ({ tag, asset, repo, dir }) =>
-      run([
-        'gh',
-        'release',
-        'download',
-        tag,
-        '--pattern',
-        asset,
-        '--pattern',
-        `${asset}.sha256`,
-        '--dir',
-        dir,
-        '--clobber',
-        '--repo',
-        repo,
-      ]),
+    download: async ({ tag, asset, repo, dir }) => {
+      const base = `https://github.com/${repo}/releases/download/${tag}`
+      const binary = await downloadAsset({ url: `${base}/${asset}`, dest: `${dir}/${asset}` })
+      if (!binary) return false
+
+      return downloadAsset({ url: `${base}/${asset}.sha256`, dest: `${dir}/${asset}.sha256` })
+    },
     readFile: async (path) => {
       const file = Bun.file(path)
       if (!(await file.exists())) return null

@@ -61,13 +61,26 @@ const run = async (cmd: readonly string[], timeoutMs = 15_000): Promise<string |
 }
 
 async function releaseTagsOf(repo: string): Promise<readonly string[] | null> {
-  const out = await run(['gh', 'api', `repos/${repo}/releases?per_page=50`, '--jq', '.[].tag_name'])
-  if (out === null) return null
+  try {
+    const res = await fetch(`https://api.github.com/repos/${repo}/releases?per_page=50`, {
+      headers: { Accept: 'application/vnd.github+json' },
+      signal: AbortSignal.timeout(15_000),
+    })
+    if (!res.ok) return null
 
-  return out
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
+    const releases: unknown = await res.json()
+    if (!Array.isArray(releases)) return null
+
+    const tags: string[] = []
+    for (const release of releases) {
+      if (typeof release !== 'object' || release === null) continue
+      const tag = (release as Record<string, unknown>).tag_name
+      if (typeof tag === 'string' && tag.length > 0) tags.push(tag)
+    }
+    return tags
+  } catch {
+    return null
+  }
 }
 
 export function sourceBehindNotice(args: { behind: number; upstream: string }): string | null {

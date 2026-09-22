@@ -1,18 +1,13 @@
 #!/usr/bin/env sh
 set -eu
 
-# The repo is private, so every download rides on gh auth — there is no unauthenticated URL to
-# curl. The installed binary self-updates from then on; this script is only ever a bootstrap.
+# The releases are public, so downloads are unauthenticated. The installed binary self-updates
+# from then on; this script is only ever a bootstrap.
 
 REPO=dennisofficial/atlas
 
-if ! command -v gh >/dev/null 2>&1; then
-  printf 'install.sh: gh is required (the releases are private) — https://cli.github.com\n' >&2
-  exit 1
-fi
-
-if ! gh auth status >/dev/null 2>&1; then
-  printf 'install.sh: gh is not authenticated — run gh auth login first\n' >&2
+if ! command -v curl >/dev/null 2>&1; then
+  printf 'install.sh: curl is required\n' >&2
   exit 1
 fi
 
@@ -32,7 +27,9 @@ dest="$dest_dir/atlas"
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/atlas-install.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 
-gh release download --repo "$REPO" --pattern "$asset" --pattern "$asset.sha256" --dir "$tmp" --clobber
+base="https://github.com/$REPO/releases/latest/download"
+curl -fsSL "$base/$asset" -o "$tmp/$asset"
+curl -fsSL "$base/$asset.sha256" -o "$tmp/$asset.sha256"
 
 if command -v shasum >/dev/null 2>&1; then
   actual=$(shasum -a 256 "$tmp/$asset" | awk '{print $1}')
