@@ -13,6 +13,9 @@ import {
   exchangeFaults,
   loopCutNoticeDraft,
   loopCutPlan,
+  loopCutTarget,
+  loopWatchCutAllowed,
+  loopWatchCutNoticeDraft,
   loopWatchNudgeDraft,
   pendingCalls,
   projectDirectoryOf,
@@ -69,6 +72,7 @@ export type TurnDeps = {
   onLoopCut?: ((cut: LoopCut) => void) | undefined
   watchLoop?: LoopWatch | undefined
   onLoopWatch?: (() => void) | undefined
+  onLoopWatchCut?: ((args: { steps: number }) => void) | undefined
   onLoopStop?: (() => void) | undefined
   autoCompactAtPercent?: (() => number) | undefined
   launchDirectory?: string | undefined
@@ -95,6 +99,7 @@ export class LoopTurnRunner extends TurnRunner {
   private readonly onLoopCut: ((cut: LoopCut) => void) | undefined
   private readonly watchLoop: LoopWatch | undefined
   private readonly onLoopWatch: (() => void) | undefined
+  private readonly onLoopWatchCut: ((args: { steps: number }) => void) | undefined
   private readonly onLoopStop: (() => void) | undefined
   private readonly autoCompactAtPercent: () => number
   private readonly launchDirectory: string
@@ -120,6 +125,7 @@ export class LoopTurnRunner extends TurnRunner {
     this.onLoopCut = deps.onLoopCut
     this.watchLoop = deps.watchLoop
     this.onLoopWatch = deps.onLoopWatch
+    this.onLoopWatchCut = deps.onLoopWatchCut
     this.onLoopStop = deps.onLoopStop
     this.autoCompactAtPercent = deps.autoCompactAtPercent ?? (() => AUTO_COMPACT_OFF)
     this.launchDirectory = deps.launchDirectory ?? process.cwd()
@@ -206,6 +212,7 @@ export class LoopTurnRunner extends TurnRunner {
     let compacted = false
     let loopCuts = 0
     let loopWatchWarned = false
+    const loopWatchCutAnchors: number[] = []
     const committedCalls: ModelToolCall[] = []
 
     const interrupted = async (): Promise<TurnOutcome> => ({
@@ -283,7 +290,32 @@ export class LoopTurnRunner extends TurnRunner {
 
       if (this.watchLoop !== undefined && !abortSignal.aborted) {
         const watch = await this.watchLoop({ events: owned, signal: abortSignal })
-        if (watch === ELoopWatch.Looping) {
+        if (watch.verdict === ELoopWatch.Looping) {
+          const throughSeq = owned.at(-1)?.seq
+          const target =
+            watch.loopStartSeq === undefined || throughSeq === undefined
+              ? undefined
+              : loopCutTarget({ events: owned, seq: watch.loopStartSeq })
+          if (
+            target !== undefined &&
+            throughSeq !== undefined &&
+            this.applyLoopCut !== undefined &&
+            loopWatchCutAllowed({ previous: loopWatchCutAnchors, anchor: target })
+          ) {
+            const applied = await this.applyLoopCut({
+              threadId,
+              toSeq: target,
+              throughSeq,
+              notice: loopWatchCutNoticeDraft({ steps: throughSeq - target }),
+            })
+            if (applied) {
+              loopWatchCutAnchors.push(target)
+              this.onLoopWatchCut?.({ steps: throughSeq - target })
+              previous = undefined
+              seenThrough = undefined
+              continue
+            }
+          }
           if (loopWatchWarned) {
             this.onLoopStop?.()
             return { status: ETurnStatus.Idle, runId }
@@ -295,7 +327,10 @@ export class LoopTurnRunner extends TurnRunner {
           seenThrough = undefined
           continue
         }
-        if (watch === ELoopWatch.Clear) loopWatchWarned = false
+        if (watch.verdict === ELoopWatch.Clear) {
+          loopWatchWarned = false
+          loopWatchCutAnchors.length = 0
+        }
       }
 
       seenThrough = owned.at(-1)?.seq

@@ -227,7 +227,13 @@ export function wireTurn<Command>(args: {
     onLoopWatch: () =>
       notice.notify({
         tone: ENoticeTone.Warn,
-        text: 'the watchdog judged this turn to be looping — the agent was nudged to break the pattern, and the turn will stop if it keeps going',
+        text: 'the watchdog judged this turn to be looping and could not cut it — the agent was nudged to break the pattern, and the turn will stop if it keeps going',
+        ttlMs: NOTICE_WARN_MS,
+      }),
+    onLoopWatchCut: ({ steps }) =>
+      notice.notify({
+        tone: ENoticeTone.Warn,
+        text: `the watchdog cut ${steps} steps from this turn — the decision model judged them a loop and loops left in context invite more looping. If the pattern re-forms, the turn will be stopped`,
         ttlMs: NOTICE_WARN_MS,
       }),
     onLoopStop: () =>
