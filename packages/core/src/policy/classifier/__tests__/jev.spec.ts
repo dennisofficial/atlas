@@ -97,4 +97,25 @@ describe('jevAnswersSchema', () => {
     expect(parsed.success).toBe(true)
     if (parsed.success) expect(parsed.data.answers['service']?.noul).toBe(0.9)
   })
+
+  it('reads the probability distribution a choice answer carries', () => {
+    const parsed = jevAnswersSchema.safeParse({
+      answers: {
+        which: {
+          type: 'choice',
+          choice: 'pptx-author',
+          probabilities: { powerpoint: 0.3, 'pptx-author': 0.7 },
+          confidence: 0.6,
+        },
+      },
+    })
+    expect(parsed.success).toBe(true)
+    if (parsed.success) {
+      expect(parsed.data.answers['which']?.choice).toBe('pptx-author')
+      expect(parsed.data.answers['which']?.probabilities).toEqual({
+        powerpoint: 0.3,
+        'pptx-author': 0.7,
+      })
+    }
+  })
 })

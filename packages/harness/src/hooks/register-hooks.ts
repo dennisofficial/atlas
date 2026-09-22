@@ -4,6 +4,7 @@ import {
   BeforeToolHook,
   BeforeTurnHook,
   DecisionPort,
+  EventLogPort,
   ToolDefinition,
   WorkspaceFactsPort,
 } from '@dltech/atlas-core'
@@ -11,9 +12,15 @@ import {
 import { registerClassifier } from '../classifier/register-classifier'
 import { JevDecisionClient } from '../classifier/jev-client'
 import { GitWorkspaceFacts } from '../classifier/workspace-facts'
-import { instanceCachingFactory, portToken, type DependencyContainer } from '../container/injection'
-import { WorkspaceRoot } from '../container/tokens'
+import {
+  instanceCachingFactory,
+  portToken,
+  resolveIfPossible,
+  type DependencyContainer,
+} from '../container/injection'
+import { SkillSuggestionEnabledToken, WorkspaceRoot } from '../container/tokens'
 import { FileReadStatePort } from '../files/read-state'
+import { SkillRegistryPort } from '../skills/port'
 import { InvalidateFactsHook } from './invalidate-facts'
 import { MirrorPlanHook } from './mirror-plan'
 import { OutsideProjectHook } from './outside-project'
@@ -22,6 +29,7 @@ import { ReadBeforeWriteHook } from './read-before-write'
 import { ResolveProjectPathsHook } from './resolve-project-paths'
 import { ServiceShapeHook } from './service-shape-hook'
 import { RecordFileStateHook } from './record-file-state'
+import { SkillSuggestionHook } from './skill-suggestion'
 import { TrackWorktreeHook } from './track-worktree'
 
 export function registerBuiltinHooks({ container }: { container: DependencyContainer }): void {
@@ -56,6 +64,19 @@ export function registerBuiltinHooks({ container }: { container: DependencyConta
         resolver.resolve(portToken(WorkspaceFactsPort)),
         resolver.resolve(WorkspaceRoot),
       ),
+  })
+  container.register(portToken(BeforeTurnHook), {
+    useFactory: (resolver) =>
+      new SkillSuggestionHook({
+        log: resolveIfPossible({ container: resolver, token: portToken(EventLogPort) }),
+        skills: resolveIfPossible({ container: resolver, token: portToken(SkillRegistryPort) }),
+        decisions: resolver.isRegistered(portToken(DecisionPort), true)
+          ? resolver.resolve(portToken(DecisionPort))
+          : new JevDecisionClient({ config: () => undefined }),
+        enabled: resolver.isRegistered(SkillSuggestionEnabledToken, true)
+          ? resolver.resolve(SkillSuggestionEnabledToken)
+          : () => false,
+      }),
   })
   container.register(portToken(AfterToolHook), {
     useFactory: (resolver) =>
