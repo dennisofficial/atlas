@@ -66,4 +66,51 @@ describe('FactoryConnectionsService', () => {
     expect(unknown).toBeNull()
     expect(otherProvider).toBeNull()
   })
+
+  it('upsert creates a connection for a new provider account', async () => {
+    const created = await service.upsert({
+      provider: EFactoryConnectionProvider.Linear,
+      externalAccountId: 'ws-1',
+      organizationId: 'org_compai',
+      status: 'active',
+    })
+
+    expect(created).toMatchObject({
+      organizationId: 'org_compai',
+      provider: 'linear',
+      externalAccountId: 'ws-1',
+      status: 'active',
+    })
+    expect(created.id).toMatch(/^fco_/)
+    expect(fake.connections).toHaveLength(1)
+  })
+
+  it('upsert repoints an existing connection at the new organization', async () => {
+    seedConnection()
+
+    const updated = await service.upsert({
+      provider: EFactoryConnectionProvider.GitHub,
+      externalAccountId: '87123',
+      organizationId: 'org_other',
+      status: 'active',
+    })
+
+    expect(updated.id).toBe('fco_1')
+    expect(updated.organizationId).toBe('org_other')
+    expect(fake.connections).toHaveLength(1)
+  })
+
+  it('upsert leaves a same-provider neighbor account untouched', async () => {
+    seedConnection()
+
+    await service.upsert({
+      provider: EFactoryConnectionProvider.GitHub,
+      externalAccountId: '99999',
+      organizationId: 'org_other',
+      status: 'active',
+    })
+
+    expect(fake.connections).toHaveLength(2)
+    expect(fake.connections[0]?.organizationId).toBe('org_compai')
+  })
 })
