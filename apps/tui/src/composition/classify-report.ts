@@ -30,7 +30,6 @@ function outcomeOf({ row }: { row: ReplayRow }): string {
   const judged = row.judged
   if (judged === undefined) return 'clear (shape)'
   if (judged.wouldAsk === true) return 'ASK'
-  if (judged.fatigued === true) return 'clear (fatigue)'
   if (row.grantCleared) return 'clear (granted)'
   if (row.consultation === EConsultation.Judged) return 'clear (judge)'
   if (row.consultation === EConsultation.Budgeted) return 'clear (budget)'

@@ -13,7 +13,6 @@ import {
   exchangeFaults,
   loopCutNoticeDraft,
   loopCutPlan,
-  outstandingApproval,
   pendingCalls,
   projectDirectoryOf,
   rowsOwnedBy,
@@ -216,11 +215,6 @@ export class LoopTurnRunner extends TurnRunner {
     for (;;) {
       const beforeDrain = await this.log.read({ threadId })
       const ownedBeforeDrain = rowsOwnedBy({ events: beforeDrain, threadId })
-
-      const waiting = outstandingApproval(ownedBeforeDrain)
-      if (waiting !== undefined) {
-        return { status: ETurnStatus.Paused, runId, callId: waiting, reason: 'awaiting approval' }
-      }
 
       const pending = pendingCalls(ownedBeforeDrain)[0]
       const settlePending = this.settlePending

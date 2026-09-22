@@ -34,8 +34,7 @@ const detailsOf = ({ standing }: { standing: readonly RiskSignal[] }): string =>
   standing.map((signal) => signal.detail).join('; ')
 
 function unconsultedReason({ triage }: { triage: Triage }): string {
-  const fatigue = triage.fatigued ? ' (this thread has spent its interruptions)' : ''
-  if (triage.standing.length > 0) return `${detailsOf({ standing: triage.standing })}${fatigue}`
+  if (triage.standing.length > 0) return detailsOf({ standing: triage.standing })
 
   if (triage.cleared.length > 0) {
     const subjects = [...new Set(triage.cleared.map((cleared) => cleared.signal.subject))]
@@ -139,7 +138,6 @@ function draftFor(args: {
     reason,
     consulted: verdict !== undefined,
     wouldAsk: args.asks,
-    fatigued: triage.fatigued,
     elapsedMs: args.elapsedMs,
   }
 }

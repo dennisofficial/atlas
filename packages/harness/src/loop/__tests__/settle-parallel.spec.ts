@@ -254,35 +254,6 @@ describe('settling a step whose calls may share a batch', () => {
     expect(await resultOrder(harness, threadId)).toHaveLength(24)
   })
 
-  it('pauses at the first approval in call order, keeping the results its batch-mates produced', async () => {
-    const harness = await openLog()
-    const threadId = await branchWithCalls({
-      harness,
-      calls: [
-        { callId: 'call-1', name: 'read' },
-        { callId: 'call-asks', name: 'read' },
-        { callId: 'call-3', name: 'read' },
-      ],
-    })
-    const trace = freshTrace()
-    const settle = createSettlePending({
-      log: harness.log,
-      dispatch: tracingDispatch({
-        trace,
-        draftsFor: (call) =>
-          call.callId === toCallId('call-asks')
-            ? [{ type: 'approval-requested', callId: call.callId, reason: 'a human should look' }]
-            : [{ type: 'tool-result', callId: call.callId, name: call.name, output: 'ok', modelText: 'ok' }],
-      }),
-      tools: () => TOOLS,
-    })
-
-    const settled = await settle({ threadId, signal: new AbortController().signal })
-
-    expect(settled).toEqual({ paused: { callId: toCallId('call-asks'), reason: 'a human should look' } })
-    expect(await resultOrder(harness, threadId)).toEqual(['call-1', 'call-3'])
-  })
-
   it('stops before the next batch once the signal is aborted', async () => {
     const harness = await openLog()
     const threadId = await branchWithCalls({

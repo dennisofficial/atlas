@@ -7,7 +7,6 @@ import {
   EJudgment,
   EStage,
   ETriage,
-  rowsOwnedBy,
   signalsFor,
   triageOf,
   WorkspaceFactsPort,
@@ -21,7 +20,6 @@ import {
   type HookOrder,
   type RiskSignal,
   type SignalProbe,
-  type ThreadId,
   type ToolCall,
   type ToolDeclaration,
   type Triage,
@@ -66,17 +64,6 @@ const messageOf = (error: unknown): string =>
 
 const clipped = (text: string): string =>
   text.length <= REASON_LIMIT ? text : `${text.slice(0, REASON_LIMIT - 1)}…`
-
-function asksSoFarIn({
-  events,
-  threadId,
-}: {
-  events: readonly Event[]
-  threadId: ThreadId
-}): number {
-  return rowsOwnedBy({ events, threadId }).filter((event) => event.type === 'approval-requested')
-    .length
-}
 
 function faultDraft(args: {
   call: ToolCall
@@ -224,7 +211,6 @@ export class ClassifyCallHook extends BeforeToolHook {
       evidence,
       signals: signalsFor({ evidence, probes: this.probes }),
       policy,
-      asksSoFar: asksSoFarIn({ events, threadId: call.threadId }),
     })
 
     if (triage.triage !== ETriage.Consult) return { triage, consultation: undefined }

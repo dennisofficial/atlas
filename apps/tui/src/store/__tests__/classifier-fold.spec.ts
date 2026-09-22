@@ -30,7 +30,6 @@ const weighed = (over: Partial<EventDraft & { type: 'classifier-judged' }>): Eve
     reason: 'a probe fired',
     consulted: true,
     wouldAsk: false,
-    fatigued: false,
     elapsedMs: 500,
     ...over,
   }
@@ -93,16 +92,6 @@ describe('the pauses-per-turn figure', () => {
     expect(foldOf([said('one'), weighed({})])?.topDimension).toBeNull()
   })
 
-  it('counts the calls that went by because the thread had spent its asks', () => {
-    const fold = foldOf([
-      said('one'),
-      weighed({ triage: ETriage.Clear, fatigued: true }),
-      weighed({ triage: ETriage.Clear, fatigued: true }),
-      weighed({}),
-    ])
-
-    expect(fold?.quietedCalls).toBe(2)
-  })
 })
 
 describe('the offline reading', () => {

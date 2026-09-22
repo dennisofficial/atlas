@@ -3,9 +3,7 @@ import {
   EPlanStatus,
   eventsOfType,
   grantsFrom,
-  outstandingApproval,
   planFromEvents,
-  type CallId,
   type Event,
   type Grant,
 } from "@dltech/atlas-core";
@@ -34,8 +32,6 @@ import {
 import { TITLE_CELLS, oneLineOf } from "./sidebar-text";
 import type { SidebarAgentFold, SidebarSubagent } from "./subagent-row";
 
-export type SidebarApproval = { callId: CallId; reason: string };
-
 export enum ESidebarTaskState {
   Done = "done",
   Running = "running",
@@ -59,7 +55,6 @@ export type SidebarModel = {
   title: string | null;
   turnCount: number;
   spend: SidebarSpend;
-  approvals: readonly SidebarApproval[];
   lastActivity: string | null;
   todo?: readonly SidebarTask[];
   subagents?: readonly SidebarSubagent[];
@@ -80,20 +75,7 @@ export const IDLE_SIDEBAR: SidebarModel = {
   title: null,
   turnCount: 0,
   spend: NOTHING_TALLIED,
-  approvals: [],
   lastActivity: null,
-};
-
-const approvalNames = (events: readonly Event[]): SidebarApproval[] => {
-  const outstanding = outstandingApproval(events);
-  if (outstanding === undefined) return [];
-
-  const requested = eventsOfType({ events, type: "approval-requested" }).find(
-    (event) => event.callId === outstanding,
-  );
-  if (requested === undefined) return [];
-
-  return [{ callId: outstanding, reason: requested.reason }];
 };
 
 const TASK_STATE_OF: Record<EPlanStatus, ESidebarTaskState> = {
@@ -123,7 +105,6 @@ export const sameSidebar = (left: SidebarModel, right: SidebarModel): boolean =>
   left.title === right.title &&
   left.turnCount === right.turnCount &&
   sameSpend(left.spend, right.spend) &&
-  left.approvals === right.approvals &&
   left.lastActivity === right.lastActivity &&
   left.todo === right.todo &&
   left.subagents === right.subagents &&
@@ -136,7 +117,6 @@ export const sameSidebar = (left: SidebarModel, right: SidebarModel): boolean =>
 export type SidebarEventFold = {
   opening: string | null;
   turnCount: number;
-  approvals: readonly SidebarApproval[];
   lastActivity: string | null;
   todo: readonly SidebarTask[];
   classifier: ClassifierFold | null;
@@ -149,7 +129,6 @@ export function sidebarFoldOf(events: readonly Event[]): SidebarEventFold {
   return {
     opening: opening === undefined ? null : oneLineOf(opening.text),
     turnCount: eventsOfType({ events, type: "user-said" }).length,
-    approvals: approvalNames(events),
     lastActivity: events.at(-1)?.at ?? null,
     todo: todoOf(events),
     classifier: classifierFold({ events }),
@@ -181,7 +160,6 @@ export function sidebarFrom(args: {
       titleText === null ? null : truncateCells({ text: titleText, cells: TITLE_CELLS }),
     turnCount: fold.turnCount,
     spend,
-    approvals: fold.approvals,
     lastActivity: fold.lastActivity,
     ...(fold.todo.length === 0 ? {} : { todo: fold.todo }),
     ...(fold.classifier === null ? {} : { classifier: fold.classifier }),

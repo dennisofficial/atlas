@@ -48,7 +48,6 @@ export function checkCorpusCase({
     evidence,
     signals: signalsFor({ evidence, probes }),
     policy: policy ?? DEFAULT_CLASSIFIER_POLICY,
-    asksSoFar: 0,
   })
 
   return {

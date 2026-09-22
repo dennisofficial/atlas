@@ -113,7 +113,6 @@ const triageFor = (evidence: CallEvidence) =>
     evidence,
     signals: signalsFor({ evidence }),
     policy: DEFAULT_CLASSIFIER_POLICY,
-    asksSoFar: 0,
   })
 
 const PATHLESS_TOOLS = [

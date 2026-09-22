@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
-  DEFAULT_CLASSIFIER_POLICY,
   EBeforeToolDecision,
   EClassifierMode,
   EConsultation,
@@ -89,24 +88,6 @@ describe('the same call once the nudge is armed', () => {
 
     expect(outcome.decision).toBe(EBeforeToolDecision.Allow)
     expect(outcome.drafts ?? []).toEqual([])
-  })
-
-  it('goes quiet after the thread has spent its interruptions', async () => {
-    const spent = Array.from({ length: DEFAULT_CLASSIFIER_POLICY.asksPerThread }, (_, index) => ({
-      type: 'approval-requested' as const,
-      callId: toCallId(`spent-${String(index)}`),
-      reason: 'asked already',
-    }))
-
-    const outcome = await classify({
-      hook: armed(),
-      call: callTo({ name: 'bash', input: { command: REMOVAL } }),
-      events: stamped(spent),
-    })
-
-    expect(outcome.decision).toBe(EBeforeToolDecision.Allow)
-    expect(judgedIn(outcome).fatigued).toBe(true)
-    expect(judgedIn(outcome).wouldAsk).toBe(false)
   })
 
   it('refuses anyway when the judge cannot be reached and the signal is grave', async () => {

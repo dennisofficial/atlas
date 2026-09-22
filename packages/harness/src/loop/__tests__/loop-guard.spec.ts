@@ -6,7 +6,7 @@ import { EToolEffect, type ToolDefinition } from '@dltech/atlas-core'
 import { buildHarness, ETurnStatus, type AtlasHarness } from '..'
 import { HookChain } from '../../hooks/registry'
 import { scriptedModel, type ScriptedCall, type ScriptedStep } from '../../model/testing/scripted-model'
-import { EApprovalRouting, HookedToolDispatcher } from '../../tools/dispatch'
+import { HookedToolDispatcher } from '../../tools/dispatch'
 import { InMemoryToolRegistry } from '../../tools/registry'
 import { createTempDatabase, type TempDatabase } from './temp-database'
 
@@ -57,7 +57,6 @@ async function openGuarded(args: {
     model,
     tools: () => registry.declarations(),
     dispatch: new HookedToolDispatcher({
-      approvals: EApprovalRouting.Operator,
       registry,
       hooks: new HookChain({}),
     }),

@@ -169,13 +169,6 @@ calls by `callId` rather than by log adjacency; and with no tool declarations to
 unsafe and the loop settles sequentially exactly as it did before, which is what keeps every existing
 test honest.
 
-**A batch keeps the results of calls that ran before an approval earlier in the same batch.** Drafts
-are appended per call in ordinal order and the run is only then scanned for an `approval-requested`, so
-a pause on call 2 leaves calls 3 and 4 already settled. Nothing happened without approval: a batch holds
-only concurrency-safe calls, and the effect rule below means none of those can change the world. The
-shape that would be wrong — a write already applied behind an unapproved call — is unreachable, because
-a Write or Destructive call is always a batch of one.
-
 **There is no concurrency cap.** Admission is the safety predicate and nothing else, which is what
 Claude Code's streaming executor settled on after its legacy path capped at ten. A cap would only ever
 bite a step the model deliberately fanned out, and every call in a batch is read-only by construction.
@@ -684,24 +677,6 @@ the worse of the two. This is a standing decision to re-argue on its merits, not
 forgot to close.
 
 ### Not built yet, and the shape each will take
-
-**A child's approval has nowhere to go.** No hook returns `Ask` today, so nothing is broken in
-practice, but the design is settled and worth recording where the approval effort will find it: a
-child's request routes to the **parent agent**, as something the parent answers with a tool call,
-and never to a human overlay. There is no human in a child's loop.
-
-`EAgentStatus.Blocked` is the visible edge of that decision rather than a cosmetic status.
-`ETurnStatus.Paused` used to map to `Stopped`, which told the parent "was stopped after N turns" —
-the same sentence a deliberate stop produces, and the same wrong inference the attribution work
-above exists to prevent. It maps to `Blocked` now, and `agentEnding` renders it as blocked on an
-approval it cannot answer. The sidebar shows it as `blocked` with the amber attention glyph and
-deliberately not with `APPROVAL_MARK`: `?` is the vocabulary for approvals the *operator* answers,
-so spending it on a child would build exactly the second human-facing approval surface this
-decision forbids.
-
-What is still missing: the ending carries no `callId`, and `agent_resume` on a blocked child
-re-enters the turn and pauses again immediately. Resuming must answer the approval rather than
-retry it, which belongs with the approval effort.
 
 **A message's origin is written but never read.** `user-said` carries an optional
 `via: EMessageOrigin`, resolved through the single `saidBy` reader that defaults it to `Operator`,
@@ -1242,7 +1217,7 @@ one timer, scheduled at the earliest deadline rather than one timeout per notice
 **Two lifetimes, no third.** A notice either carries a TTL and fades, or is sticky (`ttlMs: null`)
 and stands until the condition that raised it clears the key — there is no manual-dismiss gesture,
 because a notice never owns the keyboard. Anything that needs a keypress is an overlay, not a
-notice: approvals, the exit guard and the switcher stay drawers, and the lost-children card stays
+notice: the exit guard and the switcher stay drawers, and the lost-children card stays
 a panel the notice only points at.
 
 **The stack floats above the composer**, anchored to the bottom of the transcript region rather
@@ -1317,7 +1292,7 @@ packages/core/src/
   budget/        resolveBudget: the fixpoint controller (pure: takes a rebuild function)
   compaction/    the watermark guard, the range plan, the summariser's transcript render
   hooks/         phase types and outcome types only — no container
-  policy/        BeforeTool severity resolution, the approval resolver, tool-call partitioning
+  policy/        BeforeTool severity resolution, tool-call partitioning
   tools/         ToolCall, ToolOutcome, EToolEffect, EContentAccess, definition types
   ports/         EventLogPort, ModelPort, WorkspacePort, CredentialPort, AccountStorePort,
                  ClockPort, IdPort, SettingsStorePort
@@ -1343,7 +1318,7 @@ packages/harness/src/
   agents/registry/  AgentRegistryPort, the supervisor, the roster, notices, the child runner
   shells/        background shell registry, process-group lifecycle, delta output buffers
   hooks/         hook implementations — claude-md injection, read-before-write,
-                 file-state recording, approval policy
+                 file-state recording
   settings/      SettingsStorePort backends: user and project files, in memory; the layer service
   workspace/     git snapshot and restore
   discovery/     glob at dev time, generated manifest for --compile

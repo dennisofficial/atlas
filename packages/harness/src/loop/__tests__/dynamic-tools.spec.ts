@@ -18,7 +18,6 @@ import { scriptedModel } from '../../model/testing/scripted-model'
 import { CompositeToolRegistry } from '../../tools/composite-registry'
 import { InMemoryToolRegistry } from '../../tools/registry'
 import {
-  EApprovalRouting,
   HookedToolDispatcher,
   ToolDispatcher,
   type DispatchableCall,
@@ -97,7 +96,6 @@ describe('a tool that joins while the turn is running', () => {
       assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY }),
       tools: () => registry.declarations(),
       dispatch: new HookedToolDispatcher({
-        approvals: EApprovalRouting.Operator,
         registry,
         hooks: new HookChain({}),
       }),
@@ -155,7 +153,6 @@ describe('a tool that joins while the turn is running', () => {
       assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY }),
       tools: () => registry.declarations(),
       dispatch: new HookedToolDispatcher({
-        approvals: EApprovalRouting.Operator,
         registry,
         hooks: new HookChain({}),
       }),

@@ -10,7 +10,7 @@ import { defaultPipeline, EMPTY_PROMPT, EToolEffect, toCallId, type ToolDefiniti
 import { buildHarness, ETurnStatus, LoopTurnRunner, TurnRunner, type AtlasHarness } from '..'
 import { scriptedModel, type ScriptedStep } from '../../model/testing/scripted-model'
 import { HookChain } from '../../hooks/registry'
-import { EApprovalRouting, HookedToolDispatcher, type ToolDispatcher } from '../../tools/dispatch'
+import { HookedToolDispatcher, type ToolDispatcher } from '../../tools/dispatch'
 import { InMemoryToolRegistry } from '../../tools/registry'
 import { FIXTURE_DOCTRINE, fixturePrompt } from './fixture-prompt'
 import { createTempDatabase, type TempDatabase } from './temp-database'
@@ -203,7 +203,7 @@ describe('a turn that settles its own tool call', () => {
       ids: harness.ids,
       assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY }),
       tools: () => registry.declarations(),
-      dispatch: new HookedToolDispatcher({ approvals: EApprovalRouting.Operator, registry, hooks: new HookChain({}) }),
+      dispatch: new HookedToolDispatcher({ registry, hooks: new HookChain({}) }),
     })
     const thread = await harness.threads.create({})
 
@@ -246,21 +246,6 @@ async function runnerDispatchingWith(dispatch: ToolDispatcher): Promise<{ runner
 }
 
 describe('a turn whose settlement does not finish', () => {
-  it('pauses on the call the settlement asked a human about', async () => {
-    const { runner, harness } = await runnerDispatchingWith({
-      dispatch: async ({ call }) => [
-        { type: 'approval-requested', callId: call.callId, reason: 'read needs a human' },
-      ],
-    })
-    const thread = await harness.threads.create({})
-
-    const outcome = await runner.say({ threadId: thread.id, text: 'read a.ts' })
-
-    expect(outcome.status).toBe(ETurnStatus.Paused)
-    expect(outcome.status === ETurnStatus.Paused ? outcome.reason : '').toBe('read needs a human')
-    expect(outcome.status === ETurnStatus.Paused ? outcome.callId : '').toBe(toCallId('call-1'))
-  })
-
   it('reports an interruption rather than spinning when the settlement was cut short', async () => {
     const controller = new AbortController()
     const { runner, harness } = await runnerDispatchingWith({

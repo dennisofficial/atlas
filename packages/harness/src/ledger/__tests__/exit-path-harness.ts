@@ -6,9 +6,7 @@ import { z } from 'zod'
 import {
   defaultPipeline,
   EMPTY_PROMPT,
-  EBeforeToolDecision,
   EFinishReason,
-  EStage,
   EToolEffect,
   toCallId,
   type ThreadId,
@@ -25,7 +23,7 @@ import { LoopTurnRunner, type TurnDeps } from '../../loop/run-turn'
 import { TurnRunner } from '../../loop/turn-runner.port'
 import { ModelStreamError } from '../../model/errors'
 import { openAtlasDatabase, PrismaThreadStore, PrismaEventLog, RandomIds, SystemClock } from '../../store'
-import { EApprovalRouting, HookedToolDispatcher } from '../../tools/dispatch'
+import { HookedToolDispatcher } from '../../tools/dispatch'
 import { InMemoryToolRegistry } from '../../tools/registry'
 import { PrismaTurnLedger } from '../prisma-turn-ledger'
 import type { TurnLedgerPort, TurnSpend } from '../turn-ledger.port'
@@ -46,7 +44,6 @@ export type ExitStep = {
 export enum EDispatchMode {
   None = 'none',
   Auto = 'auto',
-  Ask = 'ask',
 }
 
 export const fakeLedger = (args: { rejects?: boolean } = {}): TurnLedgerPort => {
@@ -107,16 +104,6 @@ const scriptedPort = (script: readonly ExitStep[]): { port: ModelPort; taken: ()
   }
 }
 
-const askEverything = new HookChain({
-  beforeTool: [
-    {
-      name: 'askEverything',
-      order: { stage: EStage.Policy, nudge: 50 },
-      run: async () => ({ decision: EBeforeToolDecision.Ask, reason: 'a human should look at this' }),
-    },
-  ],
-})
-
 export type ExitPathHarness = {
   runner: TurnRunner
   threadId: ThreadId
@@ -145,7 +132,7 @@ export async function openExitPathHarness(args: {
   const model = scriptedPort(args.script)
   const registry = new InMemoryToolRegistry([touchTool])
   const mode = args.dispatchMode ?? EDispatchMode.None
-  const hooks = mode === EDispatchMode.Ask ? askEverything : new HookChain({})
+  const hooks = new HookChain({})
 
   return {
     threadId: thread.id,
@@ -159,7 +146,7 @@ export async function openExitPathHarness(args: {
       assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY }),
       tools: () => registry.declarations(),
       hooks,
-      ...(mode === EDispatchMode.None ? {} : { dispatch: new HookedToolDispatcher({ approvals: EApprovalRouting.Operator, registry, hooks }) }),
+      ...(mode === EDispatchMode.None ? {} : { dispatch: new HookedToolDispatcher({ registry, hooks }) }),
       spend: { ledger, clock, onLedgerFailure: (error) => failures.push(error) },
     }),
     close: async () => {

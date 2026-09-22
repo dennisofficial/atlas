@@ -1,6 +1,6 @@
 import { homedir } from "node:os";
 
-import { EAgentStatus, ERiskDimension, toCallId } from "@dltech/atlas-core";
+import { EAgentStatus, ERiskDimension } from "@dltech/atlas-core";
 import { testRender } from "@opentui/react/test-utils";
 import { describe, expect, it } from "bun:test";
 import React, { act } from "react";
@@ -92,7 +92,6 @@ const FED: SidebarModel = {
     },
     costUsd: 1.42,
   },
-  approvals: [{ callId: toCallId("call-a"), reason: "runs a shell command" }],
   lastActivity: null,
   sections: [githubSection({ pullRequest: true, checks: true })],
   todo: TASKS,

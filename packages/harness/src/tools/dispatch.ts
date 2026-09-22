@@ -23,11 +23,8 @@ import {
 
 import { withinBudget, type OnHookMishap } from '../hooks/budget'
 import type { HookChain, RegisteredHook } from '../hooks/registry'
-import { EApprovalRouting, unattendedReason } from './approval-routing'
 import { outcomeWhenAHookDidNotAnswerInTime } from './hook-silence'
 import type { ToolRegistry } from './registry'
-
-export { EApprovalRouting }
 
 export type DispatchableCall = {
   callId: CallId
@@ -61,21 +58,18 @@ const MAX_REPORTED_ISSUES = 3
 export class HookedToolDispatcher extends ToolDispatcher {
   private readonly registry: ToolRegistry
   private readonly hooks: HookChain
-  private readonly approvals: EApprovalRouting
   private readonly workspace: WorkspacePort | undefined
   private readonly onMishap: OnHookMishap | undefined
 
   constructor(args: {
     registry: ToolRegistry
     hooks: HookChain
-    approvals: EApprovalRouting
     workspace?: WorkspacePort | undefined
     onMishap?: OnHookMishap | undefined
   }) {
     super()
     this.registry = args.registry
     this.hooks = args.hooks
-    this.approvals = args.approvals
     this.workspace = args.workspace
     this.onMishap = args.onMishap ?? args.hooks.bounds.onMishap
   }
@@ -114,22 +108,6 @@ export class HookedToolDispatcher extends ToolDispatcher {
         ...drafts,
         { type: 'tool-denied', callId: call.callId, name: call.name, reason: outcome.reason },
       ]
-    }
-
-    if (outcome.decision === EBeforeToolDecision.Ask) {
-      if (this.approvals === EApprovalRouting.None) {
-        return [
-          ...drafts,
-          {
-            type: 'tool-denied',
-            callId: call.callId,
-            name: call.name,
-            reason: unattendedReason({ reason: outcome.reason }),
-          },
-        ]
-      }
-
-      return [...drafts, { type: 'approval-requested', callId: call.callId, reason: outcome.reason }]
     }
 
     const allowed: ToolCall = { ...candidate, input: outcome.input }
