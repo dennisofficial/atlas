@@ -83,3 +83,7 @@ export const DockerEngineToken: InjectionToken<DockerEngine> = Symbol('atlas.Doc
 export const ClassifierPolicyToken: InjectionToken<() => ClassifierPolicy> = Symbol(
   'atlas.ClassifierPolicy',
 )
+
+export const SkillSuggestionEnabledToken: InjectionToken<() => boolean> = Symbol(
+  'atlas.SkillSuggestionEnabled',
+)

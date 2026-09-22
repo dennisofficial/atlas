@@ -10,12 +10,14 @@ import {
   backendOf,
   environmentFor,
   textValueOf,
+  toggleValueOf,
   type CredentialPort,
   type WorkspaceIdentity,
 } from '@dltech/atlas-core'
 
 import {
   ClassifierPolicyToken,
+  SkillSuggestionEnabledToken,
   WebSearchBackendToken,
   WorktreeDirectoryToken,
 } from '../container/tokens'
@@ -75,6 +77,16 @@ export async function bindSettingsPolicy(args: {
         environment,
         mode: defaulted && decisionsLive ? EClassifierMode.Nudge : chosen,
       }
+    },
+  })
+
+  container.register(SkillSuggestionEnabledToken, {
+    useValue: () => {
+      const resolution = settings.snapshot().resolution
+      return (
+        toggleValueOf({ resolution, id: ESettingId.SkillSuggest }) &&
+        textValueOf({ resolution, id: ESettingId.DecisionsUrl }).length > 0
+      )
     },
   })
 

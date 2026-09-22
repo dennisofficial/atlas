@@ -7,6 +7,7 @@ export type DecisionAnswer = {
   noul?: number | undefined
   choice?: string | undefined
   score?: number | undefined
+  probabilities?: Record<string, number> | undefined
 }
 
 export type DecisionOutcome =
