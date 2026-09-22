@@ -1,8 +1,8 @@
 import type { CanActivate, ExecutionContext } from '@nestjs/common'
 import { Injectable, UnauthorizedException } from '@nestjs/common'
 import type { Request } from 'express'
-import type { SandboxPrincipal } from '../../sandboxes/rows'
-import { SandboxesService } from '../../sandboxes/sandboxes.service'
+import type { SandboxPrincipal } from '../../platform/sandboxes/rows'
+import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 
 export type OrchestratorSandboxRequest = Request & { orchestratorSandbox?: SandboxPrincipal }
 

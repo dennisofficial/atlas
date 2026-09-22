@@ -7,7 +7,7 @@ vi.mock('../../../db', async () => {
 })
 
 import { fakeFactoryDb } from '../../../../test/fake-factory-db.js'
-import type { SandboxesService } from '../../sandboxes/sandboxes.service'
+import type { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import { EFactoryEventKind, EFactoryWorkItemStatus } from '../factory.types'
 import { FactoryIdentityService } from '../orchestrator/factory-identity'
 import type { OrchestratorService } from '../orchestrator/orchestrator.service'

@@ -7,7 +7,7 @@ vi.mock('../../../db', async () => {
 })
 
 import { fakeFactoryDb } from '../../../../test/fake-factory-db.js'
-import type { VercelSandboxClient } from '../../sandboxes/vercel-sandbox.client'
+import type { VercelSandboxClient } from '../../platform/sandboxes/vercel-sandbox.client'
 import { EFactoryWorkItemStatus } from '../factory.types'
 import { WorkItemsService } from '../work-items.service'
 import { FactoryDrivesService } from './drives.service'

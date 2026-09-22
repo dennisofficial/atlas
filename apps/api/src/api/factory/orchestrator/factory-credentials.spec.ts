@@ -9,7 +9,7 @@ vi.mock('../../../db', async () => {
 import { fakeFactoryDb, uniqueViolation } from '../../../../test/fake-factory-db.js'
 import type { EnvService } from '../../../_core/config/env/env.service'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { EAuthKind } from '../../accounts/accounts.types'
+import { EAuthKind } from '../../platform/accounts/accounts.types'
 import {
   FactoryCredentialsNotConfigured,
   FactoryCredentialService,

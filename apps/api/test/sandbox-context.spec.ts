@@ -5,11 +5,11 @@ import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AuthenticatedRequest } from '../src/_core/types/auth.types'
 import { SessionAuthGuard } from '../src/_module/session/session-auth.guard'
-import { contextArchiveRawParser } from '../src/api/context-archive/context-archive-http'
-import { SandboxContextController } from '../src/api/sandboxes/sandbox-context.controller'
-import { SandboxTokenGuard } from '../src/api/sandboxes/sandbox-token.guard'
-import { SandboxesController } from '../src/api/sandboxes/sandboxes.controller'
-import { SandboxesService } from '../src/api/sandboxes/sandboxes.service'
+import { contextArchiveRawParser } from '../src/api/cloud/context-archive/context-archive-http'
+import { SandboxContextController } from '../src/api/platform/sandboxes/sandbox-context.controller'
+import { SandboxTokenGuard } from '../src/api/platform/sandboxes/sandbox-token.guard'
+import { SandboxesController } from '../src/api/platform/sandboxes/sandboxes.controller'
+import { SandboxesService } from '../src/api/platform/sandboxes/sandboxes.service'
 
 vi.mock('../src/db', () => ({ db: {} }))
 
