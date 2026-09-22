@@ -8,7 +8,12 @@ import { ENoticeTone } from '@dltech/atlas-core'
 
 import { CloudError } from '../../cloud/cloud-transport'
 import { createHarnessContainer } from '../../container/create-harness-container'
-import { ClaudeCodeSourceToken } from '../../container/tokens'
+import { disposeAll } from '../../container/disposal'
+import {
+  ClaudeCodeSourceToken,
+  CloudSessionStoreToken,
+  SecretsStoreToken,
+} from '../../container/tokens'
 import { ClaudeCodeSource } from '../../credentials/claude-code-source'
 import { bindAccounts } from '../account-bindings'
 import { recordingNotices, type RecordedNotices } from './fakes'
@@ -53,6 +58,52 @@ describe('bindAccounts', () => {
     const posted = recorded.posts.find((post) => post.key === 'cloud:accounts')
     expect(posted?.tone).toBe(ENoticeTone.Warn)
     expect(posted?.text).toContain('Atlas Cloud accounts could not be reconciled')
+  })
+
+  it('rewarmSecrets stays local while signed out and re-fetches once a session exists', async () => {
+    const container = createHarnessContainer()
+    container.register(ClaudeCodeSourceToken, { useValue: failingClaudeCodeSource() })
+
+    const { rewarmSecrets } = await bindAccounts({
+      container,
+      env: {},
+      notice: recordingNotices().port,
+      cloudUrl: undefined,
+      clientVersion: 'account-bindings-spec',
+    })
+
+    const secrets = container.resolve(SecretsStoreToken)
+    const sessions = container.resolve(CloudSessionStoreToken)
+
+    const realFetch = globalThis.fetch
+    const fetches: string[] = []
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      fetches.push(String(input))
+      return new Response(
+        JSON.stringify({
+          secrets: [
+            { name: 'search.tavily', value: 'tvly-9', updatedAt: '2026-01-01T00:00:00.000Z' },
+          ],
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      )
+    }) as typeof fetch
+
+    try {
+      await rewarmSecrets()
+      expect(fetches).toHaveLength(0)
+
+      sessions.write({ url: 'http://cloud.test', token: 'sess_x', email: 'a@b.c' })
+      expect(secrets.read('search.tavily')).toBeUndefined()
+
+      await rewarmSecrets()
+
+      expect(secrets.read('search.tavily')).toBe('tvly-9')
+      expect(fetches).toEqual(['http://cloud.test/v1/secrets'])
+    } finally {
+      globalThis.fetch = realFetch
+      await disposeAll({ container })
+    }
   })
 
   it('rethrows a failure that is not a cloud outage', async () => {

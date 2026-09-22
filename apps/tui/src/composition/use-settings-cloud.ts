@@ -17,20 +17,26 @@ export type SettingsCloudControl = {
 export function useSettingsCloud(args: {
   cloud: CloudService
   openUrl: UrlOpener
+  onSignedIn?: () => void
 }): SettingsCloudControl {
-  const { cloud, openUrl } = args
+  const { cloud, openUrl, onSignedIn } = args
   const [session, setSession] = useState<{ email: string | null } | null>(null)
 
   const readSession = useCallback(() => {
     setSession(cloud.session())
   }, [cloud])
 
+  const handleSignedIn = useCallback(() => {
+    readSession()
+    onSignedIn?.()
+  }, [readSession, onSignedIn])
+
   const handleSignOut = useCallback(() => {
     cloud.logout()
     readSession()
   }, [cloud, readSession])
 
-  const login = useSettingsCloudLogin({ cloud, openUrl, onSignedIn: readSession })
+  const login = useSettingsCloudLogin({ cloud, openUrl, onSignedIn: handleSignedIn })
 
   const account = useAccountPage({
     cloud,

@@ -95,6 +95,7 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   executionPinned: boolean
   settings: SettingsService
   secrets: SecretsPort
+  rewarmSecrets: () => Promise<void>
   usage: AccountUsageService
   files: FileBrowser
   openUrl: UrlOpener

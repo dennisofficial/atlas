@@ -24,6 +24,7 @@ export type SecretPromptControl = {
   displayOf: (id: string) => Span | undefined
   open: (id: string) => boolean
   close: () => void
+  refresh: () => void
   handleKey: (key: KeyEvent, current: SecretPrompt) => void
 }
 
@@ -64,6 +65,8 @@ export function useSecretPrompt(args: {
   )
 
   const close = useCallback(() => setPrompt(null), [])
+
+  const refresh = useCallback(() => setReads((read) => read + 1), [])
 
   const commit = useCallback(
     (current: SecretPrompt) => {
@@ -123,7 +126,7 @@ export function useSecretPrompt(args: {
   const origin = secrets.origin()
 
   return useMemo(
-    () => ({ prompt, origin, displayOf, open, close, handleKey }),
-    [close, displayOf, handleKey, open, origin, prompt],
+    () => ({ prompt, origin, displayOf, open, close, refresh, handleKey }),
+    [close, displayOf, handleKey, open, origin, prompt, refresh],
   )
 }

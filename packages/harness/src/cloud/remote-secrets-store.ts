@@ -13,6 +13,10 @@ const asCloudError = (cause: unknown): CloudError =>
 export class RemoteSecretsStore implements SecretsPort {
   private readonly client: CloudClient
   private held = new Map<string, string>()
+  private touched = new Map<string, number>()
+  private failedWrites = new Set<string>()
+  private version = 0
+  private warming: Promise<void> | null = null
   private queue: Promise<CloudError | null> = Promise.resolve(null)
   private pending = 0
   private lastFailure: CloudError | null = null
@@ -26,8 +30,31 @@ export class RemoteSecretsStore implements SecretsPort {
   }
 
   async warm(): Promise<void> {
+    this.warming ??= this.warmOnce().finally(() => {
+      this.warming = null
+    })
+    return this.warming
+  }
+
+  private async warmOnce(): Promise<void> {
+    const startedAt = this.version
+    await this.queue
+
     const secrets = await this.client.listSecrets()
-    this.held = new Map(secrets.map((secret) => [secret.name, secret.value]))
+    const fresh = new Map(secrets.map((secret) => [secret.name, secret.value]))
+
+    for (const [name, at] of this.touched) {
+      const keepLocal = at > startedAt || this.failedWrites.has(name)
+      if (!keepLocal) {
+        this.touched.delete(name)
+        continue
+      }
+      const held = this.held.get(name)
+      if (held === undefined) fresh.delete(name)
+      else fresh.set(name, held)
+    }
+
+    this.held = fresh
   }
 
   origin(): string {
@@ -40,12 +67,14 @@ export class RemoteSecretsStore implements SecretsPort {
 
   write(args: { name: string; value: string }): void {
     this.held.set(args.name, args.value)
-    this.enqueue(() => this.client.putSecret(args))
+    this.touched.set(args.name, (this.version += 1))
+    this.enqueue(args.name, () => this.client.putSecret(args))
   }
 
   remove(name: string): void {
     this.held.delete(name)
-    this.enqueue(() => this.client.deleteSecret({ name }))
+    this.touched.set(name, (this.version += 1))
+    this.enqueue(name, () => this.client.deleteSecret({ name }))
   }
 
   settled(): Promise<void> {
@@ -54,15 +83,17 @@ export class RemoteSecretsStore implements SecretsPort {
     })
   }
 
-  private enqueue(task: () => Promise<void>): void {
+  private enqueue(name: string, task: () => Promise<void>): void {
     if (this.pending === 0) this.queue = Promise.resolve(null)
     this.pending += 1
     this.queue = this.queue.then(async (prior) => {
       let failure: CloudError | null = null
       try {
         await task()
+        this.failedWrites.delete(name)
       } catch (cause) {
         failure = asCloudError(cause)
+        this.failedWrites.add(name)
         this.lastFailure = failure
       }
       this.pending -= 1

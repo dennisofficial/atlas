@@ -148,7 +148,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   bindKeychainSource({ container, launchValue })
 
   const accountStore = container.resolve(portToken(AccountStorePort))
-  const { credentials, accounts, cloud, usage } = await bindAccounts({
+  const { credentials, accounts, cloud, usage, rewarmSecrets } = await bindAccounts({
     container,
     env: args.env,
     notice,
@@ -339,6 +339,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     summarise,
     settings,
     secrets,
+    rewarmSecrets,
     skills: skillRegistry.all(),
     skillRegistry,
     agentTypes,

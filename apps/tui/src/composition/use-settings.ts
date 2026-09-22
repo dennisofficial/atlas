@@ -96,6 +96,16 @@ export function useSettings(args: {
     setRefused(result.ok ? null : result.message)
   }, [])
 
+  const secret = useSecretPrompt({ secrets: app.secrets, resolution: held.resolution })
+  const text = useTextPrompt({ settings: app.settings, settle })
+
+  const rewarmSecrets = useCallback(() => {
+    void app
+      .rewarmSecrets()
+      .then(secret.refresh)
+      .catch(() => undefined)
+  }, [app, secret.refresh])
+
   const {
     session: cloudSession,
     login: cloudLogin,
@@ -103,12 +113,13 @@ export function useSettings(args: {
     readSession: readCloudSession,
     handleSignOut,
     handleOpenSignInUrl,
-  } = useSettingsCloud({ cloud: app.cloud, openUrl: app.openUrl })
+  } = useSettingsCloud({ cloud: app.cloud, openUrl: app.openUrl, onSignedIn: rewarmSecrets })
 
   const handleOpen = useCallback(() => {
     readCloudSession()
+    rewarmSecrets()
     setState(openSettings())
-  }, [readCloudSession])
+  }, [readCloudSession, rewarmSecrets])
 
   const handlePinModels = useCallback(
     (favourites: readonly string[]) => {
@@ -119,9 +130,6 @@ export function useSettings(args: {
     },
     [app.settings],
   )
-
-  const secret = useSecretPrompt({ secrets: app.secrets, resolution: held.resolution })
-  const text = useTextPrompt({ settings: app.settings, settle })
 
   const handleDismiss = useCallback(() => {
     setState(null)

@@ -1,7 +1,9 @@
 import { AccountStorePort, ClockPort, CredentialPort, ENoticeTone, ESettingId, NOTICE_WARN_MS, type NoticePort } from '@dltech/atlas-core'
 
 import { CloudService } from '../cloud/cloud-service'
+import { scheduleSecretsRewarm } from '../cloud/secrets-rewarm'
 import { SecretsStoreProxy } from '../cloud/secrets-store-proxy'
+import { registerDisposable } from '../container/disposal'
 import { portToken, type DependencyContainer } from '../container/injection'
 import {
   ClaudeCodeSourceToken,
@@ -57,6 +59,7 @@ export async function bindAccounts(args: {
   accounts: AccountsService
   cloud: CloudService
   usage: AccountUsageService
+  rewarmSecrets: () => Promise<void>
 }> {
   const { container, notice } = args
 
@@ -64,7 +67,11 @@ export async function bindAccounts(args: {
   const accountStore = container.resolve(portToken(AccountStorePort))
   const secrets = container.resolve(SecretsStoreToken)
 
+  let rewarmSecrets: () => Promise<void> = () => Promise.resolve()
+
   if (secrets instanceof SecretsStoreProxy) {
+    rewarmSecrets = () => secrets.warm()
+
     try {
       await secrets.warm()
     } catch (error) {
@@ -75,6 +82,14 @@ export async function bindAccounts(args: {
         text: `Atlas Cloud secrets could not be loaded (${error instanceof Error ? error.message : String(error)}) — cloud-backed keys stay unread until it comes back.`,
       })
     }
+
+    const stopRewarm = scheduleSecretsRewarm({ warm: rewarmSecrets })
+    registerDisposable({
+      container,
+      close: async () => {
+        stopRewarm()
+      },
+    })
   }
 
   const cloud = new CloudService({
@@ -109,5 +124,5 @@ export async function bindAccounts(args: {
   })
   const usage = createAccountUsageService({ usage: new AnthropicUsageClient({ credentials }) })
 
-  return { credentials, accounts, cloud, usage }
+  return { credentials, accounts, cloud, usage, rewarmSecrets }
 }
