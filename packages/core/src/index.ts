@@ -205,6 +205,7 @@ export * from './settings/registry'
 export * from './settings/agent-type-rows'
 
 export * from './version/semver'
+export * from './version/release-bump'
 
 export * from './secrets/mask'
 export * from './secrets/prompt'
