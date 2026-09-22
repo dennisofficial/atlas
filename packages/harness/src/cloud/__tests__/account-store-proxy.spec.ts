@@ -5,20 +5,15 @@ import { join } from 'node:path'
 
 import {
   EAccountOrigin,
-  EAccountStatus,
   EAuthKind,
   EAuthProvider,
-  toAccountId,
   type AccountSecret,
   type ClockPort,
 } from '@dltech/atlas-core'
 
 import { memoryAccountStore, type AccountStore } from '../../credentials/account-store'
-import { CredentialError, ECredentialFailure } from '../../credentials/credential-error'
-import { RefreshingCredentialPort } from '../../credentials/refreshing-credential-port'
 import { AccountStoreProxy } from '../account-store-proxy'
 import { CloudSessionStore } from '../cloud-session'
-import { CloudSignInRequiredError } from '../sign-in-required'
 
 const clock: ClockPort = { now: () => '2026-01-01T00:00:00.000Z' }
 
@@ -38,7 +33,6 @@ const accountBody = {
 let directory: string
 let sessions: CloudSessionStore
 let local: AccountStore
-let cloudRequired: boolean
 let proxy: AccountStoreProxy
 
 let fetchCalls: { url: string; authorization: string | null; clientVersion: string | null }[]
@@ -51,8 +45,7 @@ beforeEach(() => {
     keyFile: join(directory, 'key'),
   })
   local = memoryAccountStore({ clock })
-  cloudRequired = false
-  proxy = new AccountStoreProxy({ local, sessions, cloudRequired: () => cloudRequired })
+  proxy = new AccountStoreProxy({ local, sessions })
 
   fetchCalls = []
   globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
@@ -85,7 +78,7 @@ const addLocal = () =>
     origin: EAccountOrigin.Login,
   })
 
-describe('AccountStoreProxy with the cloud not required', () => {
+describe('AccountStoreProxy while signed out', () => {
   it('serves from the local store while no session exists', async () => {
     await addLocal()
 
@@ -103,94 +96,6 @@ describe('AccountStoreProxy with the cloud not required', () => {
 
     expect(fetchCalls).toHaveLength(1)
     expect(await local.list()).toHaveLength(1)
-  })
-})
-
-describe('AccountStoreProxy with the cloud required', () => {
-  beforeEach(() => {
-    cloudRequired = true
-  })
-
-  it('lists nothing and holds no active provider while signed out, so the boot gate can render', async () => {
-    expect(await proxy.list()).toEqual([])
-    expect(await proxy.activeFor(EAuthProvider.Anthropic)).toBeUndefined()
-
-    expect(await local.list()).toHaveLength(0)
-    expect(fetchCalls).toHaveLength(0)
-  })
-
-  it('throws CloudSignInRequiredError from reads and mutations while signed out', async () => {
-    const attempts: (() => unknown)[] = [
-      () => proxy.read(toAccountId('acc_1')),
-      () => addLocal(),
-      () => proxy.replaceSecret({ accountId: toAccountId('acc_1'), secret }),
-      () =>
-        proxy.setStatus({ accountId: toAccountId('acc_1'), status: EAccountStatus.Active }),
-      () => proxy.remove(toAccountId('acc_1')),
-      () =>
-        proxy.setActive({ provider: EAuthProvider.Anthropic, accountId: toAccountId('acc_1') }),
-    ]
-
-    for (const attempt of attempts) {
-      let failure: unknown
-      try {
-        attempt()
-      } catch (cause) {
-        failure = cause
-      }
-      expect(failure).toBeInstanceOf(CloudSignInRequiredError)
-      expect((failure as Error).message).toBe('sign in to Atlas Cloud first — /auth')
-    }
-
-    expect(await local.list()).toHaveLength(0)
-    expect(fetchCalls).toHaveLength(0)
-  })
-
-  it('serves from the cloud once a session exists', async () => {
-    signIn('sess_a')
-
-    const accounts = await proxy.list()
-
-    expect(accounts[0]?.label).toBe('remote')
-    expect(fetchCalls[0]?.url).toBe('http://cloud.test/v1/accounts')
-  })
-
-  it('flips live: local while off, empty while on and signed out, local again when flipped back', async () => {
-    cloudRequired = false
-    await addLocal()
-    expect(await proxy.list()).toHaveLength(1)
-
-    cloudRequired = true
-    expect(await proxy.list()).toEqual([])
-    expect(await proxy.activeFor(EAuthProvider.Anthropic)).toBeUndefined()
-
-    cloudRequired = false
-    expect(await proxy.list()).toHaveLength(1)
-  })
-})
-
-describe('the boot credential check over a signed-out required cloud', () => {
-  it('refuses as a diagnosable no-account instead of crashing the boot', async () => {
-    cloudRequired = true
-    const port = new RefreshingCredentialPort({
-      accounts: proxy,
-      clients: {
-        [EAuthProvider.Anthropic]: {
-          refresh: async () => {
-            throw new Error('no account means nothing to refresh')
-          },
-        },
-      },
-      clock,
-    })
-
-    const failure = await port.read().then(
-      () => undefined,
-      (thrown: unknown) => thrown,
-    )
-
-    expect(failure).toBeInstanceOf(CredentialError)
-    expect((failure as CredentialError).failure).toBe(ECredentialFailure.NotFound)
   })
 })
 
@@ -234,7 +139,6 @@ describe('AccountStoreProxy with a session', () => {
       local,
       sessions,
       clientVersion: '1.2.3',
-      cloudRequired: () => cloudRequired,
     })
     signIn('sess_a')
 

@@ -72,8 +72,6 @@ export const CloudSessionStoreToken: InjectionToken<CloudSessionStore> = Symbol(
 
 export const ClientVersionToken: InjectionToken<string> = Symbol('atlas.ClientVersion')
 
-export const CloudRequiredToken: InjectionToken<() => boolean> = Symbol('atlas.CloudRequired')
-
 export const LocalAccountStoreToken: InjectionToken<AccountStorePort> = Symbol(
   'atlas.LocalAccountStore',
 )

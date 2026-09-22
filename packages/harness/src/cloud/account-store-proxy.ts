@@ -14,19 +14,16 @@ import { CachingAccountStore } from './caching-account-store'
 import { cloudClientFor } from './cloud-client'
 import type { CloudSessionStore } from './cloud-session'
 import { RemoteAccountStore } from './remote-account-store'
-import { CloudSignInRequiredError } from './sign-in-required'
 
 /**
  * Signed in, the cloud is the store and stays the store: an outage surfaces as a failed call,
  * never as a quiet switch to the local vault. Signing in archives that vault, so there is
- * nothing behind it to serve — only the cloud.required-off escape hatch still reads it, and
- * only while signed out.
+ * nothing behind it to serve until signing out again; while signed out, the local vault serves.
  */
 export class AccountStoreProxy extends AccountStorePort {
   private readonly local: AccountStorePort
   private readonly sessions: CloudSessionStore
   private readonly clientVersion: string | undefined
-  private readonly cloudRequired: () => boolean
   private readonly clock: ClockPort | undefined
   private remote: { token: string; store: AccountStorePort } | undefined
 
@@ -34,19 +31,16 @@ export class AccountStoreProxy extends AccountStorePort {
     local: AccountStorePort
     sessions: CloudSessionStore
     clientVersion?: string
-    cloudRequired?: () => boolean
     clock?: ClockPort
   }) {
     super()
     this.local = args.local
     this.sessions = args.sessions
     this.clientVersion = args.clientVersion
-    this.cloudRequired = args.cloudRequired ?? (() => false)
     this.clock = args.clock
   }
 
   list(): Promise<readonly Account[]> {
-    if (this.signedOutOfRequiredCloud()) return Promise.resolve([])
     return this.current().list()
   }
 
@@ -75,20 +69,12 @@ export class AccountStoreProxy extends AccountStorePort {
   }
 
   activeFor(provider: EAuthProvider): Promise<AccountId | undefined> {
-    if (this.signedOutOfRequiredCloud()) return Promise.resolve(undefined)
     return this.current().activeFor(provider)
-  }
-
-  private signedOutOfRequiredCloud(): boolean {
-    return this.sessions.read() === null && this.cloudRequired()
   }
 
   private current(): AccountStorePort {
     const session = this.sessions.read()
-    if (session === null) {
-      if (this.cloudRequired()) throw new CloudSignInRequiredError()
-      return this.local
-    }
+    if (session === null) return this.local
 
     if (this.remote?.token !== session.token) {
       const remote = new RemoteAccountStore({

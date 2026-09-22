@@ -46,7 +46,6 @@ describe('bindAccounts', () => {
       container,
       env: {},
       notice: recorded.port,
-      cloudRequired: false,
       cloudUrl: undefined,
       clientVersion: 'account-bindings-spec',
     })
@@ -72,7 +71,6 @@ describe('bindAccounts', () => {
         container,
         env: {},
         notice: recordingNotices().port,
-        cloudRequired: false,
         cloudUrl: undefined,
         clientVersion: 'account-bindings-spec',
       }),

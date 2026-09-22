@@ -10,8 +10,7 @@ import type { CloudSessionStore } from './cloud-session'
 
 /**
  * Signed in, credentials come from the cloud broker — the only refresher. Signed out,
- * the local refreshing port handles the cloud.required-off escape hatch (and, with the
- * required flip on, its account reads refuse or list empty behind the sign-in gate).
+ * the local refreshing port serves credentials from the local vault.
  */
 export class CredentialPortProxy extends CredentialPort {
   private readonly local: RefreshingCredentialPort

@@ -15,7 +15,6 @@ import {
   NOTICE_WARN_MS,
   parseRef,
   textValueOf,
-  toggleValueOf,
   type NoticePort,
 } from '@dltech/atlas-core'
 
@@ -131,7 +130,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   const preThreadSessionKey = randomUUID()
   let activeThread: ActiveConversation | null = null
 
-  const cloudRequired = toggleValueOf({ resolution: settled, id: ESettingId.CloudRequired })
   const launchValue = (id: ESettingId): string | undefined => {
     const held = textValueOf({ resolution: settled, id })
     return held.length === 0 ? undefined : held
@@ -147,7 +145,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     container,
     env: args.env,
     notice,
-    cloudRequired,
     cloudUrl: launchValue(ESettingId.CloudUrl),
     clientVersion: args.clientVersion,
   })
@@ -368,7 +365,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
       journalResume({ active, command: launch.command, directory }),
     pluginProjections: plugins.projections,
     pluginSurfaces: asPluginSurfaces<TPluginSurface>(plugins.surfaces),
-    cloudRequired,
     model,
     modelPinned,
     models,

@@ -52,7 +52,6 @@ export enum ESettingId {
   DatabaseUrl = 'store.databaseUrl',
   KeychainService = 'credentials.keychainService',
   CloudUrl = 'cloud.url',
-  CloudRequired = 'cloud.required',
   AutoRestart = 'dev.autoRestart',
 }
 
@@ -645,17 +644,6 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     environmentVariable: 'ATLAS_CLOUD_URL',
     kind: ESettingKind.Text,
     fallback: 'https://api.byatlas.io',
-  },
-  {
-    id: ESettingId.CloudRequired,
-    page: ESettingPage.Hidden,
-    group: 'Cloud',
-    label: 'Cloud is the only store',
-    description:
-      'When on, Atlas Cloud is the only credential store and signing in is required — a signed-out Atlas refuses to read or write accounts, secrets, or the user MCP layer rather than touching the local vault. This is the shipped default. Turning it off is the escape hatch for developing the cloud API itself against a local apps/api, with the local vault active again.',
-    environmentVariable: 'ATLAS_CLOUD_REQUIRED',
-    kind: ESettingKind.Toggle,
-    fallback: true,
   },
   {
     id: ESettingId.KeychainService,

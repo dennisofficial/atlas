@@ -667,7 +667,6 @@ export function fakeApp(args: {
   pullRequests?: PullRequestPort | null
   open?: OpenRequest
   cloud?: CloudService
-  cloudRequired?: boolean
   models?: ModelCatalogue
   accountsSeed?: readonly AccountDraft[]
   containerLimits?: { cpus: number; memoryGb: number }
@@ -817,7 +816,6 @@ export function fakeApp(args: {
       ref: parseRef(FAKE_CONFIG.model ?? '') ?? DEFAULT_MODEL_REF,
       effort: EEffort.Medium,
     }),
-    cloudRequired: args.cloudRequired ?? false,
     modelPinned: false,
     models: args.models ?? fakeCatalogue(),
     executionLocation: createExecutionLocationState({ initial: EExecutionLocation.Host }),

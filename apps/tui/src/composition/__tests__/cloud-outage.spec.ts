@@ -1,4 +1,4 @@
-import { CloudError, CloudSignInRequiredError } from '@dltech/atlas-harness'
+import { CloudError } from '@dltech/atlas-harness'
 import { describe, expect, it } from 'bun:test'
 
 import { cloudOutageMessage, isCloudOutage } from '@dltech/atlas-harness'
@@ -18,10 +18,6 @@ describe('a cloud outage is a degradation, not a crash', () => {
     expect(
       isCloudOutage(new CloudError({ status: 0, message: 'could not be reached: ECONNREFUSED.' })),
     ).toBe(true)
-  })
-
-  it('points a signed-out operator at /auth', () => {
-    expect(cloudOutageMessage(new CloudSignInRequiredError())).toContain('/auth')
   })
 
   it('leaves anything that is not a cloud failure alone', () => {
