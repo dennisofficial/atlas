@@ -645,6 +645,7 @@ export type FakeApp = AtlasApp & {
   threads: FakeThreadStore
   ledger: FakeLedger
   readonly turnsDriven: number
+  readonly rewarms: number
   readonly titled: readonly string[]
   readonly openedUrls: readonly string[]
   readonly openedDirectories: readonly string[]
@@ -658,6 +659,7 @@ export function fakeApp(args: {
   settings?: SettingsDocument
   secrets?: Record<string, string>
   secretsPort?: SecretsPort
+  rewarm?: () => void
   names?: string | null
   summarises?: string | null
   summariseDelayMs?: number
@@ -698,6 +700,7 @@ export function fakeApp(args: {
   })
 
   let turnsDriven = 0
+  let rewarms = 0
   let marked: ActiveConversation | null = null
   let sandboxStops = 0
   let bashNotes = 0
@@ -736,6 +739,10 @@ export function fakeApp(args: {
 
     get turnsDriven() {
       return turnsDriven
+    },
+
+    get rewarms() {
+      return rewarms
     },
 
     get titled() {
@@ -840,6 +847,10 @@ export function fakeApp(args: {
       label: '~/.atlas/secrets.json',
       ...(args.secrets === undefined ? {} : { secrets: args.secrets }),
     }),
+    rewarmSecrets: async () => {
+      rewarms += 1
+      args.rewarm?.()
+    },
     close: async () => {},
     runner: {
       say: (call) => runner.say(call),

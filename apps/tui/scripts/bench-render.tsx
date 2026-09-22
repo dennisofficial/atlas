@@ -116,6 +116,7 @@ const benchApp = (args: {
       user: new MemorySettingsStore({ label: 'bench-settings' }),
     }),
     secrets: new MemorySecretsStore({ label: 'bench-secrets' }),
+    rewarmSecrets: async () => {},
     usage: createAccountUsageService({
       usage: new (class extends AccountUsagePort {
         async read(): Promise<AccountUsage | null> {
