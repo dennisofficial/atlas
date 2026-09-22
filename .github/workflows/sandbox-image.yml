@@ -95,8 +95,8 @@ jobs:
           cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
 
   retag:
-    # release-please tags tui releases as tui-vX.Y.Z (release-please-config.json,
-    # include-component-in-tag); those are the only releases this repo cuts.
+    # release-on-main (.github/workflows/release.yml) tags tui releases as tui-vX.Y.Z
+    # (apps/tui/scripts/release-version.ts); those are the only releases this repo cuts.
     if: github.event_name == 'release' && startsWith(github.event.release.tag_name, 'tui-v')
     runs-on: ubuntu-latest
     steps:
@@ -116,13 +116,22 @@ jobs:
           set -euo pipefail
           VERSION="${RELEASE_TAG#tui-v}"
           SHA_TAG="sha-$(echo "$RELEASE_SHA" | cut -c1-7)"
-          if docker buildx imagetools inspect "${IMAGE}:${SHA_TAG}" >/dev/null 2>&1; then
-            SOURCE_TAG="$SHA_TAG"
-          else
-            # A release-please merge commit touches only changelogs/manifests, so the
-            # path-scoped publish job never built a sha tag for it; latest is the most
-            # recent publish of the same context.
-            SOURCE_TAG="latest"
-          fi
-          docker buildx imagetools create -t "${IMAGE}:${VERSION}" "${IMAGE}:${SOURCE_TAG}"
-          echo "Tagged \`${IMAGE}:${VERSION}\` from \`${IMAGE}:${SOURCE_TAG}\`" >> "$GITHUB_STEP_SUMMARY"
+
+          # The release fires right after the push that triggered it, while this same
+          # commit's publish job may still be building its own sha tag; a stale latest
+          # fallback would retag the PREVIOUS commit's image under the new version, and
+          # released binaries pin their sandbox image to that version, so wrong here is
+          # load-bearing. Poll for the real tag instead of ever falling back to latest.
+          attempts=40
+          for ((i = 1; i <= attempts; i++)); do
+            if docker buildx imagetools inspect "${IMAGE}:${SHA_TAG}" >/dev/null 2>&1; then
+              docker buildx imagetools create -t "${IMAGE}:${VERSION}" "${IMAGE}:${SHA_TAG}"
+              echo "Tagged \`${IMAGE}:${VERSION}\` from \`${IMAGE}:${SHA_TAG}\`" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "waiting for ${IMAGE}:${SHA_TAG} to publish (attempt ${i}/${attempts})"
+            sleep 30
+          done
+
+          echo "::error::${IMAGE}:${SHA_TAG} never appeared after 20 minutes -- the publish job for this commit likely failed" >&2
+          exit 1
