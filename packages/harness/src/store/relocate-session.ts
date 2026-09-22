@@ -20,6 +20,7 @@ export async function relocateSession({
   threadId,
   from,
   location,
+  cwd,
   caller,
   log,
   ids,
@@ -29,6 +30,7 @@ export async function relocateSession({
   threadId: ThreadId
   from: EExecutionLocation
   location: EExecutionLocation
+  cwd?: string | undefined
   caller?: ThreadId | undefined
   log: EventLogPort
   ids: IdPort
@@ -38,7 +40,7 @@ export async function relocateSession({
   await log.append({
     threadId,
     runId: ids.nextRunId(),
-    drafts: [{ type: 'location-changed', from, to: location }],
+    drafts: [{ type: 'location-changed', from, to: location, ...(cwd === undefined ? {} : { cwd }) }],
   })
 
   const stoppedServices = services

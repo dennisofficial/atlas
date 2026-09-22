@@ -22,11 +22,11 @@ export type LiftedWorkspace = WorkspaceSpec
 export type CloudSandbox = WireSandbox
 
 /**
- * `contextPending` is widened locally ahead of the harness contract: `true` on a freshly created
- * sandbox that needs the context archive, `false` on one resumed from a snapshot that already has
- * it, `undefined` from a control plane too old to say either way (upload, conservatively).
+ * `contextPending`: `true` on a freshly created sandbox that needs the context archive, `false` on
+ * one resumed from a snapshot that already has it, `undefined` from a control plane too old to say
+ * either way (upload, conservatively).
  */
-export type CloudSandboxStatus = WireSandboxStatus & { contextPending?: boolean | undefined }
+export type CloudSandboxStatus = WireSandboxStatus
 
 export type CloudSandboxes = {
   create(args: { threadId: ThreadId; workspace: LiftedWorkspace | null }): Promise<CloudSandbox>

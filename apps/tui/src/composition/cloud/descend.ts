@@ -183,6 +183,7 @@ export async function descendFromCloud(args: {
     threadId,
     from: EExecutionLocation.Cloud,
     location: target,
+    ...(target === EExecutionLocation.Host ? { cwd: localApp.workspace.workspace } : {}),
     log: localApp.log,
     ids: localApp.ids,
     services: localApp.services,

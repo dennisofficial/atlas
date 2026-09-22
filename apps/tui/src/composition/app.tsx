@@ -163,6 +163,7 @@ import { useThreadRouter } from './use-thread-router'
 import type { CloudBridgeFactory, WorkspaceCapture } from './use-cloud-lift'
 import { useCloudLift } from './use-cloud-lift'
 import { captureWorkspace } from './cloud/workspace-snapshot'
+import type { CaptureContext } from './cloud/context-archive'
 import { useCloudSession } from './use-cloud-session'
 import type { LiftedAttachment, LiftedSession } from './lifted-session'
 import { clientVersionHeader } from '../build/info'
@@ -229,6 +230,7 @@ export function App(props: {
   onRestart?: () => void
   createBridge?: CloudBridgeFactory
   captureWorkspace?: WorkspaceCapture
+  captureContext?: CaptureContext
 }): React.ReactNode {
   const registry = useMemo(() => createKeyRegistry(), [])
   const [lifted, setLifted] = useState<LiftedSession | null>(null)
@@ -304,6 +306,7 @@ export function App(props: {
         cloudBridge={lifted?.bridge ?? null}
         createBridge={props.createBridge ?? liveBridge}
         captureWorkspace={props.captureWorkspace ?? captureWorkspace}
+        captureContext={props.captureContext}
         onLifted={handleLifted}
         onDescend={handleDescend}
         credentialNotice={props.credentialNotice ?? null}
@@ -327,6 +330,7 @@ function Workspace(props: {
   cloudBridge: CloudBridge | null
   createBridge: CloudBridgeFactory
   captureWorkspace: WorkspaceCapture
+  captureContext: CaptureContext | undefined
   onLifted: (attachment: LiftedAttachment) => void
   onDescend: (opened: OpenedConversation) => void
 }): React.ReactNode {
@@ -878,6 +882,7 @@ function Workspace(props: {
     setLocation: execution.handleSet,
     createBridge: props.createBridge,
     capture: props.captureWorkspace,
+    captureContext: props.captureContext,
     move: containerMove,
     onLifted: props.onLifted,
   })
