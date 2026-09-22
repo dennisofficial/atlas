@@ -12,6 +12,12 @@ afterEach(() => {
   process.env.ATLAS_API_ORIGIN = originalApiOrigin
 })
 
+describe('next.config', () => {
+  it('transpiles the atlas-ui workspace package', () => {
+    expect(nextConfig.transpilePackages).toEqual(['@dltech/atlas-ui'])
+  })
+})
+
 describe('next.config rewrites', () => {
   it('proxies /api to ATLAS_API_ORIGIN when set', async () => {
     process.env.ATLAS_API_ORIGIN = 'https://api.byatlas.io'
