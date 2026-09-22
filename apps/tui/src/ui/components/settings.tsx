@@ -1,4 +1,8 @@
-import { ESettingPage, type SecretPrompt as SecretPromptState } from '@dltech/atlas-core'
+import {
+  ESettingPage,
+  type SecretPrompt as SecretPromptState,
+  type TextPrompt as TextPromptState,
+} from '@dltech/atlas-core'
 import type { ScrollBoxRenderable } from '@opentui/core'
 import React, { useEffect, useRef } from 'react'
 
@@ -13,6 +17,7 @@ import { SettingsBand } from './settings/band'
 import { SettingsDetail } from './settings/detail'
 import { SettingsHead } from './settings/head'
 import { SecretPrompt } from './settings/secret-prompt'
+import { TextSettingPrompt } from './settings/text-prompt'
 import { SelectableSettingLine, SettingsGroupHeader, SettingsLine, SETTINGS_PAD } from './settings/rows'
 import { clipSpans } from './sidebar/cells'
 import { Spans, type Span } from './spans'
@@ -94,6 +99,7 @@ export function Settings(props: {
   origin: string
   appearance: Appearance
   prompt: SecretPromptState | null
+  textPrompt: TextPromptState | null
   secretOf: (id: string) => Span | undefined
   secretOrigin: string
   problem?: string | undefined
@@ -201,14 +207,16 @@ export function Settings(props: {
               ))}
             </box>
           </scrollbox>
-          {props.prompt === null ? (
+          {props.prompt !== null ? (
+            <SecretPrompt prompt={props.prompt} cells={cells} />
+          ) : props.textPrompt !== null ? (
+            <TextSettingPrompt prompt={props.textPrompt} cells={cells} />
+          ) : (
             <SettingsBand
               width={columnWidth}
               setting={selected}
               appearance={props.appearance}
             />
-          ) : (
-            <SecretPrompt prompt={props.prompt} cells={cells} />
           )}
           <FooterLine
             cells={cells}

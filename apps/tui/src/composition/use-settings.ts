@@ -3,6 +3,7 @@ import {
   formatFavourites,
   type EUsageWindow,
   type SecretPrompt,
+  type TextPrompt,
 } from '@dltech/atlas-core'
 import type { SettingsWrite } from '@dltech/atlas-harness'
 import type { KeyEvent } from '@opentui/core'
@@ -24,6 +25,7 @@ import { preferencesOf } from './settings-preferences'
 import { type AccountPageControl } from './use-account-page'
 import { useSecretPrompt } from './use-secret-prompt'
 import { useSettingsCloud } from './use-settings-cloud'
+import { useTextPrompt } from './use-text-prompt'
 import { useSettingsKeys } from './use-settings-keys'
 
 export type SettingsControl = {
@@ -31,6 +33,7 @@ export type SettingsControl = {
   appearance: Appearance
   state: SettingsState | null
   prompt: SecretPrompt | null
+  textPrompt: TextPrompt | null
   secretOf: (id: string) => Span | undefined
   secretOrigin: string
   origin: string
@@ -118,14 +121,16 @@ export function useSettings(args: {
   )
 
   const secret = useSecretPrompt({ secrets: app.secrets, resolution: held.resolution })
+  const text = useTextPrompt({ settings: app.settings, settle })
 
   const handleDismiss = useCallback(() => {
     setState(null)
     setRefused(null)
     secret.close()
+    text.close()
     cloudLogin.stop()
     account.purge.handleDismiss()
-  }, [account.purge, cloudLogin, secret])
+  }, [account.purge, cloudLogin, secret, text])
 
   const handleSelect = useCallback((target: SettingsState) => {
     setState(target)
@@ -138,6 +143,7 @@ export function useSettings(args: {
     select: setState,
     settle,
     secret,
+    text,
     account,
     login: cloudLogin,
     signedIn: cloudSession !== null,
@@ -155,6 +161,7 @@ export function useSettings(args: {
       appearance,
       state,
       prompt: secret.prompt,
+      textPrompt: text.prompt,
       secretOf: secret.displayOf,
       secretOrigin: secret.origin,
       origin,
@@ -191,6 +198,7 @@ export function useSettings(args: {
       problem,
       secret,
       state,
+      text,
       view,
     ],
   )

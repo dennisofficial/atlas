@@ -225,6 +225,7 @@ function DerivedOverlayStack(props: {
           origin={settings.origin}
           appearance={settings.appearance}
           prompt={settings.prompt}
+          textPrompt={settings.textPrompt}
           secretOf={settings.secretOf}
           secretOrigin={settings.secretOrigin}
           problem={settings.problem}
