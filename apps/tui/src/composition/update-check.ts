@@ -8,6 +8,13 @@ import {
 } from '@dltech/atlas-core'
 
 import { buildInfo, EBuildKind } from '../build/info'
+import {
+  EStageOutcome,
+  readStagedVersionMarker,
+  realSelfUpdatePorts,
+  stagedNotice,
+  stageUpdate,
+} from '../build/self-update'
 import { repoRootOf, sourceStateStamp } from '../build/stamp'
 import { ENoticeTone, notify } from '../ui/notice-store'
 
@@ -180,5 +187,34 @@ export async function checkForUpdate(): Promise<void> {
   const text = releaseNotice({ current: build.version, latest })
   if (text === null) return
 
+  const staged = await stageUpdate({
+    tag: latest.tag,
+    version: formatSemver(latest.version),
+    repo: build.releaseRepo,
+    execPath: process.execPath,
+    platform: process.platform,
+    arch: process.arch,
+    ports: realSelfUpdatePorts(),
+  })
+
+  if (staged.outcome === EStageOutcome.Staged || staged.outcome === EStageOutcome.AlreadyStaged) {
+    notify({
+      key: 'release-staged',
+      tone: ENoticeTone.Info,
+      sticky: true,
+      text: stagedNotice(staged.version),
+    })
+    return
+  }
+
   notify({ key: 'release-available', tone: ENoticeTone.Info, sticky: true, text })
+}
+
+export async function releaseStalenessProbe(): Promise<SourceStaleness | null> {
+  if (buildInfo().kind !== EBuildKind.Release) return null
+
+  return {
+    stale: async () => (await readStagedVersionMarker(process.execPath)) !== null,
+    check: async () => {},
+  }
 }

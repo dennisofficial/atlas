@@ -3,6 +3,7 @@ import { createRoot, type Root } from "@opentui/react";
 import { writeFileSync } from "node:fs";
 import React from "react";
 
+import { buildInfo } from "../build/info";
 import { appearanceOf, applyAppearance } from "../ui/appearance";
 import { BOOT_FAILURE_EXIT_CODE, bootFailureReport } from "./boot-failure";
 import { createBootProgress } from "./boot-progress";
@@ -12,6 +13,7 @@ import { classifyRequestOf } from "./classify";
 import { runClassify } from "./classify-run";
 import { resolveConfig } from "./config";
 import { ESession, openSession } from "./open-session";
+import { performRespawn, realRespawnPorts, wiresSelfRestart } from "./respawn";
 import { RESTART_EXIT_CODE, restartResumeHandle } from "./restart";
 import { launchLine, launchTitle, sessionIdentityLine } from "./session-identity";
 import { resumeHint, type ActiveConversation } from "@dltech/atlas-harness";
@@ -108,6 +110,7 @@ export async function bootAtlas(args: {
   renderer.once("destroy", stopSettling);
 
   const restartFile = args.env.ATLAS_DEV_RESTART_FILE;
+  const selfRestart = restartFile === undefined && wiresSelfRestart(buildInfo().kind);
   let restartRequested = false;
 
   let activeThread: () => ActiveConversation | null = () => null;
@@ -131,7 +134,7 @@ export async function bootAtlas(args: {
           takeDown({ root, renderer });
           process.exit(ABANDONED);
         }}
-        {...(restartFile === undefined
+        {...(restartFile === undefined && !selfRestart
           ? {}
           : {
               onRestart: () => {
@@ -171,6 +174,16 @@ export async function bootAtlas(args: {
       if (restartRequested && restartFile !== undefined) {
         writeFileSync(restartFile, restartResumeHandle({ active }) ?? "");
         process.exit(RESTART_EXIT_CODE);
+      }
+
+      if (restartRequested && selfRestart) {
+        performRespawn({
+          execPath: process.execPath,
+          cwd: config.cwd,
+          resumeHandle: restartResumeHandle({ active }),
+          ports: realRespawnPorts(process.execPath),
+        });
+        return;
       }
 
       const hint = resumeHint({ active, command: args.command });

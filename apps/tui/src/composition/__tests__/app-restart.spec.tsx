@@ -65,7 +65,7 @@ describe('/restart', () => {
       await settle(60)
       await setup.flush()
 
-      expect(setup.captureCharFrame()).toContain('rebuild from source and restart')
+      expect(setup.captureCharFrame()).toContain('restart atlas, resuming this conversation')
     } finally {
       await teardown(setup)
     }
