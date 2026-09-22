@@ -1,13 +1,13 @@
 import 'reflect-metadata'
 import { describe, expect, it } from 'vitest'
 import { CLIENT_READ_LIMIT_PER_MINUTE } from './client-rate-limit'
-import { SandboxHeartbeatController } from './sandboxes/heartbeat.controller'
-import { SandboxesController } from './sandboxes/sandboxes.controller'
-import { ServeBinaryController } from './sandboxes/serve-binary.controller'
-import { SandboxWorkspaceController } from './sandboxes/workspace.controller'
-import { EventsController } from './sessions/events.controller'
-import { ThreadsController } from './sessions/threads.controller'
-import { TurnsController } from './sessions/turns.controller'
+import { SandboxHeartbeatController } from './platform/sandboxes/heartbeat.controller'
+import { SandboxesController } from './platform/sandboxes/sandboxes.controller'
+import { ServeBinaryController } from './platform/sandboxes/serve-binary.controller'
+import { SandboxWorkspaceController } from './platform/sandboxes/workspace.controller'
+import { EventsController } from './platform/sessions/events.controller'
+import { ThreadsController } from './platform/sessions/threads.controller'
+import { TurnsController } from './platform/sessions/turns.controller'
 
 const readRoutes = [EventsController, ThreadsController, TurnsController, SandboxesController]
 

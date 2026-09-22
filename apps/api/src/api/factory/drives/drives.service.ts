@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { db } from '../../../db'
-import { VercelSandboxClient } from '../../sandboxes/vercel-sandbox.client'
+import { VercelSandboxClient } from '../../platform/sandboxes/vercel-sandbox.client'
 import { EFactoryAliasKind, EFactoryWorkItemStatus, type WorkItemDto } from '../factory.types'
 import { WorkItemsService } from '../work-items.service'
 import { driveNameFor, fallbackDriveNameFor, issueNumberOf } from './drive-names'

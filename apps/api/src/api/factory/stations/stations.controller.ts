@@ -1,6 +1,6 @@
 import { Body, Controller, Param, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common'
 import { SkipThrottle } from '@nestjs/throttler'
-import type { SandboxPrincipal } from '../../sandboxes/rows'
+import type { SandboxPrincipal } from '../../platform/sandboxes/rows'
 import {
   OrchestratorSandboxGuard,
   type OrchestratorSandboxRequest,

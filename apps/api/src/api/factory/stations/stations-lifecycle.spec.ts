@@ -7,8 +7,8 @@ vi.mock('../../../db', async () => {
 })
 
 import { fakeFactoryDb } from '../../../../test/fake-factory-db.js'
-import type { SandboxesService } from '../../sandboxes/sandboxes.service'
-import type { ThreadsService } from '../../sessions/threads.service'
+import type { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
+import type { ThreadsService } from '../../platform/sessions/threads.service'
 import type { FactoryDrivesService } from '../drives/drives.service'
 import type { FactoryCredentialService } from '../orchestrator/factory-credentials'
 import { FactoryIdentityService } from '../orchestrator/factory-identity'

@@ -7,8 +7,8 @@ import { EnvService } from '../src/_core/config/env/env.service'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
 import type { AuthenticatedRequest } from '../src/_core/types/auth.types'
 import { SessionAuthGuard } from '../src/_module/session/session-auth.guard'
-import { McpServersController } from '../src/api/mcp-servers/mcp-servers.controller'
-import { McpServersService } from '../src/api/mcp-servers/mcp-servers.service'
+import { McpServersController } from '../src/api/cloud/mcp-servers/mcp-servers.controller'
+import { McpServersService } from '../src/api/cloud/mcp-servers/mcp-servers.service'
 
 vi.mock('../src/db', () => ({ db: {} }))
 

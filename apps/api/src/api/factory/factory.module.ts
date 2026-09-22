@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common'
 import { EnvService } from '../../_core/config/env/env.service'
-import { SessionsModule } from '../sessions/sessions.module'
+import { SessionsModule } from '../platform/sessions/sessions.module'
 import { FactoryDeliveriesController } from './delivery/deliveries.controller'
 import { DeliveriesService } from './delivery/deliveries.service'
 import { FactoryDriveSweeperService } from './drives/drive-sweeper.service'
