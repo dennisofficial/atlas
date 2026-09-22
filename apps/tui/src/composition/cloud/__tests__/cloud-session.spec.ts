@@ -17,6 +17,7 @@ const sessionOn = (args: { status?: CloudSandboxStatus | undefined } = {}) => {
       create: async () => ({ url: '', token: '', state: ECloudSandboxState.Running }),
       putContext: async () => undefined,
       find: async () => args.status,
+      destroy: async () => undefined,
     },
     onReload: (reload) => reloads.push(reload),
   })

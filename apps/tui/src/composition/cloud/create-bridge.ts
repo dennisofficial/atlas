@@ -1,5 +1,6 @@
 import type { ThreadId } from '@dltech/atlas-core'
 import {
+  cloudRequest,
   createRemoteDeltaChannel,
   ECloudSandboxState,
   RemoteEventLog,
@@ -48,6 +49,14 @@ export function createCloudBridge(args: {
       sandboxes.createSandbox({ threadId, ...(workspace === null ? {} : { workspace }) }),
     putContext: ({ threadId, archive }) => sandboxes.putContextArchive({ threadId, archive }),
     find: ({ threadId }) => sandboxes.findSandbox({ threadId }),
+    // Goes over the shared transport directly rather than through SandboxClient, which does not
+    // yet carry a destroySandbox method — this can move onto it once it does.
+    destroy: ({ threadId }) =>
+      cloudRequest({
+        ...shared,
+        method: 'POST',
+        path: `/v1/sandboxes/${threadId}/destroy`,
+      }).then(() => undefined),
   }
 
   return {

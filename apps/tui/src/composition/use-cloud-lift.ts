@@ -62,31 +62,28 @@ export function useCloudLift(args: {
 
     void mergeRemoteMemoryBounded({ session: signedIn, cwd: latest.current.projectDirectory })
 
-    void captureContextArchive({ cwd: latest.current.projectDirectory })
-      .then((contextArchive) =>
-        liftToCloud({
-          threadId,
-          cwd: latest.current.projectDirectory,
-          started: latest.current.started,
-          midTurn,
-          interrupt: latest.current.handleInterrupt,
-          whenSettled: latest.current.whenSettled,
-          identity: app.workspace,
-          title: null,
-          model: storedModel(app.model.choice()),
-          bridge,
-          localThreads: app.threads,
-          localLog: app.log,
-          agents: app.agents,
-          ids: app.ids,
-          setLocation: latest.current.setLocation,
-          stopLocal: async () =>
-            stopLocalWork({ threadId, shells: app.shells, services: app.services }),
-          capture: latest.current.capture,
-          onProgress: (step) => move.handleAdvance(step),
-          contextArchive,
-        }),
-      )
+    void liftToCloud({
+      threadId,
+      cwd: latest.current.projectDirectory,
+      started: latest.current.started,
+      midTurn,
+      interrupt: latest.current.handleInterrupt,
+      whenSettled: latest.current.whenSettled,
+      identity: app.workspace,
+      title: null,
+      model: storedModel(app.model.choice()),
+      bridge,
+      localThreads: app.threads,
+      localLog: app.log,
+      agents: app.agents,
+      ids: app.ids,
+      setLocation: latest.current.setLocation,
+      stopLocal: async () =>
+        stopLocalWork({ threadId, shells: app.shells, services: app.services }),
+      capture: latest.current.capture,
+      onProgress: (step) => move.handleAdvance(step),
+      captureContext: () => captureContextArchive({ cwd: latest.current.projectDirectory }),
+    })
       .then(async (lifted) => {
         if (!lifted.ok) {
           const reason = liftFailedNotice(lifted)

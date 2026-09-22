@@ -1,4 +1,5 @@
 import {
+  CLOUD_WORKSPACE_PATH,
   EExecutionLocation,
   type Event,
   type EventLogPort,
@@ -91,6 +92,7 @@ export async function flipChildrenToCloud(args: FlipArgs): Promise<void> {
             type: 'location-changed',
             from: froms.get(child.agentId) ?? EExecutionLocation.Host,
             to: EExecutionLocation.Cloud,
+            cwd: CLOUD_WORKSPACE_PATH,
           },
         ],
       })

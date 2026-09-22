@@ -10,14 +10,18 @@ import {
 
 import type { AtlasApp } from '../compose'
 import { EOpenMode } from '../config'
+import { messageOf } from '../error-text'
 import { openConversation, type OpenedConversation } from '../open-conversation'
 import { ELocalMoveStep } from '../container-move'
 import type { ContainerMoveControl } from '../use-container-move'
+import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
 import type { CloudBridge, CloudChannel } from './cloud-bridge'
 import { draftsOf } from './event-drafts'
 import { ELiftStep } from './lift'
 import { flipChildrenBack } from './lift-children'
 import { descendedConflictsDraft } from './transition-notice'
+
+const DESCEND_DESTROY_NOTICE_KEY = 'descend-sandbox-destroy-failed'
 
 const INTERRUPT_DEADLINE_MS = 30_000
 
@@ -203,6 +207,15 @@ export async function descendFromCloud(args: {
     open: { mode: EOpenMode.Resume, threadId },
   })
   if (!opened.ok) throw new Error(opened.reason)
+
+  await bridge.sandboxes.destroy({ threadId }).catch((error: unknown) => {
+    notify({
+      key: DESCEND_DESTROY_NOTICE_KEY,
+      text: `this conversation is home, but its cloud sandbox could not be torn down — ${messageOf(error)}`,
+      tone: ENoticeTone.Warn,
+      ttlMs: NOTICE_WARN_MS,
+    })
+  })
 
   return args.midTurn ? { ...opened.conversation, resumeOnArrival: true } : opened.conversation
 }

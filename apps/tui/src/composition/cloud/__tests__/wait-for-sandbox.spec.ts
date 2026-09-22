@@ -37,15 +37,42 @@ describe('waiting for a sandbox to come up', () => {
           finds.push(1)
           return { state: ECloudSandboxState.Running, url: 'https://sandbox.example/thread' }
         },
+        destroy: async () => undefined,
       },
       threadId: THREAD_ID,
       sleep: time.sleep,
       now: time.now,
     })
 
-    expect(found).toEqual({ url: 'https://sandbox.example/thread' })
+    expect(found).toEqual({ url: 'https://sandbox.example/thread', contextPending: undefined })
     expect(finds).toHaveLength(1)
     expect(time.sleeps).toEqual([])
+  })
+
+  it('carries contextPending through from the status that answered', async () => {
+    const time = clock()
+
+    const found = await waitForSandbox({
+      sandboxes: {
+        create: async () => {
+          throw new Error('unused')
+        },
+        putContext: async () => {
+          throw new Error('unused')
+        },
+        find: async () => ({
+          state: ECloudSandboxState.Running,
+          url: 'https://sandbox.example/thread',
+          contextPending: false,
+        }),
+        destroy: async () => undefined,
+      },
+      threadId: THREAD_ID,
+      sleep: time.sleep,
+      now: time.now,
+    })
+
+    expect(found).toEqual({ url: 'https://sandbox.example/thread', contextPending: false })
   })
 
   it('keeps polling while the sandbox is still resuming, then returns the url once running', async () => {
@@ -65,6 +92,7 @@ describe('waiting for a sandbox to come up', () => {
           throw new Error('unused')
         },
         find: async () => statuses.shift(),
+        destroy: async () => undefined,
       },
       threadId: THREAD_ID,
       intervalMs: 2000,
@@ -72,7 +100,7 @@ describe('waiting for a sandbox to come up', () => {
       now: time.now,
     })
 
-    expect(found).toEqual({ url: 'https://sandbox.example/thread' })
+    expect(found).toEqual({ url: 'https://sandbox.example/thread', contextPending: undefined })
     expect(time.sleeps).toEqual([2000, 2000])
   })
 
@@ -92,13 +120,14 @@ describe('waiting for a sandbox to come up', () => {
           throw new Error('unused')
         },
         find: async () => statuses.shift(),
+        destroy: async () => undefined,
       },
       threadId: THREAD_ID,
       sleep: time.sleep,
       now: time.now,
     })
 
-    expect(found).toEqual({ url: 'https://sandbox.example/thread' })
+    expect(found).toEqual({ url: 'https://sandbox.example/thread', contextPending: undefined })
   })
 
   it('throws when the control plane has never heard of the sandbox', async () => {
@@ -114,6 +143,7 @@ describe('waiting for a sandbox to come up', () => {
             throw new Error('unused')
           },
           find: async () => undefined,
+          destroy: async () => undefined,
         },
         threadId: THREAD_ID,
         sleep: time.sleep,
@@ -135,6 +165,7 @@ describe('waiting for a sandbox to come up', () => {
             throw new Error('unused')
           },
           find: async () => ({ state: ECloudSandboxState.Resuming }),
+          destroy: async () => undefined,
         },
         threadId: THREAD_ID,
         timeoutMs: 5000,
@@ -160,13 +191,14 @@ describe('waiting for a sandbox to come up', () => {
           if (polls <= 2) throw new Error('502 Bad Gateway')
           return { state: ECloudSandboxState.Running, url: 'https://sandbox.example/thread' }
         },
+        destroy: async () => undefined,
       },
       threadId: THREAD_ID,
       sleep: time.sleep,
       now: time.now,
     })
 
-    expect(found).toEqual({ url: 'https://sandbox.example/thread' })
+    expect(found).toEqual({ url: 'https://sandbox.example/thread', contextPending: undefined })
     expect(time.sleeps).toEqual([2000, 2000])
   })
 
@@ -183,6 +215,7 @@ describe('waiting for a sandbox to come up', () => {
           find: async () => {
             throw new Error('provision blew up')
           },
+          destroy: async () => undefined,
         },
         threadId: THREAD_ID,
         errorBudgetMs: 5000,
@@ -213,6 +246,7 @@ describe('waiting for a sandbox to come up', () => {
           if (answer instanceof Error) throw answer
           return answer
         },
+        destroy: async () => undefined,
       },
       threadId: THREAD_ID,
       errorBudgetMs: 1000,
@@ -221,6 +255,6 @@ describe('waiting for a sandbox to come up', () => {
       now: time.now,
     })
 
-    expect(found).toEqual({ url: 'https://sandbox.example/thread' })
+    expect(found).toEqual({ url: 'https://sandbox.example/thread', contextPending: undefined })
   })
 })

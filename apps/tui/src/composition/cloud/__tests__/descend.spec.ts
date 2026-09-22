@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'bun:test'
+import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation, toRunId } from '@dltech/atlas-core'
 import { ETurnStatus } from '@dltech/atlas-harness'
 
+import { currentNotices, dismissNotice, ENoticeTone } from '../../../ui/notice-store'
 import { ELocalMoveStep } from '../../container-move'
 import { ELiftStep } from '../lift'
 import {
@@ -14,6 +15,10 @@ import {
   seedCloud,
 } from './descend-fixture'
 import { CLOUD_THREAD, fakeBridge } from './fixture'
+
+beforeEach(() => {
+  dismissNotice()
+})
 
 describe('bringing a cloud conversation home', () => {
   it('rebuilds the local log from the cloud and flips both stores', async () => {
@@ -156,5 +161,42 @@ describe('bringing a cloud conversation home', () => {
     expect(
       (await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation,
     ).toBe(EExecutionLocation.Cloud)
+  })
+
+  it('destroys the cloud sandbox once the conversation is safely back on the host', async () => {
+    const bridge = fakeBridge()
+    await seedCloud(bridge, ['one'])
+    const home = localHome({ events: [said({ seq: 1, text: 'one' })] })
+
+    await descend({ bridge, home })
+
+    expect(bridge.destroyed).toEqual([CLOUD_THREAD])
+  })
+
+  it('never destroys the sandbox when the descent fails', async () => {
+    const bridge = fakeBridge()
+    await seedCloud(bridge, ['one'])
+    const home = localHome({ events: [said({ seq: 1, text: 'one' })] })
+
+    await expect(
+      descend({ bridge, home, midTurn: true, interruptDeadlineMs: 20 }),
+    ).rejects.toThrow('would not stop in time')
+
+    expect(bridge.destroyed).toEqual([])
+  })
+
+  it('warns rather than failing the descend when the sandbox will not tear down', async () => {
+    const bridge = fakeBridge({ destroyFails: new Error('the control plane fell over') })
+    await seedCloud(bridge, ['one'])
+    const home = localHome({ events: [said({ seq: 1, text: 'one' })] })
+
+    const opened = await descend({ bridge, home })
+
+    expect(opened.threadId).toBe(CLOUD_THREAD)
+    expect(bridge.destroyed).toEqual([CLOUD_THREAD])
+    const notice = currentNotices().find((entry) => entry.key === 'descend-sandbox-destroy-failed')
+    expect(notice).toBeDefined()
+    expect(notice?.tone).toBe(ENoticeTone.Warn)
+    expect(notice?.text).toContain('the control plane fell over')
   })
 })

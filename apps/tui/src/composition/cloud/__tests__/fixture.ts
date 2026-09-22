@@ -236,6 +236,7 @@ export type FakeBridge = CloudBridge & {
   readonly created: readonly { threadId: ThreadId; workspace: LiftedWorkspace | null }[]
   readonly contextPuts: readonly { threadId: ThreadId; archive: Buffer }[]
   readonly attached: readonly { threadId: ThreadId; url: string; token: string }[]
+  readonly destroyed: readonly ThreadId[]
   readonly channel: FakeCloudChannel
   readonly trail: readonly string[]
 }
@@ -251,6 +252,7 @@ export function fakeBridge(
     sandbox?: CloudSandbox
     createFails?: unknown
     putContextFails?: unknown
+    destroyFails?: unknown
     status?: CloudSandboxStatus | undefined
     threadStore?: FakeThreadStore
   } = {},
@@ -262,6 +264,7 @@ export function fakeBridge(
   const created: { threadId: ThreadId; workspace: LiftedWorkspace | null }[] = []
   const contextPuts: { threadId: ThreadId; archive: Buffer }[] = []
   const attached: { threadId: ThreadId; url: string; token: string }[] = []
+  const destroyed: ThreadId[] = []
   const trail: string[] = []
 
   const watchedThreads = new WatchedThreadStore({ inner: threads, trail })
@@ -273,6 +276,7 @@ export function fakeBridge(
     created,
     contextPuts,
     attached,
+    destroyed,
     get channel() {
       if (channel === null) throw new Error('nothing has attached yet')
       return channel
@@ -292,6 +296,11 @@ export function fakeBridge(
         if (args.putContextFails !== undefined) throw args.putContextFails
       },
       find: async () => args.status,
+      destroy: async ({ threadId }) => {
+        trail.push('destroy')
+        destroyed.push(threadId)
+        if (args.destroyFails !== undefined) throw args.destroyFails
+      },
     },
     attach: ({ threadId, url, token }) => {
       trail.push('attach')

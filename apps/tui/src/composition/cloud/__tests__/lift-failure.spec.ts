@@ -55,7 +55,7 @@ describe('a lift that does not finish', () => {
     const bridge = fakeBridge({
       putContextFails: new CloudError({ status: 500, message: 'the control plane fell over' }),
     })
-    const test = harness({ bridge, contextArchive: Buffer.from('a fake tar.gz') })
+    const test = harness({ bridge, captureContext: async () => Buffer.from('a fake tar.gz') })
 
     const lifted = await liftToCloud(test.args)
 

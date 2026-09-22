@@ -26,7 +26,7 @@ export async function waitForSandbox(args: {
   errorBudgetMs?: number | undefined
   sleep?: ((ms: number) => Promise<void>) | undefined
   now?: (() => number) | undefined
-}): Promise<{ url: string }> {
+}): Promise<{ url: string; contextPending: boolean | undefined }> {
   const timeoutMs = args.timeoutMs ?? DEFAULT_TIMEOUT_MS
   const intervalMs = args.intervalMs ?? DEFAULT_INTERVAL_MS
   const errorBudgetMs = args.errorBudgetMs ?? DEFAULT_ERROR_BUDGET_MS
@@ -58,7 +58,7 @@ export async function waitForSandbox(args: {
       throw new Error(`the sandbox for ${args.threadId} failed to start`)
     }
     if (status.state === ECloudSandboxState.Running && status.url !== undefined) {
-      return { url: status.url }
+      return { url: status.url, contextPending: status.contextPending }
     }
     if (now() >= deadline) {
       throw new Error(`timed out waiting for the sandbox for ${args.threadId} to start`)

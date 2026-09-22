@@ -1,4 +1,5 @@
 import {
+  CLOUD_WORKSPACE_PATH,
   EExecutionLocation,
   EKilledBy,
   type Event,
@@ -10,6 +11,7 @@ import {
 import { CloudError, type ThreadModel, type ThreadStorePort } from '@dltech/atlas-harness'
 
 import type { CloudBridge, CloudChannel, CloudSandbox, LiftedWorkspace } from './cloud-bridge'
+import { captureContextArchive, type CaptureContext } from './context-archive'
 import { draftsOf } from './event-drafts'
 import {
   flipChildrenBack,
@@ -81,8 +83,8 @@ export type LiftArgs = {
   setLocation: (location: EExecutionLocation) => void
   stopLocal: () => Promise<StoppedLocally>
   capture: (args: { cwd: string }) => Promise<LiftedWorkspace | null>
-  /** The operator's user-level context, captured by the caller so a spec never touches the disk. */
-  contextArchive?: Buffer | undefined
+  /** Deferred so a sandbox that resumed from a snapshot skips the (expensive) skills tar. */
+  captureContext?: CaptureContext | undefined
   onProgress: (step: ELiftStep) => void
 }
 
@@ -300,9 +302,17 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
   onProgress(ELiftStep.Starting)
   let sandbox: CloudSandbox
   let url: string
+  let contextPending: boolean | undefined
   try {
     sandbox = await args.bridge.sandboxes.create({ threadId, workspace })
-    url = sandbox.url ?? (await waitForSandbox({ sandboxes: args.bridge.sandboxes, threadId })).url
+    if (sandbox.url !== undefined) {
+      url = sandbox.url
+      contextPending = (await args.bridge.sandboxes.find({ threadId }))?.contextPending
+    } else {
+      const ready = await waitForSandbox({ sandboxes: args.bridge.sandboxes, threadId })
+      url = ready.url
+      contextPending = ready.contextPending
+    }
   } catch (error) {
     await flipBack({ ...args, from })
     await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })
@@ -310,9 +320,12 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
   }
 
   onProgress(ELiftStep.UploadingContext)
-  if (args.contextArchive !== undefined) {
+  if (contextPending !== false) {
     try {
-      await args.bridge.sandboxes.putContext({ threadId, archive: args.contextArchive })
+      const contextArchive = await (args.captureContext ?? captureContextArchive)()
+      if (contextArchive !== undefined) {
+        await args.bridge.sandboxes.putContext({ threadId, archive: contextArchive })
+      }
     } catch (error) {
       await flipBack({ ...args, from })
       await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })
@@ -325,7 +338,7 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
       threadId,
       runId: args.ids.nextRunId(),
       drafts: [
-        { type: 'location-changed', from, to: EExecutionLocation.Cloud },
+        { type: 'location-changed', from, to: EExecutionLocation.Cloud, cwd: CLOUD_WORKSPACE_PATH },
         liftedDraft({ workspace, stopped }),
       ],
     })

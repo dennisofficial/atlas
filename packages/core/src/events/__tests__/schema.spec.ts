@@ -26,6 +26,12 @@ const bodies: EventDraft[] = [
   { type: 'nudge', text: 'stay on task', lifetimeSteps: 2 },
   { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Docker },
   {
+    type: 'location-changed',
+    from: EExecutionLocation.Host,
+    to: EExecutionLocation.Cloud,
+    cwd: '/workspace',
+  },
+  {
     type: 'agent-spawned',
     agentId: toThreadId('thread-child-1'),
     agentType: 'explore',
