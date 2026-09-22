@@ -1,5 +1,8 @@
 'use client'
 
+import { Button } from '@dltech/atlas-ui/button'
+import { Card } from '@dltech/atlas-ui/card'
+import { Input } from '@dltech/atlas-ui/input'
 import { useSearchParams } from 'next/navigation'
 import { useState, type FormEvent } from 'react'
 
@@ -28,25 +31,36 @@ export function SignInForm() {
   }
 
   return (
-    <>
-      <h1>Sign in to Atlas</h1>
-      <form onSubmit={handleSubmit}>
-        <input name="email" type="email" placeholder="Email" required autoComplete="email" />
-        <input
+    <Card
+      title="Sign in to Atlas"
+      subtitle="Use your Atlas Cloud account"
+      footer={
+        <span>
+          No account yet? <a href="/sign-up">Sign up</a>
+        </span>
+      }
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <Input
+          name="email"
+          type="email"
+          label="Email"
+          placeholder="you@company.com"
+          required
+          autoComplete="email"
+        />
+        <Input
           name="password"
           type="password"
-          placeholder="Password"
+          label="Password"
           required
           autoComplete="current-password"
         />
-        <button type="submit" disabled={busy}>
-          {busy ? 'Signing in…' : 'Sign in'}
-        </button>
+        {error !== null && <p className="text-xs text-destructive">{error}</p>}
+        <Button type="submit" variant="primary" fullWidth loading={busy}>
+          Sign in
+        </Button>
       </form>
-      <p className="muted">
-        No account yet? <a href="/sign-up">Sign up</a>
-      </p>
-      {error !== null && <p className="error">{error}</p>}
-    </>
+    </Card>
   )
 }

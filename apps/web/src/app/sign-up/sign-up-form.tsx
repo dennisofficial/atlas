@@ -1,5 +1,8 @@
 'use client'
 
+import { Button } from '@dltech/atlas-ui/button'
+import { Card } from '@dltech/atlas-ui/card'
+import { Input } from '@dltech/atlas-ui/input'
 import { useSearchParams } from 'next/navigation'
 import { useState, type FormEvent } from 'react'
 
@@ -29,27 +32,39 @@ export function SignUpForm() {
   }
 
   return (
-    <>
-      <h1>Create your Atlas account</h1>
-      <form onSubmit={handleSubmit}>
-        <input name="name" placeholder="Name" required autoComplete="name" />
-        <input name="email" type="email" placeholder="Email" required autoComplete="email" />
-        <input
+    <Card
+      title="Create your Atlas account"
+      subtitle="One account for the TUI and Atlas Cloud"
+      footer={
+        <span>
+          Already have an account? <a href="/sign-in">Sign in</a>
+        </span>
+      }
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <Input name="name" label="Name" placeholder="Ada Lovelace" required autoComplete="name" />
+        <Input
+          name="email"
+          type="email"
+          label="Email"
+          placeholder="you@company.com"
+          required
+          autoComplete="email"
+        />
+        <Input
           name="password"
           type="password"
-          placeholder="Password (min 8 chars)"
+          label="Password"
+          hint="At least 8 characters"
           required
           minLength={8}
           autoComplete="new-password"
         />
-        <button type="submit" disabled={busy}>
-          {busy ? 'Creating…' : 'Sign up'}
-        </button>
+        {error !== null && <p className="text-xs text-destructive">{error}</p>}
+        <Button type="submit" variant="primary" fullWidth loading={busy}>
+          Create account
+        </Button>
       </form>
-      <p className="muted">
-        Already have an account? <a href="/sign-in">Sign in</a>
-      </p>
-      {error !== null && <p className="error">{error}</p>}
-    </>
+    </Card>
   )
 }
