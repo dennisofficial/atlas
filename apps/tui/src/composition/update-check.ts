@@ -10,7 +10,6 @@ import {
 import { buildInfo, EBuildKind } from '../build/info'
 import {
   EStageOutcome,
-  readStagedVersionMarker,
   realSelfUpdatePorts,
   stagedNotice,
   stageUpdate,
@@ -233,16 +232,3 @@ export function releaseStaged(args: { running: string; staged: string | null }):
   return isNewerSemver({ candidate: staged, current: running })
 }
 
-export async function releaseStalenessProbe(): Promise<SourceStaleness | null> {
-  const build = buildInfo()
-  if (build.kind !== EBuildKind.Release) return null
-
-  return {
-    stale: async () =>
-      releaseStaged({
-        running: build.version,
-        staged: await readStagedVersionMarker(process.execPath),
-      }),
-    check: async () => {},
-  }
-}
