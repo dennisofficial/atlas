@@ -95,7 +95,7 @@ export class SandboxesService {
     }
     const existing = await db.cloudSandbox.findUnique({
       where: { threadId: args.threadId },
-      select: { name: true, sealedToken: true },
+      select: { name: true, sealedToken: true, contextPending: true },
     })
     const name = existing?.name ?? args.name ?? sandboxNameFor({ threadId: args.threadId })
     const credential = sessionCredentialOf({
@@ -134,6 +134,7 @@ export class SandboxesService {
       region: SANDBOX_REGION,
       state: ESandboxState.Resuming,
       lastActivityAt: nowIso(),
+      contextPending: existing?.contextPending ?? true,
       token: credential.token,
     }
   }
@@ -250,6 +251,11 @@ export class SandboxesService {
     await ownedSandbox({ userId: args.userId, threadId: args.threadId })
     assertArchiveWithinLimit({ bytes: args.archive.byteLength })
     await this.archives.writeSandboxArchive({ threadId: args.threadId, archive: args.archive })
+    await db.cloudSandbox.update({
+      where: { threadId: args.threadId },
+      select: { threadId: true },
+      data: { contextPending: false, updatedAt: nowIso() },
+    })
   }
 
   getContextArchive(args: { threadId: string }): Promise<Buffer | null> {
@@ -293,6 +299,13 @@ export class SandboxesService {
     const row = await ownedSandbox(args)
     await this.park({ row, reason: 'the sandbox was stopped' })
     return { ...toSandboxDto(row), state: ESandboxState.Parked }
+  }
+
+  async destroy(args: { userId: string; threadId: string }): Promise<void> {
+    const row = await ownedSandbox(args)
+    this.provisionFailures.delete(args.threadId)
+    await this.vercel.destroy({ name: row.name })
+    await db.cloudSandbox.delete({ where: { threadId: args.threadId } })
   }
 
   async verifySessionToken(args: { threadId: string; token: string }): Promise<void> {
@@ -440,7 +453,7 @@ export class SandboxesService {
 
   private async stamp(args: {
     row: Pick<CloudSandboxModel, 'threadId'>
-    placement: { sessionId: string; state: ESandboxState }
+    placement: { sessionId: string; state: ESandboxState; created: boolean }
   }): Promise<void> {
     const at = nowIso()
     await db.cloudSandbox.update({
@@ -449,6 +462,7 @@ export class SandboxesService {
       data: {
         sandboxId: args.placement.sessionId,
         state: args.placement.state,
+        contextPending: args.placement.created,
         lastActivityAt: at,
         updatedAt: at,
       },

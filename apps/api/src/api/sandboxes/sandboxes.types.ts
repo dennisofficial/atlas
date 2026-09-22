@@ -19,6 +19,7 @@ export interface SandboxStatusDto {
   region: string
   state: ESandboxState
   lastActivityAt: string
+  contextPending: boolean
   url?: string
 }
 

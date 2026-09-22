@@ -10,7 +10,7 @@ import { ESandboxState } from './sandboxes.types'
  */
 export type SandboxStatusColumns = Pick<
   CloudSandboxModel,
-  'threadId' | 'name' | 'region' | 'state' | 'lastActivityAt'
+  'threadId' | 'name' | 'region' | 'state' | 'lastActivityAt' | 'contextPending'
 >
 
 export const SANDBOX_STATUS_SELECT = {
@@ -19,6 +19,7 @@ export const SANDBOX_STATUS_SELECT = {
   region: true,
   state: true,
   lastActivityAt: true,
+  contextPending: true,
 } as const
 
 /** The identity columns a token check needs; the row's blob columns never ride along. */
@@ -37,5 +38,6 @@ export function toSandboxDto(row: SandboxStatusColumns): SandboxStatusDto {
     region: row.region,
     state: sandboxStateOf(row.state),
     lastActivityAt: row.lastActivityAt,
+    contextPending: row.contextPending,
   }
 }

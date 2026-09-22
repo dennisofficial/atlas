@@ -70,6 +70,7 @@ export type FakeCloudSandboxRow = {
   workspaceSkills: string | null
   workspaceContext: string | null
   workspaceContextArchive?: Buffer | null
+  contextPending?: boolean
   workspaceProjectDirectory: string | null
   driveName?: string | null
   driveMode?: string | null

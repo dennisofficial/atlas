@@ -55,6 +55,15 @@ export class SandboxesController {
     return this.sandboxes.stop({ userId: userIdOf(request), threadId })
   }
 
+  @Post(':threadId/destroy')
+  @HttpCode(204)
+  handleDestroy(
+    @Req() request: AuthenticatedRequest,
+    @Param('threadId') threadId: string,
+  ): Promise<void> {
+    return this.sandboxes.destroy({ userId: userIdOf(request), threadId })
+  }
+
   @Put(':threadId/context')
   @HttpCode(204)
   async handlePutContext(
