@@ -7,6 +7,7 @@ import { EDeed, EDeedRealm, type Deed } from './deed'
 import { ERiskDimension } from './dimension'
 import type { CallEvidence } from './evidence'
 import { EOccupancy, type WorkspaceFacts, type WorktreeFact } from './facts'
+import { ESpeaker } from './evidence'
 import { EGrantScope } from './grant'
 
 const texts = z.array(z.string())
@@ -94,6 +95,12 @@ const recentActSchema = z.object({
 
 const utteranceSchema = z.object({ text: z.string(), seq: z.number().int() })
 
+const transcriptMessageSchema = z.object({
+  speaker: z.enum(ESpeaker),
+  text: z.string(),
+  seq: z.number().int(),
+})
+
 const grantSchema = z.object({
   grantId: z.string(),
   dimensions: z.array(z.enum(ERiskDimension)),
@@ -113,6 +120,7 @@ export const callEvidenceSchema = z
     facts: factsSchema,
     recent: z.array(recentActSchema),
     said: z.array(utteranceSchema),
+    transcript: z.array(transcriptMessageSchema).default([]),
     grants: z.array(grantSchema),
   })
   .transform((evidence): CallEvidence => ({ ...evidence, reading: evidence.reading }))

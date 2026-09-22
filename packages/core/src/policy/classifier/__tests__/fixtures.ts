@@ -9,7 +9,7 @@ import {
 import { readCommand } from '../command/read-command'
 import { EDeedRealm } from '../deed'
 import { EPathDeclaration, deedsOf, type PathDeclarationView } from '../deed-of'
-import type { CallEvidence, RecentAct } from '../evidence'
+import type { CallEvidence, RecentAct, TranscriptMessage } from '../evidence'
 import { EOccupancy, type RefFact, type WorkspaceFacts, type WorktreeFact } from '../facts'
 import type { Grant } from '../grant'
 import { signalsFor } from '../signals'
@@ -134,6 +134,7 @@ export function bashEvidence(args: {
   workdir?: string | undefined
   effect?: EToolEffect | undefined
   recent?: readonly RecentAct[] | undefined
+  transcript?: readonly TranscriptMessage[] | undefined
   grants?: readonly Grant[] | undefined
 }): CallEvidence {
   const effect = args.effect ?? EToolEffect.Destructive
@@ -154,6 +155,7 @@ export function bashEvidence(args: {
     facts: args.facts,
     recent: args.recent ?? [],
     said: [],
+    transcript: args.transcript ?? [],
     grants: args.grants ?? [],
   }
 }
@@ -194,6 +196,7 @@ export function writeEvidence(args: {
     facts: args.facts,
     recent: args.recent ?? [],
     said: [],
+    transcript: [],
     grants: args.grants ?? [],
   }
 }
@@ -221,6 +224,7 @@ export function toolEvidence(args: {
     facts: args.facts,
     recent: [],
     said: [],
+    transcript: [],
     grants: [],
   }
 }
@@ -246,6 +250,7 @@ export function undeclaredEvidence(args: {
     facts: args.facts,
     recent: [],
     said: [],
+    transcript: [],
     grants: [],
   }
 }

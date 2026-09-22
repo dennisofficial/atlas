@@ -77,6 +77,7 @@ export const evidenceFor = (args: {
     facts: NO_FACTS,
     recent: [],
     said: [],
+    transcript: [],
     grants: args.grants ?? [],
   }
 }

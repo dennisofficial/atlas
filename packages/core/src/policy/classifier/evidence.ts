@@ -15,6 +15,13 @@ export type RecentAct = {
 
 export type OperatorUtterance = { text: string; seq: number }
 
+export enum ESpeaker {
+  Operator = 'operator',
+  Agent = 'agent',
+}
+
+export type TranscriptMessage = { speaker: ESpeaker; text: string; seq: number }
+
 export type CallEvidence = {
   deeds: readonly Deed[]
   toolName: string
@@ -24,5 +31,6 @@ export type CallEvidence = {
   facts: WorkspaceFacts
   recent: readonly RecentAct[]
   said: readonly OperatorUtterance[]
+  transcript: readonly TranscriptMessage[]
   grants: readonly Grant[]
 }

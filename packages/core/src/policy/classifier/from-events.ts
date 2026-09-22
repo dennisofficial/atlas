@@ -4,7 +4,8 @@ import type { CallId } from '../../events/ids'
 import { eventsOfType } from '../../events/projections'
 import type { EToolEffect } from '../../tools/tool'
 import { EDeed, type Deed } from './deed'
-import type { OperatorUtterance, RecentAct } from './evidence'
+import type { OperatorUtterance, RecentAct, TranscriptMessage } from './evidence'
+import { ESpeaker } from './evidence'
 import { placesOf } from './probes/kit'
 import { looksDownloaded, looksSecretShaped } from './shapes'
 
@@ -73,4 +74,37 @@ export function operatorUtterances({
     .filter((event) => saidBy(event) === EMessageOrigin.Operator)
     .slice(-limit)
     .map((event) => ({ text: event.text, seq: event.seq }))
+}
+
+const clipped = ({ text, limit }: { text: string; limit: number }): string =>
+  text.length <= limit ? text : `${text.slice(0, limit - 1)}…`
+
+export function transcriptMessages({
+  events,
+  limit,
+  textLimit,
+}: {
+  events: readonly Event[]
+  limit: number
+  textLimit: number
+}): readonly TranscriptMessage[] {
+  const operator = eventsOfType({ events, type: 'user-said' })
+    .filter((event) => saidBy(event) === EMessageOrigin.Operator)
+    .map((event): TranscriptMessage => ({ speaker: ESpeaker.Operator, text: event.text, seq: event.seq }))
+
+  const agent = eventsOfType({ events, type: 'assistant-said' })
+    .map((event): TranscriptMessage => ({
+      speaker: ESpeaker.Agent,
+      text: event.parts
+        .filter((part) => part.type === 'text')
+        .map((part) => part.text)
+        .join('\n'),
+      seq: event.seq,
+    }))
+    .filter((message) => message.text.trim().length > 0)
+
+  return [...operator, ...agent]
+    .sort((one, other) => one.seq - other.seq)
+    .slice(-limit)
+    .map((message) => ({ ...message, text: clipped({ text: message.text, limit: textLimit }) }))
 }
