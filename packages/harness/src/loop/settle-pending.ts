@@ -1,9 +1,7 @@
 import {
-  EApprovalResolution,
   isConcurrencySafeCall,
   partitionToolCalls,
   pendingCalls,
-  resolveApproval,
   rowsOwnedBy,
   activeWorktreeAfter,
   activeWorktreeOf,
@@ -44,18 +42,13 @@ export function createSettlePending(deps: {
 
   const settleOne = async (args: {
     call: DispatchableCall
-    refusal: string | undefined
     events: readonly Event[]
     signal: AbortSignal
     projectDirectory: string
     homeDirectory: string
     activeWorktree: ActiveWorktree | undefined
   }): Promise<readonly EventDraft[]> => {
-    const { call, refusal } = args
-
-    if (refusal !== undefined) {
-      return [{ type: 'tool-denied', callId: call.callId, name: call.name, reason: refusal }]
-    }
+    const { call } = args
 
     const tap = deps.onToolOutput
     return deps.dispatch.dispatch({
@@ -74,19 +67,8 @@ export function createSettlePending(deps: {
   return async ({ threadId, signal }) => {
     const events = await deps.log.read({ threadId })
     const owned = rowsOwnedBy({ events, threadId })
-    const refusals = new Map<CallId, string>()
 
-    const calls = [...pendingCalls(owned)]
-      .sort((left, right) => left.ordinal - right.ordinal)
-      .map((call) => {
-        const answered = resolveApproval({ events: owned, callId: call.callId, input: call.input })
-        if (answered.resolution === EApprovalResolution.Dispatch) {
-          return { ...call, input: answered.input }
-        }
-
-        refusals.set(call.callId, answered.reason)
-        return call
-      })
+    const calls = [...pendingCalls(owned)].sort((left, right) => left.ordinal - right.ordinal)
 
     const runs = partitionToolCalls({ calls, isSafe })
 
@@ -102,7 +84,6 @@ export function createSettlePending(deps: {
         run.map(async (call) => {
           const drafts = await settleOne({
             call,
-            refusal: refusals.get(call.callId),
             events,
             signal,
             projectDirectory,
@@ -118,9 +99,6 @@ export function createSettlePending(deps: {
 
       activeWorktree = activeWorktreeAfter({ drafts, active: activeWorktree })
       homeDirectory = homeDirectoryAfter({ drafts, home: homeDirectory })
-
-      const asked = drafts.find((draft) => draft.type === 'approval-requested')
-      if (asked !== undefined) return { paused: { callId: asked.callId, reason: asked.reason } }
     }
 
     return {}

@@ -453,10 +453,10 @@ type ToolCall = { callId: string; name: string; input: unknown; effect: EToolEff
   hooks and rot at thirty, where two authors both pick 50 and an alphabetical tiebreak silently
   decides security policy. `OnChunk` order is a **security** constraint: a hook returning `null` drops
   the chunk, so redaction must precede anything that logs or persists.
-- **A resolver reads `approval-answered` before `BeforeTool` runs.** Without it, resume re-fires the
-  hook, it asks again, and the turn pauses forever.
-- **Conflicting `BeforeTool` outcomes resolve by severity: deny > ask > allow.** Every hook is
+- **Conflicting `BeforeTool` outcomes resolve by severity: deny > allow.** Every hook is
   consulted, nobody short-circuits, and all dissenters are named so the UI can say who blocked what.
+  There is no `Ask` outcome: a hook that would pause the turn on a human instead denies with a reason
+  the agent reads and can act on.
 - **Hooks see one call at a time rather than a batch, and partitioning happens before them.** A step's
   calls are folded into concurrent runs before `dispatch`, so `isConcurrencySafe` reads the raw logged
   input, and a `BeforeTool` hook that rewrites input cannot move a call between batches. The gap this
@@ -469,16 +469,13 @@ type ToolCall = { callId: string; name: string; input: unknown; effect: EToolEff
   rewrite tool input needs a stated normalisation contract — two individually-correct hooks disagreed
   about whether a path was `/var` or `/private/var` and silently killed context injection on every
   write.
-- **Human-edited input is re-checked through `BeforeTool` once.** An approval returning `editedInput`
-  that skips the guards is a privilege-escalation path: approve `delete_path`, redirect it to
-  `/etc/hosts`, and `ReadBeforeWrite` never sees it.
 
 Known gaps, accepted for now: a hook cannot fail the turn or annul a tool result, and hooks see one
 call at a time rather than a batch.
 
 **Implemented in slice 2.** `resolveBeforeTool` in `core/policy` is the severity resolution above:
-every hook is consulted, none short-circuits, deny > ask > allow, `dissenters` names every hook that
-returned Ask or Deny, and input threads sequentially so the winning Allow carries the last Allow's
+every hook is consulted, none short-circuits, deny > allow, `dissenters` names every hook that
+returned Deny, and input threads sequentially so the winning Allow carries the last Allow's
 input. `orderHooks` in `core/hooks` is the stage-then-nudge-then-**name** ordering; the name tiebreak
 is not garnish, it is what stops two authors both picking nudge 50 and getting an ordering decided by
 array-literal position. `harness/tools/dispatch.ts` is the only caller of either. It is now the `ToolDispatcher` port with a

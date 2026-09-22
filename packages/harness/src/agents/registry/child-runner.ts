@@ -15,7 +15,7 @@ import { withoutSpawnableListing } from '../../tools/builtin/agent-spawn'
 import type { HookChain } from '../../hooks/registry'
 import type { TurnDeps } from '../../loop/run-turn'
 import type { TurnRunner } from '../../loop/turn-runner.port'
-import { EApprovalRouting, HookedToolDispatcher } from '../../tools/dispatch'
+import { HookedToolDispatcher } from '../../tools/dispatch'
 import { filteredToolRegistry, type ToolRegistry } from '../../tools/registry'
 import {
   AGENT_TOOL_NAMES,
@@ -146,7 +146,6 @@ export function buildChildRunner({
       dispatch: new HookedToolDispatcher({
         registry,
         hooks: deps.hooks,
-        approvals: EApprovalRouting.None,
       }),
       assembly: deps.assemblyFor({ agentType, projectDirectory }),
       drainPending: async (args) => [...steerDrafts(steering()), ...(await deps.drainNotices(args))],

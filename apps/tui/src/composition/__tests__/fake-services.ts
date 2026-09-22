@@ -94,6 +94,8 @@ export function fakeServiceRegistry(): FakeServices {
       return { ok: true, snapshot, action: EStopAction.Term }
     },
 
+    awaitEndings: () => Promise.resolve(0),
+
     removeServices: ({ serviceIds, by }) => {
       for (const serviceId of serviceIds) stopped.push({ serviceId, by })
       for (let at = owned.length - 1; at >= 0; at -= 1) {

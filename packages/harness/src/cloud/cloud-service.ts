@@ -224,7 +224,6 @@ export class CloudService {
         name: spec.name,
         ...(spec.transport === undefined ? {} : { transport: spec.transport }),
         ...(spec.disabled === undefined ? {} : { disabled: spec.disabled }),
-        ...(spec.trusted === undefined ? {} : { trusted: spec.trusted }),
       })
       imported += 1
     }

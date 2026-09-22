@@ -14,7 +14,7 @@ import { scriptedModel, type ScriptedStep } from '../../model/testing/scripted-m
 import { EditTool } from '../../tools/builtin/edit'
 import { ReadTool } from '../../tools/builtin/read'
 import { WriteTool } from '../../tools/builtin/write'
-import { EApprovalRouting, HookedToolDispatcher } from '../../tools/dispatch'
+import { HookedToolDispatcher } from '../../tools/dispatch'
 import { InMemoryToolRegistry } from '../../tools/registry'
 import { buildHarness, ETurnStatus, type AtlasHarness } from '..'
 import { createTempDatabase, type TempDatabase } from './temp-database'
@@ -55,7 +55,6 @@ async function openWorkspace(scriptFor: (workspace: string) => readonly Scripted
       assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY }),
       tools: () => declarations,
       dispatch: new HookedToolDispatcher({
-        approvals: EApprovalRouting.Operator,
         registry,
         hooks: new HookChain({
           beforeTool: [

@@ -130,9 +130,6 @@ describe('McpServersService', () => {
     await expect(service.put({ userId: USER_A, name: 'empty', spec: {} })).rejects.toBeInstanceOf(
       BadRequestException,
     )
-    await expect(
-      service.put({ userId: USER_A, name: 'empty', spec: { trusted: true } }),
-    ).rejects.toBeInstanceOf(BadRequestException)
     expect(fake.servers).toHaveLength(0)
   })
 
@@ -200,12 +197,12 @@ describe('McpServersService', () => {
     await service.put({ userId: USER_A, name: 'fs', spec: { transport: stdioTransport() } })
     const sealedBefore = fake.servers[0]?.sealedSpec
 
-    await service.put({ userId: USER_A, name: 'fs', spec: { disabled: true, trusted: true } })
+    await service.put({ userId: USER_A, name: 'fs', spec: { disabled: true } })
 
     expect(fake.servers).toHaveLength(1)
     expect(fake.servers[0]?.sealedSpec).not.toBe(sealedBefore)
     const listed = await service.list({ userId: USER_A })
-    expect(listed[0]).toMatchObject({ name: 'fs', disabled: true, trusted: true })
+    expect(listed[0]).toMatchObject({ name: 'fs', disabled: true })
     expect(listed[0]).not.toHaveProperty('transport')
   })
 

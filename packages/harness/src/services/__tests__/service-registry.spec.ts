@@ -269,6 +269,43 @@ describe('a service ending', () => {
   })
 })
 
+describe('awaiting the endings a stop caused', () => {
+  it('leaves the ending queued by the time it resolves', async () => {
+    const { registry } = openRegistry()
+    await registry.start({ threadId: THREAD, command: 'sleep 30', description: 'web dev server' })
+
+    registry.stop({ serviceId: 'svc_1', by: EKilledBy.ContainerSwitch })
+    const stillStopping = await registry.awaitEndings({ ms: 5_000 })
+
+    expect(stillStopping).toBe(0)
+    expect(registry.pendingNotices({ threadId: THREAD })).toHaveLength(1)
+    expect(registry.drainNotifications({ threadId: THREAD })[0]?.type).toBe('service-ended')
+  })
+
+  it('counts a service that ignores SIGTERM and leaves its ending to announce later', async () => {
+    const { registry } = openRegistry()
+    await registry.start({
+      threadId: THREAD,
+      command: "trap '' TERM; exec sleep 30",
+      description: 'stubborn server',
+    })
+    await Bun.sleep(300)
+
+    registry.stop({ serviceId: 'svc_1', by: EKilledBy.ContainerSwitch })
+    const stillStopping = await registry.awaitEndings({ ms: 300 })
+
+    expect(stillStopping).toBe(1)
+    expect(registry.pendingNotices({ threadId: THREAD })).toHaveLength(0)
+  }, 15_000)
+
+  it('answers zero at once when nothing has been signalled', async () => {
+    const { registry } = openRegistry()
+    await registry.start({ threadId: THREAD, command: 'sleep 30', description: 'web dev server' })
+
+    expect(await registry.awaitEndings({ ms: 100 })).toBe(0)
+  })
+})
+
 describe('listing services', () => {
   it('is session-wide: a thread that started nothing sees what another started', async () => {
     const { registry } = openRegistry()

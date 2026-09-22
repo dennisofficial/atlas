@@ -25,9 +25,15 @@ import {
 
 class FakeServices extends UnstaffedServices {
   readonly stops: { serviceId: string; by: EKilledBy }[] = []
+  readonly endingsAwaited: { ms: number }[] = []
 
   constructor(private readonly snapshots: readonly ServiceSnapshot[]) {
     super()
+  }
+
+  override awaitEndings(args: { ms: number }): Promise<number> {
+    this.endingsAwaited.push(args)
+    return Promise.resolve(0)
   }
 
   override list(): readonly ServiceSnapshot[] {
@@ -129,6 +135,7 @@ describe('relocating a session to another execution location', () => {
     })
 
     expect(services.stops).toEqual([{ serviceId: 'svc_1', by: EKilledBy.ContainerSwitch }])
+    expect(services.endingsAwaited).toHaveLength(1)
     expect(agents.relocations).toEqual([
       { threadId: parent, location: EExecutionLocation.Docker },
     ])
@@ -136,6 +143,7 @@ describe('relocating a session to another execution location', () => {
     expect(result).toEqual({
       stoppedServices: [running],
       relocatedAgents: [toThreadId('brn_child-1')],
+      stillStopping: 0,
     } satisfies RelocatedSession)
   })
 

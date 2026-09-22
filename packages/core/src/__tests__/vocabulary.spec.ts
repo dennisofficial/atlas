@@ -60,13 +60,13 @@ describe('the package entry point', () => {
   it('exposes the enums the harness dispatches on', () => {
     const values: string[] = [
       EDecision.Allow,
-      EBeforeToolDecision.Ask,
+      EBeforeToolDecision.Deny,
       EToolEffect.Destructive,
       EStage.Guard,
       EHookPhase.BeforeRequest,
       EFinishReason.ToolCalls,
     ]
 
-    expect(values).toEqual(['allow', 'ask', 'destructive', 'guard', 'before-request', 'tool-calls'])
+    expect(values).toEqual(['allow', 'deny', 'destructive', 'guard', 'before-request', 'tool-calls'])
   })
 })

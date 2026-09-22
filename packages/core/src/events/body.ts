@@ -184,7 +184,6 @@ export type EventBody =
       reason: string
       consulted: boolean
       wouldAsk?: boolean | undefined
-      fatigued?: boolean | undefined
       elapsedMs: number
     }
   | {

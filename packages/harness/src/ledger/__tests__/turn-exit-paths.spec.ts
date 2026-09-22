@@ -37,21 +37,6 @@ describe('the exits turn-ledger-wiring does not reach', () => {
     expect(rows[0]?.steps).toBe(harness.stepsTaken())
   })
 
-  it('records a turn paused awaiting approval', async () => {
-    const harness = await open({
-      script: [{ text: 'about to touch it', callName: 'touch', usage: usage(1_200) }],
-      dispatchMode: EDispatchMode.Ask,
-    })
-
-    const outcome = await harness.runner.say({ threadId: harness.threadId, text: 'touch it' })
-
-    expect(outcome.status).toBe(ETurnStatus.Paused)
-    const rows = await harness.recorded()
-    expect(rows).toHaveLength(1)
-    expect(rows[0]?.status).toBe(outcome.status)
-    expect(rows[0]?.steps).toBe(harness.stepsTaken())
-  })
-
   it('records a turn paused with nothing able to settle its tool call', async () => {
     const harness = await open({
       script: [{ text: 'about to touch it', callName: 'touch', usage: usage(1_200) }],

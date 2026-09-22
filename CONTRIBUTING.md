@@ -20,7 +20,20 @@ All root scripts are turbo tasks:
 - `bun run build` — compiles the `atlas` binary. Run this before opening a PR: bundling surfaces
   failures a typecheck cannot (runtime assets loaded by path, optional peers needing
   `--external`).
-- `apps/tui/bin/atlas-dev` runs the TUI from source.
+- `apps/tui/bin/atlas-dev` runs the TUI from source. `--worktree <slug>` runs a worktree's
+  source instead: `atlas-dev --worktree my-branch` execs
+  `.atlas/worktrees/my-branch/apps/tui/bin/atlas-dev`.
+
+## Daily driving
+
+Run the prod binary, not source. It self-updates from GitHub releases on `/restart`. Install:
+
+```
+gh release download --repo dennisofficial/atlas --pattern 'atlas-darwin-arm64' --dir /tmp --clobber
+install /tmp/atlas-darwin-arm64 ~/.local/bin/atlas
+```
+
+(use `atlas-darwin-x64` or `atlas-linux-x64` to match your machine).
 
 Run one package with `turbo run <task> --filter @dltech/atlas-core`, or `bun run <script>` inside
 the package.

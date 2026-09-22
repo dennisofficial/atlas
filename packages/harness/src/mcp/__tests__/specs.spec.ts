@@ -13,11 +13,9 @@ describe('mcpSpecSchema', () => {
       name: 'linear',
       transport: { ...stdio, args: ['-y', '@linear/mcp'], env: { LINEAR_KEY: 'x' } },
       disabled: false,
-      trusted: true,
     })
 
     expect(parsed.transport).toEqual({ ...stdio, args: ['-y', '@linear/mcp'], env: { LINEAR_KEY: 'x' } })
-    expect(parsed.trusted).toBe(true)
   })
 
   it('takes an http server with headers', () => {

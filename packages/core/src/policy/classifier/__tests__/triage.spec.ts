@@ -43,7 +43,6 @@ const triage = (args: {
   signals: readonly RiskSignal[]
   grants?: readonly Grant[] | undefined
   policy?: Partial<ClassifierPolicy> | undefined
-  asksSoFar?: number | undefined
 }) =>
   triageOf({
     evidence: {
@@ -52,7 +51,6 @@ const triage = (args: {
     },
     signals: args.signals,
     policy: { ...DEFAULT_CLASSIFIER_POLICY, ...args.policy },
-    asksSoFar: args.asksSoFar ?? 0,
   })
 
 describe('the severity floor', () => {
@@ -136,40 +134,6 @@ describe('a standing grant', () => {
   })
 })
 
-describe('the fatigue cap', () => {
-  it('clears everything once the thread has spent its asks, and says so', () => {
-    const decided = triage({ signals: [signal({ severity: ESeverity.Grave })], asksSoFar: 8 })
-
-    expect(decided.triage).toBe(ETriage.Clear)
-    expect(decided.fatigued).toBe(true)
-    expect(decided.standing).toHaveLength(1)
-  })
-
-  it('is not fatigued when nothing was standing in the first place', () => {
-    expect(triage({ signals: [], asksSoFar: 40 }).fatigued).toBe(false)
-  })
-
-  it('goes quiet even about a grave signal no grant could ever cover', () => {
-    const decided = triage({
-      signals: [signal({ severity: ESeverity.Grave, ungrantable: true })],
-      asksSoFar: DEFAULT_CLASSIFIER_POLICY.asksPerThread,
-    })
-
-    expect(decided.triage).toBe(ETriage.Clear)
-    expect(decided.fatigued).toBe(true)
-  })
-
-  it('still consults on the ask that brings the thread level with the cap', () => {
-    const decided = triage({
-      signals: [signal({ severity: ESeverity.Grave })],
-      asksSoFar: DEFAULT_CLASSIFIER_POLICY.asksPerThread - 1,
-    })
-
-    expect(decided.triage).toBe(ETriage.Consult)
-    expect(decided.fatigued).toBe(false)
-  })
-})
-
 describe('a grant on the incident this feature exists for', () => {
   it('cannot buy clearance over a dirty sibling worktree', () => {
     const evidence = {
@@ -193,7 +157,6 @@ describe('a grant on the incident this feature exists for', () => {
       evidence,
       signals: signalsFor({ evidence }),
       policy: DEFAULT_CLASSIFIER_POLICY,
-      asksSoFar: 0,
     })
 
     expect(decided.triage).toBe(ETriage.Consult)
@@ -211,17 +174,14 @@ describe('every enumerated combination', () => {
       for (const severity of severities) {
         for (const dimension of dimensions) {
           for (const ungrantable of [false, true]) {
-            for (const asksSoFar of [0, 99]) {
-              for (const grants of [[], [grant({ dimensions })]]) {
-                const decided = triage({
-                  signals: [signal({ severity, dimension, ungrantable })],
-                  grants,
-                  policy: { mode },
-                  asksSoFar,
-                })
+            for (const grants of [[], [grant({ dimensions })]]) {
+              const decided = triage({
+                signals: [signal({ severity, dimension, ungrantable })],
+                grants,
+                policy: { mode },
+              })
 
-                expect([ETriage.Clear, ETriage.Consult]).toContain(decided.triage)
-              }
+              expect([ETriage.Clear, ETriage.Consult]).toContain(decided.triage)
             }
           }
         }
@@ -243,7 +203,6 @@ describe('the shape a benign call leaves behind', () => {
       triage: ETriage.Clear,
       standing: [],
       cleared: [],
-      fatigued: false,
     })
   })
 })

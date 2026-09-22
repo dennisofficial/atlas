@@ -86,7 +86,11 @@ describe('StationsService', () => {
     workItems = new WorkItemsService()
     transcript = new TranscriptService()
     threads = {
-      create: vi.fn(async () => ({ id: `brn_station_${fake.threads.length + 1}` })),
+      create: vi.fn(async () => {
+        const id = `brn_station_${fake.threads.length + 1}`
+        fake.threads.push({ id, head: 0 })
+        return { id }
+      }),
     }
     sandboxes = stubFactorySandboxes()
     channel = stubFactoryChannel(fake)
@@ -178,6 +182,35 @@ describe('StationsService', () => {
       expect(updated.status).toBe(EFactoryWorkItemStatus.Active)
     })
 
+    it('spawns a reviewer on a drive snapshot, allowed while the writer runs', async () => {
+      await spawnOrchestrated()
+      await spawn('first implementer')
+      await flushSpawn()
+
+      const reviewed = await service.spawn({
+        orchestratorThreadId: 'brn_orchestrator_1',
+        kind: 'reviewer',
+        message: 'review branch atlas-factory/add-the-thing',
+      })
+      await vi.waitFor(() => expect(channel.inject).toHaveBeenCalledTimes(2))
+
+      const run = fake.stationRuns.find((one) => one.id === reviewed.stationRunId)
+      expect(run?.driveMode).toBe(ESandboxDriveMode.Snapshot)
+      expect(run?.kind).toBe('reviewer')
+      const attachCalls = sandboxes.attach.mock.calls as unknown as Array<
+        [{ drive: { mode: ESandboxDriveMode } }]
+      >
+      expect(attachCalls[1]?.[0].drive.mode).toBe(ESandboxDriveMode.Snapshot)
+    })
+
+    it('refuses the implementer past the revision cap', async () => {
+      const item = await spawnOrchestrated()
+      fake.workItems[0]!.revisionCycles = 3
+      await expect(spawn()).rejects.toThrow('revision cycles')
+      const fresh = await workItems.find({ workItemId: item.id })
+      expect(fresh.revisionCycles).toBe(3)
+    })
+
     it('a spawn whose message cannot be delivered stops the sandbox before failing the run', async () => {
       await spawnOrchestrated()
       sandboxes.runningEndpoint.mockResolvedValue(null)
@@ -193,90 +226,4 @@ describe('StationsService', () => {
     })
   })
 
-  describe('steer and stop', () => {
-    const spawnAndGetRun = async () => {
-      await spawnOrchestrated()
-      const spawned = await spawn()
-      await flushSpawn()
-      const run = fake.stationRuns[0]
-      if (run === undefined) throw new Error('missing run')
-      return { spawned, run }
-    }
-
-    it('steers a running station with a marked message', async () => {
-      const { spawned, run } = await spawnAndGetRun()
-      channel.inject.mockClear()
-      const steered = await service.steer({
-        orchestratorThreadId: 'brn_orchestrator_1',
-        runId: spawned.stationRunId,
-        message: 'also cover the edge case',
-      })
-      expect(steered.steered).toBe(true)
-      const text = (channel.inject.mock.calls[0]?.[0] as { text: string }).text
-      expect(text).toContain('[station steer]')
-      expect(text).toContain('also cover the edge case')
-      const event = fake.events.find(
-        (one) => one.threadId === run.threadId && one.body.includes('steer:'),
-      )
-      expect(event).toBeDefined()
-    })
-
-    it('refuses to steer a finished run', async () => {
-      const { spawned } = await spawnAndGetRun()
-      fake.stationRuns[0]!.status = EStationRunStatus.Finished
-      await expect(
-        service.steer({
-          orchestratorThreadId: 'brn_orchestrator_1',
-          runId: spawned.stationRunId,
-          message: 'too late',
-        }),
-      ).rejects.toThrow('finished')
-    })
-
-    it('stop parks the sandbox and marks the run', async () => {
-      const { spawned, run } = await spawnAndGetRun()
-      await service.stop({ orchestratorThreadId: 'brn_orchestrator_1', runId: spawned.stationRunId })
-      expect(sandboxes.stop).toHaveBeenCalledWith({
-        userId: fake.users[0]?.id,
-        threadId: run.threadId,
-      })
-      expect(fake.stationRuns[0]?.status).toBe(EStationRunStatus.Stopped)
-    })
-
-    it('refuses steer and stop from a non-orchestrator caller', async () => {
-      const { spawned } = await spawnAndGetRun()
-      await expect(
-        service.steer({
-          orchestratorThreadId: 'brn_other',
-          runId: spawned.stationRunId,
-          message: 'x',
-        }),
-      ).rejects.toThrow('not the orchestrator')
-      await expect(
-        service.stop({ orchestratorThreadId: 'brn_other', runId: spawned.stationRunId }),
-      ).rejects.toThrow('not the orchestrator')
-    })
-  })
-
-  describe('stopRunningFor', () => {
-    it('stops every running station of the work item and marks them stopped', async () => {
-      await spawnOrchestrated()
-      await spawn()
-      await flushSpawn()
-
-      await service.stopRunningFor({ workItemId: fake.workItems[0]!.id })
-
-      expect(fake.stationRuns[0]?.status).toBe(EStationRunStatus.Stopped)
-      expect(sandboxes.stop).toHaveBeenCalledWith({
-        userId: fake.users[0]?.id,
-        threadId: fake.stationRuns[0]?.threadId,
-      })
-    })
-
-    it('is a no-op when nothing runs', async () => {
-      await spawnOrchestrated()
-      await service.stopRunningFor({ workItemId: fake.workItems[0]!.id })
-      expect(sandboxes.stop).not.toHaveBeenCalled()
-    })
-  })
 })

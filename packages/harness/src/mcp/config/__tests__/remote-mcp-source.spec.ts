@@ -30,7 +30,6 @@ describe('RemoteMcpSource', () => {
           {
             name: 'linear',
             transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' },
-            trusted: true,
             updatedAt: '2026-01-01T00:00:00.000Z',
           },
           { name: 'paused', disabled: true, updatedAt: '2026-01-02T00:00:00.000Z' },
@@ -46,7 +45,6 @@ describe('RemoteMcpSource', () => {
       {
         name: 'linear',
         transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' },
-        trusted: true,
         origin: EDefinitionOrigin.User,
         definedIn: 'http://cloud.test/v1/mcp-servers',
       },

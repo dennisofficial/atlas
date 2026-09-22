@@ -31,7 +31,6 @@ export const inputSchema = z.strictObject({
   name: mcpSpecSchema.shape.name,
   transport: mcpSpecSchema.shape.transport,
   action: z.enum(EMcpEditAction),
-  trusted: mcpSpecSchema.shape.trusted,
 })
 
 export type McpEditInput = z.infer<typeof inputSchema>
@@ -86,7 +85,6 @@ type Written = { ok: true; servers: Record<string, unknown> } | { ok: false; rea
 const entryOf = (input: McpEditInput): Record<string, unknown> => ({
   ...(input.transport === undefined ? {} : { transport: input.transport }),
   ...(input.action === EMcpEditAction.Disable ? { disabled: true } : {}),
-  ...(input.trusted === undefined ? {} : { trusted: input.trusted }),
 })
 
 const upsert = (args: { input: McpEditInput; read: ReadTable & { ok: true } }): Written => {
@@ -164,7 +162,6 @@ export async function runRemote(args: {
       name: input.name,
       ...(input.transport === undefined ? {} : { transport: input.transport }),
       ...(input.action === EMcpEditAction.Disable ? { disabled: true } : {}),
-      ...(input.trusted === undefined ? {} : { trusted: input.trusted }),
     })
   } catch (error) {
     return { ok: false, reason: remoteReason(error) }

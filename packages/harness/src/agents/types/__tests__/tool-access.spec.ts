@@ -2,7 +2,7 @@ import { EDefinitionOrigin, EToolEffect, toCallId, toRunId, toThreadId } from '@
 import { describe, expect, it } from 'bun:test'
 
 import { HookChain } from '../../../hooks/registry'
-import { EApprovalRouting, HookedToolDispatcher, type DispatchableCall } from '../../../tools/dispatch'
+import { HookedToolDispatcher, type DispatchableCall } from '../../../tools/dispatch'
 import { InMemoryToolRegistry } from '../../../tools/registry'
 import { toolNamed } from '../../../tools/__tests__/fixtures'
 import { AGENT_SPAWN_TOOL_NAME, type AgentType } from '../agent-type'
@@ -53,7 +53,6 @@ const callOf = (name: string): DispatchableCall => ({
 const dispatchTo = async (args: { agentType: AgentType; name: string }): Promise<string> => {
   ran = []
   const dispatcher = new HookedToolDispatcher({
-    approvals: EApprovalRouting.Operator,
     registry: toolRegistryFor({ registry: wholeToolset(), agentType: args.agentType }),
     hooks: new HookChain({}),
   })

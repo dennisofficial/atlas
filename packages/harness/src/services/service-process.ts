@@ -171,6 +171,11 @@ export function startService(spec: {
   return { ok: true, service: self }
 }
 
+/**
+ * The last `characters` bytes of a service log, as text. A mid-file slice can land inside a
+ * UTF-8 character or an ANSI escape sequence, leaving a fragment that would print as literal
+ * garbage, so a sliced tail instead begins at the first line boundary after the cut.
+ */
 export function logTail(args: { path: string; characters: number }): string {
   try {
     const size = statSync(args.path).size
@@ -179,7 +184,11 @@ export function logTail(args: { path: string; characters: number }): string {
     try {
       const buffer = Buffer.alloc(size - start)
       readSync(fd, buffer, 0, buffer.length, start)
-      return buffer.toString('utf8')
+      const text = buffer.toString('utf8')
+      if (start === 0) return text
+
+      const boundary = text.indexOf('\n')
+      return boundary === -1 ? '' : text.slice(boundary + 1)
     } finally {
       closeSync(fd)
     }

@@ -15,7 +15,7 @@ import {
   type SpawnCommand,
 } from '@dltech/atlas-core'
 
-import { startService, type StartedService } from '../service-process'
+import { logTail, startService, type StartedService } from '../service-process'
 
 const THREAD = toThreadId('thread-under-test')
 
@@ -204,5 +204,46 @@ describe('startService over a ProcessPort', () => {
     const second = started.service.stop(EKilledBy.Model)
     expect(second).toBe(EStopAction.Kill)
     expect(port.terminated).toBe(2)
+  })
+})
+
+describe('logTail', () => {
+  const tailOf = (args: { content: string; characters: number }): string => {
+    const root = mkdtempSync(join(tmpdir(), 'atlas-log-tail-'))
+    roots.push(root)
+    const path = join(root, 'svc_1.log')
+    writeFileSync(path, args.content)
+    return logTail({ path, characters: args.characters })
+  }
+
+  it('returns the whole file when it fits inside the budget', () => {
+    expect(tailOf({ content: 'one\ntwo\n', characters: 4_000 })).toBe('one\ntwo\n')
+  })
+
+  it('keeps the end of the file when it does not fit, dropping the first partial line', () => {
+    expect(tailOf({ content: 'one\ntwo\nthree\n', characters: 7 })).toBe('three\n')
+  })
+
+  it('starts at a line boundary when the cut lands inside an escape sequence', () => {
+    const escape = '\x1b[38;2;255;71;133m'
+    const content = `intro\nprefix ${escape}colored text\nrest\n`
+    const cutInsideSequence = content.indexOf(escape) + 4
+
+    const tail = tailOf({ content, characters: content.length - cutInsideSequence })
+
+    expect(tail).toBe('rest\n')
+  })
+
+  it('starts at a line boundary when the cut lands inside a multi-byte character', () => {
+    const content = 'intro\ncafé au lait\nrest\n'
+    const cutInsideCharacter = Buffer.byteLength('intro\ncaf') + 1
+
+    const tail = tailOf({ content, characters: Buffer.byteLength(content) - cutInsideCharacter })
+
+    expect(tail).toBe('rest\n')
+  })
+
+  it('returns nothing for a missing log rather than throwing', () => {
+    expect(logTail({ path: join(tmpdir(), 'atlas-no-such-log.log'), characters: 100 })).toBe('')
   })
 })

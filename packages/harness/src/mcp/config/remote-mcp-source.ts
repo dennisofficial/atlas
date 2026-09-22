@@ -33,7 +33,6 @@ export class RemoteMcpSource extends McpSource {
         name: server.name,
         ...(server.transport === undefined ? {} : { transport: server.transport }),
         ...(server.disabled === undefined ? {} : { disabled: server.disabled }),
-        ...(server.trusted === undefined ? {} : { trusted: server.trusted }),
         origin: this.origin,
         definedIn: this.definedIn,
       }))

@@ -45,8 +45,4 @@ export class UpsertMcpServerDto {
   @IsOptional()
   @IsBoolean()
   disabled?: boolean
-
-  @IsOptional()
-  @IsBoolean()
-  trusted?: boolean
 }

@@ -50,36 +50,6 @@ describe('settling the calls a step left pending', () => {
     expect(seen.map((call) => call.callId)).toEqual([toCallId('call-early'), toCallId('call-late')])
   })
 
-  it('stops at an approval request, appends it, and reports the pause', async () => {
-    const harness = await openLog()
-    const { threadId } = await branchWithCalls({
-      harness,
-      calls: [
-        { callId: 'call-1', name: 'read' },
-        { callId: 'call-2', name: 'bash' },
-        { callId: 'call-3', name: 'read' },
-      ],
-    })
-    const seen: DispatchableCall[] = []
-    const settle = createSettlePending({
-      log: harness.log,
-      dispatch: scriptedDispatch({
-        seen,
-        draftsFor: (call) =>
-          call.name === 'bash'
-            ? [{ type: 'approval-requested', callId: call.callId, reason: 'bash needs a human' }]
-            : [{ type: 'tool-result', callId: call.callId, name: call.name, output: 'done', modelText: 'done' }],
-      }),
-    })
-
-    const settled = await settle({ threadId, signal: new AbortController().signal })
-
-    expect(settled).toEqual({ paused: { callId: toCallId('call-2'), reason: 'bash needs a human' } })
-    expect(seen.map((call) => call.callId)).toEqual([toCallId('call-1'), toCallId('call-2')])
-    const events = await harness.log.read({ threadId })
-    expect(events.map((event) => event.type).slice(-2)).toEqual(['tool-result', 'approval-requested'])
-  })
-
   it('stops before the next call once the signal is aborted, keeping what already ran', async () => {
     const harness = await openLog()
     const { threadId } = await branchWithCalls({

@@ -7,7 +7,7 @@ export type CritiqueRequest = { system: string; prompt: string }
 
 export const CRITIQUE_INSTRUCTION = [
   'You are reviewing the configuration of a nudge classifier that runs on one developer’s own machine.',
-  'Every tool is already allowed. The classifier may only let a call through or pause it and ask the developer to double-check.',
+  'Every tool is already allowed. The classifier may only let a call through or deny it with a reason the agent reads and can act on.',
   'You are not judging a tool call. You are judging whether this configuration says what it means.',
   '',
   'Answer in three short sections, plain prose, no preamble:',
@@ -22,8 +22,7 @@ export const CRITIQUE_INSTRUCTION = [
 const thresholdLines = ({ policy }: { policy: ClassifierPolicy }): readonly string[] => [
   `mode: ${policy.mode}`,
   `a signal is escalated to the judge at severity ${policy.consultAtOrAbove} or above`,
-  `when the judge cannot be reached, the developer is asked at severity ${policy.askWhenUnreachableAtOrAbove} or above`,
-  `at most ${policy.asksPerThread} interruptions per thread, after which surviving signals are let through`,
+  `when the judge cannot be reached, the call is denied with a teaching reason at severity ${policy.askWhenUnreachableAtOrAbove} or above`,
   `dimensions switched off entirely: ${policy.muted.join(', ') || 'none'}`,
 ]
 

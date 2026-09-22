@@ -151,23 +151,6 @@ describe('McpEditTool', () => {
     expect(await Bun.file(join(root, '.atlas', 'mcp.json')).exists()).toBe(false)
   })
 
-  it('keeps the trusted flag the input carried', async () => {
-    expect(
-      (
-        await invoke({
-          layer: 'project',
-          name: 'vouched',
-          transport: { kind: 'stdio', command: 'npx' },
-          action: 'upsert',
-          trusted: true,
-        })
-      ).ok
-    ).toBe(true)
-
-    const text = JSON.parse(await Bun.file(join(root, '.atlas', 'mcp.json')).text()) as Record<string, unknown>
-    expect(text['vouched']).toMatchObject({ trusted: true })
-  })
-
   it('writes the user layer where ATLAS_HOME sends it', async () => {
     process.env['ATLAS_HOME'] = root
     try {
@@ -249,7 +232,6 @@ describe('McpEditTool with a cloud session', () => {
       name: 'linear',
       transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' },
       action: 'upsert',
-      trusted: true,
     })
 
     expect(outcome).toMatchObject({ ok: true })
@@ -259,7 +241,6 @@ describe('McpEditTool with a cloud session', () => {
         method: 'PUT',
         body: {
           transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' },
-          trusted: true,
         },
       },
     ])

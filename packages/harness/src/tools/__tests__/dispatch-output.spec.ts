@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import type { ToolOutputChunk } from '@dltech/atlas-core'
 
 import { HookChain } from '../../hooks/registry'
-import { EApprovalRouting, HookedToolDispatcher } from '../dispatch'
+import { HookedToolDispatcher } from '../dispatch'
 import { InMemoryToolRegistry } from '../registry'
 import { readCall, toolNamed } from './fixtures'
 
@@ -15,7 +15,6 @@ const dispatcherWith = (
   }>,
 ): HookedToolDispatcher =>
   new HookedToolDispatcher({
-    approvals: EApprovalRouting.Operator,
     registry: new InMemoryToolRegistry([toolNamed({ name: 'read', invoke })]),
     hooks: new HookChain({}),
   })

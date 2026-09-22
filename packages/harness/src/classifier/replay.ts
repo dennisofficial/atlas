@@ -155,7 +155,6 @@ async function weigh(args: {
     evidence,
     signals: signalsFor({ evidence }),
     policy: deps.policy,
-    asksSoFar: asksBefore({ events: before, threadId: event.threadId }),
   })
 
   const consultation: Consultation | undefined =

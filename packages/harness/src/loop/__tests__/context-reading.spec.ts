@@ -13,7 +13,7 @@ import {
 import { buildHarness, LoopTurnRunner, type AtlasHarness } from '..'
 import { scriptedModel, type ScriptedStep } from '../../model/testing/scripted-model'
 import { HookChain } from '../../hooks/registry'
-import { EApprovalRouting, HookedToolDispatcher } from '../../tools/dispatch'
+import { HookedToolDispatcher } from '../../tools/dispatch'
 import { InMemoryToolRegistry } from '../../tools/registry'
 import { createTempDatabase, type TempDatabase } from './temp-database'
 
@@ -67,7 +67,7 @@ async function readingsOf({ script }: { script: readonly ScriptedStep[] }): Prom
     ids: harness.ids,
     assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY }),
     tools: () => registry.declarations(),
-    dispatch: new HookedToolDispatcher({ approvals: EApprovalRouting.Operator, registry, hooks: new HookChain({}) }),
+    dispatch: new HookedToolDispatcher({ registry, hooks: new HookChain({}) }),
     onContext: (reading) => readings.push(reading),
   })
 

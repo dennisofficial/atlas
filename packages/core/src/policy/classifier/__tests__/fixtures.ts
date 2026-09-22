@@ -267,12 +267,10 @@ export function recentAct(args: {
 export function triageFor(args: {
   evidence: CallEvidence
   policy?: ClassifierPolicy | undefined
-  asksSoFar?: number | undefined
 }): Triage {
   return triageOf({
     evidence: args.evidence,
     signals: signalsFor({ evidence: args.evidence }),
     policy: args.policy ?? DEFAULT_CLASSIFIER_POLICY,
-    asksSoFar: args.asksSoFar ?? 0,
   })
 }

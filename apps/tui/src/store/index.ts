@@ -82,7 +82,6 @@ export {
   deriveSidebar,
   ESidebarTaskState,
   IDLE_SIDEBAR,
-  type SidebarApproval,
   type SidebarModel,
   type SidebarTask,
   type SidebarTeammate,

@@ -21,7 +21,6 @@ export type ClassifierPolicy = {
   mode: EClassifierMode
   consultAtOrAbove: ESeverity
   askWhenUnreachableAtOrAbove: ESeverity
-  asksPerThread: number
   muted: readonly ERiskDimension[]
   environment: readonly string[]
 }
@@ -33,7 +32,6 @@ export const DEFAULT_CLASSIFIER_POLICY: ClassifierPolicy = {
   mode: EClassifierMode.Shadow,
   consultAtOrAbove: ESeverity.Serious,
   askWhenUnreachableAtOrAbove: ESeverity.Grave,
-  asksPerThread: 8,
   muted: [],
   environment: [SENSITIVE_NAME_HEURISTIC],
 }
@@ -70,19 +68,16 @@ export type Triage = {
   triage: ETriage
   standing: readonly RiskSignal[]
   cleared: readonly ClearedSignal[]
-  fatigued: boolean
 }
 
 export function triageOf({
   evidence,
   signals,
   policy,
-  asksSoFar,
 }: {
   evidence: CallEvidence
   signals: readonly RiskSignal[]
   policy: ClassifierPolicy
-  asksSoFar: number
 }): Triage {
   const standing: RiskSignal[] = []
   const cleared: ClearedSignal[] = []
@@ -96,13 +91,11 @@ export function triageOf({
     else cleared.push({ signal, by })
   }
 
-  const fatigued = standing.length > 0 && asksSoFar >= policy.asksPerThread
-  const consults = standing.length > 0 && !fatigued
+  const consults = standing.length > 0
 
   return {
     triage: consults ? ETriage.Consult : ETriage.Clear,
     standing,
     cleared,
-    fatigued,
   }
 }

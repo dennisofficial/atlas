@@ -6,27 +6,20 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
-  release-please:
-    runs-on: ubuntu-latest
-    outputs:
-      tuiReleased: ${{ steps.rp.outputs['apps/tui--release_created'] }}
-      tuiTag: ${{ steps.rp.outputs['apps/tui--tag_name'] }}
-      tuiVersion: ${{ steps.rp.outputs['apps/tui--version'] }}
-    steps:
-      - uses: googleapis/release-please-action@v4
-        id: rp
-
-  build-tui:
-    needs: release-please
-    if: needs.release-please.outputs.tuiReleased == 'true'
+  release:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: oven-sh/setup-bun@v2
 
@@ -35,15 +28,21 @@ jobs:
       # and staging the vendored binary for the darwin targets fails.
       - run: bun install --os='*' --cpu='*'
 
+      - name: compute release version
+        id: version
+        run: bun apps/tui/scripts/release-version.ts >> "$GITHUB_OUTPUT"
+
       - name: typecheck and test
+        if: steps.version.outputs.skip != 'true'
         run: bun run typecheck && bun run test
         env:
           ATLAS_HOME: ${{ github.workspace }}/.atlas-home
 
       - name: build binaries
+        if: steps.version.outputs.skip != 'true'
         working-directory: apps/tui
         env:
-          ATLAS_VERSION: ${{ needs.release-please.outputs.tuiVersion }}
+          ATLAS_VERSION: ${{ steps.version.outputs.version }}
           ATLAS_RELEASE_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -54,6 +53,16 @@ jobs:
             shasum -a 256 "dist/${asset}" > "dist/${asset}.sha256"
           done
 
-      - name: attach assets
+      - name: create release
+        if: steps.version.outputs.skip != 'true'
         working-directory: apps/tui
-        run: gh release upload "${{ needs.release-please.outputs.tuiTag }}" dist/* --clobber
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          PREV_TAG: ${{ steps.version.outputs.prev_tag }}
+        run: |
+          set -euo pipefail
+          args=(--title "atlas v${VERSION}" --generate-notes)
+          if [[ -n "$PREV_TAG" ]]; then
+            args+=(--notes-start-tag "$PREV_TAG")
+          fi
+          gh release create "tui-v${VERSION}" dist/* "${args[@]}"

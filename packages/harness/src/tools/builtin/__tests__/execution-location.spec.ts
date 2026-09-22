@@ -20,6 +20,7 @@ import type { ServiceSnapshot } from '../../../services/service-process'
 import type { ServiceStopOutcome } from '../../../services/service-registry'
 import type { ShellKillOutcome, ShellSnapshot } from '../../../shells/background-shell'
 import { toShellId } from '../../../shells/shell-id'
+import { KILL_SETTLE_MS } from '../../../shells/shell-registry'
 import { ExecutionLocationTool } from '../execution-location'
 import {
   CountingIds,
@@ -65,9 +66,18 @@ class FakeServices extends UnstaffedServices {
 
 class FakeShells extends UnstaffedShells {
   readonly kills: { shellId: string; by: EKilledBy; threadId: ThreadId }[] = []
+  readonly endingsAwaited: { threadId: ThreadId; ms: number }[] = []
 
-  constructor(private readonly snapshots: readonly ShellSnapshot[]) {
+  constructor(
+    private readonly snapshots: readonly ShellSnapshot[],
+    private readonly stillDying = 0,
+  ) {
     super()
+  }
+
+  override awaitEndings(args: { threadId: ThreadId; ms: number }): Promise<number> {
+    this.endingsAwaited.push(args)
+    return Promise.resolve(this.stillDying)
   }
 
   override list(): readonly ShellSnapshot[] {
@@ -172,6 +182,7 @@ describe('execution_location', () => {
     expect(shells.kills).toEqual([
       { shellId: 'sh_1', by: EKilledBy.ContainerSwitch, threadId },
     ])
+    expect(shells.endingsAwaited).toEqual([{ threadId, ms: KILL_SETTLE_MS }])
     expect(services.stops).toEqual([{ serviceId: 'svc_1', by: EKilledBy.ContainerSwitch }])
     expect(agents.relocations).toEqual([
       { threadId, location: EExecutionLocation.Docker, caller: threadId },
@@ -179,6 +190,21 @@ describe('execution_location', () => {
     if (outcome.ok) {
       expect(outcome.modelText).toContain('Docker container sandbox')
       expect(outcome.modelText).toContain('killed 1 running background shell')
+    }
+  })
+
+  it('says which endings are still in flight when a process outlives the settle bound', async () => {
+    const control = controlOver({ initial: EExecutionLocation.Host })
+    const shells = new FakeShells([runningShell('sh_1')], 1)
+    const { tool, fixture } = await open({ control, shells })
+    const threadId = (await fixture.threads.create({})).id
+
+    const outcome = await call(tool, { threadId, location: 'docker' })
+
+    expect(outcome.ok).toBe(true)
+    if (outcome.ok) {
+      expect(outcome.modelText).toContain('had not exited within the settle bound')
+      expect(outcome.modelText).toContain('their endings will arrive when they do')
     }
   })
 

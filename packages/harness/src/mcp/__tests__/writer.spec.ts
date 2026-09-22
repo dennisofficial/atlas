@@ -244,21 +244,6 @@ describe('mcp writer', () => {
     if (!outcome.ok) expect(outcome.reason).toContain('server "bad name!"')
   })
 
-  it('carries the trusted flag into the file it writes', async () => {
-    const outcome = await edit({
-      layer: EMcpEditLayer.Project,
-      name: 'vouched',
-      transport: { kind: 'stdio', command: 'npx' },
-      action: EMcpEditAction.Upsert,
-      trusted: true,
-    })
-
-    expect(outcome).toMatchObject({ ok: true })
-
-    const { specs } = await projectServers().load()
-    expect(specs[0]).toMatchObject({ name: 'vouched', trusted: true })
-  })
-
   it('says which existing entry is broken rather than overwriting around it', async () => {
     mkdirSync(join(root, '.atlas'))
     writeFileSync(

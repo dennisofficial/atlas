@@ -283,7 +283,7 @@ describe('CloudService', () => {
     writeFileSync(
       join(directory, 'mcp.json'),
       JSON.stringify({
-        linear: { transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' }, trusted: true },
+        linear: { transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' } },
         paused: { disabled: true },
       }),
     )
@@ -300,7 +300,7 @@ describe('CloudService', () => {
     expect(fake.putMcp).toEqual([
       {
         name: 'linear',
-        body: { transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' }, trusted: true },
+        body: { transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' } },
       },
       { name: 'paused', body: { disabled: true } },
     ])

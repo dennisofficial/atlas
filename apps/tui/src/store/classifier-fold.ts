@@ -12,7 +12,6 @@ export type ClassifierFold = {
   pauses: number
   turns: number
   topDimension: ERiskDimension | null
-  quietedCalls: number
   judgeUnreachable: boolean
 }
 
@@ -60,7 +59,6 @@ export function classifierFold({ events }: { events: readonly Event[] }): Classi
     pauses: paused.length,
     turns: eventsOfType({ events, type: 'user-said' }).length,
     topDimension: commonest(paused),
-    quietedCalls: rows.filter((row) => row.fatigued === true).length,
     judgeUnreachable: judgedRows(sinceLastTurn(events)).some(wentUnanswered),
   }
 }

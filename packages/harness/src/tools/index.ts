@@ -1,7 +1,6 @@
 export * from './registry'
 export * from './composite-registry'
 export * from './register-tools'
-export * from './approval-routing'
 export * from './dispatch'
 export * from './builtin/read'
 export * from './builtin/write'

@@ -253,7 +253,6 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     reason: z.string(),
     consulted: z.boolean(),
     wouldAsk: z.boolean().optional(),
-    fatigued: z.boolean().optional(),
     elapsedMs: z.number().int().nonnegative(),
   }),
   z.object({

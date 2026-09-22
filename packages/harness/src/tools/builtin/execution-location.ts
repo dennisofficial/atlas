@@ -19,7 +19,7 @@ import type { AgentRegistryPort } from '../../agents/registry/port'
 import type { ExecutionLocationControl } from '../../composition/execution-location-state'
 import type { DockerEngine } from '../../execution/docker/engine'
 import type { ServiceRegistryPort } from '../../services/service-registry'
-import type { ShellRegistryPort } from '../../shells/shell-registry'
+import { KILL_SETTLE_MS, type ShellRegistryPort } from '../../shells/shell-registry'
 import { relocateSession, type RelocatedSession } from '../../store/relocate-session'
 import type { ThreadStorePort } from '../../store/thread-store'
 
@@ -30,7 +30,7 @@ const inputSchema = z.strictObject({
 const description = [
   'Move this session between the host machine and its Docker container sandbox, carrying the whole family - a sub-agent calling it moves the session it belongs to, sub-agents included, while a teammate calling it moves only itself and its own sub-agents.',
   'Pass location "docker" so later bash, read and write calls run inside the container - prefer it before starting dev servers, installing dependencies or running test suites you want kept off the host - or "host" to run on this machine directly.',
-  'The move kills running background shells and stops services, so restart anything long-lived afterwards, in the new location.',
+  'The move kills running background shells and stops services, waiting for the endings it caused so they are already on their way to you when the call returns - restart anything long-lived afterwards, in the new location.',
   'Sub-agents move with the session that calls this; teammates own their execution location independently and never move along with the main session or a sibling teammate.',
   'Asking for the location the session already runs in just answers where it is.',
   'The cloud is never a target: moving to or from it is the operator’s call.',
@@ -108,6 +108,7 @@ export class ExecutionLocationTool extends SchemaTool<typeof inputSchema> {
     for (const shell of killed) {
       this.deps.shells.kill({ shellId: shell.shellId, by: EKilledBy.ContainerSwitch, threadId: root })
     }
+    const shellEndings = this.deps.shells.awaitEndings({ threadId: root, ms: KILL_SETTLE_MS })
 
     control.state.set(target)
     control.state.note({ threadId: root, location: target })
@@ -137,10 +138,12 @@ export class ExecutionLocationTool extends SchemaTool<typeof inputSchema> {
       }
     }
 
+    const stillDying = (await shellEndings) + moved.stillStopping
+
     return {
       ok: true,
       output: { executionLocation: { from, to: target } },
-      modelText: this.announce({ target, from, killedShells: killed.length, moved }),
+      modelText: this.announce({ target, from, killedShells: killed.length, moved, stillDying }),
     }
   }
 
@@ -149,6 +152,7 @@ export class ExecutionLocationTool extends SchemaTool<typeof inputSchema> {
     from: EExecutionLocation
     killedShells: number
     moved: RelocatedSession
+    stillDying: number
   }): string {
     const where =
       args.target === EExecutionLocation.Docker
@@ -170,6 +174,11 @@ export class ExecutionLocationTool extends SchemaTool<typeof inputSchema> {
     if (args.moved.relocatedAgents.length > 0) {
       sentences.push(
         `${args.moved.relocatedAgents.length} ${args.moved.relocatedAgents.length === 1 ? 'sub-agent' : 'sub-agents'} moved with the session (teammates were not).`,
+      )
+    }
+    if (args.stillDying > 0) {
+      sentences.push(
+        `${args.stillDying} of the stopped processes had not exited within the settle bound; their endings will arrive when they do, the same as any other ending.`,
       )
     }
     return sentences.join(' ')

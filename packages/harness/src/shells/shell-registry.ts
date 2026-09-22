@@ -74,6 +74,15 @@ export abstract class ShellRegistryPort {
   }): string | undefined
   abstract kill(args: { shellId: string; by: EKilledBy; threadId: ThreadId }): ShellKillOutcome
   /**
+   * A caller that just killed shells is already waiting, so the endings it caused should sit in
+   * the notice queue when it moves on: an exit that lands after the caller's next drain would hang
+   * in the queue for a whole model step. Waits, bounded per shell by `ms`, for every signalled
+   * shell of the thread to record its exit and for the announcement pipeline (after-shell hooks,
+   * then the queue) to land, and answers how many shells had not exited — their endings announce
+   * whenever they do, the same as any other ending.
+   */
+  abstract awaitEndings(args: { threadId: ThreadId; ms: number }): Promise<number>
+  /**
    * A rewind disowns the shells it cut: they die with the transcript that started them, and their
    * endings announce nothing — the rewound thread holds no tool call the announcement could
    * belong to. Removal is the exception to every ending announcing itself.
@@ -257,6 +266,20 @@ export class BunShellRegistry extends ShellRegistryPort {
     const settled = this.settleClaimed(entry)
     this.claims.set(entry.shell.shellId, settled)
     return { ok: true, snapshot, settled }
+  }
+
+  async awaitEndings({ threadId, ms }: { threadId: ThreadId; ms: number }): Promise<number> {
+    const signalled = [...this.tracked.values()].filter(
+      (entry) =>
+        entry.threadId === threadId && entry.shell.snapshot().status !== EShellStatus.Running,
+    )
+    const deaths = await Promise.all(
+      signalled.map((entry) =>
+        withinDeadline({ promise: entry.shell.exited.catch(() => undefined), ms }),
+      ),
+    )
+    await withinDeadline({ promise: Promise.all([...this.settling]).catch(() => undefined), ms })
+    return deaths.filter((died) => !died).length
   }
 
   /**

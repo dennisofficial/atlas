@@ -140,6 +140,12 @@ export class PullRequestsService {
         },
       },
     )
+    if (response.status === 401) {
+      this.access.delete(`${args.userId}:${args.owner}/${args.repo}`)
+      throw new ForbiddenException(
+        'the stored github token was rejected (expired or revoked) — reconnect github in settings',
+      )
+    }
     if (response.status === 404) {
       throw new ForbiddenException(`no access to ${args.owner}/${args.repo}`)
     }
