@@ -25,7 +25,7 @@ import { createUrlOpener } from '../browser/open-url'
 import { createDeltaChannel } from '../channel/delta-channel'
 import { createHarnessContainer } from '../container/create-harness-container'
 import { disposeAll, registerDisposable } from '../container/disposal'
-import { portToken } from '../container/injection'
+import { portToken, type DependencyContainer } from '../container/injection'
 import {
   ClientVersionToken,
   HookMishapReporterToken,
@@ -94,11 +94,18 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   clientVersion: string
   surface: HarnessSurfaceBinding<TSurface>
   stores?: HarnessStoreBinding | undefined
+  /**
+   * Rebinds credential-facing ports before anything resolves them. A serve session runs this to
+   * swap the cloud proxies (which assume a user session) for its thread-scoped broker adapters;
+   * it must run ahead of `bindAccounts`, which resolves the account store at boot.
+   */
+  bindPorts?: ((args: { container: DependencyContainer }) => void) | undefined
 }): Promise<HarnessApp<TSurface, Command, TPluginSurface>> {
   const { launch, surface } = args
   const notice: NoticePort = surface.notice
   const container = createHarnessContainer()
   container.register(ClientVersionToken, { useValue: args.clientVersion })
+  args.bindPorts?.({ container })
   // A session with no workspace (an orchestrator agent) anchors at the process directory: nothing
   // probes a repo, claims a worktree, or reads project instructions for it.
   const anchor = launch.cwd ?? process.cwd()
@@ -314,6 +321,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     notice,
     summarise,
     settings,
+    decisionsEnabled: () => decisionsConfig() !== undefined,
     stopSandbox: sandbox.stop,
     settled,
     tldr: { feed: surface.tldrFeed, model: tldrModel, modelId: () => tldrModel.modelId },

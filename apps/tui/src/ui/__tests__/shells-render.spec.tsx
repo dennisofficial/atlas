@@ -62,6 +62,7 @@ const sidebarRows = (
       model={IDLE_SIDEBAR}
       root={CWD}
       worktree={null}
+      version="v1.2.3"
       shells={shells}
       shellNow={NOW}
       {...(fold === undefined ? {} : { shellFold: fold })}

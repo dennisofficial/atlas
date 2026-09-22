@@ -1,8 +1,12 @@
 import {
+  AccountStorePort,
+  ClockPort,
+  CredentialPort,
   ENoticeTone,
   EServiceStatus,
   EShellStatus,
   EventLogPort,
+  NOTICE_WARN_MS,
   ProcessPort,
   type NoticePort,
 } from '@dltech/atlas-core'
@@ -17,6 +21,7 @@ import { VercelDriver, type VercelCredentials } from '../cloud/vercel-driver'
 import { composeHarness } from '../composition/compose'
 import { loadSettings } from '../composition/settings-binding'
 import { portToken } from '../container/injection'
+import { SecretsStoreToken } from '../container/tokens'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import { atlasDirectory } from '../store/paths'
 import { ThreadStorePort } from '../store/thread-store'
@@ -24,6 +29,10 @@ import { ThreadStorePort } from '../store/thread-store'
 import { adoptChildren } from './adopt-children'
 import type { ServeApp, ServeCompose } from './serve-app'
 import { ServeProcessPort } from './serve-process'
+import { ServeAccountStore } from './serve-account-store'
+import { ServeBrokerClient } from './serve-broker-client'
+import { ServeCredentialPort } from './serve-credential-port'
+import { ServeSecretsStore } from './serve-secrets-store'
 import { seedServeSession } from './serve-session'
 import { createMemoryUploader } from './upload-memory'
 
@@ -82,6 +91,14 @@ const loggingOnAppendFailure = (args: { log: EventLogPort; notice: NoticePort })
 export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => {
   seedServeSession({ url: args.controlPlaneUrl, token: args.token })
 
+  const broker = new ServeBrokerClient({
+    url: args.controlPlaneUrl,
+    token: args.token,
+    threadId: args.threadId,
+    clientVersion: args.clientVersion,
+  })
+  const secrets = new ServeSecretsStore({ broker })
+
   const client = new SessionsClient({
     url: args.controlPlaneUrl,
     token: args.token,
@@ -101,6 +118,14 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
   })
 
   const app = await composeHarness<ServeStores>({
+    bindPorts: ({ container }) => {
+      container.register(portToken(AccountStorePort), { useValue: new ServeAccountStore({ broker }) })
+      container.register(portToken(CredentialPort), {
+        useFactory: (resolver) =>
+          new ServeCredentialPort({ broker, clock: resolver.resolve(portToken(ClockPort)) }),
+      })
+      container.register(SecretsStoreToken, { useValue: secrets })
+    },
     launch: {
       cwd: args.cwd,
       command: SERVE_COMMAND,
@@ -138,6 +163,17 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       },
     },
   })
+
+  try {
+    await secrets.warm()
+  } catch (error) {
+    args.notice.notify({
+      key: 'cloud:secrets',
+      tone: ENoticeTone.Warn,
+      ttlMs: NOTICE_WARN_MS,
+      text: `Atlas Cloud secrets could not be loaded (${messageOf(error)}) — cloud-backed keys stay unread until it comes back.`,
+    })
+  }
 
   return {
     channel: app.channel,

@@ -24,10 +24,13 @@ export type ThreadModelControl = {
  * terminals on two threads stop fighting over one remembered pair; the settings row carries what a
  * conversation with nothing of its own begins on.
  *
- * The default is read where the thread is adopted rather than followed, so raising it in the
- * settings reaches the next conversation instead of the one on screen. The order of the effects is
- * the other invariant: the thread's pair reaches the harness before anything is written back, so
- * the write sees the model this thread is on rather than the one the thread before it left behind.
+ * The default is followed only while the thread has no model of its own — never started, never
+ * switched on screen — so a default picked after adoption (onboarding's) still reaches the first
+ * conversation instead of leaving it on the launch fallback. Once the thread has started or been
+ * switched, raising the default reaches the next conversation instead of the one on screen. The
+ * order of the effects is the other invariant: the thread's pair reaches the harness before
+ * anything is written back, so the write sees the model this thread is on rather than the one the
+ * thread before it left behind.
  */
 export function useThreadModel(args: {
   app: AtlasApp
@@ -38,6 +41,8 @@ export function useThreadModel(args: {
   const { app, threadId, stored, started } = args
   const [selection, setSelection] = useState<ModelSelection>(() => app.model.choice())
   const launching = useRef(true)
+  const adoptedFor = useRef<ThreadId | null>(null)
+  const switchedFor = useRef<ThreadId | null>(null)
   const wasStarted = useRef(started)
 
   useSyncExternalStore(app.settings.subscribe, app.settings.version)
@@ -50,8 +55,11 @@ export function useThreadModel(args: {
 
   useEffect(() => {
     const pinned = launching.current && app.modelPinned
+    const adoption = adoptedFor.current !== threadId
     launching.current = false
+    adoptedFor.current = threadId
     if (pinned) return
+    if (!adoption && stored === undefined && (started || switchedFor.current === threadId)) return
 
     app.model.select(
       threadSelection({
@@ -64,7 +72,7 @@ export function useThreadModel(args: {
       }),
     )
     setSelection(app.model.choice())
-  }, [app, stored, threadId])
+  }, [app, stored, started, threadId, resolution])
 
   useEffect(() => {
     const opening = !wasStarted.current && started
@@ -90,6 +98,7 @@ export function useThreadModel(args: {
       app.model.select(next)
       const landed = app.model.choice()
       setSelection(landed)
+      switchedFor.current = threadId
       if (refKey(landed.ref) !== refKey(next.ref)) return
 
       if (!started) return

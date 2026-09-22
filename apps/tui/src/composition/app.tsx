@@ -167,7 +167,7 @@ import { captureWorkspace } from './cloud/workspace-snapshot'
 import type { CaptureContext } from './cloud/context-archive'
 import { useCloudSession } from './use-cloud-session'
 import type { LiftedAttachment, LiftedSession } from './lifted-session'
-import { clientVersionHeader } from '../build/info'
+import { clientVersionHeader, versionLabel } from '../build/info'
 
 const STEER_PLACEHOLDER = 'Steer the turn'
 
@@ -1630,6 +1630,7 @@ function Workspace(props: {
                 cwd={props.app.config.cwd}
                 home={homedir()}
                 modelId={selection.ref.modelId}
+                version={versionLabel()}
                 width={contentWidth}
               />
             ) : agentView.selected === null ? (
@@ -1721,6 +1722,7 @@ function Workspace(props: {
             model={sidebarModel}
             root={projectRoot}
             worktree={sidebarWorktree}
+            version={versionLabel()}
             overlay={overlay}
             shells={shells.folded}
             shellNow={shells.now}

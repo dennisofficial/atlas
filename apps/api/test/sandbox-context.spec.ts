@@ -22,11 +22,11 @@ const sandboxes = {
   getContextArchive: vi.fn(async (): Promise<Buffer | null> => null),
   verifySessionToken: vi.fn(async (args: { threadId: string; token: string }) => {
     if (args.token !== SANDBOX_TOKEN) throw new UnauthorizedException('nope')
-    return undefined
+    return { threadId: args.threadId, userId: 'user-a' }
   }),
   verifyTokenPrincipal: vi.fn(async (args: { token: string }) => {
     if (args.token !== SANDBOX_TOKEN) throw new UnauthorizedException('nope')
-    return { threadId: THREAD }
+    return { threadId: THREAD, userId: 'user-a' }
   }),
 }
 

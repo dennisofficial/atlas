@@ -27,6 +27,15 @@ export class SecretsService {
     return rows.map((row) => this.toSecretDto(row))
   }
 
+  async listNamed(args: { userId: string; names: string[] }): Promise<SecretDto[]> {
+    for (const name of args.names) assertValidName(name)
+    const rows = await db.secretEntry.findMany({
+      where: { userId: args.userId, name: { in: args.names } },
+      orderBy: { name: 'asc' },
+    })
+    return rows.map((row) => this.toSecretDto(row))
+  }
+
   async set(args: { userId: string; name: string; value: string }): Promise<void> {
     assertValidName(args.name)
     const sealedValue = this.cipher.encrypt(JSON.stringify(args.value))

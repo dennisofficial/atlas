@@ -3,9 +3,12 @@ import {
   Inject,
   Injectable,
   Logger,
+  HttpException,
+  HttpStatus,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common'
+import { EnvService } from '../../_core/config/env/env.service'
 import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import type { CloudSandboxModel, ThreadModel } from '../../db'
 import { db } from '../../db'
@@ -60,6 +63,7 @@ export class SandboxesService {
 
   constructor(
     private readonly vercel: VercelSandboxClient,
+    private readonly env: EnvService,
     private readonly gitCredentials: SandboxGitCredentials,
     private readonly cipher: SecretCipherService,
     @Inject(CONTEXT_ARCHIVE_STORE) private readonly archives: ContextArchiveStore,
@@ -87,6 +91,7 @@ export class SandboxesService {
     if (args.contextBundle !== undefined) {
       assertContextBundleWithinLimit({ bundle: args.contextBundle })
     }
+    await this.assertWithinQuota({ userId: args.userId, threadId: args.threadId })
     const existing = await db.cloudSandbox.findUnique({
       where: { threadId: args.threadId },
       select: { name: true, sealedToken: true, contextPending: true },
@@ -350,14 +355,15 @@ export class SandboxesService {
     await db.cloudSandbox.delete({ where: { threadId: args.threadId } })
   }
 
-  async verifySessionToken(args: { threadId: string; token: string }): Promise<void> {
+  async verifySessionToken(args: { threadId: string; token: string }): Promise<{ userId: string }> {
     const row = await db.cloudSandbox.findUnique({
       where: { threadId: args.threadId },
-      select: { tokenHash: true },
+      select: { tokenHash: true, userId: true },
     })
     if (row === null || !tokenMatches({ token: args.token, tokenHash: row.tokenHash })) {
       throw new UnauthorizedException('a valid sandbox session token is required')
     }
+    return { userId: row.userId }
   }
 
   async verifyTokenPrincipal(args: { token: string }): Promise<SandboxPrincipal> {
@@ -406,6 +412,35 @@ export class SandboxesService {
     } catch (failure) {
       this.logger.warn(
         `could not notify sandbox ${args.row.name} before parking it: ${messageOf(failure)}`,
+      )
+    }
+  }
+
+  private ttlMs(): number {
+    return this.env.get('SANDBOX_TTL_MINUTES') * 60_000
+  }
+
+  /**
+   * Every sandbox is billed to the deployment owner, and sign-up is open, so an account may
+   * hold only so many recently-active sandboxes at once. "Active" rides on lastActivityAt over
+   * one TTL rather than on the state column: a freshly claimed row still reads Parked while its
+   * provision runs in the background, but its activity timestamp is already now. The check is
+   * sequential-attack tight — concurrent first attaches on different threads race it, bounded by
+   * the controller throttle, and every row that slips through is still reaped on the usual TTL.
+   */
+  private async assertWithinQuota(args: { userId: string; threadId: string }): Promise<void> {
+    const cap = this.env.get('SANDBOX_MAX_ACTIVE_PER_USER')
+    const activeSince = new Date(Date.now() - this.ttlMs()).toISOString()
+    const rows = await db.cloudSandbox.findMany({
+      where: { userId: args.userId, lastActivityAt: { gte: activeSince } },
+      select: { threadId: true },
+    })
+    const active = new Set(rows.map((row) => row.threadId))
+    active.add(args.threadId)
+    if (active.size > cap) {
+      throw new HttpException(
+        `this account already has ${active.size - 1} active sandboxes (the limit is ${cap}) — stop one or let it park first`,
+        HttpStatus.TOO_MANY_REQUESTS,
       )
     }
   }

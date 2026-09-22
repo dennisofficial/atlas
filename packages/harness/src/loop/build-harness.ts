@@ -23,6 +23,7 @@ import { AiSdkModelPort, type ModelCardSource } from '../model/ai-sdk-model-port
 import { createRawTape } from '../model/raw-tape'
 import type { ToolDispatcher } from '../tools/dispatch'
 import { createLoopCut } from '../store/cut-loop'
+import type { LoopWatch } from './loop-watchdog'
 import { openAtlasDatabase, PrismaThreadStore, PrismaEventLog, RandomIds, SystemClock } from '../store'
 import type { ThreadStorePort } from '../store'
 import { LoopTurnRunner, type TurnDeps } from './run-turn'
@@ -57,6 +58,7 @@ export type BuildHarnessArgs = {
   compact?: ((args: { threadId: ThreadId }) => Promise<boolean>) | undefined
   autoCompactAtPercent?: (() => number) | undefined
   launchDirectory?: string | undefined
+  watchLoop?: LoopWatch | undefined
 }
 
 export async function buildHarness(args: BuildHarnessArgs): Promise<AtlasHarness> {
@@ -96,6 +98,7 @@ export async function buildHarness(args: BuildHarnessArgs): Promise<AtlasHarness
     spend: { ledger, clock },
     applyLoopCut: createLoopCut({ threads, log, ids }),
     launchDirectory: args.launchDirectory,
+    ...(args.watchLoop === undefined ? {} : { watchLoop: args.watchLoop }),
     ...(args.compact === undefined ? {} : { compact: args.compact }),
     ...(args.autoCompactAtPercent === undefined
       ? {}

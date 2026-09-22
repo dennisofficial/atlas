@@ -168,16 +168,16 @@ describe('user-context memory endpoints', () => {
     expect(userContext.deleteMemory).toHaveBeenCalledWith({ userId: 'user-a' })
   })
 
-  it('refuses a valid sandbox token on the delete: purging is a human action', async () => {
+  it('refuses a valid sandbox token: memory is a threadless route, and purging is a human action', async () => {
     await request(app.getHttpServer())
       .get('/user-context/memory')
       .set('authorization', `Bearer ${SANDBOX_TOKEN}`)
-      .expect(200)
+      .expect(403)
 
     await request(app.getHttpServer())
       .delete('/user-context/memory')
       .set('authorization', `Bearer ${SANDBOX_TOKEN}`)
-      .expect(401)
+      .expect(403)
 
     expect(userContext.deleteMemory).not.toHaveBeenCalled()
   })

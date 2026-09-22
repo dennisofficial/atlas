@@ -4,7 +4,7 @@ import type { Request } from 'express'
 import { SandboxesService } from './sandboxes.service'
 
 export interface SandboxAuthenticatedRequest extends Request {
-  sandbox?: { threadId: string }
+  sandbox?: { threadId: string; userId: string }
 }
 
 const threadIdOf = (request: Request): string | undefined => {
@@ -40,13 +40,13 @@ export class SandboxTokenGuard implements CanActivate {
     }
 
     if (threadId !== undefined) {
-      await this.sandboxes.verifySessionToken({ threadId, token })
-      request.sandbox = { threadId }
+      const row = await this.sandboxes.verifySessionToken({ threadId, token })
+      request.sandbox = { threadId, userId: row.userId }
       return true
     }
 
     const row = await this.sandboxes.verifyTokenPrincipal({ token })
-    request.sandbox = { threadId: row.threadId }
+    request.sandbox = { threadId: row.threadId, userId: row.userId }
     return true
   }
 }

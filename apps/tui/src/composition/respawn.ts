@@ -2,6 +2,7 @@ import { existsSync, renameSync } from 'node:fs'
 
 import { EBuildKind } from '../build/info'
 import { nextBinaryPathFor } from '../build/self-update-asset'
+import { execInPlace } from './respawn-exec'
 
 export function wiresSelfRestart(kind: EBuildKind): boolean {
   return kind !== EBuildKind.Source
@@ -23,6 +24,7 @@ export function respawnArgv(args: {
 export type RespawnPorts = {
   readonly nextBinaryExists: () => boolean
   readonly promoteNextBinary: () => void
+  readonly execInPlace: (argv: readonly string[]) => void
   readonly spawnDetached: (argv: readonly string[]) => void
   readonly reportPromotionFailure: (error: unknown) => void
   readonly exit: (code: number) => void
@@ -42,9 +44,19 @@ export function performRespawn(args: {
     }
   }
 
-  args.ports.spawnDetached(
-    respawnArgv({ execPath: args.execPath, cwd: args.cwd, resumeHandle: args.resumeHandle }),
-  )
+  const argv = respawnArgv({
+    execPath: args.execPath,
+    cwd: args.cwd,
+    resumeHandle: args.resumeHandle,
+  })
+
+  try {
+    args.ports.execInPlace(argv)
+  } catch {
+    // execve only ever returns when it failed — fall back to the detached spawn.
+  }
+
+  args.ports.spawnDetached(argv)
   args.ports.exit(0)
 }
 
@@ -54,6 +66,7 @@ export function realRespawnPorts(execPath: string): RespawnPorts {
   return {
     nextBinaryExists: () => existsSync(nextPath),
     promoteNextBinary: () => renameSync(nextPath, execPath),
+    execInPlace: (argv) => execInPlace(argv),
     spawnDetached: (argv) => {
       Bun.spawn([...argv], { stdio: ['inherit', 'inherit', 'inherit'], detached: true }).unref()
     },

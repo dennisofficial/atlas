@@ -1,7 +1,8 @@
 import type { ExecutionContext } from '@nestjs/common'
-import { UnauthorizedException } from '@nestjs/common'
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common'
 import type { Reflector } from '@nestjs/core'
 import { describe, expect, it, vi } from 'vitest'
+import { SANDBOX_REACHABLE_KEY } from '../../_core/decorators/sandbox-reachable.decorator'
 import type { SessionVerifier } from '../../_core/ports/session-verifier'
 import type { CloudSandboxModel } from '../../db'
 import type { SandboxesService } from '../sandboxes/sandboxes.service'
@@ -10,8 +11,13 @@ import { SessionOrSandboxGuard } from './session-or-sandbox.guard'
 const contextWith = (args: {
   params: Record<string, string>
   authorization?: string
-}): { context: ExecutionContext; request: { auth?: unknown } } => {
-  const request: { params: Record<string, string>; headers: Record<string, string>; auth?: unknown } = {
+}): { context: ExecutionContext; request: { auth?: unknown; sandbox?: unknown } } => {
+  const request: {
+    params: Record<string, string>
+    headers: Record<string, string>
+    auth?: unknown
+    sandbox?: unknown
+  } = {
     params: args.params,
     headers: args.authorization === undefined ? {} : { authorization: args.authorization },
   }
@@ -24,6 +30,10 @@ const contextWith = (args: {
 }
 
 const reflector = { getAllAndOverride: () => false } as unknown as Reflector
+
+const sandboxReachableReflector = {
+  getAllAndOverride: (key: string) => key === SANDBOX_REACHABLE_KEY,
+} as unknown as Reflector
 
 const session = {
   userId: 'user-session',
@@ -38,10 +48,11 @@ const sandboxRow = (userId: string): CloudSandboxModel =>
 const guardWith = (args: {
   verifier: SessionVerifier
   sandboxes: Record<string, unknown>
+  reflector?: Reflector
 }): SessionOrSandboxGuard =>
   new SessionOrSandboxGuard(
     args.verifier,
-    reflector,
+    args.reflector ?? reflector,
     args.sandboxes as unknown as SandboxesService,
   )
 
@@ -69,6 +80,7 @@ describe('SessionOrSandboxGuard', () => {
     })
     expect(verify).not.toHaveBeenCalled()
     expect(request.auth).toMatchObject({ userId: 'user-a' })
+    expect(request.sandbox).toEqual({ sandboxId: 'sbx_1', threadId: 'brn_1' })
   })
 
   it("authenticates a sandbox token against a sub-agent thread of the sandbox's family", async () => {
@@ -167,13 +179,35 @@ describe('SessionOrSandboxGuard', () => {
     expect(assertThreadInFamily).not.toHaveBeenCalled()
   })
 
-  it('authenticates a sandbox token by its hash alone on routes that name no thread', async () => {
+  it('refuses a sandbox token on a threadless route that has not opted in', async () => {
     const verifyTokenPrincipal = vi.fn(async () => sandboxRow('user-a'))
     const assertThreadInFamily = vi.fn(async () => undefined)
     const verify = vi.fn()
     const guard = guardWith({
       verifier: { verify } as unknown as SessionVerifier,
       sandboxes: { verifyTokenPrincipal, assertThreadInFamily },
+    })
+    const { context, request } = contextWith({
+      params: {},
+      authorization: 'Bearer sandbox-token',
+    })
+
+    await expect(guard.canActivate(context)).rejects.toBeInstanceOf(ForbiddenException)
+
+    expect(verifyTokenPrincipal).toHaveBeenCalledWith({ token: 'sandbox-token' })
+    expect(assertThreadInFamily).not.toHaveBeenCalled()
+    expect(verify).not.toHaveBeenCalled()
+    expect(request.auth).toBeUndefined()
+  })
+
+  it('admits a sandbox token on a threadless route that opted in with @SandboxReachable', async () => {
+    const verifyTokenPrincipal = vi.fn(async () => sandboxRow('user-a'))
+    const assertThreadInFamily = vi.fn(async () => undefined)
+    const verify = vi.fn()
+    const guard = guardWith({
+      verifier: { verify } as unknown as SessionVerifier,
+      sandboxes: { verifyTokenPrincipal, assertThreadInFamily },
+      reflector: sandboxReachableReflector,
     })
     const { context, request } = contextWith({
       params: {},
@@ -187,5 +221,6 @@ describe('SessionOrSandboxGuard', () => {
     expect(assertThreadInFamily).not.toHaveBeenCalled()
     expect(verify).not.toHaveBeenCalled()
     expect(request.auth).toMatchObject({ userId: 'user-a' })
+    expect(request.sandbox).toEqual({ sandboxId: 'sbx_1', threadId: 'brn_1' })
   })
 })

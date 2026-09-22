@@ -62,23 +62,27 @@ export function Button({
   type = "button",
   ...props
 }: ButtonProps) {
-  const Comp = asChild ? Slot : "button";
+  const classNames = cn(
+    buttonVariants({ variant, size }),
+    fullWidth && "flex w-full",
+    iconOnly && "aspect-square px-0",
+    variant === "link" && "h-auto px-0",
+    className,
+  );
+
+  if (asChild) {
+    return (
+      <Slot className={classNames} {...props}>
+        {children}
+      </Slot>
+    );
+  }
+
   return (
-    <Comp
-      className={cn(
-        buttonVariants({ variant, size }),
-        fullWidth && "flex w-full",
-        iconOnly && "aspect-square px-0",
-        variant === "link" && "h-auto px-0",
-        className,
-      )}
-      disabled={disabled || loading}
-      type={asChild ? undefined : type}
-      {...props}
-    >
+    <button className={classNames} disabled={disabled || loading} type={type} {...props}>
       {loading ? <Spinner /> : icon}
       {iconOnly ? null : children}
       {iconRight}
-    </Comp>
+    </button>
   );
 }
