@@ -49,6 +49,32 @@ install "$tmp/$asset" "$dest"
 printf 'installed %s to %s\n' "$asset" "$dest"
 
 case ":$PATH:" in
-  *":$dest_dir:"*) ;;
-  *) printf 'note: %s is not on your PATH\n' "$dest_dir" ;;
+  *":$dest_dir:"*) exit 0 ;;
 esac
+
+display_dir=$dest_dir
+case "$dest_dir" in
+  "$HOME"/*) display_dir="\$HOME/${dest_dir#"$HOME"/}" ;;
+esac
+line="export PATH=\"$display_dir:\$PATH\""
+
+rc=
+case "${SHELL:-}" in
+  */zsh) rc="$HOME/.zshrc" ;;
+  */bash)
+    if [ -f "$HOME/.bash_profile" ]; then
+      rc="$HOME/.bash_profile"
+    else
+      rc="$HOME/.bashrc"
+    fi
+    ;;
+esac
+
+if [ -z "$rc" ]; then
+  printf 'note: %s is not on your PATH — add it to your shell profile: %s\n' "$dest_dir" "$line"
+elif [ -f "$rc" ] && grep -qF "$display_dir" "$rc"; then
+  printf 'note: %s already puts %s on your PATH — restart your shell to pick it up\n' "$rc" "$dest_dir"
+else
+  printf '\n%s\n' "$line" >> "$rc"
+  printf 'added %s to your PATH in %s — restart your shell to pick it up\n' "$dest_dir" "$rc"
+fi
