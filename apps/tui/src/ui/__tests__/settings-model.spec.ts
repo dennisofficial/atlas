@@ -31,6 +31,7 @@ describe('settingsModel', () => {
       'general',
       'models',
       'appearance',
+      'cloud',
       'account',
     ])
   })
@@ -58,9 +59,23 @@ describe('settingsModel', () => {
       ['Development', 1],
       ['Web', 2],
       ['Execution', 4],
+    ])
+    expect(general?.rows).toHaveLength(29)
+  })
+
+  it('gathers the cloud sandbox settings on the cloud page', () => {
+    const cloud = modelWith().pages[3]
+
+    expect(cloud?.page.id).toBe(ESettingPage.Cloud)
+    expect(cloud?.groups.map((group) => [group.label, group.rows.length])).toEqual([
       ['Cloud sandboxes', 4],
     ])
-    expect(general?.rows).toHaveLength(33)
+    expect(cloud?.rows.map((row) => row.definition.id)).toEqual([
+      ESettingId.VercelToken,
+      ESettingId.VercelTeamId,
+      ESettingId.VercelProjectId,
+      ESettingId.SandboxImage,
+    ])
   })
 
   it('gathers the model rows on the models page, default pair first', () => {
@@ -114,7 +129,7 @@ describe('moving around the page', () => {
     const top = openSettings()
 
     expect(moveRow({ state: top, model, delta: -1 })).toEqual({ pageIndex: 0, rowIndex: 0 })
-    expect(moveRow({ state: top, model, delta: 99 })).toEqual({ pageIndex: 0, rowIndex: 32 })
+    expect(moveRow({ state: top, model, delta: 99 })).toEqual({ pageIndex: 0, rowIndex: 28 })
   })
 
   it('wraps around the tab strip and lands on its first row', () => {
@@ -122,12 +137,12 @@ describe('moving around the page', () => {
 
     expect(moved).toEqual({ pageIndex: 1, rowIndex: 0 })
     expect(movePage({ state: moved, model, delta: 1 })).toEqual({ pageIndex: 2, rowIndex: 0 })
-    expect(movePage({ state: { pageIndex: 3, rowIndex: 0 }, model, delta: 1 })).toEqual({
+    expect(movePage({ state: { pageIndex: 4, rowIndex: 0 }, model, delta: 1 })).toEqual({
       pageIndex: 0,
       rowIndex: 0,
     })
     expect(movePage({ state: openSettings(), model, delta: -1 })).toEqual({
-      pageIndex: 3,
+      pageIndex: 4,
       rowIndex: 0,
     })
   })
