@@ -11,6 +11,7 @@ const ALIAS_UNIQUE_TARGET = ['surface', 'externalId'] as const
 @Injectable()
 export class WorkItemsService {
   async intake(args: {
+    organizationId: string
     repo: string
     sourceKind: string
     surface: string
@@ -32,6 +33,7 @@ export class WorkItemsService {
   }
 
   private intakeOnce(args: {
+    organizationId: string
     repo: string
     sourceKind: string
     surface: string
@@ -53,6 +55,7 @@ export class WorkItemsService {
       const row = await tx.factoryWorkItem.create({
         data: {
           id: nextWorkItemId(),
+          organizationId: args.organizationId,
           repo: args.repo,
           sourceKind: args.sourceKind,
           status: EFactoryWorkItemStatus.Intake,

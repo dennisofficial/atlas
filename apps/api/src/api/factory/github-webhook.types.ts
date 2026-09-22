@@ -29,12 +29,18 @@ export interface GithubIssueLabel {
   name: string
 }
 
+// GitHub includes the app installation on every event delivered to an installation webhook.
+export interface GithubInstallation {
+  id: number
+}
+
 export interface GithubIssuesEventPayload {
   action: string
   issue: GithubIssue
   label?: GithubIssueLabel
   repository: GithubRepository
   sender: GithubActor
+  installation?: GithubInstallation
 }
 
 export interface GithubComment {
@@ -49,6 +55,7 @@ export interface GithubIssueCommentEventPayload {
   comment: GithubComment
   repository: GithubRepository
   sender: GithubActor
+  installation?: GithubInstallation
 }
 
 export interface GithubReview {
@@ -61,6 +68,7 @@ export interface GithubPullRequestReviewEventPayload {
   review: GithubReview
   repository: GithubRepository
   sender: GithubActor
+  installation?: GithubInstallation
 }
 
 export interface GithubPullRequestReviewCommentEventPayload {
@@ -69,6 +77,7 @@ export interface GithubPullRequestReviewCommentEventPayload {
   comment: GithubComment
   repository: GithubRepository
   sender: GithubActor
+  installation?: GithubInstallation
 }
 
 export interface GithubPullRequest {
@@ -81,4 +90,5 @@ export interface GithubPullRequestEventPayload {
   pull_request: GithubPullRequest
   repository: GithubRepository
   sender: GithubActor
+  installation?: GithubInstallation
 }

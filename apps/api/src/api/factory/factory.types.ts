@@ -1,3 +1,11 @@
+export const DEFAULT_ORGANIZATION_ID = 'org_atlas_default'
+
+export enum EFactoryConnectionProvider {
+  GitHub = 'github',
+  Linear = 'linear',
+  Slack = 'slack',
+}
+
 export enum EFactorySurface {
   Linear = 'linear',
   GitHub = 'github',
@@ -33,6 +41,7 @@ export enum EFactoryEventKind {
 
 export type WorkItemDto = {
   id: string
+  organizationId: string | null
   repo: string
   sourceKind: string
   status: string
@@ -41,6 +50,18 @@ export type WorkItemDto = {
   driveName: string | null
   revisionCycles: number
   lastActivityAt: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type FactoryConnectionDto = {
+  id: string
+  organizationId: string
+  provider: string
+  externalAccountId: string
+  sealedCredentials: string | null
+  scopes: string | null
+  status: string
   createdAt: string
   updatedAt: string
 }
