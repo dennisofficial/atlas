@@ -140,6 +140,7 @@ model CloudSandbox {
 
 model FactoryWorkItem {
   id                           String   @id
+  organizationId               String?
   repo                         String
   sourceKind                   String
   status                       String
@@ -156,6 +157,22 @@ model FactoryWorkItem {
 
   @@index([repo, status])
   @@index([status, lastActivityAt])
+  @@index([organizationId, status])
+}
+
+model FactoryConnection {
+  id                String @id
+  organizationId    String
+  provider          String
+  externalAccountId String
+  sealedCredentials String?
+  scopes            String?
+  status            String
+  createdAt         String
+  updatedAt         String
+
+  @@unique([provider, externalAccountId])
+  @@index([organizationId])
 }
 
 model FactoryStationRun {

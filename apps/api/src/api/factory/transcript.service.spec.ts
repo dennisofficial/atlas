@@ -7,10 +7,12 @@ vi.mock('../../db', async () => {
 })
 
 import { fakeFactoryDb } from '../../../test/fake-factory-db.js'
+import { DEFAULT_ORGANIZATION_ID } from './factory.types'
 import { TranscriptService } from './transcript.service'
 import { WorkItemsService } from './work-items.service'
 
 const INTAKE = {
+  organizationId: DEFAULT_ORGANIZATION_ID,
   repo: 'compai/atlas',
   sourceKind: 'github',
   surface: 'github',

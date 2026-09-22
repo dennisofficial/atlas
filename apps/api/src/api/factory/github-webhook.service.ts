@@ -1,5 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { EFactoryAliasKind, EFactoryEventKind, EFactorySurface, EFactoryWorkItemStatus } from './factory.types'
+import { FactoryConnectionsService } from './connections/connections.service'
+import {
+  DEFAULT_ORGANIZATION_ID,
+  EFactoryAliasKind,
+  EFactoryConnectionProvider,
+  EFactoryEventKind,
+  EFactorySurface,
+  EFactoryWorkItemStatus,
+} from './factory.types'
 import type {
   GithubIssueCommentEventPayload,
   GithubIssuesEventPayload,
@@ -32,6 +40,7 @@ export class GithubWebhookService {
 
   constructor(
     private readonly workItems: WorkItemsService,
+    private readonly connections: FactoryConnectionsService,
     private readonly transcript: TranscriptService,
     private readonly orchestrator: OrchestratorService,
     private readonly githubApp: GithubAppService,
@@ -60,11 +69,17 @@ export class GithubWebhookService {
     switch (args.event) {
       case 'ping':
         return { handled: true }
-      case 'issues':
+      case 'issues': {
+        const payload = args.payload as GithubIssuesEventPayload
+        const organizationId = await this.resolveOrganizationId({
+          installationId: payload.installation?.id,
+        })
         return this.handleIssues({
           deliveryId: args.deliveryId,
-          payload: args.payload as GithubIssuesEventPayload,
+          payload,
+          organizationId,
         })
+      }
       case 'issue_comment':
         return this.handleIssueComment({
           deliveryId: args.deliveryId,
@@ -91,9 +106,32 @@ export class GithubWebhookService {
     }
   }
 
+  // Transition behavior: until the existing atlas-by-dl installations get connection rows,
+  // an unresolved installation keeps landing in the default organization. Linear gets no fallback.
+  private async resolveOrganizationId(args: {
+    installationId: number | undefined
+  }): Promise<string> {
+    if (args.installationId === undefined) {
+      this.logger.warn('github webhook payload carried no installation id; using the default organization')
+      return DEFAULT_ORGANIZATION_ID
+    }
+    const connection = await this.connections.resolve({
+      provider: EFactoryConnectionProvider.GitHub,
+      externalAccountId: String(args.installationId),
+    })
+    if (connection === null) {
+      this.logger.warn(
+        `no factory connection for github installation ${args.installationId}; using the default organization`,
+      )
+      return DEFAULT_ORGANIZATION_ID
+    }
+    return connection.organizationId
+  }
+
   private async handleIssues(args: {
     deliveryId: string
     payload: GithubIssuesEventPayload
+    organizationId: string
   }): Promise<GithubWebhookOutcome> {
     const { payload } = args
     const externalId = issueExternalId({ repo: payload.repository.full_name, issueNumber: payload.issue.number })
@@ -137,6 +175,7 @@ export class GithubWebhookService {
 
     if (payload.action === 'labeled' && payload.label?.name === FACTORY_LABEL) {
       const { created } = await this.workItems.intake({
+        organizationId: args.organizationId,
         repo: payload.repository.full_name,
         sourceKind: EFactorySurface.GitHub,
         surface: EFactorySurface.GitHub,

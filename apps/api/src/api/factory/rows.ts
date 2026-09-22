@@ -1,12 +1,19 @@
 import type {
+  FactoryConnectionModel,
   FactorySurfaceAliasModel,
   FactoryTranscriptEventModel,
   FactoryWorkItemModel,
 } from '../../db'
-import type { SurfaceAliasDto, TranscriptEventDto, WorkItemDto } from './factory.types'
+import type {
+  FactoryConnectionDto,
+  SurfaceAliasDto,
+  TranscriptEventDto,
+  WorkItemDto,
+} from './factory.types'
 
 export const toWorkItemDto = (row: FactoryWorkItemModel): WorkItemDto => ({
   id: row.id,
+  organizationId: row.organizationId,
   repo: row.repo,
   sourceKind: row.sourceKind,
   status: row.status,
@@ -15,6 +22,18 @@ export const toWorkItemDto = (row: FactoryWorkItemModel): WorkItemDto => ({
   driveName: row.driveName,
   revisionCycles: row.revisionCycles,
   lastActivityAt: row.lastActivityAt,
+  createdAt: row.createdAt,
+  updatedAt: row.updatedAt,
+})
+
+export const toConnectionDto = (row: FactoryConnectionModel): FactoryConnectionDto => ({
+  id: row.id,
+  organizationId: row.organizationId,
+  provider: row.provider,
+  externalAccountId: row.externalAccountId,
+  sealedCredentials: row.sealedCredentials,
+  scopes: row.scopes,
+  status: row.status,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 })

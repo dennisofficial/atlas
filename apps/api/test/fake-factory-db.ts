@@ -12,6 +12,7 @@ export { uniqueViolation } from './fake-db-support'
 
 export type FakeWorkItemRow = {
   id: string
+  organizationId: string | null
   repo: string
   sourceKind: string
   status: string
@@ -35,6 +36,18 @@ export type FakeOrchestratorEventRow = {
   seq: number
   type: string
   body: string
+}
+
+export type FakeConnectionRow = {
+  id: string
+  organizationId: string
+  provider: string
+  externalAccountId: string
+  sealedCredentials: string | null
+  scopes: string | null
+  status: string
+  createdAt: string
+  updatedAt: string
 }
 
 export type FakeAliasRow = {
@@ -77,7 +90,12 @@ export type FakeStationRunRow = {
   finishedAt: string | null
 }
 
-type FakeRow = FakeWorkItemRow | FakeAliasRow | FakeTranscriptEventRow | FakeStationRunRow
+type FakeRow =
+  | FakeWorkItemRow
+  | FakeAliasRow
+  | FakeTranscriptEventRow
+  | FakeStationRunRow
+  | FakeConnectionRow
 
 const matchesRow = (row: FakeRow, where: Where): boolean =>
   Object.entries(where).every(([key, condition]) => {
@@ -89,6 +107,7 @@ const matchesRow = (row: FakeRow, where: Where): boolean =>
 
 export function createFakeFactoryDb() {
   const workItems: FakeWorkItemRow[] = []
+  const connections: FakeConnectionRow[] = []
   const aliases: FakeAliasRow[] = []
   const transcriptEvents: FakeTranscriptEventRow[] = []
   const users: FakeUserRow[] = []
@@ -106,6 +125,7 @@ export function createFakeFactoryDb() {
       create: async (args: { data: Where }) => {
         if (workItems.some((one) => one.id === args.data.id)) throw uniqueViolation(['id'])
         const row: FakeWorkItemRow = {
+          organizationId: null,
           orchestratorThreadId: null,
           orchestratorDeliveredEventId: null,
           driveName: null,
@@ -138,6 +158,12 @@ export function createFakeFactoryDb() {
         const matched = workItems.filter((one) => matchesRow(one, args.where))
         for (const row of matched) applyUpdate(row as unknown as Record<string, unknown>, args.data)
         return { count: matched.length }
+      },
+    },
+    factoryConnection: {
+      findFirst: async (args: { where: Where; select?: Record<string, boolean> }) => {
+        const found = connections.find((one) => matchesRow(one, args.where)) ?? null
+        return found === null ? null : project(found, args.select)
       },
     },
     factorySurfaceAlias: {
@@ -276,6 +302,7 @@ export function createFakeFactoryDb() {
   return {
     db,
     workItems,
+    connections,
     aliases,
     transcriptEvents,
     users,
@@ -286,6 +313,7 @@ export function createFakeFactoryDb() {
     stationRuns,
     reset: () => {
       workItems.length = 0
+      connections.length = 0
       aliases.length = 0
       transcriptEvents.length = 0
       users.length = 0
