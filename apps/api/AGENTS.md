@@ -1,8 +1,12 @@
 # apps/api
 
 The Atlas Cloud backend. NestJS 11 + better-auth + Prisma 7 (driver adapter) over PostgreSQL
-(Neon in deployed tiers, docker locally). First client is the Atlas TUI; the first job is
-credential centralization (see `.scratch/atlas-cloud/spec.md` while the effort is in flight).
+(Neon in deployed tiers, docker locally). First client is the Atlas TUI. Atlas is local-first:
+the machine is the credential store, and a signed-in session syncs accounts, secrets, the user
+MCP layer and memory with the cloud so a conversation can lift to a sandbox or be driven
+remotely. Sandboxes are BYO — the harness drives Vercel with the operator's own token; the API
+keeps the rendezvous rows (session tokens, workspace patches, context archives) and brokers
+credentials to the sandbox, and provisions Vercel directly only for factory stations.
 
 ## Runtime and tests — the exception
 

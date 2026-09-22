@@ -106,9 +106,7 @@ export function AccountsPrompt(props: {
   const provider = state.prompt === null ? null : providerSpec(state.prompt.provider).label
   const typing = state.view === EAccountsView.ApiKey ? maskedKey(state.typed) : state.typed
   const takesInput =
-    state.view !== EAccountsView.DeviceCode &&
-    state.view !== EAccountsView.CloudDevice &&
-    state.view !== EAccountsView.GithubDevice
+    state.view !== EAccountsView.DeviceCode && state.view !== EAccountsView.GithubDevice
 
   return (
     <box flexDirection="column" flexShrink={0}>
@@ -130,20 +128,6 @@ export function AccountsPrompt(props: {
           <DevicePrompt
             url={state.prompt.url}
             userCode={state.prompt.userCode}
-            cells={props.cells}
-            onOpenUrl={props.onOpenUrl}
-          />
-        )
-      ) : state.view === EAccountsView.CloudDevice ? (
-        state.cloudPrompt === null ? (
-          <TextLine
-            spans={[{ text: 'Asking Atlas Cloud for a code…', fg: theme.hint }]}
-            cells={props.cells}
-          />
-        ) : (
-          <DevicePrompt
-            url={state.cloudPrompt.url}
-            userCode={state.cloudPrompt.userCode}
             cells={props.cells}
             onOpenUrl={props.onOpenUrl}
           />

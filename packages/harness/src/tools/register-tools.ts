@@ -14,7 +14,6 @@ import { ExecutionLocationToken } from '../composition/execution-location-state'
 import { portToken, resolveSet, type DependencyContainer } from '../container/injection'
 import {
   ClientVersionToken,
-  CloudRequiredToken,
   CloudSessionStoreToken,
   DeltaChannelToken,
   DockerEngineToken,
@@ -145,10 +144,6 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
     useFactory: (resolver) =>
       new McpEditTool({
         sessions: resolver.resolve(CloudSessionStoreToken),
-        cloudRequired: () =>
-          resolver.isRegistered(CloudRequiredToken, true)
-            ? resolver.resolve(CloudRequiredToken)()
-            : false,
         clientVersion: resolver.isRegistered(ClientVersionToken, true)
           ? resolver.resolve(ClientVersionToken)
           : 'dev',

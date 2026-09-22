@@ -11,6 +11,7 @@ import {
   mcpConfigFileSchema,
   mcpServersOf,
   mcpSpecSchema,
+  type McpTransport,
 } from './specs'
 
 export enum EMcpEditLayer {
@@ -179,12 +180,8 @@ const remoteReason = (error: unknown): string =>
     ? error.message
     : `The Atlas Cloud API could not be reached: ${error instanceof Error ? error.message : String(error)}`
 
-export async function run(args: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
-  const { input } = args
-  const path = fileOf({
-    layer: input.layer,
-    projectDirectory: args.projectDirectory,
-  })
+async function applyEdit(args: { input: McpEditInput; path: string }): Promise<ToolOutcome> {
+  const { input, path } = args
 
   const read = await readTable({ path })
   if (!read.ok) return { ok: false, reason: read.reason }
@@ -209,4 +206,31 @@ export async function run(args: ToolRun<typeof inputSchema>): Promise<ToolOutcom
     output: { path, name: input.name, action: input.action },
     modelText: `Server ${JSON.stringify(input.name)} ${verbOf(input.action)} in ${path}.`,
   }
+}
+
+export async function run(args: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
+  return applyEdit({
+    input: args.input,
+    path: fileOf({
+      layer: args.input.layer,
+      projectDirectory: args.projectDirectory,
+    }),
+  })
+}
+
+export async function writeUserMcpServer(args: {
+  name: string
+  transport?: McpTransport
+  disabled?: boolean
+}): Promise<void> {
+  const outcome = await applyEdit({
+    input: {
+      layer: EMcpEditLayer.User,
+      name: args.name,
+      action: args.disabled === true ? EMcpEditAction.Disable : EMcpEditAction.Upsert,
+      ...(args.transport === undefined ? {} : { transport: args.transport }),
+    },
+    path: userMcpFile(),
+  })
+  if (!outcome.ok) throw new Error(outcome.reason)
 }

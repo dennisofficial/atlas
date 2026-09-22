@@ -25,6 +25,9 @@ export type ServeApp = {
   whenChildrenSettled: (args: { threadId: ThreadId }) => Promise<void>
   /** Carries this sandbox's memory back to the control plane — see upload-memory.ts. */
   syncMemoryAfterTurn: () => Promise<void>
+  /** Live counts behind the idle park; absent in fakes, where nothing runs. */
+  runningShells?: (() => number) | undefined
+  runningServices?: (() => number) | undefined
   close: () => Promise<void>
 }
 

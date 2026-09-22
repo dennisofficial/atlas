@@ -9,11 +9,6 @@ function sandboxThreadIdOf(request: SandboxAuthenticatedRequest): string {
   return sandbox.threadId
 }
 
-/**
- * `context` has no `:threadId` segment, so it must be registered ahead of
- * `SandboxesController`'s `GET :threadId` in `SandboxesModule` — Express matches routes in
- * registration order, and `:threadId` would otherwise swallow the literal `context` path.
- */
 @Controller({ path: 'sandboxes', version: '1' })
 @UseGuards(SandboxTokenGuard)
 export class SandboxContextController {

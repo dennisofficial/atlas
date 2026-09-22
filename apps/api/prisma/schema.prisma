@@ -117,6 +117,7 @@ model CloudSandbox {
   lastActivityAt String
   tokenHash      String
   sealedToken    String?
+  sealedGitToken String?
   workspaceRemoteUrl String?
   workspaceBranch    String?
   workspaceCommit    String?

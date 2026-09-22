@@ -7,6 +7,7 @@ import {
   ClaudeCodeSourceToken,
   CloudSessionStoreToken,
   LocalAccountStoreToken,
+  LocalSecretsStoreToken,
   SecretsStoreToken,
 } from '../container/tokens'
 import { AccountsService } from '../credentials/accounts-service'
@@ -49,7 +50,6 @@ export async function bindAccounts(args: {
   container: DependencyContainer
   env: Record<string, string | undefined>
   notice: NoticePort
-  cloudRequired: boolean
   cloudUrl: string | undefined
   clientVersion: string
 }): Promise<{
@@ -80,28 +80,27 @@ export async function bindAccounts(args: {
   const cloud = new CloudService({
     sessions: container.resolve(CloudSessionStoreToken),
     localAccounts: container.resolve(LocalAccountStoreToken),
+    localSecrets: container.resolve(LocalSecretsStoreToken),
     defaultUrl: args.cloudUrl ?? 'http://localhost:3400',
     clientVersion: args.clientVersion,
   })
 
-  if (!args.cloudRequired || cloud.session() !== null) {
-    try {
-      await syncEnvironmentAccounts({ accounts: accountStore, env: args.env })
-      await importClaudeCodeAccount({
-        accounts: accountStore,
-        source: container.resolve(ClaudeCodeSourceToken),
-      })
-    } catch (error) {
-      const outage = cloudOutageMessage(error)
-      if (outage === null) throw error
+  try {
+    await syncEnvironmentAccounts({ accounts: accountStore, env: args.env })
+    await importClaudeCodeAccount({
+      accounts: accountStore,
+      source: container.resolve(ClaudeCodeSourceToken),
+    })
+  } catch (error) {
+    const outage = cloudOutageMessage(error)
+    if (outage === null) throw error
 
-      notice.notify({
-        key: 'cloud:accounts',
-        tone: ENoticeTone.Warn,
-        ttlMs: NOTICE_WARN_MS,
-        text: `Atlas Cloud accounts could not be reconciled — ${outage.split('\n')[0] ?? ''}`,
-      })
-    }
+    notice.notify({
+      key: 'cloud:accounts',
+      tone: ENoticeTone.Warn,
+      ttlMs: NOTICE_WARN_MS,
+      text: `Atlas Cloud accounts could not be reconciled — ${outage.split('\n')[0] ?? ''}`,
+    })
   }
 
   const accounts = new AccountsService({

@@ -263,10 +263,12 @@ class FakeCloudService extends CloudService {
     })
     if (args.session !== null) sessions.write(args.session)
 
+    let offered = false
     super({
       sessions,
       localAccounts: memoryAccountStore({ clock: new SystemClock() }),
       defaultUrl: 'http://localhost:3400',
+      signInOffer: { offered: () => offered, markOffered: () => { offered = true } },
     })
     this.fakeClient = args.client
   }
@@ -667,7 +669,6 @@ export function fakeApp(args: {
   pullRequests?: PullRequestPort | null
   open?: OpenRequest
   cloud?: CloudService
-  cloudRequired?: boolean
   models?: ModelCatalogue
   accountsSeed?: readonly AccountDraft[]
   containerLimits?: { cpus: number; memoryGb: number }
@@ -817,7 +818,6 @@ export function fakeApp(args: {
       ref: parseRef(FAKE_CONFIG.model ?? '') ?? DEFAULT_MODEL_REF,
       effort: EEffort.Medium,
     }),
-    cloudRequired: args.cloudRequired ?? false,
     modelPinned: false,
     models: args.models ?? fakeCatalogue(),
     executionLocation: createExecutionLocationState({ initial: EExecutionLocation.Host }),

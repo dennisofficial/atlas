@@ -264,6 +264,10 @@ export class CloudClient {
     await this.request({ method: 'DELETE', path: '/v1/github' })
   }
 
+  async deleteMemory(): Promise<void> {
+    await this.request({ method: 'DELETE', path: '/v1/user-context/memory' })
+  }
+
   private request(args: {
     method: string
     path: string

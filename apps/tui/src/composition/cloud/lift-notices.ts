@@ -24,6 +24,7 @@ const stoppedTail = (failure: LiftFailure): string => {
 
 const FAULT_HEAD: Record<ELiftFault, string> = {
   [ELiftFault.NotConfigured]: 'cloud sandboxes are not set up',
+  [ELiftFault.GitAuth]: 'git access is not set up',
   [ELiftFault.Unreachable]: 'Atlas Cloud could not be reached',
   [ELiftFault.PatchTooLarge]: 'the uncommitted work is too large to carry',
   [ELiftFault.Transfer]: 'the conversation could not be transferred',

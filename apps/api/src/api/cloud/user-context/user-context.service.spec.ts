@@ -34,6 +34,12 @@ const fake = vi.hoisted(() => {
         rows.push(row)
         return row
       },
+      deleteMany: async (args: { where: { userId: string } }) => {
+        const kept = rows.filter((row) => row.userId !== args.where.userId)
+        const count = rows.length - kept.length
+        rows.splice(0, rows.length, ...kept)
+        return { count }
+      },
     },
   }
 
@@ -132,5 +138,29 @@ describe('UserContextService', () => {
       }),
     ).rejects.toBeInstanceOf(PayloadTooLargeException)
     expect(archives.writeUserArchive).not.toHaveBeenCalled()
+  })
+
+  it('delete removes the row outright', async () => {
+    await service.putMemory({ userId: USER_A, bundle: '{"a":1}' })
+
+    await service.deleteMemory({ userId: USER_A })
+
+    expect(await service.getMemory({ userId: USER_A })).toBeNull()
+    expect(fake.rows).toHaveLength(0)
+  })
+
+  it('delete tolerates a user who never synced', async () => {
+    await expect(service.deleteMemory({ userId: USER_A })).resolves.toBeUndefined()
+    expect(fake.rows).toHaveLength(0)
+  })
+
+  it("delete leaves the other users' rows in place", async () => {
+    await service.putMemory({ userId: USER_A, bundle: '{"a":1}' })
+    await service.putMemory({ userId: USER_B, bundle: '{"b":1}' })
+
+    await service.deleteMemory({ userId: USER_A })
+
+    expect(await service.getMemory({ userId: USER_B })).toBe('{"b":1}')
+    expect(fake.rows).toHaveLength(1)
   })
 })

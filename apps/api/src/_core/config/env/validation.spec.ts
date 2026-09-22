@@ -38,11 +38,12 @@ describe('envConfigValidation', () => {
     expect(error?.message).toContain('DATABASE_URL')
   })
 
-  it('defaults the sandbox lifetimes', () => {
+  it('defaults the sandbox session length and image', () => {
     const { error, value } = validate(VALID_ENV)
     expect(error).toBeUndefined()
     expect(value.SANDBOX_TTL_MINUTES).toBe(30)
     expect(value.SANDBOX_MAX_SESSION_MINUTES).toBe(240)
+    expect(value.SANDBOX_IMAGE).toBe('atlas-sandbox:latest')
   })
 
   it('boots a deployed tier that has no Vercel credentials', () => {

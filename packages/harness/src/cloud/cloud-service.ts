@@ -1,4 +1,4 @@
-import { renameSync } from 'node:fs'
+import { existsSync, renameSync } from 'node:fs'
 
 import {
   AccountStorePort,
@@ -19,7 +19,10 @@ import {
   beginCloudLogin,
   type CloudLoginTicket,
 } from './device-login'
+import { downloadAndPurgeCloudData, type CloudPurgeResult } from './download-purge'
 import { RemoteAccountStore } from './remote-account-store'
+import { fileSignInOffer, type SignInOffer } from './sign-in-offer'
+import { UserContextClient } from './user-context-client'
 
 const getSessionResponseSchema = z.object({
   user: z.object({ email: z.string().optional() }),
@@ -53,6 +56,23 @@ const archiveImportedLocalFiles = (): string[] =>
     return archived === null ? [] : [archived]
   })
 
+/**
+ * Sign-in moved the local files aside; sign-out hands them back, so a signed-out Atlas has its
+ * accounts, secrets and mcp layer again. A live file already sitting at the path wins — the purge
+ * flow writes fresh downloads there before clearing the session, and an archived snapshot must
+ * never overwrite them.
+ */
+const restoreArchivedLocalFiles = (): void => {
+  for (const file of [atlasVaultFile(), atlasSecretsFile(), userMcpFile()]) {
+    if (existsSync(file)) continue
+    try {
+      renameSync(`${file}.archived`, file)
+    } catch (cause) {
+      if (!isAbsentFile(cause)) throw cause
+    }
+  }
+}
+
 export class CloudService {
   private readonly sessions: CloudSessionStore
   private readonly localAccounts: AccountStorePort
@@ -60,6 +80,7 @@ export class CloudService {
   private readonly defaultUrl: string
   private readonly clientVersion: string | undefined
   private readonly fetchFn: typeof fetch
+  private readonly signInOffer: SignInOffer
   private cached: { token: string; client: CloudClient } | undefined
 
   constructor(args: {
@@ -69,6 +90,7 @@ export class CloudService {
     localSecrets?: FileSecretsStore
     clientVersion?: string
     fetchFn?: typeof fetch
+    signInOffer?: SignInOffer
   }) {
     this.sessions = args.sessions
     this.localAccounts = args.localAccounts
@@ -76,6 +98,7 @@ export class CloudService {
     this.defaultUrl = args.defaultUrl
     this.clientVersion = args.clientVersion
     this.fetchFn = args.fetchFn ?? fetch
+    this.signInOffer = args.signInOffer ?? fileSignInOffer()
   }
 
   private clientFor(args: { session: CloudSession }): CloudClient {
@@ -88,6 +111,18 @@ export class CloudService {
 
   session(): CloudSession | null {
     return this.sessions.read()
+  }
+
+  /**
+   * The signed-out boot notice is an offer read once ever, not a per-boot nag — the marker lives
+   * beside the vault so a never-signing-in operator is never asked twice.
+   */
+  signInOffered(): boolean {
+    return this.signInOffer.offered()
+  }
+
+  markSignInOffered(): void {
+    this.signInOffer.markOffered()
   }
 
   client(): CloudClient | null {
@@ -150,6 +185,37 @@ export class CloudService {
 
   logout(): void {
     this.sessions.clear()
+    restoreArchivedLocalFiles()
+  }
+
+  /**
+   * Pulls everything the cloud holds into the local stores, deletes it server-side domain by
+   * domain, then clears the session — a signed-in session serves the (now empty) remote stores,
+   * so staying signed in would hide what just landed locally. A failure throws before the
+   * session is touched, leaving the remaining domains in the cloud for a retry.
+   */
+  async downloadAndPurge(): Promise<CloudPurgeResult> {
+    const session = this.sessions.read()
+    if (session === null)
+      throw new CloudError({
+        status: 0,
+        message: 'There is no Atlas Cloud sign-in to purge — sign in first.',
+      })
+
+    const client = this.clientFor({ session })
+    const context = new UserContextClient({
+      url: session.url,
+      token: session.token,
+      ...(this.clientVersion === undefined ? {} : { clientVersion: this.clientVersion }),
+      fetchFn: this.fetchFn,
+    })
+
+    const result = await downloadAndPurgeCloudData({
+      client,
+      stores: { accounts: this.localAccounts, secrets: this.localSecrets, context },
+    })
+    this.sessions.clear()
+    return result
   }
 
   private async readSignedInEmail(args: { url: string; token: string }): Promise<string | null> {

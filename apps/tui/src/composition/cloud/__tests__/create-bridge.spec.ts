@@ -1,44 +1,42 @@
 import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
-import { SandboxClient } from '@dltech/atlas-harness'
 
+import { ECloudSandboxState, type CloudSandboxes } from '../cloud-bridge'
 import { parkedEscalationOf } from '../create-bridge'
 
 const THREAD = toThreadId('brn_cloud')
 
-const sandboxesReplying = (reply: { status?: number; body?: unknown }): SandboxClient => {
-  const fetchFn = (async (_input: unknown, _init?: RequestInit) =>
-    new Response(reply.body === undefined ? '' : JSON.stringify(reply.body), {
-      status: reply.status ?? 200,
-    })) as typeof fetch
-
-  return new SandboxClient({ url: 'https://cloud.test/', token: 'sess_test', fetchFn })
-}
+const sandboxesFinding = (
+  find: CloudSandboxes['find'],
+): Pick<CloudSandboxes, 'find'> => ({ find })
 
 describe('parkedEscalationOf', () => {
-  it('escalates when the control plane reports the sandbox parked', async () => {
-    const sandboxes = sandboxesReplying({ body: { state: 'parked' } })
+  it('escalates when the driver reports the sandbox parked', async () => {
+    const sandboxes = sandboxesFinding(async () => ({ state: ECloudSandboxState.Parked }))
 
     expect(await parkedEscalationOf({ sandboxes, threadId: THREAD })()).toBe(true)
   })
 
   it('stays put for a sandbox that is running', async () => {
-    const sandboxes = sandboxesReplying({
-      body: { state: 'running', url: 'https://box.vercel.run' },
-    })
+    const sandboxes = sandboxesFinding(async () => ({
+      state: ECloudSandboxState.Running,
+      url: 'https://box.vercel.run',
+    }))
 
     expect(await parkedEscalationOf({ sandboxes, threadId: THREAD })()).toBe(false)
   })
 
   it('stays put for a sandbox that is only resuming', async () => {
-    const sandboxes = sandboxesReplying({ body: { state: 'resuming' } })
+    const sandboxes = sandboxesFinding(async () => ({ state: ECloudSandboxState.Resuming }))
 
     expect(await parkedEscalationOf({ sandboxes, threadId: THREAD })()).toBe(false)
   })
 
-  it('swallows a control-plane failure rather than escalating on a guess', async () => {
-    const sandboxes = sandboxesReplying({ status: 500, body: { message: 'vercel said no' } })
+  it('swallows a driver failure rather than escalating on a guess', async () => {
+    const sandboxes = sandboxesFinding(async () => {
+      throw new Error('vercel said no')
+    })
 
     expect(await parkedEscalationOf({ sandboxes, threadId: THREAD })()).toBe(false)
   })

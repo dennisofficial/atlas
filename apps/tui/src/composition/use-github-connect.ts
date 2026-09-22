@@ -37,7 +37,7 @@ export const githubRow = async (client: CloudClient): Promise<GithubRowState> =>
 /**
  * The device code's clock keeps ticking while the drawer is open, so the poll re-reads the held
  * state rather than trusting a closure — an escape or a re-render mid-poll must stop it. Same
- * invariant as the cloud sign-in flow in use-cloud-login.
+ * invariant as the cloud sign-in flow in use-settings-cloud-login.
  */
 export function useGithubConnect(args: {
   cloud: CloudService
@@ -121,7 +121,12 @@ export function useGithubConnect(args: {
     (current: AccountsState) => {
       const client = cloud.client()
       if (client === null) {
-        put(failed({ state: current, reason: 'sign in to Atlas Cloud first.' }))
+        put(
+          failed({
+            state: current,
+            reason: 'sign in to Atlas Cloud first — settings (ctrl+o) › account.',
+          }),
+        )
         return
       }
 

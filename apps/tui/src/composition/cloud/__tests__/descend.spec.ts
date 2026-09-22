@@ -199,4 +199,64 @@ describe('bringing a cloud conversation home', () => {
     expect(notice?.tone).toBe(ENoticeTone.Warn)
     expect(notice?.text).toContain('the control plane fell over')
   })
+
+  it('pulls the cloud memory down once the log and workspace are home', async () => {
+    const bridge = fakeBridge()
+    await seedCloud(bridge, ['one'])
+    const home = localHome({ events: [said({ seq: 1, text: 'one' })] })
+    let pulls = 0
+
+    const opened = await descend({
+      bridge,
+      home,
+      pullMemory: async () => {
+        pulls += 1
+      },
+    })
+
+    expect(opened.threadId).toBe(CLOUD_THREAD)
+    expect(pulls).toBe(1)
+    expect(bridge.destroyed).toEqual([CLOUD_THREAD])
+  })
+
+  it('warns rather than failing the descend when the memory pull fails', async () => {
+    const bridge = fakeBridge()
+    await seedCloud(bridge, ['one'])
+    const home = localHome({ events: [said({ seq: 1, text: 'one' })] })
+
+    const opened = await descend({
+      bridge,
+      home,
+      pullMemory: async () => {
+        throw new Error('the memory archive timed out')
+      },
+    })
+
+    expect(opened.threadId).toBe(CLOUD_THREAD)
+    const notice = currentNotices().find((entry) => entry.key === 'descend-memory-pull-failed')
+    expect(notice).toBeDefined()
+    expect(notice?.tone).toBe(ENoticeTone.Warn)
+    expect(notice?.text).toContain('the memory archive timed out')
+  })
+
+  it('never pulls memory when the descent fails before the transfer lands', async () => {
+    const bridge = fakeBridge()
+    await seedCloud(bridge, ['one'])
+    const home = localHome({ events: [said({ seq: 1, text: 'one' })] })
+    let pulls = 0
+
+    await expect(
+      descend({
+        bridge,
+        home,
+        midTurn: true,
+        interruptDeadlineMs: 20,
+        pullMemory: async () => {
+          pulls += 1
+        },
+      }),
+    ).rejects.toThrow('would not stop in time')
+
+    expect(pulls).toBe(0)
+  })
 })

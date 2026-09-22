@@ -1,28 +1,16 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  ServiceUnavailableException,
-} from '@nestjs/common'
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import { Drive, Sandbox, type SandboxMounts } from '@vercel/sandbox'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { ESandboxDriveMode, ESandboxState } from './sandboxes.types'
 import { ServeBinaryService } from './serve-binary'
 import { createServeLauncher, SERVE_TOKEN_PATH, StaleSandboxTokenError } from './serve-launch'
 import type { ServeLauncher } from './serve-launch'
-import {
-  asBadGateway,
-  failureTextOf,
-  isSandboxMissing,
-  isSandboxUnavailable,
-} from './vercel-sandbox.errors'
+import { asBadGateway, failureTextOf, isSandboxMissing } from './vercel-sandbox.errors'
 
 export const SANDBOX_REGION = 'iad1'
 export const SANDBOX_SERVE_PORT = 3000
 /** Small per-workspace drives; the SDK's default is 1 TiB. */
 export const SANDBOX_DRIVE_MAX_BYTES = 50 * 1024 ** 3
-/** The SDK's per-sandbox ceiling; the serve port occupies one slot. */
-export const SANDBOX_MAX_PORTS = 15
 /**
  * The workspace lives on the sandbox's own filesystem, which `persistent: true` snapshots on stop
  * and restores on resume. It sits at the root rather than under the SDK's session cwd
@@ -178,38 +166,6 @@ export class VercelSandboxClient {
     }
   }
 
-  /**
-   * `update` replaces the whole port list, so the already-routed ports go back in alongside the
-   * new one — omitting them would deregister the serve port and cut the session's own channel.
-   */
-  async exposePort(args: { name: string; port: number }): Promise<string> {
-    const credentials = this.credentials()
-    try {
-      const sandbox = await Sandbox.get({
-        ...credentials,
-        name: args.name,
-        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
-      })
-      const routed = sandbox.routes.map((route) => route.port)
-      if (!routed.includes(args.port)) {
-        if (routed.length >= SANDBOX_MAX_PORTS) {
-          throw new BadRequestException(
-            `a sandbox exposes at most ${SANDBOX_MAX_PORTS} ports and this one is at the limit`,
-          )
-        }
-        await sandbox.update(
-          { ports: [...routed, args.port] },
-          { signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) },
-        )
-      }
-      return sandbox.domain(args.port)
-    } catch (failure) {
-      if (failure instanceof BadRequestException) throw failure
-      if (isSandboxMissing(failure)) throw new SandboxMissingError(args.name)
-      throw asBadGateway(failure)
-    }
-  }
-
   async ensureDrive(args: { name: string }): Promise<void> {
     await this.driveFor({ name: args.name, timeoutMs: SANDBOX_LAUNCH_TIMEOUT_MS })
   }
@@ -231,21 +187,6 @@ export class VercelSandboxClient {
     }
   }
 
-  async destroy(args: { name: string }): Promise<void> {
-    const credentials = this.credentials()
-    try {
-      const sandbox = await Sandbox.get({
-        ...credentials,
-        name: args.name,
-        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
-      })
-      await sandbox.delete({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
-    } catch (failure) {
-      if (isSandboxMissing(failure)) return
-      throw asBadGateway(failure)
-    }
-  }
-
   async inspect(args: { name: string }): Promise<SandboxObservation> {
     const credentials = this.credentials()
     try {
@@ -258,23 +199,6 @@ export class VercelSandboxClient {
       return { state: stateOf(sandbox.status), ...(url === undefined ? {} : { url }) }
     } catch (failure) {
       if (isSandboxMissing(failure)) return { state: ESandboxState.Parked }
-      throw asBadGateway(failure)
-    }
-  }
-
-  async extendTimeout(args: { name: string; durationMs: number }): Promise<void> {
-    const credentials = this.credentials()
-    try {
-      const sandbox = await Sandbox.get({
-        ...credentials,
-        name: args.name,
-        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
-      })
-      await sandbox.extendTimeout(args.durationMs, {
-        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
-      })
-    } catch (failure) {
-      if (isSandboxUnavailable(failure)) return
       throw asBadGateway(failure)
     }
   }

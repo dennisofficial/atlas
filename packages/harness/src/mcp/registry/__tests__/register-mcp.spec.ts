@@ -7,7 +7,7 @@ import { EDefinitionOrigin } from '@dltech/atlas-core'
 
 import { CloudSessionStore } from '../../../cloud/cloud-session'
 import { createIsolatedContainer } from '../../../container/injection'
-import { CloudRequiredToken, CloudSessionStoreToken } from '../../../container/tokens'
+import { CloudSessionStoreToken } from '../../../container/tokens'
 import { resolveMcpSpecs } from '../../config/loaders'
 import { BuiltInMcpSource, FileMcpSource } from '../../config/sources'
 import { RemoteMcpSource } from '../../config/remote-mcp-source'
@@ -55,27 +55,11 @@ describe('mcpSourcesFor', () => {
     expect(sources[3]?.origin).toBe(EDefinitionOrigin.Project)
   })
 
-  it('keeps the user file source when no session exists and the cloud is not required', () => {
+  it('keeps the user file source when no session exists', () => {
     const sources = mcpSourcesFor({ session: null, cwd: directory })
 
     expect(sources[1]).toBeInstanceOf(FileMcpSource)
     expect(sources[1]).not.toBeInstanceOf(RemoteMcpSource)
-  })
-
-  it('omits the user layer entirely when the cloud is required and no session exists', async () => {
-    writeFileSync(
-      join(directory, 'mcp.json'),
-      JSON.stringify({ linear: { transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' } } }),
-    )
-
-    const sources = mcpSourcesFor({ session: null, cwd: directory, cloudRequired: true })
-
-    expect(sources).toHaveLength(3)
-    expect(sources.some((source) => source.origin === EDefinitionOrigin.User)).toBe(false)
-
-    const reads = await Promise.all(sources.map((source) => source.load()))
-    expect(reads.flatMap((read) => read.specs)).toHaveLength(0)
-    expect(reads.flatMap((read) => read.rejections)).toHaveLength(0)
   })
 
   it('lets the remote server win a same-rank tie against a local server sharing its name', async () => {
@@ -137,7 +121,7 @@ describe('registerMcp', () => {
     expect(fetched).toHaveLength(0)
   })
 
-  it('reads the local user file when signed out and the cloud is not required', async () => {
+  it('reads the local user file when signed out', async () => {
     writeFileSync(
       join(directory, 'mcp.json'),
       JSON.stringify({ linear: { transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' } } }),
@@ -153,19 +137,5 @@ describe('registerMcp', () => {
       origin: EDefinitionOrigin.User,
       definedIn: join(directory, 'mcp.json'),
     })
-  })
-
-  it('ignores the local user file when the cloud is required and no session exists', async () => {
-    writeFileSync(
-      join(directory, 'mcp.json'),
-      JSON.stringify({ linear: { transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' } } }),
-    )
-    const container = createIsolatedContainer()
-    container.register(CloudRequiredToken, { useValue: () => true })
-
-    const store = await registerMcp({ container, cwd: directory })
-
-    expect(store.servers()).toHaveLength(0)
-    expect(fetched).toHaveLength(0)
   })
 })

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { idleStopDue, staleSandboxes } from '../lifecycle'
+import { idleStopDue, serveIdleDue, staleSandboxes } from '../lifecycle'
 
 const GONE = (): boolean => false
 
@@ -33,6 +33,50 @@ describe('idleStopDue', () => {
     expect(
       idleStopDue({ ...due, runningShells: 0, now: due.lastBashAt + 30 * 60_000 - 1 }),
     ).toBe(false)
+  })
+})
+
+describe('serveIdleDue', () => {
+  const due = {
+    lastActivityAt: 1_000_000,
+    turnRunning: false,
+    childrenSettling: false,
+    runningShells: 0,
+    runningServices: 0,
+    idleMinutes: 5,
+    idleMinutesWithServices: 30,
+  }
+
+  it('fires after five quiet minutes with nothing live', () => {
+    expect(serveIdleDue({ ...due, now: due.lastActivityAt + 5 * 60_000 })).toBe(true)
+    expect(serveIdleDue({ ...due, now: due.lastActivityAt + 5 * 60_000 - 1 })).toBe(false)
+  })
+
+  it('never fires mid-turn, however long the turn runs', () => {
+    expect(serveIdleDue({ ...due, turnRunning: true, now: due.lastActivityAt + 60 * 60_000 })).toBe(
+      false,
+    )
+  })
+
+  it('never fires while adopted children are still settling', () => {
+    expect(
+      serveIdleDue({ ...due, childrenSettling: true, now: due.lastActivityAt + 60 * 60_000 }),
+    ).toBe(false)
+  })
+
+  it('never fires while a background shell is running, however long the quiet', () => {
+    expect(
+      serveIdleDue({ ...due, runningShells: 1, now: due.lastActivityAt + 60 * 60_000 }),
+    ).toBe(false)
+  })
+
+  it('stretches to thirty minutes while a service is running, then fires anyway', () => {
+    expect(
+      serveIdleDue({ ...due, runningServices: 1, now: due.lastActivityAt + 29 * 60_000 }),
+    ).toBe(false)
+    expect(
+      serveIdleDue({ ...due, runningServices: 1, now: due.lastActivityAt + 30 * 60_000 }),
+    ).toBe(true)
   })
 })
 

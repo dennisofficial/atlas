@@ -10,6 +10,7 @@ import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { Settings, settingsDetailVisible } from '../components/settings'
+import { EAccountAction } from '../components/settings/account'
 import type { Span } from '../components/spans'
 import { cellsOf } from '../hint-layout'
 import { grammarsReady } from '../markdown/__tests__/harness'
@@ -20,6 +21,7 @@ import { SHIPPED_FENCE_WRAP } from '../fence-wrap-store'
 import { CHOSEN, COMPOSER_DRAFT, DIFF_PATH, UNCHOSEN } from '../components/settings/previews'
 import { EComposerEdge } from '../composer-edge-store'
 import { EBlockDensity } from '../density-store'
+import { idleLogin } from '../settings-login-model'
 import { settingsModel, type SettingsState } from '../settings-model'
 import { glyph, SIDEBAR_WIDTH, theme } from '../theme'
 import { frameOf } from './transcript-fixture'
@@ -67,7 +69,12 @@ const page = (args: {
       {...(args.problem === undefined ? {} : { problem: args.problem })}
       cloudEmail={null}
       cloudSignedIn={false}
+      cloudSignIn={idleLogin()}
+      accountAction={EAccountAction.SignOut}
       onSignOut={() => {}}
+      onSignIn={() => {}}
+      onOpenSignInUrl={() => {}}
+      onDownloadPurge={() => {}}
       onSelect={() => {}}
       onDismiss={() => {}}
     />

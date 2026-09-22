@@ -50,10 +50,13 @@ export enum ESettingId {
   ContainerCpus = 'container.cpus',
   ContainerMemory = 'container.memory',
   ContainerIdleMinutes = 'container.idleMinutes',
+  VercelToken = 'sandbox.vercelToken',
+  VercelTeamId = 'sandbox.vercelTeamId',
+  VercelProjectId = 'sandbox.vercelProjectId',
+  SandboxImage = 'sandbox.image',
   DatabaseUrl = 'store.databaseUrl',
   KeychainService = 'credentials.keychainService',
   CloudUrl = 'cloud.url',
-  CloudRequired = 'cloud.required',
   AutoRestart = 'dev.autoRestart',
 }
 
@@ -637,6 +640,50 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     unit: ' min',
   },
   {
+    id: ESettingId.VercelToken,
+    page: ESettingPage.General,
+    group: 'Cloud sandboxes',
+    label: 'Vercel token',
+    description:
+      'The Vercel access token a cloud conversation runs on — the sandbox is created on your own Vercel account, never on one Atlas operates, so /container cloud costs and quotas are yours. Create one under your Vercel account settings. Atlas never reads it from the environment and never writes it to a settings file: it is sealed in the secrets file beside the account vault, and only the last four characters are ever shown again.',
+    kind: ESettingKind.Secret,
+    fallback: '',
+    masked: true,
+  },
+  {
+    id: ESettingId.VercelTeamId,
+    page: ESettingPage.General,
+    group: 'Cloud sandboxes',
+    label: 'Vercel team',
+    description:
+      'The team ID (team_…) the sandbox belongs to — Vercel scopes every sandbox call to a team and a project, and a personal team still has one. Find it in the team’s settings page, or run `vercel teams ls`.',
+    environmentVariable: 'VERCEL_TEAM_ID',
+    kind: ESettingKind.Text,
+    fallback: '',
+  },
+  {
+    id: ESettingId.VercelProjectId,
+    page: ESettingPage.General,
+    group: 'Cloud sandboxes',
+    label: 'Vercel project',
+    description:
+      'The project ID (prj_…) the sandbox is billed and listed under — any project on the team does, since sandboxes attach to it in name only. Find it in the project’s settings page.',
+    environmentVariable: 'VERCEL_PROJECT_ID',
+    kind: ESettingKind.Text,
+    fallback: '',
+  },
+  {
+    id: ESettingId.SandboxImage,
+    page: ESettingPage.General,
+    group: 'Cloud sandboxes',
+    label: 'Sandbox image',
+    description:
+      'The sandbox image a cloud conversation boots. The fallback is the image the Atlas project publishes; point this at your own build of it when your Vercel team cannot pull the published one.',
+    environmentVariable: 'ATLAS_SANDBOX_IMAGE',
+    kind: ESettingKind.Text,
+    fallback: 'atlas-sandbox:latest',
+  },
+  {
     id: ESettingId.DatabaseUrl,
     page: ESettingPage.Hidden,
     group: 'Store',
@@ -653,21 +700,10 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Cloud',
     label: 'Cloud API',
     description:
-      'Where the Atlas Cloud API lives — the backend that is the source of truth for accounts, secrets and the user MCP layer. The fallback is the production deployment; an Atlas contributor running apps/api next to the TUI points this at the local development server instead.',
+      'Where the Atlas Cloud API lives — the backend a signed-in session syncs accounts, secrets and the user MCP layer with; signed out, the local vault is the whole store. The fallback is the production deployment; an Atlas contributor running apps/api next to the TUI points this at the local development server instead.',
     environmentVariable: 'ATLAS_CLOUD_URL',
     kind: ESettingKind.Text,
     fallback: 'https://api.byatlas.io',
-  },
-  {
-    id: ESettingId.CloudRequired,
-    page: ESettingPage.Hidden,
-    group: 'Cloud',
-    label: 'Cloud is the only store',
-    description:
-      'When on, Atlas Cloud is the only credential store and signing in is required — a signed-out Atlas refuses to read or write accounts, secrets, or the user MCP layer rather than touching the local vault. This is the shipped default. Turning it off is the escape hatch for developing the cloud API itself against a local apps/api, with the local vault active again.',
-    environmentVariable: 'ATLAS_CLOUD_REQUIRED',
-    kind: ESettingKind.Toggle,
-    fallback: true,
   },
   {
     id: ESettingId.KeychainService,

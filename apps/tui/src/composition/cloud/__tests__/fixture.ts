@@ -245,6 +245,7 @@ const RUNNING: CloudSandbox = {
   url: 'https://sandbox.example/thread',
   token: 'sandbox-token',
   state: ECloudSandboxState.Running,
+  created: true,
 }
 
 export function fakeBridge(

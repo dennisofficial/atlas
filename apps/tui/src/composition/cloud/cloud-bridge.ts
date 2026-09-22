@@ -6,8 +6,6 @@ import {
   type RemoteDeltaChannel,
   type ThreadStorePort,
   type TurnLedgerPort,
-  type WireSandbox,
-  type WireSandboxStatus,
   type WorkspaceSpec,
 } from '@dltech/atlas-harness'
 
@@ -19,21 +17,36 @@ export { ECloudSandboxState }
  */
 export type LiftedWorkspace = WorkspaceSpec
 
-export type CloudSandbox = WireSandbox
+/**
+ * The result of a claim plus a provision: `create` awaits the whole of it, so the url is always
+ * there and `created` says whether the sandbox booted fresh (needing the context archive) or
+ * resumed from its snapshot.
+ */
+export type CloudSandbox = {
+  url: string
+  token: string
+  state: ECloudSandboxState
+  created: boolean
+}
 
 /**
- * `contextPending`: `true` on a freshly created sandbox that needs the context archive, `false` on
- * one resumed from a snapshot that already has it, `undefined` from a control plane too old to say
- * either way (upload, conservatively).
+ * What the driver's inspect can say: the sandbox's own state and route. The control plane's old
+ * `contextPending` is gone — the create result's `created` carries that fact now.
  */
-export type CloudSandboxStatus = WireSandboxStatus
+export type CloudSandboxStatus = {
+  state: ECloudSandboxState
+  url?: string | undefined
+}
 
 export type CloudSandboxes = {
   create(args: { threadId: ThreadId; workspace: LiftedWorkspace | null }): Promise<CloudSandbox>
   /** Operator-session auth, same as `create` — the archive lands on the row `create` just opened. */
   putContext(args: { threadId: ThreadId; archive: Uint8Array }): Promise<void>
   find(args: { threadId: ThreadId }): Promise<CloudSandboxStatus | undefined>
-  /** Idempotent — descend calls this once the conversation is safely back on the host. */
+  /**
+   * Tears down both halves: the Vercel sandbox through the operator's own token, and the control
+   * plane row. Idempotent — descend calls this once the conversation is safely back on the host.
+   */
   destroy(args: { threadId: ThreadId }): Promise<void>
 }
 

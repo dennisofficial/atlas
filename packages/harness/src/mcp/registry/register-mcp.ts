@@ -3,11 +3,7 @@ import { BeforeTurnHook, DynamicToolSource } from '@dltech/atlas-core'
 import type { CloudSession } from '../../cloud/cloud-session'
 import { registerDisposable } from '../../container/disposal'
 import { portToken, type DependencyContainer } from '../../container/injection'
-import {
-  ClientVersionToken,
-  CloudRequiredToken,
-  CloudSessionStoreToken,
-} from '../../container/tokens'
+import { ClientVersionToken, CloudSessionStoreToken } from '../../container/tokens'
 import {
   BuiltInMcpSource,
   CompatMcpSource,
@@ -22,7 +18,6 @@ import { McpInstructionsHook } from '../instructions/instructions-hook'
 const userSourcesFor = (args: {
   session: CloudSession | null
   clientVersion?: string
-  cloudRequired: boolean
 }): readonly McpSource[] => {
   if (args.session !== null) {
     const remote = new RemoteMcpSource({
@@ -31,7 +26,6 @@ const userSourcesFor = (args: {
     })
     return [remote, FileMcpSource.user()]
   }
-  if (args.cloudRequired) return []
   return [FileMcpSource.user()]
 }
 
@@ -39,12 +33,10 @@ export const mcpSourcesFor = (args: {
   session: CloudSession | null
   cwd: string
   clientVersion?: string
-  cloudRequired?: boolean
 }): readonly McpSource[] => [
   new BuiltInMcpSource(),
   ...userSourcesFor({
     session: args.session,
-    cloudRequired: args.cloudRequired === true,
     ...(args.clientVersion === undefined ? {} : { clientVersion: args.clientVersion }),
   }),
   FileMcpSource.project({ cwd: args.cwd }),
@@ -59,9 +51,6 @@ const sessionFrom = (container: DependencyContainer): CloudSession | null =>
 const clientVersionFrom = (container: DependencyContainer): string =>
   container.isRegistered(ClientVersionToken, true) ? container.resolve(ClientVersionToken) : 'dev'
 
-const cloudRequiredFrom = (container: DependencyContainer): boolean =>
-  container.isRegistered(CloudRequiredToken, true) ? container.resolve(CloudRequiredToken)() : false
-
 export async function registerMcp(args: {
   container: DependencyContainer
   cwd: string
@@ -71,7 +60,6 @@ export async function registerMcp(args: {
       session: sessionFrom(args.container),
       cwd: args.cwd,
       clientVersion: clientVersionFrom(args.container),
-      cloudRequired: cloudRequiredFrom(args.container),
     }),
   })
 

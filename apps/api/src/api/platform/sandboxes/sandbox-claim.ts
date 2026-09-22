@@ -9,12 +9,14 @@ import { workspaceColumnsOf, type WorkspaceColumns } from './workspace-spec'
 /** The columns provisioning reads back; the blob columns written by the upsert never return. */
 export type ClaimedSandbox = Pick<
   CloudSandboxModel,
-  'threadId' | 'name' | 'driveName' | 'driveMode' | 'pinnedModel'
+  'threadId' | 'name' | 'driveName' | 'driveMode' | 'pinnedModel' | 'contextPending'
 >
 
 export type ClaimUpdate = Partial<WorkspaceColumns> & {
   tokenHash?: string
   sealedToken?: string
+  sealedGitToken?: string
+  contextPending?: boolean
   driveName?: string | null
   driveMode?: string | null
   pinnedModel?: string | null
@@ -28,6 +30,8 @@ export function rotationOf(args: {
   tokenHash: string
   sealedToken: string
   rotated: boolean
+  sealedGitToken?: string | undefined
+  contextPending?: boolean | undefined
   drive?: { name: string; mode: string } | undefined
   pinnedModel?: string | undefined
   at: string
@@ -37,6 +41,8 @@ export function rotationOf(args: {
     updatedAt: args.at,
     ...(args.rotated ? { tokenHash: args.tokenHash, sealedToken: args.sealedToken } : {}),
   }
+  if (args.sealedGitToken !== undefined) rotation.sealedGitToken = args.sealedGitToken
+  if (args.contextPending !== undefined) rotation.contextPending = args.contextPending
   if (args.workspace !== undefined) {
     const columns = workspaceColumnsOf(args.workspace)
     rotation.workspaceRemoteUrl = columns.workspaceRemoteUrl
@@ -66,6 +72,8 @@ export function claimSandboxRow(args: {
   rotated: boolean
   workspace: SandboxWorkspaceSpec | undefined
   contextBundle: string | undefined
+  sealedGitToken?: string | undefined
+  contextPending?: boolean | undefined
   name?: string | undefined
   drive?: { name: string; mode: string } | undefined
   pinnedModel?: string | undefined
@@ -83,6 +91,7 @@ export function claimSandboxRow(args: {
       driveName: true,
       driveMode: true,
       pinnedModel: true,
+      contextPending: true,
     },
     create: {
       id: `sbx_${randomUUID()}`,
@@ -95,6 +104,8 @@ export function claimSandboxRow(args: {
       lastActivityAt: at,
       tokenHash: args.tokenHash,
       sealedToken: args.sealedToken,
+      sealedGitToken: args.sealedGitToken ?? null,
+      contextPending: args.contextPending ?? true,
       ...columns,
       driveName: args.drive?.name ?? null,
       driveMode: args.drive?.mode ?? null,

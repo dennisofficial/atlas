@@ -3,6 +3,8 @@ import {
   ClockPort,
   CredentialPort,
   ENoticeTone,
+  EServiceStatus,
+  EShellStatus,
   EventLogPort,
   NOTICE_WARN_MS,
   ProcessPort,
@@ -12,9 +14,10 @@ import {
 import { RemoteEventLog } from '../cloud/remote-event-log'
 import { RemoteThreadStore } from '../cloud/remote-thread-store'
 import { RemoteTurnLedger } from '../cloud/remote-turn-ledger'
-import { SandboxClient } from '../cloud/sandbox-client'
+import { sandboxNameFor } from '../cloud/sandbox-names'
 import { SessionsClient } from '../cloud/sessions-client'
 import { UserContextClient } from '../cloud/user-context-client'
+import { VercelDriver, type VercelCredentials } from '../cloud/vercel-driver'
 import { composeHarness } from '../composition/compose'
 import { loadSettings } from '../composition/settings-binding'
 import { portToken } from '../container/injection'
@@ -39,6 +42,23 @@ type ServeStores = { log: EventLogPort; threads: ThreadStorePort }
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
+
+const given = (value: string | undefined): string | undefined =>
+  value === undefined || value.trim().length === 0 ? undefined : value.trim()
+
+/**
+ * The sandbox was created with the operator's Vercel credentials in its environment precisely so
+ * serve can publish ports itself; a sandbox older than that wiring simply cannot expose.
+ */
+const vercelCredentialsOf = (
+  env: Record<string, string | undefined>,
+): VercelCredentials | null => {
+  const token = given(env.VERCEL_TOKEN)
+  const teamId = given(env.VERCEL_TEAM_ID)
+  const projectId = given(env.VERCEL_PROJECT_ID)
+  if (token === undefined || teamId === undefined || projectId === undefined) return null
+  return { token, teamId, projectId }
+}
 
 /**
  * A failed append on the sandbox is otherwise invisible: the turn it belongs to just dies, and the
@@ -124,15 +144,19 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
         container.register(portToken(EventLogPort), { useValue: log })
         container.register(portToken(ThreadStorePort), { useValue: threads })
         container.register(portToken(TurnLedgerPort), { useValue: new RemoteTurnLedger({ client }) })
+        const credentials = vercelCredentialsOf(args.env)
         container.register(portToken(ProcessPort), {
-          useValue: new ServeProcessPort({
-            client: new SandboxClient({
-              url: args.controlPlaneUrl,
-              token: args.token,
-              clientVersion: args.clientVersion,
-            }),
-            threadId: args.threadId,
-          }),
+          useValue: new ServeProcessPort(
+            credentials === null
+              ? null
+              : {
+                  driver: new VercelDriver({
+                    credentials,
+                    cloudUrl: args.controlPlaneUrl,
+                  }),
+                  name: sandboxNameFor({ threadId: args.threadId }),
+                },
+          ),
         })
 
         return { log, threads }
@@ -163,6 +187,10 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       adoptChildren({ agents: app.agents, log: app.surface.log, threadId }),
     whenChildrenSettled: ({ threadId }) => app.agents.whenChildrenSettled({ threadId }),
     syncMemoryAfterTurn: memory.syncAfterTurn,
+    runningShells: () =>
+      app.shells.listEverywhere().filter((shell) => shell.status === EShellStatus.Running).length,
+    runningServices: () =>
+      app.services.list().filter((service) => service.status === EServiceStatus.Running).length,
     close: app.close,
   }
 }

@@ -21,7 +21,7 @@ import {
   type EUsageWindow,
   type ModelCard,
 } from '@dltech/atlas-core'
-import { EChannelConnection, forkConversation, relocateSession, settingModelRef, suggestedModelRef, type DiscoveredSkill } from '@dltech/atlas-harness'
+import { EChannelConnection, forkConversation, readGhAuthToken, relocateSession, requireVercelCredentials, sandboxImageOf, settingModelRef, suggestedModelRef, type DiscoveredSkill } from '@dltech/atlas-harness'
 
 import { newestExpandableKey, type PendingSaid } from '../store'
 import { withCloud, withContainer, withSections } from '../store/sidebar-model'
@@ -154,6 +154,7 @@ import { useExecutionLocation } from './use-execution-location'
 import { useThreads } from './use-threads'
 import { useUsageMeters } from './use-usage-meters'
 import { createCloudBridge } from './cloud/create-bridge'
+import { mergeRemoteMemoryBounded } from './cloud/bounded-merge-remote-memory'
 import { createCloudSession, type CloudSession } from './cloud/cloud-session'
 import { descendFromCloud } from './cloud/descend'
 import { liftRefusal } from './cloud/lift-plan'
@@ -211,8 +212,24 @@ const readoutOf = (args: {
   return { percent: pressure.percent, tokensUsed: pressure.used, meters: args.meters }
 }
 
-const liveBridge: CloudBridgeFactory = ({ url, token }) =>
-  createCloudBridge({ url, token, clientVersion: clientVersionHeader() })
+/**
+ * The live bridge closes over the app's settings and secrets: the claim rides the Atlas Cloud
+ * session, but every Vercel call is driven with the operator's own token, read fresh from the
+ * sealed secrets file at each attach so a rotated token is picked up without a restart.
+ */
+const liveBridgeFor = (app: AtlasApp): CloudBridgeFactory => {
+  return ({ url, token }) =>
+    createCloudBridge({
+      url,
+      token,
+      clientVersion: clientVersionHeader(),
+      vercel: () => ({
+        credentials: requireVercelCredentials({ settings: app.settings, secrets: app.secrets }),
+        image: sandboxImageOf({ settings: app.settings }),
+      }),
+      readGitToken: () => readGhAuthToken(),
+    })
+}
 
 /**
  * A lift is the conversation opened again as a cloud thread, not the running one rewired: the
@@ -304,7 +321,7 @@ export function App(props: {
         opened={lifted?.opened ?? reopened ?? props.opened}
         cloudSession={lifted?.session ?? null}
         cloudBridge={lifted?.bridge ?? null}
-        createBridge={props.createBridge ?? liveBridge}
+        createBridge={props.createBridge ?? liveBridgeFor(props.app)}
         captureWorkspace={props.captureWorkspace ?? captureWorkspace}
         captureContext={props.captureContext}
         onLifted={handleLifted}
@@ -732,15 +749,6 @@ function Workspace(props: {
     onAccounts: props.app.models.observeAccounts,
   })
 
-  const signInGateFired = useRef(false)
-  useEffect(() => {
-    if (signInGateFired.current) return
-    signInGateFired.current = true
-    if (!props.app.cloudRequired || props.app.cloud.session() !== null) return
-
-    accounts.handleOpen('Sign in to Atlas Cloud to use Atlas.')
-  }, [accounts, props.app.cloud, props.app.cloudRequired])
-
   const accountsOpen = accounts.state !== null
   const accountRows = accounts.state?.rows
 
@@ -766,6 +774,26 @@ function Workspace(props: {
       },
     [settings.usageWarn, usage, usageVersion],
   )
+
+  /**
+   * A signed-out boot is a steady state Atlas serves fine from the local vault, so this is an offer
+   * read once ever — the marker sits beside the vault — rather than a gate or a per-boot nag.
+   */
+  const cloudSignInNoticed = useRef(false)
+  useEffect(() => {
+    if (cloudSignInNoticed.current) return
+    cloudSignInNoticed.current = true
+    if (props.app.cloud.session() !== null) return
+    if (props.app.cloud.signInOffered()) return
+
+    props.app.cloud.markSignInOffered()
+    notify({
+      key: 'cloud-sign-in-offer',
+      text: 'sign in to Atlas Cloud to unlock cloud sandboxes and remote control — settings (ctrl+o) › account',
+      tone: ENoticeTone.Info,
+      ttlMs: 20_000,
+    })
+  }, [props.app.cloud])
 
   /**
    * A boot-time auth failure is usually ambient (DNS down, a revoked refresh token), so it earns a
@@ -905,6 +933,14 @@ function Workspace(props: {
           channel,
           localApp: props.localApp,
           move: containerMove,
+          pullMemory: () => {
+            const signedIn = props.localApp.cloud.session()
+            if (signedIn === null) return Promise.resolve()
+            return mergeRemoteMemoryBounded({
+              session: signedIn,
+              cwd: props.localApp.workspace.workspace,
+            })
+          },
         })
           .then((opened) => {
             containerMove.handleSettle()

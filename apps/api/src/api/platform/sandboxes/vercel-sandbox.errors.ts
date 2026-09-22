@@ -32,15 +32,6 @@ export const isSandboxMissing = (error: unknown): boolean => {
   return error.response.status === 410 && snapshotCodeOf(error.json) === 'snapshot_not_found'
 }
 
-/**
- * The lifecycle answers the SDK treats as "nothing to act on": missing (404), stopped (410), or
- * mid-stop/snapshot (422 — see isSandboxStoppingError/isSandboxSnapshottingError in the SDK).
- */
-export const isSandboxUnavailable = (error: unknown): boolean => {
-  if (!(error instanceof APIError)) return false
-  return [404, 410, 422].includes(error.response.status)
-}
-
 export const asBadGateway = (failure: unknown): BadGatewayException => {
   if (failure instanceof APIError) return new BadGatewayException(vercelMessageOf(failure))
   if (failure instanceof Error) return new BadGatewayException(failure.message)

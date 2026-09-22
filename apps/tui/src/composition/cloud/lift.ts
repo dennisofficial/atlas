@@ -8,7 +8,13 @@ import {
   type ThreadId,
   type WorkspaceIdentity,
 } from '@dltech/atlas-core'
-import { CloudError, type ThreadModel, type ThreadStorePort } from '@dltech/atlas-harness'
+import {
+  CloudError,
+  GitCredentialError,
+  VercelNotConfiguredError,
+  type ThreadModel,
+  type ThreadStorePort,
+} from '@dltech/atlas-harness'
 
 import type { CloudBridge, CloudChannel, CloudSandbox, LiftedWorkspace } from './cloud-bridge'
 import { captureContextArchive, type CaptureContext } from './context-archive'
@@ -21,7 +27,6 @@ import {
   type LiftAgentsPort,
 } from './lift-children'
 import { liftedDraft, NOTHING_WAS_STOPPED, type StoppedLocally } from './transition-notice'
-import { waitForSandbox } from './wait-for-sandbox'
 
 export enum ELiftStep {
   Interrupting = 'interrupting',
@@ -37,6 +42,7 @@ export enum ELiftStep {
 
 export enum ELiftFault {
   NotConfigured = 'not-configured',
+  GitAuth = 'git-auth',
   Unreachable = 'unreachable',
   PatchTooLarge = 'patch-too-large',
   Transfer = 'transfer',
@@ -88,9 +94,6 @@ export type LiftArgs = {
   onProgress: (step: ELiftStep) => void
 }
 
-const CLOUD_IS_NOT_SET_UP =
-  'Atlas Cloud has no sandbox provider configured yet, so there is nowhere to lift this conversation to. Nothing moved.'
-
 const detailOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
@@ -103,6 +106,8 @@ const UNREACHABLE_STATUS = 0
 const PATCH_TOO_LARGE_STATUS = 413
 
 const faultOf = (args: { error: unknown; fallback: ELiftFault }): ELiftFault => {
+  if (args.error instanceof VercelNotConfiguredError) return ELiftFault.NotConfigured
+  if (args.error instanceof GitCredentialError) return ELiftFault.GitAuth
   if (!(args.error instanceof CloudError)) return args.fallback
   if (
     args.error.status === NOT_CONFIGURED_STATUS &&
@@ -127,7 +132,7 @@ const failureOf = (args: {
     ok: false,
     fault,
     step: args.step,
-    detail: fault === ELiftFault.NotConfigured ? CLOUD_IS_NOT_SET_UP : detailOf(args.error),
+    detail: detailOf(args.error),
     stopped: args.stopped,
   }
 }
@@ -301,26 +306,17 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
 
   onProgress(ELiftStep.Starting)
   let sandbox: CloudSandbox
-  let url: string
-  let contextPending: boolean | undefined
   try {
     sandbox = await args.bridge.sandboxes.create({ threadId, workspace })
-    if (sandbox.url !== undefined) {
-      url = sandbox.url
-      contextPending = (await args.bridge.sandboxes.find({ threadId }))?.contextPending
-    } else {
-      const ready = await waitForSandbox({ sandboxes: args.bridge.sandboxes, threadId })
-      url = ready.url
-      contextPending = ready.contextPending
-    }
   } catch (error) {
     await flipBack({ ...args, from })
     await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })
     return failureOf({ error, step: ELiftStep.Starting, fallback: ELiftFault.Sandbox, stopped })
   }
+  const { url } = sandbox
 
   onProgress(ELiftStep.UploadingContext)
-  if (contextPending !== false) {
+  if (sandbox.created) {
     try {
       const contextArchive = await (args.captureContext ?? captureContextArchive)()
       if (contextArchive !== undefined) {

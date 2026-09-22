@@ -88,7 +88,6 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   services: ServiceRegistryPort
   sandbox: SandboxControl
   containerStatus: SandboxStatusState
-  cloudRequired: boolean
   model: ModelChoice
   modelPinned: boolean
   models: ModelCatalogue

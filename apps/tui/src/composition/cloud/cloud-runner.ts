@@ -8,18 +8,17 @@ import type { ContainerMoveControl } from '../use-container-move'
 import type { CloudBridge, CloudChannel } from './cloud-bridge'
 import { captureContextArchive, type CaptureContext } from './context-archive'
 import { ELiftStep } from './lift'
-import { waitForSandbox } from './wait-for-sandbox'
 
 export type { CaptureContext }
 
 const WAKE_CONTEXT_NOTICE_KEY = 'wake-context-put-failed'
 
 /**
- * Re-attaching to a thread's sandbox: the API re-provisions and hands back a fresh token, then the
- * status route is polled until the sandbox is actually running. The operator's context is only
- * sent up again when the status says the sandbox needs it — a resumed sandbox's snapshot already
- * has it, so neither the (expensive) tar nor the upload runs. Narrated through `move` when one is
- * given, so a wake reached from an idle conversation reads as progress rather than as a stall.
+ * Re-attaching to a thread's sandbox: the claim mints a fresh token and git credential, and the
+ * driver resumes (or recreates) the sandbox before answering. The operator's context is only sent
+ * up again when the sandbox booted fresh — a resumed sandbox's snapshot already has it, so neither
+ * the (expensive) tar nor the upload runs. Narrated through `move` when one is given, so a wake
+ * reached from an idle conversation reads as progress rather than as a stall.
  */
 export async function wakeSandbox(args: {
   bridge: CloudBridge
@@ -31,12 +30,8 @@ export async function wakeSandbox(args: {
   args.move?.handleAdvance(ELiftStep.Starting)
 
   const woken = await args.bridge.sandboxes.create({ threadId: args.threadId, workspace: null })
-  const ready = await waitForSandbox({
-    sandboxes: args.bridge.sandboxes,
-    threadId: args.threadId,
-  })
 
-  if (ready.contextPending !== false) {
+  if (woken.created) {
     const contextArchive = await (args.captureContext ?? captureContextArchive)()
     if (contextArchive !== undefined) {
       try {
@@ -53,7 +48,7 @@ export async function wakeSandbox(args: {
   }
 
   args.move?.handleAdvance(ELiftStep.Attaching)
-  return { url: ready.url, token: woken.token }
+  return { url: woken.url, token: woken.token }
 }
 
 export function createCloudRunner(args: {
