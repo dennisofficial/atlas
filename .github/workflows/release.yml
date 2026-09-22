@@ -62,7 +62,10 @@ jobs:
           PREV_TAG: ${{ steps.version.outputs.prev_tag }}
         run: |
           set -euo pipefail
-          args=(--title "atlas v${VERSION}" --generate-notes)
+          # --target pins the tag to the commit these binaries were built from: without it
+          # gh release create tags the default branch's HEAD at creation time, and a merge
+          # that lands while this run is building would tag a commit past the built one.
+          args=(--title "atlas v${VERSION}" --generate-notes --target "$GITHUB_SHA")
           if [[ -n "$PREV_TAG" ]]; then
             args+=(--notes-start-tag "$PREV_TAG")
           fi
