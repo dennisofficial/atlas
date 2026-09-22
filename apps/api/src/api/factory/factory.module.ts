@@ -8,6 +8,11 @@ import { FactoryDriveSweeperService } from './drives/drive-sweeper.service'
 import { FactoryDrivesService } from './drives/drives.service'
 import { GithubWebhookController } from './github-webhook.controller'
 import { GithubWebhookService } from './github-webhook.service'
+import { LinearWebhookController } from './linear-webhook.controller'
+import { LinearWebhookService } from './linear-webhook.service'
+import { LinearInstallController } from './linear/linear-install.controller'
+import { LinearInstallService } from './linear/linear-install.service'
+import { LinearTokensService } from './linear/linear-tokens.service'
 import { FactoryCredentialService } from './orchestrator/factory-credentials'
 import { FactoryIdentityService } from './orchestrator/factory-identity'
 import {
@@ -31,6 +36,8 @@ import { WorkItemsService } from './work-items.service'
   imports: [SessionsModule],
   controllers: [
     GithubWebhookController,
+    LinearWebhookController,
+    LinearInstallController,
     FactoryRepliesController,
     FactoryStationsController,
     FactoryDeliveriesController,
@@ -40,6 +47,9 @@ import { WorkItemsService } from './work-items.service'
     FactoryConnectionsService,
     TranscriptService,
     GithubWebhookService,
+    LinearWebhookService,
+    LinearInstallService,
+    LinearTokensService,
     FactoryIdentityService,
     FactoryCredentialService,
     OrchestratorService,
@@ -65,6 +75,8 @@ import { WorkItemsService } from './work-items.service'
     TranscriptService,
     OrchestratorService,
     GithubWebhookService,
+    LinearWebhookService,
+    LinearTokensService,
   ],
 })
 export class FactoryModule {}

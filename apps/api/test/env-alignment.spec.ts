@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const TIERS = ['local', 'staging', 'production'] as const
 const RECOGNIZED_PLACEHOLDERS =
-  /^<(not-needed-locally|not-deployed|via-personal-env|TODO-shared-value|TODO-pull-from-aws|TODO-pull-from-gcp|pending-factory-github-app)>$/
+  /^<(not-needed-locally|not-deployed|via-personal-env|TODO-shared-value|TODO-pull-from-aws|TODO-pull-from-gcp|pending-factory-github-app|pending-linear-oauth-app)>$/
 
 interface EnvEntry {
   key: string

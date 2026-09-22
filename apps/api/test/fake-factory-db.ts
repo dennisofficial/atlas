@@ -165,6 +165,28 @@ export function createFakeFactoryDb() {
         const found = connections.find((one) => matchesRow(one, args.where)) ?? null
         return found === null ? null : project(found, args.select)
       },
+      create: async (args: { data: Where }) => {
+        if (connections.some((one) => one.id === args.data.id)) throw uniqueViolation(['id'])
+        const clash = connections.some(
+          (one) =>
+            one.provider === args.data.provider &&
+            one.externalAccountId === args.data.externalAccountId,
+        )
+        if (clash) throw uniqueViolation(['provider', 'externalAccountId'])
+        const row: FakeConnectionRow = {
+          sealedCredentials: null,
+          scopes: null,
+          ...(args.data as Partial<FakeConnectionRow>),
+        } as FakeConnectionRow
+        connections.push(row)
+        return row
+      },
+      update: async (args: { where: { id: string }; data: Where }) => {
+        const row = connections.find((one) => one.id === args.where.id)
+        if (row === undefined) throw new Error('record not found')
+        applyUpdate(row as unknown as Record<string, unknown>, args.data)
+        return row
+      },
     },
     factorySurfaceAlias: {
       create: async (args: { data: FakeAliasRow }) => {
