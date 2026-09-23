@@ -23,6 +23,7 @@ export {
   PrismaClientToken,
   ProjectSettingsStoreToken,
   SecretsStoreToken,
+  ServeSessionToken,
   UserSettingsStoreToken,
   WorkspaceRoot,
   WorktreeDirectoryToken,

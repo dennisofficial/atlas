@@ -211,12 +211,34 @@ describe('bringing a cloud conversation home', () => {
       home,
       pullMemory: async () => {
         pulls += 1
+        return { replaced: 0, conflicts: [] }
       },
     })
 
     expect(opened.threadId).toBe(CLOUD_THREAD)
     expect(pulls).toBe(1)
     expect(bridge.destroyed).toEqual([CLOUD_THREAD])
+  })
+
+  it('keeps the cloud versions of memory the local side won as a log entry, never dropped', async () => {
+    const bridge = fakeBridge()
+    await seedCloud(bridge, ['one'])
+    const home = localHome({ events: [said({ seq: 1, text: 'one' })] })
+
+    await descend({
+      bridge,
+      home,
+      pullMemory: async () => ({
+        replaced: 0,
+        conflicts: [{ key: 'user/notes.md', text: '# what the cloud learned' }],
+      }),
+    })
+
+    const events = await home.log.read({ threadId: CLOUD_THREAD })
+    const note = events.find((event) => event.type === 'context-loaded')
+    expect(note).toBeDefined()
+    expect(JSON.stringify(note)).toContain('user/notes.md')
+    expect(JSON.stringify(note)).toContain('# what the cloud learned')
   })
 
   it('warns rather than failing the descend when the memory pull fails', async () => {
@@ -253,6 +275,7 @@ describe('bringing a cloud conversation home', () => {
         interruptDeadlineMs: 20,
         pullMemory: async () => {
           pulls += 1
+          return { replaced: 0, conflicts: [] }
         },
       }),
     ).rejects.toThrow('would not stop in time')

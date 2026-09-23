@@ -214,6 +214,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     notice,
     projectDirectory: context.projectDirectory,
     capabilities: 'profile' in workspace ? workspace.profile?.capabilities : undefined,
+    identity: context.identity,
   })
 
   const buffer = createFrameBuffer({ capacity: args.bufferSize ?? DEFAULT_FRAME_BUFFER })

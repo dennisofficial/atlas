@@ -33,6 +33,7 @@ export type MemoryRead = {
 export function memoryDirectoriesFor(args: {
   atlasHome: string
   repoRoot: string
+  identity?: string | null | undefined
 }): MemoryDirectories {
   const plan = memoryRootPlan(args)
   const directoryOf = (origin: EDefinitionOrigin): string =>

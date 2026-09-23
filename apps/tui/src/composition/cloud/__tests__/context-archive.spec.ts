@@ -124,6 +124,31 @@ describe('captureContextArchive', () => {
     expect(await decode(bundle)).toEqual({ 'project-memory/MEMORY.md': '# project memory' })
   })
 
+  it('carries project memory from the identity-keyed directory a repo with a remote resolves to', async () => {
+    const home = await freshDirectory('atlas-context-home-')
+    const atlasHome = await freshDirectory('atlas-context-atlashome-')
+    const cwd = await freshDirectory('atlas-context-cwd-')
+    const init = Bun.spawnSync(['git', 'init', '--initial-branch=main'], { cwd })
+    if (init.exitCode !== 0) throw new Error('git init failed')
+    const remote = Bun.spawnSync(
+      ['git', 'remote', 'add', 'origin', 'git@github.com:org/atlas.git'],
+      { cwd },
+    )
+    if (remote.exitCode !== 0) throw new Error('git remote add failed')
+    await writeUnder({
+      directory: join(atlasHome, 'projects', 'github.com', 'org', 'atlas', 'memory'),
+      name: 'MEMORY.md',
+      content: '# identity-keyed project memory',
+    })
+
+    const bundle = await captureContextArchive({ home, atlasHome, cwd })
+    if (bundle === undefined) throw new Error('expected a bundle')
+
+    expect(await decode(bundle)).toEqual({
+      'project-memory/MEMORY.md': '# identity-keyed project memory',
+    })
+  })
+
   it('carries gitignored *.local.md instruction files at the repo root, but nothing nested', async () => {
     const home = await freshDirectory('atlas-context-home-')
     const atlasHome = await freshDirectory('atlas-context-atlashome-')
