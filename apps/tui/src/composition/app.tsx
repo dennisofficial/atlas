@@ -1703,6 +1703,9 @@ function Workspace(props: {
                   : { onResume: conversation.handleResume })}
                 opened={opened}
                 onToggle={handleToggle}
+                {...(conversation.hasOlderHistory
+                  ? { onNearTop: () => void conversation.loadOlderHistory() }
+                  : {})}
               />
             ) : (
               <SubagentTranscript

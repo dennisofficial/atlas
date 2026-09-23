@@ -44,6 +44,7 @@ export function useEntryWindow(args: {
   scroller: RefObject<ScrollBoxRenderable | null>
   anchorIndex: number
   width: number
+  onNearTop?: (() => void) | undefined
 }): EntryWindow {
   const renderer = useRenderer()
   const active = args.entries.length > WINDOW_THRESHOLD
@@ -156,6 +157,9 @@ export function useEntryWindow(args: {
     return end < 0 ? null : { start, end }
   }, [renderer, args.scroller])
 
+  const onNearTop = useRef(args.onNearTop)
+  onNearTop.current = args.onNearTop
+
   const handleTick = useCallback(() => {
     if (!live.current.active) return
     const box = args.scroller.current
@@ -167,6 +171,7 @@ export function useEntryWindow(args: {
       scrollTop: box.scrollTop,
       viewportRows: box.viewport.height,
     })
+    if (visible.start === 0) onNearTop.current?.()
     const base = windowSpan({ visible, total: rows.length, margin: WINDOW_MARGIN, cap: WINDOW_CAP })
     const next = mountSpans({ base, pinned: selectionPin(), total: rows.length })
     setSpans((prev) => (sameSpans(prev, next) ? prev : next))

@@ -81,6 +81,8 @@ export type Conversation = {
   repo: string | null
   pending: readonly PendingRow[]
   readEvents: () => Promise<readonly Event[]>
+  loadOlderHistory: () => Promise<void>
+  hasOlderHistory: boolean
   refresh: () => Promise<void>
   handleSend: (args: {
     text: string
@@ -511,6 +513,8 @@ export function useConversation(args: {
     handleRetry: retryable ? turnDriver.handleRetry : null,
     handleResume: resumable ? turnDriver.handleResume : null,
     readEvents,
+    loadOlderHistory: view.loadOlder,
+    hasOlderHistory: logSummary.windowStartSeq > 1,
     compacting,
     handleReportProblem: setFailure,
     handleInterrupt: turnDriver.handleInterrupt,

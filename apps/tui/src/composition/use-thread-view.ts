@@ -21,7 +21,7 @@ import {
 import type { LogAccumulator } from "../store/log-accumulator";
 import type { TurnClock } from "../ui/turn-clock";
 import type { AtlasApp } from "./compose";
-import { readThreadBase, readThreadWindow } from "./thread-reads";
+import { readThreadBase, readThreadWindow, THREAD_WINDOW_EVENTS } from "./thread-reads";
 import { readThreadSpend } from "./thread-spend";
 
 /**
@@ -49,6 +49,7 @@ export type ThreadView = {
   events: readonly Event[];
   turn: TurnClock;
   refresh: () => Promise<void>;
+  loadOlder: () => Promise<void>;
   setEvents: (events: readonly Event[]) => void;
   stamp: (advance: (progress: TurnProgress) => TurnProgress) => void;
 };
@@ -223,6 +224,29 @@ export function useThreadView(args: {
     [app.channel, onUsage, refresh, threadId],
   );
 
+  const loadingOlder = useRef(false);
+  const loadOlder = useCallback(async (): Promise<void> => {
+    const first = heldEvents.current[0];
+    if (first === undefined || first.seq <= 1 || loadingOlder.current) return;
+
+    loadingOlder.current = true;
+    try {
+      const upTo = first.seq - 1;
+      const fromSeq = Math.max(0, upTo - THREAD_WINDOW_EVENTS);
+      const older =
+        rows === EThreadRows.Own
+          ? await app.log.readOwn({ threadId, fromSeq, upTo })
+          : await app.log.read({ threadId, fromSeq, upTo });
+      if (older.length === 0) return;
+
+      const next = [...older, ...heldEvents.current];
+      store.setEvents({ events: next });
+      setEvents(next);
+    } finally {
+      loadingOlder.current = false;
+    }
+  }, [app.log, rows, store, threadId, setEvents]);
+
   const model = useSyncExternalStore(store.subscribe, store.getSnapshot);
   const sidebar = useSyncExternalStore(store.subscribe, store.getSidebar);
   const turn = useSyncExternalStore(store.subscribe, store.getTurn);
@@ -234,6 +258,7 @@ export function useThreadView(args: {
     events,
     turn,
     refresh,
+    loadOlder,
     setEvents,
     stamp,
   };

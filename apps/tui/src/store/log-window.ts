@@ -11,7 +11,7 @@ import {
 export type LogSummary = Pick<
   LogAccumulator,
   "opening" | "tokens" | "treeMutations" | "worktree" | "home" | "repo"
->;
+> & { windowStartSeq: number };
 
 export type LogWindow = {
   readonly acc: LogAccumulator;

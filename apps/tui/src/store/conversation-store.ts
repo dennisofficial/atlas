@@ -316,7 +316,7 @@ export function createConversationStore(args: {
 
     getLogSummary() {
       const { opening, tokens, treeMutations, worktree, home, repo } = logWindow.acc;
-      return { opening, tokens, treeMutations, worktree, home, repo };
+      return { opening, tokens, treeMutations, worktree, home, repo, windowStartSeq: events[0]?.seq ?? 0 };
     },
 
     stampTurn(advance) {
