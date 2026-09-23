@@ -1,5 +1,11 @@
 import { EKilledBy, EServiceStatus, type ThreadId } from '@dltech/atlas-core'
-import type { ServiceRegistryPort, ShellRegistryPort, ShellSnapshot } from '@dltech/atlas-harness'
+import {
+  KILL_SETTLE_MS,
+  STOP_SETTLE_MS,
+  type ServiceRegistryPort,
+  type ShellRegistryPort,
+  type ShellSnapshot,
+} from '@dltech/atlas-harness'
 
 import { isShellRunning } from '../../ui/shells-model'
 import type { StoppedLocally } from './transition-notice'
@@ -14,11 +20,11 @@ const labelOf = (one: { command: string; description?: string | undefined }): st
  * conversation is about to continue on another one. What they were is kept so the move can be
  * narrated rather than silently swallowing them.
  */
-export function stopLocalWork(args: {
+export async function stopLocalWork(args: {
   threadId: ThreadId
   shells: ShellRegistryPort
   services: ServiceRegistryPort
-}): StoppedLocally {
+}): Promise<StoppedLocally> {
   const running: readonly ShellSnapshot[] = args.shells
     .list({ threadId: args.threadId })
     .filter(isShellRunning)
@@ -30,6 +36,7 @@ export function stopLocalWork(args: {
       threadId: args.threadId,
     })
   }
+  const shellEndings = args.shells.awaitEndings({ threadId: args.threadId, ms: KILL_SETTLE_MS })
 
   const services = args.services
     .list()
@@ -41,6 +48,16 @@ export function stopLocalWork(args: {
       })
       return stopped.ok ? [labelOf(service)] : []
     })
+  const serviceEndings = args.services.awaitEndings({ ms: STOP_SETTLE_MS })
 
-  return { shells: running.map(labelOf), services }
+  await Promise.all([shellEndings, serviceEndings])
+
+  return {
+    shells: running.map(labelOf),
+    services,
+    drainNotices: () => [
+      ...args.shells.drainNotifications({ threadId: args.threadId }),
+      ...args.services.drainNotifications({ threadId: args.threadId }),
+    ],
+  }
 }

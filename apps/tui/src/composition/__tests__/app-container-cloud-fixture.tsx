@@ -1,6 +1,7 @@
 import React from 'react'
 import { testRender } from '@opentui/react/test-utils'
 
+import type { ClipboardImageReader } from '../../ui/clipboard-image'
 import { settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
 import { CLEAN_WORKSPACE, type FakeBridge } from '../cloud/__tests__/fixture'
@@ -31,6 +32,7 @@ export const mount = async (args: {
   app: FakeApp
   bridge: FakeBridge
   preflightLift?: LiftPreflight
+  clipboard?: ClipboardImageReader
 }) => {
   const createBridge: CloudBridgeFactory = () => args.bridge
   const setup = await testRender(
@@ -41,6 +43,7 @@ export const mount = async (args: {
       preflightLift={args.preflightLift ?? (async () => null)}
       captureWorkspace={DIRTY}
       captureContext={STUB_CONTEXT}
+      {...(args.clipboard === undefined ? {} : { clipboard: args.clipboard })}
     />,
     { width: 140, height: 40 },
   )
@@ -78,6 +81,7 @@ export const mount = async (args: {
     typeText: (text: string) => setup.mockInput.typeText(text),
     pressEnter: () => setup.mockInput.pressEnter(),
     pressEscape: () => setup.mockInput.pressEscape(),
+    pressCtrl: (key: string) => setup.mockInput.pressKey(key, { ctrl: true }),
     draftText: () => editorIn(setup.renderer.root)?.plainText ?? null,
     done: () => teardown(setup),
   }
