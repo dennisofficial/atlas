@@ -28,6 +28,17 @@ jobs:
 
       - run: bun install
 
+      # The VCR image-push token doubles as the turbo cache token — same comp-ai team
+      # scope. Absent on fork PRs, which then simply run uncached.
+      - name: enable turbo remote cache
+        run: |
+          if [ -n "$VERCEL_TOKEN" ]; then
+            echo "TURBO_TOKEN=$VERCEL_TOKEN" >> "$GITHUB_ENV"
+            echo "TURBO_TEAM=comp-ai" >> "$GITHUB_ENV"
+          fi
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
       - name: typecheck
         run: bun run typecheck
 
@@ -80,6 +91,15 @@ jobs:
         with:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - name: enable turbo remote cache
+        run: |
+          if [ -n "$VERCEL_TOKEN" ]; then
+            echo "TURBO_TOKEN=$VERCEL_TOKEN" >> "$GITHUB_ENV"
+            echo "TURBO_TEAM=comp-ai" >> "$GITHUB_ENV"
+          fi
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
       - uses: docker/login-action@v3
         with:
