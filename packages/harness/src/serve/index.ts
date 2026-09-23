@@ -213,6 +213,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     model: threadModel,
     notice,
     projectDirectory: context.projectDirectory,
+    capabilities: 'profile' in workspace ? workspace.profile?.capabilities : undefined,
     identity: context.identity,
   })
 

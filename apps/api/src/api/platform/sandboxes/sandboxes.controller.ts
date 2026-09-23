@@ -36,6 +36,7 @@ export class SandboxesController {
       workspace: body.workspace,
       contextBundle: body.contextBundle,
       gitToken: body.gitToken,
+      gpgKey: body.gpgKey,
       contextPending: body.contextPending,
     })
   }

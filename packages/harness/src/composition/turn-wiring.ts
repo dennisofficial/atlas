@@ -18,6 +18,7 @@ import {
   EventLogPort,
   IdPort,
   ModelPort,
+  type CapabilitiesSource,
   type EventDraft,
   type ModelCard,
   type NoticePort,
@@ -74,6 +75,7 @@ export function wireTurn<Command>(args: {
   container: DependencyContainer
   workspace: WorkspaceIdentity
   executionLocation: ExecutionLocationState
+  capabilities?: CapabilitiesSource | undefined
   mounts: readonly string[]
   models: ModelCatalogue
   model: SelectableModel
@@ -208,6 +210,7 @@ export function wireTurn<Command>(args: {
         location: executionLocation.of(threadId) ?? executionLocation.current(),
         mounts,
       }),
+      capabilities: args.capabilities,
     }),
     launchDirectory: workspace.workspace,
     tools: args.declarations,
@@ -308,6 +311,7 @@ export function wireTurn<Command>(args: {
             location: executionLocation.of(threadId) ?? executionLocation.current(),
             mounts,
           }),
+          capabilities: args.capabilities,
         }),
     }),
   })

@@ -2,7 +2,15 @@ import { existsSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-import { atlasHomeFrom, isUnderPath } from '@dltech/atlas-core'
+import {
+  atlasHomeFrom,
+  EPortExposure,
+  isUnderPath,
+  type EnvironmentCapabilities,
+} from '@dltech/atlas-core'
+
+import { runGit } from '../../workspace/run-git'
+import type { GitReader } from '../../workspace/snapshot'
 
 import {
   DEFAULT_DOCKER_SOCKET,
@@ -86,6 +94,41 @@ export function hostSandboxEnvironment(args?: {
     gpgPubringPath: gpgAgentSocket !== undefined ? existingFilePath(gpgPubringPath) : undefined,
     gitconfigPath: existsSync(gitconfigPath) ? gitconfigPath : undefined,
     githubToken: githubToken(env),
+  }
+}
+
+const gitIdentityOf = (name: string | undefined, email: string | undefined): string | null => {
+  if (name === undefined || email === undefined) return null
+  return `${name} <${email}>`
+}
+
+const trimmedOutputOf = (run: { ok: boolean; stdout: string }): string | undefined => {
+  if (!run.ok) return undefined
+  const trimmed = run.stdout.trim()
+  return trimmed === '' ? undefined : trimmed
+}
+
+export async function probeDockerCapabilities(args: {
+  cwd: string
+  env?: Record<string, string | undefined> | undefined
+  read?: GitReader | undefined
+}): Promise<EnvironmentCapabilities> {
+  const host = hostSandboxEnvironment(args.env === undefined ? {} : { env: args.env })
+  const read = args.read ?? runGit
+  const [name, email] = await Promise.all([
+    read({ args: ['config', 'user.name'], cwd: args.cwd }),
+    read({ args: ['config', 'user.email'], cwd: args.cwd }),
+  ])
+
+  return {
+    canPush: host.githubToken !== undefined,
+    gitIdentity: gitIdentityOf(trimmedOutputOf(name), trimmedOutputOf(email)),
+    gpgSigning: host.gpgAgentExtraSocket !== undefined,
+    dockerAvailable: true,
+    persistentFs: true,
+    serviceTtlSeconds: null,
+    portExposure: EPortExposure.Localhost,
+    failures: [],
   }
 }
 

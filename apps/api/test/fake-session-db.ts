@@ -64,6 +64,7 @@ export type FakeCloudSandboxRow = {
   tokenHash: string
   sealedToken: string | null
   sealedGitToken?: string | null
+  sealedGpgKey?: string | null
   workspaceRemoteUrl: string | null
   workspaceBranch: string | null
   workspaceCommit: string | null

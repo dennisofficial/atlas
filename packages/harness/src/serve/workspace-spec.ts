@@ -15,6 +15,7 @@ export const wireWorkspaceSpecSchema = z.object({
   patch: z.string(),
   githubToken: z.string().nullable(),
   gitIdentity: z.object({ name: z.string(), email: z.string() }).nullable().nullish(),
+  gpgKey: z.string().nullable().nullish(),
   contextBundle: z.string().nullish(),
   /** The Mac-side project directory the thread was lifted from, absent on an older control plane. */
   projectDirectory: z.string().nullish(),

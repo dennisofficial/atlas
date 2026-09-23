@@ -65,6 +65,10 @@ export class ClaimSandboxDto {
   gitToken?: string
 
   @IsOptional()
+  @IsString()
+  gpgKey?: string
+
+  @IsOptional()
   @IsBoolean()
   contextPending?: boolean
 }

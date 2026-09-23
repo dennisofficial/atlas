@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { toRunId, toThreadId, type ThreadId } from '@dltech/atlas-core'
+import {
+  EPortExposure,
+  toRunId,
+  toThreadId,
+  type EnvironmentCapabilities,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import { EStepEnd } from '../../channel/signal'
 import {
@@ -1047,6 +1053,72 @@ describe('startServe', () => {
       }) as typeof fetch,
     })
 
+    expect(composedWith).toBeUndefined()
+    await handle.close()
+  })
+
+  it('hands the profile capabilities to compose when the readiness carries them', async () => {
+    const capabilities: EnvironmentCapabilities = {
+      canPush: true,
+      gitIdentity: 'Operator <operator@example.com>',
+      gpgSigning: true,
+      dockerAvailable: false,
+      persistentFs: true,
+      serviceTtlSeconds: 1800,
+      portExposure: EPortExposure.PublicDomain,
+      failures: [],
+    }
+    let composedWith: EnvironmentCapabilities | undefined
+    const app = fakeServeApp({ threadId, root: '/workspace' })
+
+    const handle = await startServe({
+      threadId,
+      port: 0,
+      token: TOKEN,
+      controlPlaneUrl: CONTROL_PLANE,
+      env: {},
+      cwd: '/workspace',
+      compose: async (args) => {
+        composedWith = args.capabilities
+        return app
+      },
+      ensureWorkspace: async () => ({
+        state: EWorkspaceState.Materialized,
+        profile: { steps: [], capabilities },
+      }),
+      fetchFn: (async (_input: unknown) => new Response(null, { status: 204 })) as typeof fetch,
+    })
+
+    expect(composedWith).toEqual(capabilities)
+    await handle.close()
+  })
+
+  it('composes without capabilities when the workspace failed before profiling', async () => {
+    let composed = false
+    let composedWith: EnvironmentCapabilities | undefined
+    const app = fakeServeApp({ threadId, root: '/workspace' })
+
+    const handle = await startServe({
+      threadId,
+      port: 0,
+      token: TOKEN,
+      controlPlaneUrl: CONTROL_PLANE,
+      env: {},
+      cwd: '/workspace',
+      compose: async (args) => {
+        composed = true
+        composedWith = args.capabilities
+        return app
+      },
+      ensureWorkspace: async () => ({
+        state: EWorkspaceState.Failed,
+        step: EWorkspaceStep.Clone,
+        reason: 'fatal: repository not found',
+      }),
+      fetchFn: (async (_input: unknown) => new Response(null, { status: 204 })) as typeof fetch,
+    })
+
+    expect(composed).toBe(true)
     expect(composedWith).toBeUndefined()
     await handle.close()
   })

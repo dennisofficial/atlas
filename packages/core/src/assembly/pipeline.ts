@@ -2,6 +2,7 @@ import { cacheBreakpoints } from './annotators/cache-breakpoints'
 import { INFERENCE_PROVIDER_ID, requestCacheKey } from './annotators/request-cache-key'
 import type { Annotator, Rule } from './rule'
 import { agentEndingsBlock } from './rules/agent-endings-block'
+import { capabilitiesBlock, type CapabilitiesSource } from './rules/capabilities-block'
 import { compactedHistory } from './rules/compacted-history'
 import {
   executionLocationBlock,
@@ -28,6 +29,7 @@ export function defaultRules({
   runningServices,
   runningAgents,
   executionLocation,
+  capabilities,
 }: {
   prompt: PromptSource
   launchDirectory: string
@@ -36,6 +38,7 @@ export function defaultRules({
   runningServices?: RunningServicesSource | undefined
   runningAgents?: RunningAgentsSource | undefined
   executionLocation?: ExecutionLocationSource | undefined
+  capabilities?: CapabilitiesSource | undefined
 }): readonly Rule[] {
   return [
     systemPrompt({ prompt, launchDirectory }),
@@ -45,6 +48,7 @@ export function defaultRules({
     imagesInContext(),
     worktreeBlock({ launchDirectory, repoRoot }),
     ...(executionLocation === undefined ? [] : [executionLocationBlock({ executionLocation })]),
+    ...(capabilities === undefined ? [] : [capabilitiesBlock({ capabilities })]),
     ...(runningShells === undefined ? [] : [runningShellsBlock({ runningShells })]),
     ...(runningServices === undefined ? [] : [runningServicesBlock({ runningServices })]),
     ...(runningAgents === undefined ? [] : [runningAgentsBlock({ runningAgents })]),
@@ -67,6 +71,7 @@ export function defaultPipeline({
   runningServices,
   runningAgents,
   executionLocation,
+  capabilities,
 }: {
   prompt: PromptSource
   launchDirectory: string
@@ -75,6 +80,7 @@ export function defaultPipeline({
   runningServices?: RunningServicesSource | undefined
   runningAgents?: RunningAgentsSource | undefined
   executionLocation?: ExecutionLocationSource | undefined
+  capabilities?: CapabilitiesSource | undefined
 }): AssemblyPipeline {
   return {
     rules: defaultRules({
@@ -85,6 +91,7 @@ export function defaultPipeline({
       runningServices,
       runningAgents,
       executionLocation,
+      capabilities,
     }),
     annotators: defaultAnnotators(),
   }

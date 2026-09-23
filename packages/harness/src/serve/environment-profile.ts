@@ -7,6 +7,7 @@ import { runGit } from '../workspace/run-git'
 
 import { applyGitAccessEnv } from './git-access-env'
 import type { GitRunner } from './materialize-workspace'
+import { createGpgSigningStep } from './profile-gpg'
 import { runCommand, type CommandRunner } from './run-command'
 import { nodeWorkspaceFiles, type WorkspaceFiles } from './workspace-files'
 import type { WorkspaceSpec } from './workspace-spec'
@@ -16,6 +17,7 @@ export enum EProfileStep {
   GitIdentity = 'git-identity',
   KnownHosts = 'known-hosts',
   Toolchain = 'toolchain',
+  GpgSigning = 'gpg-signing',
 }
 
 export enum EProfileStepState {
@@ -43,6 +45,20 @@ export type ApplyEnvironmentProfile = (args: {
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
+const gpgSecrets = (raw: string | null | undefined): string[] => {
+  if (raw === null || raw === undefined) return []
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (typeof parsed !== 'object' || parsed === null) return []
+    const record = parsed as Record<string, unknown>
+    return [record.secretKey, record.publicKey, record.ownerTrust].filter(
+      (value): value is string => typeof value === 'string' && value !== '',
+    )
+  } catch {
+    return []
+  }
+}
+
 const MISE_CONFIGS = ['.mise.toml', 'mise.toml', '.tool-versions'] as const
 const BUN_LOCKFILES = ['bun.lock', 'bun.lockb'] as const
 const SETUP_HOOK = '.atlas/sandbox-setup.sh'
@@ -60,10 +76,17 @@ export function createEnvironmentProfile(args: {
   const git = args.git ?? runGit
   const home = args.home ?? env.HOME ?? homedir()
 
+  const gpg = createGpgSigningStep({ files, run, git })
+
   return async ({ cwd, spec }) => {
     const token = spec.githubToken
-    const scrub = (text: string): string =>
-      token === null || token === '' ? text : text.split(token).join('***')
+    const scrub = (text: string): string => {
+      let cleaned = token === null || token === '' ? text : text.split(token).join('***')
+      for (const secret of gpgSecrets(spec.gpgKey)) {
+        cleaned = cleaned.split(secret).join('***')
+      }
+      return cleaned
+    }
 
     const guard = async (
       step: EProfileStep,
@@ -86,6 +109,14 @@ export function createEnvironmentProfile(args: {
     }
 
     let probedIdentity: string | null = null
+    let probedGpg = false
+
+    const gpgSigning = (): Promise<ProfileStepOutcome> =>
+      guard(EProfileStep.GpgSigning, async () => {
+        const result = await gpg({ cwd, spec })
+        probedGpg = result.probed
+        return result.outcome
+      })
 
     const credentials = (): Promise<ProfileStepOutcome> =>
       guard(EProfileStep.Credentials, async () => {
@@ -199,13 +230,19 @@ export function createEnvironmentProfile(args: {
         return { step: EProfileStep.Toolchain, state: EProfileStepState.Applied }
       })
 
-    const steps = await Promise.all([credentials(), gitIdentity(), knownHosts(), toolchain()])
+    const steps = await Promise.all([
+      credentials(),
+      gitIdentity(),
+      knownHosts(),
+      toolchain(),
+      gpgSigning(),
+    ])
     const [credentialsOutcome] = steps
 
     const capabilities: EnvironmentCapabilities = {
       canPush: credentialsOutcome.state === EProfileStepState.Applied,
       gitIdentity: probedIdentity,
-      gpgSigning: false,
+      gpgSigning: probedGpg,
       dockerAvailable: false,
       persistentFs: true,
       serviceTtlSeconds: null,
