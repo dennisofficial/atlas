@@ -94,6 +94,21 @@ export function readMetaSync<Meta>({
   return schema.parse(JSON.parse(raw))
 }
 
+export function readSessionMetaSync({
+  file,
+  sessionDir,
+}: {
+  file: string
+  sessionDir: string
+}): SessionMeta | undefined {
+  const meta = readMetaSync({ file, schema: sessionMetaSchema })
+  if (meta === undefined) return undefined
+  if (meta.format > SESSION_FORMAT_VERSION) {
+    throw new SessionFromNewerAtlasError({ sessionDir, format: meta.format })
+  }
+  return meta
+}
+
 export async function writeMeta({ file, meta }: { file: string; meta: unknown }): Promise<void> {
   await mkdir(dirname(file), { recursive: true })
   const tmp = `${file}.${process.pid}.tmp`

@@ -8,7 +8,7 @@ import { toEventId, toRunId, toThreadId, type EventDraft, type EventEnvelope } f
 import { EUnreadableReason } from '../../decode-events'
 import { encodeEventLine, parseEventLines } from '../lines'
 import { claimSession, ESessionClaim, releaseSession } from '../lock'
-import { newThreadMeta, readMetaSync, sessionMetaSchema, threadMetaSchema, writeMeta } from '../meta'
+import { newThreadMeta, readMetaSync, readSessionMetaSync, sessionMetaSchema, SessionFromNewerAtlasError, threadMetaSchema, writeMeta } from '../meta'
 import { sessionLockFile, sessionMetaFile, threadMetaFile } from '../paths'
 
 const directories: string[] = []
@@ -93,6 +93,29 @@ describe('meta read/write', () => {
     const dir = await tempDir()
     const read = readMetaSync({ file: sessionMetaFile({ sessionDir: dir }), schema: sessionMetaSchema })
     expect(read).toBeUndefined()
+  })
+
+  it('refuses a session written by a newer format', async () => {
+    const dir = await tempDir()
+    await writeMeta({
+      file: sessionMetaFile({ sessionDir: dir }),
+      meta: {
+        format: 2,
+        id: 'brn_x',
+        title: null,
+        createdAt: '2026-09-23T00:00:00.000Z',
+        updatedAt: '2026-09-23T00:00:00.000Z',
+        home: 'local',
+        repo: null,
+        workspace: null,
+        worktree: null,
+        pullRequests: null,
+        spend: null,
+      },
+    })
+    expect(() => readSessionMetaSync({ file: sessionMetaFile({ sessionDir: dir }), sessionDir: dir })).toThrow(
+      SessionFromNewerAtlasError,
+    )
   })
 })
 
