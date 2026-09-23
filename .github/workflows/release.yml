@@ -33,11 +33,15 @@ jobs:
         id: version
         run: bun apps/tui/scripts/release-version.ts >> "$GITHUB_OUTPUT"
 
+      # Same starvation rule as ci.yml's test-tui job, answered the other way: PR CI gives each
+      # TUI shard its own runner, this single job instead runs the suite as one shard with
+      # serialized packages, so no parallel bun processes starve the settle-based render specs.
       - name: typecheck and test
         if: steps.version.outputs.skip != 'true'
-        run: bun run typecheck && bun run test
+        run: bun run typecheck && bun run test --concurrency 1
         env:
           ATLAS_HOME: ${{ github.workspace }}/.atlas-home
+          ATLAS_TEST_SHARDS: '1'
 
       - name: build binaries
         if: steps.version.outputs.skip != 'true'
