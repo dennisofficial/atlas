@@ -13,6 +13,7 @@ import { LoadInstructionsHook } from '../hooks/load-instructions'
 import { LoadMemoryHook } from '../hooks/load-memory'
 import { NestedInstructionsHook } from '../hooks/nested-instructions'
 import { StampMemoryHook } from '../hooks/stamp-memory'
+import { resolveProjectMemory } from '../memory/project-memory'
 import { memoryDirectoriesFor } from '../memory/read-memory'
 import { MemoryFragment } from '../prompt/fragments/memory'
 import type { SettingsService } from '../settings/service'
@@ -20,11 +21,12 @@ import { atlasDirectory } from '../store/paths'
 
 import { instructionPlanOf, nestedInstructionPlanOf } from './instruction-plan'
 
-export function bindInstructionsAndMemory(args: {
+export async function bindInstructionsAndMemory(args: {
   container: DependencyContainer
   settings: SettingsService
   repoRoot: string
-}): void {
+  repoIdentity?: string | null | undefined
+}): Promise<void> {
   const { container, settings } = args
 
   container.register(portToken(BeforeTurnHook), {
@@ -44,10 +46,19 @@ export function bindInstructionsAndMemory(args: {
       }),
   })
 
-  const memoryDirectories = memoryDirectoriesFor({
-    atlasHome: atlasDirectory(),
-    repoRoot: args.repoRoot,
-  })
+  const memoryDirectories =
+    args.repoIdentity === undefined
+      ? (
+          await resolveProjectMemory({
+            atlasHome: atlasDirectory(),
+            repoRoot: args.repoRoot,
+          })
+        ).directories
+      : memoryDirectoriesFor({
+          atlasHome: atlasDirectory(),
+          repoRoot: args.repoRoot,
+          identity: args.repoIdentity,
+        })
 
   container.register(portToken(PromptFragment), {
     useValue: new MemoryFragment({ directories: memoryDirectories }),

@@ -23,6 +23,12 @@ describe('looksLikeMemoryPath', () => {
     expect(looksLikeMemoryPath(PROJECT)).toBe(true)
   })
 
+  it('recognises a memory under an identity-keyed project directory', () => {
+    expect(
+      looksLikeMemoryPath('/Users/d/.atlas/projects/github.com/org/atlas/memory/bun-deflate.md'),
+    ).toBe(true)
+  })
+
   it('leaves a repository file in a folder called memory alone', () => {
     expect(looksLikeMemoryPath('/Users/d/code/app/src/memory/store.md')).toBe(false)
   })
@@ -62,6 +68,12 @@ describe('mentionsMemoryPath', () => {
     expect(
       mentionsMemoryPath('cat .atlas/projects/-Users-d-code/memory/MEMORY.md 2>/dev/null'),
     ).toBe(true)
+  })
+
+  it('sees an identity-keyed project memory path', () => {
+    expect(mentionsMemoryPath('cat .atlas/projects/github.com/org/atlas/memory/MEMORY.md')).toBe(
+      true,
+    )
   })
 
   it('sees an absolute path under the real home', () => {

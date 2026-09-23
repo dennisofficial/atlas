@@ -72,7 +72,7 @@ describe('materializeContext', () => {
 
     const readiness = await materialize({ spec, files })
 
-    expect(readiness).toEqual({ written: 3, failed: null, projectDirectory: null })
+    expect(readiness).toEqual({ written: 3, failed: null, projectDirectory: null, identity: null })
     expect(written.get('/srv/atlas-home/skills/review/SKILL.md')).toBe('# review')
     expect(written.get(join(homedir(), '.agents', 'skills', 'explore', 'SKILL.md'))).toBe(
       '# explore',
@@ -90,7 +90,7 @@ describe('materializeContext', () => {
 
     const readiness = await materialize({ spec, files })
 
-    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null })
+    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null, identity: null })
     expect(written.get(join(ATLAS_HOME, 'ATLAS.md'))).toBe('# global instructions')
   })
 
@@ -103,7 +103,7 @@ describe('materializeContext', () => {
 
     const readiness = await materialize({ spec, files })
 
-    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null })
+    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null, identity: null })
     expect(written.get(join(ATLAS_HOME, 'mcp.json'))).toBe('{"mcpServers":{}}')
   })
 
@@ -116,7 +116,7 @@ describe('materializeContext', () => {
 
     const readiness = await materialize({ spec, files })
 
-    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null })
+    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null, identity: null })
     expect(written.get(join(ATLAS_HOME, 'memory', 'MEMORY.md'))).toBe('# user memory')
   })
 
@@ -130,7 +130,7 @@ describe('materializeContext', () => {
     const readiness = await materialize({ spec, files })
     const projectMemoryDirectory = memoryDirectoriesFor({ atlasHome: ATLAS_HOME, repoRoot: CWD }).project
 
-    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null })
+    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null, identity: null })
     expect(written.get(join(projectMemoryDirectory, 'MEMORY.md'))).toBe('# project memory')
   })
 
@@ -143,7 +143,7 @@ describe('materializeContext', () => {
 
     const readiness = await materialize({ spec, files })
 
-    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null })
+    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null, identity: null })
     expect(written.get(join(CWD, 'ATLAS.local.md'))).toBe('# only on this machine')
   })
 
@@ -156,7 +156,7 @@ describe('materializeContext', () => {
 
     const readiness = await materialize({ spec, files })
 
-    expect(readiness).toEqual({ written: 0, failed: null, projectDirectory: null })
+    expect(readiness).toEqual({ written: 0, failed: null, projectDirectory: null, identity: null })
     expect(written.size).toBe(0)
   })
 
@@ -165,7 +165,7 @@ describe('materializeContext', () => {
 
     const readiness = await materialize({ spec: SPEC, files })
 
-    expect(readiness).toEqual({ written: 0, failed: null, projectDirectory: null })
+    expect(readiness).toEqual({ written: 0, failed: null, projectDirectory: null, identity: null })
     expect(written.size).toBe(0)
   })
 
@@ -186,7 +186,7 @@ describe('materializeContext', () => {
       files,
     })
 
-    expect(readiness).toEqual({ written: 0, failed: null, projectDirectory: null })
+    expect(readiness).toEqual({ written: 0, failed: null, projectDirectory: null, identity: null })
   })
 
   it('reports an unparseable bundle without failing the boot', async () => {
@@ -233,7 +233,7 @@ describe('materializeContext', () => {
 
     const readiness = await materialize({ spec, files })
 
-    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null })
+    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null, identity: null })
     expect(writtenBytes.get(join(ATLAS_HOME, 'skills', 'icons', 'logo.png'))).toEqual(rawBytes)
   })
 })
@@ -256,7 +256,7 @@ describe('materializeContext with an archive fetcher', () => {
       files,
     })
 
-    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null })
+    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null, identity: null })
     expect(written.get(join(ATLAS_HOME, 'ATLAS.md'))).toBe('# from the archive')
   })
 
@@ -279,7 +279,7 @@ describe('materializeContext with an archive fetcher', () => {
       files,
     })
 
-    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null })
+    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null, identity: null })
     expect(written.get(join(ATLAS_HOME, 'ATLAS.md'))).toBe('# legacy fallback')
     expect(calls).toBe(3)
     expect(slept).toEqual([3_000, 3_000])
@@ -308,7 +308,7 @@ describe('materializeContext with an archive fetcher', () => {
       files,
     })
 
-    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null })
+    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null, identity: null })
     expect(written.get(join(ATLAS_HOME, 'ATLAS.md'))).toBe('# landed on the second try')
     expect(calls).toBe(2)
     expect(slept).toEqual([3_000])
@@ -401,6 +401,7 @@ describe('materializeContext with a resume stamp', () => {
       written: 0,
       failed: null,
       projectDirectory: '/Users/dennis/dev/atlas',
+      identity: null,
     })
     expect(specCalls).toBe(0)
     expect(archiveCalls).toBe(0)
@@ -421,10 +422,30 @@ describe('materializeContext with a resume stamp', () => {
       written: 1,
       failed: null,
       projectDirectory: '/Users/dennis/dev/atlas',
+      identity: null,
     })
     expect(JSON.parse(stamped.get(CONTEXT_STAMP_PATH) ?? '')).toEqual({
       projectDirectory: '/Users/dennis/dev/atlas',
+      identity: null,
     })
+  })
+
+  it('writes project memory into the identity-keyed directory the host shares when the spec names a remote', async () => {
+    const { files, written } = fakeFiles()
+    const spec: WorkspaceSpec = {
+      ...SPEC,
+      remoteUrl: 'git@github.com:dennisofficial/atlas.git',
+      contextBundle: bundle({ 'project-memory/MEMORY.md': '# project memory' }),
+    }
+
+    const readiness = await materialize({ spec, files })
+
+    expect(readiness.identity).toBe('github.com/dennisofficial/atlas')
+    expect(
+      written.get(
+        join(ATLAS_HOME, 'projects', 'github.com', 'dennisofficial', 'atlas', 'memory', 'MEMORY.md'),
+      ),
+    ).toBe('# project memory')
   })
 
   it('treats a stamp that will not parse as though a stamp had never been written', async () => {
@@ -437,7 +458,7 @@ describe('materializeContext with a resume stamp', () => {
 
     const readiness = await materialize({ spec, files })
 
-    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null })
+    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null, identity: null })
     expect(written.get(join(ATLAS_HOME, 'ATLAS.md'))).toBe('# from the corrupt-stamp boot')
   })
 
@@ -456,7 +477,7 @@ describe('materializeContext with a resume stamp', () => {
 
     const readiness = await materialize({ spec, files: unwritable })
 
-    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null })
+    expect(readiness).toEqual({ written: 1, failed: null, projectDirectory: null, identity: null })
     expect(written.get(join(ATLAS_HOME, 'ATLAS.md'))).toBe(
       '# still lands even though the stamp cannot',
     )

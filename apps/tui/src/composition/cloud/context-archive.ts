@@ -7,7 +7,7 @@ import {
   atlasDirectory,
   buildContextArchive,
   MAX_CONTEXT_ARCHIVE_BYTES,
-  memoryDirectoriesFor,
+  resolveProjectMemory,
   resolveSkillRoots,
   type ArchiveFileSource,
   statMemoryDirectory,
@@ -133,8 +133,12 @@ export async function captureContextArchive(args: {
   })
 
   if (args.cwd !== undefined) {
-    const projectMemory = memoryDirectoriesFor({ atlasHome, repoRoot: args.cwd }).project
-    await addFlatMemoryDirectory({ sources, directory: projectMemory, keyPrefix: 'project-memory' })
+    const projectMemory = await resolveProjectMemory({ atlasHome, repoRoot: args.cwd })
+      .then((resolved) => resolved.directories.project)
+      .catch(() => null)
+    if (projectMemory !== null) {
+      await addFlatMemoryDirectory({ sources, directory: projectMemory, keyPrefix: 'project-memory' })
+    }
     await addProjectLocals({ sources, cwd: args.cwd })
   }
 

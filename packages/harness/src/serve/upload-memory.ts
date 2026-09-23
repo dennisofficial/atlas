@@ -4,10 +4,11 @@ import { ENoticeTone, MEMORY_DIRECTORY_NAME, type NoticePort } from '@dltech/atl
 
 import { buildContextArchive } from '../cloud/context-archive'
 import type { UserContextClient } from '../cloud/user-context-client'
-import { memoryDirectoriesFor } from '../memory/read-memory'
 import { statMemoryDirectory, type MemoryFileStat } from '../memory/walk-memory'
 
 export type MemoryManifestEntry = { key: string; path: string; mtimeMs: number; size: number }
+
+export type ProjectMemorySource = { directory: string; keyPrefix: string }
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
@@ -21,36 +22,27 @@ const entriesOf = (args: { files: readonly MemoryFileStat[]; keyPrefix: string }
   }))
 
 /**
- * `project/<encodeURIComponent(projectDirectory)>/<name>` records which Mac-side repo a project
- * memory file belongs to, so the TUI only ever merges it back into that same repo. `projectDirectory`
- * is only absent against a control plane too old to have told the sandbox its own workspace spec's
- * `projectDirectory` — the bare `project/<name>` form it falls back to then carries no repo identity
- * at all, and a merge that cannot verify one skips the entry rather than guessing.
- */
-const projectKeyPrefix = (projectDirectory: string | null): string =>
-  projectDirectory === null ? 'project' : `project/${encodeURIComponent(projectDirectory)}`
-
-/**
  * The sandbox's own memory — user memory plus this workspace's project memory — as a flat manifest
- * of wire key, on-disk path, mtime and size. Mirrors the flat, non-recursive walk the Mac-side
- * context archive uses, so a nested `projects/` directory under user memory is never swept in. No
- * content is read here: the manifest exists so the uploader can tell whether anything changed
- * before it pays to read and pack a single byte.
+ * of wire key, on-disk path, mtime and size. The project source arrives already resolved: its
+ * directory is keyed by the repo's origin identity (so every checkout and sandbox of the repo
+ * shares it) and its prefix names that identity on the wire, so the host merge can tell this
+ * repo's entries from any other's. No content is read here: the manifest exists so the uploader
+ * can tell whether anything changed before it pays to read and pack a single byte.
  */
 export async function walkMemorySet(args: {
   atlasHome: string
-  cwd: string
-  projectDirectory?: string | null | undefined
+  project?: ProjectMemorySource | null | undefined
 }): Promise<readonly MemoryManifestEntry[]> {
   const user = entriesOf({
     files: await statMemoryDirectory(join(args.atlasHome, MEMORY_DIRECTORY_NAME)),
     keyPrefix: 'user',
   })
 
-  const projectMemory = memoryDirectoriesFor({ atlasHome: args.atlasHome, repoRoot: args.cwd }).project
+  if (args.project === undefined || args.project === null) return user
+
   const project = entriesOf({
-    files: await statMemoryDirectory(projectMemory),
-    keyPrefix: projectKeyPrefix(args.projectDirectory ?? null),
+    files: await statMemoryDirectory(args.project.directory),
+    keyPrefix: args.project.keyPrefix,
   })
 
   return [...user, ...project]
@@ -86,8 +78,7 @@ export type MemoryUploader = { syncAfterTurn: () => Promise<void> }
 export function createMemoryUploader(args: {
   client: Pick<UserContextClient, 'writeMemoryArchive'>
   atlasHome: string
-  cwd: string
-  projectDirectory?: string | null | undefined
+  project?: ProjectMemorySource | null | undefined
   notice: NoticePort
 }): MemoryUploader {
   let lastManifest: string | undefined
@@ -96,11 +87,7 @@ export function createMemoryUploader(args: {
     async syncAfterTurn(): Promise<void> {
       let entries: readonly MemoryManifestEntry[]
       try {
-        entries = await walkMemorySet({
-          atlasHome: args.atlasHome,
-          cwd: args.cwd,
-          projectDirectory: args.projectDirectory,
-        })
+        entries = await walkMemorySet({ atlasHome: args.atlasHome, project: args.project })
       } catch (error) {
         args.notice.notify({
           tone: ENoticeTone.Warn,

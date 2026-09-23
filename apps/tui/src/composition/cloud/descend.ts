@@ -19,7 +19,12 @@ import type { CloudBridge, CloudChannel } from './cloud-bridge'
 import { draftsOf } from './event-drafts'
 import { ELiftStep } from './lift'
 import { flipChildrenBack } from './lift-children'
-import { descendedConflictsDraft, descendedSupersededDraft } from './transition-notice'
+import type { RemoteMemoryMerge } from './merge-remote-memory'
+import {
+  descendedConflictsDraft,
+  descendedMemoryConflictsDraft,
+  descendedSupersededDraft,
+} from './transition-notice'
 
 const DESCEND_DESTROY_NOTICE_KEY = 'descend-sandbox-destroy-failed'
 
@@ -135,9 +140,10 @@ export async function descendFromCloud(args: {
   mergeWorkspace?: WorkspaceMerger | undefined
   /**
    * Pulls the cloud's memory archive down over the local one — the cloud copy is newer at descend.
-   * Optional so a spec never fetches; a failure warns and never blocks the descend.
+   * Optional so a spec never fetches; a failure warns and never blocks the descend. Conflicts the
+   * local copy won come back so their cloud versions can be kept in the log, never dropped.
    */
-  pullMemory?: (() => Promise<void>) | undefined
+  pullMemory?: (() => Promise<RemoteMemoryMerge>) | undefined
 }): Promise<OpenedConversation> {
   const { threadId, target, bridge, channel, localApp, move } = args
 
@@ -183,14 +189,22 @@ export async function descendFromCloud(args: {
         })
 
   if (args.pullMemory !== undefined) {
-    await args.pullMemory().catch((error: unknown) => {
+    const pulled = await args.pullMemory().catch((error: unknown) => {
       notify({
         key: DESCEND_MEMORY_NOTICE_KEY,
         text: `this conversation is home, but the cloud's memory did not come down with it — ${messageOf(error)}`,
         tone: ENoticeTone.Warn,
         ttlMs: NOTICE_WARN_MS,
       })
+      return null
     })
+    if (pulled !== null && pulled.conflicts.length > 0) {
+      await localApp.log.append({
+        threadId,
+        runId: localApp.ids.nextRunId(),
+        drafts: [descendedMemoryConflictsDraft({ conflicts: pulled.conflicts })],
+      })
+    }
   }
 
   move.handleAdvance(ELiftStep.Flipping)

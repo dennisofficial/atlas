@@ -2,11 +2,14 @@ import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join, sep } from 'node:path'
 
+import { normalizeRepoOrigin } from '@dltech/atlas-core'
+
 import { extractContextArchive, type ExtractedArchiveEntry } from '../cloud/context-archive'
 import { safeRelativeSegment } from '../files/safe-relative-path'
 import { memoryDirectoriesFor } from '../memory/read-memory'
 
 import { fetchArchiveWithRetry, type ArchiveRetry } from './context-archive-retry'
+import { readContextStamp, stampContextWithoutFailingBoot } from './context-stamp'
 import { nodeWorkspaceFiles, type WorkspaceFiles } from './workspace-files'
 import type { FetchContextArchive, FetchWorkspaceSpec } from './workspace-spec'
 
@@ -14,6 +17,7 @@ export type ContextReadiness = {
   written: number
   failed: string | null
   projectDirectory: string | null
+  identity: string | null
 }
 
 const SKILL_FLAVOURS = ['.agents', '.claude'] as const
@@ -27,57 +31,6 @@ const PROJECT_PREFIX = `project${sep}`
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
-
-const CONTEXT_STAMP_FILE = 'context.stamp'
-
-type ContextStamp = { projectDirectory: string | null }
-
-const contextStampPath = (atlasHome: string): string => join(atlasHome, CONTEXT_STAMP_FILE)
-
-const parseContextStamp = (text: string): ContextStamp | null => {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(text)
-  } catch {
-    return null
-  }
-  if (typeof parsed !== 'object' || parsed === null) return null
-  const projectDirectory = Reflect.get(parsed, 'projectDirectory')
-  if (projectDirectory === null || projectDirectory === undefined) {
-    return { projectDirectory: null }
-  }
-  return typeof projectDirectory === 'string' ? { projectDirectory } : null
-}
-
-/**
- * A sandbox snapshot restores the whole filesystem across stop/resume, this stamp included, so its
- * presence is what tells a resumed boot apart from a freshly created one that has never received
- * context yet.
- */
-const readContextStamp = async (args: {
-  files: WorkspaceFiles
-  atlasHome: string
-}): Promise<ContextStamp | null> => {
-  const path = contextStampPath(args.atlasHome)
-  if (!(await args.files.exists(path))) return null
-  try {
-    return parseContextStamp(await args.files.read(path))
-  } catch {
-    return null
-  }
-}
-
-const stampContextWithoutFailingBoot = (args: {
-  files: WorkspaceFiles
-  atlasHome: string
-  projectDirectory: string | null
-}): Promise<void> =>
-  args.files
-    .write({
-      path: contextStampPath(args.atlasHome),
-      text: JSON.stringify({ projectDirectory: args.projectDirectory }),
-    })
-    .catch(() => undefined)
 
 /**
  * The bundle is the operator's user-level context — skills, global instructions, local MCP
@@ -133,6 +86,7 @@ type MaterializeRoots = {
   cwd: string
   projectMemoryDirectory: string
   projectDirectory: string | null
+  identity: string | null
   files: WorkspaceFiles
 }
 
@@ -159,6 +113,7 @@ const writeEntries = async (args: {
         written,
         failed: `could not write ${entry.path}: ${messageOf(error)}`,
         projectDirectory: roots.projectDirectory,
+        identity: roots.identity,
       }
     }
   }
@@ -167,9 +122,10 @@ const writeEntries = async (args: {
     files: roots.files,
     atlasHome: roots.atlasHome,
     projectDirectory: roots.projectDirectory,
+    identity: roots.identity,
   })
 
-  return { written, failed: null, projectDirectory: roots.projectDirectory }
+  return { written, failed: null, projectDirectory: roots.projectDirectory, identity: roots.identity }
 }
 
 const materializeFromArchive = async (args: {
@@ -187,6 +143,7 @@ const materializeFromArchive = async (args: {
       written: 0,
       failed: `the context archive did not extract: ${messageOf(error)}`,
       projectDirectory: args.roots.projectDirectory,
+      identity: args.roots.identity,
     }
   }
 
@@ -208,7 +165,12 @@ const materializeFromLegacyBundle = async (args: {
   try {
     parsed = JSON.parse(args.bundle) as Record<string, string>
   } catch {
-    return { written: 0, failed: 'the context bundle did not parse', projectDirectory: args.roots.projectDirectory }
+    return {
+      written: 0,
+      failed: 'the context bundle did not parse',
+      projectDirectory: args.roots.projectDirectory,
+      identity: args.roots.identity,
+    }
   }
 
   return writeEntries({
@@ -238,13 +200,16 @@ export async function materializeContext(args: {
   const files = args.files ?? nodeWorkspaceFiles
 
   const stamp = await readContextStamp({ files, atlasHome: args.atlasHome })
-  if (stamp !== null) return { written: 0, failed: null, projectDirectory: stamp.projectDirectory }
+  if (stamp !== null) {
+    return {
+      written: 0,
+      failed: null,
+      projectDirectory: stamp.projectDirectory,
+      identity: stamp.identity,
+    }
+  }
 
   const home = homedir()
-  const projectMemoryDirectory = memoryDirectoriesFor({
-    atlasHome: args.atlasHome,
-    repoRoot: args.cwd,
-  }).project
 
   let spec
   try {
@@ -254,9 +219,17 @@ export async function materializeContext(args: {
       written: 0,
       failed: `the workspace spec did not answer: ${messageOf(error)}`,
       projectDirectory: null,
+      identity: null,
     }
   }
   const projectDirectory = spec.projectDirectory ?? null
+
+  const identity = spec.remoteUrl === null ? null : normalizeRepoOrigin(spec.remoteUrl)
+  const projectMemoryDirectory = memoryDirectoriesFor({
+    atlasHome: args.atlasHome,
+    repoRoot: args.cwd,
+    identity,
+  }).project
 
   const roots: MaterializeRoots = {
     atlasHome: args.atlasHome,
@@ -264,6 +237,7 @@ export async function materializeContext(args: {
     cwd: args.cwd,
     projectMemoryDirectory,
     projectDirectory,
+    identity,
     files,
   }
 
@@ -276,13 +250,14 @@ export async function materializeContext(args: {
         written: 0,
         failed: `the context archive did not answer: ${messageOf(error)}`,
         projectDirectory,
+        identity,
       }
     }
     if (archive !== null) return materializeFromArchive({ archive, roots })
   }
 
   if (spec.contextBundle === null || spec.contextBundle === undefined) {
-    return { written: 0, failed: null, projectDirectory }
+    return { written: 0, failed: null, projectDirectory, identity }
   }
 
   return materializeFromLegacyBundle({ bundle: spec.contextBundle, roots })

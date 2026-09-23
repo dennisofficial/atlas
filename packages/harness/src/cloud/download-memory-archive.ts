@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 import {
   MEMORY_DIRECTORY_NAME,
   MEMORY_PROJECTS_DIRECTORY_NAME,
+  sanitiseRepoIdentity,
   sanitiseRepoPath,
 } from '@dltech/atlas-core'
 
@@ -17,10 +18,11 @@ export type MemoryDownload = {
 
 /**
  * Maps an archive key back onto the directory it was tarred from: `user/<name>` is the shared
- * memory directory, `project/<encoded repoRoot>/<name>` is that repo's project memory directory.
- * The bare `project/<name>` form carries no repo identity (a control plane too old to know the
- * workspace's projectDirectory produced it), and a merge that cannot verify one skips the entry
- * rather than guessing — same rule as the descend-side merge.
+ * memory directory, `project/<encoded identity>/<name>` is that repo's project memory directory.
+ * The identity segment is the repo's normalized origin (`github.com/org/repo`); an absolute path
+ * instead means an older sandbox keyed it by the Mac-side checkout directory, and lands under the
+ * legacy path key, which the next session's adoption folds into the identity one. The bare
+ * `project/<name>` form carries no repo identity at all and is skipped rather than guessed.
  */
 const targetFor = (args: { key: string; atlasHome: string }): string | null => {
   const parts = args.key.split('/')
@@ -32,14 +34,9 @@ const targetFor = (args: { key: string; atlasHome: string }): string | null => {
   }
 
   if (parts.length === 3 && parts[0] === 'project') {
-    const repoRoot = decodeURIComponent(parts[1] ?? '')
-    return join(
-      args.atlasHome,
-      MEMORY_PROJECTS_DIRECTORY_NAME,
-      sanitiseRepoPath(repoRoot),
-      MEMORY_DIRECTORY_NAME,
-      name,
-    )
+    const decoded = decodeURIComponent(parts[1] ?? '')
+    const key = decoded.startsWith('/') ? sanitiseRepoPath(decoded) : sanitiseRepoIdentity(decoded)
+    return join(args.atlasHome, MEMORY_PROJECTS_DIRECTORY_NAME, key, MEMORY_DIRECTORY_NAME, name)
   }
 
   return null
