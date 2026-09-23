@@ -564,6 +564,15 @@ at the top of its next loop pass, which is already a tool-round boundary. To a *
 appends `user-said` and starts a turn. The operator typing into an open child takes the identical
 path, which is what makes "a child is just a thread" true rather than aspirational.
 
+**A queued notice wakes a stopped child.** Shell, service and child-report notices address the
+thread that owns them, and until the only listeners were the TUI's React wake hooks — bound to the
+viewed thread — a stopped child whose CI watch or suite ended heard nothing; its backlog flushed
+on the next message and the orchestrating agent starved. `ChildWake` in the composition root
+subscribes to all three registries and hands each awaiting thread to the supervisor's `wake`, which
+restarts the child so the runner's drain delivers the backlog — the same guarantee the wake hooks
+give the viewed thread, held for children. A child stopped deliberately (`killedBy` set) is never
+resurrected this way; a message is the only thing that brings one back.
+
 **Ordering at spawn is the invariant, and the transaction covers the child but not the parent.**
 `createWithFirstEvents` writes the thread row and the brief together, so a child never exists
 without its own first `user-said` — without it `awaitsReply` reads the child as nobody's turn and

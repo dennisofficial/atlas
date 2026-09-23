@@ -41,6 +41,9 @@ export const retiredAgentType = (agentType: string): string =>
 export const alreadyStepping = (agentId: ThreadId): string =>
   `agent ${agentId} is already taking a step; steer it with a message or stop it first`
 
+export const deliberatelyStopped = ({ agentId }: { agentId: ThreadId }): string =>
+  `agent ${agentId} was stopped deliberately, so queued notices do not wake it; send a message if it should run again`
+
 export const TEAMMATE_FROM_MAIN_ONLY =
   'only the main session spawns teammates — end your turn asking for one, and the main agent will spawn it and hand you its id'
 
