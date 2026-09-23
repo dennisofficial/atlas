@@ -1,7 +1,6 @@
 import {
   EImageDelivery,
   imageSize,
-  MAX_INLINE_BYTES,
   planDelivery,
   type AgentFileSystemPort,
   type ImageSize,
@@ -101,15 +100,22 @@ export async function readImage(args: {
   head: Uint8Array
   files: AgentFileSystemPort
   threadId: ThreadId
+  carriesToolImages: boolean
 }): Promise<ToolOutcome> {
   const { path, mediaType, byteLength } = args
 
-  const readable =
-    byteLength <= MAX_INLINE_BYTES
-      ? await args.files.readBytes({ path, threadId: args.threadId })
-      : args.head
+  const size = imageSize({ bytes: args.head, mediaType })
 
-  const size = imageSize({ bytes: readable, mediaType })
+  if (!args.carriesToolImages) {
+    return textOnly({
+      path,
+      mediaType,
+      size,
+      byteLength,
+      because:
+        "the current model's API delivers tool results as text, so the picture would arrive as base64 rather than as an image",
+    })
+  }
 
   const plan = planDelivery({ byteLength, width: size?.width, height: size?.height })
 
@@ -123,5 +129,7 @@ export async function readImage(args: {
     })
   }
 
-  return inlined({ path, mediaType, size, byteLength, bytes: readable })
+  const bytes = await args.files.readBytes({ path, threadId: args.threadId })
+
+  return inlined({ path, mediaType, size, byteLength, bytes })
 }

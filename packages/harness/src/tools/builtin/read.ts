@@ -149,6 +149,11 @@ function noticeFor(args: { path: string; scan: Selection }): string | undefined 
   return notes.length === 0 ? undefined : notes.join(' ')
 }
 
+export type ReadToolArgs = {
+  files?: AgentFileSystemPort | undefined
+  carriesToolImages?: (() => boolean) | undefined
+}
+
 export class ReadTool extends SchemaTool<typeof inputSchema> {
   readonly name = 'read'
   readonly description = description
@@ -167,8 +172,13 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
     { field: 'path', presence: EPathPresence.Required, form: EPathForm.Absolute, content: EContentAccess.Reads },
   ]
 
-  constructor(private readonly files: AgentFileSystemPort = new LocalFileSystemPort()) {
+  private readonly files: AgentFileSystemPort
+  private readonly carriesToolImages: () => boolean
+
+  constructor(args: ReadToolArgs = {}) {
     super()
+    this.files = args.files ?? new LocalFileSystemPort()
+    this.carriesToolImages = args.carriesToolImages ?? (() => true)
   }
 
   protected override async run({
@@ -208,6 +218,7 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
         head,
         files: this.files,
         threadId,
+        carriesToolImages: this.carriesToolImages(),
       })
     }
 
