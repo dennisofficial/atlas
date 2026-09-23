@@ -16,6 +16,7 @@ export type ClaimUpdate = Partial<WorkspaceColumns> & {
   tokenHash?: string
   sealedToken?: string
   sealedGitToken?: string
+  sealedGpgKey?: string
   contextPending?: boolean
   driveName?: string | null
   driveMode?: string | null
@@ -31,6 +32,7 @@ export function rotationOf(args: {
   sealedToken: string
   rotated: boolean
   sealedGitToken?: string | undefined
+  sealedGpgKey?: string | undefined
   contextPending?: boolean | undefined
   drive?: { name: string; mode: string } | undefined
   pinnedModel?: string | undefined
@@ -42,6 +44,7 @@ export function rotationOf(args: {
     ...(args.rotated ? { tokenHash: args.tokenHash, sealedToken: args.sealedToken } : {}),
   }
   if (args.sealedGitToken !== undefined) rotation.sealedGitToken = args.sealedGitToken
+  if (args.sealedGpgKey !== undefined) rotation.sealedGpgKey = args.sealedGpgKey
   if (args.contextPending !== undefined) rotation.contextPending = args.contextPending
   if (args.workspace !== undefined) {
     const columns = workspaceColumnsOf(args.workspace)
@@ -75,6 +78,7 @@ export function claimSandboxRow(args: {
   workspace: SandboxWorkspaceSpec | undefined
   contextBundle: string | undefined
   sealedGitToken?: string | undefined
+  sealedGpgKey?: string | undefined
   contextPending?: boolean | undefined
   name?: string | undefined
   drive?: { name: string; mode: string } | undefined
@@ -107,6 +111,7 @@ export function claimSandboxRow(args: {
       tokenHash: args.tokenHash,
       sealedToken: args.sealedToken,
       sealedGitToken: args.sealedGitToken ?? null,
+      sealedGpgKey: args.sealedGpgKey ?? null,
       contextPending: args.contextPending ?? true,
       ...columns,
       driveName: args.drive?.name ?? null,

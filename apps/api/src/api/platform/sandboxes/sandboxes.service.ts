@@ -150,6 +150,7 @@ export class SandboxesService {
     workspace?: SandboxWorkspaceSpec | undefined
     contextBundle?: string | undefined
     gitToken?: string | undefined
+    gpgKey?: string | undefined
     contextPending?: boolean | undefined
   }): Promise<SandboxAttachmentDto> {
     const thread = await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
@@ -166,6 +167,7 @@ export class SandboxesService {
       workspace: args.workspace,
       contextBundle: args.contextBundle,
       ...(args.gitToken === undefined ? {} : { sealedGitToken: this.cipher.encrypt(args.gitToken) }),
+      ...(args.gpgKey === undefined ? {} : { sealedGpgKey: this.cipher.encrypt(args.gpgKey) }),
       ...(args.contextPending === undefined ? {} : { contextPending: args.contextPending }),
     })
     return {
@@ -262,6 +264,7 @@ export class SandboxesService {
         threadId: true,
         name: true,
         sealedGitToken: true,
+        sealedGpgKey: true,
         workspaceRemoteUrl: true,
         workspaceBranch: true,
         workspaceCommit: true,
@@ -278,15 +281,18 @@ export class SandboxesService {
     // workspaceSkills is the outgoing column: a row written between this deploy's PRE_DEPLOY
     // migration and its container swap still carries only workspaceSkills.
     const contextBundle = row.workspaceContext ?? row.workspaceSkills ?? null
-    if (spec.remoteUrl === null) return { ...spec, githubToken: null, contextBundle }
+    const gpgKey = this.claimedGpgKey({ name: row.name, sealedGpgKey: row.sealedGpgKey })
+    if (spec.remoteUrl === null) {
+      return { ...spec, githubToken: null, gpgKey, contextBundle }
+    }
     const claimed = this.claimedGitToken({ name: row.name, sealedGitToken: row.sealedGitToken })
-    if (claimed !== null) return { ...spec, githubToken: claimed, contextBundle }
+    if (claimed !== null) return { ...spec, githubToken: claimed, gpgKey, contextBundle }
     const githubToken = await this.gitCredentials.findToken({
       userId: row.userId,
       threadId: row.threadId,
       remoteUrl: spec.remoteUrl,
     })
-    return { ...spec, githubToken, contextBundle }
+    return { ...spec, githubToken, gpgKey, contextBundle }
   }
 
   private claimedGitToken(args: {
@@ -299,6 +305,18 @@ export class SandboxesService {
     } catch (failure) {
       this.logger.warn(
         `the sealed git token on sandbox ${args.name} does not decrypt; the credential broker answers instead: ${messageOf(failure)}`,
+      )
+      return null
+    }
+  }
+
+  private claimedGpgKey(args: { name: string; sealedGpgKey: string | null }): string | null {
+    if (args.sealedGpgKey === null) return null
+    try {
+      return this.cipher.decrypt(args.sealedGpgKey)
+    } catch (failure) {
+      this.logger.warn(
+        `the sealed gpg key on sandbox ${args.name} does not decrypt; the sandbox gets none: ${messageOf(failure)}`,
       )
       return null
     }
