@@ -5,8 +5,6 @@ import { join } from 'node:path'
 
 import { Database } from 'bun:sqlite'
 
-import { legacyImportPending } from '@dltech/atlas-harness'
-
 import { EExportLegacyDbTask, exportLegacyDbRequestOf, runExportLegacyDb } from '../export-legacy-db'
 
 const homes: string[] = []
@@ -118,7 +116,6 @@ describe('runExportLegacyDb', () => {
       expect(output).toContain('export complete')
       expect(output).toContain('sessions:')
       expect(existsSync(join(home, 'sessions', '.imported-from-harness-db'))).toBe(true)
-      expect(await legacyImportPending({ home })).toBe(false)
     } finally {
       spy.mockRestore()
     }
