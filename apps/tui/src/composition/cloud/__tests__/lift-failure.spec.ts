@@ -25,7 +25,7 @@ describe('a lift that does not finish', () => {
 
     expect(lifted.fault).toBe(ELiftFault.Transfer)
     expect(lifted.step).toBe(ELiftStep.Transferring)
-    expect(lifted.stopped).toEqual({ shells: ['bun run dev'], services: ['api'] })
+    expect(lifted.stopped).toMatchObject({ shells: ['bun run dev'], services: ['api'] })
     expect(test.stops).toBe(1)
     expect(test.located).toEqual([])
     expect(test.bridge.attached).toEqual([])
@@ -158,7 +158,7 @@ describe('a lift that does not finish', () => {
     const lifted = await liftToCloud(test.args)
     if (lifted.ok) throw new Error('expected the lift to fail')
 
-    expect(lifted.stopped).toEqual({ shells: ['bun run dev'], services: ['api'] })
+    expect(lifted.stopped).toMatchObject({ shells: ['bun run dev'], services: ['api'] })
   })
 
   it('puts the children back on the host and resumes them when the sandbox will not start', async () => {
@@ -263,7 +263,7 @@ describe('a lift that does not finish', () => {
     if (lifted.ok) throw new Error('expected the lift to fail')
 
     expect(lifted.step).toBe(ELiftStep.Stopping)
-    expect(lifted.stopped).toEqual({ shells: ['bun run dev'], services: ['api'] })
+    expect(lifted.stopped).toMatchObject({ shells: ['bun run dev'], services: ['api'] })
     expect(test.located).toEqual([])
   })
 

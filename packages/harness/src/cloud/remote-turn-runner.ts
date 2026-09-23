@@ -54,6 +54,13 @@ export class RemoteTurnRunner extends TurnRunner {
     return this.drive({ ...args, fire: () => this.channel.send({ text: args.text }) })
   }
 
+  steer(args: { threadId: ThreadId; text: string }): void {
+    if (args.threadId !== this.channel.threadId) {
+      throw new Error(`this runner serves ${this.channel.threadId}, not ${args.threadId}`)
+    }
+    this.channel.send({ text: args.text })
+  }
+
   runTurn(args: { threadId: ThreadId; signal?: AbortSignal }): Promise<TurnOutcome> {
     return this.drive({ ...args, fire: () => this.channel.run() })
   }

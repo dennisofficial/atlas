@@ -43,6 +43,7 @@ export type FakeCloudChannel = CloudChannel & {
   endTurn(outcome: TurnOutcome): void
   readonly closed: boolean
   readonly runs: number
+  readonly sent: readonly { text: string }[]
   readonly woken: readonly { url: string; token: string }[]
 }
 
@@ -54,6 +55,7 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
   const serverErrors = new Set<(failure: { message: string }) => void>()
   const turnEndings = new Set<(outcome: TurnOutcome) => void>()
   const woken: { url: string; token: string }[] = []
+  const sent: { text: string }[] = []
 
   let held: ChannelConnection = { state: EChannelConnection.Connecting, detail: null }
   let closed = false
@@ -66,7 +68,9 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
     publisherFor: () => {
       throw new Error('a cloud channel never publishes from the client')
     },
-    send: () => undefined,
+    send: ({ text }) => {
+      sent.push({ text })
+    },
     run: () => {
       runs += 1
     },
@@ -122,6 +126,10 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
 
     get runs() {
       return runs
+    },
+
+    get sent() {
+      return sent
     },
 
     get woken() {

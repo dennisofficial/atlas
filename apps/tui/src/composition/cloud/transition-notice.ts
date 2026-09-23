@@ -10,11 +10,15 @@ export const CLOUD_NOTICE_KEY = 'execution-location'
 export type StoppedLocally = {
   shells: readonly string[]
   services: readonly string[]
+  drainNotices: () => readonly EventDraft[]
 }
+
+const NO_ENDINGS: readonly EventDraft[] = Object.freeze([])
 
 export const NOTHING_WAS_STOPPED: StoppedLocally = Object.freeze({
   shells: Object.freeze([]),
   services: Object.freeze([]),
+  drainNotices: () => NO_ENDINGS,
 })
 
 const plural = (args: { count: number; one: string; many: string }): string =>

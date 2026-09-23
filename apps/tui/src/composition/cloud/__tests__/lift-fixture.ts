@@ -142,7 +142,7 @@ export const harness = (over: Partial<LiftArgs> & { bridge?: FakeBridge } = {}):
     setLocation: (location) => located.push(location),
     stopLocal: async () => {
       stops += 1
-      return { shells: ['bun run dev'], services: ['api'] }
+      return { shells: ['bun run dev'], services: ['api'], drainNotices: () => [] }
     },
     capture: async () => CLEAN_WORKSPACE,
     onProgress: (step) => steps.push(step),

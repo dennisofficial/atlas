@@ -15,7 +15,7 @@ import {
 } from '@dltech/atlas-core'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
-import { publishProjections } from '@dltech/atlas-harness'
+import { publishProjections, RemoteTurnRunner } from '@dltech/atlas-harness'
 
 import {
   pendingRows,
@@ -153,6 +153,11 @@ export function useConversation(args: {
   )
 
   const pending = useMemo(() => app.pending.forThread({ threadId }), [app.pending, threadId])
+
+  const cloudRunner = useMemo(
+    () => (app.runner instanceof RemoteTurnRunner ? app.runner : null),
+    [app.runner],
+  )
 
   /**
    * Settled commands wait in the same queue as the messages, but drain in the driver's own settle
@@ -331,6 +336,22 @@ export function useConversation(args: {
       if (text.length === 0) return
 
       if (working) {
+        const carriesAttachments = images.length > 0 || (args.context?.length ?? 0) > 0
+        if (cloudRunner !== null && !carriesAttachments) {
+          cloudRunner.steer({ threadId, text })
+          nameSession({ said: text, opened: ALREADY_OPEN, images, context: args.context })
+          return
+        }
+
+        if (cloudRunner !== null) {
+          notify({
+            key: 'cloud-steer-attachments',
+            tone: ENoticeTone.Warn,
+            ttlMs: NOTICE_WARN_MS,
+            text: "images and context can't steer a running cloud turn — queued for the next one",
+          })
+        }
+
         pending.enqueue({ text, images })
         nameSession({ said: text, opened: ALREADY_OPEN, images, context: args.context })
         return
@@ -342,7 +363,7 @@ export function useConversation(args: {
       ])
       nameSession({ said: text, opened, images, context: args.context })
     },
-    [drive, nameSession, pending, working],
+    [cloudRunner, drive, nameSession, pending, threadId, working],
   )
 
   /**

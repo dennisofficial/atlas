@@ -60,6 +60,30 @@ describe('a turn driven over the session socket', () => {
     expect(live().sent.at(-1)).toEqual({ kind: EClientFrame.Send, text: 'hello there' })
   })
 
+  it('steers a running turn by sending the text without queueing an outcome of its own', async () => {
+    const { channel, open, receive, live } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
+
+    const turn = runner.runTurn({ threadId: THREAD })
+    runner.steer({ threadId: THREAD, text: 'check the tests too' })
+
+    expect(live().sent.at(-1)).toEqual({ kind: EClientFrame.Send, text: 'check the tests too' })
+
+    endTurn(receive, completed('run-1'))
+    await expect(turn).resolves.toEqual(completed('run-1'))
+  })
+
+  it('refuses to steer a thread the channel does not serve', () => {
+    const { channel, open, receive } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
+
+    expect(() => runner.steer({ threadId: OTHER_THREAD, text: 'wrong place' })).toThrow()
+  })
+
   it('interrupts the sandbox turn when the caller aborts', async () => {
     const { channel, open, receive, live } = harness()
     open()

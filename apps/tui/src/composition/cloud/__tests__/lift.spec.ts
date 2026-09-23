@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation, toRunId, type ThreadId } from '@dltech/atlas-core'
-import { CloudError, type GpgKeyMaterial } from '@dltech/atlas-harness'
+import { CloudError, EShellStatus, type GpgKeyMaterial } from '@dltech/atlas-harness'
 
 import { fakeEventLog, type FakeThreadStore } from '../../__tests__/fake-backend'
 import { ECloudSandboxState } from '../cloud-bridge'
@@ -134,6 +134,62 @@ describe('lifting a conversation into the cloud', () => {
     expect(notice.content).toContain('cloud sandbox')
     expect(notice.content).toContain('bun run dev')
     expect(notice.content).toContain('api')
+  })
+
+  it('delivers the endings the move drained into the cloud log, ahead of the location marker', async () => {
+    const test = harness({
+      stopLocal: async () => ({
+        shells: ['bun run dev'],
+        services: [],
+        drainNotices: () => [
+          {
+            type: 'background-shell-ended',
+            shellId: 'bash_1',
+            command: 'bun run dev',
+            description: 'dev server',
+            status: EShellStatus.Killed,
+            exitCode: undefined,
+            output: 'listening on :3000',
+            droppedCharacters: 0,
+            remainingCharacters: 0,
+          },
+        ],
+      }),
+    })
+
+    const lifted = await liftToCloud(test.args)
+    if (!lifted.ok) throw new Error('expected the lift to succeed')
+
+    const events = test.bridge.log.peek({ threadId: CLOUD_THREAD })
+    const ending = events.find((event) => event.type === 'background-shell-ended')
+    if (ending === undefined || ending.type !== 'background-shell-ended') {
+      throw new Error('expected the drained shell ending in the cloud log')
+    }
+    expect(ending.output).toBe('listening on :3000')
+
+    const marker = events.findIndex((event) => event.type === 'location-changed')
+    expect(events.indexOf(ending)).toBeLessThan(marker)
+  })
+
+  it('never drains the local notices when the lift fails, so the host conversation still hears them', async () => {
+    let drains = 0
+    const bridge = fakeBridge({ createFails: new CloudError({ status: 500, message: 'no capacity' }) })
+    const test = harness({
+      bridge,
+      stopLocal: async () => ({
+        shells: ['bun run dev'],
+        services: [],
+        drainNotices: () => {
+          drains += 1
+          return []
+        },
+      }),
+    })
+
+    const lifted = await liftToCloud(test.args)
+
+    if (lifted.ok) throw new Error('expected the lift to fail')
+    expect(drains).toBe(0)
   })
 
   it('marks the location change in the cloud log, before the transition notice', async () => {
