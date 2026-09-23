@@ -1,15 +1,18 @@
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 
 import {
   atlasDirectory,
   extractContextArchive,
   memoryDirectoriesFor,
+  resolveProjectMemory,
   safeRelativeSegment,
   UserContextClient,
+  type ProjectMemoryResolution,
 } from '@dltech/atlas-harness'
 
 import { clientVersionHeader } from '../../build/info'
+import { applyOne, type MergeCandidate } from './merge-memory-file'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
 
 const MERGE_NOTICE_KEY = 'remote-memory-merge'
@@ -17,20 +20,22 @@ const MERGE_NOTICE_KEY = 'remote-memory-merge'
 const USER_PREFIX = 'user/'
 const PROJECT_PREFIX = 'project/'
 
-type MergeCandidate = { key: string; mtime: number; readBytes: () => Promise<Buffer> }
+export type RemoteMemoryConflict = { key: string; text: string }
 
-type ParsedProjectKey = { projectDirectory: string; name: string }
+export type RemoteMemoryMerge = {
+  replaced: number
+  conflicts: readonly RemoteMemoryConflict[]
+}
+
+enum EProjectKeyKind {
+  Identity,
+  Path,
+}
+
+type ParsedProjectKey = { kind: EProjectKeyKind; value: string; name: string }
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
-
-const localMtimeOf = async (path: string): Promise<number | null> => {
-  try {
-    return (await stat(path)).mtimeMs
-  } catch {
-    return null
-  }
-}
 
 const withinRoot = (args: { root: string; relative: string }): string | null => {
   const safe = safeRelativeSegment(args.relative)
@@ -39,39 +44,41 @@ const withinRoot = (args: { root: string; relative: string }): string | null => 
 }
 
 /**
- * `project/<encodeURIComponent(projectDirectory)>/<name>` — the first path segment after the
- * prefix is the repo the sandbox recorded the file against; anything after that is the filename.
- * A bare `project/<name>` (no slash left over, from a control plane too old to have named a
- * project directory) carries no repo identity and cannot be matched, so it parses to `null`.
+ * `project/<encoded>/<name>` — the encoded middle segment is the repo the sandbox recorded the
+ * file against: its normalized origin identity (`github.com/org/repo`) on any recent serve, its
+ * Mac-side checkout path on an older one. A bare `project/<name>` carries no repo identity at
+ * all and parses to null rather than being matched against whichever repo happens to be open.
  */
 const parseProjectKey = (key: string): ParsedProjectKey | null => {
   const rest = key.slice(PROJECT_PREFIX.length)
   const slash = rest.indexOf('/')
   if (slash < 1) return null
 
-  const encoded = rest.slice(0, slash)
   const name = rest.slice(slash + 1)
   if (name === '') return null
 
+  let decoded: string
   try {
-    return { projectDirectory: decodeURIComponent(encoded), name }
+    decoded = decodeURIComponent(rest.slice(0, slash))
   } catch {
     return null
   }
+
+  const kind = decoded.startsWith('/') ? EProjectKeyKind.Path : EProjectKeyKind.Identity
+  return { kind, value: decoded, name }
 }
 
 const samePath = (a: string, b: string): boolean => resolve(a) === resolve(b)
 
 /**
- * A project entry only ever lands when its recorded `projectDirectory` names this same repo —
- * unrecorded (legacy) and cross-repo entries are skipped rather than written, since applying one
- * blind would plant another repo's memory notes into whichever project the operator happens to
- * have open.
+ * A project entry only ever lands when its recorded repo IS this repo: by identity when the
+ * sandbox knew one (the same for every checkout, worktree and sandbox), or — for entries an
+ * older sandbox keyed by checkout path — when that path is one of this repo's own paths.
  */
 const targetOf = (args: {
   key: string
   atlasHome: string
-  cwd: string | undefined
+  resolution: ProjectMemoryResolution | null
 }): string | null => {
   if (args.key.startsWith(USER_PREFIX)) {
     return withinRoot({
@@ -81,17 +88,50 @@ const targetOf = (args: {
   }
 
   if (args.key.startsWith(PROJECT_PREFIX)) {
-    if (args.cwd === undefined) return null
+    if (args.resolution === null) return null
 
     const parsed = parseProjectKey(args.key)
     if (parsed === null) return null
-    if (!samePath(parsed.projectDirectory, args.cwd)) return null
 
-    const projectMemory = memoryDirectoriesFor({ atlasHome: args.atlasHome, repoRoot: args.cwd }).project
-    return withinRoot({ root: projectMemory, relative: parsed.name })
+    const { identity, directories, legacyPaths } = args.resolution
+    const matches =
+      parsed.kind === EProjectKeyKind.Identity
+        ? identity !== null && parsed.value === identity
+        : legacyPaths.some((path) => samePath(parsed.value, path))
+    if (!matches) return null
+
+    return withinRoot({ root: directories.project, relative: parsed.name })
   }
 
   return null
+}
+
+const applyCandidates = async (args: {
+  candidates: readonly MergeCandidate[]
+  atlasHome: string
+  resolution: ProjectMemoryResolution | null
+}): Promise<RemoteMemoryMerge> => {
+  let replaced = 0
+  const conflicts: RemoteMemoryConflict[] = []
+  for (const candidate of args.candidates) {
+    const target = targetOf({ key: candidate.key, atlasHome: args.atlasHome, resolution: args.resolution })
+    if (target === null) continue
+
+    try {
+      const applied = await applyOne({ candidate, target })
+      if (applied.replaced) replaced += 1
+      if (applied.conflict !== null) conflicts.push(applied.conflict)
+    } catch (error) {
+      notify({
+        key: MERGE_NOTICE_KEY,
+        tone: ENoticeTone.Warn,
+        text: `the remote memory merge could not write ${candidate.key}: ${messageOf(error)}`,
+        ttlMs: NOTICE_WARN_MS,
+      })
+    }
+  }
+
+  return { replaced, conflicts }
 }
 
 type RemoteMemoryFile = { content: string; mtime: number }
@@ -159,50 +199,35 @@ const candidatesFor = async (args: {
   return { list: await legacyCandidates(args.client), cleanup: async () => undefined }
 }
 
-const applyCandidates = async (args: {
-  candidates: readonly MergeCandidate[]
+const resolutionFor = async (args: {
   atlasHome: string
-  cwd: string | undefined
-}): Promise<number> => {
-  let replaced = 0
-  for (const candidate of args.candidates) {
-    const target = targetOf({ key: candidate.key, atlasHome: args.atlasHome, cwd: args.cwd })
-    if (target === null) continue
-
-    const localMtime = await localMtimeOf(target)
-    if (localMtime !== null && localMtime >= candidate.mtime) continue
-
-    try {
-      const bytes = await candidate.readBytes()
-      await mkdir(join(target, '..'), { recursive: true })
-      await writeFile(target, bytes)
-      replaced += 1
-    } catch (error) {
-      notify({
-        key: MERGE_NOTICE_KEY,
-        tone: ENoticeTone.Warn,
-        text: `the remote memory merge could not write ${candidate.key}: ${messageOf(error)}`,
-        ttlMs: NOTICE_WARN_MS,
-      })
+  cwd: string
+}): Promise<ProjectMemoryResolution> => {
+  try {
+    return await resolveProjectMemory({ atlasHome: args.atlasHome, repoRoot: args.cwd })
+  } catch {
+    return {
+      directories: memoryDirectoriesFor({ atlasHome: args.atlasHome, repoRoot: args.cwd }),
+      identity: null,
+      legacyPaths: [args.cwd],
     }
   }
-
-  return replaced
 }
 
 /**
  * Pulls the operator's remote memory down onto this machine before it can be shadowed: a launch
  * that never lifts still wants whatever a cloud turn wrote, and a lift about to run
  * `captureContextArchive` must carry the union rather than whatever was last written locally.
- * Last-writer-wins by the mtime the sandbox recorded when it uploaded, so a file this machine
- * touched more recently than the cloud did is left alone.
+ * Last-writer-wins by the mtime the sandbox recorded when it uploaded — and where the local copy
+ * is that winner with different content, the cloud's version is returned as a conflict so the
+ * caller can keep it rather than drop it.
  */
 export async function mergeRemoteMemory(args: {
   session: { url: string; token: string }
   cwd?: string | undefined
   atlasHome?: string | undefined
   fetchFn?: typeof fetch | undefined
-}): Promise<{ replaced: number }> {
+}): Promise<RemoteMemoryMerge> {
   const atlasHome = args.atlasHome ?? atlasDirectory()
   const client = new UserContextClient({
     url: args.session.url,
@@ -211,18 +236,20 @@ export async function mergeRemoteMemory(args: {
     ...(args.fetchFn === undefined ? {} : { fetchFn: args.fetchFn }),
   })
 
+  const resolution =
+    args.cwd === undefined ? null : await resolutionFor({ atlasHome, cwd: args.cwd })
   const { list, cleanup } = await candidatesFor({ client })
-  const replaced = await applyCandidates({ candidates: list, atlasHome, cwd: args.cwd })
+  const merged = await applyCandidates({ candidates: list, atlasHome, resolution })
   await cleanup().catch(() => undefined)
 
-  if (replaced > 0) {
+  if (merged.replaced > 0) {
     notify({
       key: MERGE_NOTICE_KEY,
       tone: ENoticeTone.Warn,
-      text: `the cloud held newer memory than this machine — ${replaced} ${replaced === 1 ? 'file' : 'files'} replaced from the last cloud turn`,
+      text: `the cloud held newer memory than this machine — ${merged.replaced} ${merged.replaced === 1 ? 'file' : 'files'} replaced from the last cloud turn`,
       ttlMs: NOTICE_WARN_MS,
     })
   }
 
-  return { replaced }
+  return merged
 }

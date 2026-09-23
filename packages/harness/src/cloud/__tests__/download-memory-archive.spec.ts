@@ -61,6 +61,23 @@ describe('downloadMemoryArchive', () => {
     ).toBe('# project memory')
   })
 
+  it('restores an identity-keyed project entry into the nested identity directory', async () => {
+    const identity = 'github.com/dennisofficial/atlas'
+    const archive = await archiveOf([
+      { key: `project/${encodeURIComponent(identity)}/notes.md`, content: '# project memory' },
+    ])
+
+    const result = await downloadMemoryArchive({ context: contextOver({ archive }), atlasHome })
+
+    expect(result).toEqual({ restored: 1, skipped: 0 })
+    expect(
+      readFileSync(
+        join(atlasHome, 'projects', 'github.com', 'dennisofficial', 'atlas', 'memory', 'notes.md'),
+        'utf8',
+      ),
+    ).toBe('# project memory')
+  })
+
   it('lets the local copy win when the file already exists', async () => {
     mkdirSync(join(atlasHome, 'memory'), { recursive: true })
     writeFileSync(join(atlasHome, 'memory', 'MEMORY.md'), 'local wins')

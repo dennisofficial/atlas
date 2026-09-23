@@ -335,7 +335,14 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
       runId: args.ids.nextRunId(),
       drafts: [
         ...stopped.drainNotices(),
-        { type: 'location-changed', from, to: EExecutionLocation.Cloud, cwd: CLOUD_WORKSPACE_PATH },
+        {
+          type: 'location-changed',
+          from,
+          to: EExecutionLocation.Cloud,
+          cwd: CLOUD_WORKSPACE_PATH,
+          remoteUrl: workspace?.remoteUrl ?? null,
+          branch: workspace?.branch ?? null,
+        },
         liftedDraft({ workspace, stopped }),
       ],
     })

@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EDefinitionOrigin } from '../../discovery/origin'
-import { isMemoryFile, memoryIndexIn, memoryRootPlan, sanitiseRepoPath } from '../roots'
+import {
+  isMemoryFile,
+  memoryIndexIn,
+  memoryRootPlan,
+  sanitiseRepoIdentity,
+  sanitiseRepoPath,
+} from '../roots'
 
 describe('memoryRootPlan', () => {
   const plan = memoryRootPlan({ atlasHome: '/home/dev/.atlas', repoRoot: '/home/dev/code/atlas' })
@@ -26,6 +32,31 @@ describe('memoryRootPlan', () => {
     expect(trailing[0]?.directory).toBe('/home/dev/.atlas/memory')
   })
 
+  it('keys project memory on the repo identity when one is known', () => {
+    const keyed = memoryRootPlan({
+      atlasHome: '/home/dev/.atlas',
+      repoRoot: '/home/dev/code/atlas',
+      identity: 'github.com/dennisofficial/atlas',
+    })
+    expect(keyed[1]?.directory).toBe(
+      '/home/dev/.atlas/projects/github.com/dennisofficial/atlas/memory',
+    )
+  })
+
+  it('gives two checkouts of one repo the same identity-keyed directory', () => {
+    const fromRepo = memoryRootPlan({
+      atlasHome: '/h',
+      repoRoot: '/code/atlas',
+      identity: 'github.com/org/atlas',
+    })
+    const fromWorktree = memoryRootPlan({
+      atlasHome: '/h',
+      repoRoot: '/code/atlas/.atlas/worktrees/fix',
+      identity: 'github.com/org/atlas',
+    })
+    expect(fromWorktree[1]?.directory).toBe(fromRepo[1]?.directory)
+  })
+
   it('resolves the index inside a directory', () => {
     expect(memoryIndexIn('/home/dev/.atlas/memory')).toBe('/home/dev/.atlas/memory/MEMORY.md')
   })
@@ -46,6 +77,23 @@ describe('sanitiseRepoPath', () => {
   it('is stable for the same input', () => {
     const path = `/${'z'.repeat(500)}`
     expect(sanitiseRepoPath(path)).toBe(sanitiseRepoPath(path))
+  })
+})
+
+describe('sanitiseRepoIdentity', () => {
+  it('keeps the host hierarchy and filename-safe characters', () => {
+    expect(sanitiseRepoIdentity('github.com/org/repo')).toBe('github.com/org/repo')
+  })
+
+  it('flattens unsafe characters inside a segment and drops climbing segments', () => {
+    expect(sanitiseRepoIdentity('github.com/o r g/re:po')).toBe('github.com/o-r-g/re-po')
+    expect(sanitiseRepoIdentity('github.com/../repo')).toBe('github.com/repo')
+  })
+
+  it('keeps two identities that differ past the length cap apart', () => {
+    const long = `github.com/${'a'.repeat(400)}`
+    const other = `github.com/${'a'.repeat(400)}b`
+    expect(sanitiseRepoIdentity(long)).not.toBe(sanitiseRepoIdentity(other))
   })
 })
 

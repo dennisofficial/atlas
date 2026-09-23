@@ -213,6 +213,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     model: threadModel,
     notice,
     projectDirectory: context.projectDirectory,
+    identity: context.identity,
   })
 
   const buffer = createFrameBuffer({ capacity: args.bufferSize ?? DEFAULT_FRAME_BUFFER })

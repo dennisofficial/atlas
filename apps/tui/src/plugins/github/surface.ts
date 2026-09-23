@@ -1,7 +1,13 @@
 import { useMemo, useSyncExternalStore } from 'react'
 
 import type { LinkedPullRequest } from '@dltech/atlas-core'
-import type { PluginProjection, PullRequestService, SessionFacts, UrlOpener } from '@dltech/atlas-harness'
+import type {
+  PluginProjection,
+  PullRequestService,
+  RepositoryCheckout,
+  SessionFacts,
+  UrlOpener,
+} from '@dltech/atlas-harness'
 
 import { EFooterItemReach, type FooterItem } from '../../ui/footer-item'
 import type { ContributedSurface, PluginSurface } from '../surface'
@@ -39,15 +45,17 @@ export const pullRequestSurface = (args: {
   service: PullRequestService
   facts: SessionFacts
   links: PluginProjection<readonly LinkedPullRequest[]>
+  cloudCheckout: PluginProjection<RepositoryCheckout | null>
   openUrl: UrlOpener
 }): ContributedSurface => {
-  const { service, facts, links, openUrl } = args
+  const { service, facts, links, cloudCheckout, openUrl } = args
 
   return {
     pluginId: 'github',
     use: (): PluginSurface => {
       useSyncExternalStore(facts.subscribe, facts.version)
       useSyncExternalStore(links.subscribe, links.version)
+      useSyncExternalStore(cloudCheckout.subscribe, cloudCheckout.version)
 
       const linked = links.current()
       const { footer, section } = usePullRequest({
@@ -55,6 +63,7 @@ export const pullRequestSurface = (args: {
         projectDirectory: facts.directory(),
         working: facts.working(),
         linked,
+        cloud: cloudCheckout.current(),
         onOpen: openUrl,
       })
 

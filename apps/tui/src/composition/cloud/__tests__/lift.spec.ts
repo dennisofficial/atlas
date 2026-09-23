@@ -178,6 +178,8 @@ describe('lifting a conversation into the cloud', () => {
     expect(marker.from).toBe(EExecutionLocation.Host)
     expect(marker.to).toBe(EExecutionLocation.Cloud)
     expect(marker.cwd).toBe('/workspace')
+    expect(marker.remoteUrl).toBe('git@github.com:comp-ai/atlas.git')
+    expect(marker.branch).toBe('dennis/container-cloud')
 
     const noticeIndex = events.findIndex((event) => event.type === 'context-loaded')
     expect(events.indexOf(marker)).toBeLessThan(noticeIndex)

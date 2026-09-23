@@ -1,5 +1,6 @@
 import type { EventDraft } from '../events/body'
 import type { Event } from '../events/envelope'
+import { EExecutionLocation } from '../execution/location'
 
 export type ActiveWorktree = {
   path: string
@@ -89,4 +90,28 @@ export function projectDirectoryOf(args: {
   launchDirectory: string
 }): string {
   return activeWorktreeOf(args.events)?.path ?? homeDirectoryOf(args)
+}
+
+export type LiftedGitIdentity = {
+  remoteUrl: string
+  branch: string
+  cwd: string | undefined
+}
+
+/**
+ * The git identity a lift recorded on its `location-changed`, or null when the thread is local
+ * (or was lifted before the identity rode the event). A later transition back to local clears it,
+ * so only the latest move decides.
+ */
+export function liftedWorkspaceOf(events: readonly Event[]): LiftedGitIdentity | null {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index]
+    if (event?.type !== 'location-changed') continue
+    if (event.to !== EExecutionLocation.Cloud) return null
+    if (event.remoteUrl == null || event.branch == null) return null
+
+    return { remoteUrl: event.remoteUrl, branch: event.branch, cwd: event.cwd }
+  }
+
+  return null
 }

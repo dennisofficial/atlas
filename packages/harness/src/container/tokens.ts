@@ -10,7 +10,7 @@ import type {
 
 import type { PrismaClient } from '../../prisma/generated/client'
 import type { DeltaChannel } from '../channel/delta-channel'
-import type { CloudSessionStore } from '../cloud/cloud-session'
+import type { CloudSession, CloudSessionStore } from '../cloud/cloud-session'
 import type { ClaudeCodeSource } from '../credentials/claude-code-source'
 import type { KeychainReader } from '../credentials/keychain-reader'
 import type { DockerEngine } from '../execution/docker/engine'
@@ -69,6 +69,13 @@ export const LocalSecretsStoreToken: InjectionToken<FileSecretsStore> = Symbol(
 export const CloudSessionStoreToken: InjectionToken<CloudSessionStore> = Symbol(
   'atlas.CloudSessionStore',
 )
+
+/**
+ * Bound only in a serve process, where the sandbox's thread-scoped token is the session: its
+ * presence is how a plugin tells "in a sandbox, answer through the sandbox routes" from "on the
+ * operator's machine, signed in".
+ */
+export const ServeSessionToken: InjectionToken<CloudSession> = Symbol('atlas.ServeSession')
 
 export const ClientVersionToken: InjectionToken<string> = Symbol('atlas.ClientVersion')
 

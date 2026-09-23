@@ -7,6 +7,7 @@ import {
   activeWorktreeOf,
   homeDirectoryAfter,
   homeDirectoryOf,
+  liftedWorkspaceOf,
   projectDirectoryOf,
   repoOf,
 } from '../worktree'
@@ -333,5 +334,47 @@ describe('folding drafts that have not been written yet', () => {
     const drafts = [{ type: 'directory-changed' as const, path: '/Users/dev/other' }]
 
     expect(activeWorktreeAfter({ drafts, active })).toBeUndefined()
+  })
+})
+
+describe('the git identity a lift left on its location change', () => {
+  const lifted = (args?: { remoteUrl?: string | null; branch?: string | null }) =>
+    event({
+      type: 'location-changed',
+      from: 'host',
+      to: 'cloud',
+      cwd: '/workspace',
+      remoteUrl: args?.remoteUrl === undefined ? 'git@github.com:comp-ai/atlas.git' : args.remoteUrl,
+      branch: args?.branch === undefined ? 'dennis/thing' : args.branch,
+    })
+
+  it('is null before any location change', () => {
+    expect(liftedWorkspaceOf([said('hello')])).toBeNull()
+  })
+
+  it('reads the remote and branch off the lift', () => {
+    expect(liftedWorkspaceOf([said('hello'), lifted()])).toEqual({
+      remoteUrl: 'git@github.com:comp-ai/atlas.git',
+      branch: 'dennis/thing',
+      cwd: '/workspace',
+    })
+  })
+
+  it('is null for a lift recorded before the identity rode the event', () => {
+    const legacy = event({ type: 'location-changed', from: 'host', to: 'cloud', cwd: '/workspace' })
+
+    expect(liftedWorkspaceOf([legacy])).toBeNull()
+  })
+
+  it('clears once the thread comes back to the host', () => {
+    const back = event({ type: 'location-changed', from: 'cloud', to: 'host' })
+
+    expect(liftedWorkspaceOf([lifted(), back])).toBeNull()
+  })
+
+  it('answers the latest move when the thread lifts twice', () => {
+    const again = lifted({ branch: 'dennis/other' })
+
+    expect(liftedWorkspaceOf([lifted(), again])?.branch).toBe('dennis/other')
   })
 })

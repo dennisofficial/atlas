@@ -147,6 +147,8 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     from: z.enum(EExecutionLocation),
     to: z.enum(EExecutionLocation),
     cwd: z.string().min(1).optional(),
+    remoteUrl: z.string().min(1).nullable().optional(),
+    branch: z.string().min(1).nullable().optional(),
   }),
   z.object({
     type: z.literal('directory-changed'),

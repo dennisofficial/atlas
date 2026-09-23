@@ -9,6 +9,7 @@ import type { LinkedPullRequest } from '@dltech/atlas-core'
 import {
   createPullRequestService,
   EChecksState,
+  EForge,
   EPullRequestLookup,
   EPullRequestState,
   PullRequestPort,
@@ -17,6 +18,7 @@ import {
 } from '@dltech/atlas-harness'
 
 import type { SidebarSection } from '../../surface'
+import type { RepositoryCheckout } from '@dltech/atlas-harness'
 import { settle, teardown } from '../../../ui/markdown/__tests__/harness'
 import { usePullRequest, type PullRequestControl } from '../use-pull-request'
 
@@ -83,12 +85,14 @@ function Watcher(props: {
   service: PullRequestService
   projectDirectory: string
   linked: readonly LinkedPullRequest[]
+  cloud?: RepositoryCheckout | null
 }): React.ReactNode {
   const control = usePullRequest({
     service: props.service,
     projectDirectory: props.projectDirectory,
     working: false,
     linked: props.linked,
+    cloud: props.cloud ?? null,
     onOpen: NEVER,
   })
   props.probe.control = control
@@ -109,6 +113,7 @@ async function mounted(args: {
   reading: PullRequestReading
   branch?: string
   linked?: readonly LinkedPullRequest[]
+  cloud?: RepositoryCheckout | null
 }): Promise<{
   probe: Probe
   section: () => SidebarSection | null
@@ -124,6 +129,7 @@ async function mounted(args: {
       service={service}
       projectDirectory={projectDirectory}
       linked={args.linked ?? []}
+      cloud={args.cloud ?? null}
     />,
     { width: 60, height: 4 },
   )
@@ -174,6 +180,23 @@ describe('usePullRequest', () => {
       const rows = section()
       expect(textOf(rows, 'branch')).toBe('main')
       expect(textOf(rows, 'pull-request-current')).toBeNull()
+    } finally {
+      await done()
+    }
+  })
+
+  it('tracks the cloud checkout without probing the project directory', async () => {
+    const cloud: RepositoryCheckout = {
+      directory: '/workspace',
+      branch: 'dennis/lifted',
+      forge: EForge.GitHub,
+      remote: { host: 'github.com', owner: 'dennisofficial', repo: 'atlas' },
+    }
+    const { probe, section, done } = await mounted({ reading: FOUND, cloud })
+
+    try {
+      expect(probe.control?.footer?.badge?.label).toBe('#123')
+      expect(textOf(section(), 'branch')).toBe('dennis/lifted')
     } finally {
       await done()
     }

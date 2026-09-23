@@ -38,14 +38,35 @@ export function sanitiseRepoPath(repoRoot: string): string {
   return `${flattened.slice(0, MAX_SANITISED_LENGTH)}-${fingerprint(repoRoot)}`
 }
 
+/**
+ * The on-disk form of a normalized repo identity (`github.com/org/repo`): each segment is made
+ * filename-safe but the hierarchy is kept, so the projects directory stays browsable by host.
+ */
+export function sanitiseRepoIdentity(identity: string): string {
+  const segments = identity
+    .split(SEPARATOR)
+    .map((segment) => segment.replace(/[^a-zA-Z0-9._-]/g, '-'))
+    .filter((segment) => segment.length > 0 && segment !== '.' && segment !== '..')
+  const joined = segments.join(SEPARATOR)
+  if (joined.length <= MAX_SANITISED_LENGTH) return joined
+
+  return `${joined.slice(0, MAX_SANITISED_LENGTH)}-${fingerprint(identity)}`
+}
+
 export function memoryRootPlan(args: {
   atlasHome: string
   repoRoot: string
+  identity?: string | null | undefined
 }): readonly MemoryRoot[] {
   const projects = under({
     directory: args.atlasHome,
     name: MEMORY_PROJECTS_DIRECTORY_NAME,
   })
+
+  const projectKey =
+    args.identity === undefined || args.identity === null
+      ? sanitiseRepoPath(args.repoRoot)
+      : sanitiseRepoIdentity(args.identity)
 
   return [
     {
@@ -54,7 +75,7 @@ export function memoryRootPlan(args: {
     },
     {
       directory: under({
-        directory: under({ directory: projects, name: sanitiseRepoPath(args.repoRoot) }),
+        directory: under({ directory: projects, name: projectKey }),
         name: MEMORY_DIRECTORY_NAME,
       }),
       origin: EDefinitionOrigin.Project,

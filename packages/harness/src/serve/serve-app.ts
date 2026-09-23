@@ -42,6 +42,12 @@ export type ServeComposeArgs = {
   notice: NoticePort
   /** The Mac-side project directory, so memory this sandbox uploads is keyed by the right repo. */
   projectDirectory?: string | null | undefined
+  /**
+   * The repo's normalized origin identity (`github.com/org/repo`) from the workspace spec, so the
+   * sandbox's project memory lands in the same identity-keyed directory the host uses. Null when
+   * the repo has no host-named remote; undefined only against a control plane too old to say.
+   */
+  identity?: string | null | undefined
 }
 
 export type ServeCompose = (args: ServeComposeArgs) => Promise<ServeApp>
