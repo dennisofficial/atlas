@@ -549,6 +549,56 @@
   {
     "ref": {
       "providerId": "openai",
+      "modelId": "gpt-6-luna"
+    },
+    "label": "GPT-6 Luna",
+    "api": "openai-responses",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 0.1,
+      "outputPerMillion": 0.5,
+      "cacheReadPerMillion": 0.01,
+      "cacheWritePerMillion": 0.125
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "openai",
+      "modelId": "gpt-6-sol"
+    },
+    "label": "GPT-6 Sol",
+    "api": "openai-responses",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 10,
+      "cacheReadPerMillion": 0.2,
+      "cacheWritePerMillion": 2.5
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "openai",
       "modelId": "gpt-realtime-2.1"
     },
     "label": "GPT-Realtime-2.1",

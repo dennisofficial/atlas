@@ -417,11 +417,11 @@
     },
     "label": "glm-5.3",
     "api": "openai-completions",
-    "contextWindow": 1000000,
+    "contextWindow": 1048576,
     "imageTier": "standard",
     "maxOutputTokens": 131072,
     "cost": {
-      "inputPerMillion": 1,
+      "inputPerMillion": 0.9,
       "outputPerMillion": 3
     },
     "effort": {
@@ -441,8 +441,8 @@
     "imageTier": "standard",
     "maxOutputTokens": 128000,
     "cost": {
-      "inputPerMillion": 0.15,
-      "outputPerMillion": 0.5
+      "inputPerMillion": 0.09,
+      "outputPerMillion": 0.28
     },
     "effort": {
       "low": "low",
@@ -711,6 +711,50 @@
   {
     "ref": {
       "providerId": "inference",
+      "modelId": "gpt-6-luna"
+    },
+    "label": "gpt-6-luna",
+    "api": "openai-completions",
+    "contextWindow": 922000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 0.1,
+      "outputPerMillion": 0.5
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
+      "modelId": "gpt-6-sol"
+    },
+    "label": "gpt-6-sol",
+    "api": "openai-completions",
+    "contextWindow": 922000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 10
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
       "modelId": "grok-4.5"
     },
     "label": "grok-4.5",
@@ -894,14 +938,14 @@
     "imageTier": "standard",
     "maxOutputTokens": 1048576,
     "cost": {
-      "inputPerMillion": 2.1,
-      "outputPerMillion": 10.95
+      "inputPerMillion": 3,
+      "outputPerMillion": 15
     },
     "effort": {
       "off": "none",
       "low": "low",
-      "medium": "medium",
-      "high": "high"
+      "high": "high",
+      "max": "max"
     }
   },
   {
