@@ -63,6 +63,11 @@ export class SessionRegistry {
     this.threadIndex.set(threadId, sessionDir)
   }
 
+  forgetThread({ sessionDir, threadId }: { sessionDir: string; threadId: ThreadId }): void {
+    this.threadIndex.delete(threadId)
+    this.handles.get(sessionDir)?.threads.delete(threadId)
+  }
+
   async sessionDirOf({ threadId }: { threadId: ThreadId }): Promise<string | undefined> {
     const known = this.threadIndex.get(threadId)
     if (known !== undefined) return known

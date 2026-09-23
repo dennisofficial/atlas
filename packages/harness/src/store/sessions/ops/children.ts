@@ -67,7 +67,7 @@ export async function dropRewoundChildren({
 
     await rm(eventLogFile({ sessionDir, threadId: agentId }), { force: true })
     await rm(threadMetaFile({ sessionDir, threadId: agentId }), { force: true })
-    registry.handleFor({ sessionDir }).threads.delete(agentId)
+    registry.forgetThread({ sessionDir, threadId: agentId })
     orphans.push({
       agentId,
       agentType: meta.agentType ?? undefined,
