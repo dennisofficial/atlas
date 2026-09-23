@@ -1,11 +1,13 @@
 import {
   EAccountOrigin,
+  EAccountStatus,
   EAuthKind,
   EAuthProvider,
   ELoginFlow,
   providerSpec,
   type Account,
   type AccountId,
+  type AccountSecret,
   type AccountStorePort,
 } from '@dltech/atlas-core'
 
@@ -106,6 +108,18 @@ export class AccountsService {
   }
 
   private async addLogin(args: { provider: EAuthProvider; login: OauthLogin }): Promise<Account> {
+    const sameIdentity =
+      args.login.email === undefined
+        ? undefined
+        : await this.sameEmail({ provider: args.provider, email: args.login.email })
+
+    if (sameIdentity !== undefined) {
+      return this.replaceInPlace({
+        held: sameIdentity,
+        secret: { kind: EAuthKind.Oauth, tokens: args.login.tokens },
+      })
+    }
+
     const added = await this.accounts.add({
       provider: args.provider,
       label: labelFor({
@@ -124,9 +138,49 @@ export class AccountsService {
     return added
   }
 
+  private async sameEmail(args: {
+    provider: EAuthProvider
+    email: string
+  }): Promise<Account | undefined> {
+    const held = await this.accounts.list()
+    return held.find(
+      (account) => account.provider === args.provider && account.email === args.email,
+    )
+  }
+
+  /**
+   * A sign-in for an identity the vault already holds refreshes that row rather than stacking a
+   * duplicate: the fresh secret lands, an expired row comes back to life, and the account id —
+   * which meters and the active pointer key off — survives.
+   */
+  private async replaceInPlace(args: {
+    held: Account
+    secret: AccountSecret
+  }): Promise<Account> {
+    await this.accounts.replaceSecret({ accountId: args.held.id, secret: args.secret })
+    if (args.held.status !== EAccountStatus.Active) {
+      await this.accounts.setStatus({ accountId: args.held.id, status: EAccountStatus.Active })
+    }
+    await this.accounts.setActive({ provider: args.held.provider, accountId: args.held.id })
+
+    const updated = (await this.accounts.list()).find((account) => account.id === args.held.id)
+    return updated ?? { ...args.held, status: EAccountStatus.Active }
+  }
+
   async addApiKey(args: { provider: EAuthProvider; apiKey: string }): Promise<Account> {
     const spec = providerSpec(args.provider)
     if (!spec.kinds.includes(EAuthKind.ApiKey)) throw unsupportedProvider(args.provider)
+
+    const held = (await this.accounts.list()).find(
+      (account) => account.provider === args.provider && account.kind === EAuthKind.ApiKey,
+    )
+
+    if (held !== undefined) {
+      return this.replaceInPlace({
+        held,
+        secret: { kind: EAuthKind.ApiKey, apiKey: args.apiKey.trim() },
+      })
+    }
 
     const added = await this.accounts.add({
       provider: args.provider,

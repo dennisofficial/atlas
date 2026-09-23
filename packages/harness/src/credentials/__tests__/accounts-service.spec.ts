@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
-import { EAccountOrigin, EAuthKind, EAuthProvider } from '@dltech/atlas-core'
+import { EAccountOrigin, EAccountStatus, EAuthKind, EAuthProvider } from '@dltech/atlas-core'
 
 import { AccountsService } from '../accounts-service'
 import { CredentialError, ECredentialFailure } from '../credential-error'
@@ -15,6 +15,13 @@ import { movableClock, oauthSecret, openVault, type Vault } from './vault-fixtur
 const TOKEN_RESPONSE = {
   access_token: 'access-1',
   refresh_token: 'refresh-1',
+  expires_in: 3600,
+  account: { email_address: 'dev@example.com', subscription_type: 'max' },
+}
+
+const SECOND_TOKEN_RESPONSE = {
+  access_token: 'access-2',
+  refresh_token: 'refresh-2',
   expires_in: 3600,
   account: { email_address: 'dev@example.com', subscription_type: 'max' },
 }
@@ -173,6 +180,97 @@ describe('AccountsService', () => {
       apiKey: 'or-key',
     })
     expect(await serviceWith().activeFor(EAuthProvider.OpenRouter)).toBe(account.id)
+  })
+
+  it('replaces the row when the same email signs in again instead of stacking a duplicate', async () => {
+    const first = serviceWith()
+    const firstTicket = first.begin(EAuthProvider.Anthropic)
+    const original = await first.complete({ ticket: firstTicket, pasted: 'code' })
+
+    const second = serviceWith(SECOND_TOKEN_RESPONSE)
+    const secondTicket = second.begin(EAuthProvider.Anthropic)
+    const again = await second.complete({ ticket: secondTicket, pasted: 'code' })
+
+    expect(await second.list()).toHaveLength(1)
+    expect(again.id).toBe(original.id)
+
+    const stored = await vault.store.read(original.id)
+    expect(stored?.secret).toEqual({
+      kind: EAuthKind.Oauth,
+      tokens: {
+        accessToken: 'access-2',
+        refreshToken: 'refresh-2',
+        expiresAt: expect.any(String),
+      },
+    })
+    expect(await second.activeFor(EAuthProvider.Anthropic)).toBe(original.id)
+  })
+
+  it('revives an expired login when its email signs in again', async () => {
+    const expired = await vault.store.add({
+      provider: EAuthProvider.Anthropic,
+      label: 'dev@example.com',
+      secret: oauthSecret({}),
+      origin: EAccountOrigin.Login,
+      email: 'dev@example.com',
+    })
+    await vault.store.setStatus({ accountId: expired.id, status: EAccountStatus.Expired })
+
+    const service = serviceWith()
+    const ticket = service.begin(EAuthProvider.Anthropic)
+    const revived = await service.complete({ ticket, pasted: 'code' })
+
+    expect(revived.id).toBe(expired.id)
+    expect(revived.status).toBe(EAccountStatus.Active)
+    expect(await service.list()).toHaveLength(1)
+  })
+
+  it('keeps separate emails as separate logins on the same provider', async () => {
+    const first = serviceWith()
+    const firstTicket = first.begin(EAuthProvider.Anthropic)
+    await first.complete({ ticket: firstTicket, pasted: 'code' })
+
+    const other = serviceWith({
+      access_token: 'access-9',
+      refresh_token: 'refresh-9',
+      account: { email_address: 'other@example.com' },
+    })
+    const otherTicket = other.begin(EAuthProvider.Anthropic)
+    await other.complete({ ticket: otherTicket, pasted: 'code' })
+
+    const labels = (await other.list()).map((account) => account.label)
+    expect(labels).toEqual(['dev@example.com', 'other@example.com'])
+  })
+
+  it('appends when the login carries no email to match on', async () => {
+    const body = { access_token: 'a', refresh_token: 'r', subscription_type: 'pro' }
+    const first = serviceWith(body)
+    const firstTicket = first.begin(EAuthProvider.Anthropic)
+    await first.complete({ ticket: firstTicket, pasted: 'code' })
+
+    const second = serviceWith(body)
+    const secondTicket = second.begin(EAuthProvider.Anthropic)
+    await second.complete({ ticket: secondTicket, pasted: 'code' })
+
+    expect(await second.list()).toHaveLength(2)
+  })
+
+  it('replaces the key when an api key is added for a provider that already has one', async () => {
+    const service = serviceWith()
+    const original = await service.addApiKey({
+      provider: EAuthProvider.OpenRouter,
+      apiKey: 'or-key-1',
+    })
+
+    const again = await service.addApiKey({ provider: EAuthProvider.OpenRouter, apiKey: 'or-key-2' })
+
+    expect(again.id).toBe(original.id)
+    expect(await service.list()).toHaveLength(1)
+    expect((await vault.store.read(original.id))?.secret).toEqual({
+      kind: EAuthKind.ApiKey,
+      apiKey: 'or-key-2',
+    })
+    expect(await service.activeFor(EAuthProvider.OpenRouter)).toBe(original.id)
   })
 
   it('moves the pointer to a surviving account when the active one is removed', async () => {
