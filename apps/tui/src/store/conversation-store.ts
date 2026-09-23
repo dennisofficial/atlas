@@ -84,6 +84,7 @@ export function createConversationStore(args: {
   let sandbox: SidebarContainer | null = args.sandbox?.current() ?? null;
   let pendingTldr = pendingTldrOf(args.threadId) ?? null;
   let frame: ReturnType<typeof setTimeout> | undefined;
+  let queuedRepaint: ReturnType<typeof setTimeout> | undefined;
   const tracker = createStepTracker();
   const tails = new Map<CallId, string>();
   let durable: {
@@ -198,6 +199,23 @@ export function createConversationStore(args: {
     }, FRAME_MS);
   };
 
+  const scheduleRepaint = () => {
+    if (queuedRepaint !== undefined) return;
+
+    queuedRepaint = setTimeout(() => {
+      queuedRepaint = undefined;
+      republish();
+    }, FRAME_MS);
+  };
+
+  const repaintNow = () => {
+    if (queuedRepaint !== undefined) {
+      clearTimeout(queuedRepaint);
+      queuedRepaint = undefined;
+    }
+    republish();
+  };
+
   const handleSignal = (signal: ChannelSignal) => {
     progress = turnObserved({ progress, signal, now: readClock() });
 
@@ -212,20 +230,25 @@ export function createConversationStore(args: {
         signal.callId,
         ((tails.get(signal.callId) ?? "") + signal.text).slice(-MAX_TAIL_CHARACTERS),
       );
-      republish();
+      scheduleRepaint();
       return;
     }
 
     tracker.absorb(signal);
 
-    if (!paceReveal || signal.type !== "chunk") {
-      gate = null;
-      republish();
+    if (paceReveal && signal.type === "chunk") {
+      gate = attachedGate({ gate, tail: tracker.tailRun(events) });
+      scheduleFrame();
       return;
     }
 
-    gate = attachedGate({ gate, tail: tracker.tailRun(events) });
-    scheduleFrame();
+    if (signal.type === "chunk") {
+      scheduleRepaint();
+      return;
+    }
+
+    gate = null;
+    repaintNow();
   };
 
   let unsubscribeFromChannel: Unsubscribe | undefined = args.channel.subscribe({
@@ -320,6 +343,8 @@ export function createConversationStore(args: {
     dispose() {
       if (frame !== undefined) clearTimeout(frame);
       frame = undefined;
+      if (queuedRepaint !== undefined) clearTimeout(queuedRepaint);
+      queuedRepaint = undefined;
       unsubscribeFromChannel?.();
       unsubscribeFromChannel = undefined;
       unsubscribeFromFeed();

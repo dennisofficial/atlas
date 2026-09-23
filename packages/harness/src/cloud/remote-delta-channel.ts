@@ -1,6 +1,7 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
 import type { ChannelListener, DeltaChannel, Unsubscribe } from '../channel/delta-channel'
+import { retainReplayable, type InFlightSlots } from '../channel/in-flight'
 import { EStepEnd, type ChannelSignal, type StepId, type StepSignal } from '../channel/signal'
 import type { TurnOutcome } from '../loop/turn-outcome'
 import {
@@ -154,6 +155,7 @@ export function createRemoteDeltaChannel(args: {
   })
 
   let inFlight: StepSignal[] = []
+  const toolOutputSlots: InFlightSlots = new Map()
   let replay: readonly StepSignal[] | undefined
   let stepId: StepId | undefined
   let channelCursor: number | null = null
@@ -199,12 +201,14 @@ export function createRemoteDeltaChannel(args: {
     if (signal.type === 'step-started') {
       stepId = signal.stepId
       inFlight = [signal]
+      toolOutputSlots.clear()
       replay = undefined
       return
     }
     if (signal.type === 'step-ended') {
       stepId = undefined
       inFlight = []
+      toolOutputSlots.clear()
       replay = undefined
       return
     }
@@ -213,9 +217,10 @@ export function createRemoteDeltaChannel(args: {
     if (signal.type === 'chunk' && signal.stepId !== stepId) {
       stepId = signal.stepId
       inFlight = []
+      toolOutputSlots.clear()
     }
 
-    inFlight.push(signal)
+    retainReplayable({ inFlight, slots: toolOutputSlots, signal })
     replay = undefined
   }
 

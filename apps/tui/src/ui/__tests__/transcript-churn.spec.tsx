@@ -49,6 +49,10 @@ const NOTHING_OPEN: ReadonlySet<string> = new Set()
 
 const totalRenders = (): number => [...renders.values()].reduce((sum, count) => sum + count, 0)
 
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+
+const A_FRAME_OR_TWO = 60
+
 const thoughtThenSaid = (args: { thinking: string; text: string }) => ({
   type: 'assistant-said' as const,
   parts: [
@@ -189,6 +193,7 @@ describe('a chunk landing in a settled transcript', () => {
       const publisher = channel.publisherFor({ threadId: fixtureThreadId })
       await act(async () => {
         publisher.onChunk({ type: 'text-delta', id: 'b1', text: 'half' })
+        await sleep(A_FRAME_OR_TWO)
         await setup.flush()
       })
       await setup.flush()
@@ -201,6 +206,7 @@ describe('a chunk landing in a settled transcript', () => {
       renders.clear()
       await act(async () => {
         publisher.onChunk({ type: 'text-delta', id: 'b1', text: 'way' })
+        await sleep(A_FRAME_OR_TWO)
         await setup.flush()
       })
       await setup.flush()

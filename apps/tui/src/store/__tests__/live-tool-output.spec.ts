@@ -7,6 +7,10 @@ import { EEntryKind } from '../transcript-model'
 import { fixtureThreadId, log } from './fixture'
 import { called, callId, result } from './tool-fixture'
 
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+
+const A_FRAME_OR_TWO = 60
+
 const liveOutputOf = (store: ConversationStore, n: number): string | undefined =>
   store
     .getSnapshot()
@@ -23,7 +27,7 @@ describe('what a running command has printed so far', () => {
     store = createConversationStore({ channel, threadId: fixtureThreadId })
   })
 
-  it('attaches the live tail to the call it belongs to', () => {
+  it('attaches the live tail to the call it belongs to', async () => {
     store.setEvents({ events: log([called({ n: 1, name: 'bash', input: { command: 'bun run build' } })]),
     })
 
@@ -31,10 +35,12 @@ describe('what a running command has printed so far', () => {
       .publisherFor({ threadId: fixtureThreadId })
       .toolOutput({ callId: callId(1), text: 'compiling 1/3\n' })
 
+    await sleep(A_FRAME_OR_TWO)
+
     expect(liveOutputOf(store, 1)).toBe('compiling 1/3\n')
   })
 
-  it('grows the tail as more output streams', () => {
+  it('grows the tail as more output streams', async () => {
     store.setEvents({ events: log([called({ n: 1, name: 'bash' })]),
     })
     const publisher = channel.publisherFor({ threadId: fixtureThreadId })
@@ -42,10 +48,12 @@ describe('what a running command has printed so far', () => {
     publisher.toolOutput({ callId: callId(1), text: 'compiling 1/3\n' })
     publisher.toolOutput({ callId: callId(1), text: 'compiling 2/3\n' })
 
+    await sleep(A_FRAME_OR_TWO)
+
     expect(liveOutputOf(store, 1)).toBe('compiling 1/3\ncompiling 2/3\n')
   })
 
-  it('keeps parallel commands’ tails apart', () => {
+  it('keeps parallel commands’ tails apart', async () => {
     store.setEvents({
       events: log([called({ n: 1, name: 'bash' }), called({ n: 2, name: 'bash' })]),
     })
@@ -54,15 +62,18 @@ describe('what a running command has printed so far', () => {
     publisher.toolOutput({ callId: callId(1), text: 'first\n' })
     publisher.toolOutput({ callId: callId(2), text: 'second\n' })
 
+    await sleep(A_FRAME_OR_TWO)
+
     expect(liveOutputOf(store, 1)).toBe('first\n')
     expect(liveOutputOf(store, 2)).toBe('second\n')
   })
 
-  it('drops the tail once the call settles — the durable output takes over', () => {
+  it('drops the tail once the call settles — the durable output takes over', async () => {
     const publisher = channel.publisherFor({ threadId: fixtureThreadId })
     store.setEvents({ events: log([called({ n: 1, name: 'bash' })]),
     })
     publisher.toolOutput({ callId: callId(1), text: 'half way\n' })
+    await sleep(A_FRAME_OR_TWO)
     expect(liveOutputOf(store, 1)).toBe('half way\n')
 
     store.setEvents({
@@ -83,12 +94,13 @@ describe('what a running command has printed so far', () => {
     expect(liveOutputOf(store, 99)).toBeUndefined()
   })
 
-  it('leaves no tail behind on resetSteps, so a rewind leaves nothing half-printed', () => {
+  it('leaves no tail behind on resetSteps, so a rewind leaves nothing half-printed', async () => {
     store.setEvents({ events: log([called({ n: 1, name: 'bash' })]),
     })
     channel
       .publisherFor({ threadId: fixtureThreadId })
       .toolOutput({ callId: callId(1), text: 'half way\n' })
+    await sleep(A_FRAME_OR_TWO)
     expect(liveOutputOf(store, 1)).toBe('half way\n')
 
     store.resetSteps()

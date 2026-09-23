@@ -12,6 +12,10 @@ import { createConversationStore, type ConversationStore } from '../conversation
 import { EEntryKind } from '../transcript-model'
 import { fixtureThreadId, log } from './fixture'
 
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+
+const A_FRAME_OR_TWO = 60
+
 const textOf = (store: ConversationStore) => store.getSnapshot().entries.map((entry) => entry.text)
 
 const answersOf = (store: ConversationStore) =>
@@ -45,7 +49,7 @@ describe('the conversation store', () => {
     expect(store.getSnapshot()).toBe(store.getSnapshot())
   })
 
-  it('notifies subscribers when events land and when deltas arrive', () => {
+  it('notifies subscribers when events land and when deltas arrive', async () => {
     let notices = 0
     store.subscribe(() => void (notices += 1))
 
@@ -55,15 +59,19 @@ describe('the conversation store', () => {
       .publisherFor({ threadId: fixtureThreadId })
       .onChunk({ type: 'text-delta', id: 'b1', text: 'hi' })
 
+    await sleep(A_FRAME_OR_TWO)
+
     expect(afterEvents).toBeGreaterThan(0)
     expect(notices).toBeGreaterThan(afterEvents)
     expect(textOf(store)).toEqual(['hello', 'hi'])
   })
 
-  it('drops every in-flight step on resetSteps, so a rewind leaves nothing half-drawn', () => {
+  it('drops every in-flight step on resetSteps, so a rewind leaves nothing half-drawn', async () => {
     channel
       .publisherFor({ threadId: fixtureThreadId })
       .onChunk({ type: 'text-delta', id: 'b1', text: 'half said' })
+
+    await sleep(A_FRAME_OR_TWO)
 
     expect(textOf(store)).toEqual(['half said'])
 
@@ -72,7 +80,7 @@ describe('the conversation store', () => {
     expect(store.getSnapshot().entries).toEqual([])
   })
 
-  it('shows the reply exactly once across a real commit handoff', () => {
+  it('shows the reply exactly once across a real commit handoff', async () => {
     const question = log([{ type: 'user-said', text: 'hello' }])
     const durable: Event[] = log([
       { type: 'user-said', text: 'hello' },
@@ -86,6 +94,8 @@ describe('the conversation store', () => {
     publisher.onChunk({ type: 'text-delta', id: 'b1', text: 'hi ' })
     publisher.onChunk({ type: 'text-delta', id: 'b1', text: 'there' })
 
+    await sleep(A_FRAME_OR_TWO)
+
     const seen = [answersOf(store)]
     publisher.settleAppend({ events: [reply] })
     seen.push(answersOf(store))
@@ -95,7 +105,7 @@ describe('the conversation store', () => {
     expect(seen).toEqual([['hi there'], ['hi there'], ['hi there']])
   })
 
-  it('leaves no ghost of a settled step behind when the next one streams', () => {
+  it('leaves no ghost of a settled step behind when the next one streams', async () => {
     const durable = log([{ type: 'assistant-said', parts: [{ type: 'text', text: 'done' }] }])
     const reply = durable[0]
     if (reply === undefined) throw new Error('fixture lost its reply')
@@ -108,7 +118,26 @@ describe('the conversation store', () => {
       .publisherFor({ threadId: fixtureThreadId })
       .onChunk({ type: 'text-delta', id: 'b2', text: 'again' })
 
+    await sleep(A_FRAME_OR_TWO)
+
     expect(textOf(store)).toEqual(['done', 'again'])
+  })
+
+  it('paints a burst of chunks in one commit rather than one per chunk', async () => {
+    let notices = 0
+    store.subscribe(() => void (notices += 1))
+
+    const publisher = channel.publisherFor({ threadId: fixtureThreadId })
+    for (const text of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']) {
+      publisher.onChunk({ type: 'text-delta', id: 'b1', text })
+    }
+
+    expect(notices).toBe(1)
+
+    await sleep(A_FRAME_OR_TWO)
+
+    expect(notices).toBe(2)
+    expect(textOf(store)).toEqual(['abcdefgh'])
   })
 
   it('stops following the channel once disposed', () => {
