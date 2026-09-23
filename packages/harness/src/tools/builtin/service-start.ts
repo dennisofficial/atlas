@@ -32,8 +32,9 @@ const inputSchema = z.strictObject({
 const START_TAIL_CHARACTERS = 2_000
 
 const description = [
-  'Start a long-running service - a dev server, a watcher, anything that should stay up while you keep working - and get its id back at once.',
+  'Start a long-running service - a dev server, a database, a cache, anything that keeps serving until it is stopped - and get its id back at once.',
   'This is not for work you are waiting on: a command that ends and whose result you need belongs on bash, backgrounded or not.',
+  'A monitor that exits when what it watches finishes - a CI watch, a log tail - is a background bash shell, not a service.',
   'A service never times out and never holds the turn open; if it dies you will be told, wherever you are.',
   'Its stdout and stderr go to one log file, named in the reply; read or grep that file to check on it, and stop it with service_stop.',
   'In bash, pipe the log through the atlas-svc helper: `atlas-svc logs svc_1 | grep ...` resolves the id to its log and execs tail, so -n and -f pass straight through into whatever pipe you build.',
