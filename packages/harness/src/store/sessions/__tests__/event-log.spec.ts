@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, writeFileSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -92,6 +92,32 @@ describe('JsonlEventLog', () => {
     const seqs = [...a, ...b].map((event) => event.seq).sort((x, y) => x - y)
     expect(seqs).toEqual([1, 2, 3])
     expect((await log.read({ threadId: mainThread })).map((event) => event.seq)).toEqual([1, 2, 3])
+  })
+
+  it('reads a thread whose meta file is corrupt, taking head from the log', async () => {
+    const home = await tempHome()
+    const { log, ids } = openLog({ home })
+    await log.append({ threadId: mainThread, runId: ids.nextRunId(), drafts: [nudge({ text: 'one' }), nudge({ text: 'two' })] })
+
+    const sessionDir = sessionDirectory({ home, sessionId: mainThread })
+    writeFileSync(threadMetaFile({ sessionDir, threadId: mainThread }), Buffer.alloc(64))
+
+    const fresh = openLog({ home })
+    expect((await fresh.log.read({ threadId: mainThread })).map((event) => event.seq)).toEqual([1, 2])
+    expect(await fresh.log.head({ threadId: mainThread })).toBe(2)
+  })
+
+  it('skips a corrupt meta during the thread index scan', async () => {
+    const home = await tempHome()
+    const { log, ids } = openLog({ home })
+    await log.append({ threadId: mainThread, runId: ids.nextRunId(), drafts: [nudge({ text: 'one' })] })
+
+    const sessionDir = sessionDirectory({ home, sessionId: mainThread })
+    writeFileSync(threadMetaFile({ sessionDir, threadId: mainThread }), '{ truncated')
+
+    const registry = new SessionRegistry(home)
+    await expect(registry.sessionDirOf({ threadId: mainThread })).resolves.toBeUndefined()
+    await expect(registry.sessionDirFor({ threadId: mainThread })).resolves.toBe(sessionDir)
   })
 
   it('composes a reference fork: parent prefix plus own events', async () => {

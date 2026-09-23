@@ -1,4 +1,4 @@
-import { mkdir, rename, writeFile } from 'node:fs/promises'
+import { mkdir, open, rename, unlink } from 'node:fs/promises'
 import { readFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 
@@ -91,7 +91,13 @@ export function readMetaSync<Meta>({
   } catch {
     return undefined
   }
-  return schema.parse(JSON.parse(raw))
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return undefined
+  }
+  return schema.parse(parsed)
 }
 
 export function readSessionMetaSync({
@@ -109,9 +115,21 @@ export function readSessionMetaSync({
   return meta
 }
 
+let tmpSequence = 0
+
 export async function writeMeta({ file, meta }: { file: string; meta: unknown }): Promise<void> {
   await mkdir(dirname(file), { recursive: true })
-  const tmp = `${file}.${process.pid}.tmp`
-  await writeFile(tmp, JSON.stringify(meta, null, 2))
+  tmpSequence += 1
+  const tmp = `${file}.${process.pid}.${tmpSequence}.tmp`
+  const handle = await open(tmp, 'w')
+  try {
+    await handle.writeFile(JSON.stringify(meta, null, 2))
+    await handle.sync()
+  } catch (error) {
+    await handle.close().catch(() => {})
+    await unlink(tmp).catch(() => {})
+    throw error
+  }
+  await handle.close()
   await rename(tmp, file)
 }
