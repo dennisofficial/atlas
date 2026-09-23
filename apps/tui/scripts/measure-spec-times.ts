@@ -37,12 +37,17 @@ async function timeFile(args: { file: string }): Promise<Timing> {
 async function main(): Promise<void> {
   const files = await specFiles()
   const total = files.length
+  const timings: Timing[] = []
 
   for (const [index, file] of files.entries()) {
     const timing = await timeFile({ file })
-    process.stdout.write(`${JSON.stringify(timing)}\n`)
+    timings.push(timing)
     process.stderr.write(`[${index + 1}/${total}] ${file} ${timing.seconds.toFixed(1)}s\n`)
   }
+
+  const out = Bun.argv[2] ?? 'spec-times.json'
+  await Bun.write(out, `${JSON.stringify(timings, null, 1)}\n`)
+  process.stderr.write(`wrote ${timings.length} timings to ${out}\n`)
 }
 
 await main()
