@@ -19,18 +19,27 @@ type Reader = Pick<PrismaClient, 'thread' | 'event'> | Prisma.TransactionClient
 export async function readOwnRows({
   prisma,
   threadId,
+  fromSeq,
   upTo,
   type,
 }: {
   prisma: Reader
   threadId: ThreadId
+  fromSeq?: number | undefined
   upTo?: number | undefined
   type?: string | undefined
 }): Promise<EventRow[]> {
   return prisma.event.findMany({
     where: {
       threadId,
-      ...(upTo === undefined ? {} : { seq: { lte: upTo } }),
+      ...(fromSeq === undefined && upTo === undefined
+        ? {}
+        : {
+            seq: {
+              ...(fromSeq === undefined ? {} : { gt: fromSeq }),
+              ...(upTo === undefined ? {} : { lte: upTo }),
+            },
+          }),
       ...(type === undefined ? {} : { type }),
     },
     orderBy: { seq: 'asc' },
@@ -40,11 +49,13 @@ export async function readOwnRows({
 export async function readComposedRows({
   prisma,
   threadId,
+  fromSeq,
   upTo,
   type,
 }: {
   prisma: Reader
   threadId: ThreadId
+  fromSeq?: number | undefined
   upTo?: number | undefined
   type?: string | undefined
 }): Promise<EventRow[]> {
@@ -52,10 +63,12 @@ export async function readComposedRows({
 
   const composed: EventRow[] = []
   for (const segment of segments) {
+    if (fromSeq !== undefined && segment.upTo !== undefined && segment.upTo <= fromSeq) continue
     composed.push(
       ...(await readOwnRows({
         prisma,
         threadId: segment.threadId,
+        ...(fromSeq === undefined ? {} : { fromSeq }),
         upTo: segment.upTo,
         ...(type === undefined ? {} : { type }),
       })),

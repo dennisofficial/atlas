@@ -43,21 +43,35 @@ export class RemoteEventLog extends EventLogPort {
     return wire.map(eventFromWire)
   }
 
-  async read(args: { threadId: ThreadId; upTo?: number | undefined }): Promise<Event[]> {
+  async read(args: {
+    threadId: ThreadId
+    fromSeq?: number | undefined
+    upTo?: number | undefined
+  }): Promise<Event[]> {
     const wire = await this.client.readEvents({
       threadId: args.threadId,
       ...(args.upTo === undefined ? {} : { upTo: args.upTo }),
     })
-    return wire.map(eventFromWire)
+    const events = wire.map(eventFromWire)
+    if (args.fromSeq === undefined) return events
+    const fromSeq = args.fromSeq
+    return events.filter((event) => event.seq > fromSeq)
   }
 
-  async readOwn(args: { threadId: ThreadId; upTo?: number | undefined }): Promise<Event[]> {
+  async readOwn(args: {
+    threadId: ThreadId
+    fromSeq?: number | undefined
+    upTo?: number | undefined
+  }): Promise<Event[]> {
     const wire = await this.client.readEvents({
       threadId: args.threadId,
       own: true,
       ...(args.upTo === undefined ? {} : { upTo: args.upTo }),
     })
-    return wire.map(eventFromWire)
+    const events = wire.map(eventFromWire)
+    if (args.fromSeq === undefined) return events
+    const fromSeq = args.fromSeq
+    return events.filter((event) => event.seq > fromSeq)
   }
 
   head(args: { threadId: ThreadId }): Promise<number> {

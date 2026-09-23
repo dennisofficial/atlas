@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import {
   EDecision,
+  EForkMode,
   toThreadId,
   toCallId,
   toRunId,
@@ -104,6 +105,50 @@ describe('PrismaEventLog read', () => {
 
     expect((await log.read({ threadId, upTo: 2 })).map((event) => event.seq)).toEqual([1, 2])
     expect(await log.read({ threadId, upTo: 0 })).toEqual([])
+  })
+
+  it('reads only a tail when given a lower bound', async () => {
+    const { log } = await openFixture()
+
+    await log.append({ threadId, runId, drafts: [said('one'), said('two'), said('three')] })
+
+    expect((await log.read({ threadId, fromSeq: 1 })).map((event) => event.seq)).toEqual([2, 3])
+    expect(await log.read({ threadId, fromSeq: 3 })).toEqual([])
+  })
+
+  it('reads between bounds when given both', async () => {
+    const { log } = await openFixture()
+
+    await log.append({ threadId, runId, drafts: [said('one'), said('two'), said('three')] })
+
+    expect((await log.read({ threadId, fromSeq: 1, upTo: 2 })).map((event) => event.seq)).toEqual([
+      2,
+    ])
+  })
+
+  it('reads a tail across a reference fork in the composed sequence space', async () => {
+    const { log, threads } = await openFixture()
+
+    const parent = await threads.create({ workspace: '/here' })
+    await log.append({ threadId: parent.id, runId, drafts: [said('one'), said('two')] })
+    const child = await threads.fork({ from: parent.id, seq: 2, mode: EForkMode.Reference })
+    await log.append({ threadId: child.id, runId, drafts: [said('three'), said('four')] })
+
+    expect((await log.read({ threadId: child.id })).map((event) => event.seq)).toEqual([1, 2, 3, 4])
+    expect((await log.read({ threadId: child.id, fromSeq: 2 })).map((event) => event.seq)).toEqual([
+      3, 4,
+    ])
+    expect((await log.read({ threadId: child.id, fromSeq: 1 })).map((event) => event.seq)).toEqual([
+      2, 3, 4,
+    ])
+  })
+
+  it('reads its own tail when given a lower bound', async () => {
+    const { log } = await openFixture()
+
+    await log.append({ threadId, runId, drafts: [said('one'), said('two'), said('three')] })
+
+    expect((await log.readOwn({ threadId, fromSeq: 1 })).map((event) => event.seq)).toEqual([2, 3])
   })
 
   it('reads nothing for a thread that was never written', async () => {
