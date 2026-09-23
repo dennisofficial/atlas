@@ -48,6 +48,7 @@ describe('the git identity a lift sends with the sandbox', () => {
       commit: HEAD_SHA,
       patch: '',
       projectDirectory: '/work',
+      gitIdentity: null,
     })
   })
 

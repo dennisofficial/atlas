@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { ATLAS_GIT_IDENTITY, gitMessageOf, gitOneLine } from '../workspace/git-text'
 import { runGit, type GitRun } from '../workspace/run-git'
 
+import type { ApplyEnvironmentProfile, EnvironmentProfile } from './environment-profile'
 import { nodeWorkspaceFiles, type WorkspaceFiles } from './workspace-files'
 import type { FetchWorkspaceSpec, WorkspaceSpec } from './workspace-spec'
 
@@ -28,7 +29,10 @@ export enum EWorkspaceStep {
 }
 
 export type WorkspaceReadiness =
-  | { state: EWorkspaceState.Present | EWorkspaceState.Materialized | EWorkspaceState.Skipped }
+  | {
+      state: EWorkspaceState.Present | EWorkspaceState.Materialized | EWorkspaceState.Skipped
+      profile?: EnvironmentProfile | undefined
+    }
   | { state: EWorkspaceState.Failed; step: EWorkspaceStep; reason: string }
 
 export type GitRunner = (args: { args: readonly string[]; cwd: string }) => Promise<GitRun>
@@ -79,13 +83,31 @@ const checkoutArgsFor = (spec: WorkspaceSpec): readonly string[] | null => {
 export function createEnsureWorkspace(args: {
   git?: GitRunner | undefined
   files?: WorkspaceFiles | undefined
+  profile?: ApplyEnvironmentProfile | undefined
 }): EnsureWorkspace {
   const git = args.git ?? runGit
   const files = args.files ?? nodeWorkspaceFiles
 
   return async ({ cwd, fetchSpec }) => {
+    const applyProfile = async (spec: WorkspaceSpec): Promise<EnvironmentProfile | undefined> => {
+      if (args.profile === undefined) return undefined
+      try {
+        return await args.profile({ cwd, spec })
+      } catch {
+        return undefined
+      }
+    }
+
     const sentinel = join(cwd, WORKSPACE_SENTINEL)
-    if (await files.exists(sentinel)) return { state: EWorkspaceState.Present }
+    if (await files.exists(sentinel)) {
+      if (args.profile === undefined) return { state: EWorkspaceState.Present }
+      try {
+        const spec = await fetchSpec()
+        return { state: EWorkspaceState.Present, profile: await args.profile({ cwd, spec }) }
+      } catch {
+        return { state: EWorkspaceState.Present }
+      }
+    }
 
     let spec: WorkspaceSpec
     try {
@@ -95,7 +117,9 @@ export function createEnsureWorkspace(args: {
     }
 
     const { remoteUrl, githubToken } = spec
-    if (remoteUrl === null) return { state: EWorkspaceState.Skipped }
+    if (remoteUrl === null) {
+      return { state: EWorkspaceState.Skipped, profile: await applyProfile(spec) }
+    }
 
     const scrub = (text: string): string =>
       githubToken === null ? text : text.split(githubToken).join('***')
@@ -157,7 +181,7 @@ export function createEnsureWorkspace(args: {
       return failed(EWorkspaceStep.Sentinel, messageOf(error))
     }
 
-    return { state: EWorkspaceState.Materialized }
+    return { state: EWorkspaceState.Materialized, profile: await applyProfile(spec) }
   }
 }
 
