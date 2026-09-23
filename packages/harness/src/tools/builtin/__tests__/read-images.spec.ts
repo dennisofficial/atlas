@@ -169,6 +169,39 @@ describe('read on an image it cannot send', () => {
   })
 })
 
+describe('read on an image the current model cannot receive', () => {
+  const blind = new ReadTool({ carriesToolImages: () => false })
+
+  const readBlind = async (path: string) => {
+    const outcome = await blind.invoke({
+      input: { path },
+      signal: new AbortController().signal,
+      idempotencyKey: 'read-images-blind',
+      projectDirectory: '/workspace',
+      threadId: toThreadId('thread-1'),
+    })
+    if (!outcome.ok) throw new Error(outcome.reason)
+    return outcome
+  }
+
+  it('describes the picture instead of inlining it, saying why', async () => {
+    const outcome = await readBlind(paths.small)
+
+    expect(outcome.modelParts).toBeUndefined()
+    expect(outcome.modelText).toBe(
+      `${paths.small} — image/png, 1024×768, 400 KB. It was not sent to you because the current model's API delivers tool results as text, so the picture would arrive as base64 rather than as an image.`,
+    )
+    expect(imageOutput(outcome.output)).toEqual({
+      path: paths.small,
+      mediaType: 'image/png',
+      byteLength: 400 * 1024 + 24,
+      width: 1024,
+      height: 768,
+      inlined: false,
+    })
+  })
+})
+
 describe('read on a text file', () => {
   it('is unchanged', async () => {
     const outcome = await settled(paths.text)

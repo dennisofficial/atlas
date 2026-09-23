@@ -6,6 +6,7 @@ import {
   textValueOf,
   type Account,
   type CredentialPort,
+  type ModelCard,
   type ModelPort,
   type NoticePort,
   type SettingsResolution,
@@ -31,6 +32,8 @@ import { faultInjected } from './fault-injection'
  * The child-runner model source: a pinned subagent model when the launch or settings name one, the
  * parent's port otherwise. Built per child, fault-injection wrapping included.
  */
+type PinnedModel = { model: ReturnType<ProviderAdapter['model']>; card: ModelCard }
+
 export function childModelSource(args: {
   models: ModelCatalogue
   model: SelectableModel
@@ -40,14 +43,14 @@ export function childModelSource(args: {
 }): ReturnType<typeof pinnedModelSource> {
   const { models, model, modelPort } = args
 
-  const pinnedModel = ({ modelId }: { modelId: string }): ReturnType<ProviderAdapter['model']> => {
+  const pinnedModel = ({ modelId }: { modelId: string }): PinnedModel => {
     const ref = parseRef(modelId)
     const card = ref === undefined ? undefined : models.cardFor(ref)
     const adapter = ref === undefined ? undefined : models.adapterFor(ref.providerId)
     if (card === undefined || adapter === undefined)
       throw new Error(`no provider adapter can answer for ${modelId}`)
 
-    return adapter.model({ card, effort: () => model.choice().effort })
+    return { model: adapter.model({ card, effort: () => model.choice().effort }), card }
   }
 
   /** A setting that names a model nothing can run is skipped, not thrown on, so a stale pick degrades to the next voice in the chain instead of failing every spawn. */
@@ -63,13 +66,16 @@ export function childModelSource(args: {
     typeModelId: (typeName) => liveSetting(agentTypeSettingId(typeName)),
     subagentModelId: () => liveSetting(ESettingId.SubagentModel),
     inherited: () => modelPort,
-    build: ({ modelId }) =>
-      faultInjected(
+    build: ({ modelId }) => {
+      const pinned = pinnedModel({ modelId })
+      return faultInjected(
         new AiSdkModelPort({
-          model: pinnedModel({ modelId }),
+          model: pinned.model,
+          card: pinned.card,
           hooks: args.hooks(),
         }),
-      ),
+      )
+    },
   })
 }
 

@@ -2,10 +2,13 @@ import {
   EEffort,
   EFFORT_LADDER,
   EImageTier,
+  OPENAI_COMPLETIONS_API,
   type EffortMap,
   type ModelCard,
   type ModelCost,
 } from '@dltech/atlas-core'
+
+export { OPENAI_COMPLETIONS_API }
 
 export const INFERENCE_CATALOGUE_PROVIDER_ID = 'inference'
 
@@ -21,8 +24,6 @@ export const CATALOGUE_PROVIDER_IDS: readonly string[] = [
  * they punctuate the date differently: `claude-haiku-4-5-20251001` against `gpt-4o-2024-08-06`.
  */
 export const RELEASE_STAMP = /-(?:\d{8}|\d{4}-\d{2}-\d{2})$/
-
-export const OPENAI_COMPLETIONS_API = 'openai-completions'
 
 export const API_BY_NPM: Readonly<Record<string, string>> = {
   '@ai-sdk/anthropic': 'anthropic-messages',

@@ -2,6 +2,7 @@ import { getErrorMessage, type LanguageModelV4 } from '@ai-sdk/provider'
 import { stepCountIs, streamText, type LanguageModel } from 'ai'
 
 import {
+  carriesToolResultImages,
   DEFAULT_IMAGE_TIER,
   ModelPort,
   type Assembled,
@@ -203,6 +204,7 @@ export class AiSdkModelPort extends ModelPort {
 
     return {
       imageTier: card?.imageTier ?? DEFAULT_IMAGE_TIER,
+      carriesToolImages: carriesToolResultImages(card),
       ...(card === undefined ? {} : { contextWindow: card.contextWindow }),
     }
   }

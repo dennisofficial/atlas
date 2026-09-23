@@ -9,6 +9,7 @@ import {
   dedupeCallIds,
   estimateTokensFor,
   imageTierOf,
+  toolImagesCarriedBy,
   contextWindowOf,
   exchangeFaults,
   loopCutNoticeDraft,
@@ -114,7 +115,11 @@ export class LoopTurnRunner extends TurnRunner {
     this.tools = deps.tools ?? (() => [])
     this.countTokens =
       deps.countTokens ??
-      ((assembled) => estimateTokensFor(imageTierOf(this.model))(assembled))
+      ((assembled) =>
+        estimateTokensFor({
+          tier: imageTierOf(this.model),
+          carriesToolImages: toolImagesCarriedBy(this.model),
+        })(assembled))
     this.onChunk = deps.onChunk
     this.onContext = deps.onContext
     this.hooks = deps.hooks
