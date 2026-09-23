@@ -5,36 +5,38 @@ import {
   EAccountStatus,
   EAuthKind,
   EAuthProvider,
-  reachableProviders,
   toAccountId,
   type Account,
 } from '@dltech/atlas-core'
 
+import { accountDetail, actionLabel, maskedKey, signedOutDetail } from '../accounts-labels'
 import {
   acceptsDeviceCode,
   acceptsPastedCode,
-  accountDetail,
-  maskedKey,
-  rowDetail,
-  rowLabel,
-} from '../accounts-labels'
-import {
-  accountOf,
-  accountRows,
-  EAccountRow,
-  rowProvider,
+  activeOf,
   askForApiKey,
   askForCode,
   askForDeviceCode,
-  askForGithubCode,
   announced,
   backspace,
+  backToActions,
   backToList,
   EAccountsView,
+  EPickIntent,
+  EProviderAction,
   failed,
   isPrompting,
+  moveAction,
+  movePick,
   moveSelection,
   openAccounts,
+  openActions,
+  openLoginPicker,
+  othersOf,
+  pickedAccount,
+  providerActions,
+  providerRows,
+  selectedAction,
   selectedRow,
   typeInto,
   withRows,
@@ -46,7 +48,6 @@ const account = (args: {
   kind?: EAuthKind
   origin?: EAccountOrigin
   status?: EAccountStatus
-  createdAt?: string
 }): Account => ({
   id: toAccountId(args.id),
   provider: args.provider ?? EAuthProvider.Anthropic,
@@ -54,124 +55,91 @@ const account = (args: {
   origin: args.origin ?? EAccountOrigin.Login,
   label: args.id,
   status: args.status ?? EAccountStatus.Active,
-  createdAt: args.createdAt ?? '2026-01-01T00:00:00.000Z',
+  createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
 })
 
 const rowsOf = (accounts: readonly Account[], activeId?: string) =>
-  accountRows({
+  providerRows({
     accounts,
     active: activeId === undefined ? {} : { [EAuthProvider.Anthropic]: toAccountId(activeId) },
   })
 
-/**
- * List mechanics are about clamping an index, not about which providers ship reachable today, so
- * they run over the account rows alone — a flipped `reachable` flag must not move them.
- */
-const signedInRows = (accounts: readonly Account[], activeId?: string) =>
-  rowsOf(accounts, activeId).filter((row) => row.kind === EAccountRow.Account)
+describe('providerRows', () => {
+  it('gives every provider a row, signed in or not', () => {
+    const rows = providerRows({ accounts: [], active: {} })
 
-const reachable = (): readonly EAuthProvider[] => reachableProviders().map((spec) => spec.provider)
-
-describe('accountRows', () => {
-  it('marks the account that answers for its provider', () => {
-    const rows = signedInRows([account({ id: 'work' }), account({ id: 'personal' })], 'personal')
-
-    expect(rows.map((row) => [rowLabel(row), row.active])).toEqual([
-      ['work', false],
-      ['personal', true],
+    expect(rows.map((row) => row.provider)).toEqual([
+      EAuthProvider.Anthropic,
+      EAuthProvider.OpenAI,
+      EAuthProvider.OpenRouter,
+      EAuthProvider.Inference,
     ])
+    expect(rows.every((row) => row.accounts.length === 0)).toBe(true)
   })
 
-  it('groups by provider, oldest first inside a provider', () => {
-    const rows = accountRows({
+  it('files each account under its own provider', () => {
+    const rows = providerRows({
       accounts: [
-        account({ id: 'openrouter', provider: EAuthProvider.OpenRouter }),
-        account({ id: 'second', createdAt: '2026-02-01T00:00:00.000Z' }),
-        account({ id: 'first', createdAt: '2026-01-01T00:00:00.000Z' }),
+        account({ id: 'a' }),
+        account({ id: 'b' }),
+        account({ id: 'key', provider: EAuthProvider.OpenRouter, kind: EAuthKind.ApiKey }),
       ],
       active: {},
     })
 
-    expect(rows.filter((row) => row.kind === EAccountRow.Account).map(rowLabel)).toEqual([
-      'first',
-      'second',
-      'openrouter',
-    ])
+    const anthropic = rows.find((row) => row.provider === EAuthProvider.Anthropic)
+    const openrouter = rows.find((row) => row.provider === EAuthProvider.OpenRouter)
+
+    expect(anthropic?.accounts.map((held) => held.label)).toEqual(['a', 'b'])
+    expect(openrouter?.accounts.map((held) => held.label)).toEqual(['key'])
+  })
+
+  it('knows which account answers for the provider', () => {
+    const row = rowsOf([account({ id: 'a' }), account({ id: 'b' })], 'b')[0]
+    if (row === undefined) throw new Error('expected a row')
+
+    expect(activeOf(row)?.label).toBe('b')
+    expect(othersOf(row).map((held) => held.label)).toEqual(['a'])
   })
 })
 
-describe('a provider with no account yet', () => {
-  const signedOut = (rows: readonly ReturnType<typeof accountRows>[number][]) =>
-    rows.flatMap((row) => (row.kind === EAccountRow.SignedOut ? [row.provider] : []))
-
-  it('offers a row for every reachable provider nothing is signed into', () => {
-    const rows = accountRows({ accounts: [], active: {} })
-
-    expect([...signedOut(rows)].sort()).toEqual([...reachable()].sort())
-  })
-
-  it('drops the placeholder once that provider has an account', () => {
-    const rows = accountRows({ accounts: [account({ id: 'work' })], active: {} })
-
-    expect(signedOut(rows)).not.toContain(EAuthProvider.Anthropic)
-    expect(signedOut(rows).length).toBe(reachable().length - 1)
-  })
-
-  it('never offers a provider with no adapter behind it', () => {
-    const rows = accountRows({ accounts: [], active: {} })
-
-    for (const provider of signedOut(rows)) expect(reachable()).toContain(provider)
-  })
-
-  it('ranks placeholders with the accounts, not in a clump at the end', () => {
-    const rows = accountRows({
-      accounts: [account({ id: 'inference', provider: EAuthProvider.Inference })],
-      active: {},
-    })
-
-    expect(rows.map(rowProvider).at(-1)).toBe(EAuthProvider.Inference)
-    expect(rows.at(-1)?.kind).toBe(EAccountRow.Account)
-    expect(rows[0]?.kind).toBe(EAccountRow.SignedOut)
-  })
-
-  it('names the provider and says how to sign in, without crying wolf', () => {
-    const row = accountRows({ accounts: [], active: {} }).find(
-      (candidate) => rowProvider(candidate) === EAuthProvider.Anthropic,
-    )
+describe('providerActions', () => {
+  it('offers sign-in flows for a provider with nothing yet', () => {
+    const row = rowsOf([])[0]
     if (row === undefined) throw new Error('expected a row')
 
-    expect(rowLabel(row)).toBe('Anthropic')
-    expect(rowDetail(row)).toContain('not signed in')
-    expect(rowDetail(row)).not.toContain('⚠')
+    expect(providerActions(row)).toEqual([EProviderAction.SignIn, EProviderAction.AddApiKey])
   })
 
-  it('offers only the flows that provider actually accepts', () => {
-    const rows = accountRows({ accounts: [], active: {} })
-    const openrouter = rows.find((row) => rowProvider(row) === EAuthProvider.OpenRouter)
-    const anthropic = rows.find((row) => rowProvider(row) === EAuthProvider.Anthropic)
-    if (openrouter === undefined || anthropic === undefined) throw new Error('expected both')
+  it('hides sign-in when the provider only takes an api key', () => {
+    const rows = providerRows({ accounts: [], active: {} })
+    const openrouter = rows.find((row) => row.provider === EAuthProvider.OpenRouter)
+    if (openrouter === undefined) throw new Error('expected the row')
 
-    expect(rowDetail(openrouter)).toContain('api key')
-    expect(rowDetail(openrouter)).not.toContain('sign in ')
-    expect(rowDetail(anthropic)).toContain('sign in')
-    expect(rowDetail(anthropic)).toContain('api key')
+    expect(providerActions(openrouter)).toEqual([EProviderAction.AddApiKey])
   })
 
-  it('is never the active row, because nothing is answering for it', () => {
-    const rows = accountRows({ accounts: [], active: {} })
+  it('offers switching only once there is something to switch to', () => {
+    const single = rowsOf([account({ id: 'a' })], 'a')[0]
+    const double = rowsOf([account({ id: 'a' }), account({ id: 'b' })], 'a')[0]
+    if (single === undefined || double === undefined) throw new Error('expected rows')
 
-    expect(rows.every((row) => !row.active)).toBe(true)
+    expect(providerActions(single)).not.toContain(EProviderAction.SwitchActive)
+    expect(providerActions(double)).toContain(EProviderAction.SwitchActive)
+    expect(providerActions(single)).toContain(EProviderAction.RemoveLogin)
   })
 })
 
 describe('openAccounts', () => {
-  it('starts on the account that answers today', () => {
-    const state = openAccounts({ rows: rowsOf([account({ id: 'a' }), account({ id: 'b' })], 'b') })
-    const picked = selectedRow(state)
-    if (picked === undefined) throw new Error('expected a row')
+  it('starts on the provider that answers today', () => {
+    const rows = providerRows({
+      accounts: [account({ id: 'a', provider: EAuthProvider.OpenAI })],
+      active: { [EAuthProvider.OpenAI]: toAccountId('a') },
+    })
+    const state = openAccounts({ rows })
 
-    expect(rowLabel(picked)).toBe('b')
+    expect(selectedRow(state)?.provider).toBe(EAuthProvider.OpenAI)
     expect(state.view).toBe(EAccountsView.List)
     expect(isPrompting(state)).toBe(false)
   })
@@ -185,14 +153,14 @@ describe('openAccounts', () => {
 })
 
 describe('moving through the list', () => {
-  const state = openAccounts({ rows: signedInRows([account({ id: 'a' }), account({ id: 'b' })]) })
+  const state = openAccounts({ rows: rowsOf([]) })
 
   it('stops at each end rather than wrapping', () => {
     expect(moveSelection({ state, delta: -1 }).index).toBe(0)
-    expect(moveSelection({ state, delta: 5 }).index).toBe(1)
+    expect(moveSelection({ state, delta: 99 }).index).toBe(state.rows.length - 1)
   })
 
-  it('has nothing to select in an empty vault', () => {
+  it('has nothing to select in an empty list', () => {
     const empty = openAccounts({ rows: [] })
 
     expect(moveSelection({ state: empty, delta: 1 })).toBe(empty)
@@ -201,15 +169,67 @@ describe('moving through the list', () => {
 
   it('keeps the selection inside a list that shrank under it', () => {
     const removed = withRows({
-      state: moveSelection({ state, delta: 1 }),
-      rows: signedInRows([account({ id: 'a' })]),
+      state: moveSelection({ state, delta: 3 }),
+      rows: rowsOf([]).slice(0, 1),
     })
 
-    const picked = selectedRow(removed)
-    if (picked === undefined) throw new Error('expected a row')
-
     expect(removed.index).toBe(0)
-    expect(rowLabel(picked)).toBe('a')
+    expect(selectedRow(removed)?.provider).toBe(EAuthProvider.Anthropic)
+  })
+})
+
+describe('the actions modal', () => {
+  const state = openAccounts({ rows: rowsOf([account({ id: 'a' })], 'a') })
+
+  it('opens on the first action and clamps movement', () => {
+    const opened = openActions(state)
+
+    expect(opened.view).toBe(EAccountsView.Actions)
+    expect(opened.action).toBe(0)
+    expect(moveAction({ state: opened, delta: -1 }).action).toBe(0)
+
+    const last = providerActions(selectedRow(opened) ?? rowsOf([])[0]!).length - 1
+    expect(moveAction({ state: opened, delta: 99 }).action).toBe(last)
+  })
+
+  it('reads the action under the cursor', () => {
+    const opened = openActions(state)
+
+    expect(selectedAction(opened)).toBe(providerActions(selectedRow(state) ?? rowsOf([])[0]!)[0])
+  })
+
+  it('refuses to open for a provider with no actions', () => {
+    const empty = { ...state, rows: [], index: 0 }
+
+    expect(openActions(empty).view).toBe(EAccountsView.List)
+  })
+})
+
+describe('the login picker', () => {
+  const state = openActions(
+    openAccounts({ rows: rowsOf([account({ id: 'a' }), account({ id: 'b' })], 'a') }),
+  )
+
+  it('opens with an intent and clamps movement', () => {
+    const picker = openLoginPicker({ state, intent: EPickIntent.Remove })
+
+    expect(picker.view).toBe(EAccountsView.SwitchLogin)
+    expect(picker.pickIntent).toBe(EPickIntent.Remove)
+    expect(picker.pick).toBe(0)
+    expect(movePick({ state: picker, delta: -1 }).pick).toBe(0)
+    expect(movePick({ state: picker, delta: 99 }).pick).toBe(1)
+  })
+
+  it('reads the login under the cursor', () => {
+    const picker = movePick({ state: openLoginPicker({ state, intent: EPickIntent.Use }), delta: 1 })
+
+    expect(pickedAccount(picker)?.label).toBe('b')
+  })
+
+  it('goes back to the actions modal, not the list', () => {
+    const picker = openLoginPicker({ state, intent: EPickIntent.Use })
+
+    expect(backToActions(picker).view).toBe(EAccountsView.Actions)
   })
 })
 
@@ -282,137 +302,8 @@ describe('the device-code prompt', () => {
   })
 })
 
-describe('the GitHub row', () => {
-  const githubRowOf = (rows: readonly ReturnType<typeof accountRows>[number][]) =>
-    rows.find((row) => row.kind === EAccountRow.Github)
-
-  it('stays out of the list when there is no cloud session to hold the connection', () => {
-    const rows = accountRows({ accounts: [], active: {} })
-
-    expect(githubRowOf(rows)).toBeUndefined()
-  })
-
-  it('leads the list once a session exists', () => {
-    const rows = accountRows({
-      accounts: [account({ id: 'work' })],
-      active: {},
-      github: { connection: null, unreachable: false },
-    })
-
-    expect(rows[0]?.kind).toBe(EAccountRow.Github)
-    expect(rows[1]?.kind).toBe(EAccountRow.Account)
-  })
-
-  it('invites the connection when there is none', () => {
-    const row = githubRowOf(
-      accountRows({
-        accounts: [],
-        active: {},
-        github: { connection: null, unreachable: false },
-      }),
-    )
-    if (row === undefined) throw new Error('expected the github row')
-
-    expect(rowLabel(row)).toBe('GitHub')
-    expect(rowDetail(row)).toBe('not connected · enter to connect')
-    expect(row.active).toBe(false)
-  })
-
-  it('names the login and how to disconnect once connected', () => {
-    const row = githubRowOf(
-      accountRows({
-        accounts: [],
-        active: {},
-        github: { connection: { login: 'octocat' }, unreachable: false },
-      }),
-    )
-    if (row === undefined) throw new Error('expected the github row')
-
-    expect(rowLabel(row)).toBe('GitHub')
-    expect(rowDetail(row)).toBe('@octocat · press x to disconnect')
-  })
-
-  it('says so when Atlas Cloud could not be reached for the connection', () => {
-    const row = githubRowOf(
-      accountRows({
-        accounts: [],
-        active: {},
-        github: { connection: null, unreachable: true },
-      }),
-    )
-    if (row === undefined) throw new Error('expected the github row')
-
-    expect(rowDetail(row)).toBe("couldn't reach Atlas Cloud")
-  })
-
-  it('answers for no provider, so n and k leave it alone', () => {
-    const row = githubRowOf(
-      accountRows({
-        accounts: [],
-        active: {},
-        github: { connection: { login: 'octocat' }, unreachable: false },
-      }),
-    )
-    if (row === undefined) throw new Error('expected the github row')
-
-    expect(rowProvider(row)).toBeUndefined()
-    expect(accountOf(row)).toBeUndefined()
-  })
-})
-
-describe('the GitHub connect prompt', () => {
-  const TICKET_PROMPT = { url: 'https://github.com/login/device', userCode: 'F00D-CAFE' }
-
-  it('opens on the github device view without a code behind the prompt yet', () => {
-    const asked = askForGithubCode({ state: openAccounts({ rows: [] }) })
-
-    expect(asked.view).toBe(EAccountsView.GithubDevice)
-    expect(asked.githubPrompt).toBeNull()
-    expect(asked.prompt).toBeNull()
-    expect(isPrompting(asked)).toBe(true)
-    expect(asked.busy).toBe(false)
-  })
-
-  it('shows the code and the URL once the ticket arrives', () => {
-    const asked = askForGithubCode({ state: openAccounts({ rows: [] }), prompt: TICKET_PROMPT })
-
-    expect(asked.githubPrompt?.userCode).toBe('F00D-CAFE')
-    expect(asked.githubPrompt?.url).toBe('https://github.com/login/device')
-  })
-
-  it('fails in place when the code expires', () => {
-    const asked = askForGithubCode({ state: openAccounts({ rows: [] }), prompt: TICKET_PROMPT })
-    const expired = failed({ state: asked, reason: 'that code expired.' })
-
-    expect(expired.failure).toBe('that code expired.')
-    expect(expired.view).toBe(EAccountsView.GithubDevice)
-    expect(expired.busy).toBe(false)
-  })
-
-  it('returns to the list with a notice when the connection lands', () => {
-    const asked = askForGithubCode({ state: openAccounts({ rows: [] }), prompt: TICKET_PROMPT })
-    const done = announced({
-      state: backToList(asked),
-      notice: 'Connected GitHub as @octocat.',
-    })
-
-    expect(done.view).toBe(EAccountsView.List)
-    expect(done.githubPrompt).toBeNull()
-    expect(done.notice).toBe('Connected GitHub as @octocat.')
-  })
-
-  it('leaves nothing behind when it is cancelled', () => {
-    const asked = askForGithubCode({ state: openAccounts({ rows: [] }), prompt: TICKET_PROMPT })
-    const cancelled = backToList(asked)
-
-    expect(cancelled.view).toBe(EAccountsView.List)
-    expect(cancelled.githubPrompt).toBeNull()
-    expect(cancelled.typed).toBe('')
-  })
-})
-
-describe('accountDetail', () => {
-  it('says where an account came from and what is wrong with it', () => {
+describe('labels', () => {
+  it('says what an account is and what is wrong with it, provider aside', () => {
     expect(
       accountDetail(
         account({
@@ -422,18 +313,36 @@ describe('accountDetail', () => {
           status: EAccountStatus.Expired,
         }),
       ),
-    ).toBe('Anthropic · api key · from the environment · expired')
+    ).toBe('api key · from the environment · expired')
   })
 
-  it('says nothing about the status of an account that is fine', () => {
-    expect(accountDetail(account({ id: 'a' }))).toBe('Anthropic · subscription')
+  it('says nothing extra about an account that is fine', () => {
+    expect(accountDetail(account({ id: 'a' }))).toBe('subscription')
   })
 
-  it('says nothing about adapters for a provider that has one', () => {
-    expect(
-      accountDetail(
-        account({ id: 'a', provider: EAuthProvider.OpenRouter, kind: EAuthKind.ApiKey }),
-      ),
-    ).toBe('OpenRouter · api key')
+  it('names each action the modal can offer', () => {
+    expect(actionLabel(EProviderAction.SignIn)).toBe('Sign in')
+    expect(actionLabel(EProviderAction.AddApiKey)).toBe('Add an API key')
+    expect(actionLabel(EProviderAction.SwitchActive)).toBe('Switch active login')
+    expect(actionLabel(EProviderAction.RemoveLogin)).toBe('Remove a login')
+  })
+
+  it('says how a signed-out provider can be reached, without crying wolf', () => {
+    expect(signedOutDetail(EAuthProvider.Anthropic)).toContain('not signed in')
+    expect(signedOutDetail(EAuthProvider.Anthropic)).toContain('sign in')
+    expect(signedOutDetail(EAuthProvider.OpenRouter)).toContain('api key')
+    expect(signedOutDetail(EAuthProvider.OpenRouter)).not.toContain('⚠')
+  })
+})
+
+describe('notices', () => {
+  it('announces without losing the failure-free state', () => {
+    const done = announced({
+      state: openAccounts({ rows: [] }),
+      notice: 'Signed in as work.',
+    })
+
+    expect(done.notice).toBe('Signed in as work.')
+    expect(done.failure).toBeNull()
   })
 })

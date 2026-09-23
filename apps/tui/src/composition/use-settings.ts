@@ -1,5 +1,6 @@
 import {
   ESettingId,
+  ESettingPage,
   formatFavourites,
   type EUsageWindow,
   type SecretPrompt,
@@ -14,6 +15,7 @@ import { type SettingsLoginState } from '../ui/settings-login-model'
 import type { EFooterMeters } from '../ui/usage-meters'
 import type { EThinkingVisibility } from '../store'
 import {
+  currentPage,
   openSettings,
   settingsModel,
   type SettingsModel,
@@ -24,6 +26,7 @@ import type { AtlasApp } from './compose'
 import { preferencesOf } from './settings-preferences'
 import { type AccountPageControl } from './use-account-page'
 import { useSecretPrompt } from './use-secret-prompt'
+import { type SettingsGithubControl } from './use-settings-github'
 import { useSettingsCloud } from './use-settings-cloud'
 import { useTextPrompt } from './use-text-prompt'
 import { useSettingsKeys } from './use-settings-keys'
@@ -42,9 +45,11 @@ export type SettingsControl = {
   cloudSignedIn: boolean
   cloudSignIn: SettingsLoginState
   account: AccountPageControl
+  github: SettingsGithubControl
   handleSignOut: () => void
   handleSignIn: () => void
   handleOpenSignInUrl: () => void
+  handleOpenGithubUrl: () => void
   sidebarWidth: number
   sidebarFoldBelow: number
   autoCompactAtPercent: number
@@ -110,9 +115,11 @@ export function useSettings(args: {
     session: cloudSession,
     login: cloudLogin,
     account,
+    github,
     readSession: readCloudSession,
     handleSignOut,
     handleOpenSignInUrl,
+    handleOpenGithubUrl,
   } = useSettingsCloud({ cloud: app.cloud, openUrl: app.openUrl, onSignedIn: rewarmSecrets })
 
   const handleOpen = useCallback(() => {
@@ -137,8 +144,16 @@ export function useSettings(args: {
     secret.close()
     text.close()
     cloudLogin.stop()
+    github.stop()
     account.purge.handleDismiss()
-  }, [account.purge, cloudLogin, secret, text])
+  }, [account.purge, cloudLogin, github, secret, text])
+
+  const onAccountPage =
+    state !== null && currentPage({ state, model: view })?.page.id === ESettingPage.Account
+
+  useEffect(() => {
+    if (onAccountPage) github.refresh()
+  }, [onAccountPage, cloudSession, github.refresh])
 
   const handleSelect = useCallback((target: SettingsState) => {
     setState(target)
@@ -154,6 +169,7 @@ export function useSettings(args: {
     text,
     account,
     login: cloudLogin,
+    github,
     signedIn: cloudSession !== null,
     onChooseModel,
     onDismiss: handleDismiss,
@@ -178,9 +194,11 @@ export function useSettings(args: {
       cloudSignedIn: cloudSession !== null,
       cloudSignIn: cloudLogin.state,
       account,
+      github,
       handleSignOut,
       handleSignIn: cloudLogin.begin,
       handleOpenSignInUrl,
+      handleOpenGithubUrl,
       ...preferences,
       handlePinModels,
       handleOpen,
@@ -194,9 +212,11 @@ export function useSettings(args: {
       cloudLogin.begin,
       cloudLogin.state,
       cloudSession,
+      github,
       handleDismiss,
       handleKey,
       handleOpen,
+      handleOpenGithubUrl,
       handleOpenSignInUrl,
       handlePinModels,
       handleSelect,

@@ -12,32 +12,41 @@ import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { accountMeterSpans } from '../account-meters'
-import { rowLabel } from '../accounts-labels'
 import {
-  ACCOUNT_ROWS,
-  EAccountRow,
   EAccountsView,
-  type AccountRow,
+  EPickIntent,
+  openAccounts,
+  openActions,
+  openLoginPicker,
+  providerRows,
   type AccountsState,
+  type ProviderRow,
 } from '../accounts-model'
 import { Accounts } from '../components/accounts'
 import { teardown } from '../markdown/__tests__/harness'
 
-const TERMINAL_WIDTH = 80
+const TERMINAL_WIDTH = 100
 
-const HEIGHT = 24
+const HEIGHT = 30
 
 const NOW = 1_700_000_000_000
 
 const WARN = { [EUsageWindow.FiveHour]: 80, [EUsageWindow.SevenDay]: 80 }
 
-const account = (args: { id: string; label: string; origin: EAccountOrigin }): Account => ({
+const account = (args: {
+  id: string
+  label: string
+  provider?: EAuthProvider
+  kind?: EAuthKind
+  origin?: EAccountOrigin
+  status?: EAccountStatus
+}): Account => ({
   id: toAccountId(args.id),
-  provider: EAuthProvider.Anthropic,
-  kind: EAuthKind.Oauth,
-  origin: args.origin,
+  provider: args.provider ?? EAuthProvider.Anthropic,
+  kind: args.kind ?? EAuthKind.Oauth,
+  origin: args.origin ?? EAccountOrigin.Login,
   label: args.label,
-  status: EAccountStatus.Active,
+  status: args.status ?? EAccountStatus.Active,
   subscription: 'team',
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
@@ -55,28 +64,19 @@ const LOGGED_IN = account({
   origin: EAccountOrigin.Login,
 })
 
-const signedIn = (account: Account, active: boolean): AccountRow => ({
-  kind: EAccountRow.Account,
-  account,
-  active,
+const EXPIRED = account({
+  id: 'acc_expired',
+  label: 'dennis@trycomp.ai',
+  origin: EAccountOrigin.Login,
+  status: EAccountStatus.Expired,
 })
 
-const signedOut = (provider: EAuthProvider): AccountRow => ({
-  kind: EAccountRow.SignedOut,
-  provider,
-  active: false,
-})
+const rowsOf = (accounts: readonly Account[]): readonly ProviderRow[] =>
+  providerRows({ accounts, active: { [EAuthProvider.Anthropic]: accounts[0]?.id } })
 
-const stateWith = (rows: readonly AccountRow[]): AccountsState => ({
-  view: EAccountsView.List,
-  index: 0,
-  rows,
-  prompt: null,
-  githubPrompt: null,
-  typed: '',
-  notice: null,
-  failure: null,
-  busy: false,
+const stateOn = (rows: readonly ProviderRow[], index = 0): AccountsState => ({
+  ...openAccounts({ rows }),
+  index,
 })
 
 const METERED = accountMeterSpans({
@@ -88,9 +88,9 @@ const METERED = accountMeterSpans({
   now: NOW,
 })
 
-async function rowsOf(args: {
+async function render(args: {
   state: AccountsState
-  meters?: (row: AccountRow) => readonly (typeof METERED)[number][]
+  meters?: (account: Account) => readonly (typeof METERED)[number][]
   width?: number
 }): Promise<string[]> {
   const width = args.width ?? TERMINAL_WIDTH
@@ -102,6 +102,8 @@ async function rowsOf(args: {
         state={args.state}
         overlay
         onPick={() => {}}
+        onChooseAction={() => {}}
+        onChooseLogin={() => {}}
         onDismiss={() => {}}
         onOpenUrl={() => {}}
         {...(args.meters === undefined ? {} : { meters: args.meters })}
@@ -121,153 +123,189 @@ async function rowsOf(args: {
 const lineWith = (rows: readonly string[], text: string): string =>
   rows.find((row) => row.includes(text)) ?? ''
 
-describe('an account row', () => {
-  it('keeps the meter off the detail line, where the origin was crowding it out', async () => {
-    const rows = await rowsOf({
-      state: stateWith([signedIn(IMPORTED, true)]),
-      meters: () => METERED,
-    })
+describe('the provider list', () => {
+  it('gives every provider a row, connected or not', async () => {
+    const rows = await render({ state: stateOn(rowsOf([LOGGED_IN])) })
+    const frame = rows.join('\n')
 
-    const detail = lineWith(rows, 'imported')
-
-    expect(detail).toContain('Anthropic · subscription · imported')
-    expect(detail).not.toContain('5h')
-    expect(detail).not.toContain('▰')
+    expect(frame).toContain('Anthropic')
+    expect(frame).toContain('OpenAI')
+    expect(frame).toContain('OpenRouter')
+    expect(frame).toContain('Inference.net')
   })
 
-  it('gives the meter a line of its own, with nothing of the detail on it', async () => {
-    const rows = await rowsOf({
-      state: stateWith([signedIn(IMPORTED, true)]),
+  it('marks the connected providers with a live dot', async () => {
+    const rows = await render({ state: stateOn(rowsOf([LOGGED_IN])) })
+
+    expect(lineWith(rows, 'Anthropic')).toContain('●')
+    expect(lineWith(rows, 'OpenRouter')).toContain('○')
+  })
+
+  it('keeps GitHub out of the model provider list', async () => {
+    const rows = await render({ state: stateOn(rowsOf([LOGGED_IN])) })
+
+    expect(rows.join('\n')).not.toContain('GitHub')
+  })
+})
+
+describe('the detail panel', () => {
+  it('names the provider and its connection state', async () => {
+    const rows = await render({ state: stateOn(rowsOf([LOGGED_IN])) })
+
+    expect(lineWith(rows, 'connected')).toContain('Anthropic')
+  })
+
+  it('shows the active login under its own section', async () => {
+    const rows = await render({ state: stateOn(rowsOf([LOGGED_IN, IMPORTED])) })
+
+    expect(lineWith(rows, 'ACTIVE LOGIN')).not.toBe('')
+    const active = lineWith(rows, 'dennis@trycomp.ai')
+    expect(active).toContain('subscription')
+  })
+
+  it('files the rest under OTHER LOGINS with what is wrong with them', async () => {
+    const rows = await render({ state: stateOn(rowsOf([LOGGED_IN, IMPORTED, EXPIRED])) })
+    const frame = rows.join('\n')
+
+    expect(frame).toContain('OTHER LOGINS')
+    expect(frame).toContain('Claude Code (team)')
+    expect(frame).toContain('expired')
+  })
+
+  it('renders the meter under the active login, with its tail intact', async () => {
+    const rows = await render({
+      state: stateOn(rowsOf([LOGGED_IN])),
       meters: () => METERED,
     })
 
     const meter = lineWith(rows, '▰')
-
     expect(meter).toContain('5h')
     expect(meter).toContain('wk')
-    expect(meter).not.toContain('Anthropic')
-  })
-
-  it('renders the whole meter rather than clipping its tail', async () => {
-    const rows = await rowsOf({
-      state: stateWith([signedIn(IMPORTED, true)]),
-      meters: () => METERED,
-    })
-
-    const meter = lineWith(rows, '▰')
-
     expect(meter).toContain('1h15m')
     expect(meter).toContain('30%')
   })
 
-  it('spends no line on a meter that has nothing to show', async () => {
-    const rows = await rowsOf({ state: stateWith([signedIn(LOGGED_IN, true)]) })
+  it('says how a signed-out provider can be reached', async () => {
+    const rows = await render({ state: stateOn(rowsOf([]), 2) })
 
-    const label = rows.findIndex((row) => row.includes('dennis@trycomp.ai'))
-    const detail = rows.findIndex((row) => row.includes('Anthropic · subscription'))
-
-    expect(detail).toBe(label + 1)
-    expect(rows[detail + 1]).not.toContain('▱')
+    expect(rows.join('\n')).toContain('not signed in · api key')
   })
 
-  it('stacks three lines an account, and the next account under them', async () => {
-    const rows = await rowsOf({
-      state: stateWith([signedIn(IMPORTED, false), signedIn(LOGGED_IN, true)]),
-      meters: () => METERED,
-    })
+  it('points at the actions menu', async () => {
+    const rows = await render({ state: stateOn(rowsOf([LOGGED_IN])) })
 
-    const first = rows.findIndex((row) => row.includes('Claude Code (team)'))
-    const second = rows.findIndex((row) => row.includes('dennis@trycomp.ai'))
-
-    expect(second).toBe(first + 3)
+    expect(lineWith(rows, '⏎ actions')).not.toBe('')
   })
 })
 
-describe('the GitHub row and prompt', () => {
-  it('renders the row with the connect invitation', async () => {
-    const githubRow: AccountRow = {
-      kind: EAccountRow.Github,
-      github: { connection: null, unreachable: false },
-      active: false,
-    }
-
-    const rows = await rowsOf({ state: stateWith([githubRow]) })
-
-    expect(lineWith(rows, 'GitHub')).not.toBe('')
-    expect(lineWith(rows, 'not connected')).toContain('enter to connect')
-  })
-
-  it('shows the device code and URL while a connection waits, with no typing line', async () => {
-    const state: AccountsState = {
-      ...stateWith([]),
-      view: EAccountsView.GithubDevice,
-      githubPrompt: { url: 'https://github.com/login/device', userCode: 'F00D-CAFE' },
-    }
-
-    const rows = await rowsOf({ state })
+describe('the actions modal', () => {
+  it('lists the actions the provider supports', async () => {
+    const rows = await render({ state: openActions(stateOn(rowsOf([LOGGED_IN, IMPORTED]))) })
     const frame = rows.join('\n')
 
-    expect(frame).toContain('F00D-CAFE')
-    expect(frame).toContain('github.com/login/device')
+    expect(frame).toContain('Sign in')
+    expect(frame).toContain('Add an API key')
+    expect(frame).toContain('Switch active login')
+    expect(frame).toContain('Remove a login')
+  })
+
+  it('marks the chosen action', async () => {
+    const rows = await render({ state: openActions(stateOn(rowsOf([LOGGED_IN]))) })
+
+    expect(lineWith(rows, 'Sign in')).toContain('▸')
+  })
+
+  it('offers no switching for a provider with a single login', async () => {
+    const rows = await render({ state: openActions(stateOn(rowsOf([LOGGED_IN]))) })
+
+    expect(rows.join('\n')).not.toContain('Switch active login')
+  })
+})
+
+describe('the login picker modal', () => {
+  it('titles itself for switching and lists every login', async () => {
+    const state = openLoginPicker({
+      state: openActions(stateOn(rowsOf([LOGGED_IN, IMPORTED]))),
+      intent: EPickIntent.Use,
+    })
+    const rows = await render({ state })
+    const frame = rows.join('\n')
+
+    expect(frame).toContain('switch active login')
+    expect(frame).toContain('dennis@trycomp.ai')
+    expect(frame).toContain('Claude Code (team)')
+  })
+
+  it('titles itself for removal', async () => {
+    const state = openLoginPicker({
+      state: openActions(stateOn(rowsOf([LOGGED_IN, IMPORTED]))),
+      intent: EPickIntent.Remove,
+    })
+    const rows = await render({ state })
+
+    expect(rows.join('\n')).toContain('remove a login')
+  })
+})
+
+describe('the sign-in prompt', () => {
+  it('replaces the list with the paste-back flow', async () => {
+    const state: AccountsState = {
+      ...stateOn(rowsOf([])),
+      view: EAccountsView.PastedCode,
+      prompt: { provider: EAuthProvider.Anthropic, url: 'https://claude.com/auth' },
+    }
+
+    const rows = await render({ state })
+    const frame = rows.join('\n')
+
+    expect(frame).toContain('claude.com/auth')
+    expect(frame).toContain('waiting for a paste')
+    expect(frame).not.toContain('OTHER LOGINS')
+  })
+
+  it('shows the device code and takes no input', async () => {
+    const state: AccountsState = {
+      ...stateOn(rowsOf([])),
+      view: EAccountsView.DeviceCode,
+      prompt: {
+        provider: EAuthProvider.OpenAI,
+        url: 'https://auth.openai.com/codex/device',
+        userCode: 'ABCD-EFGH',
+      },
+    }
+
+    const rows = await render({ state })
+    const frame = rows.join('\n')
+
+    expect(frame).toContain('ABCD-EFGH')
+    expect(frame).toContain('auth.openai.com/codex/device')
     expect(frame).toContain('waiting for approval')
     expect(frame).not.toContain('waiting for a paste')
   })
 })
 
-describe('the accounts drawer', () => {
-  it('rises from the bottom rather than hugging the side', async () => {
-    const rows = await rowsOf({
-      state: stateWith([signedIn(IMPORTED, true)]),
-      meters: () => METERED,
-    })
+describe('the drawer chrome', () => {
+  it('titles the drawer as the model provider list', async () => {
+    const rows = await render({ state: stateOn(rowsOf([LOGGED_IN])) })
 
-    const edge = rows.findIndex((row) => row.trimStart().startsWith('─'))
+    expect(lineWith(rows, 'MODEL PROVIDERS')).not.toBe('')
+  })
 
-    expect(edge).toBeGreaterThan(rows.length / 2)
-    expect(rows.findIndex((row) => row.includes('ACCOUNTS'))).toBeGreaterThan(edge)
+  it('hints only at arrows and enter in the list', async () => {
+    const rows = await render({ state: stateOn(rowsOf([LOGGED_IN])) })
+
+    const hints = lineWith(rows, 'esc close')
+    expect(hints).toContain('↑↓ pick')
+    expect(hints).toContain('⏎ actions')
+    expect(hints).not.toContain('sign in')
+    expect(hints).not.toContain('remove')
   })
 
   it('rules off the whole width, not a sidebar column', async () => {
-    const rows = await rowsOf({
-      state: stateWith([signedIn(IMPORTED, true)]),
-      meters: () => METERED,
-      width: 96,
-    })
+    const rows = await render({ state: stateOn(rowsOf([LOGGED_IN])), width: 96 })
 
     const edge = rows.find((row) => row.trimStart().startsWith('─')) ?? ''
 
     expect(edge.trimEnd().length).toBe(96)
-  })
-
-  it('has room for every hint the sidebar column used to drop', async () => {
-    const rows = await rowsOf({
-      state: stateWith([signedIn(IMPORTED, true)]),
-      meters: () => METERED,
-      width: 96,
-    })
-
-    const hints = lineWith(rows, 'esc')
-
-    expect(hints).toContain('x remove')
-    expect(hints).toContain('esc close')
-  })
-
-  it('bounds itself to a window rather than growing up the screen', async () => {
-    const many = Array.from({ length: ACCOUNT_ROWS + 3 }, (_, at) =>
-      signedIn(
-        account({
-          id: `acc_${at}`,
-          label: `account-${at}@example.com`,
-          origin: EAccountOrigin.Login,
-        }),
-        at === 0,
-      ),
-    )
-
-    const rows = await rowsOf({ state: stateWith(many), meters: () => METERED, width: 96 })
-    const shown = many.filter((row) => rows.some((line) => line.includes(rowLabel(row))))
-
-    expect(shown).toHaveLength(ACCOUNT_ROWS)
-    expect(lineWith(rows, 'more below')).toContain('3 more below')
   })
 })

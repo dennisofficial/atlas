@@ -14,14 +14,21 @@ export type AccountPageControl = {
   handleKey: (key: KeyEvent, context: { onAccountPage: boolean; signedIn: boolean }) => boolean
 }
 
+const ACCOUNT_ACTIONS: readonly EAccountAction[] = [
+  EAccountAction.SignOut,
+  EAccountAction.DownloadPurge,
+  EAccountAction.Github,
+]
+
 export function useAccountPage(args: {
   cloud: CloudService
   loginStatus: ESettingsLogin
   onSignOut: () => void
   onBeginSignIn: () => void
   onSettled: () => void
+  onGithubActivate: () => void
 }): AccountPageControl {
-  const { cloud, loginStatus, onSignOut, onBeginSignIn, onSettled } = args
+  const { cloud, loginStatus, onSignOut, onBeginSignIn, onSettled, onGithubActivate } = args
   const [action, setAction] = useState<EAccountAction>(EAccountAction.SignOut)
   const purge = usePurgeConfirm({ cloud, onSettled })
 
@@ -35,11 +42,15 @@ export function useAccountPage(args: {
         purge.handleOpen()
         return
       }
+      if (action === EAccountAction.Github) {
+        onGithubActivate()
+        return
+      }
       onSignOut()
       return
     }
     if (loginStatus === ESettingsLogin.Idle) onBeginSignIn()
-  }, [action, cloud, loginStatus, onBeginSignIn, onSignOut, purge])
+  }, [action, cloud, loginStatus, onBeginSignIn, onGithubActivate, onSignOut, purge])
 
   const handleKey = useCallback(
     (key: KeyEvent, context: { onAccountPage: boolean; signedIn: boolean }): boolean => {
@@ -49,11 +60,12 @@ export function useAccountPage(args: {
       }
 
       if ((key.name === 'up' || key.name === 'down') && context.onAccountPage && context.signedIn) {
-        setAction((current) =>
-          current === EAccountAction.SignOut
-            ? EAccountAction.DownloadPurge
-            : EAccountAction.SignOut,
-        )
+        const delta = key.name === 'down' ? 1 : -1
+        setAction((current) => {
+          const index = ACCOUNT_ACTIONS.indexOf(current)
+          const next = (index + delta + ACCOUNT_ACTIONS.length) % ACCOUNT_ACTIONS.length
+          return ACCOUNT_ACTIONS[next] ?? EAccountAction.SignOut
+        })
         return true
       }
 

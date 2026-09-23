@@ -40,6 +40,7 @@ export type Mounted = {
   pressBackspace: () => void
   paste: (text: string) => Promise<void>
   pressUp: () => void
+  pressDown: () => void
   pressLeft: () => void
   pressCtrl: (key: string) => void
   mouse: MockMouse
@@ -115,6 +116,7 @@ export async function open(args: {
     pressBackspace: () => setup.mockInput.pressBackspace(),
     paste: (text) => setup.mockInput.pasteBracketedText(text),
     pressUp: () => setup.mockInput.pressArrow('up'),
+    pressDown: () => setup.mockInput.pressArrow('down'),
     pressLeft: () => setup.mockInput.pressArrow('left'),
     pressCtrl: (key) => setup.mockInput.pressKey(key, { ctrl: true }),
     mouse: setup.mockMouse,
