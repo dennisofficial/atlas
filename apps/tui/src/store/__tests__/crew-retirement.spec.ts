@@ -84,6 +84,10 @@ describe('crewStanding', () => {
     expect(standingOf({ member: justLeft, viewing: null })).toBe(ECrewStanding.Retiring)
   })
 
+  it('holds a finished child whose own shells are still running', () => {
+    expect(standingOf({ member: member({ holdingShells: true }) })).toBe(ECrewStanding.Held)
+  })
+
   it('holds an ancestor whose grandchild is still running', () => {
     const parent = member({ agentId: 'thr_parent', spawnedBy: ROOT })
     const child = member({ agentId: 'thr_middle', spawnedBy: 'thr_parent' })

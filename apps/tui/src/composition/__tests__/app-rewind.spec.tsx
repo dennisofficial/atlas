@@ -162,6 +162,7 @@ describe('a rewind that cuts a background shell', () => {
     app.shells.place(
       {
         shellId: toShellId('bash_1'),
+        threadId: THREAD,
         command: 'npm test -- --watch',
         description: 'Run the test watcher',
         status: EShellStatus.Running,

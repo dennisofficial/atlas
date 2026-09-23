@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { toThreadId } from '@dltech/atlas-core'
 import { EKilledBy, EShellStatus, toShellId, type ShellSnapshot } from '@dltech/atlas-harness'
 
 import {
@@ -18,6 +19,7 @@ import {
 } from '../shells-model'
 
 const shell = (over: Omit<Partial<ShellSnapshot>, 'shellId'> & { shellId: string }): ShellSnapshot => ({
+  threadId: toThreadId('thread'),
   command: 'bun test',
   description: 'Run the tests',
   status: EShellStatus.Running,

@@ -689,6 +689,7 @@ function Workspace(props: {
     threadId: conversation.threadId,
     sidebar: conversation.sidebar,
     viewing: agentView.viewing,
+    shells: shells.everywhere,
   })
 
   const agentsPicker = useAgentsPicker({
