@@ -5,7 +5,6 @@ import { atlasHomeFrom } from '@dltech/atlas-core'
 
 export { ATLAS_DIRECTORY_NAME, ATLAS_HOME_ENV } from '@dltech/atlas-core'
 
-export const ATLAS_DATABASE_NAME = 'harness.db'
 export const ATLAS_TAPES_DIRECTORY_NAME = 'tapes'
 export const ATLAS_SERVICES_DIRECTORY_NAME = 'services'
 export const ATLAS_BIN_DIRECTORY_NAME = 'bin'
@@ -33,16 +32,4 @@ export function atlasServicesDirectory(): string {
 
 export function atlasBinDirectory(): string {
   return join(atlasDirectory(), ATLAS_BIN_DIRECTORY_NAME)
-}
-
-export function atlasDatabaseFile(): string {
-  return join(atlasDirectory(), ATLAS_DATABASE_NAME)
-}
-
-export function atlasDatabaseUrl(): string {
-  return `file:${atlasDatabaseFile()}`
-}
-
-export function databaseFileFromUrl(databaseUrl: string): string {
-  return databaseUrl.replace(/^file:/, '')
 }

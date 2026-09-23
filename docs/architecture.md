@@ -264,7 +264,7 @@ turn that dies before its first drain from spinning there.
 **Teardown records what it kills.** Closing the session kills every background shell, and those endings
 are worth keeping — reopening the conversation should say where the dev server went. Nothing is left
 running to drain them, so `close()` runs `closeAll()`, then drains and appends per owner before the
-database goes.
+event log goes.
 
 **A shell belongs to the thread that started it.** The registry is one object for the process, but every
 read is scoped to an owner: `start` records the thread, and `list`, `read`, `peek`, `kill`,
@@ -581,7 +581,7 @@ append, on purpose; why the transaction stops where it does is under attribution
 
 **Recovery is lazy and read-triggered, not a boot pass.** `list()` hydrates a thread's roster from
 its own log the first time anyone asks, because hydrating at construction would make a container
-resolve block on the database. `agentRoster` rewrites exactly one status on the way through:
+resolve block on disk. `agentRoster` rewrites exactly one status on the way through:
 `Running` becomes `Stopped`, because `Running` is a claim about a process that no longer exists.
 `Blocked` survives recovery unchanged, and the asymmetry is the point — the approval a blocked child
 is waiting on is a row in the child's own log, and it is still there after a restart.
@@ -590,9 +590,9 @@ is waiting on is a row in the child's own log, and it is still there after a res
 immediately however many are already running, which is parity with background shells — Atlas caps
 nothing else, and a queue is a second piece of state to reason about at exactly the moment the
 operator wants to know why nothing is happening. The counter-argument was the measured one:
-`bun:sqlite` appends are synchronous and block the render thread, so a wide enough fan-out can stall
-the UI. That risk is accepted rather than denied, and the mitigation if it bites is the event-log
-read path, not a pool.
+appends serialize per session on the registry's write queue, so a wide enough fan-out makes
+siblings wait on one another's writes. That risk is accepted rather than denied, and the mitigation
+if it bites is the event-log read path, not a pool.
 
 ### The five tools
 
@@ -1450,10 +1450,10 @@ explicit registry the composition root owns.
 stringly-typed `@inject`. `core` therefore emits runtime values, which costs it nothing: still zero
 dependencies, still no I/O.
 
-**The one async edge stays outside the container.** `container.resolve()` is synchronous and tsyringe
-has no async provider. The graph has exactly one await — `openAtlasDatabase` in
-`harness/loop/build-harness.ts` — so the root opens the database, registers it and the config as
-`useValue` tokens, and resolves the rest in one synchronous call.
+**The async edges stay outside the container.** `container.resolve()` is synchronous and tsyringe
+has no async provider, so every await — the workspace probe, account and model binding, plugin
+load — runs in the composition root itself, the results registered as `useValue` tokens. The store
+needs no async open at all: the per-session JSONL event log and thread store are plain constructors.
 
 ## Deferred, deliberately
 
