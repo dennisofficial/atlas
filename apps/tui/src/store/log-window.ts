@@ -13,6 +13,15 @@ export type LogSummary = Pick<
   "opening" | "tokens" | "treeMutations" | "worktree" | "home" | "repo"
 > & { windowStartSeq: number };
 
+export const sameLogSummary = (left: LogSummary, right: LogSummary): boolean =>
+  left.opening === right.opening &&
+  left.tokens === right.tokens &&
+  left.treeMutations === right.treeMutations &&
+  left.worktree === right.worktree &&
+  left.home === right.home &&
+  left.repo === right.repo &&
+  left.windowStartSeq === right.windowStartSeq;
+
 export type LogWindow = {
   readonly acc: LogAccumulator;
   seed(args: { events: readonly Event[]; base?: LogAccumulator | undefined }): void;

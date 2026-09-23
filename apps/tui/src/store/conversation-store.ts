@@ -10,7 +10,7 @@ import { IDLE_TURN, type TurnClock } from "../ui/turn-clock";
 import { assembleTranscript } from "./derive-transcript";
 import { durableEntries } from "./durable-entries";
 import type { LogAccumulator, ToolEffects } from "./log-accumulator";
-import { createLogWindow, type LogSummary } from "./log-window";
+import { createLogWindow, sameLogSummary, type LogSummary } from "./log-window";
 import {
   advancedGate,
   attachedGate,
@@ -106,6 +106,12 @@ export function createConversationStore(args: {
   const logWindow = createLogWindow({ effects: args.effects ?? (() => undefined) });
   logWindow.seed({ events, ...(args.base === undefined ? {} : { base: args.base }) });
 
+  const summaryNow = (): LogSummary => {
+    const { opening, tokens, treeMutations, worktree, home, repo } = logWindow.acc;
+    return { opening, tokens, treeMutations, worktree, home, repo, windowStartSeq: events[0]?.seq ?? 0 };
+  };
+  let logSummary = summaryNow();
+
   const durableNow = (): readonly TranscriptEntry[] => {
     if (durable !== null && durable.events === events && durable.turns === turns) {
       return durable.entries;
@@ -169,6 +175,8 @@ export function createConversationStore(args: {
     turn = progress.clock;
     tracker.pruneSuperseded(events);
     pruneTails();
+    const nextSummary = summaryNow();
+    if (!sameLogSummary(logSummary, nextSummary)) logSummary = nextSummary;
     model = settled(
       assembleTranscript({
         durable: durableNow(),
@@ -315,8 +323,7 @@ export function createConversationStore(args: {
     },
 
     getLogSummary() {
-      const { opening, tokens, treeMutations, worktree, home, repo } = logWindow.acc;
-      return { opening, tokens, treeMutations, worktree, home, repo, windowStartSeq: events[0]?.seq ?? 0 };
+      return logSummary;
     },
 
     stampTurn(advance) {
