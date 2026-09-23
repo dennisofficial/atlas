@@ -26,10 +26,12 @@ export function jevRiskQuestions(): Record<string, DecisionQuestion> {
 export const JEV_SERVICE_KEY = 'service'
 
 const JEV_SERVICE_INSTRUCTION = [
-  'Does this shell command start a process that keeps running — a dev server, a watcher, a daemon, a database —',
-  'rather than doing its work and exiting?',
-  'Answer true only when the process is meant to stay up after the command returns; a build, a test run,',
-  'or a script that prints and exits is false, even when its name sounds like a server.',
+  'Does this shell command start a server — a process that listens for connections or provides infrastructure,',
+  'such as a dev server, a database, a cache, or a daemon — meant to stay up until someone stops it?',
+  'A command that watches something else and exits when that thing finishes — a CI watch, a log tail,',
+  'a wait on another process — is monitoring, not a service, and belongs on a background shell however long it runs.',
+  'Answer true only for a server; a build, a test run, a monitor, or a script that prints and exits is false,',
+  'even when its name sounds like a server.',
 ].join(' ')
 
 export function jevServiceQuestions(): Record<string, DecisionQuestion> {
