@@ -100,6 +100,7 @@ describe('steering a turn that runs in the cloud', () => {
         within: 20_000,
       })
       expect(settled).toBe(true)
+      await mounted.frame()
 
       await mounted.say('and ship it')
 
