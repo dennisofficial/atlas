@@ -22,9 +22,9 @@ export abstract class EventLogPort {
     drafts: readonly EventDraft[]
   }): Promise<Event[]>
 
-  abstract read(args: { threadId: ThreadId; upTo?: number }): Promise<Event[]>
+  abstract read(args: { threadId: ThreadId; fromSeq?: number; upTo?: number }): Promise<Event[]>
 
   abstract head(args: { threadId: ThreadId }): Promise<number>
 
-  abstract readOwn(args: { threadId: ThreadId; upTo?: number }): Promise<Event[]>
+  abstract readOwn(args: { threadId: ThreadId; fromSeq?: number; upTo?: number }): Promise<Event[]>
 }

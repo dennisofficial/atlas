@@ -41,6 +41,7 @@ export async function openCloudConversation(args: {
     ids: args.app.ids,
     workspace: args.app.workspace,
     open: { mode: EOpenMode.Resume, threadId: args.threadId },
+    effects: (name) => args.app.tools.find(name)?.effect,
   })
 
   if (!opened.ok) return { ...unstartedConversation({ ids: args.app.ids }), threadId: args.threadId }

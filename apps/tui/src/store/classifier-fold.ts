@@ -30,14 +30,9 @@ const wentUnanswered = (row: Judged): boolean => row.triage === ETriage.Consult 
 const dimensionsOf = (row: Judged): readonly ERiskDimension[] =>
   row.judgedDimension === undefined ? row.dimensions : [row.judgedDimension]
 
-function commonest(rows: readonly Judged[]): ERiskDimension | null {
-  const tally = new Map<ERiskDimension, number>()
-  for (const row of rows) {
-    for (const dimension of dimensionsOf(row)) {
-      tally.set(dimension, (tally.get(dimension) ?? 0) + 1)
-    }
-  }
-
+export function commonestDimension(
+  tally: ReadonlyMap<ERiskDimension, number>,
+): ERiskDimension | null {
   let top: ERiskDimension | null = null
   let best = 0
   for (const [dimension, count] of tally) {
@@ -45,8 +40,17 @@ function commonest(rows: readonly Judged[]): ERiskDimension | null {
     top = dimension
     best = count
   }
-
   return top
+}
+
+function commonest(rows: readonly Judged[]): ERiskDimension | null {
+  const tally = new Map<ERiskDimension, number>()
+  for (const row of rows) {
+    for (const dimension of dimensionsOf(row)) {
+      tally.set(dimension, (tally.get(dimension) ?? 0) + 1)
+    }
+  }
+  return commonestDimension(tally)
 }
 
 export function classifierFold({ events }: { events: readonly Event[] }): ClassifierFold | null {

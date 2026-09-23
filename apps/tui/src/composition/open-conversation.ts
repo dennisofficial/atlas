@@ -20,6 +20,9 @@ import type {
 
 import { EOpenMode, type OpenRequest } from './config'
 import { readThreadSpend } from './thread-spend'
+import { readThreadBase, readThreadWindow } from './thread-reads'
+import { EThreadRows } from './use-thread-view'
+import type { LogAccumulator, ToolEffects } from '../store/log-accumulator'
 import { titleMatchesHandle } from '@dltech/atlas-harness'
 
 /**
@@ -36,6 +39,7 @@ export type OpenedConversation = {
   model?: ThreadModel | undefined
   executionLocation?: EExecutionLocation | undefined
   lost?: RecoveredAgents | undefined
+  base?: LogAccumulator | undefined
   /**
    * Set only by a mid-turn lift: the turn it interrupted to move safely, so the conversation that
    * mounts on the other side resumes it itself rather than leaving the operator to notice.
@@ -63,6 +67,7 @@ type Opening = {
   ids: IdPort
   workspace: WorkspaceIdentity
   open: OpenRequest
+  effects: ToolEffects
 }
 
 const unknownThread = (args: { threadId: string; project: string }): string =>
@@ -149,8 +154,15 @@ export async function openConversation(args: Opening): Promise<OpenOutcome> {
 
   const lost = await args.agents.recordLostAgents({ threadId: thread.id })
 
-  const [events, spent] = await Promise.all([
-    args.log.read({ threadId: thread.id }),
+  const window = await readThreadWindow({ log: args.log, threadId: thread.id, rows: EThreadRows.Composed })
+  const [base, spent] = await Promise.all([
+    readThreadBase({
+      log: args.log,
+      threadId: thread.id,
+      rows: EThreadRows.Composed,
+      fromSeq: window.fromSeq,
+      effects: args.effects,
+    }),
     readThreadSpend({ ledger: args.ledger, threadId: thread.id }),
   ])
 
@@ -158,13 +170,14 @@ export async function openConversation(args: Opening): Promise<OpenOutcome> {
     ok: true,
     conversation: {
       threadId: thread.id,
-      events,
+      events: window.events,
       turns: spent.turns,
       name: thread.title ?? null,
       started: true,
       model: thread.model,
       executionLocation: thread.executionLocation,
       lost,
+      base,
     },
   }
 }

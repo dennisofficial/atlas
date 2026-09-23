@@ -45,6 +45,7 @@ export function useThreadSwap(args: {
         ids: app.ids,
         workspace: app.workspace,
         open: { mode: EOpenMode.Resume, threadId: asked },
+        effects: (name) => app.tools.find(name)?.effect,
       }).then((outcome) => {
         if (!outcome.ok) {
           onFailure(outcome.reason)

@@ -34,7 +34,7 @@ const INTERRUPT_DEADLINE_MS = 30_000
 
 export type DescendLocalHome = Pick<
   AtlasApp,
-  'threads' | 'log' | 'ledger' | 'agents' | 'ids' | 'workspace' | 'services'
+  'threads' | 'log' | 'ledger' | 'agents' | 'ids' | 'workspace' | 'services' | 'tools'
 >
 
 /**
@@ -249,6 +249,7 @@ export async function descendFromCloud(args: {
     ids: localApp.ids,
     workspace: localApp.workspace,
     open: { mode: EOpenMode.Resume, threadId },
+    effects: (name) => localApp.tools.find(name)?.effect,
   })
   if (!opened.ok) throw new Error(opened.reason)
 

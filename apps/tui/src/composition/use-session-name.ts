@@ -1,16 +1,10 @@
-import {
-  eventsOfType,
-  type Event,
-  type EventDraft,
-  type SaidImage,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { type EventDraft, type SaidImage, type ThreadId } from '@dltech/atlas-core'
 import { sanitizedTitle } from '@dltech/atlas-harness'
 import { useCallback, useRef, useState, type RefObject } from 'react'
 
 import type { AtlasApp } from './compose'
 import { namingTextOf } from './naming-text'
-import { ERenamed, sessionDigest, type Renaming } from './session-rename'
+import { ERenamed, type Renaming } from './session-rename'
 
 export type SessionName = {
   name: string | null
@@ -37,10 +31,11 @@ export function useSessionName(args: {
   app: AtlasApp
   threadId: ThreadId
   started: RefObject<boolean>
-  events: readonly Event[]
+  opening: string | null
+  readDigest: () => Promise<string>
   initial: string | null
 }): SessionName {
-  const { app, threadId, started, events } = args
+  const { app, threadId, started, opening, readDigest } = args
   const [name, setName] = useState<string | null>(args.initial)
   const asked = useRef<ThreadId | null>(null)
 
@@ -59,9 +54,9 @@ export function useSessionName(args: {
       if (name !== null || asked.current === threadId) return
 
       asked.current = threadId
-      const opening = eventsOfType({ events, type: 'user-said' }).at(0)?.text ?? said
+      const first = opening ?? said
 
-      void Promise.all([app.titler({ text: namingTextOf({ said: opening, context }), images }), opened])
+      void Promise.all([app.titler({ text: namingTextOf({ said: first, context }), images }), opened])
         .then(([named]) => {
           if (named === null) return
           setName(named)
@@ -69,18 +64,18 @@ export function useSessionName(args: {
         })
         .catch(() => undefined)
     },
-    [app, events, name, threadId],
+    [app, opening, name, threadId],
   )
 
   const nameFromTranscript = useCallback(async (): Promise<Renaming> => {
-    const digest = sessionDigest(events)
+    const digest = await readDigest()
     if (digest.trim().length === 0) return { type: ERenamed.Empty }
 
     const generated = await app.titler({ text: digest }).catch(() => null)
     if (generated === null) return { type: ERenamed.Declined }
 
     return { type: ERenamed.Renamed, name: generated }
-  }, [app, events])
+  }, [app, readDigest])
 
   const renameSession = useCallback(
     async (argumentText: string): Promise<Renaming> => {

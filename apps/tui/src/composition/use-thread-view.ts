@@ -18,8 +18,10 @@ import {
   type TranscriptModel,
   type TurnProgress,
 } from "../store";
+import type { LogAccumulator } from "../store/log-accumulator";
 import type { TurnClock } from "../ui/turn-clock";
 import type { AtlasApp } from "./compose";
+import { readThreadBase, readThreadWindow, THREAD_WINDOW_EVENTS } from "./thread-reads";
 import { readThreadSpend } from "./thread-spend";
 
 /**
@@ -37,6 +39,7 @@ export enum EThreadRows {
 export type ThreadSeed = {
   events: readonly Event[];
   turns?: readonly TurnSpend[] | undefined;
+  base?: LogAccumulator | undefined;
 };
 
 export type ThreadView = {
@@ -46,6 +49,7 @@ export type ThreadView = {
   events: readonly Event[];
   turn: TurnClock;
   refresh: () => Promise<void>;
+  loadOlder: () => Promise<void>;
   setEvents: (events: readonly Event[]) => void;
   stamp: (advance: (progress: TurnProgress) => TurnProgress) => void;
 };
@@ -114,6 +118,8 @@ export function useThreadView(args: {
   const clock = useRef(readClock);
   clock.current = readClock;
 
+  const effects = useCallback((name: string) => app.tools.find(name)?.effect, [app.tools]);
+
   const store = useMemo(() => {
     const seed = initial?.();
 
@@ -122,13 +128,15 @@ export function useThreadView(args: {
       threadId,
       events: seed?.events ?? NO_EVENTS,
       ...(seed?.turns === undefined ? {} : { turns: seed.turns }),
+      ...(seed?.base === undefined ? {} : { base: seed.base }),
+      effects,
       paceReveal,
       priceOf,
       sandbox: app.containerStatus,
       readClock: () => clock.current(),
       ...(projectEvents === undefined ? {} : { projectEvents }),
     });
-  }, [app.channel, app.containerStatus, threadId, paceReveal, priceOf, projectEvents, initial]);
+  }, [app.channel, app.containerStatus, threadId, effects, paceReveal, priceOf, projectEvents, initial]);
 
   const stamp = useCallback(
     (advance: (progress: TurnProgress) => TurnProgress) => store.stampTurn(advance),
@@ -151,22 +159,34 @@ export function useThreadView(args: {
   useEffect(() => store.setThinking(thinking), [store, thinking]);
   useEffect(() => store.setTldrStatus(tldrStatus), [store, tldrStatus]);
 
-  const readRows = useCallback(
-    (): Promise<readonly Event[]> =>
-      rows === EThreadRows.Own
-        ? app.log.readOwn({ threadId })
-        : app.log.read({ threadId }),
-    [app.log, rows, threadId],
-  );
+  const baseSeeded = useRef(initial?.().base !== undefined);
+  const lastHead = useRef<number | undefined>(undefined);
 
   const refresh = useCallback(async () => {
-    const [read, spent] = await Promise.all([
-      readRows(),
+    const [window, spent] = await Promise.all([
+      readThreadWindow({ log: app.log, threadId, rows }),
       readThreadSpend({ ledger: app.ledger, threadId }),
     ]);
-    store.setEvents({ events: read, turns: spent.turns });
-    setEvents(read);
-  }, [app.ledger, readRows, store, threadId]);
+    const rewound = lastHead.current !== undefined && window.head < lastHead.current;
+    lastHead.current = window.head;
+
+    if (baseSeeded.current && !rewound) {
+      store.setEvents({ events: window.events, turns: spent.turns });
+      setEvents(window.events);
+      return;
+    }
+
+    const base = await readThreadBase({
+      log: app.log,
+      threadId,
+      rows,
+      fromSeq: window.fromSeq,
+      effects,
+    });
+    baseSeeded.current = true;
+    store.resetLog({ events: window.events, base, turns: spent.turns });
+    setEvents(window.events);
+  }, [app.ledger, app.log, effects, rows, store, threadId, setEvents]);
 
   /**
    * A thread nobody handed rows for reads them itself, once, on the way in. The channel replays the
@@ -209,6 +229,29 @@ export function useThreadView(args: {
     [app.channel, onUsage, refresh, threadId],
   );
 
+  const loadingOlder = useRef(false);
+  const loadOlder = useCallback(async (): Promise<void> => {
+    const first = heldEvents.current[0];
+    if (first === undefined || first.seq <= 1 || loadingOlder.current) return;
+
+    loadingOlder.current = true;
+    try {
+      const upTo = first.seq - 1;
+      const fromSeq = Math.max(0, upTo - THREAD_WINDOW_EVENTS);
+      const older =
+        rows === EThreadRows.Own
+          ? await app.log.readOwn({ threadId, fromSeq, upTo })
+          : await app.log.read({ threadId, fromSeq, upTo });
+      if (older.length === 0) return;
+
+      const next = [...older, ...heldEvents.current];
+      store.setEvents({ events: next });
+      setEvents(next);
+    } finally {
+      loadingOlder.current = false;
+    }
+  }, [app.log, rows, store, threadId, setEvents]);
+
   const model = useSyncExternalStore(store.subscribe, store.getSnapshot);
   const sidebar = useSyncExternalStore(store.subscribe, store.getSidebar);
   const turn = useSyncExternalStore(store.subscribe, store.getTurn);
@@ -220,6 +263,7 @@ export function useThreadView(args: {
     events,
     turn,
     refresh,
+    loadOlder,
     setEvents,
     stamp,
   };

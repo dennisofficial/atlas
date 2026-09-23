@@ -44,6 +44,7 @@ import { threadHandle } from '@dltech/atlas-harness'
 import { userSaidDraft } from '@dltech/atlas-harness'
 import { useCompaction } from './use-compaction'
 import { useDelegatedToolCalls } from '../ui/hooks/use-delegated-tool-calls'
+import { sessionDigest } from './session-rename'
 import { useSessionName } from './use-session-name'
 import { useAgentWake } from './use-agent-wake'
 import { useServiceWake } from './use-service-wake'
@@ -79,7 +80,9 @@ export type Conversation = {
   activeWorktree: ActiveWorktree | null
   repo: string | null
   pending: readonly PendingRow[]
-  readEvents: () => readonly Event[]
+  readEvents: () => Promise<readonly Event[]>
+  loadOlderHistory: () => Promise<void>
+  hasOlderHistory: boolean
   refresh: () => Promise<void>
   handleSend: (args: {
     text: string
@@ -221,6 +224,7 @@ export function useConversation(args: {
   })
 
   const { store, events, setEvents, refresh } = view
+  const logSummary = useSyncExternalStore(store.subscribe, store.getLogSummary)
 
   const handleRevokeGrant = useRevokeGrant({ app, threadId, refresh })
 
@@ -228,7 +232,8 @@ export function useConversation(args: {
     app,
     threadId,
     started: startedRef,
-    events,
+    opening: logSummary.opening,
+    readDigest: async () => sessionDigest(await app.log.read({ threadId })),
     initial: args.opened.name,
   })
 
@@ -407,21 +412,22 @@ export function useConversation(args: {
   useEffect(() => {
     void app.threadOpened({
       threadId: opened.threadId,
-      projectDirectory: projectDirectoryOf({
-        events: opened.events,
-        launchDirectory: app.workspace.workspace,
-      }),
+      projectDirectory:
+        logSummary.worktree?.path ?? logSummary.home ?? app.workspace.workspace,
     })
-  }, [app, opened])
+  }, [app, opened, logSummary, app.workspace.workspace])
 
-  const readEvents = useCallback((): readonly Event[] => events, [events])
-
-  const used = useMemo(() => contextTokens({ reported, events }), [reported, events])
-
-  const mutations = useMemo(
-    () => treeMutationsOf({ events, effects: (name) => app.tools.find(name)?.effect }),
-    [events, app.tools],
+  const readEvents = useCallback(
+    (): Promise<readonly Event[]> => app.log.read({ threadId }),
+    [app.log, threadId],
   )
+
+  const used = useMemo(
+    () => (reported === null ? logSummary.tokens : contextTokens({ reported, events: [] })),
+    [reported, logSummary],
+  )
+
+  const mutations = logSummary.treeMutations
 
   const delegatedToolCalls = useDelegatedToolCalls({ agents: app.agents, threadId })
 
@@ -435,11 +441,11 @@ export function useConversation(args: {
       return { projectDirectory: pendingMove.path, activeWorktree: null, repo: pendingMove.repo }
     }
     return {
-      projectDirectory: projectDirectoryOf({ events, launchDirectory }),
-      activeWorktree: activeWorktreeOf(events) ?? null,
-      repo: repoOf({ events, launchRepo: app.workspace.repo }),
+      projectDirectory: logSummary.worktree?.path ?? logSummary.home ?? launchDirectory,
+      activeWorktree: logSummary.worktree ?? null,
+      repo: logSummary.repo ?? app.workspace.repo,
     }
-  }, [events, pendingMove, app.workspace.workspace, app.workspace.repo])
+  }, [events, pendingMove, logSummary, app.workspace.workspace, app.workspace.repo])
 
   const holdMove = useCallback((move: DirectoryMove | null): void => {
     pendingMoveRef.current = move
@@ -507,6 +513,8 @@ export function useConversation(args: {
     handleRetry: retryable ? turnDriver.handleRetry : null,
     handleResume: resumable ? turnDriver.handleResume : null,
     readEvents,
+    loadOlderHistory: view.loadOlder,
+    hasOlderHistory: logSummary.windowStartSeq > 1,
     compacting,
     handleReportProblem: setFailure,
     handleInterrupt: turnDriver.handleInterrupt,

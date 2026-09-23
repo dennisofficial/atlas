@@ -134,6 +134,7 @@ async function startSession(args: {
     ids: app.ids,
     workspace: app.workspace,
     open: config.open,
+    effects: (name) => app.tools.find(name)?.effect,
   })
 
   if (!outcome.ok) {

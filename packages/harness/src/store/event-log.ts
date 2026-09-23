@@ -44,18 +44,44 @@ export class PrismaEventLog implements EventLogPort {
     return retryOnWriteConflict({ run: () => this.replaceOnce(args) })
   }
 
-  async read(args: { threadId: ThreadId; upTo?: number }): Promise<Event[]> {
+  async read(args: { threadId: ThreadId; fromSeq?: number; upTo?: number }): Promise<Event[]> {
     const decoded = await this.readDecoded(args)
     return decoded.events
   }
 
-  async readDecoded({ threadId, upTo }: { threadId: ThreadId; upTo?: number }): Promise<DecodedLog> {
-    const rows = await readComposedRows({ prisma: this.prisma, threadId, upTo })
+  async readDecoded({
+    threadId,
+    fromSeq,
+    upTo,
+  }: {
+    threadId: ThreadId
+    fromSeq?: number
+    upTo?: number
+  }): Promise<DecodedLog> {
+    const rows = await readComposedRows({
+      prisma: this.prisma,
+      threadId,
+      ...(fromSeq === undefined ? {} : { fromSeq }),
+      ...(upTo === undefined ? {} : { upTo }),
+    })
     return decodeEventRows({ rows, cache: this.decodeCache })
   }
 
-  async readOwn({ threadId, upTo }: { threadId: ThreadId; upTo?: number }): Promise<Event[]> {
-    const rows = await readOwnRows({ prisma: this.prisma, threadId, upTo })
+  async readOwn({
+    threadId,
+    fromSeq,
+    upTo,
+  }: {
+    threadId: ThreadId
+    fromSeq?: number
+    upTo?: number
+  }): Promise<Event[]> {
+    const rows = await readOwnRows({
+      prisma: this.prisma,
+      threadId,
+      ...(fromSeq === undefined ? {} : { fromSeq }),
+      ...(upTo === undefined ? {} : { upTo }),
+    })
     return decodeEventRows({ rows, cache: this.decodeCache }).events
   }
 

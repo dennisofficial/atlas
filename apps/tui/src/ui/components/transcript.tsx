@@ -46,6 +46,7 @@ function DerivedTranscript(props: {
   onResume?: () => void
   opened?: ReadonlySet<string>
   onToggle?: (key: string) => void
+  onNearTop?: () => void
 }): React.ReactNode {
   useAppearance()
   const { model } = props
@@ -67,7 +68,22 @@ function DerivedTranscript(props: {
     scroller,
     anchorIndex,
     width: props.width,
+    ...(props.onNearTop === undefined ? {} : { onNearTop: props.onNearTop }),
   })
+
+  const firstKey = useRef<string | null>(null)
+  React.useLayoutEffect(() => {
+    const first = model.entries[0]?.key ?? null
+    const previous = firstKey.current
+    firstKey.current = first
+    if (previous === null || first === previous) return
+
+    const box = scroller.current
+    if (box === null) return
+    const offset = windowing.offsetOfKey(previous)
+    if (offset === null) return
+    box.scrollTo(box.scrollTop + offset)
+  }, [model.entries, windowing])
   const follow = useTranscriptFollow({
     scroller,
     anchorId: anchorIndex >= 0 ? UNSEEN_ANCHOR_ID : null,

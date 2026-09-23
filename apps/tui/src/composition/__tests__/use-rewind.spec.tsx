@@ -80,7 +80,7 @@ type Probe = { control: RewindControl | null; picks: RewindChoice[] }
 
 function Picker(props: { probe: Probe; events: readonly Event[] }): React.ReactNode {
   const control = useRewind({
-    events: () => props.events,
+    events: () => Promise.resolve(props.events),
     onPick: (choice) => props.probe.picks.push(choice),
   })
   props.probe.control = control

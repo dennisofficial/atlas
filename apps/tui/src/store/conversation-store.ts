@@ -9,6 +9,8 @@ import type {
 import { IDLE_TURN, type TurnClock } from "../ui/turn-clock";
 import { assembleTranscript } from "./derive-transcript";
 import { durableEntries } from "./durable-entries";
+import type { LogAccumulator, ToolEffects } from "./log-accumulator";
+import { createLogWindow, sameLogSummary, type LogSummary } from "./log-window";
 import {
   advancedGate,
   attachedGate,
@@ -18,10 +20,9 @@ import {
 } from "./reveal";
 import {
   sameSidebar,
-  sidebarFoldOf,
+  sidebarFoldFrom,
   sidebarFrom,
   type SidebarContainer,
-  type SidebarEventFold,
   type SidebarModel,
 } from "./sidebar-model";
 import { watchSandbox, type SandboxStatusSource } from "./sandbox-source";
@@ -43,7 +44,13 @@ export type ConversationStore = {
   getSnapshot(): TranscriptModel
   getSidebar(): SidebarModel
   getTurn(): TurnClock
+  getLogSummary(): LogSummary
   setEvents(args: { events: readonly Event[]; turns?: readonly TurnSpend[] | undefined }): void
+  resetLog(args: {
+    events: readonly Event[]
+    base: LogAccumulator
+    turns?: readonly TurnSpend[] | undefined
+  }): void
   stampTurn(advance: (progress: TurnProgress) => TurnProgress): void
   supersedeFailure(): void
   resetSteps(): void
@@ -63,6 +70,8 @@ export function createConversationStore(args: {
   threadId: ThreadId;
   events?: readonly Event[];
   turns?: readonly TurnSpend[];
+  base?: LogAccumulator;
+  effects?: ToolEffects;
   paceReveal?: boolean;
   thinking?: EThinkingVisibility;
   name?: string | null;
@@ -92,8 +101,16 @@ export function createConversationStore(args: {
     turns: readonly TurnSpend[];
     entries: TranscriptEntry[];
   } | null = null;
-  let folded: { events: readonly Event[]; fold: SidebarEventFold } | null = null;
   let projected: readonly Event[] | null = null;
+
+  const logWindow = createLogWindow({ effects: args.effects ?? (() => undefined) });
+  logWindow.seed({ events, ...(args.base === undefined ? {} : { base: args.base }) });
+
+  const summaryNow = (): LogSummary => {
+    const { opening, tokens, treeMutations, worktree, home, repo } = logWindow.acc;
+    return { opening, tokens, treeMutations, worktree, home, repo, windowStartSeq: events[0]?.seq ?? 0 };
+  };
+  let logSummary = summaryNow();
 
   const durableNow = (): readonly TranscriptEntry[] => {
     if (durable !== null && durable.events === events && durable.turns === turns) {
@@ -105,16 +122,8 @@ export function createConversationStore(args: {
     return entries;
   };
 
-  const foldNow = (): SidebarEventFold => {
-    if (folded !== null && folded.events === events) return folded.fold;
-
-    const fold = sidebarFoldOf(events);
-    folded = { events, fold };
-    return fold;
-  };
-
   const sidebarNow = (): SidebarModel =>
-    sidebarFrom({ fold: foldNow(), turn, turns, priceOf: args.priceOf, name });
+    sidebarFrom({ fold: sidebarFoldFrom(logWindow.acc), turn, turns, priceOf: args.priceOf, name });
 
   let model = assembleTranscript({ durable: durableNow(), live: [], thinking, pendingTldr, tldrStatus, sandbox })
   let sidebar = sidebarNow()
@@ -166,6 +175,8 @@ export function createConversationStore(args: {
     turn = progress.clock;
     tracker.pruneSuperseded(events);
     pruneTails();
+    const nextSummary = summaryNow();
+    if (!sameLogSummary(logSummary, nextSummary)) logSummary = nextSummary;
     model = settled(
       assembleTranscript({
         durable: durableNow(),
@@ -298,9 +309,21 @@ export function createConversationStore(args: {
         next.turns !== undefined && !sameTurns({ left: turns, right: next.turns });
       if (!logMoved && !spendMoved) return;
 
+      if (logMoved) logWindow.advance({ events: next.events });
       events = next.events;
       if (next.turns !== undefined) turns = next.turns;
       republish();
+    },
+
+    resetLog(next) {
+      logWindow.reset({ events: next.events, base: next.base });
+      events = next.events;
+      if (next.turns !== undefined) turns = next.turns;
+      republish();
+    },
+
+    getLogSummary() {
+      return logSummary;
     },
 
     stampTurn(advance) {

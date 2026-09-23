@@ -143,11 +143,11 @@ describe('resuming on launch', () => {
 
     try {
       const resumed = await until({
-        holds: async () => (await typesOf(mounted)).includes('nudge'),
+        holds: async () =>
+          (await typesOf(mounted)).includes('nudge') && mounted.app.turnsDriven === 1,
         within: 20_000,
       })
       expect(resumed).toBe(true)
-      expect(mounted.app.turnsDriven).toBe(1)
 
       const events = await mounted.app.log.read({ threadId: THREAD })
       const nudge = events.find((event) => event.type === 'nudge')
