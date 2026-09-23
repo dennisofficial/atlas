@@ -1,5 +1,5 @@
 import { generateKeyPairSync } from 'node:crypto'
-import { BadGatewayException, ServiceUnavailableException } from '@nestjs/common'
+import { BadGatewayException, BadRequestException, ServiceUnavailableException } from '@nestjs/common'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EnvService } from '../../../_core/config/env/env.service'
 import { GithubAppNotInstalled, GithubAppService, type GithubFetch } from './github-app.service'
@@ -98,6 +98,56 @@ describe('GithubAppService', () => {
       expect(calls).toHaveLength(1)
     })
 
+    it('resolves the app slug, cached per process', async () => {
+      const { fetchFn, calls } = fakeFetch({
+        'GET https://api.github.com/app': () => jsonResponse(200, { slug: 'atlas-factory' }),
+      })
+      service = new GithubAppService(fakeEnv({ configured: true }), fetchFn)
+
+      expect(await service.appSlug()).toBe('atlas-factory')
+      expect(await service.appSlug()).toBe('atlas-factory')
+      expect(calls).toHaveLength(1)
+    })
+
+    it('appSlug does not cache a failure', async () => {
+      let attempts = 0
+      const { fetchFn, calls } = fakeFetch({
+        'GET https://api.github.com/app': () => {
+          attempts += 1
+          if (attempts === 1) return jsonResponse(500, { message: 'boom' })
+          return jsonResponse(200, { slug: 'atlas-factory' })
+        },
+      })
+      service = new GithubAppService(fakeEnv({ configured: true }), fetchFn)
+
+      await expect(service.appSlug()).rejects.toBeInstanceOf(BadGatewayException)
+      expect(await service.appSlug()).toBe('atlas-factory')
+      expect(calls).toHaveLength(2)
+    })
+
+    it('assertInstallation resolves when the installation exists for this app', async () => {
+      const { fetchFn, calls } = fakeFetch({
+        'GET https://api.github.com/app/installations/12345678': () =>
+          jsonResponse(200, { id: 12345678 }),
+      })
+      service = new GithubAppService(fakeEnv({ configured: true }), fetchFn)
+
+      await expect(service.assertInstallation({ installationId: '12345678' })).resolves.toBeUndefined()
+      expect(calls).toHaveLength(1)
+    })
+
+    it('assertInstallation rejects an installation the app does not have', async () => {
+      const { fetchFn } = fakeFetch({
+        'GET https://api.github.com/app/installations/999': () =>
+          jsonResponse(404, { message: 'Not Found' }),
+      })
+      service = new GithubAppService(fakeEnv({ configured: true }), fetchFn)
+
+      await expect(service.assertInstallation({ installationId: '999' })).rejects.toBeInstanceOf(
+        BadRequestException,
+      )
+    })
+
     it('mints the app jwt itself rather than trusting github to skip auth', async () => {
       const { fetchFn, calls } = fakeFetch({
         'POST https://api.github.com/app/installations/42/access_tokens': () =>
@@ -156,6 +206,10 @@ describe('GithubAppService', () => {
 
     it('never filters ingress on a bot login it cannot know', async () => {
       expect(await service.botLogin()).toBeNull()
+    })
+
+    it('refuses to resolve the app slug', async () => {
+      await expect(service.appSlug()).rejects.toBeInstanceOf(ServiceUnavailableException)
     })
 
     it('refuses to mint tokens', async () => {

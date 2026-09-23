@@ -18,8 +18,8 @@ describe('FactoryIdentityService', () => {
 
   it('creates the factory user once and reuses it', async () => {
     const service = new FactoryIdentityService()
-    const first = await service.userId()
-    const second = await service.userId()
+    const first = await service.userId({ organizationId: null })
+    const second = await service.userId({ organizationId: null })
 
     expect(first).toBe(second)
     expect(fake.users).toHaveLength(1)
@@ -30,7 +30,7 @@ describe('FactoryIdentityService', () => {
     fake.users.push({ id: 'usr_seed', name: 'Atlas Factory', email: FACTORY_USER_EMAIL })
     const service = new FactoryIdentityService()
 
-    expect(await service.userId()).toBe('usr_seed')
+    expect(await service.userId({ organizationId: null })).toBe('usr_seed')
     expect(fake.users).toHaveLength(1)
   })
 
@@ -41,9 +41,32 @@ describe('FactoryIdentityService', () => {
       throw new Error('database down')
     })
 
-    await expect(service.userId()).rejects.toThrow('database down')
+    await expect(service.userId({ organizationId: null })).rejects.toThrow('database down')
 
     fake.db.user.upsert = upsert
-    await expect(service.userId()).resolves.toMatch(/^usr_/)
+    await expect(service.userId({ organizationId: null })).resolves.toMatch(/^usr_/)
+  })
+
+  it('gives two orgs two distinct users on org-scoped emails', async () => {
+    const service = new FactoryIdentityService()
+    const first = await service.userId({ organizationId: 'org_one' })
+    const second = await service.userId({ organizationId: 'org_two' })
+
+    expect(first).not.toBe(second)
+    expect(fake.users).toHaveLength(2)
+    expect(fake.users.map((user) => user.email).sort()).toEqual([
+      'factory+org_one@atlas.internal',
+      'factory+org_two@atlas.internal',
+    ])
+    expect(fake.users.every((user) => user.name === 'Atlas Factory')).toBe(true)
+  })
+
+  it('reuses the same user for the same org', async () => {
+    const service = new FactoryIdentityService()
+    const first = await service.userId({ organizationId: 'org_one' })
+    const second = await service.userId({ organizationId: 'org_one' })
+
+    expect(first).toBe(second)
+    expect(fake.users).toHaveLength(1)
   })
 })

@@ -57,8 +57,8 @@ export class OrchestratorService {
     const pending = await this.pendingEvents(item)
     if (pending.length === 0) return
 
-    const userId = await this.identity.userId()
-    await this.credentials.ensureSeeded({ userId })
+    const userId = await this.identity.userId({ organizationId: item.organizationId })
+    await this.credentials.ensureSeeded({ userId, organizationId: item.organizationId })
     const threadId = await this.ensureThread({ item, externalId: args.externalId, userId })
     const fresh = item.orchestratorDeliveredEventId === null
 
@@ -75,7 +75,7 @@ export class OrchestratorService {
           sandboxName: factorySandboxNameFor({ workItemId: item.id }),
           text,
           marker: event.id,
-          extras: { pinnedModel: this.credentials.modelRef() },
+          extras: { pinnedModel: await this.credentials.modelRef({ organizationId: item.organizationId }) },
         })
       } catch (failure) {
         this.logger.warn(

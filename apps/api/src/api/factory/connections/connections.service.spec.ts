@@ -155,6 +155,30 @@ describe('FactoryConnectionsService', () => {
     })
   })
 
+  it('listForOrganization returns only the caller organization connections', async () => {
+    seedConnection()
+    seedConnection({ id: 'fco_2', provider: 'linear', externalAccountId: 'ws-1' })
+    seedConnection({ id: 'fco_3', organizationId: 'org_other', externalAccountId: '99999' })
+
+    const listed = await service.listForOrganization({ organizationId: 'org_compai' })
+
+    expect(listed.map((one) => one.id)).toEqual(['fco_1', 'fco_2'])
+  })
+
+  it('listForOrganization orders by createdAt ascending', async () => {
+    seedConnection({ id: 'fco_new', createdAt: '2026-09-22T02:00:00.000Z' })
+    seedConnection({
+      id: 'fco_old',
+      provider: 'linear',
+      externalAccountId: 'ws-1',
+      createdAt: '2026-09-21T02:00:00.000Z',
+    })
+
+    const listed = await service.listForOrganization({ organizationId: 'org_compai' })
+
+    expect(listed.map((one) => one.id)).toEqual(['fco_old', 'fco_new'])
+  })
+
   it('updateCredentials reseals the connection', async () => {
     seedConnection({ sealedCredentials: 'sealed-before' })
 

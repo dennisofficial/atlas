@@ -142,11 +142,12 @@ export function createFakeFactoryDb() {
         if (row === undefined) throw new Error('record not found')
         return row
       },
-      findMany: async (args: { where?: Where; orderBy?: unknown }) => {
+      findMany: async (args: { where?: Where; orderBy?: unknown; take?: number }) => {
         const matched = workItems.filter(
           (one) => args.where === undefined || matchesRow(one, args.where),
         )
-        return args.orderBy === undefined ? matched : sortRows(matched, args.orderBy)
+        const sorted = args.orderBy === undefined ? matched : sortRows(matched, args.orderBy)
+        return args.take === undefined ? sorted : sorted.slice(0, args.take)
       },
       update: async (args: { where: { id: string }; data: Where }) => {
         const row = workItems.find((one) => one.id === args.where.id)
@@ -164,6 +165,13 @@ export function createFakeFactoryDb() {
       findFirst: async (args: { where: Where; select?: Record<string, boolean> }) => {
         const found = connections.find((one) => matchesRow(one, args.where)) ?? null
         return found === null ? null : project(found, args.select)
+      },
+      findMany: async (args: { where?: Where; orderBy?: unknown; take?: number }) => {
+        const matched = connections.filter(
+          (one) => args.where === undefined || matchesRow(one, args.where),
+        )
+        const sorted = args.orderBy === undefined ? matched : sortRows(matched, args.orderBy)
+        return args.take === undefined ? sorted : sorted.slice(0, args.take)
       },
       create: async (args: { data: Where }) => {
         if (connections.some((one) => one.id === args.data.id)) throw uniqueViolation(['id'])

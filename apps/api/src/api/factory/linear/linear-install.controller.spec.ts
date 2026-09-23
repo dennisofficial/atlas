@@ -114,7 +114,7 @@ describe('LinearInstallController', () => {
     })
     expect(response.redirect).toHaveBeenCalledWith(
       302,
-      'https://byatlas.io/factory/linear?installed=success',
+      'https://byatlas.io/factory?linear=success',
     )
   })
 
@@ -126,7 +126,7 @@ describe('LinearInstallController', () => {
     expect(install.completeInstall).not.toHaveBeenCalled()
     expect(response.redirect).toHaveBeenCalledWith(
       302,
-      'https://byatlas.io/factory/linear?installed=error',
+      'https://byatlas.io/factory?linear=error',
     )
   })
 
@@ -138,7 +138,7 @@ describe('LinearInstallController', () => {
 
     expect(response.redirect).toHaveBeenCalledWith(
       302,
-      'https://byatlas.io/factory/linear?installed=error',
+      'https://byatlas.io/factory?linear=error',
     )
   })
 

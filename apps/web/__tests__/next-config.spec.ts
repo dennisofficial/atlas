@@ -28,6 +28,7 @@ describe('next.config rewrites', () => {
 
     expect(result).toEqual([
       { source: '/api/:path*', destination: 'https://api.byatlas.io/api/:path*' },
+      { source: '/v1/:path*', destination: 'https://api.byatlas.io/v1/:path*' },
     ])
   })
 
@@ -38,6 +39,7 @@ describe('next.config rewrites', () => {
 
     expect(result).toEqual([
       { source: '/api/:path*', destination: 'http://localhost:3400/api/:path*' },
+      { source: '/v1/:path*', destination: 'http://localhost:3400/v1/:path*' },
     ])
   })
 })

@@ -102,8 +102,8 @@ export class StationsService {
       throw new BadRequestException(`the spawn message is over the ${STATION_MESSAGE_CAP} character cap`)
     }
 
-    const userId = await this.identity.userId()
-    await this.credentials.ensureSeeded({ userId })
+    const userId = await this.identity.userId({ organizationId: item.organizationId })
+    await this.credentials.ensureSeeded({ userId, organizationId: item.organizationId })
     const driveName = await this.drives.ensure({ workItemId: item.id })
 
     const runId = nextStationRunId()
@@ -130,7 +130,7 @@ export class StationsService {
         patch: '',
       },
       drive: { name: driveName, mode: driveModeFor(kind) },
-      pinnedModel: this.credentials.modelRef(),
+      pinnedModel: await this.credentials.modelRef({ organizationId: item.organizationId }),
     })
 
     const alias = await ticketAliasOf({ workItems: this.workItems, item })
@@ -173,7 +173,7 @@ export class StationsService {
     const marker = `steer:${randomUUID()}`
     await deliverToServeThread({
       deps: { sandboxes: this.sandboxes, channel: this.channel },
-      userId: await this.identity.userId(),
+      userId: await this.identity.userId({ organizationId: item.organizationId }),
       threadId: run.threadId,
       sandboxName: factoryStationSandboxNameFor({ runId: run.id }),
       text: `[station steer] ${marker}\n\n${args.message}`,
@@ -185,7 +185,10 @@ export class StationsService {
   async stop(args: { orchestratorThreadId: string; runId: string }): Promise<{ stopped: true }> {
     const item = await orchestratedItem({ threadId: args.orchestratorThreadId })
     const run = await this.runningRun({ item, runId: args.runId })
-    await this.sandboxes.stop({ userId: await this.identity.userId(), threadId: run.threadId })
+    await this.sandboxes.stop({
+      userId: await this.identity.userId({ organizationId: item.organizationId }),
+      threadId: run.threadId,
+    })
     await this.markRun({ runId: run.id, status: EStationRunStatus.Stopped })
     return { stopped: true }
   }
@@ -199,7 +202,8 @@ export class StationsService {
       where: { workItemId: args.workItemId, status: EStationRunStatus.Running },
     })
     if (running.length === 0) return
-    const userId = await this.identity.userId()
+    const item = await this.workItems.find({ workItemId: args.workItemId })
+    const userId = await this.identity.userId({ organizationId: item.organizationId })
     for (const run of running) {
       await this.sandboxes.stop({ userId, threadId: run.threadId }).catch((failure: unknown) => {
         this.logger.warn(`could not stop station run ${run.id}: ${messageOf(failure)}`)
