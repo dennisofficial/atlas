@@ -8,6 +8,8 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import { InMemoryToolRegistry } from '@dltech/atlas-harness'
+
 import {
   fakeEventLog,
   fakeLedger,
@@ -97,6 +99,7 @@ export const localHome = (args: { withThread?: boolean; events?: Event[] } = {})
     ledger: fakeLedger(),
     agents: fakeAgentRegistry({ threads }),
     services: fakeServiceRegistry(),
+    tools: new InMemoryToolRegistry([]),
     ids: fakeIds(),
     workspace: { workspace: '/work', repo: '/work' },
   }

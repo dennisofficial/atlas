@@ -98,6 +98,7 @@ describe('which conversation the app opens on', () => {
       agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: HERE,
+      effects: () => undefined,
       open: { mode: EOpenMode.New },
     })
 
@@ -117,6 +118,7 @@ describe('which conversation the app opens on', () => {
       agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: HERE,
+      effects: () => undefined,
       open: { mode: EOpenMode.Continue },
     })
 
@@ -135,6 +137,7 @@ describe('which conversation the app opens on', () => {
       agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: HERE,
+      effects: () => undefined,
       open: { mode: EOpenMode.Continue },
     })
 
@@ -154,6 +157,7 @@ describe('which conversation the app opens on', () => {
       agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: HERE,
+      effects: () => undefined,
       open: { mode: EOpenMode.Continue },
     })
 
@@ -171,6 +175,7 @@ describe('which conversation the app opens on', () => {
       agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: HERE,
+      effects: () => undefined,
       open: { mode: EOpenMode.Continue },
     })
 
@@ -188,6 +193,7 @@ describe('which conversation the app opens on', () => {
       agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: HERE,
+      effects: () => undefined,
       open: { mode: EOpenMode.Continue },
     })
 
@@ -206,6 +212,7 @@ describe('which conversation the app opens on', () => {
       agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: HERE,
+      effects: () => undefined,
       open: { mode: EOpenMode.Continue },
     })
 
@@ -225,6 +232,7 @@ describe('which conversation the app opens on', () => {
       agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: HERE,
+      effects: () => undefined,
       open: { mode: EOpenMode.Resume, threadId: 'older' },
     })
 
@@ -240,6 +248,7 @@ describe('which conversation the app opens on', () => {
       agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: HERE,
+      effects: () => undefined,
       open: { mode: EOpenMode.Resume, threadId: 'never-was' },
     })
 
@@ -257,6 +266,7 @@ describe('which conversation the app opens on', () => {
       agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: WORKTREE,
+      effects: () => undefined,
       open: { mode: EOpenMode.Resume, threadId: YESTERDAY },
     })
 
@@ -274,6 +284,7 @@ describe('which conversation the app opens on', () => {
       agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: WORKTREE,
+      effects: () => undefined,
       open: { mode: EOpenMode.Continue },
     })
 
@@ -288,6 +299,7 @@ describe('which conversation the app opens on', () => {
       agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: WORKTREE,
+      effects: () => undefined,
       open: { mode: EOpenMode.Resume, threadId: YESTERDAY },
     })
 
@@ -302,6 +314,7 @@ describe('which conversation the app opens on', () => {
       agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: HERE,
+      effects: () => undefined,
       open: { mode: EOpenMode.Resume, threadId: YESTERDAY },
     })
 
@@ -321,6 +334,7 @@ describe('which conversation the app opens on', () => {
       agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: HERE,
+      effects: () => undefined,
       open: { mode: EOpenMode.Resume, threadId: 'atlas-daily-driver-setup' },
     })
 
@@ -343,6 +357,7 @@ describe('which conversation the app opens on', () => {
       agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: HERE,
+      effects: () => undefined,
       open: { mode: EOpenMode.Resume, threadId: 'atlas-daily-driver-setup' },
     })
 
@@ -360,6 +375,7 @@ describe('which conversation the app opens on', () => {
       agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: HERE,
+      effects: () => undefined,
       open: { mode: EOpenMode.Resume, threadId: 'Atlas Daily Driver Setup' },
     })
 
@@ -387,6 +403,7 @@ describe('which conversation the app opens on', () => {
       agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: HERE,
+      effects: () => undefined,
       open: { mode: EOpenMode.Resume, threadId: 'casual-greeting' },
     })
 
@@ -409,6 +426,7 @@ describe('which conversation the app opens on', () => {
       agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: HERE,
+      effects: () => undefined,
       open: { mode: EOpenMode.Resume, threadId: YESTERDAY },
     })
 
@@ -425,6 +443,7 @@ describe('which conversation the app opens on', () => {
       agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: HERE,
+      effects: () => undefined,
       open: { mode: EOpenMode.Resume, threadId: 'nobody-home' },
     })
 
@@ -441,6 +460,7 @@ describe('which conversation the app opens on', () => {
       agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: HERE,
+      effects: () => undefined,
       open: { mode: EOpenMode.Resume, threadId: YESTERDAY },
     })
 
@@ -458,6 +478,7 @@ describe('which conversation the app opens on', () => {
       agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: HERE,
+      effects: () => undefined,
       open: { mode: EOpenMode.Resume, threadId: YESTERDAY },
     })
 
@@ -512,6 +533,7 @@ describe('the children the last process lost', () => {
       agents,
       ids: fakeIds(),
       workspace: HERE,
+      effects: () => undefined,
       open: { mode: EOpenMode.Continue },
     })
 
@@ -536,6 +558,7 @@ describe('the children the last process lost', () => {
       agents,
       ids: fakeIds(),
       workspace: HERE,
+      effects: () => undefined,
       open: { mode: EOpenMode.Continue },
     })
 
@@ -555,6 +578,7 @@ describe('the children the last process lost', () => {
         agents,
         ids: fakeIds(),
         workspace: HERE,
+        effects: () => undefined,
         open: { mode: EOpenMode.Continue },
       })
 
@@ -572,6 +596,7 @@ describe('the children the last process lost', () => {
       agents: fakeAgentRegistry(),
       ids: fakeIds(),
       workspace: HERE,
+      effects: () => undefined,
       open: { mode: EOpenMode.Continue },
     })
 

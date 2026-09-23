@@ -46,7 +46,11 @@ export type ConversationStore = {
   getTurn(): TurnClock
   getLogSummary(): LogSummary
   setEvents(args: { events: readonly Event[]; turns?: readonly TurnSpend[] | undefined }): void
-  resetLog(args: { events: readonly Event[]; base: LogAccumulator }): void
+  resetLog(args: {
+    events: readonly Event[]
+    base: LogAccumulator
+    turns?: readonly TurnSpend[] | undefined
+  }): void
   stampTurn(advance: (progress: TurnProgress) => TurnProgress): void
   supersedeFailure(): void
   resetSteps(): void
@@ -306,6 +310,7 @@ export function createConversationStore(args: {
     resetLog(next) {
       logWindow.reset({ events: next.events, base: next.base });
       events = next.events;
+      if (next.turns !== undefined) turns = next.turns;
       republish();
     },
 

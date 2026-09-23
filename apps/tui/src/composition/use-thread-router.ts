@@ -124,6 +124,7 @@ export function useThreadRouter(args: {
         ids: localApp.ids,
         workspace: localApp.workspace,
         open: { mode: EOpenMode.Resume, threadId: target },
+        effects: (name) => localApp.tools.find(name)?.effect,
       })
       if (!outcome.ok) {
         notify({

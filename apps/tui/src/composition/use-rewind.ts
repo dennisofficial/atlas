@@ -24,13 +24,15 @@ export type RewindControl = {
 }
 
 export function useRewind(args: {
-  events: () => readonly Event[]
+  events: () => Promise<readonly Event[]>
   onPick: (choice: RewindChoice) => void
 }): RewindControl {
   const [state, setState] = useState<RewindState | null>(null)
   const { events, onPick } = args
 
-  const handleOpen = useCallback(() => setState(openRewind({ events: events() })), [events])
+  const handleOpen = useCallback(() => {
+    void events().then((read) => setState(openRewind({ events: read })))
+  }, [events])
 
   const handleDismiss = useCallback(() => setState(null), [])
 
