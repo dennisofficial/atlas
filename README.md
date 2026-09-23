@@ -15,7 +15,8 @@ curl -fsSL https://install.byatlas.io | bash
 ```
 
 No GitHub auth needed — the script verifies the sha256 and puts `atlas` at `~/.local/bin`; the
-binary self-updates from then on. To run from source instead:
+binary self-updates from then on. Upgrading from a pre-1.0 install? See
+[docs/upgrading.md](docs/upgrading.md) to import your old sessions. To run from source instead:
 
 ```sh
 bun install
