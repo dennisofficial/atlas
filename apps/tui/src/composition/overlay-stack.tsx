@@ -1,9 +1,9 @@
-import type { ModelRef } from '@dltech/atlas-core'
+import type { Account, ModelRef } from '@dltech/atlas-core'
 import React from 'react'
 
 import { Accounts } from '../ui/components/accounts'
 import type { Span } from '../ui/components/spans'
-import type { AccountRow } from '../ui/accounts-model'
+import type { ProviderRow } from '../ui/accounts-model'
 import { CompactingOverlay, type Compacting } from '../ui/components/compacting'
 import { ContainerGuard } from '../ui/components/container-guard'
 import { ContainerMoveOverlay } from '../ui/components/container-move'
@@ -52,7 +52,7 @@ function DerivedOverlayStack(props: {
   onboarding: OnboardingControl
   accounts: AccountsControl
   threads: ThreadsControl
-  accountMeters: (row: AccountRow) => readonly Span[]
+  accountMeters: (account: Account) => readonly Span[]
   rewind: RewindControl
   rewindConfirm: RewindConfirmControl
   exitGuard: ExitGuardControl
@@ -108,6 +108,8 @@ function DerivedOverlayStack(props: {
           meters={props.accountMeters}
           overlay
           onPick={accounts.handlePick}
+          onChooseAction={accounts.handleChooseAction}
+          onChooseLogin={accounts.handleChooseLogin}
           onDismiss={accounts.handleDismiss}
           onOpenUrl={accounts.handleOpenUrl}
         />
@@ -234,6 +236,13 @@ function DerivedOverlayStack(props: {
           cloudEmail={settings.cloudEmail}
           cloudSignedIn={settings.cloudSignedIn}
           cloudSignIn={settings.cloudSignIn}
+          github={{
+            connection: settings.github.connection,
+            unreachable: settings.github.unreachable,
+            flow: settings.github.flow,
+            onActivate: settings.github.activate,
+            onOpenUrl: settings.handleOpenGithubUrl,
+          }}
           accountAction={settings.account.action}
           onSignOut={settings.handleSignOut}
           onSignIn={settings.handleSignIn}

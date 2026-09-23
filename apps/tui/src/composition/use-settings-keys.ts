@@ -23,6 +23,7 @@ import type { AccountPageControl } from './use-account-page'
 import type { SecretPromptControl } from './use-secret-prompt'
 import type { TextPromptControl } from './use-text-prompt'
 import type { SettingsCloudLoginControl } from './use-settings-cloud-login'
+import type { SettingsGithubControl } from './use-settings-github'
 
 export function useSettingsKeys(args: {
   app: AtlasApp
@@ -34,6 +35,7 @@ export function useSettingsKeys(args: {
   text: TextPromptControl
   account: AccountPageControl
   login: SettingsCloudLoginControl
+  github: SettingsGithubControl
   signedIn: boolean
   onChooseModel: (id: string) => void
   onDismiss: () => void
@@ -48,6 +50,7 @@ export function useSettingsKeys(args: {
     text,
     account,
     login,
+    github,
     signedIn,
     onChooseModel,
     onDismiss,
@@ -133,7 +136,10 @@ export function useSettingsKeys(args: {
       }
 
       if (key.name === 'tab') {
-        if (onAccountPage) login.stop()
+        if (onAccountPage) {
+          login.stop()
+          github.stop()
+        }
         account.handleResetAction()
         select(movePage({ state, model: view, delta: key.shift ? -1 : 1 }))
         return
@@ -166,6 +172,7 @@ export function useSettingsKeys(args: {
     },
     [
       account,
+      github,
       handleActivate,
       handleClearValue,
       login,

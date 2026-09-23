@@ -6,11 +6,13 @@ import { theme } from '../../theme'
 import { clipSpans, wrapCells } from '../sidebar/cells'
 import { Spans, type Span } from '../spans'
 import { CloudSignInPrompt, CloudSignInRow } from './cloud-sign-in'
+import { GithubRow, type GithubAccountView } from './github-connect'
 import { SettingsGroupHeader, SettingsLine, SettingsTextLine } from './rows'
 
 export enum EAccountAction {
   SignOut = 'sign-out',
   DownloadPurge = 'download-purge',
+  Github = 'github',
 }
 
 export const DOWNLOAD_PURGE_LABEL = 'Download & purge cloud data'
@@ -39,6 +41,7 @@ export function SettingsAccount(props: {
   cloudSignIn: SettingsLoginState
   onSignIn: () => void
   onOpenSignInUrl: () => void
+  github?: GithubAccountView | undefined
 }): React.ReactNode {
   const signOut = useClickRegion(props.signedIn ? props.onSignOut : undefined)
   const purge = useClickRegion(props.signedIn ? props.onDownloadPurge : undefined)
@@ -82,6 +85,27 @@ export function SettingsAccount(props: {
             state={props.cloudSignIn}
             onOpenUrl={props.onOpenSignInUrl}
           />
+        </>
+      )}
+      {props.github === undefined ? null : (
+        <>
+          <GithubRow
+            cells={props.cells}
+            signedIn={props.signedIn}
+            selected={props.action === EAccountAction.Github}
+            view={props.github}
+          />
+          <CloudSignInPrompt
+            cells={props.cells}
+            state={props.github.flow}
+            onOpenUrl={props.github.onOpenUrl}
+          />
+          {props.github.flow.failure === null ? null : (
+            <WrappedLine cells={props.cells} text={props.github.flow.failure} fg={theme.warn} />
+          )}
+          {props.github.flow.notice === null ? null : (
+            <WrappedLine cells={props.cells} text={props.github.flow.notice} fg={theme.hint} />
+          )}
         </>
       )}
       {props.cloudSignIn.failure === null ? null : (

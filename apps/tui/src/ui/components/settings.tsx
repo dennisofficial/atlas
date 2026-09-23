@@ -13,6 +13,7 @@ import { ESettingsLogin, type SettingsLoginState } from '../settings-login-model
 import { theme } from '../theme'
 import type { Appearance } from '../appearance'
 import { EAccountAction, SettingsAccount } from './settings/account'
+import { type GithubAccountView } from './settings/github-connect'
 import { SettingsBand } from './settings/band'
 import { SettingsDetail } from './settings/detail'
 import { SettingsHead } from './settings/head'
@@ -107,6 +108,7 @@ export function Settings(props: {
   cloudSignedIn: boolean
   cloudSignIn: SettingsLoginState
   accountAction: EAccountAction
+  github?: GithubAccountView | undefined
   onSignOut: () => void
   onSignIn: () => void
   onOpenSignInUrl: () => void
@@ -183,6 +185,7 @@ export function Settings(props: {
                   cloudSignIn={props.cloudSignIn}
                   onSignIn={props.onSignIn}
                   onOpenSignInUrl={props.onOpenSignInUrl}
+                  {...(props.github === undefined ? {} : { github: props.github })}
                 />
               ) : null}
               {onAccountPage ? null : page?.groups.map((group) => (

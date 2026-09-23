@@ -77,6 +77,13 @@ const page = (args: {
       cloudSignedIn={false}
       cloudSignIn={idleLogin()}
       accountAction={EAccountAction.SignOut}
+      github={{
+        connection: null,
+        unreachable: false,
+        flow: idleLogin(),
+        onActivate: () => {},
+        onOpenUrl: () => {},
+      }}
       onSignOut={() => {}}
       onSignIn={() => {}}
       onOpenSignInUrl={() => {}}

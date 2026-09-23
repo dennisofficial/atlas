@@ -11,7 +11,6 @@ import {
 } from '@dltech/atlas-core'
 import type {
   AccountsService,
-  CloudService,
   DeviceTicket,
   LoginTicket,
   UrlOpener,
@@ -22,38 +21,42 @@ import {
   acceptsApiKey,
   acceptsDeviceCode,
   acceptsPastedCode,
-} from '../ui/accounts-labels'
-import {
-  accountOf,
-  accountRows,
-  rowProvider,
   askForApiKey,
   askForCode,
   askForDeviceCode,
   backspace,
+  backToActions,
   backToList,
-  EAccountRow,
   EAccountsView,
+  EPickIntent,
+  EProviderAction,
   failed,
   isPrompting,
+  moveAction,
+  movePick,
   moveSelection,
   openAccounts,
+  openActions,
+  openLoginPicker,
+  pickedAccount,
+  providerRows,
+  selectedAction,
   selectedRow,
   typeInto,
   withRows,
   working,
-  type AccountRow,
   type AccountsState,
+  type ProviderRow,
 } from '../ui/accounts-model'
 import { pastedText } from '../ui/pasted-text'
-
-import { githubRow, useGithubConnect } from './use-github-connect'
 
 export type AccountsControl = {
   state: AccountsState | null
   handleOpen: (notice?: string) => void
   handleDismiss: () => void
-  handlePick: (row: AccountRow) => void
+  handlePick: (row: ProviderRow) => void
+  handleChooseAction: (actionIndex: number) => void
+  handleChooseLogin: (accountIndex: number) => void
   handleKey: (key: KeyEvent) => void
   handleOpenUrl: () => void
 }
@@ -67,12 +70,10 @@ const isPrintable = (key: KeyEvent): boolean => {
 }
 
 const signInUnsupported = (provider: EAuthProvider): string =>
-  `${providerSpec(provider).label} takes an api key — press k.`
+  `${providerSpec(provider).label} takes an api key — choose it from the actions menu.`
 
-const providerOf = (state: AccountsState): EAuthProvider | undefined => {
-  const row = selectedRow(state)
-  return row === undefined ? undefined : rowProvider(row)
-}
+const providerOf = (state: AccountsState): EAuthProvider | undefined =>
+  selectedRow(state)?.provider
 
 /**
  * OpenTUI parses a whole input burst before React re-renders, so a pasted code arrives as a run of
@@ -81,11 +82,10 @@ const providerOf = (state: AccountsState): EAuthProvider | undefined => {
  */
 export function useAccounts(args: {
   accounts: AccountsService
-  cloud: CloudService
   openUrl: UrlOpener
   onAccounts?: (accounts: readonly Account[]) => void
 }): AccountsControl {
-  const { accounts, cloud, openUrl, onAccounts } = args
+  const { accounts, openUrl, onAccounts } = args
   const held = useRef<AccountsState | null>(null)
   const [state, setState] = useState<AccountsState | null>(null)
   const ticket = useRef<LoginTicket | null>(null)
@@ -97,7 +97,7 @@ export function useAccounts(args: {
     setState(next)
   }, [])
 
-  const rows = useCallback(async (): Promise<readonly AccountRow[]> => {
+  const rows = useCallback(async (): Promise<readonly ProviderRow[]> => {
     const stored = await accounts.list()
     onAccounts?.(stored)
 
@@ -107,16 +107,8 @@ export function useAccounts(args: {
       active[spec.provider] = await accounts.activeFor(spec.provider)
     }
 
-    const session = cloud.session()
-    const client = session === null ? null : cloud.client()
-    const github = client === null ? undefined : await githubRow(client)
-
-    return accountRows({
-      accounts: stored,
-      active,
-      ...(github === undefined ? {} : { github }),
-    })
-  }, [accounts, cloud, onAccounts])
+    return providerRows({ accounts: stored, active })
+  }, [accounts, onAccounts])
 
   const handleOpen = useCallback(
     (notice?: string) => {
@@ -145,48 +137,23 @@ export function useAccounts(args: {
     [put, rows],
   )
 
-  const githubConnect = useGithubConnect({ cloud, openUrl, held, put, refresh })
-
   const handleDismiss = useCallback(() => {
     ticket.current = null
     stopDevice()
-    githubConnect.stop()
     put(null)
-  }, [githubConnect, put, stopDevice])
-
-  /**
-   * A row for a provider nothing has signed into exists to be signed into, so the key that activates
-   * a row starts the flow rather than doing nothing.
-   */
-  const askForKey = useCallback(
-    (current: AccountsState) => {
-      const provider = providerOf(current)
-      if (provider === undefined || !acceptsApiKey(provider)) return
-
-      put(askForApiKey({ state: current, provider }))
-    },
-    [put],
-  )
+  }, [put, stopDevice])
 
   const handlePick = useCallback(
-    (row: AccountRow) => {
-      if (row.kind === EAccountRow.Github) {
-        const current = held.current
-        if (row.github.connection === null && !row.github.unreachable && current !== null)
-          githubConnect.begin(current)
-        return
-      }
+    (row: ProviderRow) => {
+      const current = held.current
+      if (current === null) return
 
-      const account = accountOf(row)
-      if (account === undefined) {
-        const current = held.current
-        if (current !== null) askForKey(current)
-        return
-      }
+      const index = current.rows.findIndex((heldRow) => heldRow.provider === row.provider)
+      if (index < 0) return
 
-      void accounts.use({ provider: account.provider, accountId: account.id }).then(() => refresh())
+      put({ ...current, index })
     },
-    [accounts, askForKey, githubConnect, refresh],
+    [put],
   )
 
   /**
@@ -200,7 +167,7 @@ export function useAccounts(args: {
 
     if (Date.now() > open.deadline) {
       stopDevice()
-      put(failed({ state: current, reason: 'that code expired — press n for a new one.' }))
+      put(failed({ state: current, reason: 'that code expired — start again from actions.' }))
       return
     }
 
@@ -283,31 +250,86 @@ export function useAccounts(args: {
     [accounts, beginDevice, openUrl, put],
   )
 
+  const askForKey = useCallback(
+    (current: AccountsState) => {
+      const provider = providerOf(current)
+      if (provider === undefined || !acceptsApiKey(provider)) return
+
+      put(askForApiKey({ state: current, provider }))
+    },
+    [put],
+  )
+
+  const confirmPick = useCallback(
+    (current: AccountsState) => {
+      const account = pickedAccount(current)
+      if (account === undefined) return
+
+      if (current.pickIntent === EPickIntent.Use) {
+        void accounts.use({ provider: account.provider, accountId: account.id }).then(() =>
+          refresh((next) => ({
+            ...backToList(next),
+            notice: `Active ${providerSpec(account.provider).label} login: ${account.label}.`,
+          })),
+        )
+        return
+      }
+
+      void accounts.remove(account.id).then(() =>
+        refresh((next) => ({ ...backToList(next), notice: `Removed ${account.label}.` })),
+      )
+    },
+    [accounts, refresh],
+  )
+
+  const runAction = useCallback(
+    (current: AccountsState, action: EProviderAction | undefined) => {
+      if (action === EProviderAction.SignIn) {
+        beginLogin(current)
+        return
+      }
+      if (action === EProviderAction.AddApiKey) {
+        askForKey(current)
+        return
+      }
+      if (action === EProviderAction.SwitchActive) {
+        put(openLoginPicker({ state: current, intent: EPickIntent.Use }))
+        return
+      }
+      if (action === EProviderAction.RemoveLogin) {
+        put(openLoginPicker({ state: current, intent: EPickIntent.Remove }))
+      }
+    },
+    [askForKey, beginLogin, put],
+  )
+
+  const handleChooseAction = useCallback(
+    (actionIndex: number) => {
+      const current = held.current
+      if (current === null) return
+
+      runAction(current, selectedAction({ ...current, action: actionIndex }))
+    },
+    [runAction],
+  )
+
+  const handleChooseLogin = useCallback(
+    (accountIndex: number) => {
+      const current = held.current
+      if (current === null) return
+
+      confirmPick({ ...current, pick: accountIndex })
+    },
+    [confirmPick],
+  )
+
   const handleOpenUrl = useCallback(() => {
     const current = held.current
-    const url = current?.prompt?.url ?? current?.githubPrompt?.url
+    const url = current?.prompt?.url
     if (url === undefined || url.length === 0) return
 
     openUrl(url)
   }, [openUrl])
-
-  const removeSelected = useCallback(
-    (current: AccountsState) => {
-      const row = selectedRow(current)
-      if (row === undefined) return
-
-      if (row.kind === EAccountRow.Github) {
-        if (row.github.connection !== null) githubConnect.disconnect()
-        return
-      }
-
-      const account = accountOf(row)
-      if (account === undefined) return
-
-      void accounts.remove(account.id).then(() => refresh())
-    },
-    [accounts, githubConnect, refresh],
-  )
 
   const submit = useCallback(
     (current: AccountsState) => {
@@ -350,25 +372,43 @@ export function useAccounts(args: {
         return
       }
 
-      if (key.name === 'return') {
-        const row = selectedRow(current)
-        if (row !== undefined) handlePick(row)
-        return
-      }
-
-      if (key.sequence === 'n') {
-        beginLogin(current)
-        return
-      }
-
-      if (key.sequence === 'k') {
-        askForKey(current)
-        return
-      }
-
-      if (key.sequence === 'x' || key.name === 'delete') removeSelected(current)
+      if (key.name === 'return') put(openActions(current))
     },
-    [beginLogin, handleDismiss, handlePick, put, removeSelected],
+    [handleDismiss, put],
+  )
+
+  const handleActionsKey = useCallback(
+    (key: KeyEvent, current: AccountsState) => {
+      if (key.name === 'escape') {
+        put(backToList(current))
+        return
+      }
+
+      if (key.name === 'up' || key.name === 'down') {
+        put(moveAction({ state: current, delta: key.name === 'up' ? -1 : 1 }))
+        return
+      }
+
+      if (key.name === 'return') runAction(current, selectedAction(current))
+    },
+    [put, runAction],
+  )
+
+  const handlePickerKey = useCallback(
+    (key: KeyEvent, current: AccountsState) => {
+      if (key.name === 'escape') {
+        put(backToActions(current))
+        return
+      }
+
+      if (key.name === 'up' || key.name === 'down') {
+        put(movePick({ state: current, delta: key.name === 'up' ? -1 : 1 }))
+        return
+      }
+
+      if (key.name === 'return') confirmPick(current)
+    },
+    [confirmPick, put],
   )
 
   const handlePromptKey = useCallback(
@@ -376,13 +416,11 @@ export function useAccounts(args: {
       if (key.name === 'escape') {
         ticket.current = null
         stopDevice()
-        githubConnect.stop()
         put(backToList(current))
         return
       }
 
-      if (current.view === EAccountsView.DeviceCode || current.view === EAccountsView.GithubDevice)
-        return
+      if (current.view === EAccountsView.DeviceCode) return
 
       if (key.name === 'return') {
         submit(current)
@@ -396,7 +434,7 @@ export function useAccounts(args: {
 
       if (isPrintable(key)) put(typeInto({ state: current, text: key.sequence ?? '' }))
     },
-    [githubConnect, put, stopDevice, submit],
+    [put, stopDevice, submit],
   )
 
   const handleKey = useCallback(
@@ -409,9 +447,19 @@ export function useAccounts(args: {
         return
       }
 
+      if (current.view === EAccountsView.Actions) {
+        handleActionsKey(key, current)
+        return
+      }
+
+      if (current.view === EAccountsView.SwitchLogin) {
+        handlePickerKey(key, current)
+        return
+      }
+
       handlePromptKey(key, current)
     },
-    [handleListKey, handlePromptKey],
+    [handleActionsKey, handleListKey, handlePickerKey, handlePromptKey],
   )
 
   usePaste(
@@ -432,7 +480,25 @@ export function useAccounts(args: {
   )
 
   return useMemo(
-    () => ({ state, handleOpen, handleDismiss, handlePick, handleKey, handleOpenUrl }),
-    [handleDismiss, handleKey, handleOpen, handleOpenUrl, handlePick, state],
+    () => ({
+      state,
+      handleOpen,
+      handleDismiss,
+      handlePick,
+      handleChooseAction,
+      handleChooseLogin,
+      handleKey,
+      handleOpenUrl,
+    }),
+    [
+      handleChooseAction,
+      handleChooseLogin,
+      handleDismiss,
+      handleKey,
+      handleOpen,
+      handleOpenUrl,
+      handlePick,
+      state,
+    ],
   )
 }
