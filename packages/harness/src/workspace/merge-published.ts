@@ -1,3 +1,5 @@
+import { CLOUD_WORKSPACE_PATH } from '@dltech/atlas-core'
+
 import { ATLAS_GIT_IDENTITY, gitLines, gitMessageOf, gitOneLine } from './git-text'
 import type { GitReader } from './snapshot'
 import { runGit } from './run-git'
@@ -49,7 +51,11 @@ export async function mergePublishedWorkspace(args: {
     const descends = await git({ args: ['merge-base', '--is-ancestor', args.base, 'FETCH_HEAD'], cwd })
     if (!descends.ok) {
       throw new Error(
-        'the published workspace does not descend from the baseline the sandbox recorded — refusing to merge',
+        [
+          `the published workspace does not descend from the baseline the sandbox recorded (${args.base}) — a history rewrite in the sandbox orphaned it, so the descend refuses to merge.`,
+          `The work is not lost: it was pushed to ${args.ref} on the remote, and the sandbox workspace at ${CLOUD_WORKSPACE_PATH} still holds it.`,
+          `Bring it home by hand: git fetch origin ${args.ref}, then git merge --squash FETCH_HEAD (or cherry-pick the commits) in this checkout, push the result, and descend again.`,
+        ].join(' '),
       )
     }
   }

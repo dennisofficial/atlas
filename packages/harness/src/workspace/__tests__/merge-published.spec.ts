@@ -3,6 +3,8 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import { CLOUD_WORKSPACE_PATH } from '@dltech/atlas-core'
+
 import { mergePublishedWorkspace } from '../merge-published'
 import { runGit, type GitRun } from '../run-git'
 
@@ -180,6 +182,27 @@ describe('mergePublishedWorkspace', () => {
     if (!(failure instanceof Error)) throw new Error('expected the ancestry check to refuse')
     expect(failure.message).toContain('baseline')
     expect((await git(local, ['status', '--porcelain'])).stdout).toBe(' M app.ts\n?? notes.txt\n')
+  })
+
+  it('names the rescue path when the baseline was orphaned: its SHA, the ref, and the manual steps', async () => {
+    const { local, cloud } = await scenario()
+    writeFileSync(join(cloud, 'cloud-made.txt'), 'from the sandbox\n')
+    const ref = await publishFrom(cloud)
+    const stranger = mkdtempSync(join(tmpdir(), 'atlas-merge-stranger-'))
+    await git(stranger, ['init', '--initial-branch=main'])
+    writeFileSync(join(stranger, 'x.txt'), 'x\n')
+    const foreign = await commitAll(stranger, 'not the baseline')
+
+    const failure = await mergePublishedWorkspace({ cwd: local, ref, base: foreign }).catch(
+      (error: unknown) => error,
+    )
+
+    if (!(failure instanceof Error)) throw new Error('expected the ancestry check to refuse')
+    expect(failure.message).toContain(foreign)
+    expect(failure.message).toContain(ref)
+    expect(failure.message).toContain(CLOUD_WORKSPACE_PATH)
+    expect(failure.message).toContain(`git fetch origin ${ref}`)
+    expect(failure.message).toContain('merge --squash FETCH_HEAD')
   })
 
   it('reports a fetch failure without touching the tree', async () => {
