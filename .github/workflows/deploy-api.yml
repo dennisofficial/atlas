@@ -1,0 +1,36 @@
+name: deploy-api
+
+on:
+  push:
+    branches: [main]
+    paths:
+      # mirrors the build context of apps/api/Dockerfile — update both together
+      - apps/api/**
+      - packages/core/**
+      - packages/harness/**
+      - packages/ui/package.json
+      - apps/tui/package.json
+      - apps/web/package.json
+      - package.json
+      - bun.lock
+      - bunfig.toml
+      - tsconfig.base.json
+      - .github/workflows/deploy-api.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - run: doctl apps create-deployment 38173680-1c3e-4941-a9f8-53539407a83d --wait
