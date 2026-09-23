@@ -151,7 +151,6 @@ function noticeFor(args: { path: string; scan: Selection }): string | undefined 
 
 export type ReadToolArgs = {
   files?: AgentFileSystemPort | undefined
-  carriesToolImages?: (() => boolean) | undefined
 }
 
 export class ReadTool extends SchemaTool<typeof inputSchema> {
@@ -173,12 +172,10 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
   ]
 
   private readonly files: AgentFileSystemPort
-  private readonly carriesToolImages: () => boolean
 
   constructor(args: ReadToolArgs = {}) {
     super()
     this.files = args.files ?? new LocalFileSystemPort()
-    this.carriesToolImages = args.carriesToolImages ?? (() => true)
   }
 
   protected override async run({
@@ -218,7 +215,6 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
         head,
         files: this.files,
         threadId,
-        carriesToolImages: this.carriesToolImages(),
       })
     }
 

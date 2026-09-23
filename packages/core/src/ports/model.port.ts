@@ -20,7 +20,6 @@ export type ModelStepResult = {
 export type ModelTraits = {
   imageTier?: EImageTier | undefined
   contextWindow?: number | undefined
-  carriesToolImages?: boolean | undefined
 }
 
 export const CONTEXT_WINDOW_UNMEASURED = 0
@@ -30,9 +29,6 @@ export const imageTierOf = (model: { traits?: () => ModelTraits }): EImageTier =
 
 export const contextWindowOf = (model: { traits?: () => ModelTraits }): number =>
   model.traits?.().contextWindow ?? CONTEXT_WINDOW_UNMEASURED
-
-export const toolImagesCarriedBy = (model: { traits?: () => ModelTraits }): boolean =>
-  model.traits?.().carriesToolImages ?? true
 
 export abstract class ModelPort {
   abstract readonly identity: ProviderIdentity
