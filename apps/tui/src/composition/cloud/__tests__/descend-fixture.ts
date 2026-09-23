@@ -20,6 +20,7 @@ import { fakeServiceRegistry } from '../../__tests__/fake-services'
 import type { MoveStepId } from '../../container-move'
 import type { ContainerMoveControl } from '../../use-container-move'
 import { descendFromCloud, type DescendLocalHome, type WorkspaceMerger } from '../descend'
+import type { RemoteMemoryMerge } from '../merge-remote-memory'
 import { CLOUD_THREAD, type FakeBridge, type FakeCloudChannel } from './fixture'
 
 export const AT = '2026-09-17T12:00:00.000Z'
@@ -126,7 +127,7 @@ export const descend = (args: {
   midTurn?: boolean
   interruptDeadlineMs?: number
   mergeWorkspace?: WorkspaceMerger
-  pullMemory?: () => Promise<void>
+  pullMemory?: () => Promise<RemoteMemoryMerge>
 }) =>
   descendFromCloud({
     threadId: CLOUD_THREAD,

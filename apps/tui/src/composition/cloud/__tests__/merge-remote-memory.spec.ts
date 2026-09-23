@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 
-import { access, mkdir, mkdtemp, readFile, utimes, writeFile } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, readFile, realpath, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import { sanitiseRepoPath } from '@dltech/atlas-core'
 import { buildContextArchive, memoryDirectoriesFor } from '@dltech/atlas-harness'
 
 import { currentNotices, dismissNotice } from '../../../ui/notice-store'
@@ -58,12 +59,12 @@ describe('mergeRemoteMemory', () => {
 
   it('overwrites a local file that is older than the remote one', async () => {
     const atlasHome = await freshDirectory('atlas-merge-home-')
-    const local = join(atlasHome, 'memory', 'MEMORY.md')
+    const local = join(atlasHome, 'memory', 'notes.md')
     await mkdir(join(atlasHome, 'memory'), { recursive: true })
     await writeFile(local, '# stale local note', 'utf8')
     await setMtime(local, 1_000)
 
-    const fetchFn = fetchReturning({ 'user/MEMORY.md': entryFor('# fresher from the cloud', 5_000) })
+    const fetchFn = fetchReturning({ 'user/notes.md': entryFor('# fresher from the cloud', 5_000) })
 
     const result = await mergeRemoteMemory({ session: SESSION, atlasHome, fetchFn })
 
@@ -71,19 +72,53 @@ describe('mergeRemoteMemory', () => {
     expect(await readFile(local, 'utf8')).toBe('# fresher from the cloud')
   })
 
-  it('leaves a local file alone when it is newer than the remote one', async () => {
+  it('merges the MEMORY.md index line-union with dedupe, whichever side is newer', async () => {
     const atlasHome = await freshDirectory('atlas-merge-home-')
     const local = join(atlasHome, 'memory', 'MEMORY.md')
+    await mkdir(join(atlasHome, 'memory'), { recursive: true })
+    await writeFile(local, '- one\n- two\n', 'utf8')
+    await setMtime(local, 9_000)
+
+    const fetchFn = fetchReturning({
+      'user/MEMORY.md': entryFor('- two\n- three\n', 1_000),
+    })
+
+    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, fetchFn })
+
+    expect(result.replaced).toBe(1)
+    expect(result.conflicts).toEqual([])
+    expect(await readFile(local, 'utf8')).toBe('- one\n- two\n- three\n')
+  })
+
+  it('keeps the local copy on a conflict and returns the cloud version rather than dropping it', async () => {
+    const atlasHome = await freshDirectory('atlas-merge-home-')
+    const local = join(atlasHome, 'memory', 'notes.md')
     await mkdir(join(atlasHome, 'memory'), { recursive: true })
     await writeFile(local, '# newer local note', 'utf8')
     await setMtime(local, 9_000)
 
-    const fetchFn = fetchReturning({ 'user/MEMORY.md': entryFor('# stale cloud note', 1_000) })
+    const fetchFn = fetchReturning({ 'user/notes.md': entryFor('# stale cloud note', 1_000) })
 
     const result = await mergeRemoteMemory({ session: SESSION, atlasHome, fetchFn })
 
     expect(result.replaced).toBe(0)
+    expect(result.conflicts).toEqual([{ key: 'user/notes.md', text: '# stale cloud note' }])
     expect(await readFile(local, 'utf8')).toBe('# newer local note')
+  })
+
+  it('stays quiet when the newer local copy holds what the cloud holds', async () => {
+    const atlasHome = await freshDirectory('atlas-merge-home-')
+    const local = join(atlasHome, 'memory', 'notes.md')
+    await mkdir(join(atlasHome, 'memory'), { recursive: true })
+    await writeFile(local, '# same note', 'utf8')
+    await setMtime(local, 9_000)
+
+    const fetchFn = fetchReturning({ 'user/notes.md': entryFor('# same note', 1_000) })
+
+    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, fetchFn })
+
+    expect(result.replaced).toBe(0)
+    expect(result.conflicts).toEqual([])
   })
 
   it('skips project entries when there is no cwd to lift against', async () => {
@@ -175,6 +210,104 @@ describe('mergeRemoteMemory', () => {
     await mergeRemoteMemory({ session: SESSION, atlasHome, fetchFn })
 
     expect(currentNotices().find((entry) => entry.key === 'remote-memory-merge')).toBeUndefined()
+  })
+})
+
+const git = (args: { args: string[]; cwd: string }): void => {
+  const run = Bun.spawnSync(['git', ...args.args], { cwd: args.cwd })
+  if (run.exitCode !== 0) {
+    throw new Error(`git ${args.args.join(' ')} failed: ${run.stderr.toString()}`)
+  }
+}
+
+const initRepoWithOrigin = async (origin: string): Promise<string> => {
+  const repo = await realpath(await freshDirectory('atlas-merge-repo-'))
+  git({ args: ['init', '--initial-branch=main'], cwd: repo })
+  git({ args: ['remote', 'add', 'origin', origin], cwd: repo })
+  return repo
+}
+
+describe('mergeRemoteMemory with a repo identity', () => {
+  it('matches a project entry by repo identity into the identity-keyed directory', async () => {
+    const atlasHome = await freshDirectory('atlas-merge-home-')
+    const cwd = await initRepoWithOrigin('git@github.com:org/atlas.git')
+    const identity = 'github.com/org/atlas'
+    const fetchFn = fetchReturning({
+      [`project/${encodeURIComponent(identity)}/notes.md`]: entryFor('# cloud project note', 1_000),
+    })
+
+    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, cwd, fetchFn })
+
+    expect(result.replaced).toBe(1)
+    expect(
+      await readFile(
+        join(atlasHome, 'projects', 'github.com', 'org', 'atlas', 'memory', 'notes.md'),
+        'utf8',
+      ),
+    ).toBe('# cloud project note')
+  })
+
+  it('skips an identity entry that names a different repo', async () => {
+    const atlasHome = await freshDirectory('atlas-merge-home-')
+    const cwd = await initRepoWithOrigin('git@github.com:org/atlas.git')
+    const fetchFn = fetchReturning({
+      [`project/${encodeURIComponent('github.com/someone/else')}/notes.md`]: entryFor(
+        '# not this repo',
+        1_000,
+      ),
+    })
+
+    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, cwd, fetchFn })
+
+    expect(result.replaced).toBe(0)
+    expect(await exists(join(atlasHome, 'projects'))).toBe(false)
+  })
+
+  it('adopts the legacy path-keyed directory while merging, so old notes are not forked', async () => {
+    const atlasHome = await freshDirectory('atlas-merge-home-')
+    const cwd = await initRepoWithOrigin('git@github.com:org/atlas.git')
+    const legacy = join(atlasHome, 'projects', sanitiseRepoPath(cwd), 'memory')
+    await mkdir(legacy, { recursive: true })
+    await writeFile(join(legacy, 'old.md'), '# pre-identity note', 'utf8')
+
+    const fetchFn = fetchReturning({
+      [`project/${encodeURIComponent('github.com/org/atlas')}/new.md`]: entryFor('# cloud note', 1_000),
+    })
+
+    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, cwd, fetchFn })
+
+    const identityMemory = join(atlasHome, 'projects', 'github.com', 'org', 'atlas', 'memory')
+    expect(result.replaced).toBe(1)
+    expect(await readFile(join(identityMemory, 'old.md'), 'utf8')).toBe('# pre-identity note')
+    expect(await readFile(join(identityMemory, 'new.md'), 'utf8')).toBe('# cloud note')
+    expect(await exists(join(legacy, 'old.md'))).toBe(false)
+  })
+
+  it('matches a legacy path-keyed entry recorded against a sibling worktree of this repo', async () => {
+    const atlasHome = await freshDirectory('atlas-merge-home-')
+    const main = await initRepoWithOrigin('git@github.com:org/atlas.git')
+    await writeFile(join(main, 'README.md'), 'hi', 'utf8')
+    git({ args: ['add', 'README.md'], cwd: main })
+    git({ args: ['-c', 'user.name=T', '-c', 'user.email=t@t', 'commit', '-m', 'init'], cwd: main })
+    const worktree = join(await realpath(await freshDirectory('atlas-merge-wt-parent-')), 'wt')
+    git({ args: ['worktree', 'add', worktree], cwd: main })
+
+    const fetchFn = fetchReturning({
+      [projectKey({ projectDirectory: main, name: 'notes.md' })]: entryFor(
+        '# recorded from the main checkout',
+        1_000,
+      ),
+    })
+
+    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, cwd: worktree, fetchFn })
+
+    expect(result.replaced).toBe(1)
+    expect(
+      await readFile(
+        join(atlasHome, 'projects', 'github.com', 'org', 'atlas', 'memory', 'notes.md'),
+        'utf8',
+      ),
+    ).toBe('# recorded from the main checkout')
   })
 })
 

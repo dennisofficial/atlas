@@ -1,6 +1,7 @@
 import type { EventDraft } from '@dltech/atlas-core'
 
 import type { LiftedWorkspace } from './cloud-bridge'
+import type { RemoteMemoryConflict } from './merge-remote-memory'
 
 export const CLOUD_NOTICE_SLOT = 'session'
 
@@ -87,6 +88,33 @@ export const liftedDraft = (args: {
   slot: CLOUD_NOTICE_SLOT,
   key: CLOUD_NOTICE_KEY,
   content: liftedProse(args),
+})
+
+const CONFLICT_TEXT_BUDGET = 2_000
+
+const conflictBlock = (conflict: RemoteMemoryConflict): string => {
+  const text =
+    conflict.text.length <= CONFLICT_TEXT_BUDGET
+      ? conflict.text
+      : `${conflict.text.slice(0, CONFLICT_TEXT_BUDGET)}…`
+  return `--- ${conflict.key} ---\n${text}`
+}
+
+/**
+ * The memory side of the mirror image: the cloud wrote notes this machine had newer copies of, so
+ * the local copies won the merge — and the cloud's versions are kept verbatim in the log rather
+ * than dropped, which is the whole reason this is prose and not a silent skip.
+ */
+export const descendedMemoryConflictsDraft = (args: {
+  conflicts: readonly RemoteMemoryConflict[]
+}): EventDraft => ({
+  type: 'context-loaded',
+  slot: CLOUD_NOTICE_SLOT,
+  key: CLOUD_NOTICE_KEY,
+  content: [
+    'This session has moved: it now runs on the operator’s machine again. The cloud had written memory this machine held newer copies of, so the local versions won the merge — and the cloud versions are kept here, verbatim, so nothing it learned is lost:',
+    ...args.conflicts.map(conflictBlock),
+  ].join('\n\n'),
 })
 
 /**

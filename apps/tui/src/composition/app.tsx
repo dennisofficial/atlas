@@ -962,7 +962,7 @@ function Workspace(props: {
           move: containerMove,
           pullMemory: () => {
             const signedIn = props.localApp.cloud.session()
-            if (signedIn === null) return Promise.resolve()
+            if (signedIn === null) return Promise.resolve({ replaced: 0, conflicts: [] })
             return mergeRemoteMemoryBounded({
               session: signedIn,
               cwd: props.localApp.workspace.workspace,

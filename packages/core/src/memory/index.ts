@@ -1,5 +1,6 @@
 export * from './types'
 export * from './roots'
+export * from './repo-identity'
 export * from './index-file'
 export * from './prompt'
 export * from './recognise'

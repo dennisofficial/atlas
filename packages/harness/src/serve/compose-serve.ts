@@ -23,6 +23,7 @@ import { loadSettings } from '../composition/settings-binding'
 import { portToken } from '../container/injection'
 import { SecretsStoreToken } from '../container/tokens'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
+import { memoryDirectoriesFor } from '../memory/read-memory'
 import { atlasDirectory } from '../store/paths'
 import { ThreadStorePort } from '../store/thread-store'
 
@@ -105,6 +106,14 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     clientVersion: args.clientVersion,
   })
 
+  const identity = args.identity ?? null
+  const keyPrefix =
+    identity !== null
+      ? `project/${encodeURIComponent(identity)}`
+      : args.projectDirectory === null || args.projectDirectory === undefined
+        ? 'project'
+        : `project/${encodeURIComponent(args.projectDirectory)}`
+
   const memory = createMemoryUploader({
     client: new UserContextClient({
       url: args.controlPlaneUrl,
@@ -112,12 +121,19 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       clientVersion: args.clientVersion,
     }),
     atlasHome: atlasDirectory(),
-    cwd: args.cwd,
-    projectDirectory: args.projectDirectory,
+    project: {
+      directory: memoryDirectoriesFor({
+        atlasHome: atlasDirectory(),
+        repoRoot: args.cwd,
+        identity,
+      }).project,
+      keyPrefix,
+    },
     notice: args.notice,
   })
 
   const app = await composeHarness<ServeStores>({
+    repoIdentity: identity,
     bindPorts: ({ container }) => {
       container.register(portToken(AccountStorePort), { useValue: new ServeAccountStore({ broker }) })
       container.register(portToken(CredentialPort), {

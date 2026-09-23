@@ -49,6 +49,6 @@ describe('mergeRemoteMemoryBounded', () => {
 
     await expect(
       mergeRemoteMemoryBounded({ session: SESSION, cwd, timeoutMs: 5_000, fetchFn }),
-    ).resolves.toBeUndefined()
+    ).resolves.toEqual({ replaced: 0, conflicts: [] })
   })
 })

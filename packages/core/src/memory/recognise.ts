@@ -20,7 +20,7 @@ export function looksLikeMemoryPath(path: string): boolean {
   if (grandparent === undefined) return false
   if (grandparent === HOME_NAME) return true
 
-  return segments.at(-4) === MEMORY_PROJECTS_DIRECTORY_NAME
+  return segments.slice(0, -3).includes(MEMORY_PROJECTS_DIRECTORY_NAME)
 }
 
 export const isMemoryIndexPath = (path: string): boolean =>
@@ -40,10 +40,11 @@ const escaped = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, 
 /**
  * A memory path as it appears inside a shell command, where there is no argument to inspect — only
  * the line the model wrote. Anchored on the directory that OWNS a memory directory, so a repository
- * with its own `src/memory/` is not mistaken for one.
+ * with its own `src/memory/` is not mistaken for one. The projects tier is keyed by repo identity
+ * (`projects/github.com/org/repo/memory`) since path keys forked per checkout.
  */
 export const MEMORY_MENTION = new RegExp(
-  `(?:${escaped(HOME_NAME)}|${escaped(MEMORY_PROJECTS_DIRECTORY_NAME)}/[^\\s'"/]+)/${escaped(MEMORY_DIRECTORY_NAME)}(?:/|\\b)`,
+  `(?:${escaped(HOME_NAME)}|${escaped(MEMORY_PROJECTS_DIRECTORY_NAME)}/[^\\s'"]+)/${escaped(MEMORY_DIRECTORY_NAME)}(?:/|\\b)`,
 )
 
 export const mentionsMemoryPath = (text: string): boolean => MEMORY_MENTION.test(text)

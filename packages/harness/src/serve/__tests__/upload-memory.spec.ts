@@ -7,12 +7,12 @@ import { join } from 'node:path'
 import { ENoticeTone, type NoticePort, type NoticePost } from '@dltech/atlas-core'
 
 import { extractContextArchive } from '../../cloud/context-archive'
-import { memoryDirectoriesFor } from '../../memory/read-memory'
 import {
   captureMemoryArchive,
   createMemoryUploader,
   memoryManifestOf,
   walkMemorySet,
+  type ProjectMemorySource,
 } from '../upload-memory'
 
 const freshDirectory = async (prefix: string): Promise<string> => mkdtemp(join(tmpdir(), prefix))
@@ -21,6 +21,15 @@ const writeUnder = async (args: { directory: string; name: string; content: stri
   const path = join(args.directory, args.name)
   await mkdir(join(path, '..'), { recursive: true })
   await writeFile(path, args.content, 'utf8')
+}
+
+const projectSource = async (args: {
+  atlasHome: string
+  identity: string
+}): Promise<ProjectMemorySource> => {
+  const directory = join(args.atlasHome, 'projects', ...args.identity.split('/'), 'memory')
+  await mkdir(directory, { recursive: true })
+  return { directory, keyPrefix: `project/${encodeURIComponent(args.identity)}` }
 }
 
 const decode = async (archive: Buffer): Promise<Record<string, string>> => {
@@ -47,14 +56,12 @@ const fakeNotice = (): NoticePort & { posts: () => readonly NoticePost[] } => {
 describe('walkMemorySet', () => {
   it('returns nothing when there is nothing to carry', async () => {
     const atlasHome = await freshDirectory('atlas-upload-home-')
-    const cwd = await freshDirectory('atlas-upload-cwd-')
 
-    expect(await walkMemorySet({ atlasHome, cwd })).toEqual([])
+    expect(await walkMemorySet({ atlasHome })).toEqual([])
   })
 
   it('carries the flat user memory files with an mtime and size, but not a nested project directory', async () => {
     const atlasHome = await freshDirectory('atlas-upload-home-')
-    const cwd = await freshDirectory('atlas-upload-cwd-')
     await writeUnder({ directory: join(atlasHome, 'memory'), name: 'MEMORY.md', content: '# user memory' })
     await writeUnder({
       directory: join(atlasHome, 'memory'),
@@ -62,34 +69,22 @@ describe('walkMemorySet', () => {
       content: '# nested, not ours to carry here',
     })
 
-    const entries = await walkMemorySet({ atlasHome, cwd })
+    const entries = await walkMemorySet({ atlasHome })
 
     expect(entries.map((entry) => entry.key)).toEqual(['user/MEMORY.md'])
     expect(entries[0]?.mtimeMs).toBeGreaterThan(0)
     expect(entries[0]?.size).toBeGreaterThan(0)
   })
 
-  it('carries this workspace’s project memory under a bare project/ prefix when the Mac-side directory is unknown', async () => {
+  it('keys project memory by the repo identity the serve was told', async () => {
     const atlasHome = await freshDirectory('atlas-upload-home-')
-    const cwd = await freshDirectory('atlas-upload-cwd-')
-    const projectMemory = memoryDirectoriesFor({ atlasHome, repoRoot: cwd }).project
-    await writeUnder({ directory: projectMemory, name: 'MEMORY.md', content: '# project memory' })
+    const project = await projectSource({ atlasHome, identity: 'github.com/dennisofficial/atlas' })
+    await writeUnder({ directory: project.directory, name: 'MEMORY.md', content: '# project memory' })
 
-    const entries = await walkMemorySet({ atlasHome, cwd })
-
-    expect(entries.map((entry) => entry.key)).toEqual(['project/MEMORY.md'])
-  })
-
-  it('keys project memory by the Mac-side project directory when the workspace spec named one', async () => {
-    const atlasHome = await freshDirectory('atlas-upload-home-')
-    const cwd = await freshDirectory('atlas-upload-cwd-')
-    const projectMemory = memoryDirectoriesFor({ atlasHome, repoRoot: cwd }).project
-    await writeUnder({ directory: projectMemory, name: 'MEMORY.md', content: '# project memory' })
-
-    const entries = await walkMemorySet({ atlasHome, cwd, projectDirectory: '/Users/dennis/dev/atlas' })
+    const entries = await walkMemorySet({ atlasHome, project })
 
     expect(entries.map((entry) => entry.key)).toEqual([
-      'project/%2FUsers%2Fdennis%2Fdev%2Fatlas/MEMORY.md',
+      'project/github.com%2Fdennisofficial%2Fatlas/MEMORY.md',
     ])
   })
 })
@@ -114,10 +109,9 @@ describe('memoryManifestOf', () => {
 describe('captureMemoryArchive', () => {
   it('archives the same content and mtime walkMemorySet reported', async () => {
     const atlasHome = await freshDirectory('atlas-upload-home-')
-    const cwd = await freshDirectory('atlas-upload-cwd-')
     await writeUnder({ directory: join(atlasHome, 'memory'), name: 'MEMORY.md', content: '# user memory' })
 
-    const entries = await walkMemorySet({ atlasHome, cwd })
+    const entries = await walkMemorySet({ atlasHome })
     const archive = await captureMemoryArchive({ entries })
     if (archive === undefined) throw new Error('expected an archive')
 
@@ -126,12 +120,11 @@ describe('captureMemoryArchive', () => {
 
   it('captures a non-UTF8 file without corrupting its bytes', async () => {
     const atlasHome = await freshDirectory('atlas-upload-home-')
-    const cwd = await freshDirectory('atlas-upload-cwd-')
     const rawBytes = Buffer.from([0xff, 0xfe, 0x00, 0x01, 0x02])
     await mkdir(join(atlasHome, 'memory'), { recursive: true })
     await writeFile(join(atlasHome, 'memory', 'icon.png'), rawBytes)
 
-    const entries = await walkMemorySet({ atlasHome, cwd })
+    const entries = await walkMemorySet({ atlasHome })
     const archive = await captureMemoryArchive({ entries })
     if (archive === undefined) throw new Error('expected an archive')
 
@@ -153,13 +146,12 @@ describe('captureMemoryArchive', () => {
 describe('createMemoryUploader', () => {
   it('uploads the captured archive once and skips a re-capture whose manifest has not changed', async () => {
     const atlasHome = await freshDirectory('atlas-upload-home-')
-    const cwd = await freshDirectory('atlas-upload-cwd-')
     await writeUnder({ directory: join(atlasHome, 'memory'), name: 'MEMORY.md', content: '# note' })
 
     const uploaded: Buffer[] = []
     const client = { writeMemoryArchive: async (archive: Buffer) => void uploaded.push(archive) }
     const notice = fakeNotice()
-    const uploader = createMemoryUploader({ client, atlasHome, cwd, notice })
+    const uploader = createMemoryUploader({ client, atlasHome, notice })
 
     await uploader.syncAfterTurn()
     await uploader.syncAfterTurn()
@@ -170,12 +162,11 @@ describe('createMemoryUploader', () => {
 
   it('uploads again once the walked set actually changes', async () => {
     const atlasHome = await freshDirectory('atlas-upload-home-')
-    const cwd = await freshDirectory('atlas-upload-cwd-')
     await writeUnder({ directory: join(atlasHome, 'memory'), name: 'MEMORY.md', content: '# note' })
 
     const uploaded: Buffer[] = []
     const client = { writeMemoryArchive: async (archive: Buffer) => void uploaded.push(archive) }
-    const uploader = createMemoryUploader({ client, atlasHome, cwd, notice: fakeNotice() })
+    const uploader = createMemoryUploader({ client, atlasHome, notice: fakeNotice() })
 
     await uploader.syncAfterTurn()
     await writeUnder({ directory: join(atlasHome, 'memory'), name: 'MEMORY.md', content: '# note, revised, and longer' })
@@ -189,11 +180,10 @@ describe('createMemoryUploader', () => {
 
   it('never uploads when there is nothing captured', async () => {
     const atlasHome = await freshDirectory('atlas-upload-home-')
-    const cwd = await freshDirectory('atlas-upload-cwd-')
 
     const uploaded: Buffer[] = []
     const client = { writeMemoryArchive: async (archive: Buffer) => void uploaded.push(archive) }
-    const uploader = createMemoryUploader({ client, atlasHome, cwd, notice: fakeNotice() })
+    const uploader = createMemoryUploader({ client, atlasHome, notice: fakeNotice() })
 
     await uploader.syncAfterTurn()
 
@@ -202,7 +192,6 @@ describe('createMemoryUploader', () => {
 
   it('reports a failed upload through the notice port rather than throwing', async () => {
     const atlasHome = await freshDirectory('atlas-upload-home-')
-    const cwd = await freshDirectory('atlas-upload-cwd-')
     await writeUnder({ directory: join(atlasHome, 'memory'), name: 'MEMORY.md', content: '# note' })
 
     const client = {
@@ -211,7 +200,7 @@ describe('createMemoryUploader', () => {
       },
     }
     const notice = fakeNotice()
-    const uploader = createMemoryUploader({ client, atlasHome, cwd, notice })
+    const uploader = createMemoryUploader({ client, atlasHome, notice })
 
     await uploader.syncAfterTurn()
 
@@ -220,26 +209,19 @@ describe('createMemoryUploader', () => {
     expect(notice.posts()[0]?.text).toContain('the control plane said no')
   })
 
-  it('carries the projectDirectory through to the keys it uploads', async () => {
+  it('carries the repo identity through to the keys it uploads', async () => {
     const atlasHome = await freshDirectory('atlas-upload-home-')
-    const cwd = await freshDirectory('atlas-upload-cwd-')
-    const projectMemory = memoryDirectoriesFor({ atlasHome, repoRoot: cwd }).project
-    await writeUnder({ directory: projectMemory, name: 'MEMORY.md', content: '# project memory' })
+    const project = await projectSource({ atlasHome, identity: 'github.com/dennisofficial/atlas' })
+    await writeUnder({ directory: project.directory, name: 'MEMORY.md', content: '# project memory' })
 
     const uploaded: Buffer[] = []
     const client = { writeMemoryArchive: async (archive: Buffer) => void uploaded.push(archive) }
-    const uploader = createMemoryUploader({
-      client,
-      atlasHome,
-      cwd,
-      projectDirectory: '/Users/dennis/dev/atlas',
-      notice: fakeNotice(),
-    })
+    const uploader = createMemoryUploader({ client, atlasHome, project, notice: fakeNotice() })
 
     await uploader.syncAfterTurn()
 
     expect(Object.keys(await decode(uploaded[0] as Buffer))).toEqual([
-      'project/%2FUsers%2Fdennis%2Fdev%2Fatlas/MEMORY.md',
+      'project/github.com%2Fdennisofficial%2Fatlas/MEMORY.md',
     ])
   })
 })
