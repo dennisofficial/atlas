@@ -74,6 +74,7 @@ export class ExecutionLocationFragment extends VolatilePromptFragment {
     return [
       'This session runs its tools inside a cloud sandbox, not the operator’s machine, and it cannot move itself to the host or into Docker — moving to or from the cloud is the operator’s call.',
       'A port it publishes through service_start’s exposePort is reachable at a URL the operator can open, not at a local address, since the two of you share no machine.',
+      'The workspace arrived with a lift baseline commit ("atlas: lifted workspace baseline"). Commit ON TOP of it and never rewrite history past it — no reset, rebase, or amend that orphans it — because the descend keys on its SHA, and losing it strands this session in the cloud.',
     ].join(' ')
   }
 }
