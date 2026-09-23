@@ -95,12 +95,23 @@ export class GithubAppService {
         throw new GithubAppNotInstalled({ owner: args.owner, repo: args.repo })
       },
     })
-    const minted = await this.request<{ token: string }>({
+    return this.mintInstallationToken({ installationId: installation.id })
+  }
+
+  /** Adds 👀 — the intake acknowledgment that tells the labeler the factory has the item. */
+  async addIssueReaction(args: {
+    installationId: number
+    repoFullName: string
+    issueNumber: number
+  }): Promise<void> {
+    const token = await this.mintInstallationToken({ installationId: args.installationId })
+    await this.request<unknown>({
       method: 'POST',
-      path: `/app/installations/${installation.id}/access_tokens`,
-      as: 'app',
+      path: `/repos/${args.repoFullName}/issues/${args.issueNumber}/reactions`,
+      as: 'installation',
+      token,
+      body: { content: 'eyes' },
     })
-    return minted.token
   }
 
   /** Null when the branch is not on the remote — the delivery gate's "pushed" check. */
@@ -164,6 +175,15 @@ export class GithubAppService {
       body: { body: args.body },
     })
     return { url: comment.html_url }
+  }
+
+  private async mintInstallationToken(args: { installationId: number }): Promise<string> {
+    const minted = await this.request<{ token: string }>({
+      method: 'POST',
+      path: `/app/installations/${args.installationId}/access_tokens`,
+      as: 'app',
+    })
+    return minted.token
   }
 
   private readConfig(): AppConfig | null {

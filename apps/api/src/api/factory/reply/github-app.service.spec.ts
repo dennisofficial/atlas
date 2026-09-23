@@ -125,6 +125,27 @@ describe('GithubAppService', () => {
       expect(calls).toHaveLength(2)
     })
 
+    it('addIssueReaction mints from the payload installation id and posts eyes as the installation', async () => {
+      const { fetchFn, calls } = fakeFetch({
+        'POST https://api.github.com/app/installations/42/access_tokens': () =>
+          jsonResponse(201, { token: 'ghs_installation_token' }),
+        'POST https://api.github.com/repos/compai/atlas/issues/341/reactions': () =>
+          jsonResponse(201, { id: 1, content: 'eyes' }),
+      })
+      service = new GithubAppService(fakeEnv({ configured: true }), fetchFn)
+
+      await service.addIssueReaction({ installationId: 42, repoFullName: 'compai/atlas', issueNumber: 341 })
+
+      expect(calls.map((call) => `${call.method} ${call.url}`)).toEqual([
+        'POST https://api.github.com/app/installations/42/access_tokens',
+        'POST https://api.github.com/repos/compai/atlas/issues/341/reactions',
+      ])
+      const [mint, reaction] = calls as [Call, Call]
+      expect(mint.authorization).toMatch(/^Bearer .+\..+\..+$/)
+      expect(reaction.authorization).toBe('Bearer ghs_installation_token')
+      expect(reaction.body).toEqual({ content: 'eyes' })
+    })
+
     it('assertInstallation resolves when the installation exists for this app', async () => {
       const { fetchFn, calls } = fakeFetch({
         'GET https://api.github.com/app/installations/12345678': () =>

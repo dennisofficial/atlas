@@ -182,6 +182,7 @@ export class GithubWebhookService {
         externalId,
         aliasKind: EFactoryAliasKind.Issue,
       })
+      await this.acknowledgeIntake({ payload })
       return this.append({
         externalId,
         deliveryId: args.deliveryId,
@@ -198,6 +199,23 @@ export class GithubWebhookService {
       author: payload.sender.login,
       payload,
     })
+  }
+
+  private async acknowledgeIntake(args: { payload: GithubIssuesEventPayload }): Promise<void> {
+    const installationId = args.payload.installation?.id
+    if (installationId === undefined) return
+    try {
+      await this.githubApp.addIssueReaction({
+        installationId,
+        repoFullName: args.payload.repository.full_name,
+        issueNumber: args.payload.issue.number,
+      })
+    } catch (failure) {
+      const detail = failure instanceof Error ? failure.message : String(failure)
+      this.logger.warn(
+        `could not add the intake reaction on ${args.payload.repository.full_name}#${args.payload.issue.number}: ${detail}`,
+      )
+    }
   }
 
   private async handleIssueComment(args: {
