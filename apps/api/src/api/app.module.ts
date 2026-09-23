@@ -14,6 +14,7 @@ import { FactoryModule } from './factory/factory.module'
 import { GithubModule } from './cloud/github/github.module'
 import { GithubSandboxPrsModule } from './cloud/github/github-sandbox-prs.module'
 import { GithubWebhooksModule } from './cloud/github/github-webhooks.module'
+import { DrainStateService } from './platform/health/drain-state.service'
 import { HealthController } from './platform/health/health.controller'
 import { MigrationStateService } from './platform/health/migration-state.service'
 import { McpServersModule } from './cloud/mcp-servers/mcp-servers.module'
@@ -51,6 +52,7 @@ import { UserContextModule } from './cloud/user-context/user-context.module'
   ],
   controllers: [HealthController],
   providers: [
+    DrainStateService,
     MigrationStateService,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: ClientVersionGuard },

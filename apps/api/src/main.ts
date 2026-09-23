@@ -7,7 +7,9 @@ import helmet from 'helmet'
 import { envConfigValidation } from './_core/config/env/validation'
 import { contextArchiveRawParser } from './api/cloud/context-archive/context-archive-http'
 import { MAX_CONTEXT_ARCHIVE_BYTES } from './api/cloud/context-archive/context-archive-limits'
+import { registerGracefulShutdown } from './api/graceful-shutdown'
 import { hydrateEnvFromTierFile } from './api/hydrate-env'
+import { DrainStateService } from './api/platform/health/drain-state.service'
 import { WORKSPACE_BODY_LIMIT } from './api/platform/sandboxes/workspace-spec'
 
 const VALIDATION_PIPE_OPTIONS = {
@@ -42,7 +44,6 @@ async function createApp(): Promise<NestExpressApplication> {
   app.set('trust proxy', 1)
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })
   app.useGlobalPipes(new ValidationPipe(VALIDATION_PIPE_OPTIONS))
-  app.enableShutdownHooks()
 
   await app.init()
   return app
@@ -61,12 +62,10 @@ export default async function handler(
 
 if (process.env.VERCEL !== '1') {
   void ready.then(async (app) => {
-    const shutdown = (signal: string) => {
-      void app.close().then(() => process.exit(0))
-      process.stderr.write(`received ${signal}, shutting down\n`)
-    }
-    process.on('SIGTERM', () => shutdown('SIGTERM'))
-    process.on('SIGINT', () => shutdown('SIGINT'))
+    registerGracefulShutdown({
+      beginDrain: () => app.get(DrainStateService).beginDrain(),
+      closeApp: () => app.close(),
+    })
 
     await app.listen(Number(process.env.PORT ?? 3400))
   })
