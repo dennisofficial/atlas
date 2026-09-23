@@ -1,7 +1,14 @@
 name: release
 
+# Gates on the ci workflow instead of running its own test suite: ci.yml already runs
+# typecheck, the sharded TUI suite, the package suites and the binary builds on every
+# push to main, so a second serialized copy here only delayed failures (a red run took
+# ~18min in the duplicated test step alone). conclusion == success means a release can
+# only be cut from a commit whose full main CI is green.
 on:
-  push:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
     branches: [main]
 
 permissions:
@@ -15,11 +22,16 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
+      # head_sha, not the default branch ref: GITHUB_SHA/GITHUB_REF under workflow_run
+      # point at main's current HEAD, which may be a merge that landed after the ci run
+      # this release is gating on.
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
       - uses: oven-sh/setup-bun@v2
@@ -43,7 +55,7 @@ jobs:
           set -euo pipefail
           (cd packages/harness && bun run generate:catalogue)
           if git diff --quiet -- packages/harness/src/models/generated; then
-            echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git config user.name "github-actions[bot]"
@@ -54,16 +66,6 @@ jobs:
           git rebase origin/main
           git push origin HEAD:main
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-      # Same starvation rule as ci.yml's test-tui job, answered the other way: PR CI gives each
-      # TUI shard its own runner, this single job instead runs the suite as one shard with
-      # serialized packages, so no parallel bun processes starve the settle-based render specs.
-      - name: typecheck and test
-        if: steps.version.outputs.skip != 'true'
-        run: bun run typecheck && bun run test --concurrency 1
-        env:
-          ATLAS_HOME: ${{ github.workspace }}/.atlas-home
-          ATLAS_TEST_SHARDS: '1'
 
       - name: build binaries
         if: steps.version.outputs.skip != 'true'
