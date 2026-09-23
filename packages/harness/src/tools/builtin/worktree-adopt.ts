@@ -5,10 +5,9 @@ import {
   type Worktree,
 } from '../../workspace/worktrees'
 import {
-  canonicalPath,
   hideWorktreeHome,
   isUnder,
-  worktreeAt,
+  lookupWorktree,
   type RepositoryView,
 } from './worktree-support'
 
@@ -77,16 +76,20 @@ export async function adoptWorktree(args: {
   cwd: string
   worktreeHome: string
 }): Promise<AdoptOutcome> {
-  const path = await canonicalPath({ base: args.cwd, path: args.path })
-  const target = worktreeAt({ view: args.view, path })
-  if (target === undefined) {
+  const lookup = await lookupWorktree({ view: args.view, cwd: args.cwd, path: args.path })
+  if (lookup.worktree === undefined) {
     const known = args.view.worktrees.map((worktree) => worktree.path).join(', ')
-    const named = path === args.path ? path : `${args.path}, which is ${path},`
+    const resolved = lookup.resolvedPaths.filter((path) => path !== args.path)
+    const named =
+      resolved.length === 0
+        ? args.path
+        : `${args.path}, which resolves to ${resolved.join(' and ')},`
     return {
       ok: false,
       reason: `git does not list ${named} as a worktree of the repository at ${args.view.root}. It lists: ${known}`,
     }
   }
+  const target = lookup.worktree
 
   const refusal = refusalFor({ target, view: args.view })
   if (refusal !== undefined) return { ok: false, reason: refusal }
