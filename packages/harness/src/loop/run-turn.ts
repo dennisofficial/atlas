@@ -38,7 +38,7 @@ import {
 } from '@dltech/atlas-core'
 
 import type { HookChain } from '../hooks/registry'
-import type { ApplyLoopCut } from '../store/cut-loop'
+import type { ApplyLoopCut } from '../store/sessions/ops/cut-loop'
 import type { ToolDispatcher } from '../tools/dispatch'
 import { MAX_LOOP_CUTS_PER_TURN, repeatableFor } from './loop-guard'
 import { ELoopWatch, type LoopWatch } from './loop-watchdog'

@@ -14,7 +14,8 @@ import {
 } from '@dltech/atlas-core'
 
 import { contextIdentityOf } from '../../append-plan'
-import { encodeEventLine } from '../lines'
+import { EUnreadableReason } from '../../decode-events'
+import { dropTornTail, encodeEventLine } from '../lines'
 import { newThreadMeta, readMetaSync, threadMetaSchema, writeMeta } from '../meta'
 import { eventLogFile, threadMetaFile } from '../paths'
 import { rebuildContextIndex, type SessionRegistry } from '../registry'
@@ -66,6 +67,7 @@ export async function truncateThreadLog({
     .join('')
   await writeFile(tmp, lines)
   await rename(tmp, file)
+  await registry.stampThreadLog({ sessionDir, threadId })
 
   log.events.length = 0
   log.events.push(...retained)
@@ -96,7 +98,7 @@ export async function appendDrafts({
   drafts: readonly EventDraft[]
 }): Promise<Event[]> {
   if (drafts.length === 0) return []
-  const log = await registry.readThreadLog({ sessionDir, threadId })
+  const log = await registry.refreshThreadLog({ sessionDir, threadId })
   const at = clock.now()
   const firstSeq = log.head + 1
 
@@ -114,7 +116,11 @@ export async function appendDrafts({
 
   const file = eventLogFile({ sessionDir, threadId })
   await mkdir(dirname(file), { recursive: true })
+  if (await dropTornTail({ file })) {
+    log.unreadable = log.unreadable.filter((row) => row.reason !== EUnreadableReason.TruncatedTail)
+  }
   await appendFile(file, prepared.map((entry) => `${encodeEventLine(entry)}\n`).join(''), 'utf8')
+  await registry.stampThreadLog({ sessionDir, threadId })
 
   const stamped = stampDrafts({
     drafts: prepared.map((entry) => entry.draft),

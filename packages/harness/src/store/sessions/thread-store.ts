@@ -25,11 +25,11 @@ import {
   toThreadSummary,
   touchThreadMeta,
   tryReadThreadMeta,
-  writeSessionMetaForRoot,
 } from './listing'
 import { newThreadMeta, readMetaSync, sessionMetaSchema, writeMeta, type ThreadMeta } from './meta'
 import { sessionDirectory, sessionMetaFile, threadMetaFile } from './paths'
 import type { SessionRegistry } from './registry'
+import { writeSessionMetaForRoot } from './session-meta'
 import { appendStampedEvent, rewriteThreadLog } from './thread-places'
 
 export class ThreadNeedsOpeningDrafts extends Error {
@@ -68,7 +68,7 @@ export class JsonlThreadStore implements ThreadStorePort {
     const sessionDir = await this.sessionDirForNew({ id: toThreadId(meta.id), agent: args.agent })
     await writeMeta({ file: threadMetaFile({ sessionDir, threadId: toThreadId(meta.id) }), meta })
     this.registry.registerThread({ sessionDir, threadId: toThreadId(meta.id) })
-    if (args.agent === undefined) await writeSessionMetaForRoot({ sessionDir, root: meta, home: EExecutionLocation.Host })
+    if (args.agent === undefined) await writeSessionMetaForRoot({ registry: this.registry, sessionDir, root: meta, home: EExecutionLocation.Host })
     return toThreadSummary(meta)
   }
 
@@ -81,7 +81,7 @@ export class JsonlThreadStore implements ThreadStorePort {
     this.registry.registerThread({ sessionDir, threadId })
     if (args.agent === undefined) {
       const home = args.executionLocation ?? EExecutionLocation.Host
-      await writeSessionMetaForRoot({ sessionDir, root: meta, home })
+      await writeSessionMetaForRoot({ registry: this.registry, sessionDir, root: meta, home })
     }
     const events = await this.log.append({ threadId, runId: args.runId, drafts: args.drafts })
     const stored = tryReadThreadMeta({ file: threadMetaFile({ sessionDir, threadId }) })
@@ -119,17 +119,11 @@ export class JsonlThreadStore implements ThreadStorePort {
   }
 
   async chooseModel({ threadId, model }: { threadId: ThreadId; model: ThreadModel }): Promise<void> {
-    await this.updateMeta({
-      threadId,
-      change: (meta) => ({ ...meta, modelRef: model.ref, modelEffort: model.effort }),
-    })
+    await this.updateMeta({ threadId, change: (meta) => ({ ...meta, modelRef: model.ref, modelEffort: model.effort }) })
   }
 
   async chooseExecutionLocation(args: { threadId: ThreadId; location: EExecutionLocation }): Promise<void> {
-    await this.updateMeta({
-      threadId: args.threadId,
-      change: (meta) => ({ ...meta, executionLocation: args.location }),
-    })
+    await this.updateMeta({ threadId: args.threadId, change: (meta) => ({ ...meta, executionLocation: args.location }) })
   }
 
   async adopt({ threadId, workspace, repo }: { threadId: ThreadId; workspace: string; repo: string | null }): Promise<void> {
@@ -167,7 +161,7 @@ export class JsonlThreadStore implements ThreadStorePort {
   async fork({ from, seq, mode, title }: ForkArgs): Promise<ThreadSummary> {
     const fromDir = await this.sessionDirFor({ threadId: from })
     const handle = this.registry.handleFor({ sessionDir: fromDir })
-    return this.registry.enqueue({
+    const created = await this.registry.enqueue({
       handle,
       run: async () => {
         const source = tryReadThreadMeta({ file: threadMetaFile({ sessionDir: fromDir, threadId: from }) })
@@ -194,10 +188,11 @@ export class JsonlThreadStore implements ThreadStorePort {
         }
         await writeMeta({ file: threadMetaFile({ sessionDir, threadId: into }), meta })
         this.registry.registerThread({ sessionDir, threadId: into })
-        await writeSessionMetaForRoot({ sessionDir, root: meta, home: this.homeOf({ source, fromDir }) })
-        return toThreadSummary(meta)
+        return { meta, sessionDir }
       },
     })
+    await writeSessionMetaForRoot({ registry: this.registry, sessionDir: created.sessionDir, root: created.meta, home: this.homeOf({ source: created.meta, fromDir }) })
+    return toThreadSummary(created.meta)
   }
 
   private async mark(args: MarkArgs & { discardRows: boolean; cutAgents: readonly ThreadId[] }): Promise<number> {
@@ -246,20 +241,25 @@ export class JsonlThreadStore implements ThreadStorePort {
   }): Promise<void> {
     const sessionDir = await this.registry.sessionDirOf({ threadId })
     if (sessionDir === undefined) return
-    const file = threadMetaFile({ sessionDir, threadId })
-    const meta = tryReadThreadMeta({ file })
-    if (meta === undefined) return
-    const next = change(meta)
-    await writeMeta({ file, meta: next })
-    if (sessionDir.endsWith(`/${threadId}`)) {
-      await writeSessionMetaForRoot({ sessionDir, root: next, home: this.homeOf({ source: next, fromDir: sessionDir }) })
-    }
+    const handle = this.registry.handleFor({ sessionDir })
+    const next = await this.registry.enqueue({
+      handle,
+      run: async () => {
+        const file = threadMetaFile({ sessionDir, threadId })
+        const meta = tryReadThreadMeta({ file })
+        if (meta === undefined) return undefined
+        const updated = change(meta)
+        await writeMeta({ file, meta: updated })
+        return updated
+      },
+    })
+    if (next === undefined || !sessionDir.endsWith(`/${threadId}`)) return
+    await writeSessionMetaForRoot({ registry: this.registry, sessionDir, root: next, home: this.homeOf({ source: next, fromDir: sessionDir }) })
   }
 
   private homeOf({ source, fromDir }: { source: ThreadMeta; fromDir: string }): EExecutionLocation {
     const session = readMetaSync({ file: sessionMetaFile({ sessionDir: fromDir }), schema: sessionMetaSchema })
-    const home = executionLocationOf(session?.home) ?? executionLocationOf(source.executionLocation)
-    return home ?? EExecutionLocation.Host
+    return executionLocationOf(session?.home) ?? executionLocationOf(source.executionLocation) ?? EExecutionLocation.Host
   }
 
   private blankMeta({

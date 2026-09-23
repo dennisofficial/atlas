@@ -15,10 +15,13 @@ import {
   ledgerFile,
   sessionDirectory,
   sessionMetaFile,
+  sessionsDirectory,
   threadMetaFile,
   threadsDirectory,
 } from '../store/sessions/paths'
 import { groupThreadsIntoSessions } from './grouping'
+import { LEGACY_IMPORT_MARKER_NAME } from './legacy-import'
+import { join } from 'node:path'
 
 type ThreadRow = {
   id: string
@@ -167,6 +170,12 @@ export async function exportHarnessDb({
       await writeMeta({ file: sessionMetaFile({ sessionDir }), meta: sessionMetaOf({ root }) })
       summary.sessions += 1
     }
+
+    await mkdir(sessionsDirectory({ home }), { recursive: true })
+    await writeFile(
+      join(sessionsDirectory({ home }), LEGACY_IMPORT_MARKER_NAME),
+      JSON.stringify({ importedAt: new Date().toISOString(), sessions: summary.sessions }),
+    )
 
     return summary
   } finally {

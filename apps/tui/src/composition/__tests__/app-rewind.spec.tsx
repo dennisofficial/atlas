@@ -270,6 +270,56 @@ describe('forking from the rewind drawer', () => {
   }, 60_000)
 })
 
+describe('a fork the guard refuses', () => {
+  const seededUnsettled = async (): Promise<{ app: FakeApp; setup: Mounted }> => {
+    const app = appWith()
+    const seeded = await app.log.append({
+      threadId: THREAD,
+      runId: toRunId('run-seed'),
+      drafts: [
+        { type: 'user-said', text: 'start the build' },
+        {
+          type: 'tool-called',
+          callId: toCallId('call-unsettled'),
+          name: 'bash',
+          input: { command: 'npm run build' },
+          ordinal: 0,
+        },
+        { type: 'user-said', text: 'now the parser' },
+      ],
+    })
+    const setup = await testRender(
+      <App app={app} opened={{ threadId: THREAD, events: seeded, turns: [], name: null, started: true }} />,
+      WIDE,
+    )
+    await frameShowing({ setup, text: 'now the parser' })
+    return { app, setup }
+  }
+
+  it('says why and starts no new conversation', async () => {
+    const { app, setup } = await seededUnsettled()
+
+    try {
+      await saidOpening(setup, app, '/rewind', REWIND_TITLE)
+
+      setup.mockInput.pressEnter()
+      expect(await frameShowing({ setup, text: 'fork from here' })).toContain('2 kept')
+
+      setup.mockInput.pressArrow('down')
+      await frameShowing({ setup, text: 'become one summary' })
+      setup.mockInput.pressArrow('down')
+      await frameShowing({ setup, text: 'this one is untouched' })
+      setup.mockInput.pressEnter()
+
+      const frame = await frameShowing({ setup, text: 'unsettled' })
+      expect(frame).toContain('bash')
+      expect(app.threads.forks).toEqual([])
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+})
+
 describe('the compact command', () => {
   it('compacts an ordinary short conversation rather than deciding there is nothing to do', async () => {
     const app = appWith()

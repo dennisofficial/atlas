@@ -1,4 +1,3 @@
-import { existsSync } from 'node:fs'
 import { readdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 
@@ -11,28 +10,18 @@ import {
 } from '@dltech/atlas-core'
 
 import { titleMatchesHandle } from '../../composition/thread-slug'
-import { sumSessionSpend } from '../../ledger/jsonl'
 import type { SupervisedAgent, ThreadModel, ThreadSummary } from '../thread-store'
 import {
-  SESSION_FORMAT_VERSION,
   newThreadMeta,
   readMetaSync,
-  sessionMetaSchema,
   threadMetaSchema,
   writeMeta,
-  type SessionMeta,
   type ThreadMeta,
 } from './meta'
-import {
-  eventLogFile,
-  ledgerFile,
-  sessionMetaFile,
-  sessionsDirectory,
-  threadMetaFile,
-  threadsDirectory,
-} from './paths'
+import { eventLogFile, sessionsDirectory, threadMetaFile, threadsDirectory } from './paths'
 import type { SessionRegistry } from './registry'
-import { threadPlaces, type ThreadPlaces } from './thread-places'
+import { refreshSessionCaches } from './session-meta'
+import { threadPlaces } from './thread-places'
 
 export const THREAD_LISTING_LIMIT = 50
 
@@ -136,7 +125,7 @@ export async function listRoots({
       sessionDir: entry.sessionDir,
       threadId: toThreadId(entry.root.id),
     })
-    await refreshSessionCaches({ sessionDir: entry.sessionDir, root: entry.root, activityAt: entry.activityAt, places })
+    await refreshSessionCaches({ registry, sessionDir: entry.sessionDir, root: entry.root, activityAt: entry.activityAt, places })
     summaries.push({
       ...toThreadSummary(entry.root),
       updatedAt: entry.activityAt,
@@ -172,68 +161,6 @@ export async function findNamedRoot({
     (entry) => entry.root.title !== null && titleMatchesHandle({ title: entry.root.title, handle }),
   )
   return found === undefined ? undefined : toThreadSummary(found.root)
-}
-
-export async function writeSessionMetaForRoot({
-  sessionDir,
-  root,
-  home,
-}: {
-  sessionDir: string
-  root: ThreadMeta
-  home: EExecutionLocation
-}): Promise<void> {
-  const file = sessionMetaFile({ sessionDir })
-  const existing = readMetaSync({ file, schema: sessionMetaSchema })
-  const meta: SessionMeta = {
-    format: existing?.format ?? SESSION_FORMAT_VERSION,
-    id: root.id,
-    title: root.title,
-    createdAt: existing?.createdAt ?? root.createdAt,
-    updatedAt: existing !== undefined && existing.updatedAt > root.updatedAt ? existing.updatedAt : root.updatedAt,
-    home: existing?.home ?? home,
-    repo: root.repo,
-    workspace: root.workspace,
-    worktree: existing?.worktree ?? null,
-    pullRequests: existing?.pullRequests ?? null,
-    spend: existing?.spend ?? null,
-  }
-  await writeMeta({ file, meta })
-}
-
-async function refreshSessionCaches({
-  sessionDir,
-  root,
-  activityAt,
-  places,
-}: {
-  sessionDir: string
-  root: ThreadMeta
-  activityAt: string
-  places: ThreadPlaces
-}): Promise<void> {
-  const file = sessionMetaFile({ sessionDir })
-  const existing = readMetaSync({ file, schema: sessionMetaSchema })
-  const meta: SessionMeta = {
-    format: existing?.format ?? SESSION_FORMAT_VERSION,
-    id: root.id,
-    title: root.title,
-    createdAt: existing?.createdAt ?? root.createdAt,
-    updatedAt: activityAt,
-    home: existing?.home ?? executionLocationOf(root.executionLocation) ?? EExecutionLocation.Host,
-    repo: root.repo,
-    workspace: root.workspace,
-    worktree: places.worktree?.path ?? null,
-    pullRequests: places.pullRequests.length === 0 ? null : places.pullRequests.map((pr) => pr.number),
-    spend: existing?.spend ?? (await recomputeSpend({ sessionDir })),
-  }
-  if (existing !== undefined && JSON.stringify(existing) === JSON.stringify(meta)) return
-  await writeMeta({ file, meta })
-}
-
-async function recomputeSpend({ sessionDir }: { sessionDir: string }): Promise<SessionMeta['spend']> {
-  if (!existsSync(ledgerFile({ sessionDir }))) return null
-  return sumSessionSpend({ sessionDir })
 }
 
 export async function touchThreadMeta({
