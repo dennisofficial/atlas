@@ -103,11 +103,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
    */
   bindPorts?: ((args: { container: DependencyContainer }) => void) | undefined
   capabilities?: CapabilitiesSource | undefined
-  /**
-   * The repo's normalized origin identity, when the caller already knows it: a serve session is
-   * told it by the workspace spec (its own git may not answer), while a host session leaves this
-   * undefined and the memory binding resolves it from the checkout's origin remote itself.
-   */
   repoIdentity?: string | null | undefined
 }): Promise<HarnessApp<TSurface, Command, TPluginSurface>> {
   const { launch, surface } = args
