@@ -1,9 +1,6 @@
 import {
   EExecutionLocation,
   EPlanStatus,
-  eventsOfType,
-  grantsFrom,
-  planFromEvents,
   type Event,
   type Grant,
 } from "@dltech/atlas-core";
@@ -18,7 +15,8 @@ import {
   type TurnSpend,
 } from "@dltech/atlas-harness";
 
-import { classifierFold, type ClassifierFold } from "./classifier-fold";
+import { commonestDimension, type ClassifierFold } from "./classifier-fold";
+import { foldLogEvents, type LogAccumulator } from "./log-accumulator";
 import type { SidebarCloud } from "./cloud-state";
 import { truncateCells } from "../ui/components/sidebar/cells";
 import { orderSections, type SidebarSection } from "../ui/sidebar-section";
@@ -84,14 +82,6 @@ const TASK_STATE_OF: Record<EPlanStatus, ESidebarTaskState> = {
   [EPlanStatus.Completed]: ESidebarTaskState.Done,
 };
 
-const todoOf = (events: readonly Event[]): readonly SidebarTask[] =>
-  planFromEvents(events).map((task) => ({
-    id: String(task.ordinal),
-    label: task.text,
-    state: TASK_STATE_OF[task.status],
-    ...(task.activeForm === undefined ? {} : { activeForm: task.activeForm }),
-  }));
-
 const sameSpend = (left: SidebarSpend, right: SidebarSpend): boolean =>
   left.costUsd === right.costUsd &&
   left.totals.turns === right.totals.turns &&
@@ -123,17 +113,32 @@ export type SidebarEventFold = {
   grants: readonly Grant[];
 };
 
-export function sidebarFoldOf(events: readonly Event[]): SidebarEventFold {
-  const opening = eventsOfType({ events, type: "user-said" }).at(0);
-
+export function sidebarFoldFrom(acc: LogAccumulator): SidebarEventFold {
   return {
-    opening: opening === undefined ? null : oneLineOf(opening.text),
-    turnCount: eventsOfType({ events, type: "user-said" }).length,
-    lastActivity: events.at(-1)?.at ?? null,
-    todo: todoOf(events),
-    classifier: classifierFold({ events }),
-    grants: grantsFrom(events),
+    opening: acc.opening === null ? null : oneLineOf(acc.opening),
+    turnCount: acc.turnCount,
+    lastActivity: acc.lastActivity,
+    todo: acc.plan.map((task) => ({
+      id: String(task.ordinal),
+      label: task.text,
+      state: TASK_STATE_OF[task.status],
+      ...(task.activeForm === undefined ? {} : { activeForm: task.activeForm }),
+    })),
+    classifier:
+      acc.judgedCount === 0
+        ? null
+        : {
+            pauses: acc.pauses,
+            turns: acc.turnCount,
+            topDimension: commonestDimension(acc.dimensionTally),
+            judgeUnreachable: acc.judgeUnreachable,
+          },
+    grants: [...acc.grants.values()].sort((one, other) => one.seq - other.seq),
   };
+}
+
+export function sidebarFoldOf(events: readonly Event[]): SidebarEventFold {
+  return sidebarFoldFrom(foldLogEvents({ events, effects: () => undefined }));
 }
 
 export function sidebarFrom(args: {
