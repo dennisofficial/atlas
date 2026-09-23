@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import { toThreadId, toEventId, toRunId, type EventDraft } from '@dltech/atlas-core'
 
-import { decodeEventRows, EUnreadableReason, EventDecodeCache } from '../decode-events'
+import { decodeEventRows, EUnreadableReason } from '../decode-events'
 import type { EventRow } from '../event-row'
 import { openStoreFixture, type StoreFixture } from './harness'
 
@@ -175,69 +175,6 @@ describe('decodeEventRows', () => {
 
   it('decodes nothing from nothing', () => {
     expect(decodeEventRows({ rows: [] })).toEqual({ events: [], unreadable: [] })
-  })
-})
-
-describe('decodeEventRows with an EventDecodeCache', () => {
-  it('serves the same event object for a row it has already decoded', () => {
-    const cache = new EventDecodeCache()
-    const first = decodeEventRows({ rows: [validRow(1, 'one')], cache })
-    const second = decodeEventRows({ rows: [validRow(1, 'one')], cache })
-
-    expect(second.events[0]).toBe(first.events[0])
-  })
-
-  it('does not re-parse a seen row even if the row handed back differs', () => {
-    const cache = new EventDecodeCache()
-    decodeEventRows({ rows: [validRow(1, 'one')], cache })
-
-    const rewritten = decodeEventRows({ rows: [validRow(1, 'rewritten')], cache })
-    const [event] = rewritten.events
-    expect(event?.type).toBe('user-said')
-    expect(event && 'text' in event ? event.text : null).toBe('one')
-  })
-
-  it('re-decodes a repeated row when no cache is given', () => {
-    decodeEventRows({ rows: [validRow(1, 'one')] })
-
-    const rewritten = decodeEventRows({ rows: [validRow(1, 'rewritten')] })
-    const [event] = rewritten.events
-    expect(event && 'text' in event ? event.text : null).toBe('rewritten')
-  })
-
-  it('serves the same gap for a row that failed to decode', () => {
-    const cache = new EventDecodeCache()
-    const rows = [rowAt({ seq: 1, body: '{ truncated' })]
-    const first = decodeEventRows({ rows, cache })
-    const second = decodeEventRows({ rows, cache })
-
-    expect(second.unreadable[0]).toBe(first.unreadable[0])
-  })
-
-  it('never caches a row with an empty id, so corrupt envelopes stay distinct', () => {
-    const cache = new EventDecodeCache()
-    const rows = [
-      rowAt({ seq: 1, body: '{ truncated', id: '' }),
-      rowAt({ seq: 2, body: '{ also truncated', id: '' }),
-    ]
-
-    const decoded = decodeEventRows({ rows, cache })
-    expect(decoded.unreadable.map((gap) => gap.seq)).toEqual([1, 2])
-  })
-
-  it('evicts the oldest rows once it holds more than its byte cap', () => {
-    const big = (seq: number) => rowAt({ seq, body: JSON.stringify(said('x'.repeat(100))) })
-    const cache = new EventDecodeCache(250)
-
-    decodeEventRows({ rows: [big(1)], cache })
-    decodeEventRows({ rows: [big(2)], cache })
-    decodeEventRows({ rows: [big(3)], cache })
-
-    const [evicted] = decodeEventRows({ rows: [validRow(1, 'changed')], cache }).events
-    expect(evicted && 'text' in evicted ? evicted.text : null).toBe('changed')
-
-    const [kept] = decodeEventRows({ rows: [validRow(3, 'changed')], cache }).events
-    expect(kept && 'text' in kept ? kept.text : null).toBe('x'.repeat(100))
   })
 })
 

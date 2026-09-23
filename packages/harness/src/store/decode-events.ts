@@ -28,9 +28,15 @@ export type DecodedLog = {
   unreadable: UnreadableRow[]
 }
 
-type CachedDecode = { event: Event; bytes: number } | { gap: UnreadableRow; bytes: number }
+type CachedDecode = { event: Event } | { gap: UnreadableRow }
 
-const DEFAULT_BYTE_CAP = 64 * 1024 * 1024
+type HeldDecode = { decoded: CachedDecode; bytes: number }
+
+const DEFAULT_BYTE_CAP = 32 * 1024 * 1024
+
+const DECODED_SIZE_FACTOR = 2.5
+
+const estimatedBytes = (body: string): number => Math.ceil(body.length * DECODED_SIZE_FACTOR)
 
 /**
  * Rows are immutable once written — nothing updates an Event body, only rewind deletes rows, and
@@ -39,7 +45,7 @@ const DEFAULT_BYTE_CAP = 64 * 1024 * 1024
  * without re-parsing and re-validating every body each time.
  */
 export class EventDecodeCache {
-  private readonly entries = new Map<string, CachedDecode>()
+  private readonly entries = new Map<string, HeldDecode>()
   private held = 0
 
   constructor(private readonly byteCap: number = DEFAULT_BYTE_CAP) {}
@@ -52,14 +58,15 @@ export class EventDecodeCache {
 
     this.entries.delete(row.id)
     this.entries.set(row.id, hit)
-    return hit
+    return hit.decoded
   }
 
   keep({ row, decoded }: { row: EventRow; decoded: CachedDecode }): void {
     if (row.id === '' || this.entries.has(row.id)) return
 
-    this.entries.set(row.id, decoded)
-    this.held += decoded.bytes
+    const bytes = estimatedBytes(row.body)
+    this.entries.set(row.id, { decoded, bytes })
+    this.held += bytes
 
     while (this.held > this.byteCap) {
       const oldest = this.entries.keys().next()
@@ -100,13 +107,13 @@ export function decodeEventRows({
         detail: decoded.detail,
       }
       unreadable.push(gap)
-      cache?.keep({ row, decoded: { gap, bytes: row.body.length } })
+      cache?.keep({ row, decoded: { gap } })
       continue
     }
 
     const event = stampEvent({ draft: decoded.draft, envelope: decoded.envelope })
     events.push(event)
-    cache?.keep({ row, decoded: { event, bytes: row.body.length } })
+    cache?.keep({ row, decoded: { event } })
   }
 
   return { events, unreadable }
