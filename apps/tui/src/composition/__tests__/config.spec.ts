@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { homedir } from 'node:os'
 
-import { atlasDatabaseUrl } from '@dltech/atlas-harness'
+import { atlasDirectory } from '@dltech/atlas-harness'
 
 import { refKey } from '@dltech/atlas-core'
 
@@ -21,9 +21,9 @@ describe('the launch configuration', () => {
     expect(refKey(DEFAULT_MODEL_REF)).toBe('anthropic/claude-haiku-4-5')
   })
 
-  it('never falls back to the operator database when it was launched from source', () => {
-    expect(atlasDatabaseUrl()).toContain('/.atlas-home/')
-    expect(atlasDatabaseUrl()).not.toContain(`${homedir()}/.atlas/`)
+  it('never falls back to the operator atlas home when it was launched from source', () => {
+    expect(atlasDirectory()).toContain('/.atlas-home/')
+    expect(atlasDirectory()).not.toContain(`${homedir()}/.atlas/`)
   })
 
   it('opens a new conversation unless the launch asked to come back to one', () => {

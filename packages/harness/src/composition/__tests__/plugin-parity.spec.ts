@@ -16,7 +16,6 @@ import {
 import { portToken } from '../../container/injection'
 import { MemorySettingsStore } from '../../settings/memory-store'
 import { createSettingsService } from '../../settings/service'
-import { createTempDatabaseUrl } from '../../store/__tests__/harness'
 import { ToolDispatcher, type DispatchableCall } from '../../tools/dispatch'
 import { composeHarness } from '../compose'
 import type { DependencyContainer } from '../../container/injection'
@@ -25,7 +24,6 @@ import { recordingNotices } from './fakes'
 
 let project: string
 let atlasHome: string
-let database: ReturnType<typeof createTempDatabaseUrl>
 let previousAtlasHome: string | undefined
 
 beforeEach(async () => {
@@ -33,13 +31,11 @@ beforeEach(async () => {
   atlasHome = await mkdtemp(join(tmpdir(), 'atlas-plugin-parity-home-'))
   previousAtlasHome = process.env.ATLAS_HOME
   process.env.ATLAS_HOME = atlasHome
-  database = createTempDatabaseUrl()
 })
 
 afterEach(async () => {
   if (previousAtlasHome === undefined) delete process.env.ATLAS_HOME
   else process.env.ATLAS_HOME = previousAtlasHome
-  database.discard()
   await rm(project, { recursive: true, force: true })
   await rm(atlasHome, { recursive: true, force: true })
 })
@@ -49,7 +45,6 @@ const settingsBinding = (): SettingsBinding => {
     definitions: ATLAS_SETTINGS,
     user: new MemorySettingsStore({ label: 'plugin-parity spec' }),
   })
-  service.set({ id: ESettingId.DatabaseUrl, value: database.databaseUrl })
   return { service, bindTo: () => {} }
 }
 

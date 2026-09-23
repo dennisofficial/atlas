@@ -7,7 +7,7 @@ import type { ContextIdentity } from '../append-plan'
 import { contextIdentityOf } from '../append-plan'
 import type { UnreadableRow } from '../decode-events'
 import { parseEventLines } from './lines'
-import { THREAD_META_FILE_SUFFIX, eventLogFile, sessionsDirectory, threadMetaFile, threadsDirectory } from './paths'
+import { THREAD_META_FILE_SUFFIX, eventLogFile, sessionDirectory, sessionsDirectory, threadMetaFile, threadsDirectory } from './paths'
 import { readMetaSync, threadMetaSchema } from './meta'
 
 export type ThreadLog = {
@@ -79,6 +79,12 @@ export class SessionRegistry {
       if (found !== undefined) return found
     }
     return undefined
+  }
+
+  async sessionDirFor({ threadId }: { threadId: ThreadId }): Promise<string> {
+    const resolved = await this.sessionDirOf({ threadId })
+    if (resolved !== undefined) return resolved
+    return sessionDirectory({ home: this.home, sessionId: threadId })
   }
 
   async readThreadLog({

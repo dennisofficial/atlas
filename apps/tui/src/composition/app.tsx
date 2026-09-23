@@ -21,7 +21,7 @@ import {
   type EUsageWindow,
   type ModelCard,
 } from '@dltech/atlas-core'
-import { EChannelConnection, forkConversation, readGhAuthToken, relocateSession, requireVercelCredentials, sandboxImageOf, settingModelRef, suggestedModelRef, type DiscoveredSkill } from '@dltech/atlas-harness'
+import { EChannelConnection, readGhAuthToken, relocateSession, requireVercelCredentials, sandboxImageOf, settingModelRef, suggestedModelRef, type DiscoveredSkill } from '@dltech/atlas-harness'
 
 import { newestExpandableKey, type PendingSaid } from '../store'
 import { withCloud, withContainer, withSections } from '../store/sidebar-model'
@@ -870,20 +870,16 @@ function Workspace(props: {
   const handleRewindChoice = useCallback(
     ({ point, verb }: RewindChoice) => {
       if (verb === ERewindVerb.Fork) {
-        void forkConversation({
-          log: props.app.log,
-          threads: props.app.threads,
-          threadId: conversation.threadId,
-          seq: point.seq,
-          mode: EForkMode.Copy,
-        }).then((forked) => {
-          if (!forked.ok) {
-            notify({ key: 'fork-refused', text: forked.reason, tone: ENoticeTone.Warn })
-            return
-          }
-
-          handleOpenThread(forked.thread.id)
-        })
+        void props.app.threads
+          .fork({ from: conversation.threadId, seq: point.seq, mode: EForkMode.Copy })
+          .then((forked) => handleOpenThread(forked.id))
+          .catch((error: unknown) => {
+            notify({
+              key: 'fork-refused',
+              text: error instanceof Error ? error.message : String(error),
+              tone: ENoticeTone.Warn,
+            })
+          })
         return
       }
 

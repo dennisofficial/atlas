@@ -7,14 +7,11 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "bun run db:ensure && tsc --noEmit",
-    "test": "bun run db:ensure && bun test",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
     "build:serve": "bun scripts/build-serve.ts",
     "generate:catalogue": "bun scripts/generate-catalogue.ts",
-    "plugins:generate": "bun scripts/generate-plugins.ts",
-    "db:generate": "prisma generate",
-    "db:ensure": "bun prisma/ensure-client.ts && bun prisma/embed-migrations.ts",
-    "db:migrate": "prisma migrate dev"
+    "plugins:generate": "bun scripts/generate-plugins.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.49",
@@ -22,12 +19,10 @@
     "@ai-sdk/openai-compatible": "^3.0.43",
     "@ai-sdk/provider": "4.0.10",
     "@dltech/atlas-core": "workspace:*",
-    "@prisma/client": "7.9.1",
     "@vercel/sandbox": "^3.3.0",
     "@vscode/ripgrep": "^1.18.0",
     "ai": "^7.0.92",
     "htmlparser2": "^12.0.0",
-    "prisma-adapter-bun-sqlite": "^0.8.0",
     "reflect-metadata": "^0.2.2",
     "tsyringe": "4.10.0",
     "turndown": "^7.2.4",
@@ -35,7 +30,6 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/turndown": "^5.0.6",
-    "prisma": "7.9.1"
+    "@types/turndown": "^5.0.6"
   }
 }

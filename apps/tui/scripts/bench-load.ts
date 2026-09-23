@@ -188,7 +188,7 @@ const main = async (): Promise<void> => {
   const root = mkdtempSync(join(tmpdir(), 'atlas-bench-'))
   const harness = await buildHarness({
     model: benchModel(),
-    databaseUrl: `file:${join(root, 'bench.db')}`,
+    home: root,
     launchDirectory: root,
   })
   const { channel, runner } = publishingRunner({ harness, root })

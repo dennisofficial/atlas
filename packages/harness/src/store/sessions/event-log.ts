@@ -111,9 +111,7 @@ export class JsonlEventLog implements EventLogPort {
   }
 
   async sessionDirFor({ threadId }: { threadId: ThreadId }): Promise<string> {
-    const resolved = await this.registry.sessionDirOf({ threadId })
-    if (resolved !== undefined) return resolved
-    return sessionDirectory({ home: this.home, sessionId: threadId })
+    return this.registry.sessionDirFor({ threadId })
   }
 
   private async appendOnce({

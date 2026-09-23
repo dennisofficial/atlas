@@ -17,7 +17,8 @@ import type { UnloggedChild } from '../../../agents/registry/snapshot'
 import type { ServiceRegistryPort } from '../../../services/service-registry'
 import type { ShellRegistryPort } from '../../../shells/shell-registry'
 import type { RewindKill } from '../../rewind'
-import type { JsonlEventLog } from '../event-log'
+import type { EventLogPort } from '@dltech/atlas-core'
+
 import type { SessionRegistry } from '../registry'
 import { dropRewoundChildren } from './children'
 import { appendDrafts, truncateThreadLog } from './log-edits'
@@ -84,7 +85,7 @@ export async function rewindThread({
   toSeq,
   confirmed = false,
 }: {
-  log: JsonlEventLog
+  log: EventLogPort
   registry: SessionRegistry
   clock: ClockPort
   ids: IdPort
@@ -95,7 +96,7 @@ export async function rewindThread({
   toSeq: number
   confirmed?: boolean
 }): Promise<SessionRewindResult> {
-  const sessionDir = await log.sessionDirFor({ threadId })
+  const sessionDir = await registry.sessionDirFor({ threadId })
   const handle = registry.handleFor({ sessionDir })
 
   return registry.enqueue({

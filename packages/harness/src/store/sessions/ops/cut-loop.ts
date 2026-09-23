@@ -2,11 +2,11 @@ import {
   rewindPlan,
   rewindTarget,
   type ClockPort,
+  type EventLogPort,
   type IdPort,
 } from '@dltech/atlas-core'
 
 import type { ApplyLoopCut } from '../../cut-loop'
-import type { JsonlEventLog } from '../event-log'
 import type { SessionRegistry } from '../registry'
 import { appendDrafts, truncateThreadLog } from './log-edits'
 
@@ -16,13 +16,13 @@ export function createLoopCut({
   clock,
   ids,
 }: {
-  log: JsonlEventLog
+  log: EventLogPort
   registry: SessionRegistry
   clock: ClockPort
   ids: IdPort
 }): ApplyLoopCut {
   return async ({ threadId, toSeq, throughSeq, notice }) => {
-    const sessionDir = await log.sessionDirFor({ threadId })
+    const sessionDir = await registry.sessionDirFor({ threadId })
     const handle = registry.handleFor({ sessionDir })
 
     return registry.enqueue({

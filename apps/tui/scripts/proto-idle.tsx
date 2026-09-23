@@ -22,7 +22,7 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 const root = mkdtempSync(join(tmpdir(), 'atlas-idle-'))
 const harness = await buildHarness({
   model: benchModel(),
-  databaseUrl: `file:${join(root, 'idle.db')}`,
+  home: root,
   launchDirectory: root,
 })
 const { channel, runner } = publishingRunner({ harness, root })

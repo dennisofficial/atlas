@@ -3,12 +3,62 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { openAtlasDatabase, type AtlasDatabase } from '../../store/database'
+import { Database } from 'bun:sqlite'
 
 export const AT = '2026-09-20T10:00:00.000Z'
 
+const DDL = `
+CREATE TABLE "Thread" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "title" TEXT,
+  "head" INTEGER NOT NULL DEFAULT 0,
+  "createdAt" TEXT NOT NULL,
+  "updatedAt" TEXT NOT NULL,
+  "parentThreadId" TEXT,
+  "forkSeq" INTEGER,
+  "forkMode" TEXT,
+  "spawnerThreadId" TEXT,
+  "agentType" TEXT,
+  "workspace" TEXT,
+  "repo" TEXT,
+  "modelRef" TEXT,
+  "modelEffort" TEXT,
+  "executionLocation" TEXT
+);
+CREATE TABLE "Event" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "threadId" TEXT NOT NULL,
+  "seq" INTEGER NOT NULL,
+  "runId" TEXT NOT NULL,
+  "parentRunId" TEXT,
+  "depth" INTEGER NOT NULL,
+  "at" TEXT NOT NULL,
+  "type" TEXT NOT NULL,
+  "body" TEXT NOT NULL,
+  "contextSlot" TEXT,
+  "contextKey" TEXT,
+  "contextDigest" TEXT
+);
+CREATE TABLE "Turn" (
+  "runId" TEXT NOT NULL PRIMARY KEY,
+  "threadId" TEXT NOT NULL,
+  "status" TEXT NOT NULL,
+  "providerId" TEXT NOT NULL,
+  "modelId" TEXT NOT NULL,
+  "steps" INTEGER NOT NULL,
+  "inputTokens" INTEGER NOT NULL,
+  "outputTokens" INTEGER NOT NULL,
+  "cacheReadTokens" INTEGER NOT NULL,
+  "cacheWriteTokens" INTEGER NOT NULL,
+  "startedAt" TEXT NOT NULL,
+  "endedAt" TEXT NOT NULL,
+  "durationMs" INTEGER NOT NULL
+);
+`
+
 export type Fixture = {
-  database: AtlasDatabase
+  database: Database
+  databaseFile: string
   dbDir: string
   home: string
   close: () => Promise<void>
@@ -16,18 +66,22 @@ export type Fixture = {
 
 const fixtures: Fixture[] = []
 
-export async function openFixture(): Promise<Fixture> {
+export function openFixture(): Fixture {
   const dbDir = mkdtempSync(join(tmpdir(), 'atlas-export-db-'))
   const home = mkdtempSync(join(tmpdir(), 'atlas-export-home-'))
-  const database = await openAtlasDatabase({ databaseUrl: `file:${join(dbDir, 'harness.db')}` })
+  const databaseFile = join(dbDir, 'harness.db')
+  const database = new Database(databaseFile)
+  database.exec(DDL)
   const fixture: Fixture = {
     database,
+    databaseFile,
     dbDir,
     home,
-    close: async () => {
-      await database.close()
+    close: () => {
+      database.close()
       rmSync(dbDir, { recursive: true, force: true })
       rmSync(home, { recursive: true, force: true })
+      return Promise.resolve()
     },
   }
   fixtures.push(fixture)
@@ -38,7 +92,7 @@ afterEach(async () => {
   for (const fixture of fixtures.splice(0)) await fixture.close()
 })
 
-export async function insertThread(
+export function insertThread(
   fixture: Fixture,
   args: {
     id: string
@@ -51,87 +105,80 @@ export async function insertThread(
     workspace?: string
     repo?: string
   },
-): Promise<void> {
-  await fixture.database.prisma.thread.create({
-    data: {
-      id: args.id,
-      title: args.title ?? null,
-      createdAt: AT,
-      updatedAt: AT,
-      spawnerThreadId: args.spawnerThreadId ?? null,
-      agentType: args.agentType ?? null,
-      parentThreadId: args.parentThreadId ?? null,
-      forkSeq: args.forkSeq ?? null,
-      forkMode: args.forkMode ?? null,
-      workspace: args.workspace ?? null,
-      repo: args.repo ?? null,
-    },
-  })
+): void {
+  fixture.database
+    .query(
+      `INSERT INTO "Thread" ("id", "title", "createdAt", "updatedAt", "spawnerThreadId", "agentType", "parentThreadId", "forkSeq", "forkMode", "workspace", "repo")
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      args.id,
+      args.title ?? null,
+      AT,
+      AT,
+      args.spawnerThreadId ?? null,
+      args.agentType ?? null,
+      args.parentThreadId ?? null,
+      args.forkSeq ?? null,
+      args.forkMode ?? null,
+      args.workspace ?? null,
+      args.repo ?? null,
+    )
 }
 
-export async function insertEvent(
+export function insertEvent(
   fixture: Fixture,
   args: { id: string; threadId: string; seq: number; body?: string; parentRunId?: string },
-): Promise<void> {
-  await fixture.database.prisma.event.create({
-    data: {
-      id: args.id,
-      threadId: args.threadId,
-      seq: args.seq,
-      runId: `run-${args.threadId}`,
-      parentRunId: args.parentRunId ?? null,
-      depth: 0,
-      at: AT,
-      type: 'user-said',
-      body: args.body ?? JSON.stringify({ type: 'user-said', text: `event ${args.seq}` }),
-    },
-  })
+): void {
+  fixture.database
+    .query(
+      `INSERT INTO "Event" ("id", "threadId", "seq", "runId", "parentRunId", "depth", "at", "type", "body")
+       VALUES (?, ?, ?, ?, ?, 0, ?, 'user-said', ?)`,
+    )
+    .run(
+      args.id,
+      args.threadId,
+      args.seq,
+      `run-${args.threadId}`,
+      args.parentRunId ?? null,
+      AT,
+      args.body ?? JSON.stringify({ type: 'user-said', text: `event ${args.seq}` }),
+    )
 }
 
-export async function insertTurn(
+export function insertTurn(
   fixture: Fixture,
   args: { runId: string; threadId: string; startedAt: string },
-): Promise<void> {
-  await fixture.database.prisma.turn.create({
-    data: {
-      runId: args.runId,
-      threadId: args.threadId,
-      status: 'completed',
-      providerId: 'anthropic',
-      modelId: 'claude-opus-5',
-      steps: 2,
-      inputTokens: 100,
-      outputTokens: 50,
-      cacheReadTokens: 80,
-      cacheWriteTokens: 20,
-      startedAt: args.startedAt,
-      endedAt: AT,
-      durationMs: 500,
-    },
-  })
+): void {
+  fixture.database
+    .query(
+      `INSERT INTO "Turn" ("runId", "threadId", "status", "providerId", "modelId", "steps", "inputTokens", "outputTokens", "cacheReadTokens", "cacheWriteTokens", "startedAt", "endedAt", "durationMs")
+       VALUES (?, ?, 'completed', 'anthropic', 'claude-opus-5', 2, 100, 50, 80, 20, ?, ?, 500)`,
+    )
+    .run(args.runId, args.threadId, args.startedAt, AT)
 }
 
-export async function seedFamily(fixture: Fixture): Promise<void> {
-  await insertThread(fixture, {
+export function seedFamily(fixture: Fixture): void {
+  insertThread(fixture, {
     id: 'root',
     title: 'main conversation',
     workspace: '/repo',
     repo: 'dennisofficial/atlas',
   })
-  await insertThread(fixture, { id: 'agent', spawnerThreadId: 'root', agentType: 'explore' })
-  await insertThread(fixture, { id: 'subagent', spawnerThreadId: 'agent', agentType: 'builder' })
-  await insertThread(fixture, {
+  insertThread(fixture, { id: 'agent', spawnerThreadId: 'root', agentType: 'explore' })
+  insertThread(fixture, { id: 'subagent', spawnerThreadId: 'agent', agentType: 'builder' })
+  insertThread(fixture, {
     id: 'fork',
     title: 'fork of main',
     parentThreadId: 'root',
     forkSeq: 2,
     forkMode: 'full',
   })
-  await insertEvent(fixture, { id: 'e1', threadId: 'root', seq: 1 })
-  await insertEvent(fixture, { id: 'e2', threadId: 'root', seq: 2 })
-  await insertEvent(fixture, { id: 'e3', threadId: 'agent', seq: 1, parentRunId: 'run-root' })
-  await insertEvent(fixture, { id: 'e4', threadId: 'subagent', seq: 1 })
-  await insertEvent(fixture, { id: 'e5', threadId: 'fork', seq: 1 })
-  await insertTurn(fixture, { runId: 'run-root', threadId: 'root', startedAt: AT })
-  await insertTurn(fixture, { runId: 'run-agent', threadId: 'agent', startedAt: '2026-09-20T11:00:00.000Z' })
+  insertEvent(fixture, { id: 'e1', threadId: 'root', seq: 1 })
+  insertEvent(fixture, { id: 'e2', threadId: 'root', seq: 2 })
+  insertEvent(fixture, { id: 'e3', threadId: 'agent', seq: 1, parentRunId: 'run-root' })
+  insertEvent(fixture, { id: 'e4', threadId: 'subagent', seq: 1 })
+  insertEvent(fixture, { id: 'e5', threadId: 'fork', seq: 1 })
+  insertTurn(fixture, { runId: 'run-root', threadId: 'root', startedAt: AT })
+  insertTurn(fixture, { runId: 'run-agent', threadId: 'agent', startedAt: '2026-09-20T11:00:00.000Z' })
 }

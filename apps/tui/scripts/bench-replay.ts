@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -8,7 +8,10 @@ import { toThreadId, type ThreadId } from '@dltech/atlas-core'
 import {
   buildHarness,
   BunShellRegistry,
+  eventLogFile,
   HookChain,
+  readSessionMetaSync,
+  sessionMetaFile,
   SystemClock,
 } from '@dltech/atlas-harness'
 
@@ -18,7 +21,7 @@ import { mountBenchRender, publishingRunner } from './bench-render'
 const CRASH_SCREEN_MARKER = 'something broke'
 
 type ReplayFlags = {
-  db: string
+  from: string
   threads: number
   match: string | undefined
   minEvents: number
@@ -42,7 +45,7 @@ const positiveInteger = (name: string, raw: string | undefined, fallback: number
 }
 
 const parseFlags = (argv: readonly string[]): ReplayFlags => ({
-  db: readFlag(argv, 'db') ?? `${process.env.HOME}/.atlas/harness.db`,
+  from: readFlag(argv, 'from') ?? `${process.env.HOME}/.atlas/sessions`,
   threads: positiveInteger('threads', readFlag(argv, 'threads'), 5),
   match: readFlag(argv, 'match'),
   minEvents: positiveInteger('minevents', readFlag(argv, 'minevents'), 1),
@@ -54,23 +57,35 @@ const parseFlags = (argv: readonly string[]): ReplayFlags => ({
 
 type Candidate = { id: string; title: string | null; events: number; bytes: number }
 
-const queryJson = <T>(db: string, sql: string): T[] =>
-  JSON.parse(execFileSync('sqlite3', ['-json', db, sql], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }))
+const readText = (file: string): string => {
+  try {
+    return readFileSync(file, 'utf8')
+  } catch {
+    return ''
+  }
+}
 
-const pickThreads = (db: string, flags: ReplayFlags): Candidate[] => {
-  const where =
-    flags.match === undefined
-      ? 't.spawnerThreadId IS NULL'
-      : `t.title LIKE '%${flags.match.replaceAll("'", "''")}%'`
-  return queryJson<Candidate>(
-    db,
-    `SELECT t.id, t.title, COUNT(e.id) AS events, SUM(LENGTH(e.body)) AS bytes
-     FROM Thread t JOIN Event e ON e.threadId = t.id
-     WHERE ${where}
-     GROUP BY t.id
-     HAVING events BETWEEN ${flags.minEvents} AND ${flags.maxEvents}
-     ORDER BY events DESC LIMIT ${flags.threads}`,
-  )
+const pickThreads = (from: string, flags: ReplayFlags): Candidate[] => {
+  const candidates: Candidate[] = []
+  for (const dir of readdirSync(from)) {
+    const sessionDir = join(from, dir)
+    const meta = readSessionMetaSync({ file: sessionMetaFile({ sessionDir }), sessionDir })
+    if (meta === undefined) continue
+    if (flags.match !== undefined && !(meta.title ?? '').includes(flags.match)) continue
+    const file = eventLogFile({ sessionDir, threadId: toThreadId(meta.id) })
+    const raw = readText(file)
+    if (raw === '') continue
+    candidates.push({
+      id: meta.id,
+      title: meta.title,
+      events: raw.split('\n').filter((line: string) => line !== '').length,
+      bytes: raw.length,
+    })
+  }
+  return candidates
+    .filter((candidate) => candidate.events >= flags.minEvents && candidate.events <= flags.maxEvents)
+    .sort((a, b) => b.events - a.events)
+    .slice(0, flags.threads)
 }
 
 type Scroller = {
@@ -183,18 +198,17 @@ const printReport = (rows: readonly ReplayRow[]): void => {
 const main = async (): Promise<void> => {
   const flags = parseFlags(process.argv.slice(2))
   const root = mkdtempSync(join(tmpdir(), 'atlas-replay-'))
-  const copy = join(root, 'replay.db')
-  execFileSync('sqlite3', [flags.db, `.backup '${copy}'`])
-  const candidates = pickThreads(copy, flags)
+  execFileSync('cp', ['-R', flags.from, join(root, 'sessions')])
+  const candidates = pickThreads(join(root, 'sessions'), flags)
   if (candidates.length === 0) {
-    console.error(`no threads matched in ${flags.db}`)
+    console.error(`no threads matched in ${flags.from}`)
     rmSync(root, { recursive: true, force: true })
     process.exit(1)
   }
 
   const harness = await buildHarness({
     model: benchModel(),
-    databaseUrl: `file:${copy}`,
+    home: root,
     launchDirectory: root,
   })
   const { channel, runner } = publishingRunner({ harness, root })

@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 
 import { toThreadId } from '@dltech/atlas-core'
 
-import { openAtlasDatabase } from '../store/database'
+import { Database } from 'bun:sqlite'
 import { EVENT_LINE_VERSION, type EventLine } from '../store/sessions/lines'
 import {
   SESSION_FORMAT_VERSION,
@@ -50,6 +50,22 @@ type EventRow = {
   body: string
 }
 
+type TurnRow = {
+  runId: string
+  threadId: string
+  status: string
+  providerId: string
+  modelId: string
+  steps: number
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens: number
+  cacheWriteTokens: number
+  startedAt: string
+  endedAt: string
+  durationMs: number
+}
+
 export type LedgerLine = {
   runId: string
   threadId: string
@@ -91,9 +107,9 @@ export async function exportHarnessDb({
   databaseUrl: string
   home: string
 }): Promise<ExportSummary> {
-  const database = await openAtlasDatabase({ databaseUrl })
+  const database = new Database(databaseUrl.replace(/^file:/, ''), { readonly: true })
   try {
-    const threads: ThreadRow[] = await database.prisma.thread.findMany()
+    const threads = database.query('SELECT * FROM "Thread"').all() as ThreadRow[]
     const { sessions, orphanedAgents } = groupThreadsIntoSessions({ threads })
     const byId = new Map(threads.map((thread) => [thread.id, thread]))
 
@@ -115,10 +131,9 @@ export async function exportHarnessDb({
       for (const threadId of memberIds) {
         const thread = byId.get(threadId)
         if (thread === undefined) continue
-        const events: EventRow[] = await database.prisma.event.findMany({
-          where: { threadId },
-          orderBy: { seq: 'asc' },
-        })
+        const events = database
+          .query('SELECT * FROM "Event" WHERE "threadId" = ? ORDER BY "seq" ASC')
+          .all(threadId) as EventRow[]
 
         const lines: string[] = []
         for (const row of events) {
@@ -139,10 +154,12 @@ export async function exportHarnessDb({
         summary.threads += 1
       }
 
-      const turns = await database.prisma.turn.findMany({
-        where: { threadId: { in: memberIds } },
-        orderBy: [{ startedAt: 'asc' }, { runId: 'asc' }],
-      })
+      const placeholders = memberIds.map(() => '?').join(', ')
+      const turns = database
+        .query(
+          `SELECT * FROM "Turn" WHERE "threadId" IN (${placeholders}) ORDER BY "startedAt" ASC, "runId" ASC`,
+        )
+        .all(...memberIds) as TurnRow[]
       const ledger = turns.map((turn) => JSON.stringify(ledgerLineOf({ turn })))
       await writeFile(ledgerFile({ sessionDir }), ledger.length === 0 ? '' : `${ledger.join('\n')}\n`)
       summary.turns += turns.length
@@ -153,7 +170,7 @@ export async function exportHarnessDb({
 
     return summary
   } finally {
-    await database.close()
+    database.close()
   }
 }
 
@@ -216,25 +233,7 @@ function sessionMetaOf({ root }: { root: ThreadRow }): SessionMeta {
   }
 }
 
-function ledgerLineOf({
-  turn,
-}: {
-  turn: {
-    runId: string
-    threadId: string
-    status: string
-    providerId: string
-    modelId: string
-    steps: number
-    inputTokens: number
-    outputTokens: number
-    cacheReadTokens: number
-    cacheWriteTokens: number
-    startedAt: string
-    endedAt: string
-    durationMs: number
-  }
-}): LedgerLine {
+function ledgerLineOf({ turn }: { turn: TurnRow }): LedgerLine {
   return {
     runId: turn.runId,
     threadId: turn.threadId,

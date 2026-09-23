@@ -5,16 +5,15 @@ import { join } from 'node:path'
 import type { ThreadId, ClockPort, EventId, IdPort, RunId } from '@dltech/atlas-core'
 import { EKilledBy, toThreadId, toCallId, toEventId, toRunId } from '@dltech/atlas-core'
 
-import type { PrismaClient } from '../../../prisma/generated/client'
 import { AgentRegistryPort, type RelocateChildrenArgs } from '../../agents/registry/port'
 import type { AgentSnapshot } from '../../agents/registry/snapshot'
 import type { ServiceSnapshot } from '../../services/service-process'
 import { ServiceRegistryPort, type ServiceStopOutcome } from '../../services/service-registry'
 import type { ShellKillOutcome, ShellSnapshot } from '../../shells/background-shell'
 import { ShellRegistryPort } from '../../shells/shell-registry'
-import { openAtlasDatabase, type AtlasDatabase } from '../database'
-import { PrismaThreadStore } from '../thread-store'
-import { PrismaEventLog } from '../event-log'
+import { JsonlEventLog } from '../sessions/event-log'
+import { SessionRegistry } from '../sessions/registry'
+import { JsonlThreadStore } from '../sessions/thread-store'
 
 export class UnstaffedAgents extends AgentRegistryPort {
   types() {
@@ -169,10 +168,9 @@ export class UnstaffedServices extends ServiceRegistryPort {
 }
 
 export type StoreFixture = {
-  databaseUrl: string
-  prisma: PrismaClient
-  log: PrismaEventLog
-  threads: PrismaThreadStore
+  home: string
+  log: JsonlEventLog
+  threads: JsonlThreadStore
   agents: AgentRegistryPort
   shells: UnstaffedShells
   services: UnstaffedServices
@@ -218,63 +216,33 @@ export class CountingIds implements IdPort {
   }
 }
 
-export function createTempDatabaseUrl(): { databaseUrl: string; discard: () => void } {
-  const directory = mkdtempSync(join(tmpdir(), 'atlas-store-'))
-  return {
-    databaseUrl: `file:${join(directory, 'atlas.db')}`,
-    discard: () => rmSync(directory, { recursive: true, force: true }),
-  }
-}
-
-async function attach({
-  databaseUrl,
-  discard,
-  idPrefix,
-}: {
-  databaseUrl: string
-  discard: () => void
-  idPrefix: string
-}): Promise<StoreFixture> {
-  const database: AtlasDatabase = await openAtlasDatabase({ databaseUrl })
+function attach({ home, idPrefix }: { home: string; idPrefix: string }): StoreFixture {
+  const registry = new SessionRegistry(home)
   const clock = new SteppingClock()
   const ids = new CountingIds(idPrefix)
+  const log = new JsonlEventLog(home, registry, clock, ids)
 
   return {
-    databaseUrl,
-    prisma: database.prisma,
+    home,
     clock,
-    log: new PrismaEventLog(database.prisma, clock, ids),
-    threads: new PrismaThreadStore(database.prisma, clock, ids),
+    log,
+    threads: new JsonlThreadStore(home, registry, clock, ids, log),
     agents: new UnstaffedAgents(),
     shells: new UnstaffedShells(),
     services: new UnstaffedServices(),
-    reopen: async () => {
-      await database.close()
-      return attach({ databaseUrl, discard, idPrefix: `${idPrefix}b` })
-    },
-    close: async () => {
-      await database.close()
-      discard()
-    },
+    reopen: () => Promise.resolve(attach({ home, idPrefix: `${idPrefix}b` })),
+    close: () => Promise.resolve(),
   }
 }
 
-export async function openStoreFixture(): Promise<StoreFixture> {
-  const { databaseUrl, discard } = createTempDatabaseUrl()
-  return attach({ databaseUrl, discard, idPrefix: 'a' })
-}
-
-export async function openSecondWriter(fixture: StoreFixture): Promise<{
-  log: PrismaEventLog
-  threads: PrismaThreadStore
-  close: () => Promise<void>
-}> {
-  const database = await openAtlasDatabase({ databaseUrl: fixture.databaseUrl })
-  const clock = new SteppingClock()
-  const ids = new CountingIds('w2')
+export function openStoreFixture(): StoreFixture {
+  const home = mkdtempSync(join(tmpdir(), 'atlas-store-'))
+  const fixture = attach({ home, idPrefix: 'a' })
   return {
-    log: new PrismaEventLog(database.prisma, clock, ids),
-    threads: new PrismaThreadStore(database.prisma, clock, ids),
-    close: () => database.close(),
+    ...fixture,
+    close: () => {
+      rmSync(home, { recursive: true, force: true })
+      return Promise.resolve()
+    },
   }
 }

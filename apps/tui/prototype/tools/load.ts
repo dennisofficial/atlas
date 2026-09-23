@@ -1,49 +1,52 @@
-// PROTOTYPE — throwaway. Reads a real thread out of the Atlas sqlite store so the tool-call
+// PROTOTYPE — throwaway. Reads a real thread out of the Atlas sessions store so the tool-call
 // variants are judged against real transcripts rather than invented fixtures.
 
-import { Database } from 'bun:sqlite'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
-import type { Event } from '@dltech/atlas-core'
-import { atlasDatabaseFile, decodeEventRows } from '@dltech/atlas-harness'
-
-type EventRow = {
-  id: string
-  threadId: string
-  seq: number
-  runId: string
-  parentRunId: string | null
-  depth: number
-  at: string
-  type: string
-  body: string
-  contextSlot: string | null
-  contextKey: string | null
-  contextDigest: string | null
-}
+import { toThreadId, type Event } from '@dltech/atlas-core'
+import {
+  atlasDirectory,
+  eventLogFile,
+  parseEventLines,
+  readSessionMetaSync,
+  sessionMetaFile,
+  sessionsDirectory,
+} from '@dltech/atlas-harness'
 
 export type ThreadRow = { id: string; title: string | null; events: number; tools: number }
 
-const DEFAULT_DB = atlasDatabaseFile()
+const DEFAULT_HOME = sessionsDirectory({ home: atlasDirectory() })
+
+const readText = (file: string): string => {
+  try {
+    return readFileSync(file, 'utf8')
+  } catch {
+    return ''
+  }
+}
 
 export const databasePath = (argv: readonly string[]): string =>
-  argv.find((arg) => arg.startsWith('--db='))?.slice('--db='.length) ?? DEFAULT_DB
+  argv.find((arg) => arg.startsWith('--db='))?.slice('--db='.length) ??
+  argv.find((arg) => arg.startsWith('--from='))?.slice('--from='.length) ??
+  DEFAULT_HOME
 
 export function threadsIn(path: string): ThreadRow[] {
-  const database = new Database(path, { readonly: true })
-  const rows = database
-    .query<ThreadRow, []>(
-      `select t.id as id,
-              t.title as title,
-              count(e.id) as events,
-              sum(case when e.type = 'tool-called' then 1 else 0 end) as tools
-         from Thread t
-         join Event e on e.threadId = t.id
-        group by t.id
-        order by tools desc, events desc`,
-    )
-    .all()
-  database.close()
-  return rows
+  const rows: ThreadRow[] = []
+  for (const dir of readdirSync(path)) {
+    const sessionDir = join(path, dir)
+    const meta = readSessionMetaSync({ file: sessionMetaFile({ sessionDir }), sessionDir })
+    if (meta === undefined) continue
+    const file = eventLogFile({ sessionDir, threadId: toThreadId(meta.id) })
+    const parsed = parseEventLines({ text: readText(file), threadId: meta.id })
+    rows.push({
+      id: meta.id,
+      title: meta.title,
+      events: parsed.events.length,
+      tools: parsed.events.filter((event) => event.type === 'tool-called').length,
+    })
+  }
+  return rows.sort((a, b) => b.tools - a.tools || b.events - a.events)
 }
 
 export type LoadedThread = { thread: ThreadRow; events: readonly Event[]; unreadable: number }
@@ -57,16 +60,8 @@ export function loadThread(args: { path: string; threadId?: string | undefined }
 
   if (thread === undefined) throw new Error(`no thread to render in ${args.path}`)
 
-  const database = new Database(args.path, { readonly: true })
-  const rows = database
-    .query<EventRow, [string]>(
-      `select id, threadId, seq, runId, parentRunId, depth, at, type, body,
-              contextSlot, contextKey, contextDigest
-         from Event where threadId = ? order by seq`,
-    )
-    .all(thread.id)
-  database.close()
-
-  const decoded = decodeEventRows({ rows })
-  return { thread, events: decoded.events, unreadable: decoded.unreadable.length }
+  const sessionDir = join(args.path, thread.id)
+  const file = eventLogFile({ sessionDir, threadId: toThreadId(thread.id) })
+  const parsed = parseEventLines({ text: readFileSync(file, 'utf8'), threadId: thread.id })
+  return { thread, events: parsed.events, unreadable: parsed.unreadable.length }
 }

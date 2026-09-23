@@ -6,19 +6,13 @@ import type { KeychainReader } from '../../credentials/keychain-reader'
 import { LocalFileSystemPort } from '../../execution/local-filesystem'
 import { LoginEnvProcessPort } from '../../execution/login-env-process'
 import { CredentialPortProxy } from '../../cloud/credential-port-proxy'
-import {
-  ThreadStorePort,
-  PrismaThreadStore,
-  PrismaEventLog,
-  RandomIds,
-  SystemClock,
-  openAtlasDatabase,
-  type AtlasDatabase,
-} from '../../store'
-import { createTempDatabaseUrl } from '../../store/__tests__/harness'
+import { ThreadStorePort, RandomIds, SystemClock } from '../../store'
+import { JsonlEventLog } from '../../store/sessions/event-log'
+import { JsonlThreadStore } from '../../store/sessions/thread-store'
+import { createTempHome, type TempHome } from '../../loop/__tests__/temp-home'
 import { createHarnessContainer } from '../create-harness-container'
 import { portToken, type DependencyContainer } from '../injection'
-import { KeychainReaderToken, PrismaClientToken, WorkspaceRoot } from '../tokens'
+import { KeychainReaderToken, WorkspaceRoot } from '../tokens'
 
 const silentReader: KeychainReader = {
   readGenericPassword: async () => '{}',
@@ -26,23 +20,23 @@ const silentReader: KeychainReader = {
 }
 
 describe('createHarnessContainer', () => {
-  let database: AtlasDatabase
-  let discard: () => void
+  let temporary: TempHome
+  let previousHome: string | undefined
   let harness: DependencyContainer
 
-  beforeAll(async () => {
-    const temporary = createTempDatabaseUrl()
-    discard = temporary.discard
-    database = await openAtlasDatabase({ databaseUrl: temporary.databaseUrl })
+  beforeAll(() => {
+    temporary = createTempHome()
+    previousHome = process.env['ATLAS_HOME']
+    process.env['ATLAS_HOME'] = temporary.home
 
     harness = createHarnessContainer()
-    harness.register(PrismaClientToken, { useValue: database.prisma })
     harness.register(KeychainReaderToken, { useValue: silentReader })
   })
 
-  afterAll(async () => {
-    await database.close()
-    discard()
+  afterAll(() => {
+    if (previousHome === undefined) delete process.env['ATLAS_HOME']
+    else process.env['ATLAS_HOME'] = previousHome
+    temporary.discard()
   })
 
   it('resolves the clock port to the system clock', () => {
@@ -53,12 +47,12 @@ describe('createHarnessContainer', () => {
     expect(harness.resolve(portToken(IdPort))).toBeInstanceOf(RandomIds)
   })
 
-  it('resolves the event log port to the prisma event log', () => {
-    expect(harness.resolve(portToken(EventLogPort))).toBeInstanceOf(PrismaEventLog)
+  it('resolves the event log port to the jsonl event log', () => {
+    expect(harness.resolve(portToken(EventLogPort))).toBeInstanceOf(JsonlEventLog)
   })
 
-  it('resolves the thread store port to the prisma thread store', () => {
-    expect(harness.resolve(portToken(ThreadStorePort))).toBeInstanceOf(PrismaThreadStore)
+  it('resolves the thread store port to the jsonl thread store', () => {
+    expect(harness.resolve(portToken(ThreadStorePort))).toBeInstanceOf(JsonlThreadStore)
   })
 
   it('resolves the credential port to the brokered proxy', () => {
@@ -73,7 +67,7 @@ describe('createHarnessContainer', () => {
     expect(harness.resolve(portToken(FileSystemPort))).toBeInstanceOf(LocalFileSystemPort)
   })
 
-  it('injects the registered prisma client into the event log it builds', async () => {
+  it('answers head zero for a thread the event log has never seen', async () => {
     const log = harness.resolve(portToken(EventLogPort))
     expect(await log.head({ threadId: toThreadId('brn_absent') })).toBe(0)
   })

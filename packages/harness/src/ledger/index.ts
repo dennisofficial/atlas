@@ -6,9 +6,8 @@ export {
   type TurnLedgerDeps,
   type TurnSpendTally,
 } from './record-turn-spend'
-export { PrismaTurnLedger } from './prisma-turn-ledger'
+export { JsonlTurnLedger, sumSessionSpend, type SessionSpendTotals } from './jsonl'
 export {
-  readSpawnedThreadIds,
   SUPERVISION_DEPTH_LIMIT,
   SupervisionTreeTooDeep,
 } from './spawned-threads'

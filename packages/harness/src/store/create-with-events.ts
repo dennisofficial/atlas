@@ -1,15 +1,5 @@
-import type {
-  ClockPort,
-  EExecutionLocation,
-  Event,
-  EventDraft,
-  IdPort,
-  RunId,
-  ThreadId,
-} from '@dltech/atlas-core'
+import type { EExecutionLocation, EventDraft, RunId, ThreadId } from '@dltech/atlas-core'
 
-import type { Prisma } from '../../prisma/generated/client'
-import { appendWithin } from './event-log'
 import type { SupervisedAgent } from './thread-store'
 
 export class ThreadNeedsOpeningDrafts extends Error {
@@ -30,43 +20,4 @@ export type OpenThreadArgs = {
   repo?: string | null | undefined
   executionLocation?: EExecutionLocation | undefined
   agent?: SupervisedAgent | undefined
-}
-
-export async function createThreadWithEvents({
-  tx,
-  ids,
-  clock,
-  threadId: given,
-  drafts,
-  runId,
-  title,
-  workspace,
-  repo,
-  executionLocation,
-  agent,
-}: OpenThreadArgs & {
-  tx: Prisma.TransactionClient
-  ids: IdPort
-  clock: ClockPort
-}): Promise<{ threadId: ThreadId; events: Event[] }> {
-  if (drafts.length === 0) throw new ThreadNeedsOpeningDrafts()
-
-  const at = clock.now()
-  const threadId = given ?? ids.nextThreadId()
-
-  await tx.thread.create({
-    data: {
-      id: threadId,
-      createdAt: at,
-      updatedAt: at,
-      ...(title === undefined ? {} : { title }),
-      ...(workspace === undefined ? {} : { workspace }),
-      ...(repo === undefined ? {} : { repo }),
-      ...(executionLocation === undefined ? {} : { executionLocation }),
-      ...(agent === undefined ? {} : { spawnerThreadId: agent.spawnedBy, agentType: agent.type }),
-    },
-  })
-
-  const events = await appendWithin({ tx, clock, ids, args: { threadId, runId, drafts } })
-  return { threadId, events }
 }

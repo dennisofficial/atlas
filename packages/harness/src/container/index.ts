@@ -20,7 +20,6 @@ export {
   LocalAccountStoreToken,
   LocalSecretsStoreToken,
   ModelCardSourceToken,
-  PrismaClientToken,
   ProjectSettingsStoreToken,
   SecretsStoreToken,
   ServeSessionToken,

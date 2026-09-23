@@ -40,7 +40,7 @@ import { AgentRegistryPort } from '../agents/registry/port'
 import { childModelSource } from './model-bindings'
 import { ChildRunnerDepsToken } from '../container/create-harness-container'
 import { portToken, type DependencyContainer } from '../container/injection'
-import { DeltaChannelToken, HookChainToken } from '../container/tokens'
+import { DeltaChannelToken, HookChainToken, SessionRegistryToken } from '../container/tokens'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import { jevLoopWatch } from '../loop/loop-watchdog'
 import type { TurnDeps } from '../loop/run-turn'
@@ -52,7 +52,7 @@ import type { PromptRegistry } from '../prompt/registry'
 import { ServiceRegistryPort } from '../services/service-registry'
 import type { SettingsService } from '../settings/service'
 import { ShellRegistryPort } from '../shells/shell-registry'
-import { createLoopCut } from '../store/cut-loop'
+import { createLoopCut } from '../store/sessions/ops/cut-loop'
 import { ThreadStorePort } from '../store/thread-store'
 import { ToolDispatcher } from '../tools/dispatch'
 import { ToolRegistry } from '../tools/registry'
@@ -222,7 +222,12 @@ export function wireTurn<Command>(args: {
     ],
     spend: { ledger, clock: container.resolve(portToken(ClockPort)) },
     compact: compactBeforeOverflow,
-    applyLoopCut: createLoopCut({ threads, log, ids }),
+    applyLoopCut: createLoopCut({
+      log,
+      registry: container.resolve(SessionRegistryToken),
+      clock: container.resolve(portToken(ClockPort)),
+      ids,
+    }),
     watchLoop: jevLoopWatch({
       decisions: container.resolve(portToken(DecisionPort)),
       enabled: args.decisionsEnabled,

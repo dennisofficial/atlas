@@ -21,7 +21,7 @@ describe('exportHarnessDb', () => {
     await seedFamily(fixture)
 
     const summary = await exportHarnessDb({
-      databaseUrl: fixture.database.databaseUrl,
+      databaseUrl: fixture.databaseFile,
       home: fixture.home,
     })
 
@@ -138,7 +138,7 @@ describe('exportHarnessDb', () => {
     await insertEvent(fixture, { id: 'e2', threadId: 'root', seq: 2, body: '{not json' })
 
     const summary = await exportHarnessDb({
-      databaseUrl: fixture.database.databaseUrl,
+      databaseUrl: fixture.databaseFile,
       home: fixture.home,
     })
 
@@ -157,13 +157,11 @@ describe('exportHarnessDb', () => {
 
   it('exports an orphaned agent as its own session and reports it', async () => {
     const fixture = await openFixture()
-    await fixture.database.prisma.$executeRawUnsafe('PRAGMA foreign_keys = OFF')
     await insertThread(fixture, { id: 'stray', spawnerThreadId: 'gone', agentType: 'explore' })
-    await fixture.database.prisma.$executeRawUnsafe('PRAGMA foreign_keys = ON')
     await insertEvent(fixture, { id: 'e1', threadId: 'stray', seq: 1 })
 
     const summary = await exportHarnessDb({
-      databaseUrl: fixture.database.databaseUrl,
+      databaseUrl: fixture.databaseFile,
       home: fixture.home,
     })
 
@@ -190,7 +188,7 @@ describe('exportHarnessDb', () => {
     await insertEvent(fixture, { id: 'e1', threadId: 'root', seq: 1 })
     await insertEvent(fixture, { id: 'e2', threadId: 'root', seq: 2 })
 
-    await exportHarnessDb({ databaseUrl: fixture.database.databaseUrl, home: fixture.home })
+    await exportHarnessDb({ databaseUrl: fixture.databaseFile, home: fixture.home })
 
     const sessionDir = sessionDirectory({ home: fixture.home, sessionId: 'root' })
     const parsed = parseEventLines({

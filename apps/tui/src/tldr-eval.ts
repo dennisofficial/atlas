@@ -19,16 +19,21 @@ import {
   transcriptOfRange,
   type Event,
 } from '@dltech/atlas-core'
+import { readdir } from 'node:fs/promises'
+import { join } from 'node:path'
+
 import {
-  atlasDatabaseUrl,
+  atlasDirectory,
   createAnthropicOauthModel,
   createHarnessContainer,
   createSecurityKeychainReader,
   disposeAll,
   KeychainReaderToken,
-  openAtlasDatabase,
   portToken,
-  PrismaClientToken,
+  readSessionMetaSync,
+  TurnLedgerPort,
+  sessionMetaFile,
+  sessionsDirectory,
   TLDR_MODEL_ID,
   tldrFor,
 } from '@dltech/atlas-harness'
@@ -149,30 +154,30 @@ async function judge(args: {
 async function main(): Promise<void> {
   const container = createHarnessContainer()
   container.register(KeychainReaderToken, { useValue: createSecurityKeychainReader() })
-  const database = await openAtlasDatabase({ databaseUrl: atlasDatabaseUrl() })
-  container.register(PrismaClientToken, { useValue: database.prisma })
-
   try {
     const log = container.resolve(portToken(EventLogPort))
+    const ledger = container.resolve(portToken(TurnLedgerPort))
     const model = createAnthropicOauthModel({
       credentials: container.resolve(portToken(CredentialPort)),
       modelId: TLDR_MODEL_ID,
     })
 
-    const threads: { id: string; title: string | null }[] = await database.prisma.thread.findMany({
-      where: { agentType: null },
-      orderBy: { updatedAt: 'desc' },
-      take: THREADS,
-      select: { id: true, title: true },
-    })
+    const root = sessionsDirectory({ home: atlasDirectory() })
+    const threads: { id: string; title: string | null; updatedAt: string }[] = []
+    for (const dir of await readdir(root)) {
+      const sessionDir = join(root, dir)
+      const meta = readSessionMetaSync({ file: sessionMetaFile({ sessionDir }), sessionDir })
+      if (meta !== undefined) threads.push({ id: meta.id, title: meta.title, updatedAt: meta.updatedAt })
+    }
+    threads.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    threads.length = Math.min(threads.length, THREADS)
 
     const spans: Span[] = []
     for (const thread of threads) {
       const events = await log.read({ threadId: toThreadId(thread.id) })
-      const turns: { runId: string; status: string }[] = await database.prisma.turn.findMany({
-        where: { threadId: thread.id, status: 'completed' },
-        select: { runId: true, status: true },
-      })
+      const turns = (await ledger.forThread({ threadId: toThreadId(thread.id) })).filter(
+        (turn) => turn.status === 'completed',
+      )
       const completedRuns = new Set(turns.map((turn) => turn.runId))
       const found = spansOf({
         title: thread.title ?? thread.id,
@@ -211,7 +216,6 @@ async function main(): Promise<void> {
     const total = Math.min(spans.length, LIMIT)
     console.log(`${passed}/${total} passed`)
   } finally {
-    await database.close()
     await disposeAll({ container })
   }
 }

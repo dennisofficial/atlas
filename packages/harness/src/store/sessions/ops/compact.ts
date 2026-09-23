@@ -18,7 +18,8 @@ import {
   type CompactionOutcome,
   type Summarise,
 } from '../../compact'
-import type { JsonlEventLog } from '../event-log'
+import type { EventLogPort } from '@dltech/atlas-core'
+
 import type { SessionRegistry } from '../registry'
 import { dropRewoundChildren } from './children'
 import { draftOf } from './log-edits'
@@ -123,7 +124,7 @@ function composeDrafts({
 }
 
 export async function compactThread(args: {
-  log: JsonlEventLog
+  log: EventLogPort
   registry: SessionRegistry
   clock: ClockPort
   ids: IdPort
@@ -155,7 +156,7 @@ export async function compactThread(args: {
     return { ok: false, failure: ECompactionFailure.NoSummary, reason: NO_SUMMARY }
   }
 
-  const sessionDir = await log.sessionDirFor({ threadId })
+  const sessionDir = await registry.sessionDirFor({ threadId })
   const owned = await log.readOwn({ threadId })
   const destructive = args.destructive === true
   const { drafts, replaced } = composeDrafts({ owned, anchor, range, summary, destructive })
