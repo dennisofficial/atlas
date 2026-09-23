@@ -241,7 +241,11 @@ export type FakeBridge = CloudBridge & {
   readonly log: FakeEventLog
   readonly threads: FakeThreadStore
   readonly ledger: FakeLedger
-  readonly created: readonly { threadId: ThreadId; workspace: LiftedWorkspace | null }[]
+  readonly created: readonly {
+    threadId: ThreadId
+    workspace: LiftedWorkspace | null
+    gpgKey?: string | undefined
+  }[]
   readonly contextPuts: readonly { threadId: ThreadId; archive: Buffer }[]
   readonly attached: readonly { threadId: ThreadId; url: string; token: string }[]
   readonly destroyed: readonly ThreadId[]
@@ -270,7 +274,11 @@ export function fakeBridge(
   const threads = args.threadStore ?? fakeThreadStore({ log })
   const ledger = fakeLedger()
   let channel: FakeCloudChannel | null = null
-  const created: { threadId: ThreadId; workspace: LiftedWorkspace | null }[] = []
+  const created: {
+    threadId: ThreadId
+    workspace: LiftedWorkspace | null
+    gpgKey?: string | undefined
+  }[] = []
   const contextPuts: { threadId: ThreadId; archive: Buffer }[] = []
   const attached: { threadId: ThreadId; url: string; token: string }[] = []
   const destroyed: ThreadId[] = []
@@ -293,9 +301,9 @@ export function fakeBridge(
     trail,
     stores: { log, threads: watchedThreads, ledger },
     sandboxes: {
-      create: async ({ threadId, workspace }) => {
+      create: async ({ threadId, workspace, gpgKey }) => {
         trail.push('sandbox')
-        created.push({ threadId, workspace })
+        created.push({ threadId, workspace, ...(gpgKey === undefined ? {} : { gpgKey }) })
         if (args.createFails !== undefined) throw args.createFails
         return args.sandbox ?? RUNNING
       },

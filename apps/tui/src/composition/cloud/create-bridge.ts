@@ -67,6 +67,7 @@ export function createCloudBridge(args: {
   const create = async (createArgs: {
     threadId: ThreadId
     workspace: Parameters<CloudSandboxes['create']>[0]['workspace']
+    gpgKey?: string | undefined
   }): Promise<CloudSandbox> => {
     const config = args.vercel()
     const driver = driverWith(config)
@@ -79,6 +80,7 @@ export function createCloudBridge(args: {
       gitToken,
       contextPending: observed === undefined,
       ...(createArgs.workspace === null ? {} : { workspace: createArgs.workspace }),
+      ...(createArgs.gpgKey === undefined ? {} : { gpgKey: createArgs.gpgKey }),
     })
 
     const placement = await driver.createOrResume({

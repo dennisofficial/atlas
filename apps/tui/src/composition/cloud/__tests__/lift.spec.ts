@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation, toRunId, type ThreadId } from '@dltech/atlas-core'
-import { CloudError, EShellStatus } from '@dltech/atlas-harness'
+import { CloudError, EShellStatus, type GpgKeyMaterial } from '@dltech/atlas-harness'
 
 import { fakeEventLog, type FakeThreadStore } from '../../__tests__/fake-backend'
 import { ECloudSandboxState } from '../cloud-bridge'
@@ -69,6 +69,33 @@ describe('lifting a conversation into the cloud', () => {
     await liftToCloud(test.args)
 
     expect(test.bridge.created).toEqual([{ threadId: CLOUD_THREAD, workspace: dirty }])
+  })
+
+  it("carries the operator's gpg material to the sandbox request, stringified", async () => {
+    const material: GpgKeyMaterial = {
+      keyId: 'DEADBEEF1234',
+      publicKey: 'PUBLIC BLOCK',
+      secretKey: 'SECRET BLOCK',
+      ownerTrust: 'TRUST',
+      sign: true,
+    }
+    const test = harness({ captureGpg: async () => material })
+
+    const lifted = await liftToCloud(test.args)
+
+    expect(lifted.ok).toBe(true)
+    expect(test.bridge.created).toEqual([
+      { threadId: CLOUD_THREAD, workspace: CLEAN_WORKSPACE, gpgKey: JSON.stringify(material) },
+    ])
+  })
+
+  it('sends no gpg key when the operator has no signing material', async () => {
+    const test = harness({ captureGpg: async () => null })
+
+    const lifted = await liftToCloud(test.args)
+
+    expect(lifted.ok).toBe(true)
+    expect(test.bridge.created).toEqual([{ threadId: CLOUD_THREAD, workspace: CLEAN_WORKSPACE }])
   })
 
   it("carries the operator's context archive to the sandbox after it is created", async () => {

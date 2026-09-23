@@ -719,6 +719,7 @@ describe('SandboxesService', () => {
       projectDirectory: null,
       gitIdentity: null,
       githubToken: 'gho_user-token',
+      gpgKey: null,
       contextBundle: null,
     })
     expect(github.findToken).toHaveBeenCalledWith({ userId: USER_A })
@@ -844,6 +845,7 @@ describe('SandboxesService', () => {
       projectDirectory: null,
       gitIdentity: null,
       githubToken: null,
+      gpgKey: null,
       contextBundle: null,
     })
     expect(github.findToken).not.toHaveBeenCalled()
@@ -1116,6 +1118,54 @@ describe('SandboxesService', () => {
     const workspace = await service.workspace({ threadId: THREAD })
 
     expect(workspace.gitIdentity).toBeNull()
+  })
+
+  it('claim seals the gpg key onto the row, and the workspace fetch hands it back decrypted', async () => {
+    const material = '{"privateKey":"priv","publicKey":"pub"}'
+    await service.claim({ userId: USER_A, threadId: THREAD, workspace: SPEC, gpgKey: material })
+
+    const sealed = fake.cloudSandboxes[0]?.sealedGpgKey
+    expect(sealed).toBeTruthy()
+    expect(cipher.decrypt(sealed as string)).toBe(material)
+    expect(JSON.stringify(fake.cloudSandboxes[0])).not.toContain(material)
+
+    const fetched = await service.workspace({ threadId: THREAD })
+
+    expect(fetched.gpgKey).toBe(material)
+  })
+
+  it('a claim without a gpg key serves gpgKey as null', async () => {
+    await service.claim({ userId: USER_A, threadId: THREAD, workspace: SPEC })
+
+    await expect(service.workspace({ threadId: THREAD })).resolves.toMatchObject({
+      gpgKey: null,
+    })
+  })
+
+  it('a re-claim that omits the gpg key leaves the one already sealed on the row in place', async () => {
+    const material = '{"privateKey":"priv"}'
+    await service.claim({ userId: USER_A, threadId: THREAD, workspace: SPEC, gpgKey: material })
+    await service.claim({ userId: USER_A, threadId: THREAD })
+
+    const fetched = await service.workspace({ threadId: THREAD })
+
+    expect(fetched.gpgKey).toBe(material)
+  })
+
+  it('an undecryptable sealed gpg key serves null instead of failing the workspace fetch', async () => {
+    await service.claim({
+      userId: USER_A,
+      threadId: THREAD,
+      workspace: SPEC,
+      gpgKey: '{"privateKey":"priv"}',
+    })
+    const row = fake.cloudSandboxes[0]
+    if (row === undefined) throw new Error('expected a claimed row')
+    row.sealedGpgKey = 'not-a-valid-blob'
+
+    await expect(service.workspace({ threadId: THREAD })).resolves.toMatchObject({
+      gpgKey: null,
+    })
   })
 
   it('claim refuses an oversized patch before writing anything', async () => {

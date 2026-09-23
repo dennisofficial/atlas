@@ -104,6 +104,40 @@ describe('claiming a sandbox', () => {
     })
   })
 
+  it('carries the gpg key material when the lift exported one', async () => {
+    const { client, calls } = harness([{ body: { token: 'tok_1' } }])
+    const gpgKey = JSON.stringify({
+      keyId: 'DEADBEEF1234',
+      publicKey: 'PUBLIC BLOCK',
+      secretKey: 'SECRET BLOCK',
+      ownerTrust: '',
+      sign: true,
+    })
+
+    await client.claimSandbox({
+      threadId: 'brn_cloud',
+      gitToken: 'gho_abc',
+      contextPending: true,
+      gpgKey,
+    })
+
+    expect(calls[0]?.body).toEqual({
+      threadId: 'brn_cloud',
+      gitToken: 'gho_abc',
+      contextPending: true,
+      gpgKey,
+    })
+  })
+
+  it('sends no gpgKey key when the operator has no signing material', async () => {
+    const { client, calls } = harness([{ body: { token: 'tok_1' } }])
+
+    await client.claimSandbox({ threadId: 'brn_cloud', gitToken: 'gho_abc', contextPending: true })
+
+    const body = calls[0]?.body as Record<string, unknown>
+    expect('gpgKey' in body).toBe(false)
+  })
+
   it('carries the bearer token and the client version', async () => {
     const { client, calls } = harness([{ body: { token: 'tok_1' } }])
 

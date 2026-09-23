@@ -10,8 +10,10 @@ import {
 } from '@dltech/atlas-core'
 import {
   CloudError,
+  exportGpgMaterial,
   GitCredentialError,
   VercelNotConfiguredError,
+  type GpgKeyMaterial,
   type ThreadModel,
   type ThreadStorePort,
 } from '@dltech/atlas-harness'
@@ -89,6 +91,7 @@ export type LiftArgs = {
   setLocation: (location: EExecutionLocation) => void
   stopLocal: () => Promise<StoppedLocally>
   capture: (args: { cwd: string }) => Promise<LiftedWorkspace | null>
+  captureGpg?: ((args: { cwd: string }) => Promise<GpgKeyMaterial | null>) | undefined
   /** Deferred so a sandbox that resumed from a snapshot skips the (expensive) skills tar. */
   captureContext?: CaptureContext | undefined
   onProgress: (step: ELiftStep) => void
@@ -304,10 +307,18 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
     return failureOf({ error, step: ELiftStep.Capturing, fallback: ELiftFault.Transfer, stopped })
   }
 
+  const gpgMaterial = await (args.captureGpg ?? exportGpgMaterial)({ cwd: args.cwd }).catch(
+    () => null,
+  )
+
   onProgress(ELiftStep.Starting)
   let sandbox: CloudSandbox
   try {
-    sandbox = await args.bridge.sandboxes.create({ threadId, workspace })
+    sandbox = await args.bridge.sandboxes.create({
+      threadId,
+      workspace,
+      gpgKey: gpgMaterial === null ? undefined : JSON.stringify(gpgMaterial),
+    })
   } catch (error) {
     await flipBack({ ...args, from })
     await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })

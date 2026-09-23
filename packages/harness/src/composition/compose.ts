@@ -15,6 +15,7 @@ import {
   NOTICE_WARN_MS,
   parseRef,
   textValueOf,
+  type CapabilitiesSource,
   type NoticePort,
 } from '@dltech/atlas-core'
 
@@ -56,6 +57,7 @@ import { probeWorkspace } from '../workspace/probe'
 import type { ContributedSurface } from '../plugins/surface'
 
 import { bindAccounts, bindKeychainSource } from './account-bindings'
+import { dockerCapabilitiesSource } from './capabilities-source'
 import type { Summariser } from './compact-turn'
 import type { HarnessLaunch } from './config'
 import { bindInstructionsAndMemory } from './context-bindings'
@@ -100,6 +102,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
    * it must run ahead of `bindAccounts`, which resolves the account store at boot.
    */
   bindPorts?: ((args: { container: DependencyContainer }) => void) | undefined
+  capabilities?: CapabilitiesSource | undefined
   /**
    * The repo's normalized origin identity, when the caller already knows it: a serve session is
    * told it by the workspace spec (its own git may not answer), while a host session leaves this
@@ -317,6 +320,8 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     container,
     workspace,
     executionLocation,
+    capabilities:
+      args.capabilities ?? dockerCapabilitiesSource({ executionLocation, cwd: anchor, env: args.env }),
     mounts,
     models,
     model,

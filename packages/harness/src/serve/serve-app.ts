@@ -1,4 +1,5 @@
 import type {
+  EnvironmentCapabilities,
   EventLogPort,
   IdPort,
   NoticePort,
@@ -42,6 +43,7 @@ export type ServeComposeArgs = {
   notice: NoticePort
   /** The Mac-side project directory, so memory this sandbox uploads is keyed by the right repo. */
   projectDirectory?: string | null | undefined
+  capabilities?: EnvironmentCapabilities | undefined
   /**
    * The repo's normalized origin identity (`github.com/org/repo`) from the workspace spec, so the
    * sandbox's project memory lands in the same identity-keyed directory the host uses. Null when

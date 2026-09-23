@@ -6,7 +6,7 @@ import { CloudError, GitCredentialError, VercelNotConfiguredError } from '@dltec
 import { fakeAgentSnapshot } from '../../__tests__/fake-agents'
 import { fakeThreadStore } from '../../__tests__/fake-backend'
 import { ELiftFault, ELiftStep, liftToCloud } from '../lift'
-import { CLOUD_THREAD, fakeBridge } from './fixture'
+import { CLEAN_WORKSPACE, CLOUD_THREAD, fakeBridge } from './fixture'
 import { CHILD, fakeLiftAgents, harness } from './lift-fixture'
 
 describe('a lift that does not finish', () => {
@@ -215,6 +215,20 @@ describe('a lift that does not finish', () => {
     expect(lifted.detail).toContain('would not stop')
     expect(test.stops).toBe(0)
     expect(test.located).toEqual([])
+  })
+
+  it('completes the lift without gpg material when the capture itself throws', async () => {
+    const test = harness({
+      captureGpg: async () => {
+        throw new Error('gpg fell over')
+      },
+    })
+
+    const lifted = await liftToCloud(test.args)
+
+    expect(lifted.ok).toBe(true)
+    expect(test.bridge.created).toEqual([{ threadId: CLOUD_THREAD, workspace: CLEAN_WORKSPACE }])
+    expect(test.bridge.attached).toHaveLength(1)
   })
 
   it('waits for the session to go quiet even when no turn is in flight', async () => {
