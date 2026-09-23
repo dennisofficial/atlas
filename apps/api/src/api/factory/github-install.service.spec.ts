@@ -108,6 +108,18 @@ describe('GithubInstallService', () => {
     expect(fake.connections[0]?.organizationId).toBe('org_compai')
   })
 
+  it('knownInstallation answers whether the installation is already connected', async () => {
+    const install = service()
+    const url = new URL(await install.beginInstall({ organizationId: 'org_compai' }))
+    await install.completeInstall({
+      installationId: '12345678',
+      state: url.searchParams.get('state') as string,
+    })
+
+    await expect(install.knownInstallation({ installationId: '12345678' })).resolves.toBe(true)
+    await expect(install.knownInstallation({ installationId: '999' })).resolves.toBe(false)
+  })
+
   it('completeInstall rejects a non-numeric installation id', async () => {
     const install = service()
     const url = new URL(await install.beginInstall({ organizationId: 'org_compai' }))

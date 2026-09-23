@@ -21,13 +21,18 @@ function fakeResponse(): { redirect: ReturnType<typeof vi.fn> } {
 }
 
 describe('GithubInstallController', () => {
-  let install: { beginInstall: ReturnType<typeof vi.fn>; completeInstall: ReturnType<typeof vi.fn> }
+  let install: {
+    beginInstall: ReturnType<typeof vi.fn>
+    completeInstall: ReturnType<typeof vi.fn>
+    knownInstallation: ReturnType<typeof vi.fn>
+  }
   let controller: GithubInstallController
 
   beforeEach(() => {
     install = {
       beginInstall: vi.fn(async () => INSTALL_URL),
       completeInstall: vi.fn(async () => undefined),
+      knownInstallation: vi.fn(async () => true),
     }
     controller = new GithubInstallController(
       new EnvService(ENV),
@@ -87,12 +92,31 @@ describe('GithubInstallController', () => {
     expect(response.redirect).toHaveBeenCalledWith(302, 'https://byatlas.io/factory?github=installed')
   })
 
-  it('callback redirects with an error param when installation_id or state is missing', async () => {
+  it('callback redirects with an error param when installation_id is missing', async () => {
     const response = fakeResponse()
 
     await controller.handleCallback(undefined, undefined, 'install', response as unknown as Response)
 
     expect(install.completeInstall).not.toHaveBeenCalled()
+    expect(response.redirect).toHaveBeenCalledWith(302, 'https://byatlas.io/factory?github=error')
+  })
+
+  it('callback without state lands on installed when the installation is already connected', async () => {
+    const response = fakeResponse()
+
+    await controller.handleCallback('12345678', undefined, 'update', response as unknown as Response)
+
+    expect(install.knownInstallation).toHaveBeenCalledWith({ installationId: '12345678' })
+    expect(install.completeInstall).not.toHaveBeenCalled()
+    expect(response.redirect).toHaveBeenCalledWith(302, 'https://byatlas.io/factory?github=installed')
+  })
+
+  it('callback without state lands on error for an installation nobody connected', async () => {
+    install.knownInstallation.mockResolvedValue(false)
+    const response = fakeResponse()
+
+    await controller.handleCallback('999', undefined, 'update', response as unknown as Response)
+
     expect(response.redirect).toHaveBeenCalledWith(302, 'https://byatlas.io/factory?github=error')
   })
 

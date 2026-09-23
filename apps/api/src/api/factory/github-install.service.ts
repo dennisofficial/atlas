@@ -59,6 +59,14 @@ export class GithubInstallService {
     })
   }
 
+  async knownInstallation(args: { installationId: string }): Promise<boolean> {
+    const connection = await this.connections.resolve({
+      provider: EFactoryConnectionProvider.GitHub,
+      externalAccountId: args.installationId,
+    })
+    return connection !== null
+  }
+
   private sweepExpired(): void {
     const now = Date.now()
     for (const [state, entry] of this.pending) {

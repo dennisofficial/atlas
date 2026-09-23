@@ -42,8 +42,14 @@ export class GithubInstallController {
     @Query('setup_action') setupAction: string | undefined,
     @Res() response: Response,
   ): Promise<void> {
-    if (installationId === undefined || state === undefined) {
+    if (installationId === undefined) {
       response.redirect(302, this.webRedirect({ github: 'error' }))
+      return
+    }
+    // GitHub's redirect-on-update lands here without state; the connection already exists.
+    if (state === undefined) {
+      const known = await this.install.knownInstallation({ installationId })
+      response.redirect(302, this.webRedirect({ github: known ? 'installed' : 'error' }))
       return
     }
 
