@@ -5,6 +5,8 @@ import React from "react";
 
 import { buildInfo } from "../build/info";
 import { appearanceOf, applyAppearance } from "../ui/appearance";
+import { ENoticeTone, notify } from "../ui/notice-store";
+import { installHeapDumpSignal } from "./heap-dump";
 import { BOOT_FAILURE_EXIT_CODE, bootFailureReport } from "./boot-failure";
 import { createBootProgress } from "./boot-progress";
 import { BootScreen } from "./boot-screen";
@@ -148,7 +150,13 @@ export async function bootAtlas(args: {
 
   const settled = await session;
 
-  if (settled.type === ESession.Ready) activeThread = () => settled.app.activeThread();
+  if (settled.type === ESession.Ready) {
+    activeThread = () => settled.app.activeThread();
+    installHeapDumpSignal({
+      onDone: ({ text, failed }) =>
+        notify({ text, tone: failed ? ENoticeTone.Warn : ENoticeTone.Done }),
+    });
+  }
 
   if (settled.type === ESession.Failed) {
     takeDown({ root, renderer });
