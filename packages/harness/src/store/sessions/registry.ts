@@ -32,8 +32,11 @@ export function rebuildContextIndex({ log }: { log: ThreadLog }): void {
 type SessionHandle = {
   dir: string
   threads: Map<string, ThreadLog>
+  files: Map<string, FileSignature>
   queue: Promise<unknown>
 }
+
+type FileSignature = { byteLength: number; modifiedAt: number }
 
 type ParentCacheEntry = { events: Event[]; byteLength: number }
 
@@ -48,7 +51,7 @@ export class SessionRegistry {
   handleFor({ sessionDir }: { sessionDir: string }): SessionHandle {
     const existing = this.handles.get(sessionDir)
     if (existing !== undefined) return existing
-    const handle: SessionHandle = { dir: sessionDir, threads: new Map(), queue: Promise.resolve() }
+    const handle: SessionHandle = { dir: sessionDir, threads: new Map(), files: new Map(), queue: Promise.resolve() }
     this.handles.set(sessionDir, handle)
     return handle
   }
@@ -65,7 +68,9 @@ export class SessionRegistry {
 
   forgetThread({ sessionDir, threadId }: { sessionDir: string; threadId: ThreadId }): void {
     this.threadIndex.delete(threadId)
-    this.handles.get(sessionDir)?.threads.delete(threadId)
+    const handle = this.handles.get(sessionDir)
+    handle?.threads.delete(threadId)
+    handle?.files.delete(threadId)
   }
 
   async sessionDirOf({ threadId }: { threadId: ThreadId }): Promise<string | undefined> {
@@ -113,8 +118,42 @@ export class SessionRegistry {
     }
     rebuildContextIndex({ log })
     handle.threads.set(threadId, log)
+    handle.files.set(threadId, await signatureOf({ file }))
     this.registerThread({ sessionDir, threadId })
     return log
+  }
+
+  async refreshThreadLog({
+    sessionDir,
+    threadId,
+  }: {
+    sessionDir: string
+    threadId: ThreadId
+  }): Promise<ThreadLog> {
+    const handle = this.handleFor({ sessionDir })
+    const signature = await signatureOf({ file: eventLogFile({ sessionDir, threadId }) })
+    const known = handle.files.get(threadId)
+    const cached = handle.threads.get(threadId)
+    const current =
+      known !== undefined &&
+      known.byteLength === signature.byteLength &&
+      known.modifiedAt === signature.modifiedAt
+    if (cached !== undefined && current) return cached
+
+    handle.threads.delete(threadId)
+    handle.files.set(threadId, signature)
+    return this.readThreadLog({ sessionDir, threadId })
+  }
+
+  async stampThreadLog({
+    sessionDir,
+    threadId,
+  }: {
+    sessionDir: string
+    threadId: ThreadId
+  }): Promise<void> {
+    const handle = this.handleFor({ sessionDir })
+    handle.files.set(threadId, await signatureOf({ file: eventLogFile({ sessionDir, threadId }) }))
   }
 
   async readParentEvents({ file }: { file: string }): Promise<Event[]> {
@@ -150,6 +189,11 @@ export class SessionRegistry {
       }
     }
   }
+}
+
+async function signatureOf({ file }: { file: string }): Promise<FileSignature> {
+  const stats = await stat(file).catch(() => undefined)
+  return { byteLength: stats?.size ?? 0, modifiedAt: stats?.mtimeMs ?? 0 }
 }
 
 function threadIdFromFile({ file }: { file: string }): ThreadId {

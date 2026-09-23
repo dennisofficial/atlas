@@ -125,6 +125,7 @@ export async function appendStampedEvent({
   const file = eventLogFile({ sessionDir, threadId: event.threadId })
   await mkdir(dirname(file), { recursive: true })
   await appendFile(file, `${encodeEventLine({ draft: draftOf(event), envelope: envelopeOf(event, event.id) })}\n`, 'utf8')
+  await registry.stampThreadLog({ sessionDir, threadId: event.threadId })
   const log = await registry.readThreadLog({ sessionDir, threadId: event.threadId })
   log.events.push(event)
   log.head = event.seq
@@ -154,6 +155,7 @@ export async function rewriteThreadLog({
   const tmp = join(threadsDirectory({ sessionDir }), `.rewrite.${process.pid}.tmp`)
   await writeFile(tmp, restamped.map((entry) => `${encodeEventLine(entry)}\n`).join(''))
   await rename(tmp, file)
+  await registry.stampThreadLog({ sessionDir, threadId })
   const log = await registry.readThreadLog({ sessionDir, threadId })
   const stamped = stampDrafts({
     drafts: restamped.map((entry) => entry.draft),
