@@ -1,4 +1,5 @@
-import { link, readFile, unlink, writeFile } from 'node:fs/promises'
+import { link, mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
+import { dirname } from 'node:path'
 
 import { z } from 'zod'
 
@@ -39,6 +40,7 @@ async function writeOwnLock({
     label,
   }
   const tmp = `${lockFile}.${process.pid}.tmp`
+  await mkdir(dirname(lockFile), { recursive: true })
   await writeFile(tmp, JSON.stringify(contents))
   try {
     await link(tmp, lockFile)
