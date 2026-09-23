@@ -47,6 +47,26 @@ export const worktreeAt = (args: {
   path: string
 }): Worktree | undefined => args.view.worktrees.find((worktree) => worktree.path === args.path)
 
+export type WorktreeLookup =
+  | { worktree: Worktree }
+  | { worktree: undefined; resolvedPaths: string[] }
+
+export async function lookupWorktree(args: {
+  view: RepositoryView
+  cwd: string
+  path: string
+}): Promise<WorktreeLookup> {
+  const resolvedPaths: string[] = []
+  const bases = isAbsolute(args.path) ? [args.cwd] : [args.cwd, args.view.root]
+  for (const base of bases) {
+    const candidate = await canonicalPath({ base, path: args.path })
+    resolvedPaths.push(candidate)
+    const hit = worktreeAt({ view: args.view, path: candidate })
+    if (hit !== undefined) return { worktree: hit }
+  }
+  return { worktree: undefined, resolvedPaths }
+}
+
 export function worktreeHomeOf(args: { repositoryRoot: string; directory: string }): string {
   const { directory } = args
   return isAbsolute(directory) ? directory : resolve(args.repositoryRoot, directory)

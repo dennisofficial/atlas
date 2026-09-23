@@ -171,6 +171,26 @@ describe('entering a worktree', () => {
     expect(enteredWorktreeOf(switched.output)?.branch).toBe('by-hand')
   })
 
+  it('resolves a relative path against the repository root when the session directory misses', async () => {
+    const root = await repoWithCommit()
+    const { enter } = toolsFor(root)
+
+    const first = await enter.invoke(invocation({ input: { name: 'eng-327' }, projectDirectory: root }))
+    expect(first.ok).toBe(true)
+    if (!first.ok) return
+    const inside = enteredWorktreeOf(first.output)?.path ?? root
+
+    await git(['worktree', 'add', join(root, 'elsewhere'), '-b', 'by-hand'], root)
+
+    const switched = await enter.invoke(
+      invocation({ input: { path: 'elsewhere' }, projectDirectory: inside }),
+    )
+
+    expect(switched.ok).toBe(true)
+    if (!switched.ok) return
+    expect(enteredWorktreeOf(switched.output)?.branch).toBe('by-hand')
+  })
+
   it('refuses a path git does not list as a worktree of this repository', async () => {
     const root = await repoWithCommit()
     const stranger = await scratch()
