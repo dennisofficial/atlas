@@ -15,6 +15,9 @@ import {
   type ToolOutcome,
 } from '@dltech/atlas-core'
 import {
+  ClientVersionToken,
+  CloudSessionStore,
+  CloudSessionStoreToken,
   createIsolatedContainer,
   GithubPlugin,
   GithubUiBridgePort,
@@ -146,6 +149,13 @@ const composed = async (): Promise<{
 
   const container = createIsolatedContainer()
   container.register(WorkspaceRoot, { useValue: root })
+  container.register(ClientVersionToken, { useValue: 'test' })
+  container.register(CloudSessionStoreToken, {
+    useValue: new CloudSessionStore({
+      file: join(root, 'cloud.json'),
+      keyFile: join(root, 'vault.key'),
+    }),
+  })
   registerGithubPlugin({ container })
 
   const plugin = container.resolve(portToken(NativePlugin))
@@ -165,6 +175,7 @@ const composed = async (): Promise<{
     service: bridge.service,
     facts: bridge.facts,
     links: bridge.links,
+    cloudCheckout: bridge.cloudCheckout,
     openUrl: () => undefined,
   })
 

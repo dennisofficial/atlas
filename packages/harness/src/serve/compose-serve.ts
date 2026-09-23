@@ -21,7 +21,7 @@ import { VercelDriver, type VercelCredentials } from '../cloud/vercel-driver'
 import { composeHarness } from '../composition/compose'
 import { loadSettings } from '../composition/settings-binding'
 import { portToken } from '../container/injection'
-import { SecretsStoreToken } from '../container/tokens'
+import { SecretsStoreToken, ServeSessionToken } from '../container/tokens'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import { atlasDirectory } from '../store/paths'
 import { ThreadStorePort } from '../store/thread-store'
@@ -125,6 +125,9 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
           new ServeCredentialPort({ broker, clock: resolver.resolve(portToken(ClockPort)) }),
       })
       container.register(SecretsStoreToken, { useValue: secrets })
+      container.register(ServeSessionToken, {
+        useValue: { url: args.controlPlaneUrl, token: args.token, email: null },
+      })
     },
     launch: {
       cwd: args.cwd,

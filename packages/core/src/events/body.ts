@@ -82,6 +82,8 @@ export type EventBody =
       from: EExecutionLocation
       to: EExecutionLocation
       cwd?: string | undefined
+      remoteUrl?: string | null | undefined
+      branch?: string | null | undefined
     }
   | { type: 'directory-changed'; path: string; repo?: string | null | undefined }
   | {

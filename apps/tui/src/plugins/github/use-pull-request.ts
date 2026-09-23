@@ -87,17 +87,31 @@ export function usePullRequest(args: {
   projectDirectory: string
   working: boolean
   linked: readonly LinkedPullRequest[]
+  cloud: RepositoryCheckout | null
   onOpen: (url: string) => void
   probe?: CheckoutProbe
 }): PullRequestControl {
-  const { service, projectDirectory, working, linked, onOpen } = args
+  const { service, projectDirectory, working, linked, cloud, onOpen } = args
   const askGit = args.probe ?? probeCheckout
   const [checkout, setCheckout] = useState<RepositoryCheckout | null>(null)
 
   const version = useSyncExternalStore(service.subscribe, service.version)
 
+  /**
+   * A cloud thread's checkout arrives folded out of the log: no probe could find it, since the
+   * path lives in the sandbox. The probe path below stays for everything local.
+   */
+  useEffect(() => {
+    if (cloud === null) return
+
+    setCheckout((current) => (sameCheckout(current, cloud) ? current : cloud))
+    service.track({ checkout: cloud })
+  }, [cloud, service])
+
   const probe = useCallback(
     async (owned: () => boolean): Promise<void> => {
+      if (cloud !== null) return
+
       const probed = await askGit({ directory: projectDirectory })
       if (!owned()) return
 
@@ -109,7 +123,7 @@ export function usePullRequest(args: {
 
       service.track({ checkout: probed })
     },
-    [askGit, projectDirectory, service],
+    [askGit, cloud, projectDirectory, service],
   )
 
   useEffect(() => {
