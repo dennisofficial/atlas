@@ -23,7 +23,7 @@ export function SignInForm() {
     setError(null)
     try {
       await signIn({ email, password })
-      window.location.assign(searchParams.get('next') ?? '/device')
+      window.location.assign(searchParams.get('next') ?? '/')
     } catch (cause) {
       setError(cause instanceof AuthApiError ? cause.message : 'Sign-in failed')
       setBusy(false)
