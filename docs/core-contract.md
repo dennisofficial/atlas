@@ -217,15 +217,19 @@ survive concurrency, and background agents mean two writers.
 
 ### A row that will not decode costs one event, not the thread
 
-Each stored row is decoded on its own. A row whose body is not JSON, whose body no longer matches
-`eventBodySchema`, or whose identifier columns will not pass the branded parsers is set aside as an
-unreadable row — `id`, `seq`, `threadId`, the stored `type`, and why it failed — instead of throwing
-the read. One body written by an older build would otherwise make the whole thread permanently
+Each line of the event log is decoded on its own. A line whose body is not JSON, whose body no
+longer matches `eventBodySchema`, or whose identifier fields will not pass the branded parsers is
+set aside as an unreadable row — `id`, `seq`, `threadId`, the stored `type`, and why it failed —
+instead of throwing the read. One body written by an older build would otherwise make the whole thread permanently
 unreadable, and the log is the authority for assembly, transcript and rewind alike.
+
+A malformed final line is recorded too, with its own reason — a truncated tail is what a crash
+mid-write leaves behind, and the next append drops it before writing, so the record is the only
+trace that anything was lost.
 
 An unreadable row carries its identifiers as plain strings, not as `EventId` and `ThreadId`. It is a
 record of a row that failed validation; branding it would assert the very thing that did not hold.
-It reports what the database held, unvalidated.
+It reports what the log held, unvalidated.
 
 The fallback is deliberately not an arm of `EventBody`. That union is switched exhaustively —
 assembly rules, projections, rewind targets, exchange shape, the TUI's transcript derivation — and

@@ -1,14 +1,14 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { toThreadId, type ThreadId } from '@dltech/atlas-core'
+import { EForkMode, toThreadId, type ThreadId } from '@dltech/atlas-core'
 
 import { JsonlTurnLedger, sumSessionSpend } from '../src/ledger/jsonl'
 import { JsonlEventLog } from '../src/store/sessions/event-log'
 import { readMetaSync, readSessionMetaSync, sessionMetaSchema, threadMetaSchema } from '../src/store/sessions/meta'
-import { forkThread } from '../src/store/sessions/ops/fork'
 import { eventLogFile, sessionMetaFile, sessionsDirectory, threadMetaFile } from '../src/store/sessions/paths'
 import { SessionRegistry } from '../src/store/sessions/registry'
+import { JsonlThreadStore } from '../src/store/sessions/thread-store'
 import { CountingIds, SteppingClock } from '../src/store/__tests__/harness'
 
 const home = '/tmp/jsonl-smoke-home'
@@ -48,14 +48,15 @@ const meta = readMetaSync({
 })
 console.log(`thread meta head: ${meta?.head}, matches log head: ${meta?.head === (await log.head({ threadId }))}`)
 
+const threads = new JsonlThreadStore(home, registry, clock, ids, log)
 const forkSeq = Math.max(1, Math.floor(events.length / 2))
-const forked = await forkThread({ home, registry, ids, clock, from: threadId, seq: forkSeq, title: 'smoke fork' })
+const forked = await threads.fork({ from: threadId, seq: forkSeq, mode: EForkMode.Reference, title: 'smoke fork' })
 const stamped = await log.append({
-  threadId: forked.threadId,
+  threadId: forked.id,
   runId: ids.nextRunId(),
   drafts: [{ type: 'nudge', text: 'smoke append', lifetimeSteps: 1 }],
 })
-const composed = await log.read({ threadId: forked.threadId })
+const composed = await log.read({ threadId: forked.id })
 console.log(
   `fork at seq ${forkSeq}: own event seq ${stamped[0]?.seq} (want ${forkSeq + 1}); composed ${composed.length} events (want ${forkSeq + 1}); last type ${composed[composed.length - 1]?.type}`,
 )

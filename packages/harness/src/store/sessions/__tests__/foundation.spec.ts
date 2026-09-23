@@ -51,13 +51,14 @@ describe('event line codec', () => {
     expect(parsed.head).toBe(1)
   })
 
-  it('treats a truncated final line as absent', () => {
+  it('records a torn final line as a truncated tail rather than dropping it silently', () => {
     const first = encodeEventLine({ draft: draft(), envelope: envelope({ seq: 1 }) })
     const second = encodeEventLine({ draft: draft(), envelope: envelope({ seq: 2 }) })
     const text = `${first}\n${second.slice(0, second.length - 10)}`
     const parsed = parseEventLines({ text, threadId })
     expect(parsed.events).toHaveLength(1)
-    expect(parsed.unreadable).toHaveLength(0)
+    expect(parsed.unreadable).toHaveLength(1)
+    expect(parsed.unreadable[0]?.reason).toBe(EUnreadableReason.TruncatedTail)
     expect(parsed.head).toBe(1)
   })
 
