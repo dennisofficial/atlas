@@ -15,7 +15,7 @@ import { scriptedModel, type ScriptedStep } from '../../model/testing/scripted-m
 import { HookChain } from '../../hooks/registry'
 import { HookedToolDispatcher } from '../../tools/dispatch'
 import { InMemoryToolRegistry } from '../../tools/registry'
-import { createTempDatabase, type TempDatabase } from './temp-database'
+import { createTempHome, type TempHome } from './temp-home'
 
 const PROJECT_DIRECTORY = '/w'
 
@@ -29,7 +29,7 @@ const HAIKU_CARD: ModelCard = {
   imageTier: EImageTier.Standard,
 }
 
-const opened: { harness: AtlasHarness; temp: TempDatabase }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
 afterEach(async () => {
   for (const entry of opened.splice(0)) {
@@ -50,9 +50,9 @@ async function readingsOf({ script }: { script: readonly ScriptedStep[] }): Prom
   readings: { tokens: number; window: number }[]
   run: (text: string) => Promise<void>
 }> {
-  const temp = createTempDatabase()
+  const temp = createTempHome()
   const harness = await buildHarness({
-    databaseUrl: temp.databaseUrl,
+    home: temp.home,
     model: scriptedModel({ script }),
     identity: { id: 'anthropic', modelId: 'claude-haiku-4-5' },
     card: HAIKU_CARD,

@@ -7,6 +7,7 @@ import { EventLogPort, EExecutionLocation, EWebSearchBackend, ExecutionLocationS
 
 import { ToolDispatcher } from '../../tools/dispatch'
 import { ToolRegistry } from '../../tools/registry'
+import { JsonlEventLog } from '../../store/sessions/event-log'
 import { createHarnessContainer } from '../create-harness-container'
 import { portToken, type DependencyContainer } from '../injection'
 import {
@@ -118,8 +119,8 @@ describe('the harness container graph', () => {
     expect(drafts.map((draft) => draft.type)).toEqual(['tool-result'])
   })
 
-  it('refuses to resolve the event log until the root has opened a database', () => {
-    expect(() => rooted().resolve(portToken(EventLogPort))).toThrow()
+  it('resolves the event log straight from the atlas home, no database to open first', () => {
+    expect(rooted().resolve(portToken(EventLogPort))).toBeInstanceOf(JsonlEventLog)
   })
 
   it('answers the execution-location sink with a no-op until an app registers a real one', () => {

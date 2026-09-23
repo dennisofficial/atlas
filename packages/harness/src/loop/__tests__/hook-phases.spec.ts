@@ -16,7 +16,7 @@ import { createDeltaChannel, PublishingTurnRunner, type ChannelSignal } from '..
 import { HookChain } from '../../hooks/registry'
 import { interruptibleModel } from '../../model/testing/interruptible-model'
 import { FIXTURE_DOCTRINE } from './fixture-prompt'
-import { createTempDatabase } from './temp-database'
+import { createTempHome } from './temp-home'
 import { keepOpen, openHooked } from './hooked-turn'
 
 const PROJECT_DIRECTORY = '/w'
@@ -155,9 +155,9 @@ describe('OnChunk against the delta channel', () => {
       onChunk: [{ name: 'secret-redaction', order: { stage: EStage.Guard, nudge: 0 }, run: redact }],
     })
 
-    const temp = createTempDatabase()
+    const temp = createTempHome()
     const harness = await buildHarness({
-      databaseUrl: temp.databaseUrl,
+      home: temp.home,
       model: interruptibleModel({ head: 'auth and ', tail: 'sk-leak', chunkDelayInMs: 0 }),
       hooks,
     })

@@ -5,9 +5,9 @@ import type { ThreadId } from '@dltech/atlas-core'
 
 import { buildHarness, ETurnStatus, type AtlasHarness } from '..'
 import { scriptedModel, type ScriptedStep } from '../../model/testing/scripted-model'
-import { createTempDatabase, type TempDatabase } from './temp-database'
+import { createTempHome, type TempHome } from './temp-home'
 
-let live: TempDatabase | undefined
+let live: TempHome | undefined
 
 afterEach(() => {
   live?.discard()
@@ -19,9 +19,9 @@ async function attach(script: readonly ScriptedStep[]): Promise<{
   model: MockLanguageModelV4
   release: () => Promise<void>
 }> {
-  const temp = (live ??= createTempDatabase())
+  const temp = (live ??= createTempHome())
   const model = scriptedModel({ script })
-  const harness = await buildHarness({ databaseUrl: temp.databaseUrl, model })
+  const harness = await buildHarness({ home: temp.home, model })
   return { harness, model, release: harness.close }
 }
 

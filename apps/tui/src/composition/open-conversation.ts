@@ -17,6 +17,13 @@ import type {
   TurnLedgerPort,
   TurnSpend,
 } from '@dltech/atlas-harness'
+import {
+  atlasDirectory,
+  claimSession,
+  ESessionClaim,
+  sessionDirectory,
+  sessionLockFile,
+} from '@dltech/atlas-harness'
 
 import { EOpenMode, type OpenRequest } from './config'
 import { readThreadSpend } from './thread-spend'
@@ -150,6 +157,16 @@ export async function openConversation(args: Opening): Promise<OpenOutcome> {
   if ('reason' in thread) return { ok: false, reason: thread.reason }
   if ('unstarted' in thread) {
     return { ok: true, conversation: unstartedConversation({ ids: args.ids }) }
+  }
+
+  const sessionDir = sessionDirectory({ home: atlasDirectory(), sessionId: thread.id })
+  const claim = await claimSession({
+    sessionDir,
+    lockFile: sessionLockFile({ sessionDir }),
+    label: 'atlas tui',
+  })
+  if (claim.claim === ESessionClaim.Held) {
+    return { ok: false, reason: claim.note ?? 'this conversation is open in another Atlas instance' }
   }
 
   const lost = await args.agents.recordLostAgents({ threadId: thread.id })

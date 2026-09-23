@@ -8,8 +8,8 @@ import type {
   SettingsStorePort,
 } from '@dltech/atlas-core'
 
-import type { PrismaClient } from '../../prisma/generated/client'
 import type { DeltaChannel } from '../channel/delta-channel'
+import type { SessionRegistry } from '../store/sessions/registry'
 import type { CloudSession, CloudSessionStore } from '../cloud/cloud-session'
 import type { ClaudeCodeSource } from '../credentials/claude-code-source'
 import type { CodexSource } from '../credentials/codex-source'
@@ -21,7 +21,9 @@ import type { HookChain, HookChainSource } from '../hooks/registry'
 import type { ModelCardSource } from '../model/ai-sdk-model-port'
 import type { InjectionToken } from './injection'
 
-export const PrismaClientToken: InjectionToken<PrismaClient> = Symbol('atlas.PrismaClient')
+export const SessionRegistryToken: InjectionToken<SessionRegistry> = Symbol(
+  'atlas.SessionRegistry',
+)
 
 export const DeltaChannelToken: InjectionToken<DeltaChannel> = Symbol('atlas.DeltaChannel')
 

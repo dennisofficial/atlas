@@ -30,7 +30,7 @@ jobs:
         run: bun run build
 
       - name: build serve binary
-        run: bun run db:ensure && bun run build:serve
+        run: bun run build:serve
         working-directory: packages/harness
 
   # One TUI shard per runner: parallel bun processes on one 4-core runner starve the
@@ -47,10 +47,6 @@ jobs:
       - uses: oven-sh/setup-bun@v2
 
       - run: bun install
-
-      - name: generate the harness prisma client
-        run: bun run db:ensure
-        working-directory: packages/harness
 
       - name: tui shard ${{ matrix.shard }} of 2
         run: bun run test

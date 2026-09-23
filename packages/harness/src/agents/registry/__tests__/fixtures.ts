@@ -11,7 +11,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { buildHarness, type AtlasHarness } from '../../../loop/build-harness'
-import { createTempDatabase } from '../../../loop/__tests__/temp-database'
+import { createTempHome } from '../../../loop/__tests__/temp-home'
 import { ETurnStatus, type TurnOutcome } from '../../../loop/turn-outcome'
 import type { TurnRunner } from '../../../loop/turn-runner.port'
 import { scriptedModel } from '../../../model/testing/scripted-model'
@@ -128,9 +128,9 @@ export async function openSupervisor({
   agentTypes?: readonly AgentType[]
   sink?: ExecutionLocationSinkPort | undefined
 } = {}): Promise<OpenedSupervisor> {
-  const temp = createTempDatabase()
+  const temp = createTempHome()
   const harness = await buildHarness({
-    databaseUrl: temp.databaseUrl,
+    home: temp.home,
     model: scriptedModel({ script: [] }),
   })
   const runners = fakeRunners()

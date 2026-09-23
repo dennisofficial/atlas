@@ -8,11 +8,11 @@ import { HookChain } from '../../hooks/registry'
 import { scriptedModel, type ScriptedCall, type ScriptedStep } from '../../model/testing/scripted-model'
 import { HookedToolDispatcher } from '../../tools/dispatch'
 import { InMemoryToolRegistry } from '../../tools/registry'
-import { createTempDatabase, type TempDatabase } from './temp-database'
+import { createTempHome, type TempHome } from './temp-home'
 
 const PROJECT_DIRECTORY = '/w'
 
-const opened: { harness: AtlasHarness; temp: TempDatabase }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
 afterEach(async () => {
   for (const entry of opened.splice(0)) {
@@ -49,11 +49,11 @@ async function openGuarded(args: {
   script: readonly ScriptedStep[]
   tools: readonly ToolDefinition[]
 }): Promise<{ harness: AtlasHarness; model: ReturnType<typeof scriptedModel> }> {
-  const temp = createTempDatabase()
+  const temp = createTempHome()
   const model = scriptedModel({ script: args.script })
   const registry = new InMemoryToolRegistry(args.tools)
   const harness = await buildHarness({
-    databaseUrl: temp.databaseUrl,
+    home: temp.home,
     model,
     tools: () => registry.declarations(),
     dispatch: new HookedToolDispatcher({

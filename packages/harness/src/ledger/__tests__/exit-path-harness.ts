@@ -22,10 +22,13 @@ import { HookChain } from '../../hooks/registry'
 import { LoopTurnRunner, type TurnDeps } from '../../loop/run-turn'
 import { TurnRunner } from '../../loop/turn-runner.port'
 import { ModelStreamError } from '../../model/errors'
-import { openAtlasDatabase, PrismaThreadStore, PrismaEventLog, RandomIds, SystemClock } from '../../store'
+import { RandomIds, SystemClock } from '../../store'
+import { JsonlEventLog } from '../../store/sessions/event-log'
+import { SessionRegistry } from '../../store/sessions/registry'
+import { JsonlThreadStore } from '../../store/sessions/thread-store'
 import { HookedToolDispatcher } from '../../tools/dispatch'
 import { InMemoryToolRegistry } from '../../tools/registry'
-import { PrismaTurnLedger } from '../prisma-turn-ledger'
+import { JsonlTurnLedger } from '../jsonl'
 import type { TurnLedgerPort, TurnSpend } from '../turn-ledger.port'
 
 const PROJECT_DIRECTORY = '/w'
@@ -121,13 +124,14 @@ export async function openExitPathHarness(args: {
   createRunner?: (deps: TurnDeps) => TurnRunner
 }): Promise<ExitPathHarness> {
   const buildRunner = args.createRunner ?? ((deps: TurnDeps) => new LoopTurnRunner(deps))
-  const directory = mkdtempSync(join(tmpdir(), 'atlas-exit-'))
-  const database = await openAtlasDatabase({ databaseUrl: `file:${join(directory, 'harness.db')}` })
+  const home = mkdtempSync(join(tmpdir(), 'atlas-exit-'))
+  const sessionRegistry = new SessionRegistry(home)
   const clock = new SystemClock()
   const ids = new RandomIds()
-  const thread = await new PrismaThreadStore(database.prisma, clock, ids).create({})
+  const log = new JsonlEventLog(home, sessionRegistry, clock, ids)
+  const thread = await new JsonlThreadStore(home, sessionRegistry, clock, ids, log).create({})
 
-  const ledger = args.ledger ?? (args.persist === true ? new PrismaTurnLedger(database.prisma) : fakeLedger())
+  const ledger = args.ledger ?? (args.persist === true ? new JsonlTurnLedger({ home, registry: sessionRegistry }) : fakeLedger())
   const failures: unknown[] = []
   const model = scriptedPort(args.script)
   const registry = new InMemoryToolRegistry([touchTool])
@@ -140,7 +144,7 @@ export async function openExitPathHarness(args: {
     stepsTaken: model.taken,
     failures: () => failures,
     runner: buildRunner({
-      log: new PrismaEventLog(database.prisma, clock, ids),
+      log,
       model: model.port,
       ids,
       assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY }),
@@ -150,8 +154,7 @@ export async function openExitPathHarness(args: {
       spend: { ledger, clock, onLedgerFailure: (error) => failures.push(error) },
     }),
     close: async () => {
-      await database.close()
-      rmSync(directory, { recursive: true, force: true })
+      rmSync(home, { recursive: true, force: true })
     },
   }
 }

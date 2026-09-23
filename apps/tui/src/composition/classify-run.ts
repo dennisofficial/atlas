@@ -22,7 +22,6 @@ import {
   type ModelRef,
 } from '@dltech/atlas-core'
 import {
-  atlasDatabaseUrl,
   createHarnessContainer,
   createNotifyingModel,
   createSecurityKeychainReader,
@@ -33,9 +32,7 @@ import {
   JudgeMemo,
   KeychainReaderToken,
   messageOf,
-  openAtlasDatabase,
   portToken,
-  PrismaClientToken,
   probeWorkspace,
   remotesOf,
   replayThread,
@@ -112,8 +109,6 @@ async function openBench({
       ) ?? EWebSearchBackend.DuckDuckGo,
   })
 
-  const database = await openAtlasDatabase({ databaseUrl: atlasDatabaseUrl() })
-  container.register(PrismaClientToken, { useValue: database.prisma })
 
   const workspace = await probeWorkspace({ cwd })
 
@@ -134,7 +129,6 @@ async function openBench({
       }),
     },
     close: async () => {
-      await database.close()
       await disposeAll({ container })
     },
   }

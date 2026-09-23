@@ -17,12 +17,12 @@ import { scriptedModel } from '../../model/testing/scripted-model'
 import { HookChain } from '../../hooks/registry'
 import { HookedToolDispatcher } from '../../tools/dispatch'
 import { InMemoryToolRegistry } from '../../tools/registry'
-import { createTempDatabase, type TempDatabase } from './temp-database'
+import { createTempHome, type TempHome } from './temp-home'
 import { COLLISION_TRANSCRIPT } from './reused-call-id.transcript'
 
 const PROJECT_DIRECTORY = '/w'
 
-const opened: { harness: AtlasHarness; temp: TempDatabase }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
 afterEach(async () => {
   for (const entry of opened.splice(0)) {
@@ -34,9 +34,9 @@ afterEach(async () => {
 const writeInput = z.object({ path: z.string(), content: z.string() })
 
 async function openHarnessWithWriter(): Promise<AtlasHarness> {
-  const temp = createTempDatabase()
+  const temp = createTempHome()
   const harness = await buildHarness({
-    databaseUrl: temp.databaseUrl,
+    home: temp.home,
     model: scriptedModel({
       script: [
         {
@@ -119,9 +119,9 @@ describe('a provider that hands out the same call id twice (kimi numbers calls p
 
 describe('the transcript where it happened (thread brn_55fd05fb, kimi-k3-fast, 2026-09-04)', () => {
   it('settles the calls the stall stranded, then runs the fresh bash_181 under a new id', async () => {
-    const temp = createTempDatabase()
+    const temp = createTempHome()
     const harness = await buildHarness({
-      databaseUrl: temp.databaseUrl,
+      home: temp.home,
       model: scriptedModel({
         script: [
           {

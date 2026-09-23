@@ -3,7 +3,7 @@ import { toRunId, toThreadId, type EventDraft } from '@dltech/atlas-core'
 
 import { RemoteEventLog } from '../remote-event-log'
 import { SessionsClient } from '../sessions-client'
-import { UnreadableWrite } from '../../store/event-row'
+import { UnreadableWrite } from '../../store/sessions/lines'
 
 type Call = { url: string; method: string; body?: unknown }
 

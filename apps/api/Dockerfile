@@ -52,8 +52,7 @@ COPY tsconfig.base.json ./tsconfig.base.json
 # byte-reproducible, so hashing the binary would churn the stamp — and force a fleet-wide
 # re-download of the sandbox's serve binary — on every deploy even when nothing behavioral
 # changed. `find | sort | sha256sum` over the sorted file list keeps the hash deterministic.
-RUN cd packages/harness && bun run db:ensure \
-  && bun run build:serve -- --target bun-linux-x64 --outfile bin/atlas-serve \
+RUN cd packages/harness && bun run build:serve -- --target bun-linux-x64 --outfile bin/atlas-serve \
   && cd /app && find packages/harness/src packages/core/src -type f | LC_ALL=C sort \
   | xargs sha256sum | sha256sum | cut -d' ' -f1 > packages/harness/bin/atlas-serve.sha256
 

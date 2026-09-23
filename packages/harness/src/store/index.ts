@@ -1,12 +1,10 @@
 export {
   ThreadStorePort,
-  PrismaThreadStore,
   THREAD_LISTING_LIMIT,
   type SupervisedAgent,
   type ThreadModel,
   type ThreadSummary,
 } from './thread-store'
-export { threadWorktree, type ThreadWorktree } from './thread-places'
 export {
   compactThread,
   ECompactionFailure,
@@ -14,29 +12,31 @@ export {
   type Summarise,
 } from './compact'
 export { SystemClock } from './clock'
-export { createThreadWithEvents, ThreadNeedsOpeningDrafts } from './create-with-events'
-export { ForkChainTooDeep, readComposedRows, readOwnRows } from './compose-thread'
-export { ForkSeqOutOfRange, ForkSourceMissing, forkThread, type ForkedThreadRow } from './fork'
-export { forkConversation, type ForkResult } from './guarded-fork'
-export { DatabaseFromNewerAtlasError, openAtlasDatabase, type AtlasDatabase } from './database'
-export {
-  decodeEventRows,
-  EUnreadableReason,
-  EventDecodeCache,
-  type DecodedLog,
-  type UnreadableRow,
-} from './decode-events'
-export { appendWithin, PrismaEventLog, type AppendArgs } from './event-log'
+export { ThreadNeedsOpeningDrafts, type OpenThreadArgs } from './create-with-events'
+export { ForkSeqOutOfRange, ForkSourceMissing } from './fork'
+export { EUnreadableReason, type UnreadableRow } from './decode-events'
+export { JsonlEventLog } from './sessions/event-log'
 export { RandomIds } from './ids'
 export { rewindThread, type RewindKill, type RewindResult } from './rewind'
 export { relocateSession, type RelocatedSession } from './relocate-session'
 export { createLoopCut, type ApplyLoopCut } from './cut-loop'
-export { atlasMigrationsDirectory, loadAtlasMigrations } from './migrations'
+export { ATLAS_DIRECTORY_NAME, atlasDirectory } from './paths'
 export {
-  ATLAS_DATABASE_NAME,
-  ATLAS_DIRECTORY_NAME,
-  atlasDatabaseFile,
-  atlasDatabaseUrl,
-  atlasDirectory,
-  databaseFileFromUrl,
-} from './paths'
+  sessionsDirectory,
+  sessionDirectory,
+  eventLogFile,
+  ledgerFile,
+  sessionLockFile,
+  sessionMetaFile,
+  threadMetaFile,
+} from './sessions/paths'
+export { claimSession, releaseSession, ESessionClaim, type SessionClaim } from './sessions/lock'
+export {
+  readMetaSync,
+  readSessionMetaSync,
+  sessionMetaSchema,
+  threadMetaSchema,
+  type SessionMeta,
+  type ThreadMeta,
+} from './sessions/meta'
+export { parseEventLines } from './sessions/lines'

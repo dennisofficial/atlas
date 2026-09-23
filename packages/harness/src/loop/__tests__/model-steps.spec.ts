@@ -17,11 +17,11 @@ import { scriptedModel, type ScriptedStep } from '../../model/testing/scripted-m
 import { HookChain } from '../../hooks/registry'
 import { HookedToolDispatcher } from '../../tools/dispatch'
 import { InMemoryToolRegistry } from '../../tools/registry'
-import { createTempDatabase, type TempDatabase } from './temp-database'
+import { createTempHome, type TempHome } from './temp-home'
 
 const PROJECT_DIRECTORY = '/w'
 
-const opened: { harness: AtlasHarness; temp: TempDatabase }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
 afterEach(async () => {
   for (const entry of opened.splice(0)) {
@@ -52,9 +52,9 @@ async function openScripted(args: { script: readonly ScriptedStep[] }): Promise<
   model: MockLanguageModelV4
   steps: number[]
 }> {
-  const temp = createTempDatabase()
+  const temp = createTempHome()
   const model = scriptedModel({ script: args.script })
-  const harness = await buildHarness({ databaseUrl: temp.databaseUrl, model })
+  const harness = await buildHarness({ home: temp.home, model })
   opened.push({ harness, temp })
 
   const registry = new InMemoryToolRegistry([touchTool])
@@ -109,9 +109,9 @@ describe('how long a turn is allowed to work', () => {
 
 describe('the shape of the prompt the loop is about to send', () => {
   it('fails naming the faulty message and its event rather than letting the provider reject it', async () => {
-    const temp = createTempDatabase()
+    const temp = createTempHome()
     const model = scriptedModel({ script: [{ text: 'never asked' }] })
-    const harness = await buildHarness({ databaseUrl: temp.databaseUrl, model })
+    const harness = await buildHarness({ home: temp.home, model })
     opened.push({ harness, temp })
 
     const speakOutOfTurn = defineRule({
@@ -205,9 +205,9 @@ describe('a thinking turn whose text block arrives blank', () => {
 
 describe('a dispatch that settles nothing', () => {
   it('fails naming the stuck call rather than spinning on it forever', async () => {
-    const temp = createTempDatabase()
+    const temp = createTempHome()
     const model = scriptedModel({ script: [callingStep(1)] })
-    const harness = await buildHarness({ databaseUrl: temp.databaseUrl, model })
+    const harness = await buildHarness({ home: temp.home, model })
     opened.push({ harness, temp })
 
     const registry = new InMemoryToolRegistry([touchTool])

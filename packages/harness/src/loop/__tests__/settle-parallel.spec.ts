@@ -13,9 +13,9 @@ import { scriptedModel } from '../../model/testing/scripted-model'
 import { ToolDispatcher, type DispatchableCall } from '../../tools/dispatch'
 import { buildHarness, type AtlasHarness } from '..'
 import { createSettlePending } from '../settle-pending'
-import { createTempDatabase, type TempDatabase } from './temp-database'
+import { createTempHome, type TempHome } from './temp-home'
 
-const opened: { harness: AtlasHarness; temp: TempDatabase }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
 afterEach(async () => {
   for (const entry of opened.splice(0)) {
@@ -25,8 +25,8 @@ afterEach(async () => {
 })
 
 async function openLog(): Promise<AtlasHarness> {
-  const temp = createTempDatabase()
-  const harness = await buildHarness({ databaseUrl: temp.databaseUrl, model: scriptedModel({ script: [] }) })
+  const temp = createTempHome()
+  const harness = await buildHarness({ home: temp.home, model: scriptedModel({ script: [] }) })
   opened.push({ harness, temp })
   return harness
 }

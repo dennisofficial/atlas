@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import { EAgentStatus, type ThreadId } from '@dltech/atlas-core'
 
-import { createTempDatabase, type TempDatabase } from '../../../loop/__tests__/temp-database'
+import { createTempHome, type TempHome } from '../../../loop/__tests__/temp-home'
 import { buildHarness, type AtlasHarness } from '../../../loop/build-harness'
 import { scriptedModel } from '../../../model/testing/scripted-model'
 import { AgentSupervisor } from '../supervisor'
@@ -10,7 +10,7 @@ import { agentTypeNamed, calledTool, fakeRunners, finished, type FakeRunners } f
 
 const EXPLORE = agentTypeNamed({ name: 'explore' })
 
-const opened: { harness: AtlasHarness; temp: TempDatabase }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
 type Opened = {
   runners: FakeRunners
@@ -19,9 +19,9 @@ type Opened = {
 }
 
 async function open(): Promise<Opened> {
-  const temp = createTempDatabase()
+  const temp = createTempHome()
   const harness = await buildHarness({
-    databaseUrl: temp.databaseUrl,
+    home: temp.home,
     model: scriptedModel({ script: [] }),
   })
   opened.push({ harness, temp })

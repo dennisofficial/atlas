@@ -30,7 +30,6 @@ import { portToken, type DependencyContainer } from '../container/injection'
 import {
   ClientVersionToken,
   HookMishapReporterToken,
-  PrismaClientToken,
   SecretsStoreToken,
   WorkspaceRoot,
 } from '../container/tokens'
@@ -49,8 +48,7 @@ import { registerBuiltinPromptFragments } from '../prompt/register-prompt-fragme
 import { PromptRegistry } from '../prompt/registry'
 import { ServiceRegistryPort } from '../services/service-registry'
 import { ShellRegistryPort } from '../shells/shell-registry'
-import { openAtlasDatabase } from '../store/database'
-import { atlasDatabaseUrl, atlasDirectory } from '../store/paths'
+import { atlasDirectory } from '../store/paths'
 import { ThreadStorePort } from '../store/thread-store'
 import { ToolRegistry } from '../tools/registry'
 import { probeWorkspace } from '../workspace/probe'
@@ -192,12 +190,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     env: args.env,
   })
 
-  const database = await openAtlasDatabase({
-    databaseUrl: launchValue(ESettingId.DatabaseUrl) ?? atlasDatabaseUrl(),
-  })
-  container.register(PrismaClientToken, { useValue: database.prisma })
-  registerDisposable({ container, close: database.close })
-
   const skillRegistry = bindSkillRegistry({
     container,
     registry: await liveSkillRegistry({
@@ -250,8 +242,8 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   /**
    * Plugin loading resolves `EventLogPort`/`ThreadStorePort`/`TurnLedgerPort` for the host it hands
    * a repo plugin, so it has to run after `stores.bind` has had its chance to override them — a
-   * serve session's plugins would otherwise be handed the default `PrismaClientToken`-backed
-   * stores, or fail outright before `PrismaClientToken` is even registered. It still has to run
+   * serve session's plugins would otherwise be handed the default container stores, or fail
+   * outright before they are even registered. It still has to run
    * before `surface.bind` and before `ToolRegistry`/`HookChain` first resolve.
    */
   const plugins = await loadSessionPlugins({ container, cwd: anchor, atlasHome: atlasDirectory(), notice })

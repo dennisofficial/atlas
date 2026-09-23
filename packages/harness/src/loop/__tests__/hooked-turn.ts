@@ -11,11 +11,11 @@ import { scriptedModel, type ScriptedStep } from '../../model/testing/scripted-m
 import { HookedToolDispatcher } from '../../tools/dispatch'
 import { InMemoryToolRegistry } from '../../tools/registry'
 import { fixturePrompt } from './fixture-prompt'
-import { createTempDatabase, type TempDatabase } from './temp-database'
+import { createTempHome, type TempHome } from './temp-home'
 
 const PROJECT_DIRECTORY = '/w'
 
-const opened: { harness: AtlasHarness; temp: TempDatabase }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
 afterEach(async () => {
   for (const entry of opened.splice(0)) {
@@ -24,7 +24,7 @@ afterEach(async () => {
   }
 })
 
-export const keepOpen = (entry: { harness: AtlasHarness; temp: TempDatabase }): void => {
+export const keepOpen = (entry: { harness: AtlasHarness; temp: TempHome }): void => {
   opened.push(entry)
 }
 
@@ -45,9 +45,9 @@ export async function openHooked(args: {
   harness: AtlasHarness
   model: MockLanguageModelV4
 }> {
-  const temp = createTempDatabase()
+  const temp = createTempHome()
   const model = scriptedModel({ script: args.script })
-  const harness = await buildHarness({ databaseUrl: temp.databaseUrl, model, hooks: args.hooks })
+  const harness = await buildHarness({ home: temp.home, model, hooks: args.hooks })
   keepOpen({ harness, temp })
 
   const tools = new InMemoryToolRegistry([touchTool])

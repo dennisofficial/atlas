@@ -10,7 +10,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { buildHarness, type AtlasHarness } from '../../../loop/build-harness'
-import { createTempDatabase } from '../../../loop/__tests__/temp-database'
+import { createTempHome } from '../../../loop/__tests__/temp-home'
 import type { TurnOutcome } from '../../../loop/turn-outcome'
 import { scriptedModel } from '../../../model/testing/scripted-model'
 import type { ChildRunnerSource } from '../child-runner'
@@ -83,9 +83,9 @@ type Opened = {
 const open = async (args?: {
   runners?: (ctx: { order: string[]; started: HeldRun[] }) => ChildRunnerSource
 }): Promise<Opened> => {
-  const temp = createTempDatabase()
+  const temp = createTempHome()
   const harness = await buildHarness({
-    databaseUrl: temp.databaseUrl,
+    home: temp.home,
     model: scriptedModel({ script: [] }),
   })
   const order: string[] = []

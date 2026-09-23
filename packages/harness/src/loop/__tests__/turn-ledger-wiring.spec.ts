@@ -5,11 +5,11 @@ import { defaultPipeline, EMPTY_PROMPT, type ModelPort } from '@dltech/atlas-cor
 import { buildHarness, ETurnStatus, LoopTurnRunner, TurnRunner, type AtlasHarness } from '..'
 import { TurnLedgerPort, type TurnSpend } from '../../ledger'
 import { scriptedModel, type ScriptedStep } from '../../model/testing/scripted-model'
-import { createTempDatabase, type TempDatabase } from './temp-database'
+import { createTempHome, type TempHome } from './temp-home'
 
 const PROJECT_DIRECTORY = '/w'
 
-const opened: { harness: AtlasHarness; temp: TempDatabase }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
 afterEach(async () => {
   for (const entry of opened.splice(0)) {
@@ -35,8 +35,8 @@ function recordingLedger(args: { failWith?: Error } = {}): RecordingLedger {
 }
 
 async function openHarness(script: readonly ScriptedStep[]): Promise<AtlasHarness> {
-  const temp = createTempDatabase()
-  const harness = await buildHarness({ databaseUrl: temp.databaseUrl, model: scriptedModel({ script }) })
+  const temp = createTempHome()
+  const harness = await buildHarness({ home: temp.home, model: scriptedModel({ script }) })
   opened.push({ harness, temp })
   return harness
 }

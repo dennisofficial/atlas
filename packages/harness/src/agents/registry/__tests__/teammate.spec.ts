@@ -18,7 +18,7 @@ import { createDeltaChannel } from '../../../channel/delta-channel'
 import { AgentSpawnTool } from '../../../tools/builtin/agent-spawn'
 import { HookChain } from '../../../hooks/registry'
 import { buildHarness, type AtlasHarness } from '../../../loop/build-harness'
-import { createTempDatabase, type TempDatabase } from '../../../loop/__tests__/temp-database'
+import { createTempHome, type TempHome } from '../../../loop/__tests__/temp-home'
 import { scriptedModel, type ScriptedStep } from '../../../model/testing/scripted-model'
 import { AtlasIdentityFragment } from '../../../prompt/fragments/identity'
 import { InMemoryPromptRegistry } from '../../../prompt/registry'
@@ -34,7 +34,7 @@ const PROJECT_DIRECTORY = '/w'
 const TEAMMATE = agentTypeNamed({ name: TEAMMATE_AGENT_TYPE })
 const BUILDER = agentTypeNamed({ name: 'builder' })
 
-const opened: { harness: AtlasHarness; temp: TempDatabase }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
 afterEach(async () => {
   for (const entry of opened.splice(0)) {
@@ -44,9 +44,9 @@ afterEach(async () => {
 })
 
 async function open(agentTypes = [TEAMMATE, BUILDER]) {
-  const temp = createTempDatabase()
+  const temp = createTempHome()
   const harness = await buildHarness({
-    databaseUrl: temp.databaseUrl,
+    home: temp.home,
     model: scriptedModel({ script: [] }),
   })
   opened.push({ harness, temp })
@@ -281,9 +281,9 @@ describe("a teammate's session", () => {
   }
 
   async function spawnTeammate(args: { script: readonly ScriptedStep[] }) {
-    const temp = createTempDatabase()
+    const temp = createTempHome()
     const model = scriptedModel({ script: args.script })
-    const harness = await buildHarness({ databaseUrl: temp.databaseUrl, model })
+    const harness = await buildHarness({ home: temp.home, model })
     opened.push({ harness, temp })
 
     const prompts = new InMemoryPromptRegistry([new AtlasIdentityFragment(), new MainOnlyFragment()])

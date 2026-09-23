@@ -115,12 +115,10 @@
         "@ai-sdk/openai-compatible": "^3.0.43",
         "@ai-sdk/provider": "4.0.10",
         "@dltech/atlas-core": "workspace:*",
-        "@prisma/client": "7.9.1",
         "@vercel/sandbox": "^3.3.0",
         "@vscode/ripgrep": "^1.18.0",
         "ai": "^7.0.92",
         "htmlparser2": "^12.0.0",
-        "prisma-adapter-bun-sqlite": "^0.8.0",
         "reflect-metadata": "^0.2.2",
         "tsyringe": "4.10.0",
         "turndown": "^7.2.4",
@@ -129,7 +127,6 @@
       "devDependencies": {
         "@types/bun": "latest",
         "@types/turndown": "^5.0.6",
-        "prisma": "7.9.1",
       },
     },
     "packages/ui": {
@@ -2158,8 +2155,6 @@
     "pretty-format": ["pretty-format@27.5.1", "", { "dependencies": { "ansi-regex": "^5.0.1", "ansi-styles": "^5.0.0", "react-is": "^17.0.1" } }, "sha512-Qb1gy5OrP5+zDf2Bvnzdl3jsTf1qXVMazbvCoKhtKqVs4/YK4ozX4gKQJJVyNe+cajNPn0KoC0MC3FUmaHWEmQ=="],
 
     "prisma": ["prisma@7.9.1", "", { "dependencies": { "@prisma/config": "7.9.1", "@prisma/dev": "0.24.17", "@prisma/engines": "7.9.1", "@prisma/studio-core": "0.33.0", "mysql2": "3.15.3", "postgres": "3.4.7" }, "peerDependencies": { "better-sqlite3": ">=9.0.0", "typescript": ">=5.4.0" }, "optionalPeers": ["better-sqlite3", "typescript"], "bin": { "prisma": "build/index.js" } }, "sha512-aPqePoZIqwlAchbgbFDO/wHqGB+7H1nj9gaM+OsL9h77S5S3TnLd9BgD3LnoeDikULo7cl2HSUrEyQ55Z7DYbg=="],
-
-    "prisma-adapter-bun-sqlite": ["prisma-adapter-bun-sqlite@0.8.0", "", { "dependencies": { "@prisma/driver-adapter-utils": "^7.8.0" }, "peerDependencies": { "@prisma/client": "^7.0.0", "bun-types": "*" }, "optionalPeers": ["bun-types"] }, "sha512-cPlq3c2vDrvdQZGj+oHledqQU2w4hbKUnJ+PL3LHtLzQzH5zDOvZAk5mu6bAjf8niGpQxE0JQCejCbyzWHND9A=="],
 
     "prop-types": ["prop-types@15.8.1", "", { "dependencies": { "loose-envify": "^1.4.0", "object-assign": "^4.1.1", "react-is": "^16.13.1" } }, "sha512-oj87CgZICdulUohogVAR7AjlC0327U4el4L6eAvOqCeudMDVU0NThNaV+b9Df4dXgSP1gXMTnPdhfe/2qDH5cg=="],
 

@@ -14,7 +14,7 @@ import { z } from 'zod'
 
 import type { ThreadSummary } from '../store/thread-store'
 import { contextDigestOf } from '../store/context-digest'
-import { UnreadableWrite } from '../store/event-row'
+import { UnreadableWrite } from '../store/sessions/lines'
 
 export const wireThreadSchema = z.object({
   id: z.string(),

@@ -19,11 +19,11 @@ import { HookChain } from '../../hooks/registry'
 import { scriptedModel, type ScriptedStep } from '../../model/testing/scripted-model'
 import { HookedToolDispatcher } from '../../tools/dispatch'
 import { InMemoryToolRegistry } from '../../tools/registry'
-import { createTempDatabase, type TempDatabase } from './temp-database'
+import { createTempHome, type TempHome } from './temp-home'
 
 const PROJECT_DIRECTORY = '/w'
 
-const opened: { harness: AtlasHarness; temp: TempDatabase }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
 afterEach(async () => {
   for (const entry of opened.splice(0)) {
@@ -98,10 +98,10 @@ export async function openSteerable(args: {
   withTools?: boolean | undefined
   withQueue?: boolean | undefined
 }): Promise<Opened> {
-  const temp = createTempDatabase()
+  const temp = createTempHome()
   const model = scriptedModel({ script: args.script })
   const harness = await buildHarness({
-    databaseUrl: temp.databaseUrl,
+    home: temp.home,
     model,
     ...(args.hooks === undefined ? {} : { hooks: args.hooks }),
   })

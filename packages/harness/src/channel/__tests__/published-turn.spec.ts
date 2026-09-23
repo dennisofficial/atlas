@@ -6,14 +6,14 @@ import type { LanguageModel } from 'ai'
 
 import { buildHarness, ETurnStatus, type AtlasHarness, type TurnDeps } from '../../loop'
 import { interruptibleModel } from '../../model/testing/interruptible-model'
-import { createTempDatabase, type TempDatabase } from '../../loop/__tests__/temp-database'
+import { createTempHome, type TempHome } from '../../loop/__tests__/temp-home'
 import { scriptedModel, type ScriptedStep } from '../../model/testing/scripted-model'
 import { createDeltaChannel, EStepEnd, PublishingTurnRunner, type ChannelSignal } from '..'
 import { assistantEvent, firstStepId, recorder, stepEnded } from './signals'
 
 const PROJECT_DIRECTORY = '/w'
 
-const opened: { harness: AtlasHarness; temp: TempDatabase }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
 afterEach(async () => {
   for (const entry of opened.splice(0)) {
@@ -23,8 +23,8 @@ afterEach(async () => {
 })
 
 async function openHarnessWith(model: LanguageModel): Promise<AtlasHarness> {
-  const temp = createTempDatabase()
-  const harness = await buildHarness({ databaseUrl: temp.databaseUrl, model })
+  const temp = createTempHome()
+  const harness = await buildHarness({ home: temp.home, model })
   opened.push({ harness, temp })
   return harness
 }

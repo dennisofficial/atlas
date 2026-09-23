@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-import { Database } from 'bun:sqlite'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 import {
   assemble,
@@ -16,7 +17,25 @@ import {
   type RuleContext,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { decodeEventRows } from '@dltech/atlas-harness'
+import {
+  eventLogFile,
+  ledgerFile,
+  parseEventLines,
+  readMetaSync,
+  sessionsDirectory,
+  threadMetaFile,
+  threadMetaSchema,
+  type ThreadMeta,
+} from '@dltech/atlas-harness'
+import type { UnreadableRow } from '@dltech/atlas-harness'
+
+const readText = (file: string): string => {
+  try {
+    return readFileSync(file, 'utf8')
+  } catch {
+    return ''
+  }
+}
 
 const readFlag = (argv: readonly string[], name: string): string | undefined =>
   argv.find((arg) => arg.startsWith(`--${name}=`))?.slice(name.length + 3)
@@ -32,11 +51,11 @@ const integerFlag = (argv: readonly string[], name: string, fallback: number): n
 const parseFlags = (argv: readonly string[]) => {
   const thread = argv.find((arg) => !arg.startsWith('--'))
   if (thread === undefined) {
-    console.error('usage: bun apps/tui/scripts/proto-cache-diff.ts <threadId> [--pairs=20] [--from=2026-09-13T16:39] [--detail=4] [--db=path]')
+    console.error('usage: bun apps/tui/scripts/proto-cache-diff.ts <threadId> [--pairs=20] [--from=2026-09-13T16:39] [--detail=4] [--home=path]')
     process.exit(1)
   }
   return {
-    db: readFlag(argv, 'db') ?? `${process.env.HOME}/.atlas/harness.db`,
+    home: readFlag(argv, 'home') ?? `${process.env.HOME}/.atlas/sessions`,
     thread,
     pairs: integerFlag(argv, 'pairs', 20),
     from: readFlag(argv, 'from'),
@@ -44,56 +63,76 @@ const parseFlags = (argv: readonly string[]) => {
   }
 }
 
-type EventRow = {
-  id: string; threadId: string; seq: number; runId: string; parentRunId: string | null; depth: number
-  at: string; type: string; body: string
-  contextSlot: string | null; contextKey: string | null; contextDigest: string | null
+type ThreadRow = Pick<
+  ThreadMeta,
+  'id' | 'workspace' | 'repo' | 'parentThreadId' | 'forkSeq' | 'forkMode'
+>
+
+const allThreadMetas = ({ from }: { from: string }): ThreadMeta[] => {
+  const metas: ThreadMeta[] = []
+  for (const dir of readdirSync(from)) {
+    const threadsDir = join(from, dir, 'threads')
+    for (const file of readdirSync(threadsDir).filter((name) => name.endsWith('.meta.json'))) {
+      const meta = readMetaSync({ file: join(threadsDir, file), schema: threadMetaSchema })
+      if (meta !== undefined) metas.push(meta)
+    }
+  }
+  return metas
 }
 
-type ThreadRow = {
-  id: string; workspace: string | null; repo: string | null
-  parentThreadId: string | null; forkSeq: number | null; forkMode: string | null
-}
-
-const THREAD_COLUMNS = 'id, workspace, repo, parentThreadId, forkSeq, forkMode'
-
-const threadRow = ({ db, thread }: { db: Database; thread: string }): ThreadRow => {
-  const query = db.query(`SELECT ${THREAD_COLUMNS} FROM Thread WHERE id = ?1 OR id LIKE ?2 LIMIT 1`)
-  const found = query.get(thread, `${thread}%`) as ThreadRow | null
-  if (found !== null) return found
+const threadRow = ({ from, thread }: { from: string; thread: string }): ThreadRow => {
+  const found = allThreadMetas({ from }).find(
+    (meta) => meta.id === thread || meta.id.startsWith(thread),
+  )
+  if (found !== undefined) return found
   console.error(`no thread matching "${thread}"`)
   process.exit(1)
 }
 
-const composedRows = ({ db, thread }: { db: Database; thread: ThreadRow }): EventRow[] => {
+const sessionDirOf = ({ from, threadId }: { from: string; threadId: string }): string =>
+  join(from, threadId)
+
+const composedEvents = ({ from, thread }: { from: string; thread: ThreadRow }): { events: Event[]; unreadable: UnreadableRow[] } => {
   const segments: { threadId: string; upTo: number | undefined }[] = []
-  let current: ThreadRow | null = thread
+  let current: ThreadMeta | undefined = thread as ThreadMeta
   let upTo: number | undefined
 
-  while (current !== null) {
+  while (current !== undefined) {
     segments.unshift({ threadId: current.id, upTo })
-    const parentId = current.parentThreadId
+    const parentId: string | null = current.parentThreadId
     const forkSeq = current.forkSeq
     if (current.forkMode !== EForkMode.Reference || parentId === null || forkSeq === null) break
     upTo = upTo === undefined ? forkSeq : Math.min(upTo, forkSeq)
-    current = db.query(`SELECT ${THREAD_COLUMNS} FROM Thread WHERE id = ?`).get(parentId) as ThreadRow | null
+    current = readMetaSync({
+      file: threadMetaFile({ sessionDir: sessionDirOf({ from, threadId: parentId }), threadId: parentId as ThreadId }),
+      schema: threadMetaSchema,
+    })
   }
 
-  return segments.flatMap((segment) => {
-    const bound = segment.upTo === undefined ? '' : 'AND seq <= ?2'
-    const query = db.query(
-      `SELECT id, threadId, seq, runId, parentRunId, depth, at, type, body, contextSlot, contextKey, contextDigest
-       FROM Event WHERE threadId = ?1 ${bound} ORDER BY seq ASC`,
-    )
-    const bounded = segment.upTo
-    return (bounded === undefined ? query.all(segment.threadId) : query.all(segment.threadId, bounded)) as EventRow[]
-  })
+  const events: Event[] = []
+  const unreadable: UnreadableRow[] = []
+  for (const segment of segments) {
+    const file = eventLogFile({
+      sessionDir: sessionDirOf({ from, threadId: segment.threadId }),
+      threadId: toThreadId(segment.threadId),
+    })
+    const parsed = parseEventLines({ text: readText(file), threadId: segment.threadId })
+    events.push(...parsed.events.filter((event) => segment.upTo === undefined || event.seq <= segment.upTo))
+    unreadable.push(...parsed.unreadable)
+  }
+  return { events, unreadable }
 }
 
-const providerOf = ({ db, threadId }: { db: Database; threadId: string }): ProviderIdentity => {
-  const query = db.query('SELECT providerId, modelId FROM Turn WHERE threadId = ? ORDER BY startedAt DESC LIMIT 1')
-  const turn = query.get(threadId) as { providerId: string; modelId: string } | null
-  return turn === null ? { id: 'unknown', modelId: 'unknown' } : { id: turn.providerId, modelId: turn.modelId }
+const providerOf = ({ from, threadId }: { from: string; threadId: string }): ProviderIdentity => {
+  const raw = readText(ledgerFile({ sessionDir: sessionDirOf({ from, threadId }) }))
+  const turns = raw
+    .split('\n')
+    .filter((line: string) => line !== '')
+    .map((line: string) => JSON.parse(line) as { threadId: string; providerId: string; modelId: string; startedAt: string })
+    .filter((turn: { threadId: string }) => turn.threadId === threadId)
+    .sort((a: { startedAt: string }, b: { startedAt: string }) => b.startedAt.localeCompare(a.startedAt))
+  const turn = turns[0]
+  return turn === undefined ? { id: 'unknown', modelId: 'unknown' } : { id: turn.providerId, modelId: turn.modelId }
 }
 
 const STEP_OUTPUT = new Set(['assistant-said', 'tool-called'])
@@ -232,12 +271,10 @@ const printDetail = ({ pair, divergence, after, events }: Detail): void => {
 const flagsOf = parseFlags(process.argv.slice(2))
 
 const main = (): void => {
-  const db = new Database(flagsOf.db, { readonly: true })
-  const thread = threadRow({ db, thread: flagsOf.thread })
+  const thread = threadRow({ from: flagsOf.home, thread: flagsOf.thread })
   const threadId: ThreadId = toThreadId(thread.id)
-  const provider = providerOf({ db, threadId: thread.id })
-  const decoded = decodeEventRows({ rows: composedRows({ db, thread }) })
-  db.close()
+  const provider = providerOf({ from: flagsOf.home, threadId: thread.id })
+  const decoded = composedEvents({ from: flagsOf.home, thread })
 
   const events = decoded.events
   const byId = new Map<EventId, Event>(events.map((event) => [event.id, event]))

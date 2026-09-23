@@ -24,11 +24,11 @@ import {
 } from '../../tools/dispatch'
 import { createSettlePending } from '../settle-pending'
 import { branchWithCalls } from './settle-pending-fixture'
-import { createTempDatabase, type TempDatabase } from './temp-database'
+import { createTempHome, type TempHome } from './temp-home'
 
 const PROJECT_DIRECTORY = '/w'
 
-const opened: { harness: AtlasHarness; temp: TempDatabase }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
 afterEach(async () => {
   for (const entry of opened.splice(0)) {
@@ -51,7 +51,7 @@ class MutableSource extends DynamicToolSource {
 
 describe('a tool that joins while the turn is running', () => {
   it('is offered on the next model step and dispatches through the same registry', async () => {
-    const temp = createTempDatabase()
+    const temp = createTempHome()
     const model = scriptedModel({
       script: [
         { text: 'touching', calls: [{ callId: 'call-1', name: 'touch', input: {} }] },
@@ -59,7 +59,7 @@ describe('a tool that joins while the turn is running', () => {
         { text: 'done' },
       ],
     })
-    const harness = await buildHarness({ databaseUrl: temp.databaseUrl, model })
+    const harness = await buildHarness({ home: temp.home, model })
     opened.push({ harness, temp })
 
     const source = new MutableSource()
@@ -112,7 +112,7 @@ describe('a tool that joins while the turn is running', () => {
   })
 
   it('stops being offered once it leaves, and a call naming it gets the unknown-tool correction', async () => {
-    const temp = createTempDatabase()
+    const temp = createTempHome()
     const model = scriptedModel({
       script: [
         { text: 'touching', calls: [{ callId: 'call-1', name: 'touch', input: {} }] },
@@ -120,7 +120,7 @@ describe('a tool that joins while the turn is running', () => {
         { text: 'done' },
       ],
     })
-    const harness = await buildHarness({ databaseUrl: temp.databaseUrl, model })
+    const harness = await buildHarness({ home: temp.home, model })
     opened.push({ harness, temp })
 
     const source = new MutableSource()
@@ -192,9 +192,9 @@ describe('settling against declarations that arrive late', () => {
   }
 
   it('reads the supplier at settle time, so a safe tool registered after construction batches', async () => {
-    const temp = createTempDatabase()
+    const temp = createTempHome()
     const harness = await buildHarness({
-      databaseUrl: temp.databaseUrl,
+      home: temp.home,
       model: scriptedModel({ script: [] }),
     })
     opened.push({ harness, temp })

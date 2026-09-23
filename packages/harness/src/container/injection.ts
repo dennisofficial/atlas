@@ -28,9 +28,9 @@ export const resolveSet = <T>(args: {
 }): readonly T[] =>
   args.container.isRegistered(args.token, true) ? args.container.resolveAll(args.token) : []
 
-// `isRegistered` answers only that a registration exists, not that its factory can run: the
-// default EventLogPort registration resolves PrismaClientToken, which a bare container never
-// binds, so resolving it throws from inside the factory rather than on the token itself.
+// `isRegistered` answers only that a registration exists, not that its factory can run: a
+// factory that resolves another token can throw from inside the factory rather than on the
+// token itself.
 export const resolveIfPossible = <T>(args: {
   container: DependencyContainer
   token: InjectionToken<T>

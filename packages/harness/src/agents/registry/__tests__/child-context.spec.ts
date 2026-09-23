@@ -11,7 +11,7 @@ import {
 import { createDeltaChannel } from '../../../channel/delta-channel'
 import { HookChain } from '../../../hooks/registry'
 import { buildHarness } from '../../../loop/build-harness'
-import { createTempDatabase } from '../../../loop/__tests__/temp-database'
+import { createTempHome } from '../../../loop/__tests__/temp-home'
 import type { TurnDeps } from '../../../loop/run-turn'
 import { scriptedModel } from '../../../model/testing/scripted-model'
 import { InMemoryToolRegistry } from '../../../tools/registry'
@@ -161,9 +161,9 @@ type RealChild = {
 }
 
 async function openRealChild(): Promise<RealChild> {
-  const temp = createTempDatabase()
+  const temp = createTempHome()
   const harness = await buildHarness({
-    databaseUrl: temp.databaseUrl,
+    home: temp.home,
     model: scriptedModel({ script: [{ text: 'four call sites' }] }),
     identity: { id: 'anthropic', modelId: 'claude-haiku-4-5' },
     card: HAIKU_CARD,

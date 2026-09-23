@@ -12,7 +12,7 @@ import type { SteerMessage } from '../child-state'
 import { createDeltaChannel } from '../../../channel/delta-channel'
 import { HookChain } from '../../../hooks/registry'
 import { buildHarness, type AtlasHarness } from '../../../loop/build-harness'
-import { createTempDatabase, type TempDatabase } from '../../../loop/__tests__/temp-database'
+import { createTempHome, type TempHome } from '../../../loop/__tests__/temp-home'
 import type { TurnDeps } from '../../../loop/run-turn'
 import { scriptedModel } from '../../../model/testing/scripted-model'
 import { InMemoryToolRegistry } from '../../../tools/registry'
@@ -23,7 +23,7 @@ const PROJECT_DIRECTORY = '/w'
 
 const OPERATOR_TEXT = 'the operator typed this at the parent'
 
-const opened: { harness: AtlasHarness; temp: TempDatabase }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
 afterEach(async () => {
   for (const entry of opened.splice(0)) {
@@ -47,9 +47,9 @@ async function childTurn(args: {
   steering: readonly string[]
   notices: readonly EventDraft[]
 }): Promise<{ events: readonly Event[]; operatorDrains: number }> {
-  const temp = createTempDatabase()
+  const temp = createTempHome()
   const model = scriptedModel({ script: [{ text: 'the child answered' }] })
-  const harness = await buildHarness({ databaseUrl: temp.databaseUrl, model })
+  const harness = await buildHarness({ home: temp.home, model })
   opened.push({ harness, temp })
 
   let operatorDrains = 0

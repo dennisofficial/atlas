@@ -9,19 +9,17 @@ import type { AgentType } from '../../agents/types/agent-type'
 import { createHarnessContainer } from '../../container/create-harness-container'
 import { portToken, resolveSet, type DependencyContainer } from '../../container/injection'
 import {
-  PrismaClientToken,
   WebSearchBackendToken,
   WorktreeDirectoryToken,
   WorkspaceRoot,
 } from '../../container/tokens'
-import { createTempDatabase, type TempDatabase } from '../../loop/__tests__/temp-database'
-import { openAtlasDatabase } from '../../store'
+import { createTempHome, type TempHome } from '../../loop/__tests__/temp-home'
 import { AgentTypesToken } from '../builtin/agent-tokens'
 import { ToolRegistry } from '../registry'
 
 const AGENT_TOOLS = ['agent_list', 'agent_resume', 'agent_say', 'agent_spawn', 'agent_stop']
 
-const opened: { close: () => Promise<void>; temp: TempDatabase }[] = []
+const opened: { temp: TempHome; previousHome: string | undefined }[] = []
 
 const wired = (): DependencyContainer => {
   const container = createHarnessContainer()
@@ -32,12 +30,12 @@ const wired = (): DependencyContainer => {
 }
 
 async function withDatabase(): Promise<DependencyContainer> {
-  const temp = createTempDatabase()
-  const database = await openAtlasDatabase({ databaseUrl: temp.databaseUrl })
-  opened.push({ close: database.close, temp })
+  const temp = createTempHome()
+  const previousHome = process.env['ATLAS_HOME']
+  process.env['ATLAS_HOME'] = temp.home
+  opened.push({ temp, previousHome })
 
   const container = wired()
-  container.register(PrismaClientToken, { useValue: database.prisma })
   return container
 }
 
@@ -55,9 +53,10 @@ const toolNamed = ({
   return found
 }
 
-afterAll(async () => {
+afterAll(() => {
   for (const entry of opened.splice(0)) {
-    await entry.close()
+    if (entry.previousHome === undefined) delete process.env['ATLAS_HOME']
+    else process.env['ATLAS_HOME'] = entry.previousHome
     entry.temp.discard()
   }
 })

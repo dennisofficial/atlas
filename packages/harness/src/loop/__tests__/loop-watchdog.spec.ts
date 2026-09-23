@@ -20,7 +20,7 @@ import { HookChain } from '../../hooks/registry'
 import { scriptedModel, type ScriptedStep } from '../../model/testing/scripted-model'
 import { HookedToolDispatcher } from '../../tools/dispatch'
 import { InMemoryToolRegistry } from '../../tools/registry'
-import { createTempDatabase, type TempDatabase } from './temp-database'
+import { createTempHome, type TempHome } from './temp-home'
 
 class FakeDecisions extends DecisionPort {
   calls = 0
@@ -155,7 +155,7 @@ const varyingSteps = (count: number): ScriptedStep[] =>
     calls: [{ callId: `call-${index + 1}`, name: 'touch', input: { round: index + 1 } }],
   }))
 
-const opened: { harness: AtlasHarness; temp: TempDatabase }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
 afterEach(async () => {
   for (const entry of opened.splice(0)) {
@@ -168,12 +168,12 @@ async function openWatched(args: {
   script: readonly ScriptedStep[]
   watch: (callCount: number, events: readonly Event[]) => LoopVerdict
 }): Promise<{ harness: AtlasHarness; watches: number }> {
-  const temp = createTempDatabase()
+  const temp = createTempHome()
   const model = scriptedModel({ script: args.script })
   const registry = new InMemoryToolRegistry([touchTool])
   const counter = { watches: 0 }
   const harness = await buildHarness({
-    databaseUrl: temp.databaseUrl,
+    home: temp.home,
     model,
     tools: () => registry.declarations(),
     dispatch: new HookedToolDispatcher({ registry, hooks: new HookChain({}) }),
