@@ -2,13 +2,21 @@ import {
   rewindPlan,
   rewindTarget,
   type ClockPort,
+  type EventDraft,
   type EventLogPort,
   type IdPort,
+  type ThreadId,
 } from '@dltech/atlas-core'
 
-import type { ApplyLoopCut } from '../../cut-loop'
 import type { SessionRegistry } from '../registry'
 import { appendDrafts, truncateThreadLog } from './log-edits'
+
+export type ApplyLoopCut = (args: {
+  threadId: ThreadId
+  toSeq: number
+  throughSeq: number
+  notice: EventDraft
+}) => Promise<boolean>
 
 export function createLoopCut({
   log,

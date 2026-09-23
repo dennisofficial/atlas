@@ -50,22 +50,6 @@ export async function closeOpsFixtures(): Promise<void> {
   await Promise.all(directories.splice(0).map((dir) => rm(dir, { recursive: true, force: true })))
 }
 
-export function reopenOpsFixture({ fixture }: { fixture: OpsFixture }): OpsFixture {
-  const registry = new SessionRegistry(fixture.home)
-  const clock = new SteppingClock()
-  const ids = new CountingIds('reopen')
-  return {
-    home: fixture.home,
-    registry,
-    log: new JsonlEventLog(fixture.home, registry, clock, ids),
-    clock,
-    ids,
-    agents: new UnstaffedAgents(),
-    shells: new UnstaffedShells(),
-    services: new UnstaffedServices(),
-  }
-}
-
 export async function openThread({
   fixture,
   drafts,

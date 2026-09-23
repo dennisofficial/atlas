@@ -22,7 +22,7 @@ const usage = (inputTokens: number) => ({
   cacheWriteTokens: 100,
 })
 
-describe('a turn driven through the loop and read back out of SQLite', () => {
+describe('a turn driven through the loop and read back out of the JSONL ledger', () => {
   it('persists what the steps were billed, tier by tier', async () => {
     const harness = await open({
       script: [
@@ -52,7 +52,7 @@ describe('a turn driven through the loop and read back out of SQLite', () => {
     ])
   })
 
-  it('gives the row a real duration and a pair of timestamps SQLite kept in order', async () => {
+  it('gives the record a real duration and a pair of timestamps the ledger kept in order', async () => {
     const harness = await open({ script: [{ text: 'done', usage: usage(1_000) }] })
 
     await harness.runner.say({ threadId: harness.threadId, text: 'go' })
@@ -64,7 +64,7 @@ describe('a turn driven through the loop and read back out of SQLite', () => {
     expect(row?.durationMs).toBeGreaterThanOrEqual(0)
   })
 
-  it('keeps one row per turn across several turns on one thread', async () => {
+  it('keeps one record per turn across several turns on one thread', async () => {
     const harness = await open({
       script: [{ text: 'first', usage: usage(200) }, { text: 'second', usage: usage(400) }],
     })

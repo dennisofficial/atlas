@@ -1,3 +1,6 @@
+import { Buffer } from 'node:buffer'
+import { readFile, truncate } from 'node:fs/promises'
+
 import {
   eventBodySchema,
   stampEvent,
@@ -31,6 +34,14 @@ export class UnreadableWrite extends Error {
     super(`refusing to write a ${args.type} event Atlas could not read back: ${args.detail}`)
     this.name = 'UnreadableWrite'
   }
+}
+
+export async function dropTornTail({ file }: { file: string }): Promise<boolean> {
+  const text = await readFile(file, 'utf8').catch(() => undefined)
+  if (text === undefined || text === '' || text.endsWith('\n')) return false
+  const kept = text.slice(0, text.lastIndexOf('\n') + 1)
+  await truncate(file, Buffer.byteLength(kept))
+  return true
 }
 
 export function encodeEventLine({
@@ -80,9 +91,8 @@ export function parseEventLines({
     const raw = segments[index]
     if (raw === undefined || raw === '') continue
 
-    const decoded = decodeLine({ raw, threadId })
+    const decoded = decodeLine({ raw, threadId, tail: index === last })
     if ('gap' in decoded) {
-      if (index === last && decoded.reason === EUnreadableReason.MalformedJson) break
       unreadable.push(decoded.gap)
       continue
     }
@@ -95,14 +105,15 @@ export function parseEventLines({
 
 type LineOutcome = { event: Event } | { gap: UnreadableRow; reason: EUnreadableReason }
 
-function decodeLine({ raw, threadId }: { raw: string; threadId: string }): LineOutcome {
+function decodeLine({ raw, threadId, tail }: { raw: string; threadId: string; tail: boolean }): LineOutcome {
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
   } catch (error) {
+    const reason = tail ? EUnreadableReason.TruncatedTail : EUnreadableReason.MalformedJson
     return {
-      reason: EUnreadableReason.MalformedJson,
-      gap: gapOf({ raw, threadId, reason: EUnreadableReason.MalformedJson, detail: messageOf(error) }),
+      reason,
+      gap: gapOf({ raw, threadId, reason, detail: messageOf(error) }),
     }
   }
 
