@@ -15,9 +15,9 @@ import {
 } from '@dltech/atlas-core'
 
 import { contextIdentityOf, planAppend, type ContextIdentity } from '../append-plan'
-import type { UnreadableRow } from '../decode-events'
+import { EUnreadableReason, type UnreadableRow } from '../decode-events'
 import { planSegments } from './compose'
-import { encodeEventLine } from './lines'
+import { dropTornTail, encodeEventLine } from './lines'
 import { newThreadMeta, readMetaSync, threadMetaSchema, writeMeta } from './meta'
 import { eventLogFile, sessionDirectory, threadMetaFile, threadsDirectory } from './paths'
 import { rebuildContextIndex, type SessionRegistry } from './registry'
@@ -132,7 +132,7 @@ export class JsonlEventLog implements EventLogPort {
     const meta = readMetaSync({ file: metaFile, schema: threadMetaSchema }) ?? newThreadMeta({ id: args.threadId, at })
     this.registry.registerThread({ sessionDir, threadId: args.threadId })
 
-    const log = await this.registry.readThreadLog({ sessionDir, threadId: args.threadId })
+    const log = await this.registry.refreshThreadLog({ sessionDir, threadId: args.threadId })
     const reusable = await this.loadReusableContext({ threadId: args.threadId, drafts: args.drafts })
     const plan = planAppend({ drafts: args.drafts, reusable })
     if (plan.fresh.length === 0) return plan.resolve([])
@@ -154,7 +154,11 @@ export class JsonlEventLog implements EventLogPort {
     const lines = prepared.map((entry) => `${encodeEventLine(entry)}\n`).join('')
     const file = eventLogFile({ sessionDir, threadId: args.threadId })
     await mkdir(dirname(file), { recursive: true })
+    if (await dropTornTail({ file })) {
+      log.unreadable = log.unreadable.filter((row) => row.reason !== EUnreadableReason.TruncatedTail)
+    }
     await appendFile(file, lines, 'utf8')
+    await this.registry.stampThreadLog({ sessionDir, threadId: args.threadId })
 
     const stamped = stampDrafts({ drafts: prepared.map((entry) => entry.draft), envelopes: prepared.map((entry) => entry.envelope) })
     log.events.push(...stamped)
@@ -196,6 +200,7 @@ export class JsonlEventLog implements EventLogPort {
     const tmp = join(threadsDirectory({ sessionDir }), `.replace.${process.pid}.tmp`)
     await writeFile(tmp, prepared.map((entry) => `${encodeEventLine(entry)}\n`).join(''))
     await rename(tmp, file)
+    await this.registry.stampThreadLog({ sessionDir, threadId: args.threadId })
 
     const stamped = stampDrafts({ drafts: prepared.map((entry) => entry.draft), envelopes: prepared.map((entry) => entry.envelope) })
     const log = await this.registry.readThreadLog({ sessionDir, threadId: args.threadId })

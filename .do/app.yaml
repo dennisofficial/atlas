@@ -29,7 +29,7 @@ services:
     value: production
   github:
     branch: main
-    deploy_on_push: true
+    deploy_on_push: false
     repo: dennisofficial/atlas
   health_check:
     http_path: /v1/health

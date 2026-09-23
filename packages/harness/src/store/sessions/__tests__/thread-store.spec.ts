@@ -241,3 +241,28 @@ describe('JsonlThreadStore listing', () => {
     expect(await threads.findNamed({ project: '/here', handle: 'nobody' })).toBeUndefined()
   })
 })
+
+describe('JsonlThreadStore queued meta writes', () => {
+  it('serializes a rename against an append so neither write is lost', async () => {
+    const home = await tempHome()
+    const { threads, log, ids } = openStore({ home })
+    const thread = await threads.create({ title: 'before', workspace: '/here', repo: null })
+
+    const [appended] = await Promise.all([
+      log.append({ threadId: thread.id, runId: ids.nextRunId(), drafts: [said('kept')] }),
+      threads.rename({ threadId: thread.id, title: 'after' }),
+    ])
+    expect(appended.map((event) => event.seq)).toEqual([1])
+
+    const found = await threads.find({ threadId: thread.id })
+    expect(found?.title).toBe('after')
+    expect(found?.head).toBe(1)
+
+    const sessionDir = sessionDirectory({ home, sessionId: thread.id })
+    const raw = readMetaSync({ file: threadMetaFile({ sessionDir, threadId: thread.id }), schema: threadMetaSchema })
+    expect(raw?.title).toBe('after')
+    expect(raw?.head).toBe(1)
+    const session = readMetaSync({ file: sessionMetaFile({ sessionDir }), schema: sessionMetaSchema })
+    expect(session?.title).toBe('after')
+  })
+})

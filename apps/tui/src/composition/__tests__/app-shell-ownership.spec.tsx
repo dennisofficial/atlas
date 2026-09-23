@@ -14,7 +14,7 @@ await grammarsReady()
 
 const THREAD = toThreadId('opened-thread')
 
-const OTHER = toThreadId('made-1')
+const OTHER = toThreadId('other-thread')
 
 /**
  * OpenTUI's renderer quits on ctrl+c by default and the app turns that off in boot.tsx, which a
@@ -43,7 +43,7 @@ const running = (over: {
 const appWith = (): FakeApp =>
   fakeApp({ model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }) })
 
-async function seedOtherThread(app: FakeApp): Promise<void> {
+async function seedOtherThread(app: FakeApp) {
   const thread = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null })
   await app.threads.rename({ threadId: thread.id, title: 'the other conversation' })
   await app.log.append({
@@ -51,6 +51,7 @@ async function seedOtherThread(app: FakeApp): Promise<void> {
     runId: toRunId('run-other'),
     drafts: [{ type: 'user-said', text: 'over here' }],
   })
+  return thread.id
 }
 
 async function opened(app: FakeApp): Promise<Mounted> {
@@ -156,20 +157,20 @@ describe('a background shell belongs to the conversation that started it', () =>
 
   it('keeps an ending for its owner rather than dropping it on a switch', async () => {
     const app = appWith()
-    await seedOtherThread(app)
+    const other = await seedOtherThread(app)
     app.shells.announce(
       { ...running({ shellId: 'bash_1', command: 'bun run dev' }), status: EShellStatus.Exited },
-      OTHER,
+      other,
     )
     const setup = await opened(app)
 
     try {
-      expect(app.shells.threadsAwaitingNotice()).toEqual([OTHER])
+      expect(app.shells.threadsAwaitingNotice()).toEqual([other])
       expect(app.shells.pendingNotices({ threadId: THREAD })).toEqual([])
 
       await resumeTheOther(setup)
 
-      expect(app.shells.pendingNotices({ threadId: OTHER }).length).toBe(1)
+      expect(app.shells.pendingNotices({ threadId: other }).length).toBe(1)
     } finally {
       await teardown(setup)
     }

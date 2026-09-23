@@ -55,7 +55,6 @@ export enum ESettingId {
   VercelTeamId = 'sandbox.vercelTeamId',
   VercelProjectId = 'sandbox.vercelProjectId',
   SandboxImage = 'sandbox.image',
-  DatabaseUrl = 'store.databaseUrl',
   KeychainService = 'credentials.keychainService',
   CloudUrl = 'cloud.url',
   AutoRestart = 'dev.autoRestart',
@@ -683,17 +682,6 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     environmentVariable: 'ATLAS_SANDBOX_IMAGE',
     kind: ESettingKind.Text,
     fallback: 'atlas-sandbox:latest',
-  },
-  {
-    id: ESettingId.DatabaseUrl,
-    page: ESettingPage.Hidden,
-    group: 'Store',
-    label: 'Database',
-    description:
-      'Where the event log and the threads over it are kept. Left empty, it is harness.db inside the Atlas home — which ATLAS_HOME moves, since a home has to be found before a settings file in it can be read.',
-    environmentVariable: 'ATLAS_DATABASE_URL',
-    kind: ESettingKind.Text,
-    fallback: '',
   },
   {
     id: ESettingId.CloudUrl,

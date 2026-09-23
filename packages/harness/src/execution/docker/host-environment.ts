@@ -143,7 +143,7 @@ const imageFieldsOf = (
 }
 
 // The atlas-home root itself must never become reachable by widening this list. Mounting only
-// these named subtrees is what keeps auth.json, the vault key and harness.db out of the
+// these named subtrees is what keeps auth.json, the vault key and the session logs out of the
 // container — credentials never enter the sandbox. The subtrees mount read-write: a container
 // session is the same agent with the same capabilities, so it saves memories and installs
 // skills exactly as it would on the host.

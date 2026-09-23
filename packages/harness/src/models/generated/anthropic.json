@@ -233,6 +233,30 @@
   {
     "ref": {
       "providerId": "anthropic",
+      "modelId": "claude-opus-5-5"
+    },
+    "label": "Claude Opus 5.5",
+    "api": "anthropic-messages",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 4,
+      "outputPerMillion": 20,
+      "cacheReadPerMillion": 0.2,
+      "cacheWritePerMillion": 5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "anthropic",
       "modelId": "claude-sonnet-4-5"
     },
     "label": "Claude Sonnet 4.5 (latest)",
