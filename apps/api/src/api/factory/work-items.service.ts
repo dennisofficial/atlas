@@ -7,6 +7,8 @@ import { toAliasDto, toWorkItemDto } from './rows'
 import { inconsistentStore, isUniqueViolation } from './unique-violation'
 
 const ALIAS_UNIQUE_TARGET = ['surface', 'externalId'] as const
+const DEFAULT_LIST_LIMIT = 50
+const MAX_LIST_LIMIT = 200
 
 @Injectable()
 export class WorkItemsService {
@@ -91,6 +93,19 @@ export class WorkItemsService {
     const row = await db.factoryWorkItem.findUnique({ where: { id: args.workItemId } })
     if (row === null) throw new NotFoundException('unknown factory work item')
     return toWorkItemDto(row)
+  }
+
+  async listForOrganization(args: {
+    organizationId: string
+    limit?: number
+  }): Promise<WorkItemDto[]> {
+    const take = Math.min(Math.max(Math.floor(args.limit ?? DEFAULT_LIST_LIMIT), 1), MAX_LIST_LIMIT)
+    const rows = await db.factoryWorkItem.findMany({
+      where: { organizationId: args.organizationId },
+      orderBy: { lastActivityAt: 'desc' },
+      take,
+    })
+    return rows.map(toWorkItemDto)
   }
 
   async registerAlias(args: {

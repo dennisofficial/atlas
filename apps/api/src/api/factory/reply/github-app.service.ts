@@ -1,5 +1,6 @@
 import {
   BadGatewayException,
+  BadRequestException,
   Injectable,
   Logger,
   ServiceUnavailableException,
@@ -33,6 +34,7 @@ export class GithubAppService {
   private readonly fetchFn: GithubFetch
   private jwt: { token: string; refreshAt: number } | null = null
   private bot: Promise<string | null> | null = null
+  private slug: Promise<string> | null = null
 
   constructor(private readonly env: EnvService, fetchFn?: GithubFetch) {
     this.fetchFn = fetchFn ?? fetch
@@ -59,6 +61,28 @@ export class GithubAppService {
       return null
     })
     return this.bot
+  }
+
+  /** The app's slug names its install page; cached per process, failures do not cache. */
+  appSlug(): Promise<string> {
+    this.slug ??= this.readAppSlug().catch((failure: unknown) => {
+      this.slug = null
+      throw failure
+    })
+    return this.slug
+  }
+
+  async assertInstallation(args: { installationId: string }): Promise<void> {
+    await this.request<unknown>({
+      method: 'GET',
+      path: `/app/installations/${args.installationId}`,
+      as: 'app',
+      onNotFound: () => {
+        throw new BadRequestException(
+          `github installation ${args.installationId} does not exist for this app`,
+        )
+      },
+    })
   }
 
   /** Minted per call on purpose: the installation token is the run-scoped credential. */
@@ -170,6 +194,12 @@ export class GithubAppService {
     })
     this.jwt = { token, refreshAt: now + APP_JWT_REFRESH_MS }
     return token
+  }
+
+  private async readAppSlug(): Promise<string> {
+    this.requireConfig()
+    const app = await this.request<{ slug: string }>({ method: 'GET', path: '/app', as: 'app' })
+    return app.slug
   }
 
   private async readBotLogin(): Promise<string | null> {

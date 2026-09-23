@@ -31,6 +31,8 @@ export function createFakeAccountTables() {
         agentAccounts.push(args.data)
         return args.data
       },
+      findUnique: async (args: { where: { id: string } }) =>
+        agentAccounts.find((one) => one.id === args.where.id) ?? null,
       delete: async (args: { where: { id: string } }) => {
         const index = agentAccounts.findIndex((one) => one.id === args.where.id)
         if (index === -1) throw new Error('record not found')
@@ -53,6 +55,19 @@ export function createFakeAccountTables() {
         if (clash) throw uniqueViolation(['userId', 'provider'])
         activeAccounts.push(args.data)
         return args.data
+      },
+      update: async (args: {
+        where: { userId_provider: { userId: string; provider: string } }
+        data: { accountId: string }
+      }) => {
+        const row = activeAccounts.find(
+          (one) =>
+            one.userId === args.where.userId_provider.userId &&
+            one.provider === args.where.userId_provider.provider,
+        )
+        if (row === undefined) throw new Error('record not found')
+        row.accountId = args.data.accountId
+        return row
       },
     },
   }
