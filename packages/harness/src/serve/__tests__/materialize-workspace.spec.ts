@@ -1,89 +1,18 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EPortExposure } from '@dltech/atlas-core'
+import { EWorkspaceState, EWorkspaceStep, WORKSPACE_SENTINEL } from '../materialize-workspace'
 
-import type { ApplyEnvironmentProfile, EnvironmentProfile } from '../environment-profile'
 import {
-  createEnsureWorkspace,
-  credentialedRemoteOf,
-  EWorkspaceState,
-  EWorkspaceStep,
-  httpsRemoteOf,
-  WORKSPACE_SENTINEL,
-  type GitRunner,
-} from '../materialize-workspace'
-import type { WorkspaceFiles } from '../workspace-files'
-import type { WorkspaceSpec } from '../workspace-spec'
-
-const CWD = '/workspace'
-
-const TOKEN = 'gho_secret-token'
-
-const spec = (partial: Partial<WorkspaceSpec> = {}): WorkspaceSpec => ({
-  remoteUrl: 'git@github.com:dennisofficial/atlas.git',
-  branch: 'dennis/container-cloud',
-  commit: '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c',
-  patch: '',
-  githubToken: TOKEN,
-  contextBundle: null,
-  ...partial,
-})
-
-type Attempt = { args: readonly string[]; cwd: string }
-
-const harness = (args: {
-  present?: readonly string[] | undefined
-  fails?: ((attempt: Attempt) => { stderr: string } | undefined) | undefined
-  answers?: ((attempt: Attempt) => string | undefined) | undefined
-  profile?: ApplyEnvironmentProfile | undefined
-}) => {
-  const attempts: Attempt[] = []
-  const written: { path: string; text: string }[] = []
-  const emptied: string[] = []
-  const present = new Set(args.present ?? [])
-
-  const git: GitRunner = async (attempt) => {
-    attempts.push(attempt)
-    const failure = args.fails?.(attempt)
-    if (failure !== undefined) return { ok: false, stdout: '', stderr: failure.stderr }
-    return { ok: true, stdout: args.answers?.(attempt) ?? '', stderr: '' }
-  }
-
-  const files: WorkspaceFiles = {
-    exists: async (path) => present.has(path),
-    read: async () => {
-      throw new Error('not exercised in these specs')
-    },
-    write: async (given) => {
-      written.push(given)
-      present.add(given.path)
-    },
-    writeBytes: async ({ path, bytes }) => {
-      written.push({ path, text: bytes.toString('utf8') })
-      present.add(path)
-    },
-    empty: async (path) => {
-      emptied.push(path)
-    },
-  }
-
-  return { attempts, written, emptied, ensure: createEnsureWorkspace({ git, files, profile: args.profile }) }
-}
-
-const argsOf = (attempts: readonly Attempt[]): string[][] =>
-  attempts.map((attempt) => [...attempt.args])
-
-const TIP = 'ba51e1e0000000000000000000000000000000ff'
-
-const TREE = '7ee1ab1e000000000000000000000000000000aa'
-
-const PATCHED_TREE = '1f2e3d4c000000000000000000000000000000bb'
-
-const revParseAnswers = (attempt: Attempt): string | undefined => {
-  if (attempt.args[0] === 'write-tree') return `${PATCHED_TREE}\n`
-  if (attempt.args[0] !== 'rev-parse') return undefined
-  return attempt.args.at(-1) === 'HEAD^{tree}' ? `${TREE}\n` : `${TIP}\n`
-}
+  argsOf,
+  CWD,
+  harness,
+  PATCHED_TREE,
+  revParseAnswers,
+  spec,
+  TIP,
+  TOKEN,
+  TREE,
+} from './materialize-workspace-fixture'
 
 describe('ensureWorkspace', () => {
   it('clones, arrives on the branch at the lifted commit and applies the patch uncommitted', async () => {
@@ -289,107 +218,5 @@ describe('ensureWorkspace', () => {
 
     expect(readiness.state).toBe(EWorkspaceState.Failed)
     expect(JSON.stringify(readiness)).not.toContain(TOKEN)
-  })
-})
-
-describe('ensureWorkspace environment profile', () => {
-  const profile: EnvironmentProfile = {
-    steps: [],
-    capabilities: {
-      canPush: true,
-      gitIdentity: null,
-      gpgSigning: false,
-      dockerAvailable: false,
-      persistentFs: true,
-      serviceTtlSeconds: null,
-      portExposure: EPortExposure.PublicDomain,
-      failures: [],
-    },
-  }
-
-  it('re-applies the profile on a present workspace, fetching the spec for it', async () => {
-    let fetched = 0
-    const { ensure } = harness({
-      present: [`${CWD}/${WORKSPACE_SENTINEL}`],
-      profile: async () => profile,
-    })
-
-    const readiness = await ensure({
-      cwd: CWD,
-      fetchSpec: async () => {
-        fetched += 1
-        return spec()
-      },
-    })
-
-    expect(readiness).toEqual({ state: EWorkspaceState.Present, profile })
-    expect(fetched).toBe(1)
-  })
-
-  it('carries the profile on a materialized workspace', async () => {
-    const { ensure } = harness({ profile: async () => profile })
-
-    const readiness = await ensure({ cwd: CWD, fetchSpec: async () => spec() })
-
-    expect(readiness).toEqual({ state: EWorkspaceState.Materialized, profile })
-  })
-
-  it('applies the profile for a workspace-less session too', async () => {
-    const { ensure } = harness({ profile: async () => profile })
-
-    const readiness = await ensure({
-      cwd: CWD,
-      fetchSpec: async () => spec({ remoteUrl: null, branch: null, commit: null }),
-    })
-
-    expect(readiness).toEqual({ state: EWorkspaceState.Skipped, profile })
-  })
-
-  it('still returns the success readiness when the profile throws', async () => {
-    const { ensure } = harness({
-      profile: async () => {
-        throw new Error('the profile blew up')
-      },
-    })
-
-    const readiness = await ensure({ cwd: CWD, fetchSpec: async () => spec() })
-
-    expect(readiness).toEqual({ state: EWorkspaceState.Materialized })
-  })
-
-  it('stays profile-less on a present workspace whose profile fetch throws', async () => {
-    const { ensure } = harness({
-      present: [`${CWD}/${WORKSPACE_SENTINEL}`],
-      profile: async () => profile,
-    })
-
-    const readiness = await ensure({
-      cwd: CWD,
-      fetchSpec: async () => {
-        throw new Error('the control plane answered 500')
-      },
-    })
-
-    expect(readiness).toEqual({ state: EWorkspaceState.Present })
-  })
-})
-
-describe('remote urls', () => {
-  it('reaches an ssh remote over https so a token can authenticate it', () => {
-    expect(httpsRemoteOf('git@github.com:dennisofficial/atlas.git')).toBe(
-      'https://github.com/dennisofficial/atlas.git',
-    )
-    expect(httpsRemoteOf('ssh://git@github.com/dennisofficial/atlas.git')).toBe(
-      'https://github.com/dennisofficial/atlas.git',
-    )
-    expect(httpsRemoteOf('https://github.com/dennisofficial/atlas.git')).toBe(
-      'https://github.com/dennisofficial/atlas.git',
-    )
-  })
-
-  it('leaves the remote alone when there is no token to carry', () => {
-    expect(
-      credentialedRemoteOf({ remoteUrl: 'git@github.com:dennisofficial/atlas.git', token: null }),
-    ).toBe('git@github.com:dennisofficial/atlas.git')
   })
 })

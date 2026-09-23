@@ -97,10 +97,6 @@ export function usePullRequest(args: {
 
   const version = useSyncExternalStore(service.subscribe, service.version)
 
-  /**
-   * A cloud thread's checkout arrives folded out of the log: no probe could find it, since the
-   * path lives in the sandbox. The probe path below stays for everything local.
-   */
   useEffect(() => {
     if (cloud === null) return
 

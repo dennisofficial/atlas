@@ -17,10 +17,6 @@ import { memoryDirectoriesFor, type MemoryDirectories } from './read-memory'
 export type ProjectMemoryResolution = {
   directories: MemoryDirectories
   identity: string | null
-  /**
-   * Every checkout path that names this repo (worktrees first, main ahead, the repoRoot last), so a
-   * caller matching legacy path-keyed records accepts the spellings any era of Atlas keyed by.
-   */
   legacyPaths: readonly string[]
 }
 
