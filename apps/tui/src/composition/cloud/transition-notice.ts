@@ -58,7 +58,7 @@ const rebuiltSentence = (workspace: LiftedWorkspace | null): string => {
     return `The workspace was rebuilt here${from}${on} at ${at}, with nothing uncommitted to carry.`
   }
 
-  return `The workspace was rebuilt here${from}${on} at ${at}, and the uncommitted work — tracked edits and untracked files alike — came along as a scratch baseline commit, so the tree here reads clean while the operator's branch back home is untouched.`
+  return `The workspace was rebuilt here${from}${on} at ${at}, and the uncommitted work — tracked edits and untracked files alike — came along as uncommitted changes, so git status here reads exactly like the machine the operator left.`
 }
 
 /**
@@ -104,5 +104,24 @@ export const descendedConflictsDraft = (args: {
     'This session has moved: it now runs on the operator’s machine again, and the cloud workspace came with it as uncommitted changes.',
     `${plural({ count: args.conflicts.length, one: 'One file', many: `${args.conflicts.length} files` })} had been edited on both sides and now ${args.conflicts.length === 1 ? 'carries' : 'carry'} ordinary git conflict markers: ${args.conflicts.join(', ')}.`,
     'Nothing else is blocked — resolve them whenever.',
+  ].join(' '),
+})
+
+/**
+ * Spoken when origin's branch tip moved while the session was away — work shipped from the cloud,
+ * or the operator pushed elsewhere — and the host checkout holds nothing the origin does not. The
+ * descend never discards on its own say-so: it names the discard and leaves the call to the
+ * operator.
+ */
+export const descendedSupersededDraft = (args: {
+  superseded: { branch: string; localTip: string; originTip: string }
+}): EventDraft => ({
+  type: 'context-loaded',
+  slot: CLOUD_NOTICE_SLOT,
+  key: CLOUD_NOTICE_KEY,
+  content: [
+    'This session has moved: it now runs on the operator’s machine again, and the cloud workspace came with it as uncommitted changes.',
+    `While it was away, origin/${args.superseded.branch} moved to ${args.superseded.originTip.slice(0, 12)} and the host checkout at ${args.superseded.localTip.slice(0, 12)} holds nothing the origin does not — the host changes are superseded by origin/${args.superseded.branch}.`,
+    `To discard the host state, including the uncommitted changes this descend just landed: git reset --hard origin/${args.superseded.branch}. That call is the operator’s, not this session’s.`,
   ].join(' '),
 })
