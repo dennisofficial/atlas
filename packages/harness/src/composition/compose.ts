@@ -61,7 +61,6 @@ import type { HarnessLaunch } from './config'
 import { bindInstructionsAndMemory } from './context-bindings'
 import { faultInjected } from './fault-injection'
 import type { HarnessApp, HarnessStoreBinding, HarnessSurfaceBinding } from './harness-app'
-import { legacyImportNoticeText, legacyImportPending } from '../migrate/legacy-import'
 import { mcpBootNotice } from './mcp-report'
 import { knownRefs } from './model-catalogue'
 import { bindModels } from './model-bindings'
@@ -129,16 +128,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
         text: bootNotice,
       })
     }
-  }
-
-  const home = atlasDirectory()
-  if (await legacyImportPending({ home })) {
-    notice.notify({
-      key: 'legacy-harness-db',
-      tone: ENoticeTone.Warn,
-      ttlMs: null,
-      text: legacyImportNoticeText({ home, command: launch.command }),
-    })
   }
 
   const settings = args.settings.service
