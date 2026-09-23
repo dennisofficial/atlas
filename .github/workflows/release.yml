@@ -33,6 +33,28 @@ jobs:
         id: version
         run: bun apps/tui/scripts/release-version.ts >> "$GITHUB_OUTPUT"
 
+      # The model catalogue is a checked-in generated artifact with no other refresh trigger —
+      # without this step every release ships whatever snapshot was last committed by hand. The
+      # commit lands before the build so the tag points at the catalogue the binaries contain.
+      - name: regenerate model catalogue
+        if: steps.version.outputs.skip != 'true'
+        id: catalogue
+        run: |
+          set -euo pipefail
+          (cd packages/harness && bun run generate:catalogue)
+          if git diff --quiet -- packages/harness/src/models/generated; then
+            echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages/harness/src/models/generated
+          git commit -m "chore(harness): regenerate model catalogue [skip ci]"
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       # Same starvation rule as ci.yml's test-tui job, answered the other way: PR CI gives each
       # TUI shard its own runner, this single job instead runs the suite as one shard with
       # serialized packages, so no parallel bun processes starve the settle-based render specs.
@@ -49,7 +71,7 @@ jobs:
         env:
           ATLAS_VERSION: ${{ steps.version.outputs.version }}
           ATLAS_RELEASE_REPO: ${{ github.repository }}
-          ATLAS_BUILD_SHA: ${{ github.sha }}
+          ATLAS_BUILD_SHA: ${{ steps.catalogue.outputs.sha }}
         run: |
           set -euo pipefail
           bun run build:prepare
@@ -65,12 +87,13 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
           PREV_TAG: ${{ steps.version.outputs.prev_tag }}
+          TARGET_SHA: ${{ steps.catalogue.outputs.sha }}
         run: |
           set -euo pipefail
           # --target pins the tag to the commit these binaries were built from: without it
           # gh release create tags the default branch's HEAD at creation time, and a merge
           # that lands while this run is building would tag a commit past the built one.
-          args=(--title "atlas v${VERSION}" --generate-notes --target "$GITHUB_SHA")
+          args=(--title "atlas v${VERSION}" --generate-notes --target "$TARGET_SHA")
           if [[ -n "$PREV_TAG" ]]; then
             args+=(--notes-start-tag "$PREV_TAG")
           fi
@@ -80,4 +103,4 @@ jobs:
         if: steps.version.outputs.skip != 'true'
         env:
           VERSION: ${{ steps.version.outputs.version }}
-        run: gh workflow run sandbox-image.yml -f release_tag="tui-v${VERSION}" -f release_sha="$GITHUB_SHA"
+        run: gh workflow run sandbox-image.yml -f release_tag="tui-v${VERSION}" -f release_sha="${{ steps.catalogue.outputs.sha }}"
