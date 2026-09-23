@@ -53,7 +53,11 @@ describe('GithubWebhookService', () => {
   let service: GithubWebhookService
   let workItems: WorkItemsService
   let orchestrator: { wake: ReturnType<typeof vi.fn> }
-  let githubApp: { botLogin: ReturnType<typeof vi.fn>; ownsAppId: ReturnType<typeof vi.fn> }
+  let githubApp: {
+    botLogin: ReturnType<typeof vi.fn>
+    ownsAppId: ReturnType<typeof vi.fn>
+    addIssueReaction: ReturnType<typeof vi.fn>
+  }
   let drives: { release: ReturnType<typeof vi.fn> }
   let stations: { stopRunningFor: ReturnType<typeof vi.fn> }
 
@@ -64,6 +68,7 @@ describe('GithubWebhookService', () => {
     githubApp = {
       botLogin: vi.fn(async () => 'atlas-factory[bot]'),
       ownsAppId: vi.fn((id: number | undefined) => id === 4275284),
+      addIssueReaction: vi.fn(async () => undefined),
     }
     drives = { release: vi.fn(async () => true) }
     stations = { stopRunningFor: vi.fn(async () => undefined) }
@@ -98,6 +103,41 @@ describe('GithubWebhookService', () => {
     expect(fake.workItems).toHaveLength(1)
     expect(fake.aliases).toMatchObject([{ surface: 'github', externalId: `${REPO}#341` }])
     expect(fake.transcriptEvents).toMatchObject([{ kind: EFactoryEventKind.Intake, author: 'dennislysenko' }])
+  })
+
+  it('an intake labels the issue with an eyes reaction from the factory bot', async () => {
+    const outcome = await service.handle({
+      event: 'issues',
+      deliveryId: 'd-1',
+      payload: { ...(issuesLabeledPayload() as Record<string, unknown>), installation: { id: 42 } },
+    })
+
+    expect(outcome.kind).toBe(EFactoryEventKind.Intake)
+    expect(githubApp.addIssueReaction).toHaveBeenCalledWith({
+      installationId: 42,
+      repoFullName: REPO,
+      issueNumber: 341,
+    })
+  })
+
+  it('a failed reaction never fails the intake it acknowledges', async () => {
+    githubApp.addIssueReaction.mockRejectedValue(new Error('github unreachable'))
+
+    const outcome = await service.handle({
+      event: 'issues',
+      deliveryId: 'd-1',
+      payload: { ...(issuesLabeledPayload() as Record<string, unknown>), installation: { id: 42 } },
+    })
+
+    expect(outcome.handled).toBe(true)
+    expect(outcome.kind).toBe(EFactoryEventKind.Intake)
+    expect(fake.workItems).toHaveLength(1)
+  })
+
+  it('a payload without an installation id skips the reaction', async () => {
+    await service.handle({ event: 'issues', deliveryId: 'd-1', payload: issuesLabeledPayload() })
+
+    expect(githubApp.addIssueReaction).not.toHaveBeenCalled()
   })
 
   it('issue_comment appends a comment with author and lowercased association', async () => {

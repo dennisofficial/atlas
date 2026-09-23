@@ -47,6 +47,7 @@ describe('GithubWebhookService tenancy', () => {
       {
         botLogin: vi.fn(async () => null),
         ownsAppId: vi.fn(() => false),
+        addIssueReaction: vi.fn(async () => undefined),
       } as unknown as GithubAppService,
       { release: vi.fn(async () => true) } as unknown as FactoryDrivesService,
       { stopRunningFor: vi.fn(async () => undefined) } as unknown as StationsService,
