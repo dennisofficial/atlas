@@ -1027,6 +1027,13 @@ does not stay wedged. Removal releases first because git will not remove a locke
 is also the cost of this scheme: a session that dies takes its lock with it, and the checkout stays
 locked until some later Atlas session reclaims it or the developer runs `git worktree unlock`.
 
+Thread opens re-claim under one exception. A teammate spawns in its spawner's worktree by
+inheritance, and while it has not moved out of it the spawner's own claim already covers it — the
+thread's open claims nothing, so the lock label is never rewritten per thread. Once the teammate
+enters its own worktree it claims like any other thread. The guest report fires at most once per
+directory per process, so opening several children that all sit where another session holds does not
+pile the same warning into the transcript.
+
 It is a rule over the log rather than a `context-loaded` event on purpose. An event renders at its own
 seq, so a move at seq 13 of a 133-event thread scrolls away and the model is left inferring its own
 location — which it answers by defensively prefixing `cd <abs> &&` onto every command. Supersession
