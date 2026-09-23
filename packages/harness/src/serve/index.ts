@@ -10,7 +10,7 @@ import { atlasDirectory } from '../store/paths'
 import { createChannelBridge } from './channel-bridge'
 import { composeServeApp } from './compose-serve'
 import { DEFAULT_DRAIN_DEADLINE_MS, withDeadline } from './drain-deadline'
-import { createFrameBuffer, DEFAULT_FRAME_BUFFER, type SignalFrame } from './frame-buffer'
+import { createFrameBuffer, DEFAULT_FRAME_BUFFER, type LifecycleFrame, type SignalFrame } from './frame-buffer'
 import { createEnvironmentProfile, EProfileStepState } from './environment-profile'
 import { applyGitAccessEnv } from './git-access-env'
 import { startServeIdleStop } from './idle-stop'
@@ -226,6 +226,11 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   let liveStepId: () => StepId | null = () => null
   let broadcast: (frame: ServeFrame) => void = () => undefined
 
+  const emitLifecycle = (frame: LifecycleFrame): void => {
+    buffer.pushLifecycle(frame)
+    broadcast(frame)
+  }
+
   const driver = createTurnDriver({
     app,
     threadId,
@@ -241,11 +246,11 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     },
     onOutcome: (outcome) => {
       log({ event: EServeEvent.TurnEnded, status: outcome.status })
-      broadcast({ kind: EServeFrame.TurnEnded, outcome: wireOutcomeOf(outcome) })
+      emitLifecycle({ kind: EServeFrame.TurnEnded, outcome: wireOutcomeOf(outcome) })
     },
     onFailure: (reason) => {
       log({ event: EServeEvent.TurnFailed, reason })
-      broadcast({ kind: EServeFrame.Error, message: reason })
+      emitLifecycle({ kind: EServeFrame.Error, message: reason })
     },
   })
 
