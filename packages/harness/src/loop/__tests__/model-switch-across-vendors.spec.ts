@@ -14,11 +14,11 @@ import { HookChain } from '../../hooks/registry'
 import { createSwitchableModel } from '../../model/switchable-model'
 import { scriptedModel } from '../../model/testing/scripted-model'
 import { fixturePrompt } from './fixture-prompt'
-import { createTempDatabase, type TempDatabase } from './temp-database'
+import { createTempHome, type TempHome } from './temp-home'
 
 const PROJECT_DIRECTORY = '/w'
 
-const opened: { harness: AtlasHarness; temp: TempDatabase }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
 afterEach(async () => {
   for (const entry of opened.splice(0)) {
@@ -54,9 +54,9 @@ async function openSwitchable() {
     return assembled
   }
 
-  const temp = createTempDatabase()
+  const temp = createTempHome()
   const harness = await buildHarness({
-    databaseUrl: temp.databaseUrl,
+    home: temp.home,
     model: switchable.model,
     prompt: fixturePrompt(),
     assembly: defaultPipeline({ prompt: () => fixturePrompt(), launchDirectory: PROJECT_DIRECTORY }),

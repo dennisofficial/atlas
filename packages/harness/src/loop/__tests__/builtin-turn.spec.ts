@@ -17,11 +17,11 @@ import { WriteTool } from '../../tools/builtin/write'
 import { HookedToolDispatcher } from '../../tools/dispatch'
 import { InMemoryToolRegistry } from '../../tools/registry'
 import { buildHarness, ETurnStatus, type AtlasHarness } from '..'
-import { createTempDatabase, type TempDatabase } from './temp-database'
+import { createTempHome, type TempHome } from './temp-home'
 
 const PROJECT_DIRECTORY = '/w'
 
-const opened: { harness: AtlasHarness; temp: TempDatabase; workspace: string }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome; workspace: string }[] = []
 
 afterEach(async () => {
   for (const entry of opened.splice(0)) {
@@ -33,9 +33,9 @@ afterEach(async () => {
 
 async function openWorkspace(scriptFor: (workspace: string) => readonly ScriptedStep[]) {
   const workspace = mkdtempSync(join(tmpdir(), 'atlas-builtin-'))
-  const temp = createTempDatabase()
+  const temp = createTempHome()
   const harness = await buildHarness({
-    databaseUrl: temp.databaseUrl,
+    home: temp.home,
     model: scriptedModel({ script: scriptFor(workspace) }),
   })
   opened.push({ harness, temp, workspace })

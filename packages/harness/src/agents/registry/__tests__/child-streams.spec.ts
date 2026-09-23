@@ -6,7 +6,7 @@ import { createDeltaChannel } from '../../../channel/delta-channel'
 import type { ChannelSignal } from '../../../channel/signal'
 import { HookChain } from '../../../hooks/registry'
 import { buildHarness, type AtlasHarness } from '../../../loop/build-harness'
-import { createTempDatabase, type TempDatabase } from '../../../loop/__tests__/temp-database'
+import { createTempHome, type TempHome } from '../../../loop/__tests__/temp-home'
 import { scriptedModel } from '../../../model/testing/scripted-model'
 import { InMemoryToolRegistry } from '../../../tools/registry'
 import { buildChildRunner } from '../child-runner'
@@ -16,7 +16,7 @@ const PROJECT_DIRECTORY = '/w'
 
 const CHILD_PROSE = 'the child answered'
 
-const opened: { harness: AtlasHarness; temp: TempDatabase }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
 afterEach(async () => {
   for (const entry of opened.splice(0)) {
@@ -29,9 +29,9 @@ async function childTurnWatched(): Promise<{
   child: readonly ChannelSignal[]
   parent: readonly ChannelSignal[]
 }> {
-  const temp = createTempDatabase()
+  const temp = createTempHome()
   const model = scriptedModel({ script: [{ text: CHILD_PROSE }] })
-  const harness = await buildHarness({ databaseUrl: temp.databaseUrl, model })
+  const harness = await buildHarness({ home: temp.home, model })
   opened.push({ harness, temp })
 
   const assembly = defaultPipeline({

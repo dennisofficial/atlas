@@ -13,15 +13,13 @@ import {
 import { AgentTypeCatalogToken, bindAgentTypes } from '../../agents/types/bind-agent-types'
 import { DirectoryAgentTypeSource } from '../../agents/types/directory-source'
 import { EmbeddedAgentTypeSource } from '../../agents/types/embedded-source'
-import { createTempDatabase, type TempDatabase } from '../../loop/__tests__/temp-database'
+import { createTempHome, type TempHome } from '../../loop/__tests__/temp-home'
 import { scriptedModel } from '../../model/testing/scripted-model'
-import { openAtlasDatabase } from '../../store/database'
 import { ToolRegistry } from '../../tools/registry'
 import { createHarnessContainer } from '../create-harness-container'
 import { portToken, type DependencyContainer } from '../injection'
 import {
   LanguageModelToken,
-  PrismaClientToken,
   WebSearchBackendToken,
   WorktreeDirectoryToken,
   WorkspaceRoot,
@@ -29,11 +27,12 @@ import {
 
 const ROOT = '/workspace/atlas'
 
-const opened: { close: () => Promise<void>; temp: TempDatabase }[] = []
+const opened: { temp: TempHome; previousHome: string | undefined }[] = []
 
-afterEach(async () => {
+afterEach(() => {
   for (const entry of opened.splice(0)) {
-    await entry.close()
+    if (entry.previousHome === undefined) delete process.env['ATLAS_HOME']
+    else process.env['ATLAS_HOME'] = entry.previousHome
     entry.temp.discard()
   }
 })
@@ -69,13 +68,13 @@ const directoryOf = (args: {
   })
 
 async function harnessContainer(): Promise<DependencyContainer> {
-  const temp = createTempDatabase()
-  const database = await openAtlasDatabase({ databaseUrl: temp.databaseUrl })
-  opened.push({ close: database.close, temp })
+  const temp = createTempHome()
+  const previousHome = process.env['ATLAS_HOME']
+  process.env['ATLAS_HOME'] = temp.home
+  opened.push({ temp, previousHome })
 
   const container = createHarnessContainer()
   container.register(WorkspaceRoot, { useValue: ROOT })
-  container.register(PrismaClientToken, { useValue: database.prisma })
   container.register(LanguageModelToken, { useValue: scriptedModel({ script: [{ text: 'hi' }] }) })
   container.register(WorktreeDirectoryToken, { useValue: () => '.atlas/worktrees' })
   container.register(WebSearchBackendToken, { useValue: () => EWebSearchBackend.DuckDuckGo })

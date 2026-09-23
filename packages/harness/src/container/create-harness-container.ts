@@ -35,7 +35,8 @@ import { atlasSecretsFile } from '../secrets/paths'
 import { BrokeredCredentialPort } from '../credentials/brokered-credential-port'
 import { RefreshingCredentialPort } from '../credentials/refreshing-credential-port'
 import { registerBuiltinHooks } from '../hooks/register-hooks'
-import { PrismaTurnLedger, TurnLedgerPort } from '../ledger'
+import { TurnLedgerPort } from '../ledger'
+import { JsonlTurnLedger } from '../ledger/jsonl'
 import { resolveHookChain } from '../hooks/resolve-hooks'
 import { AiSdkModelPort } from '../model/ai-sdk-model-port'
 import { createRawTape } from '../model/raw-tape'
@@ -44,7 +45,11 @@ import { registerExecution } from '../execution/register-execution'
 import { registerServices } from '../services/register-services'
 import { registerShells } from '../shells/register-shells'
 import { registerSkills } from '../skills/register-skills'
-import { ThreadStorePort, PrismaThreadStore, PrismaEventLog, RandomIds, SystemClock } from '../store'
+import { ThreadStorePort, RandomIds, SystemClock } from '../store'
+import { atlasDirectory } from '../store/paths'
+import { JsonlEventLog } from '../store/sessions/event-log'
+import { registryFor } from '../store/sessions/registry'
+import { JsonlThreadStore } from '../store/sessions/thread-store'
 import { AgentRegistrySourceToken, AgentTypesToken } from '../tools/builtin/agent-tokens'
 import { HookedToolDispatcher, ToolDispatcher } from '../tools/dispatch'
 import { registerBuiltinTools } from '../tools/register-tools'
@@ -67,8 +72,8 @@ import {
   LocalAccountStoreToken,
   LocalSecretsStoreToken,
   ModelCardSourceToken,
-  PrismaClientToken,
   SecretsStoreToken,
+  SessionRegistryToken,
   WorkspaceRoot,
 } from './tokens'
 
@@ -122,25 +127,32 @@ export function createHarnessContainer(): DependencyContainer {
   const tape = createRawTape({ scope: `pid-${process.pid}` })
   registerDisposable({ container: harness, close: () => tape.close() })
 
+  const home = atlasDirectory()
+  harness.register(SessionRegistryToken, { useValue: registryFor({ home }) })
+
   harness.register(portToken(ClockPort), { useClass: SystemClock })
   harness.register(portToken(IdPort), { useClass: RandomIds })
   harness.register(portToken(EventLogPort), {
     useFactory: (resolver) =>
-      new PrismaEventLog(
-        resolver.resolve(PrismaClientToken),
+      new JsonlEventLog(
+        home,
+        resolver.resolve(SessionRegistryToken),
         resolver.resolve(portToken(ClockPort)),
         resolver.resolve(portToken(IdPort)),
       ),
   })
   harness.register(portToken(TurnLedgerPort), {
-    useFactory: (resolver) => new PrismaTurnLedger(resolver.resolve(PrismaClientToken)),
+    useFactory: (resolver) =>
+      new JsonlTurnLedger({ home, registry: resolver.resolve(SessionRegistryToken) }),
   })
   harness.register(portToken(ThreadStorePort), {
     useFactory: (resolver) =>
-      new PrismaThreadStore(
-        resolver.resolve(PrismaClientToken),
+      new JsonlThreadStore(
+        home,
+        resolver.resolve(SessionRegistryToken),
         resolver.resolve(portToken(ClockPort)),
         resolver.resolve(portToken(IdPort)),
+        resolver.resolve(portToken(EventLogPort)),
       ),
   })
   harness.register(LocalAccountStoreToken, {

@@ -17,9 +17,8 @@ import { AgentRegistryPort } from '../../agents/registry/port'
 import { createDeltaChannel } from '../../channel/delta-channel'
 import { subAgentPrompt } from '../../agents/registry/child-prompt'
 import type { ChildRunnerDeps } from '../../agents/registry/child-runner'
-import { createTempDatabase, type TempDatabase } from '../../loop/__tests__/temp-database'
+import { createTempHome, type TempHome } from '../../loop/__tests__/temp-home'
 import { scriptedModel } from '../../model/testing/scripted-model'
-import { openAtlasDatabase } from '../../store/database'
 import { ThreadStorePort } from '../../store'
 import { PromptRegistry } from '../../prompt/registry'
 import { ToolRegistry } from '../../tools/registry'
@@ -29,7 +28,6 @@ import { portToken, type DependencyContainer } from '../injection'
 import {
   HookChainToken,
   LanguageModelToken,
-  PrismaClientToken,
   WebSearchBackendToken,
   WorktreeDirectoryToken,
   WorkspaceRoot,
@@ -41,11 +39,12 @@ const CHILD_MODEL: PromptModel = { contextWindow: 1_000_000 }
 
 const CHILD_REPLY = 'The vault reads its key file exactly once.'
 
-const opened: { close: () => Promise<void>; temp: TempDatabase }[] = []
+const opened: { temp: TempHome; previousHome: string | undefined }[] = []
 
-afterEach(async () => {
+afterEach(() => {
   for (const entry of opened.splice(0)) {
-    await entry.close()
+    if (entry.previousHome === undefined) delete process.env['ATLAS_HOME']
+    else process.env['ATLAS_HOME'] = entry.previousHome
     entry.temp.discard()
   }
 })
@@ -108,12 +107,12 @@ async function composed(args: { bind: boolean }): Promise<{
   threads: ThreadStorePort
   parent: ThreadId
 }> {
-  const temp = createTempDatabase()
-  const database = await openAtlasDatabase({ databaseUrl: temp.databaseUrl })
+  const temp = createTempHome()
+  const previousHome = process.env['ATLAS_HOME']
+  process.env['ATLAS_HOME'] = temp.home
 
   const container = createHarnessContainer()
   container.register(WorkspaceRoot, { useValue: ROOT })
-  container.register(PrismaClientToken, { useValue: database.prisma })
   container.register(LanguageModelToken, {
     useValue: scriptedModel({ script: [{ text: CHILD_REPLY }] }),
   })
@@ -121,7 +120,7 @@ async function composed(args: { bind: boolean }): Promise<{
   container.register(WebSearchBackendToken, { useValue: () => EWebSearchBackend.DuckDuckGo })
   if (args.bind) bindChildRunner({ container })
 
-  opened.push({ close: database.close, temp })
+  opened.push({ temp, previousHome })
 
   const threads = container.resolve(portToken(ThreadStorePort))
   const parent = (await threads.create({ workspace: ROOT, repo: null })).id

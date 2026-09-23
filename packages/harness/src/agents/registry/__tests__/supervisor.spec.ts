@@ -4,7 +4,7 @@ import { EAgentStatus, EKilledBy, type ThreadId } from '@dltech/atlas-core'
 
 import { scriptedModel } from '../../../model/testing/scripted-model'
 import { buildHarness, type AtlasHarness } from '../../../loop/build-harness'
-import { createTempDatabase, type TempDatabase } from '../../../loop/__tests__/temp-database'
+import { createTempHome, type TempHome } from '../../../loop/__tests__/temp-home'
 import { AgentSupervisor } from '../supervisor'
 import {
   agentTypeNamed,
@@ -19,7 +19,7 @@ import {
 const EXPLORE = agentTypeNamed({ name: 'explore' })
 const BUILDER = agentTypeNamed({ name: 'builder' })
 
-const opened: { harness: AtlasHarness; temp: TempDatabase }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
 type Opened = {
   harness: AtlasHarness
@@ -47,9 +47,9 @@ const supervisorOver = (
 }
 
 async function open(): Promise<Opened> {
-  const temp = createTempDatabase()
+  const temp = createTempHome()
   const harness = await buildHarness({
-    databaseUrl: temp.databaseUrl,
+    home: temp.home,
     model: scriptedModel({ script: [] }),
   })
   opened.push({ harness, temp })

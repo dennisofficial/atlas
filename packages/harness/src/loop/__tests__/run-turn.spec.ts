@@ -13,19 +13,19 @@ import { HookChain } from '../../hooks/registry'
 import { HookedToolDispatcher, type ToolDispatcher } from '../../tools/dispatch'
 import { InMemoryToolRegistry } from '../../tools/registry'
 import { FIXTURE_DOCTRINE, fixturePrompt } from './fixture-prompt'
-import { createTempDatabase, type TempDatabase } from './temp-database'
+import { createTempHome, type TempHome } from './temp-home'
 
 const PROJECT_DIRECTORY = '/w'
 
-const opened: { harness: AtlasHarness; temp: TempDatabase }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
 async function open(script: readonly ScriptedStep[]): Promise<AtlasHarness> {
   return (await openWithModel(scriptedModel({ script }))).harness
 }
 
 async function openWithModel(model: MockLanguageModelV4): Promise<{ harness: AtlasHarness; model: MockLanguageModelV4 }> {
-  const temp = createTempDatabase()
-  const harness = await buildHarness({ databaseUrl: temp.databaseUrl, model, prompt: fixturePrompt() })
+  const temp = createTempHome()
+  const harness = await buildHarness({ home: temp.home, model, prompt: fixturePrompt() })
   opened.push({ harness, temp })
   return { harness, model }
 }
@@ -132,12 +132,12 @@ describe('position derived from the log', () => {
   })
 
   it('records a tool call nothing can settle and pauses on it', async () => {
-    const temp = createTempDatabase()
+    const temp = createTempHome()
     const model = scriptedModel({
       script: [{ text: 'reading', calls: [{ callId: 'call-1', name: 'read_file', input: { path: 'a.ts' } }] }],
     })
     const harness = await buildHarness({
-      databaseUrl: temp.databaseUrl,
+      home: temp.home,
       model,
       tools: () => [
         {
@@ -181,9 +181,9 @@ function writeToolIn(root: string): ToolDefinition {
 describe('a turn that settles its own tool call', () => {
   it('runs a real tool against the workspace and completes on the next step', async () => {
     const root = mkdtempSync(join(tmpdir(), 'atlas-workspace-'))
-    const temp = createTempDatabase()
+    const temp = createTempHome()
     const harness = await buildHarness({
-      databaseUrl: temp.databaseUrl,
+      home: temp.home,
       model: scriptedModel({
         script: [
           {
@@ -224,9 +224,9 @@ describe('a turn that settles its own tool call', () => {
 })
 
 async function runnerDispatchingWith(dispatch: ToolDispatcher): Promise<{ runner: TurnRunner; harness: AtlasHarness }> {
-  const temp = createTempDatabase()
+  const temp = createTempHome()
   const harness = await buildHarness({
-    databaseUrl: temp.databaseUrl,
+    home: temp.home,
     model: scriptedModel({
       script: [{ text: 'reading', calls: [{ callId: 'call-1', name: 'read', input: { path: 'a.ts' } }] }, { text: 'read it' }],
     }),

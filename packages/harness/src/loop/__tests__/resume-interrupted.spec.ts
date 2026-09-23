@@ -14,9 +14,9 @@ import {
 import { buildHarness, ETurnStatus, type AtlasHarness } from '..'
 import { scriptedModel, type ScriptedStep } from '../../model/testing/scripted-model'
 import { fixturePrompt } from './fixture-prompt'
-import { createTempDatabase, type TempDatabase } from './temp-database'
+import { createTempHome, type TempHome } from './temp-home'
 
-const opened: { harness: AtlasHarness; temp: TempDatabase }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
 afterEach(async () => {
   for (const entry of opened.splice(0)) {
@@ -44,13 +44,13 @@ async function openCutShortAt(args: {
   chunk: ChunkType
   tools?: (() => readonly ToolDeclaration[]) | undefined
 }): Promise<CutShort> {
-  const temp = createTempDatabase()
+  const temp = createTempHome()
   const controller = new AbortController()
   const model = scriptedModel({ script: args.script })
   let armed = true
 
   const harness = await buildHarness({
-    databaseUrl: temp.databaseUrl,
+    home: temp.home,
     model,
     prompt: fixturePrompt(),
     ...(args.tools === undefined ? {} : { tools: args.tools }),
@@ -169,9 +169,9 @@ describe('resuming a turn the developer stopped', () => {
   })
 
   it('goes idle rather than re-asking when the model finished of its own accord', async () => {
-    const temp = createTempDatabase()
+    const temp = createTempHome()
     const harness = await buildHarness({
-      databaseUrl: temp.databaseUrl,
+      home: temp.home,
       model: scriptedModel({ script: [{ text: 'done' }] }),
       prompt: fixturePrompt(),
     })

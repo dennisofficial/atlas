@@ -18,14 +18,18 @@ import {
 
 import type { HookChain } from '../hooks/registry'
 import type { TurnLedgerPort } from '../ledger'
-import { PrismaTurnLedger } from '../ledger'
+import { JsonlTurnLedger } from '../ledger/jsonl'
 import { AiSdkModelPort, type ModelCardSource } from '../model/ai-sdk-model-port'
 import { createRawTape } from '../model/raw-tape'
 import type { ToolDispatcher } from '../tools/dispatch'
-import { createLoopCut } from '../store/cut-loop'
-import type { LoopWatch } from './loop-watchdog'
-import { openAtlasDatabase, PrismaThreadStore, PrismaEventLog, RandomIds, SystemClock } from '../store'
+import { RandomIds, SystemClock } from '../store'
 import type { ThreadStorePort } from '../store'
+import { atlasDirectory } from '../store/paths'
+import { JsonlEventLog } from '../store/sessions/event-log'
+import { createLoopCut } from '../store/sessions/ops/cut-loop'
+import { registryFor } from '../store/sessions/registry'
+import { JsonlThreadStore } from '../store/sessions/thread-store'
+import type { LoopWatch } from './loop-watchdog'
 import { LoopTurnRunner, type TurnDeps } from './run-turn'
 import { TurnRunner } from './turn-runner.port'
 
@@ -37,13 +41,13 @@ export type AtlasHarness = {
   ids: IdPort
   clock: ClockPort
   ledger: TurnLedgerPort
-  databaseUrl: string
+  home: string
   close: () => Promise<void>
 }
 
 export type BuildHarnessArgs = {
   model: LanguageModel
-  databaseUrl?: string | undefined
+  home?: string | undefined
   identity?: ProviderIdentity | undefined
   card?: ModelCardSource | undefined
   assembly?: AssemblyPipeline | undefined
@@ -62,13 +66,12 @@ export type BuildHarnessArgs = {
 }
 
 export async function buildHarness(args: BuildHarnessArgs): Promise<AtlasHarness> {
-  const database = await openAtlasDatabase(
-    args.databaseUrl === undefined ? {} : { databaseUrl: args.databaseUrl },
-  )
+  const home = args.home ?? atlasDirectory()
+  const registry = registryFor({ home })
 
   const clock = args.clock ?? new SystemClock()
   const ids = args.ids ?? new RandomIds()
-  const log = new PrismaEventLog(database.prisma, clock, ids)
+  const log = new JsonlEventLog(home, registry, clock, ids)
   const tape = createRawTape({ scope: `pid-${process.pid}` })
   const model = new AiSdkModelPort({
     model: args.model,
@@ -77,8 +80,8 @@ export async function buildHarness(args: BuildHarnessArgs): Promise<AtlasHarness
     hooks: args.hooks,
     tape,
   })
-  const ledger = new PrismaTurnLedger(database.prisma)
-  const threads = new PrismaThreadStore(database.prisma, clock, ids)
+  const ledger = new JsonlTurnLedger({ home, registry })
+  const threads = new JsonlThreadStore(home, registry, clock, ids, log)
 
   const turnDeps: TurnDeps = {
     log,
@@ -96,7 +99,7 @@ export async function buildHarness(args: BuildHarnessArgs): Promise<AtlasHarness
     onChunk: args.onChunk,
     hooks: args.hooks,
     spend: { ledger, clock },
-    applyLoopCut: createLoopCut({ threads, log, ids }),
+    applyLoopCut: createLoopCut({ log, registry, clock, ids }),
     launchDirectory: args.launchDirectory,
     ...(args.watchLoop === undefined ? {} : { watchLoop: args.watchLoop }),
     ...(args.compact === undefined ? {} : { compact: args.compact }),
@@ -113,10 +116,9 @@ export async function buildHarness(args: BuildHarnessArgs): Promise<AtlasHarness
     ids,
     clock,
     ledger,
-    databaseUrl: database.databaseUrl,
+    home,
     close: async () => {
       await tape.close()
-      await database.close()
     },
   }
 }

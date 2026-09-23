@@ -16,7 +16,7 @@ import {
 import { createDeltaChannel } from '../../../channel/delta-channel'
 import { HookChain } from '../../../hooks/registry'
 import { buildHarness, type AtlasHarness } from '../../../loop/build-harness'
-import { createTempDatabase, type TempDatabase } from '../../../loop/__tests__/temp-database'
+import { createTempHome, type TempHome } from '../../../loop/__tests__/temp-home'
 import { scriptedModel, type ScriptedStep } from '../../../model/testing/scripted-model'
 import { AtlasIdentityFragment } from '../../../prompt/fragments/identity'
 import { InMemoryPromptRegistry } from '../../../prompt/registry'
@@ -31,7 +31,7 @@ const PROJECT_DIRECTORY = '/w'
 
 const CHILD_MODEL: PromptModel = { contextWindow: 1_000_000 }
 
-const opened: { harness: AtlasHarness; temp: TempDatabase }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
 const invoked: string[] = []
 
@@ -71,9 +71,9 @@ async function spawn(args: {
   pinned?: string | undefined
 }): Promise<Spawned> {
   const pinned = args.pinned
-  const temp = createTempDatabase()
+  const temp = createTempHome()
   const model = scriptedModel({ script: args.script })
-  const harness = await buildHarness({ databaseUrl: temp.databaseUrl, model })
+  const harness = await buildHarness({ home: temp.home, model })
   opened.push({ harness, temp })
 
   const prompts = new InMemoryPromptRegistry([new AtlasIdentityFragment(), new SharedFragment()])

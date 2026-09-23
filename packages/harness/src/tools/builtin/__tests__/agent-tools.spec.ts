@@ -22,7 +22,7 @@ import {
 import { AgentSupervisor } from '../../../agents/registry/supervisor'
 import type { AgentType } from '../../../agents/types/agent-type'
 import { buildHarness, type AtlasHarness } from '../../../loop/build-harness'
-import { createTempDatabase, type TempDatabase } from '../../../loop/__tests__/temp-database'
+import { createTempHome, type TempHome } from '../../../loop/__tests__/temp-home'
 import { scriptedModel } from '../../../model/testing/scripted-model'
 import { AgentListTool } from '../agent-list'
 import { AgentResumeTool } from '../agent-resume'
@@ -34,7 +34,7 @@ const EXPLORE = agentTypeNamed({ name: 'explore' })
 const BUILDER = agentTypeNamed({ name: 'builder' })
 const TYPES: readonly AgentType[] = [EXPLORE, BUILDER]
 
-const opened: { harness: AtlasHarness; temp: TempDatabase }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
 type Opened = {
   harness: AtlasHarness
@@ -49,9 +49,9 @@ type Opened = {
 }
 
 async function open(): Promise<Opened> {
-  const temp = createTempDatabase()
+  const temp = createTempHome()
   const harness = await buildHarness({
-    databaseUrl: temp.databaseUrl,
+    home: temp.home,
     model: scriptedModel({ script: [] }),
   })
   opened.push({ harness, temp })

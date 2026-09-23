@@ -14,7 +14,7 @@ import {
   importClaudeCodeAccount,
 } from '../../credentials'
 import { ETurnStatus, buildHarness, type AtlasHarness } from '../../loop'
-import { createTempDatabase, type TempDatabase } from '../../loop/__tests__/temp-database'
+import { createTempHome, type TempHome } from '../../loop/__tests__/temp-home'
 import { SystemClock } from '../../store'
 import { createAnthropicOauthModel } from '../anthropic-oauth'
 import { generatedCatalogue } from '../../models/generated-catalogue'
@@ -59,16 +59,16 @@ const liveModelId = (): string =>
 
 const ADAPTIVE_LIVE_MODEL = 'claude-opus-5'
 
-const opened: { harness: AtlasHarness; temp: TempDatabase }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
 async function openLiveHarness(
   modelId: string = liveModelId(),
 ): Promise<{ harness: AtlasHarness; recorder: BodyOnlyRecordingFetch }> {
   const recorder = bodyOnlyRecordingPassthroughFetch()
-  const temp = createTempDatabase()
+  const temp = createTempHome()
 
   const harness = await buildHarness({
-    databaseUrl: temp.databaseUrl,
+    home: temp.home,
     model: createAnthropicOauthModel({
       credentials: await liveCredentials(),
       modelId,

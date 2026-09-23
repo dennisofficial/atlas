@@ -5,7 +5,7 @@ import { defaultPipeline, EMPTY_PROMPT, EToolEffect, type Event, type ToolDefini
 
 import { createDeltaChannel, PublishingTurnRunner, type DeltaChannel } from '..'
 import { buildHarness, ETurnStatus, type AtlasHarness } from '../../loop'
-import { createTempDatabase, type TempDatabase } from '../../loop/__tests__/temp-database'
+import { createTempHome, type TempHome } from '../../loop/__tests__/temp-home'
 import { scriptedModel } from '../../model/testing/scripted-model'
 import { HookChain } from '../../hooks/registry'
 import { HookedToolDispatcher } from '../../tools/dispatch'
@@ -13,7 +13,7 @@ import { InMemoryToolRegistry } from '../../tools/registry'
 
 const PROJECT_DIRECTORY = '/w'
 
-const opened: { harness: AtlasHarness; temp: TempDatabase }[] = []
+const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
 afterEach(async () => {
   for (const entry of opened.splice(0)) {
@@ -58,9 +58,9 @@ function announcing(inner: DeltaChannel): { channel: DeltaChannel; announced: Ev
 
 describe('a turn that settles a tool call', () => {
   it('settles through the one log the loop writes through, not a second log of its own', async () => {
-    const temp = createTempDatabase()
+    const temp = createTempHome()
     const harness = await buildHarness({
-      databaseUrl: temp.databaseUrl,
+      home: temp.home,
       model: scriptedModel({
         script: [
           { text: 'reading', calls: [{ callId: 'call-1', name: 'read', input: { path: 'a.ts' } }] },
