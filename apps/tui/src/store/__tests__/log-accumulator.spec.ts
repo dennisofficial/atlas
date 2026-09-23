@@ -4,7 +4,9 @@ import {
   EClassifierMode,
   EDecision,
   EExecutionLocation,
+  EGrantScope,
   EJudgment,
+  ERiskDimension,
   ETriage,
   EWorktreeExit,
   activeWorktreeOf,
@@ -39,10 +41,10 @@ const varied = (): readonly Event[] =>
     {
       type: 'classifier-judged',
       callId: callId(1),
-      mode: EClassifierMode.Gate,
+      mode: EClassifierMode.Nudge,
       triage: ETriage.Consult,
-      judgment: EJudgment.Risky,
-      dimensions: ['destructive'],
+      judgment: EJudgment.Check,
+      dimensions: [ERiskDimension.Irreversibility],
       signalIds: [],
       reason: 'rm -rf adjacent',
       consulted: false,
@@ -52,8 +54,8 @@ const varied = (): readonly Event[] =>
     {
       type: 'permission-granted',
       grantId: 'grant-1',
-      dimensions: ['destructive'],
-      scope: 'thread' as never,
+      dimensions: [ERiskDimension.Irreversibility],
+      scope: EGrantScope.Thread,
       subject: 'bash',
       reason: 'operator allowed',
     },
@@ -62,10 +64,10 @@ const varied = (): readonly Event[] =>
     {
       type: 'classifier-judged',
       callId: callId(2),
-      mode: EClassifierMode.Gate,
-      triage: ETriage.Auto,
-      judgment: EJudgment.Safe,
-      dimensions: ['reads-files'],
+      mode: EClassifierMode.Nudge,
+      triage: ETriage.Clear,
+      judgment: EJudgment.Proceed,
+      dimensions: [ERiskDimension.Reach],
       signalIds: [],
       reason: 'benign',
       consulted: true,
@@ -97,7 +99,7 @@ describe('the log accumulator', () => {
     expect(acc.plan).toEqual(planFromEvents(events))
     expect(acc.worktree).toEqual(activeWorktreeOf(events))
     expect(acc.home ?? '/launch').toBe(homeDirectoryOf({ events, launchDirectory: '/launch' }))
-    expect(acc.repo ?? 'launch-repo').toBe(repoOf({ events, launchRepo: 'launch-repo' }))
+    expect(acc.repo).toBe(repoOf({ events, launchRepo: null }))
   })
 
   it('folds a log in two halves to the same place as all at once', () => {
