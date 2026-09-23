@@ -110,7 +110,7 @@ describe('createOrResume', () => {
       name: 'atlas-thread-x',
       threadId: 'brn_cloud',
       token: 'serve-token-1',
-      readStamp: async () => STAMP,
+      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
     })
 
     expect(seen).toMatchObject({
@@ -154,7 +154,7 @@ describe('createOrResume', () => {
       name: 'atlas-thread-x',
       threadId: 'brn_cloud',
       token: 'serve-token-1',
-      readStamp: async () => STAMP,
+      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
     })
 
     expect(sandbox.written).toEqual([
@@ -177,7 +177,7 @@ describe('createOrResume', () => {
       name: 'atlas-thread-x',
       threadId: 'brn_cloud',
       token: 'serve-token-1',
-      readStamp: async () => STAMP,
+      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
     })
 
     expect(placement.created).toBe(false)
@@ -203,14 +203,14 @@ describe('createOrResume', () => {
       name: 'atlas-thread-x',
       threadId: 'brn_cloud',
       token: 't',
-      readStamp: async () => STAMP,
+      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
       pinnedModel: 'anthropic/claude-opus-4.8',
     })
     await driver.createOrResume({
       name: 'atlas-thread-x',
       threadId: 'brn_cloud',
       token: 't',
-      readStamp: async () => STAMP,
+      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
     })
 
     expect(seen[0]?.ATLAS_MODEL).toBe('anthropic/claude-opus-4.8')

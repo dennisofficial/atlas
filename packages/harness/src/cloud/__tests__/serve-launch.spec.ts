@@ -13,7 +13,7 @@ import {
   SERVE_NEXT_BINARY_PATH,
   SERVE_STAMP_PATH,
   SERVE_TOKEN_PATH,
-  serveStampReader,
+  serveStampsReader,
   StaleSandboxTokenError,
 } from '../serve-launch'
 
@@ -88,7 +88,7 @@ const fakeSandbox = (args: {
   return { sandbox: sandbox as unknown as Sandbox, commands, writes, ops }
 }
 
-const readStamp = async () => BUILD_STAMP
+const readStamps = async () => ({ install: BUILD_STAMP, acceptable: [BUILD_STAMP] })
 
 const scriptsOf = (commands: RecordedCommand[]): string[] =>
   commands.map((command) => command.args?.[1] ?? '')
@@ -97,7 +97,7 @@ describe('createServeLauncher', () => {
   it('writes the session token into the sandbox before anything else when one is given', async () => {
     const { sandbox, writes, ops } = fakeSandbox({ healthy: true, installedStamp: BUILD_STAMP })
 
-    await createServeLauncher({ readStamp })({ sandbox, token: 'tok_fresh' })
+    await createServeLauncher({ readStamps })({ sandbox, token: 'tok_fresh' })
 
     expect(writes).toEqual([{ path: SERVE_TOKEN_PATH, content: 'tok_fresh', mode: 0o600 }])
     expect(ops.slice(0, 2)).toEqual(['command', 'write'])
@@ -106,7 +106,7 @@ describe('createServeLauncher', () => {
   it('leaves the sandbox filesystem alone when no token is given', async () => {
     const { sandbox, writes } = fakeSandbox({ healthy: true, installedStamp: BUILD_STAMP })
 
-    await createServeLauncher({ readStamp })({ sandbox })
+    await createServeLauncher({ readStamps })({ sandbox })
 
     expect(writes).toHaveLength(0)
   })
@@ -114,7 +114,7 @@ describe('createServeLauncher', () => {
   it('authenticates the health probe with the token file, falling back to the launch environment', async () => {
     const { sandbox } = fakeSandbox({ healthy: true, installedStamp: BUILD_STAMP })
 
-    await createServeLauncher({ readStamp })({ sandbox })
+    await createServeLauncher({ readStamps })({ sandbox })
 
     expect(HEALTH_PROBE).toContain(`_serve_token=$(cat ${SERVE_TOKEN_PATH} 2>/dev/null || true)`)
     expect(HEALTH_PROBE).toContain('[ -n "$_serve_token" ] && export ATLAS_SERVE_TOKEN="$_serve_token"')
@@ -124,7 +124,7 @@ describe('createServeLauncher', () => {
   it('does nothing when serve is healthy and the installed stamp matches this build', async () => {
     const { sandbox, commands } = fakeSandbox({ healthy: true, installedStamp: BUILD_STAMP })
 
-    await createServeLauncher({ readStamp })({ sandbox })
+    await createServeLauncher({ readStamps })({ sandbox })
 
     expect(commands).toHaveLength(2)
     expect(scriptsOf(commands).some((script) => script.includes('curl -sS'))).toBe(false)
@@ -133,7 +133,7 @@ describe('createServeLauncher', () => {
   it('checks freshness against a stamp file, never by hashing the installed binary', async () => {
     const { sandbox, commands } = fakeSandbox({ healthy: true, installedStamp: BUILD_STAMP })
 
-    await createServeLauncher({ readStamp })({ sandbox })
+    await createServeLauncher({ readStamps })({ sandbox })
 
     const stampRead = scriptsOf(commands).find((script) => script.startsWith('cat '))
     expect(stampRead).toBe(`cat ${SERVE_STAMP_PATH} 2>/dev/null || true`)
@@ -145,7 +145,7 @@ describe('createServeLauncher', () => {
   it('reinstalls when serve answers but the installed stamp is from another build', async () => {
     const { sandbox, commands } = fakeSandbox({ healthy: true, installedStamp: 'older-build' })
 
-    await createServeLauncher({ readStamp })({ sandbox })
+    await createServeLauncher({ readStamps })({ sandbox })
 
     expect(scriptsOf(commands).some((script) => script.includes('curl -sS'))).toBe(true)
     expect(commands.at(-2)?.detached).toBe(true)
@@ -154,7 +154,7 @@ describe('createServeLauncher', () => {
   it('treats a missing stamp file as stale exactly once and self-heals through the same download path', async () => {
     const { sandbox, commands } = fakeSandbox({ healthy: false })
 
-    await createServeLauncher({ readStamp })({ sandbox })
+    await createServeLauncher({ readStamps })({ sandbox })
 
     expect(scriptsOf(commands).some((script) => script.includes('curl -sS'))).toBe(true)
     const swap = scriptsOf(commands).find((script) => script.startsWith('mv '))
@@ -164,7 +164,7 @@ describe('createServeLauncher', () => {
   it('bounds the health probe so a hung listener cannot stall the launch', async () => {
     const { sandbox, commands } = fakeSandbox({ healthy: true, installedStamp: BUILD_STAMP })
 
-    await createServeLauncher({ readStamp })({ sandbox })
+    await createServeLauncher({ readStamps })({ sandbox })
 
     expect(HEALTH_PROBE).toContain('-m 5')
     expect(HEALTH_PROBE).toContain('--connect-timeout 2')
@@ -174,7 +174,7 @@ describe('createServeLauncher', () => {
   it('kills a wedged serve by exact executable match, escalating to SIGKILL, then starts under a lock', async () => {
     const { sandbox, commands } = fakeSandbox({ healthy: false, installedStamp: BUILD_STAMP })
 
-    await createServeLauncher({ readStamp })({ sandbox })
+    await createServeLauncher({ readStamps })({ sandbox })
 
     const scripts = scriptsOf(commands)
     const kill = scripts.find((script) => script.startsWith('for pid in'))
@@ -195,15 +195,25 @@ describe('createServeLauncher', () => {
   it('does not download when the installed stamp already matches this build', async () => {
     const { sandbox, commands } = fakeSandbox({ healthy: false, installedStamp: BUILD_STAMP })
 
-    await createServeLauncher({ readStamp })({ sandbox })
+    await createServeLauncher({ readStamps })({ sandbox })
 
+    expect(scriptsOf(commands).some((script) => script.includes('curl -sS'))).toBe(false)
+  })
+
+  it('does not download when the installed stamp matches a source the image baked, though it is not the install stamp', async () => {
+    const { sandbox, commands } = fakeSandbox({ healthy: true, installedStamp: 'source:abc123' })
+    const stamps = async () => ({ install: BUILD_STAMP, acceptable: [BUILD_STAMP, 'source:abc123'] })
+
+    await createServeLauncher({ readStamps: stamps })({ sandbox })
+
+    expect(commands).toHaveLength(2)
     expect(scriptsOf(commands).some((script) => script.includes('curl -sS'))).toBe(false)
   })
 
   it('downloads to the .next path beside the live binary, capturing the response headers', async () => {
     const { sandbox, commands } = fakeSandbox({ healthy: false, installedStamp: 'older-build' })
 
-    await createServeLauncher({ readStamp })({ sandbox })
+    await createServeLauncher({ readStamps })({ sandbox })
 
     const download = scriptsOf(commands).find((script) => script.includes('curl -sS'))
     expect(download).toContain(`_serve_token=$(cat ${SERVE_TOKEN_PATH} 2>/dev/null || true)`)
@@ -220,7 +230,7 @@ describe('createServeLauncher', () => {
   it('verifies the download against the response header hash, kills the wedged serve, then swaps the binary and writes the stamp before launching', async () => {
     const { sandbox, commands } = fakeSandbox({ healthy: false, installedStamp: 'older-build' })
 
-    await createServeLauncher({ readStamp })({ sandbox })
+    await createServeLauncher({ readStamps })({ sandbox })
 
     const scripts = scriptsOf(commands)
     const downloadIndex = scripts.findIndex((script) => script.includes('curl -sS'))
@@ -251,7 +261,7 @@ describe('createServeLauncher', () => {
       verifyStderr: 'downloaded serve binary hash deadbeef does not match the response header',
     })
 
-    await expect(createServeLauncher({ readStamp })({ sandbox })).rejects.toThrow(
+    await expect(createServeLauncher({ readStamps })({ sandbox })).rejects.toThrow(
       'downloaded serve binary hash deadbeef does not match the response header',
     )
 
@@ -264,7 +274,7 @@ describe('createServeLauncher', () => {
   it('throws StaleSandboxTokenError when the download is rejected as unauthorized', async () => {
     const { sandbox } = fakeSandbox({ healthy: false, downloadExit: 41 })
 
-    await expect(createServeLauncher({ readStamp })({ sandbox })).rejects.toBeInstanceOf(
+    await expect(createServeLauncher({ readStamps })({ sandbox })).rejects.toBeInstanceOf(
       StaleSandboxTokenError,
     )
   })
@@ -276,13 +286,13 @@ describe('createServeLauncher', () => {
       downloadStderr: 'download answered HTTP 500',
     })
 
-    await expect(createServeLauncher({ readStamp })({ sandbox })).rejects.toThrow('HTTP 500')
+    await expect(createServeLauncher({ readStamps })({ sandbox })).rejects.toThrow('HTTP 500')
   })
 
   it('fails loudly when the verified binary cannot be swapped into place', async () => {
     const { sandbox } = fakeSandbox({ healthy: false, installedStamp: 'older-build', swapExit: 1 })
 
-    await expect(createServeLauncher({ readStamp })({ sandbox })).rejects.toThrow(
+    await expect(createServeLauncher({ readStamps })({ sandbox })).rejects.toThrow(
       'swapping the verified atlas serve binary into place failed',
     )
   })
@@ -295,7 +305,7 @@ describe('createServeLauncher', () => {
       logTail: 'Error: EADDRINUSE: address already in use',
     })
 
-    await expect(createServeLauncher({ readStamp })({ sandbox })).rejects.toThrow(
+    await expect(createServeLauncher({ readStamps })({ sandbox })).rejects.toThrow(
       'EADDRINUSE: address already in use',
     )
   })
@@ -303,13 +313,13 @@ describe('createServeLauncher', () => {
   it('degrades to a marker when the serve log cannot be read', async () => {
     const { sandbox } = fakeSandbox({ healthy: false, installedStamp: BUILD_STAMP, waitSucceeds: false })
 
-    await expect(createServeLauncher({ readStamp })({ sandbox })).rejects.toThrow(
+    await expect(createServeLauncher({ readStamps })({ sandbox })).rejects.toThrow(
       '<serve log is empty or missing>',
     )
   })
 })
 
-describe('serveStampReader', () => {
+describe('serveStampsReader', () => {
   it('HEADs the serve-binary route with the sandbox token and reads the hash header', async () => {
     const seen: { url: string; method: string; authorization?: string }[] = []
     const fetchFn = (async (input: unknown, init?: RequestInit) => {
@@ -325,7 +335,7 @@ describe('serveStampReader', () => {
       })
     }) as typeof fetch
 
-    const stamp = await serveStampReader({
+    const stamps = await serveStampsReader({
       cloudUrl: 'https://cloud.test/',
       threadId: 'brn_cloud',
       token: 'sandbox-token',
@@ -339,14 +349,32 @@ describe('serveStampReader', () => {
         authorization: 'Bearer sandbox-token',
       },
     ])
-    expect(stamp).toBe(BUILD_STAMP)
+    expect(stamps).toEqual({ install: BUILD_STAMP, acceptable: [BUILD_STAMP] })
+  })
+
+  it('accepts the baked image source stamps alongside the download hash', async () => {
+    const fetchFn = (async (_input: unknown) =>
+      new Response(null, {
+        status: 200,
+        headers: { [SERVE_BINARY_SHA256_HEADER]: BUILD_STAMP },
+      })) as typeof fetch
+
+    const stamps = await serveStampsReader({
+      cloudUrl: 'https://cloud.test',
+      threadId: 'brn_cloud',
+      token: 'sandbox-token',
+      sources: ['source:abc123'],
+      fetchFn,
+    })()
+
+    expect(stamps).toEqual({ install: BUILD_STAMP, acceptable: [BUILD_STAMP, 'source:abc123'] })
   })
 
   it('fails the launch rather than guessing when the answer carries no hash header', async () => {
     const fetchFn = (async (_input: unknown) => new Response(null, { status: 200 })) as typeof fetch
 
     await expect(
-      serveStampReader({
+      serveStampsReader({
         cloudUrl: 'https://cloud.test',
         threadId: 'brn_cloud',
         token: 'sandbox-token',
@@ -360,7 +388,7 @@ describe('serveStampReader', () => {
       new Response(null, { status: 401 })) as typeof fetch
 
     await expect(
-      serveStampReader({
+      serveStampsReader({
         cloudUrl: 'https://cloud.test',
         threadId: 'brn_cloud',
         token: 'sandbox-token',

@@ -99,16 +99,36 @@ describe('requireVercelCredentials', () => {
 })
 
 describe('sandboxImageOf', () => {
+  const release = { version: '1.4.2', buildSha: 'f'.repeat(40) }
+
   it('falls back to the published image', () => {
-    expect(sandboxImageOf({ settings: settingsWith({}) })).toBe('atlas-sandbox:latest')
+    expect(sandboxImageOf({ settings: settingsWith({}) })).toEqual({
+      image: 'atlas-sandbox:latest',
+      serveSources: [],
+    })
   })
 
+  it('pins a release build to its own tag and trusts the serve baked into it', () => {
+    expect(sandboxImageOf({ settings: settingsWith({}), release })).toEqual({
+      image: 'atlas-sandbox:1.4.2',
+      serveSources: [`source:${'f'.repeat(40)}`],
+    })
+  })
 
   it('follows the setting when one is pinned', () => {
     expect(
       sandboxImageOf({
         settings: settingsWith({ [ESettingId.SandboxImage]: 'vcr.vercel.example/team/atlas:v1' }),
       }),
-    ).toBe('vcr.vercel.example/team/atlas:v1')
+    ).toEqual({ image: 'vcr.vercel.example/team/atlas:v1', serveSources: [] })
+  })
+
+  it('lets an operator-set image win over the release pin, with no baked-serve trust', () => {
+    expect(
+      sandboxImageOf({
+        settings: settingsWith({ [ESettingId.SandboxImage]: 'vcr.vercel.example/team/atlas:v1' }),
+        release,
+      }),
+    ).toEqual({ image: 'vcr.vercel.example/team/atlas:v1', serveSources: [] })
   })
 })

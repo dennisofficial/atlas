@@ -49,6 +49,14 @@ jobs:
         id: meta
         run: echo "sha_tag=sha-$(git rev-parse HEAD | cut -c1-7)" >> "$GITHUB_OUTPUT"
 
+      # Docker sandboxes never run serve, so the GHCR image bakes 0-byte placeholders rather
+      # than the real ~109MB binary per arch. An empty stamp never matches the launcher's
+      # freshness check, so a cloud boot from this image falls back to the download path.
+      - name: generate serve placeholders
+        run: |
+          touch packages/harness/sandbox-image/atlas-serve \
+            packages/harness/sandbox-image/atlas-serve.stamp
+
       - uses: docker/build-push-action@v6
         with:
           context: packages/harness/sandbox-image
@@ -92,6 +100,20 @@ jobs:
         id: meta
         run: echo "sha_tag=sha-$(git rev-parse HEAD | cut -c1-7)" >> "$GITHUB_OUTPUT"
 
+      - uses: oven-sh/setup-bun@v2
+
+      - run: bun install
+
+      # Unlike the GHCR placeholders above: cloud sandboxes boot serve straight from the
+      # image, so the VCR variant bakes the real binary and a `source:<sha>` stamp the
+      # launcher's freshness check can match against the released TUI's build sha.
+      - name: build serve into the image context
+        working-directory: packages/harness
+        run: bun run build:serve -- --target bun-linux-x64 --outfile sandbox-image/atlas-serve
+
+      - name: stamp the baked serve
+        run: printf 'source:%s' "$GITHUB_SHA" > packages/harness/sandbox-image/atlas-serve.stamp
+
       - uses: docker/build-push-action@v6
         with:
           context: packages/harness/sandbox-image
@@ -117,14 +139,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: retag existing image
+      - name: compute tags
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
           RELEASE_SHA: ${{ inputs.release_sha }}
         run: |
+          echo "VERSION=${RELEASE_TAG#tui-v}" >> "$GITHUB_ENV"
+          echo "SHA_TAG=sha-$(echo "$RELEASE_SHA" | cut -c1-7)" >> "$GITHUB_ENV"
+
+      - name: retag existing image
+        run: |
           set -euo pipefail
-          VERSION="${RELEASE_TAG#tui-v}"
-          SHA_TAG="sha-$(echo "$RELEASE_SHA" | cut -c1-7)"
 
           # The release fires right after the push that triggered it, while this same
           # commit's publish job may still be building its own sha tag; a stale latest
@@ -143,4 +168,32 @@ jobs:
           done
 
           echo "::error::${IMAGE}:${SHA_TAG} never appeared after 20 minutes -- the publish job for this commit likely failed" >&2
+          exit 1
+
+      - uses: docker/login-action@v3
+        if: vars.VERCEL_VCR_ENABLED == 'true'
+        with:
+          registry: vcr.vercel.com
+          username: team_GR4aCzLIY5D3YYWgITz3Tere
+          password: ${{ secrets.VERCEL_TOKEN }}
+
+      # Same poll as the GHCR retag above: the released TUI pins its cloud sandbox image to
+      # `atlas-sandbox:<version>`, so the tag must come from this commit's real sha tag.
+      - name: retag existing VCR image
+        if: vars.VERCEL_VCR_ENABLED == 'true'
+        run: |
+          set -euo pipefail
+
+          attempts=40
+          for ((i = 1; i <= attempts; i++)); do
+            if docker buildx imagetools inspect "${VCR_IMAGE}:${SHA_TAG}" >/dev/null 2>&1; then
+              docker buildx imagetools create -t "${VCR_IMAGE}:${VERSION}" "${VCR_IMAGE}:${SHA_TAG}"
+              echo "Tagged \`${VCR_IMAGE}:${VERSION}\` from \`${VCR_IMAGE}:${SHA_TAG}\`" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "waiting for ${VCR_IMAGE}:${SHA_TAG} to publish (attempt ${i}/${attempts})"
+            sleep 30
+          done
+
+          echo "::error::${VCR_IMAGE}:${SHA_TAG} never appeared after 20 minutes -- the publish-vcr job for this commit likely failed" >&2
           exit 1

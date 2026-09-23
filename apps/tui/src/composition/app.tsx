@@ -167,7 +167,7 @@ import { captureWorkspace } from './cloud/workspace-snapshot'
 import type { CaptureContext } from './cloud/context-archive'
 import { useCloudSession } from './use-cloud-session'
 import type { LiftedAttachment, LiftedSession } from './lifted-session'
-import { clientVersionHeader, versionLabel } from '../build/info'
+import { buildInfo, clientVersionHeader, EBuildKind, versionLabel } from '../build/info'
 
 const STEER_PLACEHOLDER = 'Steer the turn'
 
@@ -217,6 +217,12 @@ const readoutOf = (args: {
  * session, but every Vercel call is driven with the operator's own token, read fresh from the
  * sealed secrets file at each attach so a rotated token is picked up without a restart.
  */
+const releaseBuildOf = (): { version: string; buildSha: string } | undefined => {
+  const build = buildInfo()
+  if (build.kind !== EBuildKind.Release || build.buildSha === null) return undefined
+  return { version: build.version, buildSha: build.buildSha }
+}
+
 const liveBridgeFor = (app: AtlasApp): CloudBridgeFactory => {
   return ({ url, token }) =>
     createCloudBridge({
@@ -225,7 +231,7 @@ const liveBridgeFor = (app: AtlasApp): CloudBridgeFactory => {
       clientVersion: clientVersionHeader(),
       vercel: () => ({
         credentials: requireVercelCredentials({ settings: app.settings, secrets: app.secrets }),
-        image: sandboxImageOf({ settings: app.settings }),
+        ...sandboxImageOf({ settings: app.settings, release: releaseBuildOf() }),
       }),
       readGitToken: () => readGhAuthToken(),
     })

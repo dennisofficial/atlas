@@ -7,7 +7,7 @@ import {
   RemoteTurnLedger,
   SandboxClient,
   sandboxNameFor,
-  serveStampReader,
+  serveStampsReader,
   SessionsClient,
   VercelDriver,
   type VercelSandboxConfig,
@@ -68,7 +68,8 @@ export function createCloudBridge(args: {
     threadId: ThreadId
     workspace: Parameters<CloudSandboxes['create']>[0]['workspace']
   }): Promise<CloudSandbox> => {
-    const driver = driverWith(args.vercel())
+    const config = args.vercel()
+    const driver = driverWith(config)
     const gitToken = await args.readGitToken()
     const name = sandboxNameFor({ threadId: createArgs.threadId })
 
@@ -84,10 +85,11 @@ export function createCloudBridge(args: {
       name,
       threadId: createArgs.threadId,
       token: claim.token,
-      readStamp: serveStampReader({
+      readStamps: serveStampsReader({
         cloudUrl: args.url,
         threadId: createArgs.threadId,
         token: claim.token,
+        sources: config.serveSources,
         fetchFn,
       }),
     })
