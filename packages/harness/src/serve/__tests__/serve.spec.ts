@@ -750,6 +750,87 @@ describe('startServe', () => {
     expect(app.appended).toEqual([])
   })
 
+  it('replays the turn-ended a disconnected client missed, settling its waiter before the next turn', async () => {
+    const held = gate()
+    let turns = 0
+    const { handle, app, lines } = await start({
+      runTurn: async () => {
+        turns += 1
+        const publisher = app.channel.publisherFor({ threadId })
+        publisher.onChunk(textChunk('one'))
+        if (turns === 1) await held.opened
+        publisher.onChunk(textChunk('two'))
+        return { status: ETurnStatus.Completed, runId: toRunId(`run-${turns}`) }
+      },
+    })
+
+    const first = await connect({ port: handle.port, token: TOKEN })
+    first.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await first.waitFor((frame) => frame.kind === EServeFrame.Ready)
+    first.send({ kind: EClientFrame.Run })
+    await first.waitFor((frame) => frame.kind === EServeFrame.Signal && frame.seq === 1)
+    first.close()
+    await first.closed
+
+    held.open()
+    for (let waited = 0; waited < 2000; waited += 1) {
+      if (lines.some((line) => line.includes(EServeEvent.TurnEnded))) break
+      await Bun.sleep(1)
+    }
+
+    const second = await connect({ port: handle.port, token: TOKEN })
+    second.send(hello({ channelCursor: 1, lastEventSeq: 0 }))
+    const replayed = await second.waitFor((frame) => frame.kind === EServeFrame.TurnEnded)
+
+    expect(replayed).toEqual({
+      kind: EServeFrame.TurnEnded,
+      outcome: { status: ETurnStatus.Completed, runId: toRunId('run-1') },
+    })
+    expect(second.frames.map((frame) => frame.kind)).toEqual([
+      EServeFrame.Ready,
+      EServeFrame.Signal,
+      EServeFrame.TurnEnded,
+    ])
+
+    second.send({ kind: EClientFrame.Run })
+    await second.waitFor(
+      (frame) => frame.kind === EServeFrame.TurnEnded && frame.outcome.runId === toRunId('run-2'),
+    )
+    expect(turns).toBe(2)
+  })
+
+  it('replays the error a disconnected client missed when its turn failed', async () => {
+    const held = gate()
+    const { handle, app, lines } = await start({
+      runTurn: async () => {
+        const publisher = app.channel.publisherFor({ threadId })
+        publisher.onChunk(textChunk('one'))
+        await held.opened
+        throw new Error('the control plane answered 401')
+      },
+    })
+
+    const first = await connect({ port: handle.port, token: TOKEN })
+    first.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await first.waitFor((frame) => frame.kind === EServeFrame.Ready)
+    first.send({ kind: EClientFrame.Run })
+    await first.waitFor((frame) => frame.kind === EServeFrame.Signal && frame.seq === 1)
+    first.close()
+    await first.closed
+
+    held.open()
+    for (let waited = 0; waited < 2000; waited += 1) {
+      if (lines.some((line) => line.includes(EServeEvent.TurnFailed))) break
+      await Bun.sleep(1)
+    }
+
+    const second = await connect({ port: handle.port, token: TOKEN })
+    second.send(hello({ channelCursor: 1, lastEventSeq: 0 }))
+    const failure = await second.waitFor((frame) => frame.kind === EServeFrame.Error)
+
+    expect(failure).toEqual({ kind: EServeFrame.Error, message: 'the control plane answered 401' })
+  })
+
   it('runs a queued turn again when a run frame arrives mid-turn', async () => {
     const held = gate()
     let turns = 0
