@@ -92,6 +92,7 @@ function Watcher(props: {
     projectDirectory: directory,
     working,
     linked: [],
+    cloud: null,
     onOpen: NEVER,
     probe: props.askGit,
   })

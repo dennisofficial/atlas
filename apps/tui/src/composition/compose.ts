@@ -53,6 +53,7 @@ const resolveGithubSurface = (args: { bridge: GithubUiBridgePort }): Contributed
     service: args.bridge.service,
     facts: args.bridge.facts,
     links: args.bridge.links,
+    cloudCheckout: args.bridge.cloudCheckout,
     openUrl: createUrlOpener(),
   })
 
