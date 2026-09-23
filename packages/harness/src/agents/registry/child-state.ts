@@ -24,6 +24,7 @@ export type ChildState = {
   toolCalls: number
   lastTool: string | undefined
   lastText: string
+  lastFullText: string
   startedAt: string
   steppingSince: string | undefined
   endedAt: string | undefined
@@ -43,7 +44,7 @@ export type SteerMessage = {
 
 export const LAST_TEXT_TAIL_CHARACTERS = 4_000
 
-const boundedTail = (text: string): string =>
+export const boundedTail = (text: string): string =>
   text.length <= LAST_TEXT_TAIL_CHARACTERS ? text : text.slice(-LAST_TEXT_TAIL_CHARACTERS)
 
 export const isStepping = (child: ChildState): boolean => child.status === EAgentStatus.Running
@@ -74,6 +75,7 @@ export function freshChild({
     toolCalls: 0,
     lastTool: undefined,
     lastText: '',
+    lastFullText: '',
     startedAt: at,
     steppingSince: undefined,
     endedAt: undefined,
@@ -106,6 +108,7 @@ export function recoveredChild({
     toolCalls: agent.toolCalls,
     lastTool: undefined,
     lastText: boundedTail(agent.prose),
+    lastFullText: agent.prose,
     startedAt: agent.spawnedAt ?? at,
     steppingSince: undefined,
     endedAt: agent.endedAt,
@@ -146,7 +149,7 @@ export function agentEndedDraft(child: ChildState): EventDraft {
     intent: child.intent,
     status: child.status,
     killedBy: attributedStop({ status: child.status, killedBy: child.killedBy }),
-    prose: boundedTail(child.lastText),
+    prose: child.lastFullText,
     turns: child.turns,
     toolCalls: child.toolCalls,
   }
@@ -182,7 +185,10 @@ export function recordProgress({
     if (draft.type === 'assistant-said') {
       child.turns += 1
       const said = spokenText(draft.parts)
-      if (said !== '') child.lastText = boundedTail(said)
+      if (said !== '') {
+        child.lastText = boundedTail(said)
+        child.lastFullText = said
+      }
       continue
     }
 
