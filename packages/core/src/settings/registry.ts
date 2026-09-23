@@ -679,7 +679,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Cloud sandboxes',
     label: 'Sandbox image',
     description:
-      'The sandbox image a cloud conversation boots. The fallback is the image the Atlas project publishes; point this at your own build of it when your Vercel team cannot pull the published one.',
+      'The sandbox image a cloud conversation boots. Left unset, a released Atlas pins the published image to its own version so the sandbox’s serve matches it; point this at your own build of the image when your Vercel team cannot pull the published one.',
     environmentVariable: 'ATLAS_SANDBOX_IMAGE',
     kind: ESettingKind.Text,
     fallback: 'atlas-sandbox:latest',

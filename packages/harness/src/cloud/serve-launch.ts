@@ -134,18 +134,26 @@ const serveLogTail = async (sandbox: Sandbox): Promise<string> => {
 
 export type ServeLauncher = (args: { sandbox: Sandbox; token?: string }) => Promise<void>
 
+export type ServeStamps = {
+  /** Written as the install stamp after a download: the hash of the binary that was served. */
+  install: string
+  /** What the installed stamp may hold to count as current: the download hash, or a baked image's `source:<sha>`. */
+  acceptable: readonly string[]
+}
+
 /**
- * The freshness stamp without the 109MB download: a HEAD against the route the sandbox itself
- * curls, answered with the served binary's own hash. Using that hash as the stamp conflates
- * freshness with integrity by exactly one redundant download — a sandbox whose stamp file holds
- * the image build's source-hash stamp downloads once, writes the binary hash, and converges.
+ * The freshness stamps without the 109MB download: a HEAD against the route the sandbox itself
+ * curls, answered with the served binary's own hash. `sources` names the logical stamps a baked
+ * image may carry — `bun build --compile` is not reproducible, so a baked serve can never be
+ * recognized by binary hash, only by the source build the image was cut from.
  */
-export function serveStampReader(args: {
+export function serveStampsReader(args: {
   cloudUrl: string
   threadId: string
   token: string
+  sources?: readonly string[] | undefined
   fetchFn?: typeof fetch | undefined
-}): () => Promise<string> {
+}): () => Promise<ServeStamps> {
   const fetchFn = args.fetchFn ?? fetch
   const url = `${args.cloudUrl.replace(/\/+$/, '')}/v1/sandboxes/${args.threadId}/serve-binary`
   return async () => {
@@ -160,12 +168,13 @@ export function serveStampReader(args: {
     if (stamp === null || stamp.trim().length === 0) {
       throw new Error(`the serve binary stamp answer carried no ${SERVE_BINARY_SHA256_HEADER} header`)
     }
-    return stamp.trim()
+    const install = stamp.trim()
+    return { install, acceptable: [install, ...(args.sources ?? [])] }
   }
 }
 
 export function createServeLauncher(args: {
-  readStamp: () => Promise<string>
+  readStamps: () => Promise<ServeStamps>
 }): ServeLauncher {
   return async ({ sandbox, token }) => {
     if (token !== undefined) {
@@ -176,10 +185,11 @@ export function createServeLauncher(args: {
       })
       await sandbox.writeFiles([{ path: SERVE_TOKEN_PATH, content: token, mode: 0o600 }])
     }
-    const stamp = await args.readStamp()
+    const stamps = await args.readStamps()
     const [healthy, installed] = await Promise.all([serveHealthy(sandbox), installedStamp(sandbox)])
-    if (healthy && installed === stamp) return
-    const stale = installed !== stamp
+    const fresh = stamps.acceptable.includes(installed)
+    if (healthy && fresh) return
+    const stale = !fresh
 
     if (stale) {
       const downloaded = await sh({ sandbox, script: downloadBinary, timeoutMs: DOWNLOAD_TIMEOUT_MS })
@@ -208,7 +218,7 @@ export function createServeLauncher(args: {
         sandbox,
         script: swapInBinary,
         timeoutMs: QUICK_COMMAND_TIMEOUT_MS,
-        env: { ATLAS_INSTALL_STAMP: stamp },
+        env: { ATLAS_INSTALL_STAMP: stamps.install },
       })
       if (swapped.exitCode !== 0) {
         throw new Error('swapping the verified atlas serve binary into place failed')

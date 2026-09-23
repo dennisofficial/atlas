@@ -17,6 +17,10 @@ if (version !== undefined && version !== '') {
   if (releaseRepo !== undefined && releaseRepo !== '') {
     defines.push(defineOf('ATLAS_RELEASE_REPO', releaseRepo))
   }
+  const buildSha = process.env.ATLAS_BUILD_SHA
+  if (buildSha !== undefined && buildSha !== '') {
+    defines.push(defineOf('ATLAS_BUILD_SHA', buildSha))
+  }
 } else {
   const repo = await repoRootOf(process.cwd())
   const state = repo === null ? null : await probeSourceState({ repo })

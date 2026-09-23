@@ -1,5 +1,6 @@
 declare const ATLAS_VERSION: string | undefined
 declare const ATLAS_RELEASE_REPO: string | undefined
+declare const ATLAS_BUILD_SHA: string | undefined
 declare const ATLAS_BUILD_REPO: string | undefined
 declare const ATLAS_BUILD_STAMP: string | undefined
 
@@ -10,7 +11,13 @@ export enum EBuildKind {
 }
 
 export type BuildInfo =
-  | { readonly kind: EBuildKind.Release; readonly version: string; readonly releaseRepo: string | null }
+  | {
+      readonly kind: EBuildKind.Release
+      readonly version: string
+      readonly releaseRepo: string | null
+      /** The commit the release was cut from — the `source:<sha>` stamp a baked serve carries. */
+      readonly buildSha: string | null
+    }
   | { readonly kind: EBuildKind.Dev; readonly repo: string; readonly stamp: string }
   | { readonly kind: EBuildKind.Source }
 
@@ -40,7 +47,13 @@ export function buildInfo(): BuildInfo {
   const version = typeof ATLAS_VERSION === 'undefined' ? undefined : present(ATLAS_VERSION)
   if (version !== undefined) {
     const releaseRepo = typeof ATLAS_RELEASE_REPO === 'undefined' ? undefined : ATLAS_RELEASE_REPO
-    return { kind: EBuildKind.Release, version, releaseRepo: releaseRepo ?? null }
+    const buildSha = typeof ATLAS_BUILD_SHA === 'undefined' ? undefined : present(ATLAS_BUILD_SHA)
+    return {
+      kind: EBuildKind.Release,
+      version,
+      releaseRepo: releaseRepo ?? null,
+      buildSha: buildSha ?? null,
+    }
   }
 
   const repo = typeof ATLAS_BUILD_REPO === 'undefined' ? undefined : present(ATLAS_BUILD_REPO)

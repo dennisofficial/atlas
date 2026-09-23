@@ -45,6 +45,7 @@ jobs:
         env:
           ATLAS_VERSION: ${{ steps.version.outputs.version }}
           ATLAS_RELEASE_REPO: ${{ github.repository }}
+          ATLAS_BUILD_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           bun run build:prepare

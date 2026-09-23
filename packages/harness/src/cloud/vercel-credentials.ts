@@ -1,4 +1,4 @@
-import { ESettingId, textValueOf, type SecretsPort } from '@dltech/atlas-core'
+import { ESettingId, ESettingsLayer, textValueOf, type SecretsPort } from '@dltech/atlas-core'
 
 import type { SettingsService } from '../settings/service'
 
@@ -40,9 +40,28 @@ export function requireVercelCredentials(args: {
   return { token, teamId, projectId }
 }
 
-export function sandboxImageOf(args: { settings: SettingsService }): string {
-  return textValueOf({
-    resolution: args.settings.snapshot().resolution,
-    id: ESettingId.SandboxImage,
-  })
+export type SandboxImageChoice = {
+  image: string
+  /** Logical stamps a baked serve in the image may carry — empty unless the image is Atlas's own pinned build. */
+  serveSources: readonly string[]
+}
+
+/**
+ * The image a cloud sandbox boots. An operator-set image always wins verbatim and carries no
+ * baked-serve trust; an unset one pins a release build to its own tag, so the serve baked into
+ * that image is the TUI's own by construction and the boot skips the 109MB download.
+ */
+export function sandboxImageOf(args: {
+  settings: SettingsService
+  release?: { version: string; buildSha: string } | undefined
+}): SandboxImageChoice {
+  const resolution = args.settings.snapshot().resolution
+  const held = resolution.settings.get(ESettingId.SandboxImage)
+  const image = textValueOf({ resolution, id: ESettingId.SandboxImage })
+  if (held?.layer !== ESettingsLayer.Default) return { image, serveSources: [] }
+  if (args.release === undefined) return { image, serveSources: [] }
+  return {
+    image: `atlas-sandbox:${args.release.version}`,
+    serveSources: [`source:${args.release.buildSha}`],
+  }
 }

@@ -5,6 +5,7 @@ import {
   createServeLauncher,
   StaleSandboxTokenError,
   type ServeLauncher,
+  type ServeStamps,
 } from './serve-launch'
 import {
   asVercelFailure,
@@ -36,7 +37,12 @@ const ROUTE_RETRY_DELAY_MS = 1_000
 
 export type VercelCredentials = { token: string; teamId: string; projectId: string }
 
-export type VercelSandboxConfig = { credentials: VercelCredentials; image: string }
+export type VercelSandboxConfig = {
+  credentials: VercelCredentials
+  image: string
+  /** Logical stamps a baked serve in the image may carry — empty unless the image is Atlas's own pinned build. */
+  serveSources: readonly string[]
+}
 
 export type SandboxPlacement = {
   sessionId: string
@@ -132,8 +138,8 @@ export class VercelDriver {
     name: string
     threadId: string
     token: string
-    /** The stamp the claim's fresh session token authorizes reading — per call, never held. */
-    readStamp: () => Promise<string>
+    /** The stamps the claim's fresh session token authorizes reading — per call, never held. */
+    readStamps: () => Promise<ServeStamps>
     pinnedModel?: string | undefined
   }): Promise<SandboxPlacement> {
     if (this.args.image === undefined) {
@@ -143,7 +149,7 @@ export class VercelDriver {
     const launchServe: ServeLauncher = (launchArgs) =>
       this.dedupedLaunch({
         sandbox: launchArgs.sandbox,
-        launch: createServeLauncher({ readStamp: args.readStamp }),
+        launch: createServeLauncher({ readStamps: args.readStamps }),
         token: launchArgs.token,
       })
     const createStartedAt = Date.now()
