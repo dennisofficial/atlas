@@ -10,7 +10,7 @@ import {
 } from '@dltech/atlas-core'
 
 import type { ThreadStorePort } from '../../store'
-import { isStepping, snapshotOf, type ChildState } from './child-state'
+import { boundedTail, isStepping, snapshotOf, type ChildState } from './child-state'
 import type { AgentSnapshot, UnloggedChild } from './snapshot'
 
 const NOTHING_SETTLED: readonly AgentSnapshot[] = Object.freeze([])
@@ -48,7 +48,8 @@ export async function settleLostChildren({
     child.killedBy = EKilledBy.Unrecorded
     child.turns = progress.turns
     child.toolCalls = progress.toolCalls
-    child.lastText = progress.prose
+    child.lastText = boundedTail(progress.prose)
+    child.lastFullText = progress.prose
     child.endedAt = recorded?.at ?? clock.now()
 
     settled.push(snapshotOf(child))

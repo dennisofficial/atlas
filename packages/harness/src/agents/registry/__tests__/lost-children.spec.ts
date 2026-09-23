@@ -11,6 +11,7 @@ import {
 
 import { UnstaffedServices, UnstaffedShells } from '../../../store/__tests__/harness'
 import { rewindThread } from '../../../store/rewind'
+import { LAST_TEXT_TAIL_CHARACTERS } from '../child-state'
 import { openChildThread } from '../open-child'
 import {
   agentTypeNamed,
@@ -86,6 +87,16 @@ describe('a child the process lost, found again at recovery', () => {
       toolCalls: 1,
       prose: 'four callers, in two files',
     })
+  })
+
+  it('hands the parent the whole final report, however far past the roster cap it runs', async () => {
+    const report = 'x'.repeat(LAST_TEXT_TAIL_CHARACTERS) + 'y'.repeat(LAST_TEXT_TAIL_CHARACTERS)
+    const open = await crashedWith([spoke(report)])
+
+    await open.supervisor.recordLostAgents({ threadId: open.parent })
+
+    const [ending] = await endingsIn(open)
+    expect(ending?.type === 'agent-ended' ? ending.prose : '').toBe(report)
   })
 
   it('hands the parent whatever the child had said before it went', async () => {
