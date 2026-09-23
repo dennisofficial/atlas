@@ -6,6 +6,7 @@ import { EPortExposure, type EnvironmentCapabilities } from '@dltech/atlas-core'
 import { runGit } from '../workspace/run-git'
 
 import { applyGitAccessEnv } from './git-access-env'
+import { SERVE_IDLE_MINUTES_WITH_SERVICES } from './idle-stop'
 import type { GitRunner } from './materialize-workspace'
 import { createGpgSigningStep } from './profile-gpg'
 import { runCommand, type CommandRunner } from './run-command'
@@ -69,6 +70,7 @@ export function createEnvironmentProfile(args: {
   run?: CommandRunner | undefined
   git?: GitRunner | undefined
   home?: string | undefined
+  serviceTtlSeconds?: number | undefined
 }): ApplyEnvironmentProfile {
   const env = args.env
   const files = args.files ?? nodeWorkspaceFiles
@@ -245,7 +247,7 @@ export function createEnvironmentProfile(args: {
       gpgSigning: probedGpg,
       dockerAvailable: false,
       persistentFs: true,
-      serviceTtlSeconds: null,
+      serviceTtlSeconds: args.serviceTtlSeconds ?? SERVE_IDLE_MINUTES_WITH_SERVICES * 60,
       portExposure: EPortExposure.PublicDomain,
       failures: steps
         .filter((one) => one.state === EProfileStepState.Failed)
