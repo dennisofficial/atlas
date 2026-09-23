@@ -8,6 +8,7 @@ import { portToken, type DependencyContainer } from '../container/injection'
 import {
   ClaudeCodeSourceToken,
   CloudSessionStoreToken,
+  CodexSourceToken,
   LocalAccountStoreToken,
   LocalSecretsStoreToken,
   SecretsStoreToken,
@@ -18,6 +19,7 @@ import {
   claudeCodePayloadStore,
   importClaudeCodeAccount,
 } from '../credentials/claude-code-source'
+import { importCodexAccount } from '../credentials/codex-source'
 import { createSecurityKeychainReader } from '../credentials/keychain-reader'
 import { syncEnvironmentAccounts } from '../credentials/environment-accounts'
 import { builtinOauthClients } from '../credentials/oauth/refresh-client'
@@ -105,6 +107,10 @@ export async function bindAccounts(args: {
     await importClaudeCodeAccount({
       accounts: accountStore,
       source: container.resolve(ClaudeCodeSourceToken),
+    })
+    await importCodexAccount({
+      accounts: accountStore,
+      source: container.resolve(CodexSourceToken),
     })
   } catch (error) {
     const outage = cloudOutageMessage(error)
