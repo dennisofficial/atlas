@@ -158,7 +158,7 @@ describe('running a turn', () => {
   })
 
   it('closes a step that completed with nothing to commit as completed, not interrupted', async () => {
-    const harness = await openHarness([{}])
+    const harness = await openHarness([{}, { text: 'the answer' }])
     const thread = await harness.threads.create({})
     const channel = createDeltaChannel()
     const { seen, listener } = recorder()
