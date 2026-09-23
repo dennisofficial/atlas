@@ -133,6 +133,54 @@ describe('the crew panel splits into a teammate tier and a sub-agent tier', () =
     expect(frame).toContain('3 mores in /agents')
   })
 
+  it('lights a row that still runs something of its own, numbers only', async () => {
+    const frame = (
+      await rowsOf({
+        subagents: [
+          row({
+            id: 't1',
+            name: 'feature work',
+            agentType: 'teammate',
+            status: EAgentStatus.Finished,
+            activity: { shells: 2, subagents: 1 },
+          }),
+        ],
+        cells: WIDTH,
+      })
+    ).join('\n')
+
+    expect(frame).toContain('⏺ feature work')
+    expect(frame).toContain('2 shells')
+    expect(frame).toContain('1 agent')
+  })
+
+  it('reads a finished row with nothing running as settled', async () => {
+    const frame = (
+      await rowsOf({
+        subagents: [
+          row({
+            id: 't1',
+            name: 'feature work',
+            agentType: 'teammate',
+            status: EAgentStatus.Finished,
+          }),
+        ],
+        cells: WIDTH,
+      })
+    ).join('\n')
+
+    expect(frame).toContain('· feature work')
+  })
+
+  it('leaves a row with nothing running bare of chips', async () => {
+    const frame = (
+      await rowsOf({ subagents: [row({ id: 's1', agentType: 'explore' })], cells: WIDTH })
+    ).join('\n')
+
+    expect(frame).not.toContain('shell')
+    expect(frame).not.toContain('agent')
+  })
+
   it('treats a row with no agentType as a sub-agent rather than dropping it', async () => {
     const frame = (
       await rowsOf({ subagents: [row({ id: 's1', name: 'legacy child' })], cells: WIDTH })

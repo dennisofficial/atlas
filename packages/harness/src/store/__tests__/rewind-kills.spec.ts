@@ -44,6 +44,7 @@ class ScriptedShells extends UnstaffedShells {
       threadId,
       snapshot: {
         shellId: toShellId(shellId),
+        threadId,
         command,
         description: 'Run a background job',
         status: EShellStatus.Running,

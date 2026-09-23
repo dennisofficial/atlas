@@ -62,6 +62,7 @@ const started = (
 ) =>
   startBackgroundShell({
     shellId: toShellId('bash_1'),
+    threadId: THREAD,
     command: 'next dev',
     description: 'Run the dev server',
     cwd: '/work',
@@ -92,6 +93,7 @@ describe('a background shell the harness can no longer read', () => {
 
     const snapshot = opened.shell.snapshot()
     expect(snapshot.status).toBe(EShellStatus.Killed)
+    expect(snapshot.threadId).toBe(THREAD)
     expect(snapshot.killedBy).toBe(EKilledBy.LostContact)
     expect(processes.terminateCalls).toBe(1)
     expect(announced).toBe(opened.shell)

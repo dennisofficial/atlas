@@ -21,6 +21,7 @@ const appWith = () =>
   fakeApp({ model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }) })
 
 const runningShell = (): ShellSnapshot => ({
+  threadId: THREAD,
   command: 'bun run dev',
   description: 'bun run dev',
   status: EShellStatus.Running,

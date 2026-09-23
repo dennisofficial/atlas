@@ -36,6 +36,7 @@ const shell = (over: {
   description?: string
   status?: EShellStatus
 }): ShellSnapshot => ({
+  threadId: THREAD,
   command: over.command,
   description: over.description ?? over.command,
   status: over.status ?? EShellStatus.Running,

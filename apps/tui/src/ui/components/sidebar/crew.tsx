@@ -2,9 +2,9 @@ import React from 'react'
 
 import { crewTiersOf, type SidebarTeammate } from '../../../store/sidebar-model'
 import {
+  crewRowReading,
   isSubagentRunning,
   subagentContextLabel,
-  subagentReading,
   type SidebarAgentFold,
   type SidebarCrewFold,
   type SidebarSubagent,
@@ -23,15 +23,47 @@ const IDLE = 'idle'
 /** A mark and the space after it, so the second line's model sits where the title sits. */
 const TITLE_INDENT = '  '
 
-const markFor = (subagent: SidebarSubagent) => MARK_OF[subagentReading(subagent)]
+const markFor = (subagent: SidebarSubagent) => MARK_OF[crewRowReading(subagent)]
 
 const labelFor = (subagent: SidebarSubagent): string => {
   if (subagent.selected) return theme.court.external
-  return NAME_INK_OF[subagentReading(subagent)]
+  return NAME_INK_OF[crewRowReading(subagent)]
+}
+
+const chipFor = (args: { text: string; ground: string }): Span => ({
+  text: ` ${args.text} `,
+  fg: theme.appBg,
+  bg: args.ground,
+})
+
+const ACTIVITY_COLORS: { shells: string; subagents: string } = {
+  shells: theme.bright,
+  subagents: theme.court.external,
+}
+
+function ActivityLine(props: { subagent: SidebarSubagent }): React.ReactNode {
+  const activity = props.subagent.activity
+  if (activity === undefined) return null
+
+  const chips: Span[] = [{ text: TITLE_INDENT }]
+  const addChip = (args: { text: string; ground: string }): void => {
+    if (chips.length > 1) chips.push({ text: ' ' })
+    chips.push(chipFor(args))
+  }
+  if (activity.shells > 0)
+    addChip({ text: plural(activity.shells, 'shell'), ground: ACTIVITY_COLORS.shells })
+  if (activity.subagents > 0)
+    addChip({ text: plural(activity.subagents, 'agent'), ground: ACTIVITY_COLORS.subagents })
+
+  return (
+    <text>
+      <Spans spans={chips} />
+    </text>
+  )
 }
 
 const valueFor = (subagent: SidebarSubagent) => [
-  { text: subagent.state, fg: STATE_INK_OF[subagentReading(subagent)] },
+  { text: subagent.state, fg: STATE_INK_OF[crewRowReading(subagent)] },
 ]
 
 /**
@@ -107,6 +139,7 @@ function CrewRows(props: {
             value={valueFor(subagent)}
           />
           <FiguresLine subagent={subagent} cells={props.cells} />
+          <ActivityLine subagent={subagent} />
         </box>
       ))}
     </>

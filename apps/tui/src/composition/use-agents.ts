@@ -1,4 +1,4 @@
-import type { ProviderIdentity, ThreadId } from '@dltech/atlas-core'
+import { EShellStatus, type ProviderIdentity, type ThreadId } from '@dltech/atlas-core'
 import { TEAMMATE_AGENT_TYPE, type AgentSnapshot } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
@@ -19,6 +19,7 @@ import {
 } from '../store/subagent-row'
 import { modelLabel } from '../ui/model-label'
 import type { AtlasApp } from './compose'
+import type { ShellSnapshot } from '@dltech/atlas-harness'
 import { useTickingNow } from './use-ticking-now'
 
 export type AgentsControl = {
@@ -54,6 +55,7 @@ function useCrewVisits(viewing: ThreadId | null): CrewVisits {
 const crewMembersOf = (args: {
   snapshots: readonly AgentSnapshot[]
   visits: CrewVisits
+  shellBusy: ReadonlySet<ThreadId>
 }): readonly CrewMember[] =>
   args.snapshots.map((snapshot) => ({
     agentId: snapshot.agentId,
@@ -62,6 +64,7 @@ const crewMembersOf = (args: {
     endedAt: snapshot.endedAt ?? null,
     deliveredAt: snapshot.deliveredAt ?? null,
     lastViewedAt: lastVisitOf({ visits: args.visits, id: snapshot.agentId }),
+    holdingShells: args.shellBusy.has(snapshot.agentId),
   }))
 
 /**
@@ -102,11 +105,13 @@ export function useAgents({
   threadId,
   sidebar,
   viewing,
+  shells,
 }: {
   app: AtlasApp
   threadId: ThreadId
   sidebar: SidebarModel
   viewing: ThreadId | null
+  shells: readonly ShellSnapshot[]
 }): AgentsControl {
   const agents = app.agents
 
@@ -118,7 +123,17 @@ export function useAgents({
   const everywhere = useSyncExternalStore(subscribe, readEverywhere)
 
   const visits = useCrewVisits(viewing)
-  const members = useMemo(() => crewMembersOf({ snapshots: own, visits }), [own, visits])
+  const shellBusy = useMemo(
+    () =>
+      new Set(
+        shells.filter((shell) => shell.status === EShellStatus.Running).map((shell) => shell.threadId),
+      ),
+    [shells],
+  )
+  const members = useMemo(
+    () => crewMembersOf({ snapshots: own, visits, shellBusy }),
+    [own, shellBusy, visits],
+  )
 
   const now = useTickingNow(own.some(subagentShowsElapsed) || graceIsRunning({ members, viewing }))
 
@@ -126,7 +141,13 @@ export function useAgents({
     const nameModel = (model: ProviderIdentity): string =>
       app.models.cardFor({ providerId: model.id, modelId: model.modelId })?.label ??
       modelLabel(model.modelId)
-    const subagents = subagentRows({ snapshots: own, now, modelLabel: nameModel, viewing })
+    const subagents = subagentRows({
+      snapshots: own,
+      now,
+      modelLabel: nameModel,
+      viewing,
+      rosters: { shells, children: everywhere },
+    })
     const { standings } = partitionCrew({
       crew: members,
       viewing,
@@ -155,7 +176,7 @@ export function useAgents({
       running: subagents.filter(isSubagentRunning).length,
       count: subagents.length,
     }
-  }, [app.models, members, now, own, viewing])
+  }, [app.models, everywhere, members, now, own, shells, viewing])
 
   return useMemo(
     () => ({

@@ -217,6 +217,7 @@ describe('the container command', () => {
 
 const shellExposing = (args: { containerPort: number; hostPort: number }): ShellSnapshot => ({
   shellId: toShellId('bash_1'),
+  threadId: THREAD,
   command: 'bun run dev',
   description: 'dev server',
   status: EShellStatus.Running,
