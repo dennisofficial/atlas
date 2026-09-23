@@ -78,6 +78,32 @@ describe('claiming a sandbox', () => {
     })
   })
 
+  it('passes a workspace carrying a git identity through to the claim body verbatim', async () => {
+    const { client, calls } = harness([{ body: { token: 'tok_1' } }])
+    const workspace = {
+      remoteUrl: 'https://github.com/compai/atlas',
+      branch: 'main',
+      commit: 'abc123',
+      patch: '',
+      projectDirectory: '/code/atlas',
+      gitIdentity: { name: 'Dennis Lysenko', email: 'dennis@comp.ai' },
+    }
+
+    await client.claimSandbox({
+      threadId: 'brn_cloud',
+      gitToken: 'gho_abc',
+      contextPending: true,
+      workspace,
+    })
+
+    expect(calls[0]?.body).toEqual({
+      threadId: 'brn_cloud',
+      gitToken: 'gho_abc',
+      contextPending: true,
+      workspace,
+    })
+  })
+
   it('carries the bearer token and the client version', async () => {
     const { client, calls } = harness([{ body: { token: 'tok_1' } }])
 

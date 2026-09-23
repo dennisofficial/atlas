@@ -11,6 +11,14 @@ import {
 
 const whenGiven = () => ValidateIf((_object: unknown, value: unknown) => value !== null)
 
+export class GitIdentityDto {
+  @IsString()
+  name!: string
+
+  @IsString()
+  email!: string
+}
+
 export class WorkspaceSpecDto {
   @whenGiven()
   @IsString()
@@ -30,6 +38,11 @@ export class WorkspaceSpecDto {
   @IsOptional()
   @IsString()
   projectDirectory?: string | null
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => GitIdentityDto)
+  gitIdentity?: GitIdentityDto | null
 }
 
 export class ClaimSandboxDto {

@@ -10,6 +10,7 @@ export type WorkspaceSnapshot = {
   patch: string
   /** The Mac-side project directory, carried so a sandbox can key its own memory uploads by repo. */
   projectDirectory: string
+  gitIdentity: { name: string; email: string } | null
 }
 
 const DETACHED = 'HEAD'
@@ -49,6 +50,18 @@ const branchOf = async (read: GitReader, cwd: string): Promise<string | null> =>
 
 const commitOf = (read: GitReader, cwd: string): Promise<string | null> =>
   read({ args: ['rev-parse', 'HEAD'], cwd }).then(gitOneLine)
+
+const gitIdentityOf = async (
+  read: GitReader,
+  cwd: string,
+): Promise<{ name: string; email: string } | null> => {
+  const [name, email] = await Promise.all([
+    gitOneLine(await read({ args: ['config', 'user.name'], cwd })),
+    gitOneLine(await read({ args: ['config', 'user.email'], cwd })),
+  ])
+  if (name === null || email === null) return null
+  return { name, email }
+}
 
 const untrackedPatchOf = async (args: {
   read: GitReader
@@ -109,11 +122,12 @@ export async function captureWorkspace(args: {
   if (!(await insideRepository(read, args.cwd))) return null
 
   const commit = await commitOf(read, args.cwd)
-  const [remoteUrl, branch, patch] = await Promise.all([
+  const [remoteUrl, branch, patch, gitIdentity] = await Promise.all([
     remoteUrlOf(read, args.cwd),
     branchOf(read, args.cwd),
     uncommittedPatch({ cwd: args.cwd, since: commit, read }),
+    gitIdentityOf(read, args.cwd),
   ])
 
-  return { remoteUrl, branch, commit, patch, projectDirectory: args.cwd }
+  return { remoteUrl, branch, commit, patch, projectDirectory: args.cwd, gitIdentity }
 }

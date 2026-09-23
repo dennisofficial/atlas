@@ -50,6 +50,8 @@ export function rotationOf(args: {
     rotation.workspaceCommit = columns.workspaceCommit
     rotation.workspacePatch = columns.workspacePatch
     rotation.workspaceProjectDirectory = columns.workspaceProjectDirectory
+    rotation.workspaceGitName = columns.workspaceGitName
+    rotation.workspaceGitEmail = columns.workspaceGitEmail
   }
   if (args.contextBundle !== undefined) rotation.workspaceContext = args.contextBundle
   if (args.drive !== undefined) {
