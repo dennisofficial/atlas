@@ -2,6 +2,33 @@ import { EShellStatus, type ProviderIdentity, type ThreadId } from '@dltech/atla
 import { TEAMMATE_AGENT_TYPE, type AgentSnapshot } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
+export const sameShellSurfaces = (
+  left: readonly ShellSnapshot[],
+  right: readonly ShellSnapshot[],
+): boolean => {
+  if (left.length !== right.length) return false
+
+  return left.every((shell, index) => {
+    const other = right[index]
+    return (
+      other !== undefined &&
+      shell.shellId === other.shellId &&
+      shell.threadId === other.threadId &&
+      shell.status === other.status
+    )
+  })
+}
+
+export function useShellSurfaces(shells: readonly ShellSnapshot[]): readonly ShellSnapshot[] {
+  const [held, setHeld] = useState(shells)
+
+  useEffect(() => {
+    setHeld((current) => (sameShellSurfaces(current, shells) ? current : shells))
+  }, [shells])
+
+  return held
+}
+
 import { DEFAULT_CREW_CAP, foldCrew } from '../store/crew-fold'
 import {
   DEFAULT_CREW_GRACE_MS,
@@ -123,12 +150,15 @@ export function useAgents({
   const everywhere = useSyncExternalStore(subscribe, readEverywhere)
 
   const visits = useCrewVisits(viewing)
+  const surfaces = useShellSurfaces(shells)
   const shellBusy = useMemo(
     () =>
       new Set(
-        shells.filter((shell) => shell.status === EShellStatus.Running).map((shell) => shell.threadId),
+        surfaces
+          .filter((shell) => shell.status === EShellStatus.Running)
+          .map((shell) => shell.threadId),
       ),
-    [shells],
+    [surfaces],
   )
   const members = useMemo(
     () => crewMembersOf({ snapshots: own, visits, shellBusy }),
@@ -146,7 +176,7 @@ export function useAgents({
       now,
       modelLabel: nameModel,
       viewing,
-      rosters: { shells, children: everywhere },
+      rosters: { shells: surfaces, children: everywhere },
     })
     const { standings } = partitionCrew({
       crew: members,
@@ -176,7 +206,7 @@ export function useAgents({
       running: subagents.filter(isSubagentRunning).length,
       count: subagents.length,
     }
-  }, [app.models, everywhere, members, now, own, shells, viewing])
+  }, [app.models, everywhere, members, now, own, surfaces, viewing])
 
   return useMemo(
     () => ({
