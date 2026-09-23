@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef } from 'react'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { openCloudThread } from './cloud/cloud-open'
-import type { CloudBridge } from './cloud/cloud-bridge'
+import type { CloudBridge, CloudSandboxes } from './cloud/cloud-bridge'
 import type { CloudSession } from './cloud/cloud-session'
 import type { AtlasApp } from './compose'
 import { EOpenMode } from './config'
@@ -16,6 +16,7 @@ import type { ContainerMoveControl } from './use-container-move'
 export type ThreadRouter = {
   handleOpen: (threadId: string) => void
   listing: () => Pick<ThreadStorePort, 'list'>
+  findSandbox: () => Pick<CloudSandboxes, 'find'> | null
 }
 
 /**
@@ -147,7 +148,12 @@ export function useThreadRouter(args: {
     void route(args.opened.threadId)
   }, [cloudSession, args.opened, route])
 
+  const findSandbox = useCallback(
+    (): Pick<CloudSandboxes, 'find'> | null => ensureBridge()?.sandboxes ?? null,
+    [ensureBridge],
+  )
+
   const handleOpen = useCallback((threadId: string) => void route(threadId), [route])
 
-  return { handleOpen, listing }
+  return { handleOpen, listing, findSandbox }
 }

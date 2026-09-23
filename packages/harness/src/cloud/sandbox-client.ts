@@ -38,6 +38,7 @@ export const workspaceSpecSchema = z.object({
   commit: z.string().nullable(),
   patch: z.string(),
   projectDirectory: z.string().nullish(),
+  gitIdentity: z.object({ name: z.string(), email: z.string() }).nullable().nullish(),
 })
 
 export type WorkspaceSpec = z.infer<typeof workspaceSpecSchema>

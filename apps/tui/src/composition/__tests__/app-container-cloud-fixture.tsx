@@ -45,7 +45,7 @@ export const mount = async (args: {
       captureContext={STUB_CONTEXT}
       {...(args.clipboard === undefined ? {} : { clipboard: args.clipboard })}
     />,
-    { width: 140, height: 40 },
+    { width: 140, height: 40, exitOnCtrlC: false },
   )
 
   const frame = async (): Promise<string> => {
@@ -82,6 +82,7 @@ export const mount = async (args: {
     pressEnter: () => setup.mockInput.pressEnter(),
     pressEscape: () => setup.mockInput.pressEscape(),
     pressCtrl: (key: string) => setup.mockInput.pressKey(key, { ctrl: true }),
+    pressCtrlC: () => setup.mockInput.pressKey('c', { ctrl: true }),
     draftText: () => editorIn(setup.renderer.root)?.plainText ?? null,
     done: () => teardown(setup),
   }

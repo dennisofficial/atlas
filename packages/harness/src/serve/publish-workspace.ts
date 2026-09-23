@@ -13,9 +13,16 @@ import {
   type GitRunner,
   type WorkspaceReadiness,
 } from './materialize-workspace'
+import { uncarriedWork } from './uncarried-work'
 import type { FetchWorkspaceSpec, WorkspaceSpec } from './workspace-spec'
 
-export type PublishedWorkspace = { ref: string; commit: string; base: string | null }
+export type PublishedWorkspace = {
+  ref: string
+  commit: string
+  base: string | null
+  baseTree: string | null
+  branch: string | null
+}
 
 export type PublishWorkspace = (args: { cwd: string }) => Promise<PublishedWorkspace | null>
 
@@ -43,101 +50,48 @@ const untouchedSinceLift = (args: {
   return args.head === null
 }
 
-const isAncestorOfHead = async (args: {
-  git: GitRunner
-  cwd: string
-  tip: string
-}): Promise<boolean> => {
-  const run = await args.git({
-    args: ['merge-base', '--is-ancestor', args.tip, 'HEAD'],
-    cwd: args.cwd,
-  })
-  return run.ok
+type LiftRecord = {
+  baseline: string | null
+  baselineTree: string | null
+  branch: string | null
 }
 
-const heldByRemote = async (args: {
-  git: GitRunner
-  cwd: string
-  tip: string
-}): Promise<boolean> => {
-  const run = await args.git({ args: ['branch', '-r', '--contains', args.tip], cwd: args.cwd })
-  return run.ok && run.stdout.trim().length > 0
-}
+const stringOrNull = (value: unknown): string | null =>
+  typeof value === 'string' && value.length > 0 ? value : null
 
-const uncarriedBranches = async (args: {
-  git: GitRunner
-  cwd: string
-}): Promise<string[]> => {
-  const refs = await args.git({
-    args: ['for-each-ref', '--format=%(refname:short) %(objectname)', 'refs/heads/'],
-    cwd: args.cwd,
-  })
-  if (!refs.ok) return []
-
-  const uncarried: string[] = []
-  for (const line of refs.stdout.split('\n')) {
-    const [name, tip] = line.trim().split(' ')
-    if (name === undefined || tip === undefined || name.length === 0) continue
-    if (await isAncestorOfHead({ git: args.git, cwd: args.cwd, tip })) continue
-    if (await heldByRemote({ git: args.git, cwd: args.cwd, tip })) continue
-
-    const count = await args.git({ args: ['rev-list', '--count', `HEAD..${tip}`], cwd: args.cwd })
-    const commits = count.ok ? count.stdout.trim() : 'some'
-    uncarried.push(`branch "${name}" holds ${commits} commit(s) the descend cannot carry`)
-  }
-  return uncarried
-}
-
-const uncarriedWorktrees = async (args: {
-  git: GitRunner
-  cwd: string
-}): Promise<string[]> => {
-  const list = await args.git({ args: ['worktree', 'list', '--porcelain'], cwd: args.cwd })
-  if (!list.ok) return []
-
-  const uncarried: string[] = []
-  const blocks = list.stdout.split(/\n\n+/).filter((block) => block.trim().length > 0)
-  for (const block of blocks.slice(1)) {
-    const lines = block.split('\n')
-    const pathLine = lines[0]
-    if (pathLine === undefined || !pathLine.startsWith('worktree ')) continue
-    const path = pathLine.slice('worktree '.length)
-
-    const status = await args.git({ args: ['status', '--porcelain'], cwd: path })
-    if (status.ok && status.stdout.trim().length > 0) {
-      uncarried.push(`worktree ${path} holds uncommitted changes`)
-      continue
-    }
-    if (!lines.includes('detached')) continue
-
-    const headLine = lines.find((line) => line.startsWith('HEAD '))
-    const tip = headLine?.slice('HEAD '.length).trim()
-    if (tip === undefined || tip.length === 0) continue
-    if (await isAncestorOfHead({ git: args.git, cwd: args.cwd, tip })) continue
-    if (await heldByRemote({ git: args.git, cwd: args.cwd, tip })) continue
-    uncarried.push(`worktree ${path} sits on a detached commit no branch holds`)
-  }
-  return uncarried
-}
-
-const baselineOf = async (args: {
-  cwd: string
-  spec: WorkspaceSpec
-}): Promise<string | null> => {
+const sentinelOf = async (cwd: string): Promise<Partial<LiftRecord>> => {
   try {
-    const sentinel: unknown = JSON.parse(await readFile(join(args.cwd, WORKSPACE_SENTINEL), 'utf8'))
-    if (
-      typeof sentinel === 'object' &&
-      sentinel !== null &&
-      'baseline' in sentinel &&
-      typeof sentinel.baseline === 'string'
-    ) {
-      return sentinel.baseline
+    const sentinel: unknown = JSON.parse(await readFile(join(cwd, WORKSPACE_SENTINEL), 'utf8'))
+    if (typeof sentinel !== 'object' || sentinel === null) return {}
+    const record = sentinel as Record<string, unknown>
+    return {
+      baseline: stringOrNull(record.baseline),
+      baselineTree: stringOrNull(record.baselineTree),
+      branch: stringOrNull(record.branch),
     }
   } catch {
-    // no sentinel — a workspace materialized before baselines existed; the lifted commit stands in
+    return {}
   }
-  return args.spec.commit
+}
+
+const treeOfCommit = async (args: {
+  git: GitRunner
+  cwd: string
+  commit: string
+}): Promise<string | null> =>
+  gitOneLine(await args.git({ args: ['rev-parse', '--verify', `${args.commit}^{tree}`], cwd: args.cwd }))
+
+const liftRecordOf = async (args: {
+  git: GitRunner
+  cwd: string
+  spec: WorkspaceSpec
+}): Promise<LiftRecord> => {
+  const sentinel = await sentinelOf(args.cwd)
+  const baseline = sentinel.baseline ?? args.spec.commit
+  const baselineTree =
+    sentinel.baselineTree ??
+    (baseline === null ? null : await treeOfCommit({ git: args.git, cwd: args.cwd, commit: baseline }))
+  return { baseline, baselineTree, branch: sentinel.branch ?? args.spec.branch }
 }
 
 /**
@@ -149,6 +103,10 @@ const baselineOf = async (args: {
  * Only HEAD rides. A side branch or nested worktree reads as an untouched checkout from here, so
  * their existence refuses the publish outright — the alternative is the descend reporting success
  * while that work dies with the sandbox.
+ *
+ * The pushed commit carries the recorded baseline tree as a second parent: the host merges by
+ * content against that tree, and a second parent is the one way to guarantee the tree object
+ * travels with the fetch — the descend ref's own ancestry never contains it.
  */
 export function createWorkspacePublisher(args: {
   threadId: ThreadId
@@ -166,15 +124,13 @@ export function createWorkspacePublisher(args: {
 
     demand({ run: await git({ args: ['add', '-A'], cwd }), scrub })
 
-    const baseline = await baselineOf({ cwd, spec })
+    const record = await liftRecordOf({ git, cwd, spec })
+    const baseline = record.baseline
     const dirty = await hasUncommittedWork({ git, cwd })
     const before = await headOf({ git, cwd })
 
     if (before !== null) {
-      const uncarried = [
-        ...(await uncarriedBranches({ git, cwd })),
-        ...(await uncarriedWorktrees({ git, cwd })),
-      ]
+      const uncarried = await uncarriedWork({ git, cwd })
       if (uncarried.length > 0) {
         throw new Error(
           `the sandbox holds work a descend cannot carry: ${uncarried.join('; ')}. Nothing was sent home — push it from the sandbox or fold it into the checked-out branch, then descend again.`,
@@ -194,8 +150,45 @@ export function createWorkspacePublisher(args: {
       })
     }
 
-    const commit = await headOf({ git, cwd })
-    if (commit === null) throw new Error('the workspace has no commit to send home')
+    const head = await headOf({ git, cwd })
+    if (head === null) throw new Error('the workspace has no commit to send home')
+
+    const tree = gitOneLine(await git({ args: ['rev-parse', '--verify', 'HEAD^{tree}'], cwd }))
+    if (tree === null) throw new Error('the workspace has no tree to send home')
+
+    let baseCommit: string | null = null
+    if (record.baselineTree !== null) {
+      baseCommit = gitOneLine(
+        await git({
+          args: [
+            ...ATLAS_GIT_IDENTITY,
+            'commit-tree',
+            record.baselineTree,
+            '-m',
+            'atlas: lift baseline',
+          ],
+          cwd,
+        }),
+      )
+    } else if (record.baseline !== null) {
+      baseCommit = record.baseline
+    }
+
+    const parents = [head, ...(baseCommit === null ? [] : [baseCommit])]
+    const commit = gitOneLine(
+      await git({
+        args: [
+          ...ATLAS_GIT_IDENTITY,
+          'commit-tree',
+          tree,
+          ...parents.flatMap((parent) => ['-p', parent]),
+          '-m',
+          'atlas: workspace coming home',
+        ],
+        cwd,
+      }),
+    )
+    if (commit === null) throw new Error('the workspace tree would not commit for the push home')
 
     const ref = `refs/atlas/descend/${args.threadId}-${commit.slice(0, 12)}`
     const pushed = await git({
@@ -203,7 +196,7 @@ export function createWorkspacePublisher(args: {
         'push',
         '--',
         credentialedRemoteOf({ remoteUrl: spec.remoteUrl, token: spec.githubToken }),
-        `HEAD:${ref}`,
+        `${commit}:${ref}`,
       ],
       cwd,
     })
@@ -211,7 +204,7 @@ export function createWorkspacePublisher(args: {
       throw new Error(`the workspace would not push home: ${scrub(gitMessageOf(pushed))}`)
     }
 
-    return { ref, commit, base: baseline }
+    return { ref, commit, base: baseline, baseTree: record.baselineTree, branch: record.branch }
   }
 }
 

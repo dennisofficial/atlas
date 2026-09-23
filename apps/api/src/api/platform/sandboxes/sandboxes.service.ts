@@ -269,6 +269,8 @@ export class SandboxesService {
         workspaceContext: true,
         workspaceSkills: true,
         workspaceProjectDirectory: true,
+        workspaceGitName: true,
+        workspaceGitEmail: true,
       },
     })
     if (row === null) throw new NotFoundException('sandbox not found')

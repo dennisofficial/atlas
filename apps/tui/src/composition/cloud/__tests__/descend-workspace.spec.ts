@@ -24,11 +24,19 @@ describe('bringing the cloud workspace home', () => {
           ref: 'refs/atlas/descend/cloud-thread-0123456789ab',
           commit: '0123456789abcdef',
           base: 'ba51e1e0',
+          baseTree: '7ee1ab1e',
+          branch: 'dennis/feature',
         }
       }
       return null
     }
-    const merged: { cwd: string; ref: string; base: string | null }[] = []
+    const merged: {
+      cwd: string
+      ref: string
+      base: string | null
+      baseTree: string | null
+      branch: string | null
+    }[] = []
 
     await descend({
       bridge,
@@ -42,7 +50,13 @@ describe('bringing the cloud workspace home', () => {
 
     expect(publishCalls).toBe(1)
     expect(merged).toEqual([
-      { cwd: '/work', ref: 'refs/atlas/descend/cloud-thread-0123456789ab', base: 'ba51e1e0' },
+      {
+        cwd: '/work',
+        ref: 'refs/atlas/descend/cloud-thread-0123456789ab',
+        base: 'ba51e1e0',
+        baseTree: '7ee1ab1e',
+        branch: 'dennis/feature',
+      },
     ])
     const events = await home.log.read({ threadId: CLOUD_THREAD })
     expect(events.at(-1)?.type).toBe('location-changed')
@@ -104,6 +118,38 @@ describe('bringing the cloud workspace home', () => {
     expect(
       (await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation,
     ).toBe(EExecutionLocation.Host)
+  })
+
+  it('tells the log when the host branch was superseded by origin while away', async () => {
+    const bridge = fakeBridge()
+    await seedCloud(bridge, ['shipped from the cloud'])
+    const home = localHome({ events: [said({ seq: 1, text: 'shipped from the cloud' })] })
+
+    bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' })
+    const channel = bridge.channel
+    channel.request = async () => ({
+      ref: 'refs/atlas/descend/cloud-thread-0123456789ab',
+      commit: '0123456789abcdef',
+      base: 'ba51e1e0',
+      baseTree: '7ee1ab1e',
+      branch: 'dennis/feature',
+    })
+
+    await descend({
+      bridge,
+      home,
+      channel,
+      mergeWorkspace: async () => ({
+        conflicts: [],
+        superseded: { branch: 'dennis/feature', localTip: 'ba51e1e0123456', originTip: 'ff0011223344' },
+      }),
+    })
+
+    const events = await home.log.read({ threadId: CLOUD_THREAD })
+    const notice = events.find((event) => event.type === 'context-loaded')
+    expect(notice).toBeDefined()
+    expect(JSON.stringify(notice)).toContain('superseded by origin/dennis/feature')
+    expect(JSON.stringify(notice)).toContain('git reset --hard origin/dennis/feature')
   })
 
   it('leaves the conversation in the cloud when the workspace would not publish', async () => {

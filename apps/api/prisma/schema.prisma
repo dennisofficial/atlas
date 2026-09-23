@@ -127,6 +127,8 @@ model CloudSandbox {
   workspaceContextArchive Bytes?
   contextPending Boolean @default(true)
   workspaceProjectDirectory String?
+  workspaceGitName String?
+  workspaceGitEmail String?
   driveName      String?
   driveMode      String?
   pinnedModel    String?

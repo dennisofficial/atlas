@@ -1,4 +1,4 @@
-import { BadRequestException, ServiceUnavailableException } from '@nestjs/common'
+import { BadRequestException, ConflictException, ServiceUnavailableException } from '@nestjs/common'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PrismaClient } from '../../../generated/prisma/client'
 
@@ -158,6 +158,31 @@ describe('LinearInstallService', () => {
 
     expect(fake.connections).toHaveLength(1)
     expect(openSealed().accessToken).toBe('rotated-token')
+  })
+
+  it('refuses to connect a workspace another organization already owns', async () => {
+    const install = service()
+    const first = new URL(install.beginInstall({ organizationId: 'org_compai', apiOrigin: API_ORIGIN }))
+    fetchMock.mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(organizationResponse())
+    await install.completeInstall({
+      code: 'code-1',
+      state: first.searchParams.get('state') as string,
+      apiOrigin: API_ORIGIN,
+    })
+
+    const second = new URL(install.beginInstall({ organizationId: 'org_other', apiOrigin: API_ORIGIN }))
+    fetchMock.mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(organizationResponse())
+    const failure = await install
+      .completeInstall({
+        code: 'code-2',
+        state: second.searchParams.get('state') as string,
+        apiOrigin: API_ORIGIN,
+      })
+      .catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(ConflictException)
+    expect(fake.connections).toHaveLength(1)
+    expect(fake.connections[0]?.organizationId).toBe('org_compai')
   })
 
   it('completeInstall consumes the state so a replay is rejected', async () => {

@@ -7,7 +7,7 @@ vi.mock('../../db', async () => {
   return { db: fakeFactoryDb().db as unknown as PrismaClient }
 })
 
-import { fakeFactoryDb } from '../../../test/fake-factory-db.js'
+import { fakeFactoryDb, type FakeWorkItemRow } from '../../../test/fake-factory-db.js'
 import { DEFAULT_ORGANIZATION_ID, EFactoryWorkItemStatus } from './factory.types'
 import { WorkItemsService } from './work-items.service'
 
@@ -18,6 +18,24 @@ const INTAKE = {
   surface: 'github',
   externalId: 'compai/atlas#341',
   aliasKind: 'issue',
+}
+
+function seedWorkItem(overrides: Partial<FakeWorkItemRow> = {}): void {
+  fakeFactoryDb().workItems.push({
+    id: 'fwi_1',
+    organizationId: DEFAULT_ORGANIZATION_ID,
+    repo: 'compai/atlas',
+    sourceKind: 'github',
+    status: 'intake',
+    orchestratorThreadId: null,
+    orchestratorDeliveredEventId: null,
+    driveName: null,
+    revisionCycles: 0,
+    lastActivityAt: '2026-09-22T00:00:00.000Z',
+    createdAt: '2026-09-22T00:00:00.000Z',
+    updatedAt: '2026-09-22T00:00:00.000Z',
+    ...overrides,
+  })
 }
 
 describe('WorkItemsService', () => {
@@ -230,6 +248,66 @@ describe('WorkItemsService', () => {
       status: EFactoryWorkItemStatus.Active,
     })
     expect(Date.parse(moved.lastActivityAt)).toBeGreaterThanOrEqual(Date.parse(workItem.lastActivityAt))
+  })
+
+  it('listForOrganization returns only the caller organization work items', async () => {
+    seedWorkItem()
+    seedWorkItem({ id: 'fwi_2' })
+    seedWorkItem({ id: 'fwi_3', organizationId: 'org_other' })
+
+    const listed = await service.listForOrganization({ organizationId: DEFAULT_ORGANIZATION_ID })
+
+    expect(listed.map((one) => one.id)).toEqual(['fwi_1', 'fwi_2'])
+  })
+
+  it('listForOrganization orders by lastActivityAt descending', async () => {
+    seedWorkItem({ id: 'fwi_stale', lastActivityAt: '2026-09-20T00:00:00.000Z' })
+    seedWorkItem({ id: 'fwi_fresh', lastActivityAt: '2026-09-22T03:00:00.000Z' })
+    seedWorkItem({ id: 'fwi_mid', lastActivityAt: '2026-09-21T00:00:00.000Z' })
+
+    const listed = await service.listForOrganization({ organizationId: DEFAULT_ORGANIZATION_ID })
+
+    expect(listed.map((one) => one.id)).toEqual(['fwi_fresh', 'fwi_mid', 'fwi_stale'])
+  })
+
+  it('listForOrganization defaults to 50 work items', async () => {
+    for (let index = 0; index < 55; index += 1) {
+      seedWorkItem({
+        id: `fwi_${index}`,
+        lastActivityAt: `2026-09-22T00:00:${String(index).padStart(2, '0')}.000Z`,
+      })
+    }
+
+    const listed = await service.listForOrganization({ organizationId: DEFAULT_ORGANIZATION_ID })
+
+    expect(listed).toHaveLength(50)
+    expect(listed[0]?.id).toBe('fwi_54')
+  })
+
+  it('listForOrganization clamps the limit to 200', async () => {
+    for (let index = 0; index < 205; index += 1) {
+      seedWorkItem({ id: `fwi_${index}` })
+    }
+
+    const listed = await service.listForOrganization({
+      organizationId: DEFAULT_ORGANIZATION_ID,
+      limit: 1000,
+    })
+
+    expect(listed).toHaveLength(200)
+  })
+
+  it('listForOrganization clamps a negative limit up to 1', async () => {
+    for (let index = 0; index < 3; index += 1) {
+      seedWorkItem({ id: `fwi_${index}` })
+    }
+
+    const listed = await service.listForOrganization({
+      organizationId: DEFAULT_ORGANIZATION_ID,
+      limit: -5,
+    })
+
+    expect(listed).toHaveLength(1)
   })
 
   it('a second claimOrchestrator loses the race and adopts the winner', async () => {

@@ -16,6 +16,7 @@ export enum EServeEvent {
   IdleCheckFailed = 'serve.idle-check-failed',
   WorkspaceReady = 'serve.workspace-ready',
   WorkspaceFailed = 'serve.workspace-failed',
+  ProfileStepFailed = 'serve.profile-step-failed',
   ContextReady = 'serve.context-ready',
   ContextFailed = 'serve.context-failed',
   ChildrenAdopted = 'serve.children-adopted',

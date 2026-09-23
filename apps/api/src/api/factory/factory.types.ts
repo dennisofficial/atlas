@@ -4,6 +4,8 @@ export enum EFactoryConnectionProvider {
   GitHub = 'github',
   Linear = 'linear',
   Slack = 'slack',
+  Model = 'model',
+  Vercel = 'vercel',
 }
 
 export enum EFactorySurface {

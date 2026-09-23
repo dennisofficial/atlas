@@ -1,8 +1,9 @@
 import { join } from 'node:path'
 
-import { ATLAS_GIT_IDENTITY, gitMessageOf, gitOneLine } from '../workspace/git-text'
+import { gitMessageOf, gitOneLine } from '../workspace/git-text'
 import { runGit, type GitRun } from '../workspace/run-git'
 
+import type { ApplyEnvironmentProfile, EnvironmentProfile } from './environment-profile'
 import { nodeWorkspaceFiles, type WorkspaceFiles } from './workspace-files'
 import type { FetchWorkspaceSpec, WorkspaceSpec } from './workspace-spec'
 
@@ -28,7 +29,10 @@ export enum EWorkspaceStep {
 }
 
 export type WorkspaceReadiness =
-  | { state: EWorkspaceState.Present | EWorkspaceState.Materialized | EWorkspaceState.Skipped }
+  | {
+      state: EWorkspaceState.Present | EWorkspaceState.Materialized | EWorkspaceState.Skipped
+      profile?: EnvironmentProfile | undefined
+    }
   | { state: EWorkspaceState.Failed; step: EWorkspaceStep; reason: string }
 
 export type GitRunner = (args: { args: readonly string[]; cwd: string }) => Promise<GitRun>
@@ -64,28 +68,66 @@ export function credentialedRemoteOf(args: { remoteUrl: string; token: string | 
 }
 
 const checkoutArgsFor = (spec: WorkspaceSpec): readonly string[] | null => {
-  if (spec.commit !== null) return ['checkout', '--detach', spec.commit]
+  if (spec.branch !== null && spec.commit !== null) {
+    return ['checkout', '-B', spec.branch, spec.commit]
+  }
   if (spec.branch !== null) return ['checkout', spec.branch]
+  if (spec.commit !== null) return ['checkout', '--detach', spec.commit]
   return null
 }
 
+const patchedTreeOf = async (args: {
+  git: GitRunner
+  cwd: string
+  scrub: (text: string) => string
+}): Promise<{ tree: string | null } | { failure: WorkspaceReadiness }> => {
+  const staged = await args.git({ args: ['add', '-A'], cwd: args.cwd })
+  if (!staged.ok) return { failure: failed(EWorkspaceStep.Baseline, args.scrub(reasonOf(staged))) }
+  const written = await args.git({ args: ['write-tree'], cwd: args.cwd })
+  if (!written.ok) return { failure: failed(EWorkspaceStep.Baseline, args.scrub(reasonOf(written))) }
+  const unstaged = await args.git({ args: ['reset'], cwd: args.cwd })
+  if (!unstaged.ok) return { failure: failed(EWorkspaceStep.Baseline, args.scrub(reasonOf(unstaged))) }
+  const tree = gitOneLine(written)
+  if (tree === null) return { failure: failed(EWorkspaceStep.Baseline, 'the lifted tree has no id') }
+  return { tree }
+}
+
 /**
- * The commit is the truth and the branch only its name, so a detached head is the honest result: a
- * lifted session reproduces the tree the operator was looking at, uncommitted work included. That
- * uncommitted work is then committed as a scratch baseline — never pushed to any of the
- * operator's refs — so the descend can merge the sandbox's delta against it instead of tripping
- * over the same patch living uncommitted on both sides.
+ * A lifted session arrives on the branch the operator had checked out, at the commit they were
+ * looking at, with their uncommitted work applied as uncommitted changes — git status reads
+ * exactly like the machine they left. The sentinel records the branch tip as the baseline and the
+ * tree WITH the lifted work applied as the baseline tree: the descend merges by content against
+ * that tree, so no scratch commit ever sits in history inviting a rewrite, and a cloud edit
+ * touching a lifted line merges against the same base the host will.
  */
 export function createEnsureWorkspace(args: {
   git?: GitRunner | undefined
   files?: WorkspaceFiles | undefined
+  profile?: ApplyEnvironmentProfile | undefined
 }): EnsureWorkspace {
   const git = args.git ?? runGit
   const files = args.files ?? nodeWorkspaceFiles
 
   return async ({ cwd, fetchSpec }) => {
+    const applyProfile = async (spec: WorkspaceSpec): Promise<EnvironmentProfile | undefined> => {
+      if (args.profile === undefined) return undefined
+      try {
+        return await args.profile({ cwd, spec })
+      } catch {
+        return undefined
+      }
+    }
+
     const sentinel = join(cwd, WORKSPACE_SENTINEL)
-    if (await files.exists(sentinel)) return { state: EWorkspaceState.Present }
+    if (await files.exists(sentinel)) {
+      if (args.profile === undefined) return { state: EWorkspaceState.Present }
+      try {
+        const spec = await fetchSpec()
+        return { state: EWorkspaceState.Present, profile: await args.profile({ cwd, spec }) }
+      } catch {
+        return { state: EWorkspaceState.Present }
+      }
+    }
 
     let spec: WorkspaceSpec
     try {
@@ -95,7 +137,9 @@ export function createEnsureWorkspace(args: {
     }
 
     const { remoteUrl, githubToken } = spec
-    if (remoteUrl === null) return { state: EWorkspaceState.Skipped }
+    if (remoteUrl === null) {
+      return { state: EWorkspaceState.Skipped, profile: await applyProfile(spec) }
+    }
 
     const scrub = (text: string): string =>
       githubToken === null ? text : text.split(githubToken).join('***')
@@ -124,7 +168,9 @@ export function createEnsureWorkspace(args: {
       if (!moved.ok) return failed(EWorkspaceStep.Checkout, scrub(reasonOf(moved)))
     }
 
-    let baseline = spec.commit
+    const baseline = gitOneLine(await git({ args: ['rev-parse', '--verify', 'HEAD'], cwd }))
+
+    let baselineTree = gitOneLine(await git({ args: ['rev-parse', '--verify', 'HEAD^{tree}'], cwd }))
     if (spec.patch.length > 0) {
       const patchPath = join(cwd, PATCH_FILE)
       try {
@@ -135,29 +181,27 @@ export function createEnsureWorkspace(args: {
       const applied = await git({ args: ['apply', '--whitespace=nowarn', patchPath], cwd })
       if (!applied.ok) return failed(EWorkspaceStep.Apply, scrub(reasonOf(applied)))
 
-      const staged = await git({ args: ['add', '-A'], cwd })
-      if (!staged.ok) return failed(EWorkspaceStep.Baseline, scrub(reasonOf(staged)))
-      const committed = await git({
-        args: [...ATLAS_GIT_IDENTITY, 'commit', '-m', 'atlas: lifted workspace baseline'],
-        cwd,
-      })
-      if (!committed.ok) return failed(EWorkspaceStep.Baseline, scrub(reasonOf(committed)))
-      baseline = gitOneLine(await git({ args: ['rev-parse', '--verify', 'HEAD'], cwd }))
-      if (baseline === null) {
-        return failed(EWorkspaceStep.Baseline, 'the baseline commit has no id')
-      }
+      const patched = await patchedTreeOf({ git, cwd, scrub })
+      if ('failure' in patched) return patched.failure
+      baselineTree = patched.tree
     }
 
     try {
       await files.write({
         path: sentinel,
-        text: JSON.stringify({ at: new Date().toISOString(), commit: spec.commit, baseline }),
+        text: JSON.stringify({
+          at: new Date().toISOString(),
+          commit: spec.commit,
+          baseline,
+          baselineTree,
+          branch: spec.branch,
+        }),
       })
     } catch (error) {
       return failed(EWorkspaceStep.Sentinel, messageOf(error))
     }
 
-    return { state: EWorkspaceState.Materialized }
+    return { state: EWorkspaceState.Materialized, profile: await applyProfile(spec) }
   }
 }
 

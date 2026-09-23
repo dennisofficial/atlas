@@ -25,7 +25,7 @@ export async function wakeSandbox(args: {
   threadId: ThreadId
   move?: ContainerMoveControl | undefined
   captureContext?: CaptureContext | undefined
-}): Promise<{ url: string; token: string }> {
+}): Promise<{ url: string; token: string; created: boolean }> {
   args.move?.handleBegin({ target: EExecutionLocation.Cloud, plan: WAKE_PLAN, heading: WAKE_HEADING })
   args.move?.handleAdvance(ELiftStep.Starting)
 
@@ -48,7 +48,7 @@ export async function wakeSandbox(args: {
   }
 
   args.move?.handleAdvance(ELiftStep.Attaching)
-  return { url: woken.url, token: woken.token }
+  return { url: woken.url, token: woken.token, created: woken.created }
 }
 
 export function createCloudRunner(args: {

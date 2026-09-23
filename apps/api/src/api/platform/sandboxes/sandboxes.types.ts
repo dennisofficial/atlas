@@ -38,6 +38,8 @@ export interface SandboxWorkspaceSpec {
   patch: string
   /** The Mac-side project directory of the lifted thread, absent for clients that predate it. */
   projectDirectory?: string | null
+  /** The operator's git identity, absent for clients that predate it. */
+  gitIdentity?: { name: string; email: string } | null
 }
 
 export interface SandboxWorkspaceDto extends SandboxWorkspaceSpec {

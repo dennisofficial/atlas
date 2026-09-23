@@ -4,8 +4,10 @@ import { SignUpForm } from './sign-up-form'
 
 export default function SignUpPage() {
   return (
-    <Suspense>
-      <SignUpForm />
-    </Suspense>
+    <div className="mx-auto w-full max-w-sm">
+      <Suspense>
+        <SignUpForm />
+      </Suspense>
+    </div>
   )
 }

@@ -1,4 +1,5 @@
-import type { LinkedPullRequest } from '@dltech/atlas-core'
+import type { EExecutionLocation, LinkedPullRequest } from '@dltech/atlas-core'
+import type { ECloudSandboxState } from '@dltech/atlas-harness'
 
 export const THREAD_ROWS = 8
 
@@ -11,6 +12,7 @@ export type ThreadListing = {
   agent?: { spawnedBy: string; type: string } | undefined
   worktree?: { path: string; branch: string } | undefined
   pullRequests?: readonly LinkedPullRequest[] | undefined
+  executionLocation?: EExecutionLocation | undefined
 }
 
 export type ThreadChip = { label: string; ground: string; ink: string }
@@ -24,6 +26,8 @@ export type ThreadRow = {
   worktree?: { path: string; branch: string } | undefined
   pullRequests?: readonly LinkedPullRequest[] | undefined
   chips?: readonly ThreadChip[] | undefined
+  location?: EExecutionLocation | undefined
+  sandbox?: ECloudSandboxState | undefined
 }
 
 export type ThreadsState = {
@@ -76,6 +80,7 @@ export function threadRows(args: {
       active: thread.id === args.activeThreadId,
       ...(thread.worktree === undefined ? {} : { worktree: thread.worktree }),
       ...(thread.pullRequests === undefined ? {} : { pullRequests: thread.pullRequests }),
+      ...(thread.executionLocation === undefined ? {} : { location: thread.executionLocation }),
     }))
 }
 
@@ -121,6 +126,26 @@ export function withChips(args: {
     rows: args.state.rows.map((row) => {
       const chips = args.chips.get(row.threadId)
       return chips === undefined || chips.length === 0 ? row : { ...row, chips }
+    }),
+  }
+}
+
+/**
+ * Sandbox liveness lands the way badges do: one batch read after the listing, keyed by thread, so
+ * the picker never pays a network call per row per render. A thread the read says nothing about
+ * keeps its identity, and the selection is untouched because the row count cannot change here.
+ */
+export function withSandboxStates(args: {
+  state: ThreadsState
+  states: ReadonlyMap<string, ECloudSandboxState>
+}): ThreadsState {
+  if (args.states.size === 0) return args.state
+
+  return {
+    ...args.state,
+    rows: args.state.rows.map((row) => {
+      const sandbox = args.states.get(row.threadId)
+      return sandbox === undefined ? row : { ...row, sandbox }
     }),
   }
 }
