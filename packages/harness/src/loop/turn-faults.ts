@@ -12,6 +12,9 @@ export const swallowedReport = (call: { callId: CallId; name: string }): string 
 export const faultReport = (faults: readonly ExchangeFault[]): string =>
   `the assembled prompt is one Atlas must not send — ${faults.map(faultLine).join('; ')}`
 
+export const emptyStepReport = (): string =>
+  'the model returned an empty reply — no text, no tool calls — and did it again after a nudge, so the provider is dropping the reply rather than the model choosing to stop. Resuming will likely hit the same wall until the context changes; a very large image or tool result is the usual suspect.'
+
 export const loopReport = (cut: LoopCut): string =>
   `the turn repeated identical ${cut.names.join(', ')} calls with identical results, its context was rewound past the repetition twice already, and it looped again — a turn this stuck fails rather than spins`
 

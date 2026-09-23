@@ -7,6 +7,8 @@ import {
   awaitsReply,
   callIdsIn,
   dedupeCallIds,
+  EMPTY_STEP_NUDGES_PER_TURN,
+  emptyStepNudgeDraft,
   estimateTokensFor,
   imageTierOf,
   toolImagesCarriedBy,
@@ -20,6 +22,7 @@ import {
   loopWatchNudgeDraft,
   pendingCalls,
   projectDirectoryOf,
+  silentStep,
   rowsOwnedBy,
   type Assembled,
   type LoopCut,
@@ -38,7 +41,7 @@ import {
 } from '@dltech/atlas-core'
 
 import type { HookChain } from '../hooks/registry'
-import type { ApplyLoopCut } from '../store/cut-loop'
+import type { ApplyLoopCut } from '../store/sessions/ops/cut-loop'
 import type { ToolDispatcher } from '../tools/dispatch'
 import { MAX_LOOP_CUTS_PER_TURN, repeatableFor } from './loop-guard'
 import { ELoopWatch, type LoopWatch } from './loop-watchdog'
@@ -47,7 +50,7 @@ import { openTurnSpend, TURN_CRASHED, type TurnLedgerDeps, type TurnSpendTally }
 import { appendResumeDrafts } from './resume-turn'
 import { createSettlePending, type OnToolOutputNotice, type SettlePending } from './settle-pending'
 import { draftsFor, interruptedDrafts } from './step-drafts'
-import { faultReport, loopReport, overflowReport, stalledReport, swallowedReport } from './turn-faults'
+import { emptyStepReport, faultReport, loopReport, overflowReport, stalledReport, swallowedReport } from './turn-faults'
 import { committedSinceLastMessage, messageArrivedSince } from './turn-position'
 import { ETurnStatus, type TurnOutcome } from './turn-outcome'
 import { TurnRunner } from './turn-runner.port'
@@ -215,6 +218,7 @@ export class LoopTurnRunner extends TurnRunner {
     let seenThrough: number | undefined
     let settleAttempted: CallId | undefined
     let compacted = false
+    let silentSteps = 0
     let loopCuts = 0
     let loopWatchWarned = false
     const loopWatchCutAnchors: number[] = []
@@ -420,11 +424,31 @@ export class LoopTurnRunner extends TurnRunner {
       if (drafts.length > 0) await this.log.append({ threadId, runId, drafts })
 
       committedCalls.push(...stepped.result.toolCalls)
-      if (stepped.result.toolCalls.length > 0) continue
+      if (stepped.result.toolCalls.length > 0) {
+        silentSteps = 0
+        continue
+      }
 
       const latest = await this.log.read({ threadId })
-      if (messageArrivedSince({ events: latest, seenThrough })) continue
-      if (await this.drainInto({ threadId })) continue
+      if (messageArrivedSince({ events: latest, seenThrough })) {
+        silentSteps = 0
+        continue
+      }
+      if (await this.drainInto({ threadId })) {
+        silentSteps = 0
+        continue
+      }
+
+      if (silentStep(stepped.result)) {
+        silentSteps += 1
+        if (silentSteps > EMPTY_STEP_NUDGES_PER_TURN) {
+          return { status: ETurnStatus.Failed, runId, message: emptyStepReport(), cause: { silentSteps } }
+        }
+        await this.log.append({ threadId, runId, drafts: [emptyStepNudgeDraft()] })
+        previous = undefined
+        seenThrough = undefined
+        continue
+      }
 
       const closing = (await this.hooks?.afterTurn({ threadId })) ?? []
       if (closing.length > 0) await this.log.append({ threadId, runId, drafts: closing })

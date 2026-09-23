@@ -102,3 +102,22 @@ jobs:
 
       - name: smoke-check the migrate entry
         run: docker run --rm atlas-api-ci node --check scripts/migrate-deploy.mjs
+
+  # Single required status for the main ruleset: one name covers every job above, so tightening
+  # CI never leaves the ruleset behind. Named `ci` only on pull_request runs — a required check is
+  # satisfied by whichever run reports the name first on a sha, and the push run's answers are not
+  # the PR run's (ortho-backend-v3 learned this on a promotion PR mergeable four seconds after
+  # opening).
+  ci:
+    name: ${{ github.event_name == 'pull_request' && 'ci' || 'ci (post-merge)' }}
+    runs-on: ubuntu-latest
+    needs: [check, test-packages, test-tui, build-api-image]
+    if: always()
+    steps:
+      - name: Fail if any check failed
+        run: |
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "true" ]; then
+            echo "::error::one or more CI checks failed"
+            exit 1
+          fi
+          echo "all CI checks passed"

@@ -59,6 +59,12 @@ describe('jevServiceQuestions', () => {
     expect(Object.keys(questions)).toEqual([JEV_SERVICE_KEY])
     expect(questions[JEV_SERVICE_KEY]?.type).toBe('noul')
   })
+
+  it('tells the model a monitor that exits on its own is not a service', () => {
+    expect(jevServiceQuestions()[JEV_SERVICE_KEY]?.instructions).toContain(
+      'monitoring, not a service',
+    )
+  })
 })
 
 describe('jevLoopQuestions', () => {

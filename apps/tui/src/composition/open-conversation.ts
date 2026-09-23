@@ -21,6 +21,7 @@ import {
   atlasDirectory,
   claimSession,
   ESessionClaim,
+  releaseSession,
   sessionDirectory,
   sessionLockFile,
 } from '@dltech/atlas-harness'
@@ -61,6 +62,15 @@ export const unstartedConversation = (args: { ids: IdPort }): OpenedConversation
   name: null,
   started: false,
 })
+
+let heldSessionDir: string | undefined
+
+export async function closeConversation(): Promise<void> {
+  const held = heldSessionDir
+  heldSessionDir = undefined
+  if (held === undefined) return
+  await releaseSession({ lockFile: sessionLockFile({ sessionDir: held }) })
+}
 
 export type OpenOutcome =
   { ok: true; conversation: OpenedConversation } | { ok: false; reason: string }
@@ -156,6 +166,7 @@ export async function openConversation(args: Opening): Promise<OpenOutcome> {
   const thread = await threadFor(args)
   if ('reason' in thread) return { ok: false, reason: thread.reason }
   if ('unstarted' in thread) {
+    await closeConversation()
     return { ok: true, conversation: unstartedConversation({ ids: args.ids }) }
   }
 
@@ -168,6 +179,11 @@ export async function openConversation(args: Opening): Promise<OpenOutcome> {
   if (claim.claim === ESessionClaim.Held) {
     return { ok: false, reason: claim.note ?? 'this conversation is open in another Atlas instance' }
   }
+  const previous = heldSessionDir
+  if (previous !== undefined && previous !== sessionDir) {
+    await releaseSession({ lockFile: sessionLockFile({ sessionDir: previous }) })
+  }
+  heldSessionDir = sessionDir
 
   const lost = await args.agents.recordLostAgents({ threadId: thread.id })
 

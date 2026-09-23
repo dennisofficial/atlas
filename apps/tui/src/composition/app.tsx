@@ -22,7 +22,7 @@ import {
   type EUsageWindow,
   type ModelCard,
 } from '@dltech/atlas-core'
-import { EChannelConnection, readGhAuthToken, relocateSession, requireVercelCredentials, sandboxImageOf, settingModelRef, suggestedModelRef, type DiscoveredSkill } from '@dltech/atlas-harness'
+import { EChannelConnection, forkConversation, readGhAuthToken, relocateSession, requireVercelCredentials, sandboxImageOf, settingModelRef, suggestedModelRef, type DiscoveredSkill } from '@dltech/atlas-harness'
 
 import { newestExpandableKey, type PendingSaid } from '../store'
 import { withCloud, withContainer, withSections } from '../store/sidebar-model'
@@ -118,7 +118,7 @@ import { OverlayStack } from './overlay-stack'
 import { unmeasuredWindowWarning } from '@dltech/atlas-harness'
 import { settleStaleness } from './auto-restart'
 import { checkForUpdate, sourceStalenessProbe, type SourceStaleness } from './update-check'
-import { unstartedConversation, type OpenedConversation } from './open-conversation'
+import { closeConversation, unstartedConversation, type OpenedConversation } from './open-conversation'
 import { useConversation } from './use-conversation'
 import { DETACH_EXIT_LINE } from '../ui/exit-guard-model'
 import { useExitGuard } from './use-exit-guard'
@@ -388,6 +388,7 @@ function Workspace(props: {
         props.onRestart()
         return
       }
+      void closeConversation()
       renderer.destroy()
     },
     onDetach: () => {
@@ -396,6 +397,7 @@ function Workspace(props: {
         props.onRestart()
         return
       }
+      void closeConversation()
       renderer.destroy()
       process.stdout.write(`${DETACH_EXIT_LINE}\n`)
     },
@@ -864,9 +866,20 @@ function Workspace(props: {
   const handleRewindChoice = useCallback(
     ({ point, verb }: RewindChoice) => {
       if (verb === ERewindVerb.Fork) {
-        void props.app.threads
-          .fork({ from: conversation.threadId, seq: point.seq, mode: EForkMode.Copy })
-          .then((forked) => handleOpenThread(forked.id))
+        void forkConversation({
+          log: props.app.log,
+          threads: props.app.threads,
+          threadId: conversation.threadId,
+          seq: point.seq,
+          mode: EForkMode.Copy,
+        })
+          .then((forked) => {
+            if (!forked.ok) {
+              notify({ key: 'fork-refused', text: forked.reason, tone: ENoticeTone.Warn })
+              return
+            }
+            handleOpenThread(forked.thread.id)
+          })
           .catch((error: unknown) => {
             notify({
               key: 'fork-refused',
@@ -1188,6 +1201,7 @@ function Workspace(props: {
       return
     }
 
+    void closeConversation()
     renderer.destroy()
   }, [agents.running, cloud, conversation, exitGuard, renderer, services.running, shells])
 

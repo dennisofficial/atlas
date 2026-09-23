@@ -23,6 +23,7 @@ import type {
 import { MessageConversionError } from './errors'
 import { toCoreJsonValue } from './json-value'
 import { carriedProviderOptions, toCoreProviderOptions } from './provider-options'
+import { sanitizeToolCallIds } from './tool-call-ids'
 
 type ModelAssistantPart = Extract<AssistantContent, readonly unknown[]>[number]
 type ModelToolResultOutput = ModelToolResultPart['output']
@@ -115,7 +116,8 @@ export function toModelMessage(message: Message): ModelMessage {
   }
 }
 
-export const toModelMessages = (messages: readonly Message[]): ModelMessage[] => messages.map(toModelMessage)
+export const toModelMessages = (messages: readonly Message[]): ModelMessage[] =>
+  sanitizeToolCallIds(messages.map(toModelMessage))
 
 const refuse = (what: string): never => {
   throw new MessageConversionError(`cannot convert ${what} into a core message`)

@@ -25,11 +25,18 @@ import type {
 
 const AT = '2026-08-25T00:00:00.000Z'
 
+/**
+ * Opening a conversation claims a real lock at <ATLAS_HOME>/sessions/<thread id>, and the spec
+ * shards are separate processes over one shared home — minted thread ids carry the pid so one
+ * shard's opens never read as another shard's live session.
+ */
+export const SPEC_SHARD = `p${process.pid}`
+
 export function fakeIds(): IdPort {
   let handed = 0
 
   return {
-    nextThreadId: () => toThreadId(`handed-${(handed += 1)}`),
+    nextThreadId: () => toThreadId(`handed-${SPEC_SHARD}-${(handed += 1)}`),
     nextRunId: () => toRunId(`run-${(handed += 1)}`),
     nextEventId: () => toEventId(`event-${(handed += 1)}`),
     nextCallId: () => toCallId(`call-${(handed += 1)}`),
@@ -147,7 +154,7 @@ export function fakeThreadStore(
       created += 1
       const source = rows.find((row) => row.id === from)
       const row: ThreadSummary = {
-        id: toThreadId(`forked-${created}`),
+        id: toThreadId(`forked-${SPEC_SHARD}-${created}`),
         head: seq,
         createdAt: AT,
         updatedAt: AT,
@@ -174,7 +181,7 @@ export function fakeThreadStore(
         ...(agent === undefined ? {} : { agent }),
       })
       const row: ThreadSummary = {
-        id: toThreadId(`made-${created}`),
+        id: toThreadId(`made-${SPEC_SHARD}-${created}`),
         head: 0,
         createdAt: AT,
         updatedAt: AT,
@@ -203,7 +210,7 @@ export function fakeThreadStore(
         ...(agent === undefined ? {} : { agent }),
       })
       const thread: ThreadSummary = {
-        id: threadId ?? toThreadId(`made-${created}`),
+        id: threadId ?? toThreadId(`made-${SPEC_SHARD}-${created}`),
         head: drafts.length,
         createdAt: AT,
         updatedAt: AT,
