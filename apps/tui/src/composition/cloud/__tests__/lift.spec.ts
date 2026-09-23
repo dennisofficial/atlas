@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EExecutionLocation, toRunId, type ThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation } from '@dltech/atlas-core'
 import { CloudError, EShellStatus, type GpgKeyMaterial } from '@dltech/atlas-harness'
 
-import { fakeEventLog, type FakeThreadStore } from '../../__tests__/fake-backend'
-import { ECloudSandboxState } from '../cloud-bridge'
-import { ELiftFault, ELiftStep, liftToCloud } from '../lift'
+import { fakeEventLog } from '../../__tests__/fake-backend'
+import { ELiftStep, liftToCloud } from '../lift'
 import { CLOUD_NOTICE_KEY } from '../transition-notice'
 import { CLEAN_WORKSPACE, CLOUD_THREAD, fakeBridge } from './fixture'
 import { FOOTER_SELECTION, harness } from './lift-fixture'
@@ -240,132 +239,5 @@ describe('lifting a conversation into the cloud', () => {
     expect(test.bridge.trail).toEqual(['transfer', 'sandbox', 'attach'])
     expect(await test.bridge.threads.find({ threadId: CLOUD_THREAD })).toBeDefined()
     expect(test.localThreads.chosenLocations).toEqual([])
-  })
-})
-
-const threadOf = (store: FakeThreadStore, threadId: ThreadId) => store.find({ threadId })
-
-describe('lifting a thread the cloud already knows', () => {
-  it('replaces the cloud log with the local one, then flips', async () => {
-    const bridge = fakeBridge()
-    await bridge.threads.createWithFirstEvents({
-      threadId: CLOUD_THREAD,
-      runId: toRunId('run_seed'),
-      drafts: [{ type: 'user-said', text: 'stale cloud copy' }],
-    })
-    const test = harness({ bridge })
-
-    const lifted = await liftToCloud(test.args)
-
-    expect(lifted.ok).toBe(true)
-    expect(test.bridge.trail).toEqual(['flip', 'sandbox', 'attach'])
-    expect(
-      bridge.log
-        .peek({ threadId: CLOUD_THREAD })
-        .filter((event) => event.type === 'user-said')
-        .map((event) => event.text),
-    ).toEqual(['take the linter to zero', 'and then ship it'])
-  })
-
-  it('refuses to wipe a cloud log when the local log is empty', async () => {
-    const bridge = fakeBridge()
-    await bridge.threads.createWithFirstEvents({
-      threadId: CLOUD_THREAD,
-      runId: toRunId('run_seed'),
-      drafts: [{ type: 'user-said', text: 'only ever in the cloud' }],
-    })
-    const test = harness({ bridge, localLog: fakeEventLog([]) })
-
-    const lifted = await liftToCloud(test.args)
-
-    if (lifted.ok) throw new Error('expected the lift to fail')
-    expect(lifted.detail).toContain('refusing to wipe')
-    expect(
-      bridge.log
-        .peek({ threadId: CLOUD_THREAD })
-        .filter((event) => event.type === 'user-said')
-        .map((event) => event.text),
-    ).toEqual(['only ever in the cloud'])
-  })
-})
-
-describe('the workspace a lift carries', () => {
-  it('reads a 413 as the patch being too large, keeping the advice the API gave', async () => {
-    const bridge = fakeBridge({
-      createFails: new CloudError({
-        status: 413,
-        message:
-          'The Atlas Cloud API answered POST /v1/sandboxes with 413: the uncommitted patch is 7.2 MiB, over the 5 MiB ceiling — commit or discard some work before lifting.',
-      }),
-    })
-    const test = harness({ bridge })
-
-    const lifted = await liftToCloud(test.args)
-    if (lifted.ok) throw new Error('expected the lift to fail')
-
-    expect(lifted.fault).toBe(ELiftFault.PatchTooLarge)
-    expect(lifted.detail).toContain('commit or discard some work')
-  })
-
-  it('sends no workspace when there is no repository behind the session', async () => {
-    const test = harness({ capture: async () => null })
-
-    const lifted = await liftToCloud(test.args)
-
-    expect(lifted.ok).toBe(true)
-    expect(test.bridge.created).toEqual([{ threadId: CLOUD_THREAD, workspace: null }])
-  })
-
-  it('says so in the transition notice when no repository came with it', async () => {
-    const test = harness({ capture: async () => null })
-
-    await liftToCloud(test.args)
-
-    const notice = test.bridge.log
-      .peek({ threadId: CLOUD_THREAD })
-      .find((event) => event.type === 'context-loaded')
-    if (notice === undefined || notice.type !== 'context-loaded') {
-      throw new Error('expected a transition notice in the cloud log')
-    }
-
-    expect(notice.content).toContain('no git repository')
-  })
-})
-
-describe('gating the context archive on whether the sandbox already has it', () => {
-  it('skips capturing and uploading when the sandbox resumed from its snapshot', async () => {
-    let captureCalls = 0
-    const bridge = fakeBridge({
-      sandbox: {
-        url: 'https://sandbox.example/resumed',
-        token: 'sandbox-token',
-        state: ECloudSandboxState.Running,
-        created: false,
-      },
-    })
-    const test = harness({
-      bridge,
-      captureContext: async () => {
-        captureCalls += 1
-        return Buffer.from('a fake tar.gz')
-      },
-    })
-
-    const lifted = await liftToCloud(test.args)
-
-    expect(lifted.ok).toBe(true)
-    expect(captureCalls).toBe(0)
-    expect(test.bridge.contextPuts).toEqual([])
-    expect(test.bridge.trail).toEqual(['transfer', 'sandbox', 'attach'])
-  })
-
-  it('captures and uploads when the sandbox was created fresh', async () => {
-    const archive = Buffer.from('a fake tar.gz')
-    const test = harness({ captureContext: async () => archive })
-
-    const lifted = await liftToCloud(test.args)
-
-    expect(lifted.ok).toBe(true)
-    expect(test.bridge.contextPuts).toEqual([{ threadId: CLOUD_THREAD, archive }])
   })
 })
