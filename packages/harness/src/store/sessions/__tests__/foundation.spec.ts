@@ -129,10 +129,19 @@ describe('session lock', () => {
   it('refuses a session held by a live pid', async () => {
     const dir = await tempDir()
     const lockFile = sessionLockFile({ sessionDir: dir })
-    await writeMeta({ file: lockFile, meta: { pid: process.pid, label: 'other' } })
+    await writeMeta({ file: lockFile, meta: { pid: process.ppid, label: 'other' } })
     const outcome = await claimSession({ sessionDir: dir, lockFile, label: 'spec' })
     expect(outcome.claim).toBe(ESessionClaim.Held)
-    expect(outcome.heldBy).toBe(process.pid)
+    expect(outcome.heldBy).toBe(process.ppid)
+  })
+
+  it('re-claims its own live lock idempotently', async () => {
+    const dir = await tempDir()
+    const lockFile = sessionLockFile({ sessionDir: dir })
+    const first = await claimSession({ sessionDir: dir, lockFile, label: 'spec' })
+    const second = await claimSession({ sessionDir: dir, lockFile, label: 'spec' })
+    expect(first.claim).toBe(ESessionClaim.Owned)
+    expect(second.claim).toBe(ESessionClaim.Owned)
   })
 
   it('reclaims a lock whose holder is dead', async () => {

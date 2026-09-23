@@ -80,6 +80,8 @@ export async function claimSession({
     }
   }
 
+  if (existing.pid === process.pid) return { claim: ESessionClaim.Owned, heldBy: existing.pid, note: undefined }
+
   const live = await holderIsLive({ pid: existing.pid, start: existing.start })
   if (live) {
     return {

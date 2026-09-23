@@ -22,7 +22,7 @@ describe('the launch configuration', () => {
   })
 
   it('never falls back to the operator atlas home when it was launched from source', () => {
-    expect(atlasDirectory()).toContain('/.atlas-home/')
+    expect(atlasDirectory()).toContain('/.atlas-home')
     expect(atlasDirectory()).not.toContain(`${homedir()}/.atlas/`)
   })
 

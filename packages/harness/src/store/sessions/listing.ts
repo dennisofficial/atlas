@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { readdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 
@@ -10,6 +11,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { titleMatchesHandle } from '../../composition/thread-slug'
+import { sumSessionSpend } from '../../ledger/jsonl'
 import type { SupervisedAgent, ThreadModel, ThreadSummary } from '../thread-store'
 import {
   SESSION_FORMAT_VERSION,
@@ -23,6 +25,7 @@ import {
 } from './meta'
 import {
   eventLogFile,
+  ledgerFile,
   sessionMetaFile,
   sessionsDirectory,
   threadMetaFile,
@@ -222,10 +225,15 @@ async function refreshSessionCaches({
     workspace: root.workspace,
     worktree: places.worktree?.path ?? null,
     pullRequests: places.pullRequests.length === 0 ? null : places.pullRequests.map((pr) => pr.number),
-    spend: existing?.spend ?? null,
+    spend: existing?.spend ?? (await recomputeSpend({ sessionDir })),
   }
   if (existing !== undefined && JSON.stringify(existing) === JSON.stringify(meta)) return
   await writeMeta({ file, meta })
+}
+
+async function recomputeSpend({ sessionDir }: { sessionDir: string }): Promise<SessionMeta['spend']> {
+  if (!existsSync(ledgerFile({ sessionDir }))) return null
+  return sumSessionSpend({ sessionDir })
 }
 
 export async function touchThreadMeta({

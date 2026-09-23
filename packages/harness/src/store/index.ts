@@ -26,9 +26,11 @@ export {
   sessionDirectory,
   eventLogFile,
   ledgerFile,
+  sessionLockFile,
   sessionMetaFile,
   threadMetaFile,
 } from './sessions/paths'
+export { claimSession, releaseSession, ESessionClaim, type SessionClaim } from './sessions/lock'
 export {
   readMetaSync,
   readSessionMetaSync,
