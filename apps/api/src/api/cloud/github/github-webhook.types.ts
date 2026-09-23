@@ -35,6 +35,15 @@ export interface GithubCheckSuiteWebhookPayload {
   repository: GithubWebhookRepository
 }
 
+export interface GithubCheckRunWebhookPayload {
+  action: string
+  check_run: {
+    head_sha: string
+    check_suite?: { head_branch?: string | null }
+  }
+  repository: GithubWebhookRepository
+}
+
 export interface GithubPushWebhookPayload {
   ref: string
   repository: GithubWebhookRepository

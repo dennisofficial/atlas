@@ -1,4 +1,4 @@
-import { matchesValue, uniqueViolation, type Where } from './fake-db-support'
+import { matchesValue, sortRows, uniqueViolation, type Where } from './fake-db-support'
 
 export type FakeWebhookEventRow = {
   id: string
@@ -48,8 +48,23 @@ function createFakeGithubDb() {
       },
     },
     githubPullRequest: {
-      findFirst: async (args: { where?: Where } = {}) =>
-        pullRequests.find((row) => matchesWhere(row, args.where)) ?? null,
+      findFirst: async (args: { where?: Where; orderBy?: Where } = {}) => {
+        const matched = pullRequests.filter((row) => matchesWhere(row, args.where))
+        const ordered = args.orderBy === undefined ? matched : sortRows(matched, args.orderBy)
+        return ordered[0] ?? null
+      },
+      findMany: async (args: { where?: Where } = {}) =>
+        pullRequests.filter((row) => matchesWhere(row, args.where)),
+      findUnique: async (args: {
+        where: { repoFullName_number: { repoFullName: string; number: number } }
+      }) => {
+        const { repoFullName, number } = args.where.repoFullName_number
+        return (
+          pullRequests.find(
+            (row) => row.repoFullName === repoFullName && row.number === number,
+          ) ?? null
+        )
+      },
       upsert: async (args: {
         where: { repoFullName_number: { repoFullName: string; number: number } }
         create: Omit<FakePullRequestRow, 'createdAt' | 'updatedAt'>

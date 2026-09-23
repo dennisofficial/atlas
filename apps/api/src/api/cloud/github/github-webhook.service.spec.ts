@@ -121,4 +121,97 @@ describe('GithubPrWebhookService', () => {
     expect(readPullRequest).not.toHaveBeenCalled()
     expect(fake.pullRequests).toHaveLength(0)
   })
+
+  const seedCachedPullRequest = async (service: GithubPrWebhookService): Promise<void> => {
+    await service.handle({ event: 'pull_request', deliveryId: 'del-seed', payload: PULL_REQUEST_PAYLOAD })
+    const row = fake.pullRequests[0]
+    if (row === undefined) throw new Error('seed did not cache a pull request')
+    row.updatedAt = new Date(Date.now() - 60_000)
+  }
+
+  it('a check_suite delivery refreshes the cached PR on its branch', async () => {
+    const readPullRequest = vi.fn(async () => ({ ...SYNCED_FIELDS, checksRunning: 4 }))
+    const service = serviceWith({ readPullRequest })
+    await seedCachedPullRequest(service)
+    readPullRequest.mockClear()
+
+    const outcome = await service.handle({
+      event: 'check_suite',
+      deliveryId: 'del-2',
+      payload: {
+        check_suite: { head_sha: 'abc123', head_branch: 'dennis/add-the-thing' },
+        repository: { full_name: 'compai/app' },
+      },
+    })
+
+    expect(outcome.handled).toBe(true)
+    expect(readPullRequest).toHaveBeenCalledWith({ owner: 'compai', repo: 'app', number: 42 })
+    expect(fake.pullRequests[0]?.checksRunning).toBe(4)
+  })
+
+  it('a check_run delivery refreshes the cached PR by head sha', async () => {
+    const readPullRequest = vi.fn(async () => SYNCED_FIELDS)
+    const service = serviceWith({ readPullRequest })
+    await seedCachedPullRequest(service)
+    readPullRequest.mockClear()
+
+    await service.handle({
+      event: 'check_run',
+      deliveryId: 'del-2',
+      payload: {
+        check_run: { head_sha: 'abc123', check_suite: { head_branch: 'dennis/add-the-thing' } },
+        repository: { full_name: 'compai/app' },
+      },
+    })
+
+    expect(readPullRequest).toHaveBeenCalledWith({ owner: 'compai', repo: 'app', number: 42 })
+  })
+
+  it('a push delivery refreshes the cached PR whose head branch was pushed', async () => {
+    const readPullRequest = vi.fn(async () => SYNCED_FIELDS)
+    const service = serviceWith({ readPullRequest })
+    await seedCachedPullRequest(service)
+    readPullRequest.mockClear()
+
+    await service.handle({
+      event: 'push',
+      deliveryId: 'del-2',
+      payload: { ref: 'refs/heads/dennis/add-the-thing', repository: { full_name: 'compai/app' } },
+    })
+
+    expect(readPullRequest).toHaveBeenCalledWith({ owner: 'compai', repo: 'app', number: 42 })
+  })
+
+  it('ignores check events for branches with no cached PR', async () => {
+    const readPullRequest = vi.fn(async () => SYNCED_FIELDS)
+    const service = serviceWith({ readPullRequest })
+    await seedCachedPullRequest(service)
+    readPullRequest.mockClear()
+
+    await service.handle({
+      event: 'check_suite',
+      deliveryId: 'del-2',
+      payload: {
+        check_suite: { head_sha: 'other', head_branch: 'someone/else' },
+        repository: { full_name: 'compai/app' },
+      },
+    })
+
+    expect(readPullRequest).not.toHaveBeenCalled()
+  })
+
+  it('coalesces a check storm onto a row the last delivery just refreshed', async () => {
+    const readPullRequest = vi.fn(async () => SYNCED_FIELDS)
+    const service = serviceWith({ readPullRequest })
+    await service.handle({ event: 'pull_request', deliveryId: 'del-1', payload: PULL_REQUEST_PAYLOAD })
+    readPullRequest.mockClear()
+
+    await service.handle({
+      event: 'check_run',
+      deliveryId: 'del-2',
+      payload: { check_run: { head_sha: 'abc123' }, repository: { full_name: 'compai/app' } },
+    })
+
+    expect(readPullRequest).not.toHaveBeenCalled()
+  })
 })

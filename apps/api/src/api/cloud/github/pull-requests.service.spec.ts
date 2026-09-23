@@ -75,7 +75,7 @@ describe('PullRequestsService', () => {
     const service = serviceWith({
       token: 'ghu_1',
       reads: {
-        findOpenPullRequest: async () => ({ number: 42 }),
+        findPullRequestForBranch: async () => ({ number: 42 }),
         readPullRequest: async () => SYNCED,
       },
     })
@@ -90,10 +90,10 @@ describe('PullRequestsService', () => {
     expect(fake.pullRequests).toHaveLength(1)
   })
 
-  it('answers null when no open PR carries the branch', async () => {
+  it('answers null when no PR carries the branch', async () => {
     const service = serviceWith({
       token: 'ghu_1',
-      reads: { findOpenPullRequest: async () => null },
+      reads: { findPullRequestForBranch: async () => null },
     })
 
     const dto = await service.readByBranch({
@@ -104,6 +104,90 @@ describe('PullRequestsService', () => {
 
     expect(dto).toBeNull()
     expect(fake.pullRequests).toHaveLength(0)
+  })
+
+  it('answers the settled PR from the cache when the branch has no open one', async () => {
+    const readPullRequest = vi.fn()
+    const service = serviceWith({
+      token: 'ghu_1',
+      reads: { readPullRequest, findPullRequestForBranch: async () => null },
+    })
+    fake.pullRequests.push({
+      repoFullName: 'compai/app',
+      number: 42,
+      ...SYNCED,
+      state: 'merged',
+      createdAt: new Date(),
+      updatedAt: new Date('2026-09-21T20:00:00Z'),
+    })
+
+    const dto = await service.readByBranch({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      branch: 'dennis/add-the-thing',
+    })
+
+    expect(dto).toMatchObject({ number: 42, state: 'merged' })
+    expect(readPullRequest).not.toHaveBeenCalled()
+  })
+
+  it('prefers the open PR over a recently updated settled one on the same branch', async () => {
+    const service = serviceWith({ token: 'ghu_1', reads: {} })
+    fake.pullRequests.push(
+      {
+        repoFullName: 'compai/app',
+        number: 41,
+        ...SYNCED,
+        state: 'merged',
+        createdAt: new Date(),
+        updatedAt: new Date('2026-09-22T10:00:00Z'),
+      },
+      {
+        repoFullName: 'compai/app',
+        number: 42,
+        ...SYNCED,
+        state: 'open',
+        createdAt: new Date(),
+        updatedAt: new Date('2026-09-21T10:00:00Z'),
+      },
+    )
+
+    const dto = await service.readByBranch({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      branch: 'dennis/add-the-thing',
+    })
+
+    expect(dto).toMatchObject({ number: 42, state: 'open' })
+  })
+
+  it('reads by number from the cache without touching github', async () => {
+    const readPullRequest = vi.fn()
+    const service = serviceWith({ token: 'ghu_1', reads: { readPullRequest } })
+    fake.pullRequests.push({
+      repoFullName: 'compai/app',
+      number: 42,
+      ...SYNCED,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    const dto = await service.readByNumber({ userId: 'usr_1', repoFullName: 'compai/app', number: 42 })
+
+    expect(dto?.number).toBe(42)
+    expect(readPullRequest).not.toHaveBeenCalled()
+  })
+
+  it('fills a read by number on a cache miss', async () => {
+    const service = serviceWith({
+      token: 'ghu_1',
+      reads: { readPullRequest: async () => SYNCED },
+    })
+
+    const dto = await service.readByNumber({ userId: 'usr_1', repoFullName: 'compai/app', number: 42 })
+
+    expect(dto?.number).toBe(42)
+    expect(fake.pullRequests).toHaveLength(1)
   })
 
   it('refuses a repo the caller cannot read on github', async () => {
