@@ -110,16 +110,54 @@ describe('JsonlEventLog', () => {
       file: threadMetaFile({ sessionDir: forkDir, threadId: forkThread }),
       meta: {
         ...newThreadMeta({ id: forkThread, at: '2026-09-23T00:00:00.000Z' }),
+        head: 2,
         parentThreadId: mainThread,
         forkSeq: 2,
         forkMode: EForkMode.Reference,
       },
     })
 
-    await log.append({ threadId: forkThread, runId: ids.nextRunId(), drafts: [nudge({ text: 'f1' })] })
+    const stamped = await log.append({ threadId: forkThread, runId: ids.nextRunId(), drafts: [nudge({ text: 'f1' })] })
+    expect(stamped[0]?.seq).toBe(3)
 
     const read = await log.read({ threadId: forkThread })
+    expect(read.map((event) => event.seq)).toEqual([1, 2, 3])
     expect(read.map((event) => (event.type === 'nudge' ? event.text : event.type))).toEqual(['p1', 'p2', 'f1'])
+  })
+
+  it('replace on a reference fork keeps numbering above the fork point', async () => {
+    const home = await tempHome()
+    const { log, ids } = openLog({ home })
+
+    await log.append({
+      threadId: mainThread,
+      runId: ids.nextRunId(),
+      drafts: [nudge({ text: 'p1' }), nudge({ text: 'p2' })],
+    })
+
+    const forkThread: ThreadId = toThreadId('brn_fork')
+    const forkDir = sessionDirectory({ home, sessionId: forkThread })
+    await writeMeta({
+      file: threadMetaFile({ sessionDir: forkDir, threadId: forkThread }),
+      meta: {
+        ...newThreadMeta({ id: forkThread, at: '2026-09-23T00:00:00.000Z' }),
+        head: 2,
+        parentThreadId: mainThread,
+        forkSeq: 2,
+        forkMode: EForkMode.Reference,
+      },
+    })
+
+    const replaced = await log.replace({
+      threadId: forkThread,
+      runId: ids.nextRunId(),
+      drafts: [nudge({ text: 'summary' })],
+    })
+    expect(replaced[0]?.seq).toBe(3)
+    expect(await log.head({ threadId: forkThread })).toBe(3)
+
+    const read = await log.read({ threadId: forkThread })
+    expect(read.map((event) => event.seq)).toEqual([1, 2, 3])
   })
 
   it('recovers from a truncated tail on reopen', async () => {

@@ -2,6 +2,7 @@ import { appendFile, mkdir, rename, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
 import {
+  EForkMode,
   stampDrafts,
   type ClockPort,
   type Event,
@@ -177,10 +178,13 @@ export class JsonlEventLog implements EventLogPort {
     args: { threadId: ThreadId; runId: RunId; drafts: readonly EventDraft[] }
   }): Promise<Event[]> {
     const at = this.clock.now()
+    const metaFile = threadMetaFile({ sessionDir, threadId: args.threadId })
+    const existing = readMetaSync({ file: metaFile, schema: threadMetaSchema })
+    const floor = existing?.forkMode === EForkMode.Reference ? (existing.forkSeq ?? 0) : 0
     const prepared = args.drafts.map((draft, index) => {
       const envelope: EventEnvelope = {
         id: this.ids.nextEventId(),
-        seq: index + 1,
+        seq: floor + index + 1,
         threadId: args.threadId,
         runId: args.runId,
         depth: 0,
@@ -199,11 +203,10 @@ export class JsonlEventLog implements EventLogPort {
     const log = await this.registry.readThreadLog({ sessionDir, threadId: args.threadId })
     log.events.length = 0
     log.events.push(...stamped)
-    log.head = stamped.length
+    log.head = floor + stamped.length
     rebuildContextIndex({ log })
 
-    const metaFile = threadMetaFile({ sessionDir, threadId: args.threadId })
-    const meta = readMetaSync({ file: metaFile, schema: threadMetaSchema }) ?? newThreadMeta({ id: args.threadId, at })
+    const meta = existing ?? newThreadMeta({ id: args.threadId, at })
     await writeMeta({ file: metaFile, meta: { ...meta, head: log.head, updatedAt: at } })
     return stamped
   }

@@ -69,6 +69,7 @@ export async function forkThread({
   const meta: ThreadMeta = {
     ...newThreadMeta({ id: into, at }),
     title: title ?? null,
+    head: seq,
     parentThreadId: from,
     forkSeq: seq,
     forkMode: EForkMode.Reference,

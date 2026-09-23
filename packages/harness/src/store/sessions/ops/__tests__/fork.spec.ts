@@ -51,7 +51,7 @@ describe('forkThread over the sessions store', () => {
     expect(forked.meta).toMatchObject({
       id: forked.threadId,
       title: 'forked work',
-      head: 0,
+      head: 2,
       parentThreadId: from,
       forkSeq: 2,
       forkMode: EForkMode.Reference,
@@ -92,12 +92,14 @@ describe('forkThread over the sessions store', () => {
     const prefix = await fixture.log.read({ threadId: forked.threadId })
     expect(prefix.map((event) => (event.type === 'user-said' ? event.text : event.type))).toEqual(['p1', 'p2'])
 
-    await fixture.log.append({
+    const stamped = await fixture.log.append({
       threadId: forked.threadId,
       runId: fixture.ids.nextRunId(),
       drafts: [said('f1')],
     })
+    expect(stamped[0]?.seq).toBe(3)
     const composed = await fixture.log.read({ threadId: forked.threadId })
+    expect(composed.map((event) => event.seq)).toEqual([1, 2, 3])
     expect(composed.map((event) => (event.type === 'user-said' ? event.text : event.type))).toEqual(['p1', 'p2', 'f1'])
   })
 

@@ -7,7 +7,7 @@ import type { ContextIdentity } from '../append-plan'
 import { contextIdentityOf } from '../append-plan'
 import type { UnreadableRow } from '../decode-events'
 import { parseEventLines } from './lines'
-import { THREAD_META_FILE_SUFFIX, eventLogFile, sessionsDirectory, threadsDirectory } from './paths'
+import { THREAD_META_FILE_SUFFIX, eventLogFile, sessionsDirectory, threadMetaFile, threadsDirectory } from './paths'
 import { readMetaSync, threadMetaSchema } from './meta'
 
 export type ThreadLog = {
@@ -90,7 +90,16 @@ export class SessionRegistry {
     const file = eventLogFile({ sessionDir, threadId })
     const text = await readFile(file, 'utf8').catch(() => '')
     const parsed = parseEventLines({ text, threadId })
-    const log: ThreadLog = { events: parsed.events, unreadable: parsed.unreadable, head: parsed.head, byContext: new Map() }
+    const meta = readMetaSync({
+      file: threadMetaFile({ sessionDir, threadId }),
+      schema: threadMetaSchema,
+    })
+    const log: ThreadLog = {
+      events: parsed.events,
+      unreadable: parsed.unreadable,
+      head: Math.max(parsed.head, meta?.head ?? 0),
+      byContext: new Map(),
+    }
     rebuildContextIndex({ log })
     handle.threads.set(threadId, log)
     this.registerThread({ sessionDir, threadId })

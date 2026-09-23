@@ -2,6 +2,7 @@ import { appendFile, mkdir, rename, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
 import {
+  EForkMode,
   stampDrafts,
   type ClockPort,
   type Event,
@@ -69,7 +70,9 @@ export async function truncateThreadLog({
   log.events.length = 0
   log.events.push(...retained)
   log.unreadable = log.unreadable.filter((row) => row.seq <= toSeq)
-  log.head = retained.at(-1)?.seq ?? 0
+  const meta = readMetaSync({ file: threadMetaFile({ sessionDir, threadId }), schema: threadMetaSchema })
+  const floor = meta?.forkMode === EForkMode.Reference ? (meta.forkSeq ?? 0) : 0
+  log.head = Math.max(retained.at(-1)?.seq ?? 0, floor)
   rebuildContextIndex({ log })
 
   await writeHead({ clock, sessionDir, threadId, head: log.head, at: clock.now() })
