@@ -895,7 +895,7 @@ and a Haiku model is already provisioned, so the seam is there when the index st
 
 | Timeline | Owner | Restored by |
 | --- | --- | --- |
-| **Conversation** — messages, reasoning, tool calls, approvals | EventLog (SQLite) | move the thread head |
+| **Conversation** — messages, reasoning, tool calls, approvals | EventLog (per-session JSONL) | move the thread head |
 | **Control** — pending tool, retries, interrupt reason | *derived from the log* | re-read the log |
 | **World** — files, git index, worktree, subprocesses | Workspace snapshots (git objects) | restore the snapshot on the event |
 
@@ -1068,7 +1068,7 @@ traps in it that are only diagnosable against the original bytes.
 ## Durable events vs streaming
 
 Durable events are **coarse** — one `assistant-said` per model step, not one per delta. Writing every
-token to SQLite is absurd.
+token to the log is absurd.
 
 Live streaming goes to an in-memory channel the UI subscribes to, replaced by the durable event when
 the step completes. So the UI has two inputs: the log (history, authoritative) and the delta channel
@@ -1323,8 +1323,9 @@ packages/harness/src/
   credentials/   the account vault, the refreshing CredentialPort, OAuth clients, and the
                  sources a login can be imported from and written back to
   files/         what the model has seen of each file on disk, for the read-before-write guard
-  store/         Prisma event log, thread heads, workspace snapshots; migrations read from
-                 prisma/ at dev time, generated manifest for --compile
+  store/         the sessions store: per-session directories of append-only JSONL event logs,
+                 JSON metadata documents, and a PID+start-time ownership lock; sessions/ holds
+                 the implementation
   tools/         registry, dispatcher, builtin tools
   agents/types/     the agent-type definition, frontmatter parsing, built-ins, directory sources
   agents/registry/  AgentRegistryPort, the supervisor, the roster, notices, the child runner
@@ -1357,14 +1358,14 @@ Max 300 lines per file. Tests in a sibling `__tests__/` as `*.spec.ts`.
 | Canonical record | Append-only event log — `messages[]` with types |
 | Prompt | Derived per step by `assemble`; never accumulated |
 | Checkpoints | None. Position is derived |
-| Storage | Prisma 7 + `prisma-adapter-bun-sqlite` |
+| Storage | Per-session JSONL files (`<home>/sessions/<id>/`); no database |
 | Model layer | AI SDK, `streamText` one step, as normalization only |
 | Provider interface | `LanguageModelV4` |
 | Context operations | Ours, model-agnostic |
 | Sub-agents | A spawned thread, not a recursive call. Depth capped at one by the child's tool registry |
 | DI | **tsyringe.** Class tokens, `@injectAll` for the hook and tool sets — see `.scratch/tsyringe-di/spec.md` |
 | Hook discovery | Glob at dev time, generated manifest for `--compile` |
-| Migrations | Read from `prisma/migrations` at dev time, generated manifest for `--compile`; an empty set is a startup failure |
+| Format evolution | Versioned event payloads; readers tolerate every historical shape; a newer `format` in a session's meta refuses loudly |
 | Packages | `core`, `harness`, `apps/tui` — raw TS source, no build step |
 | Runtime | Bun — runtime, package manager and test runner |
 | Task runner | **Turborepo.** `turbo run typecheck \| test \| build`; per-package scripts stay `tsc` / `bun test` |
