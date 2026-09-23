@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EExecutionLocation } from '@dltech/atlas-core'
+import { ECloudSandboxState } from '@dltech/atlas-harness'
+
 import {
   backspace,
   failedToList,
@@ -13,6 +16,7 @@ import {
   typeInto,
   visibleChips,
   withChips,
+  withSandboxStates,
   withThreads,
   type ThreadListing,
   type ThreadsState,
@@ -104,6 +108,49 @@ describe('the rows a listing becomes', () => {
     const rows = threadRows({ threads: THREE, activeThreadId: '' })
 
     expect(rows.every((row) => row.worktree === undefined)).toBe(true)
+  })
+
+  it('carries where a thread runs, so the row can badge a cloud one', () => {
+    const rows = threadRows({
+      threads: [
+        { ...listing({ id: 'lifted', title: 'the lifted thread' }), executionLocation: EExecutionLocation.Cloud },
+        listing({ id: 'local' }),
+      ],
+      activeThreadId: '',
+    })
+
+    expect(rows[0]?.location).toBe(EExecutionLocation.Cloud)
+    expect(rows[1]?.location).toBeUndefined()
+  })
+})
+
+describe('the sandbox states that land after the rows', () => {
+  it('attaches a state to the thread it belongs to', () => {
+    const state = withSandboxStates({
+      state: opened(),
+      states: new Map([['thread-b', ECloudSandboxState.Parked]]),
+    })
+
+    expect(state.rows.find((row) => row.threadId === 'thread-b')?.sandbox).toBe(
+      ECloudSandboxState.Parked,
+    )
+    expect(state.rows.find((row) => row.threadId === 'thread-a')?.sandbox).toBeUndefined()
+  })
+
+  it('leaves the selection where it was, because no row came or went', () => {
+    const moved = moveSelection({ state: opened(), delta: 1 })
+    const stated = withSandboxStates({
+      state: moved,
+      states: new Map([['thread-a', ECloudSandboxState.Running]]),
+    })
+
+    expect(selectedThread(stated)?.threadId).toBe('thread-c')
+  })
+
+  it('does nothing when no sandbox answered', () => {
+    const state = opened()
+
+    expect(withSandboxStates({ state, states: new Map() })).toBe(state)
   })
 })
 

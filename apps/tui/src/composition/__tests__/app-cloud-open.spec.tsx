@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { beforeEach, describe, expect, it } from 'bun:test'
 
 import React from 'react'
 import { testRender } from '@opentui/react/test-utils'
@@ -6,6 +6,7 @@ import { testRender } from '@opentui/react/test-utils'
 import { EExecutionLocation, toRunId, type ThreadId } from '@dltech/atlas-core'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
+import { dismissNotice } from '../../ui/notice-store'
 import { App } from '../app'
 import { ECloudSandboxState } from '../cloud/cloud-bridge'
 import { CLEAN_WORKSPACE, fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
@@ -16,11 +17,22 @@ import { FAKE_CONFIG, fakeApp, scriptedModelPort, type FakeApp } from './fake-ap
 
 await grammarsReady()
 
+beforeEach(() => {
+  dismissNotice()
+})
+
 const WIDE = { width: 140, height: 40 }
 
 const RUNNING_STATUS = {
   state: ECloudSandboxState.Running,
   url: 'https://sandbox.example/thread',
+} as const
+
+const RESUMED_SANDBOX = {
+  url: 'https://sandbox.example/thread',
+  token: 'sandbox-token',
+  state: ECloudSandboxState.Running,
+  created: false,
 } as const
 
 const speaking = (): FakeApp =>
@@ -149,6 +161,54 @@ describe('opening a conversation that lives in the cloud', () => {
       expect(bridge.created).toHaveLength(1)
       expect(bridge.attached[0]?.threadId).toBe(threadId)
       expect(frame).toContain('said inside the sandbox')
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+})
+
+describe('the picker badge and the reattach notice', () => {
+  it('badges a cloud conversation with its sandbox state in the picker', async () => {
+    const app = speaking()
+    const { threads } = await seedCloudThread()
+    const bridge = fakeBridge({ threadStore: threads, status: RUNNING_STATUS })
+    const mounted = await mount({ app, bridge })
+
+    try {
+      const frame = await mounted.command('/resume')
+
+      expect(frame).toContain('the lifted thread')
+      expect(frame).toContain('☁ running')
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('says what survived once the reattached sandbox greets', async () => {
+    const app = speaking()
+    const { threads, threadId } = await seedCloudThread()
+    const bridge = fakeBridge({
+      threadStore: threads,
+      status: RUNNING_STATUS,
+      sandbox: RESUMED_SANDBOX,
+    })
+    await bridge.log.append({
+      threadId,
+      runId: toRunId('run-cloud'),
+      drafts: [{ type: 'user-said', text: 'said inside the sandbox' }],
+    })
+    const mounted = await mount({ app, bridge })
+
+    try {
+      await mounted.command('/resume')
+      await mounted.pick()
+
+      bridge.channel.ready({ turnInFlight: true })
+      const frame = await mounted.frame()
+
+      expect(frame).toContain('reattached')
+      expect(frame).toContain('as you left them')
+      expect(frame).toContain('the turn kept running')
     } finally {
       await mounted.done()
     }

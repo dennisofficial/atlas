@@ -109,15 +109,14 @@ describe('quitting while a background shell is still running', () => {
     }
   }, 60_000)
 
-  it('offers stopping and staying, and shows moving to the background as not yet built', async () => {
+  it('offers stopping and staying, keeping detach for cloud conversations', async () => {
     const setup = await opened(appWith([shell({ shellId: 'bash_1', command: 'bun run dev' })]))
 
     try {
       const frame = await quit(setup)
 
       expect(frame).toContain('Exit and stop tasks')
-      expect(frame).toContain('Move to background and exit')
-      expect(frame).toContain('coming soon')
+      expect(frame).not.toContain('Move to background and exit')
       expect(frame).toContain('Stay')
     } finally {
       await teardown(setup)
@@ -154,7 +153,7 @@ describe('quitting while a background shell is still running', () => {
     }
   }, 60_000)
 
-  it('steps past the option it cannot honour yet rather than letting it be chosen', async () => {
+  it('moves the mark between the options it can honour', async () => {
     const setup = await opened(appWith([shell({ shellId: 'bash_1', command: 'bun run dev' })]))
 
     try {

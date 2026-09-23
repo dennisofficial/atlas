@@ -42,7 +42,7 @@ export const mount = async (args: {
       captureWorkspace={DIRTY}
       captureContext={STUB_CONTEXT}
     />,
-    { width: 140, height: 40 },
+    { width: 140, height: 40, exitOnCtrlC: false },
   )
 
   const frame = async (): Promise<string> => {
@@ -78,6 +78,7 @@ export const mount = async (args: {
     typeText: (text: string) => setup.mockInput.typeText(text),
     pressEnter: () => setup.mockInput.pressEnter(),
     pressEscape: () => setup.mockInput.pressEscape(),
+    pressCtrlC: () => setup.mockInput.pressKey('c', { ctrl: true }),
     draftText: () => editorIn(setup.renderer.root)?.plainText ?? null,
     done: () => teardown(setup),
   }

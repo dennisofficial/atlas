@@ -1,5 +1,6 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
+import { notify } from '../../ui/notice-store'
 import type { AtlasApp } from '../compose'
 import { messageOf } from '../error-text'
 import type { LiftedAttachment } from '../lifted-session'
@@ -8,6 +9,7 @@ import { cloudApp, openCloudConversation } from './cloud-app'
 import type { CloudBridge } from './cloud-bridge'
 import { captureContextArchive } from './context-archive'
 import { createCloudRunner, wakeSandbox } from './cloud-runner'
+import { CLOUD_REATTACH_NOTICE_KEY, reattachNotice } from './lift-notices'
 
 /**
  * Opening a thread that already lives in the cloud: re-attach (the API re-provisions and hands
@@ -23,6 +25,7 @@ export async function openCloudThread(args: {
   projectDirectory?: string | undefined
 }): Promise<LiftedAttachment> {
   const { app, bridge, threadId, move, projectDirectory } = args
+  let unready = (): void => undefined
 
   try {
     const woken = await wakeSandbox({
@@ -35,6 +38,15 @@ export async function openCloudThread(args: {
     })
 
     const channel = bridge.attach({ threadId, url: woken.url, token: woken.token })
+
+    unready = channel.onReady((ready) => {
+      unready()
+      notify({
+        key: CLOUD_REATTACH_NOTICE_KEY,
+        text: reattachNotice({ created: woken.created, turnInFlight: ready.turnInFlight }),
+      })
+    })
+
     const runner = createCloudRunner({
       bridge,
       channel,
@@ -47,6 +59,7 @@ export async function openCloudThread(args: {
     move?.handleSettle()
     return { app: attached, opened, bridge, channel }
   } catch (error) {
+    unready()
     move?.handleFail(messageOf(error))
     throw error
   }

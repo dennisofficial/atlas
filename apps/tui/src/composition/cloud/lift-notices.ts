@@ -11,6 +11,20 @@ export const CLOUD_LIFT_NOTICE_KEY = 'container-cloud'
 
 export const CLOUD_SANDBOX_NOTICE_KEY = 'container-cloud-sandbox'
 
+export const CLOUD_REATTACH_NOTICE_KEY = 'cloud-reattach'
+
+/**
+ * What a reattach can honestly say: resumed-or-rebuilt is the driver's own fact from the wake, and
+ * whether the turn survived is what serve's greet reported — nothing more precise is claimed.
+ */
+export const reattachNotice = (args: { created: boolean; turnInFlight: boolean }): string => {
+  const turn = args.turnInFlight ? 'the turn kept running' : 'no turn was running'
+  if (args.created) {
+    return `reattached — the sandbox booted fresh and the workspace came back from the last context upload; ${turn}`
+  }
+  return `reattached — the sandbox and its filesystem are as you left them; ${turn}`
+}
+
 const stoppedTail = (failure: LiftFailure): string => {
   const { shells, services } = failure.stopped
   const parts: string[] = []
