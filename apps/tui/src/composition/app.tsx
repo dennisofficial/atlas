@@ -18,6 +18,7 @@ import {
   EForkMode,
   EKilledBy,
   launchWorktreeOf,
+  type Account,
   type EUsageWindow,
   type ModelCard,
 } from '@dltech/atlas-core'
@@ -26,7 +27,6 @@ import { EChannelConnection, readGhAuthToken, relocateSession, requireVercelCred
 import { newestExpandableKey, type PendingSaid } from '../store'
 import { withCloud, withContainer, withSections } from '../store/sidebar-model'
 import { accountMeterSpans } from '../ui/account-meters'
-import { accountOf, type AccountRow } from '../ui/accounts-model'
 import { isWaiting, type BackgroundWork } from '../ui/background-wait'
 import type { Span } from '../ui/components/spans'
 import type { FooterMeter } from '../ui/usage-meters'
@@ -783,7 +783,6 @@ function Workspace(props: {
 
   const accounts = useAccounts({
     accounts: props.app.accounts,
-    cloud: props.app.cloud,
     openUrl: props.app.openUrl,
     onAccounts: props.app.models.observeAccounts,
   })
@@ -794,23 +793,18 @@ function Workspace(props: {
   useEffect(() => {
     if (!accountsOpen) return
     for (const row of accountRows ?? []) {
-      const account = accountOf(row)
-      if (account !== undefined) void usage.refresh({ accountId: account.id })
+      for (const account of row.accounts) void usage.refresh({ accountId: account.id })
     }
   }, [accountRows, accountsOpen, usage])
 
   const accountMeters = useMemo(
     () =>
-      (row: AccountRow): readonly Span[] => {
-        const account = accountOf(row)
-        if (account === undefined) return []
-
-        return accountMeterSpans({
+      (account: Account): readonly Span[] =>
+        accountMeterSpans({
           usage: usage.snapshotFor({ accountId: account.id }),
           warn: settings.usageWarn,
           now: Date.now(),
-        })
-      },
+        }),
     [settings.usageWarn, usage, usageVersion],
   )
 

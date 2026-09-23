@@ -21,8 +21,18 @@ import {
 import type { LogAccumulator } from "../store/log-accumulator";
 import type { TurnClock } from "../ui/turn-clock";
 import type { AtlasApp } from "./compose";
-import { readThreadBase, readThreadWindow, THREAD_WINDOW_EVENTS } from "./thread-reads";
+import {
+  createThreadPager,
+  mergeWindowEvents,
+  readThreadBase,
+  readThreadWindow,
+  retainNewest,
+} from "./thread-reads";
 import { readThreadSpend } from "./thread-spend";
+import {
+  subscribeTranscriptViewport,
+  transcriptViewport,
+} from "../ui/transcript-viewport-store";
 
 /**
  * Which rows of a thread the view reads.
@@ -151,6 +161,7 @@ export function useThreadView(args: {
   useEffect(() => {
     if (initial === undefined) return;
 
+    tailGapped.current = false;
     setEvents(initial().events);
   }, [initial, setEvents]);
 
@@ -161,6 +172,7 @@ export function useThreadView(args: {
 
   const baseSeeded = useRef(initial?.().base !== undefined);
   const lastHead = useRef<number | undefined>(undefined);
+  const tailGapped = useRef(false);
 
   const refresh = useCallback(async () => {
     const [window, spent] = await Promise.all([
@@ -171,11 +183,17 @@ export function useThreadView(args: {
     lastHead.current = window.head;
 
     if (baseSeeded.current && !rewound) {
-      store.setEvents({ events: window.events, turns: spent.turns });
-      setEvents(window.events);
+      const merged = mergeWindowEvents({ held: heldEvents.current, window: window.events });
+      if (merged === null && tailGapped.current) return;
+
+      tailGapped.current = false;
+      const next = retainNewest({ events: merged ?? window.events });
+      store.setEvents({ events: next, turns: spent.turns });
+      setEvents(next);
       return;
     }
 
+    tailGapped.current = false;
     const base = await readThreadBase({
       log: app.log,
       threadId,
@@ -229,28 +247,32 @@ export function useThreadView(args: {
     [app.channel, onUsage, refresh, threadId],
   );
 
-  const loadingOlder = useRef(false);
-  const loadOlder = useCallback(async (): Promise<void> => {
-    const first = heldEvents.current[0];
-    if (first === undefined || first.seq <= 1 || loadingOlder.current) return;
+  const pager = useMemo(
+    () =>
+      createThreadPager({
+        log: app.log,
+        threadId,
+        rows,
+        held: () => heldEvents.current,
+        gapped: () => tailGapped.current,
+        markGapped: (next) => {
+          tailGapped.current = next;
+        },
+        apply: (next) => {
+          store.setEvents({ events: next });
+          setEvents(next);
+        },
+      }),
+    [app.log, rows, store, threadId, setEvents],
+  );
 
-    loadingOlder.current = true;
-    try {
-      const upTo = first.seq - 1;
-      const fromSeq = Math.max(0, upTo - THREAD_WINDOW_EVENTS);
-      const older =
-        rows === EThreadRows.Own
-          ? await app.log.readOwn({ threadId, fromSeq, upTo })
-          : await app.log.read({ threadId, fromSeq, upTo });
-      if (older.length === 0) return;
-
-      const next = [...older, ...heldEvents.current];
-      store.setEvents({ events: next });
-      setEvents(next);
-    } finally {
-      loadingOlder.current = false;
-    }
-  }, [app.log, rows, store, threadId, setEvents]);
+  useEffect(
+    () =>
+      subscribeTranscriptViewport(() => {
+        if (transcriptViewport().tailing) void pager.loadNewer();
+      }),
+    [pager],
+  );
 
   const model = useSyncExternalStore(store.subscribe, store.getSnapshot);
   const sidebar = useSyncExternalStore(store.subscribe, store.getSidebar);
@@ -263,7 +285,7 @@ export function useThreadView(args: {
     events,
     turn,
     refresh,
-    loadOlder,
+    loadOlder: pager.loadOlder,
     setEvents,
     stamp,
   };

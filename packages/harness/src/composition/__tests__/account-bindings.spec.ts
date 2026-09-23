@@ -1,20 +1,24 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
-import { ENoticeTone } from '@dltech/atlas-core'
+import { AccountStorePort, EAccountOrigin, EAuthProvider, ENoticeTone } from '@dltech/atlas-core'
 
 import { CloudError } from '../../cloud/cloud-transport'
 import { createHarnessContainer } from '../../container/create-harness-container'
 import { disposeAll } from '../../container/disposal'
+import { portToken } from '../../container/injection'
 import {
   ClaudeCodeSourceToken,
   CloudSessionStoreToken,
+  CodexSourceToken,
   SecretsStoreToken,
 } from '../../container/tokens'
 import { ClaudeCodeSource } from '../../credentials/claude-code-source'
+import { CodexSource } from '../../credentials/codex-source'
+import { fakeCodexAuthPayload, fakeJwt } from '../../credentials/__tests__/fixtures'
 import { bindAccounts } from '../account-bindings'
 import { recordingNotices, type RecordedNotices } from './fakes'
 
@@ -41,10 +45,16 @@ const failingClaudeCodeSource = (): ClaudeCodeSource =>
     write: async () => {},
   })
 
+const absentCodexSource = (): CodexSource =>
+  new CodexSource({ file: join(atlasHome, 'no-codex-auth.json') })
+
+
+
 describe('bindAccounts', () => {
   it('reports a cloud outage through the notice port instead of failing composition', async () => {
     const container = createHarnessContainer()
     container.register(ClaudeCodeSourceToken, { useValue: failingClaudeCodeSource() })
+    container.register(CodexSourceToken, { useValue: absentCodexSource() })
     const recorded: RecordedNotices = recordingNotices()
 
     await bindAccounts({
@@ -63,6 +73,7 @@ describe('bindAccounts', () => {
   it('rewarmSecrets stays local while signed out and re-fetches once a session exists', async () => {
     const container = createHarnessContainer()
     container.register(ClaudeCodeSourceToken, { useValue: failingClaudeCodeSource() })
+    container.register(CodexSourceToken, { useValue: absentCodexSource() })
 
     const { rewarmSecrets } = await bindAccounts({
       container,
@@ -106,6 +117,36 @@ describe('bindAccounts', () => {
     }
   })
 
+  it('adopts an existing Codex login into the vault at composition time', async () => {
+    const container = createHarnessContainer()
+    const codexFile = join(atlasHome, 'codex-auth.json')
+    await writeFile(
+      codexFile,
+      fakeCodexAuthPayload({ idToken: fakeJwt({ email: 'dennis@example.com' }) }),
+      { mode: 0o600 },
+    )
+    container.register(CodexSourceToken, { useValue: new CodexSource({ file: codexFile }) })
+    container.register(ClaudeCodeSourceToken, {
+      useValue: new ClaudeCodeSource({ read: async () => undefined, write: async () => {} }),
+    })
+
+    await bindAccounts({
+      container,
+      env: {},
+      notice: recordingNotices().port,
+      cloudUrl: undefined,
+      clientVersion: 'account-bindings-spec',
+    })
+
+    const accounts = await container.resolve(portToken(AccountStorePort)).list()
+    const imported = accounts.find((account) => account.provider === EAuthProvider.OpenAI)
+    expect(imported?.origin).toBe(EAccountOrigin.Imported)
+    expect(imported?.importedFrom).toBe('codex')
+    expect(imported?.email).toBe('dennis@example.com')
+
+    await disposeAll({ container })
+  })
+
   it('rethrows a failure that is not a cloud outage', async () => {
     const container = createHarnessContainer()
     container.register(ClaudeCodeSourceToken, {
@@ -116,6 +157,7 @@ describe('bindAccounts', () => {
         write: async () => {},
       }),
     })
+    container.register(CodexSourceToken, { useValue: absentCodexSource() })
 
     await expect(
       bindAccounts({

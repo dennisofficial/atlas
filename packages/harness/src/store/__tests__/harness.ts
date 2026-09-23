@@ -31,6 +31,9 @@ export class UnstaffedAgents extends AgentRegistryPort {
   resume() {
     return Promise.resolve({ ok: false as const, reason: 'no agent registry in this fixture' })
   }
+  wake() {
+    return Promise.resolve({ ok: false as const, reason: 'no agent registry in this fixture' })
+  }
   stop() {
     return { ok: false as const, reason: 'no agent registry in this fixture' }
   }

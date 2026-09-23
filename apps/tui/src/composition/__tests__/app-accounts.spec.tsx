@@ -2,7 +2,6 @@ import { EAccountOrigin, EAuthKind, EAuthProvider, toThreadId } from '@dltech/at
 import {
   AccountsService,
   EDevicePoll,
-  EGithubConnectPoll,
   memoryAccountStore,
   SystemClock,
 } from '@dltech/atlas-harness'
@@ -12,15 +11,7 @@ import React from 'react'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
-import {
-  fakeApp,
-  fakeCloud,
-  fakeSignedOutCloud,
-  FakeCloudClient,
-  GITHUB_TICKET,
-  scriptedModelPort,
-  type FakeApp,
-} from './fake-app'
+import { fakeApp, fakeSignedOutCloud, scriptedModelPort, type FakeApp } from './fake-app'
 
 await grammarsReady()
 
@@ -117,18 +108,6 @@ const appWith = async (labels: readonly string[]): Promise<FakeApp> => {
   return { ...app, accounts: await accountsHolding(labels) }
 }
 
-const CLOUD_SESSION = {
-  url: 'http://localhost:3400',
-  token: 'session-token',
-  email: 'dennis@example.com',
-}
-
-const appSignedIntoCloud = async (client: FakeCloudClient): Promise<FakeApp> => {
-  const app = await appWith([])
-
-  return { ...app, cloud: fakeCloud({ session: CLOUD_SESSION, client }) }
-}
-
 async function opened(args: { app: FakeApp; notice?: string }): Promise<Mounted> {
   const setup = await testRender(
     <App
@@ -151,8 +130,21 @@ const openOverlay = async (setup: Mounted): Promise<void> => {
   await setup.flush()
 }
 
+const down = async (setup: Mounted): Promise<void> => {
+  setup.mockInput.pressArrow('down')
+  await setup.flush()
+  await settle(120)
+}
+
+const enter = async (setup: Mounted): Promise<void> => {
+  setup.mockInput.pressEnter()
+  await setup.flush()
+  await settle(150)
+  await setup.flush()
+}
+
 describe('the accounts overlay', () => {
-  it('opens on ctrl+a and lists what Atlas can answer with', async () => {
+  it('opens on ctrl+a as the model provider list', async () => {
     const setup = await opened({ app: await appWith(['work@example.com', 'personal@example.com']) })
 
     try {
@@ -160,9 +152,21 @@ describe('the accounts overlay', () => {
 
       const frame = setup.captureCharFrame()
 
-      expect(frame).toContain('ACCOUNTS')
+      expect(frame).toContain('MODEL PROVIDERS')
       expect(frame).toContain('work@example.com')
       expect(frame).toContain('personal@example.com')
+    } finally {
+      await teardown(setup)
+    }
+  })
+
+  it('keeps GitHub out of the provider list even with a cloud session', async () => {
+    const setup = await opened({ app: await appWith([]) })
+
+    try {
+      await openOverlay(setup)
+
+      expect(setup.captureCharFrame()).not.toContain('GitHub')
     } finally {
       await teardown(setup)
     }
@@ -179,7 +183,7 @@ describe('the accounts overlay', () => {
 
       expect(frame).toContain('A provider login is failing')
       expect(frame).toContain('ctrl+a')
-      expect(frame).not.toContain('ACCOUNTS')
+      expect(frame).not.toContain('MODEL PROVIDERS')
     } finally {
       await teardown(setup)
     }
@@ -196,7 +200,7 @@ describe('the accounts overlay', () => {
 
       const frame = setup.captureCharFrame()
 
-      expect(frame).toContain('ACCOUNTS')
+      expect(frame).toContain('MODEL PROVIDERS')
       expect(frame).toContain('Atlas holds no accounts')
     } finally {
       await teardown(setup)
@@ -217,68 +221,6 @@ describe('the accounts overlay', () => {
     }
   })
 
-  it('files an api key under the provider whose row is selected, not the first one', async () => {
-    const setup = await opened({ app: await appWith([]) })
-
-    try {
-      await openOverlay(setup)
-      setup.mockInput.pressArrow('down')
-      await setup.flush()
-      await settle(120)
-      setup.mockInput.pressArrow('down')
-      await setup.flush()
-      await settle(120)
-      setup.mockInput.pressKey('k')
-      await setup.flush()
-      await settle(150)
-      await setup.flush()
-
-      const frame = setup.captureCharFrame()
-      expect(frame).toContain('Paste a OpenRouter api key')
-      expect(frame).not.toContain('Paste a Anthropic api key')
-    } finally {
-      await teardown(setup)
-    }
-  })
-
-  it('starts the key flow on ⏎ over a provider nothing has signed into', async () => {
-    const setup = await opened({ app: await appWith([]) })
-
-    try {
-      await openOverlay(setup)
-      setup.mockInput.pressEnter()
-      await setup.flush()
-      await settle(150)
-      await setup.flush()
-
-      expect(setup.captureCharFrame()).toContain('Paste a Anthropic api key')
-    } finally {
-      await teardown(setup)
-    }
-  })
-
-  it('says a key is the way in rather than opening a browser flow that does not exist', async () => {
-    const setup = await opened({ app: await appWith([]) })
-
-    try {
-      await openOverlay(setup)
-      setup.mockInput.pressArrow('down')
-      await setup.flush()
-      await settle(120)
-      setup.mockInput.pressArrow('down')
-      await setup.flush()
-      await settle(120)
-      setup.mockInput.pressKey('n')
-      await setup.flush()
-      await settle(150)
-      await setup.flush()
-
-      expect(setup.captureCharFrame()).toContain('OpenRouter takes an api key')
-    } finally {
-      await teardown(setup)
-    }
-  })
-
   it('opens from /auth as well as the chord', async () => {
     const setup = await opened({ app: await appWith(['work@example.com']) })
 
@@ -290,24 +232,100 @@ describe('the accounts overlay', () => {
       await settle(200)
       await setup.flush()
 
-      expect(setup.captureCharFrame()).toContain('ACCOUNTS')
+      expect(setup.captureCharFrame()).toContain('MODEL PROVIDERS')
+    } finally {
+      await teardown(setup)
+    }
+  })
+})
+
+describe('the actions modal', () => {
+  it('opens on ⏎ over the selected provider', async () => {
+    const setup = await opened({ app: await appWith([]) })
+
+    try {
+      await openOverlay(setup)
+      await enter(setup)
+
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain('Sign in')
+      expect(frame).toContain('Add an API key')
     } finally {
       await teardown(setup)
     }
   })
 
-  it('moves the mark to the account the operator chose', async () => {
+  it('offers only the api key for a provider with no browser flow', async () => {
+    const setup = await opened({ app: await appWith([]) })
+
+    try {
+      await openOverlay(setup)
+      await down(setup)
+      await down(setup)
+      await enter(setup)
+
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain('Add an API key')
+      expect(frame).not.toContain('Sign in')
+    } finally {
+      await teardown(setup)
+    }
+  })
+
+  it('closes back to the list on escape', async () => {
+    const setup = await opened({ app: await appWith([]) })
+
+    try {
+      await openOverlay(setup)
+      await enter(setup)
+      setup.mockInput.pressEscape()
+      await setup.flush()
+      await settle(150)
+      await setup.flush()
+
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain('○ not signed in')
+      expect(frame).not.toContain('Add an API key')
+    } finally {
+      await teardown(setup)
+    }
+  })
+})
+
+describe('the api key flow', () => {
+  it('files the key under the provider whose actions were opened, not the first one', async () => {
+    const setup = await opened({ app: await appWith([]) })
+
+    try {
+      await openOverlay(setup)
+      await down(setup)
+      await down(setup)
+      await enter(setup)
+      await enter(setup)
+
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain('Paste a OpenRouter api key')
+      expect(frame).not.toContain('Paste a Anthropic api key')
+    } finally {
+      await teardown(setup)
+    }
+  })
+})
+
+describe('switching the active login', () => {
+  it('moves the mark to the login the operator chose', async () => {
     const app = await appWith(['work@example.com', 'personal@example.com'])
     const setup = await opened({ app })
 
     try {
       await openOverlay(setup)
-      setup.mockInput.pressArrow('down')
-      await setup.flush()
-      setup.mockInput.pressEnter()
-      await setup.flush()
-      await settle(200)
-      await setup.flush()
+      await enter(setup)
+      await down(setup)
+      await down(setup)
+      await enter(setup)
+      await down(setup)
+      await enter(setup)
+      await settle(150)
 
       const chosen = await app.accounts.activeFor(EAuthProvider.Anthropic)
       const accounts = await app.accounts.list()
@@ -317,36 +335,48 @@ describe('the accounts overlay', () => {
       await teardown(setup)
     }
   })
+})
 
-  it('removes the account under the cursor', async () => {
+describe('removing a login', () => {
+  it('removes the login chosen in the picker', async () => {
     const app = await appWith(['work@example.com', 'personal@example.com'])
     const setup = await opened({ app })
 
     try {
       await openOverlay(setup)
-      setup.mockInput.pressKey('x')
-      await setup.flush()
-      await settle(200)
-      await setup.flush()
+      await enter(setup)
+      await down(setup)
+      await down(setup)
+      await down(setup)
+      await enter(setup)
+      await enter(setup)
+      await settle(150)
 
       expect((await app.accounts.list()).map((account) => account.label)).toEqual([
         'personal@example.com',
       ])
-      expect(setup.captureCharFrame()).not.toContain('work@example.com')
+
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain('Removed work@example.com.')
+      expect(frame).not.toContain('○ work@example.com')
     } finally {
       await teardown(setup)
     }
   })
+})
+
+describe('the browser sign-in flow', () => {
+  const beginSignIn = async (setup: Mounted): Promise<void> => {
+    await enter(setup)
+    await enter(setup)
+  }
 
   it('shows the URL to open when a sign-in begins', async () => {
     const setup = await opened({ app: await appWith(['work@example.com']) })
 
     try {
       await openOverlay(setup)
-      setup.mockInput.pressKey('n')
-      await setup.flush()
-      await settle(120)
-      await setup.flush()
+      await beginSignIn(setup)
 
       const frame = setup.captureCharFrame()
 
@@ -363,10 +393,7 @@ describe('the accounts overlay', () => {
 
     try {
       await openOverlay(setup)
-      setup.mockInput.pressKey('n')
-      await setup.flush()
-      await settle(120)
-      await setup.flush()
+      await beginSignIn(setup)
 
       expect(app.openedUrls).toEqual(['https://claude.com/cai/oauth/authorize?code=true'])
     } finally {
@@ -379,9 +406,7 @@ describe('the accounts overlay', () => {
 
     try {
       await openOverlay(setup)
-      setup.mockInput.pressKey('n')
-      await setup.flush()
-      await settle(120)
+      await beginSignIn(setup)
 
       await setup.mockInput.pasteBracketedText('code#state-1')
       await setup.flush()
@@ -396,17 +421,37 @@ describe('the accounts overlay', () => {
     }
   })
 
+  it('takes a typed code and says who signed in', async () => {
+    const setup = await opened({ app: await appWith([]) })
+
+    try {
+      await openOverlay(setup)
+      await beginSignIn(setup)
+
+      await setup.mockInput.typeText('code#state-1')
+      await setup.flush()
+      setup.mockInput.pressEnter()
+      await setup.flush()
+      await settle(200)
+      await setup.flush()
+
+      expect(setup.captureCharFrame()).toContain('signed-in@example.com')
+    } finally {
+      await teardown(setup)
+    }
+  })
+})
+
+describe('the device code flow', () => {
   it('shows the device code for OpenAI and signs in once the poll completes', async () => {
     const app = await appWith([])
     const setup = await opened({ app })
 
     try {
       await openOverlay(setup)
-      setup.mockInput.pressArrow('down')
-      await setup.flush()
-      await settle(120)
-      setup.mockInput.pressKey('n')
-      await setup.flush()
+      await down(setup)
+      await enter(setup)
+      await enter(setup)
       await settle(200)
       await setup.flush()
 
@@ -421,135 +466,6 @@ describe('the accounts overlay', () => {
       const frame = setup.captureCharFrame()
       expect(frame).toContain('codex-user@example.com')
       expect(await app.accounts.activeFor(EAuthProvider.OpenAI)).not.toBeUndefined()
-    } finally {
-      await teardown(setup)
-    }
-  })
-
-  it('takes a pasted code and says who signed in', async () => {
-    const setup = await opened({ app: await appWith([]) })
-
-    try {
-      await openOverlay(setup)
-      setup.mockInput.pressKey('n')
-      await setup.flush()
-      await settle(120)
-
-      await setup.mockInput.typeText('code#state-1')
-      await setup.flush()
-      setup.mockInput.pressEnter()
-      await setup.flush()
-      await settle(200)
-      await setup.flush()
-
-      const frame = setup.captureCharFrame()
-
-      expect(frame).toContain('signed-in@example.com')
-    } finally {
-      await teardown(setup)
-    }
-  })
-})
-
-describe('the GitHub row', () => {
-  it('stays out of the overlay while signed out of Atlas Cloud', async () => {
-    const app = await appWith([])
-    const setup = await opened({ app: { ...app, cloud: fakeSignedOutCloud() } })
-
-    try {
-      await openOverlay(setup)
-
-      expect(setup.captureCharFrame()).not.toContain('GitHub')
-    } finally {
-      await teardown(setup)
-    }
-  })
-
-  it('offers the connection once a cloud session exists', async () => {
-    const setup = await opened({ app: await appSignedIntoCloud(new FakeCloudClient()) })
-
-    try {
-      await openOverlay(setup)
-
-      const frame = setup.captureCharFrame()
-
-      expect(frame).toContain('GitHub')
-      expect(frame).toContain('not connected · enter to connect')
-    } finally {
-      await teardown(setup)
-    }
-  })
-
-  it('shows the device code on enter and connects once the poll lands', async () => {
-    const client = new FakeCloudClient()
-    const app = await appSignedIntoCloud(client)
-    const setup = await opened({ app })
-
-    try {
-      await openOverlay(setup)
-      setup.mockInput.pressEnter()
-      await setup.flush()
-      await settle(150)
-      await setup.flush()
-
-      const prompting = setup.captureCharFrame()
-      expect(prompting).toContain(GITHUB_TICKET.userCode)
-      expect(prompting).toContain('github.com/login/device')
-      expect(app.openedUrls).toEqual([GITHUB_TICKET.verificationUrl])
-
-      await settle(3500)
-      await setup.flush()
-
-      const frame = setup.captureCharFrame()
-      expect(frame).toContain('Connected GitHub as @octocat.')
-      expect(frame).toContain('@octocat · press x to disconnect')
-      expect(client.connection?.login).toBe('octocat')
-    } finally {
-      await teardown(setup)
-    }
-  })
-
-  it('says the connection was refused when the operator denies it', async () => {
-    const client = new FakeCloudClient()
-    client.outcome = { status: EGithubConnectPoll.Denied }
-    const setup = await opened({ app: await appSignedIntoCloud(client) })
-
-    try {
-      await openOverlay(setup)
-      setup.mockInput.pressEnter()
-      await setup.flush()
-      await settle(3500)
-      await setup.flush()
-
-      expect(setup.captureCharFrame()).toContain('that connection was refused.')
-    } finally {
-      await teardown(setup)
-    }
-  })
-
-  it('disconnects on x and says so', async () => {
-    const client = new FakeCloudClient()
-    client.connection = {
-      login: 'octocat',
-      scopes: ['repo'],
-      connectedAt: '2026-01-01T00:00:00.000Z',
-    }
-    const setup = await opened({ app: await appSignedIntoCloud(client) })
-
-    try {
-      await openOverlay(setup)
-
-      expect(setup.captureCharFrame()).toContain('@octocat · press x to disconnect')
-
-      setup.mockInput.pressKey('x')
-      await setup.flush()
-      await settle(250)
-      await setup.flush()
-
-      const frame = setup.captureCharFrame()
-      expect(client.disconnects).toBe(1)
-      expect(frame).toContain('Disconnected GitHub.')
-      expect(frame).toContain('not connected · enter to connect')
     } finally {
       await teardown(setup)
     }

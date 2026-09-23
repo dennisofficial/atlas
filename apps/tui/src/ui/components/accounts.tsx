@@ -1,27 +1,30 @@
 import React from 'react'
 
+import { EAccountStatus, providerSpec, type Account } from '@dltech/atlas-core'
+
+import { accountDetail, signedOutDetail } from '../accounts-labels'
 import {
-  ACCOUNT_ROWS,
-  accountsWindow,
+  activeOf,
   EAccountsView,
-  rowKey,
-  type AccountRow,
+  isPrompting,
+  othersOf,
+  selectedRow,
   type AccountsState,
+  type ProviderRow,
 } from '../accounts-model'
-import { rowDetail, rowLabel } from '../accounts-labels'
 import { type Hint } from '../hint-layout'
-import { type PressHandlers, usePress } from '../hooks/use-press'
+import { usePress } from '../hooks/use-press'
 import { glyph, theme } from '../theme'
 import { clipSpans } from './sidebar/cells'
-import { AccountsPrompt, TextLine, Wrapped } from './accounts-prompt'
+import { ActionsModal, LoginPickerModal } from './accounts-modal'
+import { AccountsPrompt, Wrapped } from './accounts-prompt'
 import {
   BottomDrawer,
   drawerCells,
   DrawerGap,
-  DrawerHeading,
   DrawerHints,
-  DrawerLine,
   DRAWER_INSET,
+  DRAWER_PAD,
 } from './drawer'
 import { Spans, type Span } from './spans'
 
@@ -29,17 +32,18 @@ export const ACCOUNTS_INSET = DRAWER_INSET
 
 export const accountsCells = (args: { width: number }): number => drawerCells(args)
 
-export const ACCOUNTS_HEADING = 'Accounts'
-
-export const NO_ACCOUNTS = 'No accounts yet. Sign in to start a turn.'
+export const ACCOUNTS_HEADING = 'Model providers'
 
 const LIST_HINTS: readonly Hint[] = [
   { key: '↑↓', label: 'pick' },
-  { key: '⏎', label: 'use' },
-  { key: 'n', label: 'sign in' },
-  { key: 'k', label: 'api key' },
-  { key: 'x', label: 'remove' },
+  { key: '⏎', label: 'actions' },
   { key: 'esc', label: 'close' },
+]
+
+const MODAL_HINTS: readonly Hint[] = [
+  { key: '↑↓', label: 'pick' },
+  { key: '⏎', label: 'choose' },
+  { key: 'esc', label: 'back' },
 ]
 
 const PROMPT_HINTS: readonly Hint[] = [
@@ -53,79 +57,158 @@ const DEVICE_HINTS: readonly Hint[] = [
   { key: 'esc', label: 'cancel' },
 ]
 
-const showsDeviceHints = (view: EAccountsView): boolean =>
-  view === EAccountsView.DeviceCode || view === EAccountsView.GithubDevice
+const LIST_WIDTH = 28
 
-function AccountLine(props: {
-  row: AccountRow
+const panelCells = (args: { cells: number }): number =>
+  Math.max(20, args.cells - DRAWER_PAD * 2 - 1 - LIST_WIDTH - 4)
+
+function LoginLine(props: {
+  account: Account
+  active: boolean
   cells: number
-  selected: boolean
-  meters: readonly Span[]
-  press: PressHandlers
+  meters?: ((account: Account) => readonly Span[]) | undefined
 }): React.ReactNode {
-  const band = props.selected ? { band: theme.hoverBg } : {}
+  const detail = accountDetail(props.account)
+  const expired = props.account.status !== EAccountStatus.Active
+  const meters = props.meters === undefined ? [] : props.meters(props.account)
 
   return (
     <>
-      <DrawerLine {...band} press={props.press}>
+      <text>
+        <Spans
+          spans={clipSpans({
+            spans: [
+              {
+                text: `${props.active ? glyph.active : glyph.available} `,
+                fg: props.active ? theme.accent : expired ? theme.dim : theme.hint,
+              },
+              { text: props.account.label, fg: expired ? theme.dim : theme.hover },
+              ...(detail.length === 0 ? [] : [{ text: ` · ${detail}`, fg: theme.hint }]),
+            ],
+            cells: props.cells,
+          })}
+        />
+      </text>
+      {meters.length === 0 ? null : (
         <text>
-          <Spans
-            spans={clipSpans({
-              spans: [
-                {
-                  text: `${props.row.active ? glyph.active : glyph.available} `,
-                  fg: props.row.active ? theme.accent : theme.hint,
-                },
-                {
-                  text: rowLabel(props.row),
-                  fg: props.selected ? theme.bright : theme.hover,
-                },
-              ],
-              cells: props.cells,
-            })}
-          />
+          <Spans spans={clipSpans({ spans: [{ text: '  ' }, ...meters], cells: props.cells })} />
         </text>
-      </DrawerLine>
-      <DrawerLine {...band} press={props.press}>
-        <text>
-          <Spans
-            spans={clipSpans({
-              spans: [{ text: `  ${rowDetail(props.row)}`, fg: theme.hint }],
-              cells: props.cells,
-            })}
-          />
-        </text>
-      </DrawerLine>
-      {props.meters.length === 0 ? null : (
-        <DrawerLine {...band} press={props.press}>
-          <text>
-            <Spans
-              spans={clipSpans({
-                spans: [{ text: '  ', fg: theme.hint }, ...props.meters],
-                cells: props.cells,
-              })}
-            />
-          </text>
-        </DrawerLine>
       )}
     </>
   )
 }
 
+function DetailPanel(props: {
+  row: ProviderRow
+  cells: number
+  meters?: ((account: Account) => readonly Span[]) | undefined
+}): React.ReactNode {
+  const active = activeOf(props.row)
+  const others = othersOf(props.row)
+
+  return (
+    <box
+      flexDirection="column"
+      flexGrow={1}
+      border
+      borderStyle="rounded"
+      borderColor={theme.rule}
+      backgroundColor={theme.panelBg}
+      paddingLeft={1}
+      paddingRight={1}
+    >
+      <box flexDirection="row" justifyContent="space-between">
+        <text fg={theme.bright}>{providerSpec(props.row.provider).label}</text>
+        <text fg={active === undefined ? theme.dim : theme.ok}>
+          {active === undefined ? '○ not signed in' : '● connected'}
+        </text>
+      </box>
+      {active === undefined ? (
+        <>
+          <box height={1} />
+          <text fg={theme.hint}>{signedOutDetail(props.row.provider)}</text>
+        </>
+      ) : (
+        <>
+          <box height={1} />
+          <text fg={theme.meta}>{'ACTIVE LOGIN'}</text>
+          <LoginLine
+            account={active}
+            active
+            cells={props.cells}
+            {...(props.meters === undefined ? {} : { meters: props.meters })}
+          />
+        </>
+      )}
+      {others.length === 0 ? null : (
+        <>
+          <box height={1} />
+          <text fg={theme.meta}>{'OTHER LOGINS'}</text>
+          {others.map((account) => (
+            <LoginLine key={account.id} account={account} active={false} cells={props.cells} />
+          ))}
+        </>
+      )}
+      <box height={1} />
+      <text fg={theme.meta}>{'⏎ actions'}</text>
+    </box>
+  )
+}
+
+function ProviderList(props: {
+  state: AccountsState
+  onPick: (row: ProviderRow) => void
+}): React.ReactNode {
+  const press = usePress()
+
+  return (
+    <box flexDirection="column" width={LIST_WIDTH} flexShrink={0}>
+      {props.state.rows.map((row, i) => {
+        const connected = activeOf(row) !== undefined
+        const selected = i === props.state.index
+        return (
+          <box
+            key={row.provider}
+            height={1}
+            paddingLeft={1}
+            {...(selected ? { backgroundColor: theme.selectedBg } : {})}
+            {...press(() => props.onPick(row))}
+          >
+            <text>
+              <span fg={connected ? theme.ok : theme.dim}>{connected ? '● ' : '○ '}</span>
+              <span fg={selected ? theme.bright : theme.body}>
+                {providerSpec(row.provider).label}
+              </span>
+            </text>
+          </box>
+        )
+      })}
+    </box>
+  )
+}
+
 export function Accounts(props: {
-  meters?: (row: AccountRow) => readonly Span[]
+  meters?: (account: Account) => readonly Span[]
   width: number
   state: AccountsState
   overlay?: boolean
-  onPick: (row: AccountRow) => void
+  onPick: (row: ProviderRow) => void
+  onChooseAction: (actionIndex: number) => void
+  onChooseLogin: (accountIndex: number) => void
   onDismiss: () => void
   onOpenUrl: () => void
 }): React.ReactNode {
   const cells = accountsCells({ width: props.width })
-  const press = usePress()
-  const prompting = props.state.view !== EAccountsView.List
+  const prompting = isPrompting(props.state)
+  const row = selectedRow(props.state)
 
-  const { start, visible, below } = accountsWindow({ state: props.state, rows: ACCOUNT_ROWS })
+  const hints = prompting
+    ? props.state.view === EAccountsView.DeviceCode
+      ? DEVICE_HINTS
+      : PROMPT_HINTS
+    : props.state.view === EAccountsView.List
+      ? LIST_HINTS
+      : MODAL_HINTS
 
   return (
     <BottomDrawer
@@ -133,48 +216,33 @@ export function Accounts(props: {
       footer={
         <>
           <DrawerGap />
-          <DrawerHints
-            hints={
-              prompting
-                ? showsDeviceHints(props.state.view)
-                  ? DEVICE_HINTS
-                  : PROMPT_HINTS
-                : LIST_HINTS
-            }
-            cells={cells}
-            onDismiss={props.onDismiss}
-          />
+          <DrawerHints hints={hints} cells={cells} onDismiss={props.onDismiss} />
         </>
       }
     >
-      <box flexDirection="column" flexShrink={0}>
-        <DrawerHeading label={ACCOUNTS_HEADING} />
-        {props.state.rows.length === 0 ? (
-          <TextLine spans={[{ text: NO_ACCOUNTS, fg: theme.hint }]} cells={cells} />
-        ) : (
-          <>
-            {start === 0 ? null : (
-              <TextLine spans={[{ text: `  ${start} more above`, fg: theme.hint }]} cells={cells} />
-            )}
-            {visible.map((row, offset) => (
-              <AccountLine
-                key={rowKey(row)}
-                row={row}
-                cells={cells}
-                meters={props.meters === undefined ? [] : props.meters(row)}
-                selected={start + offset === props.state.index && !prompting}
-                press={press(() => props.onPick(row))}
-              />
-            ))}
-            {below === 0 ? null : (
-              <TextLine spans={[{ text: `  ${below} more below`, fg: theme.hint }]} cells={cells} />
-            )}
-          </>
-        )}
+      <box
+        flexDirection="row"
+        justifyContent="space-between"
+        paddingLeft={DRAWER_PAD}
+        paddingRight={DRAWER_PAD}
+      >
+        <text fg={theme.meta}>{ACCOUNTS_HEADING.toUpperCase()}</text>
       </box>
+      <DrawerGap />
       {prompting ? (
         <AccountsPrompt state={props.state} cells={cells} onOpenUrl={props.onOpenUrl} />
-      ) : null}
+      ) : (
+        <box flexDirection="row" paddingLeft={DRAWER_PAD} paddingRight={DRAWER_PAD} gap={1}>
+          <ProviderList state={props.state} onPick={props.onPick} />
+          {row === undefined ? null : (
+            <DetailPanel
+              row={row}
+              cells={panelCells({ cells })}
+              {...(props.meters === undefined ? {} : { meters: props.meters })}
+            />
+          )}
+        </box>
+      )}
       {props.state.notice === null ? null : (
         <box flexDirection="column" flexShrink={0}>
           <Wrapped text={props.state.notice} cells={cells} fg={theme.hint} />
@@ -185,6 +253,12 @@ export function Accounts(props: {
           <Wrapped text={props.state.failure} cells={cells} fg={theme.warn} />
         </box>
       )}
+      {props.state.view === EAccountsView.Actions && row !== undefined ? (
+        <ActionsModal row={row} state={props.state} onChoose={props.onChooseAction} />
+      ) : null}
+      {props.state.view === EAccountsView.SwitchLogin && row !== undefined ? (
+        <LoginPickerModal row={row} state={props.state} onChoose={props.onChooseLogin} />
+      ) : null}
     </BottomDrawer>
   )
 }

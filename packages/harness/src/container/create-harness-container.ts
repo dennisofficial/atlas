@@ -26,6 +26,7 @@ import { CloudSessionStore } from '../cloud/cloud-session'
 import { CredentialPortProxy } from '../cloud/credential-port-proxy'
 import { SecretsStoreProxy } from '../cloud/secrets-store-proxy'
 import { ClaudeCodeSource, claudeCodePayloadStore } from '../credentials/claude-code-source'
+import { CodexSource } from '../credentials/codex-source'
 import { fileAccountStore } from '../credentials/account-store'
 import { builtinOauthClients } from '../credentials/oauth'
 import { atlasCloudFile, atlasVaultFile, atlasVaultKeyFile } from '../credentials/paths'
@@ -66,6 +67,7 @@ import {
   ClaudeCodeSourceToken,
   ClientVersionToken,
   CloudSessionStoreToken,
+  CodexSourceToken,
   HookChainToken,
   KeychainReaderToken,
   LanguageModelToken,
@@ -214,6 +216,10 @@ export function createHarnessContainer(): DependencyContainer {
     ),
   })
 
+  harness.register(CodexSourceToken, {
+    useFactory: instanceCachingFactory(() => new CodexSource()),
+  })
+
   harness.register(portToken(CredentialPort), {
     useFactory: instanceCachingFactory((resolver) => {
       const clock = resolver.resolve(portToken(ClockPort))
@@ -226,7 +232,7 @@ export function createHarnessContainer(): DependencyContainer {
           accounts,
           clients: builtinOauthClients({ clock }),
           clock,
-          sinks: [resolver.resolve(ClaudeCodeSourceToken)],
+          sinks: [resolver.resolve(ClaudeCodeSourceToken), resolver.resolve(CodexSourceToken)],
         }),
         brokered: new BrokeredCredentialPort({
           accounts,

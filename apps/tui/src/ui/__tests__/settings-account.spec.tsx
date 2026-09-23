@@ -25,6 +25,13 @@ const account = (over: {
     cloudSignIn={idleLogin()}
     onSignIn={() => undefined}
     onOpenSignInUrl={() => undefined}
+    github={{
+      connection: null,
+      unreachable: false,
+      flow: idleLogin(),
+      onActivate: () => undefined,
+      onOpenUrl: () => undefined,
+    }}
   />
 )
 

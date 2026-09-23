@@ -44,6 +44,8 @@ import { DeltaChannelToken, HookChainToken, SessionRegistryToken } from '../cont
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import { jevLoopWatch } from '../loop/loop-watchdog'
 import type { TurnDeps } from '../loop/run-turn'
+
+import { ChildWake } from './child-wake'
 import { TldrTurnRunner, type TldrFeed } from '../loop/tldr-turn-runner'
 import type { TurnRunner } from '../loop/turn-runner.port'
 import type { PendingQueues } from '../pending'
@@ -134,6 +136,7 @@ export function wireTurn<Command>(args: {
   }
 
   const recordTeardownEndings = async (): Promise<void> => {
+    childWake.dispose()
     await teardownSession({
       sources: [shells, agents, services],
       log,
@@ -141,6 +144,8 @@ export function wireTurn<Command>(args: {
       stopSandbox: args.stopSandbox,
     })
   }
+
+  const childWake = new ChildWake({ agents, sources: [shells, services, agents] })
 
   const runningShells = ({ threadId }: { threadId: ThreadId }) =>
     shells

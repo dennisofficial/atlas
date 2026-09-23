@@ -237,9 +237,13 @@ The sandbox image is a private GHCR listing; access rides on GitHub.
 
 ### Issue tracker
 
-Specs and issues live as markdown under `.scratch/<feature-slug>/`, which is gitignored. One
-directory per effort: `spec.md` plus `issues/NN-<slug>.md` numbered from `01`, each carrying a
-`Status:` line.
+GitHub Issues is the ticket tracker — not Jira, not Linear. Tickets live on this repo as issues,
+triaged with the labels below; a GitHub Projects board carries them across states. The repo is
+public, so the tracker is too — contributors see the same queue we do.
+
+Specs stay local markdown under `.scratch/<feature-slug>/`, which is gitignored: one directory per
+effort, a `spec.md` plus working notes. A spec is the private working document for an effort; the
+issue is the public ticket. Delete the spec once the work ships — the code is the documentation.
 
 ### Triage labels
 

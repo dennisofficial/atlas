@@ -24,7 +24,7 @@ export function SignUpForm() {
     setError(null)
     try {
       await signUp({ name, email, password })
-      window.location.assign(searchParams.get('next') ?? '/device')
+      window.location.assign(searchParams.get('next') ?? '/')
     } catch (cause) {
       setError(cause instanceof AuthApiError ? cause.message : 'Sign-up failed')
       setBusy(false)

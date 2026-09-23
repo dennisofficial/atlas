@@ -32,6 +32,7 @@ import { SIGKILL_GRACE_MS } from './shell-process'
 import { compileWatch, MATCH_SETTLE_MS, MATCHED_LINES_CAP, type MatchedLines } from './shell-watch'
 
 export const RETAINED_CHARACTERS = 400_000
+export const RETAINED_ENDED_SHELLS = 50
 export const ACTIVITY_NOTIFY_MS = 100
 export const OVERFLOW_CHARACTERS = 50_000_000
 export const PROMPT_SETTLE_MS = 2_000
@@ -170,8 +171,10 @@ export class BunShellRegistry extends ShellRegistryPort {
       cursor: 0,
       announced: false,
       endingClaimed: false,
+      reaped: false,
       threadId: args.threadId,
       pattern: args.watch,
+      onReaped: () => this.noteReaped(shellId),
     })
     this.bump()
 
@@ -390,9 +393,30 @@ export class BunShellRegistry extends ShellRegistryPort {
     threadId: ThreadId
   }): Tracked | undefined {
     for (const [id, entry] of this.tracked) {
-      if (id === shellId && entry.threadId === threadId) return entry
+      if (id !== shellId || entry.threadId !== threadId) continue
+      if (entry.reaped) {
+        this.tracked.delete(id)
+        this.tracked.set(id, entry)
+      }
+      return entry
     }
     return undefined
+  }
+
+  private noteReaped(shellId: ShellId): void {
+    const entry = this.tracked.get(shellId)
+    if (entry === undefined) return
+    this.tracked.delete(shellId)
+    this.tracked.set(shellId, entry)
+
+    const reaped = [...this.tracked.entries()].filter(([, held]) => held.reaped)
+    let excess = reaped.length - RETAINED_ENDED_SHELLS
+    for (const [id] of reaped) {
+      if (excess <= 0) return
+      if (this.notices.hasNoticesFor({ shellId: id })) continue
+      this.tracked.delete(id)
+      excess -= 1
+    }
   }
 
   /**

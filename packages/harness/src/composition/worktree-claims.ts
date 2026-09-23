@@ -13,6 +13,7 @@ import {
 
 const SESSION_CLAIM_LABEL = 'session'
 
+const heldWarned = new Set<string>()
 const releasedOnClose = new Set<string>()
 
 function releaseWorktreeOnClose(args: {
@@ -52,13 +53,35 @@ export async function claimLaunchWorktree(args: {
  * process that picked the thread up — the lock still names the process that entered it, which may
  * be long dead. Every thread open re-claims it; a stale lock is cleared and retaken, a live one is
  * reported, and the claim is handed back when the app closes.
+ *
+ * A teammate that has not moved out of its spawner's worktree claims nothing: the spawner's own
+ * claim covers it, and a second claim would only overwrite the lock label. Once it enters its own
+ * worktree, it claims like any other thread.
  */
+async function sharesSpawnerWorktree(args: {
+  threads: ThreadStorePort
+  threadId: ThreadId
+  projectDirectory: string
+}): Promise<boolean> {
+  const opened = await args.threads.find({ threadId: args.threadId })
+  const spawnerId = opened?.agent?.spawnedBy
+  if (spawnerId === undefined) return false
+
+  const spawner = await args.threads.find({ threadId: spawnerId })
+  if (spawner?.workspace === null || spawner?.workspace === undefined) return false
+
+  return spawner.workspace === args.projectDirectory
+}
+
 export async function claimOpenedWorktree(args: {
   container: DependencyContainer
+  threads: ThreadStorePort
   threadId: ThreadId
   projectDirectory: string
   notice: NoticePort
 }): Promise<void> {
+  if (await sharesSpawnerWorktree(args)) return
+
   const claimed = await claimWorktreeAt({
     cwd: args.projectDirectory,
     label: `thread ${args.threadId}`,
@@ -66,6 +89,9 @@ export async function claimOpenedWorktree(args: {
   if (claimed === undefined) return
 
   if (claimed.outcome.claim === EWorktreeClaim.Held) {
+    if (heldWarned.has(args.projectDirectory)) return
+    heldWarned.add(args.projectDirectory)
+
     args.notice.notify({
       tone: ENoticeTone.Warn,
       ttlMs: NOTICE_WARN_MS,
@@ -105,6 +131,7 @@ export function threadOpenedHandler(args: {
   return async ({ threadId, projectDirectory }) => {
     await claimOpenedWorktree({
       container: args.container,
+      threads: args.threads,
       threadId,
       projectDirectory,
       notice: args.notice,

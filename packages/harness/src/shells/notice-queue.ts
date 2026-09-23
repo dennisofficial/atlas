@@ -2,6 +2,7 @@ import { EShellStatus, type EventDraft, type ThreadId } from '@dltech/atlas-core
 
 import type { BackgroundShell, ShellDelta, ShellSnapshot } from './background-shell'
 import { awaitingInputDraft, endedDraft, matchedDraft, stillRunningDraft } from './notifications'
+import type { OutputDelta } from './output-buffer'
 import type { MatchedLines } from './shell-watch'
 
 export const DELIVERED_CHARACTERS = 30_000
@@ -11,9 +12,29 @@ export type Tracked = {
   cursor: number
   announced: boolean
   endingClaimed: boolean
+  reaped: boolean
   threadId: ThreadId
   pattern?: string | undefined
+  onReaped?: (() => void) | undefined
 }
+
+const releasedShell = ({ snapshot }: { snapshot: ShellSnapshot }): BackgroundShell => ({
+  shellId: snapshot.shellId,
+  snapshot: () => snapshot,
+  since: (offset): OutputDelta => {
+    const asked = Math.min(Math.max(Math.trunc(offset), 0), snapshot.totalCharacters)
+    return {
+      text: '',
+      nextOffset: snapshot.totalCharacters,
+      droppedCharacters: snapshot.totalCharacters - asked,
+      totalCharacters: snapshot.totalCharacters,
+    }
+  },
+  tail: () => '',
+  kill: () => {},
+  release: () => {},
+  exited: Promise.resolve(),
+})
 
 export enum ENotice {
   Ended = 'ended',
@@ -70,7 +91,11 @@ export function take(entry: Tracked): ShellDelta {
   const remainingCharacters = Math.max(delta.totalCharacters - entry.cursor, 0)
 
   if (remainingCharacters === 0 && entry.shell.snapshot().status !== EShellStatus.Running) {
+    const snapshot = entry.shell.snapshot()
     entry.shell.release()
+    entry.shell = releasedShell({ snapshot })
+    entry.reaped = true
+    entry.onReaped?.()
   }
 
   return { text, droppedCharacters: delta.droppedCharacters, remainingCharacters }
@@ -138,6 +163,10 @@ export class ShellNoticeQueue {
 
   threadsAwaiting(): readonly ThreadId[] {
     return [...this.noticed.keys()]
+  }
+
+  hasNoticesFor({ shellId }: { shellId: string }): boolean {
+    return this.queued.some((notice) => notice.snapshot.shellId === shellId)
   }
 
   onNotice(listener: () => void): () => void {
