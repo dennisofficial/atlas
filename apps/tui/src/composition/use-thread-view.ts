@@ -163,21 +163,26 @@ export function useThreadView(args: {
   const lastHead = useRef<number | undefined>(undefined);
 
   const refresh = useCallback(async () => {
-    const window = await readThreadWindow({ log: app.log, threadId, rows });
+    const [window, spent] = await Promise.all([
+      readThreadWindow({ log: app.log, threadId, rows }),
+      readThreadSpend({ ledger: app.ledger, threadId }),
+    ]);
     const rewound = lastHead.current !== undefined && window.head < lastHead.current;
     lastHead.current = window.head;
 
     if (baseSeeded.current && !rewound) {
-      const spent = await readThreadSpend({ ledger: app.ledger, threadId });
       store.setEvents({ events: window.events, turns: spent.turns });
       setEvents(window.events);
       return;
     }
 
-    const [base, spent] = await Promise.all([
-      readThreadBase({ log: app.log, threadId, rows, fromSeq: window.fromSeq, effects }),
-      readThreadSpend({ ledger: app.ledger, threadId }),
-    ]);
+    const base = await readThreadBase({
+      log: app.log,
+      threadId,
+      rows,
+      fromSeq: window.fromSeq,
+      effects,
+    });
     baseSeeded.current = true;
     store.resetLog({ events: window.events, base, turns: spent.turns });
     setEvents(window.events);
