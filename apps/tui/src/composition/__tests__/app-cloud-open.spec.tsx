@@ -11,7 +11,7 @@ import { App } from '../app'
 import { ECloudSandboxState } from '../cloud/cloud-bridge'
 import { CLEAN_WORKSPACE, fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
 import type { CloudBridgeFactory } from '../use-cloud-lift'
-import { spokenIn, THREAD } from './app-fixture'
+import { spokenIn, THREAD, until } from './app-fixture'
 import { fakeEventLog, fakeThreadStore, type FakeThreadStore } from './fake-backend'
 import { FAKE_CONFIG, fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
@@ -59,6 +59,7 @@ const mount = async (args: {
       createBridge={createBridge}
       preflightLift={async () => null}
       captureWorkspace={async () => CLEAN_WORKSPACE}
+      captureContext={async () => undefined}
     />,
     WIDE,
   )
@@ -100,10 +101,14 @@ describe('opening a conversation that lives in the cloud', () => {
 
     try {
       await mounted.command('/resume')
-      const frame = await mounted.pick()
+      await mounted.pick()
+
+      expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(
+        true,
+      )
+      const frame = await mounted.frame()
 
       expect(bridge.created).toHaveLength(1)
-      expect(bridge.attached).toHaveLength(1)
       expect(bridge.attached[0]?.threadId).toBe(threadId)
       expect(frame).toContain('said inside the sandbox')
     } finally {
@@ -123,9 +128,13 @@ describe('opening a conversation that lives in the cloud', () => {
     const mounted = await mount({ app, bridge })
 
     try {
-      const frame = await mounted.command('/resume the-lifted-thread')
+      await mounted.command('/resume the-lifted-thread')
 
-      expect(bridge.attached).toHaveLength(1)
+      expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(
+        true,
+      )
+      const frame = await mounted.frame()
+
       expect(bridge.attached[0]?.threadId).toBe(threadId)
       expect(frame).toContain('said inside the sandbox')
     } finally {
@@ -156,6 +165,9 @@ describe('opening a conversation that lives in the cloud', () => {
     })
 
     try {
+      expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(
+        true,
+      )
       const frame = await mounted.frame()
 
       expect(bridge.created).toHaveLength(1)
