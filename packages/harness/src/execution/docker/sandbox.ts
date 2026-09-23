@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 
 import { mountBind, type Mount } from '../image/mounts'
 import { dockerfileImageReference, ensureBuiltImage, type DockerfileBuild } from '../image/build'
-import { gitConfigEnv } from './git-config-env'
+import { gitConfigEnv } from '../../workspace/git-config-env'
 import {
   declaredMountsDrift,
   declaredMountsLabel,

@@ -11,6 +11,7 @@ import { createChannelBridge } from './channel-bridge'
 import { composeServeApp } from './compose-serve'
 import { DEFAULT_DRAIN_DEADLINE_MS, withDeadline } from './drain-deadline'
 import { createFrameBuffer, DEFAULT_FRAME_BUFFER, type SignalFrame } from './frame-buffer'
+import { applyGitAccessEnv } from './git-access-env'
 import { startServeIdleStop } from './idle-stop'
 import { materializeContext } from './materialize-context'
 import {
@@ -36,6 +37,7 @@ export * from './channel-bridge'
 export * from './compose-serve'
 export * from './drain-deadline'
 export * from './frame-buffer'
+export * from './git-access-env'
 export * from './idle-stop'
 export * from './requests'
 export * from './serve-app'
@@ -171,6 +173,9 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   } else {
     log({ event: EServeEvent.WorkspaceReady, state: workspace.state, cwd, ms: workspaceMs })
   }
+
+  const spec = await fetchSpecOnce().catch(() => null)
+  applyGitAccessEnv({ env, cwd, githubToken: spec?.githubToken })
 
   const contextStartedAt = Date.now()
   const context = await materializeContext({
