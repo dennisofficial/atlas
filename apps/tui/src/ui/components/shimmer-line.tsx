@@ -6,12 +6,20 @@ import { subscribeTicker } from '../hooks/use-shimmer-clock'
 import { shimmerText, SHIMMER_TICK_MS } from '../shimmer-frames'
 import { spinnerFrame, SPINNER_FRAME_MS, theme } from '../theme'
 
+const labelText = (label: string | (() => string)): string =>
+  typeof label === 'function' ? label() : label
+
 /**
  * A tick writes the next StyledText straight into the buffer rather than rendering through React:
  * the crest moves every 40 ms and the label follows the parent's own cadence, so a render here
- * would be the frame's whole cost with nothing new to say.
+ * would be the frame's whole cost with nothing new to say. A function label is resolved on every
+ * paint instead, for readings that must move while the parent holds still, like an elapsed time
+ * counted while the turn has settled.
  */
-export function ShimmerLine(props: { label: string; base?: string | undefined }): React.ReactNode {
+export function ShimmerLine(props: {
+  label: string | (() => string)
+  base?: string | undefined
+}): React.ReactNode {
   useAppearance()
   const ref = useRef<TextRenderable>(null)
   const latest = useRef(props)
@@ -21,13 +29,22 @@ export function ShimmerLine(props: { label: string; base?: string | undefined })
     const paint = (now: number): void => {
       const node = ref.current
       if (node === null || node.isDestroyed) return
-      node.content = shimmerText({ label: latest.current.label, base: latest.current.base, now })
+      node.content = shimmerText({
+        label: labelText(latest.current.label),
+        base: latest.current.base,
+        now,
+      })
     }
     paint(Date.now())
     return subscribeTicker({ intervalMs: SHIMMER_TICK_MS, onTick: paint })
   }, [])
 
-  return <text ref={ref} content={shimmerText({ label: props.label, base: props.base, now: Date.now() })} />
+  return (
+    <text
+      ref={ref}
+      content={shimmerText({ label: labelText(props.label), base: props.base, now: Date.now() })}
+    />
+  )
 }
 
 export function SpinnerGlyph(props: { fg?: string | undefined }): React.ReactNode {

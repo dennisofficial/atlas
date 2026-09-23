@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
+import { testRender } from '@opentui/react/test-utils'
+
 import { ERetryReason } from '@dltech/atlas-core'
 
 import { EMPTY_TRANSCRIPT, EPendingKind, type TranscriptModel } from '../../store'
@@ -11,7 +13,9 @@ import type { TurnClock } from '../turn-clock'
 import { WaitingLine, WorkingLine } from '../components/working-line'
 import type { RetryWait } from '../retry-countdown'
 import { useDraft } from '../hooks/use-draft'
-import { grammarsReady } from '../markdown/__tests__/harness'
+import { grammarsReady, teardown } from '../markdown/__tests__/harness'
+import { letTimersRun } from './ticking'
+import { frameShowing } from './waiting'
 import { deriveTranscript } from '../../store'
 import { called, clocked, result, said } from '../../store/__tests__/tool-fixture'
 import { glyph } from '../theme'
@@ -20,6 +24,7 @@ import {
   FAILED_WITH_A_REASON,
   FINISHED,
   frameOf,
+  HEIGHT,
   INTERRUPTED,
   INTERRUPTING,
   LAST_WORDS,
@@ -483,6 +488,31 @@ describe('the pieces around the transcript mount', () => {
 
     expect(frame).toContain('1 shell to finish · 1m 30s')
   })
+
+  /**
+   * The regression this guards: the label used to be a string fixed at render time, and a settled
+   * turn ticks no clock above the transcript, so a quiet shell froze the reading at whatever the
+   * last incidental render had computed. The label is a function now, resolved on every shimmer
+   * paint, so the wait counts up with no re-render at all.
+   */
+  it('counts the wait up on the ticker while nothing above re-renders', async () => {
+    const setup = await testRender(
+      <box flexDirection="column" width={80} height={HEIGHT}>
+        <WaitingLine work={{ agents: 0, shells: 1 }} since={Date.now()} />
+      </box>,
+      { width: 80, height: HEIGHT },
+    )
+    try {
+      const first = await frameShowing({ setup, text: '1 shell to finish · 0s' })
+      expect(first).toContain('1 shell to finish · 0s')
+
+      await letTimersRun({ setup, ms: 1_500 })
+
+      expect(setup.captureCharFrame()).toMatch(/1 shell to finish · [1-9]\d*s/)
+    } finally {
+      await teardown(setup)
+    }
+  }, 30_000)
 
   it('says what it is waiting on with no origin to time it against', async () => {
     const frame = await frameOf(

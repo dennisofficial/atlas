@@ -81,23 +81,25 @@ export function WorkingLine(props: {
  *
  * `since` is when the wait began and is held by whoever outlives this line, because the transcript
  * unmounts whenever the operator opens a sub-agent: measured here, the reading would restart from
- * the moment they walked back in. The re-renders that count the wait up come from the shells tick
- * above this component, so the label reads the wall clock rather than a clock of its own.
+ * the moment they walked back in. The label is a function the shimmer resolves on every paint, so
+ * the wait counts up on the shared ticker while nothing above re-renders — a settled turn ticks no
+ * clock of its own.
  */
 export function WaitingLine(props: {
   work: BackgroundWork
   since?: number | null
 }): React.ReactNode {
   const since = props.since ?? null
-  const label = backgroundWaitLabel({
-    work: props.work,
-    ...(since === null ? {} : { waitedMs: Math.max(0, Date.now() - since) }),
-  })
-  if (label === null) return null
+  const label = (): string | null =>
+    backgroundWaitLabel({
+      work: props.work,
+      ...(since === null ? {} : { waitedMs: Math.max(0, Date.now() - since) }),
+    })
+  if (label() === null) return null
 
   return (
     <box flexDirection="row" marginTop={1} marginBottom={1}>
-      <ShimmerLine label={label} />
+      <ShimmerLine label={() => label() ?? ''} />
     </box>
   )
 }
