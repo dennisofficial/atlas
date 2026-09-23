@@ -1,8 +1,11 @@
 import type { KeyEvent } from '@opentui/core'
 import { useCallback, useMemo, useRef, useState } from 'react'
 
-import { projectOf } from '@dltech/atlas-core'
+import { EExecutionLocation, projectOf } from '@dltech/atlas-core'
 import type { ThreadStorePort } from '@dltech/atlas-harness'
+
+import type { CloudSandboxes } from './cloud/cloud-bridge'
+import { sandboxStatesFor } from './cloud/sandbox-states'
 
 import {
   backspace,
@@ -13,6 +16,7 @@ import {
   threadRows,
   typeInto,
   withChips,
+  withSandboxStates,
   withThreads,
   type ThreadRow,
   type ThreadsState,
@@ -41,8 +45,9 @@ export function useThreads(args: {
   activeThreadId: string
   onPick: (threadId: string) => void
   listing?: (() => Pick<ThreadStorePort, 'list'>) | undefined
+  findSandbox?: (() => Pick<CloudSandboxes, 'find'> | null) | undefined
 }): ThreadsControl {
-  const { app, activeThreadId, onPick, listing } = args
+  const { app, activeThreadId, onPick, listing, findSandbox } = args
   const held = useRef<ThreadsState | null>(null)
   const [state, setState] = useState<ThreadsState | null>(null)
 
@@ -64,6 +69,21 @@ export function useThreads(args: {
 
         put(withThreads({ state: current, rows }))
 
+        const cloudIds = rows
+          .filter((row) => row.location === EExecutionLocation.Cloud)
+          .map((row) => row.threadId)
+        const sandboxes = findSandbox?.() ?? null
+        if (cloudIds.length > 0 && sandboxes !== null) {
+          void sandboxStatesFor({ find: sandboxes, threadIds: cloudIds })
+            .then((states) => {
+              const open = held.current
+              if (open === null || open.rows !== rows) return
+
+              put(withSandboxStates({ state: open, states }))
+            })
+            .catch(() => undefined)
+        }
+
         const { pullRequests } = app
         if (pullRequests === null) return
 
@@ -82,7 +102,7 @@ export function useThreads(args: {
 
         put(failedToList({ state: current, reason: reasonOf(error) }))
       })
-  }, [activeThreadId, app, listing, put])
+  }, [activeThreadId, app, findSandbox, listing, put])
 
   const handleDismiss = useCallback(() => put(null), [put])
 
