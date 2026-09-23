@@ -33,6 +33,7 @@ import {
 } from './relocate-children'
 import {
   alreadyStepping,
+  deliberatelyStopped,
   EMPTY_BRIEF,
   retiredAgentType,
   TEAMMATE_FROM_MAIN_ONLY,
@@ -163,6 +164,30 @@ export class AgentSupervisor extends AgentRegistryPort {
 
   resume(args: { agentId: ThreadId; threadId: ThreadId }): Promise<AgentOutcome> {
     return resumeChild({ ...args, ...this.relocation })
+  }
+
+  async wake({ agentId }: { agentId: ThreadId }): Promise<AgentOutcome> {
+    const child = this.roster.find(agentId)
+    if (child === undefined) {
+      return { ok: false, reason: unknownAgent({ agentId, known: this.roster.listEverywhere() }) }
+    }
+    if (isStepping(child)) return { ok: false, reason: alreadyStepping(agentId) }
+    if (child.killedBy !== undefined) {
+      return { ok: false, reason: deliberatelyStopped({ agentId }) }
+    }
+
+    const agentType = agentTypeNamed({ agentTypes: this.agentTypes, name: child.agentType })
+    if (agentType === undefined) {
+      return { ok: false, reason: retiredAgentType(child.agentType) }
+    }
+
+    child.projectDirectory ??= await childDirectory({ deps: this.deps, threadId: child.spawnedBy })
+    this.steps.take({
+      child,
+      agentType,
+      step: ({ runner, signal }) => runner.runTurn({ threadId: agentId, signal }),
+    })
+    return { ok: true, snapshot: snapshotOf(child) }
   }
 
   sayToPeer(args: {
