@@ -110,7 +110,7 @@ export class StationResultsService {
       data: { status: EStationRunStatus.Finished, updatedAt: at, finishedAt: at },
     })
 
-    const userId = await this.identity.userId()
+    const userId = await this.identity.userId({ organizationId: item.organizationId })
     await this.sandboxes.stop({ userId, threadId: run.threadId }).catch((failure: unknown) => {
       this.logger.warn(`could not stop station sandbox for run ${run.id}: ${messageOf(failure)}`)
     })

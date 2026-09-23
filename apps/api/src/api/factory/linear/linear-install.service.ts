@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   ServiceUnavailableException,
 } from '@nestjs/common'
@@ -66,6 +67,15 @@ export class LinearInstallService {
       redirectUri: callbackUrl({ apiOrigin: args.apiOrigin }),
     })
     const workspaceId = await fetchOrganizationId({ accessToken: token.accessToken })
+    const existing = await this.connections.resolve({
+      provider: EFactoryConnectionProvider.Linear,
+      externalAccountId: workspaceId,
+    })
+    if (existing !== null && existing.organizationId !== entry.organizationId) {
+      throw new ConflictException(
+        'this linear workspace is already connected to another organization',
+      )
+    }
     const credentials = credentialsFromToken({
       accessToken: token.accessToken,
       refreshToken: token.refreshToken,

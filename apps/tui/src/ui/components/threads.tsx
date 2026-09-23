@@ -1,7 +1,10 @@
 import React from 'react'
 
+import { EExecutionLocation } from '@dltech/atlas-core'
+
 import { type Hint } from '../hint-layout'
 import { type PressHandlers, usePress } from '../hooks/use-press'
+import { cloudSandboxBadge } from '../thread-badges'
 import { glyph, theme } from '../theme'
 import {
   matchingThreads,
@@ -85,13 +88,21 @@ function ThreadLine(props: {
   const right: Span = { text: trailing, fg: theme.hint }
   const gap = Math.max(1, props.cells - spanCells([mark, label, right]))
 
-  const place: Span = {
-    text:
-      props.row.worktree === undefined
-        ? MAIN_LABEL
-        : `${glyph.worktree} ${props.row.worktree.branch}`,
-    fg: theme.hint,
-  }
+  const badge =
+    props.row.location === EExecutionLocation.Cloud
+      ? cloudSandboxBadge({ state: props.row.sandbox })
+      : null
+
+  const place: Span =
+    badge !== null
+      ? badge
+      : {
+          text:
+            props.row.worktree === undefined
+              ? MAIN_LABEL
+              : `${glyph.worktree} ${props.row.worktree.branch}`,
+          fg: theme.hint,
+        }
 
   const chips = props.row.chips ?? []
   const placeSpans: Span[] = [{ text: GUTTER }, place]

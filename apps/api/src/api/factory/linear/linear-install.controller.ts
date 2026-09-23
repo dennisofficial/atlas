@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Controller,
   Get,
   HttpException,
@@ -7,7 +6,6 @@ import {
   Query,
   Req,
   Res,
-  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common'
 import type { Response } from 'express'
@@ -15,6 +13,7 @@ import { EnvService } from '../../../_core/config/env/env.service'
 import { Public } from '../../../_core/decorators/public.decorator'
 import type { AuthenticatedRequest } from '../../../_core/types/auth.types'
 import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
+import { requireOrganization } from '../require-organization'
 import { LinearInstallService } from './linear-install.service'
 
 @Controller({ path: 'factory/linear', version: '1' })
@@ -29,14 +28,8 @@ export class LinearInstallController {
 
   @Get('install')
   handleInstall(@Req() request: AuthenticatedRequest, @Res() response: Response): void {
-    const auth = request.auth
-    if (!auth) throw new UnauthorizedException('a valid session is required')
-    if (auth.activeOrganizationId === null) {
-      throw new BadRequestException('an active organization is required to install linear')
-    }
-
     const url = this.install.beginInstall({
-      organizationId: auth.activeOrganizationId,
+      organizationId: requireOrganization(request),
       apiOrigin: this.env.get('BETTER_AUTH_URL'),
     })
     response.redirect(302, url)
@@ -71,6 +64,6 @@ export class LinearInstallController {
   }
 
   private webRedirect(args: { installed: 'success' | 'error' }): string {
-    return `${this.env.get('WEB_ORIGIN')}/factory/linear?installed=${args.installed}`
+    return `${this.env.get('WEB_ORIGIN')}/factory?linear=${args.installed}`
   }
 }

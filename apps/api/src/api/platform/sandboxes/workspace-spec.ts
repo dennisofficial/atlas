@@ -29,6 +29,8 @@ export interface WorkspaceColumns {
   workspacePatch: string | null
   workspaceContext: string | null
   workspaceProjectDirectory: string | null
+  workspaceGitName: string | null
+  workspaceGitEmail: string | null
 }
 
 export function assertContextBundleWithinLimit(args: { bundle: string }): void {
@@ -56,6 +58,8 @@ export function workspaceColumnsOf(spec: SandboxWorkspaceSpec | undefined): Work
       workspacePatch: null,
       workspaceContext: null,
       workspaceProjectDirectory: null,
+      workspaceGitName: null,
+      workspaceGitEmail: null,
     }
   }
   assertPatchWithinLimit({ patch: spec.patch })
@@ -66,6 +70,8 @@ export function workspaceColumnsOf(spec: SandboxWorkspaceSpec | undefined): Work
     workspacePatch: spec.patch,
     workspaceContext: null,
     workspaceProjectDirectory: spec.projectDirectory ?? null,
+    workspaceGitName: spec.gitIdentity?.name ?? null,
+    workspaceGitEmail: spec.gitIdentity?.email ?? null,
   }
 }
 
@@ -77,13 +83,20 @@ export function workspaceSpecOf(
     | 'workspaceCommit'
     | 'workspacePatch'
     | 'workspaceProjectDirectory'
+    | 'workspaceGitName'
+    | 'workspaceGitEmail'
   >,
 ): SandboxWorkspaceSpec {
+  const gitIdentity =
+    row.workspaceGitName !== null && row.workspaceGitEmail !== null
+      ? { name: row.workspaceGitName, email: row.workspaceGitEmail }
+      : null
   return {
     remoteUrl: row.workspaceRemoteUrl,
     branch: row.workspaceBranch,
     commit: row.workspaceCommit,
     patch: row.workspacePatch ?? '',
     projectDirectory: row.workspaceProjectDirectory,
+    gitIdentity,
   }
 }

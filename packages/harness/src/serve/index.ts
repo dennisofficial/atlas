@@ -11,11 +11,12 @@ import { createChannelBridge } from './channel-bridge'
 import { composeServeApp } from './compose-serve'
 import { DEFAULT_DRAIN_DEADLINE_MS, withDeadline } from './drain-deadline'
 import { createFrameBuffer, DEFAULT_FRAME_BUFFER, type SignalFrame } from './frame-buffer'
+import { createEnvironmentProfile, EProfileStepState } from './environment-profile'
 import { applyGitAccessEnv } from './git-access-env'
 import { startServeIdleStop } from './idle-stop'
 import { materializeContext } from './materialize-context'
 import {
-  ensureWorkspace as materializeWorkspace,
+  createEnsureWorkspace,
   EWorkspaceState,
   workspaceRefusalOf,
   type EnsureWorkspace,
@@ -36,10 +37,12 @@ import { contextArchiveFetcher, workspaceSpecFetcher } from './workspace-spec'
 export * from './channel-bridge'
 export * from './compose-serve'
 export * from './drain-deadline'
+export * from './environment-profile'
 export * from './frame-buffer'
 export * from './git-access-env'
 export * from './idle-stop'
 export * from './requests'
+export * from './run-command'
 export * from './serve-app'
 export * from './serve-config'
 export * from './serve-session'
@@ -157,7 +160,9 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
    * a first attach is nothing at all.
    */
   const workspaceStartedAt = Date.now()
-  const workspace = await (args.ensureWorkspace ?? materializeWorkspace)({
+  const ensureWorkspace =
+    args.ensureWorkspace ?? createEnsureWorkspace({ profile: createEnvironmentProfile({ env }) })
+  const workspace = await ensureWorkspace({
     cwd,
     fetchSpec: fetchSpecOnce,
   })
@@ -172,6 +177,10 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     })
   } else {
     log({ event: EServeEvent.WorkspaceReady, state: workspace.state, cwd, ms: workspaceMs })
+    for (const outcome of workspace.profile?.steps ?? []) {
+      if (outcome.state !== EProfileStepState.Failed) continue
+      log({ event: EServeEvent.ProfileStepFailed, step: outcome.step, detail: outcome.detail })
+    }
   }
 
   const spec = await fetchSpecOnce().catch(() => null)

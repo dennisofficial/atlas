@@ -189,6 +189,8 @@ function DerivedOverlayStack(props: {
             ...props.services.everywhere.filter(isServiceAlive).map(exitGuardServiceRow),
             ...agents.everywhere.filter(isSubagentRunning).map(exitGuardAgentRow),
           ]}
+          options={exitGuard.options}
+          cloud={exitGuard.cloud}
           state={exitGuard.state}
           overlay
           onPick={exitGuard.handlePick}

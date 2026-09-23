@@ -717,6 +717,7 @@ describe('SandboxesService', () => {
     await expect(service.workspace({ threadId: THREAD })).resolves.toEqual({
       ...SPEC,
       projectDirectory: null,
+      gitIdentity: null,
       githubToken: 'gho_user-token',
       contextBundle: null,
     })
@@ -841,6 +842,7 @@ describe('SandboxesService', () => {
       commit: null,
       patch: '',
       projectDirectory: null,
+      gitIdentity: null,
       githubToken: null,
       contextBundle: null,
     })
@@ -1093,6 +1095,27 @@ describe('SandboxesService', () => {
     })
     expect(settled.contextPending).toBe(false)
     expect(fake.cloudSandboxes[0]?.contextPending).toBe(false)
+  })
+
+  it('claim persists the git identity and the workspace fetch serves it back', async () => {
+    const gitIdentity = { name: 'Dennis Lysenko', email: 'dennis@comp.ai' }
+    await service.claim({
+      userId: USER_A,
+      threadId: THREAD,
+      workspace: { ...SPEC, gitIdentity },
+    })
+
+    const workspace = await service.workspace({ threadId: THREAD })
+
+    expect(workspace.gitIdentity).toEqual(gitIdentity)
+  })
+
+  it('claim without a git identity serves gitIdentity as null', async () => {
+    await service.claim({ userId: USER_A, threadId: THREAD, workspace: SPEC })
+
+    const workspace = await service.workspace({ threadId: THREAD })
+
+    expect(workspace.gitIdentity).toBeNull()
   })
 
   it('claim refuses an oversized patch before writing anything', async () => {

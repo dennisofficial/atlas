@@ -120,6 +120,7 @@ import { settleStaleness } from './auto-restart'
 import { checkForUpdate, sourceStalenessProbe, type SourceStaleness } from './update-check'
 import { unstartedConversation, type OpenedConversation } from './open-conversation'
 import { useConversation } from './use-conversation'
+import { DETACH_EXIT_LINE } from '../ui/exit-guard-model'
 import { useExitGuard } from './use-exit-guard'
 import {
   composerCovered,
@@ -379,13 +380,24 @@ function Workspace(props: {
 }): React.ReactNode {
   const renderer = useRenderer()
   const restarting = useRef(false)
+  const cloud = props.cloudBridge !== null
   const exitGuard = useExitGuard({
+    cloud,
     onExit: () => {
       if (restarting.current && props.onRestart !== null) {
         props.onRestart()
         return
       }
       renderer.destroy()
+    },
+    onDetach: () => {
+      props.cloudSession?.close()
+      if (restarting.current && props.onRestart !== null) {
+        props.onRestart()
+        return
+      }
+      renderer.destroy()
+      process.stdout.write(`${DETACH_EXIT_LINE}\n`)
     },
   })
   const { width, height } = useTerminalDimensions()
@@ -750,6 +762,7 @@ function Workspace(props: {
     activeThreadId: conversation.threadId,
     onPick: handleOpenThread,
     listing: router.listing,
+    findSandbox: router.findSandbox,
   })
 
   /**
@@ -1170,6 +1183,11 @@ function Workspace(props: {
   }, [containerGuard, shells.running])
 
   const handleQuit = useCallback(() => {
+    if (cloud) {
+      exitGuard.handleOpen()
+      return
+    }
+
     if (conversation.working) {
       conversation.handleInterrupt()
       return
@@ -1181,7 +1199,7 @@ function Workspace(props: {
     }
 
     renderer.destroy()
-  }, [agents.running, conversation, exitGuard, renderer, services.running, shells])
+  }, [agents.running, cloud, conversation, exitGuard, renderer, services.running, shells])
 
   const commands = useMemo(
     () =>
@@ -1451,10 +1469,11 @@ function Workspace(props: {
   }, [layout])
 
   useEffect(() => {
+    if (cloud) return
     if (exitGuard.state !== null && shells.runningEverywhere + agents.running + services.running === 0) {
       exitGuard.handleDismiss()
     }
-  }, [agents.running, exitGuard, services.running, shells.runningEverywhere])
+  }, [agents.running, cloud, exitGuard, services.running, shells.runningEverywhere])
 
   useKeyBindings(
     globalBindings({

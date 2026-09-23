@@ -33,7 +33,7 @@ type CachedRow = {
   updatedAt: Date
 }
 
-const OPEN_STATES = ['open', 'draft']
+export const OPEN_STATES = ['open', 'draft']
 
 const dtoOf = (row: CachedRow): PullRequestDto => ({
   repoFullName: row.repoFullName,
@@ -67,35 +67,98 @@ export class PullRequestsService {
     repoFullName: string
     branch: string
   }): Promise<PullRequestDto | null> {
-    const [owner, repo] = args.repoFullName.split('/')
-    if (owner === undefined || repo === undefined || args.repoFullName.split('/').length !== 2) {
-      throw new ForbiddenException('repo must be owner/name')
-    }
+    const { owner, repo } = this.parseRepo({ repoFullName: args.repoFullName })
     await this.requireRepoAccess({ userId: args.userId, owner, repo })
 
-    const cached = await db.githubPullRequest.findFirst({
+    const open = await db.githubPullRequest.findFirst({
       where: {
         repoFullName: args.repoFullName,
         headBranch: args.branch,
         state: { in: OPEN_STATES },
       },
     })
-    if (cached !== null) return dtoOf(cached)
+    if (open !== null) return dtoOf(open)
 
-    const found = await this.reads.findOpenPullRequest({
+    const filled = await this.fillByBranch({
       owner,
       repo,
+      repoFullName: args.repoFullName,
       branch: args.branch,
+      settled: false,
+    })
+    if (filled !== null) return dtoOf(filled)
+
+    const settled = await db.githubPullRequest.findFirst({
+      where: { repoFullName: args.repoFullName, headBranch: args.branch },
+      orderBy: { updatedAt: 'desc' },
+    })
+    if (settled !== null) return dtoOf(settled)
+
+    const filledSettled = await this.fillByBranch({
+      owner,
+      repo,
+      repoFullName: args.repoFullName,
+      branch: args.branch,
+      settled: true,
+    })
+    return filledSettled === null ? null : dtoOf(filledSettled)
+  }
+
+  async readByNumber(args: {
+    userId: string
+    repoFullName: string
+    number: number
+  }): Promise<PullRequestDto | null> {
+    const { owner, repo } = this.parseRepo({ repoFullName: args.repoFullName })
+    await this.requireRepoAccess({ userId: args.userId, owner, repo })
+
+    const cached = await db.githubPullRequest.findUnique({
+      where: { repoFullName_number: { repoFullName: args.repoFullName, number: args.number } },
+    })
+    if (cached !== null) return dtoOf(cached)
+
+    const fields = await this.reads.readPullRequest({ owner, repo, number: args.number })
+    const filled = await db.githubPullRequest.upsert({
+      where: { repoFullName_number: { repoFullName: args.repoFullName, number: args.number } },
+      create: { repoFullName: args.repoFullName, number: args.number, ...fields },
+      update: fields,
+    })
+    return dtoOf(filled)
+  }
+
+  private parseRepo(args: { repoFullName: string }): { owner: string; repo: string } {
+    const [owner, repo] = args.repoFullName.split('/')
+    if (owner === undefined || repo === undefined || args.repoFullName.split('/').length !== 2) {
+      throw new ForbiddenException('repo must be owner/name')
+    }
+    return { owner, repo }
+  }
+
+  private async fillByBranch(args: {
+    owner: string
+    repo: string
+    repoFullName: string
+    branch: string
+    settled: boolean
+  }): Promise<CachedRow | null> {
+    const found = await this.reads.findPullRequestForBranch({
+      owner: args.owner,
+      repo: args.repo,
+      branch: args.branch,
+      settled: args.settled,
     })
     if (found === null) return null
 
-    const fields = await this.reads.readPullRequest({ owner, repo, number: found.number })
-    const created = await db.githubPullRequest.upsert({
+    const fields = await this.reads.readPullRequest({
+      owner: args.owner,
+      repo: args.repo,
+      number: found.number,
+    })
+    return db.githubPullRequest.upsert({
       where: { repoFullName_number: { repoFullName: args.repoFullName, number: found.number } },
       create: { repoFullName: args.repoFullName, number: found.number, ...fields },
       update: fields,
     })
-    return dtoOf(created)
   }
 
   /**
