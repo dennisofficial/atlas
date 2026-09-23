@@ -1,5 +1,6 @@
 import type { CallId, ThreadId, ChunkFilter, Event, EventOfType, EventRef } from '@dltech/atlas-core'
 
+import { retainReplayable, type InFlightSlots } from './in-flight'
 import {
   EStepEnd,
   toStepId,
@@ -31,6 +32,7 @@ export type DeltaChannel = {
 type ThreadState = {
   listeners: Set<ChannelListener>
   inFlight: StepSignal[]
+  toolOutputSlots: InFlightSlots
   replay: readonly StepSignal[] | undefined
   stepId: StepId | undefined
   stepsStarted: number
@@ -60,6 +62,7 @@ export function createDeltaChannel(): DeltaChannel {
     const created: ThreadState = {
       listeners: new Set(),
       inFlight: [],
+      toolOutputSlots: new Map(),
       replay: undefined,
       stepId: undefined,
       stepsStarted: 0,
@@ -85,7 +88,11 @@ export function createDeltaChannel(): DeltaChannel {
   }
 
   const publish = (args: { state: ThreadState; signal: StepSignal }) => {
-    args.state.inFlight.push(args.signal)
+    retainReplayable({
+      inFlight: args.state.inFlight,
+      slots: args.state.toolOutputSlots,
+      signal: args.signal,
+    })
     args.state.replay = undefined
     notify(args)
   }
@@ -95,6 +102,7 @@ export function createDeltaChannel(): DeltaChannel {
     const stepId = toStepId(`${args.threadId}#${args.state.stepsStarted}`)
     args.state.stepId = stepId
     args.state.inFlight = []
+    args.state.toolOutputSlots.clear()
     args.state.replay = undefined
     publish({ state: args.state, signal: { type: 'step-started', stepId } })
     return stepId
@@ -111,6 +119,7 @@ export function createDeltaChannel(): DeltaChannel {
 
     args.state.stepId = undefined
     args.state.inFlight = []
+    args.state.toolOutputSlots.clear()
     args.state.replay = undefined
     notify({
       state: args.state,
