@@ -48,15 +48,20 @@ export class GithubInstallationReads {
     })
   }
 
-  async findOpenPullRequest(args: {
+  async findPullRequestForBranch(args: {
     owner: string
     repo: string
     branch: string
+    settled: boolean
   }): Promise<{ number: number } | null> {
     const token = await this.app.installationToken({ owner: args.owner, repo: args.repo })
+    const head = `${args.owner}:${encodeURIComponent(args.branch)}`
+    const query = args.settled
+      ? `state=all&sort=updated&direction=desc&head=${head}&per_page=1`
+      : `state=open&head=${head}&per_page=5`
     const pulls = await this.get<Array<{ number: number }>>({
       token,
-      path: `/repos/${args.owner}/${args.repo}/pulls?state=open&head=${args.owner}:${encodeURIComponent(args.branch)}&per_page=5`,
+      path: `/repos/${args.owner}/${args.repo}/pulls?${query}`,
     })
     const found = pulls[0]
     return found === undefined ? null : { number: found.number }

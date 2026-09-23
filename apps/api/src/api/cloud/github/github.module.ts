@@ -21,6 +21,6 @@ import { PullRequestsService } from './pull-requests.service'
     },
     { provide: GithubDeviceClient, useFactory: () => new GithubDeviceClient({}) },
   ],
-  exports: [GithubService, GithubInstallationReads],
+  exports: [GithubService, GithubInstallationReads, PullRequestsService],
 })
 export class GithubModule {}
