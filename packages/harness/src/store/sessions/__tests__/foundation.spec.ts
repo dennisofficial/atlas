@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from 'bun:test'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 import { toEventId, toRunId, toThreadId, type EventDraft, type EventEnvelope } from '@dltech/atlas-core'
 
@@ -93,6 +94,27 @@ describe('meta read/write', () => {
     const dir = await tempDir()
     const read = readMetaSync({ file: sessionMetaFile({ sessionDir: dir }), schema: sessionMetaSchema })
     expect(read).toBeUndefined()
+  })
+
+  it('returns undefined for a meta truncated into NUL padding', async () => {
+    const dir = await tempDir()
+    const file = threadMetaFile({ sessionDir: dir, threadId })
+    const meta = newThreadMeta({ id: threadId, at: '2026-09-23T00:00:00.000Z' })
+    mkdirSync(dirname(file), { recursive: true })
+    const full = JSON.stringify(meta, null, 2)
+    const corrupt = Buffer.alloc(full.length)
+    Buffer.from(full.slice(0, full.length - 30)).copy(corrupt)
+    writeFileSync(file, corrupt)
+    expect(readMetaSync({ file, schema: threadMetaSchema })).toBeUndefined()
+  })
+
+  it('leaves a parseable file after concurrent writes to the same meta', async () => {
+    const dir = await tempDir()
+    const file = threadMetaFile({ sessionDir: dir, threadId })
+    const metas = [1, 2, 3, 4, 5].map((head) => ({ ...newThreadMeta({ id: threadId, at: '2026-09-23T00:00:00.000Z' }), head }))
+    await Promise.all(metas.map((meta) => writeMeta({ file, meta })))
+    const read = readMetaSync({ file, schema: threadMetaSchema })
+    expect(metas.some((meta) => meta.head === read?.head)).toBe(true)
   })
 
   it('refuses a session written by a newer format', async () => {
