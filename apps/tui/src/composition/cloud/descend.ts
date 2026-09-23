@@ -19,7 +19,7 @@ import type { CloudBridge, CloudChannel } from './cloud-bridge'
 import { draftsOf } from './event-drafts'
 import { ELiftStep } from './lift'
 import { flipChildrenBack } from './lift-children'
-import { descendedConflictsDraft } from './transition-notice'
+import { descendedConflictsDraft, descendedSupersededDraft } from './transition-notice'
 
 const DESCEND_DESTROY_NOTICE_KEY = 'descend-sandbox-destroy-failed'
 
@@ -106,6 +106,8 @@ export type WorkspaceMerger = (args: {
   cwd: string
   ref: string
   base: string | null
+  baseTree: string | null
+  branch: string | null
 }) => Promise<MergedWorkspace>
 
 async function publishWorkspaceHome(args: {
@@ -176,6 +178,8 @@ export async function descendFromCloud(args: {
           cwd: localApp.workspace.workspace,
           ref: published.ref,
           base: published.base,
+          baseTree: published.baseTree ?? null,
+          branch: published.branch ?? null,
         })
 
   if (args.pullMemory !== undefined) {
@@ -207,11 +211,18 @@ export async function descendFromCloud(args: {
     services: localApp.services,
     agents: localApp.agents,
   })
-  if (merged.conflicts.length > 0) {
+  if (merged.conflicts.length > 0 || merged.superseded !== undefined) {
     await localApp.log.append({
       threadId,
       runId: localApp.ids.nextRunId(),
-      drafts: [descendedConflictsDraft({ conflicts: merged.conflicts })],
+      drafts: [
+        ...(merged.conflicts.length > 0
+          ? [descendedConflictsDraft({ conflicts: merged.conflicts })]
+          : []),
+        ...(merged.superseded === undefined
+          ? []
+          : [descendedSupersededDraft({ superseded: merged.superseded })]),
+      ],
     })
   }
 

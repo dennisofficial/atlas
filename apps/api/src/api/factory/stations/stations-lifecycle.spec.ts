@@ -63,7 +63,7 @@ describe('StationsService lifecycle', () => {
     }
     const credentials = {
       ensureSeeded: vi.fn(async () => undefined),
-      modelRef: vi.fn(() => 'inference/kimi-k3-fast'),
+      modelRef: vi.fn(async () => 'inference/kimi-k3-fast'),
     }
     const drives = { ensure: vi.fn(async () => 'factory-dennisofficial-factory-scratch-12') }
     service = new StationsService(

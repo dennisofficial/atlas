@@ -69,14 +69,21 @@ const harness = (args: {
 const argsOf = (attempts: readonly Attempt[]): string[][] =>
   attempts.map((attempt) => [...attempt.args])
 
+const TIP = 'ba51e1e0000000000000000000000000000000ff'
+
+const TREE = '7ee1ab1e000000000000000000000000000000aa'
+
+const PATCHED_TREE = '1f2e3d4c000000000000000000000000000000bb'
+
+const revParseAnswers = (attempt: Attempt): string | undefined => {
+  if (attempt.args[0] === 'write-tree') return `${PATCHED_TREE}\n`
+  if (attempt.args[0] !== 'rev-parse') return undefined
+  return attempt.args.at(-1) === 'HEAD^{tree}' ? `${TREE}\n` : `${TIP}\n`
+}
+
 describe('ensureWorkspace', () => {
-  it('clones, detaches at the commit and applies the patch', async () => {
-    const { ensure, attempts, written, emptied } = harness({
-      answers: (attempt) =>
-        attempt.args[0] === 'rev-parse'
-          ? 'ba51e1e0000000000000000000000000000000ff\n'
-          : undefined,
-    })
+  it('clones, arrives on the branch at the lifted commit and applies the patch uncommitted', async () => {
+    const { ensure, attempts, written, emptied } = harness({ answers: revParseAnswers })
 
     const readiness = await ensure({
       cwd: CWD,
@@ -93,28 +100,19 @@ describe('ensureWorkspace', () => {
         '.',
       ],
       ['remote', 'set-url', 'origin', 'https://github.com/dennisofficial/atlas.git'],
-      ['checkout', '--detach', '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c'],
+      ['checkout', '-B', 'dennis/container-cloud', '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c'],
+      ['rev-parse', '--verify', 'HEAD'],
+      ['rev-parse', '--verify', 'HEAD^{tree}'],
       ['apply', '--whitespace=nowarn', `${CWD}/.git/atlas-workspace.patch`],
       ['add', '-A'],
-      [
-        '-c',
-        'user.name=Atlas',
-        '-c',
-        'user.email=atlas@localhost',
-        'commit',
-        '-m',
-        'atlas: lifted workspace baseline',
-      ],
-      ['rev-parse', '--verify', 'HEAD'],
+      ['write-tree'],
+      ['reset'],
     ])
     expect(written.at(-1)?.path).toBe(`${CWD}/${WORKSPACE_SENTINEL}`)
   })
 
-  it('records the baseline commit in the sentinel for the descend to merge against', async () => {
-    const baseline = 'ba51e1e0000000000000000000000000000000ff'
-    const { ensure, written } = harness({
-      answers: (attempt) => (attempt.args[0] === 'rev-parse' ? `${baseline}\n` : undefined),
-    })
+  it('records the branch tip and its tree in the sentinel for the descend to merge against', async () => {
+    const { ensure, written } = harness({ answers: revParseAnswers })
 
     const readiness = await ensure({
       cwd: CWD,
@@ -125,31 +123,39 @@ describe('ensureWorkspace', () => {
     const sentinel = written.find((one) => one.path.endsWith(WORKSPACE_SENTINEL))
     expect(JSON.parse(sentinel?.text ?? '{}')).toMatchObject({
       commit: '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c',
-      baseline,
+      baseline: TIP,
+      baselineTree: PATCHED_TREE,
+      branch: 'dennis/container-cloud',
     })
   })
 
-  it('commits no baseline when nothing uncommitted rode up with the lift', async () => {
-    const { ensure, attempts, written } = harness({})
+  it('records the checkout tree as the baseline tree when no patch rode up', async () => {
+    const { ensure, attempts, written } = harness({ answers: revParseAnswers })
 
     const readiness = await ensure({ cwd: CWD, fetchSpec: async () => spec() })
 
     expect(readiness).toEqual({ state: EWorkspaceState.Materialized })
-    expect(argsOf(attempts).at(-1)).toEqual([
-      'checkout',
-      '--detach',
-      '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c',
-    ])
+    expect(argsOf(attempts).some((args) => args[0] === 'write-tree')).toBe(false)
     const sentinel = written.find((one) => one.path.endsWith(WORKSPACE_SENTINEL))
-    expect(JSON.parse(sentinel?.text ?? '{}')).toMatchObject({
-      baseline: '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c',
-    })
+    expect(JSON.parse(sentinel?.text ?? '{}')).toMatchObject({ baselineTree: TREE })
   })
 
-  it('surfaces a baseline that would not commit rather than serving an unmergeable tree', async () => {
+  it('never commits the lifted work, and unstages what the tree recording staged', async () => {
+    const { ensure, attempts } = harness({ answers: revParseAnswers })
+
+    await ensure({ cwd: CWD, fetchSpec: async () => spec({ patch: 'diff --git a/x b/x\n' }) })
+
+    const args = argsOf(attempts)
+    expect(args.some((one) => one.includes('commit'))).toBe(false)
+    const added = args.findIndex((one) => one[0] === 'add')
+    expect(added).toBeGreaterThan(-1)
+    expect(args.findIndex((one) => one[0] === 'reset')).toBeGreaterThan(added)
+  })
+
+  it('surfaces a baseline tree that would not write rather than serving an unmergeable tree', async () => {
     const { ensure, written } = harness({
       fails: (attempt) =>
-        attempt.args.includes('commit') ? { stderr: 'nothing to commit' } : undefined,
+        attempt.args[0] === 'write-tree' ? { stderr: 'unmerged entries' } : undefined,
     })
 
     const readiness = await ensure({
@@ -160,9 +166,21 @@ describe('ensureWorkspace', () => {
     expect(readiness).toEqual({
       state: EWorkspaceState.Failed,
       step: EWorkspaceStep.Baseline,
-      reason: 'nothing to commit',
+      reason: 'unmerged entries',
     })
     expect(written.some((one) => one.path.endsWith(WORKSPACE_SENTINEL))).toBe(false)
+  })
+
+  it('detaches at the commit when the operator was not on a branch', async () => {
+    const { ensure, attempts } = harness({ answers: revParseAnswers })
+
+    await ensure({ cwd: CWD, fetchSpec: async () => spec({ branch: null }) })
+
+    expect(argsOf(attempts)).toContainEqual([
+      'checkout',
+      '--detach',
+      '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c',
+    ])
   })
 
   it('does nothing at all when the sentinel is already there', async () => {
@@ -199,7 +217,7 @@ describe('ensureWorkspace', () => {
 
     await ensure({ cwd: CWD, fetchSpec: async () => spec({ commit: null }) })
 
-    expect(argsOf(attempts).at(-1)).toEqual(['checkout', 'dennis/container-cloud'])
+    expect(argsOf(attempts)).toContainEqual(['checkout', 'dennis/container-cloud'])
   })
 
   it('surfaces a clone failure with its step, and never leaves a sentinel behind', async () => {

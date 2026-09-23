@@ -1,11 +1,14 @@
 import { Module } from '@nestjs/common'
 import { EnvService } from '../../_core/config/env/env.service'
 import { SessionsModule } from '../platform/sessions/sessions.module'
+import { FactoryConnectionsController } from './connections/connections.controller'
 import { FactoryConnectionsService } from './connections/connections.service'
 import { FactoryDeliveriesController } from './delivery/deliveries.controller'
 import { DeliveriesService } from './delivery/deliveries.service'
 import { FactoryDriveSweeperService } from './drives/drive-sweeper.service'
 import { FactoryDrivesService } from './drives/drives.service'
+import { GithubInstallController } from './github-install.controller'
+import { GithubInstallService } from './github-install.service'
 import { GithubWebhookController } from './github-webhook.controller'
 import { GithubWebhookService } from './github-webhook.service'
 import { LinearWebhookController } from './linear-webhook.controller'
@@ -20,6 +23,8 @@ import {
   ORCHESTRATOR_CHANNEL,
 } from './orchestrator/orchestrator-channel'
 import { OrchestratorService } from './orchestrator/orchestrator.service'
+import { OrgSettingsController } from './settings/org-settings.controller'
+import { OrgSettingsService } from './settings/org-settings.service'
 import { GithubAppService } from './reply/github-app.service'
 import { GuardedReplyService } from './reply/guarded-reply.service'
 import { OrchestratorSandboxGuard } from './reply/orchestrator-sandbox.guard'
@@ -30,6 +35,7 @@ import { StationTokensService } from './stations/station-tokens.service'
 import { StationsService } from './stations/stations.service'
 import { FactoryStationsController } from './stations/stations.controller'
 import { TranscriptService } from './transcript.service'
+import { WorkItemsController } from './work-items.controller'
 import { WorkItemsService } from './work-items.service'
 
 @Module({
@@ -41,12 +47,18 @@ import { WorkItemsService } from './work-items.service'
     FactoryRepliesController,
     FactoryStationsController,
     FactoryDeliveriesController,
+    FactoryConnectionsController,
+    WorkItemsController,
+    GithubInstallController,
+    OrgSettingsController,
   ],
   providers: [
     WorkItemsService,
     FactoryConnectionsService,
     TranscriptService,
     GithubWebhookService,
+    GithubInstallService,
+    OrgSettingsService,
     LinearWebhookService,
     LinearInstallService,
     LinearTokensService,

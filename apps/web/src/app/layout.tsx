@@ -18,7 +18,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
         />
-        <main className="flex w-full max-w-sm flex-col gap-6">
+        <main className="flex w-full max-w-3xl flex-col gap-6">
           <header className="flex items-baseline gap-2">
             <span className="font-display text-lg font-semibold text-foreground">Atlas</span>
             <span className="text-xs text-hint">Cloud</span>

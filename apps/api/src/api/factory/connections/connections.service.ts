@@ -19,6 +19,14 @@ export class FactoryConnectionsService {
     return row === null ? null : toConnectionDto(row)
   }
 
+  async listForOrganization(args: { organizationId: string }): Promise<FactoryConnectionDto[]> {
+    const rows = await db.factoryConnection.findMany({
+      where: { organizationId: args.organizationId },
+      orderBy: { createdAt: 'asc' },
+    })
+    return rows.map(toConnectionDto)
+  }
+
   async upsert(args: {
     provider: EFactoryConnectionProvider
     externalAccountId: string

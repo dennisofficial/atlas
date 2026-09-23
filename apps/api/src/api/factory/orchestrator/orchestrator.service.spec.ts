@@ -13,7 +13,7 @@ import { DEFAULT_ORGANIZATION_ID, EFactoryEventKind } from '../factory.types'
 import { TranscriptService } from '../transcript.service'
 import { WorkItemsService } from '../work-items.service'
 import type { FactoryCredentialService } from './factory-credentials'
-import { FACTORY_USER_EMAIL, FactoryIdentityService } from './factory-identity'
+import { FactoryIdentityService } from './factory-identity'
 import type { OrchestratorChannel } from './orchestrator-channel'
 import { OrchestratorService } from './orchestrator.service'
 
@@ -108,7 +108,7 @@ describe('OrchestratorService', () => {
     }
     credentials = {
       ensureSeeded: vi.fn(async () => undefined),
-      modelRef: vi.fn(() => 'inference/kimi-k3-fast'),
+      modelRef: vi.fn(async () => 'inference/kimi-k3-fast'),
     }
     channel = {
       inject: vi.fn(async (args: InjectCall & { threadId: string }) => {
@@ -145,7 +145,7 @@ describe('OrchestratorService', () => {
     }
     expect(createArgs.draft.title).toBe('factory: compai/atlas#341')
     expect(createArgs.draft.repo).toBe('compai/atlas')
-    expect(fake.users[0]?.email).toBe(FACTORY_USER_EMAIL)
+    expect(fake.users[0]?.email).toBe(`factory+${DEFAULT_ORGANIZATION_ID}@atlas.internal`)
     expect(createArgs.userId).toBe(fake.users[0]?.id)
 
     const updated = await workItems.find({ workItemId: workItem.id })
@@ -222,7 +222,10 @@ describe('OrchestratorService', () => {
     await appendEvent(workItem.id, 'seeded')
     await wake(workItem.id)
 
-    expect(credentials.ensureSeeded).toHaveBeenCalledWith({ userId: fake.users[0]?.id })
+    expect(credentials.ensureSeeded).toHaveBeenCalledWith({
+      userId: fake.users[0]?.id,
+      organizationId: DEFAULT_ORGANIZATION_ID,
+    })
     expect(sandboxes.attach).toHaveBeenCalledTimes(1)
   })
 

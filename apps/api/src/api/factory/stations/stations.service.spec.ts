@@ -101,7 +101,7 @@ describe('StationsService', () => {
     channel = stubFactoryChannel(fake)
     credentials = {
       ensureSeeded: vi.fn(async () => undefined),
-      modelRef: vi.fn(() => 'inference/kimi-k3-fast'),
+      modelRef: vi.fn(async () => 'inference/kimi-k3-fast'),
     }
     drives = { ensure: vi.fn(async () => 'factory-dennisofficial-factory-scratch-12') }
     service = new StationsService(
