@@ -467,6 +467,8 @@ describe('startServe', () => {
         ref: 'refs/atlas/descend/thread-serve-0123456789ab',
         commit: '0123456789abcdef',
         base: 'ba51e1e0ba51e1e0ba51e1e0ba51e1e0ba51e1e0',
+        baseTree: '7ee1ab1e7ee1ab1e7ee1ab1e7ee1ab1e7ee1ab1e',
+        branch: 'dennis/feature',
       }),
     })
 
@@ -490,6 +492,8 @@ describe('startServe', () => {
         ref: 'refs/atlas/descend/thread-serve-0123456789ab',
         commit: '0123456789abcdef',
         base: 'ba51e1e0ba51e1e0ba51e1e0ba51e1e0ba51e1e0',
+        baseTree: '7ee1ab1e7ee1ab1e7ee1ab1e7ee1ab1e7ee1ab1e',
+        branch: 'dennis/feature',
       },
     })
   })

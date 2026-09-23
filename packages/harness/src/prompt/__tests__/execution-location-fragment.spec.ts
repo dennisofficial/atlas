@@ -30,11 +30,11 @@ describe('the execution-location fragment', () => {
     expect(fragment.stamp()).toBe(EExecutionLocation.Cloud)
   })
 
-  it('warns a cloud session never to rewrite history past the lift baseline', () => {
+  it('tells a cloud session it arrived on the branch with uncommitted work intact', () => {
     const fragment = new ExecutionLocationFragment(() => EExecutionLocation.Cloud)
 
-    expect(fragment.text()).toContain('atlas: lifted workspace baseline')
-    expect(fragment.text()).toContain('descend keys on its SHA')
+    expect(fragment.text()).toContain('uncommitted work intact as uncommitted changes')
+    expect(fragment.text()).toContain('merges by content')
   })
 
   it('reads an unwired container as the host, which is where such a session runs', () => {
