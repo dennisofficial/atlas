@@ -800,9 +800,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 384000,
     "cost": {
-      "inputPerMillion": 0.08246,
-      "outputPerMillion": 0.16492,
-      "cacheReadPerMillion": 0.016492
+      "inputPerMillion": 0.07784,
+      "outputPerMillion": 0.15568,
+      "cacheReadPerMillion": 0.015568
     },
     "effort": {
       "high": "high",
@@ -4497,6 +4497,29 @@
   {
     "ref": {
       "providerId": "openrouter",
+      "modelId": "qwen/qwen3.8-max-prime"
+    },
+    "label": "Qwen3.8 Max Prime",
+    "api": "openai-completions",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 4,
+      "outputPerMillion": 12,
+      "cacheReadPerMillion": 0.5
+    },
+    "effort": {
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "openrouter",
       "modelId": "qwen/qwen3.8-omni-flash"
     },
     "label": "Qwen3.8 Omni Flash",
@@ -5525,9 +5548,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 393216,
     "cost": {
-      "inputPerMillion": 0.39468,
-      "outputPerMillion": 1.18404,
-      "cacheReadPerMillion": 0.012558
+      "inputPerMillion": 0.39336,
+      "outputPerMillion": 1.18008,
+      "cacheReadPerMillion": 0.012516
     },
     "effort": {
       "low": "low",
