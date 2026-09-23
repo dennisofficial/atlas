@@ -1,3 +1,5 @@
+import { stat } from 'node:fs/promises'
+
 import {
   EAgentStatus,
   EExecutionLocation,
@@ -12,7 +14,10 @@ import {
 import { describe, expect, it } from 'bun:test'
 
 import {
+  atlasDirectory,
   ETurnStatus,
+  sessionDirectory,
+  sessionLockFile,
   SupervisionTreeTooDeep,
   type AgentRegistryPort,
   type AgentSnapshot,
@@ -21,11 +26,11 @@ import {
 } from '@dltech/atlas-harness'
 
 import { EOpenMode } from '../config'
-import { openConversation, type OpenOutcome, type OpenedConversation } from '../open-conversation'
+import { closeConversation, openConversation, type OpenOutcome, type OpenedConversation } from '../open-conversation'
 import { fakeAgentRegistry } from './fake-agents'
-import { fakeThreadStore, fakeEventLog, fakeIds, fakeLedger, FAKE_WORKSPACE } from './fake-backend'
+import { fakeThreadStore, fakeEventLog, fakeIds, fakeLedger, FAKE_WORKSPACE, SPEC_SHARD } from './fake-backend'
 
-const YESTERDAY = toThreadId('yesterday')
+const YESTERDAY = toThreadId(`yesterday-${SPEC_SHARD}`)
 
 const HERE: WorkspaceIdentity = { workspace: FAKE_WORKSPACE, repo: null }
 const WORKTREE: WorkspaceIdentity = { workspace: '/repo/.claude/worktrees/feature', repo: '/repo' }
@@ -46,11 +51,11 @@ const spent: TurnSpend = {
   durationMs: 3_000,
 }
 
-const FIRST_CHILD = toThreadId('child-one')
+const FIRST_CHILD = toThreadId(`child-one-${SPEC_SHARD}`)
 
-const SECOND_CHILD = toThreadId('child-two')
+const SECOND_CHILD = toThreadId(`child-two-${SPEC_SHARD}`)
 
-const A_FORK = toThreadId('a-fork-of-yesterday')
+const A_FORK = toThreadId(`a-fork-of-yesterday-${SPEC_SHARD}`)
 
 const refusingLedger = (): TurnLedgerPort => {
   const held = fakeLedger({ spent: [spent] })
@@ -601,5 +606,34 @@ describe('the children the last process lost', () => {
     })
 
     expect(opened(outcome).lost).toEqual({ settled: [], unlogged: [] })
+  })
+})
+
+describe('the lock a swap leaves behind', () => {
+  it('is released once the swap lands on another thread, so the next open claims it fresh', async () => {
+    const today = toThreadId(`today-${SPEC_SHARD}`)
+    const threads = fakeThreadStore({ existing: [YESTERDAY, today] })
+    const open = (threadId: string) =>
+      openConversation({
+        threads,
+        log: fakeEventLog(),
+        ledger: fakeLedger(),
+        agents: fakeAgentRegistry(),
+        ids: fakeIds(),
+        workspace: HERE,
+        effects: () => undefined,
+        open: { mode: EOpenMode.Resume, threadId },
+      })
+
+    await open(YESTERDAY)
+    await open(today)
+
+    const dir = sessionDirectory({ home: atlasDirectory(), sessionId: YESTERDAY })
+    const held = await stat(sessionLockFile({ sessionDir: dir })).then(
+      () => true,
+      () => false,
+    )
+    expect(held).toBe(false)
+    await closeConversation()
   })
 })

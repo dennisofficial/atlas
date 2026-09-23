@@ -11,6 +11,7 @@ import {
   fakeEventLog,
   fakeLedger,
   fakeThreadStore,
+  SPEC_SHARD,
   type FakeEventLog,
   type FakeLedger,
   type FakeThreadStore,
@@ -25,7 +26,7 @@ import {
   type LiftedWorkspace,
 } from '../cloud-bridge'
 
-export const CLOUD_THREAD = toThreadId('cloud-thread')
+export const CLOUD_THREAD = toThreadId(`cloud-thread-${SPEC_SHARD}`)
 
 export const CLEAN_WORKSPACE: LiftedWorkspace = {
   remoteUrl: 'git@github.com:comp-ai/atlas.git',
