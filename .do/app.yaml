@@ -15,6 +15,27 @@ ingress:
         exact: ""
       path:
         prefix: /
+jobs:
+- dockerfile_path: apps/api/Dockerfile
+  envs:
+  - key: DOTENV_PRIVATE_KEY_API_PRODUCTION
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: EV[1:6sMXx7X/pb2Oemkp1Ai9dbRt/NTCyC9k:E1Mx6NOVNRXdcctQqhUuasDkvSBKoimtBzhMA8MfgGVzMKn7k8nlpyW2mQGoU/fnPet4VHE/oi+W6dbQgIJjd5gijxS140s44Xb0BNVrBt0=]
+  - key: APP_TIER
+    scope: RUN_AND_BUILD_TIME
+    value: production
+  - key: MIGRATE_TIER
+    scope: RUN_AND_BUILD_TIME
+    value: production
+  github:
+    branch: main
+    repo: dennisofficial/atlas
+  instance_count: 1
+  instance_size_slug: apps-s-1vcpu-0.5gb
+  kind: PRE_DEPLOY
+  name: migrate
+  run_command: npm run db:migrate:deploy
 name: atlas
 region: nyc
 services:
@@ -38,24 +59,3 @@ services:
   instance_count: 1
   instance_size_slug: apps-s-1vcpu-0.5gb
   name: atlas-apps-api
-jobs:
-- dockerfile_path: apps/api/Dockerfile
-  envs:
-  - key: DOTENV_PRIVATE_KEY_API_PRODUCTION
-    scope: RUN_AND_BUILD_TIME
-    type: SECRET
-    value: EV[1:6sMXx7X/pb2Oemkp1Ai9dbRt/NTCyC9k:E1Mx6NOVNRXdcctQqhUuasDkvSBKoimtBzhMA8MfgGVzMKn7k8nlpyW2mQGoU/fnPet4VHE/oi+W6dbQgIJjd5gijxS140s44Xb0BNVrBt0=]
-  - key: APP_TIER
-    scope: RUN_AND_BUILD_TIME
-    value: production
-  - key: MIGRATE_TIER
-    scope: RUN_AND_BUILD_TIME
-    value: production
-  github:
-    branch: main
-    repo: dennisofficial/atlas
-  instance_count: 1
-  instance_size_slug: apps-s-1vcpu-0.5gb
-  kind: PRE_DEPLOY
-  name: migrate
-  run_command: npm run db:migrate:deploy
