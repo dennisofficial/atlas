@@ -7,13 +7,14 @@ import { ETurnStatus, type TurnOutcome } from '../loop/turn-outcome'
 
 import { atlasDirectory } from '../store/paths'
 
+import { syncCapabilitiesNotice } from './capabilities-notice'
 import { createChannelBridge } from './channel-bridge'
 import { composeServeApp } from './compose-serve'
 import { DEFAULT_DRAIN_DEADLINE_MS, withDeadline } from './drain-deadline'
 import { createFrameBuffer, DEFAULT_FRAME_BUFFER, type LifecycleFrame, type SignalFrame } from './frame-buffer'
 import { createEnvironmentProfile, EProfileStepState } from './environment-profile'
 import { applyGitAccessEnv } from './git-access-env'
-import { startServeIdleStop } from './idle-stop'
+import { SERVE_IDLE_MINUTES_WITH_SERVICES, startServeIdleStop } from './idle-stop'
 import { materializeContext } from './materialize-context'
 import {
   createEnsureWorkspace,
@@ -34,6 +35,7 @@ import { createTurnDriver } from './turn-driver'
 import type { WorkspaceFiles } from './workspace-files'
 import { contextArchiveFetcher, workspaceSpecFetcher } from './workspace-spec'
 
+export * from './capabilities-notice'
 export * from './channel-bridge'
 export * from './compose-serve'
 export * from './drain-deadline'
@@ -161,7 +163,13 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
    */
   const workspaceStartedAt = Date.now()
   const ensureWorkspace =
-    args.ensureWorkspace ?? createEnsureWorkspace({ profile: createEnvironmentProfile({ env }) })
+    args.ensureWorkspace ??
+    createEnsureWorkspace({
+      profile: createEnvironmentProfile({
+        env,
+        serviceTtlSeconds: (args.idleMinutesWithServices ?? SERVE_IDLE_MINUTES_WITH_SERVICES) * 60,
+      }),
+    })
   const workspace = await ensureWorkspace({
     cwd,
     fetchSpec: fetchSpecOnce,
@@ -203,6 +211,8 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
 
   const threadModel = args.model ?? (await readThreadModel({ controlPlaneUrl, token, threadId, fetchFn }))
 
+  const capabilities = 'profile' in workspace ? workspace.profile?.capabilities : undefined
+
   const app = await (args.compose ?? composeServeApp)({
     threadId,
     cwd,
@@ -213,7 +223,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     model: threadModel,
     notice,
     projectDirectory: context.projectDirectory,
-    capabilities: 'profile' in workspace ? workspace.profile?.capabilities : undefined,
+    capabilities,
     identity: context.identity,
   })
 
@@ -295,6 +305,15 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
    * one thing boot owes a client is to say the thread is mid-turn rather than to look alive.
    */
   const events = await app.log.read({ threadId }).catch(() => [])
+  if (capabilities !== undefined) {
+    await syncCapabilitiesNotice({
+      log: app.log,
+      threadId,
+      runId: app.ids.nextRunId(),
+      events,
+      capabilities,
+    }).catch(() => false)
+  }
   const resumable = isResumable(events)
   if (resumable) log({ event: EServeEvent.Resumable, head: events.at(-1)?.seq ?? 0 })
 
