@@ -69,6 +69,19 @@ function waves(events: readonly Event[]): readonly (readonly Ending[])[] {
   return grouped
 }
 
+function answersOpenCall(
+  merged: readonly AssembledMessage[],
+  next: AssembledMessage | undefined,
+): next is AssembledMessage {
+  if (next === undefined || next.message.role !== 'tool') return false
+  const last = merged.at(-1)
+  return (
+    last !== undefined &&
+    last.message.role === 'assistant' &&
+    last.message.content.some((part) => part.type === 'tool-call')
+  )
+}
+
 function mergeBySeq({
   messages,
   blocks,
@@ -85,6 +98,13 @@ function mergeBySeq({
       if (next === undefined || next.origin.seq > block.origin.seq) break
       merged.push(next)
       index += 1
+    }
+
+    let late = messages[index]
+    while (answersOpenCall(merged, late)) {
+      merged.push(late)
+      index += 1
+      late = messages[index]
     }
 
     merged.push(block)
