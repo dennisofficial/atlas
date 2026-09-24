@@ -102,6 +102,21 @@ function Watcher(props: {
 
 const RENDER_MS = 60
 
+const POLL_MS = 10
+
+const LANDED_MS = 10_000
+
+const landed = async (holds: () => boolean): Promise<boolean> => {
+  const deadline = Date.now() + LANDED_MS
+  for (;;) {
+    await act(async () => {
+      await settle(POLL_MS)
+    })
+    if (holds()) return true
+    if (Date.now() >= deadline) return false
+  }
+}
+
 const textOf = (section: SidebarSection | null, id: string): string | null => {
   const row = section?.rows.find((entry) => entry.id === id)
   return row === undefined
@@ -157,6 +172,8 @@ describe('usePullRequest', () => {
     const { probe, section, done } = await mounted({ reading: FOUND })
 
     try {
+      expect(await landed(() => probe.control?.footer?.badge?.label === '#123')).toBe(true)
+
       expect(probe.control?.footer?.badge?.label).toBe('#123')
       expect(probe.control?.footer?.badge?.checks).toBe(EChecksState.Running)
       expect(probe.control?.footer?.overflow).toBe(0)
@@ -175,6 +192,8 @@ describe('usePullRequest', () => {
     const { probe, section, done } = await mounted({ reading: ABSENT, branch: 'main' })
 
     try {
+      expect(await landed(() => textOf(section(), 'branch') === 'main')).toBe(true)
+
       expect(probe.control?.footer).toBeNull()
 
       const rows = section()
@@ -216,6 +235,12 @@ describe('usePullRequest', () => {
     })
 
     try {
+      expect(
+        await landed(
+          () => section()?.rows.length === 3 && probe.control?.footer?.overflow === 1,
+        ),
+      ).toBe(true)
+
       const rows = section()
       expect(rows?.rows.map((row) => row.id)).toEqual([
         'branch',
