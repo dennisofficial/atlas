@@ -9,6 +9,11 @@ import { contextArchiveRawParser } from './api/cloud/context-archive/context-arc
 import { MAX_CONTEXT_ARCHIVE_BYTES } from './api/cloud/context-archive/context-archive-limits'
 import { registerGracefulShutdown } from './api/graceful-shutdown'
 import { hydrateEnvFromTierFile } from './api/hydrate-env'
+import {
+  GITHUB_WEBHOOK_BODY_LIMIT,
+  LINEAR_WEBHOOK_BODY_LIMIT,
+  webhookJsonParser,
+} from './_lib/webhook-body-limit'
 import { DrainStateService } from './api/platform/health/drain-state.service'
 import { WORKSPACE_BODY_LIMIT } from './api/platform/sandboxes/workspace-spec'
 
@@ -40,6 +45,11 @@ async function createApp(): Promise<NestExpressApplication> {
   const rawArchiveParser = contextArchiveRawParser({ limitBytes: MAX_CONTEXT_ARCHIVE_BYTES })
   app.use('/v1/sandboxes/:threadId/context', rawArchiveParser)
   app.use('/v1/user-context/memory', rawArchiveParser)
+  // Unauthenticated webhook routes get tight body caps well under the global limit: the HMAC is
+  // verified only after buffering, so anything bigger must be refused before it is read.
+  app.use('/v1/github/webhooks', webhookJsonParser({ limit: GITHUB_WEBHOOK_BODY_LIMIT }))
+  app.use('/v1/factory/webhooks/github', webhookJsonParser({ limit: GITHUB_WEBHOOK_BODY_LIMIT }))
+  app.use('/v1/factory/webhooks/linear', webhookJsonParser({ limit: LINEAR_WEBHOOK_BODY_LIMIT }))
   app.useBodyParser('json', { limit: WORKSPACE_BODY_LIMIT })
   app.set('trust proxy', 1)
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })

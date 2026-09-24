@@ -9,15 +9,18 @@ import {
   UnauthorizedException,
   UnsupportedMediaTypeException,
 } from '@nestjs/common'
-import { SkipThrottle } from '@nestjs/throttler'
+import { Throttle } from '@nestjs/throttler'
 import { EnvService } from '../../_core/config/env/env.service'
 import { Public } from '../../_core/decorators/public.decorator'
 import { verifyLinearSignature } from './linear-webhook.signature'
+import { WEBHOOK_THROTTLE_PER_MINUTE } from '../../_lib/webhook-body-limit'
 import { LinearWebhookService } from './linear-webhook.service'
 import type { LinearWebhookOutcome, LinearWebhookRequest } from './linear-webhook.types'
 
 @Controller({ path: 'factory/webhooks/linear', version: '1' })
-@SkipThrottle()
+// HMAC-authenticated but caller-anonymous: keep a dedicated throttle instead of skipping
+// the global one, so a flood of invalid deliveries cannot exhaust the instance.
+@Throttle({ default: { limit: WEBHOOK_THROTTLE_PER_MINUTE, ttl: 60_000 } })
 export class LinearWebhookController {
   private readonly logger = new Logger(LinearWebhookController.name)
 
