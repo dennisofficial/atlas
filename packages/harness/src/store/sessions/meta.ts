@@ -4,6 +4,8 @@ import { dirname } from 'node:path'
 
 import { z } from 'zod'
 
+import { canMigrateToCurrent, migrateSessionDirectory } from './migrations'
+
 export const SESSION_FORMAT_VERSION = 1
 
 export class SessionFromNewerAtlasError extends Error {
@@ -38,7 +40,10 @@ export const sessionMetaSchema = z.object({
 
 export type SessionMeta = z.infer<typeof sessionMetaSchema>
 
+export const THREAD_META_VERSION = 1
+
 export const threadMetaSchema = z.object({
+  v: z.number().optional().default(THREAD_META_VERSION),
   id: z.string(),
   title: z.string().nullable(),
   head: z.number(),
@@ -60,6 +65,7 @@ export type ThreadMeta = z.infer<typeof threadMetaSchema>
 
 export function newThreadMeta({ id, at }: { id: string; at: string }): ThreadMeta {
   return {
+    v: THREAD_META_VERSION,
     id,
     title: null,
     head: 0,
@@ -109,8 +115,13 @@ export function readSessionMetaSync({
 }): SessionMeta | undefined {
   const meta = readMetaSync({ file, schema: sessionMetaSchema })
   if (meta === undefined) return undefined
-  if (meta.format > SESSION_FORMAT_VERSION) {
-    throw new SessionFromNewerAtlasError({ sessionDir, format: meta.format })
+  const format = meta.format
+  if (format < SESSION_FORMAT_VERSION && canMigrateToCurrent({ format })) {
+    migrateSessionDirectory({ sessionDir, from: format })
+    return readMetaSync({ file, schema: sessionMetaSchema })
+  }
+  if (format !== SESSION_FORMAT_VERSION) {
+    throw new SessionFromNewerAtlasError({ sessionDir, format })
   }
   return meta
 }

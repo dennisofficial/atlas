@@ -6,6 +6,7 @@ import { Database } from 'bun:sqlite'
 import { EVENT_LINE_VERSION, type EventLine } from '../store/sessions/lines'
 import {
   SESSION_FORMAT_VERSION,
+  THREAD_META_VERSION,
   writeMeta,
   type SessionMeta,
   type ThreadMeta,
@@ -213,6 +214,7 @@ function eventLineOf({ row, body }: { row: EventRow; body: unknown }): EventLine
 
 function threadMetaOf({ row }: { row: ThreadRow }): ThreadMeta {
   return {
+    v: THREAD_META_VERSION,
     id: row.id,
     title: row.title,
     head: row.head,

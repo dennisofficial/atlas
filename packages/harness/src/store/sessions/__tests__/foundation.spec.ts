@@ -7,9 +7,10 @@ import { dirname, join } from 'node:path'
 import { toEventId, toRunId, toThreadId, type EventDraft, type EventEnvelope } from '@dltech/atlas-core'
 
 import { EUnreadableReason } from '../../decode-events'
-import { encodeEventLine, parseEventLines } from '../lines'
+import { encodeEventLine, EVENT_LINE_VERSION, parseEventLines, upcastEventLine } from '../lines'
 import { claimSession, ESessionClaim, releaseSession } from '../lock'
 import { newThreadMeta, readMetaSync, readSessionMetaSync, sessionMetaSchema, SessionFromNewerAtlasError, threadMetaSchema, writeMeta } from '../meta'
+import { canMigrateToCurrent, migrateSessionDirectory } from '../migrations'
 import { sessionLockFile, sessionMetaFile, threadMetaFile } from '../paths'
 
 const directories: string[] = []
@@ -78,6 +79,33 @@ describe('event line codec', () => {
     expect(parsed.events).toHaveLength(1)
     expect(parsed.unreadable[0]?.reason).toBe(EUnreadableReason.UnrecognizedBody)
   })
+
+  it('reads a line with no version field as v1', () => {
+    const good = encodeEventLine({ draft: draft(), envelope: envelope({ seq: 1 }) })
+    const legacy = JSON.stringify({ id: 'evt_x', seq: 2, threadId, runId: 'run_1', depth: 0, at: 't', type: 'nudge', body: { type: 'nudge', text: 'hi', lifetimeSteps: 1 } })
+    const parsed = parseEventLines({ text: `${good}\n${legacy}\n`, threadId })
+    expect(parsed.events).toHaveLength(2)
+    expect(parsed.unreadable).toHaveLength(0)
+  })
+
+  it('refuses a line written by a newer Atlas instead of dropping it as unrecognized', () => {
+    const good = encodeEventLine({ draft: draft(), envelope: envelope({ seq: 1 }) })
+    const newer = JSON.stringify({ v: EVENT_LINE_VERSION + 1, id: 'evt_x', seq: 2, threadId, runId: 'run_1', depth: 0, at: 't', type: 'nudge', body: { type: 'nudge', text: 'hi', lifetimeSteps: 1 } })
+    const parsed = parseEventLines({ text: `${good}\n${newer}\n`, threadId })
+    expect(parsed.events).toHaveLength(1)
+    expect(parsed.unreadable[0]?.reason).toBe(EUnreadableReason.NewerVersion)
+    expect(parsed.unreadable[0]?.detail).toContain('newer Atlas')
+  })
+
+  it('upcastEventLine passes current-version lines through untouched', () => {
+    const raw = JSON.parse(encodeEventLine({ draft: draft(), envelope: envelope({ seq: 1 }) })) as unknown
+    const outcome = upcastEventLine({ raw, version: EVENT_LINE_VERSION })
+    expect(outcome).toEqual({ ok: true, line: raw })
+  })
+
+  it('upcastEventLine refuses newer versions', () => {
+    expect(upcastEventLine({ raw: {}, version: EVENT_LINE_VERSION + 1 })).toEqual({ ok: false, reason: 'newer' })
+  })
 })
 
 describe('meta read/write', () => {
@@ -139,6 +167,29 @@ describe('meta read/write', () => {
     expect(() => readSessionMetaSync({ file: sessionMetaFile({ sessionDir: dir }), sessionDir: dir })).toThrow(
       SessionFromNewerAtlasError,
     )
+  })
+
+  it('reads a thread meta written before the v field existed', async () => {
+    const dir = await tempDir()
+    const file = threadMetaFile({ sessionDir: dir, threadId })
+    const meta = newThreadMeta({ id: threadId, at: '2026-09-23T00:00:00.000Z' }) as Record<string, unknown>
+    delete meta.v
+    await writeMeta({ file, meta })
+    const read = readMetaSync({ file, schema: threadMetaSchema })
+    expect(read?.v).toBe(1)
+    expect(read?.id).toBe(threadId)
+  })
+})
+
+describe('session format migrations', () => {
+  it('reports the current format as needing nothing', () => {
+    expect(canMigrateToCurrent({ format: 1 })).toBe(true)
+    expect(canMigrateToCurrent({ format: 2 })).toBe(false)
+  })
+
+  it('has no migration steps until the format is first bumped', async () => {
+    const dir = await tempDir()
+    expect(migrateSessionDirectory({ sessionDir: dir, from: 1 })).toBe(1)
   })
 })
 

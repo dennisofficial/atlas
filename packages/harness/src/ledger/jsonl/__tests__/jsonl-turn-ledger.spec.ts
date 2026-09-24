@@ -11,6 +11,7 @@ import { SessionRegistry } from '../../../store/sessions/registry'
 import { SupervisionTreeTooDeep } from '../../spawned-threads'
 import type { TurnSpend } from '../../turn-ledger.port'
 import { JsonlTurnLedger, sumSessionSpend } from '../jsonl-turn-ledger'
+import { LedgerFromNewerAtlasError, parseLedgerLines } from '../ledger-lines'
 
 type Fixture = {
   home: string
@@ -189,6 +190,37 @@ describe('JsonlTurnLedger', () => {
       toRunId('run-1'),
       toRunId('run-2'),
     ])
+  })
+
+  it('reads a ledger line written before the v field existed', async () => {
+    const { ledger, rootId, sessionDir } = await open()
+    const spend = spendOf({ threadId: rootId, runId: toRunId('run-1'), status: 'completed' })
+    appendFileSync(ledgerFile({ sessionDir }), `${JSON.stringify(spend)}\n`)
+
+    expect(await ledger.forThread({ threadId: rootId })).toEqual([spend])
+  })
+
+  it('stamps every written line with the ledger version', async () => {
+    const { ledger, rootId, sessionDir } = await open()
+    await ledger.record(spendOf({ threadId: rootId, runId: toRunId('run-1'), status: 'completed' }))
+
+    const line = JSON.parse(readFileSync(ledgerFile({ sessionDir }), 'utf8').trim()) as { v?: number }
+    expect(line.v).toBe(1)
+  })
+
+  it('refuses a ledger line written by a newer Atlas instead of silently dropping it', async () => {
+    const { ledger, rootId, sessionDir } = await open()
+    const spend = spendOf({ threadId: rootId, runId: toRunId('run-1'), status: 'completed' })
+    appendFileSync(ledgerFile({ sessionDir }), `${JSON.stringify({ v: 2, ...spend })}\n`)
+
+    await expect(ledger.forThread({ threadId: rootId })).rejects.toBeInstanceOf(LedgerFromNewerAtlasError)
+  })
+
+  it('parseLedgerLines returns TurnSpend rows without the storage-only v field', () => {
+    const spend = spendOf({ threadId: toThreadId('thread-x'), runId: toRunId('run-1'), status: 'completed' })
+    const rows = parseLedgerLines({ text: `${JSON.stringify({ v: 1, ...spend })}\n` })
+    expect(rows).toEqual([spend])
+    expect('v' in (rows[0] ?? {})).toBe(false)
   })
 })
 

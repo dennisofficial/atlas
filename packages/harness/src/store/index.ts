@@ -36,7 +36,10 @@ export {
   readSessionMetaSync,
   sessionMetaSchema,
   threadMetaSchema,
+  SESSION_FORMAT_VERSION,
+  THREAD_META_VERSION,
   type SessionMeta,
   type ThreadMeta,
 } from './sessions/meta'
-export { parseEventLines } from './sessions/lines'
+export { migrateSessionDirectory, canMigrateToCurrent, type SessionMigration, type SessionMigrationContext } from './sessions/migrations'
+export { EVENT_LINE_VERSION, parseEventLines } from './sessions/lines'

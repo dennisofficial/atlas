@@ -16,6 +16,27 @@ import { EUnreadableReason, type UnreadableRow } from '../decode-events'
 
 export const EVENT_LINE_VERSION = 1
 
+type EventLineUpcaster = (line: Record<string, unknown>) => Record<string, unknown>
+
+const EVENT_LINE_UPCASTERS: ReadonlyMap<number, EventLineUpcaster> = new Map()
+
+export function upcastEventLine({
+  raw,
+  version,
+}: {
+  raw: unknown
+  version: number
+}): { ok: true; line: unknown } | { ok: false; reason: 'newer' | 'no-path' } {
+  if (version > EVENT_LINE_VERSION) return { ok: false, reason: 'newer' }
+  let line = raw
+  for (let v = version; v < EVENT_LINE_VERSION; v += 1) {
+    const upcast = EVENT_LINE_UPCASTERS.get(v)
+    if (upcast === undefined) return { ok: false, reason: 'no-path' }
+    line = upcast(line as Record<string, unknown>)
+  }
+  return { ok: true, line }
+}
+
 export type EventLine = {
   v: number
   id: string
@@ -117,7 +138,25 @@ function decodeLine({ raw, threadId, tail }: { raw: string; threadId: string; ta
     }
   }
 
-  const line = parsed as Partial<EventLine>
+  const version = lineVersionOf({ parsed })
+  const upcasted = upcastEventLine({ raw: parsed, version })
+  if (!upcasted.ok) {
+    const reason = EUnreadableReason.NewerVersion
+    return {
+      reason,
+      gap: gapOf({
+        raw,
+        threadId,
+        reason,
+        detail:
+          upcasted.reason === 'newer'
+            ? `written by a newer Atlas (event line v${version}, this build reads v${EVENT_LINE_VERSION}); upgrade before opening this session`
+            : `no upcast path from event line v${version} to v${EVENT_LINE_VERSION}`,
+      }),
+    }
+  }
+
+  const line = upcasted.line as Partial<EventLine>
   if (
     typeof line.id !== 'string' ||
     typeof line.seq !== 'number' ||
@@ -150,6 +189,12 @@ function decodeLine({ raw, threadId, tail }: { raw: string; threadId: string; ta
     ...(line.parentRunId === undefined ? {} : { parentRunId: toRunId(line.parentRunId) }),
   }
   return { event: stampEvent({ draft: body.data as EventDraft, envelope }) }
+}
+
+function lineVersionOf({ parsed }: { parsed: unknown }): number {
+  if (typeof parsed !== 'object' || parsed === null) return EVENT_LINE_VERSION
+  const v = (parsed as { v?: unknown }).v
+  return typeof v === 'number' && Number.isInteger(v) && v >= 1 ? v : EVENT_LINE_VERSION
 }
 
 function gapOf({
