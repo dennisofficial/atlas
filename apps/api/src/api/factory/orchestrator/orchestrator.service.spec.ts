@@ -9,6 +9,7 @@ vi.mock('../../../db', async () => {
 import { fakeFactoryDb } from '../../../../test/fake-factory-db.js'
 import type { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import type { ThreadsService } from '../../platform/sessions/threads.service'
+import type { FactoryDrivesService } from '../drives/drives.service'
 import { DEFAULT_ORGANIZATION_ID, EFactoryEventKind } from '../factory.types'
 import { TranscriptService } from '../transcript.service'
 import { WorkItemsService } from '../work-items.service'
@@ -47,6 +48,7 @@ describe('OrchestratorService', () => {
     ensureSeeded: ReturnType<typeof vi.fn>
     modelRef: ReturnType<typeof vi.fn>
   }
+  let drives: { ensure: ReturnType<typeof vi.fn> }
   let service: OrchestratorService
   let eventSeq: number
 
@@ -110,6 +112,7 @@ describe('OrchestratorService', () => {
       ensureSeeded: vi.fn(async () => undefined),
       modelRef: vi.fn(async () => 'inference/kimi-k3-fast'),
     }
+    drives = { ensure: vi.fn(async () => 'factory-compai-atlas-341') }
     channel = {
       inject: vi.fn(async (args: InjectCall & { threadId: string }) => {
         fake.events.push({
@@ -129,6 +132,7 @@ describe('OrchestratorService', () => {
       sandboxes as unknown as SandboxesService,
       identity,
       credentials as unknown as FactoryCredentialService,
+      drives as unknown as FactoryDrivesService,
       channel as OrchestratorChannel,
     )
   })
@@ -166,6 +170,18 @@ describe('OrchestratorService', () => {
 
     const attachArgs = sandboxes.attach.mock.calls[0]?.[0] as { name: string }
     expect(attachArgs.name).toBe(`factory-${workItem.id.replaceAll('_', '-')}`)
+  })
+
+  it('a wake ensures the drive and mounts it as a read-only snapshot', async () => {
+    const { workItem } = await workItems.intake(INTAKE)
+    await appendEvent(workItem.id, 'drive')
+    await wake(workItem.id)
+
+    expect(drives.ensure).toHaveBeenCalledWith({ workItemId: workItem.id })
+    const attachArgs = sandboxes.attach.mock.calls[0]?.[0] as {
+      drive?: { name: string; mode: string }
+    }
+    expect(attachArgs.drive).toEqual({ name: 'factory-compai-atlas-341', mode: 'snapshot' })
   })
 
   it('a wake with nothing pending does not touch the sandbox', async () => {
