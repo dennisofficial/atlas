@@ -65,11 +65,9 @@ export function createCloudBridge(args: {
    * this boot needs the context archive — known before creating because a name Vercel has never
    * seen boots fresh, and one it has resumes a snapshot that already carries it.
    */
-  const create = async (createArgs: {
-    threadId: ThreadId
-    workspace: Parameters<CloudSandboxes['create']>[0]['workspace']
-    gpgKey?: string | undefined
-  }): Promise<CloudSandbox> => {
+  const create = async (
+    createArgs: Parameters<CloudSandboxes['create']>[0],
+  ): Promise<CloudSandbox> => {
     const config = args.vercel()
     const driver = driverWith(config)
     const gitToken = await args.readGitToken()
@@ -88,6 +86,14 @@ export function createCloudBridge(args: {
       name,
       threadId: createArgs.threadId,
       token: claim.token,
+      ...(createArgs.captureContext === undefined
+        ? {}
+        : {
+            putContextOnFreshBoot: () =>
+              createArgs.captureContext!((archive) =>
+                sandboxes.putContextArchive({ threadId: createArgs.threadId, archive }),
+              ),
+          }),
       readStamps: serveStampsReader({
         cloudUrl: args.url,
         threadId: createArgs.threadId,

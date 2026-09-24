@@ -97,7 +97,7 @@ describe('lifting a conversation into the cloud', () => {
     expect(test.bridge.created).toEqual([{ threadId: CLOUD_THREAD, workspace: CLEAN_WORKSPACE }])
   })
 
-  it("carries the operator's context archive to the sandbox after it is created", async () => {
+  it("carries the operator's context archive onto the row before the sandbox boots, so serve finds it on the first poll", async () => {
     const archive = Buffer.from('a fake tar.gz')
     const test = harness({ captureContext: async () => archive })
 
@@ -105,7 +105,7 @@ describe('lifting a conversation into the cloud', () => {
 
     expect(test.bridge.created).toEqual([{ threadId: CLOUD_THREAD, workspace: CLEAN_WORKSPACE }])
     expect(test.bridge.contextPuts).toEqual([{ threadId: CLOUD_THREAD, archive }])
-    expect(test.bridge.trail).toEqual(['transfer', 'sandbox', 'put-context', 'attach'])
+    expect(test.bridge.trail).toEqual(['transfer', 'put-context', 'sandbox', 'attach'])
   })
 
   it('sends no context archive request when there is nothing to carry', async () => {

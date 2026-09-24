@@ -321,32 +321,32 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
 
   onProgress(ELiftStep.Starting)
   let sandbox: CloudSandbox
+  let contextError: unknown
   try {
     sandbox = await args.bridge.sandboxes.create({
       threadId,
       workspace,
       gpgKey: gpgMaterial === null ? undefined : JSON.stringify(gpgMaterial),
+      captureContext: async (put) => {
+        onProgress(ELiftStep.UploadingContext)
+        try {
+          const archive = await (args.captureContext ?? captureContextArchive)()
+          if (archive !== undefined) await put(archive)
+        } catch (error) {
+          contextError = error
+          throw error
+        }
+      },
     })
   } catch (error) {
     await flipBack({ ...args, from })
     await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })
+    if (contextError !== undefined) {
+      return failureOf({ error: contextError, step: ELiftStep.UploadingContext, fallback: ELiftFault.Context, stopped })
+    }
     return failureOf({ error, step: ELiftStep.Starting, fallback: ELiftFault.Sandbox, stopped })
   }
   const { url } = sandbox
-
-  onProgress(ELiftStep.UploadingContext)
-  if (sandbox.created) {
-    try {
-      const contextArchive = await (args.captureContext ?? captureContextArchive)()
-      if (contextArchive !== undefined) {
-        await args.bridge.sandboxes.putContext({ threadId, archive: contextArchive })
-      }
-    } catch (error) {
-      await flipBack({ ...args, from })
-      await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })
-      return failureOf({ error, step: ELiftStep.UploadingContext, fallback: ELiftFault.Context, stopped })
-    }
-  }
 
   await args.bridge.stores.log
     .append({
