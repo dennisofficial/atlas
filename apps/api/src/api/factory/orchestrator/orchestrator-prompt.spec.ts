@@ -51,6 +51,15 @@ describe('orchestratorInstructions', () => {
     expect(text).toContain("researching beyond this item's own surfaces is fine")
     expect(text).toContain('refuse surfaces outside the work item')
   })
+
+  it('makes intake judgment the orchestrator\'s own, with no upstream gate', () => {
+    const text = orchestratorInstructions(ARGS)
+    expect(text).toContain('There is no gate upstream of you')
+    expect(text).toContain('the judgment is yours')
+    expect(text).toContain('answer in place')
+    expect(text).toContain('one polite decline line')
+    expect(text).toContain('do not spawn a station')
+  })
 })
 
 describe('wakeMessageFor', () => {

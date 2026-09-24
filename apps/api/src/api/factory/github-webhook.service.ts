@@ -259,7 +259,7 @@ export class GithubWebhookService {
     const { payload } = args
     const needle = await this.mentionNeedle()
     const mentioned =
-      needle !== null && new RegExp(`${needle}(?![a-z0-9-])`).test(payload.comment.body.toLowerCase())
+      needle !== null && new RegExp(`${needle}(?![a-z0-9-])`, 'i').test(payload.comment.body)
     if (!mentioned) return NOT_HANDLED
 
     const organizationId = await this.resolveOrganizationId({ installationId: payload.installation?.id })

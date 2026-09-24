@@ -8,6 +8,8 @@ import {
   EFactorySurface,
   EFactoryWorkItemStatus,
 } from './factory.types'
+import { getIssue } from './linear/linear-client'
+import { LinearTokensService } from './linear/linear-tokens.service'
 import type {
   LinearAgentSessionEventPayload,
   LinearCommentEventPayload,
@@ -34,6 +36,7 @@ export class LinearWebhookService {
     private readonly orchestrator: OrchestratorService,
     private readonly drives: FactoryDrivesService,
     private readonly stations: StationsService,
+    private readonly linearTokens: LinearTokensService,
   ) {}
 
   async handle(args: { deliveryId: string; payload: unknown }): Promise<LinearWebhookOutcome> {
@@ -59,6 +62,7 @@ export class LinearWebhookService {
         return this.handleComment({
           deliveryId: args.deliveryId,
           payload: args.payload as LinearCommentEventPayload,
+          organizationId,
         })
       default:
         this.logger.log(`ignored unsupported linear event type: ${String(base.type)}`)
@@ -172,17 +176,78 @@ export class LinearWebhookService {
   private async handleComment(args: {
     deliveryId: string
     payload: LinearCommentEventPayload
+    organizationId: string
   }): Promise<LinearWebhookOutcome> {
     const { payload } = args
     if (payload.action !== 'create' || payload.data.issueId === undefined) return NOT_HANDLED
 
-    return this.append({
+    const outcome = await this.append({
       externalId: payload.data.issueId,
       deliveryId: args.deliveryId,
       kind: EFactoryEventKind.Comment,
       author: payload.actor?.name,
       payload,
     })
+    if (outcome.handled) return outcome
+    return this.intakeMentionedComment({
+      deliveryId: args.deliveryId,
+      payload,
+      organizationId: args.organizationId,
+    })
+  }
+
+  // Work-item creation is the only gated act at intake, and the key is an explicit mention —
+  // a noise gate, not a trust one. A comment on a linked surface always flows; on an unlinked
+  // surface only a mention intakes, from anyone. Linear renders mentions as the display name
+  // (@atlas) rather than a stable handle, so the needle is deliberately fuzzy: a false positive
+  // costs one orchestrator wake, a false negative loses the ask.
+  private async intakeMentionedComment(args: {
+    deliveryId: string
+    payload: LinearCommentEventPayload
+    organizationId: string
+  }): Promise<LinearWebhookOutcome> {
+    const { payload } = args
+    const issueId = payload.data.issueId
+    if (issueId === undefined) return NOT_HANDLED
+    if (!this.mentionsAgent({ body: payload.data.body })) return NOT_HANDLED
+
+    const { created } = await this.workItems.intake({
+      organizationId: args.organizationId,
+      repo: await this.issueLabel({ issueId, organizationId: args.organizationId }),
+      sourceKind: EFactorySurface.Linear,
+      surface: EFactorySurface.Linear,
+      externalId: issueId,
+      aliasKind: EFactoryAliasKind.Issue,
+    })
+    return this.append({
+      externalId: issueId,
+      deliveryId: args.deliveryId,
+      kind: created ? EFactoryEventKind.Intake : EFactoryEventKind.Comment,
+      author: payload.actor?.name,
+      payload,
+    })
+  }
+
+  // The comment payload carries no identifier; the label is cosmetic (the alias is the routing
+  // key), so a failed lookup degrades to the raw issue id rather than refusing the intake.
+  private async issueLabel(args: { issueId: string; organizationId: string }): Promise<string> {
+    try {
+      const connections = await this.connections.listForOrganization({
+        organizationId: args.organizationId,
+      })
+      const linear = connections.find((one) => one.provider === EFactoryConnectionProvider.Linear)
+      if (linear === undefined) return args.issueId
+      const token = await this.linearTokens.getToken({ workspaceId: linear.externalAccountId })
+      return (await getIssue({ token, issueId: args.issueId })).identifier
+    } catch (failure) {
+      const detail = failure instanceof Error ? failure.message : String(failure)
+      this.logger.warn(`could not resolve the linear issue identifier for ${args.issueId}: ${detail}`)
+      return args.issueId
+    }
+  }
+
+  private mentionsAgent(args: { body: string }): boolean {
+    return /@atlas(?![a-z0-9-])/i.test(args.body)
   }
 
   private async append(args: {
