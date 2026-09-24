@@ -1,8 +1,10 @@
+"use client";
+
 import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
 import { cn } from "../lib/cn";
-import { Spinner } from "./spinner";
+import { Spinner } from "../atoms/spinner";
 
 export type ToolCallKind =
   "read" | "search" | "edit" | "shell" | "web" | "skill";

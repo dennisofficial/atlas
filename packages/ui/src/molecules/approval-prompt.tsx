@@ -1,8 +1,10 @@
+"use client";
+
 import { useState } from "react";
 import type { CSSProperties } from "react";
 
 import { cn } from "../lib/cn";
-import { Button } from "./button";
+import { Button } from "../atoms/button";
 
 export type ApprovalChoice = "proceed" | "always" | "decline" | (string & {});
 
