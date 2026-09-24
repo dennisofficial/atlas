@@ -11,6 +11,8 @@ import {
   verifySha256,
 } from './self-update-asset'
 
+const DOWNLOAD_TIMEOUT_MS = 300_000
+
 export enum EStageOutcome {
   Staged = 'staged',
   AlreadyStaged = 'already-staged',
@@ -126,12 +128,18 @@ export async function readStagedVersionMarker(execPath: string): Promise<string 
   return (await file.text()).trim()
 }
 
+/**
+ * Streams rather than buffering: a release binary is ~107MB, and `await res.arrayBuffer()` holds
+ * all of it in memory and — worse — can wedge the whole fetch (a hung response never rejects, so
+ * the staging lock the caller holds never releases and every other tile gives up at "available").
+ * Piping the body to the file caps memory and lets the abort signal actually cut a stalled body.
+ */
 const downloadAsset = async (args: { url: string; dest: string }): Promise<boolean> => {
   try {
-    const res = await fetch(args.url, { signal: AbortSignal.timeout(300_000) })
-    if (!res.ok) return false
+    const res = await fetch(args.url, { signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS) })
+    if (!res.ok || res.body === null) return false
 
-    await Bun.write(args.dest, await res.arrayBuffer())
+    await Bun.write(args.dest, res.body)
     return true
   } catch {
     return false
