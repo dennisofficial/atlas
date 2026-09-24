@@ -229,9 +229,7 @@ export function createSessionHandlers(args: {
 
     /**
      * A clean close, never terminate(): terminate is what leaves a client staring at a bare 1006
-     * until Vercel's edge notices the socket is dead, up to 340s later. The close code is asked for
-     * as 1001 (going away); Bun 1.3.14 delivers it to the client as an ordinary 1000 regardless —
-     * still a real handshake, not a hang, which is the part that matters.
+     * until Vercel's edge notices the socket is dead, up to 340s later.
      */
     park(args) {
       const clients = [...attached]

@@ -345,11 +345,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     })
     bridge.close()
     handlers.hangUp()
-    /**
-     * Bun 1.3.14: the promise `stop` returns never settles once the server has itself closed a
-     * WebSocket, though the listener does stop and the port is released. Awaiting it hangs.
-     */
-    void server.stop(true)
+    await server.stop(true)
     await app.close()
     log({ event: EServeEvent.Stopped, threadId })
   }

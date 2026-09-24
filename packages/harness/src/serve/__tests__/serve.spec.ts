@@ -190,11 +190,7 @@ describe('startServe', () => {
       kind: EServeFrame.Parked,
       reason: 'the sandbox parked after sitting idle',
     })
-    /**
-     * Bun 1.3.14 rewrites a server-initiated ws.close(1001, ...) to 1000 on the wire; what this
-     * asserts is a real close handshake following the frame, never a hang to a bare 1006.
-     */
-    expect(await client.closed).toBe(1000)
+    expect(await client.closed).toBe(1001)
     expect(lines.some((line) => line.includes('serve.clients-parked'))).toBe(true)
   })
 
