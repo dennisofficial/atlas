@@ -1298,7 +1298,7 @@ assembles a whole session — container, settings policy, model selection, execu
 skills/MCP/agent types, credentials, turn wiring — knowing nothing about who asked. A surface (the
 TUI today; a serve mode or web app later) injects its half through `HarnessSurfaceBinding`: a
 `NoticePort` to report through, an optional `TldrFeed` to stream turn summaries into, and a `bind`
-callback for its own container registrations (the TUI's warp reporter and plugin assembly), which
+callback for its own container registrations (the TUI's warp reporter and GitHub footer surface), which
 runs after every built-in registration and before the instance-cached `HookChain`/`ToolRegistry`
 first resolve. What `bind` returns rides out on `HarnessApp.surface`. The TUI's `composeAtlas` is
 that wrapper; anything UI-shaped — notice stores, plugin surfaces, argv parsing — stays in the app.

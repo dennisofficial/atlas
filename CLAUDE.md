@@ -55,11 +55,18 @@ supplies only its surface bindings (notices, tl;dr feed) through it. Plugins are
 shared root itself (`packages/harness/src/plugins`), so serve sessions get the same hooks, tools,
 and prompt fragments; only the UI contributions (projections, surfaces) are TUI-concrete.
 
-**Features live in `harness`; surfaces own none.** The TUI is *only* a UI — no ad-hoc behavior,
-no feature logic of its own. Anything a session does — classifiers, guardrails, decision models,
-tools — is harness-level machinery the shared root composes into every session (TUI, serve,
-factory alike), configured per session. `apps/tui` contributes projections and surfaces;
-`apps/api` provisions and configures sessions. Neither reimplements what the loop owns.
+**Features live in `harness`; surfaces own none.** The TUI, serve, and (later) web are interfaces
+to the same harness over different transports — nothing more. The harness is location-agnostic: a
+session behaves identically whether its loop runs on the local machine or in a cloud container, and
+two sessions of different kinds must think identically, not just act identically — same hooks, same
+tools, same prompt fragments. The TUI is *only* a UI — no ad-hoc behavior, no feature logic of its
+own. Anything a session does — classifiers, guardrails, decision models, tools — is harness-level
+machinery the shared root composes into every session kind, configured per session; if it cannot be
+composed into every session kind, it does not belong in a session at all. Surface-specific behavior
+should be rare and deliberate — transport-latency loading states are the exemplar — never a quiet
+feature fork. When a surface needs something the harness does not offer, the surface gets an adapter
+or a port, not a reimplementation. `apps/tui` contributes projections and surfaces; `apps/api`
+provisions and configures sessions. Neither reimplements what the loop owns.
 
 **`api` runs on Node, not Bun, and tests with vitest, not `bun test`.** Nest's dependency
 injection needs legacy decorators with emitted metadata, which Bun's transpiler silently drops —
@@ -253,5 +260,9 @@ issue is the public ticket. Delete the spec once the work ships — the code is 
 
 ### Triage labels
 
-The five canonical roles, verbatim: `needs-triage`, `needs-info`, `ready-for-agent`,
-`ready-for-human`, `wontfix`.
+The repo's labels are the GitHub defaults — `bug`, `documentation`, `duplicate`, `enhancement`,
+`good first issue`, `help wanted`, `invalid`, `question`, `wontfix` — plus two of ours:
+`needs-triage`, applied to anything not yet triaged onto the workstream board, and
+`atlas-factory`, for work the factory files or picks up. (`autorelease: pending` belongs to the
+release automation, not triage.) There is no `ready-for-agent` or `ready-for-human`: readiness
+for an agent is read off the Projects board, not off a label.
