@@ -152,15 +152,17 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   bindKeychainSource({ container, launchValue })
 
   const accountStore = container.resolve(portToken(AccountStorePort))
-  const { credentials, accounts, cloud, usage, rewarmSecrets } = await bindAccounts({
+  // bindTo registers the settings store tokens bindAccounts resolves for the sign-in migration.
+  args.settings.bindTo(container)
+  const { credentials, accounts, cloud, cloudSettings, usage, rewarmSecrets } = await bindAccounts({
     container,
     env: args.env,
     notice,
     cloudUrl: launchValue(ESettingId.CloudUrl),
     clientVersion: args.clientVersion,
   })
+  settings.attachCloud(cloudSettings)
   const secrets = container.resolve(SecretsStoreToken)
-  args.settings.bindTo(container)
 
   await bindSettingsPolicy({ container, settings, workspace, credentials, cwd: anchor })
   await bindInstructionsAndMemory({

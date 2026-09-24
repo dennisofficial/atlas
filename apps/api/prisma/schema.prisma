@@ -25,6 +25,7 @@ model User {
   agentAccounts AgentAccount[]
   secretEntries SecretEntry[]
   mcpServers    McpServerConfig[]
+  cloudSettings CloudSetting[]
   githubConnection GithubConnection?
   threads       Thread[]
   cloudSandboxes CloudSandbox[]
@@ -275,6 +276,18 @@ model McpServerConfig {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, name])
+}
+
+model CloudSetting {
+  id        String   @id
+  key       String
+  value     String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
 }
 
 model UserContextSync {

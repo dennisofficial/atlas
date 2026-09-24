@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
-import { EAccountAction, SettingsAccount } from '../components/settings/account'
+import { DOWNLOAD_LABEL, ECloudAction, SettingsCloud, idleSync } from '../components/settings/cloud'
 import type { GithubAccountView } from '../components/settings/github-connect'
 import { idleLogin, promptingLogin, signedInLogin, failedLogin } from '../settings-login-model'
 import { frameOf } from './transcript-fixture'
@@ -17,18 +17,21 @@ const githubView = (over: Partial<GithubAccountView>): GithubAccountView => ({
   ...over,
 })
 
-const account = (over: {
+const cloud = (over: {
   signedIn?: boolean
-  action?: EAccountAction
+  action?: ECloudAction
   github?: Partial<GithubAccountView>
 }): React.ReactNode => (
-  <SettingsAccount
+  <SettingsCloud
     cells={WIDTH}
     email={over.signedIn === false ? null : 'dev@example.com'}
     signedIn={over.signedIn ?? true}
-    action={over.action ?? EAccountAction.SignOut}
+    action={over.action ?? ECloudAction.SignOut}
     onSignOut={() => undefined}
-    onDownloadPurge={() => undefined}
+    onUpload={() => undefined}
+    onDownload={() => undefined}
+    upload={idleSync()}
+    download={idleSync()}
     cloudSignIn={idleLogin()}
     onSignIn={() => undefined}
     onOpenSignInUrl={() => undefined}
@@ -36,16 +39,15 @@ const account = (over: {
   />
 )
 
-describe('the GitHub row on the account settings page', () => {
-  it('points at cloud sign-in when signed out of Atlas Cloud', async () => {
-    const frame = await frameOf(account({ signedIn: false }), WIDTH)
+describe('the GitHub row on the cloud settings page', () => {
+  it('stays away entirely when signed out of Atlas Cloud', async () => {
+    const frame = await frameOf(cloud({ signedIn: false }), WIDTH)
 
-    expect(frame).toContain('GitHub')
-    expect(frame).toContain('sign in to Atlas Cloud first')
+    expect(frame).not.toContain('GitHub')
   })
 
   it('offers connect when signed in but not connected', async () => {
-    const frame = await frameOf(account({}), WIDTH)
+    const frame = await frameOf(cloud({}), WIDTH)
 
     expect(frame).toContain('not connected')
     expect(frame).toContain('⏎ to connect')
@@ -53,7 +55,7 @@ describe('the GitHub row on the account settings page', () => {
 
   it('shows the login and a disconnect affordance when connected', async () => {
     const frame = await frameOf(
-      account({ github: { connection: { login: 'octocat' } } }),
+      cloud({ github: { connection: { login: 'octocat' } } }),
       WIDTH,
     )
 
@@ -63,14 +65,14 @@ describe('the GitHub row on the account settings page', () => {
   })
 
   it('says when Atlas Cloud cannot be reached', async () => {
-    const frame = await frameOf(account({ github: { unreachable: true } }), WIDTH)
+    const frame = await frameOf(cloud({ github: { unreachable: true } }), WIDTH)
 
     expect(frame).toContain("couldn't reach Atlas Cloud")
   })
 
   it('shows the device code and verification URL while prompting', async () => {
     const frame = await frameOf(
-      account({
+      cloud({
         github: {
           flow: promptingLogin({ url: 'https://github.com/login/device', userCode: 'ABCD-1234' }),
         },
@@ -84,7 +86,7 @@ describe('the GitHub row on the account settings page', () => {
 
   it('surfaces the connected notice under the row', async () => {
     const frame = await frameOf(
-      account({
+      cloud({
         github: {
           connection: { login: 'octocat' },
           flow: signedInLogin('Connected GitHub as @octocat.'),
@@ -98,19 +100,19 @@ describe('the GitHub row on the account settings page', () => {
 
   it('surfaces a refusal as failure text', async () => {
     const frame = await frameOf(
-      account({ github: { flow: failedLogin('that connection was refused.') } }),
+      cloud({ github: { flow: failedLogin('that connection was refused.') } }),
       WIDTH,
     )
 
     expect(frame).toContain('that connection was refused.')
   })
 
-  it('sits below the download & purge row when signed in', async () => {
-    const rows = (await frameOf(account({}), WIDTH)).split('\n')
-    const purge = rows.findIndex((row) => row.includes('Download & purge cloud data'))
+  it('sits below the download row when signed in', async () => {
+    const rows = (await frameOf(cloud({}), WIDTH)).split('\n')
+    const download = rows.findIndex((row) => row.includes(DOWNLOAD_LABEL))
     const github = rows.findIndex((row) => row.includes('GitHub'))
 
-    expect(purge).toBeGreaterThanOrEqual(0)
-    expect(github).toBeGreaterThan(purge)
+    expect(download).toBeGreaterThanOrEqual(0)
+    expect(github).toBeGreaterThan(download)
   })
 })

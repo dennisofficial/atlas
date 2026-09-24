@@ -12,7 +12,7 @@ import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { Settings, settingsDetailVisible } from '../components/settings'
-import { EAccountAction } from '../components/settings/account'
+import { ECloudAction, idleSync } from '../components/settings/cloud'
 import type { Span } from '../components/spans'
 import { cellsOf } from '../hint-layout'
 import { grammarsReady } from '../markdown/__tests__/harness'
@@ -76,7 +76,9 @@ const page = (args: {
       cloudEmail={null}
       cloudSignedIn={false}
       cloudSignIn={idleLogin()}
-      accountAction={EAccountAction.SignOut}
+      cloudAction={ECloudAction.SignOut}
+      cloudUpload={idleSync()}
+      cloudDownload={idleSync()}
       github={{
         connection: null,
         unreachable: false,
@@ -87,7 +89,8 @@ const page = (args: {
       onSignOut={() => {}}
       onSignIn={() => {}}
       onOpenSignInUrl={() => {}}
-      onDownloadPurge={() => {}}
+      onUpload={() => {}}
+      onDownload={() => {}}
       onSelect={() => {}}
       onDismiss={() => {}}
     />

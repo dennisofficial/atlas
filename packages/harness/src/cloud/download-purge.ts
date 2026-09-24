@@ -13,6 +13,7 @@ import type { FileSecretsStore } from '../secrets/file-secrets-store'
 import { atlasDirectory } from '../store/paths'
 import { CloudError, type CloudClient } from './cloud-client'
 import { downloadMemoryArchive } from './download-memory-archive'
+import { CLOUD_PURGE_DOMAINS, type CloudPurgeDomainId } from './purge-domains'
 import type { UserContextClient } from './user-context-client'
 
 export type CloudPurgeResult = {
@@ -23,61 +24,14 @@ export type CloudPurgeResult = {
   githubDisconnected: boolean
 }
 
-export type CloudPurgeDomainId = 'accounts' | 'secrets' | 'mcpServers' | 'memory' | 'github'
+export type CloudSyncCounts = {
+  accounts: number
+  secrets: number
+  mcpServers: number
+}
 
-export type CloudPurgeDomain = {
-  id: CloudPurgeDomainId
-  /** Names the step when a mid-purge failure message says which one broke. */
-  step: string
-  /** The confirm drawer's one-line description of what happens to it. */
-  drawerLabel: string
-} & (
-  | {
-      count: (result: CloudPurgeResult) => number
-      /** The phrase the count lands as in the moved list of a success notice. */
-      movedLabel: (count: number) => string
-    }
-  | { count?: undefined; movedLabel?: undefined }
-)
-
-const plural = (count: number, noun: string): string =>
-  `${count} ${noun}${count === 1 ? '' : 's'}`
-
-export const CLOUD_PURGE_DOMAINS: readonly CloudPurgeDomain[] = [
-  {
-    id: 'accounts',
-    step: 'accounts',
-    drawerLabel: 'model accounts and their credentials',
-    count: (result) => result.accounts,
-    movedLabel: (count) => plural(count, 'account'),
-  },
-  {
-    id: 'secrets',
-    step: 'secrets',
-    drawerLabel: 'secrets',
-    count: (result) => result.secrets,
-    movedLabel: (count) => plural(count, 'secret'),
-  },
-  {
-    id: 'mcpServers',
-    step: 'mcp servers',
-    drawerLabel: 'MCP servers',
-    count: (result) => result.mcpServers,
-    movedLabel: (count) => plural(count, 'MCP server'),
-  },
-  {
-    id: 'memory',
-    step: 'memory',
-    drawerLabel: 'your memory',
-    count: (result) => result.memoryFiles,
-    movedLabel: () => 'your memory',
-  },
-  {
-    id: 'github',
-    step: 'github connection',
-    drawerLabel: 'your GitHub connection (deleted, not moved)',
-  },
-]
+export { CLOUD_PURGE_DOMAINS } from './purge-domains'
+export type { CloudPurgeDomain, CloudPurgeDomainId } from './purge-domains'
 
 export type CloudPurgeStores = {
   accounts: AccountStorePort
@@ -88,7 +42,7 @@ export type CloudPurgeStores = {
 const messageOf = (cause: unknown): string =>
   cause instanceof Error ? cause.message : String(cause)
 
-const sameSecret = (a: AccountSecret, b: AccountSecret): boolean => {
+export const sameAccountSecret = (a: AccountSecret, b: AccountSecret): boolean => {
   if (a.kind !== b.kind) return false
   if (a.kind === EAuthKind.ApiKey && b.kind === EAuthKind.ApiKey) return a.apiKey === b.apiKey
   if (a.kind === EAuthKind.Oauth && b.kind === EAuthKind.Oauth) {
@@ -100,7 +54,7 @@ const sameSecret = (a: AccountSecret, b: AccountSecret): boolean => {
   return false
 }
 
-const draftOf = (stored: StoredAccount): AccountDraft => ({
+export const accountDraftOf = (stored: StoredAccount): AccountDraft => ({
   provider: stored.provider,
   label: stored.label,
   secret: stored.secret,
@@ -115,9 +69,10 @@ const draftOf = (stored: StoredAccount): AccountDraft => ({
  * so the cloud→local id map is what lets the active pointers follow; an account whose secret is
  * already held locally (a retried purge) is matched to the existing entry instead of duplicated.
  */
-const downloadAccounts = async (args: {
+export const downloadAccounts = async (args: {
   client: CloudClient
   store: AccountStorePort
+  purge: boolean
 }): Promise<number> => {
   const remote = await args.client.listAccounts()
 
@@ -136,14 +91,14 @@ const downloadAccounts = async (args: {
       (local) =>
         local.provider === stored.provider &&
         local.label === stored.label &&
-        sameSecret(local.secret, stored.secret),
+        sameAccountSecret(local.secret, stored.secret),
     )
     if (existing !== undefined) {
       localIds.set(account.id, existing.id)
       continue
     }
 
-    const added = await args.store.add(draftOf(stored))
+    const added = await args.store.add(accountDraftOf(stored))
     held.push({ ...stored, id: added.id })
     localIds.set(account.id, added.id)
   }
@@ -158,16 +113,19 @@ const downloadAccounts = async (args: {
     await args.store.setActive({ provider, accountId: localId })
   }
 
-  for (const account of remote) {
-    await args.client.removeAccount({ accountId: account.id })
+  if (args.purge) {
+    for (const account of remote) {
+      await args.client.removeAccount({ accountId: account.id })
+    }
   }
 
   return localIds.size
 }
 
-const downloadSecrets = async (args: {
+export const downloadSecrets = async (args: {
   client: CloudClient
   store: FileSecretsStore | undefined
+  purge: boolean
 }): Promise<number> => {
   const remote = await args.client.listSecrets()
   if (remote.length === 0) return 0
@@ -181,13 +139,18 @@ const downloadSecrets = async (args: {
   for (const secret of remote) {
     args.store.write({ name: secret.name, value: secret.value })
   }
-  for (const secret of remote) {
-    await args.client.deleteSecret({ name: secret.name })
+  if (args.purge) {
+    for (const secret of remote) {
+      await args.client.deleteSecret({ name: secret.name })
+    }
   }
   return remote.length
 }
 
-const downloadMcpServers = async (args: { client: CloudClient }): Promise<number> => {
+export const downloadMcpServers = async (args: {
+  client: CloudClient
+  purge: boolean
+}): Promise<number> => {
   const remote = await args.client.listMcpServers()
 
   for (const server of remote) {
@@ -197,10 +160,31 @@ const downloadMcpServers = async (args: { client: CloudClient }): Promise<number
       ...(server.disabled === undefined ? {} : { disabled: server.disabled }),
     })
   }
-  for (const server of remote) {
-    await args.client.deleteMcpServer({ name: server.name })
+  if (args.purge) {
+    for (const server of remote) {
+      await args.client.deleteMcpServer({ name: server.name })
+    }
   }
   return remote.length
+}
+
+/**
+ * The download half of the purge, without the deletes: everything the cloud holds lands in the
+ * local stores and the remote copy stays put — the explicit "go local" pull.
+ */
+export async function downloadCloudData(args: {
+  client: CloudClient
+  stores: { accounts: AccountStorePort; secrets: FileSecretsStore | undefined }
+}): Promise<CloudSyncCounts> {
+  return {
+    accounts: await downloadAccounts({
+      client: args.client,
+      store: args.stores.accounts,
+      purge: false,
+    }),
+    secrets: await downloadSecrets({ client: args.client, store: args.stores.secrets, purge: false }),
+    mcpServers: await downloadMcpServers({ client: args.client, purge: false }),
+  }
 }
 
 const downloadMemory = async (args: {
@@ -255,13 +239,21 @@ export async function downloadAndPurgeCloudData(args: {
 
   const runs: Record<CloudPurgeDomainId, () => Promise<void>> = {
     accounts: async () => {
-      result.accounts = await downloadAccounts({ client: args.client, store: args.stores.accounts })
+      result.accounts = await downloadAccounts({
+        client: args.client,
+        store: args.stores.accounts,
+        purge: true,
+      })
     },
     secrets: async () => {
-      result.secrets = await downloadSecrets({ client: args.client, store: args.stores.secrets })
+      result.secrets = await downloadSecrets({
+        client: args.client,
+        store: args.stores.secrets,
+        purge: true,
+      })
     },
     mcpServers: async () => {
-      result.mcpServers = await downloadMcpServers({ client: args.client })
+      result.mcpServers = await downloadMcpServers({ client: args.client, purge: true })
     },
     memory: async () => {
       result.memoryFiles = await downloadMemory({ client: args.client, context: args.stores.context })

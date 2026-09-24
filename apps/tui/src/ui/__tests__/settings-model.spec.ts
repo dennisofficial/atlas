@@ -24,7 +24,7 @@ const modelWith = (layers: readonly SettingsLayerInput[] = []): SettingsModel =>
   })
 
 describe('settingsModel', () => {
-  it('keeps only the pages that have something on them, plus the account page', () => {
+  it('keeps only the pages that have something on them, plus the cloud page', () => {
     const model = modelWith()
 
     expect(model.pages.map((page) => page.page.label)).toEqual([
@@ -32,15 +32,17 @@ describe('settingsModel', () => {
       'models',
       'appearance',
       'cloud',
-      'account',
     ])
   })
 
-  it('keeps the account page even though it holds no settings of its own', () => {
-    const account = modelWith().pages.at(-1)
+  it('keeps the cloud page even when nothing resolves onto it', () => {
+    const model = settingsModel({
+      definitions: [],
+      resolution: resolveSettings({ definitions: [], layers: [] }),
+    })
 
-    expect(account?.page.id).toBe(ESettingPage.Account)
-    expect(account?.rows).toEqual([])
+    expect(model.pages.map((page) => page.page.id)).toEqual([ESettingPage.Cloud])
+    expect(model.pages[0]?.rows).toEqual([])
   })
 
   it('gathers consecutive rows under one group heading', () => {
@@ -63,19 +65,14 @@ describe('settingsModel', () => {
     expect(general?.rows).toHaveLength(29)
   })
 
-  it('gathers the cloud sandbox settings on the cloud page', () => {
+  it('gathers the core cloud rows on the cloud page', () => {
     const cloud = modelWith().pages[3]
 
     expect(cloud?.page.id).toBe(ESettingPage.Cloud)
     expect(cloud?.groups.map((group) => [group.label, group.rows.length])).toEqual([
-      ['Cloud sandboxes', 4],
+      ['Cloud sandboxes', 1],
     ])
-    expect(cloud?.rows.map((row) => row.definition.id)).toEqual([
-      ESettingId.VercelToken,
-      ESettingId.VercelTeamId,
-      ESettingId.VercelProjectId,
-      ESettingId.SandboxImage,
-    ])
+    expect(cloud?.rows.map((row) => row.definition.id)).toEqual([ESettingId.VercelToken])
   })
 
   it('gathers the model rows on the models page, default pair first', () => {
@@ -137,12 +134,12 @@ describe('moving around the page', () => {
 
     expect(moved).toEqual({ pageIndex: 1, rowIndex: 0 })
     expect(movePage({ state: moved, model, delta: 1 })).toEqual({ pageIndex: 2, rowIndex: 0 })
-    expect(movePage({ state: { pageIndex: 4, rowIndex: 0 }, model, delta: 1 })).toEqual({
+    expect(movePage({ state: { pageIndex: 3, rowIndex: 0 }, model, delta: 1 })).toEqual({
       pageIndex: 0,
       rowIndex: 0,
     })
     expect(movePage({ state: openSettings(), model, delta: -1 })).toEqual({
-      pageIndex: 4,
+      pageIndex: 3,
       rowIndex: 0,
     })
   })

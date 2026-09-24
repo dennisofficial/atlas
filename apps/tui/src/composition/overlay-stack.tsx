@@ -11,7 +11,6 @@ import type { ContainerMove } from './container-move'
 import { ExitGuard } from '../ui/components/exit-guard'
 import { exitGuardAgentRow, exitGuardRow, exitGuardServiceRow } from '../ui/exit-guard-model'
 import { Rewind } from '../ui/components/rewind'
-import { PurgeConfirm } from '../ui/components/purge-confirm'
 import { RewindConfirm } from '../ui/components/rewind-confirm'
 import { Services } from '../ui/components/services'
 import { Settings } from '../ui/components/settings'
@@ -243,22 +242,16 @@ function DerivedOverlayStack(props: {
             onActivate: settings.github.activate,
             onOpenUrl: settings.handleOpenGithubUrl,
           }}
-          accountAction={settings.account.action}
+          cloudAction={settings.cloudPage.action}
+          cloudUpload={settings.cloudUpload}
+          cloudDownload={settings.cloudDownload}
           onSignOut={settings.handleSignOut}
           onSignIn={settings.handleSignIn}
           onOpenSignInUrl={settings.handleOpenSignInUrl}
-          onDownloadPurge={settings.account.purge.handleOpen}
+          onUpload={settings.handleUpload}
+          onDownload={settings.handleDownload}
           onSelect={settings.handleSelect}
           onDismiss={settings.handleDismiss}
-        />
-      )}
-      {settings.account.purge.state === null ? null : (
-        <PurgeConfirm
-          width={Math.min(props.contentWidth, props.width)}
-          state={settings.account.purge.state}
-          overlay
-          onConfirm={settings.account.purge.handleConfirm}
-          onDismiss={settings.account.purge.handleDismiss}
         />
       )}
     </>

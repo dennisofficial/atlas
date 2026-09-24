@@ -1,21 +1,37 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 
-import type { CloudService, UrlOpener } from '@dltech/atlas-harness'
+import type { CloudService, CloudSyncCounts, UrlOpener } from '@dltech/atlas-harness'
 
-import { useAccountPage, type AccountPageControl } from './use-account-page'
+import { idleSync, type CloudSyncState } from '../ui/components/settings/cloud'
+import { useCloudPage, type CloudPageControl } from './use-cloud-page'
 import { useSettingsCloudLogin, type SettingsCloudLoginControl } from './use-settings-cloud-login'
 import { useSettingsGithub, type SettingsGithubControl } from './use-settings-github'
 
 export type SettingsCloudControl = {
   session: { email: string | null } | null
   login: SettingsCloudLoginControl
-  account: AccountPageControl
+  cloudPage: CloudPageControl
   github: SettingsGithubControl
+  upload: CloudSyncState
+  download: CloudSyncState
   readSession: () => void
   handleSignOut: () => void
+  handleUpload: () => void
+  handleDownload: () => void
   handleOpenSignInUrl: () => void
   handleOpenGithubUrl: () => void
 }
+
+const plural = (args: { count: number; noun: string }): string =>
+  `${args.count} ${args.noun}${args.count === 1 ? '' : 's'}`
+
+const syncNotice = (args: { verb: string; where: string; moved: CloudSyncCounts }): string =>
+  `${args.verb} ${plural({ count: args.moved.accounts, noun: 'account' })}, ` +
+  `${plural({ count: args.moved.secrets, noun: 'secret' })} and ` +
+  `${plural({ count: args.moved.mcpServers, noun: 'mcp server' })} ${args.where}.`
+
+const syncFailure = (args: { fallback: string; error: unknown }): string =>
+  args.error instanceof Error ? args.error.message : args.fallback
 
 export function useSettingsCloud(args: {
   cloud: CloudService
@@ -24,6 +40,10 @@ export function useSettingsCloud(args: {
 }): SettingsCloudControl {
   const { cloud, openUrl, onSignedIn } = args
   const [session, setSession] = useState<{ email: string | null } | null>(null)
+  const [upload, setUpload] = useState<CloudSyncState>(idleSync)
+  const [download, setDownload] = useState<CloudSyncState>(idleSync)
+  const uploadRunning = useRef(false)
+  const downloadRunning = useRef(false)
 
   const readSession = useCallback(() => {
     setSession(cloud.session())
@@ -39,16 +59,73 @@ export function useSettingsCloud(args: {
     readSession()
   }, [cloud, readSession])
 
+  const handleUpload = useCallback(() => {
+    if (uploadRunning.current) return
+    uploadRunning.current = true
+    setUpload({ running: true, notice: null, failure: null })
+    void cloud
+      .uploadLocalToCloud()
+      .then((moved) =>
+        setUpload({
+          running: false,
+          notice: syncNotice({ verb: 'Uploaded', where: 'to the cloud', moved }),
+          failure: null,
+        }),
+      )
+      .catch((error: unknown) =>
+        setUpload({
+          running: false,
+          notice: null,
+          failure: syncFailure({
+            fallback: 'The upload failed — nothing was removed locally, safe to retry.',
+            error,
+          }),
+        }),
+      )
+      .finally(() => {
+        uploadRunning.current = false
+      })
+  }, [cloud])
+
+  const handleDownload = useCallback(() => {
+    if (downloadRunning.current) return
+    downloadRunning.current = true
+    setDownload({ running: true, notice: null, failure: null })
+    void cloud
+      .downloadCloudToLocal()
+      .then((moved) =>
+        setDownload({
+          running: false,
+          notice: syncNotice({ verb: 'Downloaded', where: 'to this machine', moved }),
+          failure: null,
+        }),
+      )
+      .catch((error: unknown) =>
+        setDownload({
+          running: false,
+          notice: null,
+          failure: syncFailure({
+            fallback: 'The download failed — the local files were left alone, safe to retry.',
+            error,
+          }),
+        }),
+      )
+      .finally(() => {
+        downloadRunning.current = false
+      })
+  }, [cloud])
+
   const login = useSettingsCloudLogin({ cloud, openUrl, onSignedIn: handleSignedIn })
 
   const github = useSettingsGithub({ cloud, openUrl })
 
-  const account = useAccountPage({
+  const cloudPage = useCloudPage({
     cloud,
     loginStatus: login.state.status,
     onSignOut: handleSignOut,
     onBeginSignIn: login.begin,
-    onSettled: readSession,
+    onUpload: handleUpload,
+    onDownload: handleDownload,
     onGithubActivate: github.activate,
   })
 
@@ -69,10 +146,14 @@ export function useSettingsCloud(args: {
   return {
     session,
     login,
-    account,
+    cloudPage,
     github,
+    upload,
+    download,
     readSession,
     handleSignOut,
+    handleUpload,
+    handleDownload,
     handleOpenSignInUrl,
     handleOpenGithubUrl,
   }

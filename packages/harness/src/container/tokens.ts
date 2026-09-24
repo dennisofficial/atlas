@@ -11,6 +11,7 @@ import type {
 import type { DeltaChannel } from '../channel/delta-channel'
 import type { SessionRegistry } from '../store/sessions/registry'
 import type { CloudSession, CloudSessionStore } from '../cloud/cloud-session'
+import type { CloudSettingsStore } from '../cloud/cloud-settings-store'
 import type { ClaudeCodeSource } from '../credentials/claude-code-source'
 import type { CodexSource } from '../credentials/codex-source'
 import type { KeychainReader } from '../credentials/keychain-reader'
@@ -73,6 +74,10 @@ export const LocalSecretsStoreToken: InjectionToken<FileSecretsStore> = Symbol(
 
 export const CloudSessionStoreToken: InjectionToken<CloudSessionStore> = Symbol(
   'atlas.CloudSessionStore',
+)
+
+export const CloudSettingsStoreToken: InjectionToken<CloudSettingsStore> = Symbol(
+  'atlas.CloudSettingsStore',
 )
 
 /**

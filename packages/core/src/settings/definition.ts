@@ -5,7 +5,6 @@ export enum ESettingPage {
   Models = 'models',
   Appearance = 'appearance',
   Cloud = 'cloud',
-  Account = 'account',
   Hidden = 'hidden',
 }
 

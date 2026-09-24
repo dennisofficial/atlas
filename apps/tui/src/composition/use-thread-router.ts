@@ -88,7 +88,7 @@ export function useThreadRouter(args: {
         if (bridge === null) {
           notify({
             key: 'cloud-open-signin',
-            text: 'that conversation lives in the cloud — sign in from settings (ctrl+o) › account to open it',
+            text: 'that conversation lives in the cloud — sign in from settings (ctrl+o) › cloud to open it',
             tone: ENoticeTone.Warn,
             ttlMs: NOTICE_WARN_MS,
           })

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { ATLAS_SETTINGS, ESettingId, SecretsPort } from '@dltech/atlas-core'
 
 import { createSettingsService, MemorySettingsStore } from '../../settings'
+import { CLOUD_SETTING_DEFINITIONS, isCloudSettingId } from '../settings-definitions'
 import {
   requireVercelCredentials,
   sandboxImageOf,
@@ -31,9 +32,27 @@ class FakeSecrets extends SecretsPort {
   }
 }
 
+const definitions = [
+  ...ATLAS_SETTINGS.filter((definition) => !isCloudSettingId(definition.id)),
+  ...CLOUD_SETTING_DEFINITIONS,
+]
+
 const settingsWith = (values: Record<string, string>) =>
   createSettingsService({
-    definitions: ATLAS_SETTINGS,
+    definitions,
+    user: new MemorySettingsStore(),
+    cloud: {
+      signedIn: () => true,
+      values: () => values,
+      set: () => Promise.resolve(),
+      remove: () => Promise.resolve(),
+      subscribe: () => () => undefined,
+    },
+  })
+
+const settingsFromFile = (values: Record<string, string>) =>
+  createSettingsService({
+    definitions,
     user: new MemorySettingsStore({ document: { values } }),
   })
 
@@ -70,7 +89,7 @@ describe('requireVercelCredentials', () => {
   it('never accepts the token from a settings file or the environment', () => {
     const failure = () =>
       requireVercelCredentials({
-        settings: settingsWith({ ...FULL, [ESettingId.VercelToken]: 'pasted-into-settings' }),
+        settings: settingsFromFile({ ...FULL, [ESettingId.VercelToken]: 'pasted-into-settings' }),
         secrets: new FakeSecrets({}),
       })
 

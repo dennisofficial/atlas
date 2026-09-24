@@ -12,7 +12,7 @@ import { currentPage, type SettingsModel, type SettingsState } from '../settings
 import { ESettingsLogin, type SettingsLoginState } from '../settings-login-model'
 import { theme } from '../theme'
 import type { Appearance } from '../appearance'
-import { EAccountAction, SettingsAccount } from './settings/account'
+import { ECloudAction, SettingsCloud, type CloudSyncState } from './settings/cloud'
 import { type GithubAccountView } from './settings/github-connect'
 import { SettingsBand } from './settings/band'
 import { SettingsDetail } from './settings/detail'
@@ -32,20 +32,20 @@ const HINTS: readonly Hint[] = [
   { key: 'esc', label: 'back' },
 ]
 
-const ACCOUNT_HINTS_SIGNED_IN: readonly Hint[] = [
+const CLOUD_HINTS_SIGNED_IN: readonly Hint[] = [
   { key: '↑↓', label: 'row' },
   { key: '⏎', label: 'choose' },
   { key: '⇥', label: 'tab' },
   { key: 'esc', label: 'back' },
 ]
 
-const ACCOUNT_HINTS_SIGNED_OUT_IDLE: readonly Hint[] = [
+const CLOUD_HINTS_SIGNED_OUT_IDLE: readonly Hint[] = [
   { key: '⏎', label: 'sign in' },
   { key: '⇥', label: 'tab' },
   { key: 'esc', label: 'back' },
 ]
 
-const ACCOUNT_HINTS_SIGNED_OUT_PENDING: readonly Hint[] = [
+const CLOUD_HINTS_SIGNED_OUT_PENDING: readonly Hint[] = [
   { key: '⇥', label: 'tab' },
   { key: 'esc', label: 'back' },
 ]
@@ -107,12 +107,15 @@ export function Settings(props: {
   cloudEmail: string | null
   cloudSignedIn: boolean
   cloudSignIn: SettingsLoginState
-  accountAction: EAccountAction
+  cloudAction: ECloudAction | null
+  cloudUpload: CloudSyncState
+  cloudDownload: CloudSyncState
   github?: GithubAccountView | undefined
   onSignOut: () => void
   onSignIn: () => void
   onOpenSignInUrl: () => void
-  onDownloadPurge: () => void
+  onUpload: () => void
+  onDownload: () => void
   onSelect: (target: SettingsState) => void
   onDismiss: () => void
 }): React.ReactNode {
@@ -120,23 +123,24 @@ export function Settings(props: {
   const columnWidth = props.width - (detail ? props.sidebarWidth : 0)
   const cells = settingsCells({ width: columnWidth })
   const page = currentPage({ state: props.state, model: props.model })
-  const selected = page?.rows[props.state.rowIndex]
-  const onAccountPage = page?.page.id === ESettingPage.Account
+  const onCloudPage = page?.page.id === ESettingPage.Cloud
+  const rowsActive = !onCloudPage || (props.cloudSignedIn && props.cloudAction === null)
+  const selected = rowsActive ? page?.rows[props.state.rowIndex] : undefined
 
   const status =
     props.problem ??
-    (onAccountPage
+    (onCloudPage
       ? 'providers and api keys live in the accounts overlay — ctrl+a'
       : props.prompt === null
         ? `edits write to ${props.origin}`
         : `sealed into ${props.secretOrigin}, never into ${props.origin}`)
 
-  const hints = onAccountPage
+  const hints = onCloudPage
     ? props.cloudSignedIn
-      ? ACCOUNT_HINTS_SIGNED_IN
+      ? CLOUD_HINTS_SIGNED_IN
       : props.cloudSignIn.status === ESettingsLogin.Idle
-        ? ACCOUNT_HINTS_SIGNED_OUT_IDLE
-        : ACCOUNT_HINTS_SIGNED_OUT_PENDING
+        ? CLOUD_HINTS_SIGNED_OUT_IDLE
+        : CLOUD_HINTS_SIGNED_OUT_PENDING
     : HINTS
 
   const scroller = useRef<ScrollBoxRenderable | null>(null)
@@ -174,21 +178,24 @@ export function Settings(props: {
         >
           <scrollbox ref={scroller} flexGrow={1} flexShrink={1} flexBasis={0}>
             <box flexDirection="column" flexShrink={0} gap={1}>
-              {onAccountPage ? (
-                <SettingsAccount
+              {onCloudPage ? (
+                <SettingsCloud
                   cells={cells}
                   email={props.cloudEmail}
                   signedIn={props.cloudSignedIn}
-                  action={props.accountAction}
+                  action={props.cloudAction}
                   onSignOut={props.onSignOut}
-                  onDownloadPurge={props.onDownloadPurge}
+                  onUpload={props.onUpload}
+                  onDownload={props.onDownload}
+                  upload={props.cloudUpload}
+                  download={props.cloudDownload}
                   cloudSignIn={props.cloudSignIn}
                   onSignIn={props.onSignIn}
                   onOpenSignInUrl={props.onOpenSignInUrl}
                   {...(props.github === undefined ? {} : { github: props.github })}
                 />
               ) : null}
-              {onAccountPage ? null : page?.groups.map((group) => (
+              {onCloudPage && !props.cloudSignedIn ? null : page?.groups.map((group) => (
                 <box key={group.label} flexDirection="column" flexShrink={0}>
                   <SettingsGroupHeader label={group.label} />
                   {group.rows.map((row) => (

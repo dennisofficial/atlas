@@ -14,7 +14,6 @@ describe('the models settings page', () => {
       ESettingPage.Models,
       ESettingPage.Appearance,
       ESettingPage.Cloud,
-      ESettingPage.Account,
     ])
   })
 

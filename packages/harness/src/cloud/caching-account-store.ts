@@ -105,7 +105,7 @@ export class CachingAccountStore extends AccountStorePort {
     }
   }
 
-  private invalidate(): void {
+  invalidate(): void {
     this.listEntry = undefined
     this.readEntries.clear()
     this.activeEntries.clear()

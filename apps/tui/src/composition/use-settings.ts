@@ -22,9 +22,10 @@ import {
   type SettingsState,
 } from '../ui/settings-model'
 import type { Span } from '../ui/components/spans'
+import type { CloudSyncState } from '../ui/components/settings/cloud'
 import type { AtlasApp } from './compose'
 import { preferencesOf } from './settings-preferences'
-import { type AccountPageControl } from './use-account-page'
+import { type CloudPageControl } from './use-cloud-page'
 import { useSecretPrompt } from './use-secret-prompt'
 import { type SettingsGithubControl } from './use-settings-github'
 import { useSettingsCloud } from './use-settings-cloud'
@@ -44,10 +45,14 @@ export type SettingsControl = {
   cloudEmail: string | null
   cloudSignedIn: boolean
   cloudSignIn: SettingsLoginState
-  account: AccountPageControl
+  cloudPage: CloudPageControl
+  cloudUpload: CloudSyncState
+  cloudDownload: CloudSyncState
   github: SettingsGithubControl
   handleSignOut: () => void
   handleSignIn: () => void
+  handleUpload: () => void
+  handleDownload: () => void
   handleOpenSignInUrl: () => void
   handleOpenGithubUrl: () => void
   sidebarWidth: number
@@ -114,10 +119,14 @@ export function useSettings(args: {
   const {
     session: cloudSession,
     login: cloudLogin,
-    account,
+    cloudPage,
     github,
+    upload: cloudUpload,
+    download: cloudDownload,
     readSession: readCloudSession,
     handleSignOut,
+    handleUpload,
+    handleDownload,
     handleOpenSignInUrl,
     handleOpenGithubUrl,
   } = useSettingsCloud({ cloud: app.cloud, openUrl: app.openUrl, onSignedIn: rewarmSecrets })
@@ -145,19 +154,22 @@ export function useSettings(args: {
     text.close()
     cloudLogin.stop()
     github.stop()
-    account.purge.handleDismiss()
-  }, [account.purge, cloudLogin, github, secret, text])
+  }, [cloudLogin, github, secret, text])
 
-  const onAccountPage =
-    state !== null && currentPage({ state, model: view })?.page.id === ESettingPage.Account
+  const onCloudPage =
+    state !== null && currentPage({ state, model: view })?.page.id === ESettingPage.Cloud
 
   useEffect(() => {
-    if (onAccountPage) github.refresh()
-  }, [onAccountPage, cloudSession, github.refresh])
+    if (onCloudPage) github.refresh()
+  }, [onCloudPage, cloudSession, github.refresh])
 
-  const handleSelect = useCallback((target: SettingsState) => {
-    setState(target)
-  }, [])
+  const handleSelect = useCallback(
+    (target: SettingsState) => {
+      cloudPage.handleDisarmAction()
+      setState(target)
+    },
+    [cloudPage],
+  )
 
   const { handleKey } = useSettingsKeys({
     app,
@@ -167,7 +179,7 @@ export function useSettings(args: {
     settle,
     secret,
     text,
-    account,
+    cloudPage,
     login: cloudLogin,
     github,
     signedIn: cloudSession !== null,
@@ -193,10 +205,14 @@ export function useSettings(args: {
       cloudEmail: cloudSession?.email ?? null,
       cloudSignedIn: cloudSession !== null,
       cloudSignIn: cloudLogin.state,
-      account,
+      cloudPage,
+      cloudUpload,
+      cloudDownload,
       github,
       handleSignOut,
       handleSignIn: cloudLogin.begin,
+      handleUpload,
+      handleDownload,
       handleOpenSignInUrl,
       handleOpenGithubUrl,
       ...preferences,
@@ -207,13 +223,16 @@ export function useSettings(args: {
       handleKey,
     }),
     [
-      account,
       appearance,
+      cloudDownload,
       cloudLogin.begin,
       cloudLogin.state,
+      cloudPage,
       cloudSession,
+      cloudUpload,
       github,
       handleDismiss,
+      handleDownload,
       handleKey,
       handleOpen,
       handleOpenGithubUrl,
@@ -221,6 +240,7 @@ export function useSettings(args: {
       handlePinModels,
       handleSelect,
       handleSignOut,
+      handleUpload,
       origin,
       preferences,
       problem,

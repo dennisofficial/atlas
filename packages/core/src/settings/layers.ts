@@ -3,6 +3,7 @@ export enum ESettingsLayer {
   User = 'user',
   Project = 'project',
   Environment = 'environment',
+  Cloud = 'cloud',
 }
 
 export const SETTINGS_LAYER_ORDER: readonly ESettingsLayer[] = [
@@ -10,6 +11,7 @@ export const SETTINGS_LAYER_ORDER: readonly ESettingsLayer[] = [
   ESettingsLayer.User,
   ESettingsLayer.Project,
   ESettingsLayer.Environment,
+  ESettingsLayer.Cloud,
 ]
 
 export const DEFAULT_LAYER_ORIGIN = 'built in'
