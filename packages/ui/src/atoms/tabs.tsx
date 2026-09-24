@@ -1,6 +1,6 @@
 "use client";
 
-import * as TabsPrimitive from "@radix-ui/react-tabs";
+import { Tabs as TabsPrimitive } from "@base-ui/react/tabs";
 import { cva } from "class-variance-authority";
 import type { CSSProperties, ReactNode } from "react";
 
@@ -41,9 +41,9 @@ const triggerVariants = cva(
     variants: {
       variant: {
         underline:
-          "-mb-px border-b-2 text-meta hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground",
+          "-mb-px border-b-2 text-meta hover:text-foreground data-[active]:border-primary data-[active]:text-foreground",
         segmented:
-          "rounded-sm border text-meta hover:text-foreground data-[state=active]:border-border data-[state=active]:bg-card data-[state=active]:text-foreground",
+          "rounded-sm border text-meta hover:text-foreground data-[active]:border-border data-[active]:bg-card data-[active]:text-foreground",
       },
       size: {
         sm: "",
@@ -67,7 +67,7 @@ const triggerVariants = cva(
 const countVariants = cva("font-mono text-2xs leading-none", {
   variants: {
     variant: {
-      underline: "text-hint group-data-[state=active]:text-primary",
+      underline: "text-hint group-data-[active]:text-primary",
       segmented: "text-hint",
     },
   },
@@ -97,7 +97,7 @@ export function Tabs({
     >
       <TabsPrimitive.List className={cn(listVariants({ variant }))}>
         {tabs.map((tab) => (
-          <TabsPrimitive.Trigger
+          <TabsPrimitive.Tab
             key={tab.value}
             value={tab.value}
             disabled={tab.disabled}
@@ -110,7 +110,7 @@ export function Tabs({
                 {tab.count}
               </span>
             ) : null}
-          </TabsPrimitive.Trigger>
+          </TabsPrimitive.Tab>
         ))}
       </TabsPrimitive.List>
     </TabsPrimitive.Root>

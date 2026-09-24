@@ -1,11 +1,11 @@
-import { Root } from "@radix-ui/react-separator";
+import { Separator as BaseSeparator } from "@base-ui/react/separator";
 import type { ComponentProps } from "react";
 
 import { cn } from "../lib/cn";
 
 export type SeparatorProps = Omit<
-  ComponentProps<typeof Root>,
-  "orientation" | "decorative" | "children"
+  ComponentProps<typeof BaseSeparator>,
+  "orientation" | "children"
 > & {
   orientation?: "horizontal" | "vertical";
   label?: string;
@@ -22,9 +22,8 @@ export function Separator({
 }: SeparatorProps) {
   if (orientation === "vertical") {
     return (
-      <Root
+      <BaseSeparator
         orientation="vertical"
-        decorative={false}
         className={cn("w-px shrink-0 self-stretch bg-rule", className)}
         style={{ margin: `0 ${inset}px`, ...style }}
         {...props}
@@ -34,9 +33,8 @@ export function Separator({
 
   if (label) {
     return (
-      <Root
+      <BaseSeparator
         orientation="horizontal"
-        decorative={false}
         className={cn("flex items-center gap-4", className)}
         style={{ margin: `${inset}px 0`, ...style }}
         {...props}
@@ -45,14 +43,13 @@ export function Separator({
           {label}
         </span>
         <span className="h-px flex-1 bg-rule" />
-      </Root>
+      </BaseSeparator>
     );
   }
 
   return (
-    <Root
+    <BaseSeparator
       orientation="horizontal"
-      decorative={false}
       className={cn("h-px bg-rule", className)}
       style={{ margin: `${inset}px 0`, ...style }}
       {...props}

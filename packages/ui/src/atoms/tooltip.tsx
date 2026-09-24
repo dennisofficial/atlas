@@ -1,7 +1,7 @@
 "use client";
 
-import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import type { CSSProperties, ReactNode } from "react";
+import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
+import type { CSSProperties, ReactElement, ReactNode } from "react";
 
 import { cn } from "../lib/cn";
 
@@ -25,22 +25,22 @@ export function Tooltip({
   className,
 }: TooltipProps) {
   return (
-    <TooltipPrimitive.Provider delayDuration={delay}>
+    <TooltipPrimitive.Provider delay={delay}>
       <TooltipPrimitive.Root>
-        <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
+        <TooltipPrimitive.Trigger render={children as ReactElement} />
         <TooltipPrimitive.Portal>
-          <TooltipPrimitive.Content
-            side={side}
-            sideOffset={6}
-            style={style}
-            className={cn(
-              "pointer-events-none z-[60] flex animate-[atlas-fade-up_var(--duration-fast)_var(--ease-out)_both] items-center gap-[6px] rounded-sm border border-border bg-popover px-[7px] py-1 text-xs leading-[1.35] whitespace-nowrap text-popover-foreground shadow-menu select-none",
-              className,
-            )}
-          >
-            {content}
-            {kbd ? <span className="font-mono text-hint">{kbd}</span> : null}
-          </TooltipPrimitive.Content>
+          <TooltipPrimitive.Positioner side={side} sideOffset={6}>
+            <TooltipPrimitive.Popup
+              style={style}
+              className={cn(
+                "pointer-events-none z-[60] flex animate-[atlas-fade-up_var(--duration-fast)_var(--ease-out)_both] items-center gap-[6px] rounded-sm border border-border bg-popover px-[7px] py-1 text-xs leading-[1.35] whitespace-nowrap text-popover-foreground shadow-menu select-none",
+                className,
+              )}
+            >
+              {content}
+              {kbd ? <span className="font-mono text-hint">{kbd}</span> : null}
+            </TooltipPrimitive.Popup>
+          </TooltipPrimitive.Positioner>
         </TooltipPrimitive.Portal>
       </TooltipPrimitive.Root>
     </TooltipPrimitive.Provider>

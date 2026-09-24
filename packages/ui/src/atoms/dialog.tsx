@@ -1,6 +1,6 @@
 "use client";
 
-import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import type { CSSProperties, ReactNode } from "react";
 
 import { cn } from "../lib/cn";
@@ -38,8 +38,8 @@ export function Dialog({
       }}
     >
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[100] bg-scrim" />
-        <DialogPrimitive.Content
+        <DialogPrimitive.Backdrop className="fixed inset-0 z-[100] bg-scrim" />
+        <DialogPrimitive.Popup
           style={{ width, ...style }}
           className={cn(
             "fixed top-1/2 left-1/2 z-[100] flex max-h-[calc(100%-48px)] w-full max-w-[calc(100%-48px)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-palette outline-none",
@@ -85,7 +85,7 @@ export function Dialog({
               </footer>
             ) : null}
           </div>
-        </DialogPrimitive.Content>
+        </DialogPrimitive.Popup>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
   );

@@ -1,7 +1,7 @@
 "use client";
 
-import * as PopoverPrimitive from "@radix-ui/react-popover";
-import type { CSSProperties, ReactNode } from "react";
+import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
+import type { CSSProperties, ReactElement, ReactNode } from "react";
 
 import { cn } from "../lib/cn";
 
@@ -35,29 +35,29 @@ export function Popover({
       {...(open !== undefined ? { open } : {})}
       {...(onOpenChange ? { onOpenChange } : {})}
     >
-      <PopoverPrimitive.Trigger asChild>{trigger}</PopoverPrimitive.Trigger>
+      <PopoverPrimitive.Trigger render={trigger as ReactElement} />
       <PopoverPrimitive.Portal>
-        <PopoverPrimitive.Content
-          align={align}
-          sideOffset={5}
-          style={{ width, ...style }}
-          className={cn(
-            "z-50 animate-[atlas-fade-up_var(--duration-fast)_var(--ease-out)_both] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-menu",
-            className,
-          )}
-        >
-          {title ? (
-            <div className="border-b border-border px-[10px] py-[7px] text-2xs font-medium tracking-caps text-meta uppercase">
-              {title}
-            </div>
-          ) : null}
-          <div className="p-[10px] text-base">{children}</div>
-          {footer ? (
-            <div className="flex justify-end gap-[6px] border-t border-border bg-muted px-[10px] py-[7px]">
-              {footer}
-            </div>
-          ) : null}
-        </PopoverPrimitive.Content>
+        <PopoverPrimitive.Positioner align={align} sideOffset={5}>
+          <PopoverPrimitive.Popup
+            style={{ width, ...style }}
+            className={cn(
+              "z-50 animate-[atlas-fade-up_var(--duration-fast)_var(--ease-out)_both] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-menu",
+              className,
+            )}
+          >
+            {title ? (
+              <div className="border-b border-border px-[10px] py-[7px] text-2xs font-medium tracking-caps text-meta uppercase">
+                {title}
+              </div>
+            ) : null}
+            <div className="p-[10px] text-base">{children}</div>
+            {footer ? (
+              <div className="flex justify-end gap-[6px] border-t border-border bg-muted px-[10px] py-[7px]">
+                {footer}
+              </div>
+            ) : null}
+          </PopoverPrimitive.Popup>
+        </PopoverPrimitive.Positioner>
       </PopoverPrimitive.Portal>
     </PopoverPrimitive.Root>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area";
+import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area";
 import type { CSSProperties, ReactNode } from "react";
 
 import { cn } from "../lib/cn";
@@ -29,7 +29,6 @@ export function ScrollArea({
 }: ScrollAreaProps) {
   return (
     <ScrollAreaPrimitive.Root
-      type="always"
       className={cn("relative min-h-0 min-w-0 overflow-hidden", className)}
       style={{ height, maxHeight, ...style }}
     >
