@@ -19,14 +19,22 @@ const RAW_MOUSE_BELONGS_TO = new Set([
 
 describe('press discipline', () => {
   it('leaves the raw mouse to usePress and the scrollbar, so no click strands a selection', async () => {
-    const wired: string[] = []
+    const sources: string[] = []
 
     for await (const file of new Glob('**/*.{ts,tsx}').scan({ cwd: SRC })) {
       if (file.includes('__tests__')) continue
       if (RAW_MOUSE_BELONGS_TO.has(file)) continue
-      if (RAW_MOUSE.test(await Bun.file(join(SRC, file)).text())) wired.push(file)
+      sources.push(file)
     }
 
+    const wired = (
+      await Promise.all(
+        sources.map(async (file) =>
+          RAW_MOUSE.test(await Bun.file(join(SRC, file)).text()) ? file : null,
+        ),
+      )
+    ).filter((file): file is string => file !== null)
+
     expect(wired.sort()).toEqual([])
-  })
+  }, 60_000)
 })

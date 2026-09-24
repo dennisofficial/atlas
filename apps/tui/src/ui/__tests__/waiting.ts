@@ -16,6 +16,23 @@ export type Capturable = {
 
 const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
+/**
+ * @opentui/core 0.5.9's `flush` throws `Timed out waiting for visual idle` when the renderer stays
+ * busy for 20 straight frames, and a live shimmer ticker keeps every frame busy on a starved
+ * runner. For a polling wait a busy frame is an ordinary frame — capture it and keep going; the
+ * wall-clock deadline is still the bound.
+ */
+const busyIsAFrame = (error: unknown): boolean =>
+  error instanceof Error && error.message.includes('visual idle')
+
+async function flushTolerant(setup: Capturable): Promise<void> {
+  try {
+    await setup.flush()
+  } catch (error) {
+    if (!busyIsAFrame(error)) throw error
+  }
+}
+
 export async function frameWhen(args: {
   setup: Capturable
   holds: (frame: string) => boolean
@@ -25,7 +42,7 @@ export async function frameWhen(args: {
   const deadline = Date.now() + (args.within ?? CEILING_MS)
 
   for (;;) {
-    await args.setup.flush()
+    await flushTolerant(args.setup)
     const frame = args.setup.captureCharFrame()
     if (args.holds(frame)) return frame
 
@@ -46,7 +63,7 @@ export async function frameSettled(args: { setup: Capturable; within?: number })
   let steady = 1
 
   for (;;) {
-    await args.setup.flush()
+    await flushTolerant(args.setup)
     const frame = args.setup.captureCharFrame()
 
     if (frame === previous) {
