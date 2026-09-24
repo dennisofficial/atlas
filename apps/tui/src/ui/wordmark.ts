@@ -1,12 +1,8 @@
+import { BRAND_MARK_PIXELS } from './brand-mark'
 import { mixHex } from './colour'
 import type { Span } from './components/spans'
 
-/**
- * Futura Bold "Atlas" rasterised to the terminal's half-cell grid: two pixel rows per text row,
- * each pixel one of five ink densities. Rendered as `▀` with an independent foreground and
- * background tint, which is what buys the vertical resolution a single shade glyph cannot.
- */
-const MARK_PIXELS: readonly string[] = [
+const WORDMARK_PIXELS: readonly string[] = [
   '0000000000000000000000000002221000000000000000000000000000',
   '0000000000000000000000000014441000000000000000000000000000',
   '0000014444100000000000000014441000000000000000000000000000',
@@ -26,6 +22,10 @@ const MARK_PIXELS: readonly string[] = [
   '3444200000024443001444100014441000002444414443000244444300',
   '0000000000000000000000000000000000000011000000000001110000',
 ]
+
+const MARK_PIXELS = WORDMARK_PIXELS.map(
+  (row, index) => `${BRAND_MARK_PIXELS[index]}00${row}`,
+)
 
 const DENSITY: readonly number[] = [0, 0.16, 0.4, 0.7, 1]
 
