@@ -29,6 +29,7 @@ type ModelAssistantPart = Extract<AssistantContent, readonly unknown[]>[number]
 type ModelToolResultOutput = ModelToolResultPart['output']
 type ModelUserPart = Extract<UserContent, readonly unknown[]>[number]
 type ModelImagePart = Extract<ModelUserPart, { type: 'image' }>
+type ModelFilePart = Extract<ModelUserPart, { type: 'file' }>
 type CoreAssistantPart = AssistantMessage['content'][number]
 
 const toModelTextPart = (part: TextPart) => ({
@@ -77,8 +78,8 @@ const toModelToolResultPart = (part: ToolResultPart) => ({
 })
 
 const toModelImagePart = (part: ImagePart) => ({
-  type: 'image' as const,
-  image: part.data,
+  type: 'file' as const,
+  data: { type: 'data' as const, data: part.data },
   mediaType: part.mediaType,
   ...carriedProviderOptions(part.providerOptions),
 })
@@ -144,13 +145,39 @@ const fromModelImagePart = (part: ModelImagePart): ImagePart => {
   }
 }
 
+const fromModelFilePart = (part: ModelFilePart): ImagePart => {
+  if (!part.mediaType.startsWith('image/') && part.mediaType !== 'image') {
+    return refuse(`a user file part of media type ${part.mediaType}`)
+  }
+
+  const data = part.data
+  const inline =
+    typeof data === 'string'
+      ? data
+      : typeof data === 'object' && !(data instanceof URL) && 'type' in data && data.type === 'data'
+        ? data.data
+        : undefined
+
+  if (typeof inline !== 'string' || REMOTE_IMAGE.test(inline)) {
+    return refuse('a user file part that is not inline base64')
+  }
+
+  return {
+    type: 'image',
+    data: inline,
+    mediaType: part.mediaType,
+    ...carriedProviderOptions(toCoreProviderOptions(part.providerOptions)),
+  }
+}
+
 const fromModelUserContent = (content: UserContent): readonly (TextPart | ImagePart)[] => {
   if (typeof content === 'string') return [{ type: 'text', text: content }]
 
   return content.map((part) => {
     if (part.type === 'text') return fromModelTextPart(part)
     if (part.type === 'image') return fromModelImagePart(part)
-    return refuse(`a user ${part.type} part`)
+    if (part.type === 'file') return fromModelFilePart(part)
+    return refuse('a user part outside text, image and file')
   })
 }
 
