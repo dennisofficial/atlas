@@ -3,7 +3,13 @@ import { mkdtemp, mkdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { BeforeTurnHook, EContextSlot, MAX_INDEX_LINES, toThreadId } from '@dltech/atlas-core'
+import {
+  BeforeTurnHook,
+  EContextSlot,
+  MAX_INDEX_LINES,
+  RECONCILE_THRESHOLD,
+  toThreadId,
+} from '@dltech/atlas-core'
 
 import { createIsolatedContainer, portToken } from '../../container/injection'
 import { InMemoryFileReadState } from '../../files/read-state'
@@ -158,6 +164,51 @@ describe('LoadMemoryHook', () => {
       return draft && 'key' in draft ? draft.key : undefined
     }
     expect(keyOf(fromWorktree)).toBe(keyOf(fromRoot))
+  })
+
+  it('stays silent when every index is under the reconcile threshold', async () => {
+    const home = await scratch()
+    const directories = directoriesIn(home)
+    await ensureMemoryDirectories(directories)
+    await writeFile(join(directories.project, 'MEMORY.md'), '- [One](one.md) — a hook')
+
+    const hook = new LoadMemoryHook({ directories })
+    const result = await hook.run({ threadId: toThreadId('t'), projectDirectory: '/repo' })
+
+    expect(result.drafts?.some((d) => 'key' in d && String(d.key).startsWith('memory-reconcile:'))).toBe(
+      false,
+    )
+  })
+
+  it('emits one supersede-keyed reconcile nudge for an index over the threshold', async () => {
+    const home = await scratch()
+    const directories = directoriesIn(home)
+    await ensureMemoryDirectories(directories)
+    const near = Array.from(
+      { length: Math.ceil(MAX_INDEX_LINES * RECONCILE_THRESHOLD) + 5 },
+      (_, at) => `- entry ${at}`,
+    ).join('\n')
+    await writeFile(join(directories.project, 'MEMORY.md'), near)
+
+    const hook = new LoadMemoryHook({ directories })
+    const first = await hook.run({ threadId: toThreadId('t'), projectDirectory: '/repo' })
+    const nudges = (first.drafts ?? []).filter(
+      (d) => 'key' in d && String(d.key).startsWith('memory-reconcile:'),
+    )
+
+    expect(nudges).toHaveLength(1)
+    expect(nudges[0] && 'key' in nudges[0] ? nudges[0].key : undefined).toBe(
+      `memory-reconcile:${directories.project}`,
+    )
+    expect(nudges[0] && 'content' in nudges[0] ? nudges[0].content : '').toContain(
+      'Reconcile instead',
+    )
+
+    const second = await hook.run({ threadId: toThreadId('t'), projectDirectory: '/repo' })
+    const secondNudges = (second.drafts ?? []).filter(
+      (d) => 'key' in d && String(d.key).startsWith('memory-reconcile:'),
+    )
+    expect(secondNudges).toHaveLength(1)
   })
 })
 

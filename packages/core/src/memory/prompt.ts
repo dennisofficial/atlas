@@ -61,7 +61,7 @@ const howToSave: readonly string[] = [
   '',
   'A `recorded:` date is stamped into that frontmatter as the file is written, from a clock rather than from your own reckoning, so never write one yourself.',
   '',
-  `Then add one line to \`${MEMORY_INDEX_NAME}\` pointing at it: \`- [Title](file.md) — the hook\`. The index is a table of contents, never the content itself, and it has no frontmatter. Keep entries to a line, because only the first ${MAX_INDEX_LINES} are loaded.`,
+  `Then add one line to \`${MEMORY_INDEX_NAME}\` pointing at it: \`- [Title](file.md) — the hook\`. The index is a table of contents, never the content itself, and it has no frontmatter. Keep entries to a line, because only the first ${MAX_INDEX_LINES} are loaded. When the index nears that bound, reconcile it — cull entries for shipped work, merge overlapping files — rather than trimming entries one at a time.`,
   '',
   "The filename is the memory's identity. Before writing a new one, look for the file that already makes this claim and rewrite that instead — a memory you have learned more about supersedes the old one, it does not sit beside it. Two files asserting different things about the same subject is the failure this naming is meant to prevent. When something turns out to be wrong, delete it; a memory you have stopped believing is worse than one you never wrote.",
 ]
