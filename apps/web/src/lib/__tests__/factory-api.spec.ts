@@ -6,6 +6,7 @@ import {
   getFactorySettings,
   listConnections,
   listWorkItems,
+  saveDecisionsSettings,
   saveModelSettings,
   saveVercelSettings,
   type FactoryConnection,
@@ -153,5 +154,29 @@ describe('saveVercelSettings', () => {
     expect(fetchCalls[0]?.url).toBe('/v1/factory/settings/vercel')
     expect(fetchCalls[0]?.init?.method).toBe('PUT')
     expect(fetchCalls[0]?.init?.body).toBe(JSON.stringify({ token: 'vercel-token-1' }))
+  })
+})
+
+describe('saveDecisionsSettings', () => {
+  it('puts the url and omits an absent token', async () => {
+    answerWith(json({ ok: true }))
+
+    await saveDecisionsSettings({ url: 'https://api.typesafe.ai/v1/systemone' })
+
+    expect(fetchCalls[0]?.url).toBe('/v1/factory/settings/decisions')
+    expect(fetchCalls[0]?.init?.method).toBe('PUT')
+    expect(fetchCalls[0]?.init?.body).toBe(
+      JSON.stringify({ url: 'https://api.typesafe.ai/v1/systemone' }),
+    )
+  })
+
+  it('puts the token when one is given', async () => {
+    answerWith(json({ ok: true }))
+
+    await saveDecisionsSettings({ url: 'https://api.typesafe.ai/v1/systemone', token: 'jev-key' })
+
+    expect(fetchCalls[0]?.init?.body).toBe(
+      JSON.stringify({ url: 'https://api.typesafe.ai/v1/systemone', token: 'jev-key' }),
+    )
   })
 })

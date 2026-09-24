@@ -132,6 +132,7 @@ export class StationsService {
       drive: { name: driveName, mode: driveModeFor(kind) },
       pinnedModel: await this.credentials.modelRef({ organizationId: item.organizationId }),
       factoryRole: ESandboxFactoryRole.Station,
+      decisionsUrl: await this.credentials.decisionsUrl({ organizationId: item.organizationId }),
     })
 
     const alias = await ticketAliasOf({ workItems: this.workItems, item })

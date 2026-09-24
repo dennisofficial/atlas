@@ -6,6 +6,7 @@ export enum EFactoryConnectionProvider {
   Slack = 'slack',
   Model = 'model',
   Vercel = 'vercel',
+  Decisions = 'decisions',
 }
 
 export enum EFactorySurface {

@@ -17,6 +17,7 @@ export type ServeAttachExtras = {
   drive?: { name: string; mode: ESandboxDriveMode } | undefined
   pinnedModel?: string | undefined
   factoryRole?: ESandboxFactoryRole | undefined
+  decisionsUrl?: string | undefined
 }
 
 export async function serveMessageCommitted(args: {
@@ -140,6 +141,7 @@ export async function deliverToServeThread(args: {
     ...(args.extras?.drive === undefined ? {} : { drive: args.extras.drive }),
     ...(args.extras?.pinnedModel === undefined ? {} : { pinnedModel: args.extras.pinnedModel }),
     ...(args.extras?.factoryRole === undefined ? {} : { factoryRole: args.extras.factoryRole }),
+    ...(args.extras?.decisionsUrl === undefined ? {} : { decisionsUrl: args.extras.decisionsUrl }),
   })
   await args.deps.sandboxes.whenSettled({ threadId: args.threadId })
   const status = await args.deps.sandboxes.status({ userId: args.userId, threadId: args.threadId })

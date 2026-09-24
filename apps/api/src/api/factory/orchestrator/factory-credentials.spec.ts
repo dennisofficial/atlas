@@ -19,6 +19,7 @@ import {
   FactoryCredentialsNotConfigured,
   FactoryCredentialService,
 } from './factory-credentials'
+import { FactoryIdentityService } from './factory-identity'
 
 const cipher = {
   encrypt: (plain: string) => `sealed:${plain}`,
@@ -43,7 +44,7 @@ const service = (env: EnvService) =>
   new FactoryCredentialService(
     env,
     cipher,
-    new OrgSettingsService(env, new FactoryConnectionsService(), cipher),
+    new OrgSettingsService(env, new FactoryConnectionsService(), cipher, new FactoryIdentityService(cipher)),
   )
 
 function storeOrgCredential(args: {

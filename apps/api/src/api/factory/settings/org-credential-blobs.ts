@@ -10,9 +10,14 @@ export interface VercelCredentialBlob {
   token: string
 }
 
+export interface DecisionsCredentialBlob {
+  url: string
+  token?: string | undefined
+}
+
 export function sealBlob(args: {
   cipher: SecretCipherService
-  blob: ModelCredentialBlob | VercelCredentialBlob
+  blob: ModelCredentialBlob | VercelCredentialBlob | DecisionsCredentialBlob
 }): string {
   return args.cipher.encrypt(JSON.stringify(args.blob))
 }
@@ -39,6 +44,17 @@ export function openVercelCredential(args: {
   const { token } = parsed
   if (typeof token !== 'string') return null
   return { token }
+}
+
+export function openDecisionsCredential(args: {
+  cipher: SecretCipherService
+  sealed: string
+}): DecisionsCredentialBlob | null {
+  const parsed = openBlob(args)
+  if (parsed === null) return null
+  const { url, token } = parsed
+  if (typeof url !== 'string' || url.length === 0) return null
+  return { url, token: typeof token === 'string' && token.length > 0 ? token : undefined }
 }
 
 function openBlob(args: {

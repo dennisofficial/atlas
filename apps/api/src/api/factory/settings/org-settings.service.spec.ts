@@ -12,6 +12,7 @@ import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { FactoryConnectionsService } from '../connections/connections.service'
 import { DEFAULT_FACTORY_MODEL_REF } from '../orchestrator/factory-credentials'
+import { FactoryIdentityService } from '../orchestrator/factory-identity'
 import { openModelCredential } from './org-credential-blobs'
 import { OrgSettingsService } from './org-settings.service'
 
@@ -26,10 +27,12 @@ describe('OrgSettingsService', () => {
   })
 
   function service(env: Record<string, string> = {}): OrgSettingsService {
+    const cipher = new SecretCipherService(new EnvService(KEY_ENV))
     return new OrgSettingsService(
       new EnvService(env),
       new FactoryConnectionsService(),
-      new SecretCipherService(new EnvService(KEY_ENV)),
+      cipher,
+      new FactoryIdentityService(cipher),
     )
   }
 
@@ -176,5 +179,71 @@ describe('OrgSettingsService', () => {
     await expect(service().readModelCredential({ organizationId: ORG })).resolves.toBeNull()
     const settings = await service().getSettings({ organizationId: ORG })
     expect(settings.model.source).toBe('unconfigured')
+  })
+
+  it('reports decisions as unconfigured until a row is saved', async () => {
+    const settings = service()
+    expect((await settings.getSettings({ organizationId: ORG })).decisions).toEqual({
+      configured: false,
+      url: null,
+      hasToken: false,
+    })
+
+    await settings.putDecisions({ organizationId: ORG, url: 'https://api.typesafe.ai/v1/systemone' })
+    expect((await settings.getSettings({ organizationId: ORG })).decisions).toEqual({
+      configured: true,
+      url: 'https://api.typesafe.ai/v1/systemone',
+      hasToken: false,
+    })
+  })
+
+  it('readDecisionsCredential returns the sealed url and token', async () => {
+    const settings = service()
+    await settings.putDecisions({
+      organizationId: ORG,
+      url: 'https://api.typesafe.ai/v1/systemone',
+      token: 'jev-key',
+    })
+
+    await expect(settings.readDecisionsCredential({ organizationId: ORG })).resolves.toEqual({
+      url: 'https://api.typesafe.ai/v1/systemone',
+      token: 'jev-key',
+    })
+    expect((await settings.getSettings({ organizationId: ORG })).decisions.hasToken).toBe(true)
+  })
+
+  it('readDecisionsCredential drops an empty token (a self-hosted Laya needs none)', async () => {
+    const settings = service()
+    await settings.putDecisions({ organizationId: ORG, url: 'http://laya.local', token: '' })
+
+    await expect(settings.readDecisionsCredential({ organizationId: ORG })).resolves.toEqual({
+      url: 'http://laya.local',
+      token: undefined,
+    })
+  })
+
+  it('putDecisions seals the token onto the factory identity secret store for the broker', async () => {
+    const settings = service()
+    await settings.putDecisions({
+      organizationId: ORG,
+      url: 'https://api.typesafe.ai/v1/systemone',
+      token: 'jev-key',
+    })
+
+    const cipher = new SecretCipherService(new EnvService(KEY_ENV))
+    const entries = fake.secretEntries.filter((one) => one.name === 'decisions.token')
+    expect(entries).toHaveLength(1)
+    expect(JSON.parse(cipher.decrypt(entries[0]!.sealedValue))).toBe('jev-key')
+    // The entry is keyed to the per-org factory identity, which is who a factory sandbox's
+    // broker token resolves secrets for.
+    const owner = fake.users.find((one) => one.id === entries[0]!.userId)
+    expect(owner?.email).toBe(`factory+${ORG}@atlas.internal`)
+  })
+
+  it('putDecisions with no token seeds nothing — a self-hosted Laya ignores it', async () => {
+    const settings = service()
+    await settings.putDecisions({ organizationId: ORG, url: 'http://laya.local' })
+
+    expect(fake.secretEntries).toHaveLength(0)
   })
 })

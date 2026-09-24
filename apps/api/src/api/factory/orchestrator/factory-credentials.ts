@@ -64,6 +64,19 @@ export class FactoryCredentialService {
     return this.env.get('FACTORY_MODEL_ID') ?? DEFAULT_FACTORY_MODEL_REF
   }
 
+  /**
+   * The decision-model endpoint the org configured (ATLAS_DECISIONS_URL in the sandbox's
+   * environment), or undefined when the org has none — the session then keeps the generative
+   * judge. The decisions token is not carried here: it is a Secret-kind setting the serve
+   * process reads through the thread-scoped broker, and it lands on the factory identity's own
+   * secret store when the org saves its decisions credential (OrgSettingsService.putDecisions).
+   */
+  async decisionsUrl(args: { organizationId: string | null }): Promise<string | undefined> {
+    if (args.organizationId === null) return undefined
+    const blob = await this.settings.readDecisionsCredential({ organizationId: args.organizationId })
+    return blob?.url
+  }
+
   private async orgCredential(args: {
     organizationId: string | null
   }): Promise<ModelCredentialBlob | null> {

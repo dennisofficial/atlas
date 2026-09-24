@@ -120,6 +120,7 @@ export class VercelSandboxClient {
     drive?: { name: string; mode: ESandboxDriveMode } | undefined
     pinnedModel?: string | undefined
     factoryRole?: ESandboxFactoryRole | undefined
+    decisionsUrl?: string | undefined
   }): Promise<SandboxPlacement> {
     const configuration = this.configuration()
     const createStartedAt = Date.now()
@@ -148,6 +149,7 @@ export class VercelSandboxClient {
           ATLAS_WORKSPACE_DIR: WORKSPACE_PATH,
           ...(args.pinnedModel === undefined ? {} : { ATLAS_MODEL: args.pinnedModel }),
           ...(args.factoryRole === undefined ? {} : { ATLAS_FACTORY_ROLE: args.factoryRole }),
+          ...(args.decisionsUrl === undefined ? {} : { ATLAS_DECISIONS_URL: args.decisionsUrl }),
         },
         ...(mounts === undefined ? {} : { mounts }),
         signal: AbortSignal.timeout(SANDBOX_LAUNCH_TIMEOUT_MS),

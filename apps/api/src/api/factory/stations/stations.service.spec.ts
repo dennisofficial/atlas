@@ -17,11 +17,14 @@ import {
   EFactoryWorkItemStatus,
 } from '../factory.types'
 import type { FactoryCredentialService } from '../orchestrator/factory-credentials'
+import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { FactoryIdentityService } from '../orchestrator/factory-identity'
 import type { OrchestratorChannel } from '../orchestrator/orchestrator-channel'
 import { TranscriptService } from '../transcript.service'
 import { WorkItemsService } from '../work-items.service'
 import { EStationRunStatus } from './station.types'
+
+const nullCipher = null as unknown as SecretCipherService
 import { StationsService } from './stations.service'
 
 const INTAKE = {
@@ -69,7 +72,7 @@ describe('StationsService', () => {
   let threads: { create: ReturnType<typeof vi.fn> }
   let sandboxes: ReturnType<typeof stubFactorySandboxes>
   let channel: { inject: ReturnType<typeof vi.fn> }
-  let credentials: { ensureSeeded: ReturnType<typeof vi.fn>; modelRef: ReturnType<typeof vi.fn> }
+  let credentials: { ensureSeeded: ReturnType<typeof vi.fn>; modelRef: ReturnType<typeof vi.fn>; decisionsUrl: ReturnType<typeof vi.fn> }
   let drives: { ensure: ReturnType<typeof vi.fn> }
   let service: StationsService
 
@@ -102,6 +105,7 @@ describe('StationsService', () => {
     credentials = {
       ensureSeeded: vi.fn(async () => undefined),
       modelRef: vi.fn(async () => 'inference/kimi-k3-fast'),
+      decisionsUrl: vi.fn(async () => undefined),
     }
     drives = { ensure: vi.fn(async () => 'factory-dennisofficial-factory-scratch-12') }
     service = new StationsService(
@@ -109,7 +113,7 @@ describe('StationsService', () => {
       transcript,
       threads as unknown as ThreadsService,
       sandboxes as unknown as SandboxesService,
-      new FactoryIdentityService(),
+      new FactoryIdentityService(nullCipher),
       credentials as unknown as FactoryCredentialService,
       drives as unknown as FactoryDrivesService,
       channel as OrchestratorChannel,

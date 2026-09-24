@@ -78,6 +78,13 @@ export type FakeUserRow = {
   email: string
 }
 
+export type FakeSecretEntryRow = {
+  id: string
+  userId: string
+  name: string
+  sealedValue: string
+}
+
 export type FakeStationRunRow = {
   id: string
   workItemId: string
@@ -111,6 +118,7 @@ export function createFakeFactoryDb() {
   const aliases: FakeAliasRow[] = []
   const transcriptEvents: FakeTranscriptEventRow[] = []
   const users: FakeUserRow[] = []
+  const secretEntries: FakeSecretEntryRow[] = []
   const accounts = createFakeAccountTables()
   const threads: FakeOrchestratorThreadRow[] = []
   const events: FakeOrchestratorEventRow[] = []
@@ -280,6 +288,25 @@ export function createFakeFactoryDb() {
         return args.create
       },
     },
+    secretEntry: {
+      upsert: async (args: {
+        where: { userId_name: { userId: string; name: string } }
+        create: FakeSecretEntryRow
+        update: { sealedValue: string }
+      }) => {
+        const found = secretEntries.find(
+          (one) =>
+            one.userId === args.where.userId_name.userId &&
+            one.name === args.where.userId_name.name,
+        )
+        if (found !== undefined) {
+          found.sealedValue = args.update.sealedValue
+          return found
+        }
+        secretEntries.push(args.create)
+        return args.create
+      },
+    },
     ...accounts.db,
     thread: {
       create: async (args: { data: { id: string } }) => {
@@ -336,6 +363,7 @@ export function createFakeFactoryDb() {
     aliases,
     transcriptEvents,
     users,
+    secretEntries,
     agentAccounts: accounts.agentAccounts,
     activeAccounts: accounts.activeAccounts,
     threads,
@@ -347,6 +375,7 @@ export function createFakeFactoryDb() {
       aliases.length = 0
       transcriptEvents.length = 0
       users.length = 0
+      secretEntries.length = 0
       accounts.reset()
       threads.length = 0
       events.length = 0

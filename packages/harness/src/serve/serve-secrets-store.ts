@@ -14,6 +14,8 @@ const KEYED_BACKEND_SECRET_NAMES: readonly string[] = Object.values(EWebSearchBa
   .filter((backend) => BACKEND_TRAITS[backend].keyLabel !== undefined)
   .map((backend) => secretNameOf(backend))
 
+const WARM_SECRET_NAMES: readonly string[] = [...KEYED_BACKEND_SECRET_NAMES, 'decisions.token']
+
 /**
  * The sandbox-side secrets store. There is no list-everything route for a sandbox token — the
  * store warms exactly the secret names the in-sandbox tools can ask for (the keyed web-search
@@ -29,7 +31,7 @@ export class ServeSecretsStore implements SecretsPort {
   }
 
   async warm(): Promise<void> {
-    const secrets = await this.broker.secrets({ names: [...KEYED_BACKEND_SECRET_NAMES] })
+    const secrets = await this.broker.secrets({ names: [...WARM_SECRET_NAMES] })
     this.held = new Map(secrets.map((secret) => [secret.name, secret.value]))
   }
 

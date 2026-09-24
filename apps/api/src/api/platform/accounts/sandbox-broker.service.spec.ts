@@ -231,6 +231,23 @@ describe('SandboxBrokerService', () => {
     expect(found[0]?.value).toBe('tvly-1')
   })
 
+  it('answers the decisions token the serve secrets store warms for factory sessions', async () => {
+    const c = cipher()
+    fake.secrets.push({
+      id: 'sec_decisions',
+      userId: USER_A,
+      name: 'decisions.token',
+      sealedValue: c.encrypt(JSON.stringify('jev-key')),
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    })
+
+    const found = await service.namedSecrets({ userId: USER_A, names: ['decisions.token'] })
+
+    expect(found.map((row) => row.name)).toEqual(['decisions.token'])
+    expect(found[0]?.value).toBe('jev-key')
+  })
+
   it('refuses the whole request when any name is outside the broker allowlist', async () => {
     const c = cipher()
     fake.secrets.push({

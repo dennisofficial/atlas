@@ -12,6 +12,7 @@ import type { ThreadsService } from '../../platform/sessions/threads.service'
 import type { FactoryDrivesService } from '../drives/drives.service'
 import { DEFAULT_ORGANIZATION_ID } from '../factory.types'
 import type { FactoryCredentialService } from '../orchestrator/factory-credentials'
+import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { FactoryIdentityService } from '../orchestrator/factory-identity'
 import type { OrchestratorChannel } from '../orchestrator/orchestrator-channel'
 import { TranscriptService } from '../transcript.service'
@@ -19,6 +20,8 @@ import { WorkItemsService } from '../work-items.service'
 import { EStationRunStatus } from './station.types'
 import { StationsService } from './stations.service'
 import { stubFactoryChannel, stubFactorySandboxes } from './stations.service.spec'
+
+const nullCipher = null as unknown as SecretCipherService
 
 const INTAKE = {
   organizationId: DEFAULT_ORGANIZATION_ID,
@@ -64,6 +67,7 @@ describe('StationsService lifecycle', () => {
     const credentials = {
       ensureSeeded: vi.fn(async () => undefined),
       modelRef: vi.fn(async () => 'inference/kimi-k3-fast'),
+      decisionsUrl: vi.fn(async () => undefined),
     }
     const drives = { ensure: vi.fn(async () => 'factory-dennisofficial-factory-scratch-12') }
     service = new StationsService(
@@ -71,7 +75,7 @@ describe('StationsService lifecycle', () => {
       new TranscriptService(),
       threads as unknown as ThreadsService,
       sandboxes as unknown as SandboxesService,
-      new FactoryIdentityService(),
+      new FactoryIdentityService(nullCipher),
       credentials as unknown as FactoryCredentialService,
       drives as unknown as FactoryDrivesService,
       channel as OrchestratorChannel,

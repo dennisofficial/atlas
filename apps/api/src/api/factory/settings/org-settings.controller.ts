@@ -2,7 +2,7 @@ import { Body, Controller, Get, Put, Req, UseGuards } from '@nestjs/common'
 import type { AuthenticatedRequest } from '../../../_core/types/auth.types'
 import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
 import { requireOrganization } from '../require-organization'
-import { PutModelDto, PutVercelDto } from './org-settings.dto'
+import { PutDecisionsDto, PutModelDto, PutVercelDto } from './org-settings.dto'
 import { OrgSettingsService, type OrgSettingsDto } from './org-settings.service'
 
 @Controller({ path: 'factory/settings', version: '1' })
@@ -36,6 +36,19 @@ export class OrgSettingsController {
     await this.settings.putVercel({
       organizationId: requireOrganization(request),
       token: body.token,
+    })
+    return { ok: true }
+  }
+
+  @Put('decisions')
+  async handlePutDecisions(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: PutDecisionsDto,
+  ): Promise<{ ok: true }> {
+    await this.settings.putDecisions({
+      organizationId: requireOrganization(request),
+      url: body.url,
+      ...(body.token === undefined ? {} : { token: body.token }),
     })
     return { ok: true }
   }
