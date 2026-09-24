@@ -1,5 +1,6 @@
 import { inlinable, type SaidImage } from '@dltech/atlas-core'
-import { generateText, type LanguageModel, type ModelMessage } from 'ai'
+import { generateText, Output, type LanguageModel, type ModelMessage } from 'ai'
+import { z } from 'zod'
 
 const TITLE_INSTRUCTION = [
   'You name coding sessions.',
@@ -12,9 +13,10 @@ const TITLE_INSTRUCTION = [
 ].join(' ')
 
 const PROMPT_CHARACTER_LIMIT = 2000
-const TITLE_OUTPUT_TOKEN_LIMIT = 32
 const TITLE_WORD_LIMIT = 6
 const TITLE_CHARACTER_LIMIT = 48
+
+const TITLE_SCHEMA = z.object({ name: z.string() })
 
 const WRAPPING_QUOTES = /^["'“”‘’`]+|["'“”‘’`]+$/g
 const TRAILING_PUNCTUATION = /[.,;:!?]+$/
@@ -58,22 +60,29 @@ export async function titleFor(args: {
   text: string
   images?: readonly SaidImage[] | undefined
   signal?: AbortSignal | undefined
+  fallback?: (() => LanguageModel | undefined) | undefined
 }): Promise<string | null> {
   const asked = args.text.trim().slice(0, PROMPT_CHARACTER_LIMIT)
   const shown = (args.images ?? []).filter((image) => inlinable(image))
   if (asked.length === 0 && shown.length === 0) return null
 
-  try {
+  const attempt = async (model: LanguageModel): Promise<string | null> => {
     const generated = await generateText({
-      model: args.model,
+      model,
       system: TITLE_INSTRUCTION,
       ...(shown.length === 0 ? { prompt: asked } : { messages: askWithImages({ asked, images: shown }) }),
-      maxOutputTokens: TITLE_OUTPUT_TOKEN_LIMIT,
+      output: Output.object({ schema: TITLE_SCHEMA }),
       ...(args.signal === undefined ? {} : { abortSignal: args.signal }),
     })
 
-    return sanitizedTitle(generated.text)
-  } catch {
-    return null
+    return sanitizedTitle(generated.output.name)
   }
+
+  const named = await attempt(args.model).catch(() => null)
+  if (named !== null) return named
+
+  const fallback = args.fallback?.()
+  if (fallback === undefined) return null
+
+  return await attempt(fallback).catch(() => null)
 }

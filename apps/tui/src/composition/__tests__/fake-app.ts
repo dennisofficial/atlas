@@ -661,6 +661,7 @@ export function fakeApp(args: {
   secretsPort?: SecretsPort
   rewarm?: () => void
   names?: string | null
+  titlerWait?: Promise<void>
   summarises?: string | null
   summariseDelayMs?: number
   skills?: readonly DiscoveredSkill[]
@@ -777,6 +778,7 @@ export function fakeApp(args: {
 
     titler: async ({ text }) => {
       titled.push(text)
+      if (args.titlerWait !== undefined) await args.titlerWait
       return args.names ?? null
     },
 

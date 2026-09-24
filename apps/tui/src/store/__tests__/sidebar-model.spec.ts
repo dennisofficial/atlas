@@ -198,6 +198,28 @@ describe("the session head", () => {
     expect(title.endsWith("…")).toBe(true);
   });
 
+  it("marks the fallback title as naming while the titler is in flight", () => {
+    const events = log([
+      { type: "user-said", text: "the refresh token never rotates" },
+    ]);
+
+    const model = deriveSidebar({ events, turn: IDLE_TURN, name: null, naming: true });
+
+    expect(model.naming).toBe(true);
+    expect(model.title).toBe("the refresh token never rotates");
+  });
+
+  it("drops the naming mark once the session carries a real name", () => {
+    const model = deriveSidebar({
+      events: [],
+      turn: IDLE_TURN,
+      name: "Refresh-token rotation",
+      naming: true,
+    });
+
+    expect(model.naming).toBeUndefined();
+  });
+
   it("leaves the title unset on an empty thread, and on one that says nothing", () => {
     expect(deriveSidebar({ events: [], turn: IDLE_TURN }).title).toBeNull();
 

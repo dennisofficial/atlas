@@ -17,8 +17,8 @@ const generated = (text: string): LanguageModelV4GenerateResult => ({
   warnings: [],
 })
 
-const modelSaying = (text: string): MockLanguageModelV4 =>
-  new MockLanguageModelV4({ doGenerate: async () => generated(text) })
+const modelSaying = (name: string): MockLanguageModelV4 =>
+  new MockLanguageModelV4({ doGenerate: async () => generated(JSON.stringify({ name })) })
 
 const modelRaising = (error: unknown): MockLanguageModelV4 =>
   new MockLanguageModelV4({
@@ -108,11 +108,12 @@ describe('titleFor', () => {
     expect(promptTextOf(model).length).toBe(2000)
   })
 
-  it('caps what the model may spend on a name', async () => {
+  it('asks for the name as structured output, with no cap a reasoning model can spend it all on', async () => {
     const model = modelSaying('Refresh token rotation')
     await titleFor({ model, text: 'the refresh token never rotates' })
 
-    expect(model.doGenerateCalls[0]?.maxOutputTokens).toBe(32)
+    expect(model.doGenerateCalls[0]?.maxOutputTokens).toBeUndefined()
+    expect(model.doGenerateCalls[0]?.responseFormat?.type).toBe('json')
   })
 
   it('carries an abort signal so a name cannot outlive the session', async () => {
@@ -127,6 +128,60 @@ describe('titleFor', () => {
     const model = modelRaising(new Error('no credential on this machine'))
 
     expect(await titleFor({ model, text: 'rotate the token' })).toBeNull()
+  })
+
+  it('leaves the session unnamed when the model answers with nothing', async () => {
+    const model = new MockLanguageModelV4({ doGenerate: async () => generated('') })
+
+    expect(await titleFor({ model, text: 'rotate the token' })).toBeNull()
+  })
+
+  it('leaves the session unnamed when the answer is not the asked-for object', async () => {
+    const model = new MockLanguageModelV4({ doGenerate: async () => generated('just some prose') })
+
+    expect(await titleFor({ model, text: 'rotate the token' })).toBeNull()
+  })
+
+  it('asks the fallback model when the primary refuses', async () => {
+    const fallback = modelSaying('Refresh token rotation')
+
+    expect(
+      await titleFor({
+        model: modelRaising(new Error('the titler answered an empty name')),
+        fallback: () => fallback,
+        text: 'the refresh token never rotates',
+      }),
+    ).toBe('Refresh token rotation')
+    expect(fallback.doGenerateCalls).toHaveLength(1)
+  })
+
+  it('asks the fallback model when the primary answers with nothing', async () => {
+    const empty = new MockLanguageModelV4({ doGenerate: async () => generated('') })
+    const fallback = modelSaying('Refresh token rotation')
+
+    expect(
+      await titleFor({ model: empty, fallback: () => fallback, text: 'rotate the token' }),
+    ).toBe('Refresh token rotation')
+  })
+
+  it('leaves the session unnamed when the fallback answers with nothing either', async () => {
+    const empty = (): MockLanguageModelV4 =>
+      new MockLanguageModelV4({ doGenerate: async () => generated('') })
+
+    expect(await titleFor({ model: empty(), fallback: () => empty(), text: 'rotate' })).toBeNull()
+  })
+
+  it('never asks the fallback when the primary names the session', async () => {
+    const fallback = modelSaying('Fallback name')
+
+    expect(
+      await titleFor({
+        model: modelSaying('Primary name'),
+        fallback: () => fallback,
+        text: 'rotate the token',
+      }),
+    ).toBe('Primary name')
+    expect(fallback.doGenerateCalls).toHaveLength(0)
   })
 
   it('shows a picture attached to the opening message to the model naming it', async () => {
