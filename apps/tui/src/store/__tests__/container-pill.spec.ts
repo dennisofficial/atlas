@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { EExecutionLocation } from "@dltech/atlas-core";
+import { EExecutionLocation, toThreadId } from "@dltech/atlas-core";
 import {
   EShellStatus,
   ESandboxState,
@@ -32,6 +32,7 @@ const running: SidebarContainer = {
 
 const shell = (over: Omit<Partial<ShellSnapshot>, "shellId"> & { shellId: string }): ShellSnapshot =>
   ({
+    threadId: toThreadId("thread"),
     command: "sleep 60",
     description: "",
     status: EShellStatus.Running,

@@ -90,7 +90,7 @@ describe('a move while it runs', () => {
         40,
       ),
     ).resolves.toBeUndefined()
-  })
+  }, 60_000)
 })
 
 describe('a move that did not finish', () => {

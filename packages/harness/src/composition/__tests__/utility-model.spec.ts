@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { LanguageModelV4 } from '@ai-sdk/provider'
+import type { LanguageModelV4, LanguageModelV4GenerateResult } from '@ai-sdk/provider'
 import {
   ATLAS_SETTINGS,
   catalogOf,
@@ -102,6 +102,25 @@ const settingsOver = (values: Record<string, string>) =>
     user: new MemorySettingsStore({ document: { values } }),
   })
 
+const sessionModel = (modelId: string): LanguageModelV4 => ({
+  specificationVersion: 'v4',
+  provider: 'session',
+  modelId,
+  supportedUrls: {},
+  doGenerate: async (): Promise<LanguageModelV4GenerateResult> => ({
+    content: [{ type: 'text', text: 'from the session model' }],
+    finishReason: { unified: 'stop', raw: undefined },
+    usage: {
+      inputTokens: { total: 12, noCache: 12, cacheRead: 0, cacheWrite: 0 },
+      outputTokens: { total: 4, text: 4, reasoning: 0 },
+    },
+    warnings: [],
+  }),
+  doStream: async () => {
+    throw new Error('doStream is not under test')
+  },
+})
+
 const call = (model: LanguageModelV4) =>
   Promise.resolve(model.doGenerate({ prompt: [] })).catch(() => undefined)
 
@@ -170,6 +189,59 @@ describe('createUtilityModel', () => {
       'claude-haiku-4-5',
       'gpt-5.1-codex-mini',
     ])
+  })
+
+  it('falls back to the session model when the role model fails, with one keyed notice', async () => {
+    const notices = recordingNotices()
+    const model = createUtilityModel({
+      role: EUtilityModelRole.Tldr,
+      settings: settingsOver({}),
+      catalogue: fakeCatalogue({ builds: [], fails: true }),
+      notice: notices.port,
+      fallback: () => sessionModel('claude-sonnet-5'),
+    })
+
+    const result = await model.doGenerate({ prompt: [] })
+
+    expect(result.content).toEqual([{ type: 'text', text: 'from the session model' }])
+    const keys = notices.posts.map((post) => post.key)
+    expect(keys).toContain('utility-model:tldr:anthropic')
+    expect(keys).toContain('utility-model:tldr:fallback')
+    expect(
+      notices.posts.find((post) => post.key === 'utility-model:tldr:fallback')?.text,
+    ).toContain('fell back to the session model')
+  })
+
+  it('resolves the fallback at fault time, never at build time', async () => {
+    let resolved = 0
+    const model = createUtilityModel({
+      role: EUtilityModelRole.Tldr,
+      settings: settingsOver({}),
+      catalogue: fakeCatalogue({ builds: [], fails: true }),
+      notice: recordingNotices().port,
+      fallback: () => {
+        resolved += 1
+        return sessionModel('claude-sonnet-5')
+      },
+    })
+
+    expect(resolved).toBe(0)
+    await call(model)
+    expect(resolved).toBe(1)
+    await call(model)
+    expect(resolved).toBe(2)
+  })
+
+  it('lets the failure surface when no fallback can answer', async () => {
+    const model = createUtilityModel({
+      role: EUtilityModelRole.Tldr,
+      settings: settingsOver({}),
+      catalogue: fakeCatalogue({ builds: [], fails: true }),
+      notice: recordingNotices().port,
+      fallback: () => undefined,
+    })
+
+    await expect(model.doGenerate({ prompt: [] })).rejects.toThrow('provider is down')
   })
 
   it('posts a keyed notice naming the role when the provider fails', async () => {

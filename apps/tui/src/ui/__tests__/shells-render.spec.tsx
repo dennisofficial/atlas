@@ -1,3 +1,4 @@
+import { toThreadId } from '@dltech/atlas-core'
 import { EShellStatus, toShellId, type ShellSnapshot } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
@@ -24,6 +25,7 @@ const NOW = Date.parse(STARTED_AT) + 64_000
 
 const shell = (over: Omit<Partial<ShellSnapshot>, 'shellId'> & { shellId: string }): ShellSnapshot =>
   ({
+    threadId: toThreadId('thread'),
     command: 'bun test --watch',
     description: 'Watch the tests',
     status: EShellStatus.Running,

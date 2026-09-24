@@ -1,5 +1,5 @@
-import { EAgentStatus, type ProviderIdentity } from '@dltech/atlas-core'
-import type { AgentSnapshot, ChildContext } from '@dltech/atlas-harness'
+import { EAgentStatus, EShellStatus, type ProviderIdentity, type ThreadId } from '@dltech/atlas-core'
+import type { AgentSnapshot, ChildContext, ShellSnapshot } from '@dltech/atlas-harness'
 
 import { truncateCells } from '../ui/components/sidebar/cells'
 import { formatElapsed, formatTokens } from '../ui/theme'
@@ -19,7 +19,14 @@ export type SidebarSubagent = SubagentReadout & {
   model: string | null
   context?: ChildContext | undefined
   selected: boolean
+  activity?: CrewActivity | undefined
 }
+
+/** What a child still has running: its own shells and its own children, nothing deeper. */
+export type CrewActivity = { shells: number; subagents: number }
+
+/** The cross-thread listings the activity is counted from: every shell and every child in the process. */
+export type CrewRosters = { shells: readonly ShellSnapshot[]; children: readonly AgentSnapshot[] }
 
 export type SidebarCrewFold = { hidden: number; hiddenFailed: boolean }
 
@@ -140,11 +147,35 @@ export function subagentContextLabel(context: ChildContext | undefined): string 
   return formatTokens(context.tokens)
 }
 
+export function crewActivityOf(args: {
+  id: ThreadId
+  rosters: CrewRosters
+}): CrewActivity | undefined {
+  const shells = args.rosters.shells.filter(
+    (shell) => shell.threadId === args.id && shell.status === EShellStatus.Running,
+  ).length
+  const subagents = args.rosters.children.filter(
+    (child) => child.spawnedBy === args.id && isSubagentRunning(child),
+  ).length
+
+  if (shells === 0 && subagents === 0) return undefined
+  return { shells, subagents }
+}
+
+export function crewRowReading(subagent: Pick<SidebarSubagent, 'status' | 'activity'>): ESubagentReading {
+  const reading = subagentReading(subagent)
+  if (reading === ESubagentReading.Settled && subagent.activity !== undefined) {
+    return ESubagentReading.Live
+  }
+  return reading
+}
+
 export function subagentRows(args: {
   snapshots: readonly AgentSnapshot[]
   now: number
   modelLabel?: ((model: ProviderIdentity) => string) | undefined
   viewing?: string | null | undefined
+  rosters: CrewRosters
 }): readonly SidebarSubagent[] {
   return args.snapshots.map((snapshot) => {
     const readout: SubagentReadout = {
@@ -152,6 +183,8 @@ export function subagentRows(args: {
       startedAt: snapshot.startedAt,
       endedAt: snapshot.endedAt ?? null,
     }
+
+    const activity = crewActivityOf({ id: snapshot.agentId, rosters: args.rosters })
 
     return {
       ...readout,
@@ -165,6 +198,7 @@ export function subagentRows(args: {
           : (args.modelLabel?.(snapshot.model) ?? snapshot.model.modelId),
       context: snapshot.context,
       selected: snapshot.agentId === args.viewing,
+      activity,
     }
   })
 }

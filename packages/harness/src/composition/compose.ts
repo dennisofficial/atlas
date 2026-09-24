@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
 
+import type { LanguageModelV4 } from '@ai-sdk/provider'
+
 import {
   AccountStorePort,
   agentTypeModelDefinitions,
@@ -61,7 +63,6 @@ import type { HarnessLaunch } from './config'
 import { bindInstructionsAndMemory } from './context-bindings'
 import { faultInjected } from './fault-injection'
 import type { HarnessApp, HarnessStoreBinding, HarnessSurfaceBinding } from './harness-app'
-import { legacyImportNoticeText, legacyImportPending } from '../migrate/legacy-import'
 import { mcpBootNotice } from './mcp-report'
 import { knownRefs } from './model-catalogue'
 import { bindModels } from './model-bindings'
@@ -129,16 +130,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
         text: bootNotice,
       })
     }
-  }
-
-  const home = atlasDirectory()
-  if (await legacyImportPending({ home })) {
-    notice.notify({
-      key: 'legacy-harness-db',
-      tone: ENoticeTone.Warn,
-      ttlMs: null,
-      text: legacyImportNoticeText({ home, command: launch.command }),
-    })
   }
 
   const settings = args.settings.service
@@ -233,6 +224,14 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   const decisions = new JevDecisionClient({ config: decisionsConfig })
   container.register(portToken(DecisionPort), { useValue: decisions })
 
+  const sessionModelFallback = (): LanguageModelV4 | undefined => {
+    const choice = model.choice()
+    const card = models.cardFor(choice.ref)
+    const adapter = models.adapterFor(choice.ref.providerId)
+    if (card === undefined || adapter === undefined) return undefined
+    return adapter.model({ card, effort: () => model.choice().effort })
+  }
+
   container.register(portToken(JudgePort), {
     useValue: new RoutedJudge({
       fallback: new HaikuJudge({
@@ -241,6 +240,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
           settings,
           catalogue: models,
           notice,
+          fallback: sessionModelFallback,
         }),
       }),
       jev: new JevJudge({ decisions }),
@@ -291,18 +291,21 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     settings,
     catalogue: models,
     notice,
+    fallback: sessionModelFallback,
   })
   const compactionModel = createUtilityModel({
     role: EUtilityModelRole.Compaction,
     settings,
     catalogue: models,
     notice,
+    fallback: sessionModelFallback,
   })
   const tldrModel = createUtilityModel({
     role: EUtilityModelRole.Tldr,
     settings,
     catalogue: models,
     notice,
+    fallback: sessionModelFallback,
   })
 
   const summarise: Summariser = ({ events, fromSeq, throughSeq, signal }) =>
@@ -345,7 +348,8 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
       activeThread = active
     },
     activeThread: () => activeThread,
-    titler: ({ text, images, signal }) => titleFor({ model: titlerModel, text, images, signal }),
+    titler: ({ text, images, signal }) =>
+      titleFor({ model: titlerModel, fallback: sessionModelFallback, text, images, signal }),
     summarise,
     settings,
     secrets,

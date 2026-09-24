@@ -1,4 +1,5 @@
 import { parseColor } from '@opentui/core'
+import { toThreadId } from '@dltech/atlas-core'
 import { EShellStatus, toShellId, type ShellSnapshot } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
@@ -21,6 +22,7 @@ const SHELLS_OVERLAY = 'SHELL LOG'
 const TOO_NARROW_FOR_A_PILL = 16
 
 const running = (shellId: string): ShellSnapshot => ({
+  threadId: toThreadId('thread'),
   command: 'bun run dev',
   description: 'bun run dev',
   status: EShellStatus.Running,

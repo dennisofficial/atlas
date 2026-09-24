@@ -14,6 +14,8 @@ const SPOKEN = 'The loop keeps its position in the log, so nothing has to rememb
 
 const WORKING = 'esc to interrupt'
 
+const INTERRUPTING = 'Interrupting…'
+
 const CALL = 'write_file'
 
 const REFUSED = 'dispatched but unsettled'
@@ -99,7 +101,10 @@ describe('escape on a turn that committed nothing', () => {
       mounted.pressEscape()
 
       const idle = await until({
-        holds: async () => !(await mounted.frame()).includes(WORKING),
+        holds: async () => {
+          const frame = await mounted.frame()
+          return !frame.includes(WORKING) && !frame.includes(INTERRUPTING)
+        },
         within: 20_000,
       })
       expect(idle).toBe(true)

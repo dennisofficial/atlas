@@ -7,6 +7,7 @@ export type CrewMember = {
   endedAt: string | null
   deliveredAt: string | null
   lastViewedAt: string | null
+  holdingShells?: boolean | undefined
 }
 
 export enum ECrewStanding {
@@ -85,6 +86,7 @@ const standingOf = (args: {
 }): ECrewStanding => {
   const { member } = args
   if (!IS_TERMINAL[member.status]) return ECrewStanding.Live
+  if (member.holdingShells === true) return ECrewStanding.Held
   if (member.deliveredAt === null) return ECrewStanding.Held
   if (member.agentId === args.viewing) return ECrewStanding.Held
   if (args.holdingLive.has(member.agentId)) return ECrewStanding.Held

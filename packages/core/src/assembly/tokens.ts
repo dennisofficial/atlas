@@ -26,61 +26,33 @@ function imageTokens({ part, tier }: { part: ImagePart; tier: EImageTier }): num
   return visualTokens({ byteLength: 0, tier, ...size }) ?? UNMEASURABLE_IMAGE_TOKENS
 }
 
-/**
- * A model whose API stringifies tool results (openai-completions) receives a tool-result image as
- * base64 text, so it is counted as text; an image the user pasted still travels as a real image
- * and keeps its visual count.
- */
-function partTokens(args: {
-  part: MessagePart
-  tier: EImageTier
-  toolImagesAsText: boolean
-}): number {
-  const { part, tier } = args
+function partTokens({ part, tier }: { part: MessagePart; tier: EImageTier }): number {
   if (part.type === 'text' || part.type === 'reasoning') return textTokens(part.text)
-  if (part.type === 'image') {
-    return args.toolImagesAsText ? textTokens(part.data) : imageTokens({ part, tier })
-  }
+  if (part.type === 'image') return imageTokens({ part, tier })
   if (part.type === 'tool-call') return textTokens(JSON.stringify(part.input ?? null))
   if (part.output.type === 'content') {
-    return part.output.value.reduce(
-      (total, inner) => total + partTokens({ part: inner, tier, toolImagesAsText: args.toolImagesAsText }),
-      0,
-    )
+    return part.output.value.reduce((total, inner) => total + partTokens({ part: inner, tier }), 0)
   }
   return textTokens(JSON.stringify(part.output))
 }
 
-export function estimateMessageTokens(args: {
-  message: Message
-  tier?: EImageTier
-  carriesToolImages?: boolean
-}): number {
-  const tier = args.tier ?? DEFAULT_IMAGE_TIER
-  const toolImagesAsText = args.message.role === 'tool' && args.carriesToolImages === false
-  const parts: readonly MessagePart[] = args.message.content
-  return parts.reduce((total, part) => total + partTokens({ part, tier, toolImagesAsText }), 0)
+export function estimateMessageTokens(message: Message, tier: EImageTier = DEFAULT_IMAGE_TIER): number {
+  const parts: readonly MessagePart[] = message.content
+  return parts.reduce((total, part) => total + partTokens({ part, tier }), 0)
 }
 
 /**
- * A picture's cost depends on which resolution tier the model reads at and whether its API can
- * carry tool-result images at all, so the estimator is bound to a model before it is handed to
- * the loop rather than assuming one.
+ * A picture's cost depends on which resolution tier the model reads at, so the estimator is bound to
+ * a model before it is handed to the loop rather than assuming one.
  */
 export const estimateTokensFor =
-  (args: { tier: EImageTier; carriesToolImages?: boolean }) =>
+  (tier: EImageTier) =>
   (assembled: Assembled): number => {
     const systemTokens = assembled.system.reduce((total, block) => total + textTokens(block.text), 0)
     return assembled.messages.reduce(
-      (total, assembledMessage) =>
-        total +
-        estimateMessageTokens({
-          message: assembledMessage.message,
-          tier: args.tier,
-          ...(args.carriesToolImages === undefined ? {} : { carriesToolImages: args.carriesToolImages }),
-        }),
+      (total, assembledMessage) => total + estimateMessageTokens(assembledMessage.message, tier),
       systemTokens,
     )
   }
 
-export const estimateTokens = estimateTokensFor({ tier: DEFAULT_IMAGE_TIER })
+export const estimateTokens = estimateTokensFor(DEFAULT_IMAGE_TIER)

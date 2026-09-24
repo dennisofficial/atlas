@@ -8,6 +8,7 @@ import { ERenamed, type Renaming } from './session-rename'
 
 export type SessionName = {
   name: string | null
+  naming: boolean
   setName: (name: string | null) => void
   nameSession: (args: {
     said: string
@@ -37,6 +38,7 @@ export function useSessionName(args: {
 }): SessionName {
   const { app, threadId, started, opening, readDigest } = args
   const [name, setName] = useState<string | null>(args.initial)
+  const [naming, setNaming] = useState(false)
   const asked = useRef<ThreadId | null>(null)
 
   const nameSession = useCallback(
@@ -54,6 +56,7 @@ export function useSessionName(args: {
       if (name !== null || asked.current === threadId) return
 
       asked.current = threadId
+      setNaming(true)
       const first = opening ?? said
 
       void Promise.all([app.titler({ text: namingTextOf({ said: first, context }), images }), opened])
@@ -63,6 +66,9 @@ export function useSessionName(args: {
           return app.threads.rename({ threadId, title: named })
         })
         .catch(() => undefined)
+        .finally(() => {
+          if (asked.current === threadId) setNaming(false)
+        })
     },
     [app, opening, name, threadId],
   )
@@ -96,5 +102,5 @@ export function useSessionName(args: {
     [app, nameFromTranscript, started, threadId],
   )
 
-  return { name, setName, nameSession, renameSession }
+  return { name, naming, setName, nameSession, renameSession }
 }

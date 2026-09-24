@@ -10,6 +10,11 @@ const defineOf = (name: string, value: string): string => `${name}:${JSON.string
 
 const defines: string[] = []
 
+// Bun resolves an unset NODE_ENV to "development" at bundle time, which ships react-reconciler's
+// development build: it calls performance.measure per component commit, flooding the performance
+// timeline (~200 MB per tile in minutes) and churning the heap at frame cadence.
+defines.push(defineOf('process.env.NODE_ENV', 'production'))
+
 const version = process.env.ATLAS_VERSION
 if (version !== undefined && version !== '') {
   defines.push(defineOf('ATLAS_VERSION', version))

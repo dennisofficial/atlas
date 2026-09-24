@@ -27,6 +27,8 @@ const SNIFFED_TAIL_CHARACTERS = 240
 
 export type ShellSnapshot = {
   shellId: ShellId
+  /** The thread that started the shell, so a cross-thread listing can attribute each entry to its owner. */
+  threadId: ThreadId
   command: string
   description: string
   status: EShellStatus
@@ -93,7 +95,7 @@ export type BackgroundShellSpec = {
   command: string
   description: string
   cwd: string
-  threadId?: ThreadId | undefined
+  threadId: ThreadId
   clock: ClockPort
   retainCharacters: number
   overflowCharacters: number
@@ -324,6 +326,7 @@ export function startBackgroundShell(spec: BackgroundShellSpec): StartedBackgrou
 
     snapshot: () => ({
       shellId: spec.shellId,
+      threadId: spec.threadId,
       command: spec.command,
       description: spec.description,
       status,

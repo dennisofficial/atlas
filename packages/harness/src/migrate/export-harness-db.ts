@@ -20,8 +20,13 @@ import {
   threadsDirectory,
 } from '../store/sessions/paths'
 import { groupThreadsIntoSessions } from './grouping'
-import { LEGACY_IMPORT_MARKER_NAME } from './legacy-import'
 import { join } from 'node:path'
+
+export const LEGACY_DATABASE_NAME = 'harness.db'
+
+export const EXPORT_HARNESS_DB_COMMAND = 'export-harness-db'
+
+const LEGACY_IMPORT_MARKER_NAME = '.imported-from-harness-db'
 
 type ThreadRow = {
   id: string

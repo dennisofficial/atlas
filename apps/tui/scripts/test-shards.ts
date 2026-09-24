@@ -52,7 +52,46 @@ async function specFiles(): Promise<string[]> {
   return found.sort()
 }
 
-function partition({ files, of }: { files: readonly string[]; of: number }): string[][] {
+async function specWeights(): Promise<Record<string, number> | null> {
+  try {
+    return await Bun.file(`${import.meta.dir}/spec-weights.json`).json()
+  } catch {
+    return null
+  }
+}
+
+function medianOf({ weights }: { weights: Record<string, number> }): number {
+  const sorted = Object.values(weights).sort((a, b) => a - b)
+  return sorted[Math.floor(sorted.length / 2)] ?? 1
+}
+
+function partitionByWeight(args: {
+  files: readonly string[]
+  of: number
+  weights: Record<string, number>
+}): string[][] {
+  const fallback = medianOf({ weights: args.weights })
+  const weighted = args.files.map((file) => ({
+    file,
+    seconds: args.weights[file] ?? fallback,
+  }))
+  weighted.sort((a, b) => b.seconds - a.seconds || a.file.localeCompare(b.file))
+
+  const shards = Array.from({ length: args.of }, (): { files: string[]; load: number } => ({
+    files: [],
+    load: 0,
+  }))
+  for (const { file, seconds } of weighted) {
+    const lightest = shards.reduce((best, shard) => (shard.load < best.load ? shard : best))
+    lightest.files.push(file)
+    lightest.load += seconds
+  }
+  return shards.map((shard) => shard.files.sort())
+}
+
+function partition({ files, of, weights }: { files: readonly string[]; of: number; weights: Record<string, number> | null }): string[][] {
+  if (weights !== null) return partitionByWeight({ files, of, weights })
+
   const shards = Array.from({ length: of }, (): string[] => [])
   files.forEach((file, index) => shards[index % of]?.push(file))
   return shards
@@ -122,7 +161,8 @@ async function main(): Promise<void> {
   if (only === undefined) return
   const startedAt = Date.now()
 
-  const selected = partition({ files, of })
+  const weights = await specWeights()
+  const selected = partition({ files, of, weights })
     .map((shardFiles, index) => ({ shard: index + 1, files: shardFiles }))
     .filter(({ shard }) => only === null || shard === only)
 

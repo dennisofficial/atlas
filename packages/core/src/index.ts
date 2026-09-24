@@ -42,6 +42,7 @@ export * from './budget/resolve-budget'
 export * from './events/schema'
 export * from './events/stamp'
 
+export * from './message/hoist-tool-images'
 export * from './message/message'
 export * from './message/parts'
 

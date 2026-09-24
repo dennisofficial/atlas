@@ -15,7 +15,7 @@
 // which leaves stdin un-raw and sizes the renderer to a default rather than the window.
 
 import { createCliRenderer } from '@opentui/core'
-import { EEffort } from '@dltech/atlas-core'
+import { EEffort, toThreadId } from '@dltech/atlas-core'
 import { EShellStatus, toShellId, type ShellSnapshot } from '@dltech/atlas-harness'
 import { createRoot, useKeyboard, useTerminalDimensions } from '@opentui/react'
 import React, { useState } from 'react'
@@ -220,6 +220,7 @@ const minutesAgo = (minutes: number): string =>
 const SIDEBAR_SHELLS: readonly ShellSnapshot[] = [
   {
     shellId: toShellId('sh-dev'),
+    threadId: toThreadId('thread'),
     command: 'bun run dev',
     description: 'dev server',
     status: EShellStatus.Running,
@@ -231,6 +232,7 @@ const SIDEBAR_SHELLS: readonly ShellSnapshot[] = [
   },
   {
     shellId: toShellId('sh-tests'),
+    threadId: toThreadId('thread'),
     command: 'bun test --watch',
     description: 'watch the tests',
     status: EShellStatus.Running,
@@ -242,6 +244,7 @@ const SIDEBAR_SHELLS: readonly ShellSnapshot[] = [
   },
   {
     shellId: toShellId('sh-fetch'),
+    threadId: toThreadId('thread'),
     command: 'git fetch origin',
     description: 'fetch origin',
     status: EShellStatus.Exited,

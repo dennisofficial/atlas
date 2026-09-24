@@ -21,7 +21,23 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
 
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
       - run: bun install
+
+      # The VCR image-push token doubles as the turbo cache token — same comp-ai team
+      # scope. Absent on fork PRs, which then simply run uncached.
+      - name: enable turbo remote cache
+        run: |
+          if [ -n "$VERCEL_TOKEN" ]; then
+            echo "TURBO_TOKEN=$VERCEL_TOKEN" >> "$GITHUB_ENV"
+            echo "TURBO_TEAM=comp-ai" >> "$GITHUB_ENV"
+          fi
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
       - name: typecheck
         run: bun run typecheck
@@ -40,19 +56,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
 
       - uses: oven-sh/setup-bun@v2
 
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
       - run: bun install
 
-      - name: tui shard ${{ matrix.shard }} of 2
+      - name: tui shard ${{ matrix.shard }} of 4
         run: bun run test
         working-directory: apps/tui
         env:
-          ATLAS_TEST_SHARDS: '2'
+          ATLAS_TEST_SHARDS: '4'
           ATLAS_TEST_SHARD: ${{ matrix.shard }}
 
   test-packages:
@@ -65,6 +86,20 @@ jobs:
       - uses: oven-sh/setup-bun@v2
 
       - run: bun install
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - name: enable turbo remote cache
+        run: |
+          if [ -n "$VERCEL_TOKEN" ]; then
+            echo "TURBO_TOKEN=$VERCEL_TOKEN" >> "$GITHUB_ENV"
+            echo "TURBO_TEAM=comp-ai" >> "$GITHUB_ENV"
+          fi
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
       - uses: docker/login-action@v3
         with:

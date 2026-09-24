@@ -1,6 +1,5 @@
 import {
   AgentFileSystemPort,
-  carriesToolResultImages,
   DynamicToolSource,
   EventLogPort,
   FileSystemPort,
@@ -18,7 +17,6 @@ import {
   CloudSessionStoreToken,
   DeltaChannelToken,
   DockerEngineToken,
-  ModelCardSourceToken,
   SecretsStoreToken,
   WebSearchBackendToken,
   WorktreeDirectoryToken,
@@ -80,12 +78,6 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
     useFactory: (resolver) =>
       new ReadTool({
         files: resolver.resolve(portToken(AgentFileSystemPort)),
-        carriesToolImages: resolver.isRegistered(ModelCardSourceToken, true)
-          ? () => {
-              const source = resolver.resolve(ModelCardSourceToken)
-              return carriesToolResultImages(typeof source === 'function' ? source() : source)
-            }
-          : undefined,
       }),
   })
   container.register(portToken(ToolDefinition), {

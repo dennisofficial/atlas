@@ -64,6 +64,9 @@ export class InferenceAdapter extends ProviderAdapter {
         name: INFERENCE_PROVIDER_ID,
         baseURL: INFERENCE_BASE_URL,
         apiKey,
+        // Without this flag @ai-sdk/openai-compatible degrades Output.object to
+        // { type: 'json_object' }, which reasoning models answer with prose-in-JSON.
+        supportsStructuredOutputs: true,
         ...(this.fetch === undefined ? {} : { fetch: this.fetch }),
       }).chatModel(args.card.ref.modelId)
     }

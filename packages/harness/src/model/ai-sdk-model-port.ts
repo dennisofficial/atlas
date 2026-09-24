@@ -4,6 +4,7 @@ import { stepCountIs, streamText, type LanguageModel } from 'ai'
 import {
   carriesToolResultImages,
   DEFAULT_IMAGE_TIER,
+  hoistToolResultImages,
   ModelPort,
   type Assembled,
   type Chunk,
@@ -204,7 +205,6 @@ export class AiSdkModelPort extends ModelPort {
 
     return {
       imageTier: card?.imageTier ?? DEFAULT_IMAGE_TIER,
-      carriesToolImages: carriesToolResultImages(card),
       ...(card === undefined ? {} : { contextWindow: card.contextWindow }),
     }
   }
@@ -233,7 +233,10 @@ export class AiSdkModelPort extends ModelPort {
 
   private async promptFor({ assembled }: { assembled: Assembled }): Promise<ProviderPrompt> {
     const prompt = toProviderPrompt({ assembled, provider: this.identity })
-    if (this.hooks === undefined) return prompt
-    return this.hooks.beforeRequest({ prompt })
+    const carried = carriesToolResultImages(cardOf(this.card))
+      ? prompt
+      : { ...prompt, messages: hoistToolResultImages({ messages: prompt.messages }) }
+    if (this.hooks === undefined) return carried
+    return this.hooks.beforeRequest({ prompt: carried })
   }
 }

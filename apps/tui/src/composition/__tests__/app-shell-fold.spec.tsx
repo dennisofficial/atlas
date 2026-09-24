@@ -1,3 +1,4 @@
+import { toThreadId } from '@dltech/atlas-core'
 import { EShellStatus, toShellId, type ShellSnapshot } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
@@ -25,6 +26,7 @@ const shellOf = (over: {
   endedAt?: string | undefined
 }): ShellSnapshot => ({
   shellId: toShellId(over.shellId),
+  threadId: toThreadId('thread'),
   command: `run ${over.shellId}`,
   description: over.description,
   status: over.status ?? EShellStatus.Exited,

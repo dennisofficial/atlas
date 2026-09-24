@@ -255,7 +255,7 @@ export async function mount(node: React.ReactNode, width: number): Promise<void>
     { width, height: HEIGHT },
   )
   try {
-    await setup.flush()
+    await setup.renderOnce()
   } finally {
     await teardown(setup)
   }

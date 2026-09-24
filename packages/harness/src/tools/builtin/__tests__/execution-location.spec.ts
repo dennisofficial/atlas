@@ -95,6 +95,7 @@ class FakeShells extends UnstaffedShells {
 
 const runningShell = (shellId: string): ShellSnapshot => ({
   shellId: toShellId(shellId),
+  threadId: toThreadId('thread'),
   command: 'bun run dev',
   description: `shell ${shellId}`,
   status: EShellStatus.Running,
