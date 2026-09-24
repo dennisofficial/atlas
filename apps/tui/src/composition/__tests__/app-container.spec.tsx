@@ -272,6 +272,7 @@ describe('the container command', () => {
 
 const endedShell = (): ShellSnapshot => ({
   shellId: toShellId('bash_9'),
+  threadId: THREAD,
   command: 'bun test',
   description: 'Run full TUI suite',
   status: EShellStatus.Exited,
