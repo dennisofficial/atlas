@@ -59,11 +59,18 @@ const command = async (mounted: Mounted, text: string): Promise<void> => {
   mounted.pressEnter()
 }
 
+/**
+ * The bridge records the attach before the app's lift flow commits its last state update, and the
+ * composer stays covered while the move overlay is open (app.tsx gates input on `move !== null`).
+ * Typing against the attach alone races that commit on a slow runner — the keystrokes are
+ * swallowed by the overlay — so a lift is not done until the overlay has cleared.
+ */
 const lift = async (mounted: Mounted, bridge: FakeBridge): Promise<void> => {
   await run(mounted, 'cloud')
   expect(await until({ holds: async () => bridge.attached.length === 1, within: 20_000 })).toBe(
     true,
   )
+  await cleared(mounted, 'MOVING TO THE CLOUD')
 }
 
 describe('/container cloud', () => {
