@@ -201,7 +201,9 @@ export class GithubWebhookService {
     })
   }
 
-  private async acknowledgeIntake(args: { payload: GithubIssuesEventPayload }): Promise<void> {
+  private async acknowledgeIntake(args: {
+    payload: Pick<GithubIssuesEventPayload, 'installation' | 'repository' | 'issue'>
+  }): Promise<void> {
     const installationId = args.payload.installation?.id
     if (installationId === undefined) return
     try {
@@ -224,12 +226,8 @@ export class GithubWebhookService {
   }): Promise<GithubWebhookOutcome> {
     const { payload } = args
     if (payload.action !== 'created') return NOT_HANDLED
-    if (
-      await this.isOwnEcho({
-        login: payload.sender.login,
-        viaAppId: payload.comment.performed_via_github_app?.id,
-      })
-    ) {
+    const viaAppId = payload.comment.performed_via_github_app?.id
+    if (await this.isOwnEcho({ login: payload.sender.login, viaAppId })) {
       this.logger.log(`dropped the factory's own comment echo on ${payload.repository.full_name}#${payload.issue.number}`)
       return NOT_HANDLED
     }
@@ -238,10 +236,42 @@ export class GithubWebhookService {
       payload.issue.pull_request === undefined
         ? issueExternalId({ repo: payload.repository.full_name, issueNumber: payload.issue.number })
         : pullRequestExternalId({ repo: payload.repository.full_name, pullNumber: payload.issue.number })
-    return this.append({
+    const outcome = await this.append({
       externalId,
       deliveryId: args.deliveryId,
       kind: EFactoryEventKind.Comment,
+      author: payload.sender.login,
+      authorAssociation: payload.comment.author_association,
+      payload,
+    })
+    if (outcome.handled) return outcome
+    return this.intakeMentionedComment({ deliveryId: args.deliveryId, payload, externalId })
+  }
+
+  private async intakeMentionedComment(args: {
+    deliveryId: string
+    payload: GithubIssueCommentEventPayload
+    externalId: string
+  }): Promise<GithubWebhookOutcome> {
+    const { payload } = args
+    const botLogin = await this.githubApp.botLogin()
+    const mentioned = botLogin !== null && payload.comment.body.toLowerCase().includes(`@${botLogin}`)
+    if (!mentioned) return NOT_HANDLED
+
+    const organizationId = await this.resolveOrganizationId({ installationId: payload.installation?.id })
+    await this.workItems.intake({
+      organizationId,
+      repo: payload.repository.full_name,
+      sourceKind: EFactorySurface.GitHub,
+      surface: EFactorySurface.GitHub,
+      externalId: args.externalId,
+      aliasKind: payload.issue.pull_request === undefined ? EFactoryAliasKind.Issue : EFactoryAliasKind.PullRequest,
+    })
+    await this.acknowledgeIntake({ payload })
+    return this.append({
+      externalId: args.externalId,
+      deliveryId: args.deliveryId,
+      kind: EFactoryEventKind.Intake,
       author: payload.sender.login,
       authorAssociation: payload.comment.author_association,
       payload,
