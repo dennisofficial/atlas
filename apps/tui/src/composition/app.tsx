@@ -443,6 +443,8 @@ function Workspace(props: {
     return SOCKET_DOWN_REFUSAL
   }, [cloudHealth])
 
+  const moveInFlight = containerMove.move !== null && containerMove.move.failure === null
+
   const conversation = useConversation({
     app: props.app,
     opened: props.opened,
@@ -451,7 +453,7 @@ function Workspace(props: {
     thinking: settings.thinking,
     tldrStatus: settings.tldrStatus,
     onUndone: handleUndone,
-    canWake: exitGuard.state === null && containerMove.move === null,
+    canWake: exitGuard.state === null && !moveInFlight,
     interruptRefusal,
   })
 

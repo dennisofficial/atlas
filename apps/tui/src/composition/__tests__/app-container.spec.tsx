@@ -213,6 +213,74 @@ describe('the container command', () => {
       await mounted.done()
     }
   }, 60_000)
+
+  it('holds a background ending while the move is still in flight', async () => {
+    const app = speaking()
+    const mounted = await open({ app, opened: await spokenIn(app) })
+
+    const { gate, release } = promiseGate()
+    const append = app.log.append.bind(app.log)
+    app.log.append = (args) => gate.then(() => append(args))
+
+    try {
+      await mounted.typeText('/container docker')
+      mounted.pressEnter()
+      const moving = await mounted.frame()
+
+      expect(moving).toContain('MOVING INTO A DOCKER CONTAINER')
+
+      app.shells.announce(endedShell())
+      await mounted.frame()
+
+      expect(app.turnsDriven).toBe(0)
+
+      release()
+
+      const woke = await until({ holds: async () => app.turnsDriven > 0, within: WITHIN_MS })
+
+      expect(woke).toBe(true)
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('wakes for a background ending while a failed move still waits on escape', async () => {
+    const app = speaking()
+    const mounted = await open({ app, opened: await spokenIn(app) })
+    const append = app.log.append.bind(app.log)
+    app.log.append = () => Promise.reject(new Error('the log fell over'))
+
+    try {
+      await mounted.typeText('/container docker')
+      mounted.pressEnter()
+      const failed = await mounted.frame()
+
+      expect(failed).toContain('did not finish')
+
+      app.log.append = append
+      app.shells.announce(endedShell())
+
+      const woke = await until({ holds: async () => app.turnsDriven > 0, within: WITHIN_MS })
+
+      expect(woke).toBe(true)
+      expect(await mounted.frame()).toContain('MOVING INTO A DOCKER CONTAINER')
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+})
+
+const endedShell = (): ShellSnapshot => ({
+  shellId: toShellId('bash_9'),
+  command: 'bun test',
+  description: 'Run full TUI suite',
+  status: EShellStatus.Exited,
+  exitCode: 0,
+  pid: 4_242,
+  startedAt: '2026-08-27T12:00:00.000Z',
+  lastOutputAt: '2026-08-27T12:00:01.000Z',
+  totalCharacters: 18,
+  awaitingInput: false,
 })
 
 const shellExposing = (args: { containerPort: number; hostPort: number }): ShellSnapshot => ({
