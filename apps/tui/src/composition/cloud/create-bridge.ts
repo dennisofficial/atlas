@@ -56,6 +56,7 @@ export function createCloudBridge(args: {
       credentials: config.credentials,
       cloudUrl: args.url,
       image: config.image,
+      serveSources: config.serveSources,
     })
 
   /**
