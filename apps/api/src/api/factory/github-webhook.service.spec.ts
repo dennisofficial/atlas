@@ -165,6 +165,23 @@ describe('GithubWebhookService', () => {
     ])
   })
 
+  it('a comment accepted onto a tracked issue gets the ack reaction', async () => {
+    await service.handle({ event: 'issues', deliveryId: 'd-1', payload: issuesLabeledPayload() })
+
+    const outcome = await service.handle({
+      event: 'issue_comment',
+      deliveryId: 'd-2',
+      payload: { ...(issueCommentPayload() as Record<string, unknown>), installation: { id: 42 } },
+    })
+
+    expect(outcome).toMatchObject({ handled: true, appended: true })
+    expect(githubApp.addCommentReaction).toHaveBeenCalledWith({
+      installationId: 42,
+      repoFullName: REPO,
+      commentId: 9001,
+    })
+  })
+
   it("drops the factory's own comment echo instead of waking the orchestrator with it", async () => {
     await service.handle({ event: 'issues', deliveryId: 'd-1', payload: issuesLabeledPayload() })
     orchestrator.wake.mockClear()
@@ -219,13 +236,15 @@ describe('GithubWebhookService', () => {
     expect(fake.transcriptEvents).toHaveLength(2)
   })
 
-  it('the same delivery id redelivered appends only once', async () => {
+  it('the same delivery id redelivered appends only once and acks only once', async () => {
     await service.handle({ event: 'issues', deliveryId: 'd-1', payload: issuesLabeledPayload() })
+    const payload = { ...(issueCommentPayload() as Record<string, unknown>), installation: { id: 42 } }
 
-    await service.handle({ event: 'issue_comment', deliveryId: 'd-2', payload: issueCommentPayload() })
-    await service.handle({ event: 'issue_comment', deliveryId: 'd-2', payload: issueCommentPayload() })
+    await service.handle({ event: 'issue_comment', deliveryId: 'd-2', payload })
+    await service.handle({ event: 'issue_comment', deliveryId: 'd-2', payload })
 
     expect(fake.transcriptEvents.filter((one) => one.deliveryId === 'd-2')).toHaveLength(1)
+    expect(githubApp.addCommentReaction).toHaveBeenCalledTimes(1)
   })
 
   it('a comment on an untracked issue is not handled and nothing is stored', async () => {
