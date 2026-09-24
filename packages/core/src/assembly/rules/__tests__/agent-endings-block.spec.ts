@@ -4,7 +4,8 @@ import { EAgentStart } from '../../../agents/start'
 import { EAgentStatus } from '../../../agents/status'
 import { EKilledBy } from '../../../shells/status'
 import type { EventDraft } from '../../../events/body'
-import { toThreadId } from '../../../events/ids'
+import { toCallId, toThreadId } from '../../../events/ids'
+import { exchangeFaults } from '../../exchange-shape'
 import { contextFor, fixtureThreadId, log } from '../../__tests__/log-fixture'
 import { agentEndingsBlock } from '../agent-endings-block'
 import { messagesFromEvents } from '../messages-from-events'
@@ -200,6 +201,35 @@ describe('two waves separated by the parent working', () => {
 
     expect(blocks[0]).toContain('2 agents you spawned ended')
     expect(blocks[1]).toContain('1 agent you spawned ended')
+  })
+})
+
+describe('a delegate ending that lands while a tool call is still open', () => {
+  const lateSettledCall = (): EventDraft[] => [
+    { type: 'user-said', text: 'go' },
+    { type: 'assistant-said', parts: [{ type: 'text', text: 'checking with the teammate' }] },
+    {
+      type: 'tool-called',
+      callId: toCallId('agent_say_1'),
+      name: 'agent_say',
+      input: { agentId: 'thread-child-1', text: 'are you stuck?' },
+      ordinal: 0,
+    },
+    ended(),
+    { type: 'tool-result', callId: toCallId('agent_say_1'), name: 'agent_say', modelText: 'running again' },
+  ]
+
+  it('renders the endings after the late result, never between the call and its answer', () => {
+    const assembled = assembleWith({ drafts: lateSettledCall() })
+
+    const endingsAt = assembled.messages.findIndex((entry) =>
+      entry.message.content.some((part) => part.type === 'text' && part.text.startsWith('<agents-ended>')),
+    )
+    const resultAt = assembled.messages.findIndex((entry) => entry.message.role === 'tool')
+
+    expect(resultAt).toBeGreaterThan(-1)
+    expect(endingsAt).toBeGreaterThan(resultAt)
+    expect(exchangeFaults(assembled)).toEqual([])
   })
 })
 
