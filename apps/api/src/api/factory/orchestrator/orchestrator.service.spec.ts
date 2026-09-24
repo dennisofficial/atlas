@@ -8,6 +8,7 @@ vi.mock('../../../db', async () => {
 
 import { fakeFactoryDb } from '../../../../test/fake-factory-db.js'
 import type { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
+import { ESandboxFactoryRole } from '../../platform/sandboxes/sandboxes.types'
 import type { ThreadsService } from '../../platform/sessions/threads.service'
 import { DEFAULT_ORGANIZATION_ID, EFactoryEventKind } from '../factory.types'
 import { TranscriptService } from '../transcript.service'
@@ -164,8 +165,12 @@ describe('OrchestratorService', () => {
     await appendEvent(workItem.id, 'named')
     await wake(workItem.id)
 
-    const attachArgs = sandboxes.attach.mock.calls[0]?.[0] as { name: string }
+    const attachArgs = sandboxes.attach.mock.calls[0]?.[0] as {
+      name: string
+      factoryRole?: ESandboxFactoryRole
+    }
     expect(attachArgs.name).toBe(`factory-${workItem.id.replaceAll('_', '-')}`)
+    expect(attachArgs.factoryRole).toBe(ESandboxFactoryRole.Orchestrator)
   })
 
   it('a wake with nothing pending does not touch the sandbox', async () => {

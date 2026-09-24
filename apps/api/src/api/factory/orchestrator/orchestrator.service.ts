@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common'
 import { db } from '../../../db'
 import { factorySandboxNameFor } from '../../platform/sandboxes/sandbox-names'
 import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
+import { ESandboxFactoryRole } from '../../platform/sandboxes/sandboxes.types'
 import { ThreadsService } from '../../platform/sessions/threads.service'
 import { EFactoryEventKind, type TranscriptEventDto, type WorkItemDto } from '../factory.types'
 import { TranscriptService } from '../transcript.service'
@@ -75,7 +76,10 @@ export class OrchestratorService {
           sandboxName: factorySandboxNameFor({ workItemId: item.id }),
           text,
           marker: event.id,
-          extras: { pinnedModel: await this.credentials.modelRef({ organizationId: item.organizationId }) },
+          extras: {
+            pinnedModel: await this.credentials.modelRef({ organizationId: item.organizationId }),
+            factoryRole: ESandboxFactoryRole.Orchestrator,
+          },
         })
       } catch (failure) {
         this.logger.warn(
