@@ -169,7 +169,7 @@ describe('the crew panel splits into a teammate tier and a sub-agent tier', () =
       })
     ).join('\n')
 
-    expect(frame).toContain('· feature work')
+    expect(frame).toContain('⏺ feature work')
   })
 
   it('leaves a row with nothing running bare of chips', async () => {
