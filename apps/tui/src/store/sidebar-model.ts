@@ -54,6 +54,7 @@ export type SidebarModel = {
   turnCount: number;
   spend: SidebarSpend;
   lastActivity: string | null;
+  naming?: boolean;
   todo?: readonly SidebarTask[];
   subagents?: readonly SidebarSubagent[];
   crewFold?: SidebarAgentFold;
@@ -96,6 +97,7 @@ export const sameSidebar = (left: SidebarModel, right: SidebarModel): boolean =>
   left.turnCount === right.turnCount &&
   sameSpend(left.spend, right.spend) &&
   left.lastActivity === right.lastActivity &&
+  left.naming === right.naming &&
   left.todo === right.todo &&
   left.subagents === right.subagents &&
   left.crewFold === right.crewFold &&
@@ -147,6 +149,7 @@ export function sidebarFrom(args: {
   turns?: readonly TurnSpend[] | undefined;
   priceOf?: ModelPriceLookup | undefined;
   name?: string | null | undefined;
+  naming?: boolean | undefined;
 }): SidebarModel {
   const { fold, turn } = args;
   const name = args.name ?? null;
@@ -166,6 +169,7 @@ export function sidebarFrom(args: {
     turnCount: fold.turnCount,
     spend,
     lastActivity: fold.lastActivity,
+    ...(args.naming === true && name === null ? { naming: true } : {}),
     ...(fold.todo.length === 0 ? {} : { todo: fold.todo }),
     ...(fold.classifier === null ? {} : { classifier: fold.classifier }),
     ...(fold.grants.length === 0 ? {} : { grants: fold.grants }),
@@ -178,6 +182,7 @@ export function deriveSidebar(args: {
   turns?: readonly TurnSpend[] | undefined;
   priceOf?: ModelPriceLookup | undefined;
   name?: string | null | undefined;
+  naming?: boolean | undefined;
 }): SidebarModel {
   return sidebarFrom({
     fold: sidebarFoldOf(args.events),
@@ -185,6 +190,7 @@ export function deriveSidebar(args: {
     turns: args.turns,
     priceOf: args.priceOf,
     name: args.name,
+    naming: args.naming,
   });
 }
 

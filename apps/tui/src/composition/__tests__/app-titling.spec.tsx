@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
+import { SPINNER_FRAMES } from '../../ui/glyphs'
 import { App } from '../app'
 import { open, until, THREAD, REPLY, THINKING } from './app-fixture'
 import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
@@ -186,6 +187,67 @@ describe('naming a session from its opening message', () => {
 
       expect(headed).toBe(true)
     } finally {
+      await teardown(setup)
+    }
+  })
+})
+
+const PENDING_TITLE = new RegExp(`[${SPINNER_FRAMES.join('')}] ${OPENING}`)
+
+describe('the fallback title while the titler is still answering', () => {
+  it('shimmers the opening line until the generated name lands', async () => {
+    let release: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const app = fakeApp({ model: scriptedModelPort({ script }), names: NAME, titlerWait: gate })
+    const setup = await testRender(
+      <App app={app} opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }} />,
+      { width: 140, height: 40 },
+    )
+
+    const frame = async (): Promise<string> => {
+      await setup.flush()
+      await settle(250)
+      await setup.flush()
+      return setup.captureCharFrame()
+    }
+
+    try {
+      await setup.mockInput.typeText(OPENING)
+      setup.mockInput.pressEnter()
+
+      const asked = await until({
+        holds: async () => {
+          await setup.flush()
+          return app.titled.length > 0
+        },
+        within: WITHIN_MS,
+      })
+      expect(asked).toBe(true)
+
+      const pending = await until({
+        holds: async () => {
+          const shot = await frame()
+          return PENDING_TITLE.test(shot) && !shot.includes(NAME)
+        },
+        within: WITHIN_MS,
+      })
+      expect(pending).toBe(true)
+
+      release()
+
+      const named = await until({
+        holds: async () => {
+          const shot = await frame()
+          return shot.includes(NAME) && !PENDING_TITLE.test(shot)
+        },
+        within: WITHIN_MS,
+      })
+      expect(named).toBe(true)
+      expect(app.threads.renames).toEqual([{ threadId: THREAD, title: NAME }])
+    } finally {
+      release()
       await teardown(setup)
     }
   })

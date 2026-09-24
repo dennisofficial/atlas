@@ -14,6 +14,7 @@ import {
   type NoticePort,
 } from '@dltech/atlas-core'
 
+import { createFallbackModel } from '../model/fallback-model'
 import { createNotifyingModel } from '../model/notifying-model'
 import type { SettingsService } from '../settings/service'
 
@@ -34,6 +35,7 @@ export function createUtilityModel(args: {
   settings: SettingsService
   catalogue: ModelCatalogue
   notice: NoticePort
+  fallback?: (() => LanguageModelV4 | undefined) | undefined
 }): LanguageModelV4 {
   const built = new Map<string, LanguageModelV4>()
 
@@ -57,7 +59,7 @@ export function createUtilityModel(args: {
     const adapter = args.catalogue.adapterFor(ref.providerId)
     if (card === undefined || adapter === undefined) throw unanswerableRef(key)
 
-    const model = createNotifyingModel({
+    const notifying = createNotifyingModel({
       model: adapter.model({ card, effort: () => UTILITY_ROLE_EFFORT[args.role] }),
       onFault: (fault) =>
         args.notice.notify({
@@ -67,6 +69,20 @@ export function createUtilityModel(args: {
           text: `The ${UTILITY_ROLE_LABEL[args.role]} model ${fault.providerId}/${fault.modelId} failed: ${messageOf(fault.fault)}`,
         }),
     })
+    const model =
+      args.fallback === undefined
+        ? notifying
+        : createFallbackModel({
+            primary: notifying,
+            fallback: args.fallback,
+            onFallback: () =>
+              args.notice.notify({
+                key: `utility-model:${args.role}:fallback`,
+                tone: ENoticeTone.Warn,
+                ttlMs: NOTICE_WARN_MS,
+                text: `The ${UTILITY_ROLE_LABEL[args.role]} model fell back to the session model.`,
+              }),
+          })
     built.set(key, model)
     return model
   }

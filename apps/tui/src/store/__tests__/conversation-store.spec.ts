@@ -240,6 +240,58 @@ describe('the store lets the composition root fold the same log', () => {
   })
 })
 
+describe('the naming flag the store carries to the sidebar', () => {
+  let channel: DeltaChannel
+  let store: ConversationStore
+
+  beforeEach(() => {
+    channel = createDeltaChannel()
+    store = createConversationStore({ channel, threadId: fixtureThreadId })
+  })
+
+  it('opens with no naming flag set', () => {
+    expect(store.getSidebar().naming).toBeUndefined()
+  })
+
+  it('marks the sidebar while the titler is being asked, and clears it once settled', () => {
+    store.setNaming(true)
+    expect(store.getSidebar().naming).toBe(true)
+
+    store.setNaming(false)
+    expect(store.getSidebar().naming).toBeUndefined()
+  })
+
+  it('wakes subscribers only when the flag actually moves', () => {
+    let notices = 0
+    store.subscribe(() => void (notices += 1))
+
+    store.setNaming(false)
+    expect(notices).toBe(0)
+
+    store.setNaming(true)
+    expect(notices).toBe(1)
+
+    store.setNaming(true)
+    expect(notices).toBe(1)
+  })
+
+  it('keeps the sidebar snapshot identical when the flag does not move', () => {
+    const before = store.getSidebar()
+
+    store.setNaming(false)
+
+    expect(store.getSidebar()).toBe(before)
+  })
+
+  it('drops the flag once a name lands, since the title is no longer the fallback', () => {
+    store.setNaming(true)
+    store.setName('A real title')
+
+    expect(store.getSidebar().naming).toBeUndefined()
+    expect(store.getSidebar().title).toBe('A real title')
+  })
+})
+
 describe('a refresh that re-read the same log', () => {
   let channel: DeltaChannel
   let store: ConversationStore

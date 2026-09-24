@@ -228,7 +228,7 @@ export function useConversation(args: {
 
   const handleRevokeGrant = useRevokeGrant({ app, threadId, refresh })
 
-  const { name, setName, nameSession, renameSession } = useSessionName({
+  const { name, naming, setName, nameSession, renameSession } = useSessionName({
     app,
     threadId,
     started: startedRef,
@@ -245,6 +245,8 @@ export function useConversation(args: {
   )
 
   useEffect(() => store.setName(name), [store, name])
+
+  useEffect(() => store.setNaming(naming), [store, naming])
 
   const derived = view.model
   const { sidebar } = view

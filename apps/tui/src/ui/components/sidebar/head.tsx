@@ -3,9 +3,12 @@ import React from "react";
 import type { SidebarModel } from "../../../store/sidebar-model";
 import { costTone, formatUsd, spendFigures } from "../../../store/sidebar-spend";
 import { theme } from "../../theme";
+import { ShimmerLine } from "../shimmer-line";
 import { truncateCells } from "./cells";
 
 const SEPARATOR = " · ";
+
+const SHIMMER_LEAD_CELLS = 2;
 
 const turnsAndCost = (model: SidebarModel): string => {
   const turns = `${model.turnCount} ${model.turnCount === 1 ? "turn" : "turns"}`;
@@ -48,7 +51,12 @@ export function HeadSection(props: {
 
   return (
     <box flexDirection="column" flexShrink={0}>
-      {model.title === null ? null : (
+      {model.title === null ? null : model.naming === true ? (
+        <ShimmerLine
+          label={truncateCells({ text: model.title, cells: props.cells - SHIMMER_LEAD_CELLS })}
+          base={theme.bright}
+        />
+      ) : (
         <text fg={theme.bright}>
           {truncateCells({ text: model.title, cells: props.cells })}
         </text>

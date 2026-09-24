@@ -57,6 +57,7 @@ export type ConversationStore = {
   setThinking(thinking: EThinkingVisibility): void
   setTldrStatus(tldrStatus: boolean): void
   setName(name: string | null): void
+  setNaming(naming: boolean): void
   dispose(): void
 }
 
@@ -85,6 +86,7 @@ export function createConversationStore(args: {
   let thinking: EThinkingVisibility = args.thinking ?? SHIPPED_THINKING;
   let tldrStatus = true;
   let name: string | null = args.name ?? null;
+  let naming = false;
   let events: readonly Event[] = args.events ?? [];
   let turns: readonly TurnSpend[] = args.turns ?? NO_TURNS;
   let progress: TurnProgress = IDLE_PROGRESS;
@@ -123,7 +125,7 @@ export function createConversationStore(args: {
   };
 
   const sidebarNow = (): SidebarModel =>
-    sidebarFrom({ fold: sidebarFoldFrom(logWindow.acc), turn, turns, priceOf: args.priceOf, name });
+    sidebarFrom({ fold: sidebarFoldFrom(logWindow.acc), turn, turns, priceOf: args.priceOf, name, naming });
 
   let model = assembleTranscript({ durable: durableNow(), live: [], thinking, pendingTldr, tldrStatus, sandbox })
   let sidebar = sidebarNow()
@@ -360,6 +362,12 @@ export function createConversationStore(args: {
     setName(next) {
       if (next === name) return;
       name = next;
+      republish();
+    },
+
+    setNaming(next) {
+      if (next === naming) return;
+      naming = next;
       republish();
     },
 

@@ -69,6 +69,9 @@ export class OpenRouterAdapter extends ProviderAdapter {
         baseURL: this.baseUrl ?? OPENROUTER_BASE_URL,
         apiKey,
         headers: ATTRIBUTION_HEADERS,
+        // Without this flag @ai-sdk/openai-compatible degrades Output.object to
+        // { type: 'json_object' }, which reasoning models answer with prose-in-JSON.
+        supportsStructuredOutputs: true,
       }).chatModel(args.card.ref.modelId)
     }
 
