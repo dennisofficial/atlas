@@ -38,7 +38,7 @@ samp {
   font-family: var(--font-mono);
 }
 
-:focus-visible {
+:focus-visible:not(.outline-none) {
   outline: var(--focus-ring-width) solid var(--ring);
   outline-offset: var(--focus-ring-offset);
 }
