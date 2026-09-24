@@ -1,3 +1,5 @@
+"use client";
+
 import type { ChangeEvent, ComponentProps } from "react";
 import { useCallback, useEffect, useId, useRef } from "react";
 

@@ -1,3 +1,5 @@
+"use client";
+
 import type { CSSProperties, ChangeEvent } from "react";
 import { useId } from "react";
 

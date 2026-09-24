@@ -21,12 +21,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-a {
+a:not([class]) {
   color: var(--link);
   text-decoration-color: color-mix(in oklab, var(--link) 40%, transparent);
   text-underline-offset: 2px;
 }
-a:hover {
+a:not([class]):hover {
   color: var(--link);
   text-decoration-color: var(--link);
 }
@@ -38,7 +38,7 @@ samp {
   font-family: var(--font-mono);
 }
 
-:focus-visible {
+:focus-visible:not(.outline-none) {
   outline: var(--focus-ring-width) solid var(--ring);
   outline-offset: var(--focus-ring-offset);
 }

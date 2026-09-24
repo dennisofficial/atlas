@@ -1,6 +1,6 @@
-import { Slot } from "@radix-ui/react-slot";
+import { Button as BaseButton } from "@base-ui/react/button";
 import { cva, type VariantProps } from "class-variance-authority";
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps, ReactElement, ReactNode } from "react";
 
 import { cn } from "../lib/cn";
 import { Spinner } from "./spinner";
@@ -72,9 +72,11 @@ export function Button({
 
   if (asChild) {
     return (
-      <Slot className={classNames} {...props}>
-        {children}
-      </Slot>
+      <BaseButton
+        className={classNames}
+        render={children as ReactElement}
+        {...props}
+      />
     );
   }
 

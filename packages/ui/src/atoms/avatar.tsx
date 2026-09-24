@@ -1,4 +1,4 @@
-import { Fallback, Image, Root } from "@radix-ui/react-avatar";
+import { Avatar as AvatarPrimitive } from "@base-ui/react/avatar";
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentProps, ReactNode } from "react";
 
@@ -69,16 +69,16 @@ export function Avatar({
 }: AvatarProps) {
   return (
     <span className={cn("relative inline-flex shrink-0", className)} {...props}>
-      <Root title={name} className={avatarVariants({ kind, size })}>
+      <AvatarPrimitive.Root title={name} className={avatarVariants({ kind, size })}>
         {src ? (
-          <Image
+          <AvatarPrimitive.Image
             src={src}
             alt={name ?? ""}
             className="size-full object-cover"
           />
         ) : null}
-        <Fallback>{glyph ?? initials(name)}</Fallback>
-      </Root>
+        <AvatarPrimitive.Fallback>{glyph ?? initials(name)}</AvatarPrimitive.Fallback>
+      </AvatarPrimitive.Root>
       {status ? (
         <span
           aria-label={status}

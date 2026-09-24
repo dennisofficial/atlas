@@ -1,3 +1,5 @@
+"use client";
+
 import { cva, type VariantProps } from "class-variance-authority";
 import type { CSSProperties, ChangeEvent } from "react";
 import { useId } from "react";
