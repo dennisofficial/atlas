@@ -1,3 +1,4 @@
+import { NotFoundException } from '@nestjs/common'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PrismaClient } from '../../../generated/prisma/client'
 
@@ -130,6 +131,29 @@ describe('StationsService lifecycle', () => {
         threadId: run.threadId,
       })
       expect(fake.stationRuns[0]?.status).toBe(EStationRunStatus.Stopped)
+    })
+
+    it('still marks the run stopped when the sandbox row is already gone', async () => {
+      const { spawned } = await spawnAndGetRun()
+      sandboxes.stop.mockRejectedValueOnce(new NotFoundException('sandbox not found'))
+
+      const stopped = await service.stop({
+        orchestratorThreadId: 'brn_orchestrator_1',
+        runId: spawned.stationRunId,
+      })
+
+      expect(stopped.stopped).toBe(true)
+      expect(fake.stationRuns[0]?.status).toBe(EStationRunStatus.Stopped)
+    })
+
+    it('propagates a sandbox stop failure that is not a missing row', async () => {
+      const { spawned } = await spawnAndGetRun()
+      sandboxes.stop.mockRejectedValueOnce(new Error('vercel is down'))
+
+      await expect(
+        service.stop({ orchestratorThreadId: 'brn_orchestrator_1', runId: spawned.stationRunId }),
+      ).rejects.toThrow('vercel is down')
+      expect(fake.stationRuns[0]?.status).toBe(EStationRunStatus.Running)
     })
 
     it('refuses steer and stop from a non-orchestrator caller', async () => {

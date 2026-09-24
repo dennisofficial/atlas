@@ -6,6 +6,7 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  NotFoundException,
 } from '@nestjs/common'
 import { db } from '../../../db'
 import { factoryStationSandboxNameFor } from '../../platform/sandboxes/sandbox-names'
@@ -184,13 +185,23 @@ export class StationsService {
     return { steered: true }
   }
 
+  /**
+   * The run row is what the spawn guard reads, so a stop whose sandbox row is already gone — a
+   * spawn killed mid-provision never writes one — must still mark the run stopped, or the item
+   * deadlocks on a zombie.
+   */
   async stop(args: { orchestratorThreadId: string; runId: string }): Promise<{ stopped: true }> {
     const item = await orchestratedItem({ threadId: args.orchestratorThreadId })
     const run = await this.runningRun({ item, runId: args.runId })
-    await this.sandboxes.stop({
-      userId: await this.identity.userId({ organizationId: item.organizationId }),
-      threadId: run.threadId,
-    })
+    try {
+      await this.sandboxes.stop({
+        userId: await this.identity.userId({ organizationId: item.organizationId }),
+        threadId: run.threadId,
+      })
+    } catch (failure) {
+      if (!(failure instanceof NotFoundException)) throw failure
+      this.logger.warn(`station run ${run.id} has no sandbox row; marking it stopped anyway`)
+    }
     await this.markRun({ runId: run.id, status: EStationRunStatus.Stopped })
     return { stopped: true }
   }
