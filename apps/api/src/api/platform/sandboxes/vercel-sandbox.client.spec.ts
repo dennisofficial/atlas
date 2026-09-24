@@ -20,6 +20,9 @@ const sdk = vi.hoisted(() => ({
   driveListParams: [] as Array<Record<string, unknown> | undefined>,
   lastDrive: null as unknown,
   driveStore: new Map<string, { name: string }>(),
+  initializedDrives: new Set<string>(),
+  refuseUninitializedSnapshot: false,
+  failCreateOnAttempt: 0,
   resumesInsteadOfCreating: false,
 }))
 
@@ -95,6 +98,16 @@ vi.mock('@vercel/sandbox', () => {
       },
       list: async (params?: Record<string, unknown>) => {
         sdk.driveListParams.push(params)
+        if (params?.namePrefix !== undefined && params?.sortBy !== 'name') {
+          throw new APIError(new Response(null, { status: 400 }), {
+            json: {
+              error: {
+                code: 'bad_request',
+                message: 'Invalid request: `namePrefix` is only valid when `sortBy` is `name`',
+              },
+            },
+          })
+        }
         const prefix = String(params?.namePrefix ?? '')
         const matched = [...sdk.driveStore.values()].filter((drive) =>
           drive.name.startsWith(prefix),
@@ -109,7 +122,35 @@ vi.mock('@vercel/sandbox', () => {
     Sandbox: {
       getOrCreate: async (params: Record<string, unknown>) => {
         sdk.createParams.push(params)
+        if (sdk.failCreateOnAttempt === sdk.createParams.length) {
+          sdk.failCreateOnAttempt = 0
+          throw new Error('the sandbox host is out of capacity')
+        }
         if (sdk.createFailure !== null) throw sdk.createFailure
+        const mounts = params.mounts as Record<string, unknown> | undefined
+        const mount = mounts?.[WORKSPACE_PATH] as
+          | { name?: string; mode?: string; drive?: string }
+          | undefined
+        if (mount !== undefined) {
+          const driveName = typeof mount.drive === 'string' ? mount.drive : mount.name
+          const isSnapshot = mount.mode === 'snapshot'
+          if (
+            isSnapshot &&
+            sdk.refuseUninitializedSnapshot &&
+            driveName !== undefined &&
+            !sdk.initializedDrives.has(driveName)
+          ) {
+            throw new APIError(new Response(null, { status: 400 }), {
+              json: {
+                error: {
+                  code: 'bad_request',
+                  message: `The drive ${driveName} has not been initialized yet. Please mount as read-write first before mounting as read-only.`,
+                },
+              },
+            })
+          }
+          if (driveName !== undefined) sdk.initializedDrives.add(driveName)
+        }
         if (sdk.resumesInsteadOfCreating) {
           await (params.onResume as ((sandbox: unknown) => Promise<void>) | undefined)?.(sandbox)
         } else {
@@ -198,6 +239,9 @@ describe('VercelSandboxClient', () => {
     sdk.driveListParams.length = 0
     sdk.lastDrive = null
     sdk.driveStore.clear()
+    sdk.initializedDrives.clear()
+    sdk.refuseUninitializedSnapshot = false
+    sdk.failCreateOnAttempt = 0
     sdk.resumesInsteadOfCreating = false
     sdk.status = 'running'
     sdk.getFailure = null
@@ -332,17 +376,70 @@ describe('VercelSandboxClient', () => {
     })
   })
 
-  it('initializes a brand-new drive with a read-write mount before a snapshot can mount it', async () => {
+  it('lists drives with sortBy name so the namePrefix filter is accepted', async () => {
     const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-    await client.getOrCreate({
-      name: 'factory-fwi-new',
-      threadId: 'brn_orchestrator_new',
+    await client.ensureDrive({ name: 'factory-compai-atlas-341' })
+    await client.deleteDrive({ name: 'factory-compai-atlas-341' })
+
+    expect(sdk.driveListParams[0]).toMatchObject({
+      namePrefix: 'factory-compai-atlas-341',
+      sortBy: 'name',
+    })
+    expect(sdk.driveDeleted).toEqual(['factory-compai-atlas-341'])
+  })
+
+  it('a snapshot mount refused as uninitialized retries read-write, initializing the drive, and still provisions', async () => {
+    sdk.refuseUninitializedSnapshot = true
+    sdk.driveStore.set('factory-fwi-24ea3e1d', { name: 'factory-fwi-24ea3e1d' })
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    const placement = await client.getOrCreate({
+      name: 'factory-fwi-24ea3e1d',
+      threadId: 'brn_orchestrator_1',
       token: 'session-token',
-      drive: { name: 'factory-never-mounted', mode: ESandboxDriveMode.Snapshot },
+      drive: { name: 'factory-fwi-24ea3e1d', mode: ESandboxDriveMode.Snapshot },
     })
 
+    expect(sdk.createParams.length).toBe(2)
+    const first = sdk.createParams[0]?.mounts as Record<string, unknown>
+    const second = sdk.createParams[1]?.mounts as Record<string, unknown>
+    expect(first[WORKSPACE_PATH]).toEqual({ drive: 'factory-fwi-24ea3e1d', mode: 'snapshot' })
+    expect(second[WORKSPACE_PATH]).toBe(sdk.lastDrive)
+    expect(sdk.initializedDrives.has('factory-fwi-24ea3e1d')).toBe(true)
+    expect(placement.state).toBe(ESandboxState.Running)
+  })
+
+  it('a read-write initializing retry that itself fails surfaces as a bad gateway, not a raw provider error', async () => {
+    sdk.refuseUninitializedSnapshot = true
+    sdk.driveStore.set('factory-fwi-24ea3e1d', { name: 'factory-fwi-24ea3e1d' })
+    sdk.failCreateOnAttempt = 2
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+
+    await expect(
+      client.getOrCreate({
+        name: 'factory-fwi-24ea3e1d',
+        threadId: 'brn_orchestrator_1',
+        token: 'session-token',
+        drive: { name: 'factory-fwi-24ea3e1d', mode: ESandboxDriveMode.Snapshot },
+      }),
+    ).rejects.toBeInstanceOf(BadGatewayException)
+    expect(sdk.createParams.length).toBe(2)
+  })
+
+  it('once initialized by a read-write mount, a later snapshot mount succeeds without a retry', async () => {
+    sdk.refuseUninitializedSnapshot = true
+    sdk.driveStore.set('factory-fwi-24ea3e1d', { name: 'factory-fwi-24ea3e1d' })
+    sdk.initializedDrives.add('factory-fwi-24ea3e1d')
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    await client.getOrCreate({
+      name: 'factory-fwi-24ea3e1d',
+      threadId: 'brn_orchestrator_1',
+      token: 'session-token',
+      drive: { name: 'factory-fwi-24ea3e1d', mode: ESandboxDriveMode.Snapshot },
+    })
+
+    expect(sdk.createParams.length).toBe(1)
     const mounts = sdk.createParams[0]?.mounts as Record<string, unknown>
-    expect(mounts[WORKSPACE_PATH]).toBe(sdk.lastDrive)
+    expect(mounts[WORKSPACE_PATH]).toEqual({ drive: 'factory-fwi-24ea3e1d', mode: 'snapshot' })
   })
 
   it('deletes a drive by name through the SDK', async () => {
