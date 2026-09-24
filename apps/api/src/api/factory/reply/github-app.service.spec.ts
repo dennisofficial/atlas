@@ -146,6 +146,26 @@ describe('GithubAppService', () => {
       expect(reaction.body).toEqual({ content: 'eyes' })
     })
 
+    it('addCommentReaction posts eyes to the comment reactions path', async () => {
+      const { fetchFn, calls } = fakeFetch({
+        'POST https://api.github.com/app/installations/42/access_tokens': () =>
+          jsonResponse(201, { token: 'ghs_installation_token' }),
+        'POST https://api.github.com/repos/compai/atlas/issues/comments/9001/reactions': () =>
+          jsonResponse(201, { id: 1, content: 'eyes' }),
+      })
+      service = new GithubAppService(fakeEnv({ configured: true }), fetchFn)
+
+      await service.addCommentReaction({ installationId: 42, repoFullName: 'compai/atlas', commentId: 9001 })
+
+      expect(calls.map((call) => `${call.method} ${call.url}`)).toEqual([
+        'POST https://api.github.com/app/installations/42/access_tokens',
+        'POST https://api.github.com/repos/compai/atlas/issues/comments/9001/reactions',
+      ])
+      const [, reaction] = calls as [Call, Call]
+      expect(reaction.authorization).toBe('Bearer ghs_installation_token')
+      expect(reaction.body).toEqual({ content: 'eyes' })
+    })
+
     it('assertInstallation resolves when the installation exists for this app', async () => {
       const { fetchFn, calls } = fakeFetch({
         'GET https://api.github.com/app/installations/12345678': () =>

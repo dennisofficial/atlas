@@ -44,6 +44,7 @@ export interface GithubIssuesEventPayload {
 }
 
 export interface GithubComment {
+  id: number
   author_association: string
   body: string
   // Present when the comment was written through a GitHub App — the offline echo signal.

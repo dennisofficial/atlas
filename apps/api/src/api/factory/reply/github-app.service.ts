@@ -87,6 +87,22 @@ export class GithubAppService {
     })
   }
 
+  /** 👀 on the comment that triggered intake — visible where the author is actually looking. */
+  async addCommentReaction(args: {
+    installationId: number
+    repoFullName: string
+    commentId: number
+  }): Promise<void> {
+    const token = await this.api.mintInstallationToken({ installationId: args.installationId })
+    await this.api.request<unknown>({
+      method: 'POST',
+      path: `/repos/${args.repoFullName}/issues/comments/${args.commentId}/reactions`,
+      as: 'installation',
+      token,
+      body: { content: 'eyes' },
+    })
+  }
+
   /** Null when the branch is not on the remote — the delivery gate's "pushed" check. */
   async branchHead(args: { owner: string; repo: string; branch: string }): Promise<string | null> {
     const token = await this.installationToken({ owner: args.owner, repo: args.repo })
