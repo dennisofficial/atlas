@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
+import { installedNotice, type LatestRelease } from '../../build/latest-release-state'
 import {
+  createReleaseWatch,
   createSourceStaleness,
   latestRelease,
   releaseNotice,
@@ -171,5 +173,89 @@ describe('createSourceStaleness', () => {
 
     stamp = null
     expect(await staleness.stale()).toBe(false)
+  })
+})
+
+describe('createReleaseWatch', () => {
+  const staged = (version: string): LatestRelease => ({
+    version,
+    tag: `tui-v${version}`,
+    stagedBy: 42,
+    writtenAtMs: 1,
+  })
+
+  const recorder = (): { posted: string[]; announce: (text: string) => void } => {
+    const posted: string[] = []
+    return { posted, announce: (text) => posted.push(text) }
+  }
+
+  it('announces the installed notice once the shared file names a newer version', async () => {
+    const { posted, announce } = recorder()
+    const watch = createReleaseWatch({
+      running: '1.2.0',
+      read: async () => staged('1.3.0'),
+      announce,
+    })
+
+    await watch.check()
+
+    expect(posted).toEqual([installedNotice('1.3.0')])
+  })
+
+  it('stays quiet while the shared file names nothing newer than the running build', async () => {
+    const { posted, announce } = recorder()
+    const watch = createReleaseWatch({
+      running: '1.3.0',
+      read: async () => staged('1.3.0'),
+      announce,
+    })
+
+    await watch.check()
+
+    expect(posted).toEqual([])
+  })
+
+  it('stays quiet while no tile has published anything', async () => {
+    const { posted, announce } = recorder()
+    const watch = createReleaseWatch({
+      running: '1.2.0',
+      read: async () => null,
+      announce,
+    })
+
+    await watch.check()
+
+    expect(posted).toEqual([])
+  })
+
+  it('announces once per version however often the settle loop fires', async () => {
+    const { posted, announce } = recorder()
+    const watch = createReleaseWatch({
+      running: '1.2.0',
+      read: async () => staged('1.3.0'),
+      announce,
+    })
+
+    await watch.check()
+    await watch.check()
+    await watch.check()
+
+    expect(posted).toHaveLength(1)
+  })
+
+  it('announces again when a newer release lands after an earlier one', async () => {
+    const { posted, announce } = recorder()
+    let version = '1.3.0'
+    const watch = createReleaseWatch({
+      running: '1.2.0',
+      read: async () => staged(version),
+      announce,
+    })
+
+    await watch.check()
+    version = '1.4.0'
+    await watch.check()
+
+    expect(posted).toEqual([installedNotice('1.3.0'), installedNotice('1.4.0')])
   })
 })

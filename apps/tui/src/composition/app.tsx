@@ -117,7 +117,13 @@ import { applyTranscriptCovered } from '../ui/covered-store'
 import { OverlayStack } from './overlay-stack'
 import { unmeasuredWindowWarning } from '@dltech/atlas-harness'
 import { settleStaleness } from './auto-restart'
-import { checkForUpdate, sourceStalenessProbe, type SourceStaleness } from './update-check'
+import {
+  checkForUpdate,
+  releaseWatchProbe,
+  sourceStalenessProbe,
+  type ReleaseWatch,
+  type SourceStaleness,
+} from './update-check'
 import { closeConversation, unstartedConversation, type OpenedConversation } from './open-conversation'
 import { useConversation } from './use-conversation'
 import { DETACH_EXIT_LINE } from '../ui/exit-guard-model'
@@ -550,12 +556,16 @@ function Workspace(props: {
    * are what act on it.
    */
   const staleness = useRef<SourceStaleness | null>(null)
+  const releaseWatch = useRef<ReleaseWatch | null>(null)
   useEffect(() => {
     void checkForUpdate()
 
     let mounted = true
     void sourceStalenessProbe().then((probe) => {
       if (mounted) staleness.current = probe
+    })
+    void releaseWatchProbe().then((watch) => {
+      if (mounted) releaseWatch.current = watch
     })
 
     return () => {
@@ -1095,6 +1105,7 @@ function Workspace(props: {
     () =>
       void settleStaleness({
         staleness: staleness.current,
+        releaseWatch: releaseWatch.current,
         autoRestart: settings.autoRestart,
         restart: props.onRestart,
         readSafety: () => ({

@@ -58,6 +58,14 @@ describe('the notice slab', () => {
     expect(frame).toContain('⚠ clipboard unavailable')
   })
 
+  it('renders a success notice with the check mark and green ink', async () => {
+    onTheEdge({ text: 'atlas v1.3.0 installed — /restart to update', tone: ENoticeTone.Success })
+    const frame = await frameOf(slab(), WIDTH)
+    dismissNotice()
+
+    expect(frame).toContain('✓ atlas v1.3.0 installed')
+  })
+
   it('cuts a notice too long for the room it was given rather than wrapping it', async () => {
     onTheEdge({ text: 'x'.repeat(WIDTH * 2) })
     const frame = await frameOf(slab(), WIDTH)

@@ -1,4 +1,4 @@
-import type { SourceStaleness } from './update-check'
+import type { ReleaseWatch, SourceStaleness } from './update-check'
 
 export type RestartSafety = {
   readonly working: boolean
@@ -27,10 +27,13 @@ export function autoRestartBlocker(args: RestartSafety): string | null {
 
 export async function settleStaleness(args: {
   staleness: SourceStaleness | null
+  releaseWatch?: ReleaseWatch | null
   autoRestart: boolean
   restart: (() => void) | null
   readSafety: () => RestartSafety
 }): Promise<void> {
+  if (args.releaseWatch != null) await args.releaseWatch.check()
+
   const probe = args.staleness
   if (probe === null) return
   if (!(await probe.stale())) return

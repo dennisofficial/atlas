@@ -9,12 +9,21 @@ import {
 
 import { buildInfo, EBuildKind } from '../build/info'
 import {
+  acquireStagingLock,
+  installedNotice,
+  latestReleasePathFor,
+  publishLatestRelease,
+  readLatestRelease,
+  shouldPublishLatest,
+  type LatestRelease,
+} from '../build/latest-release-state'
+import {
   EStageOutcome,
   realSelfUpdatePorts,
-  stagedNotice,
   stageUpdate,
 } from '../build/self-update'
 import { repoRootOf, sourceStateStamp } from '../build/stamp'
+import { atlasDirectory } from '@dltech/atlas-harness'
 import { ENoticeTone, notify } from '../ui/notice-store'
 
 export const RELEASE_TAG_PREFIX = 'tui-v'
@@ -190,6 +199,22 @@ export async function checkForUpdate(): Promise<void> {
 
   if (build.kind !== EBuildKind.Release || build.releaseRepo === null) return
 
+  const sharedPath = latestReleasePathFor(atlasDirectory())
+
+  const published = await readLatestRelease(sharedPath)
+  if (
+    published !== null &&
+    releaseStaged({ running: build.version, staged: published.version })
+  ) {
+    notify({
+      key: 'release-staged',
+      tone: ENoticeTone.Success,
+      sticky: true,
+      text: installedNotice(published.version),
+    })
+    return
+  }
+
   const tags = await releaseTagsOf(build.releaseRepo)
   if (tags === null) return
 
@@ -199,24 +224,52 @@ export async function checkForUpdate(): Promise<void> {
   const text = releaseNotice({ current: build.version, latest })
   if (text === null) return
 
-  const staged = await stageUpdate({
-    tag: latest.tag,
-    version: formatSemver(latest.version),
-    repo: build.releaseRepo,
-    execPath: process.execPath,
-    platform: process.platform,
-    arch: process.arch,
-    ports: realSelfUpdatePorts(),
-  })
-
-  if (staged.outcome === EStageOutcome.Staged || staged.outcome === EStageOutcome.AlreadyStaged) {
-    notify({
-      key: 'release-staged',
-      tone: ENoticeTone.Info,
-      sticky: true,
-      text: stagedNotice(staged.version),
-    })
+  const version = formatSemver(latest.version)
+  if (!shouldPublishLatest({ candidate: version, published })) {
+    notify({ key: 'release-staged', tone: ENoticeTone.Success, sticky: true, text: installedNotice(version) })
     return
+  }
+
+  const lock = await acquireStagingLock({ path: sharedPath })
+  if (lock === null) {
+    const waited = await readLatestRelease(sharedPath)
+    if (waited !== null && releaseStaged({ running: build.version, staged: waited.version })) {
+      notify({
+        key: 'release-staged',
+        tone: ENoticeTone.Success,
+        sticky: true,
+        text: installedNotice(waited.version),
+      })
+      return
+    }
+
+    notify({ key: 'release-available', tone: ENoticeTone.Info, sticky: true, text })
+    return
+  }
+
+  try {
+    const staged = await stageUpdate({
+      tag: latest.tag,
+      version,
+      repo: build.releaseRepo,
+      execPath: process.execPath,
+      platform: process.platform,
+      arch: process.arch,
+      ports: realSelfUpdatePorts(),
+    })
+
+    if (staged.outcome === EStageOutcome.Staged || staged.outcome === EStageOutcome.AlreadyStaged) {
+      await publishLatestRelease({ path: sharedPath, version: staged.version, tag: latest.tag })
+      notify({
+        key: 'release-staged',
+        tone: ENoticeTone.Success,
+        sticky: true,
+        text: installedNotice(staged.version),
+      })
+      return
+    }
+  } finally {
+    await lock.release()
   }
 
   notify({ key: 'release-available', tone: ENoticeTone.Info, sticky: true, text })
@@ -230,5 +283,42 @@ export function releaseStaged(args: { running: string; staged: string | null }):
   if (running === null || staged === null) return false
 
   return isNewerSemver({ candidate: staged, current: running })
+}
+
+export type ReleaseWatch = {
+  readonly check: () => Promise<void>
+}
+
+export function createReleaseWatch(args: {
+  running: string
+  read: () => Promise<LatestRelease | null>
+  announce: (text: string) => void
+}): ReleaseWatch {
+  let announcedVersion: string | null = null
+
+  return {
+    check: async () => {
+      const latest = await args.read()
+      if (latest === null) return
+      if (!releaseStaged({ running: args.running, staged: latest.version })) return
+      if (announcedVersion === latest.version) return
+
+      announcedVersion = latest.version
+      args.announce(installedNotice(latest.version))
+    },
+  }
+}
+
+export async function releaseWatchProbe(): Promise<ReleaseWatch | null> {
+  const build = buildInfo()
+  if (build.kind !== EBuildKind.Release) return null
+
+  const path = latestReleasePathFor(atlasDirectory())
+  return createReleaseWatch({
+    running: build.version,
+    read: () => readLatestRelease(path),
+    announce: (text) =>
+      notify({ key: 'release-staged', tone: ENoticeTone.Success, sticky: true, text }),
+  })
 }
 
