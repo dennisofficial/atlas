@@ -44,7 +44,7 @@ export function boundedIndex({ content }: { content: string }): BoundedIndex {
   const kept =
     byLine.length > MAX_INDEX_BYTES ? byLine.slice(0, cutAt > 0 ? cutAt : MAX_INDEX_BYTES) : byLine
 
-  const warning = `> Only part of this index was loaded: it is ${reasonFor({ lines, bytes, lineCapped, byteCapped })}. Keep each entry to one line under ~200 characters and move detail into the memory file it points at.`
+  const warning = `> Only part of this index was loaded: it is ${reasonFor({ lines, bytes, lineCapped, byteCapped })}. Do not just shorten entries — reconcile: drop entries for shipped work and dead claims, merge overlapping files, then tighten what remains.`
 
   return { text: `${kept}\n\n${warning}`, lines, bytes, lineCapped, byteCapped }
 }

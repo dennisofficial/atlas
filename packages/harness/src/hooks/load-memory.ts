@@ -1,6 +1,9 @@
 import {
   BeforeTurnHook,
+  EContextSlot,
   EStage,
+  indexNearsBound,
+  reconcileNudgeText,
   type BeforeTurn,
   type EventDraft,
   type HookOrder,
@@ -55,12 +58,25 @@ export class LoadMemoryHook extends BeforeTurnHook {
       })
     }
 
-    const drafts: readonly EventDraft[] = indexes.map((index) => ({
+    const drafts: EventDraft[] = indexes.map((index) => ({
       type: 'context-loaded',
       slot: index.slot,
       key: index.path,
       content: index.content,
     }))
+
+    for (const index of indexes) {
+      if (!indexNearsBound(index)) continue
+      drafts.push({
+        type: 'context-loaded',
+        slot: EContextSlot.Memory,
+        key: `memory-reconcile:${index.directory}`,
+        content: reconcileNudgeText({
+          directory: index.directory,
+          size: { lines: index.lines, bytes: index.bytes },
+        }),
+      })
+    }
 
     return { drafts }
   }

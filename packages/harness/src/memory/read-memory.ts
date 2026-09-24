@@ -15,9 +15,12 @@ export type MemoryDirectories = {
 
 export type LoadedMemoryIndex = {
   path: string
+  directory: string
   slot: EContextSlot
   content: string
   wholeFile: boolean
+  lines: number
+  bytes: number
 }
 
 export type MemoryReadProblem = {
@@ -59,7 +62,13 @@ export async function ensureMemoryDirectories(directories: MemoryDirectories): P
 
 const readIndex = async (
   path: string,
-): Promise<{ content?: string; wholeFile?: boolean; problem?: MemoryReadProblem }> => {
+): Promise<{
+  content?: string
+  wholeFile?: boolean
+  lines?: number
+  bytes?: number
+  problem?: MemoryReadProblem
+}> => {
   try {
     const stats = await stat(path)
     if (!stats.isFile()) return {}
@@ -68,7 +77,12 @@ const readIndex = async (
     if (raw.trim() === '') return {}
 
     const bounded = boundedIndex({ content: raw })
-    return { content: bounded.text, wholeFile: !bounded.lineCapped && !bounded.byteCapped }
+    return {
+      content: bounded.text,
+      wholeFile: !bounded.lineCapped && !bounded.byteCapped,
+      lines: bounded.lines,
+      bytes: bounded.bytes,
+    }
   } catch (error) {
     const code = error instanceof Error && 'code' in error ? String(error.code) : String(error)
     if (code === 'ENOENT') return {}
@@ -83,11 +97,19 @@ export async function readMemoryIndexes(directories: MemoryDirectories): Promise
 
   for (const directory of [directories.user, directories.project]) {
     const path = memoryIndexIn(directory)
-    const { content, wholeFile, problem } = await readIndex(path)
+    const { content, wholeFile, lines, bytes, problem } = await readIndex(path)
     if (problem !== undefined) problems.push(problem)
     if (content === undefined) continue
 
-    indexes.push({ path, slot: EContextSlot.Memory, content, wholeFile: wholeFile ?? true })
+    indexes.push({
+      path,
+      directory,
+      slot: EContextSlot.Memory,
+      content,
+      wholeFile: wholeFile ?? true,
+      lines: lines ?? 0,
+      bytes: bytes ?? 0,
+    })
   }
 
   return { indexes, problems }
