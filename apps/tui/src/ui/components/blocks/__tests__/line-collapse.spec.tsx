@@ -9,7 +9,7 @@ import { toCallId } from '@dltech/atlas-core'
 import { ECallState, type ToolCall } from '../../../../store'
 import { EDetail } from '../../../../store/tools'
 import { frameSettled } from '../../../__tests__/waiting'
-import { grammarsReady, settle, teardown } from '../../../markdown/__tests__/harness'
+import { grammarsReady, teardown } from '../../../markdown/__tests__/harness'
 import { styledLines } from '../../../markdown/__tests__/streamed-corpus'
 import { ToolDetail } from '../tool-detail'
 
@@ -300,26 +300,34 @@ function nodeFor(args: { name: string; width: number }): React.ReactNode {
   return <ToolDetail detail={detail} call={build(args.width)} inner={args.width - 6} cwd={CWD} />
 }
 
-async function capturePlain(args: { name: string; width: number }): Promise<Capture> {
+const sameSpans = (a: Capture, b: Capture): boolean => a.spans.join('\n') === b.spans.join('\n')
+
+async function capturePair(args: { name: string; width: number }): Promise<Entry> {
   const sentinel = SENTINELS[args.name] ?? ''
   const setup = await testRender(nodeFor(args), { width: args.width, height: HEIGHT })
   try {
+    let plain: Capture | null = null
     for (let hop = 0; hop < 4000; hop += 1) {
-      if (setup.captureCharFrame().includes(sentinel)) return capture(setup)
+      if (setup.captureCharFrame().includes(sentinel)) {
+        plain = capture(setup)
+        break
+      }
       await tick()
     }
-    throw new Error(`${args.name}@${args.width}: never drew ${JSON.stringify(sentinel)}`)
-  } finally {
-    await teardown(setup)
-  }
-}
-
-async function captureSettled(args: { name: string; width: number }): Promise<Capture> {
-  const setup = await testRender(nodeFor(args), { width: args.width, height: HEIGHT })
-  try {
-    await settle()
+    if (plain === null) {
+      throw new Error(`${args.name}@${args.width}: never drew ${JSON.stringify(sentinel)}`)
+    }
+    if (HIGHLIGHTED.has(args.name)) {
+      const deadline = Date.now() + 10_000
+      while (sameSpans(plain, capture(setup))) {
+        if (Date.now() >= deadline) {
+          throw new Error(`${args.name}@${args.width}: the highlight never landed`)
+        }
+        await tick()
+      }
+    }
     await frameSettled({ setup, within: 3000 })
-    return capture(setup)
+    return { plain, settled: capture(setup) }
   } finally {
     await teardown(setup)
   }
@@ -329,8 +337,7 @@ describe('line blocks draw the same cells before and after the collapse', () => 
   for (const name of Object.keys(CALLS)) {
     for (const width of WIDTHS) {
       it(`${name} at ${width}, plain and settled`, async () => {
-        const plain = await capturePlain({ name, width })
-        const settled = await captureSettled({ name, width })
+        const { plain, settled } = await capturePair({ name, width })
         if (HIGHLIGHTED.has(name)) {
           expect(plain, `${name}@${width} plain capture was already coloured`).not.toEqual(settled)
         }

@@ -12,7 +12,7 @@ const TAKE_BACK = '↑ to edit'
 
 const script = { thinking: THINKING, reply: REPLY }
 
-const slowly = () => fakeApp({ model: scriptedModelPort({ script, perChunkMs: 300 }) })
+const slowly = () => fakeApp({ model: scriptedModelPort({ script, perChunkMs: 50 }) })
 
 const promptly = () => fakeApp({ model: scriptedModelPort({ script }) })
 
