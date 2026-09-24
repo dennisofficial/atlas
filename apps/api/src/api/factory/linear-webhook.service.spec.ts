@@ -11,6 +11,7 @@ import { fakeFactoryDb } from '../../../test/fake-factory-db.js'
 import { FactoryConnectionsService } from './connections/connections.service'
 import type { FactoryDrivesService } from './drives/drives.service'
 import { EFactoryEventKind, EFactoryWorkItemStatus } from './factory.types'
+import type { LinearTokensService } from './linear/linear-tokens.service'
 import { LinearWebhookService } from './linear-webhook.service'
 import type { OrchestratorService } from './orchestrator/orchestrator.service'
 import type { StationsService } from './stations/stations.service'
@@ -116,6 +117,7 @@ describe('LinearWebhookService', () => {
   let orchestrator: { wake: ReturnType<typeof vi.fn> }
   let drives: { release: ReturnType<typeof vi.fn> }
   let stations: { stopRunningFor: ReturnType<typeof vi.fn> }
+  let linearTokens: { getToken: ReturnType<typeof vi.fn> }
   let warn: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
@@ -125,6 +127,7 @@ describe('LinearWebhookService', () => {
     orchestrator = { wake: vi.fn() }
     drives = { release: vi.fn(async () => true) }
     stations = { stopRunningFor: vi.fn(async () => undefined) }
+    linearTokens = { getToken: vi.fn(async () => { throw new Error('no token in specs') }) }
     service = new LinearWebhookService(
       workItems,
       new FactoryConnectionsService(),
@@ -132,6 +135,7 @@ describe('LinearWebhookService', () => {
       orchestrator as unknown as OrchestratorService,
       drives as unknown as FactoryDrivesService,
       stations as unknown as StationsService,
+      linearTokens as unknown as LinearTokensService,
     )
   })
 
@@ -300,14 +304,74 @@ describe('LinearWebhookService', () => {
     ])
   })
 
-  it('a comment on an untracked issue is not handled and nothing is stored', async () => {
+  it('a comment without a mention on an untracked issue is not handled and nothing is stored', async () => {
     seedConnection()
 
     const outcome = await service.handle({ deliveryId: 'd-comment', payload: commentCreatedPayload() })
 
     expect(outcome).toEqual({ handled: false })
     expect(fake.transcriptEvents).toHaveLength(0)
+    expect(fake.workItems).toHaveLength(0)
     expect(orchestrator.wake).not.toHaveBeenCalled()
+  })
+
+  it('a comment mentioning the agent on an untracked issue intakes a work item and wakes it', async () => {
+    seedConnection()
+    const payload = commentCreatedPayload() as { data: { body: string } }
+    payload.data.body = 'hey @Atlas can you take a look at this?'
+
+    const outcome = await service.handle({ deliveryId: 'd-mention', payload })
+
+    expect(outcome).toMatchObject({ handled: true, kind: EFactoryEventKind.Intake, appended: true })
+    expect(fake.workItems).toHaveLength(1)
+    expect(fake.workItems[0]?.organizationId).toBe('org_compai')
+    expect(fake.workItems[0]?.sourceKind).toBe('linear')
+    expect(fake.aliases).toMatchObject([{ surface: 'linear', externalId: ISSUE_ID, kind: 'issue' }])
+    expect(orchestrator.wake).toHaveBeenCalledTimes(1)
+  })
+
+  it('a mention intake resolves the issue identifier for the work item label when it can', async () => {
+    seedConnection()
+    linearTokens.getToken.mockResolvedValue('token-1')
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: {
+            issue: {
+              id: ISSUE_ID,
+              identifier: 'ENG-123',
+              title: 'Fix the thing',
+              description: null,
+              url: 'https://linear.app/issue/ENG-123',
+              state: { name: 'Backlog', type: 'backlog' },
+              comments: { nodes: [] },
+            },
+          },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    )
+    const payload = commentCreatedPayload() as { data: { body: string } }
+    payload.data.body = '@atlas take this'
+
+    try {
+      await service.handle({ deliveryId: 'd-mention', payload })
+    } finally {
+      fetchSpy.mockRestore()
+    }
+
+    expect(fake.workItems[0]?.repo).toBe('ENG-123')
+  })
+
+  it('a mention intake degrades to the raw issue id when the identifier lookup fails', async () => {
+    seedConnection()
+    const payload = commentCreatedPayload() as { data: { body: string } }
+    payload.data.body = '@atlas take this'
+
+    const outcome = await service.handle({ deliveryId: 'd-mention', payload })
+
+    expect(outcome).toMatchObject({ handled: true, kind: EFactoryEventKind.Intake })
+    expect(fake.workItems[0]?.repo).toBe(ISSUE_ID)
   })
 
   it('an unsupported event type is not handled', async () => {

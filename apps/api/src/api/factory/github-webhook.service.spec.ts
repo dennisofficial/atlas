@@ -343,6 +343,18 @@ describe('GithubWebhookService', () => {
     expect(githubApp.addCommentReaction).toHaveBeenCalled()
   })
 
+  it('a differently-cased mention intakes — humans do not match the slug casing', async () => {
+    const payload = {
+      ...(issueCommentPayload({ body: '@Atlas-Factory can you pick this up?' }) as Record<string, unknown>),
+      installation: { id: 42 },
+    }
+
+    const outcome = await service.handle({ event: 'issue_comment', deliveryId: 'd-case', payload })
+
+    expect(outcome).toMatchObject({ handled: true, kind: EFactoryEventKind.Intake, appended: true })
+    expect(fake.workItems).toHaveLength(1)
+  })
+
   it('a longer login that merely starts with the slug is not a mention', async () => {
     const outcome = await service.handle({
       event: 'issue_comment',
