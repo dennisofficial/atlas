@@ -6,6 +6,7 @@ import {
 } from '@dltech/atlas-core'
 import {
   ETurnStatus,
+  LocalRewindMachinery,
   rewindThread,
   type RemoteDeltaChannel,
   type RewindKill,
@@ -37,7 +38,10 @@ const INTERRUPT_LOST =
 const INTERRUPT_ACKED_KEY = 'interrupt-acknowledged'
 const INTERRUPT_LOST_KEY = 'interrupt-lost'
 
-type InterruptChannel = Pick<RemoteDeltaChannel, 'onInterruptAck' | 'onError'>
+type InterruptChannel = Pick<
+  RemoteDeltaChannel,
+  'onInterruptAck' | 'onError' | 'onReady' | 'onTurnEnded'
+>
 
 const remoteChannelOf = (runner: unknown): InterruptChannel | null =>
   runner instanceof Object && 'onInterruptAck' in runner ? (runner as InterruptChannel) : null
@@ -114,8 +118,12 @@ export function useTurnDriver(args: {
   const undoSuppressed = useRef(false)
   const tailRef = useRef(false)
   const interruptAckedAt = useRef(0)
+  const remoteTurnInFlight = useRef(false)
 
   const cloudChannel = args.remoteChannel ?? remoteChannelOf(app.runner)
+  const machinery =
+    app.rewindMachinery ??
+    new LocalRewindMachinery({ agents: app.agents, shells: app.shells, services: app.services })
 
   /**
    * The interrupting stamp is a promise the serve's ack has to keep. The ack clears it; the
@@ -147,9 +155,18 @@ export function useTurnDriver(args: {
       notify({ key: INTERRUPT_LOST_KEY, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS, text: INTERRUPT_LOST })
     })
 
+    const unready = cloudChannel.onReady((ready) => {
+      remoteTurnInFlight.current = ready.turnInFlight
+    })
+    const unturned = cloudChannel.onTurnEnded(() => {
+      remoteTurnInFlight.current = false
+    })
+
     return () => {
       unack()
       unlost()
+      unready()
+      unturned()
     }
   }, [cloudChannel, readClock, stamp])
 
@@ -196,9 +213,7 @@ export function useTurnDriver(args: {
     const undone = await undoTurn({
       log: app.log,
       threads: app.threads,
-      agents: app.agents,
-      shells: app.shells,
-      services: app.services,
+      machinery,
       threadId,
     })
 
@@ -210,7 +225,7 @@ export function useTurnDriver(args: {
 
     await refresh()
     onUndone(undone.said)
-  }, [app.agents, app.log, app.services, app.shells, app.threads, onUndone, refresh, setFailure, threadId])
+  }, [app.log, app.threads, machinery, onUndone, refresh, setFailure, threadId])
 
   const drive = useCallback(
     (drafts: readonly EventDraft[]): Promise<void> => {
@@ -290,9 +305,7 @@ export function useTurnDriver(args: {
       const discarded = await discardInterrupted({
         log: app.log,
         threads: app.threads,
-        agents: app.agents,
-        shells: app.shells,
-        services: app.services,
+        machinery,
         threadId,
         confirmed,
       })
@@ -314,13 +327,14 @@ export function useTurnDriver(args: {
       await refresh()
       void drive([])
     })()
-  }, [app.agents, app.log, app.services, app.shells, app.threads, drive, forgetUsage, refresh, rewindConfirm, setFailure, threadId, working])
+  }, [app.log, app.threads, machinery, drive, forgetUsage, refresh, rewindConfirm, setFailure, threadId, working])
 
   const handleResumeFresh = useCallback(() => resumeFresh(true), [resumeFresh])
 
   const rewindTo = useCallback(
     async (toSeq: number, confirmed = false): Promise<void> => {
-      if (abort.current !== null) {
+      const sandboxTurning = cloudChannel !== null && remoteTurnInFlight.current
+      if (abort.current !== null || sandboxTurning) {
         notify({
           key: 'rewind-mid-turn',
           tone: ENoticeTone.Warn,
@@ -337,9 +351,7 @@ export function useTurnDriver(args: {
         const rewound = await rewindThread({
           log: app.log,
           threads: app.threads,
-          agents: app.agents,
-          shells: app.shells,
-          services: app.services,
+          machinery,
           threadId,
           toSeq,
           confirmed,
@@ -350,6 +362,7 @@ export function useTurnDriver(args: {
             rewindConfirm.handleOpen({
               toSeq,
               kills: rewound.kills,
+              reachable: rewound.reachable,
               onConfirmed: () => void rewindTo(toSeq, true),
             })
             return
@@ -375,7 +388,7 @@ export function useTurnDriver(args: {
         fireSettleListeners()
       }
     },
-    [app.agents, app.log, app.services, app.shells, app.threads, cancelCompaction, forgetUsage, refresh, rewindConfirm, setFailure, store, threadId],
+    [app.log, app.threads, machinery, cloudChannel, cancelCompaction, forgetUsage, refresh, rewindConfirm, setFailure, store, threadId],
   )
 
   const abortTurn = useCallback(() => {

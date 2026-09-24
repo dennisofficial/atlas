@@ -12,6 +12,7 @@ import {
 
 import { compactThread } from '../../../store/compact'
 import { UnstaffedServices, UnstaffedShells } from '../../../store/__tests__/harness'
+import { LocalRewindMachinery } from '../../../store/local-rewind-machinery'
 import { rewindThread } from '../../../store/rewind'
 import { openChildThread } from '../open-child'
 import {
@@ -70,9 +71,11 @@ const rewindToStart = (entry: OpenedSupervisor, confirmed = true) =>
   rewindThread({
     log: entry.harness.log,
     threads: entry.harness.threads,
-    agents: entry.supervisor,
-    shells: new UnstaffedShells(),
-    services: new UnstaffedServices(),
+    machinery: new LocalRewindMachinery({
+      agents: entry.supervisor,
+      shells: new UnstaffedShells(),
+      services: new UnstaffedServices(),
+    }),
     threadId: entry.parent,
     toSeq: 0,
     confirmed,
@@ -151,9 +154,11 @@ describe('a sub-agent whose delegation a rewind deletes', () => {
     await rewindThread({
       log: entry.harness.log,
       threads: entry.harness.threads,
-      agents: entry.supervisor,
-      shells: new UnstaffedShells(),
-      services: new UnstaffedServices(),
+      machinery: new LocalRewindMachinery({
+        agents: entry.supervisor,
+        shells: new UnstaffedShells(),
+        services: new UnstaffedServices(),
+      }),
       threadId: entry.parent,
       toSeq: 1,
       confirmed: true,
@@ -255,6 +260,7 @@ describe('a sub-agent whose delegation a rewind deletes', () => {
       ok: false,
       needsConfirmation: true,
       toSeq: 0,
+      reachable: true,
       kills: [
         {
           kind: 'agent',

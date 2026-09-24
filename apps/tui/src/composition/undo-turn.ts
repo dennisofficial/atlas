@@ -1,9 +1,7 @@
 import type { ThreadId, Event, EventLogPort } from '@dltech/atlas-core'
 import {
   rewindThread,
-  type AgentRegistryPort,
-  type ServiceRegistryPort,
-  type ShellRegistryPort,
+  type RewindMachineryPort,
   type ThreadStorePort,
 } from '@dltech/atlas-harness'
 
@@ -27,12 +25,10 @@ const wasSaid = (event: Event): event is Said => event.type === 'user-said'
 export async function undoTurn(args: {
   log: EventLogPort
   threads: ThreadStorePort
-  agents: AgentRegistryPort
-  shells: ShellRegistryPort
-  services: ServiceRegistryPort
+  machinery: RewindMachineryPort
   threadId: ThreadId
 }): Promise<Undo> {
-  const { log, threads, agents, shells, services, threadId } = args
+  const { log, threads, machinery, threadId } = args
 
   const said = (await log.readOwn({ threadId })).findLast(wasSaid)
   if (said === undefined) return { type: EUndo.Nothing }
@@ -40,9 +36,7 @@ export async function undoTurn(args: {
   const rewound = await rewindThread({
     log,
     threads,
-    agents,
-    shells,
-    services,
+    machinery,
     threadId,
     toSeq: said.seq - 1,
   })

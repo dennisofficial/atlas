@@ -26,14 +26,14 @@ const completePathsSchema = z.object({
 
 const browseDirectorySchema = z.object({ directory: z.string() })
 
-const refused = (args: { replyTo: string; message: string }): ReplyFrame => ({
+export const refusedRequest = (args: { replyTo: string; message: string }): ReplyFrame => ({
   kind: EServeFrame.Reply,
   replyTo: args.replyTo,
   ok: false,
   data: { message: args.message },
 })
 
-const answered = (args: { replyTo: string; data: unknown }): ReplyFrame => ({
+export const answeredRequest = (args: { replyTo: string; data: unknown }): ReplyFrame => ({
   kind: EServeFrame.Reply,
   replyTo: args.replyTo,
   ok: true,
@@ -46,7 +46,7 @@ async function completePaths(args: {
 }): Promise<ReplyFrame> {
   const parsed = completePathsSchema.safeParse(args.frame.params)
   if (!parsed.success) {
-    return refused({ replyTo: args.frame.id, message: 'complete-paths wants { query, limit? }' })
+    return refusedRequest({ replyTo: args.frame.id, message: 'complete-paths wants { query, limit? }' })
   }
 
   const { directory, fragment } = splitMentionQuery(parsed.data.query)
@@ -56,7 +56,7 @@ async function completePaths(args: {
     parsed.data.limit ?? MAX_COMPLETIONS,
   )
 
-  return answered({ replyTo: args.frame.id, data: { directory, fragment, entries: matches } })
+  return answeredRequest({ replyTo: args.frame.id, data: { directory, fragment, entries: matches } })
 }
 
 async function browseDirectory(args: {
@@ -65,11 +65,11 @@ async function browseDirectory(args: {
 }): Promise<ReplyFrame> {
   const parsed = browseDirectorySchema.safeParse(args.frame.params)
   if (!parsed.success) {
-    return refused({ replyTo: args.frame.id, message: 'browse-directory wants { directory }' })
+    return refusedRequest({ replyTo: args.frame.id, message: 'browse-directory wants { directory }' })
   }
 
   const entries = await args.files.list(parsed.data.directory)
-  return answered({ replyTo: args.frame.id, data: { directory: parsed.data.directory, entries } })
+  return answeredRequest({ replyTo: args.frame.id, data: { directory: parsed.data.directory, entries } })
 }
 
 async function publishWorkspaceHandler(args: {
@@ -77,7 +77,7 @@ async function publishWorkspaceHandler(args: {
   publish: WorkspacePublisher
 }): Promise<ReplyFrame> {
   const published = await args.publish()
-  return answered({ replyTo: args.frame.id, data: published })
+  return answeredRequest({ replyTo: args.frame.id, data: published })
 }
 
 export async function answerRequest(args: {

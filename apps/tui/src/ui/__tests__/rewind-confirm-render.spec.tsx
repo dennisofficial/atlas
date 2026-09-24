@@ -22,7 +22,7 @@ const ROWS: readonly RewindConfirmRow[] = [
 const dialog = (over: { rows?: readonly RewindConfirmRow[]; width?: number } = {}) => (
   <RewindConfirm
     width={over.width ?? WIDTH}
-    state={{ toSeq: 4, rows: over.rows ?? ROWS }}
+    state={{ toSeq: 4, rows: over.rows ?? ROWS, reachable: true }}
     overlay
     onConfirm={() => undefined}
     onDismiss={() => undefined}

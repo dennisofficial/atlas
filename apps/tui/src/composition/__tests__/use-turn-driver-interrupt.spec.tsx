@@ -23,7 +23,10 @@ const REFUSAL = "the sandbox socket is down — esc will interrupt once it's bac
 
 type Probe = { driver: TurnDriver | null; interrupting: boolean }
 
-type FakeRemoteChannel = Pick<RemoteDeltaChannel, 'onInterruptAck' | 'onError'> & {
+type FakeRemoteChannel = Pick<
+  RemoteDeltaChannel,
+  'onInterruptAck' | 'onError' | 'onReady' | 'onTurnEnded'
+> & {
   acknowledgeInterrupt(): void
   failTransport(message: string): void
 }
@@ -45,6 +48,8 @@ const fakeRemoteChannel = (): FakeRemoteChannel => {
         failures.delete(listener)
       }
     },
+    onReady: () => () => undefined,
+    onTurnEnded: () => () => undefined,
     acknowledgeInterrupt() {
       for (const listener of [...acks]) listener({ turnInFlight: true })
     },
