@@ -3,6 +3,7 @@ import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
+import { frameShowing } from '../../ui/__tests__/waiting'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { NO_THREADS, THREADS_HEADING } from '../../ui/components/threads'
 import { App } from '../app'
@@ -103,10 +104,8 @@ describe('/resume', () => {
       await ran(setup, '/resume')
       setup.mockInput.pressEnter()
       await setup.flush()
-      await settle(400)
-      await setup.flush()
 
-      const frame = setup.captureCharFrame()
+      const frame = await frameShowing({ setup, text: 'wire up accounts' })
       expect(frame).toContain('wire up accounts')
       expect(frame).not.toContain(THREADS_HEADING.toUpperCase())
     } finally {
@@ -129,8 +128,7 @@ describe('/resume', () => {
       await ran(setup, '/resume')
       setup.mockInput.pressEnter()
       await setup.flush()
-      await settle(400)
-      await setup.flush()
+      await frameShowing({ setup, text: 'wire up accounts' })
 
       expect(refKey(app.model.choice().ref)).toBe('anthropic/claude-opus-5')
       expect(app.model.choice().effort).toBe(EEffort.High)
