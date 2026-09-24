@@ -335,6 +335,8 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
         } catch (error) {
           contextError = error
           throw error
+        } finally {
+          onProgress(ELiftStep.Starting)
         }
       },
     })

@@ -24,6 +24,7 @@ describe('lifting a conversation into the cloud', () => {
       ELiftStep.Capturing,
       ELiftStep.Starting,
       ELiftStep.UploadingContext,
+      ELiftStep.Starting,
       ELiftStep.Attaching,
     ])
   })
