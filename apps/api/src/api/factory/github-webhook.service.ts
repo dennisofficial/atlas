@@ -203,10 +203,19 @@ export class GithubWebhookService {
 
   private async acknowledgeIntake(args: {
     payload: Pick<GithubIssuesEventPayload, 'installation' | 'repository' | 'issue'>
+    commentId?: number
   }): Promise<void> {
     const installationId = args.payload.installation?.id
     if (installationId === undefined) return
     try {
+      if (args.commentId !== undefined) {
+        await this.githubApp.addCommentReaction({
+          installationId,
+          repoFullName: args.payload.repository.full_name,
+          commentId: args.commentId,
+        })
+        return
+      }
       await this.githubApp.addIssueReaction({
         installationId,
         repoFullName: args.payload.repository.full_name,
@@ -268,7 +277,7 @@ export class GithubWebhookService {
       externalId: args.externalId,
       aliasKind: payload.issue.pull_request === undefined ? EFactoryAliasKind.Issue : EFactoryAliasKind.PullRequest,
     })
-    await this.acknowledgeIntake({ payload })
+    await this.acknowledgeIntake({ payload, commentId: payload.comment.id })
     return this.append({
       externalId: args.externalId,
       deliveryId: args.deliveryId,

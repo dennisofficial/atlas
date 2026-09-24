@@ -34,6 +34,7 @@ function issueCommentPayload(overrides: { authorAssociation?: string; body?: str
     action: 'created',
     issue: { number: 341 },
     comment: {
+      id: 9001,
       author_association: overrides.authorAssociation ?? 'OWNER',
       body: overrides.body ?? 'taking a look at this',
     },
@@ -60,6 +61,7 @@ describe('GithubWebhookService', () => {
     botLogin: ReturnType<typeof vi.fn>
     ownsAppId: ReturnType<typeof vi.fn>
     addIssueReaction: ReturnType<typeof vi.fn>
+    addCommentReaction: ReturnType<typeof vi.fn>
     appSlug: ReturnType<typeof vi.fn>
   }
   let drives: { release: ReturnType<typeof vi.fn> }
@@ -73,6 +75,7 @@ describe('GithubWebhookService', () => {
       botLogin: vi.fn(async () => 'atlas-factory[bot]'),
       ownsAppId: vi.fn((id: number | undefined) => id === 4275284),
       addIssueReaction: vi.fn(async () => undefined),
+      addCommentReaction: vi.fn(async () => undefined),
       appSlug: vi.fn(async () => 'atlas-factory'),
     }
     drives = { release: vi.fn(async () => true) }
@@ -252,10 +255,10 @@ describe('GithubWebhookService', () => {
     expect(fake.transcriptEvents).toMatchObject([
       { kind: EFactoryEventKind.Intake, author: 'dennislysenko', authorAssociation: 'owner' },
     ])
-    expect(githubApp.addIssueReaction).toHaveBeenCalledWith({
+    expect(githubApp.addCommentReaction).toHaveBeenCalledWith({
       installationId: 42,
       repoFullName: REPO,
-      issueNumber: 341,
+      commentId: 9001,
     })
     expect(orchestrator.wake).toHaveBeenCalledTimes(1)
     expect(orchestrator.wake).toHaveBeenCalledWith({ workItemId: outcome.workItemId, externalId: `${REPO}#341` })
@@ -268,7 +271,7 @@ describe('GithubWebhookService', () => {
       payload: {
         action: 'created',
         issue: { number: 87, pull_request: { url: `https://api.github.com/repos/${REPO}/pulls/87` } },
-        comment: { author_association: 'MEMBER', body: '@atlas-factory[bot] pick this up' },
+        comment: { id: 9002, author_association: 'MEMBER', body: '@atlas-factory[bot] pick this up' },
         repository: { full_name: REPO },
         sender: { login: 'tofik' },
         installation: { id: 42 },
@@ -277,10 +280,10 @@ describe('GithubWebhookService', () => {
 
     expect(outcome).toMatchObject({ handled: true, kind: EFactoryEventKind.Intake, appended: true })
     expect(fake.aliases).toMatchObject([{ surface: 'github', externalId: `${REPO}/pull/87`, kind: 'pull-request' }])
-    expect(githubApp.addIssueReaction).toHaveBeenCalledWith({
+    expect(githubApp.addCommentReaction).toHaveBeenCalledWith({
       installationId: 42,
       repoFullName: REPO,
-      issueNumber: 87,
+      commentId: 9002,
     })
     expect(orchestrator.wake).toHaveBeenCalledWith({
       workItemId: outcome.workItemId,
@@ -304,7 +307,7 @@ describe('GithubWebhookService', () => {
       { kind: EFactoryEventKind.Intake },
       { kind: EFactoryEventKind.Comment },
     ])
-    expect(githubApp.addIssueReaction).not.toHaveBeenCalled()
+    expect(githubApp.addCommentReaction).not.toHaveBeenCalled()
     expect(orchestrator.wake).toHaveBeenCalledTimes(1)
   })
 
@@ -318,7 +321,7 @@ describe('GithubWebhookService', () => {
 
     expect(outcome).toMatchObject({ handled: true, kind: EFactoryEventKind.Intake, appended: true })
     expect(fake.workItems).toHaveLength(1)
-    expect(githubApp.addIssueReaction).toHaveBeenCalled()
+    expect(githubApp.addCommentReaction).toHaveBeenCalled()
   })
 
   it('a longer login that merely starts with the slug is not a mention', async () => {
@@ -344,7 +347,7 @@ describe('GithubWebhookService', () => {
     expect(outcome).toEqual({ handled: false })
     expect(fake.workItems).toHaveLength(0)
     expect(fake.transcriptEvents).toHaveLength(0)
-    expect(githubApp.addIssueReaction).not.toHaveBeenCalled()
+    expect(githubApp.addCommentReaction).not.toHaveBeenCalled()
     expect(orchestrator.wake).not.toHaveBeenCalled()
   })
 
