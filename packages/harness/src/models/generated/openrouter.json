@@ -800,9 +800,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 384000,
     "cost": {
-      "inputPerMillion": 0.07784,
-      "outputPerMillion": 0.15568,
-      "cacheReadPerMillion": 0.015568
+      "inputPerMillion": 0.08092,
+      "outputPerMillion": 0.16184,
+      "cacheReadPerMillion": 0.016184
     },
     "effort": {
       "high": "high",
@@ -820,8 +820,8 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.04,
-      "outputPerMillion": 0.64,
+      "inputPerMillion": 0.03,
+      "outputPerMillion": 0.32,
       "cacheReadPerMillion": 0.016
     },
     "effort": {
@@ -862,9 +862,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 384000,
     "cost": {
-      "inputPerMillion": 0.946386,
-      "outputPerMillion": 1.892772,
-      "cacheReadPerMillion": 0.078866
+      "inputPerMillion": 0.91089,
+      "outputPerMillion": 1.82178,
+      "cacheReadPerMillion": 0.075908
     },
     "effort": {
       "high": "high",
@@ -926,6 +926,27 @@
     "cost": {
       "inputPerMillion": 0,
       "outputPerMillion": 0
+    }
+  },
+  {
+    "ref": {
+      "providerId": "openrouter",
+      "modelId": "fireworks/ember-1"
+    },
+    "label": "Ember-1",
+    "api": "openai-completions",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 943718,
+    "cost": {
+      "inputPerMillion": 3,
+      "outputPerMillion": 15,
+      "cacheReadPerMillion": 0.3
+    },
+    "effort": {
+      "low": "low",
+      "high": "high",
+      "max": "max"
     }
   },
   {
@@ -1776,10 +1797,10 @@
     "api": "openai-completions",
     "contextWindow": 204800,
     "imageTier": "standard",
-    "maxOutputTokens": 131072,
+    "maxOutputTokens": 176947,
     "cost": {
-      "inputPerMillion": 0.255,
-      "outputPerMillion": 1.02
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 1.2
     }
   },
   {
@@ -2195,7 +2216,7 @@
     "imageTier": "standard",
     "maxOutputTokens": 235929,
     "cost": {
-      "inputPerMillion": 0.7062,
+      "inputPerMillion": 0.6562,
       "outputPerMillion": 3.3,
       "cacheReadPerMillion": 0.18
     }
@@ -2234,27 +2255,6 @@
     "cost": {
       "inputPerMillion": 0,
       "outputPerMillion": 0
-    },
-    "effort": {
-      "off": "none",
-      "medium": "medium",
-      "high": "high"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "openrouter",
-      "modelId": "nex-agi/nex-n2.5-pro"
-    },
-    "label": "Nex-N2.5-Pro",
-    "api": "openai-completions",
-    "contextWindow": 262144,
-    "imageTier": "standard",
-    "maxOutputTokens": 235929,
-    "cost": {
-      "inputPerMillion": 0.075,
-      "outputPerMillion": 0.25,
-      "cacheReadPerMillion": 0.015
     },
     "effort": {
       "off": "none",
@@ -3827,10 +3827,10 @@
     "api": "openai-completions",
     "contextWindow": 262144,
     "imageTier": "standard",
-    "maxOutputTokens": 32000,
+    "maxOutputTokens": 235929,
     "cost": {
-      "inputPerMillion": 0.04815,
-      "outputPerMillion": 0.19305
+      "inputPerMillion": 0.1,
+      "outputPerMillion": 0.3
     }
   },
   {
@@ -4000,10 +4000,11 @@
     "api": "openai-completions",
     "contextWindow": 262144,
     "imageTier": "standard",
-    "maxOutputTokens": 16384,
+    "maxOutputTokens": 235929,
     "cost": {
-      "inputPerMillion": 0.09,
-      "outputPerMillion": 1.1
+      "inputPerMillion": 0.1,
+      "outputPerMillion": 1.1,
+      "cacheReadPerMillion": 0.07
     }
   },
   {
@@ -4499,7 +4500,7 @@
       "providerId": "openrouter",
       "modelId": "qwen/qwen3.8-max-prime"
     },
-    "label": "Qwen3.8 Max Prime",
+    "label": "Qwen 3.8 Max Prime",
     "api": "openai-completions",
     "contextWindow": 1000000,
     "imageTier": "standard",
@@ -5357,11 +5358,11 @@
     "api": "openai-completions",
     "contextWindow": 1310720,
     "imageTier": "standard",
-    "maxOutputTokens": 131072,
+    "maxOutputTokens": 943717,
     "cost": {
-      "inputPerMillion": 0.84,
-      "outputPerMillion": 2.64,
-      "cacheReadPerMillion": 0.156
+      "inputPerMillion": 1.4,
+      "outputPerMillion": 4.4,
+      "cacheReadPerMillion": 0.26
     },
     "effort": {
       "low": "low",
@@ -5404,6 +5405,27 @@
       "inputPerMillion": 0.37,
       "outputPerMillion": 1.25,
       "cacheReadPerMillion": 0.09
+    },
+    "effort": {
+      "low": "low",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "openrouter",
+      "modelId": "z-ai/glm-5.3-prime"
+    },
+    "label": "GLM 5.3 Prime",
+    "api": "openai-completions",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 2.8,
+      "outputPerMillion": 8.8,
+      "cacheReadPerMillion": 0.56
     },
     "effort": {
       "low": "low",
@@ -5527,9 +5549,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.099,
-      "outputPerMillion": 0.6,
-      "cacheReadPerMillion": 0.06
+      "inputPerMillion": 0.04,
+      "outputPerMillion": 1,
+      "cacheReadPerMillion": 0.01
     },
     "effort": {
       "low": "low",
@@ -5546,11 +5568,11 @@
     "api": "openai-completions",
     "contextWindow": 1048576,
     "imageTier": "standard",
-    "maxOutputTokens": 943718,
+    "maxOutputTokens": 393216,
     "cost": {
-      "inputPerMillion": 0.3865,
-      "outputPerMillion": 2.9,
-      "cacheReadPerMillion": 0.25
+      "inputPerMillion": 0.3894,
+      "outputPerMillion": 1.1682,
+      "cacheReadPerMillion": 0.01239
     },
     "effort": {
       "low": "low",
@@ -5569,9 +5591,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.038,
-      "outputPerMillion": 0.55,
-      "cacheReadPerMillion": 0.0228
+      "inputPerMillion": 0.03,
+      "outputPerMillion": 0.32,
+      "cacheReadPerMillion": 0.016
     },
     "effort": {
       "low": "low",
@@ -5634,8 +5656,8 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 1.4989,
-      "outputPerMillion": 10.758,
+      "inputPerMillion": 1.4,
+      "outputPerMillion": 10.75,
       "cacheReadPerMillion": 0.3
     },
     "effort": {
@@ -5797,11 +5819,11 @@
     "api": "openai-completions",
     "contextWindow": 1310720,
     "imageTier": "standard",
-    "maxOutputTokens": 131072,
+    "maxOutputTokens": 128000,
     "cost": {
-      "inputPerMillion": 0.075,
-      "outputPerMillion": 0.25,
-      "cacheReadPerMillion": 0.015
+      "inputPerMillion": 0.045,
+      "outputPerMillion": 0.14,
+      "cacheReadPerMillion": 0.01
     },
     "effort": {
       "low": "low",
