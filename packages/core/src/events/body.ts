@@ -1,3 +1,4 @@
+import type { EAgentRestart } from '../agents/restart'
 import type { EAgentStart } from '../agents/start'
 import type { EAgentStatus } from '../agents/status'
 import type { EExecutionLocation } from '../execution/location'
@@ -162,6 +163,13 @@ export type EventBody =
       prose: string
       turns: number
       toolCalls: number
+    }
+  | {
+      type: 'agent-restarted'
+      agentId: ThreadId
+      agentType: string
+      intent: string
+      via: EAgentRestart
     }
   | {
       type: 'history-compacted'

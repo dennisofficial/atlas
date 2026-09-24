@@ -93,7 +93,7 @@ export function rewindPlan({
   const cuts: RewindCut[] = []
   const cutAgentIds = new Set<ThreadId>()
   for (const event of above) {
-    if (event.type !== 'agent-spawned') continue
+    if (event.type !== 'agent-spawned' && event.type !== 'agent-restarted') continue
     cutAgentIds.add(event.agentId)
     cuts.push({
       kind: 'agent',

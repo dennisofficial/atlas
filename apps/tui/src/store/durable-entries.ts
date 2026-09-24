@@ -3,7 +3,7 @@ import { EContextSlot, latestTldrPerAnchor, quotedShellCommand, type AssistantPa
 import { formatElapsed } from '../ui/theme'
 
 
-import { agentEndedLine, agentEndingFailed } from './agent-ended-line'
+import { agentEndedLine, agentEndingFailed, agentRestartedLine } from './agent-ended-line'
 import { modelEntries } from './model-entries'
 import { serviceEndedLine, serviceEndingFailed } from './service-ended-line'
 import { shellAwaitingInputLine, shellEndedLine, shellEndingFailed } from './shell-ended-line'
@@ -244,6 +244,18 @@ export function durableEntries(args: {
           agentId: event.agentId,
           report: event.prose,
           failed: agentEndingFailed(event),
+        },
+      ]
+    }
+
+    if (event.type === 'agent-restarted') {
+      return [
+        {
+          kind: EEntryKind.AgentRestarted,
+          author: EAuthor.Model,
+          key: event.id,
+          text: agentRestartedLine(event),
+          agentId: event.agentId,
         },
       ]
     }

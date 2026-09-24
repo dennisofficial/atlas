@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EAgentStart, EAgentStatus, EKilledBy, toThreadId, type Event } from '@dltech/atlas-core'
+import {
+  EAgentRestart,
+  EAgentStart,
+  EAgentStatus,
+  EKilledBy,
+  toThreadId,
+  type Event,
+} from '@dltech/atlas-core'
 
 import { durableEntries } from '../durable-entries'
 import { isExpandable } from '../expandable'
-import { EEntryKind, type AgentEndedEntry } from '../transcript-model'
+import { EEntryKind, type AgentEndedEntry, type AgentRestartedEntry } from '../transcript-model'
 import { log } from './fixture'
 
 const REPORT =
@@ -145,5 +152,62 @@ describe('a sub-agent ending in the transcript', () => {
 
     expect(entries).toHaveLength(2)
     expect(entries.map((entry) => entry.key)).toEqual(['event-1', 'event-2'])
+  })
+})
+
+const agentRestarted = (over: Record<string, unknown> = {}) => ({
+  type: 'agent-restarted' as const,
+  agentId: childId,
+  agentType: 'explore',
+  intent: 'audit the credential vault',
+  via: EAgentRestart.Resume,
+  ...over,
+})
+
+const onlyRestartEntry = (events: readonly Event[]): AgentRestartedEntry => {
+  const entry = durableEntries({ events }).find(
+    (candidate): candidate is AgentRestartedEntry => candidate.kind === EEntryKind.AgentRestarted,
+  )
+  if (entry === undefined) throw new Error('no restart entry was projected')
+  return entry
+}
+
+describe('a sub-agent restart in the transcript', () => {
+  it('is its own entry, so a rebuilt roster can be read against it', () => {
+    const entries = durableEntries({ events: log([agentRestarted()]) })
+
+    expect(entries).toHaveLength(1)
+    expect(entries[0]?.kind).toBe(EEntryKind.AgentRestarted)
+  })
+
+  it('names the child and that it was resumed', () => {
+    expect(onlyRestartEntry(log([agentRestarted()])).text).toBe(
+      'Sub-agent explore "audit the credential vault" resumed',
+    )
+  })
+
+  it('says when a message restarted the child', () => {
+    expect(onlyRestartEntry(log([agentRestarted({ via: EAgentRestart.Message })])).text).toContain(
+      'restarted by a message',
+    )
+  })
+
+  it('says when a queued notice woke the child', () => {
+    expect(onlyRestartEntry(log([agentRestarted({ via: EAgentRestart.Wake })])).text).toContain(
+      'woken by a queued notice',
+    )
+  })
+
+  it('says when the child moved with the conversation', () => {
+    expect(
+      onlyRestartEntry(log([agentRestarted({ via: EAgentRestart.Relocation })])).text,
+    ).toContain('moved with the conversation')
+  })
+
+  it('carries the child and offers no fold, because there is no report yet', () => {
+    const entry = onlyRestartEntry(log([agentRestarted()]))
+
+    expect(entry.agentId).toBe(childId)
+    expect(isExpandable(entry)).toBe(false)
   })
 })

@@ -1,4 +1,5 @@
 import {
+  EAgentRestart,
   EKilledBy,
   EMessageOrigin,
   NoopExecutionLocationSink,
@@ -22,6 +23,7 @@ import { AgentNoticeQueue } from './notices'
 import { openChildThread } from './open-child'
 import { forgetRemovedChildren } from './remove-children'
 import { AgentRegistryPort, type AgentOutcome, type RelocateChildrenArgs } from './port'
+import { recordRestart } from './record-restart'
 import { ChildRecovery } from './recovery'
 import {
   childDirectory,
@@ -182,6 +184,7 @@ export class AgentSupervisor extends AgentRegistryPort {
     }
 
     child.projectDirectory ??= await childDirectory({ deps: this.deps, threadId: child.spawnedBy })
+    await recordRestart({ log: this.log, ids: this.ids, child, via: EAgentRestart.Wake })
     this.steps.take({
       child,
       agentType,

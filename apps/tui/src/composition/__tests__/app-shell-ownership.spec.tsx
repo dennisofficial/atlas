@@ -7,7 +7,7 @@ import React from 'react'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { HEADING } from '../../ui/components/exit-guard'
 import { App } from '../app'
-import { spokenIn } from './app-fixture'
+import { spokenIn, until } from './app-fixture'
 import { FAKE_CONFIG, fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
 await grammarsReady()
@@ -171,7 +171,16 @@ describe('a background shell belongs to the conversation that started it', () =>
 
       await resumeTheOther(setup)
 
-      expect(app.shells.pendingNotices({ threadId: other }).length).toBe(1)
+      const delivered = await until({
+        holds: async () =>
+          (await app.log.read({ threadId: other })).some(
+            (event) => event.type === 'background-shell-ended',
+          ),
+        within: 20_000,
+      })
+
+      expect(delivered).toBe(true)
+      expect(app.shells.pendingNotices({ threadId: other })).toEqual([])
     } finally {
       await teardown(setup)
     }

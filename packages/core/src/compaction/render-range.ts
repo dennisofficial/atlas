@@ -53,6 +53,10 @@ function lineOf(event: Event, payloadLimit: number): string | undefined {
     return `Sub-agent (${event.agentType}, ${event.intent}) ${event.status}: ${clipped(event.prose, payloadLimit)}`
   }
 
+  if (event.type === 'agent-restarted') {
+    return `Sub-agent (${event.agentType}, ${event.intent}) was restarted (via ${event.via})`
+  }
+
   if (event.type === 'background-shell-ended') {
     return `Background shell "${event.command}" ${event.status}: ${clipped(event.output, payloadLimit)}`
   }

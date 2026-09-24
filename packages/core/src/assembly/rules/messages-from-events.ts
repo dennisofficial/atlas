@@ -14,6 +14,7 @@ import {
   backgroundShellMatchedBlock,
   backgroundShellStillRunningBlock,
 } from './background-shell-block'
+import { agentRestartedBlock } from './agent-restarted-block'
 import { nudgeBlock } from './nudge-block'
 import { serviceEndedBlock } from './service-ended-block'
 
@@ -246,6 +247,17 @@ function walkEvents(events: readonly Event[]): Walk {
         message: {
           role: 'user',
           content: [{ type: 'text', text: serviceEndedBlock(event) }],
+        },
+        origin: originOf(event),
+      })
+      continue
+    }
+
+    if (event.type === 'agent-restarted') {
+      groups.push({
+        message: {
+          role: 'user',
+          content: [{ type: 'text', text: agentRestartedBlock(event) }],
         },
         origin: originOf(event),
       })

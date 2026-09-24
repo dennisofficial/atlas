@@ -1,4 +1,5 @@
 import {
+  EAgentRestart,
   EExecutionLocation,
   EKilledBy,
   projectDirectoryOf,
@@ -12,6 +13,7 @@ import type { ChildSteps } from './child-steps'
 import { agentTypeNamed, type SupervisorDeps } from './deps'
 import type { AgentOutcome, RelocateChildrenArgs } from './port'
 import { alreadyStepping, retiredAgentType, unknownAgent } from './reasons'
+import { recordRestart } from './record-restart'
 import type { ChildRecovery } from './recovery'
 import type { AgentRoster } from './roster'
 import { stopChild } from './stop-all'
@@ -130,7 +132,14 @@ export async function relocateThreadChildren(
   }
 
   for (const child of stepping) {
-    await resumeChild({ agentId: child.agentId, threadId, deps, roster, steps: args.steps })
+    await resumeChild({
+      agentId: child.agentId,
+      threadId,
+      deps,
+      roster,
+      steps: args.steps,
+      via: EAgentRestart.Relocation,
+    })
   }
 
   return stepping.map((child) => child.agentId)
@@ -168,7 +177,10 @@ function relocatableChildren({
 }
 
 export async function resumeChild(
-  args: { agentId: ThreadId; threadId: ThreadId } & Pick<Relocation, 'deps' | 'roster' | 'steps'>,
+  args: { agentId: ThreadId; threadId: ThreadId; via?: EAgentRestart | undefined } & Pick<
+    Relocation,
+    'deps' | 'roster' | 'steps'
+  >,
 ): Promise<AgentOutcome> {
   const { agentId, threadId, deps, roster, steps } = args
 
@@ -185,6 +197,12 @@ export async function resumeChild(
   }
 
   child.projectDirectory ??= await childDirectory({ deps, threadId })
+  await recordRestart({
+    log: deps.log,
+    ids: deps.ids,
+    child,
+    via: args.via ?? EAgentRestart.Resume,
+  })
   steps.take({
     child,
     agentType,

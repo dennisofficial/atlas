@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { EAgentRestart } from '../agents/restart'
 import { EAgentStart } from '../agents/start'
 import { EAgentStatus } from '../agents/status'
 import { EExecutionLocation } from '../execution/location'
@@ -231,6 +232,13 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     prose: z.string(),
     turns: z.number().int().nonnegative(),
     toolCalls: z.number().int().nonnegative(),
+  }),
+  z.object({
+    type: z.literal('agent-restarted'),
+    agentId: threadIdSchema,
+    agentType: z.string().min(1),
+    intent: z.string(),
+    via: z.enum(EAgentRestart),
   }),
   z.object({
     type: z.literal('history-compacted'),

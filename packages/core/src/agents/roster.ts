@@ -50,6 +50,23 @@ export function agentRoster({
       continue
     }
 
+    if (event.type === 'agent-restarted') {
+      const previous = held.get(event.agentId)
+      held.set(event.agentId, {
+        agentId: event.agentId,
+        agentType: event.agentType,
+        intent: event.intent,
+        status: EAgentStatus.Stopped,
+        turns: previous?.turns ?? 0,
+        toolCalls: previous?.toolCalls ?? 0,
+        prose: previous?.prose ?? '',
+        killedBy: undefined,
+        spawnedAt: previous?.spawnedAt ?? event.at,
+        endedAt: undefined,
+      })
+      continue
+    }
+
     if (event.type !== 'agent-ended') continue
 
     held.set(event.agentId, {

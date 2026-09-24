@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EAgentRestart } from '../../agents/restart'
 import { EAgentStart } from '../../agents/start'
 import { EAgentStatus } from '../../agents/status'
 import { EShellStatus } from '../../shells/status'
@@ -41,6 +42,13 @@ const agentEnded = (agentId = CHILD): EventDraft => ({
   prose: 'four callers',
   turns: 3,
   toolCalls: 7,
+})
+const restarted = (agentId = CHILD): EventDraft => ({
+  type: 'agent-restarted',
+  agentId,
+  agentType: 'explore',
+  intent: 'find the callers',
+  via: EAgentRestart.Resume,
 })
 
 describe('rewindPlan for sub-agents', () => {
@@ -98,6 +106,24 @@ describe('rewindPlan for sub-agents', () => {
     expect(plan.reappend.map((notice) => notice.draft)).toEqual([
       expect.objectContaining({ agentId: CHILD }),
     ])
+  })
+
+  it('cuts a child whose restart sits above the cut, though its spawn survives', () => {
+    const events = eventsFrom([spawned(), agentEnded(), said('msg_3'), restarted(), said('msg_5')])
+
+    const plan = rewindPlan({ events, toSeq: 3 })
+
+    expect(plan.cuts).toEqual([
+      { kind: 'agent', seq: 4, agentId: CHILD, agentType: 'explore', intent: 'find the callers' },
+    ])
+  })
+
+  it('never re-appends a restart, and drops the ending of the child it cut', () => {
+    const events = eventsFrom([spawned(), agentEnded(), restarted(), agentEnded()])
+
+    const plan = rewindPlan({ events, toSeq: 2 })
+
+    expect(plan.reappend).toEqual([])
   })
 })
 

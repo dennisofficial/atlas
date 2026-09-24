@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EKilledBy } from '../../shells/status'
+import { EAgentRestart } from '../restart'
 import { EAgentStart } from '../start'
 import { EAgentStatus } from '../status'
 import type { Event } from '../../events/envelope'
@@ -53,6 +54,14 @@ const ended = ({
   prose: 'four callers',
   turns: 3,
   toolCalls: 7,
+})
+
+const restarted = (agentId = CHILD): EventDraft => ({
+  type: 'agent-restarted',
+  agentId,
+  agentType: 'explore',
+  intent: 'find the callers',
+  via: EAgentRestart.Resume,
 })
 
 describe('the roster a parent rebuilds from its own log', () => {
@@ -131,6 +140,45 @@ describe('the roster a parent rebuilds from its own log', () => {
 
     expect(roster).toHaveLength(1)
     expect(roster[0]?.status).toBe(EAgentStatus.Finished)
+  })
+
+  it('reads a restart with no ending behind it as lost, not as the stale ending before it', () => {
+    const roster = agentRoster({
+      events: [rowOf(spawned()), rowOf(ended({ status: EAgentStatus.Failed })), rowOf(restarted())],
+      threadId: PARENT,
+    })
+
+    expect(roster).toHaveLength(1)
+    expect(roster[0]?.status).toBe(EAgentStatus.Stopped)
+    expect(roster[0]?.endedAt).toBeUndefined()
+    expect(roster[0]?.killedBy).toBeUndefined()
+    expect(roster[0] === undefined ? undefined : isLost(roster[0])).toBe(true)
+  })
+
+  it('keeps the earlier work across a restart, so a later loss still counts it', () => {
+    const roster = agentRoster({
+      events: [rowOf(spawned()), rowOf(ended({ status: EAgentStatus.Failed })), rowOf(restarted())],
+      threadId: PARENT,
+    })
+
+    expect(roster[0]?.turns).toBe(3)
+    expect(roster[0]?.toolCalls).toBe(7)
+    expect(roster[0]?.prose).toBe('four callers')
+  })
+
+  it('lets a later ending close a restarted child', () => {
+    const roster = agentRoster({
+      events: [
+        rowOf(spawned()),
+        rowOf(ended({ status: EAgentStatus.Failed })),
+        rowOf(restarted()),
+        rowOf(ended({ status: EAgentStatus.Finished })),
+      ],
+      threadId: PARENT,
+    })
+
+    expect(roster[0]?.status).toBe(EAgentStatus.Finished)
+    expect(roster[0]?.endedAt).toBeDefined()
   })
 
   it('reads only the rows the thread owns, never an inherited prefix', () => {

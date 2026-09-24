@@ -641,6 +641,16 @@ the missing `agent-ended` — is called once per conversation from `openConversa
 render or a `getSnapshot`. Nothing auto-resumes a recovered child. That is the operator's call,
 because one that died mid-`bash` may have left the tree changed.
 
+**A restart is recorded, because an unrecorded one rebuilds as the stale ending before it.**
+`agent_resume`, a message to a stopped child, a queued-notice wake, and a relocation each append
+one `agent-restarted` row to the parent's log before the child steps again. Without it, a process
+that dies mid-restart leaves the parent's log saying the child *ended* — and the rebuilt roster
+shows that stale ending with its old counts, which the sidebar and `agent_list` then report as
+fact while the model concludes the resume never happened. With it, the rebuild reads an un-ended
+child, `recordLostAgents` settles it as `Unrecorded` on open, and the transcript says what is
+true: the child was restarted and nothing recorded how that ended. A rewind treats a cut restart
+like a cut spawn — the child it revived is a creation of the cut region and is destroyed with it.
+
 **A settled loss needs no second surface, and did not get one.** `settleLostChildren` writes a real
 `agent-ended` carrying `Unrecorded`, `openConversation` does that *before* reading events, and the
 transcript renders it like any other ending — so reopening a conversation already says a sub-agent
