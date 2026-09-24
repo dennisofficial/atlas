@@ -14,6 +14,7 @@ import { stopLocalWork } from './cloud/stop-local'
 import { cloudLiftPlan } from './container-move'
 import type { AtlasApp } from './compose'
 import { messageOf } from './error-text'
+import type { OpenedConversation } from './open-conversation'
 import type { LiftedAttachment } from './lifted-session'
 import type { ContainerMoveControl } from './use-container-move'
 
@@ -87,6 +88,7 @@ export function useCloudLift(args: {
           cwd: latest.current.projectDirectory,
         }).catch(() => undefined)
 
+        let opened: OpenedConversation | undefined
         const lifted = await liftToCloud({
       threadId,
       cwd: latest.current.projectDirectory,
@@ -110,6 +112,11 @@ export function useCloudLift(args: {
       captureContext:
         latest.current.captureContext ??
         (() => captureContextArchive({ cwd: latest.current.projectDirectory })),
+      open: async (channel) => {
+        const runner = createCloudRunner({ bridge, channel, threadId, move })
+        const attached = cloudApp({ app, bridge, channel, runner })
+        opened = await openCloudConversation({ app: attached, threadId })
+      },
     })
 
         if (!lifted.ok) {
@@ -126,8 +133,10 @@ export function useCloudLift(args: {
 
         const runner = createCloudRunner({ bridge, channel: lifted.channel, threadId, move })
         const attached = cloudApp({ app, bridge, channel: lifted.channel, runner })
-        const opened = await openCloudConversation({ app: attached, threadId })
-        const arrived = lifted.resumeOnArrival ? { ...opened, resumeOnArrival: true } : opened
+        const conversation = opened ?? (await openCloudConversation({ app: attached, threadId }))
+        const arrived = lifted.resumeOnArrival
+          ? { ...conversation, resumeOnArrival: true }
+          : conversation
 
         move.handleSettle()
         onLifted({ app: attached, opened: arrived, bridge, channel: lifted.channel })

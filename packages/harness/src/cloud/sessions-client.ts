@@ -269,7 +269,10 @@ export class SessionsClient {
   }
 
   async threadHead(args: { threadId: string }): Promise<number> {
-    const body = await this.request({ method: 'GET', path: `/v1/threads/${args.threadId}/head` })
+    const body = await this.request({
+      method: 'GET',
+      path: `/v1/threads/${args.threadId}/events/head`,
+    })
     return headResponseSchema.parse(body).head
   }
 
