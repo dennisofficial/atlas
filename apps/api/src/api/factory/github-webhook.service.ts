@@ -254,8 +254,9 @@ export class GithubWebhookService {
     externalId: string
   }): Promise<GithubWebhookOutcome> {
     const { payload } = args
-    const botLogin = await this.githubApp.botLogin()
-    const mentioned = botLogin !== null && payload.comment.body.toLowerCase().includes(`@${botLogin}`)
+    const needle = await this.mentionNeedle()
+    const mentioned =
+      needle !== null && new RegExp(`${needle}(?![a-z0-9-])`).test(payload.comment.body.toLowerCase())
     if (!mentioned) return NOT_HANDLED
 
     const organizationId = await this.resolveOrganizationId({ installationId: payload.installation?.id })
@@ -276,6 +277,19 @@ export class GithubWebhookService {
       authorAssociation: payload.comment.author_association,
       payload,
     })
+  }
+
+  // Humans type @<slug>; only autocomplete produces @<slug>[bot]. The boundary keeps
+  // @atlas-by-dlish from matching, and the [bot] form matches through the '['.
+  private async mentionNeedle(): Promise<string | null> {
+    try {
+      const slug = await this.githubApp.appSlug()
+      return `@${slug.toLowerCase()}`
+    } catch (failure) {
+      const detail = failure instanceof Error ? failure.message : String(failure)
+      this.logger.warn(`could not resolve the factory app slug for mention detection: ${detail}`)
+      return null
+    }
   }
 
   private async handlePullRequestReview(args: {

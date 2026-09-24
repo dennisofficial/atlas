@@ -60,6 +60,7 @@ describe('GithubWebhookService', () => {
     botLogin: ReturnType<typeof vi.fn>
     ownsAppId: ReturnType<typeof vi.fn>
     addIssueReaction: ReturnType<typeof vi.fn>
+    appSlug: ReturnType<typeof vi.fn>
   }
   let drives: { release: ReturnType<typeof vi.fn> }
   let stations: { stopRunningFor: ReturnType<typeof vi.fn> }
@@ -72,6 +73,7 @@ describe('GithubWebhookService', () => {
       botLogin: vi.fn(async () => 'atlas-factory[bot]'),
       ownsAppId: vi.fn((id: number | undefined) => id === 4275284),
       addIssueReaction: vi.fn(async () => undefined),
+      appSlug: vi.fn(async () => 'atlas-factory'),
     }
     drives = { release: vi.fn(async () => true) }
     stations = { stopRunningFor: vi.fn(async () => undefined) }
@@ -306,8 +308,32 @@ describe('GithubWebhookService', () => {
     expect(orchestrator.wake).toHaveBeenCalledTimes(1)
   })
 
-  it('a mention-shaped comment on an untracked issue drops when the bot login is unconfigured', async () => {
-    githubApp.botLogin.mockResolvedValue(null)
+  it('a bare @slug mention (how humans type it) intakes on an untracked issue', async () => {
+    const payload = {
+      ...(issueCommentPayload({ body: '@atlas-factory fix ci on this branch' }) as Record<string, unknown>),
+      installation: { id: 42 },
+    }
+
+    const outcome = await service.handle({ event: 'issue_comment', deliveryId: 'd-bare', payload })
+
+    expect(outcome).toMatchObject({ handled: true, kind: EFactoryEventKind.Intake, appended: true })
+    expect(fake.workItems).toHaveLength(1)
+    expect(githubApp.addIssueReaction).toHaveBeenCalled()
+  })
+
+  it('a longer login that merely starts with the slug is not a mention', async () => {
+    const outcome = await service.handle({
+      event: 'issue_comment',
+      deliveryId: 'd-1',
+      payload: issueCommentPayload({ body: '@atlas-factoryish please look' }),
+    })
+
+    expect(outcome).toEqual({ handled: false })
+    expect(fake.workItems).toHaveLength(0)
+  })
+
+  it('a mention-shaped comment on an untracked issue drops when the app slug is unresolvable', async () => {
+    githubApp.appSlug.mockRejectedValue(new Error('github unreachable'))
 
     const outcome = await service.handle({
       event: 'issue_comment',
