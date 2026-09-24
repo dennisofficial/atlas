@@ -377,4 +377,28 @@ describe('OrchestratorService', () => {
     const updated = await workItems.find({ workItemId: workItem.id })
     expect(updated.orchestratorDeliveredEventId).toBe(landed?.id ?? '')
   })
+
+  it('a wake whose first provision fails still delivers after re-attaching to a running sandbox', async () => {
+    const { workItem } = await workItems.intake(INTAKE)
+    const event = await appendEvent(workItem.id, 'initializer')
+    sandboxes.status.mockRejectedValueOnce(
+      new Error('The drive has not been initialized yet. Please mount as read-write first.'),
+    )
+
+    service.wake({ workItemId: workItem.id, externalId: INTAKE.externalId })
+    await expect(service.whenSettled({ workItemId: workItem.id })).rejects.toThrow(
+      'not been initialized',
+    )
+    expect(channel.inject).not.toHaveBeenCalled()
+
+    sandboxes.runningEndpoint.mockResolvedValue(LIVE_ENDPOINT)
+    await wake(workItem.id)
+
+    expect(channel.inject).toHaveBeenCalledTimes(1)
+    const text = injectedTexts()[0] as string
+    expect(text).toContain('factory orchestrator')
+    expect(text).toContain(`[factory event] ${event?.id ?? ''}`)
+    const updated = await workItems.find({ workItemId: workItem.id })
+    expect(updated.orchestratorDeliveredEventId).toBe(event?.id ?? '')
+  })
 })

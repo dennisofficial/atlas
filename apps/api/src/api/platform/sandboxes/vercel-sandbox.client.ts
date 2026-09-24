@@ -174,6 +174,23 @@ export class VercelSandboxClient {
     await this.driveFor({ name: args.name, timeoutMs: SANDBOX_LAUNCH_TIMEOUT_MS })
   }
 
+  private async driveExists(args: { name: string }): Promise<boolean> {
+    try {
+      const drives = await Drive.list({
+        ...this.credentials(),
+        namePrefix: args.name,
+        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
+      })
+      for await (const drive of drives) {
+        if (drive.name === args.name) return true
+      }
+      return false
+    } catch (failure) {
+      if (isSandboxMissing(failure)) return false
+      throw asBadGateway(failure)
+    }
+  }
+
   async deleteDrive(args: { name: string }): Promise<void> {
     try {
       const drives = await Drive.list({
@@ -238,18 +255,23 @@ export class VercelSandboxClient {
     })
   }
 
+  /**
+   * A drive Vercel has never mounted read-write cannot be mounted as a snapshot at all — its
+   * storage is initialized by that first read-write attach, so a brand-new drive is mounted
+   * read-write once here (the one-shot initializer) even when the caller asked for a snapshot.
+   * An existing drive mounts in the caller's mode.
+   */
   private async mountsOf(
     drive: { name: string; mode: ESandboxDriveMode } | undefined,
   ): Promise<SandboxMounts | undefined> {
     if (drive === undefined) return undefined
+    const existed = await this.driveExists({ name: drive.name })
     const created = await this.driveFor({
       name: drive.name,
       timeoutMs: SANDBOX_LAUNCH_TIMEOUT_MS,
     })
-    return {
-      [WORKSPACE_PATH]:
-        drive.mode === ESandboxDriveMode.Snapshot ? created.snapshot() : created,
-    }
+    const readOnly = drive.mode === ESandboxDriveMode.Snapshot && existed
+    return { [WORKSPACE_PATH]: readOnly ? created.snapshot() : created }
   }
 
   private driveFor(args: { name: string; timeoutMs: number }): Promise<Drive> {
