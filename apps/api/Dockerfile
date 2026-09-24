@@ -4,7 +4,7 @@
 # manifests to honor --frozen-lockfile, and the api's node_modules are
 # symlinks into the root store (bunfig.toml pins the isolated linker).
 
-ARG BUN_IMAGE=oven/bun:1.3.14
+ARG BUN_IMAGE=oven/bun:1.4.2
 
 FROM ${BUN_IMAGE} AS deps
 WORKDIR /app
