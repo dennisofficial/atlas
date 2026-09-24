@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EAgentRestart } from '../../agents/restart'
+import { toThreadId } from '../../events/ids'
 import { EExecutionLocation } from '../../execution/location'
 import { transcriptOfRange } from '../render-range'
 import {
@@ -96,6 +98,22 @@ describe('transcriptOfRange', () => {
 
     expect(transcriptOfRange({ events, throughSeq: 1 })).toBe(
       "Atlas moved this conversation's processing to a cloud sandbox — earlier tool results came from the host — the working directory is now /workspace",
+    )
+  })
+
+  it('renders a sub-agent restart with the path that restarted it', () => {
+    const events = eventsFrom([
+      {
+        type: 'agent-restarted',
+        agentId: toThreadId('thread_child'),
+        agentType: 'explore',
+        intent: 'find the callers',
+        via: EAgentRestart.Resume,
+      },
+    ])
+
+    expect(transcriptOfRange({ events, throughSeq: 1 })).toBe(
+      'Sub-agent (explore, find the callers) was restarted (via resume)',
     )
   })
 

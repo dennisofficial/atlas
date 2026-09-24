@@ -113,6 +113,10 @@ describe('a supervisor waking a stopped child', () => {
     s.runners.started[1]?.settle(finished())
     await settled()
 
+    for (let attempt = 0; attempt < 50 && s.runners.started.length < 3; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 1))
+    }
+
     expect(s.runners.started).toHaveLength(3)
     expect(s.runners.started[2]?.threadId).toBe(teammate.snapshot.agentId)
     await s.close()

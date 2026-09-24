@@ -214,6 +214,19 @@ function DerivedEntryView(props: {
         </box>
       )
 
+    case EEntryKind.AgentRestarted:
+      return (
+        <NoticeBlock
+          text={entry.text}
+          body=""
+          failed={false}
+          width={props.width}
+          openHint={AGENT_REPORT_HINT}
+          silentNote={REPORTED_NOTHING}
+          expanded={false}
+        />
+      )
+
     case EEntryKind.LocationChanged:
       return <LocationDivider width={props.width} location={entry.to} />
 

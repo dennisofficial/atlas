@@ -1,4 +1,5 @@
 import {
+  EAgentRestart,
   EMessageOrigin,
   type EventLogPort,
   type IdPort,
@@ -12,6 +13,7 @@ import type { ChildSteps } from './child-steps'
 import { agentTypeNamed, type SupervisorDeps } from './deps'
 import type { AgentOutcome } from './port'
 import { NOT_A_TEAMMATE, notYourTeammate, retiredAgentType, unknownAgent } from './reasons'
+import { recordRestart } from './record-restart'
 import { childDirectory } from './relocate-children'
 import type { AgentRoster } from './roster'
 
@@ -76,6 +78,7 @@ async function deliver({
     ],
   })
   child.projectDirectory ??= await childDirectory({ deps, threadId: child.spawnedBy })
+  await recordRestart({ log, ids, child, via: EAgentRestart.Message })
   steps.take({
     child,
     agentType,

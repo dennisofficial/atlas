@@ -85,6 +85,7 @@ export * from './workspace/worktree-lock'
 export * from './workspace/identity'
 export * from './workspace/atlas-home'
 
+export * from './agents/restart'
 export * from './agents/start'
 export * from './agents/status'
 export * from './agents/label'
