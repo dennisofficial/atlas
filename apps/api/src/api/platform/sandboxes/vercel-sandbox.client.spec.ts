@@ -316,6 +316,7 @@ describe('VercelSandboxClient', () => {
   })
 
   it('mounts a snapshot mode drive as a read-only snapshot', async () => {
+    sdk.driveStore.set('factory-compai-atlas-341', { name: 'factory-compai-atlas-341' })
     const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
     await client.getOrCreate({
       name: 'factory-st-fsr-2',
@@ -329,6 +330,19 @@ describe('VercelSandboxClient', () => {
       drive: 'factory-compai-atlas-341',
       mode: 'snapshot',
     })
+  })
+
+  it('initializes a brand-new drive with a read-write mount before a snapshot can mount it', async () => {
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    await client.getOrCreate({
+      name: 'factory-fwi-new',
+      threadId: 'brn_orchestrator_new',
+      token: 'session-token',
+      drive: { name: 'factory-never-mounted', mode: ESandboxDriveMode.Snapshot },
+    })
+
+    const mounts = sdk.createParams[0]?.mounts as Record<string, unknown>
+    expect(mounts[WORKSPACE_PATH]).toBe(sdk.lastDrive)
   })
 
   it('deletes a drive by name through the SDK', async () => {
