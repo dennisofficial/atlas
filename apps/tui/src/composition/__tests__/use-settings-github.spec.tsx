@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it, jest } from 'bun:test'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -117,6 +117,21 @@ async function expectUntil(holds: () => boolean): Promise<void> {
   expect(holds()).toBe(true)
 }
 
+/**
+ * The hook clamps the device-flow poll to a 3s minimum (use-settings-github.ts), so the flow tests
+ * run on fake timers: advancing past the clamp fires the poll instantly, and macrotask drains let
+ * the fetch promises and React commits land without waiting out the real clock.
+ */
+async function drain(): Promise<void> {
+  for (let i = 0; i < 20; i += 1) {
+    await new Promise<void>((resolve) => {
+      const channel = new MessageChannel()
+      channel.port1.onmessage = () => resolve()
+      channel.port2.postMessage(0)
+    })
+  }
+}
+
 type Probe = { control: SettingsGithubControl | null }
 
 function Github(props: { cloud: CloudService; opened: string[]; probe: Probe }): React.ReactNode {
@@ -196,17 +211,22 @@ describe('useSettingsGithub', () => {
     const state = remote()
     const { probe, opened, done } = await mounted({ cloud: githubCloud({ state }) })
 
+    jest.useFakeTimers()
     try {
       controlOf(probe).activate()
-      await expectUntil(() => controlOf(probe).flow.status === ESettingsLogin.Prompting)
+      await drain()
+      expect(controlOf(probe).flow.status).toBe(ESettingsLogin.Prompting)
       expect(controlOf(probe).flow.prompt?.userCode).toBe('ABCD-1234')
       expect(opened).toEqual(['https://github.com/login/device'])
 
       state.approved = true
+      jest.advanceTimersByTime(3_000)
+      await drain()
       const notice = 'Connected GitHub as @octocat.'
-      await expectUntil(() => controlOf(probe).flow.notice === notice)
-      await expectUntil(() => controlOf(probe).connection?.login === 'octocat')
+      expect(controlOf(probe).flow.notice).toBe(notice)
+      expect(controlOf(probe).connection?.login).toBe('octocat')
     } finally {
+      jest.useRealTimers()
       controlOf(probe).stop()
       await done()
     }
@@ -216,17 +236,22 @@ describe('useSettingsGithub', () => {
     const state = remote()
     const { probe, done } = await mounted({ cloud: githubCloud({ state }) })
 
+    jest.useFakeTimers()
     try {
       controlOf(probe).activate()
-      await expectUntil(() => controlOf(probe).flow.status === ESettingsLogin.Prompting)
+      await drain()
+      expect(controlOf(probe).flow.status).toBe(ESettingsLogin.Prompting)
 
       controlOf(probe).stop()
-      await expectUntil(() => controlOf(probe).flow.status === ESettingsLogin.Idle)
+      await drain()
+      expect(controlOf(probe).flow.status).toBe(ESettingsLogin.Idle)
       const pollsAtStop = state.polls
-      await settle(3_500)
+      jest.advanceTimersByTime(10_000)
+      await drain()
 
       expect(state.polls).toBe(pollsAtStop)
     } finally {
+      jest.useRealTimers()
       await done()
     }
   }, 30_000)
@@ -236,11 +261,16 @@ describe('useSettingsGithub', () => {
     state.denied = true
     const { probe, done } = await mounted({ cloud: githubCloud({ state }) })
 
+    jest.useFakeTimers()
     try {
       controlOf(probe).activate()
+      await drain()
       const failure = 'that connection was refused.'
-      await expectUntil(() => controlOf(probe).flow.failure === failure)
+      jest.advanceTimersByTime(3_000)
+      await drain()
+      expect(controlOf(probe).flow.failure).toBe(failure)
     } finally {
+      jest.useRealTimers()
       controlOf(probe).stop()
       await done()
     }
