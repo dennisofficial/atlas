@@ -12,6 +12,7 @@ export {
   ClaudeCodeSourceToken,
   ClientVersionToken,
   CloudSessionStoreToken,
+  CloudSettingsStoreToken,
   CodexSourceToken,
   DockerEngineToken,
   HookChainToken,

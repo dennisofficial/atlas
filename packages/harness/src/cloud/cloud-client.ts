@@ -54,6 +54,14 @@ const cloudMcpServerWireSchema = z.strictObject({
 
 export type CloudMcpServer = ParsedMcpSpec & { updatedAt: string }
 
+const cloudSettingSchema = z.strictObject({
+  key: z.string().min(1),
+  value: z.string(),
+  updatedAt: z.string(),
+})
+
+export type CloudSetting = z.infer<typeof cloudSettingSchema>
+
 export class CloudClient {
   private readonly url: string
   private readonly token: string
@@ -199,6 +207,23 @@ export class CloudClient {
 
   async deleteSecret(args: { name: string }): Promise<void> {
     await this.request({ method: 'DELETE', path: `/v1/secrets/${args.name}` })
+  }
+
+  async listSettings(): Promise<readonly CloudSetting[]> {
+    const body = await this.request({ method: 'GET', path: '/v1/settings' })
+    return z.strictObject({ settings: z.array(cloudSettingSchema) }).parse(body).settings
+  }
+
+  async setSetting(args: { key: string; value: string }): Promise<void> {
+    await this.request({
+      method: 'PUT',
+      path: `/v1/settings/${args.key}`,
+      body: { value: args.value },
+    })
+  }
+
+  async deleteSetting(args: { key: string }): Promise<void> {
+    await this.request({ method: 'DELETE', path: `/v1/settings/${args.key}` })
   }
 
   async listMcpServers(): Promise<readonly CloudMcpServer[]> {

@@ -22,14 +22,13 @@ import { AgentSupervisor } from '../agents/registry/supervisor'
 import type { AgentType } from '../agents/types/agent-type'
 import { BUILT_IN_AGENT_TYPES } from '../agents/types/built-ins'
 import { AccountStoreProxy } from '../cloud/account-store-proxy'
-import { CloudSessionStore } from '../cloud/cloud-session'
 import { CredentialPortProxy } from '../cloud/credential-port-proxy'
 import { SecretsStoreProxy } from '../cloud/secrets-store-proxy'
 import { ClaudeCodeSource, claudeCodePayloadStore } from '../credentials/claude-code-source'
 import { CodexSource } from '../credentials/codex-source'
 import { fileAccountStore } from '../credentials/account-store'
 import { builtinOauthClients } from '../credentials/oauth'
-import { atlasCloudFile, atlasVaultFile, atlasVaultKeyFile } from '../credentials/paths'
+import { atlasVaultFile, atlasVaultKeyFile } from '../credentials/paths'
 import { SecretCipher } from '../credentials/secret-cipher'
 import { FileSecretsStore } from '../secrets/file-secrets-store'
 import { atlasSecretsFile } from '../secrets/paths'
@@ -56,6 +55,7 @@ import { HookedToolDispatcher, ToolDispatcher } from '../tools/dispatch'
 import { registerBuiltinTools } from '../tools/register-tools'
 import { ToolRegistry } from '../tools/registry'
 import { registerDisposable } from './disposal'
+import { registerCloudStores } from './register-cloud-stores'
 import {
   createIsolatedContainer,
   instanceCachingFactory,
@@ -67,6 +67,7 @@ import {
   ClaudeCodeSourceToken,
   ClientVersionToken,
   CloudSessionStoreToken,
+  CloudSettingsStoreToken,
   CodexSourceToken,
   HookChainToken,
   KeychainReaderToken,
@@ -168,11 +169,7 @@ export function createHarnessContainer(): DependencyContainer {
     ),
   })
 
-  harness.register(CloudSessionStoreToken, {
-    useFactory: instanceCachingFactory(
-      () => new CloudSessionStore({ file: atlasCloudFile(), keyFile: atlasVaultKeyFile() }),
-    ),
-  })
+  registerCloudStores({ container: harness, clientVersion: clientVersionOf })
 
   harness.register(portToken(AccountStorePort), {
     useFactory: instanceCachingFactory(
@@ -239,6 +236,11 @@ export function createHarnessContainer(): DependencyContainer {
           sessions,
           clock,
           clientVersion: clientVersionOf(resolver),
+          onCredentialsRefused: () => {
+            resolver.resolve(CloudSettingsStoreToken).invalidate()
+            const store = resolver.resolve(portToken(AccountStorePort))
+            if (store instanceof AccountStoreProxy) store.invalidate()
+          },
         }),
       })
     }),

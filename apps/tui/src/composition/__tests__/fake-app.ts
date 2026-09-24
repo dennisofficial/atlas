@@ -62,6 +62,7 @@ import {
   EShellStatus,
   type AgentTypeCatalog,
   type CloudSession,
+  type CloudSyncCounts,
   type EKilledBy,
   type DeltaChannel,
   type DiscoveredSkill,
@@ -253,8 +254,30 @@ export class FakeCloudClient extends CloudClient {
   }
 }
 
+export type FakeCloudSync = {
+  uploads: number
+  downloads: number
+  counts: CloudSyncCounts
+}
+
 class FakeCloudService extends CloudService {
   private readonly fakeClient: CloudClient | null
+
+  readonly syncs: FakeCloudSync = {
+    uploads: 0,
+    downloads: 0,
+    counts: { accounts: 0, secrets: 0, mcpServers: 0 },
+  }
+
+  override async uploadLocalToCloud(): Promise<CloudSyncCounts> {
+    this.syncs.uploads += 1
+    return this.syncs.counts
+  }
+
+  override async downloadCloudToLocal(): Promise<CloudSyncCounts> {
+    this.syncs.downloads += 1
+    return this.syncs.counts
+  }
 
   constructor(args: { session: CloudSession | null; client: CloudClient | null }) {
     const sessions = new CloudSessionStore({
@@ -295,6 +318,17 @@ export const fakeCloud = (args?: {
 
 export const fakeSignedOutCloud = (args?: { client?: CloudClient | null }): CloudService =>
   new FakeCloudService({ session: null, client: args?.client ?? null })
+
+export const fakeCloudWithSyncs = (args?: {
+  session?: CloudSession | null
+  client?: CloudClient | null
+}): { cloud: CloudService; syncs: FakeCloudSync } => {
+  const service = new FakeCloudService({
+    session: args?.session ?? FAKE_CLOUD_SESSION,
+    client: args?.client ?? null,
+  })
+  return { cloud: service, syncs: service.syncs }
+}
 
 export type ScriptedReply = { thinking: string; reply: string }
 

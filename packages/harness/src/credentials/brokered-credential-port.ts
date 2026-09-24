@@ -68,6 +68,7 @@ export class BrokeredCredentialPort extends CredentialPort {
   private readonly minting = new Map<AccountId, Promise<MintedToken>>()
   private readonly defaultProvider: EAuthProvider
   private readonly fetchFn: typeof fetch | undefined
+  private readonly onCredentialsRefused: (() => void) | undefined
   private sessionToken: string | undefined
 
   constructor(args: {
@@ -77,6 +78,7 @@ export class BrokeredCredentialPort extends CredentialPort {
     clientVersion?: string
     defaultProvider?: EAuthProvider
     fetchFn?: typeof fetch
+    onCredentialsRefused?: () => void
   }) {
     super()
     this.accounts = args.accounts
@@ -85,6 +87,7 @@ export class BrokeredCredentialPort extends CredentialPort {
     this.clientVersion = args.clientVersion
     this.defaultProvider = args.defaultProvider ?? EAuthProvider.Anthropic
     this.fetchFn = args.fetchFn
+    this.onCredentialsRefused = args.onCredentialsRefused
   }
 
   async read(request?: CredentialRequest): Promise<Credential> {
@@ -101,9 +104,13 @@ export class BrokeredCredentialPort extends CredentialPort {
   }
 
   async discard(credential: Credential): Promise<void> {
-    this.held.delete(credential.accountId)
-    if (credential.kind !== EAuthKind.Oauth) return
-    this.rejected.set(credential.accountId, credential.accessToken)
+    const dropped = this.held.delete(credential.accountId)
+    if (credential.kind === EAuthKind.Oauth) {
+      this.rejected.set(credential.accountId, credential.accessToken)
+    }
+    // A provider refused the token the cloud brokered, so every cloud-held cache is suspect:
+    // the re-read after this discard must miss them, not be served the same refused state.
+    if (dropped) this.onCredentialsRefused?.()
   }
 
   private tokenFor(args: { session: CloudSession; accountId: AccountId }): Promise<MintedToken> {

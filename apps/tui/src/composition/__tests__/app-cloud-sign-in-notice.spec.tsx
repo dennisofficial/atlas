@@ -31,7 +31,7 @@ describe('the cloud sign-in boot notice', () => {
       const frame = await mounted.frame()
       expect(frame).toContain('Describe the work')
       expect(frame).toContain('settings')
-      expect(frame).toContain('account')
+      expect(frame).toContain('› cloud')
     } finally {
       await mounted.done()
     }

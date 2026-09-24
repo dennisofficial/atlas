@@ -19,6 +19,7 @@ export {
 } from './paths'
 export {
   createSettingsService,
+  type CloudSettingsPort,
   type SettingsService,
   type SettingsSnapshot,
   type SettingsWrite,

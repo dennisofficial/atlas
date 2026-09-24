@@ -32,7 +32,7 @@ export enum EProviderAction {
  * The accounts drawer is a model-provider list: one row per provider Atlas can answer for, every
  * one optional. Logins live inside the provider — the detail panel shows the active one, the
  * modal manages the rest. A provider with no logins is still a row, since the sign-in flows are
- * reached through it. GitHub is not a model provider and lives in settings › account instead.
+ * reached through it. GitHub is not a model provider and lives in settings › cloud instead.
  */
 export type ProviderRow = {
   provider: EAuthProvider

@@ -72,6 +72,11 @@ export class AccountStoreProxy extends AccountStorePort {
     return this.current().activeFor(provider)
   }
 
+  /** Drops the cached remote reads, so the next call re-fetches — used when a provider refuses a brokered credential. */
+  invalidate(): void {
+    if (this.remote?.store instanceof CachingAccountStore) this.remote.store.invalidate()
+  }
+
   private current(): AccountStorePort {
     const session = this.sessions.read()
     if (session === null) return this.local

@@ -1,6 +1,7 @@
 import { AccountStorePort, ClockPort, CredentialPort, ENoticeTone, ESettingId, NOTICE_WARN_MS, type NoticePort } from '@dltech/atlas-core'
 
 import { CloudService } from '../cloud/cloud-service'
+import type { CloudSettingsStore } from '../cloud/cloud-settings-store'
 import { scheduleSecretsRewarm } from '../cloud/secrets-rewarm'
 import { SecretsStoreProxy } from '../cloud/secrets-store-proxy'
 import { registerDisposable } from '../container/disposal'
@@ -8,10 +9,12 @@ import { portToken, type DependencyContainer } from '../container/injection'
 import {
   ClaudeCodeSourceToken,
   CloudSessionStoreToken,
+  CloudSettingsStoreToken,
   CodexSourceToken,
   LocalAccountStoreToken,
   LocalSecretsStoreToken,
   SecretsStoreToken,
+  UserSettingsStoreToken,
 } from '../container/tokens'
 import { AccountsService } from '../credentials/accounts-service'
 import {
@@ -60,6 +63,7 @@ export async function bindAccounts(args: {
   credentials: CredentialPort
   accounts: AccountsService
   cloud: CloudService
+  cloudSettings: CloudSettingsStore
   usage: AccountUsageService
   rewarmSecrets: () => Promise<void>
 }> {
@@ -94,10 +98,15 @@ export async function bindAccounts(args: {
     })
   }
 
+  const cloudSettings = container.resolve(CloudSettingsStoreToken)
+
   const cloud = new CloudService({
     sessions: container.resolve(CloudSessionStoreToken),
     localAccounts: container.resolve(LocalAccountStoreToken),
     localSecrets: container.resolve(LocalSecretsStoreToken),
+    ...(container.isRegistered(UserSettingsStoreToken, true)
+      ? { localSettings: container.resolve(UserSettingsStoreToken) }
+      : {}),
     defaultUrl: args.cloudUrl ?? 'http://localhost:3400',
     clientVersion: args.clientVersion,
   })
@@ -130,5 +139,5 @@ export async function bindAccounts(args: {
   })
   const usage = createAccountUsageService({ usage: new AnthropicUsageClient({ credentials }) })
 
-  return { credentials, accounts, cloud, usage, rewarmSecrets }
+  return { credentials, accounts, cloud, cloudSettings, usage, rewarmSecrets }
 }

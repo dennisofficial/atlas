@@ -14,6 +14,7 @@ import {
 import { memoryAccountStore, type AccountStore } from '../../credentials/account-store'
 import { SecretCipher } from '../../credentials/secret-cipher'
 import { FileSecretsStore } from '../../secrets/file-secrets-store'
+import { MemorySettingsStore } from '../../settings/memory-store'
 import { CloudError } from '../cloud-client'
 import { CloudService } from '../cloud-service'
 import { CloudSessionStore } from '../cloud-session'
@@ -45,6 +46,8 @@ type CloudFake = {
   putSecrets: { name: string; value: unknown }[]
   remoteMcp: Record<string, unknown>[]
   putMcp: { name: string; body: Record<string, unknown> }[]
+  remoteSettings: { key: string; value: string; updatedAt: string }[]
+  putSettings: { key: string; value: unknown }[]
   clientVersions: { path: string; version: string | null }[]
   failAccountsList: boolean
 }
@@ -58,6 +61,8 @@ const cloudFake = (): CloudFake => {
     putSecrets: [],
     remoteMcp: [],
     putMcp: [],
+    remoteSettings: [],
+    putSettings: [],
     clientVersions: [],
     failAccountsList: false,
     fetchFn: undefined as unknown as typeof fetch,
@@ -108,11 +113,39 @@ const cloudFake = (): CloudFake => {
       })
       return reply(204)
     }
+    if (path.startsWith('/v1/accounts/active/') && method === 'GET') {
+      const provider = path.slice('/v1/accounts/active/'.length)
+      const held = fake.actives.find((active) => active.provider === provider)
+      return reply(200, { accountId: held?.accountId ?? null })
+    }
+    if (path.startsWith('/v1/accounts/') && method === 'GET') {
+      const id = path.slice('/v1/accounts/'.length)
+      const held = fake.remoteAccounts.find((account) => account['id'] === id)
+      if (held === undefined) return reply(404, { message: 'no such account' })
+      return reply(200, held)
+    }
     if (path === '/v1/secrets' && method === 'GET') return reply(200, { secrets: fake.remoteSecrets })
     if (path.startsWith('/v1/secrets/') && method === 'PUT') {
       const name = path.slice('/v1/secrets/'.length)
       fake.putSecrets.push({ name, value: body?.['value'] })
       fake.remoteSecrets.push({ name, value: String(body?.['value']), updatedAt: '2026-01-01T00:00:00.000Z' })
+      return reply(204)
+    }
+    if (path === '/v1/settings' && method === 'GET') return reply(200, { settings: fake.remoteSettings })
+    if (path.startsWith('/v1/settings/') && method === 'PUT') {
+      const key = path.slice('/v1/settings/'.length)
+      fake.putSettings.push({ key, value: body?.['value'] })
+      const held = fake.remoteSettings.find((setting) => setting.key === key)
+      if (held === undefined) {
+        fake.remoteSettings.push({ key, value: String(body?.['value']), updatedAt: '2026-01-01T00:00:00.000Z' })
+      } else {
+        held.value = String(body?.['value'])
+      }
+      return reply(204)
+    }
+    if (path.startsWith('/v1/settings/') && method === 'DELETE') {
+      const key = path.slice('/v1/settings/'.length)
+      fake.remoteSettings = fake.remoteSettings.filter((setting) => setting.key !== key)
       return reply(204)
     }
     if (path === '/v1/mcp-servers' && method === 'GET') return reply(200, { servers: fake.remoteMcp })
@@ -133,6 +166,7 @@ let directory: string
 let sessions: CloudSessionStore
 let local: AccountStore
 let localSecrets: FileSecretsStore
+let localSettings: MemorySettingsStore
 
 const realAtlasHome = process.env['ATLAS_HOME']
 
@@ -148,6 +182,7 @@ beforeEach(() => {
     file: join(directory, 'secrets.json'),
     cipher: new SecretCipher(join(directory, 'key')),
   })
+  localSettings = new MemorySettingsStore()
 })
 
 afterEach(() => {
@@ -161,6 +196,16 @@ const serviceOver = (fetchFn: typeof fetch) =>
 
 const serviceWithSecrets = (fetchFn: typeof fetch) =>
   new CloudService({ sessions, localAccounts: local, defaultUrl: URL, localSecrets, fetchFn })
+
+const serviceWithSettings = (fetchFn: typeof fetch) =>
+  new CloudService({
+    sessions,
+    localAccounts: local,
+    defaultUrl: URL,
+    localSecrets,
+    localSettings,
+    fetchFn,
+  })
 
 const seedLocal = async () => {
   const anthropic = await local.add({
@@ -503,5 +548,168 @@ describe('CloudService', () => {
     for (const call of v1Calls) {
       expect(call.version).toBe('1.2.3')
     }
+  })
+
+  it('finishLogin uploads the local cloud settings the cloud lacks and strips them locally', async () => {
+    const fake = cloudFake()
+    const service = serviceWithSettings(fake.fetchFn)
+    localSettings.write({
+      values: {
+        'sandbox.vercelTeamId': 'team_1',
+        'sandbox.image': 'img-1',
+        'cloud.url': 'https://staging.example',
+        'appearance.accent': 'moss',
+      },
+    })
+
+    const ticket = await service.beginLogin()
+    const result = await service.finishLogin({ ticket, token: 'sess_new' })
+
+    expect(result.importedSettings).toBe(3)
+    expect(fake.putSettings).toEqual([
+      { key: 'sandbox.vercelTeamId', value: 'team_1' },
+      { key: 'sandbox.image', value: 'img-1' },
+      { key: 'cloud.url', value: 'https://staging.example' },
+    ])
+    expect(localSettings.read().document.values).toEqual({ 'appearance.accent': 'moss' })
+  })
+
+  it('finishLogin keeps the remote value when the key exists, and still strips the local one', async () => {
+    const fake = cloudFake()
+    fake.remoteSettings.push({
+      key: 'sandbox.vercelTeamId',
+      value: 'team_remote',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    })
+    const service = serviceWithSettings(fake.fetchFn)
+    localSettings.write({
+      values: { 'sandbox.vercelTeamId': 'team_local', 'sandbox.image': 'img-1' },
+    })
+
+    const ticket = await service.beginLogin()
+    const result = await service.finishLogin({ ticket, token: 'sess_new' })
+
+    expect(result.importedSettings).toBe(1)
+    expect(fake.putSettings).toEqual([{ key: 'sandbox.image', value: 'img-1' }])
+    expect(localSettings.read().document.values).toEqual({})
+  })
+
+  it('finishLogin migrates no settings when no local settings store is wired', async () => {
+    const fake = cloudFake()
+    const service = serviceOver(fake.fetchFn)
+
+    const ticket = await service.beginLogin()
+    const result = await service.finishLogin({ ticket, token: 'sess_new' })
+
+    expect(result.importedSettings).toBe(0)
+    expect(fake.putSettings).toHaveLength(0)
+  })
+})
+
+describe('CloudService explicit sync', () => {
+  const signIn = () => sessions.write({ url: URL, token: 'sess_a', email: null })
+
+  it('uploadLocalToCloud pushes local items even when the cloud already holds some', async () => {
+    const fake = cloudFake()
+    fake.remoteAccounts.push({
+      id: 'acc_existing',
+      provider: EAuthProvider.Anthropic,
+      kind: EAuthKind.ApiKey,
+      origin: EAccountOrigin.Login,
+      label: 'existing',
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      secret: secretFor('other'),
+    })
+    fake.remoteSecrets.push({ name: 'existing', value: 'v', updatedAt: '2026-01-01T00:00:00.000Z' })
+    fake.remoteMcp.push({ name: 'existing', disabled: true, updatedAt: '2026-01-01T00:00:00.000Z' })
+    const service = serviceWithSettings(fake.fetchFn)
+    await seedLocal()
+    localSecrets.write({ name: 'search.tavily', value: 'tvly-1' })
+    writeFileSync(
+      join(directory, 'mcp.json'),
+      JSON.stringify({ linear: { transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' } } }),
+    )
+    signIn()
+
+    const counts = await service.uploadLocalToCloud()
+
+    expect(counts).toEqual({ accounts: 2, secrets: 1, mcpServers: 1 })
+    expect(fake.added).toHaveLength(2)
+    expect(fake.putSecrets).toEqual([{ name: 'search.tavily', value: 'tvly-1' }])
+    expect(fake.putMcp).toEqual([
+      { name: 'linear', body: { transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' } } },
+    ])
+  })
+
+  it('uploadLocalToCloud skips an account the cloud already holds verbatim', async () => {
+    const fake = cloudFake()
+    const service = serviceWithSettings(fake.fetchFn)
+    const seeded = await seedLocal()
+    const stored = await local.read(seeded.anthropic.id)
+    fake.remoteAccounts.push({
+      id: 'acc_same',
+      provider: EAuthProvider.Anthropic,
+      kind: EAuthKind.ApiKey,
+      origin: EAccountOrigin.Login,
+      label: 'work',
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      secret: stored?.secret,
+    })
+    signIn()
+
+    const counts = await service.uploadLocalToCloud()
+
+    expect(counts.accounts).toBe(2)
+    expect(fake.added).toHaveLength(1)
+    expect(fake.added[0]?.['label']).toBe('personal')
+  })
+
+  it('downloadCloudToLocal lands remote items locally and deletes nothing remotely', async () => {
+    const fake = cloudFake()
+    fake.remoteAccounts.push({
+      id: 'acc_remote',
+      provider: EAuthProvider.Anthropic,
+      kind: EAuthKind.ApiKey,
+      origin: EAccountOrigin.Login,
+      label: 'remote work',
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      secret: secretFor('remote'),
+    })
+    fake.remoteSecrets.push({ name: 'search.tavily', value: 'tvly-9', updatedAt: '2026-01-01T00:00:00.000Z' })
+    fake.remoteMcp.push({
+      name: 'linear',
+      transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' },
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    })
+    const service = serviceWithSettings(fake.fetchFn)
+    signIn()
+
+    const counts = await service.downloadCloudToLocal()
+
+    expect(counts).toEqual({ accounts: 1, secrets: 1, mcpServers: 1 })
+    expect((await local.list()).map((account) => account.label)).toEqual(['remote work'])
+    expect(localSecrets.read('search.tavily')).toBe('tvly-9')
+    expect(existsSync(join(directory, 'mcp.json'))).toBe(true)
+
+    expect(fake.remoteAccounts).toHaveLength(1)
+    expect(fake.remoteSecrets).toHaveLength(1)
+    expect(fake.remoteMcp).toHaveLength(1)
+    expect(service.session()).not.toBeNull()
+  })
+
+  it('refuses to upload or download without a session', async () => {
+    const service = serviceWithSettings(cloudFake().fetchFn)
+
+    const uploadFailure = await service.uploadLocalToCloud().catch((error: unknown) => error)
+    const downloadFailure = await service.downloadCloudToLocal().catch((error: unknown) => error)
+
+    expect(uploadFailure).toBeInstanceOf(CloudError)
+    expect(downloadFailure).toBeInstanceOf(CloudError)
   })
 })

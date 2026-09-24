@@ -63,7 +63,7 @@ const resolvedOf = (args: {
   return rows
 }
 
-const holdsSettings = (page: SettingPage): boolean => page.id !== ESettingPage.Account
+const keepsEmptyPage = (page: SettingPage): boolean => page.id === ESettingPage.Cloud
 
 export function settingsModel(args: {
   definitions: readonly SettingDefinition[]
@@ -77,7 +77,7 @@ export function settingsModel(args: {
       definitions: definitionsOfPage({ definitions: args.definitions, page: page.id }),
       resolution: args.resolution,
     })
-    if (rows.length === 0 && holdsSettings(page)) continue
+    if (rows.length === 0 && !keepsEmptyPage(page)) continue
 
     pages.push({ page, groups: groupsOf(rows), rows })
   }

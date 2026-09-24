@@ -1,15 +1,9 @@
 import { existsSync, renameSync } from 'node:fs'
 
-import {
-  AccountStorePort,
-  EAuthProvider,
-  type AccountDraft,
-  type AccountId,
-} from '@dltech/atlas-core'
+import { AccountStorePort, type SettingsStorePort } from '@dltech/atlas-core'
 import { z } from 'zod'
 
 import { atlasVaultFile } from '../credentials/paths'
-import { FileMcpSource } from '../mcp/config/sources'
 import type { FileSecretsStore } from '../secrets/file-secrets-store'
 import { atlasSecretsFile } from '../secrets/paths'
 import { userMcpFile } from '../settings/paths'
@@ -19,9 +13,19 @@ import {
   beginCloudLogin,
   type CloudLoginTicket,
 } from './device-login'
-import { downloadAndPurgeCloudData, type CloudPurgeResult } from './download-purge'
-import { RemoteAccountStore } from './remote-account-store'
+import {
+  downloadAndPurgeCloudData,
+  downloadCloudData,
+  type CloudPurgeResult,
+} from './download-purge'
 import { fileSignInOffer, type SignInOffer } from './sign-in-offer'
+import {
+  migrateLocalSettings,
+  uploadLocalAccounts,
+  uploadLocalMcp,
+  uploadLocalSecrets,
+  type CloudSyncCounts,
+} from './upload-local'
 import { UserContextClient } from './user-context-client'
 
 const getSessionResponseSchema = z.object({
@@ -33,6 +37,7 @@ export type CloudLoginResult = {
   imported: number
   importedSecrets: number
   importedMcp: number
+  importedSettings: number
   archived: string[]
 }
 
@@ -77,6 +82,7 @@ export class CloudService {
   private readonly sessions: CloudSessionStore
   private readonly localAccounts: AccountStorePort
   private readonly localSecrets: FileSecretsStore | undefined
+  private readonly localSettings: SettingsStorePort | undefined
   private readonly defaultUrl: string
   private readonly clientVersion: string | undefined
   private readonly fetchFn: typeof fetch
@@ -88,6 +94,7 @@ export class CloudService {
     localAccounts: AccountStorePort
     defaultUrl: string
     localSecrets?: FileSecretsStore
+    localSettings?: SettingsStorePort
     clientVersion?: string
     fetchFn?: typeof fetch
     signInOffer?: SignInOffer
@@ -95,6 +102,7 @@ export class CloudService {
     this.sessions = args.sessions
     this.localAccounts = args.localAccounts
     this.localSecrets = args.localSecrets
+    this.localSettings = args.localSettings
     this.defaultUrl = args.defaultUrl
     this.clientVersion = args.clientVersion
     this.fetchFn = args.fetchFn ?? fetch
@@ -173,12 +181,16 @@ export class CloudService {
       const imported = await this.importLocalAccounts({ client })
       const importedSecrets = await this.importLocalSecrets({ client })
       const importedMcp = await this.importLocalMcp({ client })
+      const importedSettings = await migrateLocalSettings({
+        client,
+        localSettings: this.localSettings,
+      })
       const archived = archiveImportedLocalFiles()
-      return { session, imported, importedSecrets, importedMcp, archived }
+      return { session, imported, importedSecrets, importedMcp, importedSettings, archived }
     } catch (cause) {
       throw new CloudError({
         status: cause instanceof CloudError ? cause.status : 0,
-        message: `Signed in to ${ticket.url}, but copying the local accounts, secrets and mcp servers into the cloud failed: ${cause instanceof Error ? cause.message : String(cause)}. The sign-in is kept; the copy may be incomplete.`,
+        message: `Signed in to ${ticket.url}, but copying the local accounts, secrets, mcp servers and settings into the cloud failed: ${cause instanceof Error ? cause.message : String(cause)}. The sign-in is kept; the copy may be incomplete.`,
       })
     }
   }
@@ -234,80 +246,55 @@ export class CloudService {
     return parsed.success ? (parsed.data.user.email ?? null) : null
   }
 
-  private async importLocalAccounts(args: { client: CloudClient }): Promise<number> {
-    const remote = new RemoteAccountStore({ client: args.client })
-    const existing = await remote.list()
-    if (existing.length > 0) return 0
-
-    const local = await this.localAccounts.list()
-    const remoteIds = new Map<AccountId, AccountId>()
-
-    for (const account of local) {
-      const stored = await this.localAccounts.read(account.id)
-      if (stored === undefined) continue
-
-      const draft: AccountDraft = {
-        provider: stored.provider,
-        label: stored.label,
-        secret: stored.secret,
-        origin: stored.origin,
-        ...(stored.email === undefined ? {} : { email: stored.email }),
-        ...(stored.subscription === undefined ? {} : { subscription: stored.subscription }),
-        ...(stored.importedFrom === undefined ? {} : { importedFrom: stored.importedFrom }),
-      }
-      const added = await remote.add(draft)
-      remoteIds.set(account.id, added.id)
+  /**
+   * The explicit upload: every local account, secret and mcp server goes up, per item — the
+   * first-seed skip of finishLogin is a gate on the call site, not a property of the upload.
+   */
+  async uploadLocalToCloud(): Promise<CloudSyncCounts> {
+    const client = this.requireClient()
+    return {
+      accounts: await uploadLocalAccounts({ client, local: this.localAccounts }),
+      secrets: await uploadLocalSecrets({ client, localSecrets: this.localSecrets }),
+      mcpServers: await uploadLocalMcp({ client }),
     }
+  }
 
-    await this.copyActivePointers({ remote, remoteIds })
-    return remoteIds.size
+  /**
+   * The explicit download: remote content lands locally, nothing remote is deleted, and the
+   * session stays — logout() already prefers the live local files this writes over the archives.
+   */
+  async downloadCloudToLocal(): Promise<CloudSyncCounts> {
+    return downloadCloudData({
+      client: this.requireClient(),
+      stores: { accounts: this.localAccounts, secrets: this.localSecrets },
+    })
+  }
+
+  private requireClient(): CloudClient {
+    const session = this.sessions.read()
+    if (session === null)
+      throw new CloudError({
+        status: 0,
+        message: 'There is no Atlas Cloud sign-in — sign in first.',
+      })
+    return this.clientFor({ session })
+  }
+
+  private async importLocalAccounts(args: { client: CloudClient }): Promise<number> {
+    const existing = await args.client.listAccounts()
+    if (existing.length > 0) return 0
+    return uploadLocalAccounts({ client: args.client, local: this.localAccounts })
   }
 
   private async importLocalSecrets(args: { client: CloudClient }): Promise<number> {
-    if (this.localSecrets === undefined) return 0
-
     const existing = await args.client.listSecrets()
     if (existing.length > 0) return 0
-
-    let imported = 0
-    for (const name of this.localSecrets.names()) {
-      const value = this.localSecrets.read(name)
-      if (value === undefined) continue
-      await args.client.putSecret({ name, value })
-      imported += 1
-    }
-    return imported
+    return uploadLocalSecrets({ client: args.client, localSecrets: this.localSecrets })
   }
 
   private async importLocalMcp(args: { client: CloudClient }): Promise<number> {
     const existing = await args.client.listMcpServers()
     if (existing.length > 0) return 0
-
-    const read = await FileMcpSource.user().load()
-    let imported = 0
-    for (const spec of read.specs) {
-      await args.client.putMcpServer({
-        name: spec.name,
-        ...(spec.transport === undefined ? {} : { transport: spec.transport }),
-        ...(spec.disabled === undefined ? {} : { disabled: spec.disabled }),
-      })
-      imported += 1
-    }
-    return imported
-  }
-
-  private async copyActivePointers(args: {
-    remote: RemoteAccountStore
-    remoteIds: Map<AccountId, AccountId>
-  }): Promise<void> {
-    for (const provider of Object.values(EAuthProvider)) {
-      const active: AccountId | undefined = await this.localAccounts.activeFor(provider)
-      if (active === undefined) continue
-
-      const remoteId = args.remoteIds.get(active)
-      if (remoteId === undefined) continue
-
-      await args.remote.setActive({ provider, accountId: remoteId })
-    }
+    return uploadLocalMcp({ client: args.client })
   }
 }

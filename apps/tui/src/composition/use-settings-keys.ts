@@ -19,7 +19,7 @@ import {
   type SettingsState,
 } from '../ui/settings-model'
 import type { AtlasApp } from './compose'
-import type { AccountPageControl } from './use-account-page'
+import type { CloudPageControl } from './use-cloud-page'
 import type { SecretPromptControl } from './use-secret-prompt'
 import type { TextPromptControl } from './use-text-prompt'
 import type { SettingsCloudLoginControl } from './use-settings-cloud-login'
@@ -33,7 +33,7 @@ export function useSettingsKeys(args: {
   settle: (result: SettingsWrite) => void
   secret: SecretPromptControl
   text: TextPromptControl
-  account: AccountPageControl
+  cloudPage: CloudPageControl
   login: SettingsCloudLoginControl
   github: SettingsGithubControl
   signedIn: boolean
@@ -48,7 +48,7 @@ export function useSettingsKeys(args: {
     settle,
     secret,
     text,
-    account,
+    cloudPage,
     login,
     github,
     signedIn,
@@ -84,9 +84,11 @@ export function useSettingsKeys(args: {
     (target: SettingsState) => {
       select(target)
 
-      if (currentPage({ state: target, model: view })?.page.id === ESettingPage.Account) {
-        account.handleActivate()
-        return
+      if (currentPage({ state: target, model: view })?.page.id === ESettingPage.Cloud) {
+        if (!signedIn || cloudPage.action !== null) {
+          cloudPage.handleActivate()
+          return
+        }
       }
 
       const row = currentRow({ state: target, model: view })
@@ -109,7 +111,7 @@ export function useSettingsKeys(args: {
 
       write(target, (held) => activateSetting({ definition: held.definition, current: held.value }))
     },
-    [account, onChooseModel, secret, select, text, view, write],
+    [cloudPage, onChooseModel, secret, select, signedIn, text, view, write],
   )
 
   const handleKey = useCallback(
@@ -127,8 +129,18 @@ export function useSettingsKeys(args: {
         return
       }
 
-      const onAccountPage = currentPage({ state, model: view })?.page.id === ESettingPage.Account
-      if (account.handleKey(key, { onAccountPage, signedIn })) return
+      const page = currentPage({ state, model: view })
+      const onCloudPage = page?.page.id === ESettingPage.Cloud
+      if (
+        cloudPage.handleKey(key, {
+          onCloudPage,
+          signedIn,
+          rowIndex: state.rowIndex,
+          rowCount: page?.rows.length ?? 0,
+        })
+      ) {
+        return
+      }
 
       if (key.name === 'escape') {
         onDismiss()
@@ -136,11 +148,11 @@ export function useSettingsKeys(args: {
       }
 
       if (key.name === 'tab') {
-        if (onAccountPage) {
+        if (onCloudPage) {
           login.stop()
           github.stop()
         }
-        account.handleResetAction()
+        cloudPage.handleResetAction()
         select(movePage({ state, model: view, delta: key.shift ? -1 : 1 }))
         return
       }
@@ -171,7 +183,7 @@ export function useSettingsKeys(args: {
       }
     },
     [
-      account,
+      cloudPage,
       github,
       handleActivate,
       handleClearValue,

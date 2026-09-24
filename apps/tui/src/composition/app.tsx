@@ -837,7 +837,7 @@ function Workspace(props: {
     props.app.cloud.markSignInOffered()
     notify({
       key: 'cloud-sign-in-offer',
-      text: 'sign in to Atlas Cloud to unlock cloud sandboxes and remote control — settings (ctrl+o) › account',
+      text: 'sign in to Atlas Cloud to unlock cloud sandboxes and remote control — settings (ctrl+o) › cloud',
       tone: ENoticeTone.Info,
       ttlMs: 20_000,
     })
