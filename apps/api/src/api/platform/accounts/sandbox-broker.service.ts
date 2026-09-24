@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '../../../db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { SecretsService } from '../../cloud/secrets/secrets.service'
@@ -7,6 +7,21 @@ import { AccountsService } from './accounts.service'
 import type { AccountSecret, SandboxAccessTokenDto, SandboxAccountsDto } from './accounts.types'
 import { EAuthKind } from './accounts.types'
 import { BrokerService } from './broker.service'
+
+/**
+ * The secret names the in-sandbox serve process may resolve through the broker: exactly the
+ * keyed web-search backends (BACKEND_TRAITS entries with a keyLabel in
+ * packages/core/src/web/search.ts, prefixed `search.`). Keep in lockstep with
+ * KEYED_BACKEND_SECRET_NAMES in packages/harness/src/serve/serve-secrets-store.ts — a name
+ * the serve store warms but this list refuses breaks every cloud session's web search.
+ */
+const BROKERABLE_SECRET_NAMES: readonly string[] = [
+  'search.brave',
+  'search.exa',
+  'search.jina',
+  'search.searxng',
+  'search.tavily',
+]
 
 /**
  * The serve process inside a sandbox holds only its sandbox session token — a credential any
@@ -65,7 +80,24 @@ export class SandboxBrokerService {
     }
   }
 
-  namedSecrets(args: { userId: string; names: string[] }): Promise<SecretDto[]> {
+  /**
+   * Fail closed: the broker resolves only the secret names a serve process legitimately asks
+   * for — the keyed web-search backends the serve secrets store warms on boot
+   * (packages/harness/src/serve/serve-secrets-store.ts, names built in
+   * packages/core/src/web/search.ts). A sandbox token is readable by any process in its
+   * sandbox, so a request naming anything else is the GH-198 shape: probing the owner's
+   * store through a machine credential. The whole request refuses rather than serving the
+   * listed names and dropping the rest, so a misconfigured client fails loudly instead of
+   * silently running without a key it asked for.
+   */
+  async namedSecrets(args: { userId: string; names: string[] }): Promise<SecretDto[]> {
+    for (const name of args.names) {
+      if (!BROKERABLE_SECRET_NAMES.includes(name)) {
+        throw new BadRequestException(
+          'the broker resolves only the web-search backend secrets a serve process needs',
+        )
+      }
+    }
     return this.secrets.listNamed(args)
   }
 
