@@ -4,12 +4,18 @@ import {
   type EventDraft,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { ETurnStatus, rewindThread, type RewindKill, type TurnOutcome } from '@dltech/atlas-harness'
-import { useCallback, useRef, useState, type RefObject } from 'react'
+import {
+  ETurnStatus,
+  rewindThread,
+  type RemoteDeltaChannel,
+  type RewindKill,
+  type TurnOutcome,
+} from '@dltech/atlas-harness'
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 
 import type { PendingSaid } from '../store'
 import type { DirectoryMove } from './directory-move'
-import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
+import { clearNotice, ENoticeTone, NOTICE_MS, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import type { AtlasApp } from './compose'
 import { discardInterrupted, EDiscard } from './resume-turn'
 import { useRewindConfirm, type RewindConfirmControl } from './use-rewind-confirm'
@@ -24,6 +30,17 @@ import {
 } from './turn-progress'
 
 const UNEXPLAINED = 'The turn stopped for a reason it did not name.'
+
+const INTERRUPT_LOST =
+  "The sandbox never acknowledged the interrupt — the turn may still be running there. Esc works again once the socket is back."
+
+const INTERRUPT_ACKED_KEY = 'interrupt-acknowledged'
+const INTERRUPT_LOST_KEY = 'interrupt-lost'
+
+type InterruptChannel = Pick<RemoteDeltaChannel, 'onInterruptAck' | 'onError'>
+
+const remoteChannelOf = (runner: unknown): InterruptChannel | null =>
+  runner instanceof Object && 'onInterruptAck' in runner ? (runner as InterruptChannel) : null
 
 const killLabel = (kill: RewindKill): string => {
   if (kill.kind === 'agent') return `sub-agent ${kill.agentType} (${kill.intent})`
@@ -73,6 +90,7 @@ export type TurnDriver = {
 export function useTurnDriver(args: {
   app: AtlasApp
   threadId: ThreadId
+  remoteChannel?: InterruptChannel | null | undefined
   started: RefObject<boolean>
   pendingMove: RefObject<DirectoryMove | null>
   view: ThreadView
@@ -95,6 +113,45 @@ export function useTurnDriver(args: {
   const abort = useRef<AbortController | null>(null)
   const undoSuppressed = useRef(false)
   const tailRef = useRef(false)
+  const interruptAckedAt = useRef(0)
+
+  const cloudChannel = args.remoteChannel ?? remoteChannelOf(app.runner)
+
+  /**
+   * The interrupting stamp is a promise the serve's ack has to keep. The ack clears it; the
+   * watchdog the channel raises instead means the frame was lost, so the stamp comes off and the
+   * notice says what the working line no longer can.
+   */
+  useEffect(() => {
+    if (cloudChannel === null) return undefined
+
+    const unack = cloudChannel.onInterruptAck(() => {
+      interruptAckedAt.current += 1
+      stamp((progress) =>
+        progress.clock.interrupting ? turnSettled({ progress, now: readClock() }) : progress,
+      )
+      clearNotice({ key: INTERRUPT_LOST_KEY })
+      notify({
+        key: INTERRUPT_ACKED_KEY,
+        tone: ENoticeTone.Done,
+        ttlMs: NOTICE_MS,
+        text: 'The turn was interrupted.',
+      })
+    })
+    const unlost = cloudChannel.onError(() => {
+      if (interruptAckedAt.current > 0) return
+      interruptAckedAt.current += 1
+      stamp((progress) =>
+        progress.clock.interrupting ? turnSettled({ progress, now: readClock() }) : progress,
+      )
+      notify({ key: INTERRUPT_LOST_KEY, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS, text: INTERRUPT_LOST })
+    })
+
+    return () => {
+      unack()
+      unlost()
+    }
+  }, [cloudChannel, readClock, stamp])
 
   const fireSettleListeners = (): void => {
     for (const listener of [...settleListeners.current]) listener()
@@ -326,6 +383,7 @@ export function useTurnDriver(args: {
     if (controller === null) return
 
     stamp(turnInterrupting)
+    interruptAckedAt.current = 0
     controller.abort()
   }, [stamp])
 

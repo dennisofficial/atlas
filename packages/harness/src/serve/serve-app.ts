@@ -12,6 +12,18 @@ import type { FileBrowser } from '../files/file-browser'
 import type { TurnRunner } from '../loop/turn-runner.port'
 import type { ThreadStorePort } from '../store/thread-store'
 
+/**
+ * The registries' notice queues narrowed to what the idle wake reads: whether the served thread has
+ * notices pending, and a subscription that fires when that answer may have changed. Each member is
+ * the thread-scoped pending count of one registry and the unsubscribe for its listener.
+ */
+export type ServeWakeNotices = {
+  pendingShells: (args: { threadId: ThreadId }) => number
+  pendingAgents: (args: { threadId: ThreadId }) => number
+  pendingServices: (args: { threadId: ThreadId }) => number
+  subscribe: (listener: () => void) => () => void
+}
+
 /** The composed session as serve consumes it: everything a socket can reach and nothing else. */
 export type ServeApp = {
   channel: DeltaChannel
@@ -29,6 +41,8 @@ export type ServeApp = {
   /** Live counts behind the idle park; absent in fakes, where nothing runs. */
   runningShells?: (() => number) | undefined
   runningServices?: (() => number) | undefined
+  /** Absent in a fake without registries: no endings means nothing to wake for. */
+  wakeNotices?: ServeWakeNotices | undefined
   close: () => Promise<void>
 }
 

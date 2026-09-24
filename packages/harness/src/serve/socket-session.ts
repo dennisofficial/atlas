@@ -128,10 +128,16 @@ export function createSessionHandlers(args: {
     const { socket, frame } = args
 
     if (frame.kind === EClientFrame.Send) {
-      void driver.say({ text: frame.text }).catch((error: unknown) => {
-        const message = messageOf(error, 'the message was not accepted')
-        send({ socket, frame: { kind: EServeFrame.Error, message } })
-      })
+      void driver
+        .say({
+          text: frame.text,
+          ...(frame.images === undefined ? {} : { images: frame.images }),
+          ...(frame.context === undefined ? {} : { context: frame.context }),
+        })
+        .catch((error: unknown) => {
+          const message = messageOf(error, 'the message was not accepted')
+          send({ socket, frame: { kind: EServeFrame.Error, message } })
+        })
       return
     }
 
@@ -149,6 +155,7 @@ export function createSessionHandlers(args: {
 
     if (frame.kind === EClientFrame.Interrupt) {
       driver.interrupt()
+      send({ socket, frame: { kind: EServeFrame.InterruptAcked, seq: buffer.nextSeq() } })
       return
     }
 

@@ -1,4 +1,4 @@
-import type { ThreadId } from '@dltech/atlas-core'
+import type { EventDraft, SaidImage, ThreadId } from '@dltech/atlas-core'
 
 import type { ChannelListener, DeltaChannel, Unsubscribe } from '../channel/delta-channel'
 import { retainReplayable, type InFlightSlots } from '../channel/in-flight'
@@ -58,9 +58,14 @@ export type ChannelFailure = { message: string }
 /** What the serve said about itself at greet — whether the turn it was running survived. */
 export type ChannelReady = { turnInFlight: boolean }
 
+/** The far side received the interrupt frame and aborted the turn it was driving. */
+export type InterruptAck = { turnInFlight: boolean }
+
+export const INTERRUPT_ACK_TIMEOUT_MS = 5_000
+
 export type RemoteDeltaChannel = DeltaChannel & {
   readonly threadId: ThreadId
-  send(args: { text: string }): void
+  send(args: { text: string; images?: readonly SaidImage[]; context?: readonly EventDraft[] }): void
   run(): void
   interrupt(): void
   request(args: { op: EClientRequest; params: unknown }): Promise<unknown>
@@ -68,6 +73,7 @@ export type RemoteDeltaChannel = DeltaChannel & {
   onConnection(listener: (connection: ChannelConnection) => void): Unsubscribe
   onReload(listener: (reload: ChannelReload) => void): Unsubscribe
   onReady(listener: (ready: ChannelReady) => void): Unsubscribe
+  onInterruptAck(listener: (ack: InterruptAck) => void): Unsubscribe
   onTurnEnded(listener: (outcome: TurnOutcome) => void): Unsubscribe
   onError(listener: (failure: ChannelFailure) => void): Unsubscribe
   onServerError(listener: (failure: ChannelFailure) => void): Unsubscribe
@@ -118,6 +124,7 @@ export function createRemoteDeltaChannel(args: {
   maxAttempts?: number | undefined
   requestTimeoutMs?: number | undefined
   keepaliveMs?: number | undefined
+  interruptAckTimeoutMs?: number | undefined
   /**
    * Once the socket retries are spent, re-attach through the API. The relaunched serve keeps
    * whatever turn was already running — a re-attach loses the client's own in-flight step (it has
@@ -141,8 +148,11 @@ export function createRemoteDeltaChannel(args: {
   const scheduleRetry = args.scheduleRetry ?? afterDelay
   const keepaliveMs = args.keepaliveMs ?? DEFAULT_KEEPALIVE_MS
   const scheduleKeepalive = args.scheduleKeepalive ?? intervalKeepaliveScheduler
+  const interruptAckTimeoutMs = args.interruptAckTimeoutMs ?? INTERRUPT_ACK_TIMEOUT_MS
+  const scheduleTimeout = args.scheduleTimeout ?? afterDelay
 
   const listeners = new Set<ChannelListener>()
+  const interruptAcks = registryOf<InterruptAck>()
   const connections = registryOf<ChannelConnection>()
   const reloads = registryOf<ChannelReload>()
   const readies = registryOf<ChannelReady>()
@@ -151,7 +161,7 @@ export function createRemoteDeltaChannel(args: {
   const serverErrors = registryOf<ChannelFailure>()
   const upstream = createUpstreamPipe({
     timeoutMs: args.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
-    scheduleTimeout: args.scheduleTimeout ?? afterDelay,
+    scheduleTimeout,
   })
 
   let inFlight: StepSignal[] = []
@@ -168,6 +178,28 @@ export function createRemoteDeltaChannel(args: {
   let url = args.url
   let token = args.token
   let connection: ChannelConnection = { state: EChannelConnection.Connecting, detail: null }
+  let interruptPending = false
+  let interruptSentGeneration = -1
+
+  /**
+   * The interrupt frame is fire-and-forget over a socket that can be half-open, so the stamp
+   * survives what the frame may not: the ack bounds it over a live socket, and a Ready arriving
+   * while it stands means the frame was lost to the last connection — re-sent there and then.
+   */
+  const requestInterrupt = () => {
+    interruptPending = true
+    interruptSentGeneration = generation
+    upstream.send({ kind: EClientFrame.Interrupt })
+    const sentGeneration = generation
+    scheduleTimeout({
+      delayMs: interruptAckTimeoutMs,
+      run: () => {
+        if (!interruptPending || interruptSentGeneration !== sentGeneration) return
+        if (connection.state !== EChannelConnection.Open) return
+        failures.emit({ message: 'The sandbox never acknowledged the interrupt.' })
+      },
+    })
+  }
 
   const write = (data: string): boolean => {
     const live = socket
@@ -267,6 +299,7 @@ export function createRemoteDeltaChannel(args: {
       upstream.attach({ write })
       readies.emit({ turnInFlight: frame.turnInFlight === true })
       moveTo({ state: EChannelConnection.Open, detail: null })
+      if (interruptPending && frame.turnInFlight === true) requestInterrupt()
       return
     }
     if (frame.kind === EServeFrame.Signal) {
@@ -290,7 +323,13 @@ export function createRemoteDeltaChannel(args: {
       return
     }
     if (frame.kind === EServeFrame.TurnEnded) {
+      interruptPending = false
       turnEndings.emit(turnOutcomeFromWire(frame.outcome))
+      return
+    }
+    if (frame.kind === EServeFrame.InterruptAcked) {
+      interruptPending = false
+      interruptAcks.emit({ turnInFlight: true })
       return
     }
     if (frame.kind === EServeFrame.Error) {
@@ -462,11 +501,17 @@ export function createRemoteDeltaChannel(args: {
       throw new RemotePublishRefused(threadId)
     },
 
-    send: ({ text }) => upstream.send({ kind: EClientFrame.Send, text }),
+    send: ({ text, images, context }) =>
+      upstream.send({
+        kind: EClientFrame.Send,
+        text,
+        ...(images === undefined || images.length === 0 ? {} : { images: [...images] }),
+        ...(context === undefined || context.length === 0 ? {} : { context: [...context] }),
+      }),
 
     run: () => upstream.send({ kind: EClientFrame.Run }),
 
-    interrupt: () => upstream.send({ kind: EClientFrame.Interrupt }),
+    interrupt: requestInterrupt,
 
     request: (request) => upstream.request(request),
 
@@ -477,6 +522,8 @@ export function createRemoteDeltaChannel(args: {
     onReload: (listener) => reloads.add(listener),
 
     onReady: (listener) => readies.add(listener),
+
+    onInterruptAck: (listener) => interruptAcks.add(listener),
 
     onTurnEnded: (listener) => turnEndings.add(listener),
 
@@ -493,6 +540,7 @@ export function createRemoteDeltaChannel(args: {
 
     close() {
       abandoned = true
+      interruptPending = false
       endStrandedStep()
       upstream.detach({ reason: 'the channel was closed' })
       clearKeepalive()

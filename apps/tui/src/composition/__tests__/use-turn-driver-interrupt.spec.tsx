@@ -3,6 +3,8 @@ import { testRender } from '@opentui/react/test-utils'
 import { afterEach, describe, expect, it } from 'bun:test'
 import React, { useRef } from 'react'
 
+import type { RemoteDeltaChannel } from '@dltech/atlas-harness'
+
 import { SHIPPED_THINKING } from '../../store'
 import { currentNotices, dismissNotice } from '../../ui/notice-store'
 import { settle, teardown } from '../../ui/markdown/__tests__/harness'
@@ -21,10 +23,42 @@ const REFUSAL = "the sandbox socket is down — esc will interrupt once it's bac
 
 type Probe = { driver: TurnDriver | null; interrupting: boolean }
 
+type FakeRemoteChannel = Pick<RemoteDeltaChannel, 'onInterruptAck' | 'onError'> & {
+  acknowledgeInterrupt(): void
+  failTransport(message: string): void
+}
+
+const fakeRemoteChannel = (): FakeRemoteChannel => {
+  const acks = new Set<(ack: { turnInFlight: boolean }) => void>()
+  const failures = new Set<(failure: { message: string }) => void>()
+
+  return {
+    onInterruptAck: (listener) => {
+      acks.add(listener)
+      return () => {
+        acks.delete(listener)
+      }
+    },
+    onError: (listener) => {
+      failures.add(listener)
+      return () => {
+        failures.delete(listener)
+      }
+    },
+    acknowledgeInterrupt() {
+      for (const listener of [...acks]) listener({ turnInFlight: true })
+    },
+    failTransport(message) {
+      for (const listener of [...failures]) listener({ message })
+    },
+  }
+}
+
 function DriverProbe(props: {
   app: FakeApp
   probe: Probe
   interruptRefusal?: () => string | null
+  remoteChannel?: FakeRemoteChannel
 }): React.ReactNode {
   const started = useRef(true)
   const pendingMove = useRef<DirectoryMove | null>(null)
@@ -41,6 +75,7 @@ function DriverProbe(props: {
   const driver = useTurnDriver({
     app: props.app,
     threadId: THREAD,
+    remoteChannel: props.remoteChannel ?? null,
     started,
     pendingMove,
     view,
@@ -66,7 +101,9 @@ const driverOf = (probe: Probe): TurnDriver => {
   return probe.driver
 }
 
-async function mounted(args: { interruptRefusal?: () => string | null } = {}): Promise<{
+async function mounted(
+  args: { interruptRefusal?: () => string | null; remoteChannel?: FakeRemoteChannel } = {},
+): Promise<{
   probe: Probe
   flush: () => Promise<void>
   done: () => Promise<void>
@@ -80,6 +117,7 @@ async function mounted(args: { interruptRefusal?: () => string | null } = {}): P
       app={app}
       probe={probe}
       {...(args.interruptRefusal === undefined ? {} : { interruptRefusal: args.interruptRefusal })}
+      {...(args.remoteChannel === undefined ? {} : { remoteChannel: args.remoteChannel })}
     />,
     { width: 60, height: 6 },
   )
@@ -173,6 +211,74 @@ describe('the interrupt gate Esc goes through', () => {
 
       expect(probe.interrupting).toBe(true)
       expect(currentNotices()).toEqual([])
+
+      await driverOf(probe).whenSettled()
+    } finally {
+      await done()
+    }
+  }, 20_000)
+})
+
+describe('a lost cloud interrupt', () => {
+  it('clears the interrupting stamp and says so once the ack lands', async () => {
+    const channel = fakeRemoteChannel()
+    const { probe, flush, done } = await mounted({ remoteChannel: channel })
+
+    try {
+      void driverOf(probe).drive([SAY])
+      await flush()
+      expect(driverOf(probe).working).toBe(true)
+
+      driverOf(probe).handleInterrupt()
+      await flush()
+      expect(probe.interrupting).toBe(true)
+
+      channel.acknowledgeInterrupt()
+      await flush()
+
+      expect(probe.interrupting).toBe(false)
+      expect(currentNotices().some((notice) => notice.text === 'The turn was interrupted.')).toBe(
+        true,
+      )
+
+      await driverOf(probe).whenSettled()
+    } finally {
+      await done()
+    }
+  }, 20_000)
+
+  it('warns and unsticks the stamp when the serve never acknowledged', async () => {
+    const channel = fakeRemoteChannel()
+    const { probe, flush, done } = await mounted({ remoteChannel: channel })
+
+    try {
+      void driverOf(probe).drive([SAY])
+      await flush()
+
+      driverOf(probe).handleInterrupt()
+      await flush()
+      expect(probe.interrupting).toBe(true)
+
+      channel.failTransport('The sandbox never acknowledged the interrupt.')
+      await flush()
+
+      expect(probe.interrupting).toBe(false)
+      expect(
+        currentNotices().some((notice) =>
+          notice.text.startsWith('The sandbox never acknowledged the interrupt'),
+        ),
+      ).toBe(true)
+
+      channel.acknowledgeInterrupt()
+      await flush()
+      expect(
+        currentNotices().some((notice) =>
+          notice.text.startsWith('The sandbox never acknowledged the interrupt'),
+        ),
+      ).toBe(false)
+      expect(currentNotices().some((notice) => notice.text === 'The turn was interrupted.')).toBe(
+        true,
+      )
 
       await driverOf(probe).whenSettled()
     } finally {

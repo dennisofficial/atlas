@@ -75,6 +75,31 @@ describe('a turn driven over the session socket', () => {
     await expect(turn).resolves.toEqual(completed('run-1'))
   })
 
+  it('steers with images and context drafts riding on the same send frame', async () => {
+    const { channel, open, receive, live } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
+
+    const turn = runner.runTurn({ threadId: THREAD })
+    runner.steer({
+      threadId: THREAD,
+      text: 'see the shot',
+      images: [{ path: '/tmp/shot.png', mediaType: 'image/png', data: 'aGVsbG8=' }],
+      context: [{ type: 'context-loaded', slot: 'skill', key: 'commit', content: 'prose' }],
+    })
+
+    expect(live().sent.at(-1)).toEqual({
+      kind: EClientFrame.Send,
+      text: 'see the shot',
+      images: [{ path: '/tmp/shot.png', mediaType: 'image/png', data: 'aGVsbG8=' }],
+      context: [{ type: 'context-loaded', slot: 'skill', key: 'commit', content: 'prose' }],
+    })
+
+    endTurn(receive, completed('run-1'))
+    await expect(turn).resolves.toEqual(completed('run-1'))
+  })
+
   it('refuses to steer a thread the channel does not serve', () => {
     const { channel, open, receive } = harness()
     open()

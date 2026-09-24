@@ -46,9 +46,7 @@ import { useCompaction } from './use-compaction'
 import { useDelegatedToolCalls } from '../ui/hooks/use-delegated-tool-calls'
 import { sessionDigest } from './session-rename'
 import { useSessionName } from './use-session-name'
-import { useAgentWake } from './use-agent-wake'
-import { useServiceWake } from './use-service-wake'
-import { useShellWake } from './use-shell-wake'
+import { useMainWake } from './use-main-wake'
 import { EThreadRows, useThreadView, type ThreadSeed } from './use-thread-view'
 import { useThreadSwap } from './use-thread-swap'
 import type { RewindConfirmControl } from './use-rewind-confirm'
@@ -312,29 +310,19 @@ export function useConversation(args: {
 
   const handleWake = useCallback(() => void drive([]), [drive])
 
-  const notices = useShellWake({
+  const wakeNotices = useMainWake({
     shells: app.shells,
-    threadId,
-    working,
-    canWake: args.canWake,
-    onWake: handleWake,
-  })
-
-  const agentNotices = useAgentWake({
     agents: app.agents,
-    threadId,
-    working,
-    canWake: args.canWake,
-    onWake: handleWake,
-  })
-
-  const serviceNotices = useServiceWake({
     services: app.services,
     threadId,
     working,
     canWake: args.canWake,
     onWake: handleWake,
   })
+
+  const notices = wakeNotices.shells
+  const agentNotices = wakeNotices.agents
+  const serviceNotices = wakeNotices.services
 
   const handleSend = useCallback(
     (args: { text: string; images?: readonly SaidImage[]; context?: readonly EventDraft[] }) => {
@@ -343,20 +331,15 @@ export function useConversation(args: {
       if (text.length === 0) return
 
       if (working) {
-        const carriesAttachments = images.length > 0 || (args.context?.length ?? 0) > 0
-        if (cloudRunner !== null && !carriesAttachments) {
-          cloudRunner.steer({ threadId, text })
+        if (cloudRunner !== null) {
+          cloudRunner.steer({
+            threadId,
+            text,
+            images,
+            ...(args.context === undefined ? {} : { context: args.context }),
+          })
           nameSession({ said: text, opened: ALREADY_OPEN, images, context: args.context })
           return
-        }
-
-        if (cloudRunner !== null) {
-          notify({
-            key: 'cloud-steer-attachments',
-            tone: ENoticeTone.Warn,
-            ttlMs: NOTICE_WARN_MS,
-            text: "images and context can't steer a running cloud turn — queued for the next one",
-          })
         }
 
         pending.enqueue({ text, images })

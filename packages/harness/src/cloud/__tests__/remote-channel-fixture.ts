@@ -42,6 +42,7 @@ export const harness = (options?: {
   maxReattachments?: number | undefined
   reattach?: (() => Promise<{ url: string; token: string }>) | undefined
   requestTimeoutMs?: number | undefined
+  interruptAckTimeoutMs?: number | undefined
 }) => {
   const sockets: FakeSocket[] = []
   const retries: { delayMs: number; run: () => void }[] = []
@@ -56,6 +57,7 @@ export const harness = (options?: {
     maxReattachments: options?.maxReattachments,
     reattach: options?.reattach,
     requestTimeoutMs: options?.requestTimeoutMs,
+    interruptAckTimeoutMs: options?.interruptAckTimeoutMs,
     scheduleRetry: (retry) => void retries.push(retry),
     scheduleTimeout: (timeout) => void timeouts.push(timeout),
     socketFactory: ({ url, protocols, handlers }) => {

@@ -1,12 +1,18 @@
-import type { EventDraft, ThreadId } from '@dltech/atlas-core'
+import type { EventDraft, SaidImage, ThreadId } from '@dltech/atlas-core'
 
 import type { TurnOutcome } from '../loop/turn-outcome'
 
 import type { ServeApp } from './serve-app'
 
 export type ServeTurnDriver = {
-  say: (args: { text: string }) => Promise<void>
+  say: (args: {
+    text: string
+    images?: readonly SaidImage[]
+    context?: readonly EventDraft[]
+  }) => Promise<void>
   run: () => void
+  /** Starts a turn when none is running, re-arms when one is, and answers whether it acted. */
+  sayOrRun: () => boolean
   interrupt: () => void
   running: () => boolean
   settled: () => Promise<void>
@@ -34,8 +40,21 @@ export function createTurnDriver(args: {
    * The message lands durably before any turn runs, so a process death between the two loses a
    * turn rather than the thing the operator said.
    */
-  const commit = async (text: string): Promise<void> => {
-    const drafts: readonly EventDraft[] = [{ type: 'user-said', text }]
+  const commit = async (said: {
+    text: string
+    images?: readonly SaidImage[]
+    context?: readonly EventDraft[]
+  }): Promise<void> => {
+    const drafts: readonly EventDraft[] = [
+      ...(said.context ?? []),
+      {
+        type: 'user-said',
+        text: said.text,
+        ...(said.images === undefined || said.images.length === 0
+          ? {}
+          : { images: said.images }),
+      },
+    ]
     const runId = app.ids.nextRunId()
     const existing = await app.threads.find({ threadId })
 
@@ -71,13 +90,24 @@ export function createTurnDriver(args: {
     }
   }
 
+  const run = (): void => {
+    const refused = args.refusal?.()
+    if (refused !== undefined) throw new Error(refused)
+
+    if (turning !== null) {
+      again = true
+      return
+    }
+    turning = runUntilQuiet()
+  }
+
   return {
     /** A workspace that failed to materialize refuses work rather than letting an agent loose in an empty tree. */
-    async say({ text }) {
+    async say(said) {
       const refused = args.refusal?.()
       if (refused !== undefined) throw new Error(refused)
 
-      await commit(text)
+      await commit(said)
       if (turning !== null) {
         again = true
         return
@@ -85,15 +115,16 @@ export function createTurnDriver(args: {
       turning = runUntilQuiet()
     },
 
-    run() {
-      const refused = args.refusal?.()
-      if (refused !== undefined) throw new Error(refused)
+    run,
 
-      if (turning !== null) {
-        again = true
-        return
+    sayOrRun() {
+      try {
+        run()
+        return true
+      } catch (error) {
+        args.onFailure(messageOf(error))
+        return false
       }
-      turning = runUntilQuiet()
     },
 
     interrupt() {

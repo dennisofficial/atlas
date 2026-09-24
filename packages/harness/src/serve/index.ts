@@ -3,6 +3,7 @@ import { isResumable, type ThreadId } from '@dltech/atlas-core'
 import type { StepId } from '../channel/signal'
 import { EServeFrame, type ServeFrame, type TurnOutcomeWire } from '../cloud/channel-wire'
 import { SessionsClient } from '../cloud/sessions-client'
+import { MainWake } from '../composition/main-wake'
 import { ETurnStatus, type TurnOutcome } from '../loop/turn-outcome'
 
 import { atlasDirectory } from '../store/paths'
@@ -266,6 +267,30 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     },
   })
 
+  /**
+   * A shell, agent or service ending that lands while no turn is running starts one — the serve
+   * half of the idle wake the TUI holds locally. The wake turn drains the queue itself, so the
+   * ending reaches the model over the ordinary channel; nothing here touches the protocol.
+   */
+  const wake =
+    app.wakeNotices === undefined
+      ? undefined
+      : new MainWake({
+          blocked: () => driver.running(),
+          onWake: () => {
+            idleStop.note()
+            driver.sayOrRun()
+          },
+        })
+  const unsubscribeWake = app.wakeNotices?.subscribe(() => {
+    if (app.wakeNotices === undefined) return
+    const pending =
+      app.wakeNotices.pendingShells({ threadId }) +
+      app.wakeNotices.pendingAgents({ threadId }) +
+      app.wakeNotices.pendingServices({ threadId })
+    wake?.onNotice({ witness: pending > 0 ? `pending:${pending}` : null })
+  })
+
   const publishWorkspace: WorkspacePublisher =
     args.publishWorkspace ??
     workspacePublisherFor({
@@ -338,6 +363,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
 
   const close = async (): Promise<void> => {
     idleStop.halt()
+    unsubscribeWake?.()
     driver.interrupt()
     await withDeadline({
       task: driver.settled().catch(() => undefined),
