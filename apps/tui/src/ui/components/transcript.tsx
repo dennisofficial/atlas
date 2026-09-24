@@ -88,7 +88,7 @@ function DerivedTranscript(props: {
     sends: props.sends ?? 0,
     peekKeys,
     onTick: windowing.handleTick,
-    offsetOfKey: windowing.offsetOfKey,
+    ...(windowing.active ? { offsetOfKey: windowing.offsetOfKey } : {}),
   })
   const handleScroller = useHiddenVerticalScrollbar(follow.scroller)
 
