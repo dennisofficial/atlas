@@ -26,6 +26,7 @@ import { OrchestratorService } from './orchestrator/orchestrator.service'
 import { OrgSettingsController } from './settings/org-settings.controller'
 import { OrgSettingsService } from './settings/org-settings.service'
 import { GithubAppService } from './reply/github-app.service'
+import { GithubSurfaceService } from './reply/github-surface.service'
 import { GuardedReplyService } from './reply/guarded-reply.service'
 import { OrchestratorSandboxGuard } from './reply/orchestrator-sandbox.guard'
 import { FactoryRepliesController } from './reply/replies.controller'
@@ -34,6 +35,9 @@ import { StationResultsService } from './stations/station-results.service'
 import { StationTokensService } from './stations/station-tokens.service'
 import { StationsService } from './stations/stations.service'
 import { FactoryStationsController } from './stations/stations.controller'
+import { FactoryToolsController } from './tools/tools.controller'
+import { FactoryGithubToolsService } from './tools/tools-github.service'
+import { FactoryToolsService } from './tools/tools.service'
 import { TranscriptService } from './transcript.service'
 import { WorkItemsController } from './work-items.controller'
 import { WorkItemsService } from './work-items.service'
@@ -51,6 +55,7 @@ import { WorkItemsService } from './work-items.service'
     WorkItemsController,
     GithubInstallController,
     OrgSettingsController,
+    FactoryToolsController,
   ],
   providers: [
     WorkItemsService,
@@ -73,10 +78,17 @@ import { WorkItemsService } from './work-items.service'
     StationResultsService,
     StationTokensService,
     DeliveriesService,
+    FactoryToolsService,
+    FactoryGithubToolsService,
     FactoryGitCredentialSource,
     {
       provide: GithubAppService,
       useFactory: (env: EnvService) => new GithubAppService(env),
+      inject: [EnvService],
+    },
+    {
+      provide: GithubSurfaceService,
+      useFactory: (env: EnvService) => new GithubSurfaceService(env),
       inject: [EnvService],
     },
     { provide: ORCHESTRATOR_CHANNEL, useFactory: () => createOrchestratorChannel() },
