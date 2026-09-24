@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { CloudService, CloudSyncCounts, UrlOpener } from '@dltech/atlas-harness'
 
@@ -33,6 +33,35 @@ const syncNotice = (args: { verb: string; where: string; moved: CloudSyncCounts 
 const syncFailure = (args: { fallback: string; error: unknown }): string =>
   args.error instanceof Error ? args.error.message : args.fallback
 
+const SYNC_FEEDBACK_MS = 6000
+
+function useSyncFeedback(): [CloudSyncState, (next: CloudSyncState) => void] {
+  const [state, setState] = useState<CloudSyncState>(idleSync)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clear = useCallback(() => {
+    if (timer.current !== null) clearTimeout(timer.current)
+    timer.current = null
+  }, [])
+
+  useEffect(() => clear, [clear])
+
+  const put = useCallback(
+    (next: CloudSyncState) => {
+      clear()
+      setState(next)
+      if (next.running) return
+      timer.current = setTimeout(() => {
+        timer.current = null
+        setState(idleSync())
+      }, SYNC_FEEDBACK_MS)
+    },
+    [clear],
+  )
+
+  return [state, put]
+}
+
 export function useSettingsCloud(args: {
   cloud: CloudService
   openUrl: UrlOpener
@@ -40,8 +69,8 @@ export function useSettingsCloud(args: {
 }): SettingsCloudControl {
   const { cloud, openUrl, onSignedIn } = args
   const [session, setSession] = useState<{ email: string | null } | null>(null)
-  const [upload, setUpload] = useState<CloudSyncState>(idleSync)
-  const [download, setDownload] = useState<CloudSyncState>(idleSync)
+  const [upload, setUpload] = useSyncFeedback()
+  const [download, setDownload] = useSyncFeedback()
   const uploadRunning = useRef(false)
   const downloadRunning = useRef(false)
 
