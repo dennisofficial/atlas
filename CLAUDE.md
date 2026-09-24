@@ -258,6 +258,10 @@ Specs stay local markdown under `.scratch/<feature-slug>/`, which is gitignored:
 effort, a `spec.md` plus working notes. A spec is the private working document for an effort; the
 issue is the public ticket. Delete the spec once the work ships — the code is the documentation.
 
+When a PR resolves an open issue, reference it in the PR body with a closing keyword
+(`Closes #N`, `Fixes #N`) so the merge closes the ticket. When work ships with no issue, that is
+fine — but when one exists, link it.
+
 ### Triage labels
 
 The repo's labels are the GitHub defaults — `bug`, `documentation`, `duplicate`, `enhancement`,
