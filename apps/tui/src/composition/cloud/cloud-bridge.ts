@@ -43,6 +43,16 @@ export type CloudSandboxes = {
     threadId: ThreadId
     workspace: LiftedWorkspace | null
     gpgKey?: string | undefined
+    /**
+     * Captures the skills/memory tar a fresh boot needs and uploads it through `put`. Deferred so
+     * a resume never pays the tar: create invokes it only once the drift probe has settled that
+     * the boot is fresh, before boot, so serve finds the archive on its first poll instead of
+     * retrying a 404 through its ninety-second budget. The caller owns failure semantics — a lift
+     * fails the move on an upload error, a wake warns and continues without the context.
+     */
+    captureContext?:
+      | ((put: (archive: Uint8Array) => Promise<void>) => Promise<void>)
+      | undefined
   }): Promise<CloudSandbox>
   /** Operator-session auth, same as `create` — the archive lands on the row `create` just opened. */
   putContext(args: { threadId: ThreadId; archive: Uint8Array }): Promise<void>

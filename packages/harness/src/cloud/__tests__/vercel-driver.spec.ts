@@ -270,19 +270,15 @@ describe('createOrResume', () => {
     expect(unprobed.deleted).toBe(false)
   })
 
-  it('skips the drift check entirely when the build pins no serve identity', async () => {
+  it('resumes a sandbox as-is when the build pins no serve identity, whatever stamp it carries', async () => {
     const existing = fakeSandbox({ installedStamp: 'source:anything' })
-    let probed = false
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
       image: 'atlas-sandbox:latest',
       serveSources: [],
       sdk: {
-        get: async () => {
-          probed = true
-          return existing
-        },
+        get: async () => existing,
         getOrCreate: async () => existing,
       },
     })
@@ -294,8 +290,90 @@ describe('createOrResume', () => {
       readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
     })
 
-    expect(probed).toBe(false)
     expect(existing.deleted).toBe(false)
+  })
+
+  it('uploads the context archive before booting a sandbox Vercel has never seen', async () => {
+    const calls: string[] = []
+    const { driver } = driverWith({
+      get: async () => {
+        throw notFound()
+      },
+      getOrCreate: async (params) => {
+        calls.push('boot')
+        const sandbox = fakeSandbox()
+        await params?.onCreate?.(sandbox)
+        return sandbox
+      },
+    })
+
+    await driver.createOrResume({
+      name: 'atlas-thread-x',
+      threadId: 'brn_cloud',
+      token: 't',
+      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
+      putContextOnFreshBoot: async () => {
+        calls.push('put-context')
+      },
+    })
+
+    expect(calls).toEqual(['put-context', 'boot'])
+  })
+
+  it('uploads the context archive before re-booting a drift-replaced sandbox', async () => {
+    const stale = fakeSandbox({ installedStamp: 'source:older-sha' })
+    const calls: string[] = []
+    const driver = new VercelDriver({
+      credentials: CREDENTIALS,
+      cloudUrl: 'https://api.example.com',
+      image: 'atlas-sandbox:1.10.0',
+      serveSources: ['source:this-build'],
+      sdk: {
+        get: async () => stale,
+        getOrCreate: async () => {
+          calls.push('boot')
+          return fakeSandbox({ installedStamp: 'source:this-build' })
+        },
+      },
+    })
+
+    await driver.createOrResume({
+      name: 'atlas-thread-x',
+      threadId: 'brn_cloud',
+      token: 't',
+      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
+      putContextOnFreshBoot: async () => {
+        calls.push('put-context')
+      },
+    })
+
+    expect(stale.deleted).toBe(true)
+    expect(calls).toEqual(['put-context', 'boot'])
+  })
+
+  it('never uploads the context archive when the sandbox resumes with it', async () => {
+    const current = fakeSandbox({ installedStamp: 'source:this-build' })
+    let uploads = 0
+    const driver = new VercelDriver({
+      credentials: CREDENTIALS,
+      cloudUrl: 'https://api.example.com',
+      image: 'atlas-sandbox:1.10.0',
+      serveSources: ['source:this-build'],
+      sdk: { get: async () => current, getOrCreate: async () => current },
+    })
+
+    await driver.createOrResume({
+      name: 'atlas-thread-x',
+      threadId: 'brn_cloud',
+      token: 't',
+      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
+      putContextOnFreshBoot: async () => {
+        uploads += 1
+      },
+    })
+
+    expect(uploads).toBe(0)
+    expect(current.deleted).toBe(false)
   })
 
   it('pins the model into the environment only when one is pinned', async () => {

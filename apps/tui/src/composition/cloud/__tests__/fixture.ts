@@ -302,11 +302,27 @@ export function fakeBridge(
     trail,
     stores: { log, threads: watchedThreads, ledger },
     sandboxes: {
-      create: async ({ threadId, workspace, gpgKey }) => {
+      create: async ({ threadId, workspace, gpgKey, captureContext }) => {
+        const sandbox = args.sandbox ?? RUNNING
+        // The real create captures and puts the archive onto the row before booting a fresh
+        // sandbox, so the trail records it ahead of the boot; a resumed sandbox already carries
+        // its context and never captures. The caller's thunk owns failure semantics, so the fake
+        // only records the put — the thunk decides whether a put failure throws.
+        if (captureContext !== undefined && sandbox.created) {
+          await captureContext(async (archive) => {
+            trail.push('put-context')
+            contextPuts.push({ threadId, archive: Buffer.from(archive) })
+            if (args.putContextFails !== undefined) throw args.putContextFails
+          })
+        }
         trail.push('sandbox')
-        created.push({ threadId, workspace, ...(gpgKey === undefined ? {} : { gpgKey }) })
+        created.push({
+          threadId,
+          workspace,
+          ...(gpgKey === undefined ? {} : { gpgKey }),
+        })
         if (args.createFails !== undefined) throw args.createFails
-        return args.sandbox ?? RUNNING
+        return sandbox
       },
       putContext: async ({ threadId, archive }) => {
         trail.push('put-context')
