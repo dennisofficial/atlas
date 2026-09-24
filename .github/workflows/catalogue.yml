@@ -1,9 +1,12 @@
 name: catalogue
 
 # Keeps main's model catalogue fresh without pushing to main (the ruleset's required ci
-# check makes direct pushes impossible). refresh opens a PR on drift; merge lands it once
-# that PR's own ci run is green. The two jobs are one handshake because allow_auto_merge
-# is off on the repo — enable it and merge collapses into `gh pr merge --auto` in refresh.
+# check makes direct pushes impossible). refresh opens a PR on drift; merge lands the
+# newest one once its ci run is green. merge also runs on the schedule because bot-authored
+# PRs can sit at action_required awaiting approval, which never emits the workflow_run
+# event — the scheduled pass drains the queue once a run is approved, and closes stale
+# PRs so the backlog never piles up. If approvals ever stop being demanded, --auto in
+# refresh collapses the whole handshake.
 on:
   schedule:
     - cron: '23 */6 * * *'
@@ -49,21 +52,52 @@ jobs:
             --body "Automated refresh from models.dev + api.inference.net. Merged by the catalogue workflow once its ci run is green."
 
   merge:
-    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request')
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      BRANCH: ${{ github.event.workflow_run.head_branch }}
     steps:
-      # Mergeability is computed asynchronously — seconds after the checks go green the
-      # merge can still be refused, so retry briefly before giving up.
-      - run: |
+      # A green catalogue PR supersedes every older one: the diff is cumulative, so the
+      # older PRs are closed unmerged and only the newest mergeable one lands. Mergeability
+      # is computed asynchronously — seconds after the checks go green the merge can still
+      # be refused, so retry briefly before giving up.
+      - name: merge the newest green catalogue PR, close the rest
+        run: |
           set -euo pipefail
-          for attempt in 1 2 3 4 5; do
-            if gh pr merge --squash --delete-branch "$BRANCH"; then
-              exit 0
+
+          prs=$(gh pr list --state open --json number,headRefName,createdAt \
+            --jq '[.[] | select(.headRefName | startswith("catalogue/"))] | sort_by(.createdAt) | reverse')
+          count=$(echo "$prs" | jq length)
+          echo "open catalogue PRs: $count"
+          [ "$count" -eq 0 ] && exit 0
+
+          merged=""
+          while read -r pr; do
+            if [ -n "$merged" ]; then
+              gh pr close "$pr" --delete-branch \
+                --comment "Superseded by #$merged — the catalogue diff is cumulative, so only the newest refresh merges."
+              continue
             fi
-            sleep 15
-          done
-          echo "::error::catalogue PR for $BRANCH would not merge after ci went green"
-          exit 1
+
+            state=$(gh pr checks "$pr" --json bucket --jq 'map(.bucket) | if any(. == "fail") then "fail" elif any(. == "pending") then "pending" else "pass" end')
+            if [ "$state" = "pass" ]; then
+              for attempt in 1 2 3 4 5; do
+                if gh pr merge --squash --delete-branch "$pr"; then
+                  merged="$pr"
+                  break
+                fi
+                sleep 15
+              done
+              if [ -z "$merged" ]; then
+                echo "::error::catalogue PR #$pr is green but would not merge"
+                exit 1
+              fi
+            elif [ "$state" = "fail" ]; then
+              gh pr close "$pr" --delete-branch \
+                --comment "ci failed on this refresh — closing; the next scheduled run opens a fresh PR."
+            else
+              echo "PR #$pr is still pending checks — leaving open"
+            fi
+          done < <(echo "$prs" | jq -r '.[].number')
