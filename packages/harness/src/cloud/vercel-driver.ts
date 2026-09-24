@@ -90,6 +90,12 @@ const stateOf = (status: string): ECloudSandboxState => {
   return ECloudSandboxState.Parked
 }
 
+enum ESandboxProbe {
+  Missing = 'missing',
+  Kept = 'kept',
+  Replaced = 'replaced',
+}
+
 const routedUrlOf = (sandbox: Sandbox): string | undefined => {
   try {
     return sandbox.domain(SANDBOX_SERVE_PORT)
@@ -150,6 +156,14 @@ export class VercelDriver {
     /** The stamps the claim's fresh session token authorizes reading — per call, never held. */
     readStamps: () => Promise<ServeStamps>
     pinnedModel?: string | undefined
+    /**
+     * Runs the moment the probe has settled that this boot is fresh (the name is new, or drift
+     * forced a recreate) and before getOrCreate, so the archive the callback uploads is on the row
+     * when serve polls for it — rather than serve retrying a 404 through its whole ninety-second
+     * budget while the caller waits for a boot that is waiting on the upload. A resumed sandbox
+     * already carries its context, so the callback never runs on resume and never pays the tar.
+     */
+    putContextOnFreshBoot?: (() => Promise<void>) | undefined
   }): Promise<SandboxPlacement> {
     if (this.args.image === undefined) {
       throw new Error('this driver was built for port exposure only, not for creating sandboxes')
@@ -165,7 +179,11 @@ export class VercelDriver {
     let created = false
     try {
       const { credentials } = this.args
-      await this.replaceSandboxOnServeDrift({ name: args.name })
+      const probe = await this.probeSandboxForResume({ name: args.name })
+      const freshBoot = probe === ESandboxProbe.Missing || probe === ESandboxProbe.Replaced
+      if (freshBoot && args.putContextOnFreshBoot !== undefined) {
+        await args.putContextOnFreshBoot()
+      }
       const sandbox = await this.sdk.getOrCreate({
         ...credentials,
         name: args.name,
@@ -302,11 +320,12 @@ export class VercelDriver {
    * re-download unnecessary and the version match exact. A sandbox whose stamp cannot be read is
    * left alone: an unreadable stamp is not evidence of drift, and tearing down on a guess would
    * destroy live work.
+   *
+   * Returns the probe outcome so the caller knows whether the upcoming boot is fresh: `missing`
+   * when Vercel has never seen the name, `replaced` when drift forced a recreate, `kept` when a
+   * live sandbox will be resumed.
    */
-  private async replaceSandboxOnServeDrift(args: { name: string }): Promise<void> {
-    const desired = this.args.serveSources ?? []
-    if (desired.length === 0) return
-
+  private async probeSandboxForResume(args: { name: string }): Promise<ESandboxProbe> {
     let sandbox: Sandbox
     try {
       sandbox = await this.sdk.get({
@@ -315,9 +334,12 @@ export class VercelDriver {
         signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
       })
     } catch (failure) {
-      if (isSandboxMissing(failure)) return
+      if (isSandboxMissing(failure)) return ESandboxProbe.Missing
       throw asVercelFailure(failure)
     }
+
+    const desired = this.args.serveSources ?? []
+    if (desired.length === 0) return ESandboxProbe.Kept
 
     const read = await sandbox
       .runCommand({
@@ -326,14 +348,15 @@ export class VercelDriver {
         timeoutMs: SANDBOX_QUICK_TIMEOUT_MS,
       })
       .catch(() => null)
-    if (read === null) return
+    if (read === null) return ESandboxProbe.Kept
     const installed = (await read.stdout()).trim()
-    if (desired.includes(installed)) return
+    if (desired.includes(installed)) return ESandboxProbe.Kept
 
     this.args.log?.(
       `sandbox ${args.name} carries serve "${installed || 'none'}", this build wants one of [${desired.join(', ')}] — recreating it from the pinned image`,
     )
     await sandbox.delete({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
+    return ESandboxProbe.Replaced
   }
 
   private async dedupedLaunch(args: {

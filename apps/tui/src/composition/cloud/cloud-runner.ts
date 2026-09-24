@@ -29,13 +29,13 @@ export async function wakeSandbox(args: {
   args.move?.handleBegin({ target: EExecutionLocation.Cloud, plan: WAKE_PLAN, heading: WAKE_HEADING })
   args.move?.handleAdvance(ELiftStep.Starting)
 
-  const woken = await args.bridge.sandboxes.create({ threadId: args.threadId, workspace: null })
-
-  if (woken.created) {
-    const contextArchive = await (args.captureContext ?? captureContextArchive)()
-    if (contextArchive !== undefined) {
+  const woken = await args.bridge.sandboxes.create({
+    threadId: args.threadId,
+    workspace: null,
+    captureContext: async (put) => {
       try {
-        await args.bridge.sandboxes.putContext({ threadId: args.threadId, archive: contextArchive })
+        const archive = await (args.captureContext ?? captureContextArchive)()
+        if (archive !== undefined) await put(archive)
       } catch (error) {
         notify({
           key: WAKE_CONTEXT_NOTICE_KEY,
@@ -44,8 +44,8 @@ export async function wakeSandbox(args: {
           ttlMs: NOTICE_WARN_MS,
         })
       }
-    }
-  }
+    },
+  })
 
   args.move?.handleAdvance(ELiftStep.Attaching)
   return { url: woken.url, token: woken.token, created: woken.created }

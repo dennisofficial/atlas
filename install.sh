@@ -28,8 +28,17 @@ tmp=$(mktemp -d "${TMPDIR:-/tmp}/atlas-install.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 
 base="https://github.com/$REPO/releases/latest/download"
-curl -fsSL "$base/$asset" -o "$tmp/$asset"
+
+if [ -t 2 ]; then
+  printf 'downloading %s (about 100MB)\n' "$asset" >&2
+  curl -fSL --progress-bar "$base/$asset" -o "$tmp/$asset"
+else
+  printf 'downloading %s (about 100MB, this can take a minute)\n' "$asset" >&2
+  curl -fsSL "$base/$asset" -o "$tmp/$asset"
+fi
 curl -fsSL "$base/$asset.sha256" -o "$tmp/$asset.sha256"
+
+printf 'verifying sha256 checksum\n' >&2
 
 if command -v shasum >/dev/null 2>&1; then
   actual=$(shasum -a 256 "$tmp/$asset" | awk '{print $1}')
@@ -43,6 +52,7 @@ if [ "$actual" != "$expected" ]; then
   exit 1
 fi
 
+printf 'installing to %s\n' "$dest" >&2
 mkdir -p "$dest_dir"
 install "$tmp/$asset" "$dest"
 
