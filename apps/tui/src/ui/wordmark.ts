@@ -24,7 +24,7 @@ const WORDMARK_PIXELS: readonly string[] = [
 ]
 
 const MARK_PIXELS = WORDMARK_PIXELS.map(
-  (row, index) => `${BRAND_MARK_PIXELS[index]}000${row}`,
+  (row, index) => `${BRAND_MARK_PIXELS[index]}00${row}`,
 )
 
 const DENSITY: readonly number[] = [0, 0.16, 0.4, 0.7, 1]
