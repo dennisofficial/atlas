@@ -13,6 +13,15 @@ export enum ESandboxDriveMode {
   Snapshot = 'snapshot',
 }
 
+/**
+ * Which factory seat a sandbox serves, told to the serve process inside as ATLAS_FACTORY_ROLE so
+ * its role-gated plugin tools activate. Absent for ordinary (non-factory) sandboxes.
+ */
+export enum ESandboxFactoryRole {
+  Orchestrator = 'orchestrator',
+  Station = 'station',
+}
+
 export interface SandboxStatusDto {
   threadId: string
   name: string

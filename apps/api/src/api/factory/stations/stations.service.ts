@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common'
 import { db } from '../../../db'
 import { factoryStationSandboxNameFor } from '../../platform/sandboxes/sandbox-names'
-import { ESandboxDriveMode } from '../../platform/sandboxes/sandboxes.types'
+import { ESandboxDriveMode, ESandboxFactoryRole } from '../../platform/sandboxes/sandboxes.types'
 import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import { ThreadsService } from '../../platform/sessions/threads.service'
 import { FactoryDrivesService } from '../drives/drives.service'
@@ -131,6 +131,7 @@ export class StationsService {
       },
       drive: { name: driveName, mode: driveModeFor(kind) },
       pinnedModel: await this.credentials.modelRef({ organizationId: item.organizationId }),
+      factoryRole: ESandboxFactoryRole.Station,
     })
 
     const alias = await ticketAliasOf({ workItems: this.workItems, item })

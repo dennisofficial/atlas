@@ -1,7 +1,7 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import { Drive, Sandbox, type SandboxMounts } from '@vercel/sandbox'
 import { EnvService } from '../../../_core/config/env/env.service'
-import { ESandboxDriveMode, ESandboxState } from './sandboxes.types'
+import { ESandboxDriveMode, ESandboxFactoryRole, ESandboxState } from './sandboxes.types'
 import { ServeBinaryService } from './serve-binary'
 import { createServeLauncher, SERVE_TOKEN_PATH, StaleSandboxTokenError } from './serve-launch'
 import type { ServeLauncher } from './serve-launch'
@@ -119,6 +119,7 @@ export class VercelSandboxClient {
     token: string
     drive?: { name: string; mode: ESandboxDriveMode } | undefined
     pinnedModel?: string | undefined
+    factoryRole?: ESandboxFactoryRole | undefined
   }): Promise<SandboxPlacement> {
     const configuration = this.configuration()
     const createStartedAt = Date.now()
@@ -146,6 +147,7 @@ export class VercelSandboxClient {
           ATLAS_CLOUD_URL: configuration.cloudUrl,
           ATLAS_WORKSPACE_DIR: WORKSPACE_PATH,
           ...(args.pinnedModel === undefined ? {} : { ATLAS_MODEL: args.pinnedModel }),
+          ...(args.factoryRole === undefined ? {} : { ATLAS_FACTORY_ROLE: args.factoryRole }),
         },
         ...(mounts === undefined ? {} : { mounts }),
         signal: AbortSignal.timeout(SANDBOX_LAUNCH_TIMEOUT_MS),

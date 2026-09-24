@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common'
 import { db } from '../../../db'
 import { factorySandboxNameFor } from '../../platform/sandboxes/sandbox-names'
 import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
-import { ESandboxDriveMode } from '../../platform/sandboxes/sandboxes.types'
+import { ESandboxDriveMode, ESandboxFactoryRole } from '../../platform/sandboxes/sandboxes.types'
 import { ThreadsService } from '../../platform/sessions/threads.service'
 import { FactoryDrivesService } from '../drives/drives.service'
 import { EFactoryEventKind, type TranscriptEventDto, type WorkItemDto } from '../factory.types'
@@ -82,6 +82,7 @@ export class OrchestratorService {
           extras: {
             drive: { name: driveName, mode: ESandboxDriveMode.Snapshot },
             pinnedModel: await this.credentials.modelRef({ organizationId: item.organizationId }),
+            factoryRole: ESandboxFactoryRole.Orchestrator,
           },
         })
       } catch (failure) {
