@@ -287,6 +287,56 @@ describe('refusing to idle', () => {
   })
 })
 
+describe('refusing to hold the turn open on a watch', () => {
+  it('refuses a foreground gh run watch and points it at runInBackground', async () => {
+    const outcome = await invoke({ command: 'gh run watch 123 --exit-status' })
+
+    expect(outcome.ok).toBe(false)
+    const reason = !outcome.ok ? outcome.reason : ''
+    expect(reason).toContain('only ends when what it watches ends')
+    expect(reason).toContain('runInBackground')
+    expect(reason).toContain('gh run view')
+  })
+
+  it('refuses the other foreground watches too', async () => {
+    expect((await invoke({ command: 'gh pr checks 272 --watch' })).ok).toBe(false)
+    expect((await invoke({ command: 'tail -f /tmp/serve.log' })).ok).toBe(false)
+    expect((await invoke({ command: 'kubectl wait --for=condition=ready pod/api' })).ok).toBe(false)
+  })
+
+  it('leaves the same watch alone once it is backgrounded', async () => {
+    const outcome = await invoke({ command: 'sleep 0.1 && echo done', runInBackground: true })
+
+    expect(outcome.ok).toBe(true)
+  })
+
+  it('teaches in the description that a foreground watch is refused like a sleep', () => {
+    const { description } = new BashTool(new BunShellRegistry(root, new SystemClock(), noHooks))
+
+    expect(description).toContain('never a foreground command')
+  })
+})
+
+describe('refusing a truncated CI watch', () => {
+  it('refuses the pipe through tail even in the background, and says why', async () => {
+    const outcome = await invoke({
+      command: 'gh run watch 123 --exit-status 2>&1 | tail -5',
+      runInBackground: true,
+    })
+
+    expect(outcome.ok).toBe(false)
+    const reason = !outcome.ok ? outcome.reason : ''
+    expect(reason).toContain('tail or head')
+    expect(reason).toContain('untruncated')
+  })
+
+  it('leaves a truncated one-shot read alone', async () => {
+    const outcome = await invoke({ command: 'echo check-one; echo check-two | tail -1' })
+
+    expect(outcome.ok).toBe(true)
+  })
+})
+
 describe('watching a background shell', () => {
   it('refuses a watch on a foreground command, and says what it needs', async () => {
     const outcome = await invoke({ command: 'echo hi', watch: 'ERROR' })

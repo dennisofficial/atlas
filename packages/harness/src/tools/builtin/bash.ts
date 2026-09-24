@@ -9,7 +9,9 @@ import {
   ProcessPort,
   SchemaTool,
   doesNothing,
+  truncatesWatch,
   waitsBySleeping,
+  waitsByWatching,
   type DeclaredPathField,
   type PortExposure,
   type ThreadId,
@@ -38,7 +40,9 @@ import {
   exposureUnsupported,
   idlingRefusal,
   noOpRefusal,
+  truncatedWatchRefusal,
   watchClause,
+  watchRefusal,
 } from './bash-prose'
 
 const DEFAULT_TIMEOUT_MS = 120_000
@@ -187,6 +191,10 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
       }
     }
 
+    if (truncatesWatch({ command })) {
+      return { ok: false, reason: truncatedWatchRefusal() }
+    }
+
     if (input.runInBackground === true) {
       const exposure = await this.resolveExposure({
         containerPort: input.exposePort,
@@ -214,6 +222,10 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
 
     if (waitsBySleeping({ command, timeoutMs: timeout })) {
       return { ok: false, reason: idlingRefusal({ command, timeoutMs: timeout }) }
+    }
+
+    if (waitsByWatching({ command })) {
+      return { ok: false, reason: watchRefusal() }
     }
 
     const started = startShell({ command, cwd, processes: this.processes, threadId })
