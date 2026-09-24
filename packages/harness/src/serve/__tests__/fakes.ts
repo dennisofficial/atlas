@@ -3,7 +3,7 @@ import { toRunId, type Event, type EventDraft, type RunId, type ThreadId } from 
 import { createDeltaChannel, type DeltaChannel } from '../../channel/delta-channel'
 import { ETurnStatus, type TurnOutcome } from '../../loop/turn-outcome'
 import type { ThreadSummary } from '../../store/thread-store'
-import type { ServeApp } from '../serve-app'
+import type { ServeApp, ServeWakeNotices } from '../serve-app'
 
 export type RunTurn = (args: {
   threadId: ThreadId
@@ -16,6 +16,10 @@ export type FakeServeApp = ServeApp & {
   forgotten: () => number
   closed: () => boolean
   adoptions: () => readonly ThreadId[]
+}
+
+export type FakeWakeNotices = ServeWakeNotices & {
+  setPending: (args: { shells?: number; agents?: number; services?: number }) => void
 }
 
 const summaryOf = (threadId: ThreadId): ThreadSummary => ({
@@ -32,6 +36,31 @@ const idle = async (): Promise<TurnOutcome> => ({
   runId: toRunId('run-idle'),
 })
 
+export function fakeWakeNotices(): FakeWakeNotices {
+  const listeners = new Set<() => void>()
+  let shells = 0
+  let agents = 0
+  let services = 0
+
+  return {
+    pendingShells: () => shells,
+    pendingAgents: () => agents,
+    pendingServices: () => services,
+    subscribe: (listener) => {
+      listeners.add(listener)
+      return () => {
+        listeners.delete(listener)
+      }
+    },
+    setPending: (given) => {
+      shells = given.shells ?? shells
+      agents = given.agents ?? agents
+      services = given.services ?? services
+      for (const listener of [...listeners]) listener()
+    },
+  }
+}
+
 export function fakeServeApp(args: {
   threadId: ThreadId
   root: string
@@ -40,6 +69,7 @@ export function fakeServeApp(args: {
   events?: readonly Event[] | undefined
   adoptChildren?: ((args: { threadId: ThreadId }) => Promise<readonly ThreadId[]>) | undefined
   whenChildrenSettled?: (() => Promise<void>) | undefined
+  wakeNotices?: boolean | undefined
 }): FakeServeApp {
   const channel = createDeltaChannel()
   const appended: EventDraft[] = []
@@ -97,6 +127,8 @@ export function fakeServeApp(args: {
     whenChildrenSettled: () => (args.whenChildrenSettled ?? (async () => undefined))(),
 
     syncMemoryAfterTurn: async () => undefined,
+
+    ...(args.wakeNotices === true ? { wakeNotices: fakeWakeNotices() } : {}),
 
     close: async () => {
       closed = true

@@ -1,5 +1,6 @@
 export { cloudOutageMessage, isCloudOutage } from './cloud-outage'
 export { ChildWake, type WakeSource, type WakeTarget } from './child-wake'
+export { MainWake, MAX_WAKE_ATTEMPTS } from './main-wake'
 export { composeHarness } from './compose'
 export type { HarnessApp, HarnessSurfaceBinding, SessionTitler } from './harness-app'
 export { compactAt, compactTurn, ECompaction, ECompactScope, scopeOfArgument, summariseAt, type Compaction, type Summariser } from './compact-turn'

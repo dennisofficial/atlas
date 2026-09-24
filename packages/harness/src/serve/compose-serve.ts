@@ -211,6 +211,21 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       app.shells.listEverywhere().filter((shell) => shell.status === EShellStatus.Running).length,
     runningServices: () =>
       app.services.list().filter((service) => service.status === EServiceStatus.Running).length,
+    wakeNotices: {
+      pendingShells: ({ threadId }) => app.shells.pendingNotices({ threadId }).length,
+      pendingAgents: ({ threadId }) => app.agents.pendingNotices({ threadId }).length,
+      pendingServices: ({ threadId }) => app.services.pendingNotices({ threadId }).length,
+      subscribe: (listener) => {
+        const offs = [
+          app.shells.onNotice(listener),
+          app.agents.onNotice(listener),
+          app.services.onNotice(listener),
+        ]
+        return () => {
+          for (const off of offs) off()
+        }
+      },
+    },
     close: app.close,
   }
 }
