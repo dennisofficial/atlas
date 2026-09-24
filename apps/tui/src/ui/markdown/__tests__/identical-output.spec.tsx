@@ -63,7 +63,7 @@ function Streamed(props: { initial: StreamState }): React.ReactNode {
   )
 }
 
-async function mounted(initial: StreamState) {
+async function mounted(initial: StreamState & { fenced: boolean }) {
   const setup = await testRender(<Streamed initial={initial} />, {
     width: CORPUS_WIDTH,
     height: CORPUS_HEIGHT,
@@ -73,12 +73,12 @@ async function mounted(initial: StreamState) {
     setup,
     async transition(next: StreamState) {
       await act(async () => void push?.(next))
-      await setup.flush()
     },
     async settled(): Promise<readonly string[]> {
       // A settled `<code>` draws plain text at once and its highlight a round trip later, so a
-      // steady frame alone can pin the plain one.
-      await settle()
+      // steady frame alone can pin the plain one. Only a fenced block highlights asynchronously;
+      // every other construct is styled in the commit that draws it.
+      if (initial.fenced) await settle()
       await frameSettled({ setup, within: 3000 })
       return styledLines(setup.captureSpans())
     },
@@ -86,7 +86,7 @@ async function mounted(initial: StreamState) {
 }
 
 async function oneShotFrames(source: string): Promise<readonly string[]> {
-  const view = await mounted({ source, streaming: false })
+  const view = await mounted({ source, streaming: false, fenced: source.includes('```') })
   try {
     return await view.settled()
   } finally {
@@ -96,7 +96,8 @@ async function oneShotFrames(source: string): Promise<readonly string[]> {
 
 async function streamedFrames(args: { source: string; chunk: number }): Promise<StreamedFrames> {
   const cuts = chunked(args.source, args.chunk)
-  const view = await mounted({ source: cuts[0] ?? '', streaming: true })
+  const fenced = args.source.includes('```')
+  const view = await mounted({ source: cuts[0] ?? '', streaming: true, fenced })
   try {
     for (const cut of cuts.slice(1)) await view.transition({ source: cut, streaming: true })
     const live = await view.settled()
