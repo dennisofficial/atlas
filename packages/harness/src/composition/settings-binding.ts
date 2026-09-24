@@ -54,6 +54,7 @@ export function loadSettings(args: {
     user,
     project,
     environment: environmentLayer({ definitions, env: args.env }),
+    watch: { files: [userFile, projectFile] },
     ...(args.cloud === undefined ? {} : { cloud: args.cloud }),
   })
 

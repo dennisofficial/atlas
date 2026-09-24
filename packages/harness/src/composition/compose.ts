@@ -154,6 +154,12 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   const accountStore = container.resolve(portToken(AccountStorePort))
   // bindTo registers the settings store tokens bindAccounts resolves for the sign-in migration.
   args.settings.bindTo(container)
+  registerDisposable({
+    container,
+    close: async () => {
+      settings.close()
+    },
+  })
   const { credentials, accounts, cloud, cloudSettings, usage, rewarmSecrets } = await bindAccounts({
     container,
     env: args.env,

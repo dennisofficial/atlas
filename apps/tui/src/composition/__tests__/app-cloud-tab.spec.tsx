@@ -177,6 +177,30 @@ describe('the settings cloud tab', () => {
     }
   }, 60_000)
 
+  it('clears the upload feedback after a few seconds', async () => {
+    const { cloud } = fakeCloudWithSyncs()
+    const app = fakeApp({
+      model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }),
+      cloud,
+    })
+    const setup = await onCloudTab(app)
+
+    try {
+      setup.mockInput.pressArrow('down')
+      await landed(setup)
+      setup.mockInput.pressEnter()
+      await landed(setup)
+      expect(setup.captureCharFrame()).toContain('Uploaded')
+
+      await settle(7000)
+      await setup.flush()
+
+      expect(setup.captureCharFrame()).not.toContain('Uploaded')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
   it('downloads the cloud accounts and secrets on ⏎ and says what moved', async () => {
     const { cloud, syncs } = fakeCloudWithSyncs()
     const app = fakeApp({
