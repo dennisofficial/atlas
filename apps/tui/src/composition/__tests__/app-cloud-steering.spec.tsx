@@ -117,7 +117,7 @@ describe('steering a turn that runs in the cloud', () => {
     }
   }, 60_000)
 
-  it('queues an image locally with a notice, since a Send frame carries text only', async () => {
+  it('steers a running cloud turn with an image attached, forwarding it to the sandbox', async () => {
     const app = slowlySpeaking()
     const bridge = fakeBridge()
     const mounted = await mount({ app, bridge, clipboard: onTheClipboard() })
@@ -135,13 +135,17 @@ describe('steering a turn that runs in the cloud', () => {
       await mounted.typeText(STEER)
       mounted.pressEnter()
 
-      const noticed = await until({
-        holds: async () => (await mounted.nextFrame()).includes("can't steer a running cloud turn"),
+      const forwarded = await until({
+        holds: async () =>
+          bridge.channel.sent.some((one) => one.text.endsWith(STEER) && one.images?.length === 1),
         within: 20_000,
       })
-      expect(noticed).toBe(true)
-      expect(bridge.channel.sent).toEqual([])
-      expect(app.pending.forThread({ threadId: THREAD }).getSnapshot()).toHaveLength(1)
+      expect(forwarded).toBe(true)
+
+      const steered = bridge.channel.sent.find((one) => one.text.endsWith(STEER))
+      expect(steered?.images?.[0]?.mediaType).toBe('image/png')
+      expect(app.pending.forThread({ threadId: THREAD }).getSnapshot()).toEqual([])
+      expect(await mounted.frame()).not.toContain(TAKE_BACK)
 
       bridge.channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-cloud-resume') })
     } finally {

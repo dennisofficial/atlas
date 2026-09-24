@@ -1,9 +1,10 @@
-import { toThreadId, type ThreadId } from '@dltech/atlas-core'
+import { toThreadId, type EventDraft, type SaidImage, type ThreadId } from '@dltech/atlas-core'
 import {
   EChannelConnection,
   ThreadStorePort,
   type ChannelConnection,
   type ChannelReady,
+  type InterruptAck,
   type TurnOutcome,
 } from '@dltech/atlas-harness'
 
@@ -41,10 +42,15 @@ export type FakeCloudChannel = CloudChannel & {
   ready(ready: ChannelReady): void
   fail(message: string): void
   failTransport(message: string): void
+  acknowledgeInterrupt(): void
   endTurn(outcome: TurnOutcome): void
   readonly closed: boolean
   readonly runs: number
-  readonly sent: readonly { text: string }[]
+  readonly sent: readonly {
+    text: string
+    images?: readonly SaidImage[]
+    context?: readonly EventDraft[]
+  }[]
   readonly woken: readonly { url: string; token: string }[]
 }
 
@@ -54,9 +60,14 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
   const readies = new Set<(ready: ChannelReady) => void>()
   const failures = new Set<(failure: { message: string }) => void>()
   const serverErrors = new Set<(failure: { message: string }) => void>()
+  const interruptAcks = new Set<(ack: InterruptAck) => void>()
   const turnEndings = new Set<(outcome: TurnOutcome) => void>()
   const woken: { url: string; token: string }[] = []
-  const sent: { text: string }[] = []
+  const sent: {
+    text: string
+    images?: readonly SaidImage[]
+    context?: readonly EventDraft[]
+  }[] = []
 
   let held: ChannelConnection = { state: EChannelConnection.Connecting, detail: null }
   let closed = false
@@ -69,8 +80,12 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
     publisherFor: () => {
       throw new Error('a cloud channel never publishes from the client')
     },
-    send: ({ text }) => {
-      sent.push({ text })
+    send: (said) => {
+      sent.push({
+        text: said.text,
+        ...(said.images === undefined ? {} : { images: said.images }),
+        ...(said.context === undefined ? {} : { context: said.context }),
+      })
     },
     run: () => {
       runs += 1
@@ -114,6 +129,12 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
         serverErrors.delete(listener)
       }
     },
+    onInterruptAck: (listener) => {
+      interruptAcks.add(listener)
+      return () => {
+        interruptAcks.delete(listener)
+      }
+    },
     wake: ({ url, token }) => {
       woken.push({ url, token })
     },
@@ -153,6 +174,9 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
     },
     failTransport(message) {
       for (const listener of [...failures]) listener({ message })
+    },
+    acknowledgeInterrupt() {
+      for (const listener of [...interruptAcks]) listener({ turnInFlight: true })
     },
     endTurn(outcome) {
       for (const listener of [...turnEndings]) listener(outcome)

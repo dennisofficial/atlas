@@ -31,7 +31,7 @@ import {
 } from '../index'
 
 import { connect } from './client'
-import { fakeServeApp, type FakeServeApp, type RunTurn } from './fakes'
+import { fakeServeApp, fakeWakeNotices, type FakeServeApp, type RunTurn } from './fakes'
 
 const TOKEN = 'session-token'
 
@@ -77,6 +77,7 @@ const start = async (args: {
   publishWorkspace?: WorkspacePublisher | undefined
   adoptChildren?: ((args: { threadId: ThreadId }) => Promise<readonly ThreadId[]>) | undefined
   whenChildrenSettled?: (() => Promise<void>) | undefined
+  wakeNotices?: boolean | undefined
   idleMinutes?: number | undefined
   idleTickMs?: number | undefined
   exit?: ((code: number) => void) | undefined
@@ -91,6 +92,7 @@ const start = async (args: {
     entries: args.entries,
     adoptChildren: args.adoptChildren,
     whenChildrenSettled: args.whenChildrenSettled,
+    wakeNotices: args.wakeNotices,
   })
 
   const told =
@@ -137,6 +139,11 @@ const stepIdsOf = (frames: readonly ServeFrame[]): string[] =>
 
 const isStep = (frame: ServeFrame, type: 'chunk' | 'step-ended'): boolean =>
   frame.kind === EServeFrame.Signal && frame.signal.type === type
+
+const wakeNoticesOf = (app: FakeServeApp): ReturnType<typeof fakeWakeNotices> => {
+  if (app.wakeNotices === undefined) throw new Error('the spec did not ask for wakeNotices')
+  return app.wakeNotices as ReturnType<typeof fakeWakeNotices>
+}
 
 const textChunk = (text: string) => ({ type: 'text-delta', id: 'block', text }) as const
 
@@ -461,6 +468,33 @@ describe('startServe', () => {
     held.open()
     await client.waitFor((frame) => frame.kind === EServeFrame.Signal && frame.seq === 2)
     expect(app.appended).toEqual([{ type: 'user-said', text: 'go' }])
+  })
+
+  it('commits a send with images and context exactly as a local turn would', async () => {
+    const { handle, app } = await start({})
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    client.send({
+      kind: EClientFrame.Send,
+      text: 'go',
+      images: [{ path: '/tmp/shot.png', mediaType: 'image/png', data: 'aGVsbG8=', width: 2, height: 1 }],
+      context: [{ type: 'context-loaded', slot: 'skill', key: 'commit', content: 'commit prose' }],
+    })
+    await Bun.sleep(20)
+
+    expect(app.appended).toEqual([
+      { type: 'context-loaded', slot: 'skill', key: 'commit', content: 'commit prose' },
+      {
+        type: 'user-said',
+        text: 'go',
+        images: [
+          { path: '/tmp/shot.png', mediaType: 'image/png', data: 'aGVsbG8=', width: 2, height: 1 },
+        ],
+      },
+    ])
   })
 
   it('answers a publish-workspace request with the ref the workspace pushed', async () => {
@@ -912,8 +946,9 @@ describe('startServe', () => {
     client.send({ kind: EClientFrame.Send, text: 'go' })
     await Bun.sleep(10)
     client.send({ kind: EClientFrame.Interrupt })
-    await Bun.sleep(10)
 
+    const acked = await client.waitFor((frame) => frame.kind === EServeFrame.InterruptAcked)
+    if (acked.kind === EServeFrame.InterruptAcked) expect(acked.seq).toBeGreaterThanOrEqual(0)
     expect(aborted).toBe(true)
   })
 
@@ -1117,5 +1152,56 @@ describe('startServe', () => {
     expect(composed).toBe(true)
     expect(composedWith).toBeUndefined()
     await handle.close()
+  })
+
+  describe('an ending that lands while no client is attached', () => {
+    it('starts a turn on a shell ending rather than waiting for a Send', async () => {
+      let turns = 0
+      const { app, lines } = await start({
+        wakeNotices: true,
+        runTurn: async () => {
+          turns += 1
+          return { status: ETurnStatus.Completed, runId: toRunId(`run-${turns}`) }
+        },
+      })
+
+      wakeNoticesOf(app).setPending({ shells: 1 })
+
+      for (let waited = 0; waited < 2000; waited += 1) {
+        if (turns > 0) break
+        await Bun.sleep(1)
+      }
+
+      expect(turns).toBe(1)
+      expect(lines.some((line) => line.includes(EServeEvent.TurnStarted))).toBe(true)
+    })
+
+    it('holds the wake while a turn is already running — the loop drains the queue itself', async () => {
+      const held = gate()
+      let turns = 0
+      const { handle, app } = await start({
+        wakeNotices: true,
+        runTurn: async () => {
+          turns += 1
+          await held.opened
+          return { status: ETurnStatus.Completed, runId: toRunId(`run-${turns}`) }
+        },
+      })
+
+      const client = await connect({ port: handle.port, token: TOKEN })
+      client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+      await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+      client.send({ kind: EClientFrame.Run })
+      await Bun.sleep(10)
+
+      wakeNoticesOf(app).setPending({ shells: 1 })
+      await Bun.sleep(10)
+      expect(turns).toBe(1)
+
+      held.open()
+      wakeNoticesOf(app).setPending({ shells: 0 })
+      await client.waitFor((frame) => frame.kind === EServeFrame.TurnEnded)
+      expect(turns).toBe(1)
+    })
   })
 })

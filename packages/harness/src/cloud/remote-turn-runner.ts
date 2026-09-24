@@ -1,4 +1,4 @@
-import type { ThreadId } from '@dltech/atlas-core'
+import type { EventDraft, SaidImage, ThreadId } from '@dltech/atlas-core'
 
 import { TurnRunner, type TurnOutcome } from '../loop'
 
@@ -54,11 +54,20 @@ export class RemoteTurnRunner extends TurnRunner {
     return this.drive({ ...args, fire: () => this.channel.send({ text: args.text }) })
   }
 
-  steer(args: { threadId: ThreadId; text: string }): void {
+  steer(args: {
+    threadId: ThreadId
+    text: string
+    images?: readonly SaidImage[]
+    context?: readonly EventDraft[]
+  }): void {
     if (args.threadId !== this.channel.threadId) {
       throw new Error(`this runner serves ${this.channel.threadId}, not ${args.threadId}`)
     }
-    this.channel.send({ text: args.text })
+    this.channel.send({
+      text: args.text,
+      ...(args.images === undefined ? {} : { images: args.images }),
+      ...(args.context === undefined ? {} : { context: args.context }),
+    })
   }
 
   runTurn(args: { threadId: ThreadId; signal?: AbortSignal }): Promise<TurnOutcome> {

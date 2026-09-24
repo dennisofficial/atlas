@@ -1,6 +1,12 @@
 import { z } from 'zod'
 
-import { callIdSchema, runIdSchema, threadIdSchema } from '@dltech/atlas-core'
+import {
+  callIdSchema,
+  eventBodySchema,
+  runIdSchema,
+  threadIdSchema,
+  type SaidImage,
+} from '@dltech/atlas-core'
 
 import { ETurnStatus, type TurnOutcome } from '../loop/turn-outcome'
 
@@ -14,7 +20,7 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
  * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
  */
-export const CHANNEL_PROTOCOL_VERSION = 2
+export const CHANNEL_PROTOCOL_VERSION = 3
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
@@ -36,6 +42,7 @@ export enum EServeFrame {
   Reload = 'reload',
   Parked = 'parked',
   TurnEnded = 'turn-ended',
+  InterruptAcked = 'interrupt-acked',
   Error = 'error',
 }
 
@@ -88,6 +95,14 @@ export const turnOutcomeWireSchema = z.discriminatedUnion('status', [
 
 export type TurnOutcomeWire = z.infer<typeof turnOutcomeWireSchema>
 
+const saidImageWireSchema: z.ZodType<SaidImage> = z.object({
+  path: z.string(),
+  mediaType: z.string(),
+  data: z.string(),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+})
+
 export const turnOutcomeFromWire = (outcome: TurnOutcomeWire): TurnOutcome => {
   if (outcome.status !== ETurnStatus.Failed) return outcome
   return { ...outcome, cause: undefined }
@@ -114,6 +129,7 @@ export const serveFrameSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal(EServeFrame.Reload), sinceEventSeq: seqSchema }),
   z.object({ kind: z.literal(EServeFrame.Parked), reason: z.string() }),
   z.object({ kind: z.literal(EServeFrame.TurnEnded), outcome: turnOutcomeWireSchema }),
+  z.object({ kind: z.literal(EServeFrame.InterruptAcked), seq: seqSchema }),
   z.object({ kind: z.literal(EServeFrame.Error), message: z.string() }),
 ])
 
@@ -127,7 +143,12 @@ export const clientFrameSchema = z.discriminatedUnion('kind', [
     lastEventSeq: seqSchema,
     protocol: z.number().int().nonnegative().optional(),
   }),
-  z.object({ kind: z.literal(EClientFrame.Send), text: z.string() }),
+  z.object({
+    kind: z.literal(EClientFrame.Send),
+    text: z.string(),
+    images: z.array(saidImageWireSchema).optional(),
+    context: z.array(eventBodySchema).optional(),
+  }),
   z.object({ kind: z.literal(EClientFrame.Run) }),
   z.object({ kind: z.literal(EClientFrame.Interrupt) }),
   z.object({
