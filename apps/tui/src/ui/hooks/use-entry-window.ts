@@ -2,6 +2,8 @@ import type { Renderable, ScrollBoxRenderable } from '@opentui/core'
 import { useRenderer } from '@opentui/react'
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 
+import { isPinnedToBottom } from '../scroll-position'
+
 import {
   WINDOW_CAP,
   WINDOW_MARGIN,
@@ -24,7 +26,10 @@ export type EntryWindow = {
   sections: readonly MountSection[]
   handleTick: () => void
   offsetOfKey: (key: string) => number | null
+  pinToKey: (args: { key: string; offset: number }) => void
 }
+
+type ScrollAnchor = { key: string; offset: number }
 
 const sameSpans = (left: readonly Span[], right: readonly Span[]): boolean =>
   left.length === right.length &&
@@ -67,6 +72,8 @@ export function useEntryWindow(args: {
   const live = useRef({ active, entries: args.entries })
   live.current = { active, entries: args.entries }
 
+  const anchor = useRef<ScrollAnchor | null>(null)
+
   useEffect(() => {
     if (!live.current.active) return
     setSpans([
@@ -78,13 +85,6 @@ export function useEntryWindow(args: {
       }),
     ])
   }, [active])
-
-  useEffect(() => {
-    if (measuredAtWidth.current === args.width) return
-    measuredAtWidth.current = args.width
-    measured.current.clear()
-    setVersion((v) => v + 1)
-  }, [args.width])
 
   const indexOfKey = useMemo(
     () => new Map(args.entries.map((entry, index) => [entry.key, index])),
@@ -104,10 +104,44 @@ export function useEntryWindow(args: {
   const layoutLive = useRef(layout)
   layoutLive.current = layout
 
+  /**
+   * The layout the model will render next, recomputed from the measurement map rather than read
+   * from render-side state: a later render can overwrite the live layout ref before an earlier
+   * commit's effect runs, and native positions (child.y, scrollHeight) are stale until a frame
+   * paints. The map is written only here, so a layout derived from it inside the effect is
+   * exactly what the user sees before the bump and exactly what the next commit paints after it.
+   */
+  const layoutFromMeasured = (): { rows: number[]; tops: number[] } => {
+    const rows = rowsPerEntry({
+      keys: live.current.entries.map((entry) => entry.key),
+      measured: measured.current,
+      estimate: estimateRows({ measured: measured.current }),
+    })
+    return { rows, tops: topsOf({ rows }) }
+  }
+
+  useEffect(() => {
+    if (measuredAtWidth.current === args.width) return
+    measuredAtWidth.current = args.width
+    const box = args.scroller.current
+    if (box !== null && anchor.current === null) {
+      const { tops, rows } = layoutFromMeasured()
+      const index = entryAtRow({ tops, rows, row: box.scrollTop })
+      const key = index === null ? undefined : live.current.entries[index]?.key
+      if (index !== null && key !== undefined) {
+        anchor.current = { key, offset: box.scrollTop - (tops[index] ?? 0) }
+      }
+    }
+    measured.current.clear()
+    setVersion((v) => v + 1)
+  }, [args.width, args.scroller])
+
   useEffect(() => {
     if (!active) return
     const box = args.scroller.current
     if (!box) return
+
+    const painted = layoutFromMeasured()
 
     let changed = false
     let unlaid = false
@@ -121,6 +155,34 @@ export function useEntryWindow(args: {
       measured.current.set(child.id, child.height)
       changed = true
     }
+
+    if (changed && anchor.current === null) {
+      const tailing = isPinnedToBottom({
+        scrollTop: box.scrollTop,
+        scrollHeight: box.scrollHeight,
+        viewportHeight: box.viewport.height,
+      })
+      if (!tailing) {
+        const index = entryAtRow({ tops: painted.tops, rows: painted.rows, row: box.scrollTop })
+        const key = index === null ? undefined : live.current.entries[index]?.key
+        if (index !== null && key !== undefined) {
+          anchor.current = { key, offset: box.scrollTop - (painted.tops[index] ?? 0) }
+        }
+      }
+    }
+
+    const pending = anchor.current
+    if (pending !== null) {
+      const index = indexOfKeyLive.current.get(pending.key)
+      if (index === undefined) {
+        anchor.current = null
+      } else {
+        const target = Math.max(0, (layoutFromMeasured().tops[index] ?? 0) + pending.offset)
+        if (box.scrollTop !== target) box.scrollTo(target)
+        if (!changed && box.scrollTop === target) anchor.current = null
+      }
+    }
+
     if (changed) setVersion((v) => v + 1)
     if (unlaid) {
       const retry = setTimeout(() => setVersion((v) => v + 1), 0)
@@ -186,6 +248,17 @@ export function useEntryWindow(args: {
     [],
   )
 
+  /**
+   * Keep the given entry at the same offset from the viewport top across the layout change the
+   * caller just committed — a prepended history page prices itself at the row estimate until its
+   * entries mount and measure, so a one-shot scrollTo lands on the estimate's error. The anchor
+   * re-pins by identity once the layout catches up, and every later measurement pass re-anchors
+   * from the live scroll position, converging to the exact offset.
+   */
+  const pinToKey = useCallback((pin: { key: string; offset: number }): void => {
+    anchor.current = { key: pin.key, offset: pin.offset }
+  }, [])
+
   const sections = useMemo(
     (): readonly MountSection[] =>
       active
@@ -194,5 +267,5 @@ export function useEntryWindow(args: {
     [active, layout, spans, args.entries.length],
   )
 
-  return { active, sections, handleTick, offsetOfKey }
+  return { active, sections, handleTick, offsetOfKey, pinToKey }
 }
