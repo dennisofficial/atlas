@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common'
 import { db } from '../../../db'
-import { ESandboxDriveMode } from '../../platform/sandboxes/sandboxes.types'
+import { ESandboxDriveMode, ESandboxFactoryRole } from '../../platform/sandboxes/sandboxes.types'
 import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import type { OrchestratorChannel } from './orchestrator-channel'
 
@@ -16,6 +16,7 @@ export type ServeDeliveryDeps = {
 export type ServeAttachExtras = {
   drive?: { name: string; mode: ESandboxDriveMode } | undefined
   pinnedModel?: string | undefined
+  factoryRole?: ESandboxFactoryRole | undefined
 }
 
 export async function serveMessageCommitted(args: {
@@ -138,6 +139,7 @@ export async function deliverToServeThread(args: {
     name: args.sandboxName,
     ...(args.extras?.drive === undefined ? {} : { drive: args.extras.drive }),
     ...(args.extras?.pinnedModel === undefined ? {} : { pinnedModel: args.extras.pinnedModel }),
+    ...(args.extras?.factoryRole === undefined ? {} : { factoryRole: args.extras.factoryRole }),
   })
   await args.deps.sandboxes.whenSettled({ threadId: args.threadId })
   const status = await args.deps.sandboxes.status({ userId: args.userId, threadId: args.threadId })

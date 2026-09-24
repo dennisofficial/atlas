@@ -5,14 +5,19 @@ import { EStationKind } from './station.types'
 const ARGS = { workItemId: 'fwi_1', runId: 'fsr_abc', repo: 'compai/atlas' }
 
 describe('implementerInstructions', () => {
-  it('teaches the git-token broker, the branch rule, and the result endpoint for this run', () => {
+  it('teaches the git-token tool, the branch rule, and the result tool for this run', () => {
     const text = implementerInstructions(ARGS)
-    expect(text).toContain('/v1/factory/git-token')
-    expect(text).toContain('/v1/factory/stations/fsr_abc/result')
+    expect(text).toContain('factory_git_token')
+    expect(text).toContain('factory_submit_result')
     expect(text).toContain('atlas-factory/')
     expect(text).toContain('main')
     expect(text).toContain('head_sha')
     expect(text).toContain('compai/atlas')
+  })
+
+  it('teaches tools, never curl', () => {
+    expect(implementerInstructions(ARGS)).not.toContain('curl')
+    expect(reviewerInstructions(ARGS)).not.toContain('curl')
   })
 
   it('carries the run id so the control plane can use it as the delivery marker', () => {
@@ -52,10 +57,11 @@ describe('implementerInstructions', () => {
 })
 
 describe('reviewerInstructions', () => {
-  it('teaches the read-only snapshot, the head-sha check, and the verdict endpoint', () => {
+  it('teaches the read-only snapshot, the head-sha check, and the verdict tool', () => {
     const text = reviewerInstructions(ARGS)
     expect(text).toContain('read-only snapshot')
-    expect(text).toContain('/v1/factory/stations/fsr_abc/result')
+    expect(text).toContain('factory_submit_result')
+    expect(text).toContain('fsr_abc')
     expect(text).toContain('request_changes')
     expect(text).toContain('head SHA')
   })

@@ -2,12 +2,14 @@
 
 import type { DependencyContainer } from '../container/injection'
 
+import { registerPlugin as registerFactory } from './factory'
 import { registerPlugin as registerForeignCheckout } from './foreign-checkout'
 import { registerPlugin as registerGithub } from './github'
 
-export const NATIVE_PLUGIN_IDS: readonly string[] = ['foreign-checkout', 'github']
+export const NATIVE_PLUGIN_IDS: readonly string[] = ['factory', 'foreign-checkout', 'github']
 
 export function registerNativePlugins({ container }: { container: DependencyContainer }): void {
+  registerFactory({ container })
   registerForeignCheckout({ container })
   registerGithub({ container })
 }

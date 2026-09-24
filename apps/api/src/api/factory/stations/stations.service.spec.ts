@@ -8,7 +8,7 @@ vi.mock('../../../db', async () => {
 
 import { fakeFactoryDb } from '../../../../test/fake-factory-db.js'
 import type { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
-import { ESandboxDriveMode } from '../../platform/sandboxes/sandboxes.types'
+import { ESandboxDriveMode, ESandboxFactoryRole } from '../../platform/sandboxes/sandboxes.types'
 import type { ThreadsService } from '../../platform/sessions/threads.service'
 import type { FactoryDrivesService } from '../drives/drives.service'
 import {
@@ -160,6 +160,7 @@ describe('StationsService', () => {
             workspace: { remoteUrl: string | null }
             drive: { name: string; mode: ESandboxDriveMode }
             pinnedModel: string
+            factoryRole: ESandboxFactoryRole
           },
         ]
       >
@@ -172,6 +173,7 @@ describe('StationsService', () => {
         mode: ESandboxDriveMode.ReadWrite,
       })
       expect(attachArgs.pinnedModel).toBe('inference/kimi-k3-fast')
+      expect(attachArgs.factoryRole).toBe(ESandboxFactoryRole.Station)
 
       const requestEvent = fake.transcriptEvents.find(
         (one) => one.kind === EFactoryEventKind.StationRequest,

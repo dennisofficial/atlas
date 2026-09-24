@@ -159,7 +159,7 @@ import {
   VercelSandboxClient,
   WORKSPACE_PATH,
 } from './vercel-sandbox.client'
-import { ESandboxDriveMode, ESandboxState } from './sandboxes.types'
+import { ESandboxDriveMode, ESandboxFactoryRole, ESandboxState } from './sandboxes.types'
 
 const CONFIGURED: Record<string, string | number> = {
   VERCEL_TOKEN: 'vercel-token',
@@ -271,6 +271,7 @@ describe('VercelSandboxClient', () => {
       token: 'session-token',
       drive: { name: 'factory-compai-atlas-341', mode: ESandboxDriveMode.ReadWrite },
       pinnedModel: 'inference/kimi-k3-fast',
+      factoryRole: ESandboxFactoryRole.Station,
     })
 
     expect(sdk.driveGetOrCreate[0]).toMatchObject({
@@ -286,6 +287,16 @@ describe('VercelSandboxClient', () => {
     expect((sdk.createParams[0]?.env as Record<string, string>).ATLAS_MODEL).toBe(
       'inference/kimi-k3-fast',
     )
+    expect((sdk.createParams[0]?.env as Record<string, string>).ATLAS_FACTORY_ROLE).toBe(
+      'station',
+    )
+  })
+
+  it('emits no factory role for an ordinary sandbox', async () => {
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    await client.getOrCreate({ name: 'atlas-thread-abc', threadId: 'brn_thread_1', token: 't' })
+
+    expect(sdk.createParams[0]?.env).not.toHaveProperty('ATLAS_FACTORY_ROLE')
   })
 
   it('mounts a snapshot mode drive as a read-only snapshot', async () => {

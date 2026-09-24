@@ -29,7 +29,7 @@ import type {
   SandboxWorkspaceDto,
   SandboxWorkspaceSpec,
 } from './sandboxes.types'
-import { ESandboxDriveMode, ESandboxState } from './sandboxes.types'
+import { ESandboxDriveMode, ESandboxFactoryRole, ESandboxState } from './sandboxes.types'
 import {
   SANDBOX_REGION,
   SandboxMissingError,
@@ -85,6 +85,7 @@ export class SandboxesService {
     name?: string | undefined
     drive?: { name: string; mode: ESandboxDriveMode } | undefined
     pinnedModel?: string | undefined
+    factoryRole?: ESandboxFactoryRole | undefined
   }): Promise<SandboxAttachmentDto> {
     const thread = await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
     if (args.workspace !== undefined) assertPatchWithinLimit({ patch: args.workspace.patch })
@@ -119,6 +120,7 @@ export class SandboxesService {
         name,
         drive: args.drive,
         pinnedModel: args.pinnedModel,
+        factoryRole: args.factoryRole,
       })
     const settled = previous.then(chain, chain)
     this.attachLocks.set(args.threadId, settled)
@@ -230,6 +232,7 @@ export class SandboxesService {
     name: string | undefined
     drive: { name: string; mode: ESandboxDriveMode } | undefined
     pinnedModel: string | undefined
+    factoryRole: ESandboxFactoryRole | undefined
   }): Promise<void> {
     this.provisionFailures.delete(args.thread.id)
     try {
@@ -244,7 +247,7 @@ export class SandboxesService {
         drive: args.drive,
         pinnedModel: args.pinnedModel,
       })
-      await this.provisionInBackground({ row, token: args.token })
+      await this.provisionInBackground({ row, token: args.token, factoryRole: args.factoryRole })
     } catch (failure) {
       this.logger.warn(`sandbox attach failed for thread ${args.thread.id}: ${messageOf(failure)}`)
       this.provisionFailures.set(args.thread.id, messageOf(failure))
@@ -468,6 +471,7 @@ export class SandboxesService {
   private async provisionInBackground(args: {
     row: ClaimedSandbox
     token: string
+    factoryRole: ESandboxFactoryRole | undefined
   }): Promise<void> {
     try {
       const drive = driveOf(args.row)
@@ -477,6 +481,7 @@ export class SandboxesService {
         token: args.token,
         ...(drive === undefined ? {} : { drive }),
         ...(args.row.pinnedModel === null ? {} : { pinnedModel: args.row.pinnedModel }),
+        ...(args.factoryRole === undefined ? {} : { factoryRole: args.factoryRole }),
       })
       await this.stamp({ row: args.row, placement })
     } catch (failure) {
