@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common'
+import { BadRequestException, NotFoundException } from '@nestjs/common'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
@@ -211,30 +211,42 @@ describe('SandboxBrokerService', () => {
     ).rejects.toBeInstanceOf(NotFoundException)
   })
 
-  it('answers only the requested secrets, decrypted', async () => {
+  it('answers the requested brokerable secrets, decrypted', async () => {
     const c = cipher()
-    fake.secrets.push(
-      {
-        id: 'sec_1',
-        userId: USER_A,
-        name: 'search.tavily',
-        sealedValue: c.encrypt(JSON.stringify('tvly-1')),
-        createdAt: new Date('2026-01-01T00:00:00.000Z'),
-        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
-      },
-      {
-        id: 'sec_2',
-        userId: USER_A,
-        name: 'other.key',
-        sealedValue: c.encrypt(JSON.stringify('other-value')),
-        createdAt: new Date('2026-01-01T00:00:00.000Z'),
-        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
-      },
-    )
+    fake.secrets.push({
+      id: 'sec_1',
+      userId: USER_A,
+      name: 'search.tavily',
+      sealedValue: c.encrypt(JSON.stringify('tvly-1')),
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    })
 
-    const found = await service.namedSecrets({ userId: USER_A, names: ['search.tavily', 'absent.key'] })
+    const found = await service.namedSecrets({
+      userId: USER_A,
+      names: ['search.tavily', 'search.exa'],
+    })
 
     expect(found.map((row) => row.name)).toEqual(['search.tavily'])
     expect(found[0]?.value).toBe('tvly-1')
+  })
+
+  it('refuses the whole request when any name is outside the broker allowlist', async () => {
+    const c = cipher()
+    fake.secrets.push({
+      id: 'sec_2',
+      userId: USER_A,
+      name: 'other.key',
+      sealedValue: c.encrypt(JSON.stringify('other-value')),
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    })
+
+    await expect(
+      service.namedSecrets({ userId: USER_A, names: ['search.tavily', 'other.key'] }),
+    ).rejects.toBeInstanceOf(BadRequestException)
+    await expect(service.namedSecrets({ userId: USER_A, names: ['other.key'] })).rejects.toBeInstanceOf(
+      BadRequestException,
+    )
   })
 })

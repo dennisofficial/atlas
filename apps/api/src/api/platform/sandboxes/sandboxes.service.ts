@@ -12,6 +12,7 @@ import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import type { CloudSandboxModel, ThreadModel } from '../../../db'
 import { db } from '../../../db'
+import { Prisma, type PrismaClient } from '../../../generated/prisma/client'
 import { assertArchiveWithinLimit } from '../../cloud/context-archive/context-archive-limits'
 import { CONTEXT_ARCHIVE_STORE } from '../../cloud/context-archive/context-archive.store'
 import type { ContextArchiveStore } from '../../cloud/context-archive/context-archive.store'
@@ -42,6 +43,23 @@ const nowIso = (): string => new Date().toISOString()
 const messageOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
 
+/** How often a quota claim retries a serialization abort before surfacing it. */
+const MAX_CLAIM_ATTEMPTS = 3
+
+/**
+ * P2034 is Prisma's code for a serialization failure or deadlock; the pg driver adapter can
+ * also leave the raw SQLSTATE 40001 nested in the error meta. Either shape means the
+ * transaction lost a write-skew race and is safe to retry.
+ */
+const isSerializationFailure = (failure: unknown): boolean => {
+  if (!(failure instanceof Prisma.PrismaClientKnownRequestError)) return false
+  if (failure.code === 'P2034') return true
+  const meta = failure.meta as
+    | { driverAdapterError?: { cause?: { code?: unknown } } }
+    | undefined
+  return meta?.driverAdapterError?.cause?.code === '40001'
+}
+
 const driveOf = (
   row: Pick<CloudSandboxModel, 'driveName' | 'driveMode'>,
 ): { name: string; mode: ESandboxDriveMode } | undefined => {
@@ -70,12 +88,15 @@ export class SandboxesService {
   ) {}
 
   /**
-   * The response awaits nothing but the ownership check: a cold image pull can take minutes, long
-   * enough for the DigitalOcean edge to 504 while the provision keeps running server-side and its
-   * answer is lost. The session credential is resolved up front — reissuing the sandbox's stored
-   * token, or minting one the first time — and the claim+provision chain runs in the background
-   * under the per-thread lock, so a second attach answers just as fast and simply queues its
-   * re-provision behind the first.
+   * The response awaits the ownership check and the quota-checked claim — both plain row reads
+   * and writes — but never the provision: a cold image pull can take minutes, long enough for
+   * the DigitalOcean edge to 504 while the provision keeps running server-side and its answer
+   * is lost. The session credential is resolved up front — reissuing the sandbox's stored
+   * token, or minting one the first time — and the claim commits in the same serializable
+   * transaction as the quota check, so two first attaches on different threads cannot both
+   * read a count under the cap and both claim (GH-201); only the provision chain runs in the
+   * background under the per-thread lock, so a second attach answers just as fast and simply
+   * queues its re-provision behind the first.
    */
   async attach(args: {
     userId: string
@@ -92,7 +113,6 @@ export class SandboxesService {
     if (args.contextBundle !== undefined) {
       assertContextBundleWithinLimit({ bundle: args.contextBundle })
     }
-    await this.assertWithinQuota({ userId: args.userId, threadId: args.threadId })
     const existing = await db.cloudSandbox.findUnique({
       where: { threadId: args.threadId },
       select: { name: true, sealedToken: true, contextPending: true },
@@ -107,19 +127,24 @@ export class SandboxesService {
         ),
     })
 
+    const row = await this.claimWithinQuota({
+      thread,
+      workspace: args.workspace,
+      contextBundle: args.contextBundle,
+      tokenHash: credential.tokenHash,
+      sealedToken: credential.sealedToken,
+      rotated: credential.rotated,
+      name,
+      drive: args.drive,
+      pinnedModel: args.pinnedModel,
+    })
+
     const previous = this.attachLocks.get(args.threadId) ?? Promise.resolve()
     const chain = () =>
-      this.claimAndProvision({
-        thread,
-        workspace: args.workspace,
-        contextBundle: args.contextBundle,
+      this.provisionClaimed({
+        threadId: thread.id,
+        row,
         token: credential.token,
-        tokenHash: credential.tokenHash,
-        sealedToken: credential.sealedToken,
-        rotated: credential.rotated,
-        name,
-        drive: args.drive,
-        pinnedModel: args.pinnedModel,
         factoryRole: args.factoryRole,
       })
     const settled = previous.then(chain, chain)
@@ -221,37 +246,57 @@ export class SandboxesService {
     return chain.then(() => undefined)
   }
 
-  private async claimAndProvision(args: {
+  /**
+   * The cap check and the row claim commit in one serializable transaction: under the default
+   * isolation two concurrent first attaches on different threads both read an active count
+   * under the cap and both claim (GH-201). Serializable makes the loser abort with a
+   * serialization failure, and the retry re-reads the winner's fresh row so the cap check
+   * refuses it with 429.
+   */
+  private async claimWithinQuota(args: {
     thread: ThreadModel
     workspace: SandboxWorkspaceSpec | undefined
     contextBundle: string | undefined
-    token: string
     tokenHash: string
     sealedToken: string
     rotated: boolean
     name: string | undefined
     drive: { name: string; mode: ESandboxDriveMode } | undefined
     pinnedModel: string | undefined
+  }): Promise<ClaimedSandbox> {
+    let attempt = 0
+    for (;;) {
+      try {
+        return await db.$transaction(
+          async (tx) => {
+            await this.assertWithinQuota({
+              userId: args.thread.userId,
+              threadId: args.thread.id,
+              reader: tx,
+            })
+            return claimSandboxRow({ ...args, writer: tx })
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        )
+      } catch (failure) {
+        attempt += 1
+        if (attempt >= MAX_CLAIM_ATTEMPTS || !isSerializationFailure(failure)) throw failure
+      }
+    }
+  }
+
+  private async provisionClaimed(args: {
+    threadId: string
+    row: ClaimedSandbox
+    token: string
     factoryRole: ESandboxFactoryRole | undefined
   }): Promise<void> {
-    this.provisionFailures.delete(args.thread.id)
-    try {
-      const row = await claimSandboxRow({
-        thread: args.thread,
-        tokenHash: args.tokenHash,
-        sealedToken: args.sealedToken,
-        rotated: args.rotated,
-        workspace: args.workspace,
-        contextBundle: args.contextBundle,
-        name: args.name,
-        drive: args.drive,
-        pinnedModel: args.pinnedModel,
-      })
-      await this.provisionInBackground({ row, token: args.token, factoryRole: args.factoryRole })
-    } catch (failure) {
-      this.logger.warn(`sandbox attach failed for thread ${args.thread.id}: ${messageOf(failure)}`)
-      this.provisionFailures.set(args.thread.id, messageOf(failure))
-    }
+    this.provisionFailures.delete(args.threadId)
+    await this.provisionInBackground({
+      row: args.row,
+      token: args.token,
+      factoryRole: args.factoryRole,
+    })
   }
 
   /**
@@ -447,14 +492,18 @@ export class SandboxesService {
    * Every sandbox is billed to the deployment owner, and sign-up is open, so an account may
    * hold only so many recently-active sandboxes at once. "Active" rides on lastActivityAt over
    * one TTL rather than on the state column: a freshly claimed row still reads Parked while its
-   * provision runs in the background, but its activity timestamp is already now. The check is
-   * sequential-attack tight — concurrent first attaches on different threads race it, bounded by
-   * the controller throttle, and every row that slips through is still reaped on the usual TTL.
+   * provision runs in the background, but its activity timestamp is already now. The check runs
+   * inside the claim's serializable transaction (claimWithinQuota) — on its own it is a
+   * check-then-act race that concurrent first attaches on different threads would slip through.
    */
-  private async assertWithinQuota(args: { userId: string; threadId: string }): Promise<void> {
+  private async assertWithinQuota(args: {
+    userId: string
+    threadId: string
+    reader: Pick<PrismaClient, 'cloudSandbox'>
+  }): Promise<void> {
     const cap = this.env.get('SANDBOX_MAX_ACTIVE_PER_USER')
     const activeSince = new Date(Date.now() - this.ttlMs()).toISOString()
-    const rows = await db.cloudSandbox.findMany({
+    const rows = await args.reader.cloudSandbox.findMany({
       where: { userId: args.userId, lastActivityAt: { gte: activeSince } },
       select: { threadId: true },
     })

@@ -7,7 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { PrismaClient } from '../../../generated/prisma/client'
+import { Prisma, type PrismaClient } from '../../../generated/prisma/client'
 import type { ContextArchiveStore } from '../../cloud/context-archive/context-archive.store'
 
 vi.mock('../../../db', async () => {
@@ -196,6 +196,56 @@ describe('SandboxesService quota', () => {
     const attachment = await service.attach({ userId: USER_A, threadId: THREAD })
 
     expect(attachment.threadId).toBe(THREAD)
+  })
+
+  it('runs the quota check and the claim in one serializable transaction', async () => {
+    const spy = vi.spyOn(fake.db, '$transaction')
+
+    const attachment = await service.attach({ userId: USER_A, threadId: THREAD })
+
+    expect(attachment.threadId).toBe(THREAD)
+    expect(spy).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: 'Serializable' })
+    spy.mockRestore()
+  })
+
+  it('retries the claim when the serializable transaction aborts on a write skew', async () => {
+    const original = fake.db.$transaction
+    let calls = 0
+    const spy = vi
+      .spyOn(fake.db, '$transaction')
+      .mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) => {
+        calls += 1
+        if (calls === 1) {
+          throw new Prisma.PrismaClientKnownRequestError('serialization failure', {
+            code: 'P2034',
+            clientVersion: '7.9.1',
+          })
+        }
+        return original(callback)
+      })
+
+    const attachment = await service.attach({ userId: USER_A, threadId: THREAD })
+
+    expect(attachment.threadId).toBe(THREAD)
+    expect(calls).toBe(2)
+    spy.mockRestore()
+  })
+
+  it('surfaces the abort rather than looping once the retries are spent', async () => {
+    const spy = vi
+      .spyOn(fake.db, '$transaction')
+      .mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('serialization failure', {
+          code: 'P2034',
+          clientVersion: '7.9.1',
+        }),
+      )
+
+    await expect(service.attach({ userId: USER_A, threadId: THREAD })).rejects.toBeInstanceOf(
+      Prisma.PrismaClientKnownRequestError,
+    )
+    expect(spy).toHaveBeenCalledTimes(3)
+    spy.mockRestore()
   })
 })
 

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { CloudSandboxModel, ThreadModel } from '../../../db'
 import { db } from '../../../db'
+import type { PrismaClient } from '../../../generated/prisma/client'
 import { sandboxNameFor } from './sandbox-names'
 import { ESandboxState, type SandboxWorkspaceSpec } from './sandboxes.types'
 import { SANDBOX_REGION } from './vercel-sandbox.client'
@@ -72,6 +73,8 @@ export function rotationOf(args: {
  */
 export function claimSandboxRow(args: {
   thread: ThreadModel
+  /** A transaction client when the claim commits inside a caller's transaction. */
+  writer?: Pick<PrismaClient, 'cloudSandbox'> | undefined
   tokenHash: string
   sealedToken: string
   rotated: boolean
@@ -89,7 +92,7 @@ export function claimSandboxRow(args: {
     ...workspaceColumnsOf(args.workspace),
     workspaceContext: args.contextBundle ?? null,
   }
-  return db.cloudSandbox.upsert({
+  return (args.writer ?? db).cloudSandbox.upsert({
     where: { threadId: args.thread.id },
     select: {
       threadId: true,
