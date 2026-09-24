@@ -158,7 +158,7 @@ describe('fromModelMessage', () => {
     })
   })
 
-  it('sends an image part out to the provider in the shape the SDK expects', () => {
+  it('sends an image part out as a file part, the SDK spelling since image parts were deprecated', () => {
     const sent = toModelMessage({
       role: 'user',
       content: [{ type: 'image', data: PIXEL, mediaType: 'image/png' }],
@@ -166,8 +166,35 @@ describe('fromModelMessage', () => {
 
     expect(sent).toEqual({
       role: 'user',
-      content: [{ type: 'image', image: PIXEL, mediaType: 'image/png' }],
+      content: [{ type: 'file', data: { type: 'data', data: PIXEL }, mediaType: 'image/png' }],
     })
+  })
+
+  it('carries an inline file part back into a core user message', () => {
+    const withFile: ModelMessage = {
+      role: 'user',
+      content: [
+        { type: 'text', text: 'what is broken here?' },
+        { type: 'file', data: { type: 'data', data: PIXEL }, mediaType: 'image/png' },
+      ],
+    }
+
+    expect(fromModelMessage(withFile)).toEqual({
+      role: 'user',
+      content: [
+        { type: 'text', text: 'what is broken here?' },
+        { type: 'image', data: PIXEL, mediaType: 'image/png' },
+      ],
+    })
+  })
+
+  it('refuses a user file part that is not an image', () => {
+    const withPdf: ModelMessage = {
+      role: 'user',
+      content: [{ type: 'file', data: { type: 'data', data: PIXEL }, mediaType: 'application/pdf' }],
+    }
+
+    expect(() => fromModelMessage(withPdf)).toThrow(/pdf/i)
   })
 
   it('sends a tool result image as an inline file, which is the SDK spelling', () => {
