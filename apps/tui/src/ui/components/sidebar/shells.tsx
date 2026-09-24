@@ -30,7 +30,7 @@ function RetiredLine(props: { fold: SidebarCrewFold; cells: number }): React.Rea
       label={`${plural(props.fold.hidden, 'more')} in /shells`}
       labelFg={theme.rule}
       cells={props.cells}
-      mark={{ text: glyph.seen, fg: theme.rule }}
+      mark={{ text: glyph.active, fg: theme.rule }}
     />
   )
 }

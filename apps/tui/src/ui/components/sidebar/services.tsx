@@ -12,7 +12,7 @@ import { Row, Section } from './row'
 
 const markFor = (service: ServiceSnapshot) => {
   if (isServiceRunning(service)) return { text: glyph.active, fg: theme.ok }
-  return { text: glyph.seen, fg: theme.rule }
+  return { text: glyph.active, fg: theme.rule }
 }
 
 const valueFor = (args: { service: ServiceSnapshot; now: number }): readonly Span[] => [
@@ -25,7 +25,7 @@ function FoldedLine(props: { fold: SidebarCrewFold; cells: number }): React.Reac
       label={plural(props.fold.hidden, 'more')}
       labelFg={theme.rule}
       cells={props.cells}
-      mark={{ text: glyph.seen, fg: theme.rule }}
+      mark={{ text: glyph.active, fg: theme.rule }}
       {...(props.fold.hiddenFailed ? { value: [{ text: 'one failed', fg: theme.warn }] } : {})}
     />
   )

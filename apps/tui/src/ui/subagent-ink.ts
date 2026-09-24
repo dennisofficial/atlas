@@ -4,7 +4,7 @@ import { glyph, theme } from './theme'
 export const MARK_OF: Record<ESubagentReading, { text: string; fg: string }> = {
   [ESubagentReading.Live]: { text: glyph.active, fg: theme.court.external },
   [ESubagentReading.Held]: { text: glyph.warning, fg: theme.warn },
-  [ESubagentReading.Settled]: { text: glyph.seen, fg: theme.rule },
+  [ESubagentReading.Settled]: { text: glyph.active, fg: theme.rule },
 }
 
 export const NAME_INK_OF: Record<ESubagentReading, string> = {
