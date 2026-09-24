@@ -28,6 +28,23 @@ import { ENoticeTone, notify } from '../ui/notice-store'
 
 export const RELEASE_TAG_PREFIX = 'tui-v'
 
+/**
+ * A stageUpdate that outlives this gives up its claim: the download is bounded at 300s, so a
+ * bounded-over-that call means a hang, and a hang that keeps the staging lock would block every
+ * other tile from ever staging. Releasing on timeout lets the next tile retry.
+ */
+const STAGE_DEADLINE_MS = 360_000
+
+const stageUpdateBounded = (
+  args: Parameters<typeof stageUpdate>[0],
+): ReturnType<typeof stageUpdate> => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const deadline = new Promise<{ readonly outcome: EStageOutcome.Failed }>((resolve) => {
+    timer = setTimeout(() => resolve({ outcome: EStageOutcome.Failed }), STAGE_DEADLINE_MS)
+  })
+  return Promise.race([stageUpdate(args), deadline]).finally(() => clearTimeout(timer))
+}
+
 export type ReleaseInfo = {
   readonly tag: string
   readonly version: Semver
@@ -248,7 +265,7 @@ export async function checkForUpdate(): Promise<void> {
   }
 
   try {
-    const staged = await stageUpdate({
+    const staged = await stageUpdateBounded({
       tag: latest.tag,
       version,
       repo: build.releaseRepo,
