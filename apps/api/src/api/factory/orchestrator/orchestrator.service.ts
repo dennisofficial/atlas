@@ -83,6 +83,9 @@ export class OrchestratorService {
             drive: { name: driveName, mode: ESandboxDriveMode.Snapshot },
             pinnedModel: await this.credentials.modelRef({ organizationId: item.organizationId }),
             factoryRole: ESandboxFactoryRole.Orchestrator,
+            decisionsUrl: await this.credentials.decisionsUrl({
+              organizationId: item.organizationId,
+            }),
           },
         })
       } catch (failure) {

@@ -18,6 +18,9 @@ import type { FactoryCredentialService } from './factory-credentials'
 import { FactoryIdentityService } from './factory-identity'
 import type { OrchestratorChannel } from './orchestrator-channel'
 import { OrchestratorService } from './orchestrator.service'
+import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+
+const nullCipher = null as unknown as SecretCipherService
 
 const INTAKE = {
   organizationId: DEFAULT_ORGANIZATION_ID,
@@ -48,6 +51,7 @@ describe('OrchestratorService', () => {
   let credentials: {
     ensureSeeded: ReturnType<typeof vi.fn>
     modelRef: ReturnType<typeof vi.fn>
+    decisionsUrl: ReturnType<typeof vi.fn>
   }
   let drives: { ensure: ReturnType<typeof vi.fn> }
   let service: OrchestratorService
@@ -81,7 +85,7 @@ describe('OrchestratorService', () => {
     eventSeq = 0
     workItems = new WorkItemsService()
     transcript = new TranscriptService()
-    identity = new FactoryIdentityService()
+    identity = new FactoryIdentityService(nullCipher)
     threads = {
       create: vi.fn(async ({ draft }: { draft: { title?: string } }) => {
         const id = `brn_orchestrator_${fake.threads.length + 1}`
@@ -112,6 +116,7 @@ describe('OrchestratorService', () => {
     credentials = {
       ensureSeeded: vi.fn(async () => undefined),
       modelRef: vi.fn(async () => 'inference/kimi-k3-fast'),
+      decisionsUrl: vi.fn(async () => undefined),
     }
     drives = { ensure: vi.fn(async () => 'factory-compai-atlas-341') }
     channel = {

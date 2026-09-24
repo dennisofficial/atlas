@@ -9,11 +9,12 @@ import { EAuthKind } from './accounts.types'
 import { BrokerService } from './broker.service'
 
 /**
- * The secret names the in-sandbox serve process may resolve through the broker: exactly the
- * keyed web-search backends (BACKEND_TRAITS entries with a keyLabel in
- * packages/core/src/web/search.ts, prefixed `search.`). Keep in lockstep with
- * KEYED_BACKEND_SECRET_NAMES in packages/harness/src/serve/serve-secrets-store.ts — a name
- * the serve store warms but this list refuses breaks every cloud session's web search.
+ * The secret names the in-sandbox serve process may resolve through the broker: the keyed
+ * web-search backends (BACKEND_TRAITS entries with a keyLabel in packages/core/src/web/search.ts,
+ * prefixed `search.`) plus `decisions.token`, the System-1 decision key the factory identity
+ * carries per org. Keep in lockstep with WARM_SECRET_NAMES in
+ * packages/harness/src/serve/serve-secrets-store.ts — a name the serve store warms but this list
+ * refuses breaks every cloud session's web search.
  */
 const BROKERABLE_SECRET_NAMES: readonly string[] = [
   'search.brave',
@@ -21,6 +22,7 @@ const BROKERABLE_SECRET_NAMES: readonly string[] = [
   'search.jina',
   'search.searxng',
   'search.tavily',
+  'decisions.token',
 ]
 
 /**
@@ -82,19 +84,18 @@ export class SandboxBrokerService {
 
   /**
    * Fail closed: the broker resolves only the secret names a serve process legitimately asks
-   * for — the keyed web-search backends the serve secrets store warms on boot
-   * (packages/harness/src/serve/serve-secrets-store.ts, names built in
-   * packages/core/src/web/search.ts). A sandbox token is readable by any process in its
-   * sandbox, so a request naming anything else is the GH-198 shape: probing the owner's
-   * store through a machine credential. The whole request refuses rather than serving the
-   * listed names and dropping the rest, so a misconfigured client fails loudly instead of
-   * silently running without a key it asked for.
+   * for — the keyed web-search backends and the decision-model token the serve secrets store
+   * warms on boot (packages/harness/src/serve/serve-secrets-store.ts). A sandbox token is
+   * readable by any process in its sandbox, so a request naming anything else is the GH-198
+   * shape: probing the owner's store through a machine credential. The whole request refuses
+   * rather than serving the listed names and dropping the rest, so a misconfigured client fails
+   * loudly instead of silently running without a key it asked for.
    */
   async namedSecrets(args: { userId: string; names: string[] }): Promise<SecretDto[]> {
     for (const name of args.names) {
       if (!BROKERABLE_SECRET_NAMES.includes(name)) {
         throw new BadRequestException(
-          'the broker resolves only the web-search backend secrets a serve process needs',
+          'the broker resolves only the secrets a serve process needs (web-search backends, decisions token)',
         )
       }
     }

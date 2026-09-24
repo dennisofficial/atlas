@@ -13,13 +13,17 @@ import {
   EFactoryEventKind,
   EFactoryWorkItemStatus,
 } from '../factory.types'
+import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { FactoryIdentityService } from '../orchestrator/factory-identity'
 import type { OrchestratorService } from '../orchestrator/orchestrator.service'
+import type { OrchestratorChannel } from '../orchestrator/orchestrator-channel'
 import type { GithubAppService } from '../reply/github-app.service'
 import { TranscriptService } from '../transcript.service'
 import { WorkItemsService } from '../work-items.service'
 import { StationResultsService } from './station-results.service'
 import { EStationKind, EStationRunStatus } from './station.types'
+
+const nullCipher = null as unknown as SecretCipherService
 
 const INTAKE = {
   organizationId: DEFAULT_ORGANIZATION_ID,
@@ -72,7 +76,7 @@ describe('StationResultsService', () => {
       workItems,
       new TranscriptService(),
       sandboxes as unknown as SandboxesService,
-      new FactoryIdentityService(),
+      new FactoryIdentityService(nullCipher),
       githubApp as unknown as GithubAppService,
       orchestrator as unknown as OrchestratorService,
     )

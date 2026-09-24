@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { Injectable } from '@nestjs/common'
+import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { db } from '../../../db'
 
 export const FACTORY_USER_EMAIL = 'factory@atlas.internal'
@@ -12,6 +13,8 @@ const emailFor = (organizationId: string | null): string =>
 export class FactoryIdentityService {
   private promised = new Map<string, Promise<string>>()
 
+  constructor(private readonly cipher: SecretCipherService) {}
+
   userId(args: { organizationId: string | null }): Promise<string> {
     const email = emailFor(args.organizationId)
     const cached = this.promised.get(email)
@@ -22,6 +25,26 @@ export class FactoryIdentityService {
     })
     this.promised.set(email, ensuring)
     return ensuring
+  }
+
+  /**
+   * Write the org's decision-model token onto this identity's own secret store as
+   * decisions.token. The serve process inside a factory sandbox warms that name through the
+   * thread-scoped broker, which resolves secrets by the sandbox's owning user — this identity —
+   * so the token reaches the session without ever touching an env var or a settings file.
+   * Writing here, with the identity, keeps the factory layer off cloud/secrets.
+   */
+  async setDecisionsToken(args: {
+    organizationId: string | null
+    token: string
+  }): Promise<void> {
+    const userId = await this.userId({ organizationId: args.organizationId })
+    const sealedValue = this.cipher.encrypt(JSON.stringify(args.token))
+    await db.secretEntry.upsert({
+      where: { userId_name: { userId, name: 'decisions.token' } },
+      create: { id: `sec_${randomUUID()}`, name: 'decisions.token', sealedValue, userId },
+      update: { sealedValue },
+    })
   }
 
   private async ensure(args: { email: string }): Promise<string> {

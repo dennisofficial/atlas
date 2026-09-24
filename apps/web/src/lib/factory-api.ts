@@ -41,6 +41,7 @@ export type FactorySettings = {
     hasApiKey: boolean
   }
   vercel: { connected: boolean }
+  decisions: { configured: boolean; url: string | null; hasToken: boolean }
 }
 
 const readBody = async (response: Response): Promise<Record<string, unknown>> =>
@@ -121,5 +122,17 @@ export async function saveVercelSettings(args: { token: string }): Promise<void>
     method: 'PUT',
     body: { token: args.token },
     fallback: 'Could not save the Vercel token',
+  })
+}
+
+export async function saveDecisionsSettings(args: {
+  url: string
+  token?: string | undefined
+}): Promise<void> {
+  await request({
+    path: '/v1/factory/settings/decisions',
+    method: 'PUT',
+    body: { url: args.url, ...(args.token === undefined ? {} : { token: args.token }) },
+    fallback: 'Could not save the decision model settings',
   })
 }

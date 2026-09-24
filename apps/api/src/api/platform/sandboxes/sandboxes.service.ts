@@ -107,6 +107,7 @@ export class SandboxesService {
     drive?: { name: string; mode: ESandboxDriveMode } | undefined
     pinnedModel?: string | undefined
     factoryRole?: ESandboxFactoryRole | undefined
+    decisionsUrl?: string | undefined
   }): Promise<SandboxAttachmentDto> {
     const thread = await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
     if (args.workspace !== undefined) assertPatchWithinLimit({ patch: args.workspace.patch })
@@ -146,6 +147,7 @@ export class SandboxesService {
         row,
         token: credential.token,
         factoryRole: args.factoryRole,
+        decisionsUrl: args.decisionsUrl,
       })
     const settled = previous.then(chain, chain)
     this.attachLocks.set(args.threadId, settled)
@@ -290,12 +292,14 @@ export class SandboxesService {
     row: ClaimedSandbox
     token: string
     factoryRole: ESandboxFactoryRole | undefined
+    decisionsUrl: string | undefined
   }): Promise<void> {
     this.provisionFailures.delete(args.threadId)
     await this.provisionInBackground({
       row: args.row,
       token: args.token,
       factoryRole: args.factoryRole,
+      decisionsUrl: args.decisionsUrl,
     })
   }
 
@@ -521,6 +525,7 @@ export class SandboxesService {
     row: ClaimedSandbox
     token: string
     factoryRole: ESandboxFactoryRole | undefined
+    decisionsUrl: string | undefined
   }): Promise<void> {
     try {
       const drive = driveOf(args.row)
@@ -531,6 +536,7 @@ export class SandboxesService {
         ...(drive === undefined ? {} : { drive }),
         ...(args.row.pinnedModel === null ? {} : { pinnedModel: args.row.pinnedModel }),
         ...(args.factoryRole === undefined ? {} : { factoryRole: args.factoryRole }),
+        ...(args.decisionsUrl === undefined ? {} : { decisionsUrl: args.decisionsUrl }),
       })
       await this.stamp({ row: args.row, placement })
     } catch (failure) {

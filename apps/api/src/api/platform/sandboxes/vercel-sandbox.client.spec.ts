@@ -299,6 +299,22 @@ describe('VercelSandboxClient', () => {
     expect(sdk.createParams[0]?.env).not.toHaveProperty('ATLAS_FACTORY_ROLE')
   })
 
+  it('emits the decisions url only when one is configured for the org', async () => {
+    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    await client.getOrCreate({
+      name: 'atlas-thread-abc',
+      threadId: 'brn_thread_1',
+      token: 't',
+      decisionsUrl: 'https://api.typesafe.ai/v1/systemone',
+    })
+    expect((sdk.createParams[0]?.env as Record<string, string>).ATLAS_DECISIONS_URL).toBe(
+      'https://api.typesafe.ai/v1/systemone',
+    )
+
+    await client.getOrCreate({ name: 'atlas-thread-def', threadId: 'brn_thread_2', token: 't' })
+    expect(sdk.createParams[1]?.env).not.toHaveProperty('ATLAS_DECISIONS_URL')
+  })
+
   it('mounts a snapshot mode drive as a read-only snapshot', async () => {
     const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
     await client.getOrCreate({

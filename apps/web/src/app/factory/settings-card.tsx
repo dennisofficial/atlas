@@ -7,6 +7,7 @@ import { Input } from '@dltech/atlas-ui/input'
 import { useState, type FormEvent } from 'react'
 
 import {
+  saveDecisionsSettings,
   saveModelSettings,
   saveVercelSettings,
   type FactorySettings,
@@ -31,6 +32,9 @@ export function SettingsCard({ settings, organizationMissing, onSaved }: Setting
   const [vercelBusy, setVercelBusy] = useState(false)
   const [vercelError, setVercelError] = useState<string | null>(null)
   const [vercelSaved, setVercelSaved] = useState(false)
+  const [decisionsBusy, setDecisionsBusy] = useState(false)
+  const [decisionsError, setDecisionsError] = useState<string | null>(null)
+  const [decisionsSaved, setDecisionsSaved] = useState(false)
 
   const handleModelSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -72,6 +76,28 @@ export function SettingsCard({ settings, organizationMissing, onSaved }: Setting
       setVercelError(cause instanceof Error ? cause.message : 'Could not save the Vercel token')
     } finally {
       setVercelBusy(false)
+    }
+  }
+
+  const handleDecisionsSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const formElement = event.currentTarget
+    const form = new FormData(formElement)
+    const url = String(form.get('decisions-url') ?? '').trim()
+    const token = String(form.get('decisions-token') ?? '').trim()
+
+    setDecisionsBusy(true)
+    setDecisionsError(null)
+    setDecisionsSaved(false)
+    try {
+      await saveDecisionsSettings({ url, ...(token.length === 0 ? {} : { token }) })
+      formElement.reset()
+      setDecisionsSaved(true)
+      await onSaved()
+    } catch (cause) {
+      setDecisionsError(cause instanceof Error ? cause.message : 'Could not save the decision model')
+    } finally {
+      setDecisionsBusy(false)
     }
   }
 
@@ -143,6 +169,40 @@ export function SettingsCard({ settings, organizationMissing, onSaved }: Setting
             {vercelSaved ? <p className="text-xs text-success">Vercel token saved.</p> : null}
             <Button type="submit" variant="primary" loading={vercelBusy}>
               Save Vercel token
+            </Button>
+          </form>
+        </div>
+        <div className="flex flex-col gap-3 border-t border-border pt-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-foreground">Decision model</span>
+            <Badge tone={settings.decisions.configured ? 'success' : 'neutral'} dot>
+              {settings.decisions.configured ? 'configured' : 'not configured'}
+            </Badge>
+            {settings.decisions.hasToken ? <Badge tone="success">key stored</Badge> : null}
+          </div>
+          {settings.decisions.url !== null ? (
+            <span className="font-mono text-xs text-meta">{settings.decisions.url}</span>
+          ) : null}
+          <form onSubmit={handleDecisionsSubmit} className="flex flex-col gap-3">
+            <Input
+              name="decisions-url"
+              label="Decisions endpoint"
+              placeholder="https://api.typesafe.ai/v1/systemone"
+              required
+            />
+            <Input
+              name="decisions-token"
+              type="password"
+              label="Decision key (optional — a self-hosted Laya ignores it)"
+              placeholder="Paste the Jev key"
+              autoComplete="off"
+            />
+            {decisionsError !== null ? (
+              <p className="text-xs text-destructive">{decisionsError}</p>
+            ) : null}
+            {decisionsSaved ? <p className="text-xs text-success">Decision model saved.</p> : null}
+            <Button type="submit" variant="primary" loading={decisionsBusy}>
+              Save decision model
             </Button>
           </form>
         </div>

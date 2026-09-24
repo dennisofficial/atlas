@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, MaxLength } from 'class-validator'
+import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator'
 
 export class PutModelDto {
   @IsString()
@@ -16,4 +16,16 @@ export class PutVercelDto {
   @IsNotEmpty()
   @MaxLength(500)
   token!: string
+}
+
+export class PutDecisionsDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  url!: string
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  token?: string | undefined
 }
