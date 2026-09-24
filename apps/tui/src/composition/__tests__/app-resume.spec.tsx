@@ -22,10 +22,14 @@ const RESUME_HINT = 'resume'
 const typesOf = async (mounted: { app: { log: { read: (args: { threadId: typeof THREAD }) => Promise<readonly { type: string }[]> } } }) =>
   (await mounted.app.log.read({ threadId: THREAD })).map((event) => event.type)
 
+/**
+ * Streamed slowly enough that escape still lands mid-reply: the polls below run on nextFrame, so
+ * HEAD is caught within a poll interval while most of the reply is still ahead of the cursor.
+ */
 async function stoppedMidReply() {
   const mounted = await open({
     app: fakeApp({
-      model: scriptedModelPort({ script: { thinking: THINKING, reply: SPOKEN }, perChunkMs: 300 }),
+      model: scriptedModelPort({ script: { thinking: THINKING, reply: SPOKEN }, perChunkMs: 50 }),
     }),
   })
 
@@ -33,7 +37,7 @@ async function stoppedMidReply() {
   mounted.pressEnter()
 
   const spoke = await until({
-    holds: async () => (await mounted.frame()).includes(HEAD),
+    holds: async () => (await mounted.nextFrame()).includes(HEAD),
     within: 30_000,
   })
   expect(spoke).toBe(true)
@@ -41,13 +45,13 @@ async function stoppedMidReply() {
   mounted.pressEscape()
 
   const idle = await until({
-    holds: async () => !(await mounted.frame()).includes(WORKING),
+    holds: async () => !(await mounted.nextFrame()).includes(WORKING),
     within: 20_000,
   })
   expect(idle).toBe(true)
 
   const offered = await until({
-    holds: async () => (await mounted.frame()).includes(RESUME_HINT),
+    holds: async () => (await mounted.nextFrame()).includes(RESUME_HINT),
     within: 20_000,
   })
   expect(offered).toBe(true)
@@ -73,7 +77,7 @@ describe('resuming a turn escape stopped', () => {
     const mounted = await stoppedMidReply()
 
     try {
-      expect(await mounted.frame()).toContain(RESUME_HINT)
+      expect(await mounted.nextFrame()).toContain(RESUME_HINT)
     } finally {
       await mounted.done()
     }
@@ -87,7 +91,7 @@ describe('resuming a turn escape stopped', () => {
 
       const resumed = await until({
         holds: async () => {
-          await mounted.frame()
+          await mounted.nextFrame()
           return (await typesOf(mounted)).includes('nudge')
         },
         within: 20_000,
@@ -114,13 +118,13 @@ describe('resuming a turn escape stopped', () => {
 
       const settled = await until({
         holds: async () => {
-          const frame = await mounted.frame()
+          const frame = await mounted.nextFrame()
           return frame.includes(HEAD) && !frame.includes(WORKING)
         },
         within: 30_000,
       })
       expect(settled).toBe(true)
-      expect(await mounted.frame()).not.toContain(RESUME_HINT)
+      expect(await mounted.nextFrame()).not.toContain(RESUME_HINT)
     } finally {
       await mounted.done()
     }
@@ -170,7 +174,7 @@ describe('resuming on launch', () => {
 
     try {
       const answered = await until({
-        holds: async () => (await mounted.frame()).includes(HEAD),
+        holds: async () => (await mounted.nextFrame()).includes(HEAD),
         within: 30_000,
       })
       expect(answered).toBe(true)

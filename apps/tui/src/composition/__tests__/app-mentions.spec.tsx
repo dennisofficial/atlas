@@ -9,6 +9,7 @@ import { testRender } from '@opentui/react/test-utils'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 
+import { frameShowing } from '../../ui/__tests__/waiting'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { theme } from '../../ui/theme'
 import { App } from '../app'
@@ -21,6 +22,10 @@ const THREAD = toThreadId('opened-thread')
 const WIDE = { width: 150, height: 40 }
 
 const READ_MS = 60
+
+const WELCOME = 'Describe the work below.'
+
+const REPLIED = 'done'
 
 type Mounted = Awaited<ReturnType<typeof testRender>>
 
@@ -43,9 +48,7 @@ async function opened(app: FakeApp): Promise<Mounted> {
     <App app={app} opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }} />,
     WIDE,
   )
-  await setup.flush()
-  await settle(250)
-  await setup.flush()
+  await frameShowing({ setup, text: WELCOME })
   return setup
 }
 
@@ -73,6 +76,25 @@ const paintedLink = ({ setup, text }: { setup: Mounted; text: string }): boolean
   )
 }
 
+const flushBusy = async (setup: Mounted): Promise<void> => {
+  try {
+    await setup.flush()
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('visual idle')) return
+    throw error
+  }
+}
+
+const painted = async (args: { setup: Mounted; text: string }): Promise<boolean> => {
+  const deadline = Date.now() + 10_000
+  while (Date.now() < deadline) {
+    await flushBusy(args.setup)
+    if (paintedLink(args)) return true
+    await settle(10)
+  }
+  return paintedLink(args)
+}
+
 describe('a mention in the draft', () => {
   it('is painted once it names a file the workspace has', async () => {
     write({ at: 'src/mentionable.ts', content: 'export const one = 1\n' })
@@ -80,9 +102,8 @@ describe('a mention in the draft', () => {
 
     try {
       await setup.mockInput.typeText('why is @src/mentionable.ts broken')
-      await landed(setup)
 
-      expect(paintedLink({ setup, text: '@src/mentionable.ts' })).toBe(true)
+      expect(await painted({ setup, text: '@src/mentionable.ts' })).toBe(true)
     } finally {
       await teardown(setup)
     }
@@ -108,12 +129,9 @@ describe('a mention in the draft', () => {
 
     try {
       await setup.mockInput.typeText('@src/mentionable.ts')
-      await landed(setup)
-
       await setup.mockInput.typeText(' thats weird?')
-      await landed(setup)
 
-      expect(paintedLink({ setup, text: '@src/mentionable.ts' })).toBe(true)
+      expect(await painted({ setup, text: '@src/mentionable.ts' })).toBe(true)
       expect(paintedLink({ setup, text: 'thats weird?' })).toBe(false)
     } finally {
       await teardown(setup)
@@ -129,8 +147,7 @@ describe('a mention in the draft', () => {
       await landed(setup)
 
       setup.mockInput.pressEnter()
-      await settle(2_000)
-      await setup.flush()
+      await frameShowing({ setup, text: REPLIED })
 
       expect(paintedLink({ setup, text: '@src/mentionable.ts' })).toBe(false)
     } finally {
@@ -147,9 +164,8 @@ describe('mentioning a file from the composer', () => {
 
     try {
       await setup.mockInput.typeText('read @')
-      await landed(setup)
 
-      const frame = setup.captureCharFrame()
+      const frame = await frameShowing({ setup, text: 'README.md' })
       expect(frame).toContain('Files')
       expect(frame).toContain('src/')
       expect(frame).toContain('README.md')
@@ -165,9 +181,8 @@ describe('mentioning a file from the composer', () => {
 
     try {
       await setup.mockInput.typeText('read @src/')
-      await landed(setup)
 
-      const frame = setup.captureCharFrame()
+      const frame = await frameShowing({ setup, text: 'src/other.ts' })
       expect(frame).toContain('src/mentionable.ts')
       expect(frame).toContain('src/other.ts')
     } finally {
@@ -184,9 +199,8 @@ describe('mentioning a file from the composer', () => {
       await landed(setup)
 
       await setup.mockInput.pressTab()
-      await landed(setup)
 
-      const frame = setup.captureCharFrame()
+      const frame = await frameShowing({ setup, text: 'src/mentionable.ts' })
       expect(frame).toContain('read @src/')
       expect(frame).toContain('src/mentionable.ts')
     } finally {
@@ -203,9 +217,10 @@ describe('mentioning a file from the composer', () => {
       await landed(setup)
 
       await setup.mockInput.pressTab()
-      await landed(setup)
 
-      expect(setup.captureCharFrame()).toContain('read @src/mentionable.ts')
+      expect(await frameShowing({ setup, text: 'read @src/mentionable.ts' })).toContain(
+        'read @src/mentionable.ts',
+      )
     } finally {
       await teardown(setup)
     }
@@ -218,9 +233,8 @@ describe('mentioning a file from the composer', () => {
 
     try {
       await setup.mockInput.typeText(`look at @${elsewhere}/`)
-      await landed(setup)
 
-      expect(setup.captureCharFrame()).toContain('cubix-infra/')
+      expect(await frameShowing({ setup, text: 'cubix-infra/' })).toContain('cubix-infra/')
     } finally {
       await teardown(setup)
     }
@@ -235,10 +249,8 @@ describe('mentioning a file from the composer', () => {
       await landed(setup)
 
       setup.mockInput.pressEnter()
-      await settle(2_000)
-      await setup.flush()
 
-      const frame = setup.captureCharFrame()
+      const frame = await frameShowing({ setup, text: '⬚ mentionable.ts' })
       expect(frame).toContain('⬚ mentionable.ts')
     } finally {
       await teardown(setup)
@@ -253,10 +265,8 @@ describe('mentioning a file from the composer', () => {
       await landed(setup)
 
       setup.mockInput.pressEnter()
-      await settle(2_000)
-      await setup.flush()
 
-      const frame = setup.captureCharFrame()
+      const frame = await frameShowing({ setup, text: REPLIED })
       expect(frame).toContain('why is @src/absent.ts broken')
       expect(frame).not.toContain('⬚')
     } finally {

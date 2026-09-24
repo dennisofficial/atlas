@@ -3,6 +3,7 @@ import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
+import { frameShowing } from '../../ui/__tests__/waiting'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { EKeyGroup } from '../../ui/keys'
 import { App } from '../app'
@@ -22,6 +23,10 @@ const WIDE = { width: 150, height: 40 }
 
 const READ_MS = 60
 
+const WELCOME = 'Describe the work below.'
+
+const REPLIED = 'done'
+
 type Mounted = Awaited<ReturnType<typeof testRender>>
 
 const appWith = (): FakeApp =>
@@ -40,9 +45,7 @@ async function opened(app: FakeApp): Promise<Mounted> {
     />,
     WIDE,
   )
-  await setup.flush()
-  await settle(250)
-  await setup.flush()
+  await frameShowing({ setup, text: WELCOME })
   return setup
 }
 
@@ -59,10 +62,8 @@ describe('a message that loaded a skill', () => {
       await landed(setup)
 
       setup.mockInput.pressEnter()
-      await settle(2_000)
-      await setup.flush()
+      const frame = await frameShowing({ setup, text: '◆ pirate' })
 
-      const frame = setup.captureCharFrame()
       expect(frame).toContain('/pirate how about now?')
       expect(frame).toContain('◆ pirate')
     } finally {
@@ -77,10 +78,9 @@ describe('a message that loaded a skill', () => {
       await setup.mockInput.typeText('plain question')
       await landed(setup)
       setup.mockInput.pressEnter()
-      await settle(2_000)
-      await setup.flush()
+      const frame = await frameShowing({ setup, text: REPLIED })
 
-      expect(setup.captureCharFrame()).not.toContain('◆')
+      expect(frame).not.toContain('◆')
     } finally {
       await teardown(setup)
     }
@@ -280,8 +280,7 @@ describe('a fresh conversation started from inside the app', () => {
 
       await setup.mockInput.typeText('the first thing said in it')
       setup.mockInput.pressEnter()
-      await settle(2_000)
-      await setup.flush()
+      await frameShowing({ setup, text: REPLIED })
 
       expect(app.threads.createdWith).toEqual([{ workspace: FAKE_CONFIG.cwd, repo: null }])
     } finally {
@@ -296,15 +295,14 @@ describe('a fresh conversation started from inside the app', () => {
     try {
       await setup.mockInput.typeText('something said before')
       setup.mockInput.pressEnter()
-      await settle(2_000)
-      await setup.flush()
+      await frameShowing({ setup, text: REPLIED })
 
       expect(setup.captureCharFrame()).toContain('something said before')
 
       setup.mockInput.pressKey('n', { ctrl: true })
-      await landed(setup)
+      const frame = await frameShowing({ setup, text: WELCOME })
 
-      expect(setup.captureCharFrame()).not.toContain('something said before')
+      expect(frame).not.toContain('something said before')
     } finally {
       await teardown(setup)
     }

@@ -14,6 +14,58 @@ import { fakeAgentSnapshot } from './fake-agents'
 
 await grammarsReady()
 
+type Mounted = Awaited<ReturnType<typeof mount>>
+
+const SEEDED = 'what is in here?'
+
+const nextFrame = async (mounted: Mounted): Promise<string> => {
+  try {
+    return await mounted.nextFrame()
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('visual idle')) return ''
+    throw error
+  }
+}
+
+const shown = async (mounted: Mounted, text: string): Promise<string> => {
+  const deadline = Date.now() + 20_000
+  let frame = ''
+  while (Date.now() < deadline) {
+    frame = await nextFrame(mounted)
+    if (frame.includes(text)) return frame
+    await settle(10)
+  }
+  throw new Error(`waited past 20000 ms for ${JSON.stringify(text)}\n\n${frame}`)
+}
+
+const cleared = async (mounted: Mounted, text: string): Promise<string> => {
+  const deadline = Date.now() + 20_000
+  let frame = ''
+  while (Date.now() < deadline) {
+    frame = await nextFrame(mounted)
+    if (!frame.includes(text)) return frame
+    await settle(10)
+  }
+  throw new Error(`waited past 20000 ms for ${JSON.stringify(text)} to go away\n\n${frame}`)
+}
+
+const run = async (mounted: Mounted, argument: string): Promise<void> => {
+  await mounted.typeText(`/container ${argument}`)
+  mounted.pressEnter()
+}
+
+const command = async (mounted: Mounted, text: string): Promise<void> => {
+  await mounted.typeText(text)
+  mounted.pressEnter()
+}
+
+const lift = async (mounted: Mounted, bridge: FakeBridge): Promise<void> => {
+  await run(mounted, 'cloud')
+  expect(await until({ holds: async () => bridge.attached.length === 1, within: 20_000 })).toBe(
+    true,
+  )
+}
+
 describe('/container cloud', () => {
   it('transfers, marks the thread cloud and attaches, carrying the workspace with it', async () => {
     const app = speaking()
@@ -21,7 +73,10 @@ describe('/container cloud', () => {
     const mounted = await mount({ app, bridge })
 
     try {
-      await mounted.run('cloud')
+      await run(mounted, 'cloud')
+      expect(await until({ holds: async () => bridge.attached.length === 1, within: 20_000 })).toBe(
+        true,
+      )
 
       expect(bridge.created).toHaveLength(1)
       expect(bridge.created[0]?.workspace?.branch).toBe('dennis/container-cloud')
@@ -39,12 +94,12 @@ describe('/container cloud', () => {
     const mounted = await mount({ app, bridge })
 
     try {
-      expect(await mounted.frame()).not.toContain('CLOUD')
+      expect(await shown(mounted, SEEDED)).not.toContain('CLOUD')
 
-      await mounted.run('cloud')
+      await lift(mounted, bridge)
       bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
 
-      expect(await mounted.frame()).toContain('CLOUD')
+      expect(await shown(mounted, 'CLOUD')).toContain('CLOUD')
     } finally {
       await mounted.done()
     }
@@ -60,13 +115,13 @@ describe('/container cloud', () => {
     const mounted = await mount({ app, bridge })
 
     try {
-      await mounted.run('cloud')
+      await lift(mounted, bridge)
       bridge.channel.moveTo({
         state: EChannelConnection.Closed,
         detail: 'the session socket closed and did not reopen after 8 attempts.',
       })
 
-      const frame = await mounted.frame()
+      const frame = await shown(mounted, 'parked')
       expect(frame).toContain('parked')
       expect(frame).toContain('☾')
       expect(frame).not.toContain('asleep until the next message')
@@ -83,19 +138,24 @@ describe('/container cloud', () => {
     const mounted = await mount({ app, bridge })
 
     try {
-      await mounted.run('cloud')
+      await lift(mounted, bridge)
       bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+      await shown(mounted, 'CLOUD')
 
       await bridge.log.append({
         threadId: THREAD,
         runId: toRunId('run-in-the-sandbox'),
         drafts: [{ type: 'user-said', text: landed }],
       })
-      expect(await mounted.frame()).not.toContain(landed)
+      const leaked = await until({
+        holds: async () => (await nextFrame(mounted)).includes(landed),
+        within: 250,
+      })
+      expect(leaked).toBe(false)
 
       bridge.channel.reload({ sinceEventSeq: 0 })
 
-      expect(await mounted.frame()).toContain(landed)
+      expect(await shown(mounted, landed)).toContain(landed)
     } finally {
       await mounted.done()
     }
@@ -107,17 +167,22 @@ describe('/container cloud', () => {
     const mounted = await mount({ app, bridge })
 
     try {
-      await mounted.run('cloud')
+      await lift(mounted, bridge)
       bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+      await shown(mounted, 'CLOUD')
 
-      await mounted.say('keep going')
+      await mounted.typeText('keep going')
+      mounted.pressEnter()
+      expect(await until({ holds: async () => bridge.channel.runs === 1, within: 20_000 })).toBe(
+        true,
+      )
 
       expect(bridge.channel.runs).toBe(1)
       expect(JSON.stringify(bridge.log.peek({ threadId: THREAD }))).toContain('keep going')
       expect(JSON.stringify(app.log.peek({ threadId: THREAD }))).not.toContain('keep going')
 
       bridge.channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-cloud-1') })
-      expect(await mounted.frame()).toContain('keep going')
+      expect(await shown(mounted, 'keep going')).toContain('keep going')
     } finally {
       await mounted.done()
     }
@@ -131,10 +196,10 @@ describe('/container cloud', () => {
     const mounted = await mount({ app, bridge })
 
     try {
-      await mounted.run('cloud')
-      const frame = await mounted.command('/resume')
+      await lift(mounted, bridge)
+      await command(mounted, '/resume')
 
-      expect(frame).toContain('the host thread')
+      expect(await shown(mounted, 'the host thread')).toContain('the host thread')
     } finally {
       await mounted.done()
     }
@@ -148,7 +213,8 @@ describe('/container cloud', () => {
     const mounted = await mount({ app, bridge })
 
     try {
-      const frame = await mounted.run('cloud')
+      await run(mounted, 'cloud')
+      const frame = await shown(mounted, 'not set up')
 
       expect(frame).toContain('not set up')
       expect(bridge.attached).toEqual([])
@@ -177,7 +243,8 @@ describe('the move overview', () => {
     const mounted = await mount({ app, bridge })
 
     try {
-      const moving = await mounted.run('cloud')
+      await run(mounted, 'cloud')
+      const moving = await shown(mounted, 'waiting for the sandbox')
 
       expect(moving).toContain('MOVING TO THE CLOUD')
       expect(moving).toContain('✓ transferring the conversation')
@@ -187,7 +254,7 @@ describe('the move overview', () => {
       expect(mounted.draftText()).toBe('')
 
       release()
-      expect(await mounted.frame()).not.toContain('MOVING TO THE CLOUD')
+      expect(await cleared(mounted, 'MOVING TO THE CLOUD')).not.toContain('MOVING TO THE CLOUD')
 
       await mounted.typeText('back in command')
       expect(mounted.draftText()).toBe('back in command')
@@ -210,7 +277,7 @@ describe('the move overview', () => {
     const mounted = await mount({ app, bridge })
 
     try {
-      await mounted.run('cloud')
+      await run(mounted, 'cloud')
       const stopped = await until({ holds: async () => app.agents.stopped.length === 1, within: 20_000 })
       expect(stopped).toBe(true)
 
@@ -218,7 +285,7 @@ describe('the move overview', () => {
       expect(app.turnsDriven).toBe(0)
 
       release()
-      expect(await mounted.frame()).not.toContain('MOVING TO THE CLOUD')
+      expect(await cleared(mounted, 'MOVING TO THE CLOUD')).not.toContain('MOVING TO THE CLOUD')
     } finally {
       await mounted.done()
     }
@@ -232,7 +299,8 @@ describe('the move overview', () => {
     const mounted = await mount({ app, bridge })
 
     try {
-      const failed = await mounted.run('cloud')
+      await run(mounted, 'cloud')
+      const failed = await shown(mounted, '✗ waiting for the sandbox')
 
       expect(failed).toContain('✗ waiting for the sandbox')
       expect(failed).toContain('no capacity in iad1')
@@ -241,7 +309,7 @@ describe('the move overview', () => {
       expect(mounted.draftText()).toBe('')
 
       mounted.pressEscape()
-      expect(await mounted.frame()).not.toContain('MOVING TO THE CLOUD')
+      expect(await cleared(mounted, 'MOVING TO THE CLOUD')).not.toContain('MOVING TO THE CLOUD')
 
       await mounted.typeText('back in command')
       expect(mounted.draftText()).toBe('back in command')
@@ -258,17 +326,19 @@ describe('switching conversations while attached', () => {
     const mounted = await mount({ app, bridge })
 
     try {
-      await mounted.run('cloud')
+      await lift(mounted, bridge)
       bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
-      expect(await mounted.frame()).toContain('CLOUD')
+      expect(await shown(mounted, 'CLOUD')).toContain('CLOUD')
       const lifted = bridge.channel
 
-      await mounted.command('/new')
+      await command(mounted, '/new')
 
-      expect(lifted.closed).toBe(true)
-      expect(await mounted.frame()).not.toContain('CLOUD')
+      expect(await until({ holds: async () => lifted.closed, within: 20_000 })).toBe(true)
+      expect(await cleared(mounted, 'CLOUD')).not.toContain('CLOUD')
 
-      await mounted.say('back on the host')
+      await mounted.typeText('back on the host')
+      mounted.pressEnter()
+      expect(await until({ holds: async () => app.turnsDriven === 1, within: 20_000 })).toBe(true)
       expect(app.turnsDriven).toBe(1)
       expect(lifted.runs).toBe(0)
     } finally {
@@ -284,14 +354,14 @@ describe('switching conversations while attached', () => {
     const mounted = await mount({ app, bridge })
 
     try {
-      await mounted.run('cloud')
+      await lift(mounted, bridge)
       bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
-      expect(await mounted.frame()).toContain('CLOUD')
+      expect(await shown(mounted, 'CLOUD')).toContain('CLOUD')
 
-      await mounted.command('/new')
-      expect(await mounted.frame()).not.toContain('CLOUD')
+      await command(mounted, '/new')
+      expect(await cleared(mounted, 'CLOUD')).not.toContain('CLOUD')
 
-      await mounted.command('/resume opened-thread')
+      await command(mounted, '/resume opened-thread')
 
       expect(await until({ holds: async () => bridge.attached.length === 2, within: 20_000 })).toBe(
         true,
@@ -299,7 +369,7 @@ describe('switching conversations while attached', () => {
       expect(bridge.attached[1]?.threadId).toBe(THREAD)
 
       bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
-      expect(await mounted.frame()).toContain('CLOUD')
+      expect(await shown(mounted, 'CLOUD')).toContain('CLOUD')
     } finally {
       await mounted.done()
     }
@@ -311,9 +381,9 @@ describe('switching conversations while attached', () => {
     const mounted = await mount({ app, bridge })
 
     try {
-      await mounted.run('cloud')
+      await lift(mounted, bridge)
       bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
-      await mounted.frame()
+      await shown(mounted, 'CLOUD')
 
       const { gate, release } = promiseGate()
       const original = bridge.log.read.bind(bridge.log)
@@ -328,7 +398,8 @@ describe('switching conversations while attached', () => {
       bridge.channel.reload({ sinceEventSeq: 0 })
       bridge.channel.reload({ sinceEventSeq: 0 })
       release()
-      await mounted.frame()
+      expect(await until({ holds: async () => reads === 2, within: 20_000 })).toBe(true)
+      await settle(250)
 
       expect(reads).toBe(2)
     } finally {
@@ -344,13 +415,15 @@ describe('a sandbox whose workspace would not materialise', () => {
     const mounted = await mount({ app, bridge })
 
     try {
-      await mounted.run('cloud')
+      await lift(mounted, bridge)
       bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+      await shown(mounted, 'CLOUD')
+
       bridge.channel.fail(
         'the workspace failed at git apply: error: patch failed: src/app.ts:12',
       )
 
-      const frame = await mounted.frame()
+      const frame = await shown(mounted, 'git apply')
       expect(frame).toContain('git apply')
       expect(frame).toContain('patch failed')
     } finally {

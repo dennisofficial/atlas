@@ -17,7 +17,9 @@ import { describe, expect, it } from 'bun:test'
 import React, { act } from 'react'
 
 import { HEADING } from '../../ui/components/exit-guard'
+import { frameShowing, frameWhen } from '../../ui/__tests__/waiting'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
+import { until } from './app-fixture'
 import { App } from '../app'
 import { FAKE_CONFIG, fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 import { fakeAgentSnapshot } from './fake-agents'
@@ -37,6 +39,8 @@ const SETTLED_CHILD = toThreadId('thr_settled')
 const SETTLED_INTENT = 'rotation sweep'
 
 const PARENT_SAID = 'Delegate the vault audit please.'
+
+const SEEDED = 'what is in here?'
 
 const WIDE = { width: 150, height: 40, exitOnCtrlC: false }
 
@@ -130,9 +134,7 @@ async function opened(app: FakeApp): Promise<Mounted> {
     <App app={app} opened={{ threadId: THREAD, events, turns: [], name: null, started: true }} />,
     WIDE,
   )
-  await setup.flush()
-  await settle(250)
-  await setup.flush()
+  await frameShowing({ setup, text: SEEDED })
   return setup
 }
 
@@ -259,13 +261,9 @@ describe('conversations the operator started', () => {
 
     try {
       await setup.mockInput.typeText('/resume')
-      await setup.flush()
       setup.mockInput.pressEnter()
-      await setup.flush()
-      await settle(250)
-      await setup.flush()
 
-      const frame = setup.captureCharFrame()
+      const frame = await frameShowing({ setup, text: 'a conversation I started' })
       expect(frame).toContain('a conversation I started')
       expect(frame).not.toContain(CHILD_INTENT)
     } finally {
@@ -282,11 +280,8 @@ describe('leaving with a child still running', () => {
 
     try {
       setup.mockInput.pressKey('c', { ctrl: true })
-      await setup.flush()
-      await settle(200)
-      await setup.flush()
 
-      const frame = setup.captureCharFrame()
+      const frame = await frameShowing({ setup, text: HEADING })
       expect(frame).toContain(HEADING)
       expect(frame).toContain('agent')
       expect(frame).toContain(CHILD_INTENT)
@@ -327,9 +322,8 @@ describe('an ending is a wake, not an interrupt', () => {
 
       act(() => app.agents.end({ agentId: CHILD }))
       await setup.flush()
-      await settle(400)
-      await setup.flush()
 
+      expect(await until({ holds: async () => app.turnsDriven === 1, within: 20_000 })).toBe(true)
       expect(app.turnsDriven).toBe(1)
     } finally {
       await teardown(setup)
@@ -344,13 +338,10 @@ describe('/agents types', () => {
       agentTypes: CATALOG,
     })
 
-  async function ask(setup: Mounted, text: string): Promise<void> {
+  async function ask(setup: Mounted, text: string, shows: string): Promise<string> {
     await setup.mockInput.typeText(text)
-    await setup.flush()
     setup.mockInput.pressEnter()
-    await setup.flush()
-    await settle(250)
-    await setup.flush()
+    return frameShowing({ setup, text: shows })
   }
 
   it('puts the file that would not load on screen, with the reason and the path', async () => {
@@ -360,9 +351,7 @@ describe('/agents types', () => {
     try {
       expect(setup.captureCharFrame()).not.toContain('NOT LOADED')
 
-      await ask(setup, '/agents types')
-
-      const frame = setup.captureCharFrame()
+      const frame = await ask(setup, '/agents types', 'NOT LOADED')
       expect(frame).toContain('NOT LOADED')
       expect(frame).toContain('Reviewer')
       expect(frame).toContain('cannot name an agent type')
@@ -377,9 +366,7 @@ describe('/agents types', () => {
     const setup = await opened(app)
 
     try {
-      await ask(setup, '/agents types')
-
-      const frame = setup.captureCharFrame()
+      const frame = await ask(setup, '/agents types', 'SHADOWED')
       expect(frame).toContain('SHADOWED')
       expect(frame).toContain('explore.md')
       expect(frame).toContain('project one is loaded instead')
@@ -393,15 +380,15 @@ describe('/agents types', () => {
     const setup = await opened(app)
 
     try {
-      await ask(setup, '/agents types')
-      expect(setup.captureCharFrame()).toContain('NOT LOADED')
+      const shown = await ask(setup, '/agents types', 'NOT LOADED')
+      expect(shown).toContain('NOT LOADED')
 
       setup.mockInput.pressEscape()
-      await setup.flush()
-      await settle(250)
-      await setup.flush()
-
-      expect(setup.captureCharFrame()).not.toContain('NOT LOADED')
+      const frame = await frameWhen({
+        setup,
+        holds: (captured) => !captured.includes('NOT LOADED'),
+      })
+      expect(frame).not.toContain('NOT LOADED')
     } finally {
       await teardown(setup)
     }
@@ -412,9 +399,7 @@ describe('/agents types', () => {
     const setup = await opened(app)
 
     try {
-      await ask(setup, '/agents kinds')
-
-      const frame = setup.captureCharFrame()
+      const frame = await ask(setup, '/agents kinds', '"types"')
       expect(frame).toContain('"types"')
       expect(frame).not.toContain('NOT LOADED')
     } finally {
@@ -428,9 +413,7 @@ describe('/agents types', () => {
     const setup = await opened(app)
 
     try {
-      await ask(setup, '/agents')
-
-      const frame = setup.captureCharFrame()
+      const frame = await ask(setup, '/agents', 'SUB-AGENTS')
       expect(frame).not.toContain('NOT LOADED')
       expect(frame).toContain('SUB-AGENTS')
       expect(frame).toContain(CHILD_INTENT)
@@ -445,9 +428,7 @@ describe('/agents types', () => {
     const setup = await opened(app)
 
     try {
-      await ask(setup, '/agents')
-
-      const frame = setup.captureCharFrame()
+      const frame = await ask(setup, '/agents', SETTLED_INTENT)
       expect(frame).toContain(SETTLED_INTENT)
       expect(frame).toContain('failed')
     } finally {
@@ -462,16 +443,14 @@ describe('/agents types', () => {
     const setup = await opened(app)
 
     try {
-      await ask(setup, '/agents')
+      await ask(setup, '/agents', SETTLED_INTENT)
 
       setup.mockInput.pressArrow('down')
-      await setup.flush()
       setup.mockInput.pressEnter()
-      await setup.flush()
-      await settle(250)
-      await setup.flush()
 
-      expect(setup.captureCharFrame()).toContain(`@${SETTLED_INTENT}`)
+      expect(await frameShowing({ setup, text: `@${SETTLED_INTENT}` })).toContain(
+        `@${SETTLED_INTENT}`,
+      )
     } finally {
       await teardown(setup)
     }
@@ -514,27 +493,25 @@ async function openedWith(app: FakeApp, lost?: RecoveredAgents): Promise<Mounted
     />,
     WIDE,
   )
-  await setup.flush()
-  await settle(250)
-  await setup.flush()
+  await frameShowing({ setup, text: SEEDED })
   return setup
 }
 
 describe('children the last process lost', () => {
-  async function ask(setup: Mounted, text: string): Promise<void> {
+  async function ask(setup: Mounted, text: string, shows: string): Promise<string> {
     await setup.mockInput.typeText(text)
-    await setup.flush()
     setup.mockInput.pressEnter()
-    await setup.flush()
-    await settle(250)
-    await setup.flush()
+    return frameShowing({ setup, text: shows })
   }
 
   it('announces an unlogged child on open, because nothing else in the app ever will', async () => {
     const setup = await openedWith(appWith(), LOST)
 
     try {
-      const frame = setup.captureCharFrame()
+      const frame = await frameShowing({
+        setup,
+        text: '1 sub-agent left no record in this conversation',
+      })
       expect(frame).toContain('1 sub-agent left no record in this conversation')
       expect(frame).toContain('/agents to view')
       expect(frame).not.toContain(ORPHAN_TITLE)
@@ -547,9 +524,7 @@ describe('children the last process lost', () => {
     const setup = await openedWith(appWith(), LOST)
 
     try {
-      await ask(setup, '/agents lost')
-
-      const frame = setup.captureCharFrame()
+      const frame = await ask(setup, '/agents lost', ORPHAN_TITLE)
       expect(frame).toContain(ORPHAN_TITLE)
       expect(frame).toContain('no record of')
       expect(frame).toContain('check the tree')
@@ -564,9 +539,8 @@ describe('children the last process lost', () => {
     const setup = await openedWith(app, LOST)
 
     try {
-      await ask(setup, '/agents lost')
-
-      expect(setup.captureCharFrame()).toContain('Nothing was resumed for you')
+      const frame = await ask(setup, '/agents lost', 'Nothing was resumed')
+      expect(frame).toContain('Nothing was resumed for you')
       expect(app.turnsDriven).toBe(0)
       expect(app.agents.said).toEqual([])
     } finally {
@@ -591,17 +565,18 @@ describe('children the last process lost', () => {
     const setup = await openedWith(appWith(), LOST)
 
     try {
-      await ask(setup, '/agents lost')
-      expect(setup.captureCharFrame()).toContain(ORPHAN_TITLE)
+      const shown = await ask(setup, '/agents lost', ORPHAN_TITLE)
+      expect(shown).toContain(ORPHAN_TITLE)
 
       setup.mockInput.pressEscape()
-      await setup.flush()
-      await settle(250)
-      await setup.flush()
-      expect(setup.captureCharFrame()).not.toContain(ORPHAN_TITLE)
+      const cleared = await frameWhen({
+        setup,
+        holds: (captured) => !captured.includes(ORPHAN_TITLE),
+      })
+      expect(cleared).not.toContain(ORPHAN_TITLE)
 
-      await ask(setup, '/agents lost')
-      expect(setup.captureCharFrame()).toContain(ORPHAN_TITLE)
+      const back = await ask(setup, '/agents lost', ORPHAN_TITLE)
+      expect(back).toContain(ORPHAN_TITLE)
     } finally {
       await teardown(setup)
     }
@@ -611,14 +586,8 @@ describe('children the last process lost', () => {
     const setup = await openedWith(appWith())
 
     try {
-      await setup.mockInput.typeText('/agents lost')
-      await setup.flush()
-      setup.mockInput.pressEnter()
-      await setup.flush()
-      await settle(250)
-      await setup.flush()
-
-      expect(setup.captureCharFrame()).toContain('nothing was lost')
+      const frame = await ask(setup, '/agents lost', 'nothing was lost')
+      expect(frame).toContain('nothing was lost')
     } finally {
       await teardown(setup)
     }
@@ -655,11 +624,10 @@ describe('children the last process lost', () => {
     )
 
     try {
-      await setup.flush()
-      await settle(250)
-      await setup.flush()
-
-      const frame = setup.captureCharFrame()
+      const frame = await frameShowing({
+        setup,
+        text: 'was lost before anything recorded how it ended',
+      })
       expect(frame).toContain('was lost before anything recorded how it ended')
       expect(frame).toContain('2 turns and 7 tool')
       expect(frame).not.toContain('no record of')
