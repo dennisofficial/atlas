@@ -14,7 +14,26 @@ export type TranscriptFollow = {
   handleJumpTo: (key: string) => void
 }
 
+/**
+ * Peek candidates in ascending top order. The layout model is the source of truth when it is
+ * available: windowing unmounts everything outside the viewport's margin, so a mounted-children
+ * scan cannot see the message sitting just above the window — exactly the one the peek line
+ * exists for. Model tops are content rows, so the viewport top is the scroll offset; the
+ * mounted fallback compares painted positions, so it takes the viewport's screen row.
+ */
 const candidatesOf = (
+  keys: ReadonlySet<string>,
+  offsetOfKey: (key: string) => number | null,
+): readonly PeekCandidate[] => {
+  const candidates: PeekCandidate[] = []
+  for (const key of keys) {
+    const top = offsetOfKey(key)
+    if (top !== null) candidates.push({ key, top })
+  }
+  return candidates
+}
+
+const mountedCandidatesOf = (
   box: ScrollBoxRenderable,
   keys: ReadonlySet<string>,
 ): readonly PeekCandidate[] =>
@@ -55,16 +74,23 @@ export function useTranscriptFollow(
       landed.current = true
     }
 
+    const offsets = offsetOfKey.current
     applyTranscriptViewport({
       tailing: isPinnedToBottom({
         scrollTop: box.scrollTop,
         scrollHeight: box.scrollHeight,
         viewportHeight: box.viewport.height,
       }),
-      peekKey: peekAbove({
-        candidates: candidatesOf(box, peekKeys.current),
-        viewportTop: box.viewport.y,
-      }),
+      peekKey:
+        offsets === undefined
+          ? peekAbove({
+              candidates: mountedCandidatesOf(box, peekKeys.current),
+              viewportTop: box.viewport.y,
+            })
+          : peekAbove({
+              candidates: candidatesOf(peekKeys.current, offsets),
+              viewportTop: box.scrollTop,
+            }),
     })
 
     onTick.current?.()

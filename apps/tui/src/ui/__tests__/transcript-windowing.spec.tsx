@@ -9,6 +9,7 @@ const { createDeltaChannel } = await import('@dltech/atlas-harness')
 const { fixtureThreadId } = await import('../../store/__tests__/fixture')
 const { clocked, said } = await import('../../store/__tests__/tool-fixture')
 const { Transcript } = await import('../components/transcript')
+const { transcriptViewport } = await import('../transcript-viewport-store')
 const { grammarsReady, teardown } = await import('../markdown/__tests__/harness')
 const { frameSettled, frameWhen } = await import('./waiting')
 
@@ -151,6 +152,45 @@ describe('a transcript past the windowing threshold', () => {
       })
 
       expect(Math.abs(scroller.scrollHeight - before)).toBeLessThanOrEqual(before * 0.05)
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('shows the jump-back header when the last user message above is unmounted', async () => {
+    const model = deriveTranscript({
+      events: clocked([
+        { draft: { type: 'user-said', text: 'the question that started it all' }, at: AT },
+        ...Array.from({ length: 400 }, (_, i) => ({
+          draft: said(`reply ${String(i + 1).padStart(4, '0')}`),
+          at: AT,
+        })),
+      ]),
+      signals: [],
+    })
+
+    const setup = await testRender(
+      <box flexDirection="column" width={WIDTH} height={HEIGHT}>
+        <Transcript model={model} width={WIDTH} now={NOW} cwd={CWD} />
+      </box>,
+      { width: WIDTH, height: HEIGHT },
+    )
+    try {
+      await frameSettled({ setup })
+      const scroller = findScroller(setup.renderer.root)
+
+      await act(async () => {
+        scroller.scrollTo(Math.floor(scroller.scrollHeight / 2))
+        await setup.flush()
+      })
+      const frame = await frameWhen({
+        setup,
+        holds: (captured) =>
+          captured.split('\n')[0]?.includes('the question that started it all') ?? false,
+        describe: 'the peek line for the unmounted user message',
+      })
+      expect(frame.split('\n')[0]).toContain('↑')
+      expect(transcriptViewport().peekKey).toBe(model.entries[0]?.key ?? null)
     } finally {
       await teardown(setup)
     }
