@@ -29,11 +29,14 @@ function issuesLabeledPayload(): unknown {
   }
 }
 
-function issueCommentPayload(overrides: { authorAssociation?: string } = {}): unknown {
+function issueCommentPayload(overrides: { authorAssociation?: string; body?: string } = {}): unknown {
   return {
     action: 'created',
     issue: { number: 341 },
-    comment: { author_association: overrides.authorAssociation ?? 'OWNER' },
+    comment: {
+      author_association: overrides.authorAssociation ?? 'OWNER',
+      body: overrides.body ?? 'taking a look at this',
+    },
     repository: { full_name: REPO },
     sender: { login: 'dennislysenko' },
   }
@@ -228,7 +231,95 @@ describe('GithubWebhookService', () => {
     })
 
     expect(outcome).toEqual({ handled: false })
+    expect(fake.workItems).toHaveLength(0)
     expect(fake.transcriptEvents).toHaveLength(0)
+    expect(githubApp.addIssueReaction).not.toHaveBeenCalled()
+  })
+
+  it('a comment mentioning the bot on an untracked issue intakes a work item', async () => {
+    const payload = {
+      ...(issueCommentPayload({ body: '@Atlas-Factory[bot] can you take this?' }) as Record<string, unknown>),
+      installation: { id: 42 },
+    }
+
+    const outcome = await service.handle({ event: 'issue_comment', deliveryId: 'd-mention', payload })
+
+    expect(outcome).toMatchObject({ handled: true, kind: EFactoryEventKind.Intake, appended: true })
+    expect(fake.workItems).toHaveLength(1)
+    expect(fake.aliases).toMatchObject([{ surface: 'github', externalId: `${REPO}#341`, kind: 'issue' }])
+    expect(fake.transcriptEvents).toMatchObject([
+      { kind: EFactoryEventKind.Intake, author: 'dennislysenko', authorAssociation: 'owner' },
+    ])
+    expect(githubApp.addIssueReaction).toHaveBeenCalledWith({
+      installationId: 42,
+      repoFullName: REPO,
+      issueNumber: 341,
+    })
+    expect(orchestrator.wake).toHaveBeenCalledTimes(1)
+    expect(orchestrator.wake).toHaveBeenCalledWith({ workItemId: outcome.workItemId, externalId: `${REPO}#341` })
+  })
+
+  it('a mention on an untracked pull request intakes with the pull-request alias', async () => {
+    const outcome = await service.handle({
+      event: 'issue_comment',
+      deliveryId: 'd-mention',
+      payload: {
+        action: 'created',
+        issue: { number: 87, pull_request: { url: `https://api.github.com/repos/${REPO}/pulls/87` } },
+        comment: { author_association: 'MEMBER', body: '@atlas-factory[bot] pick this up' },
+        repository: { full_name: REPO },
+        sender: { login: 'tofik' },
+        installation: { id: 42 },
+      },
+    })
+
+    expect(outcome).toMatchObject({ handled: true, kind: EFactoryEventKind.Intake, appended: true })
+    expect(fake.aliases).toMatchObject([{ surface: 'github', externalId: `${REPO}/pull/87`, kind: 'pull-request' }])
+    expect(githubApp.addIssueReaction).toHaveBeenCalledWith({
+      installationId: 42,
+      repoFullName: REPO,
+      issueNumber: 87,
+    })
+    expect(orchestrator.wake).toHaveBeenCalledWith({
+      workItemId: outcome.workItemId,
+      externalId: `${REPO}/pull/87`,
+    })
+  })
+
+  it('a mention on an already-tracked issue stays a plain comment event', async () => {
+    await service.handle({ event: 'issues', deliveryId: 'd-1', payload: issuesLabeledPayload() })
+    orchestrator.wake.mockClear()
+
+    const outcome = await service.handle({
+      event: 'issue_comment',
+      deliveryId: 'd-2',
+      payload: issueCommentPayload({ body: '@atlas-factory[bot] status?' }),
+    })
+
+    expect(outcome.kind).toBe(EFactoryEventKind.Comment)
+    expect(fake.workItems).toHaveLength(1)
+    expect(fake.transcriptEvents).toMatchObject([
+      { kind: EFactoryEventKind.Intake },
+      { kind: EFactoryEventKind.Comment },
+    ])
+    expect(githubApp.addIssueReaction).not.toHaveBeenCalled()
+    expect(orchestrator.wake).toHaveBeenCalledTimes(1)
+  })
+
+  it('a mention-shaped comment on an untracked issue drops when the bot login is unconfigured', async () => {
+    githubApp.botLogin.mockResolvedValue(null)
+
+    const outcome = await service.handle({
+      event: 'issue_comment',
+      deliveryId: 'd-1',
+      payload: issueCommentPayload({ body: '@atlas-factory[bot] hello' }),
+    })
+
+    expect(outcome).toEqual({ handled: false })
+    expect(fake.workItems).toHaveLength(0)
+    expect(fake.transcriptEvents).toHaveLength(0)
+    expect(githubApp.addIssueReaction).not.toHaveBeenCalled()
+    expect(orchestrator.wake).not.toHaveBeenCalled()
   })
 
   it('issue_comment on a pull request routes to the pull-request alias, not an issue alias', async () => {
