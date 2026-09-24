@@ -203,19 +203,10 @@ export class GithubWebhookService {
 
   private async acknowledgeIntake(args: {
     payload: Pick<GithubIssuesEventPayload, 'installation' | 'repository' | 'issue'>
-    commentId?: number
   }): Promise<void> {
     const installationId = args.payload.installation?.id
     if (installationId === undefined) return
     try {
-      if (args.commentId !== undefined) {
-        await this.githubApp.addCommentReaction({
-          installationId,
-          repoFullName: args.payload.repository.full_name,
-          commentId: args.commentId,
-        })
-        return
-      }
       await this.githubApp.addIssueReaction({
         installationId,
         repoFullName: args.payload.repository.full_name,
@@ -253,7 +244,10 @@ export class GithubWebhookService {
       authorAssociation: payload.comment.author_association,
       payload,
     })
-    if (outcome.handled) return outcome
+    if (outcome.handled) {
+      if (outcome.appended === true) await this.acknowledgeComment({ payload })
+      return outcome
+    }
     return this.intakeMentionedComment({ deliveryId: args.deliveryId, payload, externalId })
   }
 
@@ -277,7 +271,7 @@ export class GithubWebhookService {
       externalId: args.externalId,
       aliasKind: payload.issue.pull_request === undefined ? EFactoryAliasKind.Issue : EFactoryAliasKind.PullRequest,
     })
-    await this.acknowledgeIntake({ payload, commentId: payload.comment.id })
+    await this.acknowledgeComment({ payload })
     return this.append({
       externalId: args.externalId,
       deliveryId: args.deliveryId,
@@ -286,6 +280,23 @@ export class GithubWebhookService {
       authorAssociation: payload.comment.author_association,
       payload,
     })
+  }
+
+  private async acknowledgeComment(args: { payload: GithubIssueCommentEventPayload }): Promise<void> {
+    const installationId = args.payload.installation?.id
+    if (installationId === undefined) return
+    try {
+      await this.githubApp.addCommentReaction({
+        installationId,
+        repoFullName: args.payload.repository.full_name,
+        commentId: args.payload.comment.id,
+      })
+    } catch (failure) {
+      const detail = failure instanceof Error ? failure.message : String(failure)
+      this.logger.warn(
+        `could not add the ack reaction on ${args.payload.repository.full_name}#${args.payload.issue.number}: ${detail}`,
+      )
+    }
   }
 
   // Humans type @<slug>; only autocomplete produces @<slug>[bot]. The boundary keeps
