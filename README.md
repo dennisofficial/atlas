@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/brand/atlas-icon.png" alt="Atlas" width="128" height="128" />
+</p>
+
 # Atlas
 
 Atlas is a coding-agent harness for the terminal — not a wrapper around someone else's harness.
