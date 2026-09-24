@@ -95,6 +95,14 @@ export type LiftArgs = {
   /** Deferred so a sandbox that resumed from a snapshot skips the (expensive) skills tar. */
   captureContext?: CaptureContext | undefined
   onProgress: (step: ELiftStep) => void
+  /**
+   * Runs after the channel attaches — opening the conversation against the remote stores. The
+   * flip already landed by then, so a failure here rolls the thread back to the location it came
+   * from, the same as every earlier step's failure. Receives the just-attached channel so the
+   * caller builds its runner and app from it. Optional so a spec that never opens keeps the bare
+   * attach; the live wiring always passes it.
+   */
+  open?: ((channel: CloudChannel) => Promise<void>) | undefined
 }
 
 const detailOf = (error: unknown): string =>
@@ -360,7 +368,15 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
     .catch(() => undefined)
 
   onProgress(ELiftStep.Attaching)
-  const channel = args.bridge.attach({ threadId, url, token: sandbox.token })
+  let channel: CloudChannel
+  try {
+    channel = args.bridge.attach({ threadId, url, token: sandbox.token })
+    await args.open?.(channel)
+  } catch (error) {
+    await flipBack({ ...args, from })
+    await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })
+    return failureOf({ error, step: ELiftStep.Attaching, fallback: ELiftFault.Transfer, stopped })
+  }
 
   if (args.midTurn) onProgress(ELiftStep.Resuming)
 

@@ -148,6 +148,26 @@ describe('a lift that does not finish', () => {
     expect(lifted.fault).toBe(ELiftFault.Unreachable)
   })
 
+  it('puts the conversation back on the host when the open after attach fails', async () => {
+    const test = harness({
+      open: async () => {
+        throw new CloudError({ status: 404, message: 'Cannot GET /v1/threads/x/events/head' })
+      },
+    })
+
+    const lifted = await liftToCloud(test.args)
+
+    expect(lifted.ok).toBe(false)
+    if (lifted.ok) return
+
+    expect(lifted.step).toBe(ELiftStep.Attaching)
+    expect(test.located).toEqual([EExecutionLocation.Cloud, EExecutionLocation.Host])
+    expect(test.localThreads.chosenLocations.at(-1)).toEqual({
+      threadId: CLOUD_THREAD,
+      location: EExecutionLocation.Host,
+    })
+  })
+
   it('names what the move already closed when it fails after stopping them', async () => {
     const bridge = fakeBridge({
       createFails: new CloudError({ status: 500, message: 'no capacity' }),

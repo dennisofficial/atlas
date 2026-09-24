@@ -3,6 +3,7 @@ import { Sandbox } from '@vercel/sandbox'
 import { ECloudSandboxState } from './sandbox-client'
 import {
   createServeLauncher,
+  SERVE_STAMP_PATH,
   StaleSandboxTokenError,
   type ServeLauncher,
   type ServeStamps,
@@ -126,6 +127,14 @@ export class VercelDriver {
       cloudUrl: string
       /** Only createOrResume boots one, so an exposure-only driver never names one. */
       image?: string | undefined
+      /**
+       * The serve identities this build trusts, from `sandboxImageOf` — a pinned release carries
+       * `source:<buildSha>`, anything else an empty list. Drives the resume-time drift check: a
+       * sandbox whose baked serve is not one of these is torn down and recreated from the pinned
+       * image rather than resumed stale and re-downloaded onto. Empty disables the check (no
+       * pinned serve to match against).
+       */
+      serveSources?: readonly string[] | undefined
       timeoutMs?: number | undefined
       log?: ((line: string) => void) | undefined
       sdk?: VercelSdk | undefined
@@ -156,6 +165,7 @@ export class VercelDriver {
     let created = false
     try {
       const { credentials } = this.args
+      await this.replaceSandboxOnServeDrift({ name: args.name })
       const sandbox = await this.sdk.getOrCreate({
         ...credentials,
         name: args.name,
@@ -280,6 +290,50 @@ export class VercelDriver {
       if (isSandboxMissing(failure)) return
       throw asVercelFailure(failure)
     }
+  }
+
+  /**
+   * The drift fix. `Sandbox.getOrCreate` resumes a live sandbox by name and never compares the
+   * image, so a 4-hour sandbox keeps whatever serve was baked when it first booted — a stale
+   * snapshot relative to a release that moved on. When this build pins its serve identity
+   * (`serveSources` non-empty), read the running sandbox's installed stamp before resuming; a
+   * stamp outside the trusted set means the sandbox carries the wrong serve, so it is destroyed
+   * and recreated from the pinned image — which bakes the matching serve, making the 91MB
+   * re-download unnecessary and the version match exact. A sandbox whose stamp cannot be read is
+   * left alone: an unreadable stamp is not evidence of drift, and tearing down on a guess would
+   * destroy live work.
+   */
+  private async replaceSandboxOnServeDrift(args: { name: string }): Promise<void> {
+    const desired = this.args.serveSources ?? []
+    if (desired.length === 0) return
+
+    let sandbox: Sandbox
+    try {
+      sandbox = await this.sdk.get({
+        ...this.args.credentials,
+        name: args.name,
+        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
+      })
+    } catch (failure) {
+      if (isSandboxMissing(failure)) return
+      throw asVercelFailure(failure)
+    }
+
+    const read = await sandbox
+      .runCommand({
+        cmd: 'sh',
+        args: ['-c', `cat ${SERVE_STAMP_PATH} 2>/dev/null || true`],
+        timeoutMs: SANDBOX_QUICK_TIMEOUT_MS,
+      })
+      .catch(() => null)
+    if (read === null) return
+    const installed = (await read.stdout()).trim()
+    if (desired.includes(installed)) return
+
+    this.args.log?.(
+      `sandbox ${args.name} carries serve "${installed || 'none'}", this build wants one of [${desired.join(', ')}] — recreating it from the pinned image`,
+    )
+    await sandbox.delete({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
   }
 
   private async dedupedLaunch(args: {

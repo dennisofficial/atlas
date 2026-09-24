@@ -93,10 +93,11 @@ describe('RemoteEventLog', () => {
     expect(calls[1]?.url).toBe('http://cloud.test/v1/threads/brn_test/events?own=true')
   })
 
-  it('head answers the reserved sequence', async () => {
-    const { log } = harness([{ head: 42 }])
+  it('head answers the reserved sequence, from the events route the API mounts', async () => {
+    const { log, calls } = harness([{ head: 42 }])
 
     expect(await log.head({ threadId: THREAD })).toBe(42)
+    expect(calls[0]?.url).toBe('http://cloud.test/v1/threads/brn_test/events/head')
   })
 
   it('replace sends the whole log as one PUT and decodes the stamped events', async () => {

@@ -23,7 +23,12 @@ type FakeSandboxExtras = {
 type FakeSandbox = Sandbox & FakeSandboxExtras
 
 const fakeSandbox = (
-  args: { status?: string; routes?: number[]; installedStamp?: string } = {},
+  args: {
+    status?: string
+    routes?: number[]
+    installedStamp?: string
+    stampReadFails?: boolean
+  } = {},
 ): FakeSandbox => {
   const commands: string[] = []
   const written: RecordedWrite[] = []
@@ -31,6 +36,7 @@ const fakeSandbox = (
   const routedPorts = [...(args.routes ?? [3000])]
   let stopped = false
   let deleted = false
+  let stampReads = 0
 
   const base = {
     name: 'atlas-thread-x',
@@ -47,6 +53,11 @@ const fakeSandbox = (
     runCommand: async (params: { cmd: string; args?: string[] }) => {
       const script = params.args?.[1] ?? params.cmd
       commands.push(script)
+      const isStampRead = script.includes('.stamp')
+      if (isStampRead) stampReads += 1
+      if (args.stampReadFails && isStampRead && stampReads === 1) {
+        throw new Error('runCommand unavailable')
+      }
       return {
         exitCode: 0,
         stdout: async () => (script.includes('.stamp') ? `${args.installedStamp ?? STAMP}\n` : ''),
@@ -188,6 +199,103 @@ describe('createOrResume', () => {
         (write) => write.path === SERVE_TOKEN_PATH && write.content === 'serve-token-1',
       ),
     ).toBe(true)
+  })
+
+  it('recreates a live sandbox whose baked serve is not one this build trusts', async () => {
+    const stale = fakeSandbox({ installedStamp: 'source:older-sha' })
+    const fresh = fakeSandbox({ installedStamp: 'source:this-build' })
+    let getOrCreateParams: Record<string, unknown> | undefined
+    const driver = new VercelDriver({
+      credentials: CREDENTIALS,
+      cloudUrl: 'https://api.example.com',
+      image: 'atlas-sandbox:1.10.0',
+      serveSources: ['source:this-build'],
+      sdk: {
+        get: async () => stale,
+        getOrCreate: async (params) => {
+          getOrCreateParams = params as Record<string, unknown>
+          return fresh
+        },
+      },
+    })
+
+    await driver.createOrResume({
+      name: 'atlas-thread-x',
+      threadId: 'brn_cloud',
+      token: 't',
+      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
+    })
+
+    expect(stale.deleted).toBe(true)
+    expect(getOrCreateParams?.image).toBe('atlas-sandbox:1.10.0')
+  })
+
+  it('resumes a live sandbox whose baked serve this build already trusts, without destroying it', async () => {
+    const current = fakeSandbox({ installedStamp: 'source:this-build' })
+    const driver = new VercelDriver({
+      credentials: CREDENTIALS,
+      cloudUrl: 'https://api.example.com',
+      image: 'atlas-sandbox:1.10.0',
+      serveSources: ['source:this-build'],
+      sdk: { get: async () => current, getOrCreate: async () => current },
+    })
+
+    await driver.createOrResume({
+      name: 'atlas-thread-x',
+      threadId: 'brn_cloud',
+      token: 't',
+      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
+    })
+
+    expect(current.deleted).toBe(false)
+  })
+
+  it('never tears a sandbox down on an unreadable stamp — drift has to be proven', async () => {
+    const unprobed = fakeSandbox({ stampReadFails: true })
+    const driver = new VercelDriver({
+      credentials: CREDENTIALS,
+      cloudUrl: 'https://api.example.com',
+      image: 'atlas-sandbox:1.10.0',
+      serveSources: ['source:this-build'],
+      sdk: { get: async () => unprobed, getOrCreate: async () => unprobed },
+    })
+
+    await driver.createOrResume({
+      name: 'atlas-thread-x',
+      threadId: 'brn_cloud',
+      token: 't',
+      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
+    })
+
+    expect(unprobed.deleted).toBe(false)
+  })
+
+  it('skips the drift check entirely when the build pins no serve identity', async () => {
+    const existing = fakeSandbox({ installedStamp: 'source:anything' })
+    let probed = false
+    const driver = new VercelDriver({
+      credentials: CREDENTIALS,
+      cloudUrl: 'https://api.example.com',
+      image: 'atlas-sandbox:latest',
+      serveSources: [],
+      sdk: {
+        get: async () => {
+          probed = true
+          return existing
+        },
+        getOrCreate: async () => existing,
+      },
+    })
+
+    await driver.createOrResume({
+      name: 'atlas-thread-x',
+      threadId: 'brn_cloud',
+      token: 't',
+      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
+    })
+
+    expect(probed).toBe(false)
+    expect(existing.deleted).toBe(false)
   })
 
   it('pins the model into the environment only when one is pinned', async () => {
