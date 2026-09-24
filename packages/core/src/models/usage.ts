@@ -63,7 +63,7 @@ function messageOfEvent(event: Event): Message | undefined {
 export function estimateEventTokens(events: readonly Event[]): number {
   return events.reduce((total, event) => {
     const message = messageOfEvent(event)
-    return message === undefined ? total : total + estimateMessageTokens({ message })
+    return message === undefined ? total : total + estimateMessageTokens(message)
   }, 0)
 }
 

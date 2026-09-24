@@ -1,3 +1,4 @@
+import { EFinishReason } from '@dltech/atlas-core'
 import type { CallId, ExchangeFault, LoopCut } from '@dltech/atlas-core'
 
 const faultLine = (fault: ExchangeFault): string =>
@@ -12,8 +13,17 @@ export const swallowedReport = (call: { callId: CallId; name: string }): string 
 export const faultReport = (faults: readonly ExchangeFault[]): string =>
   `the assembled prompt is one Atlas must not send — ${faults.map(faultLine).join('; ')}`
 
-export const emptyStepReport = (): string =>
-  'the model returned an empty reply — no text, no tool calls — and did it again after a nudge, so the provider is dropping the reply rather than the model choosing to stop. Resuming will likely hit the same wall until the context changes; a very large image or tool result is the usual suspect.'
+export const emptyStepReport = (reason?: EFinishReason): string => {
+  const base =
+    'the model returned an empty reply — no text, no tool calls — and did it again after a nudge, so the provider is dropping the reply rather than the model choosing to stop. Resuming will likely hit the same wall until the context changes; a very large image or tool result is the usual suspect.'
+  if (reason === undefined || reason === EFinishReason.Stop) return base
+  return `${base} The provider's finish reason was "${reason}".`
+}
+
+export const finishFaultReport = (reason: EFinishReason): string =>
+  reason === EFinishReason.ContentFilter
+    ? 'the provider\'s safety filter ended the reply (finish reason "content-filter") — the turn cannot continue past it. Narrow or rephrase the request and retry.'
+    : 'the provider ended the reply with finish reason "error" — it failed the generation after streaming began and Atlas will not read that as a completed turn. Retry, or switch the thread\'s model if it repeats.'
 
 export const loopReport = (cut: LoopCut): string =>
   `the turn repeated identical ${cut.names.join(', ')} calls with identical results, its context was rewound past the repetition twice already, and it looped again — a turn this stuck fails rather than spins`

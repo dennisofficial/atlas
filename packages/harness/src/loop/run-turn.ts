@@ -7,11 +7,11 @@ import {
   awaitsReply,
   callIdsIn,
   dedupeCallIds,
+  EFinishReason,
   EMPTY_STEP_NUDGES_PER_TURN,
   emptyStepNudgeDraft,
   estimateTokensFor,
   imageTierOf,
-  toolImagesCarriedBy,
   contextWindowOf,
   exchangeFaults,
   loopCutNoticeDraft,
@@ -50,7 +50,7 @@ import { openTurnSpend, TURN_CRASHED, type TurnLedgerDeps, type TurnSpendTally }
 import { appendResumeDrafts } from './resume-turn'
 import { createSettlePending, type OnToolOutputNotice, type SettlePending } from './settle-pending'
 import { draftsFor, interruptedDrafts } from './step-drafts'
-import { emptyStepReport, faultReport, loopReport, overflowReport, stalledReport, swallowedReport } from './turn-faults'
+import { emptyStepReport, faultReport, finishFaultReport, loopReport, overflowReport, stalledReport, swallowedReport } from './turn-faults'
 import { committedSinceLastMessage, messageArrivedSince } from './turn-position'
 import { ETurnStatus, type TurnOutcome } from './turn-outcome'
 import { TurnRunner } from './turn-runner.port'
@@ -117,12 +117,7 @@ export class LoopTurnRunner extends TurnRunner {
     this.assembly = deps.assembly
     this.tools = deps.tools ?? (() => [])
     this.countTokens =
-      deps.countTokens ??
-      ((assembled) =>
-        estimateTokensFor({
-          tier: imageTierOf(this.model),
-          carriesToolImages: toolImagesCarriedBy(this.model),
-        })(assembled))
+      deps.countTokens ?? ((assembled) => estimateTokensFor(imageTierOf(this.model))(assembled))
     this.onChunk = deps.onChunk
     this.onContext = deps.onContext
     this.hooks = deps.hooks
@@ -439,10 +434,20 @@ export class LoopTurnRunner extends TurnRunner {
         continue
       }
 
+      const finish = stepped.result.finishReason
+      if (finish === EFinishReason.Error || finish === EFinishReason.ContentFilter) {
+        return { status: ETurnStatus.Failed, runId, message: finishFaultReport(finish), cause: { finish } }
+      }
+
       if (silentStep(stepped.result)) {
         silentSteps += 1
         if (silentSteps > EMPTY_STEP_NUDGES_PER_TURN) {
-          return { status: ETurnStatus.Failed, runId, message: emptyStepReport(), cause: { silentSteps } }
+          return {
+            status: ETurnStatus.Failed,
+            runId,
+            message: emptyStepReport(finish),
+            cause: { silentSteps, finish },
+          }
         }
         await this.log.append({ threadId, runId, drafts: [emptyStepNudgeDraft()] })
         previous = undefined

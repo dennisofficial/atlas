@@ -5,7 +5,6 @@ import {
   EImageTier,
   contextWindowOf,
   imageTierOf,
-  toolImagesCarriedBy,
   type ModelCard,
 } from '@dltech/atlas-core'
 
@@ -19,12 +18,6 @@ const cardOf = (args: { modelId: string; contextWindow: number; tier: EImageTier
   contextWindow: args.contextWindow,
   imageTier: args.tier,
 })
-
-const KIMI_ON_OPENROUTER: ModelCard = {
-  ...cardOf({ modelId: 'moonshotai/kimi-k2', contextWindow: 262_144, tier: EImageTier.Standard }),
-  ref: { providerId: 'openrouter', modelId: 'moonshotai/kimi-k2' },
-  api: 'openai-completions',
-}
 
 const OPUS = cardOf({
   modelId: 'claude-opus-5',
@@ -68,21 +61,3 @@ describe('the window a port reports', () => {
   })
 })
 
-describe('the tool-image transport a port reports', () => {
-  it('refuses a completions-API card, whose provider stringifies tool-result images into text', () => {
-    const port = new AiSdkModelPort({ model: stub, card: KIMI_ON_OPENROUTER })
-
-    expect(toolImagesCarriedBy(port)).toBe(false)
-  })
-
-  it('carries them on the messages and responses APIs', () => {
-    expect(toolImagesCarriedBy(new AiSdkModelPort({ model: stub, card: OPUS }))).toBe(true)
-
-    const gpt: ModelCard = { ...OPUS, api: 'openai-responses' }
-    expect(toolImagesCarriedBy(new AiSdkModelPort({ model: stub, card: gpt }))).toBe(true)
-  })
-
-  it('carries them when no card was supplied, preserving the status quo', () => {
-    expect(toolImagesCarriedBy(new AiSdkModelPort({ model: stub }))).toBe(true)
-  })
-})

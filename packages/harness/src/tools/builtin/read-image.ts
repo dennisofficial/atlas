@@ -100,22 +100,10 @@ export async function readImage(args: {
   head: Uint8Array
   files: AgentFileSystemPort
   threadId: ThreadId
-  carriesToolImages: boolean
 }): Promise<ToolOutcome> {
   const { path, mediaType, byteLength } = args
 
   const size = imageSize({ bytes: args.head, mediaType })
-
-  if (!args.carriesToolImages) {
-    return textOnly({
-      path,
-      mediaType,
-      size,
-      byteLength,
-      because:
-        "the current model's API delivers tool results as text, so the picture would arrive as base64 rather than as an image",
-    })
-  }
 
   const plan = planDelivery({ byteLength, width: size?.width, height: size?.height })
 
