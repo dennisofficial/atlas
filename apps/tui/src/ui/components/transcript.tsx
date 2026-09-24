@@ -80,9 +80,7 @@ function DerivedTranscript(props: {
 
     const box = scroller.current
     if (box === null) return
-    const offset = windowing.offsetOfKey(previous)
-    if (offset === null) return
-    box.scrollTo(box.scrollTop + offset)
+    windowing.pinToKey({ key: previous, offset: box.scrollTop })
   }, [model.entries, windowing])
   const follow = useTranscriptFollow({
     scroller,
