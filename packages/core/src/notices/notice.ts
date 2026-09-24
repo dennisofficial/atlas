@@ -2,6 +2,7 @@ export enum ENoticeTone {
   Done = 'done',
   Info = 'info',
   Warn = 'warn',
+  Success = 'success',
 }
 
 export enum ENoticePosition {

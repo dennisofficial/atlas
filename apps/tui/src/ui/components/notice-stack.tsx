@@ -19,6 +19,7 @@ const MARK_INDENT = 2
 export const toneInk = (tone: ENoticeTone): string => {
   if (tone === ENoticeTone.Warn) return theme.warn
   if (tone === ENoticeTone.Info) return theme.hover
+  if (tone === ENoticeTone.Success) return theme.ok
   return theme.meta
 }
 
