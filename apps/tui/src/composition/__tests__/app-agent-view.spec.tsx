@@ -79,7 +79,7 @@ const sidebarRowOf = (setup: Mounted, needle: string): number =>
   setup
     .captureCharFrame()
     .split('\n')
-    .findIndex((line) => line.indexOf(needle) >= WIDE.width - SIDEBAR_WIDTH)
+    .findIndex((line) => line.indexOf(needle, WIDE.width - SIDEBAR_WIDTH) !== -1)
 
 async function pressChord(setup: Mounted, key: string): Promise<void> {
   setup.mockInput.pressKey(key, { ctrl: true })

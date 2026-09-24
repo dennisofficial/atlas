@@ -2,7 +2,7 @@ import { EShellStatus, toShellId, type ShellSnapshot } from '@dltech/atlas-harne
 import { describe, expect, it } from 'bun:test'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
-import { open, until, spokenIn, type Mounted } from './app-fixture'
+import { open, until, spokenIn, THREAD, type Mounted } from './app-fixture'
 import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
 await grammarsReady()
@@ -24,8 +24,11 @@ const ended = (over: Partial<ShellSnapshot> = {}): ShellSnapshot =>
     ...over,
   }) as ShellSnapshot
 
-const appNow = (): FakeApp =>
-  fakeApp({ model: scriptedModelPort({ script: { thinking: 'reading it', reply: 'all green' } }) })
+const appNow = (drainFailures?: number): FakeApp =>
+  fakeApp({
+    model: scriptedModelPort({ script: { thinking: 'reading it', reply: 'all green' } }),
+    ...(drainFailures === undefined ? {} : { drainFailures }),
+  })
 
 const openSpoken = async (app: FakeApp): Promise<Mounted> =>
   open({ app, opened: await spokenIn(app) })
@@ -98,6 +101,57 @@ describe('a background shell that ends while nothing is running', () => {
       await mounted.frame()
 
       expect(mounted.app.turnsDriven).toBe(1)
+    } finally {
+      await mounted.done()
+    }
+  })
+
+  it('wakes again when the wake turn dies before draining the ending', async () => {
+    const mounted = await openSpoken(appNow(1))
+
+    try {
+      mounted.app.shells.announce(ended())
+
+      const recovered = await until({
+        holds: async () => mounted.app.turnsDriven >= 2,
+        within: WAIT_MS,
+      })
+
+      expect(recovered).toBe(true)
+
+      const delivered = await until({
+        holds: async () =>
+          (await mounted.frame()).includes(
+            'Background shell "Run full TUI suite" completed (exit code 0)',
+          ),
+        within: WAIT_MS,
+      })
+
+      expect(delivered).toBe(true)
+      expect(mounted.app.turnsDriven).toBe(2)
+    } finally {
+      await mounted.done()
+    }
+  })
+
+  it('stops waking once a witness has burned through its attempts', async () => {
+    const mounted = await openSpoken(appNow(10))
+
+    try {
+      mounted.app.shells.announce(ended())
+
+      const capped = await until({
+        holds: async () => mounted.app.turnsDriven >= 3,
+        within: WAIT_MS,
+      })
+
+      expect(capped).toBe(true)
+
+      await mounted.frame()
+      await mounted.frame()
+
+      expect(mounted.app.turnsDriven).toBe(3)
+      expect(mounted.app.shells.pendingNotices({ threadId: THREAD })).toHaveLength(1)
     } finally {
       await mounted.done()
     }

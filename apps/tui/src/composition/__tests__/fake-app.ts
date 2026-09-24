@@ -674,6 +674,7 @@ export function fakeApp(args: {
   models?: ModelCatalogue
   accountsSeed?: readonly AccountDraft[]
   containerLimits?: { cpus: number; memoryGb: number }
+  drainFailures?: number
 }): FakeApp {
   const channel = createDeltaChannel()
   const log = fakeEventLog()
@@ -686,6 +687,7 @@ export function fakeApp(args: {
   const agents = fakeAgentRegistry({ threads })
   const services = fakeServiceRegistry()
   const skillRegistry = fakeSkillRegistry({ skills: args.skills ?? [] })
+  let drainFailures = args.drainFailures ?? 0
   const runner = new PublishingTurnRunner({
     channel,
     deps: {
@@ -694,8 +696,18 @@ export function fakeApp(args: {
       ids,
       assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: FAKE_CONFIG.cwd }),
       spend: { ledger, clock: new SystemClock() },
-      drainPending: async ({ threadId }) =>
-        pending.forThread({ threadId }).drain().map(userSaidDraft),
+      drainPending: async ({ threadId }) => {
+        if (drainFailures > 0) {
+          drainFailures -= 1
+          throw new Error('the drain fell over')
+        }
+        return [
+          ...shells.drainNotifications({ threadId }),
+          ...agents.drainNotifications({ threadId }),
+          ...services.drainNotifications({ threadId }),
+          ...pending.forThread({ threadId }).drain().map(userSaidDraft),
+        ]
+      },
     },
   })
 
