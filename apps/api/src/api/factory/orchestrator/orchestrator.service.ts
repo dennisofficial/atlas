@@ -2,8 +2,9 @@ import { Inject, Injectable, Logger } from '@nestjs/common'
 import { db } from '../../../db'
 import { factorySandboxNameFor } from '../../platform/sandboxes/sandbox-names'
 import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
-import { ESandboxFactoryRole } from '../../platform/sandboxes/sandboxes.types'
+import { ESandboxDriveMode, ESandboxFactoryRole } from '../../platform/sandboxes/sandboxes.types'
 import { ThreadsService } from '../../platform/sessions/threads.service'
+import { FactoryDrivesService } from '../drives/drives.service'
 import { EFactoryEventKind, type TranscriptEventDto, type WorkItemDto } from '../factory.types'
 import { TranscriptService } from '../transcript.service'
 import { WorkItemsService } from '../work-items.service'
@@ -28,6 +29,7 @@ export class OrchestratorService {
     private readonly sandboxes: SandboxesService,
     private readonly identity: FactoryIdentityService,
     private readonly credentials: FactoryCredentialService,
+    private readonly drives: FactoryDrivesService,
     @Inject(ORCHESTRATOR_CHANNEL) private readonly channel: OrchestratorChannel,
   ) {}
 
@@ -61,6 +63,7 @@ export class OrchestratorService {
     const userId = await this.identity.userId({ organizationId: item.organizationId })
     await this.credentials.ensureSeeded({ userId, organizationId: item.organizationId })
     const threadId = await this.ensureThread({ item, externalId: args.externalId, userId })
+    const driveName = await this.drives.ensure({ workItemId: item.id })
     const fresh = item.orchestratorDeliveredEventId === null
 
     for (const [index, event] of pending.entries()) {
@@ -77,6 +80,7 @@ export class OrchestratorService {
           text,
           marker: event.id,
           extras: {
+            drive: { name: driveName, mode: ESandboxDriveMode.Snapshot },
             pinnedModel: await this.credentials.modelRef({ organizationId: item.organizationId }),
             factoryRole: ESandboxFactoryRole.Orchestrator,
           },
