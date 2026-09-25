@@ -10,6 +10,7 @@ import type {
 import type { DeltaChannel } from '../channel/delta-channel'
 import type { FileBrowser } from '../files/file-browser'
 import type { TurnRunner } from '../loop/turn-runner.port'
+import type { LostShell } from '../shells/recovery'
 import type { ThreadStorePort } from '../store/thread-store'
 
 /**
@@ -35,6 +36,11 @@ export type ServeApp = {
   workspace: WorkspaceIdentity
   /** Resumes the served thread's transferred children — see adopt-children.ts for why it must. */
   adoptChildren: (args: { threadId: ThreadId }) => Promise<readonly ThreadId[]>
+  /**
+   * Settles the shells the last process lost — a start with no ending behind it gets a synthetic
+   * unrecorded ending so the next open reads it off the transcript. Absent in a fake without a log.
+   */
+  recordLostShells?: ((args: { threadId: ThreadId }) => Promise<readonly LostShell[]>) | undefined
   whenChildrenSettled: (args: { threadId: ThreadId }) => Promise<void>
   /** Carries this sandbox's memory back to the control plane — see upload-memory.ts. */
   syncMemoryAfterTurn: () => Promise<void>

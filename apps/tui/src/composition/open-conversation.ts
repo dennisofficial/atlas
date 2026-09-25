@@ -17,6 +17,7 @@ import type {
   TurnLedgerPort,
   TurnSpend,
 } from '@dltech/atlas-harness'
+import { ShellRecovery, type LostShell } from '@dltech/atlas-harness'
 import {
   atlasDirectory,
   claimSession,
@@ -47,6 +48,7 @@ export type OpenedConversation = {
   model?: ThreadModel | undefined
   executionLocation?: EExecutionLocation | undefined
   lost?: RecoveredAgents | undefined
+  lostShells?: readonly LostShell[] | undefined
   base?: LogAccumulator | undefined
   /**
    * Set only by a mid-turn lift: the turn it interrupted to move safely, so the conversation that
@@ -85,6 +87,16 @@ type Opening = {
   workspace: WorkspaceIdentity
   open: OpenRequest
   effects: ToolEffects
+}
+
+const shellRecoveryFor = new WeakMap<EventLogPort, ShellRecovery>()
+
+const shellRecovery = (args: { log: EventLogPort; ids: IdPort }): ShellRecovery => {
+  const held = shellRecoveryFor.get(args.log)
+  if (held !== undefined) return held
+  const created = new ShellRecovery({ log: args.log, ids: args.ids })
+  shellRecoveryFor.set(args.log, created)
+  return created
 }
 
 const unknownThread = (args: { threadId: string; project: string }): string =>
@@ -186,6 +198,9 @@ export async function openConversation(args: Opening): Promise<OpenOutcome> {
   heldSessionDir = sessionDir
 
   const lost = await args.agents.recordLostAgents({ threadId: thread.id })
+  const lostShells = await shellRecovery({ log: args.log, ids: args.ids }).recordLost({
+    threadId: thread.id,
+  })
 
   const window = await readThreadWindow({ log: args.log, threadId: thread.id, rows: EThreadRows.Composed })
   const [base, spent] = await Promise.all([
@@ -210,6 +225,7 @@ export async function openConversation(args: Opening): Promise<OpenOutcome> {
       model: thread.model,
       executionLocation: thread.executionLocation,
       lost,
+      lostShells,
       base,
     },
   }

@@ -164,6 +164,12 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     branch: z.string().min(1),
   }),
   z.object({
+    type: z.literal('background-shell-started'),
+    shellId: z.string().min(1),
+    command: z.string(),
+    description: z.string().optional(),
+  }),
+  z.object({
     type: z.literal('background-shell-ended'),
     shellId: z.string().min(1),
     command: z.string(),

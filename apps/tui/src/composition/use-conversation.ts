@@ -34,7 +34,7 @@ import { ECommandEffect, type CommandEffect } from './commands/local-command'
 import type { AtlasApp } from './compose'
 import { changeDirectory, type DirectoryMove } from './directory-move'
 import type { OpenedConversation } from './open-conversation'
-import type { RecoveredAgents, ThreadModel } from '@dltech/atlas-harness'
+import type { LostShell, RecoveredAgents, ThreadModel } from '@dltech/atlas-harness'
 import { ECompactScope } from '@dltech/atlas-harness'
 import { EOpenMode } from './config'
 import { useRevokeGrant } from './revoke-grant'
@@ -65,6 +65,7 @@ export type Conversation = {
   executionLocation: EExecutionLocation | undefined
   rewindConfirm: RewindConfirmControl
   lost: RecoveredAgents | null
+  lostShells: readonly LostShell[]
   handle: string | null
   model: TranscriptModel
   sidebar: SidebarModel
@@ -481,6 +482,7 @@ export function useConversation(args: {
     threadModel: opened.model,
     executionLocation: opened.executionLocation,
     lost: opened.lost ?? null,
+    lostShells: opened.lostShells ?? [],
     handle: name === null ? null : threadHandle({ threadId, title: name }),
     model,
     sidebar,

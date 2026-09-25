@@ -52,6 +52,7 @@ import { useTerminalFocus } from '../ui/hooks/use-terminal-focus'
 import { AgentTypes } from '../ui/components/agent-types'
 import { LostChildren } from '../ui/components/lost-children'
 import { hasLostChildren, lostChildrenNotice } from '../ui/lost-children-model'
+import { hasLostShells, lostShellsNotice } from '../ui/lost-shells-model'
 import { Shortcuts } from '../ui/components/shortcuts'
 import { Sidebar } from '../ui/components/sidebar'
 import { NoticeStack } from '../ui/components/notice-stack'
@@ -70,6 +71,7 @@ import {
   ENoticeTone,
   NOTICE_KEY_CLASSIFIER_OFFLINE,
   NOTICE_KEY_LOST_AGENTS,
+  NOTICE_KEY_LOST_SHELLS,
   NOTICE_WARN_MS,
   notify,
 } from '../ui/notice-store'
@@ -630,7 +632,7 @@ function Workspace(props: {
   const shells = useShells({ app: props.app, threadId: conversation.threadId })
   const services = useServices({ app: props.app })
 
-  const { lost } = conversation
+  const { lost, lostShells } = conversation
 
   const handleShowLostAgents = useCallback((): boolean => {
     if (!hasLostChildren(lost)) return false
@@ -658,6 +660,20 @@ function Workspace(props: {
       sticky: true,
     })
   }, [lost])
+
+  useEffect(() => {
+    if (!hasLostShells(lostShells)) {
+      clearNotice({ key: NOTICE_KEY_LOST_SHELLS })
+      return
+    }
+
+    notify({
+      key: NOTICE_KEY_LOST_SHELLS,
+      text: lostShellsNotice(lostShells),
+      tone: ENoticeTone.Warn,
+      sticky: true,
+    })
+  }, [lostShells])
 
   const judgeUnreachable = conversation.sidebar.classifier?.judgeUnreachable === true
 
