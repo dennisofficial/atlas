@@ -28,7 +28,7 @@ export function undeliveredEventsOf(args: {
 }
 
 export interface WakeRecoveryDriver {
-  runWake(args: { workItemId: string; externalId: string }): Promise<void>
+  runWake(args: { workItemId: string; externalId: string; repo?: string }): Promise<void>
 }
 
 @Injectable()
@@ -45,9 +45,11 @@ export class WakeRecoveryService implements OnApplicationBootstrap {
 
   onApplicationBootstrap(): void {
     void this.recoverPending().catch((failure: unknown) => {
-      this.logger.warn(
-        `wake recovery scan failed: ${failure instanceof Error ? failure.message : String(failure)}`,
-      )
+      const detail =
+        failure instanceof Error
+          ? `${failure.name}: ${failure.message}${failure.stack === undefined ? '' : `\n${failure.stack}`}`
+          : String(failure)
+      this.logger.warn(`wake recovery scan failed: ${detail}`)
     })
   }
 
@@ -55,6 +57,7 @@ export class WakeRecoveryService implements OnApplicationBootstrap {
     const rows = await db.factoryWorkItem.findMany({
       select: {
         id: true,
+        repo: true,
         orchestratorDeliveredEventId: true,
         aliases: { select: { externalId: true }, take: 1 },
       },
@@ -76,7 +79,7 @@ export class WakeRecoveryService implements OnApplicationBootstrap {
       this.logger.log(
         `re-driving ${pending.length} undelivered event(s) for work item ${row.id} after a restart`,
       )
-      await this.driver.runWake({ workItemId: row.id, externalId })
+      await this.driver.runWake({ workItemId: row.id, externalId, repo: row.repo })
     }
     if (recovered > 0) this.logger.log(`wake recovery re-drove ${recovered} work item(s)`)
   }

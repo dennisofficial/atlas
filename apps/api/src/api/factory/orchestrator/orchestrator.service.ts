@@ -54,21 +54,30 @@ export class OrchestratorService implements OnModuleInit {
    * old and new containers may try, and only the lock holder drives while the other skips. The
    * watermark makes a re-drive idempotent, so a wake abandoned by a restart is simply run again.
    */
-  async runWake(args: { workItemId: string; externalId: string }): Promise<void> {
+  async runWake(args: { workItemId: string; externalId: string; repo?: string }): Promise<void> {
     await this.wakeLock.runExclusive({
       workItemId: args.workItemId,
       drive: () => this.deliver(args),
     })
   }
 
-  private async deliver(args: { workItemId: string; externalId: string }): Promise<void> {
+  private async deliver(args: {
+    workItemId: string
+    externalId: string
+    repo?: string
+  }): Promise<void> {
     const item = await this.workItems.find({ workItemId: args.workItemId })
     const pending = await this.pendingEvents(item)
     if (pending.length === 0) return
 
     const userId = await this.identity.userId({ organizationId: item.organizationId })
     await this.credentials.ensureSeeded({ userId, organizationId: item.organizationId })
-    const threadId = await this.ensureThread({ item, externalId: args.externalId, userId })
+    const threadId = await this.ensureThread({
+      item,
+      externalId: args.externalId,
+      userId,
+      repo: args.repo ?? item.repo,
+    })
     const driveName = await this.drives.ensure({ workItemId: item.id })
     const fresh = item.orchestratorDeliveredEventId === null
 
@@ -123,6 +132,7 @@ export class OrchestratorService implements OnModuleInit {
     item: WorkItemDto
     externalId: string
     userId: string
+    repo: string
   }): Promise<string> {
     if (args.item.orchestratorThreadId !== null) return args.item.orchestratorThreadId
     const title = `factory: ${args.externalId}`
