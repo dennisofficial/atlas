@@ -2,15 +2,14 @@ import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-type Layer = 'platform' | 'cloud' | 'factory'
+type Layer = 'platform' | 'cloud'
 
-const LAYERS: readonly Layer[] = ['platform', 'cloud', 'factory']
+const LAYERS: readonly Layer[] = ['platform', 'cloud']
 const INFRA_DIRS = ['_core', '_lib', '_module', 'db']
 
 const FORBIDDEN_TARGETS: Record<Layer, readonly Layer[]> = {
-  platform: ['cloud', 'factory'],
-  cloud: ['factory'],
-  factory: ['cloud'],
+  platform: ['cloud'],
+  cloud: [],
 }
 
 const API_ROOT = __dirname
@@ -35,12 +34,6 @@ const GRANDFATHERED = new Set([
   'platform/sandboxes/sandboxes.service.spec.ts -> ../../cloud/github/github.service',
   'platform/sandboxes/sandboxes.service.ts -> ../../cloud/context-archive/context-archive-limits',
   'platform/sandboxes/sandboxes.service.ts -> ../../cloud/context-archive/context-archive.store',
-  'cloud/github/github-installation-reads.ts -> ../../factory/reply/github-app.service',
-  'cloud/github/github-webhook.controller.ts -> ../../factory/github-webhook.service',
-  'cloud/github/github-webhook.controller.ts -> ../../factory/github-webhook.signature',
-  'cloud/github/github-webhook.service.ts -> ../../factory/unique-violation',
-  'cloud/github/github-webhooks.module.ts -> ../../factory/factory.module',
-  'cloud/github/github.module.ts -> ../../factory/reply/github-app.service',
 ])
 
 interface Violation {
@@ -97,7 +90,7 @@ function targetLayerOf({
     const first = path.relative(API_ROOT, resolved).split(path.sep)[0]
     return LAYERS.includes(first as Layer) ? (first as Layer) : null
   }
-  const match = /(?:^|\/)api\/(platform|cloud|factory)(?:\/|$)/.exec(specifier)
+  const match = /(?:^|\/)api\/(platform|cloud)(?:\/|$)/.exec(specifier)
   return match ? (match[1] as Layer) : null
 }
 
@@ -159,7 +152,7 @@ describe('api layer architecture', () => {
   const layerViolations = collectLayerViolations()
   const infraViolations = collectInfraViolations()
 
-  it('platform never imports cloud or factory, cloud never imports factory, factory never imports cloud', () => {
+  it('platform never imports cloud', () => {
     const fresh = layerViolations.filter(
       (violation) => !GRANDFATHERED.has(keyOf(violation)),
     )

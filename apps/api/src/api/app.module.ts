@@ -10,7 +10,6 @@ import { ClientVersionGuard } from '../_module/client-version/client-version.gua
 import { ClientVersionModule } from '../_module/client-version/client-version.module'
 import { AccountsModule } from './platform/accounts/accounts.module'
 import { AuthModule } from './platform/auth/auth.module'
-import { FactoryModule } from './factory/factory.module'
 import { GithubModule } from './cloud/github/github.module'
 import { GithubSandboxPrsModule } from './cloud/github/github-sandbox-prs.module'
 import { GithubWebhooksModule } from './cloud/github/github-webhooks.module'
@@ -47,7 +46,6 @@ import { UserContextModule } from './cloud/user-context/user-context.module'
     GithubModule,
     SessionsModule,
     SandboxesModule,
-    FactoryModule,
     GithubWebhooksModule,
     GithubSandboxPrsModule,
     UserContextModule,

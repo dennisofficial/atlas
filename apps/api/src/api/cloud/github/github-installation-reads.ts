@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { GithubAppService } from '../../factory/reply/github-app.service'
+import { GithubAppService } from './github-app.service'
 import type {
   PullRequestCacheFields,
   RestCheckRun,
