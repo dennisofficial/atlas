@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { Injectable, Logger } from '@nestjs/common'
 import { db } from '../../../db'
 
@@ -7,23 +8,21 @@ import { db } from '../../../db'
  * lock is held by the session and released automatically when the connection or transaction dies,
  * which is exactly the semantics an OOM-killed or replaced container needs — kill the instance and
  * the next one (or the boot scan) picks the work item straight back up.
- *
- * The key is derived from the work item id rather than the id itself so the 64-bit lock space is
- * stable for this purpose without trusting an arbitrary string to hash well.
  */
 export const WAKE_LOCK_NAMESPACE = 0x7a6b
 
-export async function wakeLockKeyOf(args: {
-  queryRaw: (query: string, id: string) => Promise<readonly { key: string }[]>
-  workItemId: string
-}): Promise<bigint> {
-  const rows = await args.queryRaw(
-    'SELECT (("x" || substr(md5($1), 1, 15))::bit(60)::bigint) AS key',
-    args.workItemId,
-  )
-  const row = rows[0]
-  if (row === undefined) throw new Error('could not derive a wake lock key')
-  return BigInt(row.key)
+/**
+ * The 64-bit lock key is the low 60 bits of the work item id's sha256, derived in-process so the
+ * lock needs no extra round trip and stays clear of the driver's raw-query quirks. The namespace
+ * keeps these locks disjoint from any other advisory-lock user.
+ */
+export function wakeLockKeyOf(args: { workItemId: string }): bigint {
+  const digest = createHash('sha256').update(args.workItemId).digest()
+  let key = 0n
+  for (let index = 0; index < 8; index += 1) {
+    key = (key << 8n) | BigInt(digest[index] ?? 0)
+  }
+  return key & 0x0fffffffffffffffn
 }
 
 @Injectable()
@@ -40,10 +39,7 @@ export class WakeLockService {
     workItemId: string
     drive: () => Promise<T>
   }): Promise<{ ran: boolean; result?: T }> {
-    const key = await wakeLockKeyOf({
-      workItemId: args.workItemId,
-      queryRaw: (query, id) => db.$queryRawUnsafe<{ key: string }[]>(query, id),
-    })
+    const key = wakeLockKeyOf({ workItemId: args.workItemId })
 
     return db.$transaction(
       async (tx) => {
