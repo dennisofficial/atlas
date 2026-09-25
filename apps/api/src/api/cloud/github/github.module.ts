@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common'
 import { EnvService } from '../../../_core/config/env/env.service'
-import { GithubAppService } from '../../factory/reply/github-app.service'
+import { GithubAppService } from './github-app.service'
 import { GithubDeviceClient } from './github-device-client'
 import { GithubInstallationReads } from './github-installation-reads'
 import { GithubController } from './github.controller'

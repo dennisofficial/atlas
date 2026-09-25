@@ -12,16 +12,15 @@ import {
 import { Throttle } from '@nestjs/throttler'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { Public } from '../../../_core/decorators/public.decorator'
-import { GithubWebhookService as FactoryWebhookService } from '../../factory/github-webhook.service'
-import { verifyGithubSignature } from '../../factory/github-webhook.signature'
+import { verifyGithubSignature } from './github-webhook.signature'
 import { GithubPrWebhookService } from './github-webhook.service'
 import { WEBHOOK_THROTTLE_PER_MINUTE } from '../../../_lib/webhook-body-limit'
 import type { GithubPrWebhookRequest } from './github-webhook.types'
 
 /**
  * The GitHub App's single webhook URL lands here: HMAC-authenticated, no caller principal. Every
- * delivery is persisted and offered to both consumers — the PR/CI tracker below and the factory,
- * which ignores what it does not track and dedups on delivery id what it does.
+ * delivery is persisted and offered to the PR/CI tracker, which proxies pull-request and check
+ * state to the TUI.
  */
 @Controller({ path: 'github/webhooks', version: '1' })
 // HMAC-authenticated but caller-anonymous: keep a dedicated throttle instead of skipping
@@ -33,7 +32,6 @@ export class GithubPrWebhookController {
   constructor(
     private readonly env: EnvService,
     private readonly tracking: GithubPrWebhookService,
-    private readonly factory: FactoryWebhookService,
   ) {}
 
   @Post()
@@ -67,12 +65,6 @@ export class GithubPrWebhookController {
 
     const payload = JSON.parse(rawBody.toString('utf8')) as unknown
     const outcome = await this.tracking.handle({ event, deliveryId, payload })
-
-    try {
-      await this.factory.handle({ event, deliveryId, payload })
-    } catch (failure) {
-      this.logger.warn(`factory webhook routing failed for ${event} ${deliveryId}: ${failure}`)
-    }
 
     if (!outcome.handled && event !== 'ping') {
       this.logger.log(`received github webhook event=${event} delivery=${deliveryId}`)

@@ -1,4 +1,4 @@
-import { Prisma } from '../../generated/prisma/client'
+import { Prisma } from '../../../generated/prisma/client'
 
 // Prisma's documented P2002 meta.target only exists on the classic engine; driver adapters nest
 // the constraint under meta.driverAdapterError.cause.constraint.fields and render camelCase
