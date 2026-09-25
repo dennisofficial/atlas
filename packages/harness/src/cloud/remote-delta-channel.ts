@@ -4,7 +4,7 @@ import type { ChannelListener, DeltaChannel, Unsubscribe } from '../channel/delt
 import { retainReplayable, type InFlightSlots } from '../channel/in-flight'
 import { EStepEnd, type ChannelSignal, type StepId, type StepSignal } from '../channel/signal'
 import type { TurnOutcome } from '../loop/turn-outcome'
-import type { RosterWire } from '@dltech/atlas-core'
+import type { RosterWire } from '@dltech/atlas-wire'
 
 import {
   bearerSubprotocolOf,

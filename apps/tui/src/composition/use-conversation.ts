@@ -49,7 +49,7 @@ import { threadHandle } from '@dltech/atlas-harness'
 import { userSaidDraft } from '@dltech/atlas-harness'
 import { useCompaction } from './use-compaction'
 import { useDelegatedToolCalls } from '../ui/hooks/use-delegated-tool-calls'
-import { sessionDigest } from './session-rename'
+import { sessionDigest } from '@dltech/atlas-harness'
 import { useSessionName } from './use-session-name'
 import { useMainWake } from './use-main-wake'
 import { EThreadRows, useThreadView, type ThreadSeed } from './use-thread-view'
@@ -61,8 +61,6 @@ import { useTickingNow } from './use-turn-clock'
 import { clockReadableAt, transcriptOfTurn } from './turn-progress'
 
 const NO_IMAGES: readonly SaidImage[] = Object.freeze([])
-
-const ALREADY_OPEN = Promise.resolve()
 
 export type Conversation = {
   threadId: ThreadId
@@ -117,7 +115,6 @@ export function useConversation(args: {
   app: AtlasApp
   opened: OpenedConversation
   paceReveal: boolean
-  autoCompactAtPercent: number
   thinking: EThinkingVisibility
   tldrStatus: boolean
   onUndone: (said: PendingSaid) => void
@@ -130,7 +127,6 @@ export function useConversation(args: {
   const [reported, setReported] = useState<ModelUsage | null>(null)
   const [pendingMove, setPendingMove] = useState<DirectoryMove | null>(null)
   const pendingMoveRef = useRef<DirectoryMove | null>(null)
-  const usedRef = useRef(0)
   const startedRef = useRef(args.opened.started)
 
   const forgetUsage = useCallback(() => setReported(null), [])
@@ -255,11 +251,10 @@ export function useConversation(args: {
 
   const handleRevokeGrant = useRevokeGrant({ app, threadId, refresh })
 
-  const { name, naming, setName, nameSession, renameSession } = useSessionName({
+  const { name, naming, setName, renameSession } = useSessionName({
     app,
     threadId,
     started: startedRef,
-    opening: logSummary.opening,
     readDigest: async () => sessionDigest(await app.log.read({ threadId })),
     initial: args.opened.name,
   })
@@ -283,7 +278,6 @@ export function useConversation(args: {
   const compaction = useCompaction({
     app,
     threadId,
-    atPercent: args.autoCompactAtPercent,
     readClock,
     refresh,
     onFailure: setFailure,
@@ -297,13 +291,11 @@ export function useConversation(args: {
     pendingMove: pendingMoveRef,
     view,
     readClock,
-    used: usedRef,
-    compactIfFull: compaction.compactIfFull,
-    cancelCompaction: compaction.cancel,
     onSettled: drainSettledCommands,
     onUndone,
     setFailure,
     forgetUsage,
+    cancelCompaction: compaction.cancel,
     interruptRefusal: args.interruptRefusal,
   })
 
@@ -368,12 +360,10 @@ export function useConversation(args: {
             images,
             ...(args.context === undefined ? {} : { context: args.context }),
           })
-          nameSession({ said: text, opened: ALREADY_OPEN, images, context: args.context })
           return
         }
 
         pending.enqueue({ text, images })
-        nameSession({ said: text, opened: ALREADY_OPEN, images, context: args.context })
         return
       }
 
@@ -384,16 +374,15 @@ export function useConversation(args: {
         sending.markFailed(sendingId)
       }
 
-      const opened = drive(
+      drive(
         [
           ...(args.context ?? []),
           ...[...drained, { text, images }].map(userSaidDraft),
         ],
         { onCommitFailed },
       )
-      nameSession({ said: text, opened, images, context: args.context })
     },
-    [cloudRunner, drive, nameSession, pending, sending, threadId, working],
+    [cloudRunner, drive, pending, sending, threadId, working],
   )
 
   /**
@@ -490,8 +479,6 @@ export function useConversation(args: {
       }),
     [app, holdMove, refresh, started, threadId, workspace],
   )
-  usedRef.current = used
-
   useEffect(() => {
     process.stdout.write(
       terminalTitleSequence({ name, directory: workspace.projectDirectory }),

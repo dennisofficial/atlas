@@ -1,10 +1,11 @@
 import {
-  rewindApplyParamsSchema,
+  ENoticeTone,
+  NOTICE_WARN_MS,
+  type NoticePort,
   type RewindCut,
-  type RewindCutWire,
   type ThreadId,
-  type RewindApplyParams,
 } from '@dltech/atlas-core'
+import { rewindApplyParamsSchema, type RewindApplyParams, type RewindCutWire } from '@dltech/atlas-wire'
 
 import { EClientRequest } from './channel-wire'
 import { RewindMachineryPort, type RewindRead } from '../store/rewind-machinery'
@@ -68,8 +69,20 @@ export type ChannelRewindPort = {
   apply(args: { threadId: ThreadId; cuts: readonly RewindCut[] }): Promise<void>
 }
 
+const REWIND_APPLY_NOTICE_KEY = 'cloud:rewind-apply'
+
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
+const cutNameOf = (cut: RewindCut): string => {
+  if (cut.kind === 'agent') return `agent ${cut.agentType} (“${cut.intent}”)`
+  if (cut.kind === 'shell') return `shell ${cut.shellId}`
+  return `service ${cut.serviceId}`
+}
+
 export class RemoteRewindMachinery extends RewindMachineryPort {
   private readonly channel: ChannelRewindPort
+  private readonly notice: NoticePort | undefined
   private readonly read: (args: {
     cuts: readonly RewindCut[]
     threadId: ThreadId
@@ -78,10 +91,12 @@ export class RemoteRewindMachinery extends RewindMachineryPort {
   constructor(args: {
     channel: ChannelRewindPort
     read: (args: { cuts: readonly RewindCut[]; threadId: ThreadId }) => Promise<RewindRead>
+    notice?: NoticePort | undefined
   }) {
     super()
     this.channel = args.channel
     this.read = args.read
+    this.notice = args.notice
   }
 
   /**
@@ -99,10 +114,18 @@ export class RemoteRewindMachinery extends RewindMachineryPort {
   /**
    * A channel that cannot carry the apply degrades to the rewind that always landed: the HTTP
    * write still truncates the log, and the sandbox's cut processes keep running — exactly what a
-   * serve too old to answer the op does today.
+   * serve too old to answer the op does today. It used to do so silently; the operator now hears
+   * what may still be running on the far side.
    */
   async destroy(args: { cuts: readonly RewindCut[]; threadId: ThreadId }): Promise<void> {
-    await this.channel.apply(args).catch(() => undefined)
+    await this.channel.apply(args).catch((error: unknown) => {
+      this.notice?.notify({
+        key: REWIND_APPLY_NOTICE_KEY,
+        tone: ENoticeTone.Warn,
+        ttlMs: NOTICE_WARN_MS,
+        text: `the sandbox refused the rewind cleanup (${messageOf(error)}) — ${args.cuts.map(cutNameOf).join(', ')} may still be running in the cloud sandbox. The rewind itself landed.`,
+      })
+    })
   }
 }
 

@@ -15,12 +15,14 @@ import {
 } from '@dltech/atlas-core'
 import { titleMatchesHandle, THREAD_LISTING_LIMIT } from '@dltech/atlas-harness'
 import type {
+  RenameListener,
   SupervisedAgent,
   ThreadModel,
   ThreadStorePort,
   ThreadSummary,
   TurnLedgerPort,
   TurnSpend,
+  Unsubscribe,
 } from '@dltech/atlas-harness'
 
 const AT = '2026-08-25T00:00:00.000Z'
@@ -88,6 +90,7 @@ export function fakeThreadStore(
   const renames: { threadId: ThreadId; title: string }[] = []
   const chosenModels: { threadId: ThreadId; model: ThreadModel }[] = []
   const chosenLocations: { threadId: ThreadId; location: EExecutionLocation }[] = []
+  const renameListeners = new Set<RenameListener>()
 
   const dropRows = (agentIds: readonly ThreadId[] | undefined): void => {
     if (agentIds === undefined || agentIds.length === 0) return
@@ -265,10 +268,16 @@ export function fakeThreadStore(
       )
     },
 
+    onRename(listener: RenameListener): Unsubscribe {
+      renameListeners.add(listener)
+      return () => renameListeners.delete(listener)
+    },
+
     async rename({ threadId, title }) {
       renames.push({ threadId, title })
       const row = rows.find((held) => held.id === threadId)
       if (row !== undefined) row.title = title
+      for (const listener of [...renameListeners]) listener({ threadId, title })
     },
 
     async adopt({ threadId, workspace, repo }) {

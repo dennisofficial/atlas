@@ -1,83 +1,58 @@
-import { type EventDraft, type SaidImage, type ThreadId } from '@dltech/atlas-core'
+import { type ThreadId } from '@dltech/atlas-core'
 import { sanitizedTitle } from '@dltech/atlas-harness'
-import { useCallback, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useState, type RefObject } from 'react'
 
 import type { AtlasApp } from './compose'
-import { namingTextOf } from './naming-text'
 import { ERenamed, type Renaming } from './session-rename'
 
 export type SessionName = {
   name: string | null
   naming: boolean
   setName: (name: string | null) => void
-  nameSession: (args: {
-    said: string
-    opened: Promise<void>
-    images?: readonly SaidImage[] | undefined
-    context?: readonly EventDraft[] | undefined
-  }) => void
   renameSession: (argumentText: string) => Promise<Renaming>
 }
 
 /**
- * A thread is named once, from the first thing said in it, and the ask is fired and forgotten: a
- * title that never arrives must not hold up the turn it was taken from. `/rename` is the deliberate
- * second pass, so it is awaited, it reads the whole session rather than its opening line, and it
- * closes the automatic ask for good.
- *
- * The title is asked for the moment the first message is sent but written only once the thread that
- * carries it exists, since that thread is opened by the very turn the title was taken from.
+ * First-message titling is the composition root's (the TitlingTurnRunner titles every session
+ * kind, serve included); what stays here is `/rename`, the deliberate second pass: it is awaited,
+ * it reads the whole session rather than its opening line, and a name the operator typed wins
+ * outright. Every rename that goes through the thread store — the root's titling pass included —
+ * republishes `name` through the store's `onRename`, so this hook never writes `name` for its own
+ * `/rename`: it asks the store and takes the echo back like any other listener. `setName` remains
+ * for a thread swap, where the newly opened thread's name arrives with it rather than as a rename.
  */
 export function useSessionName(args: {
   app: AtlasApp
   threadId: ThreadId
   started: RefObject<boolean>
-  opening: string | null
   readDigest: () => Promise<string>
   initial: string | null
 }): SessionName {
-  const { app, threadId, started, opening, readDigest } = args
+  const { app, threadId, started, readDigest } = args
   const [name, setName] = useState<string | null>(args.initial)
   const [naming, setNaming] = useState(false)
-  const asked = useRef<ThreadId | null>(null)
+  const [titling, setTitling] = useState(false)
 
-  const nameSession = useCallback(
-    ({
-      said,
-      opened,
-      images,
-      context,
-    }: {
-      said: string
-      opened: Promise<void>
-      images?: readonly SaidImage[] | undefined
-      context?: readonly EventDraft[] | undefined
-    }) => {
-      if (name !== null || asked.current === threadId) return
+  useEffect(() => {
+    const forget = app.threads.onRename((renamed) => {
+      if (renamed.threadId !== threadId) return
+      setName(renamed.title)
+    })
+    return () => forget()
+  }, [app.threads, threadId])
 
-      asked.current = threadId
-      setNaming(true)
-      const first = opening ?? said
-
-      void Promise.all([app.titler({ text: namingTextOf({ said: first, context }), images }), opened])
-        .then(([named]) => {
-          if (named === null) return
-          setName(named)
-          return app.threads.rename({ threadId, title: named })
-        })
-        .catch(() => undefined)
-        .finally(() => {
-          if (asked.current === threadId) setNaming(false)
-        })
-    },
-    [app, opening, name, threadId],
-  )
+  useEffect(() => {
+    setTitling(app.titling.titling({ threadId }))
+    return app.titling.onTitling({ threadId, listener: setTitling })
+  }, [app.titling, threadId])
 
   const nameFromTranscript = useCallback(async (): Promise<Renaming> => {
     const digest = await readDigest()
     if (digest.trim().length === 0) return { type: ERenamed.Empty }
 
+    setNaming(true)
     const generated = await app.titler({ text: digest }).catch(() => null)
+    setNaming(false)
     if (generated === null) return { type: ERenamed.Declined }
 
     return { type: ERenamed.Renamed, name: generated }
@@ -93,8 +68,6 @@ export function useSessionName(args: {
 
       if (renaming.type !== ERenamed.Renamed) return renaming
 
-      asked.current = threadId
-      setName(renaming.name)
       await app.threads.rename({ threadId, title: renaming.name }).catch(() => undefined)
 
       return renaming
@@ -102,5 +75,5 @@ export function useSessionName(args: {
     [app, nameFromTranscript, started, threadId],
   )
 
-  return { name, naming, setName, nameSession, renameSession }
+  return { name, naming: naming || titling, setName, renameSession }
 }

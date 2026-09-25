@@ -49,14 +49,18 @@ describe('the send frame', () => {
     expect(decodeClientFrame(encodeFrame(frame))).toEqual(frame)
   })
 
-  it('drops a frame whose context draft is not an event body rather than committing it', () => {
+  it('carries context drafts opaquely; the serve validates them against eventBodySchema at the seam', () => {
     const raw = JSON.stringify({
       kind: EClientFrame.Send,
       text: 'go',
       context: [{ type: 'context-loaded', slot: 'skill' }],
     })
 
-    expect(decodeClientFrame(raw)).toBeNull()
+    expect(decodeClientFrame(raw)).toEqual({
+      kind: EClientFrame.Send,
+      text: 'go',
+      context: [{ type: 'context-loaded', slot: 'skill' }],
+    })
   })
 })
 

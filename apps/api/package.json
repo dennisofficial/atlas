@@ -30,6 +30,7 @@
     "@vercel/sandbox": "^3.3.0",
     "ai": "^7.0.92",
     "better-auth": "^1.6.29",
+    "@dltech/atlas-wire": "workspace:*",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "express": "^5.1.0",

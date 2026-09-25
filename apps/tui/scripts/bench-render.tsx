@@ -11,7 +11,7 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 import type { Event } from '@dltech/atlas-core'
-import type { TurnSpend } from '@dltech/atlas-harness'
+import type { TurnPolicy, TurnSpend } from '@dltech/atlas-harness'
 import type { ActiveConversation } from '@dltech/atlas-harness'
 import {
   createAccountUsageService,
@@ -23,6 +23,7 @@ import {
   MemorySecretsStore,
   MemorySettingsStore,
   PublishingTurnRunner,
+  TitlingTurnRunner,
   type AtlasHarness,
   type BunShellRegistry,
   type DeltaChannel,
@@ -33,6 +34,7 @@ import type { Renderable } from '@opentui/core'
 import { App } from '../src/composition/app'
 import type { AtlasApp } from '../src/composition/compose'
 import { DEFAULT_MODEL_REF, EOpenMode } from '../src/composition/config'
+import { noticePortBinding } from '../src/composition/notice-binding'
 import { createExecutionLocationState } from '@dltech/atlas-harness'
 import { createSandboxStatusState } from '@dltech/atlas-harness'
 import { heldChoice } from '@dltech/atlas-harness'
@@ -70,6 +72,16 @@ export const publishingRunner = (args: {
     },
   })
   return { channel, runner }
+}
+
+const benchTurnPolicy: TurnPolicy = {
+  onOutcome: async () => undefined,
+  onCrashed: async () => undefined,
+  state: () => ({ type: 'idle' }),
+  subscribe: () => () => undefined,
+  cancelCompaction: () => false,
+  suppress: () => undefined,
+  undone: () => null,
 }
 
 const benchApp = (args: {
@@ -131,6 +143,15 @@ const benchApp = (args: {
     agentTypes: EMPTY_AGENT_TYPE_CATALOG,
     pluginProjections: [],
     pluginSurfaces: [],
+    turnPolicy: benchTurnPolicy,
+    titling: new TitlingTurnRunner({
+      inner: args.runner,
+      log: args.harness.log,
+      threads: args.harness.threads,
+      titler: async () => null,
+      notice: noticePortBinding(),
+    }),
+    captureContext: async () => undefined,
     pullRequests: null,
     mcp: () => [],
     threadOpened: async () => {},

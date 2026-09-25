@@ -5,7 +5,7 @@ import type { FooterItem } from '../ui/footer-item'
 import { useShimmerClock } from '../ui/hooks/use-shimmer-clock'
 import { locationPillOf } from '../ui/location-pill'
 import { SPINNER_FRAME_MS } from '../ui/theme'
-import type { CloudConnection } from './cloud/cloud-bridge'
+import type { CloudConnection } from '@dltech/atlas-harness'
 import type { AtlasApp } from './compose'
 
 export function useLocationItems(args: {

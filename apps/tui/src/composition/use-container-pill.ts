@@ -4,7 +4,7 @@ import type { BoundPort } from '@dltech/atlas-harness'
 
 import { cloudPillOf, type SidebarCloud } from '../store/cloud-state'
 import { containerPillOf, exposedPortsOf, type SidebarContainer } from '../store/sidebar-model'
-import type { CloudConnection } from './cloud/cloud-bridge'
+import type { CloudConnection } from '@dltech/atlas-harness'
 import type { AtlasApp } from './compose'
 
 /** At most one of these is ever set: the pill says where the loop runs, and it runs in one place. */

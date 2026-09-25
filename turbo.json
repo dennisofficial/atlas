@@ -4,11 +4,11 @@
   "globalPassThroughEnv": ["ATLAS_HOME", "NODE_ENV", "ATLAS_TEST_SHARDS"],
   "tasks": {
     "typecheck": {
-      "dependsOn": ["^typecheck"],
+      "dependsOn": ["^typecheck", "^build"],
       "outputs": []
     },
     "test": {
-      "dependsOn": ["^test"],
+      "dependsOn": ["^test", "^build"],
       "outputs": []
     },
     "build": {

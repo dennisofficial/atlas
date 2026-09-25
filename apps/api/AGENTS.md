@@ -50,8 +50,8 @@ job, region nyc). The only env the platform needs is `APP_TIER`, `MIGRATE_TIER` 
 
 The Dockerfile's runtime stage copies explicit paths (`dist`, `envs`, `prisma`, `scripts`,
 `prisma.config.ts`) — anything a package script loads by path must be added to that list or it
-exists locally and 404s in the deploy. CI does not build this image, so a missing copy only
-fails at deploy time.
+exists locally and 404s in the deploy. CI builds this image (`build-api-image` in `ci.yml`), so
+a missing copy fails the PR rather than only at deploy.
 
 **`.do/app.yaml` is not read on push.** App Platform reads a spec file only when an app is
 created or updated through the API/CLI, so committing a change to it changes nothing on its own

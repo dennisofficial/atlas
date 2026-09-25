@@ -1,9 +1,8 @@
 import {
   EKilledBy,
-  rewindApplyParamsSchema,
-  type RewindCutWire,
   type ThreadId,
 } from '@dltech/atlas-core'
+import { rewindApplyParamsSchema, type RewindCutWire } from '@dltech/atlas-wire'
 
 import type { ReplyFrame, RequestFrame } from './requests'
 import { answeredRequest, refusedRequest } from './requests'

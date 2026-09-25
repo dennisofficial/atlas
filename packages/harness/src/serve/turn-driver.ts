@@ -1,6 +1,7 @@
 import type { EventDraft, SaidImage, ThreadId } from '@dltech/atlas-core'
 
 import type { TurnOutcome } from '../loop/turn-outcome'
+import type { TurnPolicy } from '../loop/turn-policy'
 
 import type { ServeApp } from './serve-app'
 
@@ -79,9 +80,12 @@ export function createTurnDriver(args: {
         again = false
         const controller = new AbortController()
         abort = controller
-        args.onOutcome(await app.runner.runTurn({ threadId, signal: controller.signal }))
+        const outcome = await app.runner.runTurn({ threadId, signal: controller.signal })
+        args.onOutcome(outcome)
+        await app.turnPolicy?.onOutcome({ threadId, outcome })
       } while (again)
     } catch (error) {
+      await app.turnPolicy?.onCrashed({ threadId })
       args.onFailure(messageOf(error))
     } finally {
       abort = null

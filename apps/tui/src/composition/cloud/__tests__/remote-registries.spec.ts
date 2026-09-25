@@ -5,8 +5,8 @@ import {
   EServiceStatus,
   EShellStatus,
   toThreadId,
-  type RosterWire,
 } from '@dltech/atlas-core'
+import { type RosterWire } from '@dltech/atlas-wire'
 import { EClientRequest, RemoteRequestFailed } from '@dltech/atlas-harness'
 
 import { RemoteAgentRegistry } from '../remote-agents'

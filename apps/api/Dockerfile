@@ -15,6 +15,7 @@ COPY apps/web/package.json ./apps/web/
 COPY packages/core/package.json ./packages/core/
 COPY packages/harness/package.json ./packages/harness/
 COPY packages/ui/package.json ./packages/ui/
+COPY packages/wire/package.json ./packages/wire/
 RUN --mount=type=cache,id=bun-install-cache,target=/root/.bun/install/cache \
   bun install --frozen-lockfile --ignore-scripts --filter '@dltech/atlas-api'
 
@@ -22,8 +23,13 @@ FROM ${BUN_IMAGE} AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=deps /app/packages/wire/node_modules ./packages/wire/node_modules
 COPY apps/api ./apps/api
 COPY tsconfig.base.json ./tsconfig.base.json
+# The api imports @dltech/atlas-wire at runtime; its dist is built here so the runtime stage
+# can copy compiled JS rather than raw TS. Its node_modules carry the tsc the build invokes.
+COPY packages/wire ./packages/wire
+RUN cd packages/wire && bun run build
 RUN cd apps/api && bun run build
 
 FROM ${BUN_IMAGE} AS serve-deps
@@ -35,6 +41,7 @@ COPY apps/web/package.json ./apps/web/
 COPY packages/core/package.json ./packages/core/
 COPY packages/harness/package.json ./packages/harness/
 COPY packages/ui/package.json ./packages/ui/
+COPY packages/wire/package.json ./packages/wire/
 RUN --mount=type=cache,id=bun-install-cache,target=/root/.bun/install/cache \
   bun install --frozen-lockfile --ignore-scripts --os='*' --cpu='*' --filter '@dltech/atlas-harness'
 
@@ -45,8 +52,10 @@ WORKDIR /app
 COPY --from=serve-deps /app/node_modules ./node_modules
 COPY --from=serve-deps /app/packages/core/node_modules ./packages/core/node_modules
 COPY --from=serve-deps /app/packages/harness/node_modules ./packages/harness/node_modules
+COPY --from=serve-deps /app/packages/wire/node_modules ./packages/wire/node_modules
 COPY packages/core ./packages/core
 COPY packages/harness ./packages/harness
+COPY packages/wire ./packages/wire
 COPY tsconfig.base.json ./tsconfig.base.json
 # The stamp hashes the serve SOURCE, not the compiled binary: `bun build --compile` is not
 # byte-reproducible, so hashing the binary would churn the stamp — and force a fleet-wide
@@ -65,6 +74,8 @@ COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
 COPY --from=builder /app/apps/api/prisma.config.ts ./apps/api/prisma.config.ts
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/packages/wire/dist ./packages/wire/dist
+COPY --from=builder /app/packages/wire/package.json ./packages/wire/package.json
 COPY --from=builder /app/apps/api/envs ./apps/api/envs
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 COPY --from=serve-binary /app/packages/harness/bin/atlas-serve /app/atlas-serve
@@ -73,6 +84,10 @@ COPY --from=builder /app/apps/api/scripts ./apps/api/scripts
 
 WORKDIR /app/apps/api
 ENV NODE_ENV=production
+# The instance this runs on is 0.5GB: cap the old-space heap under it so memory pressure kills
+# the process cleanly (and the platform restarts it) instead of wedging the container at the
+# kernel OOM killer, which also wipes the in-process wake/reply-watch state.
+ENV NODE_OPTIONS=--max-old-space-size=384
 EXPOSE 3400
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s \

@@ -29,6 +29,7 @@
     "skills:generate": "bun scripts/generate-skills.ts"
   },
   "dependencies": {
+    "@dltech/atlas-wire": "workspace:*",
     "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-harness": "workspace:*",
     "@mariozechner/clipboard": "^0.3.9",

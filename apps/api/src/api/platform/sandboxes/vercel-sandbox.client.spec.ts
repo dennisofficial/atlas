@@ -167,13 +167,8 @@ vi.mock('@vercel/sandbox', () => {
   }
 })
 
-vi.mock('./serve-launch', () => {
-  class StaleSandboxTokenError extends Error {
-    constructor() {
-      super('the sandbox carries a serve token this deployment no longer recognizes')
-      this.name = 'StaleSandboxTokenError'
-    }
-  }
+vi.mock('./serve-launch', async () => {
+  const { StaleSandboxTokenError } = await import('@dltech/atlas-wire')
   return {
     StaleSandboxTokenError,
     createServeLauncher: (args: { readStamp: () => Promise<string> }) => {

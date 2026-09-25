@@ -15,7 +15,8 @@ import {
 
 import type { OpenThreadArgs } from '../create-with-events'
 import { ForkSeqOutOfRange, ForkSourceMissing } from '../fork'
-import type { SupervisedAgent, ThreadModel, ThreadStorePort, ThreadSummary } from '../thread-store'
+import type { Unsubscribe } from '../../channel/delta-channel'
+import type { RenameListener, SupervisedAgent, ThreadModel, ThreadStorePort, ThreadSummary } from '../thread-store'
 import {
   dropRewoundChildren,
   findNamedRoot,
@@ -55,6 +56,8 @@ type RewindArgs = { threadId: ThreadId; toSeq: number; cutAgents?: readonly Thre
 type ForkArgs = { from: ThreadId; seq: number; mode: EForkMode; title?: string | undefined }
 
 export class JsonlThreadStore implements ThreadStorePort {
+  private readonly renameListeners = new Set<RenameListener>()
+
   constructor(
     private readonly home: string,
     private readonly registry: SessionRegistry,
@@ -62,6 +65,11 @@ export class JsonlThreadStore implements ThreadStorePort {
     private readonly ids: IdPort,
     private readonly log: EventLogPort,
   ) {}
+
+  onRename(listener: RenameListener): Unsubscribe {
+    this.renameListeners.add(listener)
+    return () => this.renameListeners.delete(listener)
+  }
 
   async create(args: CreateArgs): Promise<ThreadSummary> {
     const meta = this.blankMeta({ threadId: this.ids.nextThreadId(), fields: args })
@@ -115,7 +123,10 @@ export class JsonlThreadStore implements ThreadStorePort {
   }
 
   async rename({ threadId, title }: { threadId: ThreadId; title: string }): Promise<void> {
+    const sessionDir = await this.registry.sessionDirOf({ threadId })
+    if (sessionDir === undefined) return
     await this.updateMeta({ threadId, change: (meta) => ({ ...meta, title }) })
+    for (const listener of [...this.renameListeners]) listener({ threadId, title })
   }
 
   async chooseModel({ threadId, model }: { threadId: ThreadId; model: ThreadModel }): Promise<void> {

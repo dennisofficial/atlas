@@ -1,4 +1,5 @@
-import { toRunId, toThreadId, type EventDraft, type RosterWire, type SaidImage, type ThreadId } from '@dltech/atlas-core'
+import { toRunId, toThreadId, type EventDraft, type SaidImage, type ThreadId } from '@dltech/atlas-core'
+import type { RosterWire } from '@dltech/atlas-wire'
 import {
   EChannelConnection,
   EClientRequest,
@@ -26,7 +27,7 @@ import {
   type CloudSandbox,
   type CloudSandboxStatus,
   type LiftedWorkspace,
-} from '../cloud-bridge'
+} from '@dltech/atlas-harness'
 
 export const CLOUD_THREAD = toThreadId(`cloud-thread-${SPEC_SHARD}`)
 
@@ -265,6 +266,10 @@ class WatchedThreadStore extends ThreadStorePort {
 
   rename(args: Parameters<ThreadStorePort['rename']>[0]) {
     return this.inner.rename(args)
+  }
+
+  override onRename(listener: Parameters<ThreadStorePort['onRename']>[0]) {
+    return this.inner.onRename(listener)
   }
 
   chooseModel(args: Parameters<ThreadStorePort['chooseModel']>[0]) {

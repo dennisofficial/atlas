@@ -1,6 +1,5 @@
 import { EExecutionLocation } from '@dltech/atlas-core'
-
-import { ELiftStep } from './cloud/lift'
+import { EDescendStep, ELiftStep } from '@dltech/atlas-harness'
 
 export enum ELocalMoveStep {
   Stopping = 'stopping',
@@ -15,7 +14,7 @@ export enum EStepMark {
   Failed = 'failed',
 }
 
-export type MoveStepId = ELiftStep | ELocalMoveStep
+export type MoveStepId = ELiftStep | EDescendStep | ELocalMoveStep
 
 export type MoveStep = {
   id: MoveStepId
@@ -63,6 +62,10 @@ const LOCAL_PLAN: readonly MoveStepId[] = [
   ELocalMoveStep.Flipping,
   ELocalMoveStep.Relocating,
 ]
+
+export const descendPlanOf = (
+  steps: readonly (ELiftStep.Interrupting | EDescendStep)[],
+): readonly MoveStepId[] => steps
 
 export const WAKE_PLAN: readonly MoveStepId[] = [ELiftStep.Starting, ELiftStep.Attaching]
 

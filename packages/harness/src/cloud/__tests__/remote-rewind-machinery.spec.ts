@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
-import { toThreadId, type RewindCut, type ThreadId } from '@dltech/atlas-core'
+import {
+  ENoticeTone,
+  NoticePort,
+  toThreadId,
+  type NoticePost,
+  type RewindCut,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import type { RewindRead } from '../../store/rewind-machinery'
 import {
@@ -71,6 +78,14 @@ class ScriptedChannel implements ChannelRewindPort {
   }
 }
 
+class RecordingNotice extends NoticePort {
+  readonly posts: NoticePost[] = []
+
+  notify(post: NoticePost): void {
+    this.posts.push(post)
+  }
+}
+
 describe('RemoteRewindMachinery', () => {
   it('prices the confirmation through the roster read it was given', async () => {
     const channel = new ScriptedChannel()
@@ -131,12 +146,24 @@ describe('RemoteRewindMachinery', () => {
     expect(channel.applied).toEqual([{ threadId, cuts: [shellCut, agentCut] }])
   })
 
-  it('swallows an apply the sandbox refused, so the rewind write still lands', async () => {
+  it('warns with the cut names when the sandbox refuses the apply, and the rewind write still lands', async () => {
     const channel = new ScriptedChannel()
     channel.failApply = new Error('the sandbox refused the rewind request: unknown op')
-    const machinery = new RemoteRewindMachinery({ channel, read: rosterRead })
+    const notice = new RecordingNotice()
+    const machinery = new RemoteRewindMachinery({ channel, read: rosterRead, notice })
 
-    await expect(machinery.destroy({ cuts: [shellCut], threadId })).resolves.toBeUndefined()
+    await expect(
+      machinery.destroy({ cuts: [shellCut, agentCut], threadId }),
+    ).resolves.toBeUndefined()
+
+    expect(notice.posts).toHaveLength(1)
+    expect(notice.posts[0]).toMatchObject({
+      key: 'cloud:rewind-apply',
+      tone: ENoticeTone.Warn,
+    })
+    expect(notice.posts[0]?.text).toContain('bash_1')
+    expect(notice.posts[0]?.text).toContain('builder')
+    expect(notice.posts[0]?.text).toContain('unknown op')
   })
 
   it('serializes the cuts for the wire', () => {

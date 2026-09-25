@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
 
-import { ELiftStep } from '../cloud/lift'
+import { ELiftStep } from '@dltech/atlas-harness'
 import {
   advanceMove,
   beginMove,

@@ -1,25 +1,19 @@
-import { beforeEach, describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'bun:test'
 
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { buildContextArchive } from '@dltech/atlas-harness'
-
-import { dismissNotice } from '../../../ui/notice-store'
-import { mergeRemoteMemory } from '../merge-remote-memory'
+import { buildContextArchive, mergeRemoteMemory } from '@dltech/atlas-harness'
 
 import {
   entryFor,
   fetchServingArchive,
   fetchServingLegacyOnly,
   freshDirectory,
+  recordingNotices,
   SESSION,
   setMtime,
 } from './merge-memory-fixture'
-
-beforeEach(() => {
-  dismissNotice()
-})
 
 describe('mergeRemoteMemory reading a real archive', () => {
   it('untars the archive and applies last-writer-wins by the mtime tar restored', async () => {
@@ -32,6 +26,8 @@ describe('mergeRemoteMemory reading a real archive', () => {
 
     const result = await mergeRemoteMemory({
       session: SESSION,
+      clientVersion: 'atlas/test',
+      notice: recordingNotices().port,
       atlasHome,
       fetchFn: fetchServingArchive(archive),
     })
@@ -46,7 +42,13 @@ describe('mergeRemoteMemory reading a real archive', () => {
     const atlasHome = await freshDirectory('atlas-merge-home-')
     const fetchFn = fetchServingLegacyOnly({ 'user/MEMORY.md': entryFor('# from the legacy route', 1_000) })
 
-    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, fetchFn })
+    const result = await mergeRemoteMemory({
+      session: SESSION,
+      clientVersion: 'atlas/test',
+      notice: recordingNotices().port,
+      atlasHome,
+      fetchFn,
+    })
 
     expect(result.replaced).toBe(1)
     expect(await readFile(join(atlasHome, 'memory', 'MEMORY.md'), 'utf8')).toBe(
@@ -58,7 +60,13 @@ describe('mergeRemoteMemory reading a real archive', () => {
     const atlasHome = await freshDirectory('atlas-merge-home-')
     const fetchFn = fetchServingLegacyOnly(null)
 
-    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, fetchFn })
+    const result = await mergeRemoteMemory({
+      session: SESSION,
+      clientVersion: 'atlas/test',
+      notice: recordingNotices().port,
+      atlasHome,
+      fetchFn,
+    })
 
     expect(result.replaced).toBe(0)
   })

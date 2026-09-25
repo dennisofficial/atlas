@@ -34,8 +34,9 @@ any inference from code, and `docs/core-contract.md` holds the seams it depends 
 | `@dltech/atlas-core`         | `zod` only     | Events, IDs, context assembly, hook and port contracts. Pure.  |
 | `@dltech/atlas-harness`      | core           | The loop, hooks, tools, model adapters, credentials, store.    |
 | `@dltech/atlas-ui`           | nothing        | Design tokens and web UI atoms; Storybook. No Atlas imports.   |
+| `@dltech/atlas-wire`         | `zod` only     | The wire contract: channel/session zod schemas, protocol version, serve-env constants. No in-repo deps. |
 | `@dltech/atlas` (`apps/tui`) | core, harness  | OpenTUI + React terminal app; binds its stores into the shared root. |
-| `@dltech/atlas-api` (`apps/api`) | nothing in-repo | Atlas Cloud backend (NestJS + better-auth + Prisma/Neon). |
+| `@dltech/atlas-api` (`apps/api`) | `@dltech/atlas-wire` only | Atlas Cloud backend (NestJS + better-auth + Prisma/Neon). |
 | `web` (`apps/web`) | nothing in-repo | Atlas Cloud frontend (Next.js App Router; deploys to Vercel). |
 
 A package boundary is worth it only where the compiler should enforce a dependency rule.

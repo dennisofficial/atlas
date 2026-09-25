@@ -8,12 +8,9 @@ export type StepId = z.infer<typeof stepIdSchema>
 
 export const toStepId = (value: string): StepId => stepIdSchema.parse(value)
 
-export enum EStepEnd {
-  Completed = 'completed',
-  Interrupted = 'interrupted',
-  Failed = 'failed',
-  Retried = 'retried',
-}
+export { EStepEnd } from '@dltech/atlas-wire'
+
+import { EStepEnd } from '@dltech/atlas-wire'
 
 export type StepSignal =
   | { type: 'step-started'; stepId: StepId }

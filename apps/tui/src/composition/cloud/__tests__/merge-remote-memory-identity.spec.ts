@@ -1,12 +1,11 @@
-import { beforeEach, describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'bun:test'
 
 import { mkdir, readFile, realpath, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { sanitiseRepoPath } from '@dltech/atlas-core'
 
-import { dismissNotice } from '../../../ui/notice-store'
-import { mergeRemoteMemory } from '../merge-remote-memory'
+import { mergeRemoteMemory } from '@dltech/atlas-harness'
 
 import {
   entryFor,
@@ -16,12 +15,9 @@ import {
   git,
   initRepoWithOrigin,
   projectKey,
+  recordingNotices,
   SESSION,
 } from './merge-memory-fixture'
-
-beforeEach(() => {
-  dismissNotice()
-})
 
 describe('mergeRemoteMemory with a repo identity', () => {
   it('matches a project entry by repo identity into the identity-keyed directory', async () => {
@@ -32,7 +28,14 @@ describe('mergeRemoteMemory with a repo identity', () => {
       [`project/${encodeURIComponent(identity)}/notes.md`]: entryFor('# cloud project note', 1_000),
     })
 
-    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, cwd, fetchFn })
+    const result = await mergeRemoteMemory({
+      session: SESSION,
+      clientVersion: 'atlas/test',
+      notice: recordingNotices().port,
+      atlasHome,
+      cwd,
+      fetchFn,
+    })
 
     expect(result.replaced).toBe(1)
     expect(
@@ -53,7 +56,14 @@ describe('mergeRemoteMemory with a repo identity', () => {
       ),
     })
 
-    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, cwd, fetchFn })
+    const result = await mergeRemoteMemory({
+      session: SESSION,
+      clientVersion: 'atlas/test',
+      notice: recordingNotices().port,
+      atlasHome,
+      cwd,
+      fetchFn,
+    })
 
     expect(result.replaced).toBe(0)
     expect(await exists(join(atlasHome, 'projects'))).toBe(false)
@@ -70,7 +80,14 @@ describe('mergeRemoteMemory with a repo identity', () => {
       [`project/${encodeURIComponent('github.com/org/atlas')}/new.md`]: entryFor('# cloud note', 1_000),
     })
 
-    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, cwd, fetchFn })
+    const result = await mergeRemoteMemory({
+      session: SESSION,
+      clientVersion: 'atlas/test',
+      notice: recordingNotices().port,
+      atlasHome,
+      cwd,
+      fetchFn,
+    })
 
     const identityMemory = join(atlasHome, 'projects', 'github.com', 'org', 'atlas', 'memory')
     expect(result.replaced).toBe(1)
@@ -95,7 +112,14 @@ describe('mergeRemoteMemory with a repo identity', () => {
       ),
     })
 
-    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, cwd: worktree, fetchFn })
+    const result = await mergeRemoteMemory({
+      session: SESSION,
+      clientVersion: 'atlas/test',
+      notice: recordingNotices().port,
+      atlasHome,
+      cwd: worktree,
+      fetchFn,
+    })
 
     expect(result.replaced).toBe(1)
     expect(

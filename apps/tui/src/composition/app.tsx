@@ -105,7 +105,7 @@ import {
   movingNotice,
   pendingSwitchNotice,
 } from './container-notices'
-import { ELocalMoveStep } from './container-move'
+import { descendPlanOf, ELocalMoveStep } from './container-move'
 import { messageOf } from './error-text'
 import { useContainerMove } from './use-container-move'
 import { mcpReport } from '@dltech/atlas-harness'
@@ -126,7 +126,13 @@ import {
   type ReleaseWatch,
   type SourceStaleness,
 } from './update-check'
-import { closeConversation, unstartedConversation, type OpenedConversation } from './open-conversation'
+import {
+  closeConversation,
+  openConversation,
+  unstartedConversation,
+  type OpenedConversation,
+} from './open-conversation'
+import { EOpenMode } from './config'
 import { useConversation } from './use-conversation'
 import { DETACH_EXIT_LINE } from '../ui/exit-guard-model'
 import { useExitGuard } from './use-exit-guard'
@@ -162,18 +168,24 @@ import { useLocationItems } from './use-location-items'
 import { useExecutionLocation } from './use-execution-location'
 import { useThreads } from './use-threads'
 import { useUsageMeters } from './use-usage-meters'
+import { mergeRemoteMemoryBounded, type CaptureContext } from '@dltech/atlas-harness'
+
 import { createCloudBridge } from './cloud/create-bridge'
-import { mergeRemoteMemoryBounded } from './cloud/bounded-merge-remote-memory'
 import { createCloudSession, type CloudSession } from './cloud/cloud-session'
-import { descendFromCloud } from './cloud/descend'
+import {
+  descendFromCloud,
+  EDescendStep,
+  ELiftStep,
+  type CloudBridge,
+  type DescendSurface,
+} from '@dltech/atlas-harness'
 import { liftRefusal } from './cloud/lift-plan'
 import { openCloudConversation } from './cloud/cloud-app'
-import type { CloudBridge } from './cloud/cloud-bridge'
 import { useThreadRouter } from './use-thread-router'
 import type { CloudBridgeFactory, LiftPreflight, WorkspaceCapture } from './use-cloud-lift'
 import { useCloudLift } from './use-cloud-lift'
 import { captureWorkspace } from './cloud/workspace-snapshot'
-import type { CaptureContext } from './cloud/context-archive'
+import { noticePortBinding } from './notice-binding'
 import { useCloudSession } from './use-cloud-session'
 import type { LiftedAttachment, LiftedSession } from './lifted-session'
 import { buildInfo, clientVersionHeader, EBuildKind, versionLabel } from '../build/info'
@@ -462,7 +474,6 @@ function Workspace(props: {
     app: props.app,
     opened: props.opened,
     paceReveal: settings.paceReveal,
-    autoCompactAtPercent: settings.autoCompactAtPercent,
     thinking: settings.thinking,
     tldrStatus: settings.tldrStatus,
     onUndone: handleUndone,
@@ -1003,6 +1014,35 @@ function Workspace(props: {
       if (props.cloudSession !== null && props.cloudBridge !== null) {
         const { channel } = props.cloudSession
         const bridge = props.cloudBridge
+        const descendSurface: DescendSurface<OpenedConversation> = {
+          notice: noticePortBinding(),
+          onBegin: ({ plan }) =>
+            containerMove.handleBegin({ target, plan: descendPlanOf(plan) }),
+          onProgress: (step) => {
+            if (step === ELiftStep.Interrupting || step === EDescendStep.Transferring || step === EDescendStep.Flipping) {
+              containerMove.handleAdvance(step)
+              return
+            }
+            containerMove.handleAdvance(ELocalMoveStep.Relocating)
+          },
+          openLocal: (home, threadId) =>
+            openConversation({
+              threads: home.threads,
+              remoteThreads: bridge.stores.threads,
+              log: home.log,
+              ledger: home.ledger,
+              agents: home.agents,
+              ids: home.ids,
+              workspace: home.workspace,
+              open: { mode: EOpenMode.Resume, threadId },
+              effects: (name) => home.tools.find(name)?.effect,
+            }).then((outcome) => {
+              if (!outcome.ok) throw new Error(outcome.reason)
+              return conversation.turnInFlight()
+                ? { ...outcome.conversation, resumeOnArrival: true }
+                : outcome.conversation
+            }),
+        }
         void descendFromCloud({
           threadId: conversation.threadId,
           target,
@@ -1010,12 +1050,14 @@ function Workspace(props: {
           bridge,
           channel,
           localApp: props.localApp,
-          move: containerMove,
+          surface: descendSurface,
           pullMemory: () => {
             const signedIn = props.localApp.cloud.session()
             if (signedIn === null) return Promise.resolve({ replaced: 0, conflicts: [] })
             return mergeRemoteMemoryBounded({
               session: signedIn,
+              clientVersion: clientVersionHeader(),
+              notice: noticePortBinding(),
               cwd: props.localApp.workspace.workspace,
             })
           },

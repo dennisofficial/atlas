@@ -8,9 +8,9 @@ import {
   toRunId,
   toThreadId,
   type EnvironmentCapabilities,
-  type RosterWire,
   type ThreadId,
 } from '@dltech/atlas-core'
+import { type RosterWire } from '@dltech/atlas-wire'
 
 import { EStepEnd } from '../../channel/signal'
 import {
@@ -507,6 +507,24 @@ describe('startServe', () => {
         ],
       },
     ])
+  })
+
+  it('refuses a send whose context draft is not an event body rather than committing it', async () => {
+    const { handle, app } = await start({})
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    client.send({
+      kind: EClientFrame.Send,
+      text: 'go',
+      context: [{ type: 'context-loaded', slot: 'skill' }],
+    })
+    const refusal = await client.waitFor((frame) => frame.kind === EServeFrame.Error)
+
+    expect(refusal.kind === EServeFrame.Error ? refusal.message : '').toContain('event body')
+    expect(app.appended).toEqual([])
   })
 
   it('answers a publish-workspace request with the ref the workspace pushed', async () => {

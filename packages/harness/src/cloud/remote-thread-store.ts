@@ -7,8 +7,9 @@ import {
 } from '@dltech/atlas-core'
 
 import { titleMatchesHandle } from '../composition/thread-slug'
+import type { Unsubscribe } from '../channel/delta-channel'
 import type { OpenThreadArgs } from '../store/create-with-events'
-import type { SupervisedAgent, ThreadModel, ThreadSummary } from '../store/thread-store'
+import type { RenameListener, SupervisedAgent, ThreadModel, ThreadSummary } from '../store/thread-store'
 import { ThreadStorePort } from '../store/thread-store'
 import type { SessionsClient } from './sessions-client'
 import { eventFromWire, threadFromWire, wireDraftOf } from './session-wire'
@@ -17,10 +18,16 @@ const NAME_LOOKUP_LIMIT = 1000
 
 export class RemoteThreadStore extends ThreadStorePort {
   private readonly client: SessionsClient
+  private readonly renameListeners = new Set<RenameListener>()
 
   constructor(args: { client: SessionsClient }) {
     super()
     this.client = args.client
+  }
+
+  override onRename(listener: RenameListener): Unsubscribe {
+    this.renameListeners.add(listener)
+    return () => this.renameListeners.delete(listener)
   }
 
   async create(args: {
@@ -105,6 +112,7 @@ export class RemoteThreadStore extends ThreadStorePort {
 
   async rename(args: { threadId: ThreadId; title: string }): Promise<void> {
     await this.client.renameThread({ threadId: args.threadId, title: args.title })
+    for (const listener of [...this.renameListeners]) listener(args)
   }
 
   async chooseModel(args: { threadId: ThreadId; model: ThreadModel }): Promise<void> {

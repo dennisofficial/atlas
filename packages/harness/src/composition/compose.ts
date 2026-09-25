@@ -15,11 +15,11 @@ import {
   JudgePort,
   ModelPort,
   NOTICE_WARN_MS,
+  NoticePort,
   parseRef,
   textValueOf,
   type Account,
   type CapabilitiesSource,
-  type NoticePort,
 } from '@dltech/atlas-core'
 
 import { AgentRegistryPort } from '../agents/registry/port'
@@ -65,6 +65,7 @@ import type { HarnessLaunch } from './config'
 import { bindInstructionsAndMemory } from './context-bindings'
 import { faultInjected } from './fault-injection'
 import type { HarnessApp, HarnessStoreBinding, HarnessSurfaceBinding } from './harness-app'
+import { boundCaptureContext } from './context-archive-binding'
 import { mcpBootNotice } from './mcp-report'
 import { knownRefs } from './model-catalogue'
 import { bindModels } from './model-bindings'
@@ -111,6 +112,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   const notice: NoticePort = surface.notice
   const container = createHarnessContainer()
   container.register(ClientVersionToken, { useValue: args.clientVersion })
+  container.register(portToken(NoticePort), { useValue: notice })
   args.bindPorts?.({ container })
   // A session with no workspace (an orchestrator agent) anchors at the process directory: nothing
   // probes a repo, claims a worktree, or reads project instructions for it.
@@ -347,7 +349,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
       ...(signal === undefined ? {} : { signal }),
     })
 
-  const { turn, runner, recordTeardownEndings } = wireTurn<Command>({
+  const { turn, runner, turnPolicy, titling, recordTeardownEndings } = wireTurn<Command>({
     container,
     workspace,
     executionLocation,
@@ -368,6 +370,8 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     stopSandbox: sandbox.stop,
     settled,
     tldr: { feed: surface.tldrFeed, model: tldrModel, modelId: () => tldrModel.modelId },
+    titler: ({ text }) =>
+      titleFor({ model: titlerModel, fallback: sessionModelFallback, text }),
   })
 
   return {
@@ -416,6 +420,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     threadOpened: threadOpenedHandler({ container, log, threads, ids, notice }),
     journalResume: ({ active, directory }) =>
       journalResume({ active, command: launch.command, directory }),
+    captureContext: boundCaptureContext({ notice }),
     pluginProjections: plugins.projections,
     pluginSurfaces: asPluginSurfaces<TPluginSurface>(plugins.surfaces),
     model,
@@ -430,5 +435,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
       await disposeAll({ container })
     },
     runner,
+    turnPolicy,
+    titling,
   }
 }

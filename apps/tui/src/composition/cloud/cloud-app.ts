@@ -11,8 +11,9 @@ import {
 
 import type { AtlasApp } from '../compose'
 import { EOpenMode } from '../config'
+import { noticePortBinding } from '../notice-binding'
 import { openConversation, unstartedConversation, type OpenedConversation } from '../open-conversation'
-import type { CloudBridge, CloudChannel } from './cloud-bridge'
+import type { CloudBridge, CloudChannel } from '@dltech/atlas-harness'
 import { RemoteAgentRegistry } from './remote-agents'
 import { RemoteServiceRegistry } from './remote-services'
 import { RemoteShellRegistry } from './remote-shells'
@@ -58,6 +59,7 @@ export const cloudApp = (args: {
             .then(() => undefined),
       },
       read: (readArgs): Promise<RewindRead> => pricing.snapshot(readArgs),
+      notice: noticePortBinding(),
     }),
   }
 }

@@ -9,6 +9,7 @@ import {
   IdPort,
   ModelPort,
   NoopExecutionLocationSink,
+  NoticePort,
 } from '@dltech/atlas-core'
 
 import {
@@ -200,6 +201,9 @@ export function createHarnessContainer(): DependencyContainer {
           local: resolver.resolve(LocalSecretsStoreToken),
           sessions: resolver.resolve(CloudSessionStoreToken),
           clientVersion: clientVersionOf(resolver),
+          ...(resolver.isRegistered(portToken(NoticePort), true)
+            ? { notice: resolver.resolve(portToken(NoticePort)) }
+            : {}),
         }),
     ),
   })

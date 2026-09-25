@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  EAgentStatus,
-  EShellStatus,
-  toThreadId,
-  type RosterWire,
-} from '@dltech/atlas-core'
+import { EAgentStatus, EShellStatus, toThreadId } from '@dltech/atlas-core'
+import type { RosterWire } from '@dltech/atlas-wire'
 import { EChannelConnection, toShellId } from '@dltech/atlas-harness'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'

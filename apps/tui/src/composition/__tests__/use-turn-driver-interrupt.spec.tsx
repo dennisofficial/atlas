@@ -87,7 +87,6 @@ function DriverProbe(props: {
 }): React.ReactNode {
   const started = useRef(true)
   const pendingMove = useRef<DirectoryMove | null>(null)
-  const used = useRef(0)
 
   const view = useThreadView({
     app: props.app,
@@ -105,13 +104,11 @@ function DriverProbe(props: {
     pendingMove,
     view,
     readClock: () => 0,
-    used,
-    compactIfFull: async () => undefined,
-    cancelCompaction: () => false,
     onSettled: async () => undefined,
     onUndone: () => undefined,
     setFailure: () => undefined,
     forgetUsage: () => undefined,
+    cancelCompaction: () => false,
     ...(props.interruptRefusal === undefined ? {} : { interruptRefusal: props.interruptRefusal }),
   })
 

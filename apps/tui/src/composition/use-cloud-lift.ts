@@ -3,14 +3,16 @@ import { storedModel } from '@dltech/atlas-harness'
 import { useCallback, useRef } from 'react'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
+import { mergeRemoteMemoryBounded, type CaptureContext } from '@dltech/atlas-harness'
+
+import { clientVersionHeader } from '../build/info'
 import { cloudApp, openCloudConversation } from './cloud/cloud-app'
-import type { CloudBridge, LiftedWorkspace } from './cloud/cloud-bridge'
-import { captureContextArchive, type CaptureContext } from './cloud/context-archive'
+import type { CloudBridge, LiftedWorkspace } from '@dltech/atlas-harness'
+import { noticePortBinding } from './notice-binding'
 import { createCloudRunner } from './cloud/cloud-runner'
-import { liftToCloud } from './cloud/lift'
+import { liftToCloud } from '@dltech/atlas-harness'
 import { CLOUD_LIFT_NOTICE_KEY, liftFailedNotice } from './cloud/lift-notices'
-import { mergeRemoteMemoryBounded } from './cloud/bounded-merge-remote-memory'
-import { stopLocalWork } from './cloud/stop-local'
+import { stopLocalWork } from '@dltech/atlas-harness'
 import { cloudLiftPlan } from './container-move'
 import type { AtlasApp } from './compose'
 import { messageOf } from './error-text'
@@ -85,8 +87,14 @@ export function useCloudLift(args: {
 
         void mergeRemoteMemoryBounded({
           session: signedIn,
+          clientVersion: clientVersionHeader(),
+          notice: noticePortBinding(),
           cwd: latest.current.projectDirectory,
         }).catch(() => undefined)
+
+        const captureContext: CaptureContext = () =>
+          latest.current.captureContext?.() ??
+          latest.current.app.captureContext({ cwd: latest.current.projectDirectory })
 
         let opened: OpenedConversation | undefined
         const lifted = await liftToCloud({
@@ -109,11 +117,9 @@ export function useCloudLift(args: {
         stopLocalWork({ threadId, shells: app.shells, services: app.services }),
       capture: latest.current.capture,
       onProgress: (step) => move.handleAdvance(step),
-      captureContext:
-        latest.current.captureContext ??
-        (() => captureContextArchive({ cwd: latest.current.projectDirectory })),
+      captureContext,
       open: async (channel) => {
-        const runner = createCloudRunner({ bridge, channel, threadId, move })
+        const runner = createCloudRunner({ bridge, channel, threadId, captureContext, move })
         const attached = cloudApp({ app, bridge, channel, runner })
         opened = await openCloudConversation({ app: attached, threadId })
       },
@@ -131,7 +137,7 @@ export function useCloudLift(args: {
           return
         }
 
-        const runner = createCloudRunner({ bridge, channel: lifted.channel, threadId, move })
+        const runner = createCloudRunner({ bridge, channel: lifted.channel, threadId, captureContext, move })
         const attached = cloudApp({ app, bridge, channel: lifted.channel, runner })
         const conversation = opened ?? (await openCloudConversation({ app: attached, threadId }))
         const arrived = lifted.resumeOnArrival

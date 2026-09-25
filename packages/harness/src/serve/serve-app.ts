@@ -4,13 +4,14 @@ import type {
   EventLogPort,
   IdPort,
   NoticePort,
-  RosterWire,
   ThreadId,
   WorkspaceIdentity,
 } from '@dltech/atlas-core'
+import type { RosterWire } from '@dltech/atlas-wire'
 
 import type { DeltaChannel } from '../channel/delta-channel'
 import type { FileBrowser } from '../files/file-browser'
+import type { TurnPolicy } from '../loop/turn-policy'
 import type { TurnRunner } from '../loop/turn-runner.port'
 import type { LostShell } from '../shells/recovery'
 import type { ThreadStorePort } from '../store/thread-store'
@@ -55,6 +56,8 @@ export type ServeRewind = {
 export type ServeApp = {
   channel: DeltaChannel
   runner: Pick<TurnRunner, 'runTurn'>
+  /** The between-turns rules the shared root composed — absent in fakes, which run no policy. */
+  turnPolicy?: TurnPolicy | undefined
   log: Pick<EventLogPort, 'append' | 'read'>
   threads: Pick<ThreadStorePort, 'find' | 'createWithFirstEvents'>
   ids: Pick<IdPort, 'nextRunId'>

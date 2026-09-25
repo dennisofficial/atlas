@@ -2,6 +2,20 @@ import { access, mkdtemp, realpath, utimes } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import type { NoticePort, NoticePost } from '@dltech/atlas-core'
+
+export const recordingNotices = (): { posts: NoticePost[]; port: NoticePort } => {
+  const posts: NoticePost[] = []
+  return {
+    posts,
+    port: {
+      notify: (post) => {
+        posts.push(post)
+      },
+    },
+  }
+}
+
 export const freshDirectory = async (prefix: string): Promise<string> =>
   mkdtemp(join(tmpdir(), prefix))
 

@@ -16,6 +16,10 @@ const HANDLE = 'refresh-token-rotation'
 
 const OPENING = 'the refresh token never rotates'
 
+// The harness TitlingTurnRunner names a session from `sessionDigest(events)` — the labeled
+// transcript (opening plus the model's reply, joined by a newline), not the bare opening line.
+const OPENING_DIGEST = `Operator: ${OPENING}\nAtlas: ${REPLY}`
+
 const FOLLOW_UP = 'and cover reuse detection'
 
 const WITHIN_MS = 20_000
@@ -42,7 +46,7 @@ describe('naming a session from its opening message', () => {
       })
 
       expect(named).toBe(true)
-      expect(mounted.app.titled).toEqual([OPENING])
+      expect(mounted.app.titled).toEqual([OPENING_DIGEST])
       expect(mounted.app.threads.renames).toEqual([{ threadId: THREAD, title: NAME }])
     } finally {
       await mounted.done()
@@ -74,7 +78,7 @@ describe('naming a session from its opening message', () => {
       })
 
       expect(ran).toBe(true)
-      expect(mounted.app.titled).toEqual([OPENING])
+      expect(mounted.app.titled).toEqual([OPENING_DIGEST])
       expect(mounted.app.threads.renames).toHaveLength(1)
     } finally {
       await mounted.done()
@@ -94,7 +98,7 @@ describe('naming a session from its opening message', () => {
       })
 
       expect(settled).toBe(true)
-      expect(mounted.app.titled).toEqual([OPENING])
+      expect(mounted.app.titled).toEqual([OPENING_DIGEST])
       expect(mounted.app.threads.renames).toEqual([])
     } finally {
       await mounted.done()

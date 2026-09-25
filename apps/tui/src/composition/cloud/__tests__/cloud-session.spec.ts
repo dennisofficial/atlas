@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EChannelConnection, ETurnStatus } from '@dltech/atlas-harness'
 import { toRunId } from '@dltech/atlas-core'
 
-import { ECloudSandboxState, type CloudReload, type CloudSandboxStatus } from '../cloud-bridge'
+import { ECloudSandboxState, type CloudReload, type CloudSandboxStatus } from '@dltech/atlas-harness'
 import { createCloudSession } from '../cloud-session'
 import { fakeCloudChannel } from './fixture'
 

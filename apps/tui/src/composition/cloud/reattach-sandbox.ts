@@ -1,6 +1,6 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
-import type { CloudSandboxes } from './cloud-bridge'
+import type { CloudSandboxes } from '@dltech/atlas-harness'
 
 /**
  * Re-claiming is re-provisioning: the claim mints a fresh session token and git credential, and

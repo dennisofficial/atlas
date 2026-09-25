@@ -1,4 +1,4 @@
-import type { SecretsPort } from '@dltech/atlas-core'
+import { ENoticeTone, type NoticePort, type SecretsPort } from '@dltech/atlas-core'
 
 import type { FileSecretsStore } from '../secrets/file-secrets-store'
 import { cloudClientFor } from './cloud-client'
@@ -14,16 +14,19 @@ export class SecretsStoreProxy implements SecretsPort {
   private readonly local: FileSecretsStore
   private readonly sessions: CloudSessionStore
   private readonly clientVersion: string | undefined
+  private readonly notice: NoticePort | undefined
   private remote: { token: string; store: RemoteSecretsStore } | undefined
 
   constructor(args: {
     local: FileSecretsStore
     sessions: CloudSessionStore
     clientVersion?: string
+    notice?: NoticePort | undefined
   }) {
     this.local = args.local
     this.sessions = args.sessions
     this.clientVersion = args.clientVersion
+    this.notice = args.notice
     this.sessions.onCleared(() => {
       this.remote = undefined
     })
@@ -68,6 +71,18 @@ export class SecretsStoreProxy implements SecretsPort {
             session,
             ...(this.clientVersion === undefined ? {} : { clientVersion: this.clientVersion }),
           }),
+          ...(this.notice === undefined
+            ? {}
+            : {
+                onWriteFailure: ({ name, failure }) => {
+                  this.notice?.notify({
+                    key: 'cloud:secrets-write-behind',
+                    tone: ENoticeTone.Warn,
+                    ttlMs: null,
+                    text: `a write to Atlas Cloud secrets failed for ${name} (${failure.message}) — the value lives on this machine only until the cloud takes it. A successful write or re-warm replaces this notice.`,
+                  })
+                },
+              }),
         }),
       }
     }

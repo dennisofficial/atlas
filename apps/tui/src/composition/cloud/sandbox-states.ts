@@ -1,7 +1,7 @@
 import { toThreadId } from '@dltech/atlas-core'
 import type { ECloudSandboxState } from '@dltech/atlas-harness'
 
-import type { CloudSandboxes } from './cloud-bridge'
+import type { CloudSandboxes } from '@dltech/atlas-harness'
 
 /**
  * The one read behind the picker's badges: every cloud row's sandbox asked at once, per opening,

@@ -19,7 +19,9 @@ import type { AccountsService } from '../credentials/accounts-service'
 import type { FileBrowser } from '../files/file-browser'
 import type { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import type { TldrFeed } from '../loop/tldr-turn-runner'
+import type { TurnPolicy } from '../loop/turn-policy'
 import type { TurnRunner } from '../loop/turn-runner.port'
+import type { TitlingTurnRunner } from './titling-turn-runner'
 import type { McpServerStatus } from '../mcp/registry/handle-status'
 import type { PendingQueues } from '../pending'
 import type { ContributedProjection } from '../plugins/projection'
@@ -78,6 +80,8 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   cloud: CloudService
   channel: DeltaChannel
   runner: TurnRunner
+  turnPolicy: TurnPolicy
+  titling: TitlingTurnRunner
   log: EventLogPort
   threads: ThreadStorePort
   ledger: TurnLedgerPort
@@ -105,6 +109,8 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   mcp: () => readonly McpServerStatus[]
   threadOpened: (args: { threadId: ThreadId; projectDirectory: string }) => Promise<void>
   journalResume: (args: { active: ActiveConversation; directory: string }) => void
+  /** A cloud lift's context capture with the session's notice port already bound in. */
+  captureContext: (callArgs?: { cwd?: string | undefined }) => Promise<Buffer | undefined>
   pluginProjections: readonly ContributedProjection[]
   pluginSurfaces: readonly ContributedSurface<TPluginSurface>[]
   surface: TSurface
