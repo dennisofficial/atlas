@@ -72,13 +72,21 @@ export class ServeAccountStore extends AccountStorePort {
 
   private current(): Promise<{ accounts: Account[]; active: Map<EAuthProvider, AccountId> }> {
     if (this.snapshot !== undefined) return Promise.resolve(this.snapshot)
-    this.loading ??= this.broker.accounts().then((body) => {
-      this.snapshot = {
-        accounts: body.accounts,
-        active: new Map(body.active.map((pointer) => [pointer.provider, pointer.accountId])),
-      }
-      return this.snapshot
-    })
+    this.loading ??= this.broker
+      .accounts()
+      .then((body) => {
+        this.snapshot = {
+          accounts: body.accounts,
+          active: new Map(body.active.map((pointer) => [pointer.provider, pointer.accountId])),
+        }
+        return this.snapshot
+      })
+      .catch((error: unknown) => {
+        // Drop the failed load so a transient control-plane outage at boot does not wedge the
+        // store on a rejected promise — the next read retries against the broker.
+        if (this.snapshot === undefined) this.loading = undefined
+        throw error
+      })
     return this.loading
   }
 }
