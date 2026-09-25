@@ -99,11 +99,27 @@ export type FakeStationRunRow = {
   finishedAt: string | null
 }
 
+export type FakeReplyWatchRow = {
+  id: string
+  workItemId: string
+  surface: string
+  externalId: string
+  commentId: string | null
+  eventId: string
+  organizationId: string | null
+  status: string
+  nudgeAt: string
+  expireAt: string
+  createdAt: string
+  updatedAt: string
+}
+
 type FakeRow =
   | FakeWorkItemRow
   | FakeAliasRow
   | FakeTranscriptEventRow
   | FakeStationRunRow
+  | FakeReplyWatchRow
   | FakeConnectionRow
 
 const matchesRow = (row: FakeRow, where: Where): boolean =>
@@ -125,6 +141,7 @@ export function createFakeFactoryDb() {
   const threads: FakeOrchestratorThreadRow[] = []
   const events: FakeOrchestratorEventRow[] = []
   const stationRuns: FakeStationRunRow[] = []
+  const replyWatches: FakeReplyWatchRow[] = []
 
   const db = {
     factoryWorkItem: {
@@ -278,6 +295,26 @@ export function createFakeFactoryDb() {
         return row
       },
     },
+    factoryReplyWatch: {
+      create: async (args: { data: FakeReplyWatchRow }) => {
+        if (replyWatches.some((one) => one.id === args.data.id)) throw uniqueViolation(['id'])
+        replyWatches.push(args.data)
+        return args.data
+      },
+      findMany: async (args: { where?: Where }) =>
+        replyWatches.filter((one) => args.where === undefined || matchesRow(one, args.where)),
+      update: async (args: { where: { id: string }; data: Where }) => {
+        const row = replyWatches.find((one) => one.id === args.where.id)
+        if (row === undefined) throw new Error('record not found')
+        applyUpdate(row as unknown as Record<string, unknown>, args.data)
+        return row
+      },
+      updateMany: async (args: { where: Where; data: Where }) => {
+        const matched = replyWatches.filter((one) => matchesRow(one, args.where))
+        for (const row of matched) applyUpdate(row as unknown as Record<string, unknown>, args.data)
+        return { count: matched.length }
+      },
+    },
     user: {
       upsert: async (args: {
         where: { email: string }
@@ -348,6 +385,7 @@ export function createFakeFactoryDb() {
         transcriptEvents: transcriptEvents.map((one) => ({ ...one })),
         users: users.map((one) => ({ ...one })),
         stationRuns: stationRuns.map((one) => ({ ...one })),
+        replyWatches: replyWatches.map((one) => ({ ...one })),
       }
       try {
         return await callback(db)
@@ -357,6 +395,7 @@ export function createFakeFactoryDb() {
         transcriptEvents.splice(0, transcriptEvents.length, ...snapshot.transcriptEvents)
         users.splice(0, users.length, ...snapshot.users)
         stationRuns.splice(0, stationRuns.length, ...snapshot.stationRuns)
+        replyWatches.splice(0, replyWatches.length, ...snapshot.replyWatches)
         throw error
       }
     },
@@ -380,6 +419,7 @@ export function createFakeFactoryDb() {
     threads,
     events,
     stationRuns,
+    replyWatches,
     reset: () => {
       workItems.length = 0
       connections.length = 0
@@ -391,6 +431,7 @@ export function createFakeFactoryDb() {
       threads.length = 0
       events.length = 0
       stationRuns.length = 0
+      replyWatches.length = 0
     },
   }
 }

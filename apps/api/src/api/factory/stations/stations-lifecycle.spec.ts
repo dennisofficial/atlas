@@ -16,6 +16,7 @@ import type { FactoryCredentialService } from '../orchestrator/factory-credentia
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { FactoryIdentityService } from '../orchestrator/factory-identity'
 import type { OrchestratorChannel } from '../orchestrator/orchestrator-channel'
+import type { OrchestratorService } from '../orchestrator/orchestrator.service'
 import { TranscriptService } from '../transcript.service'
 import { WorkItemsService } from '../work-items.service'
 import { EStationRunStatus } from './station.types'
@@ -80,6 +81,7 @@ describe('StationsService lifecycle', () => {
       credentials as unknown as FactoryCredentialService,
       drives as unknown as FactoryDrivesService,
       channel as OrchestratorChannel,
+      { wake: vi.fn(() => undefined) } as unknown as OrchestratorService,
     )
   })
 

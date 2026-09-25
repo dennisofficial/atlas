@@ -160,6 +160,7 @@ model FactoryWorkItem {
   aliases              FactorySurfaceAlias[]
   transcriptEvents     FactoryTranscriptEvent[]
   stationRuns          FactoryStationRun[]
+  replyWatches         FactoryReplyWatch[]
 
   @@index([repo, status])
   @@index([status, lastActivityAt])
@@ -223,6 +224,24 @@ model FactoryTranscriptEvent {
 
   @@unique([surface, deliveryId])
   @@index([workItemId, seq])
+}
+
+model FactoryReplyWatch {
+  id           String  @id
+  workItemId   String
+  surface      String
+  externalId   String
+  commentId    String?
+  eventId      String
+  organizationId String?
+  status       String
+  nudgeAt      String
+  expireAt     String
+  createdAt    String
+  updatedAt    String
+  workItem     FactoryWorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+
+  @@index([status, nudgeAt])
 }
 
 model AgentAccount {
