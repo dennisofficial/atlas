@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import type { ThreadId } from '@dltech/atlas-core'
 
-import { cloudRequest } from '../cloud/cloud-transport'
+import { CloudTransport, cloudRequest } from '../cloud/cloud-transport'
 
 /**
  * Fetched rather than injected: a patch carrying every uncommitted change outgrows what a process
@@ -60,16 +60,11 @@ export function contextArchiveFetcher(args: {
   token: string
   fetchFn: typeof fetch
 }): FetchContextArchive {
-  const url = `${args.controlPlaneUrl.replace(/\/+$/, '')}/v1/sandboxes/context`
+  const transport = new CloudTransport({
+    url: args.controlPlaneUrl,
+    token: args.token,
+    fetchFn: args.fetchFn,
+  })
 
-  return async () => {
-    const response = await args.fetchFn(url, {
-      headers: { authorization: `Bearer ${args.token}` },
-    })
-    if (response.status === 404) return null
-    if (!response.ok) {
-      throw new Error(`the control plane answered ${response.status} for the context archive`)
-    }
-    return new Uint8Array(await response.arrayBuffer())
-  }
+  return () => transport.rawRequest({ method: 'GET', path: '/v1/sandboxes/context', allowMissing: true })
 }

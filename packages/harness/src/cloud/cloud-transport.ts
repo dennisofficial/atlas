@@ -19,6 +19,12 @@ export const isCloudUnavailable = (error: unknown): boolean =>
 export const DEFAULT_RETRY_MAX_ATTEMPTS = 4
 export const DEFAULT_RETRY_BASE_DELAY_MS = 500
 export const DEFAULT_RETRY_CEILING_DELAY_MS = 8_000
+/**
+ * A wedged control plane holds a connection open with no bytes until a proxy gives up at ~60s;
+ * that hang must never be what a boot or a turn waits on. Every attempt gets its own abort so a
+ * stall fails fast and the retry path (or the caller) takes over instead of blocking on the proxy.
+ */
+export const DEFAULT_REQUEST_TIMEOUT_MS = 10_000
 
 const defaultSleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -79,6 +85,8 @@ export const cloudRequest = async (args: {
   maxAttempts?: number
   baseDelayMs?: number
   ceilingDelayMs?: number
+  /** Per-attempt abort. Defaults to DEFAULT_REQUEST_TIMEOUT_MS; pass null to wait indefinitely. */
+  timeoutMs?: number | null | undefined
 }): Promise<unknown> => {
   const sleep = args.sleep ?? defaultSleep
   const randomFn = args.randomFn ?? Math.random
@@ -86,6 +94,7 @@ export const cloudRequest = async (args: {
   const maxAttempts = args.maxAttempts ?? DEFAULT_RETRY_MAX_ATTEMPTS
   const baseDelayMs = args.baseDelayMs ?? DEFAULT_RETRY_BASE_DELAY_MS
   const ceilingDelayMs = args.ceilingDelayMs ?? DEFAULT_RETRY_CEILING_DELAY_MS
+  const timeoutMs = args.timeoutMs === undefined ? DEFAULT_REQUEST_TIMEOUT_MS : args.timeoutMs
 
   for (let attempt = 0; ; attempt += 1) {
     const attemptsLeft = retry && attempt < maxAttempts - 1
@@ -100,6 +109,7 @@ export const cloudRequest = async (args: {
           ...(args.body === undefined ? {} : { 'content-type': 'application/json' }),
         },
         ...(args.body === undefined ? {} : { body: JSON.stringify(args.body) }),
+        ...(timeoutMs === null ? {} : { signal: AbortSignal.timeout(timeoutMs) }),
       })
     } catch (cause) {
       if (attemptsLeft) {
@@ -157,8 +167,11 @@ export const cloudRawRequest = async (args: {
   accept?: string | undefined
   allowMissing?: boolean
   sleep?: ((ms: number) => Promise<void>) | undefined
+  /** Per-attempt abort. Defaults to DEFAULT_REQUEST_TIMEOUT_MS; pass null to wait indefinitely. */
+  timeoutMs?: number | null | undefined
 }): Promise<Uint8Array | null> => {
   const sleep = args.sleep ?? defaultSleep
+  const timeoutMs = args.timeoutMs === undefined ? DEFAULT_REQUEST_TIMEOUT_MS : args.timeoutMs
 
   for (let attempt = 0; ; attempt += 1) {
     let response: Response
@@ -172,6 +185,7 @@ export const cloudRawRequest = async (args: {
           ...(args.accept === undefined ? {} : { accept: args.accept }),
         },
         ...(args.body === undefined ? {} : { body: args.body as NonNullable<RequestInit['body']> }),
+        ...(timeoutMs === null ? {} : { signal: AbortSignal.timeout(timeoutMs) }),
       })
     } catch (cause) {
       throw new CloudError({
@@ -180,7 +194,7 @@ export const cloudRawRequest = async (args: {
       })
     }
 
-    if (response.status === 429 && attempt < DEFAULT_RETRY_MAX_ATTEMPTS - 1) {
+    if (isRetryableStatus(response.status) && attempt < DEFAULT_RETRY_MAX_ATTEMPTS - 1) {
       const afterMs = retryAfterMs(response)
       await sleep(
         afterMs === undefined
