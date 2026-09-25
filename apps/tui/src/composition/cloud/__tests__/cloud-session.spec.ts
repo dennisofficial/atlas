@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EChannelConnection } from '@dltech/atlas-harness'
+import { EChannelConnection, ETurnStatus } from '@dltech/atlas-harness'
+import { toRunId } from '@dltech/atlas-core'
 
 import { ECloudSandboxState, type CloudReload, type CloudSandboxStatus } from '../cloud-bridge'
 import { createCloudSession } from '../cloud-session'
@@ -133,5 +134,43 @@ describe('what the sandbox itself refuses', () => {
 
     expect(session.health().connection.detail).toBe('wire protocol mismatch')
     expect(session.health().failure).toContain('wire protocol')
+  })
+})
+
+describe('the sticky failure clearing on recovery', () => {
+  it('clears the failure when a turn completes after a server error', () => {
+    const { channel, session } = sessionOn()
+
+    channel.moveTo({ state: EChannelConnection.Open, detail: null })
+    channel.fail('The Atlas Cloud API answered POST /v1/threads/x/events with 500: Internal server error.')
+
+    expect(session.health().failure).toContain('500: Internal server error')
+
+    channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-1') })
+
+    expect(session.health().failure).toBeNull()
+  })
+
+  it('keeps the failure when a turn fails after a server error', () => {
+    const { channel, session } = sessionOn()
+
+    channel.moveTo({ state: EChannelConnection.Open, detail: null })
+    channel.fail('workspace failed at git apply: patch does not apply')
+
+    expect(session.health().failure).toContain('git apply')
+
+    channel.endTurn({ status: ETurnStatus.Failed, runId: toRunId('run-1'), message: 'the model fell over', cause: null })
+
+    expect(session.health().failure).toContain('git apply')
+  })
+
+  it('does not clear a null failure on turn completion', () => {
+    const { channel, session } = sessionOn()
+
+    expect(session.health().failure).toBeNull()
+
+    channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-1') })
+
+    expect(session.health().failure).toBeNull()
   })
 })
