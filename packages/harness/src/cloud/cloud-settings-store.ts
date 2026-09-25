@@ -2,11 +2,9 @@ import type { ClockPort } from '@dltech/atlas-core'
 
 import { CloudError, cloudClientFor, type CloudClient } from './cloud-client'
 import type { CloudSession, CloudSessionStore } from './cloud-session'
-import { isCloudUnavailable } from './cloud-transport'
+import { isCloudRefusal, isCloudUnavailable } from './cloud-transport'
 
 export const CLOUD_SETTINGS_TTL_MS = 300_000
-
-const REFUSED_STATUSES: readonly number[] = [401, 402, 403]
 
 const SIGN_IN_MESSAGE = 'sign in to Atlas Cloud to change cloud settings'
 
@@ -43,6 +41,10 @@ export class CloudSettingsStore {
     this.clock = args.clock
     this.clientVersion = args.clientVersion
     this.fetchFn = args.fetchFn
+    this.sessions.onCleared(() => {
+      this.held = undefined
+      this.client = undefined
+    })
   }
 
   version(): number {
@@ -115,8 +117,9 @@ export class CloudSettingsStore {
       }
       this.publish()
     } catch (error) {
-      if (error instanceof CloudError && REFUSED_STATUSES.includes(error.status)) {
+      if (isCloudRefusal(error)) {
         this.invalidate()
+        this.sessions.clear()
         throw error
       }
       if (isCloudUnavailable(error) && this.held !== undefined) return

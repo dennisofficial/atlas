@@ -212,7 +212,7 @@ describe('CloudSettingsStore writes', () => {
 })
 
 describe('CloudSettingsStore when the cloud answers badly', () => {
-  it.each([401, 402, 403])('invalidates and rethrows on a %i, so the next read re-fetches', async (status) => {
+  it.each([401, 402, 403])('ends the session on a %i: cache dropped, session cleared, error rethrown', async (status) => {
     signIn()
     fake.remote.set('sandbox.image', 'img-1')
     await store.refresh()
@@ -223,12 +223,13 @@ describe('CloudSettingsStore when the cloud answers badly', () => {
 
     expect(failure).toBeInstanceOf(CloudError)
     expect((failure as CloudError).status).toBe(status)
+    expect(store.signedIn()).toBe(false)
 
     fake.status = 200
     fake.remote.set('sandbox.image', 'img-2')
     await store.refresh()
 
-    expect(store.values()).toEqual({ 'sandbox.image': 'img-2' })
+    expect(store.values()).toEqual({})
   })
 
   it('serves the stale snapshot through an outage', async () => {

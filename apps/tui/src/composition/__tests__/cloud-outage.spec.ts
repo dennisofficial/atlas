@@ -20,6 +20,16 @@ describe('a cloud outage is a degradation, not a crash', () => {
     ).toBe(true)
   })
 
+  it('reads a 401 as a dead session, not an outage', () => {
+    const message = cloudOutageMessage(
+      new CloudError({ status: 401, message: 'The Atlas Cloud API answered GET /v1/accounts with 401.' }),
+    )
+
+    expect(message).toContain('rejected the session')
+    expect(message).toContain('/auth')
+    expect(message).not.toContain('model access stays dark')
+  })
+
   it('leaves anything that is not a cloud failure alone', () => {
     expect(cloudOutageMessage(new Error('the database is locked'))).toBeNull()
     expect(isCloudOutage('nope')).toBe(false)

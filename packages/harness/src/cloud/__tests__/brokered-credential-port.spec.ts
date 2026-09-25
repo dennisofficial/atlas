@@ -208,14 +208,19 @@ describe('BrokeredCredentialPort holding what it minted', () => {
     await expect(port.read()).rejects.toBeInstanceOf(CloudError)
   })
 
-  it('refuses a rejected session rather than serving the held token', async () => {
+  it('ends the session on a refused token: held tokens dropped, session cleared, sign-in demanded', async () => {
     const port = await signedInPort()
     await port.read()
 
     answer = failing(401)
     nowIso = '2026-01-01T00:56:00.000Z'
 
-    await expect(port.read()).rejects.toBeInstanceOf(CloudError)
+    const failure = await port.read().catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(CredentialError)
+    expect((failure as CredentialError).failure).toBe(ECredentialFailure.Expired)
+    expect((failure as CredentialError).message).toContain('/auth')
+    expect(sessions.read()).toBeNull()
   })
 
   it('forgets what it held when the signed-in session changes', async () => {
@@ -316,5 +321,25 @@ describe('BrokeredCredentialPort reading account metadata through an outage', ()
     const port = proxiedPort()
 
     await expect(port.read()).rejects.toBeInstanceOf(CloudError)
+  })
+
+  it('ends the session on a refused token — the cloud cache dies with it and nothing stale serves', async () => {
+    answer = answerFor
+    outageAnswering()
+    const port = proxiedPort()
+
+    await port.read()
+
+    answer = failing(401)
+    nowIso = '2026-01-01T00:56:00.000Z'
+    const refusal = await port.read().catch((error: unknown) => error)
+
+    expect(refusal).toBeInstanceOf(CredentialError)
+    expect(sessions.read()).toBeNull()
+
+    answer = answerFor
+    const after = await port.read().catch((error: unknown) => error)
+    expect(after).toBeInstanceOf(CredentialError)
+    expect((after as CredentialError).failure).toBe(ECredentialFailure.NotFound)
   })
 })

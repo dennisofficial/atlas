@@ -5,6 +5,11 @@ import { cloudClientFor } from './cloud-client'
 import type { CloudSessionStore } from './cloud-session'
 import { RemoteSecretsStore } from './remote-secrets-store'
 
+/**
+ * A cleared session — logout or a refused token — retires the remote store on the spot: its warmed
+ * values were the cloud's, and letting them answer behind a session that no longer exists would
+ * keep the cloud's secrets alive past their sign-out.
+ */
 export class SecretsStoreProxy implements SecretsPort {
   private readonly local: FileSecretsStore
   private readonly sessions: CloudSessionStore
@@ -19,6 +24,9 @@ export class SecretsStoreProxy implements SecretsPort {
     this.local = args.local
     this.sessions = args.sessions
     this.clientVersion = args.clientVersion
+    this.sessions.onCleared(() => {
+      this.remote = undefined
+    })
   }
 
   async warm(): Promise<void> {
