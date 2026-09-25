@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  CHANNEL_PROTOCOL_VERSION,
   createOrchestratorChannel,
   sessionSocketUrlOf,
   type ChannelSocket,
@@ -36,7 +37,7 @@ const fakeFactory = (): { factory: ChannelSocketFactory; sockets: FakeSocket[] }
 
 const greet = (socket: FakeSocket): void => {
   socket.handlers.handleOpen()
-  socket.handlers.handleMessage(JSON.stringify({ kind: 'ready', seq: 1, protocol: 2 }))
+  socket.handlers.handleMessage(JSON.stringify({ kind: 'ready', seq: 1, protocol: CHANNEL_PROTOCOL_VERSION }))
 }
 
 const INJECT = {
@@ -79,10 +80,10 @@ describe('orchestrator channel', () => {
       threadId: 'brn_orchestrator_1',
       channelCursor: null,
       lastEventSeq: 0,
-      protocol: 2,
+      protocol: CHANNEL_PROTOCOL_VERSION,
     })
 
-    socket.handlers.handleMessage(JSON.stringify({ kind: 'ready', seq: 1, protocol: 2 }))
+    socket.handlers.handleMessage(JSON.stringify({ kind: 'ready', seq: 1, protocol: CHANNEL_PROTOCOL_VERSION }))
     const sent = JSON.parse(socket.sent[1] as string) as Record<string, unknown>
     expect(sent).toEqual({ kind: 'send', text: 'wake up' })
 
@@ -114,7 +115,7 @@ describe('orchestrator channel', () => {
     const socket = sockets[0] as FakeSocket
     socket.handlers.handleOpen()
     socket.handlers.handleMessage(JSON.stringify({ kind: 'signal', seq: 1, signal: {} }))
-    socket.handlers.handleMessage(JSON.stringify({ kind: 'ready', seq: 2, protocol: 2 }))
+    socket.handlers.handleMessage(JSON.stringify({ kind: 'ready', seq: 2, protocol: CHANNEL_PROTOCOL_VERSION }))
     await pending
 
     const sent = JSON.parse(socket.sent[1] as string) as Record<string, unknown>
@@ -178,7 +179,7 @@ describe('orchestrator channel', () => {
     socket.handlers.handleOpen()
     socket.handlers.handleMessage('not json')
     socket.handlers.handleMessage(JSON.stringify({ kind: 'mystery' }))
-    socket.handlers.handleMessage(JSON.stringify({ kind: 'ready', seq: 1, protocol: 2 }))
+    socket.handlers.handleMessage(JSON.stringify({ kind: 'ready', seq: 1, protocol: CHANNEL_PROTOCOL_VERSION }))
     await pending
   })
 })
