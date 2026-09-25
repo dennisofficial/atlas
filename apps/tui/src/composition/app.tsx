@@ -17,10 +17,14 @@ import {
   EExecutionLocation,
   EForkMode,
   EKilledBy,
+  ESettingId,
+  ESettingsLayer,
   launchWorktreeOf,
+  textValueOf,
   type Account,
   type EUsageWindow,
   type ModelCard,
+  type SettingsResolution,
 } from '@dltech/atlas-core'
 import { EChannelConnection, forkConversation, readGhAuthToken, relocateSession, requireVercelCredentials, sandboxImageOf, settingModelRef, suggestedModelRef, type DiscoveredSkill } from '@dltech/atlas-harness'
 
@@ -249,6 +253,26 @@ const releaseBuildOf = (): { version: string; buildSha: string } | undefined => 
   return { version: build.version, buildSha: build.buildSha }
 }
 
+/**
+ * The settings a cloud session inherits from the operator's machine, resolved into the
+ * environment variables serve's own settings layer reads. Only settings that change how a
+ * cloud session behaves — never display or local-only ones — and only when set, so an unset
+ * key stays absent and the sandbox reads its own fallback rather than an empty string.
+ */
+export const cloudEnvironmentOf = (resolution: SettingsResolution): Record<string, string> => {
+  const entries: Record<string, string> = {}
+  const carry = (id: ESettingId, variable: string): void => {
+    const held = resolution.settings.get(id)
+    if (held === undefined || held.layer === ESettingsLayer.Default) return
+    const value = textValueOf({ resolution, id })
+    if (value.length > 0) entries[variable] = value
+  }
+  carry(ESettingId.DecisionsUrl, 'ATLAS_DECISIONS_URL')
+  carry(ESettingId.ClassifierMode, 'ATLAS_CLASSIFIER_MODE')
+  carry(ESettingId.WebSearchBackend, 'ATLAS_SEARCH_BACKEND')
+  return entries
+}
+
 const liveBridgeFor = (app: AtlasApp): CloudBridgeFactory => {
   return ({ url, token }) =>
     createCloudBridge({
@@ -260,6 +284,7 @@ const liveBridgeFor = (app: AtlasApp): CloudBridgeFactory => {
         ...sandboxImageOf({ settings: app.settings, release: releaseBuildOf() }),
       }),
       readGitToken: () => readGhAuthToken(),
+      environment: () => cloudEnvironmentOf(app.settings.snapshot().resolution),
     })
 }
 

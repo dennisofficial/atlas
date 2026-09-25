@@ -44,6 +44,12 @@ export function createCloudBridge(args: {
   vercel: () => VercelSandboxConfig
   /** Fresh on every claim — `gh auth token`, throwing GitCredentialError when it cannot. */
   readGitToken: () => Promise<string>
+  /**
+   * The operator-side settings a cloud session inherits, resolved at each lift so a changed
+   * value rides the next boot. Only entries with a value appear — an unset key stays absent so
+   * the sandbox reads its own fallback rather than an empty string.
+   */
+  environment?: (() => Record<string, string>) | undefined
 }): CloudBridge {
   const fetchFn = args.fetchFn ?? fetch
   const shared = { url: args.url, token: args.token, clientVersion: args.clientVersion, fetchFn }
@@ -86,6 +92,7 @@ export function createCloudBridge(args: {
       name,
       threadId: createArgs.threadId,
       token: claim.token,
+      ...(args.environment === undefined ? {} : { environment: args.environment() }),
       ...(createArgs.captureContext === undefined
         ? {}
         : {
