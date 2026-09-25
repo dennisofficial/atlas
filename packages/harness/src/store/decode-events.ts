@@ -1,6 +1,7 @@
 export enum EUnreadableReason {
   CorruptEnvelope = 'corrupt-envelope',
   MalformedJson = 'malformed-json',
+  NewerVersion = 'newer-version',
   TruncatedTail = 'truncated-tail',
   UnrecognizedBody = 'unrecognized-body',
 }

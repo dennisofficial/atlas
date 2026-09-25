@@ -3,7 +3,19 @@ import { z } from 'zod'
 
 import type { TurnSpend } from '../turn-ledger.port'
 
+export const LEDGER_LINE_VERSION = 1
+
+export class LedgerFromNewerAtlasError extends Error {
+  constructor(args: { version: number }) {
+    super(
+      `ledger line was written by a newer Atlas (v${args.version}, this build reads v${LEDGER_LINE_VERSION}); upgrade before opening this session`,
+    )
+    this.name = 'LedgerFromNewerAtlasError'
+  }
+}
+
 const ledgerLineSchema = z.object({
+  v: z.number().optional().default(LEDGER_LINE_VERSION),
   runId: z.string(),
   threadId: z.string(),
   status: z.string(),
@@ -20,7 +32,7 @@ const ledgerLineSchema = z.object({
 })
 
 export function encodeLedgerLine({ spend }: { spend: TurnSpend }): string {
-  return JSON.stringify(spend)
+  return JSON.stringify({ v: LEDGER_LINE_VERSION, ...spend })
 }
 
 export function parseLedgerLines({ text }: { text: string }): TurnSpend[] {
@@ -47,7 +59,16 @@ function decodeLedgerLine({ raw }: { raw: string }): TurnSpend | undefined {
   } catch {
     return undefined
   }
+  const version = ledgerVersionOf({ parsed })
+  if (version > LEDGER_LINE_VERSION) throw new LedgerFromNewerAtlasError({ version })
   const line = ledgerLineSchema.safeParse(parsed)
   if (!line.success) return undefined
-  return { ...line.data, runId: toRunId(line.data.runId), threadId: toThreadId(line.data.threadId) }
+  const { v: _v, ...spend } = line.data
+  return { ...spend, runId: toRunId(spend.runId), threadId: toThreadId(spend.threadId) }
+}
+
+function ledgerVersionOf({ parsed }: { parsed: unknown }): number {
+  if (typeof parsed !== 'object' || parsed === null) return LEDGER_LINE_VERSION
+  const v = (parsed as { v?: unknown }).v
+  return typeof v === 'number' && Number.isInteger(v) && v >= 1 ? v : LEDGER_LINE_VERSION
 }
