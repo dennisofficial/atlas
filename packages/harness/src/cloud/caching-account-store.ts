@@ -10,7 +10,7 @@ import {
   type StoredAccount,
 } from '@dltech/atlas-core'
 
-import { isCloudUnavailable } from './cloud-transport'
+import { isCloudRefusal, isCloudUnavailable } from './cloud-transport'
 
 export const ACCOUNT_CACHE_TTL_MS = 60_000
 
@@ -100,6 +100,9 @@ export class CachingAccountStore extends AccountStorePort {
       args.store({ value, freshUntilMs: this.nowMs() + this.ttlMs })
       return value
     } catch (error) {
+      // A refusal ends the session the cache was filled under: nothing it holds may serve again,
+      // and the proxy above is what tells the operator. An outage keeps serving what is held.
+      if (isCloudRefusal(error)) this.invalidate()
       if (!isCloudUnavailable(error) || hit === undefined) throw error
       return hit.value
     }

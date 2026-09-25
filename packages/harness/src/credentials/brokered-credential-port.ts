@@ -17,7 +17,7 @@ import {
 import { cloudClientFor, type BrokeredAccessToken } from '../cloud/cloud-client'
 import { AccountStoreProxy } from '../cloud/account-store-proxy'
 import type { CloudSession, CloudSessionStore } from '../cloud/cloud-session'
-import { isCloudUnavailable } from '../cloud/cloud-transport'
+import { CloudError, isCloudRefusal, isCloudUnavailable } from '../cloud/cloud-transport'
 import { CredentialError, ECredentialFailure } from './credential-error'
 
 const SIGN_IN = 'Sign in with /auth.'
@@ -93,15 +93,40 @@ export class BrokeredCredentialPort extends CredentialPort {
 
   async read(request?: CredentialRequest): Promise<Credential> {
     const provider = request?.provider ?? this.defaultProvider
-    const stored = await this.chosenAccount({ provider, accountId: request?.accountId })
 
-    const session = this.sessions.read()
-    if (session === null) throw this.noAccount(provider, ENoAccountReason.NoneForProvider)
-    this.forgetTokensOfOtherSession(session.token)
+    try {
+      const stored = await this.chosenAccount({ provider, accountId: request?.accountId })
 
-    const minted = await this.tokenFor({ session, accountId: stored.id })
+      const session = this.sessions.read()
+      if (session === null) throw this.noAccount(provider, ENoAccountReason.NoneForProvider)
+      this.forgetTokensOfOtherSession(session.token)
 
-    return credentialOf({ stored, minted })
+      const minted = await this.tokenFor({ session, accountId: stored.id })
+
+      return credentialOf({ stored, minted })
+    } catch (error) {
+      throw this.sessionRefused(error) ?? error
+    }
+  }
+
+  /**
+   * A refusal anywhere in the read — the account metadata or the mint itself — ends the session:
+   * the token the cloud rejected will not start working again, so the session is cleared and every
+   * held token and rejected-marker with it, and the operator is pointed at signing back in. The
+   * onCleared listeners retire the proxies' per-session caches; the refusal is idempotent, so a
+   * second call after the clear simply reads as signed out.
+   */
+  private sessionRefused(error: unknown): CredentialError | null {
+    if (!isCloudRefusal(error)) return null
+
+    this.sessions.clear()
+    this.held.clear()
+    this.rejected.clear()
+    const status = error instanceof CloudError ? error.status : 0
+    return new CredentialError({
+      failure: ECredentialFailure.Expired,
+      message: `the Atlas Cloud session was rejected (${status}) — sign back in with /auth.`,
+    })
   }
 
   async discard(credential: Credential): Promise<void> {
@@ -194,6 +219,8 @@ export class BrokeredCredentialPort extends CredentialPort {
       return await this.fetchChosenAccount(args)
     } catch (error) {
       const stale = this.staleChosenAccount(args)
+      // A refusal voids the session the metadata was cached under — the caching store has already
+      // dropped it, and mint's refusal path is what logs the operator out; nothing serves here.
       if (!isCloudUnavailable(error) || stale === undefined) throw error
       return stale
     }
