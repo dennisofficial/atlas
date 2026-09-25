@@ -28,6 +28,8 @@ export type FakeWorkItemRow = {
 export type FakeOrchestratorThreadRow = {
   id: string
   head: number
+  userId?: string | undefined
+  title?: string | undefined
 }
 
 export type FakeOrchestratorEventRow = {
@@ -313,6 +315,10 @@ export function createFakeFactoryDb() {
         threads.push({ id: args.data.id, head: 0 })
         return args.data
       },
+      findFirst: async (args: { where: Where; select?: Record<string, boolean> }) => {
+        const found = threads.find((one) => matchesRow(one as unknown as FakeRow, args.where))
+        return found === undefined ? null : project(found, args.select)
+      },
       delete: async (args: { where: { id: string } }) => {
         const index = threads.findIndex((one) => one.id === args.where.id)
         if (index === -1) throw new Error('record not found')
@@ -353,6 +359,11 @@ export function createFakeFactoryDb() {
         stationRuns.splice(0, stationRuns.length, ...snapshot.stationRuns)
         throw error
       }
+    },
+    $queryRawUnsafe: async (query: string, ..._params: unknown[]) => {
+      if (query.includes('pg_try_advisory_xact_lock')) return [{ locked: true }]
+      if (query.includes('substr(md5(')) return [{ key: '1' }]
+      return []
     },
   }
 
