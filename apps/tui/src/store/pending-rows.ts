@@ -20,6 +20,7 @@ import {
 export enum EPendingKind {
   Operator = 'operator',
   Command = 'command',
+  Sending = 'sending',
   BackgroundShell = 'background-shell',
   Agent = 'agent',
   Service = 'service',
@@ -28,6 +29,7 @@ export enum EPendingKind {
 export type PendingRow =
   | { kind: EPendingKind.Operator; id: string; text: string }
   | { kind: EPendingKind.Command; id: string; text: string }
+  | { kind: EPendingKind.Sending; id: string; text: string; failed: boolean }
   | { kind: EPendingKind.BackgroundShell; id: string; text: string; failed: boolean }
   | { kind: EPendingKind.Agent; id: string; text: string; failed: boolean }
   | { kind: EPendingKind.Service; id: string; text: string; failed: boolean }
@@ -113,18 +115,24 @@ export function pendingRows(args: {
   notices: readonly PendingShellNotice[]
   agents: readonly AgentSnapshot[]
   services: readonly ServiceSnapshot[]
+  sending?: readonly { id: string; text: string; failed: boolean }[]
 }): readonly PendingRow[] {
   const { agents, services } = args
+  const sending = args.sending ?? []
   if (
     args.entries.length === 0 &&
     args.notices.length === 0 &&
     agents.length === 0 &&
-    services.length === 0
+    services.length === 0 &&
+    sending.length === 0
   ) {
     return NOTHING_PENDING
   }
 
   return [
+    ...sending.map(
+      (one): PendingRow => ({ kind: EPendingKind.Sending, id: one.id, text: one.text, failed: one.failed }),
+    ),
     ...operatorRows(args.entries),
     ...args.notices.map((notice): PendingRow => pendingShellRow(notice)),
     ...agents.map((notice): PendingRow => pendingAgentRow(notice)),

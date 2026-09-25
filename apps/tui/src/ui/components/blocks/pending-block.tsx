@@ -7,17 +7,25 @@ import { UserBlock } from './user-block'
 type NoticeKind = EPendingKind.BackgroundShell | EPendingKind.Agent | EPendingKind.Service
 
 type PendingRun =
+  | { kind: EPendingKind.Sending; id: string; text: string; failed: boolean }
   | { kind: EPendingKind.Operator; id: string; said: readonly string[] }
   | { kind: NoticeKind; id: string; text: string; failed: boolean }
 
 /**
  * Consecutive queued submissions share one panel, the way the transcript gives one panel to
  * consecutive things the operator said — a queued command is one of those, so it reads the same.
+ * A message awaiting its commit reads as that same panel but is not one: it is already sent, so it
+ * merges with nothing and carries no take-back affordance.
  */
 export function pendingRuns(rows: readonly PendingRow[]): readonly PendingRun[] {
   const runs: PendingRun[] = []
 
   for (const row of rows) {
+    if (row.kind === EPendingKind.Sending) {
+      runs.push({ kind: EPendingKind.Sending, id: row.id, text: row.text, failed: row.failed })
+      continue
+    }
+
     if (row.kind === EPendingKind.Operator || row.kind === EPendingKind.Command) {
       const open = runs.at(-1)
       if (open?.kind === EPendingKind.Operator) {
@@ -44,6 +52,17 @@ export function PendingBlock(props: {
   return (
     <box flexDirection="column" flexShrink={0}>
       {pendingRuns(props.rows).map((run) => {
+        if (run.kind === EPendingKind.Sending) {
+          return (
+            <UserBlock
+              key={run.id}
+              said={[run.text]}
+              width={props.width}
+              sending={!run.failed}
+              sendFailed={run.failed}
+            />
+          )
+        }
         if (run.kind === EPendingKind.Operator) {
           return <UserBlock key={run.id} said={run.said} width={props.width} takeBack />
         }
