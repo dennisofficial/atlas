@@ -1,4 +1,4 @@
-import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
+import { EAgentStart, EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
 import {
   EClientRequest,
   mergePublishedWorkspace,
@@ -174,6 +174,21 @@ export async function descendFromCloud(args: {
   const children = await bridge.stores.threads.spawned({ threadId })
   for (const child of children) {
     await transferThreadDown({ threadId: child.id, target, bridge, localApp })
+    if (child.agent !== undefined) {
+      await localApp.log.append({
+        threadId,
+        runId: localApp.ids.nextRunId(),
+        drafts: [
+          {
+            type: 'agent-spawned',
+            agentId: child.id,
+            agentType: child.agent.type,
+            intent: child.title ?? '',
+            mode: EAgentStart.Fresh,
+          },
+        ],
+      }).catch(() => undefined)
+    }
   }
 
   const published = await publishWorkspaceHome({ channel })

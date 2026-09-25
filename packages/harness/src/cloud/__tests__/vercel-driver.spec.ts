@@ -351,7 +351,7 @@ describe('createOrResume', () => {
     expect(calls).toEqual(['put-context', 'boot'])
   })
 
-  it('never uploads the context archive when the sandbox resumes with it', async () => {
+  it('re-uploads the context archive when the sandbox resumes, since the local context may have moved on', async () => {
     const current = fakeSandbox({ installedStamp: 'source:this-build' })
     let uploads = 0
     const driver = new VercelDriver({
@@ -372,7 +372,7 @@ describe('createOrResume', () => {
       },
     })
 
-    expect(uploads).toBe(0)
+    expect(uploads).toBe(1)
     expect(current.deleted).toBe(false)
   })
 
