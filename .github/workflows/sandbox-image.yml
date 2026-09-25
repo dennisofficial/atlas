@@ -111,8 +111,11 @@ jobs:
         working-directory: packages/harness
         run: bun run build:serve -- --target bun-linux-x64 --outfile sandbox-image/atlas-serve
 
+      # Stamp with the same source-hash the api image uses (apps/api/Dockerfile) so the launcher
+      # reuses a matching bake instead of re-downloading. A git-sha stamp can never equal the
+      # api's source hash, which is why every boot used to download.
       - name: stamp the baked serve
-        run: printf 'source:%s' "$GITHUB_SHA" > packages/harness/sandbox-image/atlas-serve.stamp
+        run: sh packages/harness/scripts/serve-source-stamp.sh > packages/harness/sandbox-image/atlas-serve.stamp
 
       - uses: docker/build-push-action@v6
         with:
