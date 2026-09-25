@@ -6,6 +6,18 @@ export type TeardownSource = {
   drainNotifications(args: { threadId: ThreadId }): readonly EventDraft[]
 }
 
+export type TeardownShellSource = TeardownSource & {
+  threadsWithUnresolvedEndings(): readonly ThreadId[]
+  recordEndings(args: {
+    log: EventLogPort
+    ids: IdPort
+    threadId: ThreadId
+  }): Promise<unknown>
+}
+
+const isShellSource = (source: TeardownSource): source is TeardownShellSource =>
+  'recordEndings' in source
+
 export async function teardownSession(args: {
   sources: readonly TeardownSource[]
   log: EventLogPort
@@ -14,6 +26,13 @@ export async function teardownSession(args: {
 }): Promise<void> {
   try {
     await Promise.all(args.sources.map((source) => source.closeAll()))
+
+    for (const source of args.sources) {
+      if (!isShellSource(source)) continue
+      for (const threadId of source.threadsWithUnresolvedEndings()) {
+        await source.recordEndings({ log: args.log, ids: args.ids, threadId })
+      }
+    }
 
     for (const source of args.sources) {
       for (const threadId of source.threadsAwaitingNotice()) {

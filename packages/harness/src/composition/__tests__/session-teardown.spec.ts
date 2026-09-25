@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EventLogPort, EShellStatus, toThreadId, type EventDraft } from '@dltech/atlas-core'
 import { RandomIds } from '@dltech/atlas-harness'
 
-import { teardownSession, type TeardownSource } from '../session-teardown'
+import { teardownSession, type TeardownShellSource, type TeardownSource } from '../session-teardown'
 
 const THREAD = toThreadId('thread-under-test')
 
@@ -75,6 +75,34 @@ describe('teardownSession', () => {
     })
 
     expect(calls).toEqual(['shells:closeAll', 'shells:drain', 'log:append', 'sandbox:stop'])
+  })
+
+  it('records unresolved shell endings after closeAll and before the notice drain', async () => {
+    const calls: string[] = []
+    const shells: TeardownShellSource = {
+      ...recordingSource({ calls, name: 'shells', drafts: [DRAFT] }),
+      threadsWithUnresolvedEndings: () => [THREAD],
+      recordEndings: async () => {
+        calls.push('shells:recordEndings')
+      },
+    }
+
+    await teardownSession({
+      sources: [shells],
+      log: recordingLog(calls),
+      ids: new RandomIds(),
+      stopSandbox: async () => {
+        calls.push('sandbox:stop')
+      },
+    })
+
+    expect(calls).toEqual([
+      'shells:closeAll',
+      'shells:recordEndings',
+      'shells:drain',
+      'log:append',
+      'sandbox:stop',
+    ])
   })
 
   it('stops the sandbox even when a registry refuses to close', async () => {
