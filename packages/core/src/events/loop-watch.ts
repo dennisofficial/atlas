@@ -8,6 +8,7 @@ export const LOOP_WATCH_NOTICE_STEPS = 3
 export const LOOP_WATCH_CUT_ANCHOR_SLOP = 5
 export const LOOP_WATCH_CUT_SAME_ANCHOR_MAX = 2
 export const LOOP_WATCH_CUT_MAX_PER_TURN = 4
+export const LOOP_WATCH_MUTE_CADENCE = 25
 
 const SPEECH_CLIP = 300
 const INPUT_CLIP = 200
@@ -69,11 +70,43 @@ const lastSteeringIndex = (events: readonly Event[]): number =>
   events.findLastIndex((event) => event.type === 'user-said' || event.type === 'nudge')
 
 /**
+ * Tool calls since the last substantive speech — the measure of a mute stretch. An agent that
+ * stops talking is invisible to the speech floor forever, however long it spins, so the stretch
+ * becomes judgeable on a cadence instead: each time the count crosses a new multiple of
+ * LOOP_WATCH_MUTE_CADENCE, the teacher walks past. Crossing (rather than landing on) is what
+ * makes the cadence stick: consultations only happen between steps, and a step can fire several
+ * calls at once, so a step that jumps the count from 24 to 26 still counts as passing 25.
+ */
+const muteStretchCrossedCadence = ({ since }: { since: readonly Event[] }): boolean => {
+  let calls = 0
+  let callsBeforeLastStep = 0
+  for (const event of since) {
+    if (event.type === 'assistant-said' && speechOf(event).length > 0) {
+      calls = 0
+      callsBeforeLastStep = 0
+      continue
+    }
+    if (event.type === 'assistant-said') {
+      callsBeforeLastStep = calls
+      continue
+    }
+    if (event.type === 'tool-called') calls += 1
+  }
+  return (
+    calls >= LOOP_WATCH_MUTE_CADENCE &&
+    Math.floor(calls / LOOP_WATCH_MUTE_CADENCE) >
+      Math.floor(callsBeforeLastStep / LOOP_WATCH_MUTE_CADENCE)
+  )
+}
+
+/**
  * The judgeable window: what the agent has done since the last steering event. Below
  * LOOP_WATCH_MIN_SPEECHES there is no pattern to judge, so the caller skips the consultation
- * entirely. A user message resets the window because steering is new information, and a nudge
- * resets it for the same reason — the judgement after a warning must grade what the agent did
- * next, not the pattern it was already warned about.
+ * entirely — unless the stretch went mute and just crossed another LOOP_WATCH_MUTE_CADENCE of
+ * tool calls, so a long silence keeps getting graded on a cadence. A user message resets the
+ * window because steering is new information, and a nudge resets it for the same reason — the
+ * judgement after a warning must grade what the agent did next, not the pattern it was already
+ * warned about.
  */
 export function loopWatchWindow({
   events,
@@ -85,7 +118,9 @@ export function loopWatchWindow({
   const speeches = since.filter(
     (event) => event.type === 'assistant-said' && speechOf(event).length > 0,
   )
-  if (speeches.length < LOOP_WATCH_MIN_SPEECHES) return undefined
+  if (speeches.length < LOOP_WATCH_MIN_SPEECHES && !muteStretchCrossedCadence({ since })) {
+    return undefined
+  }
 
   const steps = since.slice(-LOOP_WATCH_WINDOW).flatMap((event) => {
     const line = lineOf(event)

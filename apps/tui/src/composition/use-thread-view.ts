@@ -240,7 +240,10 @@ export function useThreadView(args: {
             signal.type === "step-ended" ||
             signal.type === "events-appended"
           ) {
-            void refresh();
+            // A refresh reads the thread's tail — over the wire for a cloud thread — so a failed
+            // read leaves the stale view standing rather than taking the process down with an
+            // unhandled rejection; the next signal retries.
+            void refresh().catch(() => undefined);
           }
         },
       }),
@@ -269,7 +272,7 @@ export function useThreadView(args: {
   useEffect(
     () =>
       subscribeTranscriptViewport(() => {
-        if (transcriptViewport().tailing) void pager.loadNewer();
+        if (transcriptViewport().tailing) void pager.loadNewer().catch(() => undefined);
       }),
     [pager],
   );

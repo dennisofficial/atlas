@@ -339,7 +339,7 @@ describe('agent_say', () => {
 })
 
 describe('agent_resume', () => {
-  it('re-runs a child that stopped, appending nothing to its conversation', async () => {
+  it('re-runs a child that failed, appending nothing to its conversation', async () => {
     const open_ = await open()
     const agentId = spawnedId(
       await invoke({
@@ -349,7 +349,7 @@ describe('agent_resume', () => {
       }),
     )
     const before = (await open_.harness.log.readOwn({ threadId: agentId })).length
-    open_.runners.started[0]?.settle(finished())
+    open_.runners.started[0]?.fail(new Error('the model gateway dropped'))
     await settle()
 
     const outcome = await invoke({ tool: open_.resume, threadId: open_.parent, input: { agentId } })
@@ -357,6 +357,25 @@ describe('agent_resume', () => {
     expect(outcome.ok).toBe(true)
     expect(open_.runners.resumed).toEqual([agentId])
     expect(await open_.harness.log.readOwn({ threadId: agentId })).toHaveLength(before)
+  })
+
+  it('drops a resume for a finished child, naming the refusal', async () => {
+    const open_ = await open()
+    const agentId = spawnedId(
+      await invoke({
+        tool: open_.spawn,
+        threadId: open_.parent,
+        input: { agentType: 'explore', intent: 'mine', brief: 'do mine' },
+      }),
+    )
+    open_.runners.started[0]?.settle(finished())
+    await settle()
+
+    const outcome = await invoke({ tool: open_.resume, threadId: open_.parent, input: { agentId } })
+
+    expect(outcome.ok).toBe(false)
+    expect(!outcome.ok && outcome.reason).toContain('finished')
+    expect(open_.runners.resumed).toEqual([])
   })
 
   it('refuses an agentId this thread never started', async () => {

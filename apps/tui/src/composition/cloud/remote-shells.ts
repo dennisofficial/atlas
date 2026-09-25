@@ -113,4 +113,16 @@ export class RemoteShellRegistry extends ShellRegistryPort {
   forgetNotices(_args: { threadId: ThreadId }): void {}
 
   async closeAll(): Promise<void> {}
+
+  /**
+   * Endings for a cloud session's shells are recorded in the sandbox by its own serve process; this
+   * side only ever reads the roster, so there is nothing here to settle.
+   */
+  async recordEndings(): Promise<readonly { shellId: string; command: string }[]> {
+    return []
+  }
+
+  threadsWithUnresolvedEndings(): readonly ThreadId[] {
+    return []
+  }
 }

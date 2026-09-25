@@ -14,6 +14,7 @@ import {
 import { memoryAccountStore } from '../../credentials/account-store'
 import { BrokeredCredentialPort } from '../../credentials/brokered-credential-port'
 import { CredentialError, ECredentialFailure } from '../../credentials/credential-error'
+import { AccountStoreProxy } from '../account-store-proxy'
 import { CloudError } from '../cloud-transport'
 import { CloudSessionStore } from '../cloud-session'
 
@@ -23,7 +24,7 @@ const clock: ClockPort = { now: () => nowIso }
 let directory: string
 let sessions: CloudSessionStore
 let fetchCalls: { url: string; body: unknown }[]
-let answer: () => Response
+let answer: (url?: string) => Response
 const realFetch = globalThis.fetch
 
 const brokering = () =>
@@ -207,14 +208,19 @@ describe('BrokeredCredentialPort holding what it minted', () => {
     await expect(port.read()).rejects.toBeInstanceOf(CloudError)
   })
 
-  it('refuses a rejected session rather than serving the held token', async () => {
+  it('ends the session on a refused token: held tokens dropped, session cleared, sign-in demanded', async () => {
     const port = await signedInPort()
     await port.read()
 
     answer = failing(401)
     nowIso = '2026-01-01T00:56:00.000Z'
 
-    await expect(port.read()).rejects.toBeInstanceOf(CloudError)
+    const failure = await port.read().catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(CredentialError)
+    expect((failure as CredentialError).failure).toBe(ECredentialFailure.Expired)
+    expect((failure as CredentialError).message).toContain('/auth')
+    expect(sessions.read()).toBeNull()
   })
 
   it('forgets what it held when the signed-in session changes', async () => {
@@ -236,5 +242,104 @@ describe('BrokeredCredentialPort holding what it minted', () => {
 
     expect(fetchCalls).toHaveLength(2)
     expect(second).toMatchObject({ accessToken: 'brokered-access-2' })
+  })
+})
+
+describe('BrokeredCredentialPort reading account metadata through an outage', () => {
+  const remoteAccountBody = {
+    id: 'acc_cloud_1',
+    provider: EAuthProvider.Anthropic,
+    kind: EAuthKind.Oauth,
+    origin: 'login',
+    label: 'cloud account',
+    status: 'active',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  }
+
+  const remoteStoredBody = {
+    ...remoteAccountBody,
+    secret: {
+      kind: 'oauth',
+      tokens: {
+        accessToken: 'stored-access',
+        refreshToken: 'stored-refresh',
+        expiresAt: '2026-01-01T00:30:00.000Z',
+        accountId: 'user_1',
+      },
+    },
+  }
+
+  const answerFor = (url?: string): Response => {
+    if (url === undefined) return brokering()
+    if (url.endsWith('/access-token')) return brokering()
+    if (url.includes('/v1/accounts/active/'))
+      return new Response(JSON.stringify({ accountId: 'acc_cloud_1' }), { status: 200 })
+    if (url.endsWith('/v1/accounts'))
+      return new Response(JSON.stringify([remoteAccountBody]), { status: 200 })
+    return new Response(JSON.stringify(remoteStoredBody), { status: 200 })
+  }
+
+  const proxiedPort = () => {
+    const local = memoryAccountStore({ clock })
+    const proxy = new AccountStoreProxy({ local, sessions, clock })
+    return new BrokeredCredentialPort({ accounts: proxy, sessions, clock })
+  }
+
+  const outageAnswering = () => {
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      fetchCalls.push({
+        url: String(url),
+        body: init?.body === undefined ? undefined : JSON.parse(String(init.body)),
+      })
+      return answer(String(url))
+    }) as typeof fetch
+  }
+
+  it('falls back to the last-known account metadata when the cloud 504s mid-session', async () => {
+    answer = answerFor
+    outageAnswering()
+    const port = proxiedPort()
+
+    const first = await port.read()
+    expect(first).toMatchObject({ kind: EAuthKind.Oauth, accountId: 'acc_cloud_1' })
+    if (first.kind !== EAuthKind.Oauth) throw new Error('expected an oauth credential')
+    expect(first.accessToken).toMatch(/^brokered-access-/)
+
+    answer = failing(504)
+    nowIso = '2026-01-01T00:56:00.000Z'
+    const later = await port.read()
+
+    expect(later).toMatchObject({ kind: EAuthKind.Oauth, accountId: 'acc_cloud_1' })
+    if (later.kind !== EAuthKind.Oauth) throw new Error('expected an oauth credential')
+    expect(later.accessToken).toMatch(/^brokered-access-/)
+  })
+
+  it('keeps failing when the outage predates any successful read — nothing is last-known yet', async () => {
+    answer = failing(504)
+    outageAnswering()
+    const port = proxiedPort()
+
+    await expect(port.read()).rejects.toBeInstanceOf(CloudError)
+  })
+
+  it('ends the session on a refused token — the cloud cache dies with it and nothing stale serves', async () => {
+    answer = answerFor
+    outageAnswering()
+    const port = proxiedPort()
+
+    await port.read()
+
+    answer = failing(401)
+    nowIso = '2026-01-01T00:56:00.000Z'
+    const refusal = await port.read().catch((error: unknown) => error)
+
+    expect(refusal).toBeInstanceOf(CredentialError)
+    expect(sessions.read()).toBeNull()
+
+    answer = answerFor
+    const after = await port.read().catch((error: unknown) => error)
+    expect(after).toBeInstanceOf(CredentialError)
+    expect((after as CredentialError).failure).toBe(ECredentialFailure.NotFound)
   })
 })

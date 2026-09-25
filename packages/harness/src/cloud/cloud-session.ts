@@ -20,9 +20,22 @@ const cloudSessionFileSchema = z.object({
 
 export class CloudSessionStore {
   private readonly cipher: SecretCipher
+  private readonly clearedListeners = new Set<() => void>()
 
   constructor(private readonly args: { file: string; keyFile: string }) {
     this.cipher = new SecretCipher(args.keyFile)
+  }
+
+  /**
+   * Every consumer reads the session per call, so a clear flips them all to local at once — the
+   * listeners let the layers holding per-session caches (brokered tokens, account metadata,
+   * settings) drop state that belonged to the dead session rather than waiting to re-read.
+   */
+  onCleared(listener: () => void): () => void {
+    this.clearedListeners.add(listener)
+    return () => {
+      this.clearedListeners.delete(listener)
+    }
   }
 
   read(): CloudSession | null {
@@ -61,5 +74,6 @@ export class CloudSessionStore {
 
   clear(): void {
     rmSync(this.args.file, { force: true })
+    for (const listener of this.clearedListeners) listener()
   }
 }

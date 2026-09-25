@@ -80,4 +80,50 @@ describe('a thread view told the log moved', () => {
       await teardown(setup)
     }
   }, 30_000)
+
+  it('leaves the stale view standing when a refresh read fails — a 504 is not a crash', async () => {
+    const app = fakeApp({ model: scriptedModelPort({ script: { thinking: '', reply: 'ok' } }) })
+    await append({ app, drafts: [{ type: 'user-said', text: 'hello' }] })
+
+    const probe: Probe = { renders: 0, reads: 0, entries: 0 }
+    const setup = await testRender(<ThreadViewProbe app={app} probe={probe} />, {
+      width: 60,
+      height: 6,
+    })
+
+    const rejections: unknown[] = []
+    const onRejection = (reason: unknown) => rejections.push(reason)
+    process.on('unhandledRejection', onRejection)
+
+    try {
+      await readsPast({ app, count: 1 })
+      await settle(RENDER_MS)
+
+      let heads = 0
+      const baseHead = app.log.head.bind(app.log)
+      app.log.head = (args) => {
+        heads += 1
+        return heads === 1
+          ? Promise.reject(new Error('The Atlas Cloud API answered with 504.'))
+          : baseHead(args)
+      }
+
+      app.channel.publisherFor({ threadId: THREAD }).settleAppend({ events: [] })
+      const failedRead = await until({ holds: async () => heads >= 1, within: 5_000 })
+      if (!failedRead) throw new Error('the refresh never ran')
+      await settle(RENDER_MS)
+      await setup.flush()
+
+      expect(rejections).toEqual([])
+      expect(probe.entries).toBe(1)
+
+      app.channel.publisherFor({ threadId: THREAD }).settleAppend({ events: [] })
+      const retried = await until({ holds: async () => heads >= 2, within: 5_000 })
+      if (!retried) throw new Error('the next signal never retried the read')
+      expect(rejections).toEqual([])
+    } finally {
+      process.off('unhandledRejection', onRejection)
+      await teardown(setup)
+    }
+  }, 30_000)
 })

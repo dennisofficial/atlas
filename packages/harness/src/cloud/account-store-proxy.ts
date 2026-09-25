@@ -38,6 +38,9 @@ export class AccountStoreProxy extends AccountStorePort {
     this.sessions = args.sessions
     this.clientVersion = args.clientVersion
     this.clock = args.clock
+    this.sessions.onCleared(() => {
+      this.remote = undefined
+    })
   }
 
   list(): Promise<readonly Account[]> {
@@ -75,6 +78,11 @@ export class AccountStoreProxy extends AccountStorePort {
   /** Drops the cached remote reads, so the next call re-fetches — used when a provider refuses a brokered credential. */
   invalidate(): void {
     if (this.remote?.store instanceof CachingAccountStore) this.remote.store.invalidate()
+  }
+
+  /** Last-known remote values, however old — undefined when signed out or never fetched. */
+  lastKnown(): CachingAccountStore | undefined {
+    return this.remote?.store instanceof CachingAccountStore ? this.remote.store : undefined
   }
 
   private current(): AccountStorePort {

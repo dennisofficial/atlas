@@ -13,6 +13,7 @@ import {
   loopWatchNudgeDraft,
   loopWatchState,
   LOOP_WATCH_CUT_SAME_ANCHOR_MAX,
+  LOOP_WATCH_MUTE_CADENCE,
   LOOP_WATCH_WINDOW,
 } from '../loop-watch'
 import { stampDrafts } from '../stamp'
@@ -204,6 +205,115 @@ describe('loopWatchState', () => {
     )
     expect(state).not.toContain('(1)')
     expect(state).toContain('(20)')
+  })
+
+  describe('a mute stretch of tool calls', () => {
+    const muteStretch = (calls: number, start = 1): EventDraft[] => {
+      const drafts: EventDraft[] = []
+      for (let ordinal = start; ordinal < start + calls; ordinal += 1) {
+        drafts.push(
+          called({ callId: `call-${ordinal}`, name: 'read', input: { path: 'compose-serve.ts', offset: ordinal } }),
+          resulted({ callId: `call-${ordinal}`, modelText: `line ${ordinal}` }),
+        )
+      }
+      return drafts
+    }
+
+    it('stays silent below the cadence — a tool-only stretch can be an agent working through', () => {
+      const events = eventsFrom([heard('check the compose-serve wiring'), ...muteStretch(LOOP_WATCH_MUTE_CADENCE - 1)])
+      expect(loopWatchState({ events })).toBeUndefined()
+    })
+
+    it('opens the window on the step that crosses the cadence', () => {
+      const events = eventsFrom([heard('check the compose-serve wiring'), ...muteStretch(LOOP_WATCH_MUTE_CADENCE)])
+
+      const state = loopWatchState({ events }) ?? ''
+
+      expect(state).toContain('<untrusted-content source="agent-steps">')
+      expect(state).toContain('tool read:')
+      expect(state.split('\n').filter((line) => line.startsWith('- ')).length).toBeLessThanOrEqual(
+        LOOP_WATCH_WINDOW,
+      )
+    })
+
+    it('treats a step that overshoots the cadence mark as crossing it', () => {
+      const overshot = eventsFrom([
+        heard('go'),
+        said(''),
+        ...muteStretch(LOOP_WATCH_MUTE_CADENCE - 2),
+        said(''),
+        ...muteStretch(4, LOOP_WATCH_MUTE_CADENCE - 1),
+      ])
+
+      expect(loopWatchState({ events: overshot })).toBeDefined()
+    })
+
+    it('does not reopen on the step right after a crossing that was already judged', () => {
+      const justCrossed = eventsFrom([heard('go'), ...muteStretch(LOOP_WATCH_MUTE_CADENCE)])
+      const oneMoreStep = eventsFrom([
+        heard('go'),
+        ...muteStretch(LOOP_WATCH_MUTE_CADENCE),
+        said(''),
+        ...muteStretch(3, LOOP_WATCH_MUTE_CADENCE + 1),
+      ])
+
+      expect(loopWatchState({ events: justCrossed })).toBeDefined()
+      expect(loopWatchState({ events: oneMoreStep })).toBeUndefined()
+    })
+
+    it('re-arms every cadence after a clear, so a long mute stretch keeps getting graded', () => {
+      const atFirst = eventsFrom([heard('go'), ...muteStretch(LOOP_WATCH_MUTE_CADENCE)])
+      const beforeRearm = eventsFrom([
+        heard('go'),
+        ...muteStretch(LOOP_WATCH_MUTE_CADENCE),
+        said(''),
+        ...muteStretch(LOOP_WATCH_MUTE_CADENCE - 1, LOOP_WATCH_MUTE_CADENCE + 1),
+      ])
+      const atRearm = eventsFrom([
+        heard('go'),
+        ...muteStretch(LOOP_WATCH_MUTE_CADENCE),
+        said(''),
+        ...muteStretch(LOOP_WATCH_MUTE_CADENCE, LOOP_WATCH_MUTE_CADENCE + 1),
+      ])
+
+      expect(loopWatchState({ events: atFirst })).toBeDefined()
+      expect(loopWatchState({ events: beforeRearm })).toBeUndefined()
+      expect(loopWatchState({ events: atRearm })).toBeDefined()
+    })
+
+    it('one substantive speech puts the cadence away, back to the speech floor', () => {
+      const events = eventsFrom([
+        heard('check the compose-serve wiring'),
+        ...muteStretch(LOOP_WATCH_MUTE_CADENCE),
+        said('the subscribe path re-registers on every wake'),
+        ...muteStretch(LOOP_WATCH_MUTE_CADENCE - 1, LOOP_WATCH_MUTE_CADENCE + 1),
+      ])
+
+      expect(loopWatchState({ events })).toBeUndefined()
+    })
+
+    it('restarts the count at the operator’s latest word', () => {
+      const events = eventsFrom([heard('go'), ...muteStretch(LOOP_WATCH_MUTE_CADENCE), heard('stop that')])
+
+      expect(loopWatchState({ events })).toBeUndefined()
+    })
+
+    it('does not reset the count on an empty speech, which carries nothing to grade', () => {
+      const events = eventsFrom([
+        heard('go'),
+        ...muteStretch(LOOP_WATCH_MUTE_CADENCE - 1),
+        said(''),
+        called({ callId: 'call-last', name: 'read', input: { path: 'compose-serve.ts' } }),
+      ])
+
+      expect(loopWatchState({ events })).toBeDefined()
+    })
+
+    it('still opens on three speeches with no tool calls at all', () => {
+      const events = eventsFrom([heard('go'), said('one'), said('two'), said('three')])
+
+      expect(loopWatchState({ events })).toBeDefined()
+    })
   })
 
   it('will not let a quoted step close the fence it is quoted inside', () => {

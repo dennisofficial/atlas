@@ -1738,7 +1738,7 @@ function Workspace(props: {
                 opened={opened}
                 onToggle={handleToggle}
                 {...(conversation.hasOlderHistory
-                  ? { onNearTop: () => void conversation.loadOlderHistory() }
+                  ? { onNearTop: () => void conversation.loadOlderHistory().catch(() => undefined) }
                   : {})}
               />
             ) : (

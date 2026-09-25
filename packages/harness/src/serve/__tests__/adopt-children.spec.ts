@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   EAgentStatus,
+  EKilledBy,
   stampDrafts,
   toCallId,
   toEventId,
@@ -164,6 +165,44 @@ describe('adopting a thread\'s children on session start', () => {
 
     expect(resumed).toEqual([])
     expect(fake.resumed).toEqual([{ agentId: childId, threadId: parent }])
+  })
+
+  it('never resumes a child the roster carries as terminal, however resumable its own log reads', async () => {
+    const parent = toThreadId('thread-parent')
+    const stopped = toThreadId('thread-stopped')
+    const finishedId = toThreadId('thread-finished')
+    const fake = fakeAgents({
+      children: [
+        {
+          ...snapshotOf({ agentId: stopped, spawnedBy: parent }),
+          status: EAgentStatus.Stopped,
+          killedBy: EKilledBy.User,
+          endedAt: '2026-01-01T00:01:00.000Z',
+        },
+        {
+          ...snapshotOf({ agentId: finishedId, spawnedBy: parent }),
+          status: EAgentStatus.Finished,
+          endedAt: '2026-01-01T00:02:00.000Z',
+        },
+      ],
+    })
+    const log = fakeLog({
+      [stopped]: eventsFrom({
+        threadId: stopped,
+        drafts: [
+          { type: 'assistant-said', parts: [{ type: 'text', text: 'cut' }], interrupted: true },
+        ],
+      }),
+      [finishedId]: eventsFrom({
+        threadId: finishedId,
+        drafts: [{ type: 'tool-called', callId: toCallId('call-9'), name: 'bash', ordinal: 0 }],
+      }),
+    })
+
+    const resumed = await adoptChildren({ agents: fake.agents, log, threadId: parent })
+
+    expect(resumed).toEqual([])
+    expect(fake.resumed).toEqual([])
   })
 
   it('resumes every resumable child of the thread, in listing order', async () => {

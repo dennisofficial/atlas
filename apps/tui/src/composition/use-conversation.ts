@@ -15,7 +15,12 @@ import {
 } from '@dltech/atlas-core'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
-import { publishProjections, RemoteTurnRunner } from '@dltech/atlas-harness'
+import {
+  EChannelConnection,
+  publishProjections,
+  RemoteTurnRunner,
+  type RemoteDeltaChannel,
+} from '@dltech/atlas-harness'
 
 import {
   pendingRows,
@@ -48,6 +53,7 @@ import { sessionDigest } from './session-rename'
 import { useSessionName } from './use-session-name'
 import { useMainWake } from './use-main-wake'
 import { EThreadRows, useThreadView, type ThreadSeed } from './use-thread-view'
+import { useSendingRows } from './use-sending-rows'
 import { useThreadSwap } from './use-thread-swap'
 import type { RewindConfirmControl } from './use-rewind-confirm'
 import { useTurnDriver } from './use-turn-driver'
@@ -161,6 +167,26 @@ export function useConversation(args: {
     [app.runner],
   )
 
+  const sending = useSendingRows()
+
+  useEffect(() => sending.reconcile(opened.events), [opened, sending])
+
+  /**
+   * A close with a send in flight means the commit will never answer: the runner's own drive
+   * reports it as an error, but a steered message has no promise attached, so the socket state is
+   * the only witness it has. Held rather than dropped — what was typed is user data.
+   */
+  useEffect(() => {
+    if (cloudRunner === null) return undefined
+
+    const channel = app.channel
+    if (!('onConnection' in channel)) return undefined
+
+    return (channel as RemoteDeltaChannel).onConnection((connection) => {
+      if (connection.state === EChannelConnection.Closed) sending.markAllSendingFailed()
+    })
+  }, [app.channel, cloudRunner, sending])
+
   /**
    * Settled commands wait in the same queue as the messages, but drain in the driver's own settle
    * path, before `working` flips: a wake or an auto-compaction reacting to the settle must find
@@ -224,6 +250,8 @@ export function useConversation(args: {
 
   const { store, events, setEvents, refresh } = view
   const logSummary = useSyncExternalStore(store.subscribe, store.getLogSummary)
+
+  useEffect(() => sending.reconcile(events), [events, sending])
 
   const handleRevokeGrant = useRevokeGrant({ app, threadId, refresh })
 
@@ -333,6 +361,7 @@ export function useConversation(args: {
 
       if (working) {
         if (cloudRunner !== null) {
+          sending.add(text)
           cloudRunner.steer({
             threadId,
             text,
@@ -348,13 +377,23 @@ export function useConversation(args: {
         return
       }
 
-      const opened = drive([
-        ...(args.context ?? []),
-        ...[...pending.drain(), { text, images }].map(userSaidDraft),
-      ])
+      const drained = [...pending.drain()]
+      const sendingId = sending.add(text)
+      const onCommitFailed = (): void => {
+        for (const said of drained) sending.resolve(said.text)
+        sending.markFailed(sendingId)
+      }
+
+      const opened = drive(
+        [
+          ...(args.context ?? []),
+          ...[...drained, { text, images }].map(userSaidDraft),
+        ],
+        { onCommitFailed },
+      )
       nameSession({ said: text, opened, images, context: args.context })
     },
-    [cloudRunner, drive, nameSession, pending, threadId, working],
+    [cloudRunner, drive, nameSession, pending, sending, threadId, working],
   )
 
   /**
@@ -464,8 +503,15 @@ export function useConversation(args: {
   }, [app, name, started, threadId, workspace.projectDirectory])
 
   const rows = useMemo(
-    () => pendingRows({ entries: queued, notices, agents: agentNotices, services: serviceNotices }),
-    [agentNotices, notices, queued, serviceNotices],
+    () =>
+      pendingRows({
+        entries: queued,
+        notices,
+        agents: agentNotices,
+        services: serviceNotices,
+        sending: sending.rows,
+      }),
+    [agentNotices, notices, queued, sending.rows, serviceNotices],
   )
 
   const model = transcriptOfTurn({ model: derived, working, failure })

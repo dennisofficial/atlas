@@ -41,6 +41,16 @@ export const retiredAgentType = (agentType: string): string =>
 export const alreadyStepping = (agentId: ThreadId): string =>
   `agent ${agentId} is already taking a step; steer it with a message or stop it first`
 
+export function terminalAgent({
+  agentId,
+  status,
+}: {
+  agentId: ThreadId
+  status: EAgentStatus
+}): string {
+  return `agent ${agentId} is ${status}, so a queued resume is dropped rather than replayed; send a message if it should run again`
+}
+
 export const deliberatelyStopped = ({ agentId }: { agentId: ThreadId }): string =>
   `agent ${agentId} was stopped deliberately, so queued notices do not wake it; send a message if it should run again`
 

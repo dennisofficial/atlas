@@ -10,7 +10,7 @@ import {
   type StoredAccount,
 } from '@dltech/atlas-core'
 
-import { isCloudUnavailable } from './cloud-transport'
+import { isCloudRefusal, isCloudUnavailable } from './cloud-transport'
 
 export const ACCOUNT_CACHE_TTL_MS = 60_000
 
@@ -100,9 +100,29 @@ export class CachingAccountStore extends AccountStorePort {
       args.store({ value, freshUntilMs: this.nowMs() + this.ttlMs })
       return value
     } catch (error) {
+      // A refusal ends the session the cache was filled under: nothing it holds may serve again,
+      // and the proxy above is what tells the operator. An outage keeps serving what is held.
+      if (isCloudRefusal(error)) this.invalidate()
       if (!isCloudUnavailable(error) || hit === undefined) throw error
       return hit.value
     }
+  }
+
+  /**
+   * What the cache last held, however old — the outage fallback behind BrokeredCredentialPort:
+   * metadata the cloud already answered for stays usable while it is down, the same way the
+   * broker's held token does. Empty-handed when this process has never seen the data.
+   */
+  lastKnownList(): readonly Account[] | undefined {
+    return this.listEntry?.value
+  }
+
+  lastKnownActiveFor(provider: EAuthProvider): AccountId | undefined {
+    return this.activeEntries.get(provider)?.value
+  }
+
+  lastKnownRead(accountId: AccountId): StoredAccount | undefined {
+    return this.readEntries.get(accountId)?.value
   }
 
   invalidate(): void {
