@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import {
   BadRequestException,
   ConflictException,
+  forwardRef,
   Inject,
   Injectable,
   InternalServerErrorException,
@@ -23,6 +24,7 @@ import {
   type OrchestratorChannel,
 } from '../orchestrator/orchestrator-channel'
 import { deliverToServeThread, injectIntoServeThread } from '../orchestrator/serve-delivery'
+import { OrchestratorService } from '../orchestrator/orchestrator.service'
 import { TranscriptService } from '../transcript.service'
 import { WorkItemsService } from '../work-items.service'
 import { isUniqueViolation } from '../unique-violation'
@@ -60,6 +62,8 @@ export class StationsService {
     private readonly credentials: FactoryCredentialService,
     private readonly drives: FactoryDrivesService,
     @Inject(ORCHESTRATOR_CHANNEL) private readonly channel: OrchestratorChannel,
+    @Inject(forwardRef(() => OrchestratorService))
+    private readonly orchestrator: OrchestratorService,
   ) {}
 
   async spawn(args: {
@@ -203,6 +207,11 @@ export class StationsService {
       this.logger.warn(`station run ${run.id} has no sandbox row; marking it stopped anyway`)
     }
     await this.markRun({ runId: run.id, status: EStationRunStatus.Stopped })
+    await this.reportRunOutcome({
+      runId: run.id,
+      status: EStationRunStatus.Stopped,
+      reason: 'the orchestrator stopped the run',
+    })
     return { stopped: true }
   }
 
@@ -222,7 +231,46 @@ export class StationsService {
         this.logger.warn(`could not stop station run ${run.id}: ${messageOf(failure)}`)
       })
       await this.markRun({ runId: run.id, status: EStationRunStatus.Stopped })
+      await this.reportRunOutcome({
+        runId: run.id,
+        status: EStationRunStatus.Stopped,
+        reason: 'the work item reached a terminal state, so the run was stopped',
+      })
     }
+  }
+
+  /**
+   * A station run whose sandbox has died without ever reporting a result leaves the orchestrator
+   * waiting on a callback that cannot come. The liveness sweep drives this: any run still marked
+   * running past the silence threshold is inspected, and when its thread has no live endpoint it is
+   * failed here and reported, so the orchestrator is told rather than left hanging.
+   */
+  async failStuckRuns(args: { silentForMs: number }): Promise<number> {
+    const quietBefore = new Date(Date.now() - args.silentForMs).toISOString()
+    const running = await db.factoryStationRun.findMany({
+      where: { status: EStationRunStatus.Running, updatedAt: { lt: quietBefore } },
+    })
+    let failed = 0
+    for (const run of running) {
+      const item = await this.workItems.find({ workItemId: run.workItemId }).catch(() => null)
+      if (item === null) continue
+      const userId = await this.identity.userId({ organizationId: item.organizationId })
+      const endpoint = await this.sandboxes
+        .runningEndpoint({ userId, threadId: run.threadId })
+        .catch(() => null)
+      if (endpoint !== null) continue
+      this.logger.warn(
+        `station run ${run.id} has been running for over ${Math.round(args.silentForMs / 60000)}m with no live sandbox; failing it`,
+      )
+      await this.markRun({ runId: run.id, status: EStationRunStatus.Failed })
+      await this.reportRunOutcome({
+        runId: run.id,
+        status: EStationRunStatus.Failed,
+        reason: `the run went silent for over ${Math.round(args.silentForMs / 60000)} minutes and its sandbox no longer has a live endpoint, so the control plane failed it rather than leave the orchestrator waiting`,
+      })
+      failed += 1
+    }
+    return failed
   }
 
   private async createRun(args: {
@@ -304,6 +352,48 @@ export class StationsService {
         this.logger.warn(`could not mark station run ${args.runId} failed: ${messageOf(failure)}`)
       },
     )
+    await this.reportRunOutcome({
+      runId: args.runId,
+      status: EStationRunStatus.Failed,
+      reason: `the station never received its spawn message: ${messageOf(args.failure)}`,
+    })
+  }
+
+  /**
+   * The orchestrator owns the next move once a run dies, so every terminal failure or stop lands
+   * on the transcript as a station-result and wakes it — a run must never go dark silently. The
+   * event is deduped on its delivery id, so a repeated stop or a race with the result gate records
+   * the wake exactly once.
+   */
+  private async reportRunOutcome(args: {
+    runId: string
+    status: EStationRunStatus.Failed | EStationRunStatus.Stopped
+    reason: string
+  }): Promise<void> {
+    const run = await db.factoryStationRun.findUnique({ where: { id: args.runId } })
+    if (run === null) return
+    const item = await this.workItems.find({ workItemId: run.workItemId })
+    const alias = await ticketAliasOf({ workItems: this.workItems, item })
+    const appended = await this.transcript
+      .append({
+        surface: alias.surface,
+        externalId: alias.externalId,
+        deliveryId: `station-outcome:${run.id}:${args.status}`,
+        kind: EFactoryEventKind.StationResult,
+        author: 'atlas-factory',
+        payload: JSON.stringify({
+          runId: run.id,
+          kind: run.kind,
+          status: args.status,
+          reason: args.reason,
+        }),
+      })
+      .catch((failure: unknown) => {
+        this.logger.warn(`could not record the outcome of station run ${run.id}: ${messageOf(failure)}`)
+        return null
+      })
+    if (appended === null) return
+    this.orchestrator.wake({ workItemId: item.id, externalId: alias.externalId })
   }
 
   private async markRun(args: { runId: string; status: EStationRunStatus }): Promise<void> {

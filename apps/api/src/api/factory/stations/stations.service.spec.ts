@@ -20,6 +20,7 @@ import type { FactoryCredentialService } from '../orchestrator/factory-credentia
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { FactoryIdentityService } from '../orchestrator/factory-identity'
 import type { OrchestratorChannel } from '../orchestrator/orchestrator-channel'
+import type { OrchestratorService } from '../orchestrator/orchestrator.service'
 import { TranscriptService } from '../transcript.service'
 import { WorkItemsService } from '../work-items.service'
 import { EStationRunStatus } from './station.types'
@@ -74,6 +75,7 @@ describe('StationsService', () => {
   let channel: { inject: ReturnType<typeof vi.fn> }
   let credentials: { ensureSeeded: ReturnType<typeof vi.fn>; modelRef: ReturnType<typeof vi.fn>; decisionsUrl: ReturnType<typeof vi.fn> }
   let drives: { ensure: ReturnType<typeof vi.fn> }
+  let orchestrator: { wake: ReturnType<typeof vi.fn> }
   let service: StationsService
 
   const spawnOrchestrated = async () => {
@@ -108,6 +110,7 @@ describe('StationsService', () => {
       decisionsUrl: vi.fn(async () => undefined),
     }
     drives = { ensure: vi.fn(async () => 'factory-dennisofficial-factory-scratch-12') }
+    orchestrator = { wake: vi.fn(() => undefined) }
     service = new StationsService(
       workItems,
       transcript,
@@ -117,6 +120,7 @@ describe('StationsService', () => {
       credentials as unknown as FactoryCredentialService,
       drives as unknown as FactoryDrivesService,
       channel as OrchestratorChannel,
+      orchestrator as unknown as OrchestratorService,
     )
   })
 
@@ -233,6 +237,29 @@ describe('StationsService', () => {
       expect(sandboxes.stop).toHaveBeenCalledWith({
         userId: fake.users[0]?.id,
         threadId: fake.stationRuns[0]?.threadId,
+      })
+    })
+
+    it('a spawn failure records a station-result event and wakes the orchestrator', async () => {
+      const item = await spawnOrchestrated()
+      sandboxes.runningEndpoint.mockResolvedValue(null)
+      await spawn()
+      await vi.waitFor(() => {
+        expect(fake.stationRuns[0]?.status).toBe(EStationRunStatus.Failed)
+      })
+
+      await vi.waitFor(() => expect(orchestrator.wake).toHaveBeenCalled())
+      expect(orchestrator.wake).toHaveBeenCalledWith({
+        workItemId: item.id,
+        externalId: INTAKE.externalId,
+      })
+      const outcome = fake.transcriptEvents.find((one) =>
+        one.deliveryId === `station-outcome:${fake.stationRuns[0]?.id}:failed`,
+      )
+      expect(outcome?.kind).toBe(EFactoryEventKind.StationResult)
+      expect(JSON.parse(outcome?.payload ?? '{}')).toMatchObject({
+        runId: fake.stationRuns[0]?.id,
+        status: 'failed',
       })
     })
   })

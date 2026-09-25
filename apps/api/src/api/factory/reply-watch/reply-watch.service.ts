@@ -1,12 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { Inject } from '@nestjs/common'
 import { db } from '../../../db'
-import { EFactoryEventKind } from '../factory.types'
-import { deliverToServeThread } from '../orchestrator/serve-delivery'
 import { factorySandboxNameFor } from '../../platform/sandboxes/sandbox-names'
 import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
+import { EFactoryEventKind } from '../factory.types'
+import { nextReplyWatchId, nowIso } from '../ids'
 import { FactoryIdentityService } from '../orchestrator/factory-identity'
-import { ORCHESTRATOR_CHANNEL, type OrchestratorChannel } from '../orchestrator/orchestrator-channel'
-import { Inject } from '@nestjs/common'
+import {
+  ORCHESTRATOR_CHANNEL,
+  type OrchestratorChannel,
+} from '../orchestrator/orchestrator-channel'
+import { deliverToServeThread } from '../orchestrator/serve-delivery'
 import { EStatusSignal, type StatusSignalRef } from '../status-signal/status-signal'
 import { StatusSignalsService } from '../status-signal/status-signals.service'
 
@@ -18,28 +22,38 @@ export const REPLY_WATCH_GRACE_MS = 60_000
 
 const NUDGE_MARKER_PREFIX = 'reply-watch:'
 
-type PendingWatch = {
-  ref: StatusSignalRef
-  nudgeAt: number
-  nudged: boolean
-  graceAt: number
-  timer: ReturnType<typeof setTimeout>
+export enum EReplyWatchStatus {
+  Pending = 'pending',
+  Resolved = 'resolved',
+  StoodDown = 'stood-down',
+}
+
+type ReplyWatchRow = {
+  id: string
+  workItemId: string
+  surface: string
+  externalId: string
+  commentId: string | null
+  eventId: string
+  organizationId: string | null
+  status: string
+  nudgeAt: string
+  expireAt: string
 }
 
 /**
- * The reply contract's backstop. A human comment on a tracked surface arms a watch: 👀 goes up at
- * once, and if no factory reply lands on that surface within the window the orchestrator is
- * steered — a user-role XML system notice telling it to let the author know what is going on. Any
- * factory-authored reply on the surface clears the watch and the emoji. One nudge, then a single
- * grace window, then the watch stands down — a stuck loop is never spammed.
+ * The reply contract's backstop, made durable. A human comment on a tracked surface records a
+ * watch row and puts 👀 up at once; the liveness sweep reads the rows and, if no factory reply has
+ * landed on the surface once `nudgeAt` passes, steers the orchestrator with a user-role system
+ * notice. Any factory-authored reply on the surface resolves the row and clears the emoji. One
+ * nudge, then the watch stands down at `expireAt` — a stuck loop is never spammed.
  *
- * The timer is in-process and best-effort: a redeploy drops a pending watch, which the grace
- * design already tolerates.
+ * The timers are rows, not in-process `setTimeout`s, so a redeploy or an OOM kill no longer drops
+ * a pending nudge: the sweep re-derives what is due from the database on every tick.
  */
 @Injectable()
 export class ReplyWatchService {
   private readonly logger = new Logger(ReplyWatchService.name)
-  private readonly watches = new Map<string, PendingWatch>()
 
   constructor(
     private readonly signals: StatusSignalsService,
@@ -52,77 +66,121 @@ export class ReplyWatchService {
   windowMs = REPLY_WATCH_WINDOW_MS
   graceMs = REPLY_WATCH_GRACE_MS
 
-  /** Arm a watch on a human comment: heard goes up, the nudge timer starts. */
-  watch(args: {
+  /** Arm a watch on a human comment: heard goes up, a durable watch row is recorded. */
+  async watch(args: {
     workItemId: string
     ref: StatusSignalRef
     /** The transcript event id of the human comment — the nudge references it. */
     eventId: string
-  }): void {
-    this.clearWatch({ workItemId: args.workItemId })
+  }): Promise<void> {
+    await this.resolveRows({ workItemId: args.workItemId })
     void this.signals.set({ ref: args.ref, signal: EStatusSignal.Heard })
     const now = Date.now()
-    const pending: PendingWatch = {
-      ref: args.ref,
-      nudgeAt: now + this.windowMs,
-      nudged: false,
-      graceAt: now + this.windowMs + this.graceMs,
-      timer: setTimeout(() => {
-        void this.onTimer({ workItemId: args.workItemId, eventId: args.eventId })
-      }, this.windowMs),
-    }
-    this.watches.set(args.workItemId, pending)
-  }
-
-  /** A factory reply landed: mark reply-coming, clear the watch and the emoji. */
-  async resolve(args: { workItemId: string }): Promise<void> {
-    const pending = this.watches.get(args.workItemId)
-    if (pending === undefined) return
-    await this.signals.set({ ref: pending.ref, signal: EStatusSignal.ReplyComing })
-    this.clearWatch({ workItemId: args.workItemId })
-    await this.signals.clear({ ref: pending.ref })
-  }
-
-  private clearWatch(args: { workItemId: string }): void {
-    const pending = this.watches.get(args.workItemId)
-    if (pending === undefined) return
-    clearTimeout(pending.timer)
-    this.watches.delete(args.workItemId)
-  }
-
-  private async onTimer(args: { workItemId: string; eventId: string }): Promise<void> {
-    const pending = this.watches.get(args.workItemId)
-    if (pending === undefined) return
-    if (await this.repliedOnSurface({ workItemId: args.workItemId, ref: pending.ref })) {
-      this.clearWatch({ workItemId: args.workItemId })
-      return
-    }
-    if (pending.nudged) {
-      this.logger.warn(
-        `work item ${args.workItemId} still has not replied after a nudge; standing the watch down`,
-      )
-      this.clearWatch({ workItemId: args.workItemId })
-      return
-    }
-    pending.nudged = true
-    clearTimeout(pending.timer)
-    pending.timer = setTimeout(() => {
-      void this.onTimer(args)
-    }, this.graceMs)
-    await this.nudge(args, pending).catch((failure: unknown) => {
-      this.logger.warn(`reply-watch nudge failed for ${args.workItemId}: ${messageOf(failure)}`)
-    })
-  }
-
-  private async repliedOnSurface(args: {
-    workItemId: string
-    ref: StatusSignalRef
-  }): Promise<boolean> {
-    const reply = await db.factoryTranscriptEvent.findFirst({
-      where: {
+    const at = nowIso()
+    await db.factoryReplyWatch.create({
+      data: {
+        id: nextReplyWatchId(),
         workItemId: args.workItemId,
         surface: args.ref.surface,
         externalId: args.ref.externalId,
+        commentId: args.ref.commentId === undefined ? null : String(args.ref.commentId),
+        eventId: args.eventId,
+        organizationId: args.ref.organizationId ?? null,
+        status: EReplyWatchStatus.Pending,
+        nudgeAt: new Date(now + this.windowMs).toISOString(),
+        expireAt: new Date(now + this.windowMs + this.graceMs).toISOString(),
+        createdAt: at,
+        updatedAt: at,
+      },
+    })
+  }
+
+  /** A factory reply landed: mark reply-coming, resolve the open rows and clear the emoji. */
+  async resolve(args: { workItemId: string }): Promise<void> {
+    const open = await db.factoryReplyWatch.findMany({
+      where: { workItemId: args.workItemId, status: EReplyWatchStatus.Pending },
+    })
+    if (open.length === 0) return
+    for (const row of open) {
+      await this.signals
+        .set({ ref: this.refOf(row), signal: EStatusSignal.ReplyComing })
+        .catch(() => undefined)
+    }
+    await this.resolveRows({ workItemId: args.workItemId })
+    for (const row of open) {
+      await this.signals.clear({ ref: this.refOf(row) }).catch(() => undefined)
+    }
+  }
+
+  private async resolveRows(args: { workItemId: string }): Promise<void> {
+    await db.factoryReplyWatch.updateMany({
+      where: { workItemId: args.workItemId, status: EReplyWatchStatus.Pending },
+      data: { status: EReplyWatchStatus.Resolved, updatedAt: nowIso() },
+    })
+  }
+
+  /**
+   * One sweep tick over the durable rows. A watch whose surface has since been replied to resolves
+   * quietly; one past its nudge time nudges the orchestrator; one past its grace window stands
+   * down. Self-clearing rows (their surface got a reply between ticks) never fire.
+   */
+  async sweep(): Promise<number> {
+    const now = nowIso()
+    const due = await db.factoryReplyWatch.findMany({
+      where: { status: EReplyWatchStatus.Pending, nudgeAt: { lte: now } },
+    })
+    let nudged = 0
+    for (const row of due) {
+      nudged += (await this.handleDue(row, now)) ? 1 : 0
+    }
+    return nudged
+  }
+
+  private async handleDue(row: ReplyWatchRow, now: string): Promise<boolean> {
+    if (await this.repliedOnSurface(row)) {
+      await this.closeRow({ id: row.id, status: EReplyWatchStatus.Resolved })
+      return false
+    }
+    if (row.expireAt <= now) {
+      this.logger.warn(
+        `work item ${row.workItemId} still has not replied after a nudge; standing the watch down`,
+      )
+      await this.closeRow({ id: row.id, status: EReplyWatchStatus.StoodDown })
+      return false
+    }
+    await this.nudge(row).catch((failure: unknown) => {
+      this.logger.warn(`reply-watch nudge failed for ${row.workItemId}: ${messageOf(failure)}`)
+    })
+    // Re-arm past the grace window so a failed nudge is retried once rather than spammed each tick.
+    await db.factoryReplyWatch.update({
+      where: { id: row.id },
+      data: { nudgeAt: row.expireAt, updatedAt: nowIso() },
+    })
+    return true
+  }
+
+  private async closeRow(args: { id: string; status: EReplyWatchStatus }): Promise<void> {
+    await db.factoryReplyWatch.update({
+      where: { id: args.id },
+      data: { status: args.status, updatedAt: nowIso() },
+    })
+  }
+
+  private refOf(row: ReplyWatchRow): StatusSignalRef {
+    return {
+      surface: row.surface as StatusSignalRef['surface'],
+      organizationId: row.organizationId ?? '',
+      externalId: row.externalId,
+      commentId: row.commentId ?? '',
+    }
+  }
+
+  private async repliedOnSurface(row: ReplyWatchRow): Promise<boolean> {
+    const reply = await db.factoryTranscriptEvent.findFirst({
+      where: {
+        workItemId: row.workItemId,
+        surface: row.surface,
+        externalId: row.externalId,
         kind: EFactoryEventKind.Reply,
       },
       select: { id: true },
@@ -130,24 +188,24 @@ export class ReplyWatchService {
     return reply !== null
   }
 
-  private async nudge(args: { workItemId: string; eventId: string }, pending: PendingWatch): Promise<void> {
-    const item = await db.factoryWorkItem.findUnique({ where: { id: args.workItemId } })
+  private async nudge(row: ReplyWatchRow): Promise<void> {
+    const item = await db.factoryWorkItem.findUnique({ where: { id: row.workItemId } })
     if (item === null || item.orchestratorThreadId === null) return
     const userId = await this.identity.userId({ organizationId: item.organizationId })
-    const marker = `${NUDGE_MARKER_PREFIX}${args.eventId}`
+    const marker = `${NUDGE_MARKER_PREFIX}${row.eventId}`
     const text = [
       `<system-notice kind="reply-watch" marker="${marker}">`,
-      `You have not responded to ${pending.ref.externalId} yet. The author is waiting — even a one-line "still working on it" is better than silence. Reply on the surface, or if you already did, ignore this.`,
+      `You have not responded to ${row.externalId} yet. The author is waiting — even a one-line "still working on it" is better than silence. Reply on the surface, or if you already did, ignore this.`,
       `</system-notice>`,
     ].join('\n')
     await deliverToServeThread({
       deps: { sandboxes: this.sandboxes, channel: this.channel },
       userId,
       threadId: item.orchestratorThreadId,
-      sandboxName: factorySandboxNameFor({ workItemId: args.workItemId }),
+      sandboxName: factorySandboxNameFor({ workItemId: row.workItemId }),
       text,
       marker,
     })
-    this.logger.log(`reply-watch nudged the orchestrator of work item ${args.workItemId}`)
+    this.logger.log(`reply-watch nudged the orchestrator of work item ${row.workItemId}`)
   }
 }
