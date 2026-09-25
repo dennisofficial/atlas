@@ -32,7 +32,7 @@ jobs:
     branch: main
     repo: dennisofficial/atlas
   instance_count: 1
-  instance_size_slug: apps-s-1vcpu-0.5gb
+  instance_size_slug: apps-s-1vcpu-1gb
   kind: PRE_DEPLOY
   name: migrate
   run_command: npm run db:migrate:deploy
@@ -48,6 +48,9 @@ services:
   - key: APP_TIER
     scope: RUN_AND_BUILD_TIME
     value: production
+  - key: NODE_OPTIONS
+    scope: RUN_AND_BUILD_TIME
+    value: --max-old-space-size=768
   github:
     branch: main
     deploy_on_push: false
@@ -57,5 +60,5 @@ services:
     initial_delay_seconds: 20
   http_port: 8080
   instance_count: 1
-  instance_size_slug: apps-s-1vcpu-0.5gb
+  instance_size_slug: apps-s-1vcpu-1gb
   name: atlas-apps-api
