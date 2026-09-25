@@ -100,6 +100,30 @@ describe('RemoteEventLog', () => {
     expect(calls[0]?.url).toBe('http://cloud.test/v1/threads/brn_test/events/head')
   })
 
+  it('head retries a 504 rather than failing the read on the first answer', async () => {
+    const calls: Call[] = []
+    let at = 0
+    const responses: { status: number; body: unknown }[] = [
+      { status: 504, body: { message: 'gateway timeout' } },
+      { status: 200, body: { head: 42 } },
+    ]
+    const fetchFn = (async (input: unknown, init?: RequestInit) => {
+      calls.push({ url: String(input), method: init?.method ?? 'GET' })
+      const next = responses[at] ?? responses[responses.length - 1]!
+      at += 1
+      return new Response(JSON.stringify(next.body), { status: next.status })
+    }) as typeof fetch
+    const client = new SessionsClient({
+      url: 'http://cloud.test',
+      token: 'sess_test',
+      fetchFn,
+    })
+    const log = new RemoteEventLog({ client })
+
+    expect(await log.head({ threadId: THREAD })).toBe(42)
+    expect(calls).toHaveLength(2)
+  })
+
   it('replace sends the whole log as one PUT and decodes the stamped events', async () => {
     const { log, calls } = harness([[wireEvent]])
     const drafts: EventDraft[] = [{ type: 'user-said', text: 'hello' }]

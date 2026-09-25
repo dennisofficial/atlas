@@ -103,7 +103,11 @@ export class SessionsClient {
   }
 
   async spawnedThreads(args: { threadId: string }): Promise<WireThread[]> {
-    const body = await this.request({ method: 'GET', path: `/v1/threads/${args.threadId}/spawned` })
+    const body = await this.request({
+      method: 'GET',
+      path: `/v1/threads/${args.threadId}/spawned`,
+      retry: true,
+    })
     return z.array(wireThreadSchema).parse(body)
   }
 
@@ -272,6 +276,7 @@ export class SessionsClient {
     const body = await this.request({
       method: 'GET',
       path: `/v1/threads/${args.threadId}/events/head`,
+      retry: true,
     })
     return headResponseSchema.parse(body).head
   }
@@ -289,7 +294,11 @@ export class SessionsClient {
   }
 
   async turnsForThread(args: { threadId: string }): Promise<WireTurn[]> {
-    const body = await this.request({ method: 'GET', path: `/v1/threads/${args.threadId}/turns` })
+    const body = await this.request({
+      method: 'GET',
+      path: `/v1/threads/${args.threadId}/turns`,
+      retry: true,
+    })
     return z.array(wireTurnSchema).parse(body)
   }
 
@@ -297,6 +306,7 @@ export class SessionsClient {
     const body = await this.request({
       method: 'GET',
       path: `/v1/threads/${args.threadId}/turns/tree`,
+      retry: true,
     })
     return turnTreeSchema.parse(body)
   }
