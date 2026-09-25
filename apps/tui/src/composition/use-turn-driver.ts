@@ -454,7 +454,16 @@ export function useTurnDriver(args: {
     return new Promise((resolve) => settleListeners.current.add(resolve))
   }, [])
 
-  const turnInFlight = useCallback((): boolean => abort.current !== null, [])
+  /**
+   * "In flight" means a turn is running somewhere, not only one this TUI drove. A cloud thread's
+   * turn lives on the sandbox, so the serve's Ready handshake and TurnEnded frames are the reading
+   * — without them the resume hint sees an unfinished log and an idle local driver, and offers to
+   * resume a turn that is actively streaming.
+   */
+  const turnInFlight = useCallback(
+    (): boolean => abort.current !== null || remoteTurnInFlight.current,
+    [],
+  )
 
   return {
     working,

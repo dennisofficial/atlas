@@ -516,7 +516,8 @@ export function useConversation(args: {
 
   const model = transcriptOfTurn({ model: derived, working, failure })
   const retryable = model.failure !== null && !working
-  const resumable = model.failure === null && !working && turnDriver.isResumable
+  const resumable =
+    model.failure === null && !working && !turnDriver.turnInFlight() && turnDriver.isResumable
 
   return {
     rewindConfirm: turnDriver.rewindConfirm,

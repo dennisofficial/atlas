@@ -29,11 +29,15 @@ type FakeRemoteChannel = Pick<
 > & {
   acknowledgeInterrupt(): void
   failTransport(message: string): void
+  ready(turnInFlight: boolean): void
+  turnEnded(): void
 }
 
 const fakeRemoteChannel = (): FakeRemoteChannel => {
   const acks = new Set<(ack: { turnInFlight: boolean }) => void>()
   const failures = new Set<(failure: { message: string }) => void>()
+  const readies = new Set<(ready: { turnInFlight: boolean }) => void>()
+  const endings = new Set<(outcome: never) => void>()
 
   return {
     onInterruptAck: (listener) => {
@@ -48,13 +52,29 @@ const fakeRemoteChannel = (): FakeRemoteChannel => {
         failures.delete(listener)
       }
     },
-    onReady: () => () => undefined,
-    onTurnEnded: () => () => undefined,
+    onReady: (listener) => {
+      readies.add(listener)
+      return () => {
+        readies.delete(listener)
+      }
+    },
+    onTurnEnded: (listener) => {
+      endings.add(listener)
+      return () => {
+        endings.delete(listener)
+      }
+    },
     acknowledgeInterrupt() {
       for (const listener of [...acks]) listener({ turnInFlight: true })
     },
     failTransport(message) {
       for (const listener of [...failures]) listener({ message })
+    },
+    ready(turnInFlight) {
+      for (const listener of [...readies]) listener({ turnInFlight })
+    },
+    turnEnded() {
+      for (const listener of [...endings]) listener(undefined as never)
     },
   }
 }
@@ -286,6 +306,44 @@ describe('a lost cloud interrupt', () => {
       )
 
       await driverOf(probe).whenSettled()
+    } finally {
+      await done()
+    }
+  }, 20_000)
+})
+
+describe('a turn the sandbox is driving, not this TUI', () => {
+  it('reads as in flight from the serve Ready handshake, so the resume hint stays hidden', async () => {
+    const channel = fakeRemoteChannel()
+    const { probe, flush, done } = await mounted({ remoteChannel: channel })
+
+    try {
+      expect(driverOf(probe).turnInFlight()).toBe(false)
+
+      channel.ready(true)
+      await flush()
+      expect(driverOf(probe).turnInFlight()).toBe(true)
+
+      channel.turnEnded()
+      await flush()
+      expect(driverOf(probe).turnInFlight()).toBe(false)
+    } finally {
+      await done()
+    }
+  }, 20_000)
+
+  it('keeps reporting in flight across a reconnect that re-readies mid-turn', async () => {
+    const channel = fakeRemoteChannel()
+    const { probe, flush, done } = await mounted({ remoteChannel: channel })
+
+    try {
+      channel.ready(true)
+      await flush()
+      expect(driverOf(probe).turnInFlight()).toBe(true)
+
+      channel.ready(true)
+      await flush()
+      expect(driverOf(probe).turnInFlight()).toBe(true)
     } finally {
       await done()
     }
