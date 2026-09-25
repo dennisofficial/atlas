@@ -141,6 +141,7 @@ async function rowsOf(args: {
   worktree?: string | null;
   width?: number;
   version?: string;
+  repoName?: string;
 }): Promise<string[]> {
   const height = args.height ?? HEIGHT;
   const setup = await testRender(
@@ -151,6 +152,7 @@ async function rowsOf(args: {
         root={args.root ?? CWD}
         worktree={args.worktree ?? null}
         version={args.version ?? "v1.2.3"}
+        repoName={args.repoName}
       />
     </box>,
     { width: TERMINAL_WIDTH, height },
@@ -675,6 +677,24 @@ describe("the footer", () => {
 
     expect(shown).toBe("~/D/o/platform/services/gateway");
     expect(shown).not.toContain("…");
+  }, 30_000);
+
+  it("names the repo instead of the container mount when the session runs in a sandbox", async () => {
+    const rows = await rowsOf({
+      model: IDLE_SIDEBAR,
+      root: "/workspace",
+      repoName: "atlas",
+    });
+    const mark = rows.findIndex((row) => row.includes("● atlas"));
+
+    expect(written(rows[mark - 1] ?? "").trim()).toBe("atlas");
+  }, 30_000);
+
+  it("keeps the container path when no repo name is given", async () => {
+    const rows = await rowsOf({ model: IDLE_SIDEBAR, root: "/workspace" });
+    const mark = rows.findIndex((row) => row.includes("● atlas"));
+
+    expect(written(rows[mark - 1] ?? "").trim()).toBe("/workspace");
   }, 30_000);
 });
 

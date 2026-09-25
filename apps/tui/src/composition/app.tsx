@@ -190,6 +190,11 @@ const SOCKET_DOWN_REFUSAL = "the sandbox socket is down — esc will interrupt o
 
 const SANDBOX_PARKED_REFUSAL = 'the sandbox is parked — send a message to wake it first'
 
+const repoNameOf = (args: { repo: string | null; projectDirectory: string }): string => {
+  const segments = (args.repo ?? args.projectDirectory).split('/').filter((segment) => segment !== '')
+  return segments[segments.length - 1] ?? args.projectDirectory
+}
+
 /**
  * Reference the operator reads and dismisses, drawn above the composer rather than over it. One at
  * a time, and any key puts it away, which is what makes it a veil rather than an overlay.
@@ -759,6 +764,7 @@ function Workspace(props: {
       ? conversation.projectDirectory
       : null)
   const projectRoot = sidebarWorktree === null ? conversation.projectDirectory : repoRoot
+  const repoName = repoNameOf({ repo: conversation.repo, projectDirectory: conversation.projectDirectory })
   const headerDiff = useDiffStat({
     projectDirectory: conversation.projectDirectory,
     working: conversation.working,
@@ -1805,6 +1811,7 @@ function Workspace(props: {
             width={overlay ? floatingSidebarWidth({ width, sidebarWidth }) : sidebarWidth}
             model={sidebarModel}
             root={projectRoot}
+            repoName={repoName}
             worktree={sidebarWorktree}
             version={versionLabel()}
             overlay={overlay}
