@@ -249,8 +249,7 @@ The sandbox image is a private GHCR listing; access rides on GitHub.
 ## Triage labels
 
 The repo's labels are the GitHub defaults — `bug`, `documentation`, `duplicate`, `enhancement`,
-`good first issue`, `help wanted`, `invalid`, `question`, `wontfix` — plus two of ours:
-`needs-triage`, applied to anything not yet triaged onto the workstream board, and
-`atlas-factory`, for work the factory files or picks up. (`autorelease: pending` belongs to the
-release automation, not triage.) There is no `ready-for-agent` or `ready-for-human`: readiness
+`good first issue`, `help wanted`, `invalid`, `question`, `wontfix` — plus `needs-triage`,
+applied to anything not yet triaged onto the workstream board. (`autorelease: pending` belongs to
+the release automation, not triage.) There is no `ready-for-agent` or `ready-for-human`: readiness
 for an agent is read off the Projects board, not off a label.

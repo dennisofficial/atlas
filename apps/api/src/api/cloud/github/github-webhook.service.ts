@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { isUniqueViolation } from '../../factory/unique-violation'
+import { isUniqueViolation } from './unique-violation'
 import { db } from '../../../db'
 import { GithubInstallationReads } from './github-installation-reads'
 import { OPEN_STATES } from './pull-requests.service'
