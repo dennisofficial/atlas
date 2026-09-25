@@ -26,19 +26,37 @@ type RosterChannel = {
   request(args: { op: EClientRequest; params: unknown }): Promise<unknown>
   onRoster(listener: (roster: RosterWire) => void): () => void
   onReload(listener: () => void): () => void
+  onReady(listener: () => void): () => void
 }
 
 export function createRemoteRosterReader(args: { channel: RosterChannel }): RemoteRosterReader {
   const { channel } = args
   const listeners = new Set<() => void>()
+  let unsubscribeChannel: (() => void) | null = null
   const poke = (): void => {
     for (const listener of [...listeners]) listener()
   }
 
-  const unsubscribePushes = channel.onRoster(() => poke())
-  // A reload means the client re-read the log against a serve that may have restarted; whatever
-  // roster it held is just as stale.
-  const unsubscribeReloads = channel.onReload(() => poke())
+  const attach = (): void => {
+    if (unsubscribeChannel !== null) return
+    const offs = [
+      channel.onRoster(() => poke()),
+      // A reload means the client re-read the log against a serve that may have restarted; whatever
+      // roster it held is just as stale.
+      channel.onReload(() => poke()),
+      // A ready means the socket just re-attached: every roster push fired while it was down is
+      // gone for good, so the held snapshot re-answers against the live registries.
+      channel.onReady(() => poke()),
+    ]
+    unsubscribeChannel = () => {
+      for (const off of offs) off()
+    }
+  }
+
+  const detach = (): void => {
+    unsubscribeChannel?.()
+    unsubscribeChannel = null
+  }
 
   return {
     async roster(): Promise<RosterWire> {
@@ -54,11 +72,10 @@ export function createRemoteRosterReader(args: { channel: RosterChannel }): Remo
 
     onChange(listener) {
       listeners.add(listener)
+      attach()
       return () => {
         listeners.delete(listener)
-        if (listeners.size > 0) return
-        unsubscribePushes()
-        unsubscribeReloads()
+        if (listeners.size === 0) detach()
       }
     },
   }
