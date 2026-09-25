@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EExecutionLocation } from '@dltech/atlas-core'
 import { CloudError, EShellStatus, type GpgKeyMaterial } from '@dltech/atlas-harness'
 
-import { fakeEventLog } from '../../__tests__/fake-backend'
+import { fakeEventLog } from './fake-backend'
 import { ELiftStep, liftToCloud } from '../lift'
 import { CLOUD_NOTICE_KEY } from '../transition-notice'
 import { CLEAN_WORKSPACE, CLOUD_THREAD, fakeBridge } from './fixture'

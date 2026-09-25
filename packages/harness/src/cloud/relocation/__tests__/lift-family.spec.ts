@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EAgentStatus, EExecutionLocation, toRunId, type ThreadId } from '@dltech/atlas-core'
 import type { ThreadStorePort } from '@dltech/atlas-harness'
 
-import { fakeAgentSnapshot } from '../../__tests__/fake-agents'
+import { fakeAgentSnapshot } from './fake-agents'
 import { ELiftStep, liftToCloud } from '../lift'
 import { CLOUD_THREAD } from './fixture'
 import { CHILD, SETTLED_CHILD, fakeLiftAgents, harness } from './lift-fixture'

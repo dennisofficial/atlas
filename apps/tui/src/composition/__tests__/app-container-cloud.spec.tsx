@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EAgentStatus, EExecutionLocation, toRunId } from '@dltech/atlas-core'
 import { CloudError, EChannelConnection, ETurnStatus } from '@dltech/atlas-harness'
 
-import { ECloudSandboxState } from '../cloud/cloud-bridge'
+import { ECloudSandboxState } from '@dltech/atlas-harness'
 
 import { grammarsReady, settle } from '../../ui/markdown/__tests__/harness'
 import { fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'

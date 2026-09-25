@@ -6,8 +6,9 @@ import {
   type IdPort,
   type ThreadId,
 } from '@dltech/atlas-core'
-import type { AgentRegistryPort, ThreadStorePort } from '@dltech/atlas-harness'
 
+import type { AgentRegistryPort } from '../../agents/registry/port'
+import type { ThreadStorePort } from '../../store/thread-store'
 import type { CloudBridge } from './cloud-bridge'
 import { draftsOf } from './event-drafts'
 import { assertTransferred } from './transfer-verification'

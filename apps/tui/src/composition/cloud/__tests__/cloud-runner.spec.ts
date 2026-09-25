@@ -6,8 +6,8 @@ import { EChannelConnection, ETurnStatus } from '@dltech/atlas-harness'
 import { currentNotices, dismissNotice, ENoticeTone } from '../../../ui/notice-store'
 import type { ContainerMoveControl } from '../../use-container-move'
 import { createCloudRunner } from '../cloud-runner'
-import { ECloudSandboxState } from '../cloud-bridge'
-import { ELiftStep } from '../lift'
+import { ECloudSandboxState } from '@dltech/atlas-harness'
+import { ELiftStep } from '@dltech/atlas-harness'
 import { CLOUD_THREAD, fakeBridge, fakeCloudChannel } from './fixture'
 
 beforeEach(() => {

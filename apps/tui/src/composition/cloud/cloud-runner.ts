@@ -5,8 +5,8 @@ import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
 import { WAKE_HEADING, WAKE_PLAN } from '../container-move'
 import { messageOf } from '../error-text'
 import type { ContainerMoveControl } from '../use-container-move'
-import type { CloudBridge, CloudChannel } from './cloud-bridge'
-import { ELiftStep } from './lift'
+import type { CloudBridge, CloudChannel } from '@dltech/atlas-harness'
+import { ELiftStep } from '@dltech/atlas-harness'
 
 export type { CaptureContext }
 

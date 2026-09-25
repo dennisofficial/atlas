@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation, toRunId } from '@dltech/atlas-core'
 
-import { fakeAgentSnapshot } from '../../__tests__/fake-agents'
+import { fakeAgentSnapshot } from './fake-agents'
 import { ELiftFault, ELiftStep, liftToCloud } from '../lift'
 import { CLOUD_THREAD, fakeBridge } from './fixture'
 import { CHILD, fakeLiftAgents, harness } from './lift-fixture'

@@ -1,9 +1,11 @@
 import { EKilledBy, EServiceStatus, toThreadId } from '@dltech/atlas-core'
-import { EShellStatus, toShellId, type ServiceSnapshot, type ShellSnapshot } from '@dltech/atlas-harness'
 import { describe, expect, it } from 'bun:test'
 
-import { fakeShellRegistry } from '../../__tests__/fake-app'
-import { fakeServiceRegistry } from '../../__tests__/fake-services'
+import { EShellStatus, type ShellSnapshot } from '../../../shells/background-shell'
+import { toShellId } from '../../../shells/shell-id'
+import type { ServiceSnapshot } from '../../../services/service-process'
+import { fakeShellRegistry } from './fake-shells'
+import { fakeServiceRegistry } from './fake-services'
 import { stopLocalWork } from '../stop-local'
 
 const THREAD = toThreadId('lifted-thread')

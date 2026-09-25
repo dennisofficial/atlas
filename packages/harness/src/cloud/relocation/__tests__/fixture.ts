@@ -1,15 +1,16 @@
 import { toRunId, toThreadId, type EventDraft, type SaidImage, type ThreadId } from '@dltech/atlas-core'
 import type { RosterWire } from '@dltech/atlas-wire'
+
+import { EClientRequest } from '../../channel-wire'
 import {
   EChannelConnection,
-  EClientRequest,
-  ThreadStorePort,
   type ChannelConnection,
   type ChannelReady,
+  type ChannelReload,
   type InterruptAck,
-  type TurnOutcome,
-} from '@dltech/atlas-harness'
-
+} from '../../remote-delta-channel'
+import { ThreadStorePort } from '../../../store/thread-store'
+import type { TurnOutcome } from '../../../loop/turn-outcome'
 import {
   fakeEventLog,
   fakeLedger,
@@ -18,7 +19,7 @@ import {
   type FakeEventLog,
   type FakeLedger,
   type FakeThreadStore,
-} from '../../__tests__/fake-backend'
+} from './fake-backend'
 import {
   ECloudSandboxState,
   type CloudBridge,
@@ -27,7 +28,7 @@ import {
   type CloudSandbox,
   type CloudSandboxStatus,
   type LiftedWorkspace,
-} from '@dltech/atlas-harness'
+} from '../cloud-bridge'
 
 export const CLOUD_THREAD = toThreadId(`cloud-thread-${SPEC_SHARD}`)
 
@@ -266,10 +267,6 @@ class WatchedThreadStore extends ThreadStorePort {
 
   rename(args: Parameters<ThreadStorePort['rename']>[0]) {
     return this.inner.rename(args)
-  }
-
-  override onRename(listener: Parameters<ThreadStorePort['onRename']>[0]) {
-    return this.inner.onRename(listener)
   }
 
   chooseModel(args: Parameters<ThreadStorePort['chooseModel']>[0]) {

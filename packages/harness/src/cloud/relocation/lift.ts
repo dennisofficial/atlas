@@ -8,17 +8,13 @@ import {
   type ThreadId,
   type WorkspaceIdentity,
 } from '@dltech/atlas-core'
-import {
-  CloudError,
-  exportGpgMaterial,
-  GitCredentialError,
-  VercelNotConfiguredError,
-  type CaptureContext,
-  type GpgKeyMaterial,
-  type ThreadModel,
-  type ThreadStorePort,
-} from '@dltech/atlas-harness'
 
+import type { ThreadModel, ThreadStorePort } from '../../store/thread-store'
+import { exportGpgMaterial, type GpgKeyMaterial } from '../../workspace/gpg-material'
+import type { CaptureContext } from '../context-archive-policy'
+import { CloudError } from '../cloud-transport'
+import { GitCredentialError } from '../gh-auth-token'
+import { VercelNotConfiguredError } from '../vercel-credentials'
 import type { CloudBridge, CloudChannel, CloudSandbox, LiftedWorkspace } from './cloud-bridge'
 import { draftsOf } from './event-drafts'
 import {

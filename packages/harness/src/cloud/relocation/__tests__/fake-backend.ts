@@ -1,36 +1,23 @@
 import {
-  activeWorktreeOf,
   stampEvent,
-  toThreadId,
-  ECompactionAnchor,
-  EForkMode,
-  toCallId,
   toEventId,
   toRunId,
+  toThreadId,
   type EExecutionLocation,
-  type IdPort,
-  type ThreadId,
   type Event,
   type EventLogPort,
+  type IdPort,
+  type ThreadId,
 } from '@dltech/atlas-core'
-import { titleMatchesHandle, THREAD_LISTING_LIMIT } from '@dltech/atlas-harness'
-import type {
-  RenameListener,
-  SupervisedAgent,
-  ThreadModel,
-  ThreadStorePort,
-  ThreadSummary,
-  TurnLedgerPort,
-  TurnSpend,
-  Unsubscribe,
-} from '@dltech/atlas-harness'
+
+import type { SupervisedAgent, ThreadModel, ThreadStorePort, ThreadSummary } from '../../../store/thread-store'
+import type { TurnLedgerPort, TurnSpend } from '../../../ledger/turn-ledger.port'
 
 const AT = '2026-08-25T00:00:00.000Z'
 
 /**
- * Opening a conversation claims a real lock at <ATLAS_HOME>/sessions/<thread id>, and the spec
- * shards are separate processes over one shared home — minted thread ids carry the pid so one
- * shard's opens never read as another shard's live session.
+ * Minted thread ids carry the pid so one spec process's fakes never read as another's when a spec
+ * file is split across bun's sharding.
  */
 export const SPEC_SHARD = `p${process.pid}`
 
@@ -41,7 +28,9 @@ export function fakeIds(): IdPort {
     nextThreadId: () => toThreadId(`handed-${SPEC_SHARD}-${(handed += 1)}`),
     nextRunId: () => toRunId(`run-${(handed += 1)}`),
     nextEventId: () => toEventId(`event-${(handed += 1)}`),
-    nextCallId: () => toCallId(`call-${(handed += 1)}`),
+    nextCallId: () => {
+      throw new Error('unused')
+    },
   }
 }
 
@@ -54,7 +43,6 @@ export type FakeThreadStore = ThreadStorePort & {
     repo: string | null
     agent?: SupervisedAgent
   }[]
-  readonly forks: readonly { id: ThreadId; from: ThreadId; seq: number; mode: EForkMode }[]
   readonly renames: readonly { threadId: ThreadId; title: string }[]
   readonly chosenModels: readonly { threadId: ThreadId; model: ThreadModel }[]
   readonly chosenLocations: readonly { threadId: ThreadId; location: EExecutionLocation }[]
@@ -86,20 +74,9 @@ export function fakeThreadStore(
     repo: string | null
     agent?: SupervisedAgent
   }[] = []
-  const forks: { id: ThreadId; from: ThreadId; seq: number; mode: EForkMode }[] = []
   const renames: { threadId: ThreadId; title: string }[] = []
   const chosenModels: { threadId: ThreadId; model: ThreadModel }[] = []
   const chosenLocations: { threadId: ThreadId; location: EExecutionLocation }[] = []
-  const renameListeners = new Set<RenameListener>()
-
-  const dropRows = (agentIds: readonly ThreadId[] | undefined): void => {
-    if (agentIds === undefined || agentIds.length === 0) return
-    const cut = new Set<ThreadId>(agentIds)
-    for (let at = rows.length - 1; at >= 0; at -= 1) {
-      const row = rows[at]
-      if (row !== undefined && cut.has(row.id)) rows.splice(at, 1)
-    }
-  }
 
   return {
     get created() {
@@ -118,62 +95,24 @@ export function fakeThreadStore(
       return chosenLocations
     },
 
-    get forks() {
-      return forks
-    },
-
     get renames() {
       return renames
     },
 
-    async compact({ threadId, anchor, fromSeq, throughSeq, summary }) {
-      return (
-        args.log?.replaceWithSummary({
-          threadId,
-          anchor,
-          fromSeq,
-          throughSeq,
-          summary,
-          discardRows: false,
-        }) ?? 0
-      )
+    onRename() {
+      return () => undefined
     },
 
-    async summarise({ threadId, anchor, fromSeq, throughSeq, summary, cutAgents }) {
-      dropRows(cutAgents)
-      return (
-        args.log?.replaceWithSummary({
-          threadId,
-          anchor,
-          fromSeq,
-          throughSeq,
-          summary,
-          discardRows: true,
-        }) ?? 0
-      )
+    async compact() {
+      return 0
     },
 
-    async fork({ from, seq, mode, title }) {
-      created += 1
-      const source = rows.find((row) => row.id === from)
-      const row: ThreadSummary = {
-        id: toThreadId(`forked-${SPEC_SHARD}-${created}`),
-        head: seq,
-        createdAt: AT,
-        updatedAt: AT,
-        parent: { threadId: from, forkSeq: seq },
-        forkMode: mode,
-        workspace: source?.workspace ?? workspaceOf,
-        repo: source?.repo ?? null,
-        ...(source?.executionLocation === undefined
-          ? {}
-          : { executionLocation: source.executionLocation }),
-        ...(title === undefined ? {} : { title }),
-      }
-      rows.push(row)
-      forks.push({ id: row.id, from, seq, mode })
-      if (mode === EForkMode.Copy) args.log?.copyInto({ from, to: row.id, upTo: seq })
-      return row
+    async summarise() {
+      return 0
+    },
+
+    async fork() {
+      throw new Error('unused')
     },
 
     async create({ workspace, repo, agent } = {}) {
@@ -248,36 +187,17 @@ export function fakeThreadStore(
       const scoped = rows
         .filter((row) => row.workspace === project || row.repo === project)
         .reverse()
-      const taken = scoped.slice(0, limit ?? THREAD_LISTING_LIMIT)
-      if (args.log === undefined) return taken
-
-      return taken.map((row) => {
-        const worktree = activeWorktreeOf(args.log?.peek({ threadId: row.id }) ?? [])
-        return worktree === undefined
-          ? row
-          : { ...row, worktree: { path: worktree.path, branch: worktree.branch } }
-      })
+      return scoped.slice(0, limit ?? 50)
     },
 
-    async findNamed({ project, handle }) {
-      return rows.find(
-        (row) =>
-          (row.workspace === project || row.repo === project) &&
-          row.title !== undefined &&
-          titleMatchesHandle({ title: row.title, handle }),
-      )
-    },
-
-    onRename(listener: RenameListener): Unsubscribe {
-      renameListeners.add(listener)
-      return () => renameListeners.delete(listener)
+    async findNamed() {
+      return undefined
     },
 
     async rename({ threadId, title }) {
       renames.push({ threadId, title })
       const row = rows.find((held) => held.id === threadId)
       if (row !== undefined) row.title = title
-      for (const listener of [...renameListeners]) listener({ threadId, title })
     },
 
     async adopt({ threadId, workspace, repo }) {
@@ -300,11 +220,8 @@ export function fakeThreadStore(
       if (row !== undefined) row.executionLocation = location
     },
 
-    async rewind({ threadId, toSeq, cutAgents }) {
-      const row = rows.find((held) => held.id === threadId)
-      if (row !== undefined) row.head = toSeq
-      dropRows(cutAgents)
-      args.log?.truncate({ threadId, toSeq })
+    async rewind() {
+      throw new Error('unused')
     },
   }
 }
@@ -314,15 +231,6 @@ export type FakeEventLog = EventLogPort & {
   readonly ownReads: readonly ThreadId[]
   peek(args: { threadId: ThreadId }): readonly Event[]
   truncate(args: { threadId: ThreadId; toSeq: number }): void
-  copyInto(args: { from: ThreadId; to: ThreadId; upTo: number }): void
-  replaceWithSummary(args: {
-    threadId: ThreadId
-    anchor: ECompactionAnchor
-    fromSeq: number
-    throughSeq: number
-    summary: string
-    discardRows: boolean
-  }): number
 }
 
 export function fakeEventLog(seeded: readonly Event[] = []): FakeEventLog {
@@ -400,55 +308,9 @@ export function fakeEventLog(seeded: readonly Event[] = []): FakeEventLog {
       return written
     },
 
-    replaceWithSummary({ threadId, anchor, fromSeq, throughSeq, summary, discardRows }) {
-      const rows = byThread.get(threadId) ?? []
-      const inRange = (event: Event): boolean => event.seq >= fromSeq && event.seq <= throughSeq
-      const compactable = rows.filter((event) => inRange(event) && event.type !== 'context-loaded')
-      const spared = rows.filter((event) => inRange(event) && event.type === 'context-loaded')
-      const summarySeq = discardRows
-        ? standInSeq({ anchor, fromSeq, throughSeq })
-        : reserve({ threadId, count: 1 })
-      stamped += 1
-
-      const watermark = stampEvent({
-        draft: {
-          type: 'history-compacted',
-          anchor,
-          fromSeq,
-          throughSeq,
-          summary,
-          replaced: compactable.length,
-        },
-        envelope: {
-          id: toEventId(`event-${stamped}`),
-          seq: summarySeq,
-          threadId,
-          runId: toRunId('run-compaction'),
-          depth: 0,
-          at: AT,
-        },
-      })
-
-      byThread.set(threadId, [
-        ...spared,
-        watermark,
-        ...rows.filter((event) => event.seq > throughSeq),
-      ])
-      return compactable.length
-    },
-
     truncate({ threadId, toSeq }) {
       byThread.set(threadId, held({ threadId, upTo: toSeq }))
       headByThread.set(threadId, toSeq)
-    },
-
-    copyInto({ from, to, upTo }) {
-      const copied = held({ threadId: from, upTo }).map((event) => {
-        stamped += 1
-        return { ...event, id: toEventId(`event-${stamped}`), threadId: to }
-      })
-      byThread.set(to, copied)
-      headByThread.set(to, upTo)
     },
 
     async read({ threadId, upTo }) {
@@ -467,22 +329,8 @@ export function fakeEventLog(seeded: readonly Event[] = []): FakeEventLog {
   }
 }
 
-const standInSeq = ({
-  anchor,
-  fromSeq,
-  throughSeq,
-}: {
-  anchor: ECompactionAnchor
-  fromSeq: number
-  throughSeq: number
-}): number => (anchor === ECompactionAnchor.Prefix ? throughSeq : fromSeq)
-
 export type FakeLedger = TurnLedgerPort & { readonly rows: readonly TurnSpend[] }
 
-/**
- * `children` is what makes `forThreadTree` able to answer with anything: the ledger holds spend by
- * thread and has no idea which of them was delegated, so a test that cares has to say.
- */
 export function fakeLedger(
   args: {
     spent?: readonly TurnSpend[]

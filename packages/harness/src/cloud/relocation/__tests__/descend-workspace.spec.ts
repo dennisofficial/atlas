@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
-import { EClientRequest } from '@dltech/atlas-harness'
+import { EClientRequest } from '../../channel-wire'
 
 import { descend, localHome, said, seedCloud } from './descend-fixture'
 import { CLOUD_THREAD, fakeBridge } from './fixture'

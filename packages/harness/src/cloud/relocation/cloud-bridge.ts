@@ -1,13 +1,13 @@
 import type { EventLogPort, ThreadId } from '@dltech/atlas-core'
-import {
-  ECloudSandboxState,
-  type ChannelConnection,
-  type ChannelReload,
-  type RemoteDeltaChannel,
-  type ThreadStorePort,
-  type TurnLedgerPort,
-  type WorkspaceSpec,
-} from '@dltech/atlas-harness'
+
+import type {
+  ChannelConnection,
+  ChannelReload,
+  RemoteDeltaChannel,
+} from '../remote-delta-channel'
+import { ECloudSandboxState, type WorkspaceSpec } from '../sandbox-client'
+import type { TurnLedgerPort } from '../../ledger/turn-ledger.port'
+import type { ThreadStorePort } from '../../store/thread-store'
 
 export { ECloudSandboxState }
 

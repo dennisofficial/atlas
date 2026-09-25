@@ -4,8 +4,8 @@ import {
   ECloudSandboxState,
   type CloudConnection,
   type CloudSandboxStatus,
-} from './cloud-bridge'
-import { ELiftFault, ELiftStep, type LiftFailure } from './lift'
+} from '@dltech/atlas-harness'
+import { ELiftFault, ELiftStep, type LiftFailure } from '@dltech/atlas-harness'
 
 export const CLOUD_LIFT_NOTICE_KEY = 'container-cloud'
 

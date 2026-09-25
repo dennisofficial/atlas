@@ -8,14 +8,14 @@ import {
   type IdPort,
   type ThreadId,
 } from '@dltech/atlas-core'
-import type { AgentSnapshot } from '@dltech/atlas-harness'
 
+import type { AgentSnapshot } from '../../../agents/registry/snapshot'
 import {
   fakeEventLog,
   fakeThreadStore,
   type FakeEventLog,
   type FakeThreadStore,
-} from '../../__tests__/fake-backend'
+} from './fake-backend'
 import type { LiftAgentsPort } from '../lift-children'
 import { ELiftStep, type LiftArgs } from '../lift'
 import { CLEAN_WORKSPACE, CLOUD_THREAD, fakeBridge, type FakeBridge } from './fixture'

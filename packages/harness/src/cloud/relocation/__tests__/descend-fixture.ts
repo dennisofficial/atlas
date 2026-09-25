@@ -5,23 +5,27 @@ import {
   toThreadId,
   type Event,
   type IdPort,
+  type NoticePost,
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import { InMemoryToolRegistry, type RemoteMemoryMerge } from '@dltech/atlas-harness'
-
+import { InMemoryToolRegistry } from '../../../tools/registry'
+import type { RemoteMemoryMerge } from '../../merge-remote-memory'
+import { fakeAgentRegistry } from './fake-agents'
 import {
   fakeEventLog,
   fakeLedger,
   fakeThreadStore,
   type FakeEventLog,
   type FakeThreadStore,
-} from '../../__tests__/fake-backend'
-import { fakeAgentRegistry } from '../../__tests__/fake-agents'
-import { fakeServiceRegistry } from '../../__tests__/fake-services'
-import type { MoveStepId } from '../../container-move'
-import type { ContainerMoveControl } from '../../use-container-move'
-import { descendFromCloud, type DescendLocalHome, type WorkspaceMerger } from '../descend'
+} from './fake-backend'
+import { fakeServiceRegistry } from './fake-services'
+import {
+  descendFromCloud,
+  type DescendLocalHome,
+  type DescendProgressStep,
+  type WorkspaceMerger,
+} from '../descend'
 import { CLOUD_THREAD, type FakeBridge, type FakeCloudChannel } from './fixture'
 
 export const AT = '2026-09-17T12:00:00.000Z'
@@ -50,30 +54,76 @@ export const said = (args: { seq: number; text: string; threadId?: ThreadId }): 
   at: AT,
 })
 
-export const fakeMove = (): ContainerMoveControl & {
-  readonly begun: MoveStepId[] | null
-  readonly steps: readonly MoveStepId[]
-} => {
-  let begun: MoveStepId[] | null = null
-  const steps: MoveStepId[] = []
+export type OpenedLocal = { threadId: ThreadId; resumeOnArrival?: boolean | undefined }
+
+export type RecordedNotices = {
+  readonly posts: readonly NoticePost[]
+}
+
+export const recordingNotices = (): { posts: NoticePost[]; notice: { notify: (post: NoticePost) => void } } => {
+  const posts: NoticePost[] = []
   return {
-    move: null,
-    now: 0,
-    handleBegin: ({ plan }) => {
-      begun = [...(plan ?? [])]
+    posts,
+    notice: {
+      notify: (post) => {
+        posts.push(post)
+      },
     },
-    handleAdvance: (step) => {
-      steps.push(step)
-    },
-    handleSettle: () => undefined,
-    handleFail: () => undefined,
-    handleDismiss: () => undefined,
-    handleKey: () => undefined,
+  }
+}
+
+export type Surface = {
+  readonly notices: RecordedNotices
+  readonly begun: readonly DescendProgressStep[][] | readonly DescendProgressStep[]
+  readonly steps: readonly DescendProgressStep[]
+  readonly protects: number
+  readonly released: number
+  readonly surface: {
+    notice: { notify: (post: NoticePost) => void }
+    onBegin: (args: { plan: readonly DescendProgressStep[] }) => void
+    onProgress: (step: DescendProgressStep) => void
+    protect: () => () => void
+    openLocal: (home: DescendLocalHome, threadId: ThreadId) => Promise<OpenedLocal>
+  }
+}
+
+export const fakeSurface = (args: { protect?: boolean } = {}): Surface => {
+  const { posts, notice } = recordingNotices()
+  const begun: DescendProgressStep[][] = []
+  const steps: DescendProgressStep[] = []
+  let protects = 0
+  let released = 0
+
+  return {
+    notices: { get posts() { return posts } } as RecordedNotices,
     get begun() {
       return begun
     },
     get steps() {
       return steps
+    },
+    get protects() {
+      return protects
+    },
+    get released() {
+      return released
+    },
+    surface: {
+      notice,
+      onBegin: ({ plan }) => {
+        begun.push([...plan])
+      },
+      onProgress: (step) => {
+        steps.push(step)
+      },
+      protect: () => {
+        if (args.protect === false) return () => undefined
+        protects += 1
+        return () => {
+          released += 1
+        }
+      },
+      openLocal: async (_home, threadId) => ({ threadId }),
     },
   }
 }
@@ -125,23 +175,27 @@ export const descend = (args: {
   bridge: FakeBridge
   home: Home
   channel?: FakeCloudChannel
-  move?: ContainerMoveControl
+  surface?: Surface
   midTurn?: boolean
   interruptDeadlineMs?: number
   mergeWorkspace?: WorkspaceMerger
   pullMemory?: () => Promise<RemoteMemoryMerge>
-}) =>
-  descendFromCloud({
+}): Promise<OpenedLocal> => {
+  const surface = args.surface ?? fakeSurface()
+  return descendFromCloud({
     threadId: CLOUD_THREAD,
     target: EExecutionLocation.Host,
     midTurn: args.midTurn ?? false,
     bridge: args.bridge,
     channel: args.channel ?? args.bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }),
     localApp: args.home,
-    move: args.move ?? fakeMove(),
+    surface: surface.surface,
     ...(args.interruptDeadlineMs === undefined
       ? {}
       : { interruptDeadlineMs: args.interruptDeadlineMs }),
     ...(args.mergeWorkspace === undefined ? {} : { mergeWorkspace: args.mergeWorkspace }),
     ...(args.pullMemory === undefined ? {} : { pullMemory: args.pullMemory }),
-  })
+  }).then((opened) =>
+    args.midTurn === true ? { ...opened, resumeOnArrival: true } : opened,
+  )
+}

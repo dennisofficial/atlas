@@ -1,6 +1,6 @@
 import { type ThreadId } from '@dltech/atlas-core'
 import { sanitizedTitle } from '@dltech/atlas-harness'
-import { useCallback, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useState, type RefObject } from 'react'
 
 import type { AtlasApp } from './compose'
 import { ERenamed, type Renaming } from './session-rename'
@@ -16,8 +16,10 @@ export type SessionName = {
  * First-message titling is the composition root's (the TitlingTurnRunner titles every session
  * kind, serve included); what stays here is `/rename`, the deliberate second pass: it is awaited,
  * it reads the whole session rather than its opening line, and a name the operator typed wins
- * outright. The TUI no longer witnesses a root-driven rename mid-flight, so `naming` only ever
- * reports this hook's own ask.
+ * outright. Every rename that goes through the thread store — the root's titling pass included —
+ * republishes `name` through the store's `onRename`, so this hook never writes `name` for its own
+ * `/rename`: it asks the store and takes the echo back like any other listener. `setName` remains
+ * for a thread swap, where the newly opened thread's name arrives with it rather than as a rename.
  */
 export function useSessionName(args: {
   app: AtlasApp
@@ -29,6 +31,14 @@ export function useSessionName(args: {
   const { app, threadId, started, readDigest } = args
   const [name, setName] = useState<string | null>(args.initial)
   const [naming, setNaming] = useState(false)
+
+  useEffect(() => {
+    const forget = app.threads.onRename((renamed) => {
+      if (renamed.threadId !== threadId) return
+      setName(renamed.title)
+    })
+    return () => forget()
+  }, [app.threads, threadId])
 
   const nameFromTranscript = useCallback(async (): Promise<Renaming> => {
     const digest = await readDigest()
@@ -52,7 +62,6 @@ export function useSessionName(args: {
 
       if (renaming.type !== ERenamed.Renamed) return renaming
 
-      setName(renaming.name)
       await app.threads.rename({ threadId, title: renaming.name }).catch(() => undefined)
 
       return renaming

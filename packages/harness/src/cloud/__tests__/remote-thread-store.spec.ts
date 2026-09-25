@@ -143,6 +143,19 @@ describe('RemoteThreadStore', () => {
     expect(calls[4]?.body).toEqual({ toSeq: 2, cutAgents: ['brn_a'] })
   })
 
+  it('announces its own rename to subscribers, and stops once they unsubscribe', async () => {
+    const { store } = harness([], [204, 204])
+    const threadId = toThreadId('brn_1')
+    const heard: { threadId: string; title: string }[] = []
+
+    const forget = store.onRename((renamed) => heard.push(renamed))
+    await store.rename({ threadId, title: 'first' })
+    forget()
+    await store.rename({ threadId, title: 'second' })
+
+    expect(heard).toEqual([{ threadId: 'brn_1', title: 'first' }])
+  })
+
   it('compact and summarise answer the replaced count', async () => {
     const { store, calls } = harness([{ replaced: 4 }, { replaced: 2 }])
     const threadId = toThreadId('brn_1')

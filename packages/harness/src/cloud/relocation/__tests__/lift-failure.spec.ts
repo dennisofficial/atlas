@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EExecutionLocation } from '@dltech/atlas-core'
 import { CloudError, GitCredentialError, VercelNotConfiguredError } from '@dltech/atlas-harness'
 
-import { fakeThreadStore } from '../../__tests__/fake-backend'
+import { fakeThreadStore } from './fake-backend'
 import { ELiftFault, ELiftStep, liftToCloud } from '../lift'
 import { CLOUD_THREAD, fakeBridge } from './fixture'
 import { harness } from './lift-fixture'

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
 
-import { ECloudSandboxState, type CloudSandboxes } from '../cloud-bridge'
+import { ECloudSandboxState, type CloudSandboxes } from '@dltech/atlas-harness'
 import { reattachSandbox } from '../reattach-sandbox'
 
 const THREAD = toThreadId('brn_cloud')

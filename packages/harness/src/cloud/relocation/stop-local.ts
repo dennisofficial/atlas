@@ -1,13 +1,8 @@
-import { EKilledBy, EServiceStatus, type ThreadId } from '@dltech/atlas-core'
-import {
-  KILL_SETTLE_MS,
-  STOP_SETTLE_MS,
-  type ServiceRegistryPort,
-  type ShellRegistryPort,
-  type ShellSnapshot,
-} from '@dltech/atlas-harness'
+import { EKilledBy, EServiceStatus, EShellStatus, type ThreadId } from '@dltech/atlas-core'
 
-import { isShellRunning } from '../../ui/shells-model'
+import { KILL_SETTLE_MS, type ShellRegistryPort } from '../../shells/shell-registry'
+import type { ShellSnapshot } from '../../shells/background-shell'
+import { STOP_SETTLE_MS, type ServiceRegistryPort } from '../../services/service-registry'
 import type { StoppedLocally } from './transition-notice'
 
 const labelOf = (one: { command: string; description?: string | undefined }): string => {
@@ -27,7 +22,7 @@ export async function stopLocalWork(args: {
 }): Promise<StoppedLocally> {
   const running: readonly ShellSnapshot[] = args.shells
     .list({ threadId: args.threadId })
-    .filter(isShellRunning)
+    .filter((shell) => shell.status === EShellStatus.Running)
 
   for (const shell of running) {
     args.shells.kill({

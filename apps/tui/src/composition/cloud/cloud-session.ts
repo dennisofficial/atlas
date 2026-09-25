@@ -6,7 +6,7 @@ import type {
   CloudConnection,
   CloudReload,
   CloudSandboxes,
-} from './cloud-bridge'
+} from '@dltech/atlas-harness'
 import { closedConnectionOf } from './lift-notices'
 
 /**

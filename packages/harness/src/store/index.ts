@@ -1,6 +1,7 @@
 export {
   ThreadStorePort,
   THREAD_LISTING_LIMIT,
+  type RenameListener,
   type SupervisedAgent,
   type ThreadModel,
   type ThreadSummary,

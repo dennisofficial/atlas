@@ -7,6 +7,7 @@ import {
   type LinkedPullRequest,
 } from '@dltech/atlas-core'
 
+import type { Unsubscribe } from '../channel/delta-channel'
 import type { OpenThreadArgs } from './create-with-events'
 import type { ThreadWorktree } from './sessions/thread-places'
 
@@ -35,7 +36,15 @@ export type ThreadSummary = {
 
 export const THREAD_LISTING_LIMIT = 50
 
+export type RenameListener = (args: { threadId: ThreadId; title: string }) => void
+
 export abstract class ThreadStorePort {
+  onRename(listener: RenameListener): Unsubscribe {
+    void listener
+    return () => undefined
+  }
+
+
   abstract create(args: {
     title?: string | undefined
     workspace?: string | undefined

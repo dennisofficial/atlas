@@ -1,5 +1,5 @@
 import type { AtlasApp } from './compose'
-import type { CloudBridge, CloudChannel } from './cloud/cloud-bridge'
+import type { CloudBridge, CloudChannel } from '@dltech/atlas-harness'
 import type { CloudSession } from './cloud/cloud-session'
 import type { OpenedConversation } from './open-conversation'
 

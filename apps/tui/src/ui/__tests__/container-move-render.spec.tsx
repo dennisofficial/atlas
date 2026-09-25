@@ -3,7 +3,7 @@ import React from 'react'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
 
-import { ELiftStep } from '../../composition/cloud/lift'
+import { ELiftStep } from '@dltech/atlas-harness'
 import {
   advanceMove,
   beginMove,

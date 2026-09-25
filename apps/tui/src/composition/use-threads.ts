@@ -4,7 +4,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { EExecutionLocation, projectOf } from '@dltech/atlas-core'
 import type { ThreadStorePort } from '@dltech/atlas-harness'
 
-import type { CloudSandboxes } from './cloud/cloud-bridge'
+import type { CloudSandboxes } from '@dltech/atlas-harness'
 import { sandboxStatesFor } from './cloud/sandbox-states'
 
 import {

@@ -1,24 +1,20 @@
-import { beforeEach, describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation, toRunId } from '@dltech/atlas-core'
-import { ETurnStatus } from '@dltech/atlas-harness'
+import { ENoticeTone } from '@dltech/atlas-core'
+import { ETurnStatus } from '../../../loop/turn-outcome'
 
-import { currentNotices, dismissNotice, ENoticeTone } from '../../../ui/notice-store'
-import { ELocalMoveStep } from '../../container-move'
+import { EDescendStep } from '../descend'
 import { ELiftStep } from '../lift'
 import {
   CHILD,
   descend,
-  fakeMove,
+  fakeSurface,
   localHome,
   said,
   seedCloud,
 } from './descend-fixture'
 import { CLOUD_THREAD, fakeBridge } from './fixture'
-
-beforeEach(() => {
-  dismissNotice()
-})
 
 describe('bringing a cloud conversation home', () => {
   it('rebuilds the local log from the cloud and flips both stores', async () => {
@@ -27,9 +23,9 @@ describe('bringing a cloud conversation home', () => {
     const home = localHome({
       events: [said({ seq: 1, text: 'one' }), said({ seq: 2, text: 'two' })],
     })
-    const move = fakeMove()
+    const surface = fakeSurface()
 
-    const opened = await descend({ bridge, home, move })
+    const opened = await descend({ bridge, home, surface })
 
     const events = await home.log.read({ threadId: CLOUD_THREAD })
     expect(
@@ -44,11 +40,13 @@ describe('bringing a cloud conversation home', () => {
     ).toBe(EExecutionLocation.Host)
     expect(opened.threadId).toBe(CLOUD_THREAD)
     expect(opened.resumeOnArrival).toBeUndefined()
-    expect(move.steps).toEqual([
-      ELiftStep.Transferring,
-      ELiftStep.Flipping,
-      ELocalMoveStep.Relocating,
+    expect(surface.steps).toEqual([
+      EDescendStep.Transferring,
+      EDescendStep.Flipping,
+      EDescendStep.Relocating,
     ])
+    expect(surface.protects).toBe(1)
+    expect(surface.released).toBe(1)
   })
 
   it('creates the local thread when the conversation only ever lived in the cloud', async () => {
@@ -135,17 +133,14 @@ describe('bringing a cloud conversation home', () => {
         0,
       )
     }
-    const move = fakeMove()
+    const surface = fakeSurface()
 
-    const opened = await descend({ bridge, home, channel, move, midTurn: true })
+    const opened = await descend({ bridge, home, channel, surface, midTurn: true })
 
     expect(interrupts).toBe(1)
     expect(opened.resumeOnArrival).toBe(true)
-    expect(move.begun).toEqual([
-      ELiftStep.Interrupting,
-      ELiftStep.Transferring,
-      ELiftStep.Flipping,
-      ELocalMoveStep.Relocating,
+    expect(surface.begun).toEqual([
+      [ELiftStep.Interrupting, EDescendStep.Transferring, EDescendStep.Flipping, EDescendStep.Relocating],
     ])
   })
 
@@ -189,12 +184,13 @@ describe('bringing a cloud conversation home', () => {
     const bridge = fakeBridge({ destroyFails: new Error('the control plane fell over') })
     await seedCloud(bridge, ['one'])
     const home = localHome({ events: [said({ seq: 1, text: 'one' })] })
+    const surface = fakeSurface()
 
-    const opened = await descend({ bridge, home })
+    const opened = await descend({ bridge, home, surface })
 
     expect(opened.threadId).toBe(CLOUD_THREAD)
     expect(bridge.destroyed).toEqual([CLOUD_THREAD])
-    const notice = currentNotices().find((entry) => entry.key === 'descend-sandbox-destroy-failed')
+    const notice = surface.notices.posts.find((entry) => entry.key === 'descend-sandbox-destroy-failed')
     expect(notice).toBeDefined()
     expect(notice?.tone).toBe(ENoticeTone.Warn)
     expect(notice?.text).toContain('the control plane fell over')
@@ -207,14 +203,15 @@ describe('bringing a cloud conversation home', () => {
     bridge.stores.threads.chooseExecutionLocation = async () => {
       throw new Error('the control plane refused the write')
     }
+    const surface = fakeSurface()
 
-    const opened = await descend({ bridge, home })
+    const opened = await descend({ bridge, home, surface })
 
     expect(opened.threadId).toBe(CLOUD_THREAD)
     expect((await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation).toBe(
       EExecutionLocation.Host,
     )
-    const notice = currentNotices().find((entry) => entry.key === 'descend-remote-flip-failed')
+    const notice = surface.notices.posts.find((entry) => entry.key === 'descend-remote-flip-failed')
     expect(notice).toBeDefined()
     expect(notice?.tone).toBe(ENoticeTone.Warn)
     expect(notice?.ttlMs).toBeNull()
@@ -267,17 +264,19 @@ describe('bringing a cloud conversation home', () => {
     const bridge = fakeBridge()
     await seedCloud(bridge, ['one'])
     const home = localHome({ events: [said({ seq: 1, text: 'one' })] })
+    const surface = fakeSurface()
 
     const opened = await descend({
       bridge,
       home,
+      surface,
       pullMemory: async () => {
         throw new Error('the memory archive timed out')
       },
     })
 
     expect(opened.threadId).toBe(CLOUD_THREAD)
-    const notice = currentNotices().find((entry) => entry.key === 'descend-memory-pull-failed')
+    const notice = surface.notices.posts.find((entry) => entry.key === 'descend-memory-pull-failed')
     expect(notice).toBeDefined()
     expect(notice?.tone).toBe(ENoticeTone.Warn)
     expect(notice?.text).toContain('the memory archive timed out')

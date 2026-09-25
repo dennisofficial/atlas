@@ -13,7 +13,7 @@ import {
   type VercelSandboxConfig,
 } from '@dltech/atlas-harness'
 
-import type { CloudBridge, CloudSandbox, CloudSandboxes, CloudSandboxStatus } from './cloud-bridge'
+import type { CloudBridge, CloudSandbox, CloudSandboxes, CloudSandboxStatus } from '@dltech/atlas-harness'
 import { reattachSandbox } from './reattach-sandbox'
 
 /**

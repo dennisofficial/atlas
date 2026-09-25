@@ -95,6 +95,33 @@ describe('JsonlThreadStore field choices', () => {
     expect(session?.title).toBe('after')
   })
 
+  it('announces a rename through onRename, scoped to the thread it landed on', async () => {
+    const home = await tempHome()
+    const { threads } = openStore({ home })
+    const named = await threads.create({ title: 'before', workspace: '/here' })
+    const other = await threads.create({ title: 'untouched', workspace: '/here' })
+    const heard: { threadId: string; title: string }[] = []
+
+    const forget = threads.onRename((renamed) => heard.push(renamed))
+    await threads.rename({ threadId: named.id, title: 'after' })
+    expect(heard).toEqual([{ threadId: named.id, title: 'after' }])
+
+    forget()
+    await threads.rename({ threadId: other.id, title: 'elsewhere' })
+    expect(heard).toEqual([{ threadId: named.id, title: 'after' }])
+  })
+
+  it('stays silent when the thread is not there to rename', async () => {
+    const home = await tempHome()
+    const { threads } = openStore({ home })
+    const heard: { threadId: string; title: string }[] = []
+
+    threads.onRename((renamed) => heard.push(renamed))
+    await threads.rename({ threadId: toThreadId('missing'), title: 'after' })
+
+    expect(heard).toEqual([])
+  })
+
   it('remembers the chosen model without counting it as activity', async () => {
     const home = await tempHome()
     const { threads, log, ids } = openStore({ home })

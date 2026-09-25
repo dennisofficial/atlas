@@ -6,7 +6,7 @@ import { messageOf } from '../error-text'
 import type { LiftedAttachment } from '../lifted-session'
 import type { ContainerMoveControl } from '../use-container-move'
 import { cloudApp, openCloudConversation } from './cloud-app'
-import type { CloudBridge } from './cloud-bridge'
+import type { CloudBridge } from '@dltech/atlas-harness'
 import { createCloudRunner, wakeSandbox } from './cloud-runner'
 import { CLOUD_REATTACH_NOTICE_KEY, reattachNotice } from './lift-notices'
 

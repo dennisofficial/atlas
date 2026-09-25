@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { toRunId } from '@dltech/atlas-core'
 
-import { fakeEventLog } from '../../__tests__/fake-backend'
+import { fakeEventLog } from './fake-backend'
 import { liftToCloud } from '../lift'
 import { CLOUD_THREAD, fakeBridge } from './fixture'
 import { harness } from './lift-fixture'
