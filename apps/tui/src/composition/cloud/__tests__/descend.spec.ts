@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 
-import { EExecutionLocation, toRunId } from '@dltech/atlas-core'
+import { EAgentStart, EExecutionLocation, toRunId } from '@dltech/atlas-core'
 import { ETurnStatus } from '@dltech/atlas-harness'
 
 import { currentNotices, dismissNotice, ENoticeTone } from '../../../ui/notice-store'
@@ -79,6 +79,32 @@ describe('bringing a cloud conversation home', () => {
     const childRow = await home.threads.find({ threadId: CHILD })
     expect(childRow?.executionLocation).toBe(EExecutionLocation.Host)
     expect(childRow?.agent?.spawnedBy).toBe(CLOUD_THREAD)
+  })
+
+  it('restores the agent roster so no child is reported lost', async () => {
+    const bridge = fakeBridge()
+    await seedCloud(bridge, ['parent says'])
+    await bridge.log.append({
+      threadId: CLOUD_THREAD,
+      runId: toRunId('run_cloud_spawn'),
+      drafts: [
+        {
+          type: 'agent-spawned',
+          agentId: CHILD,
+          agentType: 'explore',
+          intent: 'check the thing',
+          mode: 'fresh' as never,
+        },
+      ],
+    })
+    await seedCloud(bridge, ['child says'], { threadId: CHILD, spawnedBy: CLOUD_THREAD })
+    const home = localHome({ events: [said({ seq: 1, text: 'parent says' })] })
+
+    await descend({ bridge, home })
+
+    const lost = await home.agents.recordLostAgents({ threadId: CLOUD_THREAD })
+    expect(lost.settled).toEqual([])
+    expect(lost.unlogged).toEqual([])
   })
 
   it('rebuilds the local log from the cloud when they diverged while away', async () => {
