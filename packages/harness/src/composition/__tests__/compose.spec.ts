@@ -147,9 +147,9 @@ describe('composeHarness', () => {
       })
 
       expect(app.workspace.workspace).toBe(await realpath(project))
-      expect(notices.posts.some((post) => post.text.includes('Atlas Cloud is unreachable'))).toBe(
-        true,
-      )
+      expect(
+        notices.posts.some((post) => post.text.includes('Atlas Cloud accounts could not be listed')),
+      ).toBe(true)
 
       await expect(app.close()).resolves.toBeUndefined()
     } finally {

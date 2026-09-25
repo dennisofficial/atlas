@@ -89,6 +89,33 @@ describe('ServeAccountStore', () => {
       store.setActive({ provider: EAuthProvider.Anthropic, accountId: toAccountId('acc_1') }),
     ).rejects.toThrow(/operator's machine/)
   })
+
+  it('retries a fresh fetch after a boot-time outage instead of wedging on the rejected load', async () => {
+    // A control-plane 5xx during boot outlasts cloudRequest's GET retries and makes the first
+    // list() reject; the next read must reach the broker again rather than replay the cached
+    // rejection, or the session never recovers. Outlast the 4-attempt retry, then recover.
+    let attempts = 0
+    const fetchFn = (async (input: unknown, init?: RequestInit) => {
+      attempts += 1
+      const ok = attempts > 4
+      return new Response(
+        ok ? JSON.stringify({ accounts: [accountBody], active: [] }) : 'gateway timeout',
+        { status: ok ? 200 : 504, headers: { 'content-type': 'application/json' } },
+      )
+    }) as typeof fetch
+    const broker = new ServeBrokerClient({
+      url: 'http://cloud.test',
+      token: TOKEN,
+      threadId: THREAD,
+      fetchFn,
+      sleep: () => Promise.resolve(),
+    })
+    const store = new ServeAccountStore({ broker })
+
+    await expect(store.list()).rejects.toThrow(/504/)
+    await expect(store.list()).resolves.toHaveLength(1)
+    expect(attempts).toBeGreaterThan(1)
+  })
 })
 
 describe('ServeCredentialPort', () => {

@@ -17,6 +17,7 @@ import {
   NOTICE_WARN_MS,
   parseRef,
   textValueOf,
+  type Account,
   type CapabilitiesSource,
   type NoticePort,
 } from '@dltech/atlas-core'
@@ -44,6 +45,7 @@ import { FileBrowser } from '../files/file-browser'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import { summaryFor } from '../model/summariser'
 import { titleFor } from '../model/titler'
+import { CloudError } from '../cloud/cloud-transport'
 import { registerMcp } from '../mcp/registry/register-mcp'
 import { createPendingQueues } from '../pending'
 import { registerBuiltinPromptFragments } from '../prompt/register-prompt-fragments'
@@ -57,7 +59,6 @@ import { probeWorkspace } from '../workspace/probe'
 import type { ContributedSurface } from '../plugins/surface'
 
 import { bindAccounts, bindKeychainSource } from './account-bindings'
-import { isCloudUnavailable } from '../cloud/cloud-transport'
 import { dockerCapabilitiesSource } from './capabilities-source'
 import type { Summariser } from './compact-turn'
 import type { HarnessLaunch } from './config'
@@ -172,28 +173,31 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   const secrets = container.resolve(SecretsStoreToken)
 
   await bindSettingsPolicy({ container, settings, workspace, credentials, cwd: anchor })
+
+  // A serve session reads accounts through the thread-scoped broker; a control-plane outage
+  // mid-boot must not be fatal when the launch already pins a model (factory sandboxes do), or
+  // the orchestrator never wakes. Model resolution tolerates an empty list — accounts are read
+  // again per turn — so degrade to none and warn rather than crash the boot.
+  const bootAccountList = await accountStore
+    .list()
+    .catch((error: unknown): readonly Account[] => {
+      if (!(error instanceof CloudError && (error.status === 0 || error.status >= 500))) {
+        throw error
+      }
+      notice.notify({
+        key: 'cloud:accounts',
+        tone: ENoticeTone.Warn,
+        ttlMs: NOTICE_WARN_MS,
+        text: `Atlas Cloud accounts could not be listed at boot — ${error.message.split('\n')[0] ?? ''}. The launch model still runs; account-aware picks settle on the first turn.`,
+      })
+      return []
+    })
+
   await bindInstructionsAndMemory({
     container,
     settings,
     repoRoot: workspace.repo ?? workspace.workspace,
     repoIdentity: args.repoIdentity,
-  })
-
-  /**
-   * The catalogue asks the store once so unusable models stay listed. Signed in with the cloud
-   * down, that read fails — and a catalogue with no accounts behind it is the honest shape of the
-   * session (every model dark until the first turn's credential read retries), never a reason to
-   * stop the boot.
-   */
-  const accountList = await accountStore.list().catch((error: unknown) => {
-    if (!isCloudUnavailable(error)) throw error
-    notice.notify({
-      key: 'cloud:accounts',
-      tone: ENoticeTone.Warn,
-      ttlMs: NOTICE_WARN_MS,
-      text: `Atlas Cloud is unreachable — models stay dark until it answers again (${error instanceof Error ? error.message : String(error)})`,
-    })
-    return []
   })
 
   const {
@@ -213,7 +217,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     settled,
     settings,
     credentials,
-    accountList,
+    accountList: bootAccountList,
     notice,
     env: args.env,
   })

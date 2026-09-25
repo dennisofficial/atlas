@@ -42,6 +42,7 @@ export class ServeBrokerClient {
   private readonly threadId: string
   private readonly clientVersion: string
   private readonly fetchFn: typeof fetch
+  private readonly sleep: ((ms: number) => Promise<void>) | undefined
 
   constructor(args: {
     url: string
@@ -49,12 +50,14 @@ export class ServeBrokerClient {
     threadId: string
     clientVersion?: string
     fetchFn?: typeof fetch
+    sleep?: ((ms: number) => Promise<void>) | undefined
   }) {
     this.url = args.url.replace(/\/+$/, '')
     this.token = args.token
     this.threadId = args.threadId
     this.clientVersion = args.clientVersion ?? 'dev'
     this.fetchFn = args.fetchFn ?? fetch
+    this.sleep = args.sleep
   }
 
   get baseUrl(): string {
@@ -101,6 +104,7 @@ export class ServeBrokerClient {
       path: `/v1/sandboxes/${this.threadId}/broker/${args.path}`,
       ...(args.body === undefined ? {} : { body: args.body }),
       retry: args.method === 'GET',
+      ...(this.sleep === undefined ? {} : { sleep: this.sleep }),
     })
   }
 }
