@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'bun:test'
 import { jevRiskQuestions } from '@dltech/atlas-core'
 
-import { JevDecisionClient, type JevSystemOne } from '../jev-client'
+import { JevDecisionClient, jevBaseUrl, type JevSystemOne } from '../jev-client'
 
 const CONFIG = { baseUrl: 'https://decisions.example', token: 'sk-test' }
 
@@ -66,6 +66,28 @@ describe('JevDecisionClient', () => {
     expect(outcome.ok).toBe(false)
   })
 
+  it('does not double the route when decisions.url already ends in /v1/systemone', async () => {
+    const urls: string[] = []
+    const realFetch = globalThis.fetch
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      urls.push(String(input))
+      return Response.json(noulResult(0.2))
+    }) as typeof fetch
+
+    try {
+      const client = new JevDecisionClient({
+        config: () => ({ baseUrl: 'https://api.typesafe.ai/v1/systemone', token: 'sk-test' }),
+      })
+
+      const outcome = await decide(client)
+
+      expect(outcome.ok).toBe(true)
+      expect(urls).toEqual(['https://api.typesafe.ai/v1/systemone'])
+    } finally {
+      globalThis.fetch = realFetch
+    }
+  })
+
   it('fails when the call outlasts the caller signal', async () => {
     const systemOne: JevSystemOne = (_request, options) =>
       new Promise<never>((_resolve, reject) => {
@@ -80,5 +102,24 @@ describe('JevDecisionClient', () => {
     })
 
     expect(outcome.ok).toBe(false)
+  })
+})
+
+describe('jevBaseUrl', () => {
+  it('strips trailing slashes', () => {
+    expect(jevBaseUrl('https://api.typesafe.ai/')).toBe('https://api.typesafe.ai')
+    expect(jevBaseUrl('https://api.typesafe.ai///')).toBe('https://api.typesafe.ai')
+  })
+
+  it('strips a trailing /v1/systemone route, case-insensitively', () => {
+    expect(jevBaseUrl('https://api.typesafe.ai/v1/systemone')).toBe('https://api.typesafe.ai')
+    expect(jevBaseUrl('https://api.typesafe.ai/V1/SystemOne/')).toBe('https://api.typesafe.ai')
+  })
+
+  it('leaves bare origins and gateway prefixes alone', () => {
+    expect(jevBaseUrl('https://api.typesafe.ai')).toBe('https://api.typesafe.ai')
+    expect(jevBaseUrl('http://localhost:4000')).toBe('http://localhost:4000')
+    expect(jevBaseUrl('https://gateway.example/jev')).toBe('https://gateway.example/jev')
+    expect(jevBaseUrl('https://gateway.example/jev/v1/systemone')).toBe('https://gateway.example/jev')
   })
 })

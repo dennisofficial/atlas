@@ -187,7 +187,7 @@ export function SettingsCard({ settings, organizationMissing, onSaved }: Setting
             <Input
               name="decisions-url"
               label="Decisions endpoint"
-              placeholder="https://api.typesafe.ai/v1/systemone"
+              placeholder="https://api.typesafe.ai"
               required
             />
             <Input
