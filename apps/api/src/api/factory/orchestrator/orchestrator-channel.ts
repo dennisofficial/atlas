@@ -3,7 +3,10 @@ const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
 // Mirrored from packages/harness/src/cloud/channel-wire.ts — apps/api deliberately depends on
 // nothing in-repo, so the wire contract is restated here and the protocol stamp guards drift.
-const CHANNEL_PROTOCOL_VERSION = 2
+// Bump this with the harness's CHANNEL_PROTOCOL_VERSION; the orchestrator's hello/send shape has
+// been stable across every bump (v4 only added a Roster serve frame), so a stale stamp — not a
+// changed contract — is what the mismatch guard is catching when this lags.
+export const CHANNEL_PROTOCOL_VERSION = 4
 
 const SESSION_PATH = '/v1/session'
 const CONNECT_TIMEOUT_MS = 30_000
