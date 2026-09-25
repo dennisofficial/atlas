@@ -1,8 +1,10 @@
 import {
   EAgentRestart,
+  EAgentStatus,
   EExecutionLocation,
   EKilledBy,
   projectDirectoryOf,
+  type EventDraft,
   type ExecutionLocationSinkPort,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -10,9 +12,10 @@ import {
 import { isTeammateType } from '../types'
 import { isStepping, snapshotOf, type ChildState } from './child-state'
 import type { ChildSteps } from './child-steps'
+import type { NoticeDelivery } from './delivery'
 import { agentTypeNamed, type SupervisorDeps } from './deps'
 import type { AgentOutcome, RelocateChildrenArgs } from './port'
-import { alreadyStepping, retiredAgentType, unknownAgent } from './reasons'
+import { alreadyStepping, retiredAgentType, terminalAgent, unknownAgent } from './reasons'
 import { recordRestart } from './record-restart'
 import type { ChildRecovery } from './recovery'
 import type { AgentRoster } from './roster'
@@ -24,7 +27,28 @@ export type Relocation = {
   roster: AgentRoster
   steps: ChildSteps
   recovery: ChildRecovery
+  delivery: NoticeDelivery
 }
+
+/**
+ * ContainerSwitch is the one stopped state that is not terminal: the move itself put the child
+ * there, and the whole point of the relocation is to pick it back up on the far side.
+ */
+const isTerminal = (child: ChildState): boolean => {
+  if (child.status === EAgentStatus.Finished) return true
+  return (
+    child.status === EAgentStatus.Stopped &&
+    child.killedBy !== undefined &&
+    child.killedBy !== EKilledBy.ContainerSwitch
+  )
+}
+
+const isTerminalEnding = (draft: EventDraft): boolean =>
+  draft.type === 'agent-ended' &&
+  (draft.status === EAgentStatus.Finished ||
+    (draft.status === EAgentStatus.Stopped &&
+      draft.killedBy !== undefined &&
+      draft.killedBy !== EKilledBy.ContainerSwitch))
 
 export async function childDirectory({
   deps,
@@ -101,12 +125,32 @@ export async function markThreadChildrenRelocated({
   }
 }
 
+/**
+ * An ending that no parent turn drained yet lives only in the notice queue, which a move does not
+ * carry. Flushing the thread's pending terminal endings into its durable log first is what lets
+ * the far side rebuild the same roster: a teammate the operator stopped arrives stopped, not
+ * lost. Non-terminal notices — a relocation's own interruptions — stay queued so the parent
+ * still hears them on its next turn.
+ */
+export async function flushPendingEndings({
+  threadId,
+  deps,
+  delivery,
+}: {
+  threadId: ThreadId
+} & Pick<Relocation, 'deps' | 'delivery'>): Promise<void> {
+  const drafts = delivery.drainEndings({ threadId, where: (notice) => isTerminalEnding(notice.draft) })
+  if (drafts.length === 0) return
+  await deps.log.append({ threadId, runId: deps.ids.nextRunId(), drafts })
+}
+
 export async function relocateThreadChildren(
   args: RelocateChildrenArgs & Relocation,
 ): Promise<readonly ThreadId[]> {
   const { threadId, location, deps, roster } = args
 
   const stepping = await stopThreadChildren({ ...args, by: EKilledBy.ContainerSwitch, skipTeammates: true })
+  await flushPendingEndings(args)
 
   const children = relocatableChildren({ roster, threadId, skipTeammates: true })
   const froms = new Map<ThreadId, EExecutionLocation>()
@@ -190,6 +234,7 @@ export async function resumeChild(
     return { ok: false, reason: unknownAgent({ agentId, known: roster.list(threadId) }) }
   }
   if (isStepping(child)) return { ok: false, reason: alreadyStepping(agentId) }
+  if (isTerminal(child)) return { ok: false, reason: terminalAgent({ agentId, status: child.status }) }
 
   const agentType = agentTypeNamed({ agentTypes: deps.agentTypes, name: child.agentType })
   if (agentType === undefined) {

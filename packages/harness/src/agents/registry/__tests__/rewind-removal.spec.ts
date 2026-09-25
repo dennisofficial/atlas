@@ -290,9 +290,10 @@ describe('a sub-agent whose delegation a rewind deletes', () => {
     const entry = await openAndTrack()
     const agentId = await spawnAndFinish(entry)
 
-    const again = await entry.supervisor.resume({
+    const again = await entry.supervisor.say({
       agentId,
       threadId: entry.parent,
+      text: 'keep going',
     })
     if (!again.ok) throw new Error(again.reason)
     await settled()

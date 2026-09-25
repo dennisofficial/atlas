@@ -329,6 +329,59 @@ describe('relocating a thread that owns a teammate alongside a sub-agent', () =>
   })
 })
 
+describe('relocating a thread whose child is already terminal', () => {
+  it('does not resume a finished child, and never writes a restart behind it', async () => {
+    const entry = await open()
+    opened.push(entry)
+    const childId = await spawnChild(entry, entry.parent)
+    runOf(entry, childId, 'run').settle(finished())
+    await settled()
+
+    await entry.supervisor.relocateChildren({
+      threadId: entry.parent,
+      location: EExecutionLocation.Docker,
+    })
+
+    expect(entry.order).not.toContain(`resume:${childId}`)
+    expect(entry.order).not.toContain(`append:${entry.parent}:agent-restarted`)
+
+    const snapshot = entry.supervisor
+      .list({ threadId: entry.parent })
+      .find((one) => one.agentId === childId)
+    expect(snapshot?.status).toBe(EAgentStatus.Finished)
+  })
+
+  it('flushes an undrained user-stop ending into the log, so the far side keeps the child stopped', async () => {
+    const entry = await open()
+    opened.push(entry)
+    const childId = await spawnChild(entry, entry.parent)
+    entry.supervisor.stop({ agentId: childId, threadId: entry.parent, by: EKilledBy.User })
+    runOf(entry, childId, 'run').settle(interrupted())
+    await settled()
+
+    await entry.supervisor.relocateChildren({
+      threadId: entry.parent,
+      location: EExecutionLocation.Docker,
+    })
+
+    const events = await entry.harness.log.readOwn({ threadId: entry.parent })
+    const endings = events.filter(
+      (event) => event.type === 'agent-ended' && event.agentId === childId,
+    )
+    expect(endings).toHaveLength(1)
+    expect(endings[0]).toMatchObject({ status: EAgentStatus.Stopped, killedBy: EKilledBy.User })
+
+    expect(entry.order).not.toContain(`resume:${childId}`)
+    expect(entry.order).not.toContain(`append:${entry.parent}:agent-restarted`)
+
+    const snapshot = entry.supervisor
+      .list({ threadId: entry.parent })
+      .find((one) => one.agentId === childId)
+    expect(snapshot?.status).toBe(EAgentStatus.Stopped)
+    expect(snapshot?.killedBy).toBe(EKilledBy.User)
+  })
+})
+
 describe("relocating a teammate's own children", () => {
   it("moves the teammate's sub-agent while leaving main and a sibling teammate untouched", async () => {
     const entry = await open()
