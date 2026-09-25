@@ -152,6 +152,58 @@ describe('createOrResume', () => {
     })
   })
 
+  it('merges a caller environment into the sandbox env after the fixed entries', async () => {
+    let seen: Record<string, unknown> = {}
+    const sandbox = fakeSandbox()
+    const { driver } = driverWith({
+      getOrCreate: async (params) => {
+        seen = params as Record<string, unknown>
+        await params?.onCreate?.(sandbox)
+        return sandbox
+      },
+    })
+
+    await driver.createOrResume({
+      name: 'atlas-thread-x',
+      threadId: 'brn_cloud',
+      token: 'serve-token-1',
+      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
+      environment: {
+        ATLAS_DECISIONS_URL: 'https://api.typesafe.ai',
+        ATLAS_CLASSIFIER_MODE: 'nudge',
+        ATLAS_SEARCH_BACKEND: 'brave',
+      },
+    })
+
+    expect(seen.env).toMatchObject({
+      ATLAS_SERVE_TOKEN: 'serve-token-1',
+      ATLAS_DECISIONS_URL: 'https://api.typesafe.ai',
+      ATLAS_CLASSIFIER_MODE: 'nudge',
+      ATLAS_SEARCH_BACKEND: 'brave',
+    })
+  })
+
+  it('boots with no caller environment when none is handed', async () => {
+    let seen: Record<string, unknown> = {}
+    const sandbox = fakeSandbox()
+    const { driver } = driverWith({
+      getOrCreate: async (params) => {
+        seen = params as Record<string, unknown>
+        await params?.onCreate?.(sandbox)
+        return sandbox
+      },
+    })
+
+    await driver.createOrResume({
+      name: 'atlas-thread-x',
+      threadId: 'brn_cloud',
+      token: 'serve-token-1',
+      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
+    })
+
+    expect(seen.env).not.toHaveProperty('ATLAS_DECISIONS_URL')
+  })
+
   it('hands the serve token to the sandbox through writeFiles and nothing larger', async () => {
     const sandbox = fakeSandbox()
     const { driver } = driverWith({

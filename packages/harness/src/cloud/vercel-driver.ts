@@ -164,6 +164,13 @@ export class VercelDriver {
      * already carries its context, so the callback never runs on resume and never pays the tar.
      */
     putContextOnFreshBoot?: (() => Promise<void>) | undefined
+    /**
+     * Extra environment for the sandbox process, resolved by the caller at lift time — the
+     * settings a cloud session should inherit from the operator's machine (the decision-model
+     * URL, classifier mode, search backend). The sandbox is a fresh container with no local
+     * settings files, so anything not handed here reads as its fallback there.
+     */
+    environment?: Record<string, string> | undefined
   }): Promise<SandboxPlacement> {
     if (this.args.image === undefined) {
       throw new Error('this driver was built for port exposure only, not for creating sandboxes')
@@ -213,6 +220,7 @@ export class VercelDriver {
           VERCEL_TEAM_ID: credentials.teamId,
           VERCEL_PROJECT_ID: credentials.projectId,
           ...(args.pinnedModel === undefined ? {} : { ATLAS_MODEL: args.pinnedModel }),
+          ...args.environment,
         },
         signal: AbortSignal.timeout(SANDBOX_LAUNCH_TIMEOUT_MS),
       })
