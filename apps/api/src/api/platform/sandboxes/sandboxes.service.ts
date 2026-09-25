@@ -30,7 +30,7 @@ import type {
   SandboxWorkspaceDto,
   SandboxWorkspaceSpec,
 } from './sandboxes.types'
-import { ESandboxDriveMode, ESandboxFactoryRole, ESandboxState } from './sandboxes.types'
+import { ESandboxDriveMode, ESandboxState } from './sandboxes.types'
 import {
   SANDBOX_REGION,
   SandboxMissingError,
@@ -106,8 +106,6 @@ export class SandboxesService {
     name?: string | undefined
     drive?: { name: string; mode: ESandboxDriveMode } | undefined
     pinnedModel?: string | undefined
-    factoryRole?: ESandboxFactoryRole | undefined
-    decisionsUrl?: string | undefined
   }): Promise<SandboxAttachmentDto> {
     const thread = await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
     if (args.workspace !== undefined) assertPatchWithinLimit({ patch: args.workspace.patch })
@@ -146,8 +144,6 @@ export class SandboxesService {
         threadId: thread.id,
         row,
         token: credential.token,
-        factoryRole: args.factoryRole,
-        decisionsUrl: args.decisionsUrl,
       })
     const settled = previous.then(chain, chain)
     this.attachLocks.set(args.threadId, settled)
@@ -291,22 +287,18 @@ export class SandboxesService {
     threadId: string
     row: ClaimedSandbox
     token: string
-    factoryRole: ESandboxFactoryRole | undefined
-    decisionsUrl: string | undefined
   }): Promise<void> {
     this.provisionFailures.delete(args.threadId)
     await this.provisionInBackground({
       row: args.row,
       token: args.token,
-      factoryRole: args.factoryRole,
-      decisionsUrl: args.decisionsUrl,
     })
   }
 
   /**
    * Answered to the sandbox rather than pushed into its environment: a patch outgrows what a
-   * process environment will carry. The git credential rides the claim and sits sealed on the row;
-   * factory station sandboxes claim no git token, so their credential still comes from the broker.
+   * process environment will carry. The git credential rides the claim and sits sealed on the
+   * row; a claim without one falls through to the credential broker.
    */
   async workspace(args: { threadId: string }): Promise<SandboxWorkspaceDto> {
     const row = await db.cloudSandbox.findUnique({
@@ -524,8 +516,6 @@ export class SandboxesService {
   private async provisionInBackground(args: {
     row: ClaimedSandbox
     token: string
-    factoryRole: ESandboxFactoryRole | undefined
-    decisionsUrl: string | undefined
   }): Promise<void> {
     try {
       const drive = driveOf(args.row)
@@ -535,8 +525,6 @@ export class SandboxesService {
         token: args.token,
         ...(drive === undefined ? {} : { drive }),
         ...(args.row.pinnedModel === null ? {} : { pinnedModel: args.row.pinnedModel }),
-        ...(args.factoryRole === undefined ? {} : { factoryRole: args.factoryRole }),
-        ...(args.decisionsUrl === undefined ? {} : { decisionsUrl: args.decisionsUrl }),
       })
       await this.stamp({ row: args.row, placement })
     } catch (failure) {

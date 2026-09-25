@@ -13,10 +13,9 @@ const messageOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
 
 /**
- * Which git credential a sandbox's workspace gets is a property of who the sandbox serves: an
- * operator's lifted session uses the operator's device-auth token, a factory station uses the
- * factory GitHub App. The factory module cannot be imported here without a module cycle, so it
- * registers its source at boot and this broker tries it before the default.
+ * Which git credential a sandbox's workspace gets is a property of who the sandbox serves. The
+ * default is the operator's device-auth token; a source registered at boot can answer first, and
+ * this broker tries it before the default.
  */
 @Injectable()
 export class SandboxGitCredentials {
