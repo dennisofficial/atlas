@@ -169,6 +169,19 @@ export class ShellNoticeQueue {
     return this.queued.some((notice) => notice.snapshot.shellId === shellId)
   }
 
+  /**
+   * Only an unclaimed ending writes a background-shell-ended event when drained: a claimed one is
+   * the ride for hook drafts alone, and any other kind says nothing about the shell having ended.
+   */
+  hasDurableEndingFor({ shellId }: { shellId: string }): boolean {
+    return this.queued.some(
+      (notice) =>
+        notice.snapshot.shellId === shellId &&
+        notice.kind === ENotice.Ended &&
+        notice.outputClaimed !== true,
+    )
+  }
+
   onNotice(listener: () => void): () => void {
     this.listeners.add(listener)
     return () => void this.listeners.delete(listener)

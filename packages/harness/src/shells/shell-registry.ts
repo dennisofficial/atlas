@@ -2,6 +2,8 @@ import {
   ClockPort,
   EKilledBy,
   EShellStatus,
+  EventLogPort,
+  IdPort,
   ProcessPort,
   type EventDraft,
   type ThreadId,
@@ -103,6 +105,24 @@ export abstract class ShellRegistryPort {
   abstract onNotice(listener: () => void): () => void
   abstract forgetNotices(args: { threadId: ThreadId }): void
   abstract closeAll(): Promise<void>
+  /**
+   * The notice queue is the delivery path for a live conversation, but it is not the record: a
+   * shell the model killed with shell_kill has its ending marked outputClaimed and produces no
+   * durable event, and an ending whose notice was never drained dies with the process. Teardown
+   * calls this after closeAll to write a background-shell-ended event for every tracked shell that
+   * has no ending recorded yet, so the next boot's lost-shell recovery finds the log already
+   * settled rather than reporting kills it cannot distinguish from a crash.
+   */
+  abstract recordEndings(args: {
+    log: EventLogPort
+    ids: IdPort
+    threadId: ThreadId
+  }): Promise<readonly { shellId: string; command: string; description?: string | undefined }[]>
+  /**
+   * Threads holding a tracked shell with no durable ending queued. A thread whose only endings are
+   * outputClaimed has nothing awaiting notice, so teardown cannot find it through the notice queue.
+   */
+  abstract threadsWithUnresolvedEndings(): readonly ThreadId[]
 }
 
 const unknownShell = (args: { shellId: string; known: readonly ShellId[] }): string => {
@@ -112,6 +132,7 @@ const unknownShell = (args: { shellId: string; known: readonly ShellId[] }): str
 
 export class BunShellRegistry extends ShellRegistryPort {
   private readonly tracked = new Map<ShellId, Tracked>()
+  private closed: Tracked[] = []
   private readonly claims = new Map<ShellId, Promise<ClaimedShellEnding>>()
   private readonly notices = new ShellNoticeQueue(({ shellId }) =>
     this.tracked.get(toShellId(shellId))?.shell.snapshot(),
@@ -371,12 +392,71 @@ export class BunShellRegistry extends ShellRegistryPort {
     for (const entry of running) entry.shell.kill(EKilledBy.SessionEnd)
     await Promise.all(running.map((entry) => entry.shell.exited))
     while (this.settling.size > 0) await Promise.all([...this.settling])
+    this.closed.push(...this.tracked.values())
     this.tracked.clear()
     if (this.activityTimer !== null) {
       clearTimeout(this.activityTimer)
       this.activityTimer = null
     }
     this.listeners.clear()
+  }
+
+  /**
+   * A shell whose ending the notice queue carries (a plain exit, or a SessionEnd kill nobody
+   * claimed) is already durable: the drain writes it. A shell the model killed with shell_kill is
+   * not — its ending is outputClaimed and produces no event. Both lists are consulted because
+   * teardown asks after closeAll, which has already moved every entry to `closed`.
+   */
+  threadsWithUnresolvedEndings(): readonly ThreadId[] {
+    const threads = new Set<ThreadId>()
+    for (const entry of [...this.tracked.values(), ...this.closed]) {
+      if (this.notices.hasDurableEndingFor({ shellId: entry.shell.shellId })) continue
+      threads.add(entry.threadId)
+    }
+    return [...threads]
+  }
+
+  async recordEndings(args: {
+    log: EventLogPort
+    ids: IdPort
+    threadId: ThreadId
+  }): Promise<readonly { shellId: string; command: string; description?: string | undefined }[]> {
+    const unresolved = (entry: Tracked): boolean =>
+      entry.threadId === args.threadId &&
+      !this.notices.hasDurableEndingFor({ shellId: entry.shell.shellId })
+    const held = [...this.tracked.entries()].filter(([, entry]) => unresolved(entry))
+    const closed = this.closed.filter(unresolved)
+    const missing = [...held.map(([, entry]) => entry), ...closed]
+    if (missing.length === 0) return []
+
+    const drafts = missing.map((entry) => {
+      const snapshot = entry.shell.snapshot()
+      return {
+        type: 'background-shell-ended' as const,
+        shellId: snapshot.shellId,
+        command: snapshot.command,
+        description: snapshot.description,
+        status: snapshot.status,
+        killedBy: snapshot.killedBy ?? EKilledBy.SessionEnd,
+        exitCode: snapshot.exitCode,
+        output: '',
+        droppedCharacters: 0,
+        remainingCharacters: 0,
+      }
+    })
+    await args.log.append({ threadId: args.threadId, runId: args.ids.nextRunId(), drafts })
+
+    for (const [id] of held) this.tracked.delete(id)
+    this.closed = this.closed.filter((entry) => !unresolved(entry))
+
+    return missing.map((entry) => {
+      const snapshot = entry.shell.snapshot()
+      return {
+        shellId: snapshot.shellId,
+        command: snapshot.command,
+        description: snapshot.description,
+      }
+    })
   }
 
   private ids(threadId: ThreadId): readonly ShellId[] {
