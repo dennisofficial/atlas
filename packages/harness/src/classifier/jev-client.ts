@@ -25,10 +25,16 @@ export type JevDecisionClientDeps = {
 const messageOf = (fault: unknown): string =>
   fault instanceof Error ? fault.message : String(fault)
 
+// The SDK appends /v1/systemone to baseURL, so a decisions.url that already carries the route
+// (as the hosted-Jev URL in the setting's description does) would otherwise 404 every call on
+// a doubled path.
+export const jevBaseUrl = (url: string): string =>
+  url.replace(/\/+$/, '').replace(/\/v1\/systemone$/i, '')
+
 // The endpoint stays a config seam: decisions.url points at hosted Jev, a gateway route, or a
-// self-hosted server speaking the same shape (Laya answers /v1/systemone unauthenticated), and
-// the SDK carries baseURL straight through. A Laya tokenless config gets a placeholder key —
-// the server ignores it, the SDK requires the field.
+// self-hosted server speaking the same shape (Laya answers /v1/systemone unauthenticated). A
+// Laya tokenless config gets a placeholder key — the server ignores it, the SDK requires the
+// field.
 export class JevDecisionClient implements DecisionPort {
   private readonly config: () => JevConfig | undefined
   private readonly systemOneFor: (config: JevConfig) => JevSystemOne
@@ -41,7 +47,7 @@ export class JevDecisionClient implements DecisionPort {
       deps.systemOne === undefined
         ? (config) => {
             const client = new TypeSafeClient({
-              baseURL: config.baseUrl,
+              baseURL: jevBaseUrl(config.baseUrl),
               apiKey: config.token ?? 'unauthenticated',
               timeout: this.timeoutMs,
               retry: { maxRetries: 0 },
