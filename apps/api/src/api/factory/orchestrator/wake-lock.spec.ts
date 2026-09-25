@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { wakeLockKeyOf, WAKE_LOCK_NAMESPACE } from './wake-lock'
+import { wakeLockKeyOf } from './wake-lock'
 
 describe('wakeLockKeyOf', () => {
   it('is deterministic for a work item id', () => {
-    const a = wakeLockKeyOf({ workItemId: 'fwi_abc' })
-    const b = wakeLockKeyOf({ workItemId: 'fwi_abc' })
-    expect(a).toBe(b)
+    expect(wakeLockKeyOf({ workItemId: 'fwi_abc' })).toBe(wakeLockKeyOf({ workItemId: 'fwi_abc' }))
   })
 
   it('gives distinct keys to distinct work items', () => {
@@ -14,10 +12,9 @@ describe('wakeLockKeyOf', () => {
     )
   })
 
-  it('stays within the 60-bit space so it never collides with the namespace bit pattern', () => {
+  it('stays non-negative and within the signed bigint range the single-arg lock form takes', () => {
     const key = wakeLockKeyOf({ workItemId: 'fwi_abc' })
     expect(key >= 0n).toBe(true)
-    expect(key <= 0x0fffffffffffffffn).toBe(true)
-    expect(typeof WAKE_LOCK_NAMESPACE).toBe('number')
+    expect(key <= 0x7fffffffffffffffn).toBe(true)
   })
 })

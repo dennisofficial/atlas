@@ -18,7 +18,7 @@ CREATE TABLE "FactoryReplyWatch" (
     "workItemId" TEXT NOT NULL,
     "surface" TEXT NOT NULL,
     "externalId" TEXT NOT NULL,
-    "commentId" TEXT NOT NULL,
+    "commentId" TEXT,
     "organizationId" TEXT,
     "eventId" TEXT NOT NULL,
     "nudgeAt" TEXT NOT NULL,

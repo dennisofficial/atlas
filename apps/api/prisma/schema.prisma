@@ -26,6 +26,7 @@ model User {
   secretEntries SecretEntry[]
   mcpServers    McpServerConfig[]
   cloudSettings CloudSetting[]
+  memoryEntries  UserMemoryEntry[]
   githubConnection GithubConnection?
   threads       Thread[]
   cloudSandboxes CloudSandbox[]
@@ -246,7 +247,7 @@ model FactoryReplyWatch {
   workItemId     String   @unique
   surface        String
   externalId     String
-  commentId      String
+  commentId      String?
   organizationId String?
   eventId        String
   nudgeAt    String
@@ -328,6 +329,17 @@ model UserContextSync {
   memoryBundle String   @db.Text
   memoryArchive Bytes?
   updatedAt    DateTime @updatedAt
+}
+
+model UserMemoryEntry {
+  userId    String
+  key       String
+  content   Bytes
+  mtimeMs   BigInt
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, key])
 }
 
 model GithubConnection {

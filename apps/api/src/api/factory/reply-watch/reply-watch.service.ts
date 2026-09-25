@@ -23,7 +23,7 @@ export type ReplyWatchRow = {
   workItemId: string
   surface: string
   externalId: string
-  commentId: string
+  commentId: string | null
   organizationId: string | null
   eventId: string
   nudgeAt: string
@@ -35,7 +35,7 @@ const rowToRef = (row: ReplyWatchRow): StatusSignalRef => ({
   surface: row.surface as StatusSignalRef['surface'],
   organizationId: row.organizationId ?? '',
   externalId: row.externalId,
-  commentId: row.commentId,
+  commentId: row.commentId ?? '',
 })
 
 /**
@@ -92,11 +92,17 @@ export class ReplyWatchService implements OnApplicationBootstrap {
 
   /** A factory reply landed: mark reply-coming, clear the watch row and the emoji. */
   async resolve(args: { workItemId: string }): Promise<void> {
-    const row = await this.rowFor({ workItemId: args.workItemId })
-    if (row === null) return
-    await this.signals.set({ ref: rowToRef(row), signal: EStatusSignal.ReplyComing })
+    const rows = await this.rowsFor({ workItemId: args.workItemId })
+    if (rows.length === 0) return
+    for (const row of rows) {
+      await this.signals
+        .set({ ref: rowToRef(row), signal: EStatusSignal.ReplyComing })
+        .catch(() => undefined)
+    }
     await this.removeWatch({ workItemId: args.workItemId })
-    await this.signals.clear({ ref: rowToRef(row) })
+    for (const row of rows) {
+      await this.signals.clear({ ref: rowToRef(row) }).catch(() => undefined)
+    }
   }
 
   private async arm(args: {
@@ -112,7 +118,7 @@ export class ReplyWatchService implements OnApplicationBootstrap {
       workItemId: args.workItemId,
       surface: args.ref.surface,
       externalId: args.ref.externalId,
-      commentId: args.ref.commentId,
+      commentId: args.ref.commentId === '' ? null : args.ref.commentId,
       organizationId: args.ref.organizationId,
       eventId: args.eventId,
       nudgeAt: new Date(now + this.windowMs).toISOString(),
@@ -151,9 +157,8 @@ export class ReplyWatchService implements OnApplicationBootstrap {
     return Math.max(0, Date.parse(deadline) - Date.now())
   }
 
-  private async rowFor(args: { workItemId: string }): Promise<ReplyWatchRow | null> {
-    const rows = await db.factoryReplyWatch.findMany({ where: { workItemId: args.workItemId } })
-    return rows[0] ?? null
+  private async rowsFor(args: { workItemId: string }): Promise<ReplyWatchRow[]> {
+    return db.factoryReplyWatch.findMany({ where: { workItemId: args.workItemId } })
   }
 
   private async removeWatch(args: { workItemId: string }): Promise<void> {
@@ -164,30 +169,32 @@ export class ReplyWatchService implements OnApplicationBootstrap {
   }
 
   private async onTimer(args: { workItemId: string }): Promise<void> {
-    const row = await this.rowFor(args)
-    if (row === null) {
+    const rows = await this.rowsFor(args)
+    if (rows.length === 0) {
       this.timers.delete(args.workItemId)
       return
     }
-    if (await this.repliedOnSurface({ workItemId: args.workItemId, row })) {
-      await this.removeWatch(args)
-      return
+    for (const row of rows) {
+      if (await this.repliedOnSurface({ workItemId: args.workItemId, row })) {
+        await this.removeWatch(args)
+        continue
+      }
+      if (row.nudged) {
+        this.logger.warn(
+          `work item ${args.workItemId} still has not replied after a nudge; standing the watch down`,
+        )
+        await this.removeWatch(args)
+        continue
+      }
+      await db.factoryReplyWatch.update({
+        where: { id: row.id },
+        data: { nudged: true, updatedAt: nowIso() },
+      })
+      this.armTimer({ row: { ...row, nudged: true } })
+      await this.nudge({ workItemId: args.workItemId, row }).catch((failure: unknown) => {
+        this.logger.warn(`reply-watch nudge failed for ${args.workItemId}: ${messageOf(failure)}`)
+      })
     }
-    if (row.nudged) {
-      this.logger.warn(
-        `work item ${args.workItemId} still has not replied after a nudge; standing the watch down`,
-      )
-      await this.removeWatch(args)
-      return
-    }
-    await db.factoryReplyWatch.update({
-      where: { id: row.id },
-      data: { nudged: true, updatedAt: nowIso() },
-    })
-    this.armTimer({ row: { ...row, nudged: true } })
-    await this.nudge({ workItemId: args.workItemId, row }).catch((failure: unknown) => {
-      this.logger.warn(`reply-watch nudge failed for ${args.workItemId}: ${messageOf(failure)}`)
-    })
   }
 
   private async repliedOnSurface(args: {

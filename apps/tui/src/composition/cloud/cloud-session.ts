@@ -79,6 +79,15 @@ export function createCloudSession(args: {
     announce({ ...held, failure: failure.message }),
   )
 
+  // A completed turn proves the sandbox is healthy again: the append that failed has been
+  // re-attempted by the loop's own settle path, or the operator retried and it landed. The
+  // sticky notice should not outlive the evidence that the API is answering.
+  const unsubscribeTurnEnded = channel.onTurnEnded((outcome) => {
+    if (outcome.status === 'failed') return
+    if (held.failure === null) return
+    announce({ ...held, failure: null })
+  })
+
   if (held.connection.state === EChannelConnection.Closed) askControlPlane()
 
   return {
@@ -96,6 +105,7 @@ export function createCloudSession(args: {
       unsubscribeConnection()
       unsubscribeReload()
       unsubscribeError()
+      unsubscribeTurnEnded()
       listeners.clear()
       channel.close()
     },

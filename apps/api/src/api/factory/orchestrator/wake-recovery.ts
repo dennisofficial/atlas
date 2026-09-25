@@ -147,7 +147,14 @@ export class WakeRecoveryService implements OnApplicationBootstrap {
       this.logger.log(
         `re-driving ${pending.length} undelivered event(s) for work item ${row.id} after a restart`,
       )
-      await this.driver.runWake({ workItemId: row.id, externalId, repo: row.repo })
+      try {
+        await this.driver.runWake({ workItemId: row.id, externalId, repo: row.repo })
+      } catch (failure: unknown) {
+        // One item's failure (a sandbox cap, a downed serve) must not starve the rest of the scan.
+        this.logger.warn(
+          `wake recovery could not re-drive work item ${row.id}: ${failure instanceof Error ? failure.message : String(failure)}`,
+        )
+      }
     }
     if (recovered > 0) this.logger.log(`wake recovery re-drove ${recovered} work item(s)`)
   }

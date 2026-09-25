@@ -4,10 +4,16 @@ import { assertArchiveWithinLimit } from '../context-archive/context-archive-lim
 import { CONTEXT_ARCHIVE_STORE } from '../context-archive/context-archive.store'
 import type { ContextArchiveStore } from '../context-archive/context-archive.store'
 import { assertContextBundleWithinLimit } from '../../platform/sandboxes/workspace-spec'
+import { USER_MEMORY_ENTRY_STORE } from './memory-entry.store'
+import type { UserMemoryEntryStore } from './memory-entry.store'
+import { buildMemoryArchive, extractMemoryArchive } from './memory-archive'
 
 @Injectable()
 export class UserContextService {
-  constructor(@Inject(CONTEXT_ARCHIVE_STORE) private readonly archives: ContextArchiveStore) {}
+  constructor(
+    @Inject(CONTEXT_ARCHIVE_STORE) private readonly archives: ContextArchiveStore,
+    @Inject(USER_MEMORY_ENTRY_STORE) private readonly memoryEntries: UserMemoryEntryStore,
+  ) {}
 
   async getMemory(args: { userId: string }): Promise<string | null> {
     const row = await db.userContextSync.findUnique({ where: { userId: args.userId } })
@@ -24,15 +30,20 @@ export class UserContextService {
   }
 
   async deleteMemory(args: { userId: string }): Promise<void> {
+    await this.memoryEntries.deleteEntries({ userId: args.userId })
+    await this.archives.deleteUserArchive({ userId: args.userId })
     await db.userContextSync.deleteMany({ where: { userId: args.userId } })
   }
 
-  getMemoryArchive(args: { userId: string }): Promise<Buffer | null> {
+  async getMemoryArchive(args: { userId: string }): Promise<Buffer | null> {
+    const entries = await this.memoryEntries.listEntries({ userId: args.userId })
+    if (entries.length > 0) return buildMemoryArchive({ entries })
     return this.archives.readUserArchive({ userId: args.userId })
   }
 
   async putMemoryArchive(args: { userId: string; archive: Buffer }): Promise<void> {
     assertArchiveWithinLimit({ bytes: args.archive.byteLength })
-    await this.archives.writeUserArchive({ userId: args.userId, archive: args.archive })
+    const entries = await extractMemoryArchive({ archive: args.archive })
+    await this.memoryEntries.mergeEntries({ userId: args.userId, entries })
   }
 }

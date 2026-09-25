@@ -49,6 +49,13 @@ const fake = vi.hoisted(() => {
           return existing
         },
       ),
+      updateMany: vi.fn(
+        async (args: { where: { userId: string }; data: Record<string, unknown> }) => {
+          const matched = users.filter((row) => row.userId === args.where.userId)
+          for (const row of matched) Object.assign(row, args.data)
+          return { count: matched.length }
+        },
+      ),
     },
   }
 
@@ -135,6 +142,19 @@ describe('PrismaContextArchiveStore', () => {
       create: expect.objectContaining({ userId: USER }),
       update: { memoryArchive: new Uint8Array(Buffer.from('fresh')) },
     })
+    expect(fake.users[0]?.memoryBundle).toBe('{"a":1}')
+  })
+
+  it('deleteUserArchive nulls the legacy blob and leaves the legacy bundle alone', async () => {
+    fake.users.push({
+      userId: USER,
+      memoryBundle: '{"a":1}',
+      memoryArchive: Buffer.from('old'),
+    })
+
+    await store.deleteUserArchive({ userId: USER })
+
+    expect(fake.users[0]?.memoryArchive).toBeNull()
     expect(fake.users[0]?.memoryBundle).toBe('{"a":1}')
   })
 })

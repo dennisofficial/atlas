@@ -23,6 +23,13 @@ import { ShellsSection } from "./sidebar/shells";
 import { TodoSection } from "./sidebar/todo";
 import { useRelaxedThumb } from "../scrollbar-thumb";
 
+const CONTAINER_MOUNTS = new Set(["/workspace", "/app", "/repo", "/src"]);
+
+const rootLabel = (args: { root: string; repoName?: string | undefined }): string => {
+  if (args.repoName !== undefined && CONTAINER_MOUNTS.has(args.root)) return args.repoName;
+  return collapseHome({ cwd: args.root, home: homedir() });
+};
+
 const worktreeLabel = (args: { worktree: string; root: string }): string =>
   args.worktree.startsWith(`${args.root}/`)
     ? args.worktree.slice(args.root.length + 1)
@@ -33,8 +40,9 @@ function SidebarFooter(props: {
   worktree: string | null;
   version: string;
   cells: number;
+  repoName?: string | undefined;
 }): React.ReactNode {
-  const where = collapseHome({ cwd: props.root, home: homedir() });
+  const where = rootLabel({ root: props.root, repoName: props.repoName });
 
   return (
     <box
@@ -97,6 +105,7 @@ function DerivedSidebar(props: {
   root: string;
   worktree: string | null;
   version: string;
+  repoName?: string | undefined;
   overlay?: boolean;
   shells?: readonly ShellSnapshot[];
   shellNow?: number;
@@ -199,6 +208,7 @@ function DerivedSidebar(props: {
           worktree={props.worktree}
           version={props.version}
           cells={cells}
+          repoName={props.repoName}
         />
       </box>
     </>

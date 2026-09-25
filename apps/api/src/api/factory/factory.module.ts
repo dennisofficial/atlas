@@ -7,6 +7,7 @@ import { FactoryDeliveriesController } from './delivery/deliveries.controller'
 import { DeliveriesService } from './delivery/deliveries.service'
 import { FactoryDriveSweeperService } from './drives/drive-sweeper.service'
 import { FactoryDrivesService } from './drives/drives.service'
+import { FactoryLivenessService } from './liveness.service'
 import { GithubInstallController } from './github-install.controller'
 import { GithubInstallService } from './github-install.service'
 import { BotRelevanceClassifier } from './classifier/bot-relevance.classifier'
@@ -85,6 +86,7 @@ import { WorkItemsService } from './work-items.service'
     OrchestratorSandboxGuard,
     FactoryDrivesService,
     FactoryDriveSweeperService,
+    FactoryLivenessService,
     StationsService,
     StationResultsService,
     StationTokensService,

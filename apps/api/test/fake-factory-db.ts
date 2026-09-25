@@ -115,7 +115,7 @@ export type FakeReplyWatchRow = {
   workItemId: string
   surface: string
   externalId: string
-  commentId: string
+  commentId: string | null
   organizationId: string | null
   eventId: string
   nudgeAt: string
@@ -123,6 +123,13 @@ export type FakeReplyWatchRow = {
   nudged: boolean
   createdAt: string
   updatedAt: string
+}
+
+export type FakeCloudSandboxRow = {
+  threadId: string
+  userId?: string
+  state?: string
+  [key: string]: unknown
 }
 
 type FakeRow =
@@ -133,6 +140,7 @@ type FakeRow =
   | FakeConnectionRow
   | FakeWakeOutboxRow
   | FakeReplyWatchRow
+  | FakeCloudSandboxRow
 
 const matchesRow = (row: FakeRow, where: Where): boolean =>
   Object.entries(where).every(([key, condition]) => {
@@ -155,6 +163,7 @@ export function createFakeFactoryDb() {
   const stationRuns: FakeStationRunRow[] = []
   const wakeOutbox: FakeWakeOutboxRow[] = []
   const replyWatches: FakeReplyWatchRow[] = []
+  const cloudSandboxes: FakeCloudSandboxRow[] = []
 
   const db = {
     factoryWorkItem: {
@@ -374,6 +383,16 @@ export function createFakeFactoryDb() {
         return { count: matched.length }
       },
     },
+    cloudSandbox: {
+      findUnique: async (args: { where: { threadId: string }; select?: Record<string, boolean> }) => {
+        const found = cloudSandboxes.find((one) => one.threadId === args.where.threadId) ?? null
+        return found === null ? null : project(found, args.select)
+      },
+      findFirst: async (args: { where: Where; select?: Record<string, boolean> }) => {
+        const found = cloudSandboxes.find((one) => matchesRow(one, args.where)) ?? null
+        return found === null ? null : project(found, args.select)
+      },
+    },
     user: {
       upsert: async (args: {
         where: { email: string }
@@ -444,6 +463,7 @@ export function createFakeFactoryDb() {
         transcriptEvents: transcriptEvents.map((one) => ({ ...one })),
         users: users.map((one) => ({ ...one })),
         stationRuns: stationRuns.map((one) => ({ ...one })),
+        replyWatches: replyWatches.map((one) => ({ ...one })),
       }
       try {
         return await callback(db)
@@ -453,6 +473,7 @@ export function createFakeFactoryDb() {
         transcriptEvents.splice(0, transcriptEvents.length, ...snapshot.transcriptEvents)
         users.splice(0, users.length, ...snapshot.users)
         stationRuns.splice(0, stationRuns.length, ...snapshot.stationRuns)
+        replyWatches.splice(0, replyWatches.length, ...snapshot.replyWatches)
         throw error
       }
     },
@@ -478,6 +499,7 @@ export function createFakeFactoryDb() {
     stationRuns,
     wakeOutbox,
     replyWatches,
+    cloudSandboxes,
     reset: () => {
       workItems.length = 0
       connections.length = 0
@@ -491,6 +513,7 @@ export function createFakeFactoryDb() {
       stationRuns.length = 0
       wakeOutbox.length = 0
       replyWatches.length = 0
+      cloudSandboxes.length = 0
     },
   }
 }

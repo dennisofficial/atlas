@@ -108,6 +108,14 @@ describe('ReplyWatchService', () => {
     expect(text).toContain(ref.externalId)
   })
 
+  it('does not nudge before the window passes', async () => {
+    await watchArmed('evt_human_1')
+
+    await new Promise((resolve) => setTimeout(resolve, WINDOW / 2))
+
+    expect(channel.inject).not.toHaveBeenCalled()
+  })
+
   it('does not nudge when a reply lands on the surface before the window', async () => {
     fake.transcriptEvents.push({
       id: 'evt_reply',

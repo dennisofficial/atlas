@@ -10,4 +10,5 @@ export interface ContextArchiveStore {
   writeSandboxArchive(args: { threadId: string; archive: Buffer }): Promise<void>
   readUserArchive(args: { userId: string }): Promise<Buffer | null>
   writeUserArchive(args: { userId: string; archive: Buffer }): Promise<void>
+  deleteUserArchive(args: { userId: string }): Promise<void>
 }

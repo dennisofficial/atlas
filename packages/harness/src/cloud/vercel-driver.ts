@@ -183,6 +183,11 @@ export class VercelDriver {
       const freshBoot = probe === ESandboxProbe.Missing || probe === ESandboxProbe.Replaced
       if (freshBoot && args.putContextOnFreshBoot !== undefined) {
         await args.putContextOnFreshBoot()
+      } else if (args.putContextOnFreshBoot !== undefined) {
+        // A resumed sandbox carries its snapshot's context, but the operator's local context
+        // (memory, skills, instructions) may have moved on. Re-upload when it changed — the
+        // snapshot is a cache, not the source of truth.
+        await args.putContextOnFreshBoot()
       }
       const sandbox = await this.sdk.getOrCreate({
         ...credentials,

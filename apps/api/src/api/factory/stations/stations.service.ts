@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import {
   BadRequestException,
   ConflictException,
+  forwardRef,
   Inject,
   Injectable,
   InternalServerErrorException,
@@ -10,7 +11,7 @@ import {
 } from '@nestjs/common'
 import { db } from '../../../db'
 import { factoryStationSandboxNameFor } from '../../platform/sandboxes/sandbox-names'
-import { ESandboxDriveMode, ESandboxFactoryRole } from '../../platform/sandboxes/sandboxes.types'
+import { ESandboxDriveMode, ESandboxFactoryRole, ESandboxState } from '../../platform/sandboxes/sandboxes.types'
 import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import { ThreadsService } from '../../platform/sessions/threads.service'
 import { FactoryDrivesService } from '../drives/drives.service'
@@ -23,6 +24,7 @@ import {
   type OrchestratorChannel,
 } from '../orchestrator/orchestrator-channel'
 import { deliverToServeThread, injectIntoServeThread } from '../orchestrator/serve-delivery'
+import { OrchestratorService } from '../orchestrator/orchestrator.service'
 import { TranscriptService } from '../transcript.service'
 import { WorkItemsService } from '../work-items.service'
 import { isUniqueViolation } from '../unique-violation'
@@ -60,6 +62,8 @@ export class StationsService {
     private readonly credentials: FactoryCredentialService,
     private readonly drives: FactoryDrivesService,
     @Inject(ORCHESTRATOR_CHANNEL) private readonly channel: OrchestratorChannel,
+    @Inject(forwardRef(() => OrchestratorService))
+    private readonly orchestrator: OrchestratorService,
   ) {}
 
   async spawn(args: {
@@ -105,7 +109,6 @@ export class StationsService {
 
     const userId = await this.identity.userId({ organizationId: item.organizationId })
     await this.credentials.ensureSeeded({ userId, organizationId: item.organizationId })
-    const driveName = await this.drives.ensure({ workItemId: item.id })
 
     const runId = nextStationRunId()
     const thread = await this.threads.create({
@@ -120,20 +123,10 @@ export class StationsService {
       })
     }
 
-    await this.sandboxes.attach({
+    await this.attachStation({
+      item,
+      run: { id: runId, kind, threadId: thread.id },
       userId,
-      threadId: thread.id,
-      name: factoryStationSandboxNameFor({ runId }),
-      workspace: {
-        remoteUrl: `https://github.com/${item.repo}.git`,
-        branch: null,
-        commit: null,
-        patch: '',
-      },
-      drive: { name: driveName, mode: driveModeFor(kind) },
-      pinnedModel: await this.credentials.modelRef({ organizationId: item.organizationId }),
-      factoryRole: ESandboxFactoryRole.Station,
-      decisionsUrl: await this.credentials.decisionsUrl({ organizationId: item.organizationId }),
     })
 
     const alias = await ticketAliasOf({ workItems: this.workItems, item })
@@ -203,6 +196,11 @@ export class StationsService {
       this.logger.warn(`station run ${run.id} has no sandbox row; marking it stopped anyway`)
     }
     await this.markRun({ runId: run.id, status: EStationRunStatus.Stopped })
+    await this.reportRunOutcome({
+      runId: run.id,
+      status: EStationRunStatus.Stopped,
+      reason: 'the orchestrator stopped the run',
+    })
     return { stopped: true }
   }
 
@@ -222,7 +220,105 @@ export class StationsService {
         this.logger.warn(`could not stop station run ${run.id}: ${messageOf(failure)}`)
       })
       await this.markRun({ runId: run.id, status: EStationRunStatus.Stopped })
+      await this.reportRunOutcome({
+        runId: run.id,
+        status: EStationRunStatus.Stopped,
+        reason: 'the work item reached a terminal state, so the run was stopped',
+      })
     }
+  }
+
+  /**
+   * A run is only a candidate once its station has been silent far longer than any healthy boot.
+   * Two terminal rows deserve it: a run whose thread no longer has a live endpoint (its sandbox
+   * died without reporting), and a run whose sandbox row is stuck in a non-running state — the
+   * wound a mid-spawn container death leaves, where the process holding the provisioning chain was
+   * killed before it could stamp the row, so every later injection refuses it. A wedged row is
+   * recovered by re-attaching (which re-runs the idempotent provisioning chain and re-stamps) and
+   * re-injecting the spawn message; only a run that cannot be brought back is failed and reported.
+   */
+  async failStuckRuns(args: { silentForMs: number }): Promise<number> {
+    const quietBefore = new Date(Date.now() - args.silentForMs).toISOString()
+    const running = await db.factoryStationRun.findMany({
+      where: { status: EStationRunStatus.Running, updatedAt: { lt: quietBefore } },
+    })
+    let handled = 0
+    for (const run of running) {
+      const item = await this.workItems.find({ workItemId: run.workItemId }).catch(() => null)
+      if (item === null) continue
+      const userId = await this.identity.userId({ organizationId: item.organizationId })
+      const endpoint = await this.sandboxes
+        .runningEndpoint({ userId, threadId: run.threadId })
+        .catch(() => null)
+      if (endpoint !== null) continue
+      const row = await db.cloudSandbox.findUnique({
+        where: { threadId: run.threadId },
+        select: { state: true },
+      })
+      const wedged = row !== null && row.state !== ESandboxState.Running
+      if (wedged && (await this.recoverWedged({ item, run, userId }))) {
+        handled += 1
+        continue
+      }
+      this.logger.warn(
+        `station run ${run.id} has been running for over ${Math.round(args.silentForMs / 60000)}m with no live sandbox; failing it`,
+      )
+      await this.markRun({ runId: run.id, status: EStationRunStatus.Failed })
+      await this.reportRunOutcome({
+        runId: run.id,
+        status: EStationRunStatus.Failed,
+        reason: `the run went silent for over ${Math.round(args.silentForMs / 60000)} minutes and its sandbox no longer has a live endpoint, so the control plane failed it rather than leave the orchestrator waiting`,
+      })
+      handled += 1
+    }
+    return handled
+  }
+
+  /**
+   * Re-drive the spawn of a run whose provisioning chain died with its container. The original
+   * request event holds the assignment; re-attaching re-runs the idempotent provisioning chain and
+   * re-stamps the row, then the spawn message is injected as if the first attempt had never
+   * crashed. Returns false when recovery itself fails, so the caller falls through to failing it.
+   */
+  private async recoverWedged(args: {
+    item: WorkItemDto
+    run: { id: string; kind: string; threadId: string }
+    userId: string
+  }): Promise<boolean> {
+    const kind = parseStationKind(args.run.kind)
+    if (kind === undefined) return false
+    const request = await db.factoryTranscriptEvent.findFirst({
+      where: { workItemId: args.item.id, deliveryId: `station-request:${args.run.id}` },
+      select: { payload: true },
+    })
+    if (request === null) return false
+    const { message } = JSON.parse(request.payload) as { message: string }
+    this.logger.warn(`recovering wedged station run ${args.run.id} by re-attaching its sandbox`)
+    try {
+      await this.attachStation({
+        item: args.item,
+        run: { id: args.run.id, kind, threadId: args.run.threadId },
+        userId: args.userId,
+      })
+      const text = stationSpawnMessageFor({
+        workItemId: args.item.id,
+        runId: args.run.id,
+        repo: args.item.repo,
+        kind,
+        message,
+      })
+      await this.injectSpawn({
+        userId: args.userId,
+        threadId: args.run.threadId,
+        runId: args.run.id,
+        text,
+      })
+    } catch (failure) {
+      this.logger.warn(`could not recover wedged station run ${args.run.id}: ${messageOf(failure)}`)
+      return false
+    }
+    this.logger.log(`recovered wedged station run ${args.run.id}; its spawn message is delivered`)
+    return true
   }
 
   private async createRun(args: {
@@ -261,6 +357,31 @@ export class StationsService {
       item: args.item,
       runId: args.runId,
       notRunning: (run) => new ConflictException(`station run ${run.id} is ${run.status}`),
+    })
+  }
+
+  private async attachStation(args: {
+    item: WorkItemDto
+    run: { id: string; kind: EStationKind; threadId: string }
+    userId: string
+  }): Promise<void> {
+    await this.sandboxes.attach({
+      userId: args.userId,
+      threadId: args.run.threadId,
+      name: factoryStationSandboxNameFor({ runId: args.run.id }),
+      workspace: {
+        remoteUrl: `https://github.com/${args.item.repo}.git`,
+        branch: null,
+        commit: null,
+        patch: '',
+      },
+      drive: {
+        name: await this.drives.ensure({ workItemId: args.item.id }),
+        mode: driveModeFor(args.run.kind),
+      },
+      pinnedModel: await this.credentials.modelRef({ organizationId: args.item.organizationId }),
+      factoryRole: ESandboxFactoryRole.Station,
+      decisionsUrl: await this.credentials.decisionsUrl({ organizationId: args.item.organizationId }),
     })
   }
 
@@ -304,6 +425,52 @@ export class StationsService {
         this.logger.warn(`could not mark station run ${args.runId} failed: ${messageOf(failure)}`)
       },
     )
+    // Loud on purpose: a failure that cannot even be recorded is exactly the silent channel the
+    // liveness sweep is built to close, so the error is logged, not swallowed into the run row.
+    await this.reportRunOutcome({
+      runId: args.runId,
+      status: EStationRunStatus.Failed,
+      reason: `the station never received its spawn message: ${messageOf(args.failure)}`,
+    }).catch((failure: unknown) => {
+      this.logger.error(
+        `station run ${args.runId} failed but its outcome could not be recorded: ${messageOf(failure)}`,
+      )
+    })
+  }
+
+  /**
+   * The orchestrator owns the next move once a run dies, so every terminal failure or stop lands
+   * on the transcript as a station-result and wakes it — a run must never go dark silently. The
+   * event is deduped on its delivery id, so a repeated stop or a race with the result gate records
+   * the wake exactly once.
+   */
+  private async reportRunOutcome(args: {
+    runId: string
+    status: EStationRunStatus.Failed | EStationRunStatus.Stopped
+    reason: string
+  }): Promise<void> {
+    const run = await db.factoryStationRun.findUnique({ where: { id: args.runId } })
+    if (run === null) return
+    const item = await this.workItems.find({ workItemId: run.workItemId })
+    const alias = await ticketAliasOf({ workItems: this.workItems, item })
+    // The append failing is the silence this whole path exists to prevent — let it throw so the
+    // caller's error surfaces (and a retry re-attempts the same deduped delivery id) rather than
+    // swallow it and leave the run failed with no record.
+    const appended = await this.transcript.append({
+      surface: alias.surface,
+      externalId: alias.externalId,
+      deliveryId: `station-outcome:${run.id}:${args.status}`,
+      kind: EFactoryEventKind.StationResult,
+      author: 'atlas-factory',
+      payload: JSON.stringify({
+        runId: run.id,
+        kind: run.kind,
+        status: args.status,
+        reason: args.reason,
+      }),
+    })
+    if (appended === null) return
+    this.orchestrator.wake({ workItemId: item.id, externalId: alias.externalId })
   }
 
   private async markRun(args: { runId: string; status: EStationRunStatus }): Promise<void> {
