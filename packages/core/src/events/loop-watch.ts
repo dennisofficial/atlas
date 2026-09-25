@@ -8,6 +8,7 @@ export const LOOP_WATCH_NOTICE_STEPS = 3
 export const LOOP_WATCH_CUT_ANCHOR_SLOP = 5
 export const LOOP_WATCH_CUT_SAME_ANCHOR_MAX = 2
 export const LOOP_WATCH_CUT_MAX_PER_TURN = 4
+export const LOOP_WATCH_MUTE_TOOL_CEILING = 250
 
 const SPEECH_CLIP = 300
 const INPUT_CLIP = 200
@@ -69,11 +70,31 @@ const lastSteeringIndex = (events: readonly Event[]): number =>
   events.findLastIndex((event) => event.type === 'user-said' || event.type === 'nudge')
 
 /**
+ * Tool calls since the last substantive speech — the measure of a mute stretch. An agent that
+ * stops talking is invisible to the speech floor forever, however long it spins; the ceiling
+ * makes the stretch judgeable without touching the far more common case of an agent working
+ * through a quiet batch. The 250 comes from the session logs: the longest observed legitimate
+ * stretch was 162 calls, so the ceiling sits at half again past it.
+ */
+const muteToolStretch = ({ since }: { since: readonly Event[] }): number => {
+  let calls = 0
+  for (const event of since) {
+    if (event.type === 'assistant-said' && speechOf(event).length > 0) {
+      calls = 0
+      continue
+    }
+    if (event.type === 'tool-called') calls += 1
+  }
+  return calls
+}
+
+/**
  * The judgeable window: what the agent has done since the last steering event. Below
  * LOOP_WATCH_MIN_SPEECHES there is no pattern to judge, so the caller skips the consultation
- * entirely. A user message resets the window because steering is new information, and a nudge
- * resets it for the same reason — the judgement after a warning must grade what the agent did
- * next, not the pattern it was already warned about.
+ * entirely — unless the stretch went mute past LOOP_WATCH_MUTE_TOOL_CEILING, which is itself
+ * the anomaly worth grading. A user message resets the window because steering is new
+ * information, and a nudge resets it for the same reason — the judgement after a warning must
+ * grade what the agent did next, not the pattern it was already warned about.
  */
 export function loopWatchWindow({
   events,
@@ -85,7 +106,12 @@ export function loopWatchWindow({
   const speeches = since.filter(
     (event) => event.type === 'assistant-said' && speechOf(event).length > 0,
   )
-  if (speeches.length < LOOP_WATCH_MIN_SPEECHES) return undefined
+  if (
+    speeches.length < LOOP_WATCH_MIN_SPEECHES &&
+    muteToolStretch({ since }) < LOOP_WATCH_MUTE_TOOL_CEILING
+  ) {
+    return undefined
+  }
 
   const steps = since.slice(-LOOP_WATCH_WINDOW).flatMap((event) => {
     const line = lineOf(event)
