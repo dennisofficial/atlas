@@ -27,6 +27,12 @@ import { OrgSettingsController } from './settings/org-settings.controller'
 import { OrgSettingsService } from './settings/org-settings.service'
 import { GithubAppService } from './reply/github-app.service'
 import { GithubSurfaceService } from './reply/github-surface.service'
+import { ReplyWatchService } from './reply-watch/reply-watch.service'
+import { EFactorySurface } from './factory.types'
+import { GithubStatusSignal } from './status-signal/github-status-signal'
+import { LinearStatusSignal } from './status-signal/linear-status-signal'
+import { STATUS_SIGNAL_ADAPTERS, type StatusSignalAdapters } from './status-signal/status-signal'
+import { StatusSignalsService } from './status-signal/status-signals.service'
 import { GuardedReplyService } from './reply/guarded-reply.service'
 import { OrchestratorSandboxGuard } from './reply/orchestrator-sandbox.guard'
 import { FactoryRepliesController } from './reply/replies.controller'
@@ -92,6 +98,19 @@ import { WorkItemsService } from './work-items.service'
       inject: [EnvService],
     },
     { provide: ORCHESTRATOR_CHANNEL, useFactory: () => createOrchestratorChannel() },
+    GithubStatusSignal,
+    LinearStatusSignal,
+    StatusSignalsService,
+    ReplyWatchService,
+    {
+      provide: STATUS_SIGNAL_ADAPTERS,
+      useFactory: (github: GithubStatusSignal, linear: LinearStatusSignal): StatusSignalAdapters =>
+        new Map<EFactorySurface, (typeof github) | (typeof linear)>([
+          [EFactorySurface.GitHub, github],
+          [EFactorySurface.Linear, linear],
+        ]),
+      inject: [GithubStatusSignal, LinearStatusSignal],
+    },
   ],
   exports: [
     WorkItemsService,

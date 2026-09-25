@@ -18,6 +18,7 @@ import type {
   LinearWebhookOutcome,
 } from './linear-webhook.types'
 import { OrchestratorService } from './orchestrator/orchestrator.service'
+import { ReplyWatchService } from './reply-watch/reply-watch.service'
 import { StationsService } from './stations/stations.service'
 import { TranscriptService } from './transcript.service'
 import { WorkItemsService } from './work-items.service'
@@ -37,6 +38,7 @@ export class LinearWebhookService {
     private readonly drives: FactoryDrivesService,
     private readonly stations: StationsService,
     private readonly linearTokens: LinearTokensService,
+    private readonly replyWatch: ReplyWatchService,
   ) {}
 
   async handle(args: { deliveryId: string; payload: unknown }): Promise<LinearWebhookOutcome> {
@@ -188,7 +190,21 @@ export class LinearWebhookService {
       author: payload.actor?.name,
       payload,
     })
-    if (outcome.handled) return outcome
+    if (outcome.handled) {
+      if (outcome.appended === true && outcome.workItemId !== undefined) {
+        this.replyWatch.watch({
+          workItemId: outcome.workItemId,
+          eventId: args.deliveryId,
+          ref: {
+            surface: EFactorySurface.Linear,
+            organizationId: args.organizationId,
+            externalId: payload.data.issueId,
+            commentId: payload.data.id,
+          },
+        })
+      }
+      return outcome
+    }
     return this.intakeMentionedComment({
       deliveryId: args.deliveryId,
       payload,

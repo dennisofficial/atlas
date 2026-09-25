@@ -18,6 +18,7 @@ import type {
 } from './github-webhook.types'
 import { FactoryDrivesService } from './drives/drives.service'
 import { OrchestratorService } from './orchestrator/orchestrator.service'
+import { ReplyWatchService } from './reply-watch/reply-watch.service'
 import { GithubAppService } from './reply/github-app.service'
 import { StationsService } from './stations/stations.service'
 import { TranscriptService } from './transcript.service'
@@ -46,6 +47,7 @@ export class GithubWebhookService {
     private readonly githubApp: GithubAppService,
     private readonly drives: FactoryDrivesService,
     private readonly stations: StationsService,
+    private readonly replyWatch: ReplyWatchService,
   ) {}
 
   /**
@@ -245,10 +247,45 @@ export class GithubWebhookService {
       payload,
     })
     if (outcome.handled) {
-      if (outcome.appended === true) await this.acknowledgeComment({ payload })
+      if (outcome.appended === true) {
+        await this.acknowledgeComment({ payload })
+        this.watchHumanComment({
+          workItemId: outcome.workItemId,
+          organizationId: outcome.organizationId,
+          eventId: outcome.eventId,
+          externalId,
+          commentId: payload.comment.id,
+          login: payload.sender.login,
+        })
+      }
       return outcome
     }
     return this.intakeMentionedComment({ deliveryId: args.deliveryId, payload, externalId })
+  }
+
+  // Only a human gets a reply watch: a bot's comment is noise the loop reads, not a promise to
+  // answer. Bot logins carry the [bot] suffix.
+  private watchHumanComment(args: {
+    workItemId: string | undefined
+    organizationId: string | null | undefined
+    eventId: string | undefined
+    externalId: string
+    commentId: number
+    login: string
+  }): void {
+    if (args.workItemId === undefined || args.eventId === undefined) return
+    if (args.organizationId === undefined || args.organizationId === null) return
+    if (args.login.toLowerCase().endsWith('[bot]')) return
+    this.replyWatch.watch({
+      workItemId: args.workItemId,
+      eventId: args.eventId,
+      ref: {
+        surface: EFactorySurface.GitHub,
+        organizationId: args.organizationId,
+        externalId: args.externalId,
+        commentId: String(args.commentId),
+      },
+    })
   }
 
   private async intakeMentionedComment(args: {
@@ -290,6 +327,7 @@ export class GithubWebhookService {
         installationId,
         repoFullName: args.payload.repository.full_name,
         commentId: args.payload.comment.id,
+        content: 'eyes',
       })
     } catch (failure) {
       const detail = failure instanceof Error ? failure.message : String(failure)
@@ -410,6 +448,14 @@ export class GithubWebhookService {
         externalId: args.externalId,
       })
     }
-    return { handled: true, workItemId: result.workItemId, kind: args.kind, appended: result.appended }
+    const item = await this.workItems.find({ workItemId: result.workItemId })
+    return {
+      handled: true,
+      workItemId: result.workItemId,
+      kind: args.kind,
+      appended: result.appended,
+      eventId: result.event.id,
+      organizationId: item.organizationId,
+    }
   }
 }

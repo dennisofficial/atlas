@@ -13,6 +13,7 @@ import { DEFAULT_ORGANIZATION_ID, EFactoryEventKind, EFactoryWorkItemStatus } fr
 import { GithubWebhookService } from './github-webhook.service'
 import type { OrchestratorService } from './orchestrator/orchestrator.service'
 import type { GithubAppService } from './reply/github-app.service'
+import type { ReplyWatchService } from './reply-watch/reply-watch.service'
 import type { StationsService } from './stations/stations.service'
 import { TranscriptService } from './transcript.service'
 import { WorkItemsService } from './work-items.service'
@@ -88,6 +89,7 @@ describe('GithubWebhookService', () => {
       githubApp as unknown as GithubAppService,
       drives as unknown as FactoryDrivesService,
       stations as unknown as StationsService,
+      { watch: vi.fn(), resolve: vi.fn(async () => undefined) } as unknown as ReplyWatchService,
     )
   })
 
@@ -179,6 +181,7 @@ describe('GithubWebhookService', () => {
       installationId: 42,
       repoFullName: REPO,
       commentId: 9001,
+      content: 'eyes',
     })
   })
 
@@ -278,6 +281,7 @@ describe('GithubWebhookService', () => {
       installationId: 42,
       repoFullName: REPO,
       commentId: 9001,
+      content: 'eyes',
     })
     expect(orchestrator.wake).toHaveBeenCalledTimes(1)
     expect(orchestrator.wake).toHaveBeenCalledWith({ workItemId: outcome.workItemId, externalId: `${REPO}#341` })
@@ -303,6 +307,7 @@ describe('GithubWebhookService', () => {
       installationId: 42,
       repoFullName: REPO,
       commentId: 9002,
+      content: 'eyes',
     })
     expect(orchestrator.wake).toHaveBeenCalledWith({
       workItemId: outcome.workItemId,
@@ -511,7 +516,7 @@ describe('GithubWebhookService', () => {
       payload: pullRequestMergedPayload(),
     })
 
-    expect(outcome).toEqual({
+    expect(outcome).toMatchObject({
       handled: true,
       workItemId: workItem.id,
       kind: EFactoryEventKind.Merged,

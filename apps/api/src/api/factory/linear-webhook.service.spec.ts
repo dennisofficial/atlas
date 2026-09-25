@@ -12,6 +12,7 @@ import { FactoryConnectionsService } from './connections/connections.service'
 import type { FactoryDrivesService } from './drives/drives.service'
 import { EFactoryEventKind, EFactoryWorkItemStatus } from './factory.types'
 import type { LinearTokensService } from './linear/linear-tokens.service'
+import type { ReplyWatchService } from './reply-watch/reply-watch.service'
 import { LinearWebhookService } from './linear-webhook.service'
 import type { OrchestratorService } from './orchestrator/orchestrator.service'
 import type { StationsService } from './stations/stations.service'
@@ -136,6 +137,7 @@ describe('LinearWebhookService', () => {
       drives as unknown as FactoryDrivesService,
       stations as unknown as StationsService,
       linearTokens as unknown as LinearTokensService,
+      { watch: vi.fn(), resolve: vi.fn(async () => undefined) } as unknown as ReplyWatchService,
     )
   })
 
