@@ -17,6 +17,7 @@ import type {
   GithubWebhookOutcome,
 } from './github-webhook.types'
 import { FactoryDrivesService } from './drives/drives.service'
+import { BotRelevanceClassifier } from './classifier/bot-relevance.classifier'
 import { OrchestratorService } from './orchestrator/orchestrator.service'
 import { ReplyWatchService } from './reply-watch/reply-watch.service'
 import { GithubAppService } from './reply/github-app.service'
@@ -48,6 +49,7 @@ export class GithubWebhookService {
     private readonly drives: FactoryDrivesService,
     private readonly stations: StationsService,
     private readonly replyWatch: ReplyWatchService,
+    private readonly botRelevance: BotRelevanceClassifier,
   ) {}
 
   /**
@@ -245,6 +247,11 @@ export class GithubWebhookService {
       author: payload.sender.login,
       authorAssociation: payload.comment.author_association,
       payload,
+      deferWake: await this.shouldDeferBotWake({
+        organizationId: await this.resolveOrganizationId({ installationId: payload.installation?.id }),
+        login: payload.sender.login,
+        body: payload.comment.body,
+      }),
     })
     if (outcome.handled) {
       if (outcome.appended === true) {
@@ -261,6 +268,26 @@ export class GithubWebhookService {
       return outcome
     }
     return this.intakeMentionedComment({ deliveryId: args.deliveryId, payload, externalId })
+  }
+
+  /**
+   * Humans always wake; the classifier only ever reads bot traffic. A bot comment still lands on
+   * the transcript — the wake is what is gated, so a suppressed ping is never lost, just not
+   * actioned. Classifier failure fails open to waking.
+   */
+  private async shouldDeferBotWake(args: {
+    organizationId: string | null
+    login: string
+    body: string
+  }): Promise<boolean> {
+    if (!args.login.toLowerCase().endsWith('[bot]')) return false
+    const wake = await this.botRelevance.shouldWake({
+      organizationId: args.organizationId,
+      author: args.login,
+      body: args.body,
+    })
+    if (!wake) this.logger.log(`bot comment from ${args.login} judged not worth a wake`)
+    return !wake
   }
 
   // Only a human gets a reply watch: a bot's comment is noise the loop reads, not a promise to

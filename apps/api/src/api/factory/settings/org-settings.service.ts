@@ -2,8 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { FactoryConnectionsService } from '../connections/connections.service'
-import { EFactoryConnectionProvider } from '../factory.types'
-import { DEFAULT_FACTORY_MODEL_REF } from '../orchestrator/factory-credentials'
+import { DEFAULT_FACTORY_MODEL_REF, EFactoryConnectionProvider } from '../factory.types'
 import { FactoryIdentityService } from '../orchestrator/factory-identity'
 import {
   openDecisionsCredential,

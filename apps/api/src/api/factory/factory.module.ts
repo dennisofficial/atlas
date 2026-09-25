@@ -9,6 +9,7 @@ import { FactoryDriveSweeperService } from './drives/drive-sweeper.service'
 import { FactoryDrivesService } from './drives/drives.service'
 import { GithubInstallController } from './github-install.controller'
 import { GithubInstallService } from './github-install.service'
+import { BotRelevanceClassifier } from './classifier/bot-relevance.classifier'
 import { GithubWebhookController } from './github-webhook.controller'
 import { GithubWebhookService } from './github-webhook.service'
 import { LinearWebhookController } from './linear-webhook.controller'
@@ -102,6 +103,7 @@ import { WorkItemsService } from './work-items.service'
     LinearStatusSignal,
     StatusSignalsService,
     ReplyWatchService,
+    BotRelevanceClassifier,
     {
       provide: STATUS_SIGNAL_ADAPTERS,
       useFactory: (github: GithubStatusSignal, linear: LinearStatusSignal): StatusSignalAdapters =>

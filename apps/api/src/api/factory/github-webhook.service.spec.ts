@@ -13,6 +13,7 @@ import { DEFAULT_ORGANIZATION_ID, EFactoryEventKind, EFactoryWorkItemStatus } fr
 import { GithubWebhookService } from './github-webhook.service'
 import type { OrchestratorService } from './orchestrator/orchestrator.service'
 import type { GithubAppService } from './reply/github-app.service'
+import type { BotRelevanceClassifier } from './classifier/bot-relevance.classifier'
 import type { ReplyWatchService } from './reply-watch/reply-watch.service'
 import type { StationsService } from './stations/stations.service'
 import { TranscriptService } from './transcript.service'
@@ -67,6 +68,7 @@ describe('GithubWebhookService', () => {
   }
   let drives: { release: ReturnType<typeof vi.fn> }
   let stations: { stopRunningFor: ReturnType<typeof vi.fn> }
+  let botRelevance: { shouldWake: ReturnType<typeof vi.fn> }
 
   beforeEach(() => {
     fake.reset()
@@ -81,6 +83,7 @@ describe('GithubWebhookService', () => {
     }
     drives = { release: vi.fn(async () => true) }
     stations = { stopRunningFor: vi.fn(async () => undefined) }
+    botRelevance = { shouldWake: vi.fn(async () => true) }
     service = new GithubWebhookService(
       workItems,
       new FactoryConnectionsService(),
@@ -90,6 +93,7 @@ describe('GithubWebhookService', () => {
       drives as unknown as FactoryDrivesService,
       stations as unknown as StationsService,
       { watch: vi.fn(), resolve: vi.fn(async () => undefined) } as unknown as ReplyWatchService,
+      botRelevance as unknown as BotRelevanceClassifier,
     )
   })
 
@@ -183,6 +187,43 @@ describe('GithubWebhookService', () => {
       commentId: 9001,
       content: 'eyes',
     })
+  })
+
+  it('a bot comment judged as noise still lands on the transcript but does not wake the orchestrator', async () => {
+    await service.handle({ event: 'issues', deliveryId: 'd-1', payload: issuesLabeledPayload() })
+    orchestrator.wake.mockClear()
+    botRelevance.shouldWake.mockResolvedValue(false)
+
+    const bot = issueCommentPayload({ body: 'Deployment succeeded' }) as { sender: { login: string } }
+    bot.sender.login = 'vercel[bot]'
+    const outcome = await service.handle({ event: 'issue_comment', deliveryId: 'd-bot', payload: bot })
+
+    expect(outcome.handled).toBe(true)
+    expect(outcome.kind).toBe(EFactoryEventKind.Comment)
+    expect(fake.transcriptEvents.some((one) => one.kind === EFactoryEventKind.Comment)).toBe(true)
+    expect(orchestrator.wake).not.toHaveBeenCalled()
+  })
+
+  it('a bot comment judged relevant wakes the orchestrator', async () => {
+    await service.handle({ event: 'issues', deliveryId: 'd-1', payload: issuesLabeledPayload() })
+    orchestrator.wake.mockClear()
+    botRelevance.shouldWake.mockResolvedValue(true)
+
+    const bot = issueCommentPayload({ body: 'CI failed: type error in stations.service' }) as { sender: { login: string } }
+    bot.sender.login = 'vercel[bot]'
+    await service.handle({ event: 'issue_comment', deliveryId: 'd-bot', payload: bot })
+
+    expect(orchestrator.wake).toHaveBeenCalledTimes(1)
+  })
+
+  it('a human comment never touches the classifier and always wakes', async () => {
+    await service.handle({ event: 'issues', deliveryId: 'd-1', payload: issuesLabeledPayload() })
+    orchestrator.wake.mockClear()
+
+    await service.handle({ event: 'issue_comment', deliveryId: 'd-human', payload: issueCommentPayload() })
+
+    expect(botRelevance.shouldWake).not.toHaveBeenCalled()
+    expect(orchestrator.wake).toHaveBeenCalledTimes(1)
   })
 
   it("drops the factory's own comment echo instead of waking the orchestrator with it", async () => {

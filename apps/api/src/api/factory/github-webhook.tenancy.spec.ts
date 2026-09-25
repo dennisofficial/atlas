@@ -14,6 +14,7 @@ import { DEFAULT_ORGANIZATION_ID } from './factory.types'
 import { GithubWebhookService } from './github-webhook.service'
 import type { OrchestratorService } from './orchestrator/orchestrator.service'
 import type { GithubAppService } from './reply/github-app.service'
+import type { BotRelevanceClassifier } from './classifier/bot-relevance.classifier'
 import type { ReplyWatchService } from './reply-watch/reply-watch.service'
 import type { StationsService } from './stations/stations.service'
 import { TranscriptService } from './transcript.service'
@@ -53,6 +54,7 @@ describe('GithubWebhookService tenancy', () => {
       { release: vi.fn(async () => true) } as unknown as FactoryDrivesService,
       { stopRunningFor: vi.fn(async () => undefined) } as unknown as StationsService,
       { watch: vi.fn(), resolve: vi.fn(async () => undefined) } as unknown as ReplyWatchService,
+      { shouldWake: vi.fn(async () => true) } as unknown as BotRelevanceClassifier,
     )
   })
 

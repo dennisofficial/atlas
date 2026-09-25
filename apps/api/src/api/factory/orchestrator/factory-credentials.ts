@@ -4,12 +4,12 @@ import { EnvService } from '../../../_core/config/env/env.service'
 import { db } from '../../../db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { EAccountOrigin, EAccountStatus, EAuthKind } from '../../platform/accounts/accounts.types'
+import { DEFAULT_FACTORY_MODEL_REF } from '../factory.types'
 import { type ModelCredentialBlob } from '../settings/org-credential-blobs'
 import { OrgSettingsService } from '../settings/org-settings.service'
 import { isUniqueViolation } from '../unique-violation'
 
 const DEFAULT_PROVIDER = 'anthropic'
-export const DEFAULT_FACTORY_MODEL_REF = 'inference/kimi-k3-fast'
 const POINTER_UNIQUE_TARGET = ['userId', 'provider'] as const
 
 export class FactoryCredentialsNotConfigured extends Error {
