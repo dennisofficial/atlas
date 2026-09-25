@@ -46,9 +46,11 @@ export class ReplyWatchService {
     private readonly sandboxes: SandboxesService,
     private readonly identity: FactoryIdentityService,
     @Inject(ORCHESTRATOR_CHANNEL) private readonly channel: OrchestratorChannel,
-    private readonly windowMs: number = REPLY_WATCH_WINDOW_MS,
-    private readonly graceMs: number = REPLY_WATCH_GRACE_MS,
   ) {}
+
+  /** Overridable for specs — the production windows are the module constants. */
+  windowMs = REPLY_WATCH_WINDOW_MS
+  graceMs = REPLY_WATCH_GRACE_MS
 
   /** Arm a watch on a human comment: heard goes up, the nudge timer starts. */
   watch(args: {

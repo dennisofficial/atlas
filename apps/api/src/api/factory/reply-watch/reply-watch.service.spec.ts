@@ -64,9 +64,9 @@ describe('ReplyWatchService', () => {
       sandboxes as unknown as SandboxesService,
       new FactoryIdentityService(nullCipher),
       channel as OrchestratorChannel,
-      WINDOW,
-      GRACE,
     )
+    service.windowMs = WINDOW
+    service.graceMs = GRACE
     const workItems = new WorkItemsService()
     const { workItem } = await workItems.intake(INTAKE)
     workItemId = workItem.id
