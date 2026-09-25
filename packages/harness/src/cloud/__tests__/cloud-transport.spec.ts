@@ -116,6 +116,52 @@ describe('cloudRequest with retry opted in', () => {
     expect(calls).toHaveLength(1)
     expect(delays).toEqual([])
   })
+
+  it('aborts a wedged request at the timeout instead of hanging on the proxy, then retries', async () => {
+    // A crash-looping origin holds the connection open with no bytes until the proxy 504s at ~60s.
+    // The per-attempt abort must turn that hang into a fast failure the retry can recover from.
+    let at = 0
+    const calls: number[] = []
+    const fetchFn = (async (_input: unknown, init?: RequestInit) => {
+      at += 1
+      calls.push(at)
+      if (at === 1) {
+        return await new Promise<Response>((resolve, reject) => {
+          const signal = init?.signal
+          if (signal === null || signal === undefined) {
+            resolve(new Response('', { status: 200 }))
+            return
+          }
+          if (signal.aborted) {
+            reject(new DOMException('The operation timed out.', 'TimeoutError'))
+            return
+          }
+          signal.addEventListener('abort', () =>
+            reject(new DOMException('The operation timed out.', 'TimeoutError')),
+          )
+        })
+      }
+      return new Response(JSON.stringify([]), { status: 200 })
+    }) as typeof fetch
+
+    const startedAt = Date.now()
+    const answer = await cloudRequest({
+      url: 'https://cloud.test',
+      token: 'sess_test',
+      clientVersion: '1.2.3',
+      fetchFn,
+      method: 'GET',
+      path: '/v1/threads/thread-1/events',
+      retry: true,
+      timeoutMs: 25,
+      sleep: () => Promise.resolve(),
+      randomFn: () => 1,
+    })
+
+    expect(answer).toEqual([])
+    expect(calls).toHaveLength(2)
+    expect(Date.now() - startedAt).toBeLessThan(1000)
+  })
 })
 
 describe('cloudRequest without retry (the mutation default)', () => {
