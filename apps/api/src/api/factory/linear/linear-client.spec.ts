@@ -1,6 +1,14 @@
 import { BadGatewayException, BadRequestException } from '@nestjs/common'
 import { describe, expect, it } from 'vitest'
-import { createComment, getIssue, markDuplicate, setState, type LinearFetch } from './linear-client'
+import {
+  addCommentReaction,
+  clearCommentReaction,
+  createComment,
+  getIssue,
+  markDuplicate,
+  setState,
+  type LinearFetch,
+} from './linear-client'
 
 const LINEAR_URL = 'https://api.linear.app/graphql'
 
@@ -213,6 +221,57 @@ describe('linear client', () => {
         issueId: 'issue-uuid-1',
         duplicateOfId: 'issue-uuid-100',
       })
+    })
+  })
+
+  describe('comment reactions', () => {
+    it('addCommentReaction posts reactionCreate and returns the reaction id', async () => {
+      const { fetchFn, calls } = fakeFetch({
+        reactionCreate: () =>
+          jsonResponse(200, { data: { reactionCreate: { reaction: { id: 'reaction-1' } } } }),
+      })
+
+      const added = await addCommentReaction({
+        token: 'lin_oauth_token',
+        commentId: 'comment-uuid-1',
+        emoji: '👀',
+        fetchFn,
+      })
+
+      expect(added.reactionId).toBe('reaction-1')
+      const [call] = calls as [Call]
+      expect(call.body.variables).toEqual({ commentId: 'comment-uuid-1', emoji: '👀' })
+    })
+
+    it('clearCommentReaction removes only the caller-owned reactions of one emoji', async () => {
+      const deleted: string[] = []
+      const { fetchFn } = fakeFetch({
+        'reactions(filter:': () =>
+          jsonResponse(200, {
+            data: {
+              reactions: {
+                nodes: [
+                  { id: 'reaction-mine', emoji: '👀', user: { id: 'me' } },
+                  { id: 'reaction-other', emoji: '👀', user: { id: 'someone-else' } },
+                ],
+              },
+            },
+          }),
+        viewer: () => jsonResponse(200, { data: { viewer: { id: 'me' } } }),
+        reactionDelete: (call) => {
+          deleted.push(String(call.body.variables.id))
+          return jsonResponse(200, { data: { reactionDelete: { success: true } } })
+        },
+      })
+
+      await clearCommentReaction({
+        token: 'lin_oauth_token',
+        commentId: 'comment-uuid-1',
+        emoji: '👀',
+        fetchFn,
+      })
+
+      expect(deleted).toEqual(['reaction-mine'])
     })
   })
 

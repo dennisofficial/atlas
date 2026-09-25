@@ -146,17 +146,23 @@ describe('GithubAppService', () => {
       expect(reaction.body).toEqual({ content: 'eyes' })
     })
 
-    it('addCommentReaction posts eyes to the comment reactions path', async () => {
+    it('addCommentReaction posts the given reaction and returns its id for later removal', async () => {
       const { fetchFn, calls } = fakeFetch({
         'POST https://api.github.com/app/installations/42/access_tokens': () =>
           jsonResponse(201, { token: 'ghs_installation_token' }),
         'POST https://api.github.com/repos/compai/atlas/issues/comments/9001/reactions': () =>
-          jsonResponse(201, { id: 1, content: 'eyes' }),
+          jsonResponse(201, { id: 777, content: 'eyes' }),
       })
       service = new GithubAppService(fakeEnv({ configured: true }), fetchFn)
 
-      await service.addCommentReaction({ installationId: 42, repoFullName: 'compai/atlas', commentId: 9001 })
+      const added = await service.addCommentReaction({
+        installationId: 42,
+        repoFullName: 'compai/atlas',
+        commentId: 9001,
+        content: 'eyes',
+      })
 
+      expect(added.reactionId).toBe(777)
       expect(calls.map((call) => `${call.method} ${call.url}`)).toEqual([
         'POST https://api.github.com/app/installations/42/access_tokens',
         'POST https://api.github.com/repos/compai/atlas/issues/comments/9001/reactions',
@@ -164,6 +170,28 @@ describe('GithubAppService', () => {
       const [, reaction] = calls as [Call, Call]
       expect(reaction.authorization).toBe('Bearer ghs_installation_token')
       expect(reaction.body).toEqual({ content: 'eyes' })
+    })
+
+    it('removeCommentReaction deletes the reaction by id', async () => {
+      const { fetchFn, calls } = fakeFetch({
+        'POST https://api.github.com/app/installations/42/access_tokens': () =>
+          jsonResponse(201, { token: 'ghs_installation_token' }),
+        'DELETE https://api.github.com/repos/compai/atlas/issues/comments/9001/reactions/777': () =>
+          new Response(null, { status: 204 }),
+      })
+      service = new GithubAppService(fakeEnv({ configured: true }), fetchFn)
+
+      await service.removeCommentReaction({
+        installationId: 42,
+        repoFullName: 'compai/atlas',
+        commentId: 9001,
+        reactionId: 777,
+      })
+
+      expect(calls.map((call) => `${call.method} ${call.url}`)).toEqual([
+        'POST https://api.github.com/app/installations/42/access_tokens',
+        'DELETE https://api.github.com/repos/compai/atlas/issues/comments/9001/reactions/777',
+      ])
     })
 
     it('assertInstallation resolves when the installation exists for this app', async () => {

@@ -9,6 +9,10 @@ export interface GithubWebhookOutcome {
   workItemId?: string
   kind?: EFactoryEventKind
   appended?: boolean
+  /** The transcript event id of the appended event, for the reply watch to reference. */
+  eventId?: string
+  /** The work item's organization — credential-scoped adapters resolve tokens from it. */
+  organizationId?: string | null
 }
 
 export interface GithubRepository {

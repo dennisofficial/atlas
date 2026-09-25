@@ -1,5 +1,7 @@
 export const DEFAULT_ORGANIZATION_ID = 'org_atlas_default'
 
+export const DEFAULT_FACTORY_MODEL_REF = 'inference/kimi-k3-fast'
+
 export enum EFactoryConnectionProvider {
   GitHub = 'github',
   Linear = 'linear',

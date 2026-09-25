@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common'
 import { db } from '../../../db'
 import { EFactoryEventKind, EFactorySurface } from '../factory.types'
+import { ReplyWatchService } from '../reply-watch/reply-watch.service'
 import { TranscriptService } from '../transcript.service'
 import { GithubAppService } from './github-app.service'
 import { parseReplyTarget } from './reply-target'
@@ -30,6 +31,7 @@ export class GuardedReplyService {
   constructor(
     private readonly transcript: TranscriptService,
     private readonly githubApp: GithubAppService,
+    private readonly replyWatch: ReplyWatchService,
   ) {}
 
   async reply(args: {
@@ -87,6 +89,7 @@ export class GuardedReplyService {
       author: 'atlas-factory',
       payload: JSON.stringify({ body: args.body, url: posted.url }),
     })
+    await this.replyWatch.resolve({ workItemId: item.id })
     this.logger.log(`posted factory reply on ${args.externalId} for work item ${item.id}`)
     return {
       posted: true,

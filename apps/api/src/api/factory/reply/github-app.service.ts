@@ -87,20 +87,84 @@ export class GithubAppService {
     })
   }
 
-  /** 👀 on the comment that triggered intake — visible where the author is actually looking. */
+  /** A reaction on a comment — visible where the author is actually looking. */
   async addCommentReaction(args: {
     installationId: number
     repoFullName: string
     commentId: number
-  }): Promise<void> {
+    content: string
+  }): Promise<{ reactionId: number }> {
     const token = await this.api.mintInstallationToken({ installationId: args.installationId })
-    await this.api.request<unknown>({
+    const created = await this.api.request<{ id: number }>({
       method: 'POST',
       path: `/repos/${args.repoFullName}/issues/comments/${args.commentId}/reactions`,
       as: 'installation',
       token,
-      body: { content: 'eyes' },
+      body: { content: args.content },
     })
+    return { reactionId: created.id }
+  }
+
+  /** Reactions delete by id, so the lifecycle holds the id the add returned. */
+  async removeCommentReaction(args: {
+    installationId: number
+    repoFullName: string
+    commentId: number
+    reactionId: number
+  }): Promise<void> {
+    const token = await this.api.mintInstallationToken({ installationId: args.installationId })
+    await this.api.requestText({
+      method: 'DELETE',
+      path: `/repos/${args.repoFullName}/issues/comments/${args.commentId}/reactions/${args.reactionId}`,
+      as: 'installation',
+      token,
+    })
+  }
+
+  /** Repo-scoped add: resolves the installation from the repo so callers need no installation id. */
+  async addCommentReactionForRepo(args: {
+    owner: string
+    repo: string
+    commentId: number
+    content: string
+  }): Promise<{ reactionId: number }> {
+    const token = await this.installationToken({ owner: args.owner, repo: args.repo })
+    const created = await this.api.request<{ id: number }>({
+      method: 'POST',
+      path: `/repos/${args.owner}/${args.repo}/issues/comments/${args.commentId}/reactions`,
+      as: 'installation',
+      token,
+      body: { content: args.content },
+    })
+    return { reactionId: created.id }
+  }
+
+  /**
+   * Stateless clear: removes this app's reactions of one emoji from a comment by listing and
+   * deleting, so the caller never tracks reaction ids. A reaction another author left is untouched.
+   */
+  async clearCommentReaction(args: {
+    owner: string
+    repo: string
+    commentId: number
+    content: string
+  }): Promise<void> {
+    const token = await this.installationToken({ owner: args.owner, repo: args.repo })
+    const reactions = await this.api.request<Array<{ id: number; content: string }>>({
+      method: 'GET',
+      path: `/repos/${args.owner}/${args.repo}/issues/comments/${args.commentId}/reactions`,
+      as: 'installation',
+      token,
+    })
+    for (const reaction of reactions) {
+      if (reaction.content !== args.content) continue
+      await this.api.requestText({
+        method: 'DELETE',
+        path: `/repos/${args.owner}/${args.repo}/issues/comments/${args.commentId}/reactions/${reaction.id}`,
+        as: 'installation',
+        token,
+      })
+    }
   }
 
   /** Null when the branch is not on the remote — the delivery gate's "pushed" check. */

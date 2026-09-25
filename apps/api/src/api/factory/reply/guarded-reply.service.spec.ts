@@ -11,6 +11,7 @@ import { fakeFactoryDb } from '../../../../test/fake-factory-db.js'
 import { DEFAULT_ORGANIZATION_ID, EFactoryEventKind } from '../factory.types'
 import { TranscriptService } from '../transcript.service'
 import { WorkItemsService } from '../work-items.service'
+import type { ReplyWatchService } from '../reply-watch/reply-watch.service'
 import type { GithubAppService } from './github-app.service'
 import { GuardedReplyService } from './guarded-reply.service'
 
@@ -51,7 +52,11 @@ describe('GuardedReplyService', () => {
     workItems = new WorkItemsService()
     transcript = new TranscriptService()
     githubApp = { createComment: vi.fn(async () => ({ url: POSTED_URL })) }
-    service = new GuardedReplyService(transcript, githubApp as unknown as GithubAppService)
+    service = new GuardedReplyService(
+      transcript,
+      githubApp as unknown as GithubAppService,
+      { watch: vi.fn(), resolve: vi.fn(async () => undefined) } as unknown as ReplyWatchService,
+    )
   })
 
   it('posts to an aliased surface and records the reply on the transcript', async () => {

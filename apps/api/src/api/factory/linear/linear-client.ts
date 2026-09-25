@@ -192,6 +192,75 @@ export async function setState(args: {
   return { stateName: updated.issueUpdate.issue.state.name }
 }
 
+const REACTION_CREATE_MUTATION = `mutation ReactionCreate($commentId: String!, $emoji: String!) {
+  reactionCreate(input: { commentId: $commentId, emoji: $emoji }) {
+    reaction { id }
+  }
+}`
+
+const VIEWER_QUERY = `query Viewer { viewer { id } }`
+
+const COMMENT_REACTIONS_QUERY = `query CommentReactions($commentId: String!) {
+  reactions(filter: { comment: { id: { eq: $commentId } } }) {
+    nodes { id emoji user { id } }
+  }
+}`
+
+const REACTION_DELETE_MUTATION = `mutation ReactionDelete($id: String!) {
+  reactionDelete(id: $id) { success }
+}`
+
+export async function addCommentReaction(args: {
+  token: string
+  commentId: string
+  emoji: string
+  fetchFn?: LinearFetch | undefined
+}): Promise<{ reactionId: string }> {
+  const data = await linearGraphql<{ reactionCreate: { reaction: { id: string } } }>({
+    token: args.token,
+    fetchFn: args.fetchFn,
+    query: REACTION_CREATE_MUTATION,
+    variables: { commentId: args.commentId, emoji: args.emoji },
+  })
+  return { reactionId: data.reactionCreate.reaction.id }
+}
+
+/**
+ * Stateless clear: removes the caller's own reactions of one emoji from a comment, leaving any
+ * another user left. Reactions delete by id, and the ids are not tracked, so this lists the
+ * comment's reactions, keeps the viewer's own of the matching emoji, and deletes those.
+ */
+export async function clearCommentReaction(args: {
+  token: string
+  commentId: string
+  emoji: string
+  fetchFn?: LinearFetch | undefined
+}): Promise<void> {
+  const viewer = await linearGraphql<{ viewer: { id: string } }>({
+    token: args.token,
+    fetchFn: args.fetchFn,
+    query: VIEWER_QUERY,
+    variables: {},
+  })
+  const data = await linearGraphql<{
+    reactions: { nodes: Array<{ id: string; emoji: string; user: { id: string } | null }> }
+  }>({
+    token: args.token,
+    fetchFn: args.fetchFn,
+    query: COMMENT_REACTIONS_QUERY,
+    variables: { commentId: args.commentId },
+  })
+  for (const reaction of data.reactions.nodes) {
+    if (reaction.emoji !== args.emoji || reaction.user?.id !== viewer.viewer.id) continue
+    await linearGraphql<unknown>({
+      token: args.token,
+      fetchFn: args.fetchFn,
+      query: REACTION_DELETE_MUTATION,
+      variables: { id: reaction.id },
+    })
+  }
+}
+
 export async function markDuplicate(args: {
   token: string
   issueId: string

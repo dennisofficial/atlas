@@ -13,9 +13,9 @@ import { EAuthKind } from '../../platform/accounts/accounts.types'
 import { FactoryConnectionsService } from '../connections/connections.service'
 import { EFactoryConnectionProvider } from '../factory.types'
 import { sealBlob } from '../settings/org-credential-blobs'
+import { DEFAULT_FACTORY_MODEL_REF } from '../factory.types'
 import { OrgSettingsService } from '../settings/org-settings.service'
 import {
-  DEFAULT_FACTORY_MODEL_REF,
   FactoryCredentialsNotConfigured,
   FactoryCredentialService,
 } from './factory-credentials'
