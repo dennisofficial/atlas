@@ -103,10 +103,16 @@
     "api": "openai-completions",
     "contextWindow": 1040000,
     "imageTier": "standard",
-    "maxOutputTokens": 131072,
+    "maxOutputTokens": 384000,
     "cost": {
       "inputPerMillion": 0.3,
       "outputPerMillion": 1
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "high": "high",
+      "max": "max"
     }
   },
   {
