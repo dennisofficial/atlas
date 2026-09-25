@@ -12,7 +12,7 @@ import {
   type RewindKill,
   type TurnOutcome,
 } from '@dltech/atlas-harness'
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 
 import type { PendingSaid } from '../store'
 import type { DirectoryMove } from './directory-move'
@@ -121,9 +121,12 @@ export function useTurnDriver(args: {
   const remoteTurnInFlight = useRef(false)
 
   const cloudChannel = args.remoteChannel ?? remoteChannelOf(app.runner)
-  const machinery =
-    app.rewindMachinery ??
-    new LocalRewindMachinery({ agents: app.agents, shells: app.shells, services: app.services })
+  const machinery = useMemo(
+    () =>
+      app.rewindMachinery ??
+      new LocalRewindMachinery({ agents: app.agents, shells: app.shells, services: app.services }),
+    [app.rewindMachinery, app.agents, app.shells, app.services],
+  )
 
   /**
    * The interrupting stamp is a promise the serve's ack has to keep. The ack clears it; the
