@@ -37,8 +37,8 @@ export type RewindPlan = {
   reappend: readonly RewoundNotice[]
 }
 
-const isShellNotice = (event: Event): event is EventOfType<ShellNoticeType> =>
-  event.type.startsWith('background-shell-')
+const isShellNotice = (event: Event): event is EventOfType<Exclude<ShellNoticeType, 'background-shell-started'>> =>
+  event.type.startsWith('background-shell-') && event.type !== 'background-shell-started'
 
 const isNotice = (event: Event): boolean =>
   isShellNotice(event) ||

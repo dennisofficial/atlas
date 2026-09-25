@@ -24,6 +24,7 @@ import { portToken } from '../container/injection'
 import { SecretsStoreToken, ServeSessionToken } from '../container/tokens'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import { memoryDirectoriesFor } from '../memory/read-memory'
+import { ShellRecovery } from '../shells/recovery'
 import { atlasDirectory } from '../store/paths'
 import { ThreadStorePort } from '../store/thread-store'
 
@@ -195,6 +196,8 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     })
   }
 
+  const shellRecovery = new ShellRecovery({ log: app.surface.log, ids: app.ids })
+
   return {
     channel: app.channel,
     runner: app.runner,
@@ -205,6 +208,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     workspace: app.workspace,
     adoptChildren: ({ threadId }) =>
       adoptChildren({ agents: app.agents, log: app.surface.log, threadId }),
+    recordLostShells: ({ threadId }) => shellRecovery.recordLost({ threadId }),
     whenChildrenSettled: ({ threadId }) => app.agents.whenChildrenSettled({ threadId }),
     syncMemoryAfterTurn: memory.syncAfterTurn,
     runningShells: () =>

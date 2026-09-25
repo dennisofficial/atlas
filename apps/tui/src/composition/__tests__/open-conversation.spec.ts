@@ -4,6 +4,7 @@ import {
   EAgentStatus,
   EExecutionLocation,
   EKilledBy,
+  EShellStatus,
   toThreadId,
   toEventId,
   toRunId,
@@ -606,6 +607,89 @@ describe('the children the last process lost', () => {
     })
 
     expect(opened(outcome).lost).toEqual({ settled: [], unlogged: [] })
+  })
+})
+
+const shellStarted = (args: { shellId: string; command: string; seq: number }): Event => ({
+  type: 'background-shell-started',
+  shellId: args.shellId,
+  command: args.command,
+  id: toEventId(`start-${args.seq}`),
+  seq: args.seq,
+  threadId: YESTERDAY,
+  runId: toRunId('r1'),
+  depth: 0,
+  at: '2026-08-24T00:00:00.000Z',
+})
+
+const shellEnded = (args: { shellId: string; command: string; seq: number }): Event => ({
+  type: 'background-shell-ended',
+  shellId: args.shellId,
+  command: args.command,
+  status: EShellStatus.Exited,
+  exitCode: 0,
+  output: '',
+  droppedCharacters: 0,
+  remainingCharacters: 0,
+  id: toEventId(`end-${args.seq}`),
+  seq: args.seq,
+  threadId: YESTERDAY,
+  runId: toRunId('r1'),
+  depth: 0,
+  at: '2026-08-24T00:00:01.000Z',
+})
+
+describe('the shells the last process lost', () => {
+  it('are settled when the conversation is opened, so their endings reach the transcript and the notice', async () => {
+    const log = fakeEventLog([
+      said('is my build still running'),
+      shellStarted({ shellId: 'bash_1', command: 'bun run build', seq: 2 }),
+    ])
+
+    const outcome = await openConversation({
+      threads: fakeThreadStore({ existing: [YESTERDAY] }),
+      log,
+      ledger: fakeLedger(),
+      agents: fakeAgentRegistry(),
+      ids: fakeIds(),
+      workspace: HERE,
+      effects: () => undefined,
+      open: { mode: EOpenMode.Continue },
+    })
+
+    expect(opened(outcome).lostShells).toEqual([
+      { shellId: 'bash_1', command: 'bun run build', description: undefined },
+    ])
+
+    const written = log
+      .peek({ threadId: YESTERDAY })
+      .filter((event) => event.type === 'background-shell-ended')
+    expect(written).toHaveLength(1)
+    const ending = written[0]
+    if (ending?.type !== 'background-shell-ended') throw new Error('expected a synthetic ending')
+    expect(ending.status).toBe(EShellStatus.Killed)
+    expect(ending.killedBy).toBe(EKilledBy.Unrecorded)
+  })
+
+  it('leaves a shell that already ended alone, reporting nothing', async () => {
+    const log = fakeEventLog([
+      said('all clean here'),
+      shellStarted({ shellId: 'bash_1', command: 'bun run build', seq: 2 }),
+      shellEnded({ shellId: 'bash_1', command: 'bun run build', seq: 3 }),
+    ])
+
+    const outcome = await openConversation({
+      threads: fakeThreadStore({ existing: [YESTERDAY] }),
+      log,
+      ledger: fakeLedger(),
+      agents: fakeAgentRegistry(),
+      ids: fakeIds(),
+      workspace: HERE,
+      effects: () => undefined,
+      open: { mode: EOpenMode.Continue },
+    })
+
+    expect(opened(outcome).lostShells).toEqual([])
   })
 })
 

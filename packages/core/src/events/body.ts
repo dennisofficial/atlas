@@ -95,6 +95,12 @@ export type EventBody =
       branch: string
     }
   | {
+      type: 'background-shell-started'
+      shellId: string
+      command: string
+      description?: string | undefined
+    }
+  | {
       type: 'background-shell-ended'
       shellId: string
       command: string

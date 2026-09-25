@@ -107,6 +107,10 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
         shellRegistry(resolver),
         resolver.resolve(portToken(FileSystemPort)),
         resolver.resolve(portToken(ProcessPort)),
+        {
+          log: relocationLog(resolver),
+          ids: resolver.resolve(portToken(IdPort)),
+        },
       ),
   })
   container.register(portToken(ToolDefinition), {

@@ -13,6 +13,8 @@ import {
   waitsBySleeping,
   waitsByWatching,
   type DeclaredPathField,
+  type EventLogPort,
+  type IdPort,
   type PortExposure,
   type ThreadId,
   type ToolOutcome,
@@ -65,6 +67,11 @@ const description = bashDescription({
   defaultCheckInMs: CHECK_IN_EVERY_MS,
 })
 
+type ShellStartRecording = {
+  log: Pick<EventLogPort, 'append'>
+  ids: Pick<IdPort, 'nextRunId'>
+}
+
 export class BashTool extends SchemaTool<typeof inputSchema> {
   readonly name = 'bash'
   readonly description = description
@@ -83,6 +90,7 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
     private readonly shells: ShellRegistryPort,
     private readonly files: FileSystemPort = new LocalFileSystemPort(),
     private readonly processes: ProcessPort = new LocalProcessPort(),
+    private readonly recording?: ShellStartRecording | undefined,
   ) {
     super()
   }
@@ -116,6 +124,7 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
     if (!started.ok) return started
 
     const { shellId } = started.snapshot
+    this.recordStart({ shellId, args })
     const checkInMs = args.checkInMs ?? CHECK_IN_EVERY_MS
 
     return {
@@ -147,6 +156,32 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
         `whose startup log you need, and shell_kill({ shellId: "${shellId}" }) to stop it.`,
       ].join(' '),
     }
+  }
+
+  /**
+   * The start is written the moment the registry hands back an id rather than waiting for a later
+   * drain: a shell that starts and then the process crashes before the next turn must still leave
+   * its start behind, or the reconciler on the next open has nothing to pair. Fire-and-forget — a
+   * shell already running must never wait on, or die with, its own record.
+   */
+  private recordStart(args: { shellId: string; args: { threadId: ThreadId; command: string; description: string } }): void {
+    if (this.recording === undefined) return
+    const { log, ids } = this.recording
+    const { shellId } = args
+    void log
+      .append({
+        threadId: args.args.threadId,
+        runId: ids.nextRunId(),
+        drafts: [
+          {
+            type: 'background-shell-started',
+            shellId,
+            command: args.args.command,
+            description: args.args.description,
+          },
+        ],
+      })
+      .catch(() => undefined)
   }
 
   protected override async run({

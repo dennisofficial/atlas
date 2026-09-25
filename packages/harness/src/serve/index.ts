@@ -123,6 +123,24 @@ function adoptChildrenInBackground(args: {
   })
 }
 
+function settleLostShellsInBackground(args: {
+  app: Pick<ServeApp, 'recordLostShells'>
+  threadId: ThreadId
+  log: ServeLog
+}): void {
+  if (args.app.recordLostShells === undefined) return
+  void args.app
+    .recordLostShells({ threadId: args.threadId })
+    .then((settled) => {
+      if (settled.length > 0) {
+        args.log({ event: EServeEvent.LostShellsSettled, shellIds: settled.map((shell) => shell.shellId) })
+      }
+    })
+    .catch((error: unknown) => {
+      args.log({ event: EServeEvent.LostShellSettlementFailed, reason: messageOf(error) })
+    })
+}
+
 const lazy = <T>(fetch: () => Promise<T>): (() => Promise<T>) => {
   let held: Promise<T> | undefined
   return () => (held ??= fetch())
@@ -234,6 +252,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   let idleStop: { note: () => void; halt: () => void } = { note: () => undefined, halt: () => undefined }
 
   adoptChildrenInBackground({ app, threadId, log, settling, note: () => idleStop.note() })
+  settleLostShellsInBackground({ app, threadId, log })
 
   let inFlight: () => readonly SignalFrame[] = () => []
   let liveStepId: () => StepId | null = () => null
