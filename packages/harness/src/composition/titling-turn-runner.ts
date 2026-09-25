@@ -6,6 +6,8 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import type { Unsubscribe } from '../channel/delta-channel'
+
 import { sessionDigest } from '../model/session-digest'
 import { TurnRunner, type TurnOutcome } from '../loop'
 import type { TurnRunner as TurnRunnerShape } from '../loop/turn-runner.port'
@@ -28,6 +30,8 @@ export class TitlingTurnRunner extends TurnRunner {
   private readonly titler: (args: { text: string }) => Promise<string | null>
   private readonly notice: NoticePort
   private readonly asked = new Set<ThreadId>()
+  private readonly inFlight = new Set<ThreadId>()
+  private readonly listeners = new Map<ThreadId, Set<(titling: boolean) => void>>()
 
   constructor(args: {
     inner: TurnRunnerShape
@@ -60,9 +64,40 @@ export class TitlingTurnRunner extends TurnRunner {
     return this.inner.resume(args)
   }
 
+  /**
+   * Whether a first-message titling ask is in flight for the thread — the surface shimmers the
+   * opening line off this while it waits, the way it already shimmers a `/rename` ask off the
+   * composer's own naming state.
+   */
+  titling(args: { threadId: ThreadId }): boolean {
+    return this.inFlight.has(args.threadId)
+  }
+
+  onTitling(args: { threadId: ThreadId; listener: (titling: boolean) => void }): Unsubscribe {
+    const existing = this.listeners.get(args.threadId) ?? new Set()
+    existing.add(args.listener)
+    this.listeners.set(args.threadId, existing)
+    return () => {
+      existing.delete(args.listener)
+      if (existing.size === 0) this.listeners.delete(args.threadId)
+    }
+  }
+
+  private setTitling(args: { threadId: ThreadId; titling: boolean }): void {
+    if (args.titling) {
+      this.inFlight.add(args.threadId)
+    } else {
+      this.inFlight.delete(args.threadId)
+    }
+    for (const listener of [...(this.listeners.get(args.threadId) ?? [])]) {
+      listener(args.titling)
+    }
+  }
+
   private async titleOnce(args: { threadId: ThreadId }): Promise<void> {
     if (this.asked.has(args.threadId)) return
     this.asked.add(args.threadId)
+    this.setTitling({ threadId: args.threadId, titling: true })
 
     try {
       const thread = await this.threads.find({ threadId: args.threadId })
@@ -85,6 +120,8 @@ export class TitlingTurnRunner extends TurnRunner {
         ttlMs: NOTICE_WARN_MS,
         text: `this session could not be titled: ${error instanceof Error ? error.message : String(error)}`,
       })
+    } finally {
+      this.setTitling({ threadId: args.threadId, titling: false })
     }
   }
 }

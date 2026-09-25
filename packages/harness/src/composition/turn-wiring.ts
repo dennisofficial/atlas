@@ -76,6 +76,7 @@ export type TurnWiring = {
   turn: TurnDeps
   runner: TurnRunner
   turnPolicy: TurnPolicy
+  titling: TitlingTurnRunner
   drainNotices: (args: { threadId: ThreadId }) => Promise<readonly EventDraft[]>
   recordTeardownEndings: () => Promise<void>
 }
@@ -364,14 +365,15 @@ export function wireTurn<Command>(args: {
     })
   })()
 
+  const titling = new TitlingTurnRunner({
+    inner: runner,
+    log,
+    threads,
+    titler: args.titler,
+    notice,
+  })
   const turnPolicy = createTurnPolicyRunner({
-    inner: new TitlingTurnRunner({
-      inner: runner,
-      log,
-      threads,
-      titler: args.titler,
-      notice,
-    }),
+    inner: titling,
     log,
     threads,
     agents,
@@ -384,5 +386,5 @@ export function wireTurn<Command>(args: {
     readClock: () => Date.now(),
   })
 
-  return { turn, runner: turnPolicy, turnPolicy, drainNotices, recordTeardownEndings }
+  return { turn, runner: turnPolicy, turnPolicy, titling, drainNotices, recordTeardownEndings }
 }

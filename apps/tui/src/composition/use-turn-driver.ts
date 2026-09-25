@@ -101,10 +101,11 @@ export function useTurnDriver(args: {
   onUndone: (said: PendingSaid) => void
   setFailure: (reason: string | null) => void
   forgetUsage: () => void
+  cancelCompaction: () => boolean
   interruptRefusal?: (() => string | null) | undefined
 }): TurnDriver {
   const { app, threadId, started, pendingMove, view, readClock } = args
-  const { onSettled, onUndone, setFailure, forgetUsage, interruptRefusal } = args
+  const { onSettled, onUndone, setFailure, forgetUsage, cancelCompaction, interruptRefusal } = args
   const { store, events, refresh, stamp } = view
 
   const [working, setWorking] = useState(false)
@@ -394,6 +395,9 @@ export function useTurnDriver(args: {
    * it worked.
    */
   const handleInterrupt = useCallback(() => {
+    // A manual /compact and the policy's auto-compaction are the same pill to the operator, so esc
+    // is offered to both controllers — the running one answers true, the other is a no-op.
+    if (cancelCompaction()) return
     if (app.turnPolicy.cancelCompaction()) return
 
     const refusal = interruptRefusal?.() ?? null
@@ -403,7 +407,7 @@ export function useTurnDriver(args: {
     }
 
     abortTurn()
-  }, [abortTurn, app.turnPolicy, interruptRefusal])
+  }, [abortTurn, app.turnPolicy, cancelCompaction, interruptRefusal])
 
   /**
    * A move interrupts on the operator's behalf, so the message stays committed and travels — the

@@ -108,6 +108,7 @@ function DriverProbe(props: {
     onUndone: () => undefined,
     setFailure: () => undefined,
     forgetUsage: () => undefined,
+    cancelCompaction: () => false,
     ...(props.interruptRefusal === undefined ? {} : { interruptRefusal: props.interruptRefusal }),
   })
 

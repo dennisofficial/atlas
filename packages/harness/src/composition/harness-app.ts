@@ -21,6 +21,7 @@ import type { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import type { TldrFeed } from '../loop/tldr-turn-runner'
 import type { TurnPolicy } from '../loop/turn-policy'
 import type { TurnRunner } from '../loop/turn-runner.port'
+import type { TitlingTurnRunner } from './titling-turn-runner'
 import type { McpServerStatus } from '../mcp/registry/handle-status'
 import type { PendingQueues } from '../pending'
 import type { ContributedProjection } from '../plugins/projection'
@@ -80,6 +81,7 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   channel: DeltaChannel
   runner: TurnRunner
   turnPolicy: TurnPolicy
+  titling: TitlingTurnRunner
   log: EventLogPort
   threads: ThreadStorePort
   ledger: TurnLedgerPort

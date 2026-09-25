@@ -295,6 +295,7 @@ export function useConversation(args: {
     onUndone,
     setFailure,
     forgetUsage,
+    cancelCompaction: compaction.cancel,
     interruptRefusal: args.interruptRefusal,
   })
 

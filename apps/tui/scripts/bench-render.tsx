@@ -23,6 +23,7 @@ import {
   MemorySecretsStore,
   MemorySettingsStore,
   PublishingTurnRunner,
+  TitlingTurnRunner,
   type AtlasHarness,
   type BunShellRegistry,
   type DeltaChannel,
@@ -33,6 +34,7 @@ import type { Renderable } from '@opentui/core'
 import { App } from '../src/composition/app'
 import type { AtlasApp } from '../src/composition/compose'
 import { DEFAULT_MODEL_REF, EOpenMode } from '../src/composition/config'
+import { noticePortBinding } from '../src/composition/notice-binding'
 import { createExecutionLocationState } from '@dltech/atlas-harness'
 import { createSandboxStatusState } from '@dltech/atlas-harness'
 import { heldChoice } from '@dltech/atlas-harness'
@@ -142,6 +144,13 @@ const benchApp = (args: {
     pluginProjections: [],
     pluginSurfaces: [],
     turnPolicy: benchTurnPolicy,
+    titling: new TitlingTurnRunner({
+      inner: args.runner,
+      log: args.harness.log,
+      threads: args.harness.threads,
+      titler: async () => null,
+      notice: noticePortBinding(),
+    }),
     captureContext: async () => undefined,
     pullRequests: null,
     mcp: () => [],

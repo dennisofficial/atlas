@@ -31,6 +31,7 @@ export function useSessionName(args: {
   const { app, threadId, started, readDigest } = args
   const [name, setName] = useState<string | null>(args.initial)
   const [naming, setNaming] = useState(false)
+  const [titling, setTitling] = useState(false)
 
   useEffect(() => {
     const forget = app.threads.onRename((renamed) => {
@@ -39,6 +40,11 @@ export function useSessionName(args: {
     })
     return () => forget()
   }, [app.threads, threadId])
+
+  useEffect(() => {
+    setTitling(app.titling.titling({ threadId }))
+    return app.titling.onTitling({ threadId, listener: setTitling })
+  }, [app.titling, threadId])
 
   const nameFromTranscript = useCallback(async (): Promise<Renaming> => {
     const digest = await readDigest()
@@ -69,5 +75,5 @@ export function useSessionName(args: {
     [app, nameFromTranscript, started, threadId],
   )
 
-  return { name, naming, setName, renameSession }
+  return { name, naming: naming || titling, setName, renameSession }
 }

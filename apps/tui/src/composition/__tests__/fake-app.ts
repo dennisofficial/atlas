@@ -962,5 +962,6 @@ export function fakeApp(args: {
       },
     },
     turnPolicy,
+    titling: titlingRunner,
   }
 }

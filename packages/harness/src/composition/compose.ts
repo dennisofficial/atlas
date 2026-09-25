@@ -349,7 +349,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
       ...(signal === undefined ? {} : { signal }),
     })
 
-  const { turn, runner, turnPolicy, recordTeardownEndings } = wireTurn<Command>({
+  const { turn, runner, turnPolicy, titling, recordTeardownEndings } = wireTurn<Command>({
     container,
     workspace,
     executionLocation,
@@ -436,5 +436,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     },
     runner,
     turnPolicy,
+    titling,
   }
 }
