@@ -114,6 +114,13 @@ export type FakeReplyWatchRow = {
   updatedAt: string
 }
 
+export type FakeCloudSandboxRow = {
+  threadId: string
+  userId?: string
+  state?: string
+  [key: string]: unknown
+}
+
 type FakeRow =
   | FakeWorkItemRow
   | FakeAliasRow
@@ -121,6 +128,7 @@ type FakeRow =
   | FakeStationRunRow
   | FakeReplyWatchRow
   | FakeConnectionRow
+  | FakeCloudSandboxRow
 
 const matchesRow = (row: FakeRow, where: Where): boolean =>
   Object.entries(where).every(([key, condition]) => {
@@ -142,6 +150,7 @@ export function createFakeFactoryDb() {
   const events: FakeOrchestratorEventRow[] = []
   const stationRuns: FakeStationRunRow[] = []
   const replyWatches: FakeReplyWatchRow[] = []
+  const cloudSandboxes: FakeCloudSandboxRow[] = []
 
   const db = {
     factoryWorkItem: {
@@ -315,6 +324,16 @@ export function createFakeFactoryDb() {
         return { count: matched.length }
       },
     },
+    cloudSandbox: {
+      findUnique: async (args: { where: { threadId: string }; select?: Record<string, boolean> }) => {
+        const found = cloudSandboxes.find((one) => one.threadId === args.where.threadId) ?? null
+        return found === null ? null : project(found, args.select)
+      },
+      findFirst: async (args: { where: Where; select?: Record<string, boolean> }) => {
+        const found = cloudSandboxes.find((one) => matchesRow(one, args.where)) ?? null
+        return found === null ? null : project(found, args.select)
+      },
+    },
     user: {
       upsert: async (args: {
         where: { email: string }
@@ -420,6 +439,7 @@ export function createFakeFactoryDb() {
     events,
     stationRuns,
     replyWatches,
+    cloudSandboxes,
     reset: () => {
       workItems.length = 0
       connections.length = 0
@@ -432,6 +452,7 @@ export function createFakeFactoryDb() {
       events.length = 0
       stationRuns.length = 0
       replyWatches.length = 0
+      cloudSandboxes.length = 0
     },
   }
 }
