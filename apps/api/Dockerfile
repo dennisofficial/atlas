@@ -51,6 +51,7 @@ WORKDIR /app
 COPY --from=serve-deps /app/node_modules ./node_modules
 COPY --from=serve-deps /app/packages/core/node_modules ./packages/core/node_modules
 COPY --from=serve-deps /app/packages/harness/node_modules ./packages/harness/node_modules
+COPY --from=serve-deps /app/packages/wire/node_modules ./packages/wire/node_modules
 COPY packages/core ./packages/core
 COPY packages/harness ./packages/harness
 COPY packages/wire ./packages/wire

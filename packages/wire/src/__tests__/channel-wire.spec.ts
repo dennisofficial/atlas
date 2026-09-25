@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EAgentStatus, EMessageOrigin, EServiceStatus, EShellStatus } from '@dltech/atlas-core'
-
 import {
   decodeClientFrame,
   decodeServeFrame,
+  EAgentStatus,
   EClientFrame,
   encodeFrame,
   EServeFrame,
+  EServiceStatus,
+  EShellStatus,
   type ClientFrame,
   type ServeFrame,
 } from '../index'
@@ -36,7 +37,7 @@ describe('the send frame', () => {
           triggeredBy: 'mention',
         },
         { type: 'nudge', text: 'stay on task', lifetimeSteps: 2 },
-        { type: 'user-said', text: 'quoted', via: EMessageOrigin.Operator },
+        { type: 'user-said', text: 'quoted', via: 'operator' },
       ],
     }
 
