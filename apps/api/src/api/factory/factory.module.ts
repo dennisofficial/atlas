@@ -24,6 +24,8 @@ import {
   ORCHESTRATOR_CHANNEL,
 } from './orchestrator/orchestrator-channel'
 import { OrchestratorService } from './orchestrator/orchestrator.service'
+import { WakeLockService } from './orchestrator/wake-lock'
+import { WakeRecoveryService } from './orchestrator/wake-recovery'
 import { OrgSettingsController } from './settings/org-settings.controller'
 import { OrgSettingsService } from './settings/org-settings.service'
 import { GithubAppService } from './reply/github-app.service'
@@ -76,6 +78,8 @@ import { WorkItemsService } from './work-items.service'
     LinearTokensService,
     FactoryIdentityService,
     FactoryCredentialService,
+    WakeLockService,
+    WakeRecoveryService,
     OrchestratorService,
     GuardedReplyService,
     OrchestratorSandboxGuard,

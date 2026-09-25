@@ -18,6 +18,8 @@ import type { FactoryCredentialService } from './factory-credentials'
 import { FactoryIdentityService } from './factory-identity'
 import type { OrchestratorChannel } from './orchestrator-channel'
 import { OrchestratorService } from './orchestrator.service'
+import { WakeLockService } from './wake-lock'
+import { WakeRecoveryService } from './wake-recovery'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 
 const nullCipher = null as unknown as SecretCipherService
@@ -73,8 +75,7 @@ describe('OrchestratorService', () => {
   }
 
   const wake = async (workItemId: string) => {
-    service.wake({ workItemId, externalId: INTAKE.externalId })
-    await service.whenSettled({ workItemId })
+    await service.runWake({ workItemId, externalId: INTAKE.externalId })
   }
 
   const injectedTexts = (): string[] =>
@@ -87,9 +88,9 @@ describe('OrchestratorService', () => {
     transcript = new TranscriptService()
     identity = new FactoryIdentityService(nullCipher)
     threads = {
-      create: vi.fn(async ({ draft }: { draft: { title?: string } }) => {
+      create: vi.fn(async ({ userId, draft }: { userId: string; draft: { title?: string } }) => {
         const id = `brn_orchestrator_${fake.threads.length + 1}`
-        fake.threads.push({ id, head: 0 })
+        fake.threads.push({ id, head: 0, userId, title: draft.title })
         return { id, title: draft.title }
       }),
     }
@@ -139,6 +140,8 @@ describe('OrchestratorService', () => {
       identity,
       credentials as unknown as FactoryCredentialService,
       drives as unknown as FactoryDrivesService,
+      new WakeLockService(),
+      new WakeRecoveryService(transcript),
       channel as OrchestratorChannel,
     )
   })
@@ -227,10 +230,7 @@ describe('OrchestratorService', () => {
     const event = await appendEvent(workItem.id, 'doomed')
     sandboxes.status.mockRejectedValueOnce(new Error('provision exploded'))
 
-    service.wake({ workItemId: workItem.id, externalId: INTAKE.externalId })
-    await expect(service.whenSettled({ workItemId: workItem.id })).rejects.toThrow(
-      'provision exploded',
-    )
+    await expect(wake(workItem.id)).rejects.toThrow('provision exploded')
     expect(channel.inject).not.toHaveBeenCalled()
 
     await wake(workItem.id)
@@ -385,10 +385,7 @@ describe('OrchestratorService', () => {
       new Error('The drive has not been initialized yet. Please mount as read-write first.'),
     )
 
-    service.wake({ workItemId: workItem.id, externalId: INTAKE.externalId })
-    await expect(service.whenSettled({ workItemId: workItem.id })).rejects.toThrow(
-      'not been initialized',
-    )
+    await expect(wake(workItem.id)).rejects.toThrow('not been initialized')
     expect(channel.inject).not.toHaveBeenCalled()
 
     sandboxes.runningEndpoint.mockResolvedValue(LIVE_ENDPOINT)
@@ -399,6 +396,37 @@ describe('OrchestratorService', () => {
     expect(text).toContain('factory orchestrator')
     expect(text).toContain(`[factory event] ${event?.id ?? ''}`)
     const updated = await workItems.find({ workItemId: workItem.id })
+    expect(updated.orchestratorDeliveredEventId).toBe(event?.id ?? '')
+  })
+
+  it('a restart re-drives a wake the previous instance abandoned, adopting its thread', async () => {
+    const { workItem } = await workItems.intake(INTAKE)
+    const event = await appendEvent(workItem.id, 'orphaned')
+    sandboxes.status.mockRejectedValueOnce(new Error('the container was replaced mid-wake'))
+    await expect(wake(workItem.id)).rejects.toThrow('replaced mid-wake')
+    expect(channel.inject).not.toHaveBeenCalled()
+
+    const restarted = new OrchestratorService(
+      workItems,
+      transcript,
+      threads as unknown as ThreadsService,
+      sandboxes as unknown as SandboxesService,
+      identity,
+      credentials as unknown as FactoryCredentialService,
+      drives as unknown as FactoryDrivesService,
+      new WakeLockService(),
+      new WakeRecoveryService(transcript),
+      channel as OrchestratorChannel,
+    )
+    await restarted.runWake({ workItemId: workItem.id, externalId: INTAKE.externalId })
+
+    expect(threads.create).toHaveBeenCalledTimes(1)
+    expect(channel.inject).toHaveBeenCalledTimes(1)
+    const text = injectedTexts()[0] as string
+    expect(text).toContain('factory orchestrator')
+    expect(text).toContain(`[factory event] ${event?.id ?? ''}`)
+    const updated = await workItems.find({ workItemId: workItem.id })
+    expect(updated.orchestratorThreadId).toBe('brn_orchestrator_1')
     expect(updated.orchestratorDeliveredEventId).toBe(event?.id ?? '')
   })
 })
