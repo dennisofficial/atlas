@@ -1,6 +1,6 @@
 import type { ClockPort, EventDraft, ThreadId } from '@dltech/atlas-core'
 
-import type { AgentNoticeQueue } from './notices'
+import type { AgentNotice, AgentNoticeQueue } from './notices'
 import type { AgentRoster } from './roster'
 import type { AgentSnapshot } from './snapshot'
 
@@ -20,6 +20,20 @@ export class NoticeDelivery {
     const drafts = this.notices.drain({ threadId })
     this.stampDelivered(handed)
     return drafts
+  }
+
+  /**
+   * A relocation's flush, not a turn's delivery: terminal endings travel with the log, while the
+   * snapshots stay pending so the parent still hears the ending on its next turn.
+   */
+  drainEndings({
+    threadId,
+    where,
+  }: {
+    threadId: ThreadId
+    where: (notice: AgentNotice) => boolean
+  }): readonly EventDraft[] {
+    return this.notices.take({ threadId, where }).map((notice) => notice.draft)
   }
 
   private stampDelivered(handed: readonly AgentSnapshot[]): void {

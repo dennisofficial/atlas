@@ -22,12 +22,23 @@ export class AgentNoticeQueue {
   }
 
   drain({ threadId }: { threadId: ThreadId }): readonly EventDraft[] {
-    const handed = this.queued.filter((notice) => notice.threadId === threadId)
-    if (handed.length === 0) return NOTHING_DRAINED
+    return this.take({ threadId, where: () => true }).map((notice) => notice.draft)
+  }
 
-    this.settle(this.queued.filter((notice) => notice.threadId !== threadId))
+  take({
+    threadId,
+    where,
+  }: {
+    threadId: ThreadId
+    where: (notice: AgentNotice) => boolean
+  }): readonly AgentNotice[] {
+    const handed = this.queued.filter((notice) => notice.threadId === threadId && where(notice))
+    if (handed.length === 0) return NOTHING_PENDING
 
-    return handed.map((notice) => notice.draft)
+    const leaving = new Set(handed)
+    this.settle(this.queued.filter((notice) => !leaving.has(notice)))
+
+    return handed
   }
 
   pending({ threadId }: { threadId: ThreadId }): readonly AgentSnapshot[] {

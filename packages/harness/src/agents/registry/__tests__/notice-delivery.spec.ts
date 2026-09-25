@@ -191,7 +191,7 @@ describe('when a finished child counts as delivered', () => {
     await settle()
     supervisor.drainNotifications({ threadId: parent })
 
-    await supervisor.resume({ agentId, threadId: parent })
+    await supervisor.say({ agentId, threadId: parent, text: 'keep going' })
 
     expect(deliveryOf({ supervisor, threadId: parent, agentId })).toBeUndefined()
   })

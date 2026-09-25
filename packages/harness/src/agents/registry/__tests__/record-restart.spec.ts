@@ -30,8 +30,17 @@ const spawnAndFinish = async (s: Awaited<ReturnType<typeof openSupervisor>>) => 
 describe('recording a child restart in the parent log', () => {
   it('records an agent_resume restart, so the log says the child left its ending', async () => {
     const s = await openSupervisor()
-    const agentId = await spawnAndFinish(s)
-    if (agentId === undefined) return
+    const spawned = await s.supervisor.spawn({
+      threadId: s.parent,
+      agentType: 'explore',
+      brief: 'wait on the suite',
+      intent: 'wait',
+    })
+    expect(spawned.ok).toBe(true)
+    if (!spawned.ok) return
+    const agentId = spawned.snapshot.agentId
+    s.runners.started[0]?.fail(new Error('the model gateway dropped'))
+    await settled()
 
     const resumed = await s.supervisor.resume({ agentId, threadId: s.parent })
 
@@ -89,7 +98,7 @@ describe('recording a child restart in the parent log', () => {
     const agentId = await spawnAndFinish(s)
     if (agentId === undefined) return
 
-    await s.supervisor.resume({ agentId, threadId: s.parent })
+    await s.supervisor.say({ agentId, threadId: s.parent, text: 'keep going' })
 
     const rebuilt = new AgentSupervisor({
       log: s.harness.log,

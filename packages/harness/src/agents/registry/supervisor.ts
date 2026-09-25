@@ -87,7 +87,14 @@ export class AgentSupervisor extends AgentRegistryPort {
       clock: args.clock,
       roster: this.roster,
     })
-    this.relocation = { deps: args, sink: this.sink, roster: this.roster, steps: this.steps, recovery: this.recovery }
+    this.relocation = {
+      deps: args,
+      sink: this.sink,
+      roster: this.roster,
+      steps: this.steps,
+      recovery: this.recovery,
+      delivery: this.delivery,
+    }
   }
 
   types(): readonly AgentType[] {
