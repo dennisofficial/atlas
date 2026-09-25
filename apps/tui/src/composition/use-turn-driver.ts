@@ -72,7 +72,10 @@ export type TurnDriver = {
   working: boolean
   workingRef: RefObject<boolean>
   rewindConfirm: RewindConfirmControl
-  drive: (drafts: readonly EventDraft[]) => Promise<void>
+  drive: (
+    drafts: readonly EventDraft[],
+    opts?: { onCommitFailed?: ((error: unknown) => void) | undefined },
+  ) => Promise<void>
   handleInterrupt: () => void
   handleInterruptForMove: () => void
   turnInFlight: () => boolean
@@ -231,7 +234,10 @@ export function useTurnDriver(args: {
   }, [app.log, app.threads, machinery, onUndone, refresh, setFailure, threadId])
 
   const drive = useCallback(
-    (drafts: readonly EventDraft[]): Promise<void> => {
+    (
+      drafts: readonly EventDraft[],
+      opts?: { onCommitFailed?: ((error: unknown) => void) | undefined },
+    ): Promise<void> => {
       const controller = new AbortController()
       const gate = commitGate()
 
@@ -245,7 +251,12 @@ export function useTurnDriver(args: {
       void (async () => {
         try {
           if (drafts.length > 0) {
-            await commit(drafts)
+            try {
+              await commit(drafts)
+            } catch (error) {
+              opts?.onCommitFailed?.(error)
+              throw error
+            }
             await refresh()
           }
           gate.settle()

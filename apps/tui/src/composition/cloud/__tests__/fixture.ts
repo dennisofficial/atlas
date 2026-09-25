@@ -1,4 +1,4 @@
-import { toThreadId, type EventDraft, type RosterWire, type SaidImage, type ThreadId } from '@dltech/atlas-core'
+import { toRunId, toThreadId, type EventDraft, type RosterWire, type SaidImage, type ThreadId } from '@dltech/atlas-core'
 import {
   EChannelConnection,
   EClientRequest,
@@ -38,6 +38,8 @@ export const CLEAN_WORKSPACE: LiftedWorkspace = {
 }
 
 export type FakeCloudChannel = CloudChannel & {
+  /** What serve does with a send frame: the said lands in the remote log before the turn ends. */
+  commitSaid(args: { text: string; images?: readonly SaidImage[] }): void
   moveTo(connection: ChannelConnection): void
   reload(reload: CloudReload): void
   ready(ready: ChannelReady): void
@@ -57,7 +59,9 @@ export type FakeCloudChannel = CloudChannel & {
   readonly woken: readonly { url: string; token: string }[]
 }
 
-export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudChannel {
+export function fakeCloudChannel(
+  args: { threadId?: ThreadId; log?: FakeEventLog | undefined } = {},
+): FakeCloudChannel {
   const connections = new Set<(connection: ChannelConnection) => void>()
   const reloads = new Set<(reload: CloudReload) => void>()
   const readies = new Set<(ready: ChannelReady) => void>()
@@ -81,6 +85,14 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
 
   return {
     threadId: args.threadId ?? CLOUD_THREAD,
+    commitSaid: ({ text, images }) => {
+      const threadId = args.threadId ?? CLOUD_THREAD
+      void args.log?.append({
+        threadId,
+        runId: toRunId(`serve-${threadId}`),
+        drafts: [{ type: 'user-said', text, ...(images === undefined ? {} : { images }) }],
+      })
+    },
     subscribe: () => () => undefined,
     snapshot: () => [],
     publisherFor: () => {
@@ -386,7 +398,7 @@ export function fakeBridge(
     attach: ({ threadId, url, token }) => {
       trail.push('attach')
       attached.push({ threadId, url, token })
-      channel = fakeCloudChannel({ threadId })
+      channel = fakeCloudChannel({ threadId, log })
       return channel
     },
   }

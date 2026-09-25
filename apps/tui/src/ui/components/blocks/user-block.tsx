@@ -12,6 +12,10 @@ const NARROWEST_BAND = 20
 
 const TAKE_BACK = '↑ to edit'
 
+const SENDING = 'sending…'
+
+const SEND_FAILED = "didn't send"
+
 const basename = (path: string): string => {
   const trimmed = path.replace(/\/+$/, '')
   return trimmed.slice(trimmed.lastIndexOf('/') + 1)
@@ -51,6 +55,8 @@ export function UserBlock(props: {
   said: readonly string[]
   width: number
   takeBack?: boolean
+  sending?: boolean
+  sendFailed?: boolean
   skills?: readonly string[]
   files?: readonly string[]
   images?: readonly SaidImage[]
@@ -69,13 +75,25 @@ export function UserBlock(props: {
         fill={theme.userBg}
         band={theme.userBand}
         width={props.width - TRANSCRIPT_INSET}
-        {...(props.takeBack === true
+        {...(props.sendFailed === true
           ? {
               badge: (
-                <text fg={theme.hint} bg={theme.userBg}>{` ${TAKE_BACK} `}</text>
+                <text fg={theme.error} bg={theme.userBg}>{` ${SEND_FAILED} `}</text>
               ),
             }
-          : {})}
+          : props.sending === true
+            ? {
+                badge: (
+                  <text fg={theme.hint} bg={theme.userBg}>{` ${SENDING} `}</text>
+                ),
+              }
+            : props.takeBack === true
+              ? {
+                  badge: (
+                    <text fg={theme.hint} bg={theme.userBg}>{` ${TAKE_BACK} `}</text>
+                  ),
+                }
+              : {})}
         {...(chips.length === 0
           ? {}
           : {
