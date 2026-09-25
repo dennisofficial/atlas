@@ -77,6 +77,11 @@ export class AccountStoreProxy extends AccountStorePort {
     if (this.remote?.store instanceof CachingAccountStore) this.remote.store.invalidate()
   }
 
+  /** Last-known remote values, however old — undefined when signed out or never fetched. */
+  lastKnown(): CachingAccountStore | undefined {
+    return this.remote?.store instanceof CachingAccountStore ? this.remote.store : undefined
+  }
+
   private current(): AccountStorePort {
     const session = this.sessions.read()
     if (session === null) return this.local

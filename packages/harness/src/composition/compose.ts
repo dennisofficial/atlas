@@ -57,6 +57,7 @@ import { probeWorkspace } from '../workspace/probe'
 import type { ContributedSurface } from '../plugins/surface'
 
 import { bindAccounts, bindKeychainSource } from './account-bindings'
+import { isCloudUnavailable } from '../cloud/cloud-transport'
 import { dockerCapabilitiesSource } from './capabilities-source'
 import type { Summariser } from './compact-turn'
 import type { HarnessLaunch } from './config'
@@ -178,6 +179,23 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     repoIdentity: args.repoIdentity,
   })
 
+  /**
+   * The catalogue asks the store once so unusable models stay listed. Signed in with the cloud
+   * down, that read fails — and a catalogue with no accounts behind it is the honest shape of the
+   * session (every model dark until the first turn's credential read retries), never a reason to
+   * stop the boot.
+   */
+  const accountList = await accountStore.list().catch((error: unknown) => {
+    if (!isCloudUnavailable(error)) throw error
+    notice.notify({
+      key: 'cloud:accounts',
+      tone: ENoticeTone.Warn,
+      ttlMs: NOTICE_WARN_MS,
+      text: `Atlas Cloud is unreachable — models stay dark until it answers again (${error instanceof Error ? error.message : String(error)})`,
+    })
+    return []
+  })
+
   const {
     models,
     model,
@@ -195,7 +213,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     settled,
     settings,
     credentials,
-    accountList: await accountStore.list(),
+    accountList,
     notice,
     env: args.env,
   })

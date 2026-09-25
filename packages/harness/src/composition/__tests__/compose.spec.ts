@@ -9,6 +9,7 @@ import { ATLAS_SETTINGS, ESettingId, EToolEffect, toThreadId, type ToolOutcome }
 import { ToolDefinition } from '@dltech/atlas-core'
 import { z } from 'zod'
 
+import { CloudSessionStore } from '../../cloud/cloud-session'
 import { portToken } from '../../container/injection'
 import { MemorySettingsStore } from '../../settings/memory-store'
 import { createSettingsService } from '../../settings/service'
@@ -118,5 +119,41 @@ describe('composeHarness', () => {
     expect(app.pending.waitingCount()).toBe(1)
 
     await app.close()
+  })
+
+  it('composes through a cloud outage: signed in, every call 504s, boot degrades instead of dying', async () => {
+    const realFetch = globalThis.fetch
+    globalThis.fetch = ((_input: unknown, _init?: unknown) =>
+      Promise.resolve(
+        new Response(JSON.stringify({ message: 'gateway timeout' }), {
+          status: 504,
+          headers: { 'content-type': 'application/json' },
+        }),
+      )) as typeof fetch
+
+    try {
+      new CloudSessionStore({
+        file: join(atlasHome, 'cloud.json'),
+        keyFile: join(atlasHome, 'key'),
+      }).write({ url: 'https://cloud.test', token: 'sess', email: null })
+
+      const notices = recordingNotices()
+      const app = await composeHarness<undefined, never>({
+        launch: { cwd: project, command: 'atlas-test', model: undefined, executionLocation: undefined },
+        env: {},
+        settings: settingsBinding(),
+        clientVersion: 'compose-spec',
+        surface: { notice: notices.port },
+      })
+
+      expect(app.workspace.workspace).toBe(await realpath(project))
+      expect(notices.posts.some((post) => post.text.includes('Atlas Cloud is unreachable'))).toBe(
+        true,
+      )
+
+      await expect(app.close()).resolves.toBeUndefined()
+    } finally {
+      globalThis.fetch = realFetch
+    }
   })
 })

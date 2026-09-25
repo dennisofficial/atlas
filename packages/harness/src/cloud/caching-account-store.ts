@@ -105,6 +105,23 @@ export class CachingAccountStore extends AccountStorePort {
     }
   }
 
+  /**
+   * What the cache last held, however old — the outage fallback behind BrokeredCredentialPort:
+   * metadata the cloud already answered for stays usable while it is down, the same way the
+   * broker's held token does. Empty-handed when this process has never seen the data.
+   */
+  lastKnownList(): readonly Account[] | undefined {
+    return this.listEntry?.value
+  }
+
+  lastKnownActiveFor(provider: EAuthProvider): AccountId | undefined {
+    return this.activeEntries.get(provider)?.value
+  }
+
+  lastKnownRead(accountId: AccountId): StoredAccount | undefined {
+    return this.readEntries.get(accountId)?.value
+  }
+
   invalidate(): void {
     this.listEntry = undefined
     this.readEntries.clear()

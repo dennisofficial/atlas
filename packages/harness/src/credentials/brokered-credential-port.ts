@@ -15,6 +15,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { cloudClientFor, type BrokeredAccessToken } from '../cloud/cloud-client'
+import { AccountStoreProxy } from '../cloud/account-store-proxy'
 import type { CloudSession, CloudSessionStore } from '../cloud/cloud-session'
 import { isCloudUnavailable } from '../cloud/cloud-transport'
 import { CredentialError, ECredentialFailure } from './credential-error'
@@ -189,6 +190,19 @@ export class BrokeredCredentialPort extends CredentialPort {
     provider: EAuthProvider
     accountId: AccountId | undefined
   }) {
+    try {
+      return await this.fetchChosenAccount(args)
+    } catch (error) {
+      const stale = this.staleChosenAccount(args)
+      if (!isCloudUnavailable(error) || stale === undefined) throw error
+      return stale
+    }
+  }
+
+  private async fetchChosenAccount(args: {
+    provider: EAuthProvider
+    accountId: AccountId | undefined
+  }) {
     const preferred = args.accountId ?? (await this.accounts.activeFor(args.provider))
     const choice = chooseAccount({
       accounts: await this.accounts.list(),
@@ -200,6 +214,25 @@ export class BrokeredCredentialPort extends CredentialPort {
     const stored = await this.accounts.read(choice.account.id)
     if (stored === undefined) throw this.noAccount(args.provider, ENoAccountReason.NoneForProvider)
     return stored
+  }
+
+  private staleChosenAccount(args: {
+    provider: EAuthProvider
+    accountId: AccountId | undefined
+  }): StoredAccount | undefined {
+    const accounts = this.accounts
+    if (!(accounts instanceof AccountStoreProxy)) return undefined
+    const cache = accounts.lastKnown()
+    if (cache === undefined) return undefined
+
+    const list = cache.lastKnownList()
+    if (list === undefined) return undefined
+
+    const preferred = args.accountId ?? cache.lastKnownActiveFor(args.provider)
+    const choice = chooseAccount({ accounts: list, provider: args.provider, preferred })
+    if (choice.type === EAccountChoice.Refused) return undefined
+
+    return cache.lastKnownRead(choice.account.id)
   }
 
   private noAccount(provider: EAuthProvider, reason: ENoAccountReason): CredentialError {
