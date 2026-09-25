@@ -3,6 +3,8 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import { ENoticeTone, NoticePort, type NoticePost } from '@dltech/atlas-core'
+
 import { SecretCipher } from '../../credentials/secret-cipher'
 import { FileSecretsStore } from '../../secrets/file-secrets-store'
 import { CloudSessionStore } from '../cloud-session'
@@ -156,5 +158,39 @@ describe('SecretsStoreProxy with a session', () => {
     await proxy.warm()
 
     expect(fetchCalls[0]?.clientVersion).toBe('1.2.3')
+  })
+
+  it('raises a keyed sticky warn notice when a remote write-behind fails', async () => {
+    const posts: NoticePost[] = []
+    const notice: NoticePort = { notify: (post) => posts.push(post) }
+    globalThis.fetch = (async (_input: string | URL | Request, init?: RequestInit) => {
+      const method = init?.method ?? 'GET'
+      if (method === 'GET') {
+        return new Response(JSON.stringify({ secrets: [] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      return new Response(JSON.stringify({ message: 'vault sealed' }), {
+        status: 500,
+        headers: { 'content-type': 'application/json' },
+      })
+    }) as typeof fetch
+    proxy = new SecretsStoreProxy({ local, sessions, notice })
+    signIn('sess_a')
+    await proxy.warm()
+
+    proxy.write({ name: 'doomed', value: 'x' })
+    await flushWrites()
+    await new Promise((resolve) => setTimeout(resolve, 10))
+
+    expect(posts).toHaveLength(1)
+    expect(posts[0]).toMatchObject({
+      key: 'cloud:secrets-write-behind',
+      tone: ENoticeTone.Warn,
+      ttlMs: null,
+    })
+    expect(posts[0]?.text).toContain('doomed')
+    expect(posts[0]?.text).toContain('vault sealed')
   })
 })

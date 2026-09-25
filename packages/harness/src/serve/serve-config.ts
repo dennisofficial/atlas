@@ -1,17 +1,7 @@
 import { toThreadId, type ThreadId } from '@dltech/atlas-core'
+import { EServeEnv } from '@dltech/atlas-wire'
 
-/**
- * Injected at `Sandbox.create` and never fetchable afterwards: the session token is minted by the
- * control plane, stored only as a hash, and handed to the client, so creation is the one moment
- * the sandbox can be told what it is serving.
- */
-export enum EServeEnv {
-  Token = 'ATLAS_SERVE_TOKEN',
-  Port = 'ATLAS_SERVE_PORT',
-  ThreadId = 'ATLAS_THREAD_ID',
-  CloudUrl = 'ATLAS_CLOUD_URL',
-  WorkspaceDir = 'ATLAS_WORKSPACE_DIR',
-}
+export { EServeEnv }
 
 export const DEFAULT_SERVE_PORT = 3000
 

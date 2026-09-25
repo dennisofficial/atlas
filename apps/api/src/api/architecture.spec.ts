@@ -13,6 +13,11 @@ const FORBIDDEN_TARGETS: Record<Layer, readonly Layer[]> = {
   factory: ['cloud'],
 }
 
+// @dltech/atlas-wire is the one in-repo dependency the API is allowed: the seam-hardening
+// decision (2026-09-25) put the websocket channel contract and the REST wire schemas there so
+// the factory stops hand-restating the protocol. Any other @dltech/* import still fails.
+const ALLOWED_EXTERNAL = /^@dltech\/atlas-wire(?:\/|$)/
+
 const API_ROOT = __dirname
 const SRC_ROOT = path.dirname(API_ROOT)
 
@@ -144,6 +149,24 @@ function collectInfraViolations(): Violation[] {
   return violations
 }
 
+function collectInRepoViolations(): Violation[] {
+  const violations: Violation[] = []
+  for (const file of listTsFiles({ dir: SRC_ROOT })) {
+    const relFile = path.relative(SRC_ROOT, file).split(path.sep).join('/')
+    for (const { specifier, line } of specifiersOf({ file })) {
+      if (!specifier.startsWith('@dltech/')) continue
+      if (ALLOWED_EXTERNAL.test(specifier)) continue
+      violations.push({
+        file: relFile,
+        line,
+        source: readLine({ file, line }),
+        specifier,
+      })
+    }
+  }
+  return violations
+}
+
 function readLine({ file, line }: { file: string; line: number }): string {
   const text = readFileSync(file, 'utf8').split('\n')[line - 1]
   return text === undefined ? '' : text.trim()
@@ -182,6 +205,14 @@ describe('api layer architecture', () => {
     expect(
       infraViolations,
       `infrastructure must stay below the layers:\n${formatViolations({ violations: infraViolations })}`,
+    ).toEqual([])
+  })
+
+  it('imports no in-repo package other than @dltech/atlas-wire', () => {
+    expect(
+      collectInRepoViolations(),
+      'the API depends on nothing in-repo except the shared wire contract; ' +
+        'a new in-repo import belongs in @dltech/atlas-wire or not at all',
     ).toEqual([])
   })
 })

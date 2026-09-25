@@ -28,6 +28,7 @@ import {
   transferChildLogs,
   type LiftAgentsPort,
 } from './lift-children'
+import { assertTransferred } from './transfer-verification'
 import { liftedDraft, NOTHING_WAS_STOPPED, type StoppedLocally } from './transition-notice'
 
 export enum ELiftStep {
@@ -178,6 +179,9 @@ async function transfer(args: LiftArgs): Promise<void> {
       runId: args.ids.nextRunId(),
       drafts: draftsOf(events),
     })
+    if (args.title !== null && existing.title !== args.title) {
+      await bridge.stores.threads.rename({ threadId, title: args.title })
+    }
     await bridge.stores.threads.chooseExecutionLocation({
       threadId,
       location: EExecutionLocation.Cloud,
@@ -193,6 +197,14 @@ async function transfer(args: LiftArgs): Promise<void> {
       ...(args.title === null ? {} : { title: args.title }),
     })
   }
+
+  await assertTransferred({
+    log: bridge.stores.log,
+    threadId,
+    expectedHead: events.length,
+    expectedCount: events.length,
+    side: 'cloud',
+  })
 
   await bridge.stores.threads.chooseModel({ threadId, model: args.model })
 }

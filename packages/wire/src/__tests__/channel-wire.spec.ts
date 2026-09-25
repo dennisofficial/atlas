@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  EAgentStatus,
-  EMessageOrigin,
-  EServiceStatus,
-  EShellStatus,
-  toThreadId,
-} from '@dltech/atlas-core'
+import { EAgentStatus, EMessageOrigin, EServiceStatus, EShellStatus } from '@dltech/atlas-core'
 
 import {
   decodeClientFrame,
@@ -16,7 +10,7 @@ import {
   EServeFrame,
   type ClientFrame,
   type ServeFrame,
-} from '../channel-wire'
+} from '../index'
 
 describe('the send frame', () => {
   it('round-trips a bare text message unchanged', () => {
@@ -49,7 +43,7 @@ describe('the send frame', () => {
     expect(decodeClientFrame(encodeFrame(frame))).toEqual(frame)
   })
 
-  it('carries context drafts opaquely; the serve validates them against eventBodySchema at the seam', () => {
+  it('carries context opaquely — validating the drafts is the harness’s job at the decode seam', () => {
     const raw = JSON.stringify({
       kind: EClientFrame.Send,
       text: 'go',
@@ -66,7 +60,7 @@ describe('the send frame', () => {
 
 describe('the roster frame', () => {
   it('round-trips the shells, agents and services a cloud surface reads', () => {
-    const threadId = toThreadId('thread-cloud')
+    const threadId = 'thread-cloud' as never
     const frame: ServeFrame = {
       kind: EServeFrame.Roster,
       roster: {
@@ -85,7 +79,7 @@ describe('the roster frame', () => {
         ],
         agents: [
           {
-            agentId: toThreadId('child-explore'),
+            agentId: 'child-explore' as never,
             spawnedBy: threadId,
             agentType: 'explore',
             intent: 'map the seam',

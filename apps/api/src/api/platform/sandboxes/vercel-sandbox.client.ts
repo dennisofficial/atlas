@@ -1,9 +1,10 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import { Drive, Sandbox, type SandboxMounts } from '@vercel/sandbox'
+import { EServeEnv, SERVE_TOKEN_PATH, StaleSandboxTokenError } from '@dltech/atlas-wire'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { ESandboxDriveMode, ESandboxFactoryRole, ESandboxState } from './sandboxes.types'
 import { ServeBinaryService } from './serve-binary'
-import { createServeLauncher, SERVE_TOKEN_PATH, StaleSandboxTokenError } from './serve-launch'
+import { createServeLauncher } from './serve-launch'
 import type { ServeLauncher } from './serve-launch'
 import { asBadGateway, failureTextOf, isSandboxMissing, vercelMessageOf } from './vercel-sandbox.errors'
 import { APIError } from '@vercel/sandbox'
@@ -192,14 +193,14 @@ export class VercelSandboxClient {
       },
       onResume: (sandbox) => this.launchServe({ sandbox, token: args.token }),
       env: {
-        ATLAS_SERVE_TOKEN: args.token,
-        ATLAS_SERVE_PORT: String(SANDBOX_SERVE_PORT),
-        ATLAS_THREAD_ID: args.threadId,
-        ATLAS_CLOUD_URL: configuration.cloudUrl,
-        ATLAS_WORKSPACE_DIR: WORKSPACE_PATH,
-        ...(args.pinnedModel === undefined ? {} : { ATLAS_MODEL: args.pinnedModel }),
-        ...(args.factoryRole === undefined ? {} : { ATLAS_FACTORY_ROLE: args.factoryRole }),
-        ...(args.decisionsUrl === undefined ? {} : { ATLAS_DECISIONS_URL: args.decisionsUrl }),
+        [EServeEnv.Token]: args.token,
+        [EServeEnv.Port]: String(SANDBOX_SERVE_PORT),
+        [EServeEnv.ThreadId]: args.threadId,
+        [EServeEnv.CloudUrl]: configuration.cloudUrl,
+        [EServeEnv.WorkspaceDir]: WORKSPACE_PATH,
+        ...(args.pinnedModel === undefined ? {} : { [EServeEnv.Model]: args.pinnedModel }),
+        ...(args.factoryRole === undefined ? {} : { [EServeEnv.FactoryRole]: args.factoryRole }),
+        ...(args.decisionsUrl === undefined ? {} : { [EServeEnv.DecisionsUrl]: args.decisionsUrl }),
       },
       ...(mounts === undefined ? {} : { mounts }),
       signal: AbortSignal.timeout(SANDBOX_LAUNCH_TIMEOUT_MS),

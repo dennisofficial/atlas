@@ -8,8 +8,8 @@ import {
   toRunId,
   toThreadId,
   type EventDraft,
-  type RosterWire,
 } from '@dltech/atlas-core'
+import { type RosterWire } from '@dltech/atlas-wire'
 import {
   EClientRequest,
   LocalRewindMachinery,

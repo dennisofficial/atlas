@@ -31,6 +31,29 @@ const storeWith = (
   return { store: new RemoteSecretsStore({ client }), calls }
 }
 
+const noticedStoreWith = (
+  respond: (call: Recorded) => Answer | Promise<Answer>,
+  onWriteFailure: (args: { name: string; failure: CloudError }) => void,
+): RemoteSecretsStore => {
+  const fetchFn = (async (input: unknown, init?: RequestInit) => {
+    const call: Recorded = {
+      url: String(input),
+      method: init?.method ?? 'GET',
+      body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+    }
+    const answer = await respond(call)
+    return new Response(answer.body === undefined ? null : JSON.stringify(answer.body), {
+      status: answer.status,
+      headers: { 'content-type': 'application/json' },
+    })
+  }) as typeof fetch
+
+  return new RemoteSecretsStore({
+    client: new CloudClient({ url: 'http://cloud.test/', token: 'sess_test', fetchFn }),
+    onWriteFailure,
+  })
+}
+
 const secretsBody = (server: Map<string, string>) => ({
   secrets: [...server.entries()].map(([name, value]) => ({
     name,
@@ -150,8 +173,7 @@ describe('RemoteSecretsStore', () => {
     expect(store.read('doomed')).toBe('x')
   })
 
-  it('clears the recorded failure after a successful drain', async () => {
-    let open = false
+  it('clears the recorded failure after a successful drain', async () => {    let open = false
     const { store } = storeWith(({ method }) => {
       if (method === 'GET') return { status: 200, body: { secrets: [] } }
       return open ? { status: 204 } : { status: 500, body: { message: 'down' } }
@@ -167,6 +189,29 @@ describe('RemoteSecretsStore', () => {
     await store.settled()
 
     expect(store.failure).toBeNull()
+  })
+
+  it('raises each write-behind failure on the callback while settled still rejects', async () => {
+    const raised: { name: string; failure: CloudError }[] = []
+    const store = noticedStoreWith(
+      ({ method, url }) =>
+        method === 'PUT' && url.endsWith('/doomed')
+          ? { status: 500, body: { message: 'vault sealed' } }
+          : { status: 200, body: { secrets: [] } },
+      (args) => {
+        raised.push(args)
+      },
+    )
+    await store.warm()
+
+    store.write({ name: 'doomed', value: 'x' })
+    store.write({ name: 'fine', value: 'y' })
+
+    await expect(store.settled()).rejects.toBeInstanceOf(CloudError)
+
+    expect(raised).toHaveLength(1)
+    expect(raised[0]?.name).toBe('doomed')
+    expect(raised[0]?.failure.message).toContain('vault sealed')
   })
 
   it('warm failure throws a CloudError rather than falling back', async () => {

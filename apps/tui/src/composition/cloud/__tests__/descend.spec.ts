@@ -200,6 +200,28 @@ describe('bringing a cloud conversation home', () => {
     expect(notice?.text).toContain('the control plane fell over')
   })
 
+  it('raises a standing warn when the cloud row will not flip back, and the descend still completes', async () => {
+    const bridge = fakeBridge()
+    await seedCloud(bridge, ['one'])
+    const home = localHome({ events: [said({ seq: 1, text: 'one' })] })
+    bridge.stores.threads.chooseExecutionLocation = async () => {
+      throw new Error('the control plane refused the write')
+    }
+
+    const opened = await descend({ bridge, home })
+
+    expect(opened.threadId).toBe(CLOUD_THREAD)
+    expect((await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation).toBe(
+      EExecutionLocation.Host,
+    )
+    const notice = currentNotices().find((entry) => entry.key === 'descend-remote-flip-failed')
+    expect(notice).toBeDefined()
+    expect(notice?.tone).toBe(ENoticeTone.Warn)
+    expect(notice?.ttlMs).toBeNull()
+    expect(notice?.text).toContain('the control plane refused the write')
+    expect(notice?.text).toContain('next attach will reconcile')
+  })
+
   it('pulls the cloud memory down once the log and workspace are home', async () => {
     const bridge = fakeBridge()
     await seedCloud(bridge, ['one'])

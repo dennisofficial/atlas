@@ -1,11 +1,40 @@
 import { z } from 'zod'
 
-import { EAgentStatus } from '../agents/status'
-import { threadIdSchema } from '../events/ids'
-import { EServiceStatus } from '../services/status'
-import { EKilledBy, EShellStatus } from '../shells/status'
+export enum EKilledBy {
+  User = 'user',
+  Model = 'model',
+  SessionEnd = 'session-end',
+  Timeout = 'timeout',
+  Rewind = 'rewind',
+  ContainerSwitch = 'container-switch',
+  LostContact = 'lost-contact',
+  Unrecorded = 'unrecorded',
+}
 
-const killedBySchema = z.nativeEnum(EKilledBy)
+export enum EShellStatus {
+  Running = 'running',
+  Exited = 'exited',
+  Killed = 'killed',
+  Overflowed = 'overflowed',
+}
+
+export enum EAgentStatus {
+  Running = 'running',
+  Finished = 'finished',
+  Failed = 'failed',
+  Stopped = 'stopped',
+  Blocked = 'blocked',
+}
+
+export enum EServiceStatus {
+  Running = 'running',
+  Exited = 'exited',
+  Killed = 'killed',
+}
+
+const threadIdWireSchema = z.string().min(1).brand<'ThreadId'>()
+
+const killedBySchema = z.enum(EKilledBy)
 
 const portExposureSchema = z.object({
   containerPort: z.number().int().nonnegative(),
@@ -15,10 +44,10 @@ const portExposureSchema = z.object({
 
 export const shellSnapshotWireSchema = z.object({
   shellId: z.string().min(1).brand<'ShellId'>(),
-  threadId: threadIdSchema,
+  threadId: threadIdWireSchema,
   command: z.string(),
   description: z.string(),
-  status: z.nativeEnum(EShellStatus),
+  status: z.enum(EShellStatus),
   killedBy: killedBySchema.optional(),
   pid: z.number().int().optional(),
   exitCode: z.number().int().optional(),
@@ -35,11 +64,11 @@ export type ShellSnapshotWire = z.infer<typeof shellSnapshotWireSchema>
 const providerIdentitySchema = z.object({ id: z.string(), modelId: z.string() })
 
 export const agentSnapshotWireSchema = z.object({
-  agentId: threadIdSchema,
-  spawnedBy: threadIdSchema,
+  agentId: threadIdWireSchema,
+  spawnedBy: threadIdWireSchema,
   agentType: z.string(),
   intent: z.string(),
-  status: z.nativeEnum(EAgentStatus),
+  status: z.enum(EAgentStatus),
   killedBy: killedBySchema.optional(),
   turns: z.number().int().nonnegative(),
   toolCalls: z.number().int().nonnegative(),
@@ -60,7 +89,7 @@ export const serviceSnapshotWireSchema = z.object({
   serviceId: z.string().min(1),
   command: z.string(),
   description: z.string(),
-  status: z.nativeEnum(EServiceStatus),
+  status: z.enum(EServiceStatus),
   killedBy: killedBySchema.optional(),
   pid: z.number().int().optional(),
   exitCode: z.number().int().optional(),

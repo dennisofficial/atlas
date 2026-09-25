@@ -1,11 +1,11 @@
 import { z } from 'zod'
 
-import { threadIdSchema } from '../events/ids'
+const threadIdWireSchema = z.string().min(1).brand<'ThreadId'>()
 
 export const rewindCutWireSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('agent'),
-    agentId: threadIdSchema,
+    agentId: threadIdWireSchema,
     agentType: z.string(),
     intent: z.string(),
   }),
@@ -28,7 +28,7 @@ export type RewindCutWire = z.infer<typeof rewindCutWireSchema>
 export const rewindKillWireSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('agent'),
-    agentId: threadIdSchema,
+    agentId: threadIdWireSchema,
     agentType: z.string(),
     intent: z.string(),
     running: z.boolean(),
@@ -52,7 +52,7 @@ export const rewindKillWireSchema = z.discriminatedUnion('kind', [
 export type RewindKillWire = z.infer<typeof rewindKillWireSchema>
 
 export const rewindApplyParamsSchema = z.object({
-  threadId: threadIdSchema,
+  threadId: threadIdWireSchema,
   cuts: z.array(rewindCutWireSchema),
 })
 

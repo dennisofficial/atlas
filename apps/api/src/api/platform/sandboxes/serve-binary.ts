@@ -2,12 +2,12 @@ import { createHash } from 'node:crypto'
 import { createReadStream } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import { Injectable, ServiceUnavailableException, StreamableFile } from '@nestjs/common'
+import { SERVE_BINARY_SHA256_HEADER } from '@dltech/atlas-wire'
 import { EnvService } from '../../../_core/config/env/env.service'
 
-export const DEFAULT_SERVE_BINARY_PATH = '/app/atlas-serve'
+export { SERVE_BINARY_SHA256_HEADER }
 
-/** Carries the served binary's own sha256 so the sandbox can verify what it downloaded byte-for-byte. */
-export const SERVE_BINARY_SHA256_HEADER = 'x-atlas-serve-sha256'
+export const DEFAULT_SERVE_BINARY_PATH = '/app/atlas-serve'
 
 @Injectable()
 export class ServeBinaryService {

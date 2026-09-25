@@ -1,4 +1,5 @@
-import { toRunId, toThreadId, type EventDraft, type RosterWire, type SaidImage, type ThreadId } from '@dltech/atlas-core'
+import { toRunId, toThreadId, type EventDraft, type SaidImage, type ThreadId } from '@dltech/atlas-core'
+import type { RosterWire } from '@dltech/atlas-wire'
 import {
   EChannelConnection,
   EClientRequest,

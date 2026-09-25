@@ -1,51 +1,15 @@
-const CHANNEL_SUBPROTOCOL = 'atlas.v1'
-const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
-
-// Mirrored from packages/harness/src/cloud/channel-wire.ts — apps/api deliberately depends on
-// nothing in-repo, so the wire contract is restated here and the protocol stamp guards drift.
-const CHANNEL_PROTOCOL_VERSION = 2
+import {
+  bearerSubprotocolOf,
+  CHANNEL_PROTOCOL_VERSION,
+  CHANNEL_SUBPROTOCOL,
+  decodeServeFrame,
+  EServeFrame,
+} from '@dltech/atlas-wire'
 
 const SESSION_PATH = '/v1/session'
 const CONNECT_TIMEOUT_MS = 30_000
 const ACCEPT_TIMEOUT_MS = 60_000
 const ACCEPT_POLL_MS = 250
-
-export enum EServeFrameKind {
-  Ready = 'ready',
-  Error = 'error',
-  Parked = 'parked',
-}
-
-type ServeFrame =
-  | { kind: EServeFrameKind.Ready; protocol?: number }
-  | { kind: EServeFrameKind.Error; message: string }
-  | { kind: EServeFrameKind.Parked }
-
-const decodeServeFrame = (raw: string): ServeFrame | null => {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(raw)
-  } catch {
-    return null
-  }
-  if (typeof parsed !== 'object' || parsed === null) return null
-  const record = parsed as Record<string, unknown>
-  switch (record.kind) {
-    case EServeFrameKind.Ready: {
-      const protocol = record.protocol
-      return { kind: EServeFrameKind.Ready, ...(typeof protocol === 'number' ? { protocol } : {}) }
-    }
-    case EServeFrameKind.Error:
-      return {
-        kind: EServeFrameKind.Error,
-        message: typeof record.message === 'string' ? record.message : 'unknown error',
-      }
-    case EServeFrameKind.Parked:
-      return { kind: EServeFrameKind.Parked }
-    default:
-      return null
-  }
-}
 
 export const sessionSocketUrlOf = (url: string): string =>
   `${url.replace(/\/+$/, '').replace(/^http/, 'ws')}${SESSION_PATH}`
@@ -113,7 +77,7 @@ export function createOrchestratorChannel(args?: {
   return {
     inject({ url, token, threadId, text, accepted }) {
       return new Promise<void>((resolve, reject) => {
-        const protocols = [CHANNEL_SUBPROTOCOL, `${BEARER_SUBPROTOCOL_PREFIX}${token}`]
+        const protocols = [CHANNEL_SUBPROTOCOL, bearerSubprotocolOf(token)]
         let phase = EChannelPhase.Connecting
         let settled = false
         let poll: ReturnType<typeof setInterval> | undefined
@@ -167,14 +131,15 @@ export function createOrchestratorChannel(args?: {
           handleMessage: (data) => {
             const frame = decodeServeFrame(data)
             if (frame === null) return
-            if (frame.kind === EServeFrameKind.Error) {
+            if (frame.kind === EServeFrame.Error) {
               fail(`orchestrator serve refused: ${frame.message}`)
               return
             }
-            if (frame.kind === EServeFrameKind.Parked) {
+            if (frame.kind === EServeFrame.Parked) {
               fail('orchestrator serve parked while injecting')
               return
             }
+            if (frame.kind !== EServeFrame.Ready) return
             if (phase !== EChannelPhase.Connecting) return
             if (frame.protocol !== undefined && frame.protocol !== CHANNEL_PROTOCOL_VERSION) {
               fail(

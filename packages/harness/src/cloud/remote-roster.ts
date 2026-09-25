@@ -1,8 +1,5 @@
-import {
-  rosterWireSchema,
-  type RosterWire,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import type { ThreadId } from '@dltech/atlas-core'
+import { rosterWireSchema, type RosterWire } from '@dltech/atlas-wire'
 
 import type { AgentSnapshot } from '../agents/registry/snapshot'
 import type { ServiceSnapshot } from '../services/service-process'

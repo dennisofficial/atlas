@@ -1,16 +1,30 @@
 import type { Sandbox } from '@vercel/sandbox'
 
-/** The same header apps/api's serve-binary route sets on the download; duplicated, never imported. */
-export const SERVE_BINARY_SHA256_HEADER = 'x-atlas-serve-sha256'
+import {
+  SERVE_BINARY_PATH,
+  SERVE_BINARY_SHA256_HEADER,
+  SERVE_HEADERS_PATH,
+  SERVE_HOME,
+  SERVE_LOCK_PATH,
+  SERVE_LOG_PATH,
+  SERVE_NEXT_BINARY_PATH,
+  SERVE_STAMP_PATH,
+  SERVE_TOKEN_PATH,
+  StaleSandboxTokenError,
+} from '@dltech/atlas-wire'
 
-export const SERVE_HOME = '/opt/atlas'
-export const SERVE_BINARY_PATH = `${SERVE_HOME}/atlas-serve`
-export const SERVE_NEXT_BINARY_PATH = `${SERVE_BINARY_PATH}.next`
-export const SERVE_STAMP_PATH = `${SERVE_BINARY_PATH}.stamp`
-export const SERVE_LOG_PATH = `${SERVE_HOME}/atlas-serve.log`
-export const SERVE_LOCK_PATH = `${SERVE_HOME}/atlas-serve.lock`
-export const SERVE_TOKEN_PATH = `${SERVE_HOME}/atlas-serve.token`
-export const SERVE_HEADERS_PATH = `${SERVE_HOME}/atlas-serve.headers`
+export {
+  SERVE_BINARY_PATH,
+  SERVE_BINARY_SHA256_HEADER,
+  SERVE_HEADERS_PATH,
+  SERVE_HOME,
+  SERVE_LOCK_PATH,
+  SERVE_LOG_PATH,
+  SERVE_NEXT_BINARY_PATH,
+  SERVE_STAMP_PATH,
+  SERVE_TOKEN_PATH,
+  StaleSandboxTokenError,
+}
 
 const HEALTH_ATTEMPTS = 90
 const HEALTH_INTERVAL_SECONDS = 2
@@ -19,13 +33,6 @@ const DOWNLOAD_TIMEOUT_MS = 300_000
 const QUICK_COMMAND_TIMEOUT_MS = 15_000
 const EXIT_AUTH_STALE = 41
 const EXIT_HASH_MISMATCH = 42
-
-export class StaleSandboxTokenError extends Error {
-  constructor() {
-    super('the sandbox carries a serve token this deployment no longer recognizes')
-    this.name = 'StaleSandboxTokenError'
-  }
-}
 
 const withServeToken = (script: string): string =>
   `_serve_token=$(cat ${SERVE_TOKEN_PATH} 2>/dev/null || true); ` +

@@ -4,10 +4,10 @@ import type {
   EventLogPort,
   IdPort,
   NoticePort,
-  RosterWire,
   ThreadId,
   WorkspaceIdentity,
 } from '@dltech/atlas-core'
+import type { RosterWire } from '@dltech/atlas-wire'
 
 import type { DeltaChannel } from '../channel/delta-channel'
 import type { FileBrowser } from '../files/file-browser'

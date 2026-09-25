@@ -15,11 +15,11 @@ import {
   JudgePort,
   ModelPort,
   NOTICE_WARN_MS,
+  NoticePort,
   parseRef,
   textValueOf,
   type Account,
   type CapabilitiesSource,
-  type NoticePort,
 } from '@dltech/atlas-core'
 
 import { AgentRegistryPort } from '../agents/registry/port'
@@ -111,6 +111,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   const notice: NoticePort = surface.notice
   const container = createHarnessContainer()
   container.register(ClientVersionToken, { useValue: args.clientVersion })
+  container.register(portToken(NoticePort), { useValue: notice })
   args.bindPorts?.({ container })
   // A session with no workspace (an orchestrator agent) anchors at the process directory: nothing
   // probes a repo, claims a worktree, or reads project instructions for it.

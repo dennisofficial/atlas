@@ -10,8 +10,13 @@ const asCloudError = (cause: unknown): CloudError =>
         message: cause instanceof Error ? cause.message : String(cause),
       })
 
+const SECRETS_WRITE_BEHIND_NOTICE_KEY = 'cloud:secrets-write-behind'
+
 export class RemoteSecretsStore implements SecretsPort {
   private readonly client: CloudClient
+  private readonly onWriteFailure:
+    | ((args: { name: string; failure: CloudError }) => void)
+    | undefined
   private held = new Map<string, string>()
   private touched = new Map<string, number>()
   private failedWrites = new Set<string>()
@@ -21,8 +26,12 @@ export class RemoteSecretsStore implements SecretsPort {
   private pending = 0
   private lastFailure: CloudError | null = null
 
-  constructor(args: { client: CloudClient }) {
+  constructor(args: {
+    client: CloudClient
+    onWriteFailure?: ((args: { name: string; failure: CloudError }) => void) | undefined
+  }) {
     this.client = args.client
+    this.onWriteFailure = args.onWriteFailure
   }
 
   get failure(): CloudError | null {
@@ -95,6 +104,7 @@ export class RemoteSecretsStore implements SecretsPort {
         failure = asCloudError(cause)
         this.failedWrites.add(name)
         this.lastFailure = failure
+        this.onWriteFailure?.({ name, failure })
       }
       this.pending -= 1
       const first = prior ?? failure

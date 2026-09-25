@@ -92,8 +92,6 @@ export * from './agents/status'
 export * from './agents/label'
 export * from './agents/roster'
 
-export * from './cloud/roster-wire'
-export * from './cloud/rewind-wire'
 
 export * from './shells/status'
 export * from './shells/label'

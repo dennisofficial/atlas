@@ -3,10 +3,10 @@ import {
   type EKilledBy,
   type Event,
   type EventDraft,
-  type RosterWire,
   type RunId,
   type ThreadId,
 } from '@dltech/atlas-core'
+import type { RosterWire } from '@dltech/atlas-wire'
 
 import { createDeltaChannel, type DeltaChannel } from '../../channel/delta-channel'
 import { ETurnStatus, type TurnOutcome } from '../../loop/turn-outcome'

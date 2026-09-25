@@ -1,6 +1,7 @@
 import type { ServerWebSocket } from 'bun'
 
-import { rosterWireSchema, type ThreadId } from '@dltech/atlas-core'
+import { eventBodySchema, type EventDraft, type ThreadId } from '@dltech/atlas-core'
+import { rosterWireSchema } from '@dltech/atlas-wire'
 
 import type { StepId } from '../channel/signal'
 
@@ -139,11 +140,18 @@ export function createSessionHandlers(args: {
     const { socket, frame } = args
 
     if (frame.kind === EClientFrame.Send) {
+      let context: EventDraft[] | undefined
+      try {
+        context = frame.context?.map((draft): EventDraft => eventBodySchema.parse(draft))
+      } catch {
+        send({ socket, frame: { kind: EServeFrame.Error, message: 'a context draft was not an event body' } })
+        return
+      }
       void driver
         .say({
           text: frame.text,
           ...(frame.images === undefined ? {} : { images: frame.images }),
-          ...(frame.context === undefined ? {} : { context: frame.context }),
+          ...(context === undefined ? {} : { context }),
         })
         .catch((error: unknown) => {
           const message = messageOf(error, 'the message was not accepted')

@@ -10,6 +10,7 @@ import type { AgentRegistryPort, ThreadStorePort } from '@dltech/atlas-harness'
 
 import type { CloudBridge } from './cloud-bridge'
 import { draftsOf } from './event-drafts'
+import { assertTransferred } from './transfer-verification'
 
 export type LiftAgentsPort = Pick<
   AgentRegistryPort,
@@ -48,6 +49,13 @@ export async function transferChildLogs(args: SnapshotArgs): Promise<void> {
       executionLocation: stored?.executionLocation ?? EExecutionLocation.Host,
       ...(stored?.workspace == null ? {} : { workspace: stored.workspace }),
       ...(stored === undefined ? {} : { repo: stored.repo }),
+    })
+    await assertTransferred({
+      log: bridge.stores.log,
+      threadId: child.agentId,
+      expectedHead: events.length,
+      expectedCount: events.length,
+      side: 'cloud',
     })
   }
 }

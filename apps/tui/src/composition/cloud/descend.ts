@@ -20,6 +20,7 @@ import { draftsOf } from './event-drafts'
 import { ELiftStep } from './lift'
 import { flipChildrenBack } from './lift-children'
 import type { RemoteMemoryMerge } from './merge-remote-memory'
+import { assertTransferred } from './transfer-verification'
 import {
   descendedConflictsDraft,
   descendedMemoryConflictsDraft,
@@ -29,6 +30,8 @@ import {
 const DESCEND_DESTROY_NOTICE_KEY = 'descend-sandbox-destroy-failed'
 
 const DESCEND_MEMORY_NOTICE_KEY = 'descend-memory-pull-failed'
+
+const DESCEND_FLIP_BACK_NOTICE_KEY = 'descend-remote-flip-failed'
 
 const INTERRUPT_DEADLINE_MS = 30_000
 
@@ -82,15 +85,26 @@ async function transferThreadDown(args: {
     return
   }
 
-  await localApp.log.replace({
+  const replaced = await localApp.log.replace({
     threadId,
     runId: localApp.ids.nextRunId(),
     drafts: draftsOf(events),
   })
 
+  await assertTransferred({
+    log: localApp.log,
+    threadId,
+    expectedHead: replaced.at(-1)?.seq ?? 0,
+    expectedCount: events.length,
+    side: 'local',
+  })
+
   const remote = await bridge.stores.threads.find({ threadId })
   if (remote?.model !== undefined) {
     await localApp.threads.chooseModel({ threadId, model: remote.model })
+  }
+  if (remote?.title !== undefined && local.title !== remote.title) {
+    await localApp.threads.rename({ threadId, title: remote.title })
   }
 }
 
@@ -211,7 +225,14 @@ export async function descendFromCloud(args: {
   await localApp.threads.chooseExecutionLocation({ threadId, location: target })
   await bridge.stores.threads
     .chooseExecutionLocation({ threadId, location: target })
-    .catch(() => undefined)
+    .catch((error: unknown) => {
+      notify({
+        key: DESCEND_FLIP_BACK_NOTICE_KEY,
+        text: `this conversation is home, but the cloud row still claims it runs in the cloud — ${messageOf(error)}. The next attach will reconcile it.`,
+        tone: ENoticeTone.Warn,
+        sticky: true,
+      })
+    })
   await flipChildrenBack({ threadId, bridge, agents: localApp.agents, location: target })
 
   move.handleAdvance(ELocalMoveStep.Relocating)
