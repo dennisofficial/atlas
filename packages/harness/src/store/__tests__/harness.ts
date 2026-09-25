@@ -130,6 +130,12 @@ export class UnstaffedShells extends ShellRegistryPort {
   closeAll() {
     return Promise.resolve()
   }
+  recordEndings() {
+    return Promise.resolve([])
+  }
+  threadsWithUnresolvedEndings() {
+    return []
+  }
 }
 
 export class UnstaffedServices extends ServiceRegistryPort {
