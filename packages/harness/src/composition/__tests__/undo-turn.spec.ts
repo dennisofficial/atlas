@@ -1,20 +1,17 @@
 import {
   stampEvent,
-  toThreadId,
   toCallId,
   toEventId,
   toRunId,
+  toThreadId,
   type Event,
   type EventDraft,
 } from '@dltech/atlas-core'
-import { LocalRewindMachinery } from '@dltech/atlas-harness'
 import { describe, expect, it } from 'bun:test'
 
+import { LocalRewindMachinery } from '../../store/local-rewind-machinery'
 import { EUndo, undoTurn } from '../undo-turn'
-import { fakeAgentRegistry } from './fake-agents'
-import { fakeShellRegistry } from './fake-app'
-import { fakeThreadStore, fakeEventLog } from './fake-backend'
-import { fakeServiceRegistry } from './fake-services'
+import { UnstaffedAgents, UnstaffedServices, UnstaffedShells, openStoreFixture } from '../../store/__tests__/harness'
 
 const THREAD = toThreadId('undoing')
 
@@ -35,23 +32,27 @@ const stamped = (drafts: readonly EventDraft[]): Event[] =>
     }),
   )
 
-const backedBy = (drafts: readonly EventDraft[]) => {
-  const log = fakeEventLog(stamped(drafts))
-  const registries = {
-    agents: fakeAgentRegistry(),
-    shells: fakeShellRegistry(),
-    services: fakeServiceRegistry(),
+const backedBy = async (drafts: readonly EventDraft[]) => {
+  const fixture = openStoreFixture()
+  const events = stamped(drafts)
+  if (events.length > 0) {
+    await fixture.log.append({ threadId: THREAD, runId: toRunId('run-1'), drafts })
   }
   return {
-    log,
-    threads: fakeThreadStore({ log, existing: [THREAD] }),
-    machinery: new LocalRewindMachinery(registries),
+    log: fixture.log,
+    threads: fixture.threads,
+    machinery: new LocalRewindMachinery({
+      agents: new UnstaffedAgents(),
+      shells: new UnstaffedShells(),
+      services: new UnstaffedServices(),
+    }),
+    fixture,
   }
 }
 
 describe('undoing the exchange an interrupted turn never answered', () => {
   it('takes the message back and leaves the thread as it was before it was sent', async () => {
-    const { log, threads, machinery } = backedBy([
+    const { log, threads, machinery, fixture } = await backedBy([
       { type: 'user-said', text: 'rewrite the loop' },
       { type: 'assistant-said', parts: [{ type: 'reasoning', text: 'weighing it' }], interrupted: true },
     ])
@@ -63,10 +64,11 @@ describe('undoing the exchange an interrupted turn never answered', () => {
       said: { text: 'rewrite the loop', images: [] },
     })
     expect(await log.read({ threadId: THREAD })).toEqual([])
+    await fixture.close()
   })
 
   it('rewinds only the last exchange, leaving the ones before it durable', async () => {
-    const { log, threads, machinery } = backedBy([
+    const { log, threads, machinery, fixture } = await backedBy([
       { type: 'user-said', text: 'first' },
       { type: 'assistant-said', parts: [{ type: 'text', text: 'answered' }] },
       { type: 'user-said', text: 'second' },
@@ -79,25 +81,32 @@ describe('undoing the exchange an interrupted turn never answered', () => {
       'user-said',
       'assistant-said',
     ])
+    await fixture.close()
   })
 
   it('hands the images back with the text, or a picture in the prompt would not survive the undo', async () => {
     const image = { path: '/tmp/shot.png', mediaType: 'image/png', data: 'aW1hZ2U=' }
-    const { log, threads, machinery } = backedBy([{ type: 'user-said', text: 'what is this?', images: [image] }])
+    const { log, threads, machinery, fixture } = await backedBy([
+      { type: 'user-said', text: 'what is this?', images: [image] },
+    ])
 
     const undone = await undoTurn({ log, threads, machinery, threadId: THREAD })
 
     expect(undone).toEqual({ type: EUndo.Restored, said: { text: 'what is this?', images: [image] } })
+    await fixture.close()
   })
 
   it('has nothing to undo on a thread the developer never spoke on', async () => {
-    const { log, threads, machinery } = backedBy([])
+    const { log, threads, machinery, fixture } = await backedBy([])
 
-    expect(await undoTurn({ log, threads, machinery, threadId: THREAD })).toEqual({ type: EUndo.Nothing })
+    expect(await undoTurn({ log, threads, machinery, threadId: THREAD })).toEqual({
+      type: EUndo.Nothing,
+    })
+    await fixture.close()
   })
 
   it('reports the refusal rather than half-rewinding when the target would strand a tool call', async () => {
-    const { log, threads, machinery } = backedBy([
+    const { log, threads, machinery, fixture } = await backedBy([
       { type: 'tool-called', callId: toCallId('call-1'), name: 'write_file', input: {}, ordinal: 0 },
       { type: 'user-said', text: 'stop, do it differently' },
     ])
@@ -107,5 +116,6 @@ describe('undoing the exchange an interrupted turn never answered', () => {
     expect(undone.type).toBe(EUndo.Refused)
     expect(undone.type === EUndo.Refused ? undone.reason : '').toContain('write_file')
     expect(await log.read({ threadId: THREAD })).toHaveLength(2)
+    await fixture.close()
   })
 })

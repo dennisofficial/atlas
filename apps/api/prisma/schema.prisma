@@ -159,6 +159,8 @@ model FactoryWorkItem {
   aliases              FactorySurfaceAlias[]
   transcriptEvents     FactoryTranscriptEvent[]
   stationRuns          FactoryStationRun[]
+  wakeOutbox           FactoryWakeOutbox[]
+  replyWatches         FactoryReplyWatch[]
 
   @@index([repo, status])
   @@index([status, lastActivityAt])
@@ -222,6 +224,37 @@ model FactoryTranscriptEvent {
 
   @@unique([surface, deliveryId])
   @@index([workItemId, seq])
+}
+
+model FactoryWakeOutbox {
+  id         String   @id
+  workItemId String
+  externalId String
+  repo       String?
+  status     String
+  createdAt  String
+  updatedAt  String
+  deliveredAt String?
+  workItem   FactoryWorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([workItemId, status])
+}
+
+model FactoryReplyWatch {
+  id             String   @id
+  workItemId     String   @unique
+  surface        String
+  externalId     String
+  commentId      String
+  organizationId String?
+  eventId        String
+  nudgeAt    String
+  graceAt    String
+  nudged     Boolean @default(false)
+  createdAt  String
+  updatedAt  String
+  workItem   FactoryWorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
 }
 
 model AgentAccount {

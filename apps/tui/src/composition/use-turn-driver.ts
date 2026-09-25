@@ -5,12 +5,11 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 import {
-  ETurnStatus,
+  ESuppress,
   LocalRewindMachinery,
   rewindThread,
   type RemoteDeltaChannel,
   type RewindKill,
-  type TurnOutcome,
 } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 
@@ -20,7 +19,6 @@ import { clearNotice, ENoticeTone, NOTICE_MS, NOTICE_WARN_MS, notify } from '../
 import type { AtlasApp } from './compose'
 import { discardInterrupted, EDiscard } from './resume-turn'
 import { useRewindConfirm, type RewindConfirmControl } from './use-rewind-confirm'
-import { EUndo, undoTurn } from './undo-turn'
 import type { ThreadView } from './use-thread-view'
 import {
   IDLE_PROGRESS,
@@ -53,9 +51,6 @@ const killLabel = (kill: RewindKill): string => {
 }
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : UNEXPLAINED)
-
-const committedNothing = (outcome: TurnOutcome): boolean =>
-  outcome.status === ETurnStatus.Interrupted && !outcome.committed
 
 type CommitGate = { reached: Promise<void>; settle: () => void }
 
@@ -102,23 +97,19 @@ export function useTurnDriver(args: {
   pendingMove: RefObject<DirectoryMove | null>
   view: ThreadView
   readClock: () => number
-  used: RefObject<number>
-  compactIfFull: (used: number) => Promise<void>
-  cancelCompaction: () => boolean
   onSettled: () => Promise<void>
   onUndone: (said: PendingSaid) => void
   setFailure: (reason: string | null) => void
   forgetUsage: () => void
   interruptRefusal?: (() => string | null) | undefined
 }): TurnDriver {
-  const { app, threadId, started, pendingMove, view, readClock, used, compactIfFull } = args
-  const { cancelCompaction, onSettled, onUndone, setFailure, forgetUsage, interruptRefusal } = args
+  const { app, threadId, started, pendingMove, view, readClock } = args
+  const { onSettled, onUndone, setFailure, forgetUsage, interruptRefusal } = args
   const { store, events, refresh, stamp } = view
 
   const [working, setWorking] = useState(false)
   const workingRef = useRef(false)
   const abort = useRef<AbortController | null>(null)
-  const undoSuppressed = useRef(false)
   const tailRef = useRef(false)
   const interruptAckedAt = useRef(0)
   const remoteTurnInFlight = useRef(false)
@@ -215,24 +206,6 @@ export function useTurnDriver(args: {
 
   const rewindConfirm = useRewindConfirm()
 
-  const undo = useCallback(async () => {
-    const undone = await undoTurn({
-      log: app.log,
-      threads: app.threads,
-      machinery,
-      threadId,
-    })
-
-    if (undone.type === EUndo.Refused) {
-      setFailure(undone.reason)
-      return
-    }
-    if (undone.type === EUndo.Nothing) return
-
-    await refresh()
-    onUndone(undone.said)
-  }, [app.log, app.threads, machinery, onUndone, refresh, setFailure, threadId])
-
   const drive = useCallback(
     (
       drafts: readonly EventDraft[],
@@ -262,20 +235,21 @@ export function useTurnDriver(args: {
           gate.settle()
           const outcome = await app.runner.runTurn({ threadId, signal: controller.signal })
           setFailure(stoppageOf(outcome))
-          if (committedNothing(outcome) && !undoSuppressed.current) await undo()
+          await app.turnPolicy.onOutcome({ threadId, outcome })
+          const said = app.turnPolicy.undone()
+          if (said !== null) onUndone(said)
         } catch (error) {
+          await app.turnPolicy.onCrashed({ threadId })
           setFailure(messageOf(error))
         } finally {
           gate.settle()
           abort.current = null
           workingRef.current = false
-          undoSuppressed.current = false
           tailRef.current = true
           stamp((current) => turnSettled({ progress: current, now: readClock() }))
           await refresh().catch(() => undefined)
           await onSettled().catch(() => undefined)
           setWorking(false)
-          await compactIfFull(used.current).catch(() => undefined)
           tailRef.current = false
           fireSettleListeners()
         }
@@ -286,15 +260,13 @@ export function useTurnDriver(args: {
     [
       app,
       commit,
-      compactIfFull,
       onSettled,
+      onUndone,
       readClock,
       refresh,
       setFailure,
       store,
       threadId,
-      undo,
-      used,
     ],
   )
 
@@ -358,7 +330,7 @@ export function useTurnDriver(args: {
         return
       }
 
-      cancelCompaction()
+      app.turnPolicy.cancelCompaction()
       workingRef.current = true
       setWorking(true)
       try {
@@ -402,7 +374,7 @@ export function useTurnDriver(args: {
         fireSettleListeners()
       }
     },
-    [app.log, app.threads, machinery, cloudChannel, cancelCompaction, forgetUsage, refresh, rewindConfirm, setFailure, store, threadId],
+    [app.log, app.threads, app.turnPolicy, machinery, cloudChannel, forgetUsage, refresh, rewindConfirm, setFailure, store, threadId],
   )
 
   const abortTurn = useCallback(() => {
@@ -422,7 +394,7 @@ export function useTurnDriver(args: {
    * it worked.
    */
   const handleInterrupt = useCallback(() => {
-    if (cancelCompaction()) return
+    if (app.turnPolicy.cancelCompaction()) return
 
     const refusal = interruptRefusal?.() ?? null
     if (refusal !== null) {
@@ -431,7 +403,7 @@ export function useTurnDriver(args: {
     }
 
     abortTurn()
-  }, [abortTurn, cancelCompaction, interruptRefusal])
+  }, [abortTurn, app.turnPolicy, interruptRefusal])
 
   /**
    * A move interrupts on the operator's behalf, so the message stays committed and travels — the
@@ -441,9 +413,9 @@ export function useTurnDriver(args: {
    */
   const handleInterruptForMove = useCallback(() => {
     if (abort.current === null) return
-    undoSuppressed.current = true
+    app.turnPolicy.suppress(ESuppress.UndoOnce)
     abortTurn()
-  }, [abortTurn])
+  }, [abortTurn, app.turnPolicy])
 
   const handleRewindTo = useCallback((toSeq: number) => void rewindTo(toSeq), [rewindTo])
 

@@ -1271,6 +1271,8 @@ atlas/
     core/       pure. no I/O, no clock, no randomness, no network, no database
     harness/    the loop, hooks, tools, model adapters, credentials, store
     ui/         design tokens (pure TS, platform-agnostic) + web UI atoms + Storybook
+    wire/       the wire contract: channel/session zod schemas, protocol version, serve-env.
+                No in-repo deps, so the NodeNext api can build it where core cannot.
   apps/
     tui/        OpenTUI + React; wraps the shared composition root with terminal bindings
     api/        Atlas Cloud backend (NestJS): auth, users, credential storage

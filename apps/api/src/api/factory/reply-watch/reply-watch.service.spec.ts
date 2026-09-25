@@ -72,7 +72,7 @@ describe('ReplyWatchService', () => {
     workItemId = workItem.id
     fake.workItems[0]!.orchestratorThreadId = 'brn_orchestrator_1'
     // The watch needs an event log commit for the nudge marker to confirm against.
-    channel.inject.mockImplementation(async (args: { threadId: string; text: string; accepted: () => Promise<boolean> }) => {
+    channel.inject.mockImplementation(async (args: { threadId: string; text: string; witness: { commitLanded: () => Promise<boolean>; delivered: (proof: string) => Promise<void> } }) => {
       fake.events.push({
         id: `evt_${fake.events.length + 1}`,
         threadId: args.threadId,
@@ -80,18 +80,26 @@ describe('ReplyWatchService', () => {
         type: 'user-said',
         body: JSON.stringify({ type: 'user-said', text: args.text }),
       })
-      await args.accepted()
+      await args.witness.commitLanded()
+      await args.witness.delivered('committed')
     })
   })
 
+  const watchArmed = async (eventId: string) => {
+    service.watch({ workItemId, ref, eventId })
+    await vi.waitFor(() =>
+      expect(fake.replyWatches.some((one) => one.workItemId === workItemId)).toBe(true),
+    )
+  }
+
   it('sets the heard signal when a watch is armed', async () => {
-    service.watch({ workItemId, ref, eventId: 'evt_human_1' })
-    await vi.waitFor(() => expect(signals.set).toHaveBeenCalledWith({ ref, signal: EStatusSignal.Heard }))
-    service.resolve({ workItemId })
+    await watchArmed('evt_human_1')
+    expect(signals.set).toHaveBeenCalledWith({ ref, signal: EStatusSignal.Heard })
+    await service.resolve({ workItemId })
   })
 
   it('nudges the orchestrator when no reply lands within the window', async () => {
-    service.watch({ workItemId, ref, eventId: 'evt_human_1' })
+    await watchArmed('evt_human_1')
 
     await vi.waitFor(() => expect(channel.inject).toHaveBeenCalled(), { timeout: WINDOW * 4 })
 
@@ -114,30 +122,86 @@ describe('ReplyWatchService', () => {
       seq: 1,
     } as never)
 
-    service.watch({ workItemId, ref, eventId: 'evt_human_1' })
+    await watchArmed('evt_human_1')
     await new Promise((resolve) => setTimeout(resolve, WINDOW * 2))
 
     expect(channel.inject).not.toHaveBeenCalled()
+    expect(fake.replyWatches).toHaveLength(0)
   })
 
   it('resolve marks reply-coming and clears the signals', async () => {
-    service.watch({ workItemId, ref, eventId: 'evt_human_1' })
+    await watchArmed('evt_human_1')
 
     await service.resolve({ workItemId })
 
     expect(signals.set).toHaveBeenCalledWith({ ref, signal: EStatusSignal.ReplyComing })
     expect(signals.clear).toHaveBeenCalledWith({ ref })
+    expect(fake.replyWatches).toHaveLength(0)
     // And the timer is disarmed: no nudge even after the window passes.
     await new Promise((resolve) => setTimeout(resolve, WINDOW * 2))
     expect(channel.inject).not.toHaveBeenCalled()
   })
 
   it('nudges once, then stands down after the grace window', async () => {
-    service.watch({ workItemId, ref, eventId: 'evt_human_1' })
+    await watchArmed('evt_human_1')
 
     await vi.waitFor(() => expect(channel.inject).toHaveBeenCalledTimes(1), { timeout: WINDOW * 4 })
     await new Promise((resolve) => setTimeout(resolve, GRACE * 2))
 
     expect(channel.inject).toHaveBeenCalledTimes(1)
+    expect(fake.replyWatches).toHaveLength(0)
+  })
+
+  it('persists the watch deadlines, so a fresh instance re-arms them after a restart', async () => {
+    await watchArmed('evt_human_1')
+    expect(fake.replyWatches).toHaveLength(1)
+    const row = fake.replyWatches[0]!
+    expect(row.eventId).toBe('evt_human_1')
+    expect(Date.parse(row.nudgeAt)).toBeGreaterThan(Date.now())
+    expect(Date.parse(row.graceAt)).toBeGreaterThan(Date.parse(row.nudgeAt))
+
+    // The first instance is gone; only its durable row survives into the restarted one.
+    const surviving = { ...row }
+    await service.resolve({ workItemId }).catch(() => undefined)
+    signals.clear.mockClear()
+    channel.inject.mockClear()
+    fake.replyWatches.push(surviving)
+
+    const restarted = new ReplyWatchService(
+      signals as never,
+      sandboxes as unknown as SandboxesService,
+      new FactoryIdentityService(nullCipher),
+      channel as OrchestratorChannel,
+    )
+    restarted.windowMs = WINDOW
+    restarted.graceMs = GRACE
+    await restarted.onApplicationBootstrap()
+
+    await vi.waitFor(() => expect(channel.inject).toHaveBeenCalled(), { timeout: WINDOW * 4 })
+    const text = (channel.inject.mock.calls[0]?.[0] as { text: string }).text
+    expect(text).toContain('<system-notice kind="reply-watch"')
+    expect(fake.replyWatches[0]?.nudged).toBe(true)
+  })
+
+  it('re-arming a watch whose window passed while down fires the nudge immediately', async () => {
+    await watchArmed('evt_human_1')
+    const row = fake.replyWatches[0]!
+    row.nudgeAt = new Date(Date.now() - 1).toISOString()
+
+    // Same restart: the old instance is dismantled, the row's deadline is already in the past.
+    const surviving = { ...row }
+    await service.resolve({ workItemId }).catch(() => undefined)
+    channel.inject.mockClear()
+    fake.replyWatches.push(surviving)
+
+    const restarted = new ReplyWatchService(
+      signals as never,
+      sandboxes as unknown as SandboxesService,
+      new FactoryIdentityService(nullCipher),
+      channel as OrchestratorChannel,
+    )
+    await restarted.onApplicationBootstrap()
+
+    await vi.waitFor(() => expect(channel.inject).toHaveBeenCalled(), { timeout: WINDOW })
   })
 })

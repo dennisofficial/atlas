@@ -1,7 +1,7 @@
 import type { EventDraft } from '@dltech/atlas-core'
 
 import type { LiftedWorkspace } from './cloud-bridge'
-import type { RemoteMemoryConflict } from './merge-remote-memory'
+import type { RemoteMemoryConflict } from '@dltech/atlas-harness'
 
 export const CLOUD_NOTICE_SLOT = 'session'
 

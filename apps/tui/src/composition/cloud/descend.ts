@@ -19,7 +19,7 @@ import type { CloudBridge, CloudChannel } from './cloud-bridge'
 import { draftsOf } from './event-drafts'
 import { ELiftStep } from './lift'
 import { flipChildrenBack } from './lift-children'
-import type { RemoteMemoryMerge } from './merge-remote-memory'
+import type { RemoteMemoryMerge } from '@dltech/atlas-harness'
 import { assertTransferred } from './transfer-verification'
 import {
   descendedConflictsDraft,

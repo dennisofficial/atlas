@@ -2,9 +2,11 @@ import { describe, expect, it, vi } from 'vitest'
 import { CHANNEL_PROTOCOL_VERSION } from '@dltech/atlas-wire'
 import {
   createOrchestratorChannel,
+  EDeliveryProof,
   sessionSocketUrlOf,
   type ChannelSocket,
   type ChannelSocketFactory,
+  type DeliveryWitness,
 } from './orchestrator-channel'
 
 type FakeHandlers = Parameters<ChannelSocketFactory>[0]
@@ -47,7 +49,15 @@ const INJECT = {
   text: 'wake up',
 }
 
-const acceptedImmediately = () => vi.fn(async () => true)
+const witnessOf = (commitLanded: () => Promise<boolean>) => {
+  const delivered = vi.fn(async () => undefined)
+  return {
+    witness: { commitLanded: vi.fn(commitLanded), delivered } as DeliveryWitness,
+    delivered,
+  }
+}
+
+const acceptingWitness = () => witnessOf(async () => false)
 
 describe('sessionSocketUrlOf', () => {
   it('maps the https route to the session websocket path', () => {
@@ -61,16 +71,17 @@ describe('orchestrator channel', () => {
   it('offers the channel and bearer subprotocols', () => {
     const { factory, sockets } = fakeFactory()
     const channel = createOrchestratorChannel({ socketFactory: factory })
-    void channel.inject({ ...INJECT, accepted: acceptedImmediately() }).catch(() => undefined)
+    void channel.inject({ ...INJECT, witness: acceptingWitness().witness }).catch(() => undefined)
 
     expect(sockets[0]?.handlers.url).toBe('wss://factory-x-3000.vercel.run/v1/session')
     expect(sockets[0]?.handlers.protocols).toEqual(['atlas.v1', 'bearer.tok_secret'])
   })
 
-  it('says hello on open, injects once ready, and resolves when the message is accepted', async () => {
+  it('says hello on open, injects once ready, and delivers socket-accepted when nothing is committed yet', async () => {
     const { factory, sockets } = fakeFactory()
     const channel = createOrchestratorChannel({ socketFactory: factory })
-    const pending = channel.inject({ ...INJECT, accepted: acceptedImmediately() })
+    const { witness, delivered } = acceptingWitness()
+    const pending = channel.inject({ ...INJECT, witness })
 
     const socket = sockets[0] as FakeSocket
     socket.handlers.handleOpen()
@@ -84,33 +95,34 @@ describe('orchestrator channel', () => {
     })
 
     socket.handlers.handleMessage(JSON.stringify({ kind: 'ready', seq: 1, protocol: CHANNEL_PROTOCOL_VERSION }))
+    await pending
+
     const sent = JSON.parse(socket.sent[1] as string) as Record<string, unknown>
     expect(sent).toEqual({ kind: 'send', text: 'wake up' })
-
-    await pending
+    expect(delivered).toHaveBeenCalledWith(EDeliveryProof.SocketAccepted)
     expect(socket.closed).toBe(true)
   })
 
-  it('keeps waiting while the acceptance probe has not seen the commit', async () => {
+  it('never sends when the durable commit is already there — a re-drive is a no-op', async () => {
     const { factory, sockets } = fakeFactory()
     const channel = createOrchestratorChannel({ socketFactory: factory })
-    const probe = vi
-      .fn<() => Promise<boolean>>()
-      .mockResolvedValueOnce(false)
-      .mockResolvedValueOnce(false)
-      .mockResolvedValue(true)
-    const pending = channel.inject({ ...INJECT, accepted: probe })
+    const { witness, delivered } = witnessOf(async () => true)
+    const pending = channel.inject({ ...INJECT, witness })
 
     const socket = sockets[0] as FakeSocket
     greet(socket)
     await pending
-    expect(probe.mock.calls.length).toBeGreaterThanOrEqual(3)
+
+    expect(socket.sent).toHaveLength(1)
+    expect(delivered).toHaveBeenCalledWith(EDeliveryProof.Committed)
+    expect(socket.closed).toBe(true)
   })
 
   it('does not mistake backfilled frames for acceptance', async () => {
     const { factory, sockets } = fakeFactory()
     const channel = createOrchestratorChannel({ socketFactory: factory })
-    const pending = channel.inject({ ...INJECT, accepted: acceptedImmediately() })
+    const { witness } = acceptingWitness()
+    const pending = channel.inject({ ...INJECT, witness })
 
     const socket = sockets[0] as FakeSocket
     socket.handlers.handleOpen()
@@ -125,7 +137,7 @@ describe('orchestrator channel', () => {
   it('rejects when the serve refuses with an error frame', async () => {
     const { factory, sockets } = fakeFactory()
     const channel = createOrchestratorChannel({ socketFactory: factory })
-    const pending = channel.inject({ ...INJECT, accepted: acceptedImmediately() })
+    const pending = channel.inject({ ...INJECT, witness: acceptingWitness().witness })
 
     const socket = sockets[0] as FakeSocket
     greet(socket)
@@ -136,7 +148,7 @@ describe('orchestrator channel', () => {
   it('rejects when the serve speaks another wire protocol', async () => {
     const { factory, sockets } = fakeFactory()
     const channel = createOrchestratorChannel({ socketFactory: factory })
-    const pending = channel.inject({ ...INJECT, accepted: acceptedImmediately() })
+    const pending = channel.inject({ ...INJECT, witness: acceptingWitness().witness })
 
     const socket = sockets[0] as FakeSocket
     socket.handlers.handleOpen()
@@ -148,7 +160,7 @@ describe('orchestrator channel', () => {
   it('rejects when the socket closes before acceptance', async () => {
     const { factory, sockets } = fakeFactory()
     const channel = createOrchestratorChannel({ socketFactory: factory })
-    const pending = channel.inject({ ...INJECT, accepted: acceptedImmediately() })
+    const pending = channel.inject({ ...INJECT, witness: acceptingWitness().witness })
 
     const socket = sockets[0] as FakeSocket
     greet(socket)
@@ -156,24 +168,10 @@ describe('orchestrator channel', () => {
     await expect(pending).rejects.toThrow('1006')
   })
 
-  it('shrugs off a failing acceptance probe and keeps waiting', async () => {
-    const { factory, sockets } = fakeFactory()
-    const channel = createOrchestratorChannel({ socketFactory: factory })
-    const probe = vi
-      .fn<() => Promise<boolean>>()
-      .mockRejectedValueOnce(new Error('db blinked'))
-      .mockResolvedValue(true)
-    const pending = channel.inject({ ...INJECT, accepted: probe })
-
-    const socket = sockets[0] as FakeSocket
-    greet(socket)
-    await pending
-  })
-
   it('ignores frames that do not decode', async () => {
     const { factory, sockets } = fakeFactory()
     const channel = createOrchestratorChannel({ socketFactory: factory })
-    const pending = channel.inject({ ...INJECT, accepted: acceptedImmediately() })
+    const pending = channel.inject({ ...INJECT, witness: acceptingWitness().witness })
 
     const socket = sockets[0] as FakeSocket
     socket.handlers.handleOpen()
@@ -181,5 +179,20 @@ describe('orchestrator channel', () => {
     socket.handlers.handleMessage(JSON.stringify({ kind: 'mystery' }))
     socket.handlers.handleMessage(JSON.stringify({ kind: 'ready', seq: 1, protocol: CHANNEL_PROTOCOL_VERSION }))
     await pending
+  })
+
+  it('rejects when the delivery witness itself fails', async () => {
+    const { factory, sockets } = fakeFactory()
+    const channel = createOrchestratorChannel({ socketFactory: factory })
+    const witness: DeliveryWitness = {
+      commitLanded: async () => false,
+      delivered: async () => {
+        throw new Error('the witness store is down')
+      },
+    }
+    const pending = channel.inject({ ...INJECT, witness })
+
+    greet(sockets[0] as FakeSocket)
+    await expect(pending).rejects.toThrow('the witness store is down')
   })
 })

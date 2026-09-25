@@ -1,26 +1,23 @@
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
-import { basename, join, resolve } from 'node:path'
+import { readFile } from 'node:fs/promises'
+import { join, resolve } from 'node:path'
 
-import {
-  atlasDirectory,
-  extractContextArchive,
-  memoryDirectoriesFor,
-  resolveProjectMemory,
-  safeRelativeSegment,
-  UserContextClient,
-  type ProjectMemoryResolution,
-} from '@dltech/atlas-harness'
+import { ENoticeTone, NOTICE_WARN_MS, type NoticePort } from '@dltech/atlas-core'
 
-import { clientVersionHeader } from '../../build/info'
-import { applyOne, type MergeCandidate } from './merge-memory-file'
-import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
+import { safeRelativeSegment } from '../files/safe-relative-path'
+import { memoryDirectoriesFor } from '../memory/read-memory'
+import { resolveProjectMemory, type ProjectMemoryResolution } from '../memory/project-memory'
+import { atlasDirectory } from '../store/paths'
+
+import { extractContextArchive } from './context-archive'
+import { applyOne, type MergeCandidate, type RemoteMemoryConflict } from './merge-memory-file'
+import { UserContextClient } from './user-context-client'
 
 const MERGE_NOTICE_KEY = 'remote-memory-merge'
 
 const USER_PREFIX = 'user/'
 const PROJECT_PREFIX = 'project/'
 
-export type RemoteMemoryConflict = { key: string; text: string }
+export type { RemoteMemoryConflict }
 
 export type RemoteMemoryMerge = {
   replaced: number
@@ -110,6 +107,7 @@ const applyCandidates = async (args: {
   candidates: readonly MergeCandidate[]
   atlasHome: string
   resolution: ProjectMemoryResolution | null
+  notice: NoticePort
 }): Promise<RemoteMemoryMerge> => {
   let replaced = 0
   const conflicts: RemoteMemoryConflict[] = []
@@ -122,7 +120,7 @@ const applyCandidates = async (args: {
       if (applied.replaced) replaced += 1
       if (applied.conflict !== null) conflicts.push(applied.conflict)
     } catch (error) {
-      notify({
+      args.notice.notify({
         key: MERGE_NOTICE_KEY,
         tone: ENoticeTone.Warn,
         text: `the remote memory merge could not write ${candidate.key}: ${messageOf(error)}`,
@@ -220,10 +218,13 @@ const resolutionFor = async (args: {
  * `captureContextArchive` must carry the union rather than whatever was last written locally.
  * Last-writer-wins by the mtime the sandbox recorded when it uploaded — and where the local copy
  * is that winner with different content, the cloud's version is returned as a conflict so the
- * caller can keep it rather than drop it.
+ * caller can keep it rather than drop it. Write failures and the replaced-file summary surface
+ * through the notice port rather than a surface's own store.
  */
 export async function mergeRemoteMemory(args: {
   session: { url: string; token: string }
+  clientVersion: string
+  notice: NoticePort
   cwd?: string | undefined
   atlasHome?: string | undefined
   fetchFn?: typeof fetch | undefined
@@ -232,18 +233,18 @@ export async function mergeRemoteMemory(args: {
   const client = new UserContextClient({
     url: args.session.url,
     token: args.session.token,
-    clientVersion: clientVersionHeader(),
+    clientVersion: args.clientVersion,
     ...(args.fetchFn === undefined ? {} : { fetchFn: args.fetchFn }),
   })
 
   const resolution =
     args.cwd === undefined ? null : await resolutionFor({ atlasHome, cwd: args.cwd })
   const { list, cleanup } = await candidatesFor({ client })
-  const merged = await applyCandidates({ candidates: list, atlasHome, resolution })
+  const merged = await applyCandidates({ candidates: list, atlasHome, resolution, notice: args.notice })
   await cleanup().catch(() => undefined)
 
   if (merged.replaced > 0) {
-    notify({
+    args.notice.notify({
       key: MERGE_NOTICE_KEY,
       tone: ENoticeTone.Warn,
       text: `the cloud held newer memory than this machine — ${merged.replaced} ${merged.replaced === 1 ? 'file' : 'files'} replaced from the last cloud turn`,

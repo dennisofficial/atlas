@@ -162,8 +162,9 @@ import { useLocationItems } from './use-location-items'
 import { useExecutionLocation } from './use-execution-location'
 import { useThreads } from './use-threads'
 import { useUsageMeters } from './use-usage-meters'
+import { mergeRemoteMemoryBounded, type CaptureContext } from '@dltech/atlas-harness'
+
 import { createCloudBridge } from './cloud/create-bridge'
-import { mergeRemoteMemoryBounded } from './cloud/bounded-merge-remote-memory'
 import { createCloudSession, type CloudSession } from './cloud/cloud-session'
 import { descendFromCloud } from './cloud/descend'
 import { liftRefusal } from './cloud/lift-plan'
@@ -173,7 +174,7 @@ import { useThreadRouter } from './use-thread-router'
 import type { CloudBridgeFactory, LiftPreflight, WorkspaceCapture } from './use-cloud-lift'
 import { useCloudLift } from './use-cloud-lift'
 import { captureWorkspace } from './cloud/workspace-snapshot'
-import type { CaptureContext } from './cloud/context-archive'
+import { noticePortBinding } from './notice-binding'
 import { useCloudSession } from './use-cloud-session'
 import type { LiftedAttachment, LiftedSession } from './lifted-session'
 import { buildInfo, clientVersionHeader, EBuildKind, versionLabel } from '../build/info'
@@ -457,7 +458,6 @@ function Workspace(props: {
     app: props.app,
     opened: props.opened,
     paceReveal: settings.paceReveal,
-    autoCompactAtPercent: settings.autoCompactAtPercent,
     thinking: settings.thinking,
     tldrStatus: settings.tldrStatus,
     onUndone: handleUndone,
@@ -1010,6 +1010,8 @@ function Workspace(props: {
             if (signedIn === null) return Promise.resolve({ replaced: 0, conflicts: [] })
             return mergeRemoteMemoryBounded({
               session: signedIn,
+              clientVersion: clientVersionHeader(),
+              notice: noticePortBinding(),
               cwd: props.localApp.workspace.workspace,
             })
           },

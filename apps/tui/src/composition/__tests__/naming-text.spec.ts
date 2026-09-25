@@ -1,7 +1,6 @@
 import { EContextSlot, type EventDraft } from '@dltech/atlas-core'
+import { NAMING_ATTACHMENT_CHARACTER_LIMIT, namingTextOf } from '@dltech/atlas-harness'
 import { describe, expect, it } from 'bun:test'
-
-import { NAMING_ATTACHMENT_CHARACTER_LIMIT, namingTextOf } from '../naming-text'
 
 const fileDraft = (path: string, content: string): EventDraft => ({
   type: 'context-loaded',

@@ -7,7 +7,6 @@ import type { LiftedAttachment } from '../lifted-session'
 import type { ContainerMoveControl } from '../use-container-move'
 import { cloudApp, openCloudConversation } from './cloud-app'
 import type { CloudBridge } from './cloud-bridge'
-import { captureContextArchive } from './context-archive'
 import { createCloudRunner, wakeSandbox } from './cloud-runner'
 import { CLOUD_REATTACH_NOTICE_KEY, reattachNotice } from './lift-notices'
 
@@ -32,9 +31,7 @@ export async function openCloudThread(args: {
       bridge,
       threadId,
       ...(move === undefined ? {} : { move }),
-      ...(projectDirectory === undefined
-        ? {}
-        : { captureContext: () => captureContextArchive({ cwd: projectDirectory }) }),
+      captureContext: () => app.captureContext({ cwd: projectDirectory ?? app.workspace.workspace }),
     })
 
     const channel = bridge.attach({ threadId, url: woken.url, token: woken.token })
@@ -51,6 +48,7 @@ export async function openCloudThread(args: {
       bridge,
       channel,
       threadId,
+      captureContext: () => app.captureContext({ cwd: projectDirectory ?? app.workspace.workspace }),
       ...(move === undefined ? {} : { move }),
     })
     const attached = cloudApp({ app, bridge, channel, runner })

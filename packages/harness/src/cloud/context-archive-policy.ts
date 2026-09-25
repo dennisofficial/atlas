@@ -2,18 +2,22 @@ import { readdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join, relative } from 'node:path'
 
-import { EDefinitionOrigin, MEMORY_DIRECTORY_NAME, skillRootPlan } from '@dltech/atlas-core'
 import {
-  atlasDirectory,
-  buildContextArchive,
-  MAX_CONTEXT_ARCHIVE_BYTES,
-  resolveProjectMemory,
-  resolveSkillRoots,
-  type ArchiveFileSource,
-  statMemoryDirectory,
-} from '@dltech/atlas-harness'
+  EDefinitionOrigin,
+  ENoticeTone,
+  MEMORY_DIRECTORY_NAME,
+  NOTICE_WARN_MS,
+  skillRootPlan,
+  type NoticePort,
+} from '@dltech/atlas-core'
 
-import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
+import { statMemoryDirectory } from '../memory/walk-memory'
+import { resolveProjectMemory } from '../memory/project-memory'
+import { resolveSkillRoots } from '../skills/roots'
+import { atlasDirectory } from '../store/paths'
+
+import { buildContextArchive, type ArchiveFileSource } from './context-archive'
+import { MAX_CONTEXT_ARCHIVE_BYTES } from './sandbox-client'
 
 const SKILLS_DIRECTORY_NAME = 'skills'
 const LOCAL_INSTRUCTION_SUFFIX = '.local.md'
@@ -94,30 +98,22 @@ const addProjectLocals = async (args: { sources: ArchiveFileSource[]; cwd: strin
   }
 }
 
-const overflowNotice = (args: { bytes: number; maxBytes: number }): void => {
-  notify({
-    key: CONTEXT_OVERFLOW_NOTICE_KEY,
-    text: `the cloud context archive is ${mebibytes(args.bytes)}, over the ${mebibytes(args.maxBytes)} limit — the cloud session lifts without the extra skills, memory and instructions this machine holds`,
-    tone: ENoticeTone.Warn,
-    ttlMs: NOTICE_WARN_MS,
-  })
-}
-
 /**
  * The operator's user-level context — skill roots, global instructions, local MCP config, user
  * memory, and (when `cwd` names the repo being lifted) its project memory and gitignored
  * project-local instruction files — staged and packed into a `.tar.gz`. The serve unpacks it into
  * its own home and workspace, so a cloud thread sees the same context as this machine. Everything
  * committed to the repository rides the git transfer instead and is not duplicated here. Returns
- * undefined when there is nothing to carry, and — past the sanity ceiling — warns rather than
- * silently dropping the lift's context.
+ * undefined when there is nothing to carry, and — past the sanity ceiling — warns through the
+ * notice port rather than silently dropping the lift's context.
  */
 export async function captureContextArchive(args: {
+  notice: NoticePort
   cwd?: string | undefined
   home?: string | undefined
   atlasHome?: string | undefined
   maxArchiveBytes?: number | undefined
-} = {}): Promise<Buffer | undefined> {
+}): Promise<Buffer | undefined> {
   const home = args.home ?? homedir()
   const atlasHome = args.atlasHome ?? atlasDirectory()
   const maxBytes = args.maxArchiveBytes ?? MAX_CONTEXT_ARCHIVE_BYTES
@@ -146,6 +142,11 @@ export async function captureContextArchive(args: {
   if (archive === undefined) return undefined
   if (archive.byteLength <= maxBytes) return archive
 
-  overflowNotice({ bytes: archive.byteLength, maxBytes })
+  args.notice.notify({
+    key: CONTEXT_OVERFLOW_NOTICE_KEY,
+    text: `the cloud context archive is ${mebibytes(archive.byteLength)}, over the ${mebibytes(maxBytes)} limit — the cloud session lifts without the extra skills, memory and instructions this machine holds`,
+    tone: ENoticeTone.Warn,
+    ttlMs: NOTICE_WARN_MS,
+  })
   return undefined
 }

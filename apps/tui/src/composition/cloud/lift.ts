@@ -13,13 +13,13 @@ import {
   exportGpgMaterial,
   GitCredentialError,
   VercelNotConfiguredError,
+  type CaptureContext,
   type GpgKeyMaterial,
   type ThreadModel,
   type ThreadStorePort,
 } from '@dltech/atlas-harness'
 
 import type { CloudBridge, CloudChannel, CloudSandbox, LiftedWorkspace } from './cloud-bridge'
-import { captureContextArchive, type CaptureContext } from './context-archive'
 import { draftsOf } from './event-drafts'
 import {
   flipChildrenBack,
@@ -93,8 +93,8 @@ export type LiftArgs = {
   stopLocal: () => Promise<StoppedLocally>
   capture: (args: { cwd: string }) => Promise<LiftedWorkspace | null>
   captureGpg?: ((args: { cwd: string }) => Promise<GpgKeyMaterial | null>) | undefined
-  /** Deferred so a sandbox that resumed from a snapshot skips the (expensive) skills tar. */
-  captureContext?: CaptureContext | undefined
+  /** Deferred so a sandbox that resumed from a snapshot skips the (expensive) skills tar. The lift has no notice port of its own, so the caller supplies the notice-bound capture. */
+  captureContext: CaptureContext
   onProgress: (step: ELiftStep) => void
   /**
    * Runs after the channel attaches — opening the conversation against the remote stores. The
@@ -342,7 +342,7 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
       captureContext: async (put) => {
         onProgress(ELiftStep.UploadingContext)
         try {
-          const archive = await (args.captureContext ?? captureContextArchive)()
+          const archive = await args.captureContext()
           if (archive !== undefined) await put(archive)
         } catch (error) {
           contextError = error

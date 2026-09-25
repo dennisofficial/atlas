@@ -1,12 +1,10 @@
-import { beforeEach, describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'bun:test'
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { memoryDirectoriesFor } from '@dltech/atlas-harness'
-
-import { currentNotices, dismissNotice } from '../../../ui/notice-store'
-import { mergeRemoteMemory } from '../merge-remote-memory'
+import { ENoticeTone } from '@dltech/atlas-core'
+import { memoryDirectoriesFor, mergeRemoteMemory } from '@dltech/atlas-harness'
 
 import {
   entryFor,
@@ -14,20 +12,23 @@ import {
   fetchReturning,
   freshDirectory,
   projectKey,
+  recordingNotices,
   SESSION,
   setMtime,
 } from './merge-memory-fixture'
-
-beforeEach(() => {
-  dismissNotice()
-})
 
 describe('mergeRemoteMemory', () => {
   it('writes a remote user memory file that has no local counterpart', async () => {
     const atlasHome = await freshDirectory('atlas-merge-home-')
     const fetchFn = fetchReturning({ 'user/MEMORY.md': entryFor('# from the cloud', 1_000) })
 
-    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, fetchFn })
+    const result = await mergeRemoteMemory({
+      session: SESSION,
+      clientVersion: 'atlas/test',
+      notice: recordingNotices().port,
+      atlasHome,
+      fetchFn,
+    })
 
     expect(result.replaced).toBe(1)
     expect(await readFile(join(atlasHome, 'memory', 'MEMORY.md'), 'utf8')).toBe('# from the cloud')
@@ -42,7 +43,13 @@ describe('mergeRemoteMemory', () => {
 
     const fetchFn = fetchReturning({ 'user/notes.md': entryFor('# fresher from the cloud', 5_000) })
 
-    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, fetchFn })
+    const result = await mergeRemoteMemory({
+      session: SESSION,
+      clientVersion: 'atlas/test',
+      notice: recordingNotices().port,
+      atlasHome,
+      fetchFn,
+    })
 
     expect(result.replaced).toBe(1)
     expect(await readFile(local, 'utf8')).toBe('# fresher from the cloud')
@@ -59,7 +66,13 @@ describe('mergeRemoteMemory', () => {
       'user/MEMORY.md': entryFor('- two\n- three\n', 1_000),
     })
 
-    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, fetchFn })
+    const result = await mergeRemoteMemory({
+      session: SESSION,
+      clientVersion: 'atlas/test',
+      notice: recordingNotices().port,
+      atlasHome,
+      fetchFn,
+    })
 
     expect(result.replaced).toBe(1)
     expect(result.conflicts).toEqual([])
@@ -75,7 +88,13 @@ describe('mergeRemoteMemory', () => {
 
     const fetchFn = fetchReturning({ 'user/notes.md': entryFor('# stale cloud note', 1_000) })
 
-    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, fetchFn })
+    const result = await mergeRemoteMemory({
+      session: SESSION,
+      clientVersion: 'atlas/test',
+      notice: recordingNotices().port,
+      atlasHome,
+      fetchFn,
+    })
 
     expect(result.replaced).toBe(0)
     expect(result.conflicts).toEqual([{ key: 'user/notes.md', text: '# stale cloud note' }])
@@ -91,7 +110,13 @@ describe('mergeRemoteMemory', () => {
 
     const fetchFn = fetchReturning({ 'user/notes.md': entryFor('# same note', 1_000) })
 
-    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, fetchFn })
+    const result = await mergeRemoteMemory({
+      session: SESSION,
+      clientVersion: 'atlas/test',
+      notice: recordingNotices().port,
+      atlasHome,
+      fetchFn,
+    })
 
     expect(result.replaced).toBe(0)
     expect(result.conflicts).toEqual([])
@@ -106,7 +131,13 @@ describe('mergeRemoteMemory', () => {
       ),
     })
 
-    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, fetchFn })
+    const result = await mergeRemoteMemory({
+      session: SESSION,
+      clientVersion: 'atlas/test',
+      notice: recordingNotices().port,
+      atlasHome,
+      fetchFn,
+    })
 
     expect(result.replaced).toBe(0)
   })
@@ -118,7 +149,14 @@ describe('mergeRemoteMemory', () => {
       [projectKey({ projectDirectory: cwd, name: 'MEMORY.md' })]: entryFor('# project note', 1_000),
     })
 
-    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, cwd, fetchFn })
+    const result = await mergeRemoteMemory({
+      session: SESSION,
+      clientVersion: 'atlas/test',
+      notice: recordingNotices().port,
+      atlasHome,
+      cwd,
+      fetchFn,
+    })
     const projectMemory = memoryDirectoriesFor({ atlasHome, repoRoot: cwd }).project
 
     expect(result.replaced).toBe(1)
@@ -136,7 +174,14 @@ describe('mergeRemoteMemory', () => {
       ),
     })
 
-    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, cwd, fetchFn })
+    const result = await mergeRemoteMemory({
+      session: SESSION,
+      clientVersion: 'atlas/test',
+      notice: recordingNotices().port,
+      atlasHome,
+      cwd,
+      fetchFn,
+    })
     const projectMemory = memoryDirectoriesFor({ atlasHome, repoRoot: cwd }).project
 
     expect(result.replaced).toBe(0)
@@ -150,7 +195,14 @@ describe('mergeRemoteMemory', () => {
       'project/MEMORY.md': entryFor('# ambiguous, could be any repo', 1_000),
     })
 
-    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, cwd, fetchFn })
+    const result = await mergeRemoteMemory({
+      session: SESSION,
+      clientVersion: 'atlas/test',
+      notice: recordingNotices().port,
+      atlasHome,
+      cwd,
+      fetchFn,
+    })
     const projectMemory = memoryDirectoriesFor({ atlasHome, repoRoot: cwd }).project
 
     expect(result.replaced).toBe(0)
@@ -163,7 +215,13 @@ describe('mergeRemoteMemory', () => {
       'user/../../../../etc/passwd': entryFor('# malicious', 1_000),
     })
 
-    const result = await mergeRemoteMemory({ session: SESSION, atlasHome, fetchFn })
+    const result = await mergeRemoteMemory({
+      session: SESSION,
+      clientVersion: 'atlas/test',
+      notice: recordingNotices().port,
+      atlasHome,
+      fetchFn,
+    })
 
     expect(result.replaced).toBe(0)
   })
@@ -171,20 +229,35 @@ describe('mergeRemoteMemory', () => {
   it('posts a warn-tone notice naming how many files it replaced', async () => {
     const atlasHome = await freshDirectory('atlas-merge-home-')
     const fetchFn = fetchReturning({ 'user/MEMORY.md': entryFor('# from the cloud', 1_000) })
+    const { posts, port } = recordingNotices()
 
-    await mergeRemoteMemory({ session: SESSION, atlasHome, fetchFn })
+    await mergeRemoteMemory({
+      session: SESSION,
+      clientVersion: 'atlas/test',
+      notice: port,
+      atlasHome,
+      fetchFn,
+    })
 
-    const notice = currentNotices().find((entry) => entry.key === 'remote-memory-merge')
+    const notice = posts.find((entry) => entry.key === 'remote-memory-merge')
     expect(notice).toBeDefined()
+    expect(notice?.tone).toBe(ENoticeTone.Warn)
     expect(notice?.text).toContain('1 file')
   })
 
   it('posts nothing when the remote holds nothing newer', async () => {
     const atlasHome = await freshDirectory('atlas-merge-home-')
     const fetchFn = fetchReturning(null)
+    const { posts, port } = recordingNotices()
 
-    await mergeRemoteMemory({ session: SESSION, atlasHome, fetchFn })
+    await mergeRemoteMemory({
+      session: SESSION,
+      clientVersion: 'atlas/test',
+      notice: port,
+      atlasHome,
+      fetchFn,
+    })
 
-    expect(currentNotices().find((entry) => entry.key === 'remote-memory-merge')).toBeUndefined()
+    expect(posts.find((entry) => entry.key === 'remote-memory-merge')).toBeUndefined()
   })
 })

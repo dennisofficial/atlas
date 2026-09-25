@@ -2,7 +2,11 @@ import { Logger } from '@nestjs/common'
 import { db } from '../../../db'
 import { ESandboxDriveMode, ESandboxFactoryRole } from '../../platform/sandboxes/sandboxes.types'
 import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
-import type { OrchestratorChannel } from './orchestrator-channel'
+import {
+  EDeliveryProof,
+  type DeliveryWitness,
+  type OrchestratorChannel,
+} from './orchestrator-channel'
 
 const logger = new Logger('FactoryServeDelivery')
 
@@ -31,11 +35,27 @@ export async function serveMessageCommitted(args: {
   return landed !== null
 }
 
+export function commitMarkerWitness(args: {
+  threadId: string
+  marker: string
+  onSocketAccepted?: (() => void) | undefined
+}): DeliveryWitness {
+  return {
+    commitLanded: () => serveMessageCommitted({ threadId: args.threadId, marker: args.marker }),
+    delivered: async (proof) => {
+      if (proof !== EDeliveryProof.SocketAccepted) return
+      if (await serveMessageCommitted({ threadId: args.threadId, marker: args.marker })) return
+      args.onSocketAccepted?.()
+    },
+  }
+}
+
 async function inject(args: {
   deps: ServeDeliveryDeps
   endpoint: Endpoint
   threadId: string
   text: string
+  witness: DeliveryWitness
   marker: string
 }): Promise<void> {
   if (await serveMessageCommitted({ threadId: args.threadId, marker: args.marker })) return
@@ -44,7 +64,7 @@ async function inject(args: {
     token: args.endpoint.token,
     threadId: args.threadId,
     text: args.text,
-    accepted: () => serveMessageCommitted({ threadId: args.threadId, marker: args.marker }),
+    witness: args.witness,
   })
 }
 
@@ -58,6 +78,7 @@ async function tryEndpoint(args: {
   endpoint: Endpoint
   threadId: string
   text: string
+  witness: DeliveryWitness
   marker: string
 }): Promise<boolean> {
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -96,6 +117,7 @@ export async function injectIntoServeThread(args: {
     endpoint: running,
     threadId: args.threadId,
     text: args.text,
+    witness: commitMarkerWitness({ threadId: args.threadId, marker: args.marker }),
     marker: args.marker,
   })
   if (!delivered) {
@@ -106,8 +128,9 @@ export async function injectIntoServeThread(args: {
 /**
  * The one way a factory message reaches a serve thread end to end: reuse the running endpoint
  * when there is one, re-attach (resume or re-provision the named sandbox) when there is not, and
- * count delivery only when the message is committed in the durable event log. A re-attach leaves
- * the row's stored workspace and drive untouched — claim rotation only writes what it is handed.
+ * count delivery only when the durable evidence says so — a commit already in the event log, or
+ * the socket accepting the frame. A re-attach leaves the row's stored workspace and drive
+ * untouched — claim rotation only writes what it is handed.
  */
 export async function deliverToServeThread(args: {
   deps: ServeDeliveryDeps
@@ -116,8 +139,14 @@ export async function deliverToServeThread(args: {
   sandboxName: string
   text: string
   marker: string
+  onSocketAccepted?: (() => void) | undefined
   extras?: ServeAttachExtras | undefined
 }): Promise<void> {
+  const witness = commitMarkerWitness({
+    threadId: args.threadId,
+    marker: args.marker,
+    ...(args.onSocketAccepted === undefined ? {} : { onSocketAccepted: args.onSocketAccepted }),
+  })
   const running = await args.deps.sandboxes.runningEndpoint({
     userId: args.userId,
     threadId: args.threadId,
@@ -128,6 +157,7 @@ export async function deliverToServeThread(args: {
       endpoint: running,
       threadId: args.threadId,
       text: args.text,
+      witness,
       marker: args.marker,
     })
     if (delivered) return
@@ -153,6 +183,7 @@ export async function deliverToServeThread(args: {
     endpoint: { token: attachment.token, url: status.url },
     threadId: args.threadId,
     text: args.text,
+    witness,
     marker: args.marker,
   })
 }

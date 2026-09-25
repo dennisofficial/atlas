@@ -43,8 +43,11 @@ import {
   CloudSessionStore,
   createAccountUsageService,
   createDeltaChannel,
+  createTurnPolicyRunner,
+  createUsageTracker,
   EGithubConnectPoll,
   InMemoryToolRegistry,
+  LocalRewindMachinery,
   memoryAccountStore,
   createSettingsService,
   ESkillOrigin,
@@ -57,6 +60,7 @@ import {
   ShellRegistryPort,
   SkillRegistryPort,
   SystemClock,
+  TitlingTurnRunner,
   EMPTY_AGENT_TYPE_CATALOG,
   ENotice,
   EShellStatus,
@@ -80,6 +84,7 @@ import type { PullRequestPort } from '@dltech/atlas-harness'
 import { createPendingQueues } from '../../store'
 import type { QueuedSettled } from '../commands'
 import { userSaidDraft } from '@dltech/atlas-harness'
+import type { TurnPolicy } from '@dltech/atlas-harness'
 import type { AtlasApp } from '../compose'
 import type { ActiveConversation } from '@dltech/atlas-harness'
 import { threadHandle } from '@dltech/atlas-harness'
@@ -88,6 +93,7 @@ import type { ModelCatalogue } from '@dltech/atlas-harness'
 import { DEFAULT_MODEL_REF, EOpenMode, type AtlasConfig, type OpenRequest } from '../config'
 import { createExecutionLocationState } from '@dltech/atlas-harness'
 import { createSandboxStatusState } from '@dltech/atlas-harness'
+import { noticePortBinding } from '../notice-binding'
 import { fakeAgentRegistry, type FakeAgents } from './fake-agents'
 import { fakeServiceRegistry, type FakeServices } from './fake-services'
 import {
@@ -714,6 +720,7 @@ export function fakeApp(args: {
   accountsSeed?: readonly AccountDraft[]
   containerLimits?: { cpus: number; memoryGb: number }
   drainFailures?: number
+  turnPolicy?: TurnPolicy
 }): FakeApp {
   const channel = createDeltaChannel()
   const log = fakeEventLog()
@@ -750,6 +757,60 @@ export function fakeApp(args: {
     },
   })
 
+  const titler = async ({ text }: { text: string }): Promise<string | null> => {
+    titled.push(text)
+    if (args.titlerWait !== undefined) await args.titlerWait
+    return args.names ?? null
+  }
+
+  const summariser = async ({ signal }: { signal?: AbortSignal | undefined }): Promise<string | null> => {
+    const delay = args.summariseDelayMs ?? 0
+    if (delay > 0) {
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(resolve, delay)
+        signal?.addEventListener('abort', () => {
+          clearTimeout(timer)
+          reject(new Error('aborted'))
+        })
+      })
+    }
+    return args.summarises ?? null
+  }
+
+  const titlingRunner = new TitlingTurnRunner({
+    inner: runner,
+    log,
+    threads,
+    titler,
+    notice: noticePortBinding(),
+  })
+
+  const noopPolicy: TurnPolicy = {
+    onOutcome: async () => undefined,
+    onCrashed: async () => undefined,
+    state: () => ({ type: 'idle' }),
+    subscribe: () => () => undefined,
+    cancelCompaction: () => false,
+    suppress: () => undefined,
+    undone: () => null,
+  }
+
+  const policyRunner = createTurnPolicyRunner({
+    inner: titlingRunner,
+    log,
+    threads,
+    agents,
+    machinery: new LocalRewindMachinery({ agents, shells, services }),
+    model: args.model,
+    summarise: summariser,
+    usage: createUsageTracker({ channel, log }),
+    atPercent: () => 0,
+    notice: noticePortBinding(),
+    readClock: () => Date.now(),
+  })
+  const turnPolicy = args.turnPolicy ?? policyRunner
+  const driving = args.turnPolicy === undefined ? policyRunner : titlingRunner
+
   let turnsDriven = 0
   let rewarms = 0
   let marked: ActiveConversation | null = null
@@ -775,6 +836,7 @@ export function fakeApp(args: {
     files: new FileBrowser({ root: args.workspaceRoot ?? FAKE_CONFIG.cwd }),
     accounts: fakeAccounts(args.accountsSeed),
     cloud: args.cloud ?? fakeCloud(),
+    captureContext: async () => undefined,
     openUrl: (url: string) => {
       openedUrls.push(url)
     },
@@ -826,25 +888,9 @@ export function fakeApp(args: {
 
     activeThread: () => marked,
 
-    titler: async ({ text }) => {
-      titled.push(text)
-      if (args.titlerWait !== undefined) await args.titlerWait
-      return args.names ?? null
-    },
+    titler,
 
-    summarise: async ({ signal }) => {
-      const delay = args.summariseDelayMs ?? 0
-      if (delay > 0) {
-        await new Promise<void>((resolve, reject) => {
-          const timer = setTimeout(resolve, delay)
-          signal?.addEventListener('abort', () => {
-            clearTimeout(timer)
-            reject(new Error('aborted'))
-          })
-        })
-      }
-      return args.summarises ?? null
-    },
+    summarise: summariser,
 
     config: {
       ...FAKE_CONFIG,
@@ -905,15 +951,16 @@ export function fakeApp(args: {
     },
     close: async () => {},
     runner: {
-      say: (call) => runner.say(call),
+      say: (call) => driving.say(call),
       resume: (call) => {
         turnsDriven += 1
-        return runner.resume(call)
+        return driving.resume(call)
       },
       runTurn: (call) => {
         turnsDriven += 1
-        return runner.runTurn(call)
+        return driving.runTurn(call)
       },
     },
+    turnPolicy,
   }
 }

@@ -18,6 +18,7 @@ import {
   EventLogPort,
   IdPort,
   ModelPort,
+  rangeValueOf,
   type CapabilitiesSource,
   type EventDraft,
   type ModelCard,
@@ -46,6 +47,7 @@ import { jevLoopWatch } from '../loop/loop-watchdog'
 import type { TurnDeps } from '../loop/run-turn'
 
 import { ChildWake } from './child-wake'
+import { TitlingTurnRunner } from './titling-turn-runner'
 import { TldrTurnRunner, type TldrFeed } from '../loop/tldr-turn-runner'
 import type { TurnRunner } from '../loop/turn-runner.port'
 import type { PendingQueues } from '../pending'
@@ -61,6 +63,10 @@ import { ToolRegistry } from '../tools/registry'
 
 import { compactTurn, ECompaction, type Summariser } from './compact-turn'
 import type { ExecutionLocationState } from './execution-location-state'
+import { createTurnPolicyRunner } from './turn-policy-runner'
+import type { TurnPolicy } from '../loop/turn-policy'
+import { LocalRewindMachinery } from '../store/local-rewind-machinery'
+import { createUsageTracker } from './usage-tracker'
 import { faultInjected } from './fault-injection'
 import type { ModelCatalogue } from './model-catalogue'
 import type { SelectableModel } from './model-selection'
@@ -69,6 +75,7 @@ import { teardownSession } from './session-teardown'
 export type TurnWiring = {
   turn: TurnDeps
   runner: TurnRunner
+  turnPolicy: TurnPolicy
   drainNotices: (args: { threadId: ThreadId }) => Promise<readonly EventDraft[]>
   recordTeardownEndings: () => Promise<void>
 }
@@ -93,6 +100,7 @@ export function wireTurn<Command>(args: {
   stopSandbox: () => Promise<boolean>
   settled: SettingsResolution
   tldr: { feed: TldrFeed | undefined; model: LanguageModel; modelId: () => string }
+  titler: (args: { text: string }) => Promise<string | null>
 }): TurnWiring {
   const {
     container,
@@ -326,6 +334,14 @@ export function wireTurn<Command>(args: {
     }),
   })
 
+  const usage = createUsageTracker({ channel: args.channel, log })
+  const atPercent = () =>
+    rangeValueOf({
+      resolution: args.settings.snapshot().resolution,
+      id: ESettingId.AutoCompact,
+      fallback: 90,
+    })
+
   const runner = ((): TurnRunner => {
     const publishing = new PublishingTurnRunner({ channel: args.channel, deps: turn })
     const feed = args.tldr.feed
@@ -348,5 +364,25 @@ export function wireTurn<Command>(args: {
     })
   })()
 
-  return { turn, runner, drainNotices, recordTeardownEndings }
+  const turnPolicy = createTurnPolicyRunner({
+    inner: new TitlingTurnRunner({
+      inner: runner,
+      log,
+      threads,
+      titler: args.titler,
+      notice,
+    }),
+    log,
+    threads,
+    agents,
+    machinery: new LocalRewindMachinery({ agents, shells, services }),
+    model: modelPort,
+    summarise: args.summarise,
+    usage,
+    atPercent,
+    notice,
+    readClock: () => Date.now(),
+  })
+
+  return { turn, runner: turnPolicy, turnPolicy, drainNotices, recordTeardownEndings }
 }

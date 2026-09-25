@@ -3,7 +3,9 @@ import {
   CHANNEL_PROTOCOL_VERSION,
   CHANNEL_SUBPROTOCOL,
   decodeServeFrame,
+  EClientFrame,
   EServeFrame,
+  encodeFrame,
 } from '@dltech/atlas-wire'
 
 const SESSION_PATH = '/v1/session'
@@ -52,10 +54,27 @@ export enum EChannelPhase {
 }
 
 /**
- * The wire has no ack for a send, and the serve backfills in-flight frames after the greeting, so
- * no frame can prove this message landed. The serve commits a user-said through the control
- * plane's event log before running the turn, and `accepted` polls for that commit — the only
- * honest evidence of delivery.
+ * The strongest proof of delivery the current wire protocol offers, strongest first. The serve
+ * answers a `send` frame only with an error — `EClientRequest` has no commit-and-ack op today —
+ * so there is no `ReplyAcked` tier until the protocol grows one. A socket error frame after a
+ * possibly-committed send is still possible either way, which is why `Committed` (the durable
+ * event-log marker) stays the backstop that makes a retry safe.
+ */
+export enum EDeliveryProof {
+  Committed = 'committed',
+  SocketAccepted = 'socket-accepted',
+}
+
+export type DeliveryWitness = {
+  commitLanded: () => Promise<boolean>
+  delivered: (proof: EDeliveryProof) => Promise<void>
+}
+
+/**
+ * The channel prefers the strongest proof the protocol supports: a commit already in the durable
+ * log short-circuits the send entirely (idempotent re-delivery), the socket itself must accept
+ * the frame, and the commit marker then confirms propagation. The serve backfills in-flight
+ * frames after the greeting, so no received frame can stand in for that commit.
  */
 export type OrchestratorChannel = {
   inject(args: {
@@ -63,7 +82,7 @@ export type OrchestratorChannel = {
     token: string
     threadId: string
     text: string
-    accepted: () => Promise<boolean>
+    witness: DeliveryWitness
   }): Promise<void>
 }
 
@@ -75,7 +94,7 @@ export function createOrchestratorChannel(args?: {
   const socketFactory = args?.socketFactory ?? webSocketSocketFactory
 
   return {
-    inject({ url, token, threadId, text, accepted }) {
+    inject({ url, token, threadId, text, witness }) {
       return new Promise<void>((resolve, reject) => {
         const protocols = [CHANNEL_SUBPROTOCOL, bearerSubprotocolOf(token)]
         let phase = EChannelPhase.Connecting
@@ -102,10 +121,20 @@ export function createOrchestratorChannel(args?: {
           }, ms)
         }
 
+        const deliver = (proof: EDeliveryProof): void => {
+          void witness
+            .delivered(proof)
+            .then(() => finish())
+            .catch((failure: unknown) => {
+              fail(failure instanceof Error ? failure.message : 'the delivery witness failed')
+            })
+        }
+
         const probeAcceptance = (): void => {
-          void accepted()
+          void witness
+            .commitLanded()
             .then((landed) => {
-              if (landed) finish()
+              if (landed) deliver(EDeliveryProof.Committed)
             })
             .catch(() => undefined)
         }
@@ -116,9 +145,9 @@ export function createOrchestratorChannel(args?: {
           handleOpen: () => {
             try {
               socket.send(
-                JSON.stringify({
-                  kind: 'hello',
-                  threadId,
+                encodeFrame({
+                  kind: EClientFrame.Hello,
+                  threadId: threadId as never,
                   channelCursor: null,
                   lastEventSeq: 0,
                   protocol: CHANNEL_PROTOCOL_VERSION,
@@ -149,14 +178,24 @@ export function createOrchestratorChannel(args?: {
             }
             phase = EChannelPhase.WaitingAccept
             armTimer(ACCEPT_TIMEOUT_MS)
-            try {
-              socket.send(JSON.stringify({ kind: 'send', text }))
-            } catch (failure) {
-              fail(failure instanceof Error ? failure.message : 'the message failed to send')
-              return
-            }
-            poll = setInterval(probeAcceptance, ACCEPT_POLL_MS)
-            probeAcceptance()
+            void witness
+              .commitLanded()
+              .then((landed) => {
+                if (landed) {
+                  deliver(EDeliveryProof.Committed)
+                  return
+                }
+                try {
+                  socket.send(encodeFrame({ kind: EClientFrame.Send, text }))
+                } catch (failure) {
+                  fail(failure instanceof Error ? failure.message : 'the message failed to send')
+                  return
+                }
+                deliver(EDeliveryProof.SocketAccepted)
+              })
+              .catch(() => {
+                fail('the delivery witness failed before the send')
+              })
           },
           handleClose: (code, reason) => {
             fail(`orchestrator channel closed in phase ${phase} (${code} ${reason})`)

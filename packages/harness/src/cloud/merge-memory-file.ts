@@ -3,7 +3,7 @@ import { basename, join } from 'node:path'
 
 import { MEMORY_INDEX_NAME } from '@dltech/atlas-core'
 
-import type { RemoteMemoryConflict } from './merge-remote-memory'
+export type RemoteMemoryConflict = { key: string; text: string }
 
 export type MergeCandidate = { key: string; mtime: number; readBytes: () => Promise<Buffer> }
 
@@ -62,4 +62,3 @@ export const applyOne = async (args: {
   if (held.equals(remote)) return { replaced: false, conflict: null }
   return { replaced: false, conflict: { key: args.candidate.key, text: remote.toString('utf8') } }
 }
-

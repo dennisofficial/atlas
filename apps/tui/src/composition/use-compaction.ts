@@ -1,6 +1,4 @@
 import {
-  autoCompactAfterTurn,
-  EAutoCompact,
   ECompactionAnchor,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -22,20 +20,23 @@ export type CompactionControl = {
   compacting: Compacting | null
   compact: (scope: ECompactScope) => void
   compactAround: (args: { anchor: ECompactionAnchor; seq: number }) => void
-  compactIfFull: (used: number) => Promise<void>
   cancel: () => boolean
 }
 
+/**
+ * The operator-facing half of compaction: the pill state, the esc cancel, and the two explicit
+ * commands (/compact, prune-at). The between-turns decision no longer lives here — the harness's
+ * turn policy fires it for every session kind and this surface observes it through the log.
+ */
 export function useCompaction(args: {
   app: AtlasApp
   threadId: ThreadId
-  atPercent: number
   readClock: () => number
   refresh: () => Promise<void>
   onFailure: (reason: string) => void
   onCompacted: () => void
 }): CompactionControl {
-  const { app, threadId, atPercent, readClock, refresh, onFailure, onCompacted } = args
+  const { app, threadId, readClock, refresh, onFailure, onCompacted } = args
   const [compacting, setCompacting] = useState<Compacting | null>(null)
   const compacter = useRef<AbortController | null>(null)
 
@@ -107,26 +108,6 @@ export function useCompaction(args: {
     [app.agents, app.log, app.summarise, app.threads, run, threadId],
   )
 
-  const compactIfFull = useCallback(
-    async (used: number) => {
-      const window = app.models.cardFor(app.model.choice().ref)?.contextWindow ?? 0
-      const decision = autoCompactAfterTurn({ used, window, atPercent })
-      if (decision === EAutoCompact.Hold) return
-
-      await run((signal) =>
-        compactTurn({
-          log: app.log,
-          threads: app.threads,
-          agents: app.agents,
-          threadId,
-          summarise: app.summarise,
-          signal,
-        }),
-      )
-    },
-    [app.agents, app.log, app.model, app.models, app.summarise, app.threads, atPercent, run, threadId],
-  )
-
   /**
    * Interrupting a compaction is not interrupting a turn, and the operator pressed one key for
    * both — so this answers whether it took the press.
@@ -140,5 +121,5 @@ export function useCompaction(args: {
     return true
   }, [])
 
-  return { compacting, compact, compactAround, compactIfFull, cancel }
+  return { compacting, compact, compactAround, cancel }
 }

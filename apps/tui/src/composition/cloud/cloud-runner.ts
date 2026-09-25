@@ -1,12 +1,11 @@
 import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
-import { RemoteTurnRunner } from '@dltech/atlas-harness'
+import { RemoteTurnRunner, type CaptureContext } from '@dltech/atlas-harness'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
 import { WAKE_HEADING, WAKE_PLAN } from '../container-move'
 import { messageOf } from '../error-text'
 import type { ContainerMoveControl } from '../use-container-move'
 import type { CloudBridge, CloudChannel } from './cloud-bridge'
-import { captureContextArchive, type CaptureContext } from './context-archive'
 import { ELiftStep } from './lift'
 
 export type { CaptureContext }
@@ -23,8 +22,8 @@ const WAKE_CONTEXT_NOTICE_KEY = 'wake-context-put-failed'
 export async function wakeSandbox(args: {
   bridge: CloudBridge
   threadId: ThreadId
+  captureContext: CaptureContext
   move?: ContainerMoveControl | undefined
-  captureContext?: CaptureContext | undefined
 }): Promise<{ url: string; token: string; created: boolean }> {
   args.move?.handleBegin({ target: EExecutionLocation.Cloud, plan: WAKE_PLAN, heading: WAKE_HEADING })
   args.move?.handleAdvance(ELiftStep.Starting)
@@ -34,7 +33,7 @@ export async function wakeSandbox(args: {
     workspace: null,
     captureContext: async (put) => {
       try {
-        const archive = await (args.captureContext ?? captureContextArchive)()
+        const archive = await args.captureContext()
         if (archive !== undefined) await put(archive)
       } catch (error) {
         notify({
@@ -55,16 +54,16 @@ export function createCloudRunner(args: {
   bridge: CloudBridge
   channel: CloudChannel
   threadId: ThreadId
+  captureContext: CaptureContext
   move?: ContainerMoveControl | undefined
-  captureContext?: CaptureContext | undefined
 }): RemoteTurnRunner {
   const wake = async (): Promise<void> => {
     try {
       const woken = await wakeSandbox({
         bridge: args.bridge,
         threadId: args.threadId,
+        captureContext: args.captureContext,
         ...(args.move === undefined ? {} : { move: args.move }),
-        ...(args.captureContext === undefined ? {} : { captureContext: args.captureContext }),
       })
       args.channel.wake({ url: woken.url, token: woken.token })
       args.move?.handleSettle()

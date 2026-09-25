@@ -1,11 +1,9 @@
-import type { ThreadId, Event, EventLogPort } from '@dltech/atlas-core'
-import {
-  rewindThread,
-  type RewindMachineryPort,
-  type ThreadStorePort,
-} from '@dltech/atlas-harness'
+import type { Event, EventLogPort, ThreadId } from '@dltech/atlas-core'
 
-import type { PendingSaid } from '../store'
+import type { PendingSaid } from '../pending'
+import type { RewindMachineryPort } from '../store/rewind-machinery'
+import { rewindThread } from '../store/rewind'
+import type { ThreadStorePort } from '../store/thread-store'
 
 export enum EUndo {
   Restored = 'restored',

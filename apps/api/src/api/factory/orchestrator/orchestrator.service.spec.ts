@@ -57,6 +57,7 @@ describe('OrchestratorService', () => {
   }
   let drives: { ensure: ReturnType<typeof vi.fn> }
   let service: OrchestratorService
+  let wakeRecovery: WakeRecoveryService
   let eventSeq: number
 
   const appendEvent = async (workItemId: string, marker: string) => {
@@ -75,14 +76,15 @@ describe('OrchestratorService', () => {
   }
 
   const wake = async (workItemId: string) => {
-    await service.runWake({ workItemId, externalId: INTAKE.externalId })
+    await service.wakeNow({ workItemId, externalId: INTAKE.externalId })
   }
 
-  const injectedTexts = (): string[] =>
-    (channel.inject.mock.calls as Array<[InjectCall]>).map((call) => call[0].text)
+  const sentTexts: string[] = []
+  const injectedTexts = (): string[] => sentTexts
 
   beforeEach(() => {
     fake.reset()
+    sentTexts.length = 0
     eventSeq = 0
     workItems = new WorkItemsService()
     transcript = new TranscriptService()
@@ -120,8 +122,14 @@ describe('OrchestratorService', () => {
       decisionsUrl: vi.fn(async () => undefined),
     }
     drives = { ensure: vi.fn(async () => 'factory-compai-atlas-341') }
+    wakeRecovery = new WakeRecoveryService(transcript)
     channel = {
-      inject: vi.fn(async (args: InjectCall & { threadId: string }) => {
+      inject: vi.fn(async (args: InjectCall & { threadId: string; witness: { commitLanded: () => Promise<boolean>; delivered: (proof: string) => Promise<void> } }) => {
+        if (await args.witness.commitLanded()) {
+          await args.witness.delivered('committed')
+          return
+        }
+        sentTexts.push(args.text)
         fake.events.push({
           id: `evt_${fake.events.length + 1}`,
           threadId: args.threadId,
@@ -129,7 +137,7 @@ describe('OrchestratorService', () => {
           type: 'user-said',
           body: JSON.stringify({ type: 'user-said', text: args.text }),
         })
-        if (!(await args.accepted())) throw new Error('the fake commit was not accepted')
+        await args.witness.delivered('socket-accepted')
       }),
     }
     service = new OrchestratorService(
@@ -141,9 +149,10 @@ describe('OrchestratorService', () => {
       credentials as unknown as FactoryCredentialService,
       drives as unknown as FactoryDrivesService,
       new WakeLockService(),
-      new WakeRecoveryService(transcript),
+      wakeRecovery,
       channel as OrchestratorChannel,
     )
+    wakeRecovery.registerDriver(service)
   })
 
   it('first wake creates a thread as the factory user and injects instructions with the event', async () => {
@@ -406,6 +415,7 @@ describe('OrchestratorService', () => {
     await expect(wake(workItem.id)).rejects.toThrow('replaced mid-wake')
     expect(channel.inject).not.toHaveBeenCalled()
 
+    const restartedRecovery = new WakeRecoveryService(transcript)
     const restarted = new OrchestratorService(
       workItems,
       transcript,
@@ -415,10 +425,12 @@ describe('OrchestratorService', () => {
       credentials as unknown as FactoryCredentialService,
       drives as unknown as FactoryDrivesService,
       new WakeLockService(),
-      new WakeRecoveryService(transcript),
+      restartedRecovery,
       channel as OrchestratorChannel,
     )
-    await restarted.runWake({ workItemId: workItem.id, externalId: INTAKE.externalId })
+    restartedRecovery.registerDriver(restarted)
+    restartedRecovery.onApplicationBootstrap()
+    await vi.waitFor(() => expect(channel.inject).toHaveBeenCalled())
 
     expect(threads.create).toHaveBeenCalledTimes(1)
     expect(channel.inject).toHaveBeenCalledTimes(1)

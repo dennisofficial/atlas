@@ -99,12 +99,40 @@ export type FakeStationRunRow = {
   finishedAt: string | null
 }
 
+export type FakeWakeOutboxRow = {
+  id: string
+  workItemId: string
+  externalId: string
+  repo: string | null
+  status: string
+  createdAt: string
+  updatedAt: string
+  deliveredAt: string | null
+}
+
+export type FakeReplyWatchRow = {
+  id: string
+  workItemId: string
+  surface: string
+  externalId: string
+  commentId: string
+  organizationId: string | null
+  eventId: string
+  nudgeAt: string
+  graceAt: string
+  nudged: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 type FakeRow =
   | FakeWorkItemRow
   | FakeAliasRow
   | FakeTranscriptEventRow
   | FakeStationRunRow
   | FakeConnectionRow
+  | FakeWakeOutboxRow
+  | FakeReplyWatchRow
 
 const matchesRow = (row: FakeRow, where: Where): boolean =>
   Object.entries(where).every(([key, condition]) => {
@@ -125,6 +153,8 @@ export function createFakeFactoryDb() {
   const threads: FakeOrchestratorThreadRow[] = []
   const events: FakeOrchestratorEventRow[] = []
   const stationRuns: FakeStationRunRow[] = []
+  const wakeOutbox: FakeWakeOutboxRow[] = []
+  const replyWatches: FakeReplyWatchRow[] = []
 
   const db = {
     factoryWorkItem: {
@@ -278,6 +308,72 @@ export function createFakeFactoryDb() {
         return row
       },
     },
+    factoryWakeOutbox: {
+      create: async (args: { data: FakeWakeOutboxRow }) => {
+        if (wakeOutbox.some((one) => one.id === args.data.id)) throw uniqueViolation(['id'])
+        wakeOutbox.push(args.data)
+        return args.data
+      },
+      findFirst: async (args: { where: Where; orderBy?: unknown }) => {
+        const matched = wakeOutbox.filter((one) => matchesRow(one, args.where))
+        const sorted = args.orderBy === undefined ? matched : sortRows(matched, args.orderBy)
+        return sorted[0] ?? null
+      },
+      findMany: async (args: { where?: Where; orderBy?: unknown }) => {
+        const matched = wakeOutbox.filter(
+          (one) => args.where === undefined || matchesRow(one, args.where),
+        )
+        return args.orderBy === undefined ? matched : sortRows(matched, args.orderBy)
+      },
+      update: async (args: { where: { id: string }; data: Where }) => {
+        const row = wakeOutbox.find((one) => one.id === args.where.id)
+        if (row === undefined) throw new Error('record not found')
+        applyUpdate(row as unknown as Record<string, unknown>, args.data)
+        return row
+      },
+      updateMany: async (args: { where: Where; data: Where }) => {
+        const matched = wakeOutbox.filter((one) => matchesRow(one, args.where))
+        for (const row of matched) applyUpdate(row as unknown as Record<string, unknown>, args.data)
+        return { count: matched.length }
+      },
+      deleteMany: async (args: { where: Where }) => {
+        const matched = wakeOutbox.filter((one) => matchesRow(one, args.where))
+        for (const row of matched) wakeOutbox.splice(wakeOutbox.indexOf(row), 1)
+        return { count: matched.length }
+      },
+    },
+    factoryReplyWatch: {
+      create: async (args: { data: FakeReplyWatchRow }) => {
+        if (replyWatches.some((one) => one.id === args.data.id)) throw uniqueViolation(['id'])
+        if (replyWatches.some((one) => one.workItemId === args.data.workItemId)) {
+          throw uniqueViolation(['workItemId'])
+        }
+        replyWatches.push(args.data)
+        return args.data
+      },
+      findMany: async (args: { where?: Where; orderBy?: unknown }) => {
+        const matched = replyWatches.filter(
+          (one) => args.where === undefined || matchesRow(one, args.where),
+        )
+        return args.orderBy === undefined ? matched : sortRows(matched, args.orderBy)
+      },
+      update: async (args: { where: { id: string }; data: Where }) => {
+        const row = replyWatches.find((one) => one.id === args.where.id)
+        if (row === undefined) throw new Error('record not found')
+        applyUpdate(row as unknown as Record<string, unknown>, args.data)
+        return row
+      },
+      updateMany: async (args: { where: Where; data: Where }) => {
+        const matched = replyWatches.filter((one) => matchesRow(one, args.where))
+        for (const row of matched) applyUpdate(row as unknown as Record<string, unknown>, args.data)
+        return { count: matched.length }
+      },
+      deleteMany: async (args: { where: Where }) => {
+        const matched = replyWatches.filter((one) => matchesRow(one, args.where))
+        for (const row of matched) replyWatches.splice(replyWatches.indexOf(row), 1)
+        return { count: matched.length }
+      },
+    },
     user: {
       upsert: async (args: {
         where: { email: string }
@@ -380,6 +476,8 @@ export function createFakeFactoryDb() {
     threads,
     events,
     stationRuns,
+    wakeOutbox,
+    replyWatches,
     reset: () => {
       workItems.length = 0
       connections.length = 0
@@ -391,6 +489,8 @@ export function createFakeFactoryDb() {
       threads.length = 0
       events.length = 0
       stationRuns.length = 0
+      wakeOutbox.length = 0
+      replyWatches.length = 0
     },
   }
 }

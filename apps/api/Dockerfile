@@ -82,6 +82,10 @@ COPY --from=builder /app/apps/api/scripts ./apps/api/scripts
 
 WORKDIR /app/apps/api
 ENV NODE_ENV=production
+# The instance this runs on is 0.5GB: cap the old-space heap under it so memory pressure kills
+# the process cleanly (and the platform restarts it) instead of wedging the container at the
+# kernel OOM killer, which also wipes the in-process wake/reply-watch state.
+ENV NODE_OPTIONS=--max-old-space-size=384
 EXPOSE 3400
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s \

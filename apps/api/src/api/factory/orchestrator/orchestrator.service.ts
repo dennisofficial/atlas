@@ -15,6 +15,7 @@ import { orchestratorInstructions, wakeMessageFor } from './orchestrator-prompt'
 import { deliverToServeThread } from './serve-delivery'
 import { undeliveredEventsOf, WakeRecoveryService } from './wake-recovery'
 import { WakeLockService } from './wake-lock'
+import { enqueueWake } from './wake-outbox'
 
 const messageOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
@@ -40,12 +41,25 @@ export class OrchestratorService implements OnModuleInit {
     this.wakeRecovery.registerDriver(this)
   }
 
-  wake(args: { workItemId: string; externalId: string }): void {
-    void this.runWake(args).catch((failure: unknown) => {
-      this.logger.warn(
-        `orchestrator wake failed for work item ${args.workItemId}: ${messageOf(failure)}`,
-      )
-    })
+  /**
+   * A wake is a durable outbox row first and a drive second: the enqueue is the caller's only
+   * guarantee, so a process killed after the transcript commit still has the wake recorded, and
+   * the boot recovery (or this drain) drives it later. A failed drive leaves the row enqueued.
+   */
+  wake(args: { workItemId: string; externalId: string; repo?: string }): void {
+    void enqueueWake(args)
+      .then(() => this.wakeRecovery.drainOutbox())
+      .catch((failure: unknown) => {
+        this.logger.warn(
+          `orchestrator wake failed for work item ${args.workItemId}: ${messageOf(failure)}`,
+        )
+      })
+  }
+
+  /** Specs and the boot path drive directly; webhook callers go through `wake`. */
+  async wakeNow(args: { workItemId: string; externalId: string; repo?: string }): Promise<void> {
+    await enqueueWake(args)
+    await this.wakeRecovery.drainOutbox()
   }
 
   /**

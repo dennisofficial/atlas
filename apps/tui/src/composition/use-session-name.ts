@@ -1,83 +1,42 @@
-import { type EventDraft, type SaidImage, type ThreadId } from '@dltech/atlas-core'
+import { type ThreadId } from '@dltech/atlas-core'
 import { sanitizedTitle } from '@dltech/atlas-harness'
-import { useCallback, useRef, useState, type RefObject } from 'react'
+import { useCallback, useState, type RefObject } from 'react'
 
 import type { AtlasApp } from './compose'
-import { namingTextOf } from './naming-text'
 import { ERenamed, type Renaming } from './session-rename'
 
 export type SessionName = {
   name: string | null
   naming: boolean
   setName: (name: string | null) => void
-  nameSession: (args: {
-    said: string
-    opened: Promise<void>
-    images?: readonly SaidImage[] | undefined
-    context?: readonly EventDraft[] | undefined
-  }) => void
   renameSession: (argumentText: string) => Promise<Renaming>
 }
 
 /**
- * A thread is named once, from the first thing said in it, and the ask is fired and forgotten: a
- * title that never arrives must not hold up the turn it was taken from. `/rename` is the deliberate
- * second pass, so it is awaited, it reads the whole session rather than its opening line, and it
- * closes the automatic ask for good.
- *
- * The title is asked for the moment the first message is sent but written only once the thread that
- * carries it exists, since that thread is opened by the very turn the title was taken from.
+ * First-message titling is the composition root's (the TitlingTurnRunner titles every session
+ * kind, serve included); what stays here is `/rename`, the deliberate second pass: it is awaited,
+ * it reads the whole session rather than its opening line, and a name the operator typed wins
+ * outright. The TUI no longer witnesses a root-driven rename mid-flight, so `naming` only ever
+ * reports this hook's own ask.
  */
 export function useSessionName(args: {
   app: AtlasApp
   threadId: ThreadId
   started: RefObject<boolean>
-  opening: string | null
   readDigest: () => Promise<string>
   initial: string | null
 }): SessionName {
-  const { app, threadId, started, opening, readDigest } = args
+  const { app, threadId, started, readDigest } = args
   const [name, setName] = useState<string | null>(args.initial)
   const [naming, setNaming] = useState(false)
-  const asked = useRef<ThreadId | null>(null)
-
-  const nameSession = useCallback(
-    ({
-      said,
-      opened,
-      images,
-      context,
-    }: {
-      said: string
-      opened: Promise<void>
-      images?: readonly SaidImage[] | undefined
-      context?: readonly EventDraft[] | undefined
-    }) => {
-      if (name !== null || asked.current === threadId) return
-
-      asked.current = threadId
-      setNaming(true)
-      const first = opening ?? said
-
-      void Promise.all([app.titler({ text: namingTextOf({ said: first, context }), images }), opened])
-        .then(([named]) => {
-          if (named === null) return
-          setName(named)
-          return app.threads.rename({ threadId, title: named })
-        })
-        .catch(() => undefined)
-        .finally(() => {
-          if (asked.current === threadId) setNaming(false)
-        })
-    },
-    [app, opening, name, threadId],
-  )
 
   const nameFromTranscript = useCallback(async (): Promise<Renaming> => {
     const digest = await readDigest()
     if (digest.trim().length === 0) return { type: ERenamed.Empty }
 
+    setNaming(true)
     const generated = await app.titler({ text: digest }).catch(() => null)
+    setNaming(false)
     if (generated === null) return { type: ERenamed.Declined }
 
     return { type: ERenamed.Renamed, name: generated }
@@ -93,7 +52,6 @@ export function useSessionName(args: {
 
       if (renaming.type !== ERenamed.Renamed) return renaming
 
-      asked.current = threadId
       setName(renaming.name)
       await app.threads.rename({ threadId, title: renaming.name }).catch(() => undefined)
 
@@ -102,5 +60,5 @@ export function useSessionName(args: {
     [app, nameFromTranscript, started, threadId],
   )
 
-  return { name, naming, setName, nameSession, renameSession }
+  return { name, naming, setName, renameSession }
 }
