@@ -1282,6 +1282,41 @@ describe('startServe', () => {
       })
     })
 
+    it('pushes the removal when an entry leaves the registry — a cleared ending, not silence', async () => {
+      const live: RosterWire = {
+        shells: [],
+        agents: [
+          {
+            agentId: toThreadId('child-explore'),
+            spawnedBy: threadId,
+            agentType: 'explore',
+            intent: 'find the seam',
+            status: EAgentStatus.Running,
+            turns: 2,
+            toolCalls: 5,
+            lastTool: undefined,
+            startedAt: '2026-09-24T10:00:00.000Z',
+            endedAt: undefined,
+          },
+        ],
+        services: [],
+      }
+      const roster = fakeRoster(live)
+      const { handle } = await start({ roster })
+
+      const client = await connect({ port: handle.port, token: TOKEN })
+      client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+      await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+      roster.change({ ...live, agents: [] })
+
+      const pushed = await client.waitFor((frame) => frame.kind === EServeFrame.Roster)
+      expect(pushed).toEqual({
+        kind: EServeFrame.Roster,
+        roster: { shells: [], agents: [], services: [] },
+      })
+    })
+
     it('answers an empty roster when the app composes without registries', async () => {
       const { handle } = await start({})
 

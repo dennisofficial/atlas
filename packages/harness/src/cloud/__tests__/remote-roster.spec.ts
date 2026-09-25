@@ -66,6 +66,8 @@ const channelStub = (args: {
   const reloadListeners = new Set<() => void>()
   const requests: { op: EClientRequest }[] = []
 
+  const readyListeners = new Set<() => void>()
+
   return {
     requests,
     pushRoster: (roster: RosterWire) => {
@@ -73,6 +75,9 @@ const channelStub = (args: {
     },
     reload: () => {
       for (const listener of [...reloadListeners]) listener()
+    },
+    ready: () => {
+      for (const listener of [...readyListeners]) listener()
     },
     channel: {
       async request(request: { op: EClientRequest }) {
@@ -90,6 +95,12 @@ const channelStub = (args: {
         reloadListeners.add(listener)
         return () => {
           reloadListeners.delete(listener)
+        }
+      },
+      onReady(listener: () => void) {
+        readyListeners.add(listener)
+        return () => {
+          readyListeners.delete(listener)
         }
       },
     },
@@ -149,6 +160,35 @@ describe('the remote roster reader', () => {
     off()
     stub.pushRoster(SHELL_ROSTER)
     expect(pokes).toBe(2)
+  })
+
+  it('asks again when the channel re-attaches — a push fired while the socket was down is gone', async () => {
+    const stub = channelStub({ answer: SHELL_ROSTER })
+    const reader = createRemoteRosterReader({ channel: stub.channel })
+
+    let pokes = 0
+    reader.onChange(() => {
+      pokes += 1
+    })
+
+    stub.ready()
+    expect(pokes).toBe(1)
+  })
+
+  it('resubscribes to the channel when a listener returns after the last one left', async () => {
+    const stub = channelStub({ answer: SHELL_ROSTER })
+    const reader = createRemoteRosterReader({ channel: stub.channel })
+
+    const first = reader.onChange(() => undefined)
+    first()
+
+    let pokes = 0
+    reader.onChange(() => {
+      pokes += 1
+    })
+    stub.pushRoster(SHELL_ROSTER)
+
+    expect(pokes).toBe(1)
   })
 })
 

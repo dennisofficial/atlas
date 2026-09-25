@@ -185,6 +185,30 @@ describe('the remote registries a cloud session reads', () => {
     expect(shells.version()).toBeGreaterThan(0)
   })
 
+  it('clears an entry the pushed roster no longer lists — a removal lands, not just additions', async () => {
+    const answers: unknown[] = [LIVE]
+    const stub = stubChannel({ answer: undefined })
+    stub.channel.request = async () => answers.at(-1)
+
+    const { shells, agents, services } = registriesOf(stub.channel)
+    await settle()
+    expect(shells.listEverywhere()).toHaveLength(1)
+    expect(agents.listEverywhere()).toHaveLength(2)
+    expect(services.list()).toHaveLength(1)
+
+    const version = shells.version()
+
+    answers.push({ shells: [], agents: [], services: [] })
+    stub.pushRoster({ shells: [], agents: [], services: [] })
+    await settle()
+
+    expect(shells.listEverywhere()).toHaveLength(0)
+    expect(shells.list({ threadId: THREAD })).toHaveLength(0)
+    expect(agents.listEverywhere()).toHaveLength(0)
+    expect(services.list()).toHaveLength(0)
+    expect(shells.version()).toBeGreaterThan(version)
+  })
+
   it('stays empty against a serve too old to know the op — never an error', async () => {
     const stub = stubChannel({ refuse: true })
     const { shells, agents, services } = registriesOf(stub.channel)
