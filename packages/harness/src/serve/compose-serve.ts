@@ -211,6 +211,23 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       app.shells.listEverywhere().filter((shell) => shell.status === EShellStatus.Running).length,
     runningServices: () =>
       app.services.list().filter((service) => service.status === EServiceStatus.Running).length,
+    roster: {
+      snapshot: () => ({
+        shells: [...app.shells.listEverywhere()],
+        agents: [...app.agents.listEverywhere()],
+        services: [...app.services.list()],
+      }),
+      subscribe: (listener) => {
+        const offs = [
+          app.shells.subscribe(listener),
+          app.agents.onChange(listener),
+          app.services.subscribe(listener),
+        ]
+        return () => {
+          for (const off of offs) off()
+        }
+      },
+    },
     wakeNotices: {
       pendingShells: ({ threadId }) => app.shells.pendingNotices({ threadId }).length,
       pendingAgents: ({ threadId }) => app.agents.pendingNotices({ threadId }).length,
@@ -224,6 +241,13 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
         return () => {
           for (const off of offs) off()
         }
+      },
+    },
+    rewind: {
+      target: {
+        removeChildren: (removeArgs) => app.agents.removeChildren(removeArgs),
+        removeShells: (removeArgs) => app.shells.removeShells(removeArgs),
+        removeServices: (removeArgs) => app.services.removeServices(removeArgs),
       },
     },
     close: app.close,

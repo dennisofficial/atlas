@@ -45,6 +45,7 @@ export * from './frame-buffer'
 export * from './git-access-env'
 export * from './idle-stop'
 export * from './requests'
+export * from './rewind-apply'
 export * from './run-command'
 export * from './serve-app'
 export * from './serve-config'
@@ -313,7 +314,13 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     publish: publishWorkspace,
     refusal: () => workspaceRefusalOf(workspace) ?? null,
     log,
+    roster: app.roster,
+    rewind: app.rewind,
   })
+
+  // Watching surfaces (footer chips, sidebar crew) read the roster off the wire, so a change on
+  // the live registries is pushed the moment the registries announce it, not on the next request.
+  const unsubscribeRoster = app.roster?.subscribe(() => handlers.broadcastRoster())
 
   const bridge = createChannelBridge({
     channel: app.channel,
@@ -364,6 +371,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   const close = async (): Promise<void> => {
     idleStop.halt()
     unsubscribeWake?.()
+    unsubscribeRoster?.()
     driver.interrupt()
     await withDeadline({
       task: driver.settled().catch(() => undefined),

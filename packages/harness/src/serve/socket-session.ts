@@ -1,12 +1,13 @@
 import type { ServerWebSocket } from 'bun'
 
-import type { ThreadId } from '@dltech/atlas-core'
+import { rosterWireSchema, type ThreadId } from '@dltech/atlas-core'
 
 import type { StepId } from '../channel/signal'
 
 import {
   CHANNEL_PROTOCOL_VERSION,
   EClientFrame,
+  EClientRequest,
   EServeFrame,
   decodeClientFrame,
   encodeFrame,
@@ -18,6 +19,8 @@ import type { FileBrowser } from '../files/file-browser'
 import type { FrameBuffer, SignalFrame } from './frame-buffer'
 import type { WorkspacePublisher } from './publish-workspace'
 import { answerRequest } from './requests'
+import { answerRewind } from './rewind-apply'
+import type { ServeRoster, ServeRewind } from './serve-app'
 import { EServeEvent, type ServeLog } from './serve-log'
 import { createStepAliaser, endsAliasedStep, retagged, type StepAlias } from './step-alias'
 import type { ServeTurnDriver } from './turn-driver'
@@ -34,10 +37,14 @@ export type SessionHandlers = {
   message: (args: { socket: SessionSocket; message: string | Buffer }) => void
   close: (args: { socket: SessionSocket }) => void
   broadcast: (frame: ServeFrame) => void
+  broadcastRoster: () => void
   park: (args: { reason: string }) => void
   hangUp: () => void
   clients: () => number
 }
+
+/** A serve without registries (a spec fake) has nothing to report — an empty roster, not an error. */
+const EMPTY_ROSTER: ServeRoster['snapshot'] = () => ({ shells: [], agents: [], services: [] })
 
 type HelloFrame = Extract<ClientFrame, { kind: EClientFrame.Hello }>
 
@@ -54,8 +61,12 @@ export function createSessionHandlers(args: {
   publish: WorkspacePublisher
   refusal: () => string | null
   log: ServeLog
+  roster?: ServeRoster | undefined
+  rewind?: ServeRewind | undefined
 }): SessionHandlers {
   const { threadId, buffer, inFlight, liveStepId, driver, files, publish, refusal, log } = args
+  const snapshot = args.roster?.snapshot ?? EMPTY_ROSTER
+  const rewind = args.rewind
   const live = new Set<SessionSocket>()
   const attached = new Set<SessionSocket>()
   const aliaser = createStepAliaser()
@@ -161,6 +172,45 @@ export function createSessionHandlers(args: {
 
     if (frame.kind !== EClientFrame.Request) return
 
+    if (frame.op === EClientRequest.ListRoster) {
+      send({
+        socket,
+        frame: { kind: EServeFrame.Reply, replyTo: frame.id, ok: true, data: snapshot() },
+      })
+      return
+    }
+
+    if (frame.op === EClientRequest.Rewind) {
+      if (rewind === undefined) {
+        log({ event: EServeEvent.ClientRefused, reason: 'rewind-without-registries' })
+        send({
+          socket,
+          frame: {
+            kind: EServeFrame.Reply,
+            replyTo: frame.id,
+            ok: false,
+            data: { message: 'this serve has nothing a rewind could cut' },
+          },
+        })
+        return
+      }
+      const target = rewind.target
+      void answerRewind({ frame, threadId, target, driver })
+        .then((reply) => send({ socket, frame: reply }))
+        .catch((error: unknown) =>
+          send({
+            socket,
+            frame: {
+              kind: EServeFrame.Reply,
+              replyTo: frame.id,
+              ok: false,
+              data: { message: messageOf(error, 'the rewind cleanup failed') },
+            },
+          }),
+        )
+      return
+    }
+
     void answerRequest({ frame, files, publish })
       .then((reply) => send({ socket, frame: reply }))
       .catch((error: unknown) =>
@@ -232,6 +282,12 @@ export function createSessionHandlers(args: {
         }
         socket.send(encodeFrame(forSocket({ socket, frame })))
       }
+    },
+
+    broadcastRoster() {
+      const frame: ServeFrame = { kind: EServeFrame.Roster, roster: rosterWireSchema.parse(snapshot()) }
+      const encoded = encodeFrame(frame)
+      for (const socket of attached) socket.send(encoded)
     },
 
     /**

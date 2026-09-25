@@ -1,12 +1,21 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EMessageOrigin } from '@dltech/atlas-core'
+import {
+  EAgentStatus,
+  EMessageOrigin,
+  EServiceStatus,
+  EShellStatus,
+  toThreadId,
+} from '@dltech/atlas-core'
 
 import {
   decodeClientFrame,
+  decodeServeFrame,
   EClientFrame,
   encodeFrame,
+  EServeFrame,
   type ClientFrame,
+  type ServeFrame,
 } from '../channel-wire'
 
 describe('the send frame', () => {
@@ -48,5 +57,70 @@ describe('the send frame', () => {
     })
 
     expect(decodeClientFrame(raw)).toBeNull()
+  })
+})
+
+describe('the roster frame', () => {
+  it('round-trips the shells, agents and services a cloud surface reads', () => {
+    const threadId = toThreadId('thread-cloud')
+    const frame: ServeFrame = {
+      kind: EServeFrame.Roster,
+      roster: {
+        shells: [
+          {
+            shellId: 'bash_1' as never,
+            threadId,
+            command: 'bun run dev',
+            description: 'dev server',
+            status: EShellStatus.Running,
+            startedAt: '2026-09-24T10:00:00.000Z',
+            lastOutputAt: '2026-09-24T10:00:01.000Z',
+            totalCharacters: 64,
+            awaitingInput: false,
+          },
+        ],
+        agents: [
+          {
+            agentId: toThreadId('child-explore'),
+            spawnedBy: threadId,
+            agentType: 'explore',
+            intent: 'map the seam',
+            status: EAgentStatus.Running,
+            turns: 1,
+            toolCalls: 3,
+            lastTool: undefined,
+            startedAt: '2026-09-24T10:00:00.000Z',
+            endedAt: undefined,
+          },
+        ],
+        services: [
+          {
+            serviceId: 'svc_1',
+            command: 'redis-server',
+            description: 'cache',
+            status: EServiceStatus.Running,
+            logPath: '/tmp/svc_1.log',
+            startedAt: '2026-09-24T10:00:00.000Z',
+          },
+        ],
+      },
+    }
+
+    const decoded = decodeServeFrame(encodeFrame(frame))
+
+    expect(decoded?.kind).toBe(EServeFrame.Roster)
+    if (decoded?.kind !== EServeFrame.Roster) return
+    expect(decoded.roster.shells[0]?.shellId as string).toBe('bash_1')
+    expect(decoded.roster.agents[0]?.agentId as string).toBe('child-explore')
+    expect(decoded.roster.services[0]?.serviceId).toBe('svc_1')
+  })
+
+  it('drops a frame whose roster is not the wire shape', () => {
+    const raw = JSON.stringify({
+      kind: 'roster',
+      roster: { shells: [{ shellId: 42 }], agents: [], services: [] },
+    })
+
+    expect(decodeServeFrame(raw)).toBeNull()
   })
 })
