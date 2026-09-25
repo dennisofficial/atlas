@@ -246,7 +246,7 @@ export async function mergeRemoteMemory(args: {
     notify({
       key: MERGE_NOTICE_KEY,
       tone: ENoticeTone.Warn,
-      text: `the cloud held newer memory than this machine — ${merged.replaced} ${merged.replaced === 1 ? 'file' : 'files'} replaced from the last cloud turn`,
+      text: `the cloud held newer memory than this machine — ${merged.replaced} ${merged.replaced === 1 ? 'file' : 'files'} replaced from the cloud copy`,
       ttlMs: NOTICE_WARN_MS,
     })
   }

@@ -58,4 +58,11 @@ export class PrismaContextArchiveStore implements ContextArchiveStore {
       update: { memoryArchive: toBytesInput(args.archive) },
     })
   }
+
+  async deleteUserArchive(args: { userId: string }): Promise<void> {
+    await db.userContextSync.updateMany({
+      where: { userId: args.userId },
+      data: { memoryArchive: null },
+    })
+  }
 }
