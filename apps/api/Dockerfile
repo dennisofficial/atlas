@@ -23,10 +23,11 @@ FROM ${BUN_IMAGE} AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=deps /app/packages/wire/node_modules ./packages/wire/node_modules
 COPY apps/api ./apps/api
 COPY tsconfig.base.json ./tsconfig.base.json
 # The api imports @dltech/atlas-wire at runtime; its dist is built here so the runtime stage
-# can copy compiled JS rather than raw TS.
+# can copy compiled JS rather than raw TS. Its node_modules carry the tsc the build invokes.
 COPY packages/wire ./packages/wire
 RUN cd packages/wire && bun run build
 RUN cd apps/api && bun run build

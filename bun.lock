@@ -172,6 +172,7 @@
       "devDependencies": {
         "@types/bun": "latest",
         "@types/node": "^26.3.0",
+        "typescript": "6.0.3",
       },
     },
   },
