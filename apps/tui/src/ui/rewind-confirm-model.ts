@@ -15,6 +15,8 @@ export type RewindConfirmRow = {
 export type RewindConfirmState = {
   toSeq: number
   rows: readonly RewindConfirmRow[]
+  /** False when the machine holding the processes could not be asked — `running` is then unknown. */
+  reachable: boolean
 }
 
 const rowOf = (kill: RewindKill): RewindConfirmRow => {
@@ -45,6 +47,7 @@ const rowOf = (kill: RewindKill): RewindConfirmRow => {
 export function openRewindConfirm(args: {
   toSeq: number
   kills: readonly RewindKill[]
+  reachable?: boolean | undefined
 }): RewindConfirmState {
-  return { toSeq: args.toSeq, rows: args.kills.map(rowOf) }
+  return { toSeq: args.toSeq, rows: args.kills.map(rowOf), reachable: args.reachable ?? true }
 }

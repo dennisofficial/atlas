@@ -4,6 +4,8 @@ import type { ChannelListener, DeltaChannel, Unsubscribe } from '../channel/delt
 import { retainReplayable, type InFlightSlots } from '../channel/in-flight'
 import { EStepEnd, type ChannelSignal, type StepId, type StepSignal } from '../channel/signal'
 import type { TurnOutcome } from '../loop/turn-outcome'
+import type { RosterWire } from '@dltech/atlas-core'
+
 import {
   bearerSubprotocolOf,
   CHANNEL_PROTOCOL_VERSION,
@@ -74,6 +76,7 @@ export type RemoteDeltaChannel = DeltaChannel & {
   onReload(listener: (reload: ChannelReload) => void): Unsubscribe
   onReady(listener: (ready: ChannelReady) => void): Unsubscribe
   onInterruptAck(listener: (ack: InterruptAck) => void): Unsubscribe
+  onRoster(listener: (roster: RosterWire) => void): Unsubscribe
   onTurnEnded(listener: (outcome: TurnOutcome) => void): Unsubscribe
   onError(listener: (failure: ChannelFailure) => void): Unsubscribe
   onServerError(listener: (failure: ChannelFailure) => void): Unsubscribe
@@ -156,6 +159,7 @@ export function createRemoteDeltaChannel(args: {
   const connections = registryOf<ChannelConnection>()
   const reloads = registryOf<ChannelReload>()
   const readies = registryOf<ChannelReady>()
+  const rosters = registryOf<RosterWire>()
   const turnEndings = registryOf<TurnOutcome>()
   const failures = registryOf<ChannelFailure>()
   const serverErrors = registryOf<ChannelFailure>()
@@ -330,6 +334,10 @@ export function createRemoteDeltaChannel(args: {
     if (frame.kind === EServeFrame.InterruptAcked) {
       interruptPending = false
       interruptAcks.emit({ turnInFlight: true })
+      return
+    }
+    if (frame.kind === EServeFrame.Roster) {
+      rosters.emit(frame.roster)
       return
     }
     if (frame.kind === EServeFrame.Error) {
@@ -524,6 +532,8 @@ export function createRemoteDeltaChannel(args: {
     onReady: (listener) => readies.add(listener),
 
     onInterruptAck: (listener) => interruptAcks.add(listener),
+
+    onRoster: (listener) => rosters.add(listener),
 
     onTurnEnded: (listener) => turnEndings.add(listener),
 

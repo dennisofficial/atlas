@@ -11,6 +11,7 @@ import {
   type EventDraft,
 } from '@dltech/atlas-core'
 
+import { LocalRewindMachinery } from '../local-rewind-machinery'
 import { rewindThread } from '../rewind'
 import { openStoreFixture, type StoreFixture } from './harness'
 
@@ -40,9 +41,11 @@ const rewind = (args: { threadId: ThreadId; toSeq: number; confirmed?: boolean }
   rewindThread({
     log: fixture.log,
     threads: fixture.threads,
-    agents: fixture.agents,
-    shells: fixture.shells,
-    services: fixture.services,
+    machinery: new LocalRewindMachinery({
+      agents: fixture.agents,
+      shells: fixture.shells,
+      services: fixture.services,
+    }),
     threadId: args.threadId,
     toSeq: args.toSeq,
     ...(args.confirmed === undefined ? {} : { confirmed: args.confirmed }),
@@ -146,6 +149,7 @@ describe('rewindThread on a thread that delegated', () => {
       ok: false,
       needsConfirmation: true,
       toSeq: 1,
+      reachable: true,
       kills: [
         {
           kind: 'agent',

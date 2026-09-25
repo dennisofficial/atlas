@@ -13,6 +13,7 @@ import {
 import type { ServiceSnapshot } from '../../services/service-process'
 import type { ShellSnapshot } from '../../shells/background-shell'
 import { toShellId } from '../../shells/shell-id'
+import { LocalRewindMachinery } from '../local-rewind-machinery'
 import { rewindThread } from '../rewind'
 import {
   openStoreFixture,
@@ -177,9 +178,11 @@ const rewind = (args: {
   rewindThread({
     log: fixture.log,
     threads: fixture.threads,
-    agents: fixture.agents,
-    shells: args.shells ?? fixture.shells,
-    services: args.services ?? fixture.services,
+    machinery: new LocalRewindMachinery({
+      agents: fixture.agents,
+      shells: args.shells ?? fixture.shells,
+      services: args.services ?? fixture.services,
+    }),
     threadId: args.threadId,
     toSeq: args.toSeq,
     ...(args.confirmed === undefined ? {} : { confirmed: args.confirmed }),
@@ -215,6 +218,7 @@ describe('rewindThread on a thread with a background shell', () => {
       ok: false,
       needsConfirmation: true,
       toSeq: 1,
+      reachable: true,
       kills: [
         {
           kind: 'shell',
@@ -275,6 +279,7 @@ describe('rewindThread on a thread with a service', () => {
       ok: false,
       needsConfirmation: true,
       toSeq: 1,
+      reachable: true,
       kills: [
         {
           kind: 'service',

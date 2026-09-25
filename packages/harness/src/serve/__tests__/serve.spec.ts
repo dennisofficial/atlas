@@ -2,9 +2,13 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import {
   EPortExposure,
+  EAgentStatus,
+  EServiceStatus,
+  EShellStatus,
   toRunId,
   toThreadId,
   type EnvironmentCapabilities,
+  type RosterWire,
   type ThreadId,
 } from '@dltech/atlas-core'
 
@@ -31,7 +35,13 @@ import {
 } from '../index'
 
 import { connect } from './client'
-import { fakeServeApp, fakeWakeNotices, type FakeServeApp, type RunTurn } from './fakes'
+import {
+  fakeRoster,
+  fakeServeApp,
+  fakeWakeNotices,
+  type FakeServeApp,
+  type RunTurn,
+} from './fakes'
 
 const TOKEN = 'session-token'
 
@@ -78,6 +88,7 @@ const start = async (args: {
   adoptChildren?: ((args: { threadId: ThreadId }) => Promise<readonly ThreadId[]>) | undefined
   whenChildrenSettled?: (() => Promise<void>) | undefined
   wakeNotices?: boolean | undefined
+  roster?: ReturnType<typeof fakeRoster> | undefined
   idleMinutes?: number | undefined
   idleTickMs?: number | undefined
   exit?: ((code: number) => void) | undefined
@@ -93,6 +104,7 @@ const start = async (args: {
     adoptChildren: args.adoptChildren,
     whenChildrenSettled: args.whenChildrenSettled,
     wakeNotices: args.wakeNotices,
+    roster: args.roster,
   })
 
   const told =
@@ -1175,6 +1187,124 @@ describe('startServe', () => {
       expect(turns).toBe(1)
       expect(lines.some((line) => line.includes(EServeEvent.TurnStarted))).toBe(true)
     })
+
+  describe('the roster a watching surface reads', () => {
+    it('answers a list-roster request with the live registry state', async () => {
+      const roster = fakeRoster({
+        shells: [
+          {
+            shellId: 'bash_1' as RosterWire['shells'][number]['shellId'],
+            threadId,
+            command: 'npm run dev',
+            description: 'dev server',
+            status: EShellStatus.Running,
+            startedAt: '2026-09-24T10:00:00.000Z',
+            lastOutputAt: '2026-09-24T10:00:01.000Z',
+            totalCharacters: 120,
+            awaitingInput: false,
+          },
+        ],
+        agents: [
+          {
+            agentId: toThreadId('child-explore'),
+            spawnedBy: threadId,
+            agentType: 'explore',
+            intent: 'find the seam',
+            status: EAgentStatus.Running,
+            turns: 2,
+            toolCalls: 5,
+            lastTool: undefined,
+            startedAt: '2026-09-24T10:00:00.000Z',
+            endedAt: undefined,
+          },
+        ],
+        services: [],
+      })
+      const { handle } = await start({ roster })
+
+      const client = await connect({ port: handle.port, token: TOKEN })
+      client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+      await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+      client.send({
+        kind: EClientFrame.Request,
+        id: 'roster-1',
+        op: EClientRequest.ListRoster,
+        params: {},
+      })
+      const reply = await client.waitFor(
+        (frame) => frame.kind === EServeFrame.Reply && frame.replyTo === 'roster-1',
+      )
+
+      expect(reply).toMatchObject({
+        ok: true,
+        data: {
+          shells: [{ shellId: 'bash_1', status: 'running' }],
+          agents: [{ agentId: 'child-explore', agentType: 'explore' }],
+          services: [],
+        },
+      })
+    })
+
+    it('pushes a roster frame to attached clients the moment the registry changes', async () => {
+      const roster = fakeRoster()
+      const { handle } = await start({ roster })
+
+      const client = await connect({ port: handle.port, token: TOKEN })
+      client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+      await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+      roster.change({
+        shells: [],
+        agents: [],
+        services: [
+          {
+            serviceId: 'svc_1',
+            command: 'redis-server',
+            description: 'cache',
+            status: EServiceStatus.Running,
+            logPath: '/tmp/svc_1.log',
+            startedAt: '2026-09-24T10:00:00.000Z',
+          },
+        ],
+      })
+
+      const pushed = await client.waitFor((frame) => frame.kind === EServeFrame.Roster)
+      expect(pushed).toEqual({
+        kind: EServeFrame.Roster,
+        roster: {
+          shells: [],
+          agents: [],
+          services: [
+            expect.objectContaining({ serviceId: 'svc_1', status: 'running' }),
+          ],
+        },
+      })
+    })
+
+    it('answers an empty roster when the app composes without registries', async () => {
+      const { handle } = await start({})
+
+      const client = await connect({ port: handle.port, token: TOKEN })
+      client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+      await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+      client.send({
+        kind: EClientFrame.Request,
+        id: 'roster-2',
+        op: EClientRequest.ListRoster,
+        params: {},
+      })
+      const reply = await client.waitFor(
+        (frame) => frame.kind === EServeFrame.Reply && frame.replyTo === 'roster-2',
+      )
+
+      expect(reply).toMatchObject({
+        ok: true,
+        data: { shells: [], agents: [], services: [] },
+      })
+    })
+  })
 
     it('holds the wake while a turn is already running — the loop drains the queue itself', async () => {
       const held = gate()

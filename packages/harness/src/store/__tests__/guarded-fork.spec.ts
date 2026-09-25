@@ -11,6 +11,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { forkConversation } from '../guarded-fork'
+import { LocalRewindMachinery } from '../local-rewind-machinery'
 import { rewindThread } from '../rewind'
 import { openStoreFixture, type StoreFixture } from './harness'
 
@@ -179,9 +180,11 @@ describe('rewinding across a fork boundary', () => {
     const rewound = await rewindThread({
       log: fixture.log,
       threads: fixture.threads,
-      agents: fixture.agents,
-      shells: fixture.shells,
-      services: fixture.services,
+      machinery: new LocalRewindMachinery({
+        agents: fixture.agents,
+        shells: fixture.shells,
+        services: fixture.services,
+      }),
       threadId: forked.thread.id,
       toSeq: 1,
     })
@@ -199,9 +202,11 @@ describe('rewinding across a fork boundary', () => {
     await rewindThread({
       log: fixture.log,
       threads: fixture.threads,
-      agents: fixture.agents,
-      shells: fixture.shells,
-      services: fixture.services,
+      machinery: new LocalRewindMachinery({
+        agents: fixture.agents,
+        shells: fixture.shells,
+        services: fixture.services,
+      }),
       threadId: forked.thread.id,
       toSeq: 1,
     })
@@ -222,9 +227,11 @@ describe('rewinding across a fork boundary', () => {
     const rewound = await rewindThread({
       log: fixture.log,
       threads: fixture.threads,
-      agents: fixture.agents,
-      shells: fixture.shells,
-      services: fixture.services,
+      machinery: new LocalRewindMachinery({
+        agents: fixture.agents,
+        shells: fixture.shells,
+        services: fixture.services,
+      }),
       threadId: forked.thread.id,
       toSeq: 3,
     })
@@ -241,9 +248,11 @@ describe('rewinding across a fork boundary', () => {
     const rewound = await rewindThread({
       log: fixture.log,
       threads: fixture.threads,
-      agents: fixture.agents,
-      shells: fixture.shells,
-      services: fixture.services,
+      machinery: new LocalRewindMachinery({
+        agents: fixture.agents,
+        shells: fixture.shells,
+        services: fixture.services,
+      }),
       threadId: forked.thread.id,
       toSeq: 1,
     })
@@ -262,9 +271,11 @@ describe('rewinding across a fork boundary', () => {
     const rewound = await rewindThread({
       log: fixture.log,
       threads: fixture.threads,
-      agents: fixture.agents,
-      shells: fixture.shells,
-      services: fixture.services,
+      machinery: new LocalRewindMachinery({
+        agents: fixture.agents,
+        shells: fixture.shells,
+        services: fixture.services,
+      }),
       threadId: forked.thread.id,
       toSeq: 4,
     })

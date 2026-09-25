@@ -20,6 +20,9 @@ const TAG_SEPARATOR = ' · '
 
 const RUNNING_NOTE = ' (running)'
 
+const UNREACHABLE_NOTE =
+  'The machine running these could not be asked — what is still running there is unknown.'
+
 const HINTS: readonly Hint[] = [
   { key: 'Enter', label: 'to rewind anyway' },
   { key: 'Esc', label: 'to cancel' },
@@ -89,6 +92,12 @@ export function RewindConfirm(props: {
           <Line key={row.id} spans={rowSpans({ row, cells })} cells={cells} />
         ))}
       </box>
+      {props.state.reachable ? null : (
+        <Line
+          spans={[{ text: UNREACHABLE_NOTE, fg: theme.warn }]}
+          cells={cells}
+        />
+      )}
       <box height={1} flexShrink={0} />
       <Line spans={[{ text: CONFIRM_LABEL, fg: theme.warn }]} cells={cells} region={confirm} />
       <Line spans={[{ text: CANCEL_LABEL, fg: theme.body }]} cells={cells} region={cancel} />

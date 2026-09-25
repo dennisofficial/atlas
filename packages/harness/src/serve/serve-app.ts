@@ -1,8 +1,10 @@
 import type {
+  EKilledBy,
   EnvironmentCapabilities,
   EventLogPort,
   IdPort,
   NoticePort,
+  RosterWire,
   ThreadId,
   WorkspaceIdentity,
 } from '@dltech/atlas-core'
@@ -23,6 +25,30 @@ export type ServeWakeNotices = {
   pendingAgents: (args: { threadId: ThreadId }) => number
   pendingServices: (args: { threadId: ThreadId }) => number
   subscribe: (listener: () => void) => () => void
+}
+
+/**
+ * The live registries narrowed to what the socket serves a watching client: a point-in-time
+ * roster, and a subscription that fires when it changed. The socket broadcasts the new snapshot on
+ * every fire — the registries already coalesce output chatter into throttled flushes, so a
+ * snapshot per fire never outruns the structural change it carries.
+ */
+export type ServeRoster = {
+  snapshot: () => RosterWire
+  subscribe: (listener: () => void) => () => void
+}
+
+/**
+ * The real registries narrowed to what a confirmed rewind destroys through. Removal kills what is
+ * still running — the same `removeChildren`/`removeShells`/`removeServices` the host's rewind
+ * calls, answered by the sandbox because its processes live here.
+ */
+export type ServeRewind = {
+  target: {
+    removeChildren(args: { threadId: ThreadId; agentIds: readonly ThreadId[] }): Promise<void>
+    removeShells(args: { threadId: ThreadId; shellIds: readonly string[]; by: EKilledBy }): void
+    removeServices(args: { serviceIds: readonly string[]; by: EKilledBy }): void
+  }
 }
 
 /** The composed session as serve consumes it: everything a socket can reach and nothing else. */
@@ -49,6 +75,10 @@ export type ServeApp = {
   runningServices?: (() => number) | undefined
   /** Absent in a fake without registries: no endings means nothing to wake for. */
   wakeNotices?: ServeWakeNotices | undefined
+  /** Absent in a fake without registries: the client is answered an empty roster instead. */
+  roster?: ServeRoster | undefined
+  /** Absent in a fake without registries: a rewind apply is refused rather than dropped. */
+  rewind?: ServeRewind | undefined
   close: () => Promise<void>
 }
 

@@ -1,9 +1,17 @@
-import { toRunId, type Event, type EventDraft, type RunId, type ThreadId } from '@dltech/atlas-core'
+import {
+  toRunId,
+  type EKilledBy,
+  type Event,
+  type EventDraft,
+  type RosterWire,
+  type RunId,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import { createDeltaChannel, type DeltaChannel } from '../../channel/delta-channel'
 import { ETurnStatus, type TurnOutcome } from '../../loop/turn-outcome'
 import type { ThreadSummary } from '../../store/thread-store'
-import type { ServeApp, ServeWakeNotices } from '../serve-app'
+import type { ServeApp, ServeRewind, ServeWakeNotices } from '../serve-app'
 
 export type RunTurn = (args: {
   threadId: ThreadId
@@ -16,6 +24,31 @@ export type FakeServeApp = ServeApp & {
   forgotten: () => number
   closed: () => boolean
   adoptions: () => readonly ThreadId[]
+}
+
+export type FakeRoster = {
+  snapshot: () => RosterWire
+  subscribe: (listener: () => void) => () => void
+  change: (next: RosterWire) => void
+}
+
+export function fakeRoster(initial?: RosterWire): FakeRoster {
+  let held: RosterWire = initial ?? { shells: [], agents: [], services: [] }
+  const listeners = new Set<() => void>()
+
+  return {
+    snapshot: () => held,
+    subscribe: (listener) => {
+      listeners.add(listener)
+      return () => {
+        listeners.delete(listener)
+      }
+    },
+    change: (next) => {
+      held = next
+      for (const listener of [...listeners]) listener()
+    },
+  }
 }
 
 export type FakeWakeNotices = ServeWakeNotices & {
@@ -61,6 +94,37 @@ export function fakeWakeNotices(): FakeWakeNotices {
   }
 }
 
+export type FakeRewindTarget = ServeRewind['target'] & {
+  removed: {
+    agents: readonly ThreadId[]
+    shells: readonly string[]
+    services: readonly string[]
+  }
+}
+
+export function fakeRewindTarget(): FakeRewindTarget {
+  const removed = {
+    agents: [] as ThreadId[],
+    shells: [] as string[],
+    services: [] as string[],
+  }
+
+  return {
+    removed,
+    removeChildren: async (given: { threadId: ThreadId; agentIds: readonly ThreadId[] }) => {
+      removed.agents.push(...given.agentIds)
+    },
+    removeShells: (given: { shellIds: readonly string[]; by: EKilledBy }) => {
+      void given.by
+      removed.shells.push(...given.shellIds)
+    },
+    removeServices: (given: { serviceIds: readonly string[]; by: EKilledBy }) => {
+      void given.by
+      removed.services.push(...given.serviceIds)
+    },
+  }
+}
+
 export function fakeServeApp(args: {
   threadId: ThreadId
   root: string
@@ -70,6 +134,8 @@ export function fakeServeApp(args: {
   adoptChildren?: ((args: { threadId: ThreadId }) => Promise<readonly ThreadId[]>) | undefined
   whenChildrenSettled?: (() => Promise<void>) | undefined
   wakeNotices?: boolean | undefined
+  rewindTarget?: FakeRewindTarget | undefined
+  roster?: FakeRoster | undefined
 }): FakeServeApp {
   const channel = createDeltaChannel()
   const appended: EventDraft[] = []
@@ -129,6 +195,10 @@ export function fakeServeApp(args: {
     syncMemoryAfterTurn: async () => undefined,
 
     ...(args.wakeNotices === true ? { wakeNotices: fakeWakeNotices() } : {}),
+
+    ...(args.rewindTarget === undefined ? {} : { rewind: { target: args.rewindTarget } }),
+
+    ...(args.roster === undefined ? {} : { roster: args.roster }),
 
     close: async () => {
       closed = true

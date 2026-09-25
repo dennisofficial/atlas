@@ -13,6 +13,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { compactThread, ECompactionFailure, type Summarise } from '../compact'
+import { LocalRewindMachinery } from '../local-rewind-machinery'
 import { rewindThread } from '../rewind'
 import { openStoreFixture, type StoreFixture } from './harness'
 
@@ -102,9 +103,11 @@ const rewoundTo = (args: { threadId: ThreadId; toSeq: number }) =>
   rewindThread({
     log: fixture.log,
     threads: fixture.threads,
-    agents: fixture.agents,
-    shells: fixture.shells,
-    services: fixture.services,
+    machinery: new LocalRewindMachinery({
+      agents: fixture.agents,
+      shells: fixture.shells,
+      services: fixture.services,
+    }),
     threadId: args.threadId,
     toSeq: args.toSeq,
   })

@@ -10,6 +10,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { UnstaffedServices, UnstaffedShells } from '../../../store/__tests__/harness'
+import { LocalRewindMachinery } from '../../../store/local-rewind-machinery'
 import { rewindThread } from '../../../store/rewind'
 import { LAST_TEXT_TAIL_CHARACTERS } from '../child-state'
 import { openChildThread } from '../open-child'
@@ -178,9 +179,11 @@ describe('the rewind past a lost child', () => {
       rewindThread({
         log: open.harness.log,
         threads: open.harness.threads,
-        agents: open.supervisor,
-        shells: new UnstaffedShells(),
-        services: new UnstaffedServices(),
+        machinery: new LocalRewindMachinery({
+          agents: open.supervisor,
+          shells: new UnstaffedShells(),
+          services: new UnstaffedServices(),
+        }),
         threadId: open.parent,
         toSeq: 0,
         confirmed,
@@ -244,9 +247,11 @@ describe('a child thread the parent never recorded', () => {
       await rewindThread({
         log: open.harness.log,
         threads: open.harness.threads,
-        agents: open.supervisor,
-        shells: new UnstaffedShells(),
-        services: new UnstaffedServices(),
+        machinery: new LocalRewindMachinery({
+          agents: open.supervisor,
+          shells: new UnstaffedShells(),
+          services: new UnstaffedServices(),
+        }),
         threadId: open.parent,
         toSeq: 0,
       }),

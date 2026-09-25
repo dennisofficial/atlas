@@ -15,6 +15,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { compactThread } from '../../store/compact'
+import { LocalRewindMachinery } from '../../store/local-rewind-machinery'
 import { rewindThread } from '../../store/rewind'
 import { openStoreFixture, type StoreFixture } from '../../store/__tests__/harness'
 import {
@@ -167,9 +168,11 @@ describe('a permission the operator gave once', () => {
     const rewound = await rewindThread({
       log: fixture.log,
       threads: fixture.threads,
-      agents: fixture.agents,
-      shells: fixture.shells,
-      services: fixture.services,
+      machinery: new LocalRewindMachinery({
+        agents: fixture.agents,
+        shells: fixture.shells,
+        services: fixture.services,
+      }),
       threadId,
       toSeq: 2,
     })

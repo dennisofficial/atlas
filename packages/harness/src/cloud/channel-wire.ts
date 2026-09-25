@@ -3,6 +3,7 @@ import { z } from 'zod'
 import {
   callIdSchema,
   eventBodySchema,
+  rosterWireSchema,
   runIdSchema,
   threadIdSchema,
   type SaidImage,
@@ -20,7 +21,7 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
  * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
  */
-export const CHANNEL_PROTOCOL_VERSION = 3
+export const CHANNEL_PROTOCOL_VERSION = 4
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
@@ -43,6 +44,7 @@ export enum EServeFrame {
   Parked = 'parked',
   TurnEnded = 'turn-ended',
   InterruptAcked = 'interrupt-acked',
+  Roster = 'roster',
   Error = 'error',
 }
 
@@ -59,6 +61,19 @@ export enum EClientRequest {
   CompletePaths = 'complete-paths',
   BrowseDirectory = 'browse-directory',
   PublishWorkspace = 'publish-workspace',
+  /**
+   * The live shell/agent/service rosters, for a client whose footer and sidebar read local
+   * registries the sandbox never populates. A serve built before this op refuses the request, and
+   * the client reads that as an empty roster rather than an error.
+   */
+  ListRoster = 'list-roster',
+  /**
+   * A confirmed rewind's cleanup: the sandbox destroys the named creations from its own registries
+   * and stops the turn it is driving, so a mid-turn loop never acts on pre-rewind state. The
+   * durable truncation already landed over HTTP before this op is sent; a serve built before it
+   * refuses, and the client proceeds with the remote processes left running.
+   */
+  Rewind = 'rewind',
 }
 
 export const publishedWorkspaceWireSchema = z
@@ -130,6 +145,7 @@ export const serveFrameSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal(EServeFrame.Parked), reason: z.string() }),
   z.object({ kind: z.literal(EServeFrame.TurnEnded), outcome: turnOutcomeWireSchema }),
   z.object({ kind: z.literal(EServeFrame.InterruptAcked), seq: seqSchema }),
+  z.object({ kind: z.literal(EServeFrame.Roster), roster: rosterWireSchema }),
   z.object({ kind: z.literal(EServeFrame.Error), message: z.string() }),
 ])
 

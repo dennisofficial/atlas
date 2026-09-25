@@ -19,6 +19,8 @@ export { EUnreadableReason, type UnreadableRow } from './decode-events'
 export { JsonlEventLog } from './sessions/event-log'
 export { RandomIds } from './ids'
 export { rewindThread, type RewindKill, type RewindResult } from './rewind'
+export { LocalRewindMachinery } from './local-rewind-machinery'
+export { RewindMachineryPort, type RewindRead } from './rewind-machinery'
 export { relocateSession, type RelocatedSession } from './relocate-session'
 export { ATLAS_DIRECTORY_NAME, atlasDirectory } from './paths'
 export {

@@ -1,6 +1,7 @@
-import { toThreadId, type EventDraft, type SaidImage, type ThreadId } from '@dltech/atlas-core'
+import { toThreadId, type EventDraft, type RosterWire, type SaidImage, type ThreadId } from '@dltech/atlas-core'
 import {
   EChannelConnection,
+  EClientRequest,
   ThreadStorePort,
   type ChannelConnection,
   type ChannelReady,
@@ -43,6 +44,7 @@ export type FakeCloudChannel = CloudChannel & {
   fail(message: string): void
   failTransport(message: string): void
   acknowledgeInterrupt(): void
+  pushRoster(roster: RosterWire): void
   endTurn(outcome: TurnOutcome): void
   readonly closed: boolean
   readonly runs: number
@@ -51,6 +53,7 @@ export type FakeCloudChannel = CloudChannel & {
     images?: readonly SaidImage[]
     context?: readonly EventDraft[]
   }[]
+  readonly requests: readonly { op: EClientRequest; params: unknown }[]
   readonly woken: readonly { url: string; token: string }[]
 }
 
@@ -61,8 +64,10 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
   const failures = new Set<(failure: { message: string }) => void>()
   const serverErrors = new Set<(failure: { message: string }) => void>()
   const interruptAcks = new Set<(ack: InterruptAck) => void>()
+  const rosters = new Set<(roster: RosterWire) => void>()
   const turnEndings = new Set<(outcome: TurnOutcome) => void>()
   const woken: { url: string; token: string }[] = []
+  const requests: { op: EClientRequest; params: unknown }[] = []
   const sent: {
     text: string
     images?: readonly SaidImage[]
@@ -70,6 +75,7 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
   }[] = []
 
   let held: ChannelConnection = { state: EChannelConnection.Connecting, detail: null }
+  let heldRoster: RosterWire = { shells: [], agents: [], services: [] }
   let closed = false
   let runs = 0
 
@@ -91,7 +97,13 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
       runs += 1
     },
     interrupt: () => undefined,
-    request: async () => null,
+    request: async (given) => {
+      requests.push({ op: given.op, params: given.params })
+      if (given.op === EClientRequest.ListRoster) return heldRoster
+      if (given.op === EClientRequest.PublishWorkspace) return null
+      if (given.op === EClientRequest.Rewind) return { applied: 0 }
+      return { applied: 0 }
+    },
     connection: () => held,
     onConnection: (listener) => {
       connections.add(listener)
@@ -135,6 +147,12 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
         interruptAcks.delete(listener)
       }
     },
+    onRoster: (listener) => {
+      rosters.add(listener)
+      return () => {
+        rosters.delete(listener)
+      }
+    },
     wake: ({ url, token }) => {
       woken.push({ url, token })
     },
@@ -165,6 +183,7 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
     reload(reload) {
       for (const listener of [...reloads]) listener(reload)
     },
+    requests,
     ready(ready) {
       for (const listener of [...readies]) listener(ready)
     },
@@ -177,6 +196,10 @@ export function fakeCloudChannel(args: { threadId?: ThreadId } = {}): FakeCloudC
     },
     acknowledgeInterrupt() {
       for (const listener of [...interruptAcks]) listener({ turnInFlight: true })
+    },
+    pushRoster(roster: RosterWire) {
+      heldRoster = roster
+      for (const listener of [...rosters]) listener(roster)
     },
     endTurn(outcome) {
       for (const listener of [...turnEndings]) listener(outcome)

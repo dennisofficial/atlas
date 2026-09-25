@@ -9,6 +9,7 @@ export type RewindConfirmControl = {
   handleOpen: (args: {
     toSeq: number
     kills: readonly RewindKill[]
+    reachable?: boolean | undefined
     onConfirmed: () => void
   }) => void
   handleDismiss: () => void
@@ -25,7 +26,12 @@ export function useRewindConfirm(): RewindConfirmControl {
   const continuation = useRef<() => void>(() => undefined)
 
   const handleOpen = useCallback(
-    (args: { toSeq: number; kills: readonly RewindKill[]; onConfirmed: () => void }) => {
+    (args: {
+      toSeq: number
+      kills: readonly RewindKill[]
+      reachable?: boolean | undefined
+      onConfirmed: () => void
+    }) => {
       continuation.current = args.onConfirmed
       setState(openRewindConfirm(args))
     },

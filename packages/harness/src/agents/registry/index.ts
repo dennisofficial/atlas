@@ -1,4 +1,4 @@
-export { AgentRegistryPort, type AgentOutcome } from './port'
+export { AgentRegistryPort, type AgentOutcome, type RelocateChildrenArgs } from './port'
 export { AgentSupervisor } from './supervisor'
 export { AGENT_TYPE_PROMPT_PART, subAgentPrompt } from './child-prompt'
 export {
