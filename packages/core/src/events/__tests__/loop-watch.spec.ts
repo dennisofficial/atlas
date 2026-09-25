@@ -13,6 +13,7 @@ import {
   loopWatchNudgeDraft,
   loopWatchState,
   LOOP_WATCH_CUT_SAME_ANCHOR_MAX,
+  LOOP_WATCH_MUTE_TOOL_CEILING,
   LOOP_WATCH_WINDOW,
 } from '../loop-watch'
 import { stampDrafts } from '../stamp'
@@ -204,6 +205,68 @@ describe('loopWatchState', () => {
     )
     expect(state).not.toContain('(1)')
     expect(state).toContain('(20)')
+  })
+
+  describe('a mute stretch of tool calls', () => {
+    const muteStretch = (calls: number): EventDraft[] => {
+      const drafts: EventDraft[] = [heard('check the compose-serve wiring')]
+      for (let ordinal = 1; ordinal <= calls; ordinal += 1) {
+        drafts.push(
+          called({ callId: `call-${ordinal}`, name: 'read', input: { path: 'compose-serve.ts', offset: ordinal } }),
+          resulted({ callId: `call-${ordinal}`, modelText: `line ${ordinal}` }),
+        )
+      }
+      return drafts
+    }
+
+    it('stays silent below the ceiling — a tool-only stretch can be an agent working through', () => {
+      const events = eventsFrom(muteStretch(LOOP_WATCH_MUTE_TOOL_CEILING - 1))
+      expect(loopWatchState({ events })).toBeUndefined()
+    })
+
+    it('opens the window at the ceiling so the judge grades the stretch', () => {
+      const events = eventsFrom(muteStretch(LOOP_WATCH_MUTE_TOOL_CEILING))
+
+      const state = loopWatchState({ events }) ?? ''
+
+      expect(state).toContain('<untrusted-content source="agent-steps">')
+      expect(state).toContain('tool read:')
+      expect(state.split('\n').filter((line) => line.startsWith('- ')).length).toBeLessThanOrEqual(
+        LOOP_WATCH_WINDOW,
+      )
+    })
+
+    it('one substantive speech puts the ceiling away, back to the speech floor', () => {
+      const events = eventsFrom([
+        ...muteStretch(LOOP_WATCH_MUTE_TOOL_CEILING - 40),
+        said('the subscribe path re-registers on every wake'),
+        ...muteStretch(3).slice(1),
+      ])
+
+      expect(loopWatchState({ events })).toBeUndefined()
+    })
+
+    it('restarts the count at the operator’s latest word', () => {
+      const events = eventsFrom([...muteStretch(LOOP_WATCH_MUTE_TOOL_CEILING), heard('stop that')])
+
+      expect(loopWatchState({ events })).toBeUndefined()
+    })
+
+    it('does not reset the count on an empty speech, which carries nothing to grade', () => {
+      const events = eventsFrom([
+        ...muteStretch(LOOP_WATCH_MUTE_TOOL_CEILING - 1),
+        said(''),
+        called({ callId: 'call-last', name: 'read', input: { path: 'compose-serve.ts' } }),
+      ])
+
+      expect(loopWatchState({ events })).toBeDefined()
+    })
+
+    it('still opens on three speeches with no tool calls at all', () => {
+      const events = eventsFrom([heard('go'), said('one'), said('two'), said('three')])
+
+      expect(loopWatchState({ events })).toBeDefined()
+    })
   })
 
   it('will not let a quoted step close the fence it is quoted inside', () => {
