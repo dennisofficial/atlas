@@ -42,9 +42,24 @@ export type Session =
   | { type: ESession.Refused; message: string; exitCode: number }
   | { type: ESession.Failed; error: unknown }
 
-async function credentialRefusal(app: AtlasApp): Promise<CredentialDiagnosis | null> {
+/**
+ * The boot-time credential read is a probe for what the operator should be told, never a gate:
+ * anything diagnosable — a missing account, an expired token, a cloud outage — rides into the
+ * session as a notice and the first real turn surfaces the same failure with its advice. The old
+ * behaviour exited Atlas over a 504, which the outage advice itself ("local work still works")
+ * contradicted the moment the process died. The probe is bounded so a cloud that hangs rather
+ * than answers cannot hold boot open either.
+ */
+const CREDENTIAL_PROBE_TIMEOUT_MS = 5_000
+
+async function credentialReadiness(app: AtlasApp): Promise<CredentialDiagnosis | null> {
+  const probe = app.credentials.read()
+  const timeout = new Promise<null>((resolve) =>
+    setTimeout(() => resolve(null), CREDENTIAL_PROBE_TIMEOUT_MS),
+  )
+
   try {
-    await app.credentials.read()
+    await Promise.race([probe, timeout])
     return null
   } catch (error) {
     const diagnosis = diagnoseCredentialFailure(error)
@@ -117,7 +132,7 @@ async function startSession(args: {
   }
 
   progress.report(EBootStep.Authorising)
-  const refused = await credentialRefusal(app)
+  const readiness = await credentialReadiness(app)
 
   // @opentui/core's first Tree-sitter client takes the default parser set as it finds it, so a
   // grammar registered after the tree mounts never reaches it — and a missing grammar only warns.
@@ -147,7 +162,7 @@ async function startSession(args: {
     type: ESession.Ready,
     app,
     opened: outcome.conversation,
-    credentialNotice: refused?.message ?? null,
+    credentialNotice: readiness?.message ?? null,
   }
 }
 
