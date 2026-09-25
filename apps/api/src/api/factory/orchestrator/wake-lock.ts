@@ -8,13 +8,12 @@ import { db } from '../../../db'
  * lock is held by the session and released automatically when the connection or transaction dies,
  * which is exactly the semantics an OOM-killed or replaced container needs — kill the instance and
  * the next one (or the boot scan) picks the work item straight back up.
- */
-export const WAKE_LOCK_NAMESPACE = 0x7a6b
-
-/**
- * The 64-bit lock key is the low 60 bits of the work item id's sha256, derived in-process so the
- * lock needs no extra round trip and stays clear of the driver's raw-query quirks. The namespace
- * keeps these locks disjoint from any other advisory-lock user.
+ *
+ * Postgres advisory locks come in a single `bigint` form and a two-`integer` form — there is no
+ * `(integer, bigint)` overload, so the key is a full-width `bigint` derived in-process as the low
+ * 63 bits of the work item id's sha256 (kept non-negative so it always fits a signed bigint). That
+ * avoids a raw-query round trip and the driver's type-inference edge that a wider second argument
+ * hits.
  */
 export function wakeLockKeyOf(args: { workItemId: string }): bigint {
   const digest = createHash('sha256').update(args.workItemId).digest()
@@ -22,7 +21,7 @@ export function wakeLockKeyOf(args: { workItemId: string }): bigint {
   for (let index = 0; index < 8; index += 1) {
     key = (key << 8n) | BigInt(digest[index] ?? 0)
   }
-  return key & 0x0fffffffffffffffn
+  return key & 0x7fffffffffffffffn
 }
 
 @Injectable()
@@ -44,9 +43,8 @@ export class WakeLockService {
     return db.$transaction(
       async (tx) => {
         const acquired = await tx.$queryRawUnsafe<{ locked: boolean }[]>(
-          'SELECT pg_try_advisory_xact_lock($1, $2) AS locked',
-          WAKE_LOCK_NAMESPACE,
-          key,
+          'SELECT pg_try_advisory_xact_lock($1::bigint) AS locked',
+          key.toString(),
         )
         if (acquired[0]?.locked !== true) {
           this.logger.log(`wake for work item ${args.workItemId} is already being driven elsewhere`)
