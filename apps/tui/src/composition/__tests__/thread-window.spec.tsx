@@ -42,6 +42,7 @@ function ranged(log: FakeEventLog): FakeEventLog {
     branchesRead,
     ownReads,
     peek: (args) => log.peek(args),
+    seed: (args) => log.seed(args),
     truncate: (args) => log.truncate(args),
     copyInto: (args) => log.copyInto(args),
     replaceWithSummary: (args) => log.replaceWithSummary(args),

@@ -58,6 +58,9 @@ export type FakeThreadStore = ThreadStorePort & {
   readonly renames: readonly { threadId: ThreadId; title: string }[]
   readonly chosenModels: readonly { threadId: ThreadId; model: ThreadModel }[]
   readonly chosenLocations: readonly { threadId: ThreadId; location: EExecutionLocation }[]
+  /** Drops an already-known thread row in whole, for a fake serve materializing an uploaded transcript. */
+  seedThread(row: ThreadSummary): void
+  peekRow(args: { threadId: ThreadId }): ThreadSummary | undefined
 }
 
 export function fakeThreadStore(
@@ -108,6 +111,15 @@ export function fakeThreadStore(
 
     get createdWith() {
       return createdWith
+    },
+
+    seedThread(row) {
+      if (rows.some((held) => held.id === row.id)) return
+      rows.push(row)
+    },
+
+    peekRow({ threadId }) {
+      return rows.find((row) => row.id === threadId)
     },
 
     get chosenModels() {
@@ -296,7 +308,21 @@ export function fakeThreadStore(
 
     async chooseExecutionLocation({ threadId, location }) {
       chosenLocations.push({ threadId, location })
-      const row = rows.find((held) => held.id === threadId)
+      let row = rows.find((held) => held.id === threadId)
+      // A conversation spoken in but never formally opened has log events and no row yet; the lift
+      // flips it all the same, so the row is created from the log rather than the flip no-op'ing.
+      if (row === undefined && (args.log?.peek({ threadId }).length ?? 0) > 0) {
+        const events = args.log?.peek({ threadId }) ?? []
+        row = {
+          id: threadId,
+          head: events.at(-1)?.seq ?? 0,
+          createdAt: events[0]?.at ?? AT,
+          updatedAt: events.at(-1)?.at ?? AT,
+          workspace: workspaceOf,
+          repo: args.repo ?? null,
+        }
+        rows.push(row)
+      }
       if (row !== undefined) row.executionLocation = location
     },
 
@@ -313,6 +339,8 @@ export type FakeEventLog = EventLogPort & {
   readonly branchesRead: readonly ThreadId[]
   readonly ownReads: readonly ThreadId[]
   peek(args: { threadId: ThreadId }): readonly Event[]
+  /** Drops already-stamped events in whole, for a fake serve materializing an uploaded transcript. */
+  seed(args: { threadId: ThreadId; events: readonly Event[] }): void
   truncate(args: { threadId: ThreadId; toSeq: number }): void
   copyInto(args: { from: ThreadId; to: ThreadId; upTo: number }): void
   replaceWithSummary(args: {
@@ -355,6 +383,11 @@ export function fakeEventLog(seeded: readonly Event[] = []): FakeEventLog {
 
     peek({ threadId }) {
       return [...(byThread.get(threadId) ?? [])]
+    },
+
+    seed({ threadId, events }) {
+      byThread.set(threadId, [...events])
+      headByThread.set(threadId, events.at(-1)?.seq ?? 0)
     },
 
     async append({ threadId, runId, drafts }) {

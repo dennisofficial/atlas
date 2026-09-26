@@ -34,6 +34,11 @@ export const mount = async (args: {
   preflightLift?: LiftPreflight
   clipboard?: ClipboardImageReader
 }) => {
+  args.bridge.sourceStores({
+    log: args.app.log,
+    threads: args.app.threads,
+    workspace: args.app.workspace.workspace,
+  })
   const createBridge: CloudBridgeFactory = () => args.bridge
   const setup = await testRender(
     <App
