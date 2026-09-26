@@ -114,7 +114,15 @@ export function fakeCloudChannel(
       requests.push({ op: given.op, params: given.params })
       if (given.op === EClientRequest.ListRoster) return heldRoster
       if (given.op === EClientRequest.PublishWorkspace) return null
-      if (given.op === EClientRequest.Rewind) return { applied: 0 }
+      if (given.op === EClientRequest.Rewind) {
+        // Serve truncates its own durable log inside the same apply that kills the cuts, so the
+        // fake does the same against the log it was handed.
+        const params = given.params as { threadId: ThreadId; toSeq?: number | undefined }
+        if (params.toSeq !== undefined) {
+          args.log?.truncate({ threadId: params.threadId, toSeq: params.toSeq })
+        }
+        return { applied: 0 }
+      }
       return { applied: 0 }
     },
     connection: () => held,
@@ -364,7 +372,6 @@ export function fakeBridge(
       return channel
     },
     trail,
-    stores: { log, threads: watchedThreads, ledger },
     sandboxes: {
       create: async ({ threadId, workspace, gpgKey, captureContext }) => {
         const sandbox = args.sandbox ?? RUNNING
@@ -393,6 +400,7 @@ export function fakeBridge(
         contextPuts.push({ threadId, archive: Buffer.from(archive) })
         if (args.putContextFails !== undefined) throw args.putContextFails
       },
+      putTranscript: async () => undefined,
       find: async () => args.status,
       destroy: async ({ threadId }) => {
         trail.push('destroy')
@@ -404,7 +412,7 @@ export function fakeBridge(
       trail.push('attach')
       attached.push({ threadId, url, token })
       channel = fakeCloudChannel({ threadId, log })
-      return channel
+      return { channel, stores: { log, threads: watchedThreads, ledger } }
     },
   }
 }

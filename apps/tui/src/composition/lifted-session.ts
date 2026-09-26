@@ -1,5 +1,5 @@
 import type { AtlasApp } from './compose'
-import type { CloudBridge, CloudChannel } from '@dltech/atlas-harness'
+import type { CloudBridge, CloudChannel, CloudStores } from '@dltech/atlas-harness'
 import type { CloudSession } from './cloud/cloud-session'
 import type { OpenedConversation } from './open-conversation'
 
@@ -9,6 +9,7 @@ export type LiftedAttachment = {
   opened: OpenedConversation
   bridge: CloudBridge
   channel: CloudChannel
+  stores: CloudStores
 }
 
 /** A lifted attachment once the surface has taken ownership of its connection. */

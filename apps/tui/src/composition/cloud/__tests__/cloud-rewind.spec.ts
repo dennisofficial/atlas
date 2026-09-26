@@ -84,9 +84,9 @@ const settle = async (ms: number): Promise<void> =>
 const openCloudApp = async (args: { roster?: RosterWire | undefined }) => {
   const bridge = fakeBridge()
   const app = fakeApp({ model: scriptedModelPort({ script: { thinking: '', reply: 'ok' } }) })
-  bridge.attach({ threadId: CLOUD_THREAD, url: 'https://sandbox.example', token: 'tok' })
+  const { stores } = bridge.attach({ threadId: CLOUD_THREAD, url: 'https://sandbox.example', token: 'tok' })
   const channel: FakeCloudChannel = bridge.channel
-  const attached = cloudApp({ app, bridge, channel, runner: app.runner })
+  const attached = cloudApp({ app, channel, stores, runner: app.runner })
 
   if (args.roster !== undefined) channel.pushRoster(args.roster)
   await settle(100)
@@ -183,9 +183,9 @@ describe('rewind on a cloud thread', () => {
   it('still lands the rewind write when the sandbox refuses the cleanup', async () => {
     const bridge = fakeBridge()
     const app = fakeApp({ model: scriptedModelPort({ script: { thinking: '', reply: 'ok' } }) })
-    bridge.attach({ threadId: CLOUD_THREAD, url: 'https://sandbox.example', token: 'tok' })
+    const { stores } = bridge.attach({ threadId: CLOUD_THREAD, url: 'https://sandbox.example', token: 'tok' })
     const channel: FakeCloudChannel = bridge.channel
-    const attached = cloudApp({ app, bridge, channel, runner: app.runner })
+    const attached = cloudApp({ app, channel, stores, runner: app.runner })
     await bridge.log.append({
       threadId: CLOUD_THREAD,
       runId,

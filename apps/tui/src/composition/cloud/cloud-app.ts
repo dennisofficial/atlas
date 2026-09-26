@@ -13,7 +13,7 @@ import type { AtlasApp } from '../compose'
 import { EOpenMode } from '../config'
 import { noticePortBinding } from '../notice-binding'
 import { openConversation, unstartedConversation, type OpenedConversation } from '../open-conversation'
-import type { CloudBridge, CloudChannel } from '@dltech/atlas-harness'
+import type { CloudChannel, CloudStores } from '@dltech/atlas-harness'
 import { RemoteAgentRegistry } from './remote-agents'
 import { RemoteServiceRegistry } from './remote-services'
 import { RemoteShellRegistry } from './remote-shells'
@@ -28,8 +28,8 @@ import { createSharedRoster } from './roster-reader'
  */
 export const cloudApp = (args: {
   app: AtlasApp
-  bridge: CloudBridge
   channel: CloudChannel
+  stores: CloudStores
   runner: TurnRunner
 }): AtlasApp => {
   const roster = createSharedRoster(createRemoteRosterReader({ channel: args.channel }))
@@ -40,9 +40,9 @@ export const cloudApp = (args: {
 
   return {
     ...args.app,
-    log: args.bridge.stores.log,
-    threads: args.bridge.stores.threads,
-    ledger: args.bridge.stores.ledger,
+    log: args.stores.log,
+    threads: args.stores.threads,
+    ledger: args.stores.ledger,
     channel: args.channel,
     runner: args.runner,
     shells,

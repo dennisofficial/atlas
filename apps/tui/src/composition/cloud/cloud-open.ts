@@ -34,7 +34,8 @@ export async function openCloudThread(args: {
       captureContext: () => app.captureContext({ cwd: projectDirectory ?? app.workspace.workspace }),
     })
 
-    const channel = bridge.attach({ threadId, url: woken.url, token: woken.token })
+    const attachment = bridge.attach({ threadId, url: woken.url, token: woken.token })
+    const { channel, stores } = attachment
 
     unready = channel.onReady((ready) => {
       unready()
@@ -51,11 +52,11 @@ export async function openCloudThread(args: {
       captureContext: () => app.captureContext({ cwd: projectDirectory ?? app.workspace.workspace }),
       ...(move === undefined ? {} : { move }),
     })
-    const attached = cloudApp({ app, bridge, channel, runner })
+    const attached = cloudApp({ app, channel, stores, runner })
     const opened = await openCloudConversation({ app: attached, threadId })
 
     move?.handleSettle()
-    return { app: attached, opened, bridge, channel }
+    return { app: attached, opened, bridge, channel, stores }
   } catch (error) {
     unready()
     move?.handleFail(messageOf(error))
