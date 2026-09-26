@@ -297,7 +297,7 @@ const liveBridgeFor = (app: AtlasApp): CloudBridgeFactory => {
  * resolved lazily inside the sweep — a boot without them still clears the stale API rows rather
  * than skipping the whole pass.
  */
-const reapExpiredSandboxesOnBoot = (app: AtlasApp): void => {
+export const reapExpiredSandboxesOnBoot = (app: AtlasApp): void => {
   const session = app.cloud.session()
   if (session === null) return
 
@@ -364,6 +364,12 @@ export function App(props: {
   preflightLift?: LiftPreflight
   captureWorkspace?: WorkspaceCapture
   captureContext?: CaptureContext
+  /**
+   * Startup cloud-sandbox sweep. Injectable so a test never fires it: the fake cloud reports
+   * signed-in against an unreachable cloud.test, and the sweep's failure notice would render into
+   * frames the specs assert on. Omitted, nothing runs.
+   */
+  reapOnBoot?: ((app: AtlasApp) => void) | undefined
 }): React.ReactNode {
   const registry = useMemo(() => createKeyRegistry(), [])
   const [lifted, setLifted] = useState<LiftedSession | null>(null)
@@ -375,8 +381,8 @@ export function App(props: {
   useEffect(() => {
     if (reaped.current) return
     reaped.current = true
-    reapExpiredSandboxesOnBoot(props.app)
-  }, [props.app])
+    props.reapOnBoot?.(props.app)
+  }, [props.app, props.reapOnBoot])
 
   const reloading = useRef(false)
   const reloadPending = useRef(false)
