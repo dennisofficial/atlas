@@ -81,6 +81,12 @@ export type RemoteDeltaChannel = DeltaChannel & {
   onError(listener: (failure: ChannelFailure) => void): Unsubscribe
   onServerError(listener: (failure: ChannelFailure) => void): Unsubscribe
   wake(args: { url: string; token: string }): void
+  /**
+   * Re-attach from a stranded Closed state. The operator asked for it, so the reattachment budget
+   * the automatic retries spent does not apply — a manual reconnect always escalates again. No-op
+   * while the channel is anything but Closed, and without a `reattach` configured.
+   */
+  reconnect(): void
   close(): void
 }
 
@@ -546,6 +552,15 @@ export function createRemoteDeltaChannel(args: {
 
       reattachments = 0
       applyAttachment({ url: nextUrl, token: nextToken })
+    },
+
+    reconnect() {
+      if (abandoned) return
+      if (connection.state !== EChannelConnection.Closed) return
+      if (args.reattach === undefined) return
+
+      reattachments = 0
+      escalate(args.reattach)
     },
 
     close() {

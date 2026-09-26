@@ -176,6 +176,7 @@ export function fakeCloudChannel(
     wake: ({ url, token }) => {
       woken.push({ url, token })
     },
+    reconnect: () => undefined,
     close: () => {
       closed = true
     },

@@ -24,6 +24,7 @@ export type CloudSession = {
   channel: CloudChannel
   health: () => CloudHealth
   subscribe: (listener: () => void) => () => void
+  reconnect: () => void
   close: () => void
 }
 
@@ -100,6 +101,7 @@ export function createCloudSession(args: {
         listeners.delete(listener)
       }
     },
+    reconnect: () => channel.reconnect(),
     close: () => {
       closed = true
       unsubscribeConnection()

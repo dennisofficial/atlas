@@ -216,6 +216,8 @@ export function transcript(args: {
   background?: BackgroundWork
   waitingSince?: number
   onRetry?: () => void
+  disconnected?: boolean
+  onReconnect?: () => void
 }): React.ReactNode {
   return (
     <Transcript
@@ -231,6 +233,8 @@ export function transcript(args: {
       {...(args.background ? { background: args.background } : {})}
       {...(args.waitingSince === undefined ? {} : { waitingSince: args.waitingSince })}
       {...(args.onRetry ? { onRetry: args.onRetry } : {})}
+      {...(args.disconnected === undefined ? {} : { disconnected: args.disconnected })}
+      {...(args.onReconnect ? { onReconnect: args.onReconnect } : {})}
     />
   )
 }
