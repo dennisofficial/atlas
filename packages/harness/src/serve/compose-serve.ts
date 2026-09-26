@@ -31,6 +31,7 @@ import { ServeBrokerClient } from './serve-broker-client'
 import { ServeCredentialPort } from './serve-credential-port'
 import { ServeSecretsStore } from './serve-secrets-store'
 import { seedServeSession } from './serve-session'
+import { serveSessionArchive } from './serve-session-archive'
 import { createMemoryUploader } from './upload-memory'
 
 export const SERVE_COMMAND = 'serve'
@@ -168,9 +169,11 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     turnPolicy: app.turnPolicy,
     log: app.surface.log,
     threads: app.surface.threads,
+    ledger: app.ledger,
     ids: app.ids,
     files: app.files,
     workspace: app.workspace,
+    sessionArchive: () => serveSessionArchive({ threadId: args.threadId }),
     adoptChildren: ({ threadId }) =>
       adoptChildren({ agents: app.agents, log: app.surface.log, threadId }),
     recordLostShells: ({ threadId }) => shellRecovery.recordLost({ threadId }),

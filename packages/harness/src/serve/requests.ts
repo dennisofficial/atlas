@@ -1,17 +1,28 @@
 import { z } from 'zod'
 
-import { browseCandidates, splitMentionQuery } from '@dltech/atlas-core'
+import {
+  browseCandidates,
+  splitMentionQuery,
+  type EventLogPort,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import {
   EClientFrame,
   EClientRequest,
   EServeFrame,
+  readEventsParamsSchema,
+  readThreadParamsSchema,
+  readTurnsParamsSchema,
   type ClientFrame,
   type ServeFrame,
 } from '../cloud/channel-wire'
 import type { FileBrowser } from '../files/file-browser'
+import type { TurnLedgerPort } from '../ledger/turn-ledger.port'
+import type { ThreadStorePort } from '../store/thread-store'
 
 import type { WorkspacePublisher } from './publish-workspace'
+import { wireEventOf, wireThreadOf, wireTurnOf } from './session-wires'
 
 export const MAX_COMPLETIONS = 50
 
@@ -88,4 +99,77 @@ export async function answerRequest(args: {
   if (args.frame.op === EClientRequest.CompletePaths) return await completePaths(args)
   if (args.frame.op === EClientRequest.BrowseDirectory) return await browseDirectory(args)
   return await publishWorkspaceHandler(args)
+}
+
+export type TranscriptReaders = {
+  log: Pick<EventLogPort, 'read' | 'readOwn'>
+  threads: Pick<ThreadStorePort, 'find' | 'spawned'>
+  ledger: Pick<TurnLedgerPort, 'forThreadTree'>
+}
+
+/** The ops that read the served session's transcript; anything else is answered by `answerRequest`. */
+export const isTranscriptReadOp = (op: EClientRequest): boolean =>
+  op === EClientRequest.ReadEvents ||
+  op === EClientRequest.ReadThread ||
+  op === EClientRequest.ReadThreads ||
+  op === EClientRequest.ReadTurns
+
+export async function answerTranscriptRead(args: {
+  frame: RequestFrame
+  transcript: TranscriptReaders
+  threadId: ThreadId
+}): Promise<ReplyFrame> {
+  if (args.frame.op === EClientRequest.ReadEvents) {
+    const parsed = readEventsParamsSchema.safeParse(args.frame.params)
+    if (!parsed.success) {
+      return refusedRequest({
+        replyTo: args.frame.id,
+        message: 'read-events wants { threadId, fromSeq?, upTo?, own? }',
+      })
+    }
+    const { threadId, fromSeq, upTo, own } = parsed.data
+    const readArgs = {
+      threadId: threadId as ThreadId,
+      ...(fromSeq === undefined ? {} : { fromSeq }),
+      ...(upTo === undefined ? {} : { upTo }),
+    }
+    const events = own === true ? await args.transcript.log.readOwn(readArgs) : await args.transcript.log.read(readArgs)
+    return answeredRequest({
+      replyTo: args.frame.id,
+      data: { events: events.map(wireEventOf) },
+    })
+  }
+
+  if (args.frame.op === EClientRequest.ReadThreads) {
+    const root = await args.transcript.threads.find({ threadId: args.threadId })
+    const children = await args.transcript.threads.spawned({ threadId: args.threadId })
+    return answeredRequest({
+      replyTo: args.frame.id,
+      data: {
+        threads: [...(root === undefined ? [] : [root]), ...children].map(wireThreadOf),
+      },
+    })
+  }
+
+  if (args.frame.op === EClientRequest.ReadThread) {
+    const parsed = readThreadParamsSchema.safeParse(args.frame.params)
+    if (!parsed.success) {
+      return refusedRequest({ replyTo: args.frame.id, message: 'read-thread wants { threadId }' })
+    }
+    const thread = await args.transcript.threads.find({ threadId: parsed.data.threadId as ThreadId })
+    return answeredRequest({
+      replyTo: args.frame.id,
+      data: { thread: thread === undefined ? null : wireThreadOf(thread) },
+    })
+  }
+
+  const parsed = readTurnsParamsSchema.safeParse(args.frame.params)
+  if (!parsed.success) {
+    return refusedRequest({ replyTo: args.frame.id, message: 'read-turns wants { threadId }' })
+  }
+  const tree = await args.transcript.ledger.forThreadTree({ threadId: parsed.data.threadId as ThreadId })
+  return answeredRequest({
+    replyTo: args.frame.id,
+    data: { own: tree.own.map(wireTurnOf), delegated: tree.delegated.map(wireTurnOf) },
+  })
 }

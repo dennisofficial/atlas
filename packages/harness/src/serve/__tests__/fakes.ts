@@ -159,6 +159,8 @@ export function fakeServeApp(args: {
         return []
       },
       read: async (): Promise<Event[]> => [...(args.events ?? [])],
+      readOwn: async (): Promise<Event[]> => [...(args.events ?? [])],
+      head: async (): Promise<number> => (args.events ?? []).length,
     },
 
     threads: {
@@ -167,6 +169,8 @@ export function fakeServeApp(args: {
         appended.push(...given.drafts)
         return { thread: summaryOf(args.threadId), events: [] as Event[] }
       },
+      spawned: async (): Promise<readonly ThreadSummary[]> => [],
+      list: async (): Promise<readonly ThreadSummary[]> => [],
     },
 
     ids: {

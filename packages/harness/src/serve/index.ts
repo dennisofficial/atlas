@@ -335,6 +335,12 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     log,
     roster: app.roster,
     rewind: app.rewind,
+    ...(app.ledger === undefined
+      ? {}
+      : {
+          transcript: { log: app.log, threads: app.threads, ledger: app.ledger },
+        }),
+    ...(app.sessionArchive === undefined ? {} : { sessionArchive: app.sessionArchive }),
   })
 
   // Watching surfaces (footer chips, sidebar crew) read the roster off the wire, so a change on

@@ -19,7 +19,14 @@ import type { FileBrowser } from '../files/file-browser'
 
 import type { FrameBuffer, SignalFrame } from './frame-buffer'
 import type { WorkspacePublisher } from './publish-workspace'
-import { answerRequest } from './requests'
+import {
+  answerRequest,
+  answerTranscriptRead,
+  answeredRequest,
+  isTranscriptReadOp,
+  refusedRequest,
+  type TranscriptReaders,
+} from './requests'
 import { answerRewind } from './rewind-apply'
 import type { ServeRoster, ServeRewind } from './serve-app'
 import { EServeEvent, type ServeLog } from './serve-log'
@@ -64,10 +71,16 @@ export function createSessionHandlers(args: {
   log: ServeLog
   roster?: ServeRoster | undefined
   rewind?: ServeRewind | undefined
+  /** The transcript stores the read-ops answer from; absent in fakes, which refuse the ops. */
+  transcript?: TranscriptReaders | undefined
+  /** Tars the served session directory for the descend's transfer; absent in fakes. */
+  sessionArchive?: (() => Promise<Uint8Array | null>) | undefined
 }): SessionHandlers {
   const { threadId, buffer, inFlight, liveStepId, driver, files, publish, refusal, log } = args
   const snapshot = args.roster?.snapshot ?? EMPTY_ROSTER
   const rewind = args.rewind
+  const transcript = args.transcript
+  const sessionArchive = args.sessionArchive
   const live = new Set<SessionSocket>()
   const attached = new Set<SessionSocket>()
   const aliaser = createStepAliaser()
@@ -213,6 +226,63 @@ export function createSessionHandlers(args: {
               replyTo: frame.id,
               ok: false,
               data: { message: messageOf(error, 'the rewind cleanup failed') },
+            },
+          }),
+        )
+      return
+    }
+
+    if (isTranscriptReadOp(frame.op)) {
+      if (transcript === undefined) {
+        send({
+          socket,
+          frame: refusedRequest({ replyTo: frame.id, message: 'this serve has no transcript to read' }),
+        })
+        return
+      }
+      void answerTranscriptRead({ frame, transcript: transcript, threadId })
+        .then((reply) => send({ socket, frame: reply }))
+        .catch((error: unknown) =>
+          send({
+            socket,
+            frame: {
+              kind: EServeFrame.Reply,
+              replyTo: frame.id,
+              ok: false,
+              data: { message: messageOf(error, 'the transcript read failed') },
+            },
+          }),
+        )
+      return
+    }
+
+    if (frame.op === EClientRequest.ReadSessionArchive) {
+      const archive = sessionArchive
+      if (archive === undefined) {
+        send({
+          socket,
+          frame: refusedRequest({ replyTo: frame.id, message: 'this serve has no transcript to read' }),
+        })
+        return
+      }
+      void archive()
+        .then((bytes) =>
+          send({
+            socket,
+            frame: answeredRequest({
+              replyTo: frame.id,
+              data: { archive: bytes === null ? '' : Buffer.from(bytes).toString('base64') },
+            }),
+          }),
+        )
+        .catch((error: unknown) =>
+          send({
+            socket,
+            frame: {
+              kind: EServeFrame.Reply,
+              replyTo: frame.id,
+              ok: false,
+              data: { message: messageOf(error, 'the transcript archive failed') },
             },
           }),
         )
