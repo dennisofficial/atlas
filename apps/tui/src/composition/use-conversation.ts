@@ -121,6 +121,8 @@ export function useConversation(args: {
   canWake: boolean
   interruptRefusal?: (() => string | null) | undefined
   driveRefusal?: (() => string | null) | undefined
+  /** The cloud socket is down; the transcript is a stale snapshot, so its clocks hold still. */
+  frozen?: boolean
 }): Conversation {
   const { app, paceReveal, thinking, tldrStatus, onUndone } = args
   const [opened, setOpened] = useState<OpenedConversation>(args.opened)
@@ -341,8 +343,9 @@ export function useConversation(args: {
 
   const { working, drive } = turnDriver
   const { compacting } = compaction
+  const frozen = args.frozen === true
   const now = useTickingNow({
-    ticking: derived.streaming || working || compacting !== null,
+    ticking: !frozen && (derived.streaming || working || compacting !== null),
     clock,
   })
 

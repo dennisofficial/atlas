@@ -134,7 +134,15 @@ function DerivedTranscript(props: {
       const entry = model.entries[index]
       if (entry === undefined) continue
       mounted.push(
-        <box key={entry.key} id={entry.key} flexDirection="column">
+        <box
+          key={entry.key}
+          id={entry.key}
+          flexDirection="column"
+          // A dropped cloud socket leaves the entries a stale snapshot: mute them through opacity
+          // (a single seam, not a prop threaded through every block) while the working/disconnected
+          // row stays full-strength so it can still be read and clicked.
+          opacity={props.disconnected === true ? 0.4 : 1}
+        >
           {index === anchorIndex ? (
             <box id={UNSEEN_ANCHOR_ID} flexDirection="column">
               {index > 0 ? <NewDivider width={props.width} /> : null}

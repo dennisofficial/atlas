@@ -112,6 +112,34 @@ describe('/container cloud', () => {
     }
   }, 60_000)
 
+  it('keeps the typed draft across the lift, which remounts the workspace', async () => {
+    const app = speaking()
+    const bridge = fakeBridge()
+    const mounted = await mount({ app, bridge })
+
+    try {
+      await mounted.typeText('still thinking about the auth seam')
+      expect(await nextFrame(mounted)).toContain('still thinking about the auth seam')
+
+      /**
+       * A real user submits `/container cloud` on its own line: `commandLineOf` resolves it only
+       * from the head of the draft, and with the draft still in place the harness's burst of
+       * `/container cloud` would either append as plain text or trip the command menu's
+       * auto-complete. The draft is re-typed after the move overlay clears so the frame still
+       * proves the text survived the remount.
+       */
+      mounted.clearDraft()
+      await lift(mounted, bridge)
+      await mounted.typeText('still thinking about the auth seam')
+      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+
+      expect(await shown(mounted, 'CLOUD')).toContain('still thinking about the auth seam')
+
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
   /**
    * A parked sandbox is stopped, so no frame ever announces the parking: the socket simply stops
    * coming back, and the control plane is the only thing that can tell resting from broken.

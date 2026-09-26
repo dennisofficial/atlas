@@ -180,3 +180,69 @@ describe('escalating to a re-attach when the socket stays dead', () => {
     expect(sockets.filter((socket) => socket.url.includes('stale'))).toHaveLength(0)
   })
 })
+
+describe('a manual reconnect from the stranded Closed state', () => {
+  it('escalates again past the spent re-attach budget, because the operator asked', async () => {
+    let reattachments = 0
+    const { channel, open, receive, drop, retries, live } = harness({
+      maxAttempts: 1,
+      maxReattachments: 1,
+      reattach: async () => {
+        reattachments += 1
+        return { url: 'https://fresh.test/', token: 'tok_fresh' }
+      },
+    })
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+
+    drop()
+    retries[0]?.run()
+    live().handlers.handleClose()
+    await Bun.sleep(1)
+    live().handlers.handleClose()
+    retries.at(-1)?.run()
+    live().handlers.handleClose()
+    await Bun.sleep(1)
+    expect(channel.connection().state).toBe(EChannelConnection.Closed)
+    expect(reattachments).toBe(1)
+
+    channel.reconnect()
+    expect(channel.connection().state).toBe(EChannelConnection.Reattaching)
+    await Bun.sleep(1)
+    expect(reattachments).toBe(2)
+    expect(channel.connection().state).toBe(EChannelConnection.Connecting)
+  })
+
+  it('is a no-op while the channel is anything but Closed', async () => {
+    let reattachments = 0
+    const { channel, open, receive } = harness({
+      maxAttempts: 1,
+      reattach: async () => {
+        reattachments += 1
+        return { url: 'https://fresh.test/', token: 'tok_fresh' }
+      },
+    })
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    expect(channel.connection().state).toBe(EChannelConnection.Open)
+
+    channel.reconnect()
+    await Bun.sleep(1)
+
+    expect(reattachments).toBe(0)
+    expect(channel.connection().state).toBe(EChannelConnection.Open)
+  })
+
+  it('is a no-op without a re-attach configured', async () => {
+    const { channel, open, receive, drop, live } = harness({ maxAttempts: 0 })
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    drop()
+    live().handlers.handleClose()
+    expect(channel.connection().state).toBe(EChannelConnection.Closed)
+
+    channel.reconnect()
+    await Bun.sleep(1)
+    expect(channel.connection().state).toBe(EChannelConnection.Closed)
+  })
+})

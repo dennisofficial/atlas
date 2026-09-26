@@ -122,6 +122,16 @@ describe('what the transcript actually says', () => {
     expect(frame).not.toContain('Interrupting…')
   })
 
+  it('reads disconnected with a reconnect affordance once the socket stays closed', async () => {
+    const frame = await frameOf(
+      transcript({ model: SETTLED, width: 80, disconnected: true, onReconnect: () => undefined }),
+      80,
+    )
+    expect(frame).toContain('disconnected')
+    expect(frame).toContain('ctrl+r')
+    expect(frame).toContain('reconnect')
+  })
+
   it('leaves a finished turn pinned to the reply it measured, with what it cost and when', async () => {
     const rows = (await frameOf(transcript({ model: TURN_DONE, width: 80 }), 80)).split('\n')
 

@@ -84,6 +84,12 @@ export const mount = async (args: {
       return frame()
     },
     typeText: (text: string) => setup.mockInput.typeText(text),
+    /**
+     * `replaceText` fires the editor's change event, which mirrors the emptied buffer into React
+     * and closes the command menu a trailing `/…` opened — backspaces through the editor would
+     * leave the menu's `typed` ref stale.
+     */
+    clearDraft: () => editorIn(setup.renderer.root)?.replaceText(''),
     pressEnter: () => setup.mockInput.pressEnter(),
     pressEscape: () => setup.mockInput.pressEscape(),
     pressCtrl: (key: string) => setup.mockInput.pressKey(key, { ctrl: true }),

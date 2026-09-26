@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { toRunId, toThreadId } from '@dltech/atlas-core'
 
 import { ETurnStatus, type TurnOutcome } from '../../loop/turn-outcome'
-import { EClientFrame, EServeFrame } from '../channel-wire'
+import { EClientFrame, encodeFrame, EServeFrame } from '../channel-wire'
 import { EChannelConnection } from '../remote-delta-channel'
 import { RemoteTurnRunner } from '../remote-turn-runner'
 
@@ -143,6 +143,33 @@ describe('a turn driven over the session socket', () => {
     receive({ kind: EServeFrame.Error, message: 'the workspace failed at git apply' })
 
     await expect(turn).rejects.toThrow('the workspace failed at git apply')
+  })
+
+  it('wakes a parked sandbox before running, so a message is the only ceremony', async () => {
+    let woken = 0
+    const { channel, open, receive, live } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    const runner = new RemoteTurnRunner({
+      channel,
+      wake: async () => {
+        woken += 1
+        channel.wake({ url: 'https://sandbox.test/', token: 'tok_session' })
+      },
+    })
+
+    live().handlers.handleMessage(encodeFrame({ kind: EServeFrame.Parked, reason: 'idle' } as never))
+    live().handlers.handleClose()
+    expect(channel.connection().state).toBe(EChannelConnection.Parked)
+
+    const turn = runner.runTurn({ threadId: THREAD })
+    await Bun.sleep(1)
+    expect(woken).toBe(1)
+
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    endTurn(receive, completed('run-1'))
+    await expect(turn).resolves.toEqual(completed('run-1'))
   })
 
   it('keeps the turn through a transport error the channel will retry', async () => {

@@ -58,6 +58,7 @@ export type FakeCloudChannel = CloudChannel & {
   }[]
   readonly requests: readonly { op: EClientRequest; params: unknown }[]
   readonly woken: readonly { url: string; token: string }[]
+  readonly reconnects: number
 }
 
 export function fakeCloudChannel(
@@ -83,6 +84,7 @@ export function fakeCloudChannel(
   let heldRoster: RosterWire = { shells: [], agents: [], services: [] }
   let closed = false
   let runs = 0
+  let reconnected = 0
   const channelThreadId = args.threadId ?? CLOUD_THREAD
 
   return {
@@ -178,6 +180,9 @@ export function fakeCloudChannel(
     wake: ({ url, token }) => {
       woken.push({ url, token })
     },
+    reconnect: () => {
+      reconnected += 1
+    },
     close: () => {
       closed = true
     },
@@ -196,6 +201,10 @@ export function fakeCloudChannel(
 
     get woken() {
       return woken
+    },
+
+    get reconnects() {
+      return reconnected
     },
 
     moveTo(connection) {

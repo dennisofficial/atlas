@@ -25,6 +25,7 @@ import {
   type EUsageWindow,
   type ModelCard,
   type SettingsResolution,
+  type ThreadId,
 } from '@dltech/atlas-core'
 import { EChannelConnection, forkConversation, readGhAuthToken, relocateSession, requireVercelCredentials, sandboxImageOf, settingModelRef, suggestedModelRef, type DiscoveredSkill } from '@dltech/atlas-harness'
 
@@ -334,6 +335,19 @@ export function App(props: {
   const reloading = useRef(false)
   const reloadPending = useRef(false)
 
+  /**
+   * The typed-but-unsent draft, carried across the keyed Workspace remount a lift, descend, or
+   * reload forces. A live reader of the native buffer rather than a snapshot: `draft.value` lags
+   * the buffer, so a write-through slot can miss the last burst, and React reads the new mount's
+   * seed before the old Workspace unmounts — so the outgoing buffer's own text is the only truth
+   * that is current at the moment the new mount asks. One reader, replaced on each mount, never a
+   * map, so a draft can never resurrect on a thread it was abandoned on.
+   */
+  const draftReader = useRef<(() => { threadId: ThreadId; text: string }) | null>(null)
+  const handleDraftSource = useCallback((reader: (() => { threadId: ThreadId; text: string }) | null) => {
+    draftReader.current = reader
+  }, [])
+
   const handleReload = useCallback(() => {
     const attached = held.current
     if (attached === null) return
@@ -384,6 +398,8 @@ export function App(props: {
     setReopened(opened)
   }, [])
 
+  const openedFor = lifted?.opened ?? reopened ?? props.opened
+
   return (
     <KeyRegistryContext.Provider value={registry}>
       <Workspace
@@ -394,7 +410,12 @@ export function App(props: {
         }
         app={lifted?.app ?? props.app}
         localApp={props.app}
-        opened={lifted?.opened ?? reopened ?? props.opened}
+        opened={openedFor}
+        draftText={(() => {
+          const carried = draftReader.current?.()
+          return carried !== undefined && carried.threadId === openedFor.threadId ? carried.text : ''
+        })()}
+        onDraftSource={handleDraftSource}
         cloudSession={lifted?.session ?? null}
         cloudBridge={lifted?.bridge ?? null}
         cloudStores={lifted?.stores ?? null}
@@ -430,6 +451,8 @@ function Workspace(props: {
   captureContext: CaptureContext | undefined
   onLifted: (attachment: LiftedAttachment) => void
   onDescend: (opened: OpenedConversation) => void
+  draftText: string
+  onDraftSource: (reader: (() => { threadId: ThreadId; text: string }) | null) => void
 }): React.ReactNode {
   const renderer = useRenderer()
   const restarting = useRef(false)
@@ -472,7 +495,19 @@ function Workspace(props: {
 
   useCopyOnSelect()
 
-  const draft = useDraft()
+  const draft = useDraft(props.draftText)
+
+  /**
+   * Registered as the live source the next mount reads its seed from. Reads the native buffer, not
+   * `draft.value`, so the text is current even mid-burst. `plainText` flattens pasted-token extmarks
+   * to their labels — full pasted-content recovery is a known follow-up, not silent here.
+   */
+  useEffect(() => {
+    props.onDraftSource(() => ({
+      threadId: props.opened.threadId,
+      text: draft.editor.current?.plainText ?? draft.value,
+    }))
+  }, [props.onDraftSource, props.opened.threadId, draft])
 
   const handleFocusComposer = useCallback(() => draft.editor.current?.focus(), [draft])
 
@@ -507,6 +542,7 @@ function Workspace(props: {
     onUndone: handleUndone,
     canWake: exitGuard.state === null && !moveInFlight,
     interruptRefusal,
+    frozen: cloudHealth?.connection?.state === EChannelConnection.Closed,
   })
 
   const tokens = useDraftTokens({
@@ -1804,6 +1840,10 @@ function Workspace(props: {
                   cloudHealth?.connection?.state === EChannelConnection.Connecting
                 }
                 disconnected={cloudHealth?.connection?.state === EChannelConnection.Closed}
+                {...(cloudHealth?.connection?.state === EChannelConnection.Closed &&
+                props.cloudSession !== null
+                  ? { onReconnect: () => props.cloudSession?.reconnect() }
+                  : {})}
                 sends={sends}
                 pending={conversation.pending}
                 background={background}
