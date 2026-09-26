@@ -1,8 +1,9 @@
 import React from 'react'
 
 import { backgroundWaitLabel, type BackgroundWork } from '../background-wait'
+import { useClickRegion } from '../hooks/use-click-region'
 import { retryLabel, type RetryWait } from '../retry-countdown'
-import { formatElapsed, formatTokens, theme } from '../theme'
+import { formatElapsed, formatTokens, glyph, theme } from '../theme'
 import { ShimmerLine, SpinnerGlyph } from './shimmer-line'
 
 export enum EWorkingVerb {
@@ -10,6 +11,7 @@ export enum EWorkingVerb {
   Thinking = 'Thinking',
   Compacting = 'Compacting',
   Reconnecting = 'Reconnecting',
+  Disconnected = 'Disconnected',
 }
 
 const INTERRUPTING = 'Interrupting…'
@@ -24,8 +26,10 @@ export function WorkingLine(props: {
   interrupting: boolean
   verb?: EWorkingVerb | undefined
   retry?: RetryWait | null | undefined
+  onReconnect?: (() => void) | undefined
 }): React.ReactNode {
   const { retry } = props
+  const reconnect = useClickRegion(props.verb === EWorkingVerb.Disconnected ? props.onReconnect : undefined)
 
   if (retry !== null && retry !== undefined && !props.interrupting) {
     return (
@@ -36,6 +40,28 @@ export function WorkingLine(props: {
   }
 
   const verb = props.verb ?? EWorkingVerb.Working
+
+  /**
+   * A dropped cloud socket freezes the local view: the turn may still be running on the sandbox,
+   * so the row is static (no shimmer) and carries the reconnect affordance, colored the same as a
+   * resume (`↻ ctrl+r` in accent, the verb in hint) since both pick a stopped thing back up.
+   */
+  if (verb === EWorkingVerb.Disconnected) {
+    return (
+      <box flexDirection="column">
+        <text {...reconnect.handlers} {...(reconnect.hovered ? { backgroundColor: theme.hoverBg } : {})}>
+          <span fg={theme.warn}>○ disconnected — the turn may still be running</span>
+          {props.onReconnect === undefined ? null : (
+            <>
+              <span fg={theme.dim}>{'   '}</span>
+              <span fg={theme.accent}>{`${glyph.retry} ctrl+r`}</span>
+              <span fg={reconnect.hovered ? theme.hover : theme.hint}> reconnect</span>
+            </>
+          )}
+        </text>
+      </box>
+    )
+  }
 
   /**
    * A turn dropped before the socket did keeps reading Reconnecting rather than Interrupting: the

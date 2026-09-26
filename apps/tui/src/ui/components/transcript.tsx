@@ -36,6 +36,9 @@ function DerivedTranscript(props: {
   turn?: TurnClock
   /** The cloud socket is down and being re-established; the turn itself runs on the sandbox. */
   reconnecting?: boolean
+  /** The cloud socket is closed with no re-establish in flight; the local view is stale. */
+  disconnected?: boolean
+  onReconnect?: () => void
   anchorKey?: string | null
   sends?: number
   pending?: readonly PendingRow[]
@@ -201,6 +204,16 @@ function DerivedTranscript(props: {
                     : EWorkingVerb.Working
               }
               retry={turn.retry}
+            />
+          </box>
+        ) : props.disconnected === true ? (
+          <box flexDirection="row" marginTop={1} marginBottom={1}>
+            <WorkingLine
+              elapsedMs={0}
+              outputTokens={0}
+              interrupting={false}
+              verb={EWorkingVerb.Disconnected}
+              {...(props.onReconnect === undefined ? {} : { onReconnect: props.onReconnect })}
             />
           </box>
         ) : (

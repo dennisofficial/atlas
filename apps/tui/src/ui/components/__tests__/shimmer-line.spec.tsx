@@ -85,4 +85,25 @@ describe('a shimmer line left running', () => {
     const frame = setup.captureCharFrame()
     expect(frame).toMatch(/retry/i)
   })
+
+  test('reads disconnected with a resume-colored reconnect affordance and no shimmer', async () => {
+    const setup = await testRender(
+      <WorkingLine
+        elapsedMs={1000}
+        outputTokens={0}
+        interrupting={false}
+        verb={EWorkingVerb.Disconnected}
+        onReconnect={() => undefined}
+      />,
+      { width: 100, height: 10 },
+    )
+    mounted.push(setup)
+    await setup.flush()
+    const frame = setup.captureCharFrame()
+    expect(frame).toContain('disconnected')
+    expect(frame).toContain('ctrl+r')
+    expect(frame).toContain('reconnect')
+    expect(frame).not.toContain('Thinking')
+    expect(frame).not.toContain('Working')
+  })
 })
