@@ -6,7 +6,7 @@ the machine is the credential store, and a signed-in session syncs accounts, sec
 MCP layer and memory with the cloud so a conversation can lift to a sandbox or be driven
 remotely. Sandboxes are BYO — the harness drives Vercel with the operator's own token; the API
 keeps the rendezvous rows (session tokens, workspace patches, context archives) and brokers
-credentials to the sandbox, and provisions Vercel directly only for factory stations.
+credentials to the sandbox.
 
 ## Runtime and tests — the exception
 
@@ -23,11 +23,11 @@ src/
   _core/      kernel: env module, decorators, ports, types. Imports nothing from slices.
   _lib/       infra adapters (crypto). Framework-light.
   _module/    shared injectable modules (session guard + verifier port).
-  api/        the deployable app: app.module.ts + feature modules in three layers —
-              platform/ (auth, accounts, sessions, sandboxes, health), cloud/ (secrets,
-              mcp-servers, user-context, context-archive, github), factory/. One-way rule:
-              cloud and factory may import platform, platform imports neither, cloud and
-              factory never import each other; enforced by src/api/architecture.spec.ts.
+  api/        the deployable app: app.module.ts + feature modules in two layers —
+              platform/ (auth, accounts, sessions, sandboxes, health) and cloud/ (secrets,
+              mcp-servers, user-context, context-archive, github). One-way rule:
+              cloud may import platform, platform never imports cloud;
+              enforced by src/api/architecture.spec.ts.
   db/         the lazy `db` client proxy + generated-client type re-exports.
   main.ts     the entrypoint — boots the app, hydrating env from the tier file when a
               DOTENV_PRIVATE_KEY is present; also default-exports the handler (harmless).

@@ -21,8 +21,8 @@ describe('SandboxGitCredentials', () => {
 
   it('the registered source wins over the default', async () => {
     const { broker, github } = brokerWith(async () => 'gho_user')
-    broker.register({ findToken: async () => 'ghs_factory' })
-    await expect(broker.findToken(ARGS)).resolves.toBe('ghs_factory')
+    broker.register({ findToken: async () => 'ghs_session' })
+    await expect(broker.findToken(ARGS)).resolves.toBe('ghs_session')
     expect(github.findToken).not.toHaveBeenCalled()
   })
 
