@@ -19,6 +19,8 @@ export enum EServeEvent {
   ProfileStepFailed = 'serve.profile-step-failed',
   ContextReady = 'serve.context-ready',
   ContextFailed = 'serve.context-failed',
+  TranscriptRestored = 'serve.transcript-restored',
+  TranscriptFailed = 'serve.transcript-failed',
   ChildrenAdopted = 'serve.children-adopted',
   ChildAdoptionFailed = 'serve.child-adoption-failed',
   LostShellsSettled = 'serve.lost-shells-settled',

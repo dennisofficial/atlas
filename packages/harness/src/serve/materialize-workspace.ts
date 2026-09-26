@@ -138,6 +138,11 @@ export function createEnsureWorkspace(args: {
 
     const { remoteUrl, githubToken } = spec
     if (remoteUrl === null) {
+      try {
+        await files.ensureDirectory(cwd)
+      } catch (error) {
+        return failed(EWorkspaceStep.Clear, messageOf(error))
+      }
       return { state: EWorkspaceState.Skipped, profile: await applyProfile(spec) }
     }
 

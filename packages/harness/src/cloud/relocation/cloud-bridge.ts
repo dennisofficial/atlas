@@ -27,6 +27,8 @@ export type CloudSandbox = {
   token: string
   state: ECloudSandboxState
   created: boolean
+  /** The drive the sandbox mounted; the driver always sets it, fakes may omit it. */
+  driveName?: string | undefined
 }
 
 /**

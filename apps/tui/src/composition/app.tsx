@@ -27,7 +27,7 @@ import {
   type SettingsResolution,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { EChannelConnection, forkConversation, readGhAuthToken, relocateSession, requireVercelCredentials, sandboxImageOf, settingModelRef, suggestedModelRef, type DiscoveredSkill } from '@dltech/atlas-harness'
+import { EChannelConnection, forkConversation, readGhAuthToken, relocateSession, requireVercelCredentials, SandboxClient, sandboxImageOf, settingModelRef, suggestedModelRef, VercelDriver, type DiscoveredSkill } from '@dltech/atlas-harness'
 
 import { newestExpandableKey, type PendingSaid } from '../store'
 import { withCloud, withContainer, withSections } from '../store/sidebar-model'
@@ -191,6 +191,7 @@ import { useThreadRouter } from './use-thread-router'
 import type { CloudBridgeFactory, LiftPreflight, WorkspaceCapture } from './use-cloud-lift'
 import { useCloudLift } from './use-cloud-lift'
 import { captureWorkspace } from './cloud/workspace-snapshot'
+import { reapExpiredCloudSandboxes } from './cloud/reaper'
 import { noticePortBinding } from './notice-binding'
 import { useCloudSession } from './use-cloud-session'
 import type { LiftedAttachment, LiftedSession } from './lifted-session'
@@ -291,6 +292,44 @@ const liveBridgeFor = (app: AtlasApp): CloudBridgeFactory => {
 }
 
 /**
+ * The startup half of drive billing: a thread that simply went idle never produces a teardown
+ * event, so the operator's own machine retires its sandboxes on boot. Vercel credentials are
+ * resolved lazily inside the sweep — a boot without them still clears the stale API rows rather
+ * than skipping the whole pass.
+ */
+const reapExpiredSandboxesOnBoot = (app: AtlasApp): void => {
+  const session = app.cloud.session()
+  if (session === null) return
+
+  const sandboxes = new SandboxClient({
+    url: session.url,
+    token: session.token,
+    clientVersion: clientVersionHeader(),
+  })
+  const notice = noticePortBinding()
+  const driver = (): VercelDriver =>
+    new VercelDriver({
+      credentials: requireVercelCredentials({ settings: app.settings, secrets: app.secrets }),
+      cloudUrl: session.url,
+    })
+
+  void reapExpiredCloudSandboxes({
+    listSandboxes: () => sandboxes.listSandboxes(),
+    destroySandbox: ({ threadId }) => sandboxes.destroySandbox({ threadId }),
+    destroyDrive: ({ name, threadId }) => driver().destroy({ name, threadId }),
+    findThread: ({ threadId }) => app.threads.find({ threadId }),
+    flipToHost: ({ threadId }) =>
+      app.threads.chooseExecutionLocation({ threadId, location: EExecutionLocation.Host }),
+    notify: (text) => notice.notify({ text, tone: ENoticeTone.Warn }),
+  }).catch((failure: unknown) =>
+    notice.notify({
+      text: `the cloud sandbox reaper failed: ${messageOf(failure)}`,
+      tone: ENoticeTone.Warn,
+    }),
+  )
+}
+
+/**
  * The same checks the bridge's create would hit, run up front: a lift with no Vercel credentials
  * or no gh login refuses before anything stops or transfers, instead of failing at the sandbox
  * wait four steps in.
@@ -331,6 +370,13 @@ export function App(props: {
   const [reopened, setReopened] = useState<OpenedConversation | null>(null)
   const held = useRef<LiftedSession | null>(null)
   held.current = lifted
+
+  const reaped = useRef(false)
+  useEffect(() => {
+    if (reaped.current) return
+    reaped.current = true
+    reapExpiredSandboxesOnBoot(props.app)
+  }, [props.app])
 
   const reloading = useRef(false)
   const reloadPending = useRef(false)

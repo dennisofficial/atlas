@@ -50,6 +50,7 @@ export const harness = (args: {
       written.push({ path, text: bytes.toString('utf8') })
       present.add(path)
     },
+    ensureDirectory: async () => undefined,
     empty: async (path) => {
       emptied.push(path)
     },

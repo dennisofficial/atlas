@@ -334,6 +334,7 @@ const RUNNING: CloudSandbox = {
   token: 'sandbox-token',
   state: ECloudSandboxState.Running,
   created: true,
+  driveName: 'atlas-drive-x',
 }
 
 export function fakeBridge(

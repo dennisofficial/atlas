@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { CloudError } from '../cloud-transport'
-import { SandboxClient } from '../sandbox-client'
+import { ECloudSandboxState, SandboxClient } from '../sandbox-client'
 
 type Call = { url: string; method: string; headers: Record<string, string>; body?: unknown }
 
@@ -165,6 +165,87 @@ describe('claiming a sandbox', () => {
     expect(failure).toBeInstanceOf(CloudError)
     expect((failure as CloudError).status).toBe(402)
     expect((failure as CloudError).message).toContain('no sandbox entitlement')
+  })
+})
+
+describe('listing sandboxes', () => {
+  it('gets the sandboxes route and parses each entry', async () => {
+    const { client, calls } = harness([
+      {
+        body: [
+          {
+            threadId: 'brn_one',
+            name: 'fix the thing',
+            driveName: 'atlas',
+            state: 'running',
+            lastActivityAt: '2026-09-26T10:00:00.000Z',
+          },
+          {
+            threadId: 'brn_two',
+            name: 'parked work',
+            driveName: null,
+            state: 'parked',
+            lastActivityAt: '2026-09-25T08:30:00.000Z',
+          },
+        ],
+      },
+    ])
+
+    const sandboxes = await client.listSandboxes()
+
+    expect(calls[0]?.method).toBe('GET')
+    expect(calls[0]?.url).toBe('https://cloud.test/v1/sandboxes')
+    expect(calls[0]?.headers.authorization).toBe('Bearer sess_test')
+    expect(sandboxes).toEqual([
+      {
+        threadId: 'brn_one',
+        name: 'fix the thing',
+        driveName: 'atlas',
+        state: ECloudSandboxState.Running,
+        lastActivityAt: '2026-09-26T10:00:00.000Z',
+      },
+      {
+        threadId: 'brn_two',
+        name: 'parked work',
+        driveName: null,
+        state: ECloudSandboxState.Parked,
+        lastActivityAt: '2026-09-25T08:30:00.000Z',
+      },
+    ])
+  })
+
+  it('answers an empty list when the operator has no sandboxes', async () => {
+    const { client } = harness([{ body: [] }])
+
+    expect(await client.listSandboxes()).toEqual([])
+  })
+
+  it('refuses an entry whose state is not a known sandbox state', async () => {
+    const { client } = harness([
+      {
+        body: [
+          {
+            threadId: 'brn_one',
+            name: 'fix the thing',
+            driveName: null,
+            state: 'exploded',
+            lastActivityAt: '2026-09-26T10:00:00.000Z',
+          },
+        ],
+      },
+    ])
+
+    await expect(client.listSandboxes()).rejects.toThrow()
+  })
+
+  it('surfaces a transport failure as a CloudError carrying the status', async () => {
+    const { client } = harness([{ status: 401, body: { message: 'session expired' } }])
+
+    const failure = await client.listSandboxes().catch((error) => error)
+
+    expect(failure).toBeInstanceOf(CloudError)
+    expect((failure as CloudError).status).toBe(401)
+    expect((failure as CloudError).message).toContain('session expired')
   })
 })
 

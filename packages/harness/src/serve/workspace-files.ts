@@ -6,6 +6,7 @@ export type WorkspaceFiles = {
   read: (path: string) => Promise<string>
   write: (args: { path: string; text: string }) => Promise<void>
   writeBytes: (args: { path: string; bytes: Buffer }) => Promise<void>
+  ensureDirectory: (path: string) => Promise<void>
   empty: (path: string) => Promise<void>
 }
 
@@ -29,6 +30,10 @@ export const nodeWorkspaceFiles: WorkspaceFiles = {
   writeBytes: async ({ path, bytes }) => {
     await mkdir(dirname(path), { recursive: true })
     await writeFile(path, bytes)
+  },
+
+  ensureDirectory: async (path) => {
+    await mkdir(path, { recursive: true })
   },
 
   /** Only ever reached before the sentinel exists, where whatever is there is a half-materialization. */

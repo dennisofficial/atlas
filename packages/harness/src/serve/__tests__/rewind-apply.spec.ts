@@ -42,6 +42,7 @@ const inMemoryContextFiles = (): WorkspaceFiles => {
     writeBytes: async ({ path, bytes }) => {
       stored.set(path, bytes.toString('utf8'))
     },
+    ensureDirectory: async () => undefined,
     empty: async () => undefined,
   }
 }

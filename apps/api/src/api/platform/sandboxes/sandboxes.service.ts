@@ -19,18 +19,19 @@ import type { ContextArchiveStore } from '../../cloud/context-archive/context-ar
 import { SandboxGitCredentials } from './git-credentials'
 import { ownedThread } from '../sessions/ownership'
 import { ownedSandbox } from './ownership'
-import { toSandboxDto, type SandboxPrincipal, type SandboxStatusColumns } from './rows'
+import { sandboxStateOf, toSandboxDto, type SandboxPrincipal, type SandboxStatusColumns } from './rows'
 import { claimSandboxRow, type ClaimedSandbox } from './sandbox-claim'
 import { sandboxNameFor } from './sandbox-names'
 import { sessionCredentialOf } from './sandbox-session-credential'
 import { hashSessionToken, mintSessionToken, tokenMatches } from './sandbox-tokens'
 import type {
   SandboxAttachmentDto,
+  SandboxListEntryDto,
   SandboxStatusDto,
   SandboxWorkspaceDto,
   SandboxWorkspaceSpec,
 } from './sandboxes.types'
-import { ESandboxDriveMode, ESandboxState } from './sandboxes.types'
+import { ESandboxState } from './sandboxes.types'
 import {
   SANDBOX_REGION,
   SandboxMissingError,
@@ -58,19 +59,6 @@ const isSerializationFailure = (failure: unknown): boolean => {
     | { driverAdapterError?: { cause?: { code?: unknown } } }
     | undefined
   return meta?.driverAdapterError?.cause?.code === '40001'
-}
-
-const driveOf = (
-  row: Pick<CloudSandboxModel, 'driveName' | 'driveMode'>,
-): { name: string; mode: ESandboxDriveMode } | undefined => {
-  if (row.driveName === null) return undefined
-  return {
-    name: row.driveName,
-    mode:
-      row.driveMode === ESandboxDriveMode.Snapshot
-        ? ESandboxDriveMode.Snapshot
-        : ESandboxDriveMode.ReadWrite,
-  }
 }
 
 @Injectable()
@@ -104,7 +92,7 @@ export class SandboxesService {
     workspace?: SandboxWorkspaceSpec | undefined
     contextBundle?: string | undefined
     name?: string | undefined
-    drive?: { name: string; mode: ESandboxDriveMode } | undefined
+    drive?: { name: string } | undefined
     pinnedModel?: string | undefined
   }): Promise<SandboxAttachmentDto> {
     const thread = await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
@@ -176,6 +164,7 @@ export class SandboxesService {
     contextBundle?: string | undefined
     gitToken?: string | undefined
     gpgKey?: string | undefined
+    driveName?: string | null | undefined
     contextPending?: boolean | undefined
   }): Promise<SandboxAttachmentDto> {
     const thread = await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
@@ -193,6 +182,7 @@ export class SandboxesService {
       contextBundle: args.contextBundle,
       ...(args.gitToken === undefined ? {} : { sealedGitToken: this.cipher.encrypt(args.gitToken) }),
       ...(args.gpgKey === undefined ? {} : { sealedGpgKey: this.cipher.encrypt(args.gpgKey) }),
+      ...(args.driveName === undefined ? {} : { driveName: args.driveName }),
       ...(args.contextPending === undefined ? {} : { contextPending: args.contextPending }),
     })
     return {
@@ -239,6 +229,20 @@ export class SandboxesService {
     return { token, url: observed.url }
   }
 
+  async list(args: { userId: string }): Promise<SandboxListEntryDto[]> {
+    const rows = await db.cloudSandbox.findMany({
+      where: { userId: args.userId },
+      orderBy: { lastActivityAt: 'desc' },
+    })
+    return rows.map((row) => ({
+      threadId: row.threadId,
+      name: row.name,
+      driveName: row.driveName ?? null,
+      state: sandboxStateOf(row.state),
+      lastActivityAt: row.lastActivityAt,
+    }))
+  }
+
   whenSettled(args: { threadId: string }): Promise<void> {
     const chain = this.attachLocks.get(args.threadId) ?? Promise.resolve()
     return chain.then(() => undefined)
@@ -259,7 +263,7 @@ export class SandboxesService {
     sealedToken: string
     rotated: boolean
     name: string | undefined
-    drive: { name: string; mode: ESandboxDriveMode } | undefined
+    drive: { name: string } | undefined
     pinnedModel: string | undefined
   }): Promise<ClaimedSandbox> {
     let attempt = 0
@@ -532,12 +536,11 @@ export class SandboxesService {
     token: string
   }): Promise<void> {
     try {
-      const drive = driveOf(args.row)
       const placement = await this.vercel.getOrCreate({
         name: args.row.name,
         threadId: args.row.threadId,
         token: args.token,
-        ...(drive === undefined ? {} : { drive }),
+        ...(args.row.driveName === null ? {} : { drive: { name: args.row.driveName } }),
         ...(args.row.pinnedModel === null ? {} : { pinnedModel: args.row.pinnedModel }),
       })
       await this.stamp({ row: args.row, placement })

@@ -32,6 +32,17 @@ export const wireSandboxClaimSchema = z.object({
 
 export type WireSandboxClaim = z.infer<typeof wireSandboxClaimSchema>
 
+/** One row of the operator's sandbox listing: every sandbox the signed-in user has ever claimed. */
+export const wireSandboxListEntrySchema = z.object({
+  threadId: z.string(),
+  name: z.string(),
+  driveName: z.string().nullable(),
+  state: sandboxStateSchema,
+  lastActivityAt: z.string(),
+})
+
+export type WireSandboxListEntry = z.infer<typeof wireSandboxListEntrySchema>
+
 export const workspaceSpecSchema = z.object({
   remoteUrl: z.string().nullable(),
   branch: z.string().nullable(),
@@ -72,6 +83,7 @@ export class SandboxClient {
     contextPending: boolean
     workspace?: WorkspaceSpec | undefined
     gpgKey?: string | undefined
+    driveName?: string | undefined
   }): Promise<WireSandboxClaim> {
     const body = await this.request({
       method: 'POST',
@@ -82,9 +94,16 @@ export class SandboxClient {
         contextPending: args.contextPending,
         ...(args.workspace === undefined ? {} : { workspace: args.workspace }),
         ...(args.gpgKey === undefined ? {} : { gpgKey: args.gpgKey }),
+        ...(args.driveName === undefined ? {} : { driveName: args.driveName }),
       },
     })
     return wireSandboxClaimSchema.parse(body)
+  }
+
+  /** Operator-session auth: the signed-in user's own sandbox rows, newest activity first. */
+  async listSandboxes(): Promise<WireSandboxListEntry[]> {
+    const body = await this.request({ method: 'GET', path: '/v1/sandboxes', retry: true })
+    return z.array(wireSandboxListEntrySchema).parse(body)
   }
 
   /**

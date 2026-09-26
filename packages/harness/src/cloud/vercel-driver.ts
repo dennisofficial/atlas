@@ -1,5 +1,7 @@
 import { Sandbox } from '@vercel/sandbox'
 
+import { deleteDrive, ensureDrive, liveDriveSdk, type DriveSdk } from './drive-lifecycle'
+import { driveNameFor, DRIVE_HOME_PATH, DRIVE_MOUNT_PATH, DRIVE_WORKSPACE_PATH } from './drive-names'
 import { ECloudSandboxState } from './sandbox-client'
 import {
   createServeLauncher,
@@ -20,13 +22,12 @@ export const SANDBOX_SERVE_PORT = 3000
 /** The SDK's per-sandbox ceiling; the serve port occupies one slot. */
 export const SANDBOX_MAX_PORTS = 15
 /**
- * The workspace lives on the sandbox's own filesystem, which `persistent: true` snapshots on stop
- * and restores on resume. It sits at the root rather than under the SDK's session cwd
- * (/vercel/sandbox): that directory's snapshot semantics are undocumented and have flipped on us
- * once, so Atlas state keeps off it. The path is told to serve rather than inferred, so both
- * halves agree.
+ * The workspace lives on the thread's drive, mounted at the sandbox root — the sandbox's own
+ * filesystem holds only the image and whatever the session installs, and `persistent: true`
+ * snapshots cover that OS layer between stops. The path is told to serve rather than inferred, so
+ * both halves agree.
  */
-export const WORKSPACE_PATH = '/workspace'
+export const WORKSPACE_PATH = DRIVE_WORKSPACE_PATH
 
 /** Set once at creation and never extended: an idle sandbox parks itself. */
 export const SANDBOX_TIMEOUT_MS = 4 * 60 * 60 * 1000
@@ -51,6 +52,8 @@ export type SandboxPlacement = {
   state: ECloudSandboxState
   /** True only when the SDK's `onCreate` hook fired: a genuinely new sandbox, not a resumed one. */
   created: boolean
+  /** The drive the sandbox mounted, so the claim row can record it. */
+  driveName: string
 }
 
 export type SandboxObservation = {
@@ -127,6 +130,8 @@ export class VercelDriver {
   private readonly sdk: VercelSdk
   private readonly inflightLaunches = new WeakMap<object, Promise<void>>()
 
+  private readonly drives: DriveSdk
+
   constructor(
     private readonly args: {
       credentials: VercelCredentials
@@ -144,9 +149,11 @@ export class VercelDriver {
       timeoutMs?: number | undefined
       log?: ((line: string) => void) | undefined
       sdk?: VercelSdk | undefined
+      driveSdk?: DriveSdk | undefined
     },
   ) {
     this.sdk = args.sdk ?? liveSdk
+    this.drives = args.driveSdk ?? liveDriveSdk
   }
 
   async createOrResume(args: {
@@ -186,6 +193,8 @@ export class VercelDriver {
     let created = false
     try {
       const { credentials } = this.args
+      const driveName = driveNameFor({ threadId: args.threadId })
+      const drive = await ensureDrive({ sdk: this.drives, credentials, name: driveName })
       const probe = await this.probeSandboxForResume({ name: args.name })
       const freshBoot = probe === ESandboxProbe.Missing || probe === ESandboxProbe.Replaced
       if (freshBoot && args.putContextOnFreshBoot !== undefined) {
@@ -205,6 +214,7 @@ export class VercelDriver {
         persistent: true,
         resume: true,
         image,
+        mounts: { [DRIVE_MOUNT_PATH]: drive },
         onCreate: () => {
           created = true
           return Promise.resolve()
@@ -216,6 +226,7 @@ export class VercelDriver {
           ATLAS_THREAD_ID: args.threadId,
           ATLAS_CLOUD_URL: this.args.cloudUrl,
           ATLAS_WORKSPACE_DIR: WORKSPACE_PATH,
+          ATLAS_HOME: DRIVE_HOME_PATH,
           VERCEL_TOKEN: credentials.token,
           VERCEL_TEAM_ID: credentials.teamId,
           VERCEL_PROJECT_ID: credentials.projectId,
@@ -235,6 +246,7 @@ export class VercelDriver {
         url: await routedUrlWithRetries(sandbox),
         state: stateOf(sandbox.status),
         created,
+        driveName,
       }
     } catch (failure) {
       if (failure instanceof SandboxMissingError) throw failure
@@ -309,7 +321,7 @@ export class VercelDriver {
     }
   }
 
-  async destroy(args: { name: string }): Promise<void> {
+  async destroy(args: { name: string; threadId?: string | undefined }): Promise<void> {
     try {
       const sandbox = await this.sdk.get({
         ...this.args.credentials,
@@ -318,21 +330,26 @@ export class VercelDriver {
       })
       await sandbox.delete({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
     } catch (failure) {
-      if (isSandboxMissing(failure)) return
-      throw asVercelFailure(failure)
+      if (!isSandboxMissing(failure)) throw asVercelFailure(failure)
+    }
+    if (args.threadId !== undefined) {
+      await deleteDrive({
+        sdk: this.drives,
+        credentials: this.args.credentials,
+        name: driveNameFor({ threadId: args.threadId }),
+      })
     }
   }
 
   /**
    * The drift fix. `Sandbox.getOrCreate` resumes a live sandbox by name and never compares the
-   * image, so a 4-hour sandbox keeps whatever serve was baked when it first booted — a stale
-   * snapshot relative to a release that moved on. When this build pins its serve identity
-   * (`serveSources` non-empty), read the running sandbox's installed stamp before resuming; a
-   * stamp outside the trusted set means the sandbox carries the wrong serve, so it is destroyed
-   * and recreated from the pinned image — which bakes the matching serve, making the 91MB
-   * re-download unnecessary and the version match exact. A sandbox whose stamp cannot be read is
-   * left alone: an unreadable stamp is not evidence of drift, and tearing down on a guess would
-   * destroy live work.
+   * image, so a long-lived sandbox keeps whatever image it first booted from — stale against a
+   * release that moved on. When this build pins its serve identity (`serveSources` non-empty),
+   * read the sandbox's installed stamp before resuming; a stamp outside the trusted set means the
+   * sandbox boots the wrong serve, so it is destroyed and recreated from the pinned image. The
+   * recreation is lossless where it matters: the workspace and transcript live on the thread's
+   * drive, and the launcher re-downloads the matching serve onto the fresh boot. A sandbox whose
+   * stamp cannot be read is left alone: an unreadable stamp is not evidence of drift.
    *
    * Returns the probe outcome so the caller knows whether the upcoming boot is fresh: `missing`
    * when Vercel has never seen the name, `replaced` when drift forced a recreate, `kept` when a

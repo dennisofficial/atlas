@@ -55,6 +55,7 @@ export const harness = (args: {
     },
     write: async ({ path, text }) => void contents.set(path, text),
     writeBytes: async ({ path, bytes }) => void contents.set(path, bytes.toString('utf8')),
+    ensureDirectory: async () => undefined,
     empty: async () => undefined,
   }
 

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Headers,
   HttpCode,
   Param,
@@ -17,13 +18,18 @@ import { assertGzipContentType, bufferBodyOf } from '../../cloud/context-archive
 import { userIdOf } from '../sessions/session-user'
 import { ClaimSandboxDto } from './sandboxes.dto'
 import { SandboxesService } from './sandboxes.service'
-import type { SandboxAttachmentDto } from './sandboxes.types'
+import type { SandboxAttachmentDto, SandboxListEntryDto } from './sandboxes.types'
 
 @Controller({ path: 'sandboxes', version: '1' })
 @UseGuards(SessionAuthGuard)
 @Throttle({ default: { limit: CLIENT_READ_LIMIT_PER_MINUTE, ttl: 60_000 } })
 export class SandboxesController {
   constructor(private readonly sandboxes: SandboxesService) {}
+
+  @Get()
+  handleList(@Req() request: AuthenticatedRequest): Promise<SandboxListEntryDto[]> {
+    return this.sandboxes.list({ userId: userIdOf(request) })
+  }
 
   @Post()
   handleClaim(
@@ -37,6 +43,7 @@ export class SandboxesController {
       contextBundle: body.contextBundle,
       gitToken: body.gitToken,
       gpgKey: body.gpgKey,
+      driveName: body.driveName,
       contextPending: body.contextPending,
     })
   }
