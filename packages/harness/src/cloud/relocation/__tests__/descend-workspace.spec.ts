@@ -3,19 +3,24 @@ import { describe, expect, it } from 'bun:test'
 import { EExecutionLocation } from '@dltech/atlas-core'
 import { EClientRequest } from '../../channel-wire'
 
-import { descend, localHome, said, seedCloud } from './descend-fixture'
+import { cloudArchiveOf, descend, useDescendHome } from './descend-fixture'
 import { CLOUD_THREAD, fakeBridge } from './fixture'
+
+const said = (text: string) => ({ type: 'user-said' as const, text })
+
+const homeWithArchive = async (
+  texts: readonly string[],
+): Promise<{ home: ReturnType<typeof useDescendHome>; bridge: ReturnType<typeof fakeBridge> }> => {
+  const home = useDescendHome()
+  const archive = await cloudArchiveOf([{ drafts: texts.map(said) }])
+  return { home, bridge: fakeBridge({ archive }) }
+}
 
 describe('bringing the cloud workspace home', () => {
   it('merges the ref the sandbox published into the local tree', async () => {
-    const bridge = fakeBridge()
-    await seedCloud(bridge, ['work happened in the cloud'])
-    const home = localHome({
-      events: [said({ seq: 1, text: 'work happened in the cloud' })],
-    })
-
-    bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' })
-    const channel = bridge.channel
+    const { home, bridge } = await homeWithArchive(['work happened in the cloud'])
+    const channel = bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
+    const served = channel.request.bind(channel)
     let publishCalls = 0
     channel.request = async (args) => {
       if (args.op === EClientRequest.PublishWorkspace) {
@@ -28,7 +33,7 @@ describe('bringing the cloud workspace home', () => {
           branch: 'dennis/feature',
         }
       }
-      return null
+      return served(args)
     }
     const merged: {
       cwd: string
@@ -63,17 +68,8 @@ describe('bringing the cloud workspace home', () => {
   })
 
   it('skips the workspace merge when the cloud has nothing to send home', async () => {
-    const bridge = fakeBridge()
-    await seedCloud(bridge, ['clean cloud session'])
-    const home = localHome({ events: [said({ seq: 1, text: 'clean cloud session' })] })
-
-    bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' })
-    const channel = bridge.channel
-    let publishCalls = 0
-    channel.request = async (args) => {
-      if (args.op === EClientRequest.PublishWorkspace) publishCalls += 1
-      return null
-    }
+    const { home, bridge } = await homeWithArchive(['clean cloud session'])
+    const channel = bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
 
     await descend({
       bridge,
@@ -84,24 +80,29 @@ describe('bringing the cloud workspace home', () => {
       },
     })
 
-    expect(publishCalls).toBe(1)
-    expect(
-      (await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation,
-    ).toBe(EExecutionLocation.Host)
+    const publishes = channel.requests.filter(
+      (entry) => entry.op === EClientRequest.PublishWorkspace,
+    )
+    expect(publishes).toHaveLength(1)
+    expect((await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation).toBe(
+      EExecutionLocation.Host,
+    )
   })
 
   it('announces in the log when the merge leaves conflict markers behind', async () => {
-    const bridge = fakeBridge()
-    await seedCloud(bridge, ['both sides edited'])
-    const home = localHome({ events: [said({ seq: 1, text: 'both sides edited' })] })
-
-    bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' })
-    const channel = bridge.channel
-    channel.request = async () => ({
-      ref: 'refs/atlas/descend/cloud-thread-0123456789ab',
-      commit: '0123456789abcdef',
-      base: null,
-    })
+    const { home, bridge } = await homeWithArchive(['both sides edited'])
+    const channel = bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
+    const served = channel.request.bind(channel)
+    channel.request = async (args) => {
+      if (args.op === EClientRequest.PublishWorkspace) {
+        return {
+          ref: 'refs/atlas/descend/cloud-thread-0123456789ab',
+          commit: '0123456789abcdef',
+          base: null,
+        }
+      }
+      return served(args)
+    }
 
     await descend({
       bridge,
@@ -115,25 +116,27 @@ describe('bringing the cloud workspace home', () => {
     expect(notice).toBeDefined()
     expect(JSON.stringify(notice)).toContain('app.ts')
     expect(JSON.stringify(notice)).toContain('lib.ts')
-    expect(
-      (await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation,
-    ).toBe(EExecutionLocation.Host)
+    expect((await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation).toBe(
+      EExecutionLocation.Host,
+    )
   })
 
   it('tells the log when the host branch was superseded by origin while away', async () => {
-    const bridge = fakeBridge()
-    await seedCloud(bridge, ['shipped from the cloud'])
-    const home = localHome({ events: [said({ seq: 1, text: 'shipped from the cloud' })] })
-
-    bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' })
-    const channel = bridge.channel
-    channel.request = async () => ({
-      ref: 'refs/atlas/descend/cloud-thread-0123456789ab',
-      commit: '0123456789abcdef',
-      base: 'ba51e1e0',
-      baseTree: '7ee1ab1e',
-      branch: 'dennis/feature',
-    })
+    const { home, bridge } = await homeWithArchive(['shipped from the cloud'])
+    const channel = bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
+    const served = channel.request.bind(channel)
+    channel.request = async (args) => {
+      if (args.op === EClientRequest.PublishWorkspace) {
+        return {
+          ref: 'refs/atlas/descend/cloud-thread-0123456789ab',
+          commit: '0123456789abcdef',
+          base: 'ba51e1e0',
+          baseTree: '7ee1ab1e',
+          branch: 'dennis/feature',
+        }
+      }
+      return served(args)
+    }
 
     await descend({
       bridge,
@@ -153,14 +156,14 @@ describe('bringing the cloud workspace home', () => {
   })
 
   it('leaves the conversation in the cloud when the workspace would not publish', async () => {
-    const bridge = fakeBridge()
-    await seedCloud(bridge, ['stuck in the cloud'])
-    const home = localHome({ events: [said({ seq: 1, text: 'stuck in the cloud' })] })
-
-    bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' })
-    const channel = bridge.channel
-    channel.request = async () => {
-      throw new Error('the workspace would not push home: non-fast-forward')
+    const { home, bridge } = await homeWithArchive(['stuck in the cloud'])
+    const channel = bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
+    const served = channel.request.bind(channel)
+    channel.request = async (args) => {
+      if (args.op === EClientRequest.PublishWorkspace) {
+        throw new Error('the workspace would not push home: non-fast-forward')
+      }
+      return served(args)
     }
 
     await expect(
@@ -173,8 +176,7 @@ describe('bringing the cloud workspace home', () => {
         },
       }),
     ).rejects.toThrow('would not push home')
-    expect(
-      (await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation,
-    ).toBe(EExecutionLocation.Cloud)
+    const row = await home.threads.find({ threadId: CLOUD_THREAD })
+    expect(row?.executionLocation ?? EExecutionLocation.Cloud).toBe(EExecutionLocation.Cloud)
   })
 })

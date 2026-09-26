@@ -1,52 +1,35 @@
 import { describe, expect, it } from 'bun:test'
 
-import { toRunId } from '@dltech/atlas-core'
-
-import { fakeEventLog } from './fake-backend'
+import { useAtlasHome } from './descend-fixture'
 import { liftToCloud } from '../lift'
 import { CLOUD_THREAD, fakeBridge } from './fixture'
 import { harness } from './lift-fixture'
 
-describe('lifting a thread the cloud already knows', () => {
-  it('replaces the cloud log with the local one, then flips', async () => {
+describe('lifting a thread that was lifted before', () => {
+  it('persists the title the thread earned at home onto the local row on flip', async () => {
+    useAtlasHome()
     const bridge = fakeBridge()
-    await bridge.threads.createWithFirstEvents({
-      threadId: CLOUD_THREAD,
-      runId: toRunId('run_seed'),
-      drafts: [{ type: 'user-said', text: 'stale cloud copy' }],
-    })
-    const test = harness({ bridge })
+    const test = harness({ bridge, title: 'the title it earned at home' })
 
     const lifted = await liftToCloud(test.args)
 
     expect(lifted.ok).toBe(true)
-    expect(test.bridge.trail).toEqual(['flip', 'sandbox', 'attach'])
-    expect(
-      bridge.log
-        .peek({ threadId: CLOUD_THREAD })
-        .filter((event) => event.type === 'user-said')
-        .map((event) => event.text),
-    ).toEqual(['take the linter to zero', 'and then ship it'])
+    expect(test.localThreads.renames).toEqual([
+      { threadId: CLOUD_THREAD, title: 'the title it earned at home' },
+    ])
+    expect((await test.localThreads.find({ threadId: CLOUD_THREAD }))?.title).toBe(
+      'the title it earned at home',
+    )
   })
 
-  it('refuses to wipe a cloud log when the local log is empty', async () => {
+  it('leaves the local title alone when lifting without one', async () => {
+    useAtlasHome()
     const bridge = fakeBridge()
-    await bridge.threads.createWithFirstEvents({
-      threadId: CLOUD_THREAD,
-      runId: toRunId('run_seed'),
-      drafts: [{ type: 'user-said', text: 'only ever in the cloud' }],
-    })
-    const test = harness({ bridge, localLog: fakeEventLog([]) })
+    const test = harness({ bridge, title: null })
 
     const lifted = await liftToCloud(test.args)
 
-    if (lifted.ok) throw new Error('expected the lift to fail')
-    expect(lifted.detail).toContain('refusing to wipe')
-    expect(
-      bridge.log
-        .peek({ threadId: CLOUD_THREAD })
-        .filter((event) => event.type === 'user-said')
-        .map((event) => event.text),
-    ).toEqual(['only ever in the cloud'])
+    expect(lifted.ok).toBe(true)
+    expect(test.localThreads.renames).toEqual([])
   })
 })

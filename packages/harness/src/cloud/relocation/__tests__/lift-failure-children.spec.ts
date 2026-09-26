@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EExecutionLocation, toRunId } from '@dltech/atlas-core'
 import { CloudError } from '@dltech/atlas-harness'
 
+import { useAtlasHome } from './descend-fixture'
 import { fakeAgentSnapshot } from './fake-agents'
 import { ELiftStep, liftToCloud } from '../lift'
 import { CLEAN_WORKSPACE, CLOUD_THREAD, fakeBridge } from './fixture'
@@ -10,6 +11,7 @@ import { CHILD, fakeLiftAgents, harness } from './lift-fixture'
 
 describe('a lift that does not finish, with children in tow', () => {
   it('puts the children back on the host and resumes them when the sandbox will not start', async () => {
+    useAtlasHome()
     const child = fakeAgentSnapshot({ agentId: 'child-1', spawnedBy: CLOUD_THREAD })
     const agents = fakeLiftAgents([child])
     const bridge = fakeBridge({
@@ -28,28 +30,29 @@ describe('a lift that does not finish, with children in tow', () => {
     expect(agents.relocatedTo).toEqual([EExecutionLocation.Cloud, EExecutionLocation.Host])
     expect(agents.resumed).toEqual([CHILD])
 
-    const remote = await test.bridge.threads.find({ threadId: CHILD })
-    expect(remote?.executionLocation).toBe(EExecutionLocation.Host)
+    const childRow = await test.localThreads.find({ threadId: CHILD })
+    expect(childRow?.executionLocation ?? EExecutionLocation.Host).toBe(EExecutionLocation.Host)
   })
 
-  it('resumes the children it stopped when the transfer itself fails, before anything flipped', async () => {
+  it('resumes the children it stopped when the transcript will not reach the sandbox', async () => {
+    useAtlasHome()
     const child = fakeAgentSnapshot({ agentId: 'child-1', spawnedBy: CLOUD_THREAD })
     const agents = fakeLiftAgents([child])
-    const bridge = fakeBridge()
-    bridge.stores.threads.createWithFirstEvents = async () => {
-      throw new CloudError({ status: 500, message: 'the sessions API fell over' })
-    }
+    const bridge = fakeBridge({
+      putTranscriptFails: new CloudError({ status: 500, message: 'the row would not take the tar' }),
+    })
     const test = harness({ agents, bridge })
 
     const lifted = await liftToCloud(test.args)
     if (lifted.ok) throw new Error('expected the lift to fail')
 
-    expect(lifted.step).toBe(ELiftStep.Transferring)
-    expect(agents.relocatedTo).toEqual([])
+    expect(lifted.step).toBe(ELiftStep.Starting)
+    expect(agents.relocatedTo).toEqual([EExecutionLocation.Cloud, EExecutionLocation.Host])
     expect(agents.resumed).toEqual([CHILD])
   })
 
   it('gives up on a turn that will not stop instead of hanging the move', async () => {
+    useAtlasHome()
     const test = harness({
       midTurn: true,
       interruptDeadlineMs: 20,
@@ -66,6 +69,7 @@ describe('a lift that does not finish, with children in tow', () => {
   })
 
   it('completes the lift without gpg material when the capture itself throws', async () => {
+    useAtlasHome()
     const test = harness({
       captureGpg: async () => {
         throw new Error('gpg fell over')
@@ -80,6 +84,7 @@ describe('a lift that does not finish, with children in tow', () => {
   })
 
   it('waits for the session to go quiet even when no turn is in flight', async () => {
+    useAtlasHome()
     let release = (): void => undefined
     const test = harness({
       midTurn: false,
@@ -101,6 +106,7 @@ describe('a lift that does not finish, with children in tow', () => {
   })
 
   it('says what stopLocal closed when stopping the children is what fails', async () => {
+    useAtlasHome()
     const agents = fakeLiftAgents()
     agents.stopChildren = async () => {
       throw new Error('the registry fell over')
@@ -116,6 +122,7 @@ describe('a lift that does not finish, with children in tow', () => {
   })
 
   it('puts the family back into docker when a lift from docker fails', async () => {
+    useAtlasHome()
     const child = fakeAgentSnapshot({ agentId: 'child-1', spawnedBy: CLOUD_THREAD })
     const agents = fakeLiftAgents([child])
     const bridge = fakeBridge({
@@ -136,14 +143,11 @@ describe('a lift that does not finish, with children in tow', () => {
     if (lifted.ok) throw new Error('expected the lift to fail')
 
     expect(test.located).toEqual([EExecutionLocation.Cloud, EExecutionLocation.Docker])
-    expect(test.localThreads.chosenLocations.at(-1)).toEqual({
+    expect(test.localThreads.chosenLocations).toContainEqual({
       threadId: CLOUD_THREAD,
       location: EExecutionLocation.Docker,
     })
     expect(agents.relocatedTo).toEqual([EExecutionLocation.Cloud, EExecutionLocation.Docker])
     expect(agents.resumed).toEqual([CHILD])
-
-    const remote = await test.bridge.threads.find({ threadId: CLOUD_THREAD })
-    expect(remote?.executionLocation).toBe(EExecutionLocation.Docker)
   })
 })

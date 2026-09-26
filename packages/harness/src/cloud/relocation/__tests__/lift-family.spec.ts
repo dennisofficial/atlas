@@ -1,34 +1,16 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EAgentStatus, EExecutionLocation, toRunId, type ThreadId } from '@dltech/atlas-core'
-import type { ThreadStorePort } from '@dltech/atlas-harness'
+import { EAgentStatus, EExecutionLocation, toRunId } from '@dltech/atlas-core'
 
+import { useAtlasHome } from './descend-fixture'
 import { fakeAgentSnapshot } from './fake-agents'
 import { ELiftStep, liftToCloud } from '../lift'
 import { CLOUD_THREAD } from './fixture'
 import { CHILD, SETTLED_CHILD, fakeLiftAgents, harness } from './lift-fixture'
 
 describe('lifting the family along with the conversation', () => {
-  it('opens the parent in the cloud before any child, whose row references it', async () => {
-    const child = fakeAgentSnapshot({ agentId: 'child-1', spawnedBy: CLOUD_THREAD })
-    const test = harness({ agents: fakeLiftAgents([child]) })
-    const opened: ThreadId[] = []
-    const store = test.bridge.stores.threads
-    const create = store.createWithFirstEvents.bind(store)
-    store.createWithFirstEvents = async (
-      createArgs: Parameters<ThreadStorePort['createWithFirstEvents']>[0],
-    ) => {
-      if (createArgs.threadId !== undefined) opened.push(createArgs.threadId)
-      return create(createArgs)
-    }
-
-    const lifted = await liftToCloud(test.args)
-
-    expect(lifted.ok).toBe(true)
-    expect(opened).toEqual([CLOUD_THREAD, CHILD])
-  })
-
-  it('stops stepping children before transferring anything', async () => {
+  it('stops stepping children before tarring anything', async () => {
+    useAtlasHome()
     const child = fakeAgentSnapshot({ agentId: 'child-1', spawnedBy: CLOUD_THREAD })
     const agents = fakeLiftAgents([child])
     const test = harness({ agents })
@@ -42,9 +24,13 @@ describe('lifting the family along with the conversation', () => {
 
     expect(lifted.ok).toBe(true)
     expect(agents.stopCalls).toBe(1)
+    expect(test.steps.indexOf(ELiftStep.Stopping)).toBeLessThan(
+      test.steps.indexOf(ELiftStep.Transferring),
+    )
   })
 
-  it('transfers every child log, settled and stepping alike, flips them and notes the move on each', async () => {
+  it('flips every child, settled and stepping alike, and notes the move on each local log', async () => {
+    useAtlasHome()
     const stepping = fakeAgentSnapshot({ agentId: 'child-1', spawnedBy: CLOUD_THREAD })
     const settled = fakeAgentSnapshot({
       agentId: 'child-done',
@@ -53,15 +39,17 @@ describe('lifting the family along with the conversation', () => {
     })
     const agents = fakeLiftAgents([stepping, settled])
     const test = harness({ agents })
-    await test.localLog.append({
+    await test.localThreads.createWithFirstEvents({
       threadId: CHILD,
       runId: toRunId('run_child'),
       drafts: [{ type: 'user-said', text: 'go explore the repo' }],
+      agent: { spawnedBy: CLOUD_THREAD, type: 'explore' },
     })
-    await test.localLog.append({
+    await test.localThreads.createWithFirstEvents({
       threadId: SETTLED_CHILD,
       runId: toRunId('run_settled'),
       drafts: [{ type: 'user-said', text: 'already finished' }],
+      agent: { spawnedBy: CLOUD_THREAD, type: 'explore' },
     })
 
     const lifted = await liftToCloud(test.args)
@@ -70,8 +58,10 @@ describe('lifting the family along with the conversation', () => {
     expect(agents.relocatedTo).toEqual([EExecutionLocation.Cloud])
 
     for (const agentId of [CHILD, SETTLED_CHILD]) {
-      expect(await test.bridge.threads.find({ threadId: agentId })).toBeDefined()
-      const events = test.bridge.log.peek({ threadId: agentId })
+      const row = await test.localThreads.find({ threadId: agentId })
+      expect(row?.executionLocation).toBe(EExecutionLocation.Cloud)
+
+      const events = test.localLog.peek({ threadId: agentId })
       expect(events.some((event) => event.type === 'user-said')).toBe(true)
 
       const locationChanged = events.find((event) => event.type === 'location-changed')
@@ -80,20 +70,26 @@ describe('lifting the family along with the conversation', () => {
       }
       expect(locationChanged.from).toBe(EExecutionLocation.Host)
       expect(locationChanged.to).toBe(EExecutionLocation.Cloud)
+      expect(
+        test.bridge.log.peek({ threadId: agentId }).some((event) => event.type === 'location-changed'),
+      ).toBe(false)
     }
   })
 
   it('carries nothing extra when the conversation has no children', async () => {
+    useAtlasHome()
     const test = harness()
 
     await liftToCloud(test.args)
 
-    expect(test.bridge.trail).toEqual(['transfer', 'sandbox', 'attach'])
+    expect(test.bridge.trail).toEqual(['sandbox', 'put-transcript', 'attach'])
+    expect(test.bridge.transcriptPuts).toHaveLength(1)
   })
 })
 
 describe('a mid-turn lift', () => {
   it('interrupts the turn and waits for it to settle before stopping anything else', async () => {
+    useAtlasHome()
     const test = harness({ midTurn: true })
 
     const lifted = await liftToCloud(test.args)
@@ -105,6 +101,7 @@ describe('a mid-turn lift', () => {
   })
 
   it('narrates resuming once attached and says the arrival should resume it', async () => {
+    useAtlasHome()
     const test = harness({ midTurn: true })
 
     const lifted = await liftToCloud(test.args)
@@ -115,6 +112,7 @@ describe('a mid-turn lift', () => {
   })
 
   it('never interrupts or resumes when nothing was running', async () => {
+    useAtlasHome()
     const test = harness({ midTurn: false })
 
     const lifted = await liftToCloud(test.args)
