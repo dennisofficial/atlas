@@ -11,18 +11,13 @@ import {
   type NoticePort,
 } from '@dltech/atlas-core'
 
-import { RemoteEventLog } from '../cloud/remote-event-log'
-import { RemoteThreadStore } from '../cloud/remote-thread-store'
-import { RemoteTurnLedger } from '../cloud/remote-turn-ledger'
 import { sandboxNameFor } from '../cloud/sandbox-names'
-import { SessionsClient } from '../cloud/sessions-client'
 import { UserContextClient } from '../cloud/user-context-client'
 import { VercelDriver, type VercelCredentials } from '../cloud/vercel-driver'
 import { composeHarness } from '../composition/compose'
 import { loadSettings } from '../composition/settings-binding'
 import { portToken } from '../container/injection'
 import { SecretsStoreToken, ServeSessionToken } from '../container/tokens'
-import { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import { memoryDirectoriesFor } from '../memory/read-memory'
 import { ShellRecovery } from '../shells/recovery'
 import { atlasDirectory } from '../store/paths'
@@ -63,32 +58,10 @@ const vercelCredentialsOf = (
 }
 
 /**
- * A failed append on the sandbox is otherwise invisible: the turn it belongs to just dies, and the
- * serve log says nothing. The surface notice port is the serve log (LoggingNoticePort), so the
- * refusal lands where the next attach can read it.
- */
-const loggingOnAppendFailure = (args: { log: EventLogPort; notice: NoticePort }): EventLogPort => ({
-  append: async (appendArgs) => {
-    try {
-      return await args.log.append(appendArgs)
-    } catch (error) {
-      args.notice.notify({
-        tone: ENoticeTone.Warn,
-        text: `the control plane refused an event append for ${appendArgs.threadId}: ${messageOf(error)}`,
-      })
-      throw error
-    }
-  },
-  read: (readArgs) => args.log.read(readArgs),
-  readOwn: (readArgs) => args.log.readOwn(readArgs),
-  head: (headArgs) => args.log.head(headArgs),
-  replace: (replaceArgs) => args.log.replace(replaceArgs),
-})
-
-/**
- * The shared root, bound for a sandbox: durable state lives in the control plane rather than on a
- * disk that dies with the container. The stores the surface registers are handed back rather than
- * read off the app, because the root resolves its own before the surface binds.
+ * The shared root, bound for a sandbox: the transcript lives on the sandbox's own disk under its
+ * atlas home, in the same JSONL stores a local session composes. The container's default
+ * registrations already build them; serve resolves them rather than overriding with API-backed
+ * remotes.
  */
 export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => {
   seedServeSession({ url: args.controlPlaneUrl, token: args.token })
@@ -100,12 +73,6 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     clientVersion: args.clientVersion,
   })
   const secrets = new ServeSecretsStore({ broker })
-
-  const client = new SessionsClient({
-    url: args.controlPlaneUrl,
-    token: args.token,
-    clientVersion: args.clientVersion,
-  })
 
   const identity = args.identity ?? null
   const keyPrefix =
@@ -159,12 +126,9 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     surface: {
       notice: args.notice,
       bind: ({ container }) => {
-        const log = loggingOnAppendFailure({ log: new RemoteEventLog({ client }), notice: args.notice })
-        const threads = new RemoteThreadStore({ client })
+        const log = container.resolve(portToken(EventLogPort))
+        const threads = container.resolve(portToken(ThreadStorePort))
 
-        container.register(portToken(EventLogPort), { useValue: log })
-        container.register(portToken(ThreadStorePort), { useValue: threads })
-        container.register(portToken(TurnLedgerPort), { useValue: new RemoteTurnLedger({ client }) })
         const credentials = vercelCredentialsOf(args.env)
         container.register(portToken(ProcessPort), {
           useValue: new ServeProcessPort(
