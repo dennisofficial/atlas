@@ -76,6 +76,9 @@ COPY --from=builder /app/apps/api/prisma.config.ts ./apps/api/prisma.config.ts
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/packages/wire/dist ./packages/wire/dist
 COPY --from=builder /app/packages/wire/package.json ./packages/wire/package.json
+# wire's compiled dist imports zod at runtime; without its node_modules the API crashes on boot
+# with ERR_MODULE_NOT_FOUND. (Deploy 80dcf7da failed on exactly this.)
+COPY --from=builder /app/packages/wire/node_modules ./packages/wire/node_modules
 COPY --from=builder /app/apps/api/envs ./apps/api/envs
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 COPY --from=serve-binary /app/packages/harness/bin/atlas-serve /app/atlas-serve

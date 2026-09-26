@@ -1,8 +1,6 @@
 import { Drive } from '@vercel/sandbox'
 
-import {
-  isSandboxMissing,
-} from './vercel-errors'
+import { failureTextOf, isSandboxMissing } from './vercel-errors'
 
 import type { VercelCredentials } from './vercel-driver'
 import { DRIVE_MAX_BYTES } from './drive-names'
@@ -41,10 +39,19 @@ export async function ensureDrive(args: {
   })
 }
 
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+
+const stillAttached = (failure: unknown): boolean =>
+  failureTextOf(failure).includes('currently attached')
+
+const DELETE_ATTEMPTS = 10
+const DELETE_RETRY_DELAY_MS = 2_000
+
 /**
- * A drive that cannot be deleted because it is still mounted must first be detached — the caller
- * deletes the sandbox that holds it before asking again. A drive that is already gone is the
- * desired end state, so a missing one is success.
+ * A drive is deleted after the sandbox that mounted it is deleted, and Vercel detaches the drive
+ * asynchronously — a delete issued the moment the sandbox is gone lands a 409 `currently attached`
+ * until the detach settles, so the delete retries through that lag. A drive that is already gone
+ * is the desired end state, so a missing one is success.
  */
 export async function deleteDrive(args: {
   sdk: DriveSdk
@@ -54,15 +61,21 @@ export async function deleteDrive(args: {
   const listed = await args.sdk.list({
     ...args.credentials,
     namePrefix: args.name,
+    // The API rejects namePrefix unless the listing is sorted by name.
+    sortBy: 'name',
     signal: AbortSignal.timeout(30_000),
   })
   for await (const drive of listed) {
     if (drive.name !== args.name) continue
-    try {
-      await drive.delete({ signal: AbortSignal.timeout(30_000) })
-    } catch (failure) {
-      if (isSandboxMissing(failure)) return
-      throw failure
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await drive.delete({ signal: AbortSignal.timeout(30_000) })
+        return
+      } catch (failure) {
+        if (isSandboxMissing(failure)) return
+        if (!stillAttached(failure) || attempt >= DELETE_ATTEMPTS - 1) throw failure
+        await sleep(DELETE_RETRY_DELAY_MS)
+      }
     }
   }
 }
