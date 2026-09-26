@@ -278,13 +278,13 @@ describe('SandboxesService', () => {
     await service.attach({
       userId: USER_A,
       threadId: THREAD,
-      drive: { name: 'factory-compai-atlas-341' },
+      drive: { name: 'atlas-repo-341' },
       pinnedModel: 'inference/kimi-k3-fast',
     })
     await service.whenSettled({ threadId: THREAD })
 
     const row = fake.cloudSandboxes[0]
-    expect(row?.driveName).toBe('factory-compai-atlas-341')
+    expect(row?.driveName).toBe('atlas-repo-341')
     expect(row?.pinnedModel).toBe('inference/kimi-k3-fast')
 
     const provisionCalls = client.getOrCreate.mock.calls as unknown as Array<
@@ -292,7 +292,7 @@ describe('SandboxesService', () => {
     >
     const provision = provisionCalls[0]?.[0]
     if (provision === undefined) throw new Error('expected a provisioning call')
-    expect(provision.drive).toEqual({ name: 'factory-compai-atlas-341' })
+    expect(provision.drive).toEqual({ name: 'atlas-repo-341' })
     expect(provision.pinnedModel).toBe('inference/kimi-k3-fast')
   })
 
@@ -347,28 +347,28 @@ describe('SandboxesService', () => {
   })
 
   it('an attach with a caller-supplied name claims and provisions under that name', async () => {
-    const attached = await service.attach({ userId: USER_A, threadId: THREAD, name: 'factory-fwi-1' })
+    const attached = await service.attach({ userId: USER_A, threadId: THREAD, name: 'sess-fwi-1' })
     await service.whenSettled({ threadId: THREAD })
 
-    expect(attached.name).toBe('factory-fwi-1')
-    expect(fake.cloudSandboxes[0]?.name).toBe('factory-fwi-1')
+    expect(attached.name).toBe('sess-fwi-1')
+    expect(fake.cloudSandboxes[0]?.name).toBe('sess-fwi-1')
     expect(client.getOrCreate).toHaveBeenCalledWith({
-      name: 'factory-fwi-1',
+      name: 'sess-fwi-1',
       threadId: THREAD,
       token: attached.token,
     })
   })
 
   it('an attach without a name keeps the name the row was claimed under', async () => {
-    await service.attach({ userId: USER_A, threadId: THREAD, name: 'factory-fwi-1' })
+    await service.attach({ userId: USER_A, threadId: THREAD, name: 'sess-fwi-1' })
     await service.whenSettled({ threadId: THREAD })
 
     const second = await service.attach({ userId: USER_A, threadId: THREAD })
     await service.whenSettled({ threadId: THREAD })
 
-    expect(second.name).toBe('factory-fwi-1')
+    expect(second.name).toBe('sess-fwi-1')
     expect(client.getOrCreate).toHaveBeenNthCalledWith(2, {
-      name: 'factory-fwi-1',
+      name: 'sess-fwi-1',
       threadId: THREAD,
       token: second.token,
     })

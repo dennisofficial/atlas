@@ -303,15 +303,15 @@ describe('VercelSandboxClient', () => {
   it('mounts a drive at the workspace path and pins the model when told to', async () => {
     const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
     await client.getOrCreate({
-      name: 'factory-st-fsr-1',
+      name: 'st-fsr-1',
       threadId: 'brn_station_1',
       token: 'session-token',
-      drive: { name: 'factory-compai-atlas-341' },
+      drive: { name: 'atlas-repo-341' },
       pinnedModel: 'inference/kimi-k3-fast',
     })
 
     expect(sdk.driveGetOrCreate[0]).toMatchObject({
-      name: 'factory-compai-atlas-341',
+      name: 'atlas-repo-341',
       region: SANDBOX_REGION,
       maxSize: 50 * 1024 ** 3,
       token: 'vercel-token',
@@ -327,29 +327,29 @@ describe('VercelSandboxClient', () => {
 
   it('lists drives with sortBy name so the namePrefix filter is accepted', async () => {
     const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-    await client.ensureDrive({ name: 'factory-compai-atlas-341' })
-    await client.deleteDrive({ name: 'factory-compai-atlas-341' })
+    await client.ensureDrive({ name: 'atlas-repo-341' })
+    await client.deleteDrive({ name: 'atlas-repo-341' })
 
     expect(sdk.driveListParams[0]).toMatchObject({
-      namePrefix: 'factory-compai-atlas-341',
+      namePrefix: 'atlas-repo-341',
       sortBy: 'name',
     })
-    expect(sdk.driveDeleted).toEqual(['factory-compai-atlas-341'])
+    expect(sdk.driveDeleted).toEqual(['atlas-repo-341'])
   })
 
   it('deletes a drive by name through the SDK', async () => {
     const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-    await client.ensureDrive({ name: 'factory-compai-atlas-341' })
-    await client.deleteDrive({ name: 'factory-compai-atlas-341' })
+    await client.ensureDrive({ name: 'atlas-repo-341' })
+    await client.deleteDrive({ name: 'atlas-repo-341' })
 
-    expect(sdk.driveListParams[0]).toMatchObject({ namePrefix: 'factory-compai-atlas-341' })
-    expect(sdk.driveDeleted).toEqual(['factory-compai-atlas-341'])
+    expect(sdk.driveListParams[0]).toMatchObject({ namePrefix: 'atlas-repo-341' })
+    expect(sdk.driveDeleted).toEqual(['atlas-repo-341'])
   })
 
   it('deleting a drive that was never created does not provision one first', async () => {
     const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
     const created = sdk.driveGetOrCreate.length
-    await client.deleteDrive({ name: 'factory-never-existed' })
+    await client.deleteDrive({ name: 'never-existed' })
 
     expect(sdk.driveGetOrCreate.length).toBe(created)
     expect(sdk.driveDeleted).toEqual([])

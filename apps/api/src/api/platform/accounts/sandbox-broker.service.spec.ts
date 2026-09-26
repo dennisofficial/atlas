@@ -231,7 +231,7 @@ describe('SandboxBrokerService', () => {
     expect(found[0]?.value).toBe('tvly-1')
   })
 
-  it('answers the decisions token the serve secrets store warms for factory sessions', async () => {
+  it('answers the decisions token the serve secrets store warms on boot', async () => {
     const c = cipher()
     fake.secrets.push({
       id: 'sec_decisions',

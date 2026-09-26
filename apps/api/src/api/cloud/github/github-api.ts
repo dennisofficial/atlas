@@ -10,22 +10,21 @@ export type GithubFetch = typeof fetch
 
 export class GithubAppNotInstalled extends BadGatewayException {
   constructor(args: { owner: string; repo: string }) {
-    super(`the factory github app is not installed on ${args.owner}/${args.repo}`)
+    super(`the Atlas GitHub app is not installed on ${args.owner}/${args.repo}`)
     this.name = 'GithubAppNotInstalled'
   }
 }
 
 type AppConfig = { appId: string; privateKey: string }
 
-export type GithubRequestArgs = {
-  method: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+type GithubAppRequestArgs = {
+  method: 'GET' | 'POST'
   path: string
   body?: Record<string, unknown>
-  accept?: string
   onNotFound?: () => never
-} & ({ as: 'app' } | { as: 'installation'; token: string })
+}
 
-/** Low-level GitHub client: app JWT minting, installation tokens, and the request plumbing. */
+/** Low-level GitHub client: app JWT minting and the app-authenticated request plumbing. */
 export class GithubApi {
   private jwt: { token: string; refreshAt: number } | null = null
 
@@ -43,7 +42,6 @@ export class GithubApi {
     const installation = await this.request<{ id: number }>({
       method: 'GET',
       path: `/repos/${args.owner}/${args.repo}/installation`,
-      as: 'app',
       onNotFound: () => {
         throw new GithubAppNotInstalled({ owner: args.owner, repo: args.repo })
       },
@@ -51,30 +49,24 @@ export class GithubApi {
     return this.mintInstallationToken({ installationId: installation.id })
   }
 
-  async mintInstallationToken(args: { installationId: number }): Promise<string> {
+  private async mintInstallationToken(args: { installationId: number }): Promise<string> {
     const minted = await this.request<{ token: string }>({
       method: 'POST',
       path: `/app/installations/${args.installationId}/access_tokens`,
-      as: 'app',
     })
     return minted.token
   }
 
-  async request<T>(args: GithubRequestArgs): Promise<T> {
+  private async request<T>(args: GithubAppRequestArgs): Promise<T> {
     const response = await this.perform(args)
     return (await response.json()) as T
   }
 
-  async requestText(args: GithubRequestArgs): Promise<string> {
-    const response = await this.perform(args)
-    return response.text()
-  }
-
-  requireConfig(): AppConfig {
+  private requireConfig(): AppConfig {
     const config = this.readConfig()
     if (config === null) {
       throw new ServiceUnavailableException(
-        'the factory github app is not configured (GITHUB_APP_ID / GITHUB_APP_PRIVATE_KEY)',
+        'the Atlas GitHub app is not configured (GITHUB_APP_ID / GITHUB_APP_PRIVATE_KEY)',
       )
     }
     return config
@@ -100,13 +92,12 @@ export class GithubApi {
     return token
   }
 
-  private async perform(args: GithubRequestArgs): Promise<Response> {
-    const authorization = args.as === 'app' ? `Bearer ${this.appJwt()}` : `Bearer ${args.token}`
+  private async perform(args: GithubAppRequestArgs): Promise<Response> {
     const response = await this.fetchFn(`${GITHUB_API}${args.path}`, {
       method: args.method,
       headers: {
-        authorization,
-        accept: args.accept ?? 'application/vnd.github+json',
+        authorization: `Bearer ${this.appJwt()}`,
+        accept: 'application/vnd.github+json',
         'x-github-api-version': '2022-11-28',
         ...(args.body === undefined ? {} : { 'content-type': 'application/json' }),
       },

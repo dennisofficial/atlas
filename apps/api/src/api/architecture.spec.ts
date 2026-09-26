@@ -14,7 +14,8 @@ const FORBIDDEN_TARGETS: Record<Layer, readonly Layer[]> = {
 
 // @dltech/atlas-wire is the one in-repo dependency the API is allowed: the seam-hardening
 // decision (2026-09-25) put the websocket channel contract and the REST wire schemas there so
-// the factory stops hand-restating the protocol. Any other @dltech/* import still fails.
+// every consumer shares it instead of hand-restating the protocol. Any other @dltech/* import
+// still fails.
 const ALLOWED_EXTERNAL = /^@dltech\/atlas-wire(?:\/|$)/
 
 const API_ROOT = __dirname
