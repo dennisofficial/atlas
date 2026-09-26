@@ -2,29 +2,28 @@ import {
   CLOUD_WORKSPACE_PATH,
   EExecutionLocation,
   EKilledBy,
-  type Event,
   type EventLogPort,
   type IdPort,
   type ThreadId,
   type WorkspaceIdentity,
 } from '@dltech/atlas-core'
 
+import { buildSessionArchive } from '../session-archive'
+import { atlasDirectory } from '../../store/paths'
+import { sessionDirectory } from '../../store/sessions/paths'
 import type { ThreadModel, ThreadStorePort } from '../../store/thread-store'
 import { exportGpgMaterial, type GpgKeyMaterial } from '../../workspace/gpg-material'
 import type { CaptureContext } from '../context-archive-policy'
 import { CloudError } from '../cloud-transport'
 import { GitCredentialError } from '../gh-auth-token'
 import { VercelNotConfiguredError } from '../vercel-credentials'
-import type { CloudBridge, CloudChannel, CloudSandbox, LiftedWorkspace } from './cloud-bridge'
-import { draftsOf } from './event-drafts'
+import type { CloudAttachment, CloudBridge, CloudChannel, CloudSandbox, LiftedWorkspace } from './cloud-bridge'
 import {
   flipChildrenBack,
   flipChildrenToCloud,
   resumeStoppedChildren,
-  transferChildLogs,
   type LiftAgentsPort,
 } from './lift-children'
-import { assertTransferred } from './transfer-verification'
 import { liftedDraft, NOTHING_WAS_STOPPED, type StoppedLocally } from './transition-notice'
 
 export enum ELiftStep {
@@ -99,7 +98,7 @@ export type LiftArgs = {
    * caller builds its runner and app from it. Optional so a spec that never opens keeps the bare
    * attach; the live wiring always passes it.
    */
-  open?: ((channel: CloudChannel) => Promise<void>) | undefined
+  open?: ((attachment: CloudAttachment) => Promise<void>) | undefined
 }
 
 const detailOf = (error: unknown): string =>
@@ -145,77 +144,14 @@ const failureOf = (args: {
   }
 }
 
-/**
- * The remote thread is opened by the same call that carries the transferred log, so a lift is one
- * batch rather than a create followed by a stream of appends. A thread nobody has spoken in opens
- * with no events at all — the sandbox attach needs the row to exist either way.
- *
- * A re-lift replaces the cloud's copy wholesale: the local log became the truth the moment the
- * conversation came home, and anything the cloud kept from its own turn at hosting is stale. The
- * one refusal is an empty local log over a non-empty cloud one — that can only mean the transfer
- * down never landed, and replacing would erase the conversation.
- *
- * The model rides with the log: the live selection is written whether or not the thread ever
- * persisted one locally (an unstarted thread has no row to hold it), because the serve's fallback
- * when the cloud record carries none is a hardcoded default rather than an error.
- */
-async function transfer(args: LiftArgs): Promise<void> {
-  const { bridge, threadId } = args
-  const existing = await bridge.stores.threads.find({ threadId })
-  const events: readonly Event[] = await args.localLog.read({ threadId })
-
-  if (existing !== undefined) {
-    if (events.length === 0 && (await bridge.stores.log.head({ threadId })) > 0) {
-      throw new Error(
-        'the local log is empty but the cloud still holds this conversation — refusing to wipe it',
-      )
-    }
-    await bridge.stores.log.replace({
-      threadId,
-      runId: args.ids.nextRunId(),
-      drafts: draftsOf(events),
-    })
-    if (args.title !== null && existing.title !== args.title) {
-      await bridge.stores.threads.rename({ threadId, title: args.title })
-    }
-    await bridge.stores.threads.chooseExecutionLocation({
-      threadId,
-      location: EExecutionLocation.Cloud,
-    })
-  } else {
-    await bridge.stores.threads.createWithFirstEvents({
-      threadId,
-      runId: args.ids.nextRunId(),
-      drafts: draftsOf(events),
-      workspace: args.identity.workspace,
-      repo: args.identity.repo,
-      executionLocation: EExecutionLocation.Cloud,
-      ...(args.title === null ? {} : { title: args.title }),
-    })
-  }
-
-  await assertTransferred({
-    log: bridge.stores.log,
-    threadId,
-    expectedHead: events.length,
-    expectedCount: events.length,
-    side: 'cloud',
-  })
-
-  await bridge.stores.threads.chooseModel({ threadId, model: args.model })
-}
-
 const flipBack = async (args: LiftArgs & { from: EExecutionLocation }): Promise<void> => {
   args.setLocation(args.from)
   await args.localThreads
     .chooseExecutionLocation({ threadId: args.threadId, location: args.from })
     .catch(() => undefined)
-  await args.bridge.stores.threads
-    .chooseExecutionLocation({ threadId: args.threadId, location: args.from })
-    .catch(() => undefined)
   await flipChildrenBack({
     threadId: args.threadId,
-    bridge: args.bridge,
+    localThreads: args.localThreads,
     agents: args.agents,
     location: args.from,
   })
@@ -276,15 +212,10 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
   }
 
   onProgress(ELiftStep.Transferring)
+  let transcript: Uint8Array | undefined
   try {
-    await transfer(args)
-    await transferChildLogs({
-      threadId,
-      bridge: args.bridge,
-      ids: args.ids,
-      agents: args.agents,
-      localThreads: args.localThreads,
-      localLog: args.localLog,
+    transcript = await buildSessionArchive({
+      sessionDir: sessionDirectory({ home: atlasDirectory(), sessionId: threadId }),
     })
   } catch (error) {
     await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })
@@ -299,13 +230,14 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
         threadId,
         location: EExecutionLocation.Cloud,
       })
+      if (args.title !== null) await args.localThreads.rename({ threadId, title: args.title })
     }
     await flipChildrenToCloud({
       threadId,
-      bridge: args.bridge,
       ids: args.ids,
       agents: args.agents,
       localThreads: args.localThreads,
+      localLog: args.localLog,
     })
   } catch (error) {
     await flipBack({ ...args, from })
@@ -348,6 +280,9 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
         }
       },
     })
+    if (transcript !== undefined) {
+      await args.bridge.sandboxes.putTranscript({ threadId, archive: transcript })
+    }
   } catch (error) {
     await flipBack({ ...args, from })
     await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })
@@ -358,7 +293,12 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
   }
   const { url } = sandbox
 
-  await args.bridge.stores.log
+  /**
+   * The relocation notices land in the local log after the archive shipped, so the copy the
+   * sandbox serves does not carry them — the descend's own relocation marker closes the trail on
+   * the way back. They are for whoever opens the local transcript between the flip and the move.
+   */
+  await args.localLog
     .append({
       threadId,
       runId: args.ids.nextRunId(),
@@ -380,8 +320,9 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
   onProgress(ELiftStep.Attaching)
   let channel: CloudChannel
   try {
-    channel = args.bridge.attach({ threadId, url, token: sandbox.token })
-    await args.open?.(channel)
+    const attachment = args.bridge.attach({ threadId, url, token: sandbox.token })
+    channel = attachment.channel
+    await args.open?.(attachment)
   } catch (error) {
     await flipBack({ ...args, from })
     await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })
