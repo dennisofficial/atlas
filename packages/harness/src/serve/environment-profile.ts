@@ -63,6 +63,21 @@ const gpgSecrets = (raw: string | null | undefined): string[] => {
 const MISE_CONFIGS = ['.mise.toml', 'mise.toml', '.tool-versions'] as const
 const BUN_LOCKFILES = ['bun.lock', 'bun.lockb'] as const
 const SETUP_HOOK = '.atlas/sandbox-setup.sh'
+// Bounded so a wedged dockerd answers "no" fast instead of stalling session boot; the shimmed
+// `docker` on the sandbox image starts the baked daemon on this very call when none is running.
+const DOCKER_PROBE_TIMEOUT_MS = 30_000
+
+const probeDocker = async (run: CommandRunner, cwd: string): Promise<boolean> => {
+  const probe = run({ command: ['docker', 'info'], cwd })
+    .then((outcome) => outcome.ok)
+    .catch(() => false)
+  return await Promise.race([
+    probe,
+    new Promise<boolean>((resolve) => {
+      setTimeout(() => resolve(false), DOCKER_PROBE_TIMEOUT_MS)
+    }),
+  ])
+}
 
 export function createEnvironmentProfile(args: {
   env: Record<string, string | undefined>
@@ -232,12 +247,9 @@ export function createEnvironmentProfile(args: {
         return { step: EProfileStep.Toolchain, state: EProfileStepState.Applied }
       })
 
-    const steps = await Promise.all([
-      credentials(),
-      gitIdentity(),
-      knownHosts(),
-      toolchain(),
-      gpgSigning(),
+    const [steps, dockerAvailable] = await Promise.all([
+      Promise.all([credentials(), gitIdentity(), knownHosts(), toolchain(), gpgSigning()]),
+      probeDocker(run, cwd),
     ])
     const [credentialsOutcome] = steps
 
@@ -245,7 +257,7 @@ export function createEnvironmentProfile(args: {
       canPush: credentialsOutcome.state === EProfileStepState.Applied,
       gitIdentity: probedIdentity,
       gpgSigning: probedGpg,
-      dockerAvailable: false,
+      dockerAvailable,
       persistentFs: true,
       serviceTtlSeconds: args.serviceTtlSeconds ?? SERVE_IDLE_MINUTES_WITH_SERVICES * 60,
       portExposure: EPortExposure.PublicDomain,

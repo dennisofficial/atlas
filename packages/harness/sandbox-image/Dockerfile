@@ -17,14 +17,20 @@ ENV DEBIAN_FRONTEND=noninteractive \
     COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      git ripgrep gnupg ca-certificates curl unzip xz-utils openssh-client build-essential \
+      git ripgrep gnupg ca-certificates curl unzip xz-utils openssh-client build-essential sudo \
   && install -m 0755 -d /etc/apt/keyrings \
   && curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \
   && chmod a+r /etc/apt/keyrings/docker.asc \
   && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian trixie stable" \
       > /etc/apt/sources.list.d/docker.list \
   && apt-get update && apt-get install -y --no-install-recommends \
-      docker-ce-cli docker-compose-plugin \
+      docker-ce-cli docker-ce containerd.io docker-buildx-plugin docker-compose-plugin \
+  # every sandbox user may start the baked dockerd; Vercel sandboxes run unprivileged and the
+  # lazy shim needs sudo to launch the daemon, while the local docker sandbox mounts the host
+  # socket and never starts a nested one
+  && printf 'ALL ALL=(root) NOPASSWD: /usr/bin/dockerd, /usr/bin/sh -c *dockerd*\n' \
+      > /etc/sudoers.d/atlas-dockerd \
+  && chmod 0440 /etc/sudoers.d/atlas-dockerd \
   && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
       -o /etc/apt/keyrings/githubcli-archive-keyring.gpg \
   && chmod a+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
@@ -140,6 +146,15 @@ RUN mkdir -p /opt/corepack/bin \
   && yarn --version \
   && pnpm --version \
   && npm --version
+
+# Lazy docker-in-docker: /usr/local/bin/docker shadows the real docker-ce-cli at /usr/bin/docker
+# and starts the baked daemon through sudo on first use. Baked for every image so the local docker
+# sandbox (mounted host socket) stays a pass-through while a Vercel sandbox boots its own dockerd.
+COPY docker-shim.sh /usr/local/bin/docker
+COPY docker-daemon-up.sh /usr/local/bin/docker-daemon-up
+RUN chmod 755 /usr/local/bin/docker /usr/local/bin/docker-daemon-up \
+  && [ "$(command -v docker)" = "/usr/local/bin/docker" ] \
+  && /usr/bin/docker --version
 
 # Baked by sandbox-image.yml: the VCR image gets the real serve binary plus a `source:<sha>`
 # stamp; the GHCR image gets 0-byte placeholders (docker sandboxes never run serve).

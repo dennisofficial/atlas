@@ -145,5 +145,16 @@ if [ -S /var/run/docker.sock ]; then
   expect 'mounted docker socket reachable as uid 501' 'Server Version' run501 'docker info'
 fi
 
+expect 'shim shadows the real cli on PATH' '/usr/local/bin/docker' run 'command -v docker'
+expect 'docker-daemon-up helper is on PATH' '/usr/local/bin/docker-daemon-up' \
+  run 'command -v docker-daemon-up'
+
+if [ -S /var/run/docker.sock ]; then
+  expect 'shim passes through to the mounted socket as uid 501' 'Server Version' \
+    run501 'docker info'
+else
+  expect_fail 'shim refuses dockerd as uid 501 without sudo' run501 'docker info'
+fi
+
 printf '\n%d checks, %d failures\n' "$checks" "$failures"
 [ "$failures" -eq 0 ]
