@@ -51,6 +51,11 @@ export type ServeRewind = {
     removeShells(args: { threadId: ThreadId; shellIds: readonly string[]; by: EKilledBy }): void
     removeServices(args: { serviceIds: readonly string[]; by: EKilledBy }): void
   }
+  /**
+   * The durable truncation, present because this serve's transcript is its own disk. Applied in
+   * the same rewind apply that kills the cut processes; absent in fakes, which hold no log.
+   */
+  truncate?: ((args: { threadId: ThreadId; toSeq: number; cutAgents: readonly ThreadId[] }) => Promise<void>) | undefined
 }
 
 /** The composed session as serve consumes it: everything a socket can reach and nothing else. */

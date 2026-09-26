@@ -216,7 +216,13 @@ export function createSessionHandlers(args: {
         return
       }
       const target = rewind.target
-      void answerRewind({ frame, threadId, target, driver })
+      void answerRewind({
+        frame,
+        threadId,
+        target,
+        driver,
+        ...(rewind.truncate === undefined ? {} : { truncate: { truncate: rewind.truncate } }),
+      })
         .then((reply) => send({ socket, frame: reply }))
         .catch((error: unknown) =>
           send({

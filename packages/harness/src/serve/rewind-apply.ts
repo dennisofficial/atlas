@@ -4,6 +4,8 @@ import {
 } from '@dltech/atlas-core'
 import { rewindApplyParamsSchema, type RewindCutWire } from '@dltech/atlas-wire'
 
+import type { ThreadStorePort } from '../store/thread-store'
+
 import type { ReplyFrame, RequestFrame } from './requests'
 import { answeredRequest, refusedRequest } from './requests'
 import type { ServeTurnDriver } from './turn-driver'
@@ -21,17 +23,28 @@ export type ServeRewindTarget = {
   removeServices(args: { serviceIds: readonly string[]; by: EKilledBy }): void
 }
 
+/**
+ * The transcript half of a confirmed rewind, present only on a serve whose durable log is its own
+ * disk. The serve truncates it here, in the same apply that kills the cut processes, so the kill
+ * and the truncation are one request rather than a write racing a command.
+ */
+export type ServeRewindLog = {
+  truncate(args: { threadId: ThreadId; toSeq: number; cutAgents: readonly ThreadId[] }): Promise<void>
+}
+
 export async function answerRewind(args: {
   frame: RequestFrame
   threadId: ThreadId
   target: ServeRewindTarget
   driver: Pick<ServeTurnDriver, 'interrupt'>
+  /** The durable truncation, answered only by a serve whose transcript is on its own disk. */
+  truncate?: ServeRewindLog | undefined
 }): Promise<ReplyFrame> {
   const parsed = rewindApplyParamsSchema.safeParse(args.frame.params)
   if (!parsed.success) {
     return refusedRequest({
       replyTo: args.frame.id,
-      message: 'rewind wants { threadId, cuts }',
+      message: 'rewind wants { threadId, cuts, toSeq? }',
     })
   }
 
@@ -47,6 +60,11 @@ export async function answerRewind(args: {
   await args.target.removeChildren({ threadId: args.threadId, agentIds })
   args.target.removeShells({ threadId: args.threadId, shellIds, by: EKilledBy.Rewind })
   args.target.removeServices({ serviceIds, by: EKilledBy.Rewind })
+
+  const toSeq = parsed.data.toSeq
+  if (toSeq !== undefined && args.truncate !== undefined) {
+    await args.truncate.truncate({ threadId: args.threadId, toSeq, cutAgents: agentIds })
+  }
 
   args.driver.interrupt()
 

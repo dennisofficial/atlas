@@ -82,7 +82,18 @@ export async function rewindThread({
 
   const cutAgents = plan.cuts.flatMap((cut) => (cut.kind === 'agent' ? [cut.agentId] : []))
 
-  await machinery.destroy({ cuts: plan.cuts, threadId })
+  const durable = machinery.ownsDurableLog === true
+  await machinery.destroy({ cuts: plan.cuts, threadId, toSeq })
+
+  // The machine that owns the durable log truncated it as part of destroy; re-appending the
+  // surviving notices would land them on a log this process does not own.
+  if (durable) {
+    return {
+      ok: true,
+      discarded: owned.filter((event) => event.seq > toSeq).length - plan.reappend.length,
+      kills: read.kills,
+    }
+  }
 
   await threads.rewind({ threadId, toSeq, cutAgents })
 

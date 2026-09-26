@@ -221,6 +221,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
         removeShells: (removeArgs) => app.shells.removeShells(removeArgs),
         removeServices: (removeArgs) => app.services.removeServices(removeArgs),
       },
+      truncate: (truncateArgs) => app.threads.rewind(truncateArgs),
     },
     close: app.close,
   }
