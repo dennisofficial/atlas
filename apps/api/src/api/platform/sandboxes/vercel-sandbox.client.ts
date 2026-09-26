@@ -2,7 +2,7 @@ import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import { Drive, Sandbox, type SandboxMounts } from '@vercel/sandbox'
 import { EServeEnv, SERVE_TOKEN_PATH, StaleSandboxTokenError } from '@dltech/atlas-wire'
 import { EnvService } from '../../../_core/config/env/env.service'
-import { ESandboxDriveMode, ESandboxFactoryRole, ESandboxState } from './sandboxes.types'
+import { ESandboxDriveMode, ESandboxState } from './sandboxes.types'
 import { ServeBinaryService } from './serve-binary'
 import { createServeLauncher } from './serve-launch'
 import type { ServeLauncher } from './serve-launch'
@@ -130,8 +130,6 @@ export class VercelSandboxClient {
     token: string
     drive?: { name: string; mode: ESandboxDriveMode } | undefined
     pinnedModel?: string | undefined
-    factoryRole?: ESandboxFactoryRole | undefined
-    decisionsUrl?: string | undefined
   }): Promise<SandboxPlacement> {
     const createStartedAt = Date.now()
     try {
@@ -171,8 +169,6 @@ export class VercelSandboxClient {
     token: string
     drive?: { name: string; mode: ESandboxDriveMode } | undefined
     pinnedModel?: string | undefined
-    factoryRole?: ESandboxFactoryRole | undefined
-    decisionsUrl?: string | undefined
   }): Promise<SandboxPlacement> {
     const configuration = this.configuration()
     const createStartedAt = Date.now()
@@ -199,8 +195,6 @@ export class VercelSandboxClient {
         [EServeEnv.CloudUrl]: configuration.cloudUrl,
         [EServeEnv.WorkspaceDir]: WORKSPACE_PATH,
         ...(args.pinnedModel === undefined ? {} : { [EServeEnv.Model]: args.pinnedModel }),
-        ...(args.factoryRole === undefined ? {} : { [EServeEnv.FactoryRole]: args.factoryRole }),
-        ...(args.decisionsUrl === undefined ? {} : { [EServeEnv.DecisionsUrl]: args.decisionsUrl }),
       },
       ...(mounts === undefined ? {} : { mounts }),
       signal: AbortSignal.timeout(SANDBOX_LAUNCH_TIMEOUT_MS),

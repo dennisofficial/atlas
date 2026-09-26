@@ -20,7 +20,6 @@ export enum EServeEnv {
   CloudUrl = 'ATLAS_CLOUD_URL',
   WorkspaceDir = 'ATLAS_WORKSPACE_DIR',
   Model = 'ATLAS_MODEL',
-  FactoryRole = 'ATLAS_FACTORY_ROLE',
   DecisionsUrl = 'ATLAS_DECISIONS_URL',
 }
 
