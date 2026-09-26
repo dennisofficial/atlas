@@ -39,6 +39,21 @@ export class PrismaContextArchiveStore implements ContextArchiveStore {
     })
   }
 
+  async readSandboxTranscript(args: { threadId: string }): Promise<Buffer | null> {
+    const row = await db.cloudSandbox.findUnique({
+      where: { threadId: args.threadId },
+      select: { transcriptArchive: true },
+    })
+    return toBuffer(row?.transcriptArchive ?? null)
+  }
+
+  async writeSandboxTranscript(args: { threadId: string; archive: Buffer }): Promise<void> {
+    await db.cloudSandbox.update({
+      where: { threadId: args.threadId },
+      data: { transcriptArchive: toBytesInput(args.archive) },
+    })
+  }
+
   async readUserArchive(args: { userId: string }): Promise<Buffer | null> {
     const row = await db.userContextSync.findUnique({
       where: { userId: args.userId },
