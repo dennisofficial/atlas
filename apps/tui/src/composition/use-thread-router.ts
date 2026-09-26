@@ -1,5 +1,5 @@
 import { EExecutionLocation, projectOf, toThreadId } from '@dltech/atlas-core'
-import { mergedThreadListing, type ThreadStorePort, type ThreadSummary } from '@dltech/atlas-harness'
+import { type ThreadStorePort, type ThreadSummary } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useRef } from 'react'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
@@ -53,11 +53,7 @@ export function useThreadRouter(args: {
     return bridgeRef.current
   }, [cloudBridge, createBridge, localApp])
 
-  const listing = useCallback((): Pick<ThreadStorePort, 'list'> => {
-    const bridge = ensureBridge()
-    if (bridge === null) return localApp.threads
-    return mergedThreadListing({ local: localApp.threads, remote: bridge.stores.threads })
-  }, [ensureBridge, localApp])
+  const listing = useCallback((): Pick<ThreadStorePort, 'list'> => localApp.threads, [localApp])
 
   const route = useCallback(
     async (threadId: string) => {
@@ -65,18 +61,10 @@ export function useThreadRouter(args: {
 
       const bridge = ensureBridge()
       const id = toThreadId(threadId)
-      const listing =
-        bridge === null
-          ? null
-          : mergedThreadListing({ local: localApp.threads, remote: bridge.stores.threads })
 
-      let located =
-        listing === null
-          ? await localApp.threads.find({ threadId: id })
-          : await listing.find({ threadId: id })
-
-      if (located === undefined && listing !== null) {
-        const rows = await listing.list({ project: projectOf(localApp.workspace) })
+      let located = await localApp.threads.find({ threadId: id })
+      if (located === undefined) {
+        const rows = await localApp.threads.list({ project: projectOf(localApp.workspace) })
         located = rows.find((row: ThreadSummary) => namedBy({ thread: row, handle: threadId }))
       }
 
@@ -117,7 +105,6 @@ export function useThreadRouter(args: {
 
       const outcome = await openConversation({
         threads: localApp.threads,
-        ...(bridge === null ? {} : { remoteThreads: bridge.stores.threads }),
         log: localApp.log,
         ledger: localApp.ledger,
         agents: localApp.agents,
