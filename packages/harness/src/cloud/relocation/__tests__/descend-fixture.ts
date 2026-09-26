@@ -1,9 +1,15 @@
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+import { afterEach } from 'bun:test'
+
 import {
   EExecutionLocation,
   toEventId,
   toRunId,
   toThreadId,
-  type Event,
+  type EventDraft,
   type IdPort,
   type NoticePost,
   type ThreadId,
@@ -11,70 +17,41 @@ import {
 
 import { InMemoryToolRegistry } from '../../../tools/registry'
 import type { RemoteMemoryMerge } from '../../merge-remote-memory'
-import { fakeAgentRegistry } from './fake-agents'
-import {
-  fakeEventLog,
-  fakeLedger,
-  fakeThreadStore,
-  type FakeEventLog,
-  type FakeThreadStore,
-} from './fake-backend'
+import { fakeAgentRegistry, type FakeAgents } from './fake-agents'
+import { fakeLedger } from './fake-backend'
 import { fakeServiceRegistry } from './fake-services'
+import { JsonlEventLog } from '../../../store/sessions/event-log'
+import { SessionRegistry } from '../../../store/sessions/registry'
+import { JsonlThreadStore } from '../../../store/sessions/thread-store'
+import { buildSessionArchive } from '../../session-archive'
 import {
   descendFromCloud,
   type DescendLocalHome,
   type DescendProgressStep,
   type WorkspaceMerger,
 } from '../descend'
-import { CLOUD_THREAD, type FakeBridge, type FakeCloudChannel } from './fixture'
+import { CLOUD_THREAD, fakeBridge, type FakeBridge, type FakeCloudChannel } from './fixture'
 
-export const AT = '2026-09-17T12:00:00.000Z'
+const AT = '2026-09-17T12:00:00.000Z'
 export const CHILD = toThreadId('brn_child-1')
 
 let runs = 0
-const fakeIds = (): IdPort => ({
+const descendIds = (): IdPort => ({
   nextThreadId: () => toThreadId('brn_unused'),
   nextRunId: () => toRunId(`run_descend_${(runs += 1)}`),
-  nextEventId: () => {
-    throw new Error('unused')
-  },
+  nextEventId: () => toEventId(`evt_descend_${(runs += 1)}`),
   nextCallId: () => {
     throw new Error('unused')
   },
 })
 
-export const said = (args: { seq: number; text: string; threadId?: ThreadId }): Event => ({
-  type: 'user-said',
-  text: args.text,
-  id: toEventId(`evt_local_${args.seq}`),
-  seq: args.seq,
-  threadId: args.threadId ?? CLOUD_THREAD,
-  runId: toRunId('run_local'),
-  depth: 0,
-  at: AT,
-})
+const fixedClock = { now: () => AT }
 
 export type OpenedLocal = { threadId: ThreadId; resumeOnArrival?: boolean | undefined }
 
-export type RecordedNotices = {
-  readonly posts: readonly NoticePost[]
-}
-
-export const recordingNotices = (): { posts: NoticePost[]; notice: { notify: (post: NoticePost) => void } } => {
-  const posts: NoticePost[] = []
-  return {
-    posts,
-    notice: {
-      notify: (post) => {
-        posts.push(post)
-      },
-    },
-  }
-}
-
 export type Surface = {
-  readonly notices: RecordedNotices
-  readonly begun: readonly DescendProgressStep[][] | readonly DescendProgressStep[]
+  readonly notices: { readonly posts: readonly NoticePost[] }
+  readonly begun: readonly DescendProgressStep[][]
   readonly steps: readonly DescendProgressStep[]
   readonly protects: number
   readonly released: number
@@ -88,14 +65,18 @@ export type Surface = {
 }
 
 export const fakeSurface = (args: { protect?: boolean } = {}): Surface => {
-  const { posts, notice } = recordingNotices()
+  const posts: NoticePost[] = []
   const begun: DescendProgressStep[][] = []
   const steps: DescendProgressStep[] = []
   let protects = 0
   let released = 0
 
   return {
-    notices: { get posts() { return posts } } as RecordedNotices,
+    notices: {
+      get posts() {
+        return posts
+      },
+    },
     get begun() {
       return begun
     },
@@ -109,7 +90,11 @@ export const fakeSurface = (args: { protect?: boolean } = {}): Surface => {
       return released
     },
     surface: {
-      notice,
+      notice: {
+        notify: (post) => {
+          posts.push(post)
+        },
+      },
       onBegin: ({ plan }) => {
         begun.push([...plan])
       },
@@ -128,52 +113,105 @@ export const fakeSurface = (args: { protect?: boolean } = {}): Surface => {
   }
 }
 
-export type Home = DescendLocalHome & { threads: FakeThreadStore; log: FakeEventLog }
+const homes: string[] = []
 
-export const localHome = (args: { withThread?: boolean; events?: Event[] } = {}): Home => {
-  const log = fakeEventLog(args.events ?? [])
-  const threads = fakeThreadStore({
-    log,
-    existing: args.withThread === false ? [] : [CLOUD_THREAD],
+afterEach(() => {
+  for (const home of homes.splice(0, homes.length)) rmSync(home, { recursive: true, force: true })
+})
+
+/**
+ * Both lift and descend reach the session directory through `atlasDirectory()`, which reads
+ * `ATLAS_HOME` afresh on every call, so pointing the variable at a throwaway home is the seam the
+ * whole suite stages the transcript through.
+ */
+export const useAtlasHome = (): string => {
+  const previous = process.env['ATLAS_HOME']
+  const home = mkdtempSync(join(tmpdir(), 'atlas-descend-spec-'))
+  homes.push(home)
+  process.env['ATLAS_HOME'] = home
+  afterEach(() => {
+    if (previous === undefined) delete process.env['ATLAS_HOME']
+    else process.env['ATLAS_HOME'] = previous
   })
-  if (args.withThread !== false) {
-    void threads.chooseExecutionLocation({
-      threadId: CLOUD_THREAD,
-      location: EExecutionLocation.Cloud,
-    })
-  }
+  return home
+}
+
+export type DescendHome = DescendLocalHome & {
+  threads: JsonlThreadStore
+  log: JsonlEventLog
+  agents: FakeAgents
+}
+
+/**
+ * The local side of a descend is the real store stack over the staged home: the transcript comes
+ * back as a session archive, and only the on-disk stores rebuild their rows from it.
+ */
+export const useDescendHome = (): DescendHome => {
+  const home = useAtlasHome()
+  const registry = new SessionRegistry(home)
+  const ids = descendIds()
+  const log = new JsonlEventLog(home, registry, fixedClock, ids)
+  const threads = new JsonlThreadStore(home, registry, fixedClock, ids, log)
   return {
     threads,
     log,
     ledger: fakeLedger(),
-    agents: fakeAgentRegistry({ threads }),
+    agents: fakeAgentRegistry(),
     services: fakeServiceRegistry(),
     tools: new InMemoryToolRegistry([]),
-    ids: fakeIds(),
+    ids,
     workspace: { workspace: '/work', repo: '/work' },
   }
 }
 
-export const seedCloud = async (
-  bridge: FakeBridge,
-  texts: readonly string[],
-  args: { threadId?: ThreadId; spawnedBy?: ThreadId } = {},
-): Promise<void> => {
-  await bridge.threads.createWithFirstEvents({
-    threadId: args.threadId ?? CLOUD_THREAD,
-    runId: toRunId('run_cloud_seed'),
-    drafts: texts.map((text) => ({ type: 'user-said' as const, text })),
-    workspace: '/work',
-    executionLocation: EExecutionLocation.Cloud,
-    ...(args.spawnedBy === undefined
-      ? {}
-      : { agent: { spawnedBy: args.spawnedBy, type: 'explore' } }),
+export type CloudThread = {
+  threadId?: ThreadId
+  title?: string
+  drafts: readonly EventDraft[]
+  spawnedBy?: ThreadId
+  /**
+   * Where the row sits while away. `flipChildrenBack` is driven by the agent roster, not the
+   * store, so a child row that never says `cloud` keeps its old location through the descend.
+   */
+  location?: EExecutionLocation
+}
+
+/**
+ * Tars a cloud session dir the way serve would hold it — the parent and every child live in one
+ * directory — and hands back the base64 the channel answers ReadSessionArchive with.
+ */
+export const cloudArchiveOf = async (
+  threads: readonly CloudThread[],
+): Promise<string | undefined> => {
+  const home = mkdtempSync(join(tmpdir(), 'atlas-cloud-seed-'))
+  homes.push(home)
+  const registry = new SessionRegistry(home)
+  const ids = descendIds()
+  const log = new JsonlEventLog(home, registry, fixedClock, ids)
+  const store = new JsonlThreadStore(home, registry, fixedClock, ids, log)
+  for (const thread of threads) {
+    const threadId = thread.threadId ?? CLOUD_THREAD
+    await store.createWithFirstEvents({
+      threadId,
+      runId: toRunId('run_cloud_seed'),
+      drafts: [...thread.drafts],
+      workspace: '/work',
+      executionLocation: thread.location ?? EExecutionLocation.Cloud,
+      ...(thread.title === undefined ? {} : { title: thread.title }),
+      ...(thread.spawnedBy === undefined
+        ? {}
+        : { agent: { spawnedBy: thread.spawnedBy, type: 'explore' } }),
+    })
+  }
+  const archive = await buildSessionArchive({
+    sessionDir: join(home, 'sessions', CLOUD_THREAD),
   })
+  return archive?.toString('base64')
 }
 
 export const descend = (args: {
-  bridge: FakeBridge
-  home: Home
+  home: DescendHome
+  bridge?: FakeBridge
   channel?: FakeCloudChannel
   surface?: Surface
   midTurn?: boolean
@@ -181,13 +219,15 @@ export const descend = (args: {
   mergeWorkspace?: WorkspaceMerger
   pullMemory?: () => Promise<RemoteMemoryMerge>
 }): Promise<OpenedLocal> => {
+  const bridge = args.bridge ?? fakeBridge()
   const surface = args.surface ?? fakeSurface()
+  const channel = args.channel ?? bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
   return descendFromCloud({
     threadId: CLOUD_THREAD,
     target: EExecutionLocation.Host,
     midTurn: args.midTurn ?? false,
-    bridge: args.bridge,
-    channel: args.channel ?? args.bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }),
+    bridge,
+    channel,
     localApp: args.home,
     surface: surface.surface,
     ...(args.interruptDeadlineMs === undefined

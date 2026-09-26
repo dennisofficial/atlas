@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { rosterWireSchema } from './roster-wire.js'
+import { wireEventSchema, wireThreadSchema, wireTurnSchema } from './session-wire.js'
 import { channelSignalSchema } from './signal-wire.js'
 
 export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
@@ -11,7 +12,7 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
  * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
  */
-export const CHANNEL_PROTOCOL_VERSION = 4
+export const CHANNEL_PROTOCOL_VERSION = 5
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
@@ -64,6 +65,16 @@ export enum EClientRequest {
    * refuses, and the client proceeds with the remote processes left running.
    */
   Rewind = 'rewind',
+  /**
+   * Transcript reads against the session the sandbox is serving, answered from its on-disk JSONL
+   * stores. A serve built before the transcript moved off the control plane refuses them; a client
+   * that cannot fall back to the HTTP log (there is none anymore) must not be paired with one.
+   */
+  ReadEvents = 'read-events',
+  ReadThread = 'read-thread',
+  ReadThreads = 'read-threads',
+  ReadTurns = 'read-turns',
+  ReadSessionArchive = 'read-session-archive',
 }
 
 export enum ETurnStatus {
@@ -78,6 +89,33 @@ const runIdWireSchema = z.string().min(1).brand<'RunId'>()
 const callIdWireSchema = z.string().min(1).brand<'CallId'>()
 const threadIdWireSchema = z.string().min(1).brand<'ThreadId'>()
 
+const seqSchema = z.number().int().nonnegative()
+
+export const readEventsParamsSchema = z.object({
+  threadId: threadIdWireSchema,
+  fromSeq: seqSchema.optional(),
+  upTo: seqSchema.optional(),
+  own: z.boolean().optional(),
+})
+export type ReadEventsParams = z.infer<typeof readEventsParamsSchema>
+
+export const readThreadParamsSchema = z.object({ threadId: threadIdWireSchema })
+export type ReadThreadParams = z.infer<typeof readThreadParamsSchema>
+
+export const readTurnsParamsSchema = z.object({ threadId: threadIdWireSchema })
+export type ReadTurnsParams = z.infer<typeof readTurnsParamsSchema>
+
+export const readEventsReplySchema = z.object({ events: z.array(wireEventSchema) })
+export const readThreadReplySchema = z.object({ thread: wireThreadSchema.nullable() })
+export const readThreadsReplySchema = z.object({ threads: z.array(wireThreadSchema) })
+export const readTurnsReplySchema = z.object({
+  own: z.array(wireTurnSchema),
+  delegated: z.array(wireTurnSchema),
+})
+
+/** The whole session directory as a base64 tar.gz — the descend's transcript transfer. */
+export const readSessionArchiveReplySchema = z.object({ archive: z.string() })
+
 export const publishedWorkspaceWireSchema = z
   .object({
     ref: z.string(),
@@ -90,8 +128,6 @@ export const publishedWorkspaceWireSchema = z
   .nullable()
 
 export type PublishedWorkspaceWire = z.infer<typeof publishedWorkspaceWireSchema>
-
-const seqSchema = z.number().int().nonnegative()
 
 export const turnOutcomeWireSchema = z.discriminatedUnion('status', [
   z.object({ status: z.literal(ETurnStatus.Completed), runId: runIdWireSchema }),

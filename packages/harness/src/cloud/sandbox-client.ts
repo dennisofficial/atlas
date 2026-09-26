@@ -100,6 +100,16 @@ export class SandboxClient {
     })
   }
 
+  /** The lifted session's transcript tar, uploaded with the same auth as the context archive. */
+  async putTranscriptArchive(args: { threadId: string; archive: Uint8Array }): Promise<void> {
+    await this.transport.rawRequest({
+      method: 'PUT',
+      path: `/v1/sandboxes/${args.threadId}/transcript`,
+      body: args.archive,
+      contentType: 'application/gzip',
+    })
+  }
+
   /** A sandbox already gone is the caller's desired end state, so a 404 here is success, not an error. */
   async destroySandbox(args: { threadId: string }): Promise<void> {
     await this.request({

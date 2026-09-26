@@ -12,9 +12,20 @@ export type RewindRead = { reachable: boolean; kills: readonly RewindKill[] }
  * be asked — the cut list is still complete (it comes from the log), but `running` is unknown.
  */
 export abstract class RewindMachineryPort {
+  /**
+   * Set by the machine that owns the durable log (the cloud sandbox's), read by `rewindThread` to
+   * skip its own store truncation: that machine truncates as part of `destroy`, so the kill and
+   * the truncation are one request rather than a write racing a command.
+   */
+  readonly ownsDurableLog?: boolean
+
   abstract snapshot(args: {
     cuts: readonly RewindCut[]
     threadId: ThreadId
   }): Promise<RewindRead>
-  abstract destroy(args: { cuts: readonly RewindCut[]; threadId: ThreadId }): Promise<void>
+  abstract destroy(args: {
+    cuts: readonly RewindCut[]
+    threadId: ThreadId
+    toSeq?: number | undefined
+  }): Promise<void>
 }

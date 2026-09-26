@@ -3,34 +3,14 @@ import { describe, expect, it } from 'bun:test'
 import { EExecutionLocation } from '@dltech/atlas-core'
 import { CloudError, GitCredentialError, VercelNotConfiguredError } from '@dltech/atlas-harness'
 
-import { fakeThreadStore } from './fake-backend'
+import { useAtlasHome } from './descend-fixture'
 import { ELiftFault, ELiftStep, liftToCloud } from '../lift'
 import { CLOUD_THREAD, fakeBridge } from './fixture'
 import { harness } from './lift-fixture'
 
 describe('a lift that does not finish', () => {
-  it('leaves the conversation local when the transfer fails, having already stopped what was running', async () => {
-    const threads = fakeThreadStore()
-    const bridge = fakeBridge({ threadStore: threads })
-    bridge.stores.threads.createWithFirstEvents = async () => {
-      throw new CloudError({ status: 500, message: 'the sessions API fell over' })
-    }
-    const test = harness({ bridge })
-
-    const lifted = await liftToCloud(test.args)
-
-    expect(lifted.ok).toBe(false)
-    if (lifted.ok) return
-
-    expect(lifted.fault).toBe(ELiftFault.Transfer)
-    expect(lifted.step).toBe(ELiftStep.Transferring)
-    expect(lifted.stopped).toMatchObject({ shells: ['bun run dev'], services: ['api'] })
-    expect(test.stops).toBe(1)
-    expect(test.located).toEqual([])
-    expect(test.bridge.attached).toEqual([])
-  })
-
   it('puts the conversation back on the host when the sandbox will not start', async () => {
+    useAtlasHome()
     const bridge = fakeBridge({
       createFails: new CloudError({ status: 500, message: 'no capacity in iad1' }),
     })
@@ -51,6 +31,7 @@ describe('a lift that does not finish', () => {
   })
 
   it('puts the conversation back on the host when the context archive will not reach the sandbox', async () => {
+    useAtlasHome()
     const bridge = fakeBridge({
       putContextFails: new CloudError({ status: 500, message: 'the control plane fell over' }),
     })
@@ -68,7 +49,31 @@ describe('a lift that does not finish', () => {
     expect(test.bridge.attached).toEqual([])
   })
 
+  it('fails at Starting and flips back when the transcript will not reach the sandbox', async () => {
+    useAtlasHome()
+    const bridge = fakeBridge({
+      putTranscriptFails: new CloudError({ status: 500, message: 'the row would not take the tar' }),
+    })
+    const test = harness({ bridge })
+
+    const lifted = await liftToCloud(test.args)
+
+    expect(lifted.ok).toBe(false)
+    if (lifted.ok) return
+
+    expect(lifted.fault).toBe(ELiftFault.Sandbox)
+    expect(lifted.step).toBe(ELiftStep.Starting)
+    expect(lifted.detail).toContain('the row would not take the tar')
+    expect(test.located).toEqual([EExecutionLocation.Cloud, EExecutionLocation.Host])
+    expect(test.localThreads.chosenLocations.at(-1)).toEqual({
+      threadId: CLOUD_THREAD,
+      location: EExecutionLocation.Host,
+    })
+    expect(test.bridge.attached).toEqual([])
+  })
+
   it('reads a 503 from the sandbox routes as the cloud not being set up', async () => {
+    useAtlasHome()
     const bridge = fakeBridge({
       createFails: new CloudError({ status: 503, message: 'sandboxes are not configured' }),
     })
@@ -84,6 +89,7 @@ describe('a lift that does not finish', () => {
   })
 
   it('reads a missing Vercel token as the cloud sandboxes not being set up, with the teaching intact', async () => {
+    useAtlasHome()
     const bridge = fakeBridge({
       createFails: new VercelNotConfiguredError('add your Vercel token'),
     })
@@ -100,6 +106,7 @@ describe('a lift that does not finish', () => {
   })
 
   it('reads a gh failure as git access missing, teaching the login', async () => {
+    useAtlasHome()
     const bridge = fakeBridge({
       createFails: new GitCredentialError('run `gh auth login`, then try again'),
     })
@@ -117,6 +124,7 @@ describe('a lift that does not finish', () => {
   })
 
   it('keeps the real message of a 503 that is not the not-configured one', async () => {
+    useAtlasHome()
     const bridge = fakeBridge({
       createFails: new CloudError({
         status: 503,
@@ -135,6 +143,7 @@ describe('a lift that does not finish', () => {
   })
 
   it('reads an unreachable API as unreachable rather than as a refusal', async () => {
+    useAtlasHome()
     const bridge = fakeBridge({
       createFails: new CloudError({ status: 0, message: 'connect ECONNREFUSED' }),
     })
@@ -149,6 +158,7 @@ describe('a lift that does not finish', () => {
   })
 
   it('puts the conversation back on the host when the open after attach fails', async () => {
+    useAtlasHome()
     const test = harness({
       open: async () => {
         throw new CloudError({ status: 404, message: 'Cannot GET /v1/threads/x/events/head' })
@@ -169,6 +179,7 @@ describe('a lift that does not finish', () => {
   })
 
   it('names what the move already closed when it fails after stopping them', async () => {
+    useAtlasHome()
     const bridge = fakeBridge({
       createFails: new CloudError({ status: 500, message: 'no capacity' }),
     })

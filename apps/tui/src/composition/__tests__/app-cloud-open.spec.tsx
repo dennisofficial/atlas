@@ -12,7 +12,6 @@ import { ECloudSandboxState } from '@dltech/atlas-harness'
 import { CLEAN_WORKSPACE, fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
 import type { CloudBridgeFactory } from '../use-cloud-lift'
 import { spokenIn, THREAD, until } from './app-fixture'
-import { fakeEventLog, fakeThreadStore, type FakeThreadStore } from './fake-backend'
 import { FAKE_CONFIG, fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
 await grammarsReady()
@@ -38,12 +37,18 @@ const RESUMED_SANDBOX = {
 const speaking = (): FakeApp =>
   fakeApp({ model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }) })
 
-const seedCloudThread = async (): Promise<{ threads: FakeThreadStore; threadId: ThreadId }> => {
-  const threads = fakeThreadStore({ log: fakeEventLog() })
-  const thread = await threads.create({ workspace: FAKE_CONFIG.cwd, repo: null })
-  await threads.chooseExecutionLocation({ threadId: thread.id, location: EExecutionLocation.Cloud })
-  await threads.rename({ threadId: thread.id, title: 'the lifted thread' })
-  return { threads, threadId: thread.id }
+/**
+ * The /resume picker lists the local store, so a conversation that lives in the cloud is seeded
+ * there as a cloud thread — the row that says where it runs — while its transcript stays in the
+ * sandbox's stores, which the fake bridge serves.
+ */
+const seedCloudThread = async (
+  app: FakeApp,
+): Promise<{ threadId: ThreadId }> => {
+  const thread = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null })
+  await app.threads.chooseExecutionLocation({ threadId: thread.id, location: EExecutionLocation.Cloud })
+  await app.threads.rename({ threadId: thread.id, title: 'the lifted thread' })
+  return { threadId: thread.id }
 }
 
 const mount = async (args: {
@@ -51,6 +56,11 @@ const mount = async (args: {
   bridge: FakeBridge
   opened?: Parameters<typeof App>[0]['opened']
 }) => {
+  args.bridge.sourceStores({
+    log: args.app.log,
+    threads: args.app.threads,
+    workspace: args.app.workspace.workspace,
+  })
   const createBridge: CloudBridgeFactory = () => args.bridge
   const setup = await testRender(
     <App
@@ -90,8 +100,8 @@ const mount = async (args: {
 describe('opening a conversation that lives in the cloud', () => {
   it('attaches to its sandbox when picked from /resume', async () => {
     const app = speaking()
-    const { threads, threadId } = await seedCloudThread()
-    const bridge = fakeBridge({ threadStore: threads, status: RUNNING_STATUS })
+    const { threadId } = await seedCloudThread(app)
+    const bridge = fakeBridge({ status: RUNNING_STATUS })
     await bridge.log.append({
       threadId,
       runId: toRunId('run-cloud'),
@@ -118,8 +128,8 @@ describe('opening a conversation that lives in the cloud', () => {
 
   it('attaches when /resume names a cloud conversation by the title the cloud remembers', async () => {
     const app = speaking()
-    const { threads, threadId } = await seedCloudThread()
-    const bridge = fakeBridge({ threadStore: threads, status: RUNNING_STATUS })
+    const { threadId } = await seedCloudThread(app)
+    const bridge = fakeBridge({ status: RUNNING_STATUS })
     await bridge.log.append({
       threadId,
       runId: toRunId('run-cloud'),
@@ -144,8 +154,8 @@ describe('opening a conversation that lives in the cloud', () => {
 
   it('attaches at boot when the session opens on a cloud conversation', async () => {
     const app = speaking()
-    const { threads, threadId } = await seedCloudThread()
-    const bridge = fakeBridge({ threadStore: threads, status: RUNNING_STATUS })
+    const { threadId } = await seedCloudThread(app)
+    const bridge = fakeBridge({ status: RUNNING_STATUS })
     await bridge.log.append({
       threadId,
       runId: toRunId('run-cloud'),
@@ -182,8 +192,8 @@ describe('opening a conversation that lives in the cloud', () => {
 describe('the picker badge and the reattach notice', () => {
   it('badges a cloud conversation with its sandbox state in the picker', async () => {
     const app = speaking()
-    const { threads } = await seedCloudThread()
-    const bridge = fakeBridge({ threadStore: threads, status: RUNNING_STATUS })
+    await seedCloudThread(app)
+    const bridge = fakeBridge({ status: RUNNING_STATUS })
     const mounted = await mount({ app, bridge })
 
     try {
@@ -198,9 +208,8 @@ describe('the picker badge and the reattach notice', () => {
 
   it('says what survived once the reattached sandbox greets', async () => {
     const app = speaking()
-    const { threads, threadId } = await seedCloudThread()
+    const { threadId } = await seedCloudThread(app)
     const bridge = fakeBridge({
-      threadStore: threads,
       status: RUNNING_STATUS,
       sandbox: RESUMED_SANDBOX,
     })

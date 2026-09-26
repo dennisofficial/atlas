@@ -1,28 +1,21 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EExecutionLocation, toRunId } from '@dltech/atlas-core'
-import { ENoticeTone } from '@dltech/atlas-core'
+import { EExecutionLocation, ENoticeTone, toRunId } from '@dltech/atlas-core'
 import { ETurnStatus } from '../../../loop/turn-outcome'
 
 import { EDescendStep } from '../descend'
 import { ELiftStep } from '../lift'
-import {
-  CHILD,
-  descend,
-  fakeSurface,
-  localHome,
-  said,
-  seedCloud,
-} from './descend-fixture'
+import { fakeAgentSnapshot } from './fake-agents'
+import { CHILD, cloudArchiveOf, descend, fakeSurface, useDescendHome } from './descend-fixture'
 import { CLOUD_THREAD, fakeBridge } from './fixture'
 
+const said = (text: string) => ({ type: 'user-said' as const, text })
+
 describe('bringing a cloud conversation home', () => {
-  it('rebuilds the local log from the cloud and flips both stores', async () => {
-    const bridge = fakeBridge()
-    await seedCloud(bridge, ['one', 'two', 'three', 'four'])
-    const home = localHome({
-      events: [said({ seq: 1, text: 'one' }), said({ seq: 2, text: 'two' })],
-    })
+  it('unpacks the session archive into the local store and flips it home', async () => {
+    const home = useDescendHome()
+    const archive = await cloudArchiveOf([{ drafts: ['one', 'two', 'three', 'four'].map(said) }])
+    const bridge = fakeBridge({ archive })
     const surface = fakeSurface()
 
     const opened = await descend({ bridge, home, surface })
@@ -35,9 +28,6 @@ describe('bringing a cloud conversation home', () => {
     expect((await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation).toBe(
       EExecutionLocation.Host,
     )
-    expect(
-      (await bridge.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation,
-    ).toBe(EExecutionLocation.Host)
     expect(opened.threadId).toBe(CLOUD_THREAD)
     expect(opened.resumeOnArrival).toBeUndefined()
     expect(surface.steps).toEqual([
@@ -50,25 +40,27 @@ describe('bringing a cloud conversation home', () => {
   })
 
   it('creates the local thread when the conversation only ever lived in the cloud', async () => {
-    const bridge = fakeBridge()
-    await seedCloud(bridge, ['born up there'])
-    const home = localHome({ withThread: false })
+    const home = useDescendHome()
+    const archive = await cloudArchiveOf([{ drafts: [said('born up there')] }])
+    const bridge = fakeBridge({ archive })
 
     const opened = await descend({ bridge, home })
 
     expect(opened.threadId).toBe(CLOUD_THREAD)
     const created = await home.threads.find({ threadId: CLOUD_THREAD })
     expect(created?.executionLocation).toBe(EExecutionLocation.Host)
-    expect((await home.log.read({ threadId: CLOUD_THREAD })).map((e) => e.type)).toContain(
-      'user-said',
-    )
+    const types = (await home.log.read({ threadId: CLOUD_THREAD })).map((event) => event.type)
+    expect(types).toContain('user-said')
   })
 
-  it('carries sub-agent threads down with the parent', async () => {
-    const bridge = fakeBridge()
-    await seedCloud(bridge, ['parent says'])
-    await seedCloud(bridge, ['child says'], { threadId: CHILD, spawnedBy: CLOUD_THREAD })
-    const home = localHome({ events: [said({ seq: 1, text: 'parent says' })] })
+  it('carries sub-agent threads down with the parent, in the same archive', async () => {
+    const home = useDescendHome()
+    const archive = await cloudArchiveOf([
+      { drafts: [said('parent says')] },
+      { threadId: CHILD, drafts: [said('child says')], spawnedBy: CLOUD_THREAD },
+    ])
+    const bridge = fakeBridge({ archive })
+    home.agents.place(fakeAgentSnapshot({ agentId: CHILD, spawnedBy: CLOUD_THREAD }))
 
     await descend({ bridge, home })
 
@@ -79,38 +71,40 @@ describe('bringing a cloud conversation home', () => {
     expect(childRow?.agent?.spawnedBy).toBe(CLOUD_THREAD)
   })
 
-  it('restores the agent roster so no child is reported lost', async () => {
-    const bridge = fakeBridge()
-    await seedCloud(bridge, ['parent says'])
-    await bridge.log.append({
-      threadId: CLOUD_THREAD,
-      runId: toRunId('run_cloud_spawn'),
-      drafts: [
-        {
-          type: 'agent-spawned',
-          agentId: CHILD,
-          agentType: 'explore',
-          intent: 'check the thing',
-          mode: 'fresh' as never,
-        },
-      ],
-    })
-    await seedCloud(bridge, ['child says'], { threadId: CHILD, spawnedBy: CLOUD_THREAD })
-    const home = localHome({ events: [said({ seq: 1, text: 'parent says' })] })
+  it('re-announces each child on the local log so the roster rebuilds after the move', async () => {
+    const home = useDescendHome()
+    const archive = await cloudArchiveOf([
+      { drafts: [said('parent says')] },
+      {
+        threadId: CHILD,
+        title: 'check the thing',
+        drafts: [said('child says')],
+        spawnedBy: CLOUD_THREAD,
+      },
+    ])
+    const bridge = fakeBridge({ archive })
+    home.agents.place(fakeAgentSnapshot({ agentId: CHILD, spawnedBy: CLOUD_THREAD }))
 
     await descend({ bridge, home })
 
-    const lost = await home.agents.recordLostAgents({ threadId: CLOUD_THREAD })
-    expect(lost.settled).toEqual([])
-    expect(lost.unlogged).toEqual([])
+    const spawned = (await home.log.read({ threadId: CLOUD_THREAD })).filter(
+      (event) => event.type === 'agent-spawned',
+    )
+    expect(spawned).toHaveLength(1)
+    expect(JSON.stringify(spawned[0])).toContain(CHILD)
+    expect(JSON.stringify(spawned[0])).toContain('check the thing')
   })
 
-  it('rebuilds the local log from the cloud when they diverged while away', async () => {
-    const bridge = fakeBridge()
-    await seedCloud(bridge, ['one', 'two'])
-    const home = localHome({
-      events: [said({ seq: 1, text: 'one' }), said({ seq: 2, text: 'something else entirely' })],
+  it('overwrites the local log wholesale when the two sides diverged while away', async () => {
+    const home = useDescendHome()
+    await home.threads.createWithFirstEvents({
+      threadId: CLOUD_THREAD,
+      runId: toRunId('run_stale_local'),
+      drafts: [said('something else entirely')],
+      workspace: '/work',
     })
+    const archive = await cloudArchiveOf([{ drafts: [said('one'), said('two')] }])
+    const bridge = fakeBridge({ archive })
 
     await descend({ bridge, home })
 
@@ -120,32 +114,35 @@ describe('bringing a cloud conversation home', () => {
     ).toEqual(['one', 'two'])
   })
 
-  it('refuses to wipe a local log the cloud has no events for', async () => {
-    const bridge = fakeBridge()
-    await bridge.threads.createWithFirstEvents({
+  it('refuses to wipe the local copy when the cloud holds no transcript', async () => {
+    const home = useDescendHome()
+    await home.threads.createWithFirstEvents({
       threadId: CLOUD_THREAD,
-      runId: toRunId('run_cloud_seed'),
-      drafts: [],
+      runId: toRunId('run_stale_local'),
+      drafts: [said('only ever local')],
       workspace: '/work',
-      executionLocation: EExecutionLocation.Cloud,
     })
-    const home = localHome({ events: [said({ seq: 1, text: 'only ever local' })] })
+    await home.threads.chooseExecutionLocation({
+      threadId: CLOUD_THREAD,
+      location: EExecutionLocation.Cloud,
+    })
+    const bridge = fakeBridge({ archive: '' })
 
-    await expect(descend({ bridge, home })).rejects.toThrow('refusing to wipe')
-    expect(
-      (await home.log.read({ threadId: CLOUD_THREAD })).map((event) => event.type),
-    ).toEqual(['user-said'])
-    expect(
-      (await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation,
-    ).toBe(EExecutionLocation.Cloud)
+    await expect(descend({ bridge, home })).rejects.toThrow('the cloud holds no transcript')
+
+    const events = await home.log.read({ threadId: CLOUD_THREAD })
+    expect(events.map((event) => event.type)).toEqual(['user-said'])
+    expect((await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation).toBe(
+      EExecutionLocation.Cloud,
+    )
+    expect(bridge.destroyed).toEqual([])
   })
 
   it('interrupts a turn in flight on the sandbox and marks the descent to resume locally', async () => {
-    const bridge = fakeBridge()
-    await seedCloud(bridge, ['one'])
-    const home = localHome({ events: [said({ seq: 1, text: 'one' })] })
-    bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' })
-    const channel = bridge.channel
+    const home = useDescendHome()
+    const archive = await cloudArchiveOf([{ drafts: [said('one')] }])
+    const bridge = fakeBridge({ archive })
+    const channel = bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
     let interrupts = 0
     channel.interrupt = () => {
       interrupts += 1
@@ -171,23 +168,18 @@ describe('bringing a cloud conversation home', () => {
   })
 
   it('gives up legibly when the remote turn will not stop', async () => {
-    const bridge = fakeBridge()
-    await seedCloud(bridge, ['one'])
-    const home = localHome({ events: [said({ seq: 1, text: 'one' })] })
+    const home = useDescendHome()
+    const bridge = fakeBridge({ archive: await cloudArchiveOf([{ drafts: [said('one')] }]) })
 
     await expect(
       descend({ bridge, home, midTurn: true, interruptDeadlineMs: 20 }),
     ).rejects.toThrow('would not stop in time')
-    expect(await home.log.read({ threadId: CLOUD_THREAD })).toHaveLength(1)
-    expect(
-      (await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation,
-    ).toBe(EExecutionLocation.Cloud)
+    expect((await home.threads.find({ threadId: CLOUD_THREAD }))).toBeUndefined()
   })
 
   it('destroys the cloud sandbox once the conversation is safely back on the host', async () => {
-    const bridge = fakeBridge()
-    await seedCloud(bridge, ['one'])
-    const home = localHome({ events: [said({ seq: 1, text: 'one' })] })
+    const home = useDescendHome()
+    const bridge = fakeBridge({ archive: await cloudArchiveOf([{ drafts: [said('one')] }]) })
 
     await descend({ bridge, home })
 
@@ -195,9 +187,8 @@ describe('bringing a cloud conversation home', () => {
   })
 
   it('never destroys the sandbox when the descent fails', async () => {
-    const bridge = fakeBridge()
-    await seedCloud(bridge, ['one'])
-    const home = localHome({ events: [said({ seq: 1, text: 'one' })] })
+    const home = useDescendHome()
+    const bridge = fakeBridge({ archive: await cloudArchiveOf([{ drafts: [said('one')] }]) })
 
     await expect(
       descend({ bridge, home, midTurn: true, interruptDeadlineMs: 20 }),
@@ -207,9 +198,11 @@ describe('bringing a cloud conversation home', () => {
   })
 
   it('warns rather than failing the descend when the sandbox will not tear down', async () => {
-    const bridge = fakeBridge({ destroyFails: new Error('the control plane fell over') })
-    await seedCloud(bridge, ['one'])
-    const home = localHome({ events: [said({ seq: 1, text: 'one' })] })
+    const home = useDescendHome()
+    const bridge = fakeBridge({
+      archive: await cloudArchiveOf([{ drafts: [said('one')] }]),
+      destroyFails: new Error('the control plane fell over'),
+    })
     const surface = fakeSurface()
 
     const opened = await descend({ bridge, home, surface })
@@ -222,33 +215,9 @@ describe('bringing a cloud conversation home', () => {
     expect(notice?.text).toContain('the control plane fell over')
   })
 
-  it('raises a standing warn when the cloud row will not flip back, and the descend still completes', async () => {
-    const bridge = fakeBridge()
-    await seedCloud(bridge, ['one'])
-    const home = localHome({ events: [said({ seq: 1, text: 'one' })] })
-    bridge.stores.threads.chooseExecutionLocation = async () => {
-      throw new Error('the control plane refused the write')
-    }
-    const surface = fakeSurface()
-
-    const opened = await descend({ bridge, home, surface })
-
-    expect(opened.threadId).toBe(CLOUD_THREAD)
-    expect((await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation).toBe(
-      EExecutionLocation.Host,
-    )
-    const notice = surface.notices.posts.find((entry) => entry.key === 'descend-remote-flip-failed')
-    expect(notice).toBeDefined()
-    expect(notice?.tone).toBe(ENoticeTone.Warn)
-    expect(notice?.ttlMs).toBeNull()
-    expect(notice?.text).toContain('the control plane refused the write')
-    expect(notice?.text).toContain('next attach will reconcile')
-  })
-
   it('pulls the cloud memory down once the log and workspace are home', async () => {
-    const bridge = fakeBridge()
-    await seedCloud(bridge, ['one'])
-    const home = localHome({ events: [said({ seq: 1, text: 'one' })] })
+    const home = useDescendHome()
+    const bridge = fakeBridge({ archive: await cloudArchiveOf([{ drafts: [said('one')] }]) })
     let pulls = 0
 
     const opened = await descend({
@@ -266,9 +235,8 @@ describe('bringing a cloud conversation home', () => {
   })
 
   it('keeps the cloud versions of memory the local side won as a log entry, never dropped', async () => {
-    const bridge = fakeBridge()
-    await seedCloud(bridge, ['one'])
-    const home = localHome({ events: [said({ seq: 1, text: 'one' })] })
+    const home = useDescendHome()
+    const bridge = fakeBridge({ archive: await cloudArchiveOf([{ drafts: [said('one')] }]) })
 
     await descend({
       bridge,
@@ -287,9 +255,8 @@ describe('bringing a cloud conversation home', () => {
   })
 
   it('warns rather than failing the descend when the memory pull fails', async () => {
-    const bridge = fakeBridge()
-    await seedCloud(bridge, ['one'])
-    const home = localHome({ events: [said({ seq: 1, text: 'one' })] })
+    const home = useDescendHome()
+    const bridge = fakeBridge({ archive: await cloudArchiveOf([{ drafts: [said('one')] }]) })
     const surface = fakeSurface()
 
     const opened = await descend({
@@ -309,9 +276,8 @@ describe('bringing a cloud conversation home', () => {
   })
 
   it('never pulls memory when the descent fails before the transfer lands', async () => {
-    const bridge = fakeBridge()
-    await seedCloud(bridge, ['one'])
-    const home = localHome({ events: [said({ seq: 1, text: 'one' })] })
+    const home = useDescendHome()
+    const bridge = fakeBridge({ archive: await cloudArchiveOf([{ drafts: [said('one')] }]) })
     let pulls = 0
 
     await expect(

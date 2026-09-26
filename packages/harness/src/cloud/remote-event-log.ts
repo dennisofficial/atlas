@@ -1,46 +1,43 @@
 import { EventLogPort, type Event, type EventDraft, type RunId, type ThreadId } from '@dltech/atlas-core'
 
-import type { SessionsClient } from './sessions-client'
-import { eventFromWire, wireDraftOf } from './session-wire'
+import { EClientRequest, readEventsReplySchema } from './channel-wire'
+import type { RemoteDeltaChannel } from './remote-delta-channel'
+import { eventFromWire } from './session-wire'
 
+/**
+ * The cloud transcript's read half: the sandbox's serve owns the on-disk JSONL log, so a read is a
+ * channel request it answers from that log. Writes are refused outright — the loop running inside
+ * the sandbox is the only writer, and a client that still tries to append has a stale wiring bug to
+ * surface, not a request to relay.
+ */
 export class RemoteEventLog extends EventLogPort {
-  private readonly client: SessionsClient
+  private readonly channel: Pick<RemoteDeltaChannel, 'request'>
 
-  constructor(args: { client: SessionsClient }) {
+  constructor(args: { channel: Pick<RemoteDeltaChannel, 'request'> }) {
     super()
-    this.client = args.client
+    this.channel = args.channel
   }
 
-  async append(args: {
+  append(_args: {
     threadId: ThreadId
     runId: RunId
     parentRunId?: RunId | undefined
     depth?: number | undefined
     drafts: readonly EventDraft[]
   }): Promise<Event[]> {
-    if (args.drafts.length === 0) return []
-
-    const wire = await this.client.appendEvents({
-      threadId: args.threadId,
-      runId: args.runId,
-      ...(args.parentRunId === undefined ? {} : { parentRunId: args.parentRunId }),
-      ...(args.depth === undefined ? {} : { depth: args.depth }),
-      drafts: args.drafts.map(wireDraftOf),
-    })
-    return wire.map(eventFromWire)
+    return Promise.reject(
+      new Error('the sandbox owns the transcript while lifted — reads only over the channel'),
+    )
   }
 
-  async replace(args: {
+  replace(_args: {
     threadId: ThreadId
     runId: RunId
     drafts: readonly EventDraft[]
   }): Promise<Event[]> {
-    const wire = await this.client.replaceEvents({
-      threadId: args.threadId,
-      runId: args.runId,
-      drafts: args.drafts.map(wireDraftOf),
-    })
-    return wire.map(eventFromWire)
+    return Promise.reject(
+      new Error('the sandbox owns the transcript while lifted — reads only over the channel'),
+    )
   }
 
   async read(args: {
@@ -48,14 +45,7 @@ export class RemoteEventLog extends EventLogPort {
     fromSeq?: number | undefined
     upTo?: number | undefined
   }): Promise<Event[]> {
-    const wire = await this.client.readEvents({
-      threadId: args.threadId,
-      ...(args.upTo === undefined ? {} : { upTo: args.upTo }),
-    })
-    const events = wire.map(eventFromWire)
-    if (args.fromSeq === undefined) return events
-    const fromSeq = args.fromSeq
-    return events.filter((event) => event.seq > fromSeq)
+    return await this.readEvents({ ...args, own: false })
   }
 
   async readOwn(args: {
@@ -63,18 +53,31 @@ export class RemoteEventLog extends EventLogPort {
     fromSeq?: number | undefined
     upTo?: number | undefined
   }): Promise<Event[]> {
-    const wire = await this.client.readEvents({
-      threadId: args.threadId,
-      own: true,
-      ...(args.upTo === undefined ? {} : { upTo: args.upTo }),
-    })
-    const events = wire.map(eventFromWire)
-    if (args.fromSeq === undefined) return events
-    const fromSeq = args.fromSeq
-    return events.filter((event) => event.seq > fromSeq)
+    return await this.readEvents({ ...args, own: true })
   }
 
-  head(args: { threadId: ThreadId }): Promise<number> {
-    return this.client.threadHead({ threadId: args.threadId })
+  async head(args: { threadId: ThreadId }): Promise<number> {
+    const events = await this.read({ threadId: args.threadId })
+    return events.at(-1)?.seq ?? 0
+  }
+
+  private async readEvents(args: {
+    threadId: ThreadId
+    own: boolean
+    fromSeq?: number | undefined
+    upTo?: number | undefined
+  }): Promise<Event[]> {
+    const reply = readEventsReplySchema.parse(
+      await this.channel.request({
+        op: EClientRequest.ReadEvents,
+        params: {
+          threadId: args.threadId,
+          ...(args.fromSeq === undefined ? {} : { fromSeq: args.fromSeq }),
+          ...(args.upTo === undefined ? {} : { upTo: args.upTo }),
+          ...(args.own ? { own: true } : {}),
+        },
+      }),
+    )
+    return reply.events.map(eventFromWire)
   }
 }

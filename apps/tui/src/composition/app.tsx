@@ -181,6 +181,7 @@ import {
   EDescendStep,
   ELiftStep,
   type CloudBridge,
+  type CloudStores,
   type DescendSurface,
 } from '@dltech/atlas-harness'
 import { liftRefusal } from './cloud/lift-plan'
@@ -396,6 +397,7 @@ export function App(props: {
         opened={lifted?.opened ?? reopened ?? props.opened}
         cloudSession={lifted?.session ?? null}
         cloudBridge={lifted?.bridge ?? null}
+        cloudStores={lifted?.stores ?? null}
         createBridge={props.createBridge ?? liveBridgeFor(props.app)}
         preflightLift={props.preflightLift ?? liveLiftPreflightFor(props.app)}
         captureWorkspace={props.captureWorkspace ?? captureWorkspace}
@@ -421,6 +423,7 @@ function Workspace(props: {
   onRestart: (() => void) | null
   cloudSession: CloudSession | null
   cloudBridge: CloudBridge | null
+  cloudStores: CloudStores | null
   createBridge: CloudBridgeFactory
   preflightLift: LiftPreflight
   captureWorkspace: WorkspaceCapture
@@ -1036,9 +1039,10 @@ function Workspace(props: {
         return
       }
 
-      if (props.cloudSession !== null && props.cloudBridge !== null) {
+      if (props.cloudSession !== null && props.cloudBridge !== null && props.cloudStores !== null) {
         const { channel } = props.cloudSession
         const bridge = props.cloudBridge
+        const cloudStores = props.cloudStores
         const descendSurface: DescendSurface<OpenedConversation> = {
           notice: noticePortBinding(),
           onBegin: ({ plan }) =>
@@ -1053,7 +1057,7 @@ function Workspace(props: {
           openLocal: (home, threadId) =>
             openConversation({
               threads: home.threads,
-              remoteThreads: bridge.stores.threads,
+              remoteThreads: cloudStores.threads,
               log: home.log,
               ledger: home.ledger,
               agents: home.agents,
@@ -1161,6 +1165,7 @@ function Workspace(props: {
       props.localApp,
       props.cloudSession,
       props.cloudBridge,
+      props.cloudStores,
       props.onDescend,
     ],
   )

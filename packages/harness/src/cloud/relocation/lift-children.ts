@@ -1,7 +1,6 @@
 import {
   CLOUD_WORKSPACE_PATH,
   EExecutionLocation,
-  type Event,
   type EventLogPort,
   type IdPort,
   type ThreadId,
@@ -9,18 +8,14 @@ import {
 
 import type { AgentRegistryPort } from '../../agents/registry/port'
 import type { ThreadStorePort } from '../../store/thread-store'
-import type { CloudBridge } from './cloud-bridge'
-import { draftsOf } from './event-drafts'
-import { assertTransferred } from './transfer-verification'
 
 export type LiftAgentsPort = Pick<
   AgentRegistryPort,
   'list' | 'resume' | 'stopChildren' | 'markChildrenRelocated' | 'forgetNotices'
 >
 
-type SnapshotArgs = {
+type FlipArgs = {
   threadId: ThreadId
-  bridge: CloudBridge
   ids: IdPort
   agents: LiftAgentsPort
   localThreads: ThreadStorePort
@@ -28,54 +23,13 @@ type SnapshotArgs = {
 }
 
 /**
- * The snapshot half of the family transfer: every child gets a remote thread with its log, created
- * with the location it currently lives at. Nothing flips here — a lift that fails after this point
- * must find the family exactly where it was, and the flip is the one part that cannot be undone
- * by simply stopping.
- */
-export async function transferChildLogs(args: SnapshotArgs): Promise<void> {
-  const { threadId, bridge, ids, agents, localThreads, localLog } = args
-
-  for (const child of agents.list({ threadId })) {
-    const existing = await bridge.stores.threads.find({ threadId: child.agentId })
-    if (existing !== undefined) continue
-
-    const stored = await localThreads.find({ threadId: child.agentId })
-    const events: readonly Event[] = await localLog.readOwn({ threadId: child.agentId })
-    await bridge.stores.threads.createWithFirstEvents({
-      threadId: child.agentId,
-      runId: ids.nextRunId(),
-      drafts: draftsOf(events),
-      agent: { spawnedBy: child.spawnedBy, type: child.agentType },
-      executionLocation: stored?.executionLocation ?? EExecutionLocation.Host,
-      ...(stored?.workspace == null ? {} : { workspace: stored.workspace }),
-      ...(stored === undefined ? {} : { repo: stored.repo }),
-    })
-    await assertTransferred({
-      log: bridge.stores.log,
-      threadId: child.agentId,
-      expectedHead: events.length,
-      expectedCount: events.length,
-      side: 'cloud',
-    })
-  }
-}
-
-type FlipArgs = {
-  threadId: ThreadId
-  bridge: CloudBridge
-  ids: IdPort
-  agents: LiftAgentsPort
-  localThreads: ThreadStorePort
-}
-
-/**
- * The flip half, taken only once the parent's own flip has landed: each child goes to the cloud on
- * both stores, and the notice goes to the child's new log rather than the one it just left, so its
- * own transcript says where it went.
+ * The flip half of the family move, taken once the parent's own flip has landed: each child's local
+ * row goes to the cloud, and the notice goes to its local log so its transcript says where it went.
+ * The logs themselves never move here — the whole family lives in the parent's session directory,
+ * which the lift's archive carries in one piece.
  */
 export async function flipChildrenToCloud(args: FlipArgs): Promise<void> {
-  const { threadId, bridge, ids, agents, localThreads } = args
+  const { threadId, ids, agents, localThreads, localLog } = args
   const children = agents.list({ threadId })
   if (children.length === 0) return
 
@@ -83,7 +37,7 @@ export async function flipChildrenToCloud(args: FlipArgs): Promise<void> {
   for (const child of children) {
     const stored = await localThreads.find({ threadId: child.agentId })
     froms.set(child.agentId, stored?.executionLocation ?? EExecutionLocation.Host)
-    await bridge.stores.threads.chooseExecutionLocation({
+    await localThreads.chooseExecutionLocation({
       threadId: child.agentId,
       location: EExecutionLocation.Cloud,
     })
@@ -92,7 +46,7 @@ export async function flipChildrenToCloud(args: FlipArgs): Promise<void> {
   await agents.markChildrenRelocated({ threadId, location: EExecutionLocation.Cloud })
 
   for (const child of children) {
-    await bridge.stores.log
+    await localLog
       .append({
         threadId: child.agentId,
         runId: ids.nextRunId(),
@@ -111,16 +65,16 @@ export async function flipChildrenToCloud(args: FlipArgs): Promise<void> {
 
 export async function flipChildrenBack(args: {
   threadId: ThreadId
-  bridge: CloudBridge
+  localThreads: ThreadStorePort
   agents: LiftAgentsPort
   location: EExecutionLocation
 }): Promise<void> {
-  const { threadId, bridge, agents, location } = args
+  const { threadId, localThreads, agents, location } = args
   if (agents.list({ threadId }).length === 0) return
 
   await agents.markChildrenRelocated({ threadId, location }).catch(() => undefined)
   for (const child of agents.list({ threadId })) {
-    await bridge.stores.threads
+    await localThreads
       .chooseExecutionLocation({ threadId: child.agentId, location })
       .catch(() => undefined)
   }

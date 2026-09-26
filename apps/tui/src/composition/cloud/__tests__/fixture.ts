@@ -83,11 +83,12 @@ export function fakeCloudChannel(
   let heldRoster: RosterWire = { shells: [], agents: [], services: [] }
   let closed = false
   let runs = 0
+  const channelThreadId = args.threadId ?? CLOUD_THREAD
 
   return {
-    threadId: args.threadId ?? CLOUD_THREAD,
+    threadId: channelThreadId,
     commitSaid: ({ text, images }) => {
-      const threadId = args.threadId ?? CLOUD_THREAD
+      const threadId = channelThreadId
       void args.log?.append({
         threadId,
         runId: toRunId(`serve-${threadId}`),
@@ -114,7 +115,15 @@ export function fakeCloudChannel(
       requests.push({ op: given.op, params: given.params })
       if (given.op === EClientRequest.ListRoster) return heldRoster
       if (given.op === EClientRequest.PublishWorkspace) return null
-      if (given.op === EClientRequest.Rewind) return { applied: 0 }
+      if (given.op === EClientRequest.Rewind) {
+        // Serve truncates its own durable log inside the same apply that kills the cuts, so the
+        // fake does the same against the log it was handed.
+        const params = given.params as { threadId: ThreadId; toSeq?: number | undefined }
+        if (params.toSeq !== undefined) {
+          args.log?.truncate({ threadId: params.threadId, toSeq: params.toSeq })
+        }
+        return { applied: 0 }
+      }
       return { applied: 0 }
     },
     connection: () => held,
@@ -316,6 +325,8 @@ export type FakeBridge = CloudBridge & {
   readonly destroyed: readonly ThreadId[]
   readonly channel: FakeCloudChannel
   readonly trail: readonly string[]
+  /** Wire the local transcript a lift ships up; the mount fixture sets it once the app exists. */
+  sourceStores(args: { log: FakeEventLog; threads: FakeThreadStore; workspace: string }): void
 }
 
 const RUNNING: CloudSandbox = {
@@ -333,6 +344,9 @@ export function fakeBridge(
     destroyFails?: unknown
     status?: CloudSandboxStatus | undefined
     threadStore?: FakeThreadStore
+    /** The local transcript a lift ships up; the fake's stand-in for the sandbox untarring it. */
+    sourceLog?: FakeEventLog | undefined
+    sourceThreads?: FakeThreadStore | undefined
   } = {},
 ): FakeBridge {
   const log = fakeEventLog()
@@ -351,6 +365,38 @@ export function fakeBridge(
 
   const watchedThreads = new WatchedThreadStore({ inner: threads, trail })
 
+  let sourceLog = args.sourceLog
+  let sourceThreads = args.sourceThreads
+  let sourceWorkspace: string | null = null
+
+  /**
+   * The real serve boots with the transcript the lift uploaded and untars it into its local
+   * stores, so the conversation reads answer with its events and thread row. The fake has no tar,
+   * so it seeds the same end state synchronously — attach hands the stores back before the open
+   * reads them, so the seeding cannot await.
+   */
+  const materialize = (threadId: ThreadId): void => {
+    // A lift ships the local transcript up; a wake reattaches to one the sandbox already serves.
+    const events = log.peek({ threadId }).length > 0 ? log.peek({ threadId }) : sourceLog?.peek({ threadId }) ?? []
+    const sourceRow = sourceThreads?.peekRow({ threadId })
+    if (events.length === 0 && sourceRow === undefined) return
+    if (threads.peekRow({ threadId }) !== undefined) return
+
+    threads.seedThread({
+      id: threadId,
+      head: events.at(-1)?.seq ?? 0,
+      createdAt: events[0]?.at ?? '',
+      updatedAt: events.at(-1)?.at ?? '',
+      workspace: sourceRow?.workspace ?? sourceWorkspace,
+      repo: sourceRow?.repo ?? null,
+      ...(sourceRow?.title === undefined ? {} : { title: sourceRow.title }),
+      ...(sourceRow?.executionLocation === undefined
+        ? {}
+        : { executionLocation: sourceRow.executionLocation }),
+    })
+    if (events.length > 0) log.seed({ threadId, events })
+  }
+
   return {
     log,
     threads,
@@ -364,7 +410,11 @@ export function fakeBridge(
       return channel
     },
     trail,
-    stores: { log, threads: watchedThreads, ledger },
+    sourceStores: ({ log: source, threads: sourceThreadStore, workspace }) => {
+      sourceLog = source
+      sourceThreads = sourceThreadStore
+      sourceWorkspace = workspace
+    },
     sandboxes: {
       create: async ({ threadId, workspace, gpgKey, captureContext }) => {
         const sandbox = args.sandbox ?? RUNNING
@@ -393,6 +443,10 @@ export function fakeBridge(
         contextPuts.push({ threadId, archive: Buffer.from(archive) })
         if (args.putContextFails !== undefined) throw args.putContextFails
       },
+      putTranscript: async ({ threadId }) => {
+        trail.push('put-transcript')
+        materialize(threadId)
+      },
       find: async () => args.status,
       destroy: async ({ threadId }) => {
         trail.push('destroy')
@@ -403,8 +457,9 @@ export function fakeBridge(
     attach: ({ threadId, url, token }) => {
       trail.push('attach')
       attached.push({ threadId, url, token })
+      materialize(threadId)
       channel = fakeCloudChannel({ threadId, log })
-      return channel
+      return { channel, stores: { log, threads: watchedThreads, ledger } }
     },
   }
 }

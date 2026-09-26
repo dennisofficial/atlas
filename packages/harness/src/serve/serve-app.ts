@@ -11,6 +11,7 @@ import type { RosterWire } from '@dltech/atlas-wire'
 
 import type { DeltaChannel } from '../channel/delta-channel'
 import type { FileBrowser } from '../files/file-browser'
+import type { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import type { TurnPolicy } from '../loop/turn-policy'
 import type { TurnRunner } from '../loop/turn-runner.port'
 import type { LostShell } from '../shells/recovery'
@@ -50,6 +51,11 @@ export type ServeRewind = {
     removeShells(args: { threadId: ThreadId; shellIds: readonly string[]; by: EKilledBy }): void
     removeServices(args: { serviceIds: readonly string[]; by: EKilledBy }): void
   }
+  /**
+   * The durable truncation, present because this serve's transcript is its own disk. Applied in
+   * the same rewind apply that kills the cut processes; absent in fakes, which hold no log.
+   */
+  truncate?: ((args: { threadId: ThreadId; toSeq: number; cutAgents: readonly ThreadId[] }) => Promise<void>) | undefined
 }
 
 /** The composed session as serve consumes it: everything a socket can reach and nothing else. */
@@ -58,8 +64,10 @@ export type ServeApp = {
   runner: Pick<TurnRunner, 'runTurn'>
   /** The between-turns rules the shared root composed — absent in fakes, which run no policy. */
   turnPolicy?: TurnPolicy | undefined
-  log: Pick<EventLogPort, 'append' | 'read'>
-  threads: Pick<ThreadStorePort, 'find' | 'createWithFirstEvents'>
+  log: Pick<EventLogPort, 'append' | 'read' | 'readOwn' | 'head'>
+  threads: Pick<ThreadStorePort, 'find' | 'createWithFirstEvents' | 'spawned' | 'list'>
+  /** The on-disk turn spend, read by the transcript turn-feed op. Absent in fakes. */
+  ledger?: Pick<TurnLedgerPort, 'forThread' | 'forThreadTree'> | undefined
   ids: Pick<IdPort, 'nextRunId'>
   files: Pick<FileBrowser, 'list' | 'forget'>
   workspace: WorkspaceIdentity
@@ -71,6 +79,8 @@ export type ServeApp = {
    */
   recordLostShells?: ((args: { threadId: ThreadId }) => Promise<readonly LostShell[]>) | undefined
   whenChildrenSettled: (args: { threadId: ThreadId }) => Promise<void>
+  /** Tars the served session directory for the descend's transcript transfer; absent in fakes. */
+  sessionArchive?: (() => Promise<Uint8Array | null>) | undefined
   /** Carries this sandbox's memory back to the control plane — see upload-memory.ts. */
   syncMemoryAfterTurn: () => Promise<void>
   /** Live counts behind the idle park; absent in fakes, where nothing runs. */

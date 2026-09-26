@@ -1,3 +1,6 @@
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 import {
   EAgentStatus,
   EExecutionLocation,
@@ -10,6 +13,8 @@ import {
 } from '@dltech/atlas-core'
 
 import type { AgentSnapshot } from '../../../agents/registry/snapshot'
+import { SESSION_FORMAT_VERSION } from '../../../store/sessions/meta'
+import { SESSION_META_NAME, sessionDirectory } from '../../../store/sessions/paths'
 import {
   fakeEventLog,
   fakeThreadStore,
@@ -109,6 +114,22 @@ export type Harness = {
   readonly settleWaits: number
 }
 
+/**
+ * The lift tars the on-disk session dir, so a started conversation needs one under the staged
+ * `ATLAS_HOME` — the fake stores never touch the disk, and an empty dir ships no transcript.
+ */
+export const seedSessionDir = (args: { started?: boolean } = {}): void => {
+  if (args.started === false) return
+  const home = process.env['ATLAS_HOME']
+  if (home === undefined) throw new Error('the spec must stage an ATLAS_HOME first')
+  const sessionDir = sessionDirectory({ home, sessionId: CLOUD_THREAD })
+  mkdirSync(sessionDir, { recursive: true })
+  writeFileSync(
+    join(sessionDir, SESSION_META_NAME),
+    JSON.stringify({ format: SESSION_FORMAT_VERSION, id: CLOUD_THREAD }),
+  )
+}
+
 export const harness = (over: Partial<LiftArgs> & { bridge?: FakeBridge } = {}): Harness => {
   const bridge = over.bridge ?? fakeBridge()
   const localLog = fakeEventLog([...LOCAL_LOG])
@@ -118,6 +139,7 @@ export const harness = (over: Partial<LiftArgs> & { bridge?: FakeBridge } = {}):
   let stops = 0
   let interrupts = 0
   let settleWaits = 0
+  seedSessionDir({ started: over.started ?? true })
 
   const args: LiftArgs = {
     threadId: CLOUD_THREAD,

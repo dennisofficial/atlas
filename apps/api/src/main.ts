@@ -40,6 +40,7 @@ async function createApp(): Promise<NestExpressApplication> {
   app.use(helmet())
   const rawArchiveParser = contextArchiveRawParser({ limitBytes: MAX_CONTEXT_ARCHIVE_BYTES })
   app.use('/v1/sandboxes/:threadId/context', rawArchiveParser)
+  app.use('/v1/sandboxes/:threadId/transcript', rawArchiveParser)
   app.use('/v1/user-context/memory', rawArchiveParser)
   // Unauthenticated webhook routes get tight body caps well under the global limit: the HMAC is
   // verified only after buffering, so anything bigger must be refused before it is read.

@@ -21,6 +21,7 @@ const stubSandboxes = (args: { token?: string; createFails?: unknown }) => {
       }
     },
     putContext: async () => undefined,
+    putTranscript: async () => undefined,
     find: async () => undefined,
     destroy: async () => undefined,
   }

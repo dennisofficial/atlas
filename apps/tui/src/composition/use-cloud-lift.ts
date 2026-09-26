@@ -7,7 +7,7 @@ import { mergeRemoteMemoryBounded, type CaptureContext } from '@dltech/atlas-har
 
 import { clientVersionHeader } from '../build/info'
 import { cloudApp, openCloudConversation } from './cloud/cloud-app'
-import type { CloudBridge, LiftedWorkspace } from '@dltech/atlas-harness'
+import type { CloudBridge, CloudStores, LiftedWorkspace } from '@dltech/atlas-harness'
 import { noticePortBinding } from './notice-binding'
 import { createCloudRunner } from './cloud/cloud-runner'
 import { liftToCloud } from '@dltech/atlas-harness'
@@ -97,6 +97,7 @@ export function useCloudLift(args: {
           latest.current.app.captureContext({ cwd: latest.current.projectDirectory })
 
         let opened: OpenedConversation | undefined
+        let liftedStores: CloudStores | undefined
         const lifted = await liftToCloud({
       threadId,
       cwd: latest.current.projectDirectory,
@@ -118,9 +119,16 @@ export function useCloudLift(args: {
       capture: latest.current.capture,
       onProgress: (step) => move.handleAdvance(step),
       captureContext,
-      open: async (channel) => {
-        const runner = createCloudRunner({ bridge, channel, threadId, captureContext, move })
-        const attached = cloudApp({ app, bridge, channel, runner })
+      open: async (attachment) => {
+        liftedStores = attachment.stores
+        const runner = createCloudRunner({
+          bridge,
+          channel: attachment.channel,
+          threadId,
+          captureContext,
+          move,
+        })
+        const attached = cloudApp({ app, channel: attachment.channel, stores: attachment.stores, runner })
         opened = await openCloudConversation({ app: attached, threadId })
       },
     })
@@ -138,14 +146,15 @@ export function useCloudLift(args: {
         }
 
         const runner = createCloudRunner({ bridge, channel: lifted.channel, threadId, captureContext, move })
-        const attached = cloudApp({ app, bridge, channel: lifted.channel, runner })
+        if (liftedStores === undefined) throw new Error('the lift attached without its stores')
+        const attached = cloudApp({ app, channel: lifted.channel, stores: liftedStores, runner })
         const conversation = opened ?? (await openCloudConversation({ app: attached, threadId }))
         const arrived = lifted.resumeOnArrival
           ? { ...conversation, resumeOnArrival: true }
           : conversation
 
         move.handleSettle()
-        onLifted({ app: attached, opened: arrived, bridge, channel: lifted.channel })
+        onLifted({ app: attached, opened: arrived, bridge, channel: lifted.channel, stores: liftedStores })
       })
       .catch((error: unknown) => {
         const reason = `moving to the cloud failed — ${messageOf(error)}`

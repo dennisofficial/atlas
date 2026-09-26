@@ -66,7 +66,7 @@ const unreachableKill = (cut: RewindCut): RewindKill => {
  * pre-rewind state.
  */
 export type ChannelRewindPort = {
-  apply(args: { threadId: ThreadId; cuts: readonly RewindCut[] }): Promise<void>
+  apply(args: { threadId: ThreadId; cuts: readonly RewindCut[]; toSeq?: number | undefined }): Promise<void>
 }
 
 const REWIND_APPLY_NOTICE_KEY = 'cloud:rewind-apply'
@@ -81,6 +81,8 @@ const cutNameOf = (cut: RewindCut): string => {
 }
 
 export class RemoteRewindMachinery extends RewindMachineryPort {
+  override readonly ownsDurableLog = true
+
   private readonly channel: ChannelRewindPort
   private readonly notice: NoticePort | undefined
   private readonly read: (args: {
@@ -112,12 +114,16 @@ export class RemoteRewindMachinery extends RewindMachineryPort {
   }
 
   /**
-   * A channel that cannot carry the apply degrades to the rewind that always landed: the HTTP
-   * write still truncates the log, and the sandbox's cut processes keep running — exactly what a
-   * serve too old to answer the op does today. It used to do so silently; the operator now hears
-   * what may still be running on the far side.
+   * The apply carries the rewind point: the sandbox's serve truncates its own durable log as part
+   * of the same apply that kills the cut processes, so the two never race. A channel that cannot
+   * carry the apply degrades to the processes left running — the operator hears what may still be
+   * running on the far side.
    */
-  async destroy(args: { cuts: readonly RewindCut[]; threadId: ThreadId }): Promise<void> {
+  async destroy(args: {
+    cuts: readonly RewindCut[]
+    threadId: ThreadId
+    toSeq?: number | undefined
+  }): Promise<void> {
     await this.channel.apply(args).catch((error: unknown) => {
       this.notice?.notify({
         key: REWIND_APPLY_NOTICE_KEY,
@@ -132,7 +138,12 @@ export class RemoteRewindMachinery extends RewindMachineryPort {
 export const rewindApplyParamsOf = (args: {
   threadId: ThreadId
   cuts: readonly RewindCut[]
+  toSeq?: number | undefined
 }): RewindApplyParams =>
-  rewindApplyParamsSchema.parse({ threadId: args.threadId, cuts: args.cuts.map(cutWireOf) })
+  rewindApplyParamsSchema.parse({
+    threadId: args.threadId,
+    cuts: args.cuts.map(cutWireOf),
+    ...(args.toSeq === undefined ? {} : { toSeq: args.toSeq }),
+  })
 
 export const REWIND_REQUEST_OP = EClientRequest.Rewind

@@ -54,6 +54,12 @@ export type RewindKillWire = z.infer<typeof rewindKillWireSchema>
 export const rewindApplyParamsSchema = z.object({
   threadId: threadIdWireSchema,
   cuts: z.array(rewindCutWireSchema),
+  /**
+   * The point the operator picked. A serve whose durable log is local (the sandbox's own JSONL)
+   * truncates it as part of the same apply, so the kill and the truncation are one request; a serve
+   * built before the transcript moved off the control plane has no `toSeq` and is never sent one.
+   */
+  toSeq: z.number().int().nonnegative().optional(),
 })
 
 export type RewindApplyParams = z.infer<typeof rewindApplyParamsSchema>

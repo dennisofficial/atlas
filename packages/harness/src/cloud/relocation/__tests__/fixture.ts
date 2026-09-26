@@ -62,7 +62,12 @@ export type FakeCloudChannel = CloudChannel & {
 }
 
 export function fakeCloudChannel(
-  args: { threadId?: ThreadId; log?: FakeEventLog | undefined } = {},
+  args: {
+    threadId?: ThreadId
+    log?: FakeEventLog | undefined
+    /** The base64 tar the serve hands back for a descend's read-session-archive; absent = empty. */
+    archive?: string | undefined
+  } = {},
 ): FakeCloudChannel {
   const connections = new Set<(connection: ChannelConnection) => void>()
   const reloads = new Set<(reload: CloudReload) => void>()
@@ -116,6 +121,7 @@ export function fakeCloudChannel(
       if (given.op === EClientRequest.ListRoster) return heldRoster
       if (given.op === EClientRequest.PublishWorkspace) return null
       if (given.op === EClientRequest.Rewind) return { applied: 0 }
+      if (given.op === EClientRequest.ReadSessionArchive) return { archive: args.archive ?? '' }
       return { applied: 0 }
     },
     connection: () => held,
@@ -299,7 +305,13 @@ class WatchedThreadStore extends ThreadStorePort {
   }
 }
 
-export type FakeBridge = CloudBridge & {
+export type FakeAttachment = {
+  channel: FakeCloudChannel
+  stores: { log: FakeEventLog; threads: WatchedThreadStore; ledger: FakeLedger }
+}
+
+export type FakeBridge = Omit<CloudBridge, 'attach'> & {
+  attach(args: { threadId: ThreadId; url: string; token: string }): FakeAttachment
   readonly log: FakeEventLog
   readonly threads: FakeThreadStore
   readonly ledger: FakeLedger
@@ -309,6 +321,7 @@ export type FakeBridge = CloudBridge & {
     gpgKey?: string | undefined
   }[]
   readonly contextPuts: readonly { threadId: ThreadId; archive: Buffer }[]
+  readonly transcriptPuts: readonly { threadId: ThreadId; archive: Buffer }[]
   readonly attached: readonly { threadId: ThreadId; url: string; token: string }[]
   readonly destroyed: readonly ThreadId[]
   readonly channel: FakeCloudChannel
@@ -327,9 +340,12 @@ export function fakeBridge(
     sandbox?: CloudSandbox
     createFails?: unknown
     putContextFails?: unknown
+    putTranscriptFails?: unknown
     destroyFails?: unknown
     status?: CloudSandboxStatus | undefined
     threadStore?: FakeThreadStore
+    /** What the serve hands back for the descend's archive read; default is the fake log's events. */
+    archive?: string | undefined
   } = {},
 ): FakeBridge {
   const log = fakeEventLog()
@@ -342,6 +358,7 @@ export function fakeBridge(
     gpgKey?: string | undefined
   }[] = []
   const contextPuts: { threadId: ThreadId; archive: Buffer }[] = []
+  const transcriptPuts: { threadId: ThreadId; archive: Buffer }[] = []
   const attached: { threadId: ThreadId; url: string; token: string }[] = []
   const destroyed: ThreadId[] = []
   const trail: string[] = []
@@ -354,6 +371,7 @@ export function fakeBridge(
     ledger,
     created,
     contextPuts,
+    transcriptPuts,
     attached,
     destroyed,
     get channel() {
@@ -361,7 +379,6 @@ export function fakeBridge(
       return channel
     },
     trail,
-    stores: { log, threads: watchedThreads, ledger },
     sandboxes: {
       create: async ({ threadId, workspace, gpgKey, captureContext }) => {
         const sandbox = args.sandbox ?? RUNNING
@@ -390,6 +407,11 @@ export function fakeBridge(
         contextPuts.push({ threadId, archive: Buffer.from(archive) })
         if (args.putContextFails !== undefined) throw args.putContextFails
       },
+      putTranscript: async ({ threadId, archive }) => {
+        trail.push('put-transcript')
+        transcriptPuts.push({ threadId, archive: Buffer.from(archive) })
+        if (args.putTranscriptFails !== undefined) throw args.putTranscriptFails
+      },
       find: async () => args.status,
       destroy: async ({ threadId }) => {
         trail.push('destroy')
@@ -400,8 +422,8 @@ export function fakeBridge(
     attach: ({ threadId, url, token }) => {
       trail.push('attach')
       attached.push({ threadId, url, token })
-      channel = fakeCloudChannel({ threadId, log })
-      return channel
+      channel = fakeCloudChannel({ threadId, log, archive: args.archive })
+      return { channel, stores: { log, threads: watchedThreads, ledger } }
     },
   }
 }

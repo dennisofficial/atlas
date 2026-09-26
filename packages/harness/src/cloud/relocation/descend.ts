@@ -18,11 +18,14 @@ import type { ThreadStorePort } from '../../store/thread-store'
 import { relocateSession } from '../../store/relocate-session'
 import type { TurnLedgerPort } from '../../ledger/turn-ledger.port'
 import { mergePublishedWorkspace, type MergedWorkspace } from '../../workspace/merge-published'
+import { claimSession } from '../../store/sessions/lock'
+import { atlasDirectory } from '../../store/paths'
+import { sessionDirectory, sessionLockFile } from '../../store/sessions/paths'
+import { extractSessionArchive } from '../session-archive'
 import type { CloudBridge, CloudChannel } from './cloud-bridge'
-import { draftsOf } from './event-drafts'
+import { readSessionArchiveReplySchema } from '../channel-wire'
 import { ELiftStep } from './lift'
 import { flipChildrenBack } from './lift-children'
-import { assertTransferred } from './transfer-verification'
 import {
   descendedConflictsDraft,
   descendedMemoryConflictsDraft,
@@ -40,8 +43,6 @@ export type DescendProgressStep = ELiftStep.Interrupting | EDescendStep
 export const DESCEND_DESTROY_NOTICE_KEY = 'descend-sandbox-destroy-failed'
 
 export const DESCEND_MEMORY_NOTICE_KEY = 'descend-memory-pull-failed'
-
-export const DESCEND_FLIP_BACK_NOTICE_KEY = 'descend-remote-flip-failed'
 
 const INTERRUPT_DEADLINE_MS = 30_000
 
@@ -83,71 +84,29 @@ export type DescendSurface<Opened> = {
 }
 
 /**
- * The cloud is the log's home while the conversation is away, so coming home replaces the local
- * log with it wholesale rather than appending a tail onto a snapshot that could have drifted. The
- * one refusal: the cloud holding nothing while the local log holds something can only mean the
- * transfer up never landed, and replacing would erase the conversation.
+ * The cloud is the transcript's home while the conversation is away, so coming home is the session
+ * directory moving back: the serve tars it, the channel carries it, and the local atlas home is
+ * overwritten with it wholesale. Children come along in the same archive — the family shares the
+ * parent's session directory. The one refusal: the cloud having nothing to give can only mean the
+ * lift never landed, and overwriting would erase the local copy for nothing.
  */
-async function transferThreadDown(args: {
+async function transferTranscriptDown(args: {
   threadId: ThreadId
-  target: EExecutionLocation
-  bridge: CloudBridge
-  localApp: DescendLocalHome
+  channel: CloudChannel
 }): Promise<void> {
-  const { threadId, bridge, localApp, target } = args
-  const events = await bridge.stores.log.read({ threadId })
-  const local = await localApp.threads.find({ threadId })
-
-  if (local === undefined) {
-    const remote = await bridge.stores.threads.find({ threadId })
-    await localApp.threads.createWithFirstEvents({
-      threadId,
-      runId: localApp.ids.nextRunId(),
-      drafts: draftsOf(events),
-      executionLocation: target,
-      ...(remote?.title === undefined ? {} : { title: remote.title }),
-      ...(remote?.workspace === null || remote?.workspace === undefined
-        ? {}
-        : { workspace: remote.workspace }),
-      ...(remote?.repo === undefined ? {} : { repo: remote.repo }),
-      ...(remote?.agent === undefined ? {} : { agent: remote.agent }),
-    })
-    if (remote?.model !== undefined) {
-      await localApp.threads.chooseModel({ threadId, model: remote.model })
-    }
-    return
+  const reply = readSessionArchiveReplySchema.parse(
+    await args.channel.request({ op: EClientRequest.ReadSessionArchive, params: {} }),
+  )
+  if (reply.archive.length === 0) {
+    throw new Error(
+      'the cloud holds no transcript for this conversation — refusing to wipe the local copy',
+    )
   }
-
-  if (events.length === 0) {
-    if ((await localApp.log.head({ threadId })) > 0) {
-      throw new Error(
-        'the cloud holds no events for this conversation but the local log does — refusing to wipe them',
-      )
-    }
-    return
-  }
-
-  const replaced = await localApp.log.replace({
-    threadId,
-    runId: localApp.ids.nextRunId(),
-    drafts: draftsOf(events),
-  })
-
-  await assertTransferred({
-    log: localApp.log,
-    threadId,
-    expectedHead: replaced.at(-1)?.seq ?? 0,
-    expectedCount: events.length,
-    side: 'local',
-  })
-
-  const remote = await bridge.stores.threads.find({ threadId })
-  if (remote?.model !== undefined) {
-    await localApp.threads.chooseModel({ threadId, model: remote.model })
-  }
-  if (remote?.title !== undefined && local.title !== remote.title) {
-    await localApp.threads.rename({ threadId, title: remote.title })
-  }
+  const sessionDir = sessionDirectory({ home: atlasDirectory(), sessionId: args.threadId })
+  await extractSessionArchive({ archive: Buffer.from(reply.archive, 'base64'), sessionDir })
+  // The overwrite drops the session lock this process was holding, so it is laid down again — the
+  // reopen that follows claims for real, and until then nothing else may open the transcript.
+  await claimSession({ sessionDir, lockFile: sessionLockFile({ sessionDir }), label: 'atlas tui' })
 }
 
 const awaitTurnEnd = (args: { channel: CloudChannel; deadlineMs: number }): Promise<boolean> =>
@@ -223,27 +182,28 @@ export async function descendFromCloud<Opened>(args: {
     }
 
     surface.onProgress?.(EDescendStep.Transferring)
-    await transferThreadDown({ threadId, target, bridge, localApp })
-    const children = await bridge.stores.threads.spawned({ threadId })
+    await transferTranscriptDown({ threadId, channel })
+
+    // The archive rebuilt the family's rows on the local store; the roster needs each child
+    // re-announced on the parent's log so it can rebuild after the move home.
+    const children = await localApp.threads.spawned({ threadId })
     for (const child of children) {
-      await transferThreadDown({ threadId: child.id, target, bridge, localApp })
-      if (child.agent !== undefined) {
-        await localApp.log
-          .append({
-            threadId,
-            runId: localApp.ids.nextRunId(),
-            drafts: [
-              {
-                type: 'agent-spawned',
-                agentId: child.id,
-                agentType: child.agent.type,
-                intent: child.title ?? '',
-                mode: EAgentStart.Fresh,
-              },
-            ],
-          })
-          .catch(() => undefined)
-      }
+      if (child.agent === undefined) continue
+      await localApp.log
+        .append({
+          threadId,
+          runId: localApp.ids.nextRunId(),
+          drafts: [
+            {
+              type: 'agent-spawned',
+              agentId: child.id,
+              agentType: child.agent.type,
+              intent: child.title ?? '',
+              mode: EAgentStart.Fresh,
+            },
+          ],
+        })
+        .catch(() => undefined)
     }
 
     const published = await publishWorkspaceHome({ channel })
@@ -279,17 +239,12 @@ export async function descendFromCloud<Opened>(args: {
 
     surface.onProgress?.(EDescendStep.Flipping)
     await localApp.threads.chooseExecutionLocation({ threadId, location: target })
-    await bridge.stores.threads
-      .chooseExecutionLocation({ threadId, location: target })
-      .catch((error: unknown) => {
-        notice.notify({
-          key: DESCEND_FLIP_BACK_NOTICE_KEY,
-          text: `this conversation is home, but the cloud row still claims it runs in the cloud — ${messageOf(error)}. The next attach will reconcile it.`,
-          tone: ENoticeTone.Warn,
-          ttlMs: null,
-        })
-      })
-    await flipChildrenBack({ threadId, bridge, agents: localApp.agents, location: target })
+    await flipChildrenBack({
+      threadId,
+      localThreads: localApp.threads,
+      agents: localApp.agents,
+      location: target,
+    })
 
     surface.onProgress?.(EDescendStep.Relocating)
     await relocateSession({

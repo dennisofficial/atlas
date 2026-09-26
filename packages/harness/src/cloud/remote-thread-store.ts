@@ -1,7 +1,7 @@
 import {
-  ECompactionAnchor,
-  EForkMode,
+  type ECompactionAnchor,
   type EExecutionLocation,
+  EForkMode,
   type Event,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -11,97 +11,70 @@ import type { Unsubscribe } from '../channel/delta-channel'
 import type { OpenThreadArgs } from '../store/create-with-events'
 import type { RenameListener, SupervisedAgent, ThreadModel, ThreadSummary } from '../store/thread-store'
 import { ThreadStorePort } from '../store/thread-store'
-import type { SessionsClient } from './sessions-client'
-import { eventFromWire, threadFromWire, wireDraftOf } from './session-wire'
+import { EClientRequest, readThreadReplySchema, readThreadsReplySchema } from './channel-wire'
+import type { RemoteDeltaChannel } from './remote-delta-channel'
+import { threadFromWire } from './session-wire'
 
-const NAME_LOOKUP_LIMIT = 1000
+const WRITE_REFUSAL =
+  'the sandbox owns the transcript while lifted — thread mutations happen in its loop, not over this channel'
 
+const refuseWrite = (): Promise<never> => Promise.reject(new Error(WRITE_REFUSAL))
+
+/**
+ * The cloud transcript's thread-record read half: the sandbox's serve answers from its on-disk
+ * stores. Reads cross the channel; every mutation refuses, because the loop inside the sandbox is
+ * the only writer and a client attempting one has a stale wiring bug to surface.
+ */
 export class RemoteThreadStore extends ThreadStorePort {
-  private readonly client: SessionsClient
-  private readonly renameListeners = new Set<RenameListener>()
+  private readonly channel: Pick<RemoteDeltaChannel, 'request'>
 
-  constructor(args: { client: SessionsClient }) {
+  constructor(args: { channel: Pick<RemoteDeltaChannel, 'request'> }) {
     super()
-    this.client = args.client
+    this.channel = args.channel
   }
 
-  override onRename(listener: RenameListener): Unsubscribe {
-    this.renameListeners.add(listener)
-    return () => this.renameListeners.delete(listener)
-  }
-
-  async create(args: {
-    title?: string | undefined
-    workspace?: string | undefined
-    repo?: string | null | undefined
-    agent?: SupervisedAgent | undefined
-  }): Promise<ThreadSummary> {
-    const wire = await this.client.createThread({
-      ...(args.title === undefined ? {} : { title: args.title }),
-      ...(args.workspace === undefined ? {} : { workspace: args.workspace }),
-      ...(args.repo === undefined ? {} : { repo: args.repo }),
-      ...(args.agent === undefined
-        ? {}
-        : { agent: { spawnedBy: args.agent.spawnedBy, type: args.agent.type } }),
-    })
-    return threadFromWire(wire)
-  }
-
-  async createWithFirstEvents(
-    args: OpenThreadArgs,
-  ): Promise<{ thread: ThreadSummary; events: Event[] }> {
-    const wire = await this.client.openThread({
-      runId: args.runId,
-      drafts: args.drafts.map(wireDraftOf),
-      ...(args.threadId === undefined ? {} : { threadId: args.threadId }),
-      ...(args.title === undefined ? {} : { title: args.title }),
-      ...(args.workspace === undefined ? {} : { workspace: args.workspace }),
-      ...(args.repo === undefined ? {} : { repo: args.repo }),
-      ...(args.executionLocation === undefined
-        ? {}
-        : { executionLocation: args.executionLocation }),
-      ...(args.agent === undefined
-        ? {}
-        : { agent: { spawnedBy: args.agent.spawnedBy, type: args.agent.type } }),
-    })
-    return { thread: threadFromWire(wire.thread), events: wire.events.map(eventFromWire) }
+  override onRename(_listener: RenameListener): Unsubscribe {
+    return () => undefined
   }
 
   async find(args: { threadId: ThreadId }): Promise<ThreadSummary | undefined> {
-    const wire = await this.client.findThread({ threadId: args.threadId })
-    return wire === undefined ? undefined : threadFromWire(wire)
+    const reply = readThreadReplySchema.parse(
+      await this.channel.request({
+        op: EClientRequest.ReadThread,
+        params: { threadId: args.threadId },
+      }),
+    )
+    return reply.thread === null ? undefined : threadFromWire(reply.thread)
   }
 
   async spawned(args: { threadId: ThreadId }): Promise<readonly ThreadSummary[]> {
-    const wire = await this.client.spawnedThreads({ threadId: args.threadId })
-    return wire.map(threadFromWire)
+    const reply = readThreadsReplySchema.parse(
+      await this.channel.request({ op: EClientRequest.ReadThreads, params: {} }),
+    )
+    return reply.threads
+      .map(threadFromWire)
+      .filter((thread) => thread.agent?.spawnedBy === args.threadId)
   }
 
-  async mostRecent(args: { project: string }): Promise<ThreadSummary | undefined> {
-    const wire = await this.client.mostRecentThread({ project: args.project })
-    return wire === undefined ? undefined : threadFromWire(wire)
+  async mostRecent(_args: { project: string }): Promise<ThreadSummary | undefined> {
+    return undefined
   }
 
-  async list(args: {
+  async list(_args: {
     project: string
     limit?: number | undefined
   }): Promise<readonly ThreadSummary[]> {
-    const wire = await this.client.listThreads({
-      project: args.project,
-      ...(args.limit === undefined ? {} : { limit: args.limit }),
-    })
-    return wire.map(threadFromWire)
+    return []
   }
 
   async findNamed(args: {
     project: string
     handle: string
   }): Promise<ThreadSummary | undefined> {
-    const wire = await this.client.listThreads({
-      project: args.project,
-      limit: NAME_LOOKUP_LIMIT,
-    })
-    return wire
+    const reply = readThreadsReplySchema.parse(
+      await this.channel.request({ op: EClientRequest.ReadThreads, params: {} }),
+    )
+    return reply.threads
       .map(threadFromWire)
       .find(
         (thread) =>
@@ -110,67 +83,59 @@ export class RemoteThreadStore extends ThreadStorePort {
       )
   }
 
-  async rename(args: { threadId: ThreadId; title: string }): Promise<void> {
-    await this.client.renameThread({ threadId: args.threadId, title: args.title })
-    for (const listener of [...this.renameListeners]) listener(args)
+  create(_args: {
+    title?: string | undefined
+    workspace?: string | undefined
+    repo?: string | null | undefined
+    agent?: SupervisedAgent | undefined
+  }): Promise<ThreadSummary> {
+    return refuseWrite()
   }
 
-  async chooseModel(args: { threadId: ThreadId; model: ThreadModel }): Promise<void> {
-    await this.client.chooseThreadModel({
-      threadId: args.threadId,
-      ref: args.model.ref,
-      effort: args.model.effort,
-    })
+  createWithFirstEvents(
+    _args: OpenThreadArgs,
+  ): Promise<{ thread: ThreadSummary; events: Event[] }> {
+    return refuseWrite()
   }
 
-  async chooseExecutionLocation(args: {
+  rename(_args: { threadId: ThreadId; title: string }): Promise<void> {
+    return refuseWrite()
+  }
+
+  chooseModel(_args: { threadId: ThreadId; model: ThreadModel }): Promise<void> {
+    return refuseWrite()
+  }
+
+  chooseExecutionLocation(_args: {
     threadId: ThreadId
     location: EExecutionLocation
   }): Promise<void> {
-    await this.client.chooseThreadLocation({ threadId: args.threadId, location: args.location })
+    return refuseWrite()
   }
 
-  async adopt(args: {
-    threadId: ThreadId
-    workspace: string
-    repo: string | null
-  }): Promise<void> {
-    await this.client.adoptThread({
-      threadId: args.threadId,
-      workspace: args.workspace,
-      repo: args.repo,
-    })
+  adopt(_args: { threadId: ThreadId; workspace: string; repo: string | null }): Promise<void> {
+    return refuseWrite()
   }
 
-  async rewind(args: {
+  rewind(_args: {
     threadId: ThreadId
     toSeq: number
     cutAgents?: readonly ThreadId[] | undefined
   }): Promise<void> {
-    await this.client.rewindThread({
-      threadId: args.threadId,
-      toSeq: args.toSeq,
-      ...(args.cutAgents === undefined ? {} : { cutAgents: args.cutAgents }),
-    })
+    return refuseWrite()
   }
 
-  compact(args: {
+  compact(_args: {
     threadId: ThreadId
     anchor: ECompactionAnchor
     fromSeq: number
     throughSeq: number
     summary: string
   }): Promise<number> {
-    return this.client.compactThread({
-      threadId: args.threadId,
-      anchor: args.anchor,
-      fromSeq: args.fromSeq,
-      throughSeq: args.throughSeq,
-      summary: args.summary,
-    })
+    return refuseWrite()
   }
 
-  summarise(args: {
+  summarise(_args: {
     threadId: ThreadId
     anchor: ECompactionAnchor
     fromSeq: number
@@ -178,28 +143,15 @@ export class RemoteThreadStore extends ThreadStorePort {
     summary: string
     cutAgents?: readonly ThreadId[] | undefined
   }): Promise<number> {
-    return this.client.summariseThread({
-      threadId: args.threadId,
-      anchor: args.anchor,
-      fromSeq: args.fromSeq,
-      throughSeq: args.throughSeq,
-      summary: args.summary,
-      ...(args.cutAgents === undefined ? {} : { cutAgents: args.cutAgents }),
-    })
+    return refuseWrite()
   }
 
-  async fork(args: {
+  fork(_args: {
     from: ThreadId
     seq: number
     mode: EForkMode
     title?: string | undefined
   }): Promise<ThreadSummary> {
-    const wire = await this.client.forkThread({
-      threadId: args.from,
-      seq: args.seq,
-      mode: args.mode,
-      ...(args.title === undefined ? {} : { title: args.title }),
-    })
-    return threadFromWire(wire)
+    return refuseWrite()
   }
 }

@@ -8,7 +8,6 @@ import {
   SandboxClient,
   sandboxNameFor,
   serveStampsReader,
-  SessionsClient,
   VercelDriver,
   type VercelSandboxConfig,
 } from '@dltech/atlas-harness'
@@ -54,7 +53,6 @@ export function createCloudBridge(args: {
   const fetchFn = args.fetchFn ?? fetch
   const shared = { url: args.url, token: args.token, clientVersion: args.clientVersion, fetchFn }
 
-  const sessions = new SessionsClient(shared)
   const sandboxes = new SandboxClient(shared)
 
   const driverWith = (config: VercelSandboxConfig): VercelDriver =>
@@ -156,25 +154,31 @@ export function createCloudBridge(args: {
   const bridgeSandboxes: CloudSandboxes = {
     create,
     putContext: ({ threadId, archive }) => sandboxes.putContextArchive({ threadId, archive }),
+    putTranscript: ({ threadId, archive }) =>
+      sandboxes.putTranscriptArchive({ threadId, archive }),
     find,
     destroy,
   }
 
   return {
-    stores: {
-      log: new RemoteEventLog({ client: sessions }),
-      threads: new RemoteThreadStore({ client: sessions }),
-      ledger: new RemoteTurnLedger({ client: sessions }),
-    },
     sandboxes: bridgeSandboxes,
-    attach: ({ threadId, url, token }) =>
-      createRemoteDeltaChannel({
+    attach: ({ threadId, url, token }) => {
+      const channel = createRemoteDeltaChannel({
         threadId,
         url,
         token,
         ...(args.lastEventSeq === undefined ? {} : { lastEventSeq: args.lastEventSeq }),
         reattach: () => reattachSandbox({ sandboxes: bridgeSandboxes, threadId }),
         shouldEscalate: parkedEscalationOf({ sandboxes: bridgeSandboxes, threadId }),
-      }),
+      })
+      return {
+        channel,
+        stores: {
+          log: new RemoteEventLog({ channel }),
+          threads: new RemoteThreadStore({ channel }),
+          ledger: new RemoteTurnLedger({ channel }),
+        },
+      }
+    },
   }
 }

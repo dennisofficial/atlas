@@ -56,6 +56,12 @@ export type CloudSandboxes = {
   }): Promise<CloudSandbox>
   /** Operator-session auth, same as `create` — the archive lands on the row `create` just opened. */
   putContext(args: { threadId: ThreadId; archive: Uint8Array }): Promise<void>
+  /**
+   * The lift's transcript transfer: the tarred session directory, uploaded onto the sandbox row the
+   * claim opened. The serve untars it at boot; a resume skips the fetch because the snapshot
+   * already carries the directory.
+   */
+  putTranscript(args: { threadId: ThreadId; archive: Uint8Array }): Promise<void>
   find(args: { threadId: ThreadId }): Promise<CloudSandboxStatus | undefined>
   /**
    * Tears down both halves: the Vercel sandbox through the operator's own token, and the control
@@ -77,11 +83,20 @@ export type CloudReload = ChannelReload
 export type CloudChannel = RemoteDeltaChannel
 
 /**
+ * What attaching to a live cloud session hands back: the channel to its serve, and the transcript
+ * stores that read over it. The stores are per-attachment because they are backed by the channel —
+ * the sandbox owns the transcript while lifted, and there is no control-plane copy left to read.
+ */
+export type CloudAttachment = {
+  channel: CloudChannel
+  stores: CloudStores
+}
+
+/**
  * Everything a cloud session needs that a local one gets from the composition root. Injected so a
  * spec never opens a socket, and so the concrete clients stay behind one seam.
  */
 export type CloudBridge = {
-  stores: CloudStores
   sandboxes: CloudSandboxes
-  attach(args: { threadId: ThreadId; url: string; token: string }): CloudChannel
+  attach(args: { threadId: ThreadId; url: string; token: string }): CloudAttachment
 }

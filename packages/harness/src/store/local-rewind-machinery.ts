@@ -72,7 +72,11 @@ export class LocalRewindMachinery extends RewindMachineryPort {
     })
   }
 
-  async destroy(args: { cuts: readonly RewindCut[]; threadId: ThreadId }): Promise<void> {
+  async destroy(args: {
+    cuts: readonly RewindCut[]
+    threadId: ThreadId
+    toSeq?: number | undefined
+  }): Promise<void> {
     const cutAgents = args.cuts.flatMap((cut) => (cut.kind === 'agent' ? [cut.agentId] : []))
     const cutShellIds = args.cuts.flatMap((cut) => (cut.kind === 'shell' ? [cut.shellId] : []))
     const cutServiceIds = args.cuts.flatMap((cut) =>
