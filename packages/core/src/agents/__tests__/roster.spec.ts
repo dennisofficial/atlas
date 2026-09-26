@@ -166,6 +166,29 @@ describe('the roster a parent rebuilds from its own log', () => {
     expect(roster[0]?.prose).toBe('four callers')
   })
 
+  it('does not let a repeated spawn erase an ending already recorded for the child', () => {
+    const roster = agentRoster({
+      events: [rowOf(spawned()), rowOf(ended()), rowOf(spawned())],
+      threadId: PARENT,
+    })
+
+    expect(roster).toHaveLength(1)
+    expect(roster[0]?.status).toBe(EAgentStatus.Finished)
+    expect(roster[0]?.endedAt).toBeDefined()
+    expect(roster[0] === undefined ? undefined : isLost(roster[0])).toBe(false)
+  })
+
+  it('still reopens a finished child when the log says it restarted first', () => {
+    const roster = agentRoster({
+      events: [rowOf(spawned()), rowOf(ended()), rowOf(restarted()), rowOf(spawned())],
+      threadId: PARENT,
+    })
+
+    expect(roster).toHaveLength(1)
+    expect(roster[0]?.endedAt).toBeUndefined()
+    expect(roster[0] === undefined ? undefined : isLost(roster[0])).toBe(true)
+  })
+
   it('lets a later ending close a restarted child', () => {
     const roster = agentRoster({
       events: [

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
 import {
+  EAgentStart,
   EAgentStatus,
   EKilledBy,
   EMessageOrigin,
@@ -150,6 +151,40 @@ describe('a child the process lost, found again at recovery', () => {
 
     open.runners.started[0]?.settle(finished())
     await open.supervisor.closeAll()
+  })
+
+  it('does not re-settle a child whose ending a stray second spawn would otherwise erase', async () => {
+    const open = await crashedWith(worked)
+    const agentId = (await open.harness.threads.spawned({ threadId: open.parent }))[0]?.id
+    if (agentId === undefined) throw new Error('expected the spawned child thread')
+
+    await open.harness.log.append({
+      threadId: open.parent,
+      runId: open.harness.ids.nextRunId(),
+      drafts: [
+        {
+          type: 'agent-ended',
+          agentId,
+          agentType: 'explore',
+          intent: 'find the callers',
+          status: EAgentStatus.Finished,
+          prose: 'four callers, in two files',
+          turns: 2,
+          toolCalls: 1,
+        },
+        {
+          type: 'agent-spawned',
+          agentId,
+          agentType: 'explore',
+          intent: 'find the callers',
+          mode: EAgentStart.Fresh,
+        },
+      ],
+    })
+
+    const recovered = await open.supervisor.recordLostAgents({ threadId: open.parent })
+
+    expect(recovered.settled).toHaveLength(0)
   })
 
   it('leaves a child that already ended alone', async () => {
