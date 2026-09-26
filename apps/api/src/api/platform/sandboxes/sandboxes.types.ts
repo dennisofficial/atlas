@@ -4,13 +4,12 @@ export enum ESandboxState {
   Resuming = 'resuming',
 }
 
-/**
- * Mirrors the `SandboxMountMode` of the installed `@vercel/sandbox` SDK, restated here so the
- * database column and the SDK call site share one vocabulary without re-exporting SDK types.
- */
-export enum ESandboxDriveMode {
-  ReadWrite = 'read-write',
-  Snapshot = 'snapshot',
+export interface SandboxListEntryDto {
+  threadId: string
+  name: string
+  driveName: string | null
+  state: ESandboxState
+  lastActivityAt: string
 }
 
 export interface SandboxStatusDto {

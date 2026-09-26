@@ -113,6 +113,7 @@ export function createCloudBridge(args: {
       token: claim.token,
       state: placement.state,
       created: placement.created,
+      driveName: placement.driveName,
     }
   }
 
@@ -143,7 +144,9 @@ export function createCloudBridge(args: {
     }
 
     const settled = await Promise.allSettled([
-      ...(config === null ? [] : [driverWith(config).destroy({ name })]),
+      ...(config === null
+        ? []
+        : [driverWith(config).destroy({ name, threadId: destroyArgs.threadId })]),
       sandboxes.destroySandbox({ threadId: destroyArgs.threadId }),
     ])
     for (const outcome of settled) {

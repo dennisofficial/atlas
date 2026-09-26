@@ -4,7 +4,7 @@ import { useKeyboard, useTerminalDimensions } from '@opentui/react'
 import React, { useEffect, useState, useSyncExternalStore } from 'react'
 
 import { Startup } from '../ui/components/startup'
-import { App } from './app'
+import { App, reapExpiredSandboxesOnBoot } from './app'
 import { bootStepLabel, type BootProgress } from './boot-progress'
 import type { AtlasApp } from './compose'
 import type { OpenedConversation } from './open-conversation'
@@ -83,6 +83,7 @@ export function BootScreen(props: {
           opened={ready.opened}
           credentialNotice={ready.credentialNotice}
           covered={startup.covered}
+          reapOnBoot={reapExpiredSandboxesOnBoot}
           {...(props.onRestart === undefined ? {} : { onRestart: props.onRestart })}
         />
       )}

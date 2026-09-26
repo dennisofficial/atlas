@@ -16,6 +16,7 @@ describe('gating the context archive on whether the sandbox already has it', () 
         token: 'sandbox-token',
         state: ECloudSandboxState.Running,
         created: false,
+        driveName: 'atlas-drive-x',
       },
     })
     const test = harness({

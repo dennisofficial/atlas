@@ -17,6 +17,7 @@ import { createEnvironmentProfile, EProfileStepState } from './environment-profi
 import { applyGitAccessEnv } from './git-access-env'
 import { SERVE_IDLE_MINUTES_WITH_SERVICES, startServeIdleStop } from './idle-stop'
 import { materializeContext } from './materialize-context'
+import { materializeTranscript } from './materialize-transcript'
 import {
   createEnsureWorkspace,
   EWorkspaceState,
@@ -34,7 +35,12 @@ import { startSessionServer } from './session-server'
 import { createSessionHandlers } from './socket-session'
 import { createTurnDriver } from './turn-driver'
 import type { WorkspaceFiles } from './workspace-files'
-import { contextArchiveFetcher, workspaceSpecFetcher } from './workspace-spec'
+import {
+  contextArchiveFetcher,
+  transcriptArchiveFetcher,
+  workspaceSpecFetcher,
+  type FetchTranscriptArchive,
+} from './workspace-spec'
 
 export * from './capabilities-notice'
 export * from './channel-bridge'
@@ -55,6 +61,7 @@ export * from './session-server'
 export * from './socket-session'
 export * from './step-alias'
 export * from './materialize-workspace'
+export * from './materialize-transcript'
 export * from './publish-workspace'
 export * from './token-guard'
 export * from './turn-driver'
@@ -84,6 +91,7 @@ export type ServeArgs = {
   ensureWorkspace?: EnsureWorkspace | undefined
   publishWorkspace?: WorkspacePublisher | undefined
   contextFiles?: WorkspaceFiles | undefined
+  fetchTranscriptArchive?: FetchTranscriptArchive | undefined
 }
 
 export type ServeHandle = {
@@ -227,6 +235,20 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     log({ event: EServeEvent.ContextFailed, reason: context.failed, ms: contextMs })
   } else if (context.written > 0) {
     log({ event: EServeEvent.ContextReady, written: context.written, ms: contextMs })
+  }
+
+  const transcriptStartedAt = Date.now()
+  const transcript = await materializeTranscript({
+    fetchArchive:
+      args.fetchTranscriptArchive ?? transcriptArchiveFetcher({ controlPlaneUrl, token, fetchFn }),
+    atlasHome: atlasDirectory(),
+    threadId,
+  })
+  const transcriptMs = Date.now() - transcriptStartedAt
+  if (transcript.failed !== null) {
+    log({ event: EServeEvent.TranscriptFailed, reason: transcript.failed, ms: transcriptMs })
+  } else if (transcript.restored) {
+    log({ event: EServeEvent.TranscriptRestored, ms: transcriptMs })
   }
 
   const threadModel = args.model ?? (await readThreadModel({ controlPlaneUrl, token, threadId, fetchFn }))

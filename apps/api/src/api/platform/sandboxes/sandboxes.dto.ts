@@ -5,6 +5,7 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  MinLength,
   ValidateIf,
   ValidateNested,
 } from 'class-validator'
@@ -67,6 +68,11 @@ export class ClaimSandboxDto {
   @IsOptional()
   @IsString()
   gpgKey?: string
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  driveName?: string | null
 
   @IsOptional()
   @IsBoolean()

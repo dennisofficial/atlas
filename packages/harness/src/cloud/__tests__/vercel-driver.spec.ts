@@ -2,6 +2,8 @@ import { describe, expect, it } from 'bun:test'
 
 import { APIError, Sandbox } from '@vercel/sandbox'
 
+import { driveNameFor, DRIVE_MOUNT_PATH, DRIVE_WORKSPACE_PATH, DRIVE_HOME_PATH } from '../drive-names'
+import type { DriveSdk } from '../drive-lifecycle'
 import { ECloudSandboxState } from '../sandbox-client'
 import { SERVE_TOKEN_PATH } from '../serve-launch'
 import { VercelDriver, type VercelSdk } from '../vercel-driver'
@@ -9,6 +11,34 @@ import { SandboxMissingError } from '../vercel-errors'
 
 const CREDENTIALS = { token: 'vercel-token', teamId: 'team_1', projectId: 'prj_1' }
 const STAMP = 'stamp-1'
+
+/** A fake drive: the SDK's Drive is a class with a private client, so specs stand one up by shape. */
+const fakeDrive = (name: string, deleted?: string[]) =>
+  ({
+    name,
+    delete: async () => {
+      deleted?.push(name)
+    },
+  }) as never
+
+const fakeDriveSdk = (over: Partial<DriveSdk> = {}): { sdk: DriveSdk; created: string[]; deleted: string[] } => {
+  const created: string[] = []
+  const deleted: string[] = []
+  return {
+    created,
+    deleted,
+    sdk: {
+      getOrCreate: async (params) => {
+        created.push(params?.name ?? '')
+        return fakeDrive(params?.name ?? '', deleted)
+      },
+      list: async () => (async function* () {
+        yield* [] as never[]
+      })(),
+      ...over,
+    },
+  }
+}
 
 type RecordedWrite = { path: string; content: string; mode?: number }
 
@@ -93,11 +123,15 @@ const fakeSandbox = (
 const notFound = (): APIError<unknown> =>
   new APIError(new Response(null, { status: 404 }), { message: 'sandbox not found' })
 
-const driverWith = (sdk: Partial<VercelSdk>): { driver: VercelDriver } => ({
+const driverWith = (
+  sdk: Partial<VercelSdk>,
+  driveSdk?: DriveSdk,
+): { driver: VercelDriver } => ({
   driver: new VercelDriver({
     credentials: CREDENTIALS,
     cloudUrl: 'https://api.example.com',
     image: 'atlas-sandbox:latest',
+    driveSdk: driveSdk ?? fakeDriveSdk().sdk,
     sdk: {
       getOrCreate: sdk.getOrCreate ?? (async () => fakeSandbox()),
       get: sdk.get ?? (async () => fakeSandbox()),
@@ -138,7 +172,8 @@ describe('createOrResume', () => {
         ATLAS_SERVE_PORT: '3000',
         ATLAS_THREAD_ID: 'brn_cloud',
         ATLAS_CLOUD_URL: 'https://api.example.com',
-        ATLAS_WORKSPACE_DIR: '/workspace',
+        ATLAS_WORKSPACE_DIR: DRIVE_WORKSPACE_PATH,
+        ATLAS_HOME: DRIVE_HOME_PATH,
         VERCEL_TOKEN: CREDENTIALS.token,
         VERCEL_TEAM_ID: CREDENTIALS.teamId,
         VERCEL_PROJECT_ID: CREDENTIALS.projectId,
@@ -149,6 +184,7 @@ describe('createOrResume', () => {
       url: 'https://sb-3000.vercel.run',
       state: ECloudSandboxState.Running,
       created: true,
+      driveName: driveNameFor({ threadId: 'brn_cloud' }),
     })
   })
 
@@ -260,6 +296,7 @@ describe('createOrResume', () => {
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
+      driveSdk: fakeDriveSdk().sdk,
       image: 'atlas-sandbox:1.10.0',
       serveSources: ['source:this-build'],
       sdk: {
@@ -287,6 +324,7 @@ describe('createOrResume', () => {
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
+      driveSdk: fakeDriveSdk().sdk,
       image: 'atlas-sandbox:1.10.0',
       serveSources: ['source:this-build'],
       sdk: { get: async () => current, getOrCreate: async () => current },
@@ -307,6 +345,7 @@ describe('createOrResume', () => {
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
+      driveSdk: fakeDriveSdk().sdk,
       image: 'atlas-sandbox:1.10.0',
       serveSources: ['source:this-build'],
       sdk: { get: async () => unprobed, getOrCreate: async () => unprobed },
@@ -327,6 +366,7 @@ describe('createOrResume', () => {
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
+      driveSdk: fakeDriveSdk().sdk,
       image: 'atlas-sandbox:latest',
       serveSources: [],
       sdk: {
@@ -378,6 +418,7 @@ describe('createOrResume', () => {
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
+      driveSdk: fakeDriveSdk().sdk,
       image: 'atlas-sandbox:1.10.0',
       serveSources: ['source:this-build'],
       sdk: {
@@ -409,6 +450,7 @@ describe('createOrResume', () => {
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
+      driveSdk: fakeDriveSdk().sdk,
       image: 'atlas-sandbox:1.10.0',
       serveSources: ['source:this-build'],
       sdk: { get: async () => current, getOrCreate: async () => current },
@@ -453,6 +495,37 @@ describe('createOrResume', () => {
 
     expect(seen[0]?.ATLAS_MODEL).toBe('anthropic/claude-opus-4.8')
     expect(seen[1]?.ATLAS_MODEL).toBeUndefined()
+  })
+
+  it('provisions the thread drive, mounts it, and points serve at the drive paths', async () => {
+    let seen: Record<string, unknown> = {}
+    const drives = fakeDriveSdk()
+    const { driver } = driverWith(
+      {
+        getOrCreate: async (params) => {
+          seen = params as Record<string, unknown>
+          await params?.onCreate?.(fakeSandbox())
+          return fakeSandbox()
+        },
+      },
+      drives.sdk,
+    )
+
+    const placement = await driver.createOrResume({
+      name: 'atlas-thread-x',
+      threadId: 'brn_cloud',
+      token: 't',
+      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
+    })
+
+    const driveName = driveNameFor({ threadId: 'brn_cloud' })
+    expect(drives.created).toEqual([driveName])
+    expect(placement.driveName).toBe(driveName)
+    expect(seen.mounts).toMatchObject({ [DRIVE_MOUNT_PATH]: { name: driveName } })
+    expect(seen.env).toMatchObject({
+      ATLAS_WORKSPACE_DIR: DRIVE_WORKSPACE_PATH,
+      ATLAS_HOME: DRIVE_HOME_PATH,
+    })
   })
 })
 
@@ -571,5 +644,33 @@ describe('stop and destroy', () => {
       },
     })
     await expect(missing.driver.destroy({ name: 'x' })).resolves.toBeUndefined()
+  })
+
+  it('deletes the thread drive after the sandbox is gone', async () => {
+    const sandbox = fakeSandbox()
+    const driveName = driveNameFor({ threadId: 'brn_cloud' })
+    const drives = fakeDriveSdk({
+      list: async () => (async function* () {
+        yield fakeDrive(driveName, drivesDeleted)
+      })(),
+    })
+    const drivesDeleted: string[] = []
+    const { driver } = driverWith({ get: async () => sandbox }, drives.sdk)
+
+    await driver.destroy({ name: 'x', threadId: 'brn_cloud' })
+
+    expect(sandbox.deleted).toBe(true)
+    expect(drivesDeleted).toEqual([driveName])
+  })
+
+  it('leaves the drive alone when destroy is not told the thread', async () => {
+    const sandbox = fakeSandbox()
+    const drives = fakeDriveSdk()
+    const { driver } = driverWith({ get: async () => sandbox }, drives.sdk)
+
+    await driver.destroy({ name: 'x' })
+
+    expect(sandbox.deleted).toBe(true)
+    expect(drives.deleted).toEqual([])
   })
 })

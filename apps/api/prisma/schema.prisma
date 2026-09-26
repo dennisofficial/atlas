@@ -134,7 +134,7 @@ model CloudSandbox {
   workspaceGitName String?
   workspaceGitEmail String?
   driveName      String?
-  driveMode      String?
+  driveMode      String? // outgoing column from the deleted server-side provisioning path; drive lifecycle is harness-owned now — drop once no release reads it
   pinnedModel    String?
   createdAt      String
   updatedAt      String

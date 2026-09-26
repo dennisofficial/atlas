@@ -195,7 +195,7 @@ import {
   VercelSandboxClient,
   WORKSPACE_PATH,
 } from './vercel-sandbox.client'
-import { ESandboxDriveMode, ESandboxState } from './sandboxes.types'
+import { ESandboxState } from './sandboxes.types'
 
 const CONFIGURED: Record<string, string | number> = {
   VERCEL_TOKEN: 'vercel-token',
@@ -234,8 +234,6 @@ describe('VercelSandboxClient', () => {
     sdk.driveListParams.length = 0
     sdk.lastDrive = null
     sdk.driveStore.clear()
-    sdk.initializedDrives.clear()
-    sdk.refuseUninitializedSnapshot = false
     sdk.failCreateOnAttempt = 0
     sdk.resumesInsteadOfCreating = false
     sdk.status = 'running'
@@ -308,7 +306,7 @@ describe('VercelSandboxClient', () => {
       name: 'st-fsr-1',
       threadId: 'brn_station_1',
       token: 'session-token',
-      drive: { name: 'atlas-repo-341', mode: ESandboxDriveMode.ReadWrite },
+      drive: { name: 'atlas-repo-341' },
       pinnedModel: 'inference/kimi-k3-fast',
     })
 
@@ -327,23 +325,6 @@ describe('VercelSandboxClient', () => {
     )
   })
 
-  it('mounts a snapshot mode drive as a read-only snapshot', async () => {
-    sdk.driveStore.set('atlas-repo-341', { name: 'atlas-repo-341' })
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-    await client.getOrCreate({
-      name: 'st-fsr-2',
-      threadId: 'brn_station_2',
-      token: 'session-token',
-      drive: { name: 'atlas-repo-341', mode: ESandboxDriveMode.Snapshot },
-    })
-
-    const mounts = sdk.createParams[0]?.mounts as Record<string, unknown>
-    expect(mounts[WORKSPACE_PATH]).toEqual({
-      drive: 'atlas-repo-341',
-      mode: 'snapshot',
-    })
-  })
-
   it('lists drives with sortBy name so the namePrefix filter is accepted', async () => {
     const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
     await client.ensureDrive({ name: 'atlas-repo-341' })
@@ -354,60 +335,6 @@ describe('VercelSandboxClient', () => {
       sortBy: 'name',
     })
     expect(sdk.driveDeleted).toEqual(['atlas-repo-341'])
-  })
-
-  it('a snapshot mount refused as uninitialized retries read-write, initializing the drive, and still provisions', async () => {
-    sdk.refuseUninitializedSnapshot = true
-    sdk.driveStore.set('sess-24ea3e1d', { name: 'sess-24ea3e1d' })
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-    const placement = await client.getOrCreate({
-      name: 'sess-24ea3e1d',
-      threadId: 'brn_orchestrator_1',
-      token: 'session-token',
-      drive: { name: 'sess-24ea3e1d', mode: ESandboxDriveMode.Snapshot },
-    })
-
-    expect(sdk.createParams.length).toBe(2)
-    const first = sdk.createParams[0]?.mounts as Record<string, unknown>
-    const second = sdk.createParams[1]?.mounts as Record<string, unknown>
-    expect(first[WORKSPACE_PATH]).toEqual({ drive: 'sess-24ea3e1d', mode: 'snapshot' })
-    expect(second[WORKSPACE_PATH]).toBe(sdk.lastDrive)
-    expect(sdk.initializedDrives.has('sess-24ea3e1d')).toBe(true)
-    expect(placement.state).toBe(ESandboxState.Running)
-  })
-
-  it('a read-write initializing retry that itself fails surfaces as a bad gateway, not a raw provider error', async () => {
-    sdk.refuseUninitializedSnapshot = true
-    sdk.driveStore.set('sess-24ea3e1d', { name: 'sess-24ea3e1d' })
-    sdk.failCreateOnAttempt = 2
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-
-    await expect(
-      client.getOrCreate({
-        name: 'sess-24ea3e1d',
-        threadId: 'brn_orchestrator_1',
-        token: 'session-token',
-        drive: { name: 'sess-24ea3e1d', mode: ESandboxDriveMode.Snapshot },
-      }),
-    ).rejects.toBeInstanceOf(BadGatewayException)
-    expect(sdk.createParams.length).toBe(2)
-  })
-
-  it('once initialized by a read-write mount, a later snapshot mount succeeds without a retry', async () => {
-    sdk.refuseUninitializedSnapshot = true
-    sdk.driveStore.set('sess-24ea3e1d', { name: 'sess-24ea3e1d' })
-    sdk.initializedDrives.add('sess-24ea3e1d')
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-    await client.getOrCreate({
-      name: 'sess-24ea3e1d',
-      threadId: 'brn_orchestrator_1',
-      token: 'session-token',
-      drive: { name: 'sess-24ea3e1d', mode: ESandboxDriveMode.Snapshot },
-    })
-
-    expect(sdk.createParams.length).toBe(1)
-    const mounts = sdk.createParams[0]?.mounts as Record<string, unknown>
-    expect(mounts[WORKSPACE_PATH]).toEqual({ drive: 'sess-24ea3e1d', mode: 'snapshot' })
   })
 
   it('deletes a drive by name through the SDK', async () => {

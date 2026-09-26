@@ -41,6 +41,7 @@ const fakeFiles = () => {
       writtenBytes.set(path, bytes)
       written.set(path, bytes.toString('utf8'))
     },
+    ensureDirectory: async () => undefined,
     empty: async () => undefined,
   }
   return { files, written, writtenBytes, stamped }

@@ -2,12 +2,11 @@ import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import { Drive, Sandbox, type SandboxMounts } from '@vercel/sandbox'
 import { EServeEnv, SERVE_TOKEN_PATH, StaleSandboxTokenError } from '@dltech/atlas-wire'
 import { EnvService } from '../../../_core/config/env/env.service'
-import { ESandboxDriveMode, ESandboxState } from './sandboxes.types'
+import { ESandboxState } from './sandboxes.types'
 import { ServeBinaryService } from './serve-binary'
 import { createServeLauncher } from './serve-launch'
 import type { ServeLauncher } from './serve-launch'
-import { asBadGateway, failureTextOf, isSandboxMissing, vercelMessageOf } from './vercel-sandbox.errors'
-import { APIError } from '@vercel/sandbox'
+import { asBadGateway, failureTextOf, isSandboxMissing } from './vercel-sandbox.errors'
 
 export const SANDBOX_REGION = 'iad1'
 export const SANDBOX_SERVE_PORT = 3000
@@ -90,15 +89,6 @@ const routedUrlOf = (sandbox: Sandbox): string | undefined => {
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
-/**
- * Vercel's exact refusal when a snapshot mount targets a drive whose storage was never
- * initialized by a read-write attach. Keyed on the message because the API returns it as a plain
- * 400 bad_request with no dedicated error code.
- */
-const isUninitializedDriveRefusal = (failure: unknown): boolean =>
-  failure instanceof APIError &&
-  vercelMessageOf(failure).includes('has not been initialized yet')
-
 const routedUrlWithRetries = async (sandbox: Sandbox): Promise<string> => {
   for (let attempt = 1; attempt <= ROUTE_RETRY_ATTEMPTS; attempt += 1) {
     const url = routedUrlOf(sandbox)
@@ -128,33 +118,13 @@ export class VercelSandboxClient {
     name: string
     threadId: string
     token: string
-    drive?: { name: string; mode: ESandboxDriveMode } | undefined
+    drive?: { name: string } | undefined
     pinnedModel?: string | undefined
   }): Promise<SandboxPlacement> {
     const createStartedAt = Date.now()
     try {
       return await this.boot(args)
     } catch (failure) {
-      if (
-        args.drive?.mode === ESandboxDriveMode.Snapshot &&
-        isUninitializedDriveRefusal(failure)
-      ) {
-        this.logger.log(
-          `drive ${args.drive.name} was never mounted read-write; initializing it with a read-write mount for sandbox ${args.name}`,
-        )
-        try {
-          return await this.boot({
-            ...args,
-            drive: { name: args.drive.name, mode: ESandboxDriveMode.ReadWrite },
-          })
-        } catch (retryFailure) {
-          if (retryFailure instanceof SandboxMissingError) throw retryFailure
-          this.logger.warn(
-            `sandbox ${args.name} provision failed on the read-write initializing retry ${Date.now() - createStartedAt}ms in: ${failureTextOf(retryFailure)}`,
-          )
-          throw asBadGateway(retryFailure)
-        }
-      }
       if (failure instanceof SandboxMissingError) throw failure
       this.logger.warn(
         `sandbox ${args.name} provision failed ${Date.now() - createStartedAt}ms in: ${failureTextOf(failure)}`,
@@ -167,7 +137,7 @@ export class VercelSandboxClient {
     name: string
     threadId: string
     token: string
-    drive?: { name: string; mode: ESandboxDriveMode } | undefined
+    drive?: { name: string } | undefined
     pinnedModel?: string | undefined
   }): Promise<SandboxPlacement> {
     const configuration = this.configuration()
@@ -278,17 +248,14 @@ export class VercelSandboxClient {
   }
 
   private async mountsOf(
-    drive: { name: string; mode: ESandboxDriveMode } | undefined,
+    drive: { name: string } | undefined,
   ): Promise<SandboxMounts | undefined> {
     if (drive === undefined) return undefined
     const created = await this.driveFor({
       name: drive.name,
       timeoutMs: SANDBOX_LAUNCH_TIMEOUT_MS,
     })
-    return {
-      [WORKSPACE_PATH]:
-        drive.mode === ESandboxDriveMode.Snapshot ? created.snapshot() : created,
-    }
+    return { [WORKSPACE_PATH]: created }
   }
 
   private driveFor(args: { name: string; timeoutMs: number }): Promise<Drive> {

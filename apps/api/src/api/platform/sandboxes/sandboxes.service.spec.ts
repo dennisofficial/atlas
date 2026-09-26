@@ -26,7 +26,7 @@ import { MAX_CONTEXT_ARCHIVE_BYTES } from '../../cloud/context-archive/context-a
 import type { GithubService } from '../../cloud/github/github.service'
 import { SandboxGitCredentials } from './git-credentials'
 import { SandboxesService } from './sandboxes.service'
-import { ESandboxDriveMode, ESandboxState } from './sandboxes.types'
+import { ESandboxState } from './sandboxes.types'
 import { SandboxMissingError, type VercelSandboxClient } from './vercel-sandbox.client'
 import { MAX_CONTEXT_BUNDLE_BYTES, MAX_WORKSPACE_PATCH_BYTES } from './workspace-spec'
 
@@ -278,25 +278,21 @@ describe('SandboxesService', () => {
     await service.attach({
       userId: USER_A,
       threadId: THREAD,
-      drive: { name: 'atlas-repo-341', mode: ESandboxDriveMode.ReadWrite },
+      drive: { name: 'atlas-repo-341' },
       pinnedModel: 'inference/kimi-k3-fast',
     })
     await service.whenSettled({ threadId: THREAD })
 
     const row = fake.cloudSandboxes[0]
     expect(row?.driveName).toBe('atlas-repo-341')
-    expect(row?.driveMode).toBe(ESandboxDriveMode.ReadWrite)
     expect(row?.pinnedModel).toBe('inference/kimi-k3-fast')
 
     const provisionCalls = client.getOrCreate.mock.calls as unknown as Array<
-      [{ drive?: { name: string; mode: string }; pinnedModel?: string }]
+      [{ drive?: { name: string }; pinnedModel?: string }]
     >
     const provision = provisionCalls[0]?.[0]
     if (provision === undefined) throw new Error('expected a provisioning call')
-    expect(provision.drive).toEqual({
-      name: 'atlas-repo-341',
-      mode: ESandboxDriveMode.ReadWrite,
-    })
+    expect(provision.drive).toEqual({ name: 'atlas-repo-341' })
     expect(provision.pinnedModel).toBe('inference/kimi-k3-fast')
   })
 
@@ -620,6 +616,49 @@ describe('SandboxesService', () => {
         .update(second.token as string)
         .digest('hex'),
     )
+  })
+
+  it('list answers only the caller\'s sandboxes, most recently active first', async () => {
+    fake.cloudSandboxes.push(
+      sandboxRow({
+        threadId: 'brn_old',
+        name: 'atlas-old',
+        driveName: 'atlas-drive-old',
+        lastActivityAt: '2026-09-20T00:00:00.000Z',
+      }),
+      sandboxRow({
+        threadId: THREAD,
+        name: 'atlas-new',
+        driveName: null,
+        lastActivityAt: '2026-09-25T00:00:00.000Z',
+      }),
+      sandboxRow({
+        threadId: 'brn_theirs',
+        userId: USER_B,
+        name: 'atlas-theirs',
+        driveName: 'atlas-drive-theirs',
+        lastActivityAt: '2026-09-26T00:00:00.000Z',
+      }),
+    )
+
+    const entries = await service.list({ userId: USER_A })
+
+    expect(entries).toEqual([
+      {
+        threadId: THREAD,
+        name: 'atlas-new',
+        driveName: null,
+        state: ESandboxState.Running,
+        lastActivityAt: '2026-09-25T00:00:00.000Z',
+      },
+      {
+        threadId: 'brn_old',
+        name: 'atlas-old',
+        driveName: 'atlas-drive-old',
+        state: ESandboxState.Running,
+        lastActivityAt: '2026-09-20T00:00:00.000Z',
+      },
+    ])
   })
 
   it('answers 404 for another user, never 403', async () => {
@@ -1239,6 +1278,26 @@ describe('SandboxesService', () => {
       service.claim({ userId: USER_A, threadId: THREAD, contextBundle: oversized }),
     ).rejects.toBeInstanceOf(PayloadTooLargeException)
     expect(fake.cloudSandboxes).toHaveLength(0)
+  })
+
+  it('claim persists the drive name the caller sends', async () => {
+    await service.claim({ userId: USER_A, threadId: THREAD, driveName: 'atlas-drive-1' })
+
+    expect(fake.cloudSandboxes[0]?.driveName).toBe('atlas-drive-1')
+  })
+
+  it('claim accepts an explicit null drive name, clearing the stored one', async () => {
+    await service.claim({ userId: USER_A, threadId: THREAD, driveName: 'atlas-drive-1' })
+    await service.claim({ userId: USER_A, threadId: THREAD, driveName: null })
+
+    expect(fake.cloudSandboxes[0]?.driveName).toBeNull()
+  })
+
+  it('a claim without a drive name leaves the one already on the row in place', async () => {
+    await service.claim({ userId: USER_A, threadId: THREAD, driveName: 'atlas-drive-1' })
+    await service.claim({ userId: USER_A, threadId: THREAD })
+
+    expect(fake.cloudSandboxes[0]?.driveName).toBe('atlas-drive-1')
   })
 
   it('claim answers 404 for a thread owned by another user', async () => {
