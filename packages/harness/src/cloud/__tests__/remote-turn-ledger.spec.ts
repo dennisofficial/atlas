@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 import { toRunId, toThreadId } from '@dltech/atlas-core'
 
+import { EClientRequest } from '../channel-wire'
+import type { RemoteDeltaChannel } from '../remote-delta-channel'
 import { RemoteTurnLedger } from '../remote-turn-ledger'
-import { SessionsClient } from '../sessions-client'
 import type { TurnSpend } from '../../ledger/turn-ledger.port'
 
-type Call = { url: string; method: string; body?: unknown }
+type Call = { op: EClientRequest; params: unknown }
 
 const spend: TurnSpend = {
   runId: toRunId('run_1'),
@@ -26,50 +27,39 @@ const spend: TurnSpend = {
 const { runId: _runId, threadId: _threadId, ...spendFields } = spend
 const wireTurn = { runId: 'run_1', threadId: 'brn_1', ...spendFields }
 
-const harness = (responses: unknown[], statuses?: number[]) => {
+const harness = (reply: unknown) => {
   const calls: Call[] = []
-  let at = 0
-  const fetchFn = (async (input: unknown, init?: RequestInit) => {
-    const body = init?.body === undefined ? undefined : JSON.parse(String(init.body))
-    calls.push({
-      url: String(input),
-      method: init?.method ?? 'GET',
-      ...(body === undefined ? {} : { body }),
-    })
-    const status = statuses?.[at] ?? 200
-    const next = status === 204 ? undefined : responses[at]
-    at += 1
-    return new Response(next === undefined ? '' : JSON.stringify(next), { status })
-  }) as typeof fetch
-  const client = new SessionsClient({ url: 'http://cloud.test', token: 'sess_test', fetchFn })
-  return { ledger: new RemoteTurnLedger({ client }), calls }
+  const channel: Pick<RemoteDeltaChannel, 'request'> = {
+    request: async (args: { op: EClientRequest; params: unknown }) => {
+      calls.push({ op: args.op, params: args.params })
+      return reply
+    },
+  }
+  return { ledger: new RemoteTurnLedger({ channel }), calls }
 }
 
 describe('RemoteTurnLedger', () => {
-  it('record puts the spend without the identity fields in the body', async () => {
-    const { ledger, calls } = harness([], [204])
+  it('record refuses — the sandbox owns the ledger writes', async () => {
+    const { ledger, calls } = harness({})
 
-    await ledger.record(spend)
-
-    expect(calls[0]?.method).toBe('PUT')
-    expect(calls[0]?.url).toBe('http://cloud.test/v1/threads/brn_1/turns/run_1')
-    expect(calls[0]?.body).toMatchObject({ status: 'done', steps: 3 })
-    expect(calls[0]?.body).not.toHaveProperty('runId')
-    expect(calls[0]?.body).not.toHaveProperty('threadId')
+    await expect(ledger.record(spend)).rejects.toThrow('the sandbox owns the turn ledger')
+    expect(calls).toHaveLength(0)
   })
 
-  it('forThread maps the wire rows to spends', async () => {
-    const { ledger } = harness([[wireTurn]])
+  it('forThread answers the own rows over the channel', async () => {
+    const { ledger, calls } = harness({ own: [wireTurn], delegated: [] })
 
     const turns = await ledger.forThread({ threadId: toThreadId('brn_1') })
 
+    expect(calls[0]?.op).toBe(EClientRequest.ReadTurns)
+    expect(calls[0]?.params).toEqual({ threadId: toThreadId('brn_1') })
     expect(turns).toHaveLength(1)
     expect(turns[0]).toEqual(spend)
   })
 
   it('forThreadTree keeps the own/delegated split', async () => {
     const delegated = { ...wireTurn, runId: 'run_2', threadId: 'brn_child' }
-    const { ledger } = harness([{ own: [wireTurn], delegated: [delegated] }])
+    const { ledger } = harness({ own: [wireTurn], delegated: [delegated] })
 
     const tree = await ledger.forThreadTree({ threadId: toThreadId('brn_1') })
 

@@ -2,7 +2,8 @@ import { toRunId, toThreadId, type ThreadId } from '@dltech/atlas-core'
 
 import type { ThreadTreeSpend, TurnSpend } from '../ledger/turn-ledger.port'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
-import type { SessionsClient } from './sessions-client'
+import { EClientRequest, readTurnsReplySchema } from './channel-wire'
+import type { RemoteDeltaChannel } from './remote-delta-channel'
 import type { WireTurn } from './session-wire'
 
 const spendFromWire = (wire: WireTurn): TurnSpend => ({
@@ -21,29 +22,42 @@ const spendFromWire = (wire: WireTurn): TurnSpend => ({
   durationMs: wire.durationMs,
 })
 
+/**
+ * The cloud transcript's turn-spend read half, answered by the sandbox's serve from its on-disk
+ * ledger. Recording refuses — the loop inside the sandbox writes spend as turns settle.
+ */
 export class RemoteTurnLedger extends TurnLedgerPort {
-  private readonly client: SessionsClient
+  private readonly channel: Pick<RemoteDeltaChannel, 'request'>
 
-  constructor(args: { client: SessionsClient }) {
+  constructor(args: { channel: Pick<RemoteDeltaChannel, 'request'> }) {
     super()
-    this.client = args.client
+    this.channel = args.channel
   }
 
-  async record(spend: TurnSpend): Promise<void> {
-    const { runId, threadId, ...rest } = spend
-    await this.client.recordTurn({ threadId, runId, spend: rest })
+  record(_spend: TurnSpend): Promise<void> {
+    return Promise.reject(
+      new Error('the sandbox owns the turn ledger while lifted — reads only over the channel'),
+    )
   }
 
   async forThread(args: { threadId: ThreadId }): Promise<TurnSpend[]> {
-    const wire = await this.client.turnsForThread({ threadId: args.threadId })
-    return wire.map(spendFromWire)
+    return [...(await this.tree(args)).own]
   }
 
   async forThreadTree(args: { threadId: ThreadId }): Promise<ThreadTreeSpend> {
-    const wire = await this.client.turnTree({ threadId: args.threadId })
+    return await this.tree(args)
+  }
+
+  private async tree(args: { threadId: ThreadId }): Promise<ThreadTreeSpend> {
+    const reply = readTurnsReplySchema.parse(
+      await this.channel.request({
+        op: EClientRequest.ReadTurns,
+        params: { threadId: args.threadId },
+      }),
+    )
     return {
-      own: wire.own.map(spendFromWire),
-      delegated: wire.delegated.map(spendFromWire),
+      own: reply.own.map(spendFromWire),
+      delegated: reply.delegated.map(spendFromWire),
     }
   }
 }
