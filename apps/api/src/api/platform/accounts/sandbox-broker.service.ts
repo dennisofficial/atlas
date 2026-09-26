@@ -11,8 +11,8 @@ import { BrokerService } from './broker.service'
 /**
  * The secret names the in-sandbox serve process may resolve through the broker: the keyed
  * web-search backends (BACKEND_TRAITS entries with a keyLabel in packages/core/src/web/search.ts,
- * prefixed `search.`) plus `decisions.token`, the System-1 decision key the factory identity
- * carries per org. Keep in lockstep with WARM_SECRET_NAMES in
+ * prefixed `search.`) plus `decisions.token`, the System-1 decision-model key. Keep in lockstep
+ * with WARM_SECRET_NAMES in
  * packages/harness/src/serve/serve-secrets-store.ts — a name the serve store warms but this list
  * refuses breaks every cloud session's web search.
  */
