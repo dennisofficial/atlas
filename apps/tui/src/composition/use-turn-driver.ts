@@ -103,9 +103,16 @@ export function useTurnDriver(args: {
   forgetUsage: () => void
   cancelCompaction: () => boolean
   interruptRefusal?: (() => string | null) | undefined
+  /**
+   * Blocks a turn from starting. A cloud thread that has not yet attached has no live channel, so a
+   * drive would fire the local loop against the stale local log while the sandbox wakes — refused
+   * until the channel is open. Mirrors `interruptRefusal`.
+   */
+  driveRefusal?: (() => string | null) | undefined
 }): TurnDriver {
   const { app, threadId, started, pendingMove, view, readClock } = args
   const { onSettled, onUndone, setFailure, forgetUsage, cancelCompaction, interruptRefusal } = args
+  const { driveRefusal } = args
   const { store, events, refresh, stamp } = view
 
   const [working, setWorking] = useState(false)
@@ -212,6 +219,12 @@ export function useTurnDriver(args: {
       drafts: readonly EventDraft[],
       opts?: { onCommitFailed?: ((error: unknown) => void) | undefined },
     ): Promise<void> => {
+      const refusal = driveRefusal?.() ?? null
+      if (refusal !== null) {
+        notify({ key: 'drive-unavailable', tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS, text: refusal })
+        return Promise.resolve()
+      }
+
       const controller = new AbortController()
       const gate = commitGate()
 
@@ -261,6 +274,7 @@ export function useTurnDriver(args: {
     [
       app,
       commit,
+      driveRefusal,
       onSettled,
       onUndone,
       readClock,

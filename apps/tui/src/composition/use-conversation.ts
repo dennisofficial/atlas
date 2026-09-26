@@ -120,6 +120,7 @@ export function useConversation(args: {
   onUndone: (said: PendingSaid) => void
   canWake: boolean
   interruptRefusal?: (() => string | null) | undefined
+  driveRefusal?: (() => string | null) | undefined
 }): Conversation {
   const { app, paceReveal, thinking, tldrStatus, onUndone } = args
   const [opened, setOpened] = useState<OpenedConversation>(args.opened)
@@ -161,6 +162,23 @@ export function useConversation(args: {
   const cloudRunner = useMemo(
     () => (app.runner instanceof RemoteTurnRunner ? app.runner : null),
     [app.runner],
+  )
+
+  /**
+   * A cloud thread whose runner is still local has not attached: a drive here would fire the local
+   * loop against the stale local log while the sandbox wakes — the boot-reattach window. Once the
+   * runner is remote its own runTurn wakes the sandbox and drives there, so that is never refused.
+   * A purely local thread (cloudRunner null and not cloud) is likewise never refused.
+   */
+  const localDriveRefusal = useCallback((): string | null => {
+    if (cloudRunner !== null) return null
+    if (opened.executionLocation !== EExecutionLocation.Cloud) return null
+    return 'the sandbox is still connecting — your message sends once the channel is open'
+  }, [cloudRunner, opened.executionLocation])
+
+  const driveRefusal = useCallback(
+    (): string | null => localDriveRefusal() ?? args.driveRefusal?.() ?? null,
+    [localDriveRefusal, args.driveRefusal],
   )
 
   const sending = useSendingRows()
@@ -297,6 +315,7 @@ export function useConversation(args: {
     forgetUsage,
     cancelCompaction: compaction.cancel,
     interruptRefusal: args.interruptRefusal,
+    driveRefusal,
   })
 
   const resumeAtLaunch = useRef(app.config.open.mode !== EOpenMode.New)

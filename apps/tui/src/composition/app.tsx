@@ -1798,6 +1798,7 @@ function Workspace(props: {
                   cloudHealth?.connection?.state === EChannelConnection.Reconnecting ||
                   cloudHealth?.connection?.state === EChannelConnection.Connecting
                 }
+                disconnected={cloudHealth?.connection?.state === EChannelConnection.Closed}
                 sends={sends}
                 pending={conversation.pending}
                 background={background}
