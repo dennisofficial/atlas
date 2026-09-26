@@ -68,3 +68,21 @@ export function contextArchiveFetcher(args: {
 
   return () => transport.rawRequest({ method: 'GET', path: '/v1/sandboxes/context', allowMissing: true })
 }
+
+/** `null` on a 404 — nothing was lifted yet, or the sandbox is resuming from its snapshot. */
+export type FetchTranscriptArchive = () => Promise<Uint8Array | null>
+
+export function transcriptArchiveFetcher(args: {
+  controlPlaneUrl: string
+  token: string
+  fetchFn: typeof fetch
+}): FetchTranscriptArchive {
+  const transport = new CloudTransport({
+    url: args.controlPlaneUrl,
+    token: args.token,
+    fetchFn: args.fetchFn,
+  })
+
+  return () =>
+    transport.rawRequest({ method: 'GET', path: '/v1/sandboxes/transcript', allowMissing: true })
+}
