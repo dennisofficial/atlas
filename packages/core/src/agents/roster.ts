@@ -35,16 +35,19 @@ export function agentRoster({
 
   for (const event of rowsOwnedBy({ events, threadId })) {
     if (event.type === 'agent-spawned') {
+      const prior = held.get(event.agentId)
+      if (prior !== undefined && prior.endedAt !== undefined) continue
+
       held.set(event.agentId, {
         agentId: event.agentId,
         agentType: event.agentType,
         intent: event.intent,
         status: EAgentStatus.Stopped,
-        turns: 0,
-        toolCalls: 0,
-        prose: '',
+        turns: prior?.turns ?? 0,
+        toolCalls: prior?.toolCalls ?? 0,
+        prose: prior?.prose ?? '',
         killedBy: undefined,
-        spawnedAt: event.at,
+        spawnedAt: prior?.spawnedAt ?? event.at,
         endedAt: undefined,
       })
       continue
