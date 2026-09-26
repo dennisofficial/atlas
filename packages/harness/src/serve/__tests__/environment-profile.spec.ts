@@ -120,7 +120,7 @@ describe('environment profile known hosts', () => {
     const profile = await apply({ cwd: CWD, spec: spec() })
 
     expect(outcomeOf(profile, EProfileStep.KnownHosts).state).toBe(EProfileStepState.Skipped)
-    expect(commands).toEqual([])
+    expect(commands.filter((attempt) => attempt.command[0] !== 'docker')).toEqual([])
   })
 
   it('fails with the trimmed stderr when the keyscan fails', async () => {
@@ -150,7 +150,7 @@ describe('environment profile toolchain', () => {
     expect(outcomeOf(profile, EProfileStep.Toolchain).state).toBe(EProfileStepState.Applied)
     expect(
       commands
-        .filter((attempt) => attempt.command[0] !== 'ssh-keyscan')
+        .filter((attempt) => attempt.command[0] !== 'ssh-keyscan' && attempt.command[0] !== 'docker')
         .map((attempt) => [...attempt.command]),
     ).toEqual([['mise', 'install'], ['sh', '.atlas/sandbox-setup.sh'], ['bun', 'install']])
     expect(commands.every((attempt) => attempt.cwd === CWD)).toBe(true)
@@ -162,7 +162,11 @@ describe('environment profile toolchain', () => {
     const profile = await apply({ cwd: CWD, spec: spec() })
 
     expect(outcomeOf(profile, EProfileStep.Toolchain).state).toBe(EProfileStepState.Skipped)
-    expect(commands.some((attempt) => attempt.command[0] !== 'ssh-keyscan')).toBe(false)
+    expect(
+      commands.some(
+        (attempt) => attempt.command[0] !== 'ssh-keyscan' && attempt.command[0] !== 'docker',
+      ),
+    ).toBe(false)
   })
 
   it('reports a failing sub-step with its command and trimmed stderr', async () => {

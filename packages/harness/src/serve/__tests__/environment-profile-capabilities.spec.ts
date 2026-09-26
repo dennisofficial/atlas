@@ -38,12 +38,33 @@ describe('environment profile as a whole', () => {
       canPush: true,
       gitIdentity: 'Dennis <dennis@example.com>',
       gpgSigning: false,
-      dockerAvailable: false,
+      dockerAvailable: true,
       persistentFs: true,
       serviceTtlSeconds: SERVE_IDLE_MINUTES_WITH_SERVICES * 60,
       portExposure: EPortExposure.PublicDomain,
       failures: [],
     })
+  })
+
+  it('probes docker through the shimmed cli rather than assuming it', async () => {
+    const { apply, commands } = harness({ runAnswers: seededScan })
+
+    const profile = await apply({ cwd: CWD, spec: spec() })
+
+    expect(profile.capabilities.dockerAvailable).toBe(true)
+    expect(commands.some((one) => one.command.join(' ') === 'docker info')).toBe(true)
+  })
+
+  it('reports docker unavailable when the probe does not answer ok', async () => {
+    const { apply } = harness({
+      runAnswers: seededScan,
+      runFails: (attempt) =>
+        attempt.command[0] === 'docker' ? { stderr: 'no daemon is reachable' } : undefined,
+    })
+
+    const profile = await apply({ cwd: CWD, spec: spec() })
+
+    expect(profile.capabilities.dockerAvailable).toBe(false)
   })
 
   it('carries the configured service TTL into the capabilities rather than assuming one', async () => {
