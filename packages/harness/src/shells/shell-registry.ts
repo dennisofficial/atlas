@@ -12,6 +12,7 @@ import {
 import { LocalProcessPort } from '../execution/local-process'
 import type { HookChainSource } from '../hooks/registry'
 import { afterShellDrafts } from './after-shell'
+import { lostShellEnding, openShellIdsOf } from './recovery'
 import {
   startBackgroundShell,
   type BackgroundShell,
@@ -119,8 +120,10 @@ export abstract class ShellRegistryPort {
     threadId: ThreadId
   }): Promise<readonly { shellId: string; command: string; description?: string | undefined }[]>
   /**
-   * Threads holding a tracked shell with no durable ending queued. A thread whose only endings are
-   * outputClaimed has nothing awaiting notice, so teardown cannot find it through the notice queue.
+   * Threads teardown should reconcile against the log. Cheap to claim: recordEndings re-reads the
+   * log and writes nothing for a thread whose shells all pair off there, so a false positive here
+   * costs a read, not a duplicate ending. The notice queue alone cannot enumerate these threads,
+   * because a thread whose only endings are outputClaimed has nothing awaiting notice.
    */
   abstract threadsWithUnresolvedEndings(): readonly ThreadId[]
 }
@@ -402,11 +405,29 @@ export class BunShellRegistry extends ShellRegistryPort {
   }
 
   /**
-   * A shell whose ending the notice queue carries (a plain exit, or a SessionEnd kill nobody
-   * claimed) is already durable: the drain writes it. A shell the model killed with shell_kill is
-   * not — its ending is outputClaimed and produces no event. Both lists are consulted because
-   * teardown asks after closeAll, which has already moved every entry to `closed`.
+   * Teardown and the next boot's recovery answer "which shells still need an ending" from the same
+   * source: the event log, through the shared chronological pairing in `openShellIdsOf`. Reading
+   * the log rather than the notice queue is what keeps the two from disagreeing across a restart —
+   * the queue dies with the process while the log survives it — and it makes compaction safe for
+   * free, because a compacted log holds no shell starts and so opens nothing. The entries that
+   * survive the filter are exactly the ones the log cannot settle: a shell the model killed with
+   * shell_kill, whose claimed ending never became an event, and a shell still running when teardown
+   * began. `closed` is consulted alongside `tracked` because teardown asks after closeAll, which
+   * has already moved every entry over.
    */
+  private async unresolvedEndings(args: {
+    log: EventLogPort
+    threadId: ThreadId
+  }): Promise<Tracked[]> {
+    const open = openShellIdsOf(await args.log.readOwn({ threadId: args.threadId }))
+    return [...this.tracked.values(), ...this.closed].filter(
+      (entry) =>
+        entry.threadId === args.threadId &&
+        !open.has(entry.shell.shellId) &&
+        !this.notices.hasDurableEndingFor({ shellId: entry.shell.shellId }),
+    )
+  }
+
   threadsWithUnresolvedEndings(): readonly ThreadId[] {
     const threads = new Set<ThreadId>()
     for (const entry of [...this.tracked.values(), ...this.closed]) {
@@ -421,16 +442,18 @@ export class BunShellRegistry extends ShellRegistryPort {
     ids: IdPort
     threadId: ThreadId
   }): Promise<readonly { shellId: string; command: string; description?: string | undefined }[]> {
-    const unresolved = (entry: Tracked): boolean =>
-      entry.threadId === args.threadId &&
-      !this.notices.hasDurableEndingFor({ shellId: entry.shell.shellId })
-    const held = [...this.tracked.entries()].filter(([, entry]) => unresolved(entry))
-    const closed = this.closed.filter(unresolved)
-    const missing = [...held.map(([, entry]) => entry), ...closed]
+    const missing = await this.unresolvedEndings(args)
     if (missing.length === 0) return []
 
     const drafts = missing.map((entry) => {
       const snapshot = entry.shell.snapshot()
+      if (snapshot.status === EShellStatus.Running) {
+        return lostShellEnding({
+          shellId: snapshot.shellId,
+          command: snapshot.command,
+          description: snapshot.description,
+        })
+      }
       return {
         type: 'background-shell-ended' as const,
         shellId: snapshot.shellId,
@@ -446,8 +469,9 @@ export class BunShellRegistry extends ShellRegistryPort {
     })
     await args.log.append({ threadId: args.threadId, runId: args.ids.nextRunId(), drafts })
 
-    for (const [id] of held) this.tracked.delete(id)
-    this.closed = this.closed.filter((entry) => !unresolved(entry))
+    const recorded = new Set(missing.map((entry) => entry.shell.shellId))
+    for (const shellId of recorded) this.tracked.delete(toShellId(shellId))
+    this.closed = this.closed.filter((entry) => !recorded.has(entry.shell.shellId))
 
     return missing.map((entry) => {
       const snapshot = entry.shell.snapshot()
