@@ -21,6 +21,7 @@ import { ownedThread } from '../sessions/ownership'
 import { ownedSandbox } from './ownership'
 import { sandboxStateOf, toSandboxDto, type SandboxPrincipal, type SandboxStatusColumns } from './rows'
 import { claimSandboxRow, type ClaimedSandbox } from './sandbox-claim'
+import { findOrCreateClaimThread } from './sandbox-thread'
 import { sandboxNameFor } from './sandbox-names'
 import { sessionCredentialOf } from './sandbox-session-credential'
 import { hashSessionToken, mintSessionToken, tokenMatches } from './sandbox-tokens'
@@ -167,7 +168,14 @@ export class SandboxesService {
     driveName?: string | null | undefined
     contextPending?: boolean | undefined
   }): Promise<SandboxAttachmentDto> {
-    const thread = await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
+    const thread = await findOrCreateClaimThread({
+      db,
+      userId: args.userId,
+      threadId: args.threadId,
+      ...(typeof args.workspace?.projectDirectory === 'string'
+        ? { workspace: args.workspace.projectDirectory }
+        : {}),
+    })
     if (args.workspace !== undefined) assertPatchWithinLimit({ patch: args.workspace.patch })
     if (args.contextBundle !== undefined) {
       assertContextBundleWithinLimit({ bundle: args.contextBundle })
