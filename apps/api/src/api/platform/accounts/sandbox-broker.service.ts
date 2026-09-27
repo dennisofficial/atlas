@@ -13,7 +13,7 @@ import { BrokerService } from './broker.service'
  * web-search backends (BACKEND_TRAITS entries with a keyLabel in packages/core/src/web/search.ts,
  * prefixed `search.`) plus `decisions.token`, the System-1 decision-model key. Keep in lockstep
  * with WARM_SECRET_NAMES in
- * packages/harness/src/serve/serve-secrets-store.ts — a name the serve store warms but this list
+ * apps/serve/src/serve-secrets-store.ts — a name the serve store warms but this list
  * refuses breaks every cloud session's web search.
  */
 const BROKERABLE_SECRET_NAMES: readonly string[] = [
@@ -85,7 +85,7 @@ export class SandboxBrokerService {
   /**
    * Fail closed: the broker resolves only the secret names a serve process legitimately asks
    * for — the keyed web-search backends and the decision-model token the serve secrets store
-   * warms on boot (packages/harness/src/serve/serve-secrets-store.ts). A sandbox token is
+   * warms on boot (apps/serve/src/serve-secrets-store.ts). A sandbox token is
    * readable by any process in its sandbox, so a request naming anything else is the GH-198
    * shape: probing the owner's store through a machine credential. The whole request refuses
    * rather than serving the listed names and dropping the rest, so a misconfigured client fails
