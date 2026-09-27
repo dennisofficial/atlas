@@ -79,7 +79,7 @@ export async function openCloudConversation(args: {
     agents: args.app.agents,
     ids: args.app.ids,
     workspace: args.app.workspace,
-    open: { mode: EOpenMode.Resume, threadId: args.threadId },
+    open: { mode: EOpenMode.Resume, threadId: args.threadId, readOnly: true },
     effects: (name) => args.app.tools.find(name)?.effect,
   })
 
