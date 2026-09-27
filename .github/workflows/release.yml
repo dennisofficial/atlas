@@ -34,12 +34,12 @@ jobs:
       # head_sha, not the default branch ref: GITHUB_SHA/GITHUB_REF under workflow_run
       # point at main's current HEAD, which may be a merge that landed after the ci run
       # this release is gating on.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@v2.2.0
 
       # Cross-compiles three targets from one ubuntu host, and @vscode/ripgrep ships its binaries
       # as os/cpu-gated optional packages — without the overrides only the host's rg is installed
