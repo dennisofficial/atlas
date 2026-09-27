@@ -71,6 +71,15 @@ export type EventBody =
   | { type: 'context-loaded'; slot: string; key: string; content: string; triggeredBy?: string | undefined }
   | { type: 'nudge'; text: string; lifetimeSteps: number }
   | {
+      type: 'loop-watch-verdict'
+      consulted: boolean
+      looping: boolean
+      probability?: number | undefined
+      loopStartSeq?: number | undefined
+      steps: number
+      fault?: string | undefined
+    }
+  | {
       type: 'worktree-entered'
       path: string
       branch: string

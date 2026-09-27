@@ -21,6 +21,8 @@ export enum ELoopWatch {
 export type LoopVerdict = {
   verdict: ELoopWatch
   loopStartSeq?: number | undefined
+  noul?: number | undefined
+  fault?: string | undefined
 }
 
 export type LoopWatch = (args: {
@@ -66,16 +68,19 @@ export function jevLoopWatch(args: {
       questions: jevLoopQuestions({ steps }),
       signal,
     })
-    if (!outcome.ok) return { verdict: ELoopWatch.Unreachable }
+    if (!outcome.ok) return { verdict: ELoopWatch.Unreachable, fault: outcome.fault }
 
     const noul = outcome.answers[JEV_LOOP_KEY]?.noul
-    if (noul === undefined) return { verdict: ELoopWatch.Unreachable }
+    if (noul === undefined) {
+      return { verdict: ELoopWatch.Unreachable, fault: 'the decision model gave no loop probability' }
+    }
 
-    if (noul < JEV_LOOP_THRESHOLD) return { verdict: ELoopWatch.Clear }
+    if (noul < JEV_LOOP_THRESHOLD) return { verdict: ELoopWatch.Clear, noul }
 
     return {
       verdict: ELoopWatch.Looping,
       loopStartSeq: loopStartOf({ answers: outcome.answers, steps }),
+      noul,
     }
   }
 }
