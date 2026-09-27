@@ -119,11 +119,10 @@ export const namedBy = (args: { thread: ThreadSummary; handle: string }): boolea
 async function resumed(args: Opening & { handle: string }): Promise<ThreadSummary | undefined> {
   const { handle, threads, workspace } = args
   const project = projectOf(workspace)
-  const readOnly = args.open.mode === EOpenMode.Resume && args.open.readOnly === true
 
   const byId = await threads.find({ threadId: toThreadId(handle) })
   if (byId !== undefined && reachableFrom({ thread: byId, project })) {
-    if (byId.workspace === null && !readOnly) {
+    if (byId.workspace === null) {
       await threads.adopt({
         threadId: byId.id,
         workspace: workspace.workspace,
@@ -183,33 +182,25 @@ export async function openConversation(args: Opening): Promise<OpenOutcome> {
     return { ok: true, conversation: unstartedConversation({ ids: args.ids }) }
   }
 
-  const readOnly = args.open.mode === EOpenMode.Resume && args.open.readOnly === true
-
-  if (!readOnly) {
-    const sessionDir = sessionDirectory({ home: atlasDirectory(), sessionId: thread.id })
-    const claim = await claimSession({
-      sessionDir,
-      lockFile: sessionLockFile({ sessionDir }),
-      label: 'atlas tui',
-    })
-    if (claim.claim === ESessionClaim.Held) {
-      return { ok: false, reason: claim.note ?? 'this conversation is open in another Atlas instance' }
-    }
-    const previous = heldSessionDir
-    if (previous !== undefined && previous !== sessionDir) {
-      await releaseSession({ lockFile: sessionLockFile({ sessionDir: previous }) })
-    }
-    heldSessionDir = sessionDir
+  const sessionDir = sessionDirectory({ home: atlasDirectory(), sessionId: thread.id })
+  const claim = await claimSession({
+    sessionDir,
+    lockFile: sessionLockFile({ sessionDir }),
+    label: 'atlas tui',
+  })
+  if (claim.claim === ESessionClaim.Held) {
+    return { ok: false, reason: claim.note ?? 'this conversation is open in another Atlas instance' }
   }
+  const previous = heldSessionDir
+  if (previous !== undefined && previous !== sessionDir) {
+    await releaseSession({ lockFile: sessionLockFile({ sessionDir: previous }) })
+  }
+  heldSessionDir = sessionDir
 
   const lost = await args.agents.recordLostAgents({ threadId: thread.id })
-  // A read-only transcript is owned by the machine it lives on; settling its lost shells is that
-  // owner's job on its own open, and this store would refuse the write anyway.
-  const lostShells = readOnly
-    ? []
-    : await shellRecovery({ log: args.log, ids: args.ids }).recordLost({
-        threadId: thread.id,
-      })
+  const lostShells = await shellRecovery({ log: args.log, ids: args.ids }).recordLost({
+    threadId: thread.id,
+  })
 
   const window = await readThreadWindow({ log: args.log, threadId: thread.id, rows: EThreadRows.Composed })
   const [base, spent] = await Promise.all([

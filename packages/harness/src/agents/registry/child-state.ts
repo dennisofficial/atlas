@@ -11,6 +11,7 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import { PauseSignal } from '../../loop/pause-signal'
 import type { AgentSnapshot, ChildContext } from './snapshot'
 
 export type ChildState = {
@@ -30,6 +31,7 @@ export type ChildState = {
   endedAt: string | undefined
   deliveredAt: string | undefined
   abort: AbortController
+  pause: PauseSignal
   pending: SteerMessage[]
   context: ChildContext | undefined
   model: ProviderIdentity | undefined
@@ -81,6 +83,7 @@ export function freshChild({
     endedAt: undefined,
     deliveredAt: undefined,
     abort: new AbortController(),
+    pause: new PauseSignal(),
     pending: [],
     context: undefined,
     model: undefined,
@@ -114,6 +117,7 @@ export function recoveredChild({
     endedAt: agent.endedAt,
     deliveredAt: undefined,
     abort: new AbortController(),
+    pause: new PauseSignal(),
     pending: [],
     context: undefined,
     model: undefined,

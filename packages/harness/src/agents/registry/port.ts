@@ -41,6 +41,7 @@ export abstract class AgentRegistryPort {
   abstract stop(args: { agentId: ThreadId; threadId: ThreadId; by: EKilledBy }): AgentOutcome
   abstract relocateChildren(args: RelocateChildrenArgs): Promise<readonly ThreadId[]>
   abstract stopChildren(args: { threadId: ThreadId; by: EKilledBy }): Promise<readonly ThreadId[]>
+  abstract pauseChildren(args: { threadId: ThreadId }): Promise<readonly ThreadId[]>
   abstract markChildrenRelocated(args: {
     threadId: ThreadId
     location: EExecutionLocation

@@ -1,5 +1,6 @@
 import type { EventDraft, SaidImage, ThreadId } from '@dltech/atlas-core'
 
+import { PauseSignal } from '../loop/pause-signal'
 import type { TurnOutcome } from '../loop/turn-outcome'
 import type { TurnPolicy } from '../loop/turn-policy'
 
@@ -15,6 +16,8 @@ export type ServeTurnDriver = {
   /** Starts a turn when none is running, re-arms when one is, and answers whether it acted. */
   sayOrRun: () => boolean
   interrupt: () => void
+  pause: () => void
+  resume: () => void
   running: () => boolean
   settled: () => Promise<void>
 }
@@ -34,6 +37,7 @@ export function createTurnDriver(args: {
   const { app, threadId } = args
 
   let abort: AbortController | null = null
+  let pause: PauseSignal | null = null
   let again = false
   let turning: Promise<void> | null = null
 
@@ -80,7 +84,12 @@ export function createTurnDriver(args: {
         again = false
         const controller = new AbortController()
         abort = controller
-        const outcome = await app.runner.runTurn({ threadId, signal: controller.signal })
+        pause = new PauseSignal()
+        const outcome = await app.runner.runTurn({
+          threadId,
+          signal: controller.signal,
+          pause,
+        })
         args.onOutcome(outcome)
         await app.turnPolicy?.onOutcome({ threadId, outcome })
       } while (again)
@@ -89,6 +98,7 @@ export function createTurnDriver(args: {
       args.onFailure(messageOf(error))
     } finally {
       abort = null
+      pause = null
       turning = null
       args.onTurnEnded()
     }
@@ -134,6 +144,14 @@ export function createTurnDriver(args: {
     interrupt() {
       again = false
       abort?.abort()
+    },
+
+    pause() {
+      pause?.pause()
+    },
+
+    resume() {
+      pause?.resume()
     },
 
     running: () => turning !== null,

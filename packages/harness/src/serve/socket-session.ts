@@ -191,6 +191,16 @@ export function createSessionHandlers(args: {
       return
     }
 
+    if (frame.kind === EClientFrame.Pause) {
+      driver.pause()
+      return
+    }
+
+    if (frame.kind === EClientFrame.Resume) {
+      driver.resume()
+      return
+    }
+
     if (frame.kind !== EClientFrame.Request) return
 
     if (frame.op === EClientRequest.ListRoster) {

@@ -13,15 +13,7 @@ export enum EOpenMode {
 export type OpenRequest =
   | { mode: EOpenMode.New }
   | { mode: EOpenMode.Continue }
-  | {
-      mode: EOpenMode.Resume
-      threadId: string
-      /**
-       * The thread's transcript is owned elsewhere (a cloud sandbox's serve), so the open reads
-       * only: no adoption, no local session lock, no lost-shell settlement. Local opens omit it.
-       */
-      readOnly?: boolean | undefined
-    }
+  | { mode: EOpenMode.Resume; threadId: string }
 
 /**
  * What a launch decides for itself and nothing that outlives it. Anything a run configures is a

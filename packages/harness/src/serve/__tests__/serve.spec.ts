@@ -983,6 +983,61 @@ describe('startServe', () => {
     expect(aborted).toBe(true)
   })
 
+  it('halts the turn it is driving when a pause frame arrives', async () => {
+    const halt = gate()
+    let pausedSeen: boolean | undefined
+    const { handle } = await start({
+      runTurn: async ({ pause }) => {
+        await pause?.waitIfPaused()
+        pausedSeen = true
+        await halt.opened
+        return { status: ETurnStatus.RelocationPaused, runId: toRunId('run-1') }
+      },
+    })
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    client.send({ kind: EClientFrame.Send, text: 'go' })
+    await Bun.sleep(10)
+    client.send({ kind: EClientFrame.Pause })
+    await Bun.sleep(10)
+    expect(pausedSeen).toBe(true)
+
+    halt.open()
+    await client.waitFor(
+      (frame) =>
+        frame.kind === EServeFrame.TurnEnded && frame.outcome.status === ETurnStatus.RelocationPaused,
+    )
+  })
+
+  it('lets a paused turn finish once the resume frame lands', async () => {
+    let resumed = false
+    const { handle } = await start({
+      runTurn: async ({ pause }) => {
+        await pause?.waitIfPaused()
+        resumed = true
+        return { status: ETurnStatus.Completed, runId: toRunId('run-1') }
+      },
+    })
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    client.send({ kind: EClientFrame.Run })
+    await Bun.sleep(10)
+    client.send({ kind: EClientFrame.Pause })
+    await Bun.sleep(10)
+    client.send({ kind: EClientFrame.Resume })
+
+    await client.waitFor(
+      (frame) => frame.kind === EServeFrame.TurnEnded && frame.outcome.status === ETurnStatus.Completed,
+    )
+    expect(resumed).toBe(true)
+  })
+
   it('gives up draining a step that ignores its abort, once the drain deadline lapses', async () => {
     const app = fakeServeApp({
       threadId,

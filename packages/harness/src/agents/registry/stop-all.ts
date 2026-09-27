@@ -27,3 +27,12 @@ export function stopChild({ child, by }: { child: ChildState; by: EKilledBy }): 
   child.killedBy = by
   child.abort.abort()
 }
+
+/**
+ * A relocation freeze, not a stop: the child halts at the loop's seam with its log intact and no
+ * killedBy, expecting to be resumed on the far side of the move.
+ */
+export function pauseChild({ child }: { child: ChildState }): void {
+  if (!isStepping(child)) return
+  child.pause.pause()
+}

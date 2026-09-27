@@ -233,6 +233,8 @@ export function fakeAgentRegistry(args: { threads?: FakeThreadStore | undefined 
 
     relocateChildren: () => Promise.resolve([]),
 
+    pauseChildren: () => Promise.resolve([]),
+
     hydrate: async () => {},
 
     whenChildrenSettled: async () => {},

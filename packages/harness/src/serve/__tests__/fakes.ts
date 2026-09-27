@@ -9,6 +9,7 @@ import {
 import type { RosterWire } from '@dltech/atlas-wire'
 
 import { createDeltaChannel, type DeltaChannel } from '../../channel/delta-channel'
+import type { PauseSignal } from '../../loop/pause-signal'
 import { ETurnStatus, type TurnOutcome } from '../../loop/turn-outcome'
 import type { ThreadSummary } from '../../store/thread-store'
 import type { ServeApp, ServeRewind, ServeWakeNotices } from '../serve-app'
@@ -16,6 +17,7 @@ import type { ServeApp, ServeRewind, ServeWakeNotices } from '../serve-app'
 export type RunTurn = (args: {
   threadId: ThreadId
   signal?: AbortSignal | undefined
+  pause?: PauseSignal | undefined
 }) => Promise<TurnOutcome>
 
 export type FakeServeApp = ServeApp & {

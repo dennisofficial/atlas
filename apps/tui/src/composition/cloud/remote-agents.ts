@@ -101,6 +101,10 @@ export class RemoteAgentRegistry extends AgentRegistryPort {
     return []
   }
 
+  async pauseChildren(_args: { threadId: ThreadId }): Promise<readonly ThreadId[]> {
+    return []
+  }
+
   async markChildrenRelocated(_args: {
     threadId: ThreadId
     location: EExecutionLocation

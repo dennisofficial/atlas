@@ -1,6 +1,6 @@
 import type { EventDraft, SaidImage, ThreadId } from '@dltech/atlas-core'
 
-import { TurnRunner, type TurnOutcome } from '../loop'
+import { TurnRunner, type PauseSignal, type TurnOutcome } from '../loop'
 
 import { EChannelConnection, type RemoteDeltaChannel } from './remote-delta-channel'
 
@@ -50,7 +50,12 @@ export class RemoteTurnRunner extends TurnRunner {
     })
   }
 
-  say(args: { threadId: ThreadId; text: string; signal?: AbortSignal }): Promise<TurnOutcome> {
+  say(args: {
+    threadId: ThreadId
+    text: string
+    signal?: AbortSignal
+    pause?: PauseSignal
+  }): Promise<TurnOutcome> {
     return this.drive({ ...args, fire: () => this.channel.send({ text: args.text }) })
   }
 
@@ -70,17 +75,26 @@ export class RemoteTurnRunner extends TurnRunner {
     })
   }
 
-  runTurn(args: { threadId: ThreadId; signal?: AbortSignal }): Promise<TurnOutcome> {
+  runTurn(args: {
+    threadId: ThreadId
+    signal?: AbortSignal
+    pause?: PauseSignal
+  }): Promise<TurnOutcome> {
     return this.drive({ ...args, fire: () => this.channel.run() })
   }
 
-  resume(args: { threadId: ThreadId; signal?: AbortSignal }): Promise<TurnOutcome> {
+  resume(args: {
+    threadId: ThreadId
+    signal?: AbortSignal
+    pause?: PauseSignal
+  }): Promise<TurnOutcome> {
     return this.drive({ ...args, fire: () => this.channel.run() })
   }
 
   private async drive(args: {
     threadId: ThreadId
     signal?: AbortSignal | undefined
+    pause?: PauseSignal | undefined
     fire: () => void
   }): Promise<TurnOutcome> {
     if (args.threadId !== this.channel.threadId) {
@@ -94,12 +108,16 @@ export class RemoteTurnRunner extends TurnRunner {
 
     return new Promise<TurnOutcome>((resolve, reject) => {
       const interrupt = () => this.channel.interrupt()
+      const pauseTurn = () => this.channel.pause()
       const settle = <T>(done: (value: T) => void) => (value: T) => {
         args.signal?.removeEventListener('abort', interrupt)
+        unsubscribePause()
         done(value)
       }
       this.waiters.push({ resolve: settle(resolve), reject: settle(reject) })
       args.signal?.addEventListener('abort', interrupt)
+      const unsubscribePause = args.pause?.onPause(pauseTurn) ?? (() => undefined)
+      if (args.pause?.paused === true) pauseTurn()
       args.fire()
     })
   }

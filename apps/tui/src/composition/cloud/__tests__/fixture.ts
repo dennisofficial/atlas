@@ -113,6 +113,8 @@ export function fakeCloudChannel(
       runs += 1
     },
     interrupt: () => undefined,
+    pause: () => undefined,
+    resume: () => undefined,
     request: async (given) => {
       requests.push({ op: given.op, params: given.params })
       if (given.op === EClientRequest.ListRoster) return heldRoster
