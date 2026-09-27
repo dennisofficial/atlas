@@ -192,7 +192,7 @@ export function createSessionHandlers(args: {
     }
 
     if (frame.kind === EClientFrame.Pause) {
-      driver.pause()
+      driver.beginRelocation()
       return
     }
 

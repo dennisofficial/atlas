@@ -34,7 +34,6 @@ export type LiftCtx = {
   channel: CloudChannel | undefined
   contextError: unknown
   stopped: StoppedLocally
-  pausedChildren: readonly ThreadId[]
 }
 
 /**
@@ -88,11 +87,9 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
     run: async (ctx) => {
       ctx.onProgress(ELiftStep.Stopping)
       ctx.stopped = await ctx.args.stopLocal()
-      if (ctx.args.agents.pauseChildren !== undefined) {
-        ctx.pausedChildren = await ctx.args.agents.pauseChildren({
-          threadId: ctx.args.threadId,
-        })
-      }
+      // Paused children ride the session archive to the sandbox, whose serve re-enters their loops
+      // from the transferred logs (adoptChildren) — they are not resumed on this machine.
+      await ctx.args.agents.pauseChildren({ threadId: ctx.args.threadId })
       ctx.args.agents.forgetNotices({ threadId: ctx.args.threadId })
     },
   },

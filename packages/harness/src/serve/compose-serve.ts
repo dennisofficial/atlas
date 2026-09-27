@@ -178,6 +178,11 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       adoptChildren({ agents: app.agents, log: app.surface.log, threadId }),
     recordLostShells: ({ threadId }) => shellRecovery.recordLost({ threadId }),
     whenChildrenSettled: ({ threadId }) => app.agents.whenChildrenSettled({ threadId }),
+    family: {
+      pauseChildren: async ({ threadId }) => {
+        await app.agents.pauseChildren({ threadId })
+      },
+    },
     syncMemoryAfterTurn: memory.syncAfterTurn,
     runningShells: () =>
       app.shells.listEverywhere().filter((shell) => shell.status === EShellStatus.Running).length,

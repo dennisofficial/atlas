@@ -222,7 +222,6 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
     channel: undefined,
     contextError: undefined,
     stopped: NOTHING_WAS_STOPPED,
-    pausedChildren: [],
   }
 
   const run = await runRelocation({ plan: liftPlan(), ctx, onStep: () => undefined })

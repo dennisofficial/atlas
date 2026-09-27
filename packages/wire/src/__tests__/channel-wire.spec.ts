@@ -80,7 +80,8 @@ describe('the pause frames', () => {
   })
 })
 
-describe('the roster frame', () => {  it('round-trips the shells, agents and services a cloud surface reads', () => {
+describe('the roster frame', () => {
+  it('round-trips the shells, agents and services a cloud surface reads', () => {
     const threadId = 'thread-cloud' as never
     const frame: ServeFrame = {
       kind: EServeFrame.Roster,

@@ -41,6 +41,16 @@ export type ServeRoster = {
 }
 
 /**
+ * The served thread's stepping children narrowed to what a descend pause needs: freeze each one at
+ * the loop's seam and resolve only once every step has settled into that halt, so the session
+ * archive that follows races no writer. Absent in fakes, where pausing the parent's own turn is
+ * all there is.
+ */
+export type ServeFamily = {
+  pauseChildren: (args: { threadId: ThreadId }) => Promise<void>
+}
+
+/**
  * The real registries narrowed to what a confirmed rewind destroys through. Removal kills what is
  * still running — the same `removeChildren`/`removeShells`/`removeServices` the host's rewind
  * calls, answered by the sandbox because its processes live here.
@@ -61,7 +71,7 @@ export type ServeRewind = {
 /** The composed session as serve consumes it: everything a socket can reach and nothing else. */
 export type ServeApp = {
   channel: DeltaChannel
-  runner: Pick<TurnRunner, 'runTurn'>
+  runner: Pick<TurnRunner, 'runTurn' | 'resume'>
   /** The between-turns rules the shared root composed — absent in fakes, which run no policy. */
   turnPolicy?: TurnPolicy | undefined
   log: Pick<EventLogPort, 'append' | 'read' | 'readOwn' | 'head'>
@@ -90,6 +100,8 @@ export type ServeApp = {
   wakeNotices?: ServeWakeNotices | undefined
   /** Absent in a fake without registries: the client is answered an empty roster instead. */
   roster?: ServeRoster | undefined
+  /** Absent in a fake without registries: a descend pause halts the parent's turn only. */
+  family?: ServeFamily | undefined
   /** Absent in a fake without registries: a rewind apply is refused rather than dropped. */
   rewind?: ServeRewind | undefined
   close: () => Promise<void>

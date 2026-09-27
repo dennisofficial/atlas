@@ -12,7 +12,7 @@ import { createDeltaChannel, type DeltaChannel } from '../../channel/delta-chann
 import type { PauseSignal } from '../../loop/pause-signal'
 import { ETurnStatus, type TurnOutcome } from '../../loop/turn-outcome'
 import type { ThreadSummary } from '../../store/thread-store'
-import type { ServeApp, ServeRewind, ServeWakeNotices } from '../serve-app'
+import type { ServeApp, ServeFamily, ServeRewind, ServeWakeNotices } from '../serve-app'
 
 export type RunTurn = (args: {
   threadId: ThreadId
@@ -138,6 +138,7 @@ export function fakeServeApp(args: {
   wakeNotices?: boolean | undefined
   rewindTarget?: FakeRewindTarget | undefined
   roster?: FakeRoster | undefined
+  family?: ServeFamily | undefined
 }): FakeServeApp {
   const channel = createDeltaChannel()
   const appended: EventDraft[] = []
@@ -153,6 +154,7 @@ export function fakeServeApp(args: {
 
     runner: {
       runTurn: (given) => run(given),
+      resume: (given) => run(given),
     },
 
     log: {
@@ -205,6 +207,8 @@ export function fakeServeApp(args: {
     ...(args.rewindTarget === undefined ? {} : { rewind: { target: args.rewindTarget } }),
 
     ...(args.roster === undefined ? {} : { roster: args.roster }),
+
+    ...(args.family === undefined ? {} : { family: args.family }),
 
     close: async () => {
       closed = true

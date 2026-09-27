@@ -7,6 +7,9 @@ export const CLOUD_NOTICE_SLOT = 'session'
 
 export const CLOUD_NOTICE_KEY = 'execution-location'
 
+export const relocationMessageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
 export type StoppedLocally = {
   shells: readonly string[]
   services: readonly string[]

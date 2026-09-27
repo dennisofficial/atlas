@@ -18,6 +18,7 @@ import type { CloudBridge, CloudChannel } from './cloud-bridge'
 import { ELiftStep } from './lift'
 import { runRelocation } from './dag'
 import { descendPlan, type DescendRun } from './descend-plan'
+import { relocationMessageOf } from './transition-notice'
 
 export enum EDescendStep {
   Transferring = 'transferring',
@@ -30,9 +31,6 @@ export type DescendProgressStep = ELiftStep.Interrupting | EDescendStep
 export const DESCEND_DESTROY_NOTICE_KEY = 'descend-sandbox-destroy-failed'
 
 export const DESCEND_MEMORY_NOTICE_KEY = 'descend-memory-pull-failed'
-
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error)
 
 const NO_PROTECTION = (): void => undefined
 
@@ -139,7 +137,7 @@ export async function descendFromCloud<Opened>(args: {
   release()
   if (!result.ok) {
     if (result.phase === 'pre-commit' && run.pauseLanded) channel.resume()
-    throw result.error instanceof Error ? result.error : new Error(messageOf(result.error))
+    throw result.error instanceof Error ? result.error : new Error(relocationMessageOf(result.error))
   }
   if (opened === undefined) {
     throw new Error('the descend finished without reopening the conversation locally')
