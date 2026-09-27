@@ -49,6 +49,8 @@ export function createCloudBridge(args: {
    * the sandbox reads its own fallback rather than an empty string.
    */
   environment?: (() => Record<string, string>) | undefined
+  /** Receives the driver's provision-timing lines; unset in the TUI, set by the live round-trip spec. */
+  onDriverLog?: ((line: string) => void) | undefined
 }): CloudBridge {
   const fetchFn = args.fetchFn ?? fetch
   const shared = { url: args.url, token: args.token, clientVersion: args.clientVersion, fetchFn }
@@ -61,6 +63,7 @@ export function createCloudBridge(args: {
       cloudUrl: args.url,
       image: config.image,
       serveSources: config.serveSources,
+      ...(args.onDriverLog === undefined ? {} : { log: args.onDriverLog }),
     })
 
   /**

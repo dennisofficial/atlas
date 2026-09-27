@@ -28,7 +28,15 @@ export type ContainerMoveControl = {
   handleKey: (key: KeyEvent) => void
 }
 
-export function useContainerMove(): ContainerMoveControl {
+/**
+ * Timestamps each step as it becomes active, so a live round-trip can report per-stage latency
+ * without the move overlay persisting anything. Inert unless the caller reads the log.
+ */
+export type MoveStepTiming = { step: MoveStepId; at: number }
+
+export function useContainerMove(args?: {
+  onStep?: ((timing: MoveStepTiming) => void) | undefined
+}): ContainerMoveControl {
   const clock = useMemo(() => createAwakeClock(), [])
   const [move, setMove] = useState<ContainerMove | null>(null)
   const now = useTickingNow({ ticking: move !== null && move.failure === null, clock })
@@ -55,9 +63,11 @@ export function useContainerMove(): ContainerMoveControl {
 
   const handleAdvance = useCallback(
     (step: MoveStepId) => {
-      setMove((current) => (current === null ? null : advanceMove({ move: current, step, now: clock.read() })))
+      const at = clock.read()
+      setMove((current) => (current === null ? null : advanceMove({ move: current, step, now: at })))
+      args?.onStep?.({ step, at })
     },
-    [clock],
+    [clock, args],
   )
 
   const handleSettle = useCallback(() => setMove(null), [])
