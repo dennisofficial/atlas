@@ -33,13 +33,13 @@ jobs:
     if: github.event_name != 'release'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-qemu-action@v4
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -57,7 +57,7 @@ jobs:
           touch packages/harness/sandbox-image/atlas-serve \
             packages/harness/sandbox-image/atlas-serve.stamp
 
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: packages/harness/sandbox-image
           push: true
@@ -80,17 +80,17 @@ jobs:
       contents: read
       packages: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: vcr.vercel.com
           username: team_GR4aCzLIY5D3YYWgITz3Tere
@@ -100,7 +100,7 @@ jobs:
         id: meta
         run: echo "sha_tag=sha-$(git rev-parse HEAD | cut -c1-7)" >> "$GITHUB_OUTPUT"
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@v2.2.0
 
       - run: bun install
 
@@ -117,7 +117,7 @@ jobs:
       - name: stamp the baked serve
         run: sh packages/harness/scripts/serve-source-stamp.sh > packages/harness/sandbox-image/atlas-serve.stamp
 
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: packages/harness/sandbox-image
           platforms: linux/amd64
@@ -134,9 +134,9 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && startsWith(inputs.release_tag, 'tui-v')
     runs-on: ubuntu-latest
     steps:
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -173,7 +173,7 @@ jobs:
           echo "::error::${IMAGE}:${SHA_TAG} never appeared after 20 minutes -- the publish job for this commit likely failed" >&2
           exit 1
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         if: vars.VERCEL_VCR_ENABLED == 'true'
         with:
           registry: vcr.vercel.com
