@@ -1116,6 +1116,29 @@ describe('SandboxesService', () => {
     expect(client.getOrCreate).not.toHaveBeenCalled()
   })
 
+  it('claim creates the thread row when the lift has not opened one yet', async () => {
+    fake.threads.length = 0
+
+    const claimed = await service.claim({ userId: USER_A, threadId: THREAD, workspace: SPEC })
+
+    expect(claimed.token).toBeDefined()
+    const created = fake.threads.find((one) => one.id === THREAD)
+    expect(created).toBeDefined()
+    expect(created?.userId).toBe(USER_A)
+    expect(created?.workspace).toBeNull()
+    expect(fake.cloudSandboxes).toHaveLength(1)
+  })
+
+  it('claim still refuses a thread owned by another user', async () => {
+    fake.threads.length = 0
+    fake.threads.push(threadRow({ id: THREAD, userId: USER_B }))
+
+    await expect(
+      service.claim({ userId: USER_A, threadId: THREAD, workspace: SPEC }),
+    ).rejects.toBeInstanceOf(NotFoundException)
+    expect(fake.cloudSandboxes).toHaveLength(0)
+  })
+
   it('claim seals the git token onto the row, and the workspace fetch hands it back without asking the broker', async () => {
     await service.claim({
       userId: USER_A,
