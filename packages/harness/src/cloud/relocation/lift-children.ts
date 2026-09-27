@@ -12,7 +12,13 @@ import type { ThreadStorePort } from '../../store/thread-store'
 export type LiftAgentsPort = Pick<
   AgentRegistryPort,
   'list' | 'resume' | 'stopChildren' | 'markChildrenRelocated' | 'forgetNotices'
->
+> & {
+  /**
+   * The pause path for a lift: children freeze at the loop's seam rather than aborting. Optional
+   * while the stop-based registries catch up; the lift uses it whenever the port offers one.
+   */
+  pauseChildren?: AgentRegistryPort['pauseChildren'] | undefined
+}
 
 type FlipArgs = {
   threadId: ThreadId

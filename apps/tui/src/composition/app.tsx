@@ -1115,6 +1115,7 @@ function Workspace(props: {
     started: conversation.started,
     midTurn: conversation.turnInFlight,
     handleInterrupt: conversation.handleInterruptForMove,
+    handlePause: conversation.handlePauseForMove,
     whenSettled: conversation.whenSettled,
     projectDirectory: conversation.projectDirectory,
     setLocation: execution.handleSet,

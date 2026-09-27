@@ -47,10 +47,24 @@ export async function runRelocation<Ctx>(args: {
   let committed = false
 
   const commitNode = args.plan.find((node) => node.commit === true)
+  const postCommitIds = new Set<string>()
+  if (commitNode !== undefined) {
+    let frontier = [commitNode.id]
+    while (frontier.length > 0) {
+      const reached = frontier
+      frontier = []
+      for (const node of args.plan) {
+        if (postCommitIds.has(node.id)) continue
+        if (!node.needs.some((need) => reached.includes(need))) continue
+        postCommitIds.add(node.id)
+        frontier.push(node.id)
+      }
+    }
+  }
   const preCommitIds = new Set<string>()
   if (commitNode !== undefined) {
     for (const node of args.plan) {
-      if (node !== commitNode && !node.needs.includes(commitNode.id)) {
+      if (node !== commitNode && !postCommitIds.has(node.id)) {
         preCommitIds.add(node.id)
       }
     }
@@ -67,32 +81,44 @@ export async function runRelocation<Ctx>(args: {
     return true
   }
 
-  while (done.size < args.plan.length) {
-    const ready = args.plan.filter(isRunnable)
+  let failure: { failed: string; error: unknown } | null = null
+  const running = new Map<string, Promise<void>>()
 
-    let failure: { failed: string; error: unknown } | null = null
-    await Promise.all(
-      ready.map(async (node) => {
-        args.onStep?.(node.id)
-        try {
-          await node.run(args.ctx)
-        } catch (error) {
+  const fire = (node: RelocationNode<Ctx>): void => {
+    args.onStep?.(node.id)
+    running.set(
+      node.id,
+      node
+        .run(args.ctx)
+        .then(() => {
+          done.add(node.id)
+          if (node.commit === true) committed = true
+        })
+        .catch((error: unknown) => {
           failure ??= { failed: node.id, error }
-          return
-        }
-        done.add(node.id)
-        if (node.commit === true) {
-          committed = true
-        }
-      }),
+        }),
     )
+  }
 
-    if (failure !== null) {
-      const { failed, error } = failure
-      return committed
-        ? { ok: false, phase: 'committed', failed, error }
-        : { ok: false, phase: 'pre-commit', failed, error }
+  while (done.size + running.size < args.plan.length || running.size > 0) {
+    for (const node of args.plan) {
+      if (running.has(node.id)) continue
+      if (isRunnable(node)) fire(node)
     }
+
+    if (running.size === 0) break
+    await Promise.race([...running.values()])
+    for (const [id, settled] of running) {
+      if (done.has(id)) running.delete(id)
+    }
+    if (failure !== null) break
+  }
+
+  if (failure !== null) {
+    const { failed, error } = failure
+    return committed
+      ? { ok: false, phase: 'committed', failed, error }
+      : { ok: false, phase: 'pre-commit', failed, error }
   }
 
   return { ok: true }

@@ -282,7 +282,7 @@ describe('the move overview', () => {
       const moving = await shown(mounted, 'waiting for the sandbox')
 
       expect(moving).toContain('MOVING TO THE CLOUD')
-      expect(moving).toContain('✓ transferring the conversation')
+      expect(moving).toContain('transferring the conversation')
       expect(moving).toContain('waiting for the sandbox')
 
       await mounted.typeText('typed over the move')
@@ -298,7 +298,7 @@ describe('the move overview', () => {
     }
   }, 60_000)
 
-  it('does not wake a local turn when the move stops a stepping child', async () => {
+  it('does not wake a local turn when the move pauses a stepping child', async () => {
     const app = speaking()
     app.agents.place(
       fakeAgentSnapshot({
@@ -313,8 +313,9 @@ describe('the move overview', () => {
 
     try {
       await run(mounted, 'cloud')
-      const stopped = await until({ holds: async () => app.agents.stopped.length === 1, within: 20_000 })
-      expect(stopped).toBe(true)
+      const paused = await until({ holds: async () => app.agents.paused.length === 1, within: 20_000 })
+      expect(paused).toBe(true)
+      expect(app.agents.stopped).toHaveLength(0)
 
       await settle(400)
       expect(app.turnsDriven).toBe(0)

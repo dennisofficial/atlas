@@ -458,6 +458,7 @@ export function fakeBridge(
         trail.push('put-transcript')
         materialize(threadId)
       },
+      confirmLanded: async () => ({ landed: true }),
       find: async () => args.status,
       destroy: async ({ threadId }) => {
         trail.push('destroy')

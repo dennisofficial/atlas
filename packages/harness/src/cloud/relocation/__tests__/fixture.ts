@@ -345,6 +345,9 @@ export function fakeBridge(
     createFails?: unknown
     putContextFails?: unknown
     putTranscriptFails?: unknown
+    confirmLandedFails?: unknown
+    /** False = the probe answers "no transcript on the row" without throwing. */
+    confirmLanded?: boolean | undefined
     destroyFails?: unknown
     status?: CloudSandboxStatus | undefined
     threadStore?: FakeThreadStore
@@ -415,6 +418,12 @@ export function fakeBridge(
         trail.push('put-transcript')
         transcriptPuts.push({ threadId, archive: Buffer.from(archive) })
         if (args.putTranscriptFails !== undefined) throw args.putTranscriptFails
+      },
+      confirmLanded: async ({ threadId }) => {
+        trail.push('confirm-landed')
+        if (args.confirmLandedFails !== undefined) throw args.confirmLandedFails
+        if (args.confirmLanded === false) return { landed: false }
+        return { landed: transcriptPuts.some((put) => put.threadId === threadId) }
       },
       find: async () => args.status,
       destroy: async ({ threadId }) => {

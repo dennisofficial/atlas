@@ -42,6 +42,7 @@ export function useCloudLift(args: {
   started: boolean
   midTurn: () => boolean
   handleInterrupt: () => void
+  handlePause: () => void
   whenSettled: () => Promise<void>
   projectDirectory: string
   setLocation: (location: EExecutionLocation) => void
@@ -104,6 +105,7 @@ export function useCloudLift(args: {
       started: latest.current.started,
       midTurn,
       interrupt: latest.current.handleInterrupt,
+      pause: latest.current.handlePause,
       whenSettled: latest.current.whenSettled,
       identity: app.workspace,
       title: null,

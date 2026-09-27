@@ -149,6 +149,21 @@ describe('runRelocation', () => {
     expect(steps.indexOf('after')).toBeGreaterThan(steps.indexOf('commit'))
   })
 
+  it('holds the commit node behind pre-commit work without deadlocking on a transitive post-commit node', async () => {
+    const t = trace()
+    const plan: RelocationPlan<Trace> = [
+      tracedNode({ trace: t, id: 'pre' }),
+      { id: 'commit', needs: ['pre'], commit: true, run: async () => {} },
+      tracedNode({ trace: t, id: 'after', needs: ['commit'] }),
+      tracedNode({ trace: t, id: 'afterAfter', needs: ['after'] }),
+    ]
+
+    const result = await runRelocation({ plan, ctx: t })
+
+    expect(result).toEqual({ ok: true })
+    expect(t.finished).toEqual(['pre', 'after', 'afterAfter'])
+  })
+
   it('reports a failure before the commit node as pre-commit and runs nothing more', async () => {
     const t = trace()
     const cause = new Error('archive exploded')

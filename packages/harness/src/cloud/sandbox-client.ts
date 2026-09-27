@@ -129,6 +129,22 @@ export class SandboxClient {
     })
   }
 
+  /**
+   * The lift's anti-blank-log gate: whether the row reports the transcript present and non-empty
+   * after the upload. A 404 or empty body reads as not landed rather than as an error — the gate
+   * refuses the flip on false either way.
+   */
+  async transcriptLanded(args: { threadId: string }): Promise<boolean> {
+    const body = await this.request({
+      method: 'GET',
+      path: `/v1/sandboxes/${args.threadId}/transcript/status`,
+      allowMissing: true,
+    })
+    if (body === undefined || body === null) return false
+    const parsed = z.object({ landed: z.boolean() }).safeParse(body)
+    return parsed.success && parsed.data.landed
+  }
+
   /** A sandbox already gone is the caller's desired end state, so a 404 here is success, not an error. */
   async destroySandbox(args: { threadId: string }): Promise<void> {
     await this.request({

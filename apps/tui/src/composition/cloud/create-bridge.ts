@@ -162,6 +162,8 @@ export function createCloudBridge(args: {
     putContext: ({ threadId, archive }) => sandboxes.putContextArchive({ threadId, archive }),
     putTranscript: ({ threadId, archive }) =>
       sandboxes.putTranscriptArchive({ threadId, archive }),
+    confirmLanded: ({ threadId }) =>
+      sandboxes.transcriptLanded({ threadId }).then((landed) => ({ landed })),
     find,
     destroy,
   }

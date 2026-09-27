@@ -46,6 +46,7 @@ export type FakeAgents = AgentRegistryPort & {
   progressed: (args: { agentId: string }) => void
   refuseSay: (reason: string | null) => void
   readonly stopped: readonly { agentId: string; by: EKilledBy }[]
+  readonly paused: readonly { agentId: string }[]
   readonly said: readonly { agentId: ThreadId; threadId: ThreadId; text: string }[]
   stopChildren: (args: { threadId: ThreadId; by: EKilledBy }) => Promise<readonly ThreadId[]>
   markChildrenRelocated: (args: {
@@ -60,6 +61,7 @@ export type FakeAgents = AgentRegistryPort & {
  */
 export function fakeAgentRegistry(args: { threads?: FakeThreadStore | undefined } = {}): FakeAgents {
   const stopped: { agentId: string; by: EKilledBy }[] = []
+  const paused: { agentId: string }[] = []
   const said: { agentId: ThreadId; threadId: ThreadId; text: string }[] = []
   const changeListeners = new Set<() => void>()
   const noticeListeners = new Set<() => void>()
@@ -114,6 +116,10 @@ export function fakeAgentRegistry(args: { threads?: FakeThreadStore | undefined 
   return {
     get stopped() {
       return stopped
+    },
+
+    get paused() {
+      return paused
     },
 
     get said() {
@@ -233,7 +239,12 @@ export function fakeAgentRegistry(args: { threads?: FakeThreadStore | undefined 
 
     relocateChildren: () => Promise.resolve([]),
 
-    pauseChildren: () => Promise.resolve([]),
+    pauseChildren: async ({ threadId }) => {
+      const mine = owned.get(threadId) ?? NOTHING_LISTED
+      const stepping = mine.filter((one) => one.status === EAgentStatus.Running)
+      for (const one of stepping) paused.push({ agentId: one.agentId })
+      return stepping.map((one) => one.agentId)
+    },
 
     hydrate: async () => {},
 

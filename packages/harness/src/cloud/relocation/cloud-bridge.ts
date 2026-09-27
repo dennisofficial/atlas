@@ -64,6 +64,12 @@ export type CloudSandboxes = {
    * already carries the directory.
    */
   putTranscript(args: { threadId: ThreadId; archive: Uint8Array }): Promise<void>
+  /**
+   * The anti-blank-log gate: after the transcript uploaded, the lift asks the control plane
+   * whether the sandbox row reports the session present and non-empty before it flips ownership.
+   * The bridge owns how readiness is probed; the lift only reads the verdict.
+   */
+  confirmLanded(args: { threadId: ThreadId }): Promise<{ landed: boolean }>
   find(args: { threadId: ThreadId }): Promise<CloudSandboxStatus | undefined>
   /**
    * Tears down both halves: the Vercel sandbox through the operator's own token, and the control

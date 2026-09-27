@@ -1,30 +1,24 @@
 import {
-  CLOUD_WORKSPACE_PATH,
   EExecutionLocation,
-  EKilledBy,
   type EventLogPort,
   type IdPort,
   type ThreadId,
   type WorkspaceIdentity,
 } from '@dltech/atlas-core'
 
-import { buildSessionArchive } from '../session-archive'
-import { atlasDirectory } from '../../store/paths'
-import { sessionDirectory } from '../../store/sessions/paths'
 import type { ThreadModel, ThreadStorePort } from '../../store/thread-store'
-import { exportGpgMaterial, type GpgKeyMaterial } from '../../workspace/gpg-material'
+import type { GpgKeyMaterial } from '../../workspace/gpg-material'
 import type { CaptureContext } from '../context-archive-policy'
 import { CloudError } from '../cloud-transport'
 import { GitCredentialError } from '../gh-auth-token'
 import { VercelNotConfiguredError } from '../vercel-credentials'
 import type { CloudAttachment, CloudBridge, CloudChannel, CloudSandbox, LiftedWorkspace } from './cloud-bridge'
-import {
-  flipChildrenBack,
-  flipChildrenToCloud,
-  resumeStoppedChildren,
-  type LiftAgentsPort,
-} from './lift-children'
-import { liftedDraft, NOTHING_WAS_STOPPED, type StoppedLocally } from './transition-notice'
+import { runRelocation, type RelocationRun } from './dag'
+import type { LiftAgentsPort } from './lift-children'
+import { ELiftNode, liftPlan, type LiftCtx } from './lift-plan'
+import { NOTHING_WAS_STOPPED, type StoppedLocally } from './transition-notice'
+
+export { ELiftNode, liftPlan } from './lift-plan'
 
 export enum ELiftStep {
   Interrupting = 'interrupting',
@@ -72,6 +66,12 @@ export type LiftArgs = {
   cwd: string
   started: boolean
   midTurn: boolean
+  /**
+   * How the parent's own turn is frozen. The relocation DAG pauses loops at the loop's seam
+   * rather than aborting them, so this pair holds a pause request and the settle that resolves
+   * once the turn answers RelocationPaused — the same settle that watched interrupts land.
+   */
+  pause?: (() => void) | undefined
   interrupt: () => void
   whenSettled: () => Promise<void>
   interruptDeadlineMs?: number | undefined
@@ -92,11 +92,10 @@ export type LiftArgs = {
   captureContext: CaptureContext
   onProgress: (step: ELiftStep) => void
   /**
-   * Runs after the channel attaches — opening the conversation against the remote stores. The
-   * flip already landed by then, so a failure here rolls the thread back to the location it came
-   * from, the same as every earlier step's failure. Receives the just-attached channel so the
-   * caller builds its runner and app from it. Optional so a spec that never opens keeps the bare
-   * attach; the live wiring always passes it.
+   * Runs after the channel attaches — opening the conversation against the remote stores. This is
+   * the DAG's post-commit attach node, so a failure here is a committed failure: the conversation
+   * moved, and recovery is re-attaching, not flipping back. Optional so a spec that never opens
+   * keeps the bare attach; the live wiring always passes it.
    */
   open?: ((attachment: CloudAttachment) => Promise<void>) | undefined
 }
@@ -144,19 +143,6 @@ const failureOf = (args: {
   }
 }
 
-const flipBack = async (args: LiftArgs & { from: EExecutionLocation }): Promise<void> => {
-  args.setLocation(args.from)
-  await args.localThreads
-    .chooseExecutionLocation({ threadId: args.threadId, location: args.from })
-    .catch(() => undefined)
-  await flipChildrenBack({
-    threadId: args.threadId,
-    localThreads: args.localThreads,
-    agents: args.agents,
-    location: args.from,
-  })
-}
-
 const INTERRUPT_SETTLE_DEADLINE_MS = 30_000
 
 const settledBeforeDeadline = async (args: LiftArgs): Promise<boolean> => {
@@ -170,20 +156,49 @@ const settledBeforeDeadline = async (args: LiftArgs): Promise<boolean> => {
   return settled
 }
 
+const failureOfRun = (args: {
+  run: Extract<RelocationRun, { ok: false }>
+  ctx: LiftCtx
+}): LiftFailure => {
+  const { run, ctx } = args
+  if (ctx.contextError !== undefined) {
+    return failureOf({
+      error: ctx.contextError,
+      step: ELiftStep.UploadingContext,
+      fallback: ELiftFault.Context,
+      stopped: ctx.stopped,
+    })
+  }
+  const step: ELiftStep =
+    run.failed === ELiftNode.Attach || run.failed === ELiftNode.ResumePaused
+      ? ELiftStep.Attaching
+      : run.failed === ELiftNode.ArchiveSession
+        ? ELiftStep.Transferring
+        : ELiftStep.Starting
+  return failureOf({
+    error: run.error,
+    step,
+    fallback: ELiftFault.Sandbox,
+    stopped: ctx.stopped,
+  })
+}
+
 /**
  * Opening the thread again as a cloud thread, rather than moving the ports underneath a running
- * one. Every failure before the sandbox answers puts the conversation back on the host, so a lift
- * that does not finish leaves a session that still works here.
- *
- * Stopping leads: nothing may write to a log after the snapshot that transfers it, so shells,
- * services and stepping children are all stopped before anything is read for the remote store.
+ * one. The move rides the relocation DAG: provision runs concurrent with pausing and archiving,
+ * and the single commit point is the ownership flip — a failure before it leaves the conversation
+ * exactly where it was, one after it means the conversation moved and recovery is re-attaching.
  */
 export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
   const { onProgress, threadId } = args
 
+  const from =
+    (await args.localThreads.find({ threadId }))?.executionLocation ?? EExecutionLocation.Host
+
   if (args.midTurn) {
     onProgress(ELiftStep.Interrupting)
-    args.interrupt()
+    if (args.pause === undefined) args.interrupt()
+    else args.pause()
   }
 
   const settled = await settledBeforeDeadline(args)
@@ -196,140 +211,41 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
     })
   }
 
-  const from =
-    (await args.localThreads.find({ threadId }))?.executionLocation ?? EExecutionLocation.Host
-
-  onProgress(ELiftStep.Stopping)
-  let stopped: StoppedLocally = NOTHING_WAS_STOPPED
-  let stoppedChildren: readonly ThreadId[] = []
-  try {
-    stopped = await args.stopLocal()
-    stoppedChildren = await args.agents.stopChildren({ threadId, by: EKilledBy.ContainerSwitch })
-    args.agents.forgetNotices({ threadId })
-  } catch (error) {
-    await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })
-    return failureOf({ error, step: ELiftStep.Stopping, fallback: ELiftFault.Transfer, stopped })
+  const ctx: LiftCtx = {
+    args,
+    onProgress,
+    from,
+    workspace: null,
+    gpgKey: undefined,
+    transcript: undefined,
+    sandbox: undefined,
+    channel: undefined,
+    contextError: undefined,
+    stopped: NOTHING_WAS_STOPPED,
+    pausedChildren: [],
   }
 
-  onProgress(ELiftStep.Transferring)
-  let transcript: Uint8Array | undefined
-  try {
-    transcript = await buildSessionArchive({
-      sessionDir: sessionDirectory({ home: atlasDirectory(), sessionId: threadId }),
-    })
-  } catch (error) {
-    await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })
-    return failureOf({ error, step: ELiftStep.Transferring, fallback: ELiftFault.Transfer, stopped })
-  }
+  const run = await runRelocation({ plan: liftPlan(), ctx, onStep: () => undefined })
 
-  onProgress(ELiftStep.Flipping)
-  try {
-    args.setLocation(EExecutionLocation.Cloud)
-    if (args.started) {
-      await args.localThreads.chooseExecutionLocation({
-        threadId,
-        location: EExecutionLocation.Cloud,
+  if (run.ok) {
+    const { sandbox, channel } = ctx
+    if (sandbox === undefined || channel === undefined) {
+      return failureOf({
+        error: new Error('the lift finished without its sandbox'),
+        step: ELiftStep.Starting,
+        fallback: ELiftFault.Sandbox,
+        stopped: ctx.stopped,
       })
-      if (args.title !== null) await args.localThreads.rename({ threadId, title: args.title })
     }
-    await flipChildrenToCloud({
-      threadId,
-      ids: args.ids,
-      agents: args.agents,
-      localThreads: args.localThreads,
-      localLog: args.localLog,
-    })
-  } catch (error) {
-    await flipBack({ ...args, from })
-    await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })
-    return failureOf({ error, step: ELiftStep.Flipping, fallback: ELiftFault.Transfer, stopped })
-  }
-
-  onProgress(ELiftStep.Capturing)
-  let workspace: LiftedWorkspace | null
-  try {
-    workspace = await args.capture({ cwd: args.cwd })
-  } catch (error) {
-    await flipBack({ ...args, from })
-    await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })
-    return failureOf({ error, step: ELiftStep.Capturing, fallback: ELiftFault.Transfer, stopped })
-  }
-
-  const gpgMaterial = await (args.captureGpg ?? exportGpgMaterial)({ cwd: args.cwd }).catch(
-    () => null,
-  )
-
-  onProgress(ELiftStep.Starting)
-  let sandbox: CloudSandbox
-  let contextError: unknown
-  try {
-    sandbox = await args.bridge.sandboxes.create({
-      threadId,
-      workspace,
-      gpgKey: gpgMaterial === null ? undefined : JSON.stringify(gpgMaterial),
-      captureContext: async (put) => {
-        onProgress(ELiftStep.UploadingContext)
-        try {
-          const archive = await args.captureContext()
-          if (archive !== undefined) await put(archive)
-        } catch (error) {
-          contextError = error
-          throw error
-        } finally {
-          onProgress(ELiftStep.Starting)
-        }
-      },
-    })
-    if (transcript !== undefined) {
-      await args.bridge.sandboxes.putTranscript({ threadId, archive: transcript })
+    return {
+      ok: true,
+      sandbox,
+      channel,
+      workspace: ctx.workspace,
+      stopped: ctx.stopped,
+      resumeOnArrival: args.midTurn,
     }
-  } catch (error) {
-    await flipBack({ ...args, from })
-    await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })
-    if (contextError !== undefined) {
-      return failureOf({ error: contextError, step: ELiftStep.UploadingContext, fallback: ELiftFault.Context, stopped })
-    }
-    return failureOf({ error, step: ELiftStep.Starting, fallback: ELiftFault.Sandbox, stopped })
-  }
-  const { url } = sandbox
-
-  /**
-   * The relocation notices land in the local log after the archive shipped, so the copy the
-   * sandbox serves does not carry them — the descend's own relocation marker closes the trail on
-   * the way back. They are for whoever opens the local transcript between the flip and the move.
-   */
-  await args.localLog
-    .append({
-      threadId,
-      runId: args.ids.nextRunId(),
-      drafts: [
-        ...stopped.drainNotices(),
-        {
-          type: 'location-changed',
-          from,
-          to: EExecutionLocation.Cloud,
-          cwd: CLOUD_WORKSPACE_PATH,
-          remoteUrl: workspace?.remoteUrl ?? null,
-          branch: workspace?.branch ?? null,
-        },
-        liftedDraft({ workspace, stopped }),
-      ],
-    })
-    .catch(() => undefined)
-
-  onProgress(ELiftStep.Attaching)
-  let channel: CloudChannel
-  try {
-    const attachment = args.bridge.attach({ threadId, url, token: sandbox.token })
-    channel = attachment.channel
-    await args.open?.(attachment)
-  } catch (error) {
-    await flipBack({ ...args, from })
-    await resumeStoppedChildren({ agents: args.agents, threadId, stopped: stoppedChildren })
-    return failureOf({ error, step: ELiftStep.Attaching, fallback: ELiftFault.Transfer, stopped })
   }
 
-  if (args.midTurn) onProgress(ELiftStep.Resuming)
-
-  return { ok: true, sandbox, channel, workspace, stopped, resumeOnArrival: args.midTurn }
+  return failureOfRun({ run, ctx })
 }
