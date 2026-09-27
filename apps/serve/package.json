@@ -1,0 +1,21 @@
+{
+  "name": "@dltech/atlas-serve",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "build:serve": "bun scripts/build-serve.ts"
+  },
+  "dependencies": {
+    "@dltech/atlas-core": "workspace:*",
+    "@dltech/atlas-harness": "workspace:*",
+    "@dltech/atlas-wire": "workspace:*",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@vscode/ripgrep": "^1.18.0"
+  }
+}

@@ -36,6 +36,7 @@ FROM ${BUN_IMAGE} AS serve-deps
 WORKDIR /app
 COPY package.json bun.lock bunfig.toml ./
 COPY apps/api/package.json ./apps/api/
+COPY apps/serve/package.json ./apps/serve/
 COPY apps/tui/package.json ./apps/tui/
 COPY apps/web/package.json ./apps/web/
 COPY packages/core/package.json ./packages/core/
@@ -43,16 +44,18 @@ COPY packages/harness/package.json ./packages/harness/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/wire/package.json ./packages/wire/
 RUN --mount=type=cache,id=bun-install-cache,target=/root/.bun/install/cache \
-  bun install --frozen-lockfile --ignore-scripts --os='*' --cpu='*' --filter '@dltech/atlas-harness'
+  bun install --frozen-lockfile --ignore-scripts --os='*' --cpu='*' --filter '@dltech/atlas-serve'
 
 # The target is pinned, not host-derived: an arm64 builder (every macOS laptop) must not
 # ship a binary the linux/amd64 sandbox cannot exec.
 FROM ${BUN_IMAGE} AS serve-binary
 WORKDIR /app
 COPY --from=serve-deps /app/node_modules ./node_modules
+COPY --from=serve-deps /app/apps/serve/node_modules ./apps/serve/node_modules
 COPY --from=serve-deps /app/packages/core/node_modules ./packages/core/node_modules
 COPY --from=serve-deps /app/packages/harness/node_modules ./packages/harness/node_modules
 COPY --from=serve-deps /app/packages/wire/node_modules ./packages/wire/node_modules
+COPY apps/serve ./apps/serve
 COPY packages/core ./packages/core
 COPY packages/harness ./packages/harness
 COPY packages/wire ./packages/wire
@@ -60,10 +63,10 @@ COPY tsconfig.base.json ./tsconfig.base.json
 # The stamp hashes the serve SOURCE, not the compiled binary: `bun build --compile` is not
 # byte-reproducible, so hashing the binary would churn the stamp — and force a fleet-wide
 # re-download of the sandbox's serve binary — on every deploy even when nothing behavioral
-# changed. The recipe lives in packages/harness/scripts/serve-source-stamp.sh and is shared with
+# changed. The recipe lives in apps/serve/scripts/serve-source-stamp.sh and is shared with
 # the VCR sandbox image so a matching bake is reused instead of re-downloaded.
-RUN cd packages/harness && bun run build:serve -- --target bun-linux-x64 --outfile bin/atlas-serve \
-  && cd /app && sh packages/harness/scripts/serve-source-stamp.sh > packages/harness/bin/atlas-serve.sha256
+RUN cd apps/serve && bun run build:serve -- --target bun-linux-x64 --outfile bin/atlas-serve \
+  && cd /app && sh apps/serve/scripts/serve-source-stamp.sh > apps/serve/bin/atlas-serve.sha256
 
 FROM node:22.13.1-slim AS runtime
 RUN apt-get update -y && apt-get install -y --no-install-recommends openssl \
@@ -81,8 +84,8 @@ COPY --from=builder /app/packages/wire/package.json ./packages/wire/package.json
 COPY --from=builder /app/packages/wire/node_modules ./packages/wire/node_modules
 COPY --from=builder /app/apps/api/envs ./apps/api/envs
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
-COPY --from=serve-binary /app/packages/harness/bin/atlas-serve /app/atlas-serve
-COPY --from=serve-binary /app/packages/harness/bin/atlas-serve.sha256 /app/atlas-serve.sha256
+COPY --from=serve-binary /app/apps/serve/bin/atlas-serve /app/atlas-serve
+COPY --from=serve-binary /app/apps/serve/bin/atlas-serve.sha256 /app/atlas-serve.sha256
 COPY --from=builder /app/apps/api/scripts ./apps/api/scripts
 
 WORKDIR /app/apps/api

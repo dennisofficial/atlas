@@ -56,6 +56,20 @@
         "vitest": "^3.2.7",
       },
     },
+    "apps/serve": {
+      "name": "@dltech/atlas-serve",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-core": "workspace:*",
+        "@dltech/atlas-harness": "workspace:*",
+        "@dltech/atlas-wire": "workspace:*",
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "@vscode/ripgrep": "^1.18.0",
+      },
+    },
     "apps/tui": {
       "name": "@dltech/atlas",
       "version": "0.1.0",
@@ -277,6 +291,8 @@
     "@dltech/atlas-core": ["@dltech/atlas-core@workspace:packages/core"],
 
     "@dltech/atlas-harness": ["@dltech/atlas-harness@workspace:packages/harness"],
+
+    "@dltech/atlas-serve": ["@dltech/atlas-serve@workspace:apps/serve"],
 
     "@dltech/atlas-ui": ["@dltech/atlas-ui@workspace:packages/ui"],
 
