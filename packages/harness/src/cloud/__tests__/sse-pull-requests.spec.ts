@@ -7,13 +7,15 @@ import { createSseSubscriptionBook, readingOfState } from '../sse-pull-request-b
 
 const state = (over: Partial<SubscriptionPrState> = {}): SubscriptionPrState => ({
   repoFullName: 'owner/repo',
-  number: 42,
+  prNumber: 42,
   title: 'A pull request',
   url: 'https://github.com/owner/repo/pull/42',
   state: 'open',
   headBranch: 'feature',
   headSha: 'abc123',
-  checks: { running: 1, passed: 2, failed: 0 },
+  checksRunning: 1,
+  checksPassed: 2,
+  checksFailed: 0,
   mergeable: null,
   updatedAt: '2026-09-28T00:00:00.000Z',
   ...over,
@@ -37,7 +39,7 @@ describe('readingOfState', () => {
   })
 
   it('reads failing checks before running or passing', () => {
-    const reading = readingOfState(state({ checks: { running: 1, passed: 3, failed: 1 } }))
+    const reading = readingOfState(state({ checksRunning: 1, checksPassed: 3, checksFailed: 1 }))
     if (reading.lookup !== EPullRequestLookup.Found) throw new Error('expected found')
     expect(reading.pullRequest.checks).toBe(EChecksState.Failing)
   })
@@ -86,7 +88,7 @@ describe('createSseSubscriptionBook', () => {
       state: state(),
     })
 
-    book.applyFrame({ data: JSON.stringify(state({ checks: { running: 0, passed: 3, failed: 0 } })) })
+    book.applyFrame({ data: JSON.stringify(state({ checksRunning: 0, checksPassed: 3, checksFailed: 0 })) })
 
     const last = readings[readings.length - 1]
     expect(last?.key).toBe('checkout-key')
@@ -98,7 +100,7 @@ describe('createSseSubscriptionBook', () => {
   it('ignores a frame for a PR nobody subscribed', () => {
     const { readings, onReading } = collect()
     const book = createSseSubscriptionBook({ now: () => 0, onReading })
-    book.applyFrame({ data: JSON.stringify(state({ number: 99 })) })
+    book.applyFrame({ data: JSON.stringify(state({ prNumber: 99 })) })
     expect(readings).toHaveLength(0)
   })
 

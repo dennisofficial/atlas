@@ -37,19 +37,24 @@ export const readingOfState = (state: SubscriptionPrState): PullRequestReading =
   const pullState = PULL_REQUEST_STATES[state.state]
   if (pullState === undefined) return { lookup: EPullRequestLookup.Unavailable, retryable: true }
 
+  const tally: ChecksTally = {
+    running: state.checksRunning,
+    passed: state.checksPassed,
+    failed: state.checksFailed,
+  }
   const pullRequest: PullRequest = {
-    number: state.number,
+    number: state.prNumber,
     title: state.title,
     url: state.url,
     state: pullState,
-    checks: checksOf(state.checks),
-    tally: state.checks,
+    checks: checksOf(tally),
+    tally,
   }
   return { lookup: EPullRequestLookup.Found, pullRequest }
 }
 
 const prIdentityOf = (state: SubscriptionPrState): string =>
-  `github.com/${state.repoFullName}#${state.number}`
+  `github.com/${state.repoFullName}#${state.prNumber}`
 
 const ABSENT: PullRequestReading = { lookup: EPullRequestLookup.Absent }
 
@@ -131,7 +136,7 @@ export function createSseSubscriptionBook(args: {
         return
       }
       const state = parsed as SubscriptionPrState
-      if (typeof state.repoFullName !== 'string' || typeof state.number !== 'number') return
+      if (typeof state.repoFullName !== 'string' || typeof state.prNumber !== 'number') return
 
       const key = byIdentity.get(prIdentityOf(state))
       if (key === undefined) return
