@@ -19,6 +19,8 @@ export const wireWorkspaceSpecSchema = z.object({
   contextBundle: z.string().nullish(),
   /** The Mac-side project directory the thread was lifted from, absent on an older control plane. */
   projectDirectory: z.string().nullish(),
+  /** The model the thread was already on; null when none was picked, absent on an older control plane. */
+  model: z.string().nullable().nullish(),
 })
 
 export type WorkspaceSpec = z.infer<typeof wireWorkspaceSpecSchema>

@@ -1,19 +1,50 @@
 import type { ThreadId } from '@dltech/atlas-core'
 import {
   createRemoteDeltaChannel,
+  DRIVE_HOME_PATH,
   ECloudSandboxState,
   RemoteEventLog,
   RemoteThreadStore,
   RemoteTurnLedger,
-  SandboxClient,
   sandboxNameFor,
-  serveStampsReader,
   VercelDriver,
+  type LiftedWorkspace,
   type VercelSandboxConfig,
 } from '@dltech/atlas-harness'
 
 import type { CloudBridge, CloudSandbox, CloudSandboxes, CloudSandboxStatus } from '@dltech/atlas-harness'
 import { reattachSandbox } from './reattach-sandbox'
+
+const BOOTSTRAP_DIRECTORY = `${DRIVE_HOME_PATH}/bootstrap`
+const WORKSPACE_SPEC_PATH = `${BOOTSTRAP_DIRECTORY}/workspace-spec.json`
+const CONTEXT_ARCHIVE_PATH = `${BOOTSTRAP_DIRECTORY}/context.tar.gz`
+const TRANSCRIPT_ARCHIVE_PATH = `${BOOTSTRAP_DIRECTORY}/transcript.tar.gz`
+
+/**
+ * The spec serve reads at boot off the drive. The laptop synthesizes it from the captured
+ * workspace plus the credentials it already holds — the git token and GPG key the old control
+ * plane used to broker onto the row now ride the same drive the workspace lives on.
+ */
+const bootstrapSpecOf = (args: {
+  workspace: LiftedWorkspace | null
+  gitToken: string
+  gpgKey?: string | undefined
+}): string =>
+  JSON.stringify({
+    remoteUrl: args.workspace?.remoteUrl ?? null,
+    branch: args.workspace?.branch ?? null,
+    commit: args.workspace?.commit ?? null,
+    patch: args.workspace?.patch ?? '',
+    githubToken: args.gitToken,
+    ...(args.workspace?.gitIdentity === undefined || args.workspace?.gitIdentity === null
+      ? {}
+      : { gitIdentity: args.workspace.gitIdentity }),
+    ...(args.gpgKey === undefined ? {} : { gpgKey: args.gpgKey }),
+    ...(args.workspace?.projectDirectory === undefined ||
+    args.workspace?.projectDirectory === null
+      ? {}
+      : { projectDirectory: args.workspace.projectDirectory }),
+  })
 
 /**
  * The socket cannot tell resting from broken on its own — a parked sandbox stops answering pings
@@ -52,11 +83,6 @@ export function createCloudBridge(args: {
   /** Receives the driver's provision-timing lines; unset in the TUI, set by the live round-trip spec. */
   onDriverLog?: ((line: string) => void) | undefined
 }): CloudBridge {
-  const fetchFn = args.fetchFn ?? fetch
-  const shared = { url: args.url, token: args.token, clientVersion: args.clientVersion, fetchFn }
-
-  const sandboxes = new SandboxClient(shared)
-
   const driverWith = (config: VercelSandboxConfig): VercelDriver =>
     new VercelDriver({
       credentials: config.credentials,
@@ -67,10 +93,12 @@ export function createCloudBridge(args: {
     })
 
   /**
-   * Claim first: the sandbox curls its workspace spec and serve binary off the row the claim
-   * upserts, authenticated by the token the claim mints. `contextPending` tells the row whether
-   * this boot needs the context archive — known before creating because a name Vercel has never
-   * seen boots fresh, and one it has resumes a snapshot that already carries it.
+   * Fully client-side: the laptop drives Vercel with the operator's own token, mints the serve
+   * token itself, and writes the bootstrap the sandbox needs onto its drive — the workspace spec,
+   * the context archive, and later the transcript. No control-plane claim, archive upload, or
+   * stamp HEAD; the API's only remaining jobs are the small ones (auth, the registry, the reaper).
+   * A name Vercel has never seen boots fresh (needing the bootstrap written before serve reads it);
+   * one it has resumes a snapshot that already carries it.
    */
   const create = async (
     createArgs: Parameters<CloudSandboxes['create']>[0],
@@ -81,39 +109,41 @@ export function createCloudBridge(args: {
     const name = sandboxNameFor({ threadId: createArgs.threadId })
 
     const observed = await driver.inspect({ name })
-    const claim = await sandboxes.claimSandbox({
-      threadId: createArgs.threadId,
+    const freshBoot = observed === undefined
+    const bootstrap = bootstrapSpecOf({
+      workspace: createArgs.workspace,
       gitToken,
-      contextPending: observed === undefined,
-      ...(createArgs.workspace === null ? {} : { workspace: createArgs.workspace }),
       ...(createArgs.gpgKey === undefined ? {} : { gpgKey: createArgs.gpgKey }),
     })
 
     const placement = await driver.createOrResume({
       name,
       threadId: createArgs.threadId,
-      token: claim.token,
       ...(args.environment === undefined ? {} : { environment: args.environment() }),
       ...(createArgs.captureContext === undefined
         ? {}
         : {
-            putContextOnFreshBoot: () =>
-              createArgs.captureContext!((archive) =>
-                sandboxes.putContextArchive({ threadId: createArgs.threadId, archive }),
-              ),
+            putContextOnFreshBoot: async () => {
+              await createArgs.captureContext!((archive) =>
+                driver.writeBootstrapFile({
+                  name,
+                  path: CONTEXT_ARCHIVE_PATH,
+                  content: archive,
+                }),
+              )
+            },
           }),
-      readStamps: serveStampsReader({
-        cloudUrl: args.url,
-        threadId: createArgs.threadId,
-        token: claim.token,
-        sources: config.serveSources,
-        fetchFn,
-      }),
     })
+
+    // Serve reads the spec at boot off the drive; a resume already has it, so only a fresh boot
+    // (or one whose spec moved) needs the write. The transcript rides up separately in the lift.
+    if (freshBoot) {
+      await driver.writeBootstrapFile({ name, path: WORKSPACE_SPEC_PATH, content: bootstrap })
+    }
 
     return {
       url: placement.url,
-      token: claim.token,
+      token: placement.token,
       state: placement.state,
       created: placement.created,
       driveName: placement.driveName,
@@ -122,8 +152,8 @@ export function createCloudBridge(args: {
 
   /**
    * A sandbox Vercel has never heard of reads as parked rather than as nothing: the wake path
-   * recreates it from the row, which is the self-healing the old status route got by answering
-   * from the row alone.
+   * recreates it, which is the self-healing the old status route got by answering from the row
+   * alone. Vercel is the source of truth now — there is no row.
    */
   const find = async (findArgs: { threadId: ThreadId }): Promise<CloudSandboxStatus> => {
     const observed = await driverWith(args.vercel()).inspect({
@@ -133,37 +163,40 @@ export function createCloudBridge(args: {
   }
 
   /**
-   * Both halves, whichever order they finish in: the Vercel sandbox through the operator's token,
-   * and the row through the control plane. Credentials that vanished from settings since the lift
-   * skip the Vercel half rather than stranding the row.
+   * Tears down the sandbox and its drive through the operator's own token. Credentials that
+   * vanished from settings since the lift mean there is nothing the operator can reach to destroy,
+   * so a missing config is a no-op rather than a stranded-resources error.
    */
   const destroy = async (destroyArgs: { threadId: ThreadId }): Promise<void> => {
     const name = sandboxNameFor({ threadId: destroyArgs.threadId })
-    let config: VercelSandboxConfig | null = null
+    let config: VercelSandboxConfig
     try {
       config = args.vercel()
     } catch {
-      config = null
+      return
     }
-
-    const settled = await Promise.allSettled([
-      ...(config === null
-        ? []
-        : [driverWith(config).destroy({ name, threadId: destroyArgs.threadId })]),
-      sandboxes.destroySandbox({ threadId: destroyArgs.threadId }),
-    ])
-    for (const outcome of settled) {
-      if (outcome.status === 'rejected') throw outcome.reason
-    }
+    await driverWith(config).destroy({ name, threadId: destroyArgs.threadId })
   }
 
   const bridgeSandboxes: CloudSandboxes = {
     create,
-    putContext: ({ threadId, archive }) => sandboxes.putContextArchive({ threadId, archive }),
+    putContext: ({ threadId, archive }) =>
+      driverWith(args.vercel()).writeBootstrapFile({
+        name: sandboxNameFor({ threadId }),
+        path: CONTEXT_ARCHIVE_PATH,
+        content: archive,
+      }),
     putTranscript: ({ threadId, archive }) =>
-      sandboxes.putTranscriptArchive({ threadId, archive }),
-    confirmLanded: ({ threadId }) =>
-      sandboxes.transcriptLanded({ threadId }).then((landed) => ({ landed })),
+      driverWith(args.vercel()).writeBootstrapFile({
+        name: sandboxNameFor({ threadId }),
+        path: TRANSCRIPT_ARCHIVE_PATH,
+        content: archive,
+      }),
+    confirmLanded: async ({ threadId }) => ({
+      landed: await driverWith(args.vercel()).transcriptLanded({
+        name: sandboxNameFor({ threadId }),
+      }),
+    }),
     find,
     destroy,
   }

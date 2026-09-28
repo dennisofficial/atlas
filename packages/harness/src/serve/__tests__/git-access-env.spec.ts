@@ -1,3 +1,8 @@
+import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import { afterEach, describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
@@ -34,26 +39,38 @@ const inMemoryContextFiles = (): WorkspaceFiles => {
   }
 }
 
-const specResponse = (githubToken: string | null): Response =>
-  Response.json({
-    remoteUrl: 'https://github.com/dennisofficial/atlas.git',
-    branch: 'main',
-    commit: null,
-    patch: '',
-    githubToken,
-  })
+const driveHomes: string[] = []
+let heldAtlasHome: string | undefined
 
-const fetchFnFor = (workspace: () => Response): typeof fetch =>
-  (async (input: unknown) => {
-    const url = String(input)
-    if (url.endsWith('/workspace')) return workspace()
-    return new Response(null, { status: 204 })
-  }) as typeof fetch
+const specOnDrive = async (args: { githubToken: string | null }): Promise<string> => {
+  const driveHome = mkdtempSync(join(tmpdir(), 'atlas-git-env-spec-'))
+  driveHomes.push(driveHome)
+  const bootstrap = join(driveHome, 'bootstrap')
+  await mkdir(bootstrap, { recursive: true })
+  await writeFile(
+    join(bootstrap, 'workspace-spec.json'),
+    JSON.stringify({
+      remoteUrl: 'https://github.com/dennisofficial/atlas.git',
+      branch: 'main',
+      commit: null,
+      patch: '',
+      githubToken: args.githubToken,
+    }),
+  )
+  return driveHome
+}
 
 const start = async (args: {
   env: Record<string, string | undefined>
-  fetchFn: typeof fetch
+  spec: { githubToken: string | null } | undefined
 }): Promise<ServeHandle> => {
+  heldAtlasHome = process.env.ATLAS_HOME
+  process.env.ATLAS_HOME = await (async () => {
+    if (args.spec !== undefined) return specOnDrive({ githubToken: args.spec.githubToken })
+    const empty = mkdtempSync(join(tmpdir(), 'atlas-git-env-spec-'))
+    driveHomes.push(empty)
+    return empty
+  })()
   const app = fakeServeApp({ threadId, root: '/workspace' })
   const handle = await startServe({
     threadId,
@@ -64,7 +81,6 @@ const start = async (args: {
     cwd: '/workspace',
     compose: async () => app,
     ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
-    fetchFn: args.fetchFn,
     contextFiles: inMemoryContextFiles(),
   })
   running.push(handle)
@@ -72,14 +88,20 @@ const start = async (args: {
 }
 
 afterEach(async () => {
+  if (heldAtlasHome === undefined) delete process.env.ATLAS_HOME
+  else process.env.ATLAS_HOME = heldAtlasHome
+  heldAtlasHome = undefined
   while (running.length > 0) await running.pop()?.close()
+  for (const home of driveHomes.splice(0, driveHomes.length)) {
+    rmSync(home, { recursive: true, force: true })
+  }
 })
 
 describe('serve git access env', () => {
   it('arms GH_TOKEN and the git config entries when the workspace spec carries a token', async () => {
     const env: Record<string, string | undefined> = {}
 
-    await start({ env, fetchFn: fetchFnFor(() => specResponse('gho_cloud')) })
+    await start({ env, spec: { githubToken: 'gho_cloud' } })
 
     expect(env.GH_TOKEN).toBe('gho_cloud')
     expect(env.GIT_CONFIG_COUNT).toBe('7')
@@ -96,19 +118,16 @@ describe('serve git access env', () => {
   it('leaves the environment alone when the spec carries no token', async () => {
     const env: Record<string, string | undefined> = {}
 
-    await start({ env, fetchFn: fetchFnFor(() => specResponse(null)) })
+    await start({ env, spec: { githubToken: null } })
 
     expect(env.GH_TOKEN).toBeUndefined()
     expect(env.GIT_CONFIG_COUNT).toBeUndefined()
   })
 
-  it('boots without git access when the workspace spec cannot be fetched', async () => {
+  it('boots without git access when the drive holds no workspace spec', async () => {
     const env: Record<string, string | undefined> = {}
 
-    const handle = await start({
-      env,
-      fetchFn: fetchFnFor(() => new Response('gone', { status: 400 })),
-    })
+    const handle = await start({ env, spec: undefined })
 
     const health = await fetch(`http://127.0.0.1:${handle.port}/v1/health`, {
       headers: { authorization: `Bearer ${TOKEN}` },

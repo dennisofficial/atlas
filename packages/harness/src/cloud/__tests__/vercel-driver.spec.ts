@@ -10,7 +10,7 @@ import { VercelDriver, type VercelSdk } from '../vercel-driver'
 import { SandboxMissingError } from '../vercel-errors'
 
 const CREDENTIALS = { token: 'vercel-token', teamId: 'team_1', projectId: 'prj_1' }
-const STAMP = 'stamp-1'
+const STAMP = 'source:this-build'
 
 /** A fake drive: the SDK's Drive is a class with a private client, so specs stand one up by shape. */
 const fakeDrive = (name: string, deleted?: string[]) =>
@@ -88,11 +88,14 @@ const fakeSandbox = (
       if (args.stampReadFails && isStampRead && stampReads === 1) {
         throw new Error('runCommand unavailable')
       }
-      return {
-        exitCode: 0,
-        stdout: async () => (script.includes('.stamp') ? `${args.installedStamp ?? STAMP}\n` : ''),
-        stderr: async () => '',
+      if (isStampRead) {
+        return { exitCode: 0, stdout: async () => `${args.installedStamp ?? STAMP}\n`, stderr: async () => '' }
       }
+      if (script.startsWith('for i in')) return { exitCode: 0 }
+      if (script.startsWith('hash=$(sha256sum')) return { exitCode: 0, stderr: async () => '' }
+      if (script.startsWith('mv ')) return { exitCode: 0, stderr: async () => '' }
+      const healthy = (args.installedStamp ?? STAMP) === STAMP
+      return { exitCode: healthy ? 0 : 1, stderr: async () => '' }
     },
     writeFiles: async (files: RecordedWrite[]) => {
       written.push(...files)
@@ -132,6 +135,7 @@ const driverWith = (
     cloudUrl: 'https://api.example.com',
     image: 'atlas-sandbox:latest',
     driveSdk: driveSdk ?? fakeDriveSdk().sdk,
+    serveSources: ['source:this-build'],
     sdk: {
       getOrCreate: sdk.getOrCreate ?? (async () => fakeSandbox()),
       get: sdk.get ?? (async () => fakeSandbox()),
@@ -155,7 +159,6 @@ describe('createOrResume', () => {
       name: 'atlas-thread-x',
       threadId: 'brn_cloud',
       token: 'serve-token-1',
-      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
     })
 
     expect(seen).toMatchObject({
@@ -185,6 +188,7 @@ describe('createOrResume', () => {
       state: ECloudSandboxState.Running,
       created: true,
       driveName: driveNameFor({ threadId: 'brn_cloud' }),
+      token: 'serve-token-1',
     })
   })
 
@@ -203,7 +207,6 @@ describe('createOrResume', () => {
       name: 'atlas-thread-x',
       threadId: 'brn_cloud',
       token: 'serve-token-1',
-      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
       environment: {
         ATLAS_DECISIONS_URL: 'https://api.typesafe.ai',
         ATLAS_CLASSIFIER_MODE: 'nudge',
@@ -234,7 +237,6 @@ describe('createOrResume', () => {
       name: 'atlas-thread-x',
       threadId: 'brn_cloud',
       token: 'serve-token-1',
-      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
     })
 
     expect(seen.env).not.toHaveProperty('ATLAS_DECISIONS_URL')
@@ -253,12 +255,48 @@ describe('createOrResume', () => {
       name: 'atlas-thread-x',
       threadId: 'brn_cloud',
       token: 'serve-token-1',
-      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
     })
 
     expect(sandbox.written).toEqual([
       { path: SERVE_TOKEN_PATH, content: 'serve-token-1', mode: 0o600 },
     ])
+  })
+
+  it('mints the serve token on this machine when the caller hands none', async () => {
+    const sandbox = fakeSandbox()
+    let seen: Record<string, unknown> = {}
+    const { driver } = driverWith({
+      getOrCreate: async (params) => {
+        seen = params as Record<string, unknown>
+        await params?.onCreate?.(sandbox)
+        return sandbox
+      },
+    })
+
+    await driver.createOrResume({ name: 'atlas-thread-x', threadId: 'brn_cloud' })
+
+    const minted = seen.env as Record<string, string>
+    const token = minted.ATLAS_SERVE_TOKEN ?? ''
+    expect(token).toMatch(/^[0-9a-f]{64}$/)
+    expect(sandbox.written).toEqual([{ path: SERVE_TOKEN_PATH, content: token, mode: 0o600 }])
+  })
+
+  it('pushes the injected serve binary onto a stale sandbox when the build pins no serve identity', async () => {
+    const stale = fakeSandbox({ installedStamp: 'source:older-sha' })
+    const pushed = { bytes: new Uint8Array([9, 9, 9]), sha256: 'e'.repeat(64) }
+    const driver = new VercelDriver({
+      credentials: CREDENTIALS,
+      cloudUrl: 'https://api.example.com',
+      driveSdk: fakeDriveSdk().sdk,
+      image: 'atlas-sandbox:custom',
+      readServeBinary: async () => pushed,
+      sdk: { get: async () => stale, getOrCreate: async () => stale },
+    })
+
+    await driver.createOrResume({ name: 'atlas-thread-x', threadId: 'brn_cloud' })
+
+    expect(stale.deleted).toBe(false)
+    expect(stale.written.some((write) => write.path.endsWith('atlas-serve.next'))).toBe(true)
   })
 
   it('resumes an existing sandbox without the created flag, launching serve from onResume', async () => {
@@ -276,7 +314,6 @@ describe('createOrResume', () => {
       name: 'atlas-thread-x',
       threadId: 'brn_cloud',
       token: 'serve-token-1',
-      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
     })
 
     expect(placement.created).toBe(false)
@@ -312,7 +349,6 @@ describe('createOrResume', () => {
       name: 'atlas-thread-x',
       threadId: 'brn_cloud',
       token: 't',
-      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
     })
 
     expect(stale.deleted).toBe(true)
@@ -334,7 +370,6 @@ describe('createOrResume', () => {
       name: 'atlas-thread-x',
       threadId: 'brn_cloud',
       token: 't',
-      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
     })
 
     expect(current.deleted).toBe(false)
@@ -355,20 +390,20 @@ describe('createOrResume', () => {
       name: 'atlas-thread-x',
       threadId: 'brn_cloud',
       token: 't',
-      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
     })
 
     expect(unprobed.deleted).toBe(false)
   })
 
   it('resumes a sandbox as-is when the build pins no serve identity, whatever stamp it carries', async () => {
-    const existing = fakeSandbox({ installedStamp: 'source:anything' })
+    const existing = fakeSandbox()
+    const pushed = { bytes: new Uint8Array([9]), sha256: 'e'.repeat(64) }
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
       driveSdk: fakeDriveSdk().sdk,
       image: 'atlas-sandbox:latest',
-      serveSources: [],
+      readServeBinary: async () => pushed,
       sdk: {
         get: async () => existing,
         getOrCreate: async () => existing,
@@ -379,7 +414,6 @@ describe('createOrResume', () => {
       name: 'atlas-thread-x',
       threadId: 'brn_cloud',
       token: 't',
-      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
     })
 
     expect(existing.deleted).toBe(false)
@@ -403,7 +437,6 @@ describe('createOrResume', () => {
       name: 'atlas-thread-x',
       threadId: 'brn_cloud',
       token: 't',
-      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
       putContextOnFreshBoot: async () => {
         calls.push('put-context')
       },
@@ -434,7 +467,6 @@ describe('createOrResume', () => {
       name: 'atlas-thread-x',
       threadId: 'brn_cloud',
       token: 't',
-      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
       putContextOnFreshBoot: async () => {
         calls.push('put-context')
       },
@@ -460,7 +492,6 @@ describe('createOrResume', () => {
       name: 'atlas-thread-x',
       threadId: 'brn_cloud',
       token: 't',
-      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
       putContextOnFreshBoot: async () => {
         uploads += 1
       },
@@ -483,14 +514,12 @@ describe('createOrResume', () => {
       name: 'atlas-thread-x',
       threadId: 'brn_cloud',
       token: 't',
-      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
       pinnedModel: 'anthropic/claude-opus-4.8',
     })
     await driver.createOrResume({
       name: 'atlas-thread-x',
       threadId: 'brn_cloud',
       token: 't',
-      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
     })
 
     expect(seen[0]?.ATLAS_MODEL).toBe('anthropic/claude-opus-4.8')
@@ -515,7 +544,6 @@ describe('createOrResume', () => {
       name: 'atlas-thread-x',
       threadId: 'brn_cloud',
       token: 't',
-      readStamps: async () => ({ install: STAMP, acceptable: [STAMP] }),
     })
 
     const driveName = driveNameFor({ threadId: 'brn_cloud' })

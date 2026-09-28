@@ -2,37 +2,28 @@ import type { Sandbox } from '@vercel/sandbox'
 
 import {
   SERVE_BINARY_PATH,
-  SERVE_BINARY_SHA256_HEADER,
-  SERVE_HEADERS_PATH,
   SERVE_HOME,
   SERVE_LOCK_PATH,
   SERVE_LOG_PATH,
   SERVE_NEXT_BINARY_PATH,
   SERVE_STAMP_PATH,
   SERVE_TOKEN_PATH,
-  StaleSandboxTokenError,
 } from '@dltech/atlas-wire'
 
 export {
   SERVE_BINARY_PATH,
-  SERVE_BINARY_SHA256_HEADER,
-  SERVE_HEADERS_PATH,
   SERVE_HOME,
   SERVE_LOCK_PATH,
   SERVE_LOG_PATH,
   SERVE_NEXT_BINARY_PATH,
   SERVE_STAMP_PATH,
   SERVE_TOKEN_PATH,
-  StaleSandboxTokenError,
 }
 
 const HEALTH_ATTEMPTS = 90
 const HEALTH_INTERVAL_SECONDS = 2
 const HEALTH_WAIT_TIMEOUT_MS = (HEALTH_ATTEMPTS * HEALTH_INTERVAL_SECONDS + 30) * 1000
-const DOWNLOAD_TIMEOUT_MS = 300_000
 const QUICK_COMMAND_TIMEOUT_MS = 15_000
-const EXIT_AUTH_STALE = 41
-const EXIT_HASH_MISMATCH = 42
 
 const withServeToken = (script: string): string =>
   `_serve_token=$(cat ${SERVE_TOKEN_PATH} 2>/dev/null || true); ` +
@@ -93,37 +84,12 @@ done
 true`
 
 /**
- * Downloads next to the live binary rather than onto it: `atlas-serve` may still be executing
- * while a deploy changes the stamp, and overwriting an open executable in place fails with
- * ETXTBSY. `-D` captures the response headers (carrying the binary's own sha256) so the download
- * can be verified for integrity before anything is swapped in — see `verifyDownloadedHash` below.
+ * The pushed binary lands next to the live one rather than onto it: `atlas-serve` may still be
+ * executing while the laptop pushes a fresh build, and overwriting an open executable in place
+ * fails with ETXTBSY.
  */
-const downloadBinary = withServeToken(
-  `mkdir -p ${SERVE_HOME} && ` +
-    `code=$(curl -sS --retry 3 --retry-all-errors --connect-timeout 10 -m 240 ` +
-    `-D ${SERVE_HEADERS_PATH} ` +
-    `-H "Authorization: Bearer $ATLAS_SERVE_TOKEN" ` +
-    `"$ATLAS_CLOUD_URL/v1/sandboxes/$ATLAS_THREAD_ID/serve-binary" ` +
-    `-o ${SERVE_NEXT_BINARY_PATH} -w '%{http_code}') || exit $?; ` +
-    `if [ "$code" = "401" ]; then exit ${EXIT_AUTH_STALE}; fi; ` +
-    `if [ "$code" != "200" ]; then echo "download answered HTTP $code" >&2; exit 22; fi`,
-)
+const verifyPushedHash = `hash=$(sha256sum ${SERVE_NEXT_BINARY_PATH} 2>/dev/null | cut -d' ' -f1); if [ "$hash" != "$ATLAS_EXPECTED_SHA256" ]; then echo "the pushed serve binary hashes to $hash, not the local file $ATLAS_EXPECTED_SHA256" >&2; exit 1; fi`
 
-/** Integrity, not freshness: the downloaded bytes must match what the server actually served. */
-const verifyDownloadedHash =
-  `expected=$(grep -i "^${SERVE_BINARY_SHA256_HEADER}:" ${SERVE_HEADERS_PATH} 2>/dev/null | tail -1 | cut -d: -f2 | tr -d ' \\r\\n'); ` +
-  `if [ -z "$expected" ]; then echo "the download response carried no ${SERVE_BINARY_SHA256_HEADER} header" >&2; exit ${EXIT_HASH_MISMATCH}; fi; ` +
-  `hash=$(sha256sum ${SERVE_NEXT_BINARY_PATH} 2>/dev/null | cut -d' ' -f1); ` +
-  `if [ "$hash" != "$expected" ]; then ` +
-  `echo "downloaded serve binary hash $hash does not match the response header $expected" >&2; ` +
-  `exit ${EXIT_HASH_MISMATCH}; fi`
-
-/**
- * `mv` over a running binary replaces the directory entry rather than the open file, so a serve
- * process mid-exec keeps running its own inode until it is killed and relaunched. The stamp file
- * is written in the same step, atomically via a temp file + rename, so a reader never sees a
- * binary and stamp that disagree.
- */
 const swapInBinary =
   `mv ${SERVE_NEXT_BINARY_PATH} ${SERVE_BINARY_PATH} && chmod 755 ${SERVE_BINARY_PATH} && ` +
   `printf '%s' "$ATLAS_INSTALL_STAMP" > ${SERVE_STAMP_PATH}.next && mv ${SERVE_STAMP_PATH}.next ${SERVE_STAMP_PATH}`
@@ -142,46 +108,34 @@ const serveLogTail = async (sandbox: Sandbox): Promise<string> => {
 export type ServeLauncher = (args: { sandbox: Sandbox; token?: string }) => Promise<void>
 
 export type ServeStamps = {
-  /** Written as the install stamp after a download: the hash of the binary that was served. */
+  /** Written as the install stamp when a fresh binary is pushed in place of a stale baked one. */
   install: string
-  /** What the installed stamp may hold to count as current: the download hash, or a baked image's `source:<sha>`. */
+  /** What the installed stamp may hold to count as current — the baked image's `source:<sha>` stamps. */
   acceptable: readonly string[]
 }
 
 /**
- * The freshness stamps without the 109MB download: a HEAD against the route the sandbox itself
- * curls, answered with the served binary's own hash. `sources` names the logical stamps a baked
- * image may carry — `bun build --compile` is not reproducible, so a baked serve can never be
- * recognized by binary hash, only by the source build the image was cut from.
+ * The stamps this build trusts, computed on the laptop: `sources` names the logical stamps the
+ * baked image's serve may carry — `bun build --compile` is not reproducible, so a baked serve can
+ * never be recognized by binary hash, only by the source build the image was cut from. Nothing is
+ * read from the control plane; the serve baked into the image is version-locked to this release.
  */
 export function serveStampsReader(args: {
-  cloudUrl: string
-  threadId: string
-  token: string
   sources?: readonly string[] | undefined
-  fetchFn?: typeof fetch | undefined
 }): () => Promise<ServeStamps> {
-  const fetchFn = args.fetchFn ?? fetch
-  const url = `${args.cloudUrl.replace(/\/+$/, '')}/v1/sandboxes/${args.threadId}/serve-binary`
-  return async () => {
-    const response = await fetchFn(url, {
-      method: 'HEAD',
-      headers: { authorization: `Bearer ${args.token}` },
-    })
-    if (!response.ok) {
-      throw new Error(`the control plane answered ${response.status} for the serve binary stamp`)
-    }
-    const stamp = response.headers.get(SERVE_BINARY_SHA256_HEADER)
-    if (stamp === null || stamp.trim().length === 0) {
-      throw new Error(`the serve binary stamp answer carried no ${SERVE_BINARY_SHA256_HEADER} header`)
-    }
-    const install = stamp.trim()
-    return { install, acceptable: [install, ...(args.sources ?? [])] }
-  }
+  const acceptable = [...(args.sources ?? [])]
+  return async () => ({ install: acceptable[0] ?? '', acceptable })
 }
 
 export function createServeLauncher(args: {
   readStamps: () => Promise<ServeStamps>
+  /**
+   * The laptop's own serve build, read only when the sandbox's baked serve is stale: it is pushed
+   * straight onto the drive with `writeFiles` — safe off-container; the #485 OOM was a
+   * memory-capped API container doing the same call server-side. `undefined` leaves the launcher
+   * no fallback for a stale bake, which it says rather than guesses around.
+   */
+  readServeBinary?: (() => Promise<{ bytes: Uint8Array; sha256: string } | undefined>) | undefined
 }): ServeLauncher {
   return async ({ sandbox, token }) => {
     if (token !== undefined) {
@@ -199,21 +153,22 @@ export function createServeLauncher(args: {
     const stale = !fresh
 
     if (stale) {
-      const downloaded = await sh({ sandbox, script: downloadBinary, timeoutMs: DOWNLOAD_TIMEOUT_MS })
-      if (downloaded.exitCode === EXIT_AUTH_STALE) throw new StaleSandboxTokenError()
-      if (downloaded.exitCode !== 0) {
+      const binary = await args.readServeBinary?.()
+      if (binary === undefined) {
         throw new Error(
-          `downloading atlas serve into the sandbox failed: ${await downloaded.stderr()}`,
+          'no compatible atlas serve is baked into this sandbox and no fresh binary was supplied to push',
         )
       }
+      await sandbox.writeFiles([{ path: SERVE_NEXT_BINARY_PATH, content: binary.bytes }])
       const verified = await sh({
         sandbox,
-        script: verifyDownloadedHash,
+        script: verifyPushedHash,
         timeoutMs: QUICK_COMMAND_TIMEOUT_MS,
+        env: { ATLAS_EXPECTED_SHA256: binary.sha256 },
       })
       if (verified.exitCode !== 0) {
         throw new Error(
-          `the downloaded atlas serve binary failed verification: ${await verified.stderr()}`,
+          `the pushed atlas serve binary failed verification: ${await verified.stderr()}`,
         )
       }
     }

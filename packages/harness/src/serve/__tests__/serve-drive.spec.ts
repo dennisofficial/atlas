@@ -59,25 +59,17 @@ const bareSpec = {
   contextBundle: null,
 }
 
-const fetchFor = (archives: {
+const writeBootstrap = async (args: {
+  home: string
   context: Uint8Array
   transcript: Uint8Array | null
-}): typeof fetch =>
-  (async (input: unknown) => {
-    const url = String(input)
-    if (url.endsWith('/workspace')) {
-      return new Response(JSON.stringify(bareSpec), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      })
-    }
-    if (url.endsWith('/context')) return new Response(archives.context, { status: 200 })
-    if (url.endsWith('/transcript')) {
-      if (archives.transcript === null) return new Response(null, { status: 404 })
-      return new Response(archives.transcript, { status: 200 })
-    }
-    return new Response(null, { status: 204 })
-  }) as typeof fetch
+}): Promise<void> => {
+  const dir = join(args.home, 'bootstrap')
+  await mkdir(dir, { recursive: true })
+  await writeFile(join(dir, 'workspace-spec.json'), JSON.stringify(bareSpec))
+  await writeFile(join(dir, 'context.tar.gz'), args.context)
+  if (args.transcript !== null) await writeFile(join(dir, 'transcript.tar.gz'), args.transcript)
+}
 
 const withAtlasHome = (home: string): void => {
   heldAtlasHome = process.env.ATLAS_HOME
@@ -91,6 +83,11 @@ const bootOn = async (args: {
   fetchTranscriptArchive?: FetchTranscriptArchive | undefined
 }): Promise<{ handle: ServeHandle; lines: string[] }> => {
   const lines: string[] = []
+  await writeBootstrap({
+    home: args.drive.home,
+    context: args.archives.context,
+    transcript: args.archives.transcript,
+  })
   const handle = await startServe({
     env: {},
     threadId,
@@ -99,7 +96,6 @@ const bootOn = async (args: {
     controlPlaneUrl: CONTROL_PLANE,
     cwd: args.drive.workspace,
     write: (line) => lines.push(line),
-    fetchFn: fetchFor(args.archives),
     compose: async () => fakeServeApp({ threadId, root: args.drive.workspace }),
     ensureWorkspace: args.ensureWorkspace,
     fetchTranscriptArchive: args.fetchTranscriptArchive,
@@ -204,6 +200,7 @@ describe('serve on a drive-mounted home and workspace', () => {
         return null
       },
     })
+    transcriptFetches = 0
 
     expect(
       second.lines.some(

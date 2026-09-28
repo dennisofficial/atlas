@@ -23,21 +23,20 @@ const controllerWith = (
     getTranscriptArchive: vi.fn(readTranscript),
   } as unknown as SandboxesService)
 
-describe('SandboxContextController transcript status', () => {
-  it('answers landed when a transcript archive is stored', async () => {
-    const getTranscriptArchive = vi.fn(async () => Buffer.from('tar-bytes'))
-    const controller = controllerWith(getTranscriptArchive)
+describe('SandboxContextController transcript', () => {
+  it('streams the stored transcript archive', async () => {
+    const archive = Buffer.from('tar-bytes')
+    const controller = controllerWith(async () => archive)
 
-    const result = await controller.handleGetTranscriptStatus(requestFor(THREAD))
+    const result = await controller.handleGetTranscript(requestFor(THREAD))
 
-    expect(result).toEqual({ landed: true })
-    expect(getTranscriptArchive).toHaveBeenCalledWith({ threadId: THREAD })
+    expect(result).toBeInstanceOf(StreamableFile)
   })
 
   it('404s when no transcript archive has landed', async () => {
     const controller = controllerWith(async () => null)
 
-    await expect(controller.handleGetTranscriptStatus(requestFor(THREAD))).rejects.toBeInstanceOf(
+    await expect(controller.handleGetTranscript(requestFor(THREAD))).rejects.toBeInstanceOf(
       NotFoundException,
     )
   })
@@ -45,7 +44,7 @@ describe('SandboxContextController transcript status', () => {
   it('404s when the stored transcript archive is empty', async () => {
     const controller = controllerWith(async () => Buffer.alloc(0))
 
-    await expect(controller.handleGetTranscriptStatus(requestFor(THREAD))).rejects.toBeInstanceOf(
+    await expect(controller.handleGetTranscript(requestFor(THREAD))).rejects.toBeInstanceOf(
       NotFoundException,
     )
   })
@@ -53,18 +52,9 @@ describe('SandboxContextController transcript status', () => {
   it('404s when the request carries no resolved sandbox', async () => {
     const controller = controllerWith(async () => Buffer.from('tar-bytes'))
 
-    await expect(controller.handleGetTranscriptStatus(requestFor(undefined))).rejects.toBeInstanceOf(
+    await expect(controller.handleGetTranscript(requestFor(undefined))).rejects.toBeInstanceOf(
       NotFoundException,
     )
-  })
-
-  it('still streams the transcript itself on the sibling route', async () => {
-    const archive = Buffer.from('tar-bytes')
-    const controller = controllerWith(async () => archive)
-
-    const result = await controller.handleGetTranscript(requestFor(THREAD))
-
-    expect(result).toBeInstanceOf(StreamableFile)
   })
 })
 
@@ -79,7 +69,7 @@ describe('SandboxContextController guard', () => {
       }),
     }) as unknown as ExecutionContext
 
-  it('rejects the status route for a bearer token that does not match the thread', async () => {
+  it('rejects the route for a bearer token that does not match the thread', async () => {
     const guard = new SandboxTokenGuard({
       verifySessionToken: vi.fn(async () => {
         throw new UnauthorizedException('a valid sandbox session token is required')
@@ -91,7 +81,7 @@ describe('SandboxContextController guard', () => {
     )
   })
 
-  it('rejects the status route carrying no bearer token at all', async () => {
+  it('rejects the route carrying no bearer token at all', async () => {
     const guard = new SandboxTokenGuard({
       verifySessionToken: vi.fn(),
     } as unknown as SandboxesService)
@@ -99,7 +89,7 @@ describe('SandboxContextController guard', () => {
     await expect(guard.canActivate(guardContext())).rejects.toBeInstanceOf(UnauthorizedException)
   })
 
-  it('admits the status route when the bearer token verifies against the thread', async () => {
+  it('admits the route when the bearer token verifies against the thread', async () => {
     const verifySessionToken = vi.fn(async () => ({ userId: 'user-a' }))
     const guard = new SandboxTokenGuard({ verifySessionToken } as unknown as SandboxesService)
 

@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto'
+
 import { Sandbox } from '@vercel/sandbox'
 
 import { deleteDrive, ensureDrive, liveDriveSdk, type DriveSdk } from './drive-lifecycle'
@@ -6,7 +8,7 @@ import { ECloudSandboxState } from './sandbox-client'
 import {
   createServeLauncher,
   SERVE_STAMP_PATH,
-  StaleSandboxTokenError,
+  serveStampsReader,
   type ServeLauncher,
   type ServeStamps,
 } from './serve-launch'
@@ -44,6 +46,8 @@ export type VercelSandboxConfig = {
   image: string
   /** Logical stamps a baked serve in the image may carry — empty unless the image is Atlas's own pinned build. */
   serveSources: readonly string[]
+  /** The laptop's own serve build, pushed into a sandbox only when its baked serve proves stale. */
+  readServeBinary?: (() => Promise<{ bytes: Uint8Array; sha256: string } | undefined>) | undefined
 }
 
 export type SandboxPlacement = {
@@ -54,6 +58,11 @@ export type SandboxPlacement = {
   created: boolean
   /** The drive the sandbox mounted, so the claim row can record it. */
   driveName: string
+  /**
+   * The serve token the sandbox runs with — minted on this machine unless the caller passed one in.
+   * The bridge hands it to the attach so the channel and the sandbox agree without a control plane.
+   */
+  token: string
 }
 
 export type SandboxObservation = {
@@ -146,6 +155,8 @@ export class VercelDriver {
        * pinned serve to match against).
        */
       serveSources?: readonly string[] | undefined
+      /** Defaults to the config's reader; a direct driver construction names it here. */
+      readServeBinary?: (() => Promise<{ bytes: Uint8Array; sha256: string } | undefined>) | undefined
       timeoutMs?: number | undefined
       log?: ((line: string) => void) | undefined
       sdk?: VercelSdk | undefined
@@ -159,9 +170,13 @@ export class VercelDriver {
   async createOrResume(args: {
     name: string
     threadId: string
-    token: string
-    /** The stamps the claim's fresh session token authorizes reading — per call, never held. */
-    readStamps: () => Promise<ServeStamps>
+    /**
+     * The session's serve token, minted on this machine when omitted — the claim's token is a
+     * caller override from the bridge slice, which still owns the wire side of it.
+     */
+    token?: string | undefined
+    /** The stamps this build trusts; defaults to the build's own pinned serve sources. */
+    readStamps?: (() => Promise<ServeStamps>) | undefined
     pinnedModel?: string | undefined
     /**
      * Runs the moment the probe has settled that this boot is fresh (the name is new, or drift
@@ -183,12 +198,19 @@ export class VercelDriver {
       throw new Error('this driver was built for port exposure only, not for creating sandboxes')
     }
     const image = this.args.image
+    const readStamps =
+      args.readStamps ?? serveStampsReader({ sources: this.args.serveSources ?? [] })
+    const readServeBinary = this.args.readServeBinary
     const launchServe: ServeLauncher = (launchArgs) =>
       this.dedupedLaunch({
         sandbox: launchArgs.sandbox,
-        launch: createServeLauncher({ readStamps: args.readStamps }),
+        launch: createServeLauncher({
+          readStamps,
+          ...(readServeBinary === undefined ? {} : { readServeBinary }),
+        }),
         token: launchArgs.token,
       })
+    const serveToken = args.token ?? randomBytes(32).toString('hex')
     const createStartedAt = Date.now()
     let created = false
     try {
@@ -219,9 +241,9 @@ export class VercelDriver {
           created = true
           return Promise.resolve()
         },
-        onResume: (sandbox) => launchServe({ sandbox, token: args.token }),
+        onResume: (sandbox) => launchServe({ sandbox, token: serveToken }),
         env: {
-          ATLAS_SERVE_TOKEN: args.token,
+          ATLAS_SERVE_TOKEN: serveToken,
           ATLAS_SERVE_PORT: String(SANDBOX_SERVE_PORT),
           ATLAS_THREAD_ID: args.threadId,
           ATLAS_CLOUD_URL: this.args.cloudUrl,
@@ -237,7 +259,7 @@ export class VercelDriver {
       })
       const createMs = Date.now() - createStartedAt
       const serveStartedAt = Date.now()
-      await launchServe({ sandbox, token: args.token })
+      await launchServe({ sandbox, token: serveToken })
       this.args.log?.(
         `sandbox ${args.name} provisioned: get-or-create ${createMs}ms, serve launch ${Date.now() - serveStartedAt}ms`,
       )
@@ -247,6 +269,7 @@ export class VercelDriver {
         state: stateOf(sandbox.status),
         created,
         driveName,
+        token: serveToken,
       }
     } catch (failure) {
       if (failure instanceof SandboxMissingError) throw failure
@@ -321,6 +344,55 @@ export class VercelDriver {
     }
   }
 
+  /**
+   * Writes one bootstrap file into the directory serve reads at boot (`<ATLAS_HOME>/bootstrap`).
+   * The laptop authors these — the workspace spec, the context and transcript archives — so the
+   * sandbox boots off the drive with no control-plane round-trip. Called only once the sandbox is
+   * up with the drive mounted. Buffering the bytes in memory is safe here: this runs on the
+   * operator's machine, not a capped container (the #485 OOM was the API doing this server-side).
+   */
+  async writeBootstrapFile(args: {
+    name: string
+    path: string
+    content: Uint8Array | string
+  }): Promise<void> {
+    try {
+      const sandbox = await this.sdk.get({
+        ...this.args.credentials,
+        name: args.name,
+        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
+      })
+      await sandbox.runCommand({
+        cmd: 'sh',
+        args: ['-c', `mkdir -p ${DRIVE_HOME_PATH}/bootstrap`],
+        timeoutMs: SANDBOX_QUICK_TIMEOUT_MS,
+      })
+      await sandbox.writeFiles([{ path: args.path, content: args.content }])
+    } catch (failure) {
+      throw asVercelFailure(failure)
+    }
+  }
+
+  /** True once the transcript archive the laptop wrote is present on the drive. */
+  async transcriptLanded(args: { name: string }): Promise<boolean> {
+    try {
+      const sandbox = await this.sdk.get({
+        ...this.args.credentials,
+        name: args.name,
+        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
+      })
+      const probe = await sandbox.runCommand({
+        cmd: 'sh',
+        args: ['-c', `test -s ${DRIVE_HOME_PATH}/bootstrap/transcript.tar.gz`],
+        timeoutMs: SANDBOX_QUICK_TIMEOUT_MS,
+      })
+      return probe.exitCode === 0
+    } catch (failure) {
+      if (isSandboxMissing(failure)) return false
+      throw asVercelFailure(failure)
+    }
+  }
+
   async destroy(args: { name: string; threadId?: string | undefined }): Promise<void> {
     try {
       const sandbox = await this.sdk.get({
@@ -348,7 +420,7 @@ export class VercelDriver {
    * read the sandbox's installed stamp before resuming; a stamp outside the trusted set means the
    * sandbox boots the wrong serve, so it is destroyed and recreated from the pinned image. The
    * recreation is lossless where it matters: the workspace and transcript live on the thread's
-   * drive, and the launcher re-downloads the matching serve onto the fresh boot. A sandbox whose
+   * drive, and the fresh boot carries the pinned serve baked into its image. A sandbox whose
    * stamp cannot be read is left alone: an unreadable stamp is not evidence of drift.
    *
    * Returns the probe outcome so the caller knows whether the upcoming boot is fresh: `missing`
@@ -408,17 +480,9 @@ export class VercelDriver {
     launch: ServeLauncher
     token?: string | undefined
   }): Promise<void> {
-    try {
-      await args.launch({
-        sandbox: args.sandbox,
-        ...(args.token === undefined ? {} : { token: args.token }),
-      })
-    } catch (failure) {
-      if (!(failure instanceof StaleSandboxTokenError)) throw failure
-      await args.sandbox
-        .delete({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
-        .catch(() => undefined)
-      throw new SandboxMissingError(args.sandbox.name)
-    }
+    await args.launch({
+      sandbox: args.sandbox,
+      ...(args.token === undefined ? {} : { token: args.token }),
+    })
   }
 }

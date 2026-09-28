@@ -1,3 +1,8 @@
+import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import { afterEach, describe, expect, it } from 'bun:test'
 
 import {
@@ -48,6 +53,53 @@ const TOKEN = 'session-token'
 const threadId = toThreadId('thread-serve')
 
 const CONTROL_PLANE = 'https://api.example.com'
+
+const driveHomes: string[] = []
+let heldAtlasHome: string | undefined
+
+const writeDriveSpec = async (args: {
+  home: string
+  spec?: Record<string, unknown> | undefined
+}): Promise<void> => {
+  const bootstrap = join(args.home, 'bootstrap')
+  await mkdir(bootstrap, { recursive: true })
+  await writeFile(
+    join(bootstrap, 'workspace-spec.json'),
+    JSON.stringify({
+      remoteUrl: null,
+      branch: null,
+      commit: null,
+      patch: '',
+      githubToken: null,
+      contextBundle: null,
+      ...args.spec,
+    }),
+  )
+}
+
+const startWithDriveSpec = async (args: {
+  spec?: Record<string, unknown> | undefined
+  compose: (composeArgs: { model?: string | undefined }) => Promise<FakeServeApp>
+}): Promise<ServeHandle> => {
+  const home = mkdtempSync(join(tmpdir(), 'atlas-serve-spec-home-'))
+  driveHomes.push(home)
+  heldAtlasHome = process.env.ATLAS_HOME
+  process.env.ATLAS_HOME = home
+  await writeDriveSpec({ home, spec: args.spec })
+  const handle = await startServe({
+    threadId,
+    port: 0,
+    token: TOKEN,
+    controlPlaneUrl: CONTROL_PLANE,
+    env: {},
+    cwd: '/workspace',
+    compose: args.compose,
+    ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
+    contextFiles: inMemoryContextFiles(),
+  })
+  running.push(handle)
+  return handle
+}
 
 type Started = { handle: ServeHandle; app: FakeServeApp; lines: string[] }
 
@@ -169,7 +221,13 @@ const gate = () => {
 }
 
 afterEach(async () => {
+  if (heldAtlasHome === undefined) delete process.env.ATLAS_HOME
+  else process.env.ATLAS_HOME = heldAtlasHome
+  heldAtlasHome = undefined
   while (running.length > 0) await running.pop()?.close()
+  for (const home of driveHomes.splice(0, driveHomes.length)) {
+    rmSync(home, { recursive: true, force: true })
+  }
 })
 
 describe('startServe', () => {
@@ -565,26 +623,18 @@ describe('startServe', () => {
     })
   })
 
-  it('re-fetches the workspace spec on every publish, so a rotated token self-heals on retry', async () => {
-    let specFetches = 0
+  it('re-reads the workspace spec on every publish, so a rotated token self-heals on retry', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'atlas-serve-spec-home-'))
+    driveHomes.push(home)
+    heldAtlasHome = process.env.ATLAS_HOME
+    process.env.ATLAS_HOME = home
+    const specPath = join(home, 'bootstrap', 'workspace-spec.json')
+    await mkdir(join(home, 'bootstrap'), { recursive: true })
+    const bare = { remoteUrl: null, branch: null, commit: null, patch: '', contextBundle: null }
+    await writeFile(specPath, JSON.stringify({ ...bare, githubToken: 'gho_first' }))
+
     const { handle } = await start({
       workspace: { state: EWorkspaceState.Materialized },
-      fetchFn: (async (input: unknown) => {
-        if (String(input).endsWith('/workspace')) {
-          specFetches += 1
-          return new Response(
-            JSON.stringify({
-              remoteUrl: null,
-              branch: null,
-              commit: null,
-              patch: '',
-              githubToken: null,
-              contextBundle: null,
-            }),
-          )
-        }
-        return new Response(null, { status: 204 })
-      }) as typeof fetch,
     })
 
     const client = await connect({ port: handle.port, token: TOKEN })
@@ -601,7 +651,13 @@ describe('startServe', () => {
     )
 
     expect(reply).toMatchObject({ ok: true, data: null })
-    expect(specFetches).toBe(3)
+
+    await writeFile(specPath, JSON.stringify({ ...bare, githubToken: 'gho_rotated' }))
+    ask('pub-3')
+    const third = await client.waitFor(
+      (frame) => frame.kind === EServeFrame.Reply && frame.replyTo === 'pub-3',
+    )
+    expect(third).toMatchObject({ ok: true, data: null })
   })
 
   it('answers publish-workspace with null when no workspace materialized', async () => {
@@ -1070,40 +1126,16 @@ describe('startServe', () => {
     expect(Date.now() - startedAt).toBeLessThan(200)
   })
 
-  it('reads the thread model from the control plane when none is given', async () => {
+  it('reads the thread model off the workspace spec the laptop left on the drive', async () => {
     let composedWith: string | undefined
     const app = fakeServeApp({ threadId, root: '/workspace' })
 
-    const handle = await startServe({
-      threadId,
-      port: 0,
-      token: TOKEN,
-      controlPlaneUrl: CONTROL_PLANE,
-      env: {},
-      cwd: '/workspace',
+    const handle = await startWithDriveSpec({
+      spec: { model: 'inference-net/kimi-k3-fast' },
       compose: async (args) => {
         composedWith = args.model
         return app
       },
-      ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
-      fetchFn: (async (input: unknown) => {
-        const url = String(input)
-        if (url.endsWith(`/v1/threads/${threadId}`)) {
-          return new Response(
-            JSON.stringify({
-              id: threadId,
-              head: 0,
-              createdAt: '2026-09-21T00:00:00.000Z',
-              updatedAt: '2026-09-21T00:00:00.000Z',
-              workspace: '/workspace',
-              repo: null,
-              model: { ref: 'inference-net/kimi-k3-fast', effort: 'high' },
-            }),
-            { status: 200, headers: { 'content-type': 'application/json' } },
-          )
-        }
-        return new Response(null, { status: 204 })
-      }) as typeof fetch,
     })
 
     expect(composedWith).toBe('inference-net/kimi-k3-fast')
@@ -1135,39 +1167,15 @@ describe('startServe', () => {
     await handle.close()
   })
 
-  it('composes with no model when the thread has none stored', async () => {
+  it('composes with no model when the spec on the drive names none', async () => {
     let composedWith: string | undefined
     const app = fakeServeApp({ threadId, root: '/workspace' })
 
-    const handle = await startServe({
-      threadId,
-      port: 0,
-      token: TOKEN,
-      controlPlaneUrl: CONTROL_PLANE,
-      env: {},
-      cwd: '/workspace',
+    const handle = await startWithDriveSpec({
       compose: async (args) => {
         composedWith = args.model
         return app
       },
-      ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
-      fetchFn: (async (input: unknown) => {
-        const url = String(input)
-        if (url.endsWith(`/v1/threads/${threadId}`)) {
-          return new Response(
-            JSON.stringify({
-              id: threadId,
-              head: 0,
-              createdAt: '2026-09-21T00:00:00.000Z',
-              updatedAt: '2026-09-21T00:00:00.000Z',
-              workspace: '/workspace',
-              repo: null,
-            }),
-            { status: 200, headers: { 'content-type': 'application/json' } },
-          )
-        }
-        return new Response(null, { status: 204 })
-      }) as typeof fetch,
     })
 
     expect(composedWith).toBeUndefined()
