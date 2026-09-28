@@ -573,7 +573,7 @@ export function createRemoteDeltaChannel(args: {
       abandoned = true
       interruptPending = false
       endStrandedStep()
-      upstream.detach({ reason: 'the channel was closed' })
+      upstream.abandon({ reason: 'the channel was closed' })
       clearKeepalive()
       socket?.close()
       socket = null
