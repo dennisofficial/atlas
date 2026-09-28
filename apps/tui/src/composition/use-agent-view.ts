@@ -2,7 +2,7 @@ import type { SaidImage, ThreadId } from '@dltech/atlas-core'
 import { EKilledBy, type AgentSnapshot } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
-import { isSubagentRunning, subagentLabel } from '../store/subagent-row'
+import { isSubagentAlive, subagentLabel } from '../store/subagent-row'
 import { EKeyGroup, EKeyLayer, useKeyBindings } from '../ui/keys'
 import type { AtlasApp } from './compose'
 
@@ -113,7 +113,7 @@ export function useAgentView(args: {
     if (!outcome.ok) onProblem(outcome.reason)
   }, [agents, onProblem, threadId, viewing])
 
-  const stoppable = selected !== undefined && isSubagentRunning(selected)
+  const stoppable = selected !== undefined && isSubagentAlive(selected)
 
   /**
    * The child's working line already promises "esc to interrupt", so escape keeps that promise while

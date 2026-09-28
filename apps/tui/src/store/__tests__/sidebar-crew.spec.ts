@@ -7,6 +7,7 @@ import {
   crewActivityOf,
   crewRowReading,
   ESubagentReading,
+  isSubagentAlive,
   subagentContextLabel,
   subagentElapsedMs,
   subagentRows,
@@ -174,6 +175,22 @@ describe("how full the child's own window is", () => {
   it('keeps a child measured as barely started apart from one nothing has measured', () => {
     expect(subagentContextLabel({ tokens: 400, window: 200_000 })).toBe('400')
     expect(subagentContextLabel(undefined)).toBe(null)
+  })
+})
+
+describe('whether a child still counts as working', () => {
+  it('counts a running child', () => {
+    expect(isSubagentAlive(readout({ status: EAgentStatus.Running }))).toBe(true)
+  })
+
+  it('counts a blocked child, since its turn paused waiting on background work it still owns', () => {
+    expect(isSubagentAlive(readout({ status: EAgentStatus.Blocked }))).toBe(true)
+  })
+
+  it('stops counting a child once it settles, however it ended', () => {
+    expect(isSubagentAlive(readout({ status: EAgentStatus.Finished }))).toBe(false)
+    expect(isSubagentAlive(readout({ status: EAgentStatus.Failed }))).toBe(false)
+    expect(isSubagentAlive(readout({ status: EAgentStatus.Stopped }))).toBe(false)
   })
 })
 
