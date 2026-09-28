@@ -108,6 +108,28 @@ export function fakeCloudChannel(
         ...(said.images === undefined ? {} : { images: said.images }),
         ...(said.context === undefined ? {} : { context: said.context }),
       })
+      // Serve commits a Send frame into its own log before the turn runs — mirror that here so a
+      // spec reading the remote log sees the said, exactly as production does. Deferred a tick and
+      // error-tolerant: the real commit is async against the socket, and a spec that holds the log
+      // append open to watch the in-flight "sending" row needs the frame recorded first, with the
+      // rejection — not the append — the thing that downgrades it.
+      const threadId = channelThreadId
+      queueMicrotask(() => {
+        void args.log
+          ?.append({
+            threadId,
+            runId: toRunId(`serve-${threadId}`),
+            drafts: [
+              ...(said.context ?? []),
+              {
+                type: 'user-said',
+                text: said.text,
+                ...(said.images === undefined ? {} : { images: said.images }),
+              },
+            ],
+          })
+          .catch(() => undefined)
+      })
     },
     run: () => {
       runs += 1

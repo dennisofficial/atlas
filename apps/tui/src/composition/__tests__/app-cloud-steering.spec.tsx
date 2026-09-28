@@ -104,12 +104,12 @@ describe('steering a turn that runs in the cloud', () => {
 
       await mounted.say('and ship it')
 
-      const ranAgain = await until({
-        holds: async () => bridge.channel.runs === 2,
+      const saidAgain = await until({
+        holds: async () => bridge.channel.sent.some((one) => one.text === 'and ship it'),
         within: 20_000,
       })
-      expect(ranAgain).toBe(true)
-      expect(bridge.channel.sent.filter((one) => one.text !== STEER)).toEqual([])
+      expect(saidAgain).toBe(true)
+      expect(bridge.channel.runs).toBe(1)
 
       bridge.channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-cloud-2') })
     } finally {

@@ -52,7 +52,7 @@ describe('leaving a cloud conversation', () => {
       const frame = await mounted.frame()
 
       expect(frame).toContain(CLOUD_HEADING)
-      expect(bridge.channel.runs).toBe(1)
+      expect(bridge.channel.sent.map((said) => said.text)).toEqual(['take your time with this'])
     } finally {
       await mounted.done()
     }
