@@ -48,7 +48,6 @@ describe('pullRequestCacheFieldsOf', () => {
       checksPassed: 2,
       checksFailed: 2,
       mergeable: true,
-      mergeableState: 'clean',
       headBranch: 'dennis/add-the-thing',
     })
   })

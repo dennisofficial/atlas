@@ -34,7 +34,8 @@ export class GithubSubscriptionsController {
     return this.subscriptions.subscribe({
       userId: userIdOf(request),
       repoFullName: body.repoFullName,
-      prNumber: body.prNumber,
+      ...(body.prNumber === undefined ? {} : { prNumber: body.prNumber }),
+      ...(body.branch === undefined ? {} : { branch: body.branch }),
     })
   }
 

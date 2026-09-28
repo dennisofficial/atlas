@@ -26,7 +26,6 @@ const REST_FIELDS: PullRequestCacheFields = {
   checksPassed: 2,
   checksFailed: 0,
   mergeable: true,
-  mergeableState: 'clean',
 }
 
 const okFetch = async () => new Response('{}', { status: 200 })
@@ -35,6 +34,7 @@ function serviceWith(args: {
   token?: string
   ensureHook?: 'created' | 'existing' | 'poll-backed'
   readPullRequest?: GithubUserReads['readPullRequest']
+  findOpenPrForBranch?: GithubUserReads['findOpenPrForBranch']
   fetchImpl?: typeof fetch
 }): GithubSubscriptionsService {
   const github = {
@@ -45,6 +45,8 @@ function serviceWith(args: {
   } as unknown as GithubHookLifecycleService
   const reads = {
     readPullRequest: args.readPullRequest ?? (async () => REST_FIELDS),
+    findOpenPrForBranch:
+      args.findOpenPrForBranch ?? (async () => ({ number: 42 })),
   } as unknown as GithubUserReads
   vi.stubGlobal('fetch', args.fetchImpl ?? okFetch)
   return new GithubSubscriptionsService(github, reads, hooks)
@@ -68,6 +70,29 @@ describe('GithubSubscriptionsService', () => {
     expect(fake.prStates).toHaveLength(1)
     expect(dto.state).toMatchObject({ prNumber: 42, checksPassed: 2, mergeable: true })
     expect(Date.parse(dto.expiresAt)).toBeGreaterThan(Date.now())
+  })
+
+  it('resolves a branch to its open pull request and subscribes to it', async () => {
+    const service = serviceWith({ token: 'ghu_1' })
+
+    const dto = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      branch: 'dennis/add-the-thing',
+    })
+
+    expect(fake.subscriptions).toHaveLength(1)
+    expect(dto.state?.prNumber).toBe(42)
+    expect(dto.state?.headBranch).toBe('dennis/add-the-thing')
+  })
+
+  it('404s when a branch has no open pull request', async () => {
+    const service = serviceWith({ token: 'ghu_1', findOpenPrForBranch: async () => null })
+
+    await expect(
+      service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', branch: 'no/such' }),
+    ).rejects.toBeInstanceOf(NotFoundException)
+    expect(fake.subscriptions).toHaveLength(0)
   })
 
   it('marks the subscription poll-backed when the hook cannot be created', async () => {

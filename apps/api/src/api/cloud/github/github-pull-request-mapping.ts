@@ -30,7 +30,6 @@ export interface PullRequestCacheFields {
   checksPassed: number
   checksFailed: number
   mergeable: boolean | null
-  mergeableState: string | null
 }
 
 const RUNNING_CONCLUSIONS = new Set(['queued', 'in_progress', 'waiting', 'requested', 'pending'])
@@ -101,6 +100,5 @@ export function pullRequestCacheFieldsOf(args: {
     checksPassed: tally.passed,
     checksFailed: tally.failed,
     mergeable: args.pull.mergeable,
-    mergeableState: args.pull.mergeable_state,
   }
 }

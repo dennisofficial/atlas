@@ -30,10 +30,11 @@ const startServer = (args: {
         return new Response(
           new ReadableStream({
             start(controller) {
+              if (served.body !== undefined) controller.enqueue(new TextEncoder().encode(served.body))
               request.signal.addEventListener('abort', () => controller.close())
             },
           }),
-          { headers: { 'content-type': 'text/event-stream' } },
+          { status: served.status, headers: { 'content-type': 'text/event-stream' } },
         )
       }
       return new Response(served.body ?? '', {
@@ -73,7 +74,7 @@ describe('runSseStream', () => {
   it('delivers frames and sends the bearer token', async () => {
     const requests: RecordedRequest[] = []
     server = startServer({
-      responses: [text(`${frame({ event: 'pr-state', data: { n: 1 } })}: beat\n\n`)],
+      responses: [{ status: 200, openEnded: true, body: frame({ event: 'pr-state', data: { n: 1 } }) }],
       requests,
     })
 
@@ -86,7 +87,9 @@ describe('runSseStream', () => {
       signal: controller.signal,
       handlers,
     })
-    await Bun.sleep(100)
+
+    const deadline = Date.now() + 5_000
+    while (frames.length === 0 && Date.now() < deadline) await Bun.sleep(10)
     controller.abort()
     await running
 
