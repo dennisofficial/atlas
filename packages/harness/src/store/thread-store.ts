@@ -50,6 +50,9 @@ export abstract class ThreadStorePort {
     workspace?: string | undefined
     repo?: string | null | undefined
     agent?: SupervisedAgent | undefined
+    /** Caller-chosen id, for a stub that shadows a thread another store already owns; generated when absent. */
+    id?: ThreadId | undefined
+    executionLocation?: EExecutionLocation | undefined
   }): Promise<ThreadSummary>
   abstract createWithFirstEvents(
     args: OpenThreadArgs,

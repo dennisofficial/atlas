@@ -188,7 +188,7 @@ export function fakeThreadStore(
       return row
     },
 
-    async create({ workspace, repo, agent } = {}) {
+    async create({ title, workspace, repo, agent, id, executionLocation } = {}) {
       created += 1
       createdWith.push({
         workspace: workspace ?? null,
@@ -196,13 +196,15 @@ export function fakeThreadStore(
         ...(agent === undefined ? {} : { agent }),
       })
       const row: ThreadSummary = {
-        id: toThreadId(`made-${SPEC_SHARD}-${created}`),
+        id: id ?? toThreadId(`made-${SPEC_SHARD}-${created}`),
         head: 0,
         createdAt: AT,
         updatedAt: AT,
         workspace: workspace ?? workspaceOf,
         repo: repo ?? null,
+        ...(title === undefined ? {} : { title }),
         ...(agent === undefined ? {} : { agent }),
+        ...(executionLocation === undefined ? {} : { executionLocation }),
       }
       rows.push(row)
       return row

@@ -9,6 +9,7 @@ import { atlasSecretsFile } from '../secrets/paths'
 import { userMcpFile } from '../settings/paths'
 import { CloudClient, CloudError, cloudClientFor } from './cloud-client'
 import type { CloudSession, CloudSessionStore } from './cloud-session'
+import { SessionsClient } from './sessions-client'
 import {
   beginCloudLogin,
   type CloudLoginTicket,
@@ -40,6 +41,11 @@ export type CloudLoginResult = {
   importedSettings: number
   archived: string[]
 }
+
+export type SessionsClientFor = (args: {
+  session: CloudSession
+  clientVersion: string | undefined
+}) => SessionsClient
 
 const isAbsentFile = (cause: unknown): boolean =>
   typeof cause === 'object' && cause !== null && Reflect.get(cause, 'code') === 'ENOENT'
@@ -87,6 +93,7 @@ export class CloudService {
   private readonly clientVersion: string | undefined
   private readonly fetchFn: typeof fetch
   private readonly signInOffer: SignInOffer
+  private readonly sessionsClientFor: SessionsClientFor | undefined
   private cached: { token: string; client: CloudClient } | undefined
 
   constructor(args: {
@@ -98,6 +105,8 @@ export class CloudService {
     clientVersion?: string
     fetchFn?: typeof fetch
     signInOffer?: SignInOffer
+    /** Construction seam so a spec answers thread listings without standing up an HTTP fake. */
+    sessionsClientFor?: SessionsClientFor
   }) {
     this.sessions = args.sessions
     this.localAccounts = args.localAccounts
@@ -107,6 +116,7 @@ export class CloudService {
     this.clientVersion = args.clientVersion
     this.fetchFn = args.fetchFn ?? fetch
     this.signInOffer = args.signInOffer ?? fileSignInOffer()
+    this.sessionsClientFor = args.sessionsClientFor
   }
 
   private clientFor(args: { session: CloudSession }): CloudClient {
@@ -119,6 +129,18 @@ export class CloudService {
 
   session(): CloudSession | null {
     return this.sessions.read()
+  }
+
+  sessionsClient(args: { session: CloudSession }): SessionsClient {
+    return (
+      this.sessionsClientFor?.({ session: args.session, clientVersion: this.clientVersion }) ??
+      new SessionsClient({
+        url: args.session.url,
+        token: args.session.token,
+        ...(this.clientVersion === undefined ? {} : { clientVersion: this.clientVersion }),
+        fetchFn: this.fetchFn,
+      })
+    )
   }
 
   /**

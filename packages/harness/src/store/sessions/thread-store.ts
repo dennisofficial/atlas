@@ -47,6 +47,8 @@ type CreateArgs = {
   workspace?: string | undefined
   repo?: string | null | undefined
   agent?: SupervisedAgent | undefined
+  id?: ThreadId | undefined
+  executionLocation?: EExecutionLocation | undefined
 }
 
 type MarkArgs = { threadId: ThreadId; anchor: ECompactionAnchor; fromSeq: number; throughSeq: number; summary: string }
@@ -72,7 +74,7 @@ export class JsonlThreadStore implements ThreadStorePort {
   }
 
   async create(args: CreateArgs): Promise<ThreadSummary> {
-    const meta = this.blankMeta({ threadId: this.ids.nextThreadId(), fields: args })
+    const meta = this.blankMeta({ threadId: args.id ?? this.ids.nextThreadId(), fields: args })
     const sessionDir = await this.sessionDirForNew({ id: toThreadId(meta.id), agent: args.agent })
     await writeMeta({ file: threadMetaFile({ sessionDir, threadId: toThreadId(meta.id) }), meta })
     this.registry.registerThread({ sessionDir, threadId: toThreadId(meta.id) })
@@ -83,7 +85,7 @@ export class JsonlThreadStore implements ThreadStorePort {
   async createWithFirstEvents(args: OpenThreadArgs): Promise<{ thread: ThreadSummary; events: Event[] }> {
     if (args.drafts.length === 0) throw new ThreadNeedsOpeningDrafts()
     const threadId = args.threadId ?? this.ids.nextThreadId()
-    const meta = this.blankMeta({ threadId, fields: args })
+    const meta = this.blankMeta({ threadId, fields: { ...args, id: threadId } })
     const sessionDir = await this.sessionDirForNew({ id: threadId, agent: args.agent })
     await writeMeta({ file: threadMetaFile({ sessionDir, threadId }), meta })
     this.registry.registerThread({ sessionDir, threadId })
@@ -278,7 +280,7 @@ export class JsonlThreadStore implements ThreadStorePort {
     fields,
   }: {
     threadId: ThreadId
-    fields: CreateArgs & { executionLocation?: EExecutionLocation | undefined }
+    fields: CreateArgs
   }): ThreadMeta {
     const meta = newThreadMeta({ id: threadId, at: this.clock.now() })
     if (fields.title !== undefined) meta.title = fields.title

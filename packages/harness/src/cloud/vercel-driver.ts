@@ -4,11 +4,16 @@ import { Sandbox } from '@vercel/sandbox'
 
 import { deleteDrive, ensureDrive, liveDriveSdk, type DriveSdk } from './drive-lifecycle'
 import { driveNameFor, DRIVE_HOME_PATH, DRIVE_MOUNT_PATH, DRIVE_WORKSPACE_PATH } from './drive-names'
+import {
+  ESandboxProbe,
+  probeClientsAttached,
+  probeSandboxForResume,
+  type AttachProbe,
+} from './resume-probe'
 import { ECloudSandboxState } from './sandbox-client'
 import {
   createServeLauncher,
   SERVE_LOG_PATH,
-  SERVE_VERSION_PATH,
   type ServeLauncher,
 } from './serve-launch'
 import {
@@ -65,6 +70,11 @@ export type SandboxPlacement = {
    * The bridge hands it to the attach so the channel and the sandbox agree without a control plane.
    */
   token: string
+  /**
+   * Set when the drift probe found the sandbox's serve outdated but kept it because a client is
+   * attached — the version it carries, so the operator can be told the pinned one is pending.
+   */
+  outdatedServe?: string | undefined
 }
 
 export type SandboxObservation = {
@@ -104,12 +114,6 @@ const stateOf = (status: string): ECloudSandboxState => {
   return ECloudSandboxState.Parked
 }
 
-enum ESandboxProbe {
-  Missing = 'missing',
-  Kept = 'kept',
-  Replaced = 'replaced',
-}
-
 const routedUrlOf = (sandbox: Sandbox): string | undefined => {
   try {
     return sandbox.domain(SANDBOX_SERVE_PORT)
@@ -140,6 +144,7 @@ const routedUrlWithRetries = async (sandbox: Sandbox): Promise<string> => {
 export class VercelDriver {
   private readonly sdk: VercelSdk
   private readonly inflightLaunches = new WeakMap<object, Promise<void>>()
+  private readonly attachProbe: AttachProbe = probeClientsAttached
 
   private readonly drives: DriveSdk
 
@@ -155,10 +160,17 @@ export class VercelDriver {
       log?: ((line: string) => void) | undefined
       sdk?: VercelSdk | undefined
       driveSdk?: DriveSdk | undefined
+      /**
+       * Whether a client socket is attached to the sandbox's running serve — the drift probe
+       * consults it before destroying an outdated sandbox. Defaults to the serve's own
+       * `/v1/health` `clients` count, read through a command inside the sandbox.
+       */
+      clientsAttached?: AttachProbe | undefined
     },
   ) {
     this.sdk = args.sdk ?? liveSdk
     this.drives = args.driveSdk ?? liveDriveSdk
+    if (args.clientsAttached !== undefined) this.attachProbe = args.clientsAttached
   }
 
   async createOrResume(args: {
@@ -202,7 +214,22 @@ export class VercelDriver {
       const { credentials } = this.args
       const driveName = driveNameFor({ threadId: args.threadId })
       const drive = await ensureDrive({ sdk: this.drives, credentials, name: driveName })
-      const probe = await this.probeSandboxForResume({ name: args.name })
+      const { probe, outdatedServe } = await probeSandboxForResume({
+        name: args.name,
+        pinned: this.args.serveVersion,
+        timeoutMs: SANDBOX_QUICK_TIMEOUT_MS,
+        servePort: SANDBOX_SERVE_PORT,
+        fetch: () =>
+          this.sdk.get({
+            ...credentials,
+            name: args.name,
+            signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
+          }),
+        clientsAttached: this.attachProbe,
+        log: this.args.log,
+        isMissing: isSandboxMissing,
+        toFailure: asVercelFailure,
+      })
       const freshBoot = probe === ESandboxProbe.Missing || probe === ESandboxProbe.Replaced
       const sandbox = await this.sdk.getOrCreate({
         ...credentials,
@@ -254,6 +281,7 @@ export class VercelDriver {
         created,
         driveName,
         token: serveToken,
+        ...(outdatedServe === undefined ? {} : { outdatedServe }),
       }
     } catch (failure) {
       if (failure instanceof SandboxMissingError) throw failure
@@ -442,55 +470,6 @@ export class VercelDriver {
         name: driveNameFor({ threadId: args.threadId }),
       })
     }
-  }
-
-  /**
-   * The drift fix. `Sandbox.getOrCreate` resumes a live sandbox by name and never compares the
-   * image, so a long-lived sandbox keeps whatever image it first booted from — stale against a
-   * release that moved on. When this build pins a serve version, read the sandbox's installed
-   * version file before resuming; a mismatch means the sandbox boots the wrong serve, so it is
-   * destroyed and recreated from the pinned image. The recreation is lossless where it matters:
-   * the workspace and transcript live on the thread's drive, and the fresh boot carries the
-   * pinned serve baked into its image. A missing version file is drift — the file ships with the
-   * image, so its absence means the sandbox predates it — but a read that fails is not: a
-   * transient command failure is not evidence, and the sandbox is left alone.
-   *
-   * Returns the probe outcome so the caller knows whether the upcoming boot is fresh: `missing`
-   * when Vercel has never seen the name, `replaced` when drift forced a recreate, `kept` when a
-   * live sandbox will be resumed.
-   */
-  private async probeSandboxForResume(args: { name: string }): Promise<ESandboxProbe> {
-    let sandbox: Sandbox
-    try {
-      sandbox = await this.sdk.get({
-        ...this.args.credentials,
-        name: args.name,
-        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
-      })
-    } catch (failure) {
-      if (isSandboxMissing(failure)) return ESandboxProbe.Missing
-      throw asVercelFailure(failure)
-    }
-
-    const pinned = this.args.serveVersion
-    if (pinned === undefined) return ESandboxProbe.Kept
-
-    const read = await sandbox
-      .runCommand({
-        cmd: 'sh',
-        args: ['-c', `cat ${SERVE_VERSION_PATH} 2>/dev/null || true`],
-        timeoutMs: SANDBOX_QUICK_TIMEOUT_MS,
-      })
-      .catch(() => null)
-    if (read === null) return ESandboxProbe.Kept
-    const installed = (await read.stdout()).trim()
-    if (installed === pinned) return ESandboxProbe.Kept
-
-    this.args.log?.(
-      `sandbox ${args.name} carries serve "${installed || 'none'}", this build wants "${pinned}" — recreating it from the pinned image`,
-    )
-    await sandbox.delete({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
-    return ESandboxProbe.Replaced
   }
 
   private async dedupedLaunch(args: {

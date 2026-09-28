@@ -83,12 +83,7 @@ export class RemoteThreadStore extends ThreadStorePort {
       )
   }
 
-  create(_args: {
-    title?: string | undefined
-    workspace?: string | undefined
-    repo?: string | null | undefined
-    agent?: SupervisedAgent | undefined
-  }): Promise<ThreadSummary> {
+  create(_args: Parameters<ThreadStorePort['create']>[0]): Promise<ThreadSummary> {
     return refuseWrite()
   }
 

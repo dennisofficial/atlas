@@ -14,6 +14,7 @@ export enum ELiftNode {
   CaptureWorkspace = 'captureWorkspace',
   CaptureGpg = 'captureGpg',
   PauseLoops = 'pauseLoops',
+  StampModel = 'stampModel',
   ArchiveSession = 'archiveSession',
   Provision = 'provision',
   ShipSession = 'shipSession',
@@ -94,8 +95,18 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
     },
   },
   {
+    id: ELiftNode.StampModel,
+    needs: [],
+    run: async (ctx) => {
+      // The footer selection can live nowhere but ctx.args.model, and the archive reads the
+      // session dir from disk — the meta write must land first or the cloud thread boots on a
+      // stale model.
+      await ctx.args.localThreads.chooseModel({ threadId: ctx.args.threadId, model: ctx.args.model })
+    },
+  },
+  {
     id: ELiftNode.ArchiveSession,
-    needs: [ELiftNode.PauseLoops],
+    needs: [ELiftNode.PauseLoops, ELiftNode.StampModel],
     run: async (ctx) => {
       ctx.onProgress(ELiftStep.Transferring)
       ctx.transcript = await buildSessionArchive({

@@ -170,6 +170,7 @@ export function createCloudBridge(args: {
       state: placement.state,
       created: placement.created,
       driveName: placement.driveName,
+      ...(placement.outdatedServe === undefined ? {} : { outdatedServe: placement.outdatedServe }),
     }
   }
 

@@ -1129,14 +1129,38 @@ function Workspace(props: {
     onLifted: props.onLifted,
   })
 
+  /**
+   * A cloud thread may never take the local flip below — the sandbox owns its transcript. Until
+   * the reattach lands (cloudSession set) there is nothing to descend through, so /container off
+   * is refused. attachPending alone clears the moment the router attaches, before the session prop
+   * arrives, so the latch holds the refusal for the whole window.
+   */
+  const attachLanded = useRef(props.cloudSession !== null)
+  if (props.cloudSession !== null) attachLanded.current = true
+
   const applyContainerSwitch = useCallback(
-    (target: EExecutionLocation) => {
+    (target: EExecutionLocation): boolean => {
       if (target === EExecutionLocation.Cloud) {
         cloudLift.handleLift()
-        return
+        return true
       }
 
-      if (props.cloudSession !== null && props.cloudBridge !== null && props.cloudStores !== null) {
+      if (conversation.executionLocation === EExecutionLocation.Cloud && !attachLanded.current) {
+        notify({
+          key: 'container-switch',
+          tone: ENoticeTone.Warn,
+          ttlMs: NOTICE_WARN_MS,
+          text: 'the sandbox is still connecting — /container off works once the channel is open',
+        })
+        return false
+      }
+
+      if (
+        conversation.executionLocation === EExecutionLocation.Cloud &&
+        props.cloudSession !== null &&
+        props.cloudBridge !== null &&
+        props.cloudStores !== null
+      ) {
         const { channel } = props.cloudSession
         const bridge = props.cloudBridge
         const cloudStores = props.cloudStores
@@ -1206,7 +1230,7 @@ function Workspace(props: {
               text: reason,
             })
           })
-        return
+        return true
       }
 
       containerMove.handleBegin({ target })
@@ -1220,7 +1244,7 @@ function Workspace(props: {
       execution.handleSet(target)
       if (!conversation.started) {
         containerMove.handleSettle()
-        return
+        return true
       }
 
       containerMove.handleAdvance(ELocalMoveStep.Relocating)
@@ -1248,6 +1272,7 @@ function Workspace(props: {
             text: reason,
           })
         })
+      return true
     },
     [
       cloudLift,
@@ -1256,6 +1281,8 @@ function Workspace(props: {
       conversation.refresh,
       conversation.threadId,
       conversation.started,
+      conversation.attachPending,
+      conversation.executionLocation,
       conversation.turnInFlight,
       execution,
       props.app,
@@ -1373,7 +1400,8 @@ function Workspace(props: {
         return pendingSwitchNotice({ target: asked, count: blockers.length })
       }
 
-      applyContainerSwitch(asked)
+      const engaged = applyContainerSwitch(asked)
+      if (!engaged) return undefined
       if (!conversation.started && asked !== EExecutionLocation.Cloud) {
         return movedLocationNotice(asked)
       }

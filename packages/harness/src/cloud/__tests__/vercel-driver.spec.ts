@@ -411,6 +411,69 @@ describe('createOrResume', () => {
     expect(unreadable.deleted).toBe(false)
   })
 
+  it('keeps an outdated sandbox that still has a client attached, warning instead of deleting', async () => {
+    const stale = fakeSandbox({ installedVersion: '1.19.1' })
+    const lines: string[] = []
+    const driver = new VercelDriver({
+      credentials: CREDENTIALS,
+      cloudUrl: 'https://api.example.com',
+      driveSdk: fakeDriveSdk().sdk,
+      image: `atlas-sandbox:${PINNED_VERSION}`,
+      serveVersion: PINNED_VERSION,
+      log: (line) => lines.push(line),
+      clientsAttached: async () => true,
+      sdk: { get: async () => stale, getOrCreate: async () => stale },
+    })
+
+    const placement = await driver.createOrResume({
+      name: 'atlas-thread-x',
+      threadId: 'brn_cloud',
+      token: 't',
+    })
+
+    expect(stale.deleted).toBe(false)
+    expect(placement.created).toBe(false)
+    expect(placement.outdatedServe).toBe('1.19.1')
+    expect(
+      lines.some(
+        (line) =>
+          line.includes('carries serve "1.19.1"') &&
+          line.includes(`wants "${PINNED_VERSION}"`) &&
+          line.includes('a client is attached'),
+      ),
+    ).toBe(true)
+  })
+
+  it('keeps a matching-version sandbox with a client attached without warning', async () => {
+    const current = fakeSandbox({ installedVersion: PINNED_VERSION })
+    const lines: string[] = []
+    let attachReads = 0
+    const driver = new VercelDriver({
+      credentials: CREDENTIALS,
+      cloudUrl: 'https://api.example.com',
+      driveSdk: fakeDriveSdk().sdk,
+      image: `atlas-sandbox:${PINNED_VERSION}`,
+      serveVersion: PINNED_VERSION,
+      log: (line) => lines.push(line),
+      clientsAttached: async () => {
+        attachReads += 1
+        return true
+      },
+      sdk: { get: async () => current, getOrCreate: async () => current },
+    })
+
+    const placement = await driver.createOrResume({
+      name: 'atlas-thread-x',
+      threadId: 'brn_cloud',
+      token: 't',
+    })
+
+    expect(current.deleted).toBe(false)
+    expect(placement.outdatedServe).toBeUndefined()
+    expect(attachReads).toBe(0)
+    expect(lines.some((line) => line.includes('a client is attached'))).toBe(false)
+  })
+
   it('writes the bootstrap onto a fresh sandbox after it exists, before serve launches', async () => {
     const calls: string[] = []
     const { driver } = driverWith({
