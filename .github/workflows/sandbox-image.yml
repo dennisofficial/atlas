@@ -3,9 +3,9 @@ name: sandbox-image
 on:
   push:
     branches: [main]
-  # The retag job runs by dispatch, not on the release event: release.yml creates the
-  # release with GITHUB_TOKEN, and GitHub never starts workflow runs from events that
-  # token caused. https://docs.github.com/actions/using-workflows/triggering-a-workflow
+  # The retag job runs by dispatch, not on the release event: the release job in ci.yml
+  # creates the release with GITHUB_TOKEN, and GitHub never starts workflow runs from events
+  # that token caused. https://docs.github.com/actions/using-workflows/triggering-a-workflow
   workflow_dispatch:
     inputs:
       release_tag:
@@ -128,7 +128,7 @@ jobs:
           cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
 
   retag:
-    # release-on-main (.github/workflows/release.yml) tags tui releases as tui-vX.Y.Z
+    # release-on-main (the release job in .github/workflows/ci.yml) tags tui releases as tui-vX.Y.Z
     # (apps/tui/scripts/release-version.ts) and dispatches here after each one.
     if: github.event_name == 'workflow_dispatch' && startsWith(inputs.release_tag, 'tui-v')
     runs-on: ubuntu-latest
