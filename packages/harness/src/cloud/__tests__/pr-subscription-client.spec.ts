@@ -37,7 +37,7 @@ describe('PrSubscriptionClient', () => {
       new Response(JSON.stringify(liveSubscribeBody), {
         status: 201,
         headers: { 'content-type': 'application/json' },
-      })) as typeof fetch
+      })) as unknown as typeof fetch
 
     const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
     const outcome = await client.subscribe({ repoFullName: 'dennisofficial/atlas', branch: 'dennis/realtime-smoke' })
@@ -54,7 +54,7 @@ describe('PrSubscriptionClient', () => {
         status: 201,
         headers: { 'content-type': 'application/json' },
       })
-    }) as typeof fetch
+    }) as unknown as typeof fetch
 
     const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
     await client.subscribe({ repoFullName: 'dennisofficial/atlas', number: 837 })
