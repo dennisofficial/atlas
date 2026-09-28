@@ -148,7 +148,10 @@ export function createServeLauncher(args: {
     }
     const stamps = await args.readStamps()
     const [healthy, installed] = await Promise.all([serveHealthy(sandbox), installedStamp(sandbox)])
-    const fresh = stamps.acceptable.includes(installed)
+    // No pinned serve to enforce (an unpinned image, or a source build with no release stamp):
+    // trust whatever the image baked, matching the driver's drift probe, which an empty
+    // serveSources disables. Only a non-empty acceptable list gates freshness.
+    const fresh = stamps.acceptable.length === 0 || stamps.acceptable.includes(installed)
     if (healthy && fresh) return
     const stale = !fresh
 

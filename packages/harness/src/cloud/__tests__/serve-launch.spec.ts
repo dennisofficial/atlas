@@ -207,6 +207,21 @@ describe('createServeLauncher', () => {
     expect(scripts.some((script) => script.startsWith('for pid in'))).toBe(false)
     expect(commands.some((command) => command.detached === true)).toBe(false)
   })
+
+  it('trusts the baked serve when no serve source is pinned — an unpinned or source-build image', async () => {
+    const { sandbox, commands, writes } = fakeSandbox({
+      healthy: true,
+      installedStamp: 'whatever-the-image-baked',
+    })
+    const noPinnedSource = async () => ({ install: '', acceptable: [] })
+
+    await createServeLauncher({ readStamps: noPinnedSource })({ sandbox, token: 'tok' })
+
+    expect(writes).toEqual([{ path: SERVE_TOKEN_PATH, content: 'tok', mode: 0o600 }])
+    const scripts = scriptsOf(commands)
+    expect(scripts.some((script) => script.startsWith('mv '))).toBe(false)
+    expect(commands.some((command) => command.detached === true)).toBe(false)
+  })
   it('fails loudly when the verified binary cannot be swapped into place', async () => {
     const { sandbox } = fakeSandbox({ healthy: false, installedStamp: 'older-build', swapExit: 1 })
 

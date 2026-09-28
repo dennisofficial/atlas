@@ -6,8 +6,11 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import { EExecutionLocation } from '@dltech/atlas-core'
 import {
   CloudSessionStore,
+  CloudSettingsStore,
   FileSecretsStore,
   SecretCipher,
+  SecretsStoreProxy,
+  SystemClock,
   atlasCloudFile,
   atlasSecretsFile,
   atlasVaultKeyFile,
@@ -94,11 +97,27 @@ describe.skipIf(!liveRunRequested())('the live lift to descend round trip agains
     register({ label: 'scratch repo', run: () => rm(scratch.dir, { recursive: true, force: true }) })
     register({ label: 'scratch remote', run: () => rm(scratch.remote, { recursive: true, force: true }) })
 
-    const secrets = new FileSecretsStore({
+    // Secrets and the cloud-layer settings (the Vercel team/project IDs) are cloud-backed when
+    // signed in: the local copies were wiped in a past smoke test, so read both through the
+    // cloud-backed stores, warmed, exactly as the running TUI does.
+    const sessionStore = new CloudSessionStore({ file: atlasCloudFile(), keyFile: atlasVaultKeyFile() })
+    const localSecrets = new FileSecretsStore({
       file: atlasSecretsFile(),
       cipher: new SecretCipher(atlasVaultKeyFile()),
     })
-    const settings = loadSettings({ env: process.env, cwd: scratch.dir })
+    const secrets = new SecretsStoreProxy({
+      local: localSecrets,
+      sessions: sessionStore,
+      clientVersion: 'atlas-roundtrip-live',
+    })
+    await secrets.warm()
+    const cloudSettings = new CloudSettingsStore({
+      sessions: sessionStore,
+      clock: new SystemClock(),
+      clientVersion: 'atlas-roundtrip-live',
+    })
+    await cloudSettings.refresh()
+    const settings = loadSettings({ env: process.env, cwd: scratch.dir, cloud: cloudSettings })
     register({ label: 'settings service', run: async () => settings.service.close() })
     requireVercelCredentials({ settings: settings.service, secrets })
     await readGhAuthToken()
@@ -153,15 +172,21 @@ describe.skipIf(!liveRunRequested())('the live lift to descend round trip agains
     expect(await until({ holds: () => transcriptHas(mounted.reply), within: 60_000 })).toBe(true)
 
     await say(mounted, '/container cloud')
-    expect(
-      await until({
-        holds: async () =>
-          (await mounted.app.threads.find({ threadId: mounted.threadId }))?.executionLocation ===
-          EExecutionLocation.Cloud,
-        within: 300_000,
-      }),
-      'the thread never flipped to the cloud',
-    ).toBe(true)
+    const flipped = await until({
+      holds: async () =>
+        (await mounted.app.threads.find({ threadId: mounted.threadId }))?.executionLocation ===
+        EExecutionLocation.Cloud,
+      within: 300_000,
+    })
+    if (!flipped) {
+      console.log('LIFT STALLED — move steps reached:')
+      for (const timing of timings) console.log(`  ${String(timing.step)} @ ${timing.at}`)
+      console.log(`driver provision lines (${driverLines.length}):`)
+      for (const line of driverLines) console.log(`  ${line}`)
+      const thread = await mounted.app.threads.find({ threadId: mounted.threadId })
+      console.log('thread executionLocation:', thread?.executionLocation)
+    }
+    expect(flipped, 'the thread never flipped to the cloud').toBe(true)
 
     expect(await transcriptHas(mounted.reply)).toBe(true)
 
