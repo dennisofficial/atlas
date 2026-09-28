@@ -76,7 +76,7 @@ export type ServeArgs = {
   token?: string | undefined
   controlPlaneUrl?: string | undefined
   cwd?: string | undefined
-  model?: string | undefined
+  model?: { ref: string; effort?: string | undefined } | undefined
   clientVersion?: string | undefined
   env?: Record<string, string | undefined> | undefined
   bufferSize?: number | undefined
@@ -232,7 +232,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     log({ event: EServeEvent.TranscriptRestored, ms: transcriptMs })
   }
 
-  const storedThreadModel = (): string | undefined => {
+  const storedThreadModel = (): { ref: string; effort?: string | undefined } | undefined => {
     const meta = readMetaSync({
       file: threadMetaFile({
         sessionDir: sessionDirectory({ home: driveHome, sessionId: threadId }),
@@ -240,10 +240,14 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
       }),
       schema: threadMetaSchema,
     })
-    return meta === null || meta === undefined ? undefined : (meta.modelRef ?? undefined)
+    if (meta === undefined || meta.modelRef === null) return undefined
+    return { ref: meta.modelRef, effort: meta.modelEffort ?? undefined }
   }
 
-  const threadModel = args.model ?? storedThreadModel() ?? spec?.model ?? undefined
+  const threadModel =
+    args.model ??
+    storedThreadModel() ??
+    (spec?.model === undefined || spec.model === null ? undefined : { ref: spec.model })
 
   const capabilities = 'profile' in workspace ? workspace.profile?.capabilities : undefined
 

@@ -86,7 +86,7 @@ const bootOn = async (args: {
   ensureWorkspace: EnsureWorkspace
   spec?: Record<string, unknown> | undefined
   fetchTranscriptArchive?: FetchTranscriptArchive | undefined
-  compose?: ((composeArgs: { model?: string | undefined }) => Promise<ReturnType<typeof fakeServeApp>>) | undefined
+  compose?: ((composeArgs: { model?: { ref: string; effort?: string | undefined } | undefined }) => Promise<ReturnType<typeof fakeServeApp>>) | undefined
 }): Promise<{ handle: ServeHandle; lines: string[] }> => {
   const lines: string[] = []
   await writeBootstrap({
@@ -253,7 +253,7 @@ describe('serve on a drive-mounted home and workspace', () => {
       executionLocation: null,
     })
 
-    let composedWith: string | undefined
+    let composedWith: { ref: string; effort?: string | undefined } | undefined
     await bootOn({
       drive,
       archives: { context: await contextArchiveFrom(source), transcript },
@@ -265,7 +265,7 @@ describe('serve on a drive-mounted home and workspace', () => {
       },
     })
 
-    expect(composedWith).toBe('anthropic/claude-opus-5')
+    expect(composedWith).toEqual({ ref: 'anthropic/claude-opus-5', effort: 'high' })
   })
 
   it('falls back to the workspace spec model when the transcript names none', async () => {
@@ -275,7 +275,7 @@ describe('serve on a drive-mounted home and workspace', () => {
     withAtlasHome(drive.home)
     const transcript = await transcriptArchiveFrom(source)
 
-    let composedWith: string | undefined
+    let composedWith: { ref: string; effort?: string | undefined } | undefined
     await bootOn({
       drive,
       archives: { context: await contextArchiveFrom(source), transcript },
@@ -287,7 +287,7 @@ describe('serve on a drive-mounted home and workspace', () => {
       },
     })
 
-    expect(composedWith).toBe('inference-net/kimi-k3-fast')
+    expect(composedWith).toEqual({ ref: 'inference-net/kimi-k3-fast' })
   })
 
   it('materializes into a workspace directory the drive does not hold yet', async () => {

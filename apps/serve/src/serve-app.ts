@@ -15,7 +15,7 @@ import type { TurnLedgerPort } from '@dltech/atlas-harness'
 import type { TurnPolicy } from '@dltech/atlas-harness'
 import type { TurnRunner } from '@dltech/atlas-harness'
 import type { LostShell } from '@dltech/atlas-harness'
-import type { ModelCatalogue, ThreadStorePort } from '@dltech/atlas-harness'
+import type { ThreadStorePort } from '@dltech/atlas-harness'
 
 /**
  * The registries' notice queues narrowed to what the idle wake reads: whether the served thread has
@@ -69,13 +69,12 @@ export type ServeRewind = {
 }
 
 /**
- * The serve's reach into the running loop's model selection: the catalogue a pick is validated
- * against, the effort a bare ref inherits, and the select that re-pins the switchable model. A
- * serve composed without these still records the pick to the transcript and broadcasts it — the
- * live re-pin is the part that cannot be faked late.
+ * The serve's reach into the running loop's model selection: the select that re-pins the
+ * switchable model mid-session, and the effort the loop currently runs on. A serve composed
+ * without it still records the pick to the transcript and broadcasts it — the live re-pin is the
+ * part a fake cannot stand in for.
  */
 export type ServeModelBridge = {
-  catalogue: ModelCatalogue
   effort: () => string
   select: (next: { ref: string; effort: string }) => void
 }
@@ -131,7 +130,7 @@ export type ServeComposeArgs = {
   token: string
   clientVersion: string
   env: Record<string, string | undefined>
-  model: string | undefined
+  model: { ref: string; effort?: string | undefined } | undefined
   notice: NoticePort
   /** The Mac-side project directory, so memory this sandbox uploads is keyed by the right repo. */
   projectDirectory?: string | null | undefined

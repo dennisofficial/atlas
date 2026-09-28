@@ -84,6 +84,29 @@ describe('composeHarness', () => {
     await expect(app.close()).resolves.toBeUndefined()
   })
 
+  it('resolves the registered SelectableModel and re-pins the loop mid-session', async () => {
+    const { SelectableModelToken } = await import('../../container/tokens')
+    let resolved: ReturnType<HarnessApp<never>['model']['choice']> | undefined
+    let select: HarnessApp<never>['model']['select'] | undefined
+    const app = await compose<undefined>({
+      bind: ({ container }) => {
+        const model = container.resolve(SelectableModelToken)
+        select = model.select
+        return undefined
+      },
+    })
+
+    if (select === undefined) throw new Error('the selectable model never resolved')
+    const before = app.model.choice()
+    expect(before.ref.modelId).not.toBe('claude-opus-5')
+    select({ ref: { providerId: 'anthropic', modelId: 'claude-opus-5' }, effort: before.effort })
+    resolved = app.model.choice()
+
+    expect(resolved.ref.modelId).toBe('claude-opus-5')
+    expect(app.model.choice().ref.modelId).toBe('claude-opus-5')
+    await expect(app.close()).resolves.toBeUndefined()
+  })
+
   it('runs the surface binding before the tool registry resolves, so bound tools ship', async () => {
     const app = await compose<{ bound: true }>({
       bind: ({ container }) => {

@@ -11,7 +11,10 @@ import {
   type NoticePort,
 } from '@dltech/atlas-core'
 
+import { EFFORT_LADDER, parseRef } from '@dltech/atlas-core'
+
 import { sandboxNameFor } from '@dltech/atlas-harness'
+import { SelectableModelToken } from '@dltech/atlas-harness'
 import { UserContextClient } from '@dltech/atlas-harness'
 import { VercelDriver, type VercelCredentials } from '@dltech/atlas-harness'
 import { composeHarness } from '@dltech/atlas-harness'
@@ -24,7 +27,7 @@ import { atlasDirectory } from '@dltech/atlas-harness'
 import { ThreadStorePort } from '@dltech/atlas-harness'
 
 import { adoptChildren } from './adopt-children'
-import type { ServeApp, ServeCompose } from './serve-app'
+import type { ServeApp, ServeCompose, ServeModelBridge } from './serve-app'
 import { ServeProcessPort } from './serve-process'
 import { ServeAccountStore } from './serve-account-store'
 import { ServeBrokerClient } from './serve-broker-client'
@@ -36,7 +39,7 @@ import { createMemoryUploader } from './upload-memory'
 
 export const SERVE_COMMAND = 'serve'
 
-type ServeStores = { log: EventLogPort; threads: ThreadStorePort }
+type ServeStores = { log: EventLogPort; threads: ThreadStorePort; modelBridge: ServeModelBridge }
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
@@ -129,6 +132,16 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       bind: ({ container }) => {
         const log = container.resolve(portToken(EventLogPort))
         const threads = container.resolve(portToken(ThreadStorePort))
+        const model = container.resolve(SelectableModelToken)
+        const modelBridge: ServeModelBridge = {
+          effort: () => model.choice().effort,
+          select: (next) => {
+            const ref = parseRef(next.ref)
+            if (ref === undefined) return
+            const effort = EFFORT_LADDER.find((rung) => rung === next.effort) ?? model.choice().effort
+            model.select({ ref, effort })
+          },
+        }
 
         const credentials = vercelCredentialsOf(args.env)
         container.register(portToken(ProcessPort), {
@@ -145,7 +158,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
           ),
         })
 
-        return { log, threads }
+        return { log, threads, modelBridge }
       },
     },
   })
@@ -169,6 +182,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     turnPolicy: app.turnPolicy,
     log: app.surface.log,
     threads: app.surface.threads,
+    modelBridge: app.surface.modelBridge,
     ledger: app.ledger,
     ids: app.ids,
     files: app.files,

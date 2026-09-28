@@ -24,6 +24,7 @@ export {
   ModelCardSourceToken,
   ProjectSettingsStoreToken,
   SecretsStoreToken,
+  SelectableModelToken,
   ServeSessionToken,
   UserSettingsStoreToken,
   WorkspaceRoot,

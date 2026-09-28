@@ -20,6 +20,7 @@ import type { FileSecretsStore } from '../secrets/file-secrets-store'
 import type { OnHookMishap } from '../hooks/budget'
 import type { HookChain, HookChainSource } from '../hooks/registry'
 import type { ModelCardSource } from '../model/ai-sdk-model-port'
+import type { SelectableModel } from '../composition/model-selection'
 import type { InjectionToken } from './injection'
 
 export const SessionRegistryToken: InjectionToken<SessionRegistry> = Symbol(
@@ -41,6 +42,9 @@ export const LanguageModelToken: InjectionToken<LanguageModelV4> = Symbol('atlas
 
 export const ModelCardSourceToken: InjectionToken<ModelCardSource> =
   Symbol('atlas.ModelCardSource')
+
+/** The switchable session model itself, so a transport can re-pin the loop mid-session. */
+export const SelectableModelToken: InjectionToken<SelectableModel> = Symbol('atlas.SelectableModel')
 
 export const HookChainToken: InjectionToken<HookChain> = Symbol('atlas.HookChain')
 

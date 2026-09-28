@@ -83,23 +83,24 @@ export function defaultSelection(args: {
  * the settings hold and whatever the thread it lands on was last switched to.
  */
 export function launchSelection(args: {
-  requested: { model: string | undefined }
+  requested: { model: { ref: string; effort?: string | undefined } | undefined }
   settled: SettingsResolution
   catalogue: ModelCatalogue
 }): ModelSelection {
-  const asked = usableRef({ reference: args.requested.model, catalogue: args.catalogue })
+  const asked = usableRef({ reference: args.requested.model?.ref, catalogue: args.catalogue })
   const fallback = defaultSelection({ settled: args.settled, catalogue: args.catalogue })
   if (asked === undefined) return fallback
 
-  return settled({ ref: asked, effort: fallback.effort, catalogue: args.catalogue })
+  const effort = usableEffort(args.requested.model?.effort) ?? fallback.effort
+  return settled({ ref: asked, effort, catalogue: args.catalogue })
 }
 
 /** Whether a launch is pinned to one model, in which case the thread it opens does not get a say. */
 export const modelPinned = (args: {
-  requested: { model: string | undefined }
+  requested: { model: { ref: string; effort?: string | undefined } | undefined }
   catalogue: ModelCatalogue
 }): boolean =>
-  usableRef({ reference: args.requested.model, catalogue: args.catalogue }) !== undefined
+  usableRef({ reference: args.requested.model?.ref, catalogue: args.catalogue }) !== undefined
 
 /**
  * A thread that names a model nobody can answer for — one that left the catalogue, or whose account

@@ -14,7 +14,7 @@ import {
 
 import { pinnedModelSource } from '../agents/types/pinned-model'
 import type { DependencyContainer } from '../container/injection'
-import { DockerEngineToken, LanguageModelToken, ModelCardSourceToken } from '../container/tokens'
+import { DockerEngineToken, LanguageModelToken, ModelCardSourceToken, SelectableModelToken } from '../container/tokens'
 import type { HookChain } from '../hooks/registry'
 import { AiSdkModelPort } from '../model/ai-sdk-model-port'
 import { cardsForProvider } from '../models/generated-catalogue'
@@ -167,6 +167,7 @@ export async function bindModels(args: {
   })
 
   container.register(LanguageModelToken, { useValue: model.model })
+  container.register(SelectableModelToken, { useValue: model })
   container.register(ModelCardSourceToken, {
     useValue: () => models.cardFor(model.choice().ref),
   })
