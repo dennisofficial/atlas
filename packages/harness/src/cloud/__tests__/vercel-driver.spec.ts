@@ -281,8 +281,8 @@ describe('createOrResume', () => {
     expect(sandbox.written).toEqual([{ path: SERVE_TOKEN_PATH, content: token, mode: 0o600 }])
   })
 
-  it('pushes the injected serve binary onto a stale sandbox when the build pins no serve identity', async () => {
-    const stale = fakeSandbox({ installedStamp: 'source:older-sha' })
+  it('trusts the baked serve when the build pins no serve identity, pushing nothing', async () => {
+    const unpinned = fakeSandbox({ installedStamp: 'source:older-sha' })
     const pushed = { bytes: new Uint8Array([9, 9, 9]), sha256: 'e'.repeat(64) }
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
@@ -290,13 +290,13 @@ describe('createOrResume', () => {
       driveSdk: fakeDriveSdk().sdk,
       image: 'atlas-sandbox:custom',
       readServeBinary: async () => pushed,
-      sdk: { get: async () => stale, getOrCreate: async () => stale },
+      sdk: { get: async () => unpinned, getOrCreate: async () => unpinned },
     })
 
     await driver.createOrResume({ name: 'atlas-thread-x', threadId: 'brn_cloud' })
 
-    expect(stale.deleted).toBe(false)
-    expect(stale.written.some((write) => write.path.endsWith('atlas-serve.next'))).toBe(true)
+    expect(unpinned.deleted).toBe(false)
+    expect(unpinned.written.some((write) => write.path.endsWith('atlas-serve.next'))).toBe(false)
   })
 
   it('resumes an existing sandbox without the created flag, launching serve from onResume', async () => {
