@@ -1,4 +1,4 @@
-import type { ThreadId } from '@dltech/atlas-core'
+import type { EventDraft, SaidImage, ThreadId } from '@dltech/atlas-core'
 
 import type { PauseSignal } from './pause-signal'
 import type { TurnOutcome } from './turn-outcome'
@@ -7,6 +7,8 @@ export abstract class TurnRunner {
   abstract say(args: {
     threadId: ThreadId
     text: string
+    images?: readonly SaidImage[]
+    context?: readonly EventDraft[]
     signal?: AbortSignal
     pause?: PauseSignal
   }): Promise<TurnOutcome>

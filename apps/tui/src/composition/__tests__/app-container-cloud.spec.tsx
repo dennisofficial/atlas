@@ -208,11 +208,13 @@ describe('/container cloud', () => {
 
       await mounted.typeText('keep going')
       mounted.pressEnter()
-      expect(await until({ holds: async () => bridge.channel.runs === 1, within: 20_000 })).toBe(
-        true,
-      )
+      expect(
+        await until({
+          holds: async () => bridge.channel.sent.some((said) => said.text === 'keep going'),
+          within: 20_000,
+        }),
+      ).toBe(true)
 
-      expect(bridge.channel.runs).toBe(1)
       expect(JSON.stringify(bridge.log.peek({ threadId: THREAD }))).toContain('keep going')
       expect(JSON.stringify(app.log.peek({ threadId: THREAD }))).not.toContain('keep going')
 

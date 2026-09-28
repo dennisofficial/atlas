@@ -53,10 +53,20 @@ export class RemoteTurnRunner extends TurnRunner {
   say(args: {
     threadId: ThreadId
     text: string
+    images?: readonly SaidImage[]
+    context?: readonly EventDraft[]
     signal?: AbortSignal
     pause?: PauseSignal
   }): Promise<TurnOutcome> {
-    return this.drive({ ...args, fire: () => this.channel.send({ text: args.text }) })
+    return this.drive({
+      ...args,
+      fire: () =>
+        this.channel.send({
+          text: args.text,
+          ...(args.images === undefined ? {} : { images: args.images }),
+          ...(args.context === undefined ? {} : { context: args.context }),
+        }),
+    })
   }
 
   steer(args: {

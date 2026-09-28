@@ -32,6 +32,7 @@ import {
   type ChunkFilter,
   type EventDraft,
   type EventLogPort,
+  type SaidImage,
   type IdPort,
   type ModelPort,
   type ModelToolCall,
@@ -149,18 +150,29 @@ export class LoopTurnRunner extends TurnRunner {
   async say({
     threadId,
     text,
+    images,
+    context,
     signal,
     pause,
   }: {
     threadId: ThreadId
     text: string
+    images?: readonly SaidImage[]
+    context?: readonly EventDraft[]
     signal?: AbortSignal
     pause?: PauseSignal
   }): Promise<TurnOutcome> {
     await this.log.append({
       threadId,
       runId: this.ids.nextRunId(),
-      drafts: [{ type: 'user-said', text }],
+      drafts: [
+        ...(context ?? []),
+        {
+          type: 'user-said',
+          text,
+          ...(images === undefined || images.length === 0 ? {} : { images: [...images] }),
+        },
+      ],
     })
     return this.runTurn({
       threadId,
