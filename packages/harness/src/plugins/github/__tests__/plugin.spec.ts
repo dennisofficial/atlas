@@ -117,6 +117,7 @@ describe('the github plugin as the loader sees it', () => {
       `${EHookPhase.AfterTool}:follow-worktree`,
       `${EHookPhase.AfterTool}:refresh-pull-request`,
       `${EHookPhase.AfterShell}:refresh-pull-request-after-shell`,
+      `${EHookPhase.BeforeTurn}:seed-pull-request-transitions`,
     ])
     expect(contribution.surfaces ?? []).toEqual([])
     expect((contribution.projections ?? []).map((projection) => projection.id)).toEqual([

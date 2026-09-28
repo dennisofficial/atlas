@@ -15,6 +15,7 @@ import { GhPullRequestPort } from './gh-pull-requests'
 import { RefreshPullRequestAfterShellHook, RefreshPullRequestAfterToolHook } from './hooks'
 import { createPullRequestLinks } from './links'
 import { createPullRequestService, type PullRequestService } from './pull-request-service'
+import { createPullRequestTransitions } from './pr-transitions'
 import { PullRequestPort, type PullRequestReading } from './pure'
 import { createSessionFacts } from './session'
 import { createCheckoutTracking } from './tracking'
@@ -78,6 +79,7 @@ export default class GithubPlugin extends NativePlugin {
     const tracking = createCheckoutTracking({ service, facts })
     const afterTool = new RefreshPullRequestAfterToolHook({ pullRequests: service })
     const afterShell = new RefreshPullRequestAfterShellHook({ pullRequests: service })
+    const transitions = createPullRequestTransitions({ service })
 
     links.projection.subscribe(() => service.watch({ links: links.projection.current() }))
 
@@ -142,6 +144,12 @@ export default class GithubPlugin extends NativePlugin {
           name: afterShell.name,
           order: afterShell.order,
           run: afterShell.run,
+        },
+        {
+          phase: EHookPhase.BeforeTurn,
+          name: 'seed-pull-request-transitions',
+          order: OBSERVE,
+          run: transitions.beforeTurn,
         },
       ],
       ports: [
