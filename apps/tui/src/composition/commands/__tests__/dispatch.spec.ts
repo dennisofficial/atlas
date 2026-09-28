@@ -416,7 +416,7 @@ describe('the restart command', () => {
     ).toBe(true)
   })
 
-  it('queues for when the turn settles, the way a quit would wait', async () => {
+  it('runs immediately even mid-turn — the handler itself decides whether a guard is owed', async () => {
     let restarts = 0
 
     const dispatched = await dispatchSubmission({
@@ -432,11 +432,8 @@ describe('the restart command', () => {
       working: true,
     })
 
-    expect(dispatched.type).toBe(EDispatch.Queued)
-    if (dispatched.type !== EDispatch.Queued) return
-    expect(dispatched.entry.dropsQueue).toBe(true)
-    expect(dispatched.entry.losesWaiting).toBe(true)
-    expect(restarts).toBe(0)
+    expect(dispatched.type).toBe(EDispatch.Ran)
+    expect(restarts).toBe(1)
   })
 
   it('hands off to the restart the launch wired in', async () => {
@@ -458,7 +455,7 @@ describe('the restart command', () => {
     expect(restarts).toBe(1)
   })
 
-  it('joins the commands that wait for the turn to settle', () => {
+  it('runs immediately rather than waiting for the turn to settle', () => {
     const commands = localCommands(handlers({ onRestart: () => undefined }))
 
     const settled = commands.filter((one) => one.timing === ECommandTiming.Settled)
@@ -468,7 +465,6 @@ describe('the restart command', () => {
       'compact',
       'exit',
       'new',
-      'restart',
       'resume',
       'rewind',
     ])

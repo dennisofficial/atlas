@@ -1263,6 +1263,15 @@ function Workspace(props: {
   const handleRestart = useCallback(() => {
     if (props.onRestart === null) return
 
+    // A cloud session's turn and tasks live in the sandbox, which survives the client swap, so
+    // there is nothing local to warn about — detach and restart straight away.
+    if (cloud) {
+      props.cloudSession?.close()
+      restarting.current = true
+      props.onRestart()
+      return
+    }
+
     if (shells.runningEverywhere + agents.running + services.running > 0) {
       restarting.current = true
       exitGuard.handleOpen()
@@ -1270,7 +1279,7 @@ function Workspace(props: {
     }
 
     props.onRestart()
-  }, [agents.running, exitGuard, props.onRestart, services.running, shells.runningEverywhere])
+  }, [agents.running, cloud, exitGuard, props.cloudSession, props.onRestart, services.running, shells.runningEverywhere])
 
   useEffect(() => {
     if (exitGuard.state === null) restarting.current = false
