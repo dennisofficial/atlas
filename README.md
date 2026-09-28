@@ -27,3 +27,5 @@ apps/tui/bin/atlas-dev
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, the dev loop, and the PR flow. The architecture
 lives in [docs/architecture.md](docs/architecture.md).
+
+Realtime PR/CI live-tracking smoke (harmless, throwaway).
