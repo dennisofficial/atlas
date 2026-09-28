@@ -105,8 +105,8 @@ describe.skipIf(!liveRunRequested())('the live lift to descend round trip agains
 
     const build = buildInfo()
     const release =
-      build.kind === EBuildKind.Release && build.buildSha !== null
-        ? { version: build.version, buildSha: build.buildSha }
+      build.kind === EBuildKind.Release && build.serveSource !== null
+        ? { version: build.version, serveSource: build.serveSource }
         : undefined
 
     let cloudChannel: CloudChannel | null = null

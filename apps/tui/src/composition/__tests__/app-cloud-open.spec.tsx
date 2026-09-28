@@ -55,6 +55,7 @@ const mount = async (args: {
   app: FakeApp
   bridge: FakeBridge
   opened?: Parameters<typeof App>[0]['opened']
+  onRestart?: () => void
 }) => {
   args.bridge.sourceStores({
     log: args.app.log,
@@ -70,6 +71,7 @@ const mount = async (args: {
       preflightLift={async () => null}
       captureWorkspace={async () => CLEAN_WORKSPACE}
       captureContext={async () => undefined}
+      {...(args.onRestart === undefined ? {} : { onRestart: args.onRestart })}
     />,
     WIDE,
   )
@@ -256,6 +258,84 @@ describe('coming back to the host', () => {
       const frame = await mounted.pick()
 
       expect(frame).toContain('said on the host')
+      expect(bridge.channel.closed).toBe(true)
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+})
+
+describe('/restart on a cloud session', () => {
+  it('restarts immediately without asking about tasks', async () => {
+    let restarts = 0
+    const app = speaking()
+    const { threadId } = await seedCloudThread(app)
+    const bridge = fakeBridge({ threadStore: app.threads, status: RUNNING_STATUS })
+    await bridge.log.append({
+      threadId,
+      runId: toRunId('run-cloud'),
+      drafts: [{ type: 'user-said', text: 'said inside the sandbox' }],
+    })
+    const mounted = await mount({
+      app,
+      bridge,
+      onRestart: () => {
+        restarts += 1
+      },
+    })
+
+    try {
+      await mounted.command('/resume')
+      await mounted.pick()
+
+      expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(
+        true,
+      )
+
+      bridge.channel.ready({ turnInFlight: false })
+      await mounted.frame()
+
+      await mounted.command('/restart')
+
+      expect(restarts).toBe(1)
+      expect(bridge.channel.closed).toBe(true)
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('restarts mid-turn rather than queuing for the sandbox to settle', async () => {
+    let restarts = 0
+    const app = speaking()
+    const { threadId } = await seedCloudThread(app)
+    const bridge = fakeBridge({ threadStore: app.threads, status: RUNNING_STATUS })
+    await bridge.log.append({
+      threadId,
+      runId: toRunId('run-cloud'),
+      drafts: [{ type: 'user-said', text: 'said inside the sandbox' }],
+    })
+    const mounted = await mount({
+      app,
+      bridge,
+      onRestart: () => {
+        restarts += 1
+      },
+    })
+
+    try {
+      await mounted.command('/resume')
+      await mounted.pick()
+
+      expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(
+        true,
+      )
+
+      bridge.channel.ready({ turnInFlight: true })
+      await mounted.frame()
+
+      await mounted.command('/restart')
+
+      expect(restarts).toBe(1)
       expect(bridge.channel.closed).toBe(true)
     } finally {
       await mounted.done()

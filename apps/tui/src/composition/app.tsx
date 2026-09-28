@@ -250,10 +250,10 @@ const readoutOf = (args: {
  * session, but every Vercel call is driven with the operator's own token, read fresh from the
  * sealed secrets file at each attach so a rotated token is picked up without a restart.
  */
-const releaseBuildOf = (): { version: string; buildSha: string } | undefined => {
+const releaseBuildOf = (): { version: string; serveSource: string } | undefined => {
   const build = buildInfo()
-  if (build.kind !== EBuildKind.Release || build.buildSha === null) return undefined
-  return { version: build.version, buildSha: build.buildSha }
+  if (build.kind !== EBuildKind.Release || build.serveSource === null) return undefined
+  return { version: build.version, serveSource: build.serveSource }
 }
 
 /**
@@ -1270,6 +1270,15 @@ function Workspace(props: {
   const handleRestart = useCallback(() => {
     if (props.onRestart === null) return
 
+    // A cloud session's turn and tasks live in the sandbox, which survives the client swap, so
+    // there is nothing local to warn about — detach and restart straight away.
+    if (cloud) {
+      props.cloudSession?.close()
+      restarting.current = true
+      props.onRestart()
+      return
+    }
+
     if (shells.runningEverywhere + agents.running + services.running > 0) {
       restarting.current = true
       exitGuard.handleOpen()
@@ -1277,7 +1286,7 @@ function Workspace(props: {
     }
 
     props.onRestart()
-  }, [agents.running, exitGuard, props.onRestart, services.running, shells.runningEverywhere])
+  }, [agents.running, cloud, exitGuard, props.cloudSession, props.onRestart, services.running, shells.runningEverywhere])
 
   useEffect(() => {
     if (exitGuard.state === null) restarting.current = false

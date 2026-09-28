@@ -122,6 +122,14 @@ const bodies: EventDraft[] = [
     reason: 'the operator chose to stop being asked about this',
   },
   { type: 'permission-revoked', grantId: 'grant-1' },
+  { type: 'loop-watch-verdict', consulted: true, looping: true, probability: 0.82, loopStartSeq: 14, steps: 9 },
+  {
+    type: 'loop-watch-verdict',
+    consulted: true,
+    looping: false,
+    steps: 11,
+    fault: 'the decision model answered in a shape that was not readable',
+  },
 ]
 
 describe('eventBodySchema', () => {
@@ -245,6 +253,12 @@ describe('eventBodySchema', () => {
         consulted: true,
         elapsedMs: 1,
       }),
+    ).toThrow()
+  })
+
+  it('rejects a watchdog verdict whose probability leaves the calibrated range', () => {
+    expect(() =>
+      eventBodySchema.parse({ type: 'loop-watch-verdict', consulted: true, looping: false, probability: 1.2, steps: 3 }),
     ).toThrow()
   })
 

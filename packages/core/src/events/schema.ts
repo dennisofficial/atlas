@@ -131,6 +131,15 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
   }),
   z.object({ type: z.literal('nudge'), text: z.string(), lifetimeSteps: z.number().int().nonnegative() }),
   z.object({
+    type: z.literal('loop-watch-verdict'),
+    consulted: z.boolean(),
+    looping: z.boolean(),
+    probability: z.number().min(0).max(1).optional(),
+    loopStartSeq: z.number().int().positive().optional(),
+    steps: z.number().int().nonnegative(),
+    fault: z.string().optional(),
+  }),
+  z.object({
     type: z.literal('worktree-entered'),
     path: z.string().min(1),
     branch: z.string().min(1),

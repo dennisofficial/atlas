@@ -36,6 +36,7 @@ any inference from code, and `docs/core-contract.md` holds the seams it depends 
 | `@dltech/atlas-ui`           | nothing        | Design tokens and web UI atoms; Storybook. No Atlas imports.   |
 | `@dltech/atlas-wire`         | `zod` only     | The wire contract: channel/session zod schemas, protocol version, serve-env constants. No in-repo deps. |
 | `@dltech/atlas` (`apps/tui`) | core, harness  | OpenTUI + React terminal app; binds its stores into the shared root. |
+| `@dltech/atlas-serve` (`apps/serve`) | core, harness, wire | Websocket transport surface; compiles to the `atlas-serve` binary sandboxes boot. Owns the sandbox image build. |
 | `@dltech/atlas-api` (`apps/api`) | `@dltech/atlas-wire` only | Atlas Cloud backend (NestJS + better-auth + Prisma/Neon). |
 | `web` (`apps/web`) | nothing in-repo | Atlas Cloud frontend (Next.js App Router; deploys to Vercel). |
 

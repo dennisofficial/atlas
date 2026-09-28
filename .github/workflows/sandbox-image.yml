@@ -54,12 +54,12 @@ jobs:
       # freshness check, so a cloud boot from this image falls back to the download path.
       - name: generate serve placeholders
         run: |
-          touch packages/harness/sandbox-image/atlas-serve \
-            packages/harness/sandbox-image/atlas-serve.stamp
+          touch apps/serve/sandbox-image/atlas-serve \
+            apps/serve/sandbox-image/atlas-serve.stamp
 
       - uses: docker/build-push-action@v7
         with:
-          context: packages/harness/sandbox-image
+          context: apps/serve/sandbox-image
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
@@ -108,18 +108,18 @@ jobs:
       # image, so the VCR variant bakes the real binary and a `source:<sha>` stamp the
       # launcher's freshness check can match against the released TUI's build sha.
       - name: build serve into the image context
-        working-directory: packages/harness
+        working-directory: apps/serve
         run: bun run build:serve -- --target bun-linux-x64 --outfile sandbox-image/atlas-serve
 
       # Stamp with the same source-hash the api image uses (apps/api/Dockerfile) so the launcher
       # reuses a matching bake instead of re-downloading. A git-sha stamp can never equal the
       # api's source hash, which is why every boot used to download.
       - name: stamp the baked serve
-        run: sh packages/harness/scripts/serve-source-stamp.sh > packages/harness/sandbox-image/atlas-serve.stamp
+        run: sh apps/serve/scripts/serve-source-stamp.sh > apps/serve/sandbox-image/atlas-serve.stamp
 
       - uses: docker/build-push-action@v7
         with:
-          context: packages/harness/sandbox-image
+          context: apps/serve/sandbox-image
           platforms: linux/amd64
           provenance: false
           tags: |
@@ -134,6 +134,10 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && startsWith(inputs.release_tag, 'tui-v')
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
       - uses: docker/setup-buildx-action@v4
 
       - uses: docker/login-action@v4
@@ -150,7 +154,48 @@ jobs:
           echo "VERSION=${RELEASE_TAG#tui-v}" >> "$GITHUB_ENV"
           echo "SHA_TAG=sha-$(echo "$RELEASE_SHA" | cut -c1-7)" >> "$GITHUB_ENV"
 
+      # A TUI release that left serve's source untouched changes nothing the sandbox runs, so
+      # its tag is just the previous image under a new name. Skipping it keeps the version tag
+      # on the image whose serve the freshness check accepts (see release.yml's stamp step).
+      # The hashes must come from the stamp script itself on each commit's tree — any other
+      # recipe answers a different number than the one the launcher compares against.
+      - name: skip when the serve source is unchanged from the previous release
+        id: drift
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --tags --force --quiet origin
+
+          stamp_at() {
+            git worktree add --quiet --force "/tmp/stamp-$1" "$1" 2>/dev/null
+            ( cd "/tmp/stamp-$1" && sh apps/serve/scripts/serve-source-stamp.sh )
+            git worktree remove --force "/tmp/stamp-$1"
+          }
+
+          this_hash=$(stamp_at "$RELEASE_SHA")
+          previous=$(git tag -l 'tui-v*' --sort=-version:refname | head -2 | tail -1)
+
+          if [ -z "$previous" ]; then
+            echo "changed=yes" >> "$GITHUB_OUTPUT"
+            echo "no previous release tag — tagging ${VERSION} normally" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          previous_hash=$(stamp_at "$previous")
+
+          # The skip is only safe off the immediate predecessor: a gap means an intermediate
+          # release did change serve's source and never got its tag, which this retag must land.
+          immediate=$(git tag -l 'tui-v*' --sort=-version:refname | head -1)
+          if [ "$previous" = "$immediate" ] && [ "$previous_hash" = "$this_hash" ]; then
+            echo "changed=no" >> "$GITHUB_OUTPUT"
+            echo "serve source identical to ${previous} — ${VERSION} aliases it, skipping both retags" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "changed=yes" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: retag existing image
+        if: steps.drift.outputs.changed != 'no'
         run: |
           set -euo pipefail
 
@@ -183,7 +228,7 @@ jobs:
       # Same poll as the GHCR retag above: the released TUI pins its cloud sandbox image to
       # `atlas-sandbox:<version>`, so the tag must come from this commit's real sha tag.
       - name: retag existing VCR image
-        if: vars.VERCEL_VCR_ENABLED == 'true'
+        if: vars.VERCEL_VCR_ENABLED == 'true' && steps.drift.outputs.changed != 'no'
         run: |
           set -euo pipefail
 

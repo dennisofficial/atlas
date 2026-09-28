@@ -50,6 +50,13 @@ jobs:
         id: version
         run: bun apps/tui/scripts/release-version.ts >> "$GITHUB_OUTPUT"
 
+      # The serve source hash this build's sandboxes trust: baked into the binary as a define so
+      # the freshness check compares like with like (the images stamp with the same recipe).
+      - name: stamp the serve source hash
+        id: serve
+        if: steps.version.outputs.skip != 'true'
+        run: echo "source=$(sh apps/serve/scripts/serve-source-stamp.sh)" >> "$GITHUB_OUTPUT"
+
       - name: build binaries
         if: steps.version.outputs.skip != 'true'
         working-directory: apps/tui
@@ -57,6 +64,7 @@ jobs:
           ATLAS_VERSION: ${{ steps.version.outputs.version }}
           ATLAS_RELEASE_REPO: ${{ github.repository }}
           ATLAS_BUILD_SHA: ${{ github.event.workflow_run.head_sha }}
+          ATLAS_SERVE_SOURCE: ${{ steps.serve.outputs.source }}
         run: |
           set -euo pipefail
           bun run build:prepare

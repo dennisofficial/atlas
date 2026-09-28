@@ -1,0 +1,430 @@
+import { isResumable, type ThreadId } from '@dltech/atlas-core'
+
+import type { StepId } from '@dltech/atlas-harness'
+import { EServeFrame, type ServeFrame, type TurnOutcomeWire } from '@dltech/atlas-harness'
+import { MainWake } from '@dltech/atlas-harness'
+import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
+
+import { atlasDirectory } from '@dltech/atlas-harness'
+
+import { syncCapabilitiesNotice } from './capabilities-notice'
+import { createChannelBridge } from './channel-bridge'
+import { composeServeApp } from './compose-serve'
+import { DEFAULT_DRAIN_DEADLINE_MS, withDeadline } from './drain-deadline'
+import { createFrameBuffer, DEFAULT_FRAME_BUFFER, type LifecycleFrame, type SignalFrame } from './frame-buffer'
+import { createEnvironmentProfile, EProfileStepState } from './environment-profile'
+import { applyGitAccessEnv } from './git-access-env'
+import { SERVE_IDLE_MINUTES_WITH_SERVICES, startServeIdleStop } from './idle-stop'
+import { materializeContext } from './materialize-context'
+import { materializeTranscript } from './materialize-transcript'
+import {
+  createEnsureWorkspace,
+  EWorkspaceState,
+  workspaceRefusalOf,
+  type EnsureWorkspace,
+} from './materialize-workspace'
+import {
+  workspacePublisherFor,
+  type WorkspacePublisher,
+} from './publish-workspace'
+import type { ServeApp, ServeCompose } from './serve-app'
+import { serveConfig } from './serve-config'
+import { createServeLog, EServeEvent, LoggingNoticePort, type LogWrite, type ServeLog } from './serve-log'
+import { startSessionServer } from './session-server'
+import { createSessionHandlers } from './socket-session'
+import { createTurnDriver } from './turn-driver'
+import type { WorkspaceFiles } from './workspace-files'
+import {
+  driveContextArchiveFetcher,
+  driveTranscriptArchiveFetcher,
+  driveWorkspaceSpecFetcher,
+} from './drive-bootstrap'
+import type { FetchTranscriptArchive } from './workspace-spec'
+
+export * from './capabilities-notice'
+export * from './drive-bootstrap'
+export * from './channel-bridge'
+export * from './compose-serve'
+export * from './drain-deadline'
+export * from './environment-profile'
+export * from './frame-buffer'
+export * from './git-access-env'
+export * from './idle-stop'
+export * from './requests'
+export * from './rewind-apply'
+export * from './run-command'
+export * from './serve-app'
+export * from './serve-config'
+export * from './serve-session'
+export * from './serve-log'
+export * from './session-server'
+export * from './socket-session'
+export * from './step-alias'
+export * from './materialize-workspace'
+export * from './materialize-transcript'
+export * from './publish-workspace'
+export * from './token-guard'
+export * from './turn-driver'
+export * from './workspace-files'
+export * from './workspace-spec'
+
+/** Everything the sandbox is told at creation falls back to its environment variable. */
+export type ServeArgs = {
+  threadId?: ThreadId | undefined
+  port?: number | undefined
+  token?: string | undefined
+  controlPlaneUrl?: string | undefined
+  cwd?: string | undefined
+  model?: string | undefined
+  clientVersion?: string | undefined
+  env?: Record<string, string | undefined> | undefined
+  bufferSize?: number | undefined
+  drainDeadlineMs?: number | undefined
+  idleMinutes?: number | undefined
+  idleMinutesWithServices?: number | undefined
+  idleTickMs?: number | undefined
+  /** What an idle serve does after closing — injectable so a spec's process survives it. */
+  exit?: ((code: number) => void) | undefined
+  fetchFn?: typeof fetch | undefined
+  write?: LogWrite | undefined
+  compose?: ServeCompose | undefined
+  ensureWorkspace?: EnsureWorkspace | undefined
+  publishWorkspace?: WorkspacePublisher | undefined
+  contextFiles?: WorkspaceFiles | undefined
+  fetchTranscriptArchive?: FetchTranscriptArchive | undefined
+}
+
+export type ServeHandle = {
+  port: number
+  close: () => Promise<void>
+}
+
+const wireOutcomeOf = (outcome: TurnOutcome): TurnOutcomeWire => {
+  if (outcome.status !== ETurnStatus.Failed) return outcome
+  return { status: outcome.status, runId: outcome.runId, message: outcome.message }
+}
+
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : 'child adoption failed for a reason it did not name'
+
+function adoptChildrenInBackground(args: {
+  app: Pick<ServeApp, 'adoptChildren' | 'whenChildrenSettled'>
+  threadId: ThreadId
+  log: ServeLog
+  settling: { count: number }
+  note: () => void
+}): void {
+  void (async () => {
+    const resumed = await args.app.adoptChildren({ threadId: args.threadId })
+    if (resumed.length === 0) return
+
+    args.log({ event: EServeEvent.ChildrenAdopted, agentIds: resumed })
+    args.settling.count += 1
+    args.note()
+    try {
+      await args.app.whenChildrenSettled({ threadId: args.threadId })
+    } finally {
+      args.settling.count -= 1
+      args.note()
+    }
+  })().catch((error: unknown) => {
+    args.log({ event: EServeEvent.ChildAdoptionFailed, reason: messageOf(error) })
+  })
+}
+
+function settleLostShellsInBackground(args: {
+  app: Pick<ServeApp, 'recordLostShells'>
+  threadId: ThreadId
+  log: ServeLog
+}): void {
+  if (args.app.recordLostShells === undefined) return
+  void args.app
+    .recordLostShells({ threadId: args.threadId })
+    .then((settled) => {
+      if (settled.length > 0) {
+        args.log({ event: EServeEvent.LostShellsSettled, shellIds: settled.map((shell) => shell.shellId) })
+      }
+    })
+    .catch((error: unknown) => {
+      args.log({ event: EServeEvent.LostShellSettlementFailed, reason: messageOf(error) })
+    })
+}
+
+const lazy = <T>(fetch: () => Promise<T>): (() => Promise<T>) => {
+  let held: Promise<T> | undefined
+  return () => (held ??= fetch())
+}
+
+export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
+  const env = args.env ?? process.env
+  const { threadId, port: wanted, token, controlPlaneUrl, cwd } = serveConfig({ ...args, env })
+  const startedAt = Date.now()
+  const log = createServeLog({ write: args.write })
+  const notice = new LoggingNoticePort({ log })
+  const fetchFn = args.fetchFn ?? fetch
+
+  const driveHome = atlasDirectory()
+  const fetchSpecOnce = lazy(driveWorkspaceSpecFetcher({ driveHome }))
+
+  /**
+   * Before anything can read a file: a sandbox boots with whatever its last snapshot held, which on
+   * a first attach is nothing at all.
+   */
+  const workspaceStartedAt = Date.now()
+  const ensureWorkspace =
+    args.ensureWorkspace ??
+    createEnsureWorkspace({
+      profile: createEnvironmentProfile({
+        env,
+        serviceTtlSeconds: (args.idleMinutesWithServices ?? SERVE_IDLE_MINUTES_WITH_SERVICES) * 60,
+      }),
+    })
+  const workspace = await ensureWorkspace({
+    cwd,
+    fetchSpec: fetchSpecOnce,
+  })
+  const workspaceMs = Date.now() - workspaceStartedAt
+
+  if (workspace.state === EWorkspaceState.Failed) {
+    log({
+      event: EServeEvent.WorkspaceFailed,
+      step: workspace.step,
+      reason: workspace.reason,
+      ms: workspaceMs,
+    })
+  } else {
+    log({ event: EServeEvent.WorkspaceReady, state: workspace.state, cwd, ms: workspaceMs })
+    for (const outcome of workspace.profile?.steps ?? []) {
+      if (outcome.state !== EProfileStepState.Failed) continue
+      log({ event: EServeEvent.ProfileStepFailed, step: outcome.step, detail: outcome.detail })
+    }
+  }
+
+  const spec = await fetchSpecOnce().catch(() => null)
+  applyGitAccessEnv({ env, cwd, githubToken: spec?.githubToken })
+
+  const contextStartedAt = Date.now()
+  const context = await materializeContext({
+    fetchSpec: fetchSpecOnce,
+    fetchArchive: driveContextArchiveFetcher({ driveHome }),
+    atlasHome: driveHome,
+    cwd,
+    files: args.contextFiles,
+  })
+  const contextMs = Date.now() - contextStartedAt
+  if (context.failed !== null) {
+    log({ event: EServeEvent.ContextFailed, reason: context.failed, ms: contextMs })
+  } else if (context.written > 0) {
+    log({ event: EServeEvent.ContextReady, written: context.written, ms: contextMs })
+  }
+
+  const transcriptStartedAt = Date.now()
+  const transcript = await materializeTranscript({
+    fetchArchive: args.fetchTranscriptArchive ?? driveTranscriptArchiveFetcher({ driveHome }),
+    atlasHome: driveHome,
+    threadId,
+  })
+  const transcriptMs = Date.now() - transcriptStartedAt
+  if (transcript.failed !== null) {
+    log({ event: EServeEvent.TranscriptFailed, reason: transcript.failed, ms: transcriptMs })
+  } else if (transcript.restored) {
+    log({ event: EServeEvent.TranscriptRestored, ms: transcriptMs })
+  }
+
+  const threadModel = args.model ?? spec?.model ?? undefined
+
+  const capabilities = 'profile' in workspace ? workspace.profile?.capabilities : undefined
+
+  const app = await (args.compose ?? composeServeApp)({
+    threadId,
+    cwd,
+    controlPlaneUrl,
+    token,
+    clientVersion: args.clientVersion ?? 'dev',
+    env,
+    model: threadModel,
+    notice,
+    projectDirectory: context.projectDirectory,
+    capabilities,
+    identity: context.identity,
+  })
+
+  const buffer = createFrameBuffer({ capacity: args.bufferSize ?? DEFAULT_FRAME_BUFFER })
+
+  const settling = { count: 0 }
+  let idleStop: { note: () => void; halt: () => void } = { note: () => undefined, halt: () => undefined }
+
+  adoptChildrenInBackground({ app, threadId, log, settling, note: () => idleStop.note() })
+  settleLostShellsInBackground({ app, threadId, log })
+
+  let inFlight: () => readonly SignalFrame[] = () => []
+  let liveStepId: () => StepId | null = () => null
+  let broadcast: (frame: ServeFrame) => void = () => undefined
+
+  const emitLifecycle = (frame: LifecycleFrame): void => {
+    buffer.pushLifecycle(frame)
+    broadcast(frame)
+  }
+
+  const driver = createTurnDriver({
+    app,
+    threadId,
+    refusal: () => workspaceRefusalOf(workspace),
+    onTurnStarted: () => {
+      idleStop.note()
+      log({ event: EServeEvent.TurnStarted })
+    },
+    onTurnEnded: () => {
+      idleStop.note()
+      app.files.forget()
+      void app.syncMemoryAfterTurn().catch(() => undefined)
+    },
+    onOutcome: (outcome) => {
+      log({ event: EServeEvent.TurnEnded, status: outcome.status })
+      emitLifecycle({ kind: EServeFrame.TurnEnded, outcome: wireOutcomeOf(outcome) })
+    },
+    onFailure: (reason) => {
+      log({ event: EServeEvent.TurnFailed, reason })
+      emitLifecycle({ kind: EServeFrame.Error, message: reason })
+    },
+  })
+
+  /**
+   * A shell, agent or service ending that lands while no turn is running starts one — the serve
+   * half of the idle wake the TUI holds locally. The wake turn drains the queue itself, so the
+   * ending reaches the model over the ordinary channel; nothing here touches the protocol.
+   */
+  const wake =
+    app.wakeNotices === undefined
+      ? undefined
+      : new MainWake({
+          blocked: () => driver.running(),
+          onWake: () => {
+            idleStop.note()
+            driver.sayOrRun()
+          },
+        })
+  const unsubscribeWake = app.wakeNotices?.subscribe(() => {
+    if (app.wakeNotices === undefined) return
+    const pending =
+      app.wakeNotices.pendingShells({ threadId }) +
+      app.wakeNotices.pendingAgents({ threadId }) +
+      app.wakeNotices.pendingServices({ threadId })
+    wake?.onNotice({ witness: pending > 0 ? `pending:${pending}` : null })
+  })
+
+  const publishWorkspace: WorkspacePublisher =
+    args.publishWorkspace ??
+    workspacePublisherFor({
+      workspace,
+      threadId,
+      // Deliberately not fetchSpecOnce: the token rides the spec, and a GitHub reconnect mints a
+      // new one — a publisher that cached the boot-time spec would wedge every descend until the
+      // sandbox process died (that wedged a real session on 2026-09-19).
+      fetchSpec: driveWorkspaceSpecFetcher({ driveHome }),
+      cwd,
+    })
+
+  const handlers = createSessionHandlers({
+    threadId,
+    buffer,
+    inFlight: () => inFlight(),
+    liveStepId: () => liveStepId(),
+    driver,
+    files: app.files,
+    publish: publishWorkspace,
+    refusal: () => workspaceRefusalOf(workspace) ?? null,
+    log,
+    roster: app.roster,
+    rewind: app.rewind,
+    ...(app.ledger === undefined
+      ? {}
+      : {
+          transcript: { log: app.log, threads: app.threads, ledger: app.ledger },
+        }),
+    ...(app.sessionArchive === undefined ? {} : { sessionArchive: app.sessionArchive }),
+  })
+
+  // Watching surfaces (footer chips, sidebar crew) read the roster off the wire, so a change on
+  // the live registries is pushed the moment the registries announce it, not on the next request.
+  const unsubscribeRoster = app.roster?.subscribe(() => handlers.broadcastRoster())
+
+  const bridge = createChannelBridge({
+    channel: app.channel,
+    threadId,
+    buffer,
+    onFrame: handlers.broadcast,
+  })
+  inFlight = bridge.inFlight
+  liveStepId = bridge.liveStepId
+  broadcast = handlers.broadcast
+
+  /**
+   * A turn cut short by the container stopping leaves its events durable and nothing else, so the
+   * one thing boot owes a client is to say the thread is mid-turn rather than to look alive.
+   */
+  const events = await app.log.read({ threadId }).catch(() => [])
+  if (capabilities !== undefined) {
+    await syncCapabilitiesNotice({
+      log: app.log,
+      threadId,
+      runId: app.ids.nextRunId(),
+      events,
+      capabilities,
+    }).catch(() => false)
+  }
+  const resumable = isResumable(events)
+  if (resumable) log({ event: EServeEvent.Resumable, head: events.at(-1)?.seq ?? 0 })
+
+  const server = startSessionServer({
+    port: wanted,
+    token,
+    handlers,
+    health: () => ({
+      ok: workspace.state !== EWorkspaceState.Failed,
+      threadId,
+      uptimeMs: Date.now() - startedAt,
+      clients: handlers.clients(),
+      turnRunning: driver.running(),
+      nextSeq: buffer.nextSeq(),
+      resumable,
+      workspace,
+    }),
+  })
+
+  const port = server.port ?? wanted
+  log({ event: EServeEvent.Started, threadId, port, ms: Date.now() - startedAt })
+
+  const close = async (): Promise<void> => {
+    idleStop.halt()
+    unsubscribeWake?.()
+    unsubscribeRoster?.()
+    driver.interrupt()
+    await withDeadline({
+      task: driver.settled().catch(() => undefined),
+      ms: args.drainDeadlineMs ?? DEFAULT_DRAIN_DEADLINE_MS,
+    })
+    bridge.close()
+    handlers.hangUp()
+    await server.stop(true)
+    await app.close()
+    log({ event: EServeEvent.Stopped, threadId })
+  }
+
+  idleStop = startServeIdleStop({
+    turnRunning: () => driver.running(),
+    childrenSettling: () => settling.count > 0,
+    runningShells: () => app.runningShells?.() ?? 0,
+    runningServices: () => app.runningServices?.() ?? 0,
+    idleMinutes: args.idleMinutes,
+    idleMinutesWithServices: args.idleMinutesWithServices,
+    tickMs: args.idleTickMs,
+    log: (line) => log({ event: EServeEvent.IdleCheckFailed, reason: line }),
+    onDue: () => {
+      log({ event: EServeEvent.IdleStop, threadId })
+      void close().then(() => (args.exit ?? process.exit)(0))
+    },
+  })
+
+  return { port, close }
+}

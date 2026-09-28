@@ -34,6 +34,14 @@ function openShells(events: readonly Event[]): StartedShell[] {
 }
 
 /**
+ * The one place "needs an ending" is decided, shared by teardown and the next boot's recovery so
+ * the two never disagree. A compacted log holds no shell starts, so nothing about it is open; a
+ * start with its ending still present is settled. Only a genuinely unpaired start counts.
+ */
+export const openShellIdsOf = (events: readonly Event[]): ReadonlySet<string> =>
+  new Set(openShells(events).map((shell) => shell.shellId))
+
+/**
  * A background shell outlives the process that ran it, because the record of it does. A start with
  * no ending behind it means the process died while the shell was running: a clean close records an
  * ending for every live shell, so the absence of one is a crash or a kill. Ids repeat across boots
@@ -73,7 +81,11 @@ export class ShellRecovery {
   }
 }
 
-export function lostShellEnding(shell: StartedShell): {
+export function lostShellEnding(shell: {
+  shellId: string
+  command: string
+  description?: string | undefined
+}): {
   type: 'background-shell-ended'
   shellId: string
   command: string

@@ -326,6 +326,18 @@ export class LoopTurnRunner extends TurnRunner {
 
       if (this.watchLoop !== undefined && !abortSignal.aborted) {
         const watch = await this.watchLoop({ events: owned, signal: abortSignal })
+        if (watch.verdict !== ELoopWatch.NoVerdict && (watch.noul !== undefined || watch.fault !== undefined)) {
+          const judged: EventDraft = {
+            type: 'loop-watch-verdict',
+            consulted: true,
+            looping: watch.verdict === ELoopWatch.Looping,
+            steps: owned.length,
+            ...(watch.noul === undefined ? {} : { probability: watch.noul }),
+            ...(watch.loopStartSeq === undefined ? {} : { loopStartSeq: watch.loopStartSeq }),
+            ...(watch.fault === undefined ? {} : { fault: watch.fault }),
+          }
+          await this.log.append({ threadId, runId, drafts: [judged] })
+        }
         if (watch.verdict === ELoopWatch.Looping) {
           const throughSeq = owned.at(-1)?.seq
           const target =

@@ -149,7 +149,7 @@ export class VercelDriver {
       image?: string | undefined
       /**
        * The serve identities this build trusts, from `sandboxImageOf` — a pinned release carries
-       * `source:<buildSha>`, anything else an empty list. Drives the resume-time drift check: a
+       * `source:<serveSource>`, anything else an empty list. Drives the resume-time drift check: a
        * sandbox whose baked serve is not one of these is torn down and recreated from the pinned
        * image rather than resumed stale and re-downloaded onto. Empty disables the check (no
        * pinned serve to match against).
