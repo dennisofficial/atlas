@@ -122,6 +122,7 @@ describe('the github plugin as the loader sees it', () => {
     expect(contribution.surfaces ?? []).toEqual([])
     expect((contribution.projections ?? []).map((projection) => projection.id)).toEqual([
       'pull-requests',
+      'pull-request-states',
       'cloud-checkout',
     ])
     expect((contribution.ports ?? []).map((binding) => binding.token)).toEqual([
