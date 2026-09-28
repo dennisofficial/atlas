@@ -13,8 +13,8 @@ import {
   WorkspaceRoot,
 } from '../../../container/tokens'
 
+import { SsePullRequestPort } from '../../../cloud/sse-pull-requests'
 import { NativePlugin } from '../../plugin'
-import { ApiPullRequestPort } from '../api-pull-requests'
 import { GhPullRequestPort } from '../gh-pull-requests'
 import GithubPlugin, { registerPlugin } from '../index'
 import { PullRequestPort } from '../pure'
@@ -149,18 +149,22 @@ describe('the pull request port the plugin selects', () => {
     await contribution.dispose?.()
   })
 
-  it('answers through the API for a signed-in session', async () => {
+  it('pushes through SSE for a signed-in session', async () => {
     const { contribution } = await resolved({ signedIn: true })
 
-    expect(portOf(contribution)).toBeInstanceOf(ApiPullRequestPort)
+    const port = portOf(contribution)
+    expect(port).toBeInstanceOf(SsePullRequestPort)
+    expect(port.pushes).toBe(true)
 
     await contribution.dispose?.()
   })
 
-  it('answers through the API inside a sandbox, signed out or not', async () => {
+  it('pushes through SSE inside a sandbox, signed out or not', async () => {
     const { contribution } = await resolved({ serve: true })
 
-    expect(portOf(contribution)).toBeInstanceOf(ApiPullRequestPort)
+    const port = portOf(contribution)
+    expect(port).toBeInstanceOf(SsePullRequestPort)
+    expect(port.pushes).toBe(true)
 
     await contribution.dispose?.()
   })

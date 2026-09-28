@@ -1,7 +1,7 @@
 import { EHookPhase, EStage, type HookOrder } from '@dltech/atlas-core'
 import type { CloudSession, CloudSessionStore } from '../../cloud/cloud-session'
-import { EPullRequestRoute, PullRequestsClient } from '../../cloud/pull-requests-client'
 import { portToken, type DependencyContainer } from '../../container/injection'
+import { SsePullRequestPort } from '../../cloud/sse-pull-requests'
 import {
   ClientVersionToken,
   CloudSessionStoreToken,
@@ -10,32 +10,17 @@ import {
 } from '../../container/tokens'
 
 import { NativePlugin, type PluginContribution } from '../plugin'
-import { ApiPullRequestPort } from './api-pull-requests'
 import { createCloudCheckout } from './cloud-checkout'
 import { GhPullRequestPort } from './gh-pull-requests'
 import { RefreshPullRequestAfterShellHook, RefreshPullRequestAfterToolHook } from './hooks'
 import { createPullRequestLinks } from './links'
-import { createPullRequestService } from './pull-request-service'
-import { PullRequestPort } from './pure'
+import { createPullRequestService, type PullRequestService } from './pull-request-service'
+import { PullRequestPort, type PullRequestReading } from './pure'
 import { createSessionFacts } from './session'
 import { createCheckoutTracking } from './tracking'
 import { GithubUiBridgePort } from './ui-bridge'
 
 const OBSERVE: HookOrder = { stage: EStage.Observe, nudge: 0 }
-
-const apiPort = (args: {
-  session: CloudSession
-  route: EPullRequestRoute
-  clientVersion: string
-}): ApiPullRequestPort =>
-  new ApiPullRequestPort({
-    client: new PullRequestsClient({
-      url: args.session.url,
-      token: args.session.token,
-      route: args.route,
-      clientVersion: args.clientVersion,
-    }),
-  })
 
 /**
  * The port is constructed here and never injected: this plugin is what supplies `PullRequestPort`,
@@ -66,28 +51,27 @@ export default class GithubPlugin extends NativePlugin {
     super()
   }
 
-  private port(): PullRequestPort {
-    if (this.args.serve !== null) {
-      return apiPort({
-        session: this.args.serve,
-        route: EPullRequestRoute.Sandbox,
-        clientVersion: this.args.clientVersion,
-      })
-    }
-
-    const session = this.args.sessions.read()
+  /**
+   * A cloud session (serve or signed-in operator) rides the SSE port: the API fans webhook
+   * deliveries out to it in real time, so it pushes rather than polls. A signed-out operator
+   * keeps the `gh` poller as degraded mode. The SSE port's `onReading` closes over the service
+   * built after it — the deferred indirection is what lets the port outlive its own construction.
+   */
+  private port(onReading: (args: { key: string; reading: PullRequestReading }) => void): PullRequestPort {
+    const session = this.args.serve ?? this.args.sessions.read()
     if (session === null) return new GhPullRequestPort()
 
-    return apiPort({
+    return new SsePullRequestPort({
       session,
-      route: EPullRequestRoute.User,
       clientVersion: this.args.clientVersion,
+      onReading,
     })
   }
 
   contribute(): PluginContribution {
-    const adapter = this.port()
-    const service = createPullRequestService({ pullRequests: adapter })
+    let service: PullRequestService | null = null
+    const adapter = this.port((pushed) => service?.ingest(pushed))
+    service = createPullRequestService({ pullRequests: adapter })
     const facts = createSessionFacts({ launchDirectory: this.args.launchDirectory })
     const links = createPullRequestLinks({ service })
     const cloudCheckout = createCloudCheckout()
@@ -165,7 +149,10 @@ export default class GithubPlugin extends NativePlugin {
         { token: GithubUiBridgePort, use: { service, facts, links: links.projection, cloudCheckout } },
       ],
       projections: [links.projection, cloudCheckout],
-      dispose: () => service.dispose(),
+      dispose: () => {
+        if (adapter instanceof SsePullRequestPort) adapter.dispose()
+        service.dispose()
+      },
     }
   }
 }
