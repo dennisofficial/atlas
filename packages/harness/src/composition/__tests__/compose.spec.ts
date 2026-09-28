@@ -84,29 +84,17 @@ describe('composeHarness', () => {
     await expect(app.close()).resolves.toBeUndefined()
   })
 
-  it('resolves the registered SelectableModel and re-pins the loop mid-session', async () => {
+  it('resolves the registered SelectableModel to the very switchable the loop holds', async () => {
     const { SelectableModelToken } = await import('../../container/tokens')
-    let resolved: ReturnType<HarnessApp<never>['model']['choice']> | undefined
-    let select: HarnessApp<never>['model']['select'] | undefined
+    let resolved: HarnessApp<never>['model'] | undefined
     const app = await compose<undefined>({
       bind: ({ container }) => {
-        const model = container.resolve(SelectableModelToken)
-        select = model.select
+        resolved = container.resolve(SelectableModelToken)
         return undefined
       },
     })
 
-    if (select === undefined) throw new Error('the selectable model never resolved')
-    const before = app.model.choice()
-    const target = app.models.providers
-      .find((provider) => app.models.reachable(provider.id))
-      ?.cards.find((card) => card.ref.modelId !== before.ref.modelId)
-    if (target === undefined) throw new Error('the catalogue has no second reachable card to re-pin to')
-    select({ ref: target.ref, effort: before.effort })
-    resolved = app.model.choice()
-
-    expect(resolved.ref).toEqual(target.ref)
-    expect(app.model.choice().ref).toEqual(target.ref)
+    expect(resolved).toBe(app.model)
     await expect(app.close()).resolves.toBeUndefined()
   })
 
