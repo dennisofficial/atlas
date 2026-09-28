@@ -160,6 +160,8 @@ export function fakeAgentRegistry(args: { threads?: FakeThreadStore | undefined 
 
     sayToPeer: async ({ agentId }) => refused(agentId),
 
+    reportToParent: async ({ threadId }) => refused(threadId),
+
     resume: async ({ agentId }) => refused(agentId),
 
     wake: async ({ agentId }) => refused(agentId),

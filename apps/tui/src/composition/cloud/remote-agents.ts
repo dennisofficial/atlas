@@ -81,6 +81,10 @@ export class RemoteAgentRegistry extends AgentRegistryPort {
     return remoteActionRefused('a cloud session steers sub-agents in its sandbox, not on this machine')
   }
 
+  reportToParent(_args: { threadId: ThreadId; text: string }): Promise<AgentOutcome> {
+    return remoteActionRefused('a cloud session reports to its main agent in its sandbox, not on this machine')
+  }
+
   resume(_args: { agentId: ThreadId; threadId: ThreadId }): Promise<AgentOutcome> {
     return remoteActionRefused('a cloud session resumes sub-agents in its sandbox, not on this machine')
   }

@@ -5,11 +5,11 @@ import {
   type EToolEffect,
 } from '@dltech/atlas-core'
 
+import { isTeammateType, TEAMMATE_AGENT_TYPE } from '@dltech/atlas-core'
+
+export { isTeammateType, TEAMMATE_AGENT_TYPE }
+
 export const AGENT_SPAWN_TOOL_NAME = 'agent_spawn'
-
-export const TEAMMATE_AGENT_TYPE = 'teammate'
-
-export const isTeammateType = (name: string): boolean => name === TEAMMATE_AGENT_TYPE
 
 export const AGENT_TOOL_NAMES: readonly string[] = [
   AGENT_SPAWN_TOOL_NAME,

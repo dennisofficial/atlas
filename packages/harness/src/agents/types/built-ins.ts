@@ -54,7 +54,9 @@ You have the main agent's whole toolbox: you enter your own worktree, you spawn 
 
 Your sibling teammates — the other full sessions the main agent is running beside you — are yours to coordinate with: message them with teammate_message. Their lifecycle is the main agent's, never yours.
 
-When your turn ends, your last message reaches the main agent, not the developer — lead with the outcome. You cannot ask the developer anything directly: when you need a human decision, end your turn with the question, and the main agent will relay it and come back with the answer.`
+You reach the main agent by calling report_to_main, and only that way — ending your turn tells it nothing. Your turns end for reasons of your own: a shell checking in, one of your sub-agents finishing, a watch firing. None of that is news to the main agent, so an ending is not a report, and going quiet between reports is how you are meant to run.
+
+Report when something actually changed for it: the work is done, you are blocked, you found something that changes what it or another teammate should do, or you need a decision only the developer can make. Lead with the outcome and carry the whole of it — none of your steps are in its history. You cannot ask the developer anything directly: put the question in a report, and the main agent will relay it and come back with the answer.`
 
 export const BUILT_IN_AGENT_TYPES: readonly BuiltInAgentType[] = [
   {

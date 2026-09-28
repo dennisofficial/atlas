@@ -1,3 +1,4 @@
+import { isTeammateType } from '../../agents/kind'
 import { agentLabel } from '../../agents/label'
 import { agentEnding, countedNoun } from '../../agents/status'
 import type { Event, EventOfType } from '../../events/envelope'
@@ -46,6 +47,14 @@ export function agentEndingsText({ endings }: { endings: readonly Ending[] }): s
 
   return [OPEN, [roster, ...endings.map(sectionOf)].join('\n\n'), CLOSE].join('\n')
 }
+
+/**
+ * A teammate is a peer session whose turns end for reasons of its own — a shell check-in, one of
+ * its own sub-agents finishing. Its ending is recorded, but it reports to the main agent by saying
+ * so deliberately, never by stopping.
+ */
+const carriesReport = (event: Event): boolean =>
+  event.type !== 'agent-ended' || !isTeammateType(event.agentType)
 
 function waves(events: readonly Event[]): readonly (readonly Ending[])[] {
   const grouped: Ending[][] = []
@@ -132,7 +141,7 @@ export function agentEndingsBlock(): Rule {
   return defineRule({
     name: 'agentEndingsBlock',
     apply: (input, ctx) => {
-      const grouped = waves(ctx.events)
+      const grouped = waves(ctx.events.filter(carriesReport))
       if (grouped.length === 0) return input
 
       const blocks = grouped.flatMap((endings) => blockFor({ endings }))

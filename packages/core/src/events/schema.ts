@@ -276,6 +276,13 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     via: z.enum(EAgentRestart),
   }),
   z.object({
+    type: z.literal('agent-reported'),
+    agentId: threadIdSchema,
+    agentType: z.string().min(1),
+    intent: z.string(),
+    prose: z.string(),
+  }),
+  z.object({
     type: z.literal('history-compacted'),
     anchor: z.enum(ECompactionAnchor),
     fromSeq: z.number().int().positive(),

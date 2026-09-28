@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EAgentRestart } from '../../../agents/restart'
 import { EAgentStart } from '../../../agents/start'
 import { EAgentStatus } from '../../../agents/status'
 import { EKilledBy } from '../../../shells/status'
@@ -230,6 +231,68 @@ describe('a delegate ending that lands while a tool call is still open', () => {
     expect(resultAt).toBeGreaterThan(-1)
     expect(endingsAt).toBeGreaterThan(resultAt)
     expect(exchangeFaults(assembled)).toEqual([])
+  })
+})
+
+describe('a teammate ending, which is bookkeeping rather than a report', () => {
+  const teammateEnded = (over: Partial<Extract<EventDraft, { type: 'agent-ended' }>> = {}) =>
+    ended({ agentType: 'teammate', intent: 'build the admin app', ...over })
+
+  it('never reaches the parent: a teammate reports by saying so, not by stopping', () => {
+    const assembled = assembleWith({ drafts: [{ type: 'user-said', text: 'go' }, teammateEnded()] })
+
+    expect(blocksOf(assembled)).toEqual([])
+    expect(textsOf(assembled)).toEqual(['go'])
+  })
+
+  it('still lets a sub-agent ending through in the same breath', () => {
+    const block = blocksOf(assembleWith({ drafts: [teammateEnded(), ended()] }))[0] ?? ''
+
+    expect(block).toContain('1 agent you spawned ended')
+    expect(block).toContain('The registry has 14 settings; two are unread.')
+    expect(block).not.toContain('build the admin app')
+  })
+
+  it('keeps two sub-agent endings in one wave when a teammate ending falls between them', () => {
+    const blocks = blocksOf(
+      assembleWith({
+        drafts: [
+          ended({ agentId: toThreadId('thread-child-1') }),
+          teammateEnded({ agentId: toThreadId('thread-child-9') }),
+          ended({ agentId: toThreadId('thread-child-2') }),
+        ],
+      }),
+    )
+
+    expect(blocks).toHaveLength(1)
+    expect(blocks[0]).toContain('2 agents you spawned ended')
+  })
+})
+
+describe('a restart the parent did not cause', () => {
+  const restarted = (via: EAgentRestart): EventDraft => ({
+    type: 'agent-restarted',
+    agentId: CHILD,
+    agentType: 'teammate',
+    intent: 'build the admin app',
+    via,
+  })
+
+  it('says nothing to the parent when a queued notice woke the child', () => {
+    const assembled = assembleWith({
+      drafts: [{ type: 'user-said', text: 'go' }, restarted(EAgentRestart.Wake)],
+    })
+
+    expect(textsOf(assembled)).toEqual(['go'])
+  })
+
+  it('still tells the parent about the restarts it did cause', () => {
+    for (const via of [EAgentRestart.Message, EAgentRestart.Resume, EAgentRestart.Relocation]) {
+      const texts = textsOf(assembleWith({ drafts: [restarted(via)] }))
+
+      expect(texts).toHaveLength(1)
+      expect(texts[0]).toStartWith('<agent-restarted>')
+    }
   })
 })
 

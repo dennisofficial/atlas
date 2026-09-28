@@ -14,7 +14,7 @@ export function NoticeBlock(props: {
   failed: boolean
   width: number
   openHint: string
-  silentNote: string
+  silentNote?: string
   expanded?: boolean
   onToggle?: () => void
 }): React.ReactNode {
@@ -33,7 +33,7 @@ export function NoticeBlock(props: {
         affordance={body !== '' && props.expanded !== true}
       />
       {body === '' ? (
-        <BodyRow text={props.silentNote} inner={inner} />
+        props.silentNote === undefined ? null : <BodyRow text={props.silentNote} inner={inner} />
       ) : props.expanded === true ? (
         <Body text={body} inner={inner} />
       ) : null}

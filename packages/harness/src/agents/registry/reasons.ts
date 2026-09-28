@@ -59,7 +59,7 @@ export const TEAMMATE_FROM_MAIN_ONLY =
   'only the main session spawns teammates — end your turn asking for one, and the main agent will spawn it and hand you its id'
 
 export const NOT_A_TEAMMATE =
-  'teammate_message is how one teammate reaches another; you are not a teammate, so message your own agents with agent_say or end your turn to reach the main agent'
+  'that channel is how one teammate reaches another or reports to the main session; you are not a teammate, so message your own agents with agent_say or end your turn to reach the main agent'
 
 export function notYourTeammate({
   agentId,

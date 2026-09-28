@@ -123,7 +123,7 @@ describe('spawning a teammate', () => {
     expect(fromTeammate.ok ? '' : fromTeammate.reason).toMatch(/only the main session/)
   })
 
-  it('reports its turn endings to the main session like any child', async () => {
+  it('ends quietly: its ending drains into the log without waking the main session', async () => {
     const { runners, supervisor, parent } = await open()
     const outcome = await supervisor.spawn({
       threadId: parent,
@@ -137,7 +137,84 @@ describe('spawning a teammate', () => {
     runners.started[0]?.settle(finished())
     await settled()
 
-    expect(supervisor.threadsAwaitingNotice()).toEqual([parent])
+    expect(supervisor.threadsAwaitingNotice()).toEqual([])
+    expect(supervisor.pendingNotices({ threadId: parent })).toHaveLength(0)
+
+    const drafts = supervisor.drainNotifications({ threadId: parent })
+    expect(drafts).toHaveLength(1)
+    expect(drafts[0]?.type).toBe('agent-ended')
+  })
+})
+
+describe('a teammate reporting to the main session', () => {
+  const spawnTeammate = async (opened: Awaited<ReturnType<typeof open>>) => {
+    const outcome = await opened.supervisor.spawn({
+      threadId: opened.parent,
+      agentType: TEAMMATE_AGENT_TYPE,
+      brief: 'own the billing workstream',
+      intent: 'billing workstream',
+    })
+    if (!outcome.ok) throw new Error(outcome.reason)
+    await settled()
+    return outcome.snapshot.agentId
+  }
+
+  it('wakes the main session with a fully attributed report', async () => {
+    const opened = await open()
+    const agentId = await spawnTeammate(opened)
+
+    const outcome = await opened.supervisor.reportToParent({
+      threadId: agentId,
+      text: 'billing is migrated',
+    })
+
+    expect(outcome.ok).toBe(true)
+    expect(opened.supervisor.threadsAwaitingNotice()).toEqual([opened.parent])
+    expect(opened.supervisor.pendingNotices({ threadId: opened.parent })).toHaveLength(1)
+
+    const drafts = opened.supervisor.drainNotifications({ threadId: opened.parent })
+    expect(drafts).toEqual([
+      {
+        type: 'agent-reported',
+        agentId,
+        agentType: TEAMMATE_AGENT_TYPE,
+        intent: 'billing workstream',
+        prose: 'billing is migrated',
+      },
+    ])
+  })
+
+  it('is refused to a sub-agent', async () => {
+    const opened = await open()
+    const outcome = await opened.supervisor.spawn({
+      threadId: opened.parent,
+      agentType: 'builder',
+      brief: 'build a thing',
+      intent: 'a build',
+    })
+    if (!outcome.ok) throw new Error(outcome.reason)
+    await settled()
+
+    const refused = await opened.supervisor.reportToParent({
+      threadId: outcome.snapshot.agentId,
+      text: 'reporting up',
+    })
+
+    expect(refused.ok).toBe(false)
+    expect(refused.ok ? '' : refused.reason).toMatch(/not a teammate/)
+    expect(opened.supervisor.threadsAwaitingNotice()).toEqual([])
+  })
+
+  it('is refused to a thread that runs no agent', async () => {
+    const opened = await open()
+
+    const refused = await opened.supervisor.reportToParent({
+      threadId: opened.parent,
+      text: 'reporting up',
+    })
+
+    expect(refused.ok).toBe(false)
+    expect(refused.ok ? '' : refused.reason).toMatch(/not a teammate/)
   })
 })
 

@@ -5,10 +5,12 @@ import type { ClockPort, ThreadId } from '@dltech/atlas-core'
 import { createTempHome, type TempHome } from '../../../loop/__tests__/temp-home'
 import { buildHarness, type AtlasHarness } from '../../../loop/build-harness'
 import { scriptedModel } from '../../../model/testing/scripted-model'
+import { TEAMMATE_AGENT_TYPE } from '../../types'
 import { AgentSupervisor } from '../supervisor'
 import { agentTypeNamed, fakeRunners, finished, type FakeRunners } from './fixtures'
 
 const EXPLORE = agentTypeNamed({ name: 'explore' })
+const TEAMMATE = agentTypeNamed({ name: TEAMMATE_AGENT_TYPE })
 
 const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
@@ -44,7 +46,7 @@ async function open(): Promise<Opened> {
       threads: harness.threads,
       ids: harness.ids,
       clock,
-      agentTypes: [EXPLORE],
+      agentTypes: [EXPLORE, TEAMMATE],
       runners: runners.source,
       launchDirectory: '/launch',
     }),
@@ -62,13 +64,15 @@ const settle = async (): Promise<void> => {
 async function spawnUnder({
   supervisor,
   threadId,
+  agentType = 'explore',
 }: {
   supervisor: AgentSupervisor
   threadId: ThreadId
+  agentType?: string | undefined
 }): Promise<ThreadId> {
   const outcome = await supervisor.spawn({
     threadId,
-    agentType: 'explore',
+    agentType,
     brief: 'look',
     intent: 'looking',
   })
@@ -192,6 +196,17 @@ describe('when a finished child counts as delivered', () => {
     supervisor.drainNotifications({ threadId: parent })
 
     await supervisor.say({ agentId, threadId: parent, text: 'keep going' })
+
+    expect(deliveryOf({ supervisor, threadId: parent, agentId })).toBeUndefined()
+  })
+
+  it('stamps nothing for a teammate report, because a report is not an ending', async () => {
+    const { supervisor, parent } = await open()
+    const agentId = await spawnUnder({ supervisor, threadId: parent, agentType: TEAMMATE_AGENT_TYPE })
+    await settle()
+
+    await supervisor.reportToParent({ threadId: agentId, text: 'an update' })
+    supervisor.drainNotifications({ threadId: parent })
 
     expect(deliveryOf({ supervisor, threadId: parent, agentId })).toBeUndefined()
   })

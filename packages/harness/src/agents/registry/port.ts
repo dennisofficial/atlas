@@ -36,6 +36,7 @@ export abstract class AgentRegistryPort {
     text: string
     images?: readonly SaidImage[] | undefined
   }): Promise<AgentOutcome>
+  abstract reportToParent(args: { threadId: ThreadId; text: string }): Promise<AgentOutcome>
   abstract resume(args: { agentId: ThreadId; threadId: ThreadId }): Promise<AgentOutcome>
   abstract wake(args: { agentId: ThreadId }): Promise<AgentOutcome>
   abstract stop(args: { agentId: ThreadId; threadId: ThreadId; by: EKilledBy }): AgentOutcome
