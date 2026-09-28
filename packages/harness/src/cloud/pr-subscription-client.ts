@@ -18,7 +18,9 @@ const stateSchema = z.strictObject({
   updatedAt: z.string(),
 })
 
-const subscribeResponseSchema = z.strictObject({
+// The subscribe DTO carries repoFullName/prNumber alongside these; parse what we use and let
+// the rest pass, so a server field we do not read never breaks the subscribe.
+const subscribeResponseSchema = z.object({
   id: z.string().min(1),
   pollBacked: z.boolean(),
   expiresAt: z.string(),
