@@ -118,7 +118,7 @@ describe('requireVercelCredentials', () => {
 })
 
 describe('sandboxImageOf', () => {
-  const release = { version: '1.4.2', buildSha: 'f'.repeat(40) }
+  const release = { version: '1.4.2', serveSource: 'f'.repeat(40) }
 
   it('falls back to the published image', () => {
     expect(sandboxImageOf({ settings: settingsWith({}) })).toEqual({

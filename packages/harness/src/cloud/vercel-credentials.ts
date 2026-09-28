@@ -53,7 +53,7 @@ export type SandboxImageChoice = {
  */
 export function sandboxImageOf(args: {
   settings: SettingsService
-  release?: { version: string; buildSha: string } | undefined
+  release?: { version: string; serveSource: string } | undefined
 }): SandboxImageChoice {
   const resolution = args.settings.snapshot().resolution
   const held = resolution.settings.get(ESettingId.SandboxImage)
@@ -62,6 +62,6 @@ export function sandboxImageOf(args: {
   if (args.release === undefined) return { image, serveSources: [] }
   return {
     image: `atlas-sandbox:${args.release.version}`,
-    serveSources: [`source:${args.release.buildSha}`],
+    serveSources: [`source:${args.release.serveSource}`],
   }
 }
