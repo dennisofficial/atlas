@@ -98,12 +98,15 @@ describe('composeHarness', () => {
 
     if (select === undefined) throw new Error('the selectable model never resolved')
     const before = app.model.choice()
-    expect(before.ref.modelId).not.toBe('claude-opus-5')
-    select({ ref: { providerId: 'anthropic', modelId: 'claude-opus-5' }, effort: before.effort })
+    const target = app.models.providers
+      .find((provider) => app.models.reachable(provider.id))
+      ?.cards.find((card) => card.ref.modelId !== before.ref.modelId)
+    if (target === undefined) throw new Error('the catalogue has no second reachable card to re-pin to')
+    select({ ref: target.ref, effort: before.effort })
     resolved = app.model.choice()
 
-    expect(resolved.ref.modelId).toBe('claude-opus-5')
-    expect(app.model.choice().ref.modelId).toBe('claude-opus-5')
+    expect(resolved.ref).toEqual(target.ref)
+    expect(app.model.choice().ref).toEqual(target.ref)
     await expect(app.close()).resolves.toBeUndefined()
   })
 
