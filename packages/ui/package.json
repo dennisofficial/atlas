@@ -50,7 +50,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "bun test",
+    "test": "ATLAS_TESTING=1 bun test",
     "generate": "bun run tools/generate-css.ts",
     "storybook": "storybook dev --no-open",
     "build-storybook": "storybook build --output-dir storybook-static"

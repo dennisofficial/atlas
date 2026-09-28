@@ -75,6 +75,7 @@ jobs:
         env:
           ATLAS_TEST_SHARDS: '4'
           ATLAS_TEST_SHARD: ${{ matrix.shard }}
+          ATLAS_TESTING: '1'
 
   test-packages:
     runs-on: ubuntu-latest

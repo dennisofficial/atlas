@@ -1,4 +1,4 @@
-import { homedir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { atlasHomeFrom } from '@dltech/atlas-core'
@@ -19,7 +19,11 @@ export function isEmbeddedBuild(): boolean {
 }
 
 export function atlasDirectory(): string {
-  return atlasHomeFrom({ env: process.env, home: homedir() })
+  return atlasHomeFrom({
+    env: process.env,
+    home: homedir(),
+    tempDir: tmpdir(),
+  })
 }
 
 export function atlasTapesDirectory(): string {

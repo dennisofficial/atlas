@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, beforeAll, describe, expect, it } from 'bun:test'
 
-import { EEffort, findCard } from '@dltech/atlas-core'
+import { ATLAS_ALLOW_REAL_HOME_ENV, EEffort, findCard } from '@dltech/atlas-core'
 
 import {
   ClaudeCodeSource,
@@ -130,6 +130,12 @@ afterEach(async () => {
 })
 
 describe.skipIf(!liveRunRequested())('a real turn against Anthropic on the subscription credential', () => {
+  // This spec reads the operator's real subscription credential out of the real Atlas home, so it
+  // opts out of the test-home guard. It is gated behind ATLAS_LIVE_ANTHROPIC and never runs in CI.
+  beforeAll(() => {
+    process.env[ATLAS_ALLOW_REAL_HOME_ENV] = '1'
+  })
+
   it('answers with a real reply', async () => {
     const { harness } = await openLiveHarness()
     const thread = await harness.threads.create({})

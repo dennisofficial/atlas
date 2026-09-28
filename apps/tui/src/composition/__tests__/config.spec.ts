@@ -21,8 +21,8 @@ describe('the launch configuration', () => {
     expect(refKey(DEFAULT_MODEL_REF)).toBe('anthropic/claude-haiku-4-5')
   })
 
-  it('never falls back to the operator atlas home when it was launched from source', () => {
-    expect(atlasDirectory()).toContain('/.atlas-home')
+  it('never falls back to the operator atlas home under a test runner', () => {
+    expect(atlasDirectory()).not.toBe(`${homedir()}/.atlas`)
     expect(atlasDirectory()).not.toContain(`${homedir()}/.atlas/`)
   })
 
