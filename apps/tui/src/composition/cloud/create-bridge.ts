@@ -2,10 +2,12 @@ import type { ThreadId } from '@dltech/atlas-core'
 import {
   createRemoteDeltaChannel,
   DRIVE_HOME_PATH,
+  driveNameFor,
   ECloudSandboxState,
   RemoteEventLog,
   RemoteThreadStore,
   RemoteTurnLedger,
+  SandboxClient,
   sandboxNameFor,
   VercelDriver,
   type LiftedWorkspace,
@@ -85,6 +87,16 @@ export function createCloudBridge(args: {
   /** Receives the driver's provision-timing lines; unset in the TUI, set by the live round-trip spec. */
   onDriverLog?: ((line: string) => void) | undefined
 }): CloudBridge {
+  // The control plane's one remaining job on the lift path: mint the per-thread broker token so
+  // the sandbox can reach the credential broker. The data path (archives, workspace spec,
+  // readiness, teardown) never touches it — that all rides the drive, client-to-Vercel.
+  const brokerClaims = new SandboxClient({
+    url: args.url,
+    token: args.token,
+    clientVersion: args.clientVersion,
+    fetchFn: args.fetchFn ?? fetch,
+  })
+
   const driverWith = (config: VercelSandboxConfig): VercelDriver =>
     new VercelDriver({
       credentials: config.credentials,
@@ -95,12 +107,12 @@ export function createCloudBridge(args: {
     })
 
   /**
-   * Fully client-side: the laptop drives Vercel with the operator's own token, mints the serve
-   * token itself, and writes the bootstrap the sandbox needs onto its drive — the workspace spec,
-   * the context archive, and later the transcript. No control-plane claim, archive upload, or
-   * stamp HEAD; the API's only remaining jobs are the small ones (auth, the registry, the reaper).
-   * A name Vercel has never seen boots fresh (needing the bootstrap written before serve reads it);
-   * one it has resumes a snapshot that already carries it.
+   * Client-to-Vercel first: the laptop drives Vercel with the operator's own token and writes the
+   * bootstrap the sandbox needs onto its drive — the workspace spec, the context archive, and later
+   * the transcript. The one control-plane call is the claim, which mints the per-thread broker
+   * token the sandbox's credential layer authenticates with; credentials live in Neon and are the
+   * API's to broker. A name Vercel has never seen boots fresh (needing the bootstrap written before
+   * serve reads it); one it has resumes a snapshot that already carries it.
    */
   const create = async (
     createArgs: Parameters<CloudSandboxes['create']>[0],
@@ -112,6 +124,12 @@ export function createCloudBridge(args: {
 
     const observed = await driver.inspect({ name })
     const freshBoot = observed === undefined
+    const claim = await brokerClaims.claimSandbox({
+      threadId: createArgs.threadId,
+      gitToken,
+      contextPending: freshBoot,
+      driveName: driveNameFor({ threadId: createArgs.threadId }),
+    })
     const bootstrap = bootstrapSpecOf({
       workspace: createArgs.workspace,
       gitToken,
@@ -122,6 +140,7 @@ export function createCloudBridge(args: {
     const placement = await driver.createOrResume({
       name,
       threadId: createArgs.threadId,
+      token: claim.token,
       ...(args.environment === undefined ? {} : { environment: args.environment() }),
       ...(createArgs.captureContext === undefined
         ? {}
@@ -146,7 +165,7 @@ export function createCloudBridge(args: {
 
     return {
       url: placement.url,
-      token: placement.token,
+      token: claim.token,
       state: placement.state,
       created: placement.created,
       driveName: placement.driveName,
