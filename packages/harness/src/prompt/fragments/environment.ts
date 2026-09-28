@@ -63,11 +63,16 @@ export class ExecutionLocationFragment extends VolatilePromptFragment {
       return [
         'This session runs its tools on the host machine, and it can also run them inside a Docker container sandbox.',
         'Call execution_location with location "docker" to move the whole session, sub-agents included — prefer that before starting dev servers, installing dependencies or running test suites you want kept off the host, and move back with "host" when the work needs the machine itself.',
+        'A preview the operator should open belongs in the sandbox: publish it there with exposePort and hand over the returned *.sandbox.localhost URL, which resolves on the operator’s machine.',
       ].join(' ')
     }
     if (location === EExecutionLocation.Docker) {
       return [
-        'This session runs its tools inside a Docker container sandbox.',
+        'This session runs its tools inside a Docker container sandbox, on its own network.',
+        'localhost is the container, not the operator’s machine — never hand the operator a localhost or container-internal URL, and a curl that works from here proves nothing about what they can open.',
+        'Publish a server through exposePort and hand over the URL it returns, shaped http://<port>.sandbox.localhost:<hostPort>: that name resolves only on the operator’s machine and never resolves inside the container, so do not probe it from here.',
+        'The server must listen on 0.0.0.0 — bound to 127.0.0.1 it is invisible to the proxy.',
+        'Every port subdomain is the same site (sandbox.localhost is a public suffix), so cookies and cross-origin fetch behave exactly as they do on one production domain.',
         'Call execution_location with location "host" to move the whole session back onto the host machine when the work needs it.',
       ].join(' ')
     }

@@ -20,6 +20,29 @@ describe('the execution-location fragment', () => {
     expect(fragment.text()).toContain('"host"')
   })
 
+  it('tells a container session how port publishing reaches the operator', () => {
+    const text = new ExecutionLocationFragment(() => EExecutionLocation.Docker).text()
+
+    expect(text).toContain('sandbox.localhost')
+    expect(text).toContain('operator')
+    expect(text).toContain('0.0.0.0')
+    expect(text).toContain('same site')
+  })
+
+  it('tells a container session its own network proves nothing about the operator’s', () => {
+    const text = new ExecutionLocationFragment(() => EExecutionLocation.Docker).text()
+
+    expect(text).toContain('localhost is the container, not the operator’s machine')
+    expect(text).toContain('never resolves inside the container')
+  })
+
+  it('tells a host session that previews still belong in the docker sandbox', () => {
+    const text = new ExecutionLocationFragment(() => EExecutionLocation.Host).text()
+
+    expect(text).toContain('sandbox.localhost')
+    expect(text).toContain('operator')
+  })
+
   it('tells a cloud session it runs sandboxed and cannot move itself', () => {
     const fragment = new ExecutionLocationFragment(() => EExecutionLocation.Cloud)
 
