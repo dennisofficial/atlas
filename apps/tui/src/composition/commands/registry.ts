@@ -284,7 +284,9 @@ export function localCommands(handlers: LocalCommandHandlers): readonly LocalCom
             name: 'restart',
             summary: 'restart atlas, resuming this conversation',
             group: ECommandGroup.Session,
-            timing: ECommandTiming.Settled,
+            // Immediate: handleRestart itself decides whether a guard is owed (running
+            // tasks locally), so queueing behind a turn only delays the answer.
+            timing: ECommandTiming.Immediate,
             echo: ECommandEcho.Silent,
             dropsQueue: true,
             losesWaiting: true,
