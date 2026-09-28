@@ -419,7 +419,7 @@ describe('createOrResume', () => {
     expect(existing.deleted).toBe(false)
   })
 
-  it('uploads the context archive before booting a sandbox Vercel has never seen', async () => {
+  it('writes the bootstrap onto a fresh sandbox after it exists, before serve launches', async () => {
     const calls: string[] = []
     const { driver } = driverWith({
       get: async () => {
@@ -442,10 +442,10 @@ describe('createOrResume', () => {
       },
     })
 
-    expect(calls).toEqual(['put-context', 'boot'])
+    expect(calls).toEqual(['boot', 'put-context'])
   })
 
-  it('uploads the context archive before re-booting a drift-replaced sandbox', async () => {
+  it('writes the bootstrap onto a drift-replaced sandbox after it exists, before serve launches', async () => {
     const stale = fakeSandbox({ installedStamp: 'source:older-sha' })
     const calls: string[] = []
     const driver = new VercelDriver({
@@ -473,7 +473,7 @@ describe('createOrResume', () => {
     })
 
     expect(stale.deleted).toBe(true)
-    expect(calls).toEqual(['put-context', 'boot'])
+    expect(calls).toEqual(['boot', 'put-context'])
   })
 
   it('re-uploads the context archive when the sandbox resumes, since the local context may have moved on', async () => {
