@@ -18,6 +18,11 @@ const isPlainClick = (args: { event: MouseEvent; origin: { x: number; y: number 
  * Those are the clicks the renderer's own dispatch proves no selection anchor was taken for —
  * plain-clicking a selectable cell means drag-to-select, which must keep winning. Cmd never
  * arrives: the SGR mouse protocol encodes only shift/alt/ctrl.
+ *
+ * This is a designated raw-mouse owner alongside use-press.ts (see press-discipline.spec.ts):
+ * usePress cannot express it, because its release handler fires only per-renderable — a
+ * full-screen overlay renderable defeats OpenTUI's per-renderable link hit-test, since
+ * getLinkAt reads the buffer of the renderable the hit test resolved to.
  */
 export function installLinkClickOpen(args: { renderer: CliRenderer; openUrl: UrlOpener }): void {
   const { renderer, openUrl } = args
