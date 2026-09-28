@@ -43,19 +43,21 @@ export function bashDescription({
     'So never wait on one: no sleeping, no polling, no idle loop, and no do-nothing call to tick the time away - ticking only spins the turn. Move on to other work, or end the turn and be woken.',
     'shell_output reads a shell that will not end on its own, shell_list shows what is running, and shell_kill stops one.',
     'exposePort publishes the port a background server listens on and answers with the URL to hand the operator; it requires runInBackground.',
-    'In a container sandbox any port can be exposed: have the server listen on 0.0.0.0 - 127.0.0.1 is invisible outside the container - and pass the port it listens on; the reply carries the URL to hand the operator.',
+    'In a container sandbox any port can be exposed: have the server listen on 0.0.0.0 - 127.0.0.1 is invisible outside the container - and pass the port it listens on; the reply carries the *.sandbox.localhost URL to hand the operator, a name that resolves on their machine and never inside the container, and the one URL shape you may give them - never a localhost URL from here.',
   ].join(' ')
 }
 
 export function exposureClause({ exposure }: { exposure: PortExposure | undefined }): readonly string[] {
   if (exposure === undefined) return []
   if (exposure.hostPort === exposure.containerPort) {
-    return [`It is reachable at ${exposure.url}.`]
+    return [`It is reachable on the operator’s machine at ${exposure.url}.`]
   }
 
   return [
-    `It is reachable from this machine at ${exposure.url}, where a proxy forwards to port ${exposure.containerPort} in the sandbox -`,
-    'if the server bound 127.0.0.1 instead of 0.0.0.0 the proxy cannot reach it, so rebind before handing the URL over.',
+    `It is reachable on the operator’s machine at ${exposure.url}, where a proxy forwards to port ${exposure.containerPort} in the sandbox.`,
+    `That hostname resolves only on the operator’s machine and never resolves inside the container, so never probe or fetch it from here -`,
+    'and if the server bound 127.0.0.1 instead of 0.0.0.0 the proxy cannot reach it, so rebind before handing the URL over.',
+    'Every port subdomain of sandbox.localhost is the same site, so cookies and cross-origin fetch between them behave as on one production domain.',
   ]
 }
 
