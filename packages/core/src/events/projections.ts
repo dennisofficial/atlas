@@ -120,6 +120,7 @@ const TURN_TAKING: readonly EventType[] = [
   'background-shell-still-running',
   'service-ended',
   'agent-ended',
+  'agent-reported',
 ]
 
 export function awaitsReply(events: readonly Event[]): boolean {

@@ -2,7 +2,20 @@ import type { EventDraft, ThreadId } from '@dltech/atlas-core'
 
 import type { AgentSnapshot } from './snapshot'
 
-export type AgentNotice = { threadId: ThreadId; snapshot: AgentSnapshot; draft: EventDraft }
+export enum EAgentNotice {
+  Ending = 'ending',
+  QuietEnding = 'quiet-ending',
+  Report = 'report',
+}
+
+export type AgentNotice = {
+  threadId: ThreadId
+  snapshot: AgentSnapshot
+  kind: EAgentNotice
+  draft: EventDraft
+}
+
+const wakesThread = (notice: AgentNotice): boolean => notice.kind !== EAgentNotice.QuietEnding
 
 const NOTHING_PENDING: readonly AgentNotice[] = Object.freeze([])
 
@@ -80,6 +93,7 @@ export class AgentNoticeQueue {
 
     const byThread = new Map<ThreadId, AgentSnapshot[]>()
     for (const notice of notices) {
+      if (!wakesThread(notice)) continue
       const held = byThread.get(notice.threadId)
       if (held === undefined) byThread.set(notice.threadId, [notice.snapshot])
       else held.push(notice.snapshot)

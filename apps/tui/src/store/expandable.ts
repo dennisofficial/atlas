@@ -18,6 +18,7 @@ export function isExpandable(entry: TranscriptEntry): boolean {
   }
   if (entry.kind === EEntryKind.ServiceEnded) return entry.output.trimEnd().length > 0
   if (entry.kind === EEntryKind.AgentEnded) return entry.report.trim().length > 0
+  if (entry.kind === EEntryKind.AgentReported) return entry.report.trim().length > 0
   if (entry.kind === EEntryKind.HistoryCompacted) return entry.text.trim().length > 0
   return false
 }

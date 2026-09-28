@@ -207,6 +207,13 @@ export type EventBody =
       via: EAgentRestart
     }
   | {
+      type: 'agent-reported'
+      agentId: ThreadId
+      agentType: string
+      intent: string
+      prose: string
+    }
+  | {
       type: 'history-compacted'
       anchor: ECompactionAnchor
       fromSeq: number

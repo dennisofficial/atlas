@@ -1,8 +1,7 @@
 import type { ClockPort, EventDraft, ThreadId } from '@dltech/atlas-core'
 
-import type { AgentNotice, AgentNoticeQueue } from './notices'
+import { EAgentNotice, type AgentNotice, type AgentNoticeQueue } from './notices'
 import type { AgentRoster } from './roster'
-import type { AgentSnapshot } from './snapshot'
 
 export class NoticeDelivery {
   private readonly notices: AgentNoticeQueue
@@ -16,10 +15,9 @@ export class NoticeDelivery {
   }
 
   drain({ threadId }: { threadId: ThreadId }): readonly EventDraft[] {
-    const handed = this.notices.pending({ threadId })
-    const drafts = this.notices.drain({ threadId })
+    const handed = this.notices.take({ threadId, where: () => true })
     this.stampDelivered(handed)
-    return drafts
+    return handed.map((notice) => notice.draft)
   }
 
   /**
@@ -36,14 +34,13 @@ export class NoticeDelivery {
     return this.notices.take({ threadId, where }).map((notice) => notice.draft)
   }
 
-  private stampDelivered(handed: readonly AgentSnapshot[]): void {
-    if (handed.length === 0) return
-
+  private stampDelivered(handed: readonly AgentNotice[]): void {
     const at = this.clock.now()
     let stamped = false
 
-    for (const snapshot of handed) {
-      const child = this.roster.find(snapshot.agentId)
+    for (const notice of handed) {
+      if (notice.kind === EAgentNotice.Report) continue
+      const child = this.roster.find(notice.snapshot.agentId)
       if (child === undefined || child.deliveredAt !== undefined) continue
       child.deliveredAt = at
       stamped = true

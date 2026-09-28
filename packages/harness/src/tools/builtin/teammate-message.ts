@@ -21,7 +21,7 @@ const description = [
   'Message a teammate: another full session spawned by the same main agent you report to.',
   'Takes the teammate\u2019s agentId. A teammate mid-turn reads your message before its next step; one that has stopped starts running again on it.',
   'This is coordination between peers — share what you learned, hand off a seam, ask what it is seeing. Its lifecycle is not yours: only the main agent spawns or stops a teammate.',
-  'The main agent is not a teammate, so it is never a target here — ending your turn is how you report to it, and your last message is what it reads.',
+  'The main agent is not a teammate, so it is never a target here — report_to_main is how you reach it.',
   'Only teammates of the same main agent can be messaged; anything else is refused and the refusal names your teammates.',
 ].join(' ')
 

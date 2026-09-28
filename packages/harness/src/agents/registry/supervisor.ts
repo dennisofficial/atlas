@@ -43,7 +43,7 @@ import {
   unknownAgent,
   unknownAgentType,
 } from './reasons'
-import { say, sayToPeer } from './say'
+import { reportToParent, say, sayToPeer } from './say'
 import { AgentRoster } from './roster'
 import type { AgentSnapshot, RecoveredAgents } from './snapshot'
 import { stopAllChildren, stopChild } from './stop-all'
@@ -167,6 +167,7 @@ export class AgentSupervisor extends AgentRegistryPort {
       ids: this.ids,
       agentTypes: this.agentTypes,
       roster: this.roster,
+      notices: this.notices,
       steps: this.steps,
       deps: this.deps,
     })
@@ -213,6 +214,20 @@ export class AgentSupervisor extends AgentRegistryPort {
       ids: this.ids,
       agentTypes: this.agentTypes,
       roster: this.roster,
+      notices: this.notices,
+      steps: this.steps,
+      deps: this.deps,
+    })
+  }
+
+  reportToParent(args: { threadId: ThreadId; text: string }): Promise<AgentOutcome> {
+    return reportToParent({
+      ...args,
+      log: this.log,
+      ids: this.ids,
+      agentTypes: this.agentTypes,
+      roster: this.roster,
+      notices: this.notices,
       steps: this.steps,
       deps: this.deps,
     })

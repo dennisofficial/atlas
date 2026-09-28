@@ -24,6 +24,16 @@ const RESTART_VIA: Record<EAgentRestart, string> = {
   [EAgentRestart.Relocation]: 'moved with the conversation',
 }
 
+const DELIBERATE: Record<EAgentRestart, boolean> = {
+  [EAgentRestart.Resume]: true,
+  [EAgentRestart.Message]: true,
+  [EAgentRestart.Wake]: false,
+  [EAgentRestart.Relocation]: true,
+}
+
+export const deliberateRestart = (restart: { via: EAgentRestart }): boolean =>
+  DELIBERATE[restart.via]
+
 export const agentRestartedLine = (restart: AgentRestartRow): string =>
   `Sub-agent ${agentLabel(restart)} ${RESTART_VIA[restart.via]}`
 
@@ -37,6 +47,9 @@ const NEEDS_ATTENTION: Record<EAgentStatus, boolean> = {
 
 export const agentEndedLine = (ending: AgentEndingRow): string =>
   `Sub-agent ${agentLabel(ending)} ${agentEnding(ending)}`
+
+export const agentReportedLine = (report: { agentType: string; intent: string }): string =>
+  `Teammate ${agentLabel(report)} reported`
 
 export const agentEndingFailed = (ending: { status: EAgentStatus }): boolean =>
   NEEDS_ATTENTION[ending.status]

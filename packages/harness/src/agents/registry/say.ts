@@ -11,6 +11,7 @@ import { isTeammateType, type AgentType } from '../types'
 import { isStepping, snapshotOf, type ChildState, type SteerMessage } from './child-state'
 import type { ChildSteps } from './child-steps'
 import { agentTypeNamed, type SupervisorDeps } from './deps'
+import { EAgentNotice, type AgentNoticeQueue } from './notices'
 import type { AgentOutcome } from './port'
 import { NOT_A_TEAMMATE, notYourTeammate, retiredAgentType, unknownAgent } from './reasons'
 import { recordRestart } from './record-restart'
@@ -22,6 +23,7 @@ export type SayChannels = {
   ids: IdPort
   agentTypes: readonly AgentType[]
   roster: AgentRoster
+  notices: AgentNoticeQueue
   steps: ChildSteps
   deps: SupervisorDeps
 }
@@ -129,4 +131,28 @@ export async function sayToPeer(args: SaidArgs & SayChannels): Promise<AgentOutc
   }
 
   return deliver({ args, via: EMessageOrigin.PeerAgent, child: target, known, channels: args })
+}
+
+export async function reportToParent(
+  args: { threadId: ThreadId; text: string } & SayChannels,
+): Promise<AgentOutcome> {
+  const caller = args.roster.find(args.threadId)
+  if (caller === undefined || !isTeammateType(caller.agentType)) {
+    return { ok: false, reason: NOT_A_TEAMMATE }
+  }
+
+  args.notices.queue({
+    threadId: caller.spawnedBy,
+    snapshot: snapshotOf(caller),
+    kind: EAgentNotice.Report,
+    draft: {
+      type: 'agent-reported',
+      agentId: caller.agentId,
+      agentType: caller.agentType,
+      intent: caller.intent,
+      prose: args.text,
+    },
+  })
+
+  return { ok: true, snapshot: snapshotOf(caller) }
 }

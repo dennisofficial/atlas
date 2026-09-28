@@ -187,6 +187,19 @@ function DerivedEntryView(props: {
         />
       )
 
+    case EEntryKind.AgentReported:
+      return (
+        <NoticeBlock
+          text={entry.text}
+          body={entry.report}
+          failed={false}
+          width={props.width}
+          openHint={AGENT_REPORT_HINT}
+          expanded={props.expanded ?? true}
+          {...(onToggle ? { onToggle: () => onToggle(entry.key) } : {})}
+        />
+      )
+
     case EEntryKind.TldrWritten:
       return (
         <TldrBlock
@@ -222,7 +235,6 @@ function DerivedEntryView(props: {
           failed={false}
           width={props.width}
           openHint={AGENT_REPORT_HINT}
-          silentNote={REPORTED_NOTHING}
           expanded={false}
         />
       )

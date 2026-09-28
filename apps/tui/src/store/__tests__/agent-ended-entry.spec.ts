@@ -11,7 +11,12 @@ import {
 
 import { durableEntries } from '../durable-entries'
 import { isExpandable } from '../expandable'
-import { EEntryKind, type AgentEndedEntry, type AgentRestartedEntry } from '../transcript-model'
+import {
+  EEntryKind,
+  type AgentEndedEntry,
+  type AgentReportedEntry,
+  type AgentRestartedEntry,
+} from '../transcript-model'
 import { log } from './fixture'
 
 const REPORT =
@@ -192,9 +197,9 @@ describe('a sub-agent restart in the transcript', () => {
     )
   })
 
-  it('says when a queued notice woke the child', () => {
-    expect(onlyRestartEntry(log([agentRestarted({ via: EAgentRestart.Wake })])).text).toContain(
-      'woken by a queued notice',
+  it('shows no row for a queued notice waking the child, which nobody asked for', () => {
+    expect(durableEntries({ events: log([agentRestarted({ via: EAgentRestart.Wake })]) })).toEqual(
+      [],
     )
   })
 
@@ -209,5 +214,61 @@ describe('a sub-agent restart in the transcript', () => {
 
     expect(entry.agentId).toBe(childId)
     expect(isExpandable(entry)).toBe(false)
+  })
+})
+
+const agentReported = (over: Record<string, unknown> = {}) => ({
+  type: 'agent-reported' as const,
+  agentId: childId,
+  agentType: 'teammate',
+  intent: 'build the admin app',
+  prose: REPORT,
+  ...over,
+})
+
+const onlyReportEntry = (events: readonly Event[]): AgentReportedEntry => {
+  const entry = durableEntries({ events }).find(
+    (candidate): candidate is AgentReportedEntry => candidate.kind === EEntryKind.AgentReported,
+  )
+  if (entry === undefined) throw new Error('no report entry was projected')
+  return entry
+}
+
+describe('a teammate reporting in the transcript', () => {
+  it('is its own entry, distinct from an ending', () => {
+    const entries = durableEntries({ events: log([agentReported()]) })
+
+    expect(entries).toHaveLength(1)
+    expect(entries[0]?.kind).toBe(EEntryKind.AgentReported)
+  })
+
+  it('names the teammate by what it is doing, and calls it a teammate rather than a sub-agent', () => {
+    expect(onlyReportEntry(log([agentReported()])).text).toBe(
+      'Teammate teammate "build the admin app" reported',
+    )
+  })
+
+  it('carries the whole report for the fold and the teammate it came from', () => {
+    const entry = onlyReportEntry(log([agentReported()]))
+
+    expect(entry.report).toBe(REPORT)
+    expect(entry.agentId).toBe(childId)
+    expect(isExpandable(entry)).toBe(true)
+  })
+
+  it('never folds into a message the operator typed beside it', () => {
+    const entries = durableEntries({
+      events: log([
+        { type: 'user-said', text: 'go and check' },
+        agentReported(),
+        { type: 'user-said', text: 'thanks' },
+      ]),
+    })
+
+    expect(entries.map((entry) => entry.kind)).toEqual([
+      EEntryKind.OperatorSaid,
+      EEntryKind.AgentReported,
+      EEntryKind.OperatorSaid,
+    ])
   })
 })

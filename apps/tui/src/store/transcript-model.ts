@@ -20,6 +20,7 @@ export enum EEntryKind {
   BackgroundShellStillRunning = 'background-shell-still-running',
   ServiceEnded = 'service-ended',
   AgentEnded = 'agent-ended',
+  AgentReported = 'agent-reported',
   AgentRestarted = 'agent-restarted',
   TldrWritten = 'tldr-written',
   TurnEnded = 'turn-ended',
@@ -143,6 +144,15 @@ export type AgentEndedEntry = {
   failed: boolean
 }
 
+export type AgentReportedEntry = {
+  kind: EEntryKind.AgentReported
+  author: EAuthor.Model
+  key: string
+  text: string
+  agentId: string
+  report: string
+}
+
 export type AgentRestartedEntry = {
   kind: EEntryKind.AgentRestarted
   author: EAuthor.Model
@@ -201,6 +211,7 @@ export type TranscriptEntry =
   | BackgroundShellStillRunningEntry
   | ServiceEndedEntry
   | AgentEndedEntry
+  | AgentReportedEntry
   | AgentRestartedEntry
   | TldrWrittenEntry
   | TurnEndedEntry
