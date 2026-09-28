@@ -39,6 +39,7 @@ export {
   SERVE_LOG_PATH,
   SERVE_TOKEN_PATH,
   SERVE_VERSION_PATH,
+  toSendId,
   tokenFromSubprotocols,
   turnOutcomeWireSchema,
   wireEventSchema,

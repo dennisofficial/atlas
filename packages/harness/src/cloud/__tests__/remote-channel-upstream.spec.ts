@@ -7,6 +7,17 @@ import { harness, readied } from './remote-channel-fixture'
 const upstreamOf = (sent: readonly ClientFrame[]): ClientFrame[] =>
   sent.filter((frame) => frame.kind !== EClientFrame.Hello)
 
+type SendFrame = Extract<ClientFrame, { kind: EClientFrame.Send }>
+
+const sendIdsOf = (sent: readonly ClientFrame[]): string[] =>
+  sent.flatMap((frame) => (frame.kind === EClientFrame.Send ? [frame.sendId as string] : []))
+
+const lastSendOf = (sent: readonly ClientFrame[]): SendFrame => {
+  const found = [...sent].reverse().find((frame) => frame.kind === EClientFrame.Send)
+  if (found === undefined || found.kind !== EClientFrame.Send) throw new Error('no send was written')
+  return found
+}
+
 describe('sending before the sandbox is ready', () => {
   it('queues the frames and flushes them in order once it is', () => {
     const { channel, open, receive, live } = harness()
@@ -18,10 +29,9 @@ describe('sending before the sandbox is ready', () => {
 
     receive({ kind: EServeFrame.Ready, seq: 1 })
 
-    expect(upstreamOf(live().sent)).toEqual([
-      { kind: EClientFrame.Send, text: 'take a look at the router' },
-      { kind: EClientFrame.Interrupt },
-    ])
+    const flushed = upstreamOf(live().sent)
+    expect(flushed[0]).toMatchObject({ kind: EClientFrame.Send, text: 'take a look at the router' })
+    expect(flushed[1]).toEqual({ kind: EClientFrame.Interrupt })
   })
 
   it('keeps a queued message across a reconnect and sends it on the next ready', () => {
@@ -34,9 +44,9 @@ describe('sending before the sandbox is ready', () => {
     live().handlers.handleOpen()
     receive({ kind: EServeFrame.Ready, seq: 9 })
 
-    expect(upstreamOf(live().sent)).toEqual([
-      { kind: EClientFrame.Send, text: 'still want this' },
-    ])
+    const flushed = upstreamOf(live().sent)
+    expect(flushed).toHaveLength(1)
+    expect(flushed[0]).toMatchObject({ kind: EClientFrame.Send, text: 'still want this' })
   })
 })
 
@@ -47,10 +57,21 @@ describe('sending on a ready socket', () => {
     channel.send({ text: 'hello there' })
     channel.interrupt()
 
-    expect(upstreamOf(live().sent)).toEqual([
-      { kind: EClientFrame.Send, text: 'hello there' },
-      { kind: EClientFrame.Interrupt },
-    ])
+    const sent = upstreamOf(live().sent)
+    expect(sent[0]).toMatchObject({ kind: EClientFrame.Send, text: 'hello there' })
+    expect(sent[1]).toEqual({ kind: EClientFrame.Interrupt })
+  })
+
+  it('stamps every send with its own correlation id', () => {
+    const { channel, live } = readied()
+
+    channel.send({ text: 'one' })
+    channel.send({ text: 'two' })
+
+    const ids = sendIdsOf(live().sent)
+    expect(ids).toHaveLength(2)
+    expect(ids.every((id) => id.length > 0)).toBe(true)
+    expect(new Set(ids).size).toBe(2)
   })
 
   it('answers a liveness ping with a pong', () => {
@@ -59,6 +80,85 @@ describe('sending on a ready socket', () => {
     ping()
 
     expect(upstreamOf(live().sent)).toEqual([{ kind: EClientFrame.Pong }])
+  })
+})
+
+describe('a send the socket may have lost', () => {
+  it('re-drives it on the next ready with the same sendId, since the ack never came', () => {
+    const { channel, drop, retries, receive, live } = readied()
+
+    channel.send({ text: 'committed nowhere yet' })
+    const original = lastSendOf(live().sent)
+    drop()
+
+    retries[0]?.run()
+    live().handlers.handleOpen()
+    receive({ kind: EServeFrame.Ready, seq: 9 })
+
+    const redriven = lastSendOf(live().sent)
+    expect(redriven.sendId).toBe(original.sendId)
+    expect(redriven.text).toBe('committed nowhere yet')
+  })
+
+  it('does not re-drive a send the serve acknowledged', () => {
+    const { channel, drop, retries, receive, live } = readied()
+
+    channel.send({ text: 'committed' })
+    const original = lastSendOf(live().sent)
+    receive({ kind: EServeFrame.SendAcked, sendId: original.sendId })
+    drop()
+
+    retries[0]?.run()
+    live().handlers.handleOpen()
+    receive({ kind: EServeFrame.Ready, seq: 9 })
+
+    expect(sendIdsOf(live().sent)).toEqual([])
+  })
+
+  it('keeps two sends in order across a reconnect', () => {
+    const { channel, drop, retries, receive, live } = readied()
+
+    channel.send({ text: 'first' })
+    channel.send({ text: 'second' })
+    const originals = sendIdsOf(live().sent)
+    drop()
+
+    retries[0]?.run()
+    live().handlers.handleOpen()
+    receive({ kind: EServeFrame.Ready, seq: 9 })
+
+    expect(sendIdsOf(live().sent)).toEqual(originals)
+    const texts = upstreamOf(live().sent).flatMap((frame) =>
+      frame.kind === EClientFrame.Send ? [frame.text] : [],
+    )
+    expect(texts).toEqual(['first', 'second'])
+  })
+
+  it('keeps a re-driven send ahead of frames written after the drop', () => {
+    const { channel, drop, retries, receive, live } = readied()
+
+    channel.send({ text: 'before the drop' })
+    const original = lastSendOf(live().sent)
+    drop()
+    channel.interrupt()
+
+    retries[0]?.run()
+    live().handlers.handleOpen()
+    receive({ kind: EServeFrame.Ready, seq: 9 })
+
+    const flushed = upstreamOf(live().sent)
+    expect(flushed[0]).toMatchObject({ kind: EClientFrame.Send, sendId: original.sendId })
+    expect(flushed[1]).toEqual({ kind: EClientFrame.Interrupt })
+  })
+
+  it('does not re-drive a send once the channel closes on purpose', () => {
+    const { channel, sockets, live } = readied()
+
+    channel.send({ text: 'never landing' })
+    channel.close()
+
+    expect(sockets).toHaveLength(1)
+    expect(sendIdsOf(live().sent)).toHaveLength(1)
   })
 })
 

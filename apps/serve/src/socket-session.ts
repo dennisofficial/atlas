@@ -84,6 +84,9 @@ export function createSessionHandlers(args: {
   const live = new Set<SessionSocket>()
   const attached = new Set<SessionSocket>()
   const aliaser = createStepAliaser()
+  // A send's id lives in memory for the boot: a serve re-answer after a restart re-commits the
+  // message, which the harness's transcript merge absorbs as an already-seen event, never a duplicate.
+  const committedSends = new Set<string>()
 
   const send = (args: { socket: SessionSocket; frame: ServeFrame }): void => {
     args.socket.send(encodeFrame(args.frame))
@@ -160,11 +163,19 @@ export function createSessionHandlers(args: {
         send({ socket, frame: { kind: EServeFrame.Error, message: 'a context draft was not an event body' } })
         return
       }
+      if (committedSends.has(frame.sendId)) {
+        send({ socket, frame: { kind: EServeFrame.SendAcked, sendId: frame.sendId } })
+        return
+      }
       void driver
         .say({
           text: frame.text,
           ...(frame.images === undefined ? {} : { images: frame.images }),
           ...(context === undefined ? {} : { context }),
+        })
+        .then(() => {
+          committedSends.add(frame.sendId)
+          send({ socket, frame: { kind: EServeFrame.SendAcked, sendId: frame.sendId } })
         })
         .catch((error: unknown) => {
           const message = messageOf(error, 'the message was not accepted')

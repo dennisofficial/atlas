@@ -19,15 +19,10 @@ import {
 } from '../channel-wire'
 
 describe('the send frame', () => {
-  it('round-trips a bare text message unchanged', () => {
-    const frame: ClientFrame = { kind: EClientFrame.Send, text: 'hello' }
-
-    expect(decodeClientFrame(encodeFrame(frame))).toEqual(frame)
-  })
-
   it('round-trips images and context drafts, so a steered message lands as a local one would', () => {
     const frame: ClientFrame = {
       kind: EClientFrame.Send,
+      sendId: 'send-2' as never,
       text: 'look at this',
       images: [
         { path: '/tmp/shot.png', mediaType: 'image/png', data: 'aGVsbG8=', width: 560, height: 280 },
@@ -48,19 +43,13 @@ describe('the send frame', () => {
 
     expect(decodeClientFrame(encodeFrame(frame))).toEqual(frame)
   })
+})
 
-  it('carries context drafts opaquely; the serve validates them against eventBodySchema at the seam', () => {
-    const raw = JSON.stringify({
-      kind: EClientFrame.Send,
-      text: 'go',
-      context: [{ type: 'context-loaded', slot: 'skill' }],
-    })
+describe('the send ack', () => {
+  it('decodes the sendId the serve committed', () => {
+    const raw = JSON.stringify({ kind: EServeFrame.SendAcked, sendId: 'send-1' })
 
-    expect(decodeClientFrame(raw)).toEqual({
-      kind: EClientFrame.Send,
-      text: 'go',
-      context: [{ type: 'context-loaded', slot: 'skill' }],
-    })
+    expect(decodeServeFrame(raw)).toEqual({ kind: EServeFrame.SendAcked, sendId: 'send-1' as never })
   })
 })
 
@@ -116,7 +105,7 @@ describe('the roster frame', () => {
     if (decoded?.kind !== EServeFrame.Roster) return
     expect(decoded.roster.shells[0]?.shellId as string).toBe('bash_1')
     expect(decoded.roster.agents[0]?.agentId as string).toBe('child-explore')
-    expect(decoded.roster.services[0]?.serviceId).toBe('svc_1')
+    expect(decoded.roster.services[0]?.serviceId as string).toBe('svc_1')
   })
 
   it('drops a frame whose roster is not the wire shape', () => {

@@ -86,7 +86,7 @@ describe('pausing the whole family on a descend', () => {
     const client = await connect({ port: handle.port, token: TOKEN })
     client.send(hello())
     await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
-    client.send({ kind: EClientFrame.Send, text: 'go' })
+    client.send({ kind: EClientFrame.Send, sendId: 'send-go' as never, text: 'go' })
     await Bun.sleep(10)
     order.push('parent-pause-request')
 
@@ -109,7 +109,7 @@ describe('pausing the whole family on a descend', () => {
     const client = await connect({ port: handle.port, token: TOKEN })
     client.send(hello())
     await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
-    client.send({ kind: EClientFrame.Send, text: 'go' })
+    client.send({ kind: EClientFrame.Send, sendId: 'send-go' as never, text: 'go' })
     await Bun.sleep(10)
 
     client.send({ kind: EClientFrame.Pause })
@@ -144,7 +144,7 @@ describe('pausing the whole family on a descend', () => {
     const client = await connect({ port: handle.port, token: TOKEN })
     client.send(hello())
     await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
-    client.send({ kind: EClientFrame.Send, text: 'go' })
+    client.send({ kind: EClientFrame.Send, sendId: 'send-go' as never, text: 'go' })
     await Bun.sleep(10)
 
     client.send({ kind: EClientFrame.Pause })
@@ -165,7 +165,7 @@ describe('pausing the whole family on a descend', () => {
     const client = await connect({ port: handle.port, token: TOKEN })
     client.send(hello())
     await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
-    client.send({ kind: EClientFrame.Send, text: 'go' })
+    client.send({ kind: EClientFrame.Send, sendId: 'send-go' as never, text: 'go' })
     await Bun.sleep(10)
     client.send({ kind: EClientFrame.Pause })
 

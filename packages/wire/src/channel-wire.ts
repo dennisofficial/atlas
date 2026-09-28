@@ -12,7 +12,7 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
  * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
  */
-export const CHANNEL_PROTOCOL_VERSION = 6
+export const CHANNEL_PROTOCOL_VERSION = 7
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
@@ -35,6 +35,7 @@ export enum EServeFrame {
   Parked = 'parked',
   TurnEnded = 'turn-ended',
   InterruptAcked = 'interrupt-acked',
+  SendAcked = 'send-acked',
   Roster = 'roster',
   Error = 'error',
 }
@@ -91,6 +92,12 @@ export enum ETurnStatus {
 const runIdWireSchema = z.string().min(1).brand<'RunId'>()
 const callIdWireSchema = z.string().min(1).brand<'CallId'>()
 const threadIdWireSchema = z.string().min(1).brand<'ThreadId'>()
+const sendIdWireSchema = z.string().min(1).brand<'SendId'>()
+
+export type SendId = z.infer<typeof sendIdWireSchema>
+
+/** The client assigns each send a correlation id so a re-driven frame is recognized, not re-committed. */
+export const toSendId = (value: string): SendId => sendIdWireSchema.parse(value)
 
 const seqSchema = z.number().int().nonnegative()
 
@@ -191,6 +198,7 @@ export const serveFrameSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal(EServeFrame.Parked), reason: z.string() }),
   z.object({ kind: z.literal(EServeFrame.TurnEnded), outcome: turnOutcomeWireSchema }),
   z.object({ kind: z.literal(EServeFrame.InterruptAcked), seq: seqSchema }),
+  z.object({ kind: z.literal(EServeFrame.SendAcked), sendId: sendIdWireSchema }),
   z.object({ kind: z.literal(EServeFrame.Roster), roster: rosterWireSchema }),
   z.object({ kind: z.literal(EServeFrame.Error), message: z.string() }),
 ])
@@ -207,6 +215,7 @@ export const clientFrameSchema = z.discriminatedUnion('kind', [
   }),
   z.object({
     kind: z.literal(EClientFrame.Send),
+    sendId: sendIdWireSchema,
     text: z.string(),
     images: z.array(saidImageWireSchema).readonly().optional(),
     context: z.array(z.unknown()).readonly().optional(),

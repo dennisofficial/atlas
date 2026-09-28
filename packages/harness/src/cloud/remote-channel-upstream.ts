@@ -52,10 +52,13 @@ const SAFE_TO_REDRIVE: ReadonlySet<EClientRequest> = new Set([
   EClientRequest.ReadSessionArchive,
 ])
 
+type SendFrame = Extract<ClientFrame, { kind: EClientFrame.Send }>
+
 export type UpstreamPipe = {
   send(frame: ClientFrame): void
   request(args: { op: EClientRequest; params: unknown }): Promise<unknown>
   settleReply(args: { replyTo: string; ok: boolean; data: unknown }): void
+  ackSend(args: { sendId: SendFrame['sendId'] }): void
   attach(args: { write: (data: string) => boolean }): void
   detach(args: { reason: string }): void
   abandon(args: { reason: string }): void
@@ -74,6 +77,7 @@ export function createUpstreamPipe(args: {
   const waiting = new Map<string, Waiting>()
   const queued: ClientFrame[] = []
   const redrivable = new Map<string, Extract<ClientFrame, { kind: EClientFrame.Request }>>()
+  const pendingAcks = new Map<SendFrame['sendId'], SendFrame>()
   let write: ((data: string) => boolean) | null = null
   let issued = 0
 
@@ -92,7 +96,10 @@ export function createUpstreamPipe(args: {
   }
 
   return {
-    send: emit,
+    send(frame) {
+      if (frame.kind === EClientFrame.Send) pendingAcks.set(frame.sendId, frame)
+      emit(frame)
+    },
 
     request({ op, params }) {
       issued += 1
@@ -122,9 +129,14 @@ export function createUpstreamPipe(args: {
       else claimed.reject(new RemoteRequestFailed({ op: claimed.op, data }))
     },
 
+    ackSend({ sendId }) {
+      pendingAcks.delete(sendId)
+    },
+
     abandon({ reason }) {
       write = null
       redrivable.clear()
+      pendingAcks.clear()
       queued.splice(0, queued.length)
 
       for (const [id, claimed] of [...waiting]) {
@@ -157,6 +169,14 @@ export function createUpstreamPipe(args: {
       const unsent = new Set(queued.flatMap((frame) => (frame.kind === EClientFrame.Request ? [frame.id] : [])))
       for (const [id, frame] of [...redrivable]) {
         if (unsent.has(id) || !waiting.has(id)) continue
+        queued.push(frame)
+      }
+
+      // A socket that took the bytes locally can still drop the frame before serve commits it, so a
+      // send is re-driven until the ack lands — serve dedupes the sendId of one that did commit.
+      const unacked = new Set(queued.flatMap((frame) => (frame.kind === EClientFrame.Send ? [frame.sendId] : [])))
+      for (const [sendId, frame] of [...pendingAcks]) {
+        if (unacked.has(sendId)) continue
         queued.push(frame)
       }
     },
