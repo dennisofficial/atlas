@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
-import type { LinkedPullRequest } from '@dltech/atlas-core'
+import type { LinkedPullRequest, PullRequestState } from '@dltech/atlas-core'
 import {
   checkoutKey,
+  EChecksState,
   EPullRequestLookup,
   probeCheckout,
   pullRequestBadge,
   pullRequestEntries,
+  type PullRequest,
   type PullRequestBadge,
   type PullRequestEntry,
+  type PullRequestReading,
   type PullRequestService,
   type RepositoryCheckout,
 } from '@dltech/atlas-harness'
@@ -46,6 +49,45 @@ const foundPullRequest = (entry: PullRequestEntry) =>
   entry.reading !== null && entry.reading.lookup === EPullRequestLookup.Found
     ? entry.reading.pullRequest
     : null
+
+const checksOf = (state: PullRequestState): PullRequest['checks'] => {
+  if (state.checksFailed > 0) return EChecksState.Failing
+  if (state.checksRunning > 0) return EChecksState.Running
+  if (state.checksPassed > 0) return EChecksState.Passing
+  return EChecksState.None
+}
+
+/**
+ * The session log's last-known state for one PR, as a reading the tile can render before the
+ * live source (gh poll or SSE) has answered. The live answer always wins — this only fills the
+ * gap where the service still has nothing `Found` to show.
+ */
+const recordedReading = (
+  recorded: readonly PullRequestState[],
+  key: string,
+): PullRequestReading | null => {
+  const state = recorded.find((entry) => `${entry.repo}#${entry.number}` === key)
+  if (state === undefined) return null
+
+  return {
+    lookup: EPullRequestLookup.Found,
+    pullRequest: {
+      number: state.number,
+      title: '',
+      url: state.url,
+      state: state.state,
+      checks: checksOf(state),
+      tally: { running: state.checksRunning, passed: state.checksPassed, failed: state.checksFailed },
+    },
+  }
+}
+
+const withRecordedFallback = (
+  live: PullRequestReading,
+  recorded: readonly PullRequestState[],
+  key: string,
+): PullRequestReading =>
+  live.lookup === EPullRequestLookup.Found ? live : (recordedReading(recorded, key) ?? live)
 
 const rowOf = (args: {
   entry: PullRequestEntry
@@ -87,11 +129,12 @@ export function usePullRequest(args: {
   projectDirectory: string
   working: boolean
   linked: readonly LinkedPullRequest[]
+  recorded?: readonly PullRequestState[]
   cloud: RepositoryCheckout | null
   onOpen: (url: string) => void
   probe?: CheckoutProbe
 }): PullRequestControl {
-  const { service, projectDirectory, working, linked, cloud, onOpen } = args
+  const { service, projectDirectory, working, linked, recorded = [], cloud, onOpen } = args
   const askGit = args.probe ?? probeCheckout
   const [checkout, setCheckout] = useState<RepositoryCheckout | null>(null)
 
@@ -146,13 +189,16 @@ export function usePullRequest(args: {
   }, [probe, working])
 
   const entries = useMemo(() => {
-    const reading = checkout === null ? null : service.snapshot({ key: checkoutKey(checkout) })
+    const reading =
+      checkout === null
+        ? null
+        : withRecordedFallback(service.snapshot({ key: checkoutKey(checkout) }), recorded, checkoutKey(checkout))
     return pullRequestEntries({
       linked,
-      read: (key) => service.snapshot({ key }),
+      read: (key) => withRecordedFallback(service.snapshot({ key }), recorded, key),
       current: checkout === null || reading === null ? null : { checkout, reading },
     })
-  }, [checkout, linked, service, version])
+  }, [checkout, linked, recorded, service, version])
 
   const anyRunning = entries.some((entry) => {
     const pullRequest = foundPullRequest(entry)

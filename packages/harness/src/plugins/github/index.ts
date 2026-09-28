@@ -18,6 +18,7 @@ import { createPullRequestService, type PullRequestService } from './pull-reques
 import { createPullRequestTransitions } from './pr-transitions'
 import { PullRequestPort, type PullRequestReading } from './pure'
 import { createSessionFacts } from './session'
+import { createPullRequestStateProjection } from './state-projection'
 import { createCheckoutTracking } from './tracking'
 import { GithubUiBridgePort } from './ui-bridge'
 
@@ -75,6 +76,7 @@ export default class GithubPlugin extends NativePlugin {
     service = createPullRequestService({ pullRequests: adapter })
     const facts = createSessionFacts({ launchDirectory: this.args.launchDirectory })
     const links = createPullRequestLinks({ service })
+    const states = createPullRequestStateProjection()
     const cloudCheckout = createCloudCheckout()
     const tracking = createCheckoutTracking({ service, facts })
     const afterTool = new RefreshPullRequestAfterToolHook({ pullRequests: service })
@@ -154,9 +156,12 @@ export default class GithubPlugin extends NativePlugin {
       ],
       ports: [
         { token: PullRequestPort, use: adapter },
-        { token: GithubUiBridgePort, use: { service, facts, links: links.projection, cloudCheckout } },
+        {
+          token: GithubUiBridgePort,
+          use: { service, facts, links: links.projection, states, cloudCheckout },
+        },
       ],
-      projections: [links.projection, cloudCheckout],
+      projections: [links.projection, states, cloudCheckout],
       dispose: () => {
         if (adapter instanceof SsePullRequestPort) adapter.dispose()
         service.dispose()

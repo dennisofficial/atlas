@@ -1,6 +1,6 @@
 import { useMemo, useSyncExternalStore } from 'react'
 
-import type { LinkedPullRequest } from '@dltech/atlas-core'
+import type { LinkedPullRequest, PullRequestState } from '@dltech/atlas-core'
 import type {
   PluginProjection,
   PullRequestService,
@@ -45,16 +45,18 @@ export const pullRequestSurface = (args: {
   service: PullRequestService
   facts: SessionFacts
   links: PluginProjection<readonly LinkedPullRequest[]>
+  states: PluginProjection<readonly PullRequestState[]>
   cloudCheckout: PluginProjection<RepositoryCheckout | null>
   openUrl: UrlOpener
 }): ContributedSurface => {
-  const { service, facts, links, cloudCheckout, openUrl } = args
+  const { service, facts, links, states, cloudCheckout, openUrl } = args
 
   return {
     pluginId: 'github',
     use: (): PluginSurface => {
       useSyncExternalStore(facts.subscribe, facts.version)
       useSyncExternalStore(links.subscribe, links.version)
+      useSyncExternalStore(states.subscribe, states.version)
       useSyncExternalStore(cloudCheckout.subscribe, cloudCheckout.version)
 
       const linked = links.current()
@@ -63,6 +65,7 @@ export const pullRequestSurface = (args: {
         projectDirectory: facts.directory(),
         working: facts.working(),
         linked,
+        recorded: states.current(),
         cloud: cloudCheckout.current(),
         onOpen: openUrl,
       })
