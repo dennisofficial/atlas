@@ -7,6 +7,7 @@ import {
   EventLogPort,
   ExecutionLocationSinkPort,
   IdPort,
+  LogPort,
   ModelPort,
   NoopExecutionLocationSink,
   NoticePort,
@@ -47,6 +48,7 @@ import { registerServices } from '../services/register-services'
 import { registerShells } from '../shells/register-shells'
 import { registerSkills } from '../skills/register-skills'
 import { ThreadStorePort, RandomIds, SystemClock } from '../store'
+import { JsonlLog } from '../store/logs'
 import { atlasDirectory } from '../store/paths'
 import { JsonlEventLog } from '../store/sessions/event-log'
 import { registryFor } from '../store/sessions/registry'
@@ -148,6 +150,16 @@ export function createHarnessContainer(): DependencyContainer {
   harness.register(portToken(TurnLedgerPort), {
     useFactory: (resolver) =>
       new JsonlTurnLedger({ home, registry: resolver.resolve(SessionRegistryToken) }),
+  })
+  harness.register(portToken(LogPort), {
+    useFactory: instanceCachingFactory(
+      (resolver) =>
+        new JsonlLog({
+          home,
+          registry: resolver.resolve(SessionRegistryToken),
+          clock: resolver.resolve(portToken(ClockPort)),
+        }),
+    ),
   })
   harness.register(portToken(ThreadStorePort), {
     useFactory: (resolver) =>
@@ -276,6 +288,7 @@ export function createHarnessContainer(): DependencyContainer {
       new HookedToolDispatcher({
         registry: resolver.resolve(portToken(ToolRegistry)),
         hooks: resolver.resolve(HookChainToken),
+        logPort: resolver.resolve(portToken(LogPort)),
       }),
   })
 

@@ -146,6 +146,7 @@ export function buildChildRunner({
       dispatch: new HookedToolDispatcher({
         registry,
         hooks: deps.hooks,
+        logPort: turn.logPort,
       }),
       assembly: deps.assemblyFor({ agentType, projectDirectory }),
       drainPending: async (args) => [...steerDrafts(steering()), ...(await deps.drainNotices(args))],

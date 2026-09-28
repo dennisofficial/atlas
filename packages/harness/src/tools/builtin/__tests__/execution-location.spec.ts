@@ -3,10 +3,13 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import {
   EExecutionLocation,
   EKilledBy,
+  ELogSeverity,
   EServiceStatus,
   EShellStatus,
   EStopAction,
+  LogPort,
   toThreadId,
+  type LogEntry,
   type ThreadId,
 } from '@dltech/atlas-core'
 
@@ -126,12 +129,21 @@ afterEach(async () => {
   for (const fixture of fixtures.splice(0)) await fixture.close()
 })
 
+class CapturingLog extends LogPort {
+  readonly entries: LogEntry[] = []
+
+  record(entry: LogEntry): void {
+    this.entries.push(entry)
+  }
+}
+
 const open = async (args: {
   control: ExecutionLocationControl
   engine?: Pick<DockerEngine, 'info'>
   agents?: UnstaffedAgents
   services?: FakeServices
   shells?: FakeShells
+  logPort?: CapturingLog
 }): Promise<{ tool: ExecutionLocationTool; fixture: StoreFixture }> => {
   const fixture = await openStoreFixture()
   fixtures.push(fixture)
@@ -146,6 +158,7 @@ const open = async (args: {
       log: fixture.log,
       agents: args.agents ?? new FakeAgents(),
     }),
+    ...(args.logPort === undefined ? {} : { logPort: args.logPort }),
   })
   return { tool, fixture }
 }
@@ -279,6 +292,57 @@ describe('execution_location', () => {
     expect(control.state.of(threadId)).toBe(EExecutionLocation.Host)
     const stored = await fixture.threads.find({ threadId })
     expect(stored?.executionLocation).toBe(EExecutionLocation.Host)
+  })
+
+  it('logs a failed move to the durable log with the rollback outcome', async () => {
+    const control = controlOver({ initial: EExecutionLocation.Host })
+    class FailingAgents extends UnstaffedAgents {
+      override relocateChildren(): Promise<readonly ThreadId[]> {
+        return Promise.reject(new Error('child would not move'))
+      }
+    }
+    const logPort = new CapturingLog()
+    const { tool, fixture } = await open({ control, agents: new FailingAgents(), logPort })
+    const threadId = (await fixture.threads.create({})).id
+
+    const outcome = await call(tool, { threadId, location: 'docker' })
+
+    expect(outcome.ok).toBe(false)
+    expect(logPort.entries).toHaveLength(1)
+    const entry = logPort.entries[0]
+    expect(entry?.severity).toBe(ELogSeverity.Error)
+    expect(entry?.source).toBe('execution-location')
+    expect(entry?.threadId).toBe(threadId)
+    expect(entry?.data).toEqual({ from: EExecutionLocation.Host, to: EExecutionLocation.Docker, rollbackOk: true })
+    expect(entry?.error).toBe('child would not move')
+    expect(entry?.stack).toContain('child would not move')
+  })
+
+  it('reports the double failure when the rollback write fails too', async () => {
+    const control = controlOver({ initial: EExecutionLocation.Host })
+    class FailingAgents extends UnstaffedAgents {
+      override relocateChildren(): Promise<readonly ThreadId[]> {
+        return Promise.reject(new Error('child would not move'))
+      }
+    }
+    const logPort = new CapturingLog()
+    const { tool, fixture } = await open({ control, agents: new FailingAgents(), logPort })
+    const threadId = (await fixture.threads.create({})).id
+    const choose = fixture.threads.chooseExecutionLocation.bind(fixture.threads)
+    let calls = 0
+    fixture.threads.chooseExecutionLocation = (async (args: Parameters<typeof choose>[0]) => {
+      calls += 1
+      if (calls === 2) throw new Error('store went read-only')
+      return choose(args)
+    }) as typeof choose
+
+    const outcome = await call(tool, { threadId, location: 'docker' })
+
+    expect(outcome.ok).toBe(false)
+    const entry = logPort.entries[0]
+    expect(entry?.data?.['rollbackOk']).toBe(false)
+    expect(entry?.error).toBe('store went read-only')
+    expect(entry?.message).toContain('rolling the thread row back')
   })
 
   it('moves the family root when a sub-agent calls it', async () => {

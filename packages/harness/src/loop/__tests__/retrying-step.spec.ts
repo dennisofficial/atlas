@@ -51,10 +51,13 @@ class ScriptedModel extends ModelPort {
   }
 }
 
+type RetryLogEntry = { attempt: number; maxAttempts: number; reason: string; willRetry: boolean; error: unknown }
+
 function harness(args: { outcomes: readonly ('fail' | 'ok')[]; policy?: RetryPolicy }) {
   const model = new ScriptedModel(args.outcomes)
   const notices: RetryNotice[] = []
   const slept: number[] = []
+  const logged: RetryLogEntry[] = []
   const controller = new AbortController()
 
   const run = () =>
@@ -69,10 +72,11 @@ function harness(args: { outcomes: readonly ('fail' | 'ok')[]; policy?: RetryPol
         onWaiting: (notice) => notices.push(notice),
         sleep: async ({ ms }) => void slept.push(ms),
         jitter: () => 1,
+        log: (entry) => logged.push(entry),
       },
     })
 
-  return { model, notices, slept, controller, run }
+  return { model, notices, slept, logged, controller, run }
 }
 
 describe('retrying a model step that failed for a reason worth retrying', () => {
@@ -110,6 +114,17 @@ describe('retrying a model step that failed for a reason worth retrying', () => 
 
     expect(stepped.ok).toBe(false)
     expect(model.steps).toBe(POLICY.maxAttempts)
+  })
+
+  it('logs each retry as will-retry and the give-up as not-retrying', async () => {
+    const { logged, run } = harness({ outcomes: ['fail', 'fail', 'fail', 'fail', 'fail'] })
+
+    await run()
+
+    expect(logged).toHaveLength(POLICY.maxAttempts)
+    expect(logged.slice(0, -1).every((entry) => entry.willRetry)).toBe(true)
+    expect(logged.at(-1)?.willRetry).toBe(false)
+    expect(logged[0]).toMatchObject({ attempt: 1, maxAttempts: POLICY.maxAttempts })
   })
 
   it('tells the operator which attempt is being waited on, and why', async () => {
