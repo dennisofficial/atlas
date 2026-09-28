@@ -9,6 +9,7 @@ import {
   TAKES_NO_PATHS,
   type EventLogPort,
   type IdPort,
+  type LogPort,
   type ThreadId,
   type ToolOutcome,
   type ToolRun,
@@ -20,6 +21,7 @@ import type { ExecutionLocationControl } from '../../composition/execution-locat
 import type { DockerEngine } from '../../execution/docker/engine'
 import type { ServiceRegistryPort } from '../../services/service-registry'
 import { KILL_SETTLE_MS, type ShellRegistryPort } from '../../shells/shell-registry'
+import { logFieldsOf } from '../../store/logs'
 import { relocateSession, type RelocatedSession } from '../../store/relocate-session'
 import type { ThreadStorePort } from '../../store/thread-store'
 
@@ -55,6 +57,7 @@ export class ExecutionLocationTool extends SchemaTool<typeof inputSchema> {
       shells: ShellRegistryPort
       /** The store-backed ports, resolved at call time: building the registry must not open a database. */
       stores: () => { threads: ThreadStorePort; log: EventLogPort; agents: AgentRegistryPort }
+      logPort?: LogPort | undefined
     },
   ) {
     super()
@@ -129,9 +132,17 @@ export class ExecutionLocationTool extends SchemaTool<typeof inputSchema> {
     } catch (error) {
       control.state.set(from)
       control.state.note({ threadId: root, location: from })
-      await stores.threads
+      const rollbackError = await stores.threads
         .chooseExecutionLocation({ threadId: root, location: from })
-        .catch(() => undefined)
+        .then(() => undefined)
+        .catch((rollbackCause: unknown) => rollbackCause)
+      this.deps.logPort?.error({
+        source: 'execution-location',
+        message: `the move to ${target} failed (${messageOf(error)})${rollbackError === undefined ? '' : ` — and rolling the thread row back to ${from} failed too`}`,
+        threadId: root,
+        data: { from, to: target, rollbackOk: rollbackError === undefined },
+        ...logFieldsOf({ error: rollbackError ?? error }),
+      })
       return {
         ok: false,
         reason: `the move to ${target} failed (${messageOf(error)}) — the session is back on ${from}`,

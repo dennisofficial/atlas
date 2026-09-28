@@ -3,10 +3,12 @@ import {
   EExecutionLocation,
   type EventLogPort,
   type IdPort,
+  type LogPort,
   type ThreadId,
 } from '@dltech/atlas-core'
 
 import type { AgentRegistryPort } from '../../agents/registry/port'
+import { logFieldsOf } from '../../store/logs'
 import type { ThreadStorePort } from '../../store/thread-store'
 
 export type LiftAgentsPort = Pick<
@@ -20,6 +22,7 @@ type FlipArgs = {
   agents: LiftAgentsPort
   localThreads: ThreadStorePort
   localLog: EventLogPort
+  logPort?: LogPort | undefined
 }
 
 /**
@@ -59,7 +62,15 @@ export async function flipChildrenToCloud(args: FlipArgs): Promise<void> {
           },
         ],
       })
-      .catch(() => undefined)
+      .catch((error: unknown) => {
+        args.logPort?.warn({
+          source: 'cloud.lift',
+          message: "a child's location-changed notice never reached its local log",
+          threadId: args.threadId,
+          data: { childId: child.agentId, operation: 'append-child-location-changed' },
+          ...logFieldsOf({ error }),
+        })
+      })
   }
 }
 

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
+import { ELogSeverity, toThreadId } from '@dltech/atlas-core'
+
 import { runRelocation, type RelocationPlan } from '../dag'
+import { CapturingLog } from './fake-log'
 
 type Trace = { started: string[]; finished: string[] }
 
@@ -244,5 +247,53 @@ describe('runRelocation', () => {
 
     await expect(runRelocation({ plan, ctx: t })).rejects.toThrow(/cycle/)
     expect(t.started).toEqual([])
+  })
+
+  it('records a failed node to the durable log with the stack the report drops', async () => {
+    const t = trace()
+    const cause = new Error('attach failed')
+    const log = new CapturingLog()
+    const plan: RelocationPlan<Trace> = [
+      { id: 'commit', needs: [], commit: true, run: async () => {} },
+      node({
+        id: 'after',
+        needs: ['commit'],
+        run: async () => {
+          throw cause
+        },
+      }),
+    ]
+
+    const result = await runRelocation({
+      plan,
+      ctx: t,
+      log: { port: log, source: 'cloud.relocation', threadId: toThreadId('thread-1') },
+    })
+
+    expect(result).toEqual({ ok: false, phase: 'committed', failed: 'after', error: cause })
+    expect(log.entries).toHaveLength(1)
+    const entry = log.entries[0]
+    expect(entry?.severity).toBe(ELogSeverity.Error)
+    expect(entry?.source).toBe('cloud.relocation')
+    expect(entry?.threadId).toBe(toThreadId('thread-1'))
+    expect(entry?.data).toEqual({ nodeId: 'after', phase: 'committed' })
+    expect(entry?.error).toBe('attach failed')
+    expect(entry?.stack).toContain('attach failed')
+  })
+
+  it('stays silent when no log is handed in', async () => {
+    const t = trace()
+    const plan: RelocationPlan<Trace> = [
+      node({
+        id: 'broken',
+        run: async () => {
+          throw new Error('archive exploded')
+        },
+      }),
+    ]
+
+    const result = await runRelocation({ plan, ctx: t })
+
+    expect(result.ok).toBe(false)
   })
 })

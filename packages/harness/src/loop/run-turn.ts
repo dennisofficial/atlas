@@ -34,6 +34,7 @@ import {
   type EventLogPort,
   type SaidImage,
   type IdPort,
+  type LogPort,
   type ModelPort,
   type ModelToolCall,
   type RuleContext,
@@ -41,6 +42,7 @@ import {
   type ToolDeclaration,
 } from '@dltech/atlas-core'
 
+import { logFieldsOf } from '../store/logs'
 import type { HookChain } from '../hooks/registry'
 import type { ApplyLoopCut } from '../store/sessions/ops/cut-loop'
 import type { ToolDispatcher } from '../tools/dispatch'
@@ -59,6 +61,7 @@ import { TurnRunner } from './turn-runner.port'
 
 export type TurnDeps = {
   log: EventLogPort
+  logPort?: LogPort | undefined
   model: ModelPort
   ids: IdPort
   assembly: AssemblyPipeline
@@ -110,6 +113,7 @@ export class LoopTurnRunner extends TurnRunner {
   private readonly autoCompactAtPercent: () => number
   private readonly launchDirectory: string
   private readonly retry: RetryDeps | undefined
+  private readonly logPort: LogPort | undefined
 
   constructor(deps: TurnDeps) {
     super()
@@ -135,6 +139,7 @@ export class LoopTurnRunner extends TurnRunner {
     this.autoCompactAtPercent = deps.autoCompactAtPercent ?? (() => AUTO_COMPACT_OFF)
     this.launchDirectory = deps.launchDirectory ?? process.cwd()
     this.retry = deps.retry
+    this.logPort = deps.logPort
     this.settlePending =
       deps.dispatch === undefined
         ? undefined
@@ -223,6 +228,26 @@ export class LoopTurnRunner extends TurnRunner {
       return outcome
     } finally {
       await spend.settle({ threadId, runId, status })
+    }
+  }
+
+  private retryFor({ threadId }: { threadId: ThreadId }): RetryDeps | undefined {
+    if (this.logPort === undefined) return this.retry
+    const base = this.retry
+    const logPort = this.logPort
+    return {
+      ...base,
+      log: ({ attempt, maxAttempts, reason, willRetry, error }) => {
+        logPort.warn({
+          source: 'loop.retry',
+          message: willRetry
+            ? `model step failed (attempt ${attempt}/${maxAttempts}, ${reason}) — retrying`
+            : `model step failed (attempt ${attempt}/${maxAttempts}, ${reason}) — not retrying`,
+          threadId,
+          data: { attempt, maxAttempts, reason, willRetry },
+          ...logFieldsOf({ error }),
+        })
+      },
     }
   }
 
@@ -450,7 +475,7 @@ export class LoopTurnRunner extends TurnRunner {
         onChunk: this.onChunk,
         assembled,
         signal: abortSignal,
-        retry: this.retry,
+        retry: this.retryFor({ threadId }),
       })
 
       modelSteps += 1

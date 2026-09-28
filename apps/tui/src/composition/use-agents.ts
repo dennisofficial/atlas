@@ -39,7 +39,7 @@ import {
 import { NO_VISITS, lastVisitOf, recordDeparture, type CrewVisits } from '../store/crew-visits'
 import { withCrew, type SidebarModel } from '../store/sidebar-model'
 import {
-  isSubagentRunning,
+  isSubagentAlive,
   subagentRows,
   subagentShowsElapsed,
   subagentWentWrong,
@@ -203,7 +203,7 @@ export function useAgents({
         hiddenFailed: folded.hiddenFailed,
         hiddenTeammates,
       },
-      running: subagents.filter(isSubagentRunning).length,
+      running: subagents.filter(isSubagentAlive).length,
       count: subagents.length,
     }
   }, [app.models, everywhere, members, now, own, surfaces, viewing])

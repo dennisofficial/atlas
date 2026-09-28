@@ -17,6 +17,7 @@ import {
   DecisionPort,
   EventLogPort,
   IdPort,
+  LogPort,
   ModelPort,
   rangeValueOf,
   type CapabilitiesSource,
@@ -121,6 +122,7 @@ export function wireTurn<Command>(args: {
   container.register(DeltaChannelToken, { useValue: args.channel })
 
   const log = container.resolve(portToken(EventLogPort))
+  const logPort = container.resolve(portToken(LogPort))
   const ids = container.resolve(portToken(IdPort))
   const threads = container.resolve(portToken(ThreadStorePort))
   const ledger = container.resolve(portToken(TurnLedgerPort))
@@ -211,6 +213,7 @@ export function wireTurn<Command>(args: {
 
   const turn: TurnDeps = {
     log,
+    logPort,
     model: modelPort,
     ids,
     assembly: defaultPipeline({

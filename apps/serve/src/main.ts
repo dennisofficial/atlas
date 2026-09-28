@@ -1,4 +1,5 @@
 import { startServe } from './index'
+import { logServeFatal, serveOpLog } from './fatal-log'
 import { ServeNeedsConfiguration } from './serve-config'
 
 const FATAL = 1
@@ -14,6 +15,7 @@ const serve = await startServe().catch((error: unknown) => {
   const reason =
     error instanceof ServeNeedsConfiguration ? detail : `atlas serve could not start: ${detail}`
 
+  logServeFatal({ log: serveOpLog(), error, env: process.env })
   process.stderr.write(`${JSON.stringify({ event: 'serve.fatal', reason })}\n`)
   process.exit(FATAL)
 })

@@ -22,7 +22,7 @@ import { Onboarding } from '../ui/components/onboarding'
 import { useAppearance } from '../ui/hooks/use-appearance'
 import { isServiceAlive } from '../ui/services-model'
 import { isShellRunning } from '../ui/shells-model'
-import { isSubagentRunning } from '../store/subagent-row'
+import { isSubagentAlive } from '../store/subagent-row'
 import type { AccountsControl } from './use-accounts'
 import type { AgentsControl } from './use-agents'
 import type { AgentsPickerControl } from './use-agents-picker'
@@ -188,7 +188,7 @@ function DerivedOverlayStack(props: {
           running={[
             ...shells.everywhere.filter(isShellRunning).map(exitGuardRow),
             ...props.services.everywhere.filter(isServiceAlive).map(exitGuardServiceRow),
-            ...agents.everywhere.filter(isSubagentRunning).map(exitGuardAgentRow),
+            ...agents.everywhere.filter(isSubagentAlive).map(exitGuardAgentRow),
           ]}
           options={exitGuard.options}
           cloud={exitGuard.cloud}

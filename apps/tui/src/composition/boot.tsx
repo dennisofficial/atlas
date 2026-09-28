@@ -10,6 +10,7 @@ import { installHeapDumpSignal } from "./heap-dump";
 import { installLinkClickOpen } from "./link-click";
 import { BOOT_FAILURE_EXIT_CODE, bootFailureReport } from "./boot-failure";
 import { createBootProgress } from "./boot-progress";
+import { durableOpLog } from "./durable-op-log";
 import { BootScreen } from "./boot-screen";
 import { CrashBoundary } from "./crash-boundary";
 import { classifyRequestOf } from "./classify";
@@ -20,7 +21,7 @@ import { performRespawn, realRespawnPorts, wiresSelfRestart } from "./respawn";
 import { RESTART_EXIT_CODE, restartResumeHandle } from "./restart";
 import { launchLine, launchTitle, sessionIdentityLine } from "./session-identity";
 import { resumeHint, type ActiveConversation } from "@dltech/atlas-harness";
-import { atlasDirectory, createUrlOpener, loadSettings } from "@dltech/atlas-harness";
+import { atlasDirectory, createUrlOpener, loadSettings, logFieldsOf } from "@dltech/atlas-harness";
 import { exportLegacyDbRequestOf, runExportLegacyDb } from "./export-legacy-db";
 import { trackTerminalFocus } from "./terminal-focus";
 import { terminalTitleSequence } from "./terminal-title";
@@ -172,6 +173,12 @@ export async function bootAtlas(args: {
 
   if (settled.type === ESession.Failed) {
     takeDown({ root, renderer });
+    durableOpLog()?.error({
+      source: "tui.boot",
+      message: "atlas could not start",
+      ...logFieldsOf({ error: settled.error }),
+      data: { command: args.command, cwd: config.cwd },
+    });
     process.stderr.write(
       bootFailureReport({
         error: settled.error,

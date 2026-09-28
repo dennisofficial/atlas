@@ -10,9 +10,12 @@ import {
   type Event,
   type EventDraft,
   type EventEnvelope,
+  type LogPort,
+  type ThreadId,
 } from '@dltech/atlas-core'
 
 import { EUnreadableReason, type UnreadableRow } from '../decode-events'
+import { logFieldsOf } from '../logs'
 
 export const EVENT_LINE_VERSION = 1
 
@@ -57,11 +60,30 @@ export class UnreadableWrite extends Error {
   }
 }
 
-export async function dropTornTail({ file }: { file: string }): Promise<boolean> {
+export async function dropTornTail({
+  file,
+  threadId,
+  on,
+  logPort,
+}: {
+  file: string
+  threadId?: ThreadId | undefined
+  on?: 'open' | 'append' | undefined
+  logPort?: LogPort | undefined
+}): Promise<boolean> {
   const text = await readFile(file, 'utf8').catch(() => undefined)
   if (text === undefined || text === '' || text.endsWith('\n')) return false
   const kept = text.slice(0, text.lastIndexOf('\n') + 1)
   await truncate(file, Buffer.byteLength(kept))
+  logPort?.warn({
+    source: 'store.event-log',
+    message: 'dropped a torn final line from the event log',
+    ...(threadId === undefined ? {} : { threadId }),
+    data: {
+      droppedBytes: Buffer.byteLength(text) - Buffer.byteLength(kept),
+      ...(on === undefined ? {} : { on }),
+    },
+  })
   return true
 }
 
@@ -99,9 +121,11 @@ export type ParsedLog = {
 export function parseEventLines({
   text,
   threadId,
+  logPort,
 }: {
   text: string
   threadId: string
+  logPort?: LogPort | undefined
 }): ParsedLog {
   const events: Event[] = []
   const unreadable: UnreadableRow[] = []
@@ -112,7 +136,7 @@ export function parseEventLines({
     const raw = segments[index]
     if (raw === undefined || raw === '') continue
 
-    const decoded = decodeLine({ raw, threadId, tail: index === last })
+    const decoded = decodeLine({ raw, threadId, tail: index === last, logPort })
     if ('gap' in decoded) {
       unreadable.push(decoded.gap)
       continue
@@ -126,15 +150,35 @@ export function parseEventLines({
 
 type LineOutcome = { event: Event } | { gap: UnreadableRow; reason: EUnreadableReason }
 
-function decodeLine({ raw, threadId, tail }: { raw: string; threadId: string; tail: boolean }): LineOutcome {
+function decodeLine({
+  raw,
+  threadId,
+  tail,
+  logPort,
+}: {
+  raw: string
+  threadId: string
+  tail: boolean
+  logPort?: LogPort | undefined
+}): LineOutcome {
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
   } catch (error) {
     const reason = tail ? EUnreadableReason.TruncatedTail : EUnreadableReason.MalformedJson
+    const detail = messageOf(error)
+    if (!tail) {
+      logPort?.warn({
+        source: 'store.lines',
+        message: 'an event log line is unreadable and will be skipped',
+        threadId: toThreadId(threadId),
+        data: { seq: safePartial(raw).seq ?? 0, reason, detail },
+        ...logFieldsOf({ error }),
+      })
+    }
     return {
       reason,
-      gap: gapOf({ raw, threadId, reason, detail: messageOf(error) }),
+      gap: gapOf({ raw, threadId, reason, detail }),
     }
   }
 

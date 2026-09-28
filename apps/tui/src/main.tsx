@@ -1,5 +1,8 @@
+import { logFieldsOf } from '@dltech/atlas-harness'
+
 import { bootAtlas } from './composition/boot'
 import { BOOT_FAILURE_EXIT_CODE, bootFailureReport } from './composition/boot-failure'
+import { durableOpLog } from './composition/durable-op-log'
 import { launchCommand } from './composition/launch-command'
 import { promoteStagedUpdate } from './composition/promote-staged'
 import { versionLabel } from './build/info'
@@ -7,6 +10,12 @@ import { versionLabel } from './build/info'
 export const APP_PACKAGE_NAME = '@dltech/atlas'
 
 const report = (error: unknown): void => {
+  durableOpLog()?.error({
+    source: 'tui.boot',
+    message: 'atlas could not start',
+    ...logFieldsOf({ error }),
+    data: { cwd: process.cwd() },
+  })
   process.stderr.write(bootFailureReport({ error, debug: process.env.ATLAS_DEBUG !== undefined }))
 }
 

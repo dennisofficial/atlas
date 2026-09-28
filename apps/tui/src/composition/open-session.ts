@@ -4,6 +4,7 @@ import {
   DEFAULT_DOCKER_SOCKET,
   DockerEngine,
   listWorktrees,
+  logFieldsOf,
   mergeRemoteMemoryBounded,
   sweepSandboxes,
 } from '@dltech/atlas-harness'
@@ -12,6 +13,7 @@ import { registerGrammars } from '../ui/markdown/grammars/index'
 import { clientVersionHeader } from '../build/info'
 import { ENoticeTone, notify } from '../ui/notice-store'
 import { EBootStep, type BootProgress } from './boot-progress'
+import { durableOpLog } from './durable-op-log'
 import { composeAtlas, type AtlasApp } from './compose'
 import type { AtlasConfig } from './config'
 import { diagnoseCredentialFailure, type CredentialDiagnosis } from './credential-diagnosis'
@@ -99,7 +101,14 @@ async function startSession(args: {
   })
   if (unusable !== null) return { type: ESession.Refused, message: unusable, exitCode: REFUSED }
 
-  void sweepOrphanedSandboxes({ cwd: config.cwd }).catch(() => undefined)
+  void sweepOrphanedSandboxes({ cwd: config.cwd }).catch((error: unknown) => {
+    durableOpLog()?.warn({
+      source: 'tui.open-session',
+      message: 'sandbox sweep failed',
+      ...logFieldsOf({ error }),
+      data: { cwd: config.cwd },
+    })
+  })
 
   progress.report(EBootStep.Composing)
   const app = await composeAtlas({
@@ -160,5 +169,13 @@ export function openSession(args: {
   progress: BootProgress
   settings: SettingsBinding
 }): Promise<Session> {
-  return startSession(args).catch((error: unknown) => ({ type: ESession.Failed, error }) as const)
+  return startSession(args).catch((error: unknown) => {
+    durableOpLog()?.error({
+      source: 'tui.open-session',
+      message: 'session startup failed',
+      ...logFieldsOf({ error }),
+      data: { command: args.command, cwd: args.config.cwd },
+    })
+    return { type: ESession.Failed, error } as const
+  })
 }

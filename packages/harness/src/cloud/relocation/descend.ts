@@ -2,6 +2,7 @@ import {
   EExecutionLocation,
   type EventLogPort,
   type IdPort,
+  type LogPort,
   type NoticePort,
   type ThreadId,
   type WorkspaceIdentity,
@@ -97,6 +98,9 @@ export async function descendFromCloud<Opened>(args: {
    * local copy won come back so their cloud versions can be kept in the log, never dropped.
    */
   pullMemory?: (() => Promise<RemoteMemoryMerge>) | undefined
+  logPort?: LogPort | undefined
+  /** A test seam between the archive landing and the landed-state checks — live wiring never passes it. */
+  afterTranscriptLanded?: (() => Promise<void>) | undefined
 }): Promise<Opened> {
   const { threadId, target, bridge, channel, localApp, surface } = args
   const notice = surface.notice ?? nullNotice
@@ -129,9 +133,15 @@ export async function descendFromCloud<Opened>(args: {
       setOpened: (value) => {
         opened = value
       },
+      logPort: args.logPort,
+      afterTranscriptLanded: args.afterTranscriptLanded,
     }),
     ctx: undefined,
     onStep: () => undefined,
+    log:
+      args.logPort === undefined
+        ? undefined
+        : { port: args.logPort, source: 'cloud.relocation', threadId },
   })
 
   release()

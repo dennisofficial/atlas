@@ -1,3 +1,7 @@
+import { ELogSeverity, type LogEntry, type LogPort, type ThreadId } from '@dltech/atlas-core'
+
+import { logFieldsOf } from '../../store/logs'
+
 export type RelocationNode<Ctx> = {
   id: string
   needs: readonly string[]
@@ -41,6 +45,8 @@ export async function runRelocation<Ctx>(args: {
   plan: RelocationPlan<Ctx>
   ctx: Ctx
   onStep?: (id: string) => void
+  /** When present, a failed node lands in the durable log before the run reports it. */
+  log?: { port: LogPort; source: string; threadId: ThreadId } | undefined
 }): Promise<RelocationRun> {
   validatePlan(args.plan)
   const done = new Set<string>()
@@ -116,6 +122,16 @@ export async function runRelocation<Ctx>(args: {
 
   if (failure !== null) {
     const { failed, error } = failure
+    const phase = committed ? 'committed' : 'pre-commit'
+    const entry: LogEntry = {
+      severity: ELogSeverity.Error,
+      source: args.log?.source ?? 'cloud.relocation',
+      message: `the '${failed}' relocation node failed (${phase})`,
+      threadId: args.log?.threadId,
+      data: { nodeId: failed, phase },
+      ...logFieldsOf({ error }),
+    }
+    args.log?.port.record(entry)
     return committed
       ? { ok: false, phase: 'committed', failed, error }
       : { ok: false, phase: 'pre-commit', failed, error }

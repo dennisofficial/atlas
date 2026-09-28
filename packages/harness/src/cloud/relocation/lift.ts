@@ -2,6 +2,7 @@ import {
   EExecutionLocation,
   type EventLogPort,
   type IdPort,
+  type LogPort,
   type ThreadId,
   type WorkspaceIdentity,
 } from '@dltech/atlas-core'
@@ -84,6 +85,7 @@ export type LiftArgs = {
   localLog: EventLogPort
   agents: LiftAgentsPort
   ids: IdPort
+  logPort?: LogPort | undefined
   setLocation: (location: EExecutionLocation) => void
   stopLocal: () => Promise<StoppedLocally>
   capture: (args: { cwd: string }) => Promise<LiftedWorkspace | null>
@@ -214,6 +216,7 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
   const ctx: LiftCtx = {
     args,
     onProgress,
+    logPort: args.logPort,
     from,
     workspace: null,
     gpgKey: undefined,
@@ -224,7 +227,15 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
     stopped: NOTHING_WAS_STOPPED,
   }
 
-  const run = await runRelocation({ plan: liftPlan(), ctx, onStep: () => undefined })
+  const run = await runRelocation({
+    plan: liftPlan(),
+    ctx,
+    onStep: () => undefined,
+    log:
+      args.logPort === undefined
+        ? undefined
+        : { port: args.logPort, source: 'cloud.relocation', threadId },
+  })
 
   if (run.ok) {
     const { sandbox, channel } = ctx

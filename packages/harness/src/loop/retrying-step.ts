@@ -1,6 +1,7 @@
 import {
   DEFAULT_RETRY_POLICY,
   planRetry,
+  retryReasonOf,
   type Assembled,
   type ChunkFilter,
   type ERetryReason,
@@ -26,6 +27,7 @@ export type RetryDeps = {
   onWaiting?: Waiting | undefined
   sleep?: ((args: { ms: number; signal: AbortSignal }) => Promise<void>) | undefined
   jitter?: (() => number) | undefined
+  log?: ((entry: { attempt: number; maxAttempts: number; reason: string; willRetry: boolean; error: unknown }) => void) | undefined
 }
 
 export function sleepUnlessAborted(args: { ms: number; signal: AbortSignal }): Promise<void> {
@@ -110,11 +112,18 @@ export async function takeModelStepWithRetry(args: {
     attempts += 1
 
     const failure = modelFailureOf(attempt.cause)
-    if (failure === null) return settled()
+    if (failure === null) {
+      args.retry?.log?.({ attempt: attempts, maxAttempts: policy.maxAttempts, reason: 'non-retryable', willRetry: false, error: attempt.cause })
+      return settled()
+    }
 
     const decision = planRetry({ failure, attempts, policy, jitter: jitter() })
-    if (!decision.retry) return settled()
+    if (!decision.retry) {
+      args.retry?.log?.({ attempt: attempts, maxAttempts: policy.maxAttempts, reason: retryReasonOf(failure) ?? 'non-retryable', willRetry: false, error: attempt.cause })
+      return settled()
+    }
 
+    args.retry?.log?.({ attempt: attempts, maxAttempts: policy.maxAttempts, reason: decision.reason, willRetry: true, error: attempt.cause })
     args.retry?.onWaiting?.({
       attempt: attempts,
       maxAttempts: policy.maxAttempts,

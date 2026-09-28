@@ -1,11 +1,12 @@
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import type { Event, ThreadId } from '@dltech/atlas-core'
+import type { Event, LogPort, ThreadId } from '@dltech/atlas-core'
 
 import type { ContextIdentity } from '../append-plan'
 import { contextIdentityOf } from '../append-plan'
 import type { UnreadableRow } from '../decode-events'
+import { logFieldsOf } from '../logs'
 import { parseEventLines } from './lines'
 import { THREAD_META_FILE_SUFFIX, eventLogFile, sessionDirectory, sessionsDirectory, threadMetaFile, threadsDirectory } from './paths'
 import { readMetaSync, threadMetaSchema } from './meta'
@@ -46,7 +47,10 @@ export class SessionRegistry {
   private threadIndexBuilt = false
   private readonly parentCache = new Map<string, ParentCacheEntry>()
 
-  constructor(private readonly home: string) {}
+  constructor(
+    private readonly home: string,
+    private readonly logPort?: LogPort | undefined,
+  ) {}
 
   handleFor({ sessionDir }: { sessionDir: string }): SessionHandle {
     const existing = this.handles.get(sessionDir)
@@ -104,11 +108,12 @@ export class SessionRegistry {
     if (cached !== undefined) return cached
 
     const file = eventLogFile({ sessionDir, threadId })
-    const text = await readFile(file, 'utf8').catch(() => '')
-    const parsed = parseEventLines({ text, threadId })
+    const text = await this.readEventLog({ file, threadId })
+    const parsed = parseEventLines({ text, threadId, logPort: this.logPort })
     const meta = readMetaSync({
       file: threadMetaFile({ sessionDir, threadId }),
       schema: threadMetaSchema,
+      logPort: this.logPort,
     })
     const log: ThreadLog = {
       events: parsed.events,
@@ -161,9 +166,9 @@ export class SessionRegistry {
     const cached = this.parentCache.get(file)
     if (cached !== undefined && cached.byteLength === size) return cached.events
 
-    const text = await readFile(file, 'utf8').catch(() => '')
     const threadId = threadIdFromFile({ file })
-    const parsed = parseEventLines({ text, threadId })
+    const text = await this.readEventLog({ file, threadId })
+    const parsed = parseEventLines({ text, threadId, logPort: this.logPort })
     this.parentCache.set(file, { events: parsed.events, byteLength: size })
     return parsed.events
   }
@@ -184,9 +189,28 @@ export class SessionRegistry {
         const meta = readMetaSync({
           file: join(threadsDirectory({ sessionDir }), file),
           schema: threadMetaSchema,
+          logPort: this.logPort,
         })
         if (meta !== undefined) this.threadIndex.set(meta.id, sessionDir)
       }
+    }
+  }
+
+  private async readEventLog({ file, threadId }: { file: string; threadId: ThreadId }): Promise<string> {
+    try {
+      return await readFile(file, 'utf8')
+    } catch (error) {
+      const code = errorCodeOf({ error })
+      if (code !== 'ENOENT') {
+        this.logPort?.warn({
+          source: 'store.registry',
+          message: 'could not read an event log file, treating it as empty',
+          threadId,
+          data: { file, threadId, ...(code === undefined ? {} : { code }) },
+          ...logFieldsOf({ error }),
+        })
+      }
+      return ''
     }
   }
 }
@@ -199,6 +223,12 @@ async function signatureOf({ file }: { file: string }): Promise<FileSignature> {
 function threadIdFromFile({ file }: { file: string }): ThreadId {
   const base = file.split('/').pop() ?? ''
   return base.replace(/\.events\.jsonl$/, '') as ThreadId
+}
+
+function errorCodeOf({ error }: { error: unknown }): string | undefined {
+  if (typeof error !== 'object' || error === null) return undefined
+  const code = (error as { code?: unknown }).code
+  return typeof code === 'string' ? code : undefined
 }
 
 const registries = new Map<string, SessionRegistry>()

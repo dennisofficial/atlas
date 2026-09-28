@@ -11,6 +11,7 @@ import {
   toThreadId,
   type EventDraft,
   type IdPort,
+  type LogPort,
   type NoticePost,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -218,6 +219,8 @@ export const descend = (args: {
   pauseDeadlineMs?: number
   mergeWorkspace?: WorkspaceMerger
   pullMemory?: () => Promise<RemoteMemoryMerge>
+  logPort?: LogPort
+  afterTranscriptLanded?: () => Promise<void>
 }): Promise<OpenedLocal> => {
   const bridge = args.bridge ?? fakeBridge()
   const surface = args.surface ?? fakeSurface()
@@ -233,6 +236,10 @@ export const descend = (args: {
     ...(args.pauseDeadlineMs === undefined ? {} : { pauseDeadlineMs: args.pauseDeadlineMs }),
     ...(args.mergeWorkspace === undefined ? {} : { mergeWorkspace: args.mergeWorkspace }),
     ...(args.pullMemory === undefined ? {} : { pullMemory: args.pullMemory }),
+    ...(args.logPort === undefined ? {} : { logPort: args.logPort }),
+    ...(args.afterTranscriptLanded === undefined
+      ? {}
+      : { afterTranscriptLanded: args.afterTranscriptLanded }),
   }).then((opened) =>
     args.midTurn === true ? { ...opened, resumeOnArrival: true } : opened,
   )

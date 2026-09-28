@@ -18,6 +18,7 @@ export { ForkSeqOutOfRange, ForkSourceMissing } from './fork'
 export { forkConversation, type ForkResult } from './guarded-fork'
 export { EUnreadableReason, type UnreadableRow } from './decode-events'
 export { JsonlEventLog } from './sessions/event-log'
+export { JsonlLog, logFieldsOf } from './logs'
 export { RandomIds } from './ids'
 export { rewindThread, type RewindKill, type RewindResult } from './rewind'
 export { LocalRewindMachinery } from './local-rewind-machinery'
@@ -34,6 +35,7 @@ export {
   threadMetaFile,
 } from './sessions/paths'
 export { claimSession, releaseSession, ESessionClaim, type SessionClaim } from './sessions/lock'
+export { SessionRegistry, registryFor } from './sessions/registry'
 export {
   readMetaSync,
   readSessionMetaSync,
