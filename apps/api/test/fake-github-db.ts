@@ -1,4 +1,12 @@
 import { matchesValue, sortRows, uniqueViolation, type Where } from './fake-db-support'
+import {
+  createFakePrStateTable,
+  createFakeRepoHookTable,
+  createFakeSubscriptionTable,
+} from './fake-github-realtime-db'
+import type { FakePrStateRow, FakeRepoHookRow, FakeSubscriptionRow } from './fake-github-realtime-db'
+
+export type { FakePrStateRow, FakeRepoHookRow, FakeSubscriptionRow } from './fake-github-realtime-db'
 
 export type FakeWebhookEventRow = {
   id: string
@@ -27,16 +35,30 @@ export type FakePullRequestRow = {
   updatedAt: Date
 }
 
-const matchesWhere = (row: FakePullRequestRow, where: Where | undefined): boolean => {
+const matchesWhere = <Row>(row: Row, where: Where | undefined): boolean => {
   if (where === undefined) return true
-  return Object.entries(where).every(([key, condition]) =>
-    matchesValue((row as unknown as Where)[key], condition),
-  )
+  return Object.entries(where).every(([key, condition]) => {
+    if (key === 'OR' && Array.isArray(condition)) {
+      return (condition as Where[]).some((clause) => matchesWhere(row, clause))
+    }
+    return matchesValue((row as unknown as Where)[key], condition)
+  })
 }
 
 function createFakeGithubDb() {
   let events: FakeWebhookEventRow[] = []
   let pullRequests: FakePullRequestRow[] = []
+  let subscriptions: FakeSubscriptionRow[] = []
+  let repoHooks: FakeRepoHookRow[] = []
+  let prStates: FakePrStateRow[] = []
+
+  const subscriptionTable = createFakeSubscriptionTable({
+    matchesWhere,
+    rows: () => subscriptions,
+    setRows: (rows) => {
+      subscriptions = rows
+    },
+  })
 
   const db = {
     githubWebhookEvent: {
@@ -87,6 +109,21 @@ function createFakeGithubDb() {
         return held
       },
     },
+    githubSubscription: subscriptionTable,
+    githubRepoHook: createFakeRepoHookTable({
+      matchesWhere,
+      rows: () => repoHooks,
+      setRows: (rows) => {
+        repoHooks = rows
+      },
+    }),
+    githubPrState: createFakePrStateTable({
+      matchesWhere,
+      rows: () => prStates,
+      setRows: (rows) => {
+        prStates = rows
+      },
+    }),
   }
 
   return {
@@ -97,9 +134,22 @@ function createFakeGithubDb() {
     get pullRequests() {
       return pullRequests
     },
+    get subscriptions() {
+      return subscriptions
+    },
+    get repoHooks() {
+      return repoHooks
+    },
+    get prStates() {
+      return prStates
+    },
     reset() {
       events = []
       pullRequests = []
+      subscriptions = []
+      repoHooks = []
+      prStates = []
+      subscriptionTable.resetSequence()
     },
   }
 }

@@ -360,3 +360,46 @@ model GithubPullRequest {
   @@id([repoFullName, number])
   @@index([repoFullName, headBranch])
 }
+
+model GithubSubscription {
+  id           String   @id @default(cuid())
+  userId       String
+  repoFullName String
+  prNumber     Int
+  pollBacked   Boolean  @default(false)
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, repoFullName, prNumber])
+  @@index([repoFullName, prNumber])
+  @@index([expiresAt])
+}
+
+model GithubRepoHook {
+  repoFullName    String    @id
+  hookId          BigInt
+  secret          String
+  createdBy       String
+  status          String
+  idleSince       DateTime?
+  sweepLeaseUntil DateTime?
+  createdAt       DateTime  @default(now())
+}
+
+model GithubPrState {
+  repoFullName  String
+  prNumber      Int
+  title         String
+  url           String
+  state         String
+  headBranch    String
+  headSha       String
+  checksRunning Int      @default(0)
+  checksPassed  Int      @default(0)
+  checksFailed  Int      @default(0)
+  mergeable     Boolean?
+  updatedAt     DateTime
+
+  @@id([repoFullName, prNumber])
+  @@index([repoFullName])
+}

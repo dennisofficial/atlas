@@ -46,6 +46,7 @@ const countingService = (): Counted => {
     },
     version: () => 0,
     subscribe: () => () => undefined,
+    ingest: () => undefined,
     track: () => undefined,
     stopTracking: () => undefined,
     watch: () => undefined,

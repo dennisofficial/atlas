@@ -11,6 +11,7 @@ import { ClientVersionModule } from '../_module/client-version/client-version.mo
 import { AccountsModule } from './platform/accounts/accounts.module'
 import { AuthModule } from './platform/auth/auth.module'
 import { GithubModule } from './cloud/github/github.module'
+import { GithubRealtimeModule } from './cloud/github/github-realtime.module'
 import { GithubSandboxPrsModule } from './cloud/github/github-sandbox-prs.module'
 import { GithubWebhooksModule } from './cloud/github/github-webhooks.module'
 import { DrainStateService } from './platform/health/drain-state.service'
@@ -48,6 +49,7 @@ import { UserContextModule } from './cloud/user-context/user-context.module'
     SandboxesModule,
     GithubWebhooksModule,
     GithubSandboxPrsModule,
+    GithubRealtimeModule,
     UserContextModule,
   ],
   controllers: [HealthController],

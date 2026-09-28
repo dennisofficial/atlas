@@ -13,7 +13,14 @@ import type { ProviderOptions } from '../provider'
 import { EServiceStatus } from '../services/status'
 import { EKilledBy, EShellStatus } from '../shells/status'
 import { ETldrStatus } from '../tldr/status'
-import { ECompactionAnchor, EDecision, EMessageOrigin, EWorktreeExit, type EventBody } from './body'
+import {
+  ECompactionAnchor,
+  EDecision,
+  EMessageOrigin,
+  EPullRequestState,
+  EWorktreeExit,
+  type EventBody,
+} from './body'
 import type { EventEnvelope } from './envelope'
 import { threadIdSchema, callIdSchema, eventIdSchema, runIdSchema } from './ids'
 
@@ -171,6 +178,19 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     url: z.string().min(1),
     repo: z.string().min(1),
     branch: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal('pull-request-state'),
+    number: z.number().int().positive(),
+    url: z.string().min(1),
+    repo: z.string().min(1),
+    branch: z.string().min(1),
+    state: z.enum(EPullRequestState),
+    checksRunning: z.number().int().nonnegative(),
+    checksPassed: z.number().int().nonnegative(),
+    checksFailed: z.number().int().nonnegative(),
+    mergeable: z.boolean().nullable(),
+    recordedAt: z.string().min(1),
   }),
   z.object({
     type: z.literal('background-shell-started'),

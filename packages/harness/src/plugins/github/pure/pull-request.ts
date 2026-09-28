@@ -1,9 +1,6 @@
-export enum EPullRequestState {
-  Open = 'open',
-  Draft = 'draft',
-  Merged = 'merged',
-  Closed = 'closed',
-}
+import { EPullRequestState } from '@dltech/atlas-core'
+
+export { EPullRequestState }
 
 export enum EChecksState {
   None = 'none',

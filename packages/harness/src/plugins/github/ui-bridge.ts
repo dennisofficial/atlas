@@ -1,4 +1,4 @@
-import type { LinkedPullRequest } from '@dltech/atlas-core'
+import type { LinkedPullRequest, PullRequestState } from '@dltech/atlas-core'
 
 import type { PluginProjection } from '../projection'
 import type { PullRequestService } from './pull-request-service'
@@ -17,5 +17,6 @@ export abstract class GithubUiBridgePort {
   abstract readonly service: PullRequestService
   abstract readonly facts: SessionFacts
   abstract readonly links: PluginProjection<readonly LinkedPullRequest[]>
+  abstract readonly states: PluginProjection<readonly PullRequestState[]>
   abstract readonly cloudCheckout: PluginProjection<RepositoryCheckout | null>
 }

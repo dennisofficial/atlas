@@ -26,6 +26,8 @@ export type PullRequestService = {
   snapshot: (args: { key: string }) => PullRequestReading
   version: () => number
   subscribe: (listener: () => void) => () => void
+  /** A pushing port's frame, keyed exactly as a polled read would be. Arms no schedule. */
+  ingest: (args: { key: string; reading: PullRequestReading }) => void
   track: (args: { checkout: RepositoryCheckout }) => void
   stopTracking: () => void
   watch: (args: { links: readonly LinkedPullRequest[] }) => void
@@ -200,6 +202,10 @@ export function createPullRequestService(args: {
     subscribe: (listener) => {
       listeners.add(listener)
       return () => listeners.delete(listener)
+    },
+    ingest: ({ key, reading }) => {
+      if (disposed) return
+      readings.record({ key, reading })
     },
     refresh,
     /**
