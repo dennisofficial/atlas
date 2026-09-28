@@ -1,0 +1,188 @@
+import { ForbiddenException, NotFoundException } from '@nestjs/common'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { PrismaClient } from '../../../generated/prisma/client'
+
+vi.mock('../../../db', async () => {
+  const { fakeGithubDb } = await import('../../../../test/fake-github-db.js')
+  return { db: fakeGithubDb().db as unknown as PrismaClient }
+})
+
+import { fakeGithubDb } from '../../../../test/fake-github-db'
+import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
+import type { GithubUserReads } from './github-user-reads'
+import { GithubSubscriptionsService } from './github-subscriptions.service'
+import type { GithubService } from './github.service'
+import type { PullRequestCacheFields } from './github-pull-request-mapping'
+
+const fake = fakeGithubDb()
+
+const REST_FIELDS: PullRequestCacheFields = {
+  title: 'add the thing',
+  url: 'https://github.com/compai/app/pull/42',
+  state: 'open',
+  headBranch: 'dennis/add-the-thing',
+  headSha: 'abc123',
+  checksRunning: 1,
+  checksPassed: 2,
+  checksFailed: 0,
+  mergeable: true,
+  mergeableState: 'clean',
+}
+
+const okFetch = async () => new Response('{}', { status: 200 })
+
+function serviceWith(args: {
+  token?: string
+  ensureHook?: 'created' | 'existing' | 'poll-backed'
+  readPullRequest?: GithubUserReads['readPullRequest']
+  fetchImpl?: typeof fetch
+}): GithubSubscriptionsService {
+  const github = {
+    findToken: async () => args.token,
+  } as unknown as GithubService
+  const hooks = {
+    ensureHook: vi.fn(async () => args.ensureHook ?? 'created'),
+  } as unknown as GithubHookLifecycleService
+  const reads = {
+    readPullRequest: args.readPullRequest ?? (async () => REST_FIELDS),
+  } as unknown as GithubUserReads
+  vi.stubGlobal('fetch', args.fetchImpl ?? okFetch)
+  return new GithubSubscriptionsService(github, reads, hooks)
+}
+
+describe('GithubSubscriptionsService', () => {
+  beforeEach(() => fake.reset())
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('validates access, ensures the hook, upserts the subscription and pulls the current state', async () => {
+    const service = serviceWith({ token: 'ghu_1' })
+
+    const dto = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
+
+    expect(dto.pollBacked).toBe(false)
+    expect(fake.subscriptions).toHaveLength(1)
+    expect(fake.prStates).toHaveLength(1)
+    expect(dto.state).toMatchObject({ prNumber: 42, checksPassed: 2, mergeable: true })
+    expect(Date.parse(dto.expiresAt)).toBeGreaterThan(Date.now())
+  })
+
+  it('marks the subscription poll-backed when the hook cannot be created', async () => {
+    const service = serviceWith({ token: 'ghu_1', ensureHook: 'poll-backed' })
+
+    const dto = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
+
+    expect(dto.pollBacked).toBe(true)
+    expect(dto.state?.prNumber).toBe(42)
+  })
+
+  it('re-subscribing refreshes the expiry instead of duplicating the row', async () => {
+    const service = serviceWith({ token: 'ghu_1', ensureHook: 'existing' })
+
+    const first = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+    const second = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+
+    expect(fake.subscriptions).toHaveLength(1)
+    expect(second.id).toBe(first.id)
+  })
+
+  it('refuses a repo the user cannot read on github', async () => {
+    const denied = async () => new Response('{}', { status: 404 })
+    const service = serviceWith({ token: 'ghu_1', fetchImpl: denied as typeof fetch })
+
+    await expect(
+      service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 }),
+    ).rejects.toBeInstanceOf(ForbiddenException)
+    expect(fake.subscriptions).toHaveLength(0)
+  })
+
+  it('refuses callers who never connected github', async () => {
+    const service = serviceWith({})
+
+    await expect(
+      service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 }),
+    ).rejects.toBeInstanceOf(ForbiddenException)
+  })
+
+  it('heartbeat pushes the expiry out five minutes', async () => {
+    const service = serviceWith({ token: 'ghu_1' })
+    const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+    fake.subscriptions[0]!.expiresAt = new Date(Date.now() - 60_000)
+
+    const beat = await service.heartbeat({ userId: 'usr_1', subscriptionId: dto.id })
+
+    expect(Date.parse(beat.expiresAt)).toBeGreaterThan(Date.now() + 4 * 60_000)
+  })
+
+  it('heartbeat on a subscription owned by someone else 404s', async () => {
+    const service = serviceWith({ token: 'ghu_1' })
+    const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+
+    await expect(
+      service.heartbeat({ userId: 'usr_2', subscriptionId: dto.id }),
+    ).rejects.toBeInstanceOf(NotFoundException)
+  })
+
+  it('unsubscribe removes the row and marks the repo idle when nothing live remains', async () => {
+    const service = serviceWith({ token: 'ghu_1' })
+    const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+    fake.repoHooks.push({
+      repoFullName: 'compai/app',
+      hookId: 101n,
+      secret: 'sealed',
+      createdBy: 'usr_1',
+      status: 'active',
+      idleSince: null,
+      sweepLeaseUntil: null,
+      createdAt: new Date(),
+    })
+
+    await service.unsubscribe({ userId: 'usr_1', subscriptionId: dto.id })
+
+    expect(fake.subscriptions).toHaveLength(0)
+    expect(fake.repoHooks[0]?.idleSince).not.toBeNull()
+  })
+
+  it('unsubscribe keeps the repo active while another subscription is live', async () => {
+    const service = serviceWith({ token: 'ghu_1' })
+    const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+    fake.subscriptions.push({
+      id: 'sub-other',
+      userId: 'usr_2',
+      repoFullName: 'compai/app',
+      prNumber: 7,
+      pollBacked: false,
+      expiresAt: new Date(Date.now() + 60_000),
+      createdAt: new Date(),
+    })
+    fake.repoHooks.push({
+      repoFullName: 'compai/app',
+      hookId: 101n,
+      secret: 'sealed',
+      createdBy: 'usr_1',
+      status: 'active',
+      idleSince: null,
+      sweepLeaseUntil: null,
+      createdAt: new Date(),
+    })
+
+    await service.unsubscribe({ userId: 'usr_1', subscriptionId: dto.id })
+
+    expect(fake.repoHooks[0]?.idleSince).toBeNull()
+  })
+
+  it('unsubscribe of a missing row 404s', async () => {
+    const service = serviceWith({ token: 'ghu_1' })
+
+    await expect(
+      service.unsubscribe({ userId: 'usr_1', subscriptionId: 'sub-nope' }),
+    ).rejects.toBeInstanceOf(NotFoundException)
+  })
+})

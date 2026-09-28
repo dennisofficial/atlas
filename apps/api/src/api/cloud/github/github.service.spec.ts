@@ -120,7 +120,7 @@ describe('GithubService', () => {
     })
     expect(calls[0]?.url).toBe('https://github.com/login/device/code')
     expect(calls[0]?.request.body).toBe(
-      JSON.stringify({ client_id: CLIENT_ID, scope: 'repo workflow read:org' }),
+      JSON.stringify({ client_id: CLIENT_ID, scope: 'repo read:org admin:repo_hook' }),
     )
   })
 
@@ -169,7 +169,7 @@ describe('GithubService', () => {
   it('poll verifies the granted token and stores it sealed', async () => {
     fetchImpl = async (url) => {
       if (url === 'https://github.com/login/oauth/access_token') {
-        return jsonResponse({ access_token: 'gho_raw-token', scope: 'repo workflow read:org' })
+        return jsonResponse({ access_token: 'gho_raw-token', scope: 'repo read:org admin:repo_hook' })
       }
       return jsonResponse({ login: 'octocat' })
     }
@@ -179,7 +179,7 @@ describe('GithubService', () => {
     expect(result).toEqual({
       status: EGithubPollStatus.Connected,
       login: 'octocat',
-      scopes: ['repo', 'workflow', 'read:org'],
+      scopes: ['repo', 'read:org', 'admin:repo_hook'],
     })
     const verification = calls.find((call) => call.url === 'https://api.github.com/user')
     expect(verification?.request.headers.Authorization).toBe('Bearer gho_raw-token')
@@ -187,7 +187,7 @@ describe('GithubService', () => {
     const row = fake.connections[0]
     expect(row?.userId).toBe(USER_A)
     expect(row?.login).toBe('octocat')
-    expect(row?.scopes).toBe('repo workflow read:org')
+    expect(row?.scopes).toBe('repo read:org admin:repo_hook')
     expect(row?.sealedToken).not.toContain('gho_raw-token')
 
     const cipher = new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY }))
