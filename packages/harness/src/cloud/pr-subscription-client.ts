@@ -5,17 +5,15 @@ import type { CloudSession } from './cloud-session'
 
 const stateSchema = z.strictObject({
   repoFullName: z.string(),
-  number: z.number().int().positive(),
+  prNumber: z.number().int().positive(),
   title: z.string(),
   url: z.string(),
   state: z.string(),
   headBranch: z.string(),
   headSha: z.string(),
-  checks: z.strictObject({
-    running: z.number().int(),
-    passed: z.number().int(),
-    failed: z.number().int(),
-  }),
+  checksRunning: z.number().int(),
+  checksPassed: z.number().int(),
+  checksFailed: z.number().int(),
   mergeable: z.boolean().nullable(),
   updatedAt: z.string(),
 })
