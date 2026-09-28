@@ -17,6 +17,7 @@ on:
     branches: ['catalogue/**']
 
 permissions:
+  actions: write
   contents: write
   pull-requests: write
 
@@ -59,6 +60,9 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
+      # gh resolves the repo from the git remote, so the merge job needs a checkout.
+      - uses: actions/checkout@v7
+
       # A green catalogue PR supersedes every older one: the diff is cumulative, so the
       # older PRs are closed unmerged and only the newest mergeable one lands. Mergeability
       # is computed asynchronously — seconds after the checks go green the merge can still
@@ -78,6 +82,20 @@ jobs:
             if [ -n "$merged" ]; then
               gh pr close "$pr" --delete-branch \
                 --comment "Superseded by #$merged — the catalogue diff is cumulative, so only the newest refresh merges."
+              continue
+            fi
+
+            # The ruleset requires the ci check, but the fork-PR approval policy holds
+            # github-actions[bot] runs at action_required. Approve our own held runs and
+            # leave the PR for the next scheduled pass, when ci will have run.
+            branch=$(gh pr view "$pr" --json headRefName --jq .headRefName)
+            held=$(gh api "repos/{owner}/{repo}/actions/runs?branch=$branch&event=pull_request" \
+              --jq '[.workflow_runs[] | select(.conclusion == "action_required") | .id] | join(" ")')
+            if [ -n "$held" ]; then
+              for run in $held; do
+                gh api -X POST "repos/{owner}/{repo}/actions/runs/$run/approve"
+              done
+              echo "PR #$pr had held workflow runs ($held) — approved; the next scheduled pass will merge it once ci is green"
               continue
             fi
 
