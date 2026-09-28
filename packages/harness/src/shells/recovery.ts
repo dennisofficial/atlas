@@ -42,6 +42,20 @@ export const openShellIdsOf = (events: readonly Event[]): ReadonlySet<string> =>
   new Set(openShells(events).map((shell) => shell.shellId))
 
 /**
+ * The shells whose ending the log already holds, by the same chronological pairing: an ended event
+ * settles the oldest open start for its id. This is the check teardown needs to know an ending is
+ * already recorded, which "is the start still open" cannot answer — a shell the model killed with
+ * shell_kill has no open start yet still has no ending recorded.
+ */
+export const endedShellIdsOf = (events: readonly Event[]): ReadonlySet<string> => {
+  const ended = new Set<string>()
+  for (const event of events) {
+    if (event.type === 'background-shell-ended') ended.add(event.shellId)
+  }
+  return ended
+}
+
+/**
  * A background shell outlives the process that ran it, because the record of it does. A start with
  * no ending behind it means the process died while the shell was running: a clean close records an
  * ending for every live shell, so the absence of one is a crash or a kill. Ids repeat across boots

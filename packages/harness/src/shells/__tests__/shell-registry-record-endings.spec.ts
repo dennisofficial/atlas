@@ -15,6 +15,7 @@ import {
 
 import { RandomIds } from '../../store/ids'
 import {
+  announced,
   closeRegistries,
   endedDraft,
   job,
@@ -201,6 +202,41 @@ for (const adapter of shellAdapters) {
           shellId: started.snapshot.shellId,
           killedBy: EKilledBy.Unrecorded,
         })
+      })
+
+      it('writes nothing for a shell whose ending a turn already drained into the log', async () => {
+        const { registry } = openRegistry({ adapter })
+        const started = registry.start(job({ command: 'echo done' }))
+        if (!started.ok) throw new Error(started.reason)
+        await settle({ registry, shellId: started.snapshot.shellId })
+        await announced({ registry })
+
+        const log = new RecordingLog()
+        // A turn drains the notice and appends the real ending, exactly as run-turn does.
+        const drafts = registry.drainNotifications({ threadId: THREAD })
+        await log.append({ threadId: THREAD, drafts })
+
+        // Teardown must not re-record what the log already settled.
+        const recorded = await recordIn(log, registry)
+
+        expect(recorded).toEqual([])
+        expect(log.appended.filter((d) => d.type === 'background-shell-ended')).toHaveLength(1)
+      })
+
+      it('records nothing on a second pass once a drained shell is settled in the log', async () => {
+        const { registry } = openRegistry({ adapter })
+        const started = registry.start(job({ command: 'echo done' }))
+        if (!started.ok) throw new Error(started.reason)
+        await settle({ registry, shellId: started.snapshot.shellId })
+        await announced({ registry })
+
+        const log = new RecordingLog()
+        await log.append({ threadId: THREAD, drafts: registry.drainNotifications({ threadId: THREAD }) })
+
+        // recordEndings may still be handed the thread, but it must settle nothing.
+        const recorded = await recordIn(log, registry)
+        expect(recorded).toEqual([])
+        expect(log.appended.filter((d) => d.type === 'background-shell-ended')).toHaveLength(1)
       })
     })
   })
