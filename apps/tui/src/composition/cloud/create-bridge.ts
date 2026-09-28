@@ -142,26 +142,27 @@ export function createCloudBridge(args: {
       threadId: createArgs.threadId,
       token: claim.token,
       ...(args.environment === undefined ? {} : { environment: args.environment() }),
-      ...(createArgs.captureContext === undefined
-        ? {}
-        : {
-            putContextOnFreshBoot: async () => {
-              await createArgs.captureContext!((archive) =>
-                driver.writeBootstrapFile({
-                  name,
-                  path: CONTEXT_ARCHIVE_PATH,
-                  content: archive,
-                }),
-              )
-            },
+      putContextOnFreshBoot: async (sandbox) => {
+        // The workspace spec and context archive must be on the drive before serve launches — serve
+        // reads both at boot. Write through the live sandbox; on a fresh boot the name does not
+        // resolve until the sandbox exists, so a by-name write here would fail.
+        if (freshBoot) {
+          await driver.writeBootstrapFileToSandbox({
+            sandbox,
+            path: WORKSPACE_SPEC_PATH,
+            content: bootstrap,
+          })
+        }
+        if (createArgs.captureContext === undefined) return
+        await createArgs.captureContext((archive) =>
+          driver.writeBootstrapFileToSandbox({
+            sandbox,
+            path: CONTEXT_ARCHIVE_PATH,
+            content: archive,
           }),
+        )
+      },
     })
-
-    // Serve reads the spec at boot off the drive; a resume already has it, so only a fresh boot
-    // (or one whose spec moved) needs the write. The transcript rides up separately in the lift.
-    if (freshBoot) {
-      await driver.writeBootstrapFile({ name, path: WORKSPACE_SPEC_PATH, content: bootstrap })
-    }
 
     return {
       url: placement.url,

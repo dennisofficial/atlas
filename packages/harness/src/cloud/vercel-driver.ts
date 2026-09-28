@@ -179,13 +179,12 @@ export class VercelDriver {
     readStamps?: (() => Promise<ServeStamps>) | undefined
     pinnedModel?: string | undefined
     /**
-     * Runs the moment the probe has settled that this boot is fresh (the name is new, or drift
-     * forced a recreate) and before getOrCreate, so the archive the callback uploads is on the row
-     * when serve polls for it — rather than serve retrying a 404 through its whole ninety-second
-     * budget while the caller waits for a boot that is waiting on the upload. A resumed sandbox
-     * already carries its context, so the callback never runs on resume and never pays the tar.
+     * Writes the session's bootstrap onto the drive. Runs after the sandbox exists (the drive is
+     * mounted) and before serve launches, so serve finds the workspace spec and context archive on
+     * its first read. Receives the live sandbox — on a fresh boot the name does not resolve until
+     * getOrCreate returns, so the callback writes through the sandbox it is handed, not a lookup.
      */
-    putContextOnFreshBoot?: (() => Promise<void>) | undefined
+    putContextOnFreshBoot?: ((sandbox: Sandbox) => Promise<void>) | undefined
     /**
      * Extra environment for the sandbox process, resolved by the caller at lift time — the
      * settings a cloud session should inherit from the operator's machine (the decision-model
@@ -219,14 +218,6 @@ export class VercelDriver {
       const drive = await ensureDrive({ sdk: this.drives, credentials, name: driveName })
       const probe = await this.probeSandboxForResume({ name: args.name })
       const freshBoot = probe === ESandboxProbe.Missing || probe === ESandboxProbe.Replaced
-      if (freshBoot && args.putContextOnFreshBoot !== undefined) {
-        await args.putContextOnFreshBoot()
-      } else if (args.putContextOnFreshBoot !== undefined) {
-        // A resumed sandbox carries its snapshot's context, but the operator's local context
-        // (memory, skills, instructions) may have moved on. Re-upload when it changed — the
-        // snapshot is a cache, not the source of truth.
-        await args.putContextOnFreshBoot()
-      }
       const sandbox = await this.sdk.getOrCreate({
         ...credentials,
         name: args.name,
@@ -258,6 +249,13 @@ export class VercelDriver {
         signal: AbortSignal.timeout(SANDBOX_LAUNCH_TIMEOUT_MS),
       })
       const createMs = Date.now() - createStartedAt
+      // The bootstrap (context archive, workspace spec) must be on the drive before serve launches —
+      // serve reads it at boot, and writing it needs the live sandbox, which only exists now. A fresh
+      // boot has no snapshot to fall back on; a resumed one re-uploads because the operator's local
+      // context may have moved on (the snapshot is a cache, not the source of truth).
+      if (args.putContextOnFreshBoot !== undefined) {
+        await args.putContextOnFreshBoot(sandbox)
+      }
       const serveStartedAt = Date.now()
       await launchServe({ sandbox, token: serveToken })
       this.args.log?.(
@@ -347,9 +345,34 @@ export class VercelDriver {
   /**
    * Writes one bootstrap file into the directory serve reads at boot (`<ATLAS_HOME>/bootstrap`).
    * The laptop authors these — the workspace spec, the context and transcript archives — so the
-   * sandbox boots off the drive with no control-plane round-trip. Called only once the sandbox is
-   * up with the drive mounted. Buffering the bytes in memory is safe here: this runs on the
-   * operator's machine, not a capped container (the #485 OOM was the API doing this server-side).
+   * sandbox boots off the drive with no control-plane round-trip. Buffering the bytes in memory is
+   * safe here: this runs on the operator's machine, not a capped container (the #485 OOM was the
+   * API doing this server-side).
+   *
+   * Takes the live sandbox rather than re-fetching by name: the bootstrap must be writable before
+   * serve launches, and on a fresh boot the name does not resolve until `getOrCreate` returns.
+   */
+  async writeBootstrapFileToSandbox(args: {
+    sandbox: Sandbox
+    path: string
+    content: Uint8Array | string
+  }): Promise<void> {
+    try {
+      await args.sandbox.runCommand({
+        cmd: 'sh',
+        args: ['-c', `mkdir -p ${DRIVE_HOME_PATH}/bootstrap`],
+        timeoutMs: SANDBOX_QUICK_TIMEOUT_MS,
+      })
+      await args.sandbox.writeFiles([{ path: args.path, content: args.content }])
+    } catch (failure) {
+      throw asVercelFailure(failure)
+    }
+  }
+
+  /**
+   * Writes one bootstrap file into the directory serve reads at boot (`<ATLAS_HOME>/bootstrap`),
+   * resolving the sandbox by name. Used by the post-boot surface (the lift's transcript ship),
+   * where the sandbox already exists; the create path uses `writeBootstrapFileToSandbox` instead.
    */
   async writeBootstrapFile(args: {
     name: string
@@ -362,12 +385,11 @@ export class VercelDriver {
         name: args.name,
         signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
       })
-      await sandbox.runCommand({
-        cmd: 'sh',
-        args: ['-c', `mkdir -p ${DRIVE_HOME_PATH}/bootstrap`],
-        timeoutMs: SANDBOX_QUICK_TIMEOUT_MS,
+      await this.writeBootstrapFileToSandbox({
+        sandbox,
+        path: args.path,
+        content: args.content,
       })
-      await sandbox.writeFiles([{ path: args.path, content: args.content }])
     } catch (failure) {
       throw asVercelFailure(failure)
     }
