@@ -111,6 +111,7 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
       ctx.sandbox = await ctx.args.bridge.sandboxes.create({
         threadId: ctx.args.threadId,
         workspace: ctx.workspace,
+        model: ctx.args.model.ref,
         ...(ctx.gpgKey === undefined ? {} : { gpgKey: ctx.gpgKey }),
         captureContext: async (put) => {
           ctx.onProgress(ELiftStep.UploadingContext)

@@ -7,7 +7,7 @@ import { useAtlasHome } from './descend-fixture'
 import { fakeAgentSnapshot } from './fake-agents'
 import { ELiftStep, liftToCloud } from '../lift'
 import { CLEAN_WORKSPACE, CLOUD_THREAD, fakeBridge } from './fixture'
-import { CHILD, fakeLiftAgents, harness } from './lift-fixture'
+import { CHILD, fakeLiftAgents, FOOTER_SELECTION, harness } from './lift-fixture'
 
 describe('a lift that does not finish, with children in tow', () => {
   it('leaves the family on the host when the sandbox will not start — nothing ever flipped', async () => {
@@ -96,7 +96,9 @@ describe('a lift that does not finish, with children in tow', () => {
     const lifted = await liftToCloud(test.args)
 
     expect(lifted.ok).toBe(true)
-    expect(test.bridge.created).toEqual([{ threadId: CLOUD_THREAD, workspace: CLEAN_WORKSPACE }])
+    expect(test.bridge.created).toEqual([
+      { threadId: CLOUD_THREAD, workspace: CLEAN_WORKSPACE, model: FOOTER_SELECTION.ref },
+    ])
     expect(test.bridge.attached).toHaveLength(1)
   })
 

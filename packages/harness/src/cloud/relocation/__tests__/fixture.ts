@@ -322,6 +322,7 @@ export type FakeBridge = Omit<CloudBridge, 'attach'> & {
     threadId: ThreadId
     workspace: LiftedWorkspace | null
     gpgKey?: string | undefined
+    model?: string | undefined
   }[]
   readonly contextPuts: readonly { threadId: ThreadId; archive: Buffer }[]
   readonly transcriptPuts: readonly { threadId: ThreadId; archive: Buffer }[]
@@ -363,6 +364,7 @@ export function fakeBridge(
     threadId: ThreadId
     workspace: LiftedWorkspace | null
     gpgKey?: string | undefined
+    model?: string | undefined
   }[] = []
   const contextPuts: { threadId: ThreadId; archive: Buffer }[] = []
   const transcriptPuts: { threadId: ThreadId; archive: Buffer }[] = []
@@ -387,7 +389,7 @@ export function fakeBridge(
     },
     trail,
     sandboxes: {
-      create: async ({ threadId, workspace, gpgKey, captureContext }) => {
+      create: async ({ threadId, workspace, gpgKey, model, captureContext }) => {
         const sandbox = args.sandbox ?? RUNNING
         // The real create captures and puts the archive onto the row before booting a fresh
         // sandbox, so the trail records it ahead of the boot; a resumed sandbox already carries
@@ -405,6 +407,7 @@ export function fakeBridge(
           threadId,
           workspace,
           ...(gpgKey === undefined ? {} : { gpgKey }),
+          ...(model === undefined ? {} : { model }),
         })
         if (args.createFails !== undefined) throw args.createFails
         return sandbox

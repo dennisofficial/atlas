@@ -29,6 +29,7 @@ const bootstrapSpecOf = (args: {
   workspace: LiftedWorkspace | null
   gitToken: string
   gpgKey?: string | undefined
+  model?: string | undefined
 }): string =>
   JSON.stringify({
     remoteUrl: args.workspace?.remoteUrl ?? null,
@@ -36,6 +37,7 @@ const bootstrapSpecOf = (args: {
     commit: args.workspace?.commit ?? null,
     patch: args.workspace?.patch ?? '',
     githubToken: args.gitToken,
+    ...(args.model === undefined ? {} : { model: args.model }),
     ...(args.workspace?.gitIdentity === undefined || args.workspace?.gitIdentity === null
       ? {}
       : { gitIdentity: args.workspace.gitIdentity }),
@@ -114,6 +116,7 @@ export function createCloudBridge(args: {
       workspace: createArgs.workspace,
       gitToken,
       ...(createArgs.gpgKey === undefined ? {} : { gpgKey: createArgs.gpgKey }),
+      ...(createArgs.model === undefined ? {} : { model: createArgs.model }),
     })
 
     const placement = await driver.createOrResume({

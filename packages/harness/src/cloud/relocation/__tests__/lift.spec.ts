@@ -8,7 +8,7 @@ import { fakeEventLog } from './fake-backend'
 import { ELiftStep, liftToCloud } from '../lift'
 import { CLOUD_NOTICE_KEY } from '../transition-notice'
 import { CLEAN_WORKSPACE, CLOUD_THREAD, fakeBridge } from './fixture'
-import { harness } from './lift-fixture'
+import { FOOTER_SELECTION, harness } from './lift-fixture'
 
 const seedLocalTranscript = async (
   test: ReturnType<typeof harness>,
@@ -105,7 +105,9 @@ describe('lifting a conversation into the cloud', () => {
 
     await liftToCloud(test.args)
 
-    expect(test.bridge.created).toEqual([{ threadId: CLOUD_THREAD, workspace: dirty }])
+    expect(test.bridge.created).toEqual([
+      { threadId: CLOUD_THREAD, workspace: dirty, model: FOOTER_SELECTION.ref },
+    ])
   })
 
   it("carries the operator's gpg material to the sandbox request, stringified", async () => {
@@ -124,7 +126,12 @@ describe('lifting a conversation into the cloud', () => {
 
     expect(lifted.ok).toBe(true)
     expect(test.bridge.created).toEqual([
-      { threadId: CLOUD_THREAD, workspace: CLEAN_WORKSPACE, gpgKey: JSON.stringify(material) },
+      {
+        threadId: CLOUD_THREAD,
+        workspace: CLEAN_WORKSPACE,
+        gpgKey: JSON.stringify(material),
+        model: FOOTER_SELECTION.ref,
+      },
     ])
   })
 
@@ -136,7 +143,21 @@ describe('lifting a conversation into the cloud', () => {
     const lifted = await liftToCloud(test.args)
 
     expect(lifted.ok).toBe(true)
-    expect(test.bridge.created).toEqual([{ threadId: CLOUD_THREAD, workspace: CLEAN_WORKSPACE }])
+    expect(test.bridge.created).toEqual([
+      { threadId: CLOUD_THREAD, workspace: CLEAN_WORKSPACE, model: FOOTER_SELECTION.ref },
+    ])
+  })
+
+  it('carries the thread’s model to the sandbox request so the cloud session stays on it', async () => {
+    useAtlasHome()
+    const test = harness({})
+    await seedLocalTranscript(test)
+
+    await liftToCloud(test.args)
+
+    expect(test.bridge.created).toEqual([
+      { threadId: CLOUD_THREAD, workspace: CLEAN_WORKSPACE, model: FOOTER_SELECTION.ref },
+    ])
   })
 
   it("carries the operator's context archive onto the row before the sandbox boots, so serve finds it on the first poll", async () => {
@@ -147,7 +168,9 @@ describe('lifting a conversation into the cloud', () => {
 
     await liftToCloud(test.args)
 
-    expect(test.bridge.created).toEqual([{ threadId: CLOUD_THREAD, workspace: CLEAN_WORKSPACE }])
+    expect(test.bridge.created).toEqual([
+      { threadId: CLOUD_THREAD, workspace: CLEAN_WORKSPACE, model: FOOTER_SELECTION.ref },
+    ])
     expect(test.bridge.contextPuts).toEqual([{ threadId: CLOUD_THREAD, archive }])
     expect(test.bridge.trail).toEqual(['put-context', 'sandbox', 'put-transcript', 'confirm-landed', 'attach'])
   })

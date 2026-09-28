@@ -45,6 +45,8 @@ export type CloudSandboxes = {
     threadId: ThreadId
     workspace: LiftedWorkspace | null
     gpgKey?: string | undefined
+    /** The thread's model ref, written into the boot spec so the cloud session runs the model it was on. */
+    model?: string | undefined
     /**
      * Captures the skills/memory tar a fresh boot needs and uploads it through `put`. Deferred so
      * a resume never pays the tar: create invokes it only once the drift probe has settled that
