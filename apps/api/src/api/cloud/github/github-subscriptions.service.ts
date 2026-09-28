@@ -21,10 +21,26 @@ export class GithubSubscriptionsService {
   async subscribe(args: {
     userId: string
     repoFullName: string
-    prNumber: number
+    prNumber?: number
+    branch?: string
   }): Promise<GithubSubscriptionDto> {
     const { owner, repo } = parseRepo({ repoFullName: args.repoFullName })
     await this.requireRepoAccess({ userId: args.userId, owner, repo })
+
+    const prNumber = await this.resolvePrNumber({
+      userId: args.userId,
+      owner,
+      repo,
+      ...(args.prNumber === undefined ? {} : { prNumber: args.prNumber }),
+      ...(args.branch === undefined ? {} : { branch: args.branch }),
+    })
+    if (prNumber === null) {
+      throw new NotFoundException(
+        args.branch === undefined
+          ? 'no such pull request'
+          : `no open pull request for ${args.repoFullName}#${args.branch}`,
+      )
+    }
 
     const hook = await this.hooks.ensureHook({
       userId: args.userId,
@@ -37,13 +53,13 @@ export class GithubSubscriptionsService {
         userId_repoFullName_prNumber: {
           userId: args.userId,
           repoFullName: args.repoFullName,
-          prNumber: args.prNumber,
+          prNumber,
         },
       },
       create: {
         userId: args.userId,
         repoFullName: args.repoFullName,
-        prNumber: args.prNumber,
+        prNumber,
         pollBacked,
         expiresAt: nextExpiry(),
       },
@@ -59,7 +75,7 @@ export class GithubSubscriptionsService {
       owner,
       repo,
       repoFullName: args.repoFullName,
-      prNumber: args.prNumber,
+      prNumber,
     })
 
     return subscriptionDtoOf({ subscription, state })
@@ -102,6 +118,33 @@ export class GithubSubscriptionsService {
       where: { userId: args.userId, expiresAt: { gt: new Date() } },
     })
     return rows.map((row) => ({ repoFullName: row.repoFullName, prNumber: row.prNumber }))
+  }
+
+  /**
+   * A number is authoritative already; a branch resolves to its open PR as the subscribing
+   * user. The DTO guarantees exactly one is set, so the only null is "no open PR on that branch".
+   */
+  private async resolvePrNumber(args: {
+    userId: string
+    owner: string
+    repo: string
+    prNumber?: number
+    branch?: string
+  }): Promise<number | null> {
+    if (args.prNumber !== undefined) return args.prNumber
+    if (args.branch === undefined) return null
+
+    const token = await this.github.findToken({ userId: args.userId })
+    if (token === undefined) {
+      throw new ForbiddenException('connect github to subscribe to pull requests')
+    }
+    const found = await this.reads.findOpenPrForBranch({
+      token,
+      owner: args.owner,
+      repo: args.repo,
+      branch: args.branch,
+    })
+    return found === null ? null : found.number
   }
 
   private async pullOnSubscribe(args: {

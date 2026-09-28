@@ -63,6 +63,26 @@ export class GithubUserReads {
     })
   }
 
+  /**
+   * The branch-side of subscribe: the tracked checkout knows a branch, not a number, so this
+   * resolves the open PR for it as the subscribing user. `head=owner:branch` is required — a
+   * bare branch matches only same-repo heads and misses forks.
+   */
+  async findOpenPrForBranch(args: {
+    token: string
+    owner: string
+    repo: string
+    branch: string
+  }): Promise<{ number: number } | null> {
+    const head = `${args.owner}:${encodeURIComponent(args.branch)}`
+    const pulls = await this.get<Array<{ number: number }>>({
+      token: args.token,
+      path: `/repos/${args.owner}/${args.repo}/pulls?state=open&head=${head}&per_page=5`,
+    })
+    const found = pulls[0]
+    return found === undefined ? null : { number: found.number }
+  }
+
   async createHook(args: {
     token: string
     owner: string

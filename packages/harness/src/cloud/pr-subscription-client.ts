@@ -80,7 +80,7 @@ export class PrSubscriptionClient {
       body: {
         repoFullName: args.repoFullName,
         ...(args.branch === undefined ? {} : { branch: args.branch }),
-        ...(args.number === undefined ? {} : { number: args.number }),
+        ...(args.number === undefined ? {} : { prNumber: args.number }),
       },
     })
     const parsed = subscribeResponseSchema.parse(body)

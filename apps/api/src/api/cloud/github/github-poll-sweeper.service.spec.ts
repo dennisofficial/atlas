@@ -26,7 +26,6 @@ const REST_FIELDS: PullRequestCacheFields = {
   checksPassed: 3,
   checksFailed: 1,
   mergeable: false,
-  mergeableState: 'dirty',
 }
 
 function serviceWith(args: {
