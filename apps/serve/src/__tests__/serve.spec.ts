@@ -12,15 +12,15 @@ import {
 } from '@dltech/atlas-core'
 import { type RosterWire } from '@dltech/atlas-wire'
 
-import { EStepEnd } from '@dltech/atlas-harness/src/channel/signal'
+import { EStepEnd } from '@dltech/atlas-harness'
 import {
   CHANNEL_PROTOCOL_VERSION,
   EClientFrame,
   EClientRequest,
   EServeFrame,
   type ServeFrame,
-} from '@dltech/atlas-harness/src/cloud/channel-wire'
-import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness/src/loop/turn-outcome'
+} from '@dltech/atlas-harness'
+import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
 import {
   EServeEnv,
   EServeEvent,

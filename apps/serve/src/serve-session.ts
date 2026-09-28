@@ -1,5 +1,5 @@
-import { CloudSessionStore } from '@dltech/atlas-harness/src/cloud/cloud-session'
-import { atlasCloudFile, atlasVaultKeyFile } from '@dltech/atlas-harness/src/credentials/paths'
+import { CloudSessionStore } from '@dltech/atlas-harness'
+import { atlasCloudFile, atlasVaultKeyFile } from '@dltech/atlas-harness'
 
 /** The sandbox's only credential is its session token, so its cloud session file holds exactly
  * that: the session-aware machinery (the cloud-required gate, the transport clients) reads it

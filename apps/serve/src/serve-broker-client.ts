@@ -8,7 +8,7 @@ import {
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
-import { cloudRequest } from '@dltech/atlas-harness/src/cloud/cloud-transport'
+import { cloudRequest } from '@dltech/atlas-harness'
 
 const accountsResponseSchema = z.strictObject({
   accounts: z.array(accountSchema),

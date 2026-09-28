@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { GpgKeyMaterial } from '@dltech/atlas-harness/src/workspace/gpg-material'
+import type { GpgKeyMaterial } from '@dltech/atlas-harness'
 import {
   createEnvironmentProfile,
   EProfileStep,

@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 
-import { gitMessageOf, gitOneLine } from '@dltech/atlas-harness/src/workspace/git-text'
-import { runGit, type GitRun } from '@dltech/atlas-harness/src/workspace/run-git'
+import { gitMessageOf, gitOneLine } from '@dltech/atlas-harness'
+import { runGit, type GitRun } from '@dltech/atlas-harness'
 
 import type { ApplyEnvironmentProfile, EnvironmentProfile } from './environment-profile'
 import { nodeWorkspaceFiles, type WorkspaceFiles } from './workspace-files'

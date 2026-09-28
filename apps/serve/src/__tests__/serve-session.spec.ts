@@ -4,8 +4,8 @@ import { join } from 'node:path'
 
 import { beforeEach, describe, expect, it } from 'bun:test'
 
-import { CloudSessionStore } from '@dltech/atlas-harness/src/cloud/cloud-session'
-import { atlasCloudFile, atlasVaultKeyFile } from '@dltech/atlas-harness/src/credentials/paths'
+import { CloudSessionStore } from '@dltech/atlas-harness'
+import { atlasCloudFile, atlasVaultKeyFile } from '@dltech/atlas-harness'
 import { seedServeSession } from '../serve-session'
 
 const storeOf = (): CloudSessionStore =>

@@ -5,8 +5,8 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import type { AgentRegistryPort } from '@dltech/atlas-harness/src/agents/registry/port'
-import type { AgentSnapshot } from '@dltech/atlas-harness/src/agents/registry/snapshot'
+import type { AgentRegistryPort } from '@dltech/atlas-harness'
+import type { AgentSnapshot } from '@dltech/atlas-harness'
 
 export type ChildAdoptionDeps = {
   agents: Pick<AgentRegistryPort, 'hydrate' | 'list' | 'resume'>

@@ -2,9 +2,9 @@ import { describe, expect, it } from 'bun:test'
 
 import { toRunId } from '@dltech/atlas-core'
 
-import { toStepId } from '@dltech/atlas-harness/src/channel/signal'
-import { EServeFrame, type ServeFrame } from '@dltech/atlas-harness/src/cloud/channel-wire'
-import { ETurnStatus } from '@dltech/atlas-harness/src/loop/turn-outcome'
+import { toStepId } from '@dltech/atlas-harness'
+import { EServeFrame, type ServeFrame } from '@dltech/atlas-harness'
+import { ETurnStatus } from '@dltech/atlas-harness'
 import { createFrameBuffer } from '../frame-buffer'
 
 const started = (step: string) => ({ type: 'step-started', stepId: toStepId(step) }) as const

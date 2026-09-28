@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 
-import { gpgKeyMaterialSchema, type GpgKeyMaterial } from '@dltech/atlas-harness/src/workspace/gpg-material'
+import { gpgKeyMaterialSchema, type GpgKeyMaterial } from '@dltech/atlas-harness'
 
 import { EProfileStep, EProfileStepState, type ProfileStepOutcome } from './environment-profile'
 import type { GitRunner } from './materialize-workspace'

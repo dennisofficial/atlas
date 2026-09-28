@@ -1,4 +1,4 @@
-import { gitConfigEnv } from '@dltech/atlas-harness/src/workspace/git-config-env'
+import { gitConfigEnv } from '@dltech/atlas-harness'
 
 /**
  * The workspace spec's brokered token is the one github credential a cloud sandbox provably has;

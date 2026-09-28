@@ -4,7 +4,7 @@ import {
 } from '@dltech/atlas-core'
 import { rewindApplyParamsSchema, type RewindCutWire } from '@dltech/atlas-wire'
 
-import type { ThreadStorePort } from '@dltech/atlas-harness/src/store/thread-store'
+import type { ThreadStorePort } from '@dltech/atlas-harness'
 
 import type { ReplyFrame, RequestFrame } from './requests'
 import { answeredRequest, refusedRequest } from './requests'

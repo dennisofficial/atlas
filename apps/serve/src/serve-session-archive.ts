@@ -1,8 +1,8 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
-import { buildSessionArchive } from '@dltech/atlas-harness/src/cloud/session-archive'
-import { atlasDirectory } from '@dltech/atlas-harness/src/store/paths'
-import { sessionDirectory } from '@dltech/atlas-harness/src/store/sessions/paths'
+import { buildSessionArchive } from '@dltech/atlas-harness'
+import { atlasDirectory } from '@dltech/atlas-harness'
+import { sessionDirectory } from '@dltech/atlas-harness'
 
 /**
  * The descend's transcript transfer: the whole session directory the sandbox served from, tarred

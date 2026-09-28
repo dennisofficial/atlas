@@ -3,7 +3,7 @@ import type { ServerWebSocket } from 'bun'
 import { eventBodySchema, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 import { rosterWireSchema } from '@dltech/atlas-wire'
 
-import type { StepId } from '@dltech/atlas-harness/src/channel/signal'
+import type { StepId } from '@dltech/atlas-harness'
 
 import {
   CHANNEL_PROTOCOL_VERSION,
@@ -14,8 +14,8 @@ import {
   encodeFrame,
   type ClientFrame,
   type ServeFrame,
-} from '@dltech/atlas-harness/src/cloud/channel-wire'
-import type { FileBrowser } from '@dltech/atlas-harness/src/files/file-browser'
+} from '@dltech/atlas-harness'
+import type { FileBrowser } from '@dltech/atlas-harness'
 
 import type { FrameBuffer, SignalFrame } from './frame-buffer'
 import type { WorkspacePublisher } from './publish-workspace'

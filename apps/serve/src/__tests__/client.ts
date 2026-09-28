@@ -5,7 +5,7 @@ import {
   encodeFrame,
   type ClientFrame,
   type ServeFrame,
-} from '@dltech/atlas-harness/src/cloud/channel-wire'
+} from '@dltech/atlas-harness'
 
 const PATIENCE_MS = 2_000
 

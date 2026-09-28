@@ -1,7 +1,7 @@
 import type { EventDraft, SaidImage, ThreadId } from '@dltech/atlas-core'
 
-import type { TurnOutcome } from '@dltech/atlas-harness/src/loop/turn-outcome'
-import type { TurnPolicy } from '@dltech/atlas-harness/src/loop/turn-policy'
+import type { TurnOutcome } from '@dltech/atlas-harness'
+import type { TurnPolicy } from '@dltech/atlas-harness'
 
 import type { ServeApp } from './serve-app'
 

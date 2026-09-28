@@ -8,9 +8,9 @@ import {
 } from '@dltech/atlas-core'
 import type { RosterWire } from '@dltech/atlas-wire'
 
-import { createDeltaChannel, type DeltaChannel } from '@dltech/atlas-harness/src/channel/delta-channel'
-import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness/src/loop/turn-outcome'
-import type { ThreadSummary } from '@dltech/atlas-harness/src/store/thread-store'
+import { createDeltaChannel, type DeltaChannel } from '@dltech/atlas-harness'
+import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
+import type { ThreadSummary } from '@dltech/atlas-harness'
 import type { ServeApp, ServeRewind, ServeWakeNotices } from '../serve-app'
 
 export type RunTurn = (args: {

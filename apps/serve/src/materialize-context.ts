@@ -4,9 +4,9 @@ import { join, sep } from 'node:path'
 
 import { normalizeRepoOrigin } from '@dltech/atlas-core'
 
-import { extractContextArchive, type ExtractedArchiveEntry } from '@dltech/atlas-harness/src/cloud/context-archive'
-import { safeRelativeSegment } from '@dltech/atlas-harness/src/files/safe-relative-path'
-import { memoryDirectoriesFor } from '@dltech/atlas-harness/src/memory/read-memory'
+import { extractContextArchive, type ExtractedArchiveEntry } from '@dltech/atlas-harness'
+import { safeRelativeSegment } from '@dltech/atlas-harness'
+import { memoryDirectoriesFor } from '@dltech/atlas-harness'
 
 import { fetchArchiveWithRetry, type ArchiveRetry } from './context-archive-retry'
 import { readContextStamp, stampContextWithoutFailingBoot } from './context-stamp'

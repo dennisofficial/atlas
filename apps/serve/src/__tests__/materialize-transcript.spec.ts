@@ -5,8 +5,8 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'bun:test'
 import { toThreadId } from '@dltech/atlas-core'
 
-import { buildSessionArchive } from '@dltech/atlas-harness/src/cloud/session-archive'
-import { sessionDirectory } from '@dltech/atlas-harness/src/store/sessions/paths'
+import { buildSessionArchive } from '@dltech/atlas-harness'
+import { sessionDirectory } from '@dltech/atlas-harness'
 import { materializeTranscript } from '../materialize-transcript'
 
 const THREAD = toThreadId('thread-serve')

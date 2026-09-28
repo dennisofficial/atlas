@@ -3,8 +3,8 @@ import { join } from 'node:path'
 
 import type { ThreadId } from '@dltech/atlas-core'
 
-import { ATLAS_GIT_IDENTITY, gitMessageOf, gitOneLine } from '@dltech/atlas-harness/src/workspace/git-text'
-import { runGit, type GitRun } from '@dltech/atlas-harness/src/workspace/run-git'
+import { ATLAS_GIT_IDENTITY, gitMessageOf, gitOneLine } from '@dltech/atlas-harness'
+import { runGit, type GitRun } from '@dltech/atlas-harness'
 
 import {
   credentialedRemoteOf,

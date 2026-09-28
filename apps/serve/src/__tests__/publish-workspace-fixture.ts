@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import { toThreadId } from '@dltech/atlas-core'
 
-import { runGit, type GitRun } from '@dltech/atlas-harness/src/workspace/run-git'
+import { runGit, type GitRun } from '@dltech/atlas-harness'
 import type { WorkspaceSpec } from '../workspace-spec'
 
 export const THREAD = toThreadId('brn_publish-spec')

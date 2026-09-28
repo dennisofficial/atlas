@@ -8,8 +8,8 @@ import {
   EClientRequest,
   EServeFrame,
   type ServeFrame,
-} from '@dltech/atlas-harness/src/cloud/channel-wire'
-import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness/src/loop/turn-outcome'
+} from '@dltech/atlas-harness'
+import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
 import {
   EWorkspaceState,
   startServe,

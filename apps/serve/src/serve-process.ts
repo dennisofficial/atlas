@@ -1,7 +1,7 @@
 import type { PortExposureOutcome } from '@dltech/atlas-core'
 
-import type { VercelDriver } from '@dltech/atlas-harness/src/cloud/vercel-driver'
-import { LocalProcessPort } from '@dltech/atlas-harness/src/execution/local-process'
+import type { VercelDriver } from '@dltech/atlas-harness'
+import { LocalProcessPort } from '@dltech/atlas-harness'
 
 const messageOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
