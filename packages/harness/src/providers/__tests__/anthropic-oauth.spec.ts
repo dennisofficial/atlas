@@ -67,7 +67,7 @@ describe('the anthropic model authenticated by a subscription credential', () =>
       system: [
         {
           type: 'text',
-          text: 'x-anthropic-billing-header: cc_version=2.1.261.6af; cc_entrypoint=atlas;',
+          text: 'x-anthropic-billing-header: cc_version=2.1.284.12a; cc_entrypoint=atlas;',
         },
         { type: 'text', text: 'You are Atlas.' },
       ],
@@ -94,7 +94,7 @@ describe('the anthropic model authenticated by a subscription credential', () =>
       system: [
         {
           type: 'text',
-          text: 'x-anthropic-billing-header: cc_version=2.1.261.e1a; cc_entrypoint=atlas;',
+          text: 'x-anthropic-billing-header: cc_version=2.1.284.376; cc_entrypoint=atlas;',
         },
       ],
     })
@@ -116,7 +116,7 @@ describe('the anthropic model authenticated by a subscription credential', () =>
       system: [
         {
           type: 'text',
-          text: 'x-anthropic-billing-header: cc_version=2.1.261.6af; cc_entrypoint=atlas;',
+          text: 'x-anthropic-billing-header: cc_version=2.1.284.12a; cc_entrypoint=atlas;',
         },
       ],
     })
