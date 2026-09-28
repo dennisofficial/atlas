@@ -33,6 +33,13 @@ export enum EMessageOrigin {
   PeerAgent = 'peer-agent',
 }
 
+export enum EPullRequestState {
+  Open = 'open',
+  Draft = 'draft',
+  Merged = 'merged',
+  Closed = 'closed',
+}
+
 export const saidBy = (said: { via?: EMessageOrigin | undefined }): EMessageOrigin =>
   said.via ?? EMessageOrigin.Operator
 
@@ -102,6 +109,19 @@ export type EventBody =
       url: string
       repo: string
       branch: string
+    }
+  | {
+      type: 'pull-request-state'
+      number: number
+      url: string
+      repo: string
+      branch: string
+      state: EPullRequestState
+      checksRunning: number
+      checksPassed: number
+      checksFailed: number
+      mergeable: boolean | null
+      recordedAt: string
     }
   | {
       type: 'background-shell-started'
@@ -238,6 +258,7 @@ export const SURVIVES_SUMMARY: readonly EventType[] = [
   'permission-granted',
   'permission-revoked',
   'pull-request-linked',
+  'pull-request-state',
 ]
 
 export const survivesSummary = (type: EventType): boolean => SURVIVES_SUMMARY.includes(type)

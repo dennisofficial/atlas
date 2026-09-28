@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import type { Event } from '../../events/envelope'
-import { pullRequestsAfter, pullRequestsOf } from '../pull-requests'
+import { pullRequestStatesOf, pullRequestsAfter, pullRequestsOf } from '../pull-requests'
 
 let nextSeq = 0
 
@@ -63,6 +63,52 @@ describe('the pull requests a session has linked', () => {
     ]
 
     expect(pullRequestsOf(events)).toHaveLength(2)
+  })
+})
+
+describe('the pull request states a session has recorded', () => {
+  const state = (args: { number: number; checksPassed: number; repo?: string }) =>
+    event({
+      type: 'pull-request-state',
+      number: args.number,
+      url: `https://github.com/dltech/atlas/pull/${args.number}`,
+      repo: args.repo ?? 'github.com/dltech/atlas',
+      branch: 'dennis/first',
+      state: 'open',
+      checksRunning: 1,
+      checksPassed: args.checksPassed,
+      checksFailed: 0,
+      mergeable: null,
+      recordedAt: '2026-09-28T12:00:00.000Z',
+    })
+
+  it('is empty until one is recorded', () => {
+    expect(pullRequestStatesOf([said('hello'), linked({ number: 401, branch: 'dennis/first' })])).toEqual(
+      [],
+    )
+  })
+
+  it('lists them oldest first so the latest sits last', () => {
+    const events = [state({ number: 401, checksPassed: 5 }), state({ number: 412, checksPassed: 3 })]
+
+    expect(pullRequestStatesOf(events).map((pr) => pr.number)).toEqual([401, 412])
+  })
+
+  it('keeps only the latest state per pull request', () => {
+    const events = [state({ number: 401, checksPassed: 5 }), state({ number: 401, checksPassed: 8 })]
+
+    const folded = pullRequestStatesOf(events)
+    expect(folded).toHaveLength(1)
+    expect(folded[0]?.checksPassed).toBe(8)
+  })
+
+  it('treats the same number in another repository as a different pull request', () => {
+    const events = [
+      state({ number: 401, checksPassed: 5 }),
+      state({ number: 401, checksPassed: 3, repo: 'github.com/dltech/other' }),
+    ]
+
+    expect(pullRequestStatesOf(events)).toHaveLength(2)
   })
 })
 
