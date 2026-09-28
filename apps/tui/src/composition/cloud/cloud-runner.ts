@@ -11,6 +11,7 @@ import { ELiftStep } from '@dltech/atlas-harness'
 export type { CaptureContext }
 
 const WAKE_CONTEXT_NOTICE_KEY = 'wake-context-put-failed'
+const WAKE_OUTDATED_SERVE_NOTICE_KEY = 'wake-outdated-serve'
 
 /**
  * Re-attaching to a thread's sandbox: the claim mints a fresh token and git credential, and the
@@ -45,6 +46,15 @@ export async function wakeSandbox(args: {
       }
     },
   })
+
+  if (woken.outdatedServe !== undefined) {
+    notify({
+      key: WAKE_OUTDATED_SERVE_NOTICE_KEY,
+      text: `this session's sandbox still runs serve ${woken.outdatedServe} — a client was attached, so the pinned update waits for the sandbox's next cold boot`,
+      tone: ENoticeTone.Warn,
+      ttlMs: NOTICE_WARN_MS,
+    })
+  }
 
   args.move?.handleAdvance(ELiftStep.Attaching)
   return { url: woken.url, token: woken.token, created: woken.created }

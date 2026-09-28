@@ -3,6 +3,7 @@ import { type ThreadStorePort, type ThreadSummary } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useRef } from 'react'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
+import { cloudListing } from './cloud/cloud-listing'
 import { openCloudThread } from './cloud/cloud-open'
 import type { CloudBridge, CloudSandboxes } from '@dltech/atlas-harness'
 import type { CloudSession } from './cloud/cloud-session'
@@ -10,6 +11,7 @@ import type { AtlasApp } from './compose'
 import { EOpenMode } from './config'
 import type { LiftedAttachment } from './lifted-session'
 import { namedBy, openConversation, type OpenedConversation } from './open-conversation'
+import { messageOf } from './error-text'
 import type { CloudBridgeFactory } from './use-cloud-lift'
 import type { ContainerMoveControl } from './use-container-move'
 
@@ -53,7 +55,7 @@ export function useThreadRouter(args: {
     return bridgeRef.current
   }, [cloudBridge, createBridge, localApp])
 
-  const listing = useCallback((): Pick<ThreadStorePort, 'list'> => localApp.threads, [localApp])
+  const listing = useCallback((): Pick<ThreadStorePort, 'list'> => cloudListing(localApp), [localApp])
 
   const route = useCallback(
     async (threadId: string) => {
@@ -90,7 +92,15 @@ export function useThreadRouter(args: {
           threadId: toThreadId(target),
           move: containerMove,
           ...(projectDirectory === undefined ? {} : { projectDirectory }),
-        }).catch(() => null)
+        }).catch((error: unknown) => {
+          notify({
+            key: 'cloud-open-failed',
+            text: messageOf(error),
+            tone: ENoticeTone.Warn,
+            ttlMs: NOTICE_WARN_MS,
+          })
+          return null
+        })
         if (attachment === null) return
         args.onLifted(attachment)
         return

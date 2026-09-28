@@ -154,6 +154,32 @@ describe('waking a cloud runner whose channel is not open', () => {
     await expect(turn).resolves.toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-3') })
   })
 
+  it('warns when the wake resumes a sandbox whose outdated serve survived an attached client', async () => {
+    const bridge = fakeBridge({
+      sandbox: { ...RESUMED, outdatedServe: '1.19.1' },
+    })
+    const channel = fakeCloudChannel()
+    channel.moveTo({ state: EChannelConnection.Closed, detail: null })
+    const runner = createCloudRunner({
+      bridge,
+      channel,
+      threadId: CLOUD_THREAD,
+      captureContext: async () => undefined,
+    })
+
+    const turn = runner.runTurn({ threadId: CLOUD_THREAD })
+    await Bun.sleep(1)
+
+    expect(channel.woken).toEqual([{ url: POLLED_URL, token: 'sandbox-token' }])
+    const notice = currentNotices().find((entry) => entry.key === 'wake-outdated-serve')
+    expect(notice).toBeDefined()
+    expect(notice?.tone).toBe(ENoticeTone.Warn)
+    expect(notice?.text).toContain('1.19.1')
+
+    channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-5') })
+    await expect(turn).resolves.toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-5') })
+  })
+
   it('fails the move and propagates the error when waking cannot re-provision the sandbox', async () => {
     const bridge = fakeBridge({ createFails: new Error('no capacity in iad1') })
     const channel = fakeCloudChannel()

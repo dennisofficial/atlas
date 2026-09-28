@@ -6,7 +6,7 @@ import { testRender } from '@opentui/react/test-utils'
 import { EExecutionLocation, toRunId, type ThreadId } from '@dltech/atlas-core'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
-import { dismissNotice } from '../../ui/notice-store'
+import { currentNotices, dismissNotice } from '../../ui/notice-store'
 import { App } from '../app'
 import { ECloudSandboxState } from '@dltech/atlas-harness'
 import { CLEAN_WORKSPACE, fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
@@ -185,6 +185,47 @@ describe('opening a conversation that lives in the cloud', () => {
       expect(bridge.created).toHaveLength(1)
       expect(bridge.attached[0]?.threadId).toBe(threadId)
       expect(frame).toContain('said inside the sandbox')
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+})
+
+describe('/container off during the reattach window', () => {
+  it('refuses while the channel is still connecting rather than flipping the thread home', async () => {
+    const app = speaking()
+    const { threadId } = await seedCloudThread(app)
+    const bridge = fakeBridge({ status: RUNNING_STATUS })
+    await bridge.log.append({
+      threadId,
+      runId: toRunId('run-cloud'),
+      drafts: [{ type: 'user-said', text: 'said inside the sandbox' }],
+    })
+    const mounted = await mount({
+      app,
+      bridge,
+      opened: {
+        threadId,
+        events: [],
+        turns: [],
+        name: null,
+        started: true,
+        executionLocation: EExecutionLocation.Cloud,
+      },
+    })
+
+    try {
+      await mounted.command('/container off')
+
+      expect(bridge.created).toHaveLength(1)
+      expect(bridge.destroyed).toHaveLength(0)
+      expect(currentNotices().some((notice) => notice.text.includes('still connecting'))).toBe(true)
+      expect(
+        currentNotices().some((notice) => notice.text.includes('composer is paused')),
+      ).toBe(false)
+      expect((await app.threads.find({ threadId }))?.executionLocation).toBe(
+        EExecutionLocation.Cloud,
+      )
     } finally {
       await mounted.done()
     }

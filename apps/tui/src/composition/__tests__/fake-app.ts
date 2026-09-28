@@ -285,7 +285,11 @@ class FakeCloudService extends CloudService {
     return this.syncs.counts
   }
 
-  constructor(args: { session: CloudSession | null; client: CloudClient | null }) {
+  constructor(args: {
+    session: CloudSession | null
+    client: CloudClient | null
+    sessionsClientFor?: ConstructorParameters<typeof CloudService>[0]['sessionsClientFor']
+  }) {
     const sessions = new CloudSessionStore({
       file: join(tmpdir(), `atlas-fake-cloud-${randomUUID()}.json`),
       keyFile: join(tmpdir(), `atlas-fake-cloud-${randomUUID()}.key`),
@@ -298,6 +302,7 @@ class FakeCloudService extends CloudService {
       localAccounts: memoryAccountStore({ clock: new SystemClock() }),
       defaultUrl: 'http://localhost:3400',
       signInOffer: { offered: () => offered, markOffered: () => { offered = true } },
+      ...(args.sessionsClientFor === undefined ? {} : { sessionsClientFor: args.sessionsClientFor }),
     })
     this.fakeClient = args.client
   }
@@ -316,10 +321,12 @@ export const FAKE_CLOUD_SESSION: CloudSession = {
 export const fakeCloud = (args?: {
   session?: CloudSession | null
   client?: CloudClient | null
+  sessionsClientFor?: ConstructorParameters<typeof CloudService>[0]['sessionsClientFor']
 }): CloudService =>
   new FakeCloudService({
     session: args?.session ?? FAKE_CLOUD_SESSION,
     client: args?.client ?? null,
+    ...(args?.sessionsClientFor === undefined ? {} : { sessionsClientFor: args.sessionsClientFor }),
   })
 
 export const fakeSignedOutCloud = (args?: { client?: CloudClient | null }): CloudService =>

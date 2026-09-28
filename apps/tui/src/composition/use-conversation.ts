@@ -67,6 +67,8 @@ export type Conversation = {
   started: boolean
   threadModel: ThreadModel | undefined
   executionLocation: EExecutionLocation | undefined
+  /** A cloud thread whose channel has not attached yet — the boot-reattach window. */
+  attachPending: boolean
   rewindConfirm: RewindConfirmControl
   lost: RecoveredAgents | null
   lostShells: readonly LostShell[]
@@ -538,6 +540,8 @@ export function useConversation(args: {
     started,
     threadModel: opened.model,
     executionLocation: opened.executionLocation,
+    attachPending:
+      opened.executionLocation === EExecutionLocation.Cloud && cloudRunner === null,
     lost: opened.lost ?? null,
     lostShells: opened.lostShells ?? [],
     handle: name === null ? null : threadHandle({ threadId, title: name }),
