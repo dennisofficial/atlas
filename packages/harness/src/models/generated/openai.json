@@ -599,6 +599,56 @@
   {
     "ref": {
       "providerId": "openai",
+      "modelId": "gpt-daybreak-blue-latest"
+    },
+    "label": "Daybreak Blue",
+    "api": "openai-responses",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 4,
+      "outputPerMillion": 20,
+      "cacheReadPerMillion": 0.4,
+      "cacheWritePerMillion": 5
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "openai",
+      "modelId": "gpt-daybreak-red-latest"
+    },
+    "label": "Daybreak Red",
+    "api": "openai-responses",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 12.5,
+      "outputPerMillion": 75,
+      "cacheReadPerMillion": 1.25,
+      "cacheWritePerMillion": 15.625
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "openai",
       "modelId": "gpt-realtime-2.1"
     },
     "label": "GPT-Realtime-2.1",
