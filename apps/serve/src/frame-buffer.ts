@@ -1,5 +1,5 @@
-import type { ChannelSignal } from '@dltech/atlas-harness/src/channel/signal'
-import { EServeFrame, type ServeFrame } from '@dltech/atlas-harness/src/cloud/channel-wire'
+import type { ChannelSignal } from '@dltech/atlas-harness'
+import { EServeFrame, type ServeFrame } from '@dltech/atlas-harness'
 
 export const DEFAULT_FRAME_BUFFER = 2048
 

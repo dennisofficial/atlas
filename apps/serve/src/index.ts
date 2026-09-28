@@ -1,12 +1,12 @@
 import { isResumable, type ThreadId } from '@dltech/atlas-core'
 
-import type { StepId } from '@dltech/atlas-harness/src/channel/signal'
-import { EServeFrame, type ServeFrame, type TurnOutcomeWire } from '@dltech/atlas-harness/src/cloud/channel-wire'
-import { SessionsClient } from '@dltech/atlas-harness/src/cloud/sessions-client'
-import { MainWake } from '@dltech/atlas-harness/src/composition/main-wake'
-import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness/src/loop/turn-outcome'
+import type { StepId } from '@dltech/atlas-harness'
+import { EServeFrame, type ServeFrame, type TurnOutcomeWire } from '@dltech/atlas-harness'
+import { SessionsClient } from '@dltech/atlas-harness'
+import { MainWake } from '@dltech/atlas-harness'
+import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
 
-import { atlasDirectory } from '@dltech/atlas-harness/src/store/paths'
+import { atlasDirectory } from '@dltech/atlas-harness'
 
 import { syncCapabilitiesNotice } from './capabilities-notice'
 import { createChannelBridge } from './channel-bridge'

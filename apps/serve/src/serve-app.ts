@@ -9,13 +9,13 @@ import type {
 } from '@dltech/atlas-core'
 import type { RosterWire } from '@dltech/atlas-wire'
 
-import type { DeltaChannel } from '@dltech/atlas-harness/src/channel/delta-channel'
-import type { FileBrowser } from '@dltech/atlas-harness/src/files/file-browser'
-import type { TurnLedgerPort } from '@dltech/atlas-harness/src/ledger/turn-ledger.port'
-import type { TurnPolicy } from '@dltech/atlas-harness/src/loop/turn-policy'
-import type { TurnRunner } from '@dltech/atlas-harness/src/loop/turn-runner.port'
-import type { LostShell } from '@dltech/atlas-harness/src/shells/recovery'
-import type { ThreadStorePort } from '@dltech/atlas-harness/src/store/thread-store'
+import type { DeltaChannel } from '@dltech/atlas-harness'
+import type { FileBrowser } from '@dltech/atlas-harness'
+import type { TurnLedgerPort } from '@dltech/atlas-harness'
+import type { TurnPolicy } from '@dltech/atlas-harness'
+import type { TurnRunner } from '@dltech/atlas-harness'
+import type { LostShell } from '@dltech/atlas-harness'
+import type { ThreadStorePort } from '@dltech/atlas-harness'
 
 /**
  * The registries' notice queues narrowed to what the idle wake reads: whether the served thread has

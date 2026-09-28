@@ -6,9 +6,9 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'bun:test'
 import { toThreadId } from '@dltech/atlas-core'
 
-import { buildContextArchive } from '@dltech/atlas-harness/src/cloud/context-archive'
-import { buildSessionArchive } from '@dltech/atlas-harness/src/cloud/session-archive'
-import { sessionDirectory } from '@dltech/atlas-harness/src/store/sessions/paths'
+import { buildContextArchive } from '@dltech/atlas-harness'
+import { buildSessionArchive } from '@dltech/atlas-harness'
+import { sessionDirectory } from '@dltech/atlas-harness'
 import {
   EServeEvent,
   EWorkspaceState,
@@ -146,7 +146,7 @@ describe('serve on a drive-mounted home and workspace', () => {
     const drive = await freshDrive()
     withAtlasHome(drive.home)
 
-    const { atlasDirectory } = await import('@dltech/atlas-harness/src/store/paths')
+    const { atlasDirectory } = await import('@dltech/atlas-harness')
     expect(atlasDirectory()).toBe(drive.home)
 
     const readiness = await materializeTranscript({

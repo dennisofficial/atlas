@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { runGit } from '@dltech/atlas-harness/src/workspace/run-git'
+import { runGit } from '@dltech/atlas-harness'
 import { createWorkspacePublisher } from '../publish-workspace'
 
 import { commitAll, git, headOf, refsIn, scenario, specOf, THREAD } from './publish-workspace-fixture'

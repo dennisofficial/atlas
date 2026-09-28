@@ -2,9 +2,9 @@ import { join } from 'node:path'
 
 import { ENoticeTone, MEMORY_DIRECTORY_NAME, type NoticePort } from '@dltech/atlas-core'
 
-import { buildContextArchive } from '@dltech/atlas-harness/src/cloud/context-archive'
-import type { UserContextClient } from '@dltech/atlas-harness/src/cloud/user-context-client'
-import { statMemoryDirectory, type MemoryFileStat } from '@dltech/atlas-harness/src/memory/walk-memory'
+import { buildContextArchive } from '@dltech/atlas-harness'
+import type { UserContextClient } from '@dltech/atlas-harness'
+import { statMemoryDirectory, type MemoryFileStat } from '@dltech/atlas-harness'
 
 export type MemoryManifestEntry = { key: string; path: string; mtimeMs: number; size: number }
 

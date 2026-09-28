@@ -1,6 +1,6 @@
 import type { Server } from 'bun'
 
-import { CHANNEL_SUBPROTOCOL, tokenFromSubprotocols } from '@dltech/atlas-harness/src/cloud/channel-wire'
+import { CHANNEL_SUBPROTOCOL, tokenFromSubprotocols } from '@dltech/atlas-harness'
 
 import type { SessionHandlers, SocketState } from './socket-session'
 import { bearerToken, offeredSubprotocols, tokenMatches } from './token-guard'

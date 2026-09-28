@@ -14,8 +14,8 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import type { AgentOutcome } from '@dltech/atlas-harness/src/agents/registry/port'
-import type { AgentSnapshot } from '@dltech/atlas-harness/src/agents/registry/snapshot'
+import type { AgentOutcome } from '@dltech/atlas-harness'
+import type { AgentSnapshot } from '@dltech/atlas-harness'
 import { adoptChildren } from '../adopt-children'
 
 const eventsFrom = (args: {

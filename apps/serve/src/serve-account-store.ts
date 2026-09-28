@@ -8,7 +8,7 @@ import {
   type AccountSecret,
 } from '@dltech/atlas-core'
 
-import { CloudError } from '@dltech/atlas-harness/src/cloud/cloud-transport'
+import { CloudError } from '@dltech/atlas-harness'
 
 import type { ServeBrokerClient } from './serve-broker-client'
 

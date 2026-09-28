@@ -16,10 +16,10 @@ import {
   readTurnsParamsSchema,
   type ClientFrame,
   type ServeFrame,
-} from '@dltech/atlas-harness/src/cloud/channel-wire'
-import type { FileBrowser } from '@dltech/atlas-harness/src/files/file-browser'
-import type { TurnLedgerPort } from '@dltech/atlas-harness/src/ledger/turn-ledger.port'
-import type { ThreadStorePort } from '@dltech/atlas-harness/src/store/thread-store'
+} from '@dltech/atlas-harness'
+import type { FileBrowser } from '@dltech/atlas-harness'
+import type { TurnLedgerPort } from '@dltech/atlas-harness'
+import type { ThreadStorePort } from '@dltech/atlas-harness'
 
 import type { WorkspacePublisher } from './publish-workspace'
 import { wireEventOf, wireThreadOf, wireTurnOf } from './session-wires'

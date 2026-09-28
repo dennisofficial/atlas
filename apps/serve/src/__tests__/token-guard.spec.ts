@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { bearerSubprotocolOf, tokenFromSubprotocols } from '@dltech/atlas-harness/src/cloud/channel-wire'
+import { bearerSubprotocolOf, tokenFromSubprotocols } from '@dltech/atlas-harness'
 import { bearerToken, offeredSubprotocols, tokenMatches } from '../token-guard'
 
 describe('tokenMatches', () => {

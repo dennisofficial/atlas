@@ -1,5 +1,5 @@
-import { toStepId, type ChannelSignal, type StepId } from '@dltech/atlas-harness/src/channel/signal'
-import { EServeFrame, type ServeFrame } from '@dltech/atlas-harness/src/cloud/channel-wire'
+import { toStepId, type ChannelSignal, type StepId } from '@dltech/atlas-harness'
+import { EServeFrame, type ServeFrame } from '@dltech/atlas-harness'
 
 /**
  * A client told to reload ends the step it was streaming, so replaying that step under its original

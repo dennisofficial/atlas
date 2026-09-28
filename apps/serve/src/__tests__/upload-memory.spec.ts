@@ -6,7 +6,7 @@ import { join } from 'node:path'
 
 import { ENoticeTone, type NoticePort, type NoticePost } from '@dltech/atlas-core'
 
-import { extractContextArchive } from '@dltech/atlas-harness/src/cloud/context-archive'
+import { extractContextArchive } from '@dltech/atlas-harness'
 import {
   captureMemoryArchive,
   createMemoryUploader,

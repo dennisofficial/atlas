@@ -2,8 +2,8 @@ import { existsSync } from 'node:fs'
 
 import { type ThreadId } from '@dltech/atlas-core'
 
-import { extractSessionArchive } from '@dltech/atlas-harness/src/cloud/session-archive'
-import { sessionDirectory } from '@dltech/atlas-harness/src/store/sessions/paths'
+import { extractSessionArchive } from '@dltech/atlas-harness'
+import { sessionDirectory } from '@dltech/atlas-harness'
 
 import type { FetchTranscriptArchive } from './workspace-spec'
 

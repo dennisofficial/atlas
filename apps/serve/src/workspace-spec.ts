@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import type { ThreadId } from '@dltech/atlas-core'
 
-import { CloudTransport, cloudRequest } from '@dltech/atlas-harness/src/cloud/cloud-transport'
+import { CloudTransport, cloudRequest } from '@dltech/atlas-harness'
 
 /**
  * Fetched rather than injected: a patch carrying every uncommitted change outgrows what a process

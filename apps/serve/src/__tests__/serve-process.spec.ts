@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { VercelDriver } from '@dltech/atlas-harness/src/cloud/vercel-driver'
+import type { VercelDriver } from '@dltech/atlas-harness'
 import { ServeProcessPort } from '../serve-process'
 
 const driverWith = (exposePort: VercelDriver['exposePort']): Pick<VercelDriver, 'exposePort'> => ({

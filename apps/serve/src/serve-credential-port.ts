@@ -9,7 +9,7 @@ import {
   type CredentialRequest,
 } from '@dltech/atlas-core'
 
-import { isCloudUnavailable } from '@dltech/atlas-harness/src/cloud/cloud-transport'
+import { isCloudUnavailable } from '@dltech/atlas-harness'
 
 import type { ServeBrokerClient, ServeBrokeredToken } from './serve-broker-client'
 

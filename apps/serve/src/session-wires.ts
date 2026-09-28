@@ -1,9 +1,9 @@
 import type { Event } from '@dltech/atlas-core'
 
-import type { WireEvent, WireThread, WireTurn } from '@dltech/atlas-harness/src/cloud/session-wire'
-import { wireDraftOf } from '@dltech/atlas-harness/src/cloud/session-wire'
-import type { TurnSpend } from '@dltech/atlas-harness/src/ledger/turn-ledger.port'
-import type { ThreadSummary } from '@dltech/atlas-harness/src/store/thread-store'
+import type { WireEvent, WireThread, WireTurn } from '@dltech/atlas-harness'
+import { wireDraftOf } from '@dltech/atlas-harness'
+import type { TurnSpend } from '@dltech/atlas-harness'
+import type { ThreadSummary } from '@dltech/atlas-harness'
 
 export function wireEventOf(event: Event): WireEvent {
   const draft = wireDraftOf(event)

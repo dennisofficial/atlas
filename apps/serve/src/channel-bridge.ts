@@ -1,7 +1,7 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
-import type { DeltaChannel } from '@dltech/atlas-harness/src/channel/delta-channel'
-import type { StepId } from '@dltech/atlas-harness/src/channel/signal'
+import type { DeltaChannel } from '@dltech/atlas-harness'
+import type { StepId } from '@dltech/atlas-harness'
 
 import type { FrameBuffer, SignalFrame } from './frame-buffer'
 

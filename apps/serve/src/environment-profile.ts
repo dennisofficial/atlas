@@ -3,7 +3,7 @@ import { join } from 'node:path'
 
 import { EPortExposure, type EnvironmentCapabilities } from '@dltech/atlas-core'
 
-import { runGit } from '@dltech/atlas-harness/src/workspace/run-git'
+import { runGit } from '@dltech/atlas-harness'
 
 import { applyGitAccessEnv } from './git-access-env'
 import { SERVE_IDLE_MINUTES_WITH_SERVICES } from './idle-stop'
