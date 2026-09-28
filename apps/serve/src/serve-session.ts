@@ -7,6 +7,16 @@ import { atlasCloudFile, atlasVaultKeyFile } from '@dltech/atlas-harness/src/cre
  * — the API refuses a sandbox token on those user-facing routes, and serve reaches the
  * thread-scoped broker adapters registered in compose-serve instead. */
 export function seedServeSession(args: { url: string; token: string }): void {
-  const sessions = new CloudSessionStore({ file: atlasCloudFile(), keyFile: atlasVaultKeyFile() })
+  const file = atlasCloudFile()
+  const sessions = new CloudSessionStore({ file, keyFile: atlasVaultKeyFile() })
+
+  const humanSignIn = sessions.read()?.email ?? null
+  if (humanSignIn !== null)
+    throw new Error(
+      `Refusing to boot serve over ${file}: it holds the Atlas Cloud sign-in for ${humanSignIn}, ` +
+        'and seeding the sandbox session would sign that user out. Run serve with ATLAS_HOME ' +
+        'pointed at a scratch directory.',
+    )
+
   sessions.write({ url: args.url, token: args.token, email: null })
 }
