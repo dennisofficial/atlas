@@ -11,7 +11,6 @@ export * from './surface'
 export * from './validate'
 export * from './validate-contribution'
 
-export * from './github/api-pull-requests'
 export * from './github/checkout-probe'
 export * from './github/cloud-checkout'
 export * from './github/gh-pull-requests'
