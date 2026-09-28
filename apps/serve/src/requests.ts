@@ -14,6 +14,8 @@ import {
   readEventsParamsSchema,
   readThreadParamsSchema,
   readTurnsParamsSchema,
+  renameThreadParamsSchema,
+  setThreadModelParamsSchema,
   type ClientFrame,
   type ServeFrame,
 } from '@dltech/atlas-harness'
@@ -98,13 +100,72 @@ export async function answerRequest(args: {
 }): Promise<ReplyFrame> {
   if (args.frame.op === EClientRequest.CompletePaths) return await completePaths(args)
   if (args.frame.op === EClientRequest.BrowseDirectory) return await browseDirectory(args)
-  return await publishWorkspaceHandler(args)
+  if (args.frame.op === EClientRequest.PublishWorkspace) return await publishWorkspaceHandler(args)
+  return refusedRequest({ replyTo: args.frame.id, message: `unknown request op: ${args.frame.op}` })
 }
 
 export type TranscriptReaders = {
   log: Pick<EventLogPort, 'read' | 'readOwn'>
-  threads: Pick<ThreadStorePort, 'find' | 'spawned'>
+  threads: Pick<ThreadStorePort, 'find' | 'spawned' | 'rename' | 'chooseModel'>
   ledger: Pick<TurnLedgerPort, 'forThreadTree'>
+}
+
+/** The transcript ops that mutate the served session's stores rather than reading them. */
+export const isTranscriptWriteOp = (op: EClientRequest): boolean =>
+  op === EClientRequest.RenameThread || op === EClientRequest.SetThreadModel
+
+export async function answerRenameThread(args: {
+  frame: RequestFrame
+  transcript: TranscriptReaders
+}): Promise<ReplyFrame> {
+  const parsed = renameThreadParamsSchema.safeParse(args.frame.params)
+  if (!parsed.success) {
+    return refusedRequest({
+      replyTo: args.frame.id,
+      message: 'rename-thread wants { threadId, title }',
+    })
+  }
+  await args.transcript.threads.rename({
+    threadId: parsed.data.threadId as ThreadId,
+    title: parsed.data.title,
+  })
+  return answeredRequest({
+    replyTo: args.frame.id,
+    data: { threadId: parsed.data.threadId, title: parsed.data.title },
+  })
+}
+
+export async function answerSetThreadModel(args: {
+  frame: RequestFrame
+  transcript: TranscriptReaders
+  /** Re-pins the running loop's model; absent in a fake, where the pick is only recorded. */
+  select?: ((model: { ref: string; effort: string }) => void) | undefined
+}): Promise<ReplyFrame> {
+  const parsed = setThreadModelParamsSchema.safeParse(args.frame.params)
+  if (!parsed.success) {
+    return refusedRequest({
+      replyTo: args.frame.id,
+      message: 'set-thread-model wants { threadId, model: { ref, effort } }',
+    })
+  }
+  await args.transcript.threads.chooseModel({
+    threadId: parsed.data.threadId as ThreadId,
+    model: parsed.data.model,
+  })
+  args.select?.(parsed.data.model)
+  return answeredRequest({
+    replyTo: args.frame.id,
+    data: { threadId: parsed.data.threadId, model: parsed.data.model },
+  })
+}
+
+export async function answerTranscriptWrite(args: {
+  frame: RequestFrame
+  transcript: TranscriptReaders
+  select?: ((model: { ref: string; effort: string }) => void) | undefined
+}): Promise<ReplyFrame> {
+  if (args.frame.op === EClientRequest.RenameThread) return await answerRenameThread(args)
+  return await answerSetThreadModel(args)
 }
 
 /** The ops that read the served session's transcript; anything else is answered by `answerRequest`. */

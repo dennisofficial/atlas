@@ -63,10 +63,14 @@ const writeBootstrap = async (args: {
   home: string
   context: Uint8Array
   transcript: Uint8Array | null
+  spec?: Record<string, unknown> | undefined
 }): Promise<void> => {
   const dir = join(args.home, 'bootstrap')
   await mkdir(dir, { recursive: true })
-  await writeFile(join(dir, 'workspace-spec.json'), JSON.stringify(bareSpec))
+  await writeFile(
+    join(dir, 'workspace-spec.json'),
+    JSON.stringify({ ...bareSpec, ...args.spec }),
+  )
   await writeFile(join(dir, 'context.tar.gz'), args.context)
   if (args.transcript !== null) await writeFile(join(dir, 'transcript.tar.gz'), args.transcript)
 }
@@ -80,13 +84,16 @@ const bootOn = async (args: {
   drive: Drive
   archives: { context: Uint8Array; transcript: Uint8Array | null }
   ensureWorkspace: EnsureWorkspace
+  spec?: Record<string, unknown> | undefined
   fetchTranscriptArchive?: FetchTranscriptArchive | undefined
+  compose?: ((composeArgs: { model?: string | undefined }) => Promise<ReturnType<typeof fakeServeApp>>) | undefined
 }): Promise<{ handle: ServeHandle; lines: string[] }> => {
   const lines: string[] = []
   await writeBootstrap({
     home: args.drive.home,
     context: args.archives.context,
     transcript: args.archives.transcript,
+    spec: args.spec,
   })
   const handle = await startServe({
     env: {},
@@ -96,7 +103,7 @@ const bootOn = async (args: {
     controlPlaneUrl: CONTROL_PLANE,
     cwd: args.drive.workspace,
     write: (line) => lines.push(line),
-    compose: async () => fakeServeApp({ threadId, root: args.drive.workspace }),
+    compose: args.compose ?? (async () => fakeServeApp({ threadId, root: args.drive.workspace })),
     ensureWorkspace: args.ensureWorkspace,
     fetchTranscriptArchive: args.fetchTranscriptArchive,
   })
@@ -104,11 +111,20 @@ const bootOn = async (args: {
   return { handle, lines }
 }
 
-const transcriptArchiveFrom = async (source: string): Promise<Uint8Array> => {
+const transcriptArchiveFrom = async (
+  source: string,
+  threadMeta?: Record<string, unknown>,
+): Promise<Uint8Array> => {
   const sourceSession = sessionDirectory({ home: source, sessionId: threadId })
   await mkdir(join(sourceSession, 'threads'), { recursive: true })
   await writeFile(join(sourceSession, 'meta.json'), '{"format":1}')
   await writeFile(join(sourceSession, 'threads', `${threadId}.events.jsonl`), '')
+  if (threadMeta !== undefined) {
+    await writeFile(
+      join(sourceSession, 'threads', `${threadId}.meta.json`),
+      JSON.stringify(threadMeta),
+    )
+  }
   const archive = await buildSessionArchive({ sessionDir: sourceSession })
   if (archive === undefined) throw new Error('expected a transcript archive')
   return archive
@@ -211,6 +227,67 @@ describe('serve on a drive-mounted home and workspace', () => {
     expect(transcriptFetches).toBe(0)
     expect(second.lines.some((line) => line.includes(EServeEvent.TranscriptRestored))).toBe(false)
     expect(second.lines.some((line) => line.includes(EServeEvent.ContextReady))).toBe(false)
+  })
+
+  it('boots the model the transcript meta carries, ahead of the workspace spec', async () => {
+    const drive = await freshDrive()
+    const source = await mkdtemp(join(tmpdir(), 'atlas-drive-source-'))
+    drives.push({ root: source, home: source, workspace: source })
+    withAtlasHome(drive.home)
+    const transcript = await transcriptArchiveFrom(source, {
+      v: 1,
+      id: threadId,
+      title: 'a titled thread',
+      head: 0,
+      createdAt: '2026-09-28T00:00:00.000Z',
+      updatedAt: '2026-09-28T00:00:00.000Z',
+      parentThreadId: null,
+      forkSeq: null,
+      forkMode: null,
+      spawnerThreadId: null,
+      agentType: null,
+      workspace: null,
+      repo: null,
+      modelRef: 'anthropic/claude-opus-5',
+      modelEffort: 'high',
+      executionLocation: null,
+    })
+
+    let composedWith: string | undefined
+    await bootOn({
+      drive,
+      archives: { context: await contextArchiveFrom(source), transcript },
+      ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
+      spec: { model: 'inference-net/kimi-k3-fast' },
+      compose: async (composeArgs) => {
+        composedWith = composeArgs.model
+        return fakeServeApp({ threadId, root: drive.workspace })
+      },
+    })
+
+    expect(composedWith).toBe('anthropic/claude-opus-5')
+  })
+
+  it('falls back to the workspace spec model when the transcript names none', async () => {
+    const drive = await freshDrive()
+    const source = await mkdtemp(join(tmpdir(), 'atlas-drive-source-'))
+    drives.push({ root: source, home: source, workspace: source })
+    withAtlasHome(drive.home)
+    const transcript = await transcriptArchiveFrom(source)
+
+    let composedWith: string | undefined
+    await bootOn({
+      drive,
+      archives: { context: await contextArchiveFrom(source), transcript },
+      ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
+      spec: { model: 'inference-net/kimi-k3-fast' },
+      compose: async (composeArgs) => {
+        composedWith = composeArgs.model
+        return fakeServeApp({ threadId, root: drive.workspace })
+      },
+    })
+
+    expect(composedWith).toBe('inference-net/kimi-k3-fast')
   })
 
   it('materializes into a workspace directory the drive does not hold yet', async () => {

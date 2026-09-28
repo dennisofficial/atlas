@@ -45,12 +45,13 @@ describe('materializing the transcript at boot', () => {
     expect(existsSync(join(sessionDirectory({ home, sessionId: THREAD }), 'meta.json'))).toBe(true)
   })
 
-  it('leaves a resumed sandbox alone when the session directory is already there', async () => {
+  it('leaves a resumed sandbox alone when the session directory already holds the transcript', async () => {
     const home = freshHome()
     const dir = sessionDirectory({ home, sessionId: THREAD })
     const { mkdirSync, writeFileSync } = await import('node:fs')
-    mkdirSync(dir, { recursive: true })
+    mkdirSync(join(dir, 'threads'), { recursive: true })
     writeFileSync(join(dir, 'meta.json'), '{"format":1,"marker":"resumed"}')
+    writeFileSync(join(dir, 'threads', `${THREAD}.events.jsonl`), '')
     let fetches = 0
 
     const readiness = await materializeTranscript({
@@ -66,6 +67,37 @@ describe('materializing the transcript at boot', () => {
     expect(fetches).toBe(0)
     const { readFileSync } = await import('node:fs')
     expect(readFileSync(join(dir, 'meta.json'), 'utf8')).toContain('resumed')
+  })
+
+  it('reads the archive when the session directory is a husk with no transcript in it', async () => {
+    const home = freshHome()
+    const dir = sessionDirectory({ home, sessionId: THREAD })
+    const { mkdirSync, writeFileSync } = await import('node:fs')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, 'meta.json'), '{"format":1}')
+
+    const source = freshHome()
+    const sourceDir = sessionDirectory({ home: source, sessionId: THREAD })
+    mkdirSync(join(sourceDir, 'threads'), { recursive: true })
+    writeFileSync(join(sourceDir, 'meta.json'), '{"format":1}')
+    writeFileSync(join(sourceDir, 'threads', `${THREAD}.events.jsonl`), '{"seq":1}\n')
+    const archive = await buildSessionArchive({ sessionDir: sourceDir })
+    if (archive === undefined) throw new Error('expected an archive')
+    let fetches = 0
+
+    const readiness = await materializeTranscript({
+      fetchArchive: async () => {
+        fetches += 1
+        return archive
+      },
+      atlasHome: home,
+      threadId: THREAD,
+    })
+
+    expect(readiness).toEqual({ restored: true, failed: null })
+    expect(fetches).toBe(1)
+    const { readFileSync } = await import('node:fs')
+    expect(readFileSync(join(dir, 'threads', `${THREAD}.events.jsonl`), 'utf8')).toContain('{"seq":1}')
   })
 
   it('reports a fetch failure rather than booting against a blank log', async () => {

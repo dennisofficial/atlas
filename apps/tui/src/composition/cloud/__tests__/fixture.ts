@@ -314,6 +314,10 @@ class WatchedThreadStore extends ThreadStorePort {
     return this.inner.onRename(listener)
   }
 
+  override onModelChosen(listener: Parameters<ThreadStorePort['onModelChosen']>[0]) {
+    return this.inner.onModelChosen(listener)
+  }
+
   chooseModel(args: Parameters<ThreadStorePort['chooseModel']>[0]) {
     return this.inner.chooseModel(args)
   }

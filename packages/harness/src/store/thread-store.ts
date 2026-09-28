@@ -38,8 +38,15 @@ export const THREAD_LISTING_LIMIT = 50
 
 export type RenameListener = (args: { threadId: ThreadId; title: string }) => void
 
+export type ModelChosenListener = (args: { threadId: ThreadId; model: ThreadModel }) => void
+
 export abstract class ThreadStorePort {
   onRename(listener: RenameListener): Unsubscribe {
+    void listener
+    return () => undefined
+  }
+
+  onModelChosen(listener: ModelChosenListener): Unsubscribe {
     void listener
     return () => undefined
   }

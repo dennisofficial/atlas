@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 import { type ThreadId } from '@dltech/atlas-core'
 
 import { extractSessionArchive } from '@dltech/atlas-harness'
-import { sessionDirectory } from '@dltech/atlas-harness'
+import { eventLogFile, sessionDirectory } from '@dltech/atlas-harness'
 
 import type { FetchTranscriptArchive } from './workspace-spec'
 
@@ -24,7 +24,14 @@ export async function materializeTranscript(args: {
   threadId: ThreadId
 }): Promise<TranscriptReadiness> {
   const sessionDir = sessionDirectory({ home: args.atlasHome, sessionId: args.threadId })
-  if (existsSync(sessionDir)) return { restored: false, failed: null }
+  /**
+   * An existing directory is proof of a resume only when it holds the transcript itself: a snapshot
+   * that raced a boot can leave the folder with no events behind it, and treating that husk as
+   * restored would boot the session blank while the archive sits unread on the Drive.
+   */
+  const hasTranscript =
+    existsSync(sessionDir) && existsSync(eventLogFile({ sessionDir, threadId: args.threadId }))
+  if (hasTranscript) return { restored: false, failed: null }
 
   let archive: Uint8Array | null
   try {

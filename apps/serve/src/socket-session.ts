@@ -22,8 +22,10 @@ import type { WorkspacePublisher } from './publish-workspace'
 import {
   answerRequest,
   answerTranscriptRead,
+  answerTranscriptWrite,
   answeredRequest,
   isTranscriptReadOp,
+  isTranscriptWriteOp,
   refusedRequest,
   type TranscriptReaders,
 } from './requests'
@@ -73,6 +75,8 @@ export function createSessionHandlers(args: {
   rewind?: ServeRewind | undefined
   /** The transcript stores the read-ops answer from; absent in fakes, which refuse the ops. */
   transcript?: TranscriptReaders | undefined
+  /** Re-pins the running loop's model for a set-thread-model op; absent in fakes. */
+  selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
   /** Tars the served session directory for the descend's transfer; absent in fakes. */
   sessionArchive?: (() => Promise<Uint8Array | null>) | undefined
 }): SessionHandlers {
@@ -80,6 +84,7 @@ export function createSessionHandlers(args: {
   const snapshot = args.roster?.snapshot ?? EMPTY_ROSTER
   const rewind = args.rewind
   const transcript = args.transcript
+  const selectModel = args.selectModel
   const sessionArchive = args.sessionArchive
   const live = new Set<SessionSocket>()
   const attached = new Set<SessionSocket>()
@@ -277,6 +282,34 @@ export function createSessionHandlers(args: {
               replyTo: frame.id,
               ok: false,
               data: { message: messageOf(error, 'the transcript read failed') },
+            },
+          }),
+        )
+      return
+    }
+
+    if (isTranscriptWriteOp(frame.op)) {
+      if (transcript === undefined) {
+        send({
+          socket,
+          frame: refusedRequest({ replyTo: frame.id, message: 'this serve has no transcript to write' }),
+        })
+        return
+      }
+      void answerTranscriptWrite({
+        frame,
+        transcript,
+        ...(selectModel === undefined ? {} : { select: selectModel }),
+      })
+        .then((reply) => send({ socket, frame: reply }))
+        .catch((error: unknown) =>
+          send({
+            socket,
+            frame: {
+              kind: EServeFrame.Reply,
+              replyTo: frame.id,
+              ok: false,
+              data: { message: messageOf(error, 'the transcript write failed') },
             },
           }),
         )
