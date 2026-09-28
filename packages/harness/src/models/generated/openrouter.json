@@ -867,7 +867,7 @@
     "maxOutputTokens": 943718,
     "cost": {
       "inputPerMillion": 0.2523,
-      "outputPerMillion": 3.5,
+      "outputPerMillion": 5,
       "cacheReadPerMillion": 0.2518
     },
     "effort": {
@@ -885,11 +885,11 @@
     "api": "openai-completions",
     "contextWindow": 1048576,
     "imageTier": "standard",
-    "maxOutputTokens": 384000,
+    "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.035,
-      "outputPerMillion": 0.29,
-      "cacheReadPerMillion": 0.001
+      "inputPerMillion": 0.03,
+      "outputPerMillion": 0.6,
+      "cacheReadPerMillion": 0.006
     },
     "effort": {
       "low": "low",
@@ -5354,11 +5354,11 @@
     "api": "openai-completions",
     "contextWindow": 1310720,
     "imageTier": "standard",
-    "maxOutputTokens": 131072,
+    "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.37,
-      "outputPerMillion": 1.14,
-      "cacheReadPerMillion": 0.067
+      "inputPerMillion": 0.365,
+      "outputPerMillion": 4.4,
+      "cacheReadPerMillion": 0.26
     },
     "effort": {
       "low": "low",
@@ -5543,11 +5543,11 @@
     "api": "openai-completions",
     "contextWindow": 1048576,
     "imageTier": "standard",
-    "maxOutputTokens": 384000,
+    "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.035,
-      "outputPerMillion": 0.29,
-      "cacheReadPerMillion": 0.001
+      "inputPerMillion": 0.03,
+      "outputPerMillion": 0.6,
+      "cacheReadPerMillion": 0.006
     },
     "effort": {
       "low": "low",
@@ -5564,11 +5564,11 @@
     "api": "openai-completions",
     "contextWindow": 1048576,
     "imageTier": "standard",
-    "maxOutputTokens": 943718,
+    "maxOutputTokens": 393216,
     "cost": {
-      "inputPerMillion": 0.2523,
-      "outputPerMillion": 3.5,
-      "cacheReadPerMillion": 0.2518
+      "inputPerMillion": 0.2271,
+      "outputPerMillion": 3.78,
+      "cacheReadPerMillion": 0.2266
     },
     "effort": {
       "low": "low",
@@ -5836,11 +5836,11 @@
     "api": "openai-completions",
     "contextWindow": 1310720,
     "imageTier": "standard",
-    "maxOutputTokens": 131072,
+    "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.37,
-      "outputPerMillion": 1.14,
-      "cacheReadPerMillion": 0.067
+      "inputPerMillion": 0.365,
+      "outputPerMillion": 4.4,
+      "cacheReadPerMillion": 0.26
     },
     "effort": {
       "low": "low",
