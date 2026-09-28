@@ -1,9 +1,10 @@
+import { appendFileSync } from 'node:fs'
 import { readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { EExecutionLocation } from '@dltech/atlas-core'
+import { EExecutionLocation, type EventLogPort } from '@dltech/atlas-core'
 import {
   CloudSessionStore,
   CloudSettingsStore,
@@ -18,6 +19,8 @@ import {
   readGhAuthToken,
   requireVercelCredentials,
   sandboxImageOf,
+  sandboxNameFor,
+  VercelDriver,
   type CloudBridge,
   type CloudChannel,
 } from '@dltech/atlas-harness'
@@ -41,6 +44,18 @@ import {
 export const LIVE_ROUNDTRIP_FLAG = 'ATLAS_LIVE_CLOUD_ROUNDTRIP'
 
 const liveRunRequested = (): boolean => process.env[LIVE_ROUNDTRIP_FLAG] === '1'
+
+// Diagnostics go to a file, not the console — testRender patches the process streams, so neither
+// console.log nor process.stderr.write reaches the test output; an appended file always survives.
+const DIAG_FILE = '/tmp/atlas-roundtrip-diagnostics.log'
+const write0 = (...parts: unknown[]): void => {
+  const line = `${parts.map((part) => (typeof part === 'string' ? part : String(part))).join(' ')}\n`
+  try {
+    appendFileSync(DIAG_FILE, line)
+  } catch {
+    // best-effort diagnostics never fail the test
+  }
+}
 
 await grammarsReady()
 
@@ -123,12 +138,10 @@ describe.skipIf(!liveRunRequested())('the live lift to descend round trip agains
     await readGhAuthToken()
 
     const build = buildInfo()
-    const release =
-      build.kind === EBuildKind.Release && build.serveSource !== null
-        ? { version: build.version, serveSource: build.serveSource }
-        : undefined
+    const release = build.kind === EBuildKind.Release ? { version: build.version } : undefined
 
     let cloudChannel: CloudChannel | null = null
+    let cloudLog: EventLogPort | null = null
     const driverLines: string[] = []
     const inner = createCloudBridge({
       url: session.url,
@@ -146,6 +159,7 @@ describe.skipIf(!liveRunRequested())('the live lift to descend round trip agains
       attach: (attachArgs) => {
         const attachment = inner.attach(attachArgs)
         cloudChannel = attachment.channel
+        cloudLog = attachment.stores.log
         return attachment
       },
     }
@@ -168,9 +182,39 @@ describe.skipIf(!liveRunRequested())('the live lift to descend round trip agains
       return JSON.stringify(events).includes(text)
     }
 
-    await say(mounted, 'round trip me')
-    expect(await until({ holds: () => transcriptHas(mounted.reply), within: 60_000 })).toBe(true)
+    // While lifted, the transcript lives on the cloud (the drive); the local log is the pre-lift
+    // copy. The remote edit is committed to the cloud log, so it must be read through the attached
+    // cloud stores — the local log only gains it when the descend brings the archive home. A
+    // transient socket drop rejects an in-flight read (RemoteRequestLost); the channel reconnects
+    // and the read is retried rather than treating the drop as the edit never landing.
+    const remoteTranscriptHas = async (text: string): Promise<boolean> => {
+      if (cloudLog === null) return false
+      const log = cloudLog as EventLogPort
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          const events = await log.read({ threadId: mounted.threadId })
+          return JSON.stringify(events).includes(text)
+        } catch (error) {
+          const lost =
+            typeof error === 'object' && error !== null && (error as { name?: unknown }).name === 'RemoteRequestLost'
+          if (!lost || attempt === 2) throw error
+          await new Promise((resolve) => setTimeout(resolve, 2_000))
+        }
+      }
+      return false
+    }
 
+    write0('=== round-trip start ===')
+    await say(mounted, 'round trip me')
+    write0('phase: sent initial message, waiting for reply')
+    expect(await until({ holds: () => transcriptHas(mounted.reply), within: 60_000 })).toBe(true)
+    write0('phase: reply landed')
+    // Let the turn settle fully so the lift is not mid-turn: the assistant reply lands in the log
+    // before the loop unwinds, and a lift fired in that window takes the pause path instead of the
+    // clean settle path. The remote-edit half of this round trip needs the deterministic one.
+    await new Promise((resolve) => setTimeout(resolve, 3_000))
+
+    write0('phase: sending /container cloud')
     await say(mounted, '/container cloud')
     const flipped = await until({
       holds: async () =>
@@ -179,14 +223,31 @@ describe.skipIf(!liveRunRequested())('the live lift to descend round trip agains
       within: 300_000,
     })
     if (!flipped) {
-      console.log('LIFT STALLED — move steps reached:')
-      for (const timing of timings) console.log(`  ${String(timing.step)} @ ${timing.at}`)
-      console.log(`driver provision lines (${driverLines.length}):`)
-      for (const line of driverLines) console.log(`  ${line}`)
+      write0('LIFT STALLED — move steps reached:')
+      for (const timing of timings) write0(`  ${String(timing.step)} @ ${timing.at}`)
+      write0(`driver provision lines (${driverLines.length}):`)
+      for (const line of driverLines) write0(`  ${line}`)
       const thread = await mounted.app.threads.find({ threadId: mounted.threadId })
-      console.log('thread executionLocation:', thread?.executionLocation)
+      write0('thread executionLocation:', thread?.executionLocation)
+      const { currentNotices } = await import('../../ui/notice-store')
+      write0('notices:')
+      for (const n of currentNotices()) write0(`  [${n.tone}] ${n.text}`)
+      // The serve log on the sandbox is the ground truth for a boot that never went healthy.
+      try {
+        const creds = requireVercelCredentials({ settings: settings.service, secrets })
+        const driver = new VercelDriver({ credentials: creds, cloudUrl: session.url })
+        const tail = await driver.serveLogTail({
+          name: sandboxNameFor({ threadId: mounted.threadId }),
+        })
+        write0('=== SERVE LOG ===')
+        write0(tail)
+      } catch (error) {
+        write0('could not read the serve log:', error instanceof Error ? error.message : String(error))
+      }
     }
+    write0('phase: flip wait returned, flipped =', flipped)
     expect(flipped, 'the thread never flipped to the cloud').toBe(true)
+    write0('phase: flipped to cloud; channel attached =', cloudChannel !== null)
 
     expect(await transcriptHas(mounted.reply)).toBe(true)
 
@@ -196,21 +257,50 @@ describe.skipIf(!liveRunRequested())('the live lift to descend round trip agains
      * commits to its own log. The workspace half the descend merges is the dirty tree the lift
      * captured; the remote edit proves the transcript came home from the cloud copy, not the local.
      */
-    if (cloudChannel === null) throw new Error('the lift attached without its channel')
+    if (cloudChannel === null) {
+      const { currentNotices } = await import('../../ui/notice-store')
+      write0('LIFT ATTACHED WITHOUT CHANNEL — notices:')
+      for (const n of currentNotices()) write0(`  [${n.tone}] ${n.text}`)
+      write0('move steps:')
+      for (const timing of timings) write0(`  ${String(timing.step)} @ ${timing.at}`)
+      throw new Error('the lift attached without its channel')
+    }
     const channel: CloudChannel = cloudChannel
+    // The lift resumes the in-flight turn on arrival; sending before that resume settles races the
+    // said against the running loop. Wait for the resumed turn to end before the remote edit.
+    await until({
+      holds: () =>
+        new Promise<boolean>((resolve) => {
+          const unsubscribe = channel.onTurnEnded(() => {
+            unsubscribe()
+            resolve(true)
+          })
+          setTimeout(() => {
+            unsubscribe()
+            resolve(false)
+          }, 120_000)
+        }),
+      within: 130_000,
+    })
+    write0('phase: resume settled; sending remote edit')
     channel.send({ text: REMOTE_EDIT })
-    expect(await until({ holds: () => transcriptHas(REMOTE_EDIT), within: 60_000 })).toBe(true)
+    const editLanded = await until({ holds: () => remoteTranscriptHas(REMOTE_EDIT), within: 60_000 })
+    write0('phase: remote edit landed =', editLanded)
+    if (!editLanded) {
+      write0('channel connection after send wait:', JSON.stringify(channel.connection()))
+    }
+    expect(editLanded, 'the remote edit never reached the cloud transcript').toBe(true)
 
+    write0('phase: sending /container host (descend)')
     await say(mounted, '/container host')
-    expect(
-      await until({
-        holds: async () =>
-          (await mounted.app.threads.find({ threadId: mounted.threadId }))?.executionLocation ===
-          EExecutionLocation.Host,
-        within: 300_000,
-      }),
-      'the thread never came home',
-    ).toBe(true)
+    const cameHome = await until({
+      holds: async () =>
+        (await mounted.app.threads.find({ threadId: mounted.threadId }))?.executionLocation ===
+        EExecutionLocation.Host,
+      within: 300_000,
+    })
+    write0('phase: descend wait returned, cameHome =', cameHome)
+    expect(cameHome, 'the thread never came home').toBe(true)
     descended = true
 
     expect(await transcriptHas(mounted.reply)).toBe(true)
@@ -225,10 +315,10 @@ describe.skipIf(!liveRunRequested())('the live lift to descend round trip agains
     expect(log).not.toContain(LOCAL_EDIT)
     expect(log).not.toContain(REMOTE_EDIT)
 
-    console.log('move step timings:')
+    write0('move step timings:')
     for (const timing of timings) {
-      console.log(`  ${String(timing.step)} @ ${timing.at}`)
+      write0(`  ${String(timing.step)} @ ${timing.at}`)
     }
-    console.log(`driver provision lines: ${driverLines.length}`)
+    write0(`driver provision lines: ${driverLines.length}`)
   }, 900_000)
 })

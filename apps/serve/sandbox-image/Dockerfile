@@ -156,10 +156,11 @@ RUN chmod 755 /usr/local/bin/docker /usr/local/bin/docker-daemon-up \
   && [ "$(command -v docker)" = "/usr/local/bin/docker" ] \
   && /usr/bin/docker --version
 
-# Baked by sandbox-image.yml: the VCR image gets the real serve binary plus a `source:<sha>`
-# stamp; the GHCR image gets 0-byte placeholders (docker sandboxes never run serve).
+# Baked by sandbox-image.yml: the VCR image gets the real serve binary plus a version file the
+# driver's drift probe matches against the pinned release; the GHCR image gets 0-byte
+# placeholders (docker sandboxes never run serve).
 COPY atlas-serve /opt/atlas/atlas-serve
-COPY atlas-serve.stamp /opt/atlas/atlas-serve.stamp
+COPY atlas-serve.version /opt/atlas/atlas-serve.version
 # /opt/atlas is 777, not 755: the sandbox session user (non-root) writes the serve
 # token/lock/log files there at runtime, and a root-owned 755 dir would break the launcher.
 RUN chmod 755 /opt/atlas/atlas-serve && chmod 777 /opt/atlas

@@ -6,26 +6,13 @@ import { SandboxContextController } from './sandbox-context.controller'
 import { SandboxTokenGuard } from './sandbox-token.guard'
 import { SandboxesController } from './sandboxes.controller'
 import { SandboxesService } from './sandboxes.service'
-import { ServeBinaryService } from './serve-binary'
-import { ServeBinaryController } from './serve-binary.controller'
 import { VercelSandboxClient } from './vercel-sandbox.client'
 import { SandboxWorkspaceController } from './workspace.controller'
 
 @Module({
   imports: [ContextArchiveModule, GithubModule],
-  controllers: [
-    SandboxContextController,
-    SandboxesController,
-    SandboxWorkspaceController,
-    ServeBinaryController,
-  ],
-  providers: [
-    SandboxesService,
-    SandboxTokenGuard,
-    SandboxGitCredentials,
-    ServeBinaryService,
-    VercelSandboxClient,
-  ],
+  controllers: [SandboxContextController, SandboxesController, SandboxWorkspaceController],
+  providers: [SandboxesService, SandboxTokenGuard, SandboxGitCredentials, VercelSandboxClient],
   exports: [SandboxesService, SandboxGitCredentials, VercelSandboxClient, SandboxTokenGuard],
 })
 export class SandboxesModule {}

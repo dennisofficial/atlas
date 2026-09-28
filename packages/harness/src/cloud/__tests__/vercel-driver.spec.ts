@@ -10,7 +10,7 @@ import { VercelDriver, type VercelSdk } from '../vercel-driver'
 import { SandboxMissingError } from '../vercel-errors'
 
 const CREDENTIALS = { token: 'vercel-token', teamId: 'team_1', projectId: 'prj_1' }
-const STAMP = 'source:this-build'
+const PINNED_VERSION = '1.19.2'
 
 /** A fake drive: the SDK's Drive is a class with a private client, so specs stand one up by shape. */
 const fakeDrive = (name: string, deleted?: string[]) =>
@@ -56,8 +56,9 @@ const fakeSandbox = (
   args: {
     status?: string
     routes?: number[]
-    installedStamp?: string
-    stampReadFails?: boolean
+    installedVersion?: string
+    versionReadFails?: boolean
+    healthy?: boolean
   } = {},
 ): FakeSandbox => {
   const commands: string[] = []
@@ -66,7 +67,6 @@ const fakeSandbox = (
   const routedPorts = [...(args.routes ?? [3000])]
   let stopped = false
   let deleted = false
-  let stampReads = 0
 
   const base = {
     name: 'atlas-thread-x',
@@ -83,18 +83,16 @@ const fakeSandbox = (
     runCommand: async (params: { cmd: string; args?: string[] }) => {
       const script = params.args?.[1] ?? params.cmd
       commands.push(script)
-      const isStampRead = script.includes('.stamp')
-      if (isStampRead) stampReads += 1
-      if (args.stampReadFails && isStampRead && stampReads === 1) {
-        throw new Error('runCommand unavailable')
-      }
-      if (isStampRead) {
-        return { exitCode: 0, stdout: async () => `${args.installedStamp ?? STAMP}\n`, stderr: async () => '' }
+      const isVersionRead = script.includes('.version')
+      if (isVersionRead) {
+        if (args.versionReadFails && script.startsWith('cat ')) throw new Error('runCommand unavailable')
+        return { exitCode: 0, stdout: async () => `${args.installedVersion ?? PINNED_VERSION}\n`, stderr: async () => '' }
       }
       if (script.startsWith('for i in')) return { exitCode: 0 }
-      if (script.startsWith('hash=$(sha256sum')) return { exitCode: 0, stderr: async () => '' }
-      if (script.startsWith('mv ')) return { exitCode: 0, stderr: async () => '' }
-      const healthy = (args.installedStamp ?? STAMP) === STAMP
+      if (script.startsWith('mkdir ')) return { exitCode: 0 }
+      if (script.startsWith('for pid in')) return { exitCode: 0 }
+      if (script.startsWith('tail -c')) return { exitCode: 0, stdout: async () => '', stderr: async () => '' }
+      const healthy = args.healthy ?? true
       return { exitCode: healthy ? 0 : 1, stderr: async () => '' }
     },
     writeFiles: async (files: RecordedWrite[]) => {
@@ -133,9 +131,9 @@ const driverWith = (
   driver: new VercelDriver({
     credentials: CREDENTIALS,
     cloudUrl: 'https://api.example.com',
-    image: 'atlas-sandbox:latest',
+    image: `atlas-sandbox:${PINNED_VERSION}`,
+    serveVersion: PINNED_VERSION,
     driveSdk: driveSdk ?? fakeDriveSdk().sdk,
-    serveSources: ['source:this-build'],
     sdk: {
       getOrCreate: sdk.getOrCreate ?? (async () => fakeSandbox()),
       get: sdk.get ?? (async () => fakeSandbox()),
@@ -169,7 +167,7 @@ describe('createOrResume', () => {
       region: 'iad1',
       persistent: true,
       resume: true,
-      image: 'atlas-sandbox:latest',
+      image: `atlas-sandbox:${PINNED_VERSION}`,
       env: {
         ATLAS_SERVE_TOKEN: 'serve-token-1',
         ATLAS_SERVE_PORT: '3000',
@@ -281,22 +279,20 @@ describe('createOrResume', () => {
     expect(sandbox.written).toEqual([{ path: SERVE_TOKEN_PATH, content: token, mode: 0o600 }])
   })
 
-  it('trusts the baked serve when the build pins no serve identity, pushing nothing', async () => {
-    const unpinned = fakeSandbox({ installedStamp: 'source:older-sha' })
-    const pushed = { bytes: new Uint8Array([9, 9, 9]), sha256: 'e'.repeat(64) }
+  it('trusts the baked serve when the build pins no serve version, whatever the sandbox carries', async () => {
+    const unpinned = fakeSandbox({ installedVersion: '0.0.0-ancient' })
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
       driveSdk: fakeDriveSdk().sdk,
       image: 'atlas-sandbox:custom',
-      readServeBinary: async () => pushed,
       sdk: { get: async () => unpinned, getOrCreate: async () => unpinned },
     })
 
     await driver.createOrResume({ name: 'atlas-thread-x', threadId: 'brn_cloud' })
 
     expect(unpinned.deleted).toBe(false)
-    expect(unpinned.written.some((write) => write.path.endsWith('atlas-serve.next'))).toBe(false)
+    expect(unpinned.commands.some((script) => script.includes('.version'))).toBe(false)
   })
 
   it('resumes an existing sandbox without the created flag, launching serve from onResume', async () => {
@@ -326,16 +322,16 @@ describe('createOrResume', () => {
     ).toBe(true)
   })
 
-  it('recreates a live sandbox whose baked serve is not one this build trusts', async () => {
-    const stale = fakeSandbox({ installedStamp: 'source:older-sha' })
-    const fresh = fakeSandbox({ installedStamp: 'source:this-build' })
+  it('recreates a live sandbox whose baked serve predates the pinned version', async () => {
+    const stale = fakeSandbox({ installedVersion: '1.19.1' })
+    const fresh = fakeSandbox({ installedVersion: PINNED_VERSION })
     let getOrCreateParams: Record<string, unknown> | undefined
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
       driveSdk: fakeDriveSdk().sdk,
-      image: 'atlas-sandbox:1.10.0',
-      serveSources: ['source:this-build'],
+      image: `atlas-sandbox:${PINNED_VERSION}`,
+      serveVersion: PINNED_VERSION,
       sdk: {
         get: async () => stale,
         getOrCreate: async (params) => {
@@ -352,17 +348,17 @@ describe('createOrResume', () => {
     })
 
     expect(stale.deleted).toBe(true)
-    expect(getOrCreateParams?.image).toBe('atlas-sandbox:1.10.0')
+    expect(getOrCreateParams?.image).toBe(`atlas-sandbox:${PINNED_VERSION}`)
   })
 
-  it('resumes a live sandbox whose baked serve this build already trusts, without destroying it', async () => {
-    const current = fakeSandbox({ installedStamp: 'source:this-build' })
+  it('resumes a live sandbox whose baked serve is the pinned version, without destroying it', async () => {
+    const current = fakeSandbox({ installedVersion: PINNED_VERSION })
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
       driveSdk: fakeDriveSdk().sdk,
-      image: 'atlas-sandbox:1.10.0',
-      serveSources: ['source:this-build'],
+      image: `atlas-sandbox:${PINNED_VERSION}`,
+      serveVersion: PINNED_VERSION,
       sdk: { get: async () => current, getOrCreate: async () => current },
     })
 
@@ -375,15 +371,15 @@ describe('createOrResume', () => {
     expect(current.deleted).toBe(false)
   })
 
-  it('never tears a sandbox down on an unreadable stamp — drift has to be proven', async () => {
-    const unprobed = fakeSandbox({ stampReadFails: true })
+  it('recreates a sandbox whose version file is missing — the file ships with the image, so its absence means an older bake', async () => {
+    const ancient = fakeSandbox({ installedVersion: '' })
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
       driveSdk: fakeDriveSdk().sdk,
-      image: 'atlas-sandbox:1.10.0',
-      serveSources: ['source:this-build'],
-      sdk: { get: async () => unprobed, getOrCreate: async () => unprobed },
+      image: `atlas-sandbox:${PINNED_VERSION}`,
+      serveVersion: PINNED_VERSION,
+      sdk: { get: async () => ancient, getOrCreate: async () => fakeSandbox() },
     })
 
     await driver.createOrResume({
@@ -392,22 +388,18 @@ describe('createOrResume', () => {
       token: 't',
     })
 
-    expect(unprobed.deleted).toBe(false)
+    expect(ancient.deleted).toBe(true)
   })
 
-  it('resumes a sandbox as-is when the build pins no serve identity, whatever stamp it carries', async () => {
-    const existing = fakeSandbox()
-    const pushed = { bytes: new Uint8Array([9]), sha256: 'e'.repeat(64) }
+  it('keeps a sandbox whose version read fails — a transient command failure is not drift', async () => {
+    const unreadable = fakeSandbox({ versionReadFails: true })
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
       driveSdk: fakeDriveSdk().sdk,
-      image: 'atlas-sandbox:latest',
-      readServeBinary: async () => pushed,
-      sdk: {
-        get: async () => existing,
-        getOrCreate: async () => existing,
-      },
+      image: `atlas-sandbox:${PINNED_VERSION}`,
+      serveVersion: PINNED_VERSION,
+      sdk: { get: async () => unreadable, getOrCreate: async () => unreadable },
     })
 
     await driver.createOrResume({
@@ -416,7 +408,7 @@ describe('createOrResume', () => {
       token: 't',
     })
 
-    expect(existing.deleted).toBe(false)
+    expect(unreadable.deleted).toBe(false)
   })
 
   it('writes the bootstrap onto a fresh sandbox after it exists, before serve launches', async () => {
@@ -446,19 +438,19 @@ describe('createOrResume', () => {
   })
 
   it('writes the bootstrap onto a drift-replaced sandbox after it exists, before serve launches', async () => {
-    const stale = fakeSandbox({ installedStamp: 'source:older-sha' })
+    const stale = fakeSandbox({ installedVersion: '1.19.1' })
     const calls: string[] = []
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
       driveSdk: fakeDriveSdk().sdk,
-      image: 'atlas-sandbox:1.10.0',
-      serveSources: ['source:this-build'],
+      image: `atlas-sandbox:${PINNED_VERSION}`,
+      serveVersion: PINNED_VERSION,
       sdk: {
         get: async () => stale,
         getOrCreate: async () => {
           calls.push('boot')
-          return fakeSandbox({ installedStamp: 'source:this-build' })
+          return fakeSandbox({ installedVersion: PINNED_VERSION })
         },
       },
     })
@@ -477,14 +469,14 @@ describe('createOrResume', () => {
   })
 
   it('re-uploads the context archive when the sandbox resumes, since the local context may have moved on', async () => {
-    const current = fakeSandbox({ installedStamp: 'source:this-build' })
+    const current = fakeSandbox({ installedVersion: PINNED_VERSION })
     let uploads = 0
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
       driveSdk: fakeDriveSdk().sdk,
-      image: 'atlas-sandbox:1.10.0',
-      serveSources: ['source:this-build'],
+      image: `atlas-sandbox:${PINNED_VERSION}`,
+      serveVersion: PINNED_VERSION,
       sdk: { get: async () => current, getOrCreate: async () => current },
     })
 

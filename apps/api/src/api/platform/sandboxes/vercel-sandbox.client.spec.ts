@@ -1,38 +1,17 @@
-import { BadGatewayException, Logger, ServiceUnavailableException } from '@nestjs/common'
+import { ServiceUnavailableException } from '@nestjs/common'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EnvService } from '../../../_core/config/env/env.service'
-import type { ServeBinaryService } from './serve-binary'
 
 const sdk = vi.hoisted(() => ({
-  createParams: [] as Record<string, unknown>[],
   getParams: [] as Record<string, unknown>[],
   stopped: [] as string[],
-  deleted: [] as string[],
-  routedPorts: [3000],
   ranCommands: [] as Record<string, unknown>[],
   status: 'running',
   getFailure: null as Error | null,
-  createFailure: null as Error | null,
   runCommandFailure: null as Error | null,
-  sandboxRef: null as unknown,
-  driveGetOrCreate: [] as Record<string, unknown>[],
   driveDeleted: [] as string[],
   driveListParams: [] as Array<Record<string, unknown> | undefined>,
-  lastDrive: null as unknown,
-  driveStore: new Map<string, { name: string }>(),
-  initializedDrives: new Set<string>(),
-  refuseUninitializedSnapshot: false,
-  failCreateOnAttempt: 0,
-  resumesInsteadOfCreating: false,
-}))
-
-const launch = vi.hoisted(() => ({
-  launched: 0,
-  tokens: [] as (string | undefined)[],
-  failLaunch: false,
-  failWithStaleToken: false,
-  gate: null as Promise<void> | null,
-  readStamp: undefined as (() => Promise<string>) | undefined,
+  driveStore: new Map<string, { name: string; delete: () => Promise<void> }>(),
 }))
 
 vi.mock('@vercel/sandbox', () => {
@@ -53,18 +32,8 @@ vi.mock('@vercel/sandbox', () => {
     },
     currentSession: () => ({ sessionId: 'ses_live' }),
     domain: (port: number) => `https://atlas-${port}.vercel.run`,
-    get routes() {
-      return sdk.routedPorts.map((port) => ({
-        port,
-        subdomain: `atlas-${port}`,
-        url: `https://atlas-${port}.vercel.run`,
-      }))
-    },
     stop: async () => {
       sdk.stopped.push('stopped')
-    },
-    delete: async () => {
-      sdk.deleted.push('deleted')
     },
     runCommand: async (params: Record<string, unknown>) => {
       sdk.ranCommands.push(params)
@@ -72,30 +41,9 @@ vi.mock('@vercel/sandbox', () => {
       return { exitCode: 0 }
     },
   }
-  sdk.sandboxRef = sandbox
-  class FakeDrive {
-    constructor(readonly meta: Record<string, unknown>) {}
-    get name() {
-      return String(this.meta.name)
-    }
-    snapshot() {
-      return { drive: this.meta.name, mode: 'snapshot' }
-    }
-    async delete() {
-      sdk.driveDeleted.push(this.name)
-      sdk.driveStore.delete(this.name)
-    }
-  }
   return {
     APIError,
     Drive: {
-      getOrCreate: async (params: Record<string, unknown>) => {
-        sdk.driveGetOrCreate.push(params)
-        const drive = new FakeDrive(params)
-        sdk.driveStore.set(drive.name, drive)
-        sdk.lastDrive = drive
-        return drive
-      },
       list: async (params?: Record<string, unknown>) => {
         sdk.driveListParams.push(params)
         if (params?.namePrefix !== undefined && params?.sortBy !== 'name') {
@@ -120,44 +68,6 @@ vi.mock('@vercel/sandbox', () => {
       },
     },
     Sandbox: {
-      getOrCreate: async (params: Record<string, unknown>) => {
-        sdk.createParams.push(params)
-        if (sdk.failCreateOnAttempt === sdk.createParams.length) {
-          sdk.failCreateOnAttempt = 0
-          throw new Error('the sandbox host is out of capacity')
-        }
-        if (sdk.createFailure !== null) throw sdk.createFailure
-        const mounts = params.mounts as Record<string, unknown> | undefined
-        const mount = mounts?.[WORKSPACE_PATH] as
-          | { name?: string; mode?: string; drive?: string }
-          | undefined
-        if (mount !== undefined) {
-          const driveName = typeof mount.drive === 'string' ? mount.drive : mount.name
-          const isSnapshot = mount.mode === 'snapshot'
-          if (
-            isSnapshot &&
-            sdk.refuseUninitializedSnapshot &&
-            driveName !== undefined &&
-            !sdk.initializedDrives.has(driveName)
-          ) {
-            throw new APIError(new Response(null, { status: 400 }), {
-              json: {
-                error: {
-                  code: 'bad_request',
-                  message: `The drive ${driveName} has not been initialized yet. Please mount as read-write first before mounting as read-only.`,
-                },
-              },
-            })
-          }
-          if (driveName !== undefined) sdk.initializedDrives.add(driveName)
-        }
-        if (sdk.resumesInsteadOfCreating) {
-          await (params.onResume as ((sandbox: unknown) => Promise<void>) | undefined)?.(sandbox)
-        } else {
-          await (params.onCreate as (() => Promise<void>) | undefined)?.()
-        }
-        return sandbox
-      },
       get: async (params: Record<string, unknown>) => {
         sdk.getParams.push(params)
         if (sdk.getFailure !== null) throw sdk.getFailure
@@ -167,251 +77,38 @@ vi.mock('@vercel/sandbox', () => {
   }
 })
 
-vi.mock('./serve-launch', async () => {
-  const { StaleSandboxTokenError } = await import('@dltech/atlas-wire')
-  return {
-    StaleSandboxTokenError,
-    createServeLauncher: (args: { readStamp: () => Promise<string> }) => {
-      launch.readStamp = args.readStamp
-      return async (call: { sandbox: unknown; token?: string }) => {
-        launch.tokens.push(call.token)
-        if (launch.failWithStaleToken) throw new StaleSandboxTokenError()
-        if (launch.failLaunch) throw new Error('atlas serve did not answer')
-        if (launch.gate !== null) await launch.gate
-        launch.launched += 1
-      }
-    },
-    SERVE_BINARY_PATH: '/opt/atlas/atlas-serve',
-    SERVE_LOG_PATH: '/opt/atlas/atlas-serve.log',
-    SERVE_TOKEN_PATH: '/opt/atlas/atlas-serve.token',
-  }
-})
-
 import { APIError } from '@vercel/sandbox'
-import {
-  SANDBOX_REGION,
-  SANDBOX_SERVE_PORT,
-  SandboxMissingError,
-  VercelSandboxClient,
-  WORKSPACE_PATH,
-} from './vercel-sandbox.client'
+import { SANDBOX_SERVE_PORT, VercelSandboxClient } from './vercel-sandbox.client'
 import { ESandboxState } from './sandboxes.types'
 
 const CONFIGURED: Record<string, string | number> = {
   VERCEL_TOKEN: 'vercel-token',
   VERCEL_TEAM_ID: 'team_1',
   VERCEL_PROJECT_ID: 'prj_1',
-  ATLAS_CLOUD_URL: 'https://api.byatlas.io',
-  SANDBOX_MAX_SESSION_MINUTES: 240,
-  SANDBOX_IMAGE: 'atlas-sandbox:sha-deadbeef',
 }
 
 const envWith = (values: Record<string, string | number | undefined>): EnvService =>
   ({ get: (key: string) => values[key] }) as unknown as EnvService
 
-const fakeServeBinary = () => {
-  const stamp = vi.fn(async () => 'build-stamp')
-  return { stamp, asService: { stamp } as unknown as ServeBinaryService }
-}
-
-type CreateHooks = {
-  onCreate: (sandbox: unknown) => Promise<void>
-  onResume: (sandbox: unknown) => Promise<void>
-}
-
-const hooksOf = (params: Record<string, unknown> | undefined): CreateHooks => params as CreateHooks
-
 describe('VercelSandboxClient', () => {
   beforeEach(() => {
-    sdk.createParams.length = 0
     sdk.getParams.length = 0
     sdk.stopped.length = 0
-    sdk.deleted.length = 0
-    sdk.routedPorts = [3000]
     sdk.ranCommands.length = 0
-    sdk.driveGetOrCreate.length = 0
     sdk.driveDeleted.length = 0
     sdk.driveListParams.length = 0
-    sdk.lastDrive = null
     sdk.driveStore.clear()
-    sdk.failCreateOnAttempt = 0
-    sdk.resumesInsteadOfCreating = false
     sdk.status = 'running'
     sdk.getFailure = null
-    sdk.createFailure = null
     sdk.runCommandFailure = null
-    launch.launched = 0
-    launch.tokens.length = 0
-    launch.failLaunch = false
-    launch.failWithStaleToken = false
-    launch.gate = null
-    launch.readStamp = undefined
   })
 
   afterEach(() => {
     vi.restoreAllMocks()
   })
 
-  it('snapshots the sandbox filesystem, mounts nothing, and declares the served port', async () => {
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-    const placement = await client.getOrCreate({
-      name: 'atlas-thread-abc',
-      threadId: 'brn_thread_1',
-      token: 'session-token',
-    })
-
-    expect(sdk.createParams[0]).toMatchObject({
-      name: 'atlas-thread-abc',
-      ports: [SANDBOX_SERVE_PORT],
-      timeout: 240 * 60_000,
-      region: SANDBOX_REGION,
-      persistent: true,
-      token: 'vercel-token',
-      teamId: 'team_1',
-      projectId: 'prj_1',
-    })
-    expect(sdk.createParams[0]).not.toHaveProperty('mounts')
-    expect(sdk.createParams[0]?.env).toEqual({
-      ATLAS_SERVE_TOKEN: 'session-token',
-      ATLAS_SERVE_PORT: String(SANDBOX_SERVE_PORT),
-      ATLAS_THREAD_ID: 'brn_thread_1',
-      ATLAS_CLOUD_URL: 'https://api.byatlas.io',
-      ATLAS_WORKSPACE_DIR: WORKSPACE_PATH,
-    })
-    expect(placement).toEqual({
-      sessionId: 'ses_live',
-      url: `https://atlas-${SANDBOX_SERVE_PORT}.vercel.run`,
-      state: ESandboxState.Running,
-      created: true,
-    })
-    expect(sdk.createParams[0]?.image).toBe('atlas-sandbox:sha-deadbeef')
-  })
-
-  it('reports created: false when the SDK resumes an existing sandbox instead of creating one', async () => {
-    sdk.resumesInsteadOfCreating = true
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-
-    const placement = await client.getOrCreate({
-      name: 'atlas-thread-abc',
-      threadId: 'brn_thread_1',
-      token: 'tok_resume',
-    })
-
-    expect(placement.created).toBe(false)
-  })
-
-  it('mounts a drive at the workspace path and pins the model when told to', async () => {
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-    await client.getOrCreate({
-      name: 'st-fsr-1',
-      threadId: 'brn_station_1',
-      token: 'session-token',
-      drive: { name: 'atlas-repo-341' },
-      pinnedModel: 'inference/kimi-k3-fast',
-    })
-
-    expect(sdk.driveGetOrCreate[0]).toMatchObject({
-      name: 'atlas-repo-341',
-      region: SANDBOX_REGION,
-      maxSize: 50 * 1024 ** 3,
-      token: 'vercel-token',
-      teamId: 'team_1',
-      projectId: 'prj_1',
-    })
-    const mounts = sdk.createParams[0]?.mounts as Record<string, unknown>
-    expect(mounts[WORKSPACE_PATH]).toBe(sdk.lastDrive)
-    expect((sdk.createParams[0]?.env as Record<string, string>).ATLAS_MODEL).toBe(
-      'inference/kimi-k3-fast',
-    )
-  })
-
-  it('lists drives with sortBy name so the namePrefix filter is accepted', async () => {
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-    await client.ensureDrive({ name: 'atlas-repo-341' })
-    await client.deleteDrive({ name: 'atlas-repo-341' })
-
-    expect(sdk.driveListParams[0]).toMatchObject({
-      namePrefix: 'atlas-repo-341',
-      sortBy: 'name',
-    })
-    expect(sdk.driveDeleted).toEqual(['atlas-repo-341'])
-  })
-
-  it('deletes a drive by name through the SDK', async () => {
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-    await client.ensureDrive({ name: 'atlas-repo-341' })
-    await client.deleteDrive({ name: 'atlas-repo-341' })
-
-    expect(sdk.driveListParams[0]).toMatchObject({ namePrefix: 'atlas-repo-341' })
-    expect(sdk.driveDeleted).toEqual(['atlas-repo-341'])
-  })
-
-  it('deleting a drive that was never created does not provision one first', async () => {
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-    const created = sdk.driveGetOrCreate.length
-    await client.deleteDrive({ name: 'never-existed' })
-
-    expect(sdk.driveGetOrCreate.length).toBe(created)
-    expect(sdk.driveDeleted).toEqual([])
-  })
-
-  it('logs how long the placement and the serve launch took', async () => {
-    const logged: string[] = []
-    vi.spyOn(Logger.prototype, 'log').mockImplementation((message: unknown) => {
-      logged.push(String(message))
-    })
-
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-    await client.getOrCreate({ name: 'atlas-thread-abc', threadId: 'brn_thread_1', token: 't' })
-
-    expect(
-      logged.some(
-        (line) =>
-          line.includes('atlas-thread-abc') &&
-          /get-or-create \d+ms/.test(line) &&
-          /serve launch \d+ms/.test(line),
-      ),
-    ).toBe(true)
-  })
-
-  it('hands the session token to the serve launch, on creation and on the resume hook alike', async () => {
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-    await client.getOrCreate({
-      name: 'atlas-thread-abc',
-      threadId: 'brn_thread_1',
-      token: 'tok_fresh',
-    })
-    expect(launch.tokens).toEqual(['tok_fresh'])
-
-    const hooks = hooksOf(sdk.createParams[0])
-    await hooks.onResume(sdk.sandboxRef)
-    expect(launch.tokens).toEqual(['tok_fresh', 'tok_fresh'])
-  })
-
-  it('launches serve on creation and again on the SDK resume hook, reading the stamp lazily', async () => {
-    const serveBinary = fakeServeBinary()
-    const client = new VercelSandboxClient(envWith(CONFIGURED), serveBinary.asService)
-    await client.getOrCreate({ name: 'atlas-thread-abc', threadId: 'brn_thread_1', token: 't' })
-    expect(launch.launched).toBe(1)
-    expect(serveBinary.stamp).not.toHaveBeenCalled()
-    await expect(launch.readStamp?.()).resolves.toBe('build-stamp')
-    expect(serveBinary.stamp).toHaveBeenCalledTimes(1)
-
-    const hooks = hooksOf(sdk.createParams[0])
-    await hooks.onResume({})
-    expect(launch.launched).toBe(2)
-  })
-
-  it('propagates a serve that never becomes healthy instead of returning a dead URL', async () => {
-    launch.failLaunch = true
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-    await expect(
-      client.getOrCreate({ name: 'atlas-thread-abc', threadId: 'brn_thread_1', token: 't' }),
-    ).rejects.toThrow('atlas serve did not answer')
-  })
-
   it('reads a stopped sandbox as parked, a pending one as resuming, and a gone one as parked', async () => {
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    const client = new VercelSandboxClient(envWith(CONFIGURED))
     sdk.status = 'stopped'
     expect((await client.inspect({ name: 'atlas-thread-abc' })).state).toBe(ESandboxState.Parked)
 
@@ -425,8 +122,19 @@ describe('VercelSandboxClient', () => {
     })
   })
 
+  it('answers the routed url when one is up', async () => {
+    const client = new VercelSandboxClient(envWith(CONFIGURED))
+
+    const observed = await client.inspect({ name: 'atlas-thread-abc' })
+
+    expect(observed).toEqual({
+      state: ESandboxState.Running,
+      url: `https://atlas-${SANDBOX_SERVE_PORT}.vercel.run`,
+    })
+  })
+
   it('stops through the SDK, tolerating a sandbox Vercel no longer has', async () => {
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    const client = new VercelSandboxClient(envWith(CONFIGURED))
     await client.stop({ name: 'atlas-thread-abc' })
     expect(sdk.stopped).toHaveLength(1)
 
@@ -440,52 +148,36 @@ describe('VercelSandboxClient', () => {
     await expect(client.stop({ name: 'atlas-thread-gone' })).resolves.toBeUndefined()
   })
 
-  it('answers 503 when the deployment is unconfigured, whole or missing only the image', async () => {
-    const unconfigured = new VercelSandboxClient(
-      envWith({ VERCEL_TOKEN: 'vercel-token' }),
-      fakeServeBinary().asService,
-    )
+  it('answers 503 when the deployment is unconfigured', async () => {
+    const unconfigured = new VercelSandboxClient(envWith({ VERCEL_TOKEN: 'vercel-token' }))
     await expect(unconfigured.inspect({ name: 'atlas-thread-abc' })).rejects.toBeInstanceOf(
       ServiceUnavailableException,
     )
     await expect(unconfigured.inspect({ name: 'atlas-thread-abc' })).rejects.toThrow(
       'Atlas Cloud sandboxes are not configured on this deployment',
     )
-
-    const { SANDBOX_IMAGE: _omitted, ...withoutImage } = CONFIGURED
-    const imageless = new VercelSandboxClient(envWith(withoutImage), fakeServeBinary().asService)
-    await expect(imageless.inspect({ name: 'atlas-thread-abc' })).rejects.toThrow(
-      'Atlas Cloud sandboxes are not configured on this deployment',
-    )
   })
 
-  it('destroys the sandbox and reports it missing when the serve token has gone stale', async () => {
-    launch.failWithStaleToken = true
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-    await expect(
-      client.getOrCreate({ name: 'atlas-thread-abc', threadId: 'brn_thread_1', token: 't' }),
-    ).rejects.toBeInstanceOf(SandboxMissingError)
-    expect(sdk.deleted).toHaveLength(1)
-  })
-
-  it('turns a non-missing Vercel API failure into a legible bad gateway error', async () => {
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-    sdk.createFailure = new APIError(
-      { status: 500 } as Response,
-      { json: { error: { message: 'quota exceeded' } } },
-    )
-
-    const failure = client.getOrCreate({
-      name: 'atlas-thread-abc',
-      threadId: 'brn_thread_1',
-      token: 't',
+  it('deletes a drive by name through the SDK, tolerating one already gone', async () => {
+    const client = new VercelSandboxClient(envWith(CONFIGURED))
+    sdk.driveStore.set('atlas-repo-341', {
+      name: 'atlas-repo-341',
+      delete: async () => {
+        sdk.driveDeleted.push('atlas-repo-341')
+      },
     })
-    await expect(failure).rejects.toBeInstanceOf(BadGatewayException)
-    await expect(failure).rejects.toThrow('quota exceeded')
+
+    await client.deleteDrive({ name: 'atlas-repo-341' })
+
+    expect(sdk.driveListParams[0]).toMatchObject({
+      namePrefix: 'atlas-repo-341',
+      sortBy: 'name',
+    })
+    expect(sdk.driveDeleted).toEqual(['atlas-repo-341'])
   })
 
   it('curls the sandbox-local park endpoint with the reason and a hard timeout', async () => {
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    const client = new VercelSandboxClient(envWith(CONFIGURED))
 
     await client.notifyParked({
       name: 'atlas-thread-abc',
@@ -511,7 +203,7 @@ describe('VercelSandboxClient', () => {
 
   it('propagates a failure notifying a sandbox that has gone missing', async () => {
     sdk.getFailure = new APIError({ status: 404 } as Response)
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    const client = new VercelSandboxClient(envWith(CONFIGURED))
 
     await expect(
       client.notifyParked({ name: 'atlas-thread-gone', reason: 'the sandbox was stopped' }),
@@ -520,28 +212,10 @@ describe('VercelSandboxClient', () => {
 
   it('propagates a failure when the in-sandbox curl itself fails', async () => {
     sdk.runCommandFailure = new Error('command timed out')
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
+    const client = new VercelSandboxClient(envWith(CONFIGURED))
 
     await expect(
       client.notifyParked({ name: 'atlas-thread-abc', reason: 'the sandbox was stopped' }),
     ).rejects.toThrow('command timed out')
-  })
-
-  it('joins a launch already in flight for the same sandbox instead of running it twice', async () => {
-    const client = new VercelSandboxClient(envWith(CONFIGURED), fakeServeBinary().asService)
-    await client.getOrCreate({ name: 'atlas-thread-abc', threadId: 'brn_thread_1', token: 't' })
-    expect(launch.launched).toBe(1)
-
-    let releaseLaunch: () => void = () => undefined
-    launch.gate = new Promise((resolve) => {
-      releaseLaunch = resolve
-    })
-    const hooks = hooksOf(sdk.createParams[0])
-    const first = hooks.onResume(sdk.sandboxRef)
-    const second = hooks.onResume(sdk.sandboxRef)
-    releaseLaunch()
-    await Promise.all([first, second])
-
-    expect(launch.launched).toBe(2)
   })
 })

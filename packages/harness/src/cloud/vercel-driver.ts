@@ -7,10 +7,9 @@ import { driveNameFor, DRIVE_HOME_PATH, DRIVE_MOUNT_PATH, DRIVE_WORKSPACE_PATH }
 import { ECloudSandboxState } from './sandbox-client'
 import {
   createServeLauncher,
-  SERVE_STAMP_PATH,
-  serveStampsReader,
+  SERVE_LOG_PATH,
+  SERVE_VERSION_PATH,
   type ServeLauncher,
-  type ServeStamps,
 } from './serve-launch'
 import {
   asVercelFailure,
@@ -44,10 +43,13 @@ export type VercelCredentials = { token: string; teamId: string; projectId: stri
 export type VercelSandboxConfig = {
   credentials: VercelCredentials
   image: string
-  /** Logical stamps a baked serve in the image may carry — empty unless the image is Atlas's own pinned build. */
-  serveSources: readonly string[]
-  /** The laptop's own serve build, pushed into a sandbox only when its baked serve proves stale. */
-  readServeBinary?: (() => Promise<{ bytes: Uint8Array; sha256: string } | undefined>) | undefined
+  /**
+   * The serve version this build pins, from `sandboxImageOf` — a released Atlas names its own
+   * version, anything else undefined. Drives the resume-time drift check: a sandbox whose baked
+   * serve predates the pin is torn down and recreated from the pinned image rather than resumed
+   * stale. Undefined disables the check (no pinned serve to match against).
+   */
+  serveVersion?: string | undefined
 }
 
 export type SandboxPlacement = {
@@ -147,16 +149,8 @@ export class VercelDriver {
       cloudUrl: string
       /** Only createOrResume boots one, so an exposure-only driver never names one. */
       image?: string | undefined
-      /**
-       * The serve identities this build trusts, from `sandboxImageOf` — a pinned release carries
-       * `source:<serveSource>`, anything else an empty list. Drives the resume-time drift check: a
-       * sandbox whose baked serve is not one of these is torn down and recreated from the pinned
-       * image rather than resumed stale and re-downloaded onto. Empty disables the check (no
-       * pinned serve to match against).
-       */
-      serveSources?: readonly string[] | undefined
-      /** Defaults to the config's reader; a direct driver construction names it here. */
-      readServeBinary?: (() => Promise<{ bytes: Uint8Array; sha256: string } | undefined>) | undefined
+      /** Same pin as `VercelSandboxConfig.serveVersion`; a direct driver construction names it here. */
+      serveVersion?: string | undefined
       timeoutMs?: number | undefined
       log?: ((line: string) => void) | undefined
       sdk?: VercelSdk | undefined
@@ -175,8 +169,6 @@ export class VercelDriver {
      * caller override from the bridge slice, which still owns the wire side of it.
      */
     token?: string | undefined
-    /** The stamps this build trusts; defaults to the build's own pinned serve sources. */
-    readStamps?: (() => Promise<ServeStamps>) | undefined
     pinnedModel?: string | undefined
     /**
      * Writes the session's bootstrap onto the drive. Runs after the sandbox exists (the drive is
@@ -197,16 +189,10 @@ export class VercelDriver {
       throw new Error('this driver was built for port exposure only, not for creating sandboxes')
     }
     const image = this.args.image
-    const readStamps =
-      args.readStamps ?? serveStampsReader({ sources: this.args.serveSources ?? [] })
-    const readServeBinary = this.args.readServeBinary
     const launchServe: ServeLauncher = (launchArgs) =>
       this.dedupedLaunch({
         sandbox: launchArgs.sandbox,
-        launch: createServeLauncher({
-          readStamps,
-          ...(readServeBinary === undefined ? {} : { readServeBinary }),
-        }),
+        launch: createServeLauncher(),
         token: launchArgs.token,
       })
     const serveToken = args.token ?? randomBytes(32).toString('hex')
@@ -343,6 +329,29 @@ export class VercelDriver {
   }
 
   /**
+   * The serve log tail from a live sandbox, for a lift that stalled before serve went healthy.
+   * Answers the log's last bytes, or a marker when the sandbox or the log is not there to read.
+   */
+  async serveLogTail(args: { name: string }): Promise<string> {
+    try {
+      const sandbox = await this.sdk.get({
+        ...this.args.credentials,
+        name: args.name,
+        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
+      })
+      const read = await sandbox.runCommand({
+        cmd: 'sh',
+        args: ['-c', `tail -c 3000 ${SERVE_LOG_PATH} 2>/dev/null || echo NO-SERVE-LOG`],
+        timeoutMs: SANDBOX_QUICK_TIMEOUT_MS,
+      })
+      return (await read.stdout()).trim()
+    } catch (failure) {
+      if (isSandboxMissing(failure)) return '<the sandbox is gone>'
+      throw asVercelFailure(failure)
+    }
+  }
+
+  /**
    * Writes one bootstrap file into the directory serve reads at boot (`<ATLAS_HOME>/bootstrap`).
    * The laptop authors these — the workspace spec, the context and transcript archives — so the
    * sandbox boots off the drive with no control-plane round-trip. Buffering the bytes in memory is
@@ -438,12 +447,13 @@ export class VercelDriver {
   /**
    * The drift fix. `Sandbox.getOrCreate` resumes a live sandbox by name and never compares the
    * image, so a long-lived sandbox keeps whatever image it first booted from — stale against a
-   * release that moved on. When this build pins its serve identity (`serveSources` non-empty),
-   * read the sandbox's installed stamp before resuming; a stamp outside the trusted set means the
-   * sandbox boots the wrong serve, so it is destroyed and recreated from the pinned image. The
-   * recreation is lossless where it matters: the workspace and transcript live on the thread's
-   * drive, and the fresh boot carries the pinned serve baked into its image. A sandbox whose
-   * stamp cannot be read is left alone: an unreadable stamp is not evidence of drift.
+   * release that moved on. When this build pins a serve version, read the sandbox's installed
+   * version file before resuming; a mismatch means the sandbox boots the wrong serve, so it is
+   * destroyed and recreated from the pinned image. The recreation is lossless where it matters:
+   * the workspace and transcript live on the thread's drive, and the fresh boot carries the
+   * pinned serve baked into its image. A missing version file is drift — the file ships with the
+   * image, so its absence means the sandbox predates it — but a read that fails is not: a
+   * transient command failure is not evidence, and the sandbox is left alone.
    *
    * Returns the probe outcome so the caller knows whether the upcoming boot is fresh: `missing`
    * when Vercel has never seen the name, `replaced` when drift forced a recreate, `kept` when a
@@ -462,22 +472,22 @@ export class VercelDriver {
       throw asVercelFailure(failure)
     }
 
-    const desired = this.args.serveSources ?? []
-    if (desired.length === 0) return ESandboxProbe.Kept
+    const pinned = this.args.serveVersion
+    if (pinned === undefined) return ESandboxProbe.Kept
 
     const read = await sandbox
       .runCommand({
         cmd: 'sh',
-        args: ['-c', `cat ${SERVE_STAMP_PATH} 2>/dev/null || true`],
+        args: ['-c', `cat ${SERVE_VERSION_PATH} 2>/dev/null || true`],
         timeoutMs: SANDBOX_QUICK_TIMEOUT_MS,
       })
       .catch(() => null)
     if (read === null) return ESandboxProbe.Kept
     const installed = (await read.stdout()).trim()
-    if (desired.includes(installed)) return ESandboxProbe.Kept
+    if (installed === pinned) return ESandboxProbe.Kept
 
     this.args.log?.(
-      `sandbox ${args.name} carries serve "${installed || 'none'}", this build wants one of [${desired.join(', ')}] — recreating it from the pinned image`,
+      `sandbox ${args.name} carries serve "${installed || 'none'}", this build wants "${pinned}" — recreating it from the pinned image`,
     )
     await sandbox.delete({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
     return ESandboxProbe.Replaced
