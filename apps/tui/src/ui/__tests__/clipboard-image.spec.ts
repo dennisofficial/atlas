@@ -1,7 +1,9 @@
-import { mkdtempSync, readdirSync, rmSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'bun:test'
+
+import { EImageTier, pngSize, projectedSize } from '@dltech/atlas-core'
 
 import {
   appleScriptClipboardBytes,
@@ -106,5 +108,91 @@ describe('attaching the same clipboard picture twice', () => {
     })
 
     expect(nothing).toBeNull()
+  })
+})
+
+/** A photographic gradient — smooth enough to deflate well at full size, structured enough that downscaling still wins on the re-encode, so the larger-re-encode guard is not what passes the test. */
+const screenshot = (args: { width: number; height: number; shade: number }): Buffer => {
+  const stride = args.width * 3
+  const samples = new Uint8Array(stride * args.height)
+  for (let y = 0; y < args.height; y += 1) {
+    for (let x = 0; x < args.width; x += 1) {
+      const at = y * stride + x * 3
+      samples[at] = (args.shade + Math.floor((x / args.width) * 128)) & 0xff
+      samples[at + 1] = (args.shade + Math.floor((y / args.height) * 128)) & 0xff
+      samples[at + 2] = (args.shade + ((x + y) % 64)) & 0xff
+    }
+  }
+  return Buffer.from(
+    encodePng({ width: args.width, height: args.height, colourType: 2, bytesPerPixel: 3, samples }),
+  )
+}
+
+describe('resizing a paste to the model tier', () => {
+  it('writes the projected size rather than the full-resolution bytes', async () => {
+    const directory = pasteDirectory()
+    const bytes = screenshot({ width: 4640, height: 2774, shade: 64 })
+
+    const image = await attachClipboardImage({
+      directory,
+      tier: EImageTier.Standard,
+      pull: async () => bytes,
+      memory: newPasteMemory(),
+    })
+
+    const projected = projectedSize({ size: { width: 4640, height: 2774 } })
+    expect(image?.width).toBe(projected.width)
+    expect(image?.height).toBe(projected.height)
+    expect(image?.byteLength).toBeLessThan(bytes.byteLength)
+
+    const written = Buffer.from(readFileSync(image?.path ?? ''))
+    expect(pngSize(written)).toEqual(projected)
+  })
+
+  it('leaves a picture that already fits untouched', async () => {
+    const directory = pasteDirectory()
+    const bytes = screenshot({ width: 640, height: 480, shade: 64 })
+
+    const image = await attachClipboardImage({
+      directory,
+      tier: EImageTier.Standard,
+      pull: async () => bytes,
+      memory: newPasteMemory(),
+    })
+
+    expect(image?.width).toBe(640)
+    expect(image?.height).toBe(480)
+    expect(image?.byteLength).toBe(bytes.byteLength)
+  })
+
+  it('resizes to the high-resolution tier when the model reads it', async () => {
+    const directory = pasteDirectory()
+    const bytes = screenshot({ width: 4640, height: 2774, shade: 64 })
+
+    const image = await attachClipboardImage({
+      directory,
+      tier: EImageTier.HighResolution,
+      pull: async () => bytes,
+      memory: newPasteMemory(),
+    })
+
+    const projected = projectedSize({ size: { width: 4640, height: 2774 }, tier: EImageTier.HighResolution })
+    expect(image?.width).toBe(projected.width)
+    expect(image?.height).toBe(projected.height)
+    expect(projected.width).toBeGreaterThan(1568)
+  })
+
+  it('writes again when the same clipboard picture returns at a new tier', async () => {
+    const directory = pasteDirectory()
+    const bytes = screenshot({ width: 4640, height: 2774, shade: 64 })
+    const pull = async (): Promise<Buffer> => bytes
+    const memory = newPasteMemory()
+
+    const standard = await attachClipboardImage({ directory, tier: EImageTier.Standard, pull, memory })
+    const high = await attachClipboardImage({ directory, tier: EImageTier.HighResolution, pull, memory })
+
+    expect(high?.path).not.toBe(standard?.path)
+    expect(high?.width).toBeGreaterThan(standard?.width ?? 0)
+    expect(readdirSync(directory)).toHaveLength(2)
   })
 })
