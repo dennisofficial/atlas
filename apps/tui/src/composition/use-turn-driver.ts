@@ -8,6 +8,7 @@ import {
   ESuppress,
   LocalRewindMachinery,
   PauseSignal,
+  RemoteTurnRunner,
   rewindThread,
   type RemoteDeltaChannel,
   type RewindKill,
@@ -240,9 +241,16 @@ export function useTurnDriver(args: {
       store.supersedeFailure()
       stamp(() => turnStarted({ now: readClock() }))
 
+      const saidIndex = drafts.findIndex((draft) => draft.type === 'user-said')
+      const saidDraft = saidIndex === -1 ? undefined : drafts[saidIndex]
+      const remoteSaid =
+        app.runner instanceof RemoteTurnRunner && saidDraft !== undefined && saidDraft.type === 'user-said'
+          ? { said: saidDraft, context: drafts.filter((_, index) => index !== saidIndex) }
+          : null
+
       void (async () => {
         try {
-          if (drafts.length > 0) {
+          if (remoteSaid === null && drafts.length > 0) {
             try {
               await commit(drafts)
             } catch (error) {
@@ -252,11 +260,21 @@ export function useTurnDriver(args: {
             await refresh()
           }
           gate.settle()
-          const outcome = await app.runner.runTurn({
-            threadId,
-            signal: controller.signal,
-            pause: pauseSignal,
-          })
+          const outcome =
+            remoteSaid === null
+              ? await app.runner.runTurn({
+                  threadId,
+                  signal: controller.signal,
+                  pause: pauseSignal,
+                })
+              : await app.runner.say({
+                  threadId,
+                  text: typeof remoteSaid.said.text === 'string' ? remoteSaid.said.text : '',
+                  ...(remoteSaid.said.images === undefined ? {} : { images: remoteSaid.said.images }),
+                  ...(remoteSaid.context.length === 0 ? {} : { context: remoteSaid.context }),
+                  signal: controller.signal,
+                  pause: pauseSignal,
+                })
           setFailure(stoppageOf(outcome))
           await app.turnPolicy.onOutcome({ threadId, outcome })
           const said = app.turnPolicy.undone()
