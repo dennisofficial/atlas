@@ -1,6 +1,7 @@
 import type { EventDraft, SaidImage, ThreadId } from '@dltech/atlas-core'
 
-import type { TurnOutcome } from '@dltech/atlas-harness'
+import { PauseSignal } from '@dltech/atlas-harness'
+import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
 import type { TurnPolicy } from '@dltech/atlas-harness'
 
 import type { ServeApp } from './serve-app'
@@ -15,8 +16,19 @@ export type ServeTurnDriver = {
   /** Starts a turn when none is running, re-arms when one is, and answers whether it acted. */
   sayOrRun: () => boolean
   interrupt: () => void
+  pause: () => void
+  /** The channel's pause: freeze the parent's turn, then the stepping children, then answer. */
+  beginRelocation: () => void
+  resume: () => void
   running: () => boolean
   settled: () => Promise<void>
+}
+
+export type TurnDriverHooks = {
+  onTurnStarted: () => void
+  onTurnEnded: () => void
+  onOutcome: (outcome: TurnOutcome) => void
+  onFailure: (reason: string) => void
 }
 
 const messageOf = (error: unknown): string =>
@@ -26,16 +38,16 @@ export function createTurnDriver(args: {
   app: ServeApp
   threadId: ThreadId
   refusal?: (() => string | undefined) | undefined
-  onTurnStarted: () => void
-  onTurnEnded: () => void
-  onOutcome: (outcome: TurnOutcome) => void
-  onFailure: (reason: string) => void
-}): ServeTurnDriver {
+} & TurnDriverHooks): ServeTurnDriver {
   const { app, threadId } = args
 
   let abort: AbortController | null = null
+  let pause: PauseSignal | null = null
   let again = false
   let turning: Promise<void> | null = null
+  // Not reset when the turn settles: the far side's Resume frame can arrive after the paused loop
+  // has fully unwound, and it must still re-enter the turn from the log.
+  let relocationFrozen = false
 
   /**
    * The message lands durably before any turn runs, so a process death between the two loses a
@@ -73,6 +85,19 @@ export function createTurnDriver(args: {
     })
   }
 
+  /**
+   * The relocation-paused answer is the descend's signal to take the session archive, so it may
+   * not reach the client until the whole family has stopped writing: the children's steps settle
+   * into their own pauses first, and only then does the parent's outcome go out.
+   */
+  const finishOutcome = async (outcome: TurnOutcome): Promise<void> => {
+    if (outcome.status === ETurnStatus.RelocationPaused && relocationFrozen) {
+      await app.family?.pauseChildren({ threadId }).catch(() => undefined)
+    }
+    args.onOutcome(outcome)
+    await app.turnPolicy?.onOutcome({ threadId, outcome })
+  }
+
   const runUntilQuiet = async (): Promise<void> => {
     args.onTurnStarted()
     try {
@@ -80,15 +105,18 @@ export function createTurnDriver(args: {
         again = false
         const controller = new AbortController()
         abort = controller
-        const outcome = await app.runner.runTurn({ threadId, signal: controller.signal })
-        args.onOutcome(outcome)
-        await app.turnPolicy?.onOutcome({ threadId, outcome })
+        pause = new PauseSignal()
+        const outcome = relocationFrozen
+          ? await app.runner.resume({ threadId, signal: controller.signal, pause })
+          : await app.runner.runTurn({ threadId, signal: controller.signal, pause })
+        await finishOutcome(outcome)
       } while (again)
     } catch (error) {
       await app.turnPolicy?.onCrashed({ threadId })
       args.onFailure(messageOf(error))
     } finally {
       abort = null
+      pause = null
       turning = null
       args.onTurnEnded()
     }
@@ -133,7 +161,36 @@ export function createTurnDriver(args: {
 
     interrupt() {
       again = false
+      relocationFrozen = false
       abort?.abort()
+    },
+
+    pause() {
+      pause?.pause()
+    },
+
+    beginRelocation() {
+      relocationFrozen = true
+      pause?.pause()
+    },
+
+    /**
+     * A paused relocation turn has already exited its loop, so resuming is not releasing a waiter
+     * — it is re-entering the turn from its durable log, which is why it runs rather than
+     * signal-wakes.
+     */
+    resume() {
+      if (pause !== null && pause.paused) {
+        pause.resume()
+        relocationFrozen = false
+        return
+      }
+      if (!relocationFrozen) return
+      if (turning !== null) {
+        again = true
+        return
+      }
+      run()
     },
 
     running: () => turning !== null,

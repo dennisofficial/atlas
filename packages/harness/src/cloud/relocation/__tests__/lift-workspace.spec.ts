@@ -5,7 +5,7 @@ import { CloudError } from '@dltech/atlas-harness'
 import { useAtlasHome } from './descend-fixture'
 import { ELiftFault, liftToCloud } from '../lift'
 import { CLOUD_THREAD, fakeBridge } from './fixture'
-import { harness } from './lift-fixture'
+import { FOOTER_SELECTION, harness } from './lift-fixture'
 
 describe('the workspace a lift carries', () => {
   it('reads a 413 as the patch being too large, keeping the advice the API gave', async () => {
@@ -33,7 +33,9 @@ describe('the workspace a lift carries', () => {
     const lifted = await liftToCloud(test.args)
 
     expect(lifted.ok).toBe(true)
-    expect(test.bridge.created).toEqual([{ threadId: CLOUD_THREAD, workspace: null }])
+    expect(test.bridge.created).toEqual([
+      { threadId: CLOUD_THREAD, workspace: null, model: FOOTER_SELECTION.ref },
+    ])
   })
 
   it('says so in the transition notice when no repository came with it', async () => {

@@ -45,6 +45,7 @@ import type { ApplyLoopCut } from '../store/sessions/ops/cut-loop'
 import type { ToolDispatcher } from '../tools/dispatch'
 import { MAX_LOOP_CUTS_PER_TURN, repeatableFor } from './loop-guard'
 import { ELoopWatch, type LoopWatch } from './loop-watchdog'
+import type { PauseSignal } from './pause-signal'
 import { takeModelStepWithRetry, type RetryDeps } from './retrying-step'
 import { openTurnSpend, TURN_CRASHED, type TurnLedgerDeps, type TurnSpendTally } from '../ledger/record-turn-spend'
 import { appendResumeDrafts } from './resume-turn'
@@ -149,25 +150,51 @@ export class LoopTurnRunner extends TurnRunner {
     threadId,
     text,
     signal,
+    pause,
   }: {
     threadId: ThreadId
     text: string
     signal?: AbortSignal
+    pause?: PauseSignal
   }): Promise<TurnOutcome> {
     await this.log.append({
       threadId,
       runId: this.ids.nextRunId(),
       drafts: [{ type: 'user-said', text }],
     })
-    return this.runTurn({ threadId, ...(signal === undefined ? {} : { signal }) })
+    return this.runTurn({
+      threadId,
+      ...(signal === undefined ? {} : { signal }),
+      ...(pause === undefined ? {} : { pause }),
+    })
   }
 
-  async resume({ threadId, signal }: { threadId: ThreadId; signal?: AbortSignal }): Promise<TurnOutcome> {
+  async resume({
+    threadId,
+    signal,
+    pause,
+  }: {
+    threadId: ThreadId
+    signal?: AbortSignal
+    pause?: PauseSignal
+  }): Promise<TurnOutcome> {
     await appendResumeDrafts({ log: this.log, ids: this.ids, threadId })
-    return this.runTurn({ threadId, ...(signal === undefined ? {} : { signal }) })
+    return this.runTurn({
+      threadId,
+      ...(signal === undefined ? {} : { signal }),
+      ...(pause === undefined ? {} : { pause }),
+    })
   }
 
-  async runTurn({ threadId, signal }: { threadId: ThreadId; signal?: AbortSignal }): Promise<TurnOutcome> {
+  async runTurn({
+    threadId,
+    signal,
+    pause,
+  }: {
+    threadId: ThreadId
+    signal?: AbortSignal
+    pause?: PauseSignal
+  }): Promise<TurnOutcome> {
     const runId = this.ids.nextRunId()
     const spend = openTurnSpend({ ...(this.spend ?? {}), model: this.model.identity })
     let status: string = TURN_CRASHED
@@ -178,6 +205,7 @@ export class LoopTurnRunner extends TurnRunner {
         runId,
         spend,
         ...(signal === undefined ? {} : { signal }),
+        ...(pause === undefined ? {} : { pause }),
       })
       status = outcome.status
       return outcome
@@ -199,11 +227,13 @@ export class LoopTurnRunner extends TurnRunner {
   private async trackedTurn({
     threadId,
     signal,
+    pause,
     runId,
     spend,
   }: {
     threadId: ThreadId
     signal?: AbortSignal
+    pause?: PauseSignal
     runId: RunId
     spend: TurnSpendTally
   }): Promise<TurnOutcome> {
@@ -236,6 +266,8 @@ export class LoopTurnRunner extends TurnRunner {
     if (opening.length > 0) await this.log.append({ threadId, runId, drafts: opening })
 
     for (;;) {
+      if (pause?.paused === true) return { status: ETurnStatus.RelocationPaused, runId }
+
       const beforeDrain = await this.log.read({ threadId })
       const ownedBeforeDrain = rowsOwnedBy({ events: beforeDrain, threadId })
 

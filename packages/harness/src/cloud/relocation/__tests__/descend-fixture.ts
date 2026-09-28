@@ -215,7 +215,7 @@ export const descend = (args: {
   channel?: FakeCloudChannel
   surface?: Surface
   midTurn?: boolean
-  interruptDeadlineMs?: number
+  pauseDeadlineMs?: number
   mergeWorkspace?: WorkspaceMerger
   pullMemory?: () => Promise<RemoteMemoryMerge>
 }): Promise<OpenedLocal> => {
@@ -230,9 +230,7 @@ export const descend = (args: {
     channel,
     localApp: args.home,
     surface: surface.surface,
-    ...(args.interruptDeadlineMs === undefined
-      ? {}
-      : { interruptDeadlineMs: args.interruptDeadlineMs }),
+    ...(args.pauseDeadlineMs === undefined ? {} : { pauseDeadlineMs: args.pauseDeadlineMs }),
     ...(args.mergeWorkspace === undefined ? {} : { mergeWorkspace: args.mergeWorkspace }),
     ...(args.pullMemory === undefined ? {} : { pullMemory: args.pullMemory }),
   }).then((opened) =>

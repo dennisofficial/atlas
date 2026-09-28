@@ -12,7 +12,7 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
  * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
  */
-export const CHANNEL_PROTOCOL_VERSION = 5
+export const CHANNEL_PROTOCOL_VERSION = 6
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
@@ -44,6 +44,8 @@ export enum EClientFrame {
   Send = 'send',
   Run = 'run',
   Interrupt = 'interrupt',
+  Pause = 'pause',
+  Resume = 'resume',
   Request = 'request',
   Pong = 'pong',
 }
@@ -82,6 +84,7 @@ export enum ETurnStatus {
   Paused = 'paused',
   Idle = 'idle',
   Interrupted = 'interrupted',
+  RelocationPaused = 'relocation-paused',
   Failed = 'failed',
 }
 
@@ -142,6 +145,10 @@ export const turnOutcomeWireSchema = z.discriminatedUnion('status', [
     status: z.literal(ETurnStatus.Interrupted),
     runId: runIdWireSchema,
     committed: z.boolean(),
+  }),
+  z.object({
+    status: z.literal(ETurnStatus.RelocationPaused),
+    runId: runIdWireSchema,
   }),
   z.object({
     status: z.literal(ETurnStatus.Failed),
@@ -206,6 +213,8 @@ export const clientFrameSchema = z.discriminatedUnion('kind', [
   }),
   z.object({ kind: z.literal(EClientFrame.Run) }),
   z.object({ kind: z.literal(EClientFrame.Interrupt) }),
+  z.object({ kind: z.literal(EClientFrame.Pause) }),
+  z.object({ kind: z.literal(EClientFrame.Resume) }),
   z.object({
     kind: z.literal(EClientFrame.Request),
     id: z.string().min(1),

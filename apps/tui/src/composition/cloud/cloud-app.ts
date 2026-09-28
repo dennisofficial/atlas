@@ -10,10 +10,10 @@ import {
 } from '@dltech/atlas-harness'
 
 import type { AtlasApp } from '../compose'
-import { EOpenMode } from '../config'
 import { noticePortBinding } from '../notice-binding'
-import { openConversation, unstartedConversation, type OpenedConversation } from '../open-conversation'
+import { unstartedConversation, type OpenedConversation } from '../open-conversation'
 import type { CloudChannel, CloudStores } from '@dltech/atlas-harness'
+import { attachCloudSession } from './attach-cloud'
 import { RemoteAgentRegistry } from './remote-agents'
 import { RemoteServiceRegistry } from './remote-services'
 import { RemoteShellRegistry } from './remote-shells'
@@ -72,18 +72,13 @@ export async function openCloudConversation(args: {
   app: AtlasApp
   threadId: ThreadId
 }): Promise<OpenedConversation> {
-  const opened = await openConversation({
-    threads: args.app.threads,
-    log: args.app.log,
-    ledger: args.app.ledger,
-    agents: args.app.agents,
-    ids: args.app.ids,
-    workspace: args.app.workspace,
-    open: { mode: EOpenMode.Resume, threadId: args.threadId },
-    effects: (name) => args.app.tools.find(name)?.effect,
-  })
-
-  if (!opened.ok) return { ...unstartedConversation({ ids: args.app.ids }), threadId: args.threadId }
-
-  return opened.conversation
+  try {
+    return await attachCloudSession({
+      stores: { threads: args.app.threads, log: args.app.log, ledger: args.app.ledger },
+      threadId: args.threadId,
+      effects: (name) => args.app.tools.find(name)?.effect,
+    })
+  } catch {
+    return { ...unstartedConversation({ ids: args.app.ids }), threadId: args.threadId }
+  }
 }

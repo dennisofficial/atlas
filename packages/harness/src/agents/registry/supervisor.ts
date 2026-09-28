@@ -28,6 +28,7 @@ import { ChildRecovery } from './recovery'
 import {
   childDirectory,
   markThreadChildrenRelocated,
+  pauseThreadChildren,
   relocateThreadChildren,
   resumeChild,
   stopThreadChildren,
@@ -148,7 +149,7 @@ export class AgentSupervisor extends AgentRegistryPort {
     this.steps.take({
       child,
       agentType: type,
-      step: ({ runner, signal }) => runner.runTurn({ threadId: agentId, signal }),
+      step: ({ runner, signal, pause }) => runner.runTurn({ threadId: agentId, signal, pause }),
     })
 
     return { ok: true, snapshot: snapshotOf(child) }
@@ -195,7 +196,7 @@ export class AgentSupervisor extends AgentRegistryPort {
     this.steps.take({
       child,
       agentType,
-      step: ({ runner, signal }) => runner.runTurn({ threadId: agentId, signal }),
+      step: ({ runner, signal, pause }) => runner.runTurn({ threadId: agentId, signal, pause }),
     })
     return { ok: true, snapshot: snapshotOf(child) }
   }
@@ -224,6 +225,11 @@ export class AgentSupervisor extends AgentRegistryPort {
   async stopChildren(args: { threadId: ThreadId; by: EKilledBy }): Promise<readonly ThreadId[]> {
     const stopped = await stopThreadChildren({ ...args, ...this.relocation })
     return stopped.map((child) => child.agentId)
+  }
+
+  async pauseChildren(args: { threadId: ThreadId }): Promise<readonly ThreadId[]> {
+    const paused = await pauseThreadChildren({ ...args, ...this.relocation })
+    return paused.map((child) => child.agentId)
   }
 
   markChildrenRelocated(args: {

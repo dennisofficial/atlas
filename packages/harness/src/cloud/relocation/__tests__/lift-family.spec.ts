@@ -23,7 +23,8 @@ describe('lifting the family along with the conversation', () => {
     const lifted = await liftToCloud(test.args)
 
     expect(lifted.ok).toBe(true)
-    expect(agents.stopCalls).toBe(1)
+    expect(agents.pauseCalls).toBe(1)
+    expect(agents.stopCalls).toBe(0)
     expect(test.steps.indexOf(ELiftStep.Stopping)).toBeLessThan(
       test.steps.indexOf(ELiftStep.Transferring),
     )
@@ -82,7 +83,7 @@ describe('lifting the family along with the conversation', () => {
 
     await liftToCloud(test.args)
 
-    expect(test.bridge.trail).toEqual(['sandbox', 'put-transcript', 'attach'])
+    expect(test.bridge.trail).toEqual(['sandbox', 'put-transcript', 'confirm-landed', 'attach'])
     expect(test.bridge.transcriptPuts).toHaveLength(1)
   })
 })

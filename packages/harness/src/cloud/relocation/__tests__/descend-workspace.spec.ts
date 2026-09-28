@@ -155,7 +155,7 @@ describe('bringing the cloud workspace home', () => {
     expect(JSON.stringify(notice)).toContain('git reset --hard origin/dennis/feature')
   })
 
-  it('leaves the conversation in the cloud when the workspace would not publish', async () => {
+  it('fails the descend after the flip when the workspace would not publish, transcript home', async () => {
     const { home, bridge } = await homeWithArchive(['stuck in the cloud'])
     const channel = bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
     const served = channel.request.bind(channel)
@@ -177,6 +177,9 @@ describe('bringing the cloud workspace home', () => {
       }),
     ).rejects.toThrow('would not push home')
     const row = await home.threads.find({ threadId: CLOUD_THREAD })
-    expect(row?.executionLocation ?? EExecutionLocation.Cloud).toBe(EExecutionLocation.Cloud)
+    expect(row?.executionLocation).toBe(EExecutionLocation.Host)
+    expect(
+      (await home.log.read({ threadId: CLOUD_THREAD })).some((event) => event.type === 'user-said'),
+    ).toBe(true)
   })
 })

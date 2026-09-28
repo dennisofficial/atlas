@@ -82,7 +82,7 @@ async function deliver({
   steps.take({
     child,
     agentType,
-    step: ({ runner, signal }) => runner.runTurn({ threadId: args.agentId, signal }),
+    step: ({ runner, signal, pause }) => runner.runTurn({ threadId: args.agentId, signal, pause }),
   })
 
   return { ok: true, snapshot: snapshotOf(child) }

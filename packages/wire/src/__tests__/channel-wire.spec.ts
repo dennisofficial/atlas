@@ -9,6 +9,7 @@ import {
   EServeFrame,
   EServiceStatus,
   EShellStatus,
+  ETurnStatus,
   type ClientFrame,
   type ServeFrame,
 } from '../index'
@@ -56,6 +57,26 @@ describe('the send frame', () => {
       text: 'go',
       context: [{ type: 'context-loaded', slot: 'skill' }],
     })
+  })
+})
+
+describe('the pause frames', () => {
+  it('round-trips pause and resume client frames', () => {
+    for (const frame of [
+      { kind: EClientFrame.Pause },
+      { kind: EClientFrame.Resume },
+    ] as const) {
+      expect(decodeClientFrame(encodeFrame(frame))).toEqual(frame)
+    }
+  })
+
+  it('round-trips a turn ended by a relocation pause', () => {
+    const frame: ServeFrame = {
+      kind: EServeFrame.TurnEnded,
+      outcome: { status: ETurnStatus.RelocationPaused, runId: 'run-1' as never },
+    }
+
+    expect(decodeServeFrame(encodeFrame(frame))).toEqual(frame)
   })
 })
 

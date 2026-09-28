@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation, ENoticeTone, toRunId } from '@dltech/atlas-core'
-import { ETurnStatus } from '../../../loop/turn-outcome'
 
 import { EDescendStep } from '../descend'
-import { ELiftStep } from '../lift'
 import { fakeAgentSnapshot } from './fake-agents'
 import { CHILD, cloudArchiveOf, descend, fakeSurface, useDescendHome } from './descend-fixture'
 import { CLOUD_THREAD, fakeBridge } from './fixture'
@@ -138,45 +136,6 @@ describe('bringing a cloud conversation home', () => {
     expect(bridge.destroyed).toEqual([])
   })
 
-  it('interrupts a turn in flight on the sandbox and marks the descent to resume locally', async () => {
-    const home = useDescendHome()
-    const archive = await cloudArchiveOf([{ drafts: [said('one')] }])
-    const bridge = fakeBridge({ archive })
-    const channel = bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
-    let interrupts = 0
-    channel.interrupt = () => {
-      interrupts += 1
-      setTimeout(
-        () =>
-          channel.endTurn({
-            status: ETurnStatus.Interrupted,
-            runId: toRunId('run_remote'),
-            committed: true,
-          }),
-        0,
-      )
-    }
-    const surface = fakeSurface()
-
-    const opened = await descend({ bridge, home, channel, surface, midTurn: true })
-
-    expect(interrupts).toBe(1)
-    expect(opened.resumeOnArrival).toBe(true)
-    expect(surface.begun).toEqual([
-      [ELiftStep.Interrupting, EDescendStep.Transferring, EDescendStep.Flipping, EDescendStep.Relocating],
-    ])
-  })
-
-  it('gives up legibly when the remote turn will not stop', async () => {
-    const home = useDescendHome()
-    const bridge = fakeBridge({ archive: await cloudArchiveOf([{ drafts: [said('one')] }]) })
-
-    await expect(
-      descend({ bridge, home, midTurn: true, interruptDeadlineMs: 20 }),
-    ).rejects.toThrow('would not stop in time')
-    expect((await home.threads.find({ threadId: CLOUD_THREAD }))).toBeUndefined()
-  })
-
   it('destroys the cloud sandbox once the conversation is safely back on the host', async () => {
     const home = useDescendHome()
     const bridge = fakeBridge({ archive: await cloudArchiveOf([{ drafts: [said('one')] }]) })
@@ -184,17 +143,6 @@ describe('bringing a cloud conversation home', () => {
     await descend({ bridge, home })
 
     expect(bridge.destroyed).toEqual([CLOUD_THREAD])
-  })
-
-  it('never destroys the sandbox when the descent fails', async () => {
-    const home = useDescendHome()
-    const bridge = fakeBridge({ archive: await cloudArchiveOf([{ drafts: [said('one')] }]) })
-
-    await expect(
-      descend({ bridge, home, midTurn: true, interruptDeadlineMs: 20 }),
-    ).rejects.toThrow('would not stop in time')
-
-    expect(bridge.destroyed).toEqual([])
   })
 
   it('warns rather than failing the descend when the sandbox will not tear down', async () => {
@@ -277,21 +225,19 @@ describe('bringing a cloud conversation home', () => {
 
   it('never pulls memory when the descent fails before the transfer lands', async () => {
     const home = useDescendHome()
-    const bridge = fakeBridge({ archive: await cloudArchiveOf([{ drafts: [said('one')] }]) })
+    const bridge = fakeBridge({ archive: '' })
     let pulls = 0
 
     await expect(
       descend({
         bridge,
         home,
-        midTurn: true,
-        interruptDeadlineMs: 20,
         pullMemory: async () => {
           pulls += 1
           return { replaced: 0, conflicts: [] }
         },
       }),
-    ).rejects.toThrow('would not stop in time')
+    ).rejects.toThrow('the cloud holds no transcript')
 
     expect(pulls).toBe(0)
   })

@@ -70,6 +70,8 @@ export type RemoteDeltaChannel = DeltaChannel & {
   send(args: { text: string; images?: readonly SaidImage[]; context?: readonly EventDraft[] }): void
   run(): void
   interrupt(): void
+  pause(): void
+  resume(): void
   request(args: { op: EClientRequest; params: unknown }): Promise<unknown>
   connection(): ChannelConnection
   onConnection(listener: (connection: ChannelConnection) => void): Unsubscribe
@@ -526,6 +528,10 @@ export function createRemoteDeltaChannel(args: {
     run: () => upstream.send({ kind: EClientFrame.Run }),
 
     interrupt: requestInterrupt,
+
+    pause: () => upstream.send({ kind: EClientFrame.Pause }),
+
+    resume: () => upstream.send({ kind: EClientFrame.Resume }),
 
     request: (request) => upstream.request(request),
 

@@ -43,6 +43,9 @@ export class UnstaffedAgents extends AgentRegistryPort {
   stopChildren() {
     return Promise.resolve([])
   }
+  pauseChildren() {
+    return Promise.resolve([])
+  }
   markChildrenRelocated() {
     return Promise.resolve()
   }

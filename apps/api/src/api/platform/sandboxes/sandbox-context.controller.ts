@@ -26,7 +26,9 @@ export class SandboxContextController {
   async handleGetTranscript(@Req() request: SandboxAuthenticatedRequest): Promise<StreamableFile> {
     const threadId = sandboxThreadIdOf(request)
     const archive = await this.sandboxes.getTranscriptArchive({ threadId })
-    if (archive === null) throw new NotFoundException('no transcript archive stored yet')
+    if (archive === null || archive.byteLength === 0) {
+      throw new NotFoundException('no transcript archive stored yet')
+    }
     return new StreamableFile(archive, { type: 'application/gzip' })
   }
 }

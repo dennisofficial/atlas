@@ -7,6 +7,7 @@ import {
 import {
   ESuppress,
   LocalRewindMachinery,
+  PauseSignal,
   rewindThread,
   type RemoteDeltaChannel,
   type RewindKill,
@@ -73,6 +74,7 @@ export type TurnDriver = {
   ) => Promise<void>
   handleInterrupt: () => void
   handleInterruptForMove: () => void
+  handlePauseForMove: () => void
   turnInFlight: () => boolean
   handleRetry: () => void
   handleResume: () => void
@@ -118,6 +120,7 @@ export function useTurnDriver(args: {
   const [working, setWorking] = useState(false)
   const workingRef = useRef(false)
   const abort = useRef<AbortController | null>(null)
+  const pause = useRef<PauseSignal | null>(null)
   const tailRef = useRef(false)
   const interruptAckedAt = useRef(0)
   const remoteTurnInFlight = useRef(false)
@@ -226,9 +229,11 @@ export function useTurnDriver(args: {
       }
 
       const controller = new AbortController()
+      const pauseSignal = new PauseSignal()
       const gate = commitGate()
 
       abort.current = controller
+      pause.current = pauseSignal
       workingRef.current = true
       setWorking(true)
       setFailure(null)
@@ -247,7 +252,11 @@ export function useTurnDriver(args: {
             await refresh()
           }
           gate.settle()
-          const outcome = await app.runner.runTurn({ threadId, signal: controller.signal })
+          const outcome = await app.runner.runTurn({
+            threadId,
+            signal: controller.signal,
+            pause: pauseSignal,
+          })
           setFailure(stoppageOf(outcome))
           await app.turnPolicy.onOutcome({ threadId, outcome })
           const said = app.turnPolicy.undone()
@@ -258,6 +267,7 @@ export function useTurnDriver(args: {
         } finally {
           gate.settle()
           abort.current = null
+          pause.current = null
           workingRef.current = false
           tailRef.current = true
           stamp((current) => turnSettled({ progress: current, now: readClock() }))
@@ -435,6 +445,14 @@ export function useTurnDriver(args: {
     abortTurn()
   }, [abortTurn, app.turnPolicy])
 
+  /**
+   * A relocation pauses rather than interrupts: the loop halts at its seam with the log complete,
+   * the message travels, and the far side resumes from it. No abort, no interrupted drafts.
+   */
+  const handlePauseForMove = useCallback(() => {
+    pause.current?.pause()
+  }, [])
+
   const handleRewindTo = useCallback((toSeq: number) => void rewindTo(toSeq), [rewindTo])
 
   const settle = useCallback(() => stamp(() => IDLE_PROGRESS), [stamp])
@@ -462,6 +480,7 @@ export function useTurnDriver(args: {
     drive,
     handleInterrupt,
     handleInterruptForMove,
+    handlePauseForMove,
     turnInFlight,
     handleRetry,
     handleResume,

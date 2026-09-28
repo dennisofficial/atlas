@@ -45,6 +45,8 @@ export type CloudSandboxes = {
     threadId: ThreadId
     workspace: LiftedWorkspace | null
     gpgKey?: string | undefined
+    /** The thread's model ref, written into the boot spec so the cloud session runs the model it was on. */
+    model?: string | undefined
     /**
      * Captures the skills/memory tar a fresh boot needs and uploads it through `put`. Deferred so
      * a resume never pays the tar: create invokes it only once the drift probe has settled that
@@ -64,6 +66,12 @@ export type CloudSandboxes = {
    * already carries the directory.
    */
   putTranscript(args: { threadId: ThreadId; archive: Uint8Array }): Promise<void>
+  /**
+   * The anti-blank-log gate: after the transcript uploaded, the lift asks the control plane
+   * whether the sandbox row reports the session present and non-empty before it flips ownership.
+   * The bridge owns how readiness is probed; the lift only reads the verdict.
+   */
+  confirmLanded(args: { threadId: ThreadId }): Promise<{ landed: boolean }>
   find(args: { threadId: ThreadId }): Promise<CloudSandboxStatus | undefined>
   /**
    * Tears down both halves: the Vercel sandbox through the operator's own token, and the control

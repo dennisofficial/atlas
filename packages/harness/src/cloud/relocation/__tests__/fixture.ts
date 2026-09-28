@@ -116,6 +116,8 @@ export function fakeCloudChannel(
       runs += 1
     },
     interrupt: () => undefined,
+    pause: () => undefined,
+    resume: () => undefined,
     request: async (given) => {
       requests.push({ op: given.op, params: given.params })
       if (given.op === EClientRequest.ListRoster) return heldRoster
@@ -320,6 +322,7 @@ export type FakeBridge = Omit<CloudBridge, 'attach'> & {
     threadId: ThreadId
     workspace: LiftedWorkspace | null
     gpgKey?: string | undefined
+    model?: string | undefined
   }[]
   readonly contextPuts: readonly { threadId: ThreadId; archive: Buffer }[]
   readonly transcriptPuts: readonly { threadId: ThreadId; archive: Buffer }[]
@@ -343,6 +346,9 @@ export function fakeBridge(
     createFails?: unknown
     putContextFails?: unknown
     putTranscriptFails?: unknown
+    confirmLandedFails?: unknown
+    /** False = the probe answers "no transcript on the row" without throwing. */
+    confirmLanded?: boolean | undefined
     destroyFails?: unknown
     status?: CloudSandboxStatus | undefined
     threadStore?: FakeThreadStore
@@ -358,6 +364,7 @@ export function fakeBridge(
     threadId: ThreadId
     workspace: LiftedWorkspace | null
     gpgKey?: string | undefined
+    model?: string | undefined
   }[] = []
   const contextPuts: { threadId: ThreadId; archive: Buffer }[] = []
   const transcriptPuts: { threadId: ThreadId; archive: Buffer }[] = []
@@ -382,7 +389,7 @@ export function fakeBridge(
     },
     trail,
     sandboxes: {
-      create: async ({ threadId, workspace, gpgKey, captureContext }) => {
+      create: async ({ threadId, workspace, gpgKey, model, captureContext }) => {
         const sandbox = args.sandbox ?? RUNNING
         // The real create captures and puts the archive onto the row before booting a fresh
         // sandbox, so the trail records it ahead of the boot; a resumed sandbox already carries
@@ -400,6 +407,7 @@ export function fakeBridge(
           threadId,
           workspace,
           ...(gpgKey === undefined ? {} : { gpgKey }),
+          ...(model === undefined ? {} : { model }),
         })
         if (args.createFails !== undefined) throw args.createFails
         return sandbox
@@ -413,6 +421,12 @@ export function fakeBridge(
         trail.push('put-transcript')
         transcriptPuts.push({ threadId, archive: Buffer.from(archive) })
         if (args.putTranscriptFails !== undefined) throw args.putTranscriptFails
+      },
+      confirmLanded: async ({ threadId }) => {
+        trail.push('confirm-landed')
+        if (args.confirmLandedFails !== undefined) throw args.confirmLandedFails
+        if (args.confirmLanded === false) return { landed: false }
+        return { landed: transcriptPuts.some((put) => put.threadId === threadId) }
       },
       find: async () => args.status,
       destroy: async ({ threadId }) => {

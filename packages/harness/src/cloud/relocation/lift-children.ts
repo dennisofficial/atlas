@@ -11,7 +11,7 @@ import type { ThreadStorePort } from '../../store/thread-store'
 
 export type LiftAgentsPort = Pick<
   AgentRegistryPort,
-  'list' | 'resume' | 'stopChildren' | 'markChildrenRelocated' | 'forgetNotices'
+  'list' | 'resume' | 'stopChildren' | 'markChildrenRelocated' | 'forgetNotices' | 'pauseChildren'
 >
 
 type FlipArgs = {

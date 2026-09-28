@@ -112,7 +112,7 @@ import {
 } from './container-notices'
 import { descendPlanOf, ELocalMoveStep } from './container-move'
 import { messageOf } from './error-text'
-import { useContainerMove } from './use-container-move'
+import { useContainerMove, type MoveStepTiming } from './use-container-move'
 import { mcpReport } from '@dltech/atlas-harness'
 import { useComposerMenus } from './use-composer-menus'
 import { workspaceFileLoader } from './mentioned-files'
@@ -364,6 +364,8 @@ export function App(props: {
   preflightLift?: LiftPreflight
   captureWorkspace?: WorkspaceCapture
   captureContext?: CaptureContext
+  /** Receives each container-move step as it activates; the live round-trip spec reads stage timing from it. */
+  onMoveStep?: ((timing: MoveStepTiming) => void) | undefined
   /**
    * Startup cloud-sandbox sweep. Injectable so a test never fires it: the fake cloud reports
    * signed-in against an unreachable cloud.test, and the sweep's failure notice would render into
@@ -477,6 +479,7 @@ export function App(props: {
         captureContext={props.captureContext}
         onLifted={handleLifted}
         onDescend={handleDescend}
+        onMoveStep={props.onMoveStep}
         credentialNotice={props.credentialNotice ?? null}
         covered={props.covered === true}
         clipboard={props.clipboard ?? readClipboardImage}
@@ -505,6 +508,7 @@ function Workspace(props: {
   onDescend: (opened: OpenedConversation) => void
   draftText: string
   onDraftSource: (reader: (() => { threadId: ThreadId; text: string }) | null) => void
+  onMoveStep?: ((timing: MoveStepTiming) => void) | undefined
 }): React.ReactNode {
   const renderer = useRenderer()
   const restarting = useRef(false)
@@ -566,7 +570,9 @@ function Workspace(props: {
   const restoreUndone = useRef<(said: PendingSaid) => void>(() => undefined)
   const handleUndone = useCallback((said: PendingSaid) => restoreUndone.current(said), [])
 
-  const containerMove = useContainerMove()
+  const containerMove = useContainerMove(
+    props.onMoveStep === undefined ? undefined : { onStep: props.onMoveStep },
+  )
 
   const cloudHealth = useCloudSession({ session: props.cloudSession })
 
@@ -1109,6 +1115,7 @@ function Workspace(props: {
     started: conversation.started,
     midTurn: conversation.turnInFlight,
     handleInterrupt: conversation.handleInterruptForMove,
+    handlePause: conversation.handlePauseForMove,
     whenSettled: conversation.whenSettled,
     projectDirectory: conversation.projectDirectory,
     setLocation: execution.handleSet,

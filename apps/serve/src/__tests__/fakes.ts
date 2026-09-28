@@ -9,13 +9,15 @@ import {
 import type { RosterWire } from '@dltech/atlas-wire'
 
 import { createDeltaChannel, type DeltaChannel } from '@dltech/atlas-harness'
+import type { PauseSignal } from '@dltech/atlas-harness'
 import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
 import type { ThreadSummary } from '@dltech/atlas-harness'
-import type { ServeApp, ServeRewind, ServeWakeNotices } from '../serve-app'
+import type { ServeApp, ServeFamily, ServeRewind, ServeWakeNotices } from '../serve-app'
 
 export type RunTurn = (args: {
   threadId: ThreadId
   signal?: AbortSignal | undefined
+  pause?: PauseSignal | undefined
 }) => Promise<TurnOutcome>
 
 export type FakeServeApp = ServeApp & {
@@ -136,6 +138,7 @@ export function fakeServeApp(args: {
   wakeNotices?: boolean | undefined
   rewindTarget?: FakeRewindTarget | undefined
   roster?: FakeRoster | undefined
+  family?: ServeFamily | undefined
 }): FakeServeApp {
   const channel = createDeltaChannel()
   const appended: EventDraft[] = []
@@ -151,6 +154,7 @@ export function fakeServeApp(args: {
 
     runner: {
       runTurn: (given) => run(given),
+      resume: (given) => run(given),
     },
 
     log: {
@@ -203,6 +207,8 @@ export function fakeServeApp(args: {
     ...(args.rewindTarget === undefined ? {} : { rewind: { target: args.rewindTarget } }),
 
     ...(args.roster === undefined ? {} : { roster: args.roster }),
+
+    ...(args.family === undefined ? {} : { family: args.family }),
 
     close: async () => {
       closed = true

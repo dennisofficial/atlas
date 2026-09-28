@@ -6,6 +6,7 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import { PauseSignal } from '../../loop/pause-signal'
 import type { TurnOutcome } from '../../loop/turn-outcome'
 import type { TurnRunner } from '../../loop/turn-runner.port'
 import type { AgentType } from '../types'
@@ -21,7 +22,11 @@ import type { AgentNoticeQueue } from './notices'
 import { statusOf } from './reasons'
 import type { AgentRoster } from './roster'
 
-export type ChildStep = (args: { runner: TurnRunner; signal: AbortSignal }) => Promise<TurnOutcome>
+export type ChildStep = (args: {
+  runner: TurnRunner
+  signal: AbortSignal
+  pause: PauseSignal
+}) => Promise<TurnOutcome>
 
 export class ChildSteps {
   private readonly runners: ChildRunnerSource
@@ -52,6 +57,7 @@ export class ChildSteps {
     step: ChildStep
   }): void {
     child.abort = new AbortController()
+    child.pause = new PauseSignal()
     child.status = EAgentStatus.Running
     child.killedBy = undefined
     child.endedAt = undefined
@@ -64,6 +70,7 @@ export class ChildSteps {
       agentType,
       step,
       signal: child.abort.signal,
+      pause: child.pause,
     }).then((status) => this.finish({ child, status }))
 
     const forThread = this.inFlight.get(child.spawnedBy) ?? new Map<ThreadId, Promise<void>>()
@@ -98,14 +105,16 @@ export class ChildSteps {
     agentType,
     step,
     signal,
+    pause,
   }: {
     child: ChildState
     agentType: AgentType
     step: ChildStep
     signal: AbortSignal
+    pause: PauseSignal
   }): Promise<EAgentStatus> {
     try {
-      return statusOf(await step({ runner: this.runnerFor({ child, agentType }), signal }))
+      return statusOf(await step({ runner: this.runnerFor({ child, agentType }), signal, pause }))
     } catch {
       return signal.aborted ? EAgentStatus.Stopped : EAgentStatus.Failed
     }

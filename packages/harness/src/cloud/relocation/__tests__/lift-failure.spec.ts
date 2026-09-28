@@ -9,7 +9,7 @@ import { CLOUD_THREAD, fakeBridge } from './fixture'
 import { harness } from './lift-fixture'
 
 describe('a lift that does not finish', () => {
-  it('puts the conversation back on the host when the sandbox will not start', async () => {
+  it('stays on the host when the sandbox will not start, and never flips', async () => {
     useAtlasHome()
     const bridge = fakeBridge({
       createFails: new CloudError({ status: 500, message: 'no capacity in iad1' }),
@@ -22,15 +22,12 @@ describe('a lift that does not finish', () => {
     if (lifted.ok) return
 
     expect(lifted.fault).toBe(ELiftFault.Sandbox)
-    expect(test.located).toEqual([EExecutionLocation.Cloud, EExecutionLocation.Host])
-    expect(test.localThreads.chosenLocations.at(-1)).toEqual({
-      threadId: CLOUD_THREAD,
-      location: EExecutionLocation.Host,
-    })
+    expect(test.located).toEqual([])
+    expect(test.localThreads.chosenLocations).toEqual([])
     expect(test.bridge.attached).toEqual([])
   })
 
-  it('puts the conversation back on the host when the context archive will not reach the sandbox', async () => {
+  it('stays put when the context archive will not reach the sandbox', async () => {
     useAtlasHome()
     const bridge = fakeBridge({
       putContextFails: new CloudError({ status: 500, message: 'the control plane fell over' }),
@@ -45,11 +42,11 @@ describe('a lift that does not finish', () => {
     expect(lifted.fault).toBe(ELiftFault.Context)
     expect(lifted.step).toBe(ELiftStep.UploadingContext)
     expect(lifted.detail).toContain('the control plane fell over')
-    expect(test.located).toEqual([EExecutionLocation.Cloud, EExecutionLocation.Host])
+    expect(test.located).toEqual([])
     expect(test.bridge.attached).toEqual([])
   })
 
-  it('fails at Starting and flips back when the transcript will not reach the sandbox', async () => {
+  it('fails at Starting, still pre-commit, when the transcript will not reach the sandbox', async () => {
     useAtlasHome()
     const bridge = fakeBridge({
       putTranscriptFails: new CloudError({ status: 500, message: 'the row would not take the tar' }),
@@ -64,11 +61,24 @@ describe('a lift that does not finish', () => {
     expect(lifted.fault).toBe(ELiftFault.Sandbox)
     expect(lifted.step).toBe(ELiftStep.Starting)
     expect(lifted.detail).toContain('the row would not take the tar')
-    expect(test.located).toEqual([EExecutionLocation.Cloud, EExecutionLocation.Host])
-    expect(test.localThreads.chosenLocations.at(-1)).toEqual({
-      threadId: CLOUD_THREAD,
-      location: EExecutionLocation.Host,
-    })
+    expect(test.located).toEqual([])
+    expect(test.localThreads.chosenLocations).toEqual([])
+    expect(test.bridge.attached).toEqual([])
+  })
+
+  it('refuses the flip when the sandbox never confirms the transcript landed', async () => {
+    useAtlasHome()
+    const bridge = fakeBridge({ confirmLanded: false })
+    const test = harness({ bridge })
+
+    const lifted = await liftToCloud(test.args)
+
+    expect(lifted.ok).toBe(false)
+    if (lifted.ok) return
+
+    expect(lifted.step).toBe(ELiftStep.Starting)
+    expect(lifted.detail).toContain('never confirmed the transcript landed')
+    expect(test.located).toEqual([])
     expect(test.bridge.attached).toEqual([])
   })
 
@@ -120,7 +130,7 @@ describe('a lift that does not finish', () => {
     expect(lifted.fault).toBe(ELiftFault.GitAuth)
     expect(lifted.step).toBe(ELiftStep.Starting)
     expect(lifted.detail).toContain('gh auth login')
-    expect(test.located).toEqual([EExecutionLocation.Cloud, EExecutionLocation.Host])
+    expect(test.located).toEqual([])
   })
 
   it('keeps the real message of a 503 that is not the not-configured one', async () => {
@@ -157,7 +167,7 @@ describe('a lift that does not finish', () => {
     expect(lifted.fault).toBe(ELiftFault.Unreachable)
   })
 
-  it('puts the conversation back on the host when the open after attach fails', async () => {
+  it('does not flip back when the open after attach fails — the conversation already moved', async () => {
     useAtlasHome()
     const test = harness({
       open: async () => {
@@ -171,11 +181,10 @@ describe('a lift that does not finish', () => {
     if (lifted.ok) return
 
     expect(lifted.step).toBe(ELiftStep.Attaching)
-    expect(test.located).toEqual([EExecutionLocation.Cloud, EExecutionLocation.Host])
-    expect(test.localThreads.chosenLocations.at(-1)).toEqual({
-      threadId: CLOUD_THREAD,
-      location: EExecutionLocation.Host,
-    })
+    expect(test.located).toEqual([EExecutionLocation.Cloud])
+    expect(test.localThreads.chosenLocations).toEqual([
+      { threadId: CLOUD_THREAD, location: EExecutionLocation.Cloud },
+    ])
   })
 
   it('names what the move already closed when it fails after stopping them', async () => {

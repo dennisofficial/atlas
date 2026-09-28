@@ -99,6 +99,7 @@ export type Conversation = {
   handleReportProblem: (reason: string) => void
   handleInterrupt: () => void
   handleInterruptForMove: () => void
+  handlePauseForMove: () => void
   whenSettled: () => Promise<void>
   compacting: Compacting | null
   handleNewConversation: () => void
@@ -562,6 +563,7 @@ export function useConversation(args: {
     handleReportProblem: setFailure,
     handleInterrupt: turnDriver.handleInterrupt,
     handleInterruptForMove: turnDriver.handleInterruptForMove,
+    handlePauseForMove: turnDriver.handlePauseForMove,
     whenSettled: turnDriver.whenSettled,
     handleNewConversation,
     handleOpenThread,

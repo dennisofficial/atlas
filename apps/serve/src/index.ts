@@ -2,7 +2,6 @@ import { isResumable, type ThreadId } from '@dltech/atlas-core'
 
 import type { StepId } from '@dltech/atlas-harness'
 import { EServeFrame, type ServeFrame, type TurnOutcomeWire } from '@dltech/atlas-harness'
-import { SessionsClient } from '@dltech/atlas-harness'
 import { MainWake } from '@dltech/atlas-harness'
 import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
 
@@ -36,13 +35,14 @@ import { createSessionHandlers } from './socket-session'
 import { createTurnDriver } from './turn-driver'
 import type { WorkspaceFiles } from './workspace-files'
 import {
-  contextArchiveFetcher,
-  transcriptArchiveFetcher,
-  workspaceSpecFetcher,
-  type FetchTranscriptArchive,
-} from './workspace-spec'
+  driveContextArchiveFetcher,
+  driveTranscriptArchiveFetcher,
+  driveWorkspaceSpecFetcher,
+} from './drive-bootstrap'
+import type { FetchTranscriptArchive } from './workspace-spec'
 
 export * from './capabilities-notice'
+export * from './drive-bootstrap'
 export * from './channel-bridge'
 export * from './compose-serve'
 export * from './drain-deadline'
@@ -155,26 +155,6 @@ const lazy = <T>(fetch: () => Promise<T>): (() => Promise<T>) => {
   return () => (held ??= fetch())
 }
 
-/**
- * The thread's own model preference, read from the control plane so the sandbox runs the model the
- * conversation was already on rather than whatever the sandbox's bare settings would default to.
- */
-const readThreadModel = async (args: {
-  controlPlaneUrl: string
-  token: string
-  threadId: ThreadId
-  fetchFn: typeof fetch
-}): Promise<string | undefined> => {
-  const client = new SessionsClient({
-    url: args.controlPlaneUrl,
-    token: args.token,
-    clientVersion: 'dev',
-    fetchFn: args.fetchFn,
-  })
-  const thread = await client.findThread({ threadId: args.threadId }).catch(() => undefined)
-  return thread?.model?.ref
-}
-
 export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   const env = args.env ?? process.env
   const { threadId, port: wanted, token, controlPlaneUrl, cwd } = serveConfig({ ...args, env })
@@ -183,7 +163,8 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   const notice = new LoggingNoticePort({ log })
   const fetchFn = args.fetchFn ?? fetch
 
-  const fetchSpecOnce = lazy(workspaceSpecFetcher({ controlPlaneUrl, threadId, token, fetchFn }))
+  const driveHome = atlasDirectory()
+  const fetchSpecOnce = lazy(driveWorkspaceSpecFetcher({ driveHome }))
 
   /**
    * Before anything can read a file: a sandbox boots with whatever its last snapshot held, which on
@@ -225,8 +206,8 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   const contextStartedAt = Date.now()
   const context = await materializeContext({
     fetchSpec: fetchSpecOnce,
-    fetchArchive: contextArchiveFetcher({ controlPlaneUrl, token, fetchFn }),
-    atlasHome: atlasDirectory(),
+    fetchArchive: driveContextArchiveFetcher({ driveHome }),
+    atlasHome: driveHome,
     cwd,
     files: args.contextFiles,
   })
@@ -239,9 +220,8 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
 
   const transcriptStartedAt = Date.now()
   const transcript = await materializeTranscript({
-    fetchArchive:
-      args.fetchTranscriptArchive ?? transcriptArchiveFetcher({ controlPlaneUrl, token, fetchFn }),
-    atlasHome: atlasDirectory(),
+    fetchArchive: args.fetchTranscriptArchive ?? driveTranscriptArchiveFetcher({ driveHome }),
+    atlasHome: driveHome,
     threadId,
   })
   const transcriptMs = Date.now() - transcriptStartedAt
@@ -251,7 +231,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     log({ event: EServeEvent.TranscriptRestored, ms: transcriptMs })
   }
 
-  const threadModel = args.model ?? (await readThreadModel({ controlPlaneUrl, token, threadId, fetchFn }))
+  const threadModel = args.model ?? spec?.model ?? undefined
 
   const capabilities = 'profile' in workspace ? workspace.profile?.capabilities : undefined
 
@@ -341,7 +321,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
       // Deliberately not fetchSpecOnce: the token rides the spec, and a GitHub reconnect mints a
       // new one — a publisher that cached the boot-time spec would wedge every descend until the
       // sandbox process died (that wedged a real session on 2026-09-19).
-      fetchSpec: workspaceSpecFetcher({ controlPlaneUrl, threadId, token, fetchFn }),
+      fetchSpec: driveWorkspaceSpecFetcher({ driveHome }),
       cwd,
     })
 

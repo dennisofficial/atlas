@@ -19,7 +19,7 @@ import { alreadyStepping, retiredAgentType, terminalAgent, unknownAgent } from '
 import { recordRestart } from './record-restart'
 import type { ChildRecovery } from './recovery'
 import type { AgentRoster } from './roster'
-import { stopChild } from './stop-all'
+import { pauseChild, stopChild } from './stop-all'
 
 export type Relocation = {
   deps: SupervisorDeps
@@ -94,6 +94,36 @@ export async function stopThreadChildren({
     : []
   await steps
     .whenSettled({ threadId, excluding: [...(caller === undefined ? [] : [caller]), ...kept] })
+    .catch(() => undefined)
+
+  return stepping
+}
+
+/**
+ * The pause half of a lift: every stepping child of the thread — subagents AND teammates, since
+ * the whole session moves — is frozen at the loop's seam with its log intact, and the caller
+ * returns only once each child's step has settled into that halt. Nothing is aborted and nothing
+ * gets a killedBy, so the far side resumes each of them from its transferred log.
+ */
+export async function pauseThreadChildren({
+  threadId,
+  caller,
+  roster,
+  steps,
+  recovery,
+}: {
+  threadId: ThreadId
+  caller?: ThreadId | undefined
+} & Pick<Relocation, 'roster' | 'steps' | 'recovery'>): Promise<readonly ChildState[]> {
+  await recovery.hydrate({ threadId })
+
+  const stepping = relocatableChildren({ roster, threadId, skipTeammates: false }).filter(
+    (child) => child.agentId !== caller && isStepping(child),
+  )
+  for (const child of stepping) pauseChild({ child })
+
+  await steps
+    .whenSettled({ threadId, excluding: caller === undefined ? [] : [caller] })
     .catch(() => undefined)
 
   return stepping
@@ -251,7 +281,7 @@ export async function resumeChild(
   steps.take({
     child,
     agentType,
-    step: ({ runner, signal }) => runner.resume({ threadId: agentId, signal }),
+    step: ({ runner, signal, pause }) => runner.resume({ threadId: agentId, signal, pause }),
   })
 
   return { ok: true, snapshot: snapshotOf(child) }

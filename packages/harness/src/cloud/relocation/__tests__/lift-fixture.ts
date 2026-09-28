@@ -63,12 +63,14 @@ export const FOOTER_SELECTION = { ref: 'inference-net/kimi-k3-fast', effort: 'hi
 
 export type FakeLiftAgents = LiftAgentsPort & {
   readonly stopCalls: number
+  readonly pauseCalls: number
   readonly relocatedTo: readonly EExecutionLocation[]
   readonly resumed: readonly ThreadId[]
 }
 
 export const fakeLiftAgents = (children: readonly AgentSnapshot[] = []): FakeLiftAgents => {
   let stopCalls = 0
+  let pauseCalls = 0
   const relocatedTo: EExecutionLocation[] = []
   const resumed: ThreadId[] = []
 
@@ -76,6 +78,12 @@ export const fakeLiftAgents = (children: readonly AgentSnapshot[] = []): FakeLif
     list: () => children,
     stopChildren: async () => {
       stopCalls += 1
+      return children
+        .filter((child) => child.status === EAgentStatus.Running)
+        .map((child) => child.agentId)
+    },
+    pauseChildren: async () => {
+      pauseCalls += 1
       return children
         .filter((child) => child.status === EAgentStatus.Running)
         .map((child) => child.agentId)
@@ -92,6 +100,9 @@ export const fakeLiftAgents = (children: readonly AgentSnapshot[] = []): FakeLif
     },
     get stopCalls() {
       return stopCalls
+    },
+    get pauseCalls() {
+      return pauseCalls
     },
     get relocatedTo() {
       return relocatedTo
