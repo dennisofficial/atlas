@@ -15,6 +15,9 @@ const RAW_MOUSE_BELONGS_TO = new Set([
   'ui/hooks/use-press.ts',
   'ui/markdown/pan-bar.tsx',
   'ui/selection/selection-surface.tsx',
+  // Root-renderable link opener: a full-screen overlay defeats OpenTUI's per-renderable link
+  // hit-test, so click-to-open cannot ride usePress. See composition/link-click.ts.
+  'composition/link-click.ts',
 ])
 
 describe('press discipline', () => {
