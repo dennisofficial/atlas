@@ -43,8 +43,8 @@ export const subagentLabel = (snapshot: Pick<AgentSnapshot, 'intent' | 'agentTyp
   return truncateCells({ text: intent ?? snapshot.agentType, cells: TITLE_CELLS })
 }
 
-export const isSubagentRunning = (subagent: Pick<SidebarSubagent, 'status'>): boolean =>
-  subagent.status === EAgentStatus.Running
+export const isSubagentAlive = (subagent: Pick<SidebarSubagent, 'status'>): boolean =>
+  subagent.status === EAgentStatus.Running || subagent.status === EAgentStatus.Blocked
 
 const SUBAGENT_WENT_WRONG: Record<EAgentStatus, boolean> = {
   [EAgentStatus.Running]: false,
@@ -155,7 +155,7 @@ export function crewActivityOf(args: {
     (shell) => shell.threadId === args.id && shell.status === EShellStatus.Running,
   ).length
   const subagents = args.rosters.children.filter(
-    (child) => child.spawnedBy === args.id && isSubagentRunning(child),
+    (child) => child.spawnedBy === args.id && isSubagentAlive(child),
   ).length
 
   if (shells === 0 && subagents === 0) return undefined

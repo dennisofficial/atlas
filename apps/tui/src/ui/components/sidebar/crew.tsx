@@ -3,7 +3,7 @@ import React from 'react'
 import { crewTiersOf, type SidebarTeammate } from '../../../store/sidebar-model'
 import {
   crewRowReading,
-  isSubagentRunning,
+  isSubagentAlive,
   subagentContextLabel,
   type SidebarAgentFold,
   type SidebarCrewFold,
@@ -163,7 +163,7 @@ export function SubagentsSection(props: {
       {teammates.length === 0 ? null : (
         <Section
           label="Teammates"
-          count={`${teammates.filter(isSubagentRunning).length}/${teammates.length + hiddenTeammates}`}
+          count={`${teammates.filter(isSubagentAlive).length}/${teammates.length + hiddenTeammates}`}
         >
           <CrewRows subagents={teammates} cells={props.cells} onOpen={props.onOpen} />
         </Section>
@@ -171,7 +171,7 @@ export function SubagentsSection(props: {
       {subagents.length === 0 ? null : (
         <Section
           label="Sub-agents"
-          count={`${subagents.filter(isSubagentRunning).length}/${subagents.length + hiddenSubagents}`}
+          count={`${subagents.filter(isSubagentAlive).length}/${subagents.length + hiddenSubagents}`}
         >
           <CrewRows subagents={subagents} cells={props.cells} onOpen={props.onOpen} />
           {props.fold === undefined ? null : (
