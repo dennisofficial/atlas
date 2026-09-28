@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
+  CHANNEL_PROTOCOL_VERSION,
   decodeClientFrame,
   decodeServeFrame,
   EAgentStatus,
@@ -16,7 +17,7 @@ import {
 
 describe('the send frame', () => {
   it('round-trips a bare text message unchanged', () => {
-    const frame: ClientFrame = { kind: EClientFrame.Send, text: 'hello' }
+    const frame: ClientFrame = { kind: EClientFrame.Send, sendId: 'send-1' as never, text: 'hello' }
 
     expect(decodeClientFrame(encodeFrame(frame))).toEqual(frame)
   })
@@ -24,6 +25,7 @@ describe('the send frame', () => {
   it('round-trips images and context drafts, so a steered message lands as a local one would', () => {
     const frame: ClientFrame = {
       kind: EClientFrame.Send,
+      sendId: 'send-2' as never,
       text: 'look at this',
       images: [
         { path: '/tmp/shot.png', mediaType: 'image/png', data: 'aGVsbG8=', width: 560, height: 280 },
@@ -46,17 +48,44 @@ describe('the send frame', () => {
   })
 
   it('carries context opaquely — validating the drafts is the harness’s job at the decode seam', () => {
+    const sendId = 'send-3' as const
     const raw = JSON.stringify({
       kind: EClientFrame.Send,
+      sendId,
       text: 'go',
       context: [{ type: 'context-loaded', slot: 'skill' }],
     })
 
     expect(decodeClientFrame(raw)).toEqual({
       kind: EClientFrame.Send,
+      sendId: sendId as never,
       text: 'go',
       context: [{ type: 'context-loaded', slot: 'skill' }],
     })
+  })
+
+  it('drops a send without a sendId — a re-drivable send must name its re-drive', () => {
+    const raw = JSON.stringify({ kind: EClientFrame.Send, text: 'hello' })
+
+    expect(decodeClientFrame(raw)).toBeNull()
+  })
+})
+
+describe('the send ack', () => {
+  it('round-trips the sendId the serve committed', () => {
+    const frame: ServeFrame = { kind: EServeFrame.SendAcked, sendId: 'send-1' as never }
+
+    expect(decodeServeFrame(encodeFrame(frame))).toEqual(frame)
+  })
+
+  it('drops an ack without a sendId', () => {
+    expect(decodeServeFrame(JSON.stringify({ kind: EServeFrame.SendAcked }))).toBeNull()
+  })
+})
+
+describe('the protocol stamp', () => {
+  it('speaks the version that introduced acknowledged sends', () => {
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(7)
   })
 })
 
@@ -132,7 +161,7 @@ describe('the roster frame', () => {
     if (decoded?.kind !== EServeFrame.Roster) return
     expect(decoded.roster.shells[0]?.shellId as string).toBe('bash_1')
     expect(decoded.roster.agents[0]?.agentId as string).toBe('child-explore')
-    expect(decoded.roster.services[0]?.serviceId).toBe('svc_1')
+    expect(decoded.roster.services[0]?.serviceId as string).toBe('svc_1')
   })
 
   it('drops a frame whose roster is not the wire shape', () => {

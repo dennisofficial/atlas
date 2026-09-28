@@ -320,7 +320,7 @@ describe('startServe', () => {
     const { handle } = await start({})
     const client = await connect({ port: handle.port, token: TOKEN })
 
-    client.send({ kind: EClientFrame.Send, text: 'hi' })
+    client.send({ kind: EClientFrame.Send, sendId: 'send-nohello' as never, text: 'hi' })
 
     expect(await client.closed).toBe(1008)
     expect(client.frames.at(-1)).toEqual({
@@ -511,7 +511,7 @@ describe('startServe', () => {
     client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
     await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
 
-    client.send({ kind: EClientFrame.Send, text: 'go' })
+    client.send({ kind: EClientFrame.Send, sendId: 'send-go' as never, text: 'go' })
     await client.waitFor((frame) => frame.kind === EServeFrame.Signal && frame.seq === 1)
 
     client.send({
@@ -550,6 +550,7 @@ describe('startServe', () => {
 
     client.send({
       kind: EClientFrame.Send,
+      sendId: 'send-img' as never,
       text: 'go',
       images: [{ path: '/tmp/shot.png', mediaType: 'image/png', data: 'aGVsbG8=', width: 2, height: 1 }],
       context: [{ type: 'context-loaded', slot: 'skill', key: 'commit', content: 'commit prose' }],
@@ -568,6 +569,41 @@ describe('startServe', () => {
     ])
   })
 
+  it('acknowledges a send once the message is committed to the log', async () => {
+    const { handle, app } = await start({})
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    client.send({ kind: EClientFrame.Send, sendId: 'send-ack-1' as never, text: 'go' })
+    const ack = await client.waitFor((frame) => frame.kind === EServeFrame.SendAcked)
+
+    expect(ack).toEqual({ kind: EServeFrame.SendAcked, sendId: 'send-ack-1' as never })
+    expect(app.appended).toEqual([{ type: 'user-said', text: 'go' }])
+  })
+
+  it('acknowledges a re-driven sendId without committing the message twice', async () => {
+    const { handle, app } = await start({})
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    const frame = { kind: EClientFrame.Send, sendId: 'send-dup' as never, text: 'go' } as const
+    client.send(frame)
+    await client.waitFor(
+      (f) => f.kind === EServeFrame.SendAcked && f.sendId === 'send-dup',
+    )
+
+    client.send({ ...frame })
+    await Bun.sleep(30)
+
+    const acks = client.frames.filter((f) => f.kind === EServeFrame.SendAcked)
+    expect(acks).toHaveLength(2)
+    expect(app.appended).toEqual([{ type: 'user-said', text: 'go' }])
+  })
+
   it('refuses a send whose context draft is not an event body rather than committing it', async () => {
     const { handle, app } = await start({})
 
@@ -577,6 +613,7 @@ describe('startServe', () => {
 
     client.send({
       kind: EClientFrame.Send,
+      sendId: 'send-badcontext' as never,
       text: 'go',
       context: [{ type: 'context-loaded', slot: 'skill' }],
     })
@@ -730,7 +767,7 @@ describe('startServe', () => {
     const client = await connect({ port: handle.port, token: TOKEN })
     client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
     await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
-    client.send({ kind: EClientFrame.Send, text: 'go' })
+    client.send({ kind: EClientFrame.Send, sendId: 'send-go' as never, text: 'go' })
     await Bun.sleep(100)
 
     expect(app.closed()).toBe(false)
@@ -762,7 +799,7 @@ describe('startServe', () => {
     client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
     await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
 
-    client.send({ kind: EClientFrame.Send, text: 'go' })
+    client.send({ kind: EClientFrame.Send, sendId: 'send-go' as never, text: 'go' })
     const refusal = await client.waitFor((frame) => frame.kind === EServeFrame.Error)
 
     expect(refusal).toMatchObject({ kind: EServeFrame.Error })
@@ -1030,7 +1067,7 @@ describe('startServe', () => {
     client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
     await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
 
-    client.send({ kind: EClientFrame.Send, text: 'go' })
+    client.send({ kind: EClientFrame.Send, sendId: 'send-go' as never, text: 'go' })
     await Bun.sleep(10)
     client.send({ kind: EClientFrame.Interrupt })
 
@@ -1055,7 +1092,7 @@ describe('startServe', () => {
     client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
     await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
 
-    client.send({ kind: EClientFrame.Send, text: 'go' })
+    client.send({ kind: EClientFrame.Send, sendId: 'send-go' as never, text: 'go' })
     await Bun.sleep(10)
     client.send({ kind: EClientFrame.Pause })
     await Bun.sleep(10)

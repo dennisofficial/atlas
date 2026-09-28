@@ -57,7 +57,7 @@ describe('a turn driven over the session socket', () => {
     endTurn(receive, completed('run-1'))
 
     await expect(turn).resolves.toEqual(completed('run-1'))
-    expect(live().sent.at(-1)).toEqual({ kind: EClientFrame.Send, text: 'hello there' })
+    expect(live().sent.at(-1)).toMatchObject({ kind: EClientFrame.Send, text: 'hello there' })
   })
 
   it('steers a running turn by sending the text without queueing an outcome of its own', async () => {
@@ -69,7 +69,7 @@ describe('a turn driven over the session socket', () => {
     const turn = runner.runTurn({ threadId: THREAD })
     runner.steer({ threadId: THREAD, text: 'check the tests too' })
 
-    expect(live().sent.at(-1)).toEqual({ kind: EClientFrame.Send, text: 'check the tests too' })
+    expect(live().sent.at(-1)).toMatchObject({ kind: EClientFrame.Send, text: 'check the tests too' })
 
     endTurn(receive, completed('run-1'))
     await expect(turn).resolves.toEqual(completed('run-1'))
@@ -89,7 +89,7 @@ describe('a turn driven over the session socket', () => {
       context: [{ type: 'context-loaded', slot: 'skill', key: 'commit', content: 'prose' }],
     })
 
-    expect(live().sent.at(-1)).toEqual({
+    expect(live().sent.at(-1)).toMatchObject({
       kind: EClientFrame.Send,
       text: 'see the shot',
       images: [{ path: '/tmp/shot.png', mediaType: 'image/png', data: 'aGVsbG8=' }],

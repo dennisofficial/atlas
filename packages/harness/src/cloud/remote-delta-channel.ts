@@ -15,6 +15,7 @@ import {
   type EClientRequest,
   encodeFrame,
   EServeFrame,
+  toSendId,
   turnOutcomeFromWire,
   type ServeFrame,
 } from './channel-wire'
@@ -344,6 +345,10 @@ export function createRemoteDeltaChannel(args: {
       interruptAcks.emit({ turnInFlight: true })
       return
     }
+    if (frame.kind === EServeFrame.SendAcked) {
+      upstream.ackSend({ sendId: frame.sendId })
+      return
+    }
     if (frame.kind === EServeFrame.Roster) {
       rosters.emit(frame.roster)
       return
@@ -520,6 +525,7 @@ export function createRemoteDeltaChannel(args: {
     send: ({ text, images, context }) =>
       upstream.send({
         kind: EClientFrame.Send,
+        sendId: toSendId(crypto.randomUUID()),
         text,
         ...(images === undefined || images.length === 0 ? {} : { images: [...images] }),
         ...(context === undefined || context.length === 0 ? {} : { context: [...context] }),
