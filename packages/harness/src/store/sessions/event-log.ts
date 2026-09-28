@@ -10,6 +10,7 @@ import {
   type EventEnvelope,
   type EventLogPort,
   type IdPort,
+  type LogPort,
   type RunId,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -33,6 +34,7 @@ export class JsonlEventLog implements EventLogPort {
     private readonly registry: SessionRegistry,
     private readonly clock: ClockPort,
     private readonly ids: IdPort,
+    private readonly logPort?: LogPort | undefined,
   ) {}
 
   async append(args: {
@@ -129,7 +131,9 @@ export class JsonlEventLog implements EventLogPort {
   }): Promise<Event[]> {
     const at = this.clock.now()
     const metaFile = threadMetaFile({ sessionDir, threadId: args.threadId })
-    const meta = readMetaSync({ file: metaFile, schema: threadMetaSchema }) ?? newThreadMeta({ id: args.threadId, at })
+    const meta =
+      readMetaSync({ file: metaFile, schema: threadMetaSchema, logPort: this.logPort }) ??
+      newThreadMeta({ id: args.threadId, at })
     this.registry.registerThread({ sessionDir, threadId: args.threadId })
 
     const log = await this.registry.refreshThreadLog({ sessionDir, threadId: args.threadId })
@@ -154,7 +158,7 @@ export class JsonlEventLog implements EventLogPort {
     const lines = prepared.map((entry) => `${encodeEventLine(entry)}\n`).join('')
     const file = eventLogFile({ sessionDir, threadId: args.threadId })
     await mkdir(dirname(file), { recursive: true })
-    if (await dropTornTail({ file })) {
+    if (await dropTornTail({ file, threadId: args.threadId, on: 'append', logPort: this.logPort })) {
       log.unreadable = log.unreadable.filter((row) => row.reason !== EUnreadableReason.TruncatedTail)
     }
     await appendFile(file, lines, 'utf8')
@@ -181,7 +185,7 @@ export class JsonlEventLog implements EventLogPort {
   }): Promise<Event[]> {
     const at = this.clock.now()
     const metaFile = threadMetaFile({ sessionDir, threadId: args.threadId })
-    const existing = readMetaSync({ file: metaFile, schema: threadMetaSchema })
+    const existing = readMetaSync({ file: metaFile, schema: threadMetaSchema, logPort: this.logPort })
     const floor = existing?.forkMode === EForkMode.Reference ? (existing.forkSeq ?? 0) : 0
     const prepared = args.drafts.map((draft, index) => {
       const envelope: EventEnvelope = {

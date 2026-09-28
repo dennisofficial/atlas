@@ -7,6 +7,7 @@ export const THREADS_DIRECTORY_NAME = 'threads'
 export const SESSION_LOCK_NAME = 'lock'
 export const SESSION_META_NAME = 'meta.json'
 export const LEDGER_FILE_NAME = 'ledger.jsonl'
+export const LOGS_FILE_NAME = 'logs.jsonl'
 export const EVENTS_FILE_SUFFIX = '.events.jsonl'
 export const THREAD_META_FILE_SUFFIX = '.meta.json'
 
@@ -32,6 +33,10 @@ export function sessionMetaFile({ sessionDir }: { sessionDir: string }): string 
 
 export function ledgerFile({ sessionDir }: { sessionDir: string }): string {
   return join(sessionDir, LEDGER_FILE_NAME)
+}
+
+export function sessionLogsFile({ sessionDir }: { sessionDir: string }): string {
+  return join(sessionDir, LOGS_FILE_NAME)
 }
 
 export function eventLogFile({

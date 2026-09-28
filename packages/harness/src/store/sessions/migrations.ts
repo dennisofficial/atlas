@@ -1,6 +1,9 @@
 import { readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import type { LogPort } from '@dltech/atlas-core'
+
+import { logFieldsOf } from '../logs'
 import { SESSION_FORMAT_VERSION } from './meta'
 import { sessionMetaFile, threadsDirectory } from './paths'
 
@@ -42,10 +45,18 @@ export function canMigrateToCurrent({ format }: { format: number }): boolean {
   return at === SESSION_FORMAT_VERSION
 }
 
-export function migrateSessionDirectory({ sessionDir, from }: { sessionDir: string; from: number }): number {
+export function migrateSessionDirectory({
+  sessionDir,
+  from,
+  logPort,
+}: {
+  sessionDir: string
+  from: number
+  logPort?: LogPort | undefined
+}): number {
   const pending = migrationPath().filter((migration) => migration.from >= from)
   if (pending.length === 0) return from
-  const context = migrationContext({ sessionDir })
+  const context = migrationContext({ sessionDir, logPort })
   let at = from
   for (const step of pending) {
     step.migrate(context)
@@ -55,17 +66,23 @@ export function migrateSessionDirectory({ sessionDir, from }: { sessionDir: stri
   return at
 }
 
-function migrationContext({ sessionDir }: { sessionDir: string }): SessionMigrationContext {
+function migrationContext({
+  sessionDir,
+  logPort,
+}: {
+  sessionDir: string
+  logPort?: LogPort | undefined
+}): SessionMigrationContext {
   const metaFile = sessionMetaFile({ sessionDir })
   return {
     sessionDir,
-    readSessionMeta: () => readJsonSync({ file: metaFile }),
+    readSessionMeta: () => readJsonSync({ file: metaFile, logPort }),
     readThreadMetas: () =>
       readdirSync(threadsDirectory({ sessionDir }))
         .filter((name) => name.endsWith('.meta.json'))
         .flatMap((name) => {
           const file = join(threadsDirectory({ sessionDir }), name)
-          const meta = readJsonSync({ file })
+          const meta = readJsonSync({ file, logPort })
           return meta === undefined ? [] : [{ file, meta }]
         }),
     readLines: ({ file }) =>
@@ -78,17 +95,29 @@ function migrationContext({ sessionDir }: { sessionDir: string }): SessionMigrat
       writeFileAtomicSync({ file, text })
     },
     stampFormat: ({ format }) => {
-      const meta = readJsonSync({ file: metaFile })
+      const meta = readJsonSync({ file: metaFile, logPort })
       if (meta === undefined) return
       writeFileAtomicSync({ file: metaFile, text: JSON.stringify({ ...meta, format }, null, 2) })
     },
   }
 }
 
-function readJsonSync({ file }: { file: string }): Record<string, unknown> | undefined {
+function readJsonSync({
+  file,
+  logPort,
+}: {
+  file: string
+  logPort?: LogPort | undefined
+}): Record<string, unknown> | undefined {
   try {
     return JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>
-  } catch {
+  } catch (error) {
+    logPort?.warn({
+      source: 'store.migrations',
+      message: 'a session meta file could not be read during migration',
+      data: { file },
+      ...logFieldsOf({ error }),
+    })
     return undefined
   }
 }

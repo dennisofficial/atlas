@@ -4,6 +4,7 @@ import {
   EventLogPort,
   FileSystemPort,
   IdPort,
+  LogPort,
   ProcessPort,
   ToolDefinition,
 } from '@dltech/atlas-core'
@@ -205,6 +206,7 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
           log: relocationLog(resolver),
           agents: resolver.resolve(portToken(AgentRegistryPort)),
         }),
+        logPort: resolver.resolve(portToken(LogPort)),
       }),
   })
   container.register(portToken(ToolDefinition), { useClass: WorktreeListTool })

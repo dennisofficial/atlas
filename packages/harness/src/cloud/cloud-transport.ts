@@ -1,3 +1,5 @@
+import { ELogSeverity, type LogEntry, type LogPort, type ThreadId } from '@dltech/atlas-core'
+
 export class CloudError extends Error {
   readonly status: number
 
@@ -43,6 +45,47 @@ const retryAfterMs = (response: Response): number | undefined => {
   if (retryAfter === null) return undefined
   const seconds = Number.parseFloat(retryAfter)
   return Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : undefined
+}
+
+/**
+ * The retry path reports through these so a throttled read is visible in the durable log before it
+ * (maybe) becomes a CloudError — the bearer token is a constructor field and never enters a line.
+ */
+export type TransportRetryLog = { port: LogPort; threadId?: ThreadId | undefined }
+
+const noteRetry = (args: {
+  log: TransportRetryLog | undefined
+  method: string
+  path: string
+  cause: string
+  attempt: number
+  delayMs: number
+}): void => {
+  const entry: LogEntry = {
+    severity: ELogSeverity.Warn,
+    source: 'cloud.transport',
+    message: `${args.method} ${args.path} failed (${args.cause}) — retrying in ${Math.round(args.delayMs)}ms`,
+    threadId: args.log?.threadId,
+    data: { method: args.method, path: args.path, cause: args.cause, attempt: args.attempt, delayMs: Math.round(args.delayMs) },
+  }
+  args.log?.port.record(entry)
+}
+
+const noteGiveUp = (args: {
+  log: TransportRetryLog | undefined
+  method: string
+  path: string
+  cause: string
+  attempt: number
+}): void => {
+  const entry: LogEntry = {
+    severity: ELogSeverity.Error,
+    source: 'cloud.transport',
+    message: `${args.method} ${args.path} failed (${args.cause}) — giving up after ${args.attempt + 1} attempts`,
+    threadId: args.log?.threadId,
+    data: { method: args.method, path: args.path, cause: args.cause, attempt: args.attempt },
+  }
+  args.log?.port.record(entry)
 }
 
 const backoffDelayMs = (args: {
@@ -95,6 +138,7 @@ export const cloudRequest = async (args: {
   ceilingDelayMs?: number
   /** Per-attempt abort. Defaults to DEFAULT_REQUEST_TIMEOUT_MS; pass null to wait indefinitely. */
   timeoutMs?: number | null | undefined
+  log?: TransportRetryLog | undefined
 }): Promise<unknown> => {
   const sleep = args.sleep ?? defaultSleep
   const randomFn = args.randomFn ?? Math.random
@@ -120,13 +164,17 @@ export const cloudRequest = async (args: {
         ...(timeoutMs === null ? {} : { signal: AbortSignal.timeout(timeoutMs) }),
       })
     } catch (cause) {
+      const reason = cause instanceof Error ? cause.message : String(cause)
       if (attemptsLeft) {
-        await sleep(backoffDelayMs({ attempt, baseDelayMs, ceilingDelayMs, randomFn }))
+        const delayMs = backoffDelayMs({ attempt, baseDelayMs, ceilingDelayMs, randomFn })
+        noteRetry({ log: args.log, method: args.method, path: args.path, cause: `network: ${reason}`, attempt, delayMs })
+        await sleep(delayMs)
         continue
       }
+      noteGiveUp({ log: args.log, method: args.method, path: args.path, cause: `network: ${reason}`, attempt })
       throw new CloudError({
         status: 0,
-        message: `The Atlas Cloud API at ${args.url} could not be reached: ${cause instanceof Error ? cause.message : String(cause)}.`,
+        message: `The Atlas Cloud API at ${args.url} could not be reached: ${reason}.`,
       })
     }
 
@@ -134,11 +182,12 @@ export const cloudRequest = async (args: {
 
     if (attemptsLeft && isRetryableStatus(response.status)) {
       const afterMs = retryAfterMs(response)
-      await sleep(
+      const delayMs =
         afterMs === undefined
           ? backoffDelayMs({ attempt, baseDelayMs, ceilingDelayMs, randomFn })
-          : Math.min(afterMs, ceilingDelayMs),
-      )
+          : Math.min(afterMs, ceilingDelayMs)
+      noteRetry({ log: args.log, method: args.method, path: args.path, cause: `status ${response.status}`, attempt, delayMs })
+      await sleep(delayMs)
       continue
     }
 
@@ -148,6 +197,9 @@ export const cloudRequest = async (args: {
 
     if (!response.ok) {
       const detail = detailFrom(parsed)
+      if (isRetryableStatus(response.status)) {
+        noteGiveUp({ log: args.log, method: args.method, path: args.path, cause: `status ${response.status}`, attempt })
+      }
       throw new CloudError({
         status: response.status,
         message: `The Atlas Cloud API answered ${args.method} ${args.path} with ${response.status}${detail === undefined ? '' : `: ${detail}`}.`,
@@ -177,6 +229,7 @@ export const cloudRawRequest = async (args: {
   sleep?: ((ms: number) => Promise<void>) | undefined
   /** Per-attempt abort. Defaults to DEFAULT_REQUEST_TIMEOUT_MS; pass null to wait indefinitely. */
   timeoutMs?: number | null | undefined
+  log?: TransportRetryLog | undefined
 }): Promise<Uint8Array | null> => {
   const sleep = args.sleep ?? defaultSleep
   const timeoutMs = args.timeoutMs === undefined ? DEFAULT_REQUEST_TIMEOUT_MS : args.timeoutMs
@@ -196,15 +249,17 @@ export const cloudRawRequest = async (args: {
         ...(timeoutMs === null ? {} : { signal: AbortSignal.timeout(timeoutMs) }),
       })
     } catch (cause) {
+      const reason = cause instanceof Error ? cause.message : String(cause)
+      noteGiveUp({ log: args.log, method: args.method, path: args.path, cause: `network: ${reason}`, attempt })
       throw new CloudError({
         status: 0,
-        message: `The Atlas Cloud API at ${args.url} could not be reached: ${cause instanceof Error ? cause.message : String(cause)}.`,
+        message: `The Atlas Cloud API at ${args.url} could not be reached: ${reason}.`,
       })
     }
 
     if (isRetryableStatus(response.status) && attempt < DEFAULT_RETRY_MAX_ATTEMPTS - 1) {
       const afterMs = retryAfterMs(response)
-      await sleep(
+      const delayMs =
         afterMs === undefined
           ? backoffDelayMs({
               attempt,
@@ -212,8 +267,9 @@ export const cloudRawRequest = async (args: {
               ceilingDelayMs: DEFAULT_RETRY_CEILING_DELAY_MS,
               randomFn: Math.random,
             })
-          : Math.min(afterMs, DEFAULT_RETRY_CEILING_DELAY_MS),
-      )
+          : Math.min(afterMs, DEFAULT_RETRY_CEILING_DELAY_MS)
+      noteRetry({ log: args.log, method: args.method, path: args.path, cause: `status ${response.status}`, attempt, delayMs })
+      await sleep(delayMs)
       continue
     }
 
@@ -221,6 +277,9 @@ export const cloudRawRequest = async (args: {
 
     if (!response.ok) {
       const detail = detailFrom(safeJson(await response.text()))
+      if (isRetryableStatus(response.status)) {
+        noteGiveUp({ log: args.log, method: args.method, path: args.path, cause: `status ${response.status}`, attempt })
+      }
       throw new CloudError({
         status: response.status,
         message: `The Atlas Cloud API answered ${args.method} ${args.path} with ${response.status}${detail === undefined ? '' : `: ${detail}`}.`,
@@ -241,17 +300,20 @@ export class CloudTransport {
   private readonly token: string
   private readonly clientVersion: string
   private readonly fetchFn: typeof fetch
+  private readonly log: TransportRetryLog | undefined
 
   constructor(args: {
     url: string
     token: string
     clientVersion?: string | undefined
     fetchFn?: typeof fetch | undefined
+    log?: TransportRetryLog | undefined
   }) {
     this.url = args.url.replace(/\/+$/, '')
     this.token = args.token
     this.clientVersion = args.clientVersion ?? 'dev'
     this.fetchFn = args.fetchFn ?? fetch
+    this.log = args.log
   }
 
   request(args: {
@@ -271,6 +333,7 @@ export class CloudTransport {
       ...(args.body === undefined ? {} : { body: args.body }),
       ...(args.allowMissing === undefined ? {} : { allowMissing: args.allowMissing }),
       ...(args.retry === undefined ? {} : { retry: args.retry }),
+      ...(this.log === undefined ? {} : { log: this.log }),
     })
   }
 
@@ -293,6 +356,7 @@ export class CloudTransport {
       ...(args.contentType === undefined ? {} : { contentType: args.contentType }),
       ...(args.accept === undefined ? {} : { accept: args.accept }),
       ...(args.allowMissing === undefined ? {} : { allowMissing: args.allowMissing }),
+      ...(this.log === undefined ? {} : { log: this.log }),
     })
   }
 }

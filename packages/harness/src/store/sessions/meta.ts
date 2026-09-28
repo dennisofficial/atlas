@@ -4,6 +4,9 @@ import { dirname } from 'node:path'
 
 import { z } from 'zod'
 
+import type { LogPort } from '@dltech/atlas-core'
+
+import { logFieldsOf } from '../logs'
 import { canMigrateToCurrent, migrateSessionDirectory } from './migrations'
 
 export const SESSION_FORMAT_VERSION = 1
@@ -87,20 +90,36 @@ export function newThreadMeta({ id, at }: { id: string; at: string }): ThreadMet
 export function readMetaSync<Meta>({
   file,
   schema,
+  logPort,
 }: {
   file: string
   schema: z.ZodType<Meta>
+  logPort?: LogPort | undefined
 }): Meta | undefined {
   let raw: string
   try {
     raw = readFileSync(file, 'utf8')
-  } catch {
+  } catch (error) {
+    if (errorCodeOf({ error }) !== 'ENOENT') {
+      logPort?.warn({
+        source: 'store.meta',
+        message: 'could not read a session meta file',
+        data: { path: file, stage: 'read' },
+        ...logFieldsOf({ error }),
+      })
+    }
     return undefined
   }
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
-  } catch {
+  } catch (error) {
+    logPort?.warn({
+      source: 'store.meta',
+      message: 'a session meta file is not valid JSON',
+      data: { path: file, stage: 'parse' },
+      ...logFieldsOf({ error }),
+    })
     return undefined
   }
   return schema.parse(parsed)
@@ -109,21 +128,29 @@ export function readMetaSync<Meta>({
 export function readSessionMetaSync({
   file,
   sessionDir,
+  logPort,
 }: {
   file: string
   sessionDir: string
+  logPort?: LogPort | undefined
 }): SessionMeta | undefined {
-  const meta = readMetaSync({ file, schema: sessionMetaSchema })
+  const meta = readMetaSync({ file, schema: sessionMetaSchema, logPort })
   if (meta === undefined) return undefined
   const format = meta.format
   if (format < SESSION_FORMAT_VERSION && canMigrateToCurrent({ format })) {
-    migrateSessionDirectory({ sessionDir, from: format })
-    return readMetaSync({ file, schema: sessionMetaSchema })
+    migrateSessionDirectory({ sessionDir, from: format, logPort })
+    return readMetaSync({ file, schema: sessionMetaSchema, logPort })
   }
   if (format !== SESSION_FORMAT_VERSION) {
     throw new SessionFromNewerAtlasError({ sessionDir, format })
   }
   return meta
+}
+
+function errorCodeOf({ error }: { error: unknown }): string | undefined {
+  if (typeof error !== 'object' || error === null) return undefined
+  const code = (error as { code?: unknown }).code
+  return typeof code === 'string' ? code : undefined
 }
 
 let tmpSequence = 0

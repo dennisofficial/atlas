@@ -6,10 +6,12 @@ import {
   EForkMode,
   executionLocationOf,
   toThreadId,
+  type LogPort,
   type ThreadId,
 } from '@dltech/atlas-core'
 
 import { titleMatchesHandle } from '../../composition/thread-slug'
+import { logFieldsOf } from '../logs'
 import type { SupervisedAgent, ThreadModel, ThreadSummary } from '../thread-store'
 import {
   newThreadMeta,
@@ -73,8 +75,18 @@ export function tryReadThreadMeta({ file }: { file: string }): ThreadMeta | unde
   }
 }
 
-export async function readThreadMetas({ sessionDir }: { sessionDir: string }): Promise<ThreadMeta[]> {
-  const names = await readdir(threadsDirectory({ sessionDir })).catch(() => [] as string[])
+export async function readThreadMetas({
+  sessionDir,
+  logPort,
+}: {
+  sessionDir: string
+  logPort?: LogPort | undefined
+}): Promise<ThreadMeta[]> {
+  const directory = threadsDirectory({ sessionDir })
+  const names = await readdir(directory).catch((error) => {
+    warnDirectoryUnreadable({ logPort, path: directory, error })
+    return [] as string[]
+  })
   const metas: ThreadMeta[] = []
   for (const name of names) {
     if (!name.endsWith('.meta.json')) continue
@@ -86,9 +98,20 @@ export async function readThreadMetas({ sessionDir }: { sessionDir: string }): P
 
 type RootEntry = { sessionDir: string; root: ThreadMeta; activityAt: string }
 
-async function scanRoots({ home, project }: { home: string; project: string }): Promise<RootEntry[]> {
+async function scanRoots({
+  home,
+  project,
+  logPort,
+}: {
+  home: string
+  project: string
+  logPort?: LogPort | undefined
+}): Promise<RootEntry[]> {
   const root = sessionsDirectory({ home })
-  const dirs = await readdir(root, { withFileTypes: true }).catch(() => [])
+  const dirs = await readdir(root, { withFileTypes: true }).catch((error) => {
+    warnDirectoryUnreadable({ logPort, path: root, error })
+    return []
+  })
   const entries: RootEntry[] = []
   for (const dir of dirs) {
     if (!dir.isDirectory()) continue
@@ -96,7 +119,7 @@ async function scanRoots({ home, project }: { home: string; project: string }): 
     const meta = tryReadThreadMeta({ file: threadMetaFile({ sessionDir, threadId: toThreadId(dir.name) }) })
     if (meta === undefined || meta.spawnerThreadId !== null) continue
     if (meta.repo !== project && meta.workspace !== project) continue
-    const metas = await readThreadMetas({ sessionDir })
+    const metas = await readThreadMetas({ sessionDir, logPort })
     const activityAt = metas.reduce((latest, item) => (item.updatedAt > latest ? item.updatedAt : latest), meta.updatedAt)
     entries.push({ sessionDir, root: meta, activityAt })
   }
@@ -110,13 +133,15 @@ export async function listRoots({
   registry,
   project,
   limit = THREAD_LISTING_LIMIT,
+  logPort,
 }: {
   home: string
   registry: SessionRegistry
   project: string
   limit?: number | undefined
+  logPort?: LogPort | undefined
 }): Promise<ThreadSummary[]> {
-  const entries = (await scanRoots({ home, project })).sort(byActivityDesc).slice(0, limit)
+  const entries = (await scanRoots({ home, project, logPort })).sort(byActivityDesc).slice(0, limit)
   const summaries: ThreadSummary[] = []
   for (const entry of entries) {
     const places = await threadPlaces({
@@ -139,11 +164,13 @@ export async function listRoots({
 export async function mostRecentRoot({
   home,
   project,
+  logPort,
 }: {
   home: string
   project: string
+  logPort?: LogPort | undefined
 }): Promise<ThreadSummary | undefined> {
-  const [first] = (await scanRoots({ home, project })).sort(byActivityDesc)
+  const [first] = (await scanRoots({ home, project, logPort })).sort(byActivityDesc)
   return first === undefined ? undefined : toThreadSummary(first.root)
 }
 
@@ -151,12 +178,14 @@ export async function findNamedRoot({
   home,
   project,
   handle,
+  logPort,
 }: {
   home: string
   project: string
   handle: string
+  logPort?: LogPort | undefined
 }): Promise<ThreadSummary | undefined> {
-  const entries = await scanRoots({ home, project })
+  const entries = await scanRoots({ home, project, logPort })
   const found = entries.find(
     (entry) => entry.root.title !== null && titleMatchesHandle({ title: entry.root.title, handle }),
   )
@@ -184,19 +213,24 @@ export async function dropRewoundChildren({
   home,
   registry,
   agentIds,
+  logPort,
 }: {
   home: string
   registry: SessionRegistry
   agentIds: readonly ThreadId[]
+  logPort?: LogPort | undefined
 }): Promise<void> {
   if (agentIds.length === 0) return
   const root = sessionsDirectory({ home })
-  const dirs = await readdir(root, { withFileTypes: true }).catch(() => [])
+  const dirs = await readdir(root, { withFileTypes: true }).catch((error) => {
+    warnDirectoryUnreadable({ logPort, path: root, error })
+    return []
+  })
   const located: { sessionDir: string; meta: ThreadMeta }[] = []
   for (const dir of dirs) {
     if (!dir.isDirectory()) continue
     const sessionDir = join(root, dir.name)
-    for (const meta of await readThreadMetas({ sessionDir })) located.push({ sessionDir, meta })
+    for (const meta of await readThreadMetas({ sessionDir, logPort })) located.push({ sessionDir, meta })
   }
   for (const agentId of agentIds) {
     const referenced = located.some(({ meta }) => meta.spawnerThreadId === agentId || meta.parentThreadId === agentId)
@@ -219,4 +253,28 @@ export async function dropRewoundChildren({
       cached.byContext.clear()
     }
   }
+}
+
+function warnDirectoryUnreadable({
+  logPort,
+  path,
+  error,
+}: {
+  logPort: LogPort | undefined
+  path: string
+  error: unknown
+}): void {
+  const code = errorCodeOf({ error })
+  logPort?.warn({
+    source: 'store.listing',
+    message: 'could not list a sessions directory, treating it as empty',
+    data: { path, ...(code === undefined ? {} : { code }) },
+    ...logFieldsOf({ error }),
+  })
+}
+
+function errorCodeOf({ error }: { error: unknown }): string | undefined {
+  if (typeof error !== 'object' || error === null) return undefined
+  const code = (error as { code?: unknown }).code
+  return typeof code === 'string' ? code : undefined
 }

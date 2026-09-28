@@ -1,6 +1,7 @@
-import { CLOUD_WORKSPACE_PATH, EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
+import { CLOUD_WORKSPACE_PATH, EExecutionLocation, type LogPort, type ThreadId } from '@dltech/atlas-core'
 
 import { buildSessionArchive } from '../session-archive'
+import { logFieldsOf } from '../../store/logs'
 import { atlasDirectory } from '../../store/paths'
 import { sessionDirectory } from '../../store/sessions/paths'
 import { exportGpgMaterial } from '../../workspace/gpg-material'
@@ -27,6 +28,7 @@ export enum ELiftNode {
 export type LiftCtx = {
   args: LiftArgs
   onProgress: (step: ELiftStep) => void
+  logPort?: LogPort | undefined
   from: EExecutionLocation
   workspace: LiftedWorkspace | null
   gpgKey: string | undefined
@@ -61,7 +63,15 @@ const appendRelocationNotice = async (ctx: LiftCtx): Promise<void> => {
         liftedDraft({ workspace: ctx.workspace, stopped: ctx.stopped }),
       ],
     })
-    .catch(() => undefined)
+    .catch((error: unknown) => {
+      ctx.logPort?.warn({
+        source: 'cloud.lift',
+        message: 'the relocation notice never reached the local log',
+        threadId: args.threadId,
+        data: { operation: 'append-relocation-notice' },
+        ...logFieldsOf({ error }),
+      })
+    })
 }
 
 export const liftPlan = (): RelocationPlan<LiftCtx> => [
@@ -78,7 +88,16 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
     needs: [],
     run: async (ctx) => {
       const capture = ctx.args.captureGpg ?? exportGpgMaterial
-      const material = await capture({ cwd: ctx.args.cwd }).catch(() => null)
+      const material = await capture({ cwd: ctx.args.cwd }).catch((error: unknown) => {
+        ctx.logPort?.warn({
+          source: 'cloud.lift',
+          message: 'the GPG key material could not be captured — signed commits will not work in the cloud',
+          threadId: ctx.args.threadId,
+          data: { operation: 'capture-gpg' },
+          ...logFieldsOf({ error }),
+        })
+        return null
+      })
       if (material !== null) ctx.gpgKey = JSON.stringify(material)
     },
   },
@@ -183,6 +202,7 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
         agents: args.agents,
         localThreads: args.localThreads,
         localLog: args.localLog,
+        logPort: ctx.logPort,
       })
       ctx.onProgress(ELiftStep.Flipping)
     },

@@ -19,8 +19,10 @@ import {
   type OnToolOutput,
   type WorkspacePort,
   type HookOutcome,
+  type LogPort,
 } from '@dltech/atlas-core'
 
+import { logFieldsOf } from '../store/logs'
 import { withinBudget, type OnHookMishap } from '../hooks/budget'
 import type { HookChain, RegisteredHook } from '../hooks/registry'
 import { outcomeWhenAHookDidNotAnswerInTime } from './hook-silence'
@@ -60,18 +62,21 @@ export class HookedToolDispatcher extends ToolDispatcher {
   private readonly hooks: HookChain
   private readonly workspace: WorkspacePort | undefined
   private readonly onMishap: OnHookMishap | undefined
+  private readonly logPort: LogPort | undefined
 
   constructor(args: {
     registry: ToolRegistry
     hooks: HookChain
     workspace?: WorkspacePort | undefined
     onMishap?: OnHookMishap | undefined
+    logPort?: LogPort | undefined
   }) {
     super()
     this.registry = args.registry
     this.hooks = args.hooks
     this.workspace = args.workspace
     this.onMishap = args.onMishap ?? args.hooks.bounds.onMishap
+    this.logPort = args.logPort
   }
 
   async dispatch(args: {
@@ -237,6 +242,13 @@ export class HookedToolDispatcher extends ToolDispatcher {
         onOutput: args.onOutput,
       })
     } catch (error) {
+      this.logPort?.error({
+        source: 'tools.dispatch',
+        message: `the ${args.call.name} tool threw`,
+        threadId: args.threadId,
+        data: { tool: args.call.name },
+        ...logFieldsOf({ error }),
+      })
       return { ok: false, reason: `the ${args.call.name} tool threw: ${messageOf(error)}` }
     }
   }

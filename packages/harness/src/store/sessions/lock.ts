@@ -3,6 +3,9 @@ import { dirname } from 'node:path'
 
 import { z } from 'zod'
 
+import type { LogPort } from '@dltech/atlas-core'
+
+import { logFieldsOf } from '../logs'
 import { holderIsLive, ownIdentity } from '../../workspace/process-identity'
 
 export enum ESessionClaim {
@@ -52,28 +55,73 @@ async function writeOwnLock({
   }
 }
 
-async function readLock({ lockFile }: { lockFile: string }): Promise<LockContents | undefined> {
+async function readLock({
+  lockFile,
+  label,
+  logPort,
+}: {
+  lockFile: string
+  label?: string | undefined
+  logPort?: LogPort | undefined
+}): Promise<LockContents | undefined> {
   try {
     const parsed = lockContentsSchema.safeParse(JSON.parse(await readFile(lockFile, 'utf8')))
     return parsed.success ? parsed.data : undefined
-  } catch {
+  } catch (error) {
+    if (errorCodeOf({ error }) !== 'ENOENT') {
+      logPort?.warn({
+        source: 'store.lock',
+        message: 'could not read the session lock file',
+        data: { path: lockFile, ...(label === undefined ? {} : { label }) },
+        ...logFieldsOf({ error }),
+      })
+    }
     return undefined
   }
+}
+
+function warnSwallowed({
+  logPort,
+  lockFile,
+  label,
+  message,
+  error,
+}: {
+  logPort: LogPort | undefined
+  lockFile: string
+  label: string
+  message: string
+  error: unknown
+}): void {
+  logPort?.warn({
+    source: 'store.lock',
+    message,
+    data: { path: lockFile, label },
+    ...logFieldsOf({ error }),
+  })
+}
+
+function errorCodeOf({ error }: { error: unknown }): string | undefined {
+  if (typeof error !== 'object' || error === null) return undefined
+  const code = (error as { code?: unknown }).code
+  return typeof code === 'string' ? code : undefined
 }
 
 export async function claimSession({
   sessionDir,
   lockFile,
   label,
+  logPort,
 }: {
   sessionDir: string
   lockFile: string
   label: string
+  logPort?: LogPort | undefined
 }): Promise<SessionClaim> {
   const claimed = await writeOwnLock({ lockFile, label })
   if (claimed !== undefined) return { claim: ESessionClaim.Owned, heldBy: claimed.pid, note: undefined }
 
-  const existing = await readLock({ lockFile })
+  const existing = await readLock({ lockFile, label, logPort })
   if (existing === undefined) {
     return {
       claim: ESessionClaim.Guest,
@@ -93,7 +141,9 @@ export async function claimSession({
     }
   }
 
-  await unlink(lockFile).catch(() => {})
+  await unlink(lockFile).catch((error) =>
+    warnSwallowed({ logPort, lockFile, label, message: 'could not remove a stale session lock file', error }),
+  )
   const retaken = await writeOwnLock({ lockFile, label })
   if (retaken !== undefined) {
     return {
@@ -112,15 +162,23 @@ export async function claimSession({
 
 export async function releaseSession({
   lockFile,
+  logPort,
 }: {
   lockFile: string
+  logPort?: LogPort | undefined
 }): Promise<boolean> {
-  const existing = await readLock({ lockFile })
+  const existing = await readLock({ lockFile, logPort })
   if (existing === undefined || existing.pid !== process.pid) return false
   try {
     await unlink(lockFile)
     return true
-  } catch {
+  } catch (error) {
+    logPort?.warn({
+      source: 'store.lock',
+      message: 'could not release the session lock file',
+      data: { path: lockFile },
+      ...logFieldsOf({ error }),
+    })
     return false
   }
 }
