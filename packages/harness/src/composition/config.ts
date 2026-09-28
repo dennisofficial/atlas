@@ -13,6 +13,7 @@ export type HarnessLaunch = {
   /** The project directory. Undefined is a session with no workspace — an orchestrator agent owning a flow rather than a checkout. */
   cwd: string | undefined
   command: string
-  model: string | undefined
+  /** The model the launch pins, with the effort it was running on when a resumed session carried one. A bare ref string is a model with no opinion on effort. */
+  model: { ref: string; effort?: string | undefined } | undefined
   executionLocation: string | undefined
 }

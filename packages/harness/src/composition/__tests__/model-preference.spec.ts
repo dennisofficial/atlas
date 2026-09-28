@@ -42,7 +42,7 @@ const settled = (args: {
   }).snapshot().resolution
 
 const launched = (args: {
-  requested?: { model: string | undefined }
+  requested?: { model: { ref: string; effort?: string | undefined } | undefined }
   values?: Record<string, string>
   env?: Record<string, string | undefined>
 }) =>
@@ -94,7 +94,7 @@ describe('the default model pair', () => {
 
   it('lets --model outrank the default pair, leaving the effort where it was', () => {
     const selection = launched({
-      requested: { model: 'anthropic/claude-sonnet-5' },
+      requested: { model: { ref: 'anthropic/claude-sonnet-5' } },
       values: {
         [ESettingId.ModelId]: 'anthropic/claude-opus-5',
         [ESettingId.ModelEffort]: EEffort.High,
@@ -104,13 +104,22 @@ describe('the default model pair', () => {
     expect(selection.effort).toBe(EEffort.High)
   })
 
+  it('carries the effort a resumed thread named, instead of falling back to the setting', () => {
+    const selection = launched({
+      requested: { model: { ref: 'anthropic/claude-sonnet-5', effort: EEffort.Low } },
+      values: { [ESettingId.ModelEffort]: EEffort.High },
+    })
+    expect(refKey(selection.ref)).toBe('anthropic/claude-sonnet-5')
+    expect(selection.effort).toBe(EEffort.Low)
+  })
+
   it('lets the environment outrank the file, and the command line outrank both', () => {
     const values = { [ESettingId.ModelId]: 'anthropic/claude-opus-5' }
     const env = { ATLAS_MODEL: 'anthropic/claude-haiku-4-5', ATLAS_EFFORT: EEffort.Low }
 
     expect(refKey(launched({ values, env }).ref)).toBe('anthropic/claude-haiku-4-5')
     expect(
-      refKey(launched({ requested: { model: 'anthropic/claude-sonnet-5' }, values, env }).ref),
+      refKey(launched({ requested: { model: { ref: 'anthropic/claude-sonnet-5' } }, values, env }).ref),
     ).toBe('anthropic/claude-sonnet-5')
   })
 
@@ -214,10 +223,10 @@ describe('the pair a conversation carries', () => {
 
 describe('a launch pinned to one model', () => {
   it('is pinned only when the flag names a model something can answer for', () => {
-    expect(modelPinned({ requested: { model: 'anthropic/claude-opus-5' }, catalogue })).toBe(true)
+    expect(modelPinned({ requested: { model: { ref: 'anthropic/claude-opus-5' } }, catalogue })).toBe(true)
     expect(modelPinned({ requested: { model: undefined }, catalogue })).toBe(false)
-    expect(modelPinned({ requested: { model: 'openai/gpt-5-codex' }, catalogue })).toBe(false)
-    expect(modelPinned({ requested: { model: 'claude-opus-5' }, catalogue })).toBe(false)
+    expect(modelPinned({ requested: { model: { ref: 'openai/gpt-5-codex' } }, catalogue })).toBe(false)
+    expect(modelPinned({ requested: { model: { ref: 'claude-opus-5' } }, catalogue })).toBe(false)
   })
 })
 

@@ -84,6 +84,20 @@ describe('composeHarness', () => {
     await expect(app.close()).resolves.toBeUndefined()
   })
 
+  it('resolves the registered SelectableModel to the very switchable the loop holds', async () => {
+    const { SelectableModelToken } = await import('../../container/tokens')
+    let resolved: HarnessApp<never>['model'] | undefined
+    const app = await compose<undefined>({
+      bind: ({ container }) => {
+        resolved = container.resolve(SelectableModelToken)
+        return undefined
+      },
+    })
+
+    expect(resolved).toBe(app.model)
+    await expect(app.close()).resolves.toBeUndefined()
+  })
+
   it('runs the surface binding before the tool registry resolves, so bound tools ship', async () => {
     const app = await compose<{ bound: true }>({
       bind: ({ container }) => {

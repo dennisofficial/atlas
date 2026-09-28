@@ -12,7 +12,7 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
  * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
  */
-export const CHANNEL_PROTOCOL_VERSION = 7
+export const CHANNEL_PROTOCOL_VERSION = 8
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
@@ -37,6 +37,8 @@ export enum EServeFrame {
   InterruptAcked = 'interrupt-acked',
   SendAcked = 'send-acked',
   Roster = 'roster',
+  ThreadRenamed = 'thread-renamed',
+  ThreadModelChanged = 'thread-model-changed',
   Error = 'error',
 }
 
@@ -78,6 +80,13 @@ export enum EClientRequest {
   ReadThreads = 'read-threads',
   ReadTurns = 'read-turns',
   ReadSessionArchive = 'read-session-archive',
+  /**
+   * Transcript mutations against the session the sandbox is serving, applied to its on-disk JSONL
+   * stores and announced back over the wire. A serve built before these ops answers with a protocol
+   * error, and the client falls back to its local store.
+   */
+  RenameThread = 'rename-thread',
+  SetThreadModel = 'set-thread-model',
 }
 
 export enum ETurnStatus {
@@ -114,6 +123,20 @@ export type ReadThreadParams = z.infer<typeof readThreadParamsSchema>
 
 export const readTurnsParamsSchema = z.object({ threadId: threadIdWireSchema })
 export type ReadTurnsParams = z.infer<typeof readTurnsParamsSchema>
+
+export const renameThreadParamsSchema = z.object({
+  threadId: threadIdWireSchema,
+  title: z.string(),
+})
+export type RenameThreadParams = z.infer<typeof renameThreadParamsSchema>
+
+export const threadModelWireSchema = z.object({ ref: z.string(), effort: z.string() })
+
+export const setThreadModelParamsSchema = z.object({
+  threadId: threadIdWireSchema,
+  model: threadModelWireSchema,
+})
+export type SetThreadModelParams = z.infer<typeof setThreadModelParamsSchema>
 
 export const readEventsReplySchema = z.object({ events: z.array(wireEventSchema) })
 export const readThreadReplySchema = z.object({ thread: wireThreadSchema.nullable() })
@@ -200,6 +223,16 @@ export const serveFrameSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal(EServeFrame.InterruptAcked), seq: seqSchema }),
   z.object({ kind: z.literal(EServeFrame.SendAcked), sendId: sendIdWireSchema }),
   z.object({ kind: z.literal(EServeFrame.Roster), roster: rosterWireSchema }),
+  z.object({
+    kind: z.literal(EServeFrame.ThreadRenamed),
+    threadId: threadIdWireSchema,
+    title: z.string(),
+  }),
+  z.object({
+    kind: z.literal(EServeFrame.ThreadModelChanged),
+    threadId: threadIdWireSchema,
+    model: threadModelWireSchema,
+  }),
   z.object({ kind: z.literal(EServeFrame.Error), message: z.string() }),
 ])
 

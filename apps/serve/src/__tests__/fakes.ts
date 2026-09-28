@@ -12,6 +12,7 @@ import { createDeltaChannel, type DeltaChannel } from '@dltech/atlas-harness'
 import type { PauseSignal } from '@dltech/atlas-harness'
 import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
 import type { ThreadSummary } from '@dltech/atlas-harness'
+import type { TurnLedgerPort } from '@dltech/atlas-harness'
 import type { ServeApp, ServeFamily, ServeRewind, ServeWakeNotices } from '../serve-app'
 
 export type RunTurn = (args: {
@@ -26,7 +27,56 @@ export type FakeServeApp = ServeApp & {
   forgotten: () => number
   closed: () => boolean
   adoptions: () => readonly ThreadId[]
+  renames: readonly { threadId: ThreadId; title: string }[]
+  chosenModels: readonly { threadId: ThreadId; model: { ref: string; effort: string } }[]
+  fireRename: (args: { threadId: ThreadId; title: string }) => void
+  fireModelChosen: (args: { threadId: ThreadId; model: { ref: string; effort: string } }) => void
 }
+
+const fakeLedger = (): Pick<TurnLedgerPort, 'forThread' | 'forThreadTree'> => ({
+  forThread: async () => [],
+  forThreadTree: async () => ({ own: [], delegated: [] }),
+})
+
+const fakeThreadWrites = (args: {
+  threadId: ThreadId
+  appended: EventDraft[]
+  renames: { threadId: ThreadId; title: string }[]
+  chosenModels: { threadId: ThreadId; model: { ref: string; effort: string } }[]
+  renameListeners: Set<(args: { threadId: ThreadId; title: string }) => void>
+  modelChosenListeners: Set<(args: { threadId: ThreadId; model: { ref: string; effort: string } }) => void>
+}): ServeApp['threads'] => ({
+  find: async (): Promise<ThreadSummary | undefined> => summaryOf(args.threadId),
+  createWithFirstEvents: async (given: { drafts: readonly EventDraft[] }) => {
+    args.appended.push(...given.drafts)
+    return { thread: summaryOf(args.threadId), events: [] as Event[] }
+  },
+  spawned: async (): Promise<readonly ThreadSummary[]> => [],
+  list: async (): Promise<readonly ThreadSummary[]> => [],
+  rename: async (given: { threadId: ThreadId; title: string }): Promise<void> => {
+    args.renames.push(given)
+    for (const listener of [...args.renameListeners]) listener(given)
+  },
+  chooseModel: async (given: {
+    threadId: ThreadId
+    model: { ref: string; effort: string }
+  }): Promise<void> => {
+    args.chosenModels.push(given)
+    for (const listener of [...args.modelChosenListeners]) listener(given)
+  },
+  onRename: (listener) => {
+    args.renameListeners.add(listener)
+    return () => {
+      args.renameListeners.delete(listener)
+    }
+  },
+  onModelChosen: (listener) => {
+    args.modelChosenListeners.add(listener)
+    return () => {
+      args.modelChosenListeners.delete(listener)
+    }
+  },
+})
 
 export type FakeRoster = {
   snapshot: () => RosterWire
@@ -148,6 +198,12 @@ export function fakeServeApp(args: {
   let forgotten = 0
   let closed = false
   const adoptions: ThreadId[] = []
+  const renames: { threadId: ThreadId; title: string }[] = []
+  const chosenModels: { threadId: ThreadId; model: { ref: string; effort: string } }[] = []
+  const renameListeners = new Set<(args: { threadId: ThreadId; title: string }) => void>()
+  const modelChosenListeners = new Set<
+    (args: { threadId: ThreadId; model: { ref: string; effort: string } }) => void
+  >()
 
   return {
     channel,
@@ -167,15 +223,16 @@ export function fakeServeApp(args: {
       head: async (): Promise<number> => (args.events ?? []).length,
     },
 
-    threads: {
-      find: async (): Promise<ThreadSummary | undefined> => summaryOf(args.threadId),
-      createWithFirstEvents: async (given: { drafts: readonly EventDraft[] }) => {
-        appended.push(...given.drafts)
-        return { thread: summaryOf(args.threadId), events: [] as Event[] }
-      },
-      spawned: async (): Promise<readonly ThreadSummary[]> => [],
-      list: async (): Promise<readonly ThreadSummary[]> => [],
-    },
+    threads: fakeThreadWrites({
+      threadId: args.threadId,
+      appended,
+      renames,
+      chosenModels,
+      renameListeners,
+      modelChosenListeners,
+    }),
+
+    ledger: fakeLedger(),
 
     ids: {
       nextRunId: (): RunId => {
@@ -218,5 +275,13 @@ export function fakeServeApp(args: {
     forgotten: () => forgotten,
     closed: () => closed,
     adoptions: () => adoptions,
+    renames,
+    chosenModels,
+    fireRename: (given) => {
+      for (const listener of [...renameListeners]) listener(given)
+    },
+    fireModelChosen: (given) => {
+      for (const listener of [...modelChosenListeners]) listener(given)
+    },
   }
 }

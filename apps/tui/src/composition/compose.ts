@@ -71,7 +71,7 @@ export async function composeAtlas(args: {
     launch: {
       cwd: args.config.cwd,
       command: args.command,
-      model: args.config.model,
+      model: args.config.model === undefined ? undefined : { ref: args.config.model },
       executionLocation: args.config.executionLocation,
     },
     env: args.env,

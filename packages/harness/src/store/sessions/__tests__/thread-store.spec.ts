@@ -136,6 +136,21 @@ describe('JsonlThreadStore field choices', () => {
     expect(after?.updatedAt).toBe(before?.updatedAt ?? '')
   })
 
+  it('announces a chosen model through onModelChosen, and stays silent for a thread that is not there', async () => {
+    const home = await tempHome()
+    const { threads } = openStore({ home })
+    const thread = await threads.create({ workspace: '/here' })
+    const heard: { threadId: string; model: { ref: string; effort: string } }[] = []
+
+    const forget = threads.onModelChosen((chosen) => heard.push(chosen))
+    await threads.chooseModel({ threadId: thread.id, model: { ref: 'anthropic/claude-opus-5', effort: 'high' } })
+    expect(heard).toEqual([{ threadId: thread.id, model: { ref: 'anthropic/claude-opus-5', effort: 'high' } }])
+
+    forget()
+    await threads.chooseModel({ threadId: toThreadId('missing'), model: { ref: 'x/y', effort: 'low' } })
+    expect(heard).toEqual([{ threadId: thread.id, model: { ref: 'anthropic/claude-opus-5', effort: 'high' } }])
+  })
+
   it('remembers the chosen execution location', async () => {
     const home = await tempHome()
     const { threads } = openStore({ home })

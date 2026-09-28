@@ -15,6 +15,7 @@ import {
 } from '@dltech/atlas-core'
 import { titleMatchesHandle, THREAD_LISTING_LIMIT } from '@dltech/atlas-harness'
 import type {
+  ModelChosenListener,
   RenameListener,
   SupervisedAgent,
   ThreadModel,
@@ -94,6 +95,7 @@ export function fakeThreadStore(
   const chosenModels: { threadId: ThreadId; model: ThreadModel }[] = []
   const chosenLocations: { threadId: ThreadId; location: EExecutionLocation }[] = []
   const renameListeners = new Set<RenameListener>()
+  const modelChosenListeners = new Set<ModelChosenListener>()
 
   const dropRows = (agentIds: readonly ThreadId[] | undefined): void => {
     if (agentIds === undefined || agentIds.length === 0) return
@@ -287,6 +289,11 @@ export function fakeThreadStore(
       return () => renameListeners.delete(listener)
     },
 
+    onModelChosen(listener: ModelChosenListener): Unsubscribe {
+      modelChosenListeners.add(listener)
+      return () => modelChosenListeners.delete(listener)
+    },
+
     async rename({ threadId, title }) {
       renames.push({ threadId, title })
       const row = rows.find((held) => held.id === threadId)
@@ -306,6 +313,7 @@ export function fakeThreadStore(
       chosenModels.push({ threadId, model })
       const row = rows.find((held) => held.id === threadId)
       if (row !== undefined) row.model = model
+      for (const listener of [...modelChosenListeners]) listener({ threadId, model })
     },
 
     async chooseExecutionLocation({ threadId, location }) {

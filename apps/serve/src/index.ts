@@ -5,7 +5,8 @@ import { EServeFrame, type ServeFrame, type TurnOutcomeWire } from '@dltech/atla
 import { MainWake } from '@dltech/atlas-harness'
 import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
 
-import { atlasDirectory } from '@dltech/atlas-harness'
+import { atlasDirectory, readMetaSync, threadMetaFile, threadMetaSchema } from '@dltech/atlas-harness'
+import { sessionDirectory } from '@dltech/atlas-harness'
 
 import { syncCapabilitiesNotice } from './capabilities-notice'
 import { createChannelBridge } from './channel-bridge'
@@ -75,7 +76,7 @@ export type ServeArgs = {
   token?: string | undefined
   controlPlaneUrl?: string | undefined
   cwd?: string | undefined
-  model?: string | undefined
+  model?: { ref: string; effort?: string | undefined } | undefined
   clientVersion?: string | undefined
   env?: Record<string, string | undefined> | undefined
   bufferSize?: number | undefined
@@ -231,7 +232,22 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     log({ event: EServeEvent.TranscriptRestored, ms: transcriptMs })
   }
 
-  const threadModel = args.model ?? spec?.model ?? undefined
+  const storedThreadModel = (): { ref: string; effort?: string | undefined } | undefined => {
+    const meta = readMetaSync({
+      file: threadMetaFile({
+        sessionDir: sessionDirectory({ home: driveHome, sessionId: threadId }),
+        threadId,
+      }),
+      schema: threadMetaSchema,
+    })
+    if (meta === undefined || meta.modelRef === null) return undefined
+    return { ref: meta.modelRef, effort: meta.modelEffort ?? undefined }
+  }
+
+  const threadModel =
+    args.model ??
+    storedThreadModel() ??
+    (spec?.model === undefined || spec.model === null ? undefined : { ref: spec.model })
 
   const capabilities = 'profile' in workspace ? workspace.profile?.capabilities : undefined
 
@@ -342,8 +358,26 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
       : {
           transcript: { log: app.log, threads: app.threads, ledger: app.ledger },
         }),
+    ...(app.modelBridge === undefined ? {} : { selectModel: app.modelBridge.select }),
     ...(app.sessionArchive === undefined ? {} : { sessionArchive: app.sessionArchive }),
   })
+
+  const unsubscribeThreads = (() => {
+    const onRename = app.threads.onRename?.bind(app.threads)
+    const onModelChosen = app.threads.onModelChosen?.bind(app.threads)
+    if (onRename === undefined || onModelChosen === undefined) return undefined
+    const offs = [
+      onRename(({ threadId: renamed, title }) =>
+        handlers.broadcast({ kind: EServeFrame.ThreadRenamed, threadId: renamed, title }),
+      ),
+      onModelChosen(({ threadId: chosen, model }) =>
+        handlers.broadcast({ kind: EServeFrame.ThreadModelChanged, threadId: chosen, model }),
+      ),
+    ]
+    return () => {
+      for (const off of offs) off()
+    }
+  })()
 
   // Watching surfaces (footer chips, sidebar crew) read the roster off the wire, so a change on
   // the live registries is pushed the moment the registries announce it, not on the next request.
@@ -399,6 +433,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     idleStop.halt()
     unsubscribeWake?.()
     unsubscribeRoster?.()
+    unsubscribeThreads?.()
     driver.interrupt()
     await withDeadline({
       task: driver.settled().catch(() => undefined),

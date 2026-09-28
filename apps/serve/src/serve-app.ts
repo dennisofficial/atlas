@@ -68,6 +68,17 @@ export type ServeRewind = {
   truncate?: ((args: { threadId: ThreadId; toSeq: number; cutAgents: readonly ThreadId[] }) => Promise<void>) | undefined
 }
 
+/**
+ * The serve's reach into the running loop's model selection: the select that re-pins the
+ * switchable model mid-session, and the effort the loop currently runs on. A serve composed
+ * without it still records the pick to the transcript and broadcasts it — the live re-pin is the
+ * part a fake cannot stand in for.
+ */
+export type ServeModelBridge = {
+  effort: () => string
+  select: (next: { ref: string; effort: string }) => void
+}
+
 /** The composed session as serve consumes it: everything a socket can reach and nothing else. */
 export type ServeApp = {
   channel: DeltaChannel
@@ -75,7 +86,12 @@ export type ServeApp = {
   /** The between-turns rules the shared root composed — absent in fakes, which run no policy. */
   turnPolicy?: TurnPolicy | undefined
   log: Pick<EventLogPort, 'append' | 'read' | 'readOwn' | 'head'>
-  threads: Pick<ThreadStorePort, 'find' | 'createWithFirstEvents' | 'spawned' | 'list'>
+  threads: Pick<
+    ThreadStorePort,
+    'find' | 'createWithFirstEvents' | 'spawned' | 'list' | 'rename' | 'chooseModel' | 'onRename' | 'onModelChosen'
+  >
+  /** The live model the channel's set-thread-model op re-pins; absent in fakes. */
+  modelBridge?: ServeModelBridge | undefined
   /** The on-disk turn spend, read by the transcript turn-feed op. Absent in fakes. */
   ledger?: Pick<TurnLedgerPort, 'forThread' | 'forThreadTree'> | undefined
   ids: Pick<IdPort, 'nextRunId'>
@@ -114,7 +130,7 @@ export type ServeComposeArgs = {
   token: string
   clientVersion: string
   env: Record<string, string | undefined>
-  model: string | undefined
+  model: { ref: string; effort?: string | undefined } | undefined
   notice: NoticePort
   /** The Mac-side project directory, so memory this sandbox uploads is keyed by the right repo. */
   projectDirectory?: string | null | undefined

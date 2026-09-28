@@ -79,7 +79,7 @@ const writeDriveSpec = async (args: {
 
 const startWithDriveSpec = async (args: {
   spec?: Record<string, unknown> | undefined
-  compose: (composeArgs: { model?: string | undefined }) => Promise<FakeServeApp>
+  compose: (composeArgs: { model?: { ref: string; effort?: string | undefined } | undefined }) => Promise<FakeServeApp>
 }): Promise<ServeHandle> => {
   const home = mkdtempSync(join(tmpdir(), 'atlas-serve-spec-home-'))
   driveHomes.push(home)
@@ -1164,7 +1164,7 @@ describe('startServe', () => {
   })
 
   it('reads the thread model off the workspace spec the laptop left on the drive', async () => {
-    let composedWith: string | undefined
+    let composedWith: { ref: string; effort?: string | undefined } | undefined
     const app = fakeServeApp({ threadId, root: '/workspace' })
 
     const handle = await startWithDriveSpec({
@@ -1175,12 +1175,12 @@ describe('startServe', () => {
       },
     })
 
-    expect(composedWith).toBe('inference-net/kimi-k3-fast')
+    expect(composedWith).toEqual({ ref: 'inference-net/kimi-k3-fast' })
     await handle.close()
   })
 
   it('prefers an explicit model over the thread store', async () => {
-    let composedWith: string | undefined
+    let composedWith: { ref: string; effort?: string | undefined } | undefined
     const app = fakeServeApp({ threadId, root: '/workspace' })
 
     const handle = await startServe({
@@ -1190,7 +1190,7 @@ describe('startServe', () => {
       controlPlaneUrl: CONTROL_PLANE,
       env: {},
       cwd: '/workspace',
-      model: 'anthropic/claude-sonnet-4-5',
+      model: { ref: 'anthropic/claude-sonnet-4-5' },
       compose: async (args) => {
         composedWith = args.model
         return app
@@ -1200,12 +1200,12 @@ describe('startServe', () => {
         new Response(null, { status: 204 })) as unknown as typeof fetch,
     })
 
-    expect(composedWith).toBe('anthropic/claude-sonnet-4-5')
+    expect(composedWith).toEqual({ ref: 'anthropic/claude-sonnet-4-5' })
     await handle.close()
   })
 
   it('composes with no model when the spec on the drive names none', async () => {
-    let composedWith: string | undefined
+    let composedWith: { ref: string; effort?: string | undefined } | undefined
     const app = fakeServeApp({ threadId, root: '/workspace' })
 
     const handle = await startWithDriveSpec({

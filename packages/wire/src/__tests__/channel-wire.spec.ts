@@ -6,6 +6,7 @@ import {
   decodeServeFrame,
   EAgentStatus,
   EClientFrame,
+  EClientRequest,
   encodeFrame,
   EServeFrame,
   EServiceStatus,
@@ -84,8 +85,56 @@ describe('the send ack', () => {
 })
 
 describe('the protocol stamp', () => {
-  it('speaks the version that introduced acknowledged sends', () => {
-    expect(CHANNEL_PROTOCOL_VERSION).toBe(7)
+  it('speaks the version that introduced thread rename and model ops', () => {
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(8)
+  })
+})
+
+describe('the thread rename and model ops', () => {
+  it('round-trips a rename request and its broadcast', () => {
+    const request: ClientFrame = {
+      kind: EClientFrame.Request,
+      id: 'ren-1',
+      op: EClientRequest.RenameThread,
+      params: { threadId: 'thread-1', title: 'a better title' },
+    }
+    const pushed: ServeFrame = {
+      kind: EServeFrame.ThreadRenamed,
+      threadId: 'thread-1' as never,
+      title: 'a better title',
+    }
+
+    expect(decodeClientFrame(encodeFrame(request))).toEqual(request)
+    expect(decodeServeFrame(encodeFrame(pushed))).toEqual(pushed)
+  })
+
+  it('round-trips a set-thread-model request and its broadcast', () => {
+    const request: ClientFrame = {
+      kind: EClientFrame.Request,
+      id: 'mod-1',
+      op: EClientRequest.SetThreadModel,
+      params: { threadId: 'thread-1', model: { ref: 'anthropic/claude-opus-5', effort: 'high' } },
+    }
+    const pushed: ServeFrame = {
+      kind: EServeFrame.ThreadModelChanged,
+      threadId: 'thread-1' as never,
+      model: { ref: 'anthropic/claude-opus-5', effort: 'high' },
+    }
+
+    expect(decodeClientFrame(encodeFrame(request))).toEqual(request)
+    expect(decodeServeFrame(encodeFrame(pushed))).toEqual(pushed)
+  })
+
+  it('drops a model push whose model is not a { ref, effort } pair', () => {
+    expect(
+      decodeServeFrame(
+        JSON.stringify({
+          kind: EServeFrame.ThreadModelChanged,
+          threadId: 'thread-1',
+          model: { ref: 'anthropic/claude-opus-5' },
+        }),
+      ),
+    ).toBeNull()
   })
 })
 

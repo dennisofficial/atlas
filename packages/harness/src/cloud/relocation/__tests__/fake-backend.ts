@@ -103,6 +103,10 @@ export function fakeThreadStore(
       return () => undefined
     },
 
+    onModelChosen() {
+      return () => undefined
+    },
+
     async compact() {
       return 0
     },
