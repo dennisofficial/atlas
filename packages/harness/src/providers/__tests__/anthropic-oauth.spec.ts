@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+
 import { describe, expect, it } from 'bun:test'
 import { generateText, streamText } from 'ai'
 
@@ -6,7 +8,16 @@ import { secretOf, type CredentialPort } from '@dltech/atlas-core'
 import { CredentialError, ECredentialFailure } from '../../credentials'
 import { apiKeyCredential, oauthCredential } from '../../credentials/testing'
 import { ANTHROPIC_OAUTH_BETA, createAnthropicOauthModel } from '../anthropic-oauth'
+import { CLAUDE_CODE_VERSION } from '../anthropic-subscription-attribution'
 import { generatedText, recordingFetch, refusingFirstFetch, streamedText } from './recording-fetch'
+
+const attributionText = (firstUserText: string): string => {
+  const fingerprint = createHash('sha256')
+    .update(`59cf53e54c78${[4, 7, 20].map((index) => firstUserText[index] ?? '0').join('')}${CLAUDE_CODE_VERSION}`)
+    .digest('hex')
+    .slice(0, 3)
+  return `x-anthropic-billing-header: cc_version=${CLAUDE_CODE_VERSION}.${fingerprint}; cc_entrypoint=atlas;`
+}
 
 type Recording = CredentialPort & { readonly discarded: string[] }
 
@@ -67,7 +78,7 @@ describe('the anthropic model authenticated by a subscription credential', () =>
       system: [
         {
           type: 'text',
-          text: 'x-anthropic-billing-header: cc_version=2.1.284.12a; cc_entrypoint=atlas;',
+          text: attributionText('ping'),
         },
         { type: 'text', text: 'You are Atlas.' },
       ],
@@ -94,7 +105,7 @@ describe('the anthropic model authenticated by a subscription credential', () =>
       system: [
         {
           type: 'text',
-          text: 'x-anthropic-billing-header: cc_version=2.1.284.376; cc_entrypoint=atlas;',
+          text: attributionText('what changed?'),
         },
       ],
     })
@@ -116,7 +127,7 @@ describe('the anthropic model authenticated by a subscription credential', () =>
       system: [
         {
           type: 'text',
-          text: 'x-anthropic-billing-header: cc_version=2.1.284.12a; cc_entrypoint=atlas;',
+          text: attributionText('ping'),
         },
       ],
     })
