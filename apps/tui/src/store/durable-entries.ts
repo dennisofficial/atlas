@@ -1,4 +1,4 @@
-import { EContextSlot, latestTldrPerAnchor, quotedShellCommand, type AssistantPart, type CallId, type Event, type EventId, type EventOfType, type SaidImage } from '@dltech/atlas-core'
+import { EContextSlot, EKilledBy, latestTldrPerAnchor, quotedShellCommand, type AssistantPart, type CallId, type Event, type EventId, type EventOfType, type SaidImage } from '@dltech/atlas-core'
 
 import { formatElapsed } from '../ui/theme'
 
@@ -149,6 +149,28 @@ export function durableEntries(args: {
   const turns = turnsBySeq({ events, turns: args.turns ?? [] })
   const footers = new Map(latestTldrPerAnchor(events).map((footer) => [footer.throughSeq, footer]))
 
+  /**
+   * Teardown once re-recorded an ending for every shell a turn had already settled, appending a
+   * second background-shell-ended behind the real one with killedBy session-end and empty output.
+   * Those duplicate events sit in the log permanently, so the transcript drops a session-end ending
+   * that follows a clean ending for the same shell and command — keyed on the command too, because
+   * a shell id is reused across restarts and a fresh shell under it must still announce. Only a
+   * session-end ending after a clean one is dropped: a shell_kill or a second clean exit is a
+   * deliberate telling and stays, and a session-end ending that follows only another session-end
+   * (a shell genuinely killed at close under a recycled id) stays too, because no clean ending
+   * ever settled it.
+   */
+  const settledShells = new Set<string>()
+  const isRedundantTeardownEnding = (event: EventOfType<'background-shell-ended'>): boolean => {
+    if (event.killedBy !== EKilledBy.SessionEnd) return false
+    const key = `${event.shellId}${event.command}`
+    return settledShells.has(key)
+  }
+  const noteShellEnding = (event: EventOfType<'background-shell-ended'>): void => {
+    if (event.killedBy === EKilledBy.SessionEnd) return
+    settledShells.add(`${event.shellId}${event.command}`)
+  }
+
   const entriesOfEvent = (event: Event): TranscriptEntry[] => {
     if (event.type === 'user-said') {
       return [
@@ -174,6 +196,8 @@ export function durableEntries(args: {
     }
 
     if (event.type === 'background-shell-ended') {
+      if (isRedundantTeardownEnding(event)) return []
+      noteShellEnding(event)
       return [
         {
           kind: EEntryKind.BackgroundShellEnded,

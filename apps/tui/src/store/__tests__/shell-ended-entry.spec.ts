@@ -155,4 +155,50 @@ describe('a background shell ending in the transcript', () => {
       EEntryKind.OperatorSaid,
     ])
   })
+
+  it('shows only the first ending when teardown re-recorded a settled shell', () => {
+    const entries = durableEntries({
+      events: log([
+        shellEnded({ output: 'real output\n' }),
+        shellEnded({ output: '', killedBy: EKilledBy.SessionEnd }),
+      ]),
+    })
+
+    const ended = entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)
+    expect(ended).toHaveLength(1)
+    expect(ended[0]?.output).toBe('real output\n')
+  })
+
+  it('keeps two endings for the same shell id when they are different commands across a restart', () => {
+    const entries = durableEntries({
+      events: log([
+        shellEnded({ command: 'first run', output: 'one\n' }),
+        shellEnded({ command: 'second run', output: 'two\n' }),
+      ]),
+    })
+
+    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(2)
+  })
+
+  it('keeps a shell-kill ending that follows a clean exit, because it is not a teardown dupe', () => {
+    const entries = durableEntries({
+      events: log([
+        shellEnded({ output: 'real output\n' }),
+        shellEnded({ status: EShellStatus.Killed, killedBy: EKilledBy.Model, output: '' }),
+      ]),
+    })
+
+    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(2)
+  })
+
+  it('keeps a session-end kill under a recycled id when no clean ending settled it', () => {
+    const entries = durableEntries({
+      events: log([
+        shellEnded({ killedBy: EKilledBy.SessionEnd, output: '' }),
+        shellEnded({ killedBy: EKilledBy.SessionEnd, output: '' }),
+      ]),
+    })
+
+    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(2)
+  })
 })

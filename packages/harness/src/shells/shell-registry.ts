@@ -12,7 +12,7 @@ import {
 import { LocalProcessPort } from '../execution/local-process'
 import type { HookChainSource } from '../hooks/registry'
 import { afterShellDrafts } from './after-shell'
-import { lostShellEnding, openShellIdsOf } from './recovery'
+import { endedShellIdsOf, lostShellEnding } from './recovery'
 import {
   startBackgroundShell,
   type BackgroundShell,
@@ -405,25 +405,29 @@ export class BunShellRegistry extends ShellRegistryPort {
   }
 
   /**
-   * Teardown and the next boot's recovery answer "which shells still need an ending" from the same
-   * source: the event log, through the shared chronological pairing in `openShellIdsOf`. Reading
-   * the log rather than the notice queue is what keeps the two from disagreeing across a restart —
-   * the queue dies with the process while the log survives it — and it makes compaction safe for
-   * free, because a compacted log holds no shell starts and so opens nothing. The entries that
-   * survive the filter are exactly the ones the log cannot settle: a shell the model killed with
-   * shell_kill, whose claimed ending never became an event, and a shell still running when teardown
-   * began. `closed` is consulted alongside `tracked` because teardown asks after closeAll, which
-   * has already moved every entry over.
+   * A shell still needs an ending recorded only when nothing else will write one. Something else
+   * will, in two ways. A turn's drain — or teardown's own drain step — appends the ending for any
+   * shell whose queue holds a durable exit notice (`hasDurableEndingFor`): a normal exit, or one
+   * still running when teardown began. And the log may already hold the ending, paired off against
+   * its start by `endedShellIdsOf`, which is the state a normal exit reaches once a turn drains it.
+   * What survives both exclusions is exactly the shell whose ending would otherwise be lost: one the
+   * model killed with shell_kill, whose claimed ending never became an event and whose only queued
+   * notice is a hollow ride for hook drafts, and the crash case of a start left open with no exit
+   * notice at all. Testing "already recorded" against the log — not against whether a start is
+   * still open — is what keeps a drained, settled shell from being re-recorded, which is the
+   * duplicate-ending flood this guard exists to prevent. `closed` is consulted alongside `tracked`
+   * because teardown asks after closeAll, which has already moved every entry over.
    */
   private async unresolvedEndings(args: {
     log: EventLogPort
     threadId: ThreadId
   }): Promise<Tracked[]> {
-    const open = openShellIdsOf(await args.log.readOwn({ threadId: args.threadId }))
+    const events = await args.log.readOwn({ threadId: args.threadId })
+    const ended = endedShellIdsOf(events)
     return [...this.tracked.values(), ...this.closed].filter(
       (entry) =>
         entry.threadId === args.threadId &&
-        !open.has(entry.shell.shellId) &&
+        !ended.has(entry.shell.shellId) &&
         !this.notices.hasDurableEndingFor({ shellId: entry.shell.shellId }),
     )
   }
