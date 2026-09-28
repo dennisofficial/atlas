@@ -13,6 +13,7 @@ import React, {
 
 import {
   contextPressure,
+  DEFAULT_IMAGE_TIER,
   ECompactionAnchor,
   EExecutionLocation,
   EForkMode,
@@ -607,6 +608,7 @@ function Workspace(props: {
     editor: draft.editor,
     read: props.clipboard,
     directory: pasteDirectoryOf(conversation.threadId),
+    tier: props.app.models.cardFor(props.app.model.choice().ref)?.imageTier ?? DEFAULT_IMAGE_TIER,
   })
 
   useEffect(() => {

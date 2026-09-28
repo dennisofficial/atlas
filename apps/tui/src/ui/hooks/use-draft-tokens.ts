@@ -11,7 +11,7 @@ import {
   removeToken,
   type LiveToken,
 } from '../composer-tokens'
-import { imageTag } from '@dltech/atlas-core'
+import { imageTag, type EImageTier } from '@dltech/atlas-core'
 import type { DraftImage } from '../draft-images'
 
 export type DraftTokens = {
@@ -31,6 +31,7 @@ export function useDraftTokens(args: {
   editor: RefObject<TextareaRenderable | null>
   read: ClipboardImageReader
   directory: string
+  tier?: EImageTier | undefined
 }): DraftTokens {
   const pending = useRef<Promise<void>[]>([])
 
@@ -45,7 +46,7 @@ export function useDraftTokens(args: {
 
     const token = insertImagePlaceholder(editor)
 
-    const reading = args.read({ directory: args.directory }).then((image) => {
+    const reading = args.read({ directory: args.directory, tier: args.tier }).then((image) => {
       if (token.slot.kind !== 'image') return
       if (image === null) {
         const current = editor.extmarks.get(token.id)
@@ -59,7 +60,7 @@ export function useDraftTokens(args: {
     })
 
     pending.current = [...pending.current, reading]
-  }, [args.directory, args.editor, args.read])
+  }, [args.directory, args.editor, args.read, args.tier])
 
   const handlePasted = useCallback(
     (content: string): void => {
