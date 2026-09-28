@@ -60,13 +60,10 @@ COPY packages/core ./packages/core
 COPY packages/harness ./packages/harness
 COPY packages/wire ./packages/wire
 COPY tsconfig.base.json ./tsconfig.base.json
-# The stamp hashes the serve SOURCE, not the compiled binary: `bun build --compile` is not
-# byte-reproducible, so hashing the binary would churn the stamp — and force a fleet-wide
-# re-download of the sandbox's serve binary — on every deploy even when nothing behavioral
-# changed. The recipe lives in apps/serve/scripts/serve-source-stamp.sh and is shared with
-# the VCR sandbox image so a matching bake is reused instead of re-downloaded.
+# The hash sidecar is the binary's own integrity proof for whatever downloads it — computed
+# from the compiled bytes, not the source, so it matches what the endpoint actually serves.
 RUN cd apps/serve && bun run build:serve -- --target bun-linux-x64 --outfile bin/atlas-serve \
-  && cd /app && sh apps/serve/scripts/serve-source-stamp.sh > apps/serve/bin/atlas-serve.sha256
+  && sha256sum bin/atlas-serve | cut -d' ' -f1 > bin/atlas-serve.sha256
 
 FROM node:22.13.1-slim AS runtime
 RUN apt-get update -y && apt-get install -y --no-install-recommends openssl \

@@ -1,7 +1,6 @@
 declare const ATLAS_VERSION: string | undefined
 declare const ATLAS_RELEASE_REPO: string | undefined
 declare const ATLAS_BUILD_SHA: string | undefined
-declare const ATLAS_SERVE_SOURCE: string | undefined
 declare const ATLAS_BUILD_REPO: string | undefined
 declare const ATLAS_BUILD_STAMP: string | undefined
 
@@ -18,12 +17,6 @@ export type BuildInfo =
       readonly releaseRepo: string | null
       /** The commit the release was cut from. */
       readonly buildSha: string | null
-      /**
-       * The serve source hash baked into this build — the stamp a matching baked serve carries
-       * (`apps/serve/scripts/serve-source-stamp.sh`). Null on builds that predate it, which the
-       * sandbox freshness check reads as "trust nothing baked".
-       */
-      readonly serveSource: string | null
     }
   | { readonly kind: EBuildKind.Dev; readonly repo: string; readonly stamp: string }
   | { readonly kind: EBuildKind.Source }
@@ -55,14 +48,11 @@ export function buildInfo(): BuildInfo {
   if (version !== undefined) {
     const releaseRepo = typeof ATLAS_RELEASE_REPO === 'undefined' ? undefined : ATLAS_RELEASE_REPO
     const buildSha = typeof ATLAS_BUILD_SHA === 'undefined' ? undefined : present(ATLAS_BUILD_SHA)
-    const serveSource =
-      typeof ATLAS_SERVE_SOURCE === 'undefined' ? undefined : present(ATLAS_SERVE_SOURCE)
     return {
       kind: EBuildKind.Release,
       version,
       releaseRepo: releaseRepo ?? null,
       buildSha: buildSha ?? null,
-      serveSource: serveSource ?? null,
     }
   }
 

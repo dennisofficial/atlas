@@ -127,10 +127,90 @@ describe('a request riding the session socket', () => {
     expect((failure as RemoteRequestLost).message).toContain('2500ms')
   })
 
-  it('rejects every request in flight when the socket closes', async () => {
+  describe('a read in flight when the socket closes', () => {
+    it('keeps it pending and re-drives it on the next ready', async () => {
+      const { channel, drop, retries, receive, live } = readied()
+
+      const answer = channel.request({ op: EClientRequest.CompletePaths, params: { prefix: 'src/clo' } })
+      const first = upstreamOf(live().sent).find((frame) => frame.kind === EClientFrame.Request)
+      drop()
+
+      let settled = false
+      void answer.then(
+        () => (settled = true),
+        () => (settled = true),
+      )
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      expect(settled).toBe(false)
+
+      retries[0]?.run()
+      live().handlers.handleOpen()
+      receive({ kind: EServeFrame.Ready, seq: 9 })
+
+      const resent = upstreamOf(live().sent).filter((frame) => frame.kind === EClientFrame.Request)
+      expect(resent).toHaveLength(1)
+      expect(resent[0]).toMatchObject({
+        op: EClientRequest.CompletePaths,
+        params: { prefix: 'src/clo' },
+      })
+      const id = resent[0]?.kind === EClientFrame.Request ? resent[0].id : ''
+      expect(id).toBe(first?.kind === EClientFrame.Request ? first.id : '')
+
+      receive({ kind: EServeFrame.Reply, replyTo: id, ok: true, data: ['src/cloud'] })
+      expect(await answer).toEqual(['src/cloud'])
+    })
+
+    it('re-drives a read that was queued but never sent', async () => {
+      const { channel, drop, retries, receive, live } = readied()
+
+      channel.send({ text: 'ahead of it' })
+      const answer = channel.request({ op: EClientRequest.ReadThread, params: { threadId: 'brn_cloud' } })
+      drop()
+
+      retries[0]?.run()
+      live().handlers.handleOpen()
+      receive({ kind: EServeFrame.Ready, seq: 9 })
+
+      const resent = upstreamOf(live().sent).filter((frame) => frame.kind === EClientFrame.Request)
+      expect(resent).toHaveLength(1)
+      const id = resent[0]?.kind === EClientFrame.Request ? resent[0].id : ''
+      receive({ kind: EServeFrame.Reply, replyTo: id, ok: true, data: { thread: null } })
+      expect(await answer).toEqual({ thread: null })
+    })
+
+    it('can still time out while it waits out the reconnect', async () => {
+      const { channel, drop, timeouts } = readied({ requestTimeoutMs: 2_500 })
+
+      const answer = channel.request({ op: EClientRequest.ReadEvents, params: {} })
+      drop()
+      timeouts[0]?.run()
+
+      await expect(answer).rejects.toBeInstanceOf(RemoteRequestLost)
+    })
+
+    it('rejects it when the channel itself closes', async () => {
+      const { channel } = readied()
+
+      const answer = channel.request({ op: EClientRequest.ReadEvents, params: {} })
+      channel.close()
+
+      await expect(answer).rejects.toBeInstanceOf(RemoteRequestLost)
+    })
+  })
+
+  it('rejects a rewind in flight when the socket closes, since it may have applied', async () => {
     const { channel, drop } = readied()
 
-    const answer = channel.request({ op: EClientRequest.CompletePaths, params: {} })
+    const answer = channel.request({ op: EClientRequest.Rewind, params: {} })
+    drop()
+
+    await expect(answer).rejects.toBeInstanceOf(RemoteRequestLost)
+  })
+
+  it('rejects a workspace publish in flight when the socket closes', async () => {
+    const { channel, drop } = readied()
+
+    const answer = channel.request({ op: EClientRequest.PublishWorkspace, params: {} })
     drop()
 
     await expect(answer).rejects.toBeInstanceOf(RemoteRequestLost)
@@ -148,7 +228,7 @@ describe('a request riding the session socket', () => {
   it('does not resend a request the reconnect already rejected', async () => {
     const { channel, drop, retries, receive, live } = harness()
 
-    const answer = channel.request({ op: EClientRequest.CompletePaths, params: {} })
+    const answer = channel.request({ op: EClientRequest.Rewind, params: {} })
     await expect(
       (async () => {
         drop()

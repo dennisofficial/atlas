@@ -250,10 +250,10 @@ const readoutOf = (args: {
  * session, but every Vercel call is driven with the operator's own token, read fresh from the
  * sealed secrets file at each attach so a rotated token is picked up without a restart.
  */
-const releaseBuildOf = (): { version: string; serveSource: string } | undefined => {
+const releaseBuildOf = (): { version: string } | undefined => {
   const build = buildInfo()
-  if (build.kind !== EBuildKind.Release || build.serveSource === null) return undefined
-  return { version: build.version, serveSource: build.serveSource }
+  if (build.kind !== EBuildKind.Release) return undefined
+  return { version: build.version }
 }
 
 /**

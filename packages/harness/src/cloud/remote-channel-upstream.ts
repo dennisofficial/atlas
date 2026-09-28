@@ -1,6 +1,6 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
-import { EClientFrame, type ClientFrame, type EClientRequest, encodeFrame } from './channel-wire'
+import { EClientFrame, EClientRequest, type ClientFrame, encodeFrame } from './channel-wire'
 
 export class RemotePublishRefused extends Error {
   constructor(threadId: ThreadId) {
@@ -41,12 +41,24 @@ export class RemoteRequestLost extends Error {
   }
 }
 
+const SAFE_TO_REDRIVE: ReadonlySet<EClientRequest> = new Set([
+  EClientRequest.CompletePaths,
+  EClientRequest.BrowseDirectory,
+  EClientRequest.ListRoster,
+  EClientRequest.ReadEvents,
+  EClientRequest.ReadThread,
+  EClientRequest.ReadThreads,
+  EClientRequest.ReadTurns,
+  EClientRequest.ReadSessionArchive,
+])
+
 export type UpstreamPipe = {
   send(frame: ClientFrame): void
   request(args: { op: EClientRequest; params: unknown }): Promise<unknown>
   settleReply(args: { replyTo: string; ok: boolean; data: unknown }): void
   attach(args: { write: (data: string) => boolean }): void
   detach(args: { reason: string }): void
+  abandon(args: { reason: string }): void
 }
 
 type Waiting = {
@@ -61,6 +73,7 @@ export function createUpstreamPipe(args: {
 }): UpstreamPipe {
   const waiting = new Map<string, Waiting>()
   const queued: ClientFrame[] = []
+  const redrivable = new Map<string, Extract<ClientFrame, { kind: EClientFrame.Request }>>()
   let write: ((data: string) => boolean) | null = null
   let issued = 0
 
@@ -87,7 +100,9 @@ export function createUpstreamPipe(args: {
 
       return new Promise<unknown>((resolve, reject) => {
         waiting.set(id, { op, resolve, reject })
-        emit({ kind: EClientFrame.Request, id, op, params })
+        const frame = { kind: EClientFrame.Request, id, op, params } as const
+        if (SAFE_TO_REDRIVE.has(op)) redrivable.set(id, frame)
+        emit(frame)
         args.scheduleTimeout({
           delayMs: args.timeoutMs,
           run: () =>
@@ -102,8 +117,20 @@ export function createUpstreamPipe(args: {
       const claimed = claim(replyTo)
       if (claimed === undefined) return
 
+      redrivable.delete(replyTo)
       if (ok) claimed.resolve(data)
       else claimed.reject(new RemoteRequestFailed({ op: claimed.op, data }))
+    },
+
+    abandon({ reason }) {
+      write = null
+      redrivable.clear()
+      queued.splice(0, queued.length)
+
+      for (const [id, claimed] of [...waiting]) {
+        waiting.delete(id)
+        claimed.reject(new RemoteRequestLost({ op: claimed.op, reason }))
+      }
     },
 
     attach({ write: writer }) {
@@ -117,12 +144,21 @@ export function createUpstreamPipe(args: {
       write = null
 
       for (const [id, claimed] of [...waiting]) {
+        if (redrivable.has(id)) continue
         waiting.delete(id)
         claimed.reject(new RemoteRequestLost({ op: claimed.op, reason }))
       }
 
-      const kept = queued.filter((frame) => frame.kind !== EClientFrame.Request)
+      const kept = queued.filter(
+        (frame) => frame.kind !== EClientFrame.Request || redrivable.has(frame.id),
+      )
       queued.splice(0, queued.length, ...kept)
+
+      const unsent = new Set(queued.flatMap((frame) => (frame.kind === EClientFrame.Request ? [frame.id] : [])))
+      for (const [id, frame] of [...redrivable]) {
+        if (unsent.has(id) || !waiting.has(id)) continue
+        queued.push(frame)
+      }
     },
   }
 }
