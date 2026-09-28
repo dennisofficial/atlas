@@ -27,6 +27,10 @@ if (version !== undefined && version !== '') {
   if (buildSha !== undefined && buildSha !== '') {
     define.ATLAS_BUILD_SHA = JSON.stringify(buildSha)
   }
+  const serveSource = process.env.ATLAS_SERVE_SOURCE
+  if (serveSource !== undefined && serveSource !== '') {
+    define.ATLAS_SERVE_SOURCE = JSON.stringify(serveSource)
+  }
 } else {
   const repo = await repoRootOf(process.cwd())
   const state = repo === null ? null : await probeSourceState({ repo })
