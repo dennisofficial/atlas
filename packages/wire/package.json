@@ -12,7 +12,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "bun test",
+    "test": "ATLAS_TESTING=1 bun test",
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "bun test",
+    "test": "ATLAS_TESTING=1 bun test --preload ./src/__tests__/test-home-setup.ts",
     "build:serve": "bun scripts/build-serve.ts"
   },
   "dependencies": {

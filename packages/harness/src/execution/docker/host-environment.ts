@@ -1,5 +1,5 @@
 import { existsSync, statSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import {
@@ -161,7 +161,13 @@ export function mountedAtlasHomeSubtrees(args: {
   declared?: readonly Mount[] | undefined
   atlasHome?: string | undefined
 }): readonly Mount[] {
-  const atlasHome = args.atlasHome ?? atlasHomeFrom({ env: process.env, home: homedir() })
+  const atlasHome =
+    args.atlasHome ??
+    atlasHomeFrom({
+      env: process.env,
+      home: homedir(),
+      tempDir: tmpdir(),
+    })
   const covered = [args.worktree, ...(args.declared ?? []).map((mount) => mount.path)]
 
   return ATLAS_HOME_MOUNTED_SUBTREES.map((name) => ({

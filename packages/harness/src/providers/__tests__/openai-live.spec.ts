@@ -1,7 +1,13 @@
-import { describe, expect, it } from 'bun:test'
+import { beforeAll, describe, expect, it } from 'bun:test'
 import { streamText } from 'ai'
 
-import { EEffort, EImageTier, findCard, type ModelCard } from '@dltech/atlas-core'
+import {
+  ATLAS_ALLOW_REAL_HOME_ENV,
+  EEffort,
+  EImageTier,
+  findCard,
+  type ModelCard,
+} from '@dltech/atlas-core'
 
 import {
   RefreshingCredentialPort,
@@ -48,6 +54,12 @@ const liveCard = (adapter: OpenAiAdapter, modelId: string): ModelCard =>
 describe.skipIf(process.env[LIVE_OPENAI_FLAG] !== '1')(
   'a real exchange with the codex backend on the subscription credential',
   () => {
+    // This spec reads the operator's real subscription credential out of the real Atlas home, so it
+    // opts out of the test-home guard. It is gated behind ATLAS_LIVE_OPENAI and never runs in CI.
+    beforeAll(() => {
+      process.env[ATLAS_ALLOW_REAL_HOME_ENV] = '1'
+    })
+
     const exchange = async (
       providerOptions?: Parameters<typeof streamText>[0]['providerOptions'],
     ) => {

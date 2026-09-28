@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
 import {
+  ATLAS_HOME_ENV,
   EBeforeToolDecision,
   EToolEffect,
   EWebSearchBackend,
@@ -38,6 +39,9 @@ let chain: HookChain
 
 beforeAll(() => {
   root = mkdtempSync(join(tmpdir(), 'atlas-file-state-wiring-'))
+  // The container resolves the Atlas home as it is built, ahead of the per-test home pin, so this
+  // spec pins its own throwaway home before composing.
+  process.env[ATLAS_HOME_ENV] = mkdtempSync(join(tmpdir(), 'atlas-file-state-home-'))
   container = createHarnessContainer()
   container.register(WorkspaceRoot, { useValue: root })
   container.register(WorktreeDirectoryToken, { useValue: () => '.atlas/worktrees' })

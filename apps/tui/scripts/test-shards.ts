@@ -118,10 +118,14 @@ function tally(output: string): { passed: number; failed: number; filesRan: numb
 async function runShard(args: { shard: number; files: readonly string[] }): Promise<ShardResult> {
   const startedAt = Date.now()
 
-  const child = Bun.spawn(['bun', 'test', ...args.files], {
-    stdout: 'pipe',
-    stderr: 'pipe',
-  })
+  const child = Bun.spawn(
+    ['bun', 'test', '--preload', './src/__tests__/test-home-setup.ts', ...args.files],
+    {
+      stdout: 'pipe',
+      stderr: 'pipe',
+      env: { ...process.env, ATLAS_TESTING: '1' },
+    },
+  )
 
   const [out, err, code] = await Promise.all([
     new Response(child.stdout).text(),
@@ -145,7 +149,10 @@ async function main(): Promise<void> {
   const forwarded = Bun.argv.slice(2)
 
   if (forwarded.length > 0) {
-    const child = Bun.spawn(['bun', 'test', ...forwarded], { stdout: 'inherit', stderr: 'inherit' })
+    const child = Bun.spawn(
+      ['bun', 'test', '--preload', './src/__tests__/test-home-setup.ts', ...forwarded],
+      { stdout: 'inherit', stderr: 'inherit' },
+    )
     process.exit(await child.exited)
   }
 

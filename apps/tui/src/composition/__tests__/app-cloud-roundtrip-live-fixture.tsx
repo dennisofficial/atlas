@@ -5,7 +5,7 @@ import React from 'react'
 
 import { testRender } from '@opentui/react/test-utils'
 
-import { ModelPort, toThreadId } from '@dltech/atlas-core'
+import { ATLAS_ALLOW_REAL_HOME_ENV, ModelPort, toThreadId } from '@dltech/atlas-core'
 import {
   composeHarness,
   portToken,
@@ -65,9 +65,16 @@ const REAL_HOME_FILES = ['cloud.json', 'key', 'secrets.json', 'settings.json'] a
 
 export async function throwawayHome(): Promise<Home> {
   const dir = await mkdtemp(join(tmpdir(), 'atlas-roundtrip-home-'))
-  const real = join(homedir(), '.atlas')
-  for (const name of REAL_HOME_FILES) {
-    await copyFile(join(real, name), join(dir, name)).catch(() => undefined)
+  // Reading the operator's real home to seed the throwaway is the one genuine real-home read in
+  // this fixture, so it alone opts out of the test-home guard; the hatch closes before mount.
+  process.env[ATLAS_ALLOW_REAL_HOME_ENV] = '1'
+  try {
+    const real = join(homedir(), '.atlas')
+    for (const name of REAL_HOME_FILES) {
+      await copyFile(join(real, name), join(dir, name)).catch(() => undefined)
+    }
+  } finally {
+    delete process.env[ATLAS_ALLOW_REAL_HOME_ENV]
   }
   return { dir }
 }
