@@ -1,0 +1,49 @@
+name: claude-code-version
+
+# Tracks the latest @anthropic-ai/claude-code release on npm and opens a PR when the pinned
+# CLAUDE_CODE_VERSION drifts. Unlike the catalogue workflow it never merges on its own: the
+# attribution format is reverse-engineered, so a release that rotated the fingerprint scheme
+# would ship wrong attribution to every user if it landed unattended. A human merges.
+on:
+  schedule:
+    - cron: '53 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2.2.0
+
+      - run: bun install
+
+      - name: bump the pinned version and open a PR on drift
+        run: |
+          set -euo pipefail
+          (cd packages/harness && bun run generate:claude-code-version)
+          attribution=packages/harness/src/providers/anthropic-subscription-attribution.ts
+          if git diff --quiet -- "$attribution"; then
+            echo "claude code attribution version is fresh"
+            exit 0
+          fi
+          version=$(grep -o "CLAUDE_CODE_VERSION = '[^']*'" "$attribution" | cut -d"'" -f2)
+          branch="claude-code-version/$version"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add "$attribution"
+          git commit -m "fix(harness): bump claude code attribution version to $version"
+          git push origin "$branch"
+          gh pr create \
+            --title "fix(harness): bump claude code attribution version to $version" \
+            --body "Automated bump of \`CLAUDE_CODE_VERSION\` to the latest \`@anthropic-ai/claude-code\` release ($version).
+
+Merge by hand — the attribution format is reverse-engineered, so a release that changed the fingerprint scheme needs a look before it lands."
