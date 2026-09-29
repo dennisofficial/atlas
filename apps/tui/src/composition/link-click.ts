@@ -106,7 +106,8 @@ export function installLinkClickOpen(args: {
 const FILE_SCHEME = 'file://'
 
 function openedLabel(url: string): string {
-  return url.startsWith(FILE_SCHEME) ? `${glyph.file} opened` : `↗ opened`
+  const mark = url.startsWith(FILE_SCHEME) ? glyph.document : glyph.external
+  return `${mark} opened`
 }
 
 function openLink(args: { url: string; openUrl: UrlOpener; openFile: FileOpener }): void {

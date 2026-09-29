@@ -113,7 +113,7 @@ describe('installLinkClickOpen', () => {
     await harness.setup.mockMouse.click(LINK_START_X, 0)
 
     const notice = currentNotices().at(-1)
-    expect(notice?.text).toBe('⬚ opened')
+    expect(notice?.text).toBe('▤ opened')
     expect(notice?.position).toBe(ENoticePosition.Composer)
   })
 

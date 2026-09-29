@@ -9,7 +9,7 @@ export const RULE_CHAR = '─'
 
 export const QUOTE_RAIL = '▌'
 
-export const LINK_ARROW = '↗'
+export const LINK_ARROW = glyph.external
 
 export const DEFINITION_MARKER = '›'
 
