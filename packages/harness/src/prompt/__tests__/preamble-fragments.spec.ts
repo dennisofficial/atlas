@@ -100,7 +100,10 @@ progress, and close each one as it finishes rather than in a batch at the end. A
 finished only when it actually is: a failing test, a partial change, or an error you did not
 resolve leaves it open, and what blocked it becomes a task of its own.`
 
-const DELEGATION = `A sub-agent reads with its own context window and hands you back only its last message, so
+const DELEGATION = `Delegate by default: exploratory work and independent slices go to sub-agents without
+asking first.
+
+A sub-agent reads with its own context window and hands you back only its last message, so
 delegate the work whose cost is what it must read rather than what it must decide: a sweep
 across files to answer one question, an audit, a review. You keep the finding and pay none of
 the reading. Spawn several in one call when the questions are genuinely separate.
