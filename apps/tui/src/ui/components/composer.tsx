@@ -7,7 +7,7 @@ import { mentionStyleId, mentionSyntaxStyle } from '../mention-style'
 import { useAppearance } from '../hooks/use-appearance'
 import type { DraftControls } from '../hooks/use-draft'
 import { glyph, theme } from '../theme'
-import { namingComposerLine, titleWithin } from '../naming-frames'
+import { FRESH_TITLE_CELLS, namingComposerLine, titleWithin } from '../naming-frames'
 import { ENamingPhase, NamingLine, type NamingState } from './naming-line'
 import { composerNoticeCells, composerTitle, composerTitleRoom } from './composer-title'
 import { EFrameRule, Frame, FRAME_INSET, FRAME_PAD } from './frame'
@@ -212,9 +212,9 @@ function DerivedComposer(props: {
       : composerTitle({ title: props.title, width: props.width, badge, edge })
 
   /**
-   * The slab clamps the shared animation to what its own row holds: a fresh name opens at half
-   * the room (the average title), a rename keeps the old name's width, and the answer is clipped
-   * to the room the same way a settled title truncates.
+   * The slab clamps the shared animation to what its own row holds: a fresh name opens at the
+   * average title's width (flexed down when the row is narrower), a rename keeps the old name's
+   * width, and the answer is clipped to the room the same way a settled title truncates.
    */
   const namingSlab = (() => {
     if (props.naming == null) return null
@@ -225,7 +225,7 @@ function DerivedComposer(props: {
         ? {
             ...props.naming,
             startCells: Math.min(
-              props.naming.startedWithName ? props.naming.startCells : Math.max(1, Math.round(room / 2)),
+              props.naming.startedWithName ? props.naming.startCells : FRESH_TITLE_CELLS,
               room,
             ),
           }

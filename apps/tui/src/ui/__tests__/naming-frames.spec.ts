@@ -2,6 +2,7 @@ import type { StyledText } from '@opentui/core'
 import { describe, expect, test } from 'bun:test'
 
 import {
+  FRESH_TITLE_CELLS,
   freshStartCells,
   NAMING_SETTLE_MS,
   namingGenerating,
@@ -135,8 +136,13 @@ describe('where the generating line starts', () => {
     expect(freshStartCells({ kind: 'sidebar', maxCells: 39 })).toBe(39)
   })
 
-  test('a first name takes half the composer row — about the average title', () => {
-    expect(freshStartCells({ kind: 'composer', maxCells: 34 })).toBe(17)
+  test('a first name takes the average title width, not a fraction of the row', () => {
+    expect(freshStartCells({ kind: 'composer', maxCells: 80 })).toBe(FRESH_TITLE_CELLS)
+    expect(freshStartCells({ kind: 'composer', maxCells: 34 })).toBe(FRESH_TITLE_CELLS)
+  })
+
+  test('a narrow row flexes the fresh width down to what fits', () => {
+    expect(freshStartCells({ kind: 'composer', maxCells: 12 })).toBe(12)
   })
 
   test('a degenerate row still starts with a cell', () => {
