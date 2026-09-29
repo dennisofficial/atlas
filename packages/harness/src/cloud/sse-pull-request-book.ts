@@ -76,7 +76,6 @@ export type SseSubscriptionBook = {
   }) => void
   applyFrame: (args: { data: string }) => void
   markAllStale: () => void
-  markAllDead: () => void
   clear: () => void
 }
 
@@ -146,11 +145,6 @@ export function createSseSubscriptionBook(args: {
     markAllStale: () => {
       for (const key of entries.keys()) {
         emit(key, { lookup: EPullRequestLookup.Unavailable, retryable: true })
-      }
-    },
-    markAllDead: () => {
-      for (const key of entries.keys()) {
-        emit(key, { lookup: EPullRequestLookup.Unavailable, retryable: false })
       }
     },
     clear: () => {

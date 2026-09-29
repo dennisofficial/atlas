@@ -43,8 +43,9 @@ export type SsePullRequestClock = {
  * heartbeat, and the stream's own reconnect carries a catch-up resubscribe.
  *
  * Nothing throws out of `read`/`readLinked`: a refused stream (dead cloud session) reads as
- * non-retryable `Unavailable`, everything else as retryable, and the last good frame stays on
- * screen through either, per the readings store's shown-vs-answers split.
+ * retryable `Unavailable` and re-probes on the next read, so a recovered session self-heals rather
+ * than pinning the last good frame; everything else is retryable too, and the last good frame stays
+ * on screen through either, per the readings store's shown-vs-answers split.
  */
 export class SsePullRequestPort extends PullRequestPort {
   readonly pushes = true
@@ -124,9 +125,12 @@ export class SsePullRequestPort extends PullRequestPort {
     repoFullName: string
     by: { kind: 'branch'; branch: string } | { kind: 'number'; number: number }
   }): Promise<PullRequestReading> {
+    // A held entry answers only while the stream is live; once it has died the held reading is
+    // exactly the stale tally that must not be served again, so a dead session falls through to a
+    // fresh subscribe — which doubles as the probe of whether the session recovered (token rotated,
+    // network back) and as the catch-up REST fill the stream can no longer deliver.
     const held = this.book.holding({ key: args.key })
-    if (held !== null) return held.reading
-    if (this.sessionDead) return unavailable(false)
+    if (held !== null && !this.sessionDead) return held.reading
 
     let outcome
     try {
@@ -136,8 +140,10 @@ export class SsePullRequestPort extends PullRequestPort {
       })
     } catch (failure) {
       if (failure instanceof SseRefused) this.sessionDead = true
-      return unavailable(!(failure instanceof SseRefused))
+      return unavailable(true)
     }
+
+    this.sessionDead = false
 
     const handle: SubscriptionHandle = { id: outcome.id, repoFullName: args.repoFullName }
     const reading = this.book.recordSubscribe({
@@ -176,8 +182,10 @@ export class SsePullRequestPort extends PullRequestPort {
       },
     }).catch((failure: unknown) => {
       if (failure instanceof SseRefused) {
+        // Refused is a liveness fact, not a dead reading: mark stale (retryable) so the last good
+        // tally stays shown while a later read re-probes, rather than freezing it as the answer.
         this.sessionDead = true
-        this.book.markAllDead()
+        this.book.markAllStale()
         this.stream = null
       }
     })
@@ -200,7 +208,7 @@ export class SsePullRequestPort extends PullRequestPort {
       } catch (failure) {
         if (failure instanceof SseRefused) {
           this.sessionDead = true
-          this.book.markAllDead()
+          this.book.markAllStale()
           return
         }
       }
