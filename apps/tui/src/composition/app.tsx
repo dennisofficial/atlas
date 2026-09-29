@@ -193,6 +193,7 @@ import type { CloudBridgeFactory, LiftPreflight, WorkspaceCapture } from './use-
 import { useCloudLift } from './use-cloud-lift'
 import { captureWorkspace } from './cloud/workspace-snapshot'
 import { reapExpiredCloudSandboxes } from './cloud/reaper'
+import { liveReaperListFailureMark } from './cloud/reaper-failure-marker'
 import { noticePortBinding } from './notice-binding'
 import { useCloudSession } from './use-cloud-session'
 import type { LiftedAttachment, LiftedSession } from './lifted-session'
@@ -296,7 +297,9 @@ const liveBridgeFor = (app: AtlasApp): CloudBridgeFactory => {
  * The startup half of drive billing: a thread that simply went idle never produces a teardown
  * event, so the operator's own machine retires its sandboxes on boot. Vercel credentials are
  * resolved lazily inside the sweep — a boot without them still clears the stale API rows rather
- * than skipping the whole pass.
+ * than skipping the whole pass. A transient list failure is not something the operator can act on,
+ * so its notice is stamped into a marker file under the atlas home and stays quiet across boots
+ * until the failure changes or a day passes.
  */
 export const reapExpiredSandboxesOnBoot = (app: AtlasApp): void => {
   const session = app.cloud.session()
@@ -322,6 +325,7 @@ export const reapExpiredSandboxesOnBoot = (app: AtlasApp): void => {
     flipToHost: ({ threadId }) =>
       app.threads.chooseExecutionLocation({ threadId, location: EExecutionLocation.Host }),
     notify: (text) => notice.notify({ text, tone: ENoticeTone.Warn }),
+    ...liveReaperListFailureMark(),
   }).catch((failure: unknown) =>
     notice.notify({
       text: `the cloud sandbox reaper failed: ${messageOf(failure)}`,
@@ -1192,7 +1196,9 @@ function Workspace(props: {
               open: { mode: EOpenMode.Resume, threadId },
               effects: (name) => home.tools.find(name)?.effect,
             }).then((outcome) => {
-              if (!outcome.ok) throw new Error(outcome.reason)
+              if ('cloud' in outcome || !outcome.ok) {
+                throw new Error('cloud' in outcome ? 'the descend left the thread marked cloud' : outcome.reason)
+              }
               return conversation.turnInFlight()
                 ? { ...outcome.conversation, resumeOnArrival: true }
                 : outcome.conversation

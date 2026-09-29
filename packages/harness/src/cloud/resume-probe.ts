@@ -20,6 +20,13 @@ export type SandboxProbeResult = { probe: ESandboxProbe; outdatedServe?: string 
 /** Attach detection for the drift probe, injectable so a spec never reaches HTTP. */
 export type AttachProbe = (args: { sandbox: Sandbox; url: string }) => Promise<boolean>
 
+/**
+ * Attach-state read for the drive the deleted sandbox held, injectable so a spec never reaches
+ * Vercel. Vercel detaches the drive asynchronously after the sandbox is gone, so `replaced` must
+ * wait out the lag or the recreate lands `already attached as read-write`.
+ */
+export type DetachWait = () => Promise<boolean>
+
 const healthSchema = z.looseObject({ clients: z.number().optional() })
 
 /**
@@ -90,6 +97,7 @@ export async function probeSandboxForResume(args: {
   servePort: number
   fetch: () => Promise<Sandbox>
   clientsAttached: AttachProbe
+  waitForDriveDetached?: DetachWait | undefined
   log?: ((line: string) => void) | undefined
   isMissing: (failure: unknown) => boolean
   toFailure: (failure: unknown) => Error
@@ -133,5 +141,11 @@ export async function probeSandboxForResume(args: {
     `sandbox ${args.name} carries serve "${installedLabel}", this build wants "${pinned}" — recreating it from the pinned image`,
   )
   await sandbox.delete({ signal: AbortSignal.timeout(args.timeoutMs) })
+  const detached = await (args.waitForDriveDetached?.() ?? true)
+  if (!detached) {
+    args.log?.(
+      `sandbox ${args.name} deleted, but its drive is still attached — the recreate will retry through the lag`,
+    )
+  }
   return { probe: ESandboxProbe.Replaced }
 }

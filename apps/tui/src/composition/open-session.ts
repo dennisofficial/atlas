@@ -16,7 +16,7 @@ import { composeAtlas, type AtlasApp } from './compose'
 import type { AtlasConfig } from './config'
 import { diagnoseCredentialFailure, type CredentialDiagnosis } from './credential-diagnosis'
 import { noticePortBinding } from './notice-binding'
-import { openConversation, type OpenedConversation } from './open-conversation'
+import { openConversation, unstartedConversation, type OpenedConversation } from './open-conversation'
 import { type SettingsBinding } from '@dltech/atlas-harness'
 import { stateOfDirectory, workspaceRefusal } from './workspace-directory'
 
@@ -136,6 +136,15 @@ async function startSession(args: {
     effects: (name) => app.tools.find(name)?.effect,
   })
 
+  if ('cloud' in outcome) {
+    progress.report(EBootStep.Ready)
+    return {
+      type: ESession.Ready,
+      app,
+      opened: unstartedConversation({ ids: app.ids, bootCloudThreadId: outcome.threadId }),
+      credentialNotice: readiness?.message ?? null,
+    }
+  }
   if (!outcome.ok) {
     await app.close()
     return { type: ESession.Refused, message: outcome.reason, exitCode: REFUSED }

@@ -79,6 +79,8 @@ export function createSessionHandlers(args: {
   selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
   /** Tars the served session directory for the descend's transfer; absent in fakes. */
   sessionArchive?: (() => Promise<Uint8Array | null>) | undefined
+  /** Tars the sandbox's memory roots for the descend's memory transfer; absent in fakes. */
+  memoryArchive?: (() => Promise<Uint8Array | null>) | undefined
   /** The lift's late transcript restore; absent in fakes, which refuse the op. */
   restoreTranscript?: (() => Promise<{ restored: boolean; failed: string | null }>) | undefined
 }): SessionHandlers {
@@ -88,6 +90,7 @@ export function createSessionHandlers(args: {
   const transcript = args.transcript
   const selectModel = args.selectModel
   const sessionArchive = args.sessionArchive
+  const memoryArchive = args.memoryArchive
   const restoreTranscript = args.restoreTranscript
   const live = new Set<SessionSocket>()
   const attached = new Set<SessionSocket>()
@@ -379,6 +382,38 @@ export function createSessionHandlers(args: {
               replyTo: frame.id,
               ok: false,
               data: { message: messageOf(error, 'the transcript archive failed') },
+            },
+          }),
+        )
+      return
+    }
+
+    if (frame.op === EClientRequest.ReadMemoryArchive) {
+      if (memoryArchive === undefined) {
+        send({
+          socket,
+          frame: refusedRequest({ replyTo: frame.id, message: 'this serve has no memory to read' }),
+        })
+        return
+      }
+      void memoryArchive()
+        .then((bytes) =>
+          send({
+            socket,
+            frame: answeredRequest({
+              replyTo: frame.id,
+              data: { archive: bytes === null ? '' : Buffer.from(bytes).toString('base64') },
+            }),
+          }),
+        )
+        .catch((error: unknown) =>
+          send({
+            socket,
+            frame: {
+              kind: EServeFrame.Reply,
+              replyTo: frame.id,
+              ok: false,
+              data: { message: messageOf(error, 'the memory archive failed') },
             },
           }),
         )

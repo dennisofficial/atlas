@@ -210,10 +210,11 @@ export function useTurnDriver(args: {
         runId,
         workspace: move?.path ?? app.workspace.workspace,
         repo: move === null ? app.workspace.repo : move.repo,
+        executionLocation: app.executionLocation.of(threadId),
       })
       started.current = true
     },
-    [app.ids, app.log, app.threads, app.workspace, pendingMove, started, threadId],
+    [app.ids, app.log, app.threads, app.workspace, app.executionLocation, pendingMove, started, threadId],
   )
 
   const rewindConfirm = useRewindConfirm()

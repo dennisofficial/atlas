@@ -50,6 +50,7 @@ const SAFE_TO_REDRIVE: ReadonlySet<EClientRequest> = new Set([
   EClientRequest.ReadThreads,
   EClientRequest.ReadTurns,
   EClientRequest.ReadSessionArchive,
+  EClientRequest.ReadMemoryArchive,
 ])
 
 type SendFrame = Extract<ClientFrame, { kind: EClientFrame.Send }>

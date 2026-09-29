@@ -1,6 +1,7 @@
-import { EExecutionLocation, projectOf, toThreadId } from '@dltech/atlas-core'
-import { type ThreadStorePort, type ThreadSummary } from '@dltech/atlas-harness'
+import { toThreadId } from '@dltech/atlas-core'
+import { type ThreadStorePort } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useRef } from 'react'
+import { messageOf } from './error-text'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { cloudListing } from './cloud/cloud-listing'
@@ -10,8 +11,7 @@ import type { CloudSession } from './cloud/cloud-session'
 import type { AtlasApp } from './compose'
 import { EOpenMode } from './config'
 import type { LiftedAttachment } from './lifted-session'
-import { namedBy, openConversation, type OpenedConversation } from './open-conversation'
-import { messageOf } from './error-text'
+import { openConversation, type OpenedConversation } from './open-conversation'
 import type { CloudBridgeFactory } from './use-cloud-lift'
 import type { ContainerMoveControl } from './use-container-move'
 
@@ -57,61 +57,45 @@ export function useThreadRouter(args: {
 
   const listing = useCallback((): Pick<ThreadStorePort, 'list'> => cloudListing(localApp), [localApp])
 
+  const attach = useCallback(
+    async (threadId: string, projectDirectory: string | undefined): Promise<void> => {
+      if (threadId === args.activeThreadId && cloudSession !== null) return
+
+      const bridge = ensureBridge()
+      if (bridge === null) {
+        notify({
+          key: 'cloud-open-signin',
+          text: 'that conversation lives in the cloud — sign in from settings (ctrl+o) › cloud to open it',
+          tone: ENoticeTone.Warn,
+          ttlMs: NOTICE_WARN_MS,
+        })
+        return
+      }
+
+      const attachment = await openCloudThread({
+        app: localApp,
+        bridge,
+        threadId: toThreadId(threadId),
+        move: containerMove,
+        ...(projectDirectory === undefined ? {} : { projectDirectory }),
+      }).catch((error: unknown) => {
+        notify({
+          key: 'cloud-open-failed',
+          text: messageOf(error),
+          tone: ENoticeTone.Warn,
+          ttlMs: NOTICE_WARN_MS,
+        })
+        return null
+      })
+      if (attachment === null) return
+      args.onLifted(attachment)
+    },
+    [args, cloudSession, containerMove, ensureBridge, localApp],
+  )
+
   const route = useCallback(
     async (threadId: string) => {
       if (args.working) return
-
-      const bridge = ensureBridge()
-      const id = toThreadId(threadId)
-
-      let located = await localApp.threads.find({ threadId: id })
-      if (located === undefined) {
-        const rows = await localApp.threads.list({ project: projectOf(localApp.workspace) })
-        located = rows.find((row: ThreadSummary) => namedBy({ thread: row, handle: threadId }))
-      }
-
-      const location = located?.executionLocation ?? EExecutionLocation.Host
-      const target = located === undefined ? threadId : (located.id as string)
-
-      if (location === EExecutionLocation.Cloud) {
-        if (target === args.activeThreadId && cloudSession !== null) return
-        if (bridge === null) {
-          notify({
-            key: 'cloud-open-signin',
-            text: 'that conversation lives in the cloud — sign in from settings (ctrl+o) › cloud to open it',
-            tone: ENoticeTone.Warn,
-            ttlMs: NOTICE_WARN_MS,
-          })
-          return
-        }
-
-        const projectDirectory = located?.workspace ?? undefined
-        const attachment = await openCloudThread({
-          app: localApp,
-          bridge,
-          threadId: toThreadId(target),
-          move: containerMove,
-          ...(projectDirectory === undefined ? {} : { projectDirectory }),
-        }).catch((error: unknown) => {
-          notify({
-            key: 'cloud-open-failed',
-            text: messageOf(error),
-            tone: ENoticeTone.Warn,
-            ttlMs: NOTICE_WARN_MS,
-          })
-          return null
-        })
-        if (attachment === null) return
-        args.onLifted(attachment)
-        return
-      }
-
-      if (target === args.activeThreadId && cloudSession === null) return
-
-      if (cloudSession === null) {
-        args.onLocalSwap(target)
-        return
-      }
 
       const outcome = await openConversation({
         threads: localApp.threads,
@@ -120,9 +104,15 @@ export function useThreadRouter(args: {
         agents: localApp.agents,
         ids: localApp.ids,
         workspace: localApp.workspace,
-        open: { mode: EOpenMode.Resume, threadId: target },
+        open: { mode: EOpenMode.Resume, threadId },
         effects: (name) => localApp.tools.find(name)?.effect,
       })
+
+      if ('cloud' in outcome) {
+        const located = await localApp.threads.find({ threadId: outcome.threadId })
+        await attach(outcome.threadId as string, located?.workspace ?? undefined)
+        return
+      }
       if (!outcome.ok) {
         notify({
           key: 'thread-open',
@@ -132,19 +122,33 @@ export function useThreadRouter(args: {
         })
         return
       }
+
+      const target = outcome.conversation.threadId as string
+      if (target === args.activeThreadId && cloudSession === null) return
+
+      if (cloudSession === null) {
+        args.onLocalSwap(target)
+        return
+      }
       args.onDescend(outcome.conversation)
     },
-    [args, cloudSession, containerMove, ensureBridge, localApp],
+    [args, attach, cloudSession, localApp],
   )
 
+  /**
+   * A boot that resolved its open request to a cloud thread mounts an unstarted conversation with
+   * the thread's id on it rather than opening locally, so the attach is the workspace's first act —
+   * not a patch-up after the local open already claimed the lock. Nothing in it can fail twice: the
+   * ref guards the one boot, and a failed attach keeps the meta saying cloud for the /resume row.
+   */
   const bootRouted = useRef(false)
   useEffect(() => {
     if (bootRouted.current) return
     bootRouted.current = true
-    if (cloudSession !== null) return
-    if (args.opened.executionLocation !== EExecutionLocation.Cloud) return
-    void route(args.opened.threadId)
-  }, [cloudSession, args.opened, route])
+    const bootCloud = args.opened.bootCloudThreadId
+    if (bootCloud === undefined || cloudSession !== null) return
+    void attach(bootCloud as string, localApp.workspace.workspace)
+  }, [attach, cloudSession, args.opened, localApp])
 
   const findSandbox = useCallback(
     (): Pick<CloudSandboxes, 'find'> | null => ensureBridge()?.sandboxes ?? null,

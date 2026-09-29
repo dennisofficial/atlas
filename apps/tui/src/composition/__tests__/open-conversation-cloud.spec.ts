@@ -22,7 +22,7 @@ import {
 } from '@dltech/atlas-harness'
 
 import { EOpenMode } from '../config'
-import { openConversation } from '../open-conversation'
+import { closeConversation, openConversation } from '../open-conversation'
 import { attachCloudSession } from '../cloud/attach-cloud'
 import { fakeAgentRegistry } from './fake-agents'
 import {
@@ -146,8 +146,31 @@ describe('openConversation after the readOnly stopgap is gone', () => {
       open: { mode: EOpenMode.Resume, threadId: LIFTED },
     })
 
-    expect(outcome.ok).toBe(true)
+    expect('cloud' in outcome === false && outcome.ok).toBe(true)
     expect(threads.peekRow({ threadId: LIFTED })?.workspace).toBe(FAKE_WORKSPACE)
     expect(await lockHeld(LIFTED)).toBe(true)
+  })
+})
+
+describe('openConversation on a thread whose meta says cloud', () => {
+  it('refuses the local open without claiming the session lock', async () => {
+    await closeConversation()
+    const threads = fakeThreadStore({ existing: [LIFTED], workspace: null })
+    await threads.chooseExecutionLocation({ threadId: LIFTED, location: EExecutionLocation.Cloud })
+
+    const outcome = await openConversation({
+      threads,
+      log: fakeEventLog([said('said inside the sandbox')]),
+      ledger: fakeLedger(),
+      agents: fakeAgentRegistry(),
+      ids: fakeIds(),
+      workspace: HERE,
+      effects: () => undefined,
+      open: { mode: EOpenMode.Resume, threadId: LIFTED },
+    })
+
+    expect('cloud' in outcome && outcome.threadId === LIFTED).toBe(true)
+    expect(await lockHeld(LIFTED)).toBe(false)
+    expect(threads.peekRow({ threadId: LIFTED })?.executionLocation).toBe(EExecutionLocation.Cloud)
   })
 })

@@ -107,6 +107,8 @@ export type ServeApp = {
   whenChildrenSettled: (args: { threadId: ThreadId }) => Promise<void>
   /** Tars the served session directory for the descend's transcript transfer; absent in fakes. */
   sessionArchive?: (() => Promise<Uint8Array | null>) | undefined
+  /** Tars the sandbox's memory roots for the descend's memory transfer; absent in fakes. */
+  memoryArchive?: (() => Promise<Uint8Array | null>) | undefined
   /**
    * The lift's late transcript restore: extracts the archive the client shipped to the drive and
    * refreshes the store so the read ops serve it. Absent in fakes, which refuse the op.

@@ -12,6 +12,7 @@ import {
   EServiceStatus,
   EShellStatus,
   ETurnStatus,
+  readMemoryArchiveReplySchema,
   type ClientFrame,
   type ServeFrame,
 } from '../index'
@@ -81,6 +82,30 @@ describe('the send ack', () => {
 
   it('drops an ack without a sendId', () => {
     expect(decodeServeFrame(JSON.stringify({ kind: EServeFrame.SendAcked }))).toBeNull()
+  })
+})
+
+describe('the memory archive op', () => {
+  it('round-trips a read-memory-archive request through the request frame', () => {
+    const frame: ClientFrame = {
+      kind: EClientFrame.Request,
+      id: 'mem-1',
+      op: EClientRequest.ReadMemoryArchive,
+      params: {},
+    }
+
+    expect(decodeClientFrame(encodeFrame(frame))).toEqual(frame)
+  })
+
+  it('round-trips its reply — a base64 tar, empty when the sandbox holds no memory', () => {
+    const reply = { archive: 'H4sIAAAAAAAAA2NgGAWjYGgH' }
+
+    expect(readMemoryArchiveReplySchema.parse(reply)).toEqual(reply)
+    expect(readMemoryArchiveReplySchema.parse({ archive: '' })).toEqual({ archive: '' })
+  })
+
+  it('drops a reply whose archive is not a string', () => {
+    expect(readMemoryArchiveReplySchema.safeParse({ archive: 42 }).success).toBe(false)
   })
 })
 

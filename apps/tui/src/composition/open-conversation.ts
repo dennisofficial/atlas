@@ -1,7 +1,7 @@
 import {
+  EExecutionLocation,
   projectOf,
   toThreadId,
-  type EExecutionLocation,
   type IdPort,
   type ThreadId,
   type Event,
@@ -51,18 +51,28 @@ export type OpenedConversation = {
   lostShells?: readonly LostShell[] | undefined
   base?: LogAccumulator | undefined
   /**
+   * Set only by a boot that resolved the open request to a thread whose meta says cloud: the local
+   * open never runs (the session lock is never claimed), and the workspace's thread router attaches
+   * to the sandbox as its first act instead.
+   */
+  bootCloudThreadId?: ThreadId | undefined
+  /**
    * Set only by a mid-turn lift: the turn it interrupted to move safely, so the conversation that
    * mounts on the other side resumes it itself rather than leaving the operator to notice.
    */
   resumeOnArrival?: boolean | undefined
 }
 
-export const unstartedConversation = (args: { ids: IdPort }): OpenedConversation => ({
+export const unstartedConversation = (args: {
+  ids: IdPort
+  bootCloudThreadId?: ThreadId | undefined
+}): OpenedConversation => ({
   threadId: args.ids.nextThreadId(),
   events: [],
   turns: [],
   name: null,
   started: false,
+  ...(args.bootCloudThreadId === undefined ? {} : { bootCloudThreadId: args.bootCloudThreadId }),
 })
 
 let heldSessionDir: string | undefined
@@ -74,8 +84,18 @@ export async function closeConversation(): Promise<void> {
   await releaseSession({ lockFile: sessionLockFile({ sessionDir: held }) })
 }
 
+/**
+ * The thread meta's executionLocation is the pointer to where the transcript lives: a thread that
+ * points at the cloud is never opened as a local conversation, because the local open claims the
+ * session lock and reads a local transcript the sandbox already owns. The caller routes the cloud
+ * variant through the attach flow instead.
+ */
+export type CloudThreadOutcome = { cloud: true; threadId: ThreadId }
+
 export type OpenOutcome =
-  { ok: true; conversation: OpenedConversation } | { ok: false; reason: string }
+  | { ok: true; conversation: OpenedConversation }
+  | { ok: false; reason: string }
+  | CloudThreadOutcome
 
 type Opening = {
   threads: ThreadStorePort
@@ -180,6 +200,10 @@ export async function openConversation(args: Opening): Promise<OpenOutcome> {
   if ('unstarted' in thread) {
     await closeConversation()
     return { ok: true, conversation: unstartedConversation({ ids: args.ids }) }
+  }
+
+  if (thread.executionLocation === EExecutionLocation.Cloud) {
+    return { cloud: true, threadId: thread.id }
   }
 
   const sessionDir = sessionDirectory({ home: atlasDirectory(), sessionId: thread.id })
