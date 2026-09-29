@@ -1,4 +1,9 @@
-import { decodeBase64, MAX_INLINE_BYTES, toThreadId } from '@dltech/atlas-core'
+import {
+  decodeBase64,
+  FileCapabilitiesPort,
+  MAX_INLINE_BYTES,
+  toThreadId,
+} from '@dltech/atlas-core'
 import { mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -6,6 +11,12 @@ import { beforeAll, describe, expect, it } from 'bun:test'
 
 import { ReadTool } from '../read'
 import type { FileReadOutput } from '../read-file'
+
+class NoFiles extends FileCapabilitiesPort {
+  override acceptsFiles(): boolean {
+    return false
+  }
+}
 
 const pdf = (args: { padding?: number }): Uint8Array =>
   new Uint8Array([
@@ -33,6 +44,15 @@ const tool = new ReadTool()
 
 const read = async (path: string) =>
   await tool.invoke({
+    input: { path },
+    signal: new AbortController().signal,
+    idempotencyKey: 'read-files',
+    projectDirectory: '/workspace',
+    threadId: toThreadId('thread-1'),
+  })
+
+const readWithoutFileSupport = async (path: string) =>
+  await new ReadTool({ fileCapabilities: new NoFiles() }).invoke({
     input: { path },
     signal: new AbortController().signal,
     idempotencyKey: 'read-files',
@@ -99,5 +119,12 @@ describe('read on a PDF', () => {
     expect(tool.revealsWholeFile?.({ input: { path: paths.small }, output: outcome.output })).toBe(
       false,
     )
+  })
+
+  it('refuses the file part when the active model cannot take one', async () => {
+    const outcome = await readWithoutFileSupport(paths.small)
+
+    expect(outcome.ok).toBe(false)
+    if (!outcome.ok) expect(outcome.reason).toContain('cannot read')
   })
 })

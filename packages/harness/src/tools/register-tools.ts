@@ -2,6 +2,7 @@ import {
   AgentFileSystemPort,
   DynamicToolSource,
   EventLogPort,
+  FileCapabilitiesPort,
   FileSystemPort,
   IdPort,
   LogPort,
@@ -80,6 +81,7 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
     useFactory: (resolver) =>
       new ReadTool({
         files: resolver.resolve(portToken(AgentFileSystemPort)),
+        fileCapabilities: resolver.resolve(portToken(FileCapabilitiesPort)),
       }),
   })
   container.register(portToken(ToolDefinition), {

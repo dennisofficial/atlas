@@ -36,6 +36,21 @@ afterEach(() => {
   globalThis.fetch = realFetch
 })
 
+describe('openrouter supportedUrls', () => {
+  it('defers to the model the provider builds rather than freezing an empty map', async () => {
+    const { createOpenAICompatible } = await import('@ai-sdk/openai-compatible')
+    const adapter = new OpenRouterAdapter({ credentials, cards: [card] })
+
+    const declared = createOpenAICompatible({
+      name: OPENROUTER_PROVIDER_ID,
+      baseURL: 'https://openrouter.ai/api/v1',
+      supportsStructuredOutputs: true,
+    }).chatModel(card.ref.modelId).supportedUrls
+
+    expect(adapter.model({ card, effort }).supportedUrls).toEqual(declared)
+  })
+})
+
 describe('openrouter base url', () => {
   it('defaults to the hosted endpoint', async () => {
     let called = ''

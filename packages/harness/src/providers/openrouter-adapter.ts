@@ -52,6 +52,15 @@ export class OpenRouterAdapter extends ProviderAdapter {
     return openrouterEffortOptions(args)
   }
 
+  private readonly compatible = (): ReturnType<typeof createOpenAICompatible> =>
+    createOpenAICompatible({
+      name: OPENROUTER_PROVIDER_ID,
+      baseURL: this.baseUrl ?? OPENROUTER_BASE_URL,
+      // supportedUrls reads pure provider config, so a credential-less instance answers it.
+      headers: ATTRIBUTION_HEADERS,
+      supportsStructuredOutputs: true,
+    })
+
   model(args: {
     card: ModelCard
     effort: () => EEffort
@@ -85,7 +94,9 @@ export class OpenRouterAdapter extends ProviderAdapter {
       specificationVersion: 'v4',
       provider: OPENROUTER_PROVIDER_ID,
       modelId: args.card.ref.modelId,
-      supportedUrls: {},
+      // @ai-sdk/openai-compatible answers supportedUrls from provider config; deferring to it keeps
+      // the map in step with the model instead of freezing an empty one here.
+      supportedUrls: this.compatible().chatModel(args.card.ref.modelId).supportedUrls,
       doGenerate: async (options) => (await authorized()).doGenerate(withEffort(options)),
       doStream: async (options) => (await authorized()).doStream(withEffort(options)),
     }
