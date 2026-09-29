@@ -251,6 +251,31 @@ describe('the bordered composer', () => {
     for (const word of ['Rejecting', 'reused', 'tokens']) expect(head).toContain(word)
   })
 
+  it('streams a too-long answer into the same form the settled title takes', async () => {
+    applyComposerEdge(EComposerEdge.Bordered)
+    const long = 'a session name long enough to overflow the composer title room entirely'
+    const settled = composerTitle({ title: long, width: WIDTH, badge: null, edge: EComposerEdge.Bordered })
+    const frame = await frameOf(
+      <Draft
+        title={TITLE}
+        naming={{
+          phase: ENamingPhase.Streaming,
+          startCells: TITLE.length,
+          startedWithName: true,
+          target: long,
+          startedAt: Date.now() - 10_000,
+        }}
+      />,
+      WIDTH,
+    )
+    const head = frame.split('\n').find((row) => row.startsWith(FRAME_TOP_LEFT)) ?? ''
+
+    // The streamed answer is clipped by the same composerTitle the settled title reads, so the row
+    // ends on the ellipsis rather than snapping from a hard cut to an ellipsized form on handoff.
+    expect(head).toContain('…')
+    expect(head).not.toContain('entirely')
+  })
+
   it('gives the corner its column back, so the title truncates a cell sooner', () => {
     const slab = composerTitle({ title: TITLE, width: 30, badge: null })
     const bordered = composerTitle({

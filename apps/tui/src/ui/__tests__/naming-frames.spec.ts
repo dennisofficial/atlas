@@ -10,7 +10,6 @@ import {
   namingSettled,
   namingStreaming,
   NAMING_SIDEBAR_LINE,
-  titleWithin,
 } from '../naming-frames'
 
 const TITLE = 'fix the sidebar shimmer'
@@ -147,15 +146,5 @@ describe('where the generating line starts', () => {
 
   test('a degenerate row still starts with a cell', () => {
     expect(freshStartCells({ kind: 'composer', maxCells: 1 })).toBe(1)
-  })
-})
-
-describe('titleWithin', () => {
-  test('clips to a cell budget without splitting the text', () => {
-    expect(titleWithin({ title: TITLE, cells: 7 })).toBe('fix the')
-  })
-
-  test('keeps a title that already fits', () => {
-    expect(titleWithin({ title: TITLE, cells: 100 })).toBe(TITLE)
   })
 })

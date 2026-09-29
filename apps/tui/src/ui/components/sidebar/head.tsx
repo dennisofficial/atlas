@@ -3,7 +3,7 @@ import React from "react";
 import type { SidebarModel } from "../../../store/sidebar-model";
 import { costTone, formatUsd, spendFigures } from "../../../store/sidebar-spend";
 import { theme } from "../../theme";
-import { NAMING_SIDEBAR_LINE, titleWithin } from "../../naming-frames";
+import { NAMING_SIDEBAR_LINE } from "../../naming-frames";
 import { ENamingPhase, NamingLine, type NamingState } from "../naming-line";
 import { truncateCells } from "./cells";
 
@@ -25,7 +25,7 @@ const clampToRow = (args: { state: NamingState; cells: number }): NamingState =>
     target:
       args.state.target === null
         ? null
-        : titleWithin({ title: args.state.target, cells: args.cells }),
+        : truncateCells({ text: args.state.target, cells: args.cells }),
   };
 };
 
