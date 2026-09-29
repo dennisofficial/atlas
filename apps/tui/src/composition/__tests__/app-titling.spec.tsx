@@ -451,6 +451,52 @@ describe('renaming a session with /rename', () => {
     }
   })
 
+  it('streams the answer in rather than snapping straight to the settled title', async () => {
+    let release: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const app = fakeApp({ model: scriptedModelPort({ script }), names: NAME, titlerWait: gate })
+    const mounted = await open({ app })
+
+    try {
+      await mounted.typeText(OPENING)
+      mounted.pressEnter()
+      await until({ holds: async () => (await mounted.frame()).includes(REPLY), within: WITHIN_MS })
+
+      await mounted.typeText('/rename')
+      mounted.pressEnter()
+
+      // Hold the titler so the generating phase is up, then release and watch the head row across
+      // the settle. The answer must sweep in — a frame that is part old name / part noise — before
+      // the row reads the clean settled handle. The real thread store echoes asynchronously, which
+      // is the case where the end-guard used to kill the stream the frame it started.
+      await until({
+        holds: async () => NOISE_CELL.test(await mounted.frame()),
+        within: WITHIN_MS,
+      })
+      release()
+
+      const headOf = (shot: string): string =>
+        shot.split('\n').find((line) => line.includes('▄▄') && /[A-Za-z·:∙]/.test(line)) ?? ''
+      let sawStream = false
+      await until({
+        holds: async () => {
+          const head = headOf(await mounted.frame())
+          if (head.includes(HANDLE) && !NOISE_CELL.test(head)) return true
+          if (NOISE_CELL.test(head) && /[A-Za-z]/.test(head.replace(/[·:∙\s▄╻]/g, ''))) sawStream = true
+          return false
+        },
+        within: WITHIN_MS,
+      })
+
+      expect(sawStream).toBe(true)
+    } finally {
+      release()
+      await mounted.done()
+    }
+  })
+
   it('says what to do when there is nothing said yet to name the session from', async () => {
     const mounted = await open({ app: naming(NAME) })
 

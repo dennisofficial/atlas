@@ -295,6 +295,11 @@ export function fakeThreadStore(
     },
 
     async rename({ threadId, title }) {
+      // The real thread store awaits a disk read + write before it echoes, so the echo lands a
+      // macrotask (or several) after the call returns. Mirroring that here is what exercises the
+      // rename animation's stream-then-settle handoff; a synchronous echo hides the race.
+      await Promise.resolve()
+      await Promise.resolve()
       renames.push({ threadId, title })
       const row = rows.find((held) => held.id === threadId)
       if (row !== undefined) row.title = title
