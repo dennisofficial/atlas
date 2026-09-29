@@ -2,7 +2,6 @@ import { RGBA, StyledText, type TextChunk } from '@opentui/core'
 
 import { mixHex } from './colour'
 import { cellsOf } from './hint-layout'
-import { sliceCells } from './components/sidebar/cells'
 import { theme } from './theme'
 
 export const NAMING_SETTLE_MS = 400
@@ -131,10 +130,6 @@ export function freshStartCells(args: { kind: 'sidebar' | 'composer'; maxCells: 
   if (args.kind === 'sidebar') return args.maxCells
   return Math.max(1, Math.min(FRESH_TITLE_CELLS, args.maxCells))
 }
-
-/** Slice a title to a cell budget without splitting a code point. */
-export const titleWithin = (args: { title: string; cells: number }): string =>
-  sliceCells({ text: args.title, cells: args.cells })
 
 export const NAMING_SIDEBAR_LINE: NamingLine = { fg: theme.bright, towards: theme.appBg, dim: 0.45 }
 

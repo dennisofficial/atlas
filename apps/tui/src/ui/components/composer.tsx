@@ -7,7 +7,7 @@ import { mentionStyleId, mentionSyntaxStyle } from '../mention-style'
 import { useAppearance } from '../hooks/use-appearance'
 import type { DraftControls } from '../hooks/use-draft'
 import { glyph, theme } from '../theme'
-import { FRESH_TITLE_CELLS, namingComposerLine, titleWithin } from '../naming-frames'
+import { FRESH_TITLE_CELLS, namingComposerLine } from '../naming-frames'
 import { ENamingPhase, NamingLine, type NamingState } from './naming-line'
 import { composerNoticeCells, composerTitle, composerTitleRoom } from './composer-title'
 import { EFrameRule, Frame, FRAME_INSET, FRAME_PAD } from './frame'
@@ -214,12 +214,18 @@ function DerivedComposer(props: {
   /**
    * The slab clamps the shared animation to what its own row holds: a fresh name opens at the
    * average title's width (flexed down when the row is narrower), a rename keeps the old name's
-   * width, and the answer is clipped to the room the same way a settled title truncates.
+   * width. The answer is clipped by the same `composerTitle` the settled title reads, so the last
+   * streamed frame and the settled frame are byte-identical — a hard cut here would jump to an
+   * ellipsis the moment the animation hands off.
    */
   const namingSlab = (() => {
     if (props.naming == null) return null
     const room = composerTitleRoom({ width: props.width, badge, edge })
     if (room === null) return null
+    const clipped =
+      props.naming.target === null
+        ? null
+        : composerTitle({ title: props.naming.target, width: props.width, badge, edge })
     const state: NamingState =
       props.naming.phase === ENamingPhase.Generating
         ? {
@@ -232,7 +238,7 @@ function DerivedComposer(props: {
         : {
             ...props.naming,
             startCells: Math.min(props.naming.startCells, room),
-            target: props.naming.target === null ? null : titleWithin({ title: props.naming.target, cells: room }),
+            target: clipped,
           }
     const fg = edge === EComposerEdge.Bordered || edge === EComposerEdge.Claude ? theme.caretFg : theme.body
     return <NamingLine state={state} line={namingComposerLine({ fg, towards: theme.appBg })} />
