@@ -957,11 +957,14 @@ function Workspace(props: {
       if (conversation.sessionName !== null) namingAnimation.stream(conversation.sessionName)
     }
     /**
-     * The animation ends the moment the naming ask is over, answer or not: a rename that resolved
-     * streams its answer in, a declined or empty one just stops. Holding the state past `naming`
-     * falling false is what suppressed the settled title until the session was restarted.
+     * End the animation only when the ask is over AND nothing is streaming in. A rename whose store
+     * is async (the real thread store awaits its disk write before echoing) delivers the echo and the
+     * naming flag's fall in the same commit, so `stream()` and this guard run together — ending here
+     * on an answered ask kills the stream the exact frame it starts. When an answer arrived
+     * (`named !== null`) the stream's own settle timer clears the state; ending early is only for the
+     * declined/empty case, where nothing will ever stream and the state would otherwise stick.
      */
-    if (!conversation.naming && watching.naming) namingAnimation.end()
+    if (!conversation.naming && watching.naming && watching.named === null) namingAnimation.end()
     watching.naming = conversation.naming
   }) // every commit: the watch is a transition detector, not a dependency list
 
