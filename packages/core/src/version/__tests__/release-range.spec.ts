@@ -72,6 +72,21 @@ describe('releaseRowsInRange', () => {
   it('is empty when the last-launch version is unreadable', () => {
     expect(releaseRowsInRange({ rows, sinceVersion: 'garbage' })).toEqual([])
   })
+
+  it('caps the range at the running version, hiding releases the binary has not shipped', () => {
+    expect(releaseRowsInRange({ rows, sinceVersion: '1.28.0', upToVersion: '1.31.0' })).toEqual([
+      { version: '1.31.0', body: 'b' },
+      { version: '1.30.0', body: 'a' },
+    ])
+  })
+
+  it('ignores an unreadable upper bound rather than hiding everything', () => {
+    expect(releaseRowsInRange({ rows, sinceVersion: '1.28.0', upToVersion: 'garbage' })).toEqual([
+      { version: '1.32.1', body: 'c' },
+      { version: '1.31.0', body: 'b' },
+      { version: '1.30.0', body: 'a' },
+    ])
+  })
 })
 
 describe('releaseNotesHeading', () => {

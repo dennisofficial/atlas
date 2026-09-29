@@ -28,14 +28,20 @@ export function decideReleaseNotes(args: {
 export function releaseRowsInRange(args: {
   rows: readonly ReleaseNotesRow[]
   sinceVersion: string
+  upToVersion?: string
 }): ReleaseNotesRow[] {
   const since = parseSemver(args.sinceVersion)
   if (since === null) return []
 
+  const upTo = args.upToVersion === undefined ? null : parseSemver(args.upToVersion)
+
   return args.rows
     .filter((row) => {
       const version = parseSemver(row.version)
-      return version !== null && isNewerSemver({ candidate: version, current: since })
+      if (version === null) return false
+      if (!isNewerSemver({ candidate: version, current: since })) return false
+      if (upTo !== null && isNewerSemver({ candidate: version, current: upTo })) return false
+      return true
     })
     .sort((a, b) => {
       const left = parseSemver(a.version)

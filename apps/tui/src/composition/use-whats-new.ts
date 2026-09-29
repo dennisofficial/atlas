@@ -27,6 +27,7 @@ const fetchWithFallback = async (args: {
   repo: string
   prefix: string
   sinceVersion: string
+  upToVersion: string
 }): Promise<readonly ReleaseNotesRow[] | null> => {
   const outcome = await fetchReleaseNotes(args)
   return outcome.kind === 'ok' ? outcome.rows : null
@@ -66,6 +67,7 @@ export function useWhatsNew(): WhatsNewControl {
         repo,
         prefix: RELEASE_TAG_PREFIX,
         sinceVersion: from,
+        upToVersion: decision.to,
       })
       if (cancelled) return
       setView({

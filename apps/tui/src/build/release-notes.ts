@@ -8,6 +8,7 @@ export async function fetchReleaseNotes(args: {
   repo: string
   prefix: string
   sinceVersion: string
+  upToVersion: string
 }): Promise<ReleaseNotesFetch> {
   try {
     const res = await fetch(`https://api.github.com/repos/${args.repo}/releases?per_page=50`, {
@@ -30,7 +31,14 @@ export async function fetchReleaseNotes(args: {
       rows.push({ version: tag.slice(args.prefix.length), body })
     }
 
-    return { kind: 'ok', rows: releaseRowsInRange({ rows, sinceVersion: args.sinceVersion }) }
+    return {
+      kind: 'ok',
+      rows: releaseRowsInRange({
+        rows,
+        sinceVersion: args.sinceVersion,
+        upToVersion: args.upToVersion,
+      }),
+    }
   } catch {
     return { kind: 'failed' }
   }
