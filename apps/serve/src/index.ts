@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs'
+
 import { isResumable, type ThreadId } from '@dltech/atlas-core'
 
 import type { StepId } from '@dltech/atlas-harness'
@@ -6,7 +8,7 @@ import { MainWake } from '@dltech/atlas-harness'
 import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
 
 import { atlasDirectory, readMetaSync, threadMetaFile, threadMetaSchema } from '@dltech/atlas-harness'
-import { sessionDirectory } from '@dltech/atlas-harness'
+import { sessionDirectory, eventLogFile } from '@dltech/atlas-harness'
 
 import { syncCapabilitiesNotice } from './capabilities-notice'
 import { createChannelBridge } from './channel-bridge'
@@ -18,6 +20,7 @@ import { applyGitAccessEnv } from './git-access-env'
 import { SERVE_IDLE_MINUTES_WITH_SERVICES, startServeIdleStop } from './idle-stop'
 import { materializeContext } from './materialize-context'
 import { materializeTranscript } from './materialize-transcript'
+import { restoreTranscript } from './restore-transcript'
 import {
   createEnsureWorkspace,
   EWorkspaceState,
@@ -359,6 +362,20 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
         }),
     ...(app.modelBridge === undefined ? {} : { selectModel: app.modelBridge.select }),
     ...(app.sessionArchive === undefined ? {} : { sessionArchive: app.sessionArchive }),
+    restoreTranscript: async () => {
+      const fetchArchive = args.fetchTranscriptArchive ?? driveTranscriptArchiveFetcher({ driveHome })
+      const sessionDir = sessionDirectory({ home: driveHome, sessionId: threadId })
+      const result = await restoreTranscript({
+        fetchArchive,
+        atlasHome: driveHome,
+        threadId,
+        log: app.log,
+        hasTranscript: () => existsSync(eventLogFile({ sessionDir, threadId })),
+      })
+      if (result.failed !== null) log({ event: EServeEvent.TranscriptFailed, reason: result.failed })
+      else if (result.restored) log({ event: EServeEvent.TranscriptRestored })
+      return result
+    },
   })
 
   const unsubscribeThreads = (() => {

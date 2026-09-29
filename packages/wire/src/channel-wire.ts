@@ -87,6 +87,13 @@ export enum EClientRequest {
    */
   RenameThread = 'rename-thread',
   SetThreadModel = 'set-thread-model',
+  /**
+   * The lift's late transcript restore: the archive the laptop shipped to the drive is extracted
+   * into the session directory and the store re-read, so a transcript uploaded after serve was
+   * already healthy reaches the session without a process restart. A serve built before this op
+   * refuses, and the lift warns rather than silently attaching a blank transcript.
+   */
+  RestoreTranscript = 'restore-transcript',
 }
 
 export enum ETurnStatus {

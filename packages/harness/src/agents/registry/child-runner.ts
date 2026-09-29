@@ -77,6 +77,7 @@ function observingLog({
     },
 
     read: (args) => log.read(args),
+    refresh: (args) => log.refresh(args),
     head: (args) => log.head(args),
     readOwn: (args) => log.readOwn(args),
     replace: (args) => log.replace(args),

@@ -35,6 +35,8 @@ const recordingLog = (calls: string[]): EventLogPort =>
       return []
     }
 
+    async refresh(): Promise<void> {}
+
     async head(): Promise<number> {
       return 0
     }

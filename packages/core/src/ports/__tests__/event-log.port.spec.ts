@@ -44,6 +44,7 @@ const fakeLog = (): EventLogPort => {
     async head({ threadId }) {
       return of(threadId).length
     },
+    async refresh() {},
     async readOwn({ threadId, upTo }) {
       const stored = of(threadId)
       if (upTo === undefined) return [...stored]

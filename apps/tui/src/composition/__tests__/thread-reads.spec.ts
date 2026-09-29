@@ -54,6 +54,8 @@ class MemoryLog extends EventLogPort {
     return this.slice(args)
   }
 
+  override async refresh(): Promise<void> {}
+
   override async head(): Promise<number> {
     return this.rows.at(-1)?.seq ?? 0
   }

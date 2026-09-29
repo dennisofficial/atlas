@@ -503,6 +503,8 @@ export function fakeEventLog(seeded: readonly Event[] = []): FakeEventLog {
       return headByThread.get(threadId) ?? 0
     },
 
+    async refresh() {},
+
     async readOwn({ threadId, upTo }) {
       ownReads.push(threadId)
       return held({ threadId, ...(upTo === undefined ? {} : { upTo }) })

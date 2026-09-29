@@ -85,7 +85,7 @@ export type ServeApp = {
   runner: Pick<TurnRunner, 'runTurn' | 'resume'>
   /** The between-turns rules the shared root composed — absent in fakes, which run no policy. */
   turnPolicy?: TurnPolicy | undefined
-  log: Pick<EventLogPort, 'append' | 'read' | 'readOwn' | 'head'>
+  log: Pick<EventLogPort, 'append' | 'read' | 'readOwn' | 'head' | 'refresh'>
   threads: Pick<
     ThreadStorePort,
     'find' | 'createWithFirstEvents' | 'spawned' | 'list' | 'rename' | 'chooseModel' | 'onRename' | 'onModelChosen'
@@ -107,6 +107,11 @@ export type ServeApp = {
   whenChildrenSettled: (args: { threadId: ThreadId }) => Promise<void>
   /** Tars the served session directory for the descend's transcript transfer; absent in fakes. */
   sessionArchive?: (() => Promise<Uint8Array | null>) | undefined
+  /**
+   * The lift's late transcript restore: extracts the archive the client shipped to the drive and
+   * refreshes the store so the read ops serve it. Absent in fakes, which refuse the op.
+   */
+  restoreTranscript?: (() => Promise<{ restored: boolean; failed: string | null }>) | undefined
   /** Live counts behind the idle park; absent in fakes, where nothing runs. */
   runningShells?: (() => number) | undefined
   runningServices?: (() => number) | undefined

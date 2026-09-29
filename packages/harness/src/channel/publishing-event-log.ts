@@ -11,6 +11,7 @@ export function withDeltaPublishing(args: { log: EventLogPort; channel: DeltaCha
     },
 
     read: (readArgs) => args.log.read(readArgs),
+    refresh: (refreshArgs) => args.log.refresh(refreshArgs),
     head: (headArgs) => args.log.head(headArgs),
     readOwn: (readArgs) => args.log.readOwn(readArgs),
     replace: (replaceArgs) => args.log.replace(replaceArgs),
