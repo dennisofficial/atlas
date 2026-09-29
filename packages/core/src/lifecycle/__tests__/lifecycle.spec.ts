@@ -2,12 +2,19 @@ import { describe, expect, it } from 'bun:test'
 
 import type { Event, EventEnvelope } from '../../events/envelope'
 import { toEventId, toRunId, toThreadId } from '../../events/ids'
-import { ELifecycleState, endedKeysOf, lifecycleOf, lostOf, type LifecycleKind } from '../lifecycle'
+import { EShellStatus, type EventOfType } from '../../index'
+import {
+  ELifecycleState,
+  endedKeysOf,
+  lifecycleOf,
+  lostOf,
+  type LifecycleKind,
+} from '../lifecycle'
 
 const threadId = toThreadId('thread-lifecycle')
 
-type FakeStart = Event & { type: 'fake-started'; name: string; scope?: string }
-type FakeEnd = Event & { type: 'fake-ended'; name: string; scope?: string }
+type StartedShell = EventOfType<'background-shell-started'>
+type EndedShell = EventOfType<'background-shell-ended'>
 
 let sequence = 0
 const envelope = (): EventEnvelope => {
@@ -22,34 +29,59 @@ const envelope = (): EventEnvelope => {
   }
 }
 
-const started = (name: string, scope?: string): FakeStart =>
-  ({ type: 'fake-started', name, ...(scope === undefined ? {} : { scope }), ...envelope() }) as FakeStart
+const started = (args: { shellId: string; bootId?: string }): StartedShell =>
+  ({
+    type: 'background-shell-started',
+    shellId: args.shellId,
+    command: 'bun test',
+    ...(args.bootId === undefined ? {} : { bootId: args.bootId }),
+    ...envelope(),
+  }) as StartedShell
 
-const ended = (name: string, scope?: string): FakeEnd =>
-  ({ type: 'fake-ended', name, ...(scope === undefined ? {} : { scope }), ...envelope() }) as FakeEnd
+const ended = (args: { shellId: string; bootId?: string }): EndedShell =>
+  ({
+    type: 'background-shell-ended',
+    shellId: args.shellId,
+    command: 'bun test',
+    ...(args.bootId === undefined ? {} : { bootId: args.bootId }),
+    status: EShellStatus.Exited,
+    exitCode: 0,
+    output: '',
+    droppedCharacters: 0,
+    remainingCharacters: 0,
+    ...envelope(),
+  }) as EndedShell
 
-const fakeKind: LifecycleKind<FakeStart, FakeEnd> = {
-  isStart: (event): event is FakeStart => event.type === ('fake-started' as never),
-  isEnd: (event): event is FakeEnd => event.type === ('fake-ended' as never),
-  keyOf: (event) => event.name,
-  scopeOf: (event) => event.scope ?? '',
+const shellKind: LifecycleKind<StartedShell, EndedShell> = {
+  isStart: (event): event is StartedShell => event.type === 'background-shell-started',
+  isEnd: (event): event is EndedShell => event.type === 'background-shell-ended',
+  keyOf: (event) => event.shellId,
+  scopeOf: (event) => event.bootId ?? '',
 }
 
 describe('lifecycleOf', () => {
   it('marks an opened-and-closed thing settled', () => {
-    const lifecycles = lifecycleOf([started('a', 's1'), ended('a', 's1')], fakeKind)
+    const lifecycles = lifecycleOf(
+      [started({ shellId: 'bash_1', bootId: 'b1' }), ended({ shellId: 'bash_1', bootId: 'b1' })],
+      shellKind,
+    )
     expect(lifecycles).toHaveLength(1)
     expect(lifecycles[0]?.state).toBe(ELifecycleState.Settled)
   })
 
   it('marks an open with no close lost', () => {
-    expect(lifecycleOf([started('a', 's1')], fakeKind)[0]?.state).toBe(ELifecycleState.Lost)
+    const lifecycles = lifecycleOf([started({ shellId: 'bash_1', bootId: 'b1' })], shellKind)
+    expect(lifecycles[0]?.state).toBe(ELifecycleState.Lost)
   })
 
-  it('never lets a recycled id in a new scope settle a start from an old scope', () => {
+  it('never lets a recycled id under a new scope settle a start from an old scope', () => {
     const lifecycles = lifecycleOf(
-      [started('a', 's1'), started('a', 's2'), ended('a', 's2')],
-      fakeKind,
+      [
+        started({ shellId: 'bash_1', bootId: 'b1' }),
+        started({ shellId: 'bash_1', bootId: 'b2' }),
+        ended({ shellId: 'bash_1', bootId: 'b2' }),
+      ],
+      shellKind,
     )
     expect(lifecycles[0]?.state).toBe(ELifecycleState.Lost)
     expect(lifecycles[1]?.state).toBe(ELifecycleState.Settled)
@@ -57,26 +89,38 @@ describe('lifecycleOf', () => {
 
   it('pairs FIFO within one scope when an id is reused', () => {
     const lifecycles = lifecycleOf(
-      [started('a', 's1'), started('a', 's1'), ended('a', 's1')],
-      fakeKind,
+      [
+        started({ shellId: 'bash_1', bootId: 'b1' }),
+        started({ shellId: 'bash_1', bootId: 'b1' }),
+        ended({ shellId: 'bash_1', bootId: 'b1' }),
+      ],
+      shellKind,
     )
     expect(lifecycles[0]?.state).toBe(ELifecycleState.Settled)
     expect(lifecycles[1]?.state).toBe(ELifecycleState.Lost)
   })
 
   it('ignores a close with no matching open', () => {
-    expect(lifecycleOf([ended('ghost', 's1')], fakeKind)).toHaveLength(0)
+    expect(lifecycleOf([ended({ shellId: 'bash_9', bootId: 'b1' })], shellKind)).toHaveLength(0)
   })
 })
 
 describe('the projections', () => {
   it('lostOf returns only the unsettled opens', () => {
-    const events = [started('a', 's1'), started('b', 's1'), ended('a', 's1')]
-    expect(lostOf(events, fakeKind).map((lifecycle) => lifecycle.key)).toEqual(['b'])
+    const events: Event[] = [
+      started({ shellId: 'bash_1', bootId: 'b1' }),
+      started({ shellId: 'bash_2', bootId: 'b1' }),
+      ended({ shellId: 'bash_1', bootId: 'b1' }),
+    ]
+    expect(lostOf(events, shellKind).map((lifecycle) => lifecycle.key)).toEqual(['bash_2'])
   })
 
   it('endedKeysOf names the scoped key of every recorded close', () => {
-    const events = [started('a', 's1'), ended('a', 's1'), ended('a', 's2')]
-    expect([...endedKeysOf(events, fakeKind)].sort()).toEqual(['s1a', 's2a'])
+    const events: Event[] = [
+      started({ shellId: 'bash_1', bootId: 'b1' }),
+      ended({ shellId: 'bash_1', bootId: 'b1' }),
+      ended({ shellId: 'bash_1', bootId: 'b2' }),
+    ]
+    expect([...endedKeysOf(events, shellKind)].sort()).toEqual(['b1bash_1', 'b2bash_1'])
   })
 })
