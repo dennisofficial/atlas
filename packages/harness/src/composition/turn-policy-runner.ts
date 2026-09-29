@@ -136,12 +136,6 @@ export function createTurnPolicyRunner(args: {
       return
     }
     takenBack = undone.said
-    notice.notify({
-      key: 'turn-undo',
-      tone: ENoticeTone.Done,
-      ttlMs: NOTICE_MS,
-      text: 'The interrupted turn was taken back — what you said is back in the composer.',
-    })
   }
 
   return {

@@ -159,7 +159,7 @@ describe('the turn policy the shared root composes', () => {
     const said = policy.undone()
     expect(said).not.toBeNull()
     expect(said?.text).toContain('a message long enough')
-    expect(notices.posts.some((post) => post.key === 'turn-undo' && post.text.includes('taken back'))).toBe(true)
+    expect(notices.posts.filter((post) => post.key === 'turn-undo')).toEqual([])
     expect((await fixture.log.read({ threadId: THREAD })).length).toBe(0)
     await fixture.close()
   })
