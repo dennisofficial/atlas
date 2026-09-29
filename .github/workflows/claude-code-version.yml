@@ -42,8 +42,8 @@ jobs:
           git add "$attribution"
           git commit -m "fix(harness): bump claude code attribution version to $version"
           git push origin "$branch"
+          body_file="$(mktemp)"
+          printf 'Automated bump of `CLAUDE_CODE_VERSION` to the latest `@anthropic-ai/claude-code` release (%s).\n\nMerge by hand — the attribution format is reverse-engineered, so a release that changed the fingerprint scheme needs a look before it lands.\n' "$version" > "$body_file"
           gh pr create \
             --title "fix(harness): bump claude code attribution version to $version" \
-            --body "Automated bump of \`CLAUDE_CODE_VERSION\` to the latest \`@anthropic-ai/claude-code\` release ($version).
-
-Merge by hand — the attribution format is reverse-engineered, so a release that changed the fingerprint scheme needs a look before it lands."
+            --body-file "$body_file"
