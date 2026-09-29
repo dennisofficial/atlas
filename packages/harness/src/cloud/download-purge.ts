@@ -10,17 +10,13 @@ import {
 
 import { writeUserMcpServer } from '../mcp/config/writer'
 import type { FileSecretsStore } from '../secrets/file-secrets-store'
-import { atlasDirectory } from '../store/paths'
 import { CloudError, type CloudClient } from './cloud-client'
-import { downloadMemoryArchive } from './download-memory-archive'
 import { CLOUD_PURGE_DOMAINS, type CloudPurgeDomainId } from './purge-domains'
-import type { UserContextClient } from './user-context-client'
 
 export type CloudPurgeResult = {
   accounts: number
   secrets: number
   mcpServers: number
-  memoryFiles: number
   githubDisconnected: boolean
 }
 
@@ -36,7 +32,6 @@ export type { CloudPurgeDomain, CloudPurgeDomainId } from './purge-domains'
 export type CloudPurgeStores = {
   accounts: AccountStorePort
   secrets: FileSecretsStore | undefined
-  context: Pick<UserContextClient, 'readMemoryArchive' | 'readMemoryBundle'>
 }
 
 const messageOf = (cause: unknown): string =>
@@ -187,18 +182,6 @@ export async function downloadCloudData(args: {
   }
 }
 
-const downloadMemory = async (args: {
-  client: CloudClient
-  context: CloudPurgeStores['context']
-}): Promise<number> => {
-  const downloaded = await downloadMemoryArchive({
-    context: args.context,
-    atlasHome: atlasDirectory(),
-  })
-  await args.client.deleteMemory()
-  return downloaded.restored
-}
-
 const disconnectGithub = async (args: { client: CloudClient }): Promise<boolean> => {
   const connection = await args.client.githubConnection()
   if (connection === null) return false
@@ -221,7 +204,7 @@ const failureMessage = (args: {
 /**
  * The mirror of finishLogin's local→cloud copy: per domain, download-and-land locally first and
  * only then delete server-side, so a failure mid-way never strands data. Domain order is
- * accounts → secrets → mcp servers → memory → github connection; every domain is re-runnable,
+ * accounts → secrets → mcp servers → github connection; every domain is re-runnable,
  * so a retry after a partial run picks up what is left.
  */
 export async function downloadAndPurgeCloudData(args: {
@@ -232,7 +215,6 @@ export async function downloadAndPurgeCloudData(args: {
     accounts: 0,
     secrets: 0,
     mcpServers: 0,
-    memoryFiles: 0,
     githubDisconnected: false,
   }
   const landed: string[] = []
@@ -254,9 +236,6 @@ export async function downloadAndPurgeCloudData(args: {
     },
     mcpServers: async () => {
       result.mcpServers = await downloadMcpServers({ client: args.client, purge: true })
-    },
-    memory: async () => {
-      result.memoryFiles = await downloadMemory({ client: args.client, context: args.stores.context })
     },
     github: async () => {
       result.githubDisconnected = await disconnectGithub({ client: args.client })

@@ -15,15 +15,12 @@ import { EFFORT_LADDER, parseRef } from '@dltech/atlas-core'
 
 import { sandboxNameFor } from '@dltech/atlas-harness'
 import { SelectableModelToken } from '@dltech/atlas-harness'
-import { UserContextClient } from '@dltech/atlas-harness'
 import { VercelDriver, type VercelCredentials } from '@dltech/atlas-harness'
 import { composeHarness } from '@dltech/atlas-harness'
 import { loadSettings } from '@dltech/atlas-harness'
 import { portToken } from '@dltech/atlas-harness'
 import { SecretsStoreToken, ServeSessionToken } from '@dltech/atlas-harness'
-import { memoryDirectoriesFor } from '@dltech/atlas-harness'
 import { ShellRecovery } from '@dltech/atlas-harness'
-import { atlasDirectory } from '@dltech/atlas-harness'
 import { ThreadStorePort } from '@dltech/atlas-harness'
 
 import { adoptChildren } from './adopt-children'
@@ -35,7 +32,6 @@ import { ServeCredentialPort } from './serve-credential-port'
 import { ServeSecretsStore } from './serve-secrets-store'
 import { seedServeSession } from './serve-session'
 import { serveSessionArchive } from './serve-session-archive'
-import { createMemoryUploader } from './upload-memory'
 
 export const SERVE_COMMAND = 'serve'
 
@@ -79,30 +75,6 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
   const secrets = new ServeSecretsStore({ broker })
 
   const identity = args.identity ?? null
-  const keyPrefix =
-    identity !== null
-      ? `project/${encodeURIComponent(identity)}`
-      : args.projectDirectory === null || args.projectDirectory === undefined
-        ? 'project'
-        : `project/${encodeURIComponent(args.projectDirectory)}`
-
-  const memory = createMemoryUploader({
-    client: new UserContextClient({
-      url: args.controlPlaneUrl,
-      token: args.token,
-      clientVersion: args.clientVersion,
-    }),
-    atlasHome: atlasDirectory(),
-    project: {
-      directory: memoryDirectoriesFor({
-        atlasHome: atlasDirectory(),
-        repoRoot: args.cwd,
-        identity,
-      }).project,
-      keyPrefix,
-    },
-    notice: args.notice,
-  })
 
   const app = await composeHarness<ServeStores>({
     repoIdentity: identity,
@@ -197,7 +169,6 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
         await app.agents.pauseChildren({ threadId })
       },
     },
-    syncMemoryAfterTurn: memory.syncAfterTurn,
     runningShells: () =>
       app.shells.listEverywhere().filter((shell) => shell.status === EShellStatus.Running).length,
     runningServices: () =>

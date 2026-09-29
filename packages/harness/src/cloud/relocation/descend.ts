@@ -11,7 +11,6 @@ import {
 import type { AgentRegistryPort } from '../../agents/registry/port'
 import type { ServiceRegistryPort } from '../../services/service-registry'
 import type { ToolRegistry } from '../../tools/registry'
-import type { RemoteMemoryMerge } from '../merge-remote-memory'
 import type { ThreadStorePort } from '../../store/thread-store'
 import type { TurnLedgerPort } from '../../ledger/turn-ledger.port'
 import type { MergedWorkspace } from '../../workspace/merge-published'
@@ -30,8 +29,6 @@ export enum EDescendStep {
 export type DescendProgressStep = ELiftStep.Interrupting | EDescendStep
 
 export const DESCEND_DESTROY_NOTICE_KEY = 'descend-sandbox-destroy-failed'
-
-export const DESCEND_MEMORY_NOTICE_KEY = 'descend-memory-pull-failed'
 
 const NO_PROTECTION = (): void => undefined
 
@@ -92,12 +89,6 @@ export async function descendFromCloud<Opened>(args: {
   surface: DescendSurface<Opened>
   pauseDeadlineMs?: number | undefined
   mergeWorkspace?: WorkspaceMerger | undefined
-  /**
-   * Pulls the cloud's memory archive down over the local one — the cloud copy is newer at descend.
-   * Optional so a spec never fetches; a failure warns and never blocks the descend. Conflicts the
-   * local copy won come back so their cloud versions can be kept in the log, never dropped.
-   */
-  pullMemory?: (() => Promise<RemoteMemoryMerge>) | undefined
   logPort?: LogPort | undefined
   /** A test seam between the archive landing and the landed-state checks — live wiring never passes it. */
   afterTranscriptLanded?: (() => Promise<void>) | undefined
@@ -128,7 +119,6 @@ export async function descendFromCloud<Opened>(args: {
       progress,
       pauseDeadlineMs: args.pauseDeadlineMs,
       mergeWorkspace: args.mergeWorkspace,
-      pullMemory: args.pullMemory,
       run,
       setOpened: (value) => {
         opened = value

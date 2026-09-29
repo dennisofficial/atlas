@@ -174,7 +174,7 @@ import { useLocationItems } from './use-location-items'
 import { useExecutionLocation } from './use-execution-location'
 import { useThreads } from './use-threads'
 import { useUsageMeters } from './use-usage-meters'
-import { mergeRemoteMemoryBounded, type CaptureContext } from '@dltech/atlas-harness'
+import type { CaptureContext } from '@dltech/atlas-harness'
 
 import { createCloudBridge } from './cloud/create-bridge'
 import { createCloudSession, type CloudSession } from './cloud/cloud-session'
@@ -1206,16 +1206,6 @@ function Workspace(props: {
           channel,
           localApp: props.localApp,
           surface: descendSurface,
-          pullMemory: () => {
-            const signedIn = props.localApp.cloud.session()
-            if (signedIn === null) return Promise.resolve({ replaced: 0, conflicts: [] })
-            return mergeRemoteMemoryBounded({
-              session: signedIn,
-              clientVersion: clientVersionHeader(),
-              notice: noticePortBinding(),
-              cwd: props.localApp.workspace.workspace,
-            })
-          },
         })
           .then((opened) => {
             containerMove.handleSettle()

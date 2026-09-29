@@ -212,7 +212,7 @@ export const cloudRequest = async (args: {
 
 /**
  * `cloudRequest`'s binary sibling: no JSON encoding on the way out, no JSON parsing on the way in.
- * The context archive and memory archive routes trade raw gzip bytes, and a 429 or a non-2xx still
+ * The context archive routes trade raw gzip bytes, and a 429 or a non-2xx still
  * reads its detail from a JSON body when the API sent one.
  */
 export const cloudRawRequest = async (args: {

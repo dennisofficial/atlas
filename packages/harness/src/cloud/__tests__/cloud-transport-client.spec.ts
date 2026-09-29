@@ -36,7 +36,7 @@ describe('CloudTransport', () => {
     })
 
     await expect(
-      transport.rawRequest({ method: 'GET', path: '/v1/user-context/memory', accept: 'application/gzip' }),
+      transport.rawRequest({ method: 'GET', path: '/v1/threads', accept: 'application/gzip' }),
     ).resolves.toEqual(bytes)
   })
 })
