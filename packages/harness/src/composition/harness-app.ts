@@ -13,6 +13,7 @@ import type { AgentRegistryPort } from '../agents/registry/port'
 import type { AgentTypeCatalog } from '../agents/types/registry'
 import type { FileOpener } from '../browser/open-file'
 import type { UrlOpener } from '../browser/open-url'
+import type { PathResolver } from '../browser/path-resolver'
 import type { DeltaChannel } from '../channel/delta-channel'
 import type { CloudService } from '../cloud/cloud-service'
 import type { DependencyContainer } from '../container/injection'
@@ -105,6 +106,7 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   files: FileBrowser
   openUrl: UrlOpener
   openFile: FileOpener
+  pathResolver: PathResolver
   skills: readonly DiscoveredSkill[]
   skillRegistry: SkillRegistryPort
   agentTypes: AgentTypeCatalog

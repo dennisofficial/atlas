@@ -1,8 +1,10 @@
 import type { CliRenderer, MouseEvent } from '@opentui/core'
+import { parseLineSuffix } from '@dltech/atlas-core'
 import type { FileOpener, UrlOpener } from '@dltech/atlas-harness'
 
-import { ENoticePosition, notify } from '../ui/notice-store'
+import { ENoticePosition, ENoticeTone, notify } from '../ui/notice-store'
 import { glyph } from '../ui/theme'
+import { resolvePathMention } from './path-links'
 
 const LEFT_BUTTON = 0
 
@@ -98,7 +100,24 @@ export function installLinkClickOpen(args: {
     event.stopPropagation()
     event.preventDefault()
     renderer.clearSelection()
-    openLink({ url, openUrl, openFile })
+
+    /**
+     * A rendered link already resolved once, but a file can be deleted between paint and click,
+     * and the resolver's cache is existence truth rather than freshness truth. Re-check here so a
+     * dead target says so instead of claiming an open that opened nothing.
+     */
+    const target = linkTarget({ url })
+    if (target === null) {
+      notify({
+        key: 'link-open',
+        text: `${glyph.document} no such file: ${url.slice(FILE_SCHEME.length)}`,
+        tone: ENoticeTone.Warn,
+        position: ENoticePosition.Composer,
+      })
+      return
+    }
+
+    target.open({ openUrl, openFile })
     notify({ key: 'link-open', text: openedLabel(url), position: ENoticePosition.Composer })
   }
 }
@@ -110,17 +129,23 @@ function openedLabel(url: string): string {
   return `${mark} opened`
 }
 
-function openLink(args: { url: string; openUrl: UrlOpener; openFile: FileOpener }): void {
-  if (!args.url.startsWith(FILE_SCHEME)) {
-    args.openUrl(args.url)
-    return
-  }
-  const file = fileTarget(args.url.slice(FILE_SCHEME.length))
-  args.openFile(file)
-}
+type LinkTarget = { open: (args: { openUrl: UrlOpener; openFile: FileOpener }) => void }
 
-function fileTarget(raw: string): { path: string; line?: number } {
-  const line = /:(\d+)$/.exec(raw)?.[1]
-  if (line === undefined) return { path: raw }
-  return { path: raw.slice(0, raw.length - line.length - 1), line: Number(line) }
+function linkTarget(args: { url: string }): LinkTarget | null {
+  if (!args.url.startsWith(FILE_SCHEME)) {
+    return { open: ({ openUrl }) => openUrl(args.url) }
+  }
+
+  const mention = parseLineSuffix(args.url.slice(FILE_SCHEME.length))
+  const resolved = resolvePathMention(mention)
+  if (resolved === null) return null
+
+  return {
+    open: ({ openFile }) =>
+      openFile(
+        resolved.line === undefined
+          ? { path: resolved.path }
+          : { path: resolved.path, line: resolved.line },
+      ),
+  }
 }

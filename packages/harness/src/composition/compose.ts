@@ -28,6 +28,7 @@ import { bindAgentTypes } from '../agents/types/bind-agent-types'
 import { agentTypeSources } from '../agents/types/roots'
 import { createUrlOpener } from '../browser/open-url'
 import { createFileOpener, EEditor } from '../browser/open-file'
+import { createPathResolver } from '../browser/path-resolver'
 import { createDeltaChannel } from '../channel/delta-channel'
 import { createHarnessContainer } from '../container/create-harness-container'
 import { disposeAll, registerDisposable } from '../container/disposal'
@@ -403,6 +404,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
         }),
     }),
     openUrl: createUrlOpener(),
+    pathResolver: createPathResolver({ root: anchor }),
     openFile: createFileOpener({
       editor: () => {
         const held = choiceValueOf({

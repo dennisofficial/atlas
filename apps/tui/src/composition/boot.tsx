@@ -11,6 +11,7 @@ import { ENoticeTone, notify } from "../ui/notice-store";
 import { installHeapDumpSignal } from "./heap-dump";
 import { installOutputRedirect } from "./output-redirect";
 import { installLinkClickOpen } from "./link-click";
+import { bindPathLinks } from "./path-links";
 import { BOOT_FAILURE_EXIT_CODE, bootFailureReport } from "./boot-failure";
 import { createBootProgress } from "./boot-progress";
 import { durableOpLog } from "./durable-op-log";
@@ -180,6 +181,7 @@ export async function bootAtlas(args: {
   const settled = await session;
 
   if (settled.type === ESession.Ready) {
+    bindPathLinks({ resolve: settled.app.pathResolver });
     output?.enableNotices();
     activeThread = () => settled.app.activeThread();
     installHeapDumpSignal({

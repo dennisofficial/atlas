@@ -37,6 +37,7 @@ import { DEFAULT_MODEL_REF, EOpenMode } from '../src/composition/config'
 import { noticePortBinding } from '../src/composition/notice-binding'
 import { createExecutionLocationState } from '@dltech/atlas-harness'
 import { createSandboxStatusState } from '@dltech/atlas-harness'
+import { createPathResolver } from '@dltech/atlas-harness'
 import { heldChoice } from '@dltech/atlas-harness'
 import { fakeAgentRegistry } from '../src/composition/__tests__/fake-agents'
 import {
@@ -139,6 +140,7 @@ const benchApp = (args: {
     files: new FileBrowser({ root: args.root }),
     openUrl: () => {},
     openFile: () => {},
+    pathResolver: createPathResolver({ root: args.root }),
     skills: skillRegistry.all(),
     skillRegistry,
     agentTypes: EMPTY_AGENT_TYPE_CATALOG,

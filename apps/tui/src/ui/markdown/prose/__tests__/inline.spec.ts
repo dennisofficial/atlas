@@ -1,8 +1,20 @@
 import { marked } from 'marked'
-import { describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'bun:test'
 
+import { bindPathLinks, unbindPathLinks } from '../../../../composition/path-links'
 import { EInline, hostOf, type InlineNode, inlineNodes, inlinePlainText } from '../inline'
 import { raiseSuperscripts, subscript, superscript, superscriptNumber } from '../unicode'
+
+function resolveAll(): void {
+  bindPathLinks({
+    resolve: (mention) => ({
+      path: `/resolved/${mention.path}`,
+      ...(mention.line === undefined ? {} : { line: mention.line }),
+    }),
+  })
+}
+
+afterEach(unbindPathLinks)
 
 function nodesOf(source: string, order?: ReadonlyMap<string, number>): readonly InlineNode[] {
   return inlineNodes({ tokens: marked.lexer(source), ...(order === undefined ? {} : { order }) })
@@ -81,39 +93,61 @@ describe('links and images', () => {
 })
 
 describe('file path mentions', () => {
-  it('links a bare filename with a known extension, with and without a line', () => {
+  it('links a bare filename with a known extension, with and without a line, once it resolves', () => {
+    resolveAll()
     expect(nodesOf('see link-click.ts:42')[1]).toEqual({
       kind: EInline.FilePath,
       text: 'link-click.ts:42',
-      path: 'link-click.ts',
+      path: '/resolved/link-click.ts',
       line: 42,
     })
     expect(nodesOf('edit package.json please')[1]).toEqual({
       kind: EInline.FilePath,
       text: 'package.json',
-      path: 'package.json',
+      path: '/resolved/package.json',
     })
   })
 
   it('links slash-joined and absolute paths, extension-free, with line and column', () => {
+    resolveAll()
     expect(nodesOf('in apps/tui/src/inline.ts:10:5 there')[1]).toMatchObject({
       kind: EInline.FilePath,
-      path: 'apps/tui/src/inline.ts',
+      path: '/resolved/apps/tui/src/inline.ts',
       line: 10,
     })
     expect(nodesOf('at /Users/d/atlas/bun.lockb:1')[1]).toMatchObject({
       kind: EInline.FilePath,
-      path: '/Users/d/atlas/bun.lockb',
+      path: '/resolved//Users/d/atlas/bun.lockb',
       line: 1,
     })
     expect(nodesOf('see ./rel/path.ts:3')[1]).toMatchObject({
       kind: EInline.FilePath,
-      path: './rel/path.ts',
+      path: '/resolved/./rel/path.ts',
       line: 3,
     })
   })
 
+  it('renders a slash-joined phrase as plain text when it names no file', () => {
+    bindPathLinks({ resolve: () => null })
+    expect(nodesOf('the same foundation/structure/etc to services')).toEqual([
+      { kind: EInline.Text, text: 'the same foundation/structure/etc to services', marks: {} },
+    ])
+    expect(nodesOf('any recovery/reconciliation for them')).toEqual([
+      { kind: EInline.Text, text: 'any recovery/reconciliation for them', marks: {} },
+    ])
+  })
+
+  it('links only the slash-joined mentions that resolve, leaving the rest inline', () => {
+    bindPathLinks({
+      resolve: (mention) => (mention.path === 'apps/tui/inline.ts' ? { path: '/r/apps/tui/inline.ts' } : null),
+    })
+    const nodes = nodesOf('see apps/tui/inline.ts but not foo/bar/baz here')
+    expect(nodes.some((n) => n.kind === EInline.FilePath)).toBe(true)
+    expect(inlinePlainText(nodes)).toBe('see apps/tui/inline.ts but not foo/bar/baz here')
+  })
+
   it('leaves times, plain words and URLs alone', () => {
+    resolveAll()
     expect(nodesOf('at 12:30 and 12:30:45').every((n) => n.kind === EInline.Text)).toBe(true)
     expect(nodesOf('a:b or foo').every((n) => n.kind === EInline.Text)).toBe(true)
     expect(nodesOf('word wrap package.json5 nope').every((n) => n.kind === EInline.Text)).toBe(true)
@@ -122,6 +156,7 @@ describe('file path mentions', () => {
   })
 
   it('never links an @-mention or the path inside an HTML closing tag', () => {
+    resolveAll()
     expect(nodesOf('why is @src/mentionable.ts broken').every((n) => n.kind === EInline.Text)).toBe(
       true,
     )
@@ -131,7 +166,14 @@ describe('file path mentions', () => {
     expect(nodesOf('</details>').every((n) => n.kind !== EInline.FilePath)).toBe(true)
   })
 
+  it('links nothing when no resolver is bound, rather than guessing', () => {
+    expect(nodesOf('see link-click.ts:42 and apps/tui/inline.ts')).toEqual([
+      { kind: EInline.Text, text: 'see link-click.ts:42 and apps/tui/inline.ts', marks: {} },
+    ])
+  })
+
   it('keeps the mention inside the plain text round trip', () => {
+    resolveAll()
     expect(textOf('the hook lives in link-click.ts:42, installed')).toBe(
       'the hook lives in link-click.ts:42, installed',
     )
