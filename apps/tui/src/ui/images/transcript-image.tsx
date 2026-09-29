@@ -2,6 +2,7 @@ import { ImageRenderable, type OptimizedBuffer } from '@opentui/core'
 import { extend } from '@opentui/react'
 
 import { transcriptRows, transcriptTop } from '../viewport-rows-store'
+import { imageProtocolOf } from './protocol'
 
 /**
  * A picture that shows itself only while all of it fits on screen.
@@ -16,6 +17,11 @@ import { transcriptRows, transcriptTop } from '../viewport-rows-store'
  * whole thing, and withholding it either side of that reads as scrolling away rather than melting.
  */
 export class TranscriptImageRenderable extends ImageRenderable {
+  override get effectiveProtocol(): 'kitty' | 'sixel' | 'blocks' {
+    if (this.protocol !== 'auto') return super.effectiveProtocol
+    return imageProtocolOf({ env: { TERM_PROGRAM: process.env.TERM_PROGRAM }, fallback: super.effectiveProtocol })
+  }
+
   protected override renderSelf(buffer: OptimizedBuffer): void {
     if (this.wouldBeCropped()) return
     super.renderSelf(buffer)
