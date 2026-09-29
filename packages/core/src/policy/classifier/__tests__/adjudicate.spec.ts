@@ -92,6 +92,26 @@ describe('adjudicate', () => {
     expect(draftOf(outcome).reason).toContain('fetch failed')
   })
 
+  it('keeps the fault beside the row, so a surface can say why the judge went quiet', () => {
+    const outcome = decide({
+      mode: EClassifierMode.Shadow,
+      triage: triageOver({ triage: ETriage.Consult, standing: [SERIOUS] }),
+      consultation: UNREACHABLE,
+    })
+
+    expect(draftOf(outcome).judgeFault).toBe('fetch failed')
+  })
+
+  it('writes no fault when the judge answered', () => {
+    const outcome = decide({
+      mode: EClassifierMode.Shadow,
+      triage: triageOver({ triage: ETriage.Consult, standing: [SERIOUS] }),
+      consultation: PROCEED,
+    })
+
+    expect(draftOf(outcome).judgeFault).toBeUndefined()
+  })
+
   it('allows when the judge was unreachable and only a note survives', () => {
     const outcome = decide({
       mode: EClassifierMode.Nudge,

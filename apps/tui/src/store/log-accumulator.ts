@@ -25,7 +25,7 @@ export type LogAccumulator = {
   judgedCount: number;
   pauses: number;
   dimensionTally: Map<ERiskDimension, number>;
-  judgeUnreachable: boolean;
+  judgeUnreachable: string | null;
   grants: Map<string, Grant>;
   tokens: number;
   treeMutations: number;
@@ -43,7 +43,7 @@ export const emptyLogAccumulator = (): LogAccumulator => ({
   judgedCount: 0,
   pauses: 0,
   dimensionTally: new Map(),
-  judgeUnreachable: false,
+  judgeUnreachable: null,
   grants: new Map(),
   tokens: 0,
   treeMutations: 0,
@@ -83,7 +83,7 @@ export function foldLogEvent(args: {
     case "user-said":
       if (acc.opening === null) acc.opening = event.text;
       acc.turnCount += 1;
-      acc.judgeUnreachable = false;
+      acc.judgeUnreachable = null;
       return;
     case "tool-called":
       if (event.name === PLAN_TOOL_NAME) acc.pendingPlanInputs.set(event.callId, event.input);
@@ -111,7 +111,9 @@ export function foldLogEvent(args: {
           acc.dimensionTally.set(dimension, (acc.dimensionTally.get(dimension) ?? 0) + 1);
         }
       }
-      if (event.triage === ETriage.Consult && !event.consulted) acc.judgeUnreachable = true;
+      if (event.triage === ETriage.Consult && !event.consulted) {
+        acc.judgeUnreachable = event.judgeFault ?? "";
+      }
       return;
     }
     case "permission-granted":

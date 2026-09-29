@@ -12,7 +12,7 @@ export type ClassifierFold = {
   pauses: number
   turns: number
   topDimension: ERiskDimension | null
-  judgeUnreachable: boolean
+  judgeUnreachable: string | null
 }
 
 const judgedRows = (events: readonly Event[]): Judged[] =>
@@ -26,6 +26,12 @@ const sinceLastTurn = (events: readonly Event[]): readonly Event[] => {
 const askedFor = (row: Judged): boolean => row.wouldAsk === true
 
 const wentUnanswered = (row: Judged): boolean => row.triage === ETriage.Consult && !row.consulted
+
+const outageOf = (events: readonly Event[]): string | null => {
+  const rows = judgedRows(sinceLastTurn(events))
+  const unanswered = rows.findLast(wentUnanswered)
+  return unanswered === undefined ? null : (unanswered.judgeFault ?? '')
+}
 
 const dimensionsOf = (row: Judged): readonly ERiskDimension[] =>
   row.judgedDimension === undefined ? row.dimensions : [row.judgedDimension]
@@ -63,6 +69,6 @@ export function classifierFold({ events }: { events: readonly Event[] }): Classi
     pauses: paused.length,
     turns: eventsOfType({ events, type: 'user-said' }).length,
     topDimension: commonest(paused),
-    judgeUnreachable: judgedRows(sinceLastTurn(events)).some(wentUnanswered),
+    judgeUnreachable: outageOf(events),
   }
 }

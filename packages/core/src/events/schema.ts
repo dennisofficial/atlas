@@ -299,6 +299,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     dimensions: z.array(z.enum(ERiskDimension)),
     judgedDimension: z.enum(ERiskDimension).optional(),
     verdictFault: z.enum(EVerdictFault).optional(),
+    judgeFault: z.string().optional(),
     signalIds: z.array(z.string()),
     details: z.array(z.string()).optional(),
     grantables: z.array(grantOfferSchema).optional(),

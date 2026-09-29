@@ -130,6 +130,9 @@ function draftFor(args: {
     ...(consultation?.kind === EConsultation.Judged && consultation.fault !== undefined
       ? { verdictFault: consultation.fault }
       : {}),
+    ...(consultation?.kind === EConsultation.Unreachable
+      ? { judgeFault: clipped(consultation.fault) }
+      : {}),
     signalIds: triage.standing.map((signal) => signal.id),
     details: triage.standing.map((signal) => signal.detail),
     ...(triage.standing.length === 0

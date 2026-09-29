@@ -321,7 +321,7 @@ describe("the nudge figure the operator reads before arming it", () => {
       pauses: 1,
       turns: 1,
       topDimension: ERiskDimension.Contention,
-      judgeUnreachable: false,
+      judgeUnreachable: null,
     });
   });
 });

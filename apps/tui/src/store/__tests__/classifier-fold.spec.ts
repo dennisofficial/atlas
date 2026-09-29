@@ -98,17 +98,42 @@ describe('the offline reading', () => {
   it('reports the judge unreachable when this turn consulted and got nothing back', () => {
     const fold = foldOf([said('one'), weighed({ triage: ETriage.Consult, consulted: false })])
 
-    expect(fold?.judgeUnreachable).toBe(true)
+    expect(fold?.judgeUnreachable).not.toBeNull()
+  })
+
+  it('carries the fault the judge failed with, so the operator can tell billing from network', () => {
+    const fold = foldOf([
+      said('one'),
+      weighed({
+        triage: ETriage.Consult,
+        consulted: false,
+        judgeFault: '402 Your organization has no available TypeSafe API credits',
+      }),
+    ])
+
+    expect(fold?.judgeUnreachable).toBe(
+      '402 Your organization has no available TypeSafe API credits',
+    )
+  })
+
+  it('keeps the latest fault when more than one consult this turn went unanswered', () => {
+    const fold = foldOf([
+      said('one'),
+      weighed({ triage: ETriage.Consult, consulted: false, judgeFault: 'fetch failed' }),
+      weighed({ triage: ETriage.Consult, consulted: false, judgeFault: '401 invalid key' }),
+    ])
+
+    expect(fold?.judgeUnreachable).toBe('401 invalid key')
   })
 
   it('stays quiet when every consultation this turn came back', () => {
-    expect(foldOf([said('one'), weighed({ consulted: true })])?.judgeUnreachable).toBe(false)
+    expect(foldOf([said('one'), weighed({ consulted: true })])?.judgeUnreachable).toBeNull()
   })
 
   it('does not report a call that never reached the judge as a failure to reach it', () => {
     const fold = foldOf([said('one'), weighed({ triage: ETriage.Clear, consulted: false })])
 
-    expect(fold?.judgeUnreachable).toBe(false)
+    expect(fold?.judgeUnreachable).toBeNull()
   })
 
   it('forgets last turns outage once the operator has spoken again', () => {
@@ -119,6 +144,6 @@ describe('the offline reading', () => {
       weighed({ consulted: true }),
     ])
 
-    expect(fold?.judgeUnreachable).toBe(false)
+    expect(fold?.judgeUnreachable).toBeNull()
   })
 })
