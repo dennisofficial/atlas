@@ -6,6 +6,7 @@ export enum EInline {
   Text = 'text',
   Code = 'code',
   Link = 'link',
+  FilePath = 'filePath',
   Image = 'image',
   Footnote = 'footnote',
 }
@@ -34,6 +35,12 @@ export type InlineNode =
       readonly href: string
     }
   | {
+      readonly kind: EInline.FilePath
+      readonly text: string
+      readonly path: string
+      readonly line?: number
+    }
+  | {
       readonly kind: EInline.Image
       readonly alt: string
       readonly path: string
@@ -45,6 +52,15 @@ const HTML_COMMENT = /<!--[\s\S]*?-->/g
 const FOOTNOTE_REFERENCE = /\[\^([^\]\s]+)\]/g
 
 const SINGLE_TILDE = /^~[^~]/
+
+/**
+ * A `path[:line[:column]]` mention in prose. The leading lookbehind refuses a match that starts
+ * mid-URL (`https://…/a.ts:9`), mid-token (`package.json5`), or on the slash of an HTML closing
+ * tag (`</summary>`); the bare-filename alternative needs a known extension so plain words never
+ * link, while any slash-joined or absolute path matches extension-free.
+ */
+const FILE_PATH =
+  /(?<![\w/@:~+.<-])(?:\/[\w.@~+-][\w.@~+\-/]*|(?:\.{1,2}\/|~\/)[\w.@~+\-/]*|(?:[\w~+-][\w.~+-]*\/)+[\w.~+-]*|[\w~+-][\w.~+-]*\.(?:ts|tsx|js|jsx|mjs|cjs|json|md|mdx|py|go|rs|java|rb|yml|yaml|toml|css|html|sh)\b)(?::(\d+))?(?::(\d+))?/g
 
 export function inlineNodes(args: {
   tokens: readonly Token[]
@@ -202,13 +218,30 @@ function textNodes(args: {
     const position = args.order.get(hit[1] ?? '')
     if (position === undefined || hit.index === undefined) continue
 
-    push({ nodes, text: args.text.slice(cursor, hit.index), marks: args.marks })
+    pushPaths({ nodes, text: args.text.slice(cursor, hit.index), marks: args.marks })
     nodes.push({ kind: EInline.Footnote, marker: superscriptNumber(position) })
     cursor = hit.index + hit[0].length
   }
 
-  push({ nodes, text: args.text.slice(cursor), marks: args.marks })
+  pushPaths({ nodes, text: args.text.slice(cursor), marks: args.marks })
   return nodes
+}
+
+function pushPaths(args: { nodes: InlineNode[]; text: string; marks: InlineMarks }): void {
+  let cursor = 0
+  for (const hit of args.text.matchAll(FILE_PATH)) {
+    if (hit.index === undefined) continue
+    push({ nodes: args.nodes, text: args.text.slice(cursor, hit.index), marks: args.marks })
+    const line = hit[1] === undefined ? undefined : Number(hit[1])
+    args.nodes.push({
+      kind: EInline.FilePath,
+      text: hit[0],
+      path: hit[0].replace(/:\d+(:\d+)?$/, ''),
+      ...(line === undefined ? {} : { line }),
+    })
+    cursor = hit.index + hit[0].length
+  }
+  push({ nodes: args.nodes, text: args.text.slice(cursor), marks: args.marks })
 }
 
 function push(args: { nodes: InlineNode[]; text: string; marks: InlineMarks }): void {

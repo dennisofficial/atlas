@@ -16,6 +16,7 @@ import {
   ModelPort,
   NOTICE_WARN_MS,
   NoticePort,
+  choiceValueOf,
   parseRef,
   textValueOf,
   type Account,
@@ -26,6 +27,7 @@ import { AgentRegistryPort } from '../agents/registry/port'
 import { bindAgentTypes } from '../agents/types/bind-agent-types'
 import { agentTypeSources } from '../agents/types/roots'
 import { createUrlOpener } from '../browser/open-url'
+import { createFileOpener, EEditor } from '../browser/open-file'
 import { createDeltaChannel } from '../channel/delta-channel'
 import { createHarnessContainer } from '../container/create-harness-container'
 import { disposeAll, registerDisposable } from '../container/disposal'
@@ -401,6 +403,16 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
         }),
     }),
     openUrl: createUrlOpener(),
+    openFile: createFileOpener({
+      editor: () => {
+        const held = choiceValueOf({
+          resolution: settings.snapshot().resolution,
+          id: ESettingId.Editor,
+          fallback: EEditor.Default,
+        })
+        return Object.values(EEditor).includes(held as EEditor) ? (held as EEditor) : EEditor.Default
+      },
+    }),
     credentials,
     accounts,
     cloud,

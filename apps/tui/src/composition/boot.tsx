@@ -3,6 +3,8 @@ import { createRoot, type Root } from "@opentui/react";
 import { writeFileSync } from "node:fs";
 import React from "react";
 
+import { ESettingId } from "@dltech/atlas-core";
+
 import { buildInfo } from "../build/info";
 import { appearanceOf, applyAppearance } from "../ui/appearance";
 import { ENoticeTone, notify } from "../ui/notice-store";
@@ -21,7 +23,7 @@ import { performRespawn, realRespawnPorts, wiresSelfRestart } from "./respawn";
 import { RESTART_EXIT_CODE, restartResumeHandle } from "./restart";
 import { launchLine, launchTitle, sessionIdentityLine } from "./session-identity";
 import { resumeHint, type ActiveConversation } from "@dltech/atlas-harness";
-import { atlasDirectory, createUrlOpener, loadSettings, logFieldsOf } from "@dltech/atlas-harness";
+import { atlasDirectory, createUrlOpener, loadSettings, logFieldsOf, createFileOpener, EEditor } from "@dltech/atlas-harness";
 import { exportLegacyDbRequestOf, runExportLegacyDb } from "./export-legacy-db";
 import { trackTerminalFocus } from "./terminal-focus";
 import { terminalTitleSequence } from "./terminal-title";
@@ -103,7 +105,17 @@ export async function bootAtlas(args: {
   });
   renderer.once("destroy", untrackFocus);
 
-  installLinkClickOpen({ renderer, openUrl: createUrlOpener() });
+  installLinkClickOpen({
+    renderer,
+    openUrl: createUrlOpener(),
+    openFile: createFileOpener({
+      editor: () => {
+        const held = settings.service.snapshot().resolution.settings.get(ESettingId.Editor)
+        const value = typeof held?.value === 'string' ? held.value : EEditor.Default
+        return Object.values(EEditor).includes(value as EEditor) ? (value as EEditor) : EEditor.Default
+      },
+    }),
+  });
 
   process.stdout.write(
     terminalTitleSequence({ name: launchTitle(config.open), directory: config.cwd }),

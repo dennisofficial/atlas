@@ -49,7 +49,7 @@ describe('settingsModel', () => {
     const general = modelWith().pages[0]
 
     expect(general?.groups.map((group) => [group.label, group.rows.length])).toEqual([
-      ['Transcript', 6],
+      ['Transcript', 7],
       ['Layout', 2],
       ['Project context', 4],
       ['Skills', 1],
@@ -62,7 +62,7 @@ describe('settingsModel', () => {
       ['Web', 2],
       ['Execution', 4],
     ])
-    expect(general?.rows).toHaveLength(29)
+    expect(general?.rows).toHaveLength(30)
   })
 
   it('gathers the core cloud rows on the cloud page', () => {
@@ -126,7 +126,7 @@ describe('moving around the page', () => {
     const top = openSettings()
 
     expect(moveRow({ state: top, model, delta: -1 })).toEqual({ pageIndex: 0, rowIndex: 0 })
-    expect(moveRow({ state: top, model, delta: 99 })).toEqual({ pageIndex: 0, rowIndex: 28 })
+    expect(moveRow({ state: top, model, delta: 99 })).toEqual({ pageIndex: 0, rowIndex: 29 })
   })
 
   it('wraps around the tab strip and lands on its first row', () => {

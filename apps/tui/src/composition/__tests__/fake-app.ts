@@ -856,6 +856,7 @@ export function fakeApp(args: {
     openUrl: (url: string) => {
       openedUrls.push(url)
     },
+    openFile: () => undefined,
     openedUrls,
     openedDirectories,
     usage: createAccountUsageService({

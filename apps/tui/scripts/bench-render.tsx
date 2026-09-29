@@ -138,6 +138,7 @@ const benchApp = (args: {
     }),
     files: new FileBrowser({ root: args.root }),
     openUrl: () => {},
+    openFile: () => {},
     skills: skillRegistry.all(),
     skillRegistry,
     agentTypes: EMPTY_AGENT_TYPE_CATALOG,

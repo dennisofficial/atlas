@@ -1,6 +1,7 @@
 import { TextAttributes } from '@opentui/core'
-import React from 'react'
+import React, { useSyncExternalStore } from 'react'
 
+import { linkHoverUrl, subscribeLinkHover } from '../../../composition/link-click'
 import { glyph, theme } from '../../theme'
 import { EInline, type InlineNode } from './inline'
 import { codeForeground, LINK_ARROW, markAttributes, markForeground } from './prose-style'
@@ -19,8 +20,18 @@ export function InlineRun(props: {
   )
 }
 
-function InlineSpan(props: { node: InlineNode; ground: string; slab: string }): React.ReactNode {
+const InlineSpan = React.memo(InnerSpan, isSameSpan)
+
+function isSameSpan(
+  previous: { node: InlineNode; ground: string; slab: string },
+  next: { node: InlineNode; ground: string; slab: string },
+): boolean {
+  return previous.node === next.node && previous.ground === next.ground && previous.slab === next.slab
+}
+
+function InnerSpan(props: { node: InlineNode; ground: string; slab: string }): React.ReactNode {
   const { node } = props
+  const hovered = useSyncExternalStore(subscribeLinkHover, linkHoverUrl)
 
   if (node.kind === EInline.Text) {
     return (
@@ -44,11 +55,30 @@ function InlineSpan(props: { node: InlineNode; ground: string; slab: string }): 
   if (node.kind === EInline.Link) {
     return (
       <>
-        <span fg={theme.link} attributes={TextAttributes.UNDERLINE} link={{ url: node.href }}>
+        <span
+          fg={theme.link}
+          {...(hovered === node.href ? { bg: theme.hoverBg } : {})}
+          attributes={TextAttributes.UNDERLINE}
+          link={{ url: node.href }}
+        >
           {plain(node.label)}
         </span>
         <span fg={theme.hint}>{` ${node.host} ${LINK_ARROW}`}</span>
       </>
+    )
+  }
+
+  if (node.kind === EInline.FilePath) {
+    const href = fileHref({ path: node.path, line: node.line })
+    return (
+      <span
+        fg={theme.link}
+        {...(hovered === href ? { bg: theme.hoverBg } : {})}
+        attributes={TextAttributes.UNDERLINE}
+        link={{ url: href }}
+      >
+        {node.text}
+      </span>
     )
   }
 
@@ -65,6 +95,11 @@ function InlineSpan(props: { node: InlineNode; ground: string; slab: string }): 
   return <span fg={theme.link}>{node.marker}</span>
 }
 
+function fileHref(args: { path: string; line?: number | undefined }): string {
+  const line = args.line === undefined ? '' : `:${args.line}`
+  return `file://${args.path}${line}`
+}
+
 function plain(nodes: readonly InlineNode[]): string {
   return nodes
     .map((node) =>
@@ -74,7 +109,9 @@ function plain(nodes: readonly InlineNode[]): string {
           ? plain(node.label)
           : node.kind === EInline.Image
             ? node.alt
-            : node.marker,
+            : node.kind === EInline.FilePath
+              ? node.text
+              : node.marker,
     )
     .join('')
 }

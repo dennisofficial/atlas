@@ -80,6 +80,64 @@ describe('links and images', () => {
   })
 })
 
+describe('file path mentions', () => {
+  it('links a bare filename with a known extension, with and without a line', () => {
+    expect(nodesOf('see link-click.ts:42')[1]).toEqual({
+      kind: EInline.FilePath,
+      text: 'link-click.ts:42',
+      path: 'link-click.ts',
+      line: 42,
+    })
+    expect(nodesOf('edit package.json please')[1]).toEqual({
+      kind: EInline.FilePath,
+      text: 'package.json',
+      path: 'package.json',
+    })
+  })
+
+  it('links slash-joined and absolute paths, extension-free, with line and column', () => {
+    expect(nodesOf('in apps/tui/src/inline.ts:10:5 there')[1]).toMatchObject({
+      kind: EInline.FilePath,
+      path: 'apps/tui/src/inline.ts',
+      line: 10,
+    })
+    expect(nodesOf('at /Users/d/atlas/bun.lockb:1')[1]).toMatchObject({
+      kind: EInline.FilePath,
+      path: '/Users/d/atlas/bun.lockb',
+      line: 1,
+    })
+    expect(nodesOf('see ./rel/path.ts:3')[1]).toMatchObject({
+      kind: EInline.FilePath,
+      path: './rel/path.ts',
+      line: 3,
+    })
+  })
+
+  it('leaves times, plain words and URLs alone', () => {
+    expect(nodesOf('at 12:30 and 12:30:45').every((n) => n.kind === EInline.Text)).toBe(true)
+    expect(nodesOf('a:b or foo').every((n) => n.kind === EInline.Text)).toBe(true)
+    expect(nodesOf('word wrap package.json5 nope').every((n) => n.kind === EInline.Text)).toBe(true)
+    const fromUrl = nodesOf('a url https://x.com/a.ts:9 end')
+    expect(fromUrl.some((n) => n.kind === EInline.FilePath)).toBe(false)
+  })
+
+  it('never links an @-mention or the path inside an HTML closing tag', () => {
+    expect(nodesOf('why is @src/mentionable.ts broken').every((n) => n.kind === EInline.Text)).toBe(
+      true,
+    )
+    expect(nodesOf('<summary>An html block</summary>').every((n) => n.kind !== EInline.FilePath)).toBe(
+      true,
+    )
+    expect(nodesOf('</details>').every((n) => n.kind !== EInline.FilePath)).toBe(true)
+  })
+
+  it('keeps the mention inside the plain text round trip', () => {
+    expect(textOf('the hook lives in link-click.ts:42, installed')).toBe(
+      'the hook lives in link-click.ts:42, installed',
+    )
+  })
+})
+
 describe('footnote references', () => {
   it('becomes a superscript numeral once the definition has claimed a position', () => {
     expect(nodesOf('see[^a]', new Map([['a', 2]]))[1]).toEqual({

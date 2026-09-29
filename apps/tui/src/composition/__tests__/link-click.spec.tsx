@@ -4,7 +4,7 @@ import { createRoot, type Root } from '@opentui/react'
 import { afterEach, describe, expect, it } from 'bun:test'
 import React, { act } from 'react'
 
-import { installLinkClickOpen } from '../link-click'
+import { installLinkClickOpen, linkHoverUrl, notifyLinkHover, subscribeLinkHover } from '../link-click'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
@@ -17,14 +17,27 @@ type Harness = {
   setup: TestRendererSetup
   root: Root
   opened: string[]
+  openedFiles: { path: string; line?: number }[]
+  pointers: string[]
 }
 
 const mounted: Harness[] = []
 
-async function mount(args: { selectable?: boolean } = {}): Promise<Harness> {
+async function mount(args: { selectable?: boolean; linkUrl?: string } = {}): Promise<Harness> {
   const setup = await createTestRenderer({ width: WIDTH, height: HEIGHT })
   const opened: string[] = []
-  installLinkClickOpen({ renderer: setup.renderer, openUrl: (url) => opened.push(url) })
+  const openedFiles: { path: string; line?: number }[] = []
+  const pointers: string[] = []
+  const originalPointer = setup.renderer.setMousePointer.bind(setup.renderer)
+  setup.renderer.setMousePointer = (style) => {
+    pointers.push(style)
+    originalPointer(style)
+  }
+  installLinkClickOpen({
+    renderer: setup.renderer,
+    openUrl: (url) => opened.push(url),
+    openFile: (target) => openedFiles.push(target),
+  })
 
   const root = createRoot(setup.renderer)
   act(() => {
@@ -32,7 +45,7 @@ async function mount(args: { selectable?: boolean } = {}): Promise<Harness> {
       <box width={WIDTH} height={HEIGHT}>
         <text selectable={args.selectable ?? false}>
           <span>see the </span>
-          <span fg="#6495ed" attributes={TextAttributes.UNDERLINE} link={{ url: LINK_URL }}>
+          <span fg="#6495ed" attributes={TextAttributes.UNDERLINE} link={{ url: args.linkUrl ?? LINK_URL }}>
             pull request
           </span>
           <span> for details</span>
@@ -44,7 +57,7 @@ async function mount(args: { selectable?: boolean } = {}): Promise<Harness> {
     await setup.flush()
   })
 
-  const harness = { setup, root, opened }
+  const harness = { setup, root, opened, openedFiles, pointers }
   mounted.push(harness)
   return harness
 }
@@ -67,20 +80,12 @@ describe('installLinkClickOpen', () => {
     expect(harness.opened).toEqual([LINK_URL])
   })
 
-  it('opens the link under a ctrl+click on a selectable text', async () => {
-    const harness = await mount({ selectable: true })
-
-    await harness.setup.mockMouse.click(LINK_START_X, 0, 0, { modifiers: { ctrl: true } })
-
-    expect(harness.opened).toEqual([LINK_URL])
-  })
-
-  it('leaves a plain click on a selectable text to drag-selection', async () => {
+  it('opens the link under a plain click on a selectable text', async () => {
     const harness = await mount({ selectable: true })
 
     await harness.setup.mockMouse.click(LINK_START_X, 0)
 
-    expect(harness.opened).toEqual([])
+    expect(harness.opened).toEqual([LINK_URL])
   })
 
   it('ignores clicks beside the link', async () => {
@@ -91,11 +96,84 @@ describe('installLinkClickOpen', () => {
     expect(harness.opened).toEqual([])
   })
 
+  it('routes a file:// link to the file opener with its line, not the browser', async () => {
+    const harness = await mount({ linkUrl: 'file:///Users/d/atlas/link-click.ts:42' })
+
+    await harness.setup.mockMouse.click(LINK_START_X, 0)
+
+    expect(harness.opened).toEqual([])
+    expect(harness.openedFiles).toEqual([{ path: '/Users/d/atlas/link-click.ts', line: 42 }])
+  })
+
   it('ignores a drag that ends on the link', async () => {
     const harness = await mount()
 
     await harness.setup.mockMouse.drag(0, 1, LINK_START_X, 0)
 
     expect(harness.opened).toEqual([])
+  })
+
+  it('switches the pointer to a hand on hover and back off it', async () => {
+    const harness = await mount()
+
+    await act(async () => {
+      await harness.setup.mockMouse.moveTo(LINK_START_X, 0)
+    })
+    expect(harness.pointers.at(-1)).toBe('pointer')
+
+    await act(async () => {
+      await harness.setup.mockMouse.moveTo(0, 0)
+    })
+    expect(harness.pointers.at(-1)).toBe('default')
+  })
+
+  it('notifies the hover store with the url on hover and null off it', async () => {
+    const harness = await mount()
+    const seen: (string | null)[] = []
+    const unsubscribe = subscribeLinkHover(() => seen.push(linkHoverUrl()))
+
+    try {
+      await act(async () => {
+        await harness.setup.mockMouse.moveTo(LINK_START_X, 0)
+      })
+      expect(linkHoverUrl()).toBe(LINK_URL)
+
+      await act(async () => {
+        await harness.setup.mockMouse.moveTo(0, 0)
+      })
+      expect(linkHoverUrl()).toBeNull()
+
+      expect(seen).toEqual([LINK_URL, null])
+    } finally {
+      unsubscribe()
+      notifyLinkHover(null)
+    }
+  })
+
+  it('notifies only when the hovered url changes', async () => {
+    const harness = await mount()
+    let calls = 0
+    const unsubscribe = subscribeLinkHover(() => {
+      calls += 1
+    })
+
+    try {
+      await act(async () => {
+        await harness.setup.mockMouse.moveTo(LINK_START_X, 0)
+      })
+      const afterEnter = calls
+
+      await act(async () => {
+        await harness.setup.mockMouse.moveTo(LINK_START_X + 1, 0)
+      })
+      await act(async () => {
+        await harness.setup.mockMouse.moveTo(LINK_START_X, 0)
+      })
+
+      expect(calls).toBe(afterEnter)
+    } finally {
+      unsubscribe()
+      notifyLinkHover(null)
+    }
   })
 })
