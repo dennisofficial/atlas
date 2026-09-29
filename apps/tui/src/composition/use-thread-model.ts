@@ -2,8 +2,10 @@ import { refKey, type ThreadId } from '@dltech/atlas-core'
 import type { ThreadModel } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
+import { notify } from '../ui/notice-store'
 import type { SwitcherChoice, SwitcherTarget } from '../ui/switcher-model'
 import { EModelScope } from '../ui/switcher-model'
+import { cloudModelFailureNotice } from './cloud/cloud-write-notices'
 import type { AtlasApp } from './compose'
 import type { ModelSelection } from '@dltech/atlas-harness'
 import {
@@ -34,11 +36,14 @@ export type ThreadModelControl = {
  */
 export function useThreadModel(args: {
   app: AtlasApp
+  /** The store the model write crosses — the cloud attachment's when the thread is lifted. */
+  threads?: AtlasApp['threads'] | undefined
   threadId: ThreadId
   stored: ThreadModel | undefined
   started: boolean
 }): ThreadModelControl {
   const { app, threadId, stored, started } = args
+  const threads = args.threads ?? app.threads
   const [selection, setSelection] = useState<ModelSelection>(() => app.model.choice())
   const launching = useRef(true)
   const adoptedFor = useRef<ThreadId | null>(null)
@@ -75,14 +80,34 @@ export function useThreadModel(args: {
   }, [app, stored, started, threadId, resolution])
 
   useEffect(() => {
+    return threads.onModelChosen((chosen) => {
+      if (chosen.threadId !== threadId) return
+      if (app.modelPinned) return
+
+      app.model.select(
+        threadSelection({
+          stored: chosen.model,
+          fallback: defaultSelection({
+            settled: app.settings.snapshot().resolution,
+            catalogue: app.models,
+          }),
+          catalogue: app.models,
+        }),
+      )
+      setSelection(app.model.choice())
+      switchedFor.current = threadId
+    })
+  }, [app, threads, threadId])
+
+  useEffect(() => {
     const opening = !wasStarted.current && started
     wasStarted.current = started
     if (!opening) return
 
-    void app.threads
+    void threads
       .chooseModel({ threadId, model: storedModel(app.model.choice()) })
-      .catch(() => undefined)
-  }, [app, started, threadId])
+      .catch(() => notify(cloudModelFailureNotice()))
+  }, [app, threads, started, threadId])
 
   const handlePicked = useCallback(
     ({ choice, target }: { choice: SwitcherChoice; target: SwitcherTarget }) => {
@@ -95,6 +120,7 @@ export function useThreadModel(args: {
         return
       }
 
+      const prior = app.model.choice()
       app.model.select(next)
       const landed = app.model.choice()
       setSelection(landed)
@@ -103,9 +129,13 @@ export function useThreadModel(args: {
 
       if (!started) return
 
-      void app.threads.chooseModel({ threadId, model: storedModel(landed) }).catch(() => undefined)
+      void threads.chooseModel({ threadId, model: storedModel(landed) }).catch(() => {
+        app.model.select(prior)
+        setSelection(prior)
+        notify(cloudModelFailureNotice())
+      })
     },
-    [app, started, threadId],
+    [app, threads, started, threadId],
   )
 
   return { selection, fallback, handlePicked }

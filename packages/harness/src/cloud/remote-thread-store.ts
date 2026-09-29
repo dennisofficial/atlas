@@ -9,7 +9,13 @@ import {
 import { titleMatchesHandle } from '../composition/thread-slug'
 import type { Unsubscribe } from '../channel/delta-channel'
 import type { OpenThreadArgs } from '../store/create-with-events'
-import type { RenameListener, SupervisedAgent, ThreadModel, ThreadSummary } from '../store/thread-store'
+import type {
+  ModelChosenListener,
+  RenameListener,
+  SupervisedAgent,
+  ThreadModel,
+  ThreadSummary,
+} from '../store/thread-store'
 import { ThreadStorePort } from '../store/thread-store'
 import { EClientRequest, readThreadReplySchema, readThreadsReplySchema } from './channel-wire'
 import type { RemoteDeltaChannel } from './remote-delta-channel'
@@ -21,20 +27,48 @@ const WRITE_REFUSAL =
 const refuseWrite = (): Promise<never> => Promise.reject(new Error(WRITE_REFUSAL))
 
 /**
- * The cloud transcript's thread-record read half: the sandbox's serve answers from its on-disk
- * stores. Reads cross the channel; every mutation refuses, because the loop inside the sandbox is
- * the only writer and a client attempting one has a stale wiring bug to surface.
+ * The cloud transcript's thread-record half: reads and the two mutations the operator owns — the
+ * thread's name and its model — cross the channel to the sandbox's serve, which applies them to
+ * its on-disk stores and announces the change back over the wire. Every other mutation still
+ * refuses: the loop inside the sandbox is the only writer of those.
  */
 export class RemoteThreadStore extends ThreadStorePort {
-  private readonly channel: Pick<RemoteDeltaChannel, 'request'>
+  private readonly channel: Pick<
+    RemoteDeltaChannel,
+    'request' | 'onThreadRenamed' | 'onThreadModelChanged'
+  >
+  private readonly renameListeners = new Set<RenameListener>()
+  private readonly modelChosenListeners = new Set<ModelChosenListener>()
 
-  constructor(args: { channel: Pick<RemoteDeltaChannel, 'request'> }) {
+  constructor(args: {
+    channel: Pick<RemoteDeltaChannel, 'request' | 'onThreadRenamed' | 'onThreadModelChanged'>
+  }) {
     super()
     this.channel = args.channel
+    this.channel.onThreadRenamed((renamed) => this.emitRename(renamed))
+    this.channel.onThreadModelChanged((changed) => this.emitModelChosen(changed))
   }
 
-  override onRename(_listener: RenameListener): Unsubscribe {
-    return () => undefined
+  override onRename(listener: RenameListener): Unsubscribe {
+    this.renameListeners.add(listener)
+    return () => {
+      this.renameListeners.delete(listener)
+    }
+  }
+
+  override onModelChosen(listener: ModelChosenListener): Unsubscribe {
+    this.modelChosenListeners.add(listener)
+    return () => {
+      this.modelChosenListeners.delete(listener)
+    }
+  }
+
+  private emitRename(args: { threadId: ThreadId; title: string }): void {
+    for (const listener of [...this.renameListeners]) listener(args)
+  }
+
+  private emitModelChosen(args: { threadId: ThreadId; model: ThreadModel }): void {
+    for (const listener of [...this.modelChosenListeners]) listener(args)
   }
 
   async find(args: { threadId: ThreadId }): Promise<ThreadSummary | undefined> {
@@ -93,12 +127,20 @@ export class RemoteThreadStore extends ThreadStorePort {
     return refuseWrite()
   }
 
-  rename(_args: { threadId: ThreadId; title: string }): Promise<void> {
-    return refuseWrite()
+  async rename(args: { threadId: ThreadId; title: string }): Promise<void> {
+    await this.channel.request({
+      op: EClientRequest.RenameThread,
+      params: { threadId: args.threadId, title: args.title },
+    })
+    this.emitRename(args)
   }
 
-  chooseModel(_args: { threadId: ThreadId; model: ThreadModel }): Promise<void> {
-    return refuseWrite()
+  async chooseModel(args: { threadId: ThreadId; model: ThreadModel }): Promise<void> {
+    await this.channel.request({
+      op: EClientRequest.SetThreadModel,
+      params: { threadId: args.threadId, model: { ref: args.model.ref, effort: args.model.effort } },
+    })
+    this.emitModelChosen(args)
   }
 
   chooseExecutionLocation(_args: {

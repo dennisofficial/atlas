@@ -594,6 +594,7 @@ function Workspace(props: {
 
   const conversation = useConversation({
     app: props.app,
+    threads: props.cloudStores?.threads ?? props.app.threads,
     opened: props.opened,
     paceReveal: settings.paceReveal,
     thinking: settings.thinking,
@@ -630,6 +631,7 @@ function Workspace(props: {
 
   const threadModel = useThreadModel({
     app: props.app,
+    threads: props.cloudStores?.threads ?? props.app.threads,
     threadId: conversation.threadId,
     stored: conversation.threadModel,
     started: conversation.started,

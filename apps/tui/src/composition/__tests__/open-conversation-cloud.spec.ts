@@ -91,6 +91,8 @@ const refusingCloudStores = (args: { events: readonly Event[] }) => {
       if (request.op === EClientRequest.ReadTurns) return { own: [], delegated: [] }
       throw new Error(`unexpected channel op ${request.op}`)
     },
+    onThreadRenamed: () => () => undefined,
+    onThreadModelChanged: () => () => undefined,
   }
   return {
     channel,

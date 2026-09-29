@@ -1,4 +1,4 @@
-import type { EventDraft, SaidImage, ThreadId } from '@dltech/atlas-core'
+import { toThreadId, type EventDraft, type SaidImage, type ThreadId } from '@dltech/atlas-core'
 
 import type { ChannelListener, DeltaChannel, Unsubscribe } from '../channel/delta-channel'
 import { retainReplayable, type InFlightSlots } from '../channel/in-flight'
@@ -64,6 +64,10 @@ export type ChannelReady = { turnInFlight: boolean }
 /** The far side received the interrupt frame and aborted the turn it was driving. */
 export type InterruptAck = { turnInFlight: boolean }
 
+export type ThreadRenamedFrame = { threadId: ThreadId; title: string }
+
+export type ThreadModelChangedFrame = { threadId: ThreadId; model: { ref: string; effort: string } }
+
 export const INTERRUPT_ACK_TIMEOUT_MS = 5_000
 
 export type RemoteDeltaChannel = DeltaChannel & {
@@ -80,6 +84,8 @@ export type RemoteDeltaChannel = DeltaChannel & {
   onReady(listener: (ready: ChannelReady) => void): Unsubscribe
   onInterruptAck(listener: (ack: InterruptAck) => void): Unsubscribe
   onRoster(listener: (roster: RosterWire) => void): Unsubscribe
+  onThreadRenamed(listener: (renamed: ThreadRenamedFrame) => void): Unsubscribe
+  onThreadModelChanged(listener: (changed: ThreadModelChangedFrame) => void): Unsubscribe
   onTurnEnded(listener: (outcome: TurnOutcome) => void): Unsubscribe
   onError(listener: (failure: ChannelFailure) => void): Unsubscribe
   onServerError(listener: (failure: ChannelFailure) => void): Unsubscribe
@@ -169,6 +175,8 @@ export function createRemoteDeltaChannel(args: {
   const reloads = registryOf<ChannelReload>()
   const readies = registryOf<ChannelReady>()
   const rosters = registryOf<RosterWire>()
+  const threadRenames = registryOf<ThreadRenamedFrame>()
+  const threadModelChanges = registryOf<ThreadModelChangedFrame>()
   const turnEndings = registryOf<TurnOutcome>()
   const failures = registryOf<ChannelFailure>()
   const serverErrors = registryOf<ChannelFailure>()
@@ -351,6 +359,17 @@ export function createRemoteDeltaChannel(args: {
     }
     if (frame.kind === EServeFrame.Roster) {
       rosters.emit(frame.roster)
+      return
+    }
+    if (frame.kind === EServeFrame.ThreadRenamed) {
+      threadRenames.emit({ threadId: toThreadId(frame.threadId), title: frame.title })
+      return
+    }
+    if (frame.kind === EServeFrame.ThreadModelChanged) {
+      threadModelChanges.emit({
+        threadId: toThreadId(frame.threadId),
+        model: { ref: frame.model.ref, effort: frame.model.effort },
+      })
       return
     }
     if (frame.kind === EServeFrame.Error) {
@@ -552,6 +571,10 @@ export function createRemoteDeltaChannel(args: {
     onInterruptAck: (listener) => interruptAcks.add(listener),
 
     onRoster: (listener) => rosters.add(listener),
+
+    onThreadRenamed: (listener) => threadRenames.add(listener),
+
+    onThreadModelChanged: (listener) => threadModelChanges.add(listener),
 
     onTurnEnded: (listener) => turnEndings.add(listener),
 

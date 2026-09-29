@@ -175,6 +175,8 @@ export function fakeCloudChannel(
         rosters.delete(listener)
       }
     },
+    onThreadRenamed: () => () => undefined,
+    onThreadModelChanged: () => () => undefined,
     wake: ({ url, token }) => {
       woken.push({ url, token })
     },

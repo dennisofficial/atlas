@@ -39,7 +39,7 @@ import { ECommandEffect, type CommandEffect } from './commands/local-command'
 import type { AtlasApp } from './compose'
 import { changeDirectory, type DirectoryMove } from './directory-move'
 import type { OpenedConversation } from './open-conversation'
-import type { LostShell, RecoveredAgents, ThreadModel } from '@dltech/atlas-harness'
+import type { LostShell, RecoveredAgents, ThreadModel, ThreadStorePort } from '@dltech/atlas-harness'
 import { ECompactScope } from '@dltech/atlas-harness'
 import { EOpenMode } from './config'
 import { useRevokeGrant } from './revoke-grant'
@@ -116,6 +116,8 @@ export type Conversation = {
 
 export function useConversation(args: {
   app: AtlasApp
+  /** The thread store the rename and model writes go through — the cloud attachment's when lifted. */
+  threads?: ThreadStorePort | undefined
   opened: OpenedConversation
   paceReveal: boolean
   thinking: EThinkingVisibility
@@ -276,6 +278,7 @@ export function useConversation(args: {
 
   const { name, naming, setName, renameSession } = useSessionName({
     app,
+    threads: args.threads ?? app.threads,
     threadId,
     started: startedRef,
     readDigest: async () => sessionDigest(await app.log.read({ threadId })),
