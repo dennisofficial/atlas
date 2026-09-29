@@ -163,8 +163,11 @@ export function createHarnessContainer(): DependencyContainer {
         }),
     ),
   })
+  // The store holds listener state (onRename, onModelChosen), so a session must get exactly one
+  // instance: a second resolve would hand the titler a store whose rename echo reaches nobody,
+  // which is precisely the live bug the titling trace caught (store rename, listeners=0).
   harness.register(portToken(ThreadStorePort), {
-    useFactory: (resolver) =>
+    useFactory: instanceCachingFactory((resolver) =>
       new JsonlThreadStore(
         home,
         resolver.resolve(SessionRegistryToken),
@@ -173,6 +176,7 @@ export function createHarnessContainer(): DependencyContainer {
         resolver.resolve(portToken(EventLogPort)),
         resolver.resolve(portToken(LogPort)),
       ),
+    ),
   })
   harness.register(LocalAccountStoreToken, {
     useFactory: instanceCachingFactory(
