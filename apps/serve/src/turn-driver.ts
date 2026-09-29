@@ -1,4 +1,4 @@
-import type { EventDraft, SaidFile, SaidImage, ThreadId } from '@dltech/atlas-core'
+import { saidBody, type EventDraft, type SaidFile, type SaidImage, type ThreadId } from '@dltech/atlas-core'
 
 import { PauseSignal } from '@dltech/atlas-harness'
 import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
@@ -9,9 +9,9 @@ import type { ServeApp } from './serve-app'
 export type ServeTurnDriver = {
   say: (args: {
     text: string
-    images?: readonly SaidImage[]
-    files?: readonly SaidFile[]
-    context?: readonly EventDraft[]
+    images?: readonly SaidImage[] | undefined
+    files?: readonly SaidFile[] | undefined
+    context?: readonly EventDraft[] | undefined
   }) => Promise<void>
   run: () => void
   /** Starts a turn when none is running, re-arms when one is, and answers whether it acted. */
@@ -56,20 +56,13 @@ export function createTurnDriver(args: {
    */
   const commit = async (said: {
     text: string
-    images?: readonly SaidImage[]
-    files?: readonly SaidFile[]
-    context?: readonly EventDraft[]
+    images?: readonly SaidImage[] | undefined
+    files?: readonly SaidFile[] | undefined
+    context?: readonly EventDraft[] | undefined
   }): Promise<void> => {
     const drafts: readonly EventDraft[] = [
       ...(said.context ?? []),
-      {
-        type: 'user-said',
-        text: said.text,
-        ...(said.images === undefined || said.images.length === 0
-          ? {}
-          : { images: said.images }),
-        ...(said.files === undefined || said.files.length === 0 ? {} : { files: said.files }),
-      },
+      saidBody({ text: said.text, images: said.images, files: said.files }),
     ]
     const runId = app.ids.nextRunId()
     const existing = await app.threads.find({ threadId })

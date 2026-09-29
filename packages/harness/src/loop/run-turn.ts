@@ -22,6 +22,7 @@ import {
   loopWatchNudgeDraft,
   pendingCalls,
   projectDirectoryOf,
+  saidBody,
   silentStep,
   rowsOwnedBy,
   type Assembled,
@@ -175,12 +176,7 @@ export class LoopTurnRunner extends TurnRunner {
       runId: this.ids.nextRunId(),
       drafts: [
         ...(context ?? []),
-        {
-          type: 'user-said',
-          text,
-          ...(images === undefined || images.length === 0 ? {} : { images: [...images] }),
-          ...(files === undefined || files.length === 0 ? {} : { files: [...files] }),
-        },
+        saidBody({ text, images, files }),
       ],
     })
     return this.runTurn({

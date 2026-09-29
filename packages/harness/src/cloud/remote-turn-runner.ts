@@ -64,8 +64,8 @@ export class RemoteTurnRunner extends TurnRunner {
       fire: () =>
         this.channel.send({
           text: args.text,
-          ...(args.images === undefined ? {} : { images: args.images }),
-          ...(args.files === undefined ? {} : { files: args.files }),
+          images: args.images,
+          files: args.files,
           ...(args.context === undefined ? {} : { context: args.context }),
         }),
     })
@@ -83,8 +83,8 @@ export class RemoteTurnRunner extends TurnRunner {
     }
     this.channel.send({
       text: args.text,
-      ...(args.images === undefined ? {} : { images: args.images }),
-      ...(args.files === undefined ? {} : { files: args.files }),
+      images: args.images,
+      files: args.files,
       ...(args.context === undefined ? {} : { context: args.context }),
     })
   }

@@ -1,4 +1,4 @@
-import { toThreadId, type EventDraft, type SaidFile, type SaidImage, type ThreadId } from '@dltech/atlas-core'
+import { saidBody, toThreadId, type EventDraft, type SaidFile, type SaidImage, type ThreadId } from '@dltech/atlas-core'
 
 import type { ChannelListener, DeltaChannel, Unsubscribe } from '../channel/delta-channel'
 import { retainReplayable, type InFlightSlots } from '../channel/in-flight'
@@ -74,9 +74,9 @@ export type RemoteDeltaChannel = DeltaChannel & {
   readonly threadId: ThreadId
   send(args: {
     text: string
-    images?: readonly SaidImage[]
-    files?: readonly SaidFile[]
-    context?: readonly EventDraft[]
+    images?: readonly SaidImage[] | undefined
+    files?: readonly SaidFile[] | undefined
+    context?: readonly EventDraft[] | undefined
   }): void
   run(): void
   interrupt(): void
@@ -550,9 +550,7 @@ export function createRemoteDeltaChannel(args: {
       upstream.send({
         kind: EClientFrame.Send,
         sendId: toSendId(crypto.randomUUID()),
-        text,
-        ...(images === undefined || images.length === 0 ? {} : { images: [...images] }),
-        ...(files === undefined || files.length === 0 ? {} : { files: [...files] }),
+        ...saidBody({ text, images, files }),
         ...(context === undefined || context.length === 0 ? {} : { context: [...context] }),
       }),
 

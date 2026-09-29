@@ -4,7 +4,7 @@ import { stepCountIs, streamText, type LanguageModel } from 'ai'
 import {
   carriesToolResultImages,
   DEFAULT_IMAGE_TIER,
-  hoistToolResultImages,
+  hoistToolResultFiles,
   ModelPort,
   type Assembled,
   type Chunk,
@@ -235,7 +235,7 @@ export class AiSdkModelPort extends ModelPort {
     const prompt = toProviderPrompt({ assembled, provider: this.identity })
     const carried = carriesToolResultImages(cardOf(this.card))
       ? prompt
-      : { ...prompt, messages: hoistToolResultImages({ messages: prompt.messages }) }
+      : { ...prompt, messages: hoistToolResultFiles({ messages: prompt.messages }) }
     if (this.hooks === undefined) return carried
     return this.hooks.beforeRequest({ prompt: carried })
   }

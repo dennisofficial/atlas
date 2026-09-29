@@ -1,12 +1,24 @@
 import type { Message, ToolMessage, UserMessage } from './message'
 import type { FilePart, ImagePart, TextPart, ToolResultPart } from './parts'
 
-const PLACEHOLDER_TEXT = 'the file is attached in the next message'
+const PLACEHOLDER_TEXT = 'the attachment is in the next message'
 
-const anchorFor = (files: readonly (ImagePart | FilePart)[]): string => {
-  const sources = files.flatMap((file) => (file.source === undefined ? [] : [file.source]))
-  if (sources.length === 0) return 'Files from the tool result above.'
-  return `Files from the tool result above: ${sources.join(', ')}.`
+const anchorFor = (parts: readonly (ImagePart | FilePart)[]): string => {
+  const sources = parts.flatMap((part) => (part.source === undefined ? [] : [part.source]))
+  const imageCount = parts.filter((part) => part.type === 'image').length
+  const fileCount = parts.length - imageCount
+  const label =
+    fileCount === 0
+      ? imageCount === 1
+        ? 'Image'
+        : 'Images'
+      : imageCount === 0
+        ? fileCount === 1
+          ? 'File'
+          : 'Files'
+        : 'Attachments'
+  const where = sources.length === 0 ? '' : `: ${sources.join(', ')}`
+  return `${label} from the tool result above${where}.`
 }
 
 function splitPart(part: ToolResultPart): { kept: ToolResultPart; files: (ImagePart | FilePart)[] } {
@@ -30,7 +42,7 @@ function splitPart(part: ToolResultPart): { kept: ToolResultPart; files: (ImageP
  * hallucinates over noise it cannot see. Hoisting moves the files into a user message right
  * after the tool message, which the format does carry as image_url and file parts.
  */
-export function hoistToolResultImages(args: { messages: readonly Message[] }): Message[] {
+export function hoistToolResultFiles(args: { messages: readonly Message[] }): Message[] {
   const hoisted: Message[] = []
 
   for (const message of args.messages) {

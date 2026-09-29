@@ -43,6 +43,9 @@ const fromModelTextPart = (part: ModelTextPart): TextPart => ({
 
 const REMOTE_IMAGE = /^(?:https?:|data:)/i
 
+const isImageMediaType = (mediaType: string): boolean =>
+  mediaType.startsWith('image/') || mediaType === 'image'
+
 const fromModelImagePart = (part: ModelImagePart): ImagePart => {
   if (typeof part.image !== 'string' || REMOTE_IMAGE.test(part.image)) {
     return refuse('a user image part that is not inline base64')
@@ -69,7 +72,7 @@ const fromModelFilePart = (part: ModelFilePart): ImagePart | FilePart => {
     return refuse('a user file part that is not inline base64')
   }
 
-  if (part.mediaType.startsWith('image/') || part.mediaType === 'image') {
+  if (isImageMediaType(part.mediaType)) {
     return {
       type: 'image',
       data: inline,
@@ -149,7 +152,7 @@ const fromModelToolResultOutput = (output: ModelToolResultOutput): ToolResultOut
           return refuse('a tool result file that is not inline base64')
         }
 
-        if (part.mediaType.startsWith('image/') || part.mediaType === 'image') {
+        if (isImageMediaType(part.mediaType)) {
           return { type: 'image' as const, data: part.data.data, mediaType: part.mediaType }
         }
 

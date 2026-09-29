@@ -1,4 +1,5 @@
 import {
+  basenameOf,
   MAX_INLINE_BYTES,
   type AgentFileSystemPort,
   type ModelPart,
@@ -15,8 +16,6 @@ export type FileReadOutput = {
   byteLength: number
   inlined: boolean
 }
-
-const basename = (path: string): string => path.split('/').pop() ?? path
 
 const describe = (args: {
   path: string
@@ -62,7 +61,7 @@ export async function readFile(args: {
       type: 'file',
       data: Buffer.from(bytes).toString('base64'),
       mediaType,
-      filename: basename(path),
+      filename: basenameOf({ path }),
       source: path,
     },
   ]

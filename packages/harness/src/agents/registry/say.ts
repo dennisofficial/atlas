@@ -1,6 +1,7 @@
 import {
   EAgentRestart,
   EMessageOrigin,
+  saidBody,
   type EventLogPort,
   type IdPort,
   type SaidFile,
@@ -75,11 +76,8 @@ async function deliver({
     runId: ids.nextRunId(),
     drafts: [
       {
-        type: 'user-said',
-        text: args.text,
+        ...saidBody({ text: args.text, images: args.images, files: args.files }),
         via,
-        ...(args.images === undefined || args.images.length === 0 ? {} : { images: args.images }),
-        ...(args.files === undefined || args.files.length === 0 ? {} : { files: args.files }),
       },
     ],
   })

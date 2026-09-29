@@ -7,6 +7,7 @@ import type { Event, EventOfType, EventRef } from '../../events/envelope'
 import { liveNudgeIds } from '../../events/nudges'
 import { imagePathLine, inlinable } from '../../images/attached'
 import type { FilePart, ImagePart, TextPart, ToolCallPart, ToolResultPart } from '../../message/parts'
+import { basenameOf } from '../../policy/classifier/path-set'
 import type { AssembledMessage } from '../assembled'
 import { defineRule, type Rule } from '../rule'
 import {
@@ -109,8 +110,6 @@ function appendCall({
   return group
 }
 
-const basename = (path: string): string => path.split('/').pop() ?? path
-
 /**
  * A file too heavy to send is named rather than shown: the model keeps a path it can `read`,
  * where an inlined one over the ceiling would fail the whole step instead of just the attachment.
@@ -140,7 +139,7 @@ function saidContent(event: EventOfType<'user-said'>): (TextPart | ImagePart | F
       type: 'file',
       data: file.data,
       mediaType: file.mediaType,
-      filename: file.filename ?? basename(file.path),
+      filename: file.filename ?? basenameOf({ path: file.path }),
       source: file.path,
     })
   }

@@ -5,6 +5,7 @@ export * from './json/partial'
 export * from './provider'
 
 export * from './events/body'
+export * from './events/said-body'
 export * from './events/envelope'
 export * from './events/ids'
 export * from './events/projections'
@@ -42,7 +43,7 @@ export * from './budget/resolve-budget'
 export * from './events/schema'
 export * from './events/stamp'
 
-export * from './message/hoist-tool-images'
+export * from './message/hoist-tool-files'
 export * from './message/message'
 export * from './message/parts'
 

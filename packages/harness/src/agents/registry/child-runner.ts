@@ -1,5 +1,6 @@
 import {
   EMessageOrigin,
+  saidBody,
   type AssemblyPipeline,
   type EventDraft,
   type EventLogPort,
@@ -108,11 +109,8 @@ export function childRunnerSource({ deps }: { deps: ChildRunnerDepsSource }): Ch
 
 export const steerDrafts = (said: readonly SteerMessage[]): readonly EventDraft[] =>
   said.map((one) => ({
-    type: 'user-said',
-    text: one.text,
+    ...saidBody({ text: one.text, images: one.images, files: one.files }),
     via: one.via ?? EMessageOrigin.ParentAgent,
-    ...(one.images === undefined || one.images.length === 0 ? {} : { images: one.images }),
-    ...(one.files === undefined || one.files.length === 0 ? {} : { files: one.files }),
   }))
 
 export function buildChildRunner({

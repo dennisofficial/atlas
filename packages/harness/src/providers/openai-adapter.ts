@@ -68,8 +68,8 @@ export class OpenAiAdapter extends ProviderAdapter {
       specificationVersion: 'v4',
       provider: OPENAI_PROVIDER_ID,
       modelId: args.card.ref.modelId,
-      // The responses model declares image/* and application/pdf URL support; an empty map here
-      // would make the SDK download and inline every URL part instead of letting the API fetch it.
+      // @ai-sdk/openai's responses model declares image/* and application/pdf in supportedUrls;
+      // the SDK inlines any URL part the model's map does not claim.
       supportedUrls: authorized.supportedUrls,
       doGenerate: (options) => authorized.doGenerate(withProviderOptions(options)),
       doStream: (options) => authorized.doStream(withProviderOptions(options)),
