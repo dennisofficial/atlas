@@ -1,6 +1,5 @@
 import {
   EAgentStatus,
-  isTeammateType,
   type ClockPort,
   type EventDraft,
   type ProviderIdentity,
@@ -19,7 +18,7 @@ import {
   snapshotOf,
   type ChildState,
 } from './child-state'
-import { EAgentNotice, type AgentNoticeQueue } from './notices'
+import { EAgentNotice, endingNoticeKind, type AgentNoticeQueue } from './notices'
 import { statusOf } from './reasons'
 import type { AgentRoster } from './roster'
 
@@ -132,7 +131,7 @@ export class ChildSteps {
     this.notices.queue({
       threadId: child.spawnedBy,
       snapshot: snapshotOf(child),
-      kind: isTeammateType(child.agentType) ? EAgentNotice.QuietEnding : EAgentNotice.Ending,
+      kind: endingNoticeKind(child.agentType),
       draft: agentEndedDraft(child),
     })
   }

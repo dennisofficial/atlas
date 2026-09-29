@@ -66,7 +66,7 @@ async function childTurn(args: {
     launchDirectory: PROJECT_DIRECTORY,
     drainPending: async () => {
       operatorDrains += 1
-      return [{ type: 'user-said', text: OPERATOR_TEXT }]
+      return { drafts: [{ type: 'user-said', text: OPERATOR_TEXT }], wakesTurn: true }
     },
   }
 
@@ -93,7 +93,7 @@ async function childTurn(args: {
       tools: new InMemoryToolRegistry([]),
       hooks: new HookChain({}),
       channel: createDeltaChannel(),
-      drainNotices: async () => notices.splice(0),
+      drainNotices: async () => ({ drafts: notices.splice(0), wakesTurn: true }),
       assemblyFor: () => assembly,
     },
   })

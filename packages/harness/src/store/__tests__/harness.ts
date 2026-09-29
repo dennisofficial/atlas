@@ -71,7 +71,7 @@ export class UnstaffedAgents extends AgentRegistryPort {
     return []
   }
   drainNotifications() {
-    return []
+    return { drafts: [], wakesTurn: false }
   }
   pendingNotices() {
     return []

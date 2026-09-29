@@ -193,7 +193,7 @@ async function openRealChild(): Promise<RealChild> {
         tools: new InMemoryToolRegistry([]),
         hooks: new HookChain({}),
         channel: createDeltaChannel(),
-        drainNotices: async () => [],
+        drainNotices: async () => ({ drafts: [], wakesTurn: false }),
         assemblyFor: () => assembly,
       }),
     }),

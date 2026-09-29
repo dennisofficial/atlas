@@ -3,6 +3,7 @@ import {
   agentLabel,
   EAgentRestart,
   EAgentStatus,
+  isTeammateType,
   type AgentEnding,
 } from '@dltech/atlas-core'
 
@@ -35,7 +36,7 @@ export const deliberateRestart = (restart: { via: EAgentRestart }): boolean =>
   DELIBERATE[restart.via]
 
 export const agentRestartedLine = (restart: AgentRestartRow): string =>
-  `Sub-agent ${agentLabel(restart)} ${RESTART_VIA[restart.via]}`
+  `${isTeammateType(restart.agentType) ? 'Teammate' : 'Sub-agent'} ${agentLabel(restart)} ${RESTART_VIA[restart.via]}`
 
 const NEEDS_ATTENTION: Record<EAgentStatus, boolean> = {
   [EAgentStatus.Running]: false,
@@ -46,10 +47,10 @@ const NEEDS_ATTENTION: Record<EAgentStatus, boolean> = {
 }
 
 export const agentEndedLine = (ending: AgentEndingRow): string =>
-  `Sub-agent ${agentLabel(ending)} ${agentEnding(ending)}`
+  `${isTeammateType(ending.agentType) ? 'Teammate' : 'Sub-agent'} ${agentLabel(ending)} ${agentEnding(ending)}`
 
 export const agentReportedLine = (report: { agentType: string; intent: string }): string =>
-  `Teammate ${agentLabel(report)} reported`
+  `${isTeammateType(report.agentType) ? 'Teammate' : 'Sub-agent'} ${agentLabel(report)} reported`
 
 export const agentEndingFailed = (ending: { status: EAgentStatus }): boolean =>
   NEEDS_ATTENTION[ending.status]

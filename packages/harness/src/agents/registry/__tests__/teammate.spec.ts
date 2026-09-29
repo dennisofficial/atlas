@@ -140,7 +140,7 @@ describe('spawning a teammate', () => {
     expect(supervisor.threadsAwaitingNotice()).toEqual([])
     expect(supervisor.pendingNotices({ threadId: parent })).toHaveLength(0)
 
-    const drafts = supervisor.drainNotifications({ threadId: parent })
+    const drafts = supervisor.drainNotifications({ threadId: parent }).drafts
     expect(drafts).toHaveLength(1)
     expect(drafts[0]?.type).toBe('agent-ended')
   })
@@ -172,7 +172,7 @@ describe('a teammate reporting to the main session', () => {
     expect(opened.supervisor.threadsAwaitingNotice()).toEqual([opened.parent])
     expect(opened.supervisor.pendingNotices({ threadId: opened.parent })).toHaveLength(1)
 
-    const drafts = opened.supervisor.drainNotifications({ threadId: opened.parent })
+    const drafts = opened.supervisor.drainNotifications({ threadId: opened.parent }).drafts
     expect(drafts).toEqual([
       {
         type: 'agent-reported',
@@ -392,7 +392,7 @@ describe("a teammate's session", () => {
           tools,
           hooks: new HookChain({}),
           channel: createDeltaChannel(),
-          drainNotices: async () => [],
+          drainNotices: async () => ({ drafts: [], wakesTurn: false }),
           assemblyFor: ({ agentType }) =>
             defaultPipeline({
               prompt: () =>

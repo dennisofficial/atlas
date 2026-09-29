@@ -31,7 +31,7 @@ type Ending = Extract<EventDraft, { type: 'agent-ended' }>
 const endingsFor = (open: OpenedSupervisor): readonly Ending[] =>
   open.supervisor
     .drainNotifications({ threadId: open.parent })
-    .flatMap((draft) => (draft.type === 'agent-ended' ? [draft] : []))
+    .drafts.flatMap((draft: EventDraft) => (draft.type === 'agent-ended' ? [draft] : []))
 
 const lastEnding = (open: OpenedSupervisor): Ending => {
   const ending = endingsFor(open).at(-1)

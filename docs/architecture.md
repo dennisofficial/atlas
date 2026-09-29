@@ -344,6 +344,30 @@ only fragment that reads the axis, and it is Main-only, so a child never reads "
 never reads instructions about a tool it does not have. Everything else — the loop, the hooks, the
 workspace, the write access — is identical.
 
+### The speech model
+
+**How a child's speech reaches its parent is a property of the agent type, declared once and read
+everywhere — never a branch on the type's name.** `ESpeechModel` (core/agents/kind) has two
+members. `ReportOnEnd` — every built-in type but one: the ending *is* the report, so the notice
+wakes the parent, `agentEndingsBlock` renders it to the model as `<agents-ended>`, it counts as
+turn-taking, and the transcript shows the ending line. `DeliberateReport` — `teammate`: the child
+is a peer session whose turns end for reasons of its own, so it speaks only by calling
+`report_to_main` (which lands as `agent-reported` and renders as `<teammate-reported>`). Its
+`agent-ended` is still written to the parent's log — roster rebuild, rewind survival, and the
+compaction cut-set all read it there — but it is bookkeeping: it never wakes the thread, never
+renders to the model, and never counts as turn-taking.
+
+**One projection decides, and the turn loop trusts it.** `isTurnTaking` (core/agents/kind) is the
+single function that says whether an event hands the turn to the assistant; `awaitsReply` and the
+loop's drain-continuation both read it, so a quiet ending cannot keep a turn stepping past the
+assistant's reply — which is the failure that motivated the seam: a drained bookkeeping event used
+to count as "something changed," and the next step assembled a prompt ending in the assistant's
+own speech, which `exchangeFaults` rightly refuses to send.
+
+**There is no "sub-agent teammate."** The two kinds render distinctly in the transcript —
+"Sub-agent … finished" versus "Teammate … reported" — because conflating them implies a wake and
+a speech path that deliberate-report agents do not have.
+
 **There are no read-only agent types, and that is a decision rather than an omission.** `explore`
 and `reviewer` are briefed by `REPORT_ONLY_CONTRACT` not to change anything, and nothing enforces
 it: `maxEffect` is plumbed all the way through `filteredToolRegistry` and deliberately left unset on

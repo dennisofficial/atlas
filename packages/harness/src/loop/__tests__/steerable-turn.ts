@@ -15,6 +15,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { buildHarness, ETurnStatus, LoopTurnRunner, TurnRunner, type AtlasHarness } from '..'
+import type { PendingDrain } from '../run-turn'
 import { HookChain } from '../../hooks/registry'
 import { scriptedModel, type ScriptedStep } from '../../model/testing/scripted-model'
 import { HookedToolDispatcher } from '../../tools/dispatch'
@@ -35,7 +36,7 @@ afterEach(async () => {
 export type ComposerQueue = {
   type: (text: string) => void
   queue: (draft: EventDraft) => void
-  drain: () => Promise<readonly EventDraft[]>
+  drain: () => Promise<PendingDrain>
   drains: () => number
 }
 
@@ -54,7 +55,7 @@ function createComposerQueue(): ComposerQueue {
       drains += 1
       const taken = waiting
       waiting = []
-      return taken
+      return { drafts: taken, wakesTurn: taken.length > 0 }
     },
     drains: () => drains,
   }

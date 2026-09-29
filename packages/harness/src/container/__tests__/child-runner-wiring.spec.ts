@@ -84,7 +84,7 @@ function bindChildRunner({ container }: { container: DependencyContainer }): voi
         tools: container.resolve(portToken(ToolRegistry)),
         hooks: container.resolve(HookChainToken),
         channel: createDeltaChannel(),
-        drainNotices: async () => [],
+        drainNotices: async () => ({ drafts: [], wakesTurn: false }),
         assemblyFor: ({ agentType }) =>
           defaultPipeline({
             prompt: () =>
@@ -212,7 +212,7 @@ describe('the ending a parent is meant to be woken by', () => {
     const first = agents.pendingNotices({ threadId: parent })
     expect(agents.pendingNotices({ threadId: parent })).toBe(first)
 
-    expect(agents.drainNotifications({ threadId: parent })).toHaveLength(1)
+    expect(agents.drainNotifications({ threadId: parent }).drafts).toHaveLength(1)
     expect(agents.pendingNotices({ threadId: parent })).toHaveLength(0)
   }, 30_000)
 })

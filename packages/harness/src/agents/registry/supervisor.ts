@@ -18,7 +18,7 @@ import { isTeammateType, type AgentType } from '../types'
 import { ChildSteps } from './child-steps'
 import { agentTypeNamed, type SupervisorDeps } from './deps'
 import { freshChild, isStepping, snapshotOf, type ChildState } from './child-state'
-import { NoticeDelivery } from './delivery'
+import { NoticeDelivery, type NoticeDrain } from './delivery'
 import { AgentNoticeQueue } from './notices'
 import { openChildThread } from './open-child'
 import { forgetRemovedChildren } from './remove-children'
@@ -304,7 +304,7 @@ export class AgentSupervisor extends AgentRegistryPort {
     return this.roster.listEverywhere()
   }
 
-  drainNotifications({ threadId }: { threadId: ThreadId }): readonly EventDraft[] {
+  drainNotifications({ threadId }: { threadId: ThreadId }): NoticeDrain {
     return this.delivery.drain({ threadId })
   }
 

@@ -1,3 +1,4 @@
+import { isTurnTaking } from '../agents/kind'
 import { EDecision, type EventType } from './body'
 import type { Event, EventOfType } from './envelope'
 import type { CallId, RunId, ThreadId } from './ids'
@@ -108,22 +109,7 @@ export function inputForCall({
   return eventsOfType({ events, type: 'tool-called' }).findLast((event) => event.callId === callId)?.input
 }
 
-const TURN_TAKING: readonly EventType[] = [
-  'user-said',
-  'assistant-said',
-  'tool-result',
-  'tool-denied',
-  'nudge',
-  'background-shell-ended',
-  'background-shell-awaiting-input',
-  'background-shell-matched',
-  'background-shell-still-running',
-  'service-ended',
-  'agent-ended',
-  'agent-reported',
-]
-
 export function awaitsReply(events: readonly Event[]): boolean {
-  const lastTurn = events.filter((event) => TURN_TAKING.includes(event.type)).at(-1)
+  const lastTurn = events.filter(isTurnTaking).at(-1)
   return lastTurn !== undefined && lastTurn.type !== 'assistant-said'
 }

@@ -100,7 +100,7 @@ async function spawn(args: {
         tools,
         hooks: new HookChain({}),
         channel: createDeltaChannel(),
-        drainNotices: async () => [],
+        drainNotices: async () => ({ drafts: [], wakesTurn: false }),
         assemblyFor: ({ agentType }) =>
           defaultPipeline({
             prompt: () =>
@@ -170,7 +170,7 @@ describe('a child taking its first step', () => {
       agentType: agentTypeNamed({ name: 'explore' }),
     })
 
-    const [draft] = spawned.supervisor.drainNotifications({ threadId: spawned.parent })
+    const [draft] = spawned.supervisor.drainNotifications({ threadId: spawned.parent }).drafts
     expect(draft?.type === 'agent-ended' ? draft.prose : '').toBe('four call sites')
     expect(draft?.type === 'agent-ended' ? draft.turns : 0).toBe(1)
   })

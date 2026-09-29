@@ -1,7 +1,13 @@
 import type { ClockPort, EventDraft, ThreadId } from '@dltech/atlas-core'
 
-import { EAgentNotice, type AgentNotice, type AgentNoticeQueue } from './notices'
+import { EAgentNotice, isTurnTakingNotice, type AgentNotice, type AgentNoticeQueue } from './notices'
 import type { AgentRoster } from './roster'
+
+export type NoticeDrain = {
+  drafts: readonly EventDraft[]
+  /** False when every drained notice is bookkeeping the model never sees. */
+  wakesTurn: boolean
+}
 
 export class NoticeDelivery {
   private readonly notices: AgentNoticeQueue
@@ -14,10 +20,13 @@ export class NoticeDelivery {
     this.clock = args.clock
   }
 
-  drain({ threadId }: { threadId: ThreadId }): readonly EventDraft[] {
+  drain({ threadId }: { threadId: ThreadId }): NoticeDrain {
     const handed = this.notices.take({ threadId, where: () => true })
     this.stampDelivered(handed)
-    return handed.map((notice) => notice.draft)
+    return {
+      drafts: handed.map((notice) => notice.draft),
+      wakesTurn: handed.some(isTurnTakingNotice),
+    }
   }
 
   /**
