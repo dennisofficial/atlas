@@ -344,5 +344,29 @@
       "xhigh": "xhigh",
       "max": "max"
     }
+  },
+  {
+    "ref": {
+      "providerId": "anthropic",
+      "modelId": "claude-sonnet-5-5"
+    },
+    "label": "Claude Sonnet 5.5",
+    "api": "anthropic-messages",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 10,
+      "cacheReadPerMillion": 0.2,
+      "cacheWritePerMillion": 2.5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
   }
 ]
