@@ -19,6 +19,7 @@ import { Switcher } from '../ui/components/switcher'
 import { Threads } from '../ui/components/threads'
 import { AgentsPicker } from '../ui/components/agents-picker'
 import { Onboarding } from '../ui/components/onboarding'
+import { WhatsNew } from '../ui/components/whats-new'
 import { useAppearance } from '../ui/hooks/use-appearance'
 import { isServiceAlive } from '../ui/services-model'
 import { isShellRunning } from '../ui/shells-model'
@@ -36,9 +37,11 @@ import type { SettingsControl } from './use-settings'
 import type { ShellsControl } from './use-shells'
 import { type SwitcherControl } from './use-switcher'
 import type { ThreadsControl } from './use-threads'
+import type { WhatsNewControl } from './use-whats-new'
 
 function DerivedOverlayStack(props: {
   width: number
+  height: number
   contentWidth: number
   cwd: string
   active: ModelRef
@@ -49,6 +52,7 @@ function DerivedOverlayStack(props: {
   agentsPicker: AgentsPickerControl
   settings: SettingsControl
   onboarding: OnboardingControl
+  whatsNew: WhatsNewControl
   accounts: AccountsControl
   threads: ThreadsControl
   accountMeters: (account: Account) => readonly Span[]
@@ -78,8 +82,21 @@ function DerivedOverlayStack(props: {
   useAppearance()
   const sidebarWidth = Math.min(settings.sidebarWidth, props.width)
 
+  const { whatsNew } = props
+
   return (
     <>
+      {whatsNew.view === null ? null : (
+        <WhatsNew
+          width={props.width}
+          height={props.height}
+          fromVersion={whatsNew.view.from}
+          currentVersion={whatsNew.view.to}
+          releasesUrl={whatsNew.releasesUrl}
+          state={whatsNew.view.state}
+          onClose={whatsNew.handleClose}
+        />
+      )}
       {props.compacting === null ? null : (
         <CompactingOverlay compacting={props.compacting} now={props.now} width={props.width} />
       )}

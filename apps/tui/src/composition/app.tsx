@@ -157,6 +157,7 @@ import {
 import { useOverlayKeys } from './use-overlay-keys'
 import { useModelChecks } from './use-model-checks'
 import { useOnboarding } from './use-onboarding'
+import { useWhatsNew } from './use-whats-new'
 import { useSettings } from './use-settings'
 import { useServices } from './use-services'
 import { useShells } from './use-shells'
@@ -1083,6 +1084,8 @@ function Workspace(props: {
     onOpenAccounts: handleOpenAccounts,
   })
 
+  const whatsNew = useWhatsNew()
+
   const handleRewindChoice = useCallback(
     ({ point, verb }: RewindChoice) => {
       if (verb === ERewindVerb.Fork) {
@@ -1811,6 +1814,7 @@ function Workspace(props: {
 
   const overlays = useMemo(
     (): readonly OverlayPresence[] => [
+      covering(whatsNew.view !== null, whatsNew.handleKey),
       covering(exitGuard.state !== null, exitGuard.handleKey),
       covering(containerGuard.state !== null, containerGuard.handleKey),
       covering(rewindConfirm.state !== null, rewindConfirm.handleKey),
@@ -1848,6 +1852,8 @@ function Workspace(props: {
       moving,
       onboarding.handleKey,
       onboarding.state,
+      whatsNew.handleKey,
+      whatsNew.view,
       overlay,
       rewind.handleKey,
       rewind.state,
@@ -2076,6 +2082,7 @@ function Workspace(props: {
         ) : null}
         <OverlayStack
           width={width}
+          height={height}
           contentWidth={contentWidth}
           cwd={props.app.config.cwd}
           active={selection.ref}
@@ -2086,6 +2093,7 @@ function Workspace(props: {
           agents={agents}
           settings={settings}
           onboarding={onboarding}
+          whatsNew={whatsNew}
           accounts={accounts}
           threads={threads}
           agentsPicker={agentsPicker}
