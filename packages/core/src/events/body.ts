@@ -230,6 +230,7 @@ export type EventBody =
       dimensions: readonly ERiskDimension[]
       judgedDimension?: ERiskDimension | undefined
       verdictFault?: EVerdictFault | undefined
+      judgeFault?: string | undefined
       signalIds: readonly string[]
       details?: readonly string[] | undefined
       grantables?: readonly GrantOffer[] | undefined

@@ -817,21 +817,24 @@ function Workspace(props: {
     })
   }, [lostShells])
 
-  const judgeUnreachable = conversation.sidebar.classifier?.judgeUnreachable === true
+  const judgeFault = conversation.sidebar.classifier?.judgeUnreachable ?? null
 
   useEffect(() => {
-    if (!judgeUnreachable) {
+    if (judgeFault === null) {
       clearNotice({ key: NOTICE_KEY_CLASSIFIER_OFFLINE })
       return
     }
 
     notify({
       key: NOTICE_KEY_CLASSIFIER_OFFLINE,
-      text: 'nudge offline — the classifier could not be reached',
+      text:
+        judgeFault === ''
+          ? 'nudge offline — the classifier could not be reached'
+          : `nudge offline — the judge could not be reached: ${judgeFault}`,
       tone: ENoticeTone.Warn,
       sticky: true,
     })
-  }, [judgeUnreachable])
+  }, [judgeFault])
 
   useEffect(() => {
     configureNotices({ ttlMs: settings.noticeSeconds * 1000 })
