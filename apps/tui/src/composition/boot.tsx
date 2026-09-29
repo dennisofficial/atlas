@@ -9,6 +9,7 @@ import { buildInfo } from "../build/info";
 import { appearanceOf, applyAppearance } from "../ui/appearance";
 import { ENoticeTone, notify } from "../ui/notice-store";
 import { installHeapDumpSignal } from "./heap-dump";
+import { installOutputRedirect } from "./output-redirect";
 import { installLinkClickOpen } from "./link-click";
 import { BOOT_FAILURE_EXIT_CODE, bootFailureReport } from "./boot-failure";
 import { createBootProgress } from "./boot-progress";
@@ -80,6 +81,9 @@ export async function bootAtlas(args: {
       at: new Date(),
     }),
   );
+
+  const opLog = durableOpLog();
+  const output = opLog === null ? undefined : installOutputRedirect({ log: opLog });
 
   const settings = loadSettings({ env: args.env, cwd: config.cwd });
   applyAppearance(appearanceOf({ resolution: settings.service.snapshot().resolution }));
@@ -176,6 +180,7 @@ export async function bootAtlas(args: {
   const settled = await session;
 
   if (settled.type === ESession.Ready) {
+    output?.enableNotices();
     activeThread = () => settled.app.activeThread();
     installHeapDumpSignal({
       onDone: ({ text, failed }) =>
