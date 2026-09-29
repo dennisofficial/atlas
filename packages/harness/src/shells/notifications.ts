@@ -11,6 +11,7 @@ export function endedDraft(args: { snapshot: ShellSnapshot; delta: ShellDelta })
     shellId: snapshot.shellId,
     command: snapshot.command,
     description: snapshot.description,
+    bootId: snapshot.bootId,
     status: snapshot.status,
     killedBy: snapshot.killedBy,
     exitCode: snapshot.exitCode,

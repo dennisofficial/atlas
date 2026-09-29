@@ -22,6 +22,7 @@ const killedOutcome = (killedBy: EKilledBy | undefined): string => {
   if (killedBy === EKilledBy.Timeout) return 'ran past its timeout'
   if (killedBy === EKilledBy.Rewind) return 'was killed by a rewind'
   if (killedBy === EKilledBy.LostContact) return 'was killed after atlas lost contact with it'
+  if (killedBy === EKilledBy.Unrecorded) return 'was killed when the previous session ended'
   return 'was killed'
 }
 

@@ -136,12 +136,14 @@ export type EventBody =
       shellId: string
       command: string
       description?: string | undefined
+      bootId?: string | undefined
     }
   | {
       type: 'background-shell-ended'
       shellId: string
       command: string
       description?: string | undefined
+      bootId?: string | undefined
       status: EShellStatus
       killedBy?: EKilledBy | undefined
       exitCode?: number | undefined

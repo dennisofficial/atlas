@@ -29,6 +29,8 @@ export type ShellSnapshot = {
   shellId: ShellId
   /** The thread that started the shell, so a cross-thread listing can attribute each entry to its owner. */
   threadId: ThreadId
+  /** The harness process that owns the shell, so its start and end pair against the right boot. */
+  bootId?: string | undefined
   command: string
   description: string
   status: EShellStatus
@@ -92,6 +94,7 @@ export type ShellKillOutcome =
 
 export type BackgroundShellSpec = {
   shellId: ShellId
+  bootId: string
   command: string
   description: string
   cwd: string
@@ -327,6 +330,7 @@ export function startBackgroundShell(spec: BackgroundShellSpec): StartedBackgrou
     snapshot: () => ({
       shellId: spec.shellId,
       threadId: spec.threadId,
+      bootId: spec.bootId,
       command: spec.command,
       description: spec.description,
       status,

@@ -79,7 +79,7 @@ describe('teardownSession', () => {
     expect(calls).toEqual(['shells:closeAll', 'shells:drain', 'log:append', 'sandbox:stop'])
   })
 
-  it('records unresolved shell endings after closeAll and before the notice drain', async () => {
+  it('drains the queued endings into the log before reconciling the ones still unrecorded', async () => {
     const calls: string[] = []
     const shells: TeardownShellSource = {
       ...recordingSource({ calls, name: 'shells', drafts: [DRAFT] }),
@@ -100,9 +100,9 @@ describe('teardownSession', () => {
 
     expect(calls).toEqual([
       'shells:closeAll',
-      'shells:recordEndings',
       'shells:drain',
       'log:append',
+      'shells:recordEndings',
       'sandbox:stop',
     ])
   })

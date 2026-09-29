@@ -45,6 +45,7 @@ const portExposureSchema = z.object({
 export const shellSnapshotWireSchema = z.object({
   shellId: z.string().min(1).brand<'ShellId'>(),
   threadId: threadIdWireSchema,
+  bootId: z.string().min(1).optional(),
   command: z.string(),
   description: z.string(),
   status: z.enum(EShellStatus),
