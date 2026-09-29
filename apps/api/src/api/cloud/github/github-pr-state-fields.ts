@@ -1,5 +1,5 @@
 import type { GithubPrStateModel } from '../../../db'
-import type { GithubPrStateFields } from './github-realtime.types'
+import type { GithubPrStateFields, GithubPrStateRecord } from './github-realtime.types'
 
 export type CheckTarget = {
   repoFullName: string
@@ -7,13 +7,16 @@ export type CheckTarget = {
   sha: string | null
 }
 
-export function stateFieldsOf(row: GithubPrStateModel): GithubPrStateFields {
+export function stateFieldsOf(row: GithubPrStateModel): GithubPrStateFields & {
+  headRepoFullName: string | null
+} {
   return {
     title: row.title,
     url: row.url,
     state: row.state,
     headBranch: row.headBranch,
     headSha: row.headSha,
+    headRepoFullName: row.headRepoFullName,
     checksRunning: row.checksRunning,
     checksPassed: row.checksPassed,
     checksFailed: row.checksFailed,
@@ -26,9 +29,9 @@ export function stateFieldsOf(row: GithubPrStateModel): GithubPrStateFields {
  * the head sha is unchanged; a new head resets them until the next REST fill.
  */
 export function carryChecks(args: {
-  fields: GithubPrStateFields & { updatedAt: Date }
-  prior: GithubPrStateFields | null
-}): GithubPrStateFields & { updatedAt: Date } {
+  fields: GithubPrStateRecord
+  prior: (GithubPrStateFields & { headRepoFullName: string | null }) | null
+}): GithubPrStateRecord {
   if (args.prior === null) return args.fields
   if (args.prior.headSha !== args.fields.headSha) return args.fields
   return {
@@ -42,8 +45,8 @@ export function carryChecks(args: {
 
 export function provisionalFieldsOf(args: {
   target: CheckTarget
-  prior: GithubPrStateFields
-}): GithubPrStateFields & { updatedAt: Date } {
+  prior: GithubPrStateFields & { headRepoFullName: string | null }
+}): GithubPrStateRecord {
   const headSha = args.target.sha ?? args.prior.headSha
   const shaMoved = headSha !== args.prior.headSha
   return {
@@ -52,6 +55,7 @@ export function provisionalFieldsOf(args: {
     state: args.prior.state,
     headBranch: args.target.branch ?? args.prior.headBranch,
     headSha,
+    headRepoFullName: args.prior.headRepoFullName,
     checksRunning: shaMoved ? 1 : Math.max(args.prior.checksRunning, 1),
     checksPassed: shaMoved ? 0 : args.prior.checksPassed,
     checksFailed: shaMoved ? 0 : args.prior.checksFailed,

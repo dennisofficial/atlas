@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { Interval } from '@nestjs/schedule'
 import { db } from '../../../db'
-import { dtoOf } from './github-delivery.service'
+import { dtoOf, subscriberWhereOf } from './github-delivery.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
-import type { GithubPrStateDto } from './github-realtime.types'
+import type { GithubBranchRouting, GithubPrStateDto } from './github-realtime.types'
 import { GithubUserReadFailed, GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
 
@@ -40,17 +40,52 @@ export class GithubPollSweeperService {
       where: { pollBacked: true, expiresAt: { gt: now } },
     })
     for (const subscription of pollBacked) {
-      await this.pollOne({
+      const prNumber = await this.resolvePrNumber({
         subscriptionId: subscription.id,
         userId: subscription.userId,
         repoFullName: subscription.repoFullName,
         prNumber: subscription.prNumber,
+        branch: subscription.branch,
+      })
+      if (prNumber === null) continue
+      await this.pollOne({
+        userId: subscription.userId,
+        repoFullName: subscription.repoFullName,
+        prNumber,
       })
     }
   }
 
-  private async pollOne(args: {
+  private async resolvePrNumber(args: {
     subscriptionId: string
+    userId: string
+    repoFullName: string
+    prNumber: number | null
+    branch: string
+  }): Promise<number | null> {
+    if (args.prNumber !== null || args.branch === '') return args.prNumber
+
+    const token = await this.github.findToken({ userId: args.userId })
+    if (token === undefined) return null
+
+    const [owner, repo] = args.repoFullName.split('/') as [string, string]
+    let found: { number: number } | null
+    try {
+      found = await this.reads.findOpenPrForBranch({ token, owner, repo, branch: args.branch })
+    } catch (failure) {
+      if (failure instanceof GithubUserReadFailed) return null
+      throw failure
+    }
+    if (found === null) return null
+
+    await db.githubSubscription.update({
+      where: { id: args.subscriptionId },
+      data: { prNumber: found.number },
+    })
+    return found.number
+  }
+
+  private async pollOne(args: {
     userId: string
     repoFullName: string
     prNumber: number
@@ -59,7 +94,7 @@ export class GithubPollSweeperService {
     if (token === undefined) return
 
     const [owner, repo] = args.repoFullName.split('/') as [string, string]
-    let state: GithubPrStateDto
+    let pushed: { state: GithubPrStateDto; routing: GithubBranchRouting }
     try {
       const fields = await this.reads.readPullRequest({
         token,
@@ -79,21 +114,30 @@ export class GithubPollSweeperService {
         },
         update: { ...fields, updatedAt: new Date() },
       })
-      state = dtoOf(row)
+      pushed = {
+        state: dtoOf(row),
+        routing: {
+          headBranch: fields.headBranch,
+          headRepoMatchesBase: fields.headRepoFullName === args.repoFullName,
+        },
+      }
     } catch (failure) {
       if (failure instanceof GithubUserReadFailed) return
       throw failure
     }
 
     const subscribers = await db.githubSubscription.findMany({
-      where: {
+      where: subscriberWhereOf({
         repoFullName: args.repoFullName,
         prNumber: args.prNumber,
-        expiresAt: { gt: new Date() },
-      },
+        routing: pushed.routing,
+      }),
     })
     if (subscribers.length > 0) {
-      this.fanout.push({ userIds: subscribers.map((row) => row.userId), state })
+      this.fanout.push({
+        userIds: [...new Set(subscribers.map((subscriber) => subscriber.userId))],
+        state: pushed.state,
+      })
     }
   }
 }

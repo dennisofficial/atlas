@@ -27,7 +27,7 @@ const PULL_REQUEST_PAYLOAD = {
     state: 'open',
     draft: false,
     merged_at: null,
-    head: { ref: 'dennis/add-the-thing', sha: 'abc123' },
+    head: { ref: 'dennis/add-the-thing', sha: 'abc123', repo: { full_name: 'compai/app' } },
   },
   repository: { full_name: 'compai/app' },
 }
@@ -38,6 +38,7 @@ const REST_FIELDS: PullRequestCacheFields = {
   state: 'open',
   headBranch: 'dennis/add-the-thing',
   headSha: 'abc123',
+  headRepoFullName: 'compai/app',
   checksRunning: 1,
   checksPassed: 2,
   checksFailed: 0,
@@ -52,6 +53,7 @@ const FILLED_PR_STATE = {
   state: 'open',
   headBranch: 'dennis/add-the-thing',
   headSha: 'abc123',
+  headRepoFullName: 'compai/app',
   checksRunning: 1,
   checksPassed: 2,
   checksFailed: 0,
@@ -92,12 +94,17 @@ function seedHook(args: { createdBy: string }): void {
   })
 }
 
-function seedSubscription(args: { userId: string; prNumber: number }): void {
+function seedSubscription(args: {
+  userId: string
+  prNumber: number | null
+  branch?: string
+}): void {
   fake.subscriptions.push({
-    id: `sub-${args.userId}-${args.prNumber}`,
+    id: `sub-${args.userId}-${args.prNumber ?? args.branch}`,
     userId: args.userId,
     repoFullName: 'compai/app',
     prNumber: args.prNumber,
+    branch: args.branch ?? '',
     pollBacked: false,
     expiresAt: new Date(Date.now() + 60_000),
     createdAt: new Date(),
@@ -181,6 +188,7 @@ describe('GithubDeliveryService', () => {
       state: 'open',
       headBranch: 'dennis/add-the-thing',
       headSha: 'abc123',
+      headRepoFullName: 'compai/app',
       checksRunning: 0,
       checksPassed: 0,
       checksFailed: 0,
@@ -360,5 +368,124 @@ describe('GithubDeliveryService', () => {
     expect(await service.handle({ event: 'issues', payload: {} })).toEqual({ handled: false })
     expect(readPullRequest).not.toHaveBeenCalled()
     expect(fake.prStates).toHaveLength(0)
+  })
+
+  it('a pull_request delivery reaches a branch subscriber whose row has no pr number', async () => {
+    vi.useFakeTimers()
+    const { service, fanout } = serviceWith({ tokens: { 'usr-creator': 'ghu_creator' } })
+    seedHook({ createdBy: 'usr-creator' })
+    seedSubscription({ userId: 'usr-branch', prNumber: null, branch: 'dennis/add-the-thing' })
+    seedSubscription({ userId: 'usr-other', prNumber: null, branch: 'someone/else' })
+
+    const received: GithubPrStateDto[] = []
+    fanout.openStream({ userId: 'usr-branch', handler: (state) => received.push(state) })
+    const receivedOther: GithubPrStateDto[] = []
+    fanout.openStream({ userId: 'usr-other', handler: (state) => receivedOther.push(state) })
+
+    await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
+    await vi.advanceTimersByTimeAsync(1_100)
+
+    expect(received.length).toBeGreaterThan(0)
+    expect(received[0]).toMatchObject({ prNumber: 42, headBranch: 'dennis/add-the-thing' })
+    expect(receivedOther).toHaveLength(0)
+  })
+
+  it('a pull_request delivery reaches both the number subscriber and the branch subscriber', async () => {
+    vi.useFakeTimers()
+    const { service, fanout } = serviceWith({ tokens: { 'usr-creator': 'ghu_creator' } })
+    seedHook({ createdBy: 'usr-creator' })
+    seedSubscription({ userId: 'usr-number', prNumber: 42 })
+    seedSubscription({ userId: 'usr-branch', prNumber: null, branch: 'dennis/add-the-thing' })
+
+    const pushes = vi.spyOn(fanout, 'push')
+
+    await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
+    await vi.advanceTimersByTimeAsync(1_100)
+
+    const userIdSets = pushes.mock.calls.map((call) => [...call[0].userIds].sort().join(','))
+    expect(userIdSets.every((ids) => ids === 'usr-branch,usr-number')).toBe(true)
+    expect(userIdSets.length).toBeGreaterThan(0)
+  })
+
+  it('a fork-head pull_request never branch-routes to a same-name branch on the base repo', async () => {
+    vi.useFakeTimers()
+    const { service, fanout } = serviceWith({
+      tokens: { 'usr-creator': 'ghu_creator' },
+      readPullRequest: async () => ({ ...REST_FIELDS, headRepoFullName: 'forker/app' }),
+    })
+    seedHook({ createdBy: 'usr-creator' })
+    seedSubscription({ userId: 'usr-branch', prNumber: null, branch: 'dennis/add-the-thing' })
+    seedSubscription({ userId: 'usr-number', prNumber: 42 })
+
+    const receivedBranch: GithubPrStateDto[] = []
+    fanout.openStream({ userId: 'usr-branch', handler: (state) => receivedBranch.push(state) })
+
+    const forkPayload = {
+      ...PULL_REQUEST_PAYLOAD,
+      pull_request: {
+        ...PULL_REQUEST_PAYLOAD.pull_request,
+        head: { ref: 'dennis/add-the-thing', sha: 'abc123', repo: { full_name: 'forker/app' } },
+      },
+    }
+    await service.handle({ event: 'pull_request', payload: forkPayload })
+    await vi.advanceTimersByTimeAsync(1_100)
+
+    expect(receivedBranch).toHaveLength(0)
+    expect(fake.prStates[0]).toMatchObject({ prNumber: 42, headBranch: 'dennis/add-the-thing' })
+  })
+
+  it('a pull_request with a deleted head repo never branch-routes', async () => {
+    vi.useFakeTimers()
+    const { service, fanout } = serviceWith({
+      tokens: { 'usr-creator': 'ghu_creator' },
+      readPullRequest: async () => ({ ...REST_FIELDS, headRepoFullName: null }),
+    })
+    seedHook({ createdBy: 'usr-creator' })
+    seedSubscription({ userId: 'usr-branch', prNumber: null, branch: 'dennis/add-the-thing' })
+
+    const receivedBranch: GithubPrStateDto[] = []
+    fanout.openStream({ userId: 'usr-branch', handler: (state) => receivedBranch.push(state) })
+
+    const orphanPayload = {
+      ...PULL_REQUEST_PAYLOAD,
+      pull_request: {
+        ...PULL_REQUEST_PAYLOAD.pull_request,
+        head: { ref: 'dennis/add-the-thing', sha: 'abc123', repo: null },
+      },
+    }
+    await service.handle({ event: 'pull_request', payload: orphanPayload })
+    await vi.advanceTimersByTimeAsync(1_100)
+
+    expect(receivedBranch).toHaveLength(0)
+  })
+
+  it('a delivery for a row written before headRepoFullName existed routes on the incoming fields', async () => {
+    vi.useFakeTimers()
+    const { service, fanout } = serviceWith({ tokens: { 'usr-creator': 'ghu_creator' } })
+    seedHook({ createdBy: 'usr-creator' })
+    seedSubscription({ userId: 'usr-branch', prNumber: null, branch: 'dennis/add-the-thing' })
+    fake.prStates.push({
+      repoFullName: 'compai/app',
+      prNumber: 42,
+      title: 'add the thing',
+      url: 'https://github.com/compai/app/pull/42',
+      state: 'open',
+      headBranch: 'dennis/add-the-thing',
+      headSha: 'abc123',
+      headRepoFullName: null,
+      checksRunning: 0,
+      checksPassed: 0,
+      checksFailed: 0,
+      mergeable: null,
+      updatedAt: new Date(),
+    })
+
+    const receivedBranch: GithubPrStateDto[] = []
+    fanout.openStream({ userId: 'usr-branch', handler: (state) => receivedBranch.push(state) })
+
+    await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
+    await vi.advanceTimersByTimeAsync(1_100)
+
+    expect(receivedBranch.length).toBeGreaterThan(0)
   })
 })

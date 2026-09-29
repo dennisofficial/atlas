@@ -7,7 +7,7 @@ export interface RestPullRequest {
   merged_at: string | null
   mergeable: boolean | null
   mergeable_state: string
-  head: { ref: string; sha: string }
+  head: { ref: string; sha: string; repo: { full_name: string } | null }
 }
 
 export interface RestCheckRun {
@@ -26,6 +26,7 @@ export interface PullRequestCacheFields {
   state: string
   headBranch: string
   headSha: string
+  headRepoFullName: string | null
   checksRunning: number
   checksPassed: number
   checksFailed: number
@@ -96,6 +97,7 @@ export function pullRequestCacheFieldsOf(args: {
     state: pullRequestStateOf(args.pull),
     headBranch: args.pull.head.ref,
     headSha: args.pull.head.sha,
+    headRepoFullName: args.pull.head.repo?.full_name ?? null,
     checksRunning: tally.running,
     checksPassed: tally.passed,
     checksFailed: tally.failed,

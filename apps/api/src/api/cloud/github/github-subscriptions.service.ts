@@ -34,12 +34,8 @@ export class GithubSubscriptionsService {
       ...(args.prNumber === undefined ? {} : { prNumber: args.prNumber }),
       ...(args.branch === undefined ? {} : { branch: args.branch }),
     })
-    if (prNumber === null) {
-      throw new NotFoundException(
-        args.branch === undefined
-          ? 'no such pull request'
-          : `no open pull request for ${args.repoFullName}#${args.branch}`,
-      )
+    if (prNumber === null && args.branch === undefined) {
+      throw new NotFoundException('no such pull request')
     }
 
     const hook = await this.hooks.ensureHook({
@@ -47,36 +43,41 @@ export class GithubSubscriptionsService {
       repoFullName: args.repoFullName,
     })
     const pollBacked = hook === 'poll-backed'
+    const branch = args.branch ?? ''
 
     const subscription = await db.githubSubscription.upsert({
       where: {
-        userId_repoFullName_prNumber: {
+        userId_repoFullName_branch: {
           userId: args.userId,
           repoFullName: args.repoFullName,
-          prNumber,
+          branch,
         },
       },
       create: {
         userId: args.userId,
         repoFullName: args.repoFullName,
         prNumber,
+        branch,
         pollBacked,
         expiresAt: nextExpiry(),
       },
-      update: { pollBacked, expiresAt: nextExpiry() },
+      update: { prNumber, pollBacked, expiresAt: nextExpiry() },
     })
     await db.githubRepoHook.updateMany({
       where: { repoFullName: args.repoFullName },
       data: { idleSince: null },
     })
 
-    const state = await this.pullOnSubscribe({
-      userId: args.userId,
-      owner,
-      repo,
-      repoFullName: args.repoFullName,
-      prNumber,
-    })
+    const state =
+      prNumber === null
+        ? null
+        : await this.pullOnSubscribe({
+            userId: args.userId,
+            owner,
+            repo,
+            repoFullName: args.repoFullName,
+            prNumber,
+          })
 
     return subscriptionDtoOf({ subscription, state })
   }
@@ -113,11 +114,15 @@ export class GithubSubscriptionsService {
 
   async liveSubscriptions(args: {
     userId: string
-  }): Promise<Array<{ repoFullName: string; prNumber: number }>> {
+  }): Promise<Array<{ repoFullName: string; prNumber: number | null; branch: string }>> {
     const rows = await db.githubSubscription.findMany({
       where: { userId: args.userId, expiresAt: { gt: new Date() } },
     })
-    return rows.map((row) => ({ repoFullName: row.repoFullName, prNumber: row.prNumber }))
+    return rows.map((row) => ({
+      repoFullName: row.repoFullName,
+      prNumber: row.prNumber,
+      branch: row.branch,
+    }))
   }
 
   /**
@@ -273,7 +278,8 @@ function subscriptionDtoOf(args: {
   subscription: {
     id: string
     repoFullName: string
-    prNumber: number
+    prNumber: number | null
+    branch: string
     pollBacked: boolean
     expiresAt: Date
   }
@@ -283,6 +289,7 @@ function subscriptionDtoOf(args: {
     id: args.subscription.id,
     repoFullName: args.subscription.repoFullName,
     prNumber: args.subscription.prNumber,
+    branch: args.subscription.branch,
     pollBacked: args.subscription.pollBacked,
     expiresAt: args.subscription.expiresAt.toISOString(),
     state: args.state,

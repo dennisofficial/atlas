@@ -46,6 +46,54 @@ describe('PrSubscriptionClient', () => {
     expect(outcome.state?.prNumber).toBe(837)
   })
 
+  it('maps the subscription branch out of the response', async () => {
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ ...liveSubscribeBody, branch: 'dennis/realtime-smoke' }), {
+        status: 201,
+        headers: { 'content-type': 'application/json' },
+      })) as unknown as typeof fetch
+
+    const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+    const outcome = await client.subscribe({ repoFullName: 'dennisofficial/atlas', branch: 'dennis/realtime-smoke' })
+
+    expect(outcome.branch).toBe('dennis/realtime-smoke')
+  })
+
+  it('treats a legacy response with no branch field as branch null', async () => {
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify(liveSubscribeBody), {
+        status: 201,
+        headers: { 'content-type': 'application/json' },
+      })) as unknown as typeof fetch
+
+    const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+    const outcome = await client.subscribe({ repoFullName: 'dennisofficial/atlas', branch: 'dennis/realtime-smoke' })
+
+    expect(outcome.branch).toBeNull()
+  })
+
+  it('parses a discovery subscribe response with null prNumber and null state', async () => {
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify({
+          id: 'sub_9',
+          repoFullName: 'dennisofficial/atlas',
+          prNumber: null,
+          branch: 'dennis/realtime-smoke',
+          pollBacked: false,
+          expiresAt: '2026-09-28T21:00:00.000Z',
+          state: null,
+        }),
+        { status: 201, headers: { 'content-type': 'application/json' } },
+      )) as unknown as typeof fetch
+
+    const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+    const outcome = await client.subscribe({ repoFullName: 'dennisofficial/atlas', branch: 'dennis/realtime-smoke' })
+
+    expect(outcome.state).toBeNull()
+    expect(outcome.branch).toBe('dennis/realtime-smoke')
+  })
+
   it('sends prNumber, not number, when subscribing by number', async () => {
     let seen: unknown
     globalThis.fetch = (async (_url: unknown, init: { body?: string }) => {

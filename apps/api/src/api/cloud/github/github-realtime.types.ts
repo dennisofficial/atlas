@@ -26,10 +26,21 @@ export interface GithubPrStateDto {
 
 export type GithubPrStateFields = Omit<GithubPrStateDto, 'repoFullName' | 'prNumber' | 'updatedAt'>
 
+export type GithubPrStateRecord = GithubPrStateFields & {
+  updatedAt: Date
+  headRepoFullName: string | null
+}
+
+export interface GithubBranchRouting {
+  headBranch: string
+  headRepoMatchesBase: boolean
+}
+
 export interface GithubSubscriptionDto {
   id: string
   repoFullName: string
-  prNumber: number
+  prNumber: number | null
+  branch: string
   pollBacked: boolean
   expiresAt: string
   state: GithubPrStateDto | null

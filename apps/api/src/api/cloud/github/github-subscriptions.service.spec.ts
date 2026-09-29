@@ -22,6 +22,7 @@ const REST_FIELDS: PullRequestCacheFields = {
   state: 'open',
   headBranch: 'dennis/add-the-thing',
   headSha: 'abc123',
+  headRepoFullName: 'compai/app',
   checksRunning: 1,
   checksPassed: 2,
   checksFailed: 0,
@@ -72,7 +73,7 @@ describe('GithubSubscriptionsService', () => {
     expect(Date.parse(dto.expiresAt)).toBeGreaterThan(Date.now())
   })
 
-  it('resolves a branch to its open pull request and subscribes to it', async () => {
+  it('resolves a branch to its open pull request and keys the row by branch', async () => {
     const service = serviceWith({ token: 'ghu_1' })
 
     const dto = await service.subscribe({
@@ -82,17 +83,99 @@ describe('GithubSubscriptionsService', () => {
     })
 
     expect(fake.subscriptions).toHaveLength(1)
+    expect(fake.subscriptions[0]).toMatchObject({
+      prNumber: 42,
+      branch: 'dennis/add-the-thing',
+    })
+    expect(dto.prNumber).toBe(42)
+    expect(dto.branch).toBe('dennis/add-the-thing')
     expect(dto.state?.prNumber).toBe(42)
     expect(dto.state?.headBranch).toBe('dennis/add-the-thing')
   })
 
-  it('404s when a branch has no open pull request', async () => {
+  it('subscribes a branch with no open pull request yet, returning a null state', async () => {
+    const service = serviceWith({ token: 'ghu_1', findOpenPrForBranch: async () => null })
+
+    const dto = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      branch: 'dennis/add-the-thing',
+    })
+
+    expect(dto.prNumber).toBeNull()
+    expect(dto.branch).toBe('dennis/add-the-thing')
+    expect(dto.state).toBeNull()
+    expect(fake.subscriptions).toHaveLength(1)
+    expect(fake.subscriptions[0]).toMatchObject({ prNumber: null, branch: 'dennis/add-the-thing' })
+    expect(fake.prStates).toHaveLength(0)
+  })
+
+  it('a poll-backed branch row with no pull request yet is still recorded', async () => {
+    const service = serviceWith({
+      token: 'ghu_1',
+      ensureHook: 'poll-backed',
+      findOpenPrForBranch: async () => null,
+    })
+
+    const dto = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      branch: 'dennis/add-the-thing',
+    })
+
+    expect(dto.pollBacked).toBe(true)
+    expect(fake.subscriptions[0]).toMatchObject({
+      prNumber: null,
+      branch: 'dennis/add-the-thing',
+      pollBacked: true,
+    })
+  })
+
+  it('a number subscribe for a pr the api will not find is still a 404 path', async () => {
     const service = serviceWith({ token: 'ghu_1', findOpenPrForBranch: async () => null })
 
     await expect(
       service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', branch: 'no/such' }),
-    ).rejects.toBeInstanceOf(NotFoundException)
-    expect(fake.subscriptions).toHaveLength(0)
+    ).resolves.toMatchObject({ prNumber: null, branch: 'no/such' })
+    expect(fake.subscriptions).toHaveLength(1)
+  })
+
+  it('re-subscribing a branch with an open PR after subscribing before it updates the row', async () => {
+    const finds = vi
+      .fn<() => Promise<{ number: number } | null>>()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ number: 42 })
+    const service = serviceWith({ token: 'ghu_1', findOpenPrForBranch: finds })
+
+    const first = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      branch: 'dennis/add-the-thing',
+    })
+    const second = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      branch: 'dennis/add-the-thing',
+    })
+
+    expect(fake.subscriptions).toHaveLength(1)
+    expect(second.id).toBe(first.id)
+    expect(second.prNumber).toBe(42)
+    expect(second.state?.prNumber).toBe(42)
+  })
+
+  it('heartbeat works on a branch row with no pull request yet', async () => {
+    const service = serviceWith({ token: 'ghu_1', findOpenPrForBranch: async () => null })
+    const dto = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      branch: 'dennis/add-the-thing',
+    })
+    fake.subscriptions[0]!.expiresAt = new Date(Date.now() - 60_000)
+
+    const beat = await service.heartbeat({ userId: 'usr_1', subscriptionId: dto.id })
+
+    expect(Date.parse(beat.expiresAt)).toBeGreaterThan(Date.now() + 4 * 60_000)
   })
 
   it('marks the subscription poll-backed when the hook cannot be created', async () => {
@@ -183,6 +266,7 @@ describe('GithubSubscriptionsService', () => {
       userId: 'usr_2',
       repoFullName: 'compai/app',
       prNumber: 7,
+      branch: '',
       pollBacked: false,
       expiresAt: new Date(Date.now() + 60_000),
       createdAt: new Date(),

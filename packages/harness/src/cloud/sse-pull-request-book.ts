@@ -53,8 +53,11 @@ export const readingOfState = (state: SubscriptionPrState): PullRequestReading =
   return { lookup: EPullRequestLookup.Found, pullRequest }
 }
 
-const prIdentityOf = (state: SubscriptionPrState): string =>
-  `github.com/${state.repoFullName}#${state.prNumber}`
+const prIdentityOf = (args: { repoFullName: string; prNumber: number }): string =>
+  `github.com/${args.repoFullName}#${args.prNumber}`
+
+const branchIdentityOf = (args: { repoFullName: string; branch: string }): string =>
+  `github.com/${args.repoFullName}:${args.branch}`
 
 const ABSENT: PullRequestReading = { lookup: EPullRequestLookup.Absent }
 
@@ -84,7 +87,9 @@ export type SseSubscriptionBook = {
  * the last reading each produced. Emits through `onReading` only when a key's shown answer
  * actually changes, so a check_run storm cannot redraw the tile per frame. `byIdentity` routes
  * a pushed frame (which carries repo+number) back to the checkout- or link-keyed entry that
- * subscribed it.
+ * subscribed it; `byBranch` is the discovery path for a branch-kind entry whose subscribe found
+ * no open PR — a frame matched there indexes the number identity, so the next frame routes by
+ * number again.
  */
 export function createSseSubscriptionBook(args: {
   now: () => number
@@ -92,6 +97,7 @@ export function createSseSubscriptionBook(args: {
 }): SseSubscriptionBook {
   const entries = new Map<string, BookEntry>()
   const byIdentity = new Map<string, string>()
+  const byBranch = new Map<string, string>()
 
   const emit = (key: string, reading: PullRequestReading): void => {
     const held = entries.get(key)
@@ -105,6 +111,12 @@ export function createSseSubscriptionBook(args: {
     byIdentity.set(prIdentityOf(state), key)
   }
 
+  const indexBranch = (key: string): void => {
+    const entry = entries.get(key)
+    if (entry === undefined || entry.by.kind !== 'branch') return
+    byBranch.set(branchIdentityOf({ repoFullName: entry.handle.repoFullName, branch: entry.by.branch }), key)
+  }
+
   return {
     holding: ({ key }) => entries.get(key) ?? null,
     entries: () => [...entries.values()],
@@ -113,6 +125,7 @@ export function createSseSubscriptionBook(args: {
     recordSubscribe: ({ key, handle, by, state }) => {
       const reading = state === null ? ABSENT : readingOfState(state)
       entries.set(key, { key, handle, by, reading })
+      indexBranch(key)
       if (state !== null) index(state, key)
       args.onReading({ key, reading })
       return reading
@@ -121,11 +134,16 @@ export function createSseSubscriptionBook(args: {
       const held = entries.get(key)
       if (held === undefined) return
 
+      const priorNumber = numberIdentityOf(held.reading)
       entries.set(key, { ...held, handle })
-      if (state !== null) {
-        index(state, key)
-        emit(key, readingOfState(state))
+      if (state === null) return
+
+      index(state, key)
+      if (held.by.kind === 'branch') byBranch.set(branchIdentityOf({ repoFullName: handle.repoFullName, branch: held.by.branch }), key)
+      if (priorNumber !== null && priorNumber !== state.prNumber) {
+        byIdentity.delete(prIdentityOf({ repoFullName: state.repoFullName, prNumber: priorNumber }))
       }
+      emit(key, readingOfState(state))
     },
     applyFrame: ({ data }) => {
       let parsed: unknown
@@ -137,10 +155,20 @@ export function createSseSubscriptionBook(args: {
       const state = parsed as SubscriptionPrState
       if (typeof state.repoFullName !== 'string' || typeof state.prNumber !== 'number') return
 
-      const key = byIdentity.get(prIdentityOf(state))
-      if (key === undefined) return
+      const known = byIdentity.get(prIdentityOf(state))
+      if (known !== undefined) {
+        emit(known, readingOfState(state))
+        return
+      }
 
-      emit(key, readingOfState(state))
+      if (typeof state.headBranch !== 'string') return
+      const discovered = byBranch.get(branchIdentityOf({ repoFullName: state.repoFullName, branch: state.headBranch }))
+      if (discovered === undefined) return
+      const entry = entries.get(discovered)
+      if (entry === undefined || entry.reading.lookup !== EPullRequestLookup.Absent) return
+
+      index(state, discovered)
+      emit(discovered, readingOfState(state))
     },
     markAllStale: () => {
       for (const key of entries.keys()) {
@@ -150,9 +178,13 @@ export function createSseSubscriptionBook(args: {
     clear: () => {
       entries.clear()
       byIdentity.clear()
+      byBranch.clear()
     },
   }
 }
+
+const numberIdentityOf = (reading: PullRequestReading): number | null =>
+  reading.lookup === EPullRequestLookup.Found ? reading.pullRequest.number : null
 
 const sameShown = (left: PullRequestReading, right: PullRequestReading): boolean => {
   if (left.lookup !== EPullRequestLookup.Found || right.lookup !== EPullRequestLookup.Found) {

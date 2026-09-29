@@ -7,6 +7,7 @@ import {
   type RepositoryCheckout,
 } from '../plugins/github/pure'
 import type { CloudSession } from './cloud-session'
+import { CloudError } from './cloud-transport'
 import { runSseStream, SseRefused } from './sse-client'
 import {
   PrSubscriptionClient,
@@ -128,7 +129,8 @@ export class SsePullRequestPort extends PullRequestPort {
     // A held entry answers only while the stream is live; once it has died the held reading is
     // exactly the stale tally that must not be served again, so a dead session falls through to a
     // fresh subscribe — which doubles as the probe of whether the session recovered (token rotated,
-    // network back) and as the catch-up REST fill the stream can no longer deliver.
+    // network back) and as the catch-up REST fill the stream can no longer deliver. An Absent entry
+    // is held too: it is a live branch subscription awaiting the discovery push, not a failed read.
     const held = this.book.holding({ key: args.key })
     if (held !== null && !this.sessionDead) return held.reading
 
@@ -139,6 +141,12 @@ export class SsePullRequestPort extends PullRequestPort {
         ...(args.by.kind === 'branch' ? { branch: args.by.branch } : { number: args.by.number }),
       })
     } catch (failure) {
+      // A legacy server 404s a branch subscribe with no open PR. Holding nothing keeps every read
+      // a fresh probe, and retryable keeps that probe on the backoff cadence rather than the
+      // five-minute settled one — that re-subscribe is the only discovery path a legacy server has.
+      if (failure instanceof CloudError && failure.status === 404 && args.by.kind === 'branch') {
+        return unavailable(true)
+      }
       if (failure instanceof SseRefused) this.sessionDead = true
       return unavailable(true)
     }
