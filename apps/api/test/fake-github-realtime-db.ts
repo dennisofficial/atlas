@@ -4,7 +4,8 @@ export type FakeSubscriptionRow = {
   id: string
   userId: string
   repoFullName: string
-  prNumber: number
+  prNumber: number | null
+  branch: string
   pollBacked: boolean
   expiresAt: Date
   createdAt: Date
@@ -29,6 +30,7 @@ export type FakePrStateRow = {
   state: string
   headBranch: string
   headSha: string
+  headRepoFullName: string | null
   checksRunning: number
   checksPassed: number
   checksFailed: number
@@ -50,11 +52,11 @@ export function createFakeSubscriptionTable(args: {
     findUnique: async (query: {
       where:
         | { id: string }
-        | { userId_repoFullName_prNumber: { userId: string; repoFullName: string; prNumber: number } }
+        | { userId_repoFullName_branch: { userId: string; repoFullName: string; branch: string } }
     }) => {
       const where = query.where
       if ('id' in where) return args.rows().find((row) => row.id === where.id) ?? null
-      const key = where.userId_repoFullName_prNumber
+      const key = where.userId_repoFullName_branch
       return (
         args
           .rows()
@@ -62,23 +64,23 @@ export function createFakeSubscriptionTable(args: {
             (row) =>
               row.userId === key.userId &&
               row.repoFullName === key.repoFullName &&
-              row.prNumber === key.prNumber,
+              row.branch === key.branch,
           ) ?? null
       )
     },
     upsert: async (query: {
-      where: { userId_repoFullName_prNumber: { userId: string; repoFullName: string; prNumber: number } }
+      where: { userId_repoFullName_branch: { userId: string; repoFullName: string; branch: string } }
       create: Omit<FakeSubscriptionRow, 'id' | 'createdAt'> & { id?: string; createdAt?: Date }
       update: Partial<FakeSubscriptionRow>
     }) => {
-      const key = query.where.userId_repoFullName_prNumber
+      const key = query.where.userId_repoFullName_branch
       const held = args
         .rows()
         .find(
           (row) =>
             row.userId === key.userId &&
             row.repoFullName === key.repoFullName &&
-            row.prNumber === key.prNumber,
+            row.branch === key.branch,
         )
       if (held === undefined) {
         sequence += 1

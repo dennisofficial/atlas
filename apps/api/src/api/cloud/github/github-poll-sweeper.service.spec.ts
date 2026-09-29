@@ -22,6 +22,7 @@ const REST_FIELDS: PullRequestCacheFields = {
   state: 'open',
   headBranch: 'dennis/add-the-thing',
   headSha: 'abc123',
+  headRepoFullName: 'compai/app',
   checksRunning: 0,
   checksPassed: 3,
   checksFailed: 1,
@@ -31,12 +32,14 @@ const REST_FIELDS: PullRequestCacheFields = {
 function serviceWith(args: {
   tokens?: Record<string, string>
   readPullRequest?: GithubUserReads['readPullRequest']
+  findOpenPrForBranch?: GithubUserReads['findOpenPrForBranch']
 }): { service: GithubPollSweeperService; fanout: GithubPrFanoutService } {
   const github = {
     findToken: async ({ userId }: { userId: string }) => args.tokens?.[userId],
   } as unknown as GithubService
   const reads = {
     readPullRequest: args.readPullRequest ?? (async () => REST_FIELDS),
+    findOpenPrForBranch: args.findOpenPrForBranch ?? (async () => null),
   } as unknown as GithubUserReads
   const fanout = new GithubPrFanoutService()
   return { service: new GithubPollSweeperService(github, reads, fanout), fanout }
@@ -48,6 +51,7 @@ function seedSubscription(overrides: Partial<(typeof fake.subscriptions)[number]
     userId: 'usr_1',
     repoFullName: 'compai/app',
     prNumber: 42,
+    branch: '',
     pollBacked: true,
     expiresAt: new Date(Date.now() + 60_000),
     createdAt: new Date(),
@@ -114,6 +118,98 @@ describe('GithubPollSweeperService', () => {
 
     await expect(service.handlePoll()).resolves.toBeUndefined()
     expect(fake.prStates).toHaveLength(0)
+  })
+
+  it('re-resolves a poll-backed branch row with no pr number and records the found pr', async () => {
+    vi.useFakeTimers()
+    const readPullRequest = vi.fn(async () => REST_FIELDS)
+    const findOpenPrForBranch = vi.fn(async () => ({ number: 42 }))
+    const { service, fanout } = serviceWith({
+      tokens: { 'usr_1': 'ghu_1' },
+      readPullRequest,
+      findOpenPrForBranch,
+    })
+    seedSubscription({ prNumber: null, branch: 'dennis/add-the-thing' })
+
+    const received: unknown[] = []
+    fanout.openStream({ userId: 'usr_1', handler: (state) => received.push(state) })
+
+    await service.handlePoll()
+    await vi.advanceTimersByTimeAsync(1_100)
+
+    expect(findOpenPrForBranch).toHaveBeenCalledWith({
+      token: 'ghu_1',
+      owner: 'compai',
+      repo: 'app',
+      branch: 'dennis/add-the-thing',
+    })
+    expect(fake.subscriptions[0]?.prNumber).toBe(42)
+    expect(readPullRequest).toHaveBeenCalledWith({
+      token: 'ghu_1',
+      owner: 'compai',
+      repo: 'app',
+      number: 42,
+    })
+    expect(fake.prStates[0]).toMatchObject({ prNumber: 42 })
+    expect(received).toHaveLength(1)
+  })
+
+  it('leaves a poll-backed branch row unresolved while no open pr exists for it', async () => {
+    const readPullRequest = vi.fn(async () => REST_FIELDS)
+    const findOpenPrForBranch = vi.fn(async () => null)
+    const { service } = serviceWith({
+      tokens: { 'usr_1': 'ghu_1' },
+      readPullRequest,
+      findOpenPrForBranch,
+    })
+    seedSubscription({ prNumber: null, branch: 'dennis/add-the-thing' })
+
+    await service.handlePoll()
+
+    expect(findOpenPrForBranch).toHaveBeenCalled()
+    expect(readPullRequest).not.toHaveBeenCalled()
+    expect(fake.subscriptions[0]?.prNumber).toBeNull()
+    expect(fake.prStates).toHaveLength(0)
+  })
+
+  it('never re-resolves a hook-backed branch row — its webhook pushes instead', async () => {
+    const readPullRequest = vi.fn(async () => REST_FIELDS)
+    const findOpenPrForBranch = vi.fn(async () => ({ number: 42 }))
+    const { service } = serviceWith({
+      tokens: { 'usr_1': 'ghu_1' },
+      readPullRequest,
+      findOpenPrForBranch,
+    })
+    seedSubscription({ prNumber: null, branch: 'dennis/add-the-thing', pollBacked: false })
+
+    await service.handlePoll()
+
+    expect(findOpenPrForBranch).not.toHaveBeenCalled()
+    expect(readPullRequest).not.toHaveBeenCalled()
+  })
+
+  it('a poll for a known pr reaches a branch subscriber of the same repo', async () => {
+    vi.useFakeTimers()
+    const { service, fanout } = serviceWith({ tokens: { 'usr_1': 'ghu_1' } })
+    seedSubscription()
+    fake.subscriptions.push({
+      id: 'sub-branch',
+      userId: 'usr_2',
+      repoFullName: 'compai/app',
+      prNumber: null,
+      branch: 'dennis/add-the-thing',
+      pollBacked: false,
+      expiresAt: new Date(Date.now() + 60_000),
+      createdAt: new Date(),
+    })
+
+    const pushes = vi.spyOn(fanout, 'push')
+
+    await service.handlePoll()
+    await vi.advanceTimersByTimeAsync(1_100)
+
+    expect(pushes).toHaveBeenCalled()
+    expect([...pushes.mock.calls[0]![0].userIds].sort()).toEqual(['usr_1', 'usr_2'])
   })
 
   it('marks a hook idle once its last live subscription expires', async () => {

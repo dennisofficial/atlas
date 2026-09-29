@@ -8,7 +8,7 @@ const PULL = {
   state: 'open',
   draft: false,
   merged_at: null,
-  head: { ref: 'dennis/add-the-thing', sha: 'abc123' },
+  head: { ref: 'dennis/add-the-thing', sha: 'abc123', repo: { full_name: 'compai/app' } },
 }
 
 describe('payloadFieldsOf', () => {

@@ -22,10 +22,11 @@ export const matchesValue = (value: unknown, condition: unknown): boolean => {
     const ops = condition as Record<string, unknown>
     if ('in' in ops) return (ops.in as unknown[]).includes(value)
     if ('notIn' in ops) return !(ops.notIn as unknown[]).includes(value)
-    if ('not' in ops) return value !== ops.not
+    if ('not' in ops && value === ops.not) return false
     if ('contains' in ops) {
       return typeof value === 'string' && value.includes(ops.contains as string)
     }
+    if ('equals' in ops && !matchesValue(value, ops.equals)) return false
     const range = ops as { gt?: number; gte?: number; lt?: number; lte?: number }
     const numeric = value as number
     if (range.gt !== undefined && !(numeric > range.gt)) return false

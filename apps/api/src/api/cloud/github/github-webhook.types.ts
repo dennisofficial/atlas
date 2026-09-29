@@ -20,7 +20,7 @@ export interface GithubWebhookPullRequest {
   state: string
   draft: boolean
   merged_at: string | null
-  head: { ref: string; sha: string }
+  head: { ref: string; sha: string; repo: { full_name: string } | null }
 }
 
 export interface GithubPullRequestWebhookPayload {

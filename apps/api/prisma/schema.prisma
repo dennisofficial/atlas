@@ -314,13 +314,15 @@ model GithubSubscription {
   id           String   @id @default(cuid())
   userId       String
   repoFullName String
-  prNumber     Int
+  prNumber     Int?
+  branch       String   @default("")
   pollBacked   Boolean  @default(false)
   expiresAt    DateTime
   createdAt    DateTime @default(now())
 
-  @@unique([userId, repoFullName, prNumber])
+  @@unique([userId, repoFullName, branch])
   @@index([repoFullName, prNumber])
+  @@index([repoFullName, branch])
   @@index([expiresAt])
 }
 
@@ -343,6 +345,7 @@ model GithubPrState {
   state         String
   headBranch    String
   headSha       String
+  headRepoFullName String?
   checksRunning Int      @default(0)
   checksPassed  Int      @default(0)
   checksFailed  Int      @default(0)

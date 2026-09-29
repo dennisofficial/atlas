@@ -14,7 +14,7 @@ const pull = (over: Partial<RestPullRequest>): RestPullRequest => ({
   merged_at: null,
   mergeable: null,
   mergeable_state: 'unknown',
-  head: { ref: 'dennis/add-the-thing', sha: 'abc123' },
+  head: { ref: 'dennis/add-the-thing', sha: 'abc123', repo: { full_name: 'compai/app' } },
   ...over,
 })
 
