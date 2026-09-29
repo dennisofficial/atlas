@@ -47,6 +47,8 @@ export type InlineNode =
     }
   | { readonly kind: EInline.Footnote; readonly marker: string }
 
+export type PathVerdict = (candidate: string) => string | null
+
 const HTML_COMMENT = /<!--[\s\S]*?-->/g
 
 const FOOTNOTE_REFERENCE = /\[\^([^\]\s]+)\]/g
@@ -65,11 +67,13 @@ const FILE_PATH =
 export function inlineNodes(args: {
   tokens: readonly Token[]
   order?: ReadonlyMap<string, number>
+  canLinkPath?: PathVerdict | undefined
 }): readonly InlineNode[] {
   return walk({
     tokens: args.tokens,
     marks: {},
     order: args.order ?? new Map(),
+    canLinkPath: args.canLinkPath,
   })
 }
 
@@ -91,6 +95,7 @@ function walk(args: {
   tokens: readonly Token[]
   marks: InlineMarks
   order: ReadonlyMap<string, number>
+  canLinkPath: PathVerdict | undefined
 }): readonly InlineNode[] {
   return args.tokens.flatMap((token) => nodesOf({ ...args, token }))
 }
@@ -99,6 +104,7 @@ function nodesOf(args: {
   token: Token
   marks: InlineMarks
   order: ReadonlyMap<string, number>
+  canLinkPath: PathVerdict | undefined
 }): readonly InlineNode[] {
   const { token, marks, order } = args
 
@@ -107,6 +113,7 @@ function nodesOf(args: {
       tokens: childrenOf(token),
       marks: { ...marks, bold: true },
       order,
+      canLinkPath: args.canLinkPath,
     })
   }
   if (token.type === 'em') {
@@ -114,9 +121,12 @@ function nodesOf(args: {
       tokens: childrenOf(token),
       marks: { ...marks, italic: true },
       order,
+      canLinkPath: args.canLinkPath,
     })
   }
-  if (token.type === 'del') return deleted({ token: token as Tokens.Del, marks, order })
+  if (token.type === 'del') {
+    return deleted({ token: token as Tokens.Del, marks, order, canLinkPath: args.canLinkPath })
+  }
   if (token.type === 'codespan') {
     /**
      * The design pads this slab with a space either side, which its HTML does with `&nbsp;`. There
@@ -132,7 +142,9 @@ function nodesOf(args: {
       },
     ]
   }
-  if (token.type === 'link') return [linkNode({ token: token as Tokens.Link, marks, order })]
+  if (token.type === 'link') {
+    return [linkNode({ token: token as Tokens.Link, marks, order, canLinkPath: args.canLinkPath })]
+  }
   if (token.type === 'image') {
     const image = token as Tokens.Image
     return [{ kind: EInline.Image, alt: image.text, path: image.href }]
@@ -146,16 +158,18 @@ function nodesOf(args: {
       text: stripComments((token as Tokens.HTML).raw),
       marks,
       order,
+      canLinkPath: args.canLinkPath,
     })
   }
   if ('tokens' in token && Array.isArray(token.tokens) && token.tokens.length > 0) {
-    return walk({ tokens: token.tokens, marks, order })
+    return walk({ tokens: token.tokens, marks, order, canLinkPath: args.canLinkPath })
   }
 
   return textNodes({
     text: 'text' in token ? String(token.text) : token.raw,
     marks,
     order,
+    canLinkPath: args.canLinkPath,
   })
 }
 
@@ -167,6 +181,7 @@ function deleted(args: {
   token: Tokens.Del
   marks: InlineMarks
   order: ReadonlyMap<string, number>
+  canLinkPath: PathVerdict | undefined
 }): readonly InlineNode[] {
   if (SINGLE_TILDE.test(args.token.raw)) {
     const lowered = subscript(args.token.text)
@@ -176,6 +191,7 @@ function deleted(args: {
     tokens: childrenOf(args.token),
     marks: { ...args.marks, strike: true },
     order: args.order,
+    canLinkPath: args.canLinkPath,
   })
 }
 
@@ -183,6 +199,7 @@ function linkNode(args: {
   token: Tokens.Link
   marks: InlineMarks
   order: ReadonlyMap<string, number>
+  canLinkPath: PathVerdict | undefined
 }): InlineNode {
   return {
     kind: EInline.Link,
@@ -190,6 +207,7 @@ function linkNode(args: {
       tokens: childrenOf(args.token),
       marks: args.marks,
       order: args.order,
+      canLinkPath: args.canLinkPath,
     }),
     host: hostOf(args.token.href),
     href: args.token.href,
@@ -210,6 +228,7 @@ function textNodes(args: {
   text: string
   marks: InlineMarks
   order: ReadonlyMap<string, number>
+  canLinkPath: PathVerdict | undefined
 }): readonly InlineNode[] {
   const nodes: InlineNode[] = []
   let cursor = 0
@@ -218,25 +237,33 @@ function textNodes(args: {
     const position = args.order.get(hit[1] ?? '')
     if (position === undefined || hit.index === undefined) continue
 
-    pushPaths({ nodes, text: args.text.slice(cursor, hit.index), marks: args.marks })
+    pushPaths({ nodes, text: args.text.slice(cursor, hit.index), marks: args.marks, canLinkPath: args.canLinkPath })
     nodes.push({ kind: EInline.Footnote, marker: superscriptNumber(position) })
     cursor = hit.index + hit[0].length
   }
 
-  pushPaths({ nodes, text: args.text.slice(cursor), marks: args.marks })
+  pushPaths({ nodes, text: args.text.slice(cursor), marks: args.marks, canLinkPath: args.canLinkPath })
   return nodes
 }
 
-function pushPaths(args: { nodes: InlineNode[]; text: string; marks: InlineMarks }): void {
+function pushPaths(args: {
+  nodes: InlineNode[]
+  text: string
+  marks: InlineMarks
+  canLinkPath: PathVerdict | undefined
+}): void {
   let cursor = 0
   for (const hit of args.text.matchAll(FILE_PATH)) {
     if (hit.index === undefined) continue
+    const path = hit[0].replace(/:\d+(:\d+)?$/, '')
+    const linked = args.canLinkPath === undefined ? path : args.canLinkPath(path)
+    if (linked === null) continue
     push({ nodes: args.nodes, text: args.text.slice(cursor, hit.index), marks: args.marks })
     const line = hit[1] === undefined ? undefined : Number(hit[1])
     args.nodes.push({
       kind: EInline.FilePath,
       text: hit[0],
-      path: hit[0].replace(/:\d+(:\d+)?$/, ''),
+      path: linked,
       ...(line === undefined ? {} : { line }),
     })
     cursor = hit.index + hit[0].length

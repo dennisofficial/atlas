@@ -8,6 +8,7 @@ import { FencedBlock } from '../fenced-block'
 import { TableBlock } from '../table-block'
 import { EProseBlock, type ListItem, type ProseBlock, type SourcedBlock } from './blocks'
 import { proseBlocksFor } from './growing-blocks'
+import type { PathVerdict } from './inline'
 import { InlineRun } from './inline-view'
 import {
   bulletFor,
@@ -44,11 +45,12 @@ export function ProseView(props: {
   streaming?: boolean
   fg?: string
   bg?: string
+  canLinkPath?: PathVerdict | undefined
 }): React.ReactNode {
   const streaming = props.streaming === true
   const blocks = useMemo(
-    () => proseBlocksFor({ source: props.source, streaming }),
-    [props.source, streaming],
+    () => proseBlocksFor({ source: props.source, streaming, canLinkPath: props.canLinkPath }),
+    [props.source, streaming, props.canLinkPath],
   )
   const frame = useMemo<Frame>(
     () => ({

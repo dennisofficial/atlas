@@ -136,6 +136,40 @@ describe('file path mentions', () => {
       'the hook lives in link-click.ts:42, installed',
     )
   })
+
+  it('renders a candidate the verdict refuses as plain text, with no link node', () => {
+    const nodes = inlineNodes({
+      tokens: marked.lexer('see lift/descend and apps/tui/inline.ts'),
+      canLinkPath: (candidate) => (candidate === 'lift/descend' ? null : candidate),
+    })
+    expect(nodes.find((n) => n.kind === EInline.FilePath)?.path).toBe('apps/tui/inline.ts')
+    expect(inlinePlainText(nodes)).toBe('see lift/descend and apps/tui/inline.ts')
+  })
+
+  it('carries the resolved path the verdict returns onto the link node', () => {
+    const nodes = inlineNodes({
+      tokens: marked.lexer('open apps/tui/inline.ts:9'),
+      canLinkPath: (candidate) => `/resolved/${candidate}`,
+    })
+    expect(nodes.find((n) => n.kind === EInline.FilePath)).toEqual({
+      kind: EInline.FilePath,
+      text: 'apps/tui/inline.ts:9',
+      path: '/resolved/apps/tui/inline.ts',
+      line: 9,
+    })
+  })
+
+  it('asks the verdict about every path-shaped candidate the regex finds', () => {
+    const asked: string[] = []
+    inlineNodes({
+      tokens: marked.lexer('package.json and apps/tui/inline.ts'),
+      canLinkPath: (candidate) => {
+        asked.push(candidate)
+        return null
+      },
+    })
+    expect(asked).toEqual(['package.json', 'apps/tui/inline.ts'])
+  })
 })
 
 describe('footnote references', () => {

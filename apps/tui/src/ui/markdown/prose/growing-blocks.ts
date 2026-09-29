@@ -10,6 +10,7 @@ import {
   sourcedProseBlocks,
   withFootnotes,
 } from './blocks'
+import type { PathVerdict } from './inline'
 
 /**
  * marked 18 block tokens that end at a blank line whatever follows it. A list, an indented or
@@ -52,20 +53,29 @@ type SettledProse = {
 
 const settledProse: SettledProse[] = []
 
-const grownBySource = new Map<string, readonly SourcedBlock[]>()
+const grownBySource = new Map<string, { canLinkPath: PathVerdict | undefined; blocks: readonly SourcedBlock[] }>()
 
 const NO_FOOTNOTES: ReadonlyMap<string, string> = new Map()
 
-export function proseBlocksFor(args: { source: string; streaming: boolean }): readonly SourcedBlock[] {
-  if (args.streaming) return growingProseBlocks(args.source)
-  return grownBySource.get(args.source) ?? sourcedProseBlocks(args.source)
+export function proseBlocksFor(args: {
+  source: string
+  streaming: boolean
+  canLinkPath?: PathVerdict | undefined
+}): readonly SourcedBlock[] {
+  if (args.streaming) return growingProseBlocks(args.source, args)
+  const grown = grownBySource.get(args.source)
+  if (grown !== undefined && grown.canLinkPath === args.canLinkPath) return grown.blocks
+  return sourcedProseBlocks(args.source, args)
 }
 
-export function growingProseBlocks(source: string): readonly SourcedBlock[] {
+export function growingProseBlocks(
+  source: string,
+  args: { canLinkPath?: PathVerdict | undefined } = {},
+): readonly SourcedBlock[] {
   const lifted: LiftedFootnotes = FOOTNOTE_DEFINITION_ANYWHERE.test(source)
     ? liftFootnotes(source)
     : { body: source, definitions: NO_FOOTNOTES }
-  const context = contextFor(lifted)
+  const context = contextFor(lifted, args)
 
   const wholeLex = LINK_DEFINITION_ANYWHERE.test(lifted.body) || CARRIAGE_RETURN.test(lifted.body)
   const sourced = wholeLex
@@ -73,7 +83,7 @@ export function growingProseBlocks(source: string): readonly SourcedBlock[] {
     : grownBlocks({ body: lifted.body, context, labels: [...context.order.keys()].join('\n') })
 
   const blocks = withFootnotes({ sourced, lifted, context })
-  rememberGrown({ source, blocks })
+  rememberGrown({ source, blocks, canLinkPath: args.canLinkPath })
   return blocks
 }
 
@@ -172,10 +182,14 @@ function rememberSettled(args: { settled: SettledProse; replacing: SettledProse 
   if (settledProse.length > SETTLED_LIMIT) settledProse.shift()
 }
 
-function rememberGrown(args: { source: string; blocks: readonly SourcedBlock[] }): void {
+function rememberGrown(args: {
+  source: string
+  blocks: readonly SourcedBlock[]
+  canLinkPath: PathVerdict | undefined
+}): void {
   if (grownBySource.size >= GROWN_LIMIT) {
     const oldest = grownBySource.keys().next()
     if (!oldest.done) grownBySource.delete(oldest.value)
   }
-  grownBySource.set(args.source, args.blocks)
+  grownBySource.set(args.source, { canLinkPath: args.canLinkPath, blocks: args.blocks })
 }

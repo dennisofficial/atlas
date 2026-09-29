@@ -3,6 +3,7 @@ import React, { useMemo } from 'react'
 import { SourceSpan } from '../selection/source-span'
 import { theme } from '../theme'
 import { FencedBlock, fenceWidth } from './fenced-block'
+import { canLinkPath } from './prose/path-links'
 import { ProseView } from './prose/prose-view'
 import { registerFallbackRenderer, registerFencedRenderer } from './registry'
 import { codeRenderer, plainRenderer } from './renderers/code'
@@ -155,6 +156,7 @@ const Segment = React.memo(function Segment(
         source={segment.text}
         width={props.width}
         streaming={props.live}
+        canLinkPath={canLinkPath}
         {...(props.fg === undefined ? {} : { fg: props.fg })}
         {...(props.bg === undefined ? {} : { bg: props.bg })}
       />

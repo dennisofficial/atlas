@@ -1,6 +1,6 @@
 import { marked, type Token, type Tokens } from 'marked'
 
-import { EInline, type InlineNode, inlineNodes } from './inline'
+import { EInline, type InlineNode, inlineNodes, type PathVerdict } from './inline'
 import { superscriptNumber } from './unicode'
 
 export enum EProseBlock {
@@ -66,7 +66,10 @@ export type ProseBlock =
 const FOOTNOTE_DEFINITION = /^\[\^([^\]\s]+)\]:[ \t]*(.*)$/
 const DEFINITION_LINE = /^:[ \t]+(.*)$/
 
-export type Context = { readonly order: ReadonlyMap<string, number> }
+export type Context = {
+  readonly order: ReadonlyMap<string, number>
+  readonly canLinkPath?: PathVerdict | undefined
+}
 
 export type SourcedBlock = { readonly block: ProseBlock; readonly raw: string }
 
@@ -75,13 +78,19 @@ export type LiftedFootnotes = {
   readonly definitions: ReadonlyMap<string, string>
 }
 
-export function proseBlocks(source: string): readonly ProseBlock[] {
-  return sourcedProseBlocks(source).map((sourced) => sourced.block)
+export function proseBlocks(
+  source: string,
+  args: { canLinkPath?: PathVerdict | undefined } = {},
+): readonly ProseBlock[] {
+  return sourcedProseBlocks(source, args).map((sourced) => sourced.block)
 }
 
-export function sourcedProseBlocks(source: string): readonly SourcedBlock[] {
+export function sourcedProseBlocks(
+  source: string,
+  args: { canLinkPath?: PathVerdict | undefined } = {},
+): readonly SourcedBlock[] {
   const lifted = liftFootnotes(source)
-  const context = contextFor(lifted)
+  const context = contextFor(lifted, args)
   return withFootnotes({
     sourced: sourcedFromTokens({ tokens: marked.lexer(lifted.body), context }),
     lifted,
@@ -89,9 +98,13 @@ export function sourcedProseBlocks(source: string): readonly SourcedBlock[] {
   })
 }
 
-export function contextFor(lifted: LiftedFootnotes): Context {
+export function contextFor(
+  lifted: LiftedFootnotes,
+  args: { canLinkPath?: PathVerdict | undefined } = {},
+): Context {
   return {
     order: new Map([...lifted.definitions.keys()].map((label, index) => [label, index + 1])),
+    ...(args.canLinkPath === undefined ? {} : { canLinkPath: args.canLinkPath }),
   }
 }
 
@@ -114,7 +127,7 @@ export function withFootnotes(args: {
   const { order } = args.context
   const notes = [...args.lifted.definitions].map(([label, text]) => ({
     marker: superscriptNumber(order.get(label) ?? 0),
-    content: inlineNodes({ tokens: marked.lexer(text), order }),
+    content: inlineNodes({ tokens: marked.lexer(text), order, canLinkPath: args.context.canLinkPath }),
   }))
   return [...args.sourced, { block: { kind: EProseBlock.Footnotes, notes }, raw: '' }]
 }
@@ -159,7 +172,7 @@ function blockOf(args: { token: Token; context: Context }): readonly ProseBlock[
       {
         kind: EProseBlock.Heading,
         level: heading.depth,
-        content: inlineNodes({ tokens: heading.tokens, order }),
+        content: inlineNodes({ tokens: heading.tokens, order, canLinkPath: context.canLinkPath }),
       },
     ]
   }
@@ -221,6 +234,7 @@ function listItem(args: { item: Tokens.ListItem; context: Context }): ListItem {
       : inlineNodes({
           tokens: 'tokens' in lead ? (lead.tokens ?? [lead]) : [lead],
           order: args.context.order,
+          canLinkPath: args.context.canLinkPath,
         })
 
   return {
@@ -250,7 +264,11 @@ function paragraphBlocks(args: { token: Token; context: Context }): readonly Pro
     'tokens' in args.token && Array.isArray(args.token.tokens) && args.token.tokens.length > 0
       ? args.token.tokens
       : [args.token]
-  const content = inlineNodes({ tokens, order: args.context.order })
+  const content = inlineNodes({
+    tokens,
+    order: args.context.order,
+    canLinkPath: args.context.canLinkPath,
+  })
   return content.length === 0 ? [] : [{ kind: EProseBlock.Paragraph, content }]
 }
 
@@ -262,7 +280,11 @@ function definitionList(args: { raw: string; context: Context }): ProseBlock | n
   if (bodies.some((body) => body === undefined)) return null
 
   const inline = (text: string): readonly InlineNode[] =>
-    inlineNodes({ tokens: marked.lexer(text), order: args.context.order })
+    inlineNodes({
+      tokens: marked.lexer(text),
+      order: args.context.order,
+      canLinkPath: args.context.canLinkPath,
+    })
 
   return {
     kind: EProseBlock.Definitions,
