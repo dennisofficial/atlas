@@ -171,6 +171,7 @@ export function createHarnessContainer(): DependencyContainer {
         resolver.resolve(portToken(ClockPort)),
         resolver.resolve(portToken(IdPort)),
         resolver.resolve(portToken(EventLogPort)),
+        resolver.resolve(portToken(LogPort)),
       ),
   })
   harness.register(LocalAccountStoreToken, {

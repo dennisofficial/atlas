@@ -5,7 +5,13 @@ import { useCallback, useEffect, useState, type RefObject } from 'react'
 import { notify } from '../ui/notice-store'
 import { cloudRenameFailureNotice } from './cloud/cloud-write-notices'
 import type { AtlasApp } from './compose'
+import { durableOpLog } from './durable-op-log'
 import { ERenamed, type Renaming } from './session-rename'
+
+const trace = (message: string, threadId: ThreadId, data?: Record<string, unknown>): void => {
+  if (process.env.ATLAS_TRACE_TITLING === undefined) return
+  durableOpLog()?.info({ source: 'titling.trace', message, threadId, ...(data === undefined ? {} : { data }) })
+}
 
 export type SessionName = {
   name: string | null
@@ -39,11 +45,16 @@ export function useSessionName(args: {
   const [titling, setTitling] = useState(false)
 
   useEffect(() => {
+    trace('onRename subscribed', threadId)
     const forget = threads.onRename((renamed) => {
       if (renamed.threadId !== threadId) return
+      trace('onRename fired', threadId, { title: renamed.title })
       setName(renamed.title)
     })
-    return () => forget()
+    return () => {
+      trace('onRename unsubscribed', threadId)
+      forget()
+    }
   }, [threads, threadId])
 
   useEffect(() => {

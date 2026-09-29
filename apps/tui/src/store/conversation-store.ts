@@ -6,6 +6,7 @@ import type {
   Unsubscribe,
 } from "@dltech/atlas-harness";
 
+import { durableOpLog } from "../composition/durable-op-log";
 import { IDLE_TURN, type TurnClock } from "../ui/turn-clock";
 import { assembleTranscript } from "./derive-transcript";
 import { durableEntries } from "./durable-entries";
@@ -360,6 +361,14 @@ export function createConversationStore(args: {
     },
 
     setName(next) {
+      if (process.env.ATLAS_TRACE_TITLING !== undefined) {
+        durableOpLog()?.info({
+          source: "titling.trace",
+          message: "conversation-store setName",
+          threadId: args.threadId,
+          data: { from: name, to: next },
+        });
+      }
       if (next === name) return;
       name = next;
       republish();
