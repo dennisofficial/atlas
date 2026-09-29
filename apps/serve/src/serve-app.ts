@@ -112,8 +112,6 @@ export type ServeApp = {
    * refreshes the store so the read ops serve it. Absent in fakes, which refuse the op.
    */
   restoreTranscript?: (() => Promise<{ restored: boolean; failed: string | null }>) | undefined
-  /** Carries this sandbox's memory back to the control plane — see upload-memory.ts. */
-  syncMemoryAfterTurn: () => Promise<void>
   /** Live counts behind the idle park; absent in fakes, where nothing runs. */
   runningShells?: (() => number) | undefined
   runningServices?: (() => number) | undefined

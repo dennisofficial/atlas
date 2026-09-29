@@ -296,7 +296,6 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     onTurnEnded: () => {
       idleStop.note()
       app.files.forget()
-      void app.syncMemoryAfterTurn().catch(() => undefined)
     },
     onOutcome: (outcome) => {
       log({ event: EServeEvent.TurnEnded, status: outcome.status })

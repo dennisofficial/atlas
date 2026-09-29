@@ -17,7 +17,6 @@ import {
 } from '@dltech/atlas-core'
 
 import { InMemoryToolRegistry } from '../../../tools/registry'
-import type { RemoteMemoryMerge } from '../../merge-remote-memory'
 import { fakeAgentRegistry, type FakeAgents } from './fake-agents'
 import { fakeLedger } from './fake-backend'
 import { fakeServiceRegistry } from './fake-services'
@@ -218,7 +217,6 @@ export const descend = (args: {
   midTurn?: boolean
   pauseDeadlineMs?: number
   mergeWorkspace?: WorkspaceMerger
-  pullMemory?: () => Promise<RemoteMemoryMerge>
   logPort?: LogPort
   afterTranscriptLanded?: () => Promise<void>
 }): Promise<OpenedLocal> => {
@@ -235,7 +233,6 @@ export const descend = (args: {
     surface: surface.surface,
     ...(args.pauseDeadlineMs === undefined ? {} : { pauseDeadlineMs: args.pauseDeadlineMs }),
     ...(args.mergeWorkspace === undefined ? {} : { mergeWorkspace: args.mergeWorkspace }),
-    ...(args.pullMemory === undefined ? {} : { pullMemory: args.pullMemory }),
     ...(args.logPort === undefined ? {} : { logPort: args.logPort }),
     ...(args.afterTranscriptLanded === undefined
       ? {}

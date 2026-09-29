@@ -5,12 +5,10 @@ import {
   DockerEngine,
   listWorktrees,
   logFieldsOf,
-  mergeRemoteMemoryBounded,
   sweepSandboxes,
 } from '@dltech/atlas-harness'
 
 import { registerGrammars } from '../ui/markdown/grammars/index'
-import { clientVersionHeader } from '../build/info'
 import { ENoticeTone, notify } from '../ui/notice-store'
 import { EBootStep, type BootProgress } from './boot-progress'
 import { durableOpLog } from './durable-op-log'
@@ -117,16 +115,6 @@ async function startSession(args: {
     env: args.env,
     settings: args.settings,
   })
-
-  const signedIn = app.cloud.session()
-  if (signedIn !== null) {
-    void mergeRemoteMemoryBounded({
-      session: signedIn,
-      clientVersion: clientVersionHeader(),
-      notice: noticePortBinding(),
-      cwd: config.cwd,
-    })
-  }
 
   progress.report(EBootStep.Authorising)
   const readiness = await credentialReadiness(app)

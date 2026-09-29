@@ -258,8 +258,6 @@ export function fakeServeApp(args: {
 
     whenChildrenSettled: () => (args.whenChildrenSettled ?? (async () => undefined))(),
 
-    syncMemoryAfterTurn: async () => undefined,
-
     ...(args.wakeNotices === true ? { wakeNotices: fakeWakeNotices() } : {}),
 
     ...(args.rewindTarget === undefined ? {} : { rewind: { target: args.rewindTarget } }),
