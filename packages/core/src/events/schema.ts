@@ -258,14 +258,22 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     tail: z.string(),
   }),
   z.object({
+    type: z.literal('service-started'),
+    serviceId: z.string().min(1),
+    command: z.string(),
+    description: z.string().optional(),
+    bootId: z.string().min(1).optional(),
+  }),
+  z.object({
     type: z.literal('service-ended'),
     serviceId: z.string().min(1),
     command: z.string(),
     description: z.string().optional(),
+    bootId: z.string().min(1).optional(),
     status: z.enum(EServiceStatus),
     killedBy: z.enum(EKilledBy).optional(),
     exitCode: z.number().int().optional(),
-    logPath: z.string().min(1),
+    logPath: z.string().min(1).optional(),
     tail: z.string(),
   }),
   z.object({

@@ -181,14 +181,22 @@ export type EventBody =
       tail: string
     }
   | {
+      type: 'service-started'
+      serviceId: string
+      command: string
+      description?: string | undefined
+      bootId?: string | undefined
+    }
+  | {
       type: 'service-ended'
       serviceId: string
       command: string
       description?: string | undefined
+      bootId?: string | undefined
       status: EServiceStatus
       killedBy?: EKilledBy | undefined
       exitCode?: number | undefined
-      logPath: string
+      logPath?: string | undefined
       tail: string
     }
   | {
