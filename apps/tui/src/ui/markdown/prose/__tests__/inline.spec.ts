@@ -121,6 +121,16 @@ describe('file path mentions', () => {
     expect(fromUrl.some((n) => n.kind === EInline.FilePath)).toBe(false)
   })
 
+  it('never links an @-mention or the path inside an HTML closing tag', () => {
+    expect(nodesOf('why is @src/mentionable.ts broken').every((n) => n.kind === EInline.Text)).toBe(
+      true,
+    )
+    expect(nodesOf('<summary>An html block</summary>').every((n) => n.kind !== EInline.FilePath)).toBe(
+      true,
+    )
+    expect(nodesOf('</details>').every((n) => n.kind !== EInline.FilePath)).toBe(true)
+  })
+
   it('keeps the mention inside the plain text round trip', () => {
     expect(textOf('the hook lives in link-click.ts:42, installed')).toBe(
       'the hook lives in link-click.ts:42, installed',

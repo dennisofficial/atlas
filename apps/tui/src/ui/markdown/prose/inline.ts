@@ -60,7 +60,7 @@ const SINGLE_TILDE = /^~[^~]/
  * link, while any slash-joined or absolute path matches extension-free.
  */
 const FILE_PATH =
-  /(?<![\w/@:~+.<-])(?:\/[\w.@~+-][\w.@~+\-/]*|(?:\.{1,2}\/|~\/)[\w.@~+\-/]*|(?:[\w@~+-][\w.@~+-]*\/)+[\w.@~+-]*|[\w@~+-][\w.@~+-]*\.(?:ts|tsx|js|jsx|mjs|cjs|json|md|mdx|py|go|rs|java|rb|yml|yaml|toml|css|html|sh)\b)(?::(\d+))?(?::(\d+))?/g
+  /(?<![\w/@:~+.<-])(?:\/[\w.@~+-][\w.@~+\-/]*|(?:\.{1,2}\/|~\/)[\w.@~+\-/]*|(?:[\w~+-][\w.~+-]*\/)+[\w.~+-]*|[\w~+-][\w.~+-]*\.(?:ts|tsx|js|jsx|mjs|cjs|json|md|mdx|py|go|rs|java|rb|yml|yaml|toml|css|html|sh)\b)(?::(\d+))?(?::(\d+))?/g
 
 export function inlineNodes(args: {
   tokens: readonly Token[]
