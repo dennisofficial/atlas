@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { applyTranscriptBounds } from '../../viewport-rows-store'
+import { TranscriptImageRenderable } from '../transcript-image'
 import '../transcript-image'
 import { encodePng } from './png-fixture'
 
@@ -62,5 +63,37 @@ describe('a transcript picture', () => {
     applyTranscriptBounds({ top: 0, rows: 0 })
 
     expect(painted(await paint())).toBe(true)
+  })
+})
+
+describe('a transcript picture with an explicit protocol', () => {
+  const held = process.env.TERM_PROGRAM
+
+  afterEach(() => {
+    if (held === undefined) delete process.env.TERM_PROGRAM
+    else process.env.TERM_PROGRAM = held
+  })
+
+  test('keeps the caller’s choice even under Warp', async () => {
+    process.env.TERM_PROGRAM = 'WarpTerminal'
+
+    const seen: { node: TranscriptImageRenderable | null } = { node: null }
+    const { renderOnce, flush } = await testRender(
+      <transcript-image
+        ref={(node: TranscriptImageRenderable) => {
+          seen.node = node
+        }}
+        source={PATH}
+        protocol="kitty"
+        fit="fit"
+        style={{ width: 10, height: 5 }}
+      />,
+      { width: 20, height: 12 },
+    )
+    await renderOnce()
+    await flush()
+
+    if (seen.node === null) throw new Error('transcript-image never mounted')
+    expect(seen.node.effectiveProtocol).toBe('kitty')
   })
 })
