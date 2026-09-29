@@ -16,6 +16,8 @@ export const glyph = {
   image: '▣',
   skill: '◆',
   file: '⬚',
+  document: '▤',
+  external: '↗',
   copy: '⧉',
   retry: '↻',
   home: '⌂',
