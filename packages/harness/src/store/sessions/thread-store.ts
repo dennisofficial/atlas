@@ -10,6 +10,7 @@ import {
   type Event,
   type EventLogPort,
   type IdPort,
+  type LogPort,
   type ThreadId,
 } from '@dltech/atlas-core'
 
@@ -67,6 +68,7 @@ export class JsonlThreadStore implements ThreadStorePort {
     private readonly clock: ClockPort,
     private readonly ids: IdPort,
     private readonly log: EventLogPort,
+    private readonly trace?: LogPort | undefined,
   ) {}
 
   onRename(listener: RenameListener): Unsubscribe {
@@ -134,6 +136,14 @@ export class JsonlThreadStore implements ThreadStorePort {
     const sessionDir = await this.registry.sessionDirOf({ threadId })
     if (sessionDir === undefined) return
     await this.updateMeta({ threadId, change: (meta) => ({ ...meta, title }) })
+    if (process.env.ATLAS_TRACE_TITLING !== undefined) {
+      this.trace?.info({
+        source: 'titling.trace',
+        message: 'store rename',
+        threadId,
+        data: { title, listeners: this.renameListeners.size },
+      })
+    }
     for (const listener of [...this.renameListeners]) listener({ threadId, title })
   }
 
