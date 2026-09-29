@@ -124,6 +124,7 @@ export function fakeCloudChannel(
       if (given.op === EClientRequest.PublishWorkspace) return null
       if (given.op === EClientRequest.Rewind) return { applied: 0 }
       if (given.op === EClientRequest.ReadSessionArchive) return { archive: args.archive ?? '' }
+      if (given.op === EClientRequest.RestoreTranscript) return { restored: true }
       return { applied: 0 }
     },
     connection: () => held,

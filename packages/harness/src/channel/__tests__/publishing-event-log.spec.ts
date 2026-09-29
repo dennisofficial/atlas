@@ -41,6 +41,7 @@ function fakeLog(): EventLogPort & { readonly rows: Event[] } {
       return [...rows]
     },
 
+    async refresh() {},
     async head() {
       return rows.length
     },

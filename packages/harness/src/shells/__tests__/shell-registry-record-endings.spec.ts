@@ -59,6 +59,7 @@ class RecordingLog extends EventLogPort {
     return this.read(args)
   }
 
+  async refresh(): Promise<void> {}
   async head(): Promise<number> {
     return this.seq
   }

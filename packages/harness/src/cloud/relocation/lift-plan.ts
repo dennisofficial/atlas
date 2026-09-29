@@ -1,6 +1,7 @@
 import { CLOUD_WORKSPACE_PATH, EExecutionLocation, type LogPort, type ThreadId } from '@dltech/atlas-core'
 
 import { buildSessionArchive } from '../session-archive'
+import { EClientRequest } from '../channel-wire'
 import { logFieldsOf } from '../../store/logs'
 import { atlasDirectory } from '../../store/paths'
 import { sessionDirectory } from '../../store/sessions/paths'
@@ -217,6 +218,25 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
       if (sandbox === undefined) throw new Error('the lift attached without its sandbox')
       const attachment = args.bridge.attach({ threadId: args.threadId, url: sandbox.url, token: sandbox.token })
       ctx.channel = attachment.channel
+
+      // The transcript shipped to an already-healthy serve, so boot never re-materialized it —
+      // tell serve to extract the archive and re-read its store before the conversation opens.
+      // A serve old enough to refuse reads as a blank transcript, so warn rather than attach one
+      // silently.
+      if (ctx.transcript !== undefined) {
+        try {
+          await attachment.channel.request({ op: EClientRequest.RestoreTranscript, params: {} })
+        } catch (error) {
+          ctx.logPort?.warn({
+            source: 'cloud.lift',
+            message: 'the serve did not restore the lifted transcript — the cloud transcript may open blank',
+            threadId: args.threadId,
+            data: { operation: 'restore-transcript' },
+            ...logFieldsOf({ error }),
+          })
+        }
+      }
+
       await args.open?.(attachment)
     },
   },

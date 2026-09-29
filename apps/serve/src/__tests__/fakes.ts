@@ -220,6 +220,7 @@ export function fakeServeApp(args: {
       },
       read: async (): Promise<Event[]> => [...(args.events ?? [])],
       readOwn: async (): Promise<Event[]> => [...(args.events ?? [])],
+      refresh: async (): Promise<void> => {},
       head: async (): Promise<number> => (args.events ?? []).length,
     },
 

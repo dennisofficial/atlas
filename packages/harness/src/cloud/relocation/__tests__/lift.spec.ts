@@ -45,6 +45,17 @@ describe('lifting a conversation into the cloud', () => {
     ])
   })
 
+  it('tells the serve to restore the late-shipped transcript before the conversation opens', async () => {
+    useAtlasHome()
+    const test = harness()
+    await seedLocalTranscript(test)
+
+    const lifted = await liftToCloud(test.args)
+
+    expect(lifted.ok).toBe(true)
+    expect(test.bridge.channel.requests.map((r) => r.op)).toContain('restore-transcript')
+  })
+
   it('carries the whole local transcript across in the session archive', async () => {
     useAtlasHome()
     const test = harness()

@@ -203,6 +203,7 @@ describe('a turn whose committed call the log no longer holds as pending', () =>
         (await harness.log.readOwn(args)).filter((event) => event.type !== 'tool-called'),
       append: (args) => harness.log.append(args),
       head: (args) => harness.log.head(args),
+      refresh: (args) => harness.log.refresh(args),
       replace: (args) => harness.log.replace(args),
     }
 

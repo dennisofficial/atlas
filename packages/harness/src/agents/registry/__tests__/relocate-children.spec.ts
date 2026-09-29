@@ -43,6 +43,7 @@ const recordingLog = (inner: EventLogPort, order: string[]): EventLogPort => ({
   },
   read: (args) => inner.read(args),
   head: (args) => inner.head(args),
+  refresh: (args) => inner.refresh(args),
   readOwn: (args) => inner.readOwn(args),
   replace: (args) => inner.replace(args),
 })

@@ -49,6 +49,7 @@ function ranged(log: FakeEventLog): FakeEventLog {
     append: (args) => log.append(args),
     replace: (args) => log.replace(args),
     head: (args) => log.head(args),
+    refresh: (args) => log.refresh(args),
     read: async (args) => {
       branchesRead.push(args.threadId)
       return slice(args)

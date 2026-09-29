@@ -79,6 +79,8 @@ export function createSessionHandlers(args: {
   selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
   /** Tars the served session directory for the descend's transfer; absent in fakes. */
   sessionArchive?: (() => Promise<Uint8Array | null>) | undefined
+  /** The lift's late transcript restore; absent in fakes, which refuse the op. */
+  restoreTranscript?: (() => Promise<{ restored: boolean; failed: string | null }>) | undefined
 }): SessionHandlers {
   const { threadId, buffer, inFlight, liveStepId, driver, files, publish, refusal, log } = args
   const snapshot = args.roster?.snapshot ?? EMPTY_ROSTER
@@ -86,6 +88,7 @@ export function createSessionHandlers(args: {
   const transcript = args.transcript
   const selectModel = args.selectModel
   const sessionArchive = args.sessionArchive
+  const restoreTranscript = args.restoreTranscript
   const live = new Set<SessionSocket>()
   const attached = new Set<SessionSocket>()
   const aliaser = createStepAliaser()
@@ -310,6 +313,38 @@ export function createSessionHandlers(args: {
               replyTo: frame.id,
               ok: false,
               data: { message: messageOf(error, 'the transcript write failed') },
+            },
+          }),
+        )
+      return
+    }
+
+    if (frame.op === EClientRequest.RestoreTranscript) {
+      if (restoreTranscript === undefined) {
+        send({
+          socket,
+          frame: refusedRequest({ replyTo: frame.id, message: 'this serve cannot restore a transcript' }),
+        })
+        return
+      }
+      void restoreTranscript()
+        .then((result) =>
+          send({
+            socket,
+            frame:
+              result.failed === null
+                ? answeredRequest({ replyTo: frame.id, data: { restored: result.restored } })
+                : refusedRequest({ replyTo: frame.id, message: result.failed }),
+          }),
+        )
+        .catch((error: unknown) =>
+          send({
+            socket,
+            frame: {
+              kind: EServeFrame.Reply,
+              replyTo: frame.id,
+              ok: false,
+              data: { message: messageOf(error, 'the transcript restore failed') },
             },
           }),
         )

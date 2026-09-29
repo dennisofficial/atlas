@@ -53,6 +53,7 @@ class MemoryLog extends EventLogPort {
     return this.events.get(args.threadId) ?? []
   }
 
+  async refresh(): Promise<void> {}
   async head(args: { threadId: ThreadId }): Promise<number> {
     return (this.events.get(args.threadId) ?? []).length
   }

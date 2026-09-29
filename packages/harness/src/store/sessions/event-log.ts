@@ -65,6 +65,11 @@ export class JsonlEventLog implements EventLogPort {
     return decoded.events
   }
 
+  async refresh(args: { threadId: ThreadId }): Promise<void> {
+    const sessionDir = await this.sessionDirFor({ threadId: args.threadId })
+    await this.registry.refreshThreadLog({ sessionDir, threadId: args.threadId })
+  }
+
   async readDecoded({
     threadId,
     fromSeq,

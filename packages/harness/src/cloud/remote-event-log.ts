@@ -56,6 +56,11 @@ export class RemoteEventLog extends EventLogPort {
     return await this.readEvents({ ...args, own: true })
   }
 
+  async refresh(_args: { threadId: ThreadId }): Promise<void> {
+    // The remote log holds no read cache — every read is a fresh channel request — so there is
+    // nothing to invalidate. The restore the lift triggers lands on the serve's own store.
+  }
+
   async head(args: { threadId: ThreadId }): Promise<number> {
     const events = await this.read({ threadId: args.threadId })
     return events.at(-1)?.seq ?? 0
