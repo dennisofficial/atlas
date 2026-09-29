@@ -101,6 +101,8 @@ const fakeChannel = (args: { events: readonly Event[] }) => ({
     if (request.op === EClientRequest.ReadTurns) return { own: [WIRE_TURN], delegated: [] }
     throw new Error(`unexpected channel op ${request.op}`)
   },
+  onThreadRenamed: () => () => undefined,
+  onThreadModelChanged: () => () => undefined,
 })
 
 const attachOver = (args: { events: readonly Event[] }) => {

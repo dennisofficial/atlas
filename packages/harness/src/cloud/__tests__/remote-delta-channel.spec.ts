@@ -446,6 +446,36 @@ describe('driving a turn over the wire', () => {
 
     expect(outcomes).toEqual([{ status: ETurnStatus.Completed, runId: toRunId('run-1') }])
   })
+
+  it('hands a thread-renamed frame to its listeners with the thread id branded', () => {
+    const { channel, open, receive } = harness()
+    const renames: { threadId: string; title: string }[] = []
+    channel.onThreadRenamed((renamed) => void renames.push(renamed))
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+
+    receive({ kind: EServeFrame.ThreadRenamed, threadId: THREAD, title: 'a better name' })
+
+    expect(renames).toEqual([{ threadId: THREAD, title: 'a better name' }])
+  })
+
+  it('hands a thread-model-changed frame to its listeners', () => {
+    const { channel, open, receive } = harness()
+    const changes: { threadId: string; model: { ref: string; effort: string } }[] = []
+    channel.onThreadModelChanged((changed) => void changes.push(changed))
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+
+    receive({
+      kind: EServeFrame.ThreadModelChanged,
+      threadId: THREAD,
+      model: { ref: 'anthropic/claude-opus-5', effort: 'high' },
+    })
+
+    expect(changes).toEqual([
+      { threadId: THREAD, model: { ref: 'anthropic/claude-opus-5', effort: 'high' } },
+    ])
+  })
 })
 
 describe('waking a channel whose socket will not come back', () => {

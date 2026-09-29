@@ -1,7 +1,9 @@
 import { type ThreadId } from '@dltech/atlas-core'
-import { sanitizedTitle } from '@dltech/atlas-harness'
+import { sanitizedTitle, type ThreadStorePort } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useState, type RefObject } from 'react'
 
+import { notify } from '../ui/notice-store'
+import { cloudRenameFailureNotice } from './cloud/cloud-write-notices'
 import type { AtlasApp } from './compose'
 import { ERenamed, type Renaming } from './session-rename'
 
@@ -23,23 +25,26 @@ export type SessionName = {
  */
 export function useSessionName(args: {
   app: AtlasApp
+  /** The store the rename crosses — the cloud attachment's when the thread is lifted. */
+  threads?: ThreadStorePort | undefined
   threadId: ThreadId
   started: RefObject<boolean>
   readDigest: () => Promise<string>
   initial: string | null
 }): SessionName {
   const { app, threadId, started, readDigest } = args
+  const threads = args.threads ?? app.threads
   const [name, setName] = useState<string | null>(args.initial)
   const [naming, setNaming] = useState(false)
   const [titling, setTitling] = useState(false)
 
   useEffect(() => {
-    const forget = app.threads.onRename((renamed) => {
+    const forget = threads.onRename((renamed) => {
       if (renamed.threadId !== threadId) return
       setName(renamed.title)
     })
     return () => forget()
-  }, [app.threads, threadId])
+  }, [threads, threadId])
 
   useEffect(() => {
     setTitling(app.titling.titling({ threadId }))
@@ -68,11 +73,13 @@ export function useSessionName(args: {
 
       if (renaming.type !== ERenamed.Renamed) return renaming
 
-      await app.threads.rename({ threadId, title: renaming.name }).catch(() => undefined)
+      await threads
+        .rename({ threadId, title: renaming.name })
+        .catch(() => notify(cloudRenameFailureNotice()))
 
       return renaming
     },
-    [app, nameFromTranscript, started, threadId],
+    [app, nameFromTranscript, started, threads, threadId],
   )
 
   return { name, naming: naming || titling, setName, renameSession }

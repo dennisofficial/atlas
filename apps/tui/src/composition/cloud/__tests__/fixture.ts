@@ -3,10 +3,13 @@ import type { RosterWire } from '@dltech/atlas-wire'
 import {
   EChannelConnection,
   EClientRequest,
+  RemoteThreadStore,
   ThreadStorePort,
   type ChannelConnection,
   type ChannelReady,
   type InterruptAck,
+  type ThreadModel,
+  type ThreadSummary,
   type TurnOutcome,
 } from '@dltech/atlas-harness'
 
@@ -48,6 +51,9 @@ export type FakeCloudChannel = CloudChannel & {
   failTransport(message: string): void
   acknowledgeInterrupt(): void
   pushRoster(roster: RosterWire): void
+  /** Serve's own titling or another client renamed the thread; the frame lands on every client. */
+  pushThreadRenamed(args: { threadId: ThreadId; title: string }): void
+  pushThreadModelChanged(args: { threadId: ThreadId; model: ThreadModel }): void
   endTurn(outcome: TurnOutcome): void
   readonly closed: boolean
   readonly runs: number
@@ -61,8 +67,28 @@ export type FakeCloudChannel = CloudChannel & {
   readonly reconnects: number
 }
 
+const wireThreadOf = (thread: ThreadSummary): Record<string, unknown> => ({
+  id: thread.id,
+  head: thread.head,
+  createdAt: thread.createdAt,
+  updatedAt: thread.updatedAt,
+  workspace: thread.workspace,
+  repo: thread.repo,
+  ...(thread.title === undefined ? {} : { title: thread.title }),
+  ...(thread.model === undefined ? {} : { model: thread.model }),
+  ...(thread.executionLocation === undefined
+    ? {}
+    : { executionLocation: thread.executionLocation }),
+})
+
 export function fakeCloudChannel(
-  args: { threadId?: ThreadId; log?: FakeEventLog | undefined } = {},
+  args: {
+    threadId?: ThreadId
+    log?: FakeEventLog | undefined
+    threads?: FakeThreadStore | undefined
+    /** The bridge's attach seeds Open, since a real channel has answered its Hello by then. */
+    connection?: ChannelConnection | undefined
+  } = {},
 ): FakeCloudChannel {
   const connections = new Set<(connection: ChannelConnection) => void>()
   const reloads = new Set<(reload: CloudReload) => void>()
@@ -71,6 +97,10 @@ export function fakeCloudChannel(
   const serverErrors = new Set<(failure: { message: string }) => void>()
   const interruptAcks = new Set<(ack: InterruptAck) => void>()
   const rosters = new Set<(roster: RosterWire) => void>()
+  const threadRenames = new Set<(renamed: { threadId: ThreadId; title: string }) => void>()
+  const threadModelChanges = new Set<
+    (changed: { threadId: ThreadId; model: ThreadModel }) => void
+  >()
   const turnEndings = new Set<(outcome: TurnOutcome) => void>()
   const woken: { url: string; token: string }[] = []
   const requests: { op: EClientRequest; params: unknown }[] = []
@@ -80,7 +110,8 @@ export function fakeCloudChannel(
     context?: readonly EventDraft[]
   }[] = []
 
-  let held: ChannelConnection = { state: EChannelConnection.Connecting, detail: null }
+  let held: ChannelConnection =
+    args.connection ?? { state: EChannelConnection.Connecting, detail: null }
   let heldRoster: RosterWire = { shells: [], agents: [], services: [] }
   let closed = false
   let runs = 0
@@ -150,6 +181,31 @@ export function fakeCloudChannel(
         }
         return { applied: 0 }
       }
+      if (given.op === EClientRequest.ReadThread) {
+        const params = given.params as { threadId: ThreadId }
+        const thread = await args.threads?.find({ threadId: params.threadId })
+        return { thread: thread === undefined ? null : wireThreadOf(thread) }
+      }
+      if (given.op === EClientRequest.ReadThreads) {
+        const held = (await args.threads?.list({ project: '' })) ?? []
+        return { threads: held.map(wireThreadOf) }
+      }
+      if (given.op === EClientRequest.RenameThread) {
+        const params = given.params as { threadId: ThreadId; title: string }
+        await args.threads?.rename(params)
+        queueMicrotask(() => {
+          for (const listener of [...threadRenames]) listener(params)
+        })
+        return undefined
+      }
+      if (given.op === EClientRequest.SetThreadModel) {
+        const params = given.params as { threadId: ThreadId; model: ThreadModel }
+        await args.threads?.chooseModel(params)
+        queueMicrotask(() => {
+          for (const listener of [...threadModelChanges]) listener(params)
+        })
+        return undefined
+      }
       return { applied: 0 }
     },
     connection: () => held,
@@ -199,6 +255,18 @@ export function fakeCloudChannel(
       rosters.add(listener)
       return () => {
         rosters.delete(listener)
+      }
+    },
+    onThreadRenamed: (listener) => {
+      threadRenames.add(listener)
+      return () => {
+        threadRenames.delete(listener)
+      }
+    },
+    onThreadModelChanged: (listener) => {
+      threadModelChanges.add(listener)
+      return () => {
+        threadModelChanges.delete(listener)
       }
     },
     wake: ({ url, token }) => {
@@ -255,6 +323,12 @@ export function fakeCloudChannel(
     pushRoster(roster: RosterWire) {
       heldRoster = roster
       for (const listener of [...rosters]) listener(roster)
+    },
+    pushThreadRenamed({ threadId, title }) {
+      for (const listener of [...threadRenames]) listener({ threadId, title })
+    },
+    pushThreadModelChanged({ threadId, model }) {
+      for (const listener of [...threadModelChanges]) listener({ threadId, model })
     },
     endTurn(outcome) {
       for (const listener of [...turnEndings]) listener(outcome)
@@ -496,8 +570,30 @@ export function fakeBridge(
       trail.push('attach')
       attached.push({ threadId, url, token })
       materialize(threadId)
-      channel = fakeCloudChannel({ threadId, log })
-      return { channel, stores: { log, threads: watchedThreads, ledger } }
+      channel = fakeCloudChannel({
+        threadId,
+        log,
+        threads,
+        connection: { state: EChannelConnection.Open, detail: null },
+      })
+      const remoteThreads = new RemoteThreadStore({ channel })
+      const attachedThreads = new Proxy(watchedThreads, {
+        get: (target, property, receiver) => {
+          if (
+            property === 'onRename' ||
+            property === 'onModelChosen' ||
+            property === 'rename' ||
+            property === 'chooseModel'
+          ) {
+            const remote = remoteThreads as unknown as Record<PropertyKey, unknown>
+            const held = Reflect.get(remote, property, receiver)
+            return typeof held === 'function' ? held.bind(remoteThreads) : held
+          }
+          const held = Reflect.get(target, property, receiver)
+          return typeof held === 'function' ? held.bind(target) : held
+        },
+      })
+      return { channel, stores: { log, threads: attachedThreads, ledger } }
     },
   }
 }
