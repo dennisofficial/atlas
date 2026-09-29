@@ -27,6 +27,7 @@ export enum ESettingId {
   FenceWrap = 'transcript.fenceWrap',
   TldrFooter = 'tldr.footer',
   TldrStatus = 'tldr.status',
+  Editor = 'files.editor',
   WorktreeDirectory = 'worktree.directory',
   FooterMeters = 'usage.meters',
   WarnFiveHour = 'usage.warnFiveHour',
@@ -150,6 +151,24 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     environmentVariable: 'ATLAS_TLDR_STATUS',
     kind: ESettingKind.Toggle,
     fallback: true,
+  },
+  {
+    id: ESettingId.Editor,
+    page: ESettingPage.General,
+    group: 'Transcript',
+    label: 'Editor',
+    description:
+      'Which editor a clicked file path in the transcript opens in. Default hands the path to the operating system\u2019s own handler, as if you had double-clicked it.',
+    environmentVariable: 'ATLAS_EDITOR',
+    kind: ESettingKind.Choice,
+    fallback: 'default',
+    options: [
+      { value: 'default', label: 'default', detail: 'shipped' },
+      { value: 'cursor', label: 'cursor' },
+      { value: 'code', label: 'code' },
+      { value: 'zed', label: 'zed' },
+      { value: 'warp', label: 'warp' },
+    ],
   },
   {
     id: ESettingId.SidebarWidth,

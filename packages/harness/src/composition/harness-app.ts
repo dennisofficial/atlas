@@ -11,6 +11,7 @@ import type {
 
 import type { AgentRegistryPort } from '../agents/registry/port'
 import type { AgentTypeCatalog } from '../agents/types/registry'
+import type { FileOpener } from '../browser/open-file'
 import type { UrlOpener } from '../browser/open-url'
 import type { DeltaChannel } from '../channel/delta-channel'
 import type { CloudService } from '../cloud/cloud-service'
@@ -103,6 +104,7 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   usage: AccountUsageService
   files: FileBrowser
   openUrl: UrlOpener
+  openFile: FileOpener
   skills: readonly DiscoveredSkill[]
   skillRegistry: SkillRegistryPort
   agentTypes: AgentTypeCatalog
