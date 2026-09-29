@@ -4,6 +4,7 @@ import {
   imagePathLine,
   imageTagOrdinals,
   visualTokens,
+  type SaidFile,
   type SaidImage,
 } from '@dltech/atlas-core'
 
@@ -32,7 +33,11 @@ export function restoredImages(args: {
   }))
 }
 
-export type Submission = { text: string; images: readonly SaidImage[] }
+export type Submission = {
+  text: string
+  images: readonly SaidImage[]
+  files?: readonly SaidFile[] | undefined
+}
 
 /**
  * What the draft becomes on send, read straight off the extmarks the registry wrote. Every span is

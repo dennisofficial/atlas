@@ -64,6 +64,14 @@ const toolResultPartSchema = z.discriminatedUnion('type', [
     source: z.string().optional(),
     providerOptions: providerOptionsSchema.optional(),
   }),
+  z.object({
+    type: z.literal('file'),
+    data: z.string(),
+    mediaType: z.string(),
+    filename: z.string().optional(),
+    source: z.string().optional(),
+    providerOptions: providerOptionsSchema.optional(),
+  }),
 ])
 
 const saidImageSchema = z.object({
@@ -72,6 +80,13 @@ const saidImageSchema = z.object({
   data: z.string(),
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
+})
+
+const saidFileSchema = z.object({
+  path: z.string(),
+  mediaType: z.string(),
+  data: z.string(),
+  filename: z.string().optional(),
 })
 
 const grantOfferSchema = z.object({
@@ -85,6 +100,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     text: z.string(),
     via: z.enum(EMessageOrigin).optional(),
     images: z.array(saidImageSchema).optional(),
+    files: z.array(saidFileSchema).optional(),
   }),
   z.object({
     type: z.literal('assistant-said'),

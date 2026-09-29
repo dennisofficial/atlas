@@ -86,7 +86,7 @@ describe('the send ack', () => {
 
 describe('the protocol stamp', () => {
   it('speaks the version that introduced thread rename and model ops', () => {
-    expect(CHANNEL_PROTOCOL_VERSION).toBe(8)
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(9)
   })
 })
 

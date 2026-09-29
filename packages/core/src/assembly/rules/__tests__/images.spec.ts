@@ -62,7 +62,11 @@ const partsOf = (assembled: Assembled): readonly string[] =>
       if (part.type === 'image') return ['image']
       if (part.type === 'text') return [part.text]
       if (part.type === 'tool-result' && part.output.type === 'content') {
-        return part.output.value.map((inner) => (inner.type === 'image' ? 'image' : inner.text))
+        return part.output.value.map((inner) => {
+          if (inner.type === 'image') return 'image'
+          if (inner.type === 'file') return 'file'
+          return inner.text
+        })
       }
       return []
     }),

@@ -1,4 +1,5 @@
 import {
+  type SaidFile,
   type SaidImage,
   attributedStop,
   EAgentStatus,
@@ -41,6 +42,7 @@ export type ChildState = {
 export type SteerMessage = {
   text: string
   images?: readonly SaidImage[] | undefined
+  files?: readonly SaidFile[] | undefined
   via?: EMessageOrigin | undefined
 }
 

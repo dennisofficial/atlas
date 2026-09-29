@@ -1,7 +1,7 @@
 import { decodeBase64, imageSize, visualTokens, type ImageSize } from '../images/limits'
 import { DEFAULT_IMAGE_TIER, type EImageTier } from '../images/projection'
 import type { Message } from '../message/message'
-import type { ImagePart, MessagePart } from '../message/parts'
+import type { FilePart, ImagePart, MessagePart } from '../message/parts'
 import type { Assembled } from './assembled'
 
 const CHARS_PER_TOKEN = 4
@@ -26,12 +26,18 @@ function imageTokens({ part, tier }: { part: ImagePart; tier: EImageTier }): num
   return visualTokens({ byteLength: 0, tier, ...size }) ?? UNMEASURABLE_IMAGE_TOKENS
 }
 
+const fileTokens = (part: FilePart): number => textTokens(part.data)
+
 function partTokens({ part, tier }: { part: MessagePart; tier: EImageTier }): number {
   if (part.type === 'text' || part.type === 'reasoning') return textTokens(part.text)
   if (part.type === 'image') return imageTokens({ part, tier })
+  if (part.type === 'file') return fileTokens(part)
   if (part.type === 'tool-call') return textTokens(JSON.stringify(part.input ?? null))
   if (part.output.type === 'content') {
-    return part.output.value.reduce((total, inner) => total + partTokens({ part: inner, tier }), 0)
+    return part.output.value.reduce(
+      (total: number, inner: MessagePart) => total + partTokens({ part: inner, tier }),
+      0,
+    )
   }
   return textTokens(JSON.stringify(part.output))
 }

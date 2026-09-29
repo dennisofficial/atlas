@@ -12,7 +12,7 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
  * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
  */
-export const CHANNEL_PROTOCOL_VERSION = 8
+export const CHANNEL_PROTOCOL_VERSION = 9
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
@@ -206,6 +206,15 @@ const saidImageWireSchema = z.object({
 
 export type SaidImageWire = z.infer<typeof saidImageWireSchema>
 
+const saidFileWireSchema = z.object({
+  path: z.string(),
+  mediaType: z.string(),
+  data: z.string(),
+  filename: z.string().optional(),
+})
+
+export type SaidFileWire = z.infer<typeof saidFileWireSchema>
+
 export const serveFrameSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal(EServeFrame.Ready),
@@ -258,6 +267,7 @@ export const clientFrameSchema = z.discriminatedUnion('kind', [
     sendId: sendIdWireSchema,
     text: z.string(),
     images: z.array(saidImageWireSchema).readonly().optional(),
+    files: z.array(saidFileWireSchema).readonly().optional(),
     context: z.array(z.unknown()).readonly().optional(),
   }),
   z.object({ kind: z.literal(EClientFrame.Run) }),

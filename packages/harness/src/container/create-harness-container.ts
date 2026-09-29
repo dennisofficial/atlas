@@ -6,6 +6,7 @@ import {
   EExecutionLocation,
   EventLogPort,
   ExecutionLocationSinkPort,
+  FileCapabilitiesPort,
   IdPort,
   LogPort,
   ModelPort,
@@ -41,6 +42,7 @@ import { TurnLedgerPort } from '../ledger'
 import { JsonlTurnLedger } from '../ledger/jsonl'
 import { resolveHookChain } from '../hooks/resolve-hooks'
 import { AiSdkModelPort } from '../model/ai-sdk-model-port'
+import { CardFileCapabilities } from '../tools/builtin/file-capabilities'
 import { createRawTape } from '../model/raw-tape'
 import { registerFileState } from '../files'
 import { registerExecution } from '../execution/register-execution'
@@ -289,6 +291,15 @@ export function createHarnessContainer(): DependencyContainer {
         registry: resolver.resolve(portToken(ToolRegistry)),
         hooks: resolver.resolve(HookChainToken),
         logPort: resolver.resolve(portToken(LogPort)),
+      }),
+  })
+
+  harness.register(portToken(FileCapabilitiesPort), {
+    useFactory: (resolver) =>
+      new CardFileCapabilities({
+        ...(resolver.isRegistered(ModelCardSourceToken, true)
+          ? { card: resolver.resolve(ModelCardSourceToken) }
+          : {}),
       }),
   })
 

@@ -27,6 +27,21 @@ const credentials: CredentialPort = {
   discard: async () => undefined,
 }
 
+describe('inference supportedUrls', () => {
+  it('defers to the model the provider builds rather than freezing an empty map', async () => {
+    const { createOpenAICompatible } = await import('@ai-sdk/openai-compatible')
+    const adapter = new InferenceAdapter({ credentials, cards: [card] })
+
+    const declared = createOpenAICompatible({
+      name: INFERENCE_PROVIDER_ID,
+      baseURL: 'https://api.inference.net/v1',
+      supportsStructuredOutputs: true,
+    }).chatModel(card.ref.modelId).supportedUrls
+
+    expect(adapter.model({ card, effort: () => EEffort.Medium }).supportedUrls).toEqual(declared)
+  })
+})
+
 const card: ModelCard = {
   ref: { providerId: INFERENCE_PROVIDER_ID, modelId: 'kimi-k3-fast' },
   label: 'kimi-k3-fast',

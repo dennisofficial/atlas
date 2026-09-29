@@ -48,5 +48,8 @@ export async function undoTurn(args: {
     return { type: EUndo.Refused, reason: rewound.reason }
   }
 
-  return { type: EUndo.Restored, said: { text: said.text, images: said.images ?? [] } }
+  return {
+    type: EUndo.Restored,
+    said: { text: said.text, images: said.images ?? [], files: said.files ?? [] },
+  }
 }

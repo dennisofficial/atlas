@@ -178,7 +178,8 @@ export function createSessionHandlers(args: {
       void driver
         .say({
           text: frame.text,
-          ...(frame.images === undefined ? {} : { images: frame.images }),
+          images: frame.images,
+          files: frame.files,
           ...(context === undefined ? {} : { context }),
         })
         .then(() => {

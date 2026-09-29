@@ -1,9 +1,6 @@
-import type { EventDraft } from '@dltech/atlas-core'
+import { saidBody, type EventDraft } from '@dltech/atlas-core'
 
 import type { PendingSaid } from './pending-queue'
 
-export const userSaidDraft = (said: PendingSaid): EventDraft => ({
-  type: 'user-said',
-  text: said.text,
-  ...(said.images.length === 0 ? {} : { images: said.images }),
-})
+export const userSaidDraft = (said: PendingSaid): EventDraft =>
+  saidBody({ text: said.text, images: said.images, files: said.files })

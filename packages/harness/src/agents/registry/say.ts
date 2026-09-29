@@ -1,8 +1,10 @@
 import {
   EAgentRestart,
   EMessageOrigin,
+  saidBody,
   type EventLogPort,
   type IdPort,
+  type SaidFile,
   type SaidImage,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -33,6 +35,7 @@ type SaidArgs = {
   threadId: ThreadId
   text: string
   images?: readonly SaidImage[] | undefined
+  files?: readonly SaidFile[] | undefined
 }
 
 async function deliver({
@@ -56,6 +59,7 @@ async function deliver({
     const queued: SteerMessage = {
       text: args.text,
       images: args.images,
+      files: args.files,
       ...(via === EMessageOrigin.PeerAgent ? { via } : {}),
     }
     child.pending.push(queued)
@@ -72,10 +76,8 @@ async function deliver({
     runId: ids.nextRunId(),
     drafts: [
       {
-        type: 'user-said',
-        text: args.text,
+        ...saidBody({ text: args.text, images: args.images, files: args.files }),
         via,
-        ...(args.images === undefined || args.images.length === 0 ? {} : { images: args.images }),
       },
     ],
   })

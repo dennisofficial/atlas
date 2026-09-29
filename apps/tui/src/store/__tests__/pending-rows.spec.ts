@@ -17,6 +17,7 @@ const typed = (id: string, text: string) => ({
   id,
   text,
   images: [],
+  files: [],
 })
 
 const command = (id: string, text: string) => ({

@@ -188,13 +188,95 @@ describe('fromModelMessage', () => {
     })
   })
 
-  it('refuses a user file part that is not an image', () => {
+  it('carries an inline PDF file part back into a core file part', () => {
     const withPdf: ModelMessage = {
       role: 'user',
-      content: [{ type: 'file', data: { type: 'data', data: PIXEL }, mediaType: 'application/pdf' }],
+      content: [
+        {
+          type: 'file',
+          data: { type: 'data', data: PIXEL },
+          mediaType: 'application/pdf',
+          filename: 'spec.pdf',
+        },
+      ],
     }
 
-    expect(() => fromModelMessage(withPdf)).toThrow(/pdf/i)
+    expect(fromModelMessage(withPdf)).toEqual({
+      role: 'user',
+      content: [
+        { type: 'file', data: PIXEL, mediaType: 'application/pdf', filename: 'spec.pdf' },
+      ],
+    })
+  })
+
+  it('sends a core file part out as an SDK file part with its filename', () => {
+    const sent = toModelMessage({
+      role: 'user',
+      content: [
+        {
+          type: 'file',
+          data: PIXEL,
+          mediaType: 'application/pdf',
+          filename: 'spec.pdf',
+          source: '/tmp/spec.pdf',
+        },
+      ],
+    })
+
+    expect(sent).toEqual({
+      role: 'user',
+      content: [
+        {
+          type: 'file',
+          data: { type: 'data', data: PIXEL },
+          mediaType: 'application/pdf',
+          filename: 'spec.pdf',
+        },
+      ],
+    })
+  })
+
+  it('carries a non-image tool result file back into a core file part', () => {
+    const withFileOutput: ModelMessage = {
+      role: 'tool',
+      content: [
+        {
+          type: 'tool-result',
+          toolCallId: 'call-1',
+          toolName: 'read',
+          output: {
+            type: 'content',
+            value: [
+              { type: 'text', text: 'spec.pdf — application/pdf, 64 KB.' },
+              {
+                type: 'file',
+                data: { type: 'data', data: PIXEL },
+                mediaType: 'application/pdf',
+                filename: 'spec.pdf',
+              },
+            ],
+          },
+        },
+      ],
+    }
+
+    expect(fromModelMessage(withFileOutput)).toEqual({
+      role: 'tool',
+      content: [
+        {
+          type: 'tool-result',
+          toolCallId: 'call-1',
+          toolName: 'read',
+          output: {
+            type: 'content',
+            value: [
+              { type: 'text', text: 'spec.pdf — application/pdf, 64 KB.' },
+              { type: 'file', data: PIXEL, mediaType: 'application/pdf', filename: 'spec.pdf' },
+            ],
+          },
+        },
+      ],
+    })
   })
 
   it('sends a tool result image as an inline file, which is the SDK spelling', () => {

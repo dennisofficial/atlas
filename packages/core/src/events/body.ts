@@ -2,7 +2,7 @@ import type { EAgentRestart } from '../agents/restart'
 import type { EAgentStart } from '../agents/start'
 import type { EAgentStatus } from '../agents/status'
 import type { EExecutionLocation } from '../execution/location'
-import type { ImagePart, ReasoningPart, TextPart } from '../message/parts'
+import type { FilePart, ImagePart, ReasoningPart, TextPart } from '../message/parts'
 import type { ERiskDimension } from '../policy/classifier/dimension'
 import type { EGrantScope, GrantOffer } from '../policy/classifier/grant'
 import type { EClassifierMode, ETriage } from '../policy/classifier/triage'
@@ -53,12 +53,20 @@ export type SaidImage = {
   height?: number | undefined
 }
 
+export type SaidFile = {
+  path: string
+  mediaType: string
+  data: string
+  filename?: string | undefined
+}
+
 export type EventBody =
   | {
       type: 'user-said'
       text: string
       via?: EMessageOrigin | undefined
       images?: readonly SaidImage[] | undefined
+      files?: readonly SaidFile[] | undefined
     }
   | { type: 'assistant-said'; parts: readonly AssistantPart[]; interrupted?: boolean | undefined }
   | { type: 'tool-called'; callId: CallId; name: string; input?: unknown; ordinal: number }
@@ -68,7 +76,7 @@ export type EventBody =
       name: string
       output?: unknown
       modelText?: string | undefined
-      modelParts?: readonly (TextPart | ImagePart)[] | undefined
+      modelParts?: readonly (TextPart | ImagePart | FilePart)[] | undefined
       error?: { message: string } | undefined
       interrupted?: boolean | undefined
     }

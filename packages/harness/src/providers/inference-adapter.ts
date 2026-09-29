@@ -86,7 +86,13 @@ export class InferenceAdapter extends ProviderAdapter {
       specificationVersion: 'v4',
       provider: INFERENCE_PROVIDER_ID,
       modelId: args.card.ref.modelId,
-      supportedUrls: {},
+      // @ai-sdk/openai-compatible answers supportedUrls from provider config; deferring to it keeps
+      // the map in step with the model instead of freezing an empty one here.
+      supportedUrls: createOpenAICompatible({
+        name: INFERENCE_PROVIDER_ID,
+        baseURL: INFERENCE_BASE_URL,
+        supportsStructuredOutputs: true,
+      }).chatModel(args.card.ref.modelId).supportedUrls,
       doGenerate: async (options) => (await authorized()).doGenerate(withEffort(options)),
       doStream: async (options) => (await authorized()).doStream(withEffort(options)),
     }

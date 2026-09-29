@@ -1,9 +1,9 @@
 import type { ProviderOptions } from '../provider'
-import type { ImagePart, ReasoningPart, TextPart, ToolCallPart, ToolResultPart } from './parts'
+import type { FilePart, ImagePart, ReasoningPart, TextPart, ToolCallPart, ToolResultPart } from './parts'
 
 export type UserMessage = {
   role: 'user'
-  content: readonly (TextPart | ImagePart)[]
+  content: readonly (TextPart | ImagePart | FilePart)[]
   providerOptions?: ProviderOptions
 }
 

@@ -1,12 +1,15 @@
 import {
   ENoticeTone,
   NOTICE_WARN_MS,
+  type EventDraft,
   type EventLogPort,
   type NoticePort,
+  type SaidFile,
   type SaidImage,
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import type { PauseSignal } from '../loop/pause-signal'
 import type { Unsubscribe } from '../channel/delta-channel'
 
 import { namingImagesOf } from '../model/naming-text'
@@ -56,7 +59,15 @@ export class TitlingTurnRunner extends TurnRunner {
     this.notice = args.notice
   }
 
-  async say(args: { threadId: ThreadId; text: string; signal?: AbortSignal }): Promise<TurnOutcome> {
+  async say(args: {
+    threadId: ThreadId
+    text: string
+    images?: readonly SaidImage[]
+    files?: readonly SaidFile[]
+    context?: readonly EventDraft[]
+    signal?: AbortSignal
+    pause?: PauseSignal
+  }): Promise<TurnOutcome> {
     const outcome = await this.inner.say(args)
     void this.titleOnce({ threadId: args.threadId })
     return outcome
