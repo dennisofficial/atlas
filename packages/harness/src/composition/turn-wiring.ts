@@ -19,6 +19,7 @@ import {
   IdPort,
   LogPort,
   ModelPort,
+  TelemetryPort,
   rangeValueOf,
   type CapabilitiesSource,
   type EventDraft,
@@ -256,7 +257,11 @@ export function wireTurn<Command>(args: {
         wakesTurn: notices.wakesTurn || typed.length > 0,
       }
     },
-    spend: { ledger, clock: container.resolve(portToken(ClockPort)) },
+    spend: {
+      ledger,
+      clock: container.resolve(portToken(ClockPort)),
+      telemetry: container.resolve(portToken(TelemetryPort)),
+    },
     compact: compactBeforeOverflow,
     applyLoopCut: createLoopCut({
       log,
@@ -327,6 +332,7 @@ export function wireTurn<Command>(args: {
       channel: args.channel,
       drainNotices,
       modelFor,
+      telemetry: container.resolve(portToken(TelemetryPort)),
       assemblyFor: ({ agentType, projectDirectory: working }) =>
         defaultPipeline({
           prompt: ({ projectDirectory }) =>

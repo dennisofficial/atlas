@@ -3,6 +3,7 @@ import {
   type ClockPort,
   type EventDraft,
   type ProviderIdentity,
+  type TelemetryPort,
   type ThreadId,
 } from '@dltech/atlas-core'
 
@@ -33,6 +34,7 @@ export class ChildSteps {
   private readonly roster: AgentRoster
   private readonly notices: AgentNoticeQueue
   private readonly clock: ClockPort
+  private readonly telemetry: TelemetryPort | undefined
   private readonly inFlight = new Map<ThreadId, Map<ThreadId, Promise<void>>>()
 
   constructor(args: {
@@ -40,11 +42,13 @@ export class ChildSteps {
     roster: AgentRoster
     notices: AgentNoticeQueue
     clock: ClockPort
+    telemetry?: TelemetryPort | undefined
   }) {
     this.runners = args.runners
     this.roster = args.roster
     this.notices = args.notices
     this.clock = args.clock
+    this.telemetry = args.telemetry
   }
 
   take({
@@ -127,6 +131,13 @@ export class ChildSteps {
     child.endedAt = this.clock.now()
     child.steppingSince = undefined
     this.roster.changed()
+
+    this.telemetry?.agentEnded({
+      agentType: child.agentType,
+      status,
+      turns: child.turns,
+      toolCalls: child.toolCalls,
+    })
 
     this.notices.queue({
       threadId: child.spawnedBy,

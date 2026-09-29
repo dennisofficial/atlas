@@ -12,6 +12,7 @@ import {
   ModelPort,
   NoopExecutionLocationSink,
   NoticePort,
+  TelemetryPort,
 } from '@dltech/atlas-core'
 
 import {
@@ -56,6 +57,10 @@ import { JsonlEventLog } from '../store/sessions/event-log'
 import { registryFor } from '../store/sessions/registry'
 import { JsonlThreadStore } from '../store/sessions/thread-store'
 import { AgentRegistrySourceToken, AgentTypesToken } from '../tools/builtin/agent-tokens'
+import { NullTelemetry } from '../telemetry/null-telemetry'
+import { ObservingToolDispatcher } from '../telemetry/observing-dispatcher'
+import { PosthogTelemetry } from '../telemetry/posthog-telemetry'
+import { telemetryDistinctId } from '../telemetry/identity'
 import { HookedToolDispatcher, ToolDispatcher } from '../tools/dispatch'
 import { registerBuiltinTools } from '../tools/register-tools'
 import { ToolRegistry } from '../tools/registry'
@@ -112,6 +117,7 @@ function registerAgents({ container }: { container: DependencyContainer }): void
         runners: childRunnerSource({ deps: () => resolver.resolve(ChildRunnerDepsToken)() }),
         launchDirectory: resolver.resolve(WorkspaceRoot),
         sink: resolver.resolve(portToken(ExecutionLocationSinkPort)),
+        telemetry: resolver.resolve(portToken(TelemetryPort)),
       })
       return live
     }),
@@ -140,6 +146,19 @@ export function createHarnessContainer(): DependencyContainer {
 
   harness.register(portToken(ClockPort), { useClass: SystemClock })
   harness.register(portToken(IdPort), { useClass: RandomIds })
+  harness.register(portToken(TelemetryPort), {
+    useFactory: instanceCachingFactory((resolver) => {
+      if (process.env.ATLAS_TELEMETRY === '0') return new NullTelemetry()
+      try {
+        return new PosthogTelemetry({
+          distinctId: telemetryDistinctId({ atlasHome: home }),
+          version: clientVersionOf(resolver),
+        })
+      } catch {
+        return new NullTelemetry()
+      }
+    }),
+  })
   harness.register(portToken(EventLogPort), {
     useFactory: (resolver) =>
       new JsonlEventLog(
@@ -292,10 +311,13 @@ export function createHarnessContainer(): DependencyContainer {
 
   harness.register(portToken(ToolDispatcher), {
     useFactory: (resolver) =>
-      new HookedToolDispatcher({
-        registry: resolver.resolve(portToken(ToolRegistry)),
-        hooks: resolver.resolve(HookChainToken),
-        logPort: resolver.resolve(portToken(LogPort)),
+      new ObservingToolDispatcher({
+        inner: new HookedToolDispatcher({
+          registry: resolver.resolve(portToken(ToolRegistry)),
+          hooks: resolver.resolve(HookChainToken),
+          logPort: resolver.resolve(portToken(LogPort)),
+        }),
+        telemetry: resolver.resolve(portToken(TelemetryPort)),
       }),
   })
 

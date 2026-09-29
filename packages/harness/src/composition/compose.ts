@@ -14,6 +14,7 @@ import {
   DecisionPort,
   JudgePort,
   ModelPort,
+  TelemetryPort,
   NOTICE_WARN_MS,
   NoticePort,
   choiceValueOf,
@@ -447,6 +448,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
       usage.dispose()
       await recordTeardownEndings().catch(() => undefined)
       await disposeAll({ container })
+      await container.resolve(portToken(TelemetryPort)).flush()
     },
     runner,
     turnPolicy,

@@ -79,6 +79,7 @@ export class AgentSupervisor extends AgentRegistryPort {
       roster: this.roster,
       notices: this.notices,
       clock: args.clock,
+      ...(args.telemetry === undefined ? {} : { telemetry: args.telemetry }),
     })
     this.delivery = new NoticeDelivery({ notices: this.notices, roster: this.roster, clock: args.clock })
     this.recovery = new ChildRecovery({
@@ -151,6 +152,8 @@ export class AgentSupervisor extends AgentRegistryPort {
       agentType: type,
       step: ({ runner, signal, pause }) => runner.runTurn({ threadId: agentId, signal, pause }),
     })
+
+    this.deps.telemetry?.agentSpawned({ agentType: type.name })
 
     return { ok: true, snapshot: snapshotOf(child) }
   }
