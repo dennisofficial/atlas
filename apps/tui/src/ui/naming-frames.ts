@@ -131,9 +131,8 @@ export const titleWithin = (args: { title: string; cells: number }): string =>
 
 export const NAMING_SIDEBAR_LINE: NamingLine = { fg: theme.bright, towards: theme.appBg, dim: 0.45 }
 
-export const namingComposerLine = (bg: string): NamingLine => ({
-  fg: theme.caretFg,
-  towards: bg,
+export const namingComposerLine = (args: { fg: string; towards: string }): NamingLine => ({
+  fg: args.fg,
+  towards: args.towards,
   dim: 0.35,
-  bg,
 })
