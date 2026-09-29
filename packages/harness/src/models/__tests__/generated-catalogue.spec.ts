@@ -186,6 +186,22 @@ describe('generated catalogue', () => {
     expect(card.effort?.[EEffort.Max]).toBe('max')
   })
 
+  it('offers GPT-6.1 Sol with its published limits and effort', () => {
+    const card = cardFor('openai/gpt-6.1-sol')
+    expect(cardsForProvider('openai')).toContainEqual(card)
+    expect(card.label).toBe('GPT-6.1 Sol')
+    expect(card.api).toBe('openai-responses')
+    expect(card.contextWindow).toBe(1_050_000)
+    expect(card.maxOutputTokens).toBe(128_000)
+    expect(card.effort).toEqual({
+      [EEffort.Low]: 'low',
+      [EEffort.Medium]: 'medium',
+      [EEffort.High]: 'high',
+      [EEffort.XHigh]: 'xhigh',
+      [EEffort.Max]: 'max',
+    })
+  })
+
   it('routes openrouter and inference through the openai-compatible api', () => {
     const routed = cards.filter(
       (card) => card.ref.providerId === 'openrouter' || card.ref.providerId === 'inference',
