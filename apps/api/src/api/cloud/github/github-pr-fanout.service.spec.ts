@@ -36,17 +36,34 @@ describe('GithubPrFanoutService', () => {
     expect(receivedB).toHaveLength(0)
   })
 
-  it('coalesces rapid pushes for one PR to the latest state', async () => {
+  it('flushes the first push immediately, then coalesces the window to the latest state', async () => {
     const fanout = new GithubPrFanoutService()
     const received: GithubPrStateDto[] = []
     fanout.openStream({ userId: 'usr_a', handler: (state) => received.push(state) })
 
     fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 1 } })
+    expect(received).toHaveLength(1)
+    expect(received[0]?.checksRunning).toBe(1)
+
     fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 2 } })
+    fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 3 } })
     await vi.advanceTimersByTimeAsync(1_100)
 
-    expect(received).toHaveLength(1)
-    expect(received[0]?.checksRunning).toBe(2)
+    expect(received).toHaveLength(2)
+    expect(received[1]?.checksRunning).toBe(3)
+  })
+
+  it('delivers immediately again once the coalesce window has closed', async () => {
+    const fanout = new GithubPrFanoutService()
+    const received: GithubPrStateDto[] = []
+    fanout.openStream({ userId: 'usr_a', handler: (state) => received.push(state) })
+
+    fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 1 } })
+    await vi.advanceTimersByTimeAsync(1_100)
+    fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 0, checksPassed: 4 } })
+
+    expect(received).toHaveLength(2)
+    expect(received[1]?.checksPassed).toBe(4)
   })
 
   it('stops delivering after the stream closes', async () => {

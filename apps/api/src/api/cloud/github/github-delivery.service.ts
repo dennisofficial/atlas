@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { db } from '../../../db'
+import { db, type GithubPrStateModel } from '../../../db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { payloadFieldsOf } from './github-pr-payload'
+import { carryChecks, provisionalFieldsOf, stateFieldsOf, type CheckTarget } from './github-pr-state-fields'
 import type { GithubPrStateDto, GithubPrStateFields } from './github-realtime.types'
 import { GithubUserReadFailed, GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
@@ -12,12 +13,6 @@ import type {
   GithubPullRequestWebhookPayload,
   GithubPushWebhookPayload,
 } from './github-webhook.types'
-
-type CheckTarget = {
-  repoFullName: string
-  branch: string | null
-  sha: string | null
-}
 
 const HANDLED_EVENTS = new Set(['pull_request', 'check_suite', 'check_run', 'push', 'ping'])
 
@@ -49,37 +44,54 @@ export class GithubDeliveryService {
   private async handlePullRequest(payload: GithubPullRequestWebhookPayload): Promise<void> {
     const repoFullName = payload.repository.full_name
     const prNumber = payload.pull_request.number
-    const fields = payloadFieldsOf({ pull: payload.pull_request })
+    const [prior, token] = await Promise.all([
+      db.githubPrState.findUnique({ where: { repoFullName_prNumber: { repoFullName, prNumber } } }),
+      this.findFillToken({ repoFullName }),
+    ])
 
-    const token = await this.findFillToken({ repoFullName })
-    if (token !== undefined) {
-      const [owner, repo] = repoFullName.split('/') as [string, string]
-      const rest = await this.tryRestFill({ token, owner, repo, prNumber })
-      if (rest !== null) {
-        await this.recordAndPush({ repoFullName, prNumber, fields: rest })
-        return
-      }
+    const payloadFields = payloadFieldsOf({ pull: payload.pull_request })
+    const recordPayload = this.recordAndPush({
+      repoFullName,
+      prNumber,
+      fields: carryChecks({ fields: payloadFields, prior: prior === null ? null : stateFieldsOf(prior) }),
+    })
+
+    if (token === undefined) {
+      await recordPayload
+      return
     }
 
-    await this.recordAndPush({ repoFullName, prNumber, fields })
+    const [owner, repo] = repoFullName.split('/') as [string, string]
+    const fill = this.tryRestFill({ token, owner, repo, prNumber })
+    await recordPayload
+    const rest = await fill
+    if (rest === null) return
+    await this.recordAndPush({ repoFullName, prNumber, fields: rest })
   }
 
   private async handleCheckTarget(target: CheckTarget): Promise<void> {
-    const affected = await this.affectedPrNumbers(target)
+    const affected = await this.affectedPrs(target)
     if (affected.length === 0) return
 
     const token = await this.findFillToken({ repoFullName: target.repoFullName })
     if (token === undefined) return
 
     const [owner, repo] = target.repoFullName.split('/') as [string, string]
-    for (const prNumber of affected) {
-      const rest = await this.tryRestFill({ token, owner, repo, prNumber })
+    for (const pr of affected) {
+      const fill = this.tryRestFill({ token, owner, repo, prNumber: pr.prNumber })
+      await this.recordAndPush({
+        repoFullName: target.repoFullName,
+        prNumber: pr.prNumber,
+        fields: provisionalFieldsOf({ target, prior: stateFieldsOf(pr) }),
+      })
+
+      const rest = await fill
       if (rest === null) continue
-      await this.recordAndPush({ repoFullName: target.repoFullName, prNumber, fields: rest })
+      await this.recordAndPush({ repoFullName: target.repoFullName, prNumber: pr.prNumber, fields: rest })
     }
   }
 
-  private async affectedPrNumbers(target: CheckTarget): Promise<number[]> {
+  private async affectedPrs(target: CheckTarget): Promise<GithubPrStateModel[]> {
     const open = { repoFullName: target.repoFullName, state: { in: ['open', 'draft'] } }
     const byBranch =
       target.branch === null
@@ -90,9 +102,9 @@ export class GithubDeliveryService {
         ? []
         : await db.githubPrState.findMany({ where: { ...open, headSha: target.sha } })
 
-    const numbers = new Set<number>()
-    for (const row of [...byBranch, ...bySha]) numbers.add(row.prNumber)
-    return [...numbers]
+    const prs = new Map<number, GithubPrStateModel>()
+    for (const row of [...byBranch, ...bySha]) prs.set(row.prNumber, row)
+    return [...prs.values()]
   }
 
   private async findFillToken(args: { repoFullName: string }): Promise<string | undefined> {
@@ -132,7 +144,8 @@ export class GithubDeliveryService {
       if (failure instanceof GithubUserReadFailed && (failure.status === 401 || failure.status === 404)) {
         return null
       }
-      throw failure
+      this.logger.warn(`REST fill for ${args.owner}/${args.repo}#${args.prNumber} failed: ${String(failure)}`)
+      return null
     }
   }
 
@@ -159,20 +172,7 @@ export class GithubDeliveryService {
   }
 }
 
-export function dtoOf(row: {
-  repoFullName: string
-  prNumber: number
-  title: string
-  url: string
-  state: string
-  headBranch: string
-  headSha: string
-  checksRunning: number
-  checksPassed: number
-  checksFailed: number
-  mergeable: boolean | null
-  updatedAt: Date
-}): GithubPrStateDto {
+export function dtoOf(row: GithubPrStateModel): GithubPrStateDto {
   return {
     repoFullName: row.repoFullName,
     prNumber: row.prNumber,

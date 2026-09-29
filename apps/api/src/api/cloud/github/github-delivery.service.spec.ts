@@ -10,6 +10,7 @@ import { fakeGithubDb } from '../../../../test/fake-github-db'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { GithubDeliveryService } from './github-delivery.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
+import type { GithubPrStateDto } from './github-realtime.types'
 import type { GithubUserReads } from './github-user-reads'
 import { GithubUserReadFailed } from './github-user-reads'
 import type { GithubService } from './github.service'
@@ -41,6 +42,26 @@ const REST_FIELDS: PullRequestCacheFields = {
   checksPassed: 2,
   checksFailed: 0,
   mergeable: true,
+}
+
+const FILLED_PR_STATE = {
+  repoFullName: 'compai/app',
+  prNumber: 42,
+  title: 'add the thing',
+  url: 'https://github.com/compai/app/pull/42',
+  state: 'open',
+  headBranch: 'dennis/add-the-thing',
+  headSha: 'abc123',
+  checksRunning: 1,
+  checksPassed: 2,
+  checksFailed: 0,
+  mergeable: true,
+  updatedAt: new Date(),
+}
+
+const CHECK_SUITE_PAYLOAD = {
+  check_suite: { head_sha: 'abc123', head_branch: 'dennis/add-the-thing' },
+  repository: { full_name: 'compai/app' },
 }
 
 function serviceWith(args: {
@@ -218,12 +239,101 @@ describe('GithubDeliveryService', () => {
     await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
     await vi.advanceTimersByTimeAsync(1_100)
 
-    expect(receivedA).toHaveLength(1)
+    expect(receivedA).toHaveLength(2)
     expect((receivedA[0] as { prNumber: number }).prNumber).toBe(42)
     expect(receivedC).toHaveLength(0)
   })
 
-  it('coalesces a check storm into one push per PR', async () => {
+  it('delivers the payload-derived state to subscribers while the fill is still pending', async () => {
+    let releaseFill!: (fields: PullRequestCacheFields) => void
+    let fillEntered!: () => void
+    const entered = new Promise<void>((resolve) => {
+      fillEntered = resolve
+    })
+    const readPullRequest = vi.fn(
+      () =>
+        new Promise<PullRequestCacheFields>((resolve) => {
+          fillEntered()
+          releaseFill = resolve
+        }),
+    )
+    const { service, fanout } = serviceWith({
+      tokens: { 'usr-creator': 'ghu_creator' },
+      readPullRequest,
+    })
+    seedHook({ createdBy: 'usr-creator' })
+    seedSubscription({ userId: 'usr-a', prNumber: 42 })
+
+    const received: GithubPrStateDto[] = []
+    fanout.openStream({ userId: 'usr-a', handler: (state) => received.push(state) })
+
+    const handled = service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
+    await entered
+
+    await vi.waitFor(() => {
+      expect(received).toHaveLength(1)
+    })
+    expect(received[0]).toMatchObject({ prNumber: 42, mergeable: null, checksRunning: 0, checksPassed: 0 })
+
+    releaseFill(REST_FIELDS)
+    await handled
+
+    await vi.waitFor(() => {
+      expect(received).toHaveLength(2)
+    })
+    expect(received[1]).toMatchObject({ prNumber: 42, mergeable: true, checksPassed: 2 })
+  })
+
+  it('a check event pushes a provisional running state before the fill lands', async () => {
+    const readPullRequest = vi.fn(async () => REST_FIELDS)
+    const { service, fanout } = serviceWith({
+      tokens: { 'usr-creator': 'ghu_creator' },
+      readPullRequest,
+    })
+    seedHook({ createdBy: 'usr-creator' })
+    seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    fake.prStates.push({ ...FILLED_PR_STATE, checksPassed: 3, checksRunning: 0 })
+    const pushes = vi.spyOn(fanout, 'push')
+
+    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+
+    expect(pushes).toHaveBeenCalledTimes(2)
+    expect(pushes.mock.calls[0]?.[0].state).toMatchObject({
+      prNumber: 42,
+      checksRunning: 1,
+      checksPassed: 3,
+      mergeable: null,
+    })
+    expect(pushes.mock.calls[1]?.[0].state).toMatchObject({
+      prNumber: 42,
+      checksRunning: 1,
+      checksPassed: 2,
+      mergeable: true,
+    })
+  })
+
+  it('keeps the provisional state when the check fill dies', async () => {
+    const readPullRequest = vi.fn(async () => {
+      throw new GithubUserReadFailed('bad credentials', 401)
+    })
+    const { service, fanout } = serviceWith({
+      tokens: { 'usr-creator': 'ghu_dead' },
+      readPullRequest,
+    })
+    seedHook({ createdBy: 'usr-creator' })
+    seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    fake.prStates.push({ ...FILLED_PR_STATE, updatedAt: new Date() })
+    const pushes = vi.spyOn(fanout, 'push')
+
+    await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
+
+    expect(pushes).toHaveBeenCalledTimes(1)
+    expect(pushes.mock.calls[0]?.[0].state).toMatchObject({ prNumber: 42, checksRunning: 1, mergeable: null })
+    expect(fake.prStates[0]).toMatchObject({ prNumber: 42, checksRunning: 1, mergeable: null })
+  })
+
+
+  it('coalesces a check storm into the first frame plus one latest-state follow-up', async () => {
     vi.useFakeTimers()
     const { service, fanout } = serviceWith({
       tokens: { 'usr-creator': 'ghu_creator' },
@@ -239,7 +349,7 @@ describe('GithubDeliveryService', () => {
     await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
     await vi.advanceTimersByTimeAsync(1_100)
 
-    expect(received).toHaveLength(1)
+    expect(received).toHaveLength(2)
   })
 
   it('ignores unknown events and handles ping without touching state', async () => {
