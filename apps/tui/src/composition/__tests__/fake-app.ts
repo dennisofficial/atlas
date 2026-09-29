@@ -79,6 +79,8 @@ import {
 
 import { FileBrowser } from '@dltech/atlas-harness'
 
+import { createPathResolver } from '@dltech/atlas-harness'
+
 import type { PullRequestPort } from '@dltech/atlas-harness'
 
 import { createPendingQueues } from '../../store'
@@ -862,6 +864,7 @@ export function fakeApp(args: {
       openedUrls.push(url)
     },
     openFile: () => undefined,
+    pathResolver: createPathResolver({ root: args.workspaceRoot ?? FAKE_CONFIG.cwd }),
     openedUrls,
     openedDirectories,
     usage: createAccountUsageService({

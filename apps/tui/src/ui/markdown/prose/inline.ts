@@ -1,5 +1,8 @@
 import type { Token, Tokens } from 'marked'
 
+import { pathMentions } from '@dltech/atlas-core'
+
+import { resolvePathMention } from '../../../composition/path-links'
 import { raiseSuperscripts, subscript, superscriptNumber } from './unicode'
 
 export enum EInline {
@@ -52,15 +55,6 @@ const HTML_COMMENT = /<!--[\s\S]*?-->/g
 const FOOTNOTE_REFERENCE = /\[\^([^\]\s]+)\]/g
 
 const SINGLE_TILDE = /^~[^~]/
-
-/**
- * A `path[:line[:column]]` mention in prose. The leading lookbehind refuses a match that starts
- * mid-URL (`https://…/a.ts:9`), mid-token (`package.json5`), or on the slash of an HTML closing
- * tag (`</summary>`); the bare-filename alternative needs a known extension so plain words never
- * link, while any slash-joined or absolute path matches extension-free.
- */
-const FILE_PATH =
-  /(?<![\w/@:~+.<-])(?:\/[\w.@~+-][\w.@~+\-/]*|(?:\.{1,2}\/|~\/)[\w.@~+\-/]*|(?:[\w~+-][\w.~+-]*\/)+[\w.~+-]*|[\w~+-][\w.~+-]*\.(?:ts|tsx|js|jsx|mjs|cjs|json|md|mdx|py|go|rs|java|rb|yml|yaml|toml|css|html|sh)\b)(?::(\d+))?(?::(\d+))?/g
 
 export function inlineNodes(args: {
   tokens: readonly Token[]
@@ -227,19 +221,35 @@ function textNodes(args: {
   return nodes
 }
 
+/**
+ * A slash-joined or dotted mention becomes a FilePath node — and so an underlined, clickable link
+ * — only when the resolver confirms it names a file that exists. Detection is pure (core's
+ * pathMentions); existence is the harness's ground truth, cached so a re-parse per streamed chunk
+ * costs a map lookup. An unresolved mention is plain text: `recovery/reconciliation` is a phrase,
+ * not a link.
+ */
 function pushPaths(args: { nodes: InlineNode[]; text: string; marks: InlineMarks }): void {
   let cursor = 0
-  for (const hit of args.text.matchAll(FILE_PATH)) {
-    if (hit.index === undefined) continue
-    push({ nodes: args.nodes, text: args.text.slice(cursor, hit.index), marks: args.marks })
-    const line = hit[1] === undefined ? undefined : Number(hit[1])
+  let searchFrom = 0
+  for (const mention of pathMentions(args.text)) {
+    const index = args.text.indexOf(mention.text, searchFrom)
+    if (index === -1) continue
+
+    const resolved = resolvePathMention({
+      path: mention.path,
+      ...(mention.line === undefined ? {} : { line: mention.line }),
+    })
+    if (resolved === null) continue
+
+    push({ nodes: args.nodes, text: args.text.slice(cursor, index), marks: args.marks })
     args.nodes.push({
       kind: EInline.FilePath,
-      text: hit[0],
-      path: hit[0].replace(/:\d+(:\d+)?$/, ''),
-      ...(line === undefined ? {} : { line }),
+      text: mention.text,
+      path: resolved.path,
+      ...(resolved.line === undefined ? {} : { line: resolved.line }),
     })
-    cursor = hit.index + hit[0].length
+    cursor = index + mention.text.length
+    searchFrom = cursor
   }
   push({ nodes: args.nodes, text: args.text.slice(cursor), marks: args.marks })
 }

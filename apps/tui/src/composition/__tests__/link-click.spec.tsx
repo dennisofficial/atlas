@@ -5,11 +5,23 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import React, { act } from 'react'
 
 import { installLinkClickOpen, linkHoverUrl, notifyLinkHover, subscribeLinkHover } from '../link-click'
-import { currentNotices, dismissNotice, ENoticePosition } from '../../ui/notice-store'
+import { bindPathLinks, unbindPathLinks } from '../path-links'
+import { currentNotices, dismissNotice, ENoticePosition, ENoticeTone } from '../../ui/notice-store'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 const LINK_URL = 'https://github.com/dennisofficial/atlas/pull/842'
+
+const EXISTING_FILE = '/Users/d/atlas/link-click.ts'
+
+function resolveExistingFiles(): void {
+  bindPathLinks({
+    resolve: (mention) =>
+      mention.path === EXISTING_FILE
+        ? { path: mention.path, ...(mention.line === undefined ? {} : { line: mention.line }) }
+        : null,
+  })
+}
 
 const WIDTH = 60
 const HEIGHT = 10
@@ -65,6 +77,7 @@ async function mount(args: { selectable?: boolean; linkUrl?: string } = {}): Pro
 
 afterEach(async () => {
   dismissNotice()
+  unbindPathLinks()
   const harness = mounted.pop()
   if (harness === undefined) return
   harness.root.unmount()
@@ -99,22 +112,37 @@ describe('installLinkClickOpen', () => {
   })
 
   it('routes a file:// link to the file opener with its line, not the browser', async () => {
-    const harness = await mount({ linkUrl: 'file:///Users/d/atlas/link-click.ts:42' })
+    resolveExistingFiles()
+    const harness = await mount({ linkUrl: `file://${EXISTING_FILE}:42` })
 
     await harness.setup.mockMouse.click(LINK_START_X, 0)
 
     expect(harness.opened).toEqual([])
-    expect(harness.openedFiles).toEqual([{ path: '/Users/d/atlas/link-click.ts', line: 42 }])
+    expect(harness.openedFiles).toEqual([{ path: EXISTING_FILE, line: 42 }])
   })
 
   it('notifies a short file-glyph "opened" at the composer, not the tray, for a file link', async () => {
-    const harness = await mount({ linkUrl: 'file:///Users/d/atlas/link-click.ts:42' })
+    resolveExistingFiles()
+    const harness = await mount({ linkUrl: `file://${EXISTING_FILE}:42` })
 
     await harness.setup.mockMouse.click(LINK_START_X, 0)
 
     const notice = currentNotices().at(-1)
     expect(notice?.text).toBe('▤ opened')
     expect(notice?.position).toBe(ENoticePosition.Composer)
+  })
+
+  it('says "no such file" instead of opening when the target no longer resolves', async () => {
+    bindPathLinks({ resolve: () => null })
+    const harness = await mount({ linkUrl: 'file:///gone/deleted-file.ts' })
+
+    await harness.setup.mockMouse.click(LINK_START_X, 0)
+
+    expect(harness.openedFiles).toEqual([])
+    expect(harness.opened).toEqual([])
+    const notice = currentNotices().at(-1)
+    expect(notice?.text).toContain('no such file')
+    expect(notice?.tone).toBe(ENoticeTone.Warn)
   })
 
   it('notifies a short link-glyph "opened" for a web link', async () => {
