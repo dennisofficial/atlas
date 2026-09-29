@@ -1,4 +1,4 @@
-import { toThreadId, type EventDraft, type SaidImage, type ThreadId } from '@dltech/atlas-core'
+import { toThreadId, type EventDraft, type SaidFile, type SaidImage, type ThreadId } from '@dltech/atlas-core'
 
 import type { ChannelListener, DeltaChannel, Unsubscribe } from '../channel/delta-channel'
 import { retainReplayable, type InFlightSlots } from '../channel/in-flight'
@@ -72,7 +72,12 @@ export const INTERRUPT_ACK_TIMEOUT_MS = 5_000
 
 export type RemoteDeltaChannel = DeltaChannel & {
   readonly threadId: ThreadId
-  send(args: { text: string; images?: readonly SaidImage[]; context?: readonly EventDraft[] }): void
+  send(args: {
+    text: string
+    images?: readonly SaidImage[]
+    files?: readonly SaidFile[]
+    context?: readonly EventDraft[]
+  }): void
   run(): void
   interrupt(): void
   pause(): void
@@ -541,12 +546,13 @@ export function createRemoteDeltaChannel(args: {
       throw new RemotePublishRefused(threadId)
     },
 
-    send: ({ text, images, context }) =>
+    send: ({ text, images, files, context }) =>
       upstream.send({
         kind: EClientFrame.Send,
         sendId: toSendId(crypto.randomUUID()),
         text,
         ...(images === undefined || images.length === 0 ? {} : { images: [...images] }),
+        ...(files === undefined || files.length === 0 ? {} : { files: [...files] }),
         ...(context === undefined || context.length === 0 ? {} : { context: [...context] }),
       }),
 

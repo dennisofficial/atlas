@@ -15,6 +15,15 @@ export type ImagePart = {
   providerOptions?: ProviderOptions | undefined
 }
 
+export type FilePart = {
+  type: 'file'
+  data: string
+  mediaType: string
+  filename?: string | undefined
+  source?: string | undefined
+  providerOptions?: ProviderOptions | undefined
+}
+
 export type ToolCallPart = {
   type: 'tool-call'
   toolCallId: string
@@ -28,7 +37,7 @@ export type ToolResultOutput =
   | { type: 'json'; value: JsonValue }
   | { type: 'error-text'; value: string }
   | { type: 'error-json'; value: JsonValue }
-  | { type: 'content'; value: readonly (TextPart | ImagePart)[] }
+  | { type: 'content'; value: readonly (TextPart | ImagePart | FilePart)[] }
 
 export type ToolResultPart = {
   type: 'tool-result'
@@ -38,4 +47,4 @@ export type ToolResultPart = {
   providerOptions?: ProviderOptions | undefined
 }
 
-export type MessagePart = TextPart | ImagePart | ReasoningPart | ToolCallPart | ToolResultPart
+export type MessagePart = TextPart | ImagePart | FilePart | ReasoningPart | ToolCallPart | ToolResultPart

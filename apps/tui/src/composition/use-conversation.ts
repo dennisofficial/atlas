@@ -11,6 +11,7 @@ import {
   type Event,
   type EventDraft,
   type ModelUsage,
+  type SaidFile,
   type SaidImage,
 } from '@dltech/atlas-core'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
@@ -61,6 +62,7 @@ import { useTickingNow } from './use-turn-clock'
 import { clockReadableAt, transcriptOfTurn } from './turn-progress'
 
 const NO_IMAGES: readonly SaidImage[] = Object.freeze([])
+const NO_FILES: readonly SaidFile[] = Object.freeze([])
 
 export type Conversation = {
   threadId: ThreadId
@@ -91,8 +93,9 @@ export type Conversation = {
   refresh: () => Promise<void>
   handleSend: (args: {
     text: string
-    images?: readonly SaidImage[]
-    context?: readonly EventDraft[]
+    images?: readonly SaidImage[] | undefined
+    files?: readonly SaidFile[] | undefined
+    context?: readonly EventDraft[] | undefined
   }) => void
   handleQueueSettled: (entry: QueuedSettled) => void
   handleTakeBackPending: () => PendingSaid | null
@@ -374,9 +377,15 @@ export function useConversation(args: {
   const serviceNotices = wakeNotices.services
 
   const handleSend = useCallback(
-    (args: { text: string; images?: readonly SaidImage[]; context?: readonly EventDraft[] }) => {
+    (args: {
+      text: string
+      images?: readonly SaidImage[] | undefined
+      files?: readonly SaidFile[] | undefined
+      context?: readonly EventDraft[] | undefined
+    }) => {
       const text = args.text.trim()
       const images = args.images ?? NO_IMAGES
+      const files = args.files ?? NO_FILES
       if (text.length === 0) return
 
       if (working) {
@@ -386,12 +395,13 @@ export function useConversation(args: {
             threadId,
             text,
             images,
+            files,
             ...(args.context === undefined ? {} : { context: args.context }),
           })
           return
         }
 
-        pending.enqueue({ text, images })
+        pending.enqueue({ text, images, files })
         return
       }
 
@@ -405,7 +415,7 @@ export function useConversation(args: {
       drive(
         [
           ...(args.context ?? []),
-          ...[...drained, { text, images }].map(userSaidDraft),
+          ...[...drained, { text, images, files }].map(userSaidDraft),
         ],
         { onCommitFailed },
       )

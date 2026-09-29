@@ -1,4 +1,4 @@
-import type { EventDraft, SaidImage, ThreadId } from '@dltech/atlas-core'
+import type { EventDraft, SaidFile, SaidImage, ThreadId } from '@dltech/atlas-core'
 
 import { PauseSignal } from '@dltech/atlas-harness'
 import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
@@ -10,6 +10,7 @@ export type ServeTurnDriver = {
   say: (args: {
     text: string
     images?: readonly SaidImage[]
+    files?: readonly SaidFile[]
     context?: readonly EventDraft[]
   }) => Promise<void>
   run: () => void
@@ -56,6 +57,7 @@ export function createTurnDriver(args: {
   const commit = async (said: {
     text: string
     images?: readonly SaidImage[]
+    files?: readonly SaidFile[]
     context?: readonly EventDraft[]
   }): Promise<void> => {
     const drafts: readonly EventDraft[] = [
@@ -66,6 +68,7 @@ export function createTurnDriver(args: {
         ...(said.images === undefined || said.images.length === 0
           ? {}
           : { images: said.images }),
+        ...(said.files === undefined || said.files.length === 0 ? {} : { files: said.files }),
       },
     ]
     const runId = app.ids.nextRunId()

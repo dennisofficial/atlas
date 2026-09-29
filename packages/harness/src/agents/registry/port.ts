@@ -1,4 +1,4 @@
-import type { EExecutionLocation, EKilledBy, EventDraft, SaidImage, ThreadId } from '@dltech/atlas-core'
+import type { EExecutionLocation, EKilledBy, EventDraft, SaidFile, SaidImage, ThreadId } from '@dltech/atlas-core'
 
 import type { AgentType } from '../types'
 import type { AgentSnapshot, RecoveredAgents } from './snapshot'
@@ -29,12 +29,14 @@ export abstract class AgentRegistryPort {
     threadId: ThreadId
     text: string
     images?: readonly SaidImage[] | undefined
+    files?: readonly SaidFile[] | undefined
   }): Promise<AgentOutcome>
   abstract sayToPeer(args: {
     agentId: ThreadId
     threadId: ThreadId
     text: string
     images?: readonly SaidImage[] | undefined
+    files?: readonly SaidFile[] | undefined
   }): Promise<AgentOutcome>
   abstract reportToParent(args: { threadId: ThreadId; text: string }): Promise<AgentOutcome>
   abstract resume(args: { agentId: ThreadId; threadId: ThreadId }): Promise<AgentOutcome>

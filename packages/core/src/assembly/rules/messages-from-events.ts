@@ -6,7 +6,7 @@ import { callIdsIn, freshCallId } from '../../events/dedupe-call-ids'
 import type { Event, EventOfType, EventRef } from '../../events/envelope'
 import { liveNudgeIds } from '../../events/nudges'
 import { imagePathLine, inlinable } from '../../images/attached'
-import type { ImagePart, TextPart, ToolCallPart, ToolResultPart } from '../../message/parts'
+import type { FilePart, ImagePart, TextPart, ToolCallPart, ToolResultPart } from '../../message/parts'
 import type { AssembledMessage } from '../assembled'
 import { defineRule, type Rule } from '../rule'
 import {
@@ -21,7 +21,7 @@ import { nudgeBlock } from './nudge-block'
 import { serviceEndedBlock } from './service-ended-block'
 
 type OpenMessage =
-  | { role: 'user'; content: (TextPart | ImagePart)[] }
+  | { role: 'user'; content: (TextPart | ImagePart | FilePart)[] }
   | { role: 'assistant'; content: (AssistantPart | ToolCallPart)[] }
   | { role: 'tool'; content: ToolResultPart[] }
 
@@ -109,12 +109,14 @@ function appendCall({
   return group
 }
 
+const basename = (path: string): string => path.split('/').pop() ?? path
+
 /**
- * A picture too heavy to send is named rather than shown: the model keeps a path it can `read`,
+ * A file too heavy to send is named rather than shown: the model keeps a path it can `read`,
  * where an inlined one over the ceiling would fail the whole step instead of just the attachment.
  */
-function saidContent(event: EventOfType<'user-said'>): (TextPart | ImagePart)[] {
-  const shown: ImagePart[] = []
+function saidContent(event: EventOfType<'user-said'>): (TextPart | ImagePart | FilePart)[] {
+  const shown: (ImagePart | FilePart)[] = []
   const named: string[] = []
 
   for (const image of event.images ?? []) {
@@ -130,6 +132,16 @@ function saidContent(event: EventOfType<'user-said'>): (TextPart | ImagePart)[] 
       source: image.path,
       width: image.width,
       height: image.height,
+    })
+  }
+
+  for (const file of event.files ?? []) {
+    shown.push({
+      type: 'file',
+      data: file.data,
+      mediaType: file.mediaType,
+      filename: file.filename ?? basename(file.path),
+      source: file.path,
     })
   }
 

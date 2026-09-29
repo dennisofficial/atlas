@@ -61,7 +61,7 @@ describe('undoing the exchange an interrupted turn never answered', () => {
 
     expect(undone).toEqual({
       type: EUndo.Restored,
-      said: { text: 'rewrite the loop', images: [] },
+      said: { text: 'rewrite the loop', images: [], files: [] },
     })
     expect(await log.read({ threadId: THREAD })).toEqual([])
     await fixture.close()
@@ -76,7 +76,7 @@ describe('undoing the exchange an interrupted turn never answered', () => {
 
     const undone = await undoTurn({ log, threads, machinery, threadId: THREAD })
 
-    expect(undone).toEqual({ type: EUndo.Restored, said: { text: 'second', images: [] } })
+    expect(undone).toEqual({ type: EUndo.Restored, said: { text: 'second', images: [], files: [] } })
     expect((await log.read({ threadId: THREAD })).map((event) => event.type)).toEqual([
       'user-said',
       'assistant-said',
@@ -92,7 +92,7 @@ describe('undoing the exchange an interrupted turn never answered', () => {
 
     const undone = await undoTurn({ log, threads, machinery, threadId: THREAD })
 
-    expect(undone).toEqual({ type: EUndo.Restored, said: { text: 'what is this?', images: [image] } })
+    expect(undone).toEqual({ type: EUndo.Restored, said: { text: 'what is this?', images: [image], files: [] } })
     await fixture.close()
   })
 

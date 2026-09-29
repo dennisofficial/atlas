@@ -3,6 +3,7 @@ import {
   EMessageOrigin,
   type EventLogPort,
   type IdPort,
+  type SaidFile,
   type SaidImage,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -33,6 +34,7 @@ type SaidArgs = {
   threadId: ThreadId
   text: string
   images?: readonly SaidImage[] | undefined
+  files?: readonly SaidFile[] | undefined
 }
 
 async function deliver({
@@ -56,6 +58,7 @@ async function deliver({
     const queued: SteerMessage = {
       text: args.text,
       images: args.images,
+      files: args.files,
       ...(via === EMessageOrigin.PeerAgent ? { via } : {}),
     }
     child.pending.push(queued)
@@ -76,6 +79,7 @@ async function deliver({
         text: args.text,
         via,
         ...(args.images === undefined || args.images.length === 0 ? {} : { images: args.images }),
+        ...(args.files === undefined || args.files.length === 0 ? {} : { files: args.files }),
       },
     ],
   })

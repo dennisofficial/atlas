@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { hoistToolResultImages } from '../hoist-tool-images'
 import type { Message, ToolMessage } from '../message'
-import type { ImagePart, ToolResultPart } from '../parts'
+import type { FilePart, ImagePart, ToolResultPart } from '../parts'
 
 const PIXEL =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
@@ -11,6 +11,13 @@ const image = (source?: string): ImagePart => ({
   type: 'image',
   data: PIXEL,
   mediaType: 'image/png',
+  ...(source === undefined ? {} : { source }),
+})
+
+const file = (source?: string): FilePart => ({
+  type: 'file',
+  data: 'JVBERi0xLjQ=',
+  mediaType: 'application/pdf',
   ...(source === undefined ? {} : { source }),
 })
 
@@ -53,7 +60,7 @@ describe('hoistToolResultImages', () => {
       ]),
       {
         role: 'user',
-        content: [image('/tmp/shot.png'), { type: 'text', text: 'Images from the tool result above: /tmp/shot.png.' }],
+        content: [image('/tmp/shot.png'), { type: 'text', text: 'Files from the tool result above: /tmp/shot.png.' }],
       },
     ])
   })
@@ -67,10 +74,10 @@ describe('hoistToolResultImages', () => {
     const part = tool.content[0]
     if (part?.output.type !== 'content') throw new Error('expected content output')
 
-    expect(part.output.value).toEqual([{ type: 'text', text: 'the image is attached in the next message' }])
+    expect(part.output.value).toEqual([{ type: 'text', text: 'the file is attached in the next message' }])
     expect(hoisted[1]).toEqual({
       role: 'user',
-      content: [image(), { type: 'text', text: 'Images from the tool result above.' }],
+      content: [image(), { type: 'text', text: 'Files from the tool result above.' }],
     })
   })
 
@@ -91,7 +98,29 @@ describe('hoistToolResultImages', () => {
     expect(anchor.content.filter((part) => part.type === 'image')).toHaveLength(2)
     expect(anchor.content.at(-1)).toEqual({
       type: 'text',
-      text: 'Images from the tool result above: /tmp/a.png, /tmp/b.png.',
+      text: 'Files from the tool result above: /tmp/a.png, /tmp/b.png.',
+    })
+  })
+
+  it('moves a file part out of the tool result the same way it moves an image', () => {
+    const messages: Message[] = [
+      toolMessage([
+        toolResult({
+          output: { type: 'content', value: [{ type: 'text', text: 'spec.pdf' }, file('/tmp/spec.pdf')] },
+        }),
+      ]),
+    ]
+
+    const hoisted = hoistToolResultImages({ messages })
+
+    const tool = hoisted[0]
+    if (tool?.role !== 'tool') throw new Error('expected the tool message first')
+    const part = tool.content[0]
+    if (part?.output.type !== 'content') throw new Error('expected content output')
+    expect(part.output.value).toEqual([{ type: 'text', text: 'spec.pdf' }])
+    expect(hoisted[1]).toEqual({
+      role: 'user',
+      content: [file('/tmp/spec.pdf'), { type: 'text', text: 'Files from the tool result above: /tmp/spec.pdf.' }],
     })
   })
 

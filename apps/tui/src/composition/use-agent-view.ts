@@ -1,4 +1,4 @@
-import type { SaidImage, ThreadId } from '@dltech/atlas-core'
+import type { SaidFile, SaidImage, ThreadId } from '@dltech/atlas-core'
 import { EKilledBy, type AgentSnapshot } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
@@ -15,7 +15,11 @@ export type AgentView = {
   handleBack: () => void
   handleCycle: () => boolean
   handleStop: () => void
-  handleSay: (said: { text: string; images?: readonly SaidImage[] | undefined }) => Promise<string | null>
+  handleSay: (said: {
+    text: string
+    images?: readonly SaidImage[] | undefined
+    files?: readonly SaidFile[] | undefined
+  }) => Promise<string | null>
 }
 
 /**
@@ -90,6 +94,7 @@ export function useAgentView(args: {
     async (said: {
       text: string
       images?: readonly SaidImage[] | undefined
+      files?: readonly SaidFile[] | undefined
     }): Promise<string | null> => {
       if (viewing === null) return null
 

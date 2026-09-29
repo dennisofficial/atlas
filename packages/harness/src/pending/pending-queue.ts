@@ -1,6 +1,6 @@
-import type { SaidImage } from '@dltech/atlas-core'
+import type { SaidFile, SaidImage } from '@dltech/atlas-core'
 
-export type PendingSaid = { text: string; images: readonly SaidImage[] }
+export type PendingSaid = { text: string; images: readonly SaidImage[]; files: readonly SaidFile[] }
 
 export type PendingMessage = PendingSaid & { kind: 'message'; id: string }
 
@@ -16,7 +16,7 @@ export type PendingEntry<Command> = PendingMessage | PendingCommand<Command>
 export type PendingQueue<Command = never> = {
   subscribe(listener: () => void): () => void
   getSnapshot(): readonly PendingEntry<Command>[]
-  enqueue(args: { text: string; images?: readonly SaidImage[] }): void
+  enqueue(args: { text: string; images?: readonly SaidImage[]; files?: readonly SaidFile[] }): void
   enqueueCommand(args: { text: string; command: Command }): void
   takeBackLast(): PendingSaid | null
   drain(): readonly PendingSaid[]
@@ -30,6 +30,8 @@ const NOTHING_TAKEN: readonly PendingSaid[] = Object.freeze([])
 const NO_COMMANDS: readonly PendingCommand<never>[] = Object.freeze([])
 
 const NO_IMAGES: readonly SaidImage[] = Object.freeze([])
+
+const NO_FILES: readonly SaidFile[] = Object.freeze([])
 
 const isCommand = <Command>(entry: PendingEntry<Command>): entry is PendingCommand<Command> =>
   entry.kind === 'command'
@@ -64,8 +66,11 @@ export function createPendingQueue<Command = never>(): PendingQueue<Command> {
 
     getSnapshot: () => snapshot,
 
-    enqueue({ text, images }) {
-      settle([...entries, { kind: 'message', id: stamp(), text, images: images ?? NO_IMAGES }])
+    enqueue({ text, images, files }) {
+      settle([
+        ...entries,
+        { kind: 'message', id: stamp(), text, images: images ?? NO_IMAGES, files: files ?? NO_FILES },
+      ])
     },
 
     enqueueCommand({ text, command }) {
@@ -77,8 +82,8 @@ export function createPendingQueue<Command = never>(): PendingQueue<Command> {
       if (last === undefined) return null
 
       settle(entries.slice(0, -1))
-      if (last.kind === 'command') return { text: last.text, images: NO_IMAGES }
-      return { text: last.text, images: last.images }
+      if (last.kind === 'command') return { text: last.text, images: NO_IMAGES, files: NO_FILES }
+      return { text: last.text, images: last.images, files: last.files }
     },
 
     drain() {
@@ -86,7 +91,11 @@ export function createPendingQueue<Command = never>(): PendingQueue<Command> {
       if (messages.length === 0) return NOTHING_TAKEN
 
       settle(entries.filter(isCommand))
-      return messages.map((message) => ({ text: message.text, images: message.images }))
+      return messages.map((message) => ({
+        text: message.text,
+        images: message.images,
+        files: message.files,
+      }))
     },
 
     drainCommands() {

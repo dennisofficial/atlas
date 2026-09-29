@@ -179,6 +179,7 @@ export function createSessionHandlers(args: {
         .say({
           text: frame.text,
           ...(frame.images === undefined ? {} : { images: frame.images }),
+          ...(frame.files === undefined ? {} : { files: frame.files }),
           ...(context === undefined ? {} : { context }),
         })
         .then(() => {

@@ -32,6 +32,7 @@ import {
   type ChunkFilter,
   type EventDraft,
   type EventLogPort,
+  type SaidFile,
   type SaidImage,
   type IdPort,
   type LogPort,
@@ -156,6 +157,7 @@ export class LoopTurnRunner extends TurnRunner {
     threadId,
     text,
     images,
+    files,
     context,
     signal,
     pause,
@@ -163,6 +165,7 @@ export class LoopTurnRunner extends TurnRunner {
     threadId: ThreadId
     text: string
     images?: readonly SaidImage[]
+    files?: readonly SaidFile[]
     context?: readonly EventDraft[]
     signal?: AbortSignal
     pause?: PauseSignal
@@ -176,6 +179,7 @@ export class LoopTurnRunner extends TurnRunner {
           type: 'user-said',
           text,
           ...(images === undefined || images.length === 0 ? {} : { images: [...images] }),
+          ...(files === undefined || files.length === 0 ? {} : { files: [...files] }),
         },
       ],
     })

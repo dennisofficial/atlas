@@ -1,4 +1,4 @@
-import type { EventDraft, SaidImage, ThreadId } from '@dltech/atlas-core'
+import type { EventDraft, SaidFile, SaidImage, ThreadId } from '@dltech/atlas-core'
 
 import { TurnRunner, type PauseSignal, type TurnOutcome } from '../loop'
 
@@ -54,6 +54,7 @@ export class RemoteTurnRunner extends TurnRunner {
     threadId: ThreadId
     text: string
     images?: readonly SaidImage[]
+    files?: readonly SaidFile[]
     context?: readonly EventDraft[]
     signal?: AbortSignal
     pause?: PauseSignal
@@ -64,6 +65,7 @@ export class RemoteTurnRunner extends TurnRunner {
         this.channel.send({
           text: args.text,
           ...(args.images === undefined ? {} : { images: args.images }),
+          ...(args.files === undefined ? {} : { files: args.files }),
           ...(args.context === undefined ? {} : { context: args.context }),
         }),
     })
@@ -73,6 +75,7 @@ export class RemoteTurnRunner extends TurnRunner {
     threadId: ThreadId
     text: string
     images?: readonly SaidImage[]
+    files?: readonly SaidFile[]
     context?: readonly EventDraft[]
   }): void {
     if (args.threadId !== this.channel.threadId) {
@@ -81,6 +84,7 @@ export class RemoteTurnRunner extends TurnRunner {
     this.channel.send({
       text: args.text,
       ...(args.images === undefined ? {} : { images: args.images }),
+      ...(args.files === undefined ? {} : { files: args.files }),
       ...(args.context === undefined ? {} : { context: args.context }),
     })
   }

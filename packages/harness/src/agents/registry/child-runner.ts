@@ -112,6 +112,7 @@ export const steerDrafts = (said: readonly SteerMessage[]): readonly EventDraft[
     text: one.text,
     via: one.via ?? EMessageOrigin.ParentAgent,
     ...(one.images === undefined || one.images.length === 0 ? {} : { images: one.images }),
+    ...(one.files === undefined || one.files.length === 0 ? {} : { files: one.files }),
   }))
 
 export function buildChildRunner({

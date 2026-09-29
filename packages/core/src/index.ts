@@ -46,6 +46,7 @@ export * from './message/hoist-tool-images'
 export * from './message/message'
 export * from './message/parts'
 
+export * from './files/native'
 export * from './images/attached'
 export * from './images/limits'
 export * from './images/projection'

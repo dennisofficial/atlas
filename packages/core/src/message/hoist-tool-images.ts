@@ -1,32 +1,34 @@
 import type { Message, ToolMessage, UserMessage } from './message'
-import type { ImagePart, TextPart, ToolResultPart } from './parts'
+import type { FilePart, ImagePart, TextPart, ToolResultPart } from './parts'
 
-const PLACEHOLDER_TEXT = 'the image is attached in the next message'
+const PLACEHOLDER_TEXT = 'the file is attached in the next message'
 
-const anchorFor = (images: readonly ImagePart[]): string => {
-  const sources = images.flatMap((image) => (image.source === undefined ? [] : [image.source]))
-  if (sources.length === 0) return 'Images from the tool result above.'
-  return `Images from the tool result above: ${sources.join(', ')}.`
+const anchorFor = (files: readonly (ImagePart | FilePart)[]): string => {
+  const sources = files.flatMap((file) => (file.source === undefined ? [] : [file.source]))
+  if (sources.length === 0) return 'Files from the tool result above.'
+  return `Files from the tool result above: ${sources.join(', ')}.`
 }
 
-function splitPart(part: ToolResultPart): { kept: ToolResultPart; images: ImagePart[] } {
-  if (part.output.type !== 'content') return { kept: part, images: [] }
+function splitPart(part: ToolResultPart): { kept: ToolResultPart; files: (ImagePart | FilePart)[] } {
+  if (part.output.type !== 'content') return { kept: part, files: [] }
 
-  const images = part.output.value.filter((inner): inner is ImagePart => inner.type === 'image')
-  if (images.length === 0) return { kept: part, images: [] }
+  const files = part.output.value.filter(
+    (inner): inner is ImagePart | FilePart => inner.type === 'image' || inner.type === 'file',
+  )
+  if (files.length === 0) return { kept: part, files: [] }
 
   const rest = part.output.value.filter((inner): inner is TextPart => inner.type === 'text')
   const value: readonly TextPart[] =
     rest.length > 0 ? rest : [{ type: 'text', text: PLACEHOLDER_TEXT }]
 
-  return { kept: { ...part, output: { type: 'content', value } }, images }
+  return { kept: { ...part, output: { type: 'content', value } }, files }
 }
 
 /**
- * The chat-completions wire format has no image block in tool messages, so a tool-result image
- * sent there arrives as stringified base64 text — a model billed at imageTier standard then
- * hallucinates over noise it cannot see. Hoisting moves the images into a user message right
- * after the tool message, which the format does carry as image_url parts.
+ * The chat-completions wire format has no image or file block in tool messages, so a tool-result
+ * file sent there arrives as stringified base64 text — a model billed at imageTier standard then
+ * hallucinates over noise it cannot see. Hoisting moves the files into a user message right
+ * after the tool message, which the format does carry as image_url and file parts.
  */
 export function hoistToolResultImages(args: { messages: readonly Message[] }): Message[] {
   const hoisted: Message[] = []
@@ -38,7 +40,7 @@ export function hoistToolResultImages(args: { messages: readonly Message[] }): M
     }
 
     const split = message.content.map(splitPart)
-    const images = split.flatMap((part) => part.images)
+    const files = split.flatMap((part) => part.files)
     const toolMessage: ToolMessage = {
       role: 'tool',
       content: split.map((part) => part.kept),
@@ -46,11 +48,11 @@ export function hoistToolResultImages(args: { messages: readonly Message[] }): M
     }
     hoisted.push(toolMessage)
 
-    if (images.length === 0) continue
+    if (files.length === 0) continue
 
     const anchor: UserMessage = {
       role: 'user',
-      content: [...images, { type: 'text', text: anchorFor(images) }],
+      content: [...files, { type: 'text', text: anchorFor(files) }],
     }
     hoisted.push(anchor)
   }

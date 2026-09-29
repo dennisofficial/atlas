@@ -2,7 +2,7 @@ import { z, type ZodType } from 'zod'
 
 import { EWorktreeExit } from '../events/body'
 import type { CallId, ThreadId } from '../events/ids'
-import type { ImagePart, TextPart } from '../message/parts'
+import type { FilePart, ImagePart, TextPart } from '../message/parts'
 import type { ActiveWorktree } from '../workspace/worktree'
 
 export enum EToolEffect {
@@ -63,7 +63,7 @@ export type ToolCall = {
   threadId: ThreadId
 }
 
-export type ModelPart = TextPart | ImagePart
+export type ModelPart = TextPart | ImagePart | FilePart
 
 export type ToolOutcome =
   | {

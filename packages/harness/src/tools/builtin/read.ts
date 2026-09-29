@@ -5,6 +5,7 @@ import {
   EPathPresence,
   EToolEffect,
   imageMediaType,
+  nativeFileMediaType,
   SchemaTool,
   type DeclaredPathField,
   type ToolOutcome,
@@ -16,6 +17,7 @@ import { z } from 'zod'
 import { LocalFileSystemPort } from '../../execution/local-filesystem'
 import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-text'
 import { missingPathReason } from './missing-path'
+import { readFile } from './read-file'
 import { readImage } from './read-image'
 
 const MAX_READ_BYTES = 262_144
@@ -39,6 +41,7 @@ const description = [
   'A relative path resolves against the project directory.',
   pathEnvironmentNote,
   'A PNG, JPEG, GIF or WebP file comes back as a picture you can look at, provided it is small enough to send.',
+  'A PDF comes back as a file you can read natively, provided it is small enough to send.',
   'Output is line-numbered, tab-separated, one line per file line.',
   'Use offset to start at a given 1-based line and limit to cap how many lines come back.',
   `At most ${DEFAULT_LINE_LIMIT} lines come back at a time and each line is clipped at ${MAX_LINE_CHARS} characters;`,
@@ -213,6 +216,17 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
         mediaType,
         byteLength: stats.size,
         head,
+        files: this.files,
+        threadId,
+      })
+    }
+
+    const fileMediaType = nativeFileMediaType(head)
+    if (fileMediaType !== null) {
+      return await readFile({
+        path,
+        mediaType: fileMediaType,
+        byteLength: stats.size,
         files: this.files,
         threadId,
       })

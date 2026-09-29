@@ -6,4 +6,5 @@ export const userSaidDraft = (said: PendingSaid): EventDraft => ({
   type: 'user-said',
   text: said.text,
   ...(said.images.length === 0 ? {} : { images: said.images }),
+  ...(said.files.length === 0 ? {} : { files: said.files }),
 })

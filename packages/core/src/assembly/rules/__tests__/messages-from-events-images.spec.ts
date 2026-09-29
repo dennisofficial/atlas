@@ -79,3 +79,41 @@ describe('a message somebody attached a picture to', () => {
     expect(content?.[1]?.type).toBe('image')
   })
 })
+
+describe('a message somebody attached a file to', () => {
+  const SPEC = {
+    path: '/tmp/atlas/spec.pdf',
+    mediaType: 'application/pdf',
+    data: 'JVBERi0xLjQ=',
+  }
+
+  it('reaches the model as the words followed by the file, named from its path', () => {
+    expect(contentOf({ type: 'user-said', text: 'summarise this', files: [SPEC] })).toEqual([
+      { type: 'text', text: 'summarise this' },
+      {
+        type: 'file',
+        data: SPEC.data,
+        mediaType: 'application/pdf',
+        filename: 'spec.pdf',
+        source: SPEC.path,
+      },
+    ])
+  })
+
+  it('keeps an explicit filename over the path basename', () => {
+    const content = contentOf({
+      type: 'user-said',
+      text: 'read this',
+      files: [{ ...SPEC, filename: 'requirements.pdf' }],
+    })
+
+    expect(content?.[1]?.type === 'file' ? content[1].filename : null).toBe('requirements.pdf')
+  })
+
+  it('carries the file it came from, so a downgraded file can still be read again', () => {
+    const content = contentOf({ type: 'user-said', text: 'look', files: [SPEC] })
+    const file = content?.[1]
+
+    expect(file?.type === 'file' ? file.source : null).toBe(SPEC.path)
+  })
+})
