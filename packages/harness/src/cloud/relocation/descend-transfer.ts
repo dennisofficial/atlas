@@ -1,13 +1,14 @@
 import { EAgentStart, type EventLogPort, type IdPort, type LogPort, type ThreadId } from '@dltech/atlas-core'
 
 import { logFieldsOf } from '../../store/logs'
-import { EClientRequest, readSessionArchiveReplySchema } from '../channel-wire'
+import { EClientRequest, readMemoryArchiveReplySchema, readSessionArchiveReplySchema } from '../channel-wire'
 import type { ThreadStorePort } from '../../store/thread-store'
 import { claimSession } from '../../store/sessions/lock'
 import { atlasDirectory } from '../../store/paths'
 import { sessionDirectory, sessionLockFile } from '../../store/sessions/paths'
 import { extractSessionArchive } from '../session-archive'
 import type { CloudChannel } from './cloud-bridge'
+import { mergeMemoryArchive } from './session-archive'
 
 /**
  * The archive rebuilt the family's rows on the local store; the roster needs each child
@@ -73,6 +74,30 @@ export async function transferTranscriptDown(args: {
   // The overwrite drops the session lock this process was holding, so it is laid down again — the
   // reopen that follows claims for real, and until then nothing else may open the transcript.
   await claimSession({ sessionDir, lockFile: sessionLockFile({ sessionDir }), label: 'atlas tui' })
+}
+
+/**
+ * What the sandbox wrote into memory comes home the same way the transcript does: over the
+ * channel, in the same per-descend archive shape the lift carried it up in, never a standing
+ * store. An absent or refused answer means the sandbox holds no memory (or is too old to know the
+ * op) — nothing to merge, not a failure of the descend. The merge itself is last-writer-wins per
+ * file, so a redrive of the whole descend re-lands the same bytes harmlessly.
+ */
+export async function transferMemoryDown(args: {
+  channel: CloudChannel
+  repoRoot: string
+}): Promise<void> {
+  const reply = await args.channel
+    .request({ op: EClientRequest.ReadMemoryArchive, params: {} })
+    .then((result) => readMemoryArchiveReplySchema.parse(result))
+    .catch(() => ({ archive: '' }))
+  if (reply.archive.length === 0) return
+
+  await mergeMemoryArchive({
+    archive: Buffer.from(reply.archive, 'base64'),
+    atlasHome: atlasDirectory(),
+    repoRoot: args.repoRoot,
+  })
 }
 
 export const awaitPause = (args: { channel: CloudChannel; deadlineMs: number }): Promise<boolean> =>

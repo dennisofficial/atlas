@@ -89,8 +89,15 @@ const said = (text: string): Event => ({
 })
 
 const opened = (outcome: OpenOutcome): OpenedConversation => {
-  if (!outcome.ok) throw new Error(`expected an opened conversation, got: ${outcome.reason}`)
+  if ('cloud' in outcome || !outcome.ok) {
+    throw new Error(`expected an opened conversation, got: ${'cloud' in outcome ? 'cloud' : outcome.reason}`)
+  }
   return outcome.conversation
+}
+
+const refusedReason = (outcome: OpenOutcome): string => {
+  if ('cloud' in outcome || outcome.ok) throw new Error('expected a refusal')
+  return outcome.reason
 }
 
 describe('which conversation the app opens on', () => {
@@ -258,8 +265,7 @@ describe('which conversation the app opens on', () => {
       open: { mode: EOpenMode.Resume, threadId: 'never-was' },
     })
 
-    expect(outcome.ok).toBe(false)
-    expect(outcome.ok === false && outcome.reason).toContain('never-was')
+    expect(refusedReason(outcome)).toContain('never-was')
   })
 
   it('resumes a conversation opened in another worktree of the same project', async () => {
@@ -309,7 +315,7 @@ describe('which conversation the app opens on', () => {
       open: { mode: EOpenMode.Resume, threadId: YESTERDAY },
     })
 
-    expect(outcome.ok).toBe(false)
+    expect(refusedReason(outcome)).toBeTruthy()
   })
 
   it('refuses an id belonging to another workspace, however real it is', async () => {
@@ -324,8 +330,7 @@ describe('which conversation the app opens on', () => {
       open: { mode: EOpenMode.Resume, threadId: YESTERDAY },
     })
 
-    expect(outcome.ok).toBe(false)
-    expect(outcome.ok === false && outcome.reason).toContain(FAKE_WORKSPACE)
+    expect(refusedReason(outcome)).toContain(FAKE_WORKSPACE)
   })
   it('resumes by the name the exit line printed, not only by the id', async () => {
     const threads = fakeThreadStore({
@@ -413,8 +418,7 @@ describe('which conversation the app opens on', () => {
       open: { mode: EOpenMode.Resume, threadId: 'casual-greeting' },
     })
 
-    expect(opened(outcome).threadId).toBe(YESTERDAY)
-    expect(opened(outcome).executionLocation).toBe(EExecutionLocation.Cloud)
+    expect('cloud' in outcome && outcome.threadId === YESTERDAY).toBe(true)
   })
 
   it('resumes a thread that only exists in the cloud at all', async () => {
@@ -436,8 +440,7 @@ describe('which conversation the app opens on', () => {
       open: { mode: EOpenMode.Resume, threadId: YESTERDAY },
     })
 
-    expect(opened(outcome).threadId).toBe(YESTERDAY)
-    expect(opened(outcome).executionLocation).toBe(EExecutionLocation.Cloud)
+    expect('cloud' in outcome && outcome.threadId === YESTERDAY).toBe(true)
   })
 
   it('still says no when neither store knows the conversation', async () => {
@@ -453,7 +456,7 @@ describe('which conversation the app opens on', () => {
       open: { mode: EOpenMode.Resume, threadId: 'nobody-home' },
     })
 
-    expect(outcome.ok).toBe(false)
+    expect(refusedReason(outcome)).toBeTruthy()
   })
 
   it('resumes one recorded before conversations were attributed to a workspace', async () => {

@@ -47,3 +47,23 @@ export const asVercelFailure = (failure: unknown): Error => {
   if (failure instanceof Error) return failure
   return new Error('the sandbox provider failed unexpectedly')
 }
+
+export enum EVercelFailure {
+  Unknown = 'unknown',
+  DriveAttached = 'drive-attached',
+}
+
+export class VercelFailure extends Error {
+  constructor(args: { kind: EVercelFailure; message: string }) {
+    super(args.message)
+    this.name = 'VercelFailure'
+    this.kind = args.kind
+  }
+
+  readonly kind: EVercelFailure
+}
+
+export const isDriveAttachedConflict = (failure: unknown): boolean => {
+  const text = failureTextOf(failure)
+  return text.includes('already attached') || text.includes('currently attached')
+}

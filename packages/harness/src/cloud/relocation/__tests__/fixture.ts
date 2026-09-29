@@ -67,6 +67,8 @@ export function fakeCloudChannel(
     log?: FakeEventLog | undefined
     /** The base64 tar the serve hands back for a descend's read-session-archive; absent = empty. */
     archive?: string | undefined
+    /** The base64 tar the serve hands back for read-memory-archive; absent = the sandbox holds none. */
+    memoryArchive?: string | undefined
     /** Set = a serve too old to know restore-transcript refuses it; the lift warns and moves on. */
     restoreTranscriptRefused?: boolean | undefined
   } = {},
@@ -126,6 +128,7 @@ export function fakeCloudChannel(
       if (given.op === EClientRequest.PublishWorkspace) return null
       if (given.op === EClientRequest.Rewind) return { applied: 0 }
       if (given.op === EClientRequest.ReadSessionArchive) return { archive: args.archive ?? '' }
+      if (given.op === EClientRequest.ReadMemoryArchive) return { archive: args.memoryArchive ?? '' }
       if (given.op === EClientRequest.RestoreTranscript) {
         if (args.restoreTranscriptRefused === true) throw new Error('unknown request op: restore-transcript')
         return { restored: true }
@@ -362,6 +365,8 @@ export function fakeBridge(
     threadStore?: FakeThreadStore
     /** What the serve hands back for the descend's archive read; default is the fake log's events. */
     archive?: string | undefined
+    /** What the serve hands back for the descend's memory read; absent = the sandbox holds none. */
+    memoryArchive?: string | undefined
     /** Set = a serve too old to know restore-transcript refuses it; the lift warns and moves on. */
     restoreTranscriptRefused?: boolean | undefined
   } = {},
@@ -452,6 +457,7 @@ export function fakeBridge(
         threadId,
         log,
         archive: args.archive,
+        ...(args.memoryArchive === undefined ? {} : { memoryArchive: args.memoryArchive }),
         ...(args.restoreTranscriptRefused === undefined
           ? {}
           : { restoreTranscriptRefused: args.restoreTranscriptRefused }),

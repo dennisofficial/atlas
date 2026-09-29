@@ -113,6 +113,7 @@ describe('opening a conversation that lives in the cloud', () => {
 
     try {
       await mounted.command('/resume')
+      await mounted.typeText('lifted')
       await mounted.pick()
 
       expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(
@@ -167,12 +168,12 @@ describe('opening a conversation that lives in the cloud', () => {
       app,
       bridge,
       opened: {
-        threadId,
+        threadId: THREAD,
         events: [],
         turns: [],
         name: null,
-        started: true,
-        executionLocation: EExecutionLocation.Cloud,
+        started: false,
+        bootCloudThreadId: threadId,
       },
     })
 
@@ -189,40 +190,31 @@ describe('opening a conversation that lives in the cloud', () => {
       await mounted.done()
     }
   }, 60_000)
-})
 
-describe('/container off during the reattach window', () => {
-  it('refuses while the channel is still connecting rather than flipping the thread home', async () => {
+  it('keeps the meta saying cloud and warns when the boot attach fails', async () => {
     const app = speaking()
     const { threadId } = await seedCloudThread(app)
-    const bridge = fakeBridge({ status: RUNNING_STATUS })
-    await bridge.log.append({
-      threadId,
-      runId: toRunId('run-cloud'),
-      drafts: [{ type: 'user-said', text: 'said inside the sandbox' }],
-    })
+    const bridge = fakeBridge({ status: RUNNING_STATUS, createFails: new Error('the sandbox could not wake') })
     const mounted = await mount({
       app,
       bridge,
       opened: {
-        threadId,
+        threadId: THREAD,
         events: [],
         turns: [],
         name: null,
-        started: true,
-        executionLocation: EExecutionLocation.Cloud,
+        started: false,
+        bootCloudThreadId: threadId,
       },
     })
 
     try {
-      await mounted.command('/container off')
-
-      expect(bridge.created).toHaveLength(1)
-      expect(bridge.destroyed).toHaveLength(0)
-      expect(currentNotices().some((notice) => notice.text.includes('still connecting'))).toBe(true)
-      expect(
-        currentNotices().some((notice) => notice.text.includes('composer is paused')),
-      ).toBe(false)
+      const warned = await until({
+        holds: async () =>
+          currentNotices().some((notice) => notice.text.includes('the sandbox could not wake')),
+        within: 10_000,
+      })
+      expect(warned).toBe(true)
       expect((await app.threads.find({ threadId }))?.executionLocation).toBe(
         EExecutionLocation.Cloud,
       )
@@ -231,6 +223,7 @@ describe('/container off during the reattach window', () => {
     }
   }, 60_000)
 })
+
 
 describe('the picker badge and the reattach notice', () => {
   it('badges a cloud conversation with its sandbox state in the picker', async () => {
@@ -265,6 +258,7 @@ describe('the picker badge and the reattach notice', () => {
 
     try {
       await mounted.command('/resume')
+      await mounted.typeText('lifted')
       await mounted.pick()
 
       bridge.channel.ready({ turnInFlight: true })
@@ -327,6 +321,7 @@ describe('/restart on a cloud session', () => {
 
     try {
       await mounted.command('/resume')
+      await mounted.typeText('lifted')
       await mounted.pick()
 
       expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(
@@ -365,6 +360,7 @@ describe('/restart on a cloud session', () => {
 
     try {
       await mounted.command('/resume')
+      await mounted.typeText('lifted')
       await mounted.pick()
 
       expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(

@@ -362,6 +362,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
         }),
     ...(app.modelBridge === undefined ? {} : { selectModel: app.modelBridge.select }),
     ...(app.sessionArchive === undefined ? {} : { sessionArchive: app.sessionArchive }),
+    ...(app.memoryArchive === undefined ? {} : { memoryArchive: app.memoryArchive }),
     restoreTranscript: async () => {
       const fetchArchive = args.fetchTranscriptArchive ?? driveTranscriptArchiveFetcher({ driveHome })
       const sessionDir = sessionDirectory({ home: driveHome, sessionId: threadId })

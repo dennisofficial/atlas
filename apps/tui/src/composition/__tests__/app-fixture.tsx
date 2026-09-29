@@ -71,6 +71,23 @@ export async function spokenIn(app: FakeApp): Promise<OpenedConversation> {
   return { threadId: THREAD, events, turns: [], name: null, started: true }
 }
 
+/**
+ * The row half of a spoken-in conversation: the log events are what the screen reads, but the
+ * thread meta is what a location switch writes back to, and the real store has both the moment a
+ * thread exists. The row is seeded apart from spokenIn because a picker over the store's list
+ * reads it as a resumable thread.
+ */
+export function spokenInRow(app: FakeApp, events: readonly { seq: number; at: string }[]): void {
+  app.threads.seedThread({
+    id: THREAD,
+    head: events.at(-1)?.seq ?? 0,
+    createdAt: events[0]?.at ?? new Date(0).toISOString(),
+    updatedAt: events.at(-1)?.at ?? new Date(0).toISOString(),
+    workspace: app.workspace.workspace,
+    repo: app.workspace.repo,
+  })
+}
+
 const NOTHING_ON_THE_CLIPBOARD: ClipboardImageReader = async () => null
 
 export const editorIn = (node: Renderable): TextareaRenderable | null => {

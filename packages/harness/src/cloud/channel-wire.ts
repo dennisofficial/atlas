@@ -24,6 +24,7 @@ export {
   renameThreadParamsSchema,
   readEventsParamsSchema,
   readEventsReplySchema,
+  readMemoryArchiveReplySchema,
   readSessionArchiveReplySchema,
   readThreadParamsSchema,
   readThreadReplySchema,

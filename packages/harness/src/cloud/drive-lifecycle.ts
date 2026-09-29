@@ -1,6 +1,7 @@
 import { Drive } from '@vercel/sandbox'
 
-import { failureTextOf, isSandboxMissing } from './vercel-errors'
+import { attachLagRetry, retrySleep, type RetryPolicy } from './retry-policy'
+import { isDriveAttachedConflict, isSandboxMissing } from './vercel-errors'
 
 import type { VercelCredentials } from './vercel-driver'
 import { DRIVE_MAX_BYTES } from './drive-names'
@@ -39,14 +40,6 @@ export async function ensureDrive(args: {
   })
 }
 
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
-
-const stillAttached = (failure: unknown): boolean =>
-  failureTextOf(failure).includes('currently attached')
-
-const DELETE_ATTEMPTS = 10
-const DELETE_RETRY_DELAY_MS = 2_000
-
 /**
  * A drive is deleted after the sandbox that mounted it is deleted, and Vercel detaches the drive
  * asynchronously — a delete issued the moment the sandbox is gone lands a 409 `currently attached`
@@ -57,7 +50,9 @@ export async function deleteDrive(args: {
   sdk: DriveSdk
   credentials: VercelCredentials
   name: string
+  retry?: RetryPolicy | undefined
 }): Promise<void> {
+  const retry = args.retry ?? attachLagRetry
   const listed = await args.sdk.list({
     ...args.credentials,
     namePrefix: args.name,
@@ -73,9 +68,42 @@ export async function deleteDrive(args: {
         return
       } catch (failure) {
         if (isSandboxMissing(failure)) return
-        if (!stillAttached(failure) || attempt >= DELETE_ATTEMPTS - 1) throw failure
-        await sleep(DELETE_RETRY_DELAY_MS)
+        if (!isDriveAttachedConflict(failure) || attempt >= retry.attempts - 1) throw failure
+        await retrySleep(retry)
       }
     }
   }
+}
+
+/**
+ * The mount direction of the same lag: `sandbox.delete()` returns before Vercel detaches the
+ * drive, so a sandbox recreated with the same mounts right after lands `already attached as
+ * read-write`. Polls the drive's attach state until no sandbox holds it. The SDK's `Drive`
+ * metadata is a snapshot fixed at construction, so each poll re-lists for a fresh read. True when
+ * the drive is free (or gone); false when the lag outlived the polls — the caller's create retry
+ * covers the tail beyond that.
+ */
+export async function waitForDriveDetached(args: {
+  sdk: DriveSdk
+  credentials: VercelCredentials
+  name: string
+  retry?: RetryPolicy | undefined
+}): Promise<boolean> {
+  const retry = args.retry ?? attachLagRetry
+  for (let attempt = 0; attempt < retry.attempts; attempt++) {
+    const listed = await args.sdk.list({
+      ...args.credentials,
+      namePrefix: args.name,
+      // The API rejects namePrefix unless the listing is sorted by name.
+      sortBy: 'name',
+      signal: AbortSignal.timeout(30_000),
+    })
+    let attached = false
+    for await (const drive of listed) {
+      if (drive.name === args.name && drive.currentSandboxName !== undefined) attached = true
+    }
+    if (!attached) return true
+    if (attempt < retry.attempts - 1) await retrySleep(retry)
+  }
+  return false
 }

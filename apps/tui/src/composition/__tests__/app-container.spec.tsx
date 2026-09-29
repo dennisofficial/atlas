@@ -9,7 +9,7 @@ import { ESandboxState, EShellStatus, toShellId, type ShellSnapshot } from '@dlt
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
 import type { OpenedConversation } from '../open-conversation'
-import { open, promiseGate, spokenIn, until, REPLY, THREAD, THINKING } from './app-fixture'
+import { open, promiseGate, spokenIn, spokenInRow, until, REPLY, THREAD, THINKING } from './app-fixture'
 import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
 await grammarsReady()
@@ -39,7 +39,9 @@ const switchTo = async (mounted: Awaited<ReturnType<typeof open>>, argument: str
 describe('the container command', () => {
   it('writes the column the moment the operator switches, mid-session', async () => {
     const app = speaking()
-    const mounted = await open({ app, opened: await spokenIn(app) })
+    const opened = await spokenIn(app)
+    spokenInRow(app, opened.events)
+    const mounted = await open({ app, opened })
 
     try {
       await switchTo(mounted, 'docker')
@@ -99,7 +101,7 @@ describe('the container command', () => {
     }
   })
 
-  it('holds a switch made before the thread exists until the first message opens it', async () => {
+  it('holds a switch made before the thread exists and stamps it on the thread the first message opens', async () => {
     const app = speaking()
     const mounted = await open({ app, opened: UNSTARTED })
 
@@ -113,14 +115,15 @@ describe('the container command', () => {
       mounted.pressEnter()
 
       const landed = await until({
-        holds: async () => app.threads.chosenLocations.length > 0,
+        holds: async () => app.threads.peekRow({ threadId: THREAD }) !== undefined,
         within: WITHIN_MS,
       })
 
       expect(landed).toBe(true)
-      expect(app.threads.chosenLocations).toEqual([
-        { threadId: THREAD, location: EExecutionLocation.Docker },
-      ])
+      expect(app.threads.chosenLocations).toEqual([])
+      expect(app.threads.peekRow({ threadId: THREAD })?.executionLocation).toBe(
+        EExecutionLocation.Docker,
+      )
     } finally {
       await mounted.done()
     }

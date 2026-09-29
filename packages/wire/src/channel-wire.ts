@@ -81,6 +81,13 @@ export enum EClientRequest {
   ReadTurns = 'read-turns',
   ReadSessionArchive = 'read-session-archive',
   /**
+   * The descend's memory transfer: the sandbox's user and project memory, tarred under the same
+   * `.atlas/memory/…` and `project-memory/…` keys the lift archive carried them by. Never a
+   * standing store — the host merges per-file by mtime, so a serve that cannot answer (or a
+   * sandbox that never saw memory) must be read as an empty archive, not an error.
+   */
+  ReadMemoryArchive = 'read-memory-archive',
+  /**
    * Transcript mutations against the session the sandbox is serving, applied to its on-disk JSONL
    * stores and announced back over the wire. A serve built before these ops answers with a protocol
    * error, and the client falls back to its local store.
@@ -155,6 +162,9 @@ export const readTurnsReplySchema = z.object({
 
 /** The whole session directory as a base64 tar.gz — the descend's transcript transfer. */
 export const readSessionArchiveReplySchema = z.object({ archive: z.string() })
+
+/** The sandbox's memory roots as a base64 tar.gz — '' when the sandbox holds none. */
+export const readMemoryArchiveReplySchema = z.object({ archive: z.string() })
 
 export const publishedWorkspaceWireSchema = z
   .object({

@@ -2,7 +2,13 @@ import { randomBytes } from 'node:crypto'
 
 import { Sandbox } from '@vercel/sandbox'
 
-import { deleteDrive, ensureDrive, liveDriveSdk, type DriveSdk } from './drive-lifecycle'
+import {
+  deleteDrive,
+  ensureDrive,
+  liveDriveSdk,
+  waitForDriveDetached,
+  type DriveSdk,
+} from './drive-lifecycle'
 import { driveNameFor, DRIVE_HOME_PATH, DRIVE_MOUNT_PATH, DRIVE_WORKSPACE_PATH } from './drive-names'
 import {
   ESandboxProbe,
@@ -10,6 +16,7 @@ import {
   probeSandboxForResume,
   type AttachProbe,
 } from './resume-probe'
+import { attachLagRetry, retrySleep, type RetryPolicy } from './retry-policy'
 import { ECloudSandboxState } from './sandbox-client'
 import {
   createServeLauncher,
@@ -18,9 +25,12 @@ import {
 } from './serve-launch'
 import {
   asVercelFailure,
+  EVercelFailure,
   failureTextOf,
+  isDriveAttachedConflict,
   isSandboxMissing,
   SandboxMissingError,
+  VercelFailure,
 } from './vercel-errors'
 
 export const SANDBOX_REGION = 'iad1'
@@ -145,6 +155,7 @@ export class VercelDriver {
   private readonly sdk: VercelSdk
   private readonly inflightLaunches = new WeakMap<object, Promise<void>>()
   private readonly attachProbe: AttachProbe = probeClientsAttached
+  private readonly attachLagRetry: RetryPolicy
 
   private readonly drives: DriveSdk
 
@@ -160,6 +171,8 @@ export class VercelDriver {
       log?: ((line: string) => void) | undefined
       sdk?: VercelSdk | undefined
       driveSdk?: DriveSdk | undefined
+      /** The attach-detach lag budget the delete and mount retries share; a spec passes zero delays. */
+      attachLagRetry?: RetryPolicy | undefined
       /**
        * Whether a client socket is attached to the sandbox's running serve — the drift probe
        * consults it before destroying an outdated sandbox. Defaults to the serve's own
@@ -170,6 +183,7 @@ export class VercelDriver {
   ) {
     this.sdk = args.sdk ?? liveSdk
     this.drives = args.driveSdk ?? liveDriveSdk
+    this.attachLagRetry = args.attachLagRetry ?? attachLagRetry
     if (args.clientsAttached !== undefined) this.attachProbe = args.clientsAttached
   }
 
@@ -226,40 +240,33 @@ export class VercelDriver {
             signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
           }),
         clientsAttached: this.attachProbe,
+        waitForDriveDetached: () =>
+          waitForDriveDetached({
+            sdk: this.drives,
+            credentials,
+            name: driveName,
+            retry: this.attachLagRetry,
+          }),
         log: this.args.log,
         isMissing: isSandboxMissing,
         toFailure: asVercelFailure,
       })
       const freshBoot = probe === ESandboxProbe.Missing || probe === ESandboxProbe.Replaced
-      const sandbox = await this.sdk.getOrCreate({
-        ...credentials,
+      const sandbox = await this.mountWithRetries({
+        credentials,
         name: args.name,
-        ports: [SANDBOX_SERVE_PORT],
-        timeout: this.args.timeoutMs ?? SANDBOX_TIMEOUT_MS,
-        region: SANDBOX_REGION,
-        persistent: true,
-        resume: true,
         image,
-        mounts: { [DRIVE_MOUNT_PATH]: drive },
+        drive,
+        driveName,
+        threadId: args.threadId,
+        token: serveToken,
+        environment: args.environment,
+        pinnedModel: args.pinnedModel,
         onCreate: () => {
           created = true
           return Promise.resolve()
         },
-        onResume: (sandbox) => launchServe({ sandbox, token: serveToken }),
-        env: {
-          ATLAS_SERVE_TOKEN: serveToken,
-          ATLAS_SERVE_PORT: String(SANDBOX_SERVE_PORT),
-          ATLAS_THREAD_ID: args.threadId,
-          ATLAS_CLOUD_URL: this.args.cloudUrl,
-          ATLAS_WORKSPACE_DIR: WORKSPACE_PATH,
-          ATLAS_HOME: DRIVE_HOME_PATH,
-          VERCEL_TOKEN: credentials.token,
-          VERCEL_TEAM_ID: credentials.teamId,
-          VERCEL_PROJECT_ID: credentials.projectId,
-          ...(args.pinnedModel === undefined ? {} : { ATLAS_MODEL: args.pinnedModel }),
-          ...args.environment,
-        },
-        signal: AbortSignal.timeout(SANDBOX_LAUNCH_TIMEOUT_MS),
+        launchServe,
       })
       const createMs = Date.now() - createStartedAt
       // The bootstrap (context archive, workspace spec) must be on the drive before serve launches —
@@ -285,6 +292,7 @@ export class VercelDriver {
       }
     } catch (failure) {
       if (failure instanceof SandboxMissingError) throw failure
+      if (failure instanceof VercelFailure) throw failure
       this.args.log?.(
         `sandbox ${args.name} provision failed ${Date.now() - createStartedAt}ms in: ${failureTextOf(failure)}`,
       )
@@ -469,6 +477,73 @@ export class VercelDriver {
         credentials: this.args.credentials,
         name: driveNameFor({ threadId: args.threadId }),
       })
+    }
+  }
+
+  /**
+   * The mount direction of the attach-detach lag: Vercel detaches a drive asynchronously after a
+   * sandbox goes away, so a create issued while the drive still reads attached lands
+   * `already attached as read-write`. Retries through that window the way deleteDrive retries the
+   * delete side; exhaustion surfaces as a typed failure rather than the raw provider text. A
+   * stopped-but-live sandbox that still holds the mount lands the same failure and is retried as
+   * attach-state lag.
+   */
+  private async mountWithRetries(args: {
+    credentials: VercelCredentials
+    name: string
+    image: string
+    drive: Awaited<ReturnType<DriveSdk['getOrCreate']>>
+    driveName: string
+    threadId: string
+    token: string
+    environment?: Record<string, string> | undefined
+    pinnedModel?: string | undefined
+    onCreate: () => Promise<void>
+    launchServe: ServeLauncher
+  }): Promise<Sandbox> {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.sdk.getOrCreate({
+          ...args.credentials,
+          name: args.name,
+          ports: [SANDBOX_SERVE_PORT],
+          timeout: this.args.timeoutMs ?? SANDBOX_TIMEOUT_MS,
+          region: SANDBOX_REGION,
+          persistent: true,
+          resume: true,
+          image: args.image,
+          mounts: { [DRIVE_MOUNT_PATH]: args.drive },
+          onCreate: args.onCreate,
+          onResume: (sandbox) => args.launchServe({ sandbox, token: args.token }),
+          env: {
+            ATLAS_SERVE_TOKEN: args.token,
+            ATLAS_SERVE_PORT: String(SANDBOX_SERVE_PORT),
+            ATLAS_THREAD_ID: args.threadId,
+            ATLAS_CLOUD_URL: this.args.cloudUrl,
+            ATLAS_WORKSPACE_DIR: WORKSPACE_PATH,
+            ATLAS_HOME: DRIVE_HOME_PATH,
+            VERCEL_TOKEN: args.credentials.token,
+            VERCEL_TEAM_ID: args.credentials.teamId,
+            VERCEL_PROJECT_ID: args.credentials.projectId,
+            ...(args.pinnedModel === undefined ? {} : { ATLAS_MODEL: args.pinnedModel }),
+            ...args.environment,
+          },
+          signal: AbortSignal.timeout(SANDBOX_LAUNCH_TIMEOUT_MS),
+        })
+      } catch (failure) {
+        if (!isDriveAttachedConflict(failure)) throw failure
+        const retry = this.attachLagRetry
+        if (attempt >= retry.attempts) {
+          throw new VercelFailure({
+            kind: EVercelFailure.DriveAttached,
+            message: `drive ${args.driveName} is still attached after ${retry.attempts} attempts to mount it on sandbox ${args.name}: ${failureTextOf(failure)}`,
+          })
+        }
+        this.args.log?.(
+          `drive ${args.driveName} still attached to another sandbox (attempt ${attempt}/${retry.attempts}) — waiting out the detach`,
+        )
+        await retrySleep(retry)
+      }
     }
   }
 

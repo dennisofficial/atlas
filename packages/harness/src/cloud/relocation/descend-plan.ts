@@ -9,7 +9,7 @@ import { mergePublishedWorkspace, type MergedWorkspace } from '../../workspace/m
 import { atlasDirectory } from '../../store/paths'
 import { sessionDirectory } from '../../store/sessions/paths'
 import type { CloudBridge, CloudChannel } from './cloud-bridge'
-import { awaitPause, reannounceChildren, transferTranscriptDown } from './descend-transfer'
+import { awaitPause, reannounceChildren, transferMemoryDown, transferTranscriptDown } from './descend-transfer'
 import { ELiftStep } from './lift'
 import { flipChildrenBack } from './lift-children'
 import type { RelocationPlan } from './dag'
@@ -82,8 +82,15 @@ export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPl
       },
     },
     {
-      id: 'shipDown',
+      id: 'archiveMemory',
       needs: ['archiveRemote'],
+      run: async () => {
+        await transferMemoryDown({ channel, repoRoot: localApp.workspace.workspace })
+      },
+    },
+    {
+      id: 'shipDown',
+      needs: ['archiveMemory'],
       run: async () => {
         progress(EDescendStep.Transferring)
         await (args.afterTranscriptLanded ?? (async () => undefined))()
@@ -171,7 +178,7 @@ export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPl
     },
     {
       id: 'destroySandbox',
-      needs: ['flipHome'],
+      needs: ['flipHome', 'archiveMemory'],
       run: async () => {
         await args.bridge.sandboxes.destroy({ threadId }).catch((error: unknown) => {
           args.logPort?.warn({

@@ -47,8 +47,8 @@ export function useThreadSwap(args: {
         open: { mode: EOpenMode.Resume, threadId: asked },
         effects: (name) => app.tools.find(name)?.effect,
       }).then((outcome) => {
-        if (!outcome.ok) {
-          onFailure(outcome.reason)
+        if ('cloud' in outcome || !outcome.ok) {
+          onFailure('cloud' in outcome ? 'that conversation lives in the cloud' : outcome.reason)
           return
         }
 

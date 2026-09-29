@@ -17,7 +17,6 @@ export function useExecutionLocation(args: {
 }): ExecutionLocationControl {
   const { app, threadId, stored, started } = args
   const launching = useRef(true)
-  const wasStarted = useRef(started)
 
   const location = useSyncExternalStore(
     app.executionLocation.subscribe,
@@ -43,23 +42,22 @@ export function useExecutionLocation(args: {
     app.executionLocation.note({ threadId, location: resolved })
   }, [app, stored, threadId])
 
-  useEffect(() => {
-    const opening = !wasStarted.current && started
-    wasStarted.current = started
-    if (!opening) return
-
-    void app.threads
-      .chooseExecutionLocation({ threadId, location: app.executionLocation.current() })
-      .catch(() => undefined)
-  }, [app, started, threadId])
-
   const handleSet = useCallback(
     (next: EExecutionLocation) => {
+      const prior = app.executionLocation.of(threadId)
       app.executionLocation.set(next)
       app.executionLocation.note({ threadId, location: next })
       if (!started) return
+      if (prior === next) return
 
-      void app.threads.chooseExecutionLocation({ threadId, location: next }).catch(() => undefined)
+      void app.threads
+        .find({ threadId })
+        .then((known) => {
+          if (known === undefined) return
+          if (known.executionLocation === next) return
+          return app.threads.chooseExecutionLocation({ threadId, location: next })
+        })
+        .catch(() => undefined)
     },
     [app, started, threadId],
   )
