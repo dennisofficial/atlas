@@ -18,6 +18,7 @@ import { ContributedSections } from "./sidebar/contributed";
 import { SubagentsSection, TeammatesSection } from "./sidebar/crew";
 import { GrantsSection } from "./sidebar/grants";
 import { HeadSection } from "./sidebar/head";
+import type { NamingState } from "./naming-line";
 import { ServicesSection } from "./sidebar/services";
 import { ShellsSection } from "./sidebar/shells";
 import { TodoSection } from "./sidebar/todo";
@@ -117,6 +118,8 @@ function DerivedSidebar(props: {
   onOpenService?: (serviceId: string) => void;
   onSelectSubagent?: (agentId: string) => void;
   onRevokeGrant?: (grantId: string) => void;
+  /** The naming animation's state; set while a rename or first titling is in flight. */
+  naming?: NamingState | null | undefined;
 }): React.ReactNode {
   useAppearance();
   const { model } = props;
@@ -149,7 +152,7 @@ function DerivedSidebar(props: {
           contentOptions={{ paddingRight: SIDEBAR_PADDING }}
         >
           <box flexDirection="column" flexShrink={0} gap={1}>
-            <HeadSection model={model} cells={cells} />
+            <HeadSection model={model} cells={cells} naming={props.naming} />
             {model.container === undefined ? null : (
               <ContainerSection container={model.container} cells={cells} />
             )}

@@ -75,6 +75,10 @@ export type Conversation = {
   lost: RecoveredAgents | null
   lostShells: readonly LostShell[]
   handle: string | null
+  /** The thread's own name, separate from the handle form, and whether a naming ask is out —
+   *  app.tsx arms the naming animation off these. */
+  sessionName: string | null
+  naming: boolean
   model: TranscriptModel
   sidebar: SidebarModel
   turn: TurnClock
@@ -296,8 +300,6 @@ export function useConversation(args: {
   )
 
   useEffect(() => store.setName(name), [store, name])
-
-  useEffect(() => store.setNaming(naming), [store, naming])
 
   const derived = view.model
   const { sidebar } = view
@@ -558,6 +560,8 @@ export function useConversation(args: {
     lost: opened.lost ?? null,
     lostShells: opened.lostShells ?? [],
     handle: name === null ? null : threadHandle({ threadId, title: name }),
+    sessionName: name,
+    naming,
     model,
     sidebar,
     turn,

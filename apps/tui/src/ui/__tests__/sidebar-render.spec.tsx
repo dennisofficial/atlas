@@ -13,6 +13,8 @@ import {
 import { type SidebarSubagent } from "../../store/subagent-row";
 import type { SidebarSection } from "../sidebar-section";
 import { Sidebar } from "../components/sidebar";
+import { ENamingPhase } from "../components/naming-line";
+import { NAMING_SETTLE_MS } from "../naming-frames";
 import { SIDEBAR_GUTTER } from "../components/sidebar/cells";
 import { teardown } from "../markdown/__tests__/harness";
 import { ESidebarPlace } from "../sidebar-section";
@@ -142,6 +144,7 @@ async function rowsOf(args: {
   width?: number;
   version?: string;
   repoName?: string;
+  naming?: import("../components/naming-line").NamingState | null;
 }): Promise<string[]> {
   const height = args.height ?? HEIGHT;
   const setup = await testRender(
@@ -153,6 +156,7 @@ async function rowsOf(args: {
         worktree={args.worktree ?? null}
         version={args.version ?? "v1.2.3"}
         repoName={args.repoName}
+        {...(args.naming === undefined ? {} : { naming: args.naming })}
       />
     </box>,
     { width: TERMINAL_WIDTH, height },
@@ -598,6 +602,41 @@ const columnWidth = (setup: Awaited<ReturnType<typeof testRender>>): number => {
 
   return column.width;
 };
+
+describe("the naming animation in the head", () => {
+  it("shuffles noise the width the old name held while a rename is out", async () => {
+    const rows = await rowsOf({
+      model: FED,
+      naming: {
+        phase: ENamingPhase.Generating,
+        startCells: FED.title!.length,
+        startedWithName: true,
+        target: null,
+        startedAt: Date.now(),
+      },
+    });
+    const head = rows.join("\n");
+
+    expect(head).not.toContain("Refresh-token rotation");
+    const noiseRow = rows.find((row) => row.includes("·") || row.includes("∙"));
+    expect(noiseRow).toBeTruthy();
+  }, 30_000);
+
+  it("settles into the answer by the end of the sweep", async () => {
+    const rows = await rowsOf({
+      model: FED,
+      naming: {
+        phase: ENamingPhase.Streaming,
+        startCells: FED.title!.length,
+        startedWithName: true,
+        target: "Rejecting reused tokens",
+        startedAt: Date.now() - NAMING_SETTLE_MS * 2,
+      },
+    });
+
+    expect(rows.join("\n")).toContain("Rejecting reused tokens");
+  }, 30_000);
+});
 
 describe("the column beside the sidebar", () => {
   it("keeps the whole terminal for the content while the sidebar floats over it", async () => {

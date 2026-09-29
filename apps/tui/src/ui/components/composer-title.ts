@@ -26,6 +26,22 @@ export function composerTitle(args: {
   badge: string | null
   edge?: EComposerEdge
 }): string | null {
+  const room = composerTitleRoom(args)
+  if (room === null) return null
+
+  return truncateCells({ text: args.title, cells: room })
+}
+
+/**
+ * The cells the head row has for the title slab, or null when there is no title worth truncating
+ * to. The animated slab budgets off the same number, so a glide never draws past where the settled
+ * title would sit.
+ */
+export function composerTitleRoom(args: {
+  width: number
+  badge: string | null
+  edge?: EComposerEdge
+}): number | null {
   const closing = args.edge === EComposerEdge.Bordered ? CLOSING_RULE_COLUMNS : 0
   const spent =
     RAIL_COLUMNS +
@@ -35,8 +51,7 @@ export function composerTitle(args: {
     (args.badge === null ? 0 : slabCells(args.badge) + 1)
   const room = args.width - spent - TITLE_PAD * 2
   if (room < TITLE_MIN_CELLS) return null
-
-  return truncateCells({ text: args.title, cells: room })
+  return room
 }
 
 const NOTICE_RUNWAY = 2

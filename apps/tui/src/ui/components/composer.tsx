@@ -7,7 +7,9 @@ import { mentionStyleId, mentionSyntaxStyle } from '../mention-style'
 import { useAppearance } from '../hooks/use-appearance'
 import type { DraftControls } from '../hooks/use-draft'
 import { glyph, theme } from '../theme'
-import { composerNoticeCells, composerTitle } from './composer-title'
+import { namingComposerLine, titleWithin } from '../naming-frames'
+import { ENamingPhase, NamingLine, type NamingState } from './naming-line'
+import { composerNoticeCells, composerTitle, composerTitleRoom } from './composer-title'
 import { EFrameRule, Frame, FRAME_INSET, FRAME_PAD } from './frame'
 import { NoticeSlab } from './notice-slab'
 import { Panel, PANEL_INSET, PANEL_PAD } from './panel'
@@ -82,6 +84,8 @@ function DerivedComposer(props: {
   focused?: boolean
   title?: string
   accent?: string
+  /** The naming animation's state; while set it owns the title slab instead of `title`. */
+  naming?: NamingState | null | undefined
   highlights?: readonly HighlightSpan[]
   onCursorMoved?: (() => void) | undefined
 }): React.ReactNode {
@@ -203,9 +207,39 @@ function DerivedComposer(props: {
   const hidden = metrics.total - metrics.rows
   const badge = hidden > 0 ? overflowBadge(hidden) : null
   const title =
-    props.title === undefined
+    props.title === undefined || props.naming != null
       ? null
       : composerTitle({ title: props.title, width: props.width, badge, edge })
+
+  /**
+   * The slab clamps the shared animation to what its own row holds: a fresh name opens at half
+   * the room (the average title), a rename keeps the old name's width, and the answer is clipped
+   * to the room the same way a settled title truncates.
+   */
+  const namingSlab = (() => {
+    if (props.naming == null) return null
+    const room = composerTitleRoom({ width: props.width, badge, edge })
+    if (room === null) return null
+    const state: NamingState =
+      props.naming.phase === ENamingPhase.Generating
+        ? {
+            ...props.naming,
+            startCells: Math.min(
+              props.naming.startedWithName ? props.naming.startCells : Math.max(1, Math.round(room / 2)),
+              room,
+            ),
+          }
+        : {
+            ...props.naming,
+            startCells: Math.min(props.naming.startCells, room),
+            target: props.naming.target === null ? null : titleWithin({ title: props.naming.target, cells: room }),
+          }
+    return (
+      <box backgroundColor={rail} paddingLeft={1} paddingRight={1}>
+        <NamingLine state={state} line={namingComposerLine(rail)} />
+      </box>
+    )
+  })()
 
   const label = (bg: string): React.ReactNode => (
     <NoticeSlab bg={bg} cells={composerNoticeCells({ width: props.width, badge, title, edge })} />
@@ -249,11 +283,13 @@ function DerivedComposer(props: {
         {...(badge === null
           ? {}
           : { badge: <text fg={theme.hint} bg={theme.appBg}>{` ${badge} `}</text> })}
-        {...(title === null
-          ? {}
-          : {
-              title: <text fg={theme.caretFg} bg={rail}>{` ${title} `}</text>,
-            })}
+        {...(namingSlab !== null
+          ? { title: namingSlab }
+          : title === null
+            ? {}
+            : {
+                title: <text fg={theme.caretFg} bg={rail}>{` ${title} `}</text>,
+              })}
       >
         {draft}
       </Frame>
@@ -269,9 +305,11 @@ function DerivedComposer(props: {
       {...(badge === null
         ? {}
         : { badge: <text fg={theme.hint} bg={theme.panelBg}>{` ${badge} `}</text> })}
-      {...(title === null
-        ? {}
-        : { title: <text fg={theme.body} bg={theme.panelBg}>{` ${title} `}</text> })}
+      {...(namingSlab !== null
+        ? { title: namingSlab }
+        : title === null
+          ? {}
+          : { title: <text fg={theme.body} bg={theme.panelBg}>{` ${title} `}</text> })}
     >
       {draft}
     </Panel>

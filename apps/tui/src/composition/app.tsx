@@ -31,6 +31,7 @@ import {
 import { EChannelConnection, forkConversation, readGhAuthToken, relocateSession, requireVercelCredentials, SandboxClient, sandboxImageOf, settingModelRef, suggestedModelRef, VercelDriver, type DiscoveredSkill } from '@dltech/atlas-harness'
 
 import { newestExpandableKey, type PendingSaid } from '../store'
+import { TITLE_CELLS } from '../store/sidebar-text'
 import { withCloud, withContainer, withSections } from '../store/sidebar-model'
 import { accountMeterSpans } from '../ui/account-meters'
 import { isWaiting, type BackgroundWork } from '../ui/background-wait'
@@ -61,6 +62,10 @@ import { hasLostChildren, lostChildrenNotice } from '../ui/lost-children-model'
 import { hasLostShells, lostShellsNotice } from '../ui/lost-shells-model'
 import { Shortcuts } from '../ui/components/shortcuts'
 import { Sidebar } from '../ui/components/sidebar'
+import { composerTitleRoom } from '../ui/components/composer-title'
+import { sliceCells } from '../ui/components/sidebar/cells'
+import { useNamingAnimation } from '../ui/hooks/use-naming-animation'
+import { ENamingPhase } from '../ui/components/naming-line'
 import { NoticeStack } from '../ui/components/notice-stack'
 import { WelcomeScreen } from '../ui/components/welcome-screen'
 import { Transcript } from '../ui/components/transcript'
@@ -915,6 +920,34 @@ function Workspace(props: {
   const contentWidth = contentWidthOf({ width, sidebarWidth, docked })
   const chromeWidth = chromeWidthOf({ width, sidebarWidth, docked })
   const composerWidth = welcome ? welcomeCells({ width: chromeWidth }) : chromeWidth
+
+  /**
+   * The naming animation is armed here rather than inside the conversation hook because its
+   * starting width is a surface fact: a rename continues from the name on screen, a first name
+   * from the full sidebar row. Each surface clamps the glide to what its own row can hold.
+   */
+  const namingAnimation = useNamingAnimation({ fallbackCells: TITLE_CELLS })
+  const namingWatch = useRef({ threadId: conversation.threadId, naming: false, named: null as string | null })
+  useEffect(() => {
+    const watching = namingWatch.current
+    if (watching.threadId !== conversation.threadId) {
+      namingWatch.current = { threadId: conversation.threadId, naming: conversation.naming, named: conversation.sessionName }
+      namingAnimation.end()
+      return
+    }
+    if (conversation.naming && !watching.naming) {
+      watching.named = null
+      namingAnimation.begin(conversation.sessionName)
+    }
+    if (conversation.sessionName !== watching.named) {
+      watching.named = conversation.sessionName
+      if (conversation.sessionName !== null) namingAnimation.stream(conversation.sessionName)
+    }
+    if (!conversation.naming && watching.naming && watching.named === null) namingAnimation.end()
+    watching.naming = conversation.naming
+  }) // every commit: the watch is a transition detector, not a dependency list
+
+  const sidebarNaming = namingAnimation.state
 
   const router = useThreadRouter({
     localApp: props.localApp,
@@ -2000,6 +2033,7 @@ function Workspace(props: {
                   ? {}
                   : { title: conversation.handle }
                 : { title: `@${agentView.name}`, accent: theme.court.external })}
+              {...(sidebarNaming === null ? {} : { naming: sidebarNaming })}
             />
           </box>
           <box flexGrow={welcome ? 1 : 0} flexShrink={1} />
@@ -2016,6 +2050,7 @@ function Workspace(props: {
           <Sidebar
             width={overlay ? floatingSidebarWidth({ width, sidebarWidth }) : sidebarWidth}
             model={sidebarModel}
+            {...(sidebarNaming === null ? {} : { naming: sidebarNaming })}
             root={projectRoot}
             repoName={repoName}
             worktree={sidebarWorktree}
