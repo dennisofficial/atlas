@@ -24,6 +24,7 @@ import {
   type EventDraft,
   type ModelCard,
   type NoticePort,
+  type SaidImage,
   type SettingsResolution,
   type ThreadId,
   type ToolDeclaration,
@@ -102,7 +103,10 @@ export function wireTurn<Command>(args: {
   stopSandbox: () => Promise<boolean>
   settled: SettingsResolution
   tldr: { feed: TldrFeed | undefined; model: LanguageModel; modelId: () => string }
-  titler: (args: { text: string }) => Promise<string | null>
+  titler: (args: {
+    text: string
+    images?: readonly SaidImage[] | undefined
+  }) => Promise<string | null>
 }): TurnWiring {
   const {
     container,

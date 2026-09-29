@@ -33,7 +33,7 @@ import {
   type ThreadId,
   type WorkspaceIdentity,
 } from '@dltech/atlas-core'
-import type { EventDraft } from '@dltech/atlas-core'
+import type { EventDraft, SaidImage } from '@dltech/atlas-core'
 
 import {
   AccountsService,
@@ -698,6 +698,7 @@ export type FakeApp = AtlasApp & {
   readonly turnsDriven: number
   readonly rewarms: number
   readonly titled: readonly string[]
+  readonly titledImages: readonly (readonly SaidImage[])[]
   readonly openedUrls: readonly string[]
   readonly openedDirectories: readonly string[]
   readonly sandboxStops: number
@@ -764,8 +765,15 @@ export function fakeApp(args: {
     },
   })
 
-  const titler = async ({ text }: { text: string }): Promise<string | null> => {
+  const titler = async ({
+    text,
+    images,
+  }: {
+    text: string
+    images?: readonly SaidImage[] | undefined
+  }): Promise<string | null> => {
     titled.push(text)
+    titledImages.push(images ?? [])
     if (args.titlerWait !== undefined) await args.titlerWait
     return args.names ?? null
   }
@@ -824,6 +832,7 @@ export function fakeApp(args: {
   let sandboxStops = 0
   let bashNotes = 0
   const titled: string[] = []
+  const titledImages: (readonly SaidImage[])[] = []
   const openedUrls: string[] = []
   const openedDirectories: string[] = []
   const journaled: { handle: string; directory: string }[] = []
@@ -867,6 +876,9 @@ export function fakeApp(args: {
 
     get titled() {
       return titled
+    },
+    get titledImages() {
+      return titledImages
     },
 
     get sandboxStops() {
