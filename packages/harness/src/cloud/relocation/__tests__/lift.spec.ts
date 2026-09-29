@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation, toRunId } from '@dltech/atlas-core'
-import { CloudError, EShellStatus, type GpgKeyMaterial } from '@dltech/atlas-harness'
+import { CloudError, EClientRequest, EShellStatus, type GpgKeyMaterial } from '@dltech/atlas-harness'
 
 import { useAtlasHome } from './descend-fixture'
 import { fakeEventLog } from './fake-backend'
@@ -53,7 +53,7 @@ describe('lifting a conversation into the cloud', () => {
     const lifted = await liftToCloud(test.args)
 
     expect(lifted.ok).toBe(true)
-    expect(test.bridge.channel.requests.map((r) => r.op)).toContain('restore-transcript')
+    expect(test.bridge.channel.requests.map((r) => r.op)).toContain(EClientRequest.RestoreTranscript)
   })
 
   it('carries the whole local transcript across in the session archive', async () => {

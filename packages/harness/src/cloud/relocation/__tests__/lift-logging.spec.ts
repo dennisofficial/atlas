@@ -49,6 +49,21 @@ describe('lift operational log', () => {
     expect(entry?.error).toBe('disk full')
   })
 
+  it('warns rather than attach silently when the serve is too old to restore the transcript', async () => {
+    useAtlasHome()
+    const log = new CapturingLog()
+    const test = harness({ bridge: fakeBridge({ restoreTranscriptRefused: true }), logPort: log })
+
+    const lifted = await liftToCloud(test.args)
+
+    expect(lifted.ok).toBe(true)
+    const entry = log.entries.find((one) => one.data?.['operation'] === 'restore-transcript')
+    expect(entry?.severity).toBe(ELogSeverity.Warn)
+    expect(entry?.source).toBe('cloud.lift')
+    expect(entry?.threadId).toBe(CLOUD_THREAD)
+    expect(entry?.message).toContain('restore the lifted transcript')
+  })
+
   it('warns with the child id when a child flip notice never lands', async () => {
     useAtlasHome()
     const log = new CapturingLog()

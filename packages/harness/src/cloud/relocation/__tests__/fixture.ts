@@ -67,6 +67,8 @@ export function fakeCloudChannel(
     log?: FakeEventLog | undefined
     /** The base64 tar the serve hands back for a descend's read-session-archive; absent = empty. */
     archive?: string | undefined
+    /** Set = a serve too old to know restore-transcript refuses it; the lift warns and moves on. */
+    restoreTranscriptRefused?: boolean | undefined
   } = {},
 ): FakeCloudChannel {
   const connections = new Set<(connection: ChannelConnection) => void>()
@@ -124,7 +126,10 @@ export function fakeCloudChannel(
       if (given.op === EClientRequest.PublishWorkspace) return null
       if (given.op === EClientRequest.Rewind) return { applied: 0 }
       if (given.op === EClientRequest.ReadSessionArchive) return { archive: args.archive ?? '' }
-      if (given.op === EClientRequest.RestoreTranscript) return { restored: true }
+      if (given.op === EClientRequest.RestoreTranscript) {
+        if (args.restoreTranscriptRefused === true) throw new Error('unknown request op: restore-transcript')
+        return { restored: true }
+      }
       return { applied: 0 }
     },
     connection: () => held,
@@ -357,6 +362,8 @@ export function fakeBridge(
     threadStore?: FakeThreadStore
     /** What the serve hands back for the descend's archive read; default is the fake log's events. */
     archive?: string | undefined
+    /** Set = a serve too old to know restore-transcript refuses it; the lift warns and moves on. */
+    restoreTranscriptRefused?: boolean | undefined
   } = {},
 ): FakeBridge {
   const log = fakeEventLog()
@@ -441,7 +448,14 @@ export function fakeBridge(
     attach: ({ threadId, url, token }) => {
       trail.push('attach')
       attached.push({ threadId, url, token })
-      channel = fakeCloudChannel({ threadId, log, archive: args.archive })
+      channel = fakeCloudChannel({
+        threadId,
+        log,
+        archive: args.archive,
+        ...(args.restoreTranscriptRefused === undefined
+          ? {}
+          : { restoreTranscriptRefused: args.restoreTranscriptRefused }),
+      })
       return { channel, stores: { log, threads: watchedThreads, ledger } }
     },
   }
