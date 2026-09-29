@@ -97,6 +97,7 @@ export * from './agents/label'
 export * from './agents/roster'
 
 
+export * from './lifecycle/lifecycle'
 export * from './shells/status'
 export * from './shells/lifecycle'
 export * from './shells/label'
