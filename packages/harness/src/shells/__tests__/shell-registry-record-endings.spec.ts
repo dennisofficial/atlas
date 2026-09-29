@@ -127,7 +127,24 @@ for (const adapter of shellAdapters) {
         })
       })
 
-      it('leaves a shell whose ending the queue already carries to the drain, writing nothing twice', async () => {
+      it('leaves a shell whose ending the drain already persisted, writing nothing twice', async () => {
+        const { registry } = openRegistry({ adapter })
+        const started = registry.start(job({ command: 'echo hi' }))
+        if (!started.ok) throw new Error(started.reason)
+        await settle({ registry, shellId: started.snapshot.shellId })
+        await announced({ registry })
+
+        // The teardown drain runs before recordEndings, so the ending it persisted is in the log.
+        const log = new RecordingLog()
+        await log.append({ threadId: THREAD, drafts: registry.drainNotifications({ threadId: THREAD }) })
+
+        const recorded = await recordIn(log, registry)
+
+        expect(recorded).toEqual([])
+        expect(log.appended.filter((d) => d.type === 'background-shell-ended')).toHaveLength(1)
+      })
+
+      it('records an ending still only queued, because the log alone decides and it is not there yet', async () => {
         const { registry } = openRegistry({ adapter })
         const started = registry.start(job({ command: 'echo hi' }))
         if (!started.ok) throw new Error(started.reason)
@@ -136,8 +153,24 @@ for (const adapter of shellAdapters) {
         const log = new RecordingLog()
         const recorded = await recordIn(log, registry)
 
-        expect(recorded).toEqual([])
-        expect(log.appended).toEqual([])
+        expect(recorded).toHaveLength(1)
+        expect(log.appended.filter((d) => d.type === 'background-shell-ended')).toHaveLength(1)
+      })
+
+      it('keeps a shell killed at close from losing its output, draining before the buffer dies', async () => {
+        const { registry } = openRegistry({ adapter })
+        const started = registry.start(job({ command: 'echo before-close; sleep 60' }))
+        if (!started.ok) throw new Error(started.reason)
+        await printed({ registry, shellId: started.snapshot.shellId, text: 'before-close' })
+
+        // Teardown: closeAll stops the shell and queues its ending; the drain then reads the output
+        // out of the still-live buffer into the durable record.
+        await registry.closeAll()
+        const drafts = registry.drainNotifications({ threadId: THREAD })
+
+        expect(endedDraft(drafts.find((d) => d.type === 'background-shell-ended')).output).toContain(
+          'before-close',
+        )
       })
 
       it('answers only the threads still holding an unresolved ending', async () => {

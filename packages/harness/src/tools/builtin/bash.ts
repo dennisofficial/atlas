@@ -31,6 +31,7 @@ import {
   terminatorFor,
   type ShellOutput,
 } from '../../shells/shell-process'
+import { bootId } from '../../shells/boot'
 import { CHECK_IN_EVERY_MS, ShellRegistryPort } from '../../shells/shell-registry'
 import { MAXIMUM_OUTPUT_CHARACTERS, mergeStreams, renderModelText } from './bash-output'
 import {
@@ -178,6 +179,7 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
             shellId,
             command: args.args.command,
             description: args.args.description,
+            bootId,
           },
         ],
       })

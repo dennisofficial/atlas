@@ -75,6 +75,18 @@ describe('a background shell ending in the transcript', () => {
     expect(entry.text).toBe('Background shell "Run full TUI suite" was killed by a rewind')
   })
 
+  it('says a shell lost to a closed session ended with it, not that atlas killed it', () => {
+    const entry = onlyShellEntry(
+      log([
+        shellEnded({ status: EShellStatus.Killed, killedBy: EKilledBy.Unrecorded, exitCode: undefined }),
+      ]),
+    )
+
+    expect(entry.text).toBe(
+      'Background shell "Run full TUI suite" was killed when the previous session ended',
+    )
+  })
+
   it('says a lost shell was killed, and marks it failed', () => {
     const entry = onlyShellEntry(
       log([

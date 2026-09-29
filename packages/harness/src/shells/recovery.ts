@@ -1,9 +1,8 @@
 import {
   EKilledBy,
   EShellStatus,
-  type Event,
+  lostShellsOf,
   type EventLogPort,
-  type EventOfType,
   type IdPort,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -14,53 +13,13 @@ export type LostShell = {
   description?: string | undefined
 }
 
-type StartedShell = EventOfType<'background-shell-started'>
-
-function openShells(events: readonly Event[]): StartedShell[] {
-  const open = new Map<string, StartedShell[]>()
-
-  for (const event of events) {
-    if (event.type === 'background-shell-started') {
-      const queue = open.get(event.shellId) ?? []
-      queue.push(event)
-      open.set(event.shellId, queue)
-      continue
-    }
-    if (event.type !== 'background-shell-ended') continue
-    open.get(event.shellId)?.shift()
-  }
-
-  return [...open.values()].flat()
-}
-
-/**
- * The one place "needs an ending" is decided, shared by teardown and the next boot's recovery so
- * the two never disagree. A compacted log holds no shell starts, so nothing about it is open; a
- * start with its ending still present is settled. Only a genuinely unpaired start counts.
- */
-export const openShellIdsOf = (events: readonly Event[]): ReadonlySet<string> =>
-  new Set(openShells(events).map((shell) => shell.shellId))
-
-/**
- * The shells whose ending the log already holds, by the same chronological pairing: an ended event
- * settles the oldest open start for its id. This is the check teardown needs to know an ending is
- * already recorded, which "is the start still open" cannot answer — a shell the model killed with
- * shell_kill has no open start yet still has no ending recorded.
- */
-export const endedShellIdsOf = (events: readonly Event[]): ReadonlySet<string> => {
-  const ended = new Set<string>()
-  for (const event of events) {
-    if (event.type === 'background-shell-ended') ended.add(event.shellId)
-  }
-  return ended
-}
-
 /**
  * A background shell outlives the process that ran it, because the record of it does. A start with
- * no ending behind it means the process died while the shell was running: a clean close records an
- * ending for every live shell, so the absence of one is a crash or a kill. Ids repeat across boots
- * (bash_1 restarts every process), so starts and ends pair chronologically, not by id alone. Runs
- * once per thread per process — a revisit finds every ending already written and settles nothing.
+ * no end behind it means the process died while the shell was running: a clean close records an end
+ * for every live shell, so the absence of one is a crash or a kill. The pairing that decides "no end
+ * behind it" lives in core (`lostShellsOf`), shared with teardown and the transcript so the three
+ * never disagree; this class owns only the I/O of reading the log and appending the synthetic end,
+ * and the once-per-thread guard that keeps a revisit free.
  */
 export class ShellRecovery {
   private readonly log: EventLogPort
@@ -78,7 +37,7 @@ export class ShellRecovery {
     this.reconciled.add(threadId)
 
     const events = await this.log.readOwn({ threadId })
-    const lost = openShells(events)
+    const lost = lostShellsOf(events)
     if (lost.length === 0) return []
 
     await this.log.append({
@@ -99,11 +58,13 @@ export function lostShellEnding(shell: {
   shellId: string
   command: string
   description?: string | undefined
+  bootId?: string | undefined
 }): {
   type: 'background-shell-ended'
   shellId: string
   command: string
   description?: string | undefined
+  bootId?: string | undefined
   status: EShellStatus
   killedBy: EKilledBy
   output: string
@@ -115,6 +76,7 @@ export function lostShellEnding(shell: {
     shellId: shell.shellId,
     command: shell.command,
     description: shell.description,
+    bootId: shell.bootId,
     status: EShellStatus.Killed,
     killedBy: EKilledBy.Unrecorded,
     output: '',

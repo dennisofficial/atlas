@@ -5,6 +5,8 @@ import {
   EventLogPort,
   IdPort,
   ProcessPort,
+  endedShellKeysOf,
+  shellKey,
   type EventDraft,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -12,7 +14,8 @@ import {
 import { LocalProcessPort } from '../execution/local-process'
 import type { HookChainSource } from '../hooks/registry'
 import { afterShellDrafts } from './after-shell'
-import { endedShellIdsOf, lostShellEnding } from './recovery'
+import { bootId } from './boot'
+import { lostShellEnding } from './recovery'
 import {
   startBackgroundShell,
   type BackgroundShell,
@@ -167,6 +170,7 @@ export class BunShellRegistry extends ShellRegistryPort {
 
     const opened = startBackgroundShell({
       shellId,
+      bootId,
       command: args.command,
       description: args.description,
       cwd: args.cwd ?? this.root,
@@ -386,9 +390,13 @@ export class BunShellRegistry extends ShellRegistryPort {
   /**
    * Reaping is by spawner rather than by process tree: a shell the model backgrounded outlives the
    * turn by design, so only the session that started it knows when nobody is left to read it.
-   * Teardown kills, but it does not suppress: every ending announces itself, including this one.
-   * The one exception is an ending shell_kill already collected for the model - it was announced
-   * as the tool result, and a second telling is noise.
+   *
+   * closeAll stops the shells and queues their endings but deliberately does not reap them: a shell's
+   * output lives in its in-memory buffer until a drain reads it into the log, and teardown drains
+   * after closeAll so that output reaches the durable record instead of dying with the process. The
+   * buffer is a write-behind cache in front of the log; it is released only when the drain advances
+   * the cursor past the end of an ended shell. The one ending not re-announced is one shell_kill
+   * already collected for the model — it was the tool result, and a second telling is noise.
    */
   async closeAll(): Promise<void> {
     const running = [...this.tracked.values()]
@@ -405,37 +413,30 @@ export class BunShellRegistry extends ShellRegistryPort {
   }
 
   /**
-   * A shell still needs an ending recorded only when nothing else will write one. Something else
-   * will, in two ways. A turn's drain — or teardown's own drain step — appends the ending for any
-   * shell whose queue holds a durable exit notice (`hasDurableEndingFor`): a normal exit, or one
-   * still running when teardown began. And the log may already hold the ending, paired off against
-   * its start by `endedShellIdsOf`, which is the state a normal exit reaches once a turn drains it.
-   * What survives both exclusions is exactly the shell whose ending would otherwise be lost: one the
-   * model killed with shell_kill, whose claimed ending never became an event and whose only queued
-   * notice is a hollow ride for hook drafts, and the crash case of a start left open with no exit
-   * notice at all. Testing "already recorded" against the log — not against whether a start is
-   * still open — is what keeps a drained, settled shell from being re-recorded, which is the
-   * duplicate-ending flood this guard exists to prevent. `closed` is consulted alongside `tracked`
-   * because teardown asks after closeAll, which has already moved every entry over.
+   * The log is the source of truth for whether a shell's end is recorded; the notice queue and the
+   * tracked/closed registries are a write-behind cache, never a second store to reconcile against.
+   * Teardown drains the queue into the log before asking this, so by the time it runs the cache is
+   * flushed and a shell needs a synthesized end only when the log holds no end for it. The check is
+   * keyed on (bootId, shellId): an id recycled across processes must not let one boot's end stand for
+   * another's open start. Because recordEndings runs only at this process's teardown, every shell it
+   * is asked about belongs to this boot, so the key reduces to this process's bootId.
    */
   private async unresolvedEndings(args: {
     log: EventLogPort
     threadId: ThreadId
   }): Promise<Tracked[]> {
     const events = await args.log.readOwn({ threadId: args.threadId })
-    const ended = endedShellIdsOf(events)
+    const ended = endedShellKeysOf(events)
     return [...this.tracked.values(), ...this.closed].filter(
       (entry) =>
         entry.threadId === args.threadId &&
-        !ended.has(entry.shell.shellId) &&
-        !this.notices.hasDurableEndingFor({ shellId: entry.shell.shellId }),
+        !ended.has(shellKey({ bootId, shellId: entry.shell.shellId })),
     )
   }
 
   threadsWithUnresolvedEndings(): readonly ThreadId[] {
     const threads = new Set<ThreadId>()
     for (const entry of [...this.tracked.values(), ...this.closed]) {
-      if (this.notices.hasDurableEndingFor({ shellId: entry.shell.shellId })) continue
       threads.add(entry.threadId)
     }
     return [...threads]
@@ -456,6 +457,7 @@ export class BunShellRegistry extends ShellRegistryPort {
           shellId: snapshot.shellId,
           command: snapshot.command,
           description: snapshot.description,
+          bootId: snapshot.bootId,
         })
       }
       return {
@@ -463,6 +465,7 @@ export class BunShellRegistry extends ShellRegistryPort {
         shellId: snapshot.shellId,
         command: snapshot.command,
         description: snapshot.description,
+        bootId: snapshot.bootId,
         status: snapshot.status,
         killedBy: snapshot.killedBy ?? EKilledBy.SessionEnd,
         exitCode: snapshot.exitCode,

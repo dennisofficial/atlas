@@ -62,6 +62,7 @@ const started = (
 ) =>
   startBackgroundShell({
     shellId: toShellId('bash_1'),
+    bootId: 'boot-test',
     threadId: THREAD,
     command: 'next dev',
     description: 'Run the dev server',

@@ -98,6 +98,7 @@ export * from './agents/roster'
 
 
 export * from './shells/status'
+export * from './shells/lifecycle'
 export * from './shells/label'
 export * from './shells/idling'
 export * from './shells/watching'
