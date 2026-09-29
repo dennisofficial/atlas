@@ -1,10 +1,10 @@
 import {
   ENoticeTone,
   NOTICE_WARN_MS,
+  inlinable,
   type EventDraft,
   type EventLogPort,
   type NoticePort,
-  type SaidFile,
   type SaidImage,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -12,7 +12,7 @@ import {
 import type { PauseSignal } from '../loop/pause-signal'
 import type { Unsubscribe } from '../channel/delta-channel'
 
-import { namingImagesOf } from '../model/naming-text'
+import { namingImagesOf, namingTextOf } from '../model/naming-text'
 import { sessionDigest } from '../model/session-digest'
 import { TurnRunner, type TurnOutcome } from '../loop'
 import type { TurnRunner as TurnRunnerShape } from '../loop/turn-runner.port'
@@ -22,11 +22,12 @@ const TITLE_NOTICE_KEY = 'session-titler'
 
 /**
  * Titling is a session behavior, not a surface one: the first turn names the thread no matter
- * which surface drove it, so serve threads carry the same titles a terminal session would. The
- * ask rides the first commit's own await (the write path already runs before any turn), and a
- * titler that declines or fails is silent — a title that never arrives must never hold up or
- * fail the turn it was taken from. `/rename` and the TUI's own naming settle the same row, so
- * this only ever asks for a thread that is still unnamed.
+ * which surface drove it, so serve threads carry the same titles a terminal session would. The ask
+ * fires the moment the first turn starts — the opening message is already committed by then, and a
+ * long first turn must shimmer with its title in flight rather than sit unnamed until the loop
+ * settles. A titler that declines or fails is silent: a title that never arrives must never hold
+ * up or fail the turn it was taken from. `/rename` and the TUI's own naming settle the same row,
+ * so this only ever asks for a thread that is still unnamed.
  */
 export class TitlingTurnRunner extends TurnRunner {
   private readonly inner: TurnRunnerShape
@@ -59,21 +60,43 @@ export class TitlingTurnRunner extends TurnRunner {
     this.notice = args.notice
   }
 
-  async say(args: {
-    threadId: ThreadId
-    text: string
-    images?: readonly SaidImage[]
-    files?: readonly SaidFile[]
-    context?: readonly EventDraft[]
-    signal?: AbortSignal
-    pause?: PauseSignal
-  }): Promise<TurnOutcome> {
-    const outcome = await this.inner.say(args)
-    void this.titleOnce({ threadId: args.threadId })
-    return outcome
+  say(args: Parameters<TurnRunnerShape['say']>[0]): Promise<TurnOutcome> {
+    this.opening({
+      threadId: args.threadId,
+      said: args.text,
+      images: args.images,
+      context: args.context,
+    })
+    return this.inner.say(args)
   }
 
-  async runTurn(args: { threadId: ThreadId; signal?: AbortSignal }): Promise<TurnOutcome> {
+  /**
+   * The surface hands the opening over the moment it is committed, so the ask is in flight while
+   * the first turn runs rather than waiting on the settle — a long opening turn shimmers with its
+   * title the whole way. Surfaces that only ever `runTurn` (the TUI's commit path) call this from
+   * their commit, where the said text is already in hand; surfaces that `say` get it for free.
+   */
+  opening(args: {
+    threadId: ThreadId
+    said: string
+    images?: readonly SaidImage[] | undefined
+    context?: readonly EventDraft[] | undefined
+  }): void {
+    if (this.asked.has(args.threadId)) return
+
+    const text = namingTextOf({ said: args.said, context: args.context })
+    const images = (args.images ?? []).filter((image) => inlinable(image))
+    if (text.trim().length === 0 && images.length === 0) return
+
+    this.asked.add(args.threadId)
+    void this.ask({
+      threadId: args.threadId,
+      text: text.trim().length === 0 ? '' : `Operator: ${text}`,
+      images,
+    })
+  }
+
+  async runTurn(args: { threadId: ThreadId; signal?: AbortSignal; pause?: PauseSignal }): Promise<TurnOutcome> {
     const outcome = await this.inner.runTurn(args)
     void this.titleOnce({ threadId: args.threadId })
     return outcome
@@ -116,18 +139,30 @@ export class TitlingTurnRunner extends TurnRunner {
   private async titleOnce(args: { threadId: ThreadId }): Promise<void> {
     if (this.asked.has(args.threadId)) return
     this.asked.add(args.threadId)
+
+    const events = await this.log.read({ threadId: args.threadId }).catch(() => [] as readonly never[])
+    const digest = sessionDigest(events)
+    const images = namingImagesOf(events)
+    if (digest.trim().length === 0 && images.length === 0) {
+      this.asked.delete(args.threadId)
+      return
+    }
+
+    await this.ask({ threadId: args.threadId, text: digest, images })
+  }
+
+  private async ask(args: {
+    threadId: ThreadId
+    text: string
+    images: readonly SaidImage[]
+  }): Promise<void> {
     this.setTitling({ threadId: args.threadId, titling: true })
 
     try {
       const thread = await this.threads.find({ threadId: args.threadId })
       if (thread !== undefined && thread.title !== undefined) return
 
-      const events = await this.log.read({ threadId: args.threadId })
-      const digest = sessionDigest(events)
-      const images = namingImagesOf(events)
-      if (digest.trim().length === 0 && images.length === 0) return
-
-      const named = await this.titler({ text: digest, images })
+      const named = await this.titler({ text: args.text, images: args.images })
       if (named === null) return
 
       const still = await this.threads.find({ threadId: args.threadId })

@@ -1,4 +1,6 @@
-import type { ThreadId } from '@dltech/atlas-core'
+import type { EventDraft, SaidFile, SaidImage, ThreadId } from '@dltech/atlas-core'
+
+import type { PauseSignal } from '../loop/pause-signal'
 
 import { ETurnStatus, LoopTurnRunner, TurnRunner, type TurnDeps, type TurnOutcome } from '../loop'
 import type { ThreadPublisher, DeltaChannel } from './delta-channel'
@@ -35,27 +37,35 @@ export class PublishingTurnRunner extends TurnRunner {
     this.deps = { ...args.deps, log: withDeltaPublishing({ log: args.deps.log, channel: args.channel }) }
   }
 
-  say({ threadId, text, signal }: { threadId: ThreadId; text: string; signal?: AbortSignal }): Promise<TurnOutcome> {
-    const { publisher, runner } = this.runnerFor(threadId)
+  say(args: {
+    threadId: ThreadId
+    text: string
+    images?: readonly SaidImage[]
+    files?: readonly SaidFile[]
+    context?: readonly EventDraft[]
+    signal?: AbortSignal
+    pause?: PauseSignal
+  }): Promise<TurnOutcome> {
+    const { publisher, runner } = this.runnerFor(args.threadId)
     return publishing({
       publisher,
-      run: () => runner.say({ threadId, text, ...(signal === undefined ? {} : { signal }) }),
+      run: () => runner.say(args),
     })
   }
 
-  runTurn({ threadId, signal }: { threadId: ThreadId; signal?: AbortSignal }): Promise<TurnOutcome> {
-    const { publisher, runner } = this.runnerFor(threadId)
+  runTurn(args: { threadId: ThreadId; signal?: AbortSignal; pause?: PauseSignal }): Promise<TurnOutcome> {
+    const { publisher, runner } = this.runnerFor(args.threadId)
     return publishing({
       publisher,
-      run: () => runner.runTurn({ threadId, ...(signal === undefined ? {} : { signal }) }),
+      run: () => runner.runTurn(args),
     })
   }
 
-  resume({ threadId, signal }: { threadId: ThreadId; signal?: AbortSignal }): Promise<TurnOutcome> {
-    const { publisher, runner } = this.runnerFor(threadId)
+  resume(args: { threadId: ThreadId; signal?: AbortSignal }): Promise<TurnOutcome> {
+    const { publisher, runner } = this.runnerFor(args.threadId)
     return publishing({
       publisher,
-      run: () => runner.resume({ threadId, ...(signal === undefined ? {} : { signal }) }),
+      run: () => runner.resume(args),
     })
   }
 

@@ -258,6 +258,14 @@ export function useTurnDriver(args: {
               throw error
             }
             await refresh()
+            if (saidDraft !== undefined && saidDraft.type === 'user-said') {
+              app.titling.opening({
+                threadId,
+                said: saidDraft.text,
+                ...(saidDraft.images === undefined ? {} : { images: saidDraft.images }),
+                context: drafts.filter((_, index) => index !== saidIndex),
+              })
+            }
           }
           gate.settle()
           const outcome =

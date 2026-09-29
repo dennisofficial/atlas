@@ -145,10 +145,22 @@ export function createTurnPolicyRunner(args: {
   }
 
   return {
-    say: ({ threadId, text, signal }) =>
-      inner.say({ threadId, text, ...(signal === undefined ? {} : { signal }) }),
-    runTurn: ({ threadId, signal }) =>
-      inner.runTurn({ threadId, ...(signal === undefined ? {} : { signal }) }),
+    say: ({ threadId, text, images, files, context, signal, pause }) =>
+      inner.say({
+        threadId,
+        text,
+        ...(images === undefined ? {} : { images }),
+        ...(files === undefined ? {} : { files }),
+        ...(context === undefined ? {} : { context }),
+        ...(signal === undefined ? {} : { signal }),
+        ...(pause === undefined ? {} : { pause }),
+      }),
+    runTurn: ({ threadId, signal, pause }) =>
+      inner.runTurn({
+        threadId,
+        ...(signal === undefined ? {} : { signal }),
+        ...(pause === undefined ? {} : { pause }),
+      }),
     resume: ({ threadId, signal }) =>
       inner.resume({ threadId, ...(signal === undefined ? {} : { signal }) }),
 

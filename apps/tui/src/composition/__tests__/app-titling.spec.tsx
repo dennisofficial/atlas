@@ -21,9 +21,10 @@ const HANDLE = 'refresh-token-rotation'
 
 const OPENING = 'the refresh token never rotates'
 
-// The harness TitlingTurnRunner names a session from `sessionDigest(events)` — the labeled
-// transcript (opening plus the model's reply, joined by a newline), not the bare opening line.
-const OPENING_DIGEST = `Operator: ${OPENING}\nAtlas: ${REPLY}`
+// The harness TitlingTurnRunner names a session the moment the opening message is sent — from
+// the message and its attachments, before the reply exists, so a long first turn shimmers with
+// the title in flight rather than sitting unnamed until the loop settles.
+const OPENING_DIGEST = `Operator: ${OPENING}`
 
 const FOLLOW_UP = 'and cover reuse detection'
 
@@ -323,6 +324,39 @@ describe('the fallback title while the titler is still answering', () => {
 })
 
 const RENAMED = 'Doing something cool'
+
+describe('the title while the opening turn is still running', () => {
+  it('lands before the reply finishes streaming', async () => {
+    // A turn paced at 40ms a chunk runs for seconds; the titler answers off the opening the
+    // moment it is committed, so the name must head the sidebar while the reply is mid-stream.
+    const app = fakeApp({ model: scriptedModelPort({ script, perChunkMs: 40 }), names: NAME })
+    const setup = await testRender(
+      <App app={app} opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }} />,
+      { width: 140, height: 40 },
+    )
+
+    try {
+      await setup.mockInput.typeText(OPENING)
+      setup.mockInput.pressEnter()
+
+      const namedMidTurn = await until({
+        holds: async () => {
+          await setup.flush()
+          await settle(60)
+          await setup.flush()
+          const shot = setup.captureCharFrame()
+          return shot.includes(NAME) && !shot.includes(REPLY)
+        },
+        within: WITHIN_MS,
+      })
+
+      expect(namedMidTurn).toBe(true)
+      expect(app.threads.renames).toEqual([{ threadId: THREAD, title: NAME }])
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+})
 
 describe('renaming a session with /rename', () => {
   it('takes the name the operator wrote, without asking the titler', async () => {
