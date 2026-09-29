@@ -3,6 +3,7 @@ import type {
   EventLogPort,
   ExecutionLocationSinkPort,
   IdPort,
+  TelemetryPort,
 } from '@dltech/atlas-core'
 
 import type { ThreadStorePort } from '../../store'
@@ -18,6 +19,7 @@ export type SupervisorDeps = {
   runners: ChildRunnerSource
   launchDirectory: string
   sink?: ExecutionLocationSinkPort | undefined
+  telemetry?: TelemetryPort | undefined
 }
 
 export const agentTypeNamed = ({

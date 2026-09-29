@@ -7,6 +7,7 @@ import {
   type ModelUsage,
   type ProviderIdentity,
   type RunId,
+  type TelemetryPort,
 } from '@dltech/atlas-core'
 
 import type { TurnLedgerPort } from './turn-ledger.port'
@@ -17,6 +18,7 @@ export type TurnLedgerDeps = {
   ledger?: TurnLedgerPort | undefined
   clock?: ClockPort | undefined
   onLedgerFailure?: ((error: unknown) => void) | undefined
+  telemetry?: TelemetryPort | undefined
 }
 
 export type RecordTurnSpendArgs = TurnLedgerDeps & {
@@ -40,21 +42,39 @@ export async function recordTurnSpend(args: RecordTurnSpendArgs): Promise<void> 
   if (ledger === undefined) return
   if (args.steps === 0 && args.status !== TURN_CRASHED) return
 
+  const spend = {
+    runId: args.runId,
+    threadId: args.threadId,
+    status: args.status,
+    providerId: args.model.id,
+    modelId: args.model.modelId,
+    steps: args.steps,
+    ...args.usage,
+    startedAt,
+    endedAt,
+    durationMs: elapsedMs({ startedAt, endedAt }),
+  }
+
   try {
-    await ledger.record({
-      runId: args.runId,
-      threadId: args.threadId,
-      status: args.status,
-      providerId: args.model.id,
-      modelId: args.model.modelId,
-      steps: args.steps,
-      ...args.usage,
-      startedAt,
-      endedAt,
-      durationMs: elapsedMs({ startedAt, endedAt }),
-    })
+    await ledger.record(spend)
   } catch (error) {
     args.onLedgerFailure?.(error)
+  }
+
+  args.telemetry?.turnCompleted({
+    status: spend.status,
+    providerId: spend.providerId,
+    modelId: spend.modelId,
+    steps: spend.steps,
+    inputTokens: spend.inputTokens,
+    outputTokens: spend.outputTokens,
+    cacheReadTokens: spend.cacheReadTokens,
+    cacheWriteTokens: spend.cacheWriteTokens,
+    durationMs: spend.durationMs,
+  })
+
+  if (args.status === TURN_CRASHED) {
+    args.telemetry?.exception({ kind: 'turn-crashed', messageClass: 'crashed' })
   }
 }
 

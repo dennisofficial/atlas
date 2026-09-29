@@ -26,6 +26,7 @@
     "@vscode/ripgrep": "^1.18.0",
     "ai": "^7.0.92",
     "htmlparser2": "^12.0.0",
+    "posthog-node": "^5.54.1",
     "reflect-metadata": "^0.2.2",
     "tsyringe": "4.10.0",
     "turndown": "^7.2.4",

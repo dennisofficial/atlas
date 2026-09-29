@@ -6,6 +6,7 @@ import {
   type EventLogPort,
   type ModelPort,
   type ProviderIdentity,
+  type TelemetryPort,
   type ThreadId,
 } from '@dltech/atlas-core'
 
@@ -16,6 +17,7 @@ import { withoutSpawnableListing } from '../../tools/builtin/agent-spawn'
 import type { HookChain } from '../../hooks/registry'
 import type { PendingDrain, TurnDeps } from '../../loop/run-turn'
 import type { TurnRunner } from '../../loop/turn-runner.port'
+import { ObservingToolDispatcher } from '../../telemetry/observing-dispatcher'
 import { HookedToolDispatcher } from '../../tools/dispatch'
 import { filteredToolRegistry, type ToolRegistry } from '../../tools/registry'
 import {
@@ -44,6 +46,7 @@ export type ChildRunnerDeps = {
   }) => AssemblyPipeline
   drainNotices: (args: { threadId: ThreadId }) => Promise<PendingDrain>
   modelFor?: ((args: { agentType: AgentType }) => ModelPort) | undefined
+  telemetry?: TelemetryPort | undefined
 }
 
 /**
@@ -143,10 +146,13 @@ export function buildChildRunner({
       onContext: observeContext,
       model,
       tools: () => registry.declarations(),
-      dispatch: new HookedToolDispatcher({
-        registry,
-        hooks: deps.hooks,
-        logPort: turn.logPort,
+      dispatch: new ObservingToolDispatcher({
+        inner: new HookedToolDispatcher({
+          registry,
+          hooks: deps.hooks,
+          logPort: turn.logPort,
+        }),
+        telemetry: deps.telemetry,
       }),
       assembly: deps.assemblyFor({ agentType, projectDirectory }),
       drainPending: async (args) => {
