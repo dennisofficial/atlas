@@ -1,4 +1,10 @@
-import { EContextSlot, type EventDraft } from '@dltech/atlas-core'
+import {
+  EContextSlot,
+  inlinable,
+  type Event,
+  type EventDraft,
+  type SaidImage,
+} from '@dltech/atlas-core'
 
 /**
  * An attached file goes to the titler as its head alone: the opening of a handoff or spec is where
@@ -13,6 +19,24 @@ const attachmentExcerpt = (draft: EventDraft): string[] => {
   if (content.length === 0) return []
 
   return [`[Attached file: ${draft.key}]\n${content}`]
+}
+
+const opening = (events: readonly Event[]): readonly Event[] => {
+  const said = events.find((event) => event.type === 'user-said')
+  if (said === undefined) return []
+  return events.filter((event) => event.runId === said.runId && event.depth === said.depth)
+}
+
+/**
+ * The pictures pasted into the opening message that the titler model can be shown. A picture too
+ * heavy to inline is already named in the message text by its `[image path]` line, so it is left
+ * out here.
+ */
+export function namingImagesOf(events: readonly Event[]): readonly SaidImage[] {
+  const said = opening(events).find((event) => event.type === 'user-said')
+  if (said === undefined || said.type !== 'user-said') return []
+
+  return (said.images ?? []).filter((image) => inlinable(image))
 }
 
 /**

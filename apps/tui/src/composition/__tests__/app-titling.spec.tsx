@@ -1,9 +1,15 @@
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import { testRender } from '@opentui/react/test-utils'
+import { EImageDelivery } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { SPINNER_FRAMES } from '../../ui/glyphs'
+import type { ClipboardImage, ClipboardImageReader } from '../../ui/clipboard-image'
 import { App } from '../app'
 import { open, until, THREAD, REPLY, THINKING } from './app-fixture'
 import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
@@ -29,6 +35,36 @@ const script = { thinking: THINKING, reply: REPLY }
 const naming = (names: string | null): FakeApp =>
   fakeApp({ model: scriptedModelPort({ script }), names })
 
+const SHOT_WIDTH = 560
+const SHOT_HEIGHT = 280
+
+/** Signature plus IHDR is all `pngSize` reads, and all this fixture has to be. */
+const tinyPng = (): Buffer => {
+  const header = Buffer.alloc(24)
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(header, 0)
+  header.writeUInt32BE(13, 8)
+  header.write('IHDR', 12, 'ascii')
+  header.writeUInt32BE(SHOT_WIDTH, 16)
+  header.writeUInt32BE(SHOT_HEIGHT, 20)
+  return header
+}
+
+const screenshotOnClipboard = (): ClipboardImageReader => {
+  const bytes = tinyPng()
+  const path = join(mkdtempSync(join(tmpdir(), 'atlas-paste-')), 'shot.png')
+  writeFileSync(path, bytes)
+
+  return async (): Promise<ClipboardImage> => ({
+    path,
+    mediaType: 'image/png',
+    byteLength: bytes.byteLength,
+    width: SHOT_WIDTH,
+    height: SHOT_HEIGHT,
+    delivery: EImageDelivery.Inline,
+    tokens: 200,
+  })
+}
+
 describe('naming a session from its opening message', () => {
   it('asks for a name and writes it to the thread', async () => {
     const mounted = await open({ app: naming(NAME) })
@@ -52,6 +88,36 @@ describe('naming a session from its opening message', () => {
       await mounted.done()
     }
   })
+
+  it('shows the titler a screenshot the opening message pasted', async () => {
+    const mounted = await open({ app: naming(NAME), clipboard: screenshotOnClipboard() })
+
+    try {
+      mounted.pressCtrl('v')
+      await mounted.frame()
+      await mounted.typeText('can we fix this')
+
+      mounted.pressEnter()
+
+      const named = await until({
+        holds: async () => {
+          await mounted.frame()
+          return mounted.app.threads.renames.length > 0
+        },
+        within: WITHIN_MS,
+      })
+
+      expect(named).toBe(true)
+      expect(mounted.app.titledImages[0]).toHaveLength(1)
+      expect(mounted.app.titledImages[0]?.[0]).toMatchObject({
+        mediaType: 'image/png',
+        width: SHOT_WIDTH,
+        height: SHOT_HEIGHT,
+      })
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
 
   it('asks once, however many turns the session runs', async () => {
     const mounted = await open({ app: naming(NAME) })

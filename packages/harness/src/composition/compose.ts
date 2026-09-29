@@ -370,8 +370,8 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     stopSandbox: sandbox.stop,
     settled,
     tldr: { feed: surface.tldrFeed, model: tldrModel, modelId: () => tldrModel.modelId },
-    titler: ({ text }) =>
-      titleFor({ model: titlerModel, fallback: sessionModelFallback, text }),
+    titler: ({ text, images }) =>
+      titleFor({ model: titlerModel, fallback: sessionModelFallback, text, images }),
   })
 
   return {

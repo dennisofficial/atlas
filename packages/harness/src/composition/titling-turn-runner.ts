@@ -3,11 +3,13 @@ import {
   NOTICE_WARN_MS,
   type EventLogPort,
   type NoticePort,
+  type SaidImage,
   type ThreadId,
 } from '@dltech/atlas-core'
 
 import type { Unsubscribe } from '../channel/delta-channel'
 
+import { namingImagesOf } from '../model/naming-text'
 import { sessionDigest } from '../model/session-digest'
 import { TurnRunner, type TurnOutcome } from '../loop'
 import type { TurnRunner as TurnRunnerShape } from '../loop/turn-runner.port'
@@ -27,7 +29,10 @@ export class TitlingTurnRunner extends TurnRunner {
   private readonly inner: TurnRunnerShape
   private readonly log: EventLogPort
   private readonly threads: Pick<ThreadStorePort, 'find' | 'rename'>
-  private readonly titler: (args: { text: string }) => Promise<string | null>
+  private readonly titler: (args: {
+    text: string
+    images?: readonly SaidImage[] | undefined
+  }) => Promise<string | null>
   private readonly notice: NoticePort
   private readonly asked = new Set<ThreadId>()
   private readonly inFlight = new Set<ThreadId>()
@@ -37,7 +42,10 @@ export class TitlingTurnRunner extends TurnRunner {
     inner: TurnRunnerShape
     log: EventLogPort
     threads: Pick<ThreadStorePort, 'find' | 'rename'>
-    titler: (args: { text: string }) => Promise<string | null>
+    titler: (args: {
+      text: string
+      images?: readonly SaidImage[] | undefined
+    }) => Promise<string | null>
     notice: NoticePort
   }) {
     super()
@@ -105,9 +113,10 @@ export class TitlingTurnRunner extends TurnRunner {
 
       const events = await this.log.read({ threadId: args.threadId })
       const digest = sessionDigest(events)
-      if (digest.trim().length === 0) return
+      const images = namingImagesOf(events)
+      if (digest.trim().length === 0 && images.length === 0) return
 
-      const named = await this.titler({ text: digest })
+      const named = await this.titler({ text: digest, images })
       if (named === null) return
 
       const still = await this.threads.find({ threadId: args.threadId })
