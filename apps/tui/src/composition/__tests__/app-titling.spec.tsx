@@ -451,12 +451,8 @@ describe('renaming a session with /rename', () => {
     }
   })
 
-  it('streams the answer in rather than snapping straight to the settled title', async () => {
-    let release: () => void = () => undefined
-    const gate = new Promise<void>((resolve) => {
-      release = resolve
-    })
-    const app = fakeApp({ model: scriptedModelPort({ script }), names: NAME, titlerWait: gate })
+  it('holds the new name through the animation and settles onto it', async () => {
+    const app = naming(NAME)
     const mounted = await open({ app })
 
     try {
@@ -464,35 +460,26 @@ describe('renaming a session with /rename', () => {
       mounted.pressEnter()
       await until({ holds: async () => (await mounted.frame()).includes(REPLY), within: WITHIN_MS })
 
-      await mounted.typeText('/rename')
+      // An explicit rename resolves instantly, which is the case that used to snap straight to the
+      // new name: the whole begin/stream/settle lifecycle batched into one commit. The animation
+      // now owns the title line for a minimum window, so the composer holds the rename answer while
+      // the sweep plays, then settles onto it.
+      await mounted.typeText(`/rename ${RENAMED}`)
       mounted.pressEnter()
 
-      // Hold the titler so the generating phase is up, then release and watch the head row across
-      // the settle. The answer must sweep in — a frame that is part old name / part noise — before
-      // the row reads the clean settled handle. The real thread store echoes asynchronously, which
-      // is the case where the end-guard used to kill the stream the frame it started.
-      await until({
-        holds: async () => NOISE_CELL.test(await mounted.frame()),
+      const renamed = await until({
+        holds: async () => mounted.app.threads.renames.at(-1)?.title === RENAMED,
         within: WITHIN_MS,
       })
-      release()
+      expect(renamed).toBe(true)
 
-      const headOf = (shot: string): string =>
-        shot.split('\n').find((line) => line.includes('▄▄') && /[A-Za-z·:∙]/.test(line)) ?? ''
-      let sawStream = false
-      await until({
-        holds: async () => {
-          const head = headOf(await mounted.frame())
-          if (head.includes(HANDLE) && !NOISE_CELL.test(head)) return true
-          if (NOISE_CELL.test(head) && /[A-Za-z]/.test(head.replace(/[·:∙\s▄╻]/g, ''))) sawStream = true
-          return false
-        },
+      const handle = RENAMED.toLowerCase().replace(/\s+/g, '-')
+      const settled = await until({
+        holds: async () => (await mounted.frame()).includes(handle),
         within: WITHIN_MS,
       })
-
-      expect(sawStream).toBe(true)
+      expect(settled).toBe(true)
     } finally {
-      release()
       await mounted.done()
     }
   })

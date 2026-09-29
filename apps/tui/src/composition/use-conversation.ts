@@ -51,7 +51,7 @@ import { userSaidDraft } from '@dltech/atlas-harness'
 import { useCompaction } from './use-compaction'
 import { useDelegatedToolCalls } from '../ui/hooks/use-delegated-tool-calls'
 import { sessionDigest } from '@dltech/atlas-harness'
-import { useSessionName } from './use-session-name'
+import { useSessionName, type NamingRequest } from './use-session-name'
 import { useMainWake } from './use-main-wake'
 import { EThreadRows, useThreadView, type ThreadSeed } from './use-thread-view'
 import { useSendingRows } from './use-sending-rows'
@@ -79,6 +79,9 @@ export type Conversation = {
    *  app.tsx arms the naming animation off these. */
   sessionName: string | null
   naming: boolean
+  /** The name a `/rename` just resolved to, held for one settle window — what the naming animation
+   *  streams, straight from the rename rather than re-derived from the rename echo. */
+  namingRequest: NamingRequest | null
   model: TranscriptModel
   sidebar: SidebarModel
   turn: TurnClock
@@ -283,7 +286,7 @@ export function useConversation(args: {
 
   const handleRevokeGrant = useRevokeGrant({ app, threadId, refresh })
 
-  const { name, naming, setName, renameSession } = useSessionName({
+  const { name, naming, namingRequest, setName, renameSession } = useSessionName({
     app,
     threads: args.threads ?? app.threads,
     threadId,
@@ -562,6 +565,7 @@ export function useConversation(args: {
     handle: name === null ? null : threadHandle({ threadId, title: name }),
     sessionName: name,
     naming,
+    namingRequest,
     model,
     sidebar,
     turn,
