@@ -27,7 +27,6 @@ import {
   uploadLocalSecrets,
   type CloudSyncCounts,
 } from './upload-local'
-import { UserContextClient } from './user-context-client'
 
 const getSessionResponseSchema = z.object({
   user: z.object({ email: z.string().optional() }),
@@ -237,16 +236,10 @@ export class CloudService {
       })
 
     const client = this.clientFor({ session })
-    const context = new UserContextClient({
-      url: session.url,
-      token: session.token,
-      ...(this.clientVersion === undefined ? {} : { clientVersion: this.clientVersion }),
-      fetchFn: this.fetchFn,
-    })
 
     const result = await downloadAndPurgeCloudData({
       client,
-      stores: { accounts: this.localAccounts, secrets: this.localSecrets, context },
+      stores: { accounts: this.localAccounts, secrets: this.localSecrets },
     })
     this.sessions.clear()
     return result

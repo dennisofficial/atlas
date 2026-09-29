@@ -8,15 +8,8 @@ interface CloudSandboxRow {
   workspaceContextArchive: Buffer | null
 }
 
-interface UserContextSyncRow {
-  userId: string
-  memoryBundle: string
-  memoryArchive: Buffer | null
-}
-
 const fake = vi.hoisted(() => {
   const sandboxes: CloudSandboxRow[] = []
-  const users: UserContextSyncRow[] = []
 
   const db = {
     cloudSandbox: {
@@ -30,53 +23,22 @@ const fake = vi.hoisted(() => {
         return row
       }),
     },
-    userContextSync: {
-      findUnique: vi.fn(async (args: { where: { userId: string } }) =>
-        users.find((row) => row.userId === args.where.userId) ?? null,
-      ),
-      upsert: vi.fn(
-        async (args: {
-          where: { userId: string }
-          create: UserContextSyncRow
-          update: Record<string, unknown>
-        }) => {
-          const existing = users.find((row) => row.userId === args.where.userId)
-          if (existing === undefined) {
-            users.push(args.create)
-            return args.create
-          }
-          Object.assign(existing, args.update)
-          return existing
-        },
-      ),
-      updateMany: vi.fn(
-        async (args: { where: { userId: string }; data: Record<string, unknown> }) => {
-          const matched = users.filter((row) => row.userId === args.where.userId)
-          for (const row of matched) Object.assign(row, args.data)
-          return { count: matched.length }
-        },
-      ),
-    },
   }
 
-  return { db, sandboxes, users }
+  return { db, sandboxes }
 })
 
 vi.mock('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
 
 const THREAD = 'brn_thread_1'
-const USER = 'user-a'
 
 describe('PrismaContextArchiveStore', () => {
   let store: PrismaContextArchiveStore
 
   beforeEach(() => {
     fake.sandboxes.length = 0
-    fake.users.length = 0
     fake.db.cloudSandbox.findUnique.mockClear()
     fake.db.cloudSandbox.update.mockClear()
-    fake.db.userContextSync.findUnique.mockClear()
-    fake.db.userContextSync.upsert.mockClear()
     store = new PrismaContextArchiveStore()
   })
 
@@ -113,48 +75,5 @@ describe('PrismaContextArchiveStore', () => {
       data: { workspaceContextArchive: new Uint8Array(Buffer.from('fresh')) },
     })
     expect(fake.sandboxes[0]?.workspaceContext).toBe('{"legacy":"bundle"}')
-  })
-
-  it('answers null for a user with no archive yet', async () => {
-    await expect(store.readUserArchive({ userId: USER })).resolves.toBeNull()
-
-    fake.users.push({ userId: USER, memoryBundle: '{}', memoryArchive: null })
-    await expect(store.readUserArchive({ userId: USER })).resolves.toBeNull()
-  })
-
-  it('creates a fresh row with a valid placeholder legacy bundle on the first archive-only write', async () => {
-    const archive = Buffer.from('memory-archive-bytes')
-
-    await store.writeUserArchive({ userId: USER, archive })
-
-    expect(fake.users).toHaveLength(1)
-    expect(() => JSON.parse(fake.users[0]?.memoryBundle ?? 'not json')).not.toThrow()
-    await expect(store.readUserArchive({ userId: USER })).resolves.toEqual(archive)
-  })
-
-  it('writes the user archive without touching an existing legacy memoryBundle', async () => {
-    fake.users.push({ userId: USER, memoryBundle: '{"a":1}', memoryArchive: null })
-
-    await store.writeUserArchive({ userId: USER, archive: Buffer.from('fresh') })
-
-    expect(fake.db.userContextSync.upsert).toHaveBeenCalledWith({
-      where: { userId: USER },
-      create: expect.objectContaining({ userId: USER }),
-      update: { memoryArchive: new Uint8Array(Buffer.from('fresh')) },
-    })
-    expect(fake.users[0]?.memoryBundle).toBe('{"a":1}')
-  })
-
-  it('deleteUserArchive nulls the legacy blob and leaves the legacy bundle alone', async () => {
-    fake.users.push({
-      userId: USER,
-      memoryBundle: '{"a":1}',
-      memoryArchive: Buffer.from('old'),
-    })
-
-    await store.deleteUserArchive({ userId: USER })
-
-    expect(fake.users[0]?.memoryArchive).toBeNull()
-    expect(fake.users[0]?.memoryBundle).toBe('{"a":1}')
   })
 })

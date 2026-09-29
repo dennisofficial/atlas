@@ -3,9 +3,8 @@ import { storedModel } from '@dltech/atlas-harness'
 import { useCallback, useRef } from 'react'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
-import { mergeRemoteMemoryBounded, type CaptureContext } from '@dltech/atlas-harness'
+import type { CaptureContext } from '@dltech/atlas-harness'
 
-import { clientVersionHeader } from '../build/info'
 import { cloudApp, openCloudConversation } from './cloud/cloud-app'
 import type { CloudBridge, CloudStores, LiftedWorkspace } from '@dltech/atlas-harness'
 import { noticePortBinding } from './notice-binding'
@@ -85,13 +84,6 @@ export function useCloudLift(args: {
         const bridge = createBridge({ url: signedIn.url, token: signedIn.token })
         const { move } = latest.current
         move.handleBegin({ target: EExecutionLocation.Cloud, plan: cloudLiftPlan({ midTurn }) })
-
-        void mergeRemoteMemoryBounded({
-          session: signedIn,
-          clientVersion: clientVersionHeader(),
-          notice: noticePortBinding(),
-          cwd: latest.current.projectDirectory,
-        }).catch(() => undefined)
 
         const captureContext: CaptureContext = () =>
           latest.current.captureContext?.() ??

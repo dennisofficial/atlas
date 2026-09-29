@@ -6,7 +6,6 @@ import { join } from 'node:path'
 import {
   EAuthKind,
   EAuthProvider,
-  sanitiseRepoPath,
   type AccountSecret,
   type ClockPort,
 } from '@dltech/atlas-core'
@@ -17,7 +16,6 @@ import { FileSecretsStore } from '../../secrets/file-secrets-store'
 import { CloudError } from '../cloud-client'
 import { CloudService } from '../cloud-service'
 import { CloudSessionStore } from '../cloud-session'
-import { buildContextArchive } from '../context-archive'
 
 const clock: ClockPort = { now: () => '2026-01-01T00:00:00.000Z' }
 
@@ -50,8 +48,6 @@ type RemoteFake = {
   actives: Map<string, string>
   secrets: Map<string, string>
   mcp: Map<string, Record<string, unknown>>
-  memoryArchive: Uint8Array | null
-  memoryBundle: string | null
   github: boolean
   failOn: string[]
   deleted: string[]
@@ -63,8 +59,6 @@ const remoteFake = (): RemoteFake => {
     actives: new Map(),
     secrets: new Map(),
     mcp: new Map(),
-    memoryArchive: null,
-    memoryBundle: null,
     github: false,
     failOn: [],
     deleted: [],
@@ -131,24 +125,6 @@ const remoteFake = (): RemoteFake => {
       fake.mcp.delete(path.slice('/v1/mcp-servers/'.length))
       fake.deleted.push(path)
       return reply(204)
-    }
-
-    if (path === '/v1/user-context/memory') {
-      const accept = new Headers(init?.headers).get('accept')
-      if (method === 'GET' && accept === 'application/gzip') {
-        if (fake.memoryArchive === null) return reply(404, { message: 'no memory archive stored yet' })
-        return new Response(Buffer.from(fake.memoryArchive), {
-          status: 200,
-          headers: { 'content-type': 'application/gzip' },
-        })
-      }
-      if (method === 'GET') return reply(200, { bundle: fake.memoryBundle })
-      if (method === 'DELETE') {
-        fake.memoryArchive = null
-        fake.memoryBundle = null
-        fake.deleted.push(path)
-        return reply(204)
-      }
     }
 
     if (path === '/v1/github' && method === 'GET') {
@@ -218,27 +194,12 @@ const seedRemote = async (fake: RemoteFake): Promise<void> => {
   fake.secrets.set('search.exa', 'exa-1')
   fake.mcp.set('linear', { name: 'linear', transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' } })
   fake.mcp.set('paused', { name: 'paused', disabled: true })
-  fake.memoryArchive = await buildContextArchive({
-    files: [
-      { key: 'user/MEMORY.md', path: join(directory, 'seed-user.md') },
-      { key: `project/${encodeURIComponent('/repo/atlas')}/notes.md`, path: join(directory, 'seed-project.md') },
-    ],
-  }).then((archive) => {
-    if (archive === undefined) throw new Error('expected an archive')
-    return archive
-  })
   fake.github = true
-}
-
-const seedMemoryFiles = (): void => {
-  writeFileSync(join(directory, 'seed-user.md'), '# user memory')
-  writeFileSync(join(directory, 'seed-project.md'), '# project memory')
 }
 
 describe('CloudService.downloadAndPurge', () => {
   it('lands every domain locally, deletes it remotely, and clears the session', async () => {
     const fake = remoteFake()
-    seedMemoryFiles()
     await seedRemote(fake)
     writeFileSync(join(directory, 'auth.json.archived'), 'sentinel')
     const service = signedInService(fake.fetchFn)
@@ -249,7 +210,6 @@ describe('CloudService.downloadAndPurge', () => {
       accounts: 2,
       secrets: 2,
       mcpServers: 2,
-      memoryFiles: 2,
       githubDisconnected: true,
     })
 
@@ -272,18 +232,9 @@ describe('CloudService.downloadAndPurge', () => {
     expect(mcp['linear']).toEqual({ transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' } })
     expect(mcp['paused']).toEqual({ disabled: true })
 
-    expect(readFileSync(join(directory, 'memory', 'MEMORY.md'), 'utf8')).toBe('# user memory')
-    expect(
-      readFileSync(
-        join(directory, 'projects', sanitiseRepoPath('/repo/atlas'), 'memory', 'notes.md'),
-        'utf8',
-      ),
-    ).toBe('# project memory')
-
     expect(fake.accounts.size).toBe(0)
     expect(fake.secrets.size).toBe(0)
     expect(fake.mcp.size).toBe(0)
-    expect(fake.memoryArchive).toBeNull()
     expect(fake.github).toBe(false)
     expect(service.session()).toBeNull()
 
@@ -292,7 +243,6 @@ describe('CloudService.downloadAndPurge', () => {
 
   it('never deletes a domain remotely when its download fails, and keeps the session', async () => {
     const fake = remoteFake()
-    seedMemoryFiles()
     await seedRemote(fake)
     fake.failOn.push('GET /v1/accounts/acc_cloud_2')
     const service = signedInService(fake.fetchFn)
@@ -313,7 +263,6 @@ describe('CloudService.downloadAndPurge', () => {
 
   it('completes cleanly on a second run after a partial failure, without duplicating accounts', async () => {
     const fake = remoteFake()
-    seedMemoryFiles()
     await seedRemote(fake)
     fake.failOn.push('GET /v1/accounts/acc_cloud_2')
     const service = signedInService(fake.fetchFn)

@@ -20,7 +20,6 @@ import { SandboxesModule } from './platform/sandboxes/sandboxes.module'
 import { SecretsModule } from './cloud/secrets/secrets.module'
 import { SettingsModule } from './cloud/settings/settings.module'
 import { SessionsModule } from './platform/sessions/sessions.module'
-import { UserContextModule } from './cloud/user-context/user-context.module'
 
 @Module({
   imports: [
@@ -46,7 +45,6 @@ import { UserContextModule } from './cloud/user-context/user-context.module'
     SessionsModule,
     SandboxesModule,
     GithubRealtimeModule,
-    UserContextModule,
   ],
   controllers: [HealthController],
   providers: [

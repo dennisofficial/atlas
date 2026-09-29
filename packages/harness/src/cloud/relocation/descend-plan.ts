@@ -4,7 +4,6 @@ import { ENoticeTone, EExecutionLocation, type LogPort, type NoticePort, type Th
 
 import { logFieldsOf } from '../../store/logs'
 import { EClientRequest, publishedWorkspaceWireSchema } from '../channel-wire'
-import type { RemoteMemoryMerge } from '../merge-remote-memory'
 import { relocateSession } from '../../store/relocate-session'
 import { mergePublishedWorkspace, type MergedWorkspace } from '../../workspace/merge-published'
 import { atlasDirectory } from '../../store/paths'
@@ -14,14 +13,9 @@ import { awaitPause, reannounceChildren, transferTranscriptDown } from './descen
 import { ELiftStep } from './lift'
 import { flipChildrenBack } from './lift-children'
 import type { RelocationPlan } from './dag'
-import {
-  descendedConflictsDraft,
-  descendedMemoryConflictsDraft,
-  descendedSupersededDraft,
-} from './transition-notice'
+import { descendedConflictsDraft, descendedSupersededDraft } from './transition-notice'
 import {
   DESCEND_DESTROY_NOTICE_KEY,
-  DESCEND_MEMORY_NOTICE_KEY,
   EDescendStep,
   type DescendLocalHome,
   type DescendProgressStep,
@@ -48,7 +42,6 @@ export type DescendPlanArgs<Opened> = {
   progress: (step: DescendProgressStep) => void
   pauseDeadlineMs?: number | undefined
   mergeWorkspace?: WorkspaceMerger | undefined
-  pullMemory?: (() => Promise<RemoteMemoryMerge>) | undefined
   run: DescendRun
   setOpened: (opened: Opened) => void
   logPort?: LogPort | undefined
@@ -166,7 +159,6 @@ export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPl
           services: localApp.services,
           agents: localApp.agents,
         })
-        await pullMemoryHome(args)
         args.setOpened(await args.surface.openLocal(localApp, threadId))
       },
     },
@@ -215,22 +207,4 @@ async function mergeWorkspaceHome<Opened>(args: DescendPlanArgs<Opened>): Promis
   })
 }
 
-async function pullMemoryHome<Opened>(args: DescendPlanArgs<Opened>): Promise<void> {
-  if (args.pullMemory === undefined) return
-  const pulled = await args.pullMemory().catch((error: unknown) => {
-    args.notice.notify({
-      key: DESCEND_MEMORY_NOTICE_KEY,
-      text: `this conversation is home, but the cloud's memory did not come down with it — ${messageOf(error)}`,
-      tone: ENoticeTone.Warn,
-      ttlMs: null,
-    })
-    return null
-  })
-  if (pulled !== null && pulled.conflicts.length > 0) {
-    await args.localApp.log.append({
-      threadId: args.threadId,
-      runId: args.localApp.ids.nextRunId(),
-      drafts: [descendedMemoryConflictsDraft({ conflicts: pulled.conflicts })],
-    })
-  }
-}
+

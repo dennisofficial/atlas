@@ -1,6 +1,6 @@
 import type { CloudPurgeResult } from './download-purge'
 
-export type CloudPurgeDomainId = 'accounts' | 'secrets' | 'mcpServers' | 'memory' | 'github'
+export type CloudPurgeDomainId = 'accounts' | 'secrets' | 'mcpServers' | 'github'
 
 export type CloudPurgeDomain = {
   id: CloudPurgeDomainId
@@ -41,13 +41,6 @@ export const CLOUD_PURGE_DOMAINS: readonly CloudPurgeDomain[] = [
     drawerLabel: 'MCP servers',
     count: (result) => result.mcpServers,
     movedLabel: (count) => plural(count, 'MCP server'),
-  },
-  {
-    id: 'memory',
-    step: 'memory',
-    drawerLabel: 'your memory',
-    count: (result) => result.memoryFiles,
-    movedLabel: () => 'your memory',
   },
   {
     id: 'github',
