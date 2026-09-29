@@ -45,6 +45,8 @@ export type FakeCloudChannel = CloudChannel & {
   /** What serve does with a send frame: the said lands in the remote log before the turn ends. */
   commitSaid(args: { text: string; images?: readonly SaidImage[] }): void
   moveTo(connection: ChannelConnection): void
+  /** Re-emits the held connection, for a session that attached before subscribing. */
+  announce(): void
   reload(reload: CloudReload): void
   ready(ready: ChannelReady): void
   fail(message: string): void
@@ -302,6 +304,9 @@ export function fakeCloudChannel(
     moveTo(connection) {
       held = connection
       for (const listener of [...connections]) listener(connection)
+    },
+    announce() {
+      for (const listener of [...connections]) listener(held)
     },
     reload(reload) {
       for (const listener of [...reloads]) listener(reload)

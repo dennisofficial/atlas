@@ -109,6 +109,7 @@ const openCloudConversation = async (args: { app: FakeApp; bridge: FakeBridge })
   expect(
     await until({ holds: async () => args.bridge.attached.length === 1, within: 10_000 }),
   ).toBe(true)
+  args.bridge.channel.announce()
   await mounted.frame()
   return mounted
 }
