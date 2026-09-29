@@ -13,9 +13,16 @@ const trace = (message: string, threadId: ThreadId, data?: Record<string, unknow
   durableOpLog()?.info({ source: 'titling.trace', message, threadId, ...(data === undefined ? {} : { data }) })
 }
 
+/** A rename in flight: the name on screen when it started, and the answer once it resolves. The
+ *  animation reads both halves off this one object so a fast rename — where the answer arrives in
+ *  the same commit the request appears — still begins from the old name and streams into the new. */
+export type NamingRequest = { from: string | null; answer: string | null }
+
 export type SessionName = {
   name: string | null
   naming: boolean
+  /** The live `/rename`, set when the ask starts and held for a settle window after it resolves. */
+  namingRequest: NamingRequest | null
   setName: (name: string | null) => void
   renameSession: (argumentText: string) => Promise<Renaming>
 }
@@ -43,6 +50,8 @@ export function useSessionName(args: {
   const [name, setName] = useState<string | null>(args.initial)
   const [naming, setNaming] = useState(false)
   const [titling, setTitling] = useState(false)
+  const [namingRequest, setNamingRequest] = useState<NamingRequest | null>(null)
+  const requestTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const awaitedEcho = useRef<string | null>(null)
   useEffect(() => {
     trace('onRename subscribed', threadId)
@@ -77,16 +86,23 @@ export function useSessionName(args: {
     return app.titling.onTitling({ threadId, listener: setTitling })
   }, [app.titling, threadId])
 
+  useEffect(
+    () => () => {
+      if (requestTimer.current !== null) clearTimeout(requestTimer.current)
+    },
+    [],
+  )
+
   /**
-   * The naming flag holds until the rename echo has actually been observed, not merely until the
-   * ask returned: the echo is what streams the answer into the animation, so clearing the flag any
-   * earlier strands the generating phase with no settle. `threads.rename` fires its listeners
-   * synchronously, so by the time the await resumes the echo has already run the matching branch in
-   * the listener above and cleared the flag itself.
+   * The rename resolves into `namingRequest.answer` and holds the whole request for one settle
+   * window, so the animation always sees the pair — the name it started from and the answer to
+   * stream — no matter how fast the store echoes. Clearing the request is what hands the surface
+   * back to the settled title.
    */
   const renameThroughStore = useCallback(
     async (generated: string | null, clear: () => void): Promise<Renaming> => {
       if (generated === null) {
+        setNamingRequest(null)
         clear()
         return { type: ERenamed.Declined }
       }
@@ -98,19 +114,28 @@ export function useSessionName(args: {
         awaitedEcho.current = null
         clear()
       }
+      setNamingRequest((current) => (current === null ? null : { ...current, answer: generated }))
+      if (requestTimer.current !== null) clearTimeout(requestTimer.current)
+      requestTimer.current = setTimeout(() => setNamingRequest(null), 600)
       return { type: ERenamed.Renamed, name: generated }
     },
     [threads, threadId],
   )
 
+  const beginRename = useCallback(() => {
+    if (requestTimer.current !== null) clearTimeout(requestTimer.current)
+    setNamingRequest({ from: name, answer: null })
+    setNaming(true)
+  }, [name])
+
   const nameFromTranscript = useCallback(async (): Promise<Renaming> => {
     const digest = await readDigest()
     if (digest.trim().length === 0) return { type: ERenamed.Empty }
 
-    setNaming(true)
+    beginRename()
     const generated = await app.titler({ text: digest }).catch(() => null)
     return renameThroughStore(generated, () => setNaming(false))
-  }, [app, readDigest, renameThroughStore])
+  }, [app, beginRename, readDigest, renameThroughStore])
 
   const renameSession = useCallback(
     async (argumentText: string): Promise<Renaming> => {
@@ -118,7 +143,7 @@ export function useSessionName(args: {
 
       const given = sanitizedTitle(argumentText)
       if (given !== null) {
-        setNaming(true)
+        beginRename()
         return renameThroughStore(given, () => setNaming(false))
       }
 
@@ -127,5 +152,5 @@ export function useSessionName(args: {
     [nameFromTranscript, renameThroughStore, started],
   )
 
-  return { name, naming: naming || titling, setName, renameSession }
+  return { name, naming: naming || titling, namingRequest, setName, renameSession }
 }

@@ -940,32 +940,34 @@ function Workspace(props: {
    * from the full sidebar row. Each surface clamps the glide to what its own row can hold.
    */
   const namingAnimation = useNamingAnimation({ fallbackCells: TITLE_CELLS })
-  const namingWatch = useRef({ threadId: conversation.threadId, naming: false, named: null as string | null })
+  const namingWatch = useRef({ threadId: conversation.threadId, active: false })
   useEffect(() => {
     const watching = namingWatch.current
+    const request = conversation.namingRequest
     if (watching.threadId !== conversation.threadId) {
-      namingWatch.current = { threadId: conversation.threadId, naming: conversation.naming, named: conversation.sessionName }
+      namingWatch.current = { threadId: conversation.threadId, active: false }
       namingAnimation.end()
       return
     }
-    if (conversation.naming && !watching.naming) {
-      watching.named = null
-      namingAnimation.begin(conversation.sessionName)
-    }
-    if (conversation.sessionName !== watching.named) {
-      watching.named = conversation.sessionName
-      if (conversation.sessionName !== null) namingAnimation.stream(conversation.sessionName)
-    }
     /**
-     * End the animation only when the ask is over AND nothing is streaming in. A rename whose store
-     * is async (the real thread store awaits its disk write before echoing) delivers the echo and the
-     * naming flag's fall in the same commit, so `stream()` and this guard run together — ending here
-     * on an answered ask kills the stream the exact frame it starts. When an answer arrived
-     * (`named !== null`) the stream's own settle timer clears the state; ending early is only for the
-     * declined/empty case, where nothing will ever stream and the state would otherwise stick.
+     * The animation is driven by the rename request, not by watching the naming flag and the rename
+     * echo as separate states — a fast rename batches the flag's whole rise-and-fall into one commit,
+     * so watching `naming` never observed the generating phase at all and the title snapped straight
+     * to the new name. The request object carries both halves: `from` (the name on screen when the
+     * ask started) begins the generating phase, and `answer` (set the moment the rename resolves,
+     * held for a settle window after) is what the stream paints.
      */
-    if (!conversation.naming && watching.naming && watching.named === null) namingAnimation.end()
-    watching.naming = conversation.naming
+    if (request !== null && !watching.active) {
+      watching.active = true
+      namingAnimation.begin(request.from)
+      if (request.answer !== null) namingAnimation.stream(request.answer)
+      return
+    }
+    if (request !== null && request.answer !== null) namingAnimation.stream(request.answer)
+    if (request === null && watching.active) {
+      watching.active = false
+      namingAnimation.end()
+    }
   }) // every commit: the watch is a transition detector, not a dependency list
 
   const sidebarNaming = namingAnimation.state
