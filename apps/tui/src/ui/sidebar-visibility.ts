@@ -36,5 +36,5 @@ export function contentWidthOf(args: Beside): number {
 }
 
 export function chromeWidthOf(args: Beside): number {
-  return args.docked ? Math.max(1, args.width - args.sidebarWidth - SIDEBAR_GUTTER) : args.width
+  return args.docked ? Math.max(1, args.width - args.sidebarWidth) : args.width
 }

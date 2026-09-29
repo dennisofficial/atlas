@@ -28,6 +28,7 @@ function DerivedHeaderBar(props: {
     <box
       flexDirection="row"
       flexShrink={0}
+      width={props.width}
       paddingLeft={HEADER_GUTTER}
       paddingRight={HEADER_GUTTER}
       backgroundColor={theme.panelBg}
