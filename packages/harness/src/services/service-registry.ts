@@ -7,10 +7,13 @@ import {
   EStopAction,
   type ClockPort,
   type EventDraft,
+  type EventLogPort,
+  type IdPort,
   type ProcessPort,
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import { bootId } from './boot'
 import { ServiceNoticeQueue } from './service-notices'
 import {
   SERVICE_SETTLE_MS,
@@ -32,6 +35,11 @@ export type StartedServiceOutcome =
 export type ServiceStopOutcome =
   | { ok: true; snapshot: ServiceSnapshot; action: EStopAction }
   | { ok: false; reason: string }
+
+export type ServiceStartRecording = {
+  log: Pick<EventLogPort, 'append'>
+  ids: Pick<IdPort, 'nextRunId'>
+}
 
 /**
  * A service is session-wide infrastructure rather than one thread's work: it outlives the turn that
@@ -115,18 +123,21 @@ export class BunServiceRegistry extends ServiceRegistryPort {
   private readonly clock: ClockPort
   private readonly logsDirectory: string
   private readonly processes: ProcessPort
+  private readonly recording: ServiceStartRecording | undefined
 
   constructor(args: {
     root: string
     clock: ClockPort
     logsDirectory: string
     processes: ProcessPort
+    recording?: ServiceStartRecording | undefined
   }) {
     super()
     this.root = args.root
     this.clock = args.clock
     this.logsDirectory = args.logsDirectory
     this.processes = args.processes
+    this.recording = args.recording
   }
 
   /**
@@ -161,6 +172,7 @@ export class BunServiceRegistry extends ServiceRegistryPort {
       announced: false,
     })
     this.bump()
+    this.recordStart({ serviceId, args })
 
     await within(SERVICE_SETTLE_MS, opened.service.exited)
 
@@ -257,6 +269,35 @@ export class BunServiceRegistry extends ServiceRegistryPort {
     await Promise.all(entries.map((entry) => within(KILLED_GRACE_MS, entry.service.exited)))
     this.tracked.clear()
     this.listeners.clear()
+  }
+
+  /**
+   * The start is written the moment the id is minted rather than waiting for a later drain: a
+   * service that starts and then the harness dies before the next turn must still leave its start
+   * behind, or recovery on the next open has nothing to pair. Fire-and-forget — a service already
+   * running must never wait on, or die with, its own record.
+   */
+  private recordStart(args: {
+    serviceId: string
+    args: { threadId: ThreadId; command: string; description: string }
+  }): void {
+    if (this.recording === undefined) return
+    const { log, ids } = this.recording
+    void log
+      .append({
+        threadId: args.args.threadId,
+        runId: ids.nextRunId(),
+        drafts: [
+          {
+            type: 'service-started',
+            serviceId: args.serviceId,
+            command: args.args.command,
+            description: args.args.description,
+            bootId,
+          },
+        ],
+      })
+      .catch(() => undefined)
   }
 
   private announceExit(service: Service): void {

@@ -39,6 +39,22 @@ describe('handing an ended service to the model', () => {
     expect(serviceEndedBlock(ended())).toContain('not work you were waiting on')
   })
 
+  it('says a lost service has no log to read, instead of pointing at a dead path', () => {
+    const block = serviceEndedBlock(
+      ended({
+        status: EServiceStatus.Killed,
+        killedBy: EKilledBy.Unrecorded,
+        exitCode: undefined,
+        logPath: undefined,
+        tail: '',
+      }),
+    )
+
+    expect(block).toContain('log is gone with the process')
+    expect(block).not.toContain('at undefined')
+    expect(block).not.toContain('not work you were waiting on')
+  })
+
   it('admits an empty log rather than printing nothing silently', () => {
     expect(serviceEndedBlock(ended({ tail: '' }))).toContain('Its log is empty.')
   })

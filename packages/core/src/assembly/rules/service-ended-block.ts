@@ -14,8 +14,11 @@ const USER_KILLED =
 const NOT_WORK =
   'This was infrastructure you work against, not work you were waiting on. Its full log is at the path above; read it with the read tool if you need more than the tail.'
 
+const NO_LOG = 'Its log is gone with the process that ran it.'
+
 export function serviceEndedBlock(event: EventOfType<'service-ended'>): string {
-  const headline = `Service ${event.serviceId} ${shellLabel(event)} ${serviceEnding(event)}. Its log is at ${event.logPath}.`
+  const where = event.logPath === undefined ? NO_LOG : `Its log is at ${event.logPath}.`
+  const headline = `Service ${event.serviceId} ${shellLabel(event)} ${serviceEnding(event)}. ${where}`
 
   const sections = [headline]
 
@@ -23,7 +26,7 @@ export function serviceEndedBlock(event: EventOfType<'service-ended'>): string {
 
   sections.push(event.tail.trimEnd() === '' ? PRINTED_NOTHING : event.tail.trimEnd())
 
-  sections.push(NOT_WORK)
+  if (event.logPath !== undefined) sections.push(NOT_WORK)
 
   return [OPEN, sections.join('\n\n'), CLOSE].join('\n')
 }

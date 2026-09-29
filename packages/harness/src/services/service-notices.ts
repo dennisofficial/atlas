@@ -1,5 +1,6 @@
 import type { EventDraft, ThreadId } from '@dltech/atlas-core'
 
+import { bootId } from './boot'
 import { logTail, type ServiceSnapshot } from './service-process'
 
 export const ENDING_TAIL_CHARACTERS = 4_000
@@ -18,6 +19,7 @@ export function serviceEndedDraft(args: { snapshot: ServiceSnapshot }): EventDra
     serviceId: snapshot.serviceId,
     command: snapshot.command,
     description: snapshot.description,
+    bootId,
     status: snapshot.status,
     killedBy: snapshot.killedBy,
     exitCode: snapshot.exitCode,

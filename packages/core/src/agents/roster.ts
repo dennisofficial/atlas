@@ -2,9 +2,23 @@ import type { AssistantPart, EventDraft } from '../events/body'
 import type { Event, EventOfType } from '../events/envelope'
 import type { ThreadId } from '../events/ids'
 import { rowsOwnedBy } from '../events/ownership'
-import { eventsOfType } from '../events/projections'
+import { lostOf, type LifecycleKind } from '../lifecycle/lifecycle'
 import { EKilledBy } from '../shells/status'
 import { EAgentStatus } from './status'
+
+/**
+ * An agentId is a real ThreadId — globally unique, never recycled — so the id scopes to itself and
+ * no boot identity is needed: one boot's ending can never name another boot's agent.
+ */
+export const agentLifecycleKind: LifecycleKind<
+  EventOfType<'agent-spawned'>,
+  EventOfType<'agent-ended'>
+> = {
+  isStart: (event): event is EventOfType<'agent-spawned'> => event.type === 'agent-spawned',
+  isEnd: (event): event is EventOfType<'agent-ended'> => event.type === 'agent-ended',
+  keyOf: (event) => event.agentId,
+  scopeOf: (event) => event.agentId,
+}
 
 export type RosteredAgent = {
   agentId: ThreadId
@@ -90,11 +104,7 @@ export function agentRoster({
 }
 
 export function unendedSpawns(events: readonly Event[]): readonly EventOfType<'agent-spawned'>[] {
-  const ended = new Set(eventsOfType({ events, type: 'agent-ended' }).map((event) => event.agentId))
-
-  return eventsOfType({ events, type: 'agent-spawned' }).filter(
-    (event) => !ended.has(event.agentId),
-  )
+  return lostOf(events, agentLifecycleKind).map((lifecycle) => lifecycle.started)
 }
 
 export const isLost = (agent: Pick<RosteredAgent, 'endedAt'>): boolean =>

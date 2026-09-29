@@ -106,6 +106,7 @@ export * from './shells/watching'
 export * from './shells/elapsed'
 export * from './services/status'
 export * from './services/lifecycle'
+export * from './services/pairing'
 
 export * from './stream/chunk'
 

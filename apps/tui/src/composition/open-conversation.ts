@@ -17,7 +17,7 @@ import type {
   TurnLedgerPort,
   TurnSpend,
 } from '@dltech/atlas-harness'
-import { ShellRecovery, type LostShell } from '@dltech/atlas-harness'
+import { ServiceRecovery, ShellRecovery, type LostShell } from '@dltech/atlas-harness'
 import {
   atlasDirectory,
   claimSession,
@@ -116,6 +116,16 @@ const shellRecovery = (args: { log: EventLogPort; ids: IdPort }): ShellRecovery 
   if (held !== undefined) return held
   const created = new ShellRecovery({ log: args.log, ids: args.ids })
   shellRecoveryFor.set(args.log, created)
+  return created
+}
+
+const serviceRecoveryFor = new WeakMap<EventLogPort, ServiceRecovery>()
+
+const serviceRecovery = (args: { log: EventLogPort; ids: IdPort }): ServiceRecovery => {
+  const held = serviceRecoveryFor.get(args.log)
+  if (held !== undefined) return held
+  const created = new ServiceRecovery({ log: args.log, ids: args.ids })
+  serviceRecoveryFor.set(args.log, created)
   return created
 }
 
@@ -225,6 +235,7 @@ export async function openConversation(args: Opening): Promise<OpenOutcome> {
   const lostShells = await shellRecovery({ log: args.log, ids: args.ids }).recordLost({
     threadId: thread.id,
   })
+  await serviceRecovery({ log: args.log, ids: args.ids }).recordLost({ threadId: thread.id })
 
   const window = await readThreadWindow({ log: args.log, threadId: thread.id, rows: EThreadRows.Composed })
   const [base, spent] = await Promise.all([
