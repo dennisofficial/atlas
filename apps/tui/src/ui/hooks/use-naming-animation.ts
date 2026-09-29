@@ -11,6 +11,13 @@ import { NAMING_SETTLE_MS, titleCells } from '../naming-frames'
  */
 const MIN_GENERATING_MS = 550
 
+/**
+ * The longest a rename animation runs from the moment the answer is known: the generating floor,
+ * plus the settle sweep. The rename holds its request for at least this long so the surface never
+ * hands back to the settled title mid-stream.
+ */
+export const NAMING_ANIMATION_MS = MIN_GENERATING_MS + NAMING_SETTLE_MS
+
 export type NamingAnimation = {
   /** Set while the animation owns the title line: generating, then streaming the answer in. */
   state: NamingState | null

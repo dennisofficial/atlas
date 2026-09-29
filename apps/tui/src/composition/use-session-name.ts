@@ -2,6 +2,7 @@ import { type ThreadId } from '@dltech/atlas-core'
 import { sanitizedTitle, type ThreadStorePort } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 
+import { NAMING_ANIMATION_MS } from '../ui/hooks/use-naming-animation'
 import { notify } from '../ui/notice-store'
 import { cloudRenameFailureNotice } from './cloud/cloud-write-notices'
 import type { AtlasApp } from './compose'
@@ -94,10 +95,12 @@ export function useSessionName(args: {
   )
 
   /**
-   * The rename resolves into `namingRequest.answer` and holds the whole request for one settle
-   * window, so the animation always sees the pair — the name it started from and the answer to
-   * stream — no matter how fast the store echoes. Clearing the request is what hands the surface
-   * back to the settled title.
+   * The rename resolves into `namingRequest.answer` and holds the whole request until the animation
+   * has finished, so the animation always sees the pair — the name it started from and the answer
+   * to stream — no matter how fast the store echoes. The hold must outlast the animation's whole
+   * lifecycle (the minimum generating window plus the settle sweep): clearing it earlier ends the
+   * animation mid-stream and the title snaps. Clearing the request is what hands the surface back
+   * to the settled title.
    */
   const renameThroughStore = useCallback(
     async (generated: string | null, clear: () => void): Promise<Renaming> => {
@@ -116,7 +119,7 @@ export function useSessionName(args: {
       }
       setNamingRequest((current) => (current === null ? null : { ...current, answer: generated }))
       if (requestTimer.current !== null) clearTimeout(requestTimer.current)
-      requestTimer.current = setTimeout(() => setNamingRequest(null), 600)
+      requestTimer.current = setTimeout(() => setNamingRequest(null), NAMING_ANIMATION_MS)
       return { type: ERenamed.Renamed, name: generated }
     },
     [threads, threadId],
