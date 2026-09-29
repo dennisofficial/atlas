@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import React, { act } from 'react'
 
 import { installLinkClickOpen, linkHoverUrl, notifyLinkHover, subscribeLinkHover } from '../link-click'
+import { currentNotices, dismissNotice, ENoticePosition } from '../../ui/notice-store'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
@@ -63,6 +64,7 @@ async function mount(args: { selectable?: boolean; linkUrl?: string } = {}): Pro
 }
 
 afterEach(async () => {
+  dismissNotice()
   const harness = mounted.pop()
   if (harness === undefined) return
   harness.root.unmount()
@@ -103,6 +105,33 @@ describe('installLinkClickOpen', () => {
 
     expect(harness.opened).toEqual([])
     expect(harness.openedFiles).toEqual([{ path: '/Users/d/atlas/link-click.ts', line: 42 }])
+  })
+
+  it('notifies a short file-glyph "opened" at the composer, not the tray, for a file link', async () => {
+    const harness = await mount({ linkUrl: 'file:///Users/d/atlas/link-click.ts:42' })
+
+    await harness.setup.mockMouse.click(LINK_START_X, 0)
+
+    const notice = currentNotices().at(-1)
+    expect(notice?.text).toBe('⬚ opened')
+    expect(notice?.position).toBe(ENoticePosition.Composer)
+  })
+
+  it('notifies a short link-glyph "opened" for a web link', async () => {
+    const harness = await mount()
+
+    await harness.setup.mockMouse.click(LINK_START_X, 0)
+
+    expect(currentNotices().at(-1)?.text).toBe('↗ opened')
+  })
+
+  it('replaces the previous opened notice instead of stacking one per click', async () => {
+    const harness = await mount()
+
+    await harness.setup.mockMouse.click(LINK_START_X, 0)
+    await harness.setup.mockMouse.click(LINK_START_X, 0)
+
+    expect(currentNotices().filter((n) => n.key === 'link-open')).toHaveLength(1)
   })
 
   it('opens on release over the link even when the press drifted off it', async () => {

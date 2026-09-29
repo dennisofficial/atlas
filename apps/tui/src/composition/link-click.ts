@@ -1,7 +1,8 @@
 import type { CliRenderer, MouseEvent } from '@opentui/core'
 import type { FileOpener, UrlOpener } from '@dltech/atlas-harness'
 
-import { ENoticeTone, notify } from '../ui/notice-store'
+import { ENoticePosition, notify } from '../ui/notice-store'
+import { glyph } from '../ui/theme'
 
 const LEFT_BUTTON = 0
 
@@ -98,11 +99,15 @@ export function installLinkClickOpen(args: {
     event.preventDefault()
     renderer.clearSelection()
     openLink({ url, openUrl, openFile })
-    notify({ text: `Opening ${url}`, tone: ENoticeTone.Done })
+    notify({ key: 'link-open', text: openedLabel(url), position: ENoticePosition.Composer })
   }
 }
 
 const FILE_SCHEME = 'file://'
+
+function openedLabel(url: string): string {
+  return url.startsWith(FILE_SCHEME) ? `${glyph.file} opened` : `↗ opened`
+}
 
 function openLink(args: { url: string; openUrl: UrlOpener; openFile: FileOpener }): void {
   if (!args.url.startsWith(FILE_SCHEME)) {
