@@ -1,6 +1,6 @@
 import { type ThreadId } from '@dltech/atlas-core'
 import { sanitizedTitle, type ThreadStorePort } from '@dltech/atlas-harness'
-import { useCallback, useEffect, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 
 import { notify } from '../ui/notice-store'
 import { cloudRenameFailureNotice } from './cloud/cloud-write-notices'
@@ -43,6 +43,7 @@ export function useSessionName(args: {
   const [name, setName] = useState<string | null>(args.initial)
   const [naming, setNaming] = useState(false)
   const [titling, setTitling] = useState(false)
+  const awaitedEcho = useRef<string | null>(null)
   useEffect(() => {
     trace('onRename subscribed', threadId)
     let live = true
@@ -50,6 +51,10 @@ export function useSessionName(args: {
       if (renamed.threadId !== threadId) return
       trace('onRename fired', threadId, { title: renamed.title })
       setName(renamed.title)
+      if (awaitedEcho.current === renamed.title) {
+        awaitedEcho.current = null
+        setNaming(false)
+      }
     })
     void threads.find({ threadId }).then((thread) => {
       const title = thread?.title
@@ -73,9 +78,11 @@ export function useSessionName(args: {
   }, [app.titling, threadId])
 
   /**
-   * The flag falls only once the answer has landed in the store (or nothing is coming): clearing
-   * it when the ask returned would drop the generating animation a beat before the rename echo
-   * arrives to stream the answer in.
+   * The naming flag holds until the rename echo has actually been observed, not merely until the
+   * ask returned: the echo is what streams the answer into the animation, so clearing the flag any
+   * earlier strands the generating phase with no settle. `threads.rename` fires its listeners
+   * synchronously, so by the time the await resumes the echo has already run the matching branch in
+   * the listener above and cleared the flag itself.
    */
   const renameThroughStore = useCallback(
     async (generated: string | null, clear: () => void): Promise<Renaming> => {
@@ -83,8 +90,14 @@ export function useSessionName(args: {
         clear()
         return { type: ERenamed.Declined }
       }
+      awaitedEcho.current = generated
+      trace('rename asked', threadId, { title: generated })
       await threads.rename({ threadId, title: generated }).catch(() => notify(cloudRenameFailureNotice()))
-      clear()
+      trace('rename returned', threadId, { title: generated, pending: awaitedEcho.current })
+      if (awaitedEcho.current === generated) {
+        awaitedEcho.current = null
+        clear()
+      }
       return { type: ERenamed.Renamed, name: generated }
     },
     [threads, threadId],

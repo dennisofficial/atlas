@@ -113,16 +113,23 @@ export function namingGlideCells(args: {
 /** The composer slab reads its title in cells the same way the painters do. */
 export const titleCells = (title: string): number => cellsOf(title)
 
-const FRESH_COMPOSER_FRACTION = 0.5
+/**
+ * Where a first name's generating line opens when there is no old name to continue from: the
+ * average session title, measured across the real session store (576 titles: mean 28.5, median 29,
+ * capped at 48 by the titler's own character limit). A fixed count, not a fraction of the row, so a
+ * wide composer does not open a slab of noise half the screen across; `min` with the row is what
+ * flexes it down when the tile narrows.
+ */
+export const FRESH_TITLE_CELLS = 28
 
 /**
  * Where the generating line starts when there is no old name to continue from: the sidebar takes
- * its whole row, the composer half of what the slab could hold — the average title, so the glide
- * expands or contracts about as often as either.
+ * its whole row, the composer the average title — so the glide expands or contracts about as often
+ * as either.
  */
 export function freshStartCells(args: { kind: 'sidebar' | 'composer'; maxCells: number }): number {
   if (args.kind === 'sidebar') return args.maxCells
-  return Math.max(1, Math.round(args.maxCells * FRESH_COMPOSER_FRACTION))
+  return Math.max(1, Math.min(FRESH_TITLE_CELLS, args.maxCells))
 }
 
 /** Slice a title to a cell budget without splitting a code point. */

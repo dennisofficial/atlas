@@ -955,7 +955,12 @@ function Workspace(props: {
       watching.named = conversation.sessionName
       if (conversation.sessionName !== null) namingAnimation.stream(conversation.sessionName)
     }
-    if (!conversation.naming && watching.naming && watching.named === null) namingAnimation.end()
+    /**
+     * The animation ends the moment the naming ask is over, answer or not: a rename that resolved
+     * streams its answer in, a declined or empty one just stops. Holding the state past `naming`
+     * falling false is what suppressed the settled title until the session was restarted.
+     */
+    if (!conversation.naming && watching.naming) namingAnimation.end()
     watching.naming = conversation.naming
   }) // every commit: the watch is a transition detector, not a dependency list
 

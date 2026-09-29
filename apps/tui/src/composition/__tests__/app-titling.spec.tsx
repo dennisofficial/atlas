@@ -413,6 +413,44 @@ describe('renaming a session with /rename', () => {
     }
   })
 
+  it('shows the renamed title once the ask settles, not only after a restart', async () => {
+    const app = naming(NAME)
+    const mounted = await open({ app })
+
+    try {
+      await mounted.typeText(OPENING)
+      mounted.pressEnter()
+
+      expect(
+        await until({
+          holds: async () => (await mounted.frame()).includes(REPLY),
+          within: WITHIN_MS,
+        }),
+      ).toBe(true)
+
+      await mounted.typeText('/rename')
+      mounted.pressEnter()
+
+      // The rename echo clears the naming flag, the generating animation ends, and the settled
+      // handle heads the composer — all without reopening the session. The composer's head row is
+      // the line that holds the handle; while the animation owns that row it is noise dots, so a
+      // head row that reads the handle cleanly is the settle.
+      const settled = await until({
+        holds: async () => {
+          const shot = await mounted.frame()
+          const renamed = mounted.app.threads.renames.at(-1)?.title === NAME
+          const headRow = shot.split('\n').find((line) => line.includes(HANDLE)) ?? ''
+          return renamed && headRow.includes(HANDLE) && !NOISE_CELL.test(headRow)
+        },
+        within: WITHIN_MS,
+      })
+
+      expect(settled).toBe(true)
+    } finally {
+      await mounted.done()
+    }
+  })
+
   it('says what to do when there is nothing said yet to name the session from', async () => {
     const mounted = await open({ app: naming(NAME) })
 
