@@ -46,12 +46,23 @@ export function useSessionName(args: {
 
   useEffect(() => {
     trace('onRename subscribed', threadId)
+    let live = true
     const forget = threads.onRename((renamed) => {
       if (renamed.threadId !== threadId) return
       trace('onRename fired', threadId, { title: renamed.title })
       setName(renamed.title)
     })
+    void threads.find({ threadId }).then((thread) => {
+      const title = thread?.title
+      if (!live || title === undefined) return
+      setName((current) => {
+        if (current !== null) return current
+        trace('recovered missed rename', threadId, { title })
+        return title
+      })
+    })
     return () => {
+      live = false
       trace('onRename unsubscribed', threadId)
       forget()
     }
