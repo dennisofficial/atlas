@@ -201,6 +201,16 @@ describe('GithubSubscriptionsService', () => {
     expect(second.id).toBe(first.id)
   })
 
+  it('stores a number subscribe under the #<prNumber> sentinel branch so number rows never collide', async () => {
+    const service = serviceWith({ token: 'ghu_1', ensureHook: 'existing' })
+
+    await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+    await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 87 })
+
+    const branches = fake.subscriptions.map((row) => row.branch).sort()
+    expect(branches).toEqual(['#42', '#87'])
+  })
+
   it('refuses a repo the user cannot read on github', async () => {
     const denied = async () => new Response('{}', { status: 404 })
     const service = serviceWith({ token: 'ghu_1', fetchImpl: denied as typeof fetch })

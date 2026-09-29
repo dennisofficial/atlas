@@ -43,7 +43,10 @@ export class GithubSubscriptionsService {
       repoFullName: args.repoFullName,
     })
     const pollBacked = hook === 'poll-backed'
-    const branch = args.branch ?? ''
+    // Number-keyed rows store '#<prNumber>' as their branch: the unique key must hold both kinds,
+    // and a shared '' would collide for every pair of watched PRs on a repo. No real branch starts
+    // with '#', so a branch subscribe never collides with the sentinel.
+    const branch = args.branch ?? (prNumber === null ? '' : `#${prNumber}`)
 
     const subscription = await db.githubSubscription.upsert({
       where: {

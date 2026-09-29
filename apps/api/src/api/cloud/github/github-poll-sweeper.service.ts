@@ -63,7 +63,10 @@ export class GithubPollSweeperService {
     prNumber: number | null
     branch: string
   }): Promise<number | null> {
-    if (args.prNumber !== null || args.branch === '') return args.prNumber
+    // A '#' branch is the number-keyed sentinel, not a real branch — nothing to re-resolve.
+    if (args.prNumber !== null || args.branch === '' || args.branch.startsWith('#')) {
+      return args.prNumber
+    }
 
     const token = await this.github.findToken({ userId: args.userId })
     if (token === undefined) return null
