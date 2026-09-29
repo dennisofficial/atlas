@@ -10,6 +10,9 @@ export class DelegationFragment extends PromptFragment {
 
   text(): string {
     return [
+      'Delegate by default: exploratory work and independent slices go to sub-agents without',
+      'asking first.',
+      '',
       'A sub-agent reads with its own context window and hands you back only its last message, so',
       'delegate the work whose cost is what it must read rather than what it must decide: a sweep',
       'across files to answer one question, an audit, a review. You keep the finding and pay none of',
