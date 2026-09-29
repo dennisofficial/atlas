@@ -2,7 +2,9 @@
 /**
  * PROTOTYPE (throwaway): hover affordances for click-to-open links.
  *
- * Interactive:  bun apps/tui/prototype/link-affordances.tsx
+ * Interactive:  bun run proto:links   (from the repo root — the root script invokes bun directly;
+ *   bun run --filter / turbo pipe stdin, leaving it un-raw, and mouse reports echo as
+ *   ^[[<35;…M garbage)
  *   left/right — switch variant · t — toggle open-target (browser/editor) · q — quit
  *   Move the mouse over links and path:line mentions; ctrl+click opens (simulated).
  *
