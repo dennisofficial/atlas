@@ -43,7 +43,6 @@ export function useSessionName(args: {
   const [name, setName] = useState<string | null>(args.initial)
   const [naming, setNaming] = useState(false)
   const [titling, setTitling] = useState(false)
-
   useEffect(() => {
     trace('onRename subscribed', threadId)
     let live = true
@@ -73,35 +72,46 @@ export function useSessionName(args: {
     return app.titling.onTitling({ threadId, listener: setTitling })
   }, [app.titling, threadId])
 
+  /**
+   * The flag falls only once the answer has landed in the store (or nothing is coming): clearing
+   * it when the ask returned would drop the generating animation a beat before the rename echo
+   * arrives to stream the answer in.
+   */
+  const renameThroughStore = useCallback(
+    async (generated: string | null, clear: () => void): Promise<Renaming> => {
+      if (generated === null) {
+        clear()
+        return { type: ERenamed.Declined }
+      }
+      await threads.rename({ threadId, title: generated }).catch(() => notify(cloudRenameFailureNotice()))
+      clear()
+      return { type: ERenamed.Renamed, name: generated }
+    },
+    [threads, threadId],
+  )
+
   const nameFromTranscript = useCallback(async (): Promise<Renaming> => {
     const digest = await readDigest()
     if (digest.trim().length === 0) return { type: ERenamed.Empty }
 
     setNaming(true)
     const generated = await app.titler({ text: digest }).catch(() => null)
-    setNaming(false)
-    if (generated === null) return { type: ERenamed.Declined }
-
-    return { type: ERenamed.Renamed, name: generated }
-  }, [app, readDigest])
+    return renameThroughStore(generated, () => setNaming(false))
+  }, [app, readDigest, renameThroughStore])
 
   const renameSession = useCallback(
     async (argumentText: string): Promise<Renaming> => {
       if (!started.current) return { type: ERenamed.Empty }
 
       const given = sanitizedTitle(argumentText)
-      const renaming: Renaming =
-        given === null ? await nameFromTranscript() : { type: ERenamed.Renamed, name: given }
+      if (given !== null) {
+        setNaming(true)
+        return renameThroughStore(given, () => setNaming(false))
+      }
 
-      if (renaming.type !== ERenamed.Renamed) return renaming
-
-      await threads
-        .rename({ threadId, title: renaming.name })
-        .catch(() => notify(cloudRenameFailureNotice()))
-
-      return renaming
+      return nameFromTranscript()
     },
-    [app, nameFromTranscript, started, threads, threadId],
+    [nameFromTranscript, renameThroughStore, started],
   )
 
   return { name, naming: naming || titling, setName, renameSession }

@@ -8,7 +8,6 @@ import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
-import { SPINNER_FRAMES } from '../../ui/glyphs'
 import type { ClipboardImage, ClipboardImageReader } from '../../ui/clipboard-image'
 import { App } from '../app'
 import { open, until, THREAD, REPLY, THINKING } from './app-fixture'
@@ -262,10 +261,10 @@ describe('naming a session from its opening message', () => {
   })
 })
 
-const PENDING_TITLE = new RegExp(`[${SPINNER_FRAMES.join('')}] ${OPENING}`)
+const NOISE_CELL = /[·:∙]/
 
 describe('the fallback title while the titler is still answering', () => {
-  it('shimmers the opening line until the generated name lands', async () => {
+  it('runs the naming animation until the generated name lands', async () => {
     let release: () => void = () => undefined
     const gate = new Promise<void>((resolve) => {
       release = resolve
@@ -299,7 +298,7 @@ describe('the fallback title while the titler is still answering', () => {
       const pending = await until({
         holds: async () => {
           const shot = await frame()
-          return PENDING_TITLE.test(shot) && !shot.includes(NAME)
+          return NOISE_CELL.test(shot) && !shot.includes(NAME)
         },
         within: WITHIN_MS,
       })
@@ -310,7 +309,7 @@ describe('the fallback title while the titler is still answering', () => {
       const named = await until({
         holds: async () => {
           const shot = await frame()
-          return shot.includes(NAME) && !PENDING_TITLE.test(shot)
+          return shot.includes(NAME)
         },
         within: WITHIN_MS,
       })

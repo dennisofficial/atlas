@@ -24,6 +24,7 @@ import {
   EComposerTone,
 } from '../components/composer'
 import { composerNoticeCells } from '../components/composer-title'
+import { ENamingPhase, type NamingState } from '../components/naming-line'
 import { FRAME_INSET } from '../components/frame'
 import { PANEL_INSET, PANEL_PAD } from '../components/panel'
 import { ComposerHints, type Hint } from '../components/composer-hints'
@@ -54,6 +55,7 @@ function Draft(props: {
   title?: string
   width?: number
   accent?: string
+  naming?: NamingState | null
 }): React.ReactNode {
   const draft = useDraft(props.text ?? '')
   return (
@@ -65,6 +67,7 @@ function Draft(props: {
       {...(props.maxRows === undefined ? {} : { maxRows: props.maxRows })}
       {...(props.title === undefined ? {} : { title: props.title })}
       {...(props.accent === undefined ? {} : { accent: props.accent })}
+      {...(props.naming === undefined || props.naming === null ? {} : { naming: props.naming })}
     />
   )
 }
@@ -205,6 +208,47 @@ describe('the bordered composer', () => {
 
     expect(head).toContain(`${FRAME_HORIZONTAL} ${TITLE} ${FRAME_HORIZONTAL}`)
     expect(head).toEndWith(`${FRAME_HORIZONTAL}${FRAME_TOP_RIGHT}`)
+  })
+
+  it('the naming slab owns the title seat while a rename is out', async () => {
+    applyComposerEdge(EComposerEdge.Bordered)
+    const frame = await frameOf(
+      <Draft
+        title={TITLE}
+        naming={{
+          phase: ENamingPhase.Generating,
+          startCells: TITLE.length,
+          startedWithName: true,
+          target: null,
+          startedAt: Date.now(),
+        }}
+      />,
+      WIDTH,
+    )
+    const head = frame.split('\n').find((row) => row.startsWith(FRAME_TOP_LEFT)) ?? ''
+
+    expect(head).not.toContain(TITLE)
+    expect(head).toMatch(/[·:∙]/)
+  })
+
+  it('the naming slab settles into the answer on the rail', async () => {
+    applyComposerEdge(EComposerEdge.Bordered)
+    const frame = await frameOf(
+      <Draft
+        title={TITLE}
+        naming={{
+          phase: ENamingPhase.Streaming,
+          startCells: TITLE.length,
+          startedWithName: true,
+          target: 'Rejecting reused tokens',
+          startedAt: Date.now() - 10_000,
+        }}
+      />,
+      WIDTH,
+    )
+    const head = frame.split('\n').find((row) => row.startsWith(FRAME_TOP_LEFT)) ?? ''
+
+    expect(head).toContain('Rejecting reused tokens')
   })
 
   it('gives the corner its column back, so the title truncates a cell sooner', () => {

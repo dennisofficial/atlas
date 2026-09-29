@@ -3,12 +3,11 @@ import React from "react";
 import type { SidebarModel } from "../../../store/sidebar-model";
 import { costTone, formatUsd, spendFigures } from "../../../store/sidebar-spend";
 import { theme } from "../../theme";
-import { ShimmerLine } from "../shimmer-line";
+import { NAMING_SIDEBAR_LINE } from "../../naming-frames";
+import { NamingLine, type NamingState } from "../naming-line";
 import { truncateCells } from "./cells";
 
 const SEPARATOR = " · ";
-
-const SHIMMER_LEAD_CELLS = 2;
 
 const turnsAndCost = (model: SidebarModel): string => {
   const turns = `${model.turnCount} ${model.turnCount === 1 ? "turn" : "turns"}`;
@@ -43,20 +42,19 @@ function TurnsAndCostLine(props: { model: SidebarModel; cells: number }): React.
 export function HeadSection(props: {
   model: SidebarModel;
   cells: number;
+  /** The naming animation's state; set while a rename or first titling is in flight. */
+  naming?: NamingState | null | undefined;
 }): React.ReactNode {
   const { model } = props;
-  if (model.title === null && model.turnCount === 0) return null;
+  if (model.title === null && model.turnCount === 0 && props.naming == null) return null;
 
   const figures = spendFigures(model.spend);
 
   return (
     <box flexDirection="column" flexShrink={0}>
-      {model.title === null ? null : model.naming === true ? (
-        <ShimmerLine
-          label={truncateCells({ text: model.title, cells: props.cells - SHIMMER_LEAD_CELLS })}
-          base={theme.bright}
-        />
-      ) : (
+      {props.naming != null ? (
+        <NamingLine state={props.naming} line={NAMING_SIDEBAR_LINE} />
+      ) : model.title === null ? null : (
         <text fg={theme.bright}>
           {truncateCells({ text: model.title, cells: props.cells })}
         </text>
