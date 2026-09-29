@@ -22,7 +22,8 @@ describe('durableOpLog', () => {
     await log?.settled()
 
     const file = join(process.env.ATLAS_HOME ?? '', 'logs.jsonl')
-    const parsed = JSON.parse(readFileSync(file, 'utf8').trim()) as Record<string, unknown>
+    const lines = readFileSync(file, 'utf8').trim().split('\n')
+    const parsed = JSON.parse(lines[lines.length - 1] ?? '') as Record<string, unknown>
 
     expect(parsed.v).toBe(1)
     expect(parsed.severity).toBe('error')
