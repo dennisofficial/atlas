@@ -1,4 +1,4 @@
-import type { EventDraft, ThreadId } from '@dltech/atlas-core'
+import { endingIsSpeech, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 
 import type { AgentSnapshot } from './snapshot'
 
@@ -8,6 +8,10 @@ export enum EAgentNotice {
   Report = 'report',
 }
 
+/** A child's ending lands as speech or as bookkeeping according to its type's speech model. */
+export const endingNoticeKind = (agentType: string): EAgentNotice =>
+  endingIsSpeech(agentType) ? EAgentNotice.Ending : EAgentNotice.QuietEnding
+
 export type AgentNotice = {
   threadId: ThreadId
   snapshot: AgentSnapshot
@@ -16,6 +20,9 @@ export type AgentNotice = {
 }
 
 const wakesThread = (notice: AgentNotice): boolean => notice.kind !== EAgentNotice.QuietEnding
+
+/** Bookkeeping the model never sees cannot wake a turn, so it cannot continue one either. */
+export const isTurnTakingNotice = (notice: AgentNotice): boolean => wakesThread(notice)
 
 const NOTHING_PENDING: readonly AgentNotice[] = Object.freeze([])
 

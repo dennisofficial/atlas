@@ -171,7 +171,7 @@ describe('an ending', () => {
     await opened.supervisor.closeAll()
 
     const drafts = opened.supervisor.drainNotifications({ threadId: opened.parent })
-    expect(drafts).toEqual([
+    expect(drafts.drafts).toEqual([
       {
         type: 'agent-ended',
         agentId,
@@ -194,7 +194,7 @@ describe('an ending', () => {
     await opened.supervisor.closeAll()
 
     expect(opened.supervisor.threadsAwaitingNotice()).toEqual([opened.parent])
-    expect(opened.supervisor.drainNotifications({ threadId: stranger })).toEqual([])
+    expect(opened.supervisor.drainNotifications({ threadId: stranger }).drafts).toEqual([])
     expect(opened.supervisor.pendingNotices({ threadId: opened.parent })).toHaveLength(1)
   })
 
@@ -235,7 +235,7 @@ describe('stopping', () => {
     opened.runners.started[0]?.settle(interrupted())
     await opened.supervisor.closeAll()
 
-    const [draft] = opened.supervisor.drainNotifications({ threadId: opened.parent })
+    const [draft] = opened.supervisor.drainNotifications({ threadId: opened.parent }).drafts
     expect(draft?.type === 'agent-ended' ? draft.status : undefined).toBe(EAgentStatus.Stopped)
   })
 
@@ -350,7 +350,7 @@ describe('surviving the process that spawned them', () => {
     opened.runners.started[0]?.observe(said('nothing calls it'))
     opened.runners.started[0]?.settle(finished())
     await opened.supervisor.closeAll()
-    const drafts = opened.supervisor.drainNotifications({ threadId: opened.parent })
+    const drafts = opened.supervisor.drainNotifications({ threadId: opened.parent }).drafts
     await opened.harness.log.append({
       threadId: opened.parent,
       runId: opened.harness.ids.nextRunId(),

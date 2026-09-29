@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EStage, type AfterTurn } from '@dltech/atlas-core'
+import { EAgentStatus, EStage, type AfterTurn } from '@dltech/atlas-core'
 
 import { ETurnStatus } from '..'
 import { HookChain } from '../../hooks/registry'
@@ -152,5 +152,31 @@ describe('a message written straight to the log behind the loop', () => {
     const message = outcome.status === ETurnStatus.Failed ? outcome.message : ''
     expect(message).toContain(spoken?.id ?? 'no event')
     expect(message).toMatch(/prefill/)
+  })
+})
+
+describe('bookkeeping drained mid-turn', () => {
+  it('is written to the log but never continues the turn, so the exchange cannot end on the assistant', async () => {
+    const { runner, harness, threadId, queue } = await openSteerable({
+      script: [{ text: 'the report is answered' }],
+    })
+
+    queue.queue({
+      type: 'agent-ended',
+      agentId: 'brn_quiet' as never,
+      agentType: 'teammate',
+      intent: 'a peer that already reported',
+      status: EAgentStatus.Finished,
+      prose: 'work is done',
+      turns: 3,
+      toolCalls: 9,
+    })
+
+    const outcome = await runner.say({ threadId, text: 'how is the work going' })
+
+    expect(outcome.status).toBe(ETurnStatus.Completed)
+    const events = await harness.log.read({ threadId })
+    expect(events.some((event) => event.type === 'agent-ended')).toBe(true)
+    expect(events.at(-1)?.type).toBe('assistant-said')
   })
 })

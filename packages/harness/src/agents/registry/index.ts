@@ -1,4 +1,5 @@
 export { AgentRegistryPort, type AgentOutcome, type RelocateChildrenArgs } from './port'
+export type { NoticeDrain } from './delivery'
 export { AgentSupervisor } from './supervisor'
 export { AGENT_TYPE_PROMPT_PART, subAgentPrompt } from './child-prompt'
 export {

@@ -46,7 +46,7 @@ import { portToken, type DependencyContainer } from '../container/injection'
 import { DeltaChannelToken, HookChainToken, SessionRegistryToken } from '../container/tokens'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import { jevLoopWatch } from '../loop/loop-watchdog'
-import type { TurnDeps } from '../loop/run-turn'
+import type { PendingDrain, TurnDeps } from '../loop/run-turn'
 
 import { ChildWake } from './child-wake'
 import { TitlingTurnRunner } from './titling-turn-runner'
@@ -72,14 +72,14 @@ import { createUsageTracker } from './usage-tracker'
 import { faultInjected } from './fault-injection'
 import type { ModelCatalogue } from './model-catalogue'
 import type { SelectableModel } from './model-selection'
-import { teardownSession } from './session-teardown'
+import { teardownSession, type TeardownSource } from './session-teardown'
 
 export type TurnWiring = {
   turn: TurnDeps
   runner: TurnRunner
   turnPolicy: TurnPolicy
   titling: TitlingTurnRunner
-  drainNotices: (args: { threadId: ThreadId }) => Promise<readonly EventDraft[]>
+  drainNotices: (args: { threadId: ThreadId }) => Promise<PendingDrain>
   recordTeardownEndings: () => Promise<void>
 }
 
@@ -152,8 +152,13 @@ export function wireTurn<Command>(args: {
 
   const recordTeardownEndings = async (): Promise<void> => {
     childWake.dispose()
+    const agentEndings: TeardownSource = {
+      closeAll: () => agents.closeAll(),
+      threadsAwaitingNotice: () => agents.threadsAwaitingNotice(),
+      drainNotifications: ({ threadId }) => agents.drainNotifications({ threadId }).drafts,
+    }
     await teardownSession({
-      sources: [shells, agents, services],
+      sources: [shells, agentEndings, services],
       log,
       ids,
       stopSandbox: args.stopSandbox,
@@ -199,11 +204,17 @@ export function wireTurn<Command>(args: {
     threadId,
   }: {
     threadId: ThreadId
-  }): Promise<readonly EventDraft[]> => [
-    ...shells.drainNotifications({ threadId }),
-    ...agents.drainNotifications({ threadId }),
-    ...services.drainNotifications({ threadId }),
-  ]
+  }): Promise<PendingDrain> => {
+    const agentDrain = agents.drainNotifications({ threadId })
+    return {
+      drafts: [
+        ...shells.drainNotifications({ threadId }),
+        ...agentDrain.drafts,
+        ...services.drainNotifications({ threadId }),
+      ],
+      wakesTurn: agentDrain.wakesTurn,
+    }
+  }
 
   const compiledPrompt = ({ projectDirectory }: { projectDirectory: string }) =>
     prompts.compile(
@@ -237,10 +248,14 @@ export function wireTurn<Command>(args: {
     tools: args.declarations,
     dispatch: container.resolve(portToken(ToolDispatcher)),
     hooks: container.resolve(HookChainToken),
-    drainPending: async (drained) => [
-      ...(await drainNotices(drained)),
-      ...pending.forThread({ threadId: drained.threadId }).drain().map(userSaidDraft),
-    ],
+    drainPending: async (drained) => {
+      const notices = await drainNotices(drained)
+      const typed = pending.forThread({ threadId: drained.threadId }).drain().map(userSaidDraft)
+      return {
+        drafts: [...notices.drafts, ...typed],
+        wakesTurn: notices.wakesTurn || typed.length > 0,
+      }
+    },
     spend: { ledger, clock: container.resolve(portToken(ClockPort)) },
     compact: compactBeforeOverflow,
     applyLoopCut: createLoopCut({

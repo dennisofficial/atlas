@@ -61,6 +61,12 @@ import { committedSinceLastMessage, messageArrivedSince } from './turn-position'
 import { ETurnStatus, type TurnOutcome } from './turn-outcome'
 import { TurnRunner } from './turn-runner.port'
 
+export type PendingDrain = {
+  drafts: readonly EventDraft[]
+  /** False when every drained draft is bookkeeping the model never sees — it is logged, never answered. */
+  wakesTurn: boolean
+}
+
 export type TurnDeps = {
   log: EventLogPort
   logPort?: LogPort | undefined
@@ -75,7 +81,7 @@ export type TurnDeps = {
   dispatch?: ToolDispatcher | undefined
   hooks?: HookChain | undefined
   drainPending?:
-    | ((args: { threadId: ThreadId }) => Promise<readonly EventDraft[]>)
+    | ((args: { threadId: ThreadId }) => Promise<PendingDrain>)
     | undefined
   spend?: TurnLedgerDeps | undefined
   compact?: ((args: { threadId: ThreadId }) => Promise<boolean>) | undefined
@@ -101,7 +107,7 @@ export class LoopTurnRunner extends TurnRunner {
   private readonly onContext: ((args: { tokens: number; window: number }) => void) | undefined
   private readonly hooks: HookChain | undefined
   private readonly drainPending:
-    | ((args: { threadId: ThreadId }) => Promise<readonly EventDraft[]>)
+    | ((args: { threadId: ThreadId }) => Promise<PendingDrain>)
     | undefined
   private readonly spend: TurnLedgerDeps | undefined
   private readonly settlePending: SettlePending | undefined
@@ -255,10 +261,25 @@ export class LoopTurnRunner extends TurnRunner {
     if (this.drainPending === undefined) return false
 
     const waiting = await this.drainPending({ threadId })
-    if (waiting.length === 0) return false
+    if (waiting.drafts.length === 0) return false
 
-    await this.log.append({ threadId, runId: this.ids.nextRunId(), drafts: waiting })
+    await this.log.append({ threadId, runId: this.ids.nextRunId(), drafts: waiting.drafts })
     return true
+  }
+
+  /**
+   * Drained bookkeeping that never reaches the model — a deliberate-report agent's ending — is
+   * written to the log but cannot continue a turn: the assembled prompt would hold nothing new
+   * for the model to answer.
+   */
+  private async drainSpeechInto({ threadId }: { threadId: ThreadId }): Promise<boolean> {
+    if (this.drainPending === undefined) return false
+
+    const waiting = await this.drainPending({ threadId })
+    if (waiting.drafts.length === 0) return false
+
+    await this.log.append({ threadId, runId: this.ids.nextRunId(), drafts: waiting.drafts })
+    return waiting.wakesTurn
   }
 
   private async trackedTurn({
@@ -510,7 +531,7 @@ export class LoopTurnRunner extends TurnRunner {
         silentSteps = 0
         continue
       }
-      if (await this.drainInto({ threadId })) {
+      if (await this.drainSpeechInto({ threadId })) {
         silentSteps = 0
         continue
       }

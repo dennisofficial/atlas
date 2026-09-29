@@ -14,7 +14,7 @@ import type { DeltaChannel } from '../../channel/delta-channel'
 import { PublishingTurnRunner } from '../../channel/publishing-turn-runner'
 import { withoutSpawnableListing } from '../../tools/builtin/agent-spawn'
 import type { HookChain } from '../../hooks/registry'
-import type { TurnDeps } from '../../loop/run-turn'
+import type { PendingDrain, TurnDeps } from '../../loop/run-turn'
 import type { TurnRunner } from '../../loop/turn-runner.port'
 import { HookedToolDispatcher } from '../../tools/dispatch'
 import { filteredToolRegistry, type ToolRegistry } from '../../tools/registry'
@@ -42,7 +42,7 @@ export type ChildRunnerDeps = {
     agentType: AgentType
     projectDirectory?: string | undefined
   }) => AssemblyPipeline
-  drainNotices: (args: { threadId: ThreadId }) => Promise<readonly EventDraft[]>
+  drainNotices: (args: { threadId: ThreadId }) => Promise<PendingDrain>
   modelFor?: ((args: { agentType: AgentType }) => ModelPort) | undefined
 }
 
@@ -149,7 +149,14 @@ export function buildChildRunner({
         logPort: turn.logPort,
       }),
       assembly: deps.assemblyFor({ agentType, projectDirectory }),
-      drainPending: async (args) => [...steerDrafts(steering()), ...(await deps.drainNotices(args))],
+      drainPending: async (args) => {
+        const steered = steerDrafts(steering())
+        const notices = await deps.drainNotices(args)
+        return {
+          drafts: [...steered, ...notices.drafts],
+          wakesTurn: steered.length > 0 || notices.wakesTurn,
+        }
+      },
     },
   })
 }

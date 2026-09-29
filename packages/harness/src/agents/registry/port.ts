@@ -1,6 +1,7 @@
 import type { EExecutionLocation, EKilledBy, EventDraft, SaidFile, SaidImage, ThreadId } from '@dltech/atlas-core'
 
 import type { AgentType } from '../types'
+import type { NoticeDrain } from './delivery'
 import type { AgentSnapshot, RecoveredAgents } from './snapshot'
 
 export type AgentOutcome = { ok: true; snapshot: AgentSnapshot } | { ok: false; reason: string }
@@ -58,7 +59,7 @@ export abstract class AgentRegistryPort {
   }): Promise<void>
   abstract recordLostAgents(args: { threadId: ThreadId }): Promise<RecoveredAgents>
   abstract listEverywhere(): readonly AgentSnapshot[]
-  abstract drainNotifications(args: { threadId: ThreadId }): readonly EventDraft[]
+  abstract drainNotifications(args: { threadId: ThreadId }): NoticeDrain
   abstract pendingNotices(args: { threadId: ThreadId }): readonly AgentSnapshot[]
   abstract threadsAwaitingNotice(): readonly ThreadId[]
   abstract onNotice(listener: () => void): () => void

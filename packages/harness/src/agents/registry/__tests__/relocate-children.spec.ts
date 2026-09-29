@@ -5,6 +5,7 @@ import {
   EExecutionLocation,
   EKilledBy,
   ExecutionLocationSinkPort,
+  type EventDraft,
   type EventLogPort,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -195,7 +196,7 @@ describe('relocating a stepping child', () => {
 
     const endings = entry.supervisor
       .drainNotifications({ threadId: entry.parent })
-      .flatMap((draft) => (draft.type === 'agent-ended' ? [draft] : []))
+      .drafts.flatMap((draft: EventDraft) => (draft.type === 'agent-ended' ? [draft] : []))
     expect(endings[0]?.killedBy).toBe(EKilledBy.ContainerSwitch)
     expect(endings[1]?.status).toBe(EAgentStatus.Finished)
   })

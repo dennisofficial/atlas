@@ -99,7 +99,7 @@ describe('a stopped teammate across a simulated move', () => {
     first.runners.started[0]?.settle(interrupted())
     await settled()
 
-    await appendAsParent(first, first.supervisor.drainNotifications({ threadId: first.parent }))
+    await appendAsParent(first, first.supervisor.drainNotifications({ threadId: first.parent }).drafts)
     await first.supervisor.closeAll()
 
     const second = await reopenAfter(first)
@@ -158,7 +158,7 @@ describe('resuming a terminal agent', () => {
     first.supervisor.stop({ agentId: teammateId, threadId: first.parent, by: EKilledBy.User })
     first.runners.started[0]?.settle(interrupted())
     await settled()
-    await appendAsParent(first, first.supervisor.drainNotifications({ threadId: first.parent }))
+    await appendAsParent(first, first.supervisor.drainNotifications({ threadId: first.parent }).drafts)
     await first.supervisor.closeAll()
 
     const second = await reopenAfter(first)

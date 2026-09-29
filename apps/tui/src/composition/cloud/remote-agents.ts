@@ -10,6 +10,7 @@ import {
   type AgentOutcome,
   type AgentSnapshot,
   type AgentType,
+  type NoticeDrain,
   type RecoveredAgents,
   type RelocateChildrenArgs,
 } from '@dltech/atlas-harness'
@@ -141,8 +142,8 @@ export class RemoteAgentRegistry extends AgentRegistryPort {
     return this.heldEverywhere
   }
 
-  drainNotifications(_args: { threadId: ThreadId }): readonly EventDraft[] {
-    return []
+  drainNotifications(_args: { threadId: ThreadId }): NoticeDrain {
+    return { drafts: [], wakesTurn: false }
   }
 
   pendingNotices(_args: { threadId: ThreadId }): readonly AgentSnapshot[] {

@@ -26,7 +26,7 @@ async function spawnAndPause(): Promise<{ status: EAgentStatus; turns: number; c
   open.runners.started[0]?.settle(paused())
   await open.supervisor.closeAll()
 
-  const [draft] = open.supervisor.drainNotifications({ threadId: open.parent })
+  const [draft] = open.supervisor.drainNotifications({ threadId: open.parent }).drafts
   if (draft?.type !== 'agent-ended') throw new Error('the parent was told nothing')
 
   return { status: draft.status, turns: draft.turns, calls: draft.toolCalls }

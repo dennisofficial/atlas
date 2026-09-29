@@ -755,12 +755,17 @@ export function fakeApp(args: {
           drainFailures -= 1
           throw new Error('the drain fell over')
         }
-        return [
-          ...shells.drainNotifications({ threadId }),
-          ...agents.drainNotifications({ threadId }),
-          ...services.drainNotifications({ threadId }),
-          ...pending.forThread({ threadId }).drain().map(userSaidDraft),
-        ]
+        const agentDrain = agents.drainNotifications({ threadId })
+        const typed = pending.forThread({ threadId }).drain().map(userSaidDraft)
+        return {
+          drafts: [
+            ...shells.drainNotifications({ threadId }),
+            ...agentDrain.drafts,
+            ...services.drainNotifications({ threadId }),
+            ...typed,
+          ],
+          wakesTurn: agentDrain.wakesTurn || typed.length > 0,
+        }
       },
     },
   })

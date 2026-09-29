@@ -75,7 +75,7 @@ async function childTurnWatched(): Promise<{
       tools: new InMemoryToolRegistry([]),
       hooks: new HookChain({}),
       channel,
-      drainNotices: async () => [],
+      drainNotices: async () => ({ drafts: [], wakesTurn: false }),
       assemblyFor: () => assembly,
     },
   })

@@ -82,7 +82,7 @@ const rewindToStart = (entry: OpenedSupervisor, confirmed = true) =>
   })
 
 const deliverNotices = async (entry: OpenedSupervisor): Promise<void> => {
-  const drafts = entry.supervisor.drainNotifications({ threadId: entry.parent })
+  const drafts = entry.supervisor.drainNotifications({ threadId: entry.parent }).drafts
   if (drafts.length === 0) return
   await entry.harness.log.append({
     threadId: entry.parent,
@@ -237,7 +237,7 @@ describe('a sub-agent whose delegation a rewind deletes', () => {
     expect(await rewindToStart(entry)).toMatchObject({ ok: true })
 
     expect(entry.supervisor.pendingNotices({ threadId: entry.parent })).toHaveLength(0)
-    expect(entry.supervisor.drainNotifications({ threadId: entry.parent })).toHaveLength(0)
+    expect(entry.supervisor.drainNotifications({ threadId: entry.parent }).drafts).toHaveLength(0)
   })
 
   it('asks before cutting a child still on its first step, then aborts it once confirmed', async () => {
@@ -281,7 +281,7 @@ describe('a sub-agent whose delegation a rewind deletes', () => {
 
     running.settle(finished())
     await settled()
-    expect(entry.supervisor.drainNotifications({ threadId: entry.parent })).toHaveLength(0)
+    expect(entry.supervisor.drainNotifications({ threadId: entry.parent }).drafts).toHaveLength(0)
 
     await entry.supervisor.closeAll()
   })
@@ -308,7 +308,7 @@ describe('a sub-agent whose delegation a rewind deletes', () => {
 
     running.settle(finished())
     await settled()
-    expect(entry.supervisor.drainNotifications({ threadId: entry.parent })).toHaveLength(0)
+    expect(entry.supervisor.drainNotifications({ threadId: entry.parent }).drafts).toHaveLength(0)
 
     await entry.supervisor.closeAll()
   })

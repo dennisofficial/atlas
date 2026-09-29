@@ -197,22 +197,25 @@ export function fakeAgentRegistry(args: { threads?: FakeThreadStore | undefined 
 
     drainNotifications: ({ threadId }) => {
       const handed = ended.filter((one) => one.spawnedBy === threadId)
-      if (handed.length === 0) return []
+      if (handed.length === 0) return { drafts: [], wakesTurn: false }
 
       announce(ended.filter((one) => one.spawnedBy !== threadId))
-      return handed.map(
-        (snapshot): EventDraft => ({
-          type: 'agent-ended',
-          agentId: snapshot.agentId,
-          agentType: snapshot.agentType,
-          intent: snapshot.intent,
-          status: snapshot.status,
-          prose: `${snapshot.agentType} finished`,
-          turns: snapshot.turns,
-          toolCalls: snapshot.toolCalls,
-          ...(snapshot.killedBy === undefined ? {} : { killedBy: snapshot.killedBy }),
-        }),
-      )
+      return {
+        drafts: handed.map(
+          (snapshot): EventDraft => ({
+            type: 'agent-ended',
+            agentId: snapshot.agentId,
+            agentType: snapshot.agentType,
+            intent: snapshot.intent,
+            status: snapshot.status,
+            prose: `${snapshot.agentType} finished`,
+            turns: snapshot.turns,
+            toolCalls: snapshot.toolCalls,
+            ...(snapshot.killedBy === undefined ? {} : { killedBy: snapshot.killedBy }),
+          }),
+        ),
+        wakesTurn: true,
+      }
     },
 
     pendingNotices: ({ threadId }) => pending(threadId),

@@ -120,7 +120,7 @@ describe('when a finished child counts as delivered', () => {
     const drafts = supervisor.drainNotifications({ threadId: parent })
     const next = clock.now()
 
-    expect(drafts).toHaveLength(1)
+    expect(drafts.drafts).toHaveLength(1)
     const delivered = deliveryOf({ supervisor, threadId: parent, agentId })
     expect(delivered).toBeDefined()
     expect(delivered !== undefined && delivered < next).toBe(true)
