@@ -940,12 +940,12 @@ function Workspace(props: {
    * from the full sidebar row. Each surface clamps the glide to what its own row can hold.
    */
   const namingAnimation = useNamingAnimation({ fallbackCells: TITLE_CELLS })
-  const namingWatch = useRef({ threadId: conversation.threadId, active: false })
+  const namingWatch = useRef({ threadId: conversation.threadId, active: false, streamed: null as string | null })
   useEffect(() => {
     const watching = namingWatch.current
     const request = conversation.namingRequest
     if (watching.threadId !== conversation.threadId) {
-      namingWatch.current = { threadId: conversation.threadId, active: false }
+      namingWatch.current = { threadId: conversation.threadId, active: false, streamed: null }
       namingAnimation.end()
       return
     }
@@ -955,17 +955,27 @@ function Workspace(props: {
      * so watching `naming` never observed the generating phase at all and the title snapped straight
      * to the new name. The request object carries both halves: `from` (the name on screen when the
      * ask started) begins the generating phase, and `answer` (set the moment the rename resolves,
-     * held for a settle window after) is what the stream paints.
+     * held for a settle window after) is what the stream paints. `stream` runs once per answer —
+     * re-calling it on every commit would re-arm the stream's own timer and hold the phase at
+     * generating forever.
      */
     if (request !== null && !watching.active) {
       watching.active = true
+      watching.streamed = null
       namingAnimation.begin(request.from)
-      if (request.answer !== null) namingAnimation.stream(request.answer)
+      if (request.answer !== null) {
+        watching.streamed = request.answer
+        namingAnimation.stream(request.answer)
+      }
       return
     }
-    if (request !== null && request.answer !== null) namingAnimation.stream(request.answer)
+    if (request !== null && request.answer !== null && watching.streamed !== request.answer) {
+      watching.streamed = request.answer
+      namingAnimation.stream(request.answer)
+    }
     if (request === null && watching.active) {
       watching.active = false
+      watching.streamed = null
       namingAnimation.end()
     }
   }) // every commit: the watch is a transition detector, not a dependency list
