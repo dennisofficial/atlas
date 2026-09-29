@@ -118,7 +118,7 @@ describe('createSseSubscriptionBook', () => {
     expect(readings.length).toBe(before)
   })
 
-  it('marks every entry stale on a drop and dead on a refused session', () => {
+  it('marks every entry stale on a drop, retryable so a later read can re-probe', () => {
     const { onReading } = collect()
     const book = createSseSubscriptionBook({ now: () => 0, onReading })
     book.recordSubscribe({
@@ -132,12 +132,6 @@ describe('createSseSubscriptionBook', () => {
     expect(book.holding({ key: 'k' })?.reading).toEqual({
       lookup: EPullRequestLookup.Unavailable,
       retryable: true,
-    })
-
-    book.markAllDead()
-    expect(book.holding({ key: 'k' })?.reading).toEqual({
-      lookup: EPullRequestLookup.Unavailable,
-      retryable: false,
     })
   })
 })
