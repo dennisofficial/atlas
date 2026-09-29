@@ -104,6 +104,93 @@ describe('createSseSubscriptionBook', () => {
     expect(readings).toHaveLength(0)
   })
 
+  it('routes a discovery frame by branch to an Absent entry, then by number', () => {
+    const { readings, onReading } = collect()
+    const book = createSseSubscriptionBook({ now: () => 0, onReading })
+    const reading = book.recordSubscribe({
+      key: 'k',
+      handle: { id: 'sub-1', repoFullName: 'owner/repo' },
+      by: { kind: 'branch', branch: 'feature' },
+      state: null,
+    })
+    expect(reading.lookup).toBe(EPullRequestLookup.Absent)
+
+    book.applyFrame({ data: JSON.stringify(state()) })
+
+    const discovered = readings[readings.length - 1]
+    expect(discovered?.lookup).toBe(EPullRequestLookup.Found)
+
+    book.applyFrame({
+      data: JSON.stringify(state({ headBranch: 'renamed-away', checksRunning: 0, checksPassed: 3 })),
+    })
+    const held = book.holding({ key: 'k' })
+    if (held?.reading.lookup !== EPullRequestLookup.Found) throw new Error('expected found')
+    expect(held.reading.pullRequest.checks).toBe(EChecksState.Passing)
+  })
+
+  it('drops a frame that matches neither a known PR nor a subscribed branch', () => {
+    const { readings, onReading } = collect()
+    const book = createSseSubscriptionBook({ now: () => 0, onReading })
+    book.recordSubscribe({
+      key: 'k',
+      handle: { id: 'sub-1', repoFullName: 'owner/repo' },
+      by: { kind: 'branch', branch: 'feature' },
+      state: null,
+    })
+    const before = readings.length
+
+    book.applyFrame({ data: JSON.stringify(state({ prNumber: 99, headBranch: 'other-branch' })) })
+
+    expect(readings.length).toBe(before)
+    expect(book.holding({ key: 'k' })?.reading.lookup).toBe(EPullRequestLookup.Absent)
+  })
+
+  it('hands the number identity over when a resubscribe moves the entry to a new PR', () => {
+    const { onReading } = collect()
+    const book = createSseSubscriptionBook({ now: () => 0, onReading })
+    book.recordSubscribe({
+      key: 'k',
+      handle: { id: 'sub-1', repoFullName: 'owner/repo' },
+      by: { kind: 'branch', branch: 'feature' },
+      state: state(),
+    })
+    book.recordResubscribe({
+      key: 'k',
+      handle: { id: 'sub-2', repoFullName: 'owner/repo' },
+      state: state({ prNumber: 43, url: 'https://github.com/owner/repo/pull/43' }),
+    })
+
+    book.applyFrame({ data: JSON.stringify(state({ prNumber: 42, checksRunning: 0, checksPassed: 9 })) })
+    let held = book.holding({ key: 'k' })
+    if (held?.reading.lookup !== EPullRequestLookup.Found) throw new Error('expected found')
+    expect(held.reading.pullRequest.tally.running).toBe(1)
+
+    book.applyFrame({
+      data: JSON.stringify(state({ prNumber: 43, url: 'https://github.com/owner/repo/pull/43', checksRunning: 0, checksPassed: 5 })),
+    })
+    held = book.holding({ key: 'k' })
+    if (held?.reading.lookup !== EPullRequestLookup.Found) throw new Error('expected found')
+    expect(held.reading.pullRequest.number).toBe(43)
+    expect(held.reading.pullRequest.tally.passed).toBe(5)
+  })
+
+  it('forgets branch routing on clear', () => {
+    const { readings, onReading } = collect()
+    const book = createSseSubscriptionBook({ now: () => 0, onReading })
+    book.recordSubscribe({
+      key: 'k',
+      handle: { id: 'sub-1', repoFullName: 'owner/repo' },
+      by: { kind: 'branch', branch: 'feature' },
+      state: null,
+    })
+    book.clear()
+    const before = readings.length
+
+    book.applyFrame({ data: JSON.stringify(state()) })
+
+    expect(readings.length).toBe(before)
+  })
+
   it('does not re-emit when a frame restates the shown reading', () => {
     const { readings, onReading } = collect()
     const book = createSseSubscriptionBook({ now: () => 0, onReading })

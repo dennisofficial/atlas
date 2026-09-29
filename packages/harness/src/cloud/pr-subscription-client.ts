@@ -22,6 +22,8 @@ const stateSchema = z.strictObject({
 // the rest pass, so a server field we do not read never breaks the subscribe.
 const subscribeResponseSchema = z.object({
   id: z.string().min(1),
+  prNumber: z.number().int().positive().nullable(),
+  branch: z.string().optional(),
   pollBacked: z.boolean(),
   expiresAt: z.string(),
   state: stateSchema.nullable(),
@@ -33,6 +35,7 @@ export type SubscriptionOutcome = {
   id: string
   pollBacked: boolean
   state: SubscriptionPrState | null
+  branch: string | null
 }
 
 export type SubscriptionHandle = { id: string; repoFullName: string }
@@ -84,7 +87,12 @@ export class PrSubscriptionClient {
       },
     })
     const parsed = subscribeResponseSchema.parse(body)
-    return { id: parsed.id, pollBacked: parsed.pollBacked, state: parsed.state }
+    return {
+      id: parsed.id,
+      pollBacked: parsed.pollBacked,
+      state: parsed.state,
+      branch: parsed.branch ?? null,
+    }
   }
 
   async heartbeat(args: { id: string }): Promise<void> {

@@ -38,6 +38,80 @@ const CHECKOUT: RepositoryCheckout = {
 const respond = (body: unknown, status = 201): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 
+describe('SsePullRequestPort discovery', () => {
+  const realFetch = globalThis.fetch
+  afterEach(() => {
+    globalThis.fetch = realFetch
+  })
+
+  it('holds an Absent entry from a state-null subscribe and answers repeats from the book', async () => {
+    let subscribes = 0
+    let streamAttempts = 0
+    globalThis.fetch = (async (url: unknown, init: { body?: string } = {}) => {
+      const target = String(url)
+      if (target.endsWith('/v1/github/subscriptions')) {
+        subscribes += 1
+        return respond({
+          id: 'sub_1',
+          repoFullName: 'owner/repo',
+          prNumber: null,
+          branch: 'feature',
+          pollBacked: false,
+          expiresAt: '2026-09-29T21:00:00.000Z',
+          state: null,
+        })
+      }
+      if (target.endsWith('/v1/github/prs/stream')) {
+        streamAttempts += 1
+        return new Promise<Response>(() => {})
+      }
+      return respond({})
+    }) as unknown as typeof fetch
+
+    const readings: { lookup: EPullRequestLookup }[] = []
+    const port = new SsePullRequestPort({
+      session: SESSION,
+      clientVersion: 'test',
+      onReading: ({ reading }) => readings.push(reading),
+      clock: { now: () => 0 },
+    })
+
+    const first = await port.read({ checkout: CHECKOUT })
+    expect(first.lookup).toBe(EPullRequestLookup.Absent)
+    expect(streamAttempts).toBe(1)
+
+    const second = await port.read({ checkout: CHECKOUT })
+    expect(second.lookup).toBe(EPullRequestLookup.Absent)
+    expect(subscribes).toBe(1)
+  }, 10_000)
+
+  it('keeps a legacy 404 branch subscribe out of the book so the next read re-probes', async () => {
+    let subscribes = 0
+    globalThis.fetch = (async (url: unknown) => {
+      const target = String(url)
+      if (target.endsWith('/v1/github/subscriptions')) {
+        subscribes += 1
+        return respond({ message: 'no open pull request for branch' }, 404)
+      }
+      if (target.endsWith('/v1/github/prs/stream')) return new Promise<Response>(() => {})
+      return respond({})
+    }) as unknown as typeof fetch
+
+    const port = new SsePullRequestPort({
+      session: SESSION,
+      clientVersion: 'test',
+      onReading: () => {},
+      clock: { now: () => 0 },
+    })
+
+    const reading = await port.read({ checkout: CHECKOUT })
+    expect(reading).toEqual({ lookup: EPullRequestLookup.Unavailable, retryable: true })
+
+    await port.read({ checkout: CHECKOUT })
+    expect(subscribes).toBe(2)
+  }, 10_000)
+})
+
 describe('SsePullRequestPort recovery', () => {
   const realFetch = globalThis.fetch
   afterEach(() => {
