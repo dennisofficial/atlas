@@ -5,8 +5,17 @@ import { ENoticeTone, notify } from '../ui/notice-store'
 
 const LEFT_BUTTON = 0
 
-const isPlainClick = (args: { event: MouseEvent; origin: { x: number; y: number } | null }): boolean =>
-  args.origin !== null && args.origin.x === args.event.x && args.origin.y === args.event.y
+/**
+ * A clean click and a sloppy one land within a couple of cells of where they pressed; a copy-drag
+ * travels across the text it highlights. A short movement budget is what separates them —
+ * selection coverage cannot, because OpenTUI fills a wrapped text's whole span the moment a drag
+ * crosses a row, so a drift onto an empty row still "selects" the link.
+ */
+const OPEN_TRAVEL_CELLS = 3
+
+const withinTravel = (args: { from: { x: number; y: number }; event: MouseEvent }): boolean =>
+  Math.max(Math.abs(args.from.x - args.event.x), Math.abs(args.from.y - args.event.y)) <=
+  OPEN_TRAVEL_CELLS
 
 const hoverListeners = new Set<() => void>()
 
@@ -34,11 +43,11 @@ export function notifyLinkHover(url: string | null): void {
  * because mouse events bubble child-to-parent: every link the app renders arrives here unless a
  * component on the path already claimed the click.
  *
- * The gesture is a plain click — press and release inside one cell. A press that moves off the
- * cell is a drag and stays drag-to-select even when it started on a link, so the transcript's
- * selectable prose keeps winning on every gesture that is not an unambiguous click. Hovering a
- * link washes the cell and switches the pointer to a hand, the affordance AGENTS.md asks of
- * anything clickable.
+ * The gesture is a press-and-release: the link opens when the press started or ended on it, even
+ * if the pointer drifted between the two — so a sloppy click still opens. A drag that actually
+ * highlights text is a copy, not an open, so link text stays selectable. Hovering a link washes
+ * the cell and switches the pointer to a hand, the affordance AGENTS.md asks of anything
+ * clickable.
  *
  * This is a designated raw-mouse owner alongside use-press.ts (see press-discipline.spec.ts):
  * usePress cannot express it, because its release handler fires only per-renderable — a
@@ -53,6 +62,7 @@ export function installLinkClickOpen(args: {
   const { renderer, openUrl, openFile } = args
 
   let origin: { x: number; y: number } | null = null
+  let originUrl: string | null = null
   let pointerOnLink = false
 
   renderer.root.onMouseMove = (event) => {
@@ -68,16 +78,20 @@ export function installLinkClickOpen(args: {
     if (event.button !== LEFT_BUTTON) return
     if (event.propagationStopped || event.defaultPrevented) return
     origin = { x: event.x, y: event.y }
+    originUrl = renderer.getLinkAt(event.x, event.y)
   }
 
   renderer.root.onMouseUp = (event) => {
     const start = origin
+    const pressed = originUrl
     origin = null
+    originUrl = null
     if (event.button !== LEFT_BUTTON) return
     if (event.propagationStopped || event.defaultPrevented) return
-    if (!isPlainClick({ event, origin: start })) return
+    if (start === null) return
+    if (!withinTravel({ from: start, event })) return
 
-    const url = renderer.getLinkAt(event.x, event.y)
+    const url = renderer.getLinkAt(event.x, event.y) ?? pressed
     if (url === null) return
 
     event.stopPropagation()

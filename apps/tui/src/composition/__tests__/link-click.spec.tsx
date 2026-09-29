@@ -105,10 +105,26 @@ describe('installLinkClickOpen', () => {
     expect(harness.openedFiles).toEqual([{ path: '/Users/d/atlas/link-click.ts', line: 42 }])
   })
 
-  it('ignores a drag that ends on the link', async () => {
+  it('opens on release over the link even when the press drifted off it', async () => {
     const harness = await mount()
 
-    await harness.setup.mockMouse.drag(0, 1, LINK_START_X, 0)
+    await harness.setup.mockMouse.drag(LINK_START_X, 1, LINK_START_X, 0)
+
+    expect(harness.opened).toEqual([LINK_URL])
+  })
+
+  it('opens on a short release drift off the link when the press started on it', async () => {
+    const harness = await mount()
+
+    await harness.setup.mockMouse.drag(LINK_START_X, 0, LINK_START_X - 2, 0)
+
+    expect(harness.opened).toEqual([LINK_URL])
+  })
+
+  it('leaves a long drag across the link to the selection, so a link can be copied', async () => {
+    const harness = await mount({ selectable: true })
+
+    await harness.setup.mockMouse.drag(LINK_START_X, 0, LINK_START_X + 6, 0)
 
     expect(harness.opened).toEqual([])
   })
