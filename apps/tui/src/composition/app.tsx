@@ -923,6 +923,14 @@ function Workspace(props: {
   const docked = wide && !welcome
   const contentWidth = contentWidthOf({ width, sidebarWidth, docked })
   const chromeWidth = chromeWidthOf({ width, sidebarWidth, docked })
+  const appHeader = welcome ? null : (
+    <HeaderBar
+      width={width}
+      projectDirectory={conversation.projectDirectory}
+      repoRoot={repoRoot}
+      diff={headerDiff}
+    />
+  )
   const composerWidth = welcome ? welcomeCells({ width: chromeWidth }) : chromeWidth
 
   /**
@@ -1939,17 +1947,9 @@ function Workspace(props: {
   })
 
   return (
-    <Screen>
+    <Screen {...(appHeader === null ? {} : { header: appHeader })}>
       <SelectionSurface>
         <box flexDirection="column" width={contentWidth} flexGrow={1} flexShrink={1} flexBasis={0}>
-          {welcome ? null : (
-            <HeaderBar
-              width={chromeWidth}
-              projectDirectory={conversation.projectDirectory}
-              repoRoot={repoRoot}
-              diff={headerDiff}
-            />
-          )}
           <box flexDirection="column" flexGrow={1} flexShrink={1}>
             <box flexGrow={welcome ? 1 : 0} flexShrink={1} />
             {welcome ? (

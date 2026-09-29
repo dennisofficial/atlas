@@ -115,9 +115,9 @@ describe('widths handed to the renderer', () => {
     expect(chromeWidthOf({ width: 90, sidebarWidth: 42, docked: false })).toBe(90)
   })
 
-  it('takes the sidebar and its gutter out of the transcript while docked', () => {
+  it('takes the sidebar out of the transcript while docked', () => {
     expect(contentWidthOf({ width: 200, sidebarWidth: 42, docked: true })).toBe(158)
-    expect(chromeWidthOf({ width: 200, sidebarWidth: 42, docked: true })).toBe(158 - SIDEBAR_GUTTER)
+    expect(chromeWidthOf({ width: 200, sidebarWidth: 42, docked: true })).toBe(158)
   })
 
   it('stays positive even on a terminal narrower than the sidebar', () => {

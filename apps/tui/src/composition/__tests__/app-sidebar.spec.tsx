@@ -7,7 +7,7 @@ import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
-import { theme, SIDEBAR_GUTTER, SIDEBAR_WIDTH } from '../../ui/theme'
+import { theme, SIDEBAR_WIDTH } from '../../ui/theme'
 import { App } from '../app'
 import { spokenIn } from './app-fixture'
 import { FAKE_CONFIG, fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
@@ -263,7 +263,7 @@ describe('the sidebar', () => {
     }
   }, 60_000)
 
-  it('is reached across a gutter the composer alone gives up', async () => {
+  it('meets the sidebar edge, the composer panel giving up no gutter', async () => {
     const app: FakeApp = fakeApp({ model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }) })
     const setup = await testRender(<App app={app} opened={await spokenIn(app)} />, {
       width: WIDE,
@@ -278,13 +278,9 @@ describe('the sidebar', () => {
 
       const grounds = groundsAcross({ frame: setup.captureSpans(), needle: DRAFT })
       const edge = WIDE - SIDEBAR_WIDTH
-      const ground = hexOf(parseColor(theme.appBg))
       const panel = hexOf(parseColor(theme.panelBg))
 
-      expect(grounds[edge - SIDEBAR_GUTTER - 1]).toBe(panel)
-      for (let column = edge - SIDEBAR_GUTTER; column < edge; column += 1) {
-        expect(grounds[column]).toBe(ground)
-      }
+      expect(grounds[edge - 1]).toBe(panel)
       expect(grounds[edge]).toBe(panel)
     } finally {
       await teardown(setup)
