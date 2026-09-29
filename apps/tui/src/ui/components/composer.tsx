@@ -234,11 +234,8 @@ function DerivedComposer(props: {
             startCells: Math.min(props.naming.startCells, room),
             target: props.naming.target === null ? null : titleWithin({ title: props.naming.target, cells: room }),
           }
-    return (
-      <box backgroundColor={rail} paddingLeft={1} paddingRight={1}>
-        <NamingLine state={state} line={namingComposerLine(rail)} />
-      </box>
-    )
+    const fg = edge === EComposerEdge.Bordered || edge === EComposerEdge.Claude ? theme.caretFg : theme.body
+    return <NamingLine state={state} line={namingComposerLine({ fg, towards: theme.appBg })} />
   })()
 
   const label = (bg: string): React.ReactNode => (

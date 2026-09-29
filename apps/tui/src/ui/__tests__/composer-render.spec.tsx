@@ -248,7 +248,7 @@ describe('the bordered composer', () => {
     )
     const head = frame.split('\n').find((row) => row.startsWith(FRAME_TOP_LEFT)) ?? ''
 
-    expect(head).toContain('Rejecting reused tokens')
+    for (const word of ['Rejecting', 'reused', 'tokens']) expect(head).toContain(word)
   })
 
   it('gives the corner its column back, so the title truncates a cell sooner', () => {

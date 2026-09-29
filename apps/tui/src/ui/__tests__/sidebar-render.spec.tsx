@@ -636,6 +636,29 @@ describe("the naming animation in the head", () => {
 
     expect(rows.join("\n")).toContain("Rejecting reused tokens");
   }, 30_000);
+
+  it("never wraps a rename whose name is longer than the column", async () => {
+    const long =
+      "Rotate every refresh token, then reject the reused ones without mercy";
+    const rows = await rowsOf({
+      model: FED,
+      naming: {
+        phase: ENamingPhase.Generating,
+        startCells: long.length,
+        startedWithName: true,
+        target: null,
+        startedAt: Date.now(),
+      },
+    });
+
+    // The noise never exceeds the column width — a longer name glides within the
+    // row rather than wrapping a second line. The animation ticks while the frame
+    // is captured, so read the head row as the one carrying the noise run.
+    const headRow = rows.find((row) => /[·:∙]{4}/.test(row)) ?? "";
+    const run = headRow.match(/[·:∙]+/);
+    expect(run).toBeTruthy();
+    expect([...(run?.[0] ?? "")].length).toBeLessThanOrEqual(CONTENT_END - 2);
+  }, 30_000);
 });
 
 describe("the column beside the sidebar", () => {

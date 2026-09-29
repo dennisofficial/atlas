@@ -3,11 +3,31 @@ import React from "react";
 import type { SidebarModel } from "../../../store/sidebar-model";
 import { costTone, formatUsd, spendFigures } from "../../../store/sidebar-spend";
 import { theme } from "../../theme";
-import { NAMING_SIDEBAR_LINE } from "../../naming-frames";
-import { NamingLine, type NamingState } from "../naming-line";
+import { NAMING_SIDEBAR_LINE, titleWithin } from "../../naming-frames";
+import { ENamingPhase, NamingLine, type NamingState } from "../naming-line";
 import { truncateCells } from "./cells";
 
 const SEPARATOR = " · ";
+
+/**
+ * The animation is one row: a rename of a name longer than the column holds the noise and glides
+ * within the row's cells, and the answer is clipped the same way the settled title truncates, so
+ * the head never grows a second line mid-rename.
+ */
+const clampToRow = (args: { state: NamingState; cells: number }): NamingState => {
+  const startCells = Math.min(args.state.startCells, args.cells);
+  if (args.state.phase === ENamingPhase.Generating) {
+    return { ...args.state, startCells };
+  }
+  return {
+    ...args.state,
+    startCells,
+    target:
+      args.state.target === null
+        ? null
+        : titleWithin({ title: args.state.target, cells: args.cells }),
+  };
+};
 
 const turnsAndCost = (model: SidebarModel): string => {
   const turns = `${model.turnCount} ${model.turnCount === 1 ? "turn" : "turns"}`;
@@ -53,7 +73,7 @@ export function HeadSection(props: {
   return (
     <box flexDirection="column" flexShrink={0}>
       {props.naming != null ? (
-        <NamingLine state={props.naming} line={NAMING_SIDEBAR_LINE} />
+        <NamingLine state={clampToRow({ state: props.naming, cells: props.cells })} line={NAMING_SIDEBAR_LINE} />
       ) : model.title === null ? null : (
         <text fg={theme.bright}>
           {truncateCells({ text: model.title, cells: props.cells })}
