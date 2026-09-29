@@ -55,6 +55,10 @@ describe('createHarnessContainer', () => {
     expect(harness.resolve(portToken(ThreadStorePort))).toBeInstanceOf(JsonlThreadStore)
   })
 
+  it('resolves the thread store port to one instance, so a rename echo reaches every subscriber', () => {
+    expect(harness.resolve(portToken(ThreadStorePort))).toBe(harness.resolve(portToken(ThreadStorePort)))
+  })
+
   it('resolves the credential port to the brokered proxy', () => {
     expect(harness.resolve(portToken(CredentialPort))).toBeInstanceOf(CredentialPortProxy)
   })
