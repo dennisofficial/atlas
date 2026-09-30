@@ -37,6 +37,7 @@ export function createCloudSession(args: {
   channel: CloudChannel
   sandboxes: CloudSandboxes
   onReload: (reload: CloudReload) => void
+  onClose?: (() => void) | undefined
 }): CloudSession {
   const { channel, sandboxes } = args
   const listeners = new Set<() => void>()
@@ -128,6 +129,7 @@ export function createCloudSession(args: {
       unsubscribeReload()
       unsubscribeError()
       unsubscribeTurnEnded()
+      args.onClose?.()
       listeners.clear()
       channel.close()
     },
