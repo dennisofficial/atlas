@@ -5,6 +5,7 @@ import { instanceCachingFactory, portToken, type DependencyContainer } from '../
 import {
   HookChainSourceToken,
   HookChainToken,
+  SleepPreventionToken,
   WorkspaceRoot,
 } from '../container/tokens'
 import { BunShellRegistry, ShellRegistryPort } from './shell-registry'
@@ -26,11 +27,15 @@ export function registerShells({ container }: { container: DependencyContainer }
       const processes = resolver.isRegistered(portToken(ProcessPort), true)
         ? resolver.resolve(portToken(ProcessPort))
         : undefined
+      const sleepPrevention = resolver.isRegistered(SleepPreventionToken, true)
+        ? resolver.resolve(SleepPreventionToken)
+        : undefined
       live = new BunShellRegistry(
         resolver.resolve(WorkspaceRoot),
         resolver.resolve(portToken(ClockPort)),
         resolver.resolve(HookChainSourceToken),
         processes,
+        sleepPrevention,
       )
       return live
     }),

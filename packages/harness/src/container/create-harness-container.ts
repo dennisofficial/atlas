@@ -89,6 +89,7 @@ import {
   SecretsStoreToken,
   SessionRegistryToken,
   AtlasHomeToken,
+  WakeSignalToken,
   WorkspaceRoot,
 } from './tokens'
 
@@ -347,6 +348,9 @@ export function createHarnessContainer(): DependencyContainer {
         ...(card === undefined ? {} : { card }),
         hooks: resolver.resolve(HookChainToken),
         tape,
+        ...(resolver.isRegistered(WakeSignalToken, true)
+          ? { wake: resolver.resolve(WakeSignalToken) }
+          : {}),
       })
     },
   })
