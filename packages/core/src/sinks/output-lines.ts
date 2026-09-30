@@ -22,7 +22,10 @@ export const CONSOLE_ARG_LIMIT = 8
 
 export const SINK_TEXT_LIMIT = 2_000
 
-const LOW_SIGNAL_PATTERN = /^\(node:\d+\) Warning: AI SDK Warning/
+// The AI SDK prints both forms of a Node warning: process.emitWarning reaches our hook as
+// "[Warning] AI SDK Warning (...)", while the same warning written straight to stderr carries
+// Node's "(node:<pid>) Warning:" prefix.
+const LOW_SIGNAL_PATTERN = /^(\(node:\d+\) Warning:|\[Warning\]) AI SDK Warning/
 
 export function isLowSignalSinkText(text: string): boolean {
   return LOW_SIGNAL_PATTERN.test(text)

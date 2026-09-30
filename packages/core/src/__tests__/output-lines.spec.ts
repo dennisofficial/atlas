@@ -79,4 +79,13 @@ describe('isLowSignalSinkText', () => {
     ).toBe(true)
     expect(isLowSignalSinkText('(node:1) Warning: something else entirely')).toBe(false)
   })
+
+  it('matches the emitWarning-hooked form, where the type prefix is [Warning]', () => {
+    expect(
+      isLowSignalSinkText(
+        '[Warning] AI SDK Warning (openai / gpt-6.1-sol): Non-OpenAI reasoning parts are not supported. Skipping reasoning part: {"type":"reasoning","text":"..."}',
+      ),
+    ).toBe(true)
+    expect(isLowSignalSinkText('[Warning] something else entirely')).toBe(false)
+  })
 })
