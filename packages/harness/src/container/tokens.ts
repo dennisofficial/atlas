@@ -27,6 +27,8 @@ export const SessionRegistryToken: InjectionToken<SessionRegistry> = Symbol(
   'atlas.SessionRegistry',
 )
 
+export const AtlasHomeToken: InjectionToken<string> = Symbol('atlas.AtlasHome')
+
 export const DeltaChannelToken: InjectionToken<DeltaChannel> = Symbol('atlas.DeltaChannel')
 
 export const WorkspaceRoot: InjectionToken<string> = Symbol('atlas.WorkspaceRoot')
