@@ -46,8 +46,7 @@ function serviceWith(args: {
   } as unknown as GithubHookLifecycleService
   const reads = {
     readPullRequest: args.readPullRequest ?? (async () => REST_FIELDS),
-    findOpenPrForBranch:
-      args.findOpenPrForBranch ?? (async () => ({ number: 42 })),
+    findOpenPrForBranch: args.findOpenPrForBranch ?? (async () => ({ number: 42 })),
   } as unknown as GithubUserReads
   vi.stubGlobal('fetch', args.fetchImpl ?? okFetch)
   return new GithubSubscriptionsService(github, reads, hooks)
@@ -60,11 +59,7 @@ describe('GithubSubscriptionsService', () => {
   it('validates access, ensures the hook, upserts the subscription and pulls the current state', async () => {
     const service = serviceWith({ token: 'ghu_1' })
 
-    const dto = await service.subscribe({
-      userId: 'usr_1',
-      repoFullName: 'compai/app',
-      prNumber: 42,
-    })
+    const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
 
     expect(dto.pollBacked).toBe(false)
     expect(fake.subscriptions).toHaveLength(1)
@@ -181,11 +176,7 @@ describe('GithubSubscriptionsService', () => {
   it('marks the subscription poll-backed when the hook cannot be created', async () => {
     const service = serviceWith({ token: 'ghu_1', ensureHook: 'poll-backed' })
 
-    const dto = await service.subscribe({
-      userId: 'usr_1',
-      repoFullName: 'compai/app',
-      prNumber: 42,
-    })
+    const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
 
     expect(dto.pollBacked).toBe(true)
     expect(dto.state?.prNumber).toBe(42)
