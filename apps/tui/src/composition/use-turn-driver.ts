@@ -11,7 +11,6 @@ import {
   RemoteTurnRunner,
   rewindThread,
   type RemoteDeltaChannel,
-  type RewindKill,
 } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 
@@ -45,12 +44,6 @@ type InterruptChannel = Pick<
 
 const remoteChannelOf = (runner: unknown): InterruptChannel | null =>
   runner instanceof Object && 'onInterruptAck' in runner ? (runner as InterruptChannel) : null
-
-const killLabel = (kill: RewindKill): string => {
-  if (kill.kind === 'agent') return `sub-agent ${kill.agentType} (${kill.intent})`
-  if (kill.kind === 'shell') return `background shell ${kill.shellId} (${kill.command ?? 'unknown command'})`
-  return `service ${kill.serviceId} (${kill.command ?? 'unknown command'})`
-}
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : UNEXPLAINED)
 
@@ -420,15 +413,6 @@ export function useTurnDriver(args: {
           }
           setFailure(rewound.reason)
           return
-        }
-        if (rewound.kills.length > 0) {
-          const named = rewound.kills.map(killLabel).join(', ')
-          notify({
-            key: 'rewind-cut-creations',
-            tone: ENoticeTone.Warn,
-            ttlMs: NOTICE_WARN_MS,
-            text: `the rewind destroyed ${named}`,
-          })
         }
         store.resetSteps()
         forgetUsage()
