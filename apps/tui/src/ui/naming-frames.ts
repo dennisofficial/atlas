@@ -47,13 +47,26 @@ const chunk = (text: string, fg: RGBA, bg: string | undefined): TextChunk => ({
 })
 
 /**
+ * The cushion a slab-backed line keeps around its glyphs: one cell of ground on each side, the
+ * same ` ${title} ` the settled title in that seat renders. Lines with no ground of their own
+ * (the sidebar) paint flush, so the pad follows `bg`, not the caller.
+ */
+const pad = (text: string, bg: string | undefined): string => (bg === undefined ? text : ` ${text} `)
+
+const padChunks = (chunks: TextChunk[], args: { fg: RGBA; bg: string | undefined }): TextChunk[] =>
+  args.bg === undefined ? chunks : [chunk(' ', args.fg, args.bg), ...chunks, chunk(' ', args.fg, args.bg)]
+
+/**
  * The generating phase: a line of noise dots reshuffled every tick, dimmed toward the ground the
  * title sits on. It never settles — the answer arriving is what ends it.
  */
 export function namingGenerating(args: { startCells: number; line: NamingLine }): StyledText {
   const dimmed = colourOf({ from: args.line.fg, to: args.line.towards, amount: args.line.dim })
   return new StyledText(
-    Array.from({ length: Math.max(0, args.startCells) }, () => chunk(randomNoise(), dimmed, args.line.bg)),
+    padChunks(
+      Array.from({ length: Math.max(0, args.startCells) }, () => chunk(randomNoise(), dimmed, args.line.bg)),
+      { fg: dimmed, bg: args.line.bg },
+    ),
   )
 }
 
@@ -70,7 +83,8 @@ export function namingStreaming(args: {
   now: number
   startedAt: number
 }): StyledText {
-  const title = [...args.title]
+  const padded = args.line.bg !== undefined
+  const title = [...(padded ? ` ${args.title} ` : args.title)]
   const progress = Math.max(0, Math.min(1, (args.now - args.startedAt) / NAMING_SETTLE_MS))
   const settled = Math.floor(progress * title.length)
   const cells = Math.max(1, Math.round(args.startCells + (title.length - args.startCells) * progress))
@@ -78,9 +92,18 @@ export function namingStreaming(args: {
   const settledFg = rgbaOf(args.line.fg)
   const noiseFg = colourOf({ from: args.line.fg, to: args.line.towards, amount: args.line.dim })
 
+  /**
+   * The sweep resolves the title's letters while the slab's pad cells hold their ground from the
+   * first frame: a letter past the sweep is noise, a pad cell is itself, so the cushion the
+   * settled title keeps never pops in only when the sweep ends. A line with no ground of its own
+   * (the sidebar) has no pad, so nothing here moves for it.
+   */
+  const holdsPad = (index: number): boolean => padded && (index === 0 || index === title.length - 1)
+
   const chunks: TextChunk[] = []
   for (let index = 0; index < cells; index++) {
-    if (index < settled) chunks.push(chunk(title[index] ?? ' ', settledFg, args.line.bg))
+    if (holdsPad(index)) chunks.push(chunk(title[index] ?? ' ', settledFg, args.line.bg))
+    else if (index < settled) chunks.push(chunk(title[index] ?? ' ', settledFg, args.line.bg))
     else chunks.push(chunk(randomNoise(), noiseFg, args.line.bg))
   }
   return new StyledText(chunks)
@@ -91,7 +114,7 @@ export function namingStreaming(args: {
  * mid-frame never repaints differently from the frame before it.
  */
 export function namingSettled(args: { title: string; line: NamingLine }): StyledText {
-  return new StyledText([chunk(args.title, rgbaOf(args.line.fg), args.line.bg)])
+  return new StyledText([chunk(pad(args.title, args.line.bg), rgbaOf(args.line.fg), args.line.bg)])
 }
 
 /**

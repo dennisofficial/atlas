@@ -290,6 +290,45 @@ describe('the bordered composer', () => {
     expect(animating).toContain(railHex)
   })
 
+  it('paints the slab-edge naming animation on the panel ground the settled title sits on', async () => {
+    const titleSeatBg = async (naming: NamingState | null): Promise<string | null> => {
+      const setup = await testRender(
+        <box flexDirection="column" width={WIDTH} height={HEIGHT}>
+          <Draft title={TITLE} {...(naming === null ? {} : { naming })} />
+        </box>,
+        { width: WIDTH, height: HEIGHT },
+      )
+      try {
+        await drawn(setup)
+        const frame = setup.captureSpans() as {
+          lines: ({ spans: { text: string; bg: { buffer: ArrayLike<number> } }[] } | undefined)[]
+        }
+        const head = frame.lines.find((line) =>
+          (line?.spans ?? []).some((span) => /[\w·:∙]/.test(span.text)),
+        )
+        const seat = (head?.spans ?? []).find((span) => /[\w·:∙]/.test(span.text))
+        if (seat === undefined) return null
+        const b = seat.bg.buffer
+        return b[3] === 0 ? null : `${b[0]},${b[1]},${b[2]}`
+      } finally {
+        await teardown(setup)
+      }
+    }
+
+    const panelHex = `${parseColor(theme.panelBg).buffer[0]},${parseColor(theme.panelBg).buffer[1]},${parseColor(theme.panelBg).buffer[2]}`
+
+    expect(await titleSeatBg(null)).toBe(panelHex)
+    expect(
+      await titleSeatBg({
+        phase: ENamingPhase.Generating,
+        startCells: TITLE.length,
+        startedWithName: true,
+        target: null,
+        startedAt: Date.now(),
+      }),
+    ).toBe(panelHex)
+  })
+
   it('streams a too-long answer into the same form the settled title takes', async () => {
     applyComposerEdge(EComposerEdge.Bordered)
     const long = 'a session name long enough to overflow the composer title room entirely'

@@ -130,6 +130,50 @@ describe('the settled line', () => {
   })
 })
 
+describe('a slab-backed line', () => {
+  const SLAB_LINE = { ...NAMING_SIDEBAR_LINE, bg: '#1e1a17' }
+  const startedAt = 1_000
+
+  test('pads the generating noise with a cell of ground on each side', () => {
+    const painted = namingGenerating({ startCells: 12, line: SLAB_LINE }).chunks
+    expect(painted[0]?.text).toBe(' ')
+    expect(painted[painted.length - 1]?.text).toBe(' ')
+    expect(painted.length).toBe(14)
+  })
+
+  test('pads the settled title with a cell of ground on each side', () => {
+    const painted = namingSettled({ title: TITLE, line: SLAB_LINE }).chunks.reduce((text, chunk) => text + chunk.text, '')
+    expect(painted).toBe(` ${TITLE} `)
+  })
+
+  test('holds the pad cells through the sweep so the cushion never pops in at the end', () => {
+    const painted = namingStreaming({
+      title: TITLE,
+      startCells: TITLE.length + 2,
+      line: SLAB_LINE,
+      now: startedAt + NAMING_SETTLE_MS / 4,
+      startedAt,
+    }).chunks
+    expect(painted[0]?.text).toBe(' ')
+    expect(painted[painted.length - 1]?.text).toBe(' ')
+  })
+
+  test('glides to the padded width, landing flush on the settled title', () => {
+    const done = namingStreaming({
+      title: TITLE,
+      startCells: TITLE.length + 2,
+      line: SLAB_LINE,
+      now: startedAt + NAMING_SETTLE_MS,
+      startedAt,
+    }).chunks.reduce((text, chunk) => text + chunk.text, '')
+    expect(done).toBe(` ${TITLE} `)
+  })
+
+  test('a line with no ground paints flush, pad following bg', () => {
+    expect(namingSettled({ title: TITLE, line: NAMING_SIDEBAR_LINE }).chunks.reduce((text, chunk) => text + chunk.text, '')).toBe(TITLE)
+  })
+})
+
 describe('where the generating line starts', () => {
   test('a first name takes the full sidebar row', () => {
     expect(freshStartCells({ kind: 'sidebar', maxCells: 39 })).toBe(39)
