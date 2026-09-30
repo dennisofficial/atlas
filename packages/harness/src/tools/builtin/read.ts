@@ -41,7 +41,7 @@ const description = [
   'Read a file from the filesystem.',
   'A relative path resolves against the project directory.',
   pathEnvironmentNote,
-  'A PNG, JPEG, GIF or WebP file comes back as a picture you can look at, provided it is small enough to send.',
+  'A PNG, JPEG, GIF or WebP file comes back as a picture you can look at, and which the operator may see rendered inline, provided it is small enough to send.',
   'A PDF comes back as a file you can read natively, provided it is small enough to send.',
   'Output is line-numbered, tab-separated, one line per file line.',
   'Use offset to start at a given 1-based line and limit to cap how many lines come back.',

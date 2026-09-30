@@ -78,6 +78,9 @@ on its own and in order, because each one is snapshotted before it runs, and bas
 batched. So a turn that reads six files costs about what one read costs; a turn that writes
 six costs six.`
 
+const OPERATOR_SEES_IMAGES = `When you read an image file, the operator’s surface may render it inline for them — reading
+a screenshot is also how you show the developer what something looks like.`
+
 const NO_REREAD = `Do not read a file back to check that a write or an edit landed. Both fail loudly rather than
 quietly, and the harness has already recorded what the file now holds — a confirming read buys
 nothing and costs the whole file.`
@@ -242,6 +245,7 @@ const IN_PROMPT_ORDER = [
   READ_WIDE,
   PREFER_DEDICATED,
   PARALLEL_CALLS,
+  OPERATOR_SEES_IMAGES,
   NO_REREAD,
   BACKGROUND_SHELLS,
   TASK_LIST,
@@ -403,6 +407,7 @@ describe('the registration file as the table of contents', () => {
       'files.read-wide',
       'tools.prefer-dedicated',
       'tools.parallel-calls',
+      'tools.operator-sees-images',
       'tools.no-reread-after-write',
       'shells.background',
       'plan.task-list',

@@ -35,6 +35,7 @@ import { BackgroundShellsFragment } from './fragments/shells'
 import { SkillListingFragment } from './fragments/skills'
 import {
   NoRereadAfterWriteFragment,
+  OperatorSeesImagesFragment,
   ParallelToolCallsFragment,
   PreferDedicatedToolsFragment,
 } from './fragments/tools'
@@ -65,6 +66,7 @@ export function registerBuiltinPromptFragments({
     ReadWideFragment,
     PreferDedicatedToolsFragment,
     ParallelToolCallsFragment,
+    OperatorSeesImagesFragment,
     NoRereadAfterWriteFragment,
     BackgroundShellsFragment,
     TaskListFragment,

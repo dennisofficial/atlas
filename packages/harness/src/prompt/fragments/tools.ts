@@ -28,6 +28,17 @@ export class ParallelToolCallsFragment extends PromptFragment {
   }
 }
 
+export class OperatorSeesImagesFragment extends PromptFragment {
+  readonly id = 'tools.operator-sees-images'
+
+  text(): string {
+    return [
+      'When you read an image file, the operator’s surface may render it inline for them — reading',
+      'a screenshot is also how you show the developer what something looks like.',
+    ].join('\n')
+  }
+}
+
 export class NoRereadAfterWriteFragment extends PromptFragment {
   readonly id = 'tools.no-reread-after-write'
 
