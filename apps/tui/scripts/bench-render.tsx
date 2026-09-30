@@ -162,6 +162,14 @@ const benchApp = (args: {
     sandbox: { noteBash: () => {}, stop: async () => false },
     containerStatus: createSandboxStatusState({ image: 'unused', label: 'unused' }),
     executionLocation: createExecutionLocationState({ initial: EExecutionLocation.Host }),
+    moveTools: async ({ target }) => ({
+      ok: true as const,
+      from: EExecutionLocation.Host,
+      to: target,
+      killedShells: 0,
+      moved: { stoppedServices: [], relocatedAgents: [], stillStopping: 0 },
+      stillDying: 0,
+    }),
     executionPinned: false,
     close: async () => {},
   }

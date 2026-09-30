@@ -1,66 +1,37 @@
 import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
-import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
+import { defaultExecutionLocation } from '@dltech/atlas-harness'
 
 import type { AtlasApp } from './compose'
-import { resolveExecutionLocation } from '@dltech/atlas-harness'
 
 export type ExecutionLocationControl = {
   location: EExecutionLocation
-  handleSet: (location: EExecutionLocation) => void
 }
 
+/**
+ * The footer's location is read from the session's durable placement rather than held beside it:
+ * the thread store owns where a session runs, so opening a conversation activates its record. The
+ * settings default is only the fallback for a thread the store has never placed.
+ */
 export function useExecutionLocation(args: {
   app: AtlasApp
   threadId: ThreadId
   stored: EExecutionLocation | undefined
-  started: boolean
 }): ExecutionLocationControl {
-  const { app, threadId, stored, started } = args
-  const launching = useRef(true)
+  const { app, threadId, stored } = args
 
   const location = useSyncExternalStore(
     app.executionLocation.subscribe,
     app.executionLocation.current,
   )
 
-  useEffect(
-    () => app.executionLocation.subscribe(() => app.files.forget()),
-    [app],
-  )
+  useEffect(() => app.executionLocation.subscribe(() => app.files.forget()), [app])
 
   useEffect(() => {
-    const pinned = launching.current && app.executionPinned
-    launching.current = false
-    if (pinned) return
-
-    const resolved = resolveExecutionLocation({
-      requested: undefined,
-      stored,
-      settled: app.settings.snapshot().resolution,
-    })
-    app.executionLocation.set(resolved)
-    app.executionLocation.note({ threadId, location: resolved })
+    const fallback =
+      stored ?? defaultExecutionLocation({ settled: app.settings.snapshot().resolution })
+    void app.executionLocation.activate({ threadId, fallback }).catch(() => undefined)
   }, [app, stored, threadId])
 
-  const handleSet = useCallback(
-    (next: EExecutionLocation) => {
-      const prior = app.executionLocation.of(threadId)
-      app.executionLocation.set(next)
-      app.executionLocation.note({ threadId, location: next })
-      if (!started) return
-      if (prior === next) return
-
-      void app.threads
-        .find({ threadId })
-        .then((known) => {
-          if (known === undefined) return
-          if (known.executionLocation === next) return
-          return app.threads.chooseExecutionLocation({ threadId, location: next })
-        })
-        .catch(() => undefined)
-    },
-    [app, started, threadId],
-  )
-
-  return { location, handleSet }
+  return { location }
 }
