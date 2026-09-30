@@ -1,4 +1,4 @@
-import type { Event } from '../events/envelope'
+import type { EventDraft } from '../events/body'
 
 export const TEAMMATE_AGENT_TYPE = 'teammate'
 
@@ -30,7 +30,7 @@ export const endingIsSpeech = (agentType: string): boolean =>
   speechModelOf(agentType) === ESpeechModel.ReportOnEnd
 
 /** Whether the event hands the turn to the assistant — the one projection run-turn and resume read. */
-export const isTurnTaking = (event: Event): boolean => {
+export const isTurnTaking = (event: EventDraft): boolean => {
   switch (event.type) {
     case 'user-said':
     case 'assistant-said':

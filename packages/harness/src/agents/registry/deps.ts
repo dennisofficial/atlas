@@ -7,9 +7,15 @@ import type {
   ThreadId,
 } from '@dltech/atlas-core'
 
-import type { ThreadModel, ThreadStorePort } from '../../store/thread-store'
+import type { ThreadStorePort } from '../../store'
+import type { MessageIntake } from '../../intake/message-intake'
+import type { ThreadModel } from '../../store/thread-store'
 import type { AgentType } from '../types'
 import type { ChildRunnerSource } from './child-runner'
+
+export type IntakeChanged = Pick<MessageIntake, 'changed' | 'prepare'>
+
+export type IntakeSubmit = Pick<MessageIntake, 'changed' | 'submit' | 'hold' | 'commit'>
 
 export type SupervisorDeps = {
   log: EventLogPort
@@ -22,6 +28,8 @@ export type SupervisorDeps = {
   launchDirectory: string
   sink?: ExecutionLocationSinkPort | undefined
   telemetry?: TelemetryPort | undefined
+  intake?: IntakeChanged | undefined
+  input?: (() => IntakeSubmit | undefined) | undefined
 }
 
 export const agentTypeNamed = ({

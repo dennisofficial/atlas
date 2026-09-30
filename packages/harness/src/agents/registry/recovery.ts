@@ -20,6 +20,7 @@ export class ChildRecovery {
   private readonly clock: ClockPort
   private readonly roster: AgentRoster
   private readonly hydrating = new Map<ThreadId, Promise<void>>()
+  private readonly settling = new Map<ThreadId, Promise<RecoveredAgents>>()
 
   constructor(args: {
     log: EventLogPort
@@ -45,10 +46,11 @@ export class ChildRecovery {
     const started = this.hydrating.get(threadId)
     if (started !== undefined) return started
 
-    const running = this.rebuild({ threadId }).catch(() => {
-      this.hydrating.delete(threadId)
-    })
+    const running = this.rebuild({ threadId })
     this.hydrating.set(threadId, running)
+    running.catch(() => {
+      if (this.hydrating.get(threadId) === running) this.hydrating.delete(threadId)
+    })
 
     return running
   }
@@ -62,7 +64,18 @@ export class ChildRecovery {
    * ending nobody lived to write, so this completes the record. An unlogged child is a thread the
    * parent never recorded at all, and it is only reported.
    */
-  async recordLost({ threadId }: { threadId: ThreadId }): Promise<RecoveredAgents> {
+  recordLost({ threadId }: { threadId: ThreadId }): Promise<RecoveredAgents> {
+    const running = this.settling.get(threadId)
+    if (running !== undefined) return running
+
+    const attempt = this.settle({ threadId }).finally(() => {
+      this.settling.delete(threadId)
+    })
+    this.settling.set(threadId, attempt)
+    return attempt
+  }
+
+  private async settle({ threadId }: { threadId: ThreadId }): Promise<RecoveredAgents> {
     await this.hydrate({ threadId })
 
     const mine = this.roster.states().filter((child) => child.spawnedBy === threadId)

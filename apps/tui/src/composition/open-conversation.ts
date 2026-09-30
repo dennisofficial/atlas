@@ -17,7 +17,15 @@ import type {
   TurnLedgerPort,
   TurnSpend,
 } from '@dltech/atlas-harness'
-import { ServiceRecovery, ShellRecovery, type LostShell } from '@dltech/atlas-harness'
+import {
+  liveServicesOf,
+  liveShellsOf,
+  ServiceRecovery,
+  ShellRecovery,
+  type LostShell,
+  type ServiceRegistryPort,
+  type ShellRegistryPort,
+} from '@dltech/atlas-harness'
 import {
   atlasDirectory,
   claimSession,
@@ -34,11 +42,6 @@ import { EThreadRows } from './use-thread-view'
 import type { LogAccumulator, ToolEffects } from '../store/log-accumulator'
 import { titleMatchesHandle } from '@dltech/atlas-harness'
 
-/**
- * `started` is what the store knows, not what the screen shows: a conversation nobody has spoken in
- * holds an id that has been handed out but never written, so the first turn opens the thread rather
- * than appending to one.
- */
 export type OpenedConversation = {
   threadId: ThreadId
   events: readonly Event[]
@@ -50,16 +53,7 @@ export type OpenedConversation = {
   lost?: RecoveredAgents | undefined
   lostShells?: readonly LostShell[] | undefined
   base?: LogAccumulator | undefined
-  /**
-   * Set only by a boot that resolved the open request to a thread whose meta says cloud: the local
-   * open never runs (the session lock is never claimed), and the workspace's thread router attaches
-   * to the sandbox as its first act instead.
-   */
   bootCloudThreadId?: ThreadId | undefined
-  /**
-   * Set only by a mid-turn lift: the turn it interrupted to move safely, so the conversation that
-   * mounts on the other side resumes it itself rather than leaving the operator to notice.
-   */
   resumeOnArrival?: boolean | undefined
 }
 
@@ -107,24 +101,44 @@ type Opening = {
   workspace: WorkspaceIdentity
   open: OpenRequest
   effects: ToolEffects
+  shells?: ShellRegistryPort | undefined
+  services?: ServiceRegistryPort | undefined
 }
 
 const shellRecoveryFor = new WeakMap<EventLogPort, ShellRecovery>()
 
-const shellRecovery = (args: { log: EventLogPort; ids: IdPort }): ShellRecovery => {
+const shellRecovery = (args: {
+  log: EventLogPort
+  ids: IdPort
+  shells?: ShellRegistryPort | undefined
+}): ShellRecovery => {
   const held = shellRecoveryFor.get(args.log)
   if (held !== undefined) return held
-  const created = new ShellRecovery({ log: args.log, ids: args.ids })
+  const shells = args.shells
+  const created = new ShellRecovery({
+    log: args.log,
+    ids: args.ids,
+    live: shells === undefined ? undefined : () => liveShellsOf(shells.listEverywhere()),
+  })
   shellRecoveryFor.set(args.log, created)
   return created
 }
 
 const serviceRecoveryFor = new WeakMap<EventLogPort, ServiceRecovery>()
 
-const serviceRecovery = (args: { log: EventLogPort; ids: IdPort }): ServiceRecovery => {
+const serviceRecovery = (args: {
+  log: EventLogPort
+  ids: IdPort
+  services?: ServiceRegistryPort | undefined
+}): ServiceRecovery => {
   const held = serviceRecoveryFor.get(args.log)
   if (held !== undefined) return held
-  const created = new ServiceRecovery({ log: args.log, ids: args.ids })
+  const services = args.services
+  const created = new ServiceRecovery({
+    log: args.log,
+    ids: args.ids,
+    live: services === undefined ? undefined : () => liveServicesOf(services.list()),
+  })
   serviceRecoveryFor.set(args.log, created)
   return created
 }
@@ -232,10 +246,16 @@ export async function openConversation(args: Opening): Promise<OpenOutcome> {
   heldSessionDir = sessionDir
 
   const lost = await args.agents.recordLostAgents({ threadId: thread.id })
-  const lostShells = await shellRecovery({ log: args.log, ids: args.ids }).recordLost({
+  const lostShells = await shellRecovery({
+    log: args.log,
+    ids: args.ids,
+    shells: args.shells,
+  }).recordLost({
     threadId: thread.id,
   })
-  await serviceRecovery({ log: args.log, ids: args.ids }).recordLost({ threadId: thread.id })
+  await serviceRecovery({ log: args.log, ids: args.ids, services: args.services }).recordLost({
+    threadId: thread.id,
+  })
 
   const window = await readThreadWindow({ log: args.log, threadId: thread.id, rows: EThreadRows.Composed })
   const [base, spent] = await Promise.all([

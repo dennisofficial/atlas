@@ -22,6 +22,7 @@ import {
 } from '../composition/execution-location-state'
 
 import { childRunnerSource, type ChildRunnerDepsSource } from '../agents/registry/child-runner'
+import type { IntakeSubmit } from '../agents/registry/deps'
 import { AgentRegistryPort } from '../agents/registry/port'
 import { AgentSupervisor } from '../agents/registry/supervisor'
 import type { AgentType } from '../agents/types/agent-type'
@@ -124,6 +125,10 @@ function registerAgents({ container }: { container: DependencyContainer }): void
         launchDirectory: resolver.resolve(WorkspaceRoot),
         sink: resolver.resolve(portToken(ExecutionLocationSinkPort)),
         telemetry: resolver.resolve(portToken(TelemetryPort)),
+        input: () => {
+          if (!resolver.isRegistered(ChildRunnerDepsToken, true)) return undefined
+          return resolver.resolve(ChildRunnerDepsToken)().intake
+        },
       })
       return live
     }),

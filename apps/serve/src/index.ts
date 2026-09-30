@@ -4,7 +4,7 @@ import { isResumable, type ThreadId } from '@dltech/atlas-core'
 
 import type { StepId } from '@dltech/atlas-harness'
 import { EServeFrame, type ServeFrame, type TurnOutcomeWire } from '@dltech/atlas-harness'
-import { MainWake } from '@dltech/atlas-harness'
+import { MainWake as LegacyWake } from '@dltech/atlas-harness'
 import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
 
 import { atlasDirectory, readMetaSync, threadMetaFile, threadMetaSchema } from '@dltech/atlas-harness'
@@ -137,16 +137,32 @@ function adoptChildrenInBackground(args: {
 }
 
 function settleLostShellsInBackground(args: {
-  app: Pick<ServeApp, 'recordLostShells'>
+  app: Pick<ServeApp, 'recordLostShells' | 'recordLostServices'>
   threadId: ThreadId
   log: ServeLog
 }): void {
-  if (args.app.recordLostShells === undefined) return
+  if (args.app.recordLostShells !== undefined) {
+    void args.app
+      .recordLostShells({ threadId: args.threadId })
+      .then((settled) => {
+        if (settled.length > 0) {
+          args.log({ event: EServeEvent.LostShellsSettled, shellIds: settled.map((shell) => shell.shellId) })
+        }
+      })
+      .catch((error: unknown) => {
+        args.log({ event: EServeEvent.LostShellSettlementFailed, reason: messageOf(error) })
+      })
+  }
+
+  if (args.app.recordLostServices === undefined) return
   void args.app
-    .recordLostShells({ threadId: args.threadId })
+    .recordLostServices({ threadId: args.threadId })
     .then((settled) => {
       if (settled.length > 0) {
-        args.log({ event: EServeEvent.LostShellsSettled, shellIds: settled.map((shell) => shell.shellId) })
+        args.log({
+          event: EServeEvent.LostShellsSettled,
+          serviceIds: settled.map((service) => service.serviceId),
+        })
       }
     })
     .catch((error: unknown) => {
@@ -308,28 +324,32 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   })
 
   /**
-   * A shell, agent or service ending that lands while no turn is running starts one — the serve
-   * half of the idle wake the TUI holds locally. The wake turn drains the queue itself, so the
-   * ending reaches the model over the ordinary channel; nothing here touches the protocol.
+   * The serve's driver rides the shared message intake: an ending or a queued message that lands
+   * while no turn is running starts one, and the turn's own drain delivers what was waiting.
+   * A legacy fake without an intake keeps its wake noticer instead.
    */
+  const detachIntake = app.intake === undefined ? undefined : driver.attach(app.intake)
   const wake =
-    app.wakeNotices === undefined
+    app.intake !== undefined || app.wakeNotices === undefined
       ? undefined
-      : new MainWake({
+      : new LegacyWake({
           blocked: () => driver.running(),
           onWake: () => {
             idleStop.note()
             driver.sayOrRun()
           },
         })
-  const unsubscribeWake = app.wakeNotices?.subscribe(() => {
-    if (app.wakeNotices === undefined) return
-    const pending =
-      app.wakeNotices.pendingShells({ threadId }) +
-      app.wakeNotices.pendingAgents({ threadId }) +
-      app.wakeNotices.pendingServices({ threadId })
-    wake?.onNotice({ witness: pending > 0 ? `pending:${pending}` : null })
-  })
+  const unsubscribeWake =
+    app.intake !== undefined
+      ? undefined
+      : app.wakeNotices?.subscribe(() => {
+          if (app.wakeNotices === undefined) return
+          const waiting =
+            app.wakeNotices.pendingShells({ threadId }) +
+            app.wakeNotices.pendingAgents({ threadId }) +
+            app.wakeNotices.pendingServices({ threadId })
+          wake?.onNotice({ witness: waiting > 0 ? `pending:${waiting}` : null })
+        })
 
   const publishWorkspace: WorkspacePublisher =
     args.publishWorkspace ??
@@ -448,6 +468,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
 
   const close = async (): Promise<void> => {
     idleStop.halt()
+    detachIntake?.()
     unsubscribeWake?.()
     unsubscribeRoster?.()
     unsubscribeThreads?.()

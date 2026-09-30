@@ -11,6 +11,7 @@ import {
 } from '@dltech/atlas-harness'
 
 import { EPendingKind, pendingRows } from '../pending-rows'
+import { EEntryKind } from '../transcript-model'
 
 const typed = (id: string, text: string) => ({
   kind: 'message' as const,
@@ -101,6 +102,8 @@ describe('what waits under the working indicator', () => {
       id: 'shell-ended-bash_1',
       text: 'Background shell "Run full TUI suite" completed (exit code 0)',
       failed: false,
+      body: null,
+      entryKind: EEntryKind.BackgroundShellEnded,
     })
   })
 
@@ -144,6 +147,8 @@ describe('what waits under the working indicator', () => {
       id: 'agent-finished-thread-child',
       text: 'Sub-agent explore "audit the credential vault" finished after 3 turns and 12 tool calls',
       failed: false,
+      body: null,
+      entryKind: EEntryKind.AgentEnded,
     })
   })
 
@@ -200,6 +205,8 @@ describe('what waits under the working indicator', () => {
       id: 'shell-still-running-bash_1',
       text: 'Background shell "Run full TUI suite" is still running - a scheduled check-in, not an ending',
       failed: false,
+      body: null,
+      entryKind: EEntryKind.BackgroundShellStillRunning,
     })
   })
 
@@ -216,6 +223,8 @@ describe('what waits under the working indicator', () => {
       id: 'shell-matched-bash_1',
       text: 'Background shell "Run full TUI suite" matched its watch and is still running',
       failed: false,
+      body: null,
+      entryKind: EEntryKind.BackgroundShellMatched,
     })
   })
 
@@ -233,6 +242,8 @@ describe('what waits under the working indicator', () => {
       id: 'service-exited-svc_1',
       text: 'Service svc_1 "web dev server" exited cleanly',
       failed: false,
+      body: null,
+      entryKind: EEntryKind.ServiceEnded,
     })
   })
 

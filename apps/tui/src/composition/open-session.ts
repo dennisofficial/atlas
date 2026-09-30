@@ -130,6 +130,8 @@ async function startSession(args: {
     log: app.log,
     ledger: app.ledger,
     agents: app.agents,
+    shells: app.shells,
+    services: app.services,
     ids: app.ids,
     workspace: app.workspace,
     open: config.open,

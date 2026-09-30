@@ -7,10 +7,17 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import { bootId } from './boot'
+import type { ServiceSnapshot } from './service-process'
+
 export type LostService = {
   serviceId: string
   command: string
   description?: string | undefined
+}
+
+export type LiveService = {
+  serviceId: string
 }
 
 /**
@@ -19,25 +26,40 @@ export type LostService = {
  * a clean close records an end for every live service, and the absence of one is a crash or a
  * kill. The pairing that decides "no end behind it" lives in core (`lostServicesOf`), shared with
  * teardown and the transcript so the three never disagree; this class owns only the I/O of reading
- * the log and appending the synthetic end, and the once-per-thread guard that keeps a revisit free.
+ * the log and appending the synthetic end.
  */
 export class ServiceRecovery {
   private readonly log: EventLogPort
   private readonly ids: IdPort
-  private readonly reconciled = new Set<ThreadId>()
+  private readonly live: (() => readonly LiveService[] | undefined) | undefined
+  private readonly inflight = new Map<ThreadId, Promise<readonly LostService[]>>()
 
-  constructor(args: { log: EventLogPort; ids: IdPort }) {
+  constructor(args: {
+    log: EventLogPort
+    ids: IdPort
+    live?: (() => readonly LiveService[] | undefined) | undefined
+  }) {
     this.log = args.log
     this.ids = args.ids
+    this.live = args.live
   }
 
-  async recordLost(args: { threadId: ThreadId }): Promise<readonly LostService[]> {
+  recordLost(args: { threadId: ThreadId }): Promise<readonly LostService[]> {
     const { threadId } = args
-    if (this.reconciled.has(threadId)) return []
-    this.reconciled.add(threadId)
+    const running = this.inflight.get(threadId)
+    if (running !== undefined) return running
 
+    const attempt = this.reconcile({ threadId }).finally(() => {
+      this.inflight.delete(threadId)
+    })
+    this.inflight.set(threadId, attempt)
+    return attempt
+  }
+
+  private async reconcile(args: { threadId: ThreadId }): Promise<readonly LostService[]> {
+    const { threadId } = args
     const events = await this.log.readOwn({ threadId })
-    const lost = lostServicesOf(events)
+    const lost = this.unresolvedBeforeThisBoot(lostServicesOf(events))
     if (lost.length === 0) return []
 
     await this.log.append({
@@ -58,6 +80,19 @@ export class ServiceRecovery {
       command: service.started.command,
       description: service.started.description,
     }))
+  }
+
+  private unresolvedBeforeThisBoot(
+    lost: ReturnType<typeof lostServicesOf>,
+  ): ReturnType<typeof lostServicesOf> {
+    const beforeThisBoot = lost.filter((service) => service.started.bootId !== bootId)
+    const live = this.live?.()
+    if (live === undefined) return beforeThisBoot
+
+    const liveIds = new Set(live.map((service) => service.serviceId))
+    return beforeThisBoot.filter(
+      (service) => service.started.bootId !== undefined || !liveIds.has(service.key),
+    )
   }
 }
 
@@ -88,3 +123,10 @@ export function lostServiceEnding(service: {
     tail: '',
   }
 }
+
+export const liveServicesOf = (
+  snapshots: readonly ServiceSnapshot[],
+): readonly LiveService[] =>
+  snapshots
+    .filter((snapshot) => snapshot.endedAt === undefined)
+    .map((snapshot) => ({ serviceId: snapshot.serviceId }))

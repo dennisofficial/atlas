@@ -20,36 +20,34 @@ import {
   ModelPort,
   TelemetryPort,
   rangeValueOf,
-  type CapabilitiesSource,
   type EventDraft,
   type NoticePort,
   type SaidImage,
   type SettingsResolution,
   type ThreadId,
-  type ToolDeclaration,
-  type WorkspaceIdentity,
 } from '@dltech/atlas-core'
 
-import type { LanguageModel } from 'ai'
-
-import type { DeltaChannel } from '../channel/delta-channel'
 import { withDeltaPublishing } from '../channel/publishing-event-log'
 import { PublishingTurnRunner } from '../channel/publishing-turn-runner'
-import type { ChildRunnerDeps } from '../agents/registry/child-runner'
-import { subAgentPrompt } from '../agents/registry/child-prompt'
-import { isTeammateType } from '../agents/types'
 import { AgentRegistryPort } from '../agents/registry/port'
 import { childModelSelection, childModelSource } from './child-model'
+import { subAgentPrompt } from '../agents/registry/child-prompt'
+import type { ChildRunnerDeps } from '../agents/registry/child-runner'
+import { isTeammateType } from '../agents/types'
 import { ChildRunnerDepsToken } from '../container/create-harness-container'
 import { portToken, type DependencyContainer } from '../container/injection'
+import { ToolRegistry } from '../tools/registry'
 import { DeltaChannelToken, HookChainToken, SessionRegistryToken } from '../container/tokens'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import { jevLoopWatch } from '../loop/loop-watchdog'
-import type { PendingDrain, TurnDeps } from '../loop/run-turn'
+import type { TurnDeps } from '../loop/run-turn'
 
-import { ChildWake } from './child-wake'
+import type { MessageIntake } from '../intake'
+import { bindIntake } from './intake-binding'
+
+import type { TurnSetup } from './turn-setup'
 import { TitlingTurnRunner } from './titling-turn-runner'
-import { TldrTurnRunner, type TldrFeed } from '../loop/tldr-turn-runner'
+import { TldrTurnRunner } from '../loop/tldr-turn-runner'
 import type { TurnRunner } from '../loop/turn-runner.port'
 import type { PendingQueues } from '../pending'
 import { userSaidDraft } from '../pending'
@@ -58,23 +56,16 @@ import type { SleepPrevention } from '../power/sleep-prevention'
 import type { ClockJumpDetector } from '../loop/retrying-step'
 import type { WakeSignal } from '../wake/wake-signals'
 import { ServiceRegistryPort } from '../services/service-registry'
-import type { SettingsService } from '../settings/service'
 import { ShellRegistryPort } from '../shells/shell-registry'
 import { createLoopCut } from '../store/sessions/ops/cut-loop'
 import { ThreadStorePort } from '../store/thread-store'
 import { ToolDispatcher } from '../tools/dispatch'
-import { ToolRegistry } from '../tools/registry'
 
-import { compactTurn, ECompaction, type Summariser } from './compact-turn'
-import type { ExecutionLocationState } from './execution-location-state'
+import { compactTurn, ECompaction } from './compact-turn'
 import { createTurnPolicyRunner } from './turn-policy-runner'
 import type { TurnPolicy } from '../loop/turn-policy'
 import { LocalRewindMachinery } from '../store/local-rewind-machinery'
 import { createUsageTracker } from './usage-tracker'
-import { faultInjected } from './fault-injection'
-import type { ModelCatalogue } from './model-catalogue'
-import type { SelectableModel } from './model-selection'
-import { teardownSession, type TeardownSource } from './session-teardown'
 
 const asClockJumps = (wake: WakeSignal): ClockJumpDetector => ({
   onJump: (callback) => wake.subscribe((jump) => callback(jump.gapMs)),
@@ -85,48 +76,20 @@ export type TurnWiring = {
   runner: TurnRunner
   turnPolicy: TurnPolicy
   titling: TitlingTurnRunner
-  drainNotices: (args: { threadId: ThreadId }) => Promise<PendingDrain>
   recordTeardownEndings: () => Promise<void>
+  intake: MessageIntake
 }
 
-// A shell or service ending is speech the model must answer, so it wakes the turn the way an agent
-// ending does. A draft is an Event missing only its envelope fields, which isTurnTaking never reads.
 export const noticesWakeTurn = (args: {
   agentWakes: boolean
   shellDrafts: readonly EventDraft[]
   serviceDrafts: readonly EventDraft[]
 }): boolean =>
   args.agentWakes ||
-  args.shellDrafts.some((draft) => isTurnTaking(draft as Parameters<typeof isTurnTaking>[0])) ||
-  args.serviceDrafts.some((draft) => isTurnTaking(draft as Parameters<typeof isTurnTaking>[0]))
+  args.shellDrafts.some((draft) => isTurnTaking(draft)) ||
+  args.serviceDrafts.some((draft) => isTurnTaking(draft))
 
-export function wireTurn<Command>(args: {
-  container: DependencyContainer
-  workspace: WorkspaceIdentity
-  executionLocation: ExecutionLocationState
-  capabilities?: CapabilitiesSource | undefined
-  mounts: readonly string[]
-  models: ModelCatalogue
-  model: SelectableModel
-  modelPort: ModelPort
-  prompts: PromptRegistry
-  declarations: () => readonly ToolDeclaration[]
-  pending: PendingQueues<Command>
-  channel: DeltaChannel
-  notice: NoticePort
-  summarise: Summariser
-  settings: SettingsService
-  decisionsEnabled: () => boolean
-  stopSandbox: () => Promise<boolean>
-  settled: SettingsResolution
-  sleepPrevention?: SleepPrevention | undefined
-  wake?: WakeSignal | undefined
-  tldr: { feed: TldrFeed | undefined; model: LanguageModel; modelId: () => string }
-  titler: (args: {
-    text: string
-    images?: readonly SaidImage[] | undefined
-  }) => Promise<string | null>
-}): TurnWiring {
+export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
   const {
     container,
     workspace,
@@ -140,8 +103,6 @@ export function wireTurn<Command>(args: {
     notice,
   } = args
 
-  // The channel is created per-compose, after the container, so it cannot be a container-native
-  // registration; the tool factories that consume it resolve lazily, after this runs.
   container.register(DeltaChannelToken, { useValue: args.channel })
 
   const log = container.resolve(portToken(EventLogPort))
@@ -153,11 +114,6 @@ export function wireTurn<Command>(args: {
   const agents = container.resolve(portToken(AgentRegistryPort))
   const services = container.resolve(portToken(ServiceRegistryPort))
 
-  /**
-   * The loop asks for this only when a step would otherwise be sent a prompt the window cannot hold,
-   * which is the one moment compacting mid-turn is safe: the loop is between steps and re-reads the
-   * log itself afterwards.
-   */
   const compactBeforeOverflow = async ({ threadId }: { threadId: ThreadId }): Promise<boolean> => {
     const compaction = await compactTurn({
       log,
@@ -169,22 +125,9 @@ export function wireTurn<Command>(args: {
     return compaction.type === ECompaction.Compacted
   }
 
-  const recordTeardownEndings = async (): Promise<void> => {
-    childWake.dispose()
-    const agentEndings: TeardownSource = {
-      closeAll: () => agents.closeAll(),
-      threadsAwaitingNotice: () => agents.threadsAwaitingNotice(),
-      drainNotifications: ({ threadId }) => agents.drainNotifications({ threadId }).drafts,
-    }
-    await teardownSession({
-      sources: [shells, agentEndings, services],
-      log,
-      ids,
-      stopSandbox: args.stopSandbox,
-    })
-  }
-
-  const childWake = new ChildWake({ agents, sources: [shells, services, agents] })
+  const { intake, recordTeardownEndings } = bindIntake({
+    pending, shells, agents, services, log, ids, stopSandbox: args.stopSandbox,
+  })
 
   const runningShells = ({ threadId }: { threadId: ThreadId }) =>
     shells
@@ -218,24 +161,6 @@ export function wireTurn<Command>(args: {
         description: service.description,
         logPath: service.logPath,
       }))
-
-  const drainNotices = async ({
-    threadId,
-  }: {
-    threadId: ThreadId
-  }): Promise<PendingDrain> => {
-    const agentDrain = agents.drainNotifications({ threadId })
-    const shellDrafts = shells.drainNotifications({ threadId })
-    const serviceDrafts = services.drainNotifications({ threadId })
-    return {
-      drafts: [...shellDrafts, ...agentDrain.drafts, ...serviceDrafts],
-      wakesTurn: noticesWakeTurn({
-        agentWakes: agentDrain.wakesTurn,
-        shellDrafts,
-        serviceDrafts,
-      }),
-    }
-  }
 
   const compiledPrompt = ({ projectDirectory }: { projectDirectory: string }) =>
     prompts.compile(
@@ -271,14 +196,7 @@ export function wireTurn<Command>(args: {
     tools: args.declarations,
     dispatch: container.resolve(portToken(ToolDispatcher)),
     hooks: container.resolve(HookChainToken),
-    drainPending: async (drained) => {
-      const notices = await drainNotices(drained)
-      const typed = pending.forThread({ threadId: drained.threadId }).drain().map(userSaidDraft)
-      return {
-        drafts: [...notices.drafts, ...typed],
-        wakesTurn: notices.wakesTurn || typed.length > 0,
-      }
-    },
+    drainPending: (args) => intake.prepare(args),
     spend: {
       ledger,
       clock: container.resolve(portToken(ClockPort)),
@@ -338,7 +256,8 @@ export function wireTurn<Command>(args: {
       tools: container.resolve(portToken(ToolRegistry)),
       hooks: container.resolve(HookChainToken),
       channel: args.channel,
-      drainNotices,
+      drainNotices: (request) => intake.prepare(request),
+      intake,
       modelFor,
       modelAtSpawn,
       telemetry: container.resolve(portToken(TelemetryPort)),
@@ -417,5 +336,5 @@ export function wireTurn<Command>(args: {
     readClock: () => Date.now(),
   })
 
-  return { turn, runner: turnPolicy, turnPolicy, titling, drainNotices, recordTeardownEndings }
+  return { turn, runner: turnPolicy, turnPolicy, titling, recordTeardownEndings, intake }
 }

@@ -412,7 +412,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
       ...(signal === undefined ? {} : { signal }),
     })
 
-  const { turn, runner, turnPolicy, titling, recordTeardownEndings } = wireTurn<Command>({
+  const { turn, runner, turnPolicy, titling, recordTeardownEndings, intake } = wireTurn<Command>({
     container,
     workspace,
     executionLocation,
@@ -487,6 +487,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     ledger,
     ids,
     pending,
+    intake,
     shells,
     agents,
     services,
@@ -508,7 +509,12 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     surface: bound as TSurface,
     close: async () => {
       usage.dispose()
-      await recordTeardownEndings().catch(() => undefined)
+      await recordTeardownEndings().catch((error: unknown) => {
+        notice.notify({
+          tone: ENoticeTone.Warn,
+          text: `Could not persist every session ending: ${error instanceof Error ? error.message : String(error)}`,
+        })
+      })
       await disposeAll({ container })
       await container.resolve(portToken(TelemetryPort)).flush()
     },

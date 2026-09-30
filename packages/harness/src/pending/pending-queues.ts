@@ -5,15 +5,13 @@ import { createPendingQueue, type PendingQueue } from './pending-queue'
 export type PendingQueues<Command = never> = {
   forThread(args: { threadId: ThreadId }): PendingQueue<Command>
   waitingCount(): number
+  subscribe(listener: () => void): () => void
+  threadsAwaitingInput(): readonly ThreadId[]
 }
 
-/**
- * A message typed ahead belongs to the thread it was typed in, so each thread keeps its own
- * queue: swapping conversations never discards one, and the loop drains only the queue of the
- * thread its turn is running on.
- */
 export function createPendingQueues<Command = never>(): PendingQueues<Command> {
   const queues = new Map<ThreadId, PendingQueue<Command>>()
+  const listeners = new Set<() => void>()
 
   return {
     forThread({ threadId }) {
@@ -22,7 +20,21 @@ export function createPendingQueues<Command = never>(): PendingQueues<Command> {
 
       const created = createPendingQueue<Command>()
       queues.set(threadId, created)
+      created.subscribe(() => {
+        for (const listener of [...listeners]) listener()
+      })
       return created
+    },
+
+    subscribe(listener) {
+      listeners.add(listener)
+      return () => void listeners.delete(listener)
+    },
+
+    threadsAwaitingInput() {
+      return [...queues].filter(([, queue]) =>
+        queue.getSnapshot().some((entry) => entry.kind === 'message'),
+      ).map(([threadId]) => threadId)
     },
 
     waitingCount() {

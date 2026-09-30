@@ -1,4 +1,4 @@
-import { EContextSlot, EKilledBy, latestTldrPerAnchor, quotedShellCommand, type AssistantPart, type CallId, type Event, type EventId, type EventOfType, type SaidImage } from '@dltech/atlas-core'
+import { endingIsSpeech, EContextSlot, EKilledBy, latestTldrPerAnchor, quotedShellCommand, type AssistantPart, type CallId, type Event, type EventId, type EventOfType, type SaidImage } from '@dltech/atlas-core'
 
 import { formatElapsed } from '../ui/theme'
 
@@ -8,8 +8,8 @@ import {
   agentEndingFailed,
   agentReportedLine,
   agentRestartedLine,
-  deliberateRestart,
 } from './agent-ended-line'
+import { deliberateAgentRestart } from './notice-barriers'
 import { modelEntries } from './model-entries'
 import { serviceEndedLine, serviceEndingFailed } from './service-ended-line'
 import { shellAwaitingInputLine, shellEndedLine, shellEndingFailed } from './shell-ended-line'
@@ -274,6 +274,7 @@ export function durableEntries(args: {
           agentId: event.agentId,
           report: event.prose,
           failed: agentEndingFailed(event),
+          ...(!endingIsSpeech(event.agentType) ? { quiet: true } : {}),
         },
       ]
     }
@@ -292,7 +293,7 @@ export function durableEntries(args: {
     }
 
     if (event.type === 'agent-restarted') {
-      if (!deliberateRestart(event)) return []
+      if (!deliberateAgentRestart(event)) return []
       return [
         {
           kind: EEntryKind.AgentRestarted,

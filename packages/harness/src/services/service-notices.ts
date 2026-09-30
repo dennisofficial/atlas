@@ -1,5 +1,6 @@
 import type { EventDraft, ThreadId } from '@dltech/atlas-core'
 
+import type { InputBatch } from '../intake/input-batch'
 import { bootId } from './boot'
 import { logTail, type ServiceSnapshot } from './service-process'
 
@@ -46,12 +47,25 @@ export class ServiceNoticeQueue {
   }
 
   drain({ threadId }: { threadId: ThreadId }): readonly EventDraft[] {
-    const handed = this.queued.filter((notice) => notice.threadId === threadId)
-    if (handed.length === 0) return NOTHING_DRAINED
+    const batch = this.prepare({ threadId })
+    batch.acknowledge()
+    return batch.drafts
+  }
 
-    this.settle(this.queued.filter((notice) => notice.threadId !== threadId))
+  prepare({ threadId }: { threadId: ThreadId }): InputBatch {
+    const captured = this.queued.filter((notice) => notice.threadId === threadId)
+    const drafts = captured.map((notice) => serviceEndedDraft({ snapshot: notice.snapshot }))
 
-    return handed.map((notice) => serviceEndedDraft({ snapshot: notice.snapshot }))
+    let acknowledged = false
+    const acknowledge = (): void => {
+      if (acknowledged) return
+      acknowledged = true
+      const leaving = new Set(captured)
+      const kept = this.queued.filter((notice) => !leaving.has(notice))
+      if (kept.length !== this.queued.length) this.settle(kept)
+    }
+
+    return { drafts, wakesTurn: drafts.length > 0, acknowledge }
   }
 
   pending({ threadId }: { threadId: ThreadId }): readonly ServiceSnapshot[] {
@@ -60,6 +74,10 @@ export class ServiceNoticeQueue {
 
   threadsAwaiting(): readonly ThreadId[] {
     return [...this.noticed.keys()]
+  }
+
+  threadsQueued(): readonly ThreadId[] {
+    return [...new Set(this.queued.map((notice) => notice.threadId))]
   }
 
   onNotice(listener: () => void): () => void {

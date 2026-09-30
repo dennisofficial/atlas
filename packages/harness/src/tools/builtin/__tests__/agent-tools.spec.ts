@@ -289,7 +289,7 @@ describe('agent_say', () => {
 
     expect(outcome.ok && outcome.modelText).toContain('queued')
     expect(open_.runners.started).toHaveLength(1)
-    expect(open_.runners.started[0]?.request.steering()).toEqual([
+    expect(open_.runners.started[0]?.request.steering().peek()).toEqual([
       { text: 'look at the other file instead', images: undefined },
     ])
   })

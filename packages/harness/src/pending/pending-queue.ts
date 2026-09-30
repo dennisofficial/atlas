@@ -1,6 +1,13 @@
-import type { SaidFile, SaidImage } from '@dltech/atlas-core'
+import { EMessageOrigin, saidBody, type EventDraft, type SaidFile, type SaidImage } from '@dltech/atlas-core'
+import type { InputBatch } from '../intake/input-batch'
 
-export type PendingSaid = { text: string; images: readonly SaidImage[]; files: readonly SaidFile[] }
+export type PendingSaid = {
+  text: string
+  images: readonly SaidImage[]
+  files: readonly SaidFile[]
+  context?: readonly EventDraft[] | undefined
+  via?: EMessageOrigin | undefined
+}
 
 export type PendingMessage = PendingSaid & { kind: 'message'; id: string }
 
@@ -16,7 +23,8 @@ export type PendingEntry<Command> = PendingMessage | PendingCommand<Command>
 export type PendingQueue<Command = never> = {
   subscribe(listener: () => void): () => void
   getSnapshot(): readonly PendingEntry<Command>[]
-  enqueue(args: { text: string; images?: readonly SaidImage[]; files?: readonly SaidFile[] }): void
+  enqueue(args: { text: string; images?: readonly SaidImage[]; files?: readonly SaidFile[]; context?: readonly EventDraft[] | undefined; via?: EMessageOrigin | undefined }): void
+  prepare(): InputBatch
   enqueueCommand(args: { text: string; command: Command }): void
   takeBackLast(): PendingSaid | null
   drain(): readonly PendingSaid[]
@@ -36,16 +44,13 @@ const NO_FILES: readonly SaidFile[] = Object.freeze([])
 const isCommand = <Command>(entry: PendingEntry<Command>): entry is PendingCommand<Command> =>
   entry.kind === 'command'
 
-/**
- * Everything here is undelivered: the loop takes messages out of it and the settle path takes
- * commands, and what either has taken lives in the event log from then on — never here.
- */
 export function createPendingQueue<Command = never>(): PendingQueue<Command> {
   let entries: readonly PendingEntry<Command>[] = NOTHING_PENDING
   let snapshot: readonly PendingEntry<Command>[] = entries
   let stamped = 0
 
   const listeners = new Set<() => void>()
+  const reserved = new Set<string>()
 
   const settle = (next: readonly PendingEntry<Command>[]): void => {
     entries = next
@@ -66,10 +71,11 @@ export function createPendingQueue<Command = never>(): PendingQueue<Command> {
 
     getSnapshot: () => snapshot,
 
-    enqueue({ text, images, files }) {
+    enqueue({ text, images, files, context, via }) {
       settle([
         ...entries,
-        { kind: 'message', id: stamp(), text, images: images ?? NO_IMAGES, files: files ?? NO_FILES },
+        { kind: 'message', id: stamp(), text, images: images ?? NO_IMAGES, files: files ?? NO_FILES,
+          ...(context === undefined ? {} : { context }), ...(via === undefined ? {} : { via }) },
       ])
     },
 
@@ -78,24 +84,57 @@ export function createPendingQueue<Command = never>(): PendingQueue<Command> {
     },
 
     takeBackLast() {
-      const last = entries.at(-1)
+      const last = [...entries].reverse().find(
+        (entry) =>
+          !reserved.has(entry.id) &&
+          (!('via' in entry) || entry.via === undefined || entry.via === EMessageOrigin.Operator),
+      )
       if (last === undefined) return null
 
-      settle(entries.slice(0, -1))
+      settle(entries.filter((entry) => entry.id !== last.id))
       if (last.kind === 'command') return { text: last.text, images: NO_IMAGES, files: NO_FILES }
-      return { text: last.text, images: last.images, files: last.files }
+      const { kind, id, ...said } = last
+      return said
+    },
+
+    prepare() {
+      const messages = entries.filter(
+        (entry): entry is PendingMessage => entry.kind === 'message' && !reserved.has(entry.id),
+      )
+      for (const message of messages) reserved.add(message.id)
+      let settled = false
+      const release = (): void => {
+        for (const message of messages) reserved.delete(message.id)
+      }
+      return {
+        drafts: messages.flatMap((message): readonly EventDraft[] => [
+          ...(message.context ?? []),
+          { ...saidBody(message), ...(message.via === undefined ? {} : { via: message.via }) },
+        ]),
+        wakesTurn: messages.length > 0,
+        acknowledge: () => {
+          if (settled) return
+          settled = true
+          release()
+          if (messages.length === 0) return
+          const handed = new Set(messages.map((message) => message.id))
+          settle(entries.filter((entry) => !handed.has(entry.id)))
+        },
+        release: () => {
+          if (settled) return
+          settled = true
+          release()
+        },
+      }
     },
 
     drain() {
-      const messages = entries.filter((entry) => entry.kind === 'message')
+      const messages = entries.filter((entry): entry is PendingMessage => entry.kind === 'message' && !reserved.has(entry.id))
       if (messages.length === 0) return NOTHING_TAKEN
 
-      settle(entries.filter(isCommand))
-      return messages.map((message) => ({
-        text: message.text,
-        images: message.images,
-        files: message.files,
-      }))
+      const handed = new Set(messages.map((message) => message.id))
+      settle(entries.filter((entry) => !handed.has(entry.id)))
+      return messages.map(({ id, kind, ...said }) => said)
     },
 
     drainCommands() {

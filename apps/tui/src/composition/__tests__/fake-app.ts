@@ -79,6 +79,8 @@ import {
 
 import { FileBrowser } from '@dltech/atlas-harness'
 
+import { MessageIntake, operatorSource } from '@dltech/atlas-harness'
+
 import { createPathResolver } from '@dltech/atlas-harness'
 
 import type { PullRequestPort } from '@dltech/atlas-harness'
@@ -731,6 +733,7 @@ export function fakeApp(args: {
   containerLimits?: { cpus: number; memoryGb: number }
   drainFailures?: number
   turnPolicy?: TurnPolicy
+  intake?: boolean | undefined
 }): FakeApp {
   const channel = createDeltaChannel()
   const log = fakeEventLog()
@@ -739,6 +742,14 @@ export function fakeApp(args: {
   const ids = new RandomIds()
   const ledger = fakeLedger()
   const pending = createPendingQueues<QueuedSettled>()
+  const intake =
+    args.intake === true
+      ? new MessageIntake({
+          sources: [operatorSource(pending)],
+          submit: (given) =>
+            pending.forThread({ threadId: given.threadId }).enqueue(given),
+        })
+      : undefined
   const shells = fakeShellRegistry()
   const agents = fakeAgentRegistry({ threads })
   const services = fakeServiceRegistry()
@@ -945,6 +956,7 @@ export function fakeApp(args: {
     threads,
     ids,
     pending,
+    ...(intake === undefined ? {} : { intake }),
     shells,
     agents,
     services,
