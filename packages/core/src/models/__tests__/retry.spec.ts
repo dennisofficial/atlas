@@ -80,10 +80,6 @@ describe('planning the wait before trying again', () => {
     expect(decision.retry).toBe(true)
   })
 
-  /**
-   * Equal jitter: half the backoff is fixed and half is spread, so two clients that failed together
-   * do not come back together, and no wait ever collapses to zero.
-   */
   it('spreads the wait over the top half of the window', () => {
     const floor = planRetry({ failure: { status: 529 }, attempts: 3, policy: POLICY, jitter: 0 })
     const ceiling = planRetry({ failure: { status: 529 }, attempts: 3, policy: POLICY, jitter: 1 })
@@ -121,8 +117,57 @@ describe('planning the wait before trying again', () => {
   })
 
   it('ships a default policy that gives up rather than retrying forever', () => {
-    expect(DEFAULT_RETRY_POLICY.maxAttempts).toBeGreaterThan(1)
-    expect(DEFAULT_RETRY_POLICY.maxAttempts).toBeLessThanOrEqual(10)
-    expect(DEFAULT_RETRY_POLICY.baseDelayMs).toBeGreaterThan(0)
+    expect(DEFAULT_RETRY_POLICY).toEqual({ maxAttempts: 5, baseDelayMs: 1_000, maxDelayMs: 10_000 })
+  })
+})
+
+describe('the default policy every caller inherits', () => {
+  const FULL_JITTER = 1
+
+  it('waits one, two, four, then eight seconds at the far end of the jitter window', () => {
+    const delays = [1, 2, 3, 4].map((attempts) => {
+      const decision = planRetry({
+        failure: { status: 429 },
+        attempts,
+        policy: DEFAULT_RETRY_POLICY,
+        jitter: FULL_JITTER,
+      })
+      return decision.retry ? decision.delayMs : null
+    })
+
+    expect(delays).toEqual([1_000, 2_000, 4_000, 8_000])
+  })
+
+  it('stops after the fifth failure', () => {
+    const decision = planRetry({
+      failure: { status: 429 },
+      attempts: DEFAULT_RETRY_POLICY.maxAttempts,
+      policy: DEFAULT_RETRY_POLICY,
+      jitter: FULL_JITTER,
+    })
+
+    expect(decision.retry).toBe(false)
+  })
+
+  it('clamps a generous retry-after to ten seconds', () => {
+    const decision = planRetry({
+      failure: { status: 429, retryAfterMs: 60_000 },
+      attempts: 1,
+      policy: DEFAULT_RETRY_POLICY,
+      jitter: FULL_JITTER,
+    })
+
+    expect(decision.retry && decision.delayMs).toBe(10_000)
+  })
+
+  it('honours a retry-after that is shorter than the backoff', () => {
+    const decision = planRetry({
+      failure: { status: 429, retryAfterMs: 250 },
+      attempts: 3,
+      policy: DEFAULT_RETRY_POLICY,
+      jitter: FULL_JITTER,
+    })
+
+    expect(decision.retry && decision.delayMs).toBe(250)
   })
 })

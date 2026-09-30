@@ -17,9 +17,9 @@ export type RetryPolicy = {
 }
 
 export const DEFAULT_RETRY_POLICY: RetryPolicy = {
-  maxAttempts: 10,
+  maxAttempts: 5,
   baseDelayMs: 1_000,
-  maxDelayMs: 60_000,
+  maxDelayMs: 10_000,
 }
 
 export type RetryDecision =
