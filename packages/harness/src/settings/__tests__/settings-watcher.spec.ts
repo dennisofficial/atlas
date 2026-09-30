@@ -1,8 +1,8 @@
 import { ATLAS_SETTINGS, ESettingId } from '@dltech/atlas-core'
 import { afterEach, describe, expect, it } from 'bun:test'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 import { FileSettingsStore } from '../file-store'
 import { MemorySettingsStore } from '../memory-store'
@@ -120,27 +120,21 @@ describe('settings file watching across tiles', () => {
     expect(held?.origin).toBe('project')
   })
 
-  it('keeps live-syncing after an unrelated cloud write failure', async () => {
+  it('keeps live-syncing after an unrelated local write failure', async () => {
     const { file, store } = fileStore()
-    const failingCloud = {
-      signedIn: () => true,
-      values: () => ({}),
-      set: async () => {
-        throw new Error('cloud is down')
-      },
-      remove: async () => undefined,
-      subscribe: () => () => undefined,
-    }
     const service = createSettingsService({
       definitions: ATLAS_SETTINGS,
       user: store,
-      cloud: failingCloud,
       watch: { files: [file], debounceMs: DEBOUNCE_MS },
     })
     services.push(service)
 
-    // A failed cloud save leaves a problem on the snapshot; file watching must still work.
-    service.set({ id: 'sandbox.image', value: 'x' })
+    // A failed save leaves a problem on the snapshot; file watching must still work.
+    expect(service.set({ id: ESettingId.Accent, value: 'teal' })).toEqual({ ok: true })
+    const directory = dirname(file)
+    chmodSync(directory, 0o500)
+    expect(service.set({ id: ESettingId.Accent, value: 'oak' }).ok).toBe(false)
+    chmodSync(directory, 0o700)
     await settled(DEBOUNCE_MS * 4)
 
     const other = new FileSettingsStore({ file, label: 'other-tile' })

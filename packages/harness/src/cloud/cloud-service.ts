@@ -1,27 +1,16 @@
-import { existsSync, renameSync } from 'node:fs'
-
-import { AccountStorePort, type SettingsStorePort } from '@dltech/atlas-core'
+import type { AccountStorePort, SettingsStorePort } from '@dltech/atlas-core'
 import { z } from 'zod'
 
-import { atlasVaultFile } from '../credentials/paths'
 import type { FileSecretsStore } from '../secrets/file-secrets-store'
-import { atlasSecretsFile } from '../secrets/paths'
-import { userMcpFile } from '../settings/paths'
 import { CloudClient, CloudError, cloudClientFor } from './cloud-client'
 import type { CloudSession, CloudSessionStore } from './cloud-session'
 import { SessionsClient } from './sessions-client'
-import {
-  beginCloudLogin,
-  type CloudLoginTicket,
-} from './device-login'
-import {
-  downloadAndPurgeCloudData,
-  downloadCloudData,
-  type CloudPurgeResult,
-} from './download-purge'
+import { beginCloudLogin, type CloudLoginTicket } from './device-login'
+import { restoreArchivedLocalFiles } from './local-recovery'
 import { fileSignInOffer, type SignInOffer } from './sign-in-offer'
+import { downloadCloudData } from './sync-download'
+import { uploadLocalSettings } from './sync-settings'
 import {
-  migrateLocalSettings,
   uploadLocalAccounts,
   uploadLocalMcp,
   uploadLocalSecrets,
@@ -34,54 +23,12 @@ const getSessionResponseSchema = z.object({
 
 export type CloudLoginResult = {
   session: CloudSession
-  imported: number
-  importedSecrets: number
-  importedMcp: number
-  importedSettings: number
-  archived: string[]
 }
 
 export type SessionsClientFor = (args: {
   session: CloudSession
   clientVersion: string | undefined
 }) => SessionsClient
-
-const isAbsentFile = (cause: unknown): boolean =>
-  typeof cause === 'object' && cause !== null && Reflect.get(cause, 'code') === 'ENOENT'
-
-const archiveIfPresent = (file: string): string | null => {
-  const archived = `${file}.archived`
-  try {
-    renameSync(file, archived)
-  } catch (cause) {
-    if (isAbsentFile(cause)) return null
-    throw cause
-  }
-  return archived
-}
-
-const archiveImportedLocalFiles = (): string[] =>
-  [atlasVaultFile(), atlasSecretsFile(), userMcpFile()].flatMap((file) => {
-    const archived = archiveIfPresent(file)
-    return archived === null ? [] : [archived]
-  })
-
-/**
- * Sign-in moved the local files aside; sign-out hands them back, so a signed-out Atlas has its
- * accounts, secrets and mcp layer again. A live file already sitting at the path wins — the purge
- * flow writes fresh downloads there before clearing the session, and an archived snapshot must
- * never overwrite them.
- */
-const restoreArchivedLocalFiles = (): void => {
-  for (const file of [atlasVaultFile(), atlasSecretsFile(), userMcpFile()]) {
-    if (existsSync(file)) continue
-    try {
-      renameSync(`${file}.archived`, file)
-    } catch (cause) {
-      if (!isAbsentFile(cause)) throw cause
-    }
-  }
-}
 
 export class CloudService {
   private readonly sessions: CloudSessionStore
@@ -104,7 +51,6 @@ export class CloudService {
     clientVersion?: string
     fetchFn?: typeof fetch
     signInOffer?: SignInOffer
-    /** Construction seam so a spec answers thread listings without standing up an HTTP fake. */
     sessionsClientFor?: SessionsClientFor
   }) {
     this.sessions = args.sessions
@@ -142,10 +88,6 @@ export class CloudService {
     )
   }
 
-  /**
-   * The signed-out boot notice is an offer read once ever, not a per-boot nag — the marker lives
-   * beside the vault so a never-signing-in operator is never asked twice.
-   */
   signInOffered(): boolean {
     return this.signInOffer.offered()
   }
@@ -196,53 +138,12 @@ export class CloudService {
     const session: CloudSession = { url: ticket.url, token, email }
     this.sessions.write(session)
 
-    const client = this.clientFor({ session })
-
-    try {
-      const imported = await this.importLocalAccounts({ client })
-      const importedSecrets = await this.importLocalSecrets({ client })
-      const importedMcp = await this.importLocalMcp({ client })
-      const importedSettings = await migrateLocalSettings({
-        client,
-        localSettings: this.localSettings,
-      })
-      const archived = archiveImportedLocalFiles()
-      return { session, imported, importedSecrets, importedMcp, importedSettings, archived }
-    } catch (cause) {
-      throw new CloudError({
-        status: cause instanceof CloudError ? cause.status : 0,
-        message: `Signed in to ${ticket.url}, but copying the local accounts, secrets, mcp servers and settings into the cloud failed: ${cause instanceof Error ? cause.message : String(cause)}. The sign-in is kept; the copy may be incomplete.`,
-      })
-    }
+    return { session }
   }
 
   logout(): void {
     this.sessions.clear()
     restoreArchivedLocalFiles()
-  }
-
-  /**
-   * Pulls everything the cloud holds into the local stores, deletes it server-side domain by
-   * domain, then clears the session — a signed-in session serves the (now empty) remote stores,
-   * so staying signed in would hide what just landed locally. A failure throws before the
-   * session is touched, leaving the remaining domains in the cloud for a retry.
-   */
-  async downloadAndPurge(): Promise<CloudPurgeResult> {
-    const session = this.sessions.read()
-    if (session === null)
-      throw new CloudError({
-        status: 0,
-        message: 'There is no Atlas Cloud sign-in to purge — sign in first.',
-      })
-
-    const client = this.clientFor({ session })
-
-    const result = await downloadAndPurgeCloudData({
-      client,
-      stores: { accounts: this.localAccounts, secrets: this.localSecrets },
-    })
-    this.sessions.clear()
-    return result
   }
 
   private async readSignedInEmail(args: { url: string; token: string }): Promise<string | null> {
@@ -261,27 +162,25 @@ export class CloudService {
     return parsed.success ? (parsed.data.user.email ?? null) : null
   }
 
-  /**
-   * The explicit upload: every local account, secret and mcp server goes up, per item — the
-   * first-seed skip of finishLogin is a gate on the call site, not a property of the upload.
-   */
   async uploadLocalToCloud(): Promise<CloudSyncCounts> {
     const client = this.requireClient()
     return {
       accounts: await uploadLocalAccounts({ client, local: this.localAccounts }),
       secrets: await uploadLocalSecrets({ client, localSecrets: this.localSecrets }),
       mcpServers: await uploadLocalMcp({ client }),
+      settings: await uploadLocalSettings({ client, localSettings: this.localSettings }),
     }
   }
 
-  /**
-   * The explicit download: remote content lands locally, nothing remote is deleted, and the
-   * session stays — logout() already prefers the live local files this writes over the archives.
-   */
   async downloadCloudToLocal(): Promise<CloudSyncCounts> {
+    const client = this.requireClient()
     return downloadCloudData({
-      client: this.requireClient(),
-      stores: { accounts: this.localAccounts, secrets: this.localSecrets },
+      client,
+      stores: {
+        accounts: this.localAccounts,
+        secrets: this.localSecrets,
+        settings: this.localSettings,
+      },
     })
   }
 
@@ -293,23 +192,5 @@ export class CloudService {
         message: 'There is no Atlas Cloud sign-in — sign in first.',
       })
     return this.clientFor({ session })
-  }
-
-  private async importLocalAccounts(args: { client: CloudClient }): Promise<number> {
-    const existing = await args.client.listAccounts()
-    if (existing.length > 0) return 0
-    return uploadLocalAccounts({ client: args.client, local: this.localAccounts })
-  }
-
-  private async importLocalSecrets(args: { client: CloudClient }): Promise<number> {
-    const existing = await args.client.listSecrets()
-    if (existing.length > 0) return 0
-    return uploadLocalSecrets({ client: args.client, localSecrets: this.localSecrets })
-  }
-
-  private async importLocalMcp(args: { client: CloudClient }): Promise<number> {
-    const existing = await args.client.listMcpServers()
-    if (existing.length > 0) return 0
-    return uploadLocalMcp({ client: args.client })
   }
 }

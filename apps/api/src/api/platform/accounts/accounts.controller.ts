@@ -13,22 +13,10 @@ import {
   UseGuards,
 } from '@nestjs/common'
 import type { AuthenticatedRequest } from '../../../_core/types/auth.types'
-import { SessionOrSandboxGuard } from '../sessions/session-or-sandbox.guard'
-import {
-  AccessTokenRequestDto,
-  CreateAccountDto,
-  ReplaceSecretDto,
-  SetActiveDto,
-  SetStatusDto,
-} from './accounts.dto'
+import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
+import { CreateAccountDto, ReplaceSecretDto, SetActiveDto, SetStatusDto } from './accounts.dto'
 import { AccountsService } from './accounts.service'
-import { BrokerService } from './broker.service'
-import type {
-  AccessTokenDto,
-  AccountDto,
-  ActiveAccountDto,
-  StoredAccountDto,
-} from './accounts.types'
+import type { AccountDto, ActiveAccountDto, StoredAccountDto } from './accounts.types'
 
 function userIdOf(request: AuthenticatedRequest): string {
   const auth = request.auth
@@ -37,12 +25,9 @@ function userIdOf(request: AuthenticatedRequest): string {
 }
 
 @Controller({ path: 'accounts', version: '1' })
-@UseGuards(SessionOrSandboxGuard)
+@UseGuards(SessionAuthGuard)
 export class AccountsController {
-  constructor(
-    private readonly accounts: AccountsService,
-    private readonly broker: BrokerService,
-  ) {}
+  constructor(private readonly accounts: AccountsService) {}
 
   @Get()
   handleList(@Req() request: AuthenticatedRequest): Promise<AccountDto[]> {
@@ -80,21 +65,6 @@ export class AccountsController {
     @Param('id') accountId: string,
   ): Promise<StoredAccountDto> {
     return this.accounts.read({ userId: userIdOf(request), accountId })
-  }
-
-  @Post(':id/access-token')
-  handleAccessToken(
-    @Req() request: AuthenticatedRequest,
-    @Param('id') accountId: string,
-    @Body() body: AccessTokenRequestDto,
-  ): Promise<AccessTokenDto> {
-    return this.broker.accessToken({
-      userId: userIdOf(request),
-      accountId,
-      ...(body.rejectedAccessToken === undefined
-        ? {}
-        : { rejectedAccessToken: body.rejectedAccessToken }),
-    })
   }
 
   @Put(':id/secret')

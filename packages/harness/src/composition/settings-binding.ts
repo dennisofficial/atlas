@@ -9,11 +9,7 @@ import { ProjectSettingsStoreToken, UserSettingsStoreToken } from '../container/
 import { environmentLayer } from '../settings/environment'
 import { FileSettingsStore } from '../settings/file-store'
 import { projectSettingsFile, userSettingsFile } from '../settings/paths'
-import {
-  createSettingsService,
-  type CloudSettingsPort,
-  type SettingsService,
-} from '../settings/service'
+import { createSettingsService, type SettingsService } from '../settings/service'
 
 const PROJECT_PREFIX = '.'
 
@@ -29,7 +25,6 @@ export type SettingsBinding = {
 export function loadSettings(args: {
   env: Record<string, string | undefined>
   cwd: string
-  cloud?: CloudSettingsPort
 }): SettingsBinding {
   const userFile = userSettingsFile()
   const projectFile = projectSettingsFile(args.cwd)
@@ -55,7 +50,6 @@ export function loadSettings(args: {
     project,
     environment: environmentLayer({ definitions, env: args.env }),
     watch: { files: [userFile, projectFile] },
-    ...(args.cloud === undefined ? {} : { cloud: args.cloud }),
   })
 
   return {

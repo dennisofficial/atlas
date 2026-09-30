@@ -51,23 +51,23 @@ export function useCloudPage(args: {
   }, [])
 
   const handleActivate = useCallback(() => {
-    if (cloud.session() !== null) {
-      if (action === ECloudAction.Upload) {
-        onUpload()
-        return
-      }
-      if (action === ECloudAction.Download) {
-        onDownload()
-        return
-      }
-      if (action === ECloudAction.Github) {
-        onGithubActivate()
-        return
-      }
-      if (action === ECloudAction.SignOut) onSignOut()
+    if (cloud.session() === null) {
+      if (loginStatus === ESettingsLogin.Idle) onBeginSignIn()
       return
     }
-    if (loginStatus === ESettingsLogin.Idle) onBeginSignIn()
+    if (action === ECloudAction.Upload) {
+      onUpload()
+      return
+    }
+    if (action === ECloudAction.Download) {
+      onDownload()
+      return
+    }
+    if (action === ECloudAction.Github) {
+      onGithubActivate()
+      return
+    }
+    if (action === ECloudAction.SignOut) onSignOut()
   }, [action, cloud, loginStatus, onBeginSignIn, onDownload, onGithubActivate, onSignOut, onUpload])
 
   const handleKey = useCallback(

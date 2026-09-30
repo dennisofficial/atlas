@@ -1,5 +1,4 @@
 import {
-  accountIdSchema,
   accountSchema,
   storedAccountSchema,
   type Account,
@@ -12,7 +11,7 @@ import {
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
-import { mcpSpecSchema, type McpTransport, type ParsedMcpSpec } from '../mcp/config/specs'
+import { mcpSpecSchema, type McpTransport } from '../mcp/config/specs'
 import type { CloudSession } from './cloud-session'
 import { cloudRequest } from './cloud-transport'
 import {
@@ -28,39 +27,19 @@ import {
 
 export { CloudError } from './cloud-transport'
 
-const activeAccountResponseSchema = z.object({ accountId: accountIdSchema.nullable() })
+import {
+  accessTokenResponseSchema,
+  activeAccountResponseSchema,
+  cloudMcpServerWireSchema,
+  cloudSecretSchema,
+  cloudSettingSchema,
+  type BrokeredAccessToken,
+  type CloudMcpServer,
+  type CloudSecret,
+  type CloudSetting,
+} from './cloud-resource-schemas'
 
-const accessTokenResponseSchema = z.strictObject({
-  accessToken: z.string().min(1),
-  expiresAt: z.string().nullable(),
-})
-
-export type BrokeredAccessToken = z.infer<typeof accessTokenResponseSchema>
-
-const cloudSecretSchema = z.strictObject({
-  name: z.string().min(1),
-  value: z.string(),
-  updatedAt: z.string(),
-})
-
-export type CloudSecret = z.infer<typeof cloudSecretSchema>
-
-const cloudMcpServerWireSchema = z.strictObject({
-  name: mcpSpecSchema.shape.name,
-  transport: mcpSpecSchema.shape.transport,
-  disabled: mcpSpecSchema.shape.disabled,
-  updatedAt: z.string(),
-})
-
-export type CloudMcpServer = ParsedMcpSpec & { updatedAt: string }
-
-const cloudSettingSchema = z.strictObject({
-  key: z.string().min(1),
-  value: z.string(),
-  updatedAt: z.string(),
-})
-
-export type CloudSetting = z.infer<typeof cloudSettingSchema>
+export type { BrokeredAccessToken, CloudMcpServer, CloudSecret, CloudSetting } from './cloud-resource-schemas'
 
 export class CloudClient {
   private readonly url: string
@@ -103,7 +82,7 @@ export class CloudClient {
   async readAccount(args: { accountId: AccountId }): Promise<StoredAccount | undefined> {
     const body = await this.request({
       method: 'GET',
-      path: `/v1/accounts/${args.accountId}`,
+      path: `/v1/accounts/${encodeURIComponent(args.accountId)}`,
       allowMissing: true,
     })
     if (body === undefined) return undefined
@@ -136,7 +115,7 @@ export class CloudClient {
   }): Promise<void> {
     await this.request({
       method: 'PUT',
-      path: `/v1/accounts/${args.accountId}/secret`,
+      path: `/v1/accounts/${encodeURIComponent(args.accountId)}/secret`,
       body: { secret: args.secret },
     })
   }
@@ -147,13 +126,13 @@ export class CloudClient {
   }): Promise<void> {
     await this.request({
       method: 'PATCH',
-      path: `/v1/accounts/${args.accountId}/status`,
+      path: `/v1/accounts/${encodeURIComponent(args.accountId)}/status`,
       body: { status: args.status },
     })
   }
 
   async removeAccount(args: { accountId: AccountId }): Promise<void> {
-    await this.request({ method: 'DELETE', path: `/v1/accounts/${args.accountId}` })
+    await this.request({ method: 'DELETE', path: `/v1/accounts/${encodeURIComponent(args.accountId)}` })
   }
 
   async accessToken(args: {
@@ -162,7 +141,7 @@ export class CloudClient {
   }): Promise<BrokeredAccessToken> {
     const body = await this.request({
       method: 'POST',
-      path: `/v1/accounts/${args.accountId}/access-token`,
+      path: `/v1/accounts/${encodeURIComponent(args.accountId)}/access-token`,
       body:
         args.rejectedAccessToken === undefined
           ? {}
@@ -185,7 +164,7 @@ export class CloudClient {
   async activeAccount(args: { provider: EAuthProvider }): Promise<AccountId | undefined> {
     const body = await this.request({
       method: 'GET',
-      path: `/v1/accounts/active/${args.provider}`,
+      path: `/v1/accounts/active/${encodeURIComponent(args.provider)}`,
     })
     const parsed = activeAccountResponseSchema.parse(body)
 
@@ -200,13 +179,13 @@ export class CloudClient {
   async putSecret(args: { name: string; value: string }): Promise<void> {
     await this.request({
       method: 'PUT',
-      path: `/v1/secrets/${args.name}`,
+      path: `/v1/secrets/${encodeURIComponent(args.name)}`,
       body: { value: args.value },
     })
   }
 
   async deleteSecret(args: { name: string }): Promise<void> {
-    await this.request({ method: 'DELETE', path: `/v1/secrets/${args.name}` })
+    await this.request({ method: 'DELETE', path: `/v1/secrets/${encodeURIComponent(args.name)}` })
   }
 
   async listSettings(): Promise<readonly CloudSetting[]> {
@@ -217,13 +196,13 @@ export class CloudClient {
   async setSetting(args: { key: string; value: string }): Promise<void> {
     await this.request({
       method: 'PUT',
-      path: `/v1/settings/${args.key}`,
+      path: `/v1/settings/${encodeURIComponent(args.key)}`,
       body: { value: args.value },
     })
   }
 
   async deleteSetting(args: { key: string }): Promise<void> {
-    await this.request({ method: 'DELETE', path: `/v1/settings/${args.key}` })
+    await this.request({ method: 'DELETE', path: `/v1/settings/${encodeURIComponent(args.key)}` })
   }
 
   async listMcpServers(): Promise<readonly CloudMcpServer[]> {
@@ -242,7 +221,7 @@ export class CloudClient {
   }): Promise<void> {
     await this.request({
       method: 'PUT',
-      path: `/v1/mcp-servers/${args.name}`,
+      path: `/v1/mcp-servers/${encodeURIComponent(args.name)}`,
       body: {
         ...(args.transport === undefined ? {} : { transport: args.transport }),
         ...(args.disabled === undefined ? {} : { disabled: args.disabled }),
@@ -251,7 +230,7 @@ export class CloudClient {
   }
 
   async deleteMcpServer(args: { name: string }): Promise<void> {
-    await this.request({ method: 'DELETE', path: `/v1/mcp-servers/${args.name}` })
+    await this.request({ method: 'DELETE', path: `/v1/mcp-servers/${encodeURIComponent(args.name)}` })
   }
 
   async beginGithubConnect(): Promise<GithubConnectTicket> {

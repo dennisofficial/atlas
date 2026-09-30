@@ -7,22 +7,22 @@ import { EDefinitionOrigin } from '@dltech/atlas-core'
 
 import { CloudSessionStore } from '../../../cloud/cloud-session'
 import { createIsolatedContainer } from '../../../container/injection'
-import { CloudSessionStoreToken } from '../../../container/tokens'
-import { resolveMcpSpecs } from '../../config/loaders'
-import { BuiltInMcpSource, FileMcpSource } from '../../config/sources'
-import { RemoteMcpSource } from '../../config/remote-mcp-source'
+import { CloudSessionStoreToken, SecretsStoreToken } from '../../../container/tokens'
+import { MemorySecretsStore } from '../../../secrets/memory-store'
+import { FileMcpSource } from '../../config/sources'
 import { mcpSourcesFor, registerMcp } from '../register-mcp'
 
 const session = { url: 'http://cloud.test', token: 'sess_test', email: 'a@b.c' }
 
 let directory: string
-const realFetch = globalThis.fetch
-const realAtlasHome = process.env['ATLAS_HOME']
+let realAtlasHome: string | undefined
 
 let fetched: string[]
+const realFetch = globalThis.fetch
 
 beforeEach(() => {
   directory = mkdtempSync(join(tmpdir(), 'atlas-register-mcp-'))
+  realAtlasHome = process.env['ATLAS_HOME']
   process.env['ATLAS_HOME'] = directory
   fetched = []
   globalThis.fetch = (async (input: string | URL | Request) => {
@@ -42,62 +42,49 @@ afterEach(() => {
 })
 
 describe('mcpSourcesFor', () => {
-  it('includes both the remote source and the local user file when a session exists', () => {
-    const sources = mcpSourcesFor({ session, cwd: directory })
+  it('lists only the local layers, builtin first and compat last', () => {
+    const sources = mcpSourcesFor({ cwd: directory })
 
-    expect(sources).toHaveLength(5)
-    expect(sources[0]).toBeInstanceOf(BuiltInMcpSource)
-    expect(sources[1]).toBeInstanceOf(RemoteMcpSource)
-    expect(sources[1]?.origin).toBe(EDefinitionOrigin.User)
-    expect(sources[2]).toBeInstanceOf(FileMcpSource)
-    expect(sources[2]).not.toBeInstanceOf(RemoteMcpSource)
-    expect(sources[2]?.origin).toBe(EDefinitionOrigin.User)
-    expect(sources[3]?.origin).toBe(EDefinitionOrigin.Project)
+    expect(sources.map((source) => source.origin)).toEqual([
+      EDefinitionOrigin.BuiltIn,
+      EDefinitionOrigin.User,
+      EDefinitionOrigin.Project,
+      EDefinitionOrigin.Project,
+    ])
+    expect(sources.every((source) => source.load.length === 0)).toBe(true)
   })
 
-  it('keeps the user file source when no session exists', () => {
-    const sources = mcpSourcesFor({ session: null, cwd: directory })
-
-    expect(sources[1]).toBeInstanceOf(FileMcpSource)
-    expect(sources[1]).not.toBeInstanceOf(RemoteMcpSource)
-  })
-
-  it('lets the remote server win a same-rank tie against a local server sharing its name', async () => {
+  it('reads the signed-in user layer from the local file, never the cloud', async () => {
     writeFileSync(
       join(directory, 'mcp.json'),
-      JSON.stringify({ linear: { transport: { kind: 'stdio', command: 'local-linear' } } }),
+      JSON.stringify({ linear: { transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' } } }),
     )
-    globalThis.fetch = (async (input: string | URL | Request) => {
-      fetched.push(String(input))
-      return new Response(
-        JSON.stringify({
-          servers: [
-            {
-              name: 'linear',
-              transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' },
-              updatedAt: '2026-01-01T00:00:00.000Z',
-            },
-          ],
-        }),
-        { status: 200, headers: { 'content-type': 'application/json' } },
-      )
-    }) as typeof fetch
 
-    const sources = mcpSourcesFor({ session, cwd: directory })
-    const resolved = await resolveMcpSpecs({ sources })
+    const sources = mcpSourcesFor({ cwd: directory })
+    const reads = await Promise.all(sources.map((source) => source.load()))
 
-    expect(resolved.specs).toHaveLength(1)
-    expect(resolved.specs[0]).toMatchObject({
+    const specs = reads.flatMap((read) => read.specs)
+    expect(specs).toHaveLength(1)
+    expect(specs[0]).toMatchObject({
       name: 'linear',
-      transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' },
+      origin: EDefinitionOrigin.User,
+      definedIn: join(directory, 'mcp.json'),
     })
-    expect(resolved.shadowed).toHaveLength(1)
-    expect(resolved.shadowed[0]).toMatchObject({ name: 'linear', definedIn: join(directory, 'mcp.json') })
+    expect(fetched).toHaveLength(0)
+  })
+
+  it('lets the local user file stand alone when a project layer shadows nothing', async () => {
+    const sources = mcpSourcesFor({ cwd: directory })
+    const userLayer = sources.find(
+      (source) => source.origin === EDefinitionOrigin.User,
+    )
+
+    expect(userLayer).toBeInstanceOf(FileMcpSource)
   })
 })
 
 describe('registerMcp', () => {
-  it('loads the user layer from the cloud when the container holds a session', async () => {
+  it('never touches the cloud even when the container holds a signed-in session', async () => {
     const container = createIsolatedContainer()
     const sessions = new CloudSessionStore({
       file: join(directory, 'cloud.json'),
@@ -110,33 +97,23 @@ describe('registerMcp', () => {
 
     expect(registered.store.servers()).toHaveLength(0)
     expect(registered.rejections).toEqual([])
-    expect(fetched).toEqual(['http://cloud.test/v1/mcp-servers'])
+    expect(fetched).toHaveLength(0)
   })
 
-  it('never touches the cloud when the container holds no session store', async () => {
+  it('exposes signIn when a real MemorySecretsStore is registered under the token', async () => {
+    const container = createIsolatedContainer()
+    container.register(SecretsStoreToken, { useValue: new MemorySecretsStore() })
+
+    const registered = await registerMcp({ container, cwd: directory })
+
+    expect(registered.signIn).toBeDefined()
+  })
+
+  it('leaves signIn absent when the container holds no secrets store token', async () => {
     const container = createIsolatedContainer()
 
     const registered = await registerMcp({ container, cwd: directory })
 
-    expect(registered.store.servers()).toHaveLength(0)
-    expect(fetched).toHaveLength(0)
-  })
-
-  it('reads the local user file when signed out', async () => {
-    writeFileSync(
-      join(directory, 'mcp.json'),
-      JSON.stringify({ linear: { transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' } } }),
-    )
-
-    const sources = mcpSourcesFor({ session: null, cwd: directory })
-    const reads = await Promise.all(sources.map((source) => source.load()))
-
-    const specs = reads.flatMap((read) => read.specs)
-    expect(specs).toHaveLength(1)
-    expect(specs[0]).toMatchObject({
-      name: 'linear',
-      origin: EDefinitionOrigin.User,
-      definedIn: join(directory, 'mcp.json'),
-    })
+    expect(registered.signIn).toBeUndefined()
   })
 })

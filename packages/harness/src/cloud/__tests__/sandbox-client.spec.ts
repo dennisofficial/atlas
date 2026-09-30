@@ -168,6 +168,102 @@ describe('claiming a sandbox', () => {
   })
 })
 
+describe('registering a client-provisioned sandbox', () => {
+  const TOKEN = 'a'.repeat(64)
+
+  it('posts the client token and serve URL to the claim route, and reads both back', async () => {
+    const { client, calls } = harness([{ body: { token: TOKEN, url: 'https://box.vercel.run' } }])
+
+    const registered = await client.registerSandbox({
+      threadId: 'brn_cloud',
+      token: TOKEN,
+      serveUrl: 'https://box.vercel.run',
+      driveName: 'atlas',
+      metadata: { title: 'fix the flake', repo: 'compai/atlas', model: 'claude-opus-4-6' },
+    })
+
+    expect(calls[0]?.method).toBe('POST')
+    expect(calls[0]?.url).toBe('https://cloud.test/v1/sandboxes')
+    expect(calls[0]?.headers.authorization).toBe('Bearer sess_test')
+    expect(calls[0]?.body).toEqual({
+      threadId: 'brn_cloud',
+      clientToken: TOKEN,
+      serveUrl: 'https://box.vercel.run',
+      driveName: 'atlas',
+      metadata: { title: 'fix the flake', repo: 'compai/atlas', model: 'claude-opus-4-6' },
+    })
+    expect(registered).toEqual({ token: TOKEN, url: 'https://box.vercel.run' })
+  })
+
+  it('omits the optional fields the caller did not pass', async () => {
+    const { client, calls } = harness([{ body: { token: TOKEN } }])
+
+    const registered = await client.registerSandbox({
+      threadId: 'brn_cloud',
+      token: TOKEN,
+      serveUrl: 'https://box.vercel.run',
+    })
+
+    expect(calls[0]?.body).toEqual({
+      threadId: 'brn_cloud',
+      clientToken: TOKEN,
+      serveUrl: 'https://box.vercel.run',
+    })
+    expect(registered.url).toBeUndefined()
+  })
+
+  it('refuses an answer carrying no token', async () => {
+    const { client } = harness([{ body: { threadId: 'brn_cloud' } }])
+
+    await expect(
+      client.registerSandbox({
+        threadId: 'brn_cloud',
+        token: TOKEN,
+        serveUrl: 'https://box.vercel.run',
+      }),
+    ).rejects.toThrow()
+  })
+
+  it('surfaces a refusal as a CloudError carrying the status', async () => {
+    const { client } = harness([{ status: 400, body: { message: 'serveUrl must use https' } }])
+
+    const failure = await client
+      .registerSandbox({
+        threadId: 'brn_cloud',
+        token: TOKEN,
+        serveUrl: 'http://box.vercel.run',
+      })
+      .catch((error) => error)
+
+    expect(failure).toBeInstanceOf(CloudError)
+    expect((failure as CloudError).status).toBe(400)
+    expect((failure as CloudError).message).toContain('serveUrl must use https')
+  })
+
+  it('rejects a wedged connection rather than waiting on it', async () => {
+    const fetchFn = ((_input: unknown, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new Error('timed out')))
+      })) as typeof fetch
+    const client = new SandboxClient({
+      url: 'https://cloud.test/',
+      token: 'sess_test',
+      fetchFn,
+    })
+
+    const failure = await client
+      .registerSandbox({
+        threadId: 'brn_cloud',
+        token: TOKEN,
+        serveUrl: 'https://box.vercel.run',
+      })
+      .catch((error) => error)
+
+    expect(failure).toBeInstanceOf(CloudError)
+    expect((failure as CloudError).status).toBe(0)
+  }, 15_000)
+})
+
 describe('listing sandboxes', () => {
   it('gets the sandboxes route and parses each entry', async () => {
     const { client, calls } = harness([

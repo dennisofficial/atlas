@@ -17,6 +17,7 @@ const STATUS_LABEL: Readonly<Record<ESettingsLogin, string | null>> = {
 export function CloudSignInRow(props: {
   cells: number
   status: ESettingsLogin
+  selected?: boolean
   onSignIn: () => void
 }): React.ReactNode {
   const idle = props.status === ESettingsLogin.Idle
@@ -32,7 +33,7 @@ export function CloudSignInRow(props: {
       label="Sign in"
       value={[value]}
       cells={props.cells}
-      selected={idle}
+      selected={props.selected ?? idle}
       {...(region.wash.bg === undefined ? {} : { band: region.wash.bg })}
       press={region.handlers}
     />

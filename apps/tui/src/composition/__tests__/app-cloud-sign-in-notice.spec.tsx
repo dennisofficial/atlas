@@ -7,7 +7,7 @@ import { fakeApp, fakeSignedOutCloud, scriptedModelPort } from './fake-app'
 
 await grammarsReady()
 
-const SIGN_IN_NOTICE = 'sign in to Atlas Cloud to unlock cloud sandboxes and remote control'
+const SIGN_IN_NOTICE = 'sign in to Atlas Cloud to register cloud sandboxes for remote control and discovery'
 
 const scripted = () => scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } })
 

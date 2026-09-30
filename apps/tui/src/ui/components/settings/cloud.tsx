@@ -2,7 +2,7 @@ import React from 'react'
 
 import { useClickRegion } from '../../hooks/use-click-region'
 import { cellsOf } from '../../hint-layout'
-import type { SettingsLoginState } from '../../settings-login-model'
+import { ESettingsLogin, type SettingsLoginState } from '../../settings-login-model'
 import { glyph, theme } from '../../theme'
 import { clipSpans, wrapCells } from '../sidebar/cells'
 import { Spans, type Span } from '../spans'
@@ -17,8 +17,8 @@ export enum ECloudAction {
   Github = 'github',
 }
 
-export const UPLOAD_LABEL = 'Upload local accounts & secrets to cloud'
-export const DOWNLOAD_LABEL = 'Download cloud accounts & secrets to this machine'
+export const UPLOAD_LABEL = 'Back up accounts, secrets, MCP & settings to cloud'
+export const DOWNLOAD_LABEL = 'Restore accounts, secrets, MCP & settings from cloud'
 
 export type CloudSyncState = {
   running: boolean
@@ -103,6 +103,7 @@ export function SettingsCloud(props: {
   upload: CloudSyncState
   download: CloudSyncState
   cloudSignIn: SettingsLoginState
+  cloudSignInSelected?: boolean
   onSignIn: () => void
   onOpenSignInUrl: () => void
   github?: GithubAccountView | undefined
@@ -164,6 +165,11 @@ export function SettingsCloud(props: {
           <CloudSignInRow
             cells={props.cells}
             status={props.cloudSignIn.status}
+            selected={
+              props.cloudSignInSelected === undefined
+                ? props.cloudSignIn.status === ESettingsLogin.Idle
+                : props.cloudSignInSelected
+            }
             onSignIn={props.onSignIn}
           />
           <CloudSignInPrompt

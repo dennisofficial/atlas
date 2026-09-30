@@ -12,7 +12,7 @@ import { theme } from '../../ui/theme'
 import { createBootProgress, EBootStep } from '../boot-progress'
 import { BootScreen } from '../boot-screen'
 import { ESession, type Session } from '../open-session'
-import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
+import { fakeApp, fakeSignedOutCloud, scriptedModelPort, type FakeApp } from './fake-app'
 
 await grammarsReady()
 
@@ -35,6 +35,7 @@ type Mounted = Awaited<ReturnType<typeof testRender>>
 const appWith = (accent?: string): FakeApp =>
   fakeApp({
     model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }),
+    cloud: fakeSignedOutCloud(),
     ...(accent === undefined ? {} : { settings: { values: { [ESettingId.Accent]: accent } } }),
   })
 

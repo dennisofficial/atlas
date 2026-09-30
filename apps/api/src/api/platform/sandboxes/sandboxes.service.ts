@@ -5,9 +5,9 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common'
-import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import type { CloudSandboxModel } from '../../../db'
 import { db } from '../../../db'
+import type { CloudSandboxModel } from '../../../db'
+import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { assertArchiveWithinLimit } from '../../cloud/context-archive/context-archive-limits'
 import { CONTEXT_ARCHIVE_STORE } from '../../cloud/context-archive/context-archive.store'
 import type { ContextArchiveStore } from '../../cloud/context-archive/context-archive.store'
@@ -15,6 +15,8 @@ import { SandboxGitCredentials } from './git-credentials'
 import { ownedSandbox } from './ownership'
 import { sandboxStateOf, toSandboxDto, type SandboxPrincipal } from './rows'
 import { claimSandboxRow } from './sandbox-claim'
+import { SandboxEndpointService } from './sandbox-endpoint'
+import { registerSandbox, type RegisterSandboxArgs } from './sandbox-register'
 import { findOrCreateClaimThread } from './sandbox-thread'
 import { hashSessionToken, mintSessionToken, tokenMatches } from './sandbox-tokens'
 import type {
@@ -25,12 +27,7 @@ import type {
   SandboxWorkspaceSpec,
 } from './sandboxes.types'
 import { ESandboxState } from './sandboxes.types'
-import {
-  SANDBOX_REGION,
-  SandboxMissingError,
-  VercelSandboxClient,
-  type SandboxObservation,
-} from './vercel-sandbox.client'
+import { SANDBOX_REGION, VercelSandboxClient } from './vercel-sandbox.client'
 import { assertContextBundleWithinLimit, assertPatchWithinLimit, workspaceSpecOf } from './workspace-spec'
 
 const nowIso = (): string => new Date().toISOString()
@@ -41,12 +38,16 @@ const messageOf = (failure: unknown): string =>
 export class SandboxesService {
   private readonly logger = new Logger(SandboxesService.name)
 
+  private readonly endpoints: SandboxEndpointService
+
   constructor(
     private readonly vercel: VercelSandboxClient,
     private readonly gitCredentials: SandboxGitCredentials,
     private readonly cipher: SecretCipherService,
     @Inject(CONTEXT_ARCHIVE_STORE) private readonly archives: ContextArchiveStore,
-  ) {}
+  ) {
+    this.endpoints = new SandboxEndpointService(vercel, cipher)
+  }
 
   /**
    * The rendezvous half of a BYO lift: the harness drives Vercel with the operator's own token,
@@ -63,7 +64,21 @@ export class SandboxesService {
     gpgKey?: string | undefined
     driveName?: string | null | undefined
     contextPending?: boolean | undefined
+    clientToken?: string | undefined
+    serveUrl?: string | undefined
+    metadata?: { title?: string; repo?: string; model?: string } | undefined
   }): Promise<SandboxAttachmentDto> {
+    const clientToken = args.clientToken
+    if (clientToken !== undefined) {
+      return this.register({
+        userId: args.userId,
+        threadId: args.threadId,
+        clientToken,
+        serveUrl: args.serveUrl,
+        ...(args.driveName === undefined ? {} : { driveName: args.driveName }),
+        ...(args.metadata === undefined ? {} : { metadata: args.metadata }),
+      })
+    }
     const thread = await findOrCreateClaimThread({
       db,
       userId: args.userId,
@@ -101,36 +116,20 @@ export class SandboxesService {
   }
 
   /**
-   * A wake against a running sandbox must not re-attach: attach() still calls into Vercel's
-   * get-or-create and the serve launcher on every call, so reaching in through the sealed token
-   * avoids that round trip entirely for a sandbox already known to be running.
+   * The client-provisioned sibling of claim: the client minted its own session token and owns the
+   * Vercel deployment end to end, so the API only stores the token's hash (plus a sealed copy for
+   * the owner-session reads that answer attachment) and the endpoint the sandbox already serves.
+   * Re-registration is idempotent — the stored token never rotates under the client that issued it.
    */
-  async runningEndpoint(args: {
+  private register(args: RegisterSandboxArgs): Promise<SandboxAttachmentDto> {
+    return registerSandbox(this.cipher, args)
+  }
+
+  runningEndpoint(args: {
     userId: string
     threadId: string
   }): Promise<{ token: string; url: string } | null> {
-    const row = await db.cloudSandbox.findFirst({
-      where: { threadId: args.threadId, userId: args.userId },
-      select: { name: true, sealedToken: true },
-    })
-    if (row === null || row.sealedToken === null) return null
-    let observed: SandboxObservation
-    try {
-      observed = await this.vercel.inspect({ name: row.name })
-    } catch {
-      return null
-    }
-    if (observed.state !== ESandboxState.Running || observed.url === undefined) return null
-    let token: string
-    try {
-      token = this.cipher.decrypt(row.sealedToken)
-    } catch (failure) {
-      this.logger.warn(
-        `the sealed token on sandbox ${row.name} does not decrypt; the next attach re-seals it: ${messageOf(failure)}`,
-      )
-      return null
-    }
-    return { token, url: observed.url }
+    return this.endpoints.runningEndpoint(args)
   }
 
   async list(args: { userId: string }): Promise<SandboxListEntryDto[]> {
@@ -251,19 +250,8 @@ export class SandboxesService {
     return this.archives.readSandboxTranscript({ threadId: args.threadId })
   }
 
-  async status(args: { userId: string; threadId: string }): Promise<SandboxStatusDto> {
-    const row = await ownedSandbox(args)
-    try {
-      const observed = await this.vercel.inspect({ name: row.name })
-      return {
-        ...toSandboxDto(row),
-        state: observed.state,
-        ...(observed.url === undefined ? {} : { url: observed.url }),
-      }
-    } catch (failure) {
-      if (failure instanceof SandboxMissingError) return toSandboxDto(row)
-      throw failure
-    }
+  status(args: { userId: string; threadId: string }): Promise<SandboxStatusDto> {
+    return this.endpoints.status(args)
   }
 
   async stop(args: { userId: string; threadId: string }): Promise<SandboxStatusDto> {

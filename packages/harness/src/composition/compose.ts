@@ -20,7 +20,6 @@ import {
   choiceValueOf,
   parseRef,
   textValueOf,
-  type Account,
   type CapabilitiesSource,
 } from '@dltech/atlas-core'
 
@@ -49,7 +48,6 @@ import { FileBrowser } from '../files/file-browser'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import { summaryFor } from '../model/summariser'
 import { titleFor } from '../model/titler'
-import { CloudError } from '../cloud/cloud-transport'
 import { EMcpAuthOutcome } from '../mcp/oauth/flow'
 import { registerMcp } from '../mcp/registry/register-mcp'
 import { createPendingQueues } from '../pending'
@@ -92,6 +90,8 @@ import { claimLaunchWorktree, threadOpenedHandler } from './worktree-claims'
  * into it, so every other caller sees a properly typed `ContributedSurface<TPluginSurface>[]`
  * instead of reaching for its own cast.
  */
+const SERVE_COMMAND = 'serve'
+
 const asPluginSurfaces = <TPluginSurface>(
   surfaces: readonly ContributedSurface[],
 ): readonly ContributedSurface<TPluginSurface>[] =>
@@ -203,36 +203,26 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
       settings.close()
     },
   })
-  const { credentials, accounts, cloud, cloudSettings, usage, rewarmSecrets } = await bindAccounts({
+  const { credentials, accounts, cloud, usage } = await bindAccounts({
     container,
     env: args.env,
-    notice,
     cloudUrl: launchValue(ESettingId.CloudUrl),
     clientVersion: args.clientVersion,
+    reconcileHostSources: launch.command !== SERVE_COMMAND,
   })
-  settings.attachCloud(cloudSettings)
   const secrets = container.resolve(SecretsStoreToken)
 
   await bindSettingsPolicy({ container, settings, workspace, credentials, cwd: anchor })
 
-  // A serve session reads accounts through the thread-scoped broker; a control-plane outage
-  // mid-boot must not be fatal when the launch already pins a model (factory sandboxes do), or
-  // the orchestrator never wakes. Model resolution tolerates an empty list — accounts are read
-  // again per turn — so degrade to none and warn rather than crash the boot.
-  const bootAccountList = await accountStore
-    .list()
-    .catch((error: unknown): readonly Account[] => {
-      if (!(error instanceof CloudError && (error.status === 0 || error.status >= 500))) {
-        throw error
-      }
-      notice.notify({
-        key: 'cloud:accounts',
-        tone: ENoticeTone.Warn,
-        ttlMs: NOTICE_WARN_MS,
-        text: `Atlas Cloud accounts could not be listed at boot — ${error.message.split('\n')[0] ?? ''}. The launch model still runs; account-aware picks settle on the first turn.`,
-      })
-      return []
+  const bootAccountList = await accountStore.list()
+  if (bootAccountList.length === 0 && cloud.session() !== null) {
+    notice.notify({
+      key: 'cloud:legacy-accounts',
+      tone: ENoticeTone.Warn,
+      ttlMs: NOTICE_WARN_MS,
+      text: 'Atlas found no local accounts, but a cloud sign-in may still hold them. Pull them down with a cloud download from settings; Atlas never fetches them on its own.',
     })
+  }
 
   await bindInstructionsAndMemory({
     container,
@@ -426,7 +416,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     summarise,
     settings,
     secrets,
-    rewarmSecrets,
     skills: skillRegistry.all(),
     skillRegistry,
     agentTypes,

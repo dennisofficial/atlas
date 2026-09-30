@@ -32,13 +32,6 @@ const HINTS: readonly Hint[] = [
   { key: 'esc', label: 'back' },
 ]
 
-const CLOUD_HINTS_SIGNED_IN: readonly Hint[] = [
-  { key: '↑↓', label: 'row' },
-  { key: '⏎', label: 'choose' },
-  { key: '⇥', label: 'tab' },
-  { key: 'esc', label: 'back' },
-]
-
 const CLOUD_HINTS_SIGNED_OUT_IDLE: readonly Hint[] = [
   { key: '⏎', label: 'sign in' },
   { key: '⇥', label: 'tab' },
@@ -124,8 +117,10 @@ export function Settings(props: {
   const cells = settingsCells({ width: columnWidth })
   const page = currentPage({ state: props.state, model: props.model })
   const onCloudPage = page?.page.id === ESettingPage.Cloud
-  const rowsActive = !onCloudPage || (props.cloudSignedIn && props.cloudAction === null)
-  const selected = rowsActive ? page?.rows[props.state.rowIndex] : undefined
+  const rowsActive = !onCloudPage || props.cloudAction === null
+  const signInRowHeld = onCloudPage && !props.cloudSignedIn
+  const rowIndex = signInRowHeld ? props.state.rowIndex - 1 : props.state.rowIndex
+  const selected = rowsActive && rowIndex >= 0 ? page?.rows[rowIndex] : undefined
 
   const status =
     props.problem ??
@@ -135,13 +130,12 @@ export function Settings(props: {
         ? `edits write to ${props.origin}`
         : `sealed into ${props.secretOrigin}, never into ${props.origin}`)
 
-  const hints = onCloudPage
-    ? props.cloudSignedIn
-      ? CLOUD_HINTS_SIGNED_IN
-      : props.cloudSignIn.status === ESettingsLogin.Idle
+  const hints =
+    onCloudPage && !props.cloudSignedIn
+      ? props.cloudSignIn.status === ESettingsLogin.Idle
         ? CLOUD_HINTS_SIGNED_OUT_IDLE
         : CLOUD_HINTS_SIGNED_OUT_PENDING
-    : HINTS
+      : HINTS
 
   const scroller = useRef<ScrollBoxRenderable | null>(null)
   const selectedId = selected?.definition.id
@@ -190,12 +184,13 @@ export function Settings(props: {
                   upload={props.cloudUpload}
                   download={props.cloudDownload}
                   cloudSignIn={props.cloudSignIn}
+                  cloudSignInSelected={props.state.rowIndex === 0}
                   onSignIn={props.onSignIn}
                   onOpenSignInUrl={props.onOpenSignInUrl}
                   {...(props.github === undefined ? {} : { github: props.github })}
                 />
               ) : null}
-              {onCloudPage && !props.cloudSignedIn ? null : page?.groups.map((group) => (
+              {page?.groups.map((group) => (
                 <box key={group.label} flexDirection="column" flexShrink={0}>
                   <SettingsGroupHeader label={group.label} />
                   {group.rows.map((row) => (
@@ -208,7 +203,7 @@ export function Settings(props: {
                       onSelect={() =>
                         props.onSelect({
                           pageIndex: props.state.pageIndex,
-                          rowIndex: page.rows.indexOf(row),
+                          rowIndex: page.rows.indexOf(row) + (signInRowHeld ? 1 : 0),
                         })
                       }
                     />

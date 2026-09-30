@@ -10,7 +10,14 @@ import { ToolDefinition } from '@dltech/atlas-core'
 import { z } from 'zod'
 
 import { CloudSessionStore } from '../../cloud/cloud-session'
-import { portToken } from '../../container/injection'
+import { CLOUD_SETTING_DEFINITIONS, isCloudSettingId } from '../../cloud/settings-definitions'
+import { portToken, type DependencyContainer } from '../../container/injection'
+import {
+  ClaudeCodeSourceToken,
+  CodexSourceToken,
+} from '../../container/tokens'
+import { ClaudeCodeSource } from '../../credentials/claude-code-source'
+import { CodexSource } from '../../credentials/codex-source'
 import { MemorySettingsStore } from '../../settings/memory-store'
 import { createSettingsService } from '../../settings/service'
 import { composeHarness } from '../compose'
@@ -38,10 +45,24 @@ afterEach(async () => {
 
 const settingsBinding = (): SettingsBinding => {
   const service = createSettingsService({
-    definitions: ATLAS_SETTINGS,
+    definitions: [
+      ...ATLAS_SETTINGS.filter((definition) => !isCloudSettingId(definition.id)),
+      ...CLOUD_SETTING_DEFINITIONS,
+    ],
     user: new MemorySettingsStore({ label: 'compose spec' }),
   })
   return { service, bindTo: () => {} }
+}
+
+// A spec must never read the developer's real keychain or codex file; bindPorts swaps the import
+// sources for silent ones before bindAccounts resolves them.
+const silentImportSources = (args: { container: DependencyContainer }): void => {
+  args.container.register(ClaudeCodeSourceToken, {
+    useValue: new ClaudeCodeSource({ read: async () => undefined, write: async () => {} }),
+  })
+  args.container.register(CodexSourceToken, {
+    useValue: new CodexSource({ file: join(atlasHome, 'no-codex-auth.json') }),
+  })
 }
 
 const compose = <TSurface = undefined>(args?: {
@@ -135,15 +156,52 @@ describe('composeHarness', () => {
     await app.close()
   })
 
-  it('composes through a cloud outage: signed in, every call 504s, boot degrades instead of dying', async () => {
+  it('composes signed-in with a dead cloud fetch: local stores answer, nothing is requested', async () => {
     const realFetch = globalThis.fetch
-    globalThis.fetch = ((_input: unknown, _init?: unknown) =>
-      Promise.resolve(
-        new Response(JSON.stringify({ message: 'gateway timeout' }), {
-          status: 504,
-          headers: { 'content-type': 'application/json' },
-        }),
-      )) as typeof fetch
+    const fetches: string[] = []
+    globalThis.fetch = (async (input: unknown) => {
+      fetches.push(String(input))
+      throw new Error('cloud fetch must never fire')
+    }) as unknown as typeof fetch
+
+    try {
+      new CloudSessionStore({
+        file: join(atlasHome, 'cloud.json'),
+        keyFile: join(atlasHome, 'key'),
+      }).write({ url: 'https://cloud.test', token: 'sess', email: null })
+
+      const app = await composeHarness<undefined, never>({
+        launch: { cwd: project, command: 'atlas-test', model: undefined, executionLocation: undefined },
+        env: {},
+        settings: settingsBinding(),
+        clientVersion: 'compose-spec',
+        surface: { notice: recordingNotices().port },
+        bindPorts: silentImportSources,
+      })
+
+      expect(app.workspace.workspace).toBe(await realpath(project))
+      expect(await app.accounts.list()).toEqual([])
+      app.secrets.write({ name: 'search.tavily', value: 'tvly-fake' })
+      expect(app.secrets.read('search.tavily')).toBe('tvly-fake')
+      expect(app.settings.set({ id: ESettingId.VercelTeamId, value: 'team_local' })).toEqual({
+        ok: true,
+      })
+      expect(
+        app.settings.snapshot().resolution.settings.get(ESettingId.VercelTeamId)?.value,
+      ).toBe('team_local')
+      expect(fetches).toEqual([])
+
+      await expect(app.close()).resolves.toBeUndefined()
+    } finally {
+      globalThis.fetch = realFetch
+    }
+  })
+
+  it('advises an explicit download when a cloud sign-in exists but the local vault is empty', async () => {
+    const realFetch = globalThis.fetch
+    globalThis.fetch = (async () => {
+      throw new Error('cloud fetch must never fire')
+    }) as unknown as typeof fetch
 
     try {
       new CloudSessionStore({
@@ -158,12 +216,40 @@ describe('composeHarness', () => {
         settings: settingsBinding(),
         clientVersion: 'compose-spec',
         surface: { notice: notices.port },
+        bindPorts: silentImportSources,
       })
 
-      expect(app.workspace.workspace).toBe(await realpath(project))
       expect(
-        notices.posts.some((post) => post.text.includes('Atlas Cloud accounts could not be listed')),
+        notices.posts.some(
+          (post) =>
+            post.key === 'cloud:legacy-accounts' && post.text.includes('cloud download'),
+        ),
       ).toBe(true)
+
+      await expect(app.close()).resolves.toBeUndefined()
+    } finally {
+      globalThis.fetch = realFetch
+    }
+  })
+
+  it('stays quiet when the local vault is empty and no cloud sign-in exists', async () => {
+    const realFetch = globalThis.fetch
+    globalThis.fetch = (async () => {
+      throw new Error('cloud fetch must never fire')
+    }) as unknown as typeof fetch
+
+    try {
+      const notices = recordingNotices()
+      const app = await composeHarness<undefined, never>({
+        launch: { cwd: project, command: 'atlas-test', model: undefined, executionLocation: undefined },
+        env: {},
+        settings: settingsBinding(),
+        clientVersion: 'compose-spec',
+        surface: { notice: notices.port },
+        bindPorts: silentImportSources,
+      })
+
+      expect(notices.posts.some((post) => post.key === 'cloud:legacy-accounts')).toBe(false)
 
       await expect(app.close()).resolves.toBeUndefined()
     } finally {

@@ -25,11 +25,6 @@ const SRC_ROOT = path.dirname(API_ROOT)
 // module wiring, not an import-path accident; later phases burn this list down.
 // Removing an edge means deleting its entry here — stale entries fail the suite.
 const GRANDFATHERED = new Set([
-  'platform/accounts/accounts.module.ts -> ../../cloud/secrets/secrets.module',
-  'platform/accounts/sandbox-broker.controller.ts -> ../../cloud/secrets/secrets.types',
-  'platform/accounts/sandbox-broker.service.spec.ts -> ../../cloud/secrets/secrets.service',
-  'platform/accounts/sandbox-broker.service.ts -> ../../cloud/secrets/secrets.service',
-  'platform/accounts/sandbox-broker.service.ts -> ../../cloud/secrets/secrets.types',
   'platform/sandboxes/git-credentials.spec.ts -> ../../cloud/github/github.service',
   'platform/sandboxes/git-credentials.ts -> ../../cloud/github/github.service',
   'platform/sandboxes/sandboxes.controller.ts -> ../../cloud/context-archive/context-archive-http',

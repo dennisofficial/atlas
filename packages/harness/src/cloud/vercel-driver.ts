@@ -266,13 +266,8 @@ export class VercelDriver {
           created = true
           return Promise.resolve()
         },
-        launchServe,
       })
       const createMs = Date.now() - createStartedAt
-      // The bootstrap (context archive, workspace spec) must be on the drive before serve launches —
-      // serve reads it at boot, and writing it needs the live sandbox, which only exists now. A fresh
-      // boot has no snapshot to fall back on; a resumed one re-uploads because the operator's local
-      // context may have moved on (the snapshot is a cache, not the source of truth).
       if (args.putContextOnFreshBoot !== undefined) {
         await args.putContextOnFreshBoot(sandbox)
       }
@@ -408,7 +403,7 @@ export class VercelDriver {
         args: ['-c', `mkdir -p ${DRIVE_HOME_PATH}/bootstrap`],
         timeoutMs: SANDBOX_QUICK_TIMEOUT_MS,
       })
-      await args.sandbox.writeFiles([{ path: args.path, content: args.content }])
+      await args.sandbox.writeFiles([{ path: args.path, content: args.content, mode: 0o600 }])
     } catch (failure) {
       throw asVercelFailure(failure)
     }
@@ -499,7 +494,6 @@ export class VercelDriver {
     environment?: Record<string, string> | undefined
     pinnedModel?: string | undefined
     onCreate: () => Promise<void>
-    launchServe: ServeLauncher
   }): Promise<Sandbox> {
     for (let attempt = 1; ; attempt++) {
       try {
@@ -514,7 +508,6 @@ export class VercelDriver {
           image: args.image,
           mounts: { [DRIVE_MOUNT_PATH]: args.drive },
           onCreate: args.onCreate,
-          onResume: (sandbox) => args.launchServe({ sandbox, token: args.token }),
           env: {
             ATLAS_SERVE_TOKEN: args.token,
             ATLAS_SERVE_PORT: String(SANDBOX_SERVE_PORT),

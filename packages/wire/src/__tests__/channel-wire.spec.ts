@@ -110,8 +110,8 @@ describe('the memory archive op', () => {
 })
 
 describe('the protocol stamp', () => {
-  it('speaks the version that introduced thread rename and model ops', () => {
-    expect(CHANNEL_PROTOCOL_VERSION).toBe(9)
+  it('speaks the version that refuses broker-dependent serve runtimes', () => {
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(10)
   })
 })
 

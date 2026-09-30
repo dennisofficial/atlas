@@ -1,19 +1,18 @@
-import { AccountStorePort, ClockPort, CredentialPort, ENoticeTone, ESettingId, NOTICE_WARN_MS, type NoticePort } from '@dltech/atlas-core'
+import {
+  AccountStorePort,
+  ClockPort,
+  CredentialPort,
+  ESettingId,
+} from '@dltech/atlas-core'
 
 import { CloudService } from '../cloud/cloud-service'
-import type { CloudSettingsStore } from '../cloud/cloud-settings-store'
-import { scheduleSecretsRewarm } from '../cloud/secrets-rewarm'
-import { SecretsStoreProxy } from '../cloud/secrets-store-proxy'
-import { registerDisposable } from '../container/disposal'
 import { portToken, type DependencyContainer } from '../container/injection'
 import {
   ClaudeCodeSourceToken,
   CloudSessionStoreToken,
-  CloudSettingsStoreToken,
   CodexSourceToken,
   LocalAccountStoreToken,
   LocalSecretsStoreToken,
-  SecretsStoreToken,
   UserSettingsStoreToken,
 } from '../container/tokens'
 import { AccountsService } from '../credentials/accounts-service'
@@ -30,8 +29,6 @@ import { AnthropicUsageClient } from '../usage/anthropic-usage-client'
 import { createAccountUsageService, type AccountUsageService } from '../usage/account-usage-service'
 
 import { KeychainReaderToken } from '../container/tokens'
-
-import { cloudOutageMessage } from './cloud-outage'
 
 export function bindKeychainSource(args: {
   container: DependencyContainer
@@ -56,49 +53,20 @@ export function bindKeychainSource(args: {
 export async function bindAccounts(args: {
   container: DependencyContainer
   env: Record<string, string | undefined>
-  notice: NoticePort
   cloudUrl: string | undefined
   clientVersion: string
+  /** False in serve, where the vault was transferred with the sandbox and host sources must not touch it. */
+  reconcileHostSources?: boolean
 }): Promise<{
   credentials: CredentialPort
   accounts: AccountsService
   cloud: CloudService
-  cloudSettings: CloudSettingsStore
   usage: AccountUsageService
-  rewarmSecrets: () => Promise<void>
 }> {
-  const { container, notice } = args
+  const { container } = args
 
   const credentials = container.resolve(portToken(CredentialPort))
   const accountStore = container.resolve(portToken(AccountStorePort))
-  const secrets = container.resolve(SecretsStoreToken)
-
-  let rewarmSecrets: () => Promise<void> = () => Promise.resolve()
-
-  if (secrets instanceof SecretsStoreProxy) {
-    rewarmSecrets = () => secrets.warm()
-
-    try {
-      await secrets.warm()
-    } catch (error) {
-      notice.notify({
-        key: 'cloud:secrets',
-        tone: ENoticeTone.Warn,
-        ttlMs: NOTICE_WARN_MS,
-        text: `Atlas Cloud secrets could not be loaded (${error instanceof Error ? error.message : String(error)}) — cloud-backed keys stay unread until it comes back.`,
-      })
-    }
-
-    const stopRewarm = scheduleSecretsRewarm({ warm: rewarmSecrets })
-    registerDisposable({
-      container,
-      close: async () => {
-        stopRewarm()
-      },
-    })
-  }
-
-  const cloudSettings = container.resolve(CloudSettingsStoreToken)
 
   const cloud = new CloudService({
     sessions: container.resolve(CloudSessionStoreToken),
@@ -111,7 +79,7 @@ export async function bindAccounts(args: {
     clientVersion: args.clientVersion,
   })
 
-  try {
+  if (args.reconcileHostSources !== false) {
     await syncEnvironmentAccounts({ accounts: accountStore, env: args.env })
     await importClaudeCodeAccount({
       accounts: accountStore,
@@ -121,16 +89,6 @@ export async function bindAccounts(args: {
       accounts: accountStore,
       source: container.resolve(CodexSourceToken),
     })
-  } catch (error) {
-    const outage = cloudOutageMessage(error)
-    if (outage === null) throw error
-
-    notice.notify({
-      key: 'cloud:accounts',
-      tone: ENoticeTone.Warn,
-      ttlMs: NOTICE_WARN_MS,
-      text: `Atlas Cloud accounts could not be reconciled — ${outage.split('\n')[0] ?? ''}`,
-    })
   }
 
   const accounts = new AccountsService({
@@ -139,5 +97,5 @@ export async function bindAccounts(args: {
   })
   const usage = createAccountUsageService({ usage: new AnthropicUsageClient({ credentials }) })
 
-  return { credentials, accounts, cloud, cloudSettings, usage, rewarmSecrets }
+  return { credentials, accounts, cloud, usage }
 }

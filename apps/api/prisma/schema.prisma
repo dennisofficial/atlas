@@ -135,6 +135,7 @@ model CloudSandbox {
   driveName      String?
   driveMode      String? // outgoing column from the deleted server-side provisioning path; drive lifecycle is harness-owned now — drop once no release reads it
   pinnedModel    String?
+  serveUrl       String?
   createdAt      String
   updatedAt      String
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)

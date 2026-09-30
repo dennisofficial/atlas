@@ -21,16 +21,20 @@ export const sandboxStateSchema = z.nativeEnum(ECloudSandboxState)
  */
 export const MAX_CONTEXT_ARCHIVE_BYTES = 256 * 1024 * 1024
 
-/**
- * What the claim route answers: the fresh sandbox session token, and nothing else. Every Vercel
- * fact — url, state, whether the sandbox is new — comes from the driver's own SDK calls, not from
- * the control plane.
- */
 export const wireSandboxClaimSchema = z.object({
   token: z.string().min(1),
 })
 
 export type WireSandboxClaim = z.infer<typeof wireSandboxClaimSchema>
+
+export const wireSandboxRegistrationSchema = z.object({
+  token: z.string().min(1),
+  url: z.string().optional(),
+})
+
+export type WireSandboxRegistration = z.infer<typeof wireSandboxRegistrationSchema>
+
+export const clientTokenPattern = /^[0-9a-f]{64}$/
 
 /** One row of the operator's sandbox listing: every sandbox the signed-in user has ever claimed. */
 export const wireSandboxListEntrySchema = z.object({
@@ -98,6 +102,27 @@ export class SandboxClient {
       },
     })
     return wireSandboxClaimSchema.parse(body)
+  }
+
+  async registerSandbox(args: {
+    threadId: string
+    token: string
+    serveUrl: string
+    driveName?: string | undefined
+    metadata?: { title?: string; repo?: string; model?: string } | undefined
+  }): Promise<WireSandboxRegistration> {
+    const body = await this.request({
+      method: 'POST',
+      path: '/v1/sandboxes',
+      body: {
+        threadId: args.threadId,
+        clientToken: args.token,
+        serveUrl: args.serveUrl,
+        ...(args.driveName === undefined ? {} : { driveName: args.driveName }),
+        ...(args.metadata === undefined ? {} : { metadata: args.metadata }),
+      },
+    })
+    return wireSandboxRegistrationSchema.parse(body)
   }
 
   /** Operator-session auth: the signed-in user's own sandbox rows, newest activity first. */

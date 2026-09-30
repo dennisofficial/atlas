@@ -45,6 +45,9 @@ export class SandboxesController {
       gpgKey: body.gpgKey,
       driveName: body.driveName,
       contextPending: body.contextPending,
+      ...(body.clientToken === undefined ? {} : { clientToken: body.clientToken }),
+      ...(body.serveUrl === undefined ? {} : { serveUrl: body.serveUrl }),
+      ...(body.metadata === undefined ? {} : { metadata: body.metadata }),
     })
   }
 

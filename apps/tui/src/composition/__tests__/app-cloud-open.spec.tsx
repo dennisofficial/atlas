@@ -5,14 +5,15 @@ import { testRender } from '@opentui/react/test-utils'
 
 import { EExecutionLocation, toRunId, type ThreadId } from '@dltech/atlas-core'
 
+import { frameShowing } from '../../ui/__tests__/waiting'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { currentNotices, dismissNotice } from '../../ui/notice-store'
 import { App } from '../app'
-import { ECloudSandboxState } from '@dltech/atlas-harness'
+import { ECloudSandboxState, SessionsClient } from '@dltech/atlas-harness'
 import { CLEAN_WORKSPACE, fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
 import type { CloudBridgeFactory } from '../use-cloud-lift'
 import { spokenIn, THREAD, until } from './app-fixture'
-import { FAKE_CONFIG, fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
+import { FAKE_CONFIG, fakeApp, fakeCloud, scriptedModelPort, type FakeApp } from './fake-app'
 
 await grammarsReady()
 
@@ -35,7 +36,17 @@ const RESUMED_SANDBOX = {
 } as const
 
 const speaking = (): FakeApp =>
-  fakeApp({ model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }) })
+  fakeApp({
+    model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }),
+    cloud: fakeCloud({
+      sessionsClientFor: ({ session }) =>
+        new SessionsClient({
+          url: session.url,
+          token: session.token,
+          fetchFn: (async () => Response.json([])) as unknown as typeof fetch,
+        }),
+    }),
+  })
 
 /**
  * The /resume picker lists the local store, so a conversation that lives in the cloud is seeded
@@ -85,6 +96,7 @@ const mount = async (args: {
 
   return {
     frame,
+    showing: (text: string) => frameShowing({ setup, text }),
     command: async (text: string) => {
       await setup.mockInput.typeText(text)
       setup.mockInput.pressEnter()
@@ -288,9 +300,12 @@ describe('coming back to the host', () => {
 
     try {
       await mounted.command('/container cloud')
+      await mounted.showing('☁ cloud')
       await mounted.command('/resume')
+      await mounted.showing('the host thread')
       await mounted.typeText('host')
-      const frame = await mounted.pick()
+      await mounted.pick()
+      const frame = await mounted.showing('said on the host')
 
       expect(frame).toContain('said on the host')
       expect(bridge.channel.closed).toBe(true)

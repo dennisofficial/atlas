@@ -2,11 +2,12 @@
 
 The Atlas Cloud backend. NestJS 11 + better-auth + Prisma 7 (driver adapter) over PostgreSQL
 (Neon in deployed tiers, docker locally). First client is the Atlas TUI. Atlas is local-first:
-the machine is the credential store, and a signed-in session syncs accounts, secrets, the user
-MCP layer and memory with the cloud so a conversation can lift to a sandbox or be driven
-remotely. Sandboxes are BYO — the harness drives Vercel with the operator's own token; the API
-keeps the rendezvous rows (session tokens, workspace patches, context archives) and brokers
-credentials to the sandbox.
+the machine is the working credential store even while signed in. Accounts, secrets, user
+settings and MCP configuration are uploaded or downloaded only through explicit backup actions;
+memory is never a synced domain. Sandboxes are BYO: the client provisions Vercel directly with
+its own token and transfers working credentials/configuration during lift. The API provides
+identity, optional remote-control rendezvous and thread discovery, backup sync, and PR/CI
+webhook delivery. Neither local model requests nor sandbox provisioning depend on the API.
 
 ## Runtime and tests — the exception
 

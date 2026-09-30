@@ -1,14 +1,11 @@
 import {
-  AccountStorePort,
   ClockPort,
-  CredentialPort,
   ENoticeTone,
+  EventLogPort,
   EServiceStatus,
   EShellStatus,
-  EventLogPort,
   NOTICE_WARN_MS,
   ProcessPort,
-  type NoticePort,
 } from '@dltech/atlas-core'
 
 import { EFFORT_LADDER, parseRef } from '@dltech/atlas-core'
@@ -19,26 +16,19 @@ import { VercelDriver, type VercelCredentials } from '@dltech/atlas-harness'
 import { composeHarness } from '@dltech/atlas-harness'
 import { loadSettings } from '@dltech/atlas-harness'
 import { portToken } from '@dltech/atlas-harness'
-import { SecretsStoreToken, ServeSessionToken } from '@dltech/atlas-harness'
+import { ServeSessionToken } from '@dltech/atlas-harness'
 import { ShellRecovery } from '@dltech/atlas-harness'
 import { ThreadStorePort } from '@dltech/atlas-harness'
 
 import { adoptChildren } from './adopt-children'
+import { EPortableStateBoot, installPortableState } from './portable-state'
 import type { ServeApp, ServeCompose, ServeModelBridge } from './serve-app'
 import { ServeProcessPort } from './serve-process'
-import { ServeAccountStore } from './serve-account-store'
-import { ServeBrokerClient } from './serve-broker-client'
-import { ServeCredentialPort } from './serve-credential-port'
-import { ServeSecretsStore } from './serve-secrets-store'
-import { seedServeSession } from './serve-session'
 import { serveMemoryArchive, serveSessionArchive } from './serve-session-archive'
 
 export const SERVE_COMMAND = 'serve'
 
 type ServeStores = { log: EventLogPort; threads: ThreadStorePort; modelBridge: ServeModelBridge }
-
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error)
 
 const given = (value: string | undefined): string | undefined =>
   value === undefined || value.trim().length === 0 ? undefined : value.trim()
@@ -59,32 +49,44 @@ const vercelCredentialsOf = (
 
 /**
  * The shared root, bound for a sandbox: the transcript lives on the sandbox's own disk under its
- * atlas home, in the same JSONL stores a local session composes. The container's default
- * registrations already build them; serve resolves them rather than overriding with API-backed
- * remotes.
+ * atlas home, in the same JSONL stores a local session composes — and so do the credentials. The
+ * portable-state bundle the lift staged on the drive is installed into that home before anything
+ * reads it, so accounts, secrets, settings and MCP resolve through the container's local stores
+ * and never through the API. The container skips host-source reconciliation for a serve launch
+ * (see compose.ts), so the transferred vault is what the session runs on.
  */
 export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => {
-  seedServeSession({ url: args.controlPlaneUrl, token: args.token })
-
-  const broker = new ServeBrokerClient({
-    url: args.controlPlaneUrl,
-    token: args.token,
-    threadId: args.threadId,
-    clientVersion: args.clientVersion,
-  })
-  const secrets = new ServeSecretsStore({ broker })
-
-  const identity = args.identity ?? null
+  const state = await installPortableState({})
+  if (state.kind === EPortableStateBoot.Failed) {
+    throw new Error(`atlas serve cannot start: ${state.reason}`)
+  }
+  if (state.kind === EPortableStateBoot.CleanupFailed) {
+    args.notice.notify({
+      key: 'serve:portable-state',
+      tone: ENoticeTone.Warn,
+      ttlMs: NOTICE_WARN_MS,
+      text: `${state.reason}. Delete it inside the sandbox, or the next snapshot restore stages it again.`,
+    })
+  }
+  if (
+    state.kind === EPortableStateBoot.Installed ||
+    state.kind === EPortableStateBoot.CleanupFailed
+  ) {
+    args.notice.notify({
+      key: 'serve:portable-state',
+      tone: ENoticeTone.Info,
+      ttlMs: NOTICE_WARN_MS,
+      text: `Installed the lifted local state (${state.install.written.length} files${
+        state.install.skipped.length === 0
+          ? ''
+          : `, kept ${state.install.skipped.length} live`
+      }).`,
+    })
+  }
 
   const app = await composeHarness<ServeStores>({
-    repoIdentity: identity,
+    repoIdentity: args.identity ?? null,
     bindPorts: ({ container }) => {
-      container.register(portToken(AccountStorePort), { useValue: new ServeAccountStore({ broker }) })
-      container.register(portToken(CredentialPort), {
-        useFactory: (resolver) =>
-          new ServeCredentialPort({ broker, clock: resolver.resolve(portToken(ClockPort)) }),
-      })
-      container.register(SecretsStoreToken, { useValue: secrets })
       container.register(ServeSessionToken, {
         useValue: { url: args.controlPlaneUrl, token: args.token, email: null },
       })
@@ -135,17 +137,6 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     },
   })
 
-  try {
-    await secrets.warm()
-  } catch (error) {
-    args.notice.notify({
-      key: 'cloud:secrets',
-      tone: ENoticeTone.Warn,
-      ttlMs: NOTICE_WARN_MS,
-      text: `Atlas Cloud secrets could not be loaded (${messageOf(error)}) — cloud-backed keys stay unread until it comes back.`,
-    })
-  }
-
   const shellRecovery = new ShellRecovery({ log: app.surface.log, ids: app.ids })
 
   return {
@@ -160,7 +151,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     files: app.files,
     workspace: app.workspace,
     sessionArchive: () => serveSessionArchive({ threadId: args.threadId }),
-    memoryArchive: () => serveMemoryArchive({ cwd: args.cwd, identity }),
+    memoryArchive: () => serveMemoryArchive({ cwd: args.cwd, identity: args.identity ?? null }),
     adoptChildren: ({ threadId }) =>
       adoptChildren({ agents: app.agents, log: app.surface.log, threadId }),
     recordLostShells: ({ threadId }) => shellRecovery.recordLost({ threadId }),

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { toThreadId } from '@dltech/atlas-core'
 
 import {
+  DEFAULT_CLOUD_URL,
   DEFAULT_SERVE_PORT,
   EServeEnv,
   ServeNeedsConfiguration,
@@ -60,12 +61,19 @@ describe('serveConfig', () => {
     }
   })
 
-  it('refuses a thread it was not given and a cloud url it was not given', () => {
+  it('refuses a thread it was not given', () => {
     const { [EServeEnv.ThreadId]: _thread, ...noThread } = injected
-    const { [EServeEnv.CloudUrl]: _url, ...noUrl } = injected
 
     expect(() => serveConfig({ env: noThread })).toThrow(ServeNeedsConfiguration)
-    expect(() => serveConfig({ env: noUrl })).toThrow(ServeNeedsConfiguration)
+  })
+
+  it('defaults the cloud URL to production rather than gating boot on it', () => {
+    const { [EServeEnv.CloudUrl]: _url, ...noUrl } = injected
+
+    expect(serveConfig({ env: noUrl }).controlPlaneUrl).toBe(DEFAULT_CLOUD_URL)
+    expect(serveConfig({ env: noUrl, controlPlaneUrl: 'http://localhost:3400' }).controlPlaneUrl).toBe(
+      'http://localhost:3400',
+    )
   })
 
   it('refuses a port that is not a port', () => {

@@ -19,10 +19,7 @@ import type { OpenedConversation } from './open-conversation'
 import type { LiftedAttachment } from './lifted-session'
 import type { ContainerMoveControl } from './use-container-move'
 
-const NOT_SIGNED_IN =
-  'moving to the cloud needs an Atlas Cloud sign-in — settings (ctrl+o) › cloud, then try again'
-
-export type CloudBridgeFactory = (args: { url: string; token: string }) => CloudBridge
+export type CloudBridgeFactory = () => CloudBridge
 
 export type WorkspaceCapture = (args: { cwd: string }) => Promise<LiftedWorkspace | null>
 
@@ -30,8 +27,9 @@ export type CloudLiftControl = { handleLift: () => void }
 
 /**
  * Answers the refusal to show, or null when the lift may proceed. Runs before anything stops or
- * transfers: a missing Vercel token or gh login must fail the moment /container cloud is typed,
- * not four steps in at the sandbox wait.
+ * transfers: missing Vercel credentials must fail the moment /container cloud is typed, not four
+ * steps in at the sandbox wait. A cloud sign-in is never required — provisioning rides the
+ * operator's local Vercel credentials and locally minted serve token.
  */
 export type LiftPreflight = () => Promise<string | null>
 
@@ -61,11 +59,6 @@ export function useCloudLift(args: {
 
     const { app, threadId, createBridge, onLifted } = latest.current
     const midTurn = latest.current.midTurn()
-    const signedIn = app.cloud.session()
-    if (signedIn === null) {
-      notify({ key: CLOUD_LIFT_NOTICE_KEY, text: NOT_SIGNED_IN, tone: ENoticeTone.Warn })
-      return
-    }
 
     lifting.current = true
     void Promise.resolve()
@@ -81,7 +74,7 @@ export function useCloudLift(args: {
           return
         }
 
-        const bridge = createBridge({ url: signedIn.url, token: signedIn.token })
+        const bridge = createBridge()
         const { move } = latest.current
         move.handleBegin({ target: EExecutionLocation.Cloud, plan: cloudLiftPlan({ midTurn }) })
 

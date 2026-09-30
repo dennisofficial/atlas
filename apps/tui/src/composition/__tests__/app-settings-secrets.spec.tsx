@@ -54,12 +54,14 @@ const rowShowing = (setup: Mounted, needle: string): string =>
     .find((line) => line.includes(needle)) ?? ''
 
 describe('the secret-kind settings rows', () => {
-  it('re-warms secrets when settings opens, showing a token another tile set', async () => {
-    const secrets = new MemorySecretsStore({ label: 'settings-secrets spec' })
+  it('shows the masked value of a secret another tile set before settings opened', async () => {
+    const secrets = new MemorySecretsStore({
+      label: 'settings-secrets spec',
+      secrets: { [ESettingId.VercelToken]: 'vercel-token-1234' },
+    })
     const app = fakeApp({
       model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }),
       secretsPort: secrets,
-      rewarm: () => secrets.write({ name: ESettingId.VercelToken, value: 'vercel-token-1234' }),
     })
     const setup = await opened(app)
 
@@ -69,7 +71,6 @@ describe('the secret-kind settings rows', () => {
       const row = rowShowing(setup, 'Vercel token')
       expect(row).toContain('••••1234')
       expect(row).not.toContain('not set')
-      expect(app.rewarms).toBe(1)
     } finally {
       await teardown(setup)
     }

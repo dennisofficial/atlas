@@ -77,6 +77,7 @@ export type FakeCloudSandboxRow = {
   driveName?: string | null
   driveMode?: string | null
   pinnedModel?: string | null
+  serveUrl?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -212,10 +213,17 @@ export function createFakeSessionDb() {
       },
     },
     cloudSandbox: {
-      findUnique: async (args: { where: { threadId: string } }) =>
-        cloudSandboxes.find((one) => one.threadId === args.where.threadId) ?? null,
-      findFirst: async (args: { where: Where }) =>
-        cloudSandboxes.find((one) => matchesRow(one, args.where)) ?? null,
+      findUnique: async (args: {
+        where: { threadId: string }
+        select?: Record<string, boolean>
+      }) => {
+        const row = cloudSandboxes.find((one) => one.threadId === args.where.threadId) ?? null
+        return row === null ? null : project(row, args.select)
+      },
+      findFirst: async (args: { where: Where; select?: Record<string, boolean> }) => {
+        const row = cloudSandboxes.find((one) => matchesRow(one, args.where)) ?? null
+        return row === null ? null : project(row, args.select)
+      },
       findMany: async (args: { where?: Where; orderBy?: unknown }) => {
         const matched = cloudSandboxes.filter(
           (one) => args.where === undefined || matchesRow(one, args.where),
@@ -226,20 +234,25 @@ export function createFakeSessionDb() {
         where: { threadId: string }
         create: FakeCloudSandboxRow
         update: Where
+        select?: Record<string, boolean>
       }) => {
         const existing = cloudSandboxes.find((one) => one.threadId === args.where.threadId)
         if (existing === undefined) {
           cloudSandboxes.push(args.create)
-          return args.create
+          return project(args.create, args.select)
         }
         applyUpdate(existing as unknown as Record<string, unknown>, args.update)
-        return existing
+        return project(existing, args.select)
       },
-      update: async (args: { where: { threadId: string }; data: Where }) => {
+      update: async (args: {
+        where: { threadId: string }
+        data: Where
+        select?: Record<string, boolean>
+      }) => {
         const row = cloudSandboxes.find((one) => one.threadId === args.where.threadId)
         if (row === undefined) throw new Error('record not found')
         applyUpdate(row as unknown as Record<string, unknown>, args.data)
-        return row
+        return project(row, args.select)
       },
       delete: async (args: { where: { threadId: string } }) => {
         const index = cloudSandboxes.findIndex((one) => one.threadId === args.where.threadId)

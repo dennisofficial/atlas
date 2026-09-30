@@ -1,4 +1,5 @@
 export * from './channel-wire.js'
+export * from './portable-state.js'
 export * from './rewind-wire.js'
 export * from './roster-wire.js'
 export * from './serve-env.js'

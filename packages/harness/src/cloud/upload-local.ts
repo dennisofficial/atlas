@@ -2,18 +2,16 @@ import {
   EAuthProvider,
   type AccountId,
   type AccountStorePort,
-  type SettingsStorePort,
   type StoredAccount,
 } from '@dltech/atlas-core'
 
 import { FileMcpSource } from '../mcp/config/sources'
 import type { FileSecretsStore } from '../secrets/file-secrets-store'
 import type { CloudClient } from './cloud-client'
-import { accountDraftOf, sameAccountSecret, type CloudSyncCounts } from './download-purge'
+import { accountDraftOf, sameAccountSecret, type CloudSyncCounts } from './sync-accounts'
 import { RemoteAccountStore } from './remote-account-store'
-import { CLOUD_SETTING_IDS, isCloudSettingId } from './settings-definitions'
 
-export type { CloudSyncCounts } from './download-purge'
+export type { CloudSyncCounts } from './sync-accounts'
 
 /**
  * Pushes every local account the cloud does not already hold (matched on provider + label +
@@ -94,37 +92,4 @@ export async function uploadLocalMcp(args: { client: CloudClient }): Promise<num
     uploaded += 1
   }
   return uploaded
-}
-
-/**
- * The cloud-only settings used to live in the local user settings file: on sign-in, any value
- * the cloud does not already hold goes up, and the ids leave the local document either way —
- * the local layered store never serves them again.
- */
-export async function migrateLocalSettings(args: {
-  client: CloudClient
-  localSettings: SettingsStorePort | undefined
-}): Promise<number> {
-  if (args.localSettings === undefined) return 0
-
-  const document = args.localSettings.read().document
-  const remoteKeys = new Set((await args.client.listSettings()).map((setting) => setting.key))
-
-  let imported = 0
-  for (const key of CLOUD_SETTING_IDS) {
-    const value = document.values[key]
-    if (typeof value !== 'string' || value.length === 0) continue
-    if (remoteKeys.has(key)) continue
-    await args.client.setSetting({ key, value })
-    imported += 1
-  }
-
-  const remaining = Object.fromEntries(
-    Object.entries(document.values).filter(([key]) => !isCloudSettingId(key)),
-  )
-  if (Object.keys(remaining).length !== Object.keys(document.values).length) {
-    args.localSettings.write({ values: remaining })
-  }
-
-  return imported
 }

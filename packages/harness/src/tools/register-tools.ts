@@ -15,8 +15,6 @@ import { withDeltaPublishing } from '../channel/publishing-event-log'
 import { ExecutionLocationToken } from '../composition/execution-location-state'
 import { portToken, resolveSet, type DependencyContainer } from '../container/injection'
 import {
-  ClientVersionToken,
-  CloudSessionStoreToken,
   DeltaChannelToken,
   DockerEngineToken,
   SecretsStoreToken,
@@ -151,15 +149,7 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
     useFactory: (resolver) => new SkillTool(resolver.resolve(portToken(SkillRegistryPort))),
   })
   container.register(portToken(ToolDefinition), { useClass: SkillInstallTool })
-  container.register(portToken(ToolDefinition), {
-    useFactory: (resolver) =>
-      new McpEditTool({
-        sessions: resolver.resolve(CloudSessionStoreToken),
-        clientVersion: resolver.isRegistered(ClientVersionToken, true)
-          ? resolver.resolve(ClientVersionToken)
-          : 'dev',
-      }),
-  })
+  container.register(portToken(ToolDefinition), { useClass: McpEditTool })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) =>
       new AgentSpawnTool(

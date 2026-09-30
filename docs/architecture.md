@@ -1203,11 +1203,18 @@ Four decisions are pure and live in `core/credentials/`, tested with plain data:
   wired and answer `reachable: true`; a provider only dims to `⚠ no key` in the switcher once the
   accounts say nothing holds a key for it.
 
-**A refresh token is single-use.** The server rotates it, so two callers refreshing one account race
-and the loser gets a 400 that reads exactly like a dead credential. `RefreshingCredentialPort` keeps
-one in-flight refresh per account, keyed by id and dropped the moment it settles — it is not a cache.
-A hard 4xx marks the account expired; anything else falls back to the token in hand if it still has
-life, because a socket hang-up is not an authentication failure.
+**Refresh-token rotation belongs to the issuer.** Copied rotating grants can race, and reuse can
+invalidate a sibling holder's login. `RefreshingCredentialPort` keeps one in-flight refresh per
+account per instance, keyed by id and dropped when it settles; it is not cross-machine coordination.
+On a hard authentication refusal it rereads the local vault for a newer pair before retiring the
+account. Temporary failures can use the held token while it still has life.
+
+**Detached lift does not clone renewable OAuth grants.** The initial portable state carries
+API-key accounts and excludes provider and MCP OAuth grants. A selected subscription OAuth account
+is refused before lift rather than silently switched to API billing or allowed to invalidate the
+laptop's login. Independent grant ownership or a durable refresh authority is a separate design
+needed to remove that restriction. The simulator and provider-evidence boundaries are recorded in
+`docs/research/local-first-token-refresh.md`.
 
 **A credential imported from another tool is written back to it.** Atlas takes up an existing Claude
 Code login on first run, so nobody is asked to sign in twice — but refreshing it would leave the
@@ -1215,17 +1222,25 @@ Code login on first run, so nobody is asked to sign in twice — but refreshing 
 source, and the rotated pair goes back the way it came, guarded by `adoptionOf` in both directions:
 Atlas takes up a pair Claude Code refreshed first, and never pushes an older pair over a newer one.
 
-**The local vault is the whole store; Atlas Cloud is opt-in.** A signed-out Atlas is complete:
-accounts, secrets, settings and the user MCP layer all live on the machine, and nothing asks for a
-sign-in to work. Signing in (settings › account) syncs those stores with the cloud — the first
-sign-in imports what the machine holds and archives the local files aside — so a session can be
-lifted to a cloud sandbox or driven remotely. Signing out leaves the cloud copies in place; the
-"download & purge" action on the same settings page is the exit: it pulls every domain down
-(accounts, secrets, MCP servers, memory, the GitHub connection), deletes it server-side, and signs
-out, because the store proxies would otherwise keep serving the now-empty remote. The proxies
-(`AccountStoreProxy`, `SecretsStoreProxy`, the credential proxy) answer from the remote stores when
-a session exists and from the local ones when not — there is no third mode, and an outage surfaces
-as a failed call, never a silent switch.
+**The local vault is authoritative, including while signed in to Atlas Cloud.** Accounts, secrets,
+settings and the user MCP layer always resolve on the machine running the harness. Signing in
+adds remote-control and coordination capabilities; it never substitutes remote stores, archives
+working files, or makes a local turn depend on the API. Provider OAuth refresh talks directly to
+the provider, not through Atlas Cloud.
+
+**Cloud sync is explicit backup and transfer.** Upload and download copy accounts, secrets, user
+settings and MCP configuration only when the operator requests them. A failed sync leaves local
+operation intact. Existing cloud-only installations recover their data through an explicit
+download; previously archived local files are restored without replacing live files. Memory is
+not a synced domain.
+
+**Sessions originate on the operator's machine.** An iOS remote-control client asks a connected
+laptop to start a session; an offline laptop cannot receive that request. The laptop provisions
+Vercel sandboxes using its own Vercel credentials and transfers the session's configuration and
+copyable credentials during lift. Atlas Cloud owns identity, remote-control rendezvous, thread discovery
+and PR/CI webhook delivery, not model credential resolution or sandbox provisioning. Detached
+refresh-token sharing is a provider-specific constraint to verify, not a reason to put local
+turns behind a cloud credential broker.
 
 ## Which model answers
 

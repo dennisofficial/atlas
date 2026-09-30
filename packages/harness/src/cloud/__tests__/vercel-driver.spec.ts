@@ -40,7 +40,7 @@ const fakeDriveSdk = (over: Partial<DriveSdk> = {}): { sdk: DriveSdk; created: s
   }
 }
 
-type RecordedWrite = { path: string; content: string; mode?: number }
+type RecordedWrite = { path: string; content: Uint8Array | string; mode?: number }
 
 type FakeSandboxExtras = {
   readonly commands: readonly string[]
@@ -52,6 +52,10 @@ type FakeSandboxExtras = {
 
 type FakeSandbox = Sandbox & FakeSandboxExtras
 
+type RecordedCall =
+  | { kind: 'command'; script: string }
+  | { kind: 'write'; path: string }
+
 const fakeSandbox = (
   args: {
     status?: string
@@ -59,11 +63,13 @@ const fakeSandbox = (
     installedVersion?: string
     versionReadFails?: boolean
     healthy?: boolean
+    calls?: RecordedCall[]
   } = {},
 ): FakeSandbox => {
   const commands: string[] = []
   const written: RecordedWrite[] = []
   const updates: number[][] = []
+  const calls = args.calls
   const routedPorts = [...(args.routes ?? [3000])]
   let stopped = false
   let deleted = false
@@ -83,6 +89,7 @@ const fakeSandbox = (
     runCommand: async (params: { cmd: string; args?: string[] }) => {
       const script = params.args?.[1] ?? params.cmd
       commands.push(script)
+      calls?.push({ kind: 'command', script })
       const isVersionRead = script.includes('.version')
       if (isVersionRead) {
         if (args.versionReadFails && script.startsWith('cat ')) throw new Error('runCommand unavailable')
@@ -97,6 +104,7 @@ const fakeSandbox = (
     },
     writeFiles: async (files: RecordedWrite[]) => {
       written.push(...files)
+      files.forEach((file) => calls?.push({ kind: 'write', path: file.path }))
     },
     update: async (params: { ports: number[] }) => {
       updates.push(params.ports)
@@ -306,7 +314,7 @@ describe('createOrResume', () => {
     expect(unpinned.commands.some((script) => script.includes('.version'))).toBe(false)
   })
 
-  it('resumes an existing sandbox without the created flag, launching serve from onResume', async () => {
+  it('resumes an existing sandbox without the created flag, staging the serve token', async () => {
     const sandbox = fakeSandbox()
     let resumeCalls = 0
     const { driver } = driverWith({
@@ -565,6 +573,150 @@ describe('createOrResume', () => {
 
     expect(uploads).toBe(1)
     expect(current.deleted).toBe(false)
+  })
+
+  it('completes the bootstrap callback before serve launches on a fresh sandbox', async () => {
+    const calls: RecordedCall[] = []
+    const { driver } = driverWith({
+      get: async () => {
+        throw notFound()
+      },
+      getOrCreate: async (params) => {
+        const sandbox = fakeSandbox({ calls })
+        await params?.onCreate?.(sandbox)
+        return sandbox
+      },
+    })
+
+    await driver.createOrResume({
+      name: 'atlas-thread-x',
+      threadId: 'brn_cloud',
+      token: 'serve-token-1',
+      putContextOnFreshBoot: async (sandbox) => {
+        await driver.writeBootstrapFileToSandbox({ sandbox, path: 'context.tar.gz', content: 'x' })
+      },
+    })
+
+    const bootstrapEnd = calls.findIndex((call) => call.kind === 'write' && call.path === 'context.tar.gz')
+    const tokenStage = calls.findIndex(
+      (call) => call.kind === 'command' && call.script.startsWith('mkdir -p /opt/atlas'),
+    )
+    const health = calls.findIndex(
+      (call) => call.kind === 'command' && call.script.includes('/v1/health'),
+    )
+    expect(bootstrapEnd).toBeGreaterThanOrEqual(0)
+    expect(tokenStage).toBeGreaterThanOrEqual(0)
+    expect(health).toBeGreaterThanOrEqual(0)
+    expect(bootstrapEnd).toBeLessThan(tokenStage)
+    expect(bootstrapEnd).toBeLessThan(health)
+  })
+
+  it('completes the bootstrap callback before serve launches when the SDK fires onResume', async () => {
+    const calls: RecordedCall[] = []
+    const sandbox = fakeSandbox({ calls })
+    const { driver } = driverWith({
+      get: async () => {
+        throw notFound()
+      },
+      getOrCreate: async (params) => {
+        await params?.onResume?.(sandbox)
+        return sandbox
+      },
+    })
+
+    await driver.createOrResume({
+      name: 'atlas-thread-x',
+      threadId: 'brn_cloud',
+      token: 'serve-token-1',
+      putContextOnFreshBoot: async (resumed) => {
+        await driver.writeBootstrapFileToSandbox({ sandbox: resumed, path: 'context.tar.gz', content: 'x' })
+      },
+    })
+
+    const bootstrapEnd = calls.findIndex((call) => call.kind === 'write' && call.path === 'context.tar.gz')
+    const tokenStage = calls.findIndex(
+      (call) => call.kind === 'command' && call.script.startsWith('mkdir -p /opt/atlas'),
+    )
+    const health = calls.findIndex(
+      (call) => call.kind === 'command' && call.script.includes('/v1/health'),
+    )
+    expect(bootstrapEnd).toBeGreaterThanOrEqual(0)
+    expect(tokenStage).toBeGreaterThanOrEqual(0)
+    expect(health).toBeGreaterThanOrEqual(0)
+    expect(bootstrapEnd).toBeLessThan(tokenStage)
+    expect(bootstrapEnd).toBeLessThan(health)
+  })
+
+  it('never launches serve when the bootstrap callback fails, on a resumed sandbox', async () => {
+    const calls: RecordedCall[] = []
+    const sandbox = fakeSandbox({ calls })
+    const { driver } = driverWith({
+      getOrCreate: async (params) => {
+        await params?.onResume?.(sandbox)
+        return sandbox
+      },
+    })
+
+    await expect(
+      driver.createOrResume({
+        name: 'atlas-thread-x',
+        threadId: 'brn_cloud',
+        token: 'serve-token-1',
+        putContextOnFreshBoot: async () => {
+          throw new Error('context upload failed')
+        },
+      }),
+    ).rejects.toThrow('context upload failed')
+
+    expect(calls.some((call) => call.kind === 'command' && call.script.startsWith('mkdir -p /opt/atlas'))).toBe(
+      false,
+    )
+    expect(calls.some((call) => call.kind === 'command' && call.script.includes('/v1/health'))).toBe(false)
+    expect(sandbox.written).toEqual([])
+  })
+
+  it('never launches serve when the bootstrap callback fails, on a fresh sandbox', async () => {
+    const calls: RecordedCall[] = []
+    const { driver } = driverWith({
+      get: async () => {
+        throw notFound()
+      },
+      getOrCreate: async (params) => {
+        const sandbox = fakeSandbox({ calls })
+        await params?.onCreate?.(sandbox)
+        return sandbox
+      },
+    })
+
+    await expect(
+      driver.createOrResume({
+        name: 'atlas-thread-x',
+        threadId: 'brn_cloud',
+        token: 'serve-token-1',
+        putContextOnFreshBoot: async () => {
+          throw new Error('context upload failed')
+        },
+      }),
+    ).rejects.toThrow('context upload failed')
+
+    expect(calls.some((call) => call.kind === 'command' && call.script.startsWith('mkdir -p /opt/atlas'))).toBe(
+      false,
+    )
+    expect(calls.some((call) => call.kind === 'command' && call.script.includes('/v1/health'))).toBe(false)
+  })
+
+  it('stages bootstrap files with mode 0600 on the drive bootstrap directory', async () => {
+    const sandbox = fakeSandbox()
+    const { driver } = driverWith({ get: async () => sandbox })
+
+    await driver.writeBootstrapFileToSandbox({
+      sandbox,
+      path: 'workspace-spec.json',
+      content: new Uint8Array([1, 2, 3]),
+    })
+
+    expect(sandbox.written).toEqual([{ path: 'workspace-spec.json', content: new Uint8Array([1, 2, 3]), mode: 0o600 }])
+    expect(sandbox.commands.some((script) => script === `mkdir -p ${DRIVE_HOME_PATH}/bootstrap`)).toBe(true)
   })
 
   it('pins the model into the environment only when one is pinned', async () => {
