@@ -563,14 +563,25 @@ describe("what the sidebar says", () => {
     expect(rows[wordmark - 1]).toContain("Developer/atlas/apps/tui");
   }, 30_000);
 
-  it("truncates a title too long for the column rather than wrapping it", async () => {
+  it("soft-wraps a title too long for the column rather than truncating it", async () => {
     const long =
       "Rotate every refresh token, then reject the reused ones without mercy";
     const rows = await rowsOf({ model: { ...FED, title: long } });
     const frame = rows.join("\n");
 
+    expect(frame).not.toContain("…");
+    expect(frame).toContain("without mercy");
+    expect(rowWith({ rows, text: "14 turns" })).toBeTruthy();
+  }, 30_000);
+
+  it("caps a title past two rows with an ellipsis rather than growing the head", async () => {
+    const long =
+      "Rotate every refresh token, then reject every reused one without mercy, and audit the tail";
+    const rows = await rowsOf({ model: { ...FED, title: long } });
+    const frame = rows.join("\n");
+
     expect(frame).toContain("…");
-    expect(frame).not.toContain("without mercy");
+    expect(frame).not.toContain("audit the tail");
     expect(rowWith({ rows, text: "14 turns" })).toBeTruthy();
   }, 30_000);
 });
@@ -637,7 +648,7 @@ describe("the naming animation in the head", () => {
     expect(rows.join("\n")).toContain("Rejecting reused tokens");
   }, 30_000);
 
-  it("never wraps a rename whose name is longer than the column", async () => {
+  it("clamps the generating noise to one row even for a long old name", async () => {
     const long =
       "Rotate every refresh token, then reject the reused ones without mercy";
     const rows = await rowsOf({
@@ -651,13 +662,53 @@ describe("the naming animation in the head", () => {
       },
     });
 
-    // The noise never exceeds the column width — a longer name glides within the
-    // row rather than wrapping a second line. The animation ticks while the frame
-    // is captured, so read the head row as the one carrying the noise run.
+    // The noise never exceeds the column width — the generating phase holds the
+    // row, and only the streamed answer wraps past it. The animation ticks while
+    // the frame is captured, so read the head row as the one carrying the noise run.
     const headRow = rows.find((row) => /[·:∙]{4}/.test(row)) ?? "";
     const run = headRow.match(/[·:∙]+/);
     expect(run).toBeTruthy();
     expect([...(run?.[0] ?? "")].length).toBeLessThanOrEqual(CONTENT_END - 2);
+  }, 30_000);
+
+  it("wraps a streamed answer longer than the column over the rows it needs", async () => {
+    const long =
+      "Rotate every refresh token, then reject the reused ones without mercy";
+    const rows = await rowsOf({
+      model: FED,
+      naming: {
+        phase: ENamingPhase.Streaming,
+        startCells: FED.title!.length,
+        startedWithName: true,
+        target: long,
+        startedAt: Date.now() - NAMING_SETTLE_MS * 2,
+      },
+    });
+    const frame = rows.join("\n");
+
+    expect(frame).not.toContain("…");
+    expect(frame).toContain("without mercy");
+    expect(rowWith({ rows, text: "14 turns" })).toBeTruthy();
+  }, 30_000);
+
+  it("caps a streamed answer past two rows exactly as the settled title does", async () => {
+    const long =
+      "Rotate every refresh token, then reject every reused one without mercy, and audit the tail";
+    const rows = await rowsOf({
+      model: FED,
+      naming: {
+        phase: ENamingPhase.Streaming,
+        startCells: FED.title!.length,
+        startedWithName: true,
+        target: long,
+        startedAt: Date.now() - NAMING_SETTLE_MS * 2,
+      },
+    });
+    const frame = rows.join("\n");
+
+    expect(frame).toContain("…");
+    expect(frame).not.toContain("audit the tail");
+    expect(rowWith({ rows, text: "14 turns" })).toBeTruthy();
   }, 30_000);
 });
 

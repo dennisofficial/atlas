@@ -71,6 +71,21 @@ export function wrapCells(args: { text: string; cells: number }): string[] {
   return lines
 }
 
+/**
+ * The title's whole footprint in rows: wrapped to the column, then held to the cap with an
+ * ellipsis closing the last line when the rest did not fit. The settled title and the naming
+ * animation read the same string, so the sweep's last frame and the settled frame never differ.
+ */
+export function wrapCappedCells(args: { text: string; cells: number; lines: number }): string {
+  const wrapped = wrapCells({ text: args.text, cells: args.cells })
+  if (wrapped.length <= args.lines) return args.text
+
+  const kept = wrapped.slice(0, Math.max(0, args.lines))
+  const last = kept[kept.length - 1] ?? ''
+  kept[kept.length - 1] = truncateCells({ text: `${last} …`, cells: args.cells })
+  return kept.join(' ')
+}
+
 export const spanCells = (spans: readonly Span[]): number =>
   spans.reduce((total, span) => total + cellsOf(span.text), 0)
 
