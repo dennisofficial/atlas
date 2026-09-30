@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 
+import type { ThreadId } from '@dltech/atlas-core'
 import { ECloudSandboxState, RemoteThreadStore } from '@dltech/atlas-harness'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
@@ -23,11 +24,7 @@ const RUNNING_STATUS = {
 const remoteFor = (args: {
   app: ReturnType<typeof fakeApp>
   bridge: ReturnType<typeof fakeBridge>
-  threadId: ReturnType<ReturnType<typeof fakeApp>['threads']['create']> extends Promise<infer T>
-    ? T extends { id: infer I }
-      ? I
-      : never
-    : never
+  threadId: ThreadId
 }): RemoteThreadStore => {
   args.bridge.sourceStores({
     log: args.app.log,
@@ -42,13 +39,6 @@ const remoteFor = (args: {
   return new RemoteThreadStore({ channel: attachment.channel })
 }
 
-/**
- * `/restart` resumes by the slug of the on-screen title (restartResumeHandle), and the resume
- * lookup scans the local thread store by name (openConversation's findNamed). A rename the
- * sandbox announces — its auto-titler, or a `/rename` echoed back — must therefore come home
- * durably while the thread is still lifted, or the restarted process cannot resolve the handle
- * its predecessor wrote.
- */
 describe('a rename the sandbox announces', () => {
   it('lands in the local thread store, so a name-based resume resolves after a restart', async () => {
     const app = fakeApp({

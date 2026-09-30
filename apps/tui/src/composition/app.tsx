@@ -470,9 +470,10 @@ export function App(props: {
           channel: attachment.channel,
           sandboxes: attachment.bridge.sandboxes,
           onReload: handleReload,
-          teardowns: [
-            mirrorCloudRenames({ home: props.app.threads, remote: attachment.stores.threads }),
-          ],
+          onClose: mirrorCloudRenames({
+            home: props.app.threads,
+            remote: attachment.stores.threads,
+          }),
         }),
         reloads: 0,
       })

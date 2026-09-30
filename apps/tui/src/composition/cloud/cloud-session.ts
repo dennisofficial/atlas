@@ -37,8 +37,7 @@ export function createCloudSession(args: {
   channel: CloudChannel
   sandboxes: CloudSandboxes
   onReload: (reload: CloudReload) => void
-  /** Bindings the attachment owns beyond the socket — a rename mirror into the home store — run on close. */
-  teardowns?: readonly (() => void)[] | undefined
+  onClose?: (() => void) | undefined
 }): CloudSession {
   const { channel, sandboxes } = args
   const listeners = new Set<() => void>()
@@ -130,7 +129,7 @@ export function createCloudSession(args: {
       unsubscribeReload()
       unsubscribeError()
       unsubscribeTurnEnded()
-      for (const teardown of args.teardowns ?? []) teardown()
+      args.onClose?.()
       listeners.clear()
       channel.close()
     },
