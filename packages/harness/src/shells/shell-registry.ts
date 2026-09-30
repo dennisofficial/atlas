@@ -13,6 +13,7 @@ import {
 
 import { LocalProcessPort } from '../execution/local-process'
 import type { HookChainSource } from '../hooks/registry'
+import type { SleepPrevention } from '../power/sleep-prevention'
 import { afterShellDrafts } from './after-shell'
 import { bootId } from './boot'
 import { lostShellEnding } from './recovery'
@@ -156,6 +157,7 @@ export class BunShellRegistry extends ShellRegistryPort {
     private readonly clock: ClockPort,
     private readonly hooks: HookChainSource,
     private readonly processes: ProcessPort = new LocalProcessPort(),
+    private readonly sleepPrevention?: SleepPrevention,
   ) {
     super()
   }
@@ -193,6 +195,14 @@ export class BunShellRegistry extends ShellRegistryPort {
       onActivity: () => this.noteActivity(),
     })
     if (!opened.ok) return opened
+
+    const releaseSleepAssertion = this.sleepPrevention?.acquire()
+    if (releaseSleepAssertion !== undefined) {
+      void opened.shell.exited.then(
+        () => releaseSleepAssertion(),
+        () => releaseSleepAssertion(),
+      )
+    }
 
     this.tracked.set(shellId, {
       shell: opened.shell,

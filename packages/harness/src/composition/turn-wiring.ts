@@ -54,6 +54,9 @@ import type { TurnRunner } from '../loop/turn-runner.port'
 import type { PendingQueues } from '../pending'
 import { userSaidDraft } from '../pending'
 import type { PromptRegistry } from '../prompt/registry'
+import type { SleepPrevention } from '../power/sleep-prevention'
+import type { ClockJumpDetector } from '../loop/retrying-step'
+import type { WakeSignal } from '../wake/wake-signals'
 import { ServiceRegistryPort } from '../services/service-registry'
 import type { SettingsService } from '../settings/service'
 import { ShellRegistryPort } from '../shells/shell-registry'
@@ -72,6 +75,10 @@ import { faultInjected } from './fault-injection'
 import type { ModelCatalogue } from './model-catalogue'
 import type { SelectableModel } from './model-selection'
 import { teardownSession, type TeardownSource } from './session-teardown'
+
+const asClockJumps = (wake: WakeSignal): ClockJumpDetector => ({
+  onJump: (callback) => wake.subscribe((jump) => callback(jump.gapMs)),
+})
 
 export type TurnWiring = {
   turn: TurnDeps
@@ -112,6 +119,8 @@ export function wireTurn<Command>(args: {
   decisionsEnabled: () => boolean
   stopSandbox: () => Promise<boolean>
   settled: SettingsResolution
+  sleepPrevention?: SleepPrevention | undefined
+  wake?: WakeSignal | undefined
   tldr: { feed: TldrFeed | undefined; model: LanguageModel; modelId: () => string }
   titler: (args: {
     text: string
@@ -243,6 +252,8 @@ export function wireTurn<Command>(args: {
     logPort,
     model: modelPort,
     ids,
+    ...(args.sleepPrevention === undefined ? {} : { sleepPrevention: args.sleepPrevention }),
+    ...(args.wake === undefined ? {} : { retry: { clockJumps: asClockJumps(args.wake) } }),
     assembly: defaultPipeline({
       prompt: compiledPrompt,
       launchDirectory: workspace.workspace,
@@ -316,6 +327,7 @@ export function wireTurn<Command>(args: {
     threads,
     hooks: () => container.resolve(HookChainToken),
     settings: args.settings,
+    ...(args.wake === undefined ? {} : { wake: args.wake }),
   }
   const modelFor = childModelSource(childModels)
   const modelAtSpawn = childModelSelection(childModels)

@@ -51,6 +51,7 @@ import type { ToolDispatcher } from '../tools/dispatch'
 import { MAX_LOOP_CUTS_PER_TURN, repeatableFor } from './loop-guard'
 import { ELoopWatch, type LoopWatch } from './loop-watchdog'
 import type { PauseSignal } from './pause-signal'
+import type { SleepPrevention } from '../power/sleep-prevention'
 import { takeModelStepWithRetry, type RetryDeps } from './retrying-step'
 import { openTurnSpend, TURN_CRASHED, type TurnLedgerDeps, type TurnSpendTally } from '../ledger/record-turn-spend'
 import { appendResumeDrafts } from './resume-turn'
@@ -94,6 +95,7 @@ export type TurnDeps = {
   autoCompactAtPercent?: (() => number) | undefined
   launchDirectory?: string | undefined
   retry?: RetryDeps | undefined
+  sleepPrevention?: SleepPrevention | undefined
 }
 
 export class LoopTurnRunner extends TurnRunner {
@@ -122,6 +124,7 @@ export class LoopTurnRunner extends TurnRunner {
   private readonly launchDirectory: string
   private readonly retry: RetryDeps | undefined
   private readonly logPort: LogPort | undefined
+  private readonly sleepPrevention: SleepPrevention | undefined
 
   constructor(deps: TurnDeps) {
     super()
@@ -148,6 +151,7 @@ export class LoopTurnRunner extends TurnRunner {
     this.launchDirectory = deps.launchDirectory ?? process.cwd()
     this.retry = deps.retry
     this.logPort = deps.logPort
+    this.sleepPrevention = deps.sleepPrevention
     this.settlePending =
       deps.dispatch === undefined
         ? undefined
@@ -221,6 +225,9 @@ export class LoopTurnRunner extends TurnRunner {
     const runId = this.ids.nextRunId()
     const spend = openTurnSpend({ ...(this.spend ?? {}), model: this.model.identity })
     let status: string = TURN_CRASHED
+    // A turn that parks for a human does so by returning Paused, which drops this lease — the
+    // assertion rides again on resume() rather than surviving a wait nobody is driving.
+    const releaseSleepAssertion = this.sleepPrevention?.acquire()
 
     try {
       const outcome = await this.trackedTurn({
@@ -233,6 +240,7 @@ export class LoopTurnRunner extends TurnRunner {
       status = outcome.status
       return outcome
     } finally {
+      releaseSleepAssertion?.()
       await spend.settle({ threadId, runId, status })
     }
   }

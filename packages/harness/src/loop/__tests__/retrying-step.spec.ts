@@ -11,7 +11,12 @@ import {
 } from '@dltech/atlas-core'
 
 import { ModelStreamError } from '../../model/errors'
-import { takeModelStepWithRetry, type RetryNotice } from '../retrying-step'
+import {
+  sleepUnlessAborted,
+  takeModelStepWithRetry,
+  type ClockJumpDetector,
+  type RetryNotice,
+} from '../retrying-step'
 
 const POLICY: RetryPolicy = { maxAttempts: 4, baseDelayMs: 1_000, maxDelayMs: 10_000 }
 
@@ -268,5 +273,127 @@ describe('retrying a failure that was thrown rather than returned', () => {
 
     await expect(run()).rejects.toThrow('upstream said 529')
     expect(calls()).toBe(POLICY.maxAttempts)
+  })
+})
+
+class ScriptedClockJump implements ClockJumpDetector {
+  private listener: ((gapMs: number) => void) | undefined
+
+  onJump(callback: (gapMs: number) => void): () => void {
+    this.listener = callback
+    return () => {
+      this.listener = undefined
+    }
+  }
+
+  jump(gapMs: number = 300_000): void {
+    this.listener?.(gapMs)
+  }
+}
+
+describe('recovering the retry budget after the machine slept', () => {
+  const failsPerBudget = POLICY.maxAttempts
+
+  function waking(args: {
+    outcomes: readonly ('fail' | 'ok')[]
+    sleeps?: number
+    jumpOnStep?: number
+  }) {
+    const model = new ScriptedModel(args.outcomes)
+    const notices: RetryNotice[] = []
+    const slept: number[] = []
+    const clockJumps = new ScriptedClockJump()
+    const controller = new AbortController()
+    let sleeps = 0
+
+    const run = () =>
+      takeModelStepWithRetry({
+        model,
+        tools: [],
+        onChunk: undefined,
+        assembled: ASSEMBLED,
+        signal: controller.signal,
+        retry: {
+          policy: POLICY,
+          clockJumps,
+          onWaiting: (notice) => notices.push(notice),
+          sleep: async ({ ms, signal }) => {
+            slept.push(ms)
+            sleeps += 1
+            if (sleeps !== (args.sleeps ?? Number.POSITIVE_INFINITY)) return
+            clockJumps.jump()
+            if (signal.aborted) return
+            await sleepUnlessAborted({ ms: 60_000, signal })
+          },
+          jitter: () => 1,
+        },
+      })
+
+    if (args.jumpOnStep !== undefined) {
+      const step = model.step.bind(model)
+      model.step = async () => {
+        if (model.steps + 1 === args.jumpOnStep) clockJumps.jump()
+        return step()
+      }
+    }
+
+    return { model, notices, slept, clockJumps, run }
+  }
+
+  it('resets the attempt counter, so the wake attempt is 1/maxAttempts again', async () => {
+    const outcomes = Array.from({ length: failsPerBudget + 1 }, () => 'fail' as const)
+    const { model, notices, run } = waking({ outcomes, sleeps: 1 })
+
+    const stepped = await run()
+
+    expect(stepped.ok).toBe(false)
+    expect(model.steps).toBe(failsPerBudget + 1)
+    expect(notices.map((notice) => notice.attempt)).toEqual([
+      1,
+      1, 2, 3,
+    ])
+  })
+
+  it('cuts the backoff sleep short on the jump instead of sitting out the delay', async () => {
+    const { model, slept, run } = waking({ outcomes: ['fail', 'ok'], sleeps: 1 })
+
+    const started = Date.now()
+    const stepped = await run()
+
+    expect(stepped.ok).toBe(true)
+    expect(model.steps).toBe(2)
+    expect(Date.now() - started).toBeLessThan(5_000)
+    expect(slept).toEqual([1_000])
+  })
+
+  it('holds when the jump fires mid-attempt rather than during the backoff', async () => {
+    const outcomes = Array.from({ length: failsPerBudget + 1 }, () => 'fail' as const)
+    const { model, notices, run } = waking({ outcomes, jumpOnStep: 2 })
+
+    const stepped = await run()
+
+    expect(stepped.ok).toBe(false)
+    expect(model.steps).toBe(failsPerBudget + 1)
+    expect(notices.map((notice) => notice.attempt)).toEqual([
+      1,
+      1, 2, 3,
+    ])
+  })
+
+  it('cannot stack resets: one pending jump is spent once, so a wake loop runs out of budget', async () => {
+    const outcomes = Array.from({ length: failsPerBudget + 1 }, () => 'fail' as const)
+    const { model, notices, clockJumps, run } = waking({ outcomes, sleeps: 1 })
+    const steppedPromise = run()
+    clockJumps.jump()
+    clockJumps.jump()
+
+    const stepped = await steppedPromise
+
+    expect(stepped.ok).toBe(false)
+    expect(model.steps).toBe(failsPerBudget + 1)
+    expect(notices.map((notice) => notice.attempt)).toEqual([
+      1,
+      1, 2, 3,
+    ])
   })
 })
