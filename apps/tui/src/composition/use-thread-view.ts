@@ -29,6 +29,7 @@ import {
   retainNewest,
 } from "./thread-reads";
 import { readThreadSpend } from "./thread-spend";
+import { usePlacementRepublish } from "./use-placement-republish";
 import {
   subscribeTranscriptViewport,
   transcriptViewport,
@@ -142,11 +143,12 @@ export function useThreadView(args: {
       effects,
       paceReveal,
       priceOf,
+      location: () => app.executionLocation.of(threadId),
       sandbox: app.containerStatus,
       readClock: () => clock.current(),
       ...(projectEvents === undefined ? {} : { projectEvents }),
     });
-  }, [app.channel, app.containerStatus, threadId, effects, paceReveal, priceOf, projectEvents, initial]);
+  }, [app.channel, app.containerStatus, app.executionLocation, threadId, effects, paceReveal, priceOf, projectEvents, initial]);
 
   const stamp = useCallback(
     (advance: (progress: TurnProgress) => TurnProgress) => store.stampTurn(advance),
@@ -169,6 +171,8 @@ export function useThreadView(args: {
 
   useEffect(() => store.setThinking(thinking), [store, thinking]);
   useEffect(() => store.setTldrStatus(tldrStatus), [store, tldrStatus]);
+
+  usePlacementRepublish({ app, threadId, store });
 
   const baseSeeded = useRef(initial?.().base !== undefined);
   const lastHead = useRef<number | undefined>(undefined);
