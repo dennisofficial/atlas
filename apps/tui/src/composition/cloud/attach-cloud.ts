@@ -1,4 +1,4 @@
-import { type ThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
 import type { CloudStores } from '@dltech/atlas-harness'
 import type { ToolEffects } from '../../store/log-accumulator'
 import type { OpenedConversation } from '../open-conversation'
@@ -44,7 +44,8 @@ export async function attachCloudSession(args: {
     name: thread.title ?? null,
     started: true,
     model: thread.model,
-    executionLocation: thread.executionLocation,
+    // The truth of an attached thread is cloud — not whatever the remote meta happens to say.
+    executionLocation: EExecutionLocation.Cloud,
     lostShells: [],
     base,
   }
