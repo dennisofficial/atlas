@@ -65,17 +65,21 @@ describe('sanitizedTitle', () => {
     expect(sanitizedTitle('Refresh\n  token\trotation')).toBe('Refresh token rotation')
   })
 
-  it('keeps at most six words', () => {
-    expect(sanitizedTitle('one two three four five six seven eight')).toBe(
-      'one two three four five six',
-    )
+  it('keeps at most ten words', () => {
+    expect(
+      sanitizedTitle(
+        'one two three four five six seven eight nine ten eleven twelve',
+      ),
+    ).toBe('one two three four five six seven eight nine ten')
   })
 
   it('cuts an overlong name at a word boundary rather than mid-word', () => {
-    const title = sanitizedTitle('supercalifragilistic expialidocious antidisestablishmentarian')
+    const words = Array.from({ length: 10 }, (_, index) => `word${index}${'x'.repeat(10)}`)
+    const title = sanitizedTitle(`${words.join(' ')} overflow`)
 
-    expect(title).toBe('supercalifragilistic expialidocious')
+    expect(title?.length).toBeLessThanOrEqual(96)
     expect(title?.endsWith(' ')).toBe(false)
+    expect(title?.endsWith('overflow')).toBe(false)
   })
 
   it('reports nothing when the model said nothing worth keeping', () => {
