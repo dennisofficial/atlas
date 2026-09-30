@@ -46,10 +46,13 @@ const FAULT_HEAD: Record<ELiftFault, string> = {
   [ELiftFault.Context]: 'the context could not reach the sandbox',
 }
 
-const stillHere = (failure: LiftFailure): string =>
-  failure.step === ELiftStep.Transferring || failure.step === ELiftStep.Flipping
-    ? 'nothing moved and this conversation still runs here'
-    : `this conversation still runs here${stoppedTail(failure)}`
+const stillHere = (failure: LiftFailure): string => {
+  if (failure.rolledBack === true) return 'nothing moved and this conversation still runs here'
+  if (failure.step === ELiftStep.Transferring || failure.step === ELiftStep.Flipping) {
+    return 'nothing moved and this conversation still runs here'
+  }
+  return `this conversation still runs here${stoppedTail(failure)}`
+}
 
 export const liftFailedNotice = (failure: LiftFailure): string =>
   `${FAULT_HEAD[failure.fault]} — ${stillHere(failure)}. ${failure.detail}`
