@@ -1,12 +1,14 @@
 name: catalogue
 
 # Keeps main's model catalogue fresh without pushing to main (the ruleset's required ci
-# check makes direct pushes impossible). refresh opens a PR on drift; merge lands the
-# newest one once its ci run is green. merge also runs on the schedule because bot-authored
-# PRs can sit at action_required awaiting approval, which never emits the workflow_run
-# event — the scheduled pass drains the queue once a run is approved, and closes stale
-# PRs so the backlog never piles up. If approvals ever stop being demanded, --auto in
-# refresh collapses the whole handshake.
+# check makes direct pushes impossible). refresh opens a PR on drift and queues it for
+# auto-merge — the repo allows auto-merge and the ruleset requires only the ci check, so
+# GitHub lands the PR itself once ci is green, with no second pass in the happy path.
+# merge is the janitor: bot-authored PRs can sit at action_required awaiting approval,
+# which never emits the workflow_run event, so the scheduled pass approves held runs,
+# re-dispatches itself rather than waiting up to 6h for the next schedule tick, resolves
+# conflicts in the generated files (the branch's regenerated output always wins there),
+# and closes stale PRs so the backlog never piles up.
 on:
   schedule:
     - cron: '23 */6 * * *'
@@ -50,7 +52,9 @@ jobs:
           git commit -m "chore(harness): regenerate model catalogue"
           git push origin "$branch"
           gh pr create --title "chore(harness): regenerate model catalogue" \
-            --body "Automated refresh from models.dev + api.inference.net. Merged by the catalogue workflow once its ci run is green."
+            --body "Automated refresh from models.dev + api.inference.net. Queued for auto-merge; lands once ci is green."
+          pr=$(gh pr list --head "$branch" --json number --jq '.[0].number')
+          gh pr merge --squash --auto "$pr"
 
   merge:
     if: >-
@@ -64,10 +68,10 @@ jobs:
       - uses: actions/checkout@v7
 
       # A green catalogue PR supersedes every older one: the diff is cumulative, so the
-      # older PRs are closed unmerged and only the newest mergeable one lands. Mergeability
-      # is computed asynchronously — seconds after the checks go green the merge can still
-      # be refused, so retry briefly before giving up.
-      - name: merge the newest green catalogue PR, close the rest
+      # older PRs are closed unmerged and only the newest one lands. PRs are queued for
+      # auto-merge at creation; this job exists to unstick what auto-merge cannot: held
+      # workflow runs, conflicting generated files, and a backlog of stale PRs.
+      - name: unstick auto-merge on catalogue PRs
         run: |
           set -euo pipefail
 
@@ -77,45 +81,60 @@ jobs:
           echo "open catalogue PRs: $count"
           [ "$count" -eq 0 ] && exit 0
 
-          merged=""
-          while read -r pr; do
-            if [ -n "$merged" ]; then
-              gh pr close "$pr" --delete-branch \
-                --comment "Superseded by #$merged — the catalogue diff is cumulative, so only the newest refresh merges."
-              continue
-            fi
+          newest=$(echo "$prs" | jq -r '.[0].number')
+          for pr in $(echo "$prs" | jq -r '.[1:][].number'); do
+            gh pr close "$pr" --delete-branch \
+              --comment "Superseded by #$newest — the catalogue diff is cumulative, so only the newest refresh merges."
+          done
+          [ "$count" -eq 1 ] || echo "closed $((count - 1)) stale catalogue PRs"
 
-            # The ruleset requires the ci check, but the fork-PR approval policy holds
-            # github-actions[bot] runs at action_required. Approve our own held runs and
-            # leave the PR for the next scheduled pass, when ci will have run.
-            branch=$(gh pr view "$pr" --json headRefName --jq .headRefName)
-            held=$(gh api "repos/{owner}/{repo}/actions/runs?branch=$branch&event=pull_request" \
-              --jq '[.workflow_runs[] | select(.conclusion == "action_required") | .id] | join(" ")')
-            if [ -n "$held" ]; then
-              for run in $held; do
-                gh api -X POST "repos/{owner}/{repo}/actions/runs/$run/approve"
-              done
-              echo "PR #$pr had held workflow runs ($held) — approved; the next scheduled pass will merge it once ci is green"
-              continue
-            fi
+          pr="$newest"
+          branch=$(gh pr view "$pr" --json headRefName --jq .headRefName)
 
-            state=$(gh pr checks "$pr" --json bucket --jq 'map(.bucket) | if any(. == "fail") then "fail" elif any(. == "pending") then "pending" else "pass" end')
-            if [ "$state" = "pass" ]; then
-              for attempt in 1 2 3 4 5; do
-                if gh pr merge --squash --delete-branch "$pr"; then
-                  merged="$pr"
-                  break
-                fi
-                sleep 15
-              done
-              if [ -z "$merged" ]; then
-                echo "::error::catalogue PR #$pr is green but would not merge"
-                exit 1
-              fi
-            elif [ "$state" = "fail" ]; then
-              gh pr close "$pr" --delete-branch \
-                --comment "ci failed on this refresh — closing; the next scheduled run opens a fresh PR."
+          # The fork-PR approval policy holds github-actions[bot] runs at action_required,
+          # and approving them emits no event this workflow listens to — re-dispatch
+          # ourselves so the next pass runs minutes from now, not at the next schedule.
+          held=$(gh api "repos/{owner}/{repo}/actions/runs?branch=$branch&event=pull_request" \
+            --jq '[.workflow_runs[] | select(.conclusion == "action_required") | .id] | join(" ")')
+          if [ -n "$held" ]; then
+            for run in $held; do
+              gh api -X POST "repos/{owner}/{repo}/actions/runs/$run/approve"
+            done
+            gh workflow run catalogue.yml
+            echo "PR #$pr had held workflow runs ($held) — approved and re-dispatched this workflow"
+            exit 0
+          fi
+
+          # The generated files are produced, not authored: main moves under a waiting PR
+          # and conflicts there always resolve to the branch's freshly regenerated output.
+          mergeable=$(gh pr view "$pr" --json mergeable --jq .mergeable)
+          if [ "$mergeable" = "CONFLICTING" ]; then
+            git fetch origin main "$branch"
+            git checkout -B "$branch" "origin/$branch"
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            if git merge origin/main; then
+              :
             else
-              echo "PR #$pr is still pending checks — leaving open"
+              git checkout --ours packages/harness/src/models/generated
+              git add packages/harness/src/models/generated
+              git commit --no-edit
             fi
-          done < <(echo "$prs" | jq -r '.[].number')
+            git push origin "$branch"
+            echo "PR #$pr conflicted with main — resolved in favour of the regenerated files"
+            exit 0
+          fi
+
+          state=$(gh pr checks "$pr" --json bucket --jq 'map(.bucket) | if any(. == "fail") then "fail" elif any(. == "pending") then "pending" else "pass" end')
+          if [ "$state" = "fail" ]; then
+            gh pr close "$pr" --delete-branch \
+              --comment "ci failed on this refresh — closing; the next scheduled run opens a fresh PR."
+            exit 0
+          fi
+
+          if gh pr merge --squash --auto "$pr"; then
+            echo "PR #$pr is queued for auto-merge"
+          else
+            echo "::error::catalogue PR #$pr would not queue for auto-merge"
+            exit 1
+          fi
