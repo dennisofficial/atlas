@@ -106,18 +106,19 @@ describe('registerMcp', () => {
     sessions.write(session)
     container.register(CloudSessionStoreToken, { useValue: sessions })
 
-    const store = await registerMcp({ container, cwd: directory })
+    const registered = await registerMcp({ container, cwd: directory })
 
-    expect(store.servers()).toHaveLength(0)
+    expect(registered.store.servers()).toHaveLength(0)
+    expect(registered.rejections).toEqual([])
     expect(fetched).toEqual(['http://cloud.test/v1/mcp-servers'])
   })
 
   it('never touches the cloud when the container holds no session store', async () => {
     const container = createIsolatedContainer()
 
-    const store = await registerMcp({ container, cwd: directory })
+    const registered = await registerMcp({ container, cwd: directory })
 
-    expect(store.servers()).toHaveLength(0)
+    expect(registered.store.servers()).toHaveLength(0)
     expect(fetched).toHaveLength(0)
   })
 

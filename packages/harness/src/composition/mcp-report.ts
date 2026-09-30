@@ -1,5 +1,6 @@
 import { EDefinitionOrigin } from '@dltech/atlas-core'
 
+import type { McpRejection } from '../mcp/config'
 import { EMcpServerStatus, type McpServerStatus } from '../mcp/registry/handle-status'
 import { COMPAT_MCP_FILE_NAME } from '../settings/paths'
 
@@ -33,3 +34,9 @@ export function mcpReport(args: { servers: readonly McpServerStatus[] }): string
 
 export const mcpBootNotice = (server: McpServerStatus): string | null =>
   server.state.status === EMcpServerStatus.Failed ? mcpRow(server) : null
+
+export const mcpRejectionNotice = (rejection: McpRejection): string => {
+  const where = mcpLayerOf({ definedIn: rejection.definedIn, origin: rejection.origin })
+  const name = rejection.name === undefined ? rejection.definedIn : rejection.name
+  return `${name} ${rejection.rejection} ${where}: ${rejection.detail}`
+}

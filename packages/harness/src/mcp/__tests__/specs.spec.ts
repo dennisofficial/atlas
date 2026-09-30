@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { MCP_SERVERS_FIELD, mcpConfigFileSchema, mcpServersOf, mcpSpecSchema } from '../config/specs'
+import {
+  compatMcpEntryToNative,
+  MCP_SERVERS_FIELD,
+  mcpConfigFileSchema,
+  mcpServersOf,
+  mcpSpecSchema,
+} from '../config/specs'
 
 const stdio = { kind: 'stdio', command: 'npx' } as const
 const http = { kind: 'http', url: 'https://example.test/mcp' } as const
@@ -88,5 +94,46 @@ describe('mcpConfigFileSchema', () => {
 
   it('reads an empty object as an empty server set', () => {
     expect(mcpServersOf(mcpConfigFileSchema.parse({}))).toEqual({})
+  })
+})
+
+describe('compatMcpEntryToNative', () => {
+  const thenParses = (entry: unknown): boolean =>
+    mcpSpecSchema.safeParse({ ...(compatMcpEntryToNative(entry) as object), name: 'srv' }).success
+
+  it('translates a Claude Code stdio entry into the native transport shape', () => {
+    expect(
+      compatMcpEntryToNative({ type: 'stdio', command: 'uvx', args: ['mcp-aws'], env: { KEY: 'x' } }),
+    ).toEqual({ transport: { kind: 'stdio', command: 'uvx', args: ['mcp-aws'], env: { KEY: 'x' } } })
+    expect(thenParses({ type: 'stdio', command: 'uvx', args: ['mcp-aws'] })).toBe(true)
+  })
+
+  it('translates a Claude Code http entry with headers', () => {
+    expect(
+      compatMcpEntryToNative({ type: 'http', url: 'https://mcp.linear.app/mcp', headers: { authorization: 'Bearer x' } }),
+    ).toEqual({
+      transport: { kind: 'http', url: 'https://mcp.linear.app/mcp', headers: { authorization: 'Bearer x' } },
+    })
+    expect(thenParses({ type: 'http', url: 'https://mcp.linear.app/mcp' })).toBe(true)
+  })
+
+  it('infers stdio from a bare command and http from a bare url when type is absent', () => {
+    expect(thenParses({ command: 'npx', args: ['-y', '@mcp/fs'] })).toBe(true)
+    expect(thenParses({ url: 'https://example.test/mcp' })).toBe(true)
+  })
+
+  it('keeps an already-native entry untouched', () => {
+    const native = { transport: { kind: 'stdio', command: 'npx' } }
+    expect(compatMcpEntryToNative(native)).toEqual(native)
+  })
+
+  it('keeps a disabled stub without a transport disabled-only', () => {
+    expect(compatMcpEntryToNative({ disabled: true })).toEqual({ disabled: true })
+  })
+
+  it('passes scalars and arrays through unchanged', () => {
+    expect(compatMcpEntryToNative('npx')).toBe('npx')
+    expect(compatMcpEntryToNative(null)).toBe(null)
+    expect(compatMcpEntryToNative(['a'])).toEqual(['a'])
   })
 })

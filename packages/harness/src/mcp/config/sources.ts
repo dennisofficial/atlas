@@ -8,6 +8,7 @@ import {
   userMcpFile,
 } from '../../settings/paths'
 import {
+  compatMcpEntryToNative,
   mcpConfigFileSchema,
   mcpServersOf,
   mcpSpecSchema,
@@ -84,7 +85,12 @@ const formatIssues = (
 const nameIsValid = (name: string): boolean =>
   mcpSpecSchema.shape.name.safeParse(name).success
 
-function readMcpJson(args: { text: string; file: string; origin: EDefinitionOrigin }): McpSourceRead {
+function readMcpJson(args: {
+  text: string
+  file: string
+  origin: EDefinitionOrigin
+  toNative?: (entry: unknown) => unknown
+}): McpSourceRead {
   const rejections: McpRejection[] = []
   const reject = (rejection: Omit<McpRejection, 'definedIn' | 'origin'>): void => {
     rejections.push({ ...rejection, definedIn: args.file, origin: args.origin })
@@ -109,8 +115,9 @@ function readMcpJson(args: { text: string; file: string; origin: EDefinitionOrig
   }
 
   const specs: LoadedMcpSpec[] = []
-  for (const [name, entry] of Object.entries(mcpServersOf(file.data))) {
-    const fields = typeof entry === 'object' && entry !== null ? entry : {}
+  for (const [name, rawEntry] of Object.entries(mcpServersOf(file.data))) {
+    const translated = args.toNative === undefined ? rawEntry : args.toNative(rawEntry)
+    const fields = typeof translated === 'object' && translated !== null ? translated : {}
     const parsed = mcpSpecSchema.safeParse({ ...fields, name })
 
     if (parsed.success) {
@@ -130,7 +137,7 @@ function readMcpJson(args: { text: string; file: string; origin: EDefinitionOrig
 
 abstract class FileBackedMcpSource extends McpSource {
   protected constructor(
-    private readonly args: { file: string; read: McpTextReader },
+    private readonly args: { file: string; read: McpTextReader; toNative?: (entry: unknown) => unknown },
   ) {
     super()
   }
@@ -155,7 +162,12 @@ abstract class FileBackedMcpSource extends McpSource {
       }
     }
 
-    return readMcpJson({ text, file: this.args.file, origin: this.origin })
+    return readMcpJson({
+      text,
+      file: this.args.file,
+      origin: this.origin,
+      ...(this.args.toNative === undefined ? {} : { toNative: this.args.toNative }),
+    })
   }
 }
 
@@ -189,6 +201,10 @@ export class CompatMcpSource extends FileBackedMcpSource {
   readonly origin = EDefinitionOrigin.Project
 
   constructor(args: { cwd: string; read?: McpTextReader }) {
-    super({ file: compatMcpFile(args.cwd), read: args.read ?? readMcpFileText })
+    super({
+      file: compatMcpFile(args.cwd),
+      read: args.read ?? readMcpFileText,
+      toNative: compatMcpEntryToNative,
+    })
   }
 }
