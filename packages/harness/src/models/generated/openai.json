@@ -599,6 +599,30 @@
   {
     "ref": {
       "providerId": "openai",
+      "modelId": "gpt-6.1-sol"
+    },
+    "label": "GPT-6.1 Sol",
+    "api": "openai-responses",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 10,
+      "cacheReadPerMillion": 0.1,
+      "cacheWritePerMillion": 2.5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "openai",
       "modelId": "gpt-daybreak-blue-latest"
     },
     "label": "Daybreak Blue",
