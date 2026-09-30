@@ -203,6 +203,29 @@ describe('viewing a sub-agent', () => {
     }
   }, 60_000)
 
+  it('moves the footer to the child model while one is open', async () => {
+    const app = appWith()
+    await seed(app)
+    app.agents.place(
+      fakeAgentSnapshot({
+        agentId: CHILD,
+        spawnedBy: THREAD,
+        intent: CHILD_INTENT,
+        model: { id: 'openrouter', modelId: 'kimi-k3-fast' },
+      }),
+    )
+    const setup = await opened(app)
+
+    try {
+      await selectChild(setup)
+
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain('kimi-k3-fast')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
   it('sends what the operator types to the child rather than to the parent', async () => {
     const app = appWith()
     await seed(app)

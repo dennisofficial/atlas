@@ -34,6 +34,7 @@ export function TeammateSidebar(props: {
   onOpenService?: (serviceId: string) => void
   onSelectSubagent?: (agentId: string) => void
   naming?: NamingState | null | undefined
+  back?: { label: string; onBack: () => void } | undefined
 }): React.ReactNode {
   const sidebar = useTeammateSidebar({
     app: props.app,
@@ -65,6 +66,7 @@ export function TeammateSidebar(props: {
       {...(props.naming === undefined || props.naming === null
         ? {}
         : { naming: props.naming })}
+      {...(props.back === undefined ? {} : { back: props.back })}
     />
   )
 }

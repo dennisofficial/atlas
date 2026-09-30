@@ -1893,9 +1893,9 @@ function Workspace(props: {
   )
 
   /**
-   * Escape closes the floating sidebar rather than interrupting the turn, and it wins by sitting a
-   * layer above the global chord instead of by owning the keyboard — everything else the app binds
-   * has to keep working while the sidebar is up.
+   * Escape closes the floating sidebar rather than interrupting the turn or backing out of a viewed
+   * agent, and it wins by sitting a layer above both — the sidebar is the surface on top, so its
+   * escape is the one that answers while it is up.
    */
   useKeyBindings(
     overlay
@@ -1903,7 +1903,7 @@ function Workspace(props: {
           {
             chord: 'escape',
             hint: 'close sidebar',
-            layer: EKeyLayer.Block,
+            layer: EKeyLayer.Overlay,
             group: EKeyGroup.Session,
             run: handleClosePeek,
           },
@@ -2070,7 +2070,7 @@ function Workspace(props: {
       <SelectionSurface>
         <box flexDirection="column" width={contentWidth} flexGrow={1} flexShrink={1} flexBasis={0}>
           <box flexDirection="column" flexGrow={1} flexShrink={1}>
-            {agentView.backLabel === null ? null : (
+            {agentView.backLabel === null || wide ? null : (
               <BackPill
                 label={agentView.backLabel}
                 onBack={agentView.handleBack}
@@ -2208,12 +2208,20 @@ function Workspace(props: {
               onOpenService={services.handleOpen}
               onSelectSubagent={agentView.handleSelect}
               onRevokeGrant={conversation.handleRevokeGrant}
+              {...(agentView.backLabel === null
+                ? {}
+                : { back: { label: agentView.backLabel, onBack: agentView.handleBack } })}
             />
           ) : (
             <TeammateSidebar
               app={props.app}
               teammate={agentView.scopedTo}
               crew={agents.sidebar}
+              back={
+                agentView.backLabel === null
+                  ? undefined
+                  : { label: agentView.backLabel, onBack: agentView.handleBack }
+              }
               width={overlay ? floatingSidebarWidth({ width, sidebarWidth }) : sidebarWidth}
               root={scopedRepo ?? projectRoot}
               {...(repoName === undefined ? {} : { repoName })}

@@ -6,6 +6,11 @@ import { truncateCells } from "./sidebar/cells";
 
 const ARROW = "←";
 
+/**
+ * A way back to the session above, drawn as a backgrounded pill rather than a bare line of text —
+ * the accent foreground alone read as another dim label, so the pill carries a ground of its own
+ * and a brighter wash on hover.
+ */
 export function BackPill(props: {
   label: string;
   onBack: () => void;
@@ -18,13 +23,11 @@ export function BackPill(props: {
       : truncateCells({ text: props.label, cells: props.cells });
 
   return (
-    <box
-      flexDirection="row"
-      flexShrink={0}
-      {...region.handlers}
-      {...(region.wash.bg === undefined ? {} : { backgroundColor: region.wash.bg })}
-    >
-      <text fg={theme.court.external}>{`${ARROW} ${label}`}</text>
+    <box flexDirection="row" flexShrink={0} {...region.handlers}>
+      <text
+        fg={theme.court.external}
+        bg={region.wash.bg ?? theme.userBg}
+      >{` ${ARROW} ${label} `}</text>
     </box>
   );
 }
