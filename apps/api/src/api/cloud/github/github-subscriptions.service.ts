@@ -29,6 +29,7 @@ export class GithubSubscriptionsService {
 
     const prNumber = await this.resolvePrNumber({
       userId: args.userId,
+      repoFullName: args.repoFullName,
       owner,
       repo,
       ...(args.prNumber === undefined ? {} : { prNumber: args.prNumber }),
@@ -43,9 +44,6 @@ export class GithubSubscriptionsService {
       repoFullName: args.repoFullName,
     })
     const pollBacked = hook === 'poll-backed'
-    // Number-keyed rows store '#<prNumber>' as their branch: the unique key must hold both kinds,
-    // and a shared '' would collide for every pair of watched PRs on a repo. No real branch starts
-    // with '#', so a branch subscribe never collides with the sentinel.
     const branch = args.branch ?? (prNumber === null ? '' : `#${prNumber}`)
 
     const subscription = await db.githubSubscription.upsert({
@@ -71,16 +69,13 @@ export class GithubSubscriptionsService {
       data: { idleSince: null },
     })
 
-    const state =
-      prNumber === null
-        ? null
-        : await this.pullOnSubscribe({
-            userId: args.userId,
-            owner,
-            repo,
-            repoFullName: args.repoFullName,
-            prNumber,
-          })
+    const state = await this.pullOnSubscribe({
+      userId: args.userId,
+      owner,
+      repo,
+      repoFullName: args.repoFullName,
+      prNumber,
+    })
 
     return subscriptionDtoOf({ subscription, state })
   }
@@ -128,12 +123,9 @@ export class GithubSubscriptionsService {
     }))
   }
 
-  /**
-   * A number is authoritative already; a branch resolves to its open PR as the subscribing
-   * user. The DTO guarantees exactly one is set, so the only null is "no open PR on that branch".
-   */
   private async resolvePrNumber(args: {
     userId: string
+    repoFullName: string
     owner: string
     repo: string
     prNumber?: number
@@ -142,17 +134,25 @@ export class GithubSubscriptionsService {
     if (args.prNumber !== undefined) return args.prNumber
     if (args.branch === undefined) return null
 
-    const token = await this.github.findToken({ userId: args.userId })
-    if (token === undefined) {
-      throw new ForbiddenException('connect github to subscribe to pull requests')
-    }
+    const token = await this.requireToken({ userId: args.userId })
     const found = await this.reads.findOpenPrForBranch({
       token,
       owner: args.owner,
       repo: args.repo,
       branch: args.branch,
     })
-    return found === null ? null : found.number
+    if (found !== null) return found.number
+
+    const held = await db.githubSubscription.findUnique({
+      where: {
+        userId_repoFullName_branch: {
+          userId: args.userId,
+          repoFullName: args.repoFullName,
+          branch: args.branch,
+        },
+      },
+    })
+    return held?.prNumber ?? null
   }
 
   private async pullOnSubscribe(args: {
@@ -160,12 +160,10 @@ export class GithubSubscriptionsService {
     owner: string
     repo: string
     repoFullName: string
-    prNumber: number
+    prNumber: number | null
   }): Promise<GithubPrStateDto | null> {
-    const token = await this.github.findToken({ userId: args.userId })
-    if (token === undefined) {
-      throw new ForbiddenException('connect github to subscribe to pull requests')
-    }
+    if (args.prNumber === null) return null
+    const token = await this.requireToken({ userId: args.userId })
     const fields = await this.reads.readPullRequest({
       token,
       owner: args.owner,
@@ -208,11 +206,14 @@ export class GithubSubscriptionsService {
     }
   }
 
-  /**
-   * The caller's own OAuth token is the access proof: GitHub answering 200 for the repo means
-   * this user may see its PR state. Cached per connection — membership does not flip often
-   * enough to re-ask on every subscribe.
-   */
+  private async requireToken(args: { userId: string }): Promise<string> {
+    const token = await this.github.findToken({ userId: args.userId })
+    if (token === undefined) {
+      throw new ForbiddenException('connect github to subscribe to pull requests')
+    }
+    return token
+  }
+
   private requireRepoAccess(args: {
     userId: string
     owner: string
@@ -235,11 +236,7 @@ export class GithubSubscriptionsService {
     owner: string
     repo: string
   }): Promise<boolean> {
-    const token = await this.github.findToken({ userId: args.userId })
-    if (token === undefined) {
-      throw new ForbiddenException('connect github to subscribe to pull requests')
-    }
-
+    const token = await this.requireToken({ userId: args.userId })
     const response = await fetch(`https://api.github.com/repos/${args.owner}/${args.repo}`, {
       headers: {
         authorization: `Bearer ${token}`,
@@ -273,9 +270,7 @@ function parseRepo(args: { repoFullName: string }): { owner: string; repo: strin
   return { owner, repo }
 }
 
-function nextExpiry(): Date {
-  return new Date(Date.now() + SUBSCRIPTION_TTL_MS)
-}
+const nextExpiry = () => new Date(Date.now() + SUBSCRIPTION_TTL_MS)
 
 function subscriptionDtoOf(args: {
   subscription: {

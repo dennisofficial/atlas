@@ -5,6 +5,12 @@ import { SsePullRequestPort } from '../sse-pull-requests'
 import type { SubscriptionPrState } from '../pr-subscription-client'
 
 const SESSION = { url: 'https://api.test', token: 'tok', email: null }
+const ports: SsePullRequestPort[] = []
+const createPort = (args: ConstructorParameters<typeof SsePullRequestPort>[0]): SsePullRequestPort => {
+  const port = new SsePullRequestPort(args)
+  ports.push(port)
+  return port
+}
 
 const liveSubscribeBody = {
   id: 'sub_1',
@@ -41,6 +47,7 @@ const respond = (body: unknown, status = 201): Response =>
 describe('SsePullRequestPort discovery', () => {
   const realFetch = globalThis.fetch
   afterEach(() => {
+    for (const port of ports.splice(0)) port.dispose()
     globalThis.fetch = realFetch
   })
 
@@ -69,7 +76,7 @@ describe('SsePullRequestPort discovery', () => {
     }) as unknown as typeof fetch
 
     const readings: { lookup: EPullRequestLookup }[] = []
-    const port = new SsePullRequestPort({
+    const port = createPort({
       session: SESSION,
       clientVersion: 'test',
       onReading: ({ reading }) => readings.push(reading),
@@ -97,7 +104,7 @@ describe('SsePullRequestPort discovery', () => {
       return respond({})
     }) as unknown as typeof fetch
 
-    const port = new SsePullRequestPort({
+    const port = createPort({
       session: SESSION,
       clientVersion: 'test',
       onReading: () => {},
@@ -115,6 +122,7 @@ describe('SsePullRequestPort discovery', () => {
 describe('SsePullRequestPort recovery', () => {
   const realFetch = globalThis.fetch
   afterEach(() => {
+    for (const port of ports.splice(0)) port.dispose()
     globalThis.fetch = realFetch
   })
 
@@ -133,14 +141,13 @@ describe('SsePullRequestPort recovery', () => {
       if (target.endsWith('/v1/github/prs/stream')) {
         streamAttempts += 1
         if (streamAttempts === 1) return new Response(null, { status: 401 })
-        // Never resolve: a healthy stream stays open, so the test cannot exit past it.
         return new Promise<Response>(() => {})
       }
       return respond({})
     }) as unknown as typeof fetch
 
     const readings: { lookup: EPullRequestLookup; retryable?: boolean }[] = []
-    const port = new SsePullRequestPort({
+    const port = createPort({
       session: SESSION,
       clientVersion: 'test',
       onReading: ({ reading }) => readings.push(reading),
@@ -148,8 +155,6 @@ describe('SsePullRequestPort recovery', () => {
     })
 
     await port.read({ checkout: CHECKOUT })
-    // Let the stream's 401 land (it resolves asynchronously out of ensureStream), so the port
-    // knows the session is dead before the next read — the real gap between turns.
     await new Promise((resolve) => setTimeout(resolve, 0))
     await port.read({ checkout: CHECKOUT })
 
@@ -173,7 +178,7 @@ describe('SsePullRequestPort recovery', () => {
     }) as unknown as typeof fetch
 
     const readings: { lookup: EPullRequestLookup; retryable?: boolean }[] = []
-    const port = new SsePullRequestPort({
+    const port = createPort({
       session: SESSION,
       clientVersion: 'test',
       onReading: ({ reading }) => readings.push(reading),
