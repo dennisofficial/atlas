@@ -129,7 +129,7 @@ describe('a picture the operator hands a child', () => {
       images: [SHOT],
     })
 
-    expect(open.runners.started[0]?.request.steering()).toEqual([
+    expect(open.runners.started[0]?.request.steering().peek()).toEqual([
       { text: 'look at this instead', images: [SHOT] },
     ])
 

@@ -151,7 +151,7 @@ export async function markThreadChildrenRelocated({
 
   for (const child of relocatableChildren({ roster, threadId, skipTeammates })) {
     await deps.threads.chooseExecutionLocation({ threadId: child.agentId, location })
-    sink.note({ threadId: child.agentId, location })
+    await sink.refresh({ threadId: child.agentId })
   }
 }
 

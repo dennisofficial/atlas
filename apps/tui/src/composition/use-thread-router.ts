@@ -90,6 +90,8 @@ export function useThreadRouter(args: {
         log: localApp.log,
         ledger: localApp.ledger,
         agents: localApp.agents,
+        shells: localApp.shells,
+        services: localApp.services,
         ids: localApp.ids,
         workspace: localApp.workspace,
         open: { mode: EOpenMode.Resume, threadId },

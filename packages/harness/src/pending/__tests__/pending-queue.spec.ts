@@ -1,3 +1,4 @@
+import { EMessageOrigin } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
 import { createPendingQueue } from '../pending-queue'
@@ -144,5 +145,31 @@ describe('commands queued between the messages', () => {
     expect(queue.takeBackLast()?.text).toBe('/rewind')
     expect(queue.takeBackLast()?.text).toBe('first a message')
     expect(queue.takeBackLast()).toBeNull()
+  })
+
+  it('keeps an instruction another agent submitted out of the operator edit route', () => {
+    const queue = createPendingQueue()
+
+    queue.enqueue({ text: 'parent instruction', via: EMessageOrigin.ParentAgent })
+    expect(queue.takeBackLast()).toBeNull()
+    expect(textsOf(queue)).toEqual(['parent instruction'])
+
+    queue.enqueue({ text: 'operator draft' })
+    expect(queue.takeBackLast()?.text).toBe('operator draft')
+    expect(queue.takeBackLast()).toBeNull()
+    expect(textsOf(queue)).toEqual(['parent instruction'])
+
+    queue.enqueue({ text: 'operator draft' })
+    queue.enqueue({ text: 'peer instruction', via: EMessageOrigin.PeerAgent })
+    expect(queue.takeBackLast()?.text).toBe('operator draft')
+    expect(textsOf(queue)).toEqual(['parent instruction', 'peer instruction'])
+
+    const batch = queue.prepare()
+    expect(batch.drafts.map((draft) => draft.type === 'user-said' ? draft.text : draft.type)).toEqual([
+      'parent instruction',
+      'peer instruction',
+    ])
+    batch.acknowledge()
+    expect(textsOf(queue)).toEqual([])
   })
 })

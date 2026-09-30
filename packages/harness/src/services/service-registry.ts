@@ -13,6 +13,7 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import type { InputBatch } from '../intake/input-batch'
 import { bootId } from './boot'
 import { ServiceNoticeQueue } from './service-notices'
 import {
@@ -72,8 +73,10 @@ export abstract class ServiceRegistryPort {
   abstract version(): number
   abstract subscribe(listener: () => void): () => void
   abstract drainNotifications(args: { threadId: ThreadId }): readonly EventDraft[]
+  prepareNotifications?(args: { threadId: ThreadId }): InputBatch
   abstract pendingNotices(args: { threadId: ThreadId }): readonly ServiceSnapshot[]
   abstract threadsAwaitingNotice(): readonly ThreadId[]
+  threadsWithPendingInput?(): readonly ThreadId[]
   abstract onNotice(listener: () => void): () => void
   abstract forgetNotices(args: { threadId: ThreadId }): void
   abstract closeAll(): Promise<void>
@@ -241,12 +244,20 @@ export class BunServiceRegistry extends ServiceRegistryPort {
     return this.notices.drain({ threadId })
   }
 
+  override prepareNotifications({ threadId }: { threadId: ThreadId }): InputBatch {
+    return this.notices.prepare({ threadId })
+  }
+
   pendingNotices({ threadId }: { threadId: ThreadId }): readonly ServiceSnapshot[] {
     return this.notices.pending({ threadId })
   }
 
   threadsAwaitingNotice(): readonly ThreadId[] {
     return this.notices.threadsAwaiting()
+  }
+
+  override threadsWithPendingInput(): readonly ThreadId[] {
+    return this.notices.threadsQueued()
   }
 
   onNotice(listener: () => void): () => void {

@@ -197,10 +197,15 @@ describe('a rewind that cuts a background shell', () => {
       expect(app.shells.removed).toEqual([])
 
       setup.mockInput.pressEnter()
-      const frame = await frameShowing({ setup, text: 'the rewind destroyed' })
+      await frameWhen({
+        setup,
+        holds: (drawn) => !drawn.includes('destroys what was created'),
+        describe: 'the rewind confirmation to close',
+      })
 
-      expect(frame).toContain('bash_1')
       expect(app.shells.removed).toEqual([{ shellId: 'bash_1', by: EKilledBy.Rewind }])
+      const frame = await frameShowing({ setup, text: 'now the parser' })
+      expect(frame).not.toContain('the rewind destroyed')
       expect(await app.log.read({ threadId: THREAD })).toHaveLength(2)
     } finally {
       await teardown(setup)

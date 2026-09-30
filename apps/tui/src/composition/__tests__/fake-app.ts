@@ -80,6 +80,9 @@ import {
 } from '@dltech/atlas-harness'
 
 import { FileBrowser } from '@dltech/atlas-harness'
+import { moveLocalPlacement } from '@dltech/atlas-harness'
+
+import { MessageIntake, operatorSource } from '@dltech/atlas-harness'
 
 import { createPathResolver } from '@dltech/atlas-harness'
 
@@ -738,6 +741,7 @@ export function fakeApp(args: {
   containerLimits?: { cpus: number; memoryGb: number }
   drainFailures?: number
   turnPolicy?: TurnPolicy
+  intake?: boolean | undefined
 }): FakeApp {
   const channel = createDeltaChannel()
   const log = fakeEventLog()
@@ -746,6 +750,14 @@ export function fakeApp(args: {
   const ids = new RandomIds()
   const ledger = fakeLedger()
   const pending = createPendingQueues<QueuedSettled>()
+  const intake =
+    args.intake === true
+      ? new MessageIntake({
+          sources: [operatorSource(pending)],
+          submit: (given) =>
+            pending.forThread({ threadId: given.threadId }).enqueue(given),
+        })
+      : undefined
   const shells = fakeShellRegistry()
   const agents = fakeAgentRegistry({ threads })
   const services = fakeServiceRegistry()
@@ -850,6 +862,9 @@ export function fakeApp(args: {
   const openedDirectories: string[] = []
   const journaled: { handle: string; directory: string }[] = []
 
+  const executionLocation = createExecutionLocationState({ initial: EExecutionLocation.Host })
+  executionLocation.bind({ threads, workspace: args.workspaceRoot ?? FAKE_CONFIG.cwd, repo: null })
+
   return {
     skills: skillRegistry.all(),
     skillRegistry,
@@ -947,6 +962,7 @@ export function fakeApp(args: {
     threads,
     ids,
     pending,
+    ...(intake === undefined ? {} : { intake }),
     shells,
     agents,
     services,
@@ -956,7 +972,17 @@ export function fakeApp(args: {
     }),
     modelPinned: false,
     models: args.models ?? fakeCatalogue(),
-    executionLocation: createExecutionLocationState({ initial: EExecutionLocation.Host }),
+    executionLocation,
+    moveTools: (move) =>
+      moveLocalPlacement({
+        ...move,
+        control: { state: executionLocation, pinned: false },
+        engine: { info: async () => ({ cpus: 4, memoryBytes: 8 * 1024 ** 3 }) },
+        ids,
+        shells,
+        services,
+        stores: () => ({ threads, log, agents }),
+      }),
     containerStatus: createSandboxStatusState({
       image: 'node:22-slim',
       label: 'node:22-slim',

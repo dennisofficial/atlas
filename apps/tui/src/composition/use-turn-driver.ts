@@ -11,7 +11,6 @@ import {
   RemoteTurnRunner,
   rewindThread,
   type RemoteDeltaChannel,
-  type RewindKill,
 } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 
@@ -46,12 +45,6 @@ type InterruptChannel = Pick<
 const remoteChannelOf = (runner: unknown): InterruptChannel | null =>
   runner instanceof Object && 'onInterruptAck' in runner ? (runner as InterruptChannel) : null
 
-const killLabel = (kill: RewindKill): string => {
-  if (kill.kind === 'agent') return `sub-agent ${kill.agentType} (${kill.intent})`
-  if (kill.kind === 'shell') return `background shell ${kill.shellId} (${kill.command ?? 'unknown command'})`
-  return `service ${kill.serviceId} (${kill.command ?? 'unknown command'})`
-}
-
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : UNEXPLAINED)
 
 type CommitGate = { reached: Promise<void>; settle: () => void }
@@ -71,7 +64,10 @@ export type TurnDriver = {
   rewindConfirm: RewindConfirmControl
   drive: (
     drafts: readonly EventDraft[],
-    opts?: { onCommitFailed?: ((error: unknown) => void) | undefined },
+    opts?: {
+      onCommitFailed?: ((error: unknown) => void) | undefined
+      onCommitted?: (() => void) | undefined
+    },
   ) => Promise<void>
   handleInterrupt: () => void
   handleInterruptForMove: () => void
@@ -222,11 +218,19 @@ export function useTurnDriver(args: {
   const drive = useCallback(
     (
       drafts: readonly EventDraft[],
-      opts?: { onCommitFailed?: ((error: unknown) => void) | undefined },
+      opts?: {
+        onCommitFailed?: ((error: unknown) => void) | undefined
+        onCommitted?: (() => void) | undefined
+      },
     ): Promise<void> => {
+      if (workingRef.current) {
+        opts?.onCommitFailed?.(new Error('a turn is already running'))
+        return Promise.resolve()
+      }
       const refusal = driveRefusal?.() ?? null
       if (refusal !== null) {
         notify({ key: 'drive-unavailable', tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS, text: refusal })
+        opts?.onCommitFailed?.(new Error(refusal))
         return Promise.resolve()
       }
 
@@ -258,6 +262,7 @@ export function useTurnDriver(args: {
               opts?.onCommitFailed?.(error)
               throw error
             }
+            opts?.onCommitted?.()
             await refresh()
             if (saidDraft !== undefined && saidDraft.type === 'user-said') {
               app.titling.opening({
@@ -303,6 +308,7 @@ export function useTurnDriver(args: {
           setWorking(false)
           tailRef.current = false
           fireSettleListeners()
+          app.intake?.changed()
         }
       })()
 
@@ -407,15 +413,6 @@ export function useTurnDriver(args: {
           }
           setFailure(rewound.reason)
           return
-        }
-        if (rewound.kills.length > 0) {
-          const named = rewound.kills.map(killLabel).join(', ')
-          notify({
-            key: 'rewind-cut-creations',
-            tone: ENoticeTone.Warn,
-            ttlMs: NOTICE_WARN_MS,
-            text: `the rewind destroyed ${named}`,
-          })
         }
         store.resetSteps()
         forgetUsage()

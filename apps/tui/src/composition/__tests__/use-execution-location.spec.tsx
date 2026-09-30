@@ -10,21 +10,14 @@ import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 const THREAD: ThreadId = 'thread-under-test' as ThreadId
-const AT = '2026-08-25T00:00:00.000Z'
 
 type Probe = { current: ExecutionLocationControl | null }
 
-function Harness(args: {
-  probe: Probe
-  app: FakeApp
-  stored: EExecutionLocation | undefined
-  started: boolean
-}) {
+function Harness(args: { probe: Probe; app: FakeApp; stored: EExecutionLocation | undefined }) {
   args.probe.current = useExecutionLocation({
     app: args.app,
     threadId: THREAD,
     stored: args.stored,
-    started: args.started,
   })
   return <box />
 }
@@ -34,30 +27,25 @@ type Mounted = {
   root: Root
   probe: Probe
   app: FakeApp
-  render: (args: { stored: EExecutionLocation | undefined; started: boolean }) => Promise<void>
 }
 
 const live: Mounted[] = []
 
 async function mount(args: {
   stored: EExecutionLocation | undefined
-  started: boolean
-  app?: FakeApp
+  app: FakeApp
 }): Promise<Mounted> {
   const setup = await createTestRenderer({ width: 40, height: 4 })
   const root = createRoot(setup.renderer)
-  const app = args.app ?? fakeApp({ model: scriptedModelPort({ script: { thinking: '', reply: '' } }) })
   const probe: Probe = { current: null }
-  const render = async (next: { stored: EExecutionLocation | undefined; started: boolean }) => {
-    await act(async () => {
-      root.render(
-        <Harness probe={probe} app={app} stored={next.stored} started={next.started} />,
-      )
-      await setup.flush()
-    })
-  }
-  await render(args)
-  const mounted = { setup, root, probe, app, render }
+  await act(async () => {
+    root.render(<Harness probe={probe} app={args.app} stored={args.stored} />)
+    await setup.flush()
+  })
+  await act(async () => {
+    await Promise.resolve()
+  })
+  const mounted = { setup, root, probe, app: args.app }
   live.push(mounted)
   return mounted
 }
@@ -69,69 +57,32 @@ afterEach(() => {
   mounted.setup.renderer.destroy()
 })
 
-describe('useExecutionLocation', () => {
-  it('persists a user-driven switch on a started thread', async () => {
-    const { probe, app } = await mount({ stored: EExecutionLocation.Host, started: true })
-    await app.threads.create({ id: THREAD })
+const appWith = async (location: EExecutionLocation): Promise<FakeApp> => {
+  const app = fakeApp({ model: scriptedModelPort({ script: { thinking: '', reply: '' } }) })
+  await app.threads.create({ id: THREAD, executionLocation: location })
+  return app
+}
 
-    probe.current?.handleSet(EExecutionLocation.Docker)
-    await act(async () => {
-      await Promise.resolve()
-    })
+describe('the location the footer reads', () => {
+  it('shows where the session is durably placed rather than what a mount would default to', async () => {
+    const app = await appWith(EExecutionLocation.Cloud)
 
-    expect(app.executionLocation.current()).toBe(EExecutionLocation.Docker)
-    expect(app.threads.chosenLocations).toEqual([
-      { threadId: THREAD, location: EExecutionLocation.Docker },
-    ])
+    const { probe } = await mount({ stored: undefined, app })
+
+    expect(probe.current?.location).toBe(EExecutionLocation.Cloud)
   })
 
-  it('does not write the meta when a never-started thread switches locally', async () => {
-    const { probe, app } = await mount({ stored: undefined, started: false })
+  it('writes no placement of its own, so remounting a cloud thread cannot send it home', async () => {
+    const app = await appWith(EExecutionLocation.Cloud)
 
-    probe.current?.handleSet(EExecutionLocation.Docker)
-    await act(async () => {
-      await Promise.resolve()
-    })
-
-    expect(app.executionLocation.current()).toBe(EExecutionLocation.Docker)
-    expect(app.threads.chosenLocations).toEqual([])
-  })
-
-  it('treats a remount of a started cloud thread as a no-op against the meta', async () => {
-    const first = await mount({ stored: EExecutionLocation.Cloud, started: true })
+    const first = await mount({ stored: EExecutionLocation.Cloud, app })
     first.root.unmount()
     first.setup.renderer.destroy()
     live.pop()
 
-    const { app } = await mount({ stored: EExecutionLocation.Cloud, started: true })
-    await act(async () => {
-      await Promise.resolve()
-    })
+    const { probe } = await mount({ stored: undefined, app })
 
-    expect(app.executionLocation.current()).toBe(EExecutionLocation.Cloud)
+    expect(probe.current?.location).toBe(EExecutionLocation.Cloud)
     expect(app.threads.chosenLocations).toEqual([])
-  })
-
-  it('does not regress a cloud thread when a remount watches started flip false to true', async () => {
-    const { render, app } = await mount({ stored: EExecutionLocation.Cloud, started: false })
-    app.threads.seedThread({
-      id: THREAD,
-      head: 0,
-      createdAt: AT,
-      updatedAt: AT,
-      workspace: null,
-      repo: null,
-      executionLocation: EExecutionLocation.Cloud,
-    })
-
-    await render({ stored: EExecutionLocation.Cloud, started: true })
-    await act(async () => {
-      await Promise.resolve()
-    })
-
-    expect(app.threads.chosenLocations).toEqual([])
-    expect(app.threads.peekRow({ threadId: THREAD })?.executionLocation).toBe(
-      EExecutionLocation.Cloud,
-    )
   })
 })

@@ -1,5 +1,6 @@
 import {
   AgentFileSystemPort,
+  EExecutionLocation,
   DynamicToolSource,
   EventLogPort,
   FileCapabilitiesPort,
@@ -216,6 +217,8 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
       new CompositeToolRegistry({
         base: new InMemoryToolRegistry(resolver.resolveAll(portToken(ToolDefinition))),
         sources: resolveSet({ container: resolver, token: portToken(DynamicToolSource) }),
+        available: (name) => name !== 'execution_location' ||
+          resolver.resolve(ExecutionLocationToken).state.current() !== EExecutionLocation.Cloud,
       }),
   })
 }

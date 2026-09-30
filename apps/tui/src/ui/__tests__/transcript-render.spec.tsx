@@ -5,7 +5,7 @@ import { testRender } from '@opentui/react/test-utils'
 
 import { ERetryReason } from '@dltech/atlas-core'
 
-import { EMPTY_TRANSCRIPT, EPendingKind, type TranscriptModel } from '../../store'
+import { EEntryKind, EMPTY_TRANSCRIPT, EPendingKind, type TranscriptModel } from '../../store'
 import { RAIL, RAIL_HEAD, RAIL_TAIL } from '../borders'
 import { Composer } from '../components/composer'
 import { JumpToBottom, NewDivider } from '../components/new-divider'
@@ -348,6 +348,8 @@ describe('what the transcript actually says', () => {
             id: 'shell-ended-bash_1',
             text: 'Background shell "Run full TUI suite" completed (exit code 0)',
             failed: false,
+            body: null,
+            entryKind: EEntryKind.BackgroundShellEnded,
           },
         ],
       }),
@@ -372,6 +374,8 @@ describe('what the transcript actually says', () => {
             id: 'shell-ended-bash_1',
             text: 'Background shell `bun test` was killed',
             failed: false,
+            body: null,
+            entryKind: EEntryKind.BackgroundShellEnded,
           },
         ],
       }),

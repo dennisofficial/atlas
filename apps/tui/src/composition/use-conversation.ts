@@ -373,8 +373,10 @@ export function useConversation(args: {
     services: app.services,
     threadId,
     working,
+    isRunning: turnDriver.turnInFlight,
     canWake: args.canWake,
     onWake: handleWake,
+    intake: app.intake,
   })
 
   const notices = wakeNotices.shells
@@ -406,7 +408,49 @@ export function useConversation(args: {
           return
         }
 
-        pending.enqueue({ text, images, files })
+        if (app.intake !== undefined) {
+          app.intake.submit({
+            threadId,
+            text,
+            images,
+            files,
+            ...(args.context === undefined ? {} : { context: args.context }),
+          })
+          return
+        }
+
+        pending.enqueue({
+          text,
+          images,
+          files,
+          ...(args.context === undefined ? {} : { context: args.context }),
+        })
+        return
+      }
+
+      if (app.intake !== undefined) {
+        const shared = app.intake
+        const releaseStartup = shared.hold({ threadId })
+        shared.submit({
+          threadId, text, images, files,
+          ...(args.context === undefined ? {} : { context: args.context }),
+        })
+        void (async () => {
+          let releaseBatch: (() => void) | undefined
+          try {
+            const batch = await shared.prepare({ threadId })
+            releaseBatch = batch.release
+            await drive(batch.drafts, {
+              onCommitted: () => batch.acknowledge(),
+              onCommitFailed: () => batch.release?.(),
+            })
+          } catch (error) {
+            setFailure(error instanceof Error ? error.message : 'could not commit the message')
+          } finally {
+            releaseBatch?.()
+            releaseStartup()
+          }
+        })()
         return
       }
 
@@ -425,7 +469,7 @@ export function useConversation(args: {
         { onCommitFailed },
       )
     },
-    [cloudRunner, drive, pending, sending, threadId, working],
+    [app.intake, cloudRunner, drive, pending, sending, threadId, working],
   )
 
   /**

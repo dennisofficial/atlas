@@ -34,6 +34,9 @@ import { createDeltaChannel } from '../channel/delta-channel'
 import { createHarnessContainer } from '../container/create-harness-container'
 import { disposeAll, registerDisposable } from '../container/disposal'
 import { portToken, type DependencyContainer } from '../container/injection'
+import { DockerEngineToken } from '../container/tokens'
+import { moveLocalPlacement } from '../execution/local-placement-move'
+import { ExecutionLocationToken } from './execution-location-state'
 import {
   ClientVersionToken,
   HookMishapReporterToken,
@@ -395,6 +398,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   const log = container.resolve(portToken(EventLogPort))
   const ids = container.resolve(portToken(IdPort))
   const threads = container.resolve(portToken(ThreadStorePort))
+  executionLocation.bind({ threads, workspace: workspace.workspace, repo: workspace.repo })
   const ledger = container.resolve(portToken(TurnLedgerPort))
 
   container.register(HookMishapReporterToken, {
@@ -450,7 +454,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
       ...(signal === undefined ? {} : { signal }),
     })
 
-  const { turn, runner, turnPolicy, titling, recordTeardownEndings } = wireTurn<Command>({
+  const { turn, runner, turnPolicy, titling, recordTeardownEndings, intake } = wireTurn<Command>({
     container,
     workspace,
     executionLocation,
@@ -524,6 +528,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     ledger,
     ids,
     pending,
+    intake,
     shells,
     agents,
     services,
@@ -543,10 +548,24 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     models,
     executionLocation,
     executionPinned,
+    moveTools: (move) => moveLocalPlacement({
+      ...move,
+      control: container.resolve(ExecutionLocationToken),
+      engine: container.resolve(DockerEngineToken),
+      ids,
+      shells,
+      services,
+      stores: () => ({ threads, log, agents }),
+    }),
     surface: bound as TSurface,
     close: async () => {
       usage.dispose()
-      await recordTeardownEndings().catch(() => undefined)
+      await recordTeardownEndings().catch((error: unknown) => {
+        notice.notify({
+          tone: ENoticeTone.Warn,
+          text: `Could not persist every session ending: ${error instanceof Error ? error.message : String(error)}`,
+        })
+      })
       await disposeAll({ container })
       await container.resolve(portToken(TelemetryPort)).flush()
     },

@@ -2,6 +2,7 @@ import type { ThreadId } from '@dltech/atlas-core'
 
 import type { DeltaChannel } from '@dltech/atlas-harness'
 import type { StepId } from '@dltech/atlas-harness'
+import { EServeFrame } from '@dltech/atlas-harness'
 
 import type { FrameBuffer, SignalFrame } from './frame-buffer'
 
@@ -30,10 +31,17 @@ export function createChannelBridge(args: {
   let stepFrom: number | null = null
   let stepId: StepId | null = null
 
+  // A subscribe mid-turn opens with the channel's held replay, whose synthetic working signal has
+  // no live seq to enter the ring under; the flag is seeded from it ahead of the listener instead.
+  let working = args.channel
+    .snapshot({ threadId: args.threadId })
+    .some((signal) => signal.type === 'turn-working' && signal.working)
+
   const unsubscribe = args.channel.subscribe({
     threadId: args.threadId,
     listener: (signal) => {
       const frame = args.buffer.push(signal)
+      if (signal.type === 'turn-working') working = signal.working
       if (signal.type === 'step-started') {
         stepFrom = frame.seq
         stepId = signal.stepId
@@ -47,10 +55,20 @@ export function createChannelBridge(args: {
     },
   })
 
+  // A backfill head naming buffer.nextSeq() would be replayed to a cursor-resuming client as the
+  // live working frame arriving after it. Next = nextSeq() - 1 parses (seq is only nonnegative),
+  // sits before every buffered seq, and collides with nothing already sent.
+  const workingHead = (): SignalFrame => ({
+    kind: EServeFrame.Signal,
+    seq: args.buffer.nextSeq() - 1,
+    signal: { type: 'turn-working', working: true },
+  })
+
   return {
     inFlight: () => {
-      if (stepFrom === null || !args.buffer.contains(stepFrom)) return []
-      return args.buffer.from(stepFrom)
+      const steps =
+        stepFrom === null || !args.buffer.contains(stepFrom) ? [] : args.buffer.from(stepFrom)
+      return working ? [workingHead(), ...steps] : steps
     },
 
     liveStepId: () => stepId,

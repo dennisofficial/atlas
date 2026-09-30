@@ -1,3 +1,4 @@
+import { EMessageOrigin } from '@dltech/atlas-core'
 import {
   ENotice,
   EShellStatus,
@@ -16,6 +17,7 @@ import {
   shellMatchedNoticeLine,
   shellStillRunningLine,
 } from './shell-ended-line'
+import { EEntryKind } from './transcript-model'
 
 export enum EPendingKind {
   Operator = 'operator',
@@ -26,25 +28,26 @@ export enum EPendingKind {
   Service = 'service',
 }
 
+type NoticePendingKind =
+  | EPendingKind.BackgroundShell
+  | EPendingKind.Agent
+  | EPendingKind.Service
+
 export type PendingRow =
-  | { kind: EPendingKind.Operator; id: string; text: string }
+  | { kind: EPendingKind.Operator; id: string; text: string; editable?: boolean | undefined }
   | { kind: EPendingKind.Command; id: string; text: string }
   | { kind: EPendingKind.Sending; id: string; text: string; failed: boolean }
-  | { kind: EPendingKind.BackgroundShell; id: string; text: string; failed: boolean }
-  | { kind: EPendingKind.Agent; id: string; text: string; failed: boolean }
-  | { kind: EPendingKind.Service; id: string; text: string; failed: boolean }
+  | {
+      kind: NoticePendingKind
+      id: string
+      text: string
+      failed: boolean
+      body: string | null
+      entryKind: EEntryKind
+    }
 
 const NOTHING_PENDING: readonly PendingRow[] = Object.freeze([])
 
-/**
- * A shell ending waits in the same place as a queued message but is not one: nobody typed it, so it
- * cannot be edited or taken back, and the take-back affordance must never land on it.
- */
-/**
- * A notice queued while the shell is still running is a prompt it cannot be answered out of, or a
- * check-in that needs no answer at all - never an ending: reading one as one would announce that a
- * shell nobody stopped had finished.
- */
 function pendingShellRow(notice: PendingShellNotice): PendingRow {
   const { snapshot } = notice
 
@@ -54,6 +57,8 @@ function pendingShellRow(notice: PendingShellNotice): PendingRow {
       id: `shell-still-running-${snapshot.shellId}`,
       text: shellStillRunningLine(snapshot),
       failed: false,
+      body: null,
+      entryKind: EEntryKind.BackgroundShellStillRunning,
     }
   }
 
@@ -63,6 +68,8 @@ function pendingShellRow(notice: PendingShellNotice): PendingRow {
       id: `shell-matched-${snapshot.shellId}`,
       text: shellMatchedNoticeLine(snapshot),
       failed: false,
+      body: null,
+      entryKind: EEntryKind.BackgroundShellMatched,
     }
   }
 
@@ -72,6 +79,8 @@ function pendingShellRow(notice: PendingShellNotice): PendingRow {
       id: `shell-awaiting-${snapshot.shellId}`,
       text: shellAwaitingInputLine(snapshot),
       failed: true,
+      body: null,
+      entryKind: EEntryKind.BackgroundShellAwaitingInput,
     }
   }
 
@@ -80,6 +89,8 @@ function pendingShellRow(notice: PendingShellNotice): PendingRow {
     id: `shell-ended-${snapshot.shellId}`,
     text: shellEndedLine(snapshot),
     failed: shellEndingFailed(snapshot),
+    body: null,
+    entryKind: EEntryKind.BackgroundShellEnded,
   }
 }
 
@@ -89,6 +100,8 @@ function pendingAgentRow(notice: AgentSnapshot): PendingRow {
     id: `agent-${notice.status}-${notice.agentId}`,
     text: agentEndedLine(notice),
     failed: agentEndingFailed(notice),
+    body: null,
+    entryKind: EEntryKind.AgentEnded,
   }
 }
 
@@ -98,6 +111,8 @@ function pendingServiceRow(notice: ServiceSnapshot): PendingRow {
     id: `service-${notice.status}-${notice.serviceId}`,
     text: serviceEndedLine(notice),
     failed: serviceEndingFailed(notice),
+    body: null,
+    entryKind: EEntryKind.ServiceEnded,
   }
 }
 
@@ -107,7 +122,10 @@ const operatorRows = (entries: readonly PendingEntry<unknown>[]): readonly Pendi
       return { kind: EPendingKind.Command, id: entry.id, text: entry.text }
     }
 
-    return { kind: EPendingKind.Operator, id: entry.id, text: entry.text }
+    return {
+      kind: EPendingKind.Operator, id: entry.id, text: entry.text,
+      ...(entry.via !== undefined && entry.via !== EMessageOrigin.Operator ? { editable: false } : {}),
+    }
   })
 
 export function pendingRows(args: {

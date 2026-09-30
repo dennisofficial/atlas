@@ -1,4 +1,4 @@
-import type { Event } from '../events/envelope'
+import type { EventDraft } from '../events/body'
 
 export const TEAMMATE_AGENT_TYPE = 'teammate'
 
@@ -30,20 +30,23 @@ export const endingIsSpeech = (agentType: string): boolean =>
   speechModelOf(agentType) === ESpeechModel.ReportOnEnd
 
 /** Whether the event hands the turn to the assistant — the one projection run-turn and resume read. */
-export const isTurnTaking = (event: Event): boolean => {
+export const isTurnTaking = (event: EventDraft): boolean => {
   switch (event.type) {
     case 'user-said':
     case 'assistant-said':
     case 'tool-result':
     case 'tool-denied':
     case 'nudge':
-    case 'background-shell-ended':
     case 'background-shell-awaiting-input':
     case 'background-shell-matched':
     case 'background-shell-still-running':
     case 'service-ended':
     case 'agent-reported':
       return true
+    case 'background-shell-ended':
+      // A recorded ending is bookkeeping that settles the log; the ending was already spoken
+      // (a shell_kill tool result), so it must not hand the turn back to the assistant on resume.
+      return event.recorded !== true
     case 'agent-ended':
       return endingIsSpeech(event.agentType)
     default:

@@ -62,6 +62,23 @@ export const threadMetaSchema = z.object({
   modelRef: z.string().nullable(),
   modelEffort: z.string().nullable(),
   executionLocation: z.string().nullable(),
+  placement: z
+    .object({
+      placement: z.union([
+        z.object({ harness: z.literal('host'), tools: z.enum(['host', 'docker']) }),
+        z.object({ harness: z.literal('cloud'), driveName: z.string().optional() }),
+      ]),
+      revision: z.number(),
+      move: z
+        .object({
+          id: z.string(),
+          from: z.unknown(),
+          to: z.unknown(),
+          phase: z.enum(['preparing', 'committed']),
+        })
+        .nullable(),
+    })
+    .nullish(),
 })
 
 export type ThreadMeta = z.infer<typeof threadMetaSchema>
@@ -84,6 +101,7 @@ export function newThreadMeta({ id, at }: { id: string; at: string }): ThreadMet
     modelRef: null,
     modelEffort: null,
     executionLocation: null,
+    placement: null,
   }
 }
 

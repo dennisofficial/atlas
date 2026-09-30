@@ -86,6 +86,10 @@ export async function mountLive(args: {
   bridge: CloudBridge
   timings: MoveStepTiming[]
   settings: SettingsBinding
+  /** When set, the mount resumes this thread (a restart) instead of opening a fresh one. */
+  resumeThreadId?: ReturnType<typeof toThreadId>
+  /** Scripted reply by default (the round-trip wants determinism); true runs a real model. */
+  realModel?: boolean
 }) {
   const command = 'atlas-roundtrip-live'
   const harness = await composeHarness<undefined, never, PluginSurface>({
@@ -99,11 +103,15 @@ export async function mountLive(args: {
     settings: args.settings,
     clientVersion: command,
     surface: { notice: noticePortBinding(), tldrFeed },
-    bindPorts: ({ container }) => {
-      container.register(portToken(ModelPort), {
-        useValue: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }),
-      })
-    },
+    ...(args.realModel === true
+      ? {}
+      : {
+          bindPorts: ({ container }) => {
+            container.register(portToken(ModelPort), {
+              useValue: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }),
+            })
+          },
+        }),
   })
 
   const surfaces: readonly ContributedSurface[] = harness.pluginSurfaces
@@ -121,12 +129,13 @@ export async function mountLive(args: {
     command,
   }
 
+  const resuming = args.resumeThreadId !== undefined
   const opened: OpenedConversation = {
-    threadId: toThreadId(`roundtrip-${Date.now()}`),
+    threadId: args.resumeThreadId ?? toThreadId(`roundtrip-${Date.now()}`),
     events: [],
     turns: [],
     name: null,
-    started: false,
+    started: resuming,
   }
 
   const setup = await testRender(

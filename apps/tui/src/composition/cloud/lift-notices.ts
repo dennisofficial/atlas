@@ -47,7 +47,9 @@ const FAULT_HEAD: Record<ELiftFault, string> = {
 }
 
 const stillHere = (failure: LiftFailure): string => {
-  if (failure.rolledBack === true) return 'nothing moved and this conversation still runs here'
+  if (failure.step === ELiftStep.Attaching) {
+    return 'this conversation moved to the cloud, but attaching to it failed — /container cloud again to reconnect'
+  }
   if (failure.step === ELiftStep.Transferring || failure.step === ELiftStep.Flipping) {
     return 'nothing moved and this conversation still runs here'
   }

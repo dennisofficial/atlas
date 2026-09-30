@@ -191,6 +191,34 @@ schema, and the alternative is dispatching to learn whether dispatch may be para
 this command run concurrently" is the same shell parse that answers "does this command need approval",
 and there should be one of it, not two.
 
+## Message intake
+
+`harness/src/intake` owns per-thread delivery and wake scheduling. Operator drafts, child reports,
+background-shell notices, and service exits enter through source adapters, then cross the same
+prepare → append → acknowledge seam. Preparation retains the source input; a successful append
+acknowledges exactly the captured batch. Failed preparation or append releases any reservation and
+leaves the input available for retry. A shell's output cursor advances only on acknowledgement,
+never beyond the captured output. Typed drafts remain editable until reserved for commit; immutable
+notices never acquire an operator's edit or cancellation affordance.
+
+Local TUI and serve drivers register with this intake and announce transitions back to idle. The
+scheduler rechecks all pending sources on those transitions, not only when a notice first arrives.
+Child roster changes trigger the same recheck, so a child's late shell notice cannot strand itself
+behind that child's final drain. Asynchronous wakes are reserved per thread, with a bounded retry
+for a turn that fails before its first drain. Quiet teammate endings are durable bookkeeping but
+never wake a parent; explicit teammate reports use the normal speech path.
+
+A model request that fails yields back to intake before another attempt. The next attempt drains,
+re-reads, and reassembles the durable log with the same context and exchange checks as an ordinary
+step. Healthy streaming is not interrupted by incoming messages. The transcript distinguishes
+pending rows below the working indicator from committed rows above it, using the same notice
+component with a pending variant. Committed does not mean the provider has successfully answered.
+
+Recovery settles unresolved work from earlier boots, never a current-boot job or one whose live
+registry still holds its ending. Concurrent recovery joins one per-thread reconciliation, and a
+failed reconciliation is retryable. Teardown flushes quiet bookkeeping as well as speech through
+prepare/acknowledge; lifecycle settlement remains distinct from a fresh message to the model.
+
 ## Background shells
 
 A command the model backgrounds returns a shell id immediately and keeps running after the turn that
@@ -253,13 +281,12 @@ and a shell a *human* killed is the case where the model most needs telling and 
 outcome-shaped policy stayed quietest about. So a kill notifies, a failure notifies, a clean exit
 notifies, and teardown notifies.
 
-**An ending that finds no turn running starts one.** `drainPending` is consulted inside a running turn,
-which covers a shell that ends mid-flight — the loop drains it on its next pass, and it stands under
-the working indicator in the meantime, queued like a typed message but read-only, because nobody typed
-it. Idle is the case that needed a mechanism: the registry is an external store, the composition root
-subscribes with `onNotice`, and an ending arriving while no turn is running drives one. That is why the
-tool prompt can promise immediacy rather than eventual delivery. A witness on the waking effect keeps a
-turn that dies before its first drain from spinning there.
+**An ending that finds no turn running starts one.** Shared message intake schedules that wake for
+the owning thread. Inside a running turn, the loop prepares and commits the notice at its next safe
+boundary, including between failed model attempts. Until committed it stands below the working
+indicator through the same notice component as the durable row, with a muted pending variant. The
+scheduler rechecks when a driver becomes idle, so an arrival after the final drain cannot strand
+itself. A stable pending witness bounds repeated wakes that fail before their first drain.
 
 **Teardown records what it kills.** Closing the session kills every background shell, and those endings
 are worth keeping — reopening the conversation should say where the dev server went. Nothing is left
@@ -582,20 +609,18 @@ be real.
 see, steer or stop a child it did not spawn, and an ending routes to the owning thread's log rather
 than to whichever turn drains first.
 
-**Steering is a mailbox, not an interrupt.** `agent_say` to a running child pushes onto that
-child's queue and returns; the child's own `drainPending` splices the queue into `user-said` drafts
-at the top of its next loop pass, which is already a tool-round boundary. To a *stopped* child it
-appends `user-said` and starts a turn. The operator typing into an open child takes the identical
-path, which is what makes "a child is just a thread" true rather than aspirational.
+**Steering is a mailbox, not an interrupt.** `agent_say` submits running-child steering to shared
+per-thread intake and returns. The child's loop commits it at the next safe boundary, preserving
+its message origin. An explicit message to a stopped child holds automatic wakes while committing
+the queued input and recording the deliberate restart. The operator typing into an open child uses
+the same supervised route; a child's private steering adapter remains only for standalone runners.
 
-**A queued notice wakes a stopped child.** Shell, service and child-report notices address the
-thread that owns them, and until the only listeners were the TUI's React wake hooks — bound to the
-viewed thread — a stopped child whose CI watch or suite ended heard nothing; its backlog flushed
-on the next message and the orchestrating agent starved. `ChildWake` in the composition root
-subscribes to all three registries and hands each awaiting thread to the supervisor's `wake`, which
-restarts the child so the runner's drain delivers the backlog — the same guarantee the wake hooks
-give the viewed thread, held for children. A child stopped deliberately (`killedBy` set) is never
-resurrected this way; a message is the only thing that brings one back.
+**A queued notice wakes a stopped child.** Shell, service and child-report notices address their
+owner. Shared intake resolves a child's driver through the supervisor and rechecks every pending
+source when the roster changes, including when a child finishes. A notice that arrived during
+settlement therefore gets another chance after the child becomes idle. The supervisor reserves
+asynchronous wake startup and checks explicit starts or stops before taking the step. A deliberately
+stopped child (`killedBy` set) is never resurrected by a notice; an explicit message can restart it.
 
 **Ordering at spawn is the invariant, and the transaction covers the child but not the parent.**
 `createWithFirstEvents` writes the thread row and the brief together, so a child never exists

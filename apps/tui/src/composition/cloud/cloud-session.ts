@@ -37,6 +37,7 @@ export function createCloudSession(args: {
   channel: CloudChannel
   sandboxes: CloudSandboxes
   onReload: (reload: CloudReload) => void
+  onClose?: (() => void) | undefined
 }): CloudSession {
   const { channel, sandboxes } = args
   const listeners = new Set<() => void>()
@@ -64,14 +65,34 @@ export function createCloudSession(args: {
       .catch(() => undefined)
   }
 
+  // A reload only says the delta stream gapped; the missed events themselves come from re-reading
+  // the durable log, which is a channel request — handing it on while the socket is down would
+  // have the resync read queue into nothing and the transcript stay stale. The resync waits for
+  // Open, and the oldest gap wins: the log reads everything since it, so a later, higher seq is
+  // already inside it.
+  let pendingReload: CloudReload | null = null
+
+  const flushPendingReload = (): void => {
+    if (closed || pendingReload === null) return
+    if (held.connection.state !== EChannelConnection.Open) return
+
+    const reload = pendingReload
+    pendingReload = null
+    args.onReload(reload)
+  }
+
   const unsubscribeConnection = channel.onConnection((connection) => {
     announce({ ...held, connection })
+    flushPendingReload()
     // A close right after a server error frame is already explained — the sandbox refused in its
     // own words, and re-reading the control plane would replace that with "not answering".
     if (connection.state === EChannelConnection.Closed && held.failure === null) askControlPlane()
   })
 
-  const unsubscribeReload = channel.onReload((reload) => args.onReload(reload))
+  const unsubscribeReload = channel.onReload((reload) => {
+    pendingReload = pendingReload ?? reload
+    flushPendingReload()
+  })
 
   // Transport errors are narrated by the connection state above — a socket blip that self-heals
   // must not stick a warning. What stands here is what the sandbox itself refused, which arrives
@@ -108,6 +129,7 @@ export function createCloudSession(args: {
       unsubscribeReload()
       unsubscribeError()
       unsubscribeTurnEnded()
+      args.onClose?.()
       listeners.clear()
       channel.close()
     },

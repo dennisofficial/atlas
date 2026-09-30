@@ -192,6 +192,7 @@ import type { CaptureContext } from '@dltech/atlas-harness'
 
 import { createCloudBridge } from './cloud/create-bridge'
 import { createCloudSession, type CloudSession } from './cloud/cloud-session'
+import { mirrorCloudRenames } from './cloud/rename-mirror'
 import {
   descendFromCloud,
   EDescendStep,
@@ -532,11 +533,15 @@ export function App(props: {
           channel: attachment.channel,
           sandboxes: attachment.bridge.sandboxes,
           onReload: handleReload,
+          onClose: mirrorCloudRenames({
+            home: props.app.threads,
+            remote: attachment.stores.threads,
+          }),
         }),
         reloads: 0,
       })
     },
-    [handleReload],
+    [handleReload, props.app],
   )
 
   const handleDescend = useCallback((opened: OpenedConversation) => {
@@ -733,7 +738,6 @@ function Workspace(props: {
     app: props.app,
     threadId: conversation.threadId,
     stored: conversation.executionLocation,
-    started: conversation.started,
   })
   const containerPill = useContainerPill({
     app: props.app,
@@ -1335,7 +1339,7 @@ function Workspace(props: {
     handlePause: conversation.handlePauseForMove,
     whenSettled: conversation.whenSettled,
     projectDirectory: conversation.projectDirectory,
-    setLocation: execution.handleSet,
+    placement: props.app.executionLocation,
     createBridge: props.createBridge,
     preflightLift: props.preflightLift,
     capture: props.captureWorkspace,
@@ -1397,6 +1401,8 @@ function Workspace(props: {
               log: home.log,
               ledger: home.ledger,
               agents: home.agents,
+              shells: props.localApp.shells,
+              services: props.localApp.services,
               ids: home.ids,
               workspace: home.workspace,
               open: { mode: EOpenMode.Resume, threadId },
@@ -1418,6 +1424,7 @@ function Workspace(props: {
           channel,
           localApp: props.localApp,
           surface: descendSurface,
+          placement: props.app.executionLocation,
         })
           .then((opened) => {
             containerMove.handleSettle()
@@ -1442,34 +1449,27 @@ function Workspace(props: {
 
       containerMove.handleBegin({ target })
       const threadId = conversation.threadId
-      for (const shell of containerBlockers()) {
-        props.app.shells.kill({ shellId: shell.shellId, by: EKilledBy.ContainerSwitch, threadId })
-      }
-
-      containerMove.handleAdvance(ELocalMoveStep.Flipping)
       const from = execution.location
-      execution.handleSet(target)
-      if (!conversation.started) {
-        containerMove.handleSettle()
-        return true
-      }
 
       containerMove.handleAdvance(ELocalMoveStep.Relocating)
-      void relocateSession({
-        threadId,
-        from,
-        location: target,
-        log: props.app.log,
-        ids: props.app.ids,
-        services: props.app.services,
-        agents: props.app.agents,
-      })
-        .then(() => {
+      void props.app
+        .moveTools({ threadId, target, onProgress: () => containerMove.handleAdvance(ELocalMoveStep.Flipping) })
+        .then((moved) => {
+          if (!moved.ok) {
+            const reason = moveFailedNotice({ target, from, detail: moved.reason })
+            containerMove.handleFail(reason)
+            notify({
+              key: 'container-switch',
+              tone: ENoticeTone.Warn,
+              ttlMs: NOTICE_WARN_MS,
+              text: reason,
+            })
+            return
+          }
           containerMove.handleSettle()
           void conversation.refresh()
         })
         .catch((error: unknown) => {
-          execution.handleSet(from)
           const reason = moveFailedNotice({ target, from, detail: messageOf(error) })
           containerMove.handleFail(reason)
           notify({

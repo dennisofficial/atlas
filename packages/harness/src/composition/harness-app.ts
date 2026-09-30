@@ -27,6 +27,7 @@ import type { TurnRunner } from '../loop/turn-runner.port'
 import type { TitlingTurnRunner } from './titling-turn-runner'
 import type { McpServerStatus } from '../mcp/registry/handle-status'
 import type { PendingQueues } from '../pending'
+import type { MessageIntake } from '../intake'
 import type { ContributedProjection } from '../plugins/projection'
 import type { ContributedSurface } from '../plugins/surface'
 import type { ServiceRegistryPort } from '../services/service-registry'
@@ -41,6 +42,7 @@ import type { AccountUsageService } from '../usage/account-usage-service'
 import type { Summariser } from './compact-turn'
 import type { HarnessLaunch } from './config'
 import type { ExecutionLocationState } from './execution-location-state'
+import type { moveLocalPlacement } from '../execution/local-placement-move'
 import type { ModelCatalogue } from './model-catalogue'
 import type { ModelChoice } from './model-selection'
 import type { ActiveConversation } from './resume-hint'
@@ -90,6 +92,7 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   ledger: TurnLedgerPort
   ids: IdPort
   pending: PendingQueues<Command>
+  intake?: MessageIntake | undefined
   shells: ShellRegistryPort
   agents: AgentRegistryPort
   services: ServiceRegistryPort
@@ -100,6 +103,7 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   models: ModelCatalogue
   executionLocation: ExecutionLocationState
   executionPinned: boolean
+  moveTools: (args: Pick<Parameters<typeof moveLocalPlacement>[0], 'threadId' | 'target' | 'caller' | 'pause' | 'whenSettled' | 'onProgress'>) => ReturnType<typeof moveLocalPlacement>
   settings: SettingsService
   secrets: SecretsPort
   usage: AccountUsageService

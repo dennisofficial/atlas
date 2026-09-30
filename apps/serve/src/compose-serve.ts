@@ -16,8 +16,9 @@ import { VercelDriver, type VercelCredentials } from '@dltech/atlas-harness'
 import { composeHarness } from '@dltech/atlas-harness'
 import { loadSettings } from '@dltech/atlas-harness'
 import { portToken } from '@dltech/atlas-harness'
-import { ServeSessionToken } from '@dltech/atlas-harness'
-import { ShellRecovery } from '@dltech/atlas-harness'
+import { SecretsStoreToken, ServeSessionToken } from '@dltech/atlas-harness'
+import { ServiceRecovery, ShellRecovery } from '@dltech/atlas-harness'
+import { liveServicesOf, liveShellsOf } from '@dltech/atlas-harness'
 import { ThreadStorePort } from '@dltech/atlas-harness'
 
 import { adoptChildren } from './adopt-children'
@@ -137,7 +138,16 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     },
   })
 
-  const shellRecovery = new ShellRecovery({ log: app.surface.log, ids: app.ids })
+  const shellRecovery = new ShellRecovery({
+    log: app.surface.log,
+    ids: app.ids,
+    live: () => liveShellsOf(app.shells.listEverywhere()),
+  })
+  const serviceRecovery = new ServiceRecovery({
+    log: app.surface.log,
+    ids: app.ids,
+    live: () => liveServicesOf(app.services.list()),
+  })
 
   return {
     channel: app.channel,
@@ -150,11 +160,14 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     ids: app.ids,
     files: app.files,
     workspace: app.workspace,
+    pending: app.pending,
+    ...(app.intake === undefined ? {} : { intake: app.intake }),
     sessionArchive: () => serveSessionArchive({ threadId: args.threadId }),
     memoryArchive: () => serveMemoryArchive({ cwd: args.cwd, identity: args.identity ?? null }),
     adoptChildren: ({ threadId }) =>
       adoptChildren({ agents: app.agents, log: app.surface.log, threadId }),
     recordLostShells: ({ threadId }) => shellRecovery.recordLost({ threadId }),
+    recordLostServices: ({ threadId }) => serviceRecovery.recordLost({ threadId }),
     whenChildrenSettled: ({ threadId }) => app.agents.whenChildrenSettled({ threadId }),
     family: {
       pauseChildren: async ({ threadId }) => {
@@ -165,6 +178,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       app.shells.listEverywhere().filter((shell) => shell.status === EShellStatus.Running).length,
     runningServices: () =>
       app.services.list().filter((service) => service.status === EServiceStatus.Running).length,
+    executionLocation: app.executionLocation,
     roster: {
       snapshot: () => ({
         shells: [...app.shells.listEverywhere()],

@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto'
 import { Sandbox } from '@vercel/sandbox'
 
 import {
-  deleteDrive,
+  detachThenDeleteDrive,
   ensureDrive,
   liveDriveSdk,
   waitForDriveDetached,
@@ -467,11 +467,18 @@ export class VercelDriver {
       if (!isSandboxMissing(failure)) throw asVercelFailure(failure)
     }
     if (args.threadId !== undefined) {
-      await deleteDrive({
+      const driveName = driveNameFor({ threadId: args.threadId })
+      const detached = await detachThenDeleteDrive({
         sdk: this.drives,
         credentials: this.args.credentials,
-        name: driveNameFor({ threadId: args.threadId }),
+        name: driveName,
+        retry: this.attachLagRetry,
       })
+      if (!detached) {
+        this.args.log?.(
+          `drive ${driveName} still read attached when its delete ran — the delete's retry waited out the detach`,
+        )
+      }
     }
   }
 

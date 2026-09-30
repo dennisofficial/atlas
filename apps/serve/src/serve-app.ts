@@ -9,12 +9,14 @@ import type {
 } from '@dltech/atlas-core'
 import type { RosterWire } from '@dltech/atlas-wire'
 
-import type { DeltaChannel } from '@dltech/atlas-harness'
+import type { DeltaChannel, PlacementController } from '@dltech/atlas-harness'
 import type { FileBrowser } from '@dltech/atlas-harness'
+import type { MessageIntake } from '@dltech/atlas-harness'
+import type { PendingQueues } from '@dltech/atlas-harness'
 import type { TurnLedgerPort } from '@dltech/atlas-harness'
 import type { TurnPolicy } from '@dltech/atlas-harness'
 import type { TurnRunner } from '@dltech/atlas-harness'
-import type { LostShell } from '@dltech/atlas-harness'
+import type { LostService, LostShell } from '@dltech/atlas-harness'
 import type { ThreadStorePort } from '@dltech/atlas-harness'
 
 /**
@@ -97,6 +99,9 @@ export type ServeApp = {
   ids: Pick<IdPort, 'nextRunId'>
   files: Pick<FileBrowser, 'list' | 'forget'>
   workspace: WorkspaceIdentity
+  pending?: PendingQueues | undefined
+  /** The shared message intake driving this serve's idle wake; absent in fakes. */
+  intake?: MessageIntake | undefined
   /** Resumes the served thread's transferred children — see adopt-children.ts for why it must. */
   adoptChildren: (args: { threadId: ThreadId }) => Promise<readonly ThreadId[]>
   /**
@@ -104,6 +109,7 @@ export type ServeApp = {
    * unrecorded ending so the next open reads it off the transcript. Absent in a fake without a log.
    */
   recordLostShells?: ((args: { threadId: ThreadId }) => Promise<readonly LostShell[]>) | undefined
+  recordLostServices?: ((args: { threadId: ThreadId }) => Promise<readonly LostService[]>) | undefined
   whenChildrenSettled: (args: { threadId: ThreadId }) => Promise<void>
   /** Tars the served session directory for the descend's transcript transfer; absent in fakes. */
   sessionArchive?: (() => Promise<Uint8Array | null>) | undefined
@@ -125,6 +131,8 @@ export type ServeApp = {
   family?: ServeFamily | undefined
   /** Absent in a fake without registries: a rewind apply is refused rather than dropped. */
   rewind?: ServeRewind | undefined
+  /** The session's placement controller; serve hydrates it to cloud after transcript restore. */
+  executionLocation?: PlacementController | undefined
   close: () => Promise<void>
 }
 

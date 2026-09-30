@@ -127,8 +127,6 @@ describe('the harness container graph', () => {
   it('answers the execution-location sink with a no-op until an app registers a real one', () => {
     const sink = rooted().resolve(portToken(ExecutionLocationSinkPort))
 
-    expect(() =>
-      sink.note({ threadId: toThreadId('thread-1'), location: EExecutionLocation.Docker }),
-    ).not.toThrow()
+    expect(() => sink.refresh({ threadId: toThreadId('thread-1') })).not.toThrow()
   })
 })

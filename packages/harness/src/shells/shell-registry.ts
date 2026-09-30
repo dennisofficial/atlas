@@ -13,6 +13,7 @@ import {
 
 import { LocalProcessPort } from '../execution/local-process'
 import type { HookChainSource } from '../hooks/registry'
+import type { InputBatch } from '../intake/input-batch'
 import type { SleepPrevention } from '../power/sleep-prevention'
 import { afterShellDrafts } from './after-shell'
 import { bootId } from './boot'
@@ -29,6 +30,7 @@ import {
 } from './background-shell'
 import {
   ENotice,
+  previewOutput,
   ShellNoticeQueue,
   take,
   type PendingShellNotice,
@@ -105,8 +107,10 @@ export abstract class ShellRegistryPort {
   abstract version(): number
   abstract subscribe(listener: () => void): () => void
   abstract drainNotifications(args: { threadId: ThreadId }): readonly EventDraft[]
+  prepareNotifications?(args: { threadId: ThreadId }): InputBatch
   abstract pendingNotices(args: { threadId: ThreadId }): readonly PendingShellNotice[]
   abstract threadsAwaitingNotice(): readonly ThreadId[]
+  threadsWithPendingInput?(): readonly ThreadId[]
   abstract onNotice(listener: () => void): () => void
   abstract forgetNotices(args: { threadId: ThreadId }): void
   abstract closeAll(): Promise<void>
@@ -381,12 +385,20 @@ export class BunShellRegistry extends ShellRegistryPort {
     return this.notices.drain({ threadId })
   }
 
+  override prepareNotifications({ threadId }: { threadId: ThreadId }): InputBatch {
+    return this.notices.prepare({ threadId })
+  }
+
   pendingNotices({ threadId }: { threadId: ThreadId }): readonly PendingShellNotice[] {
     return this.notices.pending({ threadId })
   }
 
   threadsAwaitingNotice(): readonly ThreadId[] {
     return this.notices.threadsAwaiting()
+  }
+
+  override threadsWithPendingInput(): readonly ThreadId[] {
+    return this.notices.threadsQueued()
   }
 
   onNotice(listener: () => void): () => void {
@@ -482,6 +494,10 @@ export class BunShellRegistry extends ShellRegistryPort {
         output: '',
         droppedCharacters: 0,
         remainingCharacters: 0,
+        // A shell_kill-claimed ending was already spoken as the tool result, so this record exists
+        // only to settle the log's start/end pair. Marking it keeps it out of the transcript and
+        // stops it waking a turn on resume — without it the same death is announced twice.
+        ...(entry.endingClaimed ? { recorded: true as const } : {}),
       }
     })
     await args.log.append({ threadId: args.threadId, runId: args.ids.nextRunId(), drafts })
@@ -639,10 +655,12 @@ export class BunShellRegistry extends ShellRegistryPort {
     hooked?: readonly EventDraft[] | undefined
     outputClaimed?: boolean | undefined
   }): void {
+    const entry = args.entry
     this.notices.queue({
       kind: args.kind,
       snapshot: args.shell.snapshot(),
-      take: () => take(args.entry),
+      take: () => take(entry),
+      preview: () => previewOutput(entry),
       threadId: args.entry.threadId,
       hooked: args.hooked,
       outputClaimed: args.outputClaimed,

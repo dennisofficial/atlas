@@ -1,5 +1,5 @@
 import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
-import { storedModel } from '@dltech/atlas-harness'
+import { storedModel, type PlacementController } from '@dltech/atlas-harness'
 import { useCallback, useRef } from 'react'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
@@ -42,7 +42,7 @@ export function useCloudLift(args: {
   handlePause: () => void
   whenSettled: () => Promise<void>
   projectDirectory: string
-  setLocation: (location: EExecutionLocation) => void
+  placement: PlacementController
   createBridge: CloudBridgeFactory
   preflightLift?: LiftPreflight | undefined
   capture: WorkspaceCapture
@@ -100,7 +100,7 @@ export function useCloudLift(args: {
       localLog: app.log,
       agents: app.agents,
       ids: app.ids,
-      setLocation: latest.current.setLocation,
+      placement: latest.current.placement,
       stopLocal: async () =>
         stopLocalWork({ threadId, shells: app.shells, services: app.services }),
       capture: latest.current.capture,

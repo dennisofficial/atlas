@@ -1,5 +1,16 @@
-import { EFinishReason } from '@dltech/atlas-core'
-import type { CallId, ExchangeFault, LoopCut } from '@dltech/atlas-core'
+import {
+  EMPTY_STEP_NUDGES_PER_TURN,
+  emptyStepNudgeDraft,
+  EFinishReason,
+  silentStep,
+  type CallId,
+  type EventLogPort,
+  type ExchangeFault,
+  type LoopCut,
+  type ModelStepResult,
+  type RunId,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 const faultLine = (fault: ExchangeFault): string =>
   `message ${fault.messageIndex}: ${fault.detail} (event ${fault.origin.eventId})`
@@ -30,3 +41,36 @@ export const loopReport = (cut: LoopCut): string =>
 
 export const overflowReport = ({ tokens, window }: { tokens: number; window: number }): string =>
   `this conversation no longer fits the model's context window — about ${tokens.toLocaleString('en-US')} tokens against ${window.toLocaleString('en-US')}. Run /compact to replace the older turns with a summary, or raise the automatic threshold in settings.`
+
+export type SilentOutcome =
+  | { kind: 'answered' }
+  | { kind: 'nudged' }
+  | { kind: 'failed'; message: string; cause: unknown }
+
+export async function nudgeSilentStep({
+  result,
+  threadId,
+  runId,
+  log,
+  silentSteps,
+}: {
+  result: ModelStepResult
+  threadId: ThreadId
+  runId: RunId
+  log: EventLogPort
+  silentSteps: number
+}): Promise<SilentOutcome> {
+  const finish = result.finishReason
+  if (finish === EFinishReason.Error || finish === EFinishReason.ContentFilter) {
+    return { kind: 'failed', message: finishFaultReport(finish), cause: { finish } }
+  }
+
+  if (!silentStep(result)) return { kind: 'answered' }
+
+  if (silentSteps + 1 > EMPTY_STEP_NUDGES_PER_TURN) {
+    return { kind: 'failed', message: emptyStepReport(finish), cause: { silentSteps: silentSteps + 1, finish } }
+  }
+
+  await log.append({ threadId, runId, drafts: [emptyStepNudgeDraft()] })
+  return { kind: 'nudged' }
+}

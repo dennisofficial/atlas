@@ -194,6 +194,7 @@ export function createRemoteDeltaChannel(args: {
   const toolOutputSlots: InFlightSlots = new Map()
   let replay: readonly StepSignal[] | undefined
   let stepId: StepId | undefined
+  let working = false
   let channelCursor: number | null = null
   let attempt = 0
   let reattachments = 0
@@ -249,13 +250,20 @@ export function createRemoteDeltaChannel(args: {
     })
   }
 
+  const WORKING_SIGNAL: StepSignal = Object.freeze({ type: 'turn-working', working: true })
+
   const stableReplay = (): readonly StepSignal[] => {
-    if (inFlight.length === 0) return NOTHING_IN_FLIGHT
-    replay ??= Object.freeze([...inFlight])
+    if (inFlight.length === 0) return working ? [WORKING_SIGNAL] : NOTHING_IN_FLIGHT
+    replay ??= Object.freeze(working ? [WORKING_SIGNAL, ...inFlight] : [...inFlight])
     return replay
   }
 
   const absorb = (signal: ChannelSignal) => {
+    if (signal.type === 'turn-working') {
+      working = signal.working
+      replay = undefined
+      return
+    }
     if (signal.type === 'step-started') {
       stepId = signal.stepId
       inFlight = [signal]
@@ -329,6 +337,14 @@ export function createRemoteDeltaChannel(args: {
       return
     }
     if (frame.kind === EServeFrame.Signal) {
+      // One frame every seq, so a jump means the stream lost what sits between — the live half
+      // of a transcript can never show a gap, so the durable log is re-read instead.
+      if (channelCursor !== null && frame.seq > channelCursor + 1) {
+        channelCursor = null
+        endStrandedStep()
+        reloads.emit({ sinceEventSeq: lastEventSeq() })
+        return
+      }
       deliver(frame.signal)
       channelCursor = frame.seq
       return
@@ -411,11 +427,7 @@ export function createRemoteDeltaChannel(args: {
     url = next.url
     token = next.token
     attempt = 0
-    generation += 1
     clearKeepalive()
-    const stale = socket
-    socket = null
-    stale?.close()
     moveTo({ state: EChannelConnection.Connecting, detail: null })
     connect()
   }
@@ -446,7 +458,6 @@ export function createRemoteDeltaChannel(args: {
   }
 
   const handleClose = () => {
-    socket = null
     clearKeepalive()
     upstream.detach({ reason: 'the session socket closed' })
     if (abandoned) return
@@ -476,7 +487,8 @@ export function createRemoteDeltaChannel(args: {
     scheduleRetry({
       delayMs,
       run: () => {
-        if (scheduled === generation) connect()
+        if (abandoned || scheduled !== generation) return
+        if (connect() !== null) generation += 1
       },
     })
 
@@ -500,8 +512,20 @@ export function createRemoteDeltaChannel(args: {
 
   const handleError = (message: string) => failures.emit({ message })
 
-  const connect = () => {
-    if (abandoned) return
+  // A fresh attempt takes over from whatever dial preceded it, so the handlers it closes over
+  // never fire again: the old close() could otherwise land while the channel is Connecting
+  // (nothing in `socket` points at the dead socket yet) and start a retry cycle out from under
+  // the live attempt.
+  const supersede = () => {
+    const stale = socket
+    socket = null
+    stale?.close()
+    generation += 1
+  }
+
+  const connect = (): ChannelSocket | null => {
+    if (abandoned) return null
+    supersede()
     let mine: ChannelSocket | null = null
     const guarded = <A extends unknown[]>(handler: (...args: A) => void) =>
       (...args: A) => {
@@ -519,6 +543,7 @@ export function createRemoteDeltaChannel(args: {
       },
     })
     socket = mine
+    return mine
   }
 
   connect()
@@ -595,7 +620,12 @@ export function createRemoteDeltaChannel(args: {
 
     reconnect() {
       if (abandoned) return
-      if (connection.state !== EChannelConnection.Closed) return
+      if (
+        connection.state !== EChannelConnection.Closed &&
+        connection.state !== EChannelConnection.Parked
+      ) {
+        return
+      }
       if (args.reattach === undefined) return
 
       reattachments = 0

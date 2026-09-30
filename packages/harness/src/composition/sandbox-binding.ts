@@ -154,7 +154,7 @@ export async function bindSandbox(args: {
 
   container.register(portToken(ExecutionLocationSinkPort), {
     useValue: {
-      note: ({ threadId, location }) => executionLocation.note({ threadId, location }),
+      refresh: ({ threadId }) => executionLocation.refresh({ threadId }),
     },
   })
 

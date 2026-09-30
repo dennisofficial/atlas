@@ -1,5 +1,8 @@
 import {
   activeWorktreeOf,
+  EExecutionLocation,
+  locationOfPlacement,
+  placementOf,
   stampEvent,
   toThreadId,
   ECompactionAnchor,
@@ -7,7 +10,6 @@ import {
   toCallId,
   toEventId,
   toRunId,
-  type EExecutionLocation,
   type IdPort,
   type ThreadId,
   type Event,
@@ -319,6 +321,35 @@ export function fakeThreadStore(
       const row = rows.find((held) => held.id === threadId)
       if (row !== undefined) row.model = model
       for (const listener of [...modelChosenListeners]) listener({ threadId, model })
+    },
+
+    onPlacementChanged() {
+      return () => undefined
+    },
+
+    async readPlacement({ threadId }) {
+      const row = rows.find((held) => held.id === threadId)
+      if (row === undefined) return undefined
+      return { placement: placementOf(row.executionLocation ?? EExecutionLocation.Host), revision: 0, move: null }
+    },
+
+    async writePlacement({ threadId, record }) {
+      const location = locationOfPlacement(record.placement)
+      chosenLocations.push({ threadId, location })
+      const row = rows.find((held) => held.id === threadId)
+      if (row !== undefined) {
+        row.executionLocation = location
+        return
+      }
+      rows.push({
+        id: threadId,
+        head: 0,
+        createdAt: AT,
+        updatedAt: AT,
+        workspace: workspaceOf,
+        repo: args.repo ?? null,
+        executionLocation: location,
+      })
     },
 
     async chooseExecutionLocation({ threadId, location }) {

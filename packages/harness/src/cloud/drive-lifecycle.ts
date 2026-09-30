@@ -1,7 +1,7 @@
 import { Drive } from '@vercel/sandbox'
 
 import { attachLagRetry, retrySleep, type RetryPolicy } from './retry-policy'
-import { isDriveAttachedConflict, isSandboxMissing } from './vercel-errors'
+import { isDriveDeleteConflict, isSandboxMissing } from './vercel-errors'
 
 import type { VercelCredentials } from './vercel-driver'
 import { DRIVE_MAX_BYTES } from './drive-names'
@@ -46,6 +46,24 @@ export async function ensureDrive(args: {
  * until the detach settles, so the delete retries through that lag. A drive that is already gone
  * is the desired end state, so a missing one is success.
  */
+/**
+ * The teardown ordering: the sandbox that mounted the drive is already gone when this runs, but
+ * Vercel detaches the drive asynchronously, so a delete issued at once lands a 409 `currently
+ * attached`. Waits the detach out first and deletes after; when the lag outlives the poll budget
+ * the delete still runs — its own retry covers the tail. Answers false when the delete ran while
+ * the drive still read attached, so the caller can log the budget it burned.
+ */
+export async function detachThenDeleteDrive(args: {
+  sdk: DriveSdk
+  credentials: VercelCredentials
+  name: string
+  retry?: RetryPolicy | undefined
+}): Promise<boolean> {
+  const detached = await waitForDriveDetached(args)
+  await deleteDrive(args)
+  return detached
+}
+
 export async function deleteDrive(args: {
   sdk: DriveSdk
   credentials: VercelCredentials
@@ -68,7 +86,7 @@ export async function deleteDrive(args: {
         return
       } catch (failure) {
         if (isSandboxMissing(failure)) return
-        if (!isDriveAttachedConflict(failure) || attempt >= retry.attempts - 1) throw failure
+        if (!isDriveDeleteConflict(failure) || attempt >= retry.attempts - 1) throw failure
         await retrySleep(retry)
       }
     }

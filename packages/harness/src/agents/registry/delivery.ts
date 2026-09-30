@@ -1,6 +1,7 @@
 import type { ClockPort, EventDraft, ThreadId } from '@dltech/atlas-core'
 
-import { EAgentNotice, isTurnTakingNotice, type AgentNotice, type AgentNoticeQueue } from './notices'
+import type { InputBatch } from '../../intake/input-batch'
+import { EAgentNotice, type AgentNotice, type AgentNoticeQueue } from './notices'
 import type { AgentRoster } from './roster'
 
 export type NoticeDrain = {
@@ -21,11 +22,20 @@ export class NoticeDelivery {
   }
 
   drain({ threadId }: { threadId: ThreadId }): NoticeDrain {
-    const handed = this.notices.take({ threadId, where: () => true })
-    this.stampDelivered(handed)
+    const batch = this.prepareNotifications({ threadId })
+    batch.acknowledge()
+    return { drafts: batch.drafts, wakesTurn: batch.wakesTurn }
+  }
+
+  prepareNotifications({ threadId }: { threadId: ThreadId }): InputBatch {
+    const prepared = this.notices.prepare({ threadId })
     return {
-      drafts: handed.map((notice) => notice.draft),
-      wakesTurn: handed.some(isTurnTakingNotice),
+      drafts: prepared.drafts,
+      wakesTurn: prepared.wakesTurn,
+      acknowledge: () => {
+        prepared.acknowledge()
+        this.stampDelivered(prepared.notices)
+      },
     }
   }
 
@@ -50,7 +60,10 @@ export class NoticeDelivery {
     for (const notice of handed) {
       if (notice.kind === EAgentNotice.Report) continue
       const child = this.roster.find(notice.snapshot.agentId)
-      if (child === undefined || child.deliveredAt !== undefined) continue
+      if (child === undefined || child.deliveredAt !== undefined || child.endedAt === undefined) {
+        continue
+      }
+      if (notice.generation === undefined || child.abort.signal !== notice.generation) continue
       child.deliveredAt = at
       stamped = true
     }

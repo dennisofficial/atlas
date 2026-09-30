@@ -55,7 +55,19 @@ async function deliver({
 
   if (child === undefined) return { ok: false, reason: known }
 
+  const input = deps.input?.()
   if (isStepping(child)) {
+    if (input !== undefined) {
+      input.submit({
+        threadId: args.agentId,
+        text: args.text,
+        ...(args.images === undefined ? {} : { images: args.images }),
+        ...(args.files === undefined ? {} : { files: args.files }),
+        via,
+      })
+      return { ok: true, snapshot: snapshotOf(child) }
+    }
+
     const queued: SteerMessage = {
       text: args.text,
       images: args.images,
@@ -71,23 +83,39 @@ async function deliver({
     return { ok: false, reason: retiredAgentType(child.agentType) }
   }
 
-  await log.append({
-    threadId: args.agentId,
-    runId: ids.nextRunId(),
-    drafts: [
-      {
-        ...saidBody({ text: args.text, images: args.images, files: args.files }),
-        via,
-      },
-    ],
-  })
-  child.projectDirectory ??= await childDirectory({ deps, threadId: child.spawnedBy })
-  await recordRestart({ log, ids, child, via: EAgentRestart.Message })
-  steps.take({
-    child,
-    agentType,
-    step: ({ runner, signal, pause }) => runner.runTurn({ threadId: args.agentId, signal, pause }),
-  })
+  const held = input?.hold({ threadId: args.agentId })
+  try {
+    if (input !== undefined) {
+      input.submit({
+        threadId: args.agentId, text: args.text, via,
+        ...(args.images === undefined ? {} : { images: args.images }),
+        ...(args.files === undefined ? {} : { files: args.files }),
+      })
+      await input.commit({
+        threadId: args.agentId,
+        append: async (drafts) => {
+          await log.append({ threadId: args.agentId, runId: ids.nextRunId(), drafts })
+          child.pending.length = 0
+        },
+      })
+    } else {
+      await log.append({
+        threadId: args.agentId,
+        runId: ids.nextRunId(),
+        drafts: [{ ...saidBody({ text: args.text, images: args.images, files: args.files }), via }],
+      })
+    }
+    child.projectDirectory ??= await childDirectory({ deps, threadId: child.spawnedBy })
+    await recordRestart({ log, ids, child, via: EAgentRestart.Message })
+    steps.take({
+      child,
+      agentType,
+      step: ({ runner, signal, pause }) =>
+        runner.runTurn({ threadId: args.agentId, signal, pause }),
+    })
+  } finally {
+    held?.()
+  }
 
   return { ok: true, snapshot: snapshotOf(child) }
 }

@@ -112,6 +112,21 @@ describe('/container cloud', () => {
     }
   }, 60_000)
 
+  it('renders the cloud divider once attached, from placement rather than the sealed archive', async () => {
+    const app = speaking()
+    const bridge = fakeBridge()
+    const mounted = await mount({ app, bridge })
+
+    try {
+      await lift(mounted, bridge)
+      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+
+      expect(await shown(mounted, 'cloud sandbox')).toContain('cloud sandbox')
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
   it('keeps the typed draft across the lift, which remounts the workspace', async () => {
     const app = speaking()
     const bridge = fakeBridge()

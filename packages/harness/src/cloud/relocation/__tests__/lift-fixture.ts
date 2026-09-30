@@ -13,6 +13,7 @@ import {
 } from '@dltech/atlas-core'
 
 import type { AgentSnapshot } from '../../../agents/registry/snapshot'
+import { PlacementController } from '../../../composition/placement-controller'
 import { SESSION_FORMAT_VERSION } from '../../../store/sessions/meta'
 import { SESSION_META_NAME, sessionDirectory } from '../../../store/sessions/paths'
 import {
@@ -118,7 +119,7 @@ export type Harness = {
   bridge: FakeBridge
   localThreads: FakeThreadStore
   localLog: FakeEventLog
-  readonly located: readonly EExecutionLocation[]
+  placement: PlacementController
   readonly steps: readonly ELiftStep[]
   readonly stops: number
   readonly interrupts: number
@@ -141,16 +142,22 @@ export const seedSessionDir = (args: { started?: boolean } = {}): void => {
   )
 }
 
-export const harness = (over: Partial<LiftArgs> & { bridge?: FakeBridge } = {}): Harness => {
+export const harness = (
+  over: Partial<LiftArgs> & { bridge?: FakeBridge; from?: EExecutionLocation } = {},
+): Harness => {
   const bridge = over.bridge ?? fakeBridge()
   const localLog = fakeEventLog([...LOCAL_LOG])
   const localThreads = fakeThreadStore({ log: localLog, existing: [CLOUD_THREAD] })
-  const located: EExecutionLocation[] = []
+  const placement = new PlacementController(EExecutionLocation.Host)
+  placement.bind({ threads: localThreads, workspace: '/work', repo: '/work' })
   const steps: ELiftStep[] = []
   let stops = 0
   let interrupts = 0
   let settleWaits = 0
   seedSessionDir({ started: over.started ?? true })
+  if (over.from !== undefined && over.from !== EExecutionLocation.Host) {
+    void localThreads.chooseExecutionLocation({ threadId: CLOUD_THREAD, location: over.from })
+  }
 
   const args: LiftArgs = {
     threadId: CLOUD_THREAD,
@@ -172,7 +179,7 @@ export const harness = (over: Partial<LiftArgs> & { bridge?: FakeBridge } = {}):
     localLog,
     agents: fakeLiftAgents(),
     ids: fakeIds(),
-    setLocation: (location) => located.push(location),
+    placement,
     stopLocal: async () => {
       stops += 1
       return { shells: ['bun run dev'], services: ['api'], drainNotices: () => [] }
@@ -188,7 +195,7 @@ export const harness = (over: Partial<LiftArgs> & { bridge?: FakeBridge } = {}):
     bridge,
     localThreads,
     localLog,
-    located,
+    placement,
     steps,
     get stops() {
       return stops

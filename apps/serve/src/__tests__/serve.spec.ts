@@ -454,6 +454,62 @@ describe('startServe', () => {
     expect(stepIdsOf(client.frames)).toEqual([`${threadId}#1`, `${threadId}#1`])
   })
 
+  it('hands a reloaded client the working turn behind an idle step gap', async () => {
+    const { handle, app } = await start({})
+    const publisher = app.channel.publisherFor({ threadId })
+    publisher.onChunk(textChunk('one'))
+    publisher.close({ end: EStepEnd.Completed })
+    publisher.turnWorking({ working: true })
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+
+    await client.waitFor((frame) => frame.kind === EServeFrame.Signal)
+    expect(client.frames[0]).toEqual({ kind: EServeFrame.Reload, sinceEventSeq: 0 })
+    expect(client.frames.at(-1)).toMatchObject({
+      kind: EServeFrame.Signal,
+      signal: { type: 'turn-working', working: true },
+    })
+  })
+
+  it('heads a reloaded mid-step backfill with the working signal the step is under', async () => {
+    const { handle, app } = await start({})
+    const publisher = app.channel.publisherFor({ threadId })
+    publisher.turnWorking({ working: true })
+    publisher.onChunk(textChunk('one'))
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+
+    await client.waitFor((frame) => frame.kind === EServeFrame.Signal && frame.seq === 2)
+    const workingAt = client.frames.findIndex(
+      (frame) => frame.kind === EServeFrame.Signal && frame.signal.type === 'turn-working',
+    )
+    expect(workingAt).toBe(2)
+    expect(client.frames[workingAt]).toMatchObject({
+      signal: { type: 'turn-working', working: true },
+    })
+  })
+
+  it('backfills nothing for a settled turn', async () => {
+    const { handle, app } = await start({})
+    const publisher = app.channel.publisherFor({ threadId })
+    publisher.turnWorking({ working: true })
+    publisher.onChunk(textChunk('one'))
+    publisher.close({ end: EStepEnd.Completed })
+    publisher.turnWorking({ working: false })
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+    await Bun.sleep(10)
+    expect(client.frames.map((frame) => frame.kind)).toEqual([
+      EServeFrame.Reload,
+      EServeFrame.Ready,
+    ])
+  })
+
   it('never backfills a step whose start has aged out of the ring', async () => {
     const { handle, app } = await start({ bufferSize: 2 })
     const publisher = app.channel.publisherFor({ threadId })

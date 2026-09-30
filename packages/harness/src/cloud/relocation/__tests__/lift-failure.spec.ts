@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EExecutionLocation } from '@dltech/atlas-core'
+import { EExecutionLocation, EPlacementMovePhase } from '@dltech/atlas-core'
 import { CloudError, GitCredentialError, VercelNotConfiguredError } from '@dltech/atlas-harness'
 
 import { useAtlasHome } from './descend-fixture'
@@ -22,8 +22,8 @@ describe('a lift that does not finish', () => {
     if (lifted.ok) return
 
     expect(lifted.fault).toBe(ELiftFault.Sandbox)
-    expect(test.located).toEqual([])
-    expect(test.localThreads.chosenLocations).toEqual([])
+    expect(test.placement.of(CLOUD_THREAD)).toBe(EExecutionLocation.Host)
+    expect(test.placement.snapshot(CLOUD_THREAD)?.move).toBeNull()
     expect(test.bridge.attached).toEqual([])
   })
 
@@ -42,7 +42,7 @@ describe('a lift that does not finish', () => {
     expect(lifted.fault).toBe(ELiftFault.Context)
     expect(lifted.step).toBe(ELiftStep.UploadingContext)
     expect(lifted.detail).toContain('the control plane fell over')
-    expect(test.located).toEqual([])
+    expect(test.placement.of(CLOUD_THREAD)).toBe(EExecutionLocation.Host)
     expect(test.bridge.attached).toEqual([])
   })
 
@@ -61,8 +61,8 @@ describe('a lift that does not finish', () => {
     expect(lifted.fault).toBe(ELiftFault.Sandbox)
     expect(lifted.step).toBe(ELiftStep.Starting)
     expect(lifted.detail).toContain('the row would not take the tar')
-    expect(test.located).toEqual([])
-    expect(test.localThreads.chosenLocations).toEqual([])
+    expect(test.placement.of(CLOUD_THREAD)).toBe(EExecutionLocation.Host)
+    expect(test.placement.snapshot(CLOUD_THREAD)?.move).toBeNull()
     expect(test.bridge.attached).toEqual([])
   })
 
@@ -78,7 +78,7 @@ describe('a lift that does not finish', () => {
 
     expect(lifted.step).toBe(ELiftStep.Starting)
     expect(lifted.detail).toContain('never confirmed the transcript landed')
-    expect(test.located).toEqual([])
+    expect(test.placement.of(CLOUD_THREAD)).toBe(EExecutionLocation.Host)
     expect(test.bridge.attached).toEqual([])
   })
 
@@ -130,7 +130,7 @@ describe('a lift that does not finish', () => {
     expect(lifted.fault).toBe(ELiftFault.GitAuth)
     expect(lifted.step).toBe(ELiftStep.Starting)
     expect(lifted.detail).toContain('gh auth login')
-    expect(test.located).toEqual([])
+    expect(test.placement.of(CLOUD_THREAD)).toBe(EExecutionLocation.Host)
   })
 
   it('keeps the real message of a 503 that is not the not-configured one', async () => {
@@ -167,7 +167,7 @@ describe('a lift that does not finish', () => {
     expect(lifted.fault).toBe(ELiftFault.Unreachable)
   })
 
-  it('flips back when the open after attach fails — the conversation never moved', async () => {
+  it('keeps the committed cloud placement when the open after attach fails — the conversation moved', async () => {
     useAtlasHome()
     const test = harness({
       open: async () => {
@@ -181,12 +181,18 @@ describe('a lift that does not finish', () => {
     if (lifted.ok) return
 
     expect(lifted.step).toBe(ELiftStep.Attaching)
-    expect(lifted.rolledBack).toBe(true)
-    expect(test.located).toEqual([EExecutionLocation.Cloud, EExecutionLocation.Host])
-    expect(test.localThreads.chosenLocations).toEqual([
-      { threadId: CLOUD_THREAD, location: EExecutionLocation.Cloud },
-      { threadId: CLOUD_THREAD, location: EExecutionLocation.Host },
-    ])
+    expect(test.placement.of(CLOUD_THREAD)).toBe(EExecutionLocation.Cloud)
+    expect(test.placement.snapshot(CLOUD_THREAD)?.move?.phase).toBe(EPlacementMovePhase.Committed)
+    expect((await test.localThreads.find({ threadId: CLOUD_THREAD }))?.executionLocation).toBe(
+      EExecutionLocation.Cloud,
+    )
+
+    await test.placement.recover({
+      threadId: CLOUD_THREAD,
+      reconcile: async (record) => record.placement,
+    })
+    expect(test.placement.snapshot(CLOUD_THREAD)?.move).toBeNull()
+    expect(test.placement.of(CLOUD_THREAD)).toBe(EExecutionLocation.Cloud)
   })
 
   it('names what the move already closed when it fails after stopping them', async () => {

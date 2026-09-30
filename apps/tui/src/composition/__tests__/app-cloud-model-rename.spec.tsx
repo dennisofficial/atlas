@@ -172,6 +172,37 @@ describe('a conversation that lives in the cloud', () => {
     }
   }, 60_000)
 
+  it('mirrors a sandbox-announced rename into the home store, so a restarted resume resolves it by name', async () => {
+    const app = speaking()
+    const { threadId } = await seedCloudThread(app)
+    const bridge = fakeBridge({ status: RUNNING_STATUS })
+    await bridge.log.append({
+      threadId,
+      runId: toRunId('run-cloud'),
+      drafts: [{ type: 'user-said', text: 'said inside the sandbox' }],
+    })
+    const mounted = await openCloudConversation({ app, bridge })
+
+    try {
+      bridge.channel.pushThreadRenamed({ threadId, title: 'Titled By The Sandbox' })
+
+      expect(
+        await until({
+          holds: async () =>
+            (
+              await app.threads.findNamed({
+                project: FAKE_CONFIG.cwd,
+                handle: 'titled-by-the-sandbox',
+              })
+            )?.id === threadId,
+          within: 10_000,
+        }),
+      ).toBe(true)
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
   it('sends the rename op over the channel when the operator renames', async () => {
     const app = speaking()
     const { threadId } = await seedCloudThread(app)

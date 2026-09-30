@@ -1,4 +1,4 @@
-import type { CallId, ThreadId, Event } from "@dltech/atlas-core";
+import type { CallId, EExecutionLocation, ThreadId, Event } from "@dltech/atlas-core";
 import type {
   ChannelSignal,
   DeltaChannel,
@@ -52,6 +52,7 @@ export type ConversationStore = {
     base: LogAccumulator
     turns?: readonly TurnSpend[] | undefined
   }): void
+  republish(): void
   stampTurn(advance: (progress: TurnProgress) => TurnProgress): void
   supersedeFailure(): void
   resetSteps(): void
@@ -76,6 +77,11 @@ export function createConversationStore(args: {
   paceReveal?: boolean;
   thinking?: EThinkingVisibility;
   name?: string | null;
+  /**
+   * The session's current placement, read live so a lift's divider renders even when the transcript
+   * the store is reading is the sealed archive that predates the lift's own marker.
+   */
+  location?: (() => EExecutionLocation | undefined) | undefined;
   priceOf?: ModelPriceLookup | undefined;
   projectEvents?: ((args: { events: readonly Event[] }) => void) | undefined;
   sandbox?: SandboxStatusSource | undefined;
@@ -92,6 +98,7 @@ export function createConversationStore(args: {
   let turn: TurnClock = IDLE_TURN;
   let gate: RevealGate | null = null;
   let sandbox: SidebarContainer | null = args.sandbox?.current() ?? null;
+  let channelWorking = false;
   let pendingTldr = pendingTldrOf(args.threadId) ?? null;
   let frame: ReturnType<typeof setTimeout> | undefined;
   let queuedRepaint: ReturnType<typeof setTimeout> | undefined;
@@ -100,6 +107,7 @@ export function createConversationStore(args: {
   let durable: {
     events: readonly Event[];
     turns: readonly TurnSpend[];
+    location: EExecutionLocation | undefined;
     entries: TranscriptEntry[];
   } | null = null;
   let projected: readonly Event[] | null = null;
@@ -114,12 +122,18 @@ export function createConversationStore(args: {
   let logSummary = summaryNow();
 
   const durableNow = (): readonly TranscriptEntry[] => {
-    if (durable !== null && durable.events === events && durable.turns === turns) {
+    const location = args.location?.();
+    if (
+      durable !== null &&
+      durable.events === events &&
+      durable.turns === turns &&
+      durable.location === location
+    ) {
       return durable.entries;
     }
 
-    const entries = durableEntries({ events, turns });
-    durable = { events, turns, entries };
+    const entries = durableEntries({ events, turns, location });
+    durable = { events, turns, location, entries };
     return entries;
   };
 
@@ -188,6 +202,7 @@ export function createConversationStore(args: {
         tldrStatus,
         sandbox,
         outputs: tails,
+        working: channelWorking,
       }),
     )
     const nextSidebar = sidebarNow()
@@ -230,6 +245,13 @@ export function createConversationStore(args: {
 
   const handleSignal = (signal: ChannelSignal) => {
     progress = turnObserved({ progress, signal, now: readClock() });
+
+    if (signal.type === "turn-working") {
+      if (signal.working === channelWorking) return;
+      channelWorking = signal.working;
+      repaintNow();
+      return;
+    }
 
     if (signal.type === "events-appended" || signal.type === "retry-cleared") return;
     if (signal.type === "retry-waiting") {
@@ -325,6 +347,10 @@ export function createConversationStore(args: {
 
     getLogSummary() {
       return logSummary;
+    },
+
+    republish() {
+      republish();
     },
 
     stampTurn(advance) {
