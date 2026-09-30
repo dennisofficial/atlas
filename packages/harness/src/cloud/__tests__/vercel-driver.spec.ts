@@ -897,4 +897,41 @@ describe('stop and destroy', () => {
     expect(sandbox.deleted).toBe(true)
     expect(drives.deleted).toEqual([])
   })
+
+  it('waits for the drive to detach before deleting it', async () => {
+    const sandbox = fakeSandbox()
+    const driveName = driveNameFor({ threadId: 'brn_cloud' })
+    const events: string[] = []
+    // Vercel detaches the drive asynchronously once its sandbox is gone. Until the detach has
+    // been observed the drive refuses to delete with a 409, so destroy must wait the detach out
+    // rather than attempt the delete while the drive still reads attached.
+    let listCalls = 0
+    const sdk: DriveSdk = {
+      getOrCreate: async () => fakeDrive(driveName),
+      list: async () => (async function* () {
+        // The detach settles a few polls after the sandbox delete returns.
+        listCalls += 1
+        const attached = !sandbox.deleted || listCalls < 3
+        yield {
+          name: driveName,
+          currentSandboxName: attached ? 'atlas-thread-x' : undefined,
+          delete: async () => {
+            if (attached) {
+              events.push('delete-while-attached')
+              throw new APIError(new Response(null, { status: 409 }), {
+                json: { error: { message: 'Cannot delete a drive that is currently attached to a sandbox.' } },
+              })
+            }
+            events.push('delete-drive')
+          },
+        } as never
+      })(),
+    }
+    const { driver } = driverWith({ get: async () => sandbox }, sdk)
+
+    await driver.destroy({ name: 'x', threadId: 'brn_cloud' })
+
+    expect(sandbox.deleted).toBe(true)
+    expect(events).toEqual(['delete-drive'])
+  })
 })

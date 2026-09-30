@@ -472,10 +472,21 @@ export class VercelDriver {
       if (!isSandboxMissing(failure)) throw asVercelFailure(failure)
     }
     if (args.threadId !== undefined) {
+      const driveName = driveNameFor({ threadId: args.threadId })
+      // Vercel detaches the drive asynchronously after the sandbox delete returns, so delete issued
+      // at once races the detach and lands a 409 `currently attached`. Wait the detach out first;
+      // the delete's own retry covers any lag past the wait budget.
+      await waitForDriveDetached({
+        sdk: this.drives,
+        credentials: this.args.credentials,
+        name: driveName,
+        retry: this.attachLagRetry,
+      })
       await deleteDrive({
         sdk: this.drives,
         credentials: this.args.credentials,
-        name: driveNameFor({ threadId: args.threadId }),
+        name: driveName,
+        retry: this.attachLagRetry,
       })
     }
   }
