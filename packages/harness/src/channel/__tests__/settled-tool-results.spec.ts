@@ -50,6 +50,7 @@ function announcing(inner: DeltaChannel): { channel: DeltaChannel; announced: Ev
           },
           close: (closeArgs) => publisher.close(closeArgs),
           retrying: (notice) => publisher.retrying(notice),
+          turnWorking: (workingArgs) => publisher.turnWorking(workingArgs),
         }
       },
     },

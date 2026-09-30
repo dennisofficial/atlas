@@ -299,6 +299,62 @@ describe('attaching mid-step', () => {
   })
 })
 
+describe('the working state of the turn behind the steps', () => {
+  it('announces a working turn and replays that to a subscriber attaching between steps', () => {
+    const channel = createDeltaChannel()
+    const { seen, listener } = recorder()
+    channel.subscribe({ threadId, listener })
+    const publisher = channel.publisherFor({ threadId })
+
+    publisher.turnWorking({ working: true })
+    publisher.onChunk({ type: 'text-delta', id: 't1', text: 'auth' })
+    publisher.settleAppend({ events: [assistantSaid({ seq: 2, text: 'auth' })] })
+
+    const late = recorder()
+    channel.subscribe({ threadId, listener: late.listener })
+
+    expect(seen[0]).toEqual({ type: 'turn-working', working: true })
+    expect(late.seen).toEqual([{ type: 'turn-working', working: true }])
+    expect(channel.snapshot({ threadId })).toEqual([{ type: 'turn-working', working: true }])
+  })
+
+  it('clears when the turn settles, and stays cleared for a late subscriber', () => {
+    const channel = createDeltaChannel()
+    const { seen, listener } = recorder()
+    channel.subscribe({ threadId, listener })
+    const publisher = channel.publisherFor({ threadId })
+
+    publisher.turnWorking({ working: true })
+    publisher.onChunk({ type: 'text-delta', id: 't1', text: 'auth' })
+    publisher.settleAppend({ events: [assistantSaid({ seq: 2, text: 'auth' })] })
+    publisher.turnWorking({ working: false })
+
+    const late = recorder()
+    channel.subscribe({ threadId, listener: late.listener })
+
+    expect(seen.at(-1)).toEqual({ type: 'turn-working', working: false })
+    expect(late.seen).toEqual([])
+    expect(channel.snapshot({ threadId })).toEqual([])
+  })
+
+  it('says nothing when the state is already the one announced', () => {
+    const channel = createDeltaChannel()
+    const { seen, listener } = recorder()
+    channel.subscribe({ threadId, listener })
+    const publisher = channel.publisherFor({ threadId })
+
+    publisher.turnWorking({ working: true })
+    publisher.turnWorking({ working: true })
+    publisher.turnWorking({ working: false })
+    publisher.turnWorking({ working: false })
+
+    expect(seen).toEqual([
+      { type: 'turn-working', working: true },
+      { type: 'turn-working', working: false },
+    ])
+  })
+})
+
 describe('unsubscribing', () => {
   it('stops delivery without disturbing the other subscribers', () => {
     const channel = createDeltaChannel()

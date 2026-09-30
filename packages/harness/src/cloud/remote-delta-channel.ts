@@ -194,6 +194,7 @@ export function createRemoteDeltaChannel(args: {
   const toolOutputSlots: InFlightSlots = new Map()
   let replay: readonly StepSignal[] | undefined
   let stepId: StepId | undefined
+  let working = false
   let channelCursor: number | null = null
   let attempt = 0
   let reattachments = 0
@@ -249,13 +250,20 @@ export function createRemoteDeltaChannel(args: {
     })
   }
 
+  const WORKING_SIGNAL: StepSignal = Object.freeze({ type: 'turn-working', working: true })
+
   const stableReplay = (): readonly StepSignal[] => {
-    if (inFlight.length === 0) return NOTHING_IN_FLIGHT
-    replay ??= Object.freeze([...inFlight])
+    if (inFlight.length === 0) return working ? [WORKING_SIGNAL] : NOTHING_IN_FLIGHT
+    replay ??= Object.freeze(working ? [WORKING_SIGNAL, ...inFlight] : [...inFlight])
     return replay
   }
 
   const absorb = (signal: ChannelSignal) => {
+    if (signal.type === 'turn-working') {
+      working = signal.working
+      replay = undefined
+      return
+    }
     if (signal.type === 'step-started') {
       stepId = signal.stepId
       inFlight = [signal]

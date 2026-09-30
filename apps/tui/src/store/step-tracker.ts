@@ -53,7 +53,7 @@ export function createStepTracker(): StepTracker {
   return {
     absorb(signal) {
       // A tool runs between steps, so its output is keyed by call and lives outside this tracker.
-      if (signal.type === 'tool-output') return
+      if (signal.type === 'tool-output' || signal.type === 'turn-working') return
 
       const step = stepFor(signal.stepId)
 

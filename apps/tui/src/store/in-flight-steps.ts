@@ -170,7 +170,8 @@ export function withoutFailedTail(args: {
   if (tail === undefined || tail.end !== EStepEnd.Failed) return args.signals
 
   return args.signals.filter(
-    (signal) => signal.type === 'tool-output' || signal.stepId !== tail.stepId,
+    (signal) =>
+      signal.type === 'tool-output' || signal.type === 'turn-working' || signal.stepId !== tail.stepId,
   )
 }
 
@@ -181,7 +182,8 @@ export function prunedSignals(args: {
   const live = liveSteps({ steps: stepsOfSignals(args.signals), events: args.events })
   const rendered = new Set(live.map((step) => step.stepId))
   const kept = args.signals.filter(
-    (signal) => signal.type === 'tool-output' || rendered.has(signal.stepId),
+    (signal) =>
+      signal.type === 'tool-output' || signal.type === 'turn-working' || rendered.has(signal.stepId),
   )
 
   return kept.length === args.signals.length ? args.signals : kept
@@ -202,7 +204,7 @@ export function stepsOfSignals(signals: readonly StepSignal[]): InFlightStep[] {
   }
 
   for (const signal of signals) {
-    if (signal.type === 'tool-output') continue
+    if (signal.type === 'tool-output' || signal.type === 'turn-working') continue
 
     const step = stepFor(signal.stepId)
 

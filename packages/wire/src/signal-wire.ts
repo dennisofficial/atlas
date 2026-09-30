@@ -111,6 +111,7 @@ const stepIdWireSchema = z.string().min(1).brand<'StepId'>()
 const eventRefWireSchema = z.object({ eventId: eventIdWireSchema, seq: z.number().int() })
 
 export const channelSignalSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('turn-working'), working: z.boolean() }),
   z.object({ type: z.literal('step-started'), stepId: stepIdWireSchema }),
   z.object({ type: z.literal('chunk'), stepId: stepIdWireSchema, chunk: chunkWireSchema }),
   z.object({
