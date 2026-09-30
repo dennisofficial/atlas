@@ -20,9 +20,9 @@ export type RegisterSandboxArgs = {
 }
 
 export async function registerSandbox(
-  cipher: SecretCipherService,
-  args: RegisterSandboxArgs,
+  args: RegisterSandboxArgs & { cipher: SecretCipherService },
 ): Promise<SandboxAttachmentDto> {
+  const { cipher } = args
   assertClientTokenShape(args.clientToken)
   if (args.serveUrl === undefined) throw new BadRequestException('serveUrl is required')
   assertPublicServeUrl(args.serveUrl)

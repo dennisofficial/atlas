@@ -122,7 +122,7 @@ export class SandboxesService {
    * Re-registration is idempotent — the stored token never rotates under the client that issued it.
    */
   private register(args: RegisterSandboxArgs): Promise<SandboxAttachmentDto> {
-    return registerSandbox(this.cipher, args)
+    return registerSandbox({ ...args, cipher: this.cipher })
   }
 
   runningEndpoint(args: {
