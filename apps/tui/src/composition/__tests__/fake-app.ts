@@ -853,6 +853,7 @@ export function fakeApp(args: {
     pluginSurfaces: [],
     pullRequests: args.pullRequests ?? null,
     mcp: () => [],
+    mcpSignIn: undefined,
     threadOpened: async ({ projectDirectory }) => {
       openedDirectories.push(projectDirectory)
     },

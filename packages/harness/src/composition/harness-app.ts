@@ -111,6 +111,10 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   skillRegistry: SkillRegistryPort
   agentTypes: AgentTypeCatalog
   mcp: () => readonly McpServerStatus[]
+  /** Runs the browser sign-in for a server that answered 401; undefined when there is no secrets store. */
+  mcpSignIn:
+    | ((args: { serverName: string }) => Promise<{ ok: boolean; detail: string }>)
+    | undefined
   threadOpened: (args: { threadId: ThreadId; projectDirectory: string }) => Promise<void>
   journalResume: (args: { active: ActiveConversation; directory: string }) => void
   /** A cloud lift's context capture with the session's notice port already bound in. */

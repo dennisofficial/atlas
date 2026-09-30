@@ -10,6 +10,20 @@ export {
 export { McpInstructionsHook } from './instructions/instructions-hook'
 export { registerMcp, type RegisteredMcp } from './registry/register-mcp'
 export {
+  EMcpAuthOutcome,
+  McpOAuthFlow,
+  type McpAuthResult,
+  type McpOAuthFlowDeps,
+} from './oauth/flow'
+export {
+  McpOAuthStore,
+  type McpOAuthClientInfo,
+  type McpOAuthEntry,
+  type McpOAuthTokens,
+} from './oauth/token-store'
+export { OAuthCallbackServer } from './oauth/callback-server'
+export { McpUnauthorizedError, type McpAuthProvider } from './transport'
+export {
   HttpTransport,
   StdioTransport,
   asRecord,

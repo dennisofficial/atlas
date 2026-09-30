@@ -5,12 +5,14 @@ export enum EMcpServerStatus {
   Connected = 'connected',
   Failed = 'failed',
   Disabled = 'disabled',
+  NeedsAuth = 'needs-auth',
 }
 
 export type McpHandleState =
   | { status: EMcpServerStatus.Connected }
   | { status: EMcpServerStatus.Failed; error: string }
   | { status: EMcpServerStatus.Disabled }
+  | { status: EMcpServerStatus.NeedsAuth }
 
 export type McpHandle = {
   spec: LoadedMcpSpec
