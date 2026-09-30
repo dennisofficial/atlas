@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import React from 'react'
 import { testRender } from '@opentui/react/test-utils'
@@ -7,12 +7,18 @@ import { EExecutionLocation, ESettingId, type SettingsDocument } from '@dltech/a
 import { ESandboxState, EShellStatus, toShellId, type ShellSnapshot } from '@dltech/atlas-harness'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
+import { dismissNotice } from '../../ui/notice-store'
 import { App } from '../app'
 import type { OpenedConversation } from '../open-conversation'
 import { open, promiseGate, spokenIn, spokenInRow, until, REPLY, THREAD, THINKING } from './app-fixture'
 import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
 await grammarsReady()
+
+// Notices live in a module-level store, and a failed move posts a warn notice that outlives its
+// own test by seconds — the host-footer assertion below would otherwise read another spec's
+// 'the move to docker failed' warning.
+afterEach(() => dismissNotice())
 
 const WITHIN_MS = 20_000
 
@@ -46,10 +52,22 @@ describe('the container command', () => {
     try {
       await switchTo(mounted, 'docker')
 
+      expect(app.executionLocation.current()).toBe(EExecutionLocation.Docker)
+
+      const settled = await until({
+        holds: async () => app.threads.chosenLocations.length === 4,
+        within: WITHIN_MS,
+      })
+
+      // One durable write per move phase: the recorded intent, the relocation flip, the commit,
+      // the cleared record — where there used to be the single legacy column flip.
+      expect(settled).toBe(true)
       expect(app.threads.chosenLocations).toEqual([
+        { threadId: THREAD, location: EExecutionLocation.Host },
+        { threadId: THREAD, location: EExecutionLocation.Docker },
+        { threadId: THREAD, location: EExecutionLocation.Docker },
         { threadId: THREAD, location: EExecutionLocation.Docker },
       ])
-      expect(app.executionLocation.current()).toBe(EExecutionLocation.Docker)
     } finally {
       await mounted.done()
     }
@@ -108,7 +126,18 @@ describe('the container command', () => {
     try {
       await switchTo(mounted, 'docker')
 
-      expect(app.threads.chosenLocations).toEqual([])
+      const settled = await until({
+        holds: async () => app.threads.chosenLocations.length === 4,
+        within: WITHIN_MS,
+      })
+
+      expect(settled).toBe(true)
+      expect(app.threads.chosenLocations).toEqual([
+        { threadId: THREAD, location: EExecutionLocation.Host },
+        { threadId: THREAD, location: EExecutionLocation.Docker },
+        { threadId: THREAD, location: EExecutionLocation.Docker },
+        { threadId: THREAD, location: EExecutionLocation.Docker },
+      ])
       expect(app.executionLocation.current()).toBe(EExecutionLocation.Docker)
 
       await mounted.typeText('take the linter to zero')
@@ -120,7 +149,6 @@ describe('the container command', () => {
       })
 
       expect(landed).toBe(true)
-      expect(app.threads.chosenLocations).toEqual([])
       expect(app.threads.peekRow({ threadId: THREAD })?.executionLocation).toBe(
         EExecutionLocation.Docker,
       )
