@@ -3,7 +3,7 @@ import {
   ESinkLevel,
   ESinkSource,
   consoleTextOf,
-  isLowSignalSinkText,
+  sinkNoticeText,
   severityOfSink,
   truncateSinkText,
   warningTextOf,
@@ -11,10 +11,9 @@ import {
 } from '@dltech/atlas-core'
 
 import type { JsonlLog } from '@dltech/atlas-harness'
-import { ENoticeTone, notify } from '../ui/notice-store'
+import { currentNotices, ENoticeTone, notify } from '../ui/notice-store'
 
-const LOW_SIGNAL_NOTICE_KEY = 'package-noise'
-const LOW_SIGNAL_NOTICE_MS = 60_000
+const PACKAGE_WARNING_TTL_MS = 15_000
 
 const SEVERITY_OF = {
   info: ELogSeverity.Info,
@@ -35,20 +34,8 @@ export type OutputRedirect = {
   readonly restore: () => void
 }
 
-/**
- * Blanket capture of everything a package can throw at the terminal: console.*, process warnings
- * (Node's default warning printer writes raw to stderr, which is what scribbles over the
- * renderer), and stray stdout/stderr writes. Every entry lands in the op log; a flood reads as
- * one throttled notice instead of a destroyed frame. Hooked from boot onward, passthrough, so
- * Atlas's own pre-renderer prints (launch line, boot failures, resume hints) still reach the
- * terminal — the sink skips control sequences and only records real text.
- *
- * OpenTUI's debug console replaces global.console wholesale when its overlay opens; that is an
- * operator action and it restores on close, so this capture simply pauses underneath it.
- */
 export function installOutputRedirect(args: { log: JsonlLog }): OutputRedirect {
-  let lowSignalCount = 0
-  let lowSignalNoticeAt = 0
+  const warningCounts = new Map<string, number>()
   let noticesEnabled = false
 
   const entry = (next: SinkEntry): void => {
@@ -63,23 +50,24 @@ export function installOutputRedirect(args: { log: JsonlLog }): OutputRedirect {
     if (severity === ELogSeverity.Info) return
     if (!noticesEnabled) return
 
-    if (isLowSignalSinkText(next.text)) {
-      lowSignalCount += 1
-      const now = Date.now()
-      if (now - lowSignalNoticeAt < LOW_SIGNAL_NOTICE_MS) return
-      lowSignalNoticeAt = now
-      notify({
-        text: `${lowSignalCount} package warnings hidden — see logs.jsonl`,
-        tone: ENoticeTone.Warn,
-        key: LOW_SIGNAL_NOTICE_KEY,
-      })
-      lowSignalCount = 0
-      return
+    const preview = sinkNoticeText({ text: next.text })
+    const key = `package-warning:${preview}`
+    const active = new Set(
+      currentNotices()
+        .filter((notice) => notice.ttlMs === null || notice.issuedAtMs + notice.ttlMs > Date.now())
+        .map((notice) => notice.key),
+    )
+    for (const held of warningCounts.keys()) {
+      if (!active.has(held)) warningCounts.delete(held)
     }
+    const count = (warningCounts.get(key) ?? 0) + 1
+    warningCounts.set(key, count)
 
     notify({
-      text: `package warning: ${truncateSinkText({ text: next.text })}`,
+      text: `package warning: ${preview}${count > 1 ? ` (${count} occurrences)` : ''} — see logs.jsonl`,
       tone: ENoticeTone.Warn,
+      key,
+      ttlMs: PACKAGE_WARNING_TTL_MS,
     })
   }
 
@@ -155,9 +143,6 @@ export function installOutputRedirect(args: { log: JsonlLog }): OutputRedirect {
   }
 }
 
-// Frame output is ANSI escape sequences (ESC) plus box-drawing; a stray package line is plain
-// words. Skipping anything carrying ESC keeps frame traffic out of the log without having to
-// know which writes belong to the renderer.
 const ANSI_ESCAPE = '\u001b'
 
 function isLoggableStreamText({ text }: { text: string }): boolean {

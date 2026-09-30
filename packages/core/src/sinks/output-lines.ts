@@ -22,13 +22,14 @@ export const CONSOLE_ARG_LIMIT = 8
 
 export const SINK_TEXT_LIMIT = 2_000
 
-// The AI SDK prints both forms of a Node warning: the hooked emitWarning path renders
-// "[Warning] AI SDK Warning (...)", while the same warning written straight to stderr carries
-// Node's "(node:<pid>) Warning:" prefix.
-const LOW_SIGNAL_PATTERN = /^(\(node:\d+\) Warning:|\[Warning\]) AI SDK Warning/
+export const SINK_NOTICE_TEXT_LIMIT = 240
 
-export function isLowSignalSinkText(text: string): boolean {
-  return LOW_SIGNAL_PATTERN.test(text)
+export function sinkNoticeText({ text }: { text: string }): string {
+  const payloadAt = text.indexOf('Skipping reasoning part:')
+  const preview = (payloadAt < 0 ? text : text.slice(0, payloadAt)).replaceAll(/\s+/g, ' ').trim()
+  const truncated = preview.length > SINK_NOTICE_TEXT_LIMIT
+  if (truncated) return `${preview.slice(0, SINK_NOTICE_TEXT_LIMIT)}…`
+  return `${preview}${payloadAt >= 0 ? ' …' : ''}`
 }
 
 export function truncateSinkText({ text }: { text: string }): string {
