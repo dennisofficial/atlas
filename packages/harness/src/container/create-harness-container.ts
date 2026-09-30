@@ -116,6 +116,9 @@ function registerAgents({ container }: { container: DependencyContainer }): void
         clock: resolver.resolve(portToken(ClockPort)),
         agentTypes: resolver.resolve(AgentTypesToken),
         runners: childRunnerSource({ deps: () => resolver.resolve(ChildRunnerDepsToken)() }),
+        modelAtSpawn: async (args) => resolver.isRegistered(ChildRunnerDepsToken, true)
+          ? resolver.resolve(ChildRunnerDepsToken)().modelAtSpawn?.(args)
+          : undefined,
         launchDirectory: resolver.resolve(WorkspaceRoot),
         sink: resolver.resolve(portToken(ExecutionLocationSinkPort)),
         telemetry: resolver.resolve(portToken(TelemetryPort)),

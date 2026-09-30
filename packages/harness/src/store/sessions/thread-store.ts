@@ -50,6 +50,7 @@ type CreateArgs = {
   agent?: SupervisedAgent | undefined
   id?: ThreadId | undefined
   executionLocation?: EExecutionLocation | undefined
+  model?: ThreadModel | undefined
 }
 
 type MarkArgs = { threadId: ThreadId; anchor: ECompactionAnchor; fromSeq: number; throughSeq: number; summary: string }
@@ -150,7 +151,15 @@ export class JsonlThreadStore implements ThreadStorePort {
   async chooseModel({ threadId, model }: { threadId: ThreadId; model: ThreadModel }): Promise<void> {
     const sessionDir = await this.registry.sessionDirOf({ threadId })
     if (sessionDir === undefined) return
-    await this.updateMeta({ threadId, change: (meta) => ({ ...meta, modelRef: model.ref, modelEffort: model.effort }) })
+    await this.updateMeta({
+      threadId,
+      change: (meta) => {
+        const frozen = meta.spawnerThreadId !== null && meta.modelRef !== null && meta.modelEffort !== null
+        if (frozen && (meta.modelRef !== model.ref || meta.modelEffort !== model.effort))
+          throw new Error(`child ${threadId} keeps the model and effort it was spawned with`)
+        return { ...meta, modelRef: model.ref, modelEffort: model.effort }
+      },
+    })
     for (const listener of [...this.modelChosenListeners]) listener({ threadId, model })
   }
 
@@ -325,6 +334,10 @@ export class JsonlThreadStore implements ThreadStorePort {
     if (fields.workspace !== undefined) meta.workspace = fields.workspace
     if (fields.repo !== undefined) meta.repo = fields.repo
     if (fields.executionLocation !== undefined) meta.executionLocation = fields.executionLocation
+    if (fields.model !== undefined) {
+      meta.modelRef = fields.model.ref
+      meta.modelEffort = fields.model.effort
+    }
     if (fields.agent !== undefined) {
       meta.spawnerThreadId = fields.agent.spawnedBy
       meta.agentType = fields.agent.type

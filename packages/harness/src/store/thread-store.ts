@@ -60,6 +60,7 @@ export abstract class ThreadStorePort {
     /** Caller-chosen id, for a stub that shadows a thread another store already owns; generated when absent. */
     id?: ThreadId | undefined
     executionLocation?: EExecutionLocation | undefined
+    model?: ThreadModel | undefined
   }): Promise<ThreadSummary>
   abstract createWithFirstEvents(
     args: OpenThreadArgs,
