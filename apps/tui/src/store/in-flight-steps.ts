@@ -12,6 +12,12 @@ import type { LiveToolCall } from './tool-runs'
 
 export type StepBlock = { id: string; kind: EBlockKind; text: string }
 
+// Tool output keys by call and turn-working keys by neither — both stand outside any one step.
+export const stepKeyed = (
+  signal: StepSignal,
+): signal is Exclude<StepSignal, { type: 'tool-output' } | { type: 'turn-working' }> =>
+  signal.type !== 'tool-output' && signal.type !== 'turn-working'
+
 export const runKey = (args: { stepId: StepId; kind: EBlockKind; id: string }): string =>
   `${args.stepId}:${args.kind}:${args.id}`
 
@@ -170,8 +176,7 @@ export function withoutFailedTail(args: {
   if (tail === undefined || tail.end !== EStepEnd.Failed) return args.signals
 
   return args.signals.filter(
-    (signal) =>
-      signal.type === 'tool-output' || signal.type === 'turn-working' || signal.stepId !== tail.stepId,
+    (signal) => !stepKeyed(signal) || signal.stepId !== tail.stepId,
   )
 }
 
@@ -182,8 +187,7 @@ export function prunedSignals(args: {
   const live = liveSteps({ steps: stepsOfSignals(args.signals), events: args.events })
   const rendered = new Set(live.map((step) => step.stepId))
   const kept = args.signals.filter(
-    (signal) =>
-      signal.type === 'tool-output' || signal.type === 'turn-working' || rendered.has(signal.stepId),
+    (signal) => !stepKeyed(signal) || rendered.has(signal.stepId),
   )
 
   return kept.length === args.signals.length ? args.signals : kept
@@ -204,7 +208,7 @@ export function stepsOfSignals(signals: readonly StepSignal[]): InFlightStep[] {
   }
 
   for (const signal of signals) {
-    if (signal.type === 'tool-output' || signal.type === 'turn-working') continue
+    if (!stepKeyed(signal)) continue
 
     const step = stepFor(signal.stepId)
 
