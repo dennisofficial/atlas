@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { MockLanguageModelV4 } from 'ai/test'
+import { APICallError } from '@ai-sdk/provider'
 
 import {
   DEFAULT_RETRY_POLICY,
@@ -32,6 +33,7 @@ class UnansweredModel extends ModelPort {
   }
 
   async step({ signal }: { signal: AbortSignal }): Promise<ModelStepResult> {
+    const ttfbMs = this.calls < this.failures ? 25 : 5_000
     const model = new MockLanguageModelV4({
       doStream: async ({ abortSignal }) => {
         this.calls += 1
@@ -57,7 +59,7 @@ class UnansweredModel extends ModelPort {
       prompt,
       tools: [],
       signal,
-      streamTimeout: { ...DEFAULT_STREAM_TIMEOUT, ttfbMs: 25 },
+      streamTimeout: { ...DEFAULT_STREAM_TIMEOUT, ttfbMs },
     })
   }
 }
@@ -105,6 +107,32 @@ describe('default cadence for unanswered provider requests', () => {
     expect(slept).toEqual([1_000, 2_000, 4_000, 8_000])
     expect(notices.map((notice) => notice.reason)).toEqual(Array(4).fill(ERetryReason.Network))
     expect(notices.map((notice) => notice.maxAttempts)).toEqual([5, 5, 5, 5])
+  })
+
+  it('honors a provider cooldown through classification and the default retry loop', async () => {
+    const { model, slept, notices, run } = retrying({ failures: 0 })
+    const answer = model.step.bind(model)
+    let calls = 0
+    model.step = async (args) => {
+      calls += 1
+      if (calls === 1) {
+        throw new APICallError({
+          message: 'rate limited',
+          url: 'https://provider.test',
+          requestBodyValues: {},
+          statusCode: 429,
+          responseHeaders: { 'retry-after': '45' },
+        })
+      }
+      return answer(args)
+    }
+
+    const result = await run()
+
+    expect(result.ok).toBe(true)
+    expect(calls).toBe(2)
+    expect(slept).toEqual([45_000])
+    expect(notices[0]).toMatchObject({ reason: ERetryReason.RateLimited, delayMs: 45_000 })
   })
 
   it('returns a recovered response instead of exhausting the remaining attempts', async () => {
