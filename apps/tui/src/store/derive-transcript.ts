@@ -1,4 +1,4 @@
-import { EBlockKind, type CallId, type Event } from '@dltech/atlas-core'
+import { EBlockKind, type CallId, type EExecutionLocation, type Event } from '@dltech/atlas-core'
 import { ESandboxState, EStepEnd, type StepSignal, type TurnSpend } from '@dltech/atlas-harness'
 
 import { durableEntries } from './durable-entries'
@@ -180,6 +180,7 @@ export function deriveTranscript(args: {
   events: readonly Event[]
   signals: readonly StepSignal[]
   turns?: readonly TurnSpend[] | undefined
+  location?: EExecutionLocation | undefined
   reveal?: RevealGate | null
   thinking?: EThinkingVisibility
   pendingTldr?: { anchorSeq: number; text: string } | null | undefined
@@ -188,7 +189,7 @@ export function deriveTranscript(args: {
   outputs?: ReadonlyMap<CallId, string> | undefined
 }): TranscriptModel {
   return assembleTranscript({
-    durable: durableEntries({ events: args.events, turns: args.turns }),
+    durable: durableEntries({ events: args.events, turns: args.turns, location: args.location }),
     live: liveSteps({ steps: stepsOfSignals(args.signals), events: args.events }),
     ...(args.reveal === undefined ? {} : { reveal: args.reveal }),
     ...(args.thinking === undefined ? {} : { thinking: args.thinking }),

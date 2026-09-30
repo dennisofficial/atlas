@@ -1,4 +1,4 @@
-import type { CallId, ThreadId, Event } from "@dltech/atlas-core";
+import type { CallId, EExecutionLocation, ThreadId, Event } from "@dltech/atlas-core";
 import type {
   ChannelSignal,
   DeltaChannel,
@@ -52,6 +52,7 @@ export type ConversationStore = {
     base: LogAccumulator
     turns?: readonly TurnSpend[] | undefined
   }): void
+  republish(): void
   stampTurn(advance: (progress: TurnProgress) => TurnProgress): void
   supersedeFailure(): void
   resetSteps(): void
@@ -76,6 +77,11 @@ export function createConversationStore(args: {
   paceReveal?: boolean;
   thinking?: EThinkingVisibility;
   name?: string | null;
+  /**
+   * The session's current placement, read live so a lift's divider renders even when the transcript
+   * the store is reading is the sealed archive that predates the lift's own marker.
+   */
+  location?: (() => EExecutionLocation | undefined) | undefined;
   priceOf?: ModelPriceLookup | undefined;
   projectEvents?: ((args: { events: readonly Event[] }) => void) | undefined;
   sandbox?: SandboxStatusSource | undefined;
@@ -100,6 +106,7 @@ export function createConversationStore(args: {
   let durable: {
     events: readonly Event[];
     turns: readonly TurnSpend[];
+    location: EExecutionLocation | undefined;
     entries: TranscriptEntry[];
   } | null = null;
   let projected: readonly Event[] | null = null;
@@ -114,12 +121,18 @@ export function createConversationStore(args: {
   let logSummary = summaryNow();
 
   const durableNow = (): readonly TranscriptEntry[] => {
-    if (durable !== null && durable.events === events && durable.turns === turns) {
+    const location = args.location?.();
+    if (
+      durable !== null &&
+      durable.events === events &&
+      durable.turns === turns &&
+      durable.location === location
+    ) {
       return durable.entries;
     }
 
-    const entries = durableEntries({ events, turns });
-    durable = { events, turns, entries };
+    const entries = durableEntries({ events, turns, location });
+    durable = { events, turns, location, entries };
     return entries;
   };
 
@@ -325,6 +338,10 @@ export function createConversationStore(args: {
 
     getLogSummary() {
       return logSummary;
+    },
+
+    republish() {
+      republish();
     },
 
     stampTurn(advance) {
