@@ -157,6 +157,7 @@ const benchApp = (args: {
     captureContext: async () => undefined,
     pullRequests: null,
     mcp: () => [],
+    mcpSignIn: undefined,
     threadOpened: async () => {},
     sandbox: { noteBash: () => {}, stop: async () => false },
     containerStatus: createSandboxStatusState({ image: 'unused', label: 'unused' }),

@@ -20,12 +20,33 @@ const ACCEPTED = 'application/json, text/event-stream'
 const JSON_TYPE = 'application/json'
 const SSE_TYPE = 'text/event-stream'
 
+/**
+ * The transport's view of OAuth: supply a bearer token when one is held, and observe a 401 so the
+ * owner can mark the server as needing sign-in. The transport never starts a browser flow itself.
+ */
+export interface McpAuthProvider {
+  bearerToken(): Promise<string | undefined>
+  onUnauthorized(args: { wwwAuthenticate: string | undefined }): void
+}
+
+/** Distinguishes a 401 (the server wants sign-in) from any other failure, for the status map. */
+export class McpUnauthorizedError extends Error {
+  constructor() {
+    super('the server answered 401 Unauthorized')
+    this.name = 'McpUnauthorizedError'
+  }
+}
+
 export class HttpTransport implements ServerTransport {
   private session: string | undefined
   private nextId = 1
   private closed = false
+  private bearer: string | undefined
 
-  constructor(private readonly spec: HttpTransportSpec) {}
+  constructor(
+    private readonly spec: HttpTransportSpec,
+    private readonly auth?: McpAuthProvider,
+  ) {}
 
   connect(): Promise<McpCapabilities> {
     if (this.closed) return Promise.reject(new Error('the transport is closed'))
@@ -76,11 +97,14 @@ export class HttpTransport implements ServerTransport {
       'content-type': JSON_TYPE,
       accept: args.accept,
       ...(this.session !== undefined ? { 'mcp-session-id': this.session } : {}),
+      ...(this.bearer !== undefined ? { authorization: `Bearer ${this.bearer}` } : {}),
     }
   }
 
   private async request(args: { method: string; params?: McpJson }): Promise<McpJson | undefined> {
     if (this.closed) return Promise.reject(new Error('the transport is closed'))
+    this.bearer = await this.auth?.bearerToken()
+
     const id = String(this.nextId++)
     const body = JSON.stringify({ jsonrpc: '2.0', id, ...args } as JsonRpcMessage)
 
@@ -94,6 +118,12 @@ export class HttpTransport implements ServerTransport {
     const sessionId = response.headers.get('mcp-session-id')
     if (sessionId !== null) this.session = sessionId
 
+    if (response.status === 401) {
+      this.auth?.onUnauthorized({
+        wwwAuthenticate: response.headers.get('www-authenticate') ?? undefined,
+      })
+      throw new McpUnauthorizedError()
+    }
     if (!response.ok) {
       throw new Error(`http ${response.status}: ${await response.text()}`)
     }

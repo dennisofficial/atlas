@@ -1546,6 +1546,10 @@ function Workspace(props: {
         onRename: conversation.handleRename,
         onReloadSkills: handleReloadSkills,
         onShowMcp: () => mcpReport({ servers: props.app.mcp() }),
+        onMcpSignIn:
+          props.app.mcpSignIn === undefined
+            ? null
+            : async (serverName: string) => (await props.app.mcpSignIn!({ serverName })).detail,
         onRestart: props.onRestart === null ? null : handleRestart,
         onQuit: handleQuit,
       }),

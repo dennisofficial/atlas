@@ -1,13 +1,21 @@
 import { DynamicToolSource, type ToolDeclaration, type ToolDefinition } from '@dltech/atlas-core'
 
 import type { LoadedMcpSpec } from '../config'
+import type { McpOAuthFlow } from '../oauth/flow'
 import {
   EMcpServerStatus,
   type McpHandle,
   type McpHandleState,
   type McpServerStatus,
 } from '../registry/handle-status'
-import { HttpTransport, StdioTransport, type McpToolInfo, type ServerTransport } from '../transport'
+import {
+  HttpTransport,
+  McpUnauthorizedError,
+  StdioTransport,
+  type McpAuthProvider,
+  type McpToolInfo,
+  type ServerTransport,
+} from '../transport'
 import { McpBridgeTool } from './bridge-tool'
 
 export const CONNECT_TIMEOUT_MS = 30_000
@@ -18,6 +26,28 @@ const transportOf = (spec: LoadedMcpSpec): ServerTransport => {
   if (spec.transport?.kind === 'http') return new HttpTransport(spec.transport)
   if (spec.transport?.kind === 'stdio') return new StdioTransport(spec.transport)
   return new NeverConnects()
+}
+
+/**
+ * Per-server OAuth plumbing: feeds the transport a bearer token and remembers the WWW-Authenticate
+ * challenge from the last 401 so a later sign-in can resume with the server's requested scope.
+ */
+class ServerAuth implements McpAuthProvider {
+  private challenge: string | undefined
+
+  constructor(private readonly args: { serverUrl: string; flow: McpOAuthFlow }) {}
+
+  async bearerToken(): Promise<string | undefined> {
+    return this.args.flow.currentToken({ serverUrl: this.args.serverUrl })
+  }
+
+  onUnauthorized(args: { wwwAuthenticate: string | undefined }): void {
+    this.challenge = args.wwwAuthenticate
+  }
+
+  lastChallenge(): string | undefined {
+    return this.challenge
+  }
 }
 
 class NeverConnects implements ServerTransport {
@@ -50,19 +80,23 @@ export type ConnectedHandle = {
 
 export class HandleStore extends DynamicToolSource {
   private readonly handles = new Map<string, ConnectedHandle>()
+  private readonly auths = new Map<string, ServerAuth>()
   private readonly specs: readonly LoadedMcpSpec[]
   private readonly connectTimeoutMs: number
   private readonly factory: McpTransportFactory
+  private readonly authFlow: McpOAuthFlow | undefined
 
   constructor(args: {
     specs: readonly LoadedMcpSpec[]
     transportFactory?: McpTransportFactory
     connectTimeoutMs?: number
+    authFlow?: McpOAuthFlow
   }) {
     super()
     this.specs = args.specs
-    this.factory = args.transportFactory ?? transportOf
+    this.factory = args.transportFactory ?? ((spec) => transportOf(spec))
     this.connectTimeoutMs = args.connectTimeoutMs ?? CONNECT_TIMEOUT_MS
+    this.authFlow = args.authFlow
   }
 
   statusOf(args: { serverId: string }): McpHandle | undefined {
@@ -91,6 +125,16 @@ export class HandleStore extends DynamicToolSource {
         this.handles.set(spec.name, opened)
       }),
     )
+  }
+
+  /** Re-opens a server, closing its prior transport — used after a sign-in stores a fresh token. */
+  async reconnect(args: { serverId: string }): Promise<void> {
+    const spec = this.specs.find((candidate) => candidate.name === args.serverId)
+    if (spec === undefined) return
+    const prior = this.handles.get(args.serverId)
+    if (prior !== undefined) await prior.handle.transport.close().catch(() => undefined)
+    this.auths.delete(args.serverId)
+    this.handles.set(args.serverId, await this.open(spec))
   }
 
   declarations(): readonly ToolDeclaration[] {
@@ -136,7 +180,7 @@ export class HandleStore extends DynamicToolSource {
   }
 
   private async open(spec: LoadedMcpSpec): Promise<ConnectedHandle> {
-    const transport = this.factory(spec)
+    const transport = this.transportFor(spec)
 
     if (spec.disabled === true) {
       return {
@@ -168,11 +212,26 @@ export class HandleStore extends DynamicToolSource {
           spec,
           transport,
           capabilities: undefined,
-          state: failedStateOf(error),
+          state:
+            error instanceof McpUnauthorizedError
+              ? { status: EMcpServerStatus.NeedsAuth }
+              : failedStateOf(error),
         },
         tools: [],
       }
     }
+  }
+
+  private transportFor(spec: LoadedMcpSpec): ServerTransport {
+    if (spec.transport?.kind !== 'http' || this.authFlow === undefined) return this.factory(spec)
+    const auth = new ServerAuth({ serverUrl: spec.transport.url, flow: this.authFlow })
+    this.auths.set(spec.name, auth)
+    return new HttpTransport(spec.transport, auth)
+  }
+
+  /** The WWW-Authenticate challenge a server last answered 401 with, to seed a sign-in's scope. */
+  challengeOf(args: { serverId: string }): string | undefined {
+    return this.auths.get(args.serverId)?.lastChallenge()
   }
 
   private withTimeout<T>(promise: Promise<T>): Promise<T> {

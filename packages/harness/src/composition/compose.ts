@@ -50,6 +50,7 @@ import { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import { summaryFor } from '../model/summariser'
 import { titleFor } from '../model/titler'
 import { CloudError } from '../cloud/cloud-transport'
+import { EMcpAuthOutcome } from '../mcp/oauth/flow'
 import { registerMcp } from '../mcp/registry/register-mcp'
 import { createPendingQueues } from '../pending'
 import { registerBuiltinPromptFragments } from '../prompt/register-prompt-fragments'
@@ -148,6 +149,31 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
       text: mcpRejectionNotice(rejection),
     })
   }
+
+  const mcpSignIn =
+    mcp.signIn === undefined
+      ? undefined
+      : async (signInArgs: { serverName: string }): Promise<{ ok: boolean; detail: string }> => {
+          const status = mcp.store.servers().find((server) => server.spec.name === signInArgs.serverName)
+          if (status === undefined)
+            return { ok: false, detail: `no MCP server named '${signInArgs.serverName}' is configured` }
+          if (status.spec.transport?.kind !== 'http')
+            return { ok: false, detail: `'${signInArgs.serverName}' is not an HTTP server, so it has no OAuth sign-in` }
+
+          const challenge = mcp.store.challengeOf({ serverId: signInArgs.serverName })
+          const result = await mcp.signIn!({
+            serverUrl: status.spec.transport.url,
+            ...(challenge === undefined ? {} : { wwwAuthenticate: challenge }),
+          })
+
+          if (result.outcome === EMcpAuthOutcome.NeedsClientRegistration)
+            return { ok: false, detail: `'${signInArgs.serverName}' does not support OAuth sign-in: ${result.reason}` }
+
+          // The stored token only reaches the loop on a fresh connect, so reopen the server now.
+          await mcp.store.reconnect({ serverId: signInArgs.serverName })
+          const verb = result.outcome === EMcpAuthOutcome.Refreshed ? 'refreshed the token for' : 'signed in to'
+          return { ok: true, detail: `${verb} '${signInArgs.serverName}'` }
+        }
 
   const settings = args.settings.service
   const settled = settings.snapshot().resolution
@@ -441,6 +467,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     sandbox,
     containerStatus,
     mcp: () => mcp.store.servers(),
+    mcpSignIn,
     threadOpened: threadOpenedHandler({ container, log, threads, ids, notice }),
     journalResume: ({ active, directory }) =>
       journalResume({ active, command: launch.command, directory }),

@@ -80,6 +80,7 @@ export type LocalCommandHandlers = {
   onRename: (argumentText: string) => Promise<Renaming>
   onReloadSkills: () => Promise<SkillsReloaded>
   onShowMcp: () => string
+  onMcpSignIn: ((serverName: string) => Promise<string>) | null
   onRestart: (() => void) | null
   onQuit: () => void
 }
@@ -298,11 +299,25 @@ export function localCommands(handlers: LocalCommandHandlers): readonly LocalCom
         ]),
     local({
       name: 'mcp',
-      summary: 'inspect the MCP servers this workspace is configured with',
+      summary: 'inspect the MCP servers this workspace is configured with, or sign one in',
+      argumentHint: '[signin <name>]',
       group: ECommandGroup.Workspace,
       timing: ECommandTiming.Immediate,
       echo: ECommandEcho.Output,
-      run: () => ({ type: ECommandEffect.Ran, notice: handlers.onShowMcp() }),
+      run: async ({ argumentText }) => {
+        const asked = argumentText.trim()
+        if (asked.length === 0)
+          return { type: ECommandEffect.Ran, notice: handlers.onShowMcp() }
+
+        const signIn = asked.match(/^signin\s+(\S+)$/i)
+        if (signIn?.[1] !== undefined) {
+          if (handlers.onMcpSignIn === null)
+            return { type: ECommandEffect.Ran, notice: 'this Atlas cannot sign in to MCP servers (no secrets store)' }
+          return { type: ECommandEffect.Ran, notice: await handlers.onMcpSignIn(signIn[1]) }
+        }
+
+        return { type: ECommandEffect.Ran, notice: `/mcp takes no argument, or "signin <name>" to sign a server in — not ${asked}` }
+      },
     }),
   ]
 }

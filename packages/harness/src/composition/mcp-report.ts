@@ -18,6 +18,7 @@ export const mcpLayerOf = (args: { definedIn: string; origin: EDefinitionOrigin 
 const statusLabelOf = (server: McpServerStatus): string => {
   if (server.state.status === EMcpServerStatus.Connected) return 'Connected'
   if (server.state.status === EMcpServerStatus.Disabled) return 'Disabled'
+  if (server.state.status === EMcpServerStatus.NeedsAuth) return 'NeedsAuth(sign in with /mcp)'
   return `Failed(${server.state.error})`
 }
 
