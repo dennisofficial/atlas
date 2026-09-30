@@ -133,8 +133,9 @@ export function freshStartCells(args: { kind: 'sidebar' | 'composer'; maxCells: 
 
 export const NAMING_SIDEBAR_LINE: NamingLine = { fg: theme.bright, towards: theme.appBg, dim: 0.45 }
 
-export const namingComposerLine = (args: { fg: string; towards: string }): NamingLine => ({
+export const namingComposerLine = (args: { fg: string; towards: string; bg?: string }): NamingLine => ({
   fg: args.fg,
   towards: args.towards,
   dim: 0.35,
+  ...(args.bg === undefined ? {} : { bg: args.bg }),
 })

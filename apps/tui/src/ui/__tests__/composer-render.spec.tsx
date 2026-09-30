@@ -251,6 +251,45 @@ describe('the bordered composer', () => {
     for (const word of ['Rejecting', 'reused', 'tokens']) expect(head).toContain(word)
   })
 
+  it('paints the naming animation on the same rail the settled title sits on', async () => {
+    applyComposerEdge(EComposerEdge.Bordered)
+    const collect = async (naming: NamingState | null): Promise<string[]> => {
+      const setup = await testRender(
+        <box flexDirection="column" width={WIDTH} height={HEIGHT}>
+          <Draft title={TITLE} {...(naming === null ? {} : { naming })} />
+        </box>,
+        { width: WIDTH, height: HEIGHT },
+      )
+      try {
+        await drawn(setup)
+        const spans = setup.captureSpans() as { lines: ({ spans: { bg?: { buffer: ArrayLike<number> } }[] } | undefined)[] }
+        const bgs = new Set<string>()
+        for (const line of spans.lines) {
+          for (const span of line?.spans ?? []) {
+            const b = span.bg?.buffer
+            if (b && !(b[0] === 0 && b[1] === 0 && b[2] === 0 && b[3] === 0)) bgs.add(`${b[0]},${b[1]},${b[2]}`)
+          }
+        }
+        return [...bgs]
+      } finally {
+        await teardown(setup)
+      }
+    }
+
+    const settled = await collect(null)
+    const animating = await collect({
+      phase: ENamingPhase.Generating,
+      startCells: TITLE.length,
+      startedWithName: true,
+      target: null,
+      startedAt: Date.now(),
+    })
+
+    const railHex = `${parseColor(theme.accent).buffer[0]},${parseColor(theme.accent).buffer[1]},${parseColor(theme.accent).buffer[2]}`
+    expect(settled).toContain(railHex)
+    expect(animating).toContain(railHex)
+  })
+
   it('streams a too-long answer into the same form the settled title takes', async () => {
     applyComposerEdge(EComposerEdge.Bordered)
     const long = 'a session name long enough to overflow the composer title room entirely'

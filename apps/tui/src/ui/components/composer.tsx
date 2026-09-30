@@ -241,7 +241,16 @@ function DerivedComposer(props: {
             target: clipped,
           }
     const fg = edge === EComposerEdge.Bordered || edge === EComposerEdge.Claude ? theme.caretFg : theme.body
-    return <NamingLine state={state} line={namingComposerLine({ fg, towards: theme.appBg })} />
+    return (
+      <NamingLine
+        state={state}
+        line={namingComposerLine({
+          fg,
+          towards: edge === EComposerEdge.Bordered || edge === EComposerEdge.Claude ? rail : theme.appBg,
+          ...(edge === EComposerEdge.Bordered || edge === EComposerEdge.Claude ? { bg: rail } : {}),
+        })}
+      />
+    )
   })()
 
   const label = (bg: string): React.ReactNode => (
