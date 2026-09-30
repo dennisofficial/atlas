@@ -2,6 +2,9 @@ import {
   ECompactionAnchor,
   EExecutionLocation,
   EForkMode,
+  locationOfPlacement,
+  placementOf,
+  type PlacementRecord,
   type ThreadId,
   type Event,
   type LinkedPullRequest,
@@ -40,6 +43,19 @@ export type RenameListener = (args: { threadId: ThreadId; title: string }) => vo
 
 export type ModelChosenListener = (args: { threadId: ThreadId; model: ThreadModel }) => void
 
+export type PlacementChangedListener = (args: {
+  threadId: ThreadId
+  record: PlacementRecord
+}) => void
+
+export type WritePlacementArgs = {
+  threadId: ThreadId
+  record: PlacementRecord
+  expectedRevision?: number | undefined
+  workspace?: string | undefined
+  repo?: string | null | undefined
+}
+
 export abstract class ThreadStorePort {
   onRename(listener: RenameListener): Unsubscribe {
     void listener
@@ -49,6 +65,28 @@ export abstract class ThreadStorePort {
   onModelChosen(listener: ModelChosenListener): Unsubscribe {
     void listener
     return () => undefined
+  }
+
+  onPlacementChanged(listener: PlacementChangedListener): Unsubscribe {
+    void listener
+    return () => undefined
+  }
+
+  async readPlacement(args: { threadId: ThreadId }): Promise<PlacementRecord | undefined> {
+    const thread = await this.find(args)
+    if (thread === undefined) return undefined
+    return {
+      placement: placementOf(thread.executionLocation ?? EExecutionLocation.Host),
+      revision: 0,
+      move: null,
+    }
+  }
+
+  async writePlacement(args: WritePlacementArgs): Promise<void> {
+    await this.chooseExecutionLocation({
+      threadId: args.threadId,
+      location: locationOfPlacement(args.record.placement),
+    })
   }
 
 

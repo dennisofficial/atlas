@@ -13,6 +13,7 @@ import {
 
 import { dockerCapabilitiesSource } from '../../../composition/capabilities-source'
 import { createExecutionLocationState } from '../../../composition/execution-location-state'
+import { fakePlacementStore } from '../../../composition/__tests__/placement-store-fake'
 import type { GitReader } from '../../../workspace/snapshot'
 import { probeDockerCapabilities } from '../host-environment'
 
@@ -136,9 +137,12 @@ describe('dockerCapabilitiesSource', () => {
     expect(probes).toBe(1)
   })
 
-  it('follows a thread noted onto Docker rather than the session default', async () => {
+  it('follows a thread placed in Docker rather than the session default', async () => {
     const location = createExecutionLocationState({ initial: EExecutionLocation.Host })
-    location.note({ threadId: toThreadId('thread-1'), location: EExecutionLocation.Docker })
+    const threads = fakePlacementStore()
+    threads.seed({ threadId: toThreadId('thread-1'), location: EExecutionLocation.Docker })
+    location.bind({ threads, workspace: '/w', repo: null })
+    await location.load({ threadId: toThreadId('thread-1') })
     const source = dockerCapabilitiesSource({
       executionLocation: location,
       cwd: '/w',

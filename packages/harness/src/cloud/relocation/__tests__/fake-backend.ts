@@ -1,9 +1,11 @@
 import {
+  EExecutionLocation,
+  locationOfPlacement,
+  placementOf,
   stampEvent,
   toEventId,
   toRunId,
   toThreadId,
-  type EExecutionLocation,
   type Event,
   type EventLogPort,
   type IdPort,
@@ -216,6 +218,23 @@ export function fakeThreadStore(
       chosenModels.push({ threadId, model })
       const row = rows.find((held) => held.id === threadId)
       if (row !== undefined) row.model = model
+    },
+
+    onPlacementChanged() {
+      return () => undefined
+    },
+
+    async readPlacement({ threadId }) {
+      const row = rows.find((held) => held.id === threadId)
+      if (row === undefined) return undefined
+      return { placement: placementOf(row.executionLocation ?? EExecutionLocation.Host), revision: 0, move: null }
+    },
+
+    async writePlacement({ threadId, record }) {
+      const location = locationOfPlacement(record.placement)
+      chosenLocations.push({ threadId, location })
+      const row = rows.find((held) => held.id === threadId)
+      if (row !== undefined) row.executionLocation = location
     },
 
     async chooseExecutionLocation({ threadId, location }) {

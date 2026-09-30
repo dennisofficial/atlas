@@ -4,8 +4,11 @@ import {
   EForkMode,
   SURVIVES_SUMMARY,
   executionLocationOf,
+  locationOfPlacement,
+  placementOf,
   stampEvent,
   toThreadId,
+  type PlacementRecord,
   type ClockPort,
   type Event,
   type EventLogPort,
@@ -17,7 +20,8 @@ import {
 import type { OpenThreadArgs } from '../create-with-events'
 import { ForkSeqOutOfRange, ForkSourceMissing } from '../fork'
 import type { Unsubscribe } from '../../channel/delta-channel'
-import type { ModelChosenListener, RenameListener, SupervisedAgent, ThreadModel, ThreadStorePort, ThreadSummary } from '../thread-store'
+import type { ModelChosenListener, PlacementChangedListener, RenameListener, SupervisedAgent, ThreadModel, ThreadStorePort, ThreadSummary, WritePlacementArgs } from '../thread-store'
+import { metaWithPlacement, PlacementConflict, placementRecordOf } from './placement-meta'
 import {
   dropRewoundChildren,
   findNamedRoot,
@@ -61,6 +65,7 @@ type ForkArgs = { from: ThreadId; seq: number; mode: EForkMode; title?: string |
 export class JsonlThreadStore implements ThreadStorePort {
   private readonly renameListeners = new Set<RenameListener>()
   private readonly modelChosenListeners = new Set<ModelChosenListener>()
+  private readonly placementListeners = new Set<PlacementChangedListener>()
 
   constructor(
     private readonly home: string,
@@ -147,6 +152,52 @@ export class JsonlThreadStore implements ThreadStorePort {
     for (const listener of [...this.renameListeners]) listener({ threadId, title })
   }
 
+  onPlacementChanged(listener: PlacementChangedListener): Unsubscribe {
+    this.placementListeners.add(listener)
+    return () => this.placementListeners.delete(listener)
+  }
+
+  async readPlacement({ threadId }: { threadId: ThreadId }): Promise<PlacementRecord | undefined> {
+    const sessionDir = await this.registry.sessionDirOf({ threadId })
+    if (sessionDir === undefined) return undefined
+    const meta = tryReadThreadMeta({ file: threadMetaFile({ sessionDir, threadId }) })
+    return meta === undefined ? undefined : placementRecordOf(meta)
+  }
+
+  async writePlacement(args: WritePlacementArgs): Promise<void> {
+    const { threadId, record } = args
+    const known = await this.registry.sessionDirOf({ threadId })
+    const sessionDir = known ?? sessionDirectory({ home: this.home, sessionId: threadId })
+    const handle = this.registry.handleFor({ sessionDir })
+    const written = await this.registry.enqueue({
+      handle,
+      run: async () => {
+        const file = threadMetaFile({ sessionDir, threadId })
+        const existing = tryReadThreadMeta({ file })
+        const base = existing ?? newThreadMeta({ id: threadId, at: this.clock.now() })
+        const held = placementRecordOf(base)
+        if (args.expectedRevision !== undefined && existing !== undefined && held.revision !== args.expectedRevision) {
+          throw new PlacementConflict({ expected: args.expectedRevision, found: held.revision })
+        }
+        const meta = metaWithPlacement({
+          meta: {
+            ...base,
+            ...(args.workspace === undefined ? {} : { workspace: args.workspace }),
+            ...(args.repo === undefined ? {} : { repo: args.repo }),
+          },
+          record,
+        })
+        await writeMeta({ file, meta })
+        return meta
+      },
+    })
+    this.registry.registerThread({ sessionDir, threadId })
+    if (sessionDir.endsWith(`/${threadId}`)) {
+      await writeSessionMetaForRoot({ registry: this.registry, sessionDir, root: written, home: locationOfPlacement(record.placement) })
+    }
+    for (const listener of [...this.placementListeners]) listener({ threadId, record })
+  }
+
   async chooseModel({ threadId, model }: { threadId: ThreadId; model: ThreadModel }): Promise<void> {
     const sessionDir = await this.registry.sessionDirOf({ threadId })
     if (sessionDir === undefined) return
@@ -164,17 +215,17 @@ export class JsonlThreadStore implements ThreadStorePort {
   async chooseExecutionLocation(args: { threadId: ThreadId; location: EExecutionLocation }): Promise<void> {
     const { threadId, location } = args
     const known = await this.registry.sessionDirOf({ threadId })
-    if (known !== undefined) {
-      await this.updateMeta({ threadId, change: (meta) => ({ ...meta, executionLocation: location }) })
-      return
-    }
-    if (location === EExecutionLocation.Host) return
+    if (known === undefined && location === EExecutionLocation.Host) return
 
-    const sessionDir = sessionDirectory({ home: this.home, sessionId: threadId })
-    const meta: ThreadMeta = { ...newThreadMeta({ id: threadId, at: this.clock.now() }), executionLocation: location }
-    await writeMeta({ file: threadMetaFile({ sessionDir, threadId }), meta })
-    this.registry.registerThread({ sessionDir, threadId })
-    await writeSessionMetaForRoot({ registry: this.registry, sessionDir, root: meta, home: location })
+    const held = await this.readPlacement({ threadId })
+    await this.writePlacement({
+      threadId,
+      record: {
+        placement: placementOf(location),
+        revision: held?.revision ?? 0,
+        move: held?.move ?? null,
+      },
+    })
   }
 
   async adopt({ threadId, workspace, repo }: { threadId: ThreadId; workspace: string; repo: string | null }): Promise<void> {
