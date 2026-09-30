@@ -115,6 +115,25 @@ describe('SSE routing for checkout and linked aliases', () => {
     expect(linked.pullRequest.state).toBe(EPullRequestState.Merged)
   })
 
+  it('adopts the next PR opened on a branch whose remembered PR has merged', () => {
+    const book = createSseSubscriptionBook({ now: () => 0, onReading: () => {} })
+    subscribe({ book, key: BRANCH_KEY })
+    book.applyFrame({ data: JSON.stringify(state({ state: 'merged', checksPassed: 11, checksRunning: 0 })) })
+
+    book.applyFrame({
+      data: JSON.stringify(state({ prNumber: 902, state: 'draft', checksRunning: 3, checksPassed: 0 })),
+    })
+    const adopted = book.holding({ key: BRANCH_KEY })?.reading
+    if (adopted?.lookup !== EPullRequestLookup.Found) throw new Error('expected found')
+    expect(adopted.pullRequest.number).toBe(902)
+    expect(adopted.pullRequest.tally.running).toBe(3)
+
+    book.applyFrame({ data: JSON.stringify(state({ state: 'merged', checksPassed: 11, checksRunning: 0 })) })
+    const stillAdopted = book.holding({ key: BRANCH_KEY })?.reading
+    if (stillAdopted?.lookup !== EPullRequestLookup.Found) throw new Error('expected found')
+    expect(stillAdopted.pullRequest.number).toBe(902)
+  })
+
   it('a null catch-up from an older API preserves a still-found terminal state', () => {
     const book = createSseSubscriptionBook({ now: () => 0, onReading: () => {} })
     subscribe({ book, key: BRANCH_KEY })

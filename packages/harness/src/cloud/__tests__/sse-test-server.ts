@@ -6,6 +6,8 @@ export type ServedResponse = {
   openEnded?: boolean
   /** With openEnded, push a `: keepalive` comment frame on this cadence. */
   heartbeatEveryMs?: number
+  /** Accept the connection and never answer with headers at all. */
+  hangs?: boolean
 }
 
 export type RecordedRequest = { authorization: string | null; clientVersion: string | null }
@@ -36,6 +38,7 @@ export const startServer = ({ responses }: { responses: ServedResponse[] }): Tes
       const served = responses[Math.min(calls, responses.length - 1)]
       calls += 1
       if (served === undefined) return new Response('exhausted', { status: 500 })
+      if (served.hangs === true) return new Promise<Response>(() => {})
       if (served.openEnded === true) {
         // A Bun fetch client does not resolve a streamed response until the first chunk arrives,
         // so a truly empty stream would hang the client under test rather than simulate silence.

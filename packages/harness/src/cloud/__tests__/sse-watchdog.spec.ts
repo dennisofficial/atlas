@@ -86,6 +86,30 @@ describe('runSseStream silence watchdog', () => {
     expect(server.requests).toHaveLength(1)
   })
 
+  it('retries a connection accepted but never answered, which no response timeout would catch', async () => {
+    server = startServer({
+      responses: [{ status: 200, hangs: true }, { status: 200, openEnded: true }],
+    })
+
+    const { drops, opens, handlers } = collect()
+    const controller = new AbortController()
+    const running = runSseStream({
+      url: server.url,
+      token: 'tok',
+      clientVersion: 'test',
+      signal: controller.signal,
+      handlers,
+      silenceTimeoutMs: 150,
+      randomFn: () => 0.01,
+    })
+    await waitFor(() => opens() >= 1)
+    controller.abort()
+    await running
+
+    expect(server.requests.length).toBeGreaterThanOrEqual(2)
+    expect(drops()).toBeGreaterThanOrEqual(1)
+  })
+
   it('keeps no orphan timer when the caller aborts while the onOpen catch-up runs', async () => {
     server = startServer({
       responses: [{ status: 200, openEnded: true }],

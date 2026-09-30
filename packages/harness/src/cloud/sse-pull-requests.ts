@@ -122,7 +122,10 @@ export class SsePullRequestPort extends PullRequestPort {
   }): Promise<PullRequestReading> {
     if (this.disposed) return unavailable(false)
     const held = this.book.holding({ key: args.key })
-    if (held !== null && !this.sessionDead) return held.reading
+    if (held !== null && !this.sessionDead) {
+      this.ensureStream()
+      return held.reading
+    }
 
     let outcome
     try {

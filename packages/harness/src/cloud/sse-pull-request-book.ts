@@ -61,6 +61,17 @@ const branchIdentityOf = (args: { repoFullName: string; branch: string }): strin
 
 const ABSENT: PullRequestReading = { lookup: EPullRequestLookup.Absent }
 
+const SETTLED: readonly EPullRequestState[] = [EPullRequestState.Merged, EPullRequestState.Closed]
+
+const adoptsBranchFrame = (args: { reading: PullRequestReading; prNumber: number }): boolean => {
+  if (args.reading.lookup === EPullRequestLookup.Absent) return true
+  if (args.reading.lookup !== EPullRequestLookup.Found) return false
+  return (
+    args.reading.pullRequest.number !== args.prNumber &&
+    SETTLED.includes(args.reading.pullRequest.state)
+  )
+}
+
 export type SseSubscriptionBook = {
   holding: (args: { key: string }) => BookEntry | null
   entries: () => readonly BookEntry[]
@@ -170,7 +181,9 @@ export function createSseSubscriptionBook(args: {
       const discovered = byBranch.get(branchIdentityOf({ repoFullName: state.repoFullName, branch: state.headBranch }))
       for (const key of discovered ?? []) {
         const entry = entries.get(key)
-        if (entry === undefined || entry.reading.lookup !== EPullRequestLookup.Absent) continue
+        if (entry === undefined) continue
+        if (!adoptsBranchFrame({ reading: entry.reading, prNumber: state.prNumber })) continue
+        removeNumberRoutes(key)
         index(state, key)
         emit(key, readingOfState(state))
       }

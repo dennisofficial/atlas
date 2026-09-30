@@ -138,6 +138,9 @@ export async function runSseStream(args: {
         },
       }
       attempt = self
+      // The handshake is inside the watchdog too: Bun's fetch has no response timeout, so a
+      // connection accepted and then never answered would otherwise hang with no retry at all.
+      armWatchdog()
 
       const response = await fetch(input, { ...init, signal: controller.signal })
       if (response.body === null) return response
