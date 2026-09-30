@@ -37,13 +37,16 @@ export const isTurnTaking = (event: EventDraft): boolean => {
     case 'tool-result':
     case 'tool-denied':
     case 'nudge':
-    case 'background-shell-ended':
     case 'background-shell-awaiting-input':
     case 'background-shell-matched':
     case 'background-shell-still-running':
     case 'service-ended':
     case 'agent-reported':
       return true
+    case 'background-shell-ended':
+      // A recorded ending is bookkeeping that settles the log; the ending was already spoken
+      // (a shell_kill tool result), so it must not hand the turn back to the assistant on resume.
+      return event.recorded !== true
     case 'agent-ended':
       return endingIsSpeech(event.agentType)
     default:

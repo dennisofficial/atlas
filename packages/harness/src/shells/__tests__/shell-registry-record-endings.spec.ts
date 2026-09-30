@@ -102,7 +102,7 @@ for (const adapter of shellAdapters) {
 
   describeAdapter(`${adapter.name} process adapter`, () => {
     describe('recording endings the notice queue never made durable', () => {
-      it('writes an ending for a shell the model killed, so the next boot settles nothing', async () => {
+      it('settles a shell the model killed as bookkeeping, so the next boot settles nothing and nothing re-announces', async () => {
         const { registry } = openRegistry({ adapter })
         const started = registry.start(job({ command: 'echo before; sleep 60' }))
         if (!started.ok) throw new Error(started.reason)
@@ -119,11 +119,44 @@ for (const adapter of shellAdapters) {
         const log = new RecordingLog()
         const recorded = await recordIn(log, registry)
 
+        // The ending is recorded so the log's start/end pair settles, but marked `recorded` —
+        // bookkeeping, not speech — because shell_kill already delivered it as the tool result.
         expect(recorded).toHaveLength(1)
         expect(endedDraft(log.appended[0])).toMatchObject({
           shellId: started.snapshot.shellId,
           killedBy: EKilledBy.Model,
           output: '',
+          recorded: true,
+        })
+      })
+
+      it('records a shell_kill-claimed ending as bookkeeping rather than a second announcement', async () => {
+        const { registry } = openRegistry({ adapter })
+        const started = registry.start(job({ command: 'echo before; sleep 60' }))
+        if (!started.ok) throw new Error(started.reason)
+        await printed({ registry, shellId: started.snapshot.shellId, text: 'before' })
+
+        // shell_kill claims the ending: the tool result is the announcement, and the notice queue
+        // is deliberately left empty. Teardown still settles the log, but as a recorded (quiet)
+        // ending so the transcript and the resume wake never treat it as a fresh telling.
+        const killed = registry.kill({
+          shellId: started.snapshot.shellId,
+          by: EKilledBy.Model,
+          threadId: THREAD,
+        })
+        if (!killed.ok || killed.settled === undefined) throw new Error('the kill was not claimed')
+        await killed.settled
+        await settle({ registry, shellId: started.snapshot.shellId })
+
+        const log = new RecordingLog()
+        const recorded = await recordIn(log, registry)
+
+        expect(recorded).toHaveLength(1)
+        const ending = endedDraft(log.appended.find((d) => d.type === 'background-shell-ended'))
+        expect(ending).toMatchObject({
+          shellId: started.snapshot.shellId,
+          killedBy: EKilledBy.Model,
+          recorded: true,
         })
       })
 

@@ -213,4 +213,46 @@ describe('a background shell ending in the transcript', () => {
 
     expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(2)
   })
+
+  it('hides a recorded ending, which is bookkeeping rather than speech', () => {
+    const entries = durableEntries({
+      events: log([
+        shellEnded({ output: '', killedBy: EKilledBy.Model, recorded: true }),
+      ]),
+    })
+
+    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(0)
+  })
+
+  it('hides a legacy teardown dupe whose kill was already delivered as a shell_kill result', () => {
+    const entries = durableEntries({
+      events: log([
+        {
+          type: 'tool-result' as const,
+          callId: 'call-1' as never,
+          name: 'shell_kill',
+          output: { shellId: 'bash_1', status: 'killed', exitCode: 143 },
+        },
+        shellEnded({ output: '', killedBy: EKilledBy.Model }),
+      ]),
+    })
+
+    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(0)
+  })
+
+  it('keeps a model-kill ending that carried real output, because it is the telling', () => {
+    const entries = durableEntries({
+      events: log([
+        {
+          type: 'tool-result' as const,
+          callId: 'call-1' as never,
+          name: 'shell_kill',
+          output: { shellId: 'bash_1', status: 'killed', exitCode: 143 },
+        },
+        shellEnded({ output: 'real output\n', killedBy: EKilledBy.Model }),
+      ]),
+    })
+
+    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(1)
+  })
 })
