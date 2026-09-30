@@ -11,9 +11,13 @@ import {
 } from '@dltech/atlas-core'
 
 import type { JsonlLog } from '@dltech/atlas-harness'
-import { currentNotices, ENoticeTone, notify } from '../ui/notice-store'
+import { currentNotices, ENoticeTone, notify, tickNotices } from '../ui/notice-store'
 
 const PACKAGE_WARNING_TTL_MS = 15_000
+
+// A provider warning loop emits synchronously once per dropped part, and each publish is a React
+// commit — the flood must settle before the screen hears about it.
+const PACKAGE_WARNING_FLUSH_MS = 250
 
 const SEVERITY_OF = {
   info: ELogSeverity.Info,
@@ -36,7 +40,22 @@ export type OutputRedirect = {
 
 export function installOutputRedirect(args: { log: JsonlLog }): OutputRedirect {
   const warningCounts = new Map<string, number>()
+  const warningPublished = new Set<string>()
+  let flushTimer: ReturnType<typeof setTimeout> | null = null
   let noticesEnabled = false
+
+  const publishWarnings = (): void => {
+    flushTimer = null
+    for (const [key, count] of [...warningCounts.entries()]) {
+      notify({
+        text: `package warning: ${key.slice('package-warning:'.length)}${count > 1 ? ` (${count} occurrences)` : ''} — see logs.jsonl`,
+        tone: ENoticeTone.Warn,
+        key,
+        ttlMs: PACKAGE_WARNING_TTL_MS,
+      })
+      warningPublished.add(key)
+    }
+  }
 
   const entry = (next: SinkEntry): void => {
     const severity = SEVERITY_OF[severityOfSink({ entry: next })]
@@ -50,25 +69,26 @@ export function installOutputRedirect(args: { log: JsonlLog }): OutputRedirect {
     if (severity === ELogSeverity.Info) return
     if (!noticesEnabled) return
 
-    const preview = sinkNoticeText({ text: next.text })
-    const key = `package-warning:${preview}`
-    const active = new Set(
-      currentNotices()
-        .filter((notice) => notice.ttlMs === null || notice.issuedAtMs + notice.ttlMs > Date.now())
-        .map((notice) => notice.key),
-    )
+    const key = `package-warning:${sinkNoticeText({ text: next.text })}`
+    tickNotices({ nowMs: Date.now() })
+    const liveKeys = new Set(currentNotices().map((notice) => notice.key))
+    // Only a published key can be judged against the store: an unpublished one sits in the
+    // counts map alone until the flush, and pruning on store absence would erase a burst in
+    // progress, keeping only its last key.
     for (const held of warningCounts.keys()) {
-      if (!active.has(held)) warningCounts.delete(held)
+      if (warningPublished.has(held) && !liveKeys.has(held)) {
+        warningCounts.delete(held)
+        warningPublished.delete(held)
+      }
     }
-    const count = (warningCounts.get(key) ?? 0) + 1
-    warningCounts.set(key, count)
 
-    notify({
-      text: `package warning: ${preview}${count > 1 ? ` (${count} occurrences)` : ''} — see logs.jsonl`,
-      tone: ENoticeTone.Warn,
-      key,
-      ttlMs: PACKAGE_WARNING_TTL_MS,
-    })
+    warningCounts.set(key, (warningCounts.get(key) ?? 0) + 1)
+
+    // Publishing is always deferred: notify is a React commit, and running it inside this hook
+    // recurses — the commit's own console logging re-enters entry() until the stack blows.
+    if (flushTimer !== null) return
+    flushTimer = setTimeout(publishWarnings, PACKAGE_WARNING_FLUSH_MS)
+    flushTimer.unref?.()
   }
 
   const hookConsole = (level: ESinkLevel) => {

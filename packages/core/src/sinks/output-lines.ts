@@ -24,12 +24,17 @@ export const SINK_TEXT_LIMIT = 2_000
 
 export const SINK_NOTICE_TEXT_LIMIT = 240
 
+// @ai-sdk/openai's literal marker for a dropped reasoning part; what follows it is the part's
+// full JSON payload, which belongs in the log but never on screen.
+const REASONING_PAYLOAD_MARKER = 'Skipping reasoning part:'
+
 export function sinkNoticeText({ text }: { text: string }): string {
-  const payloadAt = text.indexOf('Skipping reasoning part:')
-  const preview = (payloadAt < 0 ? text : text.slice(0, payloadAt)).replaceAll(/\s+/g, ' ').trim()
-  const truncated = preview.length > SINK_NOTICE_TEXT_LIMIT
-  if (truncated) return `${preview.slice(0, SINK_NOTICE_TEXT_LIMIT)}…`
-  return `${preview}${payloadAt >= 0 ? ' …' : ''}`
+  const payloadAt = text.indexOf(REASONING_PAYLOAD_MARKER)
+  const headed = payloadAt < 0 ? text : text.slice(0, payloadAt)
+  const preview = headed.replaceAll(/\s+/g, ' ').trim()
+  if (preview.length === 0) return '…'
+  if (preview.length <= SINK_NOTICE_TEXT_LIMIT) return payloadAt >= 0 ? `${preview} …` : preview
+  return `${preview.slice(0, SINK_NOTICE_TEXT_LIMIT).trimEnd()}…`
 }
 
 export function truncateSinkText({ text }: { text: string }): string {
