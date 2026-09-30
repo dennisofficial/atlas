@@ -167,7 +167,7 @@ describe('a lift that does not finish', () => {
     expect(lifted.fault).toBe(ELiftFault.Unreachable)
   })
 
-  it('does not flip back when the open after attach fails — the conversation already moved', async () => {
+  it('flips back when the open after attach fails — the conversation never moved', async () => {
     useAtlasHome()
     const test = harness({
       open: async () => {
@@ -181,9 +181,11 @@ describe('a lift that does not finish', () => {
     if (lifted.ok) return
 
     expect(lifted.step).toBe(ELiftStep.Attaching)
-    expect(test.located).toEqual([EExecutionLocation.Cloud])
+    expect(lifted.rolledBack).toBe(true)
+    expect(test.located).toEqual([EExecutionLocation.Cloud, EExecutionLocation.Host])
     expect(test.localThreads.chosenLocations).toEqual([
       { threadId: CLOUD_THREAD, location: EExecutionLocation.Cloud },
+      { threadId: CLOUD_THREAD, location: EExecutionLocation.Host },
     ])
   })
 
