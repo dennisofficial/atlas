@@ -7,6 +7,7 @@ import {
   liveSteps,
   runKey,
   settledStep,
+  stepKeyed,
   type ArrivingStep,
   type InFlightStep,
 } from './in-flight-steps'
@@ -52,8 +53,7 @@ export function createStepTracker(): StepTracker {
 
   return {
     absorb(signal) {
-      // A tool runs between steps, so its output is keyed by call and lives outside this tracker.
-      if (signal.type === 'tool-output') return
+      if (!stepKeyed(signal)) return
 
       const step = stepFor(signal.stepId)
 

@@ -150,6 +150,77 @@ describe('the conversation store', () => {
   })
 })
 
+describe('a clean turn boundary while the next step is still waiting on the model', () => {
+  let channel: DeltaChannel
+  let store: ConversationStore
+
+  beforeEach(() => {
+    channel = createDeltaChannel()
+    store = createConversationStore({ channel, threadId: fixtureThreadId })
+  })
+
+  const settleAStep = () => {
+    const publisher = channel.publisherFor({ threadId: fixtureThreadId })
+    publisher.onChunk({ type: 'text-delta', id: 'b1', text: 'auth' })
+    publisher.settleAppend({
+      events: log([{ type: 'assistant-said', parts: [{ type: 'text', text: 'auth' }] }]),
+    })
+    return publisher
+  }
+
+  it('reads working from the channel, not from whether a step happens to be open', () => {
+    const publisher = settleAStep()
+    expect(store.getSnapshot().streaming).toBe(false)
+
+    publisher.turnWorking({ working: true })
+
+    expect(store.getSnapshot().streaming).toBe(true)
+
+    publisher.turnWorking({ working: false })
+
+    expect(store.getSnapshot().streaming).toBe(false)
+  })
+
+  it('holds streaming across the whole round-trip to the next first token', () => {
+    const publisher = settleAStep()
+    publisher.turnWorking({ working: true })
+
+    const held = store.getSnapshot()
+    expect(held.streaming).toBe(true)
+    expect(held.failure).toBeNull()
+
+    publisher.onChunk({ type: 'text-delta', id: 'b2', text: 'and the router' })
+
+    expect(store.getSnapshot().streaming).toBe(true)
+
+    publisher.turnWorking({ working: false })
+
+    expect(store.getSnapshot().streaming).toBe(true)
+
+    store.setEvents({
+      events: log([
+        { type: 'assistant-said', parts: [{ type: 'text', text: 'auth' }] },
+        { type: 'assistant-said', parts: [{ type: 'text', text: 'and the router' }] },
+      ]),
+    })
+    publisher.settleAppend({
+      events: log([{ type: 'assistant-said', parts: [{ type: 'text', text: 'and the router' }] }]),
+    })
+
+    expect(store.getSnapshot().streaming).toBe(false)
+  })
+
+  it('does not turn an open step into working once the turn behind it failed', () => {
+    const publisher = settleAStep()
+    publisher.turnWorking({ working: true })
+    publisher.onChunk({ type: 'text-delta', id: 'b2', text: 'half a th' })
+    publisher.turnWorking({ working: false })
+    publisher.close({ end: EStepEnd.Interrupted })
+
+    expect(store.getSnapshot().streaming).toBe(false)
+  })
+})
+
 describe('a failure the store is holding on screen', () => {
   let channel: DeltaChannel
   let store: ConversationStore

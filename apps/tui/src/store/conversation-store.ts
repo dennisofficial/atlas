@@ -98,6 +98,7 @@ export function createConversationStore(args: {
   let turn: TurnClock = IDLE_TURN;
   let gate: RevealGate | null = null;
   let sandbox: SidebarContainer | null = args.sandbox?.current() ?? null;
+  let channelWorking = false;
   let pendingTldr = pendingTldrOf(args.threadId) ?? null;
   let frame: ReturnType<typeof setTimeout> | undefined;
   let queuedRepaint: ReturnType<typeof setTimeout> | undefined;
@@ -201,6 +202,7 @@ export function createConversationStore(args: {
         tldrStatus,
         sandbox,
         outputs: tails,
+        working: channelWorking,
       }),
     )
     const nextSidebar = sidebarNow()
@@ -243,6 +245,13 @@ export function createConversationStore(args: {
 
   const handleSignal = (signal: ChannelSignal) => {
     progress = turnObserved({ progress, signal, now: readClock() });
+
+    if (signal.type === "turn-working") {
+      if (signal.working === channelWorking) return;
+      channelWorking = signal.working;
+      repaintNow();
+      return;
+    }
 
     if (signal.type === "events-appended" || signal.type === "retry-cleared") return;
     if (signal.type === "retry-waiting") {

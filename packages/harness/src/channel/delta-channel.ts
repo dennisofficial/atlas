@@ -21,6 +21,7 @@ export type ThreadPublisher = {
   settleAppend(args: { events: readonly Event[] }): void
   close(args: { end: EStepEnd }): void
   retrying(notice: Omit<RetryWaitingSignal, 'type'>): void
+  turnWorking(args: { working: boolean }): void
 }
 
 export type DeltaChannel = {
@@ -36,6 +37,7 @@ type ThreadState = {
   replay: readonly StepSignal[] | undefined
   stepId: StepId | undefined
   stepsStarted: number
+  working: boolean
 }
 
 const NOTHING_IN_FLIGHT: readonly StepSignal[] = Object.freeze([])
@@ -66,13 +68,14 @@ export function createDeltaChannel(): DeltaChannel {
       replay: undefined,
       stepId: undefined,
       stepsStarted: 0,
+      working: false,
     }
     threads.set(threadId, created)
     return created
   }
 
   const forgetIfIdle = (args: { threadId: ThreadId; state: ThreadState }) => {
-    if (args.state.listeners.size > 0 || args.state.stepId !== undefined) return
+    if (args.state.listeners.size > 0 || args.state.stepId !== undefined || args.state.working) return
     threads.delete(args.threadId)
   }
 
@@ -80,10 +83,15 @@ export function createDeltaChannel(): DeltaChannel {
     for (const listener of [...args.state.listeners]) listener(args.signal)
   }
 
+  const WORKING_SIGNAL: StepSignal = Object.freeze({ type: 'turn-working', working: true })
+
   const stableReplay = (state: ThreadState): readonly StepSignal[] => {
-    if (state.inFlight.length === 0) return NOTHING_IN_FLIGHT
+    if (state.inFlight.length === 0) {
+      return state.working ? [WORKING_SIGNAL] : NOTHING_IN_FLIGHT
+    }
     if (state.replay !== undefined) return state.replay
-    state.replay = Object.freeze([...state.inFlight])
+    const held = state.working ? [WORKING_SIGNAL, ...state.inFlight] : [...state.inFlight]
+    state.replay = Object.freeze(held)
     return state.replay
   }
 
@@ -95,6 +103,14 @@ export function createDeltaChannel(): DeltaChannel {
     })
     args.state.replay = undefined
     notify(args)
+  }
+
+  const markWorking = (args: { threadId: ThreadId; state: ThreadState; working: boolean }) => {
+    if (args.state.working === args.working) return
+    args.state.working = args.working
+    args.state.replay = undefined
+    notify({ state: args.state, signal: { type: 'turn-working', working: args.working } })
+    if (!args.working) forgetIfIdle({ threadId: args.threadId, state: args.state })
   }
 
   const startStep = (args: { threadId: ThreadId; state: ThreadState }): StepId => {
@@ -186,6 +202,10 @@ export function createDeltaChannel(): DeltaChannel {
           const state = stateFor(threadId)
           endStep({ threadId, state, end: EStepEnd.Retried, supersededBy: null })
           notify({ state: stateFor(threadId), signal: { type: 'retry-waiting', ...notice } })
+        },
+
+        turnWorking({ working }) {
+          markWorking({ threadId, state: stateFor(threadId), working })
         },
       }
     },

@@ -144,6 +144,7 @@ export function assembleTranscript(args: {
   tldrStatus?: boolean | undefined
   sandbox?: SidebarContainer | null | undefined
   outputs?: ReadonlyMap<CallId, string> | undefined
+  working?: boolean | undefined
 }): TranscriptModel {
   const reveal = args.reveal ?? null
   const pending = args.pendingTldr ?? null
@@ -166,7 +167,7 @@ export function assembleTranscript(args: {
     }),
     ...sandboxNoticeOf(args.sandbox ?? null),
   ]
-  const streaming = args.live.some((step) => step.end === null)
+  const streaming = args.live.some((step) => step.end === null) || args.working === true
   const failure = failureOf(args.live)
 
   if (entries.length === 0 && !streaming && failure === null) {

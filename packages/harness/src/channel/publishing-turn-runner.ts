@@ -17,6 +17,7 @@ async function publishing(args: {
   publisher: ThreadPublisher
   run: () => Promise<TurnOutcome>
 }): Promise<TurnOutcome> {
+  args.publisher.turnWorking({ working: true })
   try {
     const outcome = await args.run()
     args.publisher.close({ end: endFor(outcome) })
@@ -24,6 +25,8 @@ async function publishing(args: {
   } catch (error) {
     args.publisher.close({ end: EStepEnd.Failed })
     throw error
+  } finally {
+    args.publisher.turnWorking({ working: false })
   }
 }
 

@@ -13,6 +13,7 @@ export { EStepEnd } from '@dltech/atlas-wire'
 import { EStepEnd } from '@dltech/atlas-wire'
 
 export type StepSignal =
+  | { type: 'turn-working'; working: boolean }
   | { type: 'step-started'; stepId: StepId }
   | { type: 'chunk'; stepId: StepId; chunk: Chunk }
   | { type: 'step-ended'; stepId: StepId; end: EStepEnd; supersededBy: EventRef | null }
@@ -26,8 +27,11 @@ export type RetryWaitingSignal = {
   reason: ERetryReason
 }
 
+export type TurnWorkingSignal = { type: 'turn-working'; working: boolean }
+
 export type ChannelSignal =
   | StepSignal
+  | TurnWorkingSignal
   | { type: 'events-appended' }
   | RetryWaitingSignal
   | { type: 'retry-cleared' }

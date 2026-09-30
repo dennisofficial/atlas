@@ -66,7 +66,8 @@ describe('running a turn', () => {
     const outcome = await runner.say({ threadId: thread.id, text: 'what changed?' })
 
     expect(outcome.status).toBe(ETurnStatus.Completed)
-    expect(seen.find((signal) => signal.type !== 'events-appended')?.type).toBe('step-started')
+    expect(seen.find((signal) => signal.type !== 'events-appended')?.type).toBe('turn-working')
+    expect(seen.find((signal) => signal.type === 'step-started')).toBeDefined()
     expect(deltasOf(seen, 'reasoning-delta')).toBe('two files touched')
     expect(deltasOf(seen, 'text-delta')).toBe('auth and the router')
 
@@ -127,12 +128,13 @@ describe('running a turn', () => {
     const outcome = await runner.say({ threadId: thread.id, text: 'what changed?' })
 
     expect(outcome.status).toBe(ETurnStatus.Failed)
-    expect(seen.at(-1)).toEqual({
+    expect(seen.at(-2)).toEqual({
       type: 'step-ended',
       stepId: firstStepId(seen),
       end: EStepEnd.Failed,
       supersededBy: null,
     })
+    expect(seen.at(-1)).toEqual({ type: 'turn-working', working: false })
     expect(channel.snapshot({ threadId: thread.id })).toEqual([])
   })
 
@@ -148,12 +150,13 @@ describe('running a turn', () => {
 
     expect(outcome.status).toBe(ETurnStatus.Failed)
     expect(errorsOf(seen)).toEqual(['overloaded_error'])
-    expect(seen.at(-1)).toEqual({
+    expect(seen.at(-2)).toEqual({
       type: 'step-ended',
       stepId: firstStepId(seen),
       end: EStepEnd.Failed,
       supersededBy: null,
     })
+    expect(seen.at(-1)).toEqual({ type: 'turn-working', working: false })
     expect(channel.snapshot({ threadId: thread.id })).toEqual([])
   })
 

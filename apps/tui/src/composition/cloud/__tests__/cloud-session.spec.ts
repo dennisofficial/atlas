@@ -182,7 +182,7 @@ describe('what the sandbox itself refuses', () => {
       status: { state: ECloudSandboxState.Running },
     })
 
-    channel.fail("this Atlas speaks a newer wire protocol (9) than this sandbox's serve (1) — re-open the conversation so the sandbox's serve is rebuilt")
+    channel.fail("this Atlas speaks a newer wire protocol (10) than this sandbox's serve (1) — re-open the conversation so the sandbox's serve is rebuilt")
     channel.moveTo({ state: EChannelConnection.Closed, detail: 'wire protocol mismatch' })
     await settled()
 
