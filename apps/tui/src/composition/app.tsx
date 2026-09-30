@@ -20,6 +20,7 @@ import {
   EKilledBy,
   ESettingId,
   ESettingsLayer,
+  ATLAS_TELEMETRY_IDENTITY_ENV,
   launchWorktreeOf,
   textValueOf,
   type Account,
@@ -28,7 +29,7 @@ import {
   type SettingsResolution,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { EChannelConnection, forkConversation, readGhAuthToken, relocateSession, requireVercelCredentials, SandboxClient, sandboxImageOf, settingModelRef, suggestedModelRef, VercelDriver, type DiscoveredSkill } from '@dltech/atlas-harness'
+import { atlasDirectory, EChannelConnection, forkConversation, persistedTelemetryDistinctId, readGhAuthToken, relocateSession, requireVercelCredentials, SandboxClient, sandboxImageOf, settingModelRef, suggestedModelRef, VercelDriver, type DiscoveredSkill } from '@dltech/atlas-harness'
 
 import { newestExpandableKey, type PendingSaid } from '../store'
 import { TITLE_CELLS } from '../store/sidebar-text'
@@ -284,6 +285,16 @@ export const cloudEnvironmentOf = (resolution: SettingsResolution): Record<strin
   return entries
 }
 
+/**
+ * The operator's telemetry id rides the lift as sandbox env, so every cloud thread of theirs
+ * reports under the same PostHog person as the laptop instead of minting a user per thread.
+ * Absent until the machine has captured its first event — there is no id to share before then.
+ */
+export const telemetryEnvironmentOf = (): Record<string, string> => {
+  const id = persistedTelemetryDistinctId({ atlasHome: atlasDirectory() })
+  return id === undefined ? {} : { [ATLAS_TELEMETRY_IDENTITY_ENV]: id }
+}
+
 const liveBridgeFor = (app: AtlasApp): CloudBridgeFactory => {
   return ({ url, token }) =>
     createCloudBridge({
@@ -295,7 +306,10 @@ const liveBridgeFor = (app: AtlasApp): CloudBridgeFactory => {
         ...sandboxImageOf({ settings: app.settings, release: releaseBuildOf() }),
       }),
       readGitToken: () => readGhAuthToken(),
-      environment: () => cloudEnvironmentOf(app.settings.snapshot().resolution),
+      environment: () => ({
+        ...cloudEnvironmentOf(app.settings.snapshot().resolution),
+        ...telemetryEnvironmentOf(),
+      }),
     })
 }
 

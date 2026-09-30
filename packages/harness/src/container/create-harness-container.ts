@@ -13,6 +13,7 @@ import {
   NoopExecutionLocationSink,
   NoticePort,
   TelemetryPort,
+  telemetryEnabled,
 } from '@dltech/atlas-core'
 
 import {
@@ -148,10 +149,10 @@ export function createHarnessContainer(): DependencyContainer {
   harness.register(portToken(IdPort), { useClass: RandomIds })
   harness.register(portToken(TelemetryPort), {
     useFactory: instanceCachingFactory((resolver) => {
-      if (process.env.ATLAS_TELEMETRY === '0') return new NullTelemetry()
+      if (!telemetryEnabled(process.env)) return new NullTelemetry()
       try {
         return new PosthogTelemetry({
-          distinctId: telemetryDistinctId({ atlasHome: home }),
+          distinctId: telemetryDistinctId({ atlasHome: home, env: process.env }),
           version: clientVersionOf(resolver),
         })
       } catch {
