@@ -89,6 +89,7 @@ export * from './workspace/pull-requests'
 export * from './workspace/worktree-lock'
 export * from './workspace/identity'
 export * from './workspace/atlas-home'
+export * from './workspace/telemetry-policy'
 
 export * from './agents/kind'
 export * from './agents/restart'
