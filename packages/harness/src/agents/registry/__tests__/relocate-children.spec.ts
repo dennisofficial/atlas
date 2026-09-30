@@ -429,8 +429,8 @@ describe('relocating while the caller itself is a stepping child', () => {
     const entry = await open({
       runners: ({ order, started }) => {
         const cooperative = recordingRunners(order, started)
-        return (request) => {
-          const inner = cooperative(request)
+        return async (request) => {
+          const inner = await cooperative(request)
           return {
             say: inner.say,
             resume: inner.resume,

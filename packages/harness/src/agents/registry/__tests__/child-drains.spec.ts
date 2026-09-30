@@ -80,7 +80,7 @@ async function childTurn(args: {
   const steering: SteerMessage[] = args.steering.map((text) => ({ text }))
   const notices = [...args.notices]
 
-  const runner = buildChildRunner({
+  const runner = await buildChildRunner({
     agentType: agentTypeNamed({ name: 'explore' }),
     threadId,
     projectDirectory: undefined,

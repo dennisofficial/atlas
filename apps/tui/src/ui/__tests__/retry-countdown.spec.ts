@@ -62,9 +62,9 @@ describe('counting down to the next attempt', () => {
     )
   })
 
-  it('names a dropped connection rather than an API fault', () => {
+  it('names a stalled request rather than an API fault', () => {
     expect(retryLabel({ retry: waiting({ reason: ERetryReason.Network }), now: 1_000 })).toBe(
-      'Connection lost · Retrying in 4s · attempt 1/10',
+      'No response from provider · Retrying in 4s · attempt 1/10',
     )
   })
 })

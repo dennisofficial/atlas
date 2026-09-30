@@ -10,6 +10,7 @@ import {
   NOTICE_WARN_MS,
   promptContextFor,
   promptModelOf,
+  contextWindowOf,
   toggleValueOf,
   ClockPort,
   DecisionPort,
@@ -20,13 +21,22 @@ import {
   TelemetryPort,
   rangeValueOf,
   type EventDraft,
+  type NoticePort,
+  type SaidImage,
+  type SettingsResolution,
   type ThreadId,
 } from '@dltech/atlas-core'
 
 import { withDeltaPublishing } from '../channel/publishing-event-log'
 import { PublishingTurnRunner } from '../channel/publishing-turn-runner'
 import { AgentRegistryPort } from '../agents/registry/port'
-import { portToken } from '../container/injection'
+import { childModelSelection, childModelSource } from './child-model'
+import { subAgentPrompt } from '../agents/registry/child-prompt'
+import type { ChildRunnerDeps } from '../agents/registry/child-runner'
+import { isTeammateType } from '../agents/types'
+import { ChildRunnerDepsToken } from '../container/create-harness-container'
+import { portToken, type DependencyContainer } from '../container/injection'
+import { ToolRegistry } from '../tools/registry'
 import { DeltaChannelToken, HookChainToken, SessionRegistryToken } from '../container/tokens'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import { jevLoopWatch } from '../loop/loop-watchdog'
@@ -34,11 +44,17 @@ import type { TurnDeps } from '../loop/run-turn'
 
 import type { MessageIntake } from '../intake'
 import { bindIntake } from './intake-binding'
-import { bindChildRunner } from './child-runner-binding'
+
 import type { TurnSetup } from './turn-setup'
 import { TitlingTurnRunner } from './titling-turn-runner'
 import { TldrTurnRunner } from '../loop/tldr-turn-runner'
 import type { TurnRunner } from '../loop/turn-runner.port'
+import type { PendingQueues } from '../pending'
+import { userSaidDraft } from '../pending'
+import type { PromptRegistry } from '../prompt/registry'
+import type { SleepPrevention } from '../power/sleep-prevention'
+import type { ClockJumpDetector } from '../loop/retrying-step'
+import type { WakeSignal } from '../wake/wake-signals'
 import { ServiceRegistryPort } from '../services/service-registry'
 import { ShellRegistryPort } from '../shells/shell-registry'
 import { createLoopCut } from '../store/sessions/ops/cut-loop'
@@ -50,6 +66,10 @@ import { createTurnPolicyRunner } from './turn-policy-runner'
 import type { TurnPolicy } from '../loop/turn-policy'
 import { LocalRewindMachinery } from '../store/local-rewind-machinery'
 import { createUsageTracker } from './usage-tracker'
+
+const asClockJumps = (wake: WakeSignal): ClockJumpDetector => ({
+  onJump: (callback) => wake.subscribe((jump) => callback(jump.gapMs)),
+})
 
 export type TurnWiring = {
   turn: TurnDeps
@@ -157,6 +177,8 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
     logPort,
     model: modelPort,
     ids,
+    ...(args.sleepPrevention === undefined ? {} : { sleepPrevention: args.sleepPrevention }),
+    ...(args.wake === undefined ? {} : { retry: { clockJumps: asClockJumps(args.wake) } }),
     assembly: defaultPipeline({
       prompt: compiledPrompt,
       launchDirectory: workspace.workspace,
@@ -217,7 +239,51 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
       }),
   }
 
-  bindChildRunner({ ...args, turn, intake, runningShells, runningServices })
+  const childModels = {
+    models,
+    model,
+    threads,
+    hooks: () => container.resolve(HookChainToken),
+    settings: args.settings,
+    ...(args.wake === undefined ? {} : { wake: args.wake }),
+  }
+  const modelFor = childModelSource(childModels)
+  const modelAtSpawn = childModelSelection(childModels)
+
+  container.register(ChildRunnerDepsToken, {
+    useValue: (): ChildRunnerDeps => ({
+      turn,
+      tools: container.resolve(portToken(ToolRegistry)),
+      hooks: container.resolve(HookChainToken),
+      channel: args.channel,
+      drainNotices: (request) => intake.prepare(request),
+      intake,
+      modelFor,
+      modelAtSpawn,
+      telemetry: container.resolve(portToken(TelemetryPort)),
+      assemblyFor: ({ agentType, model: childModel, projectDirectory: working }) =>
+        defaultPipeline({
+          prompt: ({ projectDirectory }) =>
+            subAgentPrompt({
+              prompts,
+              agentType,
+              agent: isTeammateType(agentType.name) ? EPromptAgent.Main : EPromptAgent.Sub,
+              provider: childModel.identity,
+              model: { contextWindow: contextWindowOf(childModel) || promptModelOf(undefined).contextWindow },
+              projectDirectory,
+            }),
+          launchDirectory: working ?? workspace.workspace,
+          repoRoot: workspace.repo ?? undefined,
+          runningShells,
+          runningServices,
+          executionLocation: ({ threadId }) => ({
+            location: executionLocation.of(threadId) ?? executionLocation.current(),
+            mounts,
+          }),
+          capabilities: args.capabilities,
+        }),
+    }),
+  })
 
   const usage = createUsageTracker({ channel: args.channel, log })
   const atPercent = () =>

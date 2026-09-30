@@ -172,8 +172,13 @@ import { useAccounts } from './use-accounts'
 import { useAgents } from './use-agents'
 import { useAgentView } from './use-agent-view'
 import { SubagentTranscript } from './subagent-transcript'
+import { TeammateTranscript } from './teammate-transcript'
+import { TeammateSidebar } from './teammate-sidebar'
+import { BackPill } from '../ui/components/back-pill'
+import { useTeammateThread } from './use-teammate-scope'
+import { useViewModel } from './use-view-model'
 import { useAgentsPicker } from './use-agents-picker'
-import { settingTarget, useSwitcher } from './use-switcher'
+import { settingTarget, useSwitcher, type SwitcherViewed } from './use-switcher'
 import { useThreadModel } from './use-thread-model'
 import { useContainerGuard } from './use-container-guard'
 import { useContainerPill } from './use-container-pill'
@@ -685,7 +690,7 @@ function Workspace(props: {
     props.app.skillRegistry.all(),
   )
 
-  const card = props.app.models.cardFor(selection.ref)
+  const mainCard = props.app.models.cardFor(selection.ref)
 
   const metered = props.app.models.subscribed(selection.ref.providerId)
 
@@ -697,10 +702,6 @@ function Workspace(props: {
   })
 
   const { contextTokens } = conversation
-  const readout = useMemo(
-    () => readoutOf({ card, used: contextTokens, meters }),
-    [card, contextTokens, meters],
-  )
 
   useEffect(() => {
     const warning = unmeasuredWindowWarning({
@@ -774,6 +775,13 @@ function Workspace(props: {
     [props.app],
   )
 
+  /**
+   * Filled after the agent view exists, below. The switcher is declared first because the agent
+   * view never reads it, while the pick the switcher takes has to know who is on screen — the ref
+   * lets the later hook hand that knowledge back without reordering the component.
+   */
+  const viewedPicker = useRef<SwitcherViewed | undefined>(undefined)
+
   const switcher = useSwitcher({
     catalogue: props.app.models,
     accountsVersion,
@@ -784,6 +792,7 @@ function Workspace(props: {
     favourites: settings.modelFavourites,
     onPick: threadModel.handlePicked,
     onPin: settings.handlePinModels,
+    viewed: viewedPicker.current,
   })
 
   const openSwitcher = switcher.handleOpen
@@ -881,10 +890,66 @@ function Workspace(props: {
     onProblem: conversation.handleReportProblem,
   })
 
+  const teammateThread = useTeammateThread({ app: props.app, teammate: agentView.scopedTo })
+
+  /**
+   * The sidebar's root and worktree follow the scoped teammate's own workspace, so its branch and
+   * pull request read as its own rather than the main session's.
+   */
+  const scopedWorktree =
+    agentView.scopedTo === null ? null : (teammateThread?.worktree?.path ?? null)
+  const scopedRepo = agentView.scopedTo === null ? null : (teammateThread?.repo ?? null)
+
+  /**
+   * Whoever the tile is pointed at owns the footer and the model picker: the opened child first,
+   * then the scoped teammate, then the main thread. The main thread's own selection hook keeps
+   * running untouched so leaving a view restores it without a re-read.
+   */
+  const viewedAgent = agentView.selected ?? agentView.scopedTo
+  const viewModel = useViewModel({
+    app: props.app,
+    threadId: viewedAgent?.agentId ?? conversation.threadId,
+    model: viewedAgent?.model,
+    enabled: viewedAgent !== null,
+  })
+
+  /**
+   * The base the crew merges onto. When scoped to a teammate the panel rebuilds the fold from the
+   * teammate's own log inside `TeammateSidebar`, so this base only has to carry the crew listing
+   * that `useAgents` derives for the scope — the main conversation's fold supplies the shape.
+   */
+  const scopedSidebar = conversation.sidebar
+
+  /**
+   * What the footer and the picker describe while a child is on screen: that child's own model and
+   * its own window. The context tokens come off the roster snapshot — a child never folds its usage
+   * into the parent's meter, so the two windows stay separate readings of separate budgets.
+   */
+  const viewedSelection = viewedAgent === null ? selection : viewModel.selection
+  const viewedCard =
+    viewedSelection === null ? undefined : props.app.models.cardFor(viewedSelection.ref)
+  const viewedContextTokens = viewedAgent?.context?.tokens ?? contextTokens
+  const readout = useMemo(
+    () =>
+      viewedSelection === null
+        ? null
+        : readoutOf({ card: viewedCard, used: viewedContextTokens, meters }),
+    [viewedCard, viewedContextTokens, meters, viewedSelection],
+  )
+
+  viewedPicker.current =
+    viewedAgent === null || viewedSelection === null
+      ? undefined
+      : {
+          ref: viewedSelection.ref,
+          effort: viewedSelection.effort,
+          onPick: (choice) => viewModel.handlePicked({ choice }),
+        }
+
   const agents = useAgents({
     app: props.app,
-    threadId: conversation.threadId,
-    sidebar: conversation.sidebar,
+    threadId: agentView.scopeId,
+    sidebar: scopedSidebar,
     viewing: agentView.viewing,
     shells: shells.everywhere,
   })
@@ -916,7 +981,7 @@ function Workspace(props: {
    */
   const welcome = welcoming({
     model: conversation.model,
-    addressingChild: agentView.viewing !== null,
+    addressingChild: agentView.addressing !== null,
   })
   const sidebarVisible = !welcome && sidebarShown({ layout, peeking })
   const overlay = sidebarVisible && !wide
@@ -1682,7 +1747,7 @@ function Workspace(props: {
         tokens.restore(readyImages)
       }
 
-      if (agentView.viewing !== null) {
+      if (agentView.addressing !== null) {
         const spoken = submissionOf({ text: said, tokens: live, load: readImageBase64 })
         void agentView.handleSay(spoken).then((refusal) => {
           if (refusal === null) return
@@ -1754,16 +1819,19 @@ function Workspace(props: {
    * laid out once here and both readers are given the same answer. Handing the strip the full list
    * would let a selection outlive the pill it names when the terminal is dragged narrower.
    */
+  const footerModelLabel =
+    viewedCard?.label ??
+    (viewedSelection === null ? '' : modelLabel(viewedSelection.ref.modelId))
   const footerRow = useMemo(
     () =>
       footerLayout({
         width: chromeWidth,
-        model: card?.label ?? modelLabel(selection.ref.modelId),
-        effort: selection.effort,
+        model: footerModelLabel,
+        effort: viewedSelection?.effort ?? selection.effort,
         items: [...locationItems, ...surfaces.footerItems],
         context: readout,
       }),
-    [card, chromeWidth, locationItems, readout, selection.effort, selection.ref, surfaces.footerItems],
+    [chromeWidth, footerModelLabel, locationItems, readout, selection.effort, surfaces.footerItems, viewedSelection],
   )
 
   const footerStrip = useFooterStrip({ items: footerRow.instruments.items, draft })
@@ -1827,9 +1895,9 @@ function Workspace(props: {
   )
 
   /**
-   * Escape closes the floating sidebar rather than interrupting the turn, and it wins by sitting a
-   * layer above the global chord instead of by owning the keyboard — everything else the app binds
-   * has to keep working while the sidebar is up.
+   * Escape closes the floating sidebar rather than interrupting the turn or backing out of a viewed
+   * agent, and it wins by sitting a layer above both — the sidebar is the surface on top, so its
+   * escape is the one that answers while it is up.
    */
   useKeyBindings(
     overlay
@@ -1837,7 +1905,7 @@ function Workspace(props: {
           {
             chord: 'escape',
             hint: 'close sidebar',
-            layer: EKeyLayer.Block,
+            layer: EKeyLayer.Overlay,
             group: EKeyGroup.Session,
             run: handleClosePeek,
           },
@@ -1925,6 +1993,13 @@ function Workspace(props: {
     (key: KeyEvent) => {
       if (props.covered) return
 
+      /**
+       * A pending stop confirmation survives only until the next key: anything but the confirming
+       * escape is the operator moving on, so the child stays running. Escape itself is left alone —
+       * it is the key that either confirms or, unarmed, walks back.
+       */
+      if (key.eventType !== 'release' && key.name !== 'escape') agentView.disarmStop()
+
       if (menus.handleKey(key)) {
         key.preventDefault()
         return
@@ -1932,7 +2007,7 @@ function Workspace(props: {
 
       handleKey(key)
     },
-    [handleKey, menus, props.covered],
+    [agentView, handleKey, menus, props.covered],
   )
 
   useKeyboard(handleKeyWithMenu)
@@ -1988,7 +2063,7 @@ function Workspace(props: {
   )
 
   const placeholder = composerPlaceholder({
-    addressingChild: agentView.viewing !== null,
+    addressingChild: agentView.addressing !== null,
     working: conversation.working,
   })
 
@@ -1997,6 +2072,12 @@ function Workspace(props: {
       <SelectionSurface>
         <box flexDirection="column" width={contentWidth} flexGrow={1} flexShrink={1} flexBasis={0}>
           <box flexDirection="column" flexGrow={1} flexShrink={1}>
+            {agentView.backLabel === null || wide ? null : (
+              <BackPill
+                label={agentView.backLabel}
+                onBack={agentView.handleBack}
+              />
+            )}
             <box flexGrow={welcome ? 1 : 0} flexShrink={1} />
             {welcome ? (
               <WelcomeScreen
@@ -2006,7 +2087,27 @@ function Workspace(props: {
                 version={versionLabel()}
                 width={contentWidth}
               />
-            ) : agentView.selected === null ? (
+            ) : agentView.selected !== null ? (
+              <SubagentTranscript
+                app={props.app}
+                agent={agentView.selected}
+                thinking={settings.thinking}
+                width={contentWidth}
+                cwd={conversation.projectDirectory}
+                opened={opened}
+                onToggle={handleToggle}
+              />
+            ) : agentView.scopedTo !== null ? (
+              <TeammateTranscript
+                app={props.app}
+                agent={agentView.scopedTo}
+                thinking={settings.thinking}
+                width={contentWidth}
+                cwd={conversation.projectDirectory}
+                opened={opened}
+                onToggle={handleToggle}
+              />
+            ) : (
               <Transcript
                 model={conversation.model}
                 width={contentWidth}
@@ -2037,16 +2138,6 @@ function Workspace(props: {
                 {...(conversation.hasOlderHistory
                   ? { onNearTop: () => void conversation.loadOlderHistory().catch(() => undefined) }
                   : {})}
-              />
-            ) : (
-              <SubagentTranscript
-                app={props.app}
-                agent={agentView.selected}
-                thinking={settings.thinking}
-                width={contentWidth}
-                cwd={conversation.projectDirectory}
-                opened={opened}
-                onToggle={handleToggle}
               />
             )}
           </box>
@@ -2091,7 +2182,7 @@ function Workspace(props: {
           <box flexGrow={welcome ? 1 : 0} flexShrink={1} />
           <Footer
             width={chromeWidth}
-            model={card?.label ?? modelLabel(selection.ref.modelId)}
+            model={footerModelLabel}
             layout={footerRow}
             strip={footerStrip.state}
             onActivateItem={footerStrip.handleActivate}
@@ -2099,26 +2190,57 @@ function Workspace(props: {
           />
         </box>
         {sidebarVisible ? (
-          <Sidebar
-            width={overlay ? floatingSidebarWidth({ width, sidebarWidth }) : sidebarWidth}
-            model={sidebarModel}
-            {...(sidebarNaming === null ? {} : { naming: sidebarNaming })}
-            root={projectRoot}
-            repoName={repoName}
-            worktree={sidebarWorktree}
-            version={versionLabel()}
-            overlay={overlay}
-            shells={shells.folded}
-            shellNow={shells.now}
-            shellFold={shells.fold}
-            services={services.folded}
-            serviceNow={services.now}
-            serviceFold={services.fold}
-            onOpenShell={shells.handleOpen}
-            onOpenService={services.handleOpen}
-            onSelectSubagent={agentView.handleSelect}
-            onRevokeGrant={conversation.handleRevokeGrant}
-          />
+          agentView.scopedTo === null ? (
+            <Sidebar
+              width={overlay ? floatingSidebarWidth({ width, sidebarWidth }) : sidebarWidth}
+              model={sidebarModel}
+              {...(sidebarNaming === null ? {} : { naming: sidebarNaming })}
+              root={projectRoot}
+              repoName={repoName}
+              worktree={sidebarWorktree}
+              version={versionLabel()}
+              overlay={overlay}
+              shells={shells.folded}
+              shellNow={shells.now}
+              shellFold={shells.fold}
+              services={services.folded}
+              serviceNow={services.now}
+              serviceFold={services.fold}
+              onOpenShell={shells.handleOpen}
+              onOpenService={services.handleOpen}
+              onSelectSubagent={agentView.handleSelect}
+              onRevokeGrant={conversation.handleRevokeGrant}
+              {...(agentView.backLabel === null
+                ? {}
+                : { back: { label: agentView.backLabel, onBack: agentView.handleBack } })}
+            />
+          ) : (
+            <TeammateSidebar
+              app={props.app}
+              teammate={agentView.scopedTo}
+              crew={agents.sidebar}
+              back={
+                agentView.backLabel === null
+                  ? undefined
+                  : { label: agentView.backLabel, onBack: agentView.handleBack }
+              }
+              width={overlay ? floatingSidebarWidth({ width, sidebarWidth }) : sidebarWidth}
+              root={scopedRepo ?? projectRoot}
+              {...(repoName === undefined ? {} : { repoName })}
+              worktree={scopedWorktree}
+              version={versionLabel()}
+              overlay={overlay}
+              shells={shells.folded}
+              shellNow={shells.now}
+              shellFold={shells.fold}
+              services={services.folded}
+              serviceNow={services.now}
+              serviceFold={services.fold}
+              onOpenShell={shells.handleOpen}
+              onOpenService={services.handleOpen}
+              onSelectSubagent={agentView.handleSelect}
+            />
+          )
         ) : null}
         <OverlayStack
           width={width}

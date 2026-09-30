@@ -4,10 +4,12 @@ import type {
   ExecutionLocationSinkPort,
   IdPort,
   TelemetryPort,
+  ThreadId,
 } from '@dltech/atlas-core'
 
 import type { ThreadStorePort } from '../../store'
 import type { MessageIntake } from '../../intake/message-intake'
+import type { ThreadModel } from '../../store/thread-store'
 import type { AgentType } from '../types'
 import type { ChildRunnerSource } from './child-runner'
 
@@ -22,6 +24,7 @@ export type SupervisorDeps = {
   clock: ClockPort
   agentTypes: readonly AgentType[]
   runners: ChildRunnerSource
+  modelAtSpawn?: ((args: { agentType: AgentType; spawnedBy: ThreadId }) => Promise<ThreadModel | undefined>) | undefined
   launchDirectory: string
   sink?: ExecutionLocationSinkPort | undefined
   telemetry?: TelemetryPort | undefined

@@ -1,4 +1,4 @@
-import { readdir, rm } from 'node:fs/promises'
+import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import {
@@ -6,26 +6,36 @@ import {
   EForkMode,
   executionLocationOf,
   toThreadId,
+  type LinkedPullRequest,
   type LogPort,
   type ThreadId,
 } from '@dltech/atlas-core'
 
 import { titleMatchesHandle } from '../../composition/thread-slug'
-import { logFieldsOf } from '../logs'
 import type { SupervisedAgent, ThreadModel, ThreadSummary } from '../thread-store'
-import {
-  newThreadMeta,
-  readMetaSync,
-  threadMetaSchema,
-  writeMeta,
-  type ThreadMeta,
-} from './meta'
-import { eventLogFile, sessionsDirectory, threadMetaFile, threadsDirectory } from './paths'
-import type { SessionRegistry } from './registry'
-import { refreshSessionCaches } from './session-meta'
-import { threadPlaces } from './thread-places'
+import { readMeta, readMetaSync, threadMetaSchema, type ThreadMeta } from './meta'
+import { sessionsDirectory, threadMetaFile, threadsDirectory } from './paths'
+import { planSegments } from './compose'
+import { placesForSegments } from './session-place-reader'
+import type { ThreadWorktree } from './thread-places'
+import { warnDirectoryUnreadable } from './listing-cleanup'
+import { selectedRoots } from './listing-selected'
+
+export { dropRewoundChildren } from './listing-cleanup'
 
 export const THREAD_LISTING_LIMIT = 50
+export const LISTING_ENRICHMENT_LIMIT = 50
+
+const SCAN_CONCURRENCY = 32
+const ENRICH_CONCURRENCY = 8
+
+export type ListingPlaces = {
+  worktree: ThreadWorktree | null
+  pullRequests: LinkedPullRequest[]
+}
+
+type RootEntry = { sessionDir: string; root: ThreadMeta; activityAt: string }
+type ListingRow = { entry: RootEntry; summary: ThreadSummary; places: ListingPlaces }
 
 export function toThreadSummary(meta: ThreadMeta): ThreadSummary {
   return {
@@ -75,6 +85,30 @@ export function tryReadThreadMeta({ file }: { file: string }): ThreadMeta | unde
   }
 }
 
+async function mapConcurrent<Item, Result>({
+  items,
+  limit,
+  map,
+}: {
+  items: readonly Item[]
+  limit: number
+  map: (item: Item) => Promise<Result>
+}): Promise<Result[]> {
+  const results: Result[] = new Array(items.length)
+  let next = 0
+  const worker = async (): Promise<void> => {
+    for (;;) {
+      const index = next
+      next += 1
+      const item = items[index]
+      if (item === undefined) return
+      results[index] = await map(item)
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()))
+  return results
+}
+
 export async function readThreadMetas({
   sessionDir,
   logPort,
@@ -87,16 +121,29 @@ export async function readThreadMetas({
     warnDirectoryUnreadable({ logPort, path: directory, error })
     return [] as string[]
   })
-  const metas: ThreadMeta[] = []
-  for (const name of names) {
-    if (!name.endsWith('.meta.json')) continue
-    const meta = tryReadThreadMeta({ file: join(threadsDirectory({ sessionDir }), name) })
-    if (meta !== undefined) metas.push(meta)
-  }
-  return metas
+  const metas = await Promise.all(
+    names
+      .filter((name) => name.endsWith('.meta.json'))
+      .map((name) => readMeta({ file: join(directory, name), schema: threadMetaSchema }).catch(() => undefined)),
+  )
+  return metas.filter((meta): meta is ThreadMeta => meta !== undefined)
 }
 
-type RootEntry = { sessionDir: string; root: ThreadMeta; activityAt: string }
+function activityAtOf({ metas, root }: { metas: readonly ThreadMeta[]; root: ThreadMeta }): string {
+  return metas.reduce((latest, meta) => (meta.updatedAt > latest ? meta.updatedAt : latest), root.updatedAt)
+}
+
+function basicOf({ entry }: { entry: RootEntry }): ThreadSummary {
+  return { ...toThreadSummary(entry.root), updatedAt: entry.activityAt }
+}
+
+function withPlaces({ summary, places }: { summary: ThreadSummary; places: ListingPlaces }): ThreadSummary {
+  return {
+    ...summary,
+    ...(places.worktree === null ? {} : { worktree: places.worktree }),
+    ...(places.pullRequests.length === 0 ? {} : { pullRequests: places.pullRequests }),
+  }
+}
 
 async function scanRoots({
   home,
@@ -112,53 +159,97 @@ async function scanRoots({
     warnDirectoryUnreadable({ logPort, path: root, error })
     return []
   })
-  const entries: RootEntry[] = []
-  for (const dir of dirs) {
-    if (!dir.isDirectory()) continue
-    const sessionDir = join(root, dir.name)
-    const meta = tryReadThreadMeta({ file: threadMetaFile({ sessionDir, threadId: toThreadId(dir.name) }) })
-    if (meta === undefined || meta.spawnerThreadId !== null) continue
-    if (meta.repo !== project && meta.workspace !== project) continue
-    const metas = await readThreadMetas({ sessionDir, logPort })
-    const activityAt = metas.reduce((latest, item) => (item.updatedAt > latest ? item.updatedAt : latest), meta.updatedAt)
-    entries.push({ sessionDir, root: meta, activityAt })
-  }
-  return entries
+  const candidates = dirs.filter((dir) => dir.isDirectory()).map((dir) => ({
+    sessionDir: join(root, dir.name),
+    id: toThreadId(dir.name),
+  }))
+  const roots = await mapConcurrent({
+    items: candidates,
+    limit: SCAN_CONCURRENCY,
+    map: async ({ sessionDir, id }) => {
+      const meta = await readMeta({ file: threadMetaFile({ sessionDir, threadId: id }), schema: threadMetaSchema }).catch(
+        () => undefined,
+      )
+      if (meta === undefined || meta.spawnerThreadId !== null) return undefined
+      if (meta.repo !== project && meta.workspace !== project) return undefined
+      return { sessionDir, root: meta }
+    },
+  })
+  const matched = roots.filter((entry): entry is { sessionDir: string; root: ThreadMeta } => entry !== undefined)
+  return mapConcurrent({
+    items: matched,
+    limit: SCAN_CONCURRENCY,
+    map: async ({ sessionDir, root: meta }) => {
+      const metas = await readThreadMetas({ sessionDir, logPort })
+      return { sessionDir, root: meta, activityAt: activityAtOf({ metas, root: meta }) }
+    },
+  })
 }
 
 const byActivityDesc = (a: RootEntry, b: RootEntry): number => b.activityAt.localeCompare(a.activityAt)
 
+function snapshotOf({ rows }: { rows: readonly ListingRow[] }): ThreadSummary[] {
+  return rows.map((row) => withPlaces({ summary: row.summary, places: row.places }))
+}
+
+async function enrichRoots({
+  home,
+  entries,
+  enrich,
+  onUpdate,
+}: {
+  home: string
+  entries: readonly RootEntry[]
+  enrich: ReadonlySet<string> | undefined
+  onUpdate: ((threads: readonly ThreadSummary[]) => void) | undefined
+}): Promise<ThreadSummary[]> {
+  const rows: ListingRow[] = entries.map((entry) => ({
+    entry,
+    summary: basicOf({ entry }),
+    places: { worktree: null, pullRequests: [] },
+  }))
+  onUpdate?.(snapshotOf({ rows }))
+
+  const targets =
+    enrich === undefined
+      ? rows.slice(0, LISTING_ENRICHMENT_LIMIT)
+      : rows.filter((row) => enrich.has(row.entry.root.id))
+  await mapConcurrent({
+    items: targets,
+    limit: ENRICH_CONCURRENCY,
+    map: async (row) => {
+      row.places = await placesForSegments({
+        segments: planSegments({ home, sessionDir: row.entry.sessionDir, threadId: toThreadId(row.entry.root.id) }),
+      })
+      onUpdate?.(snapshotOf({ rows }))
+    },
+  })
+
+  return snapshotOf({ rows })
+}
+
 export async function listRoots({
   home,
-  registry,
   project,
   limit = THREAD_LISTING_LIMIT,
+  enrich,
+  onUpdate,
   logPort,
 }: {
   home: string
-  registry: SessionRegistry
   project: string
   limit?: number | undefined
+  enrich?: readonly ThreadId[] | undefined
+  onUpdate?: ((threads: readonly ThreadSummary[]) => void) | undefined
   logPort?: LogPort | undefined
 }): Promise<ThreadSummary[]> {
-  const entries = (await scanRoots({ home, project, logPort })).sort(byActivityDesc).slice(0, limit)
-  const summaries: ThreadSummary[] = []
-  for (const entry of entries) {
-    const places = await threadPlaces({
-      home,
-      registry,
-      sessionDir: entry.sessionDir,
-      threadId: toThreadId(entry.root.id),
-    })
-    await refreshSessionCaches({ registry, sessionDir: entry.sessionDir, root: entry.root, activityAt: entry.activityAt, places })
-    summaries.push({
-      ...toThreadSummary(entry.root),
-      updatedAt: entry.activityAt,
-      ...(places.worktree === null ? {} : { worktree: places.worktree }),
-      ...(places.pullRequests.length === 0 ? {} : { pullRequests: places.pullRequests }),
-    })
+  if (enrich !== undefined && limit === Number.POSITIVE_INFINITY) {
+    const entries = (await selectedRoots({ home, project, ids: enrich })).sort(byActivityDesc)
+    return enrichRoots({ home, entries, enrich: new Set<string>(enrich), onUpdate })
   }
-  return summaries
+  const entries = (await scanRoots({ home, project, logPort })).sort(byActivityDesc).slice(0, limit)
+  const enrichIds = enrich === undefined ? undefined : new Set<string>(enrich)
+  return enrichRoots({ home, entries, enrich: enrichIds, onUpdate })
 }
 
 export async function mostRecentRoot({
@@ -192,89 +283,4 @@ export async function findNamedRoot({
   return found === undefined ? undefined : toThreadSummary(found.root)
 }
 
-export async function touchThreadMeta({
-  registry,
-  sessionDir,
-  threadId,
-  at,
-}: {
-  registry: SessionRegistry
-  sessionDir: string
-  threadId: ThreadId
-  at: string
-}): Promise<void> {
-  const file = threadMetaFile({ sessionDir, threadId })
-  const meta = tryReadThreadMeta({ file }) ?? newThreadMeta({ id: threadId, at })
-  const log = await registry.readThreadLog({ sessionDir, threadId })
-  await writeMeta({ file, meta: { ...meta, head: log.head, updatedAt: at } })
-}
-
-export async function dropRewoundChildren({
-  home,
-  registry,
-  agentIds,
-  logPort,
-}: {
-  home: string
-  registry: SessionRegistry
-  agentIds: readonly ThreadId[]
-  logPort?: LogPort | undefined
-}): Promise<void> {
-  if (agentIds.length === 0) return
-  const root = sessionsDirectory({ home })
-  const dirs = await readdir(root, { withFileTypes: true }).catch((error) => {
-    warnDirectoryUnreadable({ logPort, path: root, error })
-    return []
-  })
-  const located: { sessionDir: string; meta: ThreadMeta }[] = []
-  for (const dir of dirs) {
-    if (!dir.isDirectory()) continue
-    const sessionDir = join(root, dir.name)
-    for (const meta of await readThreadMetas({ sessionDir, logPort })) located.push({ sessionDir, meta })
-  }
-  for (const agentId of agentIds) {
-    const referenced = located.some(({ meta }) => meta.spawnerThreadId === agentId || meta.parentThreadId === agentId)
-    const found = located.find(({ meta }) => meta.id === agentId)
-    if (found === undefined) continue
-    if (referenced) {
-      await writeMeta({
-        file: threadMetaFile({ sessionDir: found.sessionDir, threadId: agentId }),
-        meta: { ...found.meta, spawnerThreadId: null, agentType: null },
-      })
-      continue
-    }
-    await rm(threadMetaFile({ sessionDir: found.sessionDir, threadId: agentId }), { force: true })
-    await rm(eventLogFile({ sessionDir: found.sessionDir, threadId: agentId }), { force: true })
-    const cached = registry.handleFor({ sessionDir: found.sessionDir }).threads.get(agentId)
-    if (cached !== undefined) {
-      cached.events.length = 0
-      cached.unreadable.length = 0
-      cached.head = 0
-      cached.byContext.clear()
-    }
-  }
-}
-
-function warnDirectoryUnreadable({
-  logPort,
-  path,
-  error,
-}: {
-  logPort: LogPort | undefined
-  path: string
-  error: unknown
-}): void {
-  const code = errorCodeOf({ error })
-  logPort?.warn({
-    source: 'store.listing',
-    message: 'could not list a sessions directory, treating it as empty',
-    data: { path, ...(code === undefined ? {} : { code }) },
-    ...logFieldsOf({ error }),
-  })
-}
-
-function errorCodeOf({ error }: { error: unknown }): string | undefined {
-  if (typeof error !== 'object' || error === null) return undefined
-  const code = (error as { code?: unknown }).code
-  return typeof code === 'string' ? code : undefined
-}
+export { touchThreadMeta } from './listing-cleanup'

@@ -306,6 +306,7 @@ export function createSessionHandlers(args: {
       void answerTranscriptWrite({
         frame,
         transcript,
+        threadId,
         ...(selectModel === undefined ? {} : { select: selectModel }),
       })
         .then((reply) => send({ socket, frame: reply }))

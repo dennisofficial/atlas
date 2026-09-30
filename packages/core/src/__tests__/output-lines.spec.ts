@@ -5,8 +5,9 @@ import {
   ESinkLevel,
   ESinkSource,
   SINK_TEXT_LIMIT,
+  SINK_NOTICE_TEXT_LIMIT,
   consoleTextOf,
-  isLowSignalSinkText,
+  sinkNoticeText,
   severityOfSink,
   truncateSinkText,
   warningTextOf,
@@ -72,20 +73,23 @@ describe('severityOfSink', () => {
   })
 })
 
-describe('isLowSignalSinkText', () => {
-  it('matches the AI SDK warning prefix that floods on every conversion', () => {
-    expect(
-      isLowSignalSinkText('(node:72116) Warning: AI SDK Warning (anthropic / claude-haiku-4-5): unsupported reasoning metadata'),
-    ).toBe(true)
-    expect(isLowSignalSinkText('(node:1) Warning: something else entirely')).toBe(false)
+describe('sinkNoticeText', () => {
+  it('retains the SDK model and cause without displaying a reasoning payload', () => {
+    const warning = '[Warning] AI SDK Warning (openai / gpt-6.1-sol): Non-OpenAI reasoning parts are not supported.'
+    expect(sinkNoticeText({ text: `${warning} Skipping reasoning part: {"text":"private thought"}` })).toBe(`${warning} …`)
   })
 
-  it('matches the emitWarning-hooked form, where the type prefix is [Warning]', () => {
-    expect(
-      isLowSignalSinkText(
-        '[Warning] AI SDK Warning (openai / gpt-6.1-sol): Non-OpenAI reasoning parts are not supported. Skipping reasoning part: {"type":"reasoning","text":"..."}',
-      ),
-    ).toBe(true)
-    expect(isLowSignalSinkText('[Warning] something else entirely')).toBe(false)
+  it('limits visual text separately from diagnostic log text', () => {
+    const text = 'x'.repeat(SINK_TEXT_LIMIT)
+    expect(sinkNoticeText({ text })).toBe(`${'x'.repeat(SINK_NOTICE_TEXT_LIMIT)}…`)
+    expect(truncateSinkText({ text })).toBe(text)
+  })
+
+  it('flattens whitespace into a readable preview', () => {
+    expect(sinkNoticeText({ text: 'one\n\t two  three\r\n' })).toBe('one two three')
+  })
+
+  it('preserves short warnings verbatim', () => {
+    expect(sinkNoticeText({ text: 'a package is unhappy' })).toBe('a package is unhappy')
   })
 })

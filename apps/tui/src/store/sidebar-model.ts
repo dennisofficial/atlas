@@ -18,7 +18,6 @@ import {
 import { commonestDimension, type ClassifierFold } from "./classifier-fold";
 import { foldLogEvents, type LogAccumulator } from "./log-accumulator";
 import type { SidebarCloud } from "./cloud-state";
-import { truncateCells } from "../ui/components/sidebar/cells";
 import { orderSections, type SidebarSection } from "../ui/sidebar-section";
 import type { TurnClock } from "../ui/turn-clock";
 import {
@@ -27,7 +26,7 @@ import {
   type ModelPriceLookup,
   type SidebarSpend,
 } from "./sidebar-spend";
-import { TITLE_CELLS, oneLineOf } from "./sidebar-text";
+import { oneLineOf } from "./sidebar-text";
 import type { SidebarAgentFold, SidebarSubagent } from "./subagent-row";
 
 export enum ESidebarTaskState {
@@ -161,8 +160,7 @@ export function sidebarFrom(args: {
   const titleText = named ?? fold.opening;
 
   return {
-    title:
-      titleText === null ? null : truncateCells({ text: titleText, cells: TITLE_CELLS }),
+    title: titleText === null ? null : oneLineOf(titleText),
     turnCount: fold.turnCount,
     spend,
     lastActivity: fold.lastActivity,

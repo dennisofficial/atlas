@@ -33,7 +33,12 @@ export type NamingState = {
  * title once and unsubscribing; the parent's own state change is what ends it, but the title is
  * already exactly right if that repaint ever lags.
  */
-export function NamingLine(props: { state: NamingState; line: NamingLine }): React.ReactNode {
+export function NamingLine(props: {
+  state: NamingState
+  line: NamingLine
+  /** Set on surfaces where a long title wraps over rows rather than clamping to one. */
+  wrap?: boolean
+}): React.ReactNode {
   const ref = useRef<TextRenderable>(null)
   const latest = useRef(props)
   latest.current = props
@@ -71,6 +76,7 @@ export function NamingLine(props: { state: NamingState; line: NamingLine }): Rea
   return (
     <text
       ref={ref}
+      wrapMode={props.wrap === true ? 'word' : 'none'}
       content={
         state.phase === ENamingPhase.Generating
           ? namingGenerating({ startCells: state.startCells, line })

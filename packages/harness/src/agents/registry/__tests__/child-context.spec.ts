@@ -39,6 +39,31 @@ async function open(): Promise<OpenedSupervisor> {
   return supervisor
 }
 
+describe("a child's model", () => {
+  it('follows a deliberate retarget the moment it is chosen, not at the next turn', async () => {
+    const { harness, supervisor, parent } = await open()
+    const spawned = await supervisor.spawn({
+      threadId: parent,
+      agentType: 'explore',
+      brief: 'look',
+      intent: 'looking',
+    })
+    if (!spawned.ok) throw new Error('the spawn should have been accepted')
+
+    await harness.threads.chooseModel({
+      threadId: spawned.snapshot.agentId,
+      model: { ref: 'anthropic/claude-haiku-4-5', effort: 'high' },
+      retarget: true,
+    })
+
+    const listed = supervisor.list({ threadId: parent })
+    expect(listed.find((agent) => agent.agentId === spawned.snapshot.agentId)?.model).toEqual({
+      id: 'anthropic',
+      modelId: 'claude-haiku-4-5',
+    })
+  })
+})
+
 afterEach(async () => {
   for (const close of closers.splice(0)) await close()
 })

@@ -18,14 +18,18 @@ import type { KeychainReader } from '../credentials/keychain-reader'
 import type { DockerEngine } from '../execution/docker/engine'
 import type { FileSecretsStore } from '../secrets/file-secrets-store'
 import type { OnHookMishap } from '../hooks/budget'
+import type { WakeSignal } from '../wake/wake-signals'
 import type { HookChain, HookChainSource } from '../hooks/registry'
 import type { ModelCardSource } from '../model/ai-sdk-model-port'
 import type { SelectableModel } from '../composition/model-selection'
+import type { SleepPrevention } from '../power/sleep-prevention'
 import type { InjectionToken } from './injection'
 
 export const SessionRegistryToken: InjectionToken<SessionRegistry> = Symbol(
   'atlas.SessionRegistry',
 )
+
+export const AtlasHomeToken: InjectionToken<string> = Symbol('atlas.AtlasHome')
 
 export const DeltaChannelToken: InjectionToken<DeltaChannel> = Symbol('atlas.DeltaChannel')
 
@@ -45,6 +49,8 @@ export const ModelCardSourceToken: InjectionToken<ModelCardSource> =
 
 /** The switchable session model itself, so a transport can re-pin the loop mid-session. */
 export const SelectableModelToken: InjectionToken<SelectableModel> = Symbol('atlas.SelectableModel')
+
+export const WakeSignalToken: InjectionToken<WakeSignal> = Symbol('atlas.WakeSignal')
 
 export const HookChainToken: InjectionToken<HookChain> = Symbol('atlas.HookChain')
 
@@ -92,6 +98,8 @@ export const CloudSettingsStoreToken: InjectionToken<CloudSettingsStore> = Symbo
 export const ServeSessionToken: InjectionToken<CloudSession> = Symbol('atlas.ServeSession')
 
 export const ClientVersionToken: InjectionToken<string> = Symbol('atlas.ClientVersion')
+
+export const SleepPreventionToken: InjectionToken<SleepPrevention> = Symbol('atlas.SleepPrevention')
 
 export const LocalAccountStoreToken: InjectionToken<AccountStorePort> = Symbol(
   'atlas.LocalAccountStore',

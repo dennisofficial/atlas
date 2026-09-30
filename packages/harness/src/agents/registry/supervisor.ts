@@ -1,6 +1,7 @@
 import {
   EKilledBy,
   NoopExecutionLocationSink,
+  parseRef,
   type ClockPort,
   type EExecutionLocation,
   type EventLogPort,
@@ -105,6 +106,24 @@ export class AgentSupervisor extends AgentRegistryPort {
       recovery: this.recovery,
       delivery: this.delivery,
     }
+
+    /**
+     * A deliberate retarget of a child's model reaches the store, but the roster's snapshot is what
+     * every surface reads — it would keep showing the spawn-time model until the child's next turn
+     * re-noted it. Following the store keeps the sidebar, the footer and the roster itself in step
+     * with the pick the operator just made.
+     */
+    this.threads.onModelChosen(({ threadId: chosenId, model }) => {
+      const child = this.roster.find(chosenId)
+      if (child === undefined) return
+
+      const ref = parseRef(model.ref)
+      if (ref === undefined) return
+      if (child.model?.id === ref.providerId && child.model.modelId === ref.modelId) return
+
+      child.model = { id: ref.providerId, modelId: ref.modelId }
+      this.roster.changed()
+    })
   }
 
   types(): readonly AgentType[] {

@@ -1,5 +1,6 @@
 import {
   agentRoster,
+  parseRef,
   type ClockPort,
   type EventLogPort,
   type IdPort,
@@ -102,7 +103,11 @@ export class ChildRecovery {
 
     for (const agent of agentRoster({ events, threadId })) {
       if (this.roster.find(agent.agentId) !== undefined) continue
-      this.roster.add(recoveredChild({ agent, spawnedBy: threadId, at }))
+      const child = recoveredChild({ agent, spawnedBy: threadId, at })
+      const thread = await this.threads.find({ threadId: agent.agentId })
+      const ref = thread?.model === undefined ? undefined : parseRef(thread.model.ref)
+      if (ref !== undefined) child.model = { id: ref.providerId, modelId: ref.modelId }
+      this.roster.add(child)
     }
   }
 }

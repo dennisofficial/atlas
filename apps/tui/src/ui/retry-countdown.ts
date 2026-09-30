@@ -14,7 +14,7 @@ const REASON_LABEL: Record<ERetryReason, string> = {
   [ERetryReason.RateLimited]: 'Rate limited',
   [ERetryReason.Overloaded]: 'API overloaded',
   [ERetryReason.ServerError]: 'API error',
-  [ERetryReason.Network]: 'Connection lost',
+  [ERetryReason.Network]: 'No response from provider',
 }
 
 export function retryRemainingMs(args: { retry: RetryWait; now: number }): number {

@@ -26,6 +26,7 @@ import type { LoopWatch } from './loop-watchdog'
 import type { PauseSignal } from './pause-signal'
 import type { PendingDrain } from './pending-intake'
 import type { RetryDeps } from './retrying-step'
+import type { SleepPrevention } from '../power/sleep-prevention'
 import { openTurnSpend, TURN_CRASHED, type TurnLedgerDeps } from '../ledger/record-turn-spend'
 import { appendResumeDrafts } from './resume-turn'
 import { createSettlePending, type OnToolOutputNotice } from './settle-pending'
@@ -62,6 +63,7 @@ export type TurnDeps = {
   autoCompactAtPercent?: (() => number) | undefined
   launchDirectory?: string | undefined
   retry?: RetryDeps | undefined
+  sleepPrevention?: SleepPrevention | undefined
 }
 
 export class LoopTurnRunner extends TurnRunner {
@@ -71,6 +73,7 @@ export class LoopTurnRunner extends TurnRunner {
   private readonly spend: TurnLedgerDeps | undefined
   private readonly logPort: LogPort | undefined
   private readonly retry: RetryDeps | undefined
+  private readonly sleepPrevention: SleepPrevention | undefined
   private readonly tracked: TrackedTurnDeps
 
   constructor(deps: TurnDeps) {
@@ -81,6 +84,7 @@ export class LoopTurnRunner extends TurnRunner {
     this.spend = deps.spend
     this.logPort = deps.logPort
     this.retry = deps.retry
+    this.sleepPrevention = deps.sleepPrevention
 
     const tools = deps.tools ?? (() => [])
     const countTokens =
@@ -200,6 +204,9 @@ export class LoopTurnRunner extends TurnRunner {
     const runId = this.ids.nextRunId()
     const spend = openTurnSpend({ ...(this.spend ?? {}), model: this.model.identity })
     let status: string = TURN_CRASHED
+    // A turn that parks for a human does so by returning Paused, which drops this lease — the
+    // assertion rides again on resume() rather than surviving a wait nobody is driving.
+    const releaseSleepAssertion = this.sleepPrevention?.acquire()
 
     try {
       const outcome = await runTrackedTurn(
@@ -215,6 +222,7 @@ export class LoopTurnRunner extends TurnRunner {
       status = outcome.status
       return outcome
     } finally {
+      releaseSleepAssertion?.()
       await spend.settle({ threadId, runId, status })
     }
   }

@@ -8,13 +8,13 @@ const TITLE_INSTRUCTION = [
   'The opening message may come with files excerpted or pictures attached to it. Name the work they show, never the fact that something was attached.',
   'An excerpt opens at the start of the session and ends with what was said most recently.',
   'Sessions drift, so when the end disagrees with the beginning, name what the session is about now.',
-  'Two to five words. Name the task, never the developer.',
+  'Two to ten words. Name the task, never the developer.',
   'Reply with the name alone — no quotes, no trailing punctuation, no preamble.',
 ].join(' ')
 
 const PROMPT_CHARACTER_LIMIT = 2000
-const TITLE_WORD_LIMIT = 6
-const TITLE_CHARACTER_LIMIT = 48
+const TITLE_WORD_LIMIT = 10
+const TITLE_CHARACTER_LIMIT = 96
 
 const TITLE_SCHEMA = z.object({ name: z.string() })
 

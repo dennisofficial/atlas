@@ -10,6 +10,7 @@ import type { ServiceSnapshot, ShellSnapshot } from "@dltech/atlas-harness";
 
 import type { SidebarModel } from "../../store";
 import type { SidebarCrewFold } from "../../store/subagent-row";
+import { BackPill } from "./back-pill";
 import { SIDEBAR_GUTTER, SIDEBAR_PADDING, sidebarCells } from "./sidebar/cells";
 import { ESidebarPlace } from "../sidebar-section";
 import { CloudSection } from "./sidebar/cloud";
@@ -108,6 +109,8 @@ function DerivedSidebar(props: {
   version: string;
   repoName?: string | undefined;
   overlay?: boolean;
+  /** Set while the tile is scoped to a teammate, so the head reads in the agent accent. */
+  accented?: boolean;
   shells?: readonly ShellSnapshot[];
   shellNow?: number;
   shellFold?: SidebarCrewFold;
@@ -120,6 +123,8 @@ function DerivedSidebar(props: {
   onRevokeGrant?: (grantId: string) => void;
   /** The naming animation's state; set while a rename or first titling is in flight. */
   naming?: NamingState | null | undefined;
+  /** A way back to the session above, shown as a pill above the title while scoped to an agent. */
+  back?: { label: string; onBack: () => void } | undefined;
 }): React.ReactNode {
   useAppearance();
   const { model } = props;
@@ -152,7 +157,15 @@ function DerivedSidebar(props: {
           contentOptions={{ paddingRight: SIDEBAR_PADDING }}
         >
           <box flexDirection="column" flexShrink={0} gap={1}>
-            <HeadSection model={model} cells={cells} naming={props.naming} />
+            {props.back === undefined ? null : (
+              <BackPill label={props.back.label} onBack={props.back.onBack} cells={cells} />
+            )}
+            <HeadSection
+              model={model}
+              cells={cells}
+              naming={props.naming}
+              {...(props.accented === undefined ? {} : { accented: props.accented })}
+            />
             {model.container === undefined ? null : (
               <ContainerSection container={model.container} cells={cells} />
             )}
