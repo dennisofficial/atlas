@@ -46,6 +46,15 @@ export const subagentLabel = (snapshot: Pick<AgentSnapshot, 'intent' | 'agentTyp
 export const isSubagentAlive = (subagent: Pick<SidebarSubagent, 'status'>): boolean =>
   subagent.status === EAgentStatus.Running || subagent.status === EAgentStatus.Blocked
 
+/**
+ * A settled child whose shells or own children are still going is still working — its loop has
+ * ended, but the session it owns has not. The running counts follow this rather than the bare
+ * status so a finished teammate holding a live preview still reads as an agent at work.
+ */
+export const isSubagentWorking = (
+  subagent: Pick<SidebarSubagent, 'status' | 'activity'>,
+): boolean => isSubagentAlive(subagent) || subagent.activity !== undefined
+
 const SUBAGENT_WENT_WRONG: Record<EAgentStatus, boolean> = {
   [EAgentStatus.Running]: false,
   [EAgentStatus.Blocked]: false,
