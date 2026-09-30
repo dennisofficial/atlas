@@ -18,6 +18,7 @@ import {
 } from '@dltech/atlas-core'
 
 import type { HookChain } from '../hooks/registry'
+import type { WakeSignal } from '../wake/wake-signals'
 import { NO_RAW_TAPE, type RawTape } from './raw-tape'
 import { createPartAccumulator } from './accumulator'
 import { toCoreChunk } from './chunk-conversion'
@@ -27,6 +28,9 @@ import { providerIdentityOf } from './provider-identity'
 import { toModelMessages } from './message-conversion'
 import { toProviderPrompt } from './provider-prompt'
 import { toToolSet } from './tool-set'
+import { proxyDoStream, wakeAbortsStream } from './wake-aware-model'
+
+export { wakeAbortsStream }
 
 export type { ChunkFilter }
 
@@ -85,10 +89,7 @@ function withResponseDeadline(args: { model: LanguageModelV4; ttfbMs: number }):
     return Promise.race([answered, unanswered]).finally(() => clearTimeout(timer))
   }
 
-  return new Proxy(args.model, {
-    get: (target, property, receiver) =>
-      property === 'doStream' ? doStream : Reflect.get(target, property, receiver),
-  })
+  return proxyDoStream(args.model, doStream)
 }
 
 async function keptChunk(args: {
@@ -112,14 +113,19 @@ export async function runModelStream(args: {
   hooks?: HookChain | undefined
   tape?: RawTape | undefined
   streamTimeout?: StreamTimeout | undefined
+  wake?: WakeSignal | undefined
 }): Promise<ModelStepResult> {
   const instructions = toInstructions(args.prompt.instructions)
   const tape = args.tape ?? NO_RAW_TAPE
 
   const timeout = args.streamTimeout ?? DEFAULT_STREAM_TIMEOUT
-  const model = isV4Model(args.model)
+  const deadlineModel = isV4Model(args.model)
     ? withResponseDeadline({ model: args.model, ttfbMs: timeout.ttfbMs })
     : args.model
+  const model =
+    args.wake !== undefined && isV4Model(deadlineModel)
+      ? wakeAbortsStream({ model: deadlineModel, wake: args.wake })
+      : deadlineModel
 
   const stream = streamText({
     model,
@@ -178,6 +184,7 @@ export type AiSdkModelPortArgs = {
   card?: ModelCardSource | undefined
   hooks?: HookChain | undefined
   tape?: RawTape | undefined
+  wake?: WakeSignal | undefined
 }
 
 export class AiSdkModelPort extends ModelPort {
@@ -186,6 +193,7 @@ export class AiSdkModelPort extends ModelPort {
   private readonly card: ModelCardSource | undefined
   private readonly hooks: HookChain | undefined
   private readonly tape: RawTape | undefined
+  private readonly wake: WakeSignal | undefined
 
   constructor(args: AiSdkModelPortArgs) {
     super()
@@ -194,6 +202,7 @@ export class AiSdkModelPort extends ModelPort {
     this.card = args.card
     this.hooks = args.hooks
     this.tape = args.tape
+    this.wake = args.wake
   }
 
   get identity(): ProviderIdentity {
@@ -228,6 +237,7 @@ export class AiSdkModelPort extends ModelPort {
       ...(this.hooks === undefined ? {} : { hooks: this.hooks }),
       ...(onChunk === undefined ? {} : { onChunk }),
       ...(this.tape === undefined ? {} : { tape: this.tape }),
+      ...(this.wake === undefined ? {} : { wake: this.wake }),
     })
   }
 

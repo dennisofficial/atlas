@@ -13,6 +13,7 @@ import {
   IdPort,
   DecisionPort,
   JudgePort,
+  LogPort,
   ModelPort,
   TelemetryPort,
   NOTICE_WARN_MS,
@@ -41,6 +42,8 @@ import {
   ClientVersionToken,
   HookMishapReporterToken,
   SecretsStoreToken,
+  SleepPreventionToken,
+  WakeSignalToken,
   WorkspaceRoot,
 } from '../container/tokens'
 import type { HookMishap } from '../hooks/budget'
@@ -58,11 +61,14 @@ import { registerMcp } from '../mcp/registry/register-mcp'
 import { createPendingQueues } from '../pending'
 import { registerBuiltinPromptFragments } from '../prompt/register-prompt-fragments'
 import { PromptRegistry } from '../prompt/registry'
+import { SleepPrevention } from '../power/sleep-prevention'
 import { ServiceRegistryPort } from '../services/service-registry'
 import { ShellRegistryPort } from '../shells/shell-registry'
 import { atlasDirectory } from '../store/paths'
 import { ThreadStorePort } from '../store/thread-store'
 import { ToolRegistry } from '../tools/registry'
+import { ClockJumpDetector } from '../wake/clock-jump-detector'
+import { WakeSignalSource } from '../wake/wake-signal-source'
 import { probeWorkspace } from '../workspace/probe'
 import type { ContributedSurface } from '../plugins/surface'
 
@@ -194,6 +200,24 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
 
   registerBuiltinPromptFragments({ container })
   container.register(WorkspaceRoot, { useValue: workspace.workspace })
+  container.register(SleepPreventionToken, {
+    useValue: new SleepPrevention({ log: container.resolve(portToken(LogPort)) }),
+  })
+
+  // One clock-jump detector per session: a sleep that lands mid-stream leaves every pooled socket
+  // half-open, so the wake must reach the model port (abort + fresh connection) and the retry
+  // policy (budget reset) from the same source.
+  const wakeSignals = new WakeSignalSource()
+  const clockJumps = new ClockJumpDetector({})
+  clockJumps.subscribe((jump) => wakeSignals.fire(jump))
+  clockJumps.start()
+  container.register(WakeSignalToken, { useValue: wakeSignals })
+  registerDisposable({
+    container,
+    close: async () => {
+      clockJumps.stop()
+    },
+  })
 
   bindKeychainSource({ container, launchValue })
 
@@ -392,7 +416,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
       ...(signal === undefined ? {} : { signal }),
     })
 
-  const { turn, runner, turnPolicy, titling, recordTeardownEndings } = wireTurn<Command>({
+  const { turn, runner, turnPolicy, titling, recordTeardownEndings, intake } = wireTurn<Command>({
     container,
     workspace,
     executionLocation,
@@ -412,6 +436,8 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     decisionsEnabled: () => decisionsConfig() !== undefined,
     stopSandbox: sandbox.stop,
     settled,
+    sleepPrevention: container.resolve(SleepPreventionToken),
+    wake: container.resolve(WakeSignalToken),
     tldr: { feed: surface.tldrFeed, model: tldrModel, modelId: () => tldrModel.modelId },
     titler: ({ text, images }) =>
       titleFor({ model: titlerModel, fallback: sessionModelFallback, text, images }),
@@ -465,6 +491,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     ledger,
     ids,
     pending,
+    intake,
     shells,
     agents,
     services,
@@ -495,7 +522,12 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     surface: bound as TSurface,
     close: async () => {
       usage.dispose()
-      await recordTeardownEndings().catch(() => undefined)
+      await recordTeardownEndings().catch((error: unknown) => {
+        notice.notify({
+          tone: ENoticeTone.Warn,
+          text: `Could not persist every session ending: ${error instanceof Error ? error.message : String(error)}`,
+        })
+      })
       await disposeAll({ container })
       await container.resolve(portToken(TelemetryPort)).flush()
     },

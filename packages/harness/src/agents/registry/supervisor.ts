@@ -1,12 +1,9 @@
 import {
-  EAgentRestart,
   EKilledBy,
-  EMessageOrigin,
   NoopExecutionLocationSink,
   parseRef,
   type ClockPort,
   type EExecutionLocation,
-  type EventDraft,
   type EventLogPort,
   type ExecutionLocationSinkPort,
   type IdPort,
@@ -15,19 +12,18 @@ import {
 } from '@dltech/atlas-core'
 
 import type { ThreadStorePort } from '../../store'
-import { isTeammateType, type AgentType } from '../types'
+import type { InputBatch } from '../../intake/input-batch'
+import type { AgentType } from '../types'
 import { ChildSteps } from './child-steps'
-import { agentTypeNamed, type SupervisorDeps } from './deps'
-import { freshChild, isStepping, snapshotOf, type ChildState } from './child-state'
+import type { SupervisorDeps } from './deps'
+import { snapshotOf, type ChildState } from './child-state'
 import { NoticeDelivery, type NoticeDrain } from './delivery'
 import { AgentNoticeQueue } from './notices'
-import { openChildThread } from './open-child'
+import { NoticeWake } from './notice-wake'
 import { forgetRemovedChildren } from './remove-children'
 import { AgentRegistryPort, type AgentOutcome, type RelocateChildrenArgs } from './port'
-import { recordRestart } from './record-restart'
 import { ChildRecovery } from './recovery'
 import {
-  childDirectory,
   markThreadChildrenRelocated,
   pauseThreadChildren,
   relocateThreadChildren,
@@ -35,17 +31,10 @@ import {
   stopThreadChildren,
   type Relocation,
 } from './relocate-children'
-import {
-  alreadyStepping,
-  deliberatelyStopped,
-  EMPTY_BRIEF,
-  retiredAgentType,
-  TEAMMATE_FROM_MAIN_ONLY,
-  unknownAgent,
-  unknownAgentType,
-} from './reasons'
+import { unknownAgent } from './reasons'
 import { reportToParent, say, sayToPeer } from './say'
 import { AgentRoster } from './roster'
+import { ChildSpawner } from './spawn-child'
 import type { AgentSnapshot, RecoveredAgents } from './snapshot'
 import { stopAllChildren, stopChild } from './stop-all'
 
@@ -64,6 +53,8 @@ export class AgentSupervisor extends AgentRegistryPort {
   private readonly sink: ExecutionLocationSinkPort
   private readonly deps: SupervisorDeps
   private readonly relocation: Relocation
+  private readonly noticeWake: NoticeWake
+  private readonly spawner: ChildSpawner
 
   constructor(args: SupervisorDeps) {
     super()
@@ -82,6 +73,23 @@ export class AgentSupervisor extends AgentRegistryPort {
       clock: args.clock,
       ...(args.telemetry === undefined ? {} : { telemetry: args.telemetry }),
     })
+    this.spawner = new ChildSpawner({
+      threads: args.threads,
+      log: args.log,
+      ids: args.ids,
+      clock: args.clock,
+      roster: this.roster,
+      steps: this.steps,
+      agentTypes: args.agentTypes,
+      sink: this.sink,
+      deps: args,
+    })
+    this.noticeWake = new NoticeWake({
+      roster: this.roster,
+      steps: this.steps,
+      agentTypes: args.agentTypes,
+      deps: args,
+    })
     this.delivery = new NoticeDelivery({ notices: this.notices, roster: this.roster, clock: args.clock })
     this.recovery = new ChildRecovery({
       log: args.log,
@@ -98,69 +106,37 @@ export class AgentSupervisor extends AgentRegistryPort {
       recovery: this.recovery,
       delivery: this.delivery,
     }
+
+    /**
+     * A deliberate retarget of a child's model reaches the store, but the roster's snapshot is what
+     * every surface reads — it would keep showing the spawn-time model until the child's next turn
+     * re-noted it. Following the store keeps the sidebar, the footer and the roster itself in step
+     * with the pick the operator just made.
+     */
+    this.threads.onModelChosen(({ threadId: chosenId, model }) => {
+      const child = this.roster.find(chosenId)
+      if (child === undefined) return
+
+      const ref = parseRef(model.ref)
+      if (ref === undefined) return
+      if (child.model?.id === ref.providerId && child.model.modelId === ref.modelId) return
+
+      child.model = { id: ref.providerId, modelId: ref.modelId }
+      this.roster.changed()
+    })
   }
 
   types(): readonly AgentType[] {
     return this.agentTypes
   }
 
-  async spawn({
-    threadId,
-    agentType,
-    brief,
-    intent,
-  }: {
+  spawn(args: {
     threadId: ThreadId
     agentType: string
     brief: string
     intent: string
   }): Promise<AgentOutcome> {
-    const type = agentTypeNamed({ agentTypes: this.agentTypes, name: agentType })
-    if (type === undefined) {
-      return { ok: false, reason: unknownAgentType({ agentType, known: this.agentTypes }) }
-    }
-    if (brief.trim() === '') return { ok: false, reason: EMPTY_BRIEF }
-
-    if (isTeammateType(type.name)) {
-      const caller = await this.threads.find({ threadId })
-      if (caller?.agent !== undefined) return { ok: false, reason: TEAMMATE_FROM_MAIN_ONLY }
-    }
-
-    const model = await this.deps.modelAtSpawn?.({ agentType: type, spawnedBy: threadId })
-    const { threadId: agentId, inheritedLocation } = await openChildThread({
-      model,
-      threads: this.threads,
-      log: this.log,
-      ids: this.ids,
-      spawnedBy: threadId,
-      agentType: type,
-      brief,
-      intent,
-    })
-
-    if (inheritedLocation !== undefined) await this.sink.refresh({ threadId: agentId })
-
-    const child = freshChild({
-      agentId,
-      spawnedBy: threadId,
-      agentType: type.name,
-      intent,
-      at: this.clock.now(),
-      projectDirectory: await childDirectory({ deps: this.deps, threadId }),
-    })
-    const ref = model === undefined ? undefined : parseRef(model.ref)
-    if (ref !== undefined) child.model = { id: ref.providerId, modelId: ref.modelId }
-    this.roster.add(child)
-
-    this.steps.take({
-      child,
-      agentType: type,
-      step: ({ runner, signal, pause }) => runner.runTurn({ threadId: agentId, signal, pause }),
-    })
-
-    this.deps.telemetry?.agentSpawned({ agentType: type.name })
-
-    return { ok: true, snapshot: snapshotOf(child) }
+    return this.spawner.spawn(args)
   }
 
   say(args: {
@@ -185,29 +161,8 @@ export class AgentSupervisor extends AgentRegistryPort {
     return resumeChild({ ...args, ...this.relocation })
   }
 
-  async wake({ agentId }: { agentId: ThreadId }): Promise<AgentOutcome> {
-    const child = this.roster.find(agentId)
-    if (child === undefined) {
-      return { ok: false, reason: unknownAgent({ agentId, known: this.roster.listEverywhere() }) }
-    }
-    if (isStepping(child)) return { ok: false, reason: alreadyStepping(agentId) }
-    if (child.killedBy !== undefined) {
-      return { ok: false, reason: deliberatelyStopped({ agentId }) }
-    }
-
-    const agentType = agentTypeNamed({ agentTypes: this.agentTypes, name: child.agentType })
-    if (agentType === undefined) {
-      return { ok: false, reason: retiredAgentType(child.agentType) }
-    }
-
-    child.projectDirectory ??= await childDirectory({ deps: this.deps, threadId: child.spawnedBy })
-    await recordRestart({ log: this.log, ids: this.ids, child, via: EAgentRestart.Wake })
-    this.steps.take({
-      child,
-      agentType,
-      step: ({ runner, signal, pause }) => runner.runTurn({ threadId: agentId, signal, pause }),
-    })
-    return { ok: true, snapshot: snapshotOf(child) }
+  wake({ agentId }: { agentId: ThreadId }): Promise<AgentOutcome> {
+    return this.noticeWake.wake({ agentId })
   }
 
   sayToPeer(args: {
@@ -316,12 +271,20 @@ export class AgentSupervisor extends AgentRegistryPort {
     return this.delivery.drain({ threadId })
   }
 
+  override prepareNotifications({ threadId }: { threadId: ThreadId }): InputBatch {
+    return this.delivery.prepareNotifications({ threadId })
+  }
+
   pendingNotices({ threadId }: { threadId: ThreadId }): readonly AgentSnapshot[] {
     return this.notices.pending({ threadId })
   }
 
   threadsAwaitingNotice(): readonly ThreadId[] {
     return this.notices.threadsAwaiting()
+  }
+
+  override threadsWithPendingInput(): readonly ThreadId[] {
+    return this.notices.threadsQueued()
   }
 
   onNotice(listener: () => void): () => void {

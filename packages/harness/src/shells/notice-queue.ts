@@ -1,40 +1,13 @@
 import { EShellStatus, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 
-import type { BackgroundShell, ShellDelta, ShellSnapshot } from './background-shell'
+import type { InputBatch } from '../intake/input-batch'
+import type { ShellDelta, ShellSnapshot } from './background-shell'
 import { awaitingInputDraft, endedDraft, matchedDraft, stillRunningDraft } from './notifications'
-import type { OutputDelta } from './output-buffer'
 import type { MatchedLines } from './shell-watch'
+import { DELIVERED_CHARACTERS, previewOutput, take, type OutputPreview } from './output-preview'
 
-export const DELIVERED_CHARACTERS = 30_000
-
-export type Tracked = {
-  shell: BackgroundShell
-  cursor: number
-  announced: boolean
-  endingClaimed: boolean
-  reaped: boolean
-  threadId: ThreadId
-  pattern?: string | undefined
-  onReaped?: (() => void) | undefined
-}
-
-const releasedShell = ({ snapshot }: { snapshot: ShellSnapshot }): BackgroundShell => ({
-  shellId: snapshot.shellId,
-  snapshot: () => snapshot,
-  since: (offset): OutputDelta => {
-    const asked = Math.min(Math.max(Math.trunc(offset), 0), snapshot.totalCharacters)
-    return {
-      text: '',
-      nextOffset: snapshot.totalCharacters,
-      droppedCharacters: snapshot.totalCharacters - asked,
-      totalCharacters: snapshot.totalCharacters,
-    }
-  },
-  tail: () => '',
-  kill: () => {},
-  release: () => {},
-  exited: Promise.resolve(),
-})
+export { DELIVERED_CHARACTERS, previewOutput, take }
+export type { OutputPreview, Tracked } from './output-preview'
 
 export enum ENotice {
   Ended = 'ended',
@@ -62,10 +35,15 @@ export type ShellNotice =
   | (NoticedShell & {
       kind: ENotice.Ended
       take: () => ShellDelta
+      preview: () => OutputPreview
       hooked?: readonly EventDraft[] | undefined
       outputClaimed?: boolean | undefined
     })
-  | (NoticedShell & { kind: ENotice.AwaitingInput; take: () => ShellDelta })
+  | (NoticedShell & {
+      kind: ENotice.AwaitingInput
+      take: () => ShellDelta
+      preview: () => OutputPreview
+    })
   | (NoticedShell & { kind: ENotice.Matched; pattern: string; matched: MatchedLines })
   | (NoticedShell & {
       kind: ENotice.StillRunning
@@ -81,28 +59,6 @@ export type ShellNotice =
  */
 export type PendingShellNotice = { kind: ENotice; snapshot: ShellSnapshot }
 
-/**
- * The cursor is the model's place in a shell, so taking a delta is what marks output as delivered.
- */
-export function take(entry: Tracked): ShellDelta {
-  const delta = entry.shell.since(entry.cursor)
-  const text = delta.text.slice(0, DELIVERED_CHARACTERS)
-  entry.cursor = entry.cursor + delta.droppedCharacters + text.length
-  const remainingCharacters = Math.max(delta.totalCharacters - entry.cursor, 0)
-
-  if (remainingCharacters === 0 && entry.shell.snapshot().status !== EShellStatus.Running) {
-    const snapshot = entry.shell.snapshot()
-    entry.shell.release()
-    entry.shell = releasedShell({ snapshot })
-    entry.reaped = true
-    entry.onReaped?.()
-  }
-
-  return { text, droppedCharacters: delta.droppedCharacters, remainingCharacters }
-}
-
-const NOTHING_PENDING: readonly ShellNotice[] = Object.freeze([])
-
 const NOTHING_ANNOUNCED: readonly PendingShellNotice[] = Object.freeze([])
 
 export const NOTHING_DRAINED: readonly EventDraft[] = Object.freeze([])
@@ -110,7 +66,7 @@ export const NOTHING_DRAINED: readonly EventDraft[] = Object.freeze([])
 const NOTHING_NOTICED: ReadonlyMap<ThreadId, readonly PendingShellNotice[]> = new Map()
 
 export class ShellNoticeQueue {
-  private queued: readonly ShellNotice[] = NOTHING_PENDING
+  private queued: readonly ShellNotice[] = []
   private noticed: ReadonlyMap<ThreadId, readonly PendingShellNotice[]> = NOTHING_NOTICED
   private readonly listeners = new Set<() => void>()
 
@@ -137,14 +93,29 @@ export class ShellNoticeQueue {
    * stopped being the reason nothing is coming, and the ending queued behind it carries the output.
    */
   drain({ threadId }: { threadId: ThreadId }): readonly EventDraft[] {
-    const handed = this.queued.filter((notice) => notice.threadId === threadId)
-    if (handed.length === 0) return NOTHING_DRAINED
+    const batch = this.prepare({ threadId })
+    batch.acknowledge()
+    return batch.drafts
+  }
 
-    this.settle(this.queued.filter((notice) => notice.threadId !== threadId))
-
-    return handed
+  prepare({ threadId }: { threadId: ThreadId }): InputBatch {
+    const captured = this.queued.filter((notice) => notice.threadId === threadId)
+    const previews: OutputPreview[] = []
+    const drafts = captured
       .filter((notice) => this.stillWorthTelling(notice))
-      .flatMap((notice) => this.draftsOf(notice))
+      .flatMap((notice) => this.draftsOf(notice, previews))
+
+    let acknowledged = false
+    const acknowledge = (): void => {
+      if (acknowledged) return
+      acknowledged = true
+      const leaving = new Set(captured)
+      const kept = this.queued.filter((notice) => !leaving.has(notice))
+      if (kept.length !== this.queued.length) this.settle(kept)
+      for (const preview of previews) preview.commit()
+    }
+
+    return { drafts, wakesTurn: drafts.length > 0, acknowledge }
   }
 
   pending({ threadId }: { threadId: ThreadId }): readonly PendingShellNotice[] {
@@ -163,6 +134,10 @@ export class ShellNoticeQueue {
 
   threadsAwaiting(): readonly ThreadId[] {
     return [...this.noticed.keys()]
+  }
+
+  threadsQueued(): readonly ThreadId[] {
+    return [...new Set(this.queued.map((notice) => notice.threadId))]
   }
 
   hasNoticesFor({ shellId }: { shellId: string }): boolean {
@@ -184,7 +159,7 @@ export class ShellNoticeQueue {
 
   onNotice(listener: () => void): () => void {
     this.listeners.add(listener)
-    return () => void this.listeners.delete(listener)
+    return () => this.listeners.delete(listener)
   }
 
   forget({ threadId }: { threadId: ThreadId }): void {
@@ -209,7 +184,7 @@ export class ShellNoticeQueue {
     return live === undefined || live.status === EShellStatus.Running
   }
 
-  private draftsOf(notice: ShellNotice): readonly EventDraft[] {
+  private draftsOf(notice: ShellNotice, previews: OutputPreview[]): readonly EventDraft[] {
     if (notice.kind === ENotice.Matched) {
       return [
         matchedDraft({
@@ -236,12 +211,13 @@ export class ShellNoticeQueue {
       return notice.hooked ?? []
     }
 
-    const delta = notice.take()
+    const preview = notice.preview()
+    previews.push(preview)
     if (notice.kind === ENotice.AwaitingInput) {
-      return [awaitingInputDraft({ snapshot: notice.snapshot, delta })]
+      return [awaitingInputDraft({ snapshot: notice.snapshot, delta: preview.delta })]
     }
 
-    return [endedDraft({ snapshot: notice.snapshot, delta }), ...(notice.hooked ?? [])]
+    return [endedDraft({ snapshot: notice.snapshot, delta: preview.delta }), ...(notice.hooked ?? [])]
   }
 
   /**

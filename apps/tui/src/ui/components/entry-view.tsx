@@ -176,12 +176,12 @@ function DerivedEntryView(props: {
     case EEntryKind.AgentEnded:
       return (
         <NoticeBlock
-          text={entry.text}
+          text={entry.quiet === true ? `${entry.text} (turn end; no wake)` : entry.text}
           body={entry.report}
           failed={entry.failed}
           width={props.width}
-          openHint={AGENT_REPORT_HINT}
-          silentNote={REPORTED_NOTHING}
+          openHint={entry.quiet === true ? '↵ last reply' : AGENT_REPORT_HINT}
+          silentNote={entry.quiet === true ? 'no final reply' : REPORTED_NOTHING}
           expanded={props.expanded ?? false}
           {...(onToggle ? { onToggle: () => onToggle(entry.key) } : {})}
         />

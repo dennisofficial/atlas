@@ -49,6 +49,12 @@ const PIN_KEY = '*'
  * arrives as would all read the same rendered query. The ref is what the handlers read and write;
  * React state exists to draw it.
  */
+export type SwitcherViewed = {
+  ref: ModelRef
+  effort: EEffort
+  onPick: (choice: SwitcherChoice) => void
+}
+
 export function useSwitcher(args: {
   catalogue: ModelCatalogue
   /** Bumps whenever the catalogue re-observes accounts, so availability never serves a stale memo. */
@@ -60,6 +66,12 @@ export function useSwitcher(args: {
   favourites: readonly string[]
   onPick: (args: { choice: SwitcherChoice; target: SwitcherTarget }) => void
   onPin: (favourites: readonly string[]) => void
+  /**
+   * The agent the tile is pointed at, when it is not the main thread. While set, a thread-scope
+   * open anchors on this selection and a thread-scope pick routes to this picker — the footer and
+   * the picker's row both describe the agent on screen, never the thread behind it.
+   */
+  viewed?: SwitcherViewed | undefined
 }): SwitcherControl {
   const held = useRef<Browsing | null>(null)
   const [browsing, setBrowsing] = useState<Browsing | null>(null)
@@ -73,6 +85,7 @@ export function useSwitcher(args: {
     favourites,
     onPick,
     onPin,
+    viewed,
   } = args
 
   const put = useCallback((next: Browsing | null) => {
@@ -105,7 +118,7 @@ export function useSwitcher(args: {
       const anchor =
         target.scope === EModelScope.Setting
           ? { ref: settingRef(target.id) ?? fallback.ref, effort: fallback.effort }
-          : { ref: active, effort }
+          : { ref: viewed?.ref ?? active, effort: viewed?.effort ?? effort }
 
       put({
         query: '',
@@ -119,7 +132,7 @@ export function useSwitcher(args: {
         }),
       })
     },
-    [active, accountsVersion, catalogue, effort, fallback, favourites, put, settingRef],
+    [active, accountsVersion, catalogue, effort, fallback, favourites, put, settingRef, viewed],
   )
 
   const handleDismiss = useCallback(() => put(null), [put])
@@ -128,9 +141,13 @@ export function useSwitcher(args: {
     (choice: SwitcherChoice) => {
       const target = held.current?.target ?? THREAD_TARGET
       put(null)
+      if (viewed !== undefined && target.scope === EModelScope.Thread) {
+        viewed.onPick(choice)
+        return
+      }
       onPick({ choice, target })
     },
-    [onPick, put],
+    [onPick, put, viewed],
   )
 
   const handleQuery = useCallback(

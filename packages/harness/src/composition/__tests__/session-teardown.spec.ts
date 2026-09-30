@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EventLogPort, EShellStatus, toThreadId, type EventDraft } from '@dltech/atlas-core'
-import { RandomIds } from '@dltech/atlas-harness'
+import { MessageIntake, RandomIds } from '@dltech/atlas-harness'
 
 import { teardownSession, type TeardownShellSource, type TeardownSource } from '../session-teardown'
 
@@ -105,6 +105,64 @@ describe('teardownSession', () => {
       'shells:recordEndings',
       'sandbox:stop',
     ])
+  })
+
+  it('persists quiet bookkeeping even when no thread is awaiting a wake', async () => {
+    const calls: string[] = []
+    const quiet: TeardownSource = {
+      ...recordingSource({ calls, name: 'agents' }),
+      threadsAwaitingNotice: () => [],
+      threadsWithPendingInput: () => [THREAD],
+      prepareNotifications: () => ({
+        drafts: [DRAFT],
+        wakesTurn: false,
+        acknowledge: () => { calls.push('agents:acknowledge') },
+      }),
+    }
+    await teardownSession({
+      sources: [quiet], log: recordingLog(calls), ids: new RandomIds(),
+      stopSandbox: async () => { calls.push('sandbox:stop') },
+    })
+    expect(calls).toEqual(['agents:closeAll', 'log:append', 'agents:acknowledge', 'sandbox:stop'])
+  })
+
+  it('flushes through the shared intake when one is present, covering retained adapter state', async () => {
+    const calls: string[] = []
+    const intakeSource = {
+      subscribe: () => () => undefined,
+      threadsAwaitingInput: () => [THREAD],
+      prepare: () => ({
+        drafts: [DRAFT], wakesTurn: true,
+        acknowledge: () => { calls.push('intake:acknowledge') },
+      }),
+    }
+    const intake = new MessageIntake({ sources: [intakeSource] })
+    await teardownSession({
+      sources: [recordingSource({ calls, name: 'shells' })],
+      log: recordingLog(calls), ids: new RandomIds(), intake,
+      stopSandbox: async () => { calls.push('sandbox:stop') },
+    })
+    expect(calls).toEqual(['shells:closeAll', 'log:append', 'intake:acknowledge', 'sandbox:stop'])
+    intake.dispose()
+  })
+
+  it('does not acknowledge input when its teardown append fails', async () => {
+    const calls: string[] = []
+    const pending: TeardownSource = {
+      ...recordingSource({ calls, name: 'shells', drafts: [DRAFT] }),
+      prepareNotifications: () => ({
+        drafts: [DRAFT], wakesTurn: true,
+        acknowledge: () => { calls.push('shells:acknowledge') },
+        release: () => { calls.push('shells:release') },
+      }),
+    }
+    const log = recordingLog(calls)
+    log.append = async () => { throw new Error('append failed') }
+    await expect(teardownSession({
+      sources: [pending], log, ids: new RandomIds(),
+      stopSandbox: async () => { calls.push('sandbox:stop') },
+    })).rejects.toThrow('append failed')
+    expect(calls).toEqual(['shells:closeAll', 'shells:release', 'sandbox:stop'])
   })
 
   it('stops the sandbox even when a registry refuses to close', async () => {

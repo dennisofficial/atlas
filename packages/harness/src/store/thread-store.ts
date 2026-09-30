@@ -118,7 +118,12 @@ export abstract class ThreadStorePort {
     handle: string
   }): Promise<ThreadSummary | undefined>
   abstract rename(args: { threadId: ThreadId; title: string }): Promise<void>
-  abstract chooseModel(args: { threadId: ThreadId; model: ThreadModel }): Promise<void>
+  abstract chooseModel(args: {
+    threadId: ThreadId
+    model: ThreadModel
+    /** A deliberate per-child switch; passes the spawn-freeze guard for a frozen child. */
+    retarget?: boolean | undefined
+  }): Promise<void>
   abstract chooseExecutionLocation(args: {
     threadId: ThreadId
     location: EExecutionLocation

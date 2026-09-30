@@ -219,14 +219,22 @@ export class JsonlThreadStore implements ThreadStorePort {
     for (const listener of [...this.placementListeners]) listener({ threadId, record })
   }
 
-  async chooseModel({ threadId, model }: { threadId: ThreadId; model: ThreadModel }): Promise<void> {
+  async chooseModel({
+    threadId,
+    model,
+    retarget,
+  }: {
+    threadId: ThreadId
+    model: ThreadModel
+    retarget?: boolean | undefined
+  }): Promise<void> {
     const sessionDir = await this.registry.sessionDirOf({ threadId })
     if (sessionDir === undefined) return
     await this.updateMeta({
       threadId,
       change: (meta) => {
         const frozen = meta.spawnerThreadId !== null && meta.modelRef !== null && meta.modelEffort !== null
-        if (frozen && (meta.modelRef !== model.ref || meta.modelEffort !== model.effort))
+        if (frozen && retarget !== true && (meta.modelRef !== model.ref || meta.modelEffort !== model.effort))
           throw new Error(`child ${threadId} keeps the model and effort it was spawned with`)
         return { ...meta, modelRef: model.ref, modelEffort: model.effort }
       },

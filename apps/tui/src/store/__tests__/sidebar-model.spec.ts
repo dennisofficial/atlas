@@ -16,7 +16,6 @@ import {
 import { describe, expect, it } from "bun:test";
 
 import { IDLE_TURN } from "../../ui/turn-clock";
-import { SIDEBAR_WIDTH } from "../../ui/theme";
 import { ESidebarPlace } from "../../ui/sidebar-section";
 import { deriveSidebar, IDLE_SIDEBAR, withSections } from "../sidebar-model";
 import { log } from "./fixture";
@@ -151,13 +150,12 @@ describe("the session head", () => {
     );
   });
 
-  it("truncates a title that would not fit the sidebar", () => {
+  it("keeps a title past the sidebar's width whole, so the head can wrap it", () => {
     const events = log([{ type: "user-said", text: "R".repeat(200) }]);
 
     const title = deriveSidebar({ events, turn: IDLE_TURN }).title ?? "";
 
-    expect([...title].length).toBeLessThanOrEqual(SIDEBAR_WIDTH);
-    expect(title.endsWith("…")).toBe(true);
+    expect(title).toBe("R".repeat(200));
   });
 
   it("prefers the name the session was given over the first thing said", () => {
@@ -189,13 +187,12 @@ describe("the session head", () => {
     );
   });
 
-  it("truncates a name too long for the sidebar", () => {
+  it("keeps a name past the sidebar's width whole, so the head can wrap it", () => {
     const title =
       deriveSidebar({ events: [], turn: IDLE_TURN, name: "R".repeat(200) })
         .title ?? "";
 
-    expect([...title].length).toBeLessThanOrEqual(SIDEBAR_WIDTH);
-    expect(title.endsWith("…")).toBe(true);
+    expect(title).toBe("R".repeat(200));
   });
 
   it("names the fallback title while the titler is in flight", () => {

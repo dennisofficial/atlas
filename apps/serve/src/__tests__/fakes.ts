@@ -1,14 +1,19 @@
 import {
+  toEventId,
   toRunId,
   type EKilledBy,
   type Event,
   type EventDraft,
+  type EventId,
+  type IdPort,
   type RunId,
   type ThreadId,
 } from '@dltech/atlas-core'
 import type { RosterWire } from '@dltech/atlas-wire'
 
 import { createDeltaChannel, type DeltaChannel } from '@dltech/atlas-harness'
+import { LoopTurnRunner, MessageIntake, PublishingTurnRunner, createPendingQueues, operatorSource } from '@dltech/atlas-harness'
+import { defaultPipeline, EMPTY_PROMPT, EFinishReason, type ModelPort, type ModelStepResult } from '@dltech/atlas-core'
 import type { PauseSignal } from '@dltech/atlas-harness'
 import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
 import type { ThreadSummary } from '@dltech/atlas-harness'
@@ -189,10 +194,90 @@ export function fakeServeApp(args: {
   rewindTarget?: FakeRewindTarget | undefined
   roster?: FakeRoster | undefined
   family?: ServeFamily | undefined
+  intake?: boolean | undefined
+  holdStep?: ((step: number) => Promise<void> | undefined) | undefined
 }): FakeServeApp {
   const channel = createDeltaChannel()
+  const pending = createPendingQueues()
+  const intake =
+    args.intake === true ? new MessageIntake({ sources: [operatorSource(pending)] }) : undefined
   const appended: EventDraft[] = []
-  const run = args.runTurn ?? idle
+  const stored: Event[] = [...(args.events ?? [])]
+  let steps = 0
+  const scripted: ModelPort = {
+    identity: { id: 'scripted', modelId: 'scripted' },
+    step: async ({ onChunk }): Promise<ModelStepResult> => {
+      steps += 1
+      onChunk?.({ type: 'text-start', id: 'block' })
+      await args.holdStep?.(steps)
+      return {
+        parts: [{ type: 'text', text: 'the sandbox answered' }],
+        toolCalls: [],
+        finishReason: EFinishReason.Stop,
+      }
+    },
+  }
+  const ids = {
+    runs: 0,
+    nextRunId: (): RunId => {
+      ids.runs += 1
+      return toRunId(`run-${ids.runs}`)
+    },
+    nextEventId: (): EventId => toEventId(`ev-${stored.length + 1}`),
+  }
+  const stamp = (draft: EventDraft, runId: RunId): Event =>
+    ({
+      ...draft,
+      id: ids.nextEventId(),
+      seq: stored.length + 1,
+      threadId: args.threadId,
+      runId,
+      depth: 0,
+      at: '2026-09-30T00:00:00.000Z',
+    }) as Event
+  const log: ServeApp['log'] = {
+    append: async (given: { drafts: readonly EventDraft[]; runId?: RunId }): Promise<Event[]> => {
+      appended.push(...given.drafts)
+      const runId = given.runId ?? toRunId('run-append')
+      const stamped = given.drafts.map((draft) => stamp(draft, runId))
+      stored.push(...stamped)
+      return stamped
+    },
+    read: async (): Promise<Event[]> => [...stored],
+    readOwn: async (): Promise<Event[]> => [...stored],
+    refresh: async (): Promise<void> => {},
+    head: async (): Promise<number> => stored.length,
+  }
+  const loopRunner =
+    intake === undefined
+      ? null
+      : new PublishingTurnRunner({
+          channel,
+          deps: {
+            log: log as unknown as ConstructorParameters<typeof LoopTurnRunner>[0]['log'],
+            model: scripted,
+            ids: ids as unknown as ConstructorParameters<typeof LoopTurnRunner>[0]['ids'],
+            assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: args.root }),
+            drainPending: (drained) => intake.prepare(drained),
+          },
+        })
+  const run: RunTurn =
+    args.runTurn ??
+    (loopRunner !== null
+      ? ({ threadId: on, signal }) =>
+          loopRunner.runTurn({
+            threadId: on,
+            ...(signal === undefined ? {} : { signal }),
+          })
+      : idle)
+  const loopRun: RunTurn | null =
+    loopRunner === null
+      ? null
+      : ({ threadId: on, signal }) =>
+          loopRunner.runTurn({
+            threadId: on,
+            ...(signal === undefined ? {} : { signal }),
+          })
   const adopt = args.adoptChildren ?? (async () => [])
   let runs = 0
   let forgotten = 0
@@ -213,16 +298,7 @@ export function fakeServeApp(args: {
       resume: (given) => run(given),
     },
 
-    log: {
-      append: async (given: { drafts: readonly EventDraft[] }): Promise<Event[]> => {
-        appended.push(...given.drafts)
-        return []
-      },
-      read: async (): Promise<Event[]> => [...(args.events ?? [])],
-      readOwn: async (): Promise<Event[]> => [...(args.events ?? [])],
-      refresh: async (): Promise<void> => {},
-      head: async (): Promise<number> => (args.events ?? []).length,
-    },
+    log,
 
     threads: fakeThreadWrites({
       threadId: args.threadId,
@@ -250,6 +326,10 @@ export function fakeServeApp(args: {
     },
 
     workspace: { workspace: args.root, repo: null },
+
+    pending,
+
+    ...(intake === undefined ? {} : { intake }),
 
     adoptChildren: async (given) => {
       adoptions.push(given.threadId)

@@ -15,6 +15,7 @@ import {
   type CredentialPort,
 } from '@dltech/atlas-core'
 
+import { withAnthropicCompatibleReasoning } from './anthropic-reasoning'
 import { withAnthropicSubscriptionAttribution } from './anthropic-subscription-attribution'
 
 export type AnthropicFetch = NonNullable<AnthropicProviderSettings['fetch']>
@@ -107,9 +108,13 @@ export function createAnthropicOauthModel(args: AnthropicOauthModelArgs): Langua
     authorized: AuthorizedModel
     options: LanguageModelV4CallOptions
   }): LanguageModelV4CallOptions =>
-    authorized.credential.kind === EAuthKind.Oauth
-      ? withAnthropicSubscriptionAttribution(withDefaultProviderOptions(options))
-      : withDefaultProviderOptions(options)
+    withAnthropicCompatibleReasoning({
+      namespace: ANTHROPIC_PROVIDER_ID,
+      options:
+        authorized.credential.kind === EAuthKind.Oauth
+          ? withAnthropicSubscriptionAttribution(withDefaultProviderOptions(options))
+          : withDefaultProviderOptions(options),
+    })
 
   const throughACredentialTheServerAccepts = async <TResult>(
     call: (authorized: AuthorizedModel) => PromiseLike<TResult>,

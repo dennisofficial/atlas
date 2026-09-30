@@ -71,7 +71,10 @@ export type TurnDriver = {
   rewindConfirm: RewindConfirmControl
   drive: (
     drafts: readonly EventDraft[],
-    opts?: { onCommitFailed?: ((error: unknown) => void) | undefined },
+    opts?: {
+      onCommitFailed?: ((error: unknown) => void) | undefined
+      onCommitted?: (() => void) | undefined
+    },
   ) => Promise<void>
   handleInterrupt: () => void
   handleInterruptForMove: () => void
@@ -222,11 +225,19 @@ export function useTurnDriver(args: {
   const drive = useCallback(
     (
       drafts: readonly EventDraft[],
-      opts?: { onCommitFailed?: ((error: unknown) => void) | undefined },
+      opts?: {
+        onCommitFailed?: ((error: unknown) => void) | undefined
+        onCommitted?: (() => void) | undefined
+      },
     ): Promise<void> => {
+      if (workingRef.current) {
+        opts?.onCommitFailed?.(new Error('a turn is already running'))
+        return Promise.resolve()
+      }
       const refusal = driveRefusal?.() ?? null
       if (refusal !== null) {
         notify({ key: 'drive-unavailable', tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS, text: refusal })
+        opts?.onCommitFailed?.(new Error(refusal))
         return Promise.resolve()
       }
 
@@ -258,6 +269,7 @@ export function useTurnDriver(args: {
               opts?.onCommitFailed?.(error)
               throw error
             }
+            opts?.onCommitted?.()
             await refresh()
             if (saidDraft !== undefined && saidDraft.type === 'user-said') {
               app.titling.opening({
@@ -303,6 +315,7 @@ export function useTurnDriver(args: {
           setWorking(false)
           tailRef.current = false
           fireSettleListeners()
+          app.intake?.changed()
         }
       })()
 

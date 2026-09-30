@@ -41,6 +41,7 @@ export const cloudApp = (args: {
   return {
     ...args.app,
     log: args.stores.log,
+    intake: undefined,
     threads: args.stores.threads,
     ledger: args.stores.ledger,
     channel: args.channel,

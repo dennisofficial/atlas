@@ -13,6 +13,8 @@ import {
 
 import { LocalProcessPort } from '../execution/local-process'
 import type { HookChainSource } from '../hooks/registry'
+import type { InputBatch } from '../intake/input-batch'
+import type { SleepPrevention } from '../power/sleep-prevention'
 import { afterShellDrafts } from './after-shell'
 import { bootId } from './boot'
 import { lostShellEnding } from './recovery'
@@ -28,6 +30,7 @@ import {
 } from './background-shell'
 import {
   ENotice,
+  previewOutput,
   ShellNoticeQueue,
   take,
   type PendingShellNotice,
@@ -104,8 +107,10 @@ export abstract class ShellRegistryPort {
   abstract version(): number
   abstract subscribe(listener: () => void): () => void
   abstract drainNotifications(args: { threadId: ThreadId }): readonly EventDraft[]
+  prepareNotifications?(args: { threadId: ThreadId }): InputBatch
   abstract pendingNotices(args: { threadId: ThreadId }): readonly PendingShellNotice[]
   abstract threadsAwaitingNotice(): readonly ThreadId[]
+  threadsWithPendingInput?(): readonly ThreadId[]
   abstract onNotice(listener: () => void): () => void
   abstract forgetNotices(args: { threadId: ThreadId }): void
   abstract closeAll(): Promise<void>
@@ -156,6 +161,7 @@ export class BunShellRegistry extends ShellRegistryPort {
     private readonly clock: ClockPort,
     private readonly hooks: HookChainSource,
     private readonly processes: ProcessPort = new LocalProcessPort(),
+    private readonly sleepPrevention?: SleepPrevention,
   ) {
     super()
   }
@@ -193,6 +199,14 @@ export class BunShellRegistry extends ShellRegistryPort {
       onActivity: () => this.noteActivity(),
     })
     if (!opened.ok) return opened
+
+    const releaseSleepAssertion = this.sleepPrevention?.acquire()
+    if (releaseSleepAssertion !== undefined) {
+      void opened.shell.exited.then(
+        () => releaseSleepAssertion(),
+        () => releaseSleepAssertion(),
+      )
+    }
 
     this.tracked.set(shellId, {
       shell: opened.shell,
@@ -371,12 +385,20 @@ export class BunShellRegistry extends ShellRegistryPort {
     return this.notices.drain({ threadId })
   }
 
+  override prepareNotifications({ threadId }: { threadId: ThreadId }): InputBatch {
+    return this.notices.prepare({ threadId })
+  }
+
   pendingNotices({ threadId }: { threadId: ThreadId }): readonly PendingShellNotice[] {
     return this.notices.pending({ threadId })
   }
 
   threadsAwaitingNotice(): readonly ThreadId[] {
     return this.notices.threadsAwaiting()
+  }
+
+  override threadsWithPendingInput(): readonly ThreadId[] {
+    return this.notices.threadsQueued()
   }
 
   onNotice(listener: () => void): () => void {
@@ -629,10 +651,12 @@ export class BunShellRegistry extends ShellRegistryPort {
     hooked?: readonly EventDraft[] | undefined
     outputClaimed?: boolean | undefined
   }): void {
+    const entry = args.entry
     this.notices.queue({
       kind: args.kind,
       snapshot: args.shell.snapshot(),
-      take: () => take(args.entry),
+      take: () => take(entry),
+      preview: () => previewOutput(entry),
       threadId: args.entry.threadId,
       hooked: args.hooked,
       outputClaimed: args.outputClaimed,

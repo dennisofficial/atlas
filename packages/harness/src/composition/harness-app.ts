@@ -26,6 +26,7 @@ import type { TurnRunner } from '../loop/turn-runner.port'
 import type { TitlingTurnRunner } from './titling-turn-runner'
 import type { McpServerStatus } from '../mcp/registry/handle-status'
 import type { PendingQueues } from '../pending'
+import type { MessageIntake } from '../intake'
 import type { ContributedProjection } from '../plugins/projection'
 import type { ContributedSurface } from '../plugins/surface'
 import type { ServiceRegistryPort } from '../services/service-registry'
@@ -90,6 +91,7 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   ledger: TurnLedgerPort
   ids: IdPort
   pending: PendingQueues<Command>
+  intake?: MessageIntake | undefined
   shells: ShellRegistryPort
   agents: AgentRegistryPort
   services: ServiceRegistryPort

@@ -17,6 +17,7 @@ import type { ThreadModel, ThreadStorePort } from '../store/thread-store'
 import { faultInjected } from './fault-injection'
 import { isRefReachable, unanswerableRef, type ModelCatalogue } from './model-catalogue'
 import type { SelectableModel } from './model-selection'
+import type { WakeSignal } from '../wake/wake-signals'
 
 export type ChildModelDeps = {
   models: ModelCatalogue
@@ -24,6 +25,7 @@ export type ChildModelDeps = {
   hooks: () => HookChain
   settings: SettingsService
   threads: ThreadStorePort
+  wake?: WakeSignal | undefined
 }
 
 export function childModelSelection(args: ChildModelDeps): (request: {
@@ -96,6 +98,7 @@ export function childModelSource(args: ChildModelDeps): (request: {
       model: adapter.model({ card, effort: () => effort }),
       card,
       hooks: args.hooks(),
+      ...(args.wake === undefined ? {} : { wake: args.wake }),
     }))
     return port
   }

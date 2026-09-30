@@ -42,6 +42,8 @@ export function useThreadSwap(args: {
         log: app.log,
         ledger: app.ledger,
         agents: app.agents,
+        shells: app.shells,
+        services: app.services,
         ids: app.ids,
         workspace: app.workspace,
         open: { mode: EOpenMode.Resume, threadId: asked },
