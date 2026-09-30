@@ -5,10 +5,10 @@ import { EExecutionLocation, ExecutionLocationSinkPort, type ThreadId } from '@d
 import { finished, openSupervisor, settled, type OpenedSupervisor } from './fixtures'
 
 class FakeLocationSink extends ExecutionLocationSinkPort {
-  readonly noted: { threadId: ThreadId; location: EExecutionLocation }[] = []
+  readonly refreshed: ThreadId[] = []
 
-  note(args: { threadId: ThreadId; location: EExecutionLocation }): void {
-    this.noted.push(args)
+  refresh(args: { threadId: ThreadId }): void {
+    this.refreshed.push(args.threadId)
   }
 }
 
@@ -33,7 +33,7 @@ afterEach(async () => {
 })
 
 describe("marking a thread's children relocated", () => {
-  it('flips the stored location and notes the sink for a stepping child, without touching its log', async () => {
+  it('flips the stored location and refreshes the sink for a stepping child, without touching its log', async () => {
     const sink = new FakeLocationSink()
     const entry = await openSupervisor({ sink })
     opened.push(entry)
@@ -44,7 +44,7 @@ describe("marking a thread's children relocated", () => {
       location: EExecutionLocation.Cloud,
     })
 
-    expect(sink.noted).toEqual([{ threadId: childId, location: EExecutionLocation.Cloud }])
+    expect(sink.refreshed).toEqual([childId])
 
     const stored = await entry.harness.threads.find({ threadId: childId })
     expect(stored?.executionLocation).toBe(EExecutionLocation.Cloud)
@@ -69,7 +69,7 @@ describe("marking a thread's children relocated", () => {
       location: EExecutionLocation.Cloud,
     })
 
-    expect(sink.noted).toEqual([{ threadId: childId, location: EExecutionLocation.Cloud }])
+    expect(sink.refreshed).toEqual([childId])
 
     const stored = await entry.harness.threads.find({ threadId: childId })
     expect(stored?.executionLocation).toBe(EExecutionLocation.Cloud)
@@ -88,7 +88,7 @@ describe("marking a thread's children relocated", () => {
       location: EExecutionLocation.Cloud,
     })
 
-    expect(sink.noted).toEqual([{ threadId: mine, location: EExecutionLocation.Cloud }])
+    expect(sink.refreshed).toEqual([mine])
 
     const theirStored = await entry.harness.threads.find({ threadId: theirs })
     expect(theirStored?.executionLocation).toBeUndefined()

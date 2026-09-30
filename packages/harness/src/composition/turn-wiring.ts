@@ -253,10 +253,13 @@ export function wireTurn<Command>(args: {
       runningShells,
       runningAgents,
       runningServices,
-      executionLocation: ({ threadId }) => ({
-        location: executionLocation.of(threadId) ?? executionLocation.current(),
-        mounts,
-      }),
+      executionLocation: ({ threadId }) => {
+        void executionLocation.load({ threadId })
+        return {
+          location: executionLocation.of(threadId) ?? executionLocation.current(),
+          mounts,
+        }
+      },
       capabilities: args.capabilities,
     }),
     launchDirectory: workspace.workspace,
@@ -368,10 +371,13 @@ export function wireTurn<Command>(args: {
           repoRoot: workspace.repo ?? undefined,
           runningShells,
           runningServices,
-          executionLocation: ({ threadId }) => ({
-            location: executionLocation.of(threadId) ?? executionLocation.current(),
-            mounts,
-          }),
+          executionLocation: ({ threadId }) => {
+            void executionLocation.load({ threadId })
+            return {
+              location: executionLocation.of(threadId) ?? executionLocation.current(),
+              mounts,
+            }
+          },
           capabilities: args.capabilities,
         }),
     }),

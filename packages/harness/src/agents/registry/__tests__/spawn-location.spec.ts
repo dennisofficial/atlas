@@ -9,10 +9,10 @@ import {
 import { openSupervisor, type OpenedSupervisor } from './fixtures'
 
 class FakeLocationSink extends ExecutionLocationSinkPort {
-  readonly noted: { threadId: ThreadId; location: EExecutionLocation }[] = []
+  readonly refreshed: ThreadId[] = []
 
-  note(args: { threadId: ThreadId; location: EExecutionLocation }): void {
-    this.noted.push(args)
+  refresh(args: { threadId: ThreadId }): void {
+    this.refreshed.push(args.threadId)
   }
 }
 
@@ -29,7 +29,7 @@ afterEach(async () => {
 })
 
 describe('the location a spawn hands to the live routing map', () => {
-  it("notes the child's thread at the spawner's location", async () => {
+  it('refreshes the child’s placement once its thread row carries the spawner’s location', async () => {
     const sink = new FakeLocationSink()
     const entry = await open(sink)
     await entry.harness.threads.chooseExecutionLocation({
@@ -45,12 +45,12 @@ describe('the location a spawn hands to the live routing map', () => {
     })
     if (!outcome.ok) throw new Error(outcome.reason)
 
-    expect(sink.noted).toEqual([
-      { threadId: outcome.snapshot.agentId, location: EExecutionLocation.Docker },
-    ])
+    expect(sink.refreshed).toEqual([outcome.snapshot.agentId])
+    const stored = await entry.harness.threads.find({ threadId: outcome.snapshot.agentId })
+    expect(stored?.executionLocation).toBe(EExecutionLocation.Docker)
   })
 
-  it('notes nothing when the spawner never chose a location', async () => {
+  it('refreshes nothing when the spawner never chose a location', async () => {
     const sink = new FakeLocationSink()
     const entry = await open(sink)
 
@@ -62,7 +62,7 @@ describe('the location a spawn hands to the live routing map', () => {
     })
     if (!outcome.ok) throw new Error(outcome.reason)
 
-    expect(sink.noted).toEqual([])
+    expect(sink.refreshed).toEqual([])
   })
 
   it('spawns fine with no sink handed over, the no-op default answering instead', async () => {

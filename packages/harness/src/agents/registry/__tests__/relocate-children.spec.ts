@@ -25,15 +25,15 @@ type HeldRun = {
 }
 
 class RecordingSink extends ExecutionLocationSinkPort {
-  readonly noted: { threadId: ThreadId; location: EExecutionLocation }[] = []
+  readonly refreshed: ThreadId[] = []
 
   constructor(private readonly order: string[]) {
     super()
   }
 
-  note(args: { threadId: ThreadId; location: EExecutionLocation }): void {
-    this.noted.push(args)
-    this.order.push(`note:${args.threadId}:${args.location}`)
+  refresh(args: { threadId: ThreadId }): void {
+    this.refreshed.push(args.threadId)
+    this.order.push(`refresh:${args.threadId}`)
   }
 }
 
@@ -169,11 +169,11 @@ describe('relocating a stepping child', () => {
     const order = entry.order
     const abortedAt = order.indexOf(`abort:${childId}`)
     const appendedAt = order.indexOf(`append:${childId}:location-changed`)
-    const notedAt = order.indexOf(`note:${childId}:${EExecutionLocation.Docker}`)
+    const refreshedAt = order.indexOf(`refresh:${childId}`)
     const resumedAt = order.indexOf(`resume:${childId}`)
     expect(abortedAt).toBeGreaterThanOrEqual(0)
-    expect(abortedAt).toBeLessThan(notedAt)
-    expect(notedAt).toBeLessThan(appendedAt)
+    expect(abortedAt).toBeLessThan(refreshedAt)
+    expect(refreshedAt).toBeLessThan(appendedAt)
     expect(appendedAt).toBeLessThan(resumedAt)
 
     const stored = await entry.harness.threads.find({ threadId: childId })
@@ -247,7 +247,7 @@ describe("relocating one thread's children", () => {
     expect(entry.order).not.toContain(`abort:${theirs}`)
     expect(entry.order).not.toContain(`resume:${theirs}`)
     expect(entry.order).not.toContain(`append:${theirs}:location-changed`)
-    expect(entry.sink.noted).toEqual([{ threadId: mine, location: EExecutionLocation.Docker }])
+    expect(entry.sink.refreshed).toEqual([mine])
 
     const stored = await entry.harness.threads.find({ threadId: theirs })
     expect(stored?.executionLocation).toBeUndefined()
@@ -275,9 +275,7 @@ describe('relocating a thread that owns a teammate alongside a sub-agent', () =>
 
     expect(entry.order).toContain(`append:${subAgentId}:location-changed`)
     expect(entry.order).not.toContain(`append:${teammateId}:location-changed`)
-    expect(entry.sink.noted).toEqual([
-      { threadId: subAgentId, location: EExecutionLocation.Docker },
-    ])
+    expect(entry.sink.refreshed).toEqual([subAgentId])
 
     const subAgentStored = await entry.harness.threads.find({ threadId: subAgentId })
     expect(subAgentStored?.executionLocation).toBe(EExecutionLocation.Docker)
@@ -300,7 +298,7 @@ describe('relocating a thread that owns a teammate alongside a sub-agent', () =>
 
     expect(entry.order).not.toContain(`abort:${teammateId}`)
     expect(entry.order).not.toContain(`resume:${teammateId}`)
-    expect(entry.order).not.toContain(`note:${teammateId}:${EExecutionLocation.Docker}`)
+    expect(entry.order).not.toContain(`refresh:${teammateId}`)
 
     const stored = await entry.harness.threads.find({ threadId: teammateId })
     expect(stored?.executionLocation).toBeUndefined()
@@ -404,9 +402,7 @@ describe("relocating a teammate's own children", () => {
       location: EExecutionLocation.Docker,
     })
 
-    expect(entry.sink.noted).toEqual([
-      { threadId: teammateSubAgentId, location: EExecutionLocation.Docker },
-    ])
+    expect(entry.sink.refreshed).toEqual([teammateSubAgentId])
 
     const subStored = await entry.harness.threads.find({ threadId: teammateSubAgentId })
     expect(subStored?.executionLocation).toBe(EExecutionLocation.Docker)
@@ -477,7 +473,7 @@ describe('relocating while the caller itself is a stepping child', () => {
 
     expect(entry.order).not.toContain(`abort:${childId}`)
     expect(entry.order).not.toContain(`resume:${childId}`)
-    expect(entry.order).toContain(`note:${childId}:${EExecutionLocation.Docker}`)
+    expect(entry.order).toContain(`refresh:${childId}`)
     expect(entry.order).toContain(`append:${childId}:location-changed`)
 
     const stored = await entry.harness.threads.find({ threadId: childId })
