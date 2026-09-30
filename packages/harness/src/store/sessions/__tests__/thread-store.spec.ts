@@ -161,6 +161,32 @@ describe('JsonlThreadStore field choices', () => {
     expect((await threads.find({ threadId: thread.id }))?.executionLocation).toBe(EExecutionLocation.Docker)
   })
 
+  it('materializes a never-written thread when it is placed somewhere, so a later boot can route it', async () => {
+    const home = await tempHome()
+    const { threads } = openStore({ home })
+    const threadId = toThreadId('lifted-before-first-turn')
+
+    expect(await threads.find({ threadId })).toBeUndefined()
+    await threads.chooseExecutionLocation({ threadId, location: EExecutionLocation.Cloud })
+
+    const found = await threads.find({ threadId })
+    expect(found?.executionLocation).toBe(EExecutionLocation.Cloud)
+    expect(found?.workspace).toBeNull()
+    const dir = sessionDirectory({ home, sessionId: threadId })
+    const session = readMetaSync({ file: sessionMetaFile({ sessionDir: dir }), schema: sessionMetaSchema })
+    expect(session?.home).toBe(EExecutionLocation.Cloud)
+  })
+
+  it('does not invent a record when a never-written thread is placed at host', async () => {
+    const home = await tempHome()
+    const { threads } = openStore({ home })
+    const threadId = toThreadId('placed-at-host')
+
+    await threads.chooseExecutionLocation({ threadId, location: EExecutionLocation.Host })
+
+    expect(await threads.find({ threadId })).toBeUndefined()
+  })
+
   it('adopts a thread that carried no workspace, so it lists where it was reopened', async () => {
     const home = await tempHome()
     const { threads, log, ids } = openStore({ home })

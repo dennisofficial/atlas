@@ -190,12 +190,15 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
     run: async (ctx) => {
       const { args } = ctx
       args.setLocation(EExecutionLocation.Cloud)
-      if (args.started) {
-        await args.localThreads.chooseExecutionLocation({
-          threadId: args.threadId,
-          location: EExecutionLocation.Cloud,
-        })
-        if (args.title !== null) await args.localThreads.rename({ threadId: args.threadId, title: args.title })
+      // Unconditional: the local meta is the pointer every later boot reads to route this thread
+      // to the attach path, so an unstarted /new thread must record the move too — the store
+      // materializes the record for one it has never written.
+      await args.localThreads.chooseExecutionLocation({
+        threadId: args.threadId,
+        location: EExecutionLocation.Cloud,
+      })
+      if (args.started && args.title !== null) {
+        await args.localThreads.rename({ threadId: args.threadId, title: args.title })
       }
       await flipChildrenToCloud({
         threadId: args.threadId,

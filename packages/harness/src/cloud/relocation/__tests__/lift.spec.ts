@@ -79,7 +79,18 @@ describe('lifting a conversation into the cloud', () => {
     expect(lifted.ok).toBe(true)
     expect(test.bridge.transcriptPuts).toEqual([])
     expect(test.bridge.trail).toEqual(['sandbox', 'attach'])
-    expect(test.localThreads.chosenLocations).toEqual([])
+  })
+
+  it('records an unstarted thread as cloud, so a later boot routes its resume to the attach path', async () => {
+    useAtlasHome()
+    const test = harness({ started: false, localLog: fakeEventLog([]) })
+
+    const lifted = await liftToCloud(test.args)
+
+    expect(lifted.ok).toBe(true)
+    expect(test.localThreads.chosenLocations).toEqual([
+      { threadId: CLOUD_THREAD, location: EExecutionLocation.Cloud },
+    ])
   })
 
   it('records the thread as a cloud thread on the local side', async () => {
