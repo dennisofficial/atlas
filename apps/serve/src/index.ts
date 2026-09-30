@@ -20,6 +20,7 @@ import { applyGitAccessEnv } from './git-access-env'
 import { SERVE_IDLE_MINUTES_WITH_SERVICES, startServeIdleStop } from './idle-stop'
 import { materializeContext } from './materialize-context'
 import { materializeTranscript } from './materialize-transcript'
+import { hydrateCloudPlacement } from './placement-hydration'
 import { restoreTranscript } from './restore-transcript'
 import {
   createEnsureWorkspace,
@@ -66,6 +67,7 @@ export * from './socket-session'
 export * from './step-alias'
 export * from './materialize-workspace'
 export * from './materialize-transcript'
+export * from './placement-hydration'
 export * from './publish-workspace'
 export * from './token-guard'
 export * from './turn-driver'
@@ -268,6 +270,8 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     identity: context.identity,
   })
 
+  await hydrateCloudPlacement({ app, threadId })
+
   const buffer = createFrameBuffer({ capacity: args.bufferSize ?? DEFAULT_FRAME_BUFFER })
 
   const settling = { count: 0 }
@@ -375,6 +379,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
       })
       if (result.failed !== null) log({ event: EServeEvent.TranscriptFailed, reason: result.failed })
       else if (result.restored) log({ event: EServeEvent.TranscriptRestored })
+      if (result.restored) await hydrateCloudPlacement({ app, threadId })
       return result
     },
   })
