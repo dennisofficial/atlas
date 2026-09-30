@@ -65,6 +65,10 @@ async function paint(args: {
 const inkedCells = (painted: string): number => painted.split(HALF_CELL).length - 1
 
 describe('the startup curtain', () => {
+  it('shows the brand lockup in an 80-column terminal', async () => {
+    expect(inkedCells(await paint({ frame: frame(), width: 80 }))).toBeGreaterThan(0)
+  })
+
   it('hides the workspace it is drawn over', async () => {
     expect(await paint({ frame: frame() })).not.toContain(BENEATH)
   })
