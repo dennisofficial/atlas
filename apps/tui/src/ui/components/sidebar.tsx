@@ -108,6 +108,8 @@ function DerivedSidebar(props: {
   version: string;
   repoName?: string | undefined;
   overlay?: boolean;
+  /** Set while the tile is scoped to a teammate, so the head reads in the agent accent. */
+  accented?: boolean;
   shells?: readonly ShellSnapshot[];
   shellNow?: number;
   shellFold?: SidebarCrewFold;
@@ -152,7 +154,12 @@ function DerivedSidebar(props: {
           contentOptions={{ paddingRight: SIDEBAR_PADDING }}
         >
           <box flexDirection="column" flexShrink={0} gap={1}>
-            <HeadSection model={model} cells={cells} naming={props.naming} />
+            <HeadSection
+              model={model}
+              cells={cells}
+              naming={props.naming}
+              {...(props.accented === undefined ? {} : { accented: props.accented })}
+            />
             {model.container === undefined ? null : (
               <ContainerSection container={model.container} cells={cells} />
             )}

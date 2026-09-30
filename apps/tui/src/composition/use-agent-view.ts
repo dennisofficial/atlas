@@ -1,20 +1,37 @@
 import type { SaidFile, SaidImage, ThreadId } from '@dltech/atlas-core'
-import { EKilledBy, type AgentSnapshot } from '@dltech/atlas-harness'
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { EKilledBy, TEAMMATE_AGENT_TYPE, type AgentSnapshot } from '@dltech/atlas-harness'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import { isSubagentAlive, subagentLabel } from '../store/subagent-row'
 import { EKeyGroup, EKeyLayer, useKeyBindings } from '../ui/keys'
+import { notify } from '../ui/notice-store'
 import type { AtlasApp } from './compose'
 
 export type AgentView = {
+  /** The thread whose crew the sidebar lists — the main thread, or the teammate being visited. */
+  scopeId: ThreadId
+  /** The teammate the whole tile is scoped to, when one is. */
+  scopedTo: AgentSnapshot | null
+  /** The child open inside the scope, when one is. */
   viewing: ThreadId | null
-  name: string | null
   /** The roster's reading of the open child, which is what its transcript is mounted from. */
   selected: AgentSnapshot | null
+  /** Whoever the composer addresses: the open child, else the scoped teammate, else nobody. */
+  addressing: ThreadId | null
+  name: string | null
+  /** The pill above the transcript while away from the main session. */
+  backLabel: string | null
+  /** Set after a first escape on a running child — the next one stops it. */
+  stopArmed: boolean
+  /** Cancel a pending stop confirmation; the caller runs this on any non-escape key. */
+  disarmStop: () => void
+  /** The deepest agent being read, whose departure restarts its retirement clock. */
+  inside: ThreadId | null
   handleSelect: (agentId: string) => void
   handleBack: () => void
   handleCycle: () => boolean
   handleStop: () => void
+  handleEscape: () => void
   handleSay: (said: {
     text: string
     images?: readonly SaidImage[] | undefined
@@ -22,13 +39,15 @@ export type AgentView = {
   }) => Promise<string | null>
 }
 
+type ViewState = { scope: ThreadId | null; viewing: ThreadId | null }
+
+const AT_MAIN: ViewState = { scope: null, viewing: null }
+
 /**
- * A child is an extension of the thread that spawned it, so viewing one moves the transcript alone.
- * The sidebar, the composer's anchor and the running turn all stay with the parent, which is what
- * keeps this from reading as a jump into another session.
- *
- * Which child is open, and nothing about what it says: the transcript is `SubagentTranscript`, built
- * from the same `useThreadView` the conversation is built from.
+ * Where a row click takes the tile. A teammate is a peer session, so clicking one scopes the whole
+ * tile to it — sidebar, footer and composer follow, and its own crew becomes clickable in turn. A
+ * sub-agent is an extension of the scope's thread, so clicking one moves only the transcript and
+ * the composer's addressee.
  */
 export function useAgentView(args: {
   app: AtlasApp
@@ -39,56 +58,121 @@ export function useAgentView(args: {
   const { app, threadId, onFocusComposer, onProblem } = args
   const agents = app.agents
 
-  const [viewing, setViewing] = useState<ThreadId | null>(null)
+  const [state, setState] = useState<ViewState>(AT_MAIN)
+  const [stopArmed, setStopArmed] = useState(false)
 
-  useEffect(() => setViewing(null), [threadId])
+  /**
+   * The escape binding re-registers on its hint's change one render after the arm flips, so a fast
+   * second escape can still reach the handler that read the unarmed state. The ref is the answer
+   * the handler actually trusts — it is current the moment the state is set, before any effect.
+   */
+  const stopArmedRef = useRef(false)
+  const armStop = useCallback((armed: boolean) => {
+    stopArmedRef.current = armed
+    setStopArmed(armed)
+  }, [])
+
+  useEffect(() => setState(AT_MAIN), [threadId])
+
+  const move = useCallback(
+    (next: ViewState) => {
+      setState(next)
+      armStop(false)
+      onFocusComposer()
+    },
+    [armStop, onFocusComposer],
+  )
 
   const subscribe = useCallback((listener: () => void) => agents.onChange(listener), [agents])
   const read = useCallback(() => agents.listEverywhere(), [agents])
-  const readOwn = useCallback(() => agents.list({ threadId }), [agents, threadId])
   const everywhere = useSyncExternalStore(subscribe, read)
+
+  const scopeId = state.scope ?? threadId
+  const readOwn = useCallback(() => agents.list({ threadId: scopeId }), [agents, scopeId])
   const own = useSyncExternalStore(subscribe, readOwn)
 
+  const scopedTo = useMemo(
+    () =>
+      state.scope === null
+        ? null
+        : (everywhere.find((one) => one.agentId === state.scope) ?? null),
+    [everywhere, state.scope],
+  )
   const selected = useMemo(
-    () => (viewing === null ? undefined : everywhere.find((one) => one.agentId === viewing)),
-    [everywhere, viewing],
+    () =>
+      state.viewing === null
+        ? null
+        : (everywhere.find((one) => one.agentId === state.viewing) ?? null),
+    [everywhere, state.viewing],
   )
 
   /**
-   * A press on a sidebar row takes the keyboard with it, and the composer's `focused` prop is
-   * already true so nothing re-asserts it. Typing to the child is the whole point of selecting one,
-   * so the focus is handed back explicitly.
+   * A child vanishes from the roster when a rewind or a cleanup removes it, and a view onto a
+   * removed agent can never be addressed again — so the view walks back to whatever still exists.
    */
+  useEffect(() => {
+    if (state.viewing !== null && selected === null) {
+      setState((current) => ({ scope: current.scope, viewing: null }))
+      return
+    }
+    if (state.scope !== null && scopedTo === null) setState(AT_MAIN)
+  }, [scopedTo, selected, state.scope, state.viewing])
+
   const handleSelect = useCallback(
     (agentId: string) => {
-      setViewing((current) => (current === agentId ? null : (agentId as ThreadId)))
-      onFocusComposer()
+      const snapshot = everywhere.find((one) => one.agentId === agentId)
+      if (snapshot === undefined) return
+
+      if (snapshot.agentType === TEAMMATE_AGENT_TYPE) {
+        move(state.scope === agentId ? AT_MAIN : { scope: agentId as ThreadId, viewing: null })
+        return
+      }
+
+      move({
+        scope: state.scope,
+        viewing: state.viewing === agentId ? null : (agentId as ThreadId),
+      })
     },
-    [onFocusComposer],
+    [everywhere, move, state],
   )
 
   const handleBack = useCallback(() => {
-    setViewing(null)
-    onFocusComposer()
-  }, [onFocusComposer])
+    move(state.viewing !== null ? { scope: state.scope, viewing: null } : AT_MAIN)
+  }, [move, state])
 
   /**
-   * The parent sits at the end of the ring rather than outside it, so the same chord that walks into
-   * the crew also walks back out — escape stays the shortcut, not the only way.
+   * The level above sits at the end of the ring rather than outside it, so the same chord that
+   * walks into the crew also walks back out — escape stays the shortcut, not the only way. Landing
+   * on a teammate steps into its scope, and the ring continues with that teammate's own crew.
    */
   const handleCycle = useCallback((): boolean => {
-    if (own.length === 0) return false
+    if (own.length === 0 && state.scope === null) return false
 
-    const at = viewing === null ? -1 : own.findIndex((one) => one.agentId === viewing)
-    setViewing(own[at + 1]?.agentId ?? null)
-    onFocusComposer()
+    const at = state.viewing === null ? -1 : own.findIndex((one) => one.agentId === state.viewing)
+    const next = own[at + 1]
+
+    if (next === undefined) {
+      move(state.viewing !== null ? { scope: state.scope, viewing: null } : AT_MAIN)
+      return true
+    }
+
+    if (next.agentType === TEAMMATE_AGENT_TYPE) {
+      move({ scope: next.agentId, viewing: null })
+      return true
+    }
+
+    move({ scope: state.scope, viewing: next.agentId })
     return true
-  }, [onFocusComposer, own, viewing])
+  }, [move, own, state])
+
+  const addressing = state.viewing ?? state.scope
 
   /**
    * Both refusals the supervisor can give — an agent it does not hold, a type no longer on disk —
-   * mean this child can never be addressed again, so the view comes back to the parent where the
-   * caller's report of the reason is actually on screen.
+   * mean this agent can never be addressed again, so the view comes back to where the caller's
+   * report of the reason is actually on screen. The addressing thread is whoever the supervisor
+   * holds the addressee under: the scoped teammate answers to the main thread, a child open inside
+   * a scope answers to the scope.
    */
   const handleSay = useCallback(
     async (said: {
@@ -96,15 +180,16 @@ export function useAgentView(args: {
       images?: readonly SaidImage[] | undefined
       files?: readonly SaidFile[] | undefined
     }): Promise<string | null> => {
-      if (viewing === null) return null
+      if (addressing === null) return null
 
-      const outcome = await agents.say({ agentId: viewing, threadId, ...said })
+      const owner = state.viewing === null ? threadId : scopeId
+      const outcome = await agents.say({ agentId: addressing, threadId: owner, ...said })
       if (outcome.ok) return null
 
-      handleBack()
+      move(AT_MAIN)
       return outcome.reason
     },
-    [agents, handleBack, threadId, viewing],
+    [addressing, agents, move, scopeId, state.viewing, threadId],
   )
 
   /**
@@ -112,44 +197,124 @@ export function useAgentView(args: {
    * afterwards, because its log is the record of what the operator just cut short.
    */
   const handleStop = useCallback((): void => {
-    if (viewing === null) return
+    if (state.viewing === null) return
 
-    const outcome = agents.stop({ agentId: viewing, threadId, by: EKilledBy.User })
+    const outcome = agents.stop({ agentId: state.viewing, threadId: scopeId, by: EKilledBy.User })
     if (!outcome.ok) onProblem(outcome.reason)
-  }, [agents, onProblem, threadId, viewing])
+    armStop(false)
+  }, [agents, armStop, onProblem, scopeId, state.viewing])
 
-  const stoppable = selected !== undefined && isSubagentAlive(selected)
+  const stoppable = selected !== null && isSubagentAlive(selected)
+
+  const name =
+    selected !== null
+      ? subagentLabel(selected)
+      : scopedTo !== null
+        ? subagentLabel(scopedTo)
+        : null
 
   /**
-   * The child's working line already promises "esc to interrupt", so escape keeps that promise while
-   * the child is running and only walks back to the parent once it has settled. The cycle chord
-   * remains the way out that leaves a running child alone.
+   * The child's working line already promises "esc to interrupt", and the first escape arms that
+   * promise rather than keeping it: a stray escape must not kill a session with its own worktree.
+   * The second escape stops the child; on a settled child, or with nothing open but a scope, escape
+   * walks back one level instead.
    */
+  const handleEscape = useCallback((): void => {
+    if (state.viewing === null) {
+      if (state.scope !== null) move(AT_MAIN)
+      return
+    }
+
+    if (!stoppable) {
+      move({ scope: state.scope, viewing: null })
+      return
+    }
+
+    if (!stopArmedRef.current) {
+      armStop(true)
+      notify({ text: `esc again to stop ${name ?? 'this sub-agent'} — any other key cancels` })
+      return
+    }
+
+    handleStop()
+  }, [armStop, handleStop, move, name, state, stoppable])
+
+  const inside = state.viewing ?? state.scope
+
+  const backLabel =
+    state.viewing !== null && scopedTo !== null
+      ? `back to ${subagentLabel(scopedTo)}`
+      : inside !== null
+        ? 'back to main agent'
+        : null
+
+  /**
+   * The hint never changes: the registry re-binds on a hint's change one render after the arm
+   * flips, and a second escape landing in that gap would fall through to the global interrupt
+   * instead of stopping the child. A stable hint keeps the binding put; the arming is announced by
+   * the notice, not the hint.
+   */
+  const escapeHint =
+    state.viewing !== null && stoppable
+      ? `stop ${name ?? 'this sub-agent'}`
+      : backLabel !== null
+        ? backLabel
+        : 'back to the parent'
+
   useKeyBindings(
-    viewing === null
+    inside === null
       ? []
       : [
           {
             chord: 'escape',
-            hint: stoppable ? 'stop this sub-agent' : 'back to the parent',
+            hint: escapeHint,
             layer: EKeyLayer.Block,
             group: EKeyGroup.Session,
-            run: stoppable ? handleStop : handleBack,
+            run: handleEscape,
           },
         ],
   )
 
+  const disarmStop = useCallback((): void => {
+    if (stopArmedRef.current) armStop(false)
+  }, [armStop])
+
   return useMemo(
     () => ({
-      viewing,
-      name: selected === undefined ? null : subagentLabel(selected),
-      selected: selected ?? null,
+      scopeId,
+      scopedTo,
+      viewing: state.viewing,
+      selected,
+      addressing,
+      name,
+      backLabel,
+      stopArmed,
+      disarmStop,
+      inside,
       handleSelect,
       handleBack,
       handleCycle,
       handleStop,
+      handleEscape,
       handleSay,
     }),
-    [handleBack, handleCycle, handleSay, handleSelect, handleStop, selected, viewing],
+    [
+      addressing,
+      backLabel,
+      disarmStop,
+      handleBack,
+      handleCycle,
+      handleEscape,
+      handleSay,
+      handleSelect,
+      handleStop,
+      inside,
+      name,
+      scopeId,
+      scopedTo,
+      selected,
+      state.viewing,
+      stopArmed,
+    ],
   )
 }

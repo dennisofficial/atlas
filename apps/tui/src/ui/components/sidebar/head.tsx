@@ -64,6 +64,8 @@ export function HeadSection(props: {
   cells: number;
   /** The naming animation's state; set while a rename or first titling is in flight. */
   naming?: NamingState | null | undefined;
+  /** Paints the settled title in the agent accent, for a head naming a viewed agent. */
+  accented?: boolean;
 }): React.ReactNode {
   const { model } = props;
   if (model.title === null && model.turnCount === 0 && props.naming == null) return null;
@@ -75,7 +77,7 @@ export function HeadSection(props: {
       {props.naming != null ? (
         <NamingLine state={clampToRow({ state: props.naming, cells: props.cells })} line={NAMING_SIDEBAR_LINE} />
       ) : model.title === null ? null : (
-        <text fg={theme.bright}>
+        <text fg={props.accented === true ? theme.court.external : theme.bright}>
           {truncateCells({ text: model.title, cells: props.cells })}
         </text>
       )}

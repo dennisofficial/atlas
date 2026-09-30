@@ -79,6 +79,20 @@ describe('JsonlThreadStore child model at creation', () => {
     expect((await threads.find({ threadId: root.id }))?.model?.effort).toBe('high')
   })
 
+  it('accepts a deliberate retarget of a frozen child', async () => {
+    const home = await tempHome()
+    const threads = openStore({ home })
+    const root = await threads.create({})
+    const model = { ref: 'inference/kimi-k3-fast', effort: 'low' }
+    const child = await threads.create({ agent: { spawnedBy: root.id, type: 'explore' }, model })
+
+    const picked = { ref: 'openai/gpt-5', effort: 'high' }
+    await threads.chooseModel({ threadId: child.id, model: picked, retarget: true })
+
+    expect((await threads.find({ threadId: child.id }))?.model).toEqual(picked)
+    await expect(threads.chooseModel({ threadId: child.id, model })).rejects.toThrow('spawned with')
+  })
+
   it('leaves the model unset when creation passes none', async () => {
     const home = await tempHome()
     const threads = openStore({ home })

@@ -397,6 +397,167 @@ describe('a child that refuses what the operator typed', () => {
   }, 60_000)
 })
 
+const TEAMMATE = toThreadId('thr_teammate')
+
+const TEAMMATE_INTENT = 'build the admin app'
+
+const TEAMMATE_SAID = 'The admin app boots off its own worktree.'
+
+const TEAMMATE_CHILD = toThreadId('thr_teammate_child')
+
+const TEAMMATE_CHILD_INTENT = 'wire the admin routes'
+
+const TEAMMATE_CHILD_SAID = 'The routes mount under /admin.'
+
+const teammate = (over: { status?: EAgentStatus } = {}) =>
+  fakeAgentSnapshot({
+    agentId: TEAMMATE,
+    spawnedBy: THREAD,
+    agentType: 'teammate',
+    intent: TEAMMATE_INTENT,
+    ...over,
+  })
+
+async function seedTeammate(app: FakeApp): Promise<void> {
+  await seed(app)
+  await app.log.append({
+    threadId: TEAMMATE,
+    runId: toRunId('run-teammate'),
+    drafts: [{ type: 'user-said', text: TEAMMATE_SAID }],
+  })
+  await app.log.append({
+    threadId: TEAMMATE_CHILD,
+    runId: toRunId('run-teammate-child'),
+    drafts: [{ type: 'user-said', text: TEAMMATE_CHILD_SAID }],
+  })
+}
+
+async function openTeammate(setup: Mounted): Promise<void> {
+  const row = sidebarRowOf(setup, TEAMMATE_INTENT)
+  expect(row).toBeGreaterThan(-1)
+
+  setup.mockMouse.click(WIDE.width - 10, row)
+  await setup.flush()
+  await frameShowing({ setup, text: TEAMMATE_SAID })
+}
+
+describe('taking over a teammate', () => {
+  it('moves the whole tile to the teammate and shows a way back', async () => {
+    const app = appWith()
+    await seedTeammate(app)
+    app.agents.place(teammate())
+    const setup = await opened(app)
+
+    try {
+      await frameShowing({ setup, text: PARENT_SAID })
+      await openTeammate(setup)
+
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain(TEAMMATE_SAID)
+      expect(frame).not.toContain(PARENT_SAID)
+      expect(frame).toContain('back to main agent')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('scopes the sidebar to the teammate, crew included', async () => {
+    const app = appWith()
+    await seedTeammate(app)
+    app.agents.place(teammate())
+    app.agents.place(
+      fakeAgentSnapshot({
+        agentId: TEAMMATE_CHILD,
+        spawnedBy: TEAMMATE,
+        intent: TEAMMATE_CHILD_INTENT,
+      }),
+    )
+    const setup = await opened(app)
+
+    try {
+      await openTeammate(setup)
+
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain(TEAMMATE_CHILD_INTENT)
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('lets the operator open the teammate’s own sub-agent and come back one level at a time', async () => {
+    const app = appWith()
+    await seedTeammate(app)
+    app.agents.place(teammate())
+    app.agents.place(
+      fakeAgentSnapshot({
+        agentId: TEAMMATE_CHILD,
+        spawnedBy: TEAMMATE,
+        intent: TEAMMATE_CHILD_INTENT,
+      }),
+    )
+    const setup = await opened(app)
+
+    try {
+      await openTeammate(setup)
+
+      const row = sidebarRowOf(setup, TEAMMATE_CHILD_INTENT)
+      expect(row).toBeGreaterThan(-1)
+      setup.mockMouse.click(WIDE.width - 10, row)
+      await setup.flush()
+
+      const nested = await frameShowing({ setup, text: TEAMMATE_CHILD_SAID })
+      expect(nested).toContain(TEAMMATE_CHILD_SAID)
+      expect(nested).toContain(`back to ${TEAMMATE_INTENT}`)
+
+      act(() => app.agents.end({ agentId: TEAMMATE_CHILD }))
+      await setup.flush()
+      await frameSettled({ setup, within: 3000 })
+
+      setup.mockInput.pressEscape()
+      await setup.flush()
+
+      const backInTeammate = await frameShowing({ setup, text: TEAMMATE_SAID })
+      expect(backInTeammate).toContain(TEAMMATE_SAID)
+      expect(backInTeammate).toContain('back to main agent')
+
+      setup.mockInput.pressEscape()
+      await setup.flush()
+
+      const home = await frameShowing({ setup, text: PARENT_SAID })
+      expect(home).toContain(PARENT_SAID)
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('talks to the scoped teammate when nothing deeper is open', async () => {
+    const app = appWith()
+    await seedTeammate(app)
+    app.agents.place(teammate())
+    const setup = await opened(app)
+
+    try {
+      await openTeammate(setup)
+
+      await setup.mockInput.typeText('how is the admin app')
+      await setup.flush()
+      setup.mockInput.pressEnter()
+      await setup.flush()
+
+      const delivered = await until({
+        holds: async () => app.agents.said.length === 1,
+        within: 10_000,
+      })
+      expect(delivered).toBe(true)
+      expect(app.agents.said).toEqual([
+        { agentId: TEAMMATE, threadId: THREAD, text: 'how is the admin app' },
+      ])
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+})
+
 describe('reaching a sub-agent without the mouse', () => {
   it('walks into the crew and back out again on the same chord', async () => {
     const app = appWith()
@@ -450,7 +611,7 @@ describe('reaching a sub-agent without the mouse', () => {
     }
   }, 60_000)
 
-  it('stops the running child on escape, the way the working line promises', async () => {
+  it('arms the stop on the first escape and lands it on the second', async () => {
     const app = appWith()
     await seed(app)
     app.agents.place(child())
@@ -467,10 +628,51 @@ describe('reaching a sub-agent without the mouse', () => {
       setup.mockInput.pressEscape()
       await setup.flush()
 
+      const armed = setup.captureCharFrame()
+      expect(app.agents.stopped).toEqual([])
+      expect(armed).toContain('SUB-AGENTS  1/1')
+
+      /**
+       * Two escapes pressed without a pause reach OpenTUI's parser as `\x1b\x1b`, which it reads as
+       * meta+escape rather than a second standalone escape. A real double-tap has a gap between the
+       * presses; settle reproduces it so the parser flushes the first escape before the second lands.
+       */
+      await settle(50)
+      setup.mockInput.pressEscape()
+      await setup.flush()
+
       const after = await frameShowing({ setup, text: 'SUB-AGENTS  0/1' })
       expect(app.agents.stopped).toEqual([{ agentId: CHILD, by: EKilledBy.User }])
       expect(after).toContain('SUB-AGENTS  0/1')
       expect(after).toContain('stopped')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('cancels a pending stop on any key that is not the confirming escape', async () => {
+    const app = appWith()
+    await seed(app)
+    app.agents.place(child())
+    const setup = await opened(app)
+
+    try {
+      await pressChord(setup, 'g')
+      await frameShowing({ setup, text: CHILD_SAID })
+
+      setup.mockInput.pressEscape()
+      await setup.flush()
+      expect(app.agents.stopped).toEqual([])
+
+      await setup.mockInput.typeText('x')
+      await setup.flush()
+
+      setup.mockInput.pressEscape()
+      await setup.flush()
+
+      const still = setup.captureCharFrame()
+      expect(app.agents.stopped).toEqual([])
+      expect(still).toContain('SUB-AGENTS  1/1')
     } finally {
       await teardown(setup)
     }
@@ -487,6 +689,9 @@ describe('reaching a sub-agent without the mouse', () => {
       const viewing = await frameShowing({ setup, text: CHILD_SAID })
       expect(viewing).toContain(CHILD_SAID)
 
+      setup.mockInput.pressEscape()
+      await setup.flush()
+      await settle(50)
       setup.mockInput.pressEscape()
       await setup.flush()
 
@@ -537,11 +742,15 @@ describe('reaching a sub-agent without the mouse', () => {
 
       setup.mockInput.pressEscape()
       await setup.flush()
+      await settle(50)
+      setup.mockInput.pressEscape()
+      await setup.flush()
 
       const stopped = await frameShowing({ setup, text: 'SUB-AGENTS  0/1' })
       expect(app.agents.stopped).toEqual([{ agentId: CHILD, by: EKilledBy.User }])
       expect(stopped).toContain(CHILD_SAID)
 
+      await settle(50)
       setup.mockInput.pressEscape()
       await setup.flush()
 
