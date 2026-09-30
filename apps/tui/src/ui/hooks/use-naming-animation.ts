@@ -4,28 +4,22 @@ import { ENamingPhase, type NamingState } from '../components/naming-line'
 import { NAMING_SETTLE_MS, titleCells } from '../naming-frames'
 
 /**
- * The generating phase always shows for at least this long, even when the rename resolves in the
- * same commit the ask started in — a fast LLM (or a name the operator typed) would otherwise let
- * `begin` and `stream` land in one batched render, collapsing the sweep into an instant snap from
- * the old name to the new.
+ * The longest a rename animation runs from the moment the answer is known: the settle sweep alone.
+ * There is no synthetic floor — a bare `/rename` holds the generating phase exactly as long as the
+ * LLM takes to answer, and a `/rename name` resolves the operator's typed name the instant the store
+ * echoes, so the stream begins immediately. The rename holds its request for at least this long so
+ * the surface never hands back to the settled title mid-stream.
  */
-const MIN_GENERATING_MS = 550
-
-/**
- * The longest a rename animation runs from the moment the answer is known: the generating floor,
- * plus the settle sweep. The rename holds its request for at least this long so the surface never
- * hands back to the settled title mid-stream.
- */
-export const NAMING_ANIMATION_MS = MIN_GENERATING_MS + NAMING_SETTLE_MS
+export const NAMING_ANIMATION_MS = NAMING_SETTLE_MS
 
 export type NamingAnimation = {
   /** Set while the animation owns the title line: generating, then streaming the answer in. */
   state: NamingState | null
   /** A rename started from `current` (null for a first name). The generating phase opens now and
-   *  runs at least MIN_GENERATING_MS before any answer streams in. */
+   *  holds until an answer streams in — the LLM's own latency on a bare rename. */
   begin: (current: string | null) => void
-  /** The answer arrived. Streams once the generating floor has elapsed — immediately if it already
-   *  has, after the remaining delay if the rename resolved fast. */
+  /** The answer arrived: start the sweep now. Carrying the old width and name means an answer that
+   *  lands in the same commit as the begin still streams from the old name rather than snapping. */
   stream: (title: string) => void
   /** End without a settle — the ask was declined, failed, or the thread swapped. */
   end: () => void
@@ -74,32 +68,13 @@ export function useNamingAnimation(args: { fallbackCells: number }): NamingAnima
     stream: (title) => {
       setState((current) => {
         if (current === null) return current
-        const startedAt = current.startedAt
-        const wait = Math.max(0, MIN_GENERATING_MS - (Date.now() - startedAt))
-        const startCells = current.startCells
-        const startedWithName = current.startedWithName
-
-        later(wait + NAMING_SETTLE_MS, () => setState(null))
-        later(wait, () =>
-          setState((latest) =>
-            latest === null
-              ? null
-              : {
-                  phase: ENamingPhase.Streaming,
-                  startCells,
-                  startedWithName,
-                  target: title,
-                  startedAt: Date.now(),
-                },
-          ),
-        )
-
+        later(NAMING_SETTLE_MS, () => setState(null))
         return {
-          phase: ENamingPhase.Generating,
-          startCells,
-          startedWithName,
+          phase: ENamingPhase.Streaming,
+          startCells: current.startCells,
+          startedWithName: current.startedWithName,
           target: title,
-          startedAt,
+          startedAt: Date.now(),
         }
       })
     },
