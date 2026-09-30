@@ -1,5 +1,6 @@
 import { endingIsSpeech, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 
+import type { InputBatch } from '../../intake/input-batch'
 import type { AgentSnapshot } from './snapshot'
 
 export enum EAgentNotice {
@@ -17,7 +18,10 @@ export type AgentNotice = {
   snapshot: AgentSnapshot
   kind: EAgentNotice
   draft: EventDraft
+  generation?: AbortSignal | undefined
 }
+
+export type AgentNoticeBatch = InputBatch & { notices: readonly AgentNotice[] }
 
 const wakesThread = (notice: AgentNotice): boolean => notice.kind !== EAgentNotice.QuietEnding
 
@@ -45,6 +49,29 @@ export class AgentNoticeQueue {
     return this.take({ threadId, where: () => true }).map((notice) => notice.draft)
   }
 
+  prepare({ threadId }: { threadId: ThreadId }): AgentNoticeBatch {
+    const captured = this.queued.filter((notice) => notice.threadId === threadId)
+    let acknowledged = false
+    return {
+      notices: captured,
+      drafts: captured.map((notice) => notice.draft),
+      wakesTurn: captured.some(isTurnTakingNotice),
+      acknowledge: () => {
+        if (acknowledged) return
+        acknowledged = true
+        this.takeCaptured(captured)
+      },
+    }
+  }
+
+  takeCaptured(captured: readonly AgentNotice[]): void {
+    if (captured.length === 0) return
+    const leaving = new Set(captured)
+    const kept = this.queued.filter((notice) => !leaving.has(notice))
+    if (kept.length === this.queued.length) return
+    this.settle(kept)
+  }
+
   take({
     threadId,
     where,
@@ -67,6 +94,10 @@ export class AgentNoticeQueue {
 
   threadsAwaiting(): readonly ThreadId[] {
     return [...this.noticed.keys()]
+  }
+
+  threadsQueued(): readonly ThreadId[] {
+    return [...new Set(this.queued.map((notice) => notice.threadId))]
   }
 
   onNotice(listener: () => void): () => void {

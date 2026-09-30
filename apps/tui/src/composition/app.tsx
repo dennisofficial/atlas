@@ -1269,6 +1269,8 @@ function Workspace(props: {
               log: home.log,
               ledger: home.ledger,
               agents: home.agents,
+              shells: props.localApp.shells,
+              services: props.localApp.services,
               ids: home.ids,
               workspace: home.workspace,
               open: { mode: EOpenMode.Resume, threadId },

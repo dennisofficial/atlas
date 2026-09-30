@@ -2,7 +2,7 @@ import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
-import { EAuthor, EEntryKind, EPendingKind, type AgentEndedEntry } from '../../store'
+import { EAuthor, EEntryKind, EPendingKind, type AgentEndedEntry, type PendingRow } from '../../store'
 import { PendingBlock } from '../components/blocks/pending-block'
 import { EntryView } from '../components/entry-view'
 import { teardown } from '../markdown/__tests__/harness'
@@ -67,7 +67,9 @@ describe('a sub-agent ending in the scrollback', () => {
             id: 'agent-finished-thread-child',
             text: `${HEADLINE} and 12 tool calls`,
             failed: false,
-          },
+            body: REPORT,
+            entryKind: EEntryKind.AgentEnded,
+          } satisfies PendingRow,
         ]}
         width={110}
       />,
@@ -76,6 +78,28 @@ describe('a sub-agent ending in the scrollback', () => {
     const row = frame.split('\n').find((line) => line.includes(HEADLINE))
 
     expect(row).toContain(glyph.block)
-    expect(row).not.toContain('queued')
+    expect(row).toContain('queued')
+  })
+
+  it('previews the report under the waiting notice instead of offering its fold', async () => {
+    const frame = await shown(
+      <PendingBlock
+        rows={[
+          {
+            kind: EPendingKind.Agent,
+            id: 'agent-finished-thread-child',
+            text: `${HEADLINE} and 12 tool calls`,
+            failed: false,
+            body: REPORT,
+            entryKind: EEntryKind.AgentEnded,
+          } satisfies PendingRow,
+        ]}
+        width={110}
+      />,
+    )
+
+    expect(frame).toContain('## What I found')
+    expect(frame).toContain('Every call site is in the loop package.')
+    expect(frame).not.toContain('↵ report')
   })
 })

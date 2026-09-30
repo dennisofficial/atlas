@@ -57,7 +57,7 @@ describe('a sub-agent that ends while the parent is mid-turn', () => {
 
       expect(notice).toBeGreaterThan(working)
       expect(rows[notice]).toContain(glyph.block)
-      expect(rows[notice]).not.toContain('queued')
+      expect(rows[notice]).toContain('queued')
     } finally {
       await mounted.done()
     }

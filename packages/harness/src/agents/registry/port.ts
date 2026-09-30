@@ -1,5 +1,6 @@
 import type { EExecutionLocation, EKilledBy, EventDraft, SaidFile, SaidImage, ThreadId } from '@dltech/atlas-core'
 
+import type { InputBatch } from '../../intake/input-batch'
 import type { AgentType } from '../types'
 import type { NoticeDrain } from './delivery'
 import type { AgentSnapshot, RecoveredAgents } from './snapshot'
@@ -60,8 +61,10 @@ export abstract class AgentRegistryPort {
   abstract recordLostAgents(args: { threadId: ThreadId }): Promise<RecoveredAgents>
   abstract listEverywhere(): readonly AgentSnapshot[]
   abstract drainNotifications(args: { threadId: ThreadId }): NoticeDrain
+  prepareNotifications?(args: { threadId: ThreadId }): InputBatch
   abstract pendingNotices(args: { threadId: ThreadId }): readonly AgentSnapshot[]
   abstract threadsAwaitingNotice(): readonly ThreadId[]
+  threadsWithPendingInput?(): readonly ThreadId[]
   abstract onNotice(listener: () => void): () => void
   abstract onChange(listener: () => void): () => void
   abstract forgetNotices(args: { threadId: ThreadId }): void

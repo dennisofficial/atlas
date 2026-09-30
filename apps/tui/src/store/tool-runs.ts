@@ -1,5 +1,7 @@
 import { EContextSlot, type CallId, type Event, type EventOfType } from '@dltech/atlas-core'
 
+import { transcriptNotice } from './notice-barriers'
+
 export enum ECallState {
   Pending = 'pending',
   AwaitingApproval = 'awaiting-approval',
@@ -209,10 +211,12 @@ function attachmentsOf(events: readonly Event[]): Map<CallId, ContextAttachment[
  *
  * A step that only THINKS between two batches of calls is not a boundary a reader cares about — it
  * is the same stretch of work with reasoning in the middle — so only a text reply, an operator
- * message or a nudge closes one.
+ * message, a nudge, or a notice the transcript prints in place closes one. Anything narrower lets
+ * the whole run render where its FIRST call landed, ahead of a completion or report notice the
+ * reader already saw settle between the calls.
  */
 const brokenBy = (event: Event): boolean => {
-  if (event.type === 'user-said' || event.type === 'nudge') return true
+  if (transcriptNotice(event)) return true
   if (event.type !== 'assistant-said') return false
   return event.parts.some((part) => part.type === 'text' && part.text.trim().length > 0)
 }

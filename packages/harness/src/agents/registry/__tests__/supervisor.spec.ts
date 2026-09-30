@@ -300,7 +300,7 @@ describe('steering a child', () => {
 
     const events = await opened.harness.log.read({ threadId: outcome.snapshot.agentId })
     expect(events.map((event) => event.type)).toEqual(['user-said'])
-    expect(opened.runners.started[0]?.request.steering()).toEqual([
+    expect(opened.runners.started[0]?.request.steering().peek()).toEqual([
       { text: 'use the other file', images: undefined },
     ])
   })

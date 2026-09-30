@@ -12,12 +12,14 @@ import type { TurnOutcome } from '../../loop/turn-outcome'
 import type { TurnRunner } from '../../loop/turn-runner.port'
 import type { AgentType } from '../types'
 import type { ChildRunnerSource } from './child-runner'
+import type { IntakeChanged } from './deps'
 import {
   agentEndedDraft,
   recordContext,
   recordProgress,
   snapshotOf,
   type ChildState,
+  type SteerMessage,
 } from './child-state'
 import { EAgentNotice, endingNoticeKind, type AgentNoticeQueue } from './notices'
 import { statusOf } from './reasons'
@@ -35,6 +37,7 @@ export class ChildSteps {
   private readonly notices: AgentNoticeQueue
   private readonly clock: ClockPort
   private readonly telemetry: TelemetryPort | undefined
+  private readonly intake: IntakeChanged | undefined
   private readonly inFlight = new Map<ThreadId, Map<ThreadId, Promise<void>>>()
 
   constructor(args: {
@@ -43,12 +46,14 @@ export class ChildSteps {
     notices: AgentNoticeQueue
     clock: ClockPort
     telemetry?: TelemetryPort | undefined
+    intake?: IntakeChanged | undefined
   }) {
     this.runners = args.runners
     this.roster = args.roster
     this.notices = args.notices
     this.clock = args.clock
     this.telemetry = args.telemetry
+    this.intake = args.intake
   }
 
   take({
@@ -144,7 +149,10 @@ export class ChildSteps {
       snapshot: snapshotOf(child),
       kind: endingNoticeKind(child.agentType),
       draft: agentEndedDraft(child),
+      generation: child.abort.signal,
     })
+
+    this.intake?.changed()
   }
 
   private record({ child, drafts }: { child: ChildState; drafts: readonly EventDraft[] }): void {
@@ -180,7 +188,23 @@ export class ChildSteps {
       observe: (drafts) => this.record({ child, drafts }),
       observeContext: ({ tokens, window }) => this.measure({ child, tokens, window }),
       observeModel: (model) => this.noteModel({ child, model }),
-      steering: () => child.pending.splice(0),
+      steering: () => {
+        const held = child.pending
+        let captured: readonly SteerMessage[] | undefined
+        return {
+          peek: () => {
+            captured ??= [...held]
+            return captured
+          },
+          acknowledge: () => {
+            const taken = captured ?? []
+            if (taken.length > 0) held.splice(0, taken.length)
+          },
+          release: () => {
+            captured = undefined
+          },
+        }
+      },
     })
   }
 }

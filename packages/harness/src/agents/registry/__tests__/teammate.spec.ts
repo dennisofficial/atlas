@@ -251,7 +251,7 @@ describe('a teammate messaging a teammate', () => {
     expect(outcome.ok).toBe(true)
     const events = await opened.harness.log.read({ threadId: second })
     expect(events.map((event) => event.type)).toEqual(['user-said'])
-    expect(opened.runners.started[1]?.request.steering()).toEqual([
+    expect(opened.runners.started[1]?.request.steering().peek()).toEqual([
       { text: 'billing needs your token model', via: EMessageOrigin.PeerAgent },
     ])
   })

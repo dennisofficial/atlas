@@ -3,93 +3,13 @@ import { describe, expect, it } from 'bun:test'
 import {
   EKilledBy,
   EServiceStatus,
-  stampDrafts,
-  toCallId,
-  toEventId,
   toRunId,
   toThreadId,
-  type CallId,
-  type Event,
   type EventDraft,
-  type EventId,
-  type EventLogPort,
-  type EventEnvelope,
-  type RunId,
-  type ThreadId,
 } from '@dltech/atlas-core'
 
 import { ServiceRecovery } from '../recovery'
-
-class SequenceIds {
-  private handed = 0
-
-  nextThreadId(): ThreadId {
-    this.handed += 1
-    return toThreadId(`thread-${this.handed}`)
-  }
-
-  nextCallId(): CallId {
-    this.handed += 1
-    return toCallId(`call-${this.handed}`)
-  }
-
-  nextRunId(): RunId {
-    this.handed += 1
-    return toRunId(`run-${this.handed}`)
-  }
-
-  nextEventId(): EventId {
-    this.handed += 1
-    return toEventId(`event-${this.handed}`)
-  }
-}
-
-class MemoryLog implements EventLogPort {
-  readonly stored: Event[] = []
-  private seq = 0
-
-  constructor(private readonly ids: SequenceIds) {}
-
-  async append(args: {
-    threadId: ThreadId
-    runId: RunId
-    parentRunId?: RunId | undefined
-    depth?: number | undefined
-    drafts: readonly EventDraft[]
-  }): Promise<Event[]> {
-    const envelopes: EventEnvelope[] = args.drafts.map(() => {
-      this.seq += 1
-      return {
-        id: this.ids.nextEventId(),
-        seq: this.seq,
-        threadId: args.threadId,
-        runId: args.runId,
-        depth: args.depth ?? 0,
-        at: '2026-09-24T00:00:00.000Z',
-      }
-    })
-    const stamped = stampDrafts({ drafts: [...args.drafts], envelopes })
-    this.stored.push(...stamped)
-    return stamped
-  }
-
-  async replace(): Promise<Event[]> {
-    throw new Error('unneeded')
-  }
-
-  async read(args: { threadId: ThreadId }): Promise<Event[]> {
-    return this.stored.filter((event) => event.threadId === args.threadId)
-  }
-
-  async readOwn(args: { threadId: ThreadId }): Promise<Event[]> {
-    return this.read(args)
-  }
-
-  async refresh(): Promise<void> {}
-  async head(): Promise<number> {
-    return this.seq
-  }
-}
+import { MemoryLog, SequenceIds } from './recovery-fixture'
 
 const thread = toThreadId('thread-1')
 

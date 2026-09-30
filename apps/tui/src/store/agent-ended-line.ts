@@ -25,16 +25,6 @@ const RESTART_VIA: Record<EAgentRestart, string> = {
   [EAgentRestart.Relocation]: 'moved with the conversation',
 }
 
-const DELIBERATE: Record<EAgentRestart, boolean> = {
-  [EAgentRestart.Resume]: true,
-  [EAgentRestart.Message]: true,
-  [EAgentRestart.Wake]: false,
-  [EAgentRestart.Relocation]: true,
-}
-
-export const deliberateRestart = (restart: { via: EAgentRestart }): boolean =>
-  DELIBERATE[restart.via]
-
 export const agentRestartedLine = (restart: AgentRestartRow): string =>
   `${isTeammateType(restart.agentType) ? 'Teammate' : 'Sub-agent'} ${agentLabel(restart)} ${RESTART_VIA[restart.via]}`
 

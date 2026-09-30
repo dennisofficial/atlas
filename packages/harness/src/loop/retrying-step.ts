@@ -10,6 +10,8 @@ import {
   type ToolDeclaration,
 } from '@dltech/atlas-core'
 
+import { preparedFailureMessage, type PreparedStep } from './step-prepare'
+
 import { modelFailureOf } from '../model/failure'
 import { takeModelStep, type SteppedTurn } from './model-step'
 
@@ -84,19 +86,21 @@ export async function takeModelStepWithRetry(args: {
   assembled: Assembled
   signal: AbortSignal
   retry?: RetryDeps | undefined
+  prepare?: (() => Promise<PreparedStep>) | undefined
 }): Promise<SteppedTurn> {
   const policy = args.retry?.policy ?? DEFAULT_RETRY_POLICY
   const sleep = args.retry?.sleep ?? sleepUnlessAborted
   const jitter = args.retry?.jitter ?? Math.random
 
   let attempts = 0
+  let assembled = args.assembled
 
   for (;;) {
     const attempt = await attemptModelStep({
       model: args.model,
       tools: args.tools,
       onChunk: args.onChunk,
-      assembled: args.assembled,
+      assembled,
       signal: args.signal,
     })
 
@@ -133,5 +137,21 @@ export async function takeModelStepWithRetry(args: {
 
     await sleep({ ms: decision.delayMs, signal: args.signal })
     if (args.signal.aborted) return settled()
+
+    if (args.prepare !== undefined) {
+      try {
+        for (;;) {
+          args.signal.throwIfAborted()
+          const prepared = await args.prepare()
+          if (!prepared.ok) return { ok: false, ...preparedFailureMessage(prepared) }
+          if ('compacted' in prepared) continue
+          assembled = prepared.assembled
+          break
+        }
+      } catch (error) {
+        if (args.signal.aborted) return settled()
+        return { ok: false, message: messageOf(error), cause: error }
+      }
+    }
   }
 }

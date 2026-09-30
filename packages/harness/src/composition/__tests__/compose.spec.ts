@@ -135,6 +135,21 @@ describe('composeHarness', () => {
     await app.close()
   })
 
+  it('hands the composed supervisor a live intake: a notice queued to a child can be prepared through it', async () => {
+    const app = await compose()
+    const parent = toThreadId('compose-parent')
+    const intake = app.intake
+    if (intake === undefined) throw new Error('the composed app exposes no shared intake')
+
+    intake.submit({ threadId: parent, text: 'wake me' })
+    const prepared = await intake.prepare({ threadId: parent })
+    expect(prepared.drafts).toHaveLength(1)
+    expect(prepared.wakesTurn).toBe(true)
+    prepared.release?.()
+
+    await app.close()
+  })
+
   it('composes through a cloud outage: signed in, every call 504s, boot degrades instead of dying', async () => {
     const realFetch = globalThis.fetch
     globalThis.fetch = ((_input: unknown, _init?: unknown) =>

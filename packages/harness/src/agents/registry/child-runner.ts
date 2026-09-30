@@ -11,6 +11,8 @@ import {
 } from '@dltech/atlas-core'
 
 import type { SteerMessage } from './child-state'
+import { combineInput, type InputBatch } from '../../intake/input-batch'
+import type { MessageIntake } from '../../intake/message-intake'
 import type { DeltaChannel } from '../../channel/delta-channel'
 import { PublishingTurnRunner } from '../../channel/publishing-turn-runner'
 import { withoutSpawnableListing } from '../../tools/builtin/agent-spawn'
@@ -45,6 +47,7 @@ export type ChildRunnerDeps = {
     projectDirectory?: string | undefined
   }) => AssemblyPipeline
   drainNotices: (args: { threadId: ThreadId }) => Promise<PendingDrain>
+  intake?: MessageIntake | undefined
   modelFor?: ((args: { agentType: AgentType }) => ModelPort) | undefined
   telemetry?: TelemetryPort | undefined
 }
@@ -97,7 +100,46 @@ export type ChildRunnerRequest = {
   observe: (drafts: readonly EventDraft[]) => void
   observeContext: (args: { tokens: number; window: number }) => void
   observeModel: (model: ProviderIdentity) => void
-  steering: () => readonly SteerMessage[]
+  steering: () => SteeringBatch
+}
+
+export type SteeringBatch = {
+  peek: () => readonly SteerMessage[]
+  acknowledge: () => void
+  release?: (() => void) | undefined
+}
+
+export const drainedSteering = (drain: () => readonly SteerMessage[]): SteeringBatch => {
+  const held = drain()
+  return {
+    peek: () => held,
+    acknowledge: () => undefined,
+  }
+}
+
+const peekSteering = (steering: () => SteeringBatch): (() => InputBatch) => {
+  let held: SteeringBatch | undefined
+  return () => {
+    const batch = held ?? steering()
+    held = batch
+    const peeked = batch.peek()
+    return {
+      drafts: steerDrafts(peeked),
+      wakesTurn: peeked.length > 0,
+      acknowledge: () => {
+        batch.acknowledge()
+        held = undefined
+      },
+      ...(batch.release === undefined
+        ? {}
+        : {
+            release: () => {
+              batch.release?.()
+              held = undefined
+            },
+          }),
+    }
+  }
 }
 
 export function childRunnerSource({ deps }: { deps: ChildRunnerDepsSource }): ChildRunnerSource {
@@ -126,6 +168,7 @@ export function buildChildRunner({
   observeModel,
   steering,
 }: ChildRunnerRequest & { deps: ChildRunnerDeps }): TurnRunner {
+  const steeringBatch = peekSteering(steering)
   const narrowed = filteredToolRegistry({
     registry: toolRegistryFor({ registry: deps.tools, agentType }),
     deny: deniedFor(agentType),
@@ -156,11 +199,21 @@ export function buildChildRunner({
       }),
       assembly: deps.assemblyFor({ agentType, projectDirectory }),
       drainPending: async (args) => {
-        const steered = steerDrafts(steering())
         const notices = await deps.drainNotices(args)
+        const batch = combineInput([
+          steeringBatch(),
+          {
+            drafts: notices.drafts,
+            wakesTurn: notices.wakesTurn,
+            acknowledge: () => notices.acknowledge?.(),
+            ...(notices.release === undefined ? {} : { release: () => notices.release?.() }),
+          },
+        ])
         return {
-          drafts: [...steered, ...notices.drafts],
-          wakesTurn: steered.length > 0 || notices.wakesTurn,
+          drafts: batch.drafts,
+          wakesTurn: batch.wakesTurn,
+          acknowledge: batch.acknowledge,
+          release: () => batch.release?.(),
         }
       },
     },

@@ -2,7 +2,7 @@ import { saidBody, type EventDraft, type SaidFile, type SaidImage, type ThreadId
 
 import { PauseSignal } from '@dltech/atlas-harness'
 import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
-import type { TurnPolicy } from '@dltech/atlas-harness'
+import type { MessageIntake } from '@dltech/atlas-harness'
 
 import type { ServeApp } from './serve-app'
 
@@ -23,6 +23,7 @@ export type ServeTurnDriver = {
   resume: () => void
   running: () => boolean
   settled: () => Promise<void>
+  attach: (shared: MessageIntake) => () => void
 }
 
 export type TurnDriverHooks = {
@@ -41,29 +42,19 @@ export function createTurnDriver(args: {
   refusal?: (() => string | undefined) | undefined
 } & TurnDriverHooks): ServeTurnDriver {
   const { app, threadId } = args
+  const intake = app.intake ?? null
+  const pending = app.pending ?? null
 
   let abort: AbortController | null = null
   let pause: PauseSignal | null = null
   let again = false
+  let committing = false
   let turning: Promise<void> | null = null
   // Not reset when the turn settles: the far side's Resume frame can arrive after the paused loop
   // has fully unwound, and it must still re-enter the turn from the log.
   let relocationFrozen = false
 
-  /**
-   * The message lands durably before any turn runs, so a process death between the two loses a
-   * turn rather than the thing the operator said.
-   */
-  const commit = async (said: {
-    text: string
-    images?: readonly SaidImage[] | undefined
-    files?: readonly SaidFile[] | undefined
-    context?: readonly EventDraft[] | undefined
-  }): Promise<void> => {
-    const drafts: readonly EventDraft[] = [
-      ...(said.context ?? []),
-      saidBody({ text: said.text, images: said.images, files: said.files }),
-    ]
+  const writeDrafts = async (drafts: readonly EventDraft[]): Promise<void> => {
     const runId = app.ids.nextRunId()
     const existing = await app.threads.find({ threadId })
 
@@ -79,6 +70,43 @@ export function createTurnDriver(args: {
       workspace: app.workspace.workspace,
       repo: app.workspace.repo,
     })
+  }
+
+  const commitShared = async (shared: MessageIntake, said: {
+    text: string
+    images?: readonly SaidImage[] | undefined
+    files?: readonly SaidFile[] | undefined
+    context?: readonly EventDraft[] | undefined
+  }): Promise<void> => {
+    shared.submit({
+      threadId,
+      text: said.text,
+      ...(said.images === undefined ? {} : { images: said.images }),
+      ...(said.files === undefined ? {} : { files: said.files }),
+      ...(said.context === undefined ? {} : { context: said.context }),
+    })
+    await shared.commit({ threadId, append: writeDrafts })
+  }
+
+  /**
+   * The message lands durably before any turn runs, so a process death between the two loses a
+   * turn rather than the thing the operator said.
+   */
+  const commit = async (said: {
+    text: string
+    images?: readonly SaidImage[] | undefined
+    files?: readonly SaidFile[] | undefined
+    context?: readonly EventDraft[] | undefined
+  }): Promise<void> => {
+    if (intake !== null) {
+      await commitShared(intake, said)
+      return
+    }
+
+    await writeDrafts([
+      ...(said.context ?? []),
+      saidBody({ text: said.text, images: said.images, files: said.files }),
+    ])
   }
 
   /**
@@ -115,6 +143,7 @@ export function createTurnDriver(args: {
       pause = null
       turning = null
       args.onTurnEnded()
+      intake?.changed()
     }
   }
 
@@ -122,6 +151,7 @@ export function createTurnDriver(args: {
     const refused = args.refusal?.()
     if (refused !== undefined) throw new Error(refused)
 
+    if (committing) return
     if (turning !== null) {
       again = true
       return
@@ -129,11 +159,32 @@ export function createTurnDriver(args: {
     turning = runUntilQuiet()
   }
 
-  return {
+  const handle: ServeTurnDriver = {
     /** A workspace that failed to materialize refuses work rather than letting an agent loose in an empty tree. */
     async say(said) {
       const refused = args.refusal?.()
       if (refused !== undefined) throw new Error(refused)
+
+      if (intake !== null && pending !== null) {
+        if (turning !== null || committing) {
+          pending.forThread({ threadId }).enqueue({
+            text: said.text,
+            ...(said.images === undefined ? {} : { images: said.images }),
+            ...(said.files === undefined ? {} : { files: said.files }),
+            ...(said.context === undefined ? {} : { context: said.context }),
+          })
+          intake.changed()
+          return
+        }
+        committing = true
+        try {
+          await commitShared(intake, said)
+        } finally {
+          committing = false
+        }
+        turning = runUntilQuiet()
+        return
+      }
 
       await commit(said)
       if (turning !== null) {
@@ -176,6 +227,7 @@ export function createTurnDriver(args: {
      * signal-wakes.
      */
     resume() {
+      if (committing) return
       if (pause !== null && pause.paused) {
         pause.resume()
         relocationFrozen = false
@@ -189,8 +241,22 @@ export function createTurnDriver(args: {
       run()
     },
 
+    attach(shared: MessageIntake) {
+      return shared.register({
+        threadId,
+        driver: {
+          blocked: () => turning !== null || committing,
+          wake: () => {
+            handle.sayOrRun()
+          },
+        },
+      })
+    },
+
     running: () => turning !== null,
 
     settled: () => turning ?? Promise.resolve(),
   }
+
+  return handle
 }
