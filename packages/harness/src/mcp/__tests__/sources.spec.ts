@@ -198,6 +198,33 @@ describe('CompatMcpSource', () => {
       rejections: [],
     })
   })
+
+  it('reads a real Claude Code-shaped .mcp.json instead of rejecting every entry', async () => {
+    const source = new CompatMcpSource({
+      cwd: '/repo',
+      read: readerReturning(
+        JSON.stringify({
+          mcpServers: {
+            'aws-mcp': { type: 'stdio', command: 'uvx', args: ['mcp-proxy-for-aws@latest'], env: { AWS_PROFILE: 'dennis' } },
+            cubic: { type: 'http', url: 'https://www.cubic.dev/api/mcp' },
+          },
+        }),
+      ),
+    })
+
+    const { specs, rejections } = await source.load()
+
+    expect(rejections).toEqual([])
+    expect(specs).toHaveLength(2)
+    expect(specs[0]).toMatchObject({
+      name: 'aws-mcp',
+      transport: { kind: 'stdio', command: 'uvx', args: ['mcp-proxy-for-aws@latest'], env: { AWS_PROFILE: 'dennis' } },
+    })
+    expect(specs[1]).toMatchObject({
+      name: 'cubic',
+      transport: { kind: 'http', url: 'https://www.cubic.dev/api/mcp' },
+    })
+  })
 })
 
 describe('file sources against a real disk', () => {

@@ -70,7 +70,7 @@ import { bindInstructionsAndMemory } from './context-bindings'
 import { faultInjected } from './fault-injection'
 import type { HarnessApp, HarnessStoreBinding, HarnessSurfaceBinding } from './harness-app'
 import { boundCaptureContext } from './context-archive-binding'
-import { mcpBootNotice } from './mcp-report'
+import { mcpBootNotice, mcpRejectionNotice } from './mcp-report'
 import { knownRefs } from './model-catalogue'
 import { bindModels } from './model-bindings'
 import { bindSettingsPolicy } from './policy-bindings'
@@ -128,7 +128,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   await claimLaunchWorktree({ container, workspace })
   const mcp = await registerMcp({ container, cwd: anchor })
 
-  for (const server of mcp.servers()) {
+  for (const server of mcp.store.servers()) {
     const bootNotice = mcpBootNotice(server)
     if (bootNotice !== null) {
       notice.notify({
@@ -138,6 +138,15 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
         text: bootNotice,
       })
     }
+  }
+
+  for (const rejection of mcp.rejections) {
+    notice.notify({
+      key: `mcp:rejection:${rejection.definedIn}:${rejection.name ?? 'file'}`,
+      tone: ENoticeTone.Warn,
+      ttlMs: NOTICE_WARN_MS,
+      text: mcpRejectionNotice(rejection),
+    })
   }
 
   const settings = args.settings.service
@@ -431,7 +440,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     services,
     sandbox,
     containerStatus,
-    mcp: () => mcp.servers(),
+    mcp: () => mcp.store.servers(),
     threadOpened: threadOpenedHandler({ container, log, threads, ids, notice }),
     journalResume: ({ active, directory }) =>
       journalResume({ active, command: launch.command, directory }),

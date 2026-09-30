@@ -21,8 +21,10 @@ export {
   type McpTextReader,
 } from './sources'
 export {
+  compatMcpEntryToNative,
   MCP_NAME_PATTERN,
   MCP_SERVERS_FIELD,
+  MCP_TRANSPORT_FIELD,
   mcpConfigFileSchema,
   mcpServersOf,
   mcpSpecSchema,

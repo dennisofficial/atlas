@@ -8,7 +8,7 @@ export {
   type McpServerStatus,
 } from './registry/handle-status'
 export { McpInstructionsHook } from './instructions/instructions-hook'
-export { registerMcp } from './registry/register-mcp'
+export { registerMcp, type RegisteredMcp } from './registry/register-mcp'
 export {
   HttpTransport,
   StdioTransport,

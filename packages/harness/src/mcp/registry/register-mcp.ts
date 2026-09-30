@@ -10,6 +10,7 @@ import {
   FileMcpSource,
   RemoteMcpSource,
   resolveMcpSpecs,
+  type McpRejection,
   type McpSource,
 } from '../config'
 import { HandleStore } from '../bridge/handle-store'
@@ -51,10 +52,15 @@ const sessionFrom = (container: DependencyContainer): CloudSession | null =>
 const clientVersionFrom = (container: DependencyContainer): string =>
   container.isRegistered(ClientVersionToken, true) ? container.resolve(ClientVersionToken) : 'dev'
 
+export type RegisteredMcp = {
+  store: HandleStore
+  rejections: readonly McpRejection[]
+}
+
 export async function registerMcp(args: {
   container: DependencyContainer
   cwd: string
-}): Promise<HandleStore> {
+}): Promise<RegisteredMcp> {
   const resolved = await resolveMcpSpecs({
     sources: mcpSourcesFor({
       session: sessionFrom(args.container),
@@ -70,5 +76,5 @@ export async function registerMcp(args: {
   args.container.register(portToken(BeforeTurnHook), { useValue: new McpInstructionsHook({ store }) })
   registerDisposable({ container: args.container, close: () => store.closeAll() })
 
-  return store
+  return { store, rejections: resolved.rejections }
 }
