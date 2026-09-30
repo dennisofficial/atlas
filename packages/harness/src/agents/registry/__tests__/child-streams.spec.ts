@@ -56,7 +56,7 @@ async function childTurnWatched(): Promise<{
   const forgetChild = watch(threadId, child)
   const forgetParent = watch(parentId, parent)
 
-  const runner = buildChildRunner({
+  const runner = await buildChildRunner({
     agentType: agentTypeNamed({ name: 'explore' }),
     threadId,
     projectDirectory: undefined,

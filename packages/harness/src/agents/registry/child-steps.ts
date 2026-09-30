@@ -118,7 +118,16 @@ export class ChildSteps {
     pause: PauseSignal
   }): Promise<EAgentStatus> {
     try {
-      return statusOf(await step({ runner: this.runnerFor({ child, agentType }), signal, pause }))
+      let runner: TurnRunner
+      try {
+        const built = this.runnerFor({ child, agentType })
+        runner = built instanceof Promise ? await built : built
+      } catch (error) {
+        child.lastFullText = error instanceof Error ? error.message : String(error)
+        return signal.aborted ? EAgentStatus.Stopped : EAgentStatus.Failed
+      }
+      if (signal.aborted) return EAgentStatus.Stopped
+      return statusOf(await step({ runner, signal, pause }))
     } catch {
       return signal.aborted ? EAgentStatus.Stopped : EAgentStatus.Failed
     }
@@ -172,7 +181,7 @@ export class ChildSteps {
     this.roster.changed()
   }
 
-  private runnerFor({ child, agentType }: { child: ChildState; agentType: AgentType }): TurnRunner {
+  private runnerFor({ child, agentType }: { child: ChildState; agentType: AgentType }): TurnRunner | Promise<TurnRunner> {
     return this.runners({
       agentType,
       threadId: child.agentId,

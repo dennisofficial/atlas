@@ -1,5 +1,4 @@
 import {
-  agentTypeSettingId,
   defaultPipeline,
   EAgentStatus,
   ENoticeTone,
@@ -9,10 +8,9 @@ import {
   EShellStatus,
   isTurnTaking,
   NOTICE_WARN_MS,
-  parseRef,
   promptContextFor,
   promptModelOf,
-  textValueOf,
+  contextWindowOf,
   toggleValueOf,
   ClockPort,
   DecisionPort,
@@ -24,7 +22,6 @@ import {
   rangeValueOf,
   type CapabilitiesSource,
   type EventDraft,
-  type ModelCard,
   type NoticePort,
   type SaidImage,
   type SettingsResolution,
@@ -42,7 +39,7 @@ import type { ChildRunnerDeps } from '../agents/registry/child-runner'
 import { subAgentPrompt } from '../agents/registry/child-prompt'
 import { isTeammateType } from '../agents/types'
 import { AgentRegistryPort } from '../agents/registry/port'
-import { childModelSource } from './model-bindings'
+import { childModelSelection, childModelSource } from './child-model'
 import { ChildRunnerDepsToken } from '../container/create-harness-container'
 import { portToken, type DependencyContainer } from '../container/injection'
 import { DeltaChannelToken, HookChainToken, SessionRegistryToken } from '../container/tokens'
@@ -313,31 +310,16 @@ export function wireTurn<Command>(args: {
       }),
   }
 
-  const modelFor = childModelSource({
+  const childModels = {
     models,
     model,
-    modelPort,
+    threads,
     hooks: () => container.resolve(HookChainToken),
     settings: args.settings,
-  })
-
-  const cardPinnedTo = (pinned: string | undefined): ModelCard | undefined => {
-    if (pinned === undefined) return models.cardFor(model.choice().ref)
-
-    const ref = parseRef(pinned)
-    return ref === undefined ? undefined : models.cardFor(ref)
   }
+  const modelFor = childModelSource(childModels)
+  const modelAtSpawn = childModelSelection(childModels)
 
-  const subagentSetting = (id: string): string | undefined => {
-    const held = textValueOf({ resolution: args.settings.snapshot().resolution, id })
-    return held.length === 0 ? undefined : held
-  }
-
-  /**
-   * The supervisor holds this as a thunk rather than a value: `agent_spawn` is a ToolDefinition the
-   * ToolRegistry constructs, so resolving a child's tools while the supervisor is being built would
-   * close the cycle. Nothing here is read until the first spawn.
-   */
   container.register(ChildRunnerDepsToken, {
     useValue: (): ChildRunnerDeps => ({
       turn,
@@ -346,22 +328,17 @@ export function wireTurn<Command>(args: {
       channel: args.channel,
       drainNotices,
       modelFor,
+      modelAtSpawn,
       telemetry: container.resolve(portToken(TelemetryPort)),
-      assemblyFor: ({ agentType, projectDirectory: working }) =>
+      assemblyFor: ({ agentType, model: childModel, projectDirectory: working }) =>
         defaultPipeline({
           prompt: ({ projectDirectory }) =>
             subAgentPrompt({
               prompts,
               agentType,
               agent: isTeammateType(agentType.name) ? EPromptAgent.Main : EPromptAgent.Sub,
-              provider: modelPort.identity,
-              model: promptModelOf(
-                cardPinnedTo(
-                  subagentSetting(agentTypeSettingId(agentType.name)) ??
-                    agentType.model ??
-                    subagentSetting(ESettingId.SubagentModel),
-                ),
-              ),
+              provider: childModel.identity,
+              model: { contextWindow: contextWindowOf(childModel) || promptModelOf(undefined).contextWindow },
               projectDirectory,
             }),
           launchDirectory: working ?? workspace.workspace,

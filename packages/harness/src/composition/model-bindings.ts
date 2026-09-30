@@ -1,24 +1,14 @@
 import {
-  agentTypeSettingId,
   ANTHROPIC_PROVIDER_ID,
-  ESettingId,
-  parseRef,
-  textValueOf,
   type Account,
   type CredentialPort,
-  type ModelCard,
-  type ModelPort,
   type NoticePort,
   type SettingsResolution,
 } from '@dltech/atlas-core'
 
-import { pinnedModelSource } from '../agents/types/pinned-model'
 import type { DependencyContainer } from '../container/injection'
 import { DockerEngineToken, LanguageModelToken, ModelCardSourceToken, SelectableModelToken } from '../container/tokens'
-import type { HookChain } from '../hooks/registry'
-import { AiSdkModelPort } from '../model/ai-sdk-model-port'
 import { cardsForProvider } from '../models/generated-catalogue'
-import type { ProviderAdapter } from '../providers/adapter'
 import { AnthropicAdapter } from '../providers/anthropic-adapter'
 import { InferenceAdapter, INFERENCE_PROVIDER_ID } from '../providers/inference-adapter'
 import { OpenAiAdapter, OPENAI_PROVIDER_ID } from '../providers/openai-adapter'
@@ -26,58 +16,6 @@ import { OpenRouterAdapter, OPENROUTER_PROVIDER_ID } from '../providers/openrout
 import type { SettingsService } from '../settings/service'
 
 import type { HarnessLaunch } from './config'
-import { faultInjected } from './fault-injection'
-
-/**
- * The child-runner model source: a pinned subagent model when the launch or settings name one, the
- * parent's port otherwise. Built per child, fault-injection wrapping included.
- */
-type PinnedModel = { model: ReturnType<ProviderAdapter['model']>; card: ModelCard }
-
-export function childModelSource(args: {
-  models: ModelCatalogue
-  model: SelectableModel
-  modelPort: ModelPort
-  hooks: () => HookChain
-  settings: SettingsService
-}): ReturnType<typeof pinnedModelSource> {
-  const { models, model, modelPort } = args
-
-  const pinnedModel = ({ modelId }: { modelId: string }): PinnedModel => {
-    const ref = parseRef(modelId)
-    const card = ref === undefined ? undefined : models.cardFor(ref)
-    const adapter = ref === undefined ? undefined : models.adapterFor(ref.providerId)
-    if (card === undefined || adapter === undefined)
-      throw new Error(`no provider adapter can answer for ${modelId}`)
-
-    return { model: adapter.model({ card, effort: () => model.choice().effort }), card }
-  }
-
-  /** A setting that names a model nothing can run is skipped, not thrown on, so a stale pick degrades to the next voice in the chain instead of failing every spawn. */
-  const liveSetting = (id: string): string | undefined => {
-    const held = textValueOf({ resolution: args.settings.snapshot().resolution, id })
-    if (held.length === 0) return undefined
-
-    const ref = parseRef(held)
-    return ref !== undefined && isRefReachable({ catalogue: models, ref }) ? held : undefined
-  }
-
-  return pinnedModelSource({
-    typeModelId: (typeName) => liveSetting(agentTypeSettingId(typeName)),
-    subagentModelId: () => liveSetting(ESettingId.SubagentModel),
-    inherited: () => modelPort,
-    build: ({ modelId }) => {
-      const pinned = pinnedModel({ modelId })
-      return faultInjected(
-        new AiSdkModelPort({
-          model: pinned.model,
-          card: pinned.card,
-          hooks: args.hooks(),
-        }),
-      )
-    },
-  })
-}
 
 import {
   createExecutionLocationState,
@@ -85,7 +23,7 @@ import {
   type ExecutionLocationState,
 } from './execution-location-state'
 import { executionPinned, resolveExecutionLocation } from './execution-preference'
-import { isRefReachable, modelCatalogue, type ModelCatalogue } from './model-catalogue'
+import { modelCatalogue, type ModelCatalogue } from './model-catalogue'
 import { launchSelection, modelPinned } from './model-preference'
 import { selectableModel, type SelectableModel } from './model-selection'
 import { bindSandbox, type SandboxControl } from './sandbox-binding'
