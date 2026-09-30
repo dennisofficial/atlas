@@ -909,7 +909,6 @@ describe('stop and destroy', () => {
     const sdk: DriveSdk = {
       getOrCreate: async () => fakeDrive(driveName),
       list: async () => (async function* () {
-        // The detach settles a few polls after the sandbox delete returns.
         listCalls += 1
         const attached = !sandbox.deleted || listCalls < 3
         yield {
@@ -933,5 +932,32 @@ describe('stop and destroy', () => {
 
     expect(sandbox.deleted).toBe(true)
     expect(events).toEqual(['delete-drive'])
+  })
+
+  it('still attempts the drive delete when the detach outlives the wait', async () => {
+    const sandbox = fakeSandbox()
+    const driveName = driveNameFor({ threadId: 'brn_cloud' })
+    let deleteCalls = 0
+    const attachedDrive = {
+      name: driveName,
+      currentSandboxName: 'atlas-thread-x',
+      delete: async () => {
+        deleteCalls += 1
+        throw new APIError(new Response(null, { status: 409 }), {
+          json: { error: { message: 'Cannot delete a drive that is currently attached to a sandbox.' } },
+        })
+      },
+    }
+    const sdk: DriveSdk = {
+      getOrCreate: async () => fakeDrive(driveName),
+      list: async () => (async function* () {
+        yield attachedDrive as never
+      })(),
+    }
+    const { driver } = driverWith({ get: async () => sandbox }, sdk)
+
+    await expect(driver.destroy({ name: 'x', threadId: 'brn_cloud' })).rejects.toThrow()
+
+    expect(deleteCalls).toBe(10)
   })
 })
