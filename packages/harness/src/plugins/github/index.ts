@@ -3,6 +3,7 @@ import type { CloudSession, CloudSessionStore } from '../../cloud/cloud-session'
 import { portToken, type DependencyContainer } from '../../container/injection'
 import { SsePullRequestPort } from '../../cloud/sse-pull-requests'
 import {
+  AtlasHomeToken,
   ClientVersionToken,
   CloudSessionStoreToken,
   ServeSessionToken,
@@ -14,6 +15,7 @@ import { createCloudCheckout } from './cloud-checkout'
 import { GhPullRequestPort } from './gh-pull-requests'
 import { RefreshPullRequestAfterShellHook, RefreshPullRequestAfterToolHook } from './hooks'
 import { createPullRequestLinks } from './links'
+import { CachedPullRequestPort } from './pull-request-cache-port'
 import { createPullRequestService, type PullRequestService } from './pull-request-service'
 import { createPullRequestTransitions } from './pr-transitions'
 import { PullRequestPort, type PullRequestReading } from './pure'
@@ -48,6 +50,7 @@ export default class GithubPlugin extends NativePlugin {
       sessions: CloudSessionStore
       serve: CloudSession | null
       clientVersion: string
+      cacheDirectory: string
     },
   ) {
     super()
@@ -61,18 +64,26 @@ export default class GithubPlugin extends NativePlugin {
    */
   private port(onReading: (args: { key: string; reading: PullRequestReading }) => void): PullRequestPort {
     const session = this.args.serve ?? this.args.sessions.read()
-    if (session === null) return new GhPullRequestPort()
+    if (session !== null) {
+      return new SsePullRequestPort({
+        session,
+        clientVersion: this.args.clientVersion,
+        onReading,
+      })
+    }
 
-    return new SsePullRequestPort({
-      session,
-      clientVersion: this.args.clientVersion,
-      onReading,
-    })
+    return new GhPullRequestPort()
   }
 
   contribute(): PluginContribution {
     let service: PullRequestService | null = null
-    const adapter = this.port((pushed) => service?.ingest(pushed))
+    let cached: CachedPullRequestPort | null = null
+    const raw = this.port((pushed) => {
+      service?.ingest(pushed)
+      cached?.ingest(pushed)
+    })
+    const adapter = new CachedPullRequestPort({ inner: raw, directory: this.args.cacheDirectory })
+    cached = adapter
     service = createPullRequestService({ pullRequests: adapter })
     const facts = createSessionFacts({ launchDirectory: this.args.launchDirectory })
     const links = createPullRequestLinks({ service })
@@ -163,7 +174,8 @@ export default class GithubPlugin extends NativePlugin {
       ],
       projections: [links.projection, states, cloudCheckout],
       dispose: () => {
-        if (adapter instanceof SsePullRequestPort) adapter.dispose()
+        if (raw instanceof SsePullRequestPort) raw.dispose()
+        cached?.dispose()
         service.dispose()
       },
     }
@@ -180,6 +192,7 @@ export function registerPlugin({ container }: { container: DependencyContainer }
           ? resolver.resolve(ServeSessionToken)
           : null,
         clientVersion: resolver.resolve(ClientVersionToken),
+        cacheDirectory: resolver.resolve(AtlasHomeToken),
       }),
   })
 }

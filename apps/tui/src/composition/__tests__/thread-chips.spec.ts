@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { theme } from '../../ui/theme'
-import type { ThreadRow } from '../../ui/threads-model'
+import type { ThreadChip, ThreadRow } from '../../ui/threads-model'
 import {
   checkoutKey,
   EForge,
@@ -10,10 +10,11 @@ import {
   EChecksState,
   NO_CHECKS,
   PullRequestPort,
+  type PullRequestBadgeKey,
   type PullRequestReading,
   type RepositoryCheckout,
 } from '@dltech/atlas-harness'
-import { threadChips } from '../thread-chips'
+import { openThreadChips } from '../thread-chips'
 
 const HOME = '/repo'
 
@@ -36,30 +37,6 @@ const found = (args: { number: number; state?: EPullRequestState }): PullRequest
   },
 })
 
-class FakePullRequests extends PullRequestPort {
-  readonly pushes = false
-  readonly asked: string[] = []
-  readonly askedLinked: string[] = []
-
-  constructor(
-    private readonly readings: Readonly<Record<string, PullRequestReading>>,
-    private readonly linkedReadings: Readonly<Record<string, PullRequestReading>> = {},
-  ) {
-    super()
-  }
-
-  async read({ checkout: asked }: { checkout: RepositoryCheckout }): Promise<PullRequestReading> {
-    this.asked.push(checkoutKey(asked))
-    return this.readings[checkoutKey(asked)] ?? { lookup: EPullRequestLookup.Absent }
-  }
-
-  async readLinked(args: { repo: string; number: number }): Promise<PullRequestReading> {
-    const key = `${args.repo}#${args.number}`
-    this.askedLinked.push(key)
-    return this.linkedReadings[key] ?? { lookup: EPullRequestLookup.Absent }
-  }
-}
-
 const link = (args: { number: number; branch: string; repo?: string }) => ({
   number: args.number,
   url: `https://github.com/dennis/atlas/pull/${args.number}`,
@@ -81,166 +58,148 @@ const row = (args: {
   ...(args.pullRequests === undefined ? {} : { pullRequests: args.pullRequests }),
 })
 
-const probeWith =
-  (byDirectory: Readonly<Record<string, RepositoryCheckout>>, probed: string[]) =>
-  async ({ directory }: { directory: string }): Promise<RepositoryCheckout | null> => {
-    probed.push(directory)
-    return byDirectory[directory] ?? null
+class CachedFakePullRequests extends PullRequestPort {
+  readonly pushes = false
+  readonly freshened: string[] = []
+  private readonly badges = new Map<string, PullRequestReading>()
+  private readonly listeners = new Set<() => void>()
+
+  constructor(held: Readonly<Record<string, PullRequestReading>>) {
+    super()
+    for (const [key, reading] of Object.entries(held)) this.badges.set(key, reading)
   }
 
-describe('the pills of one picker opening', () => {
-  it('pins the pull request of the branch a worktree thread is standing on', async () => {
-    const worktree = checkout({ directory: '/repo/.worktrees/auth', branch: 'dennis/auth' })
-    const port = new FakePullRequests({ [checkoutKey(worktree)]: found({ number: 401 }) })
-    const probed: string[] = []
+  async read(): Promise<PullRequestReading> {
+    return { lookup: EPullRequestLookup.Unavailable, retryable: true }
+  }
+  async readLinked(): Promise<PullRequestReading> {
+    return { lookup: EPullRequestLookup.Unavailable, retryable: true }
+  }
 
-    const chips = await threadChips({
-      rows: [row({ threadId: 't1', worktree: { path: worktree.directory, branch: worktree.branch } })],
-      home: HOME,
-      pullRequests: port,
-      probe: probeWith({ [worktree.directory]: worktree }, probed),
-    })
+  override peekBadge(args: PullRequestBadgeKey): PullRequestReading | null {
+    const key =
+      args.kind === 'checkout' ? checkoutKey(args.checkout) : `${args.repo}#${args.number}`
+    return this.badges.get(key) ?? null
+  }
 
-    expect(probed).toEqual([worktree.directory])
-    expect(chips.get('t1')?.map((chip) => chip.label)).toEqual(['#401'])
-  })
+  override freshenBadge(args: PullRequestBadgeKey): void {
+    this.freshened.push(
+      args.kind === 'checkout' ? checkoutKey(args.checkout) : `${args.repo}#${args.number}`,
+    )
+  }
 
-  it('asks once for threads sharing the main tree, however many rows stand in it', async () => {
+  override onBadges(listener: () => void): () => void {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
+  }
+
+  push(key: string, reading: PullRequestReading): void {
+    this.badges.set(key, reading)
+    for (const listener of this.listeners) listener()
+  }
+}
+
+const settleMicrotasks = async (): Promise<void> => {
+  await Promise.resolve()
+  await Promise.resolve()
+  await new Promise((resolve) => setTimeout(resolve, 0))
+}
+
+describe('the incremental pills of an open picker', () => {
+  it('paints cached badges the moment they are known, without waiting on any read', async () => {
     const main = checkout({ directory: HOME, branch: 'main' })
-    const port = new FakePullRequests({ [checkoutKey(main)]: found({ number: 402 }) })
-    const probed: string[] = []
+    const port = new CachedFakePullRequests({ [checkoutKey(main)]: found({ number: 401 }) })
+    const landed: Array<Map<string, readonly ThreadChip[]>> = []
 
-    const chips = await threadChips({
-      rows: [row({ threadId: 't1' }), row({ threadId: 't2' })],
+    const handle = openThreadChips({
       home: HOME,
       pullRequests: port,
-      probe: probeWith({ [HOME]: main }, probed),
+      probe: async () => main,
+      onLanded: (chips) => landed.push(chips),
     })
 
-    expect(probed).toEqual([HOME])
-    expect(port.asked).toEqual([checkoutKey(main)])
-    expect(chips.get('t1')?.map((chip) => chip.label)).toEqual(['#402'])
-    expect(chips.get('t2')?.map((chip) => chip.label)).toEqual(['#402'])
+    const rows = [
+      row({ threadId: 't1' }),
+      row({ threadId: 't2', pullRequests: [link({ number: 402, branch: 'dennis/linked' })] }),
+    ]
+    port.push('github.com/dennis/atlas#402', found({ number: 402 }))
+
+    const chips = handle.sync({ rows })
+    expect(chips.get('t2')?.map((chip: ThreadChip) => chip.label)).toEqual(['#402'])
+
+    await settleMicrotasks()
+    const painted = landed.flatMap((map) => [...map.keys()])
+    expect(painted).toContain('t1')
+    handle.stop()
   })
 
-  it('leaves a row bare when there is definitively no pull request', async () => {
-    const main = checkout({ directory: HOME, branch: 'main' })
-    const port = new FakePullRequests({})
+  it('lands a pushed badge on the open rows without a resync', async () => {
+    const port = new CachedFakePullRequests({})
+    const landed: Array<Map<string, readonly ThreadChip[]>> = []
 
-    const chips = await threadChips({
-      rows: [row({ threadId: 't1' })],
-      home: HOME,
-      pullRequests: port,
-      probe: probeWith({ [HOME]: main }, []),
-    })
-
-    expect(chips.size).toBe(0)
-  })
-
-  it('leaves every row bare when the directory is not a checkout git can read', async () => {
-    const port = new FakePullRequests({})
-
-    const chips = await threadChips({
-      rows: [row({ threadId: 't1' })],
+    const handle = openThreadChips({
       home: HOME,
       pullRequests: port,
       probe: async () => null,
+      onLanded: (chips) => landed.push(chips),
     })
 
-    expect(chips.size).toBe(0)
-    expect(port.asked).toEqual([])
+    handle.sync({
+      rows: [row({ threadId: 't1', pullRequests: [link({ number: 403, branch: 'dennis/third' })] })],
+    })
+    port.push('github.com/dennis/atlas#403', found({ number: 403 }))
+    await settleMicrotasks()
+
+    expect(landed.length).toBe(1)
+    expect(landed[0]?.get('t1')?.[0]?.ground).toBe(theme.link)
+    handle.stop()
   })
 
-  it('swallows a rejecting port, because a pill is decoration', async () => {
+  it('a probe landing decorates every row sharing its directory, not just the first', async () => {
     const main = checkout({ directory: HOME, branch: 'main' })
-    const rejecting = new (class extends PullRequestPort {
-      readonly pushes = false
-      async read(): Promise<PullRequestReading> {
-        throw new Error('lost the socket')
-      }
-      async readLinked(): Promise<PullRequestReading> {
-        throw new Error('lost the socket')
-      }
-    })()
+    const port = new CachedFakePullRequests({ [checkoutKey(main)]: found({ number: 404 }) })
+    const landed: Array<Map<string, readonly ThreadChip[]>> = []
 
-    const chips = await threadChips({
-      rows: [row({ threadId: 't1' })],
-      home: HOME,
-      pullRequests: rejecting,
-      probe: probeWith({ [HOME]: main }, []),
-    })
-
-    expect(chips.size).toBe(0)
-  })
-
-  it('reads an open pull request with no checks as the link blue, not green', async () => {
-    const main = checkout({ directory: HOME, branch: 'main' })
-    const port = new FakePullRequests({ [checkoutKey(main)]: found({ number: 403 }) })
-
-    const chips = await threadChips({
-      rows: [row({ threadId: 't1' })],
+    const handle = openThreadChips({
       home: HOME,
       pullRequests: port,
-      probe: probeWith({ [HOME]: main }, []),
+      probe: async () => main,
+      onLanded: (chips) => landed.push(chips),
     })
 
-    expect(chips.get('t1')?.[0]?.ground).toBe(theme.link)
+    const first = handle.sync({ rows: [row({ threadId: 't1' }), row({ threadId: 't2' })] })
+    expect(first.get('t1')).toEqual([])
+    expect(first.get('t2')).toEqual([])
+
+    await settleMicrotasks()
+
+    const painted = landed.flatMap((map) => [...map.keys()])
+    expect(painted).toContain('t1')
+    expect(painted).toContain('t2')
+    const last = landed.at(-1)
+    expect(last?.get('t1')?.length).toBeGreaterThan(0)
+    expect(last?.get('t2')?.length).toBeGreaterThan(0)
+    handle.stop()
   })
 
-  it('rows every linked pull request oldest first, ahead of the one the checkout stands on', async () => {
-    const main = checkout({ directory: HOME, branch: 'dennis/third' })
-    const port = new FakePullRequests(
-      { [checkoutKey(main)]: found({ number: 415 }) },
-      {
-        'github.com/dennis/atlas#401': found({ number: 401 }),
-        'github.com/dennis/atlas#412': found({ number: 412 }),
-      },
-    )
+  it('stops answering once closed', async () => {
+    const port = new CachedFakePullRequests({})
+    const landed: Array<Map<string, readonly ThreadChip[]>> = []
 
-    const chips = await threadChips({
-      rows: [
-        row({
-          threadId: 't1',
-          pullRequests: [link({ number: 401, branch: 'dennis/first' }), link({ number: 412, branch: 'dennis/second' })],
-        }),
-      ],
-      home: HOME,
-      pullRequests: port,
-      probe: probeWith({ [HOME]: main }, []),
-    })
-
-    expect(chips.get('t1')?.map((chip) => chip.label)).toEqual(['#401', '#412', '#415'])
-  })
-
-  it('does not repeat a linked pull request the checkout is already standing on', async () => {
-    const main = checkout({ directory: HOME, branch: 'dennis/first' })
-    const port = new FakePullRequests(
-      { [checkoutKey(main)]: found({ number: 401 }) },
-      { 'github.com/dennis/atlas#401': found({ number: 401 }) },
-    )
-
-    const chips = await threadChips({
-      rows: [row({ threadId: 't1', pullRequests: [link({ number: 401, branch: 'dennis/first' })] })],
-      home: HOME,
-      pullRequests: port,
-      probe: probeWith({ [HOME]: main }, []),
-    })
-
-    expect(chips.get('t1')?.map((chip) => chip.label)).toEqual(['#401'])
-  })
-
-  it('mutes a linked pull request whose state cannot be read, rather than dropping it', async () => {
-    const port = new FakePullRequests({})
-
-    const chips = await threadChips({
-      rows: [row({ threadId: 't1', pullRequests: [link({ number: 401, branch: 'dennis/first' })] })],
+    const handle = openThreadChips({
       home: HOME,
       pullRequests: port,
       probe: async () => null,
+      onLanded: (chips) => landed.push(chips),
     })
 
-    const chip = chips.get('t1')?.[0]
-    expect(chip?.label).toBe('#401')
-    expect(chip?.ground).toBe(theme.selectedBg)
+    handle.sync({
+      rows: [row({ threadId: 't1', pullRequests: [link({ number: 405, branch: 'dennis/fifth' })] })],
+    })
+    handle.stop()
+    port.push('github.com/dennis/atlas#405', found({ number: 405 }))
+    await settleMicrotasks()
+
+    expect(landed.length).toBe(0)
   })
 })

@@ -88,6 +88,7 @@ import {
   ModelCardSourceToken,
   SecretsStoreToken,
   SessionRegistryToken,
+  AtlasHomeToken,
   WorkspaceRoot,
 } from './tokens'
 
@@ -146,6 +147,7 @@ export function createHarnessContainer(): DependencyContainer {
   registerDisposable({ container: harness, close: () => tape.close() })
 
   const home = atlasDirectory()
+  harness.register(AtlasHomeToken, { useValue: home })
   harness.register(SessionRegistryToken, { useValue: registryFor({ home }) })
 
   harness.register(portToken(ClockPort), { useClass: SystemClock })
