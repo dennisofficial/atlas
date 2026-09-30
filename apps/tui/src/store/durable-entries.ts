@@ -142,7 +142,11 @@ const PLACEMENT_DIVIDER_KEY = 'placement-divider'
 
 const locationChangedEntry = (args: { key: string; to: EExecutionLocation }): TranscriptEntry => {
   const text =
-    args.to === 'docker' ? 'docker container' : args.to === 'cloud' ? 'cloud sandbox' : 'host'
+    args.to === EExecutionLocation.Docker
+      ? 'docker container'
+      : args.to === EExecutionLocation.Cloud
+        ? 'cloud sandbox'
+        : 'host'
   return {
     kind: EEntryKind.LocationChanged,
     author: EAuthor.Model,
@@ -392,10 +396,11 @@ export function durableEntries(args: {
       return turn === undefined ? withFooter : [...withFooter, turnEndedEntry(turn)]
     })
 
-  if (
-    args.location === EExecutionLocation.Cloud &&
-    !events.some((event) => event.type === 'location-changed' && event.to === EExecutionLocation.Cloud)
-  ) {
+  const placedAt = events.findLast((event) => event.type === 'location-changed')
+  const logLocation =
+    placedAt?.type === 'location-changed' ? placedAt.to : EExecutionLocation.Host
+
+  if (args.location === EExecutionLocation.Cloud && logLocation !== EExecutionLocation.Cloud) {
     return inOneBreath([
       ...flat(),
       locationChangedEntry({ key: PLACEMENT_DIVIDER_KEY, to: EExecutionLocation.Cloud }),

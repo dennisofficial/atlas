@@ -52,7 +52,6 @@ export type ConversationStore = {
     base: LogAccumulator
     turns?: readonly TurnSpend[] | undefined
   }): void
-  /** Republish without touching the log — placement moved, so the divider may have to. */
   republish(): void
   stampTurn(advance: (progress: TurnProgress) => TurnProgress): void
   supersedeFailure(): void
@@ -104,7 +103,6 @@ export function createConversationStore(args: {
   let queuedRepaint: ReturnType<typeof setTimeout> | undefined;
   const tracker = createStepTracker();
   const tails = new Map<CallId, string>();
-  const locationNow = (): EExecutionLocation | undefined => args.location?.();
   let durable: {
     events: readonly Event[];
     turns: readonly TurnSpend[];
@@ -123,7 +121,7 @@ export function createConversationStore(args: {
   let logSummary = summaryNow();
 
   const durableNow = (): readonly TranscriptEntry[] => {
-    const location = locationNow();
+    const location = args.location?.();
     if (
       durable !== null &&
       durable.events === events &&
