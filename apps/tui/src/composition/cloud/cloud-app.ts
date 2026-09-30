@@ -1,4 +1,4 @@
-import type { ThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
 import {
   createRemoteRosterReader,
   EClientRequest,
@@ -79,6 +79,13 @@ export async function openCloudConversation(args: {
       effects: (name) => args.app.tools.find(name)?.effect,
     })
   } catch {
-    return { ...unstartedConversation({ ids: args.app.ids }), threadId: args.threadId }
+    // The thread is cloud by the way it was opened even when the remote store holds nothing yet
+    // (a fresh sandbox on a first lift) — carry the location so the mount's location resolve does
+    // not read the blank store as host and erase the pill.
+    return {
+      ...unstartedConversation({ ids: args.app.ids }),
+      threadId: args.threadId,
+      executionLocation: EExecutionLocation.Cloud,
+    }
   }
 }

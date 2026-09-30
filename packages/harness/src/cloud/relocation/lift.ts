@@ -16,6 +16,7 @@ import { VercelNotConfiguredError } from '../vercel-credentials'
 import type { CloudAttachment, CloudBridge, CloudChannel, CloudSandbox, LiftedWorkspace } from './cloud-bridge'
 import { runRelocation, type RelocationRun } from './dag'
 import type { LiftAgentsPort } from './lift-children'
+import { rollBackCommittedFlip } from './lift-rollback'
 import { ELiftNode, liftPlan, type LiftCtx } from './lift-plan'
 import { NOTHING_WAS_STOPPED, type StoppedLocally } from './transition-notice'
 
@@ -49,6 +50,8 @@ export type LiftFailure = {
   step: ELiftStep
   detail: string
   stopped: StoppedLocally
+  /** True when a post-commit failure flipped the ownership back — the conversation never moved. */
+  rolledBack?: boolean
 }
 
 export type LiftSuccess = {
@@ -134,6 +137,7 @@ const failureOf = (args: {
   step: ELiftStep
   fallback: ELiftFault
   stopped: StoppedLocally
+  rolledBack?: boolean
 }): LiftFailure => {
   const fault = faultOf({ error: args.error, fallback: args.fallback })
   return {
@@ -142,6 +146,7 @@ const failureOf = (args: {
     step: args.step,
     detail: detailOf(args.error),
     stopped: args.stopped,
+    ...(args.rolledBack === undefined ? {} : { rolledBack: args.rolledBack }),
   }
 }
 
@@ -161,6 +166,7 @@ const settledBeforeDeadline = async (args: LiftArgs): Promise<boolean> => {
 const failureOfRun = (args: {
   run: Extract<RelocationRun, { ok: false }>
   ctx: LiftCtx
+  rolledBack?: boolean
 }): LiftFailure => {
   const { run, ctx } = args
   if (ctx.contextError !== undefined) {
@@ -182,6 +188,7 @@ const failureOfRun = (args: {
     step,
     fallback: ELiftFault.Sandbox,
     stopped: ctx.stopped,
+    ...(args.rolledBack === undefined ? {} : { rolledBack: args.rolledBack }),
   })
 }
 
@@ -237,6 +244,11 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
         : { port: args.logPort, source: 'cloud.relocation', threadId },
   })
 
+  let rolledBack: boolean | undefined
+  if (!run.ok && run.phase === 'committed') {
+    rolledBack = await rollBackCommittedFlip(ctx)
+  }
+
   if (run.ok) {
     const { sandbox, channel } = ctx
     if (sandbox === undefined || channel === undefined) {
@@ -257,5 +269,9 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
     }
   }
 
-  return failureOfRun({ run, ctx })
+  return failureOfRun({
+    run,
+    ctx,
+    ...(rolledBack === undefined ? {} : { rolledBack }),
+  })
 }

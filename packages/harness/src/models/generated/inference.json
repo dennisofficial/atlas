@@ -447,8 +447,8 @@
     "imageTier": "standard",
     "maxOutputTokens": 128000,
     "cost": {
-      "inputPerMillion": 0.09,
-      "outputPerMillion": 0.28
+      "inputPerMillion": 0.1,
+      "outputPerMillion": 0.45
     },
     "effort": {
       "low": "low",

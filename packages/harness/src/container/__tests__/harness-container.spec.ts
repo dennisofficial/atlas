@@ -1,11 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
-import { ClockPort, CredentialPort, EventLogPort, FileSystemPort, IdPort, ProcessPort, toThreadId } from '@dltech/atlas-core'
+import { ClockPort, CredentialPort, EventLogPort, FileSystemPort, IdPort, ProcessPort, TelemetryPort, toThreadId } from '@dltech/atlas-core'
 
 import type { KeychainReader } from '../../credentials/keychain-reader'
 import { LocalFileSystemPort } from '../../execution/local-filesystem'
 import { LoginEnvProcessPort } from '../../execution/login-env-process'
 import { CredentialPortProxy } from '../../cloud/credential-port-proxy'
+import { NullTelemetry } from '../../telemetry/null-telemetry'
 import { ThreadStorePort, RandomIds, SystemClock } from '../../store'
 import { JsonlEventLog } from '../../store/sessions/event-log'
 import { JsonlThreadStore } from '../../store/sessions/thread-store'
@@ -61,6 +62,10 @@ describe('createHarnessContainer', () => {
 
   it('resolves the credential port to the brokered proxy', () => {
     expect(harness.resolve(portToken(CredentialPort))).toBeInstanceOf(CredentialPortProxy)
+  })
+
+  it('resolves telemetry to the null adapter under the test runner, never PostHog', () => {
+    expect(harness.resolve(portToken(TelemetryPort))).toBeInstanceOf(NullTelemetry)
   })
 
   it('resolves the process port to the login-resolving local adapter', () => {

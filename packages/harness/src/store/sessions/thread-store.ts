@@ -154,8 +154,27 @@ export class JsonlThreadStore implements ThreadStorePort {
     for (const listener of [...this.modelChosenListeners]) listener({ threadId, model })
   }
 
+  /**
+   * A thread whose meta has never been written (an unstarted /new conversation) is still a thread
+   * the moment something places it somewhere — a lift to the cloud is exactly that, and the record
+   * must exist for a later boot to route the resume to the attach path. Materialize it; the
+   * workspace stays null until the first real turn opens the thread and adopts it. A host (or
+   * cleared) placement of a thread nothing has written stays a no-op.
+   */
   async chooseExecutionLocation(args: { threadId: ThreadId; location: EExecutionLocation }): Promise<void> {
-    await this.updateMeta({ threadId: args.threadId, change: (meta) => ({ ...meta, executionLocation: args.location }) })
+    const { threadId, location } = args
+    const known = await this.registry.sessionDirOf({ threadId })
+    if (known !== undefined) {
+      await this.updateMeta({ threadId, change: (meta) => ({ ...meta, executionLocation: location }) })
+      return
+    }
+    if (location === EExecutionLocation.Host) return
+
+    const sessionDir = sessionDirectory({ home: this.home, sessionId: threadId })
+    const meta: ThreadMeta = { ...newThreadMeta({ id: threadId, at: this.clock.now() }), executionLocation: location }
+    await writeMeta({ file: threadMetaFile({ sessionDir, threadId }), meta })
+    this.registry.registerThread({ sessionDir, threadId })
+    await writeSessionMetaForRoot({ registry: this.registry, sessionDir, root: meta, home: location })
   }
 
   async adopt({ threadId, workspace, repo }: { threadId: ThreadId; workspace: string; repo: string | null }): Promise<void> {
