@@ -494,6 +494,10 @@ export class BunShellRegistry extends ShellRegistryPort {
         output: '',
         droppedCharacters: 0,
         remainingCharacters: 0,
+        // A shell_kill-claimed ending was already spoken as the tool result, so this record exists
+        // only to settle the log's start/end pair. Marking it keeps it out of the transcript and
+        // stops it waking a turn on resume — without it the same death is announced twice.
+        ...(entry.endingClaimed ? { recorded: true as const } : {}),
       }
     })
     await args.log.append({ threadId: args.threadId, runId: args.ids.nextRunId(), drafts })
