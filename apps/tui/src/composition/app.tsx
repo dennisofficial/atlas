@@ -190,6 +190,7 @@ import type { CaptureContext } from '@dltech/atlas-harness'
 
 import { createCloudBridge } from './cloud/create-bridge'
 import { createCloudSession, type CloudSession } from './cloud/cloud-session'
+import { mirrorCloudRenames } from './cloud/rename-mirror'
 import {
   descendFromCloud,
   EDescendStep,
@@ -469,11 +470,14 @@ export function App(props: {
           channel: attachment.channel,
           sandboxes: attachment.bridge.sandboxes,
           onReload: handleReload,
+          teardowns: [
+            mirrorCloudRenames({ home: props.app.threads, remote: attachment.stores.threads }),
+          ],
         }),
         reloads: 0,
       })
     },
-    [handleReload],
+    [handleReload, props.app],
   )
 
   const handleDescend = useCallback((opened: OpenedConversation) => {
