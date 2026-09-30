@@ -140,7 +140,7 @@ describe('the mcp command', () => {
   it('carries a summary /help can read out', () => {
     const mcp = localCommands(handlers()).find((one) => one.name === 'mcp')
 
-    expect(mcp?.summary).toBe('inspect the MCP servers this workspace is configured with')
+    expect(mcp?.summary).toBe('inspect the MCP servers this workspace is configured with, or sign one in')
   })
 })
 

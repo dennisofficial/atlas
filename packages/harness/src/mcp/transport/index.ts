@@ -1,4 +1,4 @@
-export { HttpTransport } from './http'
+export { HttpTransport, McpUnauthorizedError, type McpAuthProvider } from './http'
 export { StdioTransport } from './stdio'
 export {
   asRecord,

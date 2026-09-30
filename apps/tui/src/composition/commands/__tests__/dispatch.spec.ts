@@ -247,6 +247,63 @@ describe('the skills command', () => {
   })
 })
 
+describe('the mcp command', () => {
+  it('lists servers on a bare /mcp', async () => {
+    const dispatched = await dispatchSubmission({
+      text: '/mcp',
+      commands: localCommands(handlers({ onShowMcp: () => 'linear Connected 2 tools Project' })),
+      skills: [],
+    })
+
+    expect(dispatched).toEqual({ type: EDispatch.Ran, notice: 'linear Connected 2 tools Project' })
+  })
+
+  it('signs a server in on /mcp signin <name>', async () => {
+    const signed: string[] = []
+    const dispatched = await dispatchSubmission({
+      text: '/mcp signin linear',
+      commands: localCommands(
+        handlers({
+          onMcpSignIn: async (name) => {
+            signed.push(name)
+            return `signed in to '${name}'`
+          },
+        }),
+      ),
+      skills: [],
+    })
+
+    expect(signed).toEqual(['linear'])
+    expect(dispatched).toEqual({ type: EDispatch.Ran, notice: "signed in to 'linear'" })
+  })
+
+  it('says so when this Atlas cannot sign in', async () => {
+    const dispatched = await dispatchSubmission({
+      text: '/mcp signin linear',
+      commands: localCommands(handlers()),
+      skills: [],
+    })
+
+    expect(dispatched).toEqual({
+      type: EDispatch.Ran,
+      notice: 'this Atlas cannot sign in to MCP servers (no secrets store)',
+    })
+  })
+
+  it('refuses an argument it does not know', async () => {
+    const dispatched = await dispatchSubmission({
+      text: '/mcp frobnicate',
+      commands: localCommands(handlers()),
+      skills: [],
+    })
+
+    expect(dispatched).toEqual({
+      type: EDispatch.Ran,
+      notice: '/mcp takes no argument, or "signin <name>" to sign a server in — not frobnicate',
+    })
+  })
+})
+
 describe('the rename command', () => {
   it('passes the name the operator wrote through to the rename', async () => {
     const asked: string[] = []
