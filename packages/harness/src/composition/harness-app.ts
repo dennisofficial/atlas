@@ -123,7 +123,7 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
    * The in-flight one-time legacy sandbox-settings pull, when boot scheduled one. Never awaited
    * by composition; undefined when no sign-in or nothing was missing.
    */
-  legacySettingsRestore: Promise<LegacyRestoreReport | undefined> | undefined
+  legacySettingsRestore?: Promise<LegacyRestoreReport | undefined> | undefined
   pluginProjections: readonly ContributedProjection[]
   pluginSurfaces: readonly ContributedSurface<TPluginSurface>[]
   surface: TSurface
