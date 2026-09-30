@@ -1,4 +1,4 @@
-import { mkdir, open, rename, unlink } from 'node:fs/promises'
+import { mkdir, open, readFile, rename, unlink } from 'node:fs/promises'
 import { readFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 
@@ -117,6 +117,44 @@ export function readMetaSync<Meta>({
   let raw: string
   try {
     raw = readFileSync(file, 'utf8')
+  } catch (error) {
+    if (errorCodeOf({ error }) !== 'ENOENT') {
+      logPort?.warn({
+        source: 'store.meta',
+        message: 'could not read a session meta file',
+        data: { path: file, stage: 'read' },
+        ...logFieldsOf({ error }),
+      })
+    }
+    return undefined
+  }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch (error) {
+    logPort?.warn({
+      source: 'store.meta',
+      message: 'a session meta file is not valid JSON',
+      data: { path: file, stage: 'parse' },
+      ...logFieldsOf({ error }),
+    })
+    return undefined
+  }
+  return schema.parse(parsed)
+}
+
+export async function readMeta<Meta>({
+  file,
+  schema,
+  logPort,
+}: {
+  file: string
+  schema: z.ZodType<Meta>
+  logPort?: LogPort | undefined
+}): Promise<Meta | undefined> {
+  let raw: string
+  try {
+    raw = await readFile(file, 'utf8')
   } catch (error) {
     if (errorCodeOf({ error }) !== 'ENOENT') {
       logPort?.warn({

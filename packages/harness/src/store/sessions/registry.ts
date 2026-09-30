@@ -48,7 +48,7 @@ export class SessionRegistry {
   private readonly parentCache = new Map<string, ParentCacheEntry>()
 
   constructor(
-    private readonly home: string,
+    readonly home: string,
     private readonly logPort?: LogPort | undefined,
   ) {}
 

@@ -11,6 +11,7 @@ import {
 } from '@dltech/atlas-core'
 
 import type { SteerMessage } from './child-state'
+import type { ThreadModel } from '../../store/thread-store'
 import type { DeltaChannel } from '../../channel/delta-channel'
 import { PublishingTurnRunner } from '../../channel/publishing-turn-runner'
 import { withoutSpawnableListing } from '../../tools/builtin/agent-spawn'
@@ -34,26 +35,18 @@ export type ChildRunnerDeps = {
   turn: Omit<TurnDeps, 'drainPending'>
   tools: ToolRegistry
   hooks: HookChain
-  /**
-   * The same channel the root thread publishes on. A child publishes under its own `threadId`, so a
-   * reader subscribed to the child sees its steps stream and nobody subscribed to the parent sees
-   * anything — which is the delegate's-work-is-counted-never-quoted rule holding at the transport.
-   */
   channel: DeltaChannel
   assemblyFor: (args: {
     agentType: AgentType
+    model: ModelPort
     projectDirectory?: string | undefined
   }) => AssemblyPipeline
   drainNotices: (args: { threadId: ThreadId }) => Promise<PendingDrain>
-  modelFor?: ((args: { agentType: AgentType }) => ModelPort) | undefined
+  modelFor?: ((args: { agentType: AgentType; threadId: ThreadId }) => ModelPort | Promise<ModelPort>) | undefined
+  modelAtSpawn?: ((args: { agentType: AgentType; spawnedBy: ThreadId }) => Promise<ThreadModel>) | undefined
   telemetry?: TelemetryPort | undefined
 }
 
-/**
- * tsyringe resolves constructor dependencies eagerly, and `agent_spawn` is a ToolDefinition the
- * ToolRegistry constructs, so resolving a child's tools while building the supervisor closes a
- * cycle. Nothing here is resolved until a spawn calls it.
- */
 export type ChildRunnerDepsSource = () => ChildRunnerDeps
 
 const SUB_AGENT_DENIED: readonly string[] = [
@@ -88,7 +81,7 @@ function observingLog({
   }
 }
 
-export type ChildRunnerSource = (args: ChildRunnerRequest) => TurnRunner
+export type ChildRunnerSource = (args: ChildRunnerRequest) => TurnRunner | Promise<TurnRunner>
 
 export type ChildRunnerRequest = {
   agentType: AgentType
@@ -116,7 +109,7 @@ export const steerDrafts = (said: readonly SteerMessage[]): readonly EventDraft[
     via: one.via ?? EMessageOrigin.ParentAgent,
   }))
 
-export function buildChildRunner({
+export async function buildChildRunner({
   deps,
   agentType,
   threadId,
@@ -125,7 +118,7 @@ export function buildChildRunner({
   observeContext,
   observeModel,
   steering,
-}: ChildRunnerRequest & { deps: ChildRunnerDeps }): TurnRunner {
+}: ChildRunnerRequest & { deps: ChildRunnerDeps }): Promise<TurnRunner> {
   const narrowed = filteredToolRegistry({
     registry: toolRegistryFor({ registry: deps.tools, agentType }),
     deny: deniedFor(agentType),
@@ -134,7 +127,7 @@ export function buildChildRunner({
     ? withoutSpawnableListing({ registry: narrowed, hidden: [TEAMMATE_AGENT_TYPE] })
     : narrowed
   const { turn } = deps
-  const model = deps.modelFor === undefined ? turn.model : deps.modelFor({ agentType })
+  const model = deps.modelFor === undefined ? turn.model : await deps.modelFor({ agentType, threadId })
   observeModel(model.identity)
 
   return new PublishingTurnRunner({
@@ -154,7 +147,7 @@ export function buildChildRunner({
         }),
         telemetry: deps.telemetry,
       }),
-      assembly: deps.assemblyFor({ agentType, projectDirectory }),
+      assembly: deps.assemblyFor({ agentType, model, projectDirectory }),
       drainPending: async (args) => {
         const steered = steerDrafts(steering())
         const notices = await deps.drainNotices(args)

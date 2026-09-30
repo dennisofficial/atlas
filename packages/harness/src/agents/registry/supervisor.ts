@@ -3,6 +3,7 @@ import {
   EKilledBy,
   EMessageOrigin,
   NoopExecutionLocationSink,
+  parseRef,
   type ClockPort,
   type EExecutionLocation,
   type EventDraft,
@@ -125,7 +126,9 @@ export class AgentSupervisor extends AgentRegistryPort {
       if (caller?.agent !== undefined) return { ok: false, reason: TEAMMATE_FROM_MAIN_ONLY }
     }
 
+    const model = await this.deps.modelAtSpawn?.({ agentType: type, spawnedBy: threadId })
     const { threadId: agentId, inheritedLocation } = await openChildThread({
+      model,
       threads: this.threads,
       log: this.log,
       ids: this.ids,
@@ -145,6 +148,8 @@ export class AgentSupervisor extends AgentRegistryPort {
       at: this.clock.now(),
       projectDirectory: await childDirectory({ deps: this.deps, threadId }),
     })
+    const ref = model === undefined ? undefined : parseRef(model.ref)
+    if (ref !== undefined) child.model = { id: ref.providerId, modelId: ref.modelId }
     this.roster.add(child)
 
     this.steps.take({

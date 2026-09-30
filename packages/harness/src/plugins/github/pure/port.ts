@@ -1,4 +1,4 @@
-import type { RepositoryCheckout } from './checkout'
+import { checkoutKey, type RepositoryCheckout } from './checkout'
 import type { PullRequest } from './pull-request'
 
 export enum EPullRequestLookup {
@@ -43,6 +43,15 @@ export const samePullRequestReading = (
   )
 }
 
+export type PullRequestBadgeKey =
+  | { kind: 'checkout'; checkout: RepositoryCheckout }
+  | { kind: 'linked'; repo: string; number: number }
+
+export const pullRequestBadgeKeyString = (args: PullRequestBadgeKey): string =>
+  args.kind === 'checkout'
+    ? checkoutKey(args.checkout)
+    : `${args.repo}#${args.number}`
+
 export abstract class PullRequestPort {
   abstract read(request: { checkout: RepositoryCheckout }): Promise<PullRequestReading>
 
@@ -54,4 +63,18 @@ export abstract class PullRequestPort {
 
   /** A push-fed implementation answers from the last frame it was handed, so it arms no timer. */
   abstract readonly pushes: boolean
+
+  peekBadge(args: PullRequestBadgeKey): PullRequestReading | null {
+    void args
+    return null
+  }
+
+  freshenBadge(args: PullRequestBadgeKey): void {
+    void args
+  }
+
+  onBadges(listener: () => void): () => void {
+    void listener
+    return () => undefined
+  }
 }

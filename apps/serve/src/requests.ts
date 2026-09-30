@@ -110,7 +110,6 @@ export type TranscriptReaders = {
   ledger: Pick<TurnLedgerPort, 'forThreadTree'>
 }
 
-/** The transcript ops that mutate the served session's stores rather than reading them. */
 export const isTranscriptWriteOp = (op: EClientRequest): boolean =>
   op === EClientRequest.RenameThread || op === EClientRequest.SetThreadModel
 
@@ -138,7 +137,7 @@ export async function answerRenameThread(args: {
 export async function answerSetThreadModel(args: {
   frame: RequestFrame
   transcript: TranscriptReaders
-  /** Re-pins the running loop's model; absent in a fake, where the pick is only recorded. */
+  threadId: ThreadId
   select?: ((model: { ref: string; effort: string }) => void) | undefined
 }): Promise<ReplyFrame> {
   const parsed = setThreadModelParamsSchema.safeParse(args.frame.params)
@@ -146,6 +145,19 @@ export async function answerSetThreadModel(args: {
     return refusedRequest({
       replyTo: args.frame.id,
       message: 'set-thread-model wants { threadId, model: { ref, effort } }',
+    })
+  }
+  if (parsed.data.threadId !== args.threadId) {
+    return refusedRequest({
+      replyTo: args.frame.id,
+      message: 'this serve owns one thread; a child or foreign thread keeps its own model pick',
+    })
+  }
+  const served = await args.transcript.threads.find({ threadId: args.threadId })
+  if (served?.agent !== undefined) {
+    return refusedRequest({
+      replyTo: args.frame.id,
+      message: 'a supervised agent runs the model it was spawned with',
     })
   }
   await args.transcript.threads.chooseModel({
@@ -162,13 +174,13 @@ export async function answerSetThreadModel(args: {
 export async function answerTranscriptWrite(args: {
   frame: RequestFrame
   transcript: TranscriptReaders
+  threadId: ThreadId
   select?: ((model: { ref: string; effort: string }) => void) | undefined
 }): Promise<ReplyFrame> {
   if (args.frame.op === EClientRequest.RenameThread) return await answerRenameThread(args)
   return await answerSetThreadModel(args)
 }
 
-/** The ops that read the served session's transcript; anything else is answered by `answerRequest`. */
 export const isTranscriptReadOp = (op: EClientRequest): boolean =>
   op === EClientRequest.ReadEvents ||
   op === EClientRequest.ReadThread ||

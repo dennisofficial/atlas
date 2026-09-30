@@ -98,6 +98,7 @@ export abstract class ThreadStorePort {
     /** Caller-chosen id, for a stub that shadows a thread another store already owns; generated when absent. */
     id?: ThreadId | undefined
     executionLocation?: EExecutionLocation | undefined
+    model?: ThreadModel | undefined
   }): Promise<ThreadSummary>
   abstract createWithFirstEvents(
     args: OpenThreadArgs,
@@ -108,6 +109,8 @@ export abstract class ThreadStorePort {
   abstract list(args: {
     project: string
     limit?: number | undefined
+    onUpdate?: ((threads: readonly ThreadSummary[]) => void) | undefined
+    enrich?: readonly ThreadId[] | undefined
   }): Promise<readonly ThreadSummary[]>
   /** Resume-by-name lookup; uncapped, where `list`'s limit is the picker's display window. */
   abstract findNamed(args: {

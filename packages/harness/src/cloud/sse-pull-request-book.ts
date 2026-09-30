@@ -61,10 +61,20 @@ const branchIdentityOf = (args: { repoFullName: string; branch: string }): strin
 
 const ABSENT: PullRequestReading = { lookup: EPullRequestLookup.Absent }
 
+const SETTLED: readonly EPullRequestState[] = [EPullRequestState.Merged, EPullRequestState.Closed]
+
+const adoptsBranchFrame = (args: { reading: PullRequestReading; prNumber: number }): boolean => {
+  if (args.reading.lookup === EPullRequestLookup.Absent) return true
+  if (args.reading.lookup !== EPullRequestLookup.Found) return false
+  return (
+    args.reading.pullRequest.number !== args.prNumber &&
+    SETTLED.includes(args.reading.pullRequest.state)
+  )
+}
+
 export type SseSubscriptionBook = {
   holding: (args: { key: string }) => BookEntry | null
   entries: () => readonly BookEntry[]
-  handles: () => readonly SubscriptionHandle[]
   size: () => number
   recordSubscribe: (args: {
     key: string
@@ -82,22 +92,13 @@ export type SseSubscriptionBook = {
   clear: () => void
 }
 
-/**
- * The subscription ledger behind the port: which keys are subscribed, under which handle, and
- * the last reading each produced. Emits through `onReading` only when a key's shown answer
- * actually changes, so a check_run storm cannot redraw the tile per frame. `byIdentity` routes
- * a pushed frame (which carries repo+number) back to the checkout- or link-keyed entry that
- * subscribed it; `byBranch` is the discovery path for a branch-kind entry whose subscribe found
- * no open PR — a frame matched there indexes the number identity, so the next frame routes by
- * number again.
- */
 export function createSseSubscriptionBook(args: {
   now: () => number
   onReading: (readingArgs: { key: string; reading: PullRequestReading }) => void
 }): SseSubscriptionBook {
   const entries = new Map<string, BookEntry>()
-  const byIdentity = new Map<string, string>()
-  const byBranch = new Map<string, string>()
+  const byIdentity = new Map<string, Set<string>>()
+  const byBranch = new Map<string, Set<string>>()
 
   const emit = (key: string, reading: PullRequestReading): void => {
     const held = entries.get(key)
@@ -107,25 +108,42 @@ export function createSseSubscriptionBook(args: {
     args.onReading({ key, reading })
   }
 
+  const addRoute = (route: { index: Map<string, Set<string>>; identity: string; key: string }): void => {
+    const keys = route.index.get(route.identity) ?? new Set<string>()
+    keys.add(route.key)
+    route.index.set(route.identity, keys)
+  }
+
+  const removeNumberRoutes = (key: string): void => {
+    for (const [identity, keys] of byIdentity) {
+      keys.delete(key)
+      if (keys.size === 0) byIdentity.delete(identity)
+    }
+  }
+
   const index = (state: SubscriptionPrState, key: string): void => {
-    byIdentity.set(prIdentityOf(state), key)
+    addRoute({ index: byIdentity, identity: prIdentityOf(state), key })
   }
 
   const indexBranch = (key: string): void => {
     const entry = entries.get(key)
     if (entry === undefined || entry.by.kind !== 'branch') return
-    byBranch.set(branchIdentityOf({ repoFullName: entry.handle.repoFullName, branch: entry.by.branch }), key)
+    addRoute({
+      index: byBranch,
+      identity: branchIdentityOf({ repoFullName: entry.handle.repoFullName, branch: entry.by.branch }),
+      key,
+    })
   }
 
   return {
     holding: ({ key }) => entries.get(key) ?? null,
     entries: () => [...entries.values()],
-    handles: () => [...entries.values()].map((entry) => entry.handle),
     size: () => entries.size,
     recordSubscribe: ({ key, handle, by, state }) => {
       const reading = state === null ? ABSENT : readingOfState(state)
       entries.set(key, { key, handle, by, reading })
       indexBranch(key)
+      removeNumberRoutes(key)
       if (state !== null) index(state, key)
       args.onReading({ key, reading })
       return reading
@@ -134,15 +152,16 @@ export function createSseSubscriptionBook(args: {
       const held = entries.get(key)
       if (held === undefined) return
 
-      const priorNumber = numberIdentityOf(held.reading)
       entries.set(key, { ...held, handle })
-      if (state === null) return
-
-      index(state, key)
-      if (held.by.kind === 'branch') byBranch.set(branchIdentityOf({ repoFullName: handle.repoFullName, branch: held.by.branch }), key)
-      if (priorNumber !== null && priorNumber !== state.prNumber) {
-        byIdentity.delete(prIdentityOf({ repoFullName: state.repoFullName, prNumber: priorNumber }))
+      indexBranch(key)
+      if (state === null) {
+        if (held.reading.lookup === EPullRequestLookup.Found) return
+        removeNumberRoutes(key)
+        emit(key, ABSENT)
+        return
       }
+      removeNumberRoutes(key)
+      index(state, key)
       emit(key, readingOfState(state))
     },
     applyFrame: ({ data }) => {
@@ -156,19 +175,18 @@ export function createSseSubscriptionBook(args: {
       if (typeof state.repoFullName !== 'string' || typeof state.prNumber !== 'number') return
 
       const known = byIdentity.get(prIdentityOf(state))
-      if (known !== undefined) {
-        emit(known, readingOfState(state))
-        return
-      }
+      for (const key of known ?? []) emit(key, readingOfState(state))
 
       if (typeof state.headBranch !== 'string') return
       const discovered = byBranch.get(branchIdentityOf({ repoFullName: state.repoFullName, branch: state.headBranch }))
-      if (discovered === undefined) return
-      const entry = entries.get(discovered)
-      if (entry === undefined || entry.reading.lookup !== EPullRequestLookup.Absent) return
-
-      index(state, discovered)
-      emit(discovered, readingOfState(state))
+      for (const key of discovered ?? []) {
+        const entry = entries.get(key)
+        if (entry === undefined) continue
+        if (!adoptsBranchFrame({ reading: entry.reading, prNumber: state.prNumber })) continue
+        removeNumberRoutes(key)
+        index(state, key)
+        emit(key, readingOfState(state))
+      }
     },
     markAllStale: () => {
       for (const key of entries.keys()) {
@@ -182,9 +200,6 @@ export function createSseSubscriptionBook(args: {
     },
   }
 }
-
-const numberIdentityOf = (reading: PullRequestReading): number | null =>
-  reading.lookup === EPullRequestLookup.Found ? reading.pullRequest.number : null
 
 const sameShown = (left: PullRequestReading, right: PullRequestReading): boolean => {
   if (left.lookup !== EPullRequestLookup.Found || right.lookup !== EPullRequestLookup.Found) {

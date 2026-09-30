@@ -1,5 +1,6 @@
-import { beforeAll, describe, expect, it } from 'bun:test'
-import { streamText } from 'ai'
+import { afterEach, beforeAll, describe, expect, it, spyOn } from 'bun:test'
+import { generateText, stepCountIs, streamText, tool, type ModelMessage } from 'ai'
+import { z } from 'zod'
 
 import {
   ATLAS_ALLOW_REAL_HOME_ENV,
@@ -95,5 +96,94 @@ describe.skipIf(process.env[LIVE_OPENAI_FLAG] !== '1')(
       expect(text).toContain('PONG')
       expect(body['prompt_cache_key']).toBe('atlas-live-probe')
     }, 120_000)
+
+    it('filters historical reasoning and threads a tool call into the next step', async () => {
+      const recorder = bodyOnlyRecordingPassthroughFetch()
+      const adapter = liveAdapter(recorder.fetch)
+      const model = adapter.model({
+        card: liveCard(adapter, process.env.ATLAS_LIVE_OPENAI_MODEL ?? 'gpt-6.1'),
+        effort: () => EEffort.High,
+      })
+
+      const atlasWarnings: string[] = []
+      const sdkWarnings: string[] = []
+      const warnSpy = spyOn(console, 'warn').mockImplementation((message?: unknown) => {
+        const line = String(message)
+        if (line.startsWith('atlas:')) atlasWarnings.push(line)
+        else sdkWarnings.push(line)
+      })
+      afterEach(() => warnSpy.mockRestore())
+
+      const first = await generateText({
+        model,
+        prompt: 'Think briefly, then call the lookup tool for the city "paris".',
+        tools: {
+          lookup: tool({
+            description: 'Look up a city',
+            inputSchema: z.object({ city: z.string() }),
+            execute: async ({ city }) => `weather in ${city}: sunny`,
+          }),
+        },
+        stopWhen: stepCountIs(2),
+      })
+
+      const firstAssistant = first.response.messages.find((message) => message.role === 'assistant')
+      const nativeReasoning =
+        firstAssistant === undefined || typeof firstAssistant.content === 'string'
+          ? undefined
+          : firstAssistant.content.find(
+              (part) =>
+                part.type === 'reasoning' &&
+                part.providerOptions?.['openai']?.['reasoningEncryptedContent'] !== undefined,
+            )
+      expect(nativeReasoning).toBeDefined()
+
+      const history: ModelMessage[] = [
+        { role: 'user', content: 'earlier exchange' },
+        {
+          role: 'assistant',
+          content: [
+            {
+              type: 'reasoning',
+              text: 'an anthropic thought from a previous session',
+              providerOptions: { anthropic: { signature: 'sig-live' } },
+            },
+            { type: 'reasoning', text: 'a bare thought with no provenance' },
+            { type: 'text', text: 'the earlier answer' },
+          ],
+        },
+        ...first.response.messages,
+        { role: 'user', content: 'What did the tool report? Answer in one short sentence.' },
+      ]
+
+      const followUp = await generateText({ model, messages: history })
+      expect(followUp.text.length).toBeGreaterThan(0)
+
+      expect(recorder.requests.length).toBeGreaterThanOrEqual(2)
+      const finalBody = recorder.requests[recorder.requests.length - 1]?.body as {
+        input: Record<string, unknown>[]
+      }
+      const items = finalBody.input
+
+      expect(items.some((item) => item.type === 'function_call')).toBe(true)
+      expect(items.some((item) => item.type === 'function_call_output')).toBe(true)
+
+      const reasoningItems = items.filter(
+        (item) => item.type === 'reasoning' || item.type === 'item_reference',
+      )
+      expect(reasoningItems.length).toBeGreaterThan(0)
+      for (const item of reasoningItems) {
+        const summary = item['summary'] as { text: string }[] | undefined
+        expect(
+          (summary ?? []).some((entry) => entry.text.includes('anthropic thought')),
+        ).toBe(false)
+        expect((summary ?? []).some((entry) => entry.text.includes('bare thought'))).toBe(false)
+      }
+
+      expect(atlasWarnings.length).toBeGreaterThanOrEqual(1)
+      expect(atlasWarnings[0]).toContain('omitted 2 historical reasoning part(s)')
+      expect(atlasWarnings[0]).not.toContain('anthropic thought')
+      expect(sdkWarnings).toEqual([])
+    }, 240_000)
   },
 )

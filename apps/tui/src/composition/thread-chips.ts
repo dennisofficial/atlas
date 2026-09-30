@@ -1,122 +1,163 @@
 import type { LinkedPullRequest } from '@dltech/atlas-core'
 import {
-  checkoutKey,
   EPullRequestLookup,
   probeCheckout,
-  pullRequestBadge,
   type PullRequestPort,
-  type PullRequestReading,
   type RepositoryCheckout,
 } from '@dltech/atlas-harness'
 
-import { pullRequestChip } from '../plugins/github/pull-request-pill'
-import { theme } from '../ui/theme'
 import type { ThreadChip, ThreadRow } from '../ui/threads-model'
+import { chipFromReading, MUTED_CHIP, sameChips, type CheckoutProbe } from './thread-chip-model'
 
-export type CheckoutProbe = (args: { directory: string }) => Promise<RepositoryCheckout | null>
-
-const MUTED: Pick<ThreadChip, 'ground' | 'ink'> = { ground: theme.selectedBg, ink: theme.body }
-
-/**
- * A linked pull request keeps its chip even when its state cannot be read — the link itself is a
- * fact the log recorded, so the chip goes muted rather than vanishing. The probed checkout follows
- * the older rule instead: a branch with no pull request draws no chip at all.
- */
-const chipFrom = (args: { label: string; reading: PullRequestReading }): ThreadChip => {
-  if (args.reading.lookup !== EPullRequestLookup.Found) {
-    return { label: args.label, ...MUTED }
-  }
-
-  const drawn = pullRequestChip(pullRequestBadge(args.reading.pullRequest))
-  return { label: args.label, ground: drawn.ground, ink: drawn.spans[0]?.fg ?? theme.body }
+export type ThreadChipsHandle = {
+  sync: (args: { rows: readonly ThreadRow[] }) => Map<string, readonly ThreadChip[]>
+  stop: () => void
 }
 
 const identityOf = (checkout: RepositoryCheckout, number: number): string =>
   `${checkout.remote.host}/${checkout.remote.owner}/${checkout.remote.repo}#${number}`
 
-const linkedChips = async (args: {
-  links: readonly LinkedPullRequest[]
-  pullRequests: PullRequestPort
-}): Promise<{ chips: ThreadChip[]; identities: Set<string> }> => {
-  const chips: ThreadChip[] = []
-  const identities = new Set<string>()
-
-  for (const link of args.links) {
-    identities.add(`${link.repo}#${link.number}`)
-    const label = `#${link.number}`
-    try {
-      const reading = await args.pullRequests.readLinked({ repo: link.repo, number: link.number })
-      chips.push(chipFrom({ label, reading }))
-    } catch {
-      chips.push({ label, ...MUTED })
-    }
-  }
-
-  return { chips, identities }
-}
-
-/**
- * The pills of one picker opening. Threads sharing a checkout — every thread standing in the main
- * tree shares one — answer with one read, so the reads key on the checkout rather than the row.
- * Nothing here may throw: a pill is decoration, and a rejected probe must not take the listing down.
- */
-export async function threadChips(args: {
-  rows: readonly ThreadRow[]
+export function openThreadChips(args: {
   home: string
   pullRequests: PullRequestPort
+  onLanded: (chips: Map<string, readonly ThreadChip[]>) => void
   probe?: CheckoutProbe
-}): Promise<Map<string, readonly ThreadChip[]>> {
+}): ThreadChipsHandle {
   const askGit = args.probe ?? probeCheckout
   const directoryOf = (row: ThreadRow): string => row.worktree?.path ?? args.home
 
-  const byDirectory = new Map<string, RepositoryCheckout | null>()
-  await Promise.all(
-    [...new Set(args.rows.map(directoryOf))].map(async (directory) => {
-      try {
-        byDirectory.set(directory, await askGit({ directory }))
-      } catch {
-        byDirectory.set(directory, null)
-      }
-    }),
-  )
+  const checkouts = new Map<string, RepositoryCheckout | null>()
+  const probing = new Set<string>()
+  const chips = new Map<string, readonly ThreadChip[]>()
+  const lastRows = new Map<string, ThreadRow>()
+  const touched = new Set<string>()
+  let stopped = false
+  let emitting = false
 
-  const checkouts = new Map<string, RepositoryCheckout>()
-  for (const checkout of byDirectory.values()) {
-    if (checkout !== null) checkouts.set(checkoutKey(checkout), checkout)
+  const collect = (): Map<string, readonly ThreadChip[]> => {
+    const ready = new Map<string, readonly ThreadChip[]>()
+    for (const threadId of touched) {
+      const held = chips.get(threadId)
+      if (held !== undefined) ready.set(threadId, held)
+      touched.delete(threadId)
+    }
+    return ready
   }
 
-  const readingsByCheckout = new Map<string, PullRequestReading>()
-  await Promise.all(
-    [...checkouts.entries()].map(async ([key, checkout]) => {
-      try {
-        readingsByCheckout.set(key, await args.pullRequests.read({ checkout }))
-      } catch {
-        // A port is allowed to reject; the row simply keeps no pill.
+  const emit = (): void => {
+    if (stopped || emitting) return
+    emitting = true
+    queueMicrotask(() => {
+      emitting = false
+      if (stopped) return
+
+      const ready = collect()
+      if (ready.size > 0) args.onLanded(ready)
+    })
+  }
+
+  const checkoutChip = (checkout: RepositoryCheckout): ThreadChip | null => {
+    const reading = args.pullRequests.peekBadge({ kind: 'checkout', checkout })
+    if (reading === null || reading.lookup !== EPullRequestLookup.Found) return null
+
+    return chipFromReading({ label: `#${reading.pullRequest.number}`, reading })
+  }
+
+  const linkedChip = (link: LinkedPullRequest): ThreadChip => {
+    const reading = args.pullRequests.peekBadge({
+      kind: 'linked',
+      repo: link.repo,
+      number: link.number,
+    })
+    if (reading === null) return { label: `#${link.number}`, ...MUTED_CHIP }
+
+    return chipFromReading({ label: `#${link.number}`, reading })
+  }
+
+  const chipsOf = (row: ThreadRow): readonly ThreadChip[] => {
+    const links = row.pullRequests ?? []
+    const drawn: ThreadChip[] = []
+    const identities = new Set<string>()
+    for (const link of links) {
+      identities.add(`${link.repo}#${link.number}`)
+      drawn.push(linkedChip(link))
+    }
+
+    const checkout = checkouts.get(directoryOf(row))
+    if (checkout !== null && checkout !== undefined) {
+      const chip = checkoutChip(checkout)
+      if (chip !== null) {
+        const reading = args.pullRequests.peekBadge({ kind: 'checkout', checkout })
+        const number = reading?.lookup === EPullRequestLookup.Found ? reading.pullRequest.number : null
+        if (number === null || !identities.has(identityOf(checkout, number))) drawn.push(chip)
       }
-    }),
-  )
+    }
 
-  const byThread = new Map<string, readonly ThreadChip[]>()
-  await Promise.all(
-    args.rows.map(async (row) => {
-      const { chips, identities } = await linkedChips({
-        links: row.pullRequests ?? [],
-        pullRequests: args.pullRequests,
-      })
+    return drawn
+  }
 
-      const checkout = byDirectory.get(directoryOf(row))
-      if (checkout !== null && checkout !== undefined) {
-        const reading = readingsByCheckout.get(checkoutKey(checkout))
-        if (reading !== undefined && reading.lookup === EPullRequestLookup.Found) {
-          const identity = identityOf(checkout, reading.pullRequest.number)
-          if (!identities.has(identity)) {
-            chips.push(chipFrom({ label: `#${reading.pullRequest.number}`, reading }))
-          }
+  const freshenRow = (row: ThreadRow): void => {
+    for (const link of row.pullRequests ?? []) {
+      args.pullRequests.freshenBadge({ kind: 'linked', repo: link.repo, number: link.number })
+    }
+
+    const checkout = checkouts.get(directoryOf(row))
+    if (checkout !== null && checkout !== undefined) {
+      args.pullRequests.freshenBadge({ kind: 'checkout', checkout })
+    }
+  }
+
+  const repaint = (row: ThreadRow): void => {
+    const next = chipsOf(row)
+    const previous = chips.get(row.threadId)
+    if (previous !== undefined && sameChips(previous, next)) return
+
+    chips.set(row.threadId, next)
+    touched.add(row.threadId)
+    emit()
+  }
+
+  const probeRow = (row: ThreadRow): void => {
+    const directory = directoryOf(row)
+    if (checkouts.has(directory) || probing.has(directory)) return
+
+    probing.add(directory)
+    void askGit({ directory })
+      .catch(() => null)
+      .then((checkout) => {
+        probing.delete(directory)
+        checkouts.set(directory, checkout)
+        if (stopped) return
+
+        for (const sharing of lastRows.values()) {
+          if (directoryOf(sharing) !== directory) continue
+          if (checkout !== null) freshenRow(sharing)
+          repaint(sharing)
         }
-      }
+        emit()
+      })
+  }
 
-      if (chips.length > 0) byThread.set(row.threadId, chips)
-    }),
-  )
-  return byThread
+  const unsubscribe = args.pullRequests.onBadges(() => {
+    if (stopped) return
+    for (const row of lastRows.values()) repaint(row)
+    emit()
+  })
+
+  return {
+    sync: ({ rows }) => {
+      for (const row of rows) {
+        lastRows.set(row.threadId, row)
+        probeRow(row)
+        freshenRow(row)
+        repaint(row)
+      }
+      return collect()
+    },
+    stop: () => {
+      stopped = true
+      unsubscribe()
+      touched.clear()
+    },
+  }
 }
