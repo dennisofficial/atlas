@@ -100,6 +100,22 @@ const seedCloudSession = (): void => {
   })
 }
 
+const LEGACY_RESTORE_PATHS = ['/v1/secrets', '/v1/settings']
+
+const legacyRestoreRequests = (): RecordedRequest[] =>
+  requests.filter(
+    (request) =>
+      request.url.startsWith(CLOUD_URL) &&
+      LEGACY_RESTORE_PATHS.some((path) => request.url.endsWith(path)),
+  )
+
+const cloudRequestsBeyondLegacyRestore = (): RecordedRequest[] =>
+  requests.filter(
+    (request) =>
+      request.url.startsWith(CLOUD_URL) &&
+      !LEGACY_RESTORE_PATHS.some((path) => request.url.endsWith(path)),
+  )
+
 const textOf = (parts: readonly AssistantPart[]): string =>
   parts
     .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
@@ -153,10 +169,11 @@ describe('a composed local session while Atlas Cloud is down', () => {
         'local answer one',
       )
 
-      expect(requests.filter((request) => request.url.startsWith(CLOUD_URL))).toEqual([])
+      // The one-time legacy sandbox-settings restore may pull secrets and settings once; nothing
+      // else may reach the cloud on a local-first boot.
+      expect(legacyRestoreRequests().length).toBeLessThanOrEqual(2)
+      expect(cloudRequestsBeyondLegacyRestore()).toEqual([])
       expect(requests.some((request) => request.url.includes('/v1/accounts'))).toBe(false)
-      expect(requests.some((request) => request.url.includes('/v1/secrets'))).toBe(false)
-      expect(requests.some((request) => request.url.includes('/v1/settings'))).toBe(false)
       expect(requests.some((request) => request.url.includes('/v1/mcp'))).toBe(false)
 
       await expect(app.close()).resolves.toBeUndefined()
@@ -190,7 +207,8 @@ describe('a composed local session while Atlas Cloud is down', () => {
         .map((event) => textOf(event.type === 'assistant-said' ? event.parts : []))
       expect(replies).toEqual(['first answer', 'second answer'])
 
-      expect(requests.filter((request) => request.url.startsWith(CLOUD_URL))).toEqual([])
+      expect(legacyRestoreRequests().length).toBeLessThanOrEqual(2)
+      expect(cloudRequestsBeyondLegacyRestore()).toEqual([])
 
       await expect(app.close()).resolves.toBeUndefined()
     } finally {
@@ -257,7 +275,7 @@ describe('a composed local session while Atlas Cloud is down', () => {
       expect(providerCalls.every((call) => call.authorization?.includes('fake-access-token'))).toBe(
         true,
       )
-      expect(requests.filter((call) => call.url.startsWith(CLOUD_URL))).toEqual([])
+      expect(cloudRequestsBeyondLegacyRestore()).toEqual([])
 
       await expect(app.close()).resolves.toBeUndefined()
     } finally {

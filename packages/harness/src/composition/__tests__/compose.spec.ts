@@ -15,6 +15,7 @@ import { portToken, type DependencyContainer } from '../../container/injection'
 import {
   ClaudeCodeSourceToken,
   CodexSourceToken,
+  UserSettingsStoreToken,
 } from '../../container/tokens'
 import { ClaudeCodeSource } from '../../credentials/claude-code-source'
 import { CodexSource } from '../../credentials/codex-source'
@@ -51,7 +52,13 @@ const settingsBinding = (): SettingsBinding => {
     ],
     user: new MemorySettingsStore({ label: 'compose spec' }),
   })
-  return { service, bindTo: () => {} }
+  const store = new MemorySettingsStore({ label: 'compose spec store' })
+  return {
+    service,
+    bindTo: (container) => {
+      container.register(UserSettingsStoreToken, { useValue: store })
+    },
+  }
 }
 
 // A spec must never read the developer's real keychain or codex file; bindPorts swaps the import
@@ -156,12 +163,11 @@ describe('composeHarness', () => {
     await app.close()
   })
 
-  it('composes signed-in with a dead cloud fetch: local stores answer, nothing is requested', async () => {
+  it('composes signed-in with a dead cloud fetch: local stores answer, boot is not blocked', async () => {
     const realFetch = globalThis.fetch
-    const fetches: string[] = []
-    globalThis.fetch = (async (input: unknown) => {
-      fetches.push(String(input))
-      throw new Error('cloud fetch must never fire')
+    globalThis.fetch = (async () => {
+      await new Promise((resolve) => setTimeout(resolve, 30_000))
+      return Response.json({})
     }) as unknown as typeof fetch
 
     try {
@@ -170,6 +176,7 @@ describe('composeHarness', () => {
         keyFile: join(atlasHome, 'key'),
       }).write({ url: 'https://cloud.test', token: 'sess', email: null })
 
+      const started = Date.now()
       const app = await composeHarness<undefined, never>({
         launch: { cwd: project, command: 'atlas-test', model: undefined, executionLocation: undefined },
         env: {},
@@ -179,6 +186,7 @@ describe('composeHarness', () => {
         bindPorts: silentImportSources,
       })
 
+      expect(Date.now() - started).toBeLessThan(10_000)
       expect(app.workspace.workspace).toBe(await realpath(project))
       expect(await app.accounts.list()).toEqual([])
       app.secrets.write({ name: 'search.tavily', value: 'tvly-fake' })
@@ -189,9 +197,73 @@ describe('composeHarness', () => {
       expect(
         app.settings.snapshot().resolution.settings.get(ESettingId.VercelTeamId)?.value,
       ).toBe('team_local')
-      expect(fetches).toEqual([])
+      expect(app.legacySettingsRestore).toBeDefined()
 
       await expect(app.close()).resolves.toBeUndefined()
+    } finally {
+      globalThis.fetch = realFetch
+    }
+  })
+
+  it('restores the sandbox configuration once from the cloud sign-in, then never again', async () => {
+    const realFetch = globalThis.fetch
+    const stamp = '2026-09-30T00:00:00.000Z'
+    const fetches: string[] = []
+    globalThis.fetch = (async (input: unknown) => {
+      const path = String(input)
+      fetches.push(path)
+      if (path.endsWith('/v1/secrets')) {
+        return Response.json({
+          secrets: [{ name: ESettingId.VercelToken, value: 'vcp_remote', updatedAt: stamp }],
+        })
+      }
+      if (path.endsWith('/v1/settings')) {
+        return Response.json({
+          settings: [
+            { key: ESettingId.VercelTeamId, value: 'team_remote', updatedAt: stamp },
+            { key: ESettingId.VercelProjectId, value: 'prj_remote', updatedAt: stamp },
+          ],
+        })
+      }
+      return new Response('not found', { status: 404 })
+    }) as unknown as typeof fetch
+
+    try {
+      new CloudSessionStore({
+        file: join(atlasHome, 'cloud.json'),
+        keyFile: join(atlasHome, 'key'),
+      }).write({ url: 'https://cloud.test', token: 'sess', email: null })
+
+      const notices = recordingNotices()
+      const app = await composeHarness<undefined, never>({
+        launch: { cwd: project, command: 'atlas-test', model: undefined, executionLocation: undefined },
+        env: {},
+        settings: settingsBinding(),
+        clientVersion: 'compose-spec',
+        surface: { notice: notices.port },
+        bindPorts: silentImportSources,
+      })
+
+      const report = await app.legacySettingsRestore
+      expect(report?.outcome).toBe('restored')
+      expect(app.secrets.read(ESettingId.VercelToken)).toBe('vcp_remote')
+      await expect(app.close()).resolves.toBeUndefined()
+
+      const before = fetches.length
+      expect(before).toBeGreaterThan(0)
+
+      const second = await composeHarness<undefined, never>({
+        launch: { cwd: project, command: 'atlas-test', model: undefined, executionLocation: undefined },
+        env: {},
+        settings: settingsBinding(),
+        clientVersion: 'compose-spec',
+        surface: { notice: recordingNotices().port },
+        bindPorts: silentImportSources,
+      })
+
+      expect(second.legacySettingsRestore).toBeUndefined()
+      expect(fetches.length).toBe(before)
+      await expect(second.close()).resolves.toBeUndefined()
     } finally {
       globalThis.fetch = realFetch
     }

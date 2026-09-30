@@ -16,6 +16,7 @@ import type { UrlOpener } from '../browser/open-url'
 import type { PathResolver } from '../browser/path-resolver'
 import type { DeltaChannel } from '../channel/delta-channel'
 import type { CloudService } from '../cloud/cloud-service'
+import type { LegacyRestoreReport } from '../cloud/legacy-settings-restore'
 import type { DependencyContainer } from '../container/injection'
 import type { AccountsService } from '../credentials/accounts-service'
 import type { FileBrowser } from '../files/file-browser'
@@ -118,6 +119,11 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   journalResume: (args: { active: ActiveConversation; directory: string }) => void
   /** A cloud lift's context capture with the session's notice port already bound in. */
   captureContext: (callArgs?: { cwd?: string | undefined }) => Promise<Buffer | undefined>
+  /**
+   * The in-flight one-time legacy sandbox-settings pull, when boot scheduled one. Never awaited
+   * by composition; undefined when no sign-in or nothing was missing.
+   */
+  legacySettingsRestore: Promise<LegacyRestoreReport | undefined> | undefined
   pluginProjections: readonly ContributedProjection[]
   pluginSurfaces: readonly ContributedSurface<TPluginSurface>[]
   surface: TSurface
