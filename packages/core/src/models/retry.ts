@@ -14,12 +14,14 @@ export type RetryPolicy = {
   maxAttempts: number
   baseDelayMs: number
   maxDelayMs: number
+  maxRetryAfterMs?: number | undefined
 }
 
 export const DEFAULT_RETRY_POLICY: RetryPolicy = {
-  maxAttempts: 10,
+  maxAttempts: 5,
   baseDelayMs: 1_000,
-  maxDelayMs: 60_000,
+  maxDelayMs: 10_000,
+  maxRetryAfterMs: 60_000,
 }
 
 export type RetryDecision =
@@ -66,7 +68,7 @@ export function planRetry(args: {
   const delayMs =
     retryAfterMs === undefined
       ? backoffMs({ attempts: args.attempts, policy: args.policy, jitter: args.jitter })
-      : Math.min(retryAfterMs, args.policy.maxDelayMs)
+      : Math.min(retryAfterMs, args.policy.maxRetryAfterMs ?? args.policy.maxDelayMs)
 
   return { retry: true, delayMs, reason }
 }

@@ -50,8 +50,8 @@ export type StreamTimeout = { ttfbMs: number; firstChunkMs: number; chunkMs: num
 // arrive — so a provider that queues the request without answering (observed from inference.net
 // under load, 2026-09-15: live turns silent for 3-50 minutes with no retry line) sits outside every
 // watchdog. ttfbMs covers that window by racing doStream against a timer.
-const DEFAULT_STREAM_TIMEOUT: StreamTimeout = {
-  ttfbMs: 90_000,
+export const DEFAULT_STREAM_TIMEOUT: StreamTimeout = {
+  ttfbMs: 30_000,
   firstChunkMs: 180_000,
   chunkMs: 120_000,
 }
