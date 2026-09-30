@@ -337,7 +337,19 @@ export function fakeThreadStore(
       const location = locationOfPlacement(record.placement)
       chosenLocations.push({ threadId, location })
       const row = rows.find((held) => held.id === threadId)
-      if (row !== undefined) row.executionLocation = location
+      if (row !== undefined) {
+        row.executionLocation = location
+        return
+      }
+      rows.push({
+        id: threadId,
+        head: 0,
+        createdAt: AT,
+        updatedAt: AT,
+        workspace: workspaceOf,
+        repo: args.repo ?? null,
+        executionLocation: location,
+      })
     },
 
     async chooseExecutionLocation({ threadId, location }) {
