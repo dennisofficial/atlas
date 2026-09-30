@@ -22,13 +22,19 @@ export const CONSOLE_ARG_LIMIT = 8
 
 export const SINK_TEXT_LIMIT = 2_000
 
-// The AI SDK prints both forms of a Node warning: the hooked emitWarning path renders
-// "[Warning] AI SDK Warning (...)", while the same warning written straight to stderr carries
-// Node's "(node:<pid>) Warning:" prefix.
-const LOW_SIGNAL_PATTERN = /^(\(node:\d+\) Warning:|\[Warning\]) AI SDK Warning/
+export const SINK_NOTICE_TEXT_LIMIT = 240
 
-export function isLowSignalSinkText(text: string): boolean {
-  return LOW_SIGNAL_PATTERN.test(text)
+// @ai-sdk/openai's literal marker for a dropped reasoning part; what follows it is the part's
+// full JSON payload, which belongs in the log but never on screen.
+const REASONING_PAYLOAD_MARKER = 'Skipping reasoning part:'
+
+export function sinkNoticeText({ text }: { text: string }): string {
+  const payloadAt = text.indexOf(REASONING_PAYLOAD_MARKER)
+  const headed = payloadAt < 0 ? text : text.slice(0, payloadAt)
+  const preview = headed.replaceAll(/\s+/g, ' ').trim()
+  if (preview.length === 0) return '…'
+  if (preview.length <= SINK_NOTICE_TEXT_LIMIT) return payloadAt >= 0 ? `${preview} …` : preview
+  return `${preview.slice(0, SINK_NOTICE_TEXT_LIMIT).trimEnd()}…`
 }
 
 export function truncateSinkText({ text }: { text: string }): string {

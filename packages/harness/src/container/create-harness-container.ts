@@ -82,6 +82,8 @@ import {
   ModelCardSourceToken,
   SecretsStoreToken,
   SessionRegistryToken,
+  AtlasHomeToken,
+  WakeSignalToken,
   WorkspaceRoot,
 } from './tokens'
 
@@ -110,6 +112,9 @@ function registerAgents({ container }: { container: DependencyContainer }): void
         clock: resolver.resolve(portToken(ClockPort)),
         agentTypes: resolver.resolve(AgentTypesToken),
         runners: childRunnerSource({ deps: () => resolver.resolve(ChildRunnerDepsToken)() }),
+        modelAtSpawn: async (args) => resolver.isRegistered(ChildRunnerDepsToken, true)
+          ? resolver.resolve(ChildRunnerDepsToken)().modelAtSpawn?.(args)
+          : undefined,
         launchDirectory: resolver.resolve(WorkspaceRoot),
         sink: resolver.resolve(portToken(ExecutionLocationSinkPort)),
         telemetry: resolver.resolve(portToken(TelemetryPort)),
@@ -139,6 +144,7 @@ export function createHarnessContainer(): DependencyContainer {
   restoreArchivedLocalFiles()
 
   const home = atlasDirectory()
+  harness.register(AtlasHomeToken, { useValue: home })
   harness.register(SessionRegistryToken, { useValue: registryFor({ home }) })
 
   harness.register(portToken(ClockPort), { useClass: SystemClock })
@@ -301,6 +307,9 @@ export function createHarnessContainer(): DependencyContainer {
         ...(card === undefined ? {} : { card }),
         hooks: resolver.resolve(HookChainToken),
         tape,
+        ...(resolver.isRegistered(WakeSignalToken, true)
+          ? { wake: resolver.resolve(WakeSignalToken) }
+          : {}),
       })
     },
   })

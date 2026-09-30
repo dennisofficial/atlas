@@ -3,6 +3,8 @@ import { chordMatches, type Chord, type KeyPress } from './chord'
 export enum EKeyLayer {
   Global = 0,
   Block = 1,
+  /** A transient surface over whatever is underneath — the floating sidebar — outranks a view's own chords. */
+  Overlay = 2,
 }
 
 export enum EKeyGroup {

@@ -169,6 +169,7 @@ describe('the set-thread-model op', () => {
     expect(reply).toMatchObject({ ok: false })
     expect(app.chosenModels).toEqual([])
   })
+
 })
 
 describe('store-originated transcript changes', () => {

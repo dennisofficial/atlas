@@ -8,6 +8,7 @@ export {
 export type { DependencyContainer, InjectionToken, PortConstructor } from './injection'
 export { Disposable, disposeAll, registerDisposable } from './disposal'
 export {
+  AtlasHomeToken,
   ClassifierPolicyToken,
   ClaudeCodeSourceToken,
   ClientVersionToken,

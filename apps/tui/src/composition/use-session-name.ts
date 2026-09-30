@@ -54,6 +54,7 @@ export function useSessionName(args: {
   const [namingRequest, setNamingRequest] = useState<NamingRequest | null>(null)
   const requestTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const awaitedEcho = useRef<string | null>(null)
+  const titlingRef = useRef(false)
   useEffect(() => {
     trace('onRename subscribed', threadId)
     let live = true
@@ -61,6 +62,18 @@ export function useSessionName(args: {
       if (renamed.threadId !== threadId) return
       trace('onRename fired', threadId, { title: renamed.title })
       setName(renamed.title)
+      /**
+       * First titling renames through the store without a `namingRequest`, so the answer lands here
+       * rather than in `renameThroughStore`. While the titler is in flight, that echo is the
+       * animation's stream: from the neutral opening the `titling` watcher armed, into the title.
+       */
+      if (titlingRef.current) {
+        setNamingRequest((current) =>
+          current === null || current.answer !== null ? current : { ...current, answer: renamed.title },
+        )
+        if (requestTimer.current !== null) clearTimeout(requestTimer.current)
+        requestTimer.current = setTimeout(() => setNamingRequest(null), NAMING_ANIMATION_MS)
+      }
       if (awaitedEcho.current === renamed.title) {
         awaitedEcho.current = null
         setNaming(false)
@@ -82,9 +95,26 @@ export function useSessionName(args: {
     }
   }, [threads, threadId])
 
+  /**
+   * First titling is the same animation as `/rename`, armed off the titling flag rather than the
+   * rename request: the rise begins the generating phase from no name, the store's echo streams the
+   * answer in (handled in the `onRename` listener), and a fall with no answer — a titler that
+   * declined, failed, or found the thread already named — ends it rather than holding noise forever.
+   */
   useEffect(() => {
-    setTitling(app.titling.titling({ threadId }))
-    return app.titling.onTitling({ threadId, listener: setTitling })
+    const handleTitling = (next: boolean): void => {
+      titlingRef.current = next
+      setTitling(next)
+      if (next) {
+        setNamingRequest((current) => current ?? { from: null, answer: null })
+        return
+      }
+      setNamingRequest((current) =>
+        current !== null && current.answer === null && current.from === null ? null : current,
+      )
+    }
+    handleTitling(app.titling.titling({ threadId }))
+    return app.titling.onTitling({ threadId, listener: handleTitling })
   }, [app.titling, threadId])
 
   useEffect(

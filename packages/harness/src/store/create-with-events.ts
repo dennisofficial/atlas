@@ -1,6 +1,6 @@
 import type { EExecutionLocation, EventDraft, RunId, ThreadId } from '@dltech/atlas-core'
 
-import type { SupervisedAgent } from './thread-store'
+import type { SupervisedAgent, ThreadModel } from './thread-store'
 
 export class ThreadNeedsOpeningDrafts extends Error {
   constructor() {
@@ -20,4 +20,5 @@ export type OpenThreadArgs = {
   repo?: string | null | undefined
   executionLocation?: EExecutionLocation | undefined
   agent?: SupervisedAgent | undefined
+  model?: ThreadModel | undefined
 }

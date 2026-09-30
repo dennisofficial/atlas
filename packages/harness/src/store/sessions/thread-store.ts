@@ -50,6 +50,7 @@ type CreateArgs = {
   agent?: SupervisedAgent | undefined
   id?: ThreadId | undefined
   executionLocation?: EExecutionLocation | undefined
+  model?: ThreadModel | undefined
 }
 
 type MarkArgs = { threadId: ThreadId; anchor: ECompactionAnchor; fromSeq: number; throughSeq: number; summary: string }
@@ -124,8 +125,19 @@ export class JsonlThreadStore implements ThreadStorePort {
     return mostRecentRoot({ home: this.home, project })
   }
 
-  async list(args: { project: string; limit?: number | undefined }): Promise<readonly ThreadSummary[]> {
-    return listRoots({ home: this.home, registry: this.registry, project: args.project, limit: args.limit })
+  async list(args: {
+    project: string
+    limit?: number | undefined
+    enrich?: readonly ThreadId[] | undefined
+    onUpdate?: ((threads: readonly ThreadSummary[]) => void) | undefined
+  }): Promise<readonly ThreadSummary[]> {
+    return listRoots({
+      home: this.home,
+      project: args.project,
+      limit: args.limit,
+      enrich: args.enrich,
+      onUpdate: args.onUpdate,
+    })
   }
 
   async findNamed(args: { project: string; handle: string }): Promise<ThreadSummary | undefined> {
@@ -147,10 +159,26 @@ export class JsonlThreadStore implements ThreadStorePort {
     for (const listener of [...this.renameListeners]) listener({ threadId, title })
   }
 
-  async chooseModel({ threadId, model }: { threadId: ThreadId; model: ThreadModel }): Promise<void> {
+  async chooseModel({
+    threadId,
+    model,
+    retarget,
+  }: {
+    threadId: ThreadId
+    model: ThreadModel
+    retarget?: boolean | undefined
+  }): Promise<void> {
     const sessionDir = await this.registry.sessionDirOf({ threadId })
     if (sessionDir === undefined) return
-    await this.updateMeta({ threadId, change: (meta) => ({ ...meta, modelRef: model.ref, modelEffort: model.effort }) })
+    await this.updateMeta({
+      threadId,
+      change: (meta) => {
+        const frozen = meta.spawnerThreadId !== null && meta.modelRef !== null && meta.modelEffort !== null
+        if (frozen && retarget !== true && (meta.modelRef !== model.ref || meta.modelEffort !== model.effort))
+          throw new Error(`child ${threadId} keeps the model and effort it was spawned with`)
+        return { ...meta, modelRef: model.ref, modelEffort: model.effort }
+      },
+    })
     for (const listener of [...this.modelChosenListeners]) listener({ threadId, model })
   }
 
@@ -325,6 +353,10 @@ export class JsonlThreadStore implements ThreadStorePort {
     if (fields.workspace !== undefined) meta.workspace = fields.workspace
     if (fields.repo !== undefined) meta.repo = fields.repo
     if (fields.executionLocation !== undefined) meta.executionLocation = fields.executionLocation
+    if (fields.model !== undefined) {
+      meta.modelRef = fields.model.ref
+      meta.modelEffort = fields.model.effort
+    }
     if (fields.agent !== undefined) {
       meta.spawnerThreadId = fields.agent.spawnedBy
       meta.agentType = fields.agent.type

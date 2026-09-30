@@ -3,6 +3,7 @@ import {
   EKilledBy,
   EMessageOrigin,
   NoopExecutionLocationSink,
+  parseRef,
   type ClockPort,
   type EExecutionLocation,
   type EventDraft,
@@ -97,6 +98,24 @@ export class AgentSupervisor extends AgentRegistryPort {
       recovery: this.recovery,
       delivery: this.delivery,
     }
+
+    /**
+     * A deliberate retarget of a child's model reaches the store, but the roster's snapshot is what
+     * every surface reads — it would keep showing the spawn-time model until the child's next turn
+     * re-noted it. Following the store keeps the sidebar, the footer and the roster itself in step
+     * with the pick the operator just made.
+     */
+    this.threads.onModelChosen(({ threadId: chosenId, model }) => {
+      const child = this.roster.find(chosenId)
+      if (child === undefined) return
+
+      const ref = parseRef(model.ref)
+      if (ref === undefined) return
+      if (child.model?.id === ref.providerId && child.model.modelId === ref.modelId) return
+
+      child.model = { id: ref.providerId, modelId: ref.modelId }
+      this.roster.changed()
+    })
   }
 
   types(): readonly AgentType[] {
@@ -125,7 +144,9 @@ export class AgentSupervisor extends AgentRegistryPort {
       if (caller?.agent !== undefined) return { ok: false, reason: TEAMMATE_FROM_MAIN_ONLY }
     }
 
+    const model = await this.deps.modelAtSpawn?.({ agentType: type, spawnedBy: threadId })
     const { threadId: agentId, inheritedLocation } = await openChildThread({
+      model,
       threads: this.threads,
       log: this.log,
       ids: this.ids,
@@ -145,6 +166,8 @@ export class AgentSupervisor extends AgentRegistryPort {
       at: this.clock.now(),
       projectDirectory: await childDirectory({ deps: this.deps, threadId }),
     })
+    const ref = model === undefined ? undefined : parseRef(model.ref)
+    if (ref !== undefined) child.model = { id: ref.providerId, modelId: ref.modelId }
     this.roster.add(child)
 
     this.steps.take({

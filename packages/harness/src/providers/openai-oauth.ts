@@ -17,6 +17,7 @@ import {
 
 import { CredentialError, ECredentialFailure } from '../credentials/credential-error'
 import { openaiCacheOptions } from './openai-cache'
+import { withOpenAiCompatibleReasoning } from './openai-reasoning'
 
 // A ChatGPT subscription token is only good against the codex backend, never api.openai.com. The
 // transport is the Responses API under /backend-api/codex with the account id as a header and the
@@ -111,8 +112,11 @@ export function createOpenAiModel(args: {
       call: options.providerOptions,
     })
 
-    if (providerOptions === undefined) return options
-    return { ...options, providerOptions }
+    const resolved = providerOptions === undefined ? options : { ...options, providerOptions }
+    return withOpenAiCompatibleReasoning({
+      namespace: args.providerId.split('.')[0]?.trim() ?? '',
+      options: resolved,
+    })
   }
 
   const throughACredentialTheServerAccepts = async <TResult>(
