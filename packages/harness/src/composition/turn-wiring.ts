@@ -7,6 +7,7 @@ import {
   EServiceStatus,
   ESettingId,
   EShellStatus,
+  isTurnTaking,
   NOTICE_WARN_MS,
   parseRef,
   promptContextFor,
@@ -83,6 +84,17 @@ export type TurnWiring = {
   drainNotices: (args: { threadId: ThreadId }) => Promise<PendingDrain>
   recordTeardownEndings: () => Promise<void>
 }
+
+// A shell or service ending is speech the model must answer, so it wakes the turn the way an agent
+// ending does. A draft is an Event missing only its envelope fields, which isTurnTaking never reads.
+export const noticesWakeTurn = (args: {
+  agentWakes: boolean
+  shellDrafts: readonly EventDraft[]
+  serviceDrafts: readonly EventDraft[]
+}): boolean =>
+  args.agentWakes ||
+  args.shellDrafts.some((draft) => isTurnTaking(draft as Parameters<typeof isTurnTaking>[0])) ||
+  args.serviceDrafts.some((draft) => isTurnTaking(draft as Parameters<typeof isTurnTaking>[0]))
 
 export function wireTurn<Command>(args: {
   container: DependencyContainer
@@ -207,13 +219,15 @@ export function wireTurn<Command>(args: {
     threadId: ThreadId
   }): Promise<PendingDrain> => {
     const agentDrain = agents.drainNotifications({ threadId })
+    const shellDrafts = shells.drainNotifications({ threadId })
+    const serviceDrafts = services.drainNotifications({ threadId })
     return {
-      drafts: [
-        ...shells.drainNotifications({ threadId }),
-        ...agentDrain.drafts,
-        ...services.drainNotifications({ threadId }),
-      ],
-      wakesTurn: agentDrain.wakesTurn,
+      drafts: [...shellDrafts, ...agentDrain.drafts, ...serviceDrafts],
+      wakesTurn: noticesWakeTurn({
+        agentWakes: agentDrain.wakesTurn,
+        shellDrafts,
+        serviceDrafts,
+      }),
     }
   }
 
