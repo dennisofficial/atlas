@@ -36,18 +36,6 @@ export type SsePullRequestClock = {
   clearTimeoutFn?: typeof clearTimeout
 }
 
-/**
- * The push-fed pull request port. A read subscribes (idempotently) and answers from the
- * subscribe's catch-up pull; from then on the shared SSE stream feeds `onReading`, which the
- * plugin wires into the same readings store the `gh` poller writes. `pushes` is true, so the
- * service arms no poll timer — the only interval this port holds is the subscription
- * heartbeat, and the stream's own reconnect carries a catch-up resubscribe.
- *
- * Nothing throws out of `read`/`readLinked`: a refused stream (dead cloud session) reads as
- * retryable `Unavailable` and re-probes on the next read, so a recovered session self-heals rather
- * than pinning the last good frame; everything else is retryable too, and the last good frame stays
- * on screen through either, per the readings store's shown-vs-answers split.
- */
 export class SsePullRequestPort extends PullRequestPort {
   readonly pushes = true
 
@@ -59,14 +47,20 @@ export class SsePullRequestPort extends PullRequestPort {
   private heartbeat: ReturnType<typeof setInterval> | null = null
   private disposeTimer: ReturnType<typeof setTimeout> | null = null
   private sessionDead = false
+  private readonly silenceTimeoutMs: number | undefined
+  private catchingUp: { generation: number; pending: Promise<void> } | null = null
+  private generation = 0
+  private disposed = false
 
   constructor(args: {
     session: CloudSession
     clientVersion: string
     onReading: (args: { key: string; reading: PullRequestReading }) => void
     clock?: SsePullRequestClock
+    silenceTimeoutMs?: number
   }) {
     super()
+    this.silenceTimeoutMs = args.silenceTimeoutMs
     this.clock = {
       now: args.clock?.now ?? Date.now,
       setIntervalFn: args.clock?.setIntervalFn ?? setInterval,
@@ -108,6 +102,8 @@ export class SsePullRequestPort extends PullRequestPort {
   }
 
   dispose(): void {
+    this.disposed = true
+    this.generation += 1
     if (this.disposeTimer !== null) {
       this.clock.clearTimeoutFn(this.disposeTimer)
       this.disposeTimer = null
@@ -116,9 +112,7 @@ export class SsePullRequestPort extends PullRequestPort {
     this.stream?.abort()
     this.stream = null
 
-    const handles = this.book.handles()
     this.book.clear()
-    for (const handle of handles) void this.client.unsubscribe({ id: handle.id }).catch(() => {})
   }
 
   private async subscribe(args: {
@@ -126,13 +120,12 @@ export class SsePullRequestPort extends PullRequestPort {
     repoFullName: string
     by: { kind: 'branch'; branch: string } | { kind: 'number'; number: number }
   }): Promise<PullRequestReading> {
-    // A held entry answers only while the stream is live; once it has died the held reading is
-    // exactly the stale tally that must not be served again, so a dead session falls through to a
-    // fresh subscribe — which doubles as the probe of whether the session recovered (token rotated,
-    // network back) and as the catch-up REST fill the stream can no longer deliver. An Absent entry
-    // is held too: it is a live branch subscription awaiting the discovery push, not a failed read.
+    if (this.disposed) return unavailable(false)
     const held = this.book.holding({ key: args.key })
-    if (held !== null && !this.sessionDead) return held.reading
+    if (held !== null && !this.sessionDead) {
+      this.ensureStream()
+      return held.reading
+    }
 
     let outcome
     try {
@@ -141,16 +134,17 @@ export class SsePullRequestPort extends PullRequestPort {
         ...(args.by.kind === 'branch' ? { branch: args.by.branch } : { number: args.by.number }),
       })
     } catch (failure) {
-      // A legacy server 404s a branch subscribe with no open PR. Holding nothing keeps every read
-      // a fresh probe, and retryable keeps that probe on the backoff cadence rather than the
-      // five-minute settled one — that re-subscribe is the only discovery path a legacy server has.
       if (failure instanceof CloudError && failure.status === 404 && args.by.kind === 'branch') {
         return unavailable(true)
       }
-      if (failure instanceof SseRefused) this.sessionDead = true
+      if (failure instanceof CloudError && (failure.status === 401 || failure.status === 403)) {
+        this.sessionDead = true
+        this.book.markAllStale()
+      }
       return unavailable(true)
     }
 
+    if (this.disposed) return unavailable(false)
     this.sessionDead = false
 
     const handle: SubscriptionHandle = { id: outcome.id, repoFullName: args.repoFullName }
@@ -166,7 +160,7 @@ export class SsePullRequestPort extends PullRequestPort {
   }
 
   private ensureStream(): void {
-    if (this.stream !== null) return
+    if (this.disposed || this.stream !== null) return
 
     const controller = new AbortController()
     this.stream = controller
@@ -176,31 +170,49 @@ export class SsePullRequestPort extends PullRequestPort {
       token: this.client.token(),
       clientVersion: this.client.clientVersionHeader(),
       signal: controller.signal,
+      ...(this.silenceTimeoutMs === undefined ? {} : { silenceTimeoutMs: this.silenceTimeoutMs }),
       handlers: {
+        onOpen: () => {
+          this.generation += 1
+          return this.catchUp({ controller, generation: this.generation })
+        },
         onFrame: (frame) => {
           if (frame.event !== 'pr-state') return
           this.book.applyFrame({ data: frame.data })
         },
         onDrop: () => {
           if (controller.signal.aborted) return
-          this.stream = null
+          this.generation += 1
           this.book.markAllStale()
-          void this.catchUp()
         },
       },
     }).catch((failure: unknown) => {
+      if (controller.signal.aborted || this.stream !== controller) return
       if (failure instanceof SseRefused) {
-        // Refused is a liveness fact, not a dead reading: mark stale (retryable) so the last good
-        // tally stays shown while a later read re-probes, rather than freezing it as the answer.
         this.sessionDead = true
-        this.book.markAllStale()
-        this.stream = null
+        this.stopHeartbeat()
       }
+      this.book.markAllStale()
+    }).finally(() => {
+      if (this.stream === controller) this.stream = null
     })
   }
 
-  private async catchUp(): Promise<void> {
+  private catchUp(args: { controller: AbortController; generation: number }): Promise<void> {
+    if (this.catchingUp?.generation === args.generation) return this.catchingUp.pending
+    const pending = this.refreshSubscriptions(args).finally(() => {
+      if (this.catchingUp?.pending === pending) this.catchingUp = null
+    })
+    this.catchingUp = { generation: args.generation, pending }
+    return pending
+  }
+
+  private async refreshSubscriptions({ controller, generation }: {
+    controller: AbortController
+    generation: number
+  }): Promise<void> {
     for (const entry of this.book.entries()) {
+      if (controller.signal.aborted || generation !== this.generation) return
       try {
         const outcome = await this.client.subscribe({
           repoFullName: entry.handle.repoFullName,
@@ -208,21 +220,20 @@ export class SsePullRequestPort extends PullRequestPort {
             ? { branch: entry.by.branch }
             : { number: entry.by.number }),
         })
+        if (controller.signal.aborted || generation !== this.generation) return
         this.book.recordResubscribe({
           key: entry.key,
           handle: { id: outcome.id, repoFullName: entry.handle.repoFullName },
           state: outcome.state,
         })
       } catch (failure) {
-        if (failure instanceof SseRefused) {
-          this.sessionDead = true
-          this.book.markAllStale()
-          return
+        if (controller.signal.aborted || generation !== this.generation) return
+        if (failure instanceof CloudError && (failure.status === 401 || failure.status === 403)) {
+          throw new SseRefused(failure.status)
         }
+        throw failure
       }
     }
-
-    if (this.book.size() > 0) this.ensureStream()
   }
 
   private startHeartbeat(): void {
@@ -235,7 +246,19 @@ export class SsePullRequestPort extends PullRequestPort {
         return
       }
       for (const entry of this.book.entries()) {
-        void this.client.heartbeat({ id: entry.handle.id }).catch(() => {})
+        void this.client.heartbeat({ id: entry.handle.id }).catch(() => {
+          const controller = this.stream
+          if (controller === null || controller.signal.aborted) return
+          const generation = this.generation
+          void this.catchUp({ controller, generation }).catch((failure: unknown) => {
+            if (!(failure instanceof SseRefused) || this.stream !== controller || generation !== this.generation) return
+            this.sessionDead = true
+            this.book.markAllStale()
+            this.stopHeartbeat()
+            controller.abort()
+            this.stream = null
+          })
+        })
       }
     }, HEARTBEAT_MS)
     this.heartbeat.unref?.()
