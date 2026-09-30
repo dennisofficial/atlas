@@ -9,6 +9,7 @@ import {
   type Event,
   type EventLogPort,
   type IdPort,
+  type PlacementRecord,
   type ThreadId,
 } from '@dltech/atlas-core'
 
@@ -79,6 +80,7 @@ export function fakeThreadStore(
   const renames: { threadId: ThreadId; title: string }[] = []
   const chosenModels: { threadId: ThreadId; model: ThreadModel }[] = []
   const chosenLocations: { threadId: ThreadId; location: EExecutionLocation }[] = []
+  const placements = new Map<ThreadId, PlacementRecord>()
 
   return {
     get created() {
@@ -226,21 +228,47 @@ export function fakeThreadStore(
 
     async readPlacement({ threadId }) {
       const row = rows.find((held) => held.id === threadId)
-      if (row === undefined) return undefined
-      return { placement: placementOf(row.executionLocation ?? EExecutionLocation.Host), revision: 0, move: null }
+      const record = placements.get(threadId)
+      if (row === undefined && record === undefined) return undefined
+      return (
+        record ?? {
+          placement: placementOf(row?.executionLocation ?? EExecutionLocation.Host),
+          revision: 0,
+          move: null,
+        }
+      )
     },
 
     async writePlacement({ threadId, record }) {
       const location = locationOfPlacement(record.placement)
       chosenLocations.push({ threadId, location })
+      placements.set(threadId, record)
       const row = rows.find((held) => held.id === threadId)
-      if (row !== undefined) row.executionLocation = location
+      if (row !== undefined) {
+        row.executionLocation = location
+        return
+      }
+      rows.push({
+        id: threadId,
+        head: 0,
+        createdAt: AT,
+        updatedAt: AT,
+        workspace: workspaceOf,
+        repo: args.repo ?? null,
+        executionLocation: location,
+      })
     },
 
     async chooseExecutionLocation({ threadId, location }) {
       chosenLocations.push({ threadId, location })
       const row = rows.find((held) => held.id === threadId)
       if (row !== undefined) row.executionLocation = location
+      const held = placements.get(threadId)
+      placements.set(threadId, {
+        placement: placementOf(location),
+        revision: (held?.revision ?? 0) + 1,
+        move: held?.move ?? null,
+      })
     },
 
     async rewind() {

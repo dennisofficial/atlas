@@ -9,6 +9,7 @@ import {
 } from '@dltech/atlas-core'
 
 import type { AgentRegistryPort } from '../../agents/registry/port'
+import { EPlacementMoveKind, type PlacementController, type PlacementTransaction } from '../../composition/placement-controller'
 import type { ServiceRegistryPort } from '../../services/service-registry'
 import type { ToolRegistry } from '../../tools/registry'
 import type { ThreadStorePort } from '../../store/thread-store'
@@ -72,14 +73,7 @@ export type WorkspaceMerger = (args: {
   branch: string | null
 }) => Promise<MergedWorkspace>
 
-/**
- * Bringing a cloud conversation home: pause the remote loops at a resumable seam, move the log's
- * home back (the cloud tail the local store missed, then the relocation marker into the local
- * log), flip the local store, merge the published workspace, and hand back the locally-reopened
- * conversation. Any failure before the flip leaves the cloud session attached and the conversation
- * exactly where it was; a failure after the flip is recovered by reopening, never by flipping back.
- */
-export async function descendFromCloud<Opened>(args: {
+type DescendArgs<Opened> = {
   threadId: ThreadId
   target: EExecutionLocation
   midTurn: boolean
@@ -90,9 +84,19 @@ export async function descendFromCloud<Opened>(args: {
   pauseDeadlineMs?: number | undefined
   mergeWorkspace?: WorkspaceMerger | undefined
   logPort?: LogPort | undefined
+  /**
+   * The coordinator the flip home commits through. Live wiring always passes it; a harness-level
+   * spec without one keeps the bare store flip so the relocation mechanics stay exercisable alone.
+   */
+  placement?: PlacementController | undefined
   /** A test seam between the archive landing and the landed-state checks — live wiring never passes it. */
   afterTranscriptLanded?: (() => Promise<void>) | undefined
-}): Promise<Opened> {
+}
+
+async function runDescend<Opened>(
+  args: DescendArgs<Opened>,
+  transaction: PlacementTransaction | undefined,
+): Promise<Opened> {
   const { threadId, target, bridge, channel, localApp, surface } = args
   const notice = surface.notice ?? nullNotice
   const progress = (step: DescendProgressStep): void => surface.onProgress?.(step)
@@ -124,6 +128,7 @@ export async function descendFromCloud<Opened>(args: {
         opened = value
       },
       logPort: args.logPort,
+      transaction,
       afterTranscriptLanded: args.afterTranscriptLanded,
     }),
     ctx: undefined,
@@ -143,4 +148,24 @@ export async function descendFromCloud<Opened>(args: {
     throw new Error('the descend finished without reopening the conversation locally')
   }
   return opened
+}
+
+/**
+ * Bringing a cloud conversation home: pause the remote loops at a resumable seam, move the log's
+ * home back (the cloud tail the local store missed, then the relocation marker into the local
+ * log), flip the local store, merge the published workspace, and hand back the locally-reopened
+ * conversation. Any failure before the flip leaves the cloud session attached and the conversation
+ * exactly where it was; a failure after the flip is recovered by reopening, never by flipping back.
+ * With a coordinator bound, the flip is its transaction commit, so a post-commit failure leaves a
+ * committed move on the record — the session is home even when the reopen is what failed.
+ */
+export async function descendFromCloud<Opened>(args: DescendArgs<Opened>): Promise<Opened> {
+  const { placement } = args
+  if (placement === undefined) return runDescend(args, undefined)
+  return placement.move<Opened>({
+    threadId: args.threadId,
+    target: args.target,
+    kind: EPlacementMoveKind.Descend,
+    work: (transaction) => runDescend(args, transaction),
+  })
 }

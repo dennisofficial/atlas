@@ -110,6 +110,24 @@ describe('session placement', () => {
     expect(controller.of(peer.id)).toBe(EExecutionLocation.Docker)
   })
 
+  it('clears the preparation marker and keeps the source when the work abandons the move', async () => {
+    const { controller, threads } = setup()
+    await controller.activate({ threadId: THREAD })
+    const outcome = await controller.move({
+      threadId: THREAD,
+      target: EExecutionLocation.Cloud,
+      kind: EPlacementMoveKind.Lift,
+      work: async ({ abandon }) => {
+        expect((await threads.readPlacement({ threadId: THREAD }))?.move?.phase).toBe(EPlacementMovePhase.Preparing)
+        abandon()
+        return { ok: false as const }
+      },
+    })
+    expect(outcome).toEqual({ ok: false })
+    expect(controller.current()).toBe(EExecutionLocation.Host)
+    expect(controller.snapshot(THREAD)?.move).toBeNull()
+  })
+
   it('refuses tool environment changes in a cloud harness', async () => {
     const { controller } = setup()
     await controller.activate({ threadId: THREAD })

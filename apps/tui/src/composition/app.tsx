@@ -1197,22 +1197,6 @@ function Workspace(props: {
     [conversation.threadId, props.app],
   )
 
-  /**
-   * The lift still drives its own DAG, so its flip lands as a durable placement write and the
-   * controller re-reads it. Moving the lift onto the coordinator's commit seam is the remaining
-   * half of that work, tracked with the cloud slice.
-   */
-  const handleLiftPlacement = useCallback(
-    (location: EExecutionLocation) => {
-      const threadId = conversation.threadId
-      void props.app.threads
-        .chooseExecutionLocation({ threadId, location })
-        .then(() => props.app.executionLocation.refresh({ threadId }))
-        .catch(() => undefined)
-    },
-    [props.app, conversation.threadId],
-  )
-
   const cloudLift = useCloudLift({
     app: props.app,
     threadId: conversation.threadId,
@@ -1222,7 +1206,7 @@ function Workspace(props: {
     handlePause: conversation.handlePauseForMove,
     whenSettled: conversation.whenSettled,
     projectDirectory: conversation.projectDirectory,
-    setLocation: handleLiftPlacement,
+    placement: props.app.executionLocation,
     createBridge: props.createBridge,
     preflightLift: props.preflightLift,
     capture: props.captureWorkspace,
@@ -1305,6 +1289,7 @@ function Workspace(props: {
           channel,
           localApp: props.localApp,
           surface: descendSurface,
+          placement: props.app.executionLocation,
         })
           .then((opened) => {
             containerMove.handleSettle()

@@ -4,6 +4,7 @@ import {
   EPlacementMovePhase,
   locationOfPlacement,
   placementOf,
+  type PlacementMove,
   type PlacementRecord,
   type SessionPlacement,
   type ThreadId,
@@ -21,6 +22,8 @@ export enum EPlacementMoveKind {
   Tools = 'tools',
   Lift = 'lift',
   Descend = 'descend',
+  /** A same-placement fill: the record stays put, only its detail (e.g. drive name) is written. */
+  Correct = 'correct',
 }
 
 export class PlacementBusy extends Error {
@@ -32,6 +35,11 @@ export class PlacementBusy extends Error {
 export type PlacementTransaction = {
   from: EExecutionLocation
   commit: (placement?: SessionPlacement) => Promise<void>
+  /**
+   * Ends the move without flipping placement, for work that reports its failure as a value rather
+   * than throwing it. The preparation marker is cleared and the source placement stands.
+   */
+  abandon: () => void
 }
 
 export class PlacementController {
@@ -103,32 +111,45 @@ export class PlacementController {
       this.validate({ ...args, from, record })
       this.sequence += 1
       const id = `${args.threadId}:${record.revision + 1}:${this.sequence}`
+      const move: PlacementMove = {
+        id,
+        from: record.placement,
+        to: placementOf(args.target),
+        phase: EPlacementMovePhase.Preparing,
+      }
       record = await this.write({
         threadId: args.threadId,
         prior: record,
-        next: { ...record, move: { id, from: record.placement, to: placementOf(args.target), phase: EPlacementMovePhase.Preparing } },
+        next: { ...record, move },
       })
       let committed = false
+      let abandoned = false
       const transaction: PlacementTransaction = {
         from,
+        abandon: () => {
+          abandoned = true
+        },
         commit: async (placement = placementOf(args.target)) => {
           if (committed) return
           if (locationOfPlacement(placement) !== args.target) throw new Error('the move committed an unexpected placement')
+          record = await this.freshen({ threadId: args.threadId, held: record })
           record = await this.write({
             threadId: args.threadId,
             prior: record,
-            next: { ...record, placement, move: { id, from: record.move!.from, to: placement, phase: EPlacementMovePhase.Committed } },
+            next: { ...record, placement, move: { ...move, to: placement, phase: EPlacementMovePhase.Committed } },
           })
           committed = true
         },
       }
       try {
         const result = await args.work(transaction)
-        if (!committed) throw new Error('the move finished without committing placement')
+        if (!committed && !abandoned) throw new Error('the move finished without committing placement')
+        record = await this.freshen({ threadId: args.threadId, held: record })
         await this.write({ threadId: args.threadId, prior: record, next: { ...record, move: null } })
         return result
       } catch (error) {
         if (!committed) {
+          record = await this.freshen({ threadId: args.threadId, held: record })
           await this.write({ threadId: args.threadId, prior: record, next: { ...record, move: null } })
         }
         throw error
@@ -155,6 +176,22 @@ export class PlacementController {
     }
   }
 
+  /**
+   * A durable move is measured in work: between the preparation write and its commit an archive
+   * can land and rebuild the row from scratch, resetting its revision. When the store no longer
+   * knows the move, the move's own record stays authoritative for the move fields — only the
+   * revision the next write must beat comes back off the store.
+   */
+  private async freshen(args: { threadId: ThreadId; held: PlacementRecord }): Promise<PlacementRecord> {
+    const stored = await this.binding?.threads.readPlacement({ threadId: args.threadId })
+    if (stored === undefined) return args.held
+    if (stored.revision < args.held.revision) return args.held
+    if (stored.move === null && args.held.move !== null) {
+      return { ...stored, move: args.held.move }
+    }
+    return stored
+  }
+
   private async write(args: { threadId: ThreadId; prior: PlacementRecord; next: PlacementRecord }): Promise<PlacementRecord> {
     const binding = this.binding
     if (binding === undefined) throw new Error('placement has no durable store')
@@ -171,6 +208,7 @@ export class PlacementController {
     }
     if (args.kind === EPlacementMoveKind.Lift && args.from === EExecutionLocation.Cloud) throw new Error('this session is already in the cloud — reconnect to it')
     if (args.kind === EPlacementMoveKind.Descend && (args.from !== EExecutionLocation.Cloud || args.target === EExecutionLocation.Cloud)) throw new Error('a descend requires a cloud session and a host destination')
+    if (args.kind === EPlacementMoveKind.Correct && args.from !== args.target) throw new Error('a correction cannot move the session')
   }
 
   private async sessionRoot(threadId: ThreadId): Promise<ThreadId> {

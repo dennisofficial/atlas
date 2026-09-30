@@ -28,7 +28,7 @@ describe('a lift that does not finish, with children in tow', () => {
     if (lifted.ok) throw new Error('expected the lift to fail')
 
     expect(agents.relocatedTo).toEqual([])
-    expect(test.localThreads.chosenLocations).toEqual([])
+    expect(test.placement.snapshot(CLOUD_THREAD)?.move).toBeNull()
 
     const childRow = await test.localThreads.find({ threadId: CHILD })
     expect(childRow?.executionLocation ?? EExecutionLocation.Host).toBe(EExecutionLocation.Host)
@@ -48,7 +48,7 @@ describe('a lift that does not finish, with children in tow', () => {
 
     expect(lifted.step).toBe(ELiftStep.Starting)
     expect(agents.relocatedTo).toEqual([])
-    expect(test.located).toEqual([])
+    expect(test.placement.of(CLOUD_THREAD)).toBe(EExecutionLocation.Host)
   })
 
   it('gives up on a turn that will not stop instead of hanging the move', async () => {
@@ -65,7 +65,7 @@ describe('a lift that does not finish, with children in tow', () => {
     expect(lifted.step).toBe(ELiftStep.Interrupting)
     expect(lifted.detail).toContain('would not stop')
     expect(test.stops).toBe(0)
-    expect(test.located).toEqual([])
+    expect(test.placement.snapshot(CLOUD_THREAD)).toBeUndefined()
   })
 
   it('pauses the parent turn instead of interrupting it when the caller hands a pause over', async () => {
@@ -137,7 +137,7 @@ describe('a lift that does not finish, with children in tow', () => {
 
     expect(lifted.step).toBe(ELiftStep.Starting)
     expect(lifted.stopped).toMatchObject({ shells: ['bun run dev'], services: ['api'] })
-    expect(test.located).toEqual([])
+    expect(test.placement.of(CLOUD_THREAD)).toBe(EExecutionLocation.Host)
   })
 
   it('leaves the family in docker when a lift from docker fails before the flip', async () => {
@@ -147,11 +147,7 @@ describe('a lift that does not finish, with children in tow', () => {
     const bridge = fakeBridge({
       createFails: new CloudError({ status: 500, message: 'no capacity in iad1' }),
     })
-    const test = harness({ agents, bridge })
-    await test.localThreads.chooseExecutionLocation({
-      threadId: CLOUD_THREAD,
-      location: EExecutionLocation.Docker,
-    })
+    const test = harness({ agents, bridge, from: EExecutionLocation.Docker })
     await test.localLog.append({
       threadId: CHILD,
       runId: toRunId('run_child'),
@@ -161,10 +157,11 @@ describe('a lift that does not finish, with children in tow', () => {
     const lifted = await liftToCloud(test.args)
     if (lifted.ok) throw new Error('expected the lift to fail')
 
-    expect(test.located).toEqual([])
-    expect(test.localThreads.chosenLocations).toEqual([
-      { threadId: CLOUD_THREAD, location: EExecutionLocation.Docker },
-    ])
+    expect(test.placement.of(CLOUD_THREAD)).toBe(EExecutionLocation.Docker)
+    expect(test.placement.snapshot(CLOUD_THREAD)?.move).toBeNull()
+    for (const chosen of test.localThreads.chosenLocations) {
+      expect(chosen.location).toBe(EExecutionLocation.Docker)
+    }
     expect(agents.relocatedTo).toEqual([])
   })
 })

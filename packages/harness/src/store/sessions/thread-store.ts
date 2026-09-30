@@ -188,8 +188,17 @@ export class JsonlThreadStore implements ThreadStorePort {
         const existing = tryReadThreadMeta({ file })
         const base = existing ?? newThreadMeta({ id: threadId, at: this.clock.now() })
         const held = placementRecordOf(base)
-        if (args.expectedRevision !== undefined && existing !== undefined && held.revision !== args.expectedRevision) {
-          throw new PlacementConflict({ expected: args.expectedRevision, found: held.revision })
+        // A row whose meta carries no placement field yet (the archive just rewrote it, or nothing
+        // ever placed it) cannot conflict: there is no durable placement to move underneath this
+        // write. The write plants its placement wholesale rather than arguing with the fallback.
+        const conflict =
+          args.expectedRevision !== undefined &&
+          existing !== undefined &&
+          existing.placement !== undefined &&
+          existing.placement !== null &&
+          held.revision !== args.expectedRevision
+        if (conflict) {
+          throw new PlacementConflict({ expected: args.expectedRevision ?? 0, found: held.revision })
         }
         const meta = metaWithPlacement({
           meta: {
