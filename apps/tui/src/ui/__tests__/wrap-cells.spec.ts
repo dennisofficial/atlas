@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { wrapCells } from '../components/sidebar/cells'
+import { wrapCappedCells, wrapCells } from '../components/sidebar/cells'
 
 const wrap = (text: string, cells: number): string[] => wrapCells({ text, cells })
 
@@ -49,5 +49,29 @@ describe('soft-wrapping a label into the cells it has', () => {
   it('refuses to wrap into no room at all, rather than looping', () => {
     expect(wrap('anything', 0)).toEqual([])
     expect(wrap('anything', -1)).toEqual([])
+  })
+})
+
+describe('capping a wrapped title to the rows it may take', () => {
+  const cap = (text: string, cells: number, lines: number): string =>
+    wrapCappedCells({ text, cells, lines })
+
+  it('returns the title untouched while it fits the cap', () => {
+    expect(cap('fits fine', 10, 2)).toBe('fits fine')
+  })
+
+  it('closes the last kept row with an ellipsis when the rest overflowed', () => {
+    const capped = cap('one two three four five six', 8, 2)
+
+    expect(capped).toBe('one two three …')
+  })
+
+  it('never lets the capped row run wider than the column', () => {
+    const capped = cap('aaaa bbbb cccc dddd eeee ffff', 9, 2)
+
+    for (const line of wrapCells({ text: capped, cells: 9 })) {
+      expect(line.length).toBeLessThanOrEqual(9)
+    }
+    expect(capped.endsWith('…')).toBe(true)
   })
 })

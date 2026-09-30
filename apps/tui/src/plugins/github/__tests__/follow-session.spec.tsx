@@ -15,6 +15,7 @@ import {
   type ToolOutcome,
 } from '@dltech/atlas-core'
 import {
+  AtlasHomeToken,
   ClientVersionToken,
   CloudSessionStore,
   CloudSessionStoreToken,
@@ -149,6 +150,7 @@ const composed = async (): Promise<{
 
   const container = createIsolatedContainer()
   container.register(WorkspaceRoot, { useValue: root })
+  container.register(AtlasHomeToken, { useValue: root })
   container.register(ClientVersionToken, { useValue: 'test' })
   container.register(CloudSessionStoreToken, {
     useValue: new CloudSessionStore({

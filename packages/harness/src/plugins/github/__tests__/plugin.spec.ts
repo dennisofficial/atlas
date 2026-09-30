@@ -7,6 +7,7 @@ import { join } from 'node:path'
 import { CloudSessionStore } from '../../../cloud/cloud-session'
 import { createIsolatedContainer, portToken } from '../../../container/injection'
 import {
+  AtlasHomeToken,
   ClientVersionToken,
   CloudSessionStoreToken,
   ServeSessionToken,
@@ -15,7 +16,7 @@ import {
 
 import { SsePullRequestPort } from '../../../cloud/sse-pull-requests'
 import { NativePlugin } from '../../plugin'
-import { GhPullRequestPort } from '../gh-pull-requests'
+import { CachedPullRequestPort } from '../pull-request-cache-port'
 import GithubPlugin, { registerPlugin } from '../index'
 import { PullRequestPort } from '../pure'
 import { GithubUiBridgePort } from '../ui-bridge'
@@ -55,6 +56,7 @@ const resolved = async (args?: {
     useValue: await sessionsIn({ signedIn: args?.signedIn === true }),
   })
   if (args?.serve === true) container.register(ServeSessionToken, { useValue: SESSION })
+  container.register(AtlasHomeToken, { useValue: await scratch() })
   registerPlugin({ container })
 
   const plugin = container.resolve(portToken(NativePlugin))
@@ -146,7 +148,9 @@ describe('the pull request port the plugin selects', () => {
   it('keeps the gh poller for a signed-out session', async () => {
     const { contribution } = await resolved({ signedIn: false })
 
-    expect(portOf(contribution)).toBeInstanceOf(GhPullRequestPort)
+    const port = portOf(contribution)
+    expect(port).toBeInstanceOf(CachedPullRequestPort)
+    expect(port.pushes).toBe(false)
 
     await contribution.dispose?.()
   })
@@ -155,7 +159,7 @@ describe('the pull request port the plugin selects', () => {
     const { contribution } = await resolved({ signedIn: true })
 
     const port = portOf(contribution)
-    expect(port).toBeInstanceOf(SsePullRequestPort)
+    expect(port).toBeInstanceOf(CachedPullRequestPort)
     expect(port.pushes).toBe(true)
 
     await contribution.dispose?.()
@@ -165,7 +169,7 @@ describe('the pull request port the plugin selects', () => {
     const { contribution } = await resolved({ serve: true })
 
     const port = portOf(contribution)
-    expect(port).toBeInstanceOf(SsePullRequestPort)
+    expect(port).toBeInstanceOf(CachedPullRequestPort)
     expect(port.pushes).toBe(true)
 
     await contribution.dispose?.()

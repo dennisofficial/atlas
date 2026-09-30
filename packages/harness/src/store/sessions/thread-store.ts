@@ -125,8 +125,19 @@ export class JsonlThreadStore implements ThreadStorePort {
     return mostRecentRoot({ home: this.home, project })
   }
 
-  async list(args: { project: string; limit?: number | undefined }): Promise<readonly ThreadSummary[]> {
-    return listRoots({ home: this.home, registry: this.registry, project: args.project, limit: args.limit })
+  async list(args: {
+    project: string
+    limit?: number | undefined
+    enrich?: readonly ThreadId[] | undefined
+    onUpdate?: ((threads: readonly ThreadSummary[]) => void) | undefined
+  }): Promise<readonly ThreadSummary[]> {
+    return listRoots({
+      home: this.home,
+      project: args.project,
+      limit: args.limit,
+      enrich: args.enrich,
+      onUpdate: args.onUpdate,
+    })
   }
 
   async findNamed(args: { project: string; handle: string }): Promise<ThreadSummary | undefined> {

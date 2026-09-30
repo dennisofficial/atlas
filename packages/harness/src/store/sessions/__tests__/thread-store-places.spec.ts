@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { EForkMode, EWorktreeExit, type EventDraft } from '@dltech/atlas-core'
+import { ECompactionAnchor, EForkMode, EWorktreeExit, type EventDraft } from '@dltech/atlas-core'
 
 import { CountingIds, SteppingClock } from '../../__tests__/harness'
 import { JsonlEventLog } from '../event-log'
@@ -164,7 +164,27 @@ describe('the pull requests a listed thread is linked to', () => {
     expect(listed.find((row) => row.id === source.id)?.pullRequests?.map((pr) => pr.number)).toEqual([401, 412])
   })
 
-  it('refreshes the session meta’s derived caches on list', async () => {
+  it('a reference fork keeps the parent’s links beside its own', async () => {
+    const home = await tempHome()
+    const { log, threads, ids } = openStore({ home })
+    const source = await threads.create({ workspace: '/here' })
+    await log.append({
+      threadId: source.id,
+      runId: ids.nextRunId(),
+      drafts: [said('hello'), linked({ number: 401, branch: 'dennis/first' })],
+    })
+    const forked = await threads.fork({ from: source.id, seq: 2, mode: EForkMode.Reference })
+    await log.append({
+      threadId: forked.id,
+      runId: ids.nextRunId(),
+      drafts: [linked({ number: 412, branch: 'dennis/second' })],
+    })
+
+    const listed = await threads.list({ project: '/here' })
+    expect(listed.find((row) => row.id === forked.id)?.pullRequests?.map((pr) => pr.number)).toEqual([401, 412])
+  })
+
+  it('leaves the session meta untouched on list — it is a read, not a cache refresh', async () => {
     const home = await tempHome()
     const { log, threads, ids } = openStore({ home })
     const thread = await threads.create({ workspace: '/here' })
@@ -174,12 +194,53 @@ describe('the pull requests a listed thread is linked to', () => {
       drafts: [entered('/here/.worktrees/fix-a1b2', 'dennis/fix-a1b2'), linked({ number: 401, branch: 'dennis/fix' })],
     })
 
+    const sessionDir = sessionDirectory({ home, sessionId: thread.id })
+    const before = (await stat(sessionMetaFile({ sessionDir }))).mtimeMs
+    const beforeText = await readFile(sessionMetaFile({ sessionDir }), 'utf8')
+
     await threads.list({ project: '/here' })
 
-    const sessionDir = sessionDirectory({ home, sessionId: thread.id })
-    const session = readMetaSync({ file: sessionMetaFile({ sessionDir }), schema: sessionMetaSchema })
-    expect(session?.worktree).toBe('/here/.worktrees/fix-a1b2')
-    expect(session?.pullRequests).toEqual([401])
-    expect(session?.updatedAt).toBe((await threads.find({ threadId: thread.id }))?.updatedAt ?? '')
+    expect((await stat(sessionMetaFile({ sessionDir }))).mtimeMs).toBeLessThanOrEqual(before)
+    expect(await readFile(sessionMetaFile({ sessionDir }), 'utf8')).toBe(beforeText)
+  })
+
+  it('stops seeing a pull request once a rewind cut its link', async () => {
+    const home = await tempHome()
+    const { log, threads, ids } = openStore({ home })
+    const thread = await threads.create({ workspace: '/here' })
+    await log.append({
+      threadId: thread.id,
+      runId: ids.nextRunId(),
+      drafts: [said('hello'), linked({ number: 401, branch: 'dennis/fix' })],
+    })
+
+    expect((await threads.list({ project: '/here' }))[0]?.pullRequests?.map((pr) => pr.number)).toEqual([401])
+
+    await threads.rewind({ threadId: thread.id, toSeq: 1 })
+
+    expect((await threads.list({ project: '/here' }))[0]?.pullRequests).toBeUndefined()
+  })
+
+  it('stops standing in a worktree once a summarise cut its entry', async () => {
+    const home = await tempHome()
+    const { log, threads, ids } = openStore({ home })
+    const thread = await threads.create({ workspace: '/here' })
+    await log.append({
+      threadId: thread.id,
+      runId: ids.nextRunId(),
+      drafts: [entered('/here/.worktrees/fix-a1b2', 'dennis/fix-a1b2'), said('long turn')],
+    })
+
+    expect((await threads.list({ project: '/here' }))[0]?.worktree?.branch).toBe('dennis/fix-a1b2')
+
+    await threads.summarise({
+      threadId: thread.id,
+      anchor: ECompactionAnchor.Prefix,
+      fromSeq: 1,
+      throughSeq: 2,
+      summary: 'short version',
+    })
+
+    expect((await threads.list({ project: '/here' }))[0]?.worktree).toBeUndefined()
   })
 })

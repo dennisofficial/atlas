@@ -8,6 +8,7 @@ import {
   crewRowReading,
   ESubagentReading,
   isSubagentAlive,
+  isSubagentWorking,
   subagentContextLabel,
   subagentElapsedMs,
   subagentRows,
@@ -178,7 +179,7 @@ describe("how full the child's own window is", () => {
   })
 })
 
-describe('whether a child still counts as working', () => {
+describe('whether a child still counts as alive', () => {
   it('counts a running child', () => {
     expect(isSubagentAlive(readout({ status: EAgentStatus.Running }))).toBe(true)
   })
@@ -191,6 +192,58 @@ describe('whether a child still counts as working', () => {
     expect(isSubagentAlive(readout({ status: EAgentStatus.Finished }))).toBe(false)
     expect(isSubagentAlive(readout({ status: EAgentStatus.Failed }))).toBe(false)
     expect(isSubagentAlive(readout({ status: EAgentStatus.Stopped }))).toBe(false)
+  })
+})
+
+describe('whether a child still counts as working', () => {
+  const heldShell = (over: Partial<ShellSnapshot> = {}): ShellSnapshot => ({
+    shellId: toShellId('bash_held'),
+    threadId: CHILD,
+    command: 'sleep 60',
+    description: 'Wait on a file',
+    status: EShellStatus.Running,
+    startedAt: STARTED,
+    lastOutputAt: STARTED,
+    totalCharacters: 0,
+    awaitingInput: false,
+    ...over,
+  })
+
+  it('counts a running child', () => {
+    expect(isSubagentWorking(rows()[0]!)).toBe(true)
+  })
+
+  it('counts a settled child whose shells are still going, since that session is still working', () => {
+    const busy = subagentRows({
+      snapshots: [snapshot({ status: EAgentStatus.Finished, endedAt: STARTED })],
+      now: NOW,
+      rosters: {
+        shells: [heldShell()],
+        children: [],
+      },
+    })
+
+    expect(busy[0]?.status).toBe(EAgentStatus.Finished)
+    expect(isSubagentWorking(busy[0]!)).toBe(true)
+  })
+
+  it('counts a settled child whose own children are still going', () => {
+    const busy = subagentRows({
+      snapshots: [snapshot({ status: EAgentStatus.Finished, endedAt: STARTED })],
+      now: NOW,
+      rosters: {
+        shells: [],
+        children: [snapshot({ agentId: toThreadId('thr_grand'), spawnedBy: CHILD })],
+      },
+    })
+
+    expect(isSubagentWorking(busy[0]!)).toBe(true)
+  })
+
+  it('stops counting a settled child once nothing under it runs', () => {
+    expect(
+      isSubagentWorking(rows({ status: EAgentStatus.Finished, endedAt: STARTED })[0]!),
+    ).toBe(false)
   })
 })
 

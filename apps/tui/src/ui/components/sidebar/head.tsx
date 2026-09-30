@@ -5,19 +5,25 @@ import { costTone, formatUsd, spendFigures } from "../../../store/sidebar-spend"
 import { theme } from "../../theme";
 import { NAMING_SIDEBAR_LINE } from "../../naming-frames";
 import { ENamingPhase, NamingLine, type NamingState } from "../naming-line";
-import { truncateCells } from "./cells";
+import { truncateCells, wrapCappedCells } from "./cells";
 
 const SEPARATOR = " · ";
 
+const TITLE_MAX_LINES = 2;
+
+const titleCapped = (args: { title: string; cells: number }): string =>
+  wrapCappedCells({ text: args.title, cells: args.cells, lines: TITLE_MAX_LINES });
+
 /**
- * The animation is one row: a rename of a name longer than the column holds the noise and glides
- * within the row's cells, and the answer is clipped the same way the settled title truncates, so
- * the head never grows a second line mid-rename.
+ * The head never holds more than TITLE_MAX_LINES of title. The generating phase still clamps its
+ * noise to one row; the streaming phase's target is capped the same way the settled title is, so
+ * the sweep's last frame and the settled frame are byte-identical — both feed a character count,
+ * and the wrap itself happens where the text renders.
  */
-const clampToRow = (args: { state: NamingState; cells: number }): NamingState => {
-  const startCells = Math.min(args.state.startCells, args.cells);
+const clampToCap = (args: { state: NamingState; cells: number }): NamingState => {
+  const startCells = Math.min(args.state.startCells, args.cells * TITLE_MAX_LINES);
   if (args.state.phase === ENamingPhase.Generating) {
-    return { ...args.state, startCells };
+    return { ...args.state, startCells: Math.min(args.state.startCells, args.cells) };
   }
   return {
     ...args.state,
@@ -25,7 +31,7 @@ const clampToRow = (args: { state: NamingState; cells: number }): NamingState =>
     target:
       args.state.target === null
         ? null
-        : truncateCells({ text: args.state.target, cells: args.cells }),
+        : titleCapped({ title: args.state.target, cells: args.cells }),
   };
 };
 
@@ -75,10 +81,13 @@ export function HeadSection(props: {
   return (
     <box flexDirection="column" flexShrink={0}>
       {props.naming != null ? (
-        <NamingLine state={clampToRow({ state: props.naming, cells: props.cells })} line={NAMING_SIDEBAR_LINE} />
+        <NamingLine state={clampToCap({ state: props.naming, cells: props.cells })} line={NAMING_SIDEBAR_LINE} wrap />
       ) : model.title === null ? null : (
-        <text fg={props.accented === true ? theme.court.external : theme.bright}>
-          {truncateCells({ text: model.title, cells: props.cells })}
+        <text
+          fg={props.accented === true ? theme.court.external : theme.bright}
+          wrapMode="word"
+        >
+          {titleCapped({ title: model.title, cells: props.cells })}
         </text>
       )}
       {model.turnCount === 0 ? null : (
