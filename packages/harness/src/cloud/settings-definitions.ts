@@ -6,9 +6,9 @@ import {
 } from '@dltech/atlas-core'
 
 /**
- * The cloud-only settings: server-side per-user state, never read from local settings files.
- * They live here rather than in core's registry because the harness owns the cloud client that
- * serves them; the setting ids themselves stay in core's ESettingId for every call site.
+ * The sandbox and cloud-client configuration: plain local settings, stored in the user settings
+ * file like every other row, signed in or not. They live here rather than in core's registry
+ * because the harness owns the cloud and sandbox features they configure.
  */
 export const CLOUD_SETTING_DEFINITIONS: readonly SettingDefinition[] = [
   {
@@ -50,7 +50,7 @@ export const CLOUD_SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     group: 'Cloud',
     label: 'Cloud API',
     description:
-      'Where the Atlas Cloud API lives — the backend a signed-in session syncs accounts, secrets and the user MCP layer with; signed out, the local vault is the whole store. The fallback is the production deployment; an Atlas contributor running apps/api next to the TUI points this at the local development server instead.',
+      'Where the Atlas Cloud API lives — the backend an explicit cloud sign-in syncs with; signed out, the local vault is the whole store. The fallback is the production deployment; an Atlas contributor running apps/api next to the TUI points this at the local development server instead.',
     environmentVariable: 'ATLAS_CLOUD_URL',
     kind: ESettingKind.Text,
     fallback: 'https://api.byatlas.io',

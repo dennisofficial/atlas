@@ -5,10 +5,9 @@ import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { EnvService } from '../src/_core/config/env/env.service'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
-import { SessionOrSandboxGuard } from '../src/api/platform/sessions/session-or-sandbox.guard'
+import { SessionAuthGuard } from '../src/_module/session/session-auth.guard'
 import { AccountsController } from '../src/api/platform/accounts/accounts.controller'
 import { AccountsService } from '../src/api/platform/accounts/accounts.service'
-import { BrokerService } from '../src/api/platform/accounts/broker.service'
 
 vi.mock('../src/db', () => ({ db: {} }))
 
@@ -20,7 +19,6 @@ describe('AccountsController validation (in-process)', () => {
       controllers: [AccountsController],
       providers: [
         AccountsService,
-        BrokerService,
         {
           provide: SecretCipherService,
           useValue: new SecretCipherService(
@@ -32,7 +30,7 @@ describe('AccountsController validation (in-process)', () => {
         },
       ],
     })
-      .overrideGuard(SessionOrSandboxGuard)
+      .overrideGuard(SessionAuthGuard)
       .useValue({ canActivate: () => true })
       .compile()
 
@@ -88,5 +86,33 @@ describe('AccountsController validation (in-process)', () => {
         secret: { kind: 'api-key', apiKey: 'sk-ant-test' },
       })
       .expect(400)
+  })
+
+  it('has no access-token minting route (the broker is gone)', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/accounts/acc_1/access-token')
+      .send({})
+
+    expect(response.status).toBe(404)
+  })
+
+  it('has no sandbox broker routes', async () => {
+    const server = app.getHttpServer()
+
+    const accounts = await request(server)
+      .get('/sandboxes/brn_1/broker/accounts')
+      .set('authorization', 'Bearer whatever')
+    const accessToken = await request(server)
+      .post('/sandboxes/brn_1/broker/access-token')
+      .set('authorization', 'Bearer whatever')
+      .send({ provider: 'anthropic' })
+    const secrets = await request(server)
+      .post('/sandboxes/brn_1/broker/secrets')
+      .set('authorization', 'Bearer whatever')
+      .send({ names: ['search.brave'] })
+
+    expect(accounts.status).toBe(404)
+    expect(accessToken.status).toBe(404)
+    expect(secrets.status).toBe(404)
   })
 })

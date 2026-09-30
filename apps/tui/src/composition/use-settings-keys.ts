@@ -56,19 +56,28 @@ export function useSettingsKeys(args: {
     onDismiss,
   } = args
 
+  const cloudRow = useCallback(
+    (target: SettingsState): SettingsState => {
+      const page = currentPage({ state: target, model: view })
+      if (page?.page.id !== ESettingPage.Cloud || signedIn) return target
+      return { ...target, rowIndex: target.rowIndex - 1 }
+    },
+    [signedIn, view],
+  )
+
   const write = useCallback(
     (target: SettingsState, next: (row: ResolvedSetting) => SettingValue) => {
-      const row = currentRow({ state: target, model: view })
+      const row = currentRow({ state: cloudRow(target), model: view })
       if (row === undefined) return
 
       settle(app.settings.set({ id: row.definition.id, value: next(row) }))
     },
-    [app.settings, settle, view],
+    [app.settings, cloudRow, settle, view],
   )
 
   const handleClearValue = useCallback(
     (target: SettingsState) => {
-      const row = currentRow({ state: target, model: view })
+      const row = currentRow({ state: cloudRow(target), model: view })
       if (row === undefined) return
       if (row.definition.kind !== ESettingKind.Model && row.definition.kind !== ESettingKind.Text) {
         return
@@ -77,7 +86,7 @@ export function useSettingsKeys(args: {
 
       settle(app.settings.clear({ id: row.definition.id }))
     },
-    [app.settings, settle, view],
+    [app.settings, cloudRow, settle, view],
   )
 
   const handleActivate = useCallback(
@@ -85,13 +94,18 @@ export function useSettingsKeys(args: {
       select(target)
 
       if (currentPage({ state: target, model: view })?.page.id === ESettingPage.Cloud) {
-        if (!signedIn || cloudPage.action !== null) {
+        if (!signedIn) {
+          if (target.rowIndex === 0) {
+            cloudPage.handleActivate()
+            return
+          }
+        } else if (cloudPage.action !== null) {
           cloudPage.handleActivate()
           return
         }
       }
 
-      const row = currentRow({ state: target, model: view })
+      const row = currentRow({ state: cloudRow(target), model: view })
       if (row === undefined) return
 
       if (row.definition.kind === ESettingKind.Secret) {
@@ -111,7 +125,7 @@ export function useSettingsKeys(args: {
 
       write(target, (held) => activateSetting({ definition: held.definition, current: held.value }))
     },
-    [cloudPage, onChooseModel, secret, select, signedIn, text, view, write],
+    [cloudPage, cloudRow, onChooseModel, secret, select, signedIn, text, view, write],
   )
 
   const handleKey = useCallback(
@@ -158,7 +172,12 @@ export function useSettingsKeys(args: {
       }
 
       if (key.name === 'up' || key.name === 'down') {
-        select(moveRow({ state, model: view, delta: key.name === 'up' ? -1 : 1 }))
+        const delta = key.name === 'up' ? -1 : 1
+        if (onCloudPage && !signedIn) {
+          select({ pageIndex: state.pageIndex, rowIndex: Math.max(0, state.rowIndex + delta) })
+          return
+        }
+        select(moveRow({ state, model: view, delta }))
         return
       }
 
@@ -184,6 +203,7 @@ export function useSettingsKeys(args: {
     },
     [
       cloudPage,
+      cloudRow,
       github,
       handleActivate,
       handleClearValue,

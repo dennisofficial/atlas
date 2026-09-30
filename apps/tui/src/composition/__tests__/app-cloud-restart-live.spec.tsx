@@ -6,11 +6,8 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import { EExecutionLocation, type EventLogPort } from '@dltech/atlas-core'
 import {
   CloudSessionStore,
-  CloudSettingsStore,
   FileSecretsStore,
   SecretCipher,
-  SecretsStoreProxy,
-  SystemClock,
   atlasCloudFile,
   atlasSecretsFile,
   atlasVaultKeyFile,
@@ -20,6 +17,7 @@ import {
   sandboxImageOf,
   VercelDriver,
   sandboxNameFor,
+  sandboxServeTokenFor,
   type CloudBridge,
   type CloudChannel,
 } from '@dltech/atlas-harness'
@@ -105,25 +103,12 @@ describe.skipIf(!liveRunRequested())('the live /container cloud restart repro ag
     register({ label: 'scratch repo', run: () => rm(scratch.dir, { recursive: true, force: true }) })
     register({ label: 'scratch remote', run: () => rm(scratch.remote, { recursive: true, force: true }) })
 
-    const localSecrets = new FileSecretsStore({
+    const secrets = new FileSecretsStore({
       file: atlasSecretsFile(),
       cipher: new SecretCipher(atlasVaultKeyFile()),
     })
-    const secrets = new SecretsStoreProxy({
-      local: localSecrets,
-      sessions: sessionStore,
-      clientVersion: 'atlas-restart-live',
-    })
-    write0('boot: warming secrets')
-    await secrets.warm()
-    const cloudSettings = new CloudSettingsStore({
-      sessions: sessionStore,
-      clock: new SystemClock(),
-      clientVersion: 'atlas-restart-live',
-    })
-    write0('boot: refreshing cloud settings')
-    await cloudSettings.refresh()
-    const settings = loadSettings({ env: process.env, cwd: scratch.dir, cloud: cloudSettings })
+    write0('boot: secrets ready')
+    const settings = loadSettings({ env: process.env, cwd: scratch.dir })
     register({ label: 'settings service', run: async () => settings.service.close() })
     requireVercelCredentials({ settings: settings.service, secrets })
     write0('boot: vercel creds resolved')
@@ -137,13 +122,11 @@ describe.skipIf(!liveRunRequested())('the live /container cloud restart repro ag
     let cloudLog: EventLogPort | null = null
     const driverLines: string[] = []
     const inner = createCloudBridge({
-      url: session.url,
-      token: session.token,
-      clientVersion: 'atlas-restart-live',
       vercel: () => ({
         credentials: requireVercelCredentials({ settings: settings.service, secrets }),
         ...sandboxImageOf({ settings: settings.service, release }),
       }),
+      attachmentToken: ({ threadId: tid }) => sandboxServeTokenFor({ secrets, threadId: tid }),
       readGitToken: () => readGhAuthToken(),
       onDriverLog: (line) => driverLines.push(line),
     })

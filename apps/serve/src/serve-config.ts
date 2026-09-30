@@ -5,6 +5,12 @@ export { EServeEnv }
 
 export const DEFAULT_SERVE_PORT = 3000
 
+/**
+ * Serve boots local-first: the Atlas API is reached only by optional machinery (PR/CI realtime),
+ * never for credentials, so a sandbox created without the variable still serves.
+ */
+export const DEFAULT_CLOUD_URL = 'https://api.byatlas.io'
+
 const MAX_PORT = 65_535
 
 export class ServeNeedsConfiguration extends Error {
@@ -67,13 +73,7 @@ export function serveConfig(args: {
     })
   }
 
-  const controlPlaneUrl = args.controlPlaneUrl ?? given(env[EServeEnv.CloudUrl])
-  if (controlPlaneUrl === undefined) {
-    throw new ServeNeedsConfiguration({
-      variable: EServeEnv.CloudUrl,
-      detail: 'has no Atlas Cloud API to read the durable log from',
-    })
-  }
+  const controlPlaneUrl = args.controlPlaneUrl ?? given(env[EServeEnv.CloudUrl]) ?? DEFAULT_CLOUD_URL
 
   return {
     threadId: toThreadId(thread),

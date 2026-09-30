@@ -144,7 +144,7 @@ describe('a mention in the draft', () => {
 
     try {
       await setup.mockInput.typeText('why is @src/mentionable.ts broken')
-      await landed(setup)
+      expect(await painted({ setup, text: '@src/mentionable.ts' })).toBe(true)
 
       setup.mockInput.pressEnter()
       await frameShowing({ setup, text: REPLIED })
@@ -196,7 +196,7 @@ describe('mentioning a file from the composer', () => {
 
     try {
       await setup.mockInput.typeText('read @sr')
-      await landed(setup)
+      await frameShowing({ setup, text: 'src/' })
 
       await setup.mockInput.pressTab()
 
@@ -214,7 +214,7 @@ describe('mentioning a file from the composer', () => {
 
     try {
       await setup.mockInput.typeText('read @src/ment')
-      await landed(setup)
+      await frameShowing({ setup, text: 'src/mentionable.ts' })
 
       await setup.mockInput.pressTab()
 
@@ -246,7 +246,7 @@ describe('mentioning a file from the composer', () => {
 
     try {
       await setup.mockInput.typeText('why is @src/mentionable.ts broken')
-      await landed(setup)
+      expect(await painted({ setup, text: '@src/mentionable.ts' })).toBe(true)
 
       setup.mockInput.pressEnter()
 

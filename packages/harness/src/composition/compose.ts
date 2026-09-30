@@ -21,7 +21,6 @@ import {
   choiceValueOf,
   parseRef,
   textValueOf,
-  type Account,
   type CapabilitiesSource,
 } from '@dltech/atlas-core'
 
@@ -41,8 +40,10 @@ import { ExecutionLocationToken } from './execution-location-state'
 import {
   ClientVersionToken,
   HookMishapReporterToken,
+  LocalSecretsStoreToken,
   SecretsStoreToken,
   SleepPreventionToken,
+  UserSettingsStoreToken,
   WakeSignalToken,
   WorkspaceRoot,
 } from '../container/tokens'
@@ -55,7 +56,6 @@ import { FileBrowser } from '../files/file-browser'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import { summaryFor } from '../model/summariser'
 import { titleFor } from '../model/titler'
-import { CloudError } from '../cloud/cloud-transport'
 import { EMcpAuthOutcome } from '../mcp/oauth/flow'
 import { registerMcp } from '../mcp/registry/register-mcp'
 import { createPendingQueues } from '../pending'
@@ -64,7 +64,9 @@ import { PromptRegistry } from '../prompt/registry'
 import { SleepPrevention } from '../power/sleep-prevention'
 import { ServiceRegistryPort } from '../services/service-registry'
 import { ShellRegistryPort } from '../shells/shell-registry'
+import { legacyRestoreMarkerExists, restoreLegacySandboxConfiguration } from '../cloud/legacy-settings-restore'
 import { atlasDirectory } from '../store/paths'
+import { legacyRestoreMarkerFile } from './config'
 import { ThreadStorePort } from '../store/thread-store'
 import { ToolRegistry } from '../tools/registry'
 import { ClockJumpDetector } from '../wake/clock-jump-detector'
@@ -101,6 +103,8 @@ import { claimLaunchWorktree, threadOpenedHandler } from './worktree-claims'
  * into it, so every other caller sees a properly typed `ContributedSurface<TPluginSurface>[]`
  * instead of reaching for its own cast.
  */
+const SERVE_COMMAND = 'serve'
+
 const asPluginSurfaces = <TPluginSurface>(
   surfaces: readonly ContributedSurface[],
 ): readonly ContributedSurface<TPluginSurface>[] =>
@@ -186,6 +190,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
 
   const settings = args.settings.service
   const settled = settings.snapshot().resolution
+  let legacyRestore: ReturnType<typeof restoreLegacySandboxConfiguration> | undefined
 
   // The sandbox container is keyed to the session, not the project directory: two tiles working
   // the same checkout get isolated containers, and resuming a thread reattaches to its own.
@@ -230,36 +235,69 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
       settings.close()
     },
   })
-  const { credentials, accounts, cloud, cloudSettings, usage, rewarmSecrets } = await bindAccounts({
+  const { credentials, accounts, cloud, usage } = await bindAccounts({
     container,
     env: args.env,
-    notice,
     cloudUrl: launchValue(ESettingId.CloudUrl),
     clientVersion: args.clientVersion,
+    reconcileHostSources: launch.command !== SERVE_COMMAND,
   })
-  settings.attachCloud(cloudSettings)
   const secrets = container.resolve(SecretsStoreToken)
+
+  const session = cloud.session()
+  if (
+    launch.command !== SERVE_COMMAND &&
+    session !== null &&
+    !legacyRestoreMarkerExists({ file: legacyRestoreMarkerFile() })
+  ) {
+    legacyRestore = restoreLegacySandboxConfiguration({
+      session,
+      resolution: settled,
+      secrets: container.resolve(LocalSecretsStoreToken),
+      ...(container.isRegistered(UserSettingsStoreToken, true)
+        ? { settingsStore: container.resolve(UserSettingsStoreToken) }
+        : {}),
+      markerFile: legacyRestoreMarkerFile(),
+      clientVersion: args.clientVersion,
+    })
+    void legacyRestore.promise.then((report) => {
+      if (report === undefined) return
+      if (report.outcome === 'restored') {
+        settings.reload()
+        notice.notify({
+          key: 'cloud:legacy-settings-restored',
+          tone: ENoticeTone.Info,
+          ttlMs: NOTICE_WARN_MS,
+          text: `Restored sandbox settings from your Atlas Cloud sign-in: ${report.restored.join(', ')}.`,
+        })
+        return
+      }
+      if (report.outcome === 'unreachable' || report.malformed.length > 0) {
+        const detail =
+          report.malformed.length > 0
+            ? ` values the cloud holds for ${report.malformed.join(', ')} did not parse and were skipped`
+            : ' the cloud API did not answer'
+        notice.notify({
+          key: 'cloud:legacy-settings-restore-failed',
+          tone: ENoticeTone.Warn,
+          ttlMs: NOTICE_WARN_MS,
+          text: `Atlas could not restore your legacy sandbox settings from the cloud:${detail}. Set them again from settings if cloud sandboxes fail.`,
+        })
+      }
+    })
+  }
 
   await bindSettingsPolicy({ container, settings, workspace, credentials, cwd: anchor })
 
-  // A serve session reads accounts through the thread-scoped broker; a control-plane outage
-  // mid-boot must not be fatal when the launch already pins a model (factory sandboxes do), or
-  // the orchestrator never wakes. Model resolution tolerates an empty list — accounts are read
-  // again per turn — so degrade to none and warn rather than crash the boot.
-  const bootAccountList = await accountStore
-    .list()
-    .catch((error: unknown): readonly Account[] => {
-      if (!(error instanceof CloudError && (error.status === 0 || error.status >= 500))) {
-        throw error
-      }
-      notice.notify({
-        key: 'cloud:accounts',
-        tone: ENoticeTone.Warn,
-        ttlMs: NOTICE_WARN_MS,
-        text: `Atlas Cloud accounts could not be listed at boot — ${error.message.split('\n')[0] ?? ''}. The launch model still runs; account-aware picks settle on the first turn.`,
-      })
-      return []
+  const bootAccountList = await accountStore.list()
+  if (bootAccountList.length === 0 && cloud.session() !== null) {
+    notice.notify({
+      key: 'cloud:legacy-accounts',
+      tone: ENoticeTone.Warn,
+      ttlMs: NOTICE_WARN_MS,
+      text: 'Atlas found no local accounts, but a cloud sign-in may still hold them. Pull them down with a cloud download from settings; Atlas never fetches them on its own.',
     })
+  }
 
   await bindInstructionsAndMemory({
     container,
@@ -456,7 +494,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     summarise,
     settings,
     secrets,
-    rewarmSecrets,
     skills: skillRegistry.all(),
     skillRegistry,
     agentTypes,
@@ -503,6 +540,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     journalResume: ({ active, directory }) =>
       journalResume({ active, command: launch.command, directory }),
     captureContext: boundCaptureContext({ notice }),
+    legacySettingsRestore: legacyRestore?.promise,
     pluginProjections: plugins.projections,
     pluginSurfaces: asPluginSurfaces<TPluginSurface>(plugins.surfaces),
     model,

@@ -7,10 +7,71 @@ import { ESandboxState, type SandboxWorkspaceSpec } from './sandboxes.types'
 import { SANDBOX_REGION } from './vercel-sandbox.client'
 import { workspaceColumnsOf, type WorkspaceColumns } from './workspace-spec'
 
+export async function registerSandboxRow(args: {
+  thread: ThreadModel
+  tokenHash: string
+  sealedToken: string
+  serveUrl: string
+  driveName?: string | null | undefined
+}): Promise<Pick<CloudSandboxModel, 'name' | 'serveUrl'>> {
+  const at = new Date().toISOString()
+  return db.cloudSandbox.upsert({
+    where: { threadId: args.thread.id },
+    select: { name: true, serveUrl: true },
+    create: {
+      id: `sbx_${randomUUID()}`,
+      threadId: args.thread.id,
+      userId: args.thread.userId,
+      sandboxId: '',
+      name: sandboxNameFor({ threadId: args.thread.id }),
+      region: SANDBOX_REGION,
+      state: ESandboxState.Running,
+      lastActivityAt: at,
+      tokenHash: args.tokenHash,
+      sealedToken: args.sealedToken,
+      contextPending: false,
+      serveUrl: args.serveUrl,
+      ...(args.driveName === undefined ? {} : { driveName: args.driveName }),
+      createdAt: at,
+      updatedAt: at,
+    },
+    update: {
+      tokenHash: args.tokenHash,
+      sealedToken: args.sealedToken,
+      state: ESandboxState.Running,
+      contextPending: false,
+      lastActivityAt: at,
+      updatedAt: at,
+      serveUrl: args.serveUrl,
+      ...(args.driveName === undefined ? {} : { driveName: args.driveName }),
+    },
+  })
+}
+
+export async function stampRegistrationMetadata(args: {
+  thread: ThreadModel
+  metadata: { title?: string; repo?: string; model?: string } | undefined
+}): Promise<void> {
+  const metadata = args.metadata
+  await db.thread.update({
+    where: { id: args.thread.id },
+    select: { id: true },
+    data: {
+      executionLocation: 'cloud',
+      updatedAt: new Date().toISOString(),
+      ...(metadata?.title === undefined || args.thread.title !== null
+        ? {}
+        : { title: metadata.title }),
+      ...(metadata?.repo === undefined ? {} : { repo: metadata.repo }),
+      ...(metadata?.model === undefined ? {} : { modelRef: metadata.model }),
+    },
+  })
+}
+
 /** The columns provisioning reads back; the blob columns written by the upsert never return. */
 export type ClaimedSandbox = Pick<
   CloudSandboxModel,
-  'threadId' | 'name' | 'driveName' | 'pinnedModel' | 'contextPending'
+  'threadId' | 'name' | 'driveName' | 'pinnedModel' | 'contextPending' | 'serveUrl'
 >
 
 export type ClaimUpdate = Partial<WorkspaceColumns> & {
@@ -21,6 +82,7 @@ export type ClaimUpdate = Partial<WorkspaceColumns> & {
   contextPending?: boolean
   driveName?: string | null
   pinnedModel?: string | null
+  serveUrl?: string | null
   lastActivityAt: string
   updatedAt: string
 }
@@ -46,6 +108,7 @@ export function rotationOf(args: {
   drive?: { name: string } | undefined
   driveName?: string | null | undefined
   pinnedModel?: string | undefined
+  serveUrl?: string | undefined
   at: string
 }): ClaimUpdate {
   const rotation: ClaimUpdate = {
@@ -69,6 +132,7 @@ export function rotationOf(args: {
   if (args.contextBundle !== undefined) rotation.workspaceContext = args.contextBundle
   Object.assign(rotation, driveRotationOf({ drive: args.drive, driveName: args.driveName }))
   if (args.pinnedModel !== undefined) rotation.pinnedModel = args.pinnedModel
+  if (args.serveUrl !== undefined) rotation.serveUrl = args.serveUrl
   return rotation
 }
 
@@ -93,6 +157,7 @@ export function claimSandboxRow(args: {
   drive?: { name: string } | undefined
   driveName?: string | null | undefined
   pinnedModel?: string | undefined
+  serveUrl?: string | undefined
 }): Promise<ClaimedSandbox> {
   const at = new Date().toISOString()
   const columns: WorkspaceColumns = {
@@ -107,6 +172,7 @@ export function claimSandboxRow(args: {
       driveName: true,
       pinnedModel: true,
       contextPending: true,
+      serveUrl: true,
     },
     create: {
       id: `sbx_${randomUUID()}`,
@@ -125,6 +191,7 @@ export function claimSandboxRow(args: {
       ...columns,
       driveName: args.drive?.name ?? args.driveName ?? null,
       pinnedModel: args.pinnedModel ?? null,
+      serveUrl: args.serveUrl ?? null,
       createdAt: at,
       updatedAt: at,
     },

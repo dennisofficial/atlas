@@ -46,10 +46,39 @@ export class WorkspaceSpecDto {
   gitIdentity?: GitIdentityDto | null
 }
 
+export class RegisterSandboxMetadataDto {
+  @IsOptional()
+  @IsString()
+  title?: string
+
+  @IsOptional()
+  @IsString()
+  repo?: string
+
+  @IsOptional()
+  @IsString()
+  model?: string
+}
+
 export class ClaimSandboxDto {
   @IsString()
   @IsNotEmpty()
   threadId!: string
+
+  @IsOptional()
+  @IsString()
+  @MinLength(64)
+  clientToken?: string
+
+  @IsOptional()
+  @IsString()
+  serveUrl?: string
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => RegisterSandboxMetadataDto)
+  metadata?: RegisterSandboxMetadataDto
 
   @IsOptional()
   @IsObject()

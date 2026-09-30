@@ -109,12 +109,10 @@ export function useSettings(args: {
   const secret = useSecretPrompt({ secrets: app.secrets, resolution: held.resolution })
   const text = useTextPrompt({ settings: app.settings, settle })
 
-  const rewarmSecrets = useCallback(() => {
-    void app
-      .rewarmSecrets()
-      .then(secret.refresh)
-      .catch(() => undefined)
-  }, [app, secret.refresh])
+  const reloadSettings = useCallback(() => {
+    app.settings.reload()
+    secret.refresh()
+  }, [app.settings, secret.refresh])
 
   const {
     session: cloudSession,
@@ -129,13 +127,18 @@ export function useSettings(args: {
     handleDownload,
     handleOpenSignInUrl,
     handleOpenGithubUrl,
-  } = useSettingsCloud({ cloud: app.cloud, openUrl: app.openUrl, onSignedIn: rewarmSecrets })
+  } = useSettingsCloud({
+    cloud: app.cloud,
+    openUrl: app.openUrl,
+    onSignedIn: secret.refresh,
+    onDownloaded: reloadSettings,
+  })
 
   const handleOpen = useCallback(() => {
     readCloudSession()
-    rewarmSecrets()
+    secret.refresh()
     setState(openSettings())
-  }, [readCloudSession, rewarmSecrets])
+  }, [readCloudSession, secret.refresh])
 
   const handlePinModels = useCallback(
     (favourites: readonly string[]) => {

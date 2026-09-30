@@ -72,6 +72,11 @@ describe('the cloud settings rows', () => {
     expect(frame).not.toContain('GitHub')
   })
 
+  it('names accounts, secrets, MCP and settings in the sync labels', () => {
+    expect(UPLOAD_LABEL).toBe('Back up accounts, secrets, MCP & settings to cloud')
+    expect(DOWNLOAD_LABEL).toBe('Restore accounts, secrets, MCP & settings from cloud')
+  })
+
   it('marks the selected action and only that action', async () => {
     const selected = await frameOf(cloud({ action: ECloudAction.Upload }), WIDTH)
     const rows = selected.split('\n').filter((row) => row.includes('❯'))
@@ -89,11 +94,17 @@ describe('the cloud settings rows', () => {
 
   it('reads out the upload feedback under its row', async () => {
     const frame = await frameOf(
-      cloud({ upload: { running: false, notice: 'Uploaded 2 accounts, 1 secret and 0 mcp servers to the cloud.', failure: null } }),
+      cloud({
+        upload: {
+          running: false,
+          notice: 'Uploaded 2 accounts, 1 secret, 0 mcp servers and 3 settings to the cloud.',
+          failure: null,
+        },
+      }),
       WIDTH,
     )
 
-    expect(frame).toContain('Uploaded 2 accounts, 1 secret and 0 mcp servers to the cloud.')
+    expect(frame).toContain('Uploaded 2 accounts, 1 secret, 0 mcp servers and 3 settings to the cloud.')
   })
 
   it('reads out a download failure under its row', async () => {

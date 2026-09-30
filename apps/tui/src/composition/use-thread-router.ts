@@ -44,16 +44,13 @@ export function useThreadRouter(args: {
   const { localApp, cloudBridge, cloudSession, createBridge, containerMove } = args
   const bridgeRef = useRef<CloudBridge | null>(null)
 
-  const ensureBridge = useCallback((): CloudBridge | null => {
+  const ensureBridge = useCallback((): CloudBridge => {
     if (cloudBridge !== null) return cloudBridge
     if (bridgeRef.current !== null) return bridgeRef.current
 
-    const signedIn = localApp.cloud.session()
-    if (signedIn === null) return null
-
-    bridgeRef.current = createBridge({ url: signedIn.url, token: signedIn.token })
+    bridgeRef.current = createBridge()
     return bridgeRef.current
-  }, [cloudBridge, createBridge, localApp])
+  }, [cloudBridge, createBridge])
 
   const listing = useCallback((): Pick<ThreadStorePort, 'list'> => cloudListing(localApp), [localApp])
 
@@ -62,15 +59,6 @@ export function useThreadRouter(args: {
       if (threadId === args.activeThreadId && cloudSession !== null) return
 
       const bridge = ensureBridge()
-      if (bridge === null) {
-        notify({
-          key: 'cloud-open-signin',
-          text: 'that conversation lives in the cloud — sign in from settings (ctrl+o) › cloud to open it',
-          tone: ENoticeTone.Warn,
-          ttlMs: NOTICE_WARN_MS,
-        })
-        return
-      }
 
       const attachment = await openCloudThread({
         app: localApp,
@@ -153,7 +141,7 @@ export function useThreadRouter(args: {
   }, [attach, cloudSession, args.opened, localApp])
 
   const findSandbox = useCallback(
-    (): Pick<CloudSandboxes, 'find'> | null => ensureBridge()?.sandboxes ?? null,
+    (): Pick<CloudSandboxes, 'find'> => ensureBridge().sandboxes,
     [ensureBridge],
   )
 

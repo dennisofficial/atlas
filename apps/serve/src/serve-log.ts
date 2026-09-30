@@ -25,6 +25,8 @@ export enum EServeEvent {
   ChildAdoptionFailed = 'serve.child-adoption-failed',
   LostShellsSettled = 'serve.lost-shells-settled',
   LostShellSettlementFailed = 'serve.lost-shell-settlement-failed',
+  PortableStateInstalled = 'serve.portable-state-installed',
+  PortableStateFailed = 'serve.portable-state-failed',
 }
 
 export type ServeLogLine = { event: EServeEvent; [field: string]: unknown }

@@ -11,7 +11,6 @@ import {
   LogPort,
   ModelPort,
   NoopExecutionLocationSink,
-  NoticePort,
   TelemetryPort,
   telemetryEnabled,
 } from '@dltech/atlas-core'
@@ -27,9 +26,7 @@ import { AgentRegistryPort } from '../agents/registry/port'
 import { AgentSupervisor } from '../agents/registry/supervisor'
 import type { AgentType } from '../agents/types/agent-type'
 import { BUILT_IN_AGENT_TYPES } from '../agents/types/built-ins'
-import { AccountStoreProxy } from '../cloud/account-store-proxy'
-import { CredentialPortProxy } from '../cloud/credential-port-proxy'
-import { SecretsStoreProxy } from '../cloud/secrets-store-proxy'
+import { restoreArchivedLocalFiles } from '../cloud/local-recovery'
 import { ClaudeCodeSource, claudeCodePayloadStore } from '../credentials/claude-code-source'
 import { CodexSource } from '../credentials/codex-source'
 import { fileAccountStore } from '../credentials/account-store'
@@ -38,7 +35,6 @@ import { atlasVaultFile, atlasVaultKeyFile } from '../credentials/paths'
 import { SecretCipher } from '../credentials/secret-cipher'
 import { FileSecretsStore } from '../secrets/file-secrets-store'
 import { atlasSecretsFile } from '../secrets/paths'
-import { BrokeredCredentialPort } from '../credentials/brokered-credential-port'
 import { RefreshingCredentialPort } from '../credentials/refreshing-credential-port'
 import { registerBuiltinHooks } from '../hooks/register-hooks'
 import { TurnLedgerPort } from '../ledger'
@@ -78,8 +74,6 @@ import {
 import {
   ClaudeCodeSourceToken,
   ClientVersionToken,
-  CloudSessionStoreToken,
-  CloudSettingsStoreToken,
   CodexSourceToken,
   HookChainToken,
   KeychainReaderToken,
@@ -152,6 +146,8 @@ export function createHarnessContainer(): DependencyContainer {
   const tape = createRawTape({ scope: `pid-${process.pid}` })
   registerDisposable({ container: harness, close: () => tape.close() })
 
+  restoreArchivedLocalFiles()
+
   const home = atlasDirectory()
   harness.register(AtlasHomeToken, { useValue: home })
   harness.register(SessionRegistryToken, { useValue: registryFor({ home }) })
@@ -209,6 +205,8 @@ export function createHarnessContainer(): DependencyContainer {
       ),
     ),
   })
+  registerCloudStores({ container: harness, clientVersion: clientVersionOf })
+
   harness.register(LocalAccountStoreToken, {
     useFactory: instanceCachingFactory(
       (resolver) =>
@@ -219,19 +217,8 @@ export function createHarnessContainer(): DependencyContainer {
         }),
     ),
   })
-
-  registerCloudStores({ container: harness, clientVersion: clientVersionOf })
-
   harness.register(portToken(AccountStorePort), {
-    useFactory: instanceCachingFactory(
-      (resolver) =>
-        new AccountStoreProxy({
-          local: resolver.resolve(LocalAccountStoreToken),
-          sessions: resolver.resolve(CloudSessionStoreToken),
-          clientVersion: clientVersionOf(resolver),
-          clock: resolver.resolve(portToken(ClockPort)),
-        }),
-    ),
+    useFactory: instanceCachingFactory((resolver) => resolver.resolve(LocalAccountStoreToken)),
   })
 
   harness.register(LocalSecretsStoreToken, {
@@ -243,19 +230,8 @@ export function createHarnessContainer(): DependencyContainer {
         }),
     ),
   })
-
   harness.register(SecretsStoreToken, {
-    useFactory: instanceCachingFactory(
-      (resolver) =>
-        new SecretsStoreProxy({
-          local: resolver.resolve(LocalSecretsStoreToken),
-          sessions: resolver.resolve(CloudSessionStoreToken),
-          clientVersion: clientVersionOf(resolver),
-          ...(resolver.isRegistered(portToken(NoticePort), true)
-            ? { notice: resolver.resolve(portToken(NoticePort)) }
-            : {}),
-        }),
-    ),
+    useFactory: instanceCachingFactory((resolver) => resolver.resolve(LocalSecretsStoreToken)),
   })
 
   harness.register(ClaudeCodeSourceToken, {
@@ -274,28 +250,11 @@ export function createHarnessContainer(): DependencyContainer {
   harness.register(portToken(CredentialPort), {
     useFactory: instanceCachingFactory((resolver) => {
       const clock = resolver.resolve(portToken(ClockPort))
-      const accounts = resolver.resolve(portToken(AccountStorePort))
-      const sessions = resolver.resolve(CloudSessionStoreToken)
-
-      return new CredentialPortProxy({
-        sessions,
-        local: new RefreshingCredentialPort({
-          accounts,
-          clients: builtinOauthClients({ clock }),
-          clock,
-          sinks: [resolver.resolve(ClaudeCodeSourceToken), resolver.resolve(CodexSourceToken)],
-        }),
-        brokered: new BrokeredCredentialPort({
-          accounts,
-          sessions,
-          clock,
-          clientVersion: clientVersionOf(resolver),
-          onCredentialsRefused: () => {
-            resolver.resolve(CloudSettingsStoreToken).invalidate()
-            const store = resolver.resolve(portToken(AccountStorePort))
-            if (store instanceof AccountStoreProxy) store.invalidate()
-          },
-        }),
+      return new RefreshingCredentialPort({
+        accounts: resolver.resolve(portToken(AccountStorePort)),
+        clients: builtinOauthClients({ clock }),
+        clock,
+        sinks: [resolver.resolve(ClaudeCodeSourceToken), resolver.resolve(CodexSourceToken)],
       })
     }),
   })

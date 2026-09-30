@@ -22,6 +22,8 @@ import {
   ESettingsLayer,
   ATLAS_TELEMETRY_IDENTITY_ENV,
   launchWorktreeOf,
+  parseRef,
+  refKey,
   textValueOf,
   type Account,
   type EUsageWindow,
@@ -29,7 +31,7 @@ import {
   type SettingsResolution,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { atlasDirectory, EChannelConnection, forkConversation, persistedTelemetryDistinctId, readGhAuthToken, relocateSession, requireVercelCredentials, SandboxClient, sandboxImageOf, settingModelRef, suggestedModelRef, VercelDriver, type DiscoveredSkill } from '@dltech/atlas-harness'
+import { atlasDirectory, capturePortableState, detachedLiftVerdict, EChannelConnection, forkConversation, persistedTelemetryDistinctId, readGhAuthToken, relocateSession, requireVercelCredentials, SandboxClient, sandboxImageOf, sandboxServeTokenFor, settingModelRef, storedModel, suggestedModelRef, VercelDriver, type DiscoveredSkill } from '@dltech/atlas-harness'
 
 import { newestExpandableKey, type PendingSaid } from '../store'
 import { TITLE_CELLS } from '../store/sidebar-text'
@@ -260,11 +262,6 @@ const readoutOf = (args: {
   return { percent: pressure.percent, tokensUsed: pressure.used, meters: args.meters }
 }
 
-/**
- * The live bridge closes over the app's settings and secrets: the claim rides the Atlas Cloud
- * session, but every Vercel call is driven with the operator's own token, read fresh from the
- * sealed secrets file at each attach so a rotated token is picked up without a restart.
- */
 const releaseBuildOf = (): { version: string } | undefined => {
   const build = buildInfo()
   if (build.kind !== EBuildKind.Release) return undefined
@@ -301,22 +298,82 @@ export const telemetryEnvironmentOf = (): Record<string, string> => {
   return id === undefined ? {} : { [ATLAS_TELEMETRY_IDENTITY_ENV]: id }
 }
 
+/**
+ * The live bridge: every Vercel call is driven with the operator's own token, read fresh from the
+ * sealed secrets file at each attach so a rotated token is picked up without a restart. The serve
+ * token is minted locally and held in the same store — no cloud sign-in is needed to provision,
+ * and a sign-in only adds the best-effort registry entry after the sandbox answers.
+ */
 const liveBridgeFor = (app: AtlasApp): CloudBridgeFactory => {
-  return ({ url, token }) =>
+  return () =>
     createCloudBridge({
-      url,
-      token,
-      clientVersion: clientVersionHeader(),
       vercel: () => ({
         credentials: requireVercelCredentials({ settings: app.settings, secrets: app.secrets }),
         ...sandboxImageOf({ settings: app.settings, release: releaseBuildOf() }),
       }),
+      attachmentToken: ({ threadId }) => sandboxServeTokenFor({ secrets: app.secrets, threadId }),
       readGitToken: () => readGhAuthToken(),
+      capturePortable: () => capturePortableState({}),
+      onPortableOmitted: (omitted) => {
+        const parts: string[] = []
+        if (omitted.oauthAccounts.length > 0) {
+          parts.push(
+            `subscription OAuth accounts stayed on this machine (${omitted.oauthAccounts.join(', ')}) — the sandbox authenticates those providers on API keys only`,
+          )
+        }
+        if (omitted.mcpOauthSecrets.length > 0) {
+          parts.push(
+            `MCP OAuth sign-ins stayed local (${omitted.mcpOauthSecrets.join(', ')}) — these servers need separately configured non-OAuth credentials to authenticate in a detached sandbox`,
+          )
+        }
+        noticePortBinding().notify({
+          text: `the cloud session boots without everything this machine holds: ${parts.join('; ')}`,
+          tone: ENoticeTone.Warn,
+        })
+      },
+      registration: async ({ threadId }) => {
+        if (app.cloud.session() === null) return undefined
+        const metadata = await registryMetadataOf({ app, threadId }).catch(() => undefined)
+        return metadata === undefined ? {} : { metadata }
+      },
+      sendRegistration: ({ registration }) => {
+        const session = app.cloud.session()
+        if (session === null) return
+        const registry = new SandboxClient({
+          url: session.url,
+          token: session.token,
+          clientVersion: clientVersionHeader(),
+        })
+        return registry.registerSandbox(registration)
+      },
+      onRegistrationFailed: () => {
+        noticePortBinding().notify({
+          text: 'the sandbox is up, but Atlas Cloud could not register it — remote control and the cloud listing will miss it until the next lift',
+          tone: ENoticeTone.Warn,
+        })
+      },
       environment: () => ({
         ...cloudEnvironmentOf(app.settings.snapshot().resolution),
         ...telemetryEnvironmentOf(),
       }),
     })
+}
+
+/**
+ * The registry row's listing metadata, read off the local thread record and the live model choice:
+ * /resume's remote discovery renders title, repo and model straight from it. The row lookup is
+ * async, so it resolves before the provision call rather than at registration time.
+ */
+const registryMetadataOf = async (args: {
+  app: AtlasApp
+  threadId: ThreadId
+}): Promise<{ title?: string; repo?: string; model?: string } | undefined> => {
+  const metadata: { title?: string; repo?: string; model?: string } = {}
+  const held = await args.app.threads.find({ threadId: args.threadId })
+  if (held?.title !== undefined) metadata.title = held.title
+  if (held?.repo !== undefined && held?.repo !== null) metadata.repo = held.repo
+  metadata.model = storedModel(args.app.model.choice()).ref
+  return metadata
 }
 
 /**
@@ -361,16 +418,22 @@ export const reapExpiredSandboxesOnBoot = (app: AtlasApp): void => {
 }
 
 /**
- * The same checks the bridge's create would hit, run up front: a lift with no Vercel credentials
- * or no gh login refuses before anything stops or transfers, instead of failing at the sandbox
- * wait four steps in.
+ * The checks the bridge's create would hit, run up front: a lift with no Vercel credentials
+ * refuses before anything stops or transfers, instead of failing at the sandbox wait four steps
+ * in. A missing gh login no longer blocks — the sandbox boots without push access. A selected
+ * OAuth account refuses too: a detached sandbox authenticates on API keys alone, and copying a
+ * rotating grant would invalidate this machine's own login the first time the sandbox refreshed.
  */
 const liveLiftPreflightFor =
   (app: AtlasApp): LiftPreflight =>
   async () => {
     try {
       requireVercelCredentials({ settings: app.settings, secrets: app.secrets })
-      await readGhAuthToken()
+      const detached = await detachedLiftVerdict({
+        providerId: parseRef(refKey(app.model.choice().ref))?.providerId,
+        accounts: app.accounts,
+      })
+      if (!detached.ok) return detached.refusal
       return null
     } catch (error) {
       return messageOf(error)
@@ -1148,7 +1211,7 @@ function Workspace(props: {
     props.app.cloud.markSignInOffered()
     notify({
       key: 'cloud-sign-in-offer',
-      text: 'sign in to Atlas Cloud to unlock cloud sandboxes and remote control — settings (ctrl+o) › cloud',
+      text: 'sign in to Atlas Cloud to register cloud sandboxes for remote control and discovery — settings (ctrl+o) › cloud',
       tone: ENoticeTone.Info,
       ttlMs: 20_000,
     })

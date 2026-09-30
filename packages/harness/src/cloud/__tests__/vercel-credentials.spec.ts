@@ -40,19 +40,6 @@ const definitions = [
 const settingsWith = (values: Record<string, string>) =>
   createSettingsService({
     definitions,
-    user: new MemorySettingsStore(),
-    cloud: {
-      signedIn: () => true,
-      values: () => values,
-      set: () => Promise.resolve(),
-      remove: () => Promise.resolve(),
-      subscribe: () => () => undefined,
-    },
-  })
-
-const settingsFromFile = (values: Record<string, string>) =>
-  createSettingsService({
-    definitions,
     user: new MemorySettingsStore({ document: { values } }),
   })
 
@@ -89,7 +76,7 @@ describe('requireVercelCredentials', () => {
   it('never accepts the token from a settings file or the environment', () => {
     const failure = () =>
       requireVercelCredentials({
-        settings: settingsFromFile({ ...FULL, [ESettingId.VercelToken]: 'pasted-into-settings' }),
+        settings: settingsWith({ ...FULL, [ESettingId.VercelToken]: 'pasted-into-settings' }),
         secrets: new FakeSecrets({}),
       })
 

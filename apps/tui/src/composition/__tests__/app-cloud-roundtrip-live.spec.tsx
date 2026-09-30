@@ -20,6 +20,7 @@ import {
   requireVercelCredentials,
   sandboxImageOf,
   sandboxNameFor,
+  sandboxServeTokenFor,
   VercelDriver,
   type CloudBridge,
   type CloudChannel,
@@ -132,7 +133,7 @@ describe.skipIf(!liveRunRequested())('the live lift to descend round trip agains
       clientVersion: 'atlas-roundtrip-live',
     })
     await cloudSettings.refresh()
-    const settings = loadSettings({ env: process.env, cwd: scratch.dir, cloud: cloudSettings })
+    const settings = loadSettings({ env: process.env, cwd: scratch.dir })
     register({ label: 'settings service', run: async () => settings.service.close() })
     requireVercelCredentials({ settings: settings.service, secrets })
     await readGhAuthToken()
@@ -144,13 +145,11 @@ describe.skipIf(!liveRunRequested())('the live lift to descend round trip agains
     let cloudLog: EventLogPort | null = null
     const driverLines: string[] = []
     const inner = createCloudBridge({
-      url: session.url,
-      token: session.token,
-      clientVersion: 'atlas-roundtrip-live',
       vercel: () => ({
         credentials: requireVercelCredentials({ settings: settings.service, secrets }),
         ...sandboxImageOf({ settings: settings.service, release }),
       }),
+      attachmentToken: ({ threadId }) => sandboxServeTokenFor({ secrets, threadId }),
       readGitToken: () => readGhAuthToken(),
       onDriverLog: (line) => driverLines.push(line),
     })

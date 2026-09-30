@@ -39,4 +39,3 @@ export function operatorSource<Command>(pending: PendingQueues<Command>): Intake
     witness: ({ threadId }) => pending.forThread({ threadId }).getSnapshot(),
   }
 }
-

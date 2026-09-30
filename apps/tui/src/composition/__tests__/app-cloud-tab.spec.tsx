@@ -1,4 +1,5 @@
-import { toThreadId } from '@dltech/atlas-core'
+import { ESettingId, toThreadId } from '@dltech/atlas-core'
+import { MemorySettingsStore } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
@@ -100,7 +101,7 @@ describe('the settings cloud tab', () => {
     }
   }, 60_000)
 
-  it('shows only the sign-in row when signed out', async () => {
+  it('shows the sign-in row and the sandbox rows when signed out', async () => {
     const app = appWith({ signedOut: true })
     const setup = await onCloudTab(app)
 
@@ -108,13 +109,37 @@ describe('the settings cloud tab', () => {
       const frame = setup.captureCharFrame()
       expect(frame).toContain('not signed in')
       expect(frame).toContain('Sign in')
+      expect(frame).toContain('Vercel token')
+      expect(frame).toContain('Sandbox image')
       expect(frame).not.toContain('from the accounts overlay')
       expect(frame).not.toContain('Sign out')
       expect(frame).not.toContain(UPLOAD_LABEL)
       expect(frame).not.toContain(DOWNLOAD_LABEL)
       expect(frame).not.toContain('GitHub')
-      expect(frame).not.toContain('Vercel token')
-      expect(frame).not.toContain('Sandbox image')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('edits a sandbox row while signed out', async () => {
+    const app = appWith({ signedOut: true })
+    const setup = await onCloudTab(app)
+
+    try {
+      setup.mockInput.pressArrow('down')
+      await landed(setup)
+      setup.mockInput.pressArrow('down')
+      await landed(setup)
+
+      setup.mockInput.pressEnter()
+      await landed(setup)
+
+      setup.mockInput.typeText('team_42')
+      await landed(setup)
+      setup.mockInput.pressEnter()
+      await landed(setup)
+
+      expect(app.settings.snapshot().document.values[ESettingId.VercelTeamId]).toBe('team_42')
     } finally {
       await teardown(setup)
     }
@@ -170,7 +195,7 @@ describe('the settings cloud tab', () => {
 
       expect(syncs.uploads).toBe(1)
       expect(setup.captureCharFrame()).toContain(
-        'Uploaded 0 accounts, 0 secrets and 0 mcp servers to the cloud.',
+        'Uploaded 0 accounts, 0 secrets, 0 mcp servers and 0 settings to the cloud.',
       )
     } finally {
       await teardown(setup)
@@ -221,8 +246,37 @@ describe('the settings cloud tab', () => {
 
       expect(syncs.downloads).toBe(1)
       expect(setup.captureCharFrame()).toContain(
-        'Downloaded 0 accounts, 0 secrets and 0 mcp servers to this machine.',
+        'Downloaded 0 accounts, 0 secrets, 0 mcp servers and 0 settings to this machine.',
       )
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('re-reads the settings snapshot after a download', async () => {
+    let store: MemorySettingsStore | undefined
+    const { cloud, syncs } = fakeCloudWithSyncs({
+      onDownload: () => store?.write({ values: { [ESettingId.Accent]: 'plum' } }),
+    })
+    const app = fakeApp({
+      model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }),
+      cloud,
+      settingsStore: (created) => {
+        store = created
+      },
+    })
+    const setup = await onCloudTab(app)
+
+    try {
+      for (let step = 0; step < 2; step += 1) {
+        setup.mockInput.pressArrow('down')
+        await landed(setup)
+      }
+      setup.mockInput.pressEnter()
+      await landed(setup)
+
+      expect(syncs.downloads).toBe(1)
+      expect(app.settings.snapshot().document.values[ESettingId.Accent]).toBe('plum')
     } finally {
       await teardown(setup)
     }

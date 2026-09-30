@@ -5,27 +5,19 @@ import { Test } from '@nestjs/testing'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { SESSION_VERIFIER } from '../src/_core/ports/session-verifier'
+import { SessionAuthGuard } from '../src/_module/session/session-auth.guard'
 import { AccountsController } from '../src/api/platform/accounts/accounts.controller'
 import { AccountsService } from '../src/api/platform/accounts/accounts.service'
-import { BrokerService } from '../src/api/platform/accounts/broker.service'
-import { SandboxesService } from '../src/api/platform/sandboxes/sandboxes.service'
 import { SecretsController } from '../src/api/cloud/secrets/secrets.controller'
 import { SecretsService } from '../src/api/cloud/secrets/secrets.service'
-import { SessionOrSandboxGuard } from '../src/api/platform/sessions/session-or-sandbox.guard'
 
 vi.mock('../src/db', () => ({ db: {} }))
 
 const SANDBOX_TOKEN = 'sandbox-token'
 const USER_SESSION = 'user-session-token'
 
-const sandboxes = {
-  verifyTokenPrincipal: vi.fn(async (args: { token: string }) => {
-    if (args.token !== SANDBOX_TOKEN) throw new Error('nope')
-    return { id: 'sbx_1', threadId: 'brn_1', userId: 'user-a' }
-  }),
-  assertThreadInFamily: vi.fn(async () => undefined),
-}
-
+// A sandbox token is client-minted for remote control, so the verifier never resolves it to a
+// user session; a credential backup route guarded by SessionAuthGuard refuses it outright.
 const verifier = {
   verify: vi.fn(async (request: { headers: Record<string, string> }) => {
     if (request.headers.authorization !== `Bearer ${USER_SESSION}`) return null
@@ -55,8 +47,6 @@ const accountsStub = {
   remove: vi.fn(),
 }
 
-const brokerStub = { accessToken: vi.fn(async () => ({ accessToken: 'at', expiresAt: null })) }
-
 describe('sandbox token scoping (in-process, real guard)', () => {
   let app: INestApplication
 
@@ -66,11 +56,9 @@ describe('sandbox token scoping (in-process, real guard)', () => {
       providers: [
         { provide: SecretsService, useValue: secretsStub },
         { provide: AccountsService, useValue: accountsStub },
-        { provide: BrokerService, useValue: brokerStub },
-        SessionOrSandboxGuard,
+        SessionAuthGuard,
         Reflector,
         { provide: SESSION_VERIFIER, useValue: verifier },
-        { provide: SandboxesService, useValue: sandboxes },
       ],
     }).compile()
 
@@ -95,23 +83,25 @@ describe('sandbox token scoping (in-process, real guard)', () => {
       .get('/secrets')
       .set('authorization', `Bearer ${SANDBOX_TOKEN}`)
 
-    expect(response.status).toBe(403)
+    expect(response.status).toBe(401)
     expect(secretsStub.list).not.toHaveBeenCalled()
   })
 
-  it('refuses a sandbox token on GET /accounts/:id and POST /accounts/:id/access-token', async () => {
-    const read = await request(app.getHttpServer())
+  it('refuses a sandbox token on GET /accounts and PUT /accounts/:id/secret', async () => {
+    const server = app.getHttpServer()
+
+    const read = await request(server)
       .get('/accounts/acc_1')
       .set('authorization', `Bearer ${SANDBOX_TOKEN}`)
-    const mint = await request(app.getHttpServer())
-      .post('/accounts/acc_1/access-token')
+    const rotate = await request(server)
+      .put('/accounts/acc_1/secret')
       .set('authorization', `Bearer ${SANDBOX_TOKEN}`)
-      .send({})
+      .send({ secret: { kind: 'api-key', apiKey: 'sk-ant-test' } })
 
-    expect(read.status).toBe(403)
-    expect(mint.status).toBe(403)
+    expect(read.status).toBe(401)
+    expect(rotate.status).toBe(401)
     expect(accountsStub.read).not.toHaveBeenCalled()
-    expect(brokerStub.accessToken).not.toHaveBeenCalled()
+    expect(accountsStub.replaceSecret).not.toHaveBeenCalled()
   })
 
   it('still answers the same routes for a user session', async () => {

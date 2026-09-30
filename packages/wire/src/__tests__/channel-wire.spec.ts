@@ -110,7 +110,7 @@ describe('the memory archive op', () => {
 })
 
 describe('the protocol stamp', () => {
-  it('speaks the version that introduced the turn-working signal', () => {
+  it('speaks the version that refuses broker-dependent serve runtimes', () => {
     expect(CHANNEL_PROTOCOL_VERSION).toBe(10)
   })
 })

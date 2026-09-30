@@ -186,48 +186,31 @@ describe('McpEditTool', () => {
 
 describe('McpEditTool with a cloud session', () => {
   const realFetch = globalThis.fetch
-
-  let sessions: CloudSessionStore
-  let calls: { url: string; method: string; body: unknown }[]
+  const realAtlasHome = process.env['ATLAS_HOME']
+  let calls: string[]
 
   beforeEach(() => {
-    sessions = new CloudSessionStore({
+    process.env['ATLAS_HOME'] = root
+    const sessions = new CloudSessionStore({
       file: join(root, 'cloud.json'),
       keyFile: join(root, 'key'),
     })
+    sessions.write({ url: 'http://cloud.test', token: 'sess_a', email: 'a@b.c' })
     calls = []
-    globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-      calls.push({
-        url: String(input),
-        method: init?.method ?? 'GET',
-        body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
-      })
-      return new Response(null, { status: 204 })
-    }) as typeof fetch
+    globalThis.fetch = Object.assign(async (input: string | URL | Request) => {
+      calls.push(String(input))
+      throw new Error('Atlas Cloud is offline')
+    }, { preconnect: realFetch.preconnect })
   })
 
   afterEach(() => {
     globalThis.fetch = realFetch
-    delete process.env['ATLAS_HOME']
+    if (realAtlasHome === undefined) delete process.env['ATLAS_HOME']
+    else process.env['ATLAS_HOME'] = realAtlasHome
   })
 
-  const signIn = () =>
-    sessions.write({ url: 'http://cloud.test', token: 'sess_a', email: 'a@b.c' })
-
-  const invokeWith = async (input: unknown): Promise<ToolOutcome> =>
-    new McpEditTool({ sessions }).invoke({
-      input,
-      signal: new AbortController().signal,
-      idempotencyKey: 'edit-1',
-      projectDirectory: root,
-      threadId: toThreadId('thread-1'),
-    })
-
-  it('sends user-layer upserts to the cloud and leaves the file untouched', async () => {
-    process.env['ATLAS_HOME'] = root
-    signIn()
-
-    const outcome = await invokeWith({
+  it('writes the local user file while signed in and the API is down', async () => {
+    const outcome = await invoke({
       layer: 'user',
       name: 'linear',
       transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' },
@@ -235,71 +218,19 @@ describe('McpEditTool with a cloud session', () => {
     })
 
     expect(outcome).toMatchObject({ ok: true })
-    expect(calls).toEqual([
-      {
-        url: 'http://cloud.test/v1/mcp-servers/linear',
-        method: 'PUT',
-        body: {
-          transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' },
-        },
-      },
-    ])
-    expect(await Bun.file(join(root, 'mcp.json')).exists()).toBe(false)
+    expect(calls).toEqual([])
+    const content = await Bun.file(join(root, 'mcp.json')).json()
+    expect(content).toMatchObject({ linear: { transport: { kind: 'http' } } })
   })
 
-  it('sends user-layer removes to the cloud as a DELETE', async () => {
-    signIn()
+  it('removes locally while signed in without requesting the API', async () => {
+    writeFileSync(join(root, 'mcp.json'), JSON.stringify({ linear: { disabled: true } }))
 
-    const outcome = await invokeWith({ layer: 'user', name: 'linear', action: 'remove' })
+    const outcome = await invoke({ layer: 'user', name: 'linear', action: 'remove' })
 
     expect(outcome).toMatchObject({ ok: true })
-    expect(calls).toEqual([
-      { url: 'http://cloud.test/v1/mcp-servers/linear', method: 'DELETE', body: undefined },
-    ])
-  })
-
-  it('surfaces a cloud failure as a tool failure', async () => {
-    signIn()
-    globalThis.fetch = (async (_input: string | URL | Request) =>
-      new Response(JSON.stringify({ message: 'read-only replica' }), {
-        status: 503,
-        headers: { 'content-type': 'application/json' },
-      })) as typeof fetch
-
-    const outcome = await invokeWith({ layer: 'user', name: 'linear', action: 'remove' })
-
-    expect(outcome.ok).toBe(false)
-    if (!outcome.ok) expect(outcome.reason).toContain('read-only replica')
-  })
-
-  it('still writes the project layer to a file while signed in', async () => {
-    signIn()
-
-    const outcome = await invokeWith({
-      layer: 'project',
-      name: 'linear',
-      transport: { kind: 'stdio', command: 'npx' },
-      action: 'upsert',
-    })
-
-    expect(outcome).toMatchObject({ ok: true })
-    expect(calls).toHaveLength(0)
-    expect(await Bun.file(join(root, '.atlas', 'mcp.json')).exists()).toBe(true)
-  })
-
-  it('writes the user file as today when the session store holds no session', async () => {
-    process.env['ATLAS_HOME'] = root
-
-    const outcome = await invokeWith({
-      layer: 'user',
-      name: 'linear',
-      transport: { kind: 'stdio', command: 'npx' },
-      action: 'upsert',
-    })
-
-    expect(outcome).toMatchObject({ ok: true })
-    expect(calls).toHaveLength(0)
-    expect(await Bun.file(join(root, 'mcp.json')).exists()).toBe(true)
+    expect(calls).toEqual([])
+    expect(await Bun.file(join(root, 'mcp.json')).json()).toEqual({})
   })
 })
 

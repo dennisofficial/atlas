@@ -1,11 +1,12 @@
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
-import { ClockPort, CredentialPort, EventLogPort, FileSystemPort, IdPort, ProcessPort, TelemetryPort, toThreadId } from '@dltech/atlas-core'
+import { AccountStorePort, ClockPort, CredentialPort, EventLogPort, FileSystemPort, IdPort, ProcessPort, TelemetryPort, toThreadId } from '@dltech/atlas-core'
 
 import type { KeychainReader } from '../../credentials/keychain-reader'
 import { LocalFileSystemPort } from '../../execution/local-filesystem'
 import { LoginEnvProcessPort } from '../../execution/login-env-process'
-import { CredentialPortProxy } from '../../cloud/credential-port-proxy'
+import { FileSecretsStore } from '../../secrets/file-secrets-store'
+import { RefreshingCredentialPort } from '../../credentials/refreshing-credential-port'
 import { NullTelemetry } from '../../telemetry/null-telemetry'
 import { ThreadStorePort, RandomIds, SystemClock } from '../../store'
 import { JsonlEventLog } from '../../store/sessions/event-log'
@@ -13,31 +14,34 @@ import { JsonlThreadStore } from '../../store/sessions/thread-store'
 import { createTempHome, type TempHome } from '../../loop/__tests__/temp-home'
 import { createHarnessContainer } from '../create-harness-container'
 import { portToken, type DependencyContainer } from '../injection'
-import { KeychainReaderToken, WorkspaceRoot } from '../tokens'
+import { KeychainReaderToken, LocalAccountStoreToken, SecretsStoreToken, WorkspaceRoot } from '../tokens'
 
 const silentReader: KeychainReader = {
   readGenericPassword: async () => '{}',
   writeGenericPassword: async () => undefined,
 }
 
+let temporary: TempHome
+let previousHome: string | undefined
+
+beforeEach(() => {
+  temporary = createTempHome()
+  previousHome = process.env['ATLAS_HOME']
+  process.env['ATLAS_HOME'] = temporary.home
+})
+
+afterEach(() => {
+  if (previousHome === undefined) delete process.env['ATLAS_HOME']
+  else process.env['ATLAS_HOME'] = previousHome
+  temporary.discard()
+})
+
 describe('createHarnessContainer', () => {
-  let temporary: TempHome
-  let previousHome: string | undefined
   let harness: DependencyContainer
 
-  beforeAll(() => {
-    temporary = createTempHome()
-    previousHome = process.env['ATLAS_HOME']
-    process.env['ATLAS_HOME'] = temporary.home
-
+  beforeEach(() => {
     harness = createHarnessContainer()
     harness.register(KeychainReaderToken, { useValue: silentReader })
-  })
-
-  afterAll(() => {
-    if (previousHome === undefined) delete process.env['ATLAS_HOME']
-    else process.env['ATLAS_HOME'] = previousHome
-    temporary.discard()
   })
 
   it('resolves the clock port to the system clock', () => {
@@ -60,8 +64,18 @@ describe('createHarnessContainer', () => {
     expect(harness.resolve(portToken(ThreadStorePort))).toBe(harness.resolve(portToken(ThreadStorePort)))
   })
 
-  it('resolves the credential port to the brokered proxy', () => {
-    expect(harness.resolve(portToken(CredentialPort))).toBeInstanceOf(CredentialPortProxy)
+  it('resolves the credential port to the local refreshing port, whatever the sign-in state', () => {
+    expect(harness.resolve(portToken(CredentialPort))).toBeInstanceOf(RefreshingCredentialPort)
+  })
+
+  it('resolves the account store to the local vault file store', () => {
+    const accounts = harness.resolve(portToken(AccountStorePort))
+    expect(accounts).toBe(harness.resolve(LocalAccountStoreToken))
+  })
+
+  it('resolves the secrets store to the local file store', () => {
+    const secrets = harness.resolve(SecretsStoreToken)
+    expect(secrets).toBeInstanceOf(FileSecretsStore)
   })
 
   it('resolves telemetry to the null adapter under the test runner, never PostHog', () => {

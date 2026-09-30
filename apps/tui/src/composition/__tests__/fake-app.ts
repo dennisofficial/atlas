@@ -41,6 +41,8 @@ import {
   CloudClient,
   CloudService,
   CloudSessionStore,
+  CLOUD_SETTING_DEFINITIONS,
+  isCloudSettingId,
   createAccountUsageService,
   createDeltaChannel,
   createTurnPolicyRunner,
@@ -273,11 +275,12 @@ export type FakeCloudSync = {
 
 class FakeCloudService extends CloudService {
   private readonly fakeClient: CloudClient | null
+  private readonly onDownload: (() => void) | undefined
 
   readonly syncs: FakeCloudSync = {
     uploads: 0,
     downloads: 0,
-    counts: { accounts: 0, secrets: 0, mcpServers: 0 },
+    counts: { accounts: 0, secrets: 0, mcpServers: 0, settings: 0 },
   }
 
   override async uploadLocalToCloud(): Promise<CloudSyncCounts> {
@@ -287,6 +290,7 @@ class FakeCloudService extends CloudService {
 
   override async downloadCloudToLocal(): Promise<CloudSyncCounts> {
     this.syncs.downloads += 1
+    this.onDownload?.()
     return this.syncs.counts
   }
 
@@ -294,6 +298,7 @@ class FakeCloudService extends CloudService {
     session: CloudSession | null
     client: CloudClient | null
     sessionsClientFor?: ConstructorParameters<typeof CloudService>[0]['sessionsClientFor']
+    onDownload?: () => void
   }) {
     const sessions = new CloudSessionStore({
       file: join(tmpdir(), `atlas-fake-cloud-${randomUUID()}.json`),
@@ -310,6 +315,7 @@ class FakeCloudService extends CloudService {
       ...(args.sessionsClientFor === undefined ? {} : { sessionsClientFor: args.sessionsClientFor }),
     })
     this.fakeClient = args.client
+    this.onDownload = args.onDownload
   }
 
   override client(): CloudClient | null {
@@ -340,10 +346,12 @@ export const fakeSignedOutCloud = (args?: { client?: CloudClient | null }): Clou
 export const fakeCloudWithSyncs = (args?: {
   session?: CloudSession | null
   client?: CloudClient | null
+  onDownload?: () => void
 }): { cloud: CloudService; syncs: FakeCloudSync } => {
   const service = new FakeCloudService({
     session: args?.session ?? FAKE_CLOUD_SESSION,
     client: args?.client ?? null,
+    ...(args?.onDownload === undefined ? {} : { onDownload: args.onDownload }),
   })
   return { cloud: service, syncs: service.syncs }
 }
@@ -701,7 +709,6 @@ export type FakeApp = AtlasApp & {
   threads: FakeThreadStore
   ledger: FakeLedger
   readonly turnsDriven: number
-  readonly rewarms: number
   readonly titled: readonly string[]
   readonly titledImages: readonly (readonly SaidImage[])[]
   readonly openedUrls: readonly string[]
@@ -714,9 +721,9 @@ export type FakeApp = AtlasApp & {
 export function fakeApp(args: {
   model: ModelPort
   settings?: SettingsDocument
+  settingsStore?: (created: MemorySettingsStore) => void
   secrets?: Record<string, string>
   secretsPort?: SecretsPort
-  rewarm?: () => void
   names?: string | null
   titlerWait?: Promise<void>
   summarises?: string | null
@@ -846,7 +853,6 @@ export function fakeApp(args: {
   const driving = args.turnPolicy === undefined ? policyRunner : titlingRunner
 
   let turnsDriven = 0
-  let rewarms = 0
   let marked: ActiveConversation | null = null
   let sandboxStops = 0
   let bashNotes = 0
@@ -893,10 +899,6 @@ export function fakeApp(args: {
 
     get turnsDriven() {
       return turnsDriven
-    },
-
-    get rewarms() {
-      return rewarms
     },
 
     get titled() {
@@ -988,22 +990,25 @@ export function fakeApp(args: {
     }),
     executionPinned: false,
     settings: createSettingsService({
-      definitions: ATLAS_SETTINGS,
-      user: new MemorySettingsStore({
-        label: '~/.atlas/settings.json',
-        // A fake app is an established install — the onboarding gate reads an untouched
-        // document as a first launch. Pass settings: { values: {} } to be fresh.
-        document: args.settings ?? { values: { [ESettingId.Accent]: 'clay' } },
-      }),
+      definitions: [
+        ...ATLAS_SETTINGS.filter((definition) => !isCloudSettingId(definition.id)),
+        ...CLOUD_SETTING_DEFINITIONS,
+      ],
+      user: (() => {
+        const store = new MemorySettingsStore({
+          label: '~/.atlas/settings.json',
+          // A fake app is an established install — the onboarding gate reads an untouched
+          // document as a first launch. Pass settings: { values: {} } to be fresh.
+          document: args.settings ?? { values: { [ESettingId.Accent]: 'clay' } },
+        })
+        args.settingsStore?.(store)
+        return store
+      })(),
     }),
     secrets: args.secretsPort ?? new MemorySecretsStore({
       label: '~/.atlas/secrets.json',
       ...(args.secrets === undefined ? {} : { secrets: args.secrets }),
     }),
-    rewarmSecrets: async () => {
-      rewarms += 1
-      args.rewarm?.()
-    },
     close: async () => {},
     runner: {
       say: (call) => driving.say(call),

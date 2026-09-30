@@ -27,8 +27,9 @@ const plural = (args: { count: number; noun: string }): string =>
 
 const syncNotice = (args: { verb: string; where: string; moved: CloudSyncCounts }): string =>
   `${args.verb} ${plural({ count: args.moved.accounts, noun: 'account' })}, ` +
-  `${plural({ count: args.moved.secrets, noun: 'secret' })} and ` +
-  `${plural({ count: args.moved.mcpServers, noun: 'mcp server' })} ${args.where}.`
+  `${plural({ count: args.moved.secrets, noun: 'secret' })}, ` +
+  `${plural({ count: args.moved.mcpServers, noun: 'mcp server' })} and ` +
+  `${plural({ count: args.moved.settings, noun: 'setting' })} ${args.where}.`
 
 const syncFailure = (args: { fallback: string; error: unknown }): string =>
   args.error instanceof Error ? args.error.message : args.fallback
@@ -66,8 +67,9 @@ export function useSettingsCloud(args: {
   cloud: CloudService
   openUrl: UrlOpener
   onSignedIn?: () => void
+  onDownloaded?: () => void
 }): SettingsCloudControl {
-  const { cloud, openUrl, onSignedIn } = args
+  const { cloud, openUrl, onSignedIn, onDownloaded } = args
   const [session, setSession] = useState<{ email: string | null } | null>(null)
   const [upload, setUpload] = useSyncFeedback()
   const [download, setDownload] = useSyncFeedback()
@@ -122,13 +124,14 @@ export function useSettingsCloud(args: {
     setDownload({ running: true, notice: null, failure: null })
     void cloud
       .downloadCloudToLocal()
-      .then((moved) =>
+      .then((moved) => {
+        onDownloaded?.()
         setDownload({
           running: false,
           notice: syncNotice({ verb: 'Downloaded', where: 'to this machine', moved }),
           failure: null,
-        }),
-      )
+        })
+      })
       .catch((error: unknown) =>
         setDownload({
           running: false,
@@ -142,7 +145,7 @@ export function useSettingsCloud(args: {
       .finally(() => {
         downloadRunning.current = false
       })
-  }, [cloud])
+  }, [cloud, onDownloaded])
 
   const login = useSettingsCloudLogin({ cloud, openUrl, onSignedIn: handleSignedIn })
 

@@ -23,11 +23,9 @@ export type SettingsCloudLoginControl = {
 const reasonOf = (error: unknown): string =>
   error instanceof Error ? error.message : 'the request failed'
 
-export const signedInNotice = (args: { email: string | null; imported: number }): string => {
+export const signedInNotice = (args: { email: string | null }): string => {
   const whom = args.email === null ? '' : ` as ${args.email}`
-  const imported =
-    args.imported > 0 ? ` Imported ${args.imported} accounts from this machine.` : ''
-  return `Signed in to Atlas Cloud${whom}.${imported}`
+  return `Signed in to Atlas Cloud${whom}. Your local accounts, secrets, MCP and settings stay on this machine — upload or download below to back them up or pull them down.`
 }
 
 /**
@@ -94,11 +92,7 @@ export function useSettingsCloudLogin(args: {
           void cloud
             .finishLogin({ ticket, token: result.token })
             .then((finished) => {
-              put(
-                signedInLogin(
-                  signedInNotice({ email: finished.session.email, imported: finished.imported }),
-                ),
-              )
+              put(signedInLogin(signedInNotice({ email: finished.session.email })))
               onSignedIn()
             })
             .catch(failOpen)
