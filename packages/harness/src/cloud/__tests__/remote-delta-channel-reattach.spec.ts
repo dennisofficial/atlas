@@ -233,6 +233,26 @@ describe('a manual reconnect from the stranded Closed state', () => {
     expect(channel.connection().state).toBe(EChannelConnection.Open)
   })
 
+  it('re-attaches from Parked too, since the operator asked for the connection back', async () => {
+    let reattachments = 0
+    const { channel, open, receive, drop } = harness({
+      reattach: async () => {
+        reattachments += 1
+        return { url: 'https://fresh.test/', token: 'tok_fresh' }
+      },
+    })
+    open()
+    receive({ kind: EServeFrame.Parked, reason: 'idle past the ttl' })
+    drop()
+    expect(channel.connection().state).toBe(EChannelConnection.Parked)
+
+    channel.reconnect()
+    await Bun.sleep(1)
+
+    expect(reattachments).toBe(1)
+    expect(channel.connection().state).toBe(EChannelConnection.Connecting)
+  })
+
   it('is a no-op without a re-attach configured', async () => {
     const { channel, open, receive, drop, live } = harness({ maxAttempts: 0 })
     open()
