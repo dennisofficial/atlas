@@ -2,6 +2,7 @@ import { readdir } from 'node:fs/promises'
 
 import { ENoticeTone, EExecutionLocation, type LogPort, type NoticePort, type ThreadId } from '@dltech/atlas-core'
 
+import type { PlacementTransaction } from '../../composition/placement-controller'
 import { logFieldsOf } from '../../store/logs'
 import { EClientRequest, publishedWorkspaceWireSchema } from '../channel-wire'
 import { relocateSession } from '../../store/relocate-session'
@@ -45,6 +46,8 @@ export type DescendPlanArgs<Opened> = {
   run: DescendRun
   setOpened: (opened: Opened) => void
   logPort?: LogPort | undefined
+  /** Present when a coordinator owns the move: the flip home is its commit, not a bare store write. */
+  transaction?: PlacementTransaction | undefined
   /** A test seam between the archive landing and the landed-state checks — live wiring never passes it. */
   afterTranscriptLanded?: (() => Promise<void>) | undefined
 }
@@ -122,7 +125,11 @@ export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPl
       commit: true,
       run: async () => {
         progress(EDescendStep.Flipping)
-        await localApp.threads.chooseExecutionLocation({ threadId, location: target })
+        if (args.transaction === undefined) {
+          await localApp.threads.chooseExecutionLocation({ threadId, location: target })
+        } else {
+          await args.transaction.commit()
+        }
         await flipChildrenBack({
           threadId,
           localThreads: localApp.threads,

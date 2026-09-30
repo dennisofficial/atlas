@@ -1,5 +1,12 @@
-import { CLOUD_WORKSPACE_PATH, EExecutionLocation, type LogPort, type ThreadId } from '@dltech/atlas-core'
+import {
+  CLOUD_WORKSPACE_PATH,
+  EExecutionLocation,
+  EHarnessPlacement,
+  type LogPort,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
+import type { PlacementTransaction } from '../../composition/placement-controller'
 import { buildSessionArchive } from '../session-archive'
 import { EClientRequest } from '../channel-wire'
 import { logFieldsOf } from '../../store/logs'
@@ -30,6 +37,8 @@ export type LiftCtx = {
   args: LiftArgs
   onProgress: (step: ELiftStep) => void
   logPort?: LogPort | undefined
+  /** The controller's commit seam: the durable placement flips here, once, after the transcript landed. */
+  transaction: PlacementTransaction
   from: EExecutionLocation
   workspace: LiftedWorkspace | null
   gpgKey: string | undefined
@@ -189,13 +198,12 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
     commit: true,
     run: async (ctx) => {
       const { args } = ctx
-      args.setLocation(EExecutionLocation.Cloud)
       // Unconditional: the local meta is the pointer every later boot reads to route this thread
       // to the attach path, so an unstarted /new thread must record the move too — the store
       // materializes the record for one it has never written.
-      await args.localThreads.chooseExecutionLocation({
-        threadId: args.threadId,
-        location: EExecutionLocation.Cloud,
+      await ctx.transaction.commit({
+        harness: EHarnessPlacement.Cloud,
+        driveName: ctx.sandbox?.driveName,
       })
       if (args.started && args.title !== null) {
         await args.localThreads.rename({ threadId: args.threadId, title: args.title })

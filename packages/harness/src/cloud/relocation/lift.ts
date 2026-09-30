@@ -7,6 +7,7 @@ import {
   type WorkspaceIdentity,
 } from '@dltech/atlas-core'
 
+import { EPlacementMoveKind, type PlacementController } from '../../composition/placement-controller'
 import type { ThreadModel, ThreadStorePort } from '../../store/thread-store'
 import type { GpgKeyMaterial } from '../../workspace/gpg-material'
 import type { CaptureContext } from '../context-archive-policy'
@@ -16,7 +17,6 @@ import { VercelNotConfiguredError } from '../vercel-credentials'
 import type { CloudAttachment, CloudBridge, CloudChannel, CloudSandbox, LiftedWorkspace } from './cloud-bridge'
 import { runRelocation, type RelocationRun } from './dag'
 import type { LiftAgentsPort } from './lift-children'
-import { rollBackCommittedFlip } from './lift-rollback'
 import { ELiftNode, liftPlan, type LiftCtx } from './lift-plan'
 import { NOTHING_WAS_STOPPED, type StoppedLocally } from './transition-notice'
 
@@ -50,8 +50,6 @@ export type LiftFailure = {
   step: ELiftStep
   detail: string
   stopped: StoppedLocally
-  /** True when a post-commit failure flipped the ownership back — the conversation never moved. */
-  rolledBack?: boolean
 }
 
 export type LiftSuccess = {
@@ -89,7 +87,8 @@ export type LiftArgs = {
   agents: LiftAgentsPort
   ids: IdPort
   logPort?: LogPort | undefined
-  setLocation: (location: EExecutionLocation) => void
+  /** The coordinator the ownership flip commits through — the durable placement write is its transaction, not a store call of the lift's own. */
+  placement: PlacementController
   stopLocal: () => Promise<StoppedLocally>
   capture: (args: { cwd: string }) => Promise<LiftedWorkspace | null>
   captureGpg?: ((args: { cwd: string }) => Promise<GpgKeyMaterial | null>) | undefined
@@ -137,7 +136,6 @@ const failureOf = (args: {
   step: ELiftStep
   fallback: ELiftFault
   stopped: StoppedLocally
-  rolledBack?: boolean
 }): LiftFailure => {
   const fault = faultOf({ error: args.error, fallback: args.fallback })
   return {
@@ -146,7 +144,6 @@ const failureOf = (args: {
     step: args.step,
     detail: detailOf(args.error),
     stopped: args.stopped,
-    ...(args.rolledBack === undefined ? {} : { rolledBack: args.rolledBack }),
   }
 }
 
@@ -166,7 +163,6 @@ const settledBeforeDeadline = async (args: LiftArgs): Promise<boolean> => {
 const failureOfRun = (args: {
   run: Extract<RelocationRun, { ok: false }>
   ctx: LiftCtx
-  rolledBack?: boolean
 }): LiftFailure => {
   const { run, ctx } = args
   if (ctx.contextError !== undefined) {
@@ -188,7 +184,6 @@ const failureOfRun = (args: {
     step,
     fallback: ELiftFault.Sandbox,
     stopped: ctx.stopped,
-    ...(args.rolledBack === undefined ? {} : { rolledBack: args.rolledBack }),
   })
 }
 
@@ -197,6 +192,8 @@ const failureOfRun = (args: {
  * one. The move rides the relocation DAG: provision runs concurrent with pausing and archiving,
  * and the single commit point is the ownership flip — a failure before it leaves the conversation
  * exactly where it was, one after it means the conversation moved and recovery is re-attaching.
+ * The durable placement flips inside the placement controller's transaction, so a failed attach
+ * after the commit leaves a committed move on the record rather than pretending the lift came back.
  */
 export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
   const { onProgress, threadId } = args
@@ -220,58 +217,79 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
     })
   }
 
-  const ctx: LiftCtx = {
-    args,
-    onProgress,
-    logPort: args.logPort,
-    from,
-    workspace: null,
-    gpgKey: undefined,
-    transcript: undefined,
-    sandbox: undefined,
-    channel: undefined,
-    contextError: undefined,
-    stopped: NOTHING_WAS_STOPPED,
+  // A DAG failure reaches the lift as a value, so the move is told how it ended explicitly: before
+  // the commit, abandon clears the preparation marker and the source placement stands; after it,
+  // the error is thrown so the controller keeps the committed marker on the record — the session
+  // moved, and clearing that marker is recover()'s call, not this one's.
+  let failure: LiftFailure | undefined
+  let lifted: LiftSuccess | undefined
+  try {
+    lifted = await args.placement.move<LiftSuccess | undefined>({
+      threadId,
+      target: EExecutionLocation.Cloud,
+      kind: EPlacementMoveKind.Lift,
+      work: async (transaction) => {
+        const ctx: LiftCtx = {
+          args,
+          onProgress,
+          logPort: args.logPort,
+          transaction,
+          from,
+          workspace: null,
+          gpgKey: undefined,
+          transcript: undefined,
+          sandbox: undefined,
+          channel: undefined,
+          contextError: undefined,
+          stopped: NOTHING_WAS_STOPPED,
+        }
+
+        const run = await runRelocation({
+          plan: liftPlan(),
+          ctx,
+          onStep: () => undefined,
+          log:
+            args.logPort === undefined
+              ? undefined
+              : { port: args.logPort, source: 'cloud.relocation', threadId },
+        })
+
+        if (!run.ok) {
+          failure = failureOfRun({ run, ctx })
+          if (run.phase === 'pre-commit') {
+            transaction.abandon()
+            return undefined
+          }
+          throw run.error instanceof Error ? run.error : new Error(detailOf(run.error))
+        }
+
+        const { sandbox, channel } = ctx
+        if (sandbox === undefined || channel === undefined) {
+          failure = failureOf({
+            error: new Error('the lift finished without its sandbox'),
+            step: ELiftStep.Starting,
+            fallback: ELiftFault.Sandbox,
+            stopped: ctx.stopped,
+          })
+          transaction.abandon()
+          return undefined
+        }
+
+        return {
+          ok: true,
+          sandbox,
+          channel,
+          workspace: ctx.workspace,
+          stopped: ctx.stopped,
+          resumeOnArrival: args.midTurn,
+        }
+      },
+    })
+  } catch {
+    if (failure !== undefined) return failure
+    throw new Error('the lift failed without its outcome')
   }
-
-  const run = await runRelocation({
-    plan: liftPlan(),
-    ctx,
-    onStep: () => undefined,
-    log:
-      args.logPort === undefined
-        ? undefined
-        : { port: args.logPort, source: 'cloud.relocation', threadId },
-  })
-
-  let rolledBack: boolean | undefined
-  if (!run.ok && run.phase === 'committed') {
-    rolledBack = await rollBackCommittedFlip(ctx)
-  }
-
-  if (run.ok) {
-    const { sandbox, channel } = ctx
-    if (sandbox === undefined || channel === undefined) {
-      return failureOf({
-        error: new Error('the lift finished without its sandbox'),
-        step: ELiftStep.Starting,
-        fallback: ELiftFault.Sandbox,
-        stopped: ctx.stopped,
-      })
-    }
-    return {
-      ok: true,
-      sandbox,
-      channel,
-      workspace: ctx.workspace,
-      stopped: ctx.stopped,
-      resumeOnArrival: args.midTurn,
-    }
-  }
-
-  return failureOfRun({
-    run,
-    ctx,
-    ...(rolledBack === undefined ? {} : { rolledBack }),
-  })
+  if (failure !== undefined) return failure
+  if (lifted === undefined) throw new Error('the lift ended without an outcome')
+  return lifted
 }

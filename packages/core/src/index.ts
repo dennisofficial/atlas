@@ -212,6 +212,7 @@ export * from './web/render'
 export * from './execution/capabilities'
 export * from './execution/exposure'
 export * from './execution/location'
+export * from './execution/placement'
 export * from './execution/lifecycle'
 export * from './execution/cloud-paths'
 

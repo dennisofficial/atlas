@@ -8,16 +8,17 @@ import {
   EShellStatus,
   EStopAction,
   LogPort,
+  locationOfPlacement,
+  placementOf,
   toThreadId,
   type LogEntry,
+  type PlacementRecord,
   type ThreadId,
 } from '@dltech/atlas-core'
 
 import type { RelocateChildrenArgs } from '../../../agents/registry/port'
-import {
-  createExecutionLocationState,
-  type ExecutionLocationControl,
-} from '../../../composition/execution-location-state'
+import type { ExecutionLocationControl } from '../../../composition/execution-location-state'
+import { PlacementController } from '../../../composition/placement-controller'
 import type { DockerEngine } from '../../../execution/docker/engine'
 import type { ServiceSnapshot } from '../../../services/service-process'
 import type { ServiceStopOutcome } from '../../../services/service-registry'
@@ -33,6 +34,8 @@ import {
   UnstaffedShells,
   type StoreFixture,
 } from '../../../store/__tests__/harness'
+import type { JsonlThreadStore } from '../../../store/sessions/thread-store'
+
 
 class FakeAgents extends UnstaffedAgents {
   readonly relocations: RelocateChildrenArgs[] = []
@@ -115,14 +118,6 @@ const downEngine = {
   },
 }
 
-const controlOver = (args: {
-  initial: EExecutionLocation
-  pinned?: boolean
-}): ExecutionLocationControl => ({
-  state: createExecutionLocationState({ initial: args.initial }),
-  pinned: args.pinned ?? false,
-})
-
 const fixtures: StoreFixture[] = []
 
 afterEach(async () => {
@@ -137,18 +132,34 @@ class CapturingLog extends LogPort {
   }
 }
 
+const controlOver = (args: {
+  initial: EExecutionLocation
+  threads: JsonlThreadStore
+  pinned?: boolean
+}): ExecutionLocationControl => {
+  const state = new PlacementController(args.initial)
+  state.bind({ threads: args.threads, workspace: '/ws', repo: null })
+  return { state, pinned: args.pinned ?? false }
+}
+
 const open = async (args: {
-  control: ExecutionLocationControl
+  initial?: EExecutionLocation
+  pinned?: boolean
   engine?: Pick<DockerEngine, 'info'>
   agents?: UnstaffedAgents
   services?: FakeServices
   shells?: FakeShells
   logPort?: CapturingLog
-}): Promise<{ tool: ExecutionLocationTool; fixture: StoreFixture }> => {
+}): Promise<{ tool: ExecutionLocationTool; fixture: StoreFixture; control: ExecutionLocationControl }> => {
   const fixture = await openStoreFixture()
   fixtures.push(fixture)
+  const control = controlOver({
+    initial: args.initial ?? EExecutionLocation.Host,
+    threads: fixture.threads,
+    ...(args.pinned === undefined ? {} : { pinned: args.pinned }),
+  })
   const tool = new ExecutionLocationTool({
-    control: args.control,
+    control,
     engine: (args.engine ?? liveEngine) as DockerEngine,
     ids: new CountingIds('relocate-tool'),
     services: args.services ?? new FakeServices(),
@@ -160,7 +171,7 @@ const open = async (args: {
     }),
     ...(args.logPort === undefined ? {} : { logPort: args.logPort }),
   })
-  return { tool, fixture }
+  return { tool, fixture, control }
 }
 
 const call = (tool: ExecutionLocationTool, args: { threadId: ThreadId; location: 'host' | 'docker' }) =>
@@ -175,12 +186,12 @@ const call = (tool: ExecutionLocationTool, args: { threadId: ThreadId; location:
 
 describe('execution_location', () => {
   it('moves the session host → docker: state, stored row, event, shells, services and children', async () => {
-    const control = controlOver({ initial: EExecutionLocation.Host })
     const shells = new FakeShells([runningShell('sh_1')])
     const services = new FakeServices()
     const agents = new FakeAgents()
-    const { tool, fixture } = await open({ control, shells, services, agents })
+    const { tool, fixture, control } = await open({ shells, services, agents })
     const threadId = (await fixture.threads.create({})).id
+    await control.state.activate({ threadId })
 
     const outcome = await call(tool, { threadId, location: 'docker' })
 
@@ -208,10 +219,10 @@ describe('execution_location', () => {
   })
 
   it('says which endings are still in flight when a process outlives the settle bound', async () => {
-    const control = controlOver({ initial: EExecutionLocation.Host })
     const shells = new FakeShells([runningShell('sh_1')], 1)
-    const { tool, fixture } = await open({ control, shells })
+    const { tool, fixture, control } = await open({ shells })
     const threadId = (await fixture.threads.create({})).id
+    await control.state.activate({ threadId })
 
     const outcome = await call(tool, { threadId, location: 'docker' })
 
@@ -223,10 +234,10 @@ describe('execution_location', () => {
   })
 
   it('answers the current location without touching anything when asked for it', async () => {
-    const control = controlOver({ initial: EExecutionLocation.Host })
     const agents = new FakeAgents()
-    const { tool, fixture } = await open({ control, agents })
+    const { tool, fixture, control } = await open({ agents })
     const threadId = (await fixture.threads.create({})).id
+    await control.state.activate({ threadId })
 
     const outcome = await call(tool, { threadId, location: 'host' })
 
@@ -237,9 +248,9 @@ describe('execution_location', () => {
   })
 
   it('refuses to leave the cloud, which only the operator moves', async () => {
-    const control = controlOver({ initial: EExecutionLocation.Cloud })
-    const { tool, fixture } = await open({ control })
-    const threadId = (await fixture.threads.create({})).id
+    const { tool, fixture, control } = await open({ initial: EExecutionLocation.Cloud })
+    const threadId = (await fixture.threads.create({ executionLocation: EExecutionLocation.Cloud })).id
+    await control.state.activate({ threadId })
 
     const outcome = await call(tool, { threadId, location: 'host' })
 
@@ -249,8 +260,7 @@ describe('execution_location', () => {
   })
 
   it('refuses to move a session the launch pinned', async () => {
-    const control = controlOver({ initial: EExecutionLocation.Host, pinned: true })
-    const { tool, fixture } = await open({ control })
+    const { tool, fixture, control } = await open({ pinned: true })
     const threadId = (await fixture.threads.create({})).id
 
     const outcome = await call(tool, { threadId, location: 'docker' })
@@ -261,8 +271,7 @@ describe('execution_location', () => {
   })
 
   it('keeps the session where it is when the docker daemon does not answer', async () => {
-    const control = controlOver({ initial: EExecutionLocation.Host })
-    const { tool, fixture } = await open({ control, engine: downEngine })
+    const { tool, fixture, control } = await open({ engine: downEngine })
     const threadId = (await fixture.threads.create({})).id
 
     const outcome = await call(tool, { threadId, location: 'docker' })
@@ -274,15 +283,15 @@ describe('execution_location', () => {
     expect(stored?.executionLocation).toBeUndefined()
   })
 
-  it('rolls the location back when the relocation itself fails', async () => {
-    const control = controlOver({ initial: EExecutionLocation.Host })
+  it('commits nothing when the relocation itself fails, and the session stays put', async () => {
     class FailingAgents extends UnstaffedAgents {
       override relocateChildren(): Promise<readonly ThreadId[]> {
         return Promise.reject(new Error('child would not move'))
       }
     }
-    const { tool, fixture } = await open({ control, agents: new FailingAgents() })
+    const { tool, fixture, control } = await open({ agents: new FailingAgents() })
     const threadId = (await fixture.threads.create({})).id
+    await control.state.activate({ threadId })
 
     const outcome = await call(tool, { threadId, location: 'docker' })
 
@@ -294,16 +303,16 @@ describe('execution_location', () => {
     expect(stored?.executionLocation).toBe(EExecutionLocation.Host)
   })
 
-  it('logs a failed move to the durable log with the rollback outcome', async () => {
-    const control = controlOver({ initial: EExecutionLocation.Host })
+  it('logs a failed move to the durable log without a rollback, since nothing committed', async () => {
     class FailingAgents extends UnstaffedAgents {
       override relocateChildren(): Promise<readonly ThreadId[]> {
         return Promise.reject(new Error('child would not move'))
       }
     }
     const logPort = new CapturingLog()
-    const { tool, fixture } = await open({ control, agents: new FailingAgents(), logPort })
+    const { tool, fixture, control } = await open({ agents: new FailingAgents(), logPort })
     const threadId = (await fixture.threads.create({})).id
+    await control.state.activate({ threadId })
 
     const outcome = await call(tool, { threadId, location: 'docker' })
 
@@ -313,74 +322,43 @@ describe('execution_location', () => {
     expect(entry?.severity).toBe(ELogSeverity.Error)
     expect(entry?.source).toBe('execution-location')
     expect(entry?.threadId).toBe(threadId)
-    expect(entry?.data).toEqual({ from: EExecutionLocation.Host, to: EExecutionLocation.Docker, rollbackOk: true })
+    expect(entry?.data).toEqual({ from: EExecutionLocation.Host, to: EExecutionLocation.Docker })
     expect(entry?.error).toBe('child would not move')
     expect(entry?.stack).toContain('child would not move')
   })
 
-  it('reports the double failure when the rollback write fails too', async () => {
-    const control = controlOver({ initial: EExecutionLocation.Host })
-    class FailingAgents extends UnstaffedAgents {
-      override relocateChildren(): Promise<readonly ThreadId[]> {
-        return Promise.reject(new Error('child would not move'))
-      }
-    }
-    const logPort = new CapturingLog()
-    const { tool, fixture } = await open({ control, agents: new FailingAgents(), logPort })
-    const threadId = (await fixture.threads.create({})).id
-    const choose = fixture.threads.chooseExecutionLocation.bind(fixture.threads)
-    let calls = 0
-    fixture.threads.chooseExecutionLocation = (async (args: Parameters<typeof choose>[0]) => {
-      calls += 1
-      if (calls === 2) throw new Error('store went read-only')
-      return choose(args)
-    }) as typeof choose
-
-    const outcome = await call(tool, { threadId, location: 'docker' })
-
-    expect(outcome.ok).toBe(false)
-    const entry = logPort.entries[0]
-    expect(entry?.data?.['rollbackOk']).toBe(false)
-    expect(entry?.error).toBe('store went read-only')
-    expect(entry?.message).toContain('rolling the thread row back')
-  })
-
-  it('moves the family root when a sub-agent calls it', async () => {
-    const control = controlOver({ initial: EExecutionLocation.Host })
+  it('refuses a sub-agent, which follows the tools of the agent that owns it', async () => {
     const agents = new FakeAgents()
-    const { tool, fixture } = await open({ control, agents })
+    const { tool, fixture, control } = await open({ agents })
     const parent = (await fixture.threads.create({})).id
     const child = (
       await fixture.threads.create({ agent: { spawnedBy: parent, type: 'explore' } })
     ).id
+    await control.state.activate({ threadId: parent })
 
     const outcome = await call(tool, { threadId: child, location: 'docker' })
 
-    expect(outcome.ok).toBe(true)
-    expect(control.state.of(parent)).toBe(EExecutionLocation.Docker)
-    expect(agents.relocations).toEqual([
-      { threadId: parent, location: EExecutionLocation.Docker, caller: child },
-    ])
-    const events = await fixture.log.readOwn({ threadId: parent })
-    expect(events.filter((one) => one.type === 'location-changed')).toHaveLength(1)
-    const stored = await fixture.threads.find({ threadId: parent })
-    expect(stored?.executionLocation).toBe(EExecutionLocation.Docker)
+    expect(outcome.ok).toBe(false)
+    if (!outcome.ok) expect(outcome.reason).toContain('sub-agents follow')
+    expect(control.state.of(parent)).toBe(EExecutionLocation.Host)
+    expect(control.state.of(child)).toBeUndefined()
+    expect(agents.relocations).toEqual([])
   })
 
-  it('treats a teammate as its own family root, never reaching up to main', async () => {
-    const control = controlOver({ initial: EExecutionLocation.Host })
+  it('treats a teammate as the owner of its own tools, never reaching up to main', async () => {
     const agents = new FakeAgents()
-    const { tool, fixture } = await open({ control, agents })
+    const { tool, fixture, control } = await open({ agents })
     const main = (await fixture.threads.create({})).id
     const teammate = (
       await fixture.threads.create({ agent: { spawnedBy: main, type: 'teammate' } })
     ).id
+    await control.state.activate({ threadId: main })
 
     const outcome = await call(tool, { threadId: teammate, location: 'docker' })
 
     expect(outcome.ok).toBe(true)
     expect(control.state.of(teammate)).toBe(EExecutionLocation.Docker)
-    expect(control.state.of(main)).toBeUndefined()
+    expect(control.state.of(main)).toBe(EExecutionLocation.Host)
     expect(agents.relocations).toEqual([
       { threadId: teammate, location: EExecutionLocation.Docker, caller: teammate },
     ])
@@ -390,10 +368,9 @@ describe('execution_location', () => {
     expect(mainStored?.executionLocation).toBeUndefined()
   })
 
-  it("stops at the teammate that owns the family when the teammate's own sub-agent calls it", async () => {
-    const control = controlOver({ initial: EExecutionLocation.Host })
+  it("refuses the teammate's own sub-agent just the same", async () => {
     const agents = new FakeAgents()
-    const { tool, fixture } = await open({ control, agents })
+    const { tool, fixture, control } = await open({ agents })
     const main = (await fixture.threads.create({})).id
     const teammate = (
       await fixture.threads.create({ agent: { spawnedBy: main, type: 'teammate' } })
@@ -404,13 +381,33 @@ describe('execution_location', () => {
 
     const outcome = await call(tool, { threadId: subAgent, location: 'docker' })
 
-    expect(outcome.ok).toBe(true)
-    expect(control.state.of(teammate)).toBe(EExecutionLocation.Docker)
-    expect(control.state.of(main)).toBeUndefined()
-    expect(agents.relocations).toEqual([
-      { threadId: teammate, location: EExecutionLocation.Docker, caller: subAgent },
-    ])
-    const mainStored = await fixture.threads.find({ threadId: main })
-    expect(mainStored?.executionLocation).toBeUndefined()
+    expect(outcome.ok).toBe(false)
+    if (!outcome.ok) expect(outcome.reason).toContain('sub-agents follow')
+    expect(control.state.of(teammate)).toBeUndefined()
+    expect(agents.relocations).toEqual([])
+  })
+
+  it('refuses a second move while one is underway for the same session', async () => {
+    const { tool, fixture, control } = await open({})
+    const threadId = (await fixture.threads.create({})).id
+    await control.state.activate({ threadId })
+
+    const shells = new FakeShells([runningShell('sh_1')])
+    const slow = new ExecutionLocationTool({
+      control,
+      engine: liveEngine as DockerEngine,
+      ids: new CountingIds('slow-tool'),
+      services: new FakeServices(),
+      shells,
+      stores: () => ({ threads: fixture.threads, log: fixture.log, agents: new FakeAgents() }),
+    })
+    const first = call(slow, { threadId, location: 'docker' })
+    const second = await call(tool, { threadId, location: 'docker' })
+
+    expect(second.ok).toBe(false)
+    if (!second.ok) expect(second.reason).toContain('already underway')
+
+    expect((await first).ok).toBe(true)
+    expect(control.state.of(threadId)).toBe(EExecutionLocation.Docker)
   })
 })

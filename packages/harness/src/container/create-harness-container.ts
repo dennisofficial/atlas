@@ -309,10 +309,15 @@ export function createHarnessContainer(): DependencyContainer {
   // bindModels re-registers this with the session's real state; the default only exists so a
   // container that never binds models can still build the tool registry.
   harness.register(ExecutionLocationToken, {
-    useValue: {
-      state: createExecutionLocationState({ initial: EExecutionLocation.Host }),
-      pinned: false,
-    },
+    useFactory: instanceCachingFactory((resolver) => {
+      const state = createExecutionLocationState({ initial: EExecutionLocation.Host })
+      state.bind({
+        threads: resolver.resolve(portToken(ThreadStorePort)),
+        workspace: resolver.isRegistered(WorkspaceRoot, true) ? resolver.resolve(WorkspaceRoot) : home,
+        repo: null,
+      })
+      return { state, pinned: false }
+    }),
   })
   registerBuiltinTools({ container: harness })
   registerBuiltinHooks({ container: harness })

@@ -10,18 +10,22 @@ import { ToolRegistry } from './registry'
 export class CompositeToolRegistry extends ToolRegistry {
   private readonly base: ToolRegistry
   private readonly sources: readonly DynamicToolSource[]
+  private readonly available: (name: string) => boolean
 
-  constructor(args: { base: ToolRegistry; sources: readonly DynamicToolSource[] }) {
+  constructor(args: { base: ToolRegistry; sources: readonly DynamicToolSource[]; available?: ((name: string) => boolean) | undefined }) {
     super()
     this.base = args.base
     this.sources = args.sources
+    this.available = args.available ?? (() => true)
   }
 
   declarations(): readonly ToolDeclaration[] {
     return [...this.base.declarations(), ...this.sources.flatMap((source) => source.declarations())]
+      .filter((tool) => this.available(tool.name))
   }
 
   find(name: string): ToolDefinition | undefined {
+    if (!this.available(name)) return undefined
     const builtIn = this.base.find(name)
     if (builtIn !== undefined) return builtIn
 

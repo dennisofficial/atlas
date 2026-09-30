@@ -85,9 +85,7 @@ export class ChildSpawner {
       intent,
     })
 
-    if (inheritedLocation !== undefined) {
-      this.sink.note({ threadId: agentId, location: inheritedLocation })
-    }
+    if (inheritedLocation !== undefined) await this.sink.refresh({ threadId: agentId })
 
     const child = freshChild({
       agentId,

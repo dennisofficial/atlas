@@ -88,9 +88,14 @@ describe('lifting a conversation into the cloud', () => {
     const lifted = await liftToCloud(test.args)
 
     expect(lifted.ok).toBe(true)
-    expect(test.localThreads.chosenLocations).toEqual([
-      { threadId: CLOUD_THREAD, location: EExecutionLocation.Cloud },
-    ])
+    const writes = test.localThreads.chosenLocations.filter(
+      (chosen) => chosen.location === EExecutionLocation.Cloud,
+    )
+    expect(writes.length).toBeGreaterThan(0)
+    expect(writes.at(-1)).toEqual({ threadId: CLOUD_THREAD, location: EExecutionLocation.Cloud })
+    expect((await test.localThreads.find({ threadId: CLOUD_THREAD }))?.executionLocation).toBe(
+      EExecutionLocation.Cloud,
+    )
   })
 
   it('records the thread as a cloud thread on the local side', async () => {
@@ -100,10 +105,11 @@ describe('lifting a conversation into the cloud', () => {
 
     await liftToCloud(test.args)
 
-    expect(test.located).toEqual([EExecutionLocation.Cloud])
-    expect(test.localThreads.chosenLocations).toEqual([
-      { threadId: CLOUD_THREAD, location: EExecutionLocation.Cloud },
-    ])
+    expect(test.placement.of(CLOUD_THREAD)).toBe(EExecutionLocation.Cloud)
+    expect(test.placement.snapshot(CLOUD_THREAD)?.move).toBeNull()
+    expect((await test.localThreads.find({ threadId: CLOUD_THREAD }))?.executionLocation).toBe(
+      EExecutionLocation.Cloud,
+    )
   })
 
   it('attaches to the sandbox the provision handed back', async () => {

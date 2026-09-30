@@ -291,6 +291,49 @@ describe('a gap the channel cannot replay', () => {
 
     expect(live().sent[0]).toMatchObject({ kind: EClientFrame.Hello, channelCursor: null })
   })
+
+  it('surfaces a signal seq that skips ahead of the cursor as a reload, never delivering it', () => {
+    const { channel, open, receive } = harness({ lastEventSeq: 31 })
+    const reloads: ChannelReload[] = []
+    channel.onReload((reload) => void reloads.push(reload))
+    const { seen, listener } = recorder()
+    channel.subscribe({ threadId: THREAD, listener })
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 4 })
+    receive({ kind: EServeFrame.Signal, seq: 4, signal: started })
+    receive({ kind: EServeFrame.Signal, seq: 5, signal: chunkSignal('auth') })
+
+    receive({ kind: EServeFrame.Signal, seq: 9, signal: chunkSignal('and the router') })
+
+    expect(seen).toEqual([
+      started,
+      chunkSignal('auth'),
+      { type: 'step-ended', stepId: STEP, end: EStepEnd.Failed, supersededBy: null },
+    ])
+    expect(reloads).toEqual([{ sinceEventSeq: 31 }])
+    expect(channel.connection().state).toBe(EChannelConnection.Open)
+  })
+
+  it('resumes the delta stream where a gap reload leaves off, without redelivering', () => {
+    const { channel, open, receive } = harness({ lastEventSeq: 31 })
+    const reloads: ChannelReload[] = []
+    channel.onReload((reload) => void reloads.push(reload))
+    const { seen, listener } = recorder()
+    channel.subscribe({ threadId: THREAD, listener })
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 4 })
+    receive({ kind: EServeFrame.Signal, seq: 4, signal: started })
+    receive({ kind: EServeFrame.Signal, seq: 9, signal: chunkSignal('lost') })
+
+    receive({ kind: EServeFrame.Signal, seq: 10, signal: chunkSignal('next') })
+
+    expect(seen).toEqual([
+      started,
+      { type: 'step-ended', stepId: STEP, end: EStepEnd.Failed, supersededBy: null },
+      chunkSignal('next'),
+    ])
+    expect(reloads).toHaveLength(1)
+  })
 })
 
 describe('losing the socket', () => {
@@ -554,6 +597,78 @@ describe('closing the channel', () => {
     expect(socket.closed).toBe(true)
     expect(channel.connection().state).toBe(EChannelConnection.Closed)
     expect(retries).toEqual([])
+  })
+})
+
+describe('a stale socket reaching back from an earlier generation', () => {
+  it('ignores a close that arrives after a wake already replaced the socket', () => {
+    const { channel, open, receive, sockets } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    const stale = sockets[0]
+
+    channel.wake({ url: 'https://fresh.test/', token: 'tok_fresh' })
+    stale?.handlers.handleClose()
+
+    expect(channel.connection().state).toBe(EChannelConnection.Connecting)
+  })
+
+  it('ignores a close that arrives after the channel was closed, so nothing reconnects', () => {
+    const { channel, open, receive, sockets, retries } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    const stale = sockets[0]
+
+    channel.close()
+    stale?.handlers.handleClose()
+
+    expect(stale?.closed).toBe(true)
+    expect(retries).toEqual([])
+    expect(sockets).toHaveLength(1)
+  })
+
+  it('ignores an open from a socket a wake already replaced, so no hello leaks over it', () => {
+    const { channel, open, receive, sockets, live } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    const stale = sockets[0]
+
+    channel.wake({ url: 'https://fresh.test/', token: 'tok_fresh' })
+    stale?.handlers.handleOpen()
+
+    expect(stale?.sent).toHaveLength(1)
+    live().handlers.handleOpen()
+    expect(live().sent[0]?.kind).toBe(EClientFrame.Hello)
+  })
+
+  it('ignores a close from a superseded reconnect attempt, so the current socket stays put', () => {
+    const { channel, open, receive, drop, retries, sockets, live } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    drop()
+
+    retries[0]?.run()
+    retries[0]?.run()
+
+    expect(sockets).toHaveLength(2)
+    expect(sockets[0]?.closed).toBe(true)
+    live().handlers.handleOpen()
+    live().handlers.handleMessage(encodeFrame({ kind: EServeFrame.Ready, seq: 1 }))
+    expect(channel.connection().state).toBe(EChannelConnection.Open)
+  })
+
+  it('ignores a scheduled reconnect that fires after close() abandoned the channel', () => {
+    const { channel, open, receive, drop, retries, sockets } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    drop()
+    expect(retries).toHaveLength(1)
+
+    channel.close()
+    retries[0]?.run()
+
+    expect(sockets).toHaveLength(1)
+    expect(channel.connection().state).toBe(EChannelConnection.Closed)
   })
 })
 

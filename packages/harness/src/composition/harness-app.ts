@@ -41,6 +41,7 @@ import type { AccountUsageService } from '../usage/account-usage-service'
 import type { Summariser } from './compact-turn'
 import type { HarnessLaunch } from './config'
 import type { ExecutionLocationState } from './execution-location-state'
+import type { moveLocalPlacement } from '../execution/local-placement-move'
 import type { ModelCatalogue } from './model-catalogue'
 import type { ModelChoice } from './model-selection'
 import type { ActiveConversation } from './resume-hint'
@@ -101,6 +102,7 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   models: ModelCatalogue
   executionLocation: ExecutionLocationState
   executionPinned: boolean
+  moveTools: (args: Pick<Parameters<typeof moveLocalPlacement>[0], 'threadId' | 'target' | 'caller' | 'pause' | 'whenSettled' | 'onProgress'>) => ReturnType<typeof moveLocalPlacement>
   settings: SettingsService
   secrets: SecretsPort
   rewarmSecrets: () => Promise<void>

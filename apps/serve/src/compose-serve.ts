@@ -187,6 +187,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       app.shells.listEverywhere().filter((shell) => shell.status === EShellStatus.Running).length,
     runningServices: () =>
       app.services.list().filter((service) => service.status === EServiceStatus.Running).length,
+    executionLocation: app.executionLocation,
     roster: {
       snapshot: () => ({
         shells: [...app.shells.listEverywhere()],

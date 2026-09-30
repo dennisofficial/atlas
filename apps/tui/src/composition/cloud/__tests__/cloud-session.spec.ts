@@ -3,14 +3,27 @@ import { describe, expect, it } from 'bun:test'
 import { EChannelConnection, ETurnStatus } from '@dltech/atlas-harness'
 import { toRunId } from '@dltech/atlas-core'
 
-import { ECloudSandboxState, type CloudReload, type CloudSandboxStatus } from '@dltech/atlas-harness'
+import {
+  ECloudSandboxState,
+  type ChannelConnection,
+  type CloudReload,
+  type CloudSandboxStatus,
+} from '@dltech/atlas-harness'
 import { createCloudSession } from '../cloud-session'
 import { fakeCloudChannel } from './fixture'
 
 const settled = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0))
 
-const sessionOn = (args: { status?: CloudSandboxStatus | undefined } = {}) => {
-  const channel = fakeCloudChannel()
+const sessionOn = (
+  args: { status?: CloudSandboxStatus | undefined; connection?: ChannelConnection | undefined } = {},
+) => {
+  // An attach only happens once the channel has answered its Hello, so the session reads Open —
+  // a spec that wants the dial itself passes `connection` and drives it by hand.
+  const channel = fakeCloudChannel({
+    ...(args.connection === undefined
+      ? { connection: { state: EChannelConnection.Open, detail: null } }
+      : { connection: args.connection }),
+  })
   const reloads: CloudReload[] = []
   const session = createCloudSession({
     channel,
@@ -30,7 +43,9 @@ const sessionOn = (args: { status?: CloudSandboxStatus | undefined } = {}) => {
 
 describe('what the operator is told about the socket', () => {
   it('follows the channel through connecting, open and reconnecting', () => {
-    const { channel, session } = sessionOn()
+    const { channel, session } = sessionOn({
+      connection: { state: EChannelConnection.Connecting, detail: null },
+    })
     const seen: EChannelConnection[] = [session.health().connection.state]
 
     session.subscribe(() => seen.push(session.health().connection.state))
@@ -94,6 +109,43 @@ describe('a channel that cannot resume its delta buffer', () => {
 
     expect(reloads).toEqual([])
     expect(channel.closed).toBe(true)
+  })
+
+  it('hands a reload on only once the socket can back the resync reads', () => {
+    const { channel, session, reloads } = sessionOn()
+    channel.moveTo({ state: EChannelConnection.Open, detail: null })
+    expect(session.health().connection.state).toBe(EChannelConnection.Open)
+
+    channel.moveTo({ state: EChannelConnection.Reconnecting, detail: null })
+    channel.reload({ sinceEventSeq: 42 })
+
+    expect(reloads).toEqual([])
+
+    channel.moveTo({ state: EChannelConnection.Open, detail: null })
+
+    expect(reloads).toEqual([{ sinceEventSeq: 42 }])
+  })
+
+  it('keeps only the oldest gap across reloads that land while the socket is down', () => {
+    const { channel, reloads } = sessionOn()
+    channel.moveTo({ state: EChannelConnection.Reconnecting, detail: null })
+
+    channel.reload({ sinceEventSeq: 42 })
+    channel.reload({ sinceEventSeq: 51 })
+    channel.moveTo({ state: EChannelConnection.Open, detail: null })
+
+    expect(reloads).toEqual([{ sinceEventSeq: 42 }])
+  })
+
+  it('never forwards a reload once the session is closed, even when the socket comes back', () => {
+    const { channel, session, reloads } = sessionOn()
+    channel.moveTo({ state: EChannelConnection.Reconnecting, detail: null })
+    channel.reload({ sinceEventSeq: 42 })
+
+    session.close()
+    channel.moveTo({ state: EChannelConnection.Open, detail: null })
+
+    expect(reloads).toEqual([])
   })
 })
 

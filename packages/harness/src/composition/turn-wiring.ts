@@ -186,10 +186,13 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
       runningShells,
       runningAgents,
       runningServices,
-      executionLocation: ({ threadId }) => ({
-        location: executionLocation.of(threadId) ?? executionLocation.current(),
-        mounts,
-      }),
+      executionLocation: ({ threadId }) => {
+        void executionLocation.load({ threadId })
+        return {
+          location: executionLocation.of(threadId) ?? executionLocation.current(),
+          mounts,
+        }
+      },
       capabilities: args.capabilities,
     }),
     launchDirectory: workspace.workspace,
@@ -276,10 +279,13 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
           repoRoot: workspace.repo ?? undefined,
           runningShells,
           runningServices,
-          executionLocation: ({ threadId }) => ({
-            location: executionLocation.of(threadId) ?? executionLocation.current(),
-            mounts,
-          }),
+          executionLocation: ({ threadId }) => {
+            void executionLocation.load({ threadId })
+            return {
+              location: executionLocation.of(threadId) ?? executionLocation.current(),
+              mounts,
+            }
+          },
           capabilities: args.capabilities,
         }),
     }),

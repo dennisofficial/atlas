@@ -17,6 +17,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { InMemoryToolRegistry } from '../../../tools/registry'
+import type { PlacementController } from '../../../composition/placement-controller'
 import { fakeAgentRegistry, type FakeAgents } from './fake-agents'
 import { fakeLedger } from './fake-backend'
 import { fakeServiceRegistry } from './fake-services'
@@ -218,6 +219,7 @@ export const descend = (args: {
   pauseDeadlineMs?: number
   mergeWorkspace?: WorkspaceMerger
   logPort?: LogPort
+  placement?: PlacementController
   afterTranscriptLanded?: () => Promise<void>
 }): Promise<OpenedLocal> => {
   const bridge = args.bridge ?? fakeBridge()
@@ -231,6 +233,7 @@ export const descend = (args: {
     channel,
     localApp: args.home,
     surface: surface.surface,
+    ...(args.placement === undefined ? {} : { placement: args.placement }),
     ...(args.pauseDeadlineMs === undefined ? {} : { pauseDeadlineMs: args.pauseDeadlineMs }),
     ...(args.mergeWorkspace === undefined ? {} : { mergeWorkspace: args.mergeWorkspace }),
     ...(args.logPort === undefined ? {} : { logPort: args.logPort }),
