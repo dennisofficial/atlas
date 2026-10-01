@@ -217,6 +217,7 @@ export function transcript(args: {
   waitingSince?: number
   onRetry?: () => void
   disconnected?: boolean
+  stale?: boolean
   onReconnect?: () => void
 }): React.ReactNode {
   return (
@@ -234,6 +235,7 @@ export function transcript(args: {
       {...(args.waitingSince === undefined ? {} : { waitingSince: args.waitingSince })}
       {...(args.onRetry ? { onRetry: args.onRetry } : {})}
       {...(args.disconnected === undefined ? {} : { disconnected: args.disconnected })}
+      {...(args.stale === undefined ? {} : { stale: args.stale })}
       {...(args.onReconnect ? { onReconnect: args.onReconnect } : {})}
     />
   )

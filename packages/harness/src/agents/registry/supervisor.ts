@@ -264,6 +264,14 @@ export class AgentSupervisor extends AgentRegistryPort {
     return this.steps.whenSettled({ threadId })
   }
 
+  override settling(): boolean {
+    return this.steps.settling()
+  }
+
+  override onSettled(listener: () => void): () => void {
+    return this.steps.onSettled(listener)
+  }
+
   recordLostAgents({ threadId }: { threadId: ThreadId }): Promise<RecoveredAgents> {
     return this.recovery.recordLost({ threadId })
   }

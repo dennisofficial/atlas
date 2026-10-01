@@ -1,5 +1,5 @@
 import type { EventDraft, ThreadId } from '@dltech/atlas-core'
-import { PauseSignal, RemoteTurnRunner } from '@dltech/atlas-harness'
+import { PauseSignal, RemoteTurnDetached, RemoteTurnRunner } from '@dltech/atlas-harness'
 import { useCallback, useRef, useState, type RefObject } from 'react'
 
 import type { PendingSaid } from '../store'
@@ -149,12 +149,14 @@ export function useDrivenTurn(args: {
           const said = app.turnPolicy.undone()
           if (said !== null) onUndone(said)
         } catch (error) {
-          await app.turnPolicy.onCrashed({ threadId })
-          setFailure(
-            error instanceof Error
-              ? error.message
-              : 'The turn stopped for a reason it did not name.',
-          )
+          if (!(error instanceof RemoteTurnDetached)) {
+            await app.turnPolicy.onCrashed({ threadId })
+            setFailure(
+              error instanceof Error
+                ? error.message
+                : 'The turn stopped for a reason it did not name.',
+            )
+          }
         } finally {
           settleCommit()
           abort.current = null

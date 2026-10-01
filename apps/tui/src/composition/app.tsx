@@ -7,6 +7,7 @@ import { readClipboardImage, type ClipboardImageReader } from '../ui/clipboard-i
 import { createKeyRegistry, KeyRegistryContext } from '../ui/keys'
 import { captureWorkspace } from './cloud/workspace-snapshot'
 import { createCloudSession } from './cloud/cloud-session'
+import { cloudReadinessOf } from './cloud/cloud-readiness'
 import { openCloudConversation } from './cloud/cloud-app'
 import { mirrorCloudRenames } from './cloud/rename-mirror'
 import type { AtlasApp } from './compose'
@@ -59,36 +60,50 @@ export function App(props: {
     draftReader.current = reader
   }, [])
 
-  const handleReload = useCallback(() => {
+  const handleReload = useCallback((): Promise<void> => {
     const attached = held.current
-    if (attached === null) return
+    if (attached === null) return Promise.reject(new Error('the cloud attachment is no longer mounted'))
     if (reloading.current) {
       reloadPending.current = true
-      return
+      return Promise.resolve()
     }
 
     reloading.current = true
-    void openCloudConversation({
-      app: attached.app,
-      threadId: attached.opened.threadId,
-    })
-      .then((opened) =>
-        setLifted((current) =>
-          current === null ? current : { ...current, opened, reloads: current.reloads + 1 },
-        ),
-      )
-      .catch(() => undefined)
-      .finally(() => {
-        reloading.current = false
-        if (!reloadPending.current) return
-        reloadPending.current = false
-        handleReload()
+    const task = (async () => {
+      const opened = await openCloudConversation({
+        app: attached.app,
+        threadId: attached.opened.threadId,
       })
+      if (held.current?.channel !== attached.channel) {
+        throw new Error('the cloud attachment changed during transcript synchronization')
+      }
+      if (opened.identity === undefined) {
+        throw new Error('the cloud transcript has no complete snapshot identity')
+      }
+      const applied = cloudReadinessOf(attached.channel).waitUntilApplied(opened.identity)
+      setLifted((current) =>
+        current?.channel !== attached.channel
+          ? current
+          : { ...current, opened, reloads: current.reloads + 1 },
+      )
+      await applied
+    })()
+    return task.finally(() => {
+      reloading.current = false
+      if (!reloadPending.current) return
+      reloadPending.current = false
+      void handleReload()
+    })
   }, [])
 
   const handleLifted = useCallback(
     (attachment: LiftedAttachment) => {
       held.current?.session.close()
+
+      const stopMirroring = mirrorCloudRenames({
+        home: props.app.threads,
+        remote: attachment.stores.threads,
+      })
 
       setLifted({
         ...attachment,
@@ -96,10 +111,12 @@ export function App(props: {
           channel: attachment.channel,
           sandboxes: attachment.bridge.sandboxes,
           onReload: handleReload,
-          onClose: mirrorCloudRenames({
-            home: props.app.threads,
-            remote: attachment.stores.threads,
-          }),
+          appliedSnapshot: () => cloudReadinessOf(attachment.channel).applied(),
+          subscribeApplied: (listener) => cloudReadinessOf(attachment.channel).subscribe(listener),
+          onClose: () => {
+            cloudReadinessOf(attachment.channel).cancelWaiting()
+            stopMirroring()
+          },
         }),
         reloads: 0,
       })

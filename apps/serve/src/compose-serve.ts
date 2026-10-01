@@ -1,5 +1,6 @@
 import {
   ClockPort,
+  EAgentStatus,
   ENoticeTone,
   EventLogPort,
   EServiceStatus,
@@ -174,6 +175,9 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
         await app.agents.pauseChildren({ threadId })
       },
     },
+    runningChildren: () => app.agents.listEverywhere().filter((child) => child.status === EAgentStatus.Running).length,
+    settlingWork: () => (app.agents.settling?.() ?? false) || (app.shells.settling?.() ?? false) || (app.services.settling?.() ?? false),
+    pendingInput: () => app.pending.waitingCount() > 0 || (app.intake?.threadsWithPendingInput().length ?? 0) > 0,
     runningShells: () =>
       app.shells.listEverywhere().filter((shell) => shell.status === EShellStatus.Running).length,
     runningServices: () =>

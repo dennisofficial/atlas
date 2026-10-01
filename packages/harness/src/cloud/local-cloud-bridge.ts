@@ -1,5 +1,5 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import { PORTABLE_STATE_PATH, type PortableState } from '@dltech/atlas-wire'
+import { PORTABLE_STATE_PATH, type PortableState, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import { createRemoteDeltaChannel } from './remote-delta-channel'
 import { RemoteEventLog } from './remote-event-log'
@@ -18,7 +18,7 @@ import {
   bootstrapSpecOf,
   CONTEXT_ARCHIVE_PATH,
   liveDriverWith,
-  parkedEscalationOf,
+  lifecycleEscalationOf,
   portableOmissionsOf,
   TRANSCRIPT_ARCHIVE_PATH,
   WORKSPACE_SPEC_PATH,
@@ -54,6 +54,8 @@ export function createLocalCloudBridge(args: {
   onRegistrationFailed?: ((failure: unknown) => void) | undefined
   onPortableOmitted?: ((omitted: PortableOmissions) => void) | undefined
   environment?: (() => Record<string, string>) | undefined
+  cloudUrl?: (() => string) | undefined
+  readCheckpoint?: ((args: { threadId: ThreadId }) => Promise<RuntimeCheckpoint | null>) | undefined
   onDriverLog?: ((line: string) => void) | undefined
   lastEventSeq?: (() => number) | undefined
   driverWith?: ((config: VercelSandboxConfig) => BridgeDriver) | undefined
@@ -64,6 +66,7 @@ export function createLocalCloudBridge(args: {
       liveDriverWith({
         config,
         ...(args.onDriverLog === undefined ? {} : { onDriverLog: args.onDriverLog }),
+        cloudUrl: args.cloudUrl?.() ?? '',
       }))
 
   const readGitTokenQuietly = async (): Promise<string | undefined> => {
@@ -216,10 +219,16 @@ export function createLocalCloudBridge(args: {
   }
 
   const find = async (findArgs: { threadId: ThreadId }): Promise<CloudSandboxStatus> => {
-    const observed = await driverWith(args.vercel()).inspect({
-      name: sandboxNameFor({ threadId: findArgs.threadId }),
-    })
-    return observed ?? { state: ECloudSandboxState.Parked }
+    const [observed, reported] = await Promise.all([
+      driverWith(args.vercel()).inspect({
+        name: sandboxNameFor({ threadId: findArgs.threadId }),
+      }),
+      args.readCheckpoint?.(findArgs).catch(() => null) ?? null,
+    ])
+    return {
+      ...(observed ?? { state: ECloudSandboxState.Stopped }),
+      checkpoint: reported?.threadId === findArgs.threadId ? reported : null,
+    }
   }
 
   const destroy = async (destroyArgs: { threadId: ThreadId }): Promise<void> => {
@@ -265,7 +274,7 @@ export function createLocalCloudBridge(args: {
         token,
         ...(args.lastEventSeq === undefined ? {} : { lastEventSeq: args.lastEventSeq }),
         reattach: () => reattachSandbox({ sandboxes: bridgeSandboxes, threadId }),
-        shouldEscalate: parkedEscalationOf({ sandboxes: bridgeSandboxes, threadId }),
+        lifecycleEscalation: lifecycleEscalationOf({ sandboxes: bridgeSandboxes, threadId }),
       })
       return {
         channel,

@@ -3,6 +3,7 @@ import type { TurnSpend } from "@dltech/atlas-harness";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -21,14 +22,8 @@ import {
 import type { LogAccumulator } from "../store/log-accumulator";
 import type { TurnClock } from "../ui/turn-clock";
 import type { AtlasApp } from "./compose";
-import {
-  createThreadPager,
-  mergeWindowEvents,
-  readThreadBase,
-  readThreadWindow,
-  retainNewest,
-} from "./thread-reads";
-import { readThreadSpend } from "./thread-spend";
+import { createThreadPager, type ThreadIdentity } from "./thread-reads";
+import { createThreadViewRefresh } from "./thread-view-refresh";
 import { usePlacementRepublish } from "./use-placement-republish";
 import {
   subscribeTranscriptViewport,
@@ -51,6 +46,11 @@ export type ThreadSeed = {
   events: readonly Event[];
   turns?: readonly TurnSpend[] | undefined;
   base?: LogAccumulator | undefined;
+  /**
+   * The transcript's full identity as read by whoever opened the thread — held above the
+   * projection, which evicts rows past the retention cap and can never vouch for the whole log.
+   */
+  identity?: ThreadIdentity | undefined;
 };
 
 export type ThreadView = {
@@ -154,6 +154,21 @@ export function useThreadView(args: {
     [store],
   );
 
+  const viewRefresh = useMemo(
+    () =>
+      createThreadViewRefresh({
+        app,
+        threadId,
+        rows,
+        effects,
+        store,
+        setEvents,
+        heldEvents: () => heldEvents.current,
+        readSeed: initial,
+      }),
+    [app, threadId, rows, effects, store, setEvents, initial],
+  );
+
   /**
    * A conversation swapped for another one arrives as a fresh getter, and the rows it already read
    * are the ones to show — the store was just rebuilt around them, so the hook's own copy has to
@@ -162,9 +177,18 @@ export function useThreadView(args: {
   useEffect(() => {
     if (initial === undefined) return;
 
-    tailGapped.current = false;
+    viewRefresh.markGapped(false);
     setEvents(initial().events);
-  }, [initial, setEvents]);
+  }, [initial, setEvents, viewRefresh]);
+
+  /**
+   * The seed identity registers in a layout effect, not during the render: the register must
+   * vouch that the store built around the seed is the one on screen, and a render-time write
+   * would run even for a tree that never commits.
+   */
+  useLayoutEffect(() => {
+    viewRefresh.registerSeedIdentity();
+  }, [viewRefresh]);
 
   useEffect(() => () => store.dispose(), [store]);
 
@@ -173,49 +197,13 @@ export function useThreadView(args: {
 
   usePlacementRepublish({ app, threadId, store });
 
-  const baseSeeded = useRef(initial?.().base !== undefined);
-  const lastHead = useRef<number | undefined>(undefined);
-  const tailGapped = useRef(false);
-
-  const refresh = useCallback(async () => {
-    const [window, spent] = await Promise.all([
-      readThreadWindow({ log: app.log, threadId, rows }),
-      readThreadSpend({ ledger: app.ledger, threadId }),
-    ]);
-    const rewound = lastHead.current !== undefined && window.head < lastHead.current;
-    lastHead.current = window.head;
-
-    if (baseSeeded.current && !rewound) {
-      const merged = mergeWindowEvents({ held: heldEvents.current, window: window.events });
-      if (merged === null && tailGapped.current) return;
-
-      tailGapped.current = false;
-      const next = retainNewest({ events: merged ?? window.events });
-      store.setEvents({ events: next, turns: spent.turns });
-      setEvents(next);
-      return;
-    }
-
-    tailGapped.current = false;
-    const base = await readThreadBase({
-      log: app.log,
-      threadId,
-      rows,
-      fromSeq: window.fromSeq,
-      effects,
-    });
-    baseSeeded.current = true;
-    store.resetLog({ events: window.events, base, turns: spent.turns });
-    setEvents(window.events);
-  }, [app.ledger, app.log, effects, rows, store, threadId, setEvents]);
-
   /**
    * A thread nobody handed rows for reads them itself, once, on the way in. The channel replays the
    * step in flight to a late subscriber, so a sub-agent opened mid-step catches up on that step
    * without anything polling for it.
    */
-  const load = useRef(refresh);
-  load.current = refresh;
+  const load = useRef(viewRefresh.refresh);
+  load.current = viewRefresh.refresh;
   useEffect(() => {
     if (initial !== undefined) return;
 
@@ -243,14 +231,16 @@ export function useThreadView(args: {
             signal.type === "step-ended" ||
             signal.type === "events-appended"
           ) {
+            if (!viewRefresh.refreshable()) return;
+
             // A refresh reads the thread's tail — over the wire for a cloud thread — so a failed
             // read leaves the stale view standing rather than taking the process down with an
             // unhandled rejection; the next signal retries.
-            void refresh().catch(() => undefined);
+            void viewRefresh.refresh().catch(() => undefined);
           }
         },
       }),
-    [app.channel, onUsage, refresh, threadId],
+    [app.channel, onUsage, viewRefresh, threadId],
   );
 
   const pager = useMemo(
@@ -260,16 +250,14 @@ export function useThreadView(args: {
         threadId,
         rows,
         held: () => heldEvents.current,
-        gapped: () => tailGapped.current,
-        markGapped: (next) => {
-          tailGapped.current = next;
-        },
+        gapped: viewRefresh.gapped,
+        markGapped: viewRefresh.markGapped,
         apply: (next) => {
           store.setEvents({ events: next });
           setEvents(next);
         },
       }),
-    [app.log, rows, store, threadId, setEvents],
+    [app.log, rows, store, threadId, setEvents, viewRefresh],
   );
 
   useEffect(
@@ -290,7 +278,7 @@ export function useThreadView(args: {
     sidebar,
     events,
     turn,
-    refresh,
+    refresh: viewRefresh.refresh,
     loadOlder: pager.loadOlder,
     setEvents,
     stamp,

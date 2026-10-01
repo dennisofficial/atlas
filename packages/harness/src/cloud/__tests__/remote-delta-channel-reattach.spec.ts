@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EStepEnd } from '../../channel/signal'
 import {
   bearerSubprotocolOf,
   CHANNEL_SUBPROTOCOL,
   encodeFrame,
   EServeFrame,
 } from '../channel-wire'
-import { EChannelConnection } from '../remote-delta-channel'
+import { EChannelConnection, STRANDED_STEP_END } from '../remote-delta-channel'
 import { harness, recorder, started, THREAD } from './remote-channel-fixture'
 
 describe('escalating to a re-attach when the socket stays dead', () => {
@@ -82,7 +81,7 @@ describe('escalating to a re-attach when the socket stays dead', () => {
     expect(channel.connection().detail).toContain('timed out waiting for the sandbox')
   })
 
-  it('ends the step in flight when the escalation begins, since the relaunched serve kills it', async () => {
+  it('retires the step in flight when the escalation begins, since the relaunched serve owns it now', async () => {
     const pending = deferred<{ url: string; token: string }>()
     const { channel, open, receive, drop, retries, live } = harness({
       maxAttempts: 1,
@@ -96,7 +95,7 @@ describe('escalating to a re-attach when the socket stays dead', () => {
     retries[0]?.run()
     live().handlers.handleClose()
 
-    expect(seen.at(-1)).toMatchObject({ type: 'step-ended', end: EStepEnd.Failed })
+    expect(seen.at(-1)).toMatchObject({ type: 'step-ended', end: STRANDED_STEP_END })
     expect(channel.snapshot({ threadId: THREAD })).toEqual([])
     pending.resolve({ url: 'https://fresh.test/', token: 'tok_fresh' })
     await Bun.sleep(1)

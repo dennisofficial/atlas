@@ -78,6 +78,8 @@ export type FakeCloudSandboxRow = {
   driveMode?: string | null
   pinnedModel?: string | null
   serveUrl?: string | null
+  runtimeCheckpoint?: unknown
+  runtimeCheckpointRevision?: number | null
   createdAt: string
   updatedAt: string
 }
@@ -253,6 +255,11 @@ export function createFakeSessionDb() {
         if (row === undefined) throw new Error('record not found')
         applyUpdate(row as unknown as Record<string, unknown>, args.data)
         return project(row, args.select)
+      },
+      updateMany: async (args: { where: Where; data: Where }) => {
+        const matched = cloudSandboxes.filter((one) => matchesRow(one, args.where))
+        for (const row of matched) applyUpdate(row as unknown as Record<string, unknown>, args.data)
+        return { count: matched.length }
       },
       delete: async (args: { where: { threadId: string } }) => {
         const index = cloudSandboxes.findIndex((one) => one.threadId === args.where.threadId)

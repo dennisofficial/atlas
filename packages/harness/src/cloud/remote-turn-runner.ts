@@ -4,6 +4,13 @@ import { TurnRunner, type PauseSignal, type TurnOutcome } from '../loop'
 
 import { EChannelConnection, type RemoteDeltaChannel } from './remote-delta-channel'
 
+export class RemoteTurnDetached extends Error {
+  constructor(reason: string) {
+    super(reason)
+    this.name = 'RemoteTurnDetached'
+  }
+}
+
 export const SERVE_DEFAULT_REPLAY_WINDOW_OUTCOMES = 2048
 
 type Waiter = {
@@ -33,18 +40,27 @@ export class RemoteTurnRunner extends TurnRunner {
         this.heldForReattach = true
         return
       }
+      if (connection.state === EChannelConnection.Parked) {
+        this.heldForReattach = false
+        this.detachAll('The sandbox parked after this client lost its turn outcome.')
+        return
+      }
       if (connection.state !== EChannelConnection.Closed) return
       this.heldForReattach = false
-      this.failAll(connection.detail ?? 'The session socket closed mid-turn.')
+      this.detachAll(connection.detail ?? 'The session socket closed mid-turn.')
     })
     this.channel.onReady((ready) => {
       if (!this.heldForReattach) return
       this.heldForReattach = false
       if (ready.turnInFlight) return
-      this.failAll('The sandbox was re-attached — the turn it was running did not survive.')
+      this.detachAll('The sandbox finished the turn while this client was detached.')
     })
     this.channel.onServerError((failure) => {
       this.waiters.shift()?.reject(new Error(failure.message))
+    })
+    this.channel.onDetached?.((reason) => {
+      this.heldForReattach = false
+      this.detachAll(reason)
     })
   }
 
@@ -138,7 +154,7 @@ export class RemoteTurnRunner extends TurnRunner {
         try {
           args.fire()
         } catch (error) {
-          this.failAll(error instanceof Error ? error.message : 'the turn frame could not be sent')
+          this.detachAll(error instanceof Error ? error.message : 'the turn frame could not be sent')
         }
       })
     } finally {
@@ -158,8 +174,8 @@ export class RemoteTurnRunner extends TurnRunner {
     return true
   }
 
-  private failAll(reason: string): void {
-    const error = new Error(reason)
-    while (this.waiters.length > 0) this.waiters.shift()?.reject(error)
+  private detachAll(reason: string): void {
+    const detached = new RemoteTurnDetached(reason)
+    while (this.waiters.length > 0) this.waiters.shift()?.reject(detached)
   }
 }
