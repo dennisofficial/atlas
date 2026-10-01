@@ -617,10 +617,6 @@ export function fakeShellRegistry(): FakeShells {
     },
 
     closeAll: async () => {},
-
-    recordEndings: async () => [],
-
-    threadsWithUnresolvedEndings: () => [],
   }
 }
 

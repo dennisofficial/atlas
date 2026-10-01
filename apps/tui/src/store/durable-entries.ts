@@ -200,22 +200,24 @@ export function durableEntries(args: {
    * The same teardown also re-recorded shells the model had already killed through shell_kill:
    * that ending was delivered as the tool result, so no standalone event was meant to exist, and
    * the synthesized one carries empty output. Those sit in old logs permanently, so the transcript
-   * drops a model-kill ending with no output when a shell_kill tool result for the same shell is
-   * already present. A fresh shell under a recycled id whose kill was genuinely silent keeps its
-   * ending, because no shell_kill result names it.
+   * drops a model-kill ending with no output when a shell_kill tool result for the same shell and
+   * command is already present. Keyed on the command too, because a shell id recycles across
+   * restarts and an old kill must not hide a fresh shell's genuinely silent ending. An ending with
+   * real output is always kept — output means it was the telling, never a synthesized dupe.
    */
   const shellKillResults = new Set<string>()
   const noteToolResult = (event: Event): void => {
     if (event.type !== 'tool-result' || event.name !== 'shell_kill') return
     const output = event.output
     if (typeof output !== 'object' || output === null) return
-    const shellId = (output as { shellId?: unknown }).shellId
-    if (typeof shellId === 'string') shellKillResults.add(shellId)
+    const record = output as { shellId?: unknown; command?: unknown }
+    if (typeof record.shellId !== 'string') return
+    shellKillResults.add(`${record.shellId}${typeof record.command === 'string' ? record.command : ''}`)
   }
   const isRedundantClaimedEnding = (event: EventOfType<'background-shell-ended'>): boolean =>
     event.killedBy === EKilledBy.Model &&
     event.output === '' &&
-    shellKillResults.has(event.shellId)
+    shellKillResults.has(`${event.shellId}${event.command}`)
 
   const entriesOfEvent = (event: Event): TranscriptEntry[] => {
     if (event.type === 'user-said') {
@@ -242,7 +244,6 @@ export function durableEntries(args: {
     }
 
     if (event.type === 'background-shell-ended') {
-      if (event.recorded === true) return []
       if (isRedundantTeardownEnding(event)) return []
       if (isRedundantClaimedEnding(event)) return []
       noteShellEnding(event)

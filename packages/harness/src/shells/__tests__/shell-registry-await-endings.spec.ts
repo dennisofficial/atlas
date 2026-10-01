@@ -2,13 +2,13 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import { EKilledBy } from '@dltech/atlas-core'
 
-import { closeRegistries, ELSEWHERE, job, openRegistry, THREAD } from './shell-registry-fixture'
+import { closeRegistries, ELSEWHERE, job, openRegistry, recorded, THREAD } from './shell-registry-fixture'
 
 afterEach(closeRegistries)
 
 describe('awaiting the endings a kill caused', () => {
-  it('leaves the ending queued by the time it resolves', async () => {
-    const { registry } = openRegistry()
+  it('leaves the ending in the log by the time it resolves', async () => {
+    const { registry, log } = openRegistry()
     const started = registry.start(job({ command: 'sleep 30' }))
     if (!started.ok) throw new Error(started.reason)
 
@@ -20,10 +20,10 @@ describe('awaiting the endings a kill caused', () => {
     const stillDying = await registry.awaitEndings({ threadId: THREAD, ms: 5_000 })
 
     expect(stillDying).toBe(0)
-    expect(registry.pendingNotices({ threadId: THREAD })).toHaveLength(1)
-    expect(registry.drainNotifications({ threadId: THREAD })[0]?.type).toBe(
-      'background-shell-ended',
-    )
+    await recorded({ log })
+    expect(
+      log?.appended.filter((draft) => draft.type === 'background-shell-ended'),
+    ).toHaveLength(1)
   })
 
   it('counts a shell that ignores the signal and leaves its ending to announce later', async () => {

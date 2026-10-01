@@ -5,7 +5,7 @@ import { EShellStatus } from '@dltech/atlas-core'
 import { DELIVERED_CHARACTERS } from '../notice-queue'
 import { OVERFLOW_CHARACTERS, RETAINED_CHARACTERS } from '../shell-registry'
 import {
-  announced,
+  recorded,
   closeRegistries,
   endedDraft,
   job,
@@ -23,19 +23,19 @@ for (const adapter of shellAdapters) {
   describeAdapter(`${adapter.name} process adapter`, () => {
     describe('a shell that outprints the overflow cap', () => {
       it('is killed and the ending says it overflowed', async () => {
-        const { registry } = openRegistry({ adapter })
+        const { registry, log } = openRegistry({ adapter })
         const started = registry.start(job({ command: 'yes y' }))
         if (!started.ok) throw new Error(started.reason)
 
         await settle({ registry, shellId: started.snapshot.shellId })
-        await announced({ registry })
+        await recorded({ log })
 
         const snapshot = registry
           .list({ threadId: THREAD })
           .find((entry) => entry.shellId === started.snapshot.shellId)
         expect(snapshot?.status).toBe(EShellStatus.Overflowed)
 
-        const ended = endedDraft(registry.drainNotifications({ threadId: THREAD })[0])
+        const ended = endedDraft(log?.appended.find((draft) => draft.type === 'background-shell-ended'))
         expect(ended.status).toBe(EShellStatus.Overflowed)
         expect(ended.output).toHaveLength(DELIVERED_CHARACTERS)
         expect(ended.droppedCharacters).toBeGreaterThan(
@@ -46,15 +46,15 @@ for (const adapter of shellAdapters) {
 
     describe('the drop accounting a read reports', () => {
       it('counts the characters that fell out of the window, byte-identically', async () => {
-        const { registry } = openRegistry({ adapter })
+        const { registry, log } = openRegistry({ adapter })
         const started = registry.start(
           job({ command: `yes y | head -c ${RETAINED_CHARACTERS + 1000}` }),
         )
         if (!started.ok) throw new Error(started.reason)
         await settle({ registry, shellId: started.snapshot.shellId })
-        await announced({ registry })
+        await recorded({ log })
 
-        const ended = endedDraft(registry.drainNotifications({ threadId: THREAD })[0])
+        const ended = endedDraft(log?.appended.find((draft) => draft.type === 'background-shell-ended'))
 
         expect(ended.status).toBe(EShellStatus.Exited)
         expect(ended.droppedCharacters).toBe(1000)
