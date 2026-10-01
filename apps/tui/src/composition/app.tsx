@@ -729,6 +729,7 @@ function Workspace(props: {
   const threadModel = useThreadModel({
     app: props.app,
     threads: props.cloudStores?.threads ?? props.app.threads,
+    lifted: props.cloudStores !== null,
     threadId: conversation.threadId,
     stored: conversation.threadModel,
     started: conversation.started,

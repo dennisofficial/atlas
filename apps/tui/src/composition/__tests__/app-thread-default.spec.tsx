@@ -1,12 +1,17 @@
 import { ESettingId, refKey, toThreadId } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
+import { currentNotices, dismissNotice } from '../../ui/notice-store'
 import type { OpenedConversation } from '../open-conversation'
 import { open, until, REPLY } from './app-fixture'
 import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
 await grammarsReady()
+
+beforeEach(() => {
+  dismissNotice()
+})
 
 const THREAD = toThreadId('opened-thread')
 
@@ -105,6 +110,42 @@ describe('a conversation adopted before the default model is picked', () => {
       await mounted.frame()
 
       expect(choiceIn(mounted.app)).toBe('anthropic/claude-haiku-4-5')
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+})
+
+describe('a model write the local store refuses', () => {
+  it('keeps the pick the operator chose and warns it was not saved', async () => {
+    const mounted = await open({ app: speaking() })
+
+    try {
+      expect(choiceIn(mounted.app)).toBe('anthropic/claude-haiku-4-5')
+
+      mounted.app.threads.chooseModel = async () => {
+        throw new Error('the store is read-only')
+      }
+
+      mounted.pressCtrl('p')
+      await mounted.frame()
+      mounted.pressUp()
+      await mounted.frame()
+      mounted.pressEnter()
+
+      const kept = await until({
+        holds: async () => {
+          await mounted.frame()
+          return (
+            choiceIn(mounted.app) === 'anthropic/claude-sonnet-5' &&
+            currentNotices().some((notice) =>
+              notice.text.includes('will come back on anthropic/claude-haiku-4-5 next launch'),
+            )
+          )
+        },
+        within: WITHIN_MS,
+      })
+      expect(kept).toBe(true)
     } finally {
       await mounted.done()
     }

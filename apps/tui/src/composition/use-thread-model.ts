@@ -5,7 +5,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { notify } from '../ui/notice-store'
 import type { SwitcherChoice, SwitcherTarget } from '../ui/switcher-model'
 import { EModelScope } from '../ui/switcher-model'
-import { cloudModelFailureNotice } from './cloud/cloud-write-notices'
+import {
+  cloudModelFailureNotice,
+  modelPersistFailureNotice,
+} from './cloud/cloud-write-notices'
 import type { AtlasApp } from './compose'
 import type { ModelSelection } from '@dltech/atlas-harness'
 import {
@@ -38,11 +41,14 @@ export function useThreadModel(args: {
   app: AtlasApp
   /** The store the model write crosses — the cloud attachment's when the thread is lifted. */
   threads?: AtlasApp['threads'] | undefined
+  /** True when the thread is cloud-lifted: the remote store is the live truth, so a refused write reverts the pick. */
+  lifted?: boolean | undefined
   threadId: ThreadId
   stored: ThreadModel | undefined
   started: boolean
 }): ThreadModelControl {
   const { app, threadId, stored, started } = args
+  const lifted = args.lifted ?? false
   const threads = args.threads ?? app.threads
   const [selection, setSelection] = useState<ModelSelection>(() => app.model.choice())
   const launching = useRef(true)
@@ -106,8 +112,14 @@ export function useThreadModel(args: {
 
     void threads
       .chooseModel({ threadId, model: storedModel(app.model.choice()) })
-      .catch(() => notify(cloudModelFailureNotice()))
-  }, [app, threads, started, threadId])
+      .catch(() =>
+        notify(
+          lifted
+            ? cloudModelFailureNotice()
+            : modelPersistFailureNotice({ model: refKey(app.model.choice().ref) }),
+        ),
+      )
+  }, [app, threads, lifted, started, threadId])
 
   const handlePicked = useCallback(
     ({ choice, target }: { choice: SwitcherChoice; target: SwitcherTarget }) => {
@@ -130,12 +142,20 @@ export function useThreadModel(args: {
       if (!started) return
 
       void threads.chooseModel({ threadId, model: storedModel(landed) }).catch(() => {
-        app.model.select(prior)
-        setSelection(prior)
-        notify(cloudModelFailureNotice())
+        if (lifted) {
+          app.model.select(prior)
+          setSelection(prior)
+          notify(cloudModelFailureNotice())
+          return
+        }
+        notify(
+          modelPersistFailureNotice({
+            model: refKey(prior.ref),
+          }),
+        )
       })
     },
-    [app, threads, started, threadId],
+    [app, threads, lifted, started, threadId],
   )
 
   return { selection, fallback, handlePicked }
