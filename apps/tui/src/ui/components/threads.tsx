@@ -1,16 +1,17 @@
-import React from 'react'
+import type { ScrollBoxRenderable } from '@opentui/core'
+import React, { useEffect, useRef } from 'react'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
 
 import { type Hint } from '../hint-layout'
 import { type PressHandlers, usePress } from '../hooks/use-press'
+import { useRelaxedThumb } from '../scrollbar-thumb'
 import { cloudSandboxBadge } from '../thread-badges'
 import { glyph, theme } from '../theme'
 import {
   matchingThreads,
+  selectedThread,
   threadAge,
-  threadsWindow,
-  THREAD_ROWS,
   visibleChips,
   type ThreadRow,
   type ThreadsState,
@@ -37,9 +38,14 @@ export const NO_THREADS = 'No other conversations here yet.'
 
 export const NO_MATCHES = 'Nothing matches that.'
 
+/** Rows the list shows at once; taller listings scroll inside the box. */
+export const THREAD_LIST_ROWS = 16
+
 export const CURRENT_LABEL = '(current)'
 
 export const MAIN_LABEL = `${glyph.home} main`
+
+const FILTER_PLACEHOLDER = 'type to filter'
 
 const GUTTER = ' '.repeat(2)
 
@@ -60,6 +66,29 @@ function TextLine(props: {
       <text>
         <Spans spans={clipSpans({ spans: props.spans, cells: props.cells })} />
       </text>
+    </DrawerLine>
+  )
+}
+
+function FilterLine(props: {
+  query: string
+  onQueryChange: (value: string) => void
+}): React.ReactNode {
+  return (
+    <DrawerLine>
+      <box flexDirection="row" flexGrow={1}>
+        <text fg={theme.accent}>{`${glyph.marker} `}</text>
+        <input
+          flexGrow={1}
+          value={props.query}
+          focused
+          placeholder={FILTER_PLACEHOLDER}
+          textColor={theme.bright}
+          placeholderColor={theme.hint}
+          cursorColor={theme.caretBg}
+          onInput={props.onQueryChange}
+        />
+      </box>
     </DrawerLine>
   )
 }
@@ -158,13 +187,23 @@ export function Threads(props: {
   overlay?: boolean
   onPick: (row: ThreadRow) => void
   onDismiss: () => void
+  onQueryChange: (query: string) => void
 }): React.ReactNode {
   const cells = threadsCells({ width: props.width })
   const press = usePress()
+  const scroller = useRef<ScrollBoxRenderable | null>(null)
+  const relax = useRelaxedThumb()
   const { state } = props
-  const { start, visible, below } = threadsWindow({ state, rows: THREAD_ROWS })
+  const matches = matchingThreads(state)
+  const selected = selectedThread(state)
   const empty = state.rows.length === 0
-  const filteredOut = !empty && matchingThreads(state).length === 0
+  const filteredOut = !empty && matches.length === 0
+
+  useEffect(() => {
+    const box = scroller.current
+    if (box === null || selected === undefined) return
+    box.scrollChildIntoView(selected.threadId)
+  }, [selected])
 
   return (
     <BottomDrawer
@@ -173,43 +212,39 @@ export function Threads(props: {
     >
       <box flexDirection="column" flexShrink={0}>
         <DrawerHeading label={THREADS_HEADING} />
-        <TextLine
-          spans={[
-            { text: `${glyph.marker} `, fg: theme.accent },
-            state.query.length === 0
-              ? { text: 'type to filter', fg: theme.hint }
-              : { text: state.query, fg: theme.bright },
-          ]}
-          cells={cells}
-        />
+        <FilterLine query={state.query} onQueryChange={props.onQueryChange} />
         <DrawerGap />
+      </box>
+      <scrollbox
+        ref={(box: ScrollBoxRenderable | null) => {
+          scroller.current = box
+          relax(box)
+        }}
+        height={THREAD_LIST_ROWS}
+        flexShrink={0}
+        focusable={false}
+      >
         {state.loading ? (
           <TextLine spans={[{ text: 'listing…', fg: theme.hint }]} cells={cells} />
         ) : null}
-        {start === 0 ? null : (
-          <TextLine spans={[{ text: `  ${start} more above`, fg: theme.hint }]} cells={cells} />
-        )}
-        {visible.map((row, offset) => (
+        {matches.map((row) => (
           <ThreadLine
             key={row.threadId}
             row={row}
             cells={cells}
             now={state.openedAt}
-            selected={start + offset === state.index}
+            selected={selected?.threadId === row.threadId}
             press={press(() => props.onPick(row))}
           />
         ))}
-        {below === 0 ? null : (
-          <TextLine spans={[{ text: `  ${below} more below`, fg: theme.hint }]} cells={cells} />
-        )}
         {!state.loading && empty ? (
           <TextLine spans={[{ text: NO_THREADS, fg: theme.hint }]} cells={cells} />
         ) : null}
         {filteredOut ? (
           <TextLine spans={[{ text: NO_MATCHES, fg: theme.hint }]} cells={cells} />
         ) : null}
-        <DrawerGap />
-      </box>
+      </scrollbox>
+      <DrawerGap />
       {state.failure === null ? null : (
         <TextLine spans={[{ text: state.failure, fg: theme.warn }]} cells={cells} />
       )}

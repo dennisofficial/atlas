@@ -1,32 +1,29 @@
 import type { KeyEvent } from '@opentui/core'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { EExecutionLocation, projectOf, toThreadId } from '@dltech/atlas-core'
-import type { ThreadStorePort, ThreadSummary } from '@dltech/atlas-harness'
-
-import type { CloudSandboxes } from '@dltech/atlas-harness'
-import { sandboxStatesFor } from './cloud/sandbox-states'
+import { projectOf, toThreadId } from '@dltech/atlas-core'
+import type { CloudSandboxes, ThreadStorePort, ThreadSummary } from '@dltech/atlas-harness'
 
 import {
   failedToList,
   loadingThreads,
   matchingThreads,
+  moveSelection,
+  selectedThread,
   threadRows,
-  withChips,
-  withSandboxStates,
   withThreads,
   type ThreadRow,
   type ThreadsState,
 } from '../ui/threads-model'
 import type { AtlasApp } from './compose'
-import { openThreadChips, type ThreadChipsHandle } from './thread-chips'
-import { routeThreadKey } from './thread-picker-keys'
+import { useThreadDecorator } from './use-thread-decorator'
 
 export type ThreadsControl = {
   state: ThreadsState | null
   handleOpen: () => void
   handleDismiss: () => void
   handlePick: (row: ThreadRow) => void
+  handleQuery: (query: string) => void
   handleKey: (key: KeyEvent) => void
 }
 
@@ -51,14 +48,14 @@ export function useThreads(args: {
   const [state, setState] = useState<ThreadsState | null>(null)
 
   const generation = useRef(0)
-  const chipsHandle = useRef<ThreadChipsHandle | null>(null)
-  const decorated = useRef<Map<string, string>>(new Map())
   const enrichAsked = useRef<Set<string>>(new Set())
 
   const put = useCallback((next: ThreadsState | null) => {
     held.current = next
     setState(next)
   }, [])
+
+  const decorator = useThreadDecorator({ app, held, generation, findSandbox, put })
 
   const rebuildRows = useCallback(
     (threads: readonly ThreadSummary[], current: ThreadsState): ThreadRow[] => {
@@ -85,89 +82,6 @@ export function useThreads(args: {
     [],
   )
 
-  const paintChips = useCallback(
-    (chips: Map<string, readonly import('../ui/threads-model').ThreadChip[]>, gen: number) => {
-      if (generation.current !== gen) return
-      const open = held.current
-      if (open === null) return
-
-      const cleared = [...chips.entries()].filter(([, held]) => held.length === 0)
-      const filled = new Map([...chips.entries()].filter(([, held]) => held.length > 0))
-
-      let next = open
-      if (filled.size > 0) next = withChips({ state: next, chips: filled })
-      if (cleared.length > 0) {
-        const clearing = new Set(cleared.map(([threadId]) => threadId))
-        next = {
-          ...next,
-          rows: next.rows.map((row) => {
-            if (!clearing.has(row.threadId) || row.chips === undefined) return row
-            const { chips: _dropped, ...rest } = row
-            return rest
-          }),
-        }
-      }
-      if (next !== open) put(next)
-    },
-    [put],
-  )
-
-  const signatureOf = (row: ThreadRow): string =>
-    `${row.worktree?.branch ?? ''}|${(row.pullRequests ?? []).map((link) => `${link.repo}#${link.number}`).join(',')}`
-
-  const decorate = useCallback(
-    (rows: readonly ThreadRow[], gen: number) => {
-      const { pullRequests } = app
-
-      if (pullRequests !== null) {
-        if (chipsHandle.current === null) {
-          chipsHandle.current = openThreadChips({
-            home: app.config.cwd,
-            pullRequests,
-            onLanded: (chips) => paintChips(chips, gen),
-          })
-        }
-
-        const current = held.current
-        const visible =
-          current === null
-            ? rows
-            : (() => {
-                const matches = matchingThreads(current)
-                const seen = new Set(
-                  matches
-                    .slice(Math.max(0, current.index - ENRICH_WINDOW), current.index + ENRICH_WINDOW + 1)
-                    .map((row) => row.threadId),
-                )
-                return rows.filter((row) => seen.has(row.threadId))
-              })()
-
-        const due = visible.filter((row) => decorated.current.get(row.threadId) !== signatureOf(row))
-        if (due.length > 0) {
-          for (const row of due) decorated.current.set(row.threadId, signatureOf(row))
-          paintChips(chipsHandle.current.sync({ rows: due }), gen)
-        }
-      }
-
-      const cloudRows = rows.filter((row) => row.location === EExecutionLocation.Cloud)
-      const sandboxes = findSandbox?.() ?? null
-      const dueCloud = cloudRows.filter((row) => decorated.current.get(`sandbox:${row.threadId}`) === undefined)
-      if (dueCloud.length === 0 || sandboxes === null) return
-
-      for (const row of dueCloud) decorated.current.set(`sandbox:${row.threadId}`, 'asked')
-      void sandboxStatesFor({ find: sandboxes, threadIds: dueCloud.map((row) => row.threadId) })
-        .then((states) => {
-          if (generation.current !== gen) return
-          const open = held.current
-          if (open === null) return
-
-          put(withSandboxStates({ state: open, states }))
-        })
-        .catch(() => undefined)
-    },
-    [app, findSandbox, paintChips, put],
-  )
-
   const adopt = useCallback(
     (threads: readonly ThreadSummary[], gen: number) => {
       if (generation.current !== gen) return
@@ -176,9 +90,9 @@ export function useThreads(args: {
 
       const rows = rebuildRows(threads, current)
       put(putRows(current, rows))
-      decorate(rows, gen)
+      decorator.decorate(rows)
     },
-    [decorate, put, putRows, rebuildRows],
+    [decorator, put, putRows, rebuildRows],
   )
 
   const enrichVisible = useCallback(
@@ -228,11 +142,11 @@ export function useThreads(args: {
           if (!changed) return
 
           put(putRows(open, merged))
-          decorate(merged, gen)
+          decorator.decorate(merged)
         })
         .catch(() => undefined)
     },
-    [activeThreadId, app, decorate, listing, put, putRows],
+    [activeThreadId, app, decorator, listing, put, putRows],
   )
 
   useEffect(() => {
@@ -244,9 +158,7 @@ export function useThreads(args: {
     generation.current += 1
     const gen = generation.current
 
-    chipsHandle.current?.stop()
-    chipsHandle.current = null
-    decorated.current = new Map()
+    decorator.reset()
     enrichAsked.current = new Set()
 
     put(loadingThreads({ now: Date.now() }))
@@ -266,33 +178,62 @@ export function useThreads(args: {
 
         put(failedToList({ state: current, reason: reasonOf(error) }))
       })
-  }, [adopt, app, listing, put])
+  }, [adopt, app, decorator, listing, put])
 
   const handleDismiss = useCallback(() => {
     generation.current += 1
-    chipsHandle.current?.stop()
-    chipsHandle.current = null
+    decorator.stop()
     put(null)
-  }, [put])
+  }, [decorator, put])
 
   const handlePick = useCallback(
     (row: ThreadRow) => {
       generation.current += 1
-      chipsHandle.current?.stop()
-      chipsHandle.current = null
+      decorator.stop()
       put(null)
       onPick(row.threadId)
     },
-    [onPick, put],
+    [decorator, onPick, put],
+  )
+
+  /**
+   * The filter field is a real input, so editing reaches the query through its change events.
+   * What remains here is only what the field does not own: dismiss, open, and selection motion.
+   */
+  const handleQuery = useCallback(
+    (query: string) => {
+      const current = held.current
+      if (current === null) return
+      put({ ...current, query, index: 0, failure: null })
+    },
+    [put],
   )
 
   const handleKey = useCallback(
-    (key: KeyEvent) => routeThreadKey({ key, current: held.current, put, handleDismiss, handlePick }),
+    (key: KeyEvent) => {
+      const current = held.current
+      if (current === null) return
+
+      if (key.name === 'escape') {
+        handleDismiss()
+        return
+      }
+
+      if (key.name === 'up' || key.name === 'down') {
+        put(moveSelection({ state: current, delta: key.name === 'up' ? -1 : 1 }))
+        return
+      }
+
+      if (key.name === 'return') {
+        const row = selectedThread(current)
+        if (row !== undefined) handlePick(row)
+      }
+    },
     [handleDismiss, handlePick, put],
   )
 
   return useMemo(
-    () => ({ state, handleOpen, handleDismiss, handlePick, handleKey }),
-    [handleDismiss, handleKey, handleOpen, handlePick, state],
+    () => ({ state, handleOpen, handleDismiss, handlePick, handleQuery, handleKey }),
+    [handleDismiss, handleKey, handleOpen, handlePick, handleQuery, state],
   )
 }

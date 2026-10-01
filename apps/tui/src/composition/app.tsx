@@ -1993,7 +1993,7 @@ function Workspace(props: {
       covering(shells.state !== null, shells.handleKey),
       covering(services.state !== null, services.handleKey),
       covering(accounts.state !== null, accounts.handleKey),
-      covering(threads.state !== null, threads.handleKey),
+      { ...covering(threads.state !== null, threads.handleKey), porous: true },
       covering(agentsPicker.state !== null, agentsPicker.handleKey),
       { ...covering(onboarding.state !== null, onboarding.handleKey), porous: true },
       { ...covering(settings.state !== null, settings.handleKey), porous: true },

@@ -1,8 +1,6 @@
 import type { EExecutionLocation, LinkedPullRequest } from '@dltech/atlas-core'
 import type { ECloudSandboxState } from '@dltech/atlas-harness'
 
-export const THREAD_ROWS = 8
-
 export const UNTITLED_LABEL = 'untitled'
 
 export type ThreadListing = {
@@ -38,8 +36,6 @@ export type ThreadsState = {
   failure: string | null
   openedAt: number
 }
-
-export type ThreadsWindow = { start: number; visible: readonly ThreadRow[]; below: number }
 
 const MINUTE_MS = 60_000
 
@@ -198,26 +194,5 @@ export function moveSelection(args: { state: ThreadsState; delta: number }): Thr
   }
 }
 
-export function typeInto(args: { state: ThreadsState; text: string }): ThreadsState {
-  return { ...args.state, query: `${args.state.query}${args.text}`, index: 0, failure: null }
-}
-
-export function backspace(state: ThreadsState): ThreadsState {
-  return { ...state, query: state.query.slice(0, -1), index: 0, failure: null }
-}
-
 export const selectedThread = (state: ThreadsState): ThreadRow | undefined =>
   matchingThreads(state)[state.index]
-
-export function threadsWindow(args: { state: ThreadsState; rows: number }): ThreadsWindow {
-  const rows = Math.max(1, Math.trunc(args.rows))
-  const matches = matchingThreads(args.state)
-  if (matches.length <= rows) return { start: 0, visible: matches, below: 0 }
-
-  const start = Math.min(Math.max(0, args.state.index - rows + 1), matches.length - rows)
-  return {
-    start,
-    visible: matches.slice(start, start + rows),
-    below: matches.length - start - rows,
-  }
-}
