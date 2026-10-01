@@ -900,8 +900,8 @@ each rung of a recency ladder, measuring candidates by actually re-assembling th
 arithmetic, and reports `fits`, `compact` or `exhausted`. It is built and tested; nothing in the loop
 calls it yet, so compaction today is the operator pressing the chord.
 
-**The system preamble says compaction happens.** A harness that compacts silently gets a model that
-hoards context and rushes; one that says so gets a model that writes durable notes into its own output.
+**Compaction guidance arrives with the summary.** The stable system prompt carries no compaction
+notice; `compactedHistory` supplies continuation context when a summary replaces earlier turns.
 
 Server-side context management was priced and rejected for the primary path. Anthropic's `compact_20260112`
 returns an opaque compaction block that must be echoed back on every request, which would put the provider
@@ -1033,17 +1033,12 @@ Shells are spawned fresh per call, so nothing in the process survives it — an 
 shell function, a background job, a `cd`. Nothing is tracked out of band to make the directory an
 exception.
 
-**The prompt names one directory.** `cacheBreakpoints` puts a 1h breakpoint on the last system block,
-and a directory that changed inside it would cold-start the whole prefix; with nothing moving between
-calls there is nothing to invalidate it. Entering a worktree does cold-start that prefix, and is
-allowed to: `systemPrompt` folds the log and hands the compiled prompt the effective project
-directory, so the system block follows the move — one cache miss, paid once, for a deliberate act
-that reshapes the whole session. `worktreeBlock` appends what a worktree adds to that picture — the
-branch, and the checkout it was cut from — as the last system block. Those change only when an entry
-or exit event does, which is the same moment the directory text changes, so the note costs no cache
-miss of its own. It deliberately does not ride the message tail: a note that is the newest message of
-every call reads as a fresh instruction each time, and models acknowledged it turn after turn as
-though it had just been said.
+**Workspace facts stay outside the system prefix.** The system prompt describes execution at a
+high level; runtime reminders supply the effective project directory, active worktree, and current
+execution location. A worktree or host/Docker transition keeps system text and prior conversation
+messages unchanged, preserving the reusable prefix of a long conversation. `cacheBreakpoints` still
+marks the last stable system block and conversation anchors. The date changes daily; deliberate
+model, skill-roster, or instruction changes can still invalidate cached prefixes.
 
 **A worktree is either created or adopted, and the difference outlives the entry.** `enter_worktree`
 takes `name` or `path`. `name` cuts a new branch from a freshly fetched origin default and is Atlas's

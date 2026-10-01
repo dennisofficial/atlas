@@ -62,7 +62,7 @@ describe('the mounts bindSandbox hands the tail block', () => {
     expect(note).toContain('/Users/operator/Developer/shared-lib')
   })
 
-  it('keeps the boundary warning for a path outside the configured mounts', async () => {
+  it('describes filesystem access through the configured container mounts', async () => {
     const cwd = await freshProject(
       JSON.stringify({ mounts: [{ path: '/Users/operator/Developer/shared-lib' }] }),
     )
@@ -70,17 +70,19 @@ describe('the mounts bindSandbox hands the tail block', () => {
     const { mounts } = await bindIn(cwd)
 
     const note = executionLocationNote({ location: EExecutionLocation.Docker, mounts })
-    expect(note).toContain('not mounted')
+    expect(note).toContain('Filesystem access uses the container’s mounted paths')
+    expect(note).toContain('Additional configured mounts:')
   })
 
-  it('warns that any path outside the project is unmounted when nothing is configured', async () => {
+  it('omits an additional-mount list when nothing is configured', async () => {
     const cwd = await freshProject()
 
     const { mounts } = await bindIn(cwd)
 
     expect(mounts).toEqual([])
     const note = executionLocationNote({ location: EExecutionLocation.Docker, mounts })
-    expect(note).toContain('A path outside the project is not mounted')
+    expect(note).not.toContain('Additional configured mounts:')
+    expect(note).not.toContain('project directory is mounted')
   })
 
   it('tells the model it can reach the mounted atlas home subtrees, never the home root', async () => {

@@ -1,3 +1,4 @@
+import { TEAMMATE_AGENT_TYPE } from '../../agents/kind'
 import { agentLabel } from '../../agents/label'
 import { wrapInSystemReminder } from '../../context/render'
 import type { ThreadId } from '../../events/ids'
@@ -12,12 +13,19 @@ export type RunningAgent = {
 
 export type RunningAgentsSource = (args: { threadId: ThreadId }) => readonly RunningAgent[]
 
-const HOW_TO_WAIT = [
-  'Each one outlives this turn and hands you its report by itself, wherever you are, so never poll to find out whether one has finished: agent_list can tell you nothing about these that is not already written here.',
-  'Ending your turn is how you wait — a sub-agent that ends while nothing is running opens a turn of its own to deliver what it found.',
-  'So if you have work that does not depend on them, do that work; if you are only waiting, say what you are waiting for and end your turn, rather than saying it and taking another step.',
-  'Steer one with agent_say({ agentId, text }) and end one early with agent_stop({ agentId }).',
-].join(' ')
+const SUB_AGENT_LINE =
+  'Each sub-agent’s final answer arrives on its own, even after this turn ends, and a sub-agent that finishes while nothing else is running opens a turn to deliver it.'
+const TEAMMATE_LINE =
+  'A teammate reports only when it sends an explicit report, and is silent between reports.'
+const WAITING_LINE =
+  'Work that does not depend on them can continue meanwhile; if you are only waiting, say what for and end your turn. agent_say({ agentId, text }) steers one and agent_stop({ agentId }) ends one early.'
+
+const guidanceFor = (agents: readonly RunningAgent[]): string =>
+  [
+    SUB_AGENT_LINE,
+    ...(agents.some((agent) => agent.agentType === TEAMMATE_AGENT_TYPE) ? [TEAMMATE_LINE] : []),
+    WAITING_LINE,
+  ].join(' ')
 
 const lineFor = (agent: RunningAgent): string => `${agent.agentId}  ${agentLabel(agent)}`
 
@@ -26,7 +34,7 @@ export function runningAgentsReminder(agents: readonly RunningAgent[]): string {
     [
       'These sub-agents you spawned are still running:',
       agents.map(lineFor).join('\n'),
-      HOW_TO_WAIT,
+      guidanceFor(agents),
     ].join('\n\n'),
   )
 }

@@ -18,9 +18,9 @@ const lineFor = (service: RunningService): string =>
 export function runningServicesReminder(services: readonly RunningService[]): string {
   return wrapInSystemReminder(
     [
-      'These services are running:',
+      'These services are running across the whole session:',
       services.map(lineFor).join('\n'),
-      'They are infrastructure you work against, not work you are waiting on: no completion is coming, and if one dies you will be told. Health-check one by reading its log file (or piping it: `atlas-svc logs <id> | grep ...`) or hitting its endpoint, never by polling service_list. service_stop({ id }) stops one.',
+      'Services keep running as infrastructure you work against: an exit is not a completion. The list is shared by every thread, but an exit notice goes only to the thread that started the service, so another thread is not told when one exits. Check health in its log file or at its endpoint. For stopping one, service_stop({ id }) applies when that tool is available.',
     ].join('\n\n'),
   )
 }

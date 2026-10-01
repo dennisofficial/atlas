@@ -54,9 +54,8 @@ export function exposureClause({ exposure }: { exposure: PortExposure | undefine
 
   return [
     `It is reachable on the operator’s machine at ${exposure.url}, where a proxy forwards to port ${exposure.containerPort} in the sandbox.`,
-    `That hostname resolves only on the operator’s machine and never resolves inside the container, so never probe or fetch it from here -`,
-    'and if the server bound 127.0.0.1 instead of 0.0.0.0 the proxy cannot reach it, so rebind before handing the URL over.',
-    'Every port subdomain of sandbox.localhost is the same site, so cookies and cross-origin fetch between them behave as on one production domain.',
+    'Bind the server to 0.0.0.0 so the proxy can reach it.',
+    'Use the returned URL on the operator’s machine; use the service’s internal address for checks inside the container.',
   ]
 }
 

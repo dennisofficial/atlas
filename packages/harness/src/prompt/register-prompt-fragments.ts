@@ -1,16 +1,9 @@
 import { PromptFragment } from '@dltech/atlas-core'
 
-import { ExecutionLocationToken } from '../composition/execution-location-state'
 import { SkillRegistryPort } from '../skills/port'
 import { instanceCachingFactory, portToken, type DependencyContainer } from '../container/injection'
 import { DelegationFragment } from './fragments/agents'
-import {
-  ExecutionLocationFragment,
-  ProjectDirectoryFragment,
-  RelativePathsFragment,
-  TodayFragment,
-} from './fragments/environment'
-import { ReadBeforeWriteFragment, ReadWideFragment } from './fragments/files'
+import { ExecutionLocationFragment, TodayFragment } from './fragments/environment'
 import { AtlasIdentityFragment } from './fragments/identity'
 import { AnswerInTextFragment } from './fragments/models'
 import {
@@ -25,7 +18,6 @@ import { DestructiveActionsFragment, GitEtiquetteFragment } from './fragments/sa
 import {
   ConcernThenBuildFragment,
   DecisionsAreTheirsFragment,
-  DeliverWhatWasAskedFragment,
   OpenQuestionsFragment,
   PaceFragment,
   PlanFirstFragment,
@@ -34,13 +26,11 @@ import {
 import { BackgroundShellsFragment } from './fragments/shells'
 import { SkillListingFragment } from './fragments/skills'
 import {
-  NoRereadAfterWriteFragment,
   OperatorSeesImagesFragment,
   ParallelToolCallsFragment,
   PreferDedicatedToolsFragment,
 } from './fragments/tools'
 import { UntrustedWebContentFragment, WebResearchFragment } from './fragments/web'
-import { CompactionNoticeFragment } from './fragments/workflow'
 import { InMemoryPromptRegistry, PromptRegistry } from './registry'
 
 export function registerBuiltinPromptFragments({
@@ -50,24 +40,17 @@ export function registerBuiltinPromptFragments({
 }): void {
   const fragments = [
     AtlasIdentityFragment,
-    CompactionNoticeFragment,
     RequestLadderFragment,
-    DeliverWhatWasAskedFragment,
     ConcernThenBuildFragment,
     PaceFragment,
     OpenQuestionsFragment,
     PlanFirstFragment,
     DecisionsAreTheirsFragment,
     TodayFragment,
-    ProjectDirectoryFragment,
-    RelativePathsFragment,
     ExecutionLocationFragment,
-    ReadBeforeWriteFragment,
-    ReadWideFragment,
     PreferDedicatedToolsFragment,
     ParallelToolCallsFragment,
     OperatorSeesImagesFragment,
-    NoRereadAfterWriteFragment,
     BackgroundShellsFragment,
     TaskListFragment,
     DelegationFragment,
@@ -89,17 +72,6 @@ export function registerBuiltinPromptFragments({
       container.register(portToken(PromptFragment), {
         useFactory: (resolver) =>
           new SkillListingFragment(resolver.resolve(portToken(SkillRegistryPort))),
-      })
-      continue
-    }
-    if (fragment === ExecutionLocationFragment) {
-      container.register(portToken(PromptFragment), {
-        useFactory: (resolver) =>
-          new ExecutionLocationFragment(
-            resolver.isRegistered(ExecutionLocationToken, true)
-              ? () => resolver.resolve(ExecutionLocationToken).state.current()
-              : () => undefined,
-          ),
       })
       continue
     }

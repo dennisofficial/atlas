@@ -36,7 +36,7 @@ describe('defaultRules', () => {
     })
 
     expect(assembled.system).toEqual([{ text: DOCTRINE }])
-    expect(assembled.messages.map((entry) => entry.origin.seq)).toEqual([1, 2, 3])
+    expect(assembled.messages.map((entry) => entry.origin.seq)).toEqual([1, 2, 3, 3])
     expect(trace.map((step) => step.name)).toEqual([
       'systemPrompt',
       'messagesFromEvents',

@@ -2,6 +2,7 @@ import { wrapInSystemReminder } from '../../context/render'
 import type { ThreadId } from '../../events/ids'
 import { EExecutionLocation } from '../../execution/location'
 import { defineRule, type Rule } from '../rule'
+import { endsOnCompletedAssistant } from './completed-exchange'
 import { appendedAtTail } from './tail-block'
 
 export type ExecutionEnvironment = {
@@ -11,27 +12,33 @@ export type ExecutionEnvironment = {
 
 export type ExecutionLocationSource = (args: { threadId: ThreadId }) => ExecutionEnvironment
 
-const surroundingsOf = (location: EExecutionLocation): string => {
-  if (location === EExecutionLocation.Docker) return 'a Docker container'
-  return 'a sandbox'
+const EXPOSED_SERVICES_LINE =
+  'For exposed services, bind to 0.0.0.0, publish the listening port, and give the developer the returned URL.'
+
+const mountsLineOf = (mounts: readonly string[]): string =>
+  mounts.length === 0 ? '' : `Additional configured mounts: ${mounts.join(', ')}.`
+
+const factsOf = (environment: ExecutionEnvironment): readonly string[] => {
+  if (environment.location === EExecutionLocation.Host) {
+    return ['Execution location: host. Bash and file tools run directly on the developer’s machine.']
+  }
+  if (environment.location === EExecutionLocation.Docker) {
+    return [
+      'Execution location: Docker container. The harness runs locally; bash and file tools are routed into the container, while MCP servers remain external connections of the harness.',
+      'Filesystem access uses the container’s mounted paths.',
+      mountsLineOf(environment.mounts),
+      EXPOSED_SERVICES_LINE,
+    ]
+  }
+  return [
+    'Execution location: cloud. The harness and the execution both run in a Vercel sandbox, and the developer’s terminal is only a client.',
+    'The workspace here is a copy of the project, not a live mount of the developer’s machine.',
+    EXPOSED_SERVICES_LINE,
+  ]
 }
 
-export function executionLocationNote(environment: ExecutionEnvironment): string | undefined {
-  if (environment.location === EExecutionLocation.Host) return undefined
-
-  const mounted =
-    environment.mounts.length === 0
-      ? 'A path outside the project is not mounted, so reading it will fail — that is the sandbox boundary, not a missing file.'
-      : `Also mounted: ${environment.mounts.join(', ')}. A path outside those and the project is not mounted, so reading it will fail.`
-
-  return wrapInSystemReminder(
-    [
-      `You are executing inside ${surroundingsOf(environment.location)}, not on the host.`,
-      'The project directory is mounted at its usual path, so paths inside it work unchanged.',
-      mounted,
-      'git config --global fails here because the mounted ~/.gitconfig is read-only by design — git configuration is fixed in the sandbox launch environment, never by you editing it.',
-    ].join(' '),
-  )
+export function executionLocationNote(environment: ExecutionEnvironment): string {
+  return wrapInSystemReminder(factsOf(environment).filter((line) => line !== '').join(' '))
 }
 
 export function executionLocationBlock({
@@ -42,10 +49,13 @@ export function executionLocationBlock({
   return defineRule({
     name: 'executionLocationBlock',
     apply: (input, ctx) => {
-      const note = executionLocationNote(executionLocation({ threadId: ctx.threadId }))
-      if (note === undefined) return input
+      if (endsOnCompletedAssistant({ input, ctx })) return input
 
-      return appendedAtTail({ input, ctx, text: note })
+      return appendedAtTail({
+        input,
+        ctx,
+        text: executionLocationNote(executionLocation({ threadId: ctx.threadId })),
+      })
     },
   })
 }

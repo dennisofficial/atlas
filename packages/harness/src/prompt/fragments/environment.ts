@@ -1,19 +1,8 @@
-import { EExecutionLocation, PromptFragment, type ClockPort, type PromptContext } from '@dltech/atlas-core'
+import { PromptFragment, type ClockPort } from '@dltech/atlas-core'
 
 import { SystemClock } from '../../store/clock'
 import { localDayOf, localWeekdayOf } from '../../time/local-day'
 import { VolatilePromptFragment } from '../volatile'
-
-export class ProjectDirectoryFragment extends PromptFragment {
-  readonly id = 'environment.project-directory'
-
-  text(ctx: PromptContext): string {
-    return [
-      `The project directory is ${ctx.projectDirectory}, and every bash command starts there.`,
-      'You are already in it, so never spend a cd returning to it, and run somewhere else by passing that directory as workdir rather than by cd.',
-    ].join(' ')
-  }
-}
 
 export class TodayFragment extends VolatilePromptFragment {
   readonly id = 'environment.today'
@@ -34,52 +23,14 @@ export class TodayFragment extends VolatilePromptFragment {
   }
 }
 
-export class RelativePathsFragment extends PromptFragment {
-  readonly id = 'environment.relative-paths'
-
-  text(): string {
-    return [
-      'A path you pass to a tool resolves against the project directory, so write those relative to it.',
-      'A tool path may reference environment variables such as $TMPDIR and may start with ~; both expand for you, and a variable that is not set comes back as an error.',
-      'A path inside a bash command is resolved by the shell instead, against workdir or the project directory, so write those absolute.',
-    ].join(' ')
-  }
-}
-
-export class ExecutionLocationFragment extends VolatilePromptFragment {
+export class ExecutionLocationFragment extends PromptFragment {
   readonly id = 'environment.execution-location'
 
-  constructor(private readonly current: () => EExecutionLocation | undefined) {
-    super()
-  }
-
-  stamp(): string {
-    return this.current() ?? EExecutionLocation.Host
-  }
-
   text(): string {
-    const location = this.current() ?? EExecutionLocation.Host
-    if (location === EExecutionLocation.Host) {
-      return [
-        'This session runs its tools on the host machine, and it can also run them inside a Docker container sandbox.',
-        'Call execution_location with location "docker" to move the whole session, sub-agents included — prefer that before starting dev servers, installing dependencies or running test suites you want kept off the host, and move back with "host" when the work needs the machine itself.',
-        'A preview the operator should open belongs in the sandbox: publish it there with exposePort and hand over the returned *.sandbox.localhost URL, which resolves on the operator’s machine.',
-      ].join(' ')
-    }
-    if (location === EExecutionLocation.Docker) {
-      return [
-        'This session runs its tools inside a Docker container sandbox, on its own network.',
-        'localhost is the container, not the operator’s machine — never hand the operator a localhost or container-internal URL, and a curl that works from here proves nothing about what they can open.',
-        'Publish a server through exposePort and hand over the URL it returns, shaped http://<port>.sandbox.localhost:<hostPort>: that name resolves only on the operator’s machine and never resolves inside the container, so do not probe it from here.',
-        'The server must listen on 0.0.0.0 — bound to 127.0.0.1 it is invisible to the proxy.',
-        'Every port subdomain is the same site (sandbox.localhost is a public suffix), so cookies and cross-origin fetch behave exactly as they do on one production domain.',
-        'Call execution_location with location "host" to move the whole session back onto the host machine when the work needs it.',
-      ].join(' ')
-    }
     return [
-      'This session runs its tools inside a cloud sandbox, not the operator’s machine, and it cannot move itself to the host or into Docker — moving to or from the cloud is the operator’s call.',
-      'A port it publishes through service_start’s exposePort is reachable at a URL the operator can open, not at a local address, since the two of you share no machine.',
-      'The workspace arrived on the branch the operator had checked out, with their uncommitted work intact as uncommitted changes — git status reads exactly like the machine they left. Commit freely on that branch; the descend merges by content, so even a history rewrite here stays survivable.',
+      'Atlas runs locally or in cloud.',
+      'Local sessions execute commands and file operations on the host or in Docker.',
+      'Cloud sessions run the harness and execution in a Vercel sandbox; the terminal is a client.',
     ].join(' ')
   }
 }

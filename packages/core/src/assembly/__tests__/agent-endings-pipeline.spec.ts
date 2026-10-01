@@ -78,15 +78,17 @@ describe('the report of a delegate the parent was woken by', () => {
     expect(endingBlocksOf(assembled)[0]).toContain(FIRST_CHILD)
   })
 
-  it('lands last, in the conversational position the ending arrived at', () => {
+  it('lands in the conversational position the ending arrived at, ahead of the directory reminder', () => {
     const { assembled } = assembledFrom([...CONVERSATION, ended()])
 
     expect(assembled.messages.map((entry) => entry.message.role)).toEqual([
       'user',
       'assistant',
       'user',
+      'user',
     ])
-    expect(textsOf(assembled).at(-1)).toStartWith('<agents-ended>')
+    expect(textsOf(assembled)[2]).toStartWith('<agents-ended>')
+    expect(textsOf(assembled).at(-1)).toContain('Project directory: /w.')
   })
 
   it('says nothing at all for a thread that spawned nobody, so a child inherits no cost', () => {
@@ -97,6 +99,7 @@ describe('the report of a delegate the parent was woken by', () => {
 
     expect(endingBlocksOf(assembled)).toEqual([])
     expect(assembled.messages).toHaveLength(2)
+    expect(textsOf(assembled)).toEqual(['count the call sites of assemble', 'four'])
   })
 })
 
@@ -117,6 +120,7 @@ describe('a bare tool call answering a delegate report', () => {
       'user',
       'assistant',
       'tool',
+      'user',
     ])
     expect(textsOf(assembled)[2]).toStartWith('<agents-ended>')
   })
@@ -198,7 +202,7 @@ describe('an ending the conversation has since compacted', () => {
 })
 
 describe('the block at the tail of the prompt', () => {
-  it('keeps the tail for what just happened, while the worktree note rides the system prompt', () => {
+  it('keeps the worktree note out of the system prompt, as a reminder after what just happened', () => {
     const events = log([
       ...CONVERSATION,
       ended(),
@@ -213,8 +217,9 @@ describe('the block at the tail of the prompt', () => {
       ctx: contextFor({ events }),
     })
 
-    expect(textsOf(assembled).at(-1)).toStartWith('<agents-ended>')
-    expect(assembled.system.at(-1)?.text).toContain('You are working in a git worktree at /w/tree')
+    expect(endingBlocksOf(assembled)).toHaveLength(1)
+    expect(textsOf(assembled).at(-1)).toContain('Project directory: /w/tree')
+    expect(assembled.system).toEqual([{ text: DOCTRINE }])
   })
 
   it('takes an ordinary cache breakpoint when it is the newest thing in the prompt', () => {

@@ -2,18 +2,23 @@ import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation } from '../../execution/location'
 import { assemble } from '../assemble'
-import { defaultRules } from '../pipeline'
-import {
-  executionLocationNote,
-  type ExecutionEnvironment,
-} from '../rules/execution-location-block'
+import { exchangeFaults, EExchangeFault } from '../exchange-shape'
+import { defaultPipeline, defaultRules } from '../pipeline'
+import { type ExecutionEnvironment } from '../rules/execution-location-block'
 import { EMPTY_PROMPT } from '../rules/system-prompt'
 import { contextFor, log } from './log-fixture'
 
-const exchange = () =>
+const completedExchange = () =>
   log([
     { type: 'user-said', text: 'hello' },
     { type: 'assistant-said', parts: [{ type: 'text', text: 'hi there' }] },
+  ])
+
+const awaitingExchange = () =>
+  log([
+    { type: 'user-said', text: 'hello' },
+    { type: 'assistant-said', parts: [{ type: 'text', text: 'hi there' }] },
+    { type: 'user-said', text: 'and now?' },
   ])
 
 const rulesFor = (environment: () => ExecutionEnvironment) =>
@@ -23,65 +28,78 @@ const rulesFor = (environment: () => ExecutionEnvironment) =>
     executionLocation: () => environment(),
   })
 
-const tailTextOf = (assembled: { messages: readonly { message: unknown }[] }): string => {
-  const last = assembled.messages.at(-1)?.message as
-    | { content: readonly { type: string; text?: string }[] }
-    | undefined
-  return last?.content.find((part) => part.type === 'text')?.text ?? ''
+const textOf = (entry: { message: unknown } | undefined): string => {
+  const message = entry?.message as { content: readonly { type: string; text?: string }[] } | undefined
+  return message?.content.find((part) => part.type === 'text')?.text ?? ''
 }
 
+const hostSource = (): ExecutionEnvironment => ({ location: EExecutionLocation.Host, mounts: [] })
+
+const pipelineFor = (environment: () => ExecutionEnvironment) =>
+  defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: '/w', executionLocation: environment })
+
 describe('the execution location block', () => {
-  it('says nothing on the host, where a read behaves exactly as it looks', () => {
+  it('names the host explicitly when the exchange awaits the model', () => {
     const { assembled, trace } = assemble({
-      rules: rulesFor(() => ({ location: EExecutionLocation.Host, mounts: [] })),
-      ctx: contextFor({ events: exchange() }),
+      rules: rulesFor(hostSource),
+      ctx: contextFor({ events: awaitingExchange() }),
     })
 
-    expect(assembled.messages).toHaveLength(2)
+    expect(assembled.messages).toHaveLength(5)
+    expect(textOf(assembled.messages.at(-1))).toContain('Execution location: host')
     expect(trace.map((step) => step.name)).toContain('executionLocationBlock')
   })
 
-  it('rides the message tail in a container, naming where the session executes', () => {
-    const { assembled } = assemble({
-      rules: rulesFor(() => ({ location: EExecutionLocation.Docker, mounts: [] })),
-      ctx: contextFor({ events: exchange() }),
-    })
+  it('adds nothing after a completed exchange, whatever the location', () => {
+    for (const location of Object.values(EExecutionLocation)) {
+      const { assembled } = assemble({
+        rules: rulesFor(() => ({ location, mounts: [] })),
+        ctx: contextFor({ events: completedExchange() }),
+      })
 
-    expect(assembled.messages).toHaveLength(3)
-    expect(tailTextOf(assembled)).toContain('Docker container')
+      expect(assembled.messages).toHaveLength(2)
+      expect(assembled.messages.at(-1)?.message.role).toBe('assistant')
+    }
   })
 
-  it('warns that an unmounted path will fail, the one thing the model cannot see coming', () => {
-    const { assembled } = assemble({
-      rules: rulesFor(() => ({ location: EExecutionLocation.Docker, mounts: [] })),
-      ctx: contextFor({ events: exchange() }),
-    })
+  it('leaves the ends-with-assistant fault visible through the full default pipeline', () => {
+    const { rules, annotators } = pipelineFor(hostSource)
+    const { assembled } = assemble({ rules, annotators, ctx: contextFor({ events: completedExchange() }) })
 
-    expect(tailTextOf(assembled)).toContain('not mounted')
+    expect(exchangeFaults(assembled).map((entry) => entry.fault)).toEqual([EExchangeFault.EndsWithAssistant])
   })
 
-  it('lists what is mounted when the configuration names mounts', () => {
-    const { assembled } = assemble({
-      rules: rulesFor(() => ({
-        location: EExecutionLocation.Docker,
-        mounts: ['/var/lib/postgres'],
-      })),
-      ctx: contextFor({ events: exchange() }),
-    })
+  it('keeps a pending exchange fault-free through the full default pipeline', () => {
+    const { rules, annotators } = pipelineFor(hostSource)
+    const { assembled } = assemble({ rules, annotators, ctx: contextFor({ events: awaitingExchange() }) })
 
-    expect(tailTextOf(assembled)).toContain('/var/lib/postgres')
-    expect(tailTextOf(assembled)).toContain('not mounted')
+    expect(exchangeFaults(assembled)).toEqual([])
   })
 
-  it('reflects the switch the moment it happens, because it derives from the column', () => {
+  it('rides the message tail as a user message in a container', () => {
+    const { assembled } = assemble({
+      rules: rulesFor(() => ({ location: EExecutionLocation.Docker, mounts: ['/var/lib/postgres'] })),
+      ctx: contextFor({ events: awaitingExchange() }),
+    })
+
+    expect(assembled.system).toEqual([])
+    expect(assembled.messages.at(-1)?.message.role).toBe('user')
+    expect(textOf(assembled.messages.at(-1))).toContain('Docker container')
+    expect(textOf(assembled.messages.at(-1))).toContain('/var/lib/postgres')
+  })
+
+  it('reflects a switch back to the host at the next assembly', () => {
     let environment: ExecutionEnvironment = { location: EExecutionLocation.Docker, mounts: [] }
     const rules = rulesFor(() => environment)
-    const ctx = contextFor({ events: exchange() })
+    const ctx = contextFor({ events: awaitingExchange() })
 
-    environment = { location: EExecutionLocation.Host, mounts: [] }
-    const { assembled } = assemble({ rules, ctx })
+    const before = assemble({ rules, ctx }).assembled
+    environment = hostSource()
+    const after = assemble({ rules, ctx }).assembled
 
-    expect(assembled.messages).toHaveLength(2)
+    expect(textOf(before.messages.at(-1))).toContain('Docker container')
+    expect(textOf(after.messages.at(-1))).toContain('Execution location: host')
+    expect(after.messages.slice(0, 3)).toEqual(before.messages.slice(0, 3))
   })
 
   it('leaves an empty transcript without a dangling tail', () => {
@@ -91,13 +109,5 @@ describe('the execution location block', () => {
     })
 
     expect(assembled.messages).toHaveLength(0)
-  })
-})
-
-describe('the execution location note', () => {
-  it('has nothing to say on the host', () => {
-    expect(
-      executionLocationNote({ location: EExecutionLocation.Host, mounts: [] }),
-    ).toBeUndefined()
   })
 })

@@ -158,10 +158,16 @@ describe('a child taking its first step', () => {
 
     const events = await spawned.harness.log.read({ threadId: spawned.agentId })
     expect(events.map((event) => event.type)).toEqual(['user-said', 'assistant-said'])
-    expect(spawned.model.doStreamCalls[0]?.prompt.at(-1)).toEqual({
-      role: 'user',
-      content: [{ type: 'text', text: 'count the call sites of assemble' }],
-    })
+    const prompt = spawned.model.doStreamCalls[0]?.prompt ?? []
+    expect(prompt.some((message) => message.role === 'user' &&
+      Array.isArray(message.content) && message.content.some((part) =>
+        part.type === 'text' && part.text === 'count the call sites of assemble',
+      ),
+    )).toBe(true)
+    const runtime = prompt.at(-1)
+    expect(runtime?.role === 'user' ? runtime.content : []).toEqual([
+      expect.objectContaining({ type: 'text', text: expect.stringContaining('Project directory: /w.') }),
+    ])
   })
 
   it('reports what it said and what it did back to the parent', async () => {

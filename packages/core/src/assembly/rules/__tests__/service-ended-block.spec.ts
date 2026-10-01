@@ -95,15 +95,17 @@ describe('the running-services reminder', () => {
     },
   ]
 
-  it('names each service and its log, and forbids polling', () => {
+  it('names each service and its log, and treats an exit as no completion', () => {
     const reminder = runningServicesReminder(services)
 
     expect(reminder).toContain('svc_1')
     expect(reminder).toContain('"web dev server"')
     expect(reminder).toContain('log: /home/dev/.atlas/services/svc_1.log')
-    expect(reminder).toContain('no completion is coming')
-    expect(reminder).toContain('if one dies you will be told')
-    expect(reminder).toContain('never by polling service_list')
-    expect(reminder).toContain('service_stop({ id })')
+    expect(reminder).toContain('an exit is not a completion')
+    expect(reminder).not.toContain('you are told if one exits')
+    expect(reminder).toContain('exit notice goes only to the thread that started the service')
+    expect(reminder).toContain('another thread is not told when one exits')
+    expect(reminder).toContain('service_stop({ id }) applies when that tool is available')
+    expect(reminder).not.toMatch(/never|polling|service_list/)
   })
 })

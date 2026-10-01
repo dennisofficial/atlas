@@ -74,7 +74,11 @@ describe('a turn over a real log', () => {
 
     const prompt = model.doStreamCalls[0]?.prompt ?? []
     expect(prompt[0]).toEqual({ role: 'system', content: FIXTURE_DOCTRINE })
-    expect(prompt.slice(1).map((message) => message.role)).toEqual(['user'])
+    expect(prompt.slice(1).map((message) => message.role)).toEqual(['user', 'user'])
+    const runtime = prompt.at(-1)
+    expect(runtime?.role === 'user' ? runtime.content : []).toEqual([
+      expect.objectContaining({ type: 'text', text: expect.stringContaining('Project directory:') }),
+    ])
   })
 
   it('reports a model error as a failure naming it, and appends no assistant turn', async () => {

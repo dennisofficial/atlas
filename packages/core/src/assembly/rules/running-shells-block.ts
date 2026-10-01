@@ -27,7 +27,7 @@ export function runningShellsReminder(shells: readonly RunningShell[]): string {
     [
       'These background shells are still running:',
       shells.map(lineFor).join('\n'),
-      'Each outlives this turn and delivers its ending to you by itself, wherever you are, so never poll one to find out whether it has finished. Use shell_output({ shellId }) only to read a shell that will not end on its own, and shell_kill({ shellId }) to stop one.',
+      'Each shell’s ending arrives automatically, even after this turn ends. shell_output({ shellId }) reads a shell that will not end on its own, and shell_kill({ shellId }) stops one.',
     ].join('\n\n'),
   )
 }

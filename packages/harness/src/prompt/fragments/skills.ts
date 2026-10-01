@@ -7,12 +7,7 @@ import { VolatilePromptFragment } from '../volatile'
 const SKILL_LISTING_BUDGET_FRACTION_OF_CONTEXT = 0.03
 const CHARS_PER_TOKEN = 4
 
-const preamble = [
-  'These skills are packaged instructions, each written for one kind of work and each more specific about it than anything you would work out yourself.',
-  'Read this list before you plan rather than only when one springs to mind: the moment to load a skill is before you have settled on an approach, because afterwards you will argue with it instead of following it.',
-  'When one covers the task, call the skill tool with its name and let what comes back stand in for the approach you would have chosen. Load the one that fits, not its neighbours.',
-  'Only the name and the summary are here; the instructions themselves arrive when you load one.',
-].join(' ')
+const preamble = 'Load the skill that matches your task before choosing an approach.'
 
 const budgetCharsFor = (ctx: PromptContext): number =>
   Math.floor(

@@ -253,7 +253,7 @@ describe('interrupting a streaming reply', () => {
 
     expect(outcome.status).toBe(ETurnStatus.Completed)
     const prompt = armed.model.doStreamCalls[1]?.prompt ?? []
-    expect(prompt.map((message) => message.role)).toEqual(['system', 'user', 'assistant', 'user'])
+    expect(prompt.map((message) => message.role)).toEqual(['system', 'user', 'assistant', 'user', 'user'])
 
     const replayed = prompt[2]
     if (replayed?.role !== 'assistant') throw new Error('the prompt replayed no assistant turn')

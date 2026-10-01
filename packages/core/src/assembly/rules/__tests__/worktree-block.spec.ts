@@ -10,10 +10,13 @@ const TREE = '/w/.atlas/worktrees/eng-327'
 
 const entered = { type: 'worktree-entered' as const, path: TREE, branch: 'dennis/eng-327', base: 'origin/main' }
 
-const assembleWith = (events: ReturnType<typeof log>) => {
+const assembleWith = (events: ReturnType<typeof log>, options?: { repoRoot?: string; launch?: string }) => {
   const ctx = contextFor({ events })
   const withMessages = messagesFromEvents()({ system: [], messages: [] }, ctx)
-  return worktreeBlock({ launchDirectory: LAUNCH })(withMessages, ctx)
+  return worktreeBlock({ launchDirectory: options?.launch ?? LAUNCH, repoRoot: options?.repoRoot })(
+    withMessages,
+    ctx,
+  )
 }
 
 const textsOf = (assembled: ReturnType<typeof assembleWith>): string[] =>
@@ -21,35 +24,65 @@ const textsOf = (assembled: ReturnType<typeof assembleWith>): string[] =>
     entry.message.content.flatMap((part) => (part.type === 'text' ? [part.text] : [])),
   )
 
-describe('telling the model it is in a worktree', () => {
-  it('says nothing while no worktree has been entered', () => {
+const noteOf = (assembled: ReturnType<typeof assembleWith>): string => textsOf(assembled).at(-1) ?? ''
+
+describe('telling the model the project directory and any active worktree', () => {
+  it('states the launch directory even when no worktree was ever entered', () => {
     const assembled = assembleWith(log([{ type: 'user-said', text: 'hello' }]))
 
     expect(assembled.system).toEqual([])
-    expect(textsOf(assembled)).toEqual(['hello'])
+    expect(textsOf(assembled)[0]).toBe('hello')
+    expect(noteOf(assembled)).toContain('Project directory: /w.')
+    expect(noteOf(assembled)).not.toContain('worktree')
   })
 
-  it('names the worktree, its branch and what it was branched from', () => {
-    const note = assembleWith(log([entered])).system.at(-1)?.text ?? ''
+  it('adds nothing to an empty transcript', () => {
+    expect(assembleWith(log([])).messages).toEqual([])
+  })
 
-    expect(note).toContain(TREE)
+  it('keeps an invalid assistant tail visible to exchange validation', () => {
+    const assembled = assembleWith(log([
+      { type: 'user-said', text: 'request' },
+      { type: 'assistant-said', parts: [{ type: 'text', text: 'answer' }] },
+    ]))
+
+    expect(assembled.messages.at(-1)?.message.role).toBe('assistant')
+    expect(textsOf(assembled)).toEqual(['request', 'answer'])
+  })
+
+  it('names the worktree, its branch, what it was branched from and the main checkout', () => {
+    const note = noteOf(assembleWith(log([entered])))
+
+    expect(note).toContain(`Project directory: ${TREE}`)
     expect(note).toContain('dennis/eng-327')
-    expect(note).toContain('origin/main')
-    expect(note).toContain(LAUNCH)
+    expect(note).toContain('branched from origin/main')
+    expect(note).toContain("main checkout is at /w;")
   })
 
-  it('rides the system prompt rather than the message tail, so it never reads as a new instruction', () => {
+  it('never leaves the system prompt, and rides a user-role reminder anchored to the last event', () => {
     const assembled = assembleWith(
       log([{ type: 'user-said', text: 'hello' }, entered, { type: 'user-said', text: 'much later' }]),
     )
+    const tail = assembled.messages.at(-1)
 
-    expect(textsOf(assembled)).toEqual(['hello', 'much later'])
-    expect(assembled.system.at(-1)?.text).toContain(TREE)
+    expect(assembled.system).toEqual([])
+    expect(tail?.message.role).toBe('user')
+    expect(tail?.origin.seq).toBe(3)
+    expect(textsOf(assembled).slice(0, 2)).toEqual(['hello', 'much later'])
+    expect(noteOf(assembled)).toStartWith('<system-reminder>')
+    expect(noteOf(assembled)).toContain(TREE)
+  })
+
+  it('keeps the main checkout advisory and does not authorise committing or pushing', () => {
+    const note = noteOf(assembleWith(log([entered])))
+
+    expect(note).toContain('stays unchanged unless the developer asks')
+    expect(note).not.toMatch(/commit/i)
+    expect(note).not.toMatch(/push/i)
   })
 
   it('tells the model an adopted worktree is tracked, not branched, and will not be removed', () => {
-    const note =
-      assembleWith(log([{ ...entered, base: 'origin/topic', adopted: true }])).system.at(-1)?.text ?? ''
+    const note = noteOf(assembleWith(log([{ ...entered, base: 'origin/topic', adopted: true }])))
 
     expect(note).toContain('which tracks origin/topic')
     expect(note).not.toContain('branched from')
@@ -57,31 +90,39 @@ describe('telling the model it is in a worktree', () => {
   })
 
   it('says an adopted worktree has no upstream rather than naming a base it does not have', () => {
-    const note =
-      assembleWith(log([{ type: 'worktree-entered', path: TREE, branch: 'lonely', adopted: true }]))
-        .system.at(-1)?.text ?? ''
+    const note = noteOf(
+      assembleWith(log([{ type: 'worktree-entered', path: TREE, branch: 'lonely', adopted: true }])),
+    )
 
     expect(note).toContain('which has no upstream')
   })
 
-  it('names the main checkout rather than the launch directory when the session started in another worktree', () => {
+  it('names the repository root rather than the launch directory when the session started in another worktree', () => {
     const launchedInside = '/repo/.claude/worktrees/feat-a'
-    const ctx = contextFor({ events: log([entered]) })
-    const withMessages = messagesFromEvents()({ system: [], messages: [] }, ctx)
-    const assembled = worktreeBlock({ launchDirectory: launchedInside, repoRoot: '/repo' })(withMessages, ctx)
+    const note = noteOf(assembleWith(log([entered]), { launch: launchedInside, repoRoot: '/repo' }))
 
-    const note = assembled.system.at(-1)?.text ?? ''
-    expect(note).toContain('checked out at /repo;')
-    expect(note).toContain("main checkout")
+    expect(note).toContain('main checkout is at /repo;')
     expect(note).not.toContain(launchedInside)
   })
 
-  it('falls silent once the worktree is exited', () => {
-    const assembled = assembleWith(
-      log([entered, { type: 'worktree-exited', path: TREE, action: EWorktreeExit.Keep }]),
+  it('returns to the plain project directory once the worktree is exited, naming where it went back to', () => {
+    const note = noteOf(
+      assembleWith(
+        log([entered, { type: 'worktree-exited', path: TREE, action: EWorktreeExit.Keep, returnTo: '/repo' }]),
+      ),
     )
 
-    expect(assembled.system).toEqual([])
+    expect(note).toContain('Project directory: /repo.')
+    expect(note).not.toContain(TREE)
+    expect(note).not.toContain('git worktree')
+  })
+
+  it('follows a directory change to the new project directory', () => {
+    const note = noteOf(
+      assembleWith(log([entered, { type: 'directory-changed', path: '/other', repo: '/other' }])),
+    )
+
+    expect(note).toContain('Project directory: /other.')
   })
 
   it('still folds the entry after the history covering it is compacted', () => {
@@ -100,6 +141,6 @@ describe('telling the model it is in a worktree', () => {
       ]),
     )
 
-    expect(assembled.system.at(-1)?.text).toContain(TREE)
+    expect(noteOf(assembled)).toContain(TREE)
   })
 })
