@@ -123,7 +123,7 @@ describe('spawning a teammate', () => {
     expect(fromTeammate.ok ? '' : fromTeammate.reason).toMatch(/only the main session/)
   })
 
-  it('pauses quietly while it still owns live work: the ending drains into the log without waking the main session', async () => {
+  it('pauses without a word while it still owns live work: no notice is queued for the main session', async () => {
     const temp = createTempHome()
     const harness = await buildHarness({
       home: temp.home,
@@ -159,9 +159,9 @@ describe('spawning a teammate', () => {
     expect(supervisor.threadsAwaitingNotice()).toEqual([])
     expect(supervisor.pendingNotices({ threadId: parent })).toHaveLength(0)
 
-    const drafts = supervisor.drainNotifications({ threadId: parent }).drafts
-    expect(drafts).toHaveLength(1)
-    expect(drafts[0]?.type).toBe('agent-ended')
+    const drained = supervisor.drainNotifications({ threadId: parent })
+    expect(drained.wakesTurn).toBe(false)
+    expect(drained.drafts).toHaveLength(0)
   })
 
   it('relays its ending to the main session once nothing it owns can wake it again', async () => {

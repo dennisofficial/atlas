@@ -79,17 +79,17 @@ export type ShellDelta = {
 }
 
 /**
- * A kill the model asked for is answered by the tool result, not by an ending announcement: the
- * caller is already waiting on one. `settled` resolves once the process is really gone, with the
- * final snapshot and everything the shell printed that had not been read. `died: false` means the
- * process outlived the settle deadline, in which case the ending announces itself after all.
+ * The settled continuation a kill is handed back. The ending event is written into the durable log
+ * at occurrence regardless of who signalled; `settled` is a read of that death for a caller that
+ * cannot not return an answer, not the delivery of it. `died: false` means the process outlived
+ * the settle deadline, in which case the ending lands when it lands, the same as any other.
  */
-export type ClaimedShellEnding =
+export type SettledShellOutcome =
   | { died: true; snapshot: ShellSnapshot; delta: ShellDelta }
   | { died: false }
 
 export type ShellKillOutcome =
-  | { ok: true; snapshot: ShellSnapshot; settled?: Promise<ClaimedShellEnding> | undefined }
+  | { ok: true; snapshot: ShellSnapshot; settled?: Promise<SettledShellOutcome> | undefined }
   | { ok: false; reason: string }
 
 export type BackgroundShellSpec = {
@@ -107,10 +107,19 @@ export type BackgroundShellSpec = {
   matchSettleMs: number
   matchedLinesCap: number
   timeoutMs?: number | undefined
+  silenceMs?: number | undefined
   checkInMs?: number | undefined
   exposure?: PortExposure | undefined
   processes?: ProcessPort | undefined
   onExit: (shell: BackgroundShell) => void
+  /**
+   * Fires inside the settle continuation, before the snapshot reports the shell ended: the
+   * registry captures the remaining output there, so no observer can see a settled shell whose
+   * buffer is still mid-read. Runs synchronously with the status flip. Receives the shell's id
+   * rather than the shell — the shell object does not exist yet when the settle continuation is
+   * first entered.
+   */
+  onSettled?: ((shellId: ShellId) => void) | undefined
   onAwaitingInput: (shell: BackgroundShell) => void
   onMatched: (args: { shell: BackgroundShell; matched: MatchedLines }) => void
   onStillRunning: (shell: BackgroundShell) => void
@@ -152,6 +161,7 @@ export function startBackgroundShell(spec: BackgroundShellSpec): StartedBackgrou
   let promptWatch: ReturnType<typeof setTimeout> | undefined
   let matchWatch: ReturnType<typeof setTimeout> | undefined
   let deadline: ReturnType<typeof setTimeout> | undefined
+  let silence: ReturnType<typeof setTimeout> | undefined
   let checkIn: ReturnType<typeof setTimeout> | undefined
 
   const drains: Drain[] = []
@@ -174,6 +184,11 @@ export function startBackgroundShell(spec: BackgroundShellSpec): StartedBackgrou
   const forgetDeadline = (): void => {
     if (deadline !== undefined) clearTimeout(deadline)
     deadline = undefined
+  }
+
+  const forgetSilence = (): void => {
+    if (silence !== undefined) clearTimeout(silence)
+    silence = undefined
   }
 
   const forgetCheckIn = (): void => {
@@ -218,6 +233,7 @@ export function startBackgroundShell(spec: BackgroundShellSpec): StartedBackgrou
     killedBy = by
     forgetPromptWatch()
     forgetCheckIn()
+    forgetSilence()
     terminate()
   }
 
@@ -225,6 +241,22 @@ export function startBackgroundShell(spec: BackgroundShellSpec): StartedBackgrou
     deadline = setTimeout(() => kill(EKilledBy.Timeout), spec.timeoutMs)
     deadline.unref?.()
   }
+
+  /**
+   * A background shell exists to be waited on, and a waiter that goes silent may be stuck on
+   * something that never ends — gh run watch does not exit when GitHub cancels the run. A shell
+   * that prints nothing for the ceiling is killed as a timeout, and that ending wakes the owner
+   * like any other, so a wait can never sit indefinitely. Output re-arms the clock: an active
+   * shell is never touched.
+   */
+  const armSilence = (): void => {
+    forgetSilence()
+    if (spec.silenceMs === undefined) return
+    silence = setTimeout(() => kill(EKilledBy.Timeout), spec.silenceMs)
+    silence.unref?.()
+  }
+
+  armSilence()
 
   /**
    * A check-in is paced from the start rather than re-armed on output: a poll loop that prints a
@@ -293,6 +325,7 @@ export function startBackgroundShell(spec: BackgroundShellSpec): StartedBackgrou
     spec.onActivity?.()
     lastOutputAt = spec.clock.now()
     awaitingSettled = false
+    armSilence()
     watchForMatches(chunk)
     if (buffer.totalCharacters() > spec.overflowCharacters) return overflow()
 
@@ -316,9 +349,18 @@ export function startBackgroundShell(spec: BackgroundShellSpec): StartedBackgrou
       endedAt = spec.clock.now()
       forgetPromptWatch()
       forgetDeadline()
+      forgetSilence()
       forgetCheckIn()
       awaitingSettled = false
       if (status === EShellStatus.Running) status = EShellStatus.Exited
+      // The capture fires synchronously with the flip: a snapshot that says the shell ended has
+      // its output claimed already, so a read never races the settle and finds nothing. The
+      // callback must run after the assignment — the capture freezes a snapshot of its own.
+      try {
+        spec.onSettled?.(spec.shellId)
+      } catch {
+        // A throwing capture must not strand the shell's ending unannounced.
+      }
       forgetMatchWatch()
       deliverMatches()
     }

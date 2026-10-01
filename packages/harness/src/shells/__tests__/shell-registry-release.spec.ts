@@ -6,6 +6,7 @@ import {
   endedDraft,
   job,
   openRegistry,
+  recorded,
   settle,
   shellAdapters,
   THREAD,
@@ -18,26 +19,31 @@ for (const adapter of shellAdapters) {
 
   describeAdapter(`${adapter.name} process adapter`, () => {
     describe('releasing the output of a dead shell', () => {
-      it('releases the retained output once the ending has been drained, but keeps the shell readable', async () => {
-        const { registry } = openRegistry({ adapter })
+      it('releases the buffer once the ending is in the log, and the first read still serves what was printed', async () => {
+        const { registry, log } = openRegistry({ adapter })
         const started = registry.start(job({ command: 'echo delivered' }))
         if (!started.ok) throw new Error(started.reason)
         await settle({ registry, shellId: started.snapshot.shellId })
-        await announced({ registry })
+        await recorded({ log })
 
-        registry.drainNotifications({ threadId: THREAD })
-
+        // The buffer is released at occurrence — the log holds the output — but the model's first
+        // read afterwards still hands it over, served from the delta the capture kept.
         expect(
           registry.peek({ shellId: started.snapshot.shellId, characters: 1000, threadId: THREAD }),
         ).toBe('')
 
         const read = registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
-        expect(read.ok && read.delta.text).toBe('')
+        expect(read.ok && read.delta.text).toBe('delivered\n')
         expect(read.ok && read.delta.remainingCharacters).toBe(0)
+
+        const second = registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
+        expect(second.ok && second.delta.text).toBe('')
       })
 
-      it('keeps the retained output while the ending has not been drained yet', async () => {
-        const { registry } = openRegistry({ adapter })
+      it('captures the retained output at settle even without a log, and the first read serves it', async () => {
+        // No log wired: the bell rings instead of an ending appending, but the capture still
+        // happens at settle — the buffer is released and the first read hands the output over.
+        const { registry } = openRegistry({ adapter, log: null })
         const started = registry.start(job({ command: 'echo still-waiting' }))
         if (!started.ok) throw new Error(started.reason)
         await settle({ registry, shellId: started.snapshot.shellId })
@@ -45,29 +51,33 @@ for (const adapter of shellAdapters) {
 
         expect(
           registry.peek({ shellId: started.snapshot.shellId, characters: 1000, threadId: THREAD }),
-        ).toBe('still-waiting\n')
+        ).toBe('')
+
+        const read = registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
+        expect(read.ok && read.delta.text).toBe('still-waiting\n')
       })
 
-      it('keeps what a drained ending could not carry until the rest has been read', async () => {
-        const { registry } = openRegistry({ adapter })
+      it('the first read hands over what an ending capped at the event limit could not carry', async () => {
+        const { registry, log } = openRegistry({ adapter })
         const started = registry.start(job({ command: 'yes y | head -c 40000' }))
         if (!started.ok) throw new Error(started.reason)
         await settle({ registry, shellId: started.snapshot.shellId })
-        await announced({ registry })
+        await recorded({ log })
 
-        const delivered = endedDraft(registry.drainNotifications({ threadId: THREAD })[0])
+        const delivered = endedDraft(
+          log?.appended.find((draft) => draft.type === 'background-shell-ended'),
+        )
 
+        // The event is capped, but the capture keeps the whole remainder for the model's first
+        // read — the buffer released at occurrence, so peek sees nothing while read sees all of it.
         expect(delivered.remainingCharacters).toBeGreaterThan(0)
         expect(
           registry.peek({ shellId: started.snapshot.shellId, characters: 1000, threadId: THREAD }),
-        ).toBe('y\n'.repeat(500))
+        ).toBe('')
 
         const read = registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
+        expect(read.ok && read.delta.text).toHaveLength(40_000)
         expect(read.ok && read.delta.remainingCharacters).toBe(0)
-
-        expect(
-          registry.peek({ shellId: started.snapshot.shellId, characters: 1000, threadId: THREAD }),
-        ).toBe('')
       })
     })
   })

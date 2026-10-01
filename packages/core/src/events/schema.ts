@@ -227,7 +227,6 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     output: z.string(),
     droppedCharacters: z.number().int().nonnegative(),
     remainingCharacters: z.number().int().nonnegative(),
-    recorded: z.literal(true).optional(),
   }),
   z.object({
     type: z.literal('background-shell-awaiting-input'),

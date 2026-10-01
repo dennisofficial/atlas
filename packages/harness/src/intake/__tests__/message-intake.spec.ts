@@ -170,24 +170,6 @@ describe('shared thread intake', () => {
     intake.dispose()
   })
 
-  it('commits quiet teammate endings without waking the parent', async () => {
-    const notices = source()
-    const intake = new MessageIntake({ sources: [notices.input] })
-    let wakes = 0
-    intake.register({ threadId: MAIN, driver: { blocked: () => false, wake: () => { wakes += 1 } } })
-    notices.enqueue({ threadId: MAIN, draft: {
-      type: 'agent-ended', agentId: CHILD, agentType: 'teammate', intent: 'peer',
-      status: EAgentStatus.Finished, prose: 'not a report', turns: 1, toolCalls: 0,
-    } })
-    await flush()
-    expect(wakes).toBe(0)
-    const batch = await intake.prepare({ threadId: MAIN })
-    expect(batch.drafts).toHaveLength(1)
-    expect(batch.wakesTurn).toBe(false)
-    batch.acknowledge()
-    intake.dispose()
-  })
-
   it('does not start overlapping wakes while asynchronous restart work is pending', async () => {
     const notices = source()
     const intake = new MessageIntake({ sources: [notices.input] })

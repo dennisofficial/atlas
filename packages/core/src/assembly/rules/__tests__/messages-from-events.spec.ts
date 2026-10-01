@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { toCallId, toEventId } from '../../../events/ids'
+import { EKilledBy, EShellStatus } from '../../../shells/status'
 import { ERiskDimension } from '../../../policy/classifier/dimension'
 import { EGrantScope } from '../../../policy/classifier/grant'
 import { EClassifierMode, ETriage } from '../../../policy/classifier/triage'
@@ -293,5 +294,76 @@ describe('messagesFromEvents and nudges', () => {
     const notice = assembled.messages[1]?.message.content[0]
     expect(notice?.type).toBe('text')
     expect(notice?.type === 'text' ? notice.text : '').toContain('<background-shell-matched>')
+  })
+})
+
+describe('a shell ending after a shell_kill', () => {
+  const shellEnded = {
+    type: 'background-shell-ended' as const,
+    shellId: 'bash_1',
+    command: 'bun test',
+    status: EShellStatus.Killed,
+    killedBy: EKilledBy.Model,
+    exitCode: 143,
+    output: '42 pass\n',
+    droppedCharacters: 0,
+    remainingCharacters: 0,
+  }
+
+  const killCall = {
+    type: 'tool-called' as const,
+    callId: toCallId('call-1'),
+    name: 'shell_kill',
+    input: { shellId: 'bash_1' },
+    ordinal: 0,
+  }
+
+  const killResult = {
+    type: 'tool-result' as const,
+    callId: toCallId('call-1'),
+    name: 'shell_kill',
+    output: { shellId: 'bash_1', command: 'bun test', status: 'killed', exitCode: 143 },
+  }
+
+  const texts = (assembled: Assembled): string[] =>
+    assembled.messages.flatMap((entry) =>
+      entry.message.content.flatMap((part) => (part.type === 'text' ? [part.text] : [])),
+    )
+
+  it('suppresses the ending block when the same turn already answered a shell_kill for it', () => {
+    const events = log([killCall, killResult, shellEnded])
+
+    const assembled = messagesFromEvents()(empty, contextFor({ events }))
+
+    expect(texts(assembled).some((text) => text.includes('<background-shell-ended>'))).toBe(false)
+  })
+
+  it('renders an ending that lands after the model has spoken past the kill', () => {
+    const events = log([
+      killCall,
+      killResult,
+      { type: 'assistant-said', parts: [{ type: 'text', text: 'killed it; starting a fresh one' }] },
+      shellEnded,
+    ])
+
+    const assembled = messagesFromEvents()(empty, contextFor({ events }))
+
+    expect(texts(assembled).some((text) => text.includes('<background-shell-ended>'))).toBe(true)
+  })
+
+  it('renders an ending whose shell no shell_kill ever answered', () => {
+    const events = log([shellEnded])
+
+    const assembled = messagesFromEvents()(empty, contextFor({ events }))
+
+    expect(texts(assembled).some((text) => text.includes('<background-shell-ended>'))).toBe(true)
+  })
+
+  it('renders an ending under a recycled shell id whose command no shell_kill named', () => {
+    const events = log([killCall, killResult, { ...shellEnded, command: 'bun run dev' }])
+
+    const assembled = messagesFromEvents()(empty, contextFor({ events }))
+
+    expect(texts(assembled).some((text) => text.includes('<background-shell-ended>'))).toBe(true)
   })
 })

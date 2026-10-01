@@ -1,13 +1,15 @@
 import { EShellStatus, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 
-import type { InputBatch } from '../intake/input-batch'
-import type { ShellDelta, ShellSnapshot } from './background-shell'
-import { awaitingInputDraft, endedDraft, matchedDraft, stillRunningDraft } from './notifications'
-import type { MatchedLines } from './shell-watch'
-import { DELIVERED_CHARACTERS, previewOutput, take, type OutputPreview } from './output-preview'
+import type { ShellDelta } from './background-shell'
 
-export { DELIVERED_CHARACTERS, previewOutput, take }
-export type { OutputPreview, Tracked } from './output-preview'
+import type { InputBatch } from '../intake/input-batch'
+import type { ShellSnapshot } from './background-shell'
+import { awaitingInputDraft, matchedDraft, stillRunningDraft } from './notifications'
+import type { MatchedLines } from './shell-watch'
+import { DELIVERED_CHARACTERS, previewDelta, take } from './output-preview'
+
+export { DELIVERED_CHARACTERS, previewDelta, take }
+export type { Tracked } from './output-preview'
 
 export enum ENotice {
   Ended = 'ended',
@@ -19,30 +21,19 @@ export enum ENotice {
 type NoticedShell = { snapshot: ShellSnapshot; threadId: ThreadId }
 
 /**
- * The delta is read when the notice is handed over rather than when the shell exits, so a notice
- * that is dropped rather than delivered leaves its output where shell_output can still find it.
- *
- * `hooked` is what the after-shell hooks produced for this ending. It travels with the notice
- * because nothing else can deliver it: the shell may well have ended with no turn in flight.
- *
- * An ending whose output shell_kill already handed to the model is `outputClaimed`: the shell's own
- * draft would only repeat the tool result, so the notice exists purely to give hook drafts a ride.
+ * The queue is a wake-up bell, not a store. An ending carries no output: the event log is the only
+ * announcement channel for a shell ending, written at occurrence by the registry, so a drained
+ * `Ended` notice yields no `background-shell-ended` draft — it exists purely to wake whoever is
+ * listening and to hold a pending row until acknowledged.
  *
  * A match carries its lines instead of a delta: the matcher accumulates separately from the
  * delivery cursor, so nothing about a match is read out of the shell's undelivered output.
  */
 export type ShellNotice =
-  | (NoticedShell & {
-      kind: ENotice.Ended
-      take: () => ShellDelta
-      preview: () => OutputPreview
-      hooked?: readonly EventDraft[] | undefined
-      outputClaimed?: boolean | undefined
-    })
+  | (NoticedShell & { kind: ENotice.Ended })
   | (NoticedShell & {
       kind: ENotice.AwaitingInput
       take: () => ShellDelta
-      preview: () => OutputPreview
     })
   | (NoticedShell & { kind: ENotice.Matched; pattern: string; matched: MatchedLines })
   | (NoticedShell & {
@@ -100,10 +91,9 @@ export class ShellNoticeQueue {
 
   prepare({ threadId }: { threadId: ThreadId }): InputBatch {
     const captured = this.queued.filter((notice) => notice.threadId === threadId)
-    const previews: OutputPreview[] = []
     const drafts = captured
       .filter((notice) => this.stillWorthTelling(notice))
-      .flatMap((notice) => this.draftsOf(notice, previews))
+      .flatMap((notice) => this.draftsOf(notice))
 
     let acknowledged = false
     const acknowledge = (): void => {
@@ -112,7 +102,6 @@ export class ShellNoticeQueue {
       const leaving = new Set(captured)
       const kept = this.queued.filter((notice) => !leaving.has(notice))
       if (kept.length !== this.queued.length) this.settle(kept)
-      for (const preview of previews) preview.commit()
     }
 
     return { drafts, wakesTurn: drafts.length > 0, acknowledge }
@@ -144,19 +133,6 @@ export class ShellNoticeQueue {
     return this.queued.some((notice) => notice.snapshot.shellId === shellId)
   }
 
-  /**
-   * Only an unclaimed ending writes a background-shell-ended event when drained: a claimed one is
-   * the ride for hook drafts alone, and any other kind says nothing about the shell having ended.
-   */
-  hasDurableEndingFor({ shellId }: { shellId: string }): boolean {
-    return this.queued.some(
-      (notice) =>
-        notice.snapshot.shellId === shellId &&
-        notice.kind === ENotice.Ended &&
-        notice.outputClaimed !== true,
-    )
-  }
-
   onNotice(listener: () => void): () => void {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)
@@ -184,7 +160,7 @@ export class ShellNoticeQueue {
     return live === undefined || live.status === EShellStatus.Running
   }
 
-  private draftsOf(notice: ShellNotice, previews: OutputPreview[]): readonly EventDraft[] {
+  private draftsOf(notice: ShellNotice): readonly EventDraft[] {
     if (notice.kind === ENotice.Matched) {
       return [
         matchedDraft({
@@ -207,17 +183,13 @@ export class ShellNoticeQueue {
       ]
     }
 
-    if (notice.kind === ENotice.Ended && notice.outputClaimed === true) {
-      return notice.hooked ?? []
-    }
-
-    const preview = notice.preview()
-    previews.push(preview)
     if (notice.kind === ENotice.AwaitingInput) {
-      return [awaitingInputDraft({ snapshot: notice.snapshot, delta: preview.delta })]
+      return [awaitingInputDraft({ snapshot: notice.snapshot, delta: notice.take() })]
     }
 
-    return [endedDraft({ snapshot: notice.snapshot, delta: preview.delta }), ...(notice.hooked ?? [])]
+    // An ending rings the bell and writes nothing: its event is already in the log from the
+    // settle path, so a drained ending yields no draft of its own.
+    return []
   }
 
   /**

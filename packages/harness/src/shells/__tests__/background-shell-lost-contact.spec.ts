@@ -17,7 +17,7 @@ import { HookChain } from '../../hooks/registry'
 import { startBackgroundShell, type BackgroundShell } from '../background-shell'
 import { toShellId } from '../shell-id'
 import { BunShellRegistry } from '../shell-registry'
-import { endedDraft, job, settle } from './shell-registry-fixture'
+import { job, settle } from './shell-registry-fixture'
 
 const THREAD = toThreadId('thread-under-test')
 
@@ -112,11 +112,11 @@ describe('a background shell the harness can no longer read', () => {
     processes.loseContact()
     await settle({ registry, shellId: startedShell.snapshot.shellId })
 
-    const drafts = registry.drainNotifications({ threadId: THREAD })
-    const ended = endedDraft(drafts[0])
-    expect(ended.status).toBe(EShellStatus.Killed)
-    expect(ended.killedBy).toBe(EKilledBy.LostContact)
-    expect(ended.output).toContain('could not read this shell to the end')
+    const snapshot = registry
+      .list({ threadId: THREAD })
+      .find((shell) => shell.shellId === startedShell.snapshot.shellId)
+    expect(snapshot?.status).toBe(EShellStatus.Killed)
+    expect(snapshot?.killedBy).toBe(EKilledBy.LostContact)
 
     await registry.closeAll()
     rmSync(root, { recursive: true, force: true })

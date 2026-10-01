@@ -5,7 +5,6 @@ import { EKilledBy } from '@dltech/atlas-core'
 
 import { EShellStatus } from '../background-shell'
 import {
-  announced,
   closeRegistries,
   job,
   openRegistry,
@@ -48,7 +47,7 @@ for (const adapter of shellAdapters) {
 
         await Bun.sleep(150)
         registry.kill({ shellId: started.snapshot.shellId, by: EKilledBy.User, threadId: THREAD })
-        await announced({ registry })
+        await settle({ registry, shellId: started.snapshot.shellId })
         await Bun.sleep(2200)
 
         expect(await Bun.file(witness).exists()).toBe(false)

@@ -214,16 +214,6 @@ describe('a background shell ending in the transcript', () => {
     expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(2)
   })
 
-  it('hides a recorded ending, which is bookkeeping rather than speech', () => {
-    const entries = durableEntries({
-      events: log([
-        shellEnded({ output: '', killedBy: EKilledBy.Model, recorded: true }),
-      ]),
-    })
-
-    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(0)
-  })
-
   it('hides a legacy teardown dupe whose kill was already delivered as a shell_kill result', () => {
     const entries = durableEntries({
       events: log([
@@ -231,7 +221,7 @@ describe('a background shell ending in the transcript', () => {
           type: 'tool-result' as const,
           callId: 'call-1' as never,
           name: 'shell_kill',
-          output: { shellId: 'bash_1', status: 'killed', exitCode: 143 },
+          output: { shellId: 'bash_1', command: 'bun test', status: 'killed', exitCode: 143 },
         },
         shellEnded({ output: '', killedBy: EKilledBy.Model }),
       ]),
@@ -247,9 +237,66 @@ describe('a background shell ending in the transcript', () => {
           type: 'tool-result' as const,
           callId: 'call-1' as never,
           name: 'shell_kill',
-          output: { shellId: 'bash_1', status: 'killed', exitCode: 143 },
+          output: { shellId: 'bash_1', command: 'bun test', status: 'killed', exitCode: 143 },
         },
         shellEnded({ output: 'real output\n', killedBy: EKilledBy.Model }),
+      ]),
+    })
+
+    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(1)
+  })
+
+  it('keeps a silent model-kill ending when no shell_kill result names the shell', () => {
+    const entries = durableEntries({
+      events: log([shellEnded({ output: '', killedBy: EKilledBy.Model })]),
+    })
+
+    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(1)
+  })
+
+  it('shows the ending once when a shell_kill result and its occurrence-written ending share a turn', () => {
+    const entries = durableEntries({
+      events: log([
+        { type: 'tool-called' as const, callId: 'call-1' as never, name: 'shell_kill', input: { shellId: 'bash_1' }, ordinal: 0 },
+        {
+          type: 'tool-result' as const,
+          callId: 'call-1' as never,
+          name: 'shell_kill',
+          output: {
+            shellId: 'bash_1',
+            command: 'bun test',
+            status: 'killed',
+            exitCode: 143,
+            text: '42 pass\n',
+            droppedCharacters: 0,
+            remainingCharacters: 0,
+          },
+        },
+        shellEnded({
+          status: EShellStatus.Killed,
+          killedBy: EKilledBy.Model,
+          exitCode: 143,
+          output: '42 pass\n',
+        }),
+      ]),
+    })
+
+    const ended = entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)
+    expect(ended).toHaveLength(1)
+    expect(ended[0]?.output).toBe('42 pass\n')
+    expect(ended[0]?.text).toBe('Background shell "Run full TUI suite" was killed by atlas')
+  })
+
+  it('keeps a silent ending under a recycled id whose command no kill result names', () => {
+    const entries = durableEntries({
+      events: log([
+        {
+          type: 'tool-result' as const,
+          callId: 'call-1' as never,
+          name: 'shell_kill',
+          output: { shellId: 'bash_1', command: 'bun test', status: 'killed', exitCode: 143 },
+        },
+        shellEnded({ command: 'bun run dev', output: '', killedBy: EKilledBy.Model }),
       ]),
     })
 
