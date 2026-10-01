@@ -16,9 +16,9 @@ const inputSchema = z.strictObject({
 
 const description = [
   'Report to the main agent: the session that spawned you and stands between you and the developer.',
-  'Only teammates report this way, and this is the only way you reach the main agent \u2014 ending your turn tells it nothing.',
-  'Your turns end for reasons of your own: a shell checking in, one of your sub-agents finishing, a watch firing.',
-  'None of that is news, which is why an ending is not a report and silence between reports is normal.',
+  'Only teammates report this way, and this is the way you speak to the main agent.',
+  'Ending your turn while work of yours is still in flight \u2014 a background shell, one of your sub-agents, a watch \u2014 tells it nothing: that pause is bookkeeping, and silence between reports is normal.',
+  'Ending with nothing left running that could wake you relays your ending to the main agent \u2014 so a pause you mean to resume must leave a wake behind, and when you are done or blocked, report deliberately rather than relying on the relay: the report is your voice, the relay only says you stopped.',
   'Send one when something actually changed for the main agent: the work is done, you are blocked, you need a decision only the developer can make, or you found something that changes what it or another teammate should do.',
   'Lead with the outcome and carry the whole of it \u2014 none of your steps are in its history, so what you write here is all it gets.',
   'It reaches the main agent whether or not it is mid-turn, and it is what the developer sees of you, so write it for both.',

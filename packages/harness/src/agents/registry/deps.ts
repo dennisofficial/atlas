@@ -17,6 +17,13 @@ export type IntakeChanged = Pick<MessageIntake, 'changed' | 'prepare'>
 
 export type IntakeSubmit = Pick<MessageIntake, 'changed' | 'submit' | 'hold' | 'commit'>
 
+/**
+ * Whether a thread still has work that can wake it again — live shells, services or child agents.
+ * A teammate whose turn ends with none of these will never speak again unless someone messages it,
+ * so its ending is relayed to the parent rather than recorded quietly.
+ */
+export type HasLiveWork = (threadId: ThreadId) => boolean
+
 export type SupervisorDeps = {
   log: EventLogPort
   threads: ThreadStorePort
@@ -30,6 +37,7 @@ export type SupervisorDeps = {
   telemetry?: TelemetryPort | undefined
   intake?: IntakeChanged | undefined
   input?: (() => IntakeSubmit | undefined) | undefined
+  hasLiveWork?: HasLiveWork | undefined
 }
 
 export const agentTypeNamed = ({

@@ -1,17 +1,12 @@
-import { endingIsSpeech, type EventDraft, type ThreadId } from '@dltech/atlas-core'
+import type { EventDraft, ThreadId } from '@dltech/atlas-core'
 
 import type { InputBatch } from '../../intake/input-batch'
 import type { AgentSnapshot } from './snapshot'
 
 export enum EAgentNotice {
   Ending = 'ending',
-  QuietEnding = 'quiet-ending',
   Report = 'report',
 }
-
-/** A child's ending lands as speech or as bookkeeping according to its type's speech model. */
-export const endingNoticeKind = (agentType: string): EAgentNotice =>
-  endingIsSpeech(agentType) ? EAgentNotice.Ending : EAgentNotice.QuietEnding
 
 export type AgentNotice = {
   threadId: ThreadId
@@ -22,11 +17,6 @@ export type AgentNotice = {
 }
 
 export type AgentNoticeBatch = InputBatch & { notices: readonly AgentNotice[] }
-
-const wakesThread = (notice: AgentNotice): boolean => notice.kind !== EAgentNotice.QuietEnding
-
-/** Bookkeeping the model never sees cannot wake a turn, so it cannot continue one either. */
-export const isTurnTakingNotice = (notice: AgentNotice): boolean => wakesThread(notice)
 
 const NOTHING_PENDING: readonly AgentNotice[] = Object.freeze([])
 
@@ -55,7 +45,7 @@ export class AgentNoticeQueue {
     return {
       notices: captured,
       drafts: captured.map((notice) => notice.draft),
-      wakesTurn: captured.some(isTurnTakingNotice),
+      wakesTurn: captured.length > 0,
       acknowledge: () => {
         if (acknowledged) return
         acknowledged = true
@@ -131,7 +121,6 @@ export class AgentNoticeQueue {
 
     const byThread = new Map<ThreadId, AgentSnapshot[]>()
     for (const notice of notices) {
-      if (!wakesThread(notice)) continue
       const held = byThread.get(notice.threadId)
       if (held === undefined) byThread.set(notice.threadId, [notice.snapshot])
       else held.push(notice.snapshot)

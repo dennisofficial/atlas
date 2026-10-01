@@ -37,7 +37,6 @@ export const RETAINED_ENDED_SHELLS = 50
 export const ACTIVITY_NOTIFY_MS = 100
 export const OVERFLOW_CHARACTERS = 50_000_000
 export const PROMPT_SETTLE_MS = 2_000
-export const CHECK_IN_EVERY_MS = 300_000
 export const CHECK_IN_TAIL_CHARACTERS = 1_000
 
 /** SIGKILL plus the read grace and slack: a kill that outlives this is handed back to the announcement path. */
@@ -153,7 +152,7 @@ export class BunShellRegistry extends ShellRegistryPort {
 
     this.started += 1
     const shellId = toShellId(`bash_${this.started}`)
-    const checkInMs = args.checkInMs ?? CHECK_IN_EVERY_MS
+    const checkInMs = args.checkInMs
 
     const opened = startBackgroundShell({
       shellId,
@@ -177,7 +176,10 @@ export class BunShellRegistry extends ShellRegistryPort {
       onSettled: (shellId) => this.captureOutput(shellId),
       onAwaitingInput: (shell) => this.announceAwaitingInput(shell),
       onMatched: (matched) => this.announceMatched(matched),
-      onStillRunning: (shell) => this.announceStillRunning({ shell, checkInMs }),
+      onStillRunning: (shell) => {
+        if (checkInMs === undefined) return
+        this.announceStillRunning({ shell, checkInMs })
+      },
       onActivity: () => this.noteActivity(),
     })
     if (!opened.ok) return opened

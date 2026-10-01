@@ -32,7 +32,7 @@ import {
   type ShellOutput,
 } from '../../shells/shell-process'
 import { bootId } from '../../shells/boot'
-import { CHECK_IN_EVERY_MS, ShellRegistryPort } from '../../shells/shell-registry'
+import { ShellRegistryPort } from '../../shells/shell-registry'
 import { MAXIMUM_OUTPUT_CHARACTERS, mergeStreams, renderModelText } from './bash-output'
 import {
   bashDescription,
@@ -65,7 +65,6 @@ const inputSchema = z.strictObject({
 const description = bashDescription({
   defaultTimeoutMs: DEFAULT_TIMEOUT_MS,
   maximumTimeoutMs: MAXIMUM_TIMEOUT_MS,
-  defaultCheckInMs: CHECK_IN_EVERY_MS,
 })
 
 type ShellStartRecording = {
@@ -126,7 +125,6 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
 
     const { shellId } = started.snapshot
     this.recordStart({ shellId, args })
-    const checkInMs = args.checkInMs ?? CHECK_IN_EVERY_MS
 
     return {
       ok: true,
@@ -136,7 +134,7 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
         shellId,
         status: started.snapshot.status,
         pid: started.snapshot.pid,
-        checkInMs,
+        ...(args.checkInMs === undefined ? {} : { checkInMs: args.checkInMs }),
         ...(args.watch === undefined ? {} : { watch: args.watch }),
         ...(args.timeoutMs === undefined ? {} : { timeoutMs: args.timeoutMs }),
         ...(args.exposure === undefined ? {} : { exposure: args.exposure }),
@@ -151,7 +149,7 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
         'and the ending is written to the durable log and announced like every other, so you can be told the same death twice - once as the tool result, once as the ending.',
         ...watchClause({ watch: args.watch }),
         ...ceilingClause({ timeoutMs: args.timeoutMs }),
-        ...checkInClause({ checkInMs }),
+        ...checkInClause({ checkInMs: args.checkInMs }),
         ...exposureClause({ exposure: args.exposure }),
         'So do not wait on it: no sleeping, no polling, no idle loop, and no do-nothing command to pass the time - a tick only spins the turn. Take up other work, or end the turn and be woken.',
         `Use shell_output({ shellId: "${shellId}" }) only for a shell that will not end on its own, such as a dev server`,

@@ -72,6 +72,7 @@ export class AgentSupervisor extends AgentRegistryPort {
       notices: this.notices,
       clock: args.clock,
       ...(args.telemetry === undefined ? {} : { telemetry: args.telemetry }),
+      ...(args.hasLiveWork === undefined ? {} : { hasLiveWork: args.hasLiveWork }),
     })
     this.spawner = new ChildSpawner({
       threads: args.threads,
@@ -238,6 +239,10 @@ export class AgentSupervisor extends AgentRegistryPort {
   list({ threadId }: { threadId: ThreadId }): readonly AgentSnapshot[] {
     void this.hydrate({ threadId })
     return this.roster.list(threadId)
+  }
+
+  someChild(threadId: ThreadId, where: (child: ChildState) => boolean): boolean {
+    return this.roster.states().some((child) => child.spawnedBy === threadId && where(child))
   }
 
   async removeChildren({

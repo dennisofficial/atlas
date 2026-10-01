@@ -12,7 +12,7 @@ import type { TurnOutcome } from '../../loop/turn-outcome'
 import type { TurnRunner } from '../../loop/turn-runner.port'
 import type { AgentType } from '../types'
 import type { ChildRunnerSource } from './child-runner'
-import type { IntakeChanged } from './deps'
+import type { HasLiveWork, IntakeChanged } from './deps'
 import {
   agentEndedDraft,
   recordContext,
@@ -21,7 +21,7 @@ import {
   type ChildState,
   type SteerMessage,
 } from './child-state'
-import { EAgentNotice, endingNoticeKind, type AgentNoticeQueue } from './notices'
+import { EAgentNotice, type AgentNoticeQueue } from './notices'
 import { statusOf } from './reasons'
 import type { AgentRoster } from './roster'
 
@@ -38,6 +38,7 @@ export class ChildSteps {
   private readonly clock: ClockPort
   private readonly telemetry: TelemetryPort | undefined
   private readonly intake: IntakeChanged | undefined
+  private readonly hasLiveWork: HasLiveWork | undefined
   private readonly inFlight = new Map<ThreadId, Map<ThreadId, Promise<void>>>()
 
   constructor(args: {
@@ -47,6 +48,7 @@ export class ChildSteps {
     clock: ClockPort
     telemetry?: TelemetryPort | undefined
     intake?: IntakeChanged | undefined
+    hasLiveWork?: HasLiveWork | undefined
   }) {
     this.runners = args.runners
     this.roster = args.roster
@@ -54,6 +56,7 @@ export class ChildSteps {
     this.clock = args.clock
     this.telemetry = args.telemetry
     this.intake = args.intake
+    this.hasLiveWork = args.hasLiveWork
   }
 
   take({
@@ -153,15 +156,28 @@ export class ChildSteps {
       toolCalls: child.toolCalls,
     })
 
-    this.notices.queue({
-      threadId: child.spawnedBy,
-      snapshot: snapshotOf(child),
-      kind: endingNoticeKind(child.agentType),
-      draft: agentEndedDraft(child),
-      generation: child.abort.signal,
-    })
+    const kind = this.endingKind(child)
+    if (kind !== undefined) {
+      this.notices.queue({
+        threadId: child.spawnedBy,
+        snapshot: snapshotOf(child),
+        kind,
+        draft: agentEndedDraft(child),
+        generation: child.abort.signal,
+      })
+    }
 
     this.intake?.changed()
+  }
+
+  /**
+   * A teammate that still owns live work is pausing between wakes, not ending: the pause is
+   * recorded but never queued, so nothing wakes or reaches the parent. One with nothing left
+   * that can wake it has gone silent for good, so its ending relays like a sub-agent's.
+   */
+  private endingKind(child: ChildState): EAgentNotice | undefined {
+    if (this.hasLiveWork?.(child.agentId) === true) return undefined
+    return EAgentNotice.Ending
   }
 
   private record({ child, drafts }: { child: ChildState; drafts: readonly EventDraft[] }): void {

@@ -26,6 +26,15 @@ async function open(): Promise<OpenedSupervisor> {
   return entry
 }
 
+async function openWithLiveWork(): Promise<OpenedSupervisor> {
+  const entry = await openSupervisor({
+    agentTypes: [agentTypeNamed({ name: 'explore' }), TEAMMATE],
+    hasLiveWork: () => true,
+  })
+  opened.push(entry)
+  return entry
+}
+
 afterEach(async () => {
   for (const entry of opened.splice(0)) await entry.close()
 })
@@ -211,42 +220,30 @@ describe('preparing agent notices without acknowledging', () => {
 })
 
 describe('enumerating threads with anything queued', () => {
-  it('names a thread whose only notice is a quiet teammate ending, which wakes nothing', async () => {
-    const entry = await open()
+  it('queues nothing for a teammate that pauses with live work of its own still running', async () => {
+    const entry = await openWithLiveWork()
     await spawnEnded(entry, TEAMMATE_AGENT_TYPE)
     entry.runners.started[0]?.settle(finished())
     await settled()
 
     expect(entry.supervisor.threadsAwaitingNotice()).toEqual([])
-    expect(entry.supervisor.threadsWithPendingInput()).toEqual([entry.parent])
-  })
-
-  it('stops naming the thread once the quiet ending is acknowledged', async () => {
-    const entry = await open()
-    await spawnEnded(entry, TEAMMATE_AGENT_TYPE)
-    entry.runners.started[0]?.settle(finished())
-    await settled()
-
-    const batch = entry.supervisor.prepareNotifications({ threadId: entry.parent })
-    expect(batch.wakesTurn).toBe(false)
-    expect(batch.drafts[0]?.type).toBe('agent-ended')
-
-    batch.acknowledge()
     expect(entry.supervisor.threadsWithPendingInput()).toEqual([])
-  })
-
-  it('persists a quiet ending without any wake until it is prepared and acknowledged', async () => {
-    const entry = await open()
-    await spawnEnded(entry, TEAMMATE_AGENT_TYPE)
-    entry.runners.started[0]?.settle(finished())
-    await settled()
-
-    expect(entry.supervisor.threadsAwaitingNotice()).toEqual([])
-    expect(entry.supervisor.threadsWithPendingInput()).toEqual([entry.parent])
 
     const drained = entry.supervisor.drainNotifications({ threadId: entry.parent })
     expect(drained.wakesTurn).toBe(false)
-    expect(drained.drafts).toHaveLength(1)
-    expect(entry.supervisor.threadsWithPendingInput()).toEqual([])
+    expect(drained.drafts).toHaveLength(0)
+  })
+
+  it('relays a teammate ending with no live work left to wake it, like a sub-agent ending', async () => {
+    const entry = await open()
+    await spawnEnded(entry, TEAMMATE_AGENT_TYPE)
+    entry.runners.started[0]?.settle(finished())
+    await settled()
+
+    expect(entry.supervisor.threadsAwaitingNotice()).toEqual([entry.parent])
+
+    const drained = entry.supervisor.drainNotifications({ threadId: entry.parent })
+    expect(drained.wakesTurn).toBe(true)
+    expect(drained.drafts[0]?.type).toBe('agent-ended')
   })
 })

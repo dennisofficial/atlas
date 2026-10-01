@@ -94,9 +94,9 @@ function Scene(props: {
         onToggle={props.onToggle}
       />
       <EntryView
-        entry={{ kind: EEntryKind.AgentEnded, author: EAuthor.Model, key: 'quiet',
+        entry={{ kind: EEntryKind.AgentEnded, author: EAuthor.Model, key: 'teammate',
           text: 'Teammate "Inspect serve" finished', agentId: 'peer',
-          report: 'Done. My report was delivered earlier.', failed: false, quiet: true }}
+          report: 'Done. My report was delivered earlier.', failed: false }}
         width={WIDTH}
       />
       <box flexDirection="row" marginTop={1} marginBottom={1}>
