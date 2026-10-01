@@ -1,4 +1,4 @@
-import { endingIsSpeech, EContextSlot, EExecutionLocation, EKilledBy, latestTldrPerAnchor, quotedShellCommand, type AssistantPart, type CallId, type Event, type EventId, type EventOfType, type SaidImage } from '@dltech/atlas-core'
+import { EContextSlot, EExecutionLocation, EKilledBy, latestTldrPerAnchor, quotedShellCommand, type AssistantPart, type CallId, type Event, type EventId, type EventOfType, type SaidImage } from '@dltech/atlas-core'
 
 import { formatElapsed } from '../ui/theme'
 
@@ -322,7 +322,6 @@ export function durableEntries(args: {
           agentId: event.agentId,
           report: event.prose,
           failed: agentEndingFailed(event),
-          ...(!endingIsSpeech(event.agentType) ? { quiet: true } : {}),
         },
       ]
     }
