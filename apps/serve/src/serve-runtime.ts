@@ -5,7 +5,6 @@ import { EServeFrame, type ServeFrame, type TurnOutcomeWire } from '@dltech/atla
 import { MainWake as LegacyWake } from '@dltech/atlas-harness'
 import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
 
-import { syncCapabilitiesNotice } from './capabilities-notice'
 import { createChannelBridge } from './channel-bridge'
 import { DEFAULT_DRAIN_DEADLINE_MS } from './drain-deadline'
 import { createFrameBuffer, DEFAULT_FRAME_BUFFER, type LifecycleFrame, type SignalFrame } from './frame-buffer'
@@ -51,7 +50,7 @@ export async function runServeRuntime(args: {
   fetchTranscriptArchive?: FetchTranscriptArchive | undefined
 }): Promise<ServeHandle> {
   const { bootstrap } = args
-  const { threadId, wanted, controlPlaneUrl, cwd, env, startedAt, log, driveHome, workspace, app, capabilities } =
+  const { threadId, wanted, controlPlaneUrl, cwd, env, startedAt, log, driveHome, workspace, app } =
     bootstrap
 
   const buffer = createFrameBuffer({ capacity: args.bufferSize ?? DEFAULT_FRAME_BUFFER })
@@ -225,15 +224,6 @@ export async function runServeRuntime(args: {
   captureRunning = checkpoint.running
 
   const events = await app.log.read({ threadId }).catch(() => [])
-  if (capabilities !== undefined) {
-    await syncCapabilitiesNotice({
-      log: app.log,
-      threadId,
-      runId: app.ids.nextRunId(),
-      events,
-      capabilities,
-    }).catch(() => false)
-  }
   await checkpoint.boot().catch((failure: unknown) => {
     log({ event: EServeEvent.CheckpointPersistFailed, reason: failure instanceof Error ? failure.message : String(failure) })
   })

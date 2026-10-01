@@ -1,7 +1,6 @@
 import { bootstrapServe, type ServeArgs } from './serve-bootstrap'
 import { runServeRuntime, type ServeHandle } from './serve-runtime'
 
-export * from './capabilities-notice'
 export * from './drive-bootstrap'
 export * from './channel-bridge'
 export * from './compose-serve'

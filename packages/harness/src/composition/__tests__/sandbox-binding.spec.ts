@@ -2,11 +2,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import {
-  ATLAS_SETTINGS,
-  EExecutionLocation,
-  executionLocationNote,
-} from '@dltech/atlas-core'
+import { ATLAS_SETTINGS, EExecutionLocation } from '@dltech/atlas-core'
 import {
   createHarnessContainer,
   createSettingsService,
@@ -50,40 +46,26 @@ const bindIn = (cwd: string, atlasHome?: string) =>
     atlasHome: atlasHome ?? join(cwd, 'no-atlas-home-here'),
   })
 
-describe('the mounts bindSandbox hands the tail block', () => {
-  it('names a configured mount in the note the model reads', async () => {
+describe('the mounts bindSandbox returns', () => {
+  it('lists a configured mount', async () => {
     const cwd = await freshProject(
       JSON.stringify({ mounts: [{ path: '/Users/operator/Developer/shared-lib' }] }),
     )
 
     const { mounts } = await bindIn(cwd)
 
-    const note = executionLocationNote({ location: EExecutionLocation.Docker, mounts })
-    expect(note).toContain('/Users/operator/Developer/shared-lib')
+    expect(mounts).toEqual(['/Users/operator/Developer/shared-lib'])
   })
 
-  it('keeps the boundary warning for a path outside the configured mounts', async () => {
-    const cwd = await freshProject(
-      JSON.stringify({ mounts: [{ path: '/Users/operator/Developer/shared-lib' }] }),
-    )
-
-    const { mounts } = await bindIn(cwd)
-
-    const note = executionLocationNote({ location: EExecutionLocation.Docker, mounts })
-    expect(note).toContain('not mounted')
-  })
-
-  it('warns that any path outside the project is unmounted when nothing is configured', async () => {
+  it('is empty when nothing is configured', async () => {
     const cwd = await freshProject()
 
     const { mounts } = await bindIn(cwd)
 
     expect(mounts).toEqual([])
-    const note = executionLocationNote({ location: EExecutionLocation.Docker, mounts })
-    expect(note).toContain('A path outside the project is not mounted')
   })
 
-  it('tells the model it can reach the mounted atlas home subtrees, never the home root', async () => {
+  it('lists the mounted atlas home subtrees, never the home root', async () => {
     const cwd = await freshProject()
     const atlasHome = await mkdtemp(join(tmpdir(), 'atlas-sandbox-home-'))
     projects.push(atlasHome)
@@ -93,8 +75,5 @@ describe('the mounts bindSandbox hands the tail block', () => {
     const { mounts } = await bindIn(cwd, atlasHome)
 
     expect(mounts).toEqual([join(atlasHome, 'memory')])
-    const note = executionLocationNote({ location: EExecutionLocation.Docker, mounts })
-    expect(note).toContain(join(atlasHome, 'memory'))
-    expect(note).not.toContain('auth.json')
   })
 })

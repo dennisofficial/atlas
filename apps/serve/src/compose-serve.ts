@@ -102,7 +102,6 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     env: args.env,
     settings: loadSettings({ env: args.env, cwd: args.cwd }),
     clientVersion: args.clientVersion,
-    capabilities: args.capabilities === undefined ? undefined : () => args.capabilities,
     surface: {
       notice: args.notice,
       bind: ({ container }) => {

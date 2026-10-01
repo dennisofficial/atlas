@@ -161,8 +161,6 @@ export async function bootstrapServe(args: ServeArgs = {}) {
     storedThreadModel() ??
     (spec?.model === undefined || spec.model === null ? undefined : { ref: spec.model })
 
-  const capabilities = 'profile' in workspace ? workspace.profile?.capabilities : undefined
-
   const app = await (args.compose ?? composeServeApp)({
     threadId,
     cwd,
@@ -173,7 +171,6 @@ export async function bootstrapServe(args: ServeArgs = {}) {
     model: threadModel,
     notice,
     projectDirectory: context.projectDirectory,
-    capabilities,
     identity: context.identity,
   })
 
@@ -192,6 +189,5 @@ export async function bootstrapServe(args: ServeArgs = {}) {
     cwd,
     workspace,
     app,
-    capabilities,
   }
 }
