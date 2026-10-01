@@ -6,7 +6,12 @@ import {
   placementOf,
   type PlacementRecord,
 } from '@dltech/atlas-core'
-import { EClientFrame, EClientRequest, EServeFrame, PlacementController } from '@dltech/atlas-harness'
+import {
+  EClientFrame,
+  EClientRequest,
+  EServeFrame,
+  PlacementController,
+} from '@dltech/atlas-harness'
 import { fakeServeApp } from './fakes'
 import {
   bootRestoreServe,
@@ -34,7 +39,9 @@ const failedHydration = (): PlacementController => {
     repo: null,
     threads: {
       readPlacement: async () => preparing,
-      writePlacement: async () => { throw new Error('placement hydration conflict') },
+      writePlacement: async () => {
+        throw new Error('placement hydration conflict')
+      },
       onPlacementChanged: () => () => undefined,
       find: async () => undefined,
     },
@@ -53,22 +60,46 @@ describe('requests deferred behind a rejected restore', () => {
     const { client } = await bootRestoreServe({
       home,
       app,
-      archive: async () => { await held; return archive },
+      archive: async () => {
+        await held
+        return archive
+      },
     })
     app.executionLocation = failedHydration()
-    held = new Promise<void>((resolve) => { release = resolve })
-    client.send({ kind: EClientFrame.Request, id: 'restore-reject', op: EClientRequest.RestoreTranscript, params: {} })
-    client.send({ kind: EClientFrame.Request, id: 'deferred-read', op: EClientRequest.ReadEvents, params: { threadId: RESTORE_THREAD } })
-    client.send({ kind: EClientFrame.Send, sendId: 'deferred-send' as never, text: 'retain this draft' })
+    held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    client.send({
+      kind: EClientFrame.Request,
+      id: 'restore-reject',
+      op: EClientRequest.RestoreTranscript,
+      params: {},
+    })
+    client.send({
+      kind: EClientFrame.Request,
+      id: 'deferred-read',
+      op: EClientRequest.ReadEvents,
+      params: { threadId: RESTORE_THREAD },
+    })
+    client.send({
+      kind: EClientFrame.Send,
+      sendId: 'deferred-send' as never,
+      text: 'retain this draft',
+    })
     await settle()
     release()
     for (const replyTo of ['restore-reject', 'deferred-read']) {
-      const reply = await client.waitFor((frame) => frame.kind === EServeFrame.Reply && frame.replyTo === replyTo)
+      const reply = await client.waitFor(
+        (frame) => frame.kind === EServeFrame.Reply && frame.replyTo === replyTo,
+      )
       if (reply.kind !== EServeFrame.Reply) throw new Error('expected a reply')
       expect(reply.ok).toBe(false)
       expect(JSON.stringify(reply.data)).toContain('placement hydration conflict')
     }
-    const failure = await client.waitFor((frame) => frame.kind === EServeFrame.Error && frame.message.includes('placement hydration conflict'))
+    const failure = await client.waitFor(
+      (frame) =>
+        frame.kind === EServeFrame.Error && frame.message.includes('placement hydration conflict'),
+    )
     expect(failure.kind).toBe(EServeFrame.Error)
   })
 })

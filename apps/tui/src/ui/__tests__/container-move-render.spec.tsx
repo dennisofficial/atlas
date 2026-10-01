@@ -43,7 +43,7 @@ describe('a move while it runs', () => {
     expect(frame).toContain('closing what is running here')
     expect(frame).toContain('packing the uncommitted work')
     expect(frame).toContain('waiting for the sandbox')
-    expect(frame).toContain('attaching to the sandbox')
+    expect(frame).toContain('attaching and verifying the conversation')
   })
 
   it('ticks the step it is on so a long wait reads as work', async () => {
@@ -67,7 +67,7 @@ describe('a move while it runs', () => {
 
     expect(frame).toContain('✓ transferring the conversation')
     expect(frame).toContain('✓ packing the uncommitted work')
-    expect(frame).toContain('· attaching to the sandbox')
+    expect(frame).toContain('· attaching and verifying the conversation')
   })
 
   it('rises from the bottom ruled off across the whole width', async () => {

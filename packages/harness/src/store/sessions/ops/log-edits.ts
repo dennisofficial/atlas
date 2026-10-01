@@ -66,18 +66,18 @@ export async function truncateThreadLog({
     .map((event) => `${encodeEventLine({ draft: draftOf(event), envelope: envelopeOf(event) })}\n`)
     .join('')
   await writeFile(tmp, lines)
+  const meta = readMetaSync({ file: threadMetaFile({ sessionDir, threadId }), schema: threadMetaSchema })
+  const floor = meta?.forkMode === EForkMode.Reference ? (meta.forkSeq ?? 0) : 0
+  const head = Math.max(retained.at(-1)?.seq ?? 0, floor)
+  await writeHead({ clock, sessionDir, threadId, head, at: clock.now() })
   await rename(tmp, file)
   await registry.stampThreadLog({ sessionDir, threadId })
 
   log.events.length = 0
   log.events.push(...retained)
   log.unreadable = log.unreadable.filter((row) => row.seq <= toSeq)
-  const meta = readMetaSync({ file: threadMetaFile({ sessionDir, threadId }), schema: threadMetaSchema })
-  const floor = meta?.forkMode === EForkMode.Reference ? (meta.forkSeq ?? 0) : 0
-  log.head = Math.max(retained.at(-1)?.seq ?? 0, floor)
+  log.head = head
   rebuildContextIndex({ log })
-
-  await writeHead({ clock, sessionDir, threadId, head: log.head, at: clock.now() })
 }
 
 export async function appendDrafts({

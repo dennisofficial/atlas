@@ -43,6 +43,7 @@ function ranged(log: FakeEventLog): FakeEventLog {
     ownReads,
     peek: (args) => log.peek(args),
     seed: (args) => log.seed(args),
+    mirrorTo: (disk) => log.mirrorTo(disk),
     truncate: (args) => log.truncate(args),
     copyInto: (args) => log.copyInto(args),
     replaceWithSummary: (args) => log.replaceWithSummary(args),

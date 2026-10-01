@@ -89,7 +89,13 @@ describe('/container cloud', () => {
       expect(bridge.created[0]?.workspace?.branch).toBe('dennis/container-cloud')
       expect(bridge.created[0]?.workspace?.patch).toContain('diff --git')
       expect(bridge.attached).toHaveLength(1)
-      expect(app.threads.chosenLocations.at(-1)?.location).toBe(EExecutionLocation.Cloud)
+      // The ownership flip commits through the placement controller after the channel attaches,
+      // so the mark lands a tick behind the attach.
+      const flippedCloud = await until({
+        holds: async () => app.threads.chosenLocations.at(-1)?.location === EExecutionLocation.Cloud,
+        within: 20_000,
+      })
+      expect(flippedCloud).toBe(true)
     } finally {
       await mounted.done()
     }

@@ -25,7 +25,10 @@ const archiveWithModel = async (model: { ref: string; effort: string }): Promise
   const scratch = scratchTranscriptStore({ prefix: 'model-archive' })
   restoreHomes.push(scratch.home)
   const source = join(scratch.home, 'staged')
-  await extractSessionArchive({ archive: await seedArchive({ texts: ['history'] }), sessionDir: source })
+  await extractSessionArchive({
+    archive: await seedArchive({ texts: ['history'] }),
+    sessionDir: source,
+  })
   const file = threadMetaFile({ sessionDir: source, threadId: RESTORE_THREAD })
   const meta = readMetaSync({ file, schema: threadMetaSchema })
   if (meta === undefined) throw new Error('missing source metadata')
@@ -47,16 +50,27 @@ describe('model selection after an explicit archive replacement', () => {
     let live = before
     app.modelBridge = {
       effort: () => live.effort,
-      select: (model) => { live = model },
+      select: (model) => {
+        live = model
+      },
     }
     const find = app.threads.find.bind(app.threads)
     app.threads.find = async (request) => {
       const thread = await find(request)
       const meta = readMetaSync({
-        file: threadMetaFile({ sessionDir: sessionDirectory({ home, sessionId: RESTORE_THREAD }), threadId: RESTORE_THREAD }),
+        file: threadMetaFile({
+          sessionDir: sessionDirectory({ home, sessionId: RESTORE_THREAD }),
+          threadId: RESTORE_THREAD,
+        }),
         schema: threadMetaSchema,
       })
-      if (thread === undefined || meta === undefined || meta.modelRef === null || meta.modelEffort === null) return thread
+      if (
+        thread === undefined ||
+        meta === undefined ||
+        meta.modelRef === null ||
+        meta.modelEffort === null
+      )
+        return thread
       return { ...thread, model: { ref: meta.modelRef, effort: meta.modelEffort } }
     }
     const { client } = await bootRestoreServe({ home, archive: async () => archive, app })
