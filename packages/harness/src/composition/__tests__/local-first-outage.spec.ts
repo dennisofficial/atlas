@@ -100,21 +100,8 @@ const seedCloudSession = (): void => {
   })
 }
 
-const LEGACY_RESTORE_PATHS = ['/v1/secrets', '/v1/settings']
-
-const legacyRestoreRequests = (): RecordedRequest[] =>
-  requests.filter(
-    (request) =>
-      request.url.startsWith(CLOUD_URL) &&
-      LEGACY_RESTORE_PATHS.some((path) => request.url.endsWith(path)),
-  )
-
-const cloudRequestsBeyondLegacyRestore = (): RecordedRequest[] =>
-  requests.filter(
-    (request) =>
-      request.url.startsWith(CLOUD_URL) &&
-      !LEGACY_RESTORE_PATHS.some((path) => request.url.endsWith(path)),
-  )
+const cloudRequests = (): RecordedRequest[] =>
+  requests.filter((request) => request.url.startsWith(CLOUD_URL))
 
 const textOf = (parts: readonly AssistantPart[]): string =>
   parts
@@ -169,10 +156,8 @@ describe('a composed local session while Atlas Cloud is down', () => {
         'local answer one',
       )
 
-      // The one-time legacy sandbox-settings restore may pull secrets and settings once; nothing
-      // else may reach the cloud on a local-first boot.
-      expect(legacyRestoreRequests().length).toBeLessThanOrEqual(2)
-      expect(cloudRequestsBeyondLegacyRestore()).toEqual([])
+      // Nothing reaches the cloud on a local-first boot.
+      expect(cloudRequests()).toEqual([])
       expect(requests.some((request) => request.url.includes('/v1/accounts'))).toBe(false)
       expect(requests.some((request) => request.url.includes('/v1/mcp'))).toBe(false)
 
@@ -207,8 +192,7 @@ describe('a composed local session while Atlas Cloud is down', () => {
         .map((event) => textOf(event.type === 'assistant-said' ? event.parts : []))
       expect(replies).toEqual(['first answer', 'second answer'])
 
-      expect(legacyRestoreRequests().length).toBeLessThanOrEqual(2)
-      expect(cloudRequestsBeyondLegacyRestore()).toEqual([])
+      expect(cloudRequests()).toEqual([])
 
       await expect(app.close()).resolves.toBeUndefined()
     } finally {
@@ -275,7 +259,7 @@ describe('a composed local session while Atlas Cloud is down', () => {
       expect(providerCalls.every((call) => call.authorization?.includes('fake-access-token'))).toBe(
         true,
       )
-      expect(cloudRequestsBeyondLegacyRestore()).toEqual([])
+      expect(cloudRequests()).toEqual([])
 
       await expect(app.close()).resolves.toBeUndefined()
     } finally {

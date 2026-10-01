@@ -40,10 +40,8 @@ import { ExecutionLocationToken } from './execution-location-state'
 import {
   ClientVersionToken,
   HookMishapReporterToken,
-  LocalSecretsStoreToken,
   SecretsStoreToken,
   SleepPreventionToken,
-  UserSettingsStoreToken,
   WakeSignalToken,
   WorkspaceRoot,
 } from '../container/tokens'
@@ -64,9 +62,7 @@ import { PromptRegistry } from '../prompt/registry'
 import { SleepPrevention } from '../power/sleep-prevention'
 import { ServiceRegistryPort } from '../services/service-registry'
 import { ShellRegistryPort } from '../shells/shell-registry'
-import { legacyRestoreMarkerExists, restoreLegacySandboxConfiguration } from '../cloud/legacy-settings-restore'
 import { atlasDirectory } from '../store/paths'
-import { legacyRestoreMarkerFile } from './config'
 import { ThreadStorePort } from '../store/thread-store'
 import { ToolRegistry } from '../tools/registry'
 import { ClockJumpDetector } from '../wake/clock-jump-detector'
@@ -190,7 +186,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
 
   const settings = args.settings.service
   const settled = settings.snapshot().resolution
-  let legacyRestore: ReturnType<typeof restoreLegacySandboxConfiguration> | undefined
 
   // The sandbox container is keyed to the session, not the project directory: two tiles working
   // the same checkout get isolated containers, and resuming a thread reattaches to its own.
@@ -243,49 +238,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     reconcileHostSources: launch.command !== SERVE_COMMAND,
   })
   const secrets = container.resolve(SecretsStoreToken)
-
-  const session = cloud.session()
-  if (
-    launch.command !== SERVE_COMMAND &&
-    session !== null &&
-    !legacyRestoreMarkerExists({ file: legacyRestoreMarkerFile() })
-  ) {
-    legacyRestore = restoreLegacySandboxConfiguration({
-      session,
-      resolution: settled,
-      secrets: container.resolve(LocalSecretsStoreToken),
-      ...(container.isRegistered(UserSettingsStoreToken, true)
-        ? { settingsStore: container.resolve(UserSettingsStoreToken) }
-        : {}),
-      markerFile: legacyRestoreMarkerFile(),
-      clientVersion: args.clientVersion,
-    })
-    void legacyRestore.promise.then((report) => {
-      if (report === undefined) return
-      if (report.outcome === 'restored') {
-        settings.reload()
-        notice.notify({
-          key: 'cloud:legacy-settings-restored',
-          tone: ENoticeTone.Info,
-          ttlMs: NOTICE_WARN_MS,
-          text: `Restored sandbox settings from your Atlas Cloud sign-in: ${report.restored.join(', ')}.`,
-        })
-        return
-      }
-      if (report.outcome === 'unreachable' || report.malformed.length > 0) {
-        const detail =
-          report.malformed.length > 0
-            ? ` values the cloud holds for ${report.malformed.join(', ')} did not parse and were skipped`
-            : ' the cloud API did not answer'
-        notice.notify({
-          key: 'cloud:legacy-settings-restore-failed',
-          tone: ENoticeTone.Warn,
-          ttlMs: NOTICE_WARN_MS,
-          text: `Atlas could not restore your legacy sandbox settings from the cloud:${detail}. Set them again from settings if cloud sandboxes fail.`,
-        })
-      }
-    })
-  }
 
   await bindSettingsPolicy({ container, settings, workspace, credentials, cwd: anchor })
 
@@ -540,7 +492,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     journalResume: ({ active, directory }) =>
       journalResume({ active, command: launch.command, directory }),
     captureContext: boundCaptureContext({ notice }),
-    legacySettingsRestore: legacyRestore?.promise,
     pluginProjections: plugins.projections,
     pluginSurfaces: asPluginSurfaces<TPluginSurface>(plugins.surfaces),
     model,
