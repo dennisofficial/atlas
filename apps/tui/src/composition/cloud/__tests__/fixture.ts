@@ -10,7 +10,7 @@ import {
   type SaidImage,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { restoreTranscriptParamsSchema, type RosterWire, type RuntimeCheckpoint } from '@dltech/atlas-wire'
+import { restoreTranscriptParamsSchema, type PendingEntryWire, type RosterWire, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 import {
   buildSessionArchive,
   EChannelConnection,
@@ -26,6 +26,7 @@ import {
   type ThreadModel,
   type ThreadSummary,
   type TurnOutcome,
+  type PendingSaid,
 } from '@dltech/atlas-harness'
 
 import {
@@ -79,6 +80,12 @@ export type FakeCloudChannel = CloudChannel & {
   endTurn(outcome: TurnOutcome): void
   onCheckpoint(listener: (checkpoint: RuntimeCheckpoint) => void): () => void
   pushCheckpoint(checkpoint: RuntimeCheckpoint): void
+  /** Serve broadcasts its queue as pending-changed signals; the fake holds the latest snapshot. */
+  pushPending(entries: readonly PendingEntryWire[]): void
+  pendingEntries(): readonly PendingEntryWire[]
+  onPendingChanged(listener: (entries: readonly PendingEntryWire[]) => void): () => void
+  /** Serve answers a take-back by dequeuing its newest queued said; the fake holds one to hand back. */
+  holdTakeBack(taken: PendingSaid | null): void
   readonly closed: boolean
   readonly runs: number
   readonly sent: readonly {
@@ -129,6 +136,9 @@ export function fakeCloudChannel(
   >()
   const turnEndings = new Set<(outcome: TurnOutcome) => void>()
   const checkpoints = new Set<(checkpoint: RuntimeCheckpoint) => void>()
+  const pendingChanges = new Set<(entries: readonly PendingEntryWire[]) => void>()
+  let heldPending: readonly PendingEntryWire[] = []
+  let heldTakeBack: PendingSaid | null = null
   const woken: { url: string; token: string }[] = []
   const requests: { op: EClientRequest; params: unknown }[] = []
   const sent: {
@@ -235,6 +245,17 @@ export function fakeCloudChannel(
       requests.push({ op: given.op, params: given.params })
       if (given.op === EClientRequest.ListRoster) return heldRoster
       if (given.op === EClientRequest.PublishWorkspace) return null
+      if (given.op === EClientRequest.TakeBackPending) {
+        const taken = heldTakeBack
+        heldTakeBack = null
+        if (taken !== null) {
+          heldPending = heldPending.slice(0, -1)
+          queueMicrotask(() => {
+            for (const listener of [...pendingChanges]) listener(heldPending)
+          })
+        }
+        return { taken }
+      }
       if (given.op === EClientRequest.Rewind) {
         // Serve truncates its own durable log inside the same apply that kills the cuts, so the
         // fake does the same against the log it was handed.
@@ -453,6 +474,20 @@ export function fakeCloudChannel(
     },
     pushThreadModelChanged({ threadId, model }) {
       for (const listener of [...threadModelChanges]) listener({ threadId, model })
+    },
+    pushPending(entries) {
+      heldPending = entries
+      for (const listener of [...pendingChanges]) listener(entries)
+    },
+    pendingEntries: () => heldPending,
+    onPendingChanged: (listener) => {
+      pendingChanges.add(listener)
+      return () => {
+        pendingChanges.delete(listener)
+      }
+    },
+    holdTakeBack(taken) {
+      heldTakeBack = taken
     },
     endTurn(outcome) {
       for (const listener of [...turnEndings]) listener(outcome)

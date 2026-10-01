@@ -29,9 +29,12 @@ export type RetryWaitingSignal = {
 
 export type TurnWorkingSignal = { type: 'turn-working'; working: boolean }
 
+type PendingEntrySignal = { id: string; text: string; via?: string | undefined; reserved: boolean }
+
 export type ChannelSignal =
   | StepSignal
   | TurnWorkingSignal
   | { type: 'events-appended' }
   | RetryWaitingSignal
   | { type: 'retry-cleared' }
+  | { type: 'pending-changed'; entries: PendingEntrySignal[] }

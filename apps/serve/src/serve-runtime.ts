@@ -144,6 +144,7 @@ export async function runServeRuntime(args: {
     log,
     roster: app.roster,
     rewind: app.rewind,
+    pending: app.pending,
     ...(app.ledger === undefined ? {} : { transcript: { log: app.log, threads: app.threads, ledger: app.ledger } }),
     ...(app.modelBridge === undefined ? {} : { selectModel: app.modelBridge.select }),
     ...(app.sessionArchive === undefined ? {} : { sessionArchive: app.sessionArchive }),

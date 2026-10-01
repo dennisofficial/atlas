@@ -13,10 +13,11 @@ import {
   readThreadParamsSchema,
   readTranscriptIdentityParamsSchema,
   readTurnsParamsSchema,
+  takeBackPendingParamsSchema,
   transcriptIdentityDigest,
   renameThreadParamsSchema,
 } from '@dltech/atlas-harness'
-import type { FileBrowser } from '@dltech/atlas-harness'
+import type { FileBrowser, PendingQueues } from '@dltech/atlas-harness'
 import type { TurnLedgerPort } from '@dltech/atlas-harness'
 import type { ThreadStorePort } from '@dltech/atlas-harness'
 
@@ -93,6 +94,35 @@ export type TranscriptReaders = {
   log: Pick<EventLogPort, 'read' | 'readOwn'>
   threads: Pick<ThreadStorePort, 'find' | 'spawned' | 'rename' | 'chooseModel'>
   ledger: Pick<TurnLedgerPort, 'forThreadTree'>
+}
+
+export const pendingEntriesOf = (args: { pending: PendingQueues; threadId: ThreadId }) => {
+  const queue = args.pending.forThread({ threadId: args.threadId })
+  return queue.getSnapshot().map((entry) => ({
+    id: entry.id,
+    text: entry.text,
+    ...(entry.kind === 'message' && entry.via !== undefined ? { via: entry.via as string } : {}),
+    reserved: queue.reserved(entry.id),
+  }))
+}
+
+export const isPendingOp = (op: EClientRequest): boolean => op === EClientRequest.TakeBackPending
+
+export async function answerTakeBackPending(args: {
+  frame: RequestFrame
+  pending: PendingQueues
+}): Promise<ReplyFrame> {
+  const parsed = takeBackPendingParamsSchema.safeParse(args.frame.params)
+  if (!parsed.success) {
+    return refusedRequest({ replyTo: args.frame.id, message: 'take-back-pending wants { threadId }' })
+  }
+  const said = args.pending.forThread({ threadId: parsed.data.threadId as ThreadId }).takeBackLast()
+  if (said === null) return answeredRequest({ replyTo: args.frame.id, data: { taken: null } })
+  const { text, images, files, context } = said
+  return answeredRequest({
+    replyTo: args.frame.id,
+    data: { taken: { text, images, files, ...(context === undefined ? {} : { context }) } },
+  })
 }
 
 export const isTranscriptWriteOp = (op: EClientRequest): boolean =>

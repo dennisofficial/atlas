@@ -106,7 +106,10 @@ describe('a conversation whose placement is mid-move', () => {
       await setup.flush()
 
       expect(app.executionLocation.moveFor(THREAD)).toBeNull()
-      expect(probe.conversation?.handleTakeBackPending()?.text).toBe('queued while idle')
+      const taken = probe.conversation?.handleTakeBackPending()
+      expect(taken instanceof Promise ? await taken : taken).toMatchObject({
+        text: 'queued while idle',
+      })
     } finally {
       await teardown(setup)
     }

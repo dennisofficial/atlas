@@ -13,7 +13,7 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
  * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
  */
-export const CHANNEL_PROTOCOL_VERSION = 11
+export const CHANNEL_PROTOCOL_VERSION = 12
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
@@ -105,6 +105,12 @@ export enum EClientRequest {
    */
   RestoreTranscript = 'restore-transcript',
   ReadRuntimeCheckpoint = 'read-runtime-checkpoint',
+  /**
+   * Takes the newest unreserved operator message back out of the sandbox's pending queue and
+   * returns it for the composer, so the take-back is confirmed by the queue's owner. A serve built
+   * before this op refuses the request, and the client falls back to its local in-memory queue.
+   */
+  TakeBackPending = 'take-back-pending',
 }
 
 export enum ETurnStatus {
@@ -153,6 +159,9 @@ export const renameThreadParamsSchema = z.object({
   title: z.string(),
 })
 export type RenameThreadParams = z.infer<typeof renameThreadParamsSchema>
+
+export const takeBackPendingParamsSchema = z.object({ threadId: threadIdWireSchema })
+export type TakeBackPendingParams = z.infer<typeof takeBackPendingParamsSchema>
 
 export const threadModelWireSchema = z.object({ ref: z.string(), effort: z.string() })
 
@@ -256,6 +265,18 @@ const saidFileWireSchema = z.object({
 })
 
 export type SaidFileWire = z.infer<typeof saidFileWireSchema>
+
+export const takeBackPendingReplySchema = z.object({
+  taken: z
+    .object({
+      text: z.string(),
+      images: z.array(saidImageWireSchema).readonly(),
+      files: z.array(saidFileWireSchema).readonly(),
+      context: z.array(z.unknown()).readonly().optional(),
+    })
+    .nullable(),
+})
+export type TakeBackPendingReply = z.infer<typeof takeBackPendingReplySchema>
 
 export const serveFrameSchema = z.discriminatedUnion('kind', [
   z.object({
