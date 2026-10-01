@@ -89,7 +89,7 @@ export default class GithubPlugin extends NativePlugin {
     const links = createPullRequestLinks({ service })
     const states = createPullRequestStateProjection()
     const cloudCheckout = createCloudCheckout()
-    const tracking = createCheckoutTracking({ service, facts })
+    const tracking = createCheckoutTracking({ service, facts, cloud: () => cloudCheckout.current() })
     const afterTool = new RefreshPullRequestAfterToolHook({ pullRequests: service })
     const afterShell = new RefreshPullRequestAfterShellHook({ pullRequests: service })
     const transitions = createPullRequestTransitions({ service })

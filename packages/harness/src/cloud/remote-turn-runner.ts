@@ -24,6 +24,7 @@ export class RemoteTurnRunner extends TurnRunner {
   private readonly waiters: Waiter[] = []
   private readonly seenOutcomes = new Set<string>()
   private heldForReattach = false
+  private driving = false
 
   constructor(args: { channel: RemoteDeltaChannel; wake: () => Promise<void> }) {
     super()
@@ -115,7 +116,7 @@ export class RemoteTurnRunner extends TurnRunner {
     signal?: AbortSignal
     pause?: PauseSignal
   }): Promise<TurnOutcome> {
-    return this.drive({ ...args, fire: () => this.channel.run() })
+    return this.drive({ ...args, fire: () => this.channel.run({ resume: true }) })
   }
 
   private async drive(args: {
@@ -128,25 +129,37 @@ export class RemoteTurnRunner extends TurnRunner {
       throw new Error(`this runner serves ${this.channel.threadId}, not ${args.threadId}`)
     }
 
-    const state = this.channel.connection().state
-    if (state === EChannelConnection.Closed || state === EChannelConnection.Parked) {
-      await this.wake()
-    }
-
-    return new Promise<TurnOutcome>((resolve, reject) => {
-      const interrupt = () => this.channel.interrupt()
-      const pauseTurn = () => this.channel.pause()
-      const settle = <T>(done: (value: T) => void) => (value: T) => {
-        args.signal?.removeEventListener('abort', interrupt)
-        unsubscribePause()
-        done(value)
+    if (this.driving) throw new Error('a turn is already running on this runner')
+    this.driving = true
+    try {
+      const state = this.channel.connection().state
+      if (state === EChannelConnection.Closed || state === EChannelConnection.Parked) {
+        await this.wake()
       }
-      this.waiters.push({ resolve: settle(resolve), reject: settle(reject) })
-      args.signal?.addEventListener('abort', interrupt)
-      const unsubscribePause = args.pause?.onPause(pauseTurn) ?? (() => undefined)
-      if (args.pause?.paused === true) pauseTurn()
-      args.fire()
-    })
+
+      return await new Promise<TurnOutcome>((resolve, reject) => {
+        const interrupt = () => this.channel.interrupt()
+        const pauseTurn = () => this.channel.pause()
+        const settle =
+          <T>(done: (value: T) => void) =>
+          (value: T) => {
+            args.signal?.removeEventListener('abort', interrupt)
+            unsubscribePause()
+            done(value)
+          }
+        this.waiters.push({ resolve: settle(resolve), reject: settle(reject) })
+        args.signal?.addEventListener('abort', interrupt)
+        const unsubscribePause = args.pause?.onPause(pauseTurn) ?? (() => undefined)
+        if (args.pause?.paused === true) pauseTurn()
+        try {
+          args.fire()
+        } catch (error) {
+          this.failAll(error instanceof Error ? error.message : 'the turn frame could not be sent')
+        }
+      })
+    } finally {
+      this.driving = false
+    }
   }
 
   private isFirstSighting(outcome: TurnOutcome): boolean {

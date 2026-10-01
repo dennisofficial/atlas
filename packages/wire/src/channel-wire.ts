@@ -13,7 +13,7 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
  * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
  */
-export const CHANNEL_PROTOCOL_VERSION = 10
+export const CHANNEL_PROTOCOL_VERSION = 11
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
@@ -314,7 +314,7 @@ export const clientFrameSchema = z.discriminatedUnion('kind', [
     files: z.array(saidFileWireSchema).readonly().optional(),
     context: z.array(z.unknown()).readonly().optional(),
   }),
-  z.object({ kind: z.literal(EClientFrame.Run) }),
+  z.object({ kind: z.literal(EClientFrame.Run), resume: z.boolean().optional() }),
   z.object({ kind: z.literal(EClientFrame.Interrupt) }),
   z.object({ kind: z.literal(EClientFrame.Pause) }),
   z.object({ kind: z.literal(EClientFrame.Resume) }),

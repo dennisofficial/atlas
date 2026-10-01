@@ -155,8 +155,12 @@ export function createTurnPolicyRunner(args: {
         ...(signal === undefined ? {} : { signal }),
         ...(pause === undefined ? {} : { pause }),
       }),
-    resume: ({ threadId, signal }) =>
-      inner.resume({ threadId, ...(signal === undefined ? {} : { signal }) }),
+    resume: ({ threadId, signal, pause }) =>
+      inner.resume({
+        threadId,
+        ...(signal === undefined ? {} : { signal }),
+        ...(pause === undefined ? {} : { pause }),
+      }),
 
     async onOutcome({ threadId, outcome }) {
       if (
