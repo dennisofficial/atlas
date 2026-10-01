@@ -127,6 +127,7 @@ describe('applying a transcript archive generation-aware', () => {
       atlasHome: home,
       threadId: THREAD,
       log: openLog({ home }),
+      ids: fixedIds({ prefix: 'spec' }),
     })
 
     expect(restore).toEqual({ restored: true, failed: null })
@@ -143,6 +144,7 @@ describe('applying a transcript archive generation-aware', () => {
       atlasHome: home,
       threadId: THREAD,
       log: openLog({ home }),
+      ids: fixedIds({ prefix: 'spec' }),
     })
     expect(first).toEqual({ restored: true, failed: null })
 
@@ -161,6 +163,7 @@ describe('applying a transcript archive generation-aware', () => {
       atlasHome: home,
       threadId: THREAD,
       log: openLog({ home }),
+      ids: fixedIds({ prefix: 'spec' }),
     })
     expect(again).toEqual({ restored: true, failed: null })
 
@@ -175,6 +178,7 @@ describe('applying a transcript archive generation-aware', () => {
       atlasHome: home,
       threadId: THREAD,
       log: openLog({ home }),
+      ids: fixedIds({ prefix: 'spec' }),
     })
     const firstReceipt = receiptText({ home })
 
@@ -184,6 +188,7 @@ describe('applying a transcript archive generation-aware', () => {
       atlasHome: home,
       threadId: THREAD,
       log: openLog({ home }),
+      ids: fixedIds({ prefix: 'spec' }),
     })
 
     expect(restored).toEqual({ restored: true, failed: null })
@@ -234,6 +239,7 @@ describe('applying a transcript archive generation-aware', () => {
       atlasHome: home,
       threadId: THREAD,
       log: openLog({ home }),
+      ids: fixedIds({ prefix: 'spec' }),
     })
 
     expect(restore.restored).toBe(false)
@@ -274,6 +280,7 @@ describe('applying a transcript archive generation-aware', () => {
       atlasHome: home,
       threadId: THREAD,
       log: openLog({ home }),
+      ids: fixedIds({ prefix: 'spec' }),
     })
     expect(restore.restored).toBe(false)
     expect(restore.failed).toContain('no events for this thread')
@@ -288,6 +295,7 @@ describe('applying a transcript archive generation-aware', () => {
       atlasHome: home,
       threadId: THREAD,
       log: openLog({ home }),
+      ids: fixedIds({ prefix: 'spec' }),
     })
 
     expect(restore.restored).toBe(false)

@@ -4,6 +4,7 @@ import { EExecutionLocation } from '@dltech/atlas-core'
 
 import { useAtlasHome } from './descend-fixture'
 import { liftToCloud } from '../lift'
+import { eventsInArchive } from './fake-transcript'
 import { CLOUD_THREAD, fakeBridge } from './fixture'
 import { harness } from './lift-fixture'
 
@@ -41,17 +42,23 @@ describe('lifting a thread that was lifted before', () => {
   })
 
   /**
-   * The re-lift's marker lands locally, after the archive sealed: the transcript the cloud serves —
-   * and the one the operator reads while lifted — ends at the descend's marker, with no `to: cloud`
-   * event of its own. The divider has to come from placement, not from an event that is not there.
+   * The lift hands its `to: cloud` marker to the sandbox on the RestoreTranscript wire op, and the
+   * sandbox pins it onto its own log — skipping the pin when the log already ends at that marker.
+   * The local log never holds a lift marker, so the shipped archive carries none; on a re-lift
+   * against the same sandbox the restore-time pin is idempotent and one marker survives.
    */
-  it('ships an archive whose cloud transcript holds no second cloud marker on a re-lift', async () => {
+  it('pins one cloud marker on the sandbox log and ships none in the transcript on a re-lift', async () => {
     useAtlasHome()
     const bridge = fakeBridge()
     const test = harness({ bridge })
 
     const first = await liftToCloud(test.args)
     expect(first.ok).toBe(true)
+
+    const afterFirst = bridge.log.peek({ threadId: CLOUD_THREAD })
+    expect(cloudMarkers(afterFirst)).toBe(1)
+    expect(afterFirst.at(-1)?.type).toBe('location-changed')
+    expect(cloudMarkers(test.localLog.peek({ threadId: CLOUD_THREAD }))).toBe(0)
 
     // Home again: the descend's marker is the last location event the local log holds.
     await test.localThreads.chooseExecutionLocation({
@@ -75,12 +82,13 @@ describe('lifting a thread that was lifted before', () => {
     const second = await liftToCloud(test.args)
     expect(second.ok).toBe(true)
 
-    // The re-lift's own marker is in the local log — appended after the archive sealed.
-    const local = test.localLog.peek({ threadId: CLOUD_THREAD })
-    expect(cloudMarkers(local)).toBe(2)
+    // The sandbox log already ended at the first lift's marker, so the re-lift's pin is skipped.
+    expect(cloudMarkers(bridge.log.peek({ threadId: CLOUD_THREAD }))).toBe(1)
+    expect(cloudMarkers(test.localLog.peek({ threadId: CLOUD_THREAD }))).toBe(0)
 
-    // The archive shipped once per lift; the second put already happened when the re-lift's own
-    // marker landed above, so the shipped transcript cannot carry it.
     expect(bridge.transcriptPuts).toHaveLength(2)
+    const put = bridge.transcriptPuts.at(-1)
+    if (put === undefined) throw new Error('the re-lift shipped no transcript archive')
+    expect(cloudMarkers(await eventsInArchive(put.archive))).toBe(0)
   })
 })

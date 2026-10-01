@@ -12,7 +12,9 @@ import {
   EServeFrame,
   decodeClientFrame,
   encodeFrame,
+  restoreTranscriptParamsSchema,
   type ClientFrame,
+  type RestoreTranscriptParams,
   type ServeFrame,
 } from '@dltech/atlas-harness'
 import type { FileBrowser } from '@dltech/atlas-harness'
@@ -81,8 +83,10 @@ export function createSessionHandlers(args: {
   sessionArchive?: (() => Promise<Uint8Array | null>) | undefined
   /** Tars the sandbox's memory roots for the descend's memory transfer; absent in fakes. */
   memoryArchive?: (() => Promise<Uint8Array | null>) | undefined
-  /** The lift's late transcript restore; absent in fakes, which refuse the op. */
-  restoreTranscript?: (() => Promise<{ restored: boolean; failed: string | null }>) | undefined
+  /** The lift's late transcript restore; absent in fakes, which refuse the op. The marker is the lift's `location-changed` draft, pinned on the restored log. */
+  restoreTranscript?:
+    | ((marker?: RestoreTranscriptParams['locationChanged']) => Promise<{ restored: boolean; failed: string | null }>)
+    | undefined
 }): SessionHandlers {
   const { threadId, buffer, inFlight, liveStepId, driver, files, publish, refusal, log } = args
   const snapshot = args.roster?.snapshot ?? EMPTY_ROSTER
@@ -364,7 +368,9 @@ export function createSessionHandlers(args: {
         })
         return
       }
-      restoring ??= restoreTranscript().finally(() => {
+      const parsed = restoreTranscriptParamsSchema.safeParse(frame.params ?? {})
+      const marker = parsed.success ? parsed.data.locationChanged : undefined
+      restoring ??= restoreTranscript(marker).finally(() => {
         restoring = null
       })
       void restoring

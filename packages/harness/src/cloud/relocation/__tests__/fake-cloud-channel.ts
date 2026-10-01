@@ -1,7 +1,17 @@
-import { toRunId, type EventDraft, type SaidImage, type ThreadId } from '@dltech/atlas-core'
+import {
+  EExecutionLocation,
+  toRunId,
+  type EventDraft,
+  type SaidImage,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import type { RosterWire } from '@dltech/atlas-wire'
 
-import { EClientRequest, readTranscriptIdentityParamsSchema } from '../../channel-wire'
+import {
+  EClientRequest,
+  readTranscriptIdentityParamsSchema,
+  restoreTranscriptParamsSchema,
+} from '../../channel-wire'
 import { transcriptIdentityDigest } from '../../event-identity'
 import { toThreadId } from '@dltech/atlas-core'
 import {
@@ -126,6 +136,30 @@ export function fakeCloudChannel(
         if (args.restoreTranscriptRefused === true)
           throw new Error('unknown request op: restore-transcript')
         await args.applyTranscript?.()
+        // Mirror the serve's restore: pin the lift's location-changed marker on the sandbox log.
+        const params = restoreTranscriptParamsSchema.safeParse(given.params ?? {})
+        const marker = params.success ? params.data.locationChanged : undefined
+        const threadId = args.threadId ?? CLOUD_THREAD
+        if (marker !== undefined && args.log !== undefined) {
+          const existing = await args.log.readOwn({ threadId })
+          const last = existing.at(-1)
+          if (!(last?.type === 'location-changed' && last.to === marker.to)) {
+            await args.log.append({
+              threadId,
+              runId: toRunId(`serve-${threadId}`),
+              drafts: [
+                {
+                  type: 'location-changed',
+                  from: marker.from as EExecutionLocation,
+                  to: marker.to as EExecutionLocation,
+                  ...(marker.cwd === undefined ? {} : { cwd: marker.cwd }),
+                  ...(marker.remoteUrl === undefined ? {} : { remoteUrl: marker.remoteUrl }),
+                  ...(marker.branch === undefined ? {} : { branch: marker.branch }),
+                },
+              ],
+            })
+          }
+        }
         return { restored: true }
       }
       return { applied: 0 }

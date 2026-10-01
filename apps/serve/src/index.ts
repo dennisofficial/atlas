@@ -404,7 +404,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     ...(app.modelBridge === undefined ? {} : { selectModel: app.modelBridge.select }),
     ...(app.sessionArchive === undefined ? {} : { sessionArchive: app.sessionArchive }),
     ...(app.memoryArchive === undefined ? {} : { memoryArchive: app.memoryArchive }),
-    restoreTranscript: async () => {
+    restoreTranscript: async (marker) => {
       const fetchArchive = args.fetchTranscriptArchive ?? driveTranscriptArchiveFetcher({ driveHome })
       const receiptBefore = await transcriptBootstrapReceipt({ atlasHome: driveHome })
       const result = await restoreTranscript({
@@ -412,6 +412,8 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
         atlasHome: driveHome,
         threadId,
         log: app.log,
+        ids: app.ids,
+        ...(marker === undefined ? {} : { marker }),
         refuseIfBusy: () =>
           settling.count > 0
             ? 'transferred children are still resuming, so the transcript cannot be replaced'

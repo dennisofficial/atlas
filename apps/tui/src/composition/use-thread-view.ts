@@ -143,7 +143,6 @@ export function useThreadView(args: {
       effects,
       paceReveal,
       priceOf,
-      location: () => app.executionLocation.of(threadId),
       sandbox: app.containerStatus,
       readClock: () => clock.current(),
       ...(projectEvents === undefined ? {} : { projectEvents }),

@@ -138,8 +138,6 @@ function inOneBreath(entries: readonly TranscriptEntry[]): TranscriptEntry[] {
   return folded
 }
 
-const PLACEMENT_DIVIDER_KEY = 'placement-divider'
-
 const locationChangedEntry = (args: { key: string; to: EExecutionLocation }): TranscriptEntry => {
   const text =
     args.to === EExecutionLocation.Docker
@@ -159,13 +157,6 @@ const locationChangedEntry = (args: { key: string; to: EExecutionLocation }): Tr
 export function durableEntries(args: {
   events: readonly Event[]
   turns?: readonly TurnSpend[] | undefined
-  /**
-   * The session's current placement. A cloud transcript is the archive the lift shipped, and the
-   * lift's own location marker lands locally only after the archive seals, so the transcript the
-   * operator reads while lifted can hold no `to: cloud` event at all — the divider then derives
-   * from placement rather than from an event that is not there.
-   */
-  location?: EExecutionLocation | undefined
 }): TranscriptEntry[] {
   const { events } = args
   const opened = new Map<string, ToolRun>(toolRuns(events).map((run) => [run.openedBy, run]))
@@ -395,17 +386,6 @@ export function durableEntries(args: {
       const turn = turns.get(event.seq)
       return turn === undefined ? withFooter : [...withFooter, turnEndedEntry(turn)]
     })
-
-  const placedAt = events.findLast((event) => event.type === 'location-changed')
-  const logLocation =
-    placedAt?.type === 'location-changed' ? placedAt.to : EExecutionLocation.Host
-
-  if (args.location === EExecutionLocation.Cloud && logLocation !== EExecutionLocation.Cloud) {
-    return inOneBreath([
-      ...flat(),
-      locationChangedEntry({ key: PLACEMENT_DIVIDER_KEY, to: EExecutionLocation.Cloud }),
-    ])
-  }
 
   return inOneBreath(flat())
 }
