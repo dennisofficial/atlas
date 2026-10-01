@@ -3,7 +3,7 @@ import { useSyncExternalStore } from 'react'
 import { EExecutionLocation } from '@dltech/atlas-core'
 import type { CloudConnection } from '@dltech/atlas-harness'
 
-import type { CloudSession } from './cloud/cloud-session'
+import type { CloudHealth, CloudSession } from './cloud/cloud-session'
 import type { AtlasApp } from './compose'
 
 const NEVER_CHANGES = (): (() => void) => () => undefined
@@ -20,6 +20,17 @@ export function useCloudConnection(args: {
   app: AtlasApp
   session: CloudSession | null
 }): CloudConnection | null {
+  return useCloudHealth(args)?.connection ?? null
+}
+
+/**
+ * The full cloud health — socket, sandbox lifecycle, and transcript freshness — for the surface
+ * that decides whether the transcript on screen can be trusted as current.
+ */
+export function useCloudHealth(args: {
+  app: AtlasApp
+  session: CloudSession | null
+}): CloudHealth | null {
   const { app, session } = args
 
   const location = useSyncExternalStore(app.executionLocation.subscribe, app.executionLocation.current)
@@ -29,5 +40,5 @@ export function useCloudConnection(args: {
   )
 
   if (location !== EExecutionLocation.Cloud) return null
-  return health?.connection ?? null
+  return health
 }

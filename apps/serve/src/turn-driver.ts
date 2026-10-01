@@ -29,6 +29,7 @@ export type ServeTurnDriver = {
   running: () => boolean
   /** True from the moment a send begins its durable commit until the turn settles. */
   busy: () => boolean
+  outcomePending: () => boolean
   settled: () => Promise<void>
   attach: (shared: MessageIntake) => () => void
 }
@@ -57,6 +58,7 @@ export function createTurnDriver(args: {
   let again = false
   let committing = false
   let turning: Promise<void> | null = null
+  let outcomePending = false
   // Not reset when the turn settles: the far side's Resume frame can arrive after the paused loop
   // has fully unwound, and it must still re-enter the turn from the log.
   let relocationFrozen = false
@@ -126,6 +128,7 @@ export function createTurnDriver(args: {
       await app.family?.pauseChildren({ threadId }).catch(() => undefined)
     }
     args.onOutcome(outcome)
+    outcomePending = false
     await app.turnPolicy?.onOutcome({ threadId, outcome })
   }
 
@@ -135,6 +138,7 @@ export function createTurnDriver(args: {
     try {
       do {
         again = false
+        outcomePending = true
         const controller = new AbortController()
         abort = controller
         pause = new PauseSignal()
@@ -149,6 +153,7 @@ export function createTurnDriver(args: {
       await app.turnPolicy?.onCrashed({ threadId })
       args.onFailure(messageOf(error))
     } finally {
+      outcomePending = false
       abort = null
       pause = null
       turning = null
@@ -269,6 +274,8 @@ export function createTurnDriver(args: {
     running: () => turning !== null,
 
     busy: () => turning !== null || committing,
+
+    outcomePending: () => outcomePending,
 
     settled: () => turning ?? Promise.resolve(),
   }

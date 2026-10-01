@@ -33,7 +33,7 @@ const sessionOn = (connection?: ChannelConnection): CloudSession => {
       find: async () => undefined,
       destroy: async () => undefined,
     },
-    onReload: () => undefined,
+    onReload: async () => undefined,
   })
 }
 

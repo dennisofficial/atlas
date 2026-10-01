@@ -3,7 +3,6 @@ import { describe, expect, it } from 'bun:test'
 import { EPortExposure } from '@dltech/atlas-core'
 
 import { EProfileStep, EProfileStepState } from '../environment-profile'
-import { SERVE_IDLE_MINUTES_WITH_SERVICES } from '../idle-stop'
 
 import { CWD, harness, outcomeOf, seededScan, spec, TOKEN } from './environment-profile-fixture'
 
@@ -40,7 +39,7 @@ describe('environment profile as a whole', () => {
       gpgSigning: false,
       dockerAvailable: true,
       persistentFs: true,
-      serviceTtlSeconds: SERVE_IDLE_MINUTES_WITH_SERVICES * 60,
+      serviceTtlSeconds: null,
       portExposure: EPortExposure.PublicDomain,
       failures: [],
     })

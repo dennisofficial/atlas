@@ -122,6 +122,9 @@ export type ServeApp = {
   /** Live counts behind the idle park; absent in fakes, where nothing runs. */
   runningShells?: (() => number) | undefined
   runningServices?: (() => number) | undefined
+  runningChildren?: (() => number) | undefined
+  settlingWork?: (() => boolean) | undefined
+  pendingInput?: (() => boolean) | undefined
   /** Absent in a fake without registries: no endings means nothing to wake for. */
   wakeNotices?: ServeWakeNotices | undefined
   /** Absent in a fake without registries: the client is answered an empty roster instead. */

@@ -7,61 +7,106 @@ export enum ESandboxProbe {
   Missing = 'missing',
   Kept = 'kept',
   Replaced = 'replaced',
-  /**
-   * Drift found but a client is still attached to the running serve, so the sandbox survives:
-   * destroying it would cut a live session mid-conversation. The stale serve keeps running until
-   * the sandbox's next cold boot, which recreates it from the pinned image.
-   */
-  OutdatedAttached = 'outdated-attached',
+  OutdatedPreserved = 'outdated-preserved',
 }
 
 export type SandboxProbeResult = { probe: ESandboxProbe; outdatedServe?: string | undefined }
 
-/** Attach detection for the drift probe, injectable so a spec never reaches HTTP. */
-export type AttachProbe = (args: { sandbox: Sandbox; url: string }) => Promise<boolean>
+export enum ERuntimeIdle {
+  Idle = 'idle',
+  Busy = 'busy',
+  Unknown = 'unknown',
+}
 
-/**
- * Attach-state read for the drive the deleted sandbox held, injectable so a spec never reaches
- * Vercel. Vercel detaches the drive asynchronously after the sandbox is gone, so `replaced` must
- * wait out the lag or the recreate lands `already attached as read-write`.
- */
-export type DetachWait = () => Promise<boolean>
+export type ServeRuntimeHealth = {
+  busy?: boolean | undefined
+  turnRunning?: boolean | undefined
+  childrenRunning?: number | undefined
+  shellsRunning?: number | undefined
+  servicesRunning?: number | undefined
+  pendingInput?: boolean | undefined
+  settlingWork?: boolean | undefined
+  clients?: number | undefined
+}
 
-const healthSchema = z.looseObject({ clients: z.number().optional() })
+const runtimeHealthSchema = z.looseObject({
+  busy: z.boolean().optional(),
+  turnRunning: z.boolean().optional(),
+  childrenRunning: z.number().optional(),
+  shellsRunning: z.number().optional(),
+  servicesRunning: z.number().optional(),
+  pendingInput: z.boolean().optional(),
+  settlingWork: z.boolean().optional(),
+  clients: z.number().optional(),
+})
 
-/**
- * The serve's own attach signal: `/v1/health` answers the count of attached channel sockets. The
- * probe runs against whatever serve is already up, authenticated with the token file the sandbox
- * itself holds — a health answer is truth, while a failed fetch (no route, no serve, a transient
- * error) reads as unattached because nothing can be shown to be attached.
- */
-export const probeClientsAttached = async (args: {
+export type RuntimeActivityProbe = (args: {
   sandbox: Sandbox
   url: string
-}): Promise<boolean> => {
-  const health = await args.sandbox
+}) => Promise<ServeRuntimeHealth | undefined>
+
+export type DetachWait = () => Promise<boolean>
+
+const GUARDED_FIELDS = [
+  'busy',
+  'childrenRunning',
+  'shellsRunning',
+  'servicesRunning',
+  'pendingInput',
+  'settlingWork',
+  'clients',
+] as const
+
+const busyFieldOf = (health: ServeRuntimeHealth): string | undefined => {
+  if (health.busy === true) return 'busy=true'
+  if (health.turnRunning === true) return 'turnRunning=true'
+  if ((health.childrenRunning ?? 0) > 0) return `childrenRunning=${health.childrenRunning}`
+  if ((health.shellsRunning ?? 0) > 0) return `shellsRunning=${health.shellsRunning}`
+  if ((health.servicesRunning ?? 0) > 0) return `servicesRunning=${health.servicesRunning}`
+  if (health.pendingInput === true) return 'pendingInput=true'
+  if (health.settlingWork === true) return 'settlingWork=true'
+  if ((health.clients ?? 0) > 0) return `clients=${health.clients}`
+  return undefined
+}
+
+const unreportedFieldsOf = (health: ServeRuntimeHealth): string[] =>
+  GUARDED_FIELDS.filter((field) => health[field] === undefined)
+
+const idleSummaryOf = (health: ServeRuntimeHealth): string =>
+  GUARDED_FIELDS.map((field) => `${field}=${String(health[field])}`).join(' ')
+
+export const runtimeIdleOf = (health: ServeRuntimeHealth | undefined): ERuntimeIdle => {
+  if (health === undefined) return ERuntimeIdle.Unknown
+  if (busyFieldOf(health) !== undefined) return ERuntimeIdle.Busy
+  if (unreportedFieldsOf(health).length > 0) return ERuntimeIdle.Unknown
+  return ERuntimeIdle.Idle
+}
+
+export const probeRuntimeActivity: RuntimeActivityProbe = async ({ sandbox, url }) => {
+  const probe = await sandbox
     .runCommand({
       cmd: 'sh',
       args: [
         '-c',
         `_serve_token=$(cat ${SERVE_TOKEN_PATH} 2>/dev/null || true); ` +
           `curl -sf -m 5 --connect-timeout 2 -H "Authorization: Bearer $_serve_token" ` +
-          `${args.url}/v1/health 2>/dev/null || true`,
+          `${url}/v1/health 2>/dev/null || true`,
       ],
       timeoutMs: 15_000,
     })
     .catch(() => null)
-  if (health === null || health.exitCode !== 0) return false
-  const text = (await health.stdout()).trim()
-  if (text === '') return false
+  if (probe === null || probe.exitCode !== 0) return undefined
+  const text = (await probe.stdout()).trim()
+  if (text === '') return undefined
   let payload: unknown
   try {
     payload = JSON.parse(text)
   } catch {
-    return false
+    return undefined
   }
-  const parsed = healthSchema.safeParse(payload)
-  return parsed.success && (parsed.data.clients ?? 0) > 0
+  const parsed = runtimeHealthSchema.safeParse(payload)
+  if (!parsed.success) return undefined
+  return parsed.data
 }
 
 const routedUrlOf = (sandbox: Sandbox, port: number): string | undefined => {
@@ -72,31 +117,13 @@ const routedUrlOf = (sandbox: Sandbox, port: number): string | undefined => {
   }
 }
 
-/**
- * The drift fix. `Sandbox.getOrCreate` resumes a live sandbox by name and never compares the
- * image, so a long-lived sandbox keeps whatever image it first booted from — stale against a
- * release that moved on. When this build pins a serve version, read the sandbox's installed
- * version file before resuming; a mismatch means the sandbox boots the wrong serve, so it is
- * destroyed and recreated from the pinned image — unless the health probe shows a client still
- * attached, in which case the stale serve keeps running and the recreate waits for the next cold
- * boot. The recreation is lossless where it matters: the workspace and transcript live on the
- * thread's drive, and the fresh boot carries the pinned serve baked into its image. A missing
- * version file is drift — the file ships with the image, so its absence means the sandbox predates
- * it — but a read that fails is not: a transient command failure is not evidence, and the sandbox
- * is left alone.
- *
- * Returns the probe outcome so the caller knows whether the upcoming boot is fresh: `missing`
- * when Vercel has never seen the name, `replaced` when drift forced a recreate, `kept` when a
- * live sandbox will be resumed, `outdated-attached` when a drifted sandbox survives because a
- * client is still attached to it.
- */
 export async function probeSandboxForResume(args: {
   name: string
   pinned: string | undefined
   timeoutMs: number
   servePort: number
   fetch: () => Promise<Sandbox>
-  clientsAttached: AttachProbe
+  runtimeHealth: RuntimeActivityProbe
   waitForDriveDetached?: DetachWait | undefined
   log?: ((line: string) => void) | undefined
   isMissing: (failure: unknown) => boolean
@@ -112,6 +139,18 @@ export async function probeSandboxForResume(args: {
 
   const pinned = args.pinned
   if (pinned === undefined) return { probe: ESandboxProbe.Kept }
+  const providerStatus = sandbox.status
+  if (providerStatus === 'stopped') {
+    args.log?.(`sandbox ${args.name} is confirmed stopped — recreating it from the pinned image without waking its old runtime`)
+    await sandbox.delete({ signal: AbortSignal.timeout(args.timeoutMs) })
+    const detached = await (args.waitForDriveDetached?.() ?? true)
+    if (!detached) args.log?.(`sandbox ${args.name} deleted, but its drive is still attached — the recreate will retry through the lag`)
+    return { probe: ESandboxProbe.Replaced }
+  }
+  if (providerStatus !== 'running' && providerStatus !== 'pending') {
+    args.log?.(`sandbox ${args.name} runtime is ${providerStatus} — keeping it without executing a probe`)
+    return { probe: ESandboxProbe.Kept }
+  }
 
   const read = await sandbox
     .runCommand({
@@ -125,27 +164,12 @@ export async function probeSandboxForResume(args: {
   if (installed === pinned) return { probe: ESandboxProbe.Kept }
 
   const installedLabel = installed === '' ? 'none' : installed
-  const url = routedUrlOf(sandbox, args.servePort)
-  const attached =
-    url === undefined
-      ? false
-      : await args.clientsAttached({ sandbox, url }).catch(() => false)
-  if (attached) {
+  const preserve = (reason: string): SandboxProbeResult => {
     args.log?.(
-      `sandbox ${args.name} carries serve "${installedLabel}", this build wants "${pinned}", but a client is attached — keeping the older serve until its next cold boot`,
+      `sandbox ${args.name} carries serve "${installedLabel}", this build wants "${pinned}", but its runtime never proved idle (${reason}) — keeping the older serve until the sandbox parks cleanly`,
     )
-    return { probe: ESandboxProbe.OutdatedAttached, outdatedServe: installed }
+    return { probe: ESandboxProbe.OutdatedPreserved, outdatedServe: installed }
   }
 
-  args.log?.(
-    `sandbox ${args.name} carries serve "${installedLabel}", this build wants "${pinned}" — recreating it from the pinned image`,
-  )
-  await sandbox.delete({ signal: AbortSignal.timeout(args.timeoutMs) })
-  const detached = await (args.waitForDriveDetached?.() ?? true)
-  if (!detached) {
-    args.log?.(
-      `sandbox ${args.name} deleted, but its drive is still attached — the recreate will retry through the lag`,
-    )
-  }
-  return { probe: ESandboxProbe.Replaced }
+  return preserve(`the provider reports it ${providerStatus}`)
 }

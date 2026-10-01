@@ -101,7 +101,7 @@ describe('a cloud conversation opened during an active turn', () => {
       const conversation = probe.conversation
       if (conversation === null) throw new Error('the conversation probe never mounted')
       expect(conversation.turnInFlight()).toBe(true)
-      expect(conversation.working).toBe(false)
+      expect(conversation.working).toBe(true)
       expect(conversation.handleResume).toBeNull()
       expect(conversation.handleRetry).toBeNull()
       expect(runs).toEqual([])

@@ -1,35 +1,23 @@
-import { isResumable, type ThreadId } from '@dltech/atlas-core'
-import {
-  ESuppress,
-  LocalRewindMachinery,
-  rewindThread,
-  type RemoteDeltaChannel,
-} from '@dltech/atlas-harness'
-import { useCallback, useEffect, useMemo, useRef, type RefObject } from 'react'
+import { isResumable, type EventDraft, type ThreadId } from '@dltech/atlas-core'
+import { ESuppress, LocalRewindMachinery, rewindThread } from '@dltech/atlas-harness'
+import { useCallback, useMemo, useRef, type RefObject } from 'react'
+
 import type { PendingSaid } from '../store'
-import { clearNotice, ENoticeTone, NOTICE_MS, NOTICE_WARN_MS, notify } from '../ui/notice-store'
+import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import type { AtlasApp } from './compose'
 import type { DirectoryMove } from './directory-move'
 import { discardInterrupted, EDiscard } from './resume-turn'
+import { IDLE_PROGRESS, turnInterrupting } from './turn-progress'
+import { useDrivenTurn, type DriveOptions } from './use-driven-turn'
+import { useRemoteTurnState, type InterruptChannel } from './use-remote-turn-state'
 import { useRewindConfirm, type RewindConfirmControl } from './use-rewind-confirm'
 import type { ThreadView } from './use-thread-view'
-import { useTurnDrive, type Drive } from './use-turn-drive'
-import { IDLE_PROGRESS, turnInterrupting, turnSettled } from './turn-progress'
-const INTERRUPT_LOST =
-  'The sandbox never acknowledged the interrupt — the turn may still be running there. Esc works again once the socket is back.'
-const INTERRUPT_ACKED_KEY = 'interrupt-acknowledged'
-const INTERRUPT_LOST_KEY = 'interrupt-lost'
-type InterruptChannel = Pick<
-  RemoteDeltaChannel,
-  'onInterruptAck' | 'onError' | 'onReady' | 'onTurnEnded'
->
-const remoteChannelOf = (channel: unknown): InterruptChannel | null =>
-  channel instanceof Object && 'onInterruptAck' in channel ? (channel as InterruptChannel) : null
+
 export type TurnDriver = {
   working: boolean
   workingRef: RefObject<boolean>
   rewindConfirm: RewindConfirmControl
-  drive: Drive
+  drive: (drafts: readonly EventDraft[], opts?: DriveOptions) => Promise<void>
   handleInterrupt: () => void
   handleInterruptForMove: () => void
   handlePauseForMove: () => void
@@ -42,6 +30,7 @@ export type TurnDriver = {
   settle: () => void
   whenSettled: () => Promise<void>
 }
+
 export function useTurnDriver(args: {
   app: AtlasApp
   threadId: ThreadId
@@ -57,97 +46,64 @@ export function useTurnDriver(args: {
   cancelCompaction: () => boolean
   interruptRefusal?: (() => string | null) | undefined
   driveRefusal?: (() => string | null) | undefined
+  /** A placement move owns the session: retries, resumes, and rewinds wait for it to settle. */
+  frozen?: boolean | undefined
 }): TurnDriver {
-  const {
-    app,
-    threadId,
-    view,
-    readClock,
-    setFailure,
-    forgetUsage,
-    cancelCompaction,
-    interruptRefusal,
-  } = args
+  const { app, threadId, view, readClock } = args
+  const { setFailure, forgetUsage, cancelCompaction, interruptRefusal } = args
   const { store, events, refresh, stamp } = view
-  const { working, setWorking, workingRef, abort, pause, drive, fireSettleListeners, whenSettled } =
-    useTurnDrive(args)
-  const interruptAckedAt = useRef(1)
-  const remoteTurnInFlight = useRef(false)
-  const cloudChannel = args.remoteChannel ?? remoteChannelOf(app.channel)
-  const turnInFlight = useCallback(
-    (): boolean =>
-      workingRef.current ||
-      remoteTurnInFlight.current ||
-      app.channel
-        .snapshot({ threadId })
-        .some((signal) => signal.type === 'turn-working' && signal.working),
-    [app.channel, threadId],
+  const autonomousSettled = useRef<() => Promise<void>>(async () => undefined)
+  const remote = useRemoteTurnState({
+    channel: app.channel,
+    threadId,
+    lifecycle: args.remoteChannel,
+    stamp,
+    readClock,
+    onSettled: () => autonomousSettled.current(),
+    onFailure: setFailure,
+  })
+  const driven = useDrivenTurn({ ...args, remoteRunning: remote.runningRef })
+  const { working, workingRef, setWorking, abort, pause, drive, fireSettleListeners } = driven
+  autonomousSettled.current = async () => {
+    if (workingRef.current || driven.tailRef.current) return
+    await refresh().catch(() => undefined)
+    if (remote.runningRef.current) return
+    await args.onSettled().catch(() => undefined)
+  }
+  const busyRef = useMemo<RefObject<boolean>>(
+    () => ({
+      get current() {
+        return workingRef.current || remote.runningRef.current
+      },
+    }),
+    [workingRef, remote.runningRef],
   )
+
   const machinery = useMemo(
     () =>
       app.rewindMachinery ??
-      new LocalRewindMachinery({
-        agents: app.agents,
-        shells: app.shells,
-        services: app.services,
-      }),
+      new LocalRewindMachinery({ agents: app.agents, shells: app.shells, services: app.services }),
     [app.rewindMachinery, app.agents, app.shells, app.services],
   )
-  useEffect(() => {
-    if (cloudChannel === null) return undefined
-    const unack = cloudChannel.onInterruptAck(() => {
-      interruptAckedAt.current += 1
-      stamp((progress) =>
-        progress.clock.interrupting ? turnSettled({ progress, now: readClock() }) : progress,
-      )
-      clearNotice({ key: INTERRUPT_LOST_KEY })
-      notify({
-        key: INTERRUPT_ACKED_KEY,
-        tone: ENoticeTone.Done,
-        ttlMs: NOTICE_MS,
-        text: 'The turn was interrupted.',
-      })
-    })
-    const unlost = cloudChannel.onError(() => {
-      if (interruptAckedAt.current > 0) return
-      interruptAckedAt.current += 1
-      stamp((progress) =>
-        progress.clock.interrupting ? turnSettled({ progress, now: readClock() }) : progress,
-      )
-      notify({
-        key: INTERRUPT_LOST_KEY,
-        tone: ENoticeTone.Warn,
-        ttlMs: NOTICE_WARN_MS,
-        text: INTERRUPT_LOST,
-      })
-    })
-    const unready = cloudChannel.onReady((ready) => {
-      remoteTurnInFlight.current = ready.turnInFlight
-    })
-    const unturned = cloudChannel.onTurnEnded(() => {
-      remoteTurnInFlight.current = false
-      interruptAckedAt.current += 1
-      clearNotice({ key: INTERRUPT_LOST_KEY })
-    })
-    return () => {
-      unack()
-      unlost()
-      unready()
-      unturned()
-    }
-  }, [cloudChannel, readClock, stamp])
   const rewindConfirm = useRewindConfirm()
+
+  const turnInFlight = useCallback(
+    (): boolean => abort.current !== null || remote.runningRef.current,
+    [abort, remote.runningRef],
+  )
+  const frozen = args.frozen === true
   const handleRetry = useCallback(() => {
-    if (turnInFlight()) return
+    if (working || turnInFlight() || frozen) return
     void drive([])
-  }, [drive, turnInFlight])
+  }, [drive, frozen, turnInFlight, working])
   const handleResume = useCallback(() => {
-    if (turnInFlight()) return
+    if (working || turnInFlight() || frozen) return
     void drive([], { resume: true })
-  }, [drive, turnInFlight])
+  }, [drive, frozen, turnInFlight, working])
+
   const resumeFresh = useCallback(
     (confirmed: boolean) => {
-      if (turnInFlight()) return
+      if (working || turnInFlight() || frozen) return
       void (async () => {
         const discarded = await discardInterrupted({
           log: app.log,
@@ -179,16 +135,20 @@ export function useTurnDriver(args: {
       machinery,
       drive,
       forgetUsage,
+      frozen,
       refresh,
       rewindConfirm,
       setFailure,
       threadId,
       turnInFlight,
+      working,
     ],
   )
   const handleResumeFresh = useCallback(() => resumeFresh(true), [resumeFresh])
+
   const rewindTo = useCallback(
     async (toSeq: number, confirmed = false): Promise<void> => {
+      if (frozen) return
       if (turnInFlight()) {
         notify({
           key: 'rewind-mid-turn',
@@ -233,28 +193,35 @@ export function useTurnDriver(args: {
       }
     },
     [
-      app.log,
-      app.threads,
-      app.turnPolicy,
+      app,
+      frozen,
       machinery,
-      forgetUsage,
-      refresh,
+      threadId,
+      turnInFlight,
+      workingRef,
+      setWorking,
       rewindConfirm,
       setFailure,
       store,
-      threadId,
-      turnInFlight,
+      forgetUsage,
+      refresh,
       fireSettleListeners,
     ],
   )
+
   const abortTurn = useCallback(() => {
     const controller = abort.current
-    if (controller === null) return
+    if (controller === null) {
+      remote.interrupt()
+      return
+    }
     stamp(turnInterrupting)
-    interruptAckedAt.current = 0
+    remote.interruptRequested()
     controller.abort()
-  }, [stamp])
+  }, [abort, remote.interrupt, remote.interruptRequested, stamp])
+
   const handleInterrupt = useCallback(() => {
+    if (frozen) return
     if (cancelCompaction()) return
     if (app.turnPolicy.cancelCompaction()) return
     const refusal = interruptRefusal?.() ?? null
@@ -268,20 +235,25 @@ export function useTurnDriver(args: {
       return
     }
     abortTurn()
-  }, [abortTurn, app.turnPolicy, cancelCompaction, interruptRefusal])
+  }, [abortTurn, app.turnPolicy, cancelCompaction, frozen, interruptRefusal])
   const handleInterruptForMove = useCallback(() => {
-    if (abort.current === null) return
+    if (!turnInFlight()) return
     app.turnPolicy.suppress(ESuppress.UndoOnce)
     abortTurn()
-  }, [abortTurn, app.turnPolicy])
+  }, [abortTurn, app.turnPolicy, turnInFlight])
   const handlePauseForMove = useCallback(() => {
-    pause.current?.pause()
-  }, [])
+    if (pause.current === null) remote.pause()
+    else pause.current.pause()
+  }, [pause, remote.pause])
   const handleRewindTo = useCallback((toSeq: number) => void rewindTo(toSeq), [rewindTo])
   const settle = useCallback(() => stamp(() => IDLE_PROGRESS), [stamp])
+  const whenSettled = useCallback(async (): Promise<void> => {
+    await Promise.all([driven.whenSettled(), remote.whenSettled()])
+  }, [driven.whenSettled, remote.whenSettled])
+
   return {
-    working,
-    workingRef,
+    working: working || remote.running,
+    workingRef: busyRef,
     rewindConfirm,
     drive,
     handleInterrupt,

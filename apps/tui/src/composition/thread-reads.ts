@@ -7,6 +7,12 @@ export const THREAD_WINDOW_EVENTS = 1500;
 
 export const THREAD_RETENTION_EVENTS = THREAD_WINDOW_EVENTS * 2;
 
+export type ThreadIdentity = {
+  head: number;
+  count: number;
+  digest: string;
+};
+
 export type ThreadWindow = {
   events: readonly Event[];
   head: number;
@@ -176,6 +182,36 @@ export function createThreadPager(args: {
   };
 
   return { loadOlder, loadNewer };
+}
+
+export type ThreadSnapshot = {
+  events: readonly Event[];
+  head: number;
+  fromSeq: number;
+  identity: ThreadIdentity;
+  base: LogAccumulator;
+};
+
+export async function readThreadSnapshot(args: {
+  log: EventLogPort;
+  threadId: ThreadId;
+  rows: EThreadRows;
+  effects: ToolEffects;
+  digest: (events: readonly Event[]) => string;
+}): Promise<ThreadSnapshot> {
+  const events = await readFrom(args);
+  const head = events.at(-1)?.seq ?? 0;
+  const fromSeq = Math.max(0, head - THREAD_WINDOW_EVENTS);
+  return {
+    events: events.filter((event) => event.seq > fromSeq),
+    head,
+    fromSeq,
+    identity: { head, count: events.length, digest: args.digest(events) },
+    base: foldLogEvents({
+      events: events.filter((event) => event.seq <= fromSeq),
+      effects: args.effects,
+    }),
+  };
 }
 
 export async function readThreadBase(args: {
