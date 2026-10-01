@@ -1,11 +1,9 @@
 import type { KeyEvent } from '@opentui/core'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { decideReleaseNotes, type ReleaseNotesRow } from '@dltech/atlas-core'
-import { atlasDirectory } from '@dltech/atlas-harness'
+import { atlasDirectory, claimReleaseNotesLaunch } from '@dltech/atlas-harness'
 
-import { EBuildKind, buildInfo } from '../build/info'
-import { lastLaunchedPathFor, readLastLaunched, writeLastLaunched } from '../build/last-launched'
+import { EBuildKind, buildInfo, type BuildInfo } from '../build/info'
 import { fetchReleaseNotes } from '../build/release-notes'
 import type { WhatsNewState } from '../ui/components/whats-new'
 import { RELEASE_TAG_PREFIX } from './update-check'
@@ -23,65 +21,60 @@ export type WhatsNewControl = {
   readonly handleClose: () => void
 }
 
-const fetchWithFallback = async (args: {
-  repo: string
-  prefix: string
-  sinceVersion: string
-  upToVersion: string
-}): Promise<readonly ReleaseNotesRow[] | null> => {
-  const outcome = await fetchReleaseNotes(args)
-  return outcome.kind === 'ok' ? outcome.rows : null
+export type WhatsNewDeps = {
+  readonly build: () => BuildInfo
+  readonly home: () => string
+  readonly claim: typeof claimReleaseNotesLaunch
+  readonly fetchNotes: typeof fetchReleaseNotes
 }
 
-/**
- * First launch of a release build compares the persisted last-launched version against the
- * binary's own; anything newer opens the notes modal. The file is rewritten to the current
- * version the moment the range is computed — before the fetch — so a crash never replays the
- * modal, and a second tile at the same version sees an empty diff. First-ever run records the
- * version silently rather than dumping every note ever published.
- */
-export function useWhatsNew(): WhatsNewControl {
+export const LIVE_WHATS_NEW_DEPS: WhatsNewDeps = {
+  build: buildInfo,
+  home: atlasDirectory,
+  claim: claimReleaseNotesLaunch,
+  fetchNotes: fetchReleaseNotes,
+}
+
+const releasesUrlOf = (build: BuildInfo): string =>
+  build.kind === EBuildKind.Release && build.releaseRepo !== null
+    ? `https://github.com/${build.releaseRepo}/releases`
+    : ''
+
+export function useWhatsNew({ deps }: { deps: WhatsNewDeps }): WhatsNewControl {
   const [view, setView] = useState<WhatsNewView | null>(null)
-  const [releasesUrl, setReleasesUrl] = useState('')
+  const releasesUrl = useMemo(() => releasesUrlOf(deps.build()), [deps])
 
   useEffect(() => {
-    const build = buildInfo()
+    const build = deps.build()
     if (build.kind !== EBuildKind.Release || build.releaseRepo === null) return
-    const repo: string = build.releaseRepo
-    setReleasesUrl(`https://github.com/${repo}/releases`)
+    const repo = build.releaseRepo
 
     let cancelled = false
-    const path = lastLaunchedPathFor(atlasDirectory())
 
     const open = async (): Promise<void> => {
-      const lastLaunched = await readLastLaunched(path)
-      const decision = decideReleaseNotes({ lastLaunched, current: build.version })
-
-      await writeLastLaunched({ path, version: build.version })
+      const decision = await deps.claim({ home: deps.home(), version: build.version })
       if (decision.kind !== 'changed' || cancelled) return
 
-      const from = decision.from
-      setView({ from, to: decision.to, state: { kind: 'loading' } })
+      const { from, to } = decision
+      setView({ from, to, state: { kind: 'loading' } })
 
-      const rows = await fetchWithFallback({
+      const outcome = await deps.fetchNotes({
         repo,
         prefix: RELEASE_TAG_PREFIX,
         sinceVersion: from,
-        upToVersion: decision.to,
+        upToVersion: to,
       })
       if (cancelled) return
-      setView({
-        from,
-        to: decision.to,
-        state: rows === null ? { kind: 'failed' } : { kind: 'ready', rows },
-      })
+
+      const state: WhatsNewState = outcome.kind === 'ok' ? { kind: 'ready', rows: outcome.rows } : { kind: 'failed' }
+      setView((current) => (current === null || current.to !== to ? current : { from, to, state }))
     }
     void open()
 
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [deps])
 
   const handleClose = useCallback(() => setView(null), [])
 
