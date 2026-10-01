@@ -1,4 +1,4 @@
-import type { ScrollBoxRenderable } from '@opentui/core'
+import type { KeyBinding, ScrollBoxRenderable } from '@opentui/core'
 import React, { useEffect, useRef } from 'react'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
@@ -47,6 +47,13 @@ export const MAIN_LABEL = `${glyph.home} main`
 
 const FILTER_PLACEHOLDER = 'type to filter'
 
+/**
+ * macOS's rub-out-the-line. ⌘ reaches a terminal only under the kitty keyboard protocol, which
+ * reports it as `super`; OpenTUI's default keymap binds nothing to it, so a single-line field
+ * answers it against the whole value.
+ */
+const FILTER_BINDINGS: KeyBinding[] = [{ name: 'backspace', super: true, action: 'delete-to-line-start' }]
+
 const GUTTER = ' '.repeat(2)
 
 const HINTS: readonly Hint[] = [
@@ -86,6 +93,7 @@ function FilterLine(props: {
           textColor={theme.bright}
           placeholderColor={theme.hint}
           cursorColor={theme.caretBg}
+          keyBindings={FILTER_BINDINGS}
           onInput={props.onQueryChange}
         />
       </box>

@@ -116,6 +116,35 @@ describe('the conversations drawer', () => {
     }
   })
 
+  it('clears the query on cmd+backspace', async () => {
+    let query = ''
+    const setup = await testRender(
+      <box flexDirection="column" width={WIDTH} height={30}>
+        <Threads
+          width={WIDTH}
+          state={state()}
+          overlay
+          onPick={() => {}}
+          onDismiss={() => {}}
+          onQueryChange={(next) => {
+            query = next
+          }}
+        />
+      </box>,
+      { width: WIDTH, height: 30 },
+    )
+    try {
+      await setup.mockInput.typeText('auth')
+      await setup.flush()
+      setup.mockInput.pressBackspace({ super: true })
+      await setup.flush()
+
+      expect(query).toBe('')
+    } finally {
+      await teardown(setup)
+    }
+  })
+
   it('scrolls the list itself when the rows outgrow it', async () => {
     const many = withThreads({
       state: loadingThreads({ now: NOW }),
