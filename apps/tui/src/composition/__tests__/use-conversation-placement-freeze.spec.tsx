@@ -1,5 +1,5 @@
-import { EExecutionLocation, toThreadId } from '@dltech/atlas-core'
-import { EPlacementMoveKind, type EventDraft } from '@dltech/atlas-harness'
+import { EExecutionLocation, toRunId, toThreadId, type EventDraft } from '@dltech/atlas-core'
+import { EPlacementMoveKind } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { afterEach, describe, expect, it } from 'bun:test'
 import React from 'react'
@@ -42,6 +42,7 @@ describe('a conversation whose placement is mid-move', () => {
     })
     await app.log.append({
       threadId: THREAD,
+      runId: toRunId('freeze-run'),
       drafts: [{ type: 'user-said', text: 'finish the work' }],
     })
     const original = await app.log.read({ threadId: THREAD })
