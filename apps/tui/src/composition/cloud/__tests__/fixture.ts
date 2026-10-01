@@ -594,6 +594,7 @@ export function fakeBridge(
     status?: CloudSandboxStatus | undefined
     /** Lets a spec move the sandbox row after the bridge exists — the control plane's answer. */
     statusRef?: { current: CloudSandboxStatus | undefined } | undefined
+    checkpoint?: RuntimeCheckpoint | undefined
     threadStore?: FakeThreadStore
     /** The local transcript a lift ships up; the fake's stand-in for the sandbox untarring it. */
     sourceLog?: FakeEventLog | undefined
@@ -726,7 +727,12 @@ export function fakeBridge(
         materialize(threadId)
       },
       confirmLanded: async () => ({ landed: transcriptShipped }),
-      find: async () => args.statusRef?.current ?? args.status,
+      find: async () => {
+        const status = args.statusRef?.current ?? args.status
+        if (status === undefined) return undefined
+        if (args.checkpoint === undefined) return status
+        return { ...status, checkpoint: args.checkpoint }
+      },
       destroy: async ({ threadId }) => {
         trail.push('destroy')
         destroyed.push(threadId)

@@ -539,17 +539,23 @@ export function App(props: {
 
       setLifted({
         ...attachment,
-        session: createCloudSession({
-          channel: attachment.channel,
-          sandboxes: attachment.bridge.sandboxes,
-          onReload: handleReload,
-          appliedSnapshot: () => cloudReadinessOf(attachment.channel).applied(),
-          subscribeApplied: (listener) => cloudReadinessOf(attachment.channel).subscribe(listener),
-          onClose: () => {
-            cloudReadinessOf(attachment.channel).cancelWaiting()
-            mirrorCloudRenames({ home: props.app.threads, remote: attachment.stores.threads })()
-          },
-        }),
+        session: (() => {
+          const stopMirroring = mirrorCloudRenames({
+            home: props.app.threads,
+            remote: attachment.stores.threads,
+          })
+          return createCloudSession({
+            channel: attachment.channel,
+            sandboxes: attachment.bridge.sandboxes,
+            onReload: handleReload,
+            appliedSnapshot: () => cloudReadinessOf(attachment.channel).applied(),
+            subscribeApplied: (listener) => cloudReadinessOf(attachment.channel).subscribe(listener),
+            onClose: () => {
+              cloudReadinessOf(attachment.channel).cancelWaiting()
+              stopMirroring()
+            },
+          })
+        })(),
         reloads: 0,
       })
     },
