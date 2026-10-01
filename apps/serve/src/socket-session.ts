@@ -160,7 +160,7 @@ export function createSessionHandlers(args: {
         seq: buffer.nextSeq(),
         protocol: CHANNEL_PROTOCOL_VERSION,
         turnInFlight: driver.running(),
-        checkpoint: checkpoint?.() ?? null,
+        ...(checkpoint?.() == null ? {} : { checkpoint: checkpoint?.() }),
       },
     })
 
@@ -584,7 +584,7 @@ export function createSessionHandlers(args: {
       const clients = [...attached]
       log({ event: EServeEvent.ClientsParked, clients: clients.length, reason: args.reason })
       for (const socket of clients) {
-        send({ socket, frame: { kind: EServeFrame.Parked, reason: args.reason, checkpoint: checkpoint?.() ?? null } })
+        send({ socket, frame: { kind: EServeFrame.Parked, reason: args.reason, ...(checkpoint?.() == null ? {} : { checkpoint: checkpoint?.() }) } })
         socket.close(GOING_AWAY, args.reason)
       }
     },
