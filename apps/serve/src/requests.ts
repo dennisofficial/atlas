@@ -8,18 +8,13 @@ import {
 } from '@dltech/atlas-core'
 
 import {
-  EClientFrame,
   EClientRequest,
-  EServeFrame,
   readEventsParamsSchema,
   readThreadParamsSchema,
   readTranscriptIdentityParamsSchema,
   readTurnsParamsSchema,
   transcriptIdentityDigest,
   renameThreadParamsSchema,
-  setThreadModelParamsSchema,
-  type ClientFrame,
-  type ServeFrame,
 } from '@dltech/atlas-harness'
 import type { FileBrowser } from '@dltech/atlas-harness'
 import type { TurnLedgerPort } from '@dltech/atlas-harness'
@@ -27,12 +22,14 @@ import type { ThreadStorePort } from '@dltech/atlas-harness'
 
 import type { WorkspacePublisher } from './publish-workspace'
 import { wireEventOf, wireThreadOf, wireTurnOf } from './session-wires'
+import { answerSetThreadModel } from './thread-model'
+import { answeredRequest, refusedRequest, type ReplyFrame, type RequestFrame } from './request-reply'
+
+export { answeredRequest, refusedRequest, type ReplyFrame, type RequestFrame } from './request-reply'
+
+export { answerSetThreadModel } from './thread-model'
 
 export const MAX_COMPLETIONS = 50
-
-export type RequestFrame = Extract<ClientFrame, { kind: EClientFrame.Request }>
-
-export type ReplyFrame = Extract<ServeFrame, { kind: EServeFrame.Reply }>
 
 const completePathsSchema = z.object({
   query: z.string(),
@@ -40,20 +37,6 @@ const completePathsSchema = z.object({
 })
 
 const browseDirectorySchema = z.object({ directory: z.string() })
-
-export const refusedRequest = (args: { replyTo: string; message: string }): ReplyFrame => ({
-  kind: EServeFrame.Reply,
-  replyTo: args.replyTo,
-  ok: false,
-  data: { message: args.message },
-})
-
-export const answeredRequest = (args: { replyTo: string; data: unknown }): ReplyFrame => ({
-  kind: EServeFrame.Reply,
-  replyTo: args.replyTo,
-  ok: true,
-  data: args.data,
-})
 
 async function completePaths(args: {
   frame: RequestFrame
@@ -133,43 +116,6 @@ export async function answerRenameThread(args: {
   return answeredRequest({
     replyTo: args.frame.id,
     data: { threadId: parsed.data.threadId, title: parsed.data.title },
-  })
-}
-
-export async function answerSetThreadModel(args: {
-  frame: RequestFrame
-  transcript: TranscriptReaders
-  threadId: ThreadId
-  select?: ((model: { ref: string; effort: string }) => void) | undefined
-}): Promise<ReplyFrame> {
-  const parsed = setThreadModelParamsSchema.safeParse(args.frame.params)
-  if (!parsed.success) {
-    return refusedRequest({
-      replyTo: args.frame.id,
-      message: 'set-thread-model wants { threadId, model: { ref, effort } }',
-    })
-  }
-  if (parsed.data.threadId !== args.threadId) {
-    return refusedRequest({
-      replyTo: args.frame.id,
-      message: 'this serve owns one thread; a child or foreign thread keeps its own model pick',
-    })
-  }
-  const served = await args.transcript.threads.find({ threadId: args.threadId })
-  if (served?.agent !== undefined) {
-    return refusedRequest({
-      replyTo: args.frame.id,
-      message: 'a supervised agent runs the model it was spawned with',
-    })
-  }
-  await args.transcript.threads.chooseModel({
-    threadId: parsed.data.threadId as ThreadId,
-    model: parsed.data.model,
-  })
-  args.select?.(parsed.data.model)
-  return answeredRequest({
-    replyTo: args.frame.id,
-    data: { threadId: parsed.data.threadId, model: parsed.data.model },
   })
 }
 
