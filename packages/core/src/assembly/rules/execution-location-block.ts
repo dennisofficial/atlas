@@ -31,8 +31,9 @@ const factsOf = (environment: ExecutionEnvironment): readonly string[] => {
     ]
   }
   return [
-    'Execution location: cloud. The harness and the execution both run in a Vercel sandbox, and the developer’s terminal is only a client.',
-    'The workspace here is a copy of the project, not a live mount of the developer’s machine.',
+    'Execution location: cloud. You are inside an isolated cloud machine: a Vercel sandbox where the harness and its tools run together.',
+    'The developer interacts through a terminal client and does not have direct filesystem access to your workspace.',
+    'Each new cloud session has its own isolated environment. Resuming this session continues its persisted workspace; a handoff creates a new session and environment.',
     EXPOSED_SERVICES_LINE,
   ]
 }

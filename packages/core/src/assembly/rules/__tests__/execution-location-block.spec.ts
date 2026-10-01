@@ -38,15 +38,27 @@ describe('executionLocationNote', () => {
     }
   })
 
-  it('describes cloud as a Vercel sandbox running harness and execution, with the terminal as a client', () => {
+  it('places the whole cloud session in an isolated machine accessible through the terminal client', () => {
     const note = noteFor(EExecutionLocation.Cloud, ['/ignored'])
 
-    expect(note).toContain('Vercel sandbox')
-    expect(note).toContain('harness and the execution both run')
-    expect(note).toContain('terminal is only a client')
-    expect(note).toContain('copy of the project, not a live mount')
+    expect(note).toContain('You are inside an isolated cloud machine')
+    expect(note).toContain('Vercel sandbox where the harness and its tools run together')
+    expect(note).toContain('terminal client')
+    expect(note).toContain('does not have direct filesystem access')
     expect(note).not.toContain('Docker')
     expect(note).not.toContain('mounted at its usual path')
+    expect(note).not.toMatch(/upload|transfer/)
+  })
+
+  it('distinguishes an existing session resume from a handoff into a new session', () => {
+    const note = noteFor(EExecutionLocation.Cloud)
+
+    expect(note).toContain('Each new cloud session has its own isolated environment')
+    expect(note).toContain('Resuming this session continues its persisted workspace')
+    expect(note).toContain('a handoff creates a new session and environment')
+    for (const location of [EExecutionLocation.Host, EExecutionLocation.Docker]) {
+      expect(noteFor(location)).not.toContain('Each new cloud session')
+    }
   })
 
   it('gives minimal publication facts without browser-policy or tool-availability assumptions', () => {

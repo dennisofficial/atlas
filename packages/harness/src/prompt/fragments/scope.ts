@@ -1,14 +1,6 @@
 import { PromptFragment } from '@dltech/atlas-core'
 
 
-export class RequestLadderFragment extends PromptFragment {
-  readonly id = 'scope.request-ladder'
-
-  text(): string {
-    return 'For discussion, review, or diagnosis, inspect and answer. Implement when requested.'
-  }
-}
-
 export class ConcernThenBuildFragment extends PromptFragment {
   readonly id = 'scope.concern-then-build'
 

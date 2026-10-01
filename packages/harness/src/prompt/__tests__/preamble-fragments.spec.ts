@@ -35,6 +35,7 @@ const registered = () => {
 const compiled = () => registered().resolve(portToken(PromptRegistry)).compile(CONTEXT)
 
 const REMOVED_PARTS = [
+  'scope.request-ladder',
   'workflow.compaction-notice',
   'files.read-before-write',
   'files.read-wide',
@@ -45,7 +46,6 @@ const REMOVED_PARTS = [
 
 const REGISTERED_PARTS = [
   'identity.atlas',
-  'scope.request-ladder',
   'scope.concern-then-build',
   'scope.pace',
   'scope.open-questions',
@@ -73,12 +73,10 @@ const REGISTERED_PARTS = [
 ]
 
 describe('the builtin prompt', () => {
-  it('uses a minimal identity and request boundary', () => {
+  it('uses a minimal identity without generic request-handling guidance', () => {
     const parts = compiled().parts
     expect(parts[0]?.text).toBe('You are Atlas, a coding agent.')
-    expect(parts.find((part) => part.id === 'scope.request-ladder')?.text).toBe(
-      'For discussion, review, or diagnosis, inspect and answer. Implement when requested.',
-    )
+    expect(parts.some((part) => part.id === 'scope.request-ladder')).toBe(false)
   })
 
   it('leaves file preconditions to tool refusals and compaction to continuation context', () => {

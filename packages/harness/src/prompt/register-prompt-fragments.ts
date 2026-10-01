@@ -21,7 +21,6 @@ import {
   OpenQuestionsFragment,
   PaceFragment,
   PlanFirstFragment,
-  RequestLadderFragment,
 } from './fragments/scope'
 import { BackgroundShellsFragment } from './fragments/shells'
 import { SkillListingFragment } from './fragments/skills'
@@ -40,7 +39,6 @@ export function registerBuiltinPromptFragments({
 }): void {
   const fragments = [
     AtlasIdentityFragment,
-    RequestLadderFragment,
     ConcernThenBuildFragment,
     PaceFragment,
     OpenQuestionsFragment,
