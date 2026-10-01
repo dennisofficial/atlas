@@ -25,6 +25,7 @@ export function useRemoteTurnState(args: {
   stamp: ThreadView['stamp']
   readClock: () => number
   onSettled: () => Promise<void>
+  onFailure: (message: string) => void
 }) {
   const { channel, threadId, stamp, readClock } = args
   const remote = isRemoteChannel(channel) ? channel : null
@@ -48,6 +49,8 @@ export function useRemoteTurnState(args: {
   stampRef.current = stamp
   const settled = useRef(args.onSettled)
   settled.current = args.onSettled
+  const failure = useRef(args.onFailure)
+  failure.current = args.onFailure
   const settling = useRef(0)
 
   useEffect(() => {
@@ -132,6 +135,13 @@ export function useRemoteTurnState(args: {
         })
       }),
     )
+    if (remote !== null) {
+      unsubscribed.push(remote.onServerError((error) => {
+        if (runningRef.current || !awaitingLifecycle.current) return
+        failure.current(error.message)
+        handleSettled()
+      }))
+    }
     return () => {
       for (const unsubscribe of unsubscribed) unsubscribe()
     }

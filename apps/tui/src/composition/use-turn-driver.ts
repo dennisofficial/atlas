@@ -58,6 +58,7 @@ export function useTurnDriver(args: {
     stamp,
     readClock,
     onSettled: () => autonomousSettled.current(),
+    onFailure: setFailure,
   })
   const driven = useDrivenTurn({ ...args, remoteRunning: remote.runningRef })
   const { working, workingRef, setWorking, abort, pause, drive, fireSettleListeners } = driven
