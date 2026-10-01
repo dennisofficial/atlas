@@ -393,11 +393,11 @@ describe('pacing a background shell check-in', () => {
     expect(!outcome.ok && outcome.reason).toContain('runInBackground')
   })
 
-  it('reports the default cadence when none is asked for', async () => {
+  it('schedules no check-in when none is asked for', async () => {
     const outcome = await invoke({ command: 'sleep 30', runInBackground: true })
 
-    expect(outputOf(outcome)).toMatchObject({ checkInMs: 300_000 })
-    expect(outcome.ok && outcome.modelText).toContain('a check-in reaches you every 300000 ms')
+    expect(outputOf(outcome)).not.toHaveProperty('checkInMs')
+    expect(outcome.ok && outcome.modelText).not.toContain('a check-in reaches you')
   })
 
   it('takes a checkInMs rather than refusing it', async () => {

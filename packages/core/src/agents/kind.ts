@@ -11,10 +11,11 @@ export enum ESpeechModel {
   /** The ending is the report: the parent hears the agent when it stops and never before. */
   ReportOnEnd = 'report-on-end',
   /**
-   * The agent speaks only by calling report_to_main; its ending is bookkeeping, never speech. A
-   * peer session's turn ends for reasons of its own — a shell check-in, one of its own sub-agents
-   * finishing — so its ending is recorded for the roster and rewind, but the parent hears it only
-   * when it says so deliberately.
+   * The agent speaks by calling report_to_main; its ending relays to the parent once nothing it
+   * owns — a live shell, service or child agent — can wake it again. A peer session's turn ends
+   * for reasons of its own while work of its own is still in flight, and that pause is recorded
+   * for the roster and rewind without waking the parent; the harness applies the live-work guard
+   * when the ending is queued.
    */
   DeliberateReport = 'deliberate-report',
 }

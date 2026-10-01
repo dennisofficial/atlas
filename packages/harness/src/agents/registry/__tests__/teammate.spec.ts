@@ -123,8 +123,27 @@ describe('spawning a teammate', () => {
     expect(fromTeammate.ok ? '' : fromTeammate.reason).toMatch(/only the main session/)
   })
 
-  it('ends quietly: its ending drains into the log without waking the main session', async () => {
-    const { runners, supervisor, parent } = await open()
+  it('pauses quietly while it still owns live work: the ending drains into the log without waking the main session', async () => {
+    const temp = createTempHome()
+    const harness = await buildHarness({
+      home: temp.home,
+      model: scriptedModel({ script: [] }),
+    })
+    opened.push({ harness, temp })
+
+    const runners = fakeRunners()
+    const supervisor = new AgentSupervisor({
+      log: harness.log,
+      threads: harness.threads,
+      ids: harness.ids,
+      clock: harness.clock,
+      agentTypes: [TEAMMATE, BUILDER],
+      runners: runners.source,
+      launchDirectory: '/launch',
+      hasLiveWork: () => true,
+    })
+    const parent = (await harness.threads.create({})).id
+
     const outcome = await supervisor.spawn({
       threadId: parent,
       agentType: TEAMMATE_AGENT_TYPE,
@@ -143,6 +162,27 @@ describe('spawning a teammate', () => {
     const drafts = supervisor.drainNotifications({ threadId: parent }).drafts
     expect(drafts).toHaveLength(1)
     expect(drafts[0]?.type).toBe('agent-ended')
+  })
+
+  it('relays its ending to the main session once nothing it owns can wake it again', async () => {
+    const { runners, supervisor, parent } = await open()
+    const outcome = await supervisor.spawn({
+      threadId: parent,
+      agentType: TEAMMATE_AGENT_TYPE,
+      brief: 'own the billing workstream',
+      intent: 'billing workstream',
+    })
+    if (!outcome.ok) throw new Error(outcome.reason)
+    await settled()
+
+    runners.started[0]?.settle(finished())
+    await settled()
+
+    expect(supervisor.threadsAwaitingNotice()).toEqual([parent])
+
+    const drained = supervisor.drainNotifications({ threadId: parent })
+    expect(drained.wakesTurn).toBe(true)
+    expect(drained.drafts[0]?.type).toBe('agent-ended')
   })
 })
 

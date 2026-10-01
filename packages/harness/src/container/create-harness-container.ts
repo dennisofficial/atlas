@@ -4,6 +4,7 @@ import {
   CredentialPort,
   EDefinitionOrigin,
   EExecutionLocation,
+  EServiceStatus,
   EventLogPort,
   ExecutionLocationSinkPort,
   FileCapabilitiesPort,
@@ -21,6 +22,7 @@ import {
 } from '../composition/execution-location-state'
 
 import { childRunnerSource, type ChildRunnerDepsSource } from '../agents/registry/child-runner'
+import { isStepping } from '../agents/registry/child-state'
 import type { IntakeSubmit } from '../agents/registry/deps'
 import { AgentRegistryPort } from '../agents/registry/port'
 import { AgentSupervisor } from '../agents/registry/supervisor'
@@ -46,7 +48,10 @@ import { createRawTape } from '../model/raw-tape'
 import { registerFileState } from '../files'
 import { registerExecution } from '../execution/register-execution'
 import { registerServices } from '../services/register-services'
+import { ServiceRegistryPort } from '../services/service-registry'
 import { registerShells } from '../shells/register-shells'
+import { EShellStatus } from '../shells/background-shell'
+import { ShellRegistryPort } from '../shells/shell-registry'
 import { registerSkills } from '../skills/register-skills'
 import { ThreadStorePort, RandomIds, SystemClock } from '../store'
 import { JsonlLog } from '../store/logs'
@@ -98,7 +103,7 @@ const embeddedAgentTypes = (): readonly AgentType[] =>
   BUILT_IN_AGENT_TYPES.map((agentType) => ({ ...agentType, origin: EDefinitionOrigin.BuiltIn }))
 
 function registerAgents({ container }: { container: DependencyContainer }): void {
-  let live: AgentRegistryPort | undefined
+  let live: AgentSupervisor | undefined
 
   container.register(AgentTypesToken, { useValue: embeddedAgentTypes() })
 
@@ -122,6 +127,14 @@ function registerAgents({ container }: { container: DependencyContainer }): void
         input: () => {
           if (!resolver.isRegistered(ChildRunnerDepsToken, true)) return undefined
           return resolver.resolve(ChildRunnerDepsToken)().intake
+        },
+        hasLiveWork: (threadId) => {
+          if (live === undefined) return false
+          const shells = resolver.resolve(portToken(ShellRegistryPort))
+          if (shells.list({ threadId }).some((shell) => shell.status === EShellStatus.Running)) return true
+          const services = resolver.resolve(portToken(ServiceRegistryPort))
+          if (services.list().some((service) => service.status === EServiceStatus.Running)) return true
+          return live.someChild(threadId, isStepping)
         },
       })
       return live
