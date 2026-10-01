@@ -16,6 +16,7 @@ import type { OpenedConversation } from './open-conversation'
 import type { CloudBridgeFactory, LiftPreflight, WorkspaceCapture } from './use-cloud-lift'
 import type { MoveStepTiming } from './use-container-move'
 import { Workspace } from './workspace'
+import { LIVE_WHATS_NEW_DEPS, useWhatsNew, type WhatsNewDeps } from './use-whats-new'
 
 export { cloudEnvironmentOf, reapExpiredSandboxesOnBoot, telemetryEnvironmentOf } from './live-cloud'
 
@@ -34,7 +35,9 @@ export function App(props: {
   captureContext?: CaptureContext
   onMoveStep?: ((timing: MoveStepTiming) => void) | undefined
   reapOnBoot?: ((app: AtlasApp) => void) | undefined
+  whatsNewDeps?: WhatsNewDeps | undefined
 }): React.ReactNode {
+  const whatsNew = useWhatsNew({ deps: props.whatsNewDeps ?? LIVE_WHATS_NEW_DEPS })
   const registry = useMemo(() => createKeyRegistry(), [])
   const [lifted, setLifted] = useState<LiftedSession | null>(null)
   const [reopened, setReopened] = useState<OpenedConversation | null>(null)
@@ -124,6 +127,7 @@ export function App(props: {
         app={lifted?.app ?? props.app}
         localApp={props.app}
         opened={openedFor}
+        whatsNew={whatsNew}
         draftText={carried !== undefined && carried.threadId === openedFor.threadId ? carried.text : ''}
         onDraftSource={handleDraftSource}
         cloudSession={lifted?.session ?? null}

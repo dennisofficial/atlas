@@ -32,7 +32,7 @@ The largest test/helper examples were `apps/serve/src/__tests__/serve.spec.ts` (
 
 ## Composition extraction
 
-The external interface stays `App` and its existing cloud helper exports. `app.tsx` is reduced from 2,342 to 146 lines; the workspace composition is 297 lines, and every changed implementation file is below 300. `App` retains cloud attachment ownership, reload coalescing, keyed workspace remounts, and same-thread native-buffer draft handoff.
+The external interface stays `App` and its existing cloud helper exports. `app.tsx` is reduced from 2,342 to 150 lines; the workspace composition is 298 lines, and every changed implementation file is below 300. `App` retains cloud attachment ownership, reload coalescing, keyed workspace remounts, and same-thread native-buffer draft handoff.
 
 The workspace composes focused modules for session/draft bindings, models and account views, conversation navigation, composer interactions, location controls, exit/restart lifetime, notices, naming, layout, keyboard arbitration, and presentation. There is no universal workspace context or replacement giant hook. Existing `useCloudLift`, `useThreadRouter`, `useThreadView`, and harness relocation interfaces remain the operational seams.
 

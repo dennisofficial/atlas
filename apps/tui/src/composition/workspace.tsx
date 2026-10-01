@@ -87,7 +87,8 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
   const navigation = useWorkspaceNavigation({ props, conversation, draft, containerMove })
   const { threads, rewind } = navigation
 
-  const { accounts, accountMeters, handleOpenAccounts, onboarding, whatsNew } =
+  const { whatsNew } = props
+  const { accounts, accountMeters, handleOpenAccounts, onboarding } =
     useWorkspaceAccounts({
       app: props.app,
       credentialNotice: props.credentialNotice,

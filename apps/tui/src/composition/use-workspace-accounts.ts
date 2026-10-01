@@ -9,7 +9,6 @@ import type { AtlasApp } from './compose'
 import { useAccounts } from './use-accounts'
 import { useOnboarding } from './use-onboarding'
 import type { SettingsControl } from './use-settings'
-import { useWhatsNew } from './use-whats-new'
 
 const CREDENTIAL_NOTICE_MS = 23_000
 
@@ -77,7 +76,5 @@ export function useWorkspaceAccounts(args: {
     onOpenAccounts: handleOpenAccounts,
   })
 
-  const whatsNew = useWhatsNew()
-
-  return { accounts, accountMeters, handleOpenAccounts, onboarding, whatsNew }
+  return { accounts, accountMeters, handleOpenAccounts, onboarding }
 }

@@ -8,6 +8,7 @@ import type { LiftedAttachment } from './lifted-session'
 import type { OpenedConversation } from './open-conversation'
 import type { CloudBridgeFactory, LiftPreflight, WorkspaceCapture } from './use-cloud-lift'
 import type { MoveStepTiming } from './use-container-move'
+import type { WhatsNewControl } from './use-whats-new'
 
 export type WorkspaceProps = {
   app: AtlasApp
@@ -15,6 +16,7 @@ export type WorkspaceProps = {
   opened: OpenedConversation
   credentialNotice: string | null
   covered: boolean
+  whatsNew: WhatsNewControl
   clipboard: ClipboardImageReader
   onRestart: (() => void) | null
   cloudSession: CloudSession | null

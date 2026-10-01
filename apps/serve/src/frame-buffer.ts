@@ -9,65 +9,58 @@ export type LifecycleFrame = Extract<
   { kind: EServeFrame.TurnEnded | EServeFrame.Error }
 >
 
-export type BufferedFrame = SignalFrame | (LifecycleFrame & { seq: number })
-
 export type FrameBuffer = {
   push: (signal: ChannelSignal) => SignalFrame
-  pushLifecycle: (frame: LifecycleFrame) => BufferedFrame
+  pushLifecycle: (frame: LifecycleFrame) => LifecycleFrame
   nextSeq: () => number
   holds: (cursor: number) => boolean
-  /** Whether that frame itself is still in the ring, which `holds` deliberately is not: it accepts the seq just before the oldest. */
   contains: (seq: number) => boolean
   after: (cursor: number) => readonly ServeFrame[]
   from: (seq: number) => readonly SignalFrame[]
 }
 
-const wireOf = (buffered: BufferedFrame): ServeFrame => {
-  if (buffered.kind === EServeFrame.TurnEnded) {
-    return { kind: buffered.kind, outcome: buffered.outcome }
-  }
-  if (buffered.kind === EServeFrame.Error) {
-    return { kind: buffered.kind, message: buffered.message }
-  }
-  return buffered
-}
+type Held = { position: number; frame: SignalFrame | LifecycleFrame }
+
+const NOTHING_EVICTED = -1
 
 export function createFrameBuffer(args: { capacity: number }): FrameBuffer {
-  const held: BufferedFrame[] = []
+  const held: Held[] = []
   let next = 0
+  let evictedThrough = NOTHING_EVICTED
 
-  const oldest = (): number => held[0]?.seq ?? next
-
-  const keep = <T extends BufferedFrame>(frame: T): T => {
-    held.push(frame)
-    if (held.length > args.capacity) held.splice(0, held.length - args.capacity)
+  const keep = <T extends SignalFrame | LifecycleFrame>(frame: T): T => {
+    held.push({ position: next, frame })
+    const overflow = held.length - args.capacity
+    if (overflow > 0) {
+      for (const dropped of held.splice(0, overflow)) {
+        evictedThrough = Math.max(evictedThrough, dropped.position)
+      }
+    }
     return frame
   }
 
   return {
     push(signal) {
       const frame: SignalFrame = { kind: EServeFrame.Signal, seq: next, signal }
+      const kept = keep(frame)
       next += 1
-      return keep(frame)
+      return kept
     },
 
-    pushLifecycle(frame) {
-      const buffered: BufferedFrame = { ...frame, seq: next }
-      next += 1
-      return keep(buffered)
-    },
+    pushLifecycle: (frame) => keep(frame),
 
     nextSeq: () => next,
 
-    holds: (cursor) => cursor < next && cursor >= oldest() - 1,
+    holds: (cursor) => cursor < next && cursor >= evictedThrough,
 
-    contains: (seq) => seq < next && seq >= oldest() && held.length > 0,
+    contains: (seq) =>
+      held.some((entry) => entry.frame.kind === EServeFrame.Signal && entry.frame.seq === seq),
 
-    after: (cursor) => held.filter((frame) => frame.seq > cursor).map(wireOf),
+    after: (cursor) => held.filter((entry) => entry.position > cursor).map((entry) => entry.frame),
 
     from: (seq) =>
-      held.flatMap((frame) =>
-        frame.seq >= seq && frame.kind === EServeFrame.Signal ? [frame] : [],
+      held.flatMap((entry) =>
+        entry.frame.kind === EServeFrame.Signal && entry.frame.seq >= seq ? [entry.frame] : [],
       ),
   }
 }

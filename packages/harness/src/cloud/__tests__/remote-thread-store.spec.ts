@@ -150,6 +150,48 @@ describe('RemoteThreadStore', () => {
     ])
   })
 
+  it('chooseModel forwards retarget true and false and still fires once on the reply', async () => {
+    const { store, calls } = harness({ [EClientRequest.SetThreadModel]: {} })
+    const heard: unknown[] = []
+    store.onModelChosen((chosen) => void heard.push(chosen))
+    const model = { ref: 'anthropic/claude-opus-5', effort: 'high' }
+
+    await store.chooseModel({ threadId: THREAD, model, retarget: true })
+    await store.chooseModel({ threadId: THREAD, model, retarget: false })
+
+    expect(calls.map((call) => call.params)).toEqual([
+      { threadId: THREAD, model, retarget: true },
+      { threadId: THREAD, model, retarget: false },
+    ])
+    expect(heard).toEqual([
+      { threadId: THREAD, model },
+      { threadId: THREAD, model },
+    ])
+  })
+
+  it('chooseModel leaves retarget off the wire when it is omitted or undefined', async () => {
+    const { store, calls } = harness({ [EClientRequest.SetThreadModel]: {} })
+    const model = { ref: 'r', effort: 'e' }
+
+    await store.chooseModel({ threadId: THREAD, model })
+    await store.chooseModel({ threadId: THREAD, model, retarget: undefined })
+
+    for (const call of calls) expect('retarget' in (call.params as object)).toBe(false)
+  })
+
+  it('chooseModel does not fire its listeners when a retargeting request is refused', async () => {
+    const { store } = harness({
+      [EClientRequest.SetThreadModel]: new Error('the sandbox refused the set-thread-model request'),
+    })
+    const heard: unknown[] = []
+    store.onModelChosen((chosen) => void heard.push(chosen))
+
+    await expect(
+      store.chooseModel({ threadId: THREAD, model: { ref: 'r', effort: 'e' }, retarget: true }),
+    ).rejects.toThrow('refused the set-thread-model request')
+    expect(heard).toEqual([])
+  })
+
   it('chooseModel does not fire its listeners when the sandbox refuses the op', async () => {
     const { store } = harness({
       [EClientRequest.SetThreadModel]: new Error('the sandbox refused the set-thread-model request'),

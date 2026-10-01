@@ -44,6 +44,15 @@ const start = async (args: {
     cwd: '/workspace',
     compose: async () => ({
       ...app,
+      threads: {
+        ...app.threads,
+        find: async ({ threadId: requested }) => {
+          const root = await app.threads.find({ threadId })
+          if (requested === threadId) return root
+          if (requested !== toThreadId('thread-child') || root === undefined) return undefined
+          return { ...root, id: requested, agent: { spawnedBy: threadId, type: 'explore' } }
+        },
+      },
       ...(args.modelBridge === undefined ? {} : { modelBridge: args.modelBridge }),
     }),
     ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
@@ -102,7 +111,7 @@ describe('a transcript write targeting a child or foreign thread', () => {
 })
 
 describe('a set-thread-model op against a supervised agent', () => {
-  it('refuses to re-model the agent, which runs the model it was spawned with', async () => {
+  it('refuses to re-model a supervised served thread even with an operator override', async () => {
     const { answerSetThreadModel } = await import('../requests')
     const chosen: { threadId: string; model: { ref: string; effort: string } }[] = []
     const selected: { ref: string; effort: string }[] = []
@@ -112,7 +121,7 @@ describe('a set-thread-model op against a supervised agent', () => {
         kind: EClientFrame.Request,
         id: 'mod-agent',
         op: EClientRequest.SetThreadModel,
-        params: { threadId, model: { ref: 'anthropic/claude-opus-5', effort: 'high' } },
+        params: { threadId, model: { ref: 'anthropic/claude-opus-5', effort: 'high' }, retarget: true },
       },
       threadId,
       transcript: {
