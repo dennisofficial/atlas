@@ -372,7 +372,7 @@ describe('createOrResume', () => {
     expect(placement.outdatedServe).toBe('1.19.1')
   })
 
-  it('recreates a stopped sandbox whose baked serve predates the pin once health proves it fully idle', async () => {
+  it('recreates a stopped sandbox whose baked serve predates the pin without waking its runtime', async () => {
     const stale = fakeSandbox({ installedVersion: '1.19.1', status: 'stopped' })
     const fresh = fakeSandbox({ installedVersion: PINNED_VERSION })
     let getOrCreateParams: Record<string, unknown> | undefined
@@ -479,8 +479,8 @@ describe('createOrResume', () => {
     expect(unreadable.deleted).toBe(false)
   })
 
-  it('keeps a stopped outdated sandbox that still has a client attached, naming the field that preserved it', async () => {
-    const stale = fakeSandbox({ installedVersion: '1.19.1', status: 'stopped' })
+  it('keeps a running outdated sandbox regardless of attached clients', async () => {
+    const stale = fakeSandbox({ installedVersion: '1.19.1', status: 'running' })
     const lines: string[] = []
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
@@ -515,7 +515,7 @@ describe('createOrResume', () => {
         (line) =>
           line.includes('carries serve "1.19.1"') &&
           line.includes(`wants "${PINNED_VERSION}"`) &&
-          line.includes('clients=1'),
+          line.includes('provider reports it running'),
       ),
     ).toBe(true)
   })

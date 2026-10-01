@@ -139,6 +139,18 @@ export async function probeSandboxForResume(args: {
 
   const pinned = args.pinned
   if (pinned === undefined) return { probe: ESandboxProbe.Kept }
+  const providerStatus = sandbox.status
+  if (providerStatus === 'stopped') {
+    args.log?.(`sandbox ${args.name} is confirmed stopped — recreating it from the pinned image without waking its old runtime`)
+    await sandbox.delete({ signal: AbortSignal.timeout(args.timeoutMs) })
+    const detached = await (args.waitForDriveDetached?.() ?? true)
+    if (!detached) args.log?.(`sandbox ${args.name} deleted, but its drive is still attached — the recreate will retry through the lag`)
+    return { probe: ESandboxProbe.Replaced }
+  }
+  if (providerStatus !== 'running' && providerStatus !== 'pending') {
+    args.log?.(`sandbox ${args.name} runtime is ${providerStatus} — keeping it without executing a probe`)
+    return { probe: ESandboxProbe.Kept }
+  }
 
   const read = await sandbox
     .runCommand({
@@ -159,31 +171,5 @@ export async function probeSandboxForResume(args: {
     return { probe: ESandboxProbe.OutdatedPreserved, outdatedServe: installed }
   }
 
-  if (sandbox.status !== 'stopped') {
-    return preserve(`the provider reports it ${sandbox.status}`)
-  }
-
-  const url = routedUrlOf(sandbox, args.servePort)
-  if (url === undefined) return preserve('it has no routed URL to read its health through')
-
-  const health = await args.runtimeHealth({ sandbox, url }).catch(() => undefined)
-  if (health === undefined) return preserve('its health could not be read')
-
-  const idle = runtimeIdleOf(health)
-  if (idle === ERuntimeIdle.Busy) return preserve(`${busyFieldOf(health) ?? 'busy'}; ${idleSummaryOf(health)}`)
-  if (idle === ERuntimeIdle.Unknown) {
-    return preserve(`health fields unreported: ${unreportedFieldsOf(health).join(', ')}`)
-  }
-
-  args.log?.(
-    `sandbox ${args.name} carries serve "${installedLabel}", this build wants "${pinned}" and its runtime proved idle (${idleSummaryOf(health)}) — recreating it from the pinned image`,
-  )
-  await sandbox.delete({ signal: AbortSignal.timeout(args.timeoutMs) })
-  const detached = await (args.waitForDriveDetached?.() ?? true)
-  if (!detached) {
-    args.log?.(
-      `sandbox ${args.name} deleted, but its drive is still attached — the recreate will retry through the lag`,
-    )
-  }
-  return { probe: ESandboxProbe.Replaced }
+  return preserve(`the provider reports it ${providerStatus}`)
 }

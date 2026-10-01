@@ -32,7 +32,7 @@ const fakeSandbox = (args: { installed: string; status?: string; routes?: number
   const routedPorts = args.routes ?? [3000]
   const base = {
     name: 'atlas-thread-x',
-    status: args.status ?? 'stopped',
+    status: args.status ?? 'running',
     runCommand: async () => ({
       exitCode: 0,
       stdout: async () => `${args.installed}\n`,
@@ -104,8 +104,10 @@ describe('probeSandboxForResume', () => {
     expect(sandbox.deleted()).toBe(false)
   })
 
-  it('replaces a stale sandbox whose runtime is parked once health proves it fully idle', async () => {
+  it('replaces a confirmed stopped sandbox without commands that would auto-wake it', async () => {
     const sandbox = fakeSandbox({ installed: STALE, status: 'stopped' })
+    let commands = 0
+    Object.assign(sandbox, { runCommand: async () => { commands += 1; throw new Error('runCommand would resume the stopped sandbox') } })
     let waits = 0
 
     const result = await probeOf({
@@ -118,6 +120,7 @@ describe('probeSandboxForResume', () => {
     })
 
     expect(sandbox.deleted()).toBe(true)
+    expect(commands).toBe(0)
     expect(waits).toBe(1)
     expect(result.probe).toBe(ESandboxProbe.Replaced)
   })
@@ -156,7 +159,7 @@ describe('probeSandboxForResume', () => {
     expect(sandbox.deleted()).toBe(false)
   })
 
-  it('preserves a parked stale sandbox while any guarded field reports work', async () => {
+  it('preserves a running stale sandbox while any guarded field reports work', async () => {
     const busyVariants: ServeRuntimeHealth[] = [
       { ...FULL_IDLE, busy: true },
       { ...FULL_IDLE, childrenRunning: 1 },
@@ -169,18 +172,18 @@ describe('probeSandboxForResume', () => {
     ]
 
     for (const health of busyVariants) {
-      const sandbox = fakeSandbox({ installed: STALE, status: 'stopped' })
+      const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
       const result = await probeOf({ sandbox, health })
       expect(result.probe).toBe(ESandboxProbe.OutdatedPreserved)
       expect(sandbox.deleted()).toBe(false)
     }
   })
 
-  it('preserves a parked stale sandbox when any guarded field is missing from the health answer', async () => {
+  it('preserves a running stale sandbox when any guarded field is missing from the health answer', async () => {
     const incomplete: ServeRuntimeHealth = { ...FULL_IDLE }
     delete incomplete.settlingWork
 
-    const sandbox = fakeSandbox({ installed: STALE, status: 'stopped' })
+    const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
 
     const result = await probeOf({ sandbox, health: incomplete })
 
@@ -188,8 +191,8 @@ describe('probeSandboxForResume', () => {
     expect(sandbox.deleted()).toBe(false)
   })
 
-  it('preserves a parked stale sandbox when health cannot be read at all', async () => {
-    const sandbox = fakeSandbox({ installed: STALE, status: 'stopped' })
+  it('preserves a running stale sandbox when health cannot be read at all', async () => {
+    const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
 
     const result = await probeOf({ sandbox, health: undefined })
 
@@ -197,8 +200,8 @@ describe('probeSandboxForResume', () => {
     expect(sandbox.deleted()).toBe(false)
   })
 
-  it('preserves a parked stale sandbox when the health read throws', async () => {
-    const sandbox = fakeSandbox({ installed: STALE, status: 'stopped' })
+  it('preserves a running stale sandbox when the health read throws', async () => {
+    const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
 
     const result = await probeOf({ sandbox, healthThrows: true })
 
@@ -206,8 +209,8 @@ describe('probeSandboxForResume', () => {
     expect(sandbox.deleted()).toBe(false)
   })
 
-  it('preserves a parked stale sandbox when it has no routed URL to probe', async () => {
-    const sandbox = fakeSandbox({ installed: STALE, status: 'stopped', routes: [] })
+  it('preserves a running stale sandbox when it has no routed URL to probe', async () => {
+    const sandbox = fakeSandbox({ installed: STALE, status: 'running', routes: [] })
 
     const result = await probeOf({ sandbox, health: FULL_IDLE })
 
@@ -216,18 +219,18 @@ describe('probeSandboxForResume', () => {
   })
 
   it('treats a legacy health answer carrying only clients as unknown rather than idle', async () => {
-    const sandbox = fakeSandbox({ installed: STALE, status: 'stopped' })
+    const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
     const lines: string[] = []
 
     const result = await probeOf({ sandbox, health: { clients: 0 }, lines })
 
     expect(result.probe).toBe(ESandboxProbe.OutdatedPreserved)
     expect(sandbox.deleted()).toBe(false)
-    expect(lines.some((line) => line.includes('unreported'))).toBe(true)
+    expect(lines.some((line) => line.includes('running'))).toBe(true)
   })
 
   it('attributes a preservation decision to the fields that forced it', async () => {
-    const sandbox = fakeSandbox({ installed: STALE, status: 'stopped' })
+    const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
     const lines: string[] = []
 
     await probeOf({
@@ -238,11 +241,10 @@ describe('probeSandboxForResume', () => {
 
     const decision = lines.find((line) => line.includes('never proved idle'))
     expect(decision).toBeDefined()
-    expect(decision).toContain('shellsRunning=2')
-    expect(decision).toContain('settlingWork')
+    expect(decision).toContain('provider reports it running')
   })
 
-  it('attributes a replacement to the idle fields that proved it', async () => {
+  it('attributes a replacement to a confirmed provider stop', async () => {
     const sandbox = fakeSandbox({ installed: STALE, status: 'stopped' })
     const lines: string[] = []
 
@@ -250,8 +252,7 @@ describe('probeSandboxForResume', () => {
 
     const decision = lines.find((line) => line.includes('recreating it from the pinned image'))
     expect(decision).toBeDefined()
-    expect(decision).toContain('clients=0')
-    expect(decision).toContain('settlingWork=false')
+    expect(decision).toContain('confirmed stopped')
   })
 
   it('reads a version file that names the pinned serve through the sandbox', async () => {
