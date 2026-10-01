@@ -46,6 +46,8 @@ export function useTurnDriver(args: {
   cancelCompaction: () => boolean
   interruptRefusal?: (() => string | null) | undefined
   driveRefusal?: (() => string | null) | undefined
+  /** A placement move owns the session: retries, resumes, and rewinds wait for it to settle. */
+  frozen?: boolean | undefined
 }): TurnDriver {
   const { app, threadId, view, readClock } = args
   const { setFailure, forgetUsage, cancelCompaction, interruptRefusal } = args
@@ -89,18 +91,19 @@ export function useTurnDriver(args: {
     (): boolean => abort.current !== null || remote.runningRef.current,
     [abort, remote.runningRef],
   )
+  const frozen = args.frozen === true
   const handleRetry = useCallback(() => {
-    if (working || turnInFlight()) return
+    if (working || turnInFlight() || frozen) return
     void drive([])
-  }, [drive, turnInFlight, working])
+  }, [drive, frozen, turnInFlight, working])
   const handleResume = useCallback(() => {
-    if (working || turnInFlight()) return
+    if (working || turnInFlight() || frozen) return
     void drive([], { resume: true })
-  }, [drive, turnInFlight, working])
+  }, [drive, frozen, turnInFlight, working])
 
   const resumeFresh = useCallback(
     (confirmed: boolean) => {
-      if (working || turnInFlight()) return
+      if (working || turnInFlight() || frozen) return
       void (async () => {
         const discarded = await discardInterrupted({
           log: app.log,
@@ -132,6 +135,7 @@ export function useTurnDriver(args: {
       machinery,
       drive,
       forgetUsage,
+      frozen,
       refresh,
       rewindConfirm,
       setFailure,
@@ -144,6 +148,7 @@ export function useTurnDriver(args: {
 
   const rewindTo = useCallback(
     async (toSeq: number, confirmed = false): Promise<void> => {
+      if (frozen) return
       if (turnInFlight()) {
         notify({
           key: 'rewind-mid-turn',
@@ -189,6 +194,7 @@ export function useTurnDriver(args: {
     },
     [
       app,
+      frozen,
       machinery,
       threadId,
       turnInFlight,
@@ -215,6 +221,7 @@ export function useTurnDriver(args: {
   }, [abort, remote.interrupt, remote.interruptRequested, stamp])
 
   const handleInterrupt = useCallback(() => {
+    if (frozen) return
     if (cancelCompaction()) return
     if (app.turnPolicy.cancelCompaction()) return
     const refusal = interruptRefusal?.() ?? null
@@ -228,7 +235,7 @@ export function useTurnDriver(args: {
       return
     }
     abortTurn()
-  }, [abortTurn, app.turnPolicy, cancelCompaction, interruptRefusal])
+  }, [abortTurn, app.turnPolicy, cancelCompaction, frozen, interruptRefusal])
   const handleInterruptForMove = useCallback(() => {
     if (!turnInFlight()) return
     app.turnPolicy.suppress(ESuppress.UndoOnce)
