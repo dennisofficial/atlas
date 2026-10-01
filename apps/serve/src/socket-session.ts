@@ -159,7 +159,7 @@ export function createSessionHandlers(args: {
         kind: EServeFrame.Ready,
         seq: buffer.nextSeq(),
         protocol: CHANNEL_PROTOCOL_VERSION,
-        turnInFlight: driver.running(),
+        turnInFlight: driver.outcomePending(),
         ...(checkpoint?.() == null ? {} : { checkpoint: checkpoint?.() }),
       },
     })

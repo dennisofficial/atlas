@@ -102,8 +102,9 @@ export async function mountCloudResume(
     original,
     async perform(handle: () => void) {
       await act(async () => {
+        const drivenBefore = runs.length
         handle()
-        if (probe.driver !== null) await probe.driver.whenSettled()
+        if (probe.driver !== null && runs.length > drivenBefore) await probe.driver.whenSettled()
       })
       await setup.flush()
     },
