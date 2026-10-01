@@ -9,7 +9,7 @@ import { EnvService } from '../../../_core/config/env/env.service'
 import { db } from '../../../db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import type { GithubPollOutcome } from './github-device-client'
-import { GithubDeviceClient } from './github-device-client'
+import { GithubDeviceClient, REQUESTED_SCOPES } from './github-device-client'
 import type {
   GithubConnectionDto,
   GithubDeviceCodesDto,
@@ -20,6 +20,11 @@ import { EGithubPollStatus } from './github.types'
 
 function splitScopes(scope: string): string[] {
   return scope.split(/\s+/).filter((entry) => entry.length > 0)
+}
+
+function missingScopesOf(granted: string): string[] {
+  const held = new Set(splitScopes(granted))
+  return splitScopes(REQUESTED_SCOPES).filter((scope) => !held.has(scope))
 }
 
 function mapPollError(outcome: { error: string; description?: string }): GithubPollResultDto {
@@ -50,6 +55,10 @@ export class GithubService {
       deviceCode: args.deviceCode,
     })
     if (outcome.kind === 'error') return mapPollError(outcome)
+    const missing = missingScopesOf(outcome.scope)
+    if (missing.length > 0) {
+      return { status: EGithubPollStatus.MissingScopes, missing }
+    }
     const { login } = await this.client.verifyToken({ accessToken: outcome.accessToken })
     const sealedToken = this.cipher.encrypt(outcome.accessToken)
     await db.githubConnection.upsert({

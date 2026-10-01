@@ -5,7 +5,7 @@ const DEVICE_CODE_URL = 'https://github.com/login/device/code'
 const ACCESS_TOKEN_URL = 'https://github.com/login/oauth/access_token'
 const USER_URL = 'https://api.github.com/user'
 const DEVICE_GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:device_code'
-const REQUESTED_SCOPES = 'repo read:org admin:repo_hook'
+export const REQUESTED_SCOPES = 'repo read:org admin:repo_hook'
 
 export interface GithubHttpRequest {
   method: 'GET' | 'POST'

@@ -139,6 +139,16 @@ export function useSettingsGithub(args: {
           return
         }
 
+        if (result.status === EGithubConnectPoll.MissingScopes) {
+          clearTimer()
+          put(
+            failedLogin(
+              `github granted no ${result.missing.join(', ')} scope — the oauth app registration cannot issue the access Atlas needs.`,
+            ),
+          )
+          return
+        }
+
         clearTimer()
         put(
           failedLogin(

@@ -145,6 +145,17 @@ The device-authorization flow is how the TUI logs in. The pages live in `apps/we
 the device `verificationUri` at the web app. The device page must claim the code
 (`GET /api/auth/device?user_code=…`) while signed in before approve/deny will work.
 
+## GitHub identity is an OAuth App
+
+GitHub connect uses the device flow against a plain **OAuth App** (`GITHUB_CLIENT_ID`), never a
+GitHub App. The design is per-user delegation: the API and sandboxes act with the user's own
+permissions, so nothing is ever installed on a repo or org. A GitHub App would invert that —
+user tokens become the intersection of user access, app permissions, and installation coverage
+(repo 404s for an uninstalled repo), the device flow ignores the requested scopes, and
+user-to-server tokens expire after 8 hours. `pollConnect` therefore refuses a grant whose
+`scope` is missing any of `repo read:org admin:repo_hook`, instead of storing a token that can
+only ever see public repos.
+
 ## Env
 
 House dotenvx conventions (see the `env-conventions` skill): encrypted per-tier files in
