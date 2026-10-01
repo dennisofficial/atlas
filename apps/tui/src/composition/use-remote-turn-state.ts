@@ -94,7 +94,7 @@ export function useRemoteTurnState(args: {
         .catch(() => undefined)
         .finally(() => {
           settling.current -= 1
-          if (runningRef.current || settling.current > 0) return
+          if (runningRef.current || awaitingLifecycle.current || settling.current > 0) return
           for (const listener of settleListeners.current) listener()
           settleListeners.current.clear()
         })
