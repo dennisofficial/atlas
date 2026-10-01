@@ -13,7 +13,7 @@ import { ATLAS_VAULT_KEY_NAME, ATLAS_VAULT_NAME } from '../credentials/paths'
 import { VAULT_VERSION, type VaultFile } from '../credentials/vault-file'
 import { ATLAS_SECRETS_NAME } from '../secrets/paths'
 import { atlasDirectory } from '../store/paths'
-import { captureDetachedPreflight, capturePortableState } from './portable-capture'
+import { capturePortableState } from './portable-capture'
 import {
   malformedSnapshot,
   openSealed,
@@ -181,5 +181,5 @@ export async function materializePortableState(args: {
   return { written, skipped }
 }
 
-export { PORTABLE_ACCOUNT_KIND, PORTABLE_STATE_VERSION, captureDetachedPreflight, capturePortableState }
+export { PORTABLE_ACCOUNT_KIND, PORTABLE_STATE_VERSION, capturePortableState }
 export type { PortableState }

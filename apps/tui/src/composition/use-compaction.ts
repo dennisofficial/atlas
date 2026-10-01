@@ -14,7 +14,8 @@ import {
 } from '@dltech/atlas-harness'
 import type { AtlasApp } from './compose'
 
-const COMPACTION_CRASHED = 'compacting the history did not finish, so nothing was changed'
+const compactionCrashed = (fault: unknown): string =>
+  `compacting the history did not finish, so nothing was changed: ${fault instanceof Error ? fault.message : String(fault)}`
 
 export type CompactionControl = {
   compacting: Compacting | null
@@ -65,8 +66,8 @@ export function useCompaction(args: {
       try {
         const outcome = await start(controller.signal)
         if (!controller.signal.aborted) await settle(outcome)
-      } catch {
-        if (!controller.signal.aborted) onFailure(COMPACTION_CRASHED)
+      } catch (fault) {
+        if (!controller.signal.aborted) onFailure(compactionCrashed(fault))
       } finally {
         compacter.current = null
         setCompacting(null)

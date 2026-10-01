@@ -46,6 +46,7 @@ describe('portable state installation', () => {
 
     const accounts = await target.store.list()
     expect(accounts.map((account) => account.label).sort()).toEqual([
+      'Claude subscription',
       'OpenAI (OPENAI_API_KEY)',
       'OpenRouter',
     ])
@@ -171,6 +172,7 @@ describe('portable state installation', () => {
       })
       const accounts = await store.list()
       expect(accounts.map((account) => account.label).sort()).toEqual([
+        'Claude subscription',
         'OpenAI (OPENAI_API_KEY)',
         'OpenRouter',
       ])

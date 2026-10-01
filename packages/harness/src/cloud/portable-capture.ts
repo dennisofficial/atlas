@@ -88,11 +88,13 @@ const decodeCarriedAccount = (args: {
       message: `The account vault at ${ATLAS_VAULT_NAME} holds an entry whose stored kind does not match its secret, so this home cannot be captured. Move it aside and sign in again with /auth.`,
     })
   }
-  if (secret.data.kind !== EAuthKind.ApiKey) {
-    throw unreadable('An account the capture selected holds a rotating grant; this home cannot be captured.')
-  }
 
-  return { sealed: args.sealed, plaintext: opened }
+  const carried =
+    secret.data.kind === EAuthKind.Oauth
+      ? JSON.stringify({ ...secret.data, tokens: { ...secret.data.tokens, refreshToken: '' } })
+      : opened
+
+  return { sealed: args.sealed, plaintext: carried }
 }
 
 const resealAccount = (args: { carry: DecodedCarry; vaultKeyHex: string }): PortableAccount => {
@@ -233,13 +235,10 @@ export async function capturePortableState(args: { home?: string | undefined }):
     )
   }
 
-  const carried = vault.accounts
-    .filter((account) => account.kind === EAuthKind.ApiKey)
-    .map((account) => decodeCarriedAccount({ sealed: account, sourceKeyHex: sourceKeyHex ?? '' }))
+  const carried = vault.accounts.map((account) =>
+    decodeCarriedAccount({ sealed: account, sourceKeyHex: sourceKeyHex ?? '' }),
+  )
   const carriedIds = new Set(carried.map((carry) => carry.sealed.id))
-  const omittedOauth = vault.accounts
-    .filter((account) => account.kind !== EAuthKind.ApiKey)
-    .map((account) => account.label)
 
   if (settings !== undefined) {
     validateSettingsContent({ path: join(home, PORTABLE_SETTINGS_NAME), content: settings })
@@ -257,7 +256,7 @@ export async function capturePortableState(args: { home?: string | undefined }):
       .map(([provider, accountId]) => ({ provider, accountId })),
     secrets: secrets.carried,
     omitted: {
-      oauthAccounts: omittedOauth,
+      oauthAccounts: [],
       mcpOauthSecrets: secrets.mcpOauth,
       attachmentTokens: secrets.attachmentTokens,
     },
@@ -270,22 +269,6 @@ export async function capturePortableState(args: { home?: string | undefined }):
     throw unreadable('This home holds an entry the portable-state contract cannot carry; nothing was captured.')
   }
   return parsed.data
-}
-
-export async function captureDetachedPreflight(args: {
-  home?: string | undefined
-  selectedAccountId?: string | undefined
-}): Promise<{ ok: true } | { ok: false; label: string }> {
-  const state = await capturePortableState({ home: args.home })
-  if (args.selectedAccountId === undefined) return { ok: true }
-
-  const carried = state.accounts.some((account) => account.id === args.selectedAccountId)
-  if (carried) return { ok: true }
-
-  const home = args.home ?? atlasDirectory()
-  const vault = fileVaultBackend(join(home, ATLAS_VAULT_NAME)).load()
-  const label = vault.accounts.find((account) => account.id === args.selectedAccountId)?.label ?? 'unknown'
-  return { ok: false, label }
 }
 
 export { PORTABLE_ACCOUNT_KIND }
