@@ -1,11 +1,18 @@
 import { z } from 'zod'
 
+import {
+  readRuntimeCheckpointReplySchema,
+  type RuntimeCheckpoint,
+} from '@dltech/atlas-wire'
+
 import { CloudTransport } from './cloud-transport'
 
 export enum ECloudSandboxState {
   Running = 'running',
   Parked = 'parked',
   Resuming = 'resuming',
+  Stopped = 'stopped',
+  Unknown = 'unknown',
 }
 
 export const sandboxStateSchema = z.nativeEnum(ECloudSandboxState)
@@ -177,6 +184,17 @@ export class SandboxClient {
       path: `/v1/sandboxes/${args.threadId}/destroy`,
       allowMissing: true,
     })
+  }
+
+  async readCheckpoint(args: { threadId: string }): Promise<RuntimeCheckpoint | null> {
+    const body = await this.request({
+      method: 'GET',
+      path: `/v1/sandboxes/${args.threadId}/checkpoint`,
+      allowMissing: true,
+    })
+    if (body === undefined || body === null) return null
+    const parsed = readRuntimeCheckpointReplySchema.safeParse(body)
+    return parsed.success ? parsed.data.checkpoint : null
   }
 
   private request(args: {
