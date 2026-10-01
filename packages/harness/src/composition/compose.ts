@@ -406,6 +406,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   const { turn, runner, turnPolicy, titling, recordTeardownEndings, intake } = wireTurn<Command>({
     container,
     workspace,
+    executionLocation,
     models,
     model,
     modelPort,

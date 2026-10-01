@@ -10,12 +10,14 @@ import type { PendingQueues } from '../pending'
 import type { PromptRegistry } from '../prompt/registry'
 import type { SettingsService } from '../settings/service'
 import type { Summariser } from './compact-turn'
+import type { ExecutionLocationState } from './execution-location-state'
 import type { ModelCatalogue } from './model-catalogue'
 import type { SelectableModel } from './model-selection'
 
 export type TurnSetup<Command = never> = {
   container: DependencyContainer
   workspace: WorkspaceIdentity
+  executionLocation: ExecutionLocationState
   models: ModelCatalogue
   model: SelectableModel
   modelPort: ModelPort

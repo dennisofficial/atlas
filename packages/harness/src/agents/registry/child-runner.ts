@@ -48,6 +48,7 @@ export type ChildRunnerDeps = {
   modelFor?: ((args: { agentType: AgentType; threadId: ThreadId }) => ModelPort | Promise<ModelPort>) | undefined
   modelAtSpawn?: ((args: { agentType: AgentType; spawnedBy: ThreadId }) => Promise<ThreadModel>) | undefined
   telemetry?: TelemetryPort | undefined
+  hydratePlacement?: ((args: { threadId: ThreadId }) => Promise<void>) | undefined
 }
 
 export type ChildRunnerDepsSource = () => ChildRunnerDeps
@@ -161,6 +162,7 @@ export async function buildChildRunner({
   observeModel,
   steering,
 }: ChildRunnerRequest & { deps: ChildRunnerDeps }): Promise<TurnRunner> {
+  await deps.hydratePlacement?.({ threadId })
   const steeringBatch = peekSteering(steering)
   const narrowed = filteredToolRegistry({
     registry: toolRegistryFor({ registry: deps.tools, agentType }),

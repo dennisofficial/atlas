@@ -93,6 +93,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
   const {
     container,
     workspace,
+    executionLocation,
     models,
     model,
     modelPort,
@@ -254,6 +255,9 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
       modelFor,
       modelAtSpawn,
       telemetry: container.resolve(portToken(TelemetryPort)),
+      hydratePlacement: async ({ threadId }) => {
+        await executionLocation.load({ threadId })
+      },
       assemblyFor: ({ agentType, model: childModel, projectDirectory: working }) =>
         defaultPipeline({
           prompt: ({ projectDirectory }) =>
