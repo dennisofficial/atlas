@@ -131,6 +131,54 @@ describe('a log that announces what it commits without settling a step', () => {
     expect(seen).toEqual([])
   })
 
+  it('returns the committed events and reports when the channel resolution throws', async () => {
+    const reported: unknown[] = []
+    const log = withEventsAppendedPublishing({
+      log: fakeLog(),
+      channel: () => {
+        throw new Error('channel not bound')
+      },
+      onListenerError: (cause) => {
+        reported.push(cause)
+      },
+    })
+
+    const appended = await log.append({
+      threadId,
+      runId,
+      drafts: [{ type: 'user-said', text: 'kept' }],
+    })
+
+    expect(appended).toHaveLength(1)
+    expect(reported).toHaveLength(1)
+  })
+
+  it('returns the committed events and reports when the publish call throws', async () => {
+    const channel = createDeltaChannel()
+    const reported: unknown[] = []
+    const log = withEventsAppendedPublishing({
+      log: fakeLog(),
+      channel: () => ({
+        ...channel,
+        publisherFor: () => {
+          throw new Error('publisher wedged')
+        },
+      }),
+      onListenerError: (cause) => {
+        reported.push(cause)
+      },
+    })
+
+    const appended = await log.append({
+      threadId,
+      runId,
+      drafts: [{ type: 'user-said', text: 'kept' }],
+    })
+
+    expect(appended).toHaveLength(1)
+    expect(reported).toHaveLength(1)
+  })
+
   it('forwards every other operation to the wrapped log untouched', async () => {
     const inner = fakeLog()
     const log = withEventsAppendedPublishing({ log: inner, channel: () => undefined })

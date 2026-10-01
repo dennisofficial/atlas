@@ -8,6 +8,14 @@ export function shellCompletionNudge(args: {
 }): Pick<EventOfType<'nudge'>, 'type' | 'text' | 'lifetimeSteps'> | undefined {
   if (args.seenThrough === undefined || awaitsReply(args.events)) return undefined
   const seenThrough = args.seenThrough
+
+  const lastAssistantIndex = args.events.findLastIndex((event) => event.type === 'assistant-said')
+  const toldSince = args.events.some(
+    (event, index) =>
+      index > lastAssistantIndex && (event.type === 'nudge' || event.type === 'user-said'),
+  )
+  if (toldSince) return undefined
+
   const unseenEnding = args.events.some(
     (event) => event.type === 'background-shell-ended' && event.seq > seenThrough,
   )
