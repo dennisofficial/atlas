@@ -192,6 +192,27 @@ describe('GithubService', () => {
     expect(fake.connections).toHaveLength(0)
   })
 
+  it('poll accepts the comma-separated scope string github actually returns', async () => {
+    fetchImpl = async (url) => {
+      if (url === 'https://github.com/login/oauth/access_token') {
+        return jsonResponse({
+          access_token: 'gho_raw-token',
+          scope: 'admin:repo_hook,read:org,repo',
+        })
+      }
+      return jsonResponse({ login: 'octocat' })
+    }
+
+    const result = await service.pollConnect({ userId: USER_A, deviceCode: 'dc-1' })
+
+    expect(result).toEqual({
+      status: EGithubPollStatus.Connected,
+      login: 'octocat',
+      scopes: ['admin:repo_hook', 'read:org', 'repo'],
+    })
+    expect(fake.connections[0]?.scopes).toBe('admin:repo_hook,read:org,repo')
+  })
+
   it('poll verifies the granted token and stores it sealed', async () => {
     fetchImpl = async (url) => {
       if (url === 'https://github.com/login/oauth/access_token') {
