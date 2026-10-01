@@ -227,7 +227,7 @@ export function createSessionHandlers(args: {
 
     if (frame.kind === EClientFrame.Run) {
       try {
-        driver.run()
+        driver.run({ resume: frame.resume === true, onlyIfIdle: true })
       } catch (error) {
         send({
           socket,

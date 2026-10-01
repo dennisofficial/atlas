@@ -102,7 +102,7 @@ export class TitlingTurnRunner extends TurnRunner {
     return outcome
   }
 
-  resume(args: { threadId: ThreadId; signal?: AbortSignal }): Promise<TurnOutcome> {
+  resume(args: { threadId: ThreadId; signal?: AbortSignal; pause?: PauseSignal }): Promise<TurnOutcome> {
     return this.inner.resume(args)
   }
 
