@@ -3,14 +3,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import {
-  EventLogPort,
   ProcessPort,
-  stampDrafts,
-  toEventId,
-  toRunId,
   toThreadId,
   type ClockPort,
-  type Event,
   type EventDraft,
   type EventOfType,
   type ThreadId,
@@ -31,6 +26,9 @@ import { LocalProcessPort } from '../../execution/local-process'
 import { HookChain, type HookChainSource } from '../../hooks/registry'
 import { EShellStatus } from '../background-shell'
 import { BunShellRegistry, type ShellRegistryPort } from '../shell-registry'
+import { RecordingLog, RecordingOperations } from './shell-registry-log'
+
+export { endedInLog, RecordingLog, RecordingOperations } from './shell-registry-log'
 
 export const THREAD = toThreadId('thread-under-test')
 export const ELSEWHERE = toThreadId('thread-next-door')
@@ -157,63 +155,17 @@ export async function closeRegistries(): Promise<void> {
 
 const noHooks: HookChainSource = () => new HookChain({})
 
-/**
- * The event log the registry appends endings to at occurrence. Stamps drafts the way the real log
- * does so specs can read back what a turn would read, and keeps the drafts for direct assertion.
- */
-export class RecordingLog extends EventLogPort {
-  readonly appended: EventDraft[] = []
-  private readonly stored: Event[] = []
-  private seq = 0
-
-  async append(args: { threadId: ThreadId; drafts: readonly EventDraft[] }): Promise<Event[]> {
-    this.appended.push(...args.drafts)
-    this.seq += 1
-    const runId = toRunId(`run-${this.seq}`)
-    let eventSeq = 0
-    const envelopes = args.drafts.map(() => {
-      eventSeq += 1
-      return {
-        id: toEventId(`event-${this.seq}-${eventSeq}`),
-        seq: eventSeq,
-        threadId: args.threadId,
-        runId,
-        depth: 0,
-        at: '2026-09-26T00:00:00.000Z',
-      }
-    })
-    const stamped = stampDrafts({ drafts: [...args.drafts], envelopes })
-    this.stored.push(...stamped)
-    return stamped
-  }
-
-  async read(args: { threadId: ThreadId }): Promise<Event[]> {
-    return this.stored.filter((event) => event.threadId === args.threadId)
-  }
-
-  async readOwn(args: { threadId: ThreadId }): Promise<Event[]> {
-    return this.read(args)
-  }
-
-  async refresh(): Promise<void> {}
-  async head(): Promise<number> {
-    return this.seq
-  }
-
-  async replace(): Promise<Event[]> {
-    return []
-  }
-}
-
 export function openRegistry({
   adapter = localShellAdapter,
   hooks,
   log: givenLog,
+  operations,
 }: {
   adapter?: ShellAdapter
   hooks?: HookChainSource | undefined
   /** Pass null for the log-less registry (bell-fallback wiring); omitted gets a fresh RecordingLog. */
   log?: RecordingLog | null | undefined
+  operations?: RecordingOperations | undefined
 } = {}): {
   registry: BunShellRegistry
   clock: SteppableClock
@@ -231,6 +183,8 @@ export function openRegistry({
     undefined,
     log,
     log === undefined ? undefined : new RandomIds(),
+    undefined,
+    operations,
   )
   opened.push({ registry, root, adapter })
   return { registry, clock, root, log }

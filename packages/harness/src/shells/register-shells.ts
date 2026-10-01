@@ -1,8 +1,10 @@
-import { ClockPort, EventLogPort, IdPort, ProcessPort } from '@dltech/atlas-core'
+import { ClockPort, EventLogPort, IdPort, LogPort, ProcessPort } from '@dltech/atlas-core'
 
+import { withEventsAppendedPublishing } from '../channel/events-appended-log'
 import { registerDisposable } from '../container/disposal'
 import { instanceCachingFactory, portToken, type DependencyContainer } from '../container/injection'
 import {
+  DeltaChannelToken,
   HookChainSourceToken,
   HookChainToken,
   SleepPreventionToken,
@@ -30,9 +32,31 @@ export function registerShells({ container }: { container: DependencyContainer }
       const sleepPrevention = resolver.isRegistered(SleepPreventionToken, true)
         ? resolver.resolve(SleepPreventionToken)
         : undefined
-      const log = resolver.isRegistered(portToken(EventLogPort), true)
+      const registered = resolver.isRegistered(portToken(EventLogPort), true)
         ? resolver.resolve(portToken(EventLogPort))
         : undefined
+      const operations = resolver.isRegistered(portToken(LogPort), true)
+        ? resolver.resolve(portToken(LogPort))
+        : undefined
+      const log =
+        registered === undefined
+          ? undefined
+          : withEventsAppendedPublishing({
+              log: registered,
+              channel: () =>
+                container.isRegistered(DeltaChannelToken, true)
+                  ? container.resolve(DeltaChannelToken)
+                  : undefined,
+              onListenerError: (cause) =>
+                operations?.warn({
+                  source: 'shells.publication',
+                  message: 'a channel listener threw on an events-appended publication',
+                  error: cause instanceof Error ? cause.message : String(cause),
+                  ...(cause instanceof Error && cause.stack !== undefined
+                    ? { stack: cause.stack }
+                    : {}),
+                }),
+            })
       const ids = resolver.isRegistered(portToken(IdPort), true)
         ? resolver.resolve(portToken(IdPort))
         : undefined
@@ -44,6 +68,8 @@ export function registerShells({ container }: { container: DependencyContainer }
         sleepPrevention,
         log,
         ids,
+        undefined,
+        operations,
       )
       return live
     }),

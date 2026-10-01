@@ -20,6 +20,7 @@ import { appendPending } from './pending-intake'
 import { takeModelStepWithRetry } from './retrying-step'
 import type { TurnSpendTally } from '../ledger/record-turn-spend'
 import type { SettlePending } from './settle-pending'
+import { appendShellCompletionNudge } from './shell-completion'
 import { draftsFor, interruptedDrafts } from './step-drafts'
 import { oncePerTurnCompact, prepareStepAssembly, preparedFailureMessage, type StepPrepareDeps } from './step-prepare'
 import { nudgeSilentStep, swallowedReport } from './turn-faults'
@@ -141,7 +142,7 @@ export async function runTrackedTurn(
       if (abortSignal.aborted) return interrupted()
       throw intake.cause
     }
-    const events = intake.drained ? await log.read({ threadId }) : beforeDrain
+    const events = intake.drained || intake.wakesTurn ? await log.read({ threadId }) : beforeDrain
     const owned = rowsOwnedBy({ events, threadId })
 
     const guarded = await guardRepeatLoop({
@@ -244,6 +245,7 @@ export async function runTrackedTurn(
         taken: callIdsIn(events),
       })
       if (abandoned.length > 0) await log.append({ threadId, runId, drafts: abandoned })
+      await appendShellCompletionNudge({ log, threadId, runId, seenThrough: position.seenThrough })
       return interrupted()
     }
 
@@ -258,6 +260,7 @@ export async function runTrackedTurn(
 
     const latest = await log.read({ threadId })
     if (messageArrivedSince({ events: latest, seenThrough: position.seenThrough })) {
+      await appendShellCompletionNudge({ log, threadId, runId, seenThrough: position.seenThrough })
       position.silentSteps = 0
       continue
     }
@@ -267,7 +270,7 @@ export async function runTrackedTurn(
       if (abortSignal.aborted) return interrupted()
       throw speech.cause
     }
-    if (speech.drained && speech.wakesTurn) {
+    if (speech.wakesTurn) {
       position.silentSteps = 0
       continue
     }

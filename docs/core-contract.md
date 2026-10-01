@@ -85,12 +85,12 @@ type EventBody =
   So the ending is its own arm, projected by `messagesFromEvents` as a `user`-role
   `<background-shell-ended>` block and rendered by the transcript as an event line. `EShellStatus`
   lives in `core/shells` for this reason: `core` owns the value unions its event bodies store.
-  The delta is read when the draft is **handed over**, not when the process exits, so an ending that
-  is dropped rather than delivered leaves its output where `shell_output` can still find it.
-  A kill the model asked for never becomes this event: `shell_kill` claims the ending, waits for
-  the process to die, and carries the output in its own tool result, so nothing announces beside
-  it. The claim is handed back when the process outlives the settle deadline, so an ending nobody
-  collected announces itself as usual.
+  The registry captures output at settle without consuming the read cursor, then writes the
+  ending and after-shell drafts once at occurrence. A successful append publishes to the owner
+  and queues a draft-free wake bell; publication does not close a model step that is still
+  streaming. `shell_output` and `shell_kill` read the captured ending. A model-requested kill
+  still records this event; assembly suppresses a redundant telling when the kill result already
+  supplied it. Wake eligibility is independent of whether intake has new drafts to append.
 - **The two agent bodies are the whole of what a parent records about a child, and both live on the
   parent's log.** That is the rule a delegate's work is counted, never quoted, expressed as a schema:
   a child's own rows carry the child's `threadId` and never reach the parent, so the parent holds one
@@ -401,10 +401,9 @@ type ToolCall = { callId: string; name: string; input: unknown; effect: EToolEff
   hook uses `additionalContext`, since identical content dedupes to the event already in the log.
 - **`AfterShell` is the one phase no turn drives.** A backgrounded shell can end while the session is
   idle — that is the whole point of the idle wake — so `BunShellRegistry` invokes it from the exit
-  the process reports, not `runTurn`. Two things follow. Its `HookOutcome` drafts have no turn to be
-  appended to, so they ride out with the ending's own notice through `drainNotifications`, which is
-  the only delivery this side of the harness can promise; an ending is therefore queued *after* its
-  hooks resolve rather than beside them, under a five-second budget past which the drafts are
+  the process reports, not `runTurn`. Its `HookOutcome` drafts append alongside the ending in
+  the occurrence write, before the wake bell is queued. Hooks run under a five-second budget
+  past which the drafts are
   forfeit — waiting on the chain is what makes a hook that never settles an ending nobody is told
   about and a session that never quits, and plugin-provided hooks will forget an `await` long before
   they throw. And a throwing hook is caught at the registry, unlike every other phase, because the

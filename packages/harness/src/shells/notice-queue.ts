@@ -104,7 +104,10 @@ export class ShellNoticeQueue {
       if (kept.length !== this.queued.length) this.settle(kept)
     }
 
-    return { drafts, wakesTurn: drafts.length > 0, acknowledge }
+    const wakesTurn =
+      drafts.length > 0 ||
+      captured.some((notice) => notice.kind === ENotice.Ended && this.stillWorthTelling(notice))
+    return { drafts, wakesTurn, acknowledge }
   }
 
   pending({ threadId }: { threadId: ThreadId }): readonly PendingShellNotice[] {

@@ -4,6 +4,7 @@ import {
   EShellStatus,
   EventLogPort,
   IdPort,
+  LogPort,
   ProcessPort,
   type EventDraft,
   type ThreadId,
@@ -144,6 +145,7 @@ export class BunShellRegistry extends ShellRegistryPort {
     private readonly log?: EventLogPort,
     private readonly ids?: IdPort,
     private readonly silenceMs: number = SILENT_FOR_AT_MOST_MS,
+    private readonly operations?: LogPort,
   ) {
     super()
   }
@@ -491,25 +493,7 @@ export class BunShellRegistry extends ShellRegistryPort {
     this.settle(entry)
   }
 
-  /**
-   * The ending is written into the durable log at occurrence — the moment the settle continuation
-   * has the drained output and the after-shell drafts in hand — so a settled shell always has its
-   * end in the log and nothing downstream reconciles a second channel. The after-shell hooks run
-   * before the append because the event is the only ride their drafts get: the shell may well have
-   * ended with no turn in flight.
-   *
-   * A shell a rewind cut while its hooks ran writes nothing: the transcript that would pair the
-   * ending with its start no longer exists, and removal is the one ending that announces nothing.
-   * Without a log the registry cannot keep that promise (spec and tool-harness wiring only), so
-   * the notice queue stays the delivery path there.
-   *
-   * The outcome the map holds is the same one the occurrence write produced: the delta is the
-   * take that went into the log, never a second read of a buffer the append already released.
-   */
   private settle(entry: Tracked): void {
-    // A model kill that landed before the process died holds a waiting promise in the map; the
-    // settle continuation adopts it, resolving it with the outcome the occurrence append produced,
-    // rather than registering a second ending.
     const adopt = this.pendingKills.get(entry.shell.shellId)
     if (adopt === undefined && this.endings.get(entry.shell.shellId) !== undefined) return
 
@@ -519,8 +503,6 @@ export class BunShellRegistry extends ShellRegistryPort {
         : {
             died: true as const,
             snapshot: entry.shell.snapshot(),
-            // Only a kill that adopted this ending reads the captured output out from under
-            // shell_output; an ending nobody awaited leaves the capture for the first read.
             delta: adopt === undefined ? ending : consumeEndingDelta(entry, ending),
           },
     )
@@ -536,11 +518,6 @@ export class BunShellRegistry extends ShellRegistryPort {
     this.endings.set(entry.shell.shellId, outcome)
   }
 
-  /**
-   * Runs inside the shell's settle continuation, before the snapshot reports the ending: the
-   * output is captured and the buffer released there, so by the time anything can observe the
-   * shell as settled, the read path already answers from the captured delta.
-   */
   private captureOutput(shellId: ShellId): void {
     const entry = this.tracked.get(shellId)
     if (entry === undefined || entry.endingRead !== undefined) return
@@ -548,8 +525,6 @@ export class BunShellRegistry extends ShellRegistryPort {
   }
 
   private async recordEnding(args: { entry: Tracked }): Promise<ShellDelta | undefined> {
-    // The capture already happened in onSettled, synchronously with the status flip; the delta the
-    // event carries is the one the capture produced.
     const delta = args.entry.endingEventDelta ?? captureEnding(args.entry)
     const snapshot = args.entry.shell.snapshot()
 
@@ -561,22 +536,35 @@ export class BunShellRegistry extends ShellRegistryPort {
 
     if (this.tracked.get(args.entry.shell.shellId) !== args.entry) return undefined
 
-    if (this.log === undefined || this.ids === undefined) {
-      // Without a log the registry cannot write the event, but the bell still rings so a live
-      // turn wakes; the ending it cannot durably record is the documented fallback gap. The take
-      // still happens at occurrence — the buffer's job ended with the shell.
-      this.notices.queue({
-        kind: ENotice.Ended,
-        snapshot,
-        threadId: args.entry.threadId,
-      })
-      return delta
+    if (this.log !== undefined && this.ids !== undefined) {
+      const persisted = await this.log
+        .append({
+          threadId: args.entry.threadId,
+          runId: this.ids.nextRunId(),
+          drafts: [endedDraft({ snapshot, delta }), ...hooked],
+        })
+        .then(
+          () => true,
+          (cause: unknown) => {
+            this.operations?.warn({
+              source: 'shells.ending',
+              threadId: args.entry.threadId,
+              message: 'could not record a background shell ending',
+              error: cause instanceof Error ? cause.message : String(cause),
+              ...(cause instanceof Error && cause.stack !== undefined
+                ? { stack: cause.stack }
+                : {}),
+            })
+            return false
+          },
+        )
+      if (!persisted) return delta
     }
-
-    await this.log.append({
+    if (this.tracked.get(args.entry.shell.shellId) !== args.entry) return delta
+    this.notices.queue({
+      kind: ENotice.Ended,
+      snapshot,
       threadId: args.entry.threadId,
-      runId: this.ids.nextRunId(),
-      drafts: [endedDraft({ snapshot, delta }), ...hooked],
     })
     return delta
   }

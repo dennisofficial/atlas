@@ -6,7 +6,6 @@ import {
   EShellStatus,
   EStage,
   type AfterShell,
-  type EventOfType,
   type HookOrder,
 } from '@dltech/atlas-core'
 
@@ -14,7 +13,7 @@ import { HookChain, type HookChainSource } from '../../hooks/registry'
 
 import {
   closeRegistries,
-  endedDraft,
+  endedInLog,
   job,
   openRegistry,
   printed,
@@ -22,18 +21,9 @@ import {
   settle,
   shellAdapters,
   THREAD,
-  type RecordingLog,
 } from './shell-registry-fixture'
 
 afterEach(closeRegistries)
-
-const endedInLog = (log: RecordingLog | undefined): EventOfType<'background-shell-ended'>[] => {
-  if (log === undefined) throw new Error('the registry was opened without a log')
-  return log.appended.filter(
-    (draft): draft is EventOfType<'background-shell-ended'> =>
-      draft.type === 'background-shell-ended',
-  )
-}
 
 for (const adapter of shellAdapters) {
   const describeAdapter = adapter.available ? describe : describe.skip
@@ -98,8 +88,6 @@ for (const adapter of shellAdapters) {
 
         await recorded({ log })
 
-        // The ending reached the log once, from the settle path, carrying the same output the
-        // tool result read — the tool result is a read of this record, not a second channel.
         const ended = endedInLog(log)
         expect(ended).toHaveLength(1)
         expect(ended[0]).toMatchObject({
@@ -109,7 +97,6 @@ for (const adapter of shellAdapters) {
           output: 'before\n',
         })
 
-        // Teardown synthesizes nothing: the shell settled, so its end is already durable.
         await registry.closeAll()
         expect(endedInLog(log)).toHaveLength(1)
       })
@@ -175,7 +162,6 @@ for (const adapter of shellAdapters) {
         const started = registry.start(job({ command: 'echo done' }))
         if (!started.ok) throw new Error(started.reason)
 
-        // The shell settles, hooks enter, and the rewind cuts before they release.
         await settle({ registry, shellId: started.snapshot.shellId })
         registry.removeShells({
           threadId: THREAD,
@@ -187,17 +173,6 @@ for (const adapter of shellAdapters) {
 
         expect(endedInLog(log)).toEqual([])
         expect(registry.pendingNotices({ threadId: THREAD })).toEqual([])
-      })
-
-      it('writes nothing beside the log for the model-facing drain when the log is wired', async () => {
-        const { registry, log } = openRegistry({ adapter })
-        const started = registry.start(job({ command: 'echo hi' }))
-        if (!started.ok) throw new Error(started.reason)
-        await settle({ registry, shellId: started.snapshot.shellId })
-        await recorded({ log })
-
-        expect(registry.pendingNotices({ threadId: THREAD })).toEqual([])
-        expect(registry.drainNotifications({ threadId: THREAD })).toEqual([])
       })
     })
   })

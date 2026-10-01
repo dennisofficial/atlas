@@ -9,8 +9,7 @@ export type PendingDrain = {
 
 export type DrainedPending =
   | { ok: false; cause: unknown }
-  | { ok: true; drained: false }
-  | { ok: true; drained: true; wakesTurn: boolean }
+  | { ok: true; drained: boolean; wakesTurn: boolean }
 
 export async function appendPending({
   drain,
@@ -25,7 +24,7 @@ export async function appendPending({
   threadId: ThreadId
   signal?: AbortSignal | undefined
 }): Promise<DrainedPending> {
-  if (drain === undefined) return { ok: true, drained: false }
+  if (drain === undefined) return { ok: true, drained: false, wakesTurn: false }
 
   let waiting: PendingDrain
   try {

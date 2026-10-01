@@ -12,12 +12,15 @@ import {
 
 export type ChannelListener = (signal: ChannelSignal) => void
 
+export type ListenerErrorSink = (cause: unknown) => void
+
 export type Unsubscribe = () => void
 
 export type ThreadPublisher = {
   readonly threadId: ThreadId
   readonly onChunk: ChunkFilter
   toolOutput(args: { callId: CallId; text: string }): void
+  eventsAppended(args?: { onListenerError?: ListenerErrorSink }): void
   settleAppend(args: { events: readonly Event[] }): void
   close(args: { end: EStepEnd }): void
   retrying(notice: Omit<RetryWaitingSignal, 'type'>): void
@@ -179,6 +182,20 @@ export function createDeltaChannel(): DeltaChannel {
 
         toolOutput({ callId, text }) {
           publish({ state: stateFor(threadId), signal: { type: 'tool-output', callId, text } })
+        },
+
+        eventsAppended(args) {
+          const state = threads.get(threadId)
+          if (state === undefined) return
+
+          const signal: ChannelSignal = { type: 'events-appended' }
+          for (const listener of [...state.listeners]) {
+            try {
+              listener(signal)
+            } catch (cause) {
+              args?.onListenerError?.(cause)
+            }
+          }
         },
 
         settleAppend({ events }) {
