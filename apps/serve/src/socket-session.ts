@@ -1,7 +1,7 @@
 import type { ServerWebSocket } from 'bun'
 
 import { eventBodySchema, type EventDraft, type ThreadId } from '@dltech/atlas-core'
-import { rosterWireSchema } from '@dltech/atlas-wire'
+import { rosterWireSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import type { StepId } from '@dltech/atlas-harness'
 
@@ -53,6 +53,7 @@ export type SessionHandlers = {
   park: (args: { reason: string }) => void
   hangUp: () => void
   clients: () => number
+  settling: () => boolean
 }
 
 /** A serve without registries (a spec fake) has nothing to report — an empty roster, not an error. */
@@ -72,6 +73,9 @@ export function createSessionHandlers(args: {
   files: Pick<FileBrowser, 'list'>
   publish: WorkspacePublisher
   refusal: () => string | null
+  admissionClosed?: (() => boolean) | undefined
+  checkpoint?: (() => RuntimeCheckpoint | null) | undefined
+  checkpointChanged?: (() => void) | undefined
   log: ServeLog
   roster?: ServeRoster | undefined
   rewind?: ServeRewind | undefined
@@ -96,7 +100,18 @@ export function createSessionHandlers(args: {
   const sessionArchive = args.sessionArchive
   const memoryArchive = args.memoryArchive
   const restoreTranscript = args.restoreTranscript
+  const admissionClosed = args.admissionClosed
+  const checkpoint = args.checkpoint
+  const checkpointChanged = args.checkpointChanged
   let restoring: Promise<{ restored: boolean; failed: string | null }> | null = null
+  let mutations = 0
+  const mutation = <T>(promise: Promise<T>): Promise<T> => {
+    mutations += 1
+    return promise.finally(() => {
+      mutations -= 1
+      checkpointChanged?.()
+    })
+  }
   const live = new Set<SessionSocket>()
   const attached = new Set<SessionSocket>()
   const aliaser = createStepAliaser()
@@ -145,6 +160,7 @@ export function createSessionHandlers(args: {
         seq: buffer.nextSeq(),
         protocol: CHANNEL_PROTOCOL_VERSION,
         turnInFlight: driver.running(),
+        checkpoint: checkpoint?.() ?? null,
       },
     })
 
@@ -179,6 +195,15 @@ export function createSessionHandlers(args: {
 
   const drive = (args: { socket: SessionSocket; frame: ClientFrame }): void => {
     const { socket, frame } = args
+
+    const reading = frame.kind === EClientFrame.Request && (
+      isTranscriptReadOp(frame.op) || frame.op === EClientRequest.ListRoster || frame.op === EClientRequest.ReadRuntimeCheckpoint ||
+      frame.op === EClientRequest.ReadSessionArchive || frame.op === EClientRequest.ReadMemoryArchive
+    )
+    if (admissionClosed?.() === true && !reading) {
+      refuseDeferred({ socket, frame, message: 'this sandbox is parking and accepts no new work' })
+      return
+    }
 
     const isRestoreOp = frame.kind === EClientFrame.Request && frame.op === EClientRequest.RestoreTranscript
     if (restoring !== null && !isRestoreOp) {
@@ -238,6 +263,7 @@ export function createSessionHandlers(args: {
     }
 
     if (frame.kind === EClientFrame.Interrupt) {
+      log({ event: EServeEvent.InterruptRequested, threadId, actor: 'client', running: driver.running() })
       driver.interrupt()
       send({ socket, frame: { kind: EServeFrame.InterruptAcked, seq: buffer.nextSeq() } })
       return
@@ -254,6 +280,11 @@ export function createSessionHandlers(args: {
     }
 
     if (frame.kind !== EClientFrame.Request) return
+
+    if (frame.op === EClientRequest.ReadRuntimeCheckpoint) {
+      send({ socket, frame: answeredRequest({ replyTo: frame.id, data: { checkpoint: checkpoint?.() ?? null } }) })
+      return
+    }
 
     if (frame.op === EClientRequest.ListRoster) {
       send({
@@ -278,14 +309,17 @@ export function createSessionHandlers(args: {
         return
       }
       const target = rewind.target
-      void answerRewind({
+      void mutation(answerRewind({
         frame,
         threadId,
         target,
         driver,
         ...(rewind.truncate === undefined ? {} : { truncate: { truncate: rewind.truncate } }),
-      })
-        .then((reply) => send({ socket, frame: reply }))
+      }))
+        .then((reply) => {
+          if (reply.ok) checkpointChanged?.()
+          send({ socket, frame: reply })
+        })
         .catch((error: unknown) =>
           send({
             socket,
@@ -332,12 +366,12 @@ export function createSessionHandlers(args: {
         })
         return
       }
-      void answerTranscriptWrite({
+      void mutation(answerTranscriptWrite({
         frame,
         transcript,
         threadId,
         ...(selectModel === undefined ? {} : { select: selectModel }),
-      })
+      }))
         .then((reply) => send({ socket, frame: reply }))
         .catch((error: unknown) =>
           send({
@@ -374,15 +408,16 @@ export function createSessionHandlers(args: {
         restoring = null
       })
       void restoring
-        .then((result) =>
+        .then((result) => {
+          if (result.restored) checkpointChanged?.()
           send({
             socket,
             frame:
               result.failed === null
                 ? answeredRequest({ replyTo: frame.id, data: { restored: result.restored } })
                 : refusedRequest({ replyTo: frame.id, message: result.failed }),
-          }),
-        )
+          })
+        })
         .catch((error: unknown) =>
           send({
             socket,
@@ -462,7 +497,7 @@ export function createSessionHandlers(args: {
       return
     }
 
-    void answerRequest({ frame, files, publish })
+    void mutation(answerRequest({ frame, files, publish }))
       .then((reply) => send({ socket, frame: reply }))
       .catch((error: unknown) =>
         send({
@@ -521,7 +556,7 @@ export function createSessionHandlers(args: {
     close({ socket }) {
       live.delete(socket)
       if (!attached.delete(socket)) return
-      log({ event: EServeEvent.ClientDetached, clients: attached.size })
+      log({ event: EServeEvent.ClientDetached, clients: attached.size, actor: 'transport', running: driver.running(), execution: 'preserved' })
     },
 
     broadcast(frame) {
@@ -549,7 +584,7 @@ export function createSessionHandlers(args: {
       const clients = [...attached]
       log({ event: EServeEvent.ClientsParked, clients: clients.length, reason: args.reason })
       for (const socket of clients) {
-        send({ socket, frame: { kind: EServeFrame.Parked, reason: args.reason } })
+        send({ socket, frame: { kind: EServeFrame.Parked, reason: args.reason, checkpoint: checkpoint?.() ?? null } })
         socket.close(GOING_AWAY, args.reason)
       }
     },
@@ -561,5 +596,6 @@ export function createSessionHandlers(args: {
     },
 
     clients: () => attached.size,
+    settling: () => restoring !== null || mutations > 0,
   }
 }
