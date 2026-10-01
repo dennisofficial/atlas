@@ -5,7 +5,7 @@ import { toRunId, toThreadId } from '@dltech/atlas-core'
 import { ETurnStatus, type TurnOutcome } from '../../loop/turn-outcome'
 import { EClientFrame, encodeFrame, EServeFrame } from '../channel-wire'
 import { EChannelConnection } from '../remote-delta-channel'
-import { RemoteTurnRunner } from '../remote-turn-runner'
+import { RemoteTurnDetached, RemoteTurnRunner } from '../remote-turn-runner'
 
 import { harness, OTHER_THREAD, THREAD } from './remote-channel-fixture'
 
@@ -274,7 +274,7 @@ describe('a turn the socket outlives', () => {
     await expect(turn).rejects.toThrow()
   })
 
-  it('holds the pending turn through a re-attach, then fails it once the fresh serve says the turn did not survive', async () => {
+  it('holds the pending turn through a re-attach, then detaches it once the fresh serve says nothing is in flight — the turn finished while detached, it did not fail', async () => {
     const { channel, open, receive, drop, retries, live } = harness({
       maxAttempts: 1,
       reattach: async () => ({ url: 'https://fresh.test/', token: 'tok_fresh' }),
@@ -301,7 +301,11 @@ describe('a turn the socket outlives', () => {
     live().handlers.handleOpen()
     live().handlers.handleMessage('{"kind":"ready","seq":2,"turnInFlight":false}')
 
-    await expect(turn).rejects.toThrow('did not survive')
+    const failure = await turn.then(
+      () => null,
+      (error: unknown) => error,
+    )
+    expect(failure).toBeInstanceOf(RemoteTurnDetached)
   })
 
   it('keeps waiting once the fresh serve reports the turn survived the re-attach', async () => {
@@ -363,7 +367,7 @@ describe('a turn the socket outlives', () => {
     await expect(turn).resolves.toMatchObject({ status: ETurnStatus.Interrupted })
   })
 
-  it('fails the pending turn when a re-attached serve omits turnInFlight, as a serve built before this field existed would', async () => {
+  it('detaches the pending turn when a re-attached serve omits turnInFlight — a serve built before this field existed cannot be driving the turn it was', async () => {
     const { channel, open, receive, drop, retries, live } = harness({
       maxAttempts: 1,
       reattach: async () => ({ url: 'https://fresh.test/', token: 'tok_fresh' }),
@@ -381,7 +385,11 @@ describe('a turn the socket outlives', () => {
     live().handlers.handleOpen()
     live().handlers.handleMessage('{"kind":"ready","seq":2}')
 
-    await expect(turn).rejects.toThrow('did not survive')
+    const failure = await turn.then(
+      () => null,
+      (error: unknown) => error,
+    )
+    expect(failure).toBeInstanceOf(RemoteTurnDetached)
   })
 
   it('keeps waiting through a reconnect, since the turn runs on server-side', async () => {

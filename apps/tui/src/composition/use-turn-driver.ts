@@ -8,6 +8,7 @@ import {
   ESuppress,
   LocalRewindMachinery,
   PauseSignal,
+  RemoteTurnDetached,
   RemoteTurnRunner,
   rewindThread,
   type RemoteDeltaChannel,
@@ -294,8 +295,10 @@ export function useTurnDriver(args: {
           const said = app.turnPolicy.undone()
           if (said !== null) onUndone(said)
         } catch (error) {
-          await app.turnPolicy.onCrashed({ threadId })
-          setFailure(messageOf(error))
+          if (!(error instanceof RemoteTurnDetached)) {
+            await app.turnPolicy.onCrashed({ threadId })
+            setFailure(messageOf(error))
+          }
         } finally {
           gate.settle()
           abort.current = null

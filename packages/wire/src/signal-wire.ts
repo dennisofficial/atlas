@@ -104,6 +104,7 @@ export enum EStepEnd {
   Interrupted = 'interrupted',
   Failed = 'failed',
   Retried = 'retried',
+  Detached = 'detached',
 }
 
 const stepIdWireSchema = z.string().min(1).brand<'StepId'>()

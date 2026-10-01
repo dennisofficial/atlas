@@ -19,6 +19,7 @@ import {
   createRemoteDeltaChannel,
   EChannelConnection,
   RemotePublishRefused,
+  STRANDED_STEP_END,
   type ChannelReload,
   type ChannelSocketHandlers,
 } from '../remote-delta-channel'
@@ -273,7 +274,7 @@ describe('a gap the channel cannot replay', () => {
     expect(seen.at(-1)).toEqual({
       type: 'step-ended',
       stepId: STEP,
-      end: EStepEnd.Failed,
+      end: STRANDED_STEP_END,
       supersededBy: null,
     })
     expect(channel.snapshot({ threadId: THREAD })).toEqual([])
@@ -308,7 +309,7 @@ describe('a gap the channel cannot replay', () => {
     expect(seen).toEqual([
       started,
       chunkSignal('auth'),
-      { type: 'step-ended', stepId: STEP, end: EStepEnd.Failed, supersededBy: null },
+      { type: 'step-ended', stepId: STEP, end: STRANDED_STEP_END, supersededBy: null },
     ])
     expect(reloads).toEqual([{ sinceEventSeq: 31 }])
     expect(channel.connection().state).toBe(EChannelConnection.Open)
@@ -329,7 +330,7 @@ describe('a gap the channel cannot replay', () => {
 
     expect(seen).toEqual([
       started,
-      { type: 'step-ended', stepId: STEP, end: EStepEnd.Failed, supersededBy: null },
+      { type: 'step-ended', stepId: STEP, end: STRANDED_STEP_END, supersededBy: null },
       chunkSignal('next'),
     ])
     expect(reloads).toHaveLength(1)
@@ -390,7 +391,7 @@ describe('losing the socket', () => {
 
     drop()
 
-    expect(seen.at(-1)).toMatchObject({ type: 'step-ended', end: EStepEnd.Failed })
+    expect(seen.at(-1)).toMatchObject({ type: 'step-ended', end: STRANDED_STEP_END })
     expect(channel.connection().state).toBe(EChannelConnection.Closed)
   })
 })
@@ -417,7 +418,7 @@ describe('a sandbox that parked', () => {
 
     receive({ kind: EServeFrame.Parked, reason: 'idle past the ttl' })
 
-    expect(seen.at(-1)).toMatchObject({ type: 'step-ended', end: EStepEnd.Failed })
+    expect(seen.at(-1)).toMatchObject({ type: 'step-ended', end: STRANDED_STEP_END })
   })
 
   it('stays parked when the socket closes behind the parked frame', () => {
@@ -593,7 +594,7 @@ describe('closing the channel', () => {
     channel.close()
     socket.handlers.handleClose()
 
-    expect(seen.at(-1)).toMatchObject({ type: 'step-ended', end: EStepEnd.Failed })
+    expect(seen.at(-1)).toMatchObject({ type: 'step-ended', end: STRANDED_STEP_END })
     expect(socket.closed).toBe(true)
     expect(channel.connection().state).toBe(EChannelConnection.Closed)
     expect(retries).toEqual([])

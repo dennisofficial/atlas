@@ -4,6 +4,13 @@ import { TurnRunner, type PauseSignal, type TurnOutcome } from '../loop'
 
 import { EChannelConnection, type RemoteDeltaChannel } from './remote-delta-channel'
 
+export class RemoteTurnDetached extends Error {
+  constructor(reason: string) {
+    super(reason)
+    this.name = 'RemoteTurnDetached'
+  }
+}
+
 type Waiter = {
   resolve: (outcome: TurnOutcome) => void
   reject: (error: Error) => void
@@ -30,23 +37,30 @@ export class RemoteTurnRunner extends TurnRunner {
     })
     this.channel.onConnection((connection) => {
       if (connection.state === EChannelConnection.Reattaching) {
-        // Held rather than failed: serve keeps a turn running with zero clients attached, and the
-        // reattached channel's next Ready frame says whether this one actually survived.
         this.heldForReattach = true
+        return
+      }
+      if (connection.state === EChannelConnection.Parked) {
+        this.heldForReattach = false
+        this.detachAll('The sandbox parked after this client lost its turn outcome.')
         return
       }
       if (connection.state !== EChannelConnection.Closed) return
       this.heldForReattach = false
-      this.failAll(connection.detail ?? 'The session socket closed mid-turn.')
+      this.detachAll(connection.detail ?? 'The session socket closed mid-turn.')
     })
     this.channel.onReady((ready) => {
       if (!this.heldForReattach) return
       this.heldForReattach = false
       if (ready.turnInFlight) return
-      this.failAll('The sandbox was re-attached — the turn it was running did not survive.')
+      this.detachAll('The sandbox finished the turn while this client was detached.')
     })
     this.channel.onServerError((failure) => {
       this.waiters.shift()?.reject(new Error(failure.message))
+    })
+    this.channel.onDetached?.((reason) => {
+      this.heldForReattach = false
+      this.detachAll(reason)
     })
   }
 
@@ -136,8 +150,8 @@ export class RemoteTurnRunner extends TurnRunner {
     })
   }
 
-  private failAll(reason: string): void {
-    const error = new Error(reason)
-    while (this.waiters.length > 0) this.waiters.shift()?.reject(error)
+  private detachAll(reason: string): void {
+    const detached = new RemoteTurnDetached(reason)
+    while (this.waiters.length > 0) this.waiters.shift()?.reject(detached)
   }
 }
