@@ -1,6 +1,7 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
 import { EClientFrame, EClientRequest, type ClientFrame, encodeFrame } from './channel-wire'
+import { requestTimeoutFor } from './request-timeout'
 
 export class RemotePublishRefused extends Error {
   constructor(threadId: ThreadId) {
@@ -51,6 +52,8 @@ const SAFE_TO_REDRIVE: ReadonlySet<EClientRequest> = new Set([
   EClientRequest.ReadTurns,
   EClientRequest.ReadSessionArchive,
   EClientRequest.ReadMemoryArchive,
+  EClientRequest.ReadTranscriptIdentity,
+  EClientRequest.RestoreTranscript,
 ])
 
 type SendFrame = Extract<ClientFrame, { kind: EClientFrame.Send }>
@@ -72,7 +75,7 @@ type Waiting = {
 }
 
 export function createUpstreamPipe(args: {
-  timeoutMs: number
+  timeoutMs?: number | undefined
   scheduleTimeout: (timeout: { delayMs: number; run: () => void }) => void
 }): UpstreamPipe {
   const waiting = new Map<string, Waiting>()
@@ -111,11 +114,12 @@ export function createUpstreamPipe(args: {
         const frame = { kind: EClientFrame.Request, id, op, params } as const
         if (SAFE_TO_REDRIVE.has(op)) redrivable.set(id, frame)
         emit(frame)
+        const timeoutMs = requestTimeoutFor({ op, overrideMs: args.timeoutMs })
         args.scheduleTimeout({
-          delayMs: args.timeoutMs,
+          delayMs: timeoutMs,
           run: () =>
             claim(id)?.reject(
-              new RemoteRequestLost({ op, reason: `it timed out after ${args.timeoutMs}ms` }),
+              new RemoteRequestLost({ op, reason: `it timed out after ${timeoutMs}ms` }),
             ),
         })
       })

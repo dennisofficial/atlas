@@ -423,6 +423,13 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
       await hydrateCloudPlacement({ app, threadId })
       const receiptAfter = await transcriptBootstrapReceipt({ atlasHome: driveHome })
       if (receiptAfter !== receiptBefore || receiptAfter === null) {
+        const restoredThread = await app.threads.find({ threadId })
+        if (app.modelBridge !== undefined && restoredThread?.model !== undefined) {
+          app.modelBridge.select({
+            ref: restoredThread.model.ref,
+            effort: restoredThread.model.effort ?? app.modelBridge.effort(),
+          })
+        }
         adoptChildrenInBackground({ app, threadId, log, settling, note: () => idleStop.note() })
       }
       return result

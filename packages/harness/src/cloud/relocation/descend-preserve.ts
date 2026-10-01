@@ -5,7 +5,8 @@ import { join } from 'node:path'
 import type { ThreadId } from '@dltech/atlas-core'
 
 import { extractSessionArchive } from '../session-archive'
-import { requireReadableIncomingFamily, requireValidatedIncomingRoot } from './descend-validate'
+import { requireReadableIncomingFamily } from './descend-family'
+import { requireValidatedIncomingRoot } from './descend-validate'
 
 const sessionDirectoryNameOf = ({ threadId }: { threadId: string }): string => {
   const segments = threadId.split('/')
@@ -35,7 +36,11 @@ export async function replaceSessionDirectoryGuarded(args: {
       threadId: args.threadId,
       localDir: args.sessionDir,
     })
-    await requireReadableIncomingFamily({ sessionDir: stagedDir, root })
+    await requireReadableIncomingFamily({
+      sessionDir: stagedDir,
+      root,
+      threadId: args.threadId,
+    })
   } finally {
     await rm(scratch, { recursive: true, force: true }).catch(() => undefined)
   }

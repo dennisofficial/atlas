@@ -108,7 +108,6 @@ const RETRY_CEILING_MS = 30_000
 const FIRST_RETRY_MS = 500
 const DEFAULT_MAX_ATTEMPTS = 8
 const DEFAULT_MAX_REATTACHMENTS = 3
-const DEFAULT_REQUEST_TIMEOUT_MS = 10_000
 
 const NOTHING_IN_FLIGHT: readonly StepSignal[] = Object.freeze([])
 
@@ -186,7 +185,7 @@ export function createRemoteDeltaChannel(args: {
   const failures = registryOf<ChannelFailure>()
   const serverErrors = registryOf<ChannelFailure>()
   const upstream = createUpstreamPipe({
-    timeoutMs: args.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
+    timeoutMs: args.requestTimeoutMs,
     scheduleTimeout,
   })
 

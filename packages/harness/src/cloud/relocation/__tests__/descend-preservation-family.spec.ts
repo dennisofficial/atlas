@@ -42,10 +42,9 @@ describe('the descend validating the incoming family', () => {
     expect(sessionDirBytes({ home })).toEqual(before)
   })
 
-  it('refuses an archive whose retained child log is truncated, whole session dir intact', async () => {
+  it('lands an archive whose child log ends torn, preserving the torn bytes raw', async () => {
     const { home, threads } = useStoreHome()
     await seedLocalHistory({ home, threads, texts: ['parent speaks'] })
-    const before = sessionDirBytes({ home })
     const child = toThreadId(`${CLOUD_THREAD}/kid`)
     const archive = await familyArchiveWithChild({
       child,
@@ -53,11 +52,14 @@ describe('the descend validating the incoming family', () => {
     })
     const channel = fakeCloudChannel({ archive })
 
-    await expect(transferTranscriptDown({ threadId: CLOUD_THREAD, channel })).rejects.toThrow(
-      'ends in a torn line',
-    )
+    await transferTranscriptDown({ threadId: CLOUD_THREAD, channel })
 
-    expect(sessionDirBytes({ home })).toEqual(before)
+    const landed = readFileSync(
+      eventLogFile({ sessionDir: sessionDirOf({ home }), threadId: child }),
+    )
+    const torn = Buffer.from('{"v":1,"id":"evt_torn","seq":2')
+    expect(landed.subarray(landed.length - torn.length).equals(torn)).toBe(true)
+    expect(landed.toString('utf8')).toContain('child speaks')
   })
 
   it('lands a family archive whose child is retained with a matching head', async () => {

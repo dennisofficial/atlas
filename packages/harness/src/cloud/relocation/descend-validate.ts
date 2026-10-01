@@ -1,23 +1,13 @@
-import { readdir, readFile } from 'node:fs/promises'
-import { join, relative } from 'node:path'
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 
 import { toThreadId, type ThreadId } from '@dltech/atlas-core'
 import { z } from 'zod'
 
 import { EUnreadableReason } from '../../store/decode-events'
 import { parseEventLines } from '../../store/sessions/lines'
-import {
-  readMeta,
-  readSessionMetaSync,
-  threadMetaSchema,
-  type ThreadMeta,
-} from '../../store/sessions/meta'
-import {
-  eventLogFile,
-  sessionMetaFile,
-  threadMetaFile,
-  threadsDirectory,
-} from '../../store/sessions/paths'
+import { readMeta, readSessionMetaSync, threadMetaSchema } from '../../store/sessions/meta'
+import { eventLogFile, sessionMetaFile, threadMetaFile } from '../../store/sessions/paths'
 
 export const TRANSCRIPT_ORIGIN_FILE_NAME = 'transcript-origin.json'
 
@@ -32,6 +22,14 @@ export type TranscriptOrigin = z.infer<typeof transcriptOriginSchema>
 export type ValidatedIncomingRoot = {
   provenance: TranscriptOrigin | undefined
   rootSpeaks: boolean
+  spawned: ThreadId[]
+}
+
+export type ParsedThreadLog = {
+  speaks: boolean
+  spawned: ThreadId[]
+  head: number
+  torn: boolean
 }
 
 const CONVERSATIONAL_TYPES: ReadonlySet<string> = new Set([
@@ -86,16 +84,11 @@ const readProvenance = async (args: {
   return origin.data
 }
 
-type ParsedThreadLog = {
-  speaks: boolean
-  spawned: ThreadId[]
-  head: number
-}
-
-const readThreadLog = async (args: {
+export const readIncomingThreadLog = async (args: {
   sessionDir: string
   threadId: ThreadId
   label: string
+  tolerateTornTail: boolean
 }): Promise<ParsedThreadLog> => {
   const file = eventLogFile({ sessionDir: args.sessionDir, threadId: args.threadId })
   const text = await readFile(file, 'utf8').catch((error: unknown) => {
@@ -105,7 +98,7 @@ const readThreadLog = async (args: {
   })
   const parsed = parseEventLines({ text, threadId: args.threadId })
   const torn = parsed.unreadable.some((row) => row.reason === EUnreadableReason.TruncatedTail)
-  if (args.label !== 'main-thread' && torn) {
+  if (torn && !args.tolerateTornTail) {
     throw new Error(
       `the cloud transcript ${args.label} event log ends in a torn line — refusing to wipe the local copy`,
     )
@@ -122,7 +115,29 @@ const readThreadLog = async (args: {
       .filter((event) => event.type === 'agent-spawned')
       .map((event) => toThreadId(event.agentId)),
     head: parsed.head,
+    torn,
   }
+}
+
+export const readIncomingThreadMeta = async (args: {
+  sessionDir: string
+  threadId: ThreadId
+}): Promise<{ head: number }> => {
+  const meta = await readMeta({
+    file: threadMetaFile({ sessionDir: args.sessionDir, threadId: args.threadId }),
+    schema: threadMetaSchema,
+  })
+  if (meta === undefined) {
+    throw new Error(
+      `the cloud transcript thread ${args.threadId} has no readable metadata — refusing to wipe the local copy`,
+    )
+  }
+  if (meta.id !== args.threadId) {
+    throw new Error(
+      `the cloud transcript thread metadata ${args.threadId} names a different thread — refusing to wipe the local copy`,
+    )
+  }
+  return meta
 }
 
 const localRootSpeaks = async (args: {
@@ -175,11 +190,21 @@ export const requireValidatedIncomingRoot = async (args: {
     sessionDir: args.sessionDir,
     threadId: args.threadId,
   })
-  const rootLog = await readThreadLog({
+  const rootLog = await readIncomingThreadLog({
     sessionDir: args.sessionDir,
     threadId: args.threadId,
     label: 'main-thread',
+    tolerateTornTail: true,
   })
+  const rootMeta = await readIncomingThreadMeta({
+    sessionDir: args.sessionDir,
+    threadId: args.threadId,
+  })
+  if (rootLog.head < rootMeta.head && !rootLog.torn) {
+    throw new Error(
+      `the cloud transcript thread ${args.threadId} log decodes to head ${rootLog.head} but its metadata says ${rootMeta.head} — refusing to wipe the local copy`,
+    )
+  }
   const localSpeaks = await localRootSpeaks({
     sessionDir: args.localDir,
     threadId: args.threadId,
@@ -189,105 +214,5 @@ export const requireValidatedIncomingRoot = async (args: {
       'the cloud transcript carries no conversation and no serve-stamped provenance, but the local copy holds history — refusing to wipe the local copy',
     )
   }
-  return { provenance, rootSpeaks: rootLog.speaks }
-}
-
-const readIncomingThreadMeta = async (args: {
-  sessionDir: string
-  threadId: ThreadId
-}): Promise<ThreadMeta> => {
-  const meta = await readMeta({
-    file: threadMetaFile({ sessionDir: args.sessionDir, threadId: args.threadId }),
-    schema: threadMetaSchema,
-  })
-  if (meta === undefined) {
-    throw new Error(
-      `the cloud transcript thread ${args.threadId} has no readable metadata — refusing to wipe the local copy`,
-    )
-  }
-  if (meta.id !== args.threadId) {
-    throw new Error(
-      `the cloud transcript thread metadata ${args.threadId} names a different thread — refusing to wipe the local copy`,
-    )
-  }
-  return meta
-}
-
-const requireIncomingThread = async (args: {
-  sessionDir: string
-  threadId: ThreadId
-}): Promise<ParsedThreadLog> => {
-  const meta = await readIncomingThreadMeta({
-    sessionDir: args.sessionDir,
-    threadId: args.threadId,
-  })
-  const label = args.threadId.includes('/') ? 'child' : 'main-thread'
-  const log = await readThreadLog({
-    sessionDir: args.sessionDir,
-    threadId: args.threadId,
-    label: `${label} ${args.threadId}`,
-  })
-  if (log.head !== meta.head) {
-    throw new Error(
-      `the cloud transcript thread ${args.threadId} log decodes to head ${log.head} but its metadata says ${meta.head} — refusing to wipe the local copy`,
-    )
-  }
-  return log
-}
-
-const THREAD_META_SUFFIX = '.meta.json'
-
-const listThreadMetasUnder = async (args: {
-  sessionDir: string
-  root: string
-  dir: string
-  into: ThreadId[]
-}): Promise<void> => {
-  const entries = await readdir(args.dir, { withFileTypes: true }).catch((error: unknown) => {
-    throw new Error(
-      `the cloud transcript threads directory could not be read (${messageOf(error)}) — refusing to wipe the local copy`,
-    )
-  })
-  for (const entry of entries) {
-    const path = join(args.dir, entry.name)
-    if (entry.isDirectory()) {
-      await listThreadMetasUnder({ ...args, dir: path })
-      continue
-    }
-    if (!entry.isFile() || !entry.name.endsWith(THREAD_META_SUFFIX)) continue
-    const relativeName = relative(args.root, path.slice(0, -THREAD_META_SUFFIX.length))
-      .split('/')
-      .join('/')
-    if (relativeName.startsWith('..') || relativeName === '') continue
-    const derived = toThreadId(relativeName)
-    if (threadMetaFile({ sessionDir: args.sessionDir, threadId: derived }) !== path) continue
-    args.into.push(derived)
-  }
-}
-
-const listIncomingThreadIds = async (args: { sessionDir: string }): Promise<ThreadId[]> => {
-  const root = threadsDirectory({ sessionDir: args.sessionDir })
-  const into: ThreadId[] = []
-  await listThreadMetasUnder({ sessionDir: args.sessionDir, root, dir: root, into })
-  return into
-}
-
-export const requireReadableIncomingFamily = async (args: {
-  sessionDir: string
-  root: ValidatedIncomingRoot
-}): Promise<void> => {
-  const present = await listIncomingThreadIds({ sessionDir: args.sessionDir })
-  const referenced: ThreadId[] = []
-  const logs = new Map<ThreadId, ParsedThreadLog>()
-  for (const threadId of present) {
-    logs.set(threadId, await requireIncomingThread({ sessionDir: args.sessionDir, threadId }))
-  }
-  for (const log of logs.values()) referenced.push(...log.spawned)
-  for (const spawned of referenced) {
-    if (!logs.has(spawned)) {
-      throw new Error(
-        `the cloud transcript still references child ${spawned} but the archive holds no readable thread for it — refusing to wipe the local copy`,
-      )
-    }
-  }
+  return { provenance, rootSpeaks: rootLog.speaks, spawned: rootLog.spawned }
 }

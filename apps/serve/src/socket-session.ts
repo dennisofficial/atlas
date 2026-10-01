@@ -164,6 +164,15 @@ export function createSessionHandlers(args: {
     })
   }
 
+  const refuseDeferred = (args: { socket: SessionSocket; frame: ClientFrame; message: string }): void => {
+    send({
+      socket: args.socket,
+      frame: args.frame.kind === EClientFrame.Request
+        ? refusedRequest({ replyTo: args.frame.id, message: args.message })
+        : { kind: EServeFrame.Error, message: args.message },
+    })
+  }
+
   const drive = (args: { socket: SessionSocket; frame: ClientFrame }): void => {
     const { socket, frame } = args
 
@@ -172,13 +181,12 @@ export function createSessionHandlers(args: {
       const held = restoring
       void held.then((result) => {
         if (result.failed !== null) {
-          send({
-            socket,
-            frame: { kind: EServeFrame.Error, message: `the transcript restore failed: ${result.failed}` },
-          })
+          refuseDeferred({ ...args, message: `the transcript restore failed: ${result.failed}` })
           return
         }
         drive({ socket, frame })
+      }).catch((error: unknown) => {
+        refuseDeferred({ ...args, message: messageOf(error, 'the transcript restore failed') })
       })
       return
     }

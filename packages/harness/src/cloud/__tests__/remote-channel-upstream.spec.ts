@@ -227,6 +227,51 @@ describe('a request riding the session socket', () => {
     expect((failure as RemoteRequestLost).message).toContain('2500ms')
   })
 
+  describe('the per-op timeout budget', () => {
+    it('gives an ordinary read the default ten seconds', () => {
+      const { channel, timeouts } = readied()
+
+      void channel
+        .request({ op: EClientRequest.ReadEvents, params: {} })
+        .catch(() => undefined)
+
+      expect(timeouts[0]?.delayMs).toBe(10_000)
+    })
+
+    it('gives the archive and identity ops two minutes, since extracts and digests outlast a read', () => {
+      const { channel, timeouts } = readied()
+
+      void channel.request({ op: EClientRequest.RestoreTranscript, params: {} }).catch(() => undefined)
+      void channel.request({ op: EClientRequest.ReadSessionArchive, params: {} }).catch(() => undefined)
+      void channel.request({ op: EClientRequest.ReadMemoryArchive, params: {} }).catch(() => undefined)
+      void channel
+        .request({ op: EClientRequest.ReadTranscriptIdentity, params: {} })
+        .catch(() => undefined)
+
+      expect(timeouts.map((timeout) => timeout.delayMs)).toEqual([120_000, 120_000, 120_000, 120_000])
+    })
+
+    it('lets an explicit requestTimeoutMs override the per-op default', () => {
+      const { channel, timeouts } = readied({ requestTimeoutMs: 2_500 })
+
+      void channel.request({ op: EClientRequest.RestoreTranscript, params: {} }).catch(() => undefined)
+      void channel.request({ op: EClientRequest.ReadEvents, params: {} }).catch(() => undefined)
+
+      expect(timeouts.map((timeout) => timeout.delayMs)).toEqual([2_500, 2_500])
+    })
+
+    it('fails closed when a restore on an old serve runs past the budget', async () => {
+      const { channel, timeouts } = readied()
+
+      const answer = channel.request({ op: EClientRequest.RestoreTranscript, params: {} })
+      timeouts[0]?.run()
+
+      const failure = await answer.catch((error: unknown) => error)
+      expect(failure).toBeInstanceOf(RemoteRequestLost)
+      expect((failure as RemoteRequestLost).message).toContain('120000ms')
+    })
+  })
+
   describe('a read in flight when the socket closes', () => {
     it('keeps it pending and re-drives it on the next ready', async () => {
       const { channel, drop, retries, receive, live } = readied()
@@ -314,6 +359,56 @@ describe('a request riding the session socket', () => {
     drop()
 
     await expect(answer).rejects.toBeInstanceOf(RemoteRequestLost)
+  })
+
+  describe('a restore or identity request in flight when the socket closes', () => {
+    it('re-drives the restore on the next ready with the same id and op', async () => {
+      const { channel, drop, retries, receive, live } = readied()
+
+      const answer = channel.request({ op: EClientRequest.RestoreTranscript, params: {} })
+      const first = upstreamOf(live().sent).find((frame) => frame.kind === EClientFrame.Request)
+      drop()
+
+      retries[0]?.run()
+      live().handlers.handleOpen()
+      receive({ kind: EServeFrame.Ready, seq: 9 })
+
+      const resent = upstreamOf(live().sent).filter((frame) => frame.kind === EClientFrame.Request)
+      expect(resent).toHaveLength(1)
+      expect(resent[0]).toMatchObject({ op: EClientRequest.RestoreTranscript, params: {} })
+      const id = resent[0]?.kind === EClientFrame.Request ? resent[0].id : ''
+      expect(id).toBe(first?.kind === EClientFrame.Request ? first.id : '')
+
+      receive({ kind: EServeFrame.Reply, replyTo: id, ok: true, data: { restored: true } })
+      expect(await answer).toEqual({ restored: true })
+    })
+
+    it('re-drives the transcript-identity read on the next ready with the same id and op', async () => {
+      const { channel, drop, retries, receive, live } = readied()
+
+      const answer = channel.request({
+        op: EClientRequest.ReadTranscriptIdentity,
+        params: { threadId: 'brn_cloud', upTo: 0 },
+      })
+      const first = upstreamOf(live().sent).find((frame) => frame.kind === EClientFrame.Request)
+      drop()
+
+      retries[0]?.run()
+      live().handlers.handleOpen()
+      receive({ kind: EServeFrame.Ready, seq: 9 })
+
+      const resent = upstreamOf(live().sent).filter((frame) => frame.kind === EClientFrame.Request)
+      expect(resent).toHaveLength(1)
+      expect(resent[0]).toMatchObject({
+        op: EClientRequest.ReadTranscriptIdentity,
+        params: { threadId: 'brn_cloud', upTo: 0 },
+      })
+      const id = resent[0]?.kind === EClientFrame.Request ? resent[0].id : ''
+      expect(id).toBe(first?.kind === EClientFrame.Request ? first.id : '')
+
+      receive({ kind: EServeFrame.Reply, replyTo: id, ok: true, data: { count: 0, digest: 'd' } })
+      expect(await answer).toEqual({ count: 0, digest: 'd' })
+    })
   })
 
   it('rejects every request in flight when the channel closes', async () => {
