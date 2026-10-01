@@ -2,6 +2,7 @@ import {
   CLOUD_WORKSPACE_PATH,
   EExecutionLocation,
   EHarnessPlacement,
+  type Event,
   type LogPort,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -13,7 +14,8 @@ import { logFieldsOf } from '../../store/logs'
 import { atlasDirectory } from '../../store/paths'
 import { sessionDirectory } from '../../store/sessions/paths'
 import { exportGpgMaterial } from '../../workspace/gpg-material'
-import type { CloudChannel, CloudSandbox, LiftedWorkspace } from './cloud-bridge'
+import type { CloudAttachment, CloudChannel, CloudSandbox, LiftedWorkspace } from './cloud-bridge'
+import { verifyTranscript } from './verify-transcript'
 import type { RelocationPlan } from './dag'
 import { flipChildrenToCloud } from './lift-children'
 import { ELiftStep, type LiftArgs } from './lift'
@@ -26,8 +28,8 @@ export enum ELiftNode {
   StampModel = 'stampModel',
   ArchiveSession = 'archiveSession',
   Provision = 'provision',
-  ShipSession = 'shipSession',
   ConfirmLanded = 'confirmLanded',
+  Restore = 'restore',
   FlipOwnership = 'flipOwnership',
   Attach = 'attach',
   ResumePaused = 'resumePaused',
@@ -37,7 +39,6 @@ export type LiftCtx = {
   args: LiftArgs
   onProgress: (step: ELiftStep) => void
   logPort?: LogPort | undefined
-  /** The controller's commit seam: the durable placement flips here, once, after the transcript landed. */
   transaction: PlacementTransaction
   from: EExecutionLocation
   workspace: LiftedWorkspace | null
@@ -45,6 +46,8 @@ export type LiftCtx = {
   transcript: Uint8Array | undefined
   sandbox: CloudSandbox | undefined
   channel: CloudChannel | undefined
+  attachment: CloudAttachment | undefined
+  expected: Map<ThreadId, readonly Event[]>
   contextError: unknown
   stopped: StoppedLocally
 }
@@ -117,8 +120,6 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
     run: async (ctx) => {
       ctx.onProgress(ELiftStep.Stopping)
       ctx.stopped = await ctx.args.stopLocal()
-      // Paused children ride the session archive to the sandbox, whose serve re-enters their loops
-      // from the transferred logs (adoptChildren) — they are not resumed on this machine.
       await ctx.args.agents.pauseChildren({ threadId: ctx.args.threadId })
       ctx.args.agents.forgetNotices({ threadId: ctx.args.threadId })
     },
@@ -127,9 +128,6 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
     id: ELiftNode.StampModel,
     needs: [],
     run: async (ctx) => {
-      // The footer selection can live nowhere but ctx.args.model, and the archive reads the
-      // session dir from disk — the meta write must land first or the cloud thread boots on a
-      // stale model.
       await ctx.args.localThreads.chooseModel({ threadId: ctx.args.threadId, model: ctx.args.model })
     },
   },
@@ -138,20 +136,33 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
     needs: [ELiftNode.PauseLoops, ELiftNode.StampModel],
     run: async (ctx) => {
       ctx.onProgress(ELiftStep.Transferring)
+      await ctx.args.localLog.refresh({ threadId: ctx.args.threadId })
+      const family = [ctx.args.threadId]
+      for (const threadId of family) {
+        if (ctx.expected.has(threadId)) continue
+        ctx.expected.set(threadId, await ctx.args.localLog.readOwn({ threadId }))
+        const children = await ctx.args.localThreads.spawned({ threadId })
+        family.push(...children.map((child) => child.id))
+      }
+      if (!ctx.args.started && [...ctx.expected.values()].every((events) => events.length === 0)) return
       ctx.transcript = await buildSessionArchive({
         sessionDir: sessionDirectory({ home: atlasDirectory(), sessionId: ctx.args.threadId }),
       })
+      if (ctx.transcript === undefined && ctx.args.started) {
+        throw new Error('the local transcript could not be archived — nothing moved')
+      }
     },
   },
   {
     id: ELiftNode.Provision,
-    needs: [ELiftNode.CaptureWorkspace, ELiftNode.CaptureGpg],
+    needs: [ELiftNode.CaptureWorkspace, ELiftNode.CaptureGpg, ELiftNode.ArchiveSession],
     run: async (ctx) => {
       ctx.onProgress(ELiftStep.Starting)
       ctx.sandbox = await ctx.args.bridge.sandboxes.create({
         threadId: ctx.args.threadId,
         workspace: ctx.workspace,
         model: ctx.args.model.ref,
+        ...(ctx.transcript === undefined ? {} : { transcript: ctx.transcript }),
         ...(ctx.gpgKey === undefined ? {} : { gpgKey: ctx.gpgKey }),
         captureContext: async (put) => {
           ctx.onProgress(ELiftStep.UploadingContext)
@@ -169,19 +180,8 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
     },
   },
   {
-    id: ELiftNode.ShipSession,
-    needs: [ELiftNode.ArchiveSession, ELiftNode.Provision],
-    run: async (ctx) => {
-      if (ctx.transcript === undefined) return
-      await ctx.args.bridge.sandboxes.putTranscript({
-        threadId: ctx.args.threadId,
-        archive: ctx.transcript,
-      })
-    },
-  },
-  {
     id: ELiftNode.ConfirmLanded,
-    needs: [ELiftNode.ShipSession],
+    needs: [ELiftNode.Provision],
     run: async (ctx) => {
       if (ctx.transcript === undefined) return
       const reply = await ctx.args.bridge.sandboxes.confirmLanded({
@@ -193,14 +193,30 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
     },
   },
   {
-    id: ELiftNode.FlipOwnership,
+    id: ELiftNode.Restore,
     needs: [ELiftNode.ConfirmLanded],
+    run: async (ctx) => {
+      ctx.onProgress(ELiftStep.Attaching)
+      const sandbox = ctx.sandbox
+      if (sandbox === undefined) throw new Error('the lift attached without its sandbox')
+      const attachment = ctx.args.bridge.attach({ threadId: ctx.args.threadId, url: sandbox.url, token: sandbox.token })
+      ctx.attachment = attachment
+      ctx.channel = attachment.channel
+      if (ctx.transcript !== undefined) {
+        const reply = await attachment.channel.request({ op: EClientRequest.RestoreTranscript, params: {} })
+        if (typeof reply !== 'object' || reply === null || !('restored' in reply) || reply.restored !== true) {
+          throw new Error('serve did not restore the transcript — refusing the ownership flip')
+        }
+        await verifyTranscript({ attachment, expected: ctx.expected })
+      }
+    },
+  },
+  {
+    id: ELiftNode.FlipOwnership,
+    needs: [ELiftNode.Restore],
     commit: true,
     run: async (ctx) => {
       const { args } = ctx
-      // Unconditional: the local meta is the pointer every later boot reads to route this thread
-      // to the attach path, so an unstarted /new thread must record the move too — the store
-      // materializes the record for one it has never written.
       await ctx.transaction.commit({
         harness: EHarnessPlacement.Cloud,
         driveName: ctx.sandbox?.driveName,
@@ -223,32 +239,8 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
     id: ELiftNode.Attach,
     needs: [ELiftNode.FlipOwnership],
     run: async (ctx) => {
-      const { args } = ctx
-      ctx.onProgress(ELiftStep.Attaching)
-      const sandbox = ctx.sandbox
-      if (sandbox === undefined) throw new Error('the lift attached without its sandbox')
-      const attachment = args.bridge.attach({ threadId: args.threadId, url: sandbox.url, token: sandbox.token })
-      ctx.channel = attachment.channel
-
-      // The transcript shipped to an already-healthy serve, so boot never re-materialized it —
-      // tell serve to extract the archive and re-read its store before the conversation opens.
-      // A serve old enough to refuse reads as a blank transcript, so warn rather than attach one
-      // silently.
-      if (ctx.transcript !== undefined) {
-        try {
-          await attachment.channel.request({ op: EClientRequest.RestoreTranscript, params: {} })
-        } catch (error) {
-          ctx.logPort?.warn({
-            source: 'cloud.lift',
-            message: 'the serve did not restore the lifted transcript — the cloud transcript may open blank',
-            threadId: args.threadId,
-            data: { operation: 'restore-transcript' },
-            ...logFieldsOf({ error }),
-          })
-        }
-      }
-
-      await args.open?.(attachment)
+      if (ctx.attachment === undefined) throw new Error('the verified cloud attachment is missing')
+      await ctx.args.open?.(ctx.attachment)
     },
   },
   {

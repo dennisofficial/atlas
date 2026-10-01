@@ -24,12 +24,7 @@ export abstract class EventLogPort {
 
   abstract read(args: { threadId: ThreadId; fromSeq?: number; upTo?: number }): Promise<Event[]>
 
-  /**
-   * Drops any cached read of the thread and re-reads it from the durable log. A lift restores the
-   * transcript out of band (the archive extracts onto the session directory), so a reader that
-   * cached the pre-restore log must refresh before it can serve the restored events. Ports that
-   * never cache may answer with a no-op.
-   */
+  /** Invalidates cached logs for the thread's session and re-reads the thread; uncached stores may do nothing. */
   abstract refresh(args: { threadId: ThreadId }): Promise<void>
 
   abstract head(args: { threadId: ThreadId }): Promise<number>

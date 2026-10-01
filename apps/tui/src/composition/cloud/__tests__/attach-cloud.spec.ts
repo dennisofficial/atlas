@@ -21,7 +21,7 @@ import {
   type TurnSpend,
 } from '@dltech/atlas-harness'
 
-import { attachCloudSession } from '../attach-cloud'
+import { attachCloudSession, MissingCloudThreadError } from '../attach-cloud'
 import { FAKE_WORKSPACE, SPEC_SHARD } from '../../__tests__/fake-backend'
 
 const LIFTED = toThreadId(`attach-${SPEC_SHARD}`)
@@ -150,5 +150,45 @@ describe('attaching to a lifted session', () => {
     })
 
     expect(attached.events).toHaveLength(2)
+  })
+
+  it('marks the sandbox having no such thread as a MissingCloudThreadError', async () => {
+    const channel = fakeChannel({ events: [] })
+    channel.request = async (request) => {
+      if (request.op === EClientRequest.ReadThread) return { thread: null }
+      throw new Error(`unexpected channel op ${request.op}`)
+    }
+    const stores = {
+      threads: new RemoteThreadStore({ channel }),
+      log: new RemoteEventLog({ channel }),
+      ledger: new RemoteTurnLedger({ channel }),
+    }
+
+    const failure = await attachCloudSession({
+      stores,
+      threadId: LIFTED,
+      effects: () => undefined,
+    }).catch((given: unknown) => given)
+
+    expect(failure).toBeInstanceOf(MissingCloudThreadError)
+  })
+
+  it('lets a failed event read surface as itself rather than as a missing thread', async () => {
+    const channel = fakeChannel({ events: [] })
+    channel.request = async (request) => {
+      if (request.op === EClientRequest.ReadThread) return { thread: WIRE_ROW }
+      if (request.op === EClientRequest.ReadEvents) throw new Error('socket dropped mid-read')
+      if (request.op === EClientRequest.ReadTurns) return { own: [], delegated: [] }
+      throw new Error(`unexpected channel op ${request.op}`)
+    }
+    const stores = {
+      threads: new RemoteThreadStore({ channel }),
+      log: new RemoteEventLog({ channel }),
+      ledger: new RemoteTurnLedger({ channel }),
+    }
+
+    await expect(
+      attachCloudSession({ stores, threadId: LIFTED, effects: () => undefined }),
+    ).rejects.toThrow('socket dropped mid-read')
   })
 })

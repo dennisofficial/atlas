@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import React from 'react'
 import { testRender } from '@opentui/react/test-utils'
 
@@ -14,6 +18,7 @@ import { CLEAN_WORKSPACE, fakeBridge, type FakeBridge } from '../cloud/__tests__
 import type { CloudBridgeFactory } from '../use-cloud-lift'
 import { spokenIn, THREAD, until } from './app-fixture'
 import { FAKE_CONFIG, fakeApp, fakeCloud, scriptedModelPort, type FakeApp } from './fake-app'
+import { FakeSessionDisk } from './fake-session-disk'
 
 await grammarsReady()
 
@@ -68,16 +73,26 @@ const mount = async (args: {
   opened?: Parameters<typeof App>[0]['opened']
   onRestart?: () => void
 }) => {
+  const home = mkdtempSync(join(tmpdir(), 'atlas-cloud-open-spec-'))
+  const previousHome = process.env.ATLAS_HOME
+  process.env.ATLAS_HOME = home
+  const disk = new FakeSessionDisk(home)
+  args.app.log.mirrorTo(disk)
+  args.app.threads.mirrorTo(disk)
   args.bridge.sourceStores({
     log: args.app.log,
     threads: args.app.threads,
     workspace: args.app.workspace.workspace,
+    disk,
   })
   const createBridge: CloudBridgeFactory = () => args.bridge
+  const opened = args.opened ?? (await spokenIn(args.app))
+  await disk.writeSessionMeta({ threadId: opened.threadId })
+  await disk.stampProvenance({ threadId: opened.threadId, archiveDigest: null })
   const setup = await testRender(
     <App
       app={args.app}
-      opened={args.opened ?? (await spokenIn(args.app))}
+      opened={opened}
       createBridge={createBridge}
       preflightLift={async () => null}
       captureWorkspace={async () => CLEAN_WORKSPACE}
@@ -107,7 +122,11 @@ const mount = async (args: {
       return frame()
     },
     typeText: (text: string) => setup.mockInput.typeText(text),
-    done: () => teardown(setup),
+    done: async () => {
+      await teardown(setup)
+      if (previousHome === undefined) delete process.env.ATLAS_HOME
+      else process.env.ATLAS_HOME = previousHome
+    },
   }
 }
 

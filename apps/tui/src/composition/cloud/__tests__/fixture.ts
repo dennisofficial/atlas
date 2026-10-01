@@ -1,9 +1,17 @@
+import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join, sep } from 'node:path'
+
 import { toRunId, toThreadId, type EventDraft, type SaidImage, type ThreadId } from '@dltech/atlas-core'
 import type { RosterWire } from '@dltech/atlas-wire'
 import {
+  buildSessionArchive,
   EChannelConnection,
   EClientRequest,
+  extractSessionArchive,
+  parseEventLines,
   RemoteThreadStore,
+  sessionDirectory,
   ThreadStorePort,
   type ChannelConnection,
   type ChannelReady,
@@ -22,6 +30,7 @@ import {
   type FakeLedger,
   type FakeThreadStore,
 } from '../../__tests__/fake-backend'
+import { identityReplyOf, FakeSessionDisk } from '../../__tests__/fake-session-disk'
 import {
   ECloudSandboxState,
   type CloudBridge,
@@ -44,6 +53,10 @@ export const CLEAN_WORKSPACE: LiftedWorkspace = {
 export type FakeCloudChannel = CloudChannel & {
   /** What serve does with a send frame: the said lands in the remote log before the turn ends. */
   commitSaid(args: { text: string; images?: readonly SaidImage[] }): void
+  /** Serve untars the lift's upload into its session directory before it answers attach reads. */
+  loadTranscriptArchive(archive: Uint8Array): Promise<void>
+  /** Serve answers attach-time transcript reads only once its boot untar has landed. */
+  deferUntilBooted(boot: Promise<void>): void
   moveTo(connection: ChannelConnection): void
   /** Re-emits the held connection, for a session that attached before subscribing. */
   announce(): void
@@ -88,6 +101,8 @@ export function fakeCloudChannel(
     threadId?: ThreadId
     log?: FakeEventLog | undefined
     threads?: FakeThreadStore | undefined
+    /** The on-disk mirror of the remote session, for the descend's archive read. */
+    disk?: FakeSessionDisk | undefined
     /** The bridge's attach seeds Open, since a real channel has answered its Hello by then. */
     connection?: ChannelConnection | undefined
   } = {},
@@ -112,6 +127,9 @@ export function fakeCloudChannel(
     context?: readonly EventDraft[]
   }[] = []
 
+  let transcriptRestored = false
+  let booted: Promise<void> = Promise.resolve()
+
   let held: ChannelConnection =
     args.connection ?? { state: EChannelConnection.Connecting, detail: null }
   let heldRoster: RosterWire = { shells: [], agents: [], services: [] }
@@ -129,6 +147,39 @@ export function fakeCloudChannel(
         runId: toRunId(`serve-${threadId}`),
         drafts: [{ type: 'user-said', text, ...(images === undefined ? {} : { images }) }],
       })
+    },
+    deferUntilBooted(boot) {
+      booted = boot
+    },
+    loadTranscriptArchive: (archive) => {
+      const untar = (async () => {
+        const scratch = await mkdtemp(join(tmpdir(), 'atlas-fake-serve-'))
+        try {
+        const sessionDir = join(scratch, 'session')
+        await extractSessionArchive({ archive, sessionDir })
+        const directory = join(sessionDir, 'threads')
+        const names = await readdir(directory, { recursive: true }).catch(() => [] as string[])
+        for (const name of names) {
+          if (!name.endsWith('.events.jsonl')) continue
+          const threadId = toThreadId(name.slice(0, -'.events.jsonl'.length).split(sep).join('/'))
+          const text = await readFile(join(directory, name), 'utf8')
+          args.log?.seed({
+            threadId,
+            events: parseEventLines({ text, threadId }).events,
+          })
+        }
+          // Serve keeps the extracted directory as the session it serves from, so the descend's
+          // archive read tars that directory back up — not the bytes that arrived.
+          if (args.disk !== undefined) {
+            await args.disk.replaceSessionDir({ threadId: channelThreadId, fromDir: sessionDir })
+          }
+          transcriptRestored = true
+        } finally {
+          await rm(scratch, { recursive: true, force: true }).catch(() => undefined)
+        }
+      })()
+      booted = untar
+      return untar
     },
     subscribe: () => () => undefined,
     snapshot: () => [],
@@ -207,6 +258,41 @@ export function fakeCloudChannel(
           for (const listener of [...threadModelChanges]) listener(params)
         })
         return undefined
+      }
+      if (
+        given.op === EClientRequest.RestoreTranscript ||
+        given.op === EClientRequest.ReadTranscriptIdentity ||
+        given.op === EClientRequest.ReadSessionArchive
+      ) {
+        // Serve has untarred the staged archive by the time it serves requests.
+        await booted
+      }
+      if (given.op === EClientRequest.RestoreTranscript) {
+        return { restored: transcriptRestored }
+      }
+      if (given.op === EClientRequest.ReadTranscriptIdentity) {
+        const params = given.params as { threadId: ThreadId; upTo?: number | undefined }
+        const events = args.log?.peek({ threadId: params.threadId }) ?? []
+        const held =
+          params.upTo === undefined
+            ? events
+            : events.filter((event) => event.seq <= (params.upTo ?? 0))
+        return identityReplyOf(held)
+      }
+      if (given.op === EClientRequest.ReadSessionArchive) {
+        const archive =
+          args.disk === undefined
+            ? undefined
+            : await buildSessionArchive({
+                sessionDir: sessionDirectory({
+                  home: args.disk.home(),
+                  sessionId: channelThreadId,
+                }),
+              })
+        return { archive: archive === undefined ? '' : Buffer.from(archive).toString('base64') }
+      }
+      if (given.op === EClientRequest.ReadMemoryArchive) {
+        return { archive: '' }
       }
       return { applied: 0 }
     },
@@ -442,7 +528,12 @@ export type FakeBridge = CloudBridge & {
   readonly channel: FakeCloudChannel
   readonly trail: readonly string[]
   /** Wire the local transcript a lift ships up; the mount fixture sets it once the app exists. */
-  sourceStores(args: { log: FakeEventLog; threads: FakeThreadStore; workspace: string }): void
+  sourceStores(args: {
+    log: FakeEventLog
+    threads: FakeThreadStore
+    workspace: string
+    disk?: FakeSessionDisk | undefined
+  }): void
 }
 
 const RUNNING: CloudSandbox = {
@@ -463,10 +554,14 @@ export function fakeBridge(
     /** The local transcript a lift ships up; the fake's stand-in for the sandbox untarring it. */
     sourceLog?: FakeEventLog | undefined
     sourceThreads?: FakeThreadStore | undefined
+    sourceDisk?: FakeSessionDisk | undefined
   } = {},
 ): FakeBridge {
-  const log = fakeEventLog()
-  const threads = args.threadStore ?? fakeThreadStore({ log })
+  // The fake serve's session directory: every remote write lands here so the descend tars up
+  // what the sandbox actually holds, the way serveSessionArchive does.
+  const disk = new FakeSessionDisk(join(tmpdir(), `atlas-fake-cloud-${SPEC_SHARD}-${Math.random().toString(36).slice(2)}`))
+  const log = fakeEventLog([], { disk })
+  const threads = args.threadStore ?? fakeThreadStore({ log, disk })
   const ledger = fakeLedger()
   let channel: FakeCloudChannel | null = null
   const created: {
@@ -484,16 +579,34 @@ export function fakeBridge(
   let sourceLog = args.sourceLog
   let sourceThreads = args.sourceThreads
   let sourceWorkspace: string | null = null
+  let sourceDisk = args.sourceDisk
+  let stagedTranscript: Uint8Array | undefined
+  let transcriptShipped = false
 
   /**
-   * The real serve boots with the transcript the lift uploaded and untars it into its local
-   * stores, so the conversation reads answer with its events and thread row. The fake has no tar,
-   * so it seeds the same end state synchronously — attach hands the stores back before the open
-   * reads them, so the seeding cannot await.
+   * The real create stages the uploaded archive next to the serve binary so the bootstrap untars
+   * it into the session directory before launch; attach untars the staged bytes through the new
+   * channel, so the transcript the plan restores and verifies is the one the lift shipped.
+   */
+  const stageTranscript = async (args: {
+    threadId: ThreadId
+    archive: Uint8Array
+  }): Promise<void> => {
+    stagedTranscript = args.archive
+    transcriptShipped = true
+    if (channel !== null) await channel.loadTranscriptArchive(args.archive)
+  }
+
+  /**
+   * A wake reattaches to a transcript the sandbox already serves: the fake's stores were seeded
+   * by the spec directly, so the thread row mirrors them synchronously. A lift's transcript lands
+   * through the staged archive instead.
    */
   const materialize = (threadId: ThreadId): void => {
-    // A lift ships the local transcript up; a wake reattaches to one the sandbox already serves.
-    const events = log.peek({ threadId }).length > 0 ? log.peek({ threadId }) : sourceLog?.peek({ threadId }) ?? []
+    const events =
+      log.peek({ threadId }).length > 0
+        ? log.peek({ threadId })
+        : (sourceLog?.peek({ threadId }) ?? [])
     const sourceRow = sourceThreads?.peekRow({ threadId })
     if (events.length === 0 && sourceRow === undefined) return
     if (threads.peekRow({ threadId }) !== undefined) return
@@ -526,14 +639,18 @@ export function fakeBridge(
       return channel
     },
     trail,
-    sourceStores: ({ log: source, threads: sourceThreadStore, workspace }) => {
+    sourceStores: ({ log: source, threads: sourceThreadStore, workspace, disk }) => {
       sourceLog = source
       sourceThreads = sourceThreadStore
       sourceWorkspace = workspace
+      sourceDisk = disk
     },
     sandboxes: {
-      create: async ({ threadId, workspace, gpgKey, captureContext }) => {
+      create: async ({ threadId, workspace, gpgKey, transcript, captureContext }) => {
         const sandbox = args.sandbox ?? RUNNING
+        // The real create stages the transcript archive next to the serve binary before launch,
+        // so the bootstrap untars it into the session directory the sandbox serves from.
+        if (transcript !== undefined) await stageTranscript({ threadId, archive: transcript })
         // The real create captures and puts the archive onto the row before booting a fresh
         // sandbox, so the trail records it ahead of the boot; a resumed sandbox already carries
         // its context and never captures. The caller's thunk owns failure semantics, so the fake
@@ -559,11 +676,12 @@ export function fakeBridge(
         contextPuts.push({ threadId, archive: Buffer.from(archive) })
         if (args.putContextFails !== undefined) throw args.putContextFails
       },
-      putTranscript: async ({ threadId }) => {
+      putTranscript: async ({ threadId, archive }) => {
         trail.push('put-transcript')
+        await stageTranscript({ threadId, archive })
         materialize(threadId)
       },
-      confirmLanded: async () => ({ landed: true }),
+      confirmLanded: async () => ({ landed: transcriptShipped }),
       find: async () => args.status,
       destroy: async ({ threadId }) => {
         trail.push('destroy')
@@ -575,12 +693,21 @@ export function fakeBridge(
       trail.push('attach')
       attached.push({ threadId, url, token })
       materialize(threadId)
-      channel = fakeCloudChannel({
+      const opened = fakeCloudChannel({
         threadId,
         log,
         threads,
+        disk,
         connection: { state: EChannelConnection.Open, detail: null },
       })
+      channel = opened
+      // Serve has untarred the staged archive into its session directory by the time a client can
+      // attach; the untar lands here, ahead of the plan's requests, which the channel gates on it.
+      if (stagedTranscript !== undefined) {
+        const archive = stagedTranscript
+        stagedTranscript = undefined
+        opened.deferUntilBooted(opened.loadTranscriptArchive(archive))
+      }
       const remoteThreads = new RemoteThreadStore({ channel })
       const attachedThreads = new Proxy(watchedThreads, {
         get: (target, property, receiver) => {

@@ -117,6 +117,7 @@ const rig = (): Rig => {
       list: async () => [],
       rename: async () => undefined,
       chooseModel: async () => undefined,
+      writePlacement: async () => undefined,
       onRename: () => () => undefined,
       onModelChosen: () => () => undefined,
     },

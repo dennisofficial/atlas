@@ -82,6 +82,7 @@ export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPl
       needs: ['pauseRemoteLoops'],
       run: async () => {
         await transferTranscriptDown({ threadId, channel })
+        await localApp.log.refresh({ threadId })
       },
     },
     {

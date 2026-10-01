@@ -83,7 +83,7 @@ describe('lifting the family along with the conversation', () => {
 
     await liftToCloud(test.args)
 
-    expect(test.bridge.trail).toEqual(['sandbox', 'put-transcript', 'confirm-landed', 'attach'])
+    expect(test.bridge.trail).toEqual(['put-transcript', 'sandbox', 'confirm-landed', 'attach'])
     expect(test.bridge.transcriptPuts).toHaveLength(1)
   })
 })

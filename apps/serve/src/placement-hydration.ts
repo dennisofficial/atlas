@@ -1,35 +1,77 @@
-import { EExecutionLocation, EHarnessPlacement, type ThreadId } from '@dltech/atlas-core'
+import {
+  EHarnessPlacement,
+  EPlacementMovePhase,
+  type PlacementRecord,
+  type SessionPlacement,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
-import { driveNameFor, EPlacementMoveKind } from '@dltech/atlas-harness'
+import { driveNameFor, type PlacementController } from '@dltech/atlas-harness'
 
 import type { ServeApp } from './serve-app'
 
-/**
- * The sandbox knows it is cloud by construction, but the placement record it restored may have
- * been written by a lift that never filled in the drive name (chooseExecutionLocation maps the
- * location to a bare `{ harness: Cloud }`). Serve owns the correction: the name is derivable from
- * the thread id, so the family's durable record is complete once serve has read it. The move is a
- * same-location commit — a fill, not a relocation — so it never rewrites where the session runs.
- */
+const cloudPlacement = (args: { threadId: ThreadId }): SessionPlacement => ({
+  harness: EHarnessPlacement.Cloud,
+  driveName: driveNameFor({ threadId: args.threadId }),
+})
+
+const preparingLiftOntoCloud = (record: PlacementRecord): boolean =>
+  record.move !== null &&
+  record.move.phase === EPlacementMovePhase.Preparing &&
+  record.move.from.harness === EHarnessPlacement.Host &&
+  record.move.to.harness === EHarnessPlacement.Cloud
+
+type Threads = Pick<ServeApp['threads'], 'spawned' | 'writePlacement'>
+
+const adoptCloudPlacement = async (args: {
+  controller: PlacementController
+  threads: Threads
+  threadId: ThreadId
+  child: boolean
+}): Promise<void> => {
+  const held = await args.controller.load({ threadId: args.threadId })
+  const placement = args.child
+    ? ({ harness: EHarnessPlacement.Cloud } satisfies SessionPlacement)
+    : cloudPlacement({ threadId: args.threadId })
+  await args.threads.writePlacement({
+    threadId: args.threadId,
+    record: { placement, revision: held.revision + 1, move: null },
+    expectedRevision: held.revision,
+  })
+  await args.controller.refresh({ threadId: args.threadId })
+}
+
 export async function hydrateCloudPlacement(args: {
-  app: Pick<ServeApp, 'executionLocation'>
+  app: Pick<ServeApp, 'executionLocation'> & { threads: Threads }
   threadId: ThreadId
 }): Promise<void> {
   const controller = args.app.executionLocation
   if (controller === undefined) return
+  const threads = args.app.threads
+
   const record = await controller.load({ threadId: args.threadId })
-  if (record.placement.harness !== EHarnessPlacement.Cloud) return
-  if (record.placement.driveName !== undefined) return
-  if (record.move !== null) return
-  await controller.move({
-    threadId: args.threadId,
-    target: EExecutionLocation.Cloud,
-    kind: EPlacementMoveKind.Correct,
-    work: async (transaction) => {
-      await transaction.commit({
-        harness: EHarnessPlacement.Cloud,
-        driveName: driveNameFor({ threadId: args.threadId }),
-      })
-    },
-  })
+  if (preparingLiftOntoCloud(record)) {
+    await controller.recover({
+      threadId: args.threadId,
+      reconcile: async (held) =>
+        preparingLiftOntoCloud(held) ? cloudPlacement({ threadId: args.threadId }) : held.placement,
+    })
+  }
+
+  const settled = await controller.load({ threadId: args.threadId })
+  const rootNeedsCloud =
+    settled.move === null &&
+    (settled.placement.harness === EHarnessPlacement.Host ||
+      (settled.placement.harness === EHarnessPlacement.Cloud && settled.placement.driveName === undefined))
+  if (rootNeedsCloud) {
+    await adoptCloudPlacement({ controller, threads, threadId: args.threadId, child: false })
+  }
+
+  const children = await threads.spawned({ threadId: args.threadId })
+  for (const child of children) {
+    const held = await controller.load({ threadId: child.id })
+    if (held.move !== null) continue
+    if (held.placement.harness === EHarnessPlacement.Cloud) continue
+    await adoptCloudPlacement({ controller, threads, threadId: child.id, child: true })
+  }
 }

@@ -67,7 +67,14 @@ export class JsonlEventLog implements EventLogPort {
 
   async refresh(args: { threadId: ThreadId }): Promise<void> {
     const sessionDir = await this.sessionDirFor({ threadId: args.threadId })
-    await this.registry.refreshThreadLog({ sessionDir, threadId: args.threadId })
+    const handle = this.registry.handleFor({ sessionDir })
+    await this.registry.enqueue({
+      handle,
+      run: async () => {
+        this.registry.invalidateSession({ sessionDir })
+        await this.registry.readThreadLog({ sessionDir, threadId: args.threadId })
+      },
+    })
   }
 
   async readDecoded({
@@ -208,6 +215,11 @@ export class JsonlEventLog implements EventLogPort {
     await mkdir(dirname(file), { recursive: true })
     const tmp = join(threadsDirectory({ sessionDir }), `.replace.${process.pid}.tmp`)
     await writeFile(tmp, prepared.map((entry) => `${encodeEventLine(entry)}\n`).join(''))
+    const meta = existing ?? newThreadMeta({ id: args.threadId, at })
+    const nextHead = floor + prepared.length
+    const priorLog = await this.registry.readThreadLog({ sessionDir, threadId: args.threadId })
+    const shrinking = nextHead < priorLog.head
+    if (shrinking) await writeMeta({ file: metaFile, meta: { ...meta, head: nextHead, updatedAt: at } })
     await rename(tmp, file)
     await this.registry.stampThreadLog({ sessionDir, threadId: args.threadId })
 
@@ -218,8 +230,7 @@ export class JsonlEventLog implements EventLogPort {
     log.head = floor + stamped.length
     rebuildContextIndex({ log })
 
-    const meta = existing ?? newThreadMeta({ id: args.threadId, at })
-    await writeMeta({ file: metaFile, meta: { ...meta, head: log.head, updatedAt: at } })
+    if (!shrinking) await writeMeta({ file: metaFile, meta: { ...meta, head: log.head, updatedAt: at } })
     return stamped
   }
 

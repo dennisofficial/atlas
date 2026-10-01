@@ -38,14 +38,17 @@ export {
 export { claimSession, releaseSession, ESessionClaim, type SessionClaim } from './sessions/lock'
 export { SessionRegistry, registryFor } from './sessions/registry'
 export {
+  newThreadMeta,
   readMetaSync,
   readSessionMetaSync,
   sessionMetaSchema,
   threadMetaSchema,
+  writeMeta,
   SESSION_FORMAT_VERSION,
   THREAD_META_VERSION,
   type SessionMeta,
   type ThreadMeta,
 } from './sessions/meta'
+export { writeSessionMetaForRoot } from './sessions/session-meta'
 export { migrateSessionDirectory, canMigrateToCurrent, type SessionMigration, type SessionMigrationContext } from './sessions/migrations'
 export { EVENT_LINE_VERSION, parseEventLines } from './sessions/lines'

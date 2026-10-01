@@ -28,6 +28,8 @@ import type {
   Unsubscribe,
 } from '@dltech/atlas-harness'
 
+import type { FakeSessionDisk } from './fake-session-disk'
+
 const AT = '2026-08-25T00:00:00.000Z'
 
 /**
@@ -64,6 +66,8 @@ export type FakeThreadStore = ThreadStorePort & {
   /** Drops an already-known thread row in whole, for a fake serve materializing an uploaded transcript. */
   seedThread(row: ThreadSummary): void
   peekRow(args: { threadId: ThreadId }): ThreadSummary | undefined
+  /** Points the mirror at a scratch session disk after construction; the mount fixture owns the home. */
+  mirrorTo(disk: FakeSessionDisk): void
 }
 
 export function fakeThreadStore(
@@ -73,6 +77,8 @@ export function fakeThreadStore(
     workspace?: string | null
     repo?: string | null
     titles?: Readonly<Record<string, string>>
+    /** When set, every mutation also lands on the on-disk session mirror the lift archives. */
+    disk?: FakeSessionDisk
   } = {},
 ): FakeThreadStore {
   const workspaceOf = args.workspace === undefined ? FAKE_WORKSPACE : args.workspace
@@ -108,7 +114,13 @@ export function fakeThreadStore(
     }
   }
 
+  let disk: FakeSessionDisk | undefined = args.disk
+
   return {
+    mirrorTo(next) {
+      disk = next
+    },
+
     get created() {
       return created
     },
@@ -143,7 +155,7 @@ export function fakeThreadStore(
     },
 
     async compact({ threadId, anchor, fromSeq, throughSeq, summary }) {
-      return (
+      const replaced =
         args.log?.replaceWithSummary({
           threadId,
           anchor,
@@ -152,12 +164,15 @@ export function fakeThreadStore(
           summary,
           discardRows: false,
         }) ?? 0
-      )
+      if (disk !== undefined && args.log !== undefined) {
+        await disk.replaceAll({ threadId, events: args.log.peek({ threadId }) })
+      }
+      return replaced
     },
 
     async summarise({ threadId, anchor, fromSeq, throughSeq, summary, cutAgents }) {
       dropRows(cutAgents)
-      return (
+      const replaced =
         args.log?.replaceWithSummary({
           threadId,
           anchor,
@@ -166,7 +181,10 @@ export function fakeThreadStore(
           summary,
           discardRows: true,
         }) ?? 0
-      )
+      if (disk !== undefined && args.log !== undefined) {
+        await disk.replaceAll({ threadId, events: args.log.peek({ threadId }) })
+      }
+      return replaced
     },
 
     async fork({ from, seq, mode, title }) {
@@ -305,6 +323,8 @@ export function fakeThreadStore(
       renames.push({ threadId, title })
       const row = rows.find((held) => held.id === threadId)
       if (row !== undefined) row.title = title
+      disk?.rename({ threadId, title })
+      await disk?.writeThreadMeta({ threadId })
       for (const listener of [...renameListeners]) listener({ threadId, title })
     },
 
@@ -314,12 +334,16 @@ export function fakeThreadStore(
 
       row.workspace = workspace
       row.repo = repo
+      disk?.adopt({ threadId, workspace, repo })
+      await disk?.writeThreadMeta({ threadId })
     },
 
     async chooseModel({ threadId, model }) {
       chosenModels.push({ threadId, model })
       const row = rows.find((held) => held.id === threadId)
       if (row !== undefined) row.model = model
+      disk?.chooseModel({ threadId, model })
+      await disk?.writeThreadMeta({ threadId })
       for (const listener of [...modelChosenListeners]) listener({ threadId, model })
     },
 
@@ -336,6 +360,8 @@ export function fakeThreadStore(
     async writePlacement({ threadId, record }) {
       const location = locationOfPlacement(record.placement)
       chosenLocations.push({ threadId, location })
+      disk?.locate({ threadId, location })
+      await disk?.writeThreadMeta({ threadId })
       const row = rows.find((held) => held.id === threadId)
       if (row !== undefined) {
         row.executionLocation = location
@@ -354,6 +380,8 @@ export function fakeThreadStore(
 
     async chooseExecutionLocation({ threadId, location }) {
       chosenLocations.push({ threadId, location })
+      disk?.locate({ threadId, location })
+      await disk?.writeThreadMeta({ threadId })
       let row = rows.find((held) => held.id === threadId)
       // A conversation spoken in but never formally opened has log events and no row yet; the lift
       // flips it all the same, so the row is created from the log rather than the flip no-op'ing.
@@ -377,6 +405,9 @@ export function fakeThreadStore(
       if (row !== undefined) row.head = toSeq
       dropRows(cutAgents)
       args.log?.truncate({ threadId, toSeq })
+      if (disk !== undefined && args.log !== undefined) {
+        await disk.replaceAll({ threadId, events: args.log.peek({ threadId }) })
+      }
     },
   }
 }
@@ -389,6 +420,8 @@ export type FakeEventLog = EventLogPort & {
   seed(args: { threadId: ThreadId; events: readonly Event[] }): void
   truncate(args: { threadId: ThreadId; toSeq: number }): void
   copyInto(args: { from: ThreadId; to: ThreadId; upTo: number }): void
+  /** Points the mirror at a scratch session disk after construction; the mount fixture owns the home. */
+  mirrorTo(disk: FakeSessionDisk): void
   replaceWithSummary(args: {
     threadId: ThreadId
     anchor: ECompactionAnchor
@@ -399,7 +432,10 @@ export type FakeEventLog = EventLogPort & {
   }): number
 }
 
-export function fakeEventLog(seeded: readonly Event[] = []): FakeEventLog {
+export function fakeEventLog(
+  seeded: readonly Event[] = [],
+  args: { disk?: FakeSessionDisk } = {},
+): FakeEventLog {
   const byThread = new Map<ThreadId, Event[]>()
   const headByThread = new Map<ThreadId, number>()
   const branchesRead: ThreadId[] = []
@@ -423,9 +459,15 @@ export function fakeEventLog(seeded: readonly Event[] = []): FakeEventLog {
     return upTo === undefined ? [...rows] : rows.filter((event) => event.seq <= upTo)
   }
 
+  let disk: FakeSessionDisk | undefined = args.disk
+
   return {
     branchesRead,
     ownReads,
+
+    mirrorTo(next) {
+      disk = next
+    },
 
     peek({ threadId }) {
       return [...(byThread.get(threadId) ?? [])]
@@ -455,6 +497,7 @@ export function fakeEventLog(seeded: readonly Event[] = []): FakeEventLog {
       })
 
       byThread.set(threadId, [...(byThread.get(threadId) ?? []), ...written])
+      await disk?.append({ threadId, events: written })
       return written
     },
 
@@ -476,6 +519,7 @@ export function fakeEventLog(seeded: readonly Event[] = []): FakeEventLog {
 
       byThread.set(threadId, written)
       headByThread.set(threadId, written.length)
+      await disk?.replaceAll({ threadId, events: written })
       return written
     },
 
@@ -508,17 +552,21 @@ export function fakeEventLog(seeded: readonly Event[] = []): FakeEventLog {
         },
       })
 
-      byThread.set(threadId, [
+      const kept = [
         ...spared,
         watermark,
         ...rows.filter((event) => event.seq > throughSeq),
-      ])
+      ]
+      byThread.set(threadId, kept)
+      void disk?.replaceAll({ threadId, events: kept })
       return compactable.length
     },
 
     truncate({ threadId, toSeq }) {
-      byThread.set(threadId, held({ threadId, upTo: toSeq }))
+      const kept = held({ threadId, upTo: toSeq })
+      byThread.set(threadId, kept)
       headByThread.set(threadId, toSeq)
+      void disk?.replaceAll({ threadId, events: kept })
     },
 
     copyInto({ from, to, upTo }) {

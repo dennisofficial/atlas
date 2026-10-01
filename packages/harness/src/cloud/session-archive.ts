@@ -1,6 +1,6 @@
-import { cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { cp, mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, relative, sep } from 'node:path'
+import { dirname, join, relative, sep } from 'node:path'
 
 import { safeRelativeSegment } from '../files/safe-relative-path'
 
@@ -78,7 +78,9 @@ export async function extractSessionArchive(args: {
   sessionDir: string
   tarCommand?: string | undefined
 }): Promise<void> {
-  const workDir = await mkdtemp(join(tmpdir(), 'atlas-session-extract-'))
+  await mkdir(dirname(args.sessionDir), { recursive: true })
+  const workDir = await mkdtemp(join(dirname(args.sessionDir), '.atlas-session-extract-'))
+  let preserveRecovery = false
   const contentDir = join(workDir, 'content')
   const archivePath = join(workDir, 'archive.tar.gz')
   await mkdir(contentDir, { recursive: true })
@@ -93,16 +95,37 @@ export async function extractSessionArchive(args: {
     const keys = await collectFiles(contentDir)
     const staged = keys.filter((key) => safeRelativeSegment(key) !== null)
 
-    await rm(args.sessionDir, { recursive: true, force: true })
-    await mkdir(args.sessionDir, { recursive: true })
+    const replacement = join(workDir, 'replacement')
+    await mkdir(replacement)
     for (const key of staged) {
-      const target = join(args.sessionDir, key)
+      const target = join(replacement, key)
       await mkdir(join(target, '..'), { recursive: true })
       await cp(join(contentDir, key), target, { recursive: true })
+    }
+    const previous = join(workDir, 'previous')
+    let movedPrevious = false
+    try {
+      await rename(args.sessionDir, previous)
+      movedPrevious = true
+    } catch (error) {
+      if (!(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT') throw error
+    }
+    try {
+      await rename(replacement, args.sessionDir)
+    } catch (error) {
+      if (movedPrevious) {
+        try {
+          await rename(previous, args.sessionDir)
+        } catch (rollbackError) {
+          preserveRecovery = true
+          throw new AggregateError([error, rollbackError], `the previous transcript is preserved at ${previous}`)
+        }
+      }
+      throw error
     }
   } catch (error) {
     throw error instanceof Error ? error : new Error(messageOf(error))
   } finally {
-    await rm(workDir, { recursive: true, force: true }).catch(() => undefined)
+    if (!preserveRecovery) await rm(workDir, { recursive: true, force: true }).catch(() => undefined)
   }
 }

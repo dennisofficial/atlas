@@ -35,6 +35,7 @@ type SessionHandle = {
   threads: Map<string, ThreadLog>
   files: Map<string, FileSignature>
   queue: Promise<unknown>
+  generation: number
 }
 
 type FileSignature = { byteLength: number; modifiedAt: number }
@@ -46,6 +47,7 @@ export class SessionRegistry {
   private readonly threadIndex = new Map<string, string>()
   private threadIndexBuilt = false
   private readonly parentCache = new Map<string, ParentCacheEntry>()
+  private parentGeneration = 0
 
   constructor(
     readonly home: string,
@@ -55,7 +57,7 @@ export class SessionRegistry {
   handleFor({ sessionDir }: { sessionDir: string }): SessionHandle {
     const existing = this.handles.get(sessionDir)
     if (existing !== undefined) return existing
-    const handle: SessionHandle = { dir: sessionDir, threads: new Map(), files: new Map(), queue: Promise.resolve() }
+    const handle: SessionHandle = { dir: sessionDir, threads: new Map(), files: new Map(), queue: Promise.resolve(), generation: 0 }
     this.handles.set(sessionDir, handle)
     return handle
   }
@@ -107,6 +109,7 @@ export class SessionRegistry {
     const cached = handle.threads.get(threadId)
     if (cached !== undefined) return cached
 
+    const generation = handle.generation
     const file = eventLogFile({ sessionDir, threadId })
     const text = await this.readEventLog({ file, threadId })
     const parsed = parseEventLines({ text, threadId, logPort: this.logPort })
@@ -121,11 +124,30 @@ export class SessionRegistry {
       head: Math.max(parsed.head, meta?.head ?? 0),
       byContext: new Map(),
     }
+    const signature = await signatureOf({ file })
+    if (handle.generation !== generation) return this.readThreadLog({ sessionDir, threadId })
+    const current = handle.threads.get(threadId)
+    if (current !== undefined) return current
     rebuildContextIndex({ log })
     handle.threads.set(threadId, log)
-    handle.files.set(threadId, await signatureOf({ file }))
+    handle.files.set(threadId, signature)
     this.registerThread({ sessionDir, threadId })
     return log
+  }
+
+  invalidateSession({ sessionDir }: { sessionDir: string }): void {
+    const handle = this.handles.get(sessionDir)
+    if (handle !== undefined) handle.generation += 1
+    this.parentGeneration += 1
+    handle?.threads.clear()
+    handle?.files.clear()
+    for (const [threadId, directory] of this.threadIndex) {
+      if (directory === sessionDir) this.threadIndex.delete(threadId)
+    }
+    for (const file of this.parentCache.keys()) {
+      if (file.startsWith(`${sessionDir}/`)) this.parentCache.delete(file)
+    }
+    this.threadIndexBuilt = false
   }
 
   async refreshThreadLog({
@@ -162,6 +184,7 @@ export class SessionRegistry {
   }
 
   async readParentEvents({ file }: { file: string }): Promise<Event[]> {
+    const generation = this.parentGeneration
     const size = (await stat(file).catch(() => undefined))?.size ?? 0
     const cached = this.parentCache.get(file)
     if (cached !== undefined && cached.byteLength === size) return cached.events
@@ -169,11 +192,13 @@ export class SessionRegistry {
     const threadId = threadIdFromFile({ file })
     const text = await this.readEventLog({ file, threadId })
     const parsed = parseEventLines({ text, threadId, logPort: this.logPort })
+    if (generation !== this.parentGeneration) return this.readParentEvents({ file })
     this.parentCache.set(file, { events: parsed.events, byteLength: size })
     return parsed.events
   }
 
   invalidateParent({ file }: { file: string }): void {
+    this.parentGeneration += 1
     this.parentCache.delete(file)
   }
 
@@ -181,7 +206,7 @@ export class SessionRegistry {
     const root = sessionsDirectory({ home: this.home })
     const sessions = await readdir(root, { withFileTypes: true }).catch(() => [])
     for (const session of sessions) {
-      if (!session.isDirectory()) continue
+      if (!session.isDirectory() || session.name.startsWith('.')) continue
       const sessionDir = join(root, session.name)
       const metas = await readdir(threadsDirectory({ sessionDir })).catch(() => [] as string[])
       for (const file of metas) {

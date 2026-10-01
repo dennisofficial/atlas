@@ -14,6 +14,7 @@ import {
 
 import type { AgentSnapshot } from '../../../agents/registry/snapshot'
 import { PlacementController } from '../../../composition/placement-controller'
+import { encodeEventLine } from '../../../store/sessions/lines'
 import { SESSION_FORMAT_VERSION } from '../../../store/sessions/meta'
 import { SESSION_META_NAME, sessionDirectory } from '../../../store/sessions/paths'
 import {
@@ -135,7 +136,8 @@ export const seedSessionDir = (args: { started?: boolean } = {}): void => {
   const home = process.env['ATLAS_HOME']
   if (home === undefined) throw new Error('the spec must stage an ATLAS_HOME first')
   const sessionDir = sessionDirectory({ home, sessionId: CLOUD_THREAD })
-  mkdirSync(sessionDir, { recursive: true })
+  mkdirSync(join(sessionDir, 'threads'), { recursive: true })
+  writeFileSync(join(sessionDir, 'threads', `${CLOUD_THREAD}.events.jsonl`), LOCAL_LOG.map((event) => `${encodeEventLine({ draft: event, envelope: event })}\n`).join(''))
   writeFileSync(
     join(sessionDir, SESSION_META_NAME),
     JSON.stringify({ format: SESSION_FORMAT_VERSION, id: CLOUD_THREAD }),
@@ -155,6 +157,16 @@ export const harness = (
   let interrupts = 0
   let settleWaits = 0
   seedSessionDir({ started: over.started ?? true })
+  const append = localLog.append.bind(localLog)
+  localLog.append = async (request) => {
+    const events = await append(request)
+    const home = process.env['ATLAS_HOME']
+    if (home === undefined) throw new Error('missing scratch home')
+    const directory = join(sessionDirectory({ home, sessionId: CLOUD_THREAD }), 'threads')
+    mkdirSync(directory, { recursive: true })
+    writeFileSync(join(directory, `${request.threadId}.events.jsonl`), localLog.peek({ threadId: request.threadId }).map((event) => `${encodeEventLine({ draft: event, envelope: event })}\n`).join(''))
+    return events
+  }
   if (over.from !== undefined && over.from !== EExecutionLocation.Host) {
     void localThreads.chooseExecutionLocation({ threadId: CLOUD_THREAD, location: over.from })
   }

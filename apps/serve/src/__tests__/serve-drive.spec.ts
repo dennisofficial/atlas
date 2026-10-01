@@ -166,7 +166,7 @@ describe('serve on a drive-mounted home and workspace', () => {
       atlasHome: atlasDirectory(),
       threadId,
     })
-    expect(readiness).toEqual({ restored: false, failed: null })
+    expect(readiness).toEqual({ restored: false, fresh: true, failed: null })
   })
 
   it('boots onto a fresh empty drive, creating the workspace, context and transcript roots', async () => {

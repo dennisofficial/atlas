@@ -1,4 +1,7 @@
 import React from 'react'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { testRender } from '@opentui/react/test-utils'
 
 import type { ClipboardImageReader } from '../../ui/clipboard-image'
@@ -8,6 +11,7 @@ import { CLEAN_WORKSPACE, type FakeBridge } from '../cloud/__tests__/fixture'
 import type { CloudBridgeFactory, LiftPreflight, WorkspaceCapture } from '../use-cloud-lift'
 import { editorIn, spokenIn, REPLY, THINKING } from './app-fixture'
 import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
+import { FakeSessionDisk } from './fake-session-disk'
 
 const DIRTY: WorkspaceCapture = async () => ({
   ...CLEAN_WORKSPACE,
@@ -34,16 +38,26 @@ export const mount = async (args: {
   preflightLift?: LiftPreflight
   clipboard?: ClipboardImageReader
 }) => {
+  const home = mkdtempSync(join(tmpdir(), 'atlas-cloud-spec-'))
+  const previousHome = process.env.ATLAS_HOME
+  process.env.ATLAS_HOME = home
+  const disk = new FakeSessionDisk(home)
+  args.app.log.mirrorTo(disk)
+  args.app.threads.mirrorTo(disk)
   args.bridge.sourceStores({
     log: args.app.log,
     threads: args.app.threads,
     workspace: args.app.workspace.workspace,
+    disk,
   })
   const createBridge: CloudBridgeFactory = () => args.bridge
+  const opened = await spokenIn(args.app)
+  await disk.writeSessionMeta({ threadId: opened.threadId })
+  await disk.stampProvenance({ threadId: opened.threadId, archiveDigest: null })
   const setup = await testRender(
     <App
       app={args.app}
-      opened={await spokenIn(args.app)}
+      opened={opened}
       createBridge={createBridge}
       preflightLift={args.preflightLift ?? (async () => null)}
       captureWorkspace={DIRTY}
@@ -95,6 +109,10 @@ export const mount = async (args: {
     pressCtrl: (key: string) => setup.mockInput.pressKey(key, { ctrl: true }),
     pressCtrlC: () => setup.mockInput.pressKey('c', { ctrl: true }),
     draftText: () => editorIn(setup.renderer.root)?.plainText ?? null,
-    done: () => teardown(setup),
+    done: async () => {
+      await teardown(setup)
+      if (previousHome === undefined) delete process.env.ATLAS_HOME
+      else process.env.ATLAS_HOME = previousHome
+    },
   }
 }

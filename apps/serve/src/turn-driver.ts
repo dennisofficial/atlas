@@ -22,6 +22,8 @@ export type ServeTurnDriver = {
   beginRelocation: () => void
   resume: () => void
   running: () => boolean
+  /** True from the moment a send begins its durable commit until the turn settles. */
+  busy: () => boolean
   settled: () => Promise<void>
   attach: (shared: MessageIntake) => () => void
 }
@@ -254,6 +256,8 @@ export function createTurnDriver(args: {
     },
 
     running: () => turning !== null,
+
+    busy: () => turning !== null || committing,
 
     settled: () => turning ?? Promise.resolve(),
   }

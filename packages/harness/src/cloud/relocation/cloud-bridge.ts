@@ -63,6 +63,13 @@ export type CloudSandboxes = {
     captureContext?:
       | ((put: (archive: Uint8Array) => Promise<void>) => Promise<void>)
       | undefined
+    /**
+     * An already-captured transcript archive the lift hands over with the claim. Written into the
+     * bootstrap directory before serve launches, fresh boot or resumed, so the serve untars it at
+     * boot instead of the lift shipping it through `putTranscript` after the sandbox answers. A
+     * reconnect or wake omits it, and the sandbox keeps the transcript it already holds.
+     */
+    transcript?: Uint8Array | undefined
   }): Promise<CloudSandbox>
   /** Operator-session auth, same as `create` — the archive lands on the row `create` just opened. */
   putContext(args: { threadId: ThreadId; archive: Uint8Array }): Promise<void>

@@ -13,7 +13,9 @@ import {
   EServeFrame,
   readEventsParamsSchema,
   readThreadParamsSchema,
+  readTranscriptIdentityParamsSchema,
   readTurnsParamsSchema,
+  transcriptIdentityDigest,
   renameThreadParamsSchema,
   setThreadModelParamsSchema,
   type ClientFrame,
@@ -185,6 +187,7 @@ export const isTranscriptReadOp = (op: EClientRequest): boolean =>
   op === EClientRequest.ReadEvents ||
   op === EClientRequest.ReadThread ||
   op === EClientRequest.ReadThreads ||
+  op === EClientRequest.ReadTranscriptIdentity ||
   op === EClientRequest.ReadTurns
 
 export async function answerTranscriptRead(args: {
@@ -233,6 +236,26 @@ export async function answerTranscriptRead(args: {
     return answeredRequest({
       replyTo: args.frame.id,
       data: { thread: thread === undefined ? null : wireThreadOf(thread) },
+    })
+  }
+
+  if (args.frame.op === EClientRequest.ReadTranscriptIdentity) {
+    const parsed = readTranscriptIdentityParamsSchema.safeParse(args.frame.params)
+    if (!parsed.success) {
+      return refusedRequest({
+        replyTo: args.frame.id,
+        message: 'read-transcript-identity wants { threadId, upTo? }',
+      })
+    }
+    const { threadId, upTo } = parsed.data
+    const readArgs = {
+      threadId: threadId as ThreadId,
+      ...(upTo === undefined ? {} : { upTo }),
+    }
+    const events = await args.transcript.log.readOwn(readArgs)
+    return answeredRequest({
+      replyTo: args.frame.id,
+      data: { count: events.length, digest: transcriptIdentityDigest(events) },
     })
   }
 

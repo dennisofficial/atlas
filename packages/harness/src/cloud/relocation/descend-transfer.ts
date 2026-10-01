@@ -6,8 +6,8 @@ import type { ThreadStorePort } from '../../store/thread-store'
 import { claimSession } from '../../store/sessions/lock'
 import { atlasDirectory } from '../../store/paths'
 import { sessionDirectory, sessionLockFile } from '../../store/sessions/paths'
-import { extractSessionArchive } from '../session-archive'
 import type { CloudChannel } from './cloud-bridge'
+import { replaceSessionDirectoryGuarded } from './descend-preserve'
 import { mergeMemoryArchive } from './session-archive'
 
 /**
@@ -54,8 +54,10 @@ export async function reannounceChildren(args: {
  * The cloud is the transcript's home while the conversation is away, so coming home is the session
  * directory moving back: the serve tars it, the channel carries it, and the local atlas home is
  * overwritten with it wholesale. Children come along in the same archive — the family shares the
- * parent's session directory. The one refusal: the cloud having nothing to give can only mean the
- * lift never landed, and overwriting would erase the local copy for nothing.
+ * parent's session directory. Two refusals: the cloud having nothing to give can only mean the
+ * lift never landed, and an archive whose root holds no conversation where the local root does is
+ * a capabilities-only boot directory, not a transcript — overwriting would erase the local copy
+ * for nothing either way.
  */
 export async function transferTranscriptDown(args: {
   threadId: ThreadId
@@ -70,7 +72,11 @@ export async function transferTranscriptDown(args: {
     )
   }
   const sessionDir = sessionDirectory({ home: atlasDirectory(), sessionId: args.threadId })
-  await extractSessionArchive({ archive: Buffer.from(reply.archive, 'base64'), sessionDir })
+  await replaceSessionDirectoryGuarded({
+    archive: Buffer.from(reply.archive, 'base64'),
+    sessionDir,
+    threadId: args.threadId,
+  })
   // The overwrite drops the session lock this process was holding, so it is laid down again — the
   // reopen that follows claims for real, and until then nothing else may open the transcript.
   await claimSession({ sessionDir, lockFile: sessionLockFile({ sessionDir }), label: 'atlas tui' })

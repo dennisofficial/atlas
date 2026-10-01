@@ -72,6 +72,16 @@ describe('the session archive', () => {
     expect(readdirSync(target).sort()).toEqual(['ledger.jsonl', 'meta.json', 'threads'])
   })
 
+  it('leaves the original transcript intact when extraction fails', async () => {
+    const parent = fresh()
+    const target = join(parent, 'session')
+    writeSession(target)
+    const before = readFileSync(join(target, 'threads', 'thr.events.jsonl'))
+    await expect(extractSessionArchive({ archive: Buffer.from('broken archive'), sessionDir: target })).rejects.toThrow()
+    expect(readFileSync(join(target, 'threads', 'thr.events.jsonl'))).toEqual(before)
+    expect(readdirSync(parent)).toEqual(['session'])
+  })
+
   it('answers undefined for an empty directory rather than shipping an empty archive', async () => {
     const source = fresh()
 

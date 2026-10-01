@@ -70,6 +70,12 @@ export * from './cloud/serve-launch'
 export * from './cloud/gh-auth-token'
 export * from './cloud/sandbox-names'
 export * from './cloud/channel-wire'
+export { transcriptIdentityDigest } from './cloud/event-identity'
+export {
+  DEFAULT_REQUEST_TIMEOUT_MS,
+  LONG_REQUEST_TIMEOUT_MS,
+  requestTimeoutFor,
+} from './cloud/request-timeout'
 export * from './cloud/signal-wire'
 export * from './cloud/remote-delta-channel'
 export * from './cloud/remote-roster'
