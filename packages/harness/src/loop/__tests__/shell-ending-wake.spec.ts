@@ -5,7 +5,17 @@ import { defaultPipeline, EMPTY_PROMPT, type ModelPort } from '@dltech/atlas-cor
 import { buildHarness, ETurnStatus, LoopTurnRunner, type AtlasHarness } from '..'
 import { scriptedModel } from '../../model/testing/scripted-model'
 import { endedDraft } from '../../shells/notifications'
+import { RandomIds } from '../../store/ids'
+import { appendPending } from '../pending-intake'
 import type { PendingDrain } from '../run-turn'
+import {
+  closeRegistries,
+  job,
+  openRegistry,
+  recorded,
+  settle,
+  THREAD,
+} from '../../shells/__tests__/shell-registry-fixture'
 import { createTempHome, type TempHome } from './temp-home'
 
 const PROJECT_DIRECTORY = '/w'
@@ -17,6 +27,7 @@ afterEach(async () => {
     await entry.harness.close()
     entry.temp.discard()
   }
+  await closeRegistries()
 })
 
 async function runEndingAfterFinalMessage(args: { wakesTurn: boolean }): Promise<{
@@ -96,5 +107,38 @@ describe('a shell ending drained after the final message', () => {
     expect(result.status).toBe(ETurnStatus.Completed)
     expect(result.tailType).toBe('assistant-said')
     expect(result.modelCalls).toBe(2)
+  })
+})
+
+describe('an ending the occurrence already wrote', () => {
+  it('is not appended a second time when the turn drains the wake-up bell', async () => {
+    const { registry, log } = openRegistry()
+    const started = registry.start(job({ command: 'echo done' }))
+    if (!started.ok) throw new Error(started.reason)
+
+    await settle({ registry, shellId: started.snapshot.shellId })
+    await recorded({ log })
+
+    if (log === undefined) throw new Error('the registry opened without a log')
+
+    const drained = await appendPending({
+      drain: async ({ threadId }) => {
+        const batch = registry.prepareNotifications({ threadId })
+        return {
+          drafts: batch.drafts,
+          wakesTurn: batch.wakesTurn,
+          acknowledge: batch.acknowledge,
+        }
+      },
+      log,
+      ids: new RandomIds(),
+      threadId: THREAD,
+    })
+
+    expect(drained.ok && !drained.drained).toBe(true)
+    const ended = (await log.read({ threadId: THREAD })).filter(
+      (event) => event.type === 'background-shell-ended',
+    )
+    expect(ended).toHaveLength(1)
   })
 })

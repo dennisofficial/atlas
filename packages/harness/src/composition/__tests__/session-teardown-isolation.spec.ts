@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EventLogPort, EShellStatus, toThreadId, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 import { RandomIds } from '@dltech/atlas-harness'
 
-import { teardownSession, type TeardownShellSource, type TeardownSource } from '../session-teardown'
+import { teardownSession, type TeardownSource } from '../session-teardown'
 
 const FIRST = toThreadId('thread-first')
 const SECOND = toThreadId('thread-second')
@@ -95,40 +95,6 @@ describe('teardownSession per-thread failure isolation', () => {
       `log:append:${FIRST}`,
       `shells:drain:${SECOND}`,
       `log:append:${SECOND}`,
-      'sandbox:stop',
-    ])
-  })
-
-  it('still reconciles unresolved endings after a drain failure, and rejects with the original', async () => {
-    const calls: string[] = []
-    const log = recordingLog(calls)
-    log.failNextAppends(1)
-    const shells: TeardownShellSource = {
-      ...twoThreadSource(calls),
-      threadsWithUnresolvedEndings: () => [FIRST],
-      recordEndings: async () => {
-        calls.push('shells:recordEndings')
-      },
-    }
-
-    await expect(
-      teardownSession({
-        sources: [shells],
-        log,
-        ids: new RandomIds(),
-        stopSandbox: async () => {
-          calls.push('sandbox:stop')
-        },
-      }),
-    ).rejects.toThrow('append failed')
-
-    expect(calls).toEqual([
-      'shells:closeAll',
-      `shells:drain:${FIRST}`,
-      `log:append:${FIRST}`,
-      `shells:drain:${SECOND}`,
-      `log:append:${SECOND}`,
-      'shells:recordEndings',
       'sandbox:stop',
     ])
   })

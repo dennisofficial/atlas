@@ -7,6 +7,7 @@ import {
   closeRegistries,
   job,
   openRegistry,
+  recorded,
   settle,
   stillRunningDraft,
   THREAD,
@@ -39,7 +40,7 @@ describe('checking in on a background shell that has not ended', () => {
   })
 
   it('carries what a chatty shell last printed, without consuming what a read would return', async () => {
-    const { registry } = openRegistry()
+    const { registry, log } = openRegistry()
     const started = registry.start({
       ...job({ command: `printf '40 pending no-check\\n'; sleep 30` }),
       checkInMs: CHECK_IN_MS,
@@ -57,7 +58,7 @@ describe('checking in on a background shell that has not ended', () => {
   })
 
   it('repeats on the cadence for as long as the shell runs', async () => {
-    const { registry } = openRegistry()
+    const { registry, log } = openRegistry()
     const started = registry.start({ ...job({ command: 'sleep 30' }), checkInMs: CHECK_IN_MS })
     if (!started.ok) throw new Error(started.reason)
 
@@ -71,7 +72,7 @@ describe('checking in on a background shell that has not ended', () => {
   })
 
   it('keeps only the freshest check-in when nobody drains between intervals', async () => {
-    const { registry } = openRegistry()
+    const { registry, log } = openRegistry()
     const started = registry.start({ ...job({ command: 'sleep 30' }), checkInMs: CHECK_IN_MS })
     if (!started.ok) throw new Error(started.reason)
 
@@ -82,28 +83,28 @@ describe('checking in on a background shell that has not ended', () => {
   })
 
   it('queues no check-in behind the ending of a shell that finished', async () => {
-    const { registry } = openRegistry()
+    const { registry, log } = openRegistry()
     const started = registry.start({ ...job({ command: `echo done` }), checkInMs: CHECK_IN_MS })
     if (!started.ok) throw new Error(started.reason)
     await settle({ registry, shellId: started.snapshot.shellId })
-    await announced({ registry })
+    await recorded({ log })
 
     await Bun.sleep(CHECK_IN_MS * 2 + 100)
 
+    const ended = (log?.appended ?? []).some((draft) => draft.type === 'background-shell-ended')
     const drained = registry.drainNotifications({ threadId: THREAD })
-    expect(drained.some((draft) => draft.type === 'background-shell-ended')).toBe(true)
+    expect(ended).toBe(true)
     expect(drained.some((draft) => draft.type === 'background-shell-still-running')).toBe(false)
   })
 
   it('checks in no more once the shell is killed', async () => {
-    const { registry } = openRegistry()
+    const { registry, log } = openRegistry()
     const started = registry.start({ ...job({ command: 'sleep 30' }), checkInMs: CHECK_IN_MS })
     if (!started.ok) throw new Error(started.reason)
 
     registry.kill({ shellId: started.snapshot.shellId, by: EKilledBy.User, threadId: THREAD })
     await settle({ registry, shellId: started.snapshot.shellId })
-    await announced({ registry })
-    registry.drainNotifications({ threadId: THREAD })
+    await recorded({ log })
 
     await Bun.sleep(CHECK_IN_MS * 2 + 100)
 

@@ -13,11 +13,12 @@ import { HookChain, type HookChainSource } from '../../hooks/registry'
 import { SIGKILL_GRACE_MS } from '../shell-process'
 import { type ShellId } from '../shell-id'
 import {
-  announced,
   closeRegistries,
   ELSEWHERE,
+  endedDraft,
   job,
   openRegistry,
+  recorded,
   settle,
   shellAdapters,
   THREAD,
@@ -77,7 +78,7 @@ for (const adapter of shellAdapters) {
       }, 15_000)
 
       it('announces nothing for a shell it removed — the rewound thread never started it', async () => {
-        const { registry } = openRegistry({ adapter })
+        const { registry, log } = openRegistry({ adapter })
         const shellId = startOrThrow(registry, 'sleep 60')
 
         registry.removeShells({ threadId: THREAD, shellIds: [shellId], by: EKilledBy.Rewind })
@@ -85,22 +86,26 @@ for (const adapter of shellAdapters) {
 
         expect(registry.pendingNotices({ threadId: THREAD })).toEqual([])
         expect(registry.drainNotifications({ threadId: THREAD })).toEqual([])
+        expect(log?.appended.filter((draft) => draft.type === 'background-shell-ended')).toEqual([])
       })
 
-      it('drops a queued notice of a removed shell but keeps the notices of the survivors', async () => {
-        const { registry } = openRegistry({ adapter })
+      it('records the endings of the survivors and nothing further for the removed shell', async () => {
+        const { registry, log } = openRegistry({ adapter })
         const cut = startOrThrow(registry, 'echo cut')
         const kept = startOrThrow(registry, 'echo kept')
         await settle({ registry, shellId: cut })
         await settle({ registry, shellId: kept })
-        await announced({ registry })
 
         registry.removeShells({ threadId: THREAD, shellIds: [cut], by: EKilledBy.Rewind })
 
-        const pending = registry.pendingNotices({ threadId: THREAD })
-        expect(pending.map((notice) => notice.snapshot.shellId)).toEqual([kept])
-        const drained = registry.drainNotifications({ threadId: THREAD })
-        expect(drained.map((draft) => draft.type)).toEqual(['background-shell-ended'])
+        // The cut shell's settle continuation may still be running; the survivor's ending lands
+        // regardless, and removal queues nothing for the cut one.
+        await recorded({ log })
+        const ended = (log?.appended ?? []).filter(
+          (draft) => draft.type === 'background-shell-ended',
+        )
+        expect(ended.map((draft) => endedDraft(draft).shellId)).toContain(kept)
+        expect(registry.pendingNotices({ threadId: THREAD })).toEqual([])
       })
 
       it('leaves shells of other threads alone, even asked by id', async () => {
@@ -135,7 +140,7 @@ for (const adapter of shellAdapters) {
         const hold = new Promise<void>((resolve) => {
           release = resolve
         })
-        const { registry } = openRegistry({ adapter, hooks: gatedBy({ entered, hold }) })
+        const { registry, log } = openRegistry({ adapter, hooks: gatedBy({ entered, hold }) })
         const shellId = startOrThrow(registry, 'echo done')
 
         await hookEntered
@@ -145,6 +150,7 @@ for (const adapter of shellAdapters) {
 
         expect(registry.pendingNotices({ threadId: THREAD })).toEqual([])
         expect(registry.drainNotifications({ threadId: THREAD })).toEqual([])
+        expect(log?.appended.filter((draft) => draft.type === 'background-shell-ended')).toEqual([])
       })
 
       it('closeAll still waits out the SIGKILL grace for a shell a rewind killed', async () => {

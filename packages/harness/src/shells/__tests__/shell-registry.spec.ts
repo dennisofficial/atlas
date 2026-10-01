@@ -7,6 +7,8 @@ import {
   closeRegistries,
   job,
   openRegistry,
+  printed,
+  recorded,
   settle,
   shellAdapters,
   THREAD,
@@ -41,59 +43,65 @@ for (const adapter of shellAdapters) {
       })
 
       it('runs the command in the workspace root', async () => {
-        const { registry, root } = openRegistry({ adapter })
+        const { registry, root, log } = openRegistry({ adapter })
 
         const started = registry.start(job({ command: 'pwd' }))
         if (!started.ok) throw new Error(started.reason)
         await settle({ registry, shellId: started.snapshot.shellId })
+        await recorded({ log })
 
-        const read = registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
-        expect(read.ok && read.delta.text.trim().endsWith(basename(root))).toBe(true)
+        const ended = log?.appended.find((draft) => draft.type === 'background-shell-ended')
+        expect(ended?.type === 'background-shell-ended' && ended.output.trim().endsWith(basename(root))).toBe(true)
       })
     })
 
     describe('reading a background shell back', () => {
       it('collects what the command printed and reports its exit code', async () => {
-        const { registry } = openRegistry({ adapter })
+        const { registry, log } = openRegistry({ adapter })
         const started = registry.start(job({ command: 'echo hello' }))
         if (!started.ok) throw new Error(started.reason)
 
         await settle({ registry, shellId: started.snapshot.shellId })
-        const read = registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
+        await recorded({ log })
 
-        expect(read.ok).toBe(true)
-        if (!read.ok) return
-        expect(read.delta.text).toBe('hello\n')
-        expect(read.snapshot.status).toBe(EShellStatus.Exited)
-        expect(read.snapshot.exitCode).toBe(0)
+        const ended = log?.appended.find((draft) => draft.type === 'background-shell-ended')
+        expect(ended).toMatchObject({
+          type: 'background-shell-ended',
+          output: 'hello\n',
+          status: EShellStatus.Exited,
+          exitCode: 0,
+        })
       })
 
       it('interleaves stderr with stdout, since one shell writes one stream of output', async () => {
-        const { registry } = openRegistry({ adapter })
+        const { registry, log } = openRegistry({ adapter })
         const started = registry.start(job({ command: 'echo out; echo err 1>&2' }))
         if (!started.ok) throw new Error(started.reason)
 
         await settle({ registry, shellId: started.snapshot.shellId })
-        const read = registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
+        await recorded({ log })
 
-        expect(read.ok && read.delta.text.split('\n').filter(Boolean).sort()).toEqual([
-          'err',
-          'out',
-        ])
+        const ended = log?.appended.find((draft) => draft.type === 'background-shell-ended')
+        const lines = ended?.type === 'background-shell-ended'
+          ? ended.output.split('\n').filter(Boolean).sort()
+          : []
+        expect(lines).toEqual(['err', 'out'])
       })
 
-      it('advances a cursor, so a second read does not repeat the first', async () => {
-        const { registry } = openRegistry({ adapter })
+      it('hands the output to the log, so a read after the ending finds nothing more', async () => {
+        const { registry, log } = openRegistry({ adapter })
         const started = registry.start(job({ command: 'echo once' }))
         if (!started.ok) throw new Error(started.reason)
         await settle({ registry, shellId: started.snapshot.shellId })
+        await recorded({ log })
 
-        const first = registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
+        const read = registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
+
+        // The occurrence capture keeps the delta for the first read; a second finds it consumed.
+        expect(read.ok && read.delta.text).toBe('once\n')
+        expect(read.ok && read.delta.remainingCharacters).toBe(0)
         const second = registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
-
-        expect(first.ok && first.delta.text).toBe('once\n')
         expect(second.ok && second.delta.text).toBe('')
-        expect(second.ok && second.delta.remainingCharacters).toBe(0)
       })
 
       it('keeps a failing exit code rather than raising it', async () => {
@@ -128,11 +136,11 @@ for (const adapter of shellAdapters) {
     })
 
     describe('looking at a shell without consuming it', () => {
-      it('peeks at the tail without moving the cursor the model reads through', async () => {
+      it('peeks at the tail of a running shell without moving the cursor the model reads through', async () => {
         const { registry } = openRegistry({ adapter })
-        const started = registry.start(job({ command: 'echo watched' }))
+        const started = registry.start(job({ command: 'printf "watched\\n"; sleep 30' }))
         if (!started.ok) throw new Error(started.reason)
-        await settle({ registry, shellId: started.snapshot.shellId })
+        await printed({ registry, shellId: started.snapshot.shellId, text: 'watched' })
 
         const peeked = registry.peek({
           shellId: started.snapshot.shellId,

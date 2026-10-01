@@ -150,12 +150,6 @@ export type EventBody =
       output: string
       droppedCharacters: number
       remainingCharacters: number
-      /**
-       * Bookkeeping, not speech: the ending was already delivered another way (a shell_kill tool
-       * result), so this event settles the log's start/end pair but must not render in the
-       * transcript or wake a turn. Absent means a genuine ending the model has not been told.
-       */
-      recorded?: true | undefined
     }
   | {
       type: 'background-shell-awaiting-input'

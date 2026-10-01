@@ -1,11 +1,10 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { EKilledBy, EShellStatus as ECoreShellStatus } from '@dltech/atlas-core'
+import { EKilledBy } from '@dltech/atlas-core'
 
 import {
   announced,
   closeRegistries,
-  endedDraft,
   job,
   openRegistry,
   printed,
@@ -13,33 +12,32 @@ import {
   THREAD,
 } from './shell-registry-fixture'
 
+const openLogless = (args: Parameters<typeof openRegistry>[0] = {}) =>
+  openRegistry({ ...args, log: null })
+
 afterEach(closeRegistries)
 
 const CHECK_IN_MS = 100
 
-describe('preparing shell notices without acknowledging', () => {
-  it('prepares twice before acknowledging: a failed append loses neither notice nor output', async () => {
-    const { registry } = openRegistry()
+describe('the shell notice queue as a wake-up bell', () => {
+  it('rings for an ending but yields no ending draft: the occurrence write is the record', async () => {
+    const { registry } = openLogless()
     const started = registry.start(job({ command: 'echo kept-output' }))
     if (!started.ok) throw new Error(started.reason)
     await settle({ registry, shellId: started.snapshot.shellId })
     await announced({ registry })
 
-    const first = registry.prepareNotifications({ threadId: THREAD })
-    const second = registry.prepareNotifications({ threadId: THREAD })
-
-    expect(first.drafts).toHaveLength(1)
-    expect(second.drafts).toHaveLength(1)
-    expect(endedDraft(second.drafts[0]).output).toBe('kept-output\n')
+    const batch = registry.prepareNotifications({ threadId: THREAD })
+    expect(batch.drafts).toEqual([])
     expect(registry.pendingNotices({ threadId: THREAD })).toHaveLength(1)
 
-    first.acknowledge()
+    batch.acknowledge()
     expect(registry.pendingNotices({ threadId: THREAD })).toEqual([])
     expect(registry.prepareNotifications({ threadId: THREAD }).drafts).toEqual([])
   })
 
-  it('advances the cursor only to the captured point, never over output printed since', async () => {
-    const { registry } = openRegistry()
+  it('captures the shell output at occurrence, so the first read after the bell serves it once', async () => {
+    const { registry } = openLogless()
     const started = registry.start(
       job({ command: `printf 'first\\n'; sleep 0.3; printf 'second\\n'` }),
     )
@@ -48,17 +46,20 @@ describe('preparing shell notices without acknowledging', () => {
     await settle({ registry, shellId: started.snapshot.shellId })
     await announced({ registry })
 
-    const batch = registry.prepareNotifications({ threadId: THREAD })
-    expect(endedDraft(batch.drafts[0]).output).toContain('first')
-
-    batch.acknowledge()
-
+    // The capture happened at occurrence: the buffer is released (peek sees nothing), and the
+    // first read hands over the captured output exactly once — a second read finds it consumed.
+    expect(
+      registry.peek({ shellId: started.snapshot.shellId, characters: 1000, threadId: THREAD }),
+    ).toBe('')
     const read = registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
-    expect(read.ok && read.delta.text).not.toContain('first')
+    expect(read.ok && read.delta.text).toContain('first')
+    expect(read.ok && read.delta.text).toContain('second')
+    const second = registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
+    expect(second.ok && second.delta.text).toBe('')
   })
 
   it('keeps a check-in queued behind a prepared batch when it replaced the captured one', async () => {
-    const { registry } = openRegistry()
+    const { registry } = openLogless()
     const started = registry.start({ ...job({ command: 'sleep 30' }), checkInMs: CHECK_IN_MS })
     if (!started.ok) throw new Error(started.reason)
 
@@ -76,7 +77,7 @@ describe('preparing shell notices without acknowledging', () => {
   })
 
   it('acknowledges exactly once: a second ack removes nothing more', async () => {
-    const { registry } = openRegistry()
+    const { registry } = openLogless()
     const started = registry.start(job({ command: 'echo once' }))
     if (!started.ok) throw new Error(started.reason)
     await settle({ registry, shellId: started.snapshot.shellId })
@@ -89,28 +90,8 @@ describe('preparing shell notices without acknowledging', () => {
     expect(registry.pendingNotices({ threadId: THREAD })).toEqual([])
   })
 
-  it('keeps the retained output of a prepared-but-unacknowledged ending readable', async () => {
-    const { registry } = openRegistry()
-    const started = registry.start(job({ command: 'echo not-yet-delivered' }))
-    if (!started.ok) throw new Error(started.reason)
-    await settle({ registry, shellId: started.snapshot.shellId })
-    await announced({ registry })
-
-    const batch = registry.prepareNotifications({ threadId: THREAD })
-    expect(endedDraft(batch.drafts[0]).output).toBe('not-yet-delivered\n')
-
-    expect(
-      registry.peek({ shellId: started.snapshot.shellId, characters: 1000, threadId: THREAD }),
-    ).toBe('not-yet-delivered\n')
-
-    batch.acknowledge()
-    expect(
-      registry.peek({ shellId: started.snapshot.shellId, characters: 1000, threadId: THREAD }),
-    ).toBe('')
-  })
-
-  it('enumerates a thread with a queued ending until the batch is acknowledged', async () => {
-    const { registry } = openRegistry()
+  it('enumerates a thread with a queued ending until the bell is acknowledged', async () => {
+    const { registry } = openLogless()
     const started = registry.start(job({ command: 'echo hi' }))
     if (!started.ok) throw new Error(started.reason)
     await settle({ registry, shellId: started.snapshot.shellId })
@@ -125,24 +106,23 @@ describe('preparing shell notices without acknowledging', () => {
     expect(registry.threadsWithPendingInput()).toEqual([])
   })
 
-  it('drains as before: prepare plus an immediate acknowledgment', async () => {
-    const { registry } = openRegistry()
+  it('drains as before: prepare plus an immediate acknowledgment, yielding no ending draft', async () => {
+    const { registry } = openLogless()
     const started = registry.start(job({ command: 'echo hi' }))
     if (!started.ok) throw new Error(started.reason)
     await settle({ registry, shellId: started.snapshot.shellId })
     await announced({ registry })
 
-    const drained = registry.drainNotifications({ threadId: THREAD })
-    expect(drained).toHaveLength(1)
-    expect(endedDraft(drained[0]).status).toBe(ECoreShellStatus.Exited)
     expect(registry.drainNotifications({ threadId: THREAD })).toEqual([])
+    expect(registry.pendingNotices({ threadId: THREAD })).toEqual([])
 
+    // The bell carries no draft, but the captured output still answers the first read.
     const read = registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
-    expect(read.ok && read.delta.text).toBe('')
+    expect(read.ok && read.delta.text).toBe('hi\n')
   })
 
-  it('queues nothing beside an ending shell_kill already claimed', async () => {
-    const { registry } = openRegistry()
+  it('rings the bell for a model kill, whose settled continuation is the read of the occurrence take', async () => {
+    const { registry } = openLogless()
     const started = registry.start(job({ command: 'echo claimed; sleep 60' }))
     if (!started.ok) throw new Error(started.reason)
     await printed({ registry, shellId: started.snapshot.shellId, text: 'claimed' })
@@ -152,19 +132,22 @@ describe('preparing shell notices without acknowledging', () => {
       by: EKilledBy.Model,
       threadId: THREAD,
     })
-    if (!killed.ok || killed.settled === undefined) throw new Error('the kill was not claimed')
+    if (!killed.ok || killed.settled === undefined) {
+      throw new Error('a model kill hands back the settled continuation')
+    }
     const ending = await killed.settled
     expect(ending.died).toBe(true)
-    await Bun.sleep(150)
+    if (ending.died) expect(ending.delta.text).toContain('claimed')
 
+    await announced({ registry })
     const batch = registry.prepareNotifications({ threadId: THREAD })
     expect(batch.drafts).toEqual([])
+    expect(registry.pendingNotices({ threadId: THREAD })).toHaveLength(1)
     batch.acknowledge()
-    expect(registry.threadsWithPendingInput()).toEqual([])
   })
 
-  it('never releases output printed after the preview, even when the shell then exits', async () => {
-    const { registry } = openRegistry()
+  it('never releases output printed after a live announcement, even when the shell then exits', async () => {
+    const { registry } = openLogless()
     const started = registry.start({
       ...job({ command: `printf 'early\\n'; sleep 60` }),
       checkInMs: CHECK_IN_MS,
@@ -181,17 +164,15 @@ describe('preparing shell notices without acknowledging', () => {
 
     batch.acknowledge()
 
-    const read = registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
-    expect(read.ok && read.delta.text).toContain('early')
-
     await announced({ registry })
     const ending = registry.prepareNotifications({ threadId: THREAD })
-    expect(endedDraft(ending.drafts[0]).output).toBe('')
+    expect(ending.drafts).toEqual([])
+    expect(registry.pendingNotices({ threadId: THREAD })).toHaveLength(1)
     ending.acknowledge()
   })
 
   it('clears a check-in whose shell ended behind a prepared batch instead of queuing it forever', async () => {
-    const { registry } = openRegistry()
+    const { registry } = openLogless()
     const started = registry.start({ ...job({ command: 'sleep 30' }), checkInMs: CHECK_IN_MS })
     if (!started.ok) throw new Error(started.reason)
     await announced({ registry })
@@ -212,30 +193,9 @@ describe('preparing shell notices without acknowledging', () => {
 
     await announced({ registry })
     const ending = registry.prepareNotifications({ threadId: THREAD })
-    expect(ending.drafts.some((draft) => draft.type === 'background-shell-ended')).toBe(true)
+    expect(ending.drafts).toEqual([])
+    expect(registry.pendingNotices({ threadId: THREAD })).toHaveLength(1)
     ending.acknowledge()
     expect(registry.threadsWithPendingInput()).toEqual([])
-  })
-
-  it('never rewinds a cursor a read advanced past the captured preview', async () => {
-    const { registry } = openRegistry()
-    const started = registry.start(
-      job({ command: `printf 'part-one\\n'; sleep 0.3; printf 'part-two\\n'` }),
-    )
-    if (!started.ok) throw new Error(started.reason)
-    await printed({ registry, shellId: started.snapshot.shellId, text: 'part-one' })
-    await settle({ registry, shellId: started.snapshot.shellId })
-    await announced({ registry })
-
-    const batch = registry.prepareNotifications({ threadId: THREAD })
-    expect(endedDraft(batch.drafts[0]).output).toContain('part-one')
-
-    const read = registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
-    expect(read.ok && read.delta.text).toContain('part-two')
-
-    batch.acknowledge()
-
-    const after = registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
-    expect(after.ok && after.delta.text).toBe('')
   })
 })

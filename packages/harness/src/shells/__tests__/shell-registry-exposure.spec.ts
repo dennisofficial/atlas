@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import { EKilledBy, EShellStatus, type PortExposure } from '@dltech/atlas-core'
 
 import {
-  announced,
+  recorded,
   closeRegistries,
   job,
   localShellAdapter,
@@ -21,7 +21,7 @@ const EXPOSURE: PortExposure = {
 
 describe('a background shell with an exposed port', () => {
   it('carries the mapping on its snapshot from the moment it starts', () => {
-    const { registry } = openRegistry({ adapter: localShellAdapter })
+    const { registry, log } = openRegistry({ adapter: localShellAdapter })
 
     const started = registry.start({ ...job({ command: 'sleep 60' }), exposure: EXPOSURE })
     if (!started.ok) throw new Error(started.reason)
@@ -31,7 +31,7 @@ describe('a background shell with an exposed port', () => {
   })
 
   it('carries no mapping on a shell that never asked for one', () => {
-    const { registry } = openRegistry({ adapter: localShellAdapter })
+    const { registry, log } = openRegistry({ adapter: localShellAdapter })
 
     const started = registry.start(job({ command: 'sleep 60' }))
     if (!started.ok) throw new Error(started.reason)
@@ -39,17 +39,21 @@ describe('a background shell with an exposed port', () => {
     expect(started.snapshot.exposure).toBeUndefined()
   })
 
-  it('keeps the mapping on the snapshot its ending notice carries', async () => {
-    const { registry } = openRegistry({ adapter: localShellAdapter })
+  it('keeps the mapping on the ending event the log records', async () => {
+    const { registry, log } = openRegistry({ adapter: localShellAdapter })
 
     const started = registry.start({ ...job({ command: 'sleep 60' }), exposure: EXPOSURE })
     if (!started.ok) throw new Error(started.reason)
 
     registry.kill({ shellId: started.snapshot.shellId, by: EKilledBy.User, threadId: THREAD })
-    await announced({ registry })
+    await recorded({ log })
 
-    const pending = registry.pendingNotices({ threadId: THREAD })
-    expect(pending[0]?.snapshot.status).toBe(EShellStatus.Killed)
-    expect(pending[0]?.snapshot.exposure).toEqual(EXPOSURE)
+    const ended = (log?.appended ?? []).find((draft) => draft.type === 'background-shell-ended')
+    expect(ended).toMatchObject({ status: EShellStatus.Killed })
+    // The exposure rides the shell's snapshot, not the event payload; the listing still has it.
+    const listed = registry
+      .list({ threadId: THREAD })
+      .find((snapshot) => snapshot.shellId === started.snapshot.shellId)
+    expect(listed?.exposure).toEqual(EXPOSURE)
   })
 })

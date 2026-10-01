@@ -27,10 +27,11 @@ const description = [
   'Takes the shellId that bash returned when it was started with runInBackground.',
   'The whole process group is signalled, so anything the command forked goes with it.',
   `SIGTERM first, then SIGKILL ${SIGKILL_GRACE_MS} ms later if it has not exited.`,
-  'The call waits for the shell to die and hands you everything it printed as its result - no separate ending arrives for a shell you stopped.',
+  'The call waits for the shell to die and hands you everything it printed as its result.',
+  'That result is a read, not the announcement: every shell ending, a kill you asked for included, is written to the durable log when it happens and also reaches you as a background-shell-ended event, so a shell you stopped can be told to you twice. It is the same death both times - act on either telling.',
 ].join(' ')
 
-function renderClaimed(args: { snapshot: ShellSnapshot; delta: ShellDelta }): string {
+function renderEnding(args: { snapshot: ShellSnapshot; delta: ShellDelta }): string {
   const { snapshot, delta } = args
   const exit = snapshot.exitCode === undefined ? '' : `, exit code ${snapshot.exitCode}`
   const sections = [
@@ -116,7 +117,7 @@ export class ShellKillTool extends SchemaTool<typeof inputSchema> {
         droppedCharacters: ending.delta.droppedCharacters,
         remainingCharacters: ending.delta.remainingCharacters,
       },
-      modelText: renderClaimed({ snapshot: ending.snapshot, delta: ending.delta }),
+      modelText: renderEnding({ snapshot: ending.snapshot, delta: ending.delta }),
     }
   }
 }

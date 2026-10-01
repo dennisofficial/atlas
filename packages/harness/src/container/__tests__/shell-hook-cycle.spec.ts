@@ -7,10 +7,17 @@ import {
   AfterShellHook,
   ClockPort,
   EStage,
+  EventLogPort,
+  IdPort,
+  toCallId,
+  toEventId,
+  toRunId,
   toThreadId,
   type EndedShell,
+  type EventDraft,
   type HookOrder,
   type HookOutcome,
+  type ThreadId,
 } from '@dltech/atlas-core'
 
 import { resolveHookChain } from '../../hooks/resolve-hooks'
@@ -62,7 +69,11 @@ afterEach(async () => {
   }
 })
 
-function openContainer(): { container: DependencyContainer; root: string } {
+function openContainer(): {
+  container: DependencyContainer
+  root: string
+  appended: { threadId: ThreadId; drafts: readonly EventDraft[] }[]
+} {
   const root = mkdtempSync(join(tmpdir(), 'atlas-shell-cycle-'))
   const container = createIsolatedContainer()
   container.register(WorkspaceRoot, { useValue: root })
@@ -72,12 +83,49 @@ function openContainer(): { container: DependencyContainer; root: string } {
   })
   container.register(portToken(ClockPort), { useClass: FixedClock })
 
+  const appended: { threadId: ThreadId; drafts: readonly EventDraft[] }[] = []
+  class RecordingLog extends EventLogPort {
+    async append(args: { threadId: ThreadId; drafts: readonly EventDraft[] }) {
+      appended.push(args)
+      return []
+    }
+    async replace() {
+      return []
+    }
+    async read() {
+      return []
+    }
+    async refresh() {}
+    async head() {
+      return 0
+    }
+    async readOwn() {
+      return []
+    }
+  }
+  class StubIds extends IdPort {
+    nextThreadId(): ThreadId {
+      return THREAD
+    }
+    nextRunId() {
+      return toRunId('run-test')
+    }
+    nextEventId() {
+      return toEventId('event-test')
+    }
+    nextCallId() {
+      return toCallId('call-test')
+    }
+  }
+  container.register(portToken(EventLogPort), { useClass: RecordingLog })
+  container.register(portToken(IdPort), { useClass: StubIds })
+
   registerShells({ container })
   container.register(HookChainToken, {
     useFactory: instanceCachingFactory((resolver) => resolveHookChain({ container: resolver })),
   })
 
-  const entry = { container, root }
+  const entry = { container, root, appended }
   opened.push(entry)
   return entry
 }
@@ -94,7 +142,7 @@ describe('the shell registry and the hook chain, in a real container', () => {
   })
 
   it('reaches a hook that depends on the registry firing it', async () => {
-    const { container } = openContainer()
+    const { container, appended } = openContainer()
     const shells = container.resolve(portToken(ShellRegistryPort))
 
     const started = shells.start({
@@ -104,12 +152,16 @@ describe('the shell registry and the hook chain, in a real container', () => {
     })
     if (!started.ok) throw new Error(started.reason)
 
-    for (let attempt = 0; attempt < 200; attempt += 1) {
-      if (shells.pendingNotices({ threadId: THREAD }).length > 0) break
+    for (let attempt = 0; attempt < 200 && appended.length === 0; attempt += 1) {
       await Bun.sleep(25)
     }
 
     expect(fired.map((shell) => shell.command)).toEqual(['echo wired'])
-    expect(shells.drainNotifications({ threadId: THREAD })).toHaveLength(2)
+    const drafts = appended.flatMap((call) => call.drafts)
+    expect(drafts.map((draft) => draft.type)).toEqual([
+      'background-shell-ended',
+      'context-loaded',
+    ])
+    expect(shells.drainNotifications({ threadId: THREAD })).toEqual([])
   })
 })
