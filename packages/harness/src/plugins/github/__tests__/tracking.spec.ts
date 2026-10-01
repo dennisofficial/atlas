@@ -12,17 +12,22 @@ const THREAD = toThreadId('thread-track')
 
 const keyOf = (checkout: RepositoryCheckout): string => checkoutKey(checkout)
 
-const rig = (args: { probed: RepositoryCheckout | null }) => {
+const rig = (args: {
+  probed: RepositoryCheckout | null
+  cloud?: () => RepositoryCheckout | null
+}) => {
   const probeCalls: string[] = []
   const port = pullRequestsByKey({
     [keyOf(aCheckout({ branch: 'dennis/one' }))]: wasFound({ number: 1 }),
     [keyOf(aCheckout({ branch: 'dennis/two' }))]: wasFound({ number: 2 }),
+    [keyOf(aCheckout({ branch: 'dennis/cloud-branch' }))]: wasFound({ number: 3 }),
   })
   const service = createPullRequestService({ pullRequests: port })
   const facts = createSessionFacts({ launchDirectory: '/workspace' })
   const tracking = createCheckoutTracking({
     service,
     facts,
+    ...(args.cloud === undefined ? {} : { cloud: args.cloud }),
     probe: async ({ directory }) => {
       probeCalls.push(directory)
       return args.probed
@@ -86,6 +91,32 @@ describe('the checkout tracking hooks', () => {
     const { service, tracking } = rig({ probed: null })
 
     await tracking.beforeTurn({ threadId: THREAD, projectDirectory: '/workspace' })
+    await tracking.afterTurn({ threadId: THREAD })
+
+    expect(service.current()).toBeNull()
+    service.dispose()
+  })
+
+  it('tracks the folded cloud checkout instead of probing the launch directory', async () => {
+    const cloud = aCheckout({ branch: 'dennis/cloud-branch' })
+    const { service, tracking, probeCalls } = rig({ probed: null, cloud: () => cloud })
+
+    await tracking.beforeTurn({ threadId: THREAD, projectDirectory: '/Users/dennis/Developer/atlas' })
+    await tracking.afterTurn({ threadId: THREAD })
+
+    expect(probeCalls).toEqual([])
+    expect(service.current()?.checkout.branch).toBe('dennis/cloud-branch')
+    service.dispose()
+  })
+
+  it('stops tracking when the cloud fold clears on descend', async () => {
+    let folded: RepositoryCheckout | null = aCheckout({ branch: 'dennis/cloud-branch' })
+    const { service, tracking } = rig({ probed: null, cloud: () => folded })
+
+    await tracking.beforeTurn({ threadId: THREAD, projectDirectory: '/cloud' })
+    expect(service.current()?.checkout.branch).toBe('dennis/cloud-branch')
+
+    folded = null
     await tracking.afterTurn({ threadId: THREAD })
 
     expect(service.current()).toBeNull()

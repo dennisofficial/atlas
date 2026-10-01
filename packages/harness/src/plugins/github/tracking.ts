@@ -21,11 +21,27 @@ export type CheckoutTracking = {
 export function createCheckoutTracking(args: {
   service: PullRequestService
   facts: SessionFacts
+  cloud?: () => RepositoryCheckout | null
   probe?: typeof probeCheckout
 }): CheckoutTracking {
   const probe = args.probe ?? probeCheckout
 
   const follow = async (request: { directory: string }): Promise<RepositoryCheckout | null> => {
+    // A lifted thread's directory is the host path, unreachable from the sandbox — the lift-time
+    // identity folded out of the log is the only honest checkout here.
+    if (args.cloud !== undefined) {
+      const folded = args.cloud()
+      if (folded === null) {
+        args.service.stopTracking()
+        return null
+      }
+      const tracked = args.service.current()
+      if (tracked !== null && checkoutKey(tracked.checkout) === checkoutKey(folded)) return null
+
+      args.service.track({ checkout: folded })
+      return folded
+    }
+
     const probed = await probe({ directory: request.directory })
     if (probed === null) return null
 
