@@ -3,14 +3,23 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { EToolEffect, type ToolOutcome,
+import {
+  EKilledBy,
+  EToolEffect,
   toThreadId,
+  type EventOfType,
+  type ToolOutcome,
 } from '@dltech/atlas-core'
 
 import { HookChain } from '../../../hooks/registry'
 import { EShellStatus } from '../../../shells/background-shell'
 import { BunShellRegistry, PROMPT_SETTLE_MS } from '../../../shells/shell-registry'
-import { SystemClock } from '../../../store'
+import {
+  RecordingLog,
+  printed,
+  recorded,
+} from '../../../shells/__tests__/shell-registry-fixture'
+import { RandomIds, SystemClock } from '../../../store'
 import { BashTool } from '../bash'
 import { ShellKillTool } from '../shell-kill'
 import { ShellListTool } from '../shell-list'
@@ -21,6 +30,7 @@ const noHooks = () => new HookChain({})
 type Suite = {
   root: string
   shells: BunShellRegistry
+  log: RecordingLog | undefined
   bash: BashTool
   output: ShellOutputTool
   kill: ShellKillTool
@@ -36,12 +46,16 @@ afterEach(async () => {
   }
 })
 
-function openSuite(): Suite {
+function openSuite({ withLog = false }: { withLog?: boolean } = {}): Suite {
   const root = mkdtempSync(join(tmpdir(), 'atlas-shell-tools-'))
-  const shells = new BunShellRegistry(root, new SystemClock(), noHooks)
+  const log = withLog ? new RecordingLog() : undefined
+  const shells = withLog
+    ? new BunShellRegistry(root, new SystemClock(), noHooks, undefined, undefined, log, new RandomIds())
+    : new BunShellRegistry(root, new SystemClock(), noHooks)
   const suite: Suite = {
     root,
     shells,
+    log,
     bash: new BashTool(shells),
     output: new ShellOutputTool(shells),
     kill: new ShellKillTool(shells),
@@ -49,6 +63,16 @@ function openSuite(): Suite {
   }
   opened.push(suite)
   return suite
+}
+
+const THREAD_1 = toThreadId('thread-1')
+
+const endedInLog = (log: RecordingLog | undefined): EventOfType<'background-shell-ended'>[] => {
+  if (log === undefined) throw new Error('the suite was opened without a log')
+  return log.appended.filter(
+    (draft): draft is EventOfType<'background-shell-ended'> =>
+      draft.type === 'background-shell-ended',
+  )
 }
 
 const invoke = (
@@ -236,18 +260,30 @@ describe('stopping a background shell through shell_kill', () => {
     expect(String(outputOf(read).text)).toBe('')
   })
 
-  it('announces nothing for a kill it answered itself', async () => {
-    const suite = openSuite()
+  it('the durable log holds exactly one ending with the real output, and the tool result reads it', async () => {
+    const suite = openSuite({ withLog: true })
     const started = outputOf(
       await runBash(suite, { command: 'echo before; sleep 60', runInBackground: true }),
     )
+    await printed({ registry: suite.shells, shellId: String(started.shellId), text: 'before', threadId: THREAD_1 })
 
-    await invoke(suite.kill, { shellId: started.shellId })
-    await Bun.sleep(100)
+    const killed = await invoke(suite.kill, { shellId: started.shellId })
 
-    expect(
-      suite.shells.drainNotifications({ threadId: toThreadId('thread-1') }),
-    ).toEqual([])
+    expect(modelTextOf(killed)).toContain('before')
+
+    await recorded({ log: suite.log, threadId: THREAD_1 })
+
+    const ended = endedInLog(suite.log)
+    expect(ended).toHaveLength(1)
+    expect(ended[0]).toMatchObject({
+      shellId: started.shellId,
+      status: EShellStatus.Killed,
+      killedBy: EKilledBy.Model,
+    })
+    expect(ended[0]?.output).toContain('before')
+
+    await suite.shells.closeAll()
+    expect(endedInLog(suite.log)).toHaveLength(1)
   })
 
   it('says so rather than pretending, when the shell had already finished', async () => {
