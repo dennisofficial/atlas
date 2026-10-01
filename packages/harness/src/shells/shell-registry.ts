@@ -38,6 +38,7 @@ export const ACTIVITY_NOTIFY_MS = 100
 export const OVERFLOW_CHARACTERS = 50_000_000
 export const PROMPT_SETTLE_MS = 2_000
 export const CHECK_IN_TAIL_CHARACTERS = 1_000
+export const SILENT_FOR_AT_MOST_MS = 1_800_000
 
 /** SIGKILL plus the read grace and slack: a kill that outlives this is handed back to the announcement path. */
 export const KILL_SETTLE_MS = SIGKILL_GRACE_MS + 2_000
@@ -142,6 +143,7 @@ export class BunShellRegistry extends ShellRegistryPort {
     private readonly sleepPrevention?: SleepPrevention,
     private readonly log?: EventLogPort,
     private readonly ids?: IdPort,
+    private readonly silenceMs: number = SILENT_FOR_AT_MOST_MS,
   ) {
     super()
   }
@@ -169,6 +171,7 @@ export class BunShellRegistry extends ShellRegistryPort {
       matchSettleMs: MATCH_SETTLE_MS,
       matchedLinesCap: MATCHED_LINES_CAP,
       timeoutMs: args.timeoutMs,
+      silenceMs: this.silenceMs,
       checkInMs,
       exposure: args.exposure,
       processes: this.processes,

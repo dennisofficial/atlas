@@ -107,6 +107,7 @@ export type BackgroundShellSpec = {
   matchSettleMs: number
   matchedLinesCap: number
   timeoutMs?: number | undefined
+  silenceMs?: number | undefined
   checkInMs?: number | undefined
   exposure?: PortExposure | undefined
   processes?: ProcessPort | undefined
@@ -160,6 +161,7 @@ export function startBackgroundShell(spec: BackgroundShellSpec): StartedBackgrou
   let promptWatch: ReturnType<typeof setTimeout> | undefined
   let matchWatch: ReturnType<typeof setTimeout> | undefined
   let deadline: ReturnType<typeof setTimeout> | undefined
+  let silence: ReturnType<typeof setTimeout> | undefined
   let checkIn: ReturnType<typeof setTimeout> | undefined
 
   const drains: Drain[] = []
@@ -182,6 +184,11 @@ export function startBackgroundShell(spec: BackgroundShellSpec): StartedBackgrou
   const forgetDeadline = (): void => {
     if (deadline !== undefined) clearTimeout(deadline)
     deadline = undefined
+  }
+
+  const forgetSilence = (): void => {
+    if (silence !== undefined) clearTimeout(silence)
+    silence = undefined
   }
 
   const forgetCheckIn = (): void => {
@@ -226,6 +233,7 @@ export function startBackgroundShell(spec: BackgroundShellSpec): StartedBackgrou
     killedBy = by
     forgetPromptWatch()
     forgetCheckIn()
+    forgetSilence()
     terminate()
   }
 
@@ -233,6 +241,22 @@ export function startBackgroundShell(spec: BackgroundShellSpec): StartedBackgrou
     deadline = setTimeout(() => kill(EKilledBy.Timeout), spec.timeoutMs)
     deadline.unref?.()
   }
+
+  /**
+   * A background shell exists to be waited on, and a waiter that goes silent may be stuck on
+   * something that never ends — gh run watch does not exit when GitHub cancels the run. A shell
+   * that prints nothing for the ceiling is killed as a timeout, and that ending wakes the owner
+   * like any other, so a wait can never sit indefinitely. Output re-arms the clock: an active
+   * shell is never touched.
+   */
+  const armSilence = (): void => {
+    forgetSilence()
+    if (spec.silenceMs === undefined) return
+    silence = setTimeout(() => kill(EKilledBy.Timeout), spec.silenceMs)
+    silence.unref?.()
+  }
+
+  armSilence()
 
   /**
    * A check-in is paced from the start rather than re-armed on output: a poll loop that prints a
@@ -301,6 +325,7 @@ export function startBackgroundShell(spec: BackgroundShellSpec): StartedBackgrou
     spec.onActivity?.()
     lastOutputAt = spec.clock.now()
     awaitingSettled = false
+    armSilence()
     watchForMatches(chunk)
     if (buffer.totalCharacters() > spec.overflowCharacters) return overflow()
 
@@ -324,6 +349,7 @@ export function startBackgroundShell(spec: BackgroundShellSpec): StartedBackgrou
       endedAt = spec.clock.now()
       forgetPromptWatch()
       forgetDeadline()
+      forgetSilence()
       forgetCheckIn()
       awaitingSettled = false
       if (status === EShellStatus.Running) status = EShellStatus.Exited
