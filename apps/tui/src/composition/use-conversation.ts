@@ -151,6 +151,16 @@ export function useConversation(args: {
 
   const threadId = opened.threadId
 
+  /**
+   * A placement move (lift, descend, container switch) freezes the transcript: the loop is paused
+   * and the log is mid-transfer, so retry, resume, send, and every log-editing command read this
+   * one durable flag rather than any UI-local move state — it survives the remount across a lift.
+   */
+  const moving = useSyncExternalStore(
+    app.executionLocation.subscribe,
+    () => app.executionLocation.moveFor(threadId) !== null,
+  )
+
   const clock = useMemo(() => createAwakeClock(), [])
   const readClock = clock.read
 
@@ -321,6 +331,7 @@ export function useConversation(args: {
     refresh,
     onFailure: setFailure,
     onCompacted: forgetUsage,
+    frozen: moving,
   })
 
   const turnDriver = useTurnDriver({
@@ -337,6 +348,7 @@ export function useConversation(args: {
     cancelCompaction: compaction.cancel,
     interruptRefusal: args.interruptRefusal,
     driveRefusal,
+    frozen: moving,
   })
 
   const resumeAtLaunch = useRef(app.config.open.mode !== EOpenMode.New)
@@ -399,6 +411,7 @@ export function useConversation(args: {
       const images = args.images ?? NO_IMAGES
       const files = args.files ?? NO_FILES
       if (text.length === 0) return
+      if (moving) return
 
       if (working) {
         if (cloudRunner !== null) {
@@ -474,14 +487,17 @@ export function useConversation(args: {
         { onCommitFailed },
       )
     },
-    [app.intake, cloudRunner, drive, pending, sending, threadId, working],
+    [app.intake, cloudRunner, drive, moving, pending, sending, threadId, working],
   )
 
   /**
    * Only the queue is taken back: once the loop has drained a message into the log, the edit route
    * is interrupt-and-resend, not a second retraction path that would have to race the stream.
    */
-  const handleTakeBackPending = useCallback((): PendingSaid | null => pending.takeBackLast(), [pending])
+  const handleTakeBackPending = useCallback(
+    (): PendingSaid | null => (moving ? null : pending.takeBackLast()),
+    [moving, pending],
+  )
 
   /**
    * Shell endings are not dropped on the way out: they belong to the thread that started the shell,
@@ -594,9 +610,9 @@ export function useConversation(args: {
   )
 
   const model = transcriptOfTurn({ model: derived, working, failure })
-  const retryable = model.failure !== null && !working && !turnDriver.turnInFlight()
+  const retryable = model.failure !== null && !working && !turnDriver.turnInFlight() && !moving
   const resumable =
-    model.failure === null && !working && !turnDriver.turnInFlight() && turnDriver.isResumable
+    model.failure === null && !working && !turnDriver.turnInFlight() && turnDriver.isResumable && !moving
 
   return {
     rewindConfirm: turnDriver.rewindConfirm,

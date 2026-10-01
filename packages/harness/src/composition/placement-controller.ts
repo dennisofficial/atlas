@@ -62,6 +62,14 @@ export class PlacementController {
 
   readonly snapshot = (threadId: ThreadId): PlacementRecord | undefined => this.records.get(threadId)
 
+  /**
+   * The move underway on this thread, or null. Surfaces freeze their transcript affordances on
+   * this rather than on any UI-local move state: it is durable from the first write, so a freeze
+   * keyed to it survives the surface remounting across the move.
+   */
+  readonly moveFor = (threadId: ThreadId): PlacementMove | null =>
+    this.records.get(threadId)?.move ?? null
+
   readonly subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)

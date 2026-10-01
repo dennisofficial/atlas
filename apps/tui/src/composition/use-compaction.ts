@@ -35,6 +35,8 @@ export function useCompaction(args: {
   refresh: () => Promise<void>
   onFailure: (reason: string) => void
   onCompacted: () => void
+  /** A placement move owns the session: rewriting the log waits for it to settle. */
+  frozen?: boolean | undefined
 }): CompactionControl {
   const { app, threadId, readClock, refresh, onFailure, onCompacted } = args
   const [compacting, setCompacting] = useState<Compacting | null>(null)
@@ -75,8 +77,10 @@ export function useCompaction(args: {
     [onFailure, readClock, settle],
   )
 
+  const frozen = args.frozen === true
   const compact = useCallback(
-    (scope: ECompactScope) =>
+    (scope: ECompactScope) => {
+      if (frozen) return
       void run((signal) =>
         compactTurn({
           log: app.log,
@@ -87,12 +91,14 @@ export function useCompaction(args: {
           summarise: app.summarise,
           signal,
         }),
-      ),
-    [app.agents, app.log, app.summarise, app.threads, run, threadId],
+      )
+    },
+    [app.agents, app.log, app.summarise, app.threads, frozen, run, threadId],
   )
 
   const compactAround = useCallback(
-    (around: { anchor: ECompactionAnchor; seq: number }) =>
+    (around: { anchor: ECompactionAnchor; seq: number }) => {
+      if (frozen) return
       void run((signal) =>
         summariseAt({
           log: app.log,
@@ -104,8 +110,9 @@ export function useCompaction(args: {
           summarise: app.summarise,
           signal,
         }),
-      ),
-    [app.agents, app.log, app.summarise, app.threads, run, threadId],
+      )
+    },
+    [app.agents, app.log, app.summarise, app.threads, frozen, run, threadId],
   )
 
   /**
