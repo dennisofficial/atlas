@@ -15,17 +15,7 @@ export type DriveOptions = {
   resume?: boolean
 }
 
-export type Drive = (drafts: readonly EventDraft[], opts?: DriveOptions) => Promise<void>
-
-const commitGate = () => {
-  let settle = (): void => undefined
-  const reached = new Promise<void>((resolve) => {
-    settle = resolve
-  })
-  return { reached, settle }
-}
-
-export function useTurnDrive(args: {
+export function useDrivenTurn(args: {
   app: AtlasApp
   threadId: ThreadId
   started: RefObject<boolean>
@@ -35,10 +25,11 @@ export function useTurnDrive(args: {
   onSettled: () => Promise<void>
   onUndone: (said: PendingSaid) => void
   setFailure: (reason: string | null) => void
+  remoteRunning: RefObject<boolean>
   driveRefusal?: (() => string | null) | undefined
 }) {
   const { app, threadId, started, pendingMove, view, readClock } = args
-  const { onSettled, onUndone, setFailure, driveRefusal } = args
+  const { onSettled, onUndone, setFailure, remoteRunning, driveRefusal } = args
   const { store, refresh, stamp } = view
   const [working, setWorking] = useState(false)
   const workingRef = useRef(false)
@@ -48,7 +39,7 @@ export function useTurnDrive(args: {
   const settleListeners = useRef(new Set<() => void>())
 
   const fireSettleListeners = useCallback((): void => {
-    for (const listener of [...settleListeners.current]) listener()
+    for (const listener of settleListeners.current) listener()
     settleListeners.current.clear()
   }, [])
 
@@ -74,21 +65,12 @@ export function useTurnDrive(args: {
       })
       started.current = true
     },
-    [
-      app.ids,
-      app.log,
-      app.threads,
-      app.workspace,
-      app.executionLocation,
-      pendingMove,
-      started,
-      threadId,
-    ],
+    [app, pendingMove, started, threadId],
   )
 
-  const drive: Drive = useCallback(
-    (drafts, opts): Promise<void> => {
-      if (workingRef.current) {
+  const drive = useCallback(
+    (drafts: readonly EventDraft[], opts?: DriveOptions): Promise<void> => {
+      if (workingRef.current || remoteRunning.current) {
         opts?.onCommitFailed?.(new Error('a turn is already running'))
         return Promise.resolve()
       }
@@ -105,7 +87,10 @@ export function useTurnDrive(args: {
       }
       const controller = new AbortController()
       const pauseSignal = new PauseSignal()
-      const gate = commitGate()
+      let settleCommit = (): void => undefined
+      const committed = new Promise<void>((resolve) => {
+        settleCommit = resolve
+      })
       abort.current = controller
       pause.current = pauseSignal
       workingRef.current = true
@@ -115,15 +100,10 @@ export function useTurnDrive(args: {
       stamp(() => turnStarted({ now: readClock() }))
 
       const saidIndex = drafts.findIndex((draft) => draft.type === 'user-said')
-      const saidDraft = saidIndex === -1 ? undefined : drafts[saidIndex]
+      const saidDraft = drafts[saidIndex]
       const remoteSaid =
-        app.runner instanceof RemoteTurnRunner &&
-        saidDraft !== undefined &&
-        saidDraft.type === 'user-said'
-          ? {
-              said: saidDraft,
-              context: drafts.filter((_, index) => index !== saidIndex),
-            }
+        app.runner instanceof RemoteTurnRunner && saidDraft?.type === 'user-said'
+          ? { said: saidDraft, context: drafts.filter((_, index) => index !== saidIndex) }
           : null
 
       void (async () => {
@@ -137,7 +117,7 @@ export function useTurnDrive(args: {
             }
             opts?.onCommitted?.()
             await refresh()
-            if (saidDraft !== undefined && saidDraft.type === 'user-said') {
+            if (saidDraft?.type === 'user-said') {
               app.titling.opening({
                 threadId,
                 said: saidDraft.text,
@@ -146,7 +126,7 @@ export function useTurnDrive(args: {
               })
             }
           }
-          gate.settle()
+          settleCommit()
           const outcome =
             remoteSaid === null
               ? await app.runner[opts?.resume === true ? 'resume' : 'runTurn']({
@@ -176,21 +156,23 @@ export function useTurnDrive(args: {
               : 'The turn stopped for a reason it did not name.',
           )
         } finally {
-          gate.settle()
+          settleCommit()
           abort.current = null
           pause.current = null
           workingRef.current = false
           tailRef.current = true
-          stamp((current) => turnSettled({ progress: current, now: readClock() }))
+          if (!remoteRunning.current) {
+            stamp((progress) => turnSettled({ progress, now: readClock() }))
+          }
           await refresh().catch(() => undefined)
-          await onSettled().catch(() => undefined)
+          if (!remoteRunning.current) await onSettled().catch(() => undefined)
           setWorking(false)
           tailRef.current = false
           fireSettleListeners()
           app.intake?.changed()
         }
       })()
-      return gate.reached
+      return committed
     },
     [
       app,
@@ -201,7 +183,9 @@ export function useTurnDrive(args: {
       onUndone,
       readClock,
       refresh,
+      remoteRunning,
       setFailure,
+      stamp,
       store,
       threadId,
     ],
@@ -214,12 +198,13 @@ export function useTurnDrive(args: {
 
   return {
     working,
-    setWorking,
     workingRef,
+    tailRef,
+    setWorking,
     abort,
     pause,
     drive,
-    fireSettleListeners,
     whenSettled,
+    fireSettleListeners,
   }
 }
