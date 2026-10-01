@@ -18,8 +18,10 @@ import type {
 } from './github.types'
 import { EGithubPollStatus } from './github.types'
 
+// https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#device-flow
+// The device-flow token response returns scope comma-separated, not space-separated.
 function splitScopes(scope: string): string[] {
-  return scope.split(/\s+/).filter((entry) => entry.length > 0)
+  return scope.split(/[\s,]+/).filter((entry) => entry.length > 0)
 }
 
 function missingScopesOf(granted: string): string[] {

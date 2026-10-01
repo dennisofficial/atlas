@@ -11,20 +11,18 @@ export class RemoteTurnDetached extends Error {
   }
 }
 
+export const SERVE_DEFAULT_REPLAY_WINDOW_OUTCOMES = 2048
+
 type Waiter = {
   resolve: (outcome: TurnOutcome) => void
   reject: (error: Error) => void
 }
 
-/**
- * Drives turns on the sandbox rather than in-process: what was said is already durable in the
- * remote log, so a turn is a bare run frame and the outcome arrives as a broadcast. Outcomes are
- * matched to callers in the order they were asked, which is the order the sandbox ends them.
- */
 export class RemoteTurnRunner extends TurnRunner {
   private readonly channel: RemoteDeltaChannel
   private readonly wake: () => Promise<void>
   private readonly waiters: Waiter[] = []
+  private readonly seenOutcomes = new Set<string>()
   private heldForReattach = false
 
   constructor(args: { channel: RemoteDeltaChannel; wake: () => Promise<void> }) {
@@ -33,6 +31,7 @@ export class RemoteTurnRunner extends TurnRunner {
     this.wake = args.wake
 
     this.channel.onTurnEnded((outcome) => {
+      if (!this.isFirstSighting(outcome)) return
       this.waiters.shift()?.resolve(outcome)
     })
     this.channel.onConnection((connection) => {
@@ -148,6 +147,18 @@ export class RemoteTurnRunner extends TurnRunner {
       if (args.pause?.paused === true) pauseTurn()
       args.fire()
     })
+  }
+
+  private isFirstSighting(outcome: TurnOutcome): boolean {
+    const key = `${outcome.runId}:${outcome.status}`
+    if (this.seenOutcomes.has(key)) return false
+
+    this.seenOutcomes.add(key)
+    if (this.seenOutcomes.size > SERVE_DEFAULT_REPLAY_WINDOW_OUTCOMES) {
+      const oldest = this.seenOutcomes.values().next().value
+      if (oldest !== undefined) this.seenOutcomes.delete(oldest)
+    }
+    return true
   }
 
   private detachAll(reason: string): void {

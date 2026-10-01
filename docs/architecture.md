@@ -1337,14 +1337,25 @@ because a default nobody can run is no default at all. A thread naming a model t
 catalogue — or whose account is gone — falls back *whole*, so an effort never outlives the model
 that offered it.
 
-**A child's model and effort are chosen at spawn and held for its lifetime.** The type's settings
-row outranks its definition pin, which outranks the sub-agent role row; otherwise the child inherits
-its spawner's pair. A teammate's children inherit the teammate's pair, not the main conversation's.
-The chosen pair is stored in the child's existing thread metadata before the spawn is published,
-and the runner builds a fixed model and prompt from it. Changing the parent or settings affects
-new children only; steering, waking, resuming, and relocating a child retain its pair. Older
-children with no recorded pair resolve and save one on their first re-entry. An unavailable saved
-model fails rather than silently choosing another.
+**A child's model and effort are chosen at spawn and change only by an explicit operator pick.**
+The type's settings row outranks its definition pin, which outranks the sub-agent role row;
+otherwise the child inherits its spawner's pair. A teammate's children inherit the teammate's
+pair, not the main conversation's. The chosen pair is stored in the child's existing thread
+metadata before the spawn is published, and the runner builds a fixed model and prompt from it.
+Changing the parent or settings affects new children only; steering, waking, resuming, and
+relocating a child retain its saved pair. Older children with no recorded pair resolve and save
+one on their first re-entry. An unavailable saved model fails rather than silently choosing another.
+
+The operator's child picker writes a deliberate `retarget: true`, locally or over the cloud
+channel. It saves the full model/effort pair and announces the choice immediately without
+interrupting an active child run. The new choice takes effect when the child's runner is next
+rebuilt, including a restart or relocation; it never re-pins the main loop or existing siblings.
+Serve accepts a child retarget only when its supervision ancestry reaches the served,
+non-supervised root; missing threads, foreign roots, broken ancestry, and cycles are refused
+before writing. A supervised thread served as the root still cannot be re-pinned. An
+omitted or false override leaves supervised agents frozen. The optional wire field preserves
+existing main-thread requests; an older sandbox still refuses child picks and must be rebuilt
+on an updated runtime to support them.
 
 **Every background call has a role, and every role has a row.** The tl;dr footer, the session
 titler and the nudge judge share the quick-calls row (`model.quickModel`); compaction has its own

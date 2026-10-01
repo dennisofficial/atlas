@@ -159,6 +159,7 @@ export const threadModelWireSchema = z.object({ ref: z.string(), effort: z.strin
 export const setThreadModelParamsSchema = z.object({
   threadId: threadIdWireSchema,
   model: threadModelWireSchema,
+  retarget: z.boolean().optional(),
 })
 export type SetThreadModelParams = z.infer<typeof setThreadModelParamsSchema>
 
