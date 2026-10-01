@@ -48,8 +48,18 @@ describe('a shell ending that arrives during an assistant reply', () => {
     expect(shellCompletionNudge({ events, seenThrough: 1 })).toBeUndefined()
   })
 
-  it('does not keep nudging for an ending the next step already saw', () => {
+  it('does not nudge for an ending the step already saw, whether or not the reply trails it', () => {
     const events = eventsFrom([request, ending, answer])
+    expect(shellCompletionNudge({ events, seenThrough: 2 })).toBeUndefined()
+  })
+
+  it('does not nudge twice for an ending it already nudged', () => {
+    const nudge: EventDraft = {
+      type: 'nudge',
+      text: 'A background shell finished while you were responding.',
+      lifetimeSteps: 1,
+    }
+    const events = eventsFrom([request, ending, answer, nudge])
     expect(shellCompletionNudge({ events, seenThrough: 2 })).toBeUndefined()
   })
 

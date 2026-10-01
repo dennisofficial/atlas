@@ -10,15 +10,23 @@ export function withEventsAppendedPublishing(args: {
   return {
     async append(appendArgs) {
       const events = await args.log.append(appendArgs)
-      const channel = args.channel()
-      if (channel === undefined) return events
 
-      const publisher = channel.publisherFor({ threadId: appendArgs.threadId })
-      if (args.onListenerError === undefined) {
-        publisher.eventsAppended()
-        return events
+      // The append is durable once it resolves, so nothing in the publish that follows may
+      // reject back out of it — a throwing channel would read as a failed write and lose the
+      // wake for an ending that is in fact recorded.
+      try {
+        const channel = args.channel()
+        if (channel === undefined) return events
+
+        const publisher = channel.publisherFor({ threadId: appendArgs.threadId })
+        if (args.onListenerError === undefined) {
+          publisher.eventsAppended()
+          return events
+        }
+        publisher.eventsAppended({ onListenerError: args.onListenerError })
+      } catch (cause) {
+        args.onListenerError?.(cause)
       }
-      publisher.eventsAppended({ onListenerError: args.onListenerError })
       return events
     },
 
