@@ -9,6 +9,7 @@ import {
   EClientFrame,
   EServeFrame,
   ETurnStatus,
+  RemoteTurnRunner,
   type ChannelReload,
   type ChannelSocketFactory,
   type RemoteDeltaChannel,
@@ -61,6 +62,7 @@ type Rig = {
   app: FakeServeApp
   observer: TestClient
   channel: RemoteDeltaChannel
+  runner: RemoteTurnRunner
   seen: string[]
   reloads: ChannelReload[]
   sockets: WebSocket[]
@@ -154,6 +156,7 @@ const rig = async (args: {
     scheduleRetry: ({ run }) => void retries.push(run),
   })
   channels.push(channel)
+  const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
   channel.subscribe({ threadId, listener: (signal) => void seen.push(`signal:${signal.type}`) })
   channel.onTurnEnded(() => void seen.push('turn-ended'))
   channel.onServerError(({ message }) => void seen.push(`error:${message}`))
@@ -172,6 +175,7 @@ const rig = async (args: {
     app,
     observer,
     channel,
+    runner,
     seen,
     reloads,
     sockets,
@@ -268,5 +272,24 @@ describe('serve frame buffer through a real socket into RemoteDeltaChannel', () 
 
     expect(attached.reloads).toEqual([])
     expect(attached.seen).toEqual(attached.expectedLines())
+  })
+
+  it('keeps a run queued while disconnected from settling with the turn-ended replayed on reconnect', async () => {
+    const attached = await rig({ script: [ETurnScript.Complete, ETurnScript.Complete] })
+
+    const first = await attached.runner.runTurn({ threadId })
+    expect(first).toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-1') })
+    await until(() => attached.seen.length === attached.expectedLines().length)
+
+    attached.sockets.at(-1)?.close()
+    await until(() => attached.retries.length === 1)
+
+    const second = attached.runner.runTurn({ threadId })
+    attached.retries.shift()?.()
+    await until(() => attached.channel.connection().state === EChannelConnection.Open)
+
+    expect(await second).toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-2') })
+    expect(attached.seen.filter((line) => line === 'turn-ended')).toHaveLength(3)
+    expect(attached.reloads).toEqual([])
   })
 })
