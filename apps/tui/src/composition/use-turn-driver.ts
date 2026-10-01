@@ -1,6 +1,6 @@
 import { isResumable, resumeDrafts, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 import { ESuppress, LocalRewindMachinery, rewindThread } from '@dltech/atlas-harness'
-import { useCallback, useMemo, type RefObject } from 'react'
+import { useCallback, useMemo, useRef, type RefObject } from 'react'
 
 import type { PendingSaid } from '../store'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
@@ -50,18 +50,31 @@ export function useTurnDriver(args: {
   const { app, threadId, view, readClock } = args
   const { setFailure, forgetUsage, cancelCompaction, interruptRefusal } = args
   const { store, events, refresh, stamp } = view
+  const autonomousSettled = useRef<() => Promise<void>>(async () => undefined)
   const remote = useRemoteTurnState({
     channel: app.channel,
     threadId,
     lifecycle: args.remoteChannel,
     stamp,
     readClock,
+    onSettled: () => autonomousSettled.current(),
   })
   const driven = useDrivenTurn({ ...args, remoteRunning: remote.runningRef })
   const { working, workingRef, setWorking, abort, pause, drive, fireSettleListeners } = driven
-  const busyRef = useMemo<RefObject<boolean>>(() => ({
-    get current() { return workingRef.current || remote.runningRef.current },
-  }), [workingRef, remote.runningRef])
+  autonomousSettled.current = async () => {
+    if (workingRef.current || driven.tailRef.current) return
+    await refresh().catch(() => undefined)
+    if (remote.runningRef.current) return
+    await args.onSettled().catch(() => undefined)
+  }
+  const busyRef = useMemo<RefObject<boolean>>(
+    () => ({
+      get current() {
+        return workingRef.current || remote.runningRef.current
+      },
+    }),
+    [workingRef, remote.runningRef],
+  )
 
   const machinery = useMemo(
     () =>

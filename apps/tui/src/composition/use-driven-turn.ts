@@ -160,9 +160,11 @@ export function useDrivenTurn(args: {
           pause.current = null
           workingRef.current = false
           tailRef.current = true
-          stamp((progress) => turnSettled({ progress, now: readClock() }))
+          if (!remoteRunning.current) {
+            stamp((progress) => turnSettled({ progress, now: readClock() }))
+          }
           await refresh().catch(() => undefined)
-          await onSettled().catch(() => undefined)
+          if (!remoteRunning.current) await onSettled().catch(() => undefined)
           setWorking(false)
           tailRef.current = false
           fireSettleListeners()
@@ -193,5 +195,15 @@ export function useDrivenTurn(args: {
     return new Promise((resolve) => settleListeners.current.add(resolve))
   }, [])
 
-  return { working, workingRef, setWorking, abort, pause, drive, whenSettled, fireSettleListeners }
+  return {
+    working,
+    workingRef,
+    tailRef,
+    setWorking,
+    abort,
+    pause,
+    drive,
+    whenSettled,
+    fireSettleListeners,
+  }
 }

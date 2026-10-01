@@ -24,6 +24,7 @@ export function useRemoteTurnState(args: {
   lifecycle?: InterruptChannel | null | undefined
   stamp: ThreadView['stamp']
   readClock: () => number
+  onSettled: () => Promise<void>
 }) {
   const { channel, threadId, stamp, readClock } = args
   const remote = isRemoteChannel(channel) ? channel : null
@@ -37,24 +38,31 @@ export function useRemoteTurnState(args: {
     [channel, remote, threadId],
   )
   const runningRef = useRef(initial)
+  const awaitingLifecycle = useRef(initial)
   const [running, setRunning] = useState(initial)
   const interruptPending = useRef(false)
   const settleListeners = useRef(new Set<() => void>())
   const clock = useRef(readClock)
   clock.current = readClock
+  const stampRef = useRef(stamp)
+  stampRef.current = stamp
+  const settled = useRef(args.onSettled)
+  settled.current = args.onSettled
+  const settling = useRef(0)
 
   useEffect(() => {
     const handleRunning = (next: boolean): void => {
+      if (next) awaitingLifecycle.current = true
       if (runningRef.current !== next) {
         runningRef.current = next
         setRunning(next)
       }
-      if (!next) {
-        for (const listener of settleListeners.current) listener()
-        settleListeners.current.clear()
-      }
-      stamp((progress) => {
-        if (!next) return turnSettled({ progress, now: clock.current() })
+      stampRef.current((progress) => {
+        if (!next) {
+          return progress.clock.startedAt === null
+            ? progress
+            : turnSettled({ progress, now: clock.current() })
+        }
         return progress.clock.startedAt === null ? turnStarted({ now: clock.current() }) : progress
       })
     }
@@ -64,59 +72,70 @@ export function useRemoteTurnState(args: {
       return undefined
     }
     handleRunning(
-      channel.snapshot({ threadId }).some((signal) => signal.type === 'turn-working' && signal.working),
+      channel
+        .snapshot({ threadId })
+        .some((signal) => signal.type === 'turn-working' && signal.working),
     )
 
     const unsubscribed = [
       channel.subscribe({
         threadId,
         listener: (signal) => {
-          if (signal.type === 'turn-working') handleRunning(signal.working)
+          if (remote !== null && signal.type === 'turn-working') handleRunning(signal.working)
         },
       }),
     ]
-    if (lifecycle !== null) {
-      unsubscribed.push(
-        lifecycle.onReady((ready) => handleRunning(ready.turnInFlight)),
-        lifecycle.onTurnEnded(() => handleRunning(false)),
-        lifecycle.onInterruptAck(() => {
-          interruptPending.current = false
-          stamp((progress) =>
-            progress.clock.interrupting
-              ? turnSettled({ progress, now: clock.current() })
-              : progress,
-          )
-          clearNotice({ key: INTERRUPT_LOST_KEY })
-          notify({
-            key: 'interrupt-acknowledged',
-            tone: ENoticeTone.Done,
-            ttlMs: NOTICE_MS,
-            text: 'The turn was interrupted.',
-          })
-        }),
-        lifecycle.onError(() => {
-          if (!interruptPending.current) return
-          interruptPending.current = false
-          stamp((progress) =>
-            progress.clock.interrupting
-              ? turnSettled({ progress, now: clock.current() })
-              : progress,
-          )
-          notify({
-            key: INTERRUPT_LOST_KEY,
-            tone: ENoticeTone.Warn,
-            ttlMs: NOTICE_WARN_MS,
-            text: INTERRUPT_LOST,
-          })
-        }),
-      )
+    const handleSettled = (): void => {
+      handleRunning(false)
+      awaitingLifecycle.current = false
+      settling.current += 1
+      void settled
+        .current()
+        .catch(() => undefined)
+        .finally(() => {
+          settling.current -= 1
+          if (runningRef.current || settling.current > 0) return
+          for (const listener of settleListeners.current) listener()
+          settleListeners.current.clear()
+        })
     }
+    unsubscribed.push(
+      lifecycle.onReady((ready) => {
+        if (ready.turnInFlight) handleRunning(true)
+        else handleSettled()
+      }),
+      lifecycle.onTurnEnded(handleSettled),
+      lifecycle.onInterruptAck(() => {
+        interruptPending.current = false
+        stampRef.current((progress) =>
+          progress.clock.interrupting ? turnSettled({ progress, now: clock.current() }) : progress,
+        )
+        clearNotice({ key: INTERRUPT_LOST_KEY })
+        notify({
+          key: 'interrupt-acknowledged',
+          tone: ENoticeTone.Done,
+          ttlMs: NOTICE_MS,
+          text: 'The turn was interrupted.',
+        })
+      }),
+      lifecycle.onError(() => {
+        if (!interruptPending.current) return
+        interruptPending.current = false
+        stampRef.current((progress) =>
+          progress.clock.interrupting ? turnSettled({ progress, now: clock.current() }) : progress,
+        )
+        notify({
+          key: INTERRUPT_LOST_KEY,
+          tone: ENoticeTone.Warn,
+          ttlMs: NOTICE_WARN_MS,
+          text: INTERRUPT_LOST,
+        })
+      }),
+    )
     return () => {
       for (const unsubscribe of unsubscribed) unsubscribe()
-      for (const listener of settleListeners.current) listener()
-      settleListeners.current.clear()
     }
-  }, [channel, lifecycle, stamp, threadId])
+  }, [channel, lifecycle, threadId])
 
   const interruptRequested = useCallback((): void => {
     interruptPending.current = true
@@ -132,7 +151,7 @@ export function useRemoteTurnState(args: {
   }, [remote])
 
   const whenSettled = useCallback((): Promise<void> => {
-    if (!runningRef.current) return Promise.resolve()
+    if (!runningRef.current && !awaitingLifecycle.current && settling.current === 0) return Promise.resolve()
     return new Promise((resolve) => settleListeners.current.add(resolve))
   }, [])
 
