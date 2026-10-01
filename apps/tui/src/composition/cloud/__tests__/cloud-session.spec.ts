@@ -72,7 +72,7 @@ describe('what the operator is told about the socket', () => {
     ])
   })
 
-  it('keeps the socket state closed and records the provider lifecycle when the sandbox parked', async () => {
+  it('maps a closed socket to parked once the provider reports the sandbox at rest', async () => {
     const { channel, session } = sessionOn({
       status: { state: ECloudSandboxState.Parked },
     })
@@ -80,7 +80,7 @@ describe('what the operator is told about the socket', () => {
     channel.moveTo({ state: EChannelConnection.Closed, detail: 'gave up after 8 attempts' })
     await settled()
 
-    expect(session.health().connection.state).toBe(EChannelConnection.Closed)
+    expect(session.health().connection.state).toBe(EChannelConnection.Parked)
     expect(session.health().sandbox).toBe(ECloudSandboxLifecycle.Parked)
   })
 
@@ -92,7 +92,7 @@ describe('what the operator is told about the socket', () => {
     channel.moveTo({ state: EChannelConnection.Closed, detail: null })
     await settled()
 
-    expect(session.health().connection.state).toBe(EChannelConnection.Closed)
+    expect(session.health().connection.state).toBe(EChannelConnection.Reconnecting)
     expect(session.health().sandbox).toBe(ECloudSandboxLifecycle.Running)
     expect(session.health().failure).toBeNull()
   })

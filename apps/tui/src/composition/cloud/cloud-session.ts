@@ -4,6 +4,7 @@ import {
   cloudLifecycleOf,
   EChannelConnection,
   EClosedConnectionKind,
+  ECloudSandboxState,
   ECloudFreshness,
   ECloudSandboxLifecycle,
   ERuntimePhase,
@@ -111,7 +112,7 @@ export function createCloudSession(args: {
       if (closed || epoch !== inspectionEpoch || attachment !== connectionEpoch) return
       status = observed ?? null
       sandbox = observed === undefined ? ECloudSandboxLifecycle.Unknown : cloudLifecycleOf(observed.state)
-      if (connection.state === EChannelConnection.Closed) {
+      if (connection.state === EChannelConnection.Closed && failure === null) {
         const reading = closedConnectionOf({
           state: observed?.state ?? ECloudSandboxState.Unknown,
           ...CLOSED_DETAIL,
