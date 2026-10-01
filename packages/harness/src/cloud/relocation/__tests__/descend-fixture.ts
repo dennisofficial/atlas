@@ -29,6 +29,7 @@ import {
   descendFromCloud,
   type DescendLocalHome,
   type DescendProgressStep,
+  type DestroySleeper,
   type WorkspaceMerger,
 } from '../descend'
 import { CLOUD_THREAD, fakeBridge, type FakeBridge, type FakeCloudChannel } from './fixture'
@@ -221,6 +222,7 @@ export const descend = (args: {
   logPort?: LogPort
   placement?: PlacementController
   afterTranscriptLanded?: () => Promise<void>
+  destroySleep?: DestroySleeper
 }): Promise<OpenedLocal> => {
   const bridge = args.bridge ?? fakeBridge()
   const surface = args.surface ?? fakeSurface()
@@ -240,6 +242,7 @@ export const descend = (args: {
     ...(args.afterTranscriptLanded === undefined
       ? {}
       : { afterTranscriptLanded: args.afterTranscriptLanded }),
+    ...(args.destroySleep === undefined ? {} : { destroySleep: args.destroySleep }),
   }).then((opened) =>
     args.midTurn === true ? { ...opened, resumeOnArrival: true } : opened,
   )

@@ -17,10 +17,12 @@ import type { RelocationPlan } from './dag'
 import { descendedConflictsDraft, descendedSupersededDraft } from './transition-notice'
 import {
   DESCEND_DESTROY_NOTICE_KEY,
+  descendDestroyRetry,
   EDescendStep,
   type DescendLocalHome,
   type DescendProgressStep,
   type DescendSurface,
+  type DestroySleeper,
   type WorkspaceMerger,
 } from './descend'
 
@@ -50,6 +52,7 @@ export type DescendPlanArgs<Opened> = {
   transaction?: PlacementTransaction | undefined
   /** A test seam between the archive landing and the landed-state checks — live wiring never passes it. */
   afterTranscriptLanded?: (() => Promise<void>) | undefined
+  destroySleep: DestroySleeper
 }
 
 /**
@@ -186,26 +189,54 @@ export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPl
     },
     {
       id: 'destroySandbox',
-      needs: ['flipHome', 'archiveMemory'],
+      needs: ['flipHome', 'archiveMemory', 'mergeWorkspace'],
       run: async () => {
-        await args.bridge.sandboxes.destroy({ threadId }).catch((error: unknown) => {
+        void destroySandboxWithRetry(args).catch((error: unknown) => {
           args.logPort?.warn({
             source: 'cloud.descend',
-            message: 'the cloud sandbox could not be torn down',
+            message: 'the sandbox teardown retry itself failed — the warning notice stands',
             threadId,
-            data: { operation: 'destroy-sandbox' },
+            data: { operation: 'destroy-sandbox-retry' },
             ...logFieldsOf({ error }),
-          })
-          args.notice.notify({
-            key: DESCEND_DESTROY_NOTICE_KEY,
-            text: `this conversation is home, but its cloud sandbox could not be torn down — ${messageOf(error)}`,
-            tone: ENoticeTone.Warn,
-            ttlMs: null,
           })
         })
       },
     },
   ]
+}
+
+async function destroySandboxWithRetry<Opened>(args: DescendPlanArgs<Opened>): Promise<void> {
+  for (let attempt = 1; attempt <= descendDestroyRetry.attempts; attempt += 1) {
+    try {
+      await args.bridge.sandboxes.destroy({ threadId: args.threadId })
+      if (attempt === 1) return
+      args.notice.notify({
+        key: DESCEND_DESTROY_NOTICE_KEY,
+        text: 'the cloud sandbox was torn down after all',
+        tone: ENoticeTone.Success,
+      })
+      return
+    } catch (error: unknown) {
+      args.logPort?.warn({
+        source: 'cloud.descend',
+        message: 'the cloud sandbox could not be torn down',
+        threadId: args.threadId,
+        data: { operation: 'destroy-sandbox' },
+        ...logFieldsOf({ error }),
+      })
+      if (attempt === 1) {
+        args.notice.notify({
+          key: DESCEND_DESTROY_NOTICE_KEY,
+          text: `this conversation is home, but its cloud sandbox could not be torn down — ${messageOf(error)}`,
+          tone: ENoticeTone.Warn,
+          ttlMs: null,
+        })
+      }
+      if (attempt < descendDestroyRetry.attempts) {
+        await args.destroySleep(descendDestroyRetry)
+      }
+    }
+  }
 }
 
 async function mergeWorkspaceHome<Opened>(args: DescendPlanArgs<Opened>): Promise<MergedWorkspace> {

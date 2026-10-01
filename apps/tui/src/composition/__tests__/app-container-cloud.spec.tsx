@@ -467,6 +467,36 @@ describe('switching conversations while attached', () => {
   }, 60_000)
 })
 
+describe('a descend with a lingering connection', () => {
+  /**
+   * The descend flips the placement before the remount drops the session, and the socket may never
+   * announce a close — the connection is announced only on change — so a chrome reader that trusted
+   * the stale object would draw a healthy cloud over a session that is already home.
+   */
+  it('renders neither the sidebar cloud pill nor the footer cloud icon once home', async () => {
+    const app = speaking()
+    const bridge = fakeBridge()
+    const mounted = await mount({ app, bridge })
+
+    try {
+      await lift(mounted, bridge)
+      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+      const lifted = await shown(mounted, 'CLOUD')
+      expect(lifted).toContain('☁')
+
+      await run(mounted, 'host')
+      const home = await cleared(mounted, 'MOVING BACK TO THE HOST')
+
+      expect(app.executionLocation.current()).toBe(EExecutionLocation.Host)
+      expect(home).not.toContain('☁')
+      expect(home).not.toContain('CLOUD')
+      expect(home).not.toContain('☾')
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+})
+
 describe('a sandbox whose workspace would not materialise', () => {
   it('renders the git step and git’s own words rather than an empty directory', async () => {
     const app = speaking()

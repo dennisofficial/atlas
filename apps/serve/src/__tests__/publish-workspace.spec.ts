@@ -63,6 +63,34 @@ describe('createWorkspacePublisher', () => {
     )
   })
 
+  it('writes conventional-commit messages a commit-msg hook (commitlint) accepts', async () => {
+    const { remote, sandbox, lifted } = await scenario()
+    writeFileSync(join(sandbox, 'cloud-note.txt'), 'written in the cloud\n')
+
+    const publish = createWorkspacePublisher({
+      threadId: THREAD,
+      fetchSpec: async () => specOf({ remoteUrl: remote, commit: lifted }),
+    })
+
+    const published = await publish({ cwd: sandbox })
+    if (published === null) throw new Error('expected a published ref')
+
+    const conventional = /^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([^()]+\))?!?: .+/
+    const subjectIn = async (rev: string): Promise<string> =>
+      (
+        await runGit({
+          args: ['--git-dir', remote, 'log', '-1', '--format=%s', rev],
+          cwd: sandbox,
+        })
+      ).stdout.trim()
+
+    expect((await git(sandbox, ['log', '-1', '--format=%s', 'HEAD'])).stdout.trim()).toMatch(
+      conventional,
+    )
+    expect(await subjectIn(published.commit)).toMatch(conventional)
+    expect(await subjectIn(`${published.commit}^2`)).toMatch(conventional)
+  })
+
   it('sends nothing when the tree is clean at the lifted commit', async () => {
     const { remote, sandbox, lifted } = await scenario()
 

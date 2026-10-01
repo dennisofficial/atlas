@@ -16,6 +16,7 @@ import type { ThreadStorePort } from '../../store/thread-store'
 import type { TurnLedgerPort } from '../../ledger/turn-ledger.port'
 import type { MergedWorkspace } from '../../workspace/merge-published'
 import type { CloudBridge, CloudChannel } from './cloud-bridge'
+import { retrySleep, type RetryPolicy } from '../retry-policy'
 import { ELiftStep } from './lift'
 import { runRelocation } from './dag'
 import { descendPlan, type DescendRun } from './descend-plan'
@@ -30,6 +31,10 @@ export enum EDescendStep {
 export type DescendProgressStep = ELiftStep.Interrupting | EDescendStep
 
 export const DESCEND_DESTROY_NOTICE_KEY = 'descend-sandbox-destroy-failed'
+
+export const descendDestroyRetry: RetryPolicy = { attempts: 3, delayMs: 15_000 }
+
+export type DestroySleeper = (policy: RetryPolicy) => Promise<void>
 
 const NO_PROTECTION = (): void => undefined
 
@@ -91,6 +96,8 @@ type DescendArgs<Opened> = {
   placement?: PlacementController | undefined
   /** A test seam between the archive landing and the landed-state checks — live wiring never passes it. */
   afterTranscriptLanded?: (() => Promise<void>) | undefined
+  /** The teardown retry's clock — a spec passes a sleeper that never waits real time. */
+  destroySleep?: DestroySleeper | undefined
 }
 
 async function runDescend<Opened>(
@@ -130,6 +137,7 @@ async function runDescend<Opened>(
       logPort: args.logPort,
       transaction,
       afterTranscriptLanded: args.afterTranscriptLanded,
+      destroySleep: args.destroySleep ?? retrySleep,
     }),
     ctx: undefined,
     onStep: () => undefined,
