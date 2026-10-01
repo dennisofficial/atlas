@@ -19,6 +19,27 @@ describe('ensureSandbox scripts and drift, against a fake engine', () => {
     expect(prep).toContain(`chmod 666 '${FAKE_CONFIG.dockerSocket}'`)
   })
 
+  it('grants the synthesized operator passwordless sudo, keyed to it by name', async () => {
+    const { engine: fake, execs } = fakeEngine()
+
+    await ensureSandbox({ engine: fake, config: FAKE_CONFIG })
+
+    const prep = execs[0]?.cmd[2] ?? ''
+    expect(execs[0]?.user).toBe('0')
+    expect(prep).toContain('atlas ALL=(ALL) NOPASSWD: ALL')
+    expect(prep).toContain('/etc/sudoers.d/atlas-operator')
+    expect(prep).toContain('chmod 0440 /etc/sudoers.d/atlas-operator')
+  })
+
+  it('appends an unlocked shadow entry so sudo does not reject the operator as locked', async () => {
+    const { engine: fake, execs } = fakeEngine()
+
+    await ensureSandbox({ engine: fake, config: FAKE_CONFIG })
+
+    expect(execs[0]?.cmd[2]).toContain("grep -q '^atlas:' /etc/shadow")
+    expect(execs[0]?.cmd[2]).toContain('atlas:!:20000:0:99999:7:::')
+  })
+
   it('skips the home chown when the worktree is the home', async () => {
     const { engine: fake, execs } = fakeEngine()
 

@@ -141,6 +141,12 @@ expect 'scoped safe.directory wildcard env works as uid 501' 'nothing to commit'
 expect 'node works under docker run as uid 501 with tmp HOME' 'v' \
   docker run --rm --user 501:20 -e HOME=/tmp/smoke-home "$image" sh -c 'node --version'
 
+# sudo refuses a uid with no passwd record before it ever reads sudoers, so the grant can only
+# be exercised through a named account; the Atlas bootstrap synthesizes the operator entry at
+# runtime, which the harness live specs cover — here the baked-in node user stands in for it
+expect 'passwordless sudo reaches root for a named user' 'uid=0(root)' \
+  docker exec --user node -e HOME=/tmp/smoke-home "$name" sh -c 'sudo -n id'
+
 if [ -S /var/run/docker.sock ]; then
   expect 'mounted docker socket reachable as uid 501' 'Server Version' run501 'docker info'
 fi
@@ -149,11 +155,17 @@ expect 'shim shadows the real cli on PATH' '/usr/local/bin/docker' run 'command 
 expect 'docker-daemon-up helper is on PATH' '/usr/local/bin/docker-daemon-up' \
   run 'command -v docker-daemon-up'
 
+# an unprivileged nested container has no NET_ADMIN, so dockerd can never come up there; the
+# check is that the shim got as far as launching the daemon — before the blanket sudo grant the
+# same call died at sudo itself. Full-root Vercel microVMs are where the daemon actually runs.
+docker run -d --name "$name-nested" --entrypoint sh "$image" -c 'sleep infinity' >/dev/null
+expect 'shim launches dockerd through sudo for a named user' 'atlas-dockerd.log' \
+  docker exec --user node -e HOME=/tmp/smoke-home "$name-nested" sh -c 'docker info 2>&1 || true'
+docker rm -f "$name-nested" >/dev/null
+
 if [ -S /var/run/docker.sock ]; then
   expect 'shim passes through to the mounted socket as uid 501' 'Server Version' \
     run501 'docker info'
-else
-  expect_fail 'shim refuses dockerd as uid 501 without sudo' run501 'docker info'
 fi
 
 printf '\n%d checks, %d failures\n' "$checks" "$failures"
