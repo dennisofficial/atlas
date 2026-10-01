@@ -21,7 +21,7 @@ import {
   type ChildState,
   type SteerMessage,
 } from './child-state'
-import { EAgentNotice, endingNoticeKind, type AgentNoticeQueue } from './notices'
+import { EAgentNotice, type AgentNoticeQueue } from './notices'
 import { statusOf } from './reasons'
 import type { AgentRoster } from './roster'
 
@@ -156,25 +156,28 @@ export class ChildSteps {
       toolCalls: child.toolCalls,
     })
 
-    this.notices.queue({
-      threadId: child.spawnedBy,
-      snapshot: snapshotOf(child),
-      kind: this.endingKind(child),
-      draft: agentEndedDraft(child),
-      generation: child.abort.signal,
-    })
+    const kind = this.endingKind(child)
+    if (kind !== undefined) {
+      this.notices.queue({
+        threadId: child.spawnedBy,
+        snapshot: snapshotOf(child),
+        kind,
+        draft: agentEndedDraft(child),
+        generation: child.abort.signal,
+      })
+    }
 
     this.intake?.changed()
   }
 
   /**
-   * A teammate that still owns live work is pausing between wakes, not ending: its ending stays
-   * quiet bookkeeping. One with nothing left that can wake it has gone silent for good, so its
-   * ending relays to the parent like a sub-agent's.
+   * A teammate that still owns live work is pausing between wakes, not ending: the pause is
+   * recorded but never queued, so nothing wakes or reaches the parent. One with nothing left
+   * that can wake it has gone silent for good, so its ending relays like a sub-agent's.
    */
-  private endingKind(child: ChildState): EAgentNotice {
-    if (endingNoticeKind(child.agentType) === EAgentNotice.Ending) return EAgentNotice.Ending
-    return this.hasLiveWork?.(child.agentId) === true ? EAgentNotice.QuietEnding : EAgentNotice.Ending
+  private endingKind(child: ChildState): EAgentNotice | undefined {
+    if (this.hasLiveWork?.(child.agentId) === true) return undefined
+    return EAgentNotice.Ending
   }
 
   private record({ child, drafts }: { child: ChildState; drafts: readonly EventDraft[] }): void {

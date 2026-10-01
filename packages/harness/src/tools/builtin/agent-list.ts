@@ -20,7 +20,7 @@ const description = [
   'Each entry names its agentId, its type and the intent you gave it, plus its status, how it ended and how much work that took for the ones that have.',
   'You see only your own agents: another agent cannot see them, and you cannot see another agent’s.',
   'A running sub-agent hands you its report by itself the moment it stops, and one that has stopped has already handed you its answer, so this is not how you find out whether one has finished and it will never carry a result.',
-  'A teammate is different: it goes quiet between its reports, and quiet is not dead — this list is the ground truth on whether a teammate is still running, so check it before respawning one you have lost track of.',
+  'A teammate is different: it goes silent between its reports, and silent is not dead — this list is the ground truth on whether a teammate is still running, so check it before respawning one you have lost track of.',
   'Reach for it when you have lost track of which agents you have out, never to watch one work.',
 ].join(' ')
 
