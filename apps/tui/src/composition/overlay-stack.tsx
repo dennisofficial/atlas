@@ -137,6 +137,7 @@ function DerivedOverlayStack(props: {
           overlay
           onPick={threads.handlePick}
           onDismiss={threads.handleDismiss}
+          onQueryChange={threads.handleQuery}
         />
       )}
       {agentsPicker.state === null ? null : (

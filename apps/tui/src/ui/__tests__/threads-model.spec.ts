@@ -4,7 +4,6 @@ import { EExecutionLocation } from '@dltech/atlas-core'
 import { ECloudSandboxState } from '@dltech/atlas-harness'
 
 import {
-  backspace,
   failedToList,
   loadingThreads,
   matchingThreads,
@@ -12,8 +11,6 @@ import {
   selectedThread,
   threadAge,
   threadRows,
-  threadsWindow,
-  typeInto,
   visibleChips,
   withChips,
   withSandboxStates,
@@ -250,67 +247,28 @@ describe('moving through the list', () => {
   })
 
   it('does nothing when nothing matches', () => {
-    const empty = typeInto({ state: opened(), text: 'zzz' })
+    const empty = { ...opened(), query: 'zzz' }
 
     expect(moveSelection({ state: empty, delta: 1 })).toBe(empty)
     expect(selectedThread(empty)).toBeUndefined()
   })
 })
 
-describe('filtering as you type', () => {
+describe('the filter the query applies', () => {
   it('matches on the title', () => {
-    const typed = typeInto({ state: opened(), text: 'auth' })
+    const asked = { ...opened(), query: 'auth' }
 
-    expect(matchingThreads(typed).map((row) => row.threadId)).toEqual(['thread-a'])
+    expect(matchingThreads(asked).map((row) => row.threadId)).toEqual(['thread-a'])
   })
 
   it('matches on the id, so an untitled thread is still reachable', () => {
-    const typed = typeInto({ state: opened(), text: 'thread-b' })
+    const asked = { ...opened(), query: 'thread-b' }
 
-    expect(matchingThreads(typed).map((row) => row.threadId)).toEqual(['thread-b'])
+    expect(matchingThreads(asked).map((row) => row.threadId)).toEqual(['thread-b'])
   })
 
   it('ignores case', () => {
-    expect(matchingThreads(typeInto({ state: opened(), text: 'AUTH' })).length).toBe(1)
-  })
-
-  it('returns the selection to the top, so the highlight is never off the filtered list', () => {
-    const moved = moveSelection({ state: opened(), delta: 1 })
-    const typed = typeInto({ state: moved, text: 'shell' })
-
-    expect(typed.index).toBe(0)
-    expect(selectedThread(typed)?.threadId).toBe('thread-c')
-  })
-
-  it('restores the full list as the query is deleted', () => {
-    const typed = typeInto({ state: opened(), text: 'a' })
-
-    expect(matchingThreads(backspace(typed)).length).toBe(3)
-  })
-})
-
-describe('the visible window', () => {
-  const many = Array.from({ length: 20 }, (_, at) =>
-    listing({ id: `thread-${at}`, minutesAgo: at }),
-  )
-
-  it('shows every row when they all fit', () => {
-    const window = threadsWindow({ state: opened(), rows: 8 })
-
-    expect(window.visible.length).toBe(3)
-    expect(window.below).toBe(0)
-  })
-
-  it('scrolls to keep the selection in view and counts what is below', () => {
-    const state = moveSelection({
-      state: opened({ threads: many, active: 'thread-0' }),
-      delta: 10,
-    })
-    const window = threadsWindow({ state, rows: 8 })
-
-    expect(window.visible.map((row) => row.threadId)).toContain('thread-10')
-    expect(window.start).toBe(3)
-    expect(window.below).toBe(9)
+    expect(matchingThreads({ ...opened(), query: 'AUTH' }).length).toBe(1)
   })
 })
 

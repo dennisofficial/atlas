@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'bun:test'
+import { testRender } from '@opentui/react/test-utils'
 import React from 'react'
+
+import { teardown } from '../markdown/__tests__/harness'
 
 import { MAIN_LABEL, Threads, THREADS_HEADING } from '../components/threads'
 import { loadingThreads, threadRows, withChips, withThreads } from '../threads-model'
@@ -28,7 +31,14 @@ const state = () =>
 
 const framed = (nodeState = state()): Promise<string> =>
   frameOf(
-    <Threads width={WIDTH} state={nodeState} overlay onPick={() => {}} onDismiss={() => {}} />,
+    <Threads
+      width={WIDTH}
+      state={nodeState}
+      overlay
+      onPick={() => {}}
+      onDismiss={() => {}}
+      onQueryChange={() => {}}
+    />,
     WIDTH,
   )
 
@@ -77,5 +87,50 @@ describe('the conversations drawer', () => {
 
     expect(frame).toContain('type to filter')
     expect(frame).toContain('open')
+  })
+
+  it('types into a real input, so editing keeps up with held keys and pastes', async () => {
+    let query = ''
+    const setup = await testRender(
+      <box flexDirection="column" width={WIDTH} height={30}>
+        <Threads
+          width={WIDTH}
+          state={state()}
+          overlay
+          onPick={() => {}}
+          onDismiss={() => {}}
+          onQueryChange={(next) => {
+            query = next
+          }}
+        />
+      </box>,
+      { width: WIDTH, height: 30 },
+    )
+    try {
+      await setup.mockInput.typeText('auth')
+      await setup.flush()
+
+      expect(query).toBe('auth')
+    } finally {
+      await teardown(setup)
+    }
+  })
+
+  it('scrolls the list itself when the rows outgrow it', async () => {
+    const many = withThreads({
+      state: loadingThreads({ now: NOW }),
+      rows: threadRows({
+        activeThreadId: '',
+        threads: Array.from({ length: 30 }, (_, at) => ({
+          id: `thread-${String(at).padStart(2, '0')}`,
+          title: `conversation ${at}`,
+          updatedAt: '2026-08-25T11:58:00.000Z',
+        })),
+      }),
+    })
+    const frame = await framed(many)
+
+    expect(frame).toContain('conversation 0')
+    expect(frame).not.toContain('conversation 29')
   })
 })
