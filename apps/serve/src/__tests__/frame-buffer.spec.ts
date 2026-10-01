@@ -85,12 +85,55 @@ describe('createFrameBuffer', () => {
     expect(buffer.from(second.seq).map((frame) => frame.seq)).toEqual([1, 2])
   })
 
-  it('numbers lifecycle frames in the same sequence as signals', () => {
+  it('leaves the signal sequence untouched by lifecycle frames', () => {
     const buffer = createFrameBuffer({ capacity: 4 })
     buffer.push(started('a'))
 
-    expect(buffer.pushLifecycle(ended('run-1')).seq).toBe(1)
-    expect(buffer.nextSeq()).toBe(2)
+    expect(buffer.pushLifecycle(ended('run-1'))).toEqual(ended('run-1'))
+    expect(buffer.nextSeq()).toBe(1)
+    expect(buffer.push(started('b')).seq).toBe(1)
+  })
+
+  it('replays a lifecycle frame between the signals it sat between', () => {
+    const buffer = createFrameBuffer({ capacity: 8 })
+    buffer.push(started('a'))
+    buffer.pushLifecycle(ended('run-1'))
+    buffer.push(started('b'))
+    buffer.pushLifecycle(failed('boom'))
+    buffer.push(started('c'))
+
+    expect(buffer.after(0).map((frame) => frame.kind)).toEqual([
+      EServeFrame.TurnEnded,
+      EServeFrame.Signal,
+      EServeFrame.Error,
+      EServeFrame.Signal,
+    ])
+    expect(signalSeqsOf(buffer.after(1))).toEqual([2])
+    expect(buffer.after(1).map((frame) => frame.kind)).toEqual([
+      EServeFrame.Error,
+      EServeFrame.Signal,
+    ])
+  })
+
+  it('refuses a cursor whose next lifecycle frame was evicted', () => {
+    const buffer = createFrameBuffer({ capacity: 1 })
+    buffer.push(started('a'))
+    buffer.pushLifecycle(ended('run-1'))
+    buffer.push(started('b'))
+
+    expect(buffer.holds(0)).toBe(false)
+    expect(buffer.holds(1)).toBe(true)
+  })
+
+  it('holds a cursor whose next lifecycle frame is still in the ring', () => {
+    const buffer = createFrameBuffer({ capacity: 2 })
+    buffer.push(started('a'))
+    buffer.push(started('b'))
+    buffer.pushLifecycle(ended('run-1'))
+
+    expect(buffer.holds(0)).toBe(true)
+    expect(buffer.holds(1)).toBe(true)
+    expect(buffer.after(1)).toEqual([ended('run-1')])
   })
 
   it('replays a buffered turn-ended as the wire frame, without its seq', () => {
@@ -116,11 +159,10 @@ describe('createFrameBuffer', () => {
     buffer.push(started('c'))
 
     expect(buffer.holds(0)).toBe(false)
-    expect(buffer.contains(1)).toBe(false)
-    expect(buffer.after(0).map((frame) => frame.kind)).toEqual([
-      EServeFrame.Signal,
-      EServeFrame.Signal,
-    ])
+    expect(buffer.holds(1)).toBe(true)
+    expect(buffer.contains(0)).toBe(false)
+    expect(buffer.contains(1)).toBe(true)
+    expect(buffer.after(1).map((frame) => frame.kind)).toEqual([EServeFrame.Signal])
   })
 
   it('keeps a step read to signal frames', () => {
@@ -129,6 +171,6 @@ describe('createFrameBuffer', () => {
     buffer.pushLifecycle(ended('run-1'))
     buffer.push(started('b'))
 
-    expect(buffer.from(0).map((frame) => frame.seq)).toEqual([0, 2])
+    expect(buffer.from(0).map((frame) => frame.seq)).toEqual([0, 1])
   })
 })

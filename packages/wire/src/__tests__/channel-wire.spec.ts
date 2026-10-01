@@ -13,6 +13,7 @@ import {
   EShellStatus,
   ETurnStatus,
   readMemoryArchiveReplySchema,
+  setThreadModelParamsSchema,
   type ClientFrame,
   type ServeFrame,
 } from '../index'
@@ -148,6 +149,36 @@ describe('the thread rename and model ops', () => {
 
     expect(decodeClientFrame(encodeFrame(request))).toEqual(request)
     expect(decodeServeFrame(encodeFrame(pushed))).toEqual(pushed)
+  })
+
+  it('keeps retarget true, false and omitted exactly as sent on a set-thread-model request', () => {
+    const model = { ref: 'anthropic/claude-opus-5', effort: 'high' }
+    const requests = [
+      { threadId: 'thread-1', model },
+      { threadId: 'thread-1', model, retarget: true },
+      { threadId: 'thread-1', model, retarget: false },
+    ]
+
+    for (const params of requests) {
+      const request: ClientFrame = {
+        kind: EClientFrame.Request,
+        id: 'mod-2',
+        op: EClientRequest.SetThreadModel,
+        params,
+      }
+      expect(decodeClientFrame(encodeFrame(request))).toEqual(request)
+      expect(JSON.stringify(setThreadModelParamsSchema.parse(params))).toBe(JSON.stringify(params))
+    }
+  })
+
+  it('rejects a set-thread-model request whose retarget is not a boolean', () => {
+    const params = {
+      threadId: 'thread-1',
+      model: { ref: 'anthropic/claude-opus-5', effort: 'high' },
+      retarget: 'yes',
+    }
+
+    expect(setThreadModelParamsSchema.safeParse(params).success).toBe(false)
   })
 
   it('drops a model push whose model is not a { ref, effort } pair', () => {
