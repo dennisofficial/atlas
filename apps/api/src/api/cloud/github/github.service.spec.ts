@@ -166,6 +166,32 @@ describe('GithubService', () => {
     ).rejects.toBeInstanceOf(BadGatewayException)
   })
 
+  it('poll refuses a grant that is missing scopes and stores nothing', async () => {
+    fetchImpl = async () => jsonResponse({ access_token: 'ghu_scoped-down', scope: '' })
+
+    const result = await service.pollConnect({ userId: USER_A, deviceCode: 'dc-1' })
+
+    expect(result).toEqual({
+      status: EGithubPollStatus.MissingScopes,
+      missing: ['repo', 'read:org', 'admin:repo_hook'],
+    })
+    expect(fake.connections).toHaveLength(0)
+    expect(calls.some((call) => call.url === 'https://api.github.com/user')).toBe(false)
+  })
+
+  it('poll reports only the scopes that are actually missing', async () => {
+    fetchImpl = async () =>
+      jsonResponse({ access_token: 'gho_partial', scope: 'repo read:org' })
+
+    const result = await service.pollConnect({ userId: USER_A, deviceCode: 'dc-1' })
+
+    expect(result).toEqual({
+      status: EGithubPollStatus.MissingScopes,
+      missing: ['admin:repo_hook'],
+    })
+    expect(fake.connections).toHaveLength(0)
+  })
+
   it('poll verifies the granted token and stores it sealed', async () => {
     fetchImpl = async (url) => {
       if (url === 'https://github.com/login/oauth/access_token') {
@@ -197,7 +223,7 @@ describe('GithubService', () => {
   it('poll re-upserts the row when the same user reconnects', async () => {
     fetchImpl = async (url) => {
       if (url === 'https://github.com/login/oauth/access_token') {
-        return jsonResponse({ access_token: 'gho_raw-token', scope: 'repo' })
+        return jsonResponse({ access_token: 'gho_raw-token', scope: 'repo read:org admin:repo_hook' })
       }
       return jsonResponse({ login: 'octocat' })
     }
@@ -211,7 +237,7 @@ describe('GithubService', () => {
   it('scopes the connection to the owning user', async () => {
     fetchImpl = async (url) => {
       if (url === 'https://github.com/login/oauth/access_token') {
-        return jsonResponse({ access_token: 'gho_raw-token', scope: 'repo' })
+        return jsonResponse({ access_token: 'gho_raw-token', scope: 'repo read:org admin:repo_hook' })
       }
       return jsonResponse({ login: 'octocat' })
     }
@@ -231,7 +257,7 @@ describe('GithubService', () => {
   it('disconnect is idempotent', async () => {
     fetchImpl = async (url) => {
       if (url === 'https://github.com/login/oauth/access_token') {
-        return jsonResponse({ access_token: 'gho_raw-token', scope: 'repo' })
+        return jsonResponse({ access_token: 'gho_raw-token', scope: 'repo read:org admin:repo_hook' })
       }
       return jsonResponse({ login: 'octocat' })
     }

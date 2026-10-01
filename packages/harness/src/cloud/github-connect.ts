@@ -5,6 +5,7 @@ export enum EGithubConnectPoll {
   SlowDown = 'slow-down',
   Denied = 'denied',
   Expired = 'expired',
+  MissingScopes = 'missing-scopes',
   Connected = 'connected',
 }
 
@@ -31,6 +32,7 @@ export type GithubConnectPollOutcome =
   | { status: EGithubConnectPoll.SlowDown }
   | { status: EGithubConnectPoll.Denied }
   | { status: EGithubConnectPoll.Expired }
+  | { status: EGithubConnectPoll.MissingScopes; missing: string[] }
   | { status: EGithubConnectPoll.Connected; connection: GithubConnection }
 
 export const githubConnectPollResponseSchema = z.discriminatedUnion('status', [
@@ -38,6 +40,10 @@ export const githubConnectPollResponseSchema = z.discriminatedUnion('status', [
   z.strictObject({ status: z.literal(EGithubConnectPoll.SlowDown) }),
   z.strictObject({ status: z.literal(EGithubConnectPoll.Denied) }),
   z.strictObject({ status: z.literal(EGithubConnectPoll.Expired) }),
+  z.strictObject({
+    status: z.literal(EGithubConnectPoll.MissingScopes),
+    missing: z.array(z.string()),
+  }),
   z.strictObject({
     status: z.literal(EGithubConnectPoll.Connected),
     login: githubConnectionSchema.shape.login,

@@ -3,6 +3,7 @@ export enum EGithubPollStatus {
   SlowDown = 'slow-down',
   Denied = 'denied',
   Expired = 'expired',
+  MissingScopes = 'missing-scopes',
   Connected = 'connected',
 }
 
@@ -19,6 +20,7 @@ export type GithubPollResultDto =
   | { status: EGithubPollStatus.SlowDown }
   | { status: EGithubPollStatus.Denied }
   | { status: EGithubPollStatus.Expired }
+  | { status: EGithubPollStatus.MissingScopes; missing: string[] }
   | { status: EGithubPollStatus.Connected; login: string; scopes: string[] }
 
 export type GithubConnectionDto =
