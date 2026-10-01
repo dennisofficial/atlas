@@ -6,7 +6,6 @@ import { EPortExposure, type EnvironmentCapabilities } from '@dltech/atlas-core'
 import { runGit } from '@dltech/atlas-harness'
 
 import { applyGitAccessEnv } from './git-access-env'
-import { SERVE_IDLE_MINUTES_WITH_SERVICES } from './idle-stop'
 import type { GitRunner } from './materialize-workspace'
 import { createGpgSigningStep } from './profile-gpg'
 import { runCommand, type CommandRunner } from './run-command'
@@ -259,7 +258,7 @@ export function createEnvironmentProfile(args: {
       gpgSigning: probedGpg,
       dockerAvailable,
       persistentFs: true,
-      serviceTtlSeconds: args.serviceTtlSeconds ?? SERVE_IDLE_MINUTES_WITH_SERVICES * 60,
+      serviceTtlSeconds: args.serviceTtlSeconds ?? null,
       portExposure: EPortExposure.PublicDomain,
       failures: steps
         .filter((one) => one.state === EProfileStepState.Failed)

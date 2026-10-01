@@ -1,71 +1,98 @@
 import { serveIdleDue } from '@dltech/atlas-core'
 
 export const SERVE_IDLE_MINUTES = 5
-export const SERVE_IDLE_MINUTES_WITH_SERVICES = 30
 
 const IDLE_TICK_MS = 30_000
 
 export type ServeIdleStop = {
-  /** Work is the only attention that counts: a socket merely open must let the sandbox park. */
   note: () => void
   halt: () => void
+  check: () => boolean
+  reset: () => void
 }
 
-/**
- * The parked-sandbox half of the park model: serve exits when the conversation goes quiet, Vercel
- * sees a sandbox with nothing running and parks it, and the next message reattaches through the
- * ordinary wake path. The creation-time timeout stays as the outer backstop; nothing extends it.
- */
 export function startServeIdleStop(args: {
   turnRunning: () => boolean
   childrenSettling: () => boolean
   runningShells: () => number
   runningServices: () => number
+  runningChildren?: (() => number) | undefined
+  pendingInput?: (() => boolean) | undefined
   onDue: () => void
   idleMinutes?: number | undefined
-  idleMinutesWithServices?: number | undefined
   tickMs?: number | undefined
   now?: (() => number) | undefined
   log?: ((line: string) => void) | undefined
 }): ServeIdleStop {
   const now = args.now ?? Date.now
-  let lastActivityAt = now()
+  let quietSince: number | undefined
   let fired = false
 
-  const tick = (): void => {
-    if (fired) return
+  const check = (): boolean => {
+    if (fired) return false
 
     let due = false
     try {
+      const turnRunning = args.turnRunning()
+      const childrenSettling = args.childrenSettling()
+      const runningChildren = args.runningChildren?.() ?? 0
+      const runningShells = args.runningShells()
+      const runningServices = args.runningServices()
+      const pendingInput = args.pendingInput?.() ?? false
+
+      const busy =
+        turnRunning ||
+        childrenSettling ||
+        runningChildren > 0 ||
+        runningShells > 0 ||
+        runningServices > 0 ||
+        pendingInput
+      if (busy) {
+        quietSince = undefined
+        return false
+      }
+      if (quietSince === undefined) {
+        quietSince = now()
+        return false
+      }
+
       due = serveIdleDue({
-        lastActivityAt,
-        turnRunning: args.turnRunning(),
-        childrenSettling: args.childrenSettling(),
-        runningShells: args.runningShells(),
-        runningServices: args.runningServices(),
+        lastActivityAt: quietSince,
+        turnRunning,
+        childrenSettling,
+        runningChildren,
+        runningShells,
+        runningServices,
+        pendingInput,
         idleMinutes: args.idleMinutes ?? SERVE_IDLE_MINUTES,
-        idleMinutesWithServices: args.idleMinutesWithServices ?? SERVE_IDLE_MINUTES_WITH_SERVICES,
         now: now(),
       })
     } catch (failure) {
+      quietSince = undefined
       args.log?.(
-        `idle check failed, the sandbox stays up this tick: ${failure instanceof Error ? failure.message : String(failure)}`,
+        `idle check failed, the quiet window restarts: ${failure instanceof Error ? failure.message : String(failure)}`,
       )
-      return
+      return false
     }
-    if (!due) return
+    if (!due) return false
 
     fired = true
     args.onDue()
+    return true
   }
 
-  const timer = setInterval(tick, args.tickMs ?? IDLE_TICK_MS)
+  const timer = setInterval(check, args.tickMs ?? IDLE_TICK_MS)
   timer.unref()
 
   return {
     note: () => {
-      lastActivityAt = now()
+      quietSince = now()
     },
     halt: () => clearInterval(timer),
+    check,
+    reset: () => {
+      fired = false
+      quietSince = undefined
+    },
   }
 }
