@@ -891,3 +891,68 @@ describe('the client-side keepalive', () => {
     expect(stops).toEqual([true, false])
   })
 })
+
+describe('the sandbox pending queue, as the channel reports it', () => {
+  const entries = [
+    { id: 'pending-1', text: 'first', reserved: false },
+    { id: 'pending-2', text: 'second', via: 'parent-agent', reserved: true },
+  ]
+
+  it('delivers a pending-changed signal to onPendingChanged listeners and holds it', () => {
+    const { channel, open, receive } = harness()
+    const heard: (readonly unknown[])[] = []
+    channel.onPendingChanged((next) => void heard.push(next))
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    heard.length = 0
+
+    receive({ kind: EServeFrame.Signal, seq: 2, signal: { type: 'pending-changed', entries } })
+
+    expect(heard).toEqual([entries])
+    expect(channel.pendingEntries()).toEqual(entries)
+  })
+
+  it('does not fold a pending-changed signal into the in-flight step', () => {
+    const { channel, open, receive } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+
+    receive({ kind: EServeFrame.Signal, seq: 2, signal: { type: 'pending-changed', entries } })
+
+    expect(channel.snapshot({ threadId: THREAD })).toEqual([])
+  })
+
+  it('still hands the signal to ordinary channel listeners', () => {
+    const { channel, open, receive } = harness()
+    const { seen, listener } = recorder()
+    channel.subscribe({ threadId: THREAD, listener })
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+
+    receive({ kind: EServeFrame.Signal, seq: 2, signal: { type: 'pending-changed', entries } })
+
+    expect(seen).toEqual([{ type: 'pending-changed', entries }])
+  })
+
+  it('clears the held queue on a fresh ready, before the serve sends its snapshot', () => {
+    const { channel, open, receive } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    receive({ kind: EServeFrame.Signal, seq: 2, signal: { type: 'pending-changed', entries } })
+    expect(channel.pendingEntries()).toEqual(entries)
+
+    const heard: (readonly unknown[])[] = []
+    channel.onPendingChanged((next) => void heard.push(next))
+    receive({ kind: EServeFrame.Ready, seq: 3 })
+
+    expect(heard).toEqual([[]])
+    expect(channel.pendingEntries()).toEqual([])
+
+    receive({ kind: EServeFrame.Signal, seq: 3, signal: { type: 'pending-changed', entries } })
+    expect(heard).toEqual([[], entries])
+  })
+
+  it('holds an empty queue before anything arrives', () => {
+    expect(harness().channel.pendingEntries()).toEqual([])
+  })
+})

@@ -173,3 +173,51 @@ describe('commands queued between the messages', () => {
     expect(textsOf(queue)).toEqual([])
   })
 })
+
+describe('which queued entries a prepared batch has reserved', () => {
+  it('reports a queued entry as unreserved', () => {
+    const queue = createPendingQueue()
+    queue.enqueue({ text: 'waiting' })
+
+    const [entry] = queue.getSnapshot()
+    expect(queue.reserved(entry?.id ?? '')).toBe(false)
+  })
+
+  it('reserves the entries of a prepared batch until it is acknowledged', () => {
+    const queue = createPendingQueue()
+    queue.enqueue({ text: 'handed over' })
+    const [entry] = queue.getSnapshot()
+    const id = entry?.id ?? ''
+
+    const batch = queue.prepare()
+    expect(queue.reserved(id)).toBe(true)
+
+    batch.acknowledge()
+    expect(queue.reserved(id)).toBe(false)
+  })
+
+  it('frees the entries again when the batch is released instead', () => {
+    const queue = createPendingQueue()
+    queue.enqueue({ text: 'handed back' })
+    const [entry] = queue.getSnapshot()
+    const id = entry?.id ?? ''
+
+    const batch = queue.prepare()
+    expect(queue.reserved(id)).toBe(true)
+
+    batch.release?.()
+    expect(queue.reserved(id)).toBe(false)
+    expect(textsOf(queue)).toEqual(['handed back'])
+  })
+
+  it('does not reserve an entry queued after the batch was prepared', () => {
+    const queue = createPendingQueue()
+    queue.enqueue({ text: 'early' })
+    const batch = queue.prepare()
+    queue.enqueue({ text: 'late' })
+
+    const late = queue.getSnapshot().at(-1)
+    expect(queue.reserved(late?.id ?? '')).toBe(false)
+    batch.release?.()
+  })
+})

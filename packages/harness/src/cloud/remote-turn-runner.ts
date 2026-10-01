@@ -1,7 +1,9 @@
-import type { EventDraft, SaidFile, SaidImage, ThreadId } from '@dltech/atlas-core'
+import { eventBodySchema, type EventDraft, type SaidFile, type SaidImage, type ThreadId } from '@dltech/atlas-core'
 
 import { TurnRunner, type PauseSignal, type TurnOutcome } from '../loop'
+import type { PendingSaid } from '../pending/pending-queue'
 
+import { EClientRequest, takeBackPendingReplySchema } from './channel-wire'
 import { EChannelConnection, type RemoteDeltaChannel } from './remote-delta-channel'
 
 export class RemoteTurnDetached extends Error {
@@ -12,6 +14,16 @@ export class RemoteTurnDetached extends Error {
 }
 
 export const SERVE_DEFAULT_REPLAY_WINDOW_OUTCOMES = 2048
+
+const draftsOf = (context: readonly unknown[]): readonly EventDraft[] | undefined => {
+  const drafts: EventDraft[] = []
+  for (const draft of context) {
+    const parsed = eventBodySchema.safeParse(draft)
+    if (!parsed.success) return undefined
+    drafts.push(parsed.data)
+  }
+  return drafts
+}
 
 type Waiter = {
   resolve: (outcome: TurnOutcome) => void
@@ -101,6 +113,27 @@ export class RemoteTurnRunner extends TurnRunner {
       files: args.files,
       ...(args.context === undefined ? {} : { context: args.context }),
     })
+  }
+
+  async takeBackPending(args: { threadId: ThreadId }): Promise<PendingSaid | null> {
+    if (args.threadId !== this.channel.threadId) return null
+
+    let reply: unknown
+    try {
+      reply = await this.channel.request({
+        op: EClientRequest.TakeBackPending,
+        params: { threadId: this.channel.threadId },
+      })
+    } catch {
+      return null
+    }
+
+    const parsed = takeBackPendingReplySchema.safeParse(reply)
+    if (!parsed.success || parsed.data.taken === null) return null
+
+    const { text, images, files, context } = parsed.data.taken
+    const drafts = context === undefined ? undefined : draftsOf(context)
+    return { text, images, files, ...(drafts === undefined ? {} : { context: drafts }) }
   }
 
   runTurn(args: {

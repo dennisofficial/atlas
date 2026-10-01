@@ -28,6 +28,7 @@ import {
   type EThinkingVisibility,
   type PendingRow,
   type PendingSaid,
+  type RemotePendingEntry,
   type SidebarModel,
   type TranscriptModel,
 } from '../store'
@@ -63,6 +64,7 @@ import { clockReadableAt, transcriptOfTurn } from './turn-progress'
 
 const NO_IMAGES: readonly SaidImage[] = Object.freeze([])
 const NO_FILES: readonly SaidFile[] = Object.freeze([])
+const EMPTY_REMOTE_PENDING: readonly RemotePendingEntry[] = Object.freeze([])
 
 export type Conversation = {
   threadId: ThreadId
@@ -105,7 +107,8 @@ export type Conversation = {
     context?: readonly EventDraft[] | undefined
   }) => void
   handleQueueSettled: (entry: QueuedSettled) => void
-  handleTakeBackPending: () => PendingSaid | null
+  /** Local sessions answer synchronously; a cloud session asks the sandbox, so it answers async. */
+  handleTakeBackPending: () => PendingSaid | null | Promise<PendingSaid | null>
   handleRetry: (() => void) | null
   handleResume: (() => void) | null
   handleReportProblem: (reason: string) => void
@@ -324,6 +327,28 @@ export function useConversation(args: {
 
   const queued = useSyncExternalStore(pending.subscribe, pending.getSnapshot)
 
+  /**
+   * A cloud thread's queue lives in the sandbox, which broadcasts it as pending-changed signals;
+   * the local queue stays empty there, so the transcript renders this snapshot instead. The
+   * channel carries the current value (pendingEntries) so a late mount does not wait for the
+   * next change to show what is queued.
+   */
+  const remoteChannel = useMemo(() => {
+    if (cloudRunner === null) return null
+    const channel = app.channel
+    if (!('onPendingChanged' in channel)) return null
+    return channel as RemoteDeltaChannel
+  }, [app.channel, cloudRunner])
+
+  const subscribeRemotePending = useCallback(
+    (listener: () => void) => remoteChannel?.onPendingChanged(listener) ?? (() => undefined),
+    [remoteChannel],
+  )
+  const remoteQueued = useSyncExternalStore(
+    subscribeRemotePending,
+    () => remoteChannel?.pendingEntries() ?? EMPTY_REMOTE_PENDING,
+  )
+
   const compaction = useCompaction({
     app,
     threadId,
@@ -493,10 +518,18 @@ export function useConversation(args: {
   /**
    * Only the queue is taken back: once the loop has drained a message into the log, the edit route
    * is interrupt-and-resend, not a second retraction path that would have to race the stream.
+   *
+   * The cloud queue lives in the sandbox, so the take-back is a wire request and the draft fills
+   * only once the sandbox's reply confirms the message was still queued — a null answer means the
+   * turn's intake already claimed it, and the row keeps rendering instead of being edited twice.
    */
   const handleTakeBackPending = useCallback(
-    (): PendingSaid | null => (moving ? null : pending.takeBackLast()),
-    [moving, pending],
+    (): PendingSaid | null | Promise<PendingSaid | null> => {
+      if (moving) return null
+      if (cloudRunner === null) return pending.takeBackLast()
+      return cloudRunner.takeBackPending({ threadId })
+    },
+    [cloudRunner, moving, pending, threadId],
   )
 
   /**
@@ -601,12 +634,13 @@ export function useConversation(args: {
     () =>
       pendingRows({
         entries: queued,
+        ...(remoteChannel === null ? {} : { remoteEntries: remoteQueued }),
         notices,
         agents: agentNotices,
         services: serviceNotices,
         sending: sending.rows,
       }),
-    [agentNotices, notices, queued, sending.rows, serviceNotices],
+    [agentNotices, notices, queued, remoteChannel, remoteQueued, sending.rows, serviceNotices],
   )
 
   const model = transcriptOfTurn({ model: derived, working, failure })

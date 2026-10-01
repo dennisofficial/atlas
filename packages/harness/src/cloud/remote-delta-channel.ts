@@ -4,7 +4,12 @@ import type { ChannelListener, DeltaChannel, Unsubscribe } from '../channel/delt
 import { retainReplayable, type InFlightSlots } from '../channel/in-flight'
 import { EStepEnd, type ChannelSignal, type StepId, type StepSignal } from '../channel/signal'
 import type { TurnOutcome } from '../loop/turn-outcome'
-import { runtimeCheckpointSchema, type RosterWire, type RuntimeCheckpoint } from '@dltech/atlas-wire'
+import {
+  runtimeCheckpointSchema,
+  type PendingEntryWire,
+  type RosterWire,
+  type RuntimeCheckpoint,
+} from '@dltech/atlas-wire'
 
 import {
   bearerSubprotocolOf,
@@ -99,6 +104,8 @@ export type RemoteDeltaChannel = DeltaChannel & {
   onReady(listener: (ready: ChannelReady) => void): Unsubscribe
   onInterruptAck(listener: (ack: InterruptAck) => void): Unsubscribe
   onRoster(listener: (roster: RosterWire) => void): Unsubscribe
+  pendingEntries(): readonly PendingEntryWire[]
+  onPendingChanged(listener: (entries: readonly PendingEntryWire[]) => void): Unsubscribe
   onThreadRenamed(listener: (renamed: ThreadRenamedFrame) => void): Unsubscribe
   onThreadModelChanged(listener: (changed: ThreadModelChangedFrame) => void): Unsubscribe
   onTurnEnded(listener: (outcome: TurnOutcome) => void): Unsubscribe
@@ -124,6 +131,8 @@ const DEFAULT_MAX_ATTEMPTS = 8
 const DEFAULT_MAX_REATTACHMENTS = 3
 
 const NOTHING_IN_FLIGHT: readonly StepSignal[] = Object.freeze([])
+
+const NOTHING_PENDING: readonly PendingEntryWire[] = Object.freeze([])
 
 const defaultBackoffMs = (args: { attempt: number }): number =>
   Math.min(RETRY_CEILING_MS, FIRST_RETRY_MS * 2 ** args.attempt)
@@ -194,6 +203,7 @@ export function createRemoteDeltaChannel(args: {
   const reloads = registryOf<ChannelReload>()
   const readies = registryOf<ChannelReady>()
   const rosters = registryOf<RosterWire>()
+  const pendingChanges = registryOf<readonly PendingEntryWire[]>()
   const threadRenames = registryOf<ThreadRenamedFrame>()
   const threadModelChanges = registryOf<ThreadModelChangedFrame>()
   const checkpoints = registryOf<RuntimeCheckpoint>()
@@ -224,6 +234,12 @@ export function createRemoteDeltaChannel(args: {
   let interruptPending = false
   let interruptSentGeneration = -1
   let heldCheckpoint: RuntimeCheckpoint | null = null
+  let heldPending: readonly PendingEntryWire[] = NOTHING_PENDING
+
+  const settlePending = (entries: readonly PendingEntryWire[]): void => {
+    heldPending = entries
+    pendingChanges.emit(entries)
+  }
 
   const acceptCheckpoint = (checkpoint: RuntimeCheckpoint | null | undefined): void => {
     if (checkpoint === null || checkpoint === undefined) return
@@ -298,6 +314,7 @@ export function createRemoteDeltaChannel(args: {
   }
 
   const absorb = (signal: ChannelSignal) => {
+    if (signal.type === 'pending-changed') return
     if (signal.type === 'turn-working') {
       working = signal.working
       replay = undefined
@@ -340,6 +357,7 @@ export function createRemoteDeltaChannel(args: {
         })
       }
     }
+    if (signal.type === 'pending-changed') settlePending(signal.entries)
   }
 
   const endStrandedStep = () => {
@@ -373,6 +391,9 @@ export function createRemoteDeltaChannel(args: {
       upstream.attach({ write })
       const turnInFlight = frame.turnInFlight === true
       if (turnInFlight !== working) deliver({ type: 'turn-working', working: turnInFlight })
+      // The serve sends the fresh pending snapshot right after Ready, so an empty list first
+      // clears whatever copy a reconnecting client kept from before it detached.
+      settlePending(NOTHING_PENDING)
       readies.emit({ turnInFlight: frame.turnInFlight === true })
       moveTo({ state: EChannelConnection.Open, detail: null })
       if (interruptPending && frame.turnInFlight === true) requestInterrupt()
@@ -685,6 +706,10 @@ export function createRemoteDeltaChannel(args: {
     onInterruptAck: (listener) => interruptAcks.add(listener),
 
     onRoster: (listener) => rosters.add(listener),
+
+    pendingEntries: () => heldPending,
+
+    onPendingChanged: (listener) => pendingChanges.add(listener),
 
     onThreadRenamed: (listener) => threadRenames.add(listener),
 

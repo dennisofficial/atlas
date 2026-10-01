@@ -23,6 +23,7 @@ export type PendingEntry<Command> = PendingMessage | PendingCommand<Command>
 export type PendingQueue<Command = never> = {
   subscribe(listener: () => void): () => void
   getSnapshot(): readonly PendingEntry<Command>[]
+  reserved(entryId: string): boolean
   enqueue(args: { text: string; images?: readonly SaidImage[]; files?: readonly SaidFile[]; context?: readonly EventDraft[] | undefined; via?: EMessageOrigin | undefined }): void
   prepare(): InputBatch
   enqueueCommand(args: { text: string; command: Command }): void
@@ -70,6 +71,8 @@ export function createPendingQueue<Command = never>(): PendingQueue<Command> {
     },
 
     getSnapshot: () => snapshot,
+
+    reserved: (entryId) => reserved.has(entryId),
 
     enqueue({ text, images, files, context, via }) {
       settle([

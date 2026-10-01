@@ -17,17 +17,20 @@ import {
   type RestoreTranscriptParams,
   type ServeFrame,
 } from '@dltech/atlas-harness'
-import type { FileBrowser } from '@dltech/atlas-harness'
+import type { FileBrowser, PendingQueues } from '@dltech/atlas-harness'
 
 import type { FrameBuffer, SignalFrame } from './frame-buffer'
 import type { WorkspacePublisher } from './publish-workspace'
 import {
   answerRequest,
+  answerTakeBackPending,
   answerTranscriptRead,
   answerTranscriptWrite,
   answeredRequest,
+  isPendingOp,
   isTranscriptReadOp,
   isTranscriptWriteOp,
+  pendingEntriesOf,
   refusedRequest,
   type TranscriptReaders,
 } from './requests'
@@ -79,6 +82,8 @@ export function createSessionHandlers(args: {
   log: ServeLog
   roster?: ServeRoster | undefined
   rewind?: ServeRewind | undefined
+  /** The operator's queued input; its changes are broadcast and take-back-pending answers from it. Absent in fakes. */
+  pending?: PendingQueues | undefined
   /** The transcript stores the read-ops answer from; absent in fakes, which refuse the ops. */
   transcript?: TranscriptReaders | undefined
   /** Re-pins the running loop's model for a set-thread-model op; absent in fakes. */
@@ -95,6 +100,7 @@ export function createSessionHandlers(args: {
   const { threadId, buffer, inFlight, liveStepId, driver, files, publish, refusal, log } = args
   const snapshot = args.roster?.snapshot ?? EMPTY_ROSTER
   const rewind = args.rewind
+  const pending = args.pending
   const transcript = args.transcript
   const selectModel = args.selectModel
   const sessionArchive = args.sessionArchive
@@ -166,6 +172,18 @@ export function createSessionHandlers(args: {
 
     const blocked = refusal()
     if (blocked !== null) send({ socket, frame: { kind: EServeFrame.Error, message: blocked } })
+
+    const queued = pending === undefined ? [] : pendingEntriesOf({ pending, threadId })
+    if (queued.length > 0) {
+      send({
+        socket,
+        frame: {
+          kind: EServeFrame.Signal,
+          seq: Math.max(0, buffer.nextSeq() - 1),
+          signal: { type: 'pending-changed', entries: queued },
+        },
+      })
+    }
 
     const backfill = resumed && cursor !== null ? buffer.after(cursor) : inFlight()
     const reloadedMidStep = resumed ? null : liveStepId()
@@ -330,6 +348,19 @@ export function createSessionHandlers(args: {
               data: { message: messageOf(error, 'the rewind cleanup failed') },
             },
           }),
+        )
+      return
+    }
+
+    if (isPendingOp(frame.op)) {
+      if (pending === undefined) {
+        send({ socket, frame: refusedRequest({ replyTo: frame.id, message: 'this serve has no pending queue' }) })
+        return
+      }
+      void answerTakeBackPending({ frame, pending })
+        .then((reply) => send({ socket, frame: reply }))
+        .catch((error: unknown) =>
+          send({ socket, frame: refusedRequest({ replyTo: frame.id, message: messageOf(error, 'the take-back failed') }) }),
         )
       return
     }
@@ -512,6 +543,21 @@ export function createSessionHandlers(args: {
       )
   }
 
+  const broadcast = (frame: ServeFrame): void => {
+    const encoded = encodeFrame(frame)
+    for (const socket of attached) {
+      if (socket.data.alias === null) {
+        socket.send(encoded)
+        continue
+      }
+      socket.send(encodeFrame(forSocket({ socket, frame })))
+    }
+  }
+
+  const unsubscribePending = pending?.subscribe(() => {
+    broadcast(buffer.push({ type: 'pending-changed', entries: pendingEntriesOf({ pending, threadId }) }))
+  })
+
   return {
     open({ socket }) {
       live.add(socket)
@@ -559,16 +605,7 @@ export function createSessionHandlers(args: {
       log({ event: EServeEvent.ClientDetached, clients: attached.size, actor: 'transport', running: driver.running(), execution: 'preserved' })
     },
 
-    broadcast(frame) {
-      const encoded = encodeFrame(frame)
-      for (const socket of attached) {
-        if (socket.data.alias === null) {
-          socket.send(encoded)
-          continue
-        }
-        socket.send(encodeFrame(forSocket({ socket, frame })))
-      }
-    },
+    broadcast,
 
     broadcastRoster() {
       const frame: ServeFrame = { kind: EServeFrame.Roster, roster: rosterWireSchema.parse(snapshot()) }
@@ -590,6 +627,7 @@ export function createSessionHandlers(args: {
     },
 
     hangUp() {
+      unsubscribePending?.()
       for (const socket of live) socket.terminate()
       live.clear()
       attached.clear()
