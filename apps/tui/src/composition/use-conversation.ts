@@ -170,7 +170,12 @@ export function useConversation(args: {
   )
 
   const initial = useCallback(
-    (): ThreadSeed => ({ events: opened.events, turns: opened.turns }),
+    (): ThreadSeed => ({
+      events: opened.events,
+      turns: opened.turns,
+      ...(opened.base === undefined ? {} : { base: opened.base }),
+      ...(opened.identity === undefined ? {} : { identity: opened.identity }),
+    }),
     [opened],
   )
 

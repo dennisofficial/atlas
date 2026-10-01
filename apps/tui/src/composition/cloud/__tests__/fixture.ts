@@ -77,6 +77,8 @@ export type FakeCloudChannel = CloudChannel & {
   pushThreadRenamed(args: { threadId: ThreadId; title: string }): void
   pushThreadModelChanged(args: { threadId: ThreadId; model: ThreadModel }): void
   endTurn(outcome: TurnOutcome): void
+  onCheckpoint(listener: (checkpoint: unknown) => void): () => void
+  pushCheckpoint(checkpoint: unknown): void
   readonly closed: boolean
   readonly runs: number
   readonly sent: readonly {
@@ -126,6 +128,7 @@ export function fakeCloudChannel(
     (changed: { threadId: ThreadId; model: ThreadModel }) => void
   >()
   const turnEndings = new Set<(outcome: TurnOutcome) => void>()
+  const checkpoints = new Set<(checkpoint: unknown) => void>()
   const woken: { url: string; token: string }[] = []
   const requests: { op: EClientRequest; params: unknown }[] = []
   const sent: {
@@ -454,6 +457,15 @@ export function fakeCloudChannel(
     endTurn(outcome) {
       for (const listener of [...turnEndings]) listener(outcome)
     },
+    onCheckpoint: (listener: (checkpoint: unknown) => void) => {
+      checkpoints.add(listener)
+      return () => {
+        checkpoints.delete(listener)
+      }
+    },
+    pushCheckpoint(checkpoint: unknown) {
+      for (const listener of [...checkpoints]) listener(checkpoint)
+    },
   }
 }
 
@@ -580,6 +592,8 @@ export function fakeBridge(
     putContextFails?: unknown
     destroyFails?: unknown
     status?: CloudSandboxStatus | undefined
+    /** Lets a spec move the sandbox row after the bridge exists — the control plane's answer. */
+    statusRef?: { current: CloudSandboxStatus | undefined } | undefined
     threadStore?: FakeThreadStore
     /** The local transcript a lift ships up; the fake's stand-in for the sandbox untarring it. */
     sourceLog?: FakeEventLog | undefined
@@ -712,7 +726,7 @@ export function fakeBridge(
         materialize(threadId)
       },
       confirmLanded: async () => ({ landed: transcriptShipped }),
-      find: async () => args.status,
+      find: async () => args.statusRef?.current ?? args.status,
       destroy: async ({ threadId }) => {
         trail.push('destroy')
         destroyed.push(threadId)

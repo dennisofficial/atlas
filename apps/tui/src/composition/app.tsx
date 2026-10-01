@@ -31,6 +31,7 @@ import {
   type SettingsResolution,
   type ThreadId,
 } from '@dltech/atlas-core'
+import type { RuntimeCheckpoint } from '@dltech/atlas-wire'
 import { atlasDirectory, capturePortableState, detachedLiftVerdict, EChannelConnection, forkConversation, persistedTelemetryDistinctId, readGhAuthToken, relocateSession, requireVercelCredentials, SandboxClient, sandboxImageOf, sandboxServeTokenFor, settingModelRef, storedModel, suggestedModelRef, VercelDriver, type DiscoveredSkill } from '@dltech/atlas-harness'
 
 import { newestExpandableKey, type PendingSaid } from '../store'
@@ -191,6 +192,7 @@ import { useUsageMeters } from './use-usage-meters'
 import type { CaptureContext } from '@dltech/atlas-harness'
 
 import { createCloudBridge } from './cloud/create-bridge'
+import { cloudReadinessOf } from './cloud/cloud-readiness'
 import { createCloudSession, type CloudSession } from './cloud/cloud-session'
 import { mirrorCloudRenames } from './cloud/rename-mirror'
 import {
@@ -357,6 +359,18 @@ const liveBridgeFor = (app: AtlasApp): CloudBridgeFactory => {
         ...cloudEnvironmentOf(app.settings.snapshot().resolution),
         ...telemetryEnvironmentOf(),
       }),
+      cloudUrl: () => app.cloud.session()?.url ?? '',
+      readCheckpoint: async ({ threadId }): Promise<RuntimeCheckpoint | null> => {
+        const session = app.cloud.session()
+        if (session === null) return null
+
+        const sandboxes = new SandboxClient({
+          url: session.url,
+          token: session.token,
+          clientVersion: clientVersionHeader(),
+        })
+        return await sandboxes.readCheckpoint({ threadId })
+      },
     })
 }
 
@@ -481,8 +495,7 @@ export function App(props: {
     props.reapOnBoot?.(props.app)
   }, [props.app, props.reapOnBoot])
 
-  const reloading = useRef(false)
-  const reloadPending = useRef(false)
+  const reloading = useRef<{ channel: LiftedAttachment['channel']; task: Promise<void> } | null>(null)
 
   /**
    * The typed-but-unsent draft, carried across the keyed Workspace remount a lift, descend, or
@@ -497,31 +510,27 @@ export function App(props: {
     draftReader.current = reader
   }, [])
 
-  const handleReload = useCallback(() => {
+  const handleReload = useCallback((): Promise<void> => {
     const attached = held.current
-    if (attached === null) return
-    if (reloading.current) {
-      reloadPending.current = true
-      return
-    }
+    if (attached === null) return Promise.reject(new Error('the cloud attachment is no longer mounted'))
+    if (reloading.current?.channel === attached.channel) return reloading.current.task
 
-    reloading.current = true
-    void openCloudConversation({
-      app: attached.app,
-      threadId: attached.opened.threadId,
-    })
-      .then((opened) =>
-        setLifted((current) =>
-          current === null ? current : { ...current, opened, reloads: current.reloads + 1 },
-        ),
-      )
-      .catch(() => undefined)
-      .finally(() => {
-        reloading.current = false
-        if (!reloadPending.current) return
-        reloadPending.current = false
-        handleReload()
+    const task = (async () => {
+      const opened = await openCloudConversation({
+        app: attached.app,
+        threadId: attached.opened.threadId,
       })
+      if (held.current?.channel !== attached.channel) throw new Error('the cloud attachment changed during transcript synchronization')
+      if (opened.identity === undefined) throw new Error('the cloud transcript has no complete snapshot identity')
+      const applied = cloudReadinessOf(attached.channel).waitUntilApplied(opened.identity)
+      setLifted((current) => current?.channel !== attached.channel
+        ? current : { ...current, opened, reloads: current.reloads + 1 })
+      await applied
+    })().finally(() => {
+      if (reloading.current?.channel === attached.channel) reloading.current = null
+    })
+    reloading.current = { channel: attached.channel, task }
+    return task
   }, [])
 
   const handleLifted = useCallback(
@@ -534,10 +543,12 @@ export function App(props: {
           channel: attachment.channel,
           sandboxes: attachment.bridge.sandboxes,
           onReload: handleReload,
-          onClose: mirrorCloudRenames({
-            home: props.app.threads,
-            remote: attachment.stores.threads,
-          }),
+          appliedSnapshot: () => cloudReadinessOf(attachment.channel).applied(),
+          subscribeApplied: (listener) => cloudReadinessOf(attachment.channel).subscribe(listener),
+          onClose: () => {
+            cloudReadinessOf(attachment.channel).cancelWaiting()
+            mirrorCloudRenames({ home: props.app.threads, remote: attachment.stores.threads })()
+          },
         }),
         reloads: 0,
       })
@@ -2186,6 +2197,8 @@ function Workspace(props: {
                   cloudHealth?.connection?.state === EChannelConnection.Connecting
                 }
                 disconnected={cloudHealth?.connection?.state === EChannelConnection.Closed}
+                stale={cloudHealth?.stale === true}
+                lastSeenAt={cloudHealth?.lastSeenAt ?? null}
                 {...(cloudHealth?.connection?.state === EChannelConnection.Closed &&
                 props.cloudSession !== null
                   ? { onReconnect: () => props.cloudSession?.reconnect() }

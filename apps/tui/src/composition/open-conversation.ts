@@ -37,10 +37,10 @@ import {
 
 import { EOpenMode, type OpenRequest } from './config'
 import { readThreadSpend } from './thread-spend'
-import { readThreadBase, readThreadWindow } from './thread-reads'
+import { readThreadSnapshot, type ThreadIdentity } from './thread-reads'
 import { EThreadRows } from './use-thread-view'
 import type { LogAccumulator, ToolEffects } from '../store/log-accumulator'
-import { titleMatchesHandle } from '@dltech/atlas-harness'
+import { titleMatchesHandle, transcriptIdentityDigest } from '@dltech/atlas-harness'
 
 export type OpenedConversation = {
   threadId: ThreadId
@@ -55,6 +55,7 @@ export type OpenedConversation = {
   base?: LogAccumulator | undefined
   bootCloudThreadId?: ThreadId | undefined
   resumeOnArrival?: boolean | undefined
+  identity?: ThreadIdentity | undefined
 }
 
 export const unstartedConversation = (args: {
@@ -257,23 +258,23 @@ export async function openConversation(args: Opening): Promise<OpenOutcome> {
     threadId: thread.id,
   })
 
-  const window = await readThreadWindow({ log: args.log, threadId: thread.id, rows: EThreadRows.Composed })
-  const [base, spent] = await Promise.all([
-    readThreadBase({
-      log: args.log,
-      threadId: thread.id,
-      rows: EThreadRows.Composed,
-      fromSeq: window.fromSeq,
-      effects: args.effects,
-    }),
-    readThreadSpend({ ledger: args.ledger, threadId: thread.id }),
-  ])
+  // The window, the base and the transcript identity derive from one immutable full read — an
+  // append or rewind landing between separate reads would have them describe different
+  // transcripts, and the identity is what later freshness decisions trust as the applied truth.
+  const snapshot = await readThreadSnapshot({
+    log: args.log,
+    threadId: thread.id,
+    rows: EThreadRows.Composed,
+    effects: args.effects,
+    digest: transcriptIdentityDigest,
+  })
+  const spent = await readThreadSpend({ ledger: args.ledger, threadId: thread.id })
 
   return {
     ok: true,
     conversation: {
       threadId: thread.id,
-      events: window.events,
+      events: snapshot.events,
       turns: spent.turns,
       name: thread.title ?? null,
       started: true,
@@ -281,7 +282,8 @@ export async function openConversation(args: Opening): Promise<OpenOutcome> {
       executionLocation: thread.executionLocation,
       lost,
       lostShells,
-      base,
+      base: snapshot.base,
+      identity: snapshot.identity,
     },
   }
 }

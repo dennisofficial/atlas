@@ -1285,6 +1285,37 @@ Descend stages and checks the incoming transcript before replacing local data. A
 or boot-context-only archive cannot erase a local conversation. The local store refreshes before
 re-announcing children or reopening. Cloud read failures are errors, never empty conversations.
 
+## Cloud execution lifetime and attachment
+
+A cloud client owns its attachment, not the execution it observes. Closing, restarting, or losing
+that client cannot interrupt the sandbox's turn, children, shells, or services. Local process
+shutdown still reaps local work; actual sandbox shutdown still reaps sandbox work. Explicit stop
+and rewind remain execution controls, never consequences of transport recovery.
+
+Runtime upgrades preserve running work even when no clients are attached. An absent socket or a
+failed health probe is not proof of idleness. A healthy outdated runtime continues until a safe
+cold boot; an unreachable runtime is reported rather than killed merely to repair an attachment.
+
+Parking requires five continuous minutes without outstanding work: turns, children, shells,
+services, queued intake, and durable settlement all prevent it. Admission closes before the final
+idle check and metadata capture, so newly submitted work cannot race shutdown. A normal park
+stops nothing in flight because there is nothing in flight.
+
+Sandbox lifecycle, client connection, and transcript freshness are independent facts. Provider
+inspection does not wake a sandbox. Transport loss marks the client projection stale, not the
+agent failed. Reconnection clears staleness only after authoritative history has been applied.
+
+Operational metadata lives outside conversation history and is never used to resume the loop.
+Serve persists a versioned checkpoint on the drive, identifying its runtime, provider session,
+and transcript identity. Progress and finalized idle parking are distinct reports. An optional
+API mirror stores reports without controlling execution or making successful publication a
+condition of parking. Missing or unreliable metadata means freshness is unknown.
+
+A finalized parking report can prove an already-applied client transcript complete only for the
+same provider session, with a matching full-history identity. Sequence equality alone is not
+proof: rewinding and regrowing history can reuse a head. A parked runtime does not reopen work in
+that provider session after publishing its finalized report; waking requires a new session.
+
 ## Which model answers
 
 **Two preferences, one picker.** A conversation carries the model it was last switched to, in
