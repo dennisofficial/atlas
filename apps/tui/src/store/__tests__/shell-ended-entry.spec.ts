@@ -214,16 +214,6 @@ describe('a background shell ending in the transcript', () => {
     expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(2)
   })
 
-  it('hides a recorded ending, which is bookkeeping rather than speech', () => {
-    const entries = durableEntries({
-      events: log([
-        shellEnded({ output: '', killedBy: EKilledBy.Model, recorded: true }),
-      ]),
-    })
-
-    expect(entries.filter((entry) => entry.kind === EEntryKind.BackgroundShellEnded)).toHaveLength(0)
-  })
-
   it('hides a legacy teardown dupe whose kill was already delivered as a shell_kill result', () => {
     const entries = durableEntries({
       events: log([

@@ -244,7 +244,6 @@ export function durableEntries(args: {
     }
 
     if (event.type === 'background-shell-ended') {
-      if (event.recorded === true) return []
       if (isRedundantTeardownEnding(event)) return []
       if (isRedundantClaimedEnding(event)) return []
       noteShellEnding(event)
