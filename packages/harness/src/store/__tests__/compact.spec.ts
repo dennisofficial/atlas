@@ -13,6 +13,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { compactThread, ECompactionFailure, type Summarise } from '../compact'
+import { SummaryFailure } from '../../model/summariser'
 import { LocalRewindMachinery } from '../local-rewind-machinery'
 import { rewindThread } from '../rewind'
 import { openStoreFixture, type StoreFixture } from './harness'
@@ -265,6 +266,27 @@ describe('what neither operation will do', () => {
 
     expect(outcome.ok).toBe(false)
     expect(outcome.ok === false && outcome.failure).toBe(ECompactionFailure.NoSummary)
+    expect((await fixture.log.read({ threadId })).length).toBe(4)
+  })
+
+  it('surfaces the summariser failure reason instead of a generic nothing', async () => {
+    const threadId = await openThread([...OPENING])
+
+    const outcome = await compactThread({
+      log: fixture.log,
+      threads: fixture.threads,
+      agents: fixture.agents,
+      threadId,
+      anchor: ECompactionAnchor.Prefix,
+      seq: 2,
+      summarise: async () => {
+        throw new SummaryFailure('The Anthropic login for work has expired and could not be refreshed. Sign in with /auth.')
+      },
+    })
+
+    expect(outcome.ok).toBe(false)
+    expect(outcome.ok === false && outcome.failure).toBe(ECompactionFailure.NoSummary)
+    expect(outcome.ok === false && outcome.reason).toContain('expired and could not be refreshed')
     expect((await fixture.log.read({ threadId })).length).toBe(4)
   })
 

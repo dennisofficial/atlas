@@ -2,7 +2,7 @@ import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
 
 import { z } from 'zod'
 
-import { PORTABLE_ACCOUNT_KIND, type PortableState } from '@dltech/atlas-wire'
+import { type PortableState } from '@dltech/atlas-wire'
 import {
   EAccountOrigin,
   EAccountStatus,
@@ -86,14 +86,18 @@ const prevalidateJsonFile = (args: { name: string; content: string; check: (json
 export const prevalidate = (state: PortableState): { vault: PlannedVault; secrets: OpenedSecrets } => {
   const accounts: SealedAccount[] = []
   for (const account of state.accounts) {
-    if (account.kind !== PORTABLE_ACCOUNT_KIND) throw malformedSnapshot()
+    const kind = knownValue(z.enum(EAuthKind), account.kind)
 
     const opened = openSealed({ keyHex: state.vaultKeyHex, blob: account.secret })
     if (opened === undefined) throw malformedSnapshot()
 
     const secret = accountSecretSchema.safeParse(parseJson(opened))
     if (!secret.success) throw malformedSnapshot()
-    if (secret.data.kind !== EAuthKind.ApiKey) throw malformedSnapshot()
+    if (secret.data.kind !== kind) throw malformedSnapshot()
+
+    if (secret.data.kind === EAuthKind.Oauth && secret.data.tokens.refreshToken.length > 0) {
+      throw malformedSnapshot()
+    }
 
     accounts.push({
       id: knownValue(accountIdSchema, account.id),
