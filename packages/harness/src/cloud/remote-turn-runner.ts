@@ -154,7 +154,7 @@ export class RemoteTurnRunner extends TurnRunner {
         try {
           args.fire()
         } catch (error) {
-          this.failAll(error instanceof Error ? error.message : 'the turn frame could not be sent')
+          this.detachAll(error instanceof Error ? error.message : 'the turn frame could not be sent')
         }
       })
     } finally {
