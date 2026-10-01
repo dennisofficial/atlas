@@ -100,8 +100,10 @@ const liftRecordOf = async (args: {
 /**
  * The descend half of the workspace move: whatever the sandbox tree holds beyond the baseline the
  * materialization recorded — edits the agent never committed, commits it made — goes home as one
- * commit on a scratch ref the operator's machine then fetches and merges. The ref names its own
- * commit, so a thread that descends twice never needs force to push again.
+ * commit on a scratch ref the operator's machine then fetches and merges. That envelope is built
+ * from plumbing alone (write-tree, commit-tree) over the staged tree, never the commit porcelain:
+ * an operator's hooks must not see or veto Atlas's own transport. The ref names its own commit,
+ * so a thread that descends twice never needs force to push again.
  *
  * Only HEAD rides. A side branch or nested worktree reads as an untouched checkout from here, so
  * their existence refuses the publish outright — the alternative is the descend reporting success
@@ -143,20 +145,7 @@ export function createWorkspacePublisher(args: {
 
     if (!dirty && untouchedSinceLift({ head: before, baseline })) return null
 
-    if (dirty) {
-      demand({
-        run: await git({
-          args: [...ATLAS_GIT_IDENTITY, 'commit', '-m', COMING_HOME_MESSAGE],
-          cwd,
-        }),
-        scrub,
-      })
-    }
-
-    const head = await headOf({ git, cwd })
-    if (head === null) throw new Error('the workspace has no commit to send home')
-
-    const tree = gitOneLine(await git({ args: ['rev-parse', '--verify', 'HEAD^{tree}'], cwd }))
+    const tree = gitOneLine(await git({ args: ['write-tree'], cwd }))
     if (tree === null) throw new Error('the workspace has no tree to send home')
 
     let baseCommit: string | null = null
@@ -177,7 +166,7 @@ export function createWorkspacePublisher(args: {
       baseCommit = record.baseline
     }
 
-    const parents = [head, ...(baseCommit === null ? [] : [baseCommit])]
+    const parents = [...(before === null ? [] : [before]), ...(baseCommit === null ? [] : [baseCommit])]
     const commit = gitOneLine(
       await git({
         args: [
