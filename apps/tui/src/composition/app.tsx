@@ -160,7 +160,7 @@ import {
 import { useOverlayKeys } from './use-overlay-keys'
 import { useModelChecks } from './use-model-checks'
 import { useOnboarding } from './use-onboarding'
-import { useWhatsNew } from './use-whats-new'
+import { LIVE_WHATS_NEW_DEPS, useWhatsNew, type WhatsNewControl, type WhatsNewDeps } from './use-whats-new'
 import { useSettings } from './use-settings'
 import { useServices } from './use-services'
 import { useShells } from './use-shells'
@@ -467,7 +467,9 @@ export function App(props: {
    * frames the specs assert on. Omitted, nothing runs.
    */
   reapOnBoot?: ((app: AtlasApp) => void) | undefined
+  whatsNewDeps?: WhatsNewDeps | undefined
 }): React.ReactNode {
+  const whatsNew = useWhatsNew({ deps: props.whatsNewDeps ?? LIVE_WHATS_NEW_DEPS })
   const registry = useMemo(() => createKeyRegistry(), [])
   const [lifted, setLifted] = useState<LiftedSession | null>(null)
   const [reopened, setReopened] = useState<OpenedConversation | null>(null)
@@ -564,6 +566,7 @@ export function App(props: {
         app={lifted?.app ?? props.app}
         localApp={props.app}
         opened={openedFor}
+        whatsNew={whatsNew}
         draftText={(() => {
           const carried = draftReader.current?.()
           return carried !== undefined && carried.threadId === openedFor.threadId ? carried.text : ''
@@ -594,6 +597,7 @@ function Workspace(props: {
   opened: OpenedConversation
   credentialNotice: string | null
   covered: boolean
+  whatsNew: WhatsNewControl
   clipboard: ClipboardImageReader
   onRestart: (() => void) | null
   cloudSession: CloudSession | null
@@ -1255,8 +1259,6 @@ function Workspace(props: {
     onChooseModel: handleChooseModelSetting,
     onOpenAccounts: handleOpenAccounts,
   })
-
-  const whatsNew = useWhatsNew()
 
   const handleRewindChoice = useCallback(
     ({ point, verb }: RewindChoice) => {
@@ -1989,7 +1991,7 @@ function Workspace(props: {
 
   const overlays = useMemo(
     (): readonly OverlayPresence[] => [
-      covering(whatsNew.view !== null, whatsNew.handleKey),
+      covering(props.whatsNew.view !== null, props.whatsNew.handleKey),
       covering(exitGuard.state !== null, exitGuard.handleKey),
       covering(containerGuard.state !== null, containerGuard.handleKey),
       covering(rewindConfirm.state !== null, rewindConfirm.handleKey),
@@ -2027,8 +2029,8 @@ function Workspace(props: {
       moving,
       onboarding.handleKey,
       onboarding.state,
-      whatsNew.handleKey,
-      whatsNew.view,
+      props.whatsNew.handleKey,
+      props.whatsNew.view,
       overlay,
       rewind.handleKey,
       rewind.state,
@@ -2322,7 +2324,7 @@ function Workspace(props: {
           agents={agents}
           settings={settings}
           onboarding={onboarding}
-          whatsNew={whatsNew}
+          whatsNew={props.whatsNew}
           accounts={accounts}
           threads={threads}
           agentsPicker={agentsPicker}
