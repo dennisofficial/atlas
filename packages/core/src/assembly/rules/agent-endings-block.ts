@@ -1,4 +1,3 @@
-import { endingIsSpeech } from '../../agents/kind'
 import { agentLabel } from '../../agents/label'
 import { agentEnding, countedNoun } from '../../agents/status'
 import type { Event, EventOfType } from '../../events/envelope'
@@ -48,15 +47,18 @@ export function agentEndingsText({ endings }: { endings: readonly Ending[] }): s
   return [OPEN, [roster, ...endings.map(sectionOf)].join('\n\n'), CLOSE].join('\n')
 }
 
-const carriesReport = (event: Event): boolean =>
-  event.type !== 'agent-ended' || endingIsSpeech(event.agentType)
+/**
+ * Quiet teammate endings stay in the record: the log is transparent, so every agent-ended event
+ * renders. What a quiet ending does not do is wake the parent or hand it the turn.
+ */
+const carriesEnding = (event: Event): event is Ending => event.type === 'agent-ended'
 
 function waves(events: readonly Event[]): readonly (readonly Ending[])[] {
   const grouped: Ending[][] = []
   let open: Ending[] | undefined
 
   for (const event of events) {
-    if (event.type !== 'agent-ended') {
+    if (!carriesEnding(event)) {
       open = undefined
       continue
     }
@@ -136,7 +138,7 @@ export function agentEndingsBlock(): Rule {
   return defineRule({
     name: 'agentEndingsBlock',
     apply: (input, ctx) => {
-      const grouped = waves(ctx.events.filter(carriesReport))
+      const grouped = waves(ctx.events)
       if (grouped.length === 0) return input
 
       const blocks = grouped.flatMap((endings) => blockFor({ endings }))
