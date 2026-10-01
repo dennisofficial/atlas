@@ -3,13 +3,20 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import {
+  EventLogPort,
   ProcessPort,
+  stampDrafts,
+  toEventId,
+  toRunId,
   toThreadId,
   type ClockPort,
+  type Event,
   type EventDraft,
   type EventOfType,
   type ThreadId,
 } from '@dltech/atlas-core'
+
+import { RandomIds } from '../../store/ids'
 
 import { DockerProcessPort } from '../../execution/docker/docker-process'
 import { liveDockerOptedIn } from '../../execution/docker/__tests__/live-docker'
@@ -150,27 +157,105 @@ export async function closeRegistries(): Promise<void> {
 
 const noHooks: HookChainSource = () => new HookChain({})
 
+/**
+ * The event log the registry appends endings to at occurrence. Stamps drafts the way the real log
+ * does so specs can read back what a turn would read, and keeps the drafts for direct assertion.
+ */
+export class RecordingLog extends EventLogPort {
+  readonly appended: EventDraft[] = []
+  private readonly stored: Event[] = []
+  private seq = 0
+
+  async append(args: { threadId: ThreadId; drafts: readonly EventDraft[] }): Promise<Event[]> {
+    this.appended.push(...args.drafts)
+    this.seq += 1
+    const runId = toRunId(`run-${this.seq}`)
+    let eventSeq = 0
+    const envelopes = args.drafts.map(() => {
+      eventSeq += 1
+      return {
+        id: toEventId(`event-${this.seq}-${eventSeq}`),
+        seq: eventSeq,
+        threadId: args.threadId,
+        runId,
+        depth: 0,
+        at: '2026-09-26T00:00:00.000Z',
+      }
+    })
+    const stamped = stampDrafts({ drafts: [...args.drafts], envelopes })
+    this.stored.push(...stamped)
+    return stamped
+  }
+
+  async read(args: { threadId: ThreadId }): Promise<Event[]> {
+    return this.stored.filter((event) => event.threadId === args.threadId)
+  }
+
+  async readOwn(args: { threadId: ThreadId }): Promise<Event[]> {
+    return this.read(args)
+  }
+
+  async refresh(): Promise<void> {}
+  async head(): Promise<number> {
+    return this.seq
+  }
+
+  async replace(): Promise<Event[]> {
+    return []
+  }
+}
+
 export function openRegistry({
   adapter = localShellAdapter,
   hooks,
+  log: givenLog,
 }: {
   adapter?: ShellAdapter
   hooks?: HookChainSource | undefined
+  /** Pass null for the log-less registry (bell-fallback wiring); omitted gets a fresh RecordingLog. */
+  log?: RecordingLog | null | undefined
 } = {}): {
   registry: BunShellRegistry
   clock: SteppableClock
   root: string
+  log: RecordingLog | undefined
 } {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'atlas-shells-')))
   const clock = new SteppableClock()
+  const log = givenLog === null ? undefined : (givenLog ?? new RecordingLog())
   const registry = new BunShellRegistry(
     root,
     clock,
     hooks ?? noHooks,
     adapter.processes({ root }),
+    undefined,
+    log,
+    log === undefined ? undefined : new RandomIds(),
   )
   opened.push({ registry, root, adapter })
-  return { registry, clock, root }
+  return { registry, clock, root, log }
+}
+
+/**
+ * The ending is appended at occurrence, so "the shell settled" is not "the log has its ending":
+ * hooks and the append run after the status flips, and a spec asserting on the log waits on this.
+ */
+export async function recorded({
+  log,
+  threadId = THREAD,
+  count = 1,
+}: {
+  log: RecordingLog | undefined
+  threadId?: ThreadId
+  count?: number
+}): Promise<void> {
+  if (log === undefined) throw new Error('the registry was opened without a log')
+  for (let attempt = 0; attempt < 400; attempt += 1) {
+    const events = await log.read({ threadId })
+    if (events.filter((event) => event.type === 'background-shell-ended').length >= count) return
+    await Bun.sleep(25)
+  }
+  throw new Error(`no background-shell-ended ever reached the log for ${threadId}`)
 }
 
 export const job = ({ command, threadId = THREAD }: { command: string; threadId?: ThreadId }) => ({

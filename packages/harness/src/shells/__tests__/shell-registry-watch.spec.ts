@@ -10,6 +10,7 @@ import {
   endedDraft,
   matchedDraft,
   openRegistry,
+  recorded,
   settle,
   shellAdapters,
   THREAD,
@@ -184,7 +185,7 @@ for (const adapter of shellAdapters) {
           by: EKilledBy.Model,
           threadId: THREAD,
         })
-        if (!killed.ok || killed.settled === undefined) throw new Error('the kill was not claimed')
+        if (!killed.ok || killed.settled === undefined) throw new Error('a model kill hands back the settled continuation')
         const ending = await killed.settled
 
         expect(ending.died).toBe(true)
@@ -212,7 +213,7 @@ for (const adapter of shellAdapters) {
 
     describe('giving a background shell a ceiling', () => {
       it('kills a shell that outlives its timeout and still announces the ending', async () => {
-        const { registry } = openRegistry({ adapter })
+        const { registry, log } = openRegistry({ adapter })
         const started = registry.start({
           threadId: THREAD,
           command: 'sleep 30',
@@ -222,9 +223,10 @@ for (const adapter of shellAdapters) {
         if (!started.ok) throw new Error(started.reason)
 
         await settle({ registry, shellId: started.snapshot.shellId })
-        await announced({ registry })
+        await recorded({ log })
 
-        expect(endedDraft(registry.drainNotifications({ threadId: THREAD })[0])).toMatchObject({
+        const ended = log?.appended.find((draft) => draft.type === 'background-shell-ended')
+        expect(ended).toMatchObject({
           shellId: started.snapshot.shellId,
           status: EShellStatus.Killed,
           killedBy: EKilledBy.Timeout,
@@ -232,7 +234,7 @@ for (const adapter of shellAdapters) {
       }, 15_000)
 
       it('lets a shell that finishes in time end on its own terms', async () => {
-        const { registry } = openRegistry({ adapter })
+        const { registry, log } = openRegistry({ adapter })
         const started = registry.start({
           threadId: THREAD,
           command: 'echo quick',
@@ -242,8 +244,10 @@ for (const adapter of shellAdapters) {
         if (!started.ok) throw new Error(started.reason)
 
         await settle({ registry, shellId: started.snapshot.shellId })
+        await recorded({ log })
 
-        expect(endedDraft(registry.drainNotifications({ threadId: THREAD })[0])).toMatchObject({
+        const ended = log?.appended.find((draft) => draft.type === 'background-shell-ended')
+        expect(ended).toMatchObject({
           status: EShellStatus.Exited,
           exitCode: 0,
         })

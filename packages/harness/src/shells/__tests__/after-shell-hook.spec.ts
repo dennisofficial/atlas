@@ -14,12 +14,12 @@ import {
 import { HookChain, type HookChainSource } from '../../hooks/registry'
 import { AFTER_SHELL_BUDGET_MS, afterShellDrafts } from '../after-shell'
 import {
-  announced,
   closeRegistries,
   ELSEWHERE,
   endedDraft,
   job,
   openRegistry,
+  recorded,
   settle,
   shellAdapters,
   THREAD,
@@ -120,7 +120,10 @@ for (const adapter of shellAdapters) {
         const started = registry.start(job({ command: 'echo pushed' }))
         if (!started.ok) throw new Error(started.reason)
         await settle({ registry, shellId: started.snapshot.shellId })
-        await announced({ registry })
+
+        for (let attempt = 0; attempt < 400 && seen.length === 0; attempt += 1) {
+          await Bun.sleep(25)
+        }
 
         expect(seen).toHaveLength(1)
         expect(seen[0]?.threadId).toBe(THREAD)
@@ -144,7 +147,7 @@ for (const adapter of shellAdapters) {
           by: EKilledBy.Model,
           threadId: THREAD,
         })
-        if (!killed.ok || killed.settled === undefined) throw new Error('the kill was not claimed')
+        if (!killed.ok || killed.settled === undefined) throw new Error('a model kill hands back the settled continuation')
         await killed.settled
         for (let attempt = 0; attempt < 400 && seen.length === 0; attempt += 1) {
           await Bun.sleep(25)
@@ -165,7 +168,10 @@ for (const adapter of shellAdapters) {
         const started = registry.start(job({ command: 'echo once' }))
         if (!started.ok) throw new Error(started.reason)
         await settle({ registry, shellId: started.snapshot.shellId })
-        await announced({ registry })
+
+        for (let attempt = 0; attempt < 400 && seen.length === 0; attempt += 1) {
+          await Bun.sleep(25)
+        }
 
         registry.drainNotifications({ threadId: THREAD })
         registry.list({ threadId: THREAD })
@@ -184,7 +190,10 @@ for (const adapter of shellAdapters) {
         const started = registry.start(job({ command: 'echo elsewhere', threadId: ELSEWHERE }))
         if (!started.ok) throw new Error(started.reason)
         await settle({ registry, shellId: started.snapshot.shellId, threadId: ELSEWHERE })
-        await announced({ registry, threadId: ELSEWHERE })
+
+        for (let attempt = 0; attempt < 400 && seen.length === 0; attempt += 1) {
+          await Bun.sleep(25)
+        }
 
         expect(seen.map((one) => one.threadId)).toEqual([ELSEWHERE])
         expect(registry.pendingNotices({ threadId: THREAD })).toEqual([])
@@ -197,17 +206,17 @@ for (const adapter of shellAdapters) {
           { stage: EStage.Observe, nudge: 0 },
           async () => ({ additionalContext: started }),
         )
-        const { registry } = openRegistry({ adapter, hooks: chainOf([hook]) })
+        const { registry, log } = openRegistry({ adapter, hooks: chainOf([hook]) })
 
         const shell = registry.start(job({ command: 'echo pushed' }))
         if (!shell.ok) throw new Error(shell.reason)
         await settle({ registry, shellId: shell.snapshot.shellId })
-        await announced({ registry })
+        await recorded({ log })
 
-        const drained = registry.drainNotifications({ threadId: THREAD })
+        const appended = log?.appended ?? []
 
-        expect(endedDraft(drained[0]).shellId).toBe(shell.snapshot.shellId)
-        expect(drained[1]).toEqual({
+        expect(endedDraft(appended[0]).shellId).toBe(shell.snapshot.shellId)
+        expect(appended[1]).toEqual({
           type: 'context-loaded',
           slot: 'poll-ci',
           key: 'additional-context',
@@ -219,7 +228,7 @@ for (const adapter of shellAdapters) {
         const hook = new ObservingHook('poll-ci', { stage: EStage.Observe, nudge: 0 }, async () => ({
           additionalContext: 'the checks are green',
         }))
-        const { registry } = openRegistry({ adapter, hooks: chainOf([hook]) })
+        const { registry, log } = openRegistry({ adapter, hooks: chainOf([hook]) })
 
         const started = registry.start(job({ command: 'sleep 60' }))
         if (!started.ok) throw new Error(started.reason)
@@ -228,36 +237,38 @@ for (const adapter of shellAdapters) {
           by: EKilledBy.Model,
           threadId: THREAD,
         })
-        if (!killed.ok || killed.settled === undefined) throw new Error('the kill was not claimed')
+        if (!killed.ok || killed.settled === undefined) throw new Error('a model kill hands back the settled continuation')
         await killed.settled
-        await announced({ registry })
+        await recorded({ log })
 
-        const drained = registry.drainNotifications({ threadId: THREAD })
+        const appended = log?.appended ?? []
 
-        expect(drained).toHaveLength(1)
-        expect(drained[0]).toEqual({
+        expect(appended).toHaveLength(2)
+        expect(appended[0]?.type).toBe('background-shell-ended')
+        expect(appended[1]).toEqual({
           type: 'context-loaded',
           slot: 'poll-ci',
           key: 'additional-context',
           content: 'the checks are green',
         })
+        expect(registry.pendingNotices({ threadId: THREAD })).toEqual([])
       })
 
       it('keeps the ending when a hook throws, because a dying process has nowhere to report it', async () => {
         const hook = new ObservingHook('throws', { stage: EStage.Observe, nudge: 0 }, async () => {
           throw new Error('the poller could not reach the forge')
         })
-        const { registry } = openRegistry({ adapter, hooks: chainOf([hook]) })
+        const { registry, log } = openRegistry({ adapter, hooks: chainOf([hook]) })
 
         const shell = registry.start(job({ command: 'echo pushed' }))
         if (!shell.ok) throw new Error(shell.reason)
         await settle({ registry, shellId: shell.snapshot.shellId })
-        await announced({ registry })
+        await recorded({ log })
 
-        const drained = registry.drainNotifications({ threadId: THREAD })
+        const appended = log?.appended ?? []
 
-        expect(drained).toHaveLength(1)
-        expect(endedDraft(drained[0]).shellId).toBe(shell.snapshot.shellId)
+        expect(appended).toHaveLength(1)
+        expect(endedDraft(appended[0]).shellId).toBe(shell.snapshot.shellId)
       })
 
       it('queues the ending and lets teardown return when a hook never settles', async () => {
@@ -266,7 +277,7 @@ for (const adapter of shellAdapters) {
           { stage: EStage.Observe, nudge: 0 },
           () => new Promise(() => {}),
         )
-        const { registry } = openRegistry({ adapter, hooks: chainOf([hook]) })
+        const { registry, log } = openRegistry({ adapter, hooks: chainOf([hook]) })
 
         const shell = registry.start(job({ command: 'echo pushed' }))
         if (!shell.ok) throw new Error(shell.reason)
@@ -276,9 +287,9 @@ for (const adapter of shellAdapters) {
         await registry.closeAll()
 
         expect(Date.now() - closing).toBeLessThan(AFTER_SHELL_BUDGET_MS * 2)
-        const drained = registry.drainNotifications({ threadId: THREAD })
-        expect(drained).toHaveLength(1)
-        expect(endedDraft(drained[0]).shellId).toBe(shell.snapshot.shellId)
+        const appended = log?.appended ?? []
+        expect(appended).toHaveLength(1)
+        expect(endedDraft(appended[0]).shellId).toBe(shell.snapshot.shellId)
       }, AFTER_SHELL_BUDGET_MS * 4)
 
       it('has run before teardown returns, so the close path can still record what it produced', async () => {
@@ -287,15 +298,17 @@ for (const adapter of shellAdapters) {
           { stage: EStage.Observe, nudge: 0 },
           async () => ({ additionalContext: 'the dev server went with the session' }),
         )
-        const { registry } = openRegistry({ adapter, hooks: chainOf([hook]) })
+        const { registry, log } = openRegistry({ adapter, hooks: chainOf([hook]) })
 
         const shell = registry.start(job({ command: 'sleep 30' }))
         if (!shell.ok) throw new Error(shell.reason)
 
         await registry.closeAll()
 
-        expect(registry.threadsAwaitingNotice()).toEqual([THREAD])
-        expect(registry.drainNotifications({ threadId: THREAD })).toHaveLength(2)
+        const appended = log?.appended ?? []
+        expect(appended).toHaveLength(2)
+        expect(appended[0]?.type).toBe('background-shell-ended')
+        expect(appended[1]?.type).toBe('context-loaded')
       }, 15_000)
     })
   })

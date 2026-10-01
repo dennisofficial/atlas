@@ -79,17 +79,17 @@ export type ShellDelta = {
 }
 
 /**
- * A kill the model asked for is answered by the tool result, not by an ending announcement: the
- * caller is already waiting on one. `settled` resolves once the process is really gone, with the
- * final snapshot and everything the shell printed that had not been read. `died: false` means the
- * process outlived the settle deadline, in which case the ending announces itself after all.
+ * The settled continuation a kill is handed back. The ending event is written into the durable log
+ * at occurrence regardless of who signalled; `settled` is a read of that death for a caller that
+ * cannot not return an answer, not the delivery of it. `died: false` means the process outlived
+ * the settle deadline, in which case the ending lands when it lands, the same as any other.
  */
-export type ClaimedShellEnding =
+export type SettledShellOutcome =
   | { died: true; snapshot: ShellSnapshot; delta: ShellDelta }
   | { died: false }
 
 export type ShellKillOutcome =
-  | { ok: true; snapshot: ShellSnapshot; settled?: Promise<ClaimedShellEnding> | undefined }
+  | { ok: true; snapshot: ShellSnapshot; settled?: Promise<SettledShellOutcome> | undefined }
   | { ok: false; reason: string }
 
 export type BackgroundShellSpec = {
@@ -111,6 +111,14 @@ export type BackgroundShellSpec = {
   exposure?: PortExposure | undefined
   processes?: ProcessPort | undefined
   onExit: (shell: BackgroundShell) => void
+  /**
+   * Fires inside the settle continuation, before the snapshot reports the shell ended: the
+   * registry captures the remaining output there, so no observer can see a settled shell whose
+   * buffer is still mid-read. Runs synchronously with the status flip. Receives the shell's id
+   * rather than the shell — the shell object does not exist yet when the settle continuation is
+   * first entered.
+   */
+  onSettled?: ((shellId: ShellId) => void) | undefined
   onAwaitingInput: (shell: BackgroundShell) => void
   onMatched: (args: { shell: BackgroundShell; matched: MatchedLines }) => void
   onStillRunning: (shell: BackgroundShell) => void
@@ -319,6 +327,14 @@ export function startBackgroundShell(spec: BackgroundShellSpec): StartedBackgrou
       forgetCheckIn()
       awaitingSettled = false
       if (status === EShellStatus.Running) status = EShellStatus.Exited
+      // The capture fires synchronously with the flip: a snapshot that says the shell ended has
+      // its output claimed already, so a read never races the settle and finds nothing. The
+      // callback must run after the assignment — the capture freezes a snapshot of its own.
+      try {
+        spec.onSettled?.(spec.shellId)
+      } catch {
+        // A throwing capture must not strand the shell's ending unannounced.
+      }
       forgetMatchWatch()
       deliverMatches()
     }

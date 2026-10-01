@@ -1,4 +1,4 @@
-import { ClockPort, ProcessPort } from '@dltech/atlas-core'
+import { ClockPort, EventLogPort, IdPort, ProcessPort } from '@dltech/atlas-core'
 
 import { registerDisposable } from '../container/disposal'
 import { instanceCachingFactory, portToken, type DependencyContainer } from '../container/injection'
@@ -30,12 +30,20 @@ export function registerShells({ container }: { container: DependencyContainer }
       const sleepPrevention = resolver.isRegistered(SleepPreventionToken, true)
         ? resolver.resolve(SleepPreventionToken)
         : undefined
+      const log = resolver.isRegistered(portToken(EventLogPort), true)
+        ? resolver.resolve(portToken(EventLogPort))
+        : undefined
+      const ids = resolver.isRegistered(portToken(IdPort), true)
+        ? resolver.resolve(portToken(IdPort))
+        : undefined
       live = new BunShellRegistry(
         resolver.resolve(WorkspaceRoot),
         resolver.resolve(portToken(ClockPort)),
         resolver.resolve(HookChainSourceToken),
         processes,
         sleepPrevention,
+        log,
+        ids,
       )
       return live
     }),

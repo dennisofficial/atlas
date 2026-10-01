@@ -40,15 +40,17 @@ for (const adapter of shellAdapters) {
         expect(registry.read({ shellId: 'bash_1', threadId: THREAD }).ok).toBe(false)
       })
 
-      it('keeps a pending notification through teardown, so the ending is not lost with the shell', async () => {
-        const { registry } = openRegistry({ adapter })
+      it('writes the ending into the log through teardown, so nothing is lost with the shell', async () => {
+        const { registry, log } = openRegistry({ adapter })
         const started = registry.start(job({ command: 'echo hi' }))
         if (!started.ok) throw new Error(started.reason)
         await settle({ registry, shellId: started.snapshot.shellId })
 
         await registry.closeAll()
 
-        expect(registry.drainNotifications({ threadId: THREAD })).toHaveLength(1)
+        expect(
+          log?.appended.filter((draft) => draft.type === 'background-shell-ended'),
+        ).toHaveLength(1)
       })
     })
   })
