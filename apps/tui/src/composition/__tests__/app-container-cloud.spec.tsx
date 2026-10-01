@@ -168,7 +168,7 @@ describe('/container cloud', () => {
   it('renders a parked sandbox as parked rather than as a failure', async () => {
     const app = speaking()
     const bridge = fakeBridge({
-      status: { state: ECloudSandboxState.Parked },
+      status: { state: ECloudSandboxState.Parked, sandboxSessionId: 'session-1' },
       checkpoint: {
         threadId: THREAD,
         runtimeId: 'runtime-1',

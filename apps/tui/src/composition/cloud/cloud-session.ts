@@ -1,7 +1,9 @@
 import type { ThreadId } from '@dltech/atlas-core'
 import {
+  closedConnectionOf,
   cloudLifecycleOf,
   EChannelConnection,
+  EClosedConnectionKind,
   ECloudFreshness,
   ECloudSandboxLifecycle,
   ERuntimePhase,
@@ -68,6 +70,12 @@ export function createCloudSession(args: {
   let resyncing = false
   let parkTimer: ReturnType<typeof setTimeout> | null = null
 
+  const CLOSED_DETAIL = {
+    resuming: 'the sandbox is resuming',
+    missing: 'the sandbox provider has no live sandbox for this conversation — no sandbox answers it',
+    running: 'the sandbox provider says the sandbox is running, but it is not answering',
+  }
+
   const current = (): CloudHealth => {
     const applied = args.appliedSnapshot?.() ?? null
     const reported = status?.checkpoint
@@ -103,6 +111,18 @@ export function createCloudSession(args: {
       if (closed || epoch !== inspectionEpoch || attachment !== connectionEpoch) return
       status = observed ?? null
       sandbox = observed === undefined ? ECloudSandboxLifecycle.Unknown : cloudLifecycleOf(observed.state)
+      if (connection.state === EChannelConnection.Closed) {
+        const reading = closedConnectionOf({
+          state: observed?.state ?? ECloudSandboxState.Unknown,
+          ...CLOSED_DETAIL,
+        })
+        connection =
+          reading.kind === EClosedConnectionKind.Parked
+            ? { state: EChannelConnection.Parked, detail: null }
+            : reading.kind === EClosedConnectionKind.Reconnecting
+              ? { state: EChannelConnection.Reconnecting, detail: reading.detail }
+              : { state: EChannelConnection.Closed, detail: reading.detail }
+      }
       sync()
     }).catch(() => {
       if (closed || epoch !== inspectionEpoch || attachment !== connectionEpoch) return
