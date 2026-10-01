@@ -1,8 +1,4 @@
-import { join } from 'node:path'
-
 import type { ModelRef } from '@dltech/atlas-core'
-
-import { atlasDirectory } from '../store/paths'
 
 export const DEFAULT_MODEL_REF: ModelRef = {
   providerId: 'anthropic',
@@ -11,10 +7,6 @@ export const DEFAULT_MODEL_REF: ModelRef = {
 
 /** The eval harness replays shipped tl;dr behavior, so it pins the model the feature shipped on. */
 export const TLDR_MODEL_ID = 'claude-haiku-4-5-20251001'
-
-export function legacyRestoreMarkerFile(): string {
-  return join(atlasDirectory(), 'legacy-cloud-settings-restored')
-}
 
 /** What a launch decides for itself and nothing that outlives it; anything durable is a setting. */
 export type HarnessLaunch = {

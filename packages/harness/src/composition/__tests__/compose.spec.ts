@@ -197,73 +197,8 @@ describe('composeHarness', () => {
       expect(
         app.settings.snapshot().resolution.settings.get(ESettingId.VercelTeamId)?.value,
       ).toBe('team_local')
-      expect(app.legacySettingsRestore).toBeDefined()
 
       await expect(app.close()).resolves.toBeUndefined()
-    } finally {
-      globalThis.fetch = realFetch
-    }
-  })
-
-  it('restores the sandbox configuration once from the cloud sign-in, then never again', async () => {
-    const realFetch = globalThis.fetch
-    const stamp = '2026-09-30T00:00:00.000Z'
-    const fetches: string[] = []
-    globalThis.fetch = (async (input: unknown) => {
-      const path = String(input)
-      fetches.push(path)
-      if (path.endsWith('/v1/secrets')) {
-        return Response.json({
-          secrets: [{ name: ESettingId.VercelToken, value: 'vcp_remote', updatedAt: stamp }],
-        })
-      }
-      if (path.endsWith('/v1/settings')) {
-        return Response.json({
-          settings: [
-            { key: ESettingId.VercelTeamId, value: 'team_remote', updatedAt: stamp },
-            { key: ESettingId.VercelProjectId, value: 'prj_remote', updatedAt: stamp },
-          ],
-        })
-      }
-      return new Response('not found', { status: 404 })
-    }) as unknown as typeof fetch
-
-    try {
-      new CloudSessionStore({
-        file: join(atlasHome, 'cloud.json'),
-        keyFile: join(atlasHome, 'key'),
-      }).write({ url: 'https://cloud.test', token: 'sess', email: null })
-
-      const notices = recordingNotices()
-      const app = await composeHarness<undefined, never>({
-        launch: { cwd: project, command: 'atlas-test', model: undefined, executionLocation: undefined },
-        env: {},
-        settings: settingsBinding(),
-        clientVersion: 'compose-spec',
-        surface: { notice: notices.port },
-        bindPorts: silentImportSources,
-      })
-
-      const report = await app.legacySettingsRestore
-      expect(report?.outcome).toBe('restored')
-      expect(app.secrets.read(ESettingId.VercelToken)).toBe('vcp_remote')
-      await expect(app.close()).resolves.toBeUndefined()
-
-      const before = fetches.length
-      expect(before).toBeGreaterThan(0)
-
-      const second = await composeHarness<undefined, never>({
-        launch: { cwd: project, command: 'atlas-test', model: undefined, executionLocation: undefined },
-        env: {},
-        settings: settingsBinding(),
-        clientVersion: 'compose-spec',
-        surface: { notice: recordingNotices().port },
-        bindPorts: silentImportSources,
-      })
-
-      expect(second.legacySettingsRestore).toBeUndefined()
-      expect(fetches.length).toBe(before)
-      await expect(second.close()).resolves.toBeUndefined()
     } finally {
       globalThis.fetch = realFetch
     }
