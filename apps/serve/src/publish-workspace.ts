@@ -29,6 +29,9 @@ export type PublishWorkspace = (args: { cwd: string }) => Promise<PublishedWorks
 /** The publisher with its workspace bound — what the session layer answers requests with. */
 export type WorkspacePublisher = () => Promise<PublishedWorkspace | null>
 
+const COMING_HOME_MESSAGE = 'chore: workspace coming home'
+const LIFT_BASELINE_MESSAGE = 'chore: lift baseline'
+
 const demand = (args: { run: GitRun; scrub: (text: string) => string }): GitRun => {
   if (args.run.ok) return args.run
   throw new Error(args.scrub(gitMessageOf(args.run)))
@@ -143,7 +146,7 @@ export function createWorkspacePublisher(args: {
     if (dirty) {
       demand({
         run: await git({
-          args: [...ATLAS_GIT_IDENTITY, 'commit', '-m', 'atlas: workspace coming home'],
+          args: [...ATLAS_GIT_IDENTITY, 'commit', '-m', COMING_HOME_MESSAGE],
           cwd,
         }),
         scrub,
@@ -165,7 +168,7 @@ export function createWorkspacePublisher(args: {
             'commit-tree',
             record.baselineTree,
             '-m',
-            'atlas: lift baseline',
+            LIFT_BASELINE_MESSAGE,
           ],
           cwd,
         }),
@@ -183,7 +186,7 @@ export function createWorkspacePublisher(args: {
           tree,
           ...parents.flatMap((parent) => ['-p', parent]),
           '-m',
-          'atlas: workspace coming home',
+          COMING_HOME_MESSAGE,
         ],
         cwd,
       }),

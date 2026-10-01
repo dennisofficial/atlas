@@ -211,6 +211,7 @@ import { reapExpiredCloudSandboxes } from './cloud/reaper'
 import { liveReaperListFailureMark } from './cloud/reaper-failure-marker'
 import { noticePortBinding } from './notice-binding'
 import { useCloudSession } from './use-cloud-session'
+import { useCloudConnection } from './use-cloud-connection'
 import type { LiftedAttachment, LiftedSession } from './lifted-session'
 import { buildInfo, clientVersionHeader, EBuildKind, versionLabel } from '../build/info'
 
@@ -740,13 +741,17 @@ function Workspace(props: {
     threadId: conversation.threadId,
     stored: conversation.executionLocation,
   })
+  const cloudConnection = useCloudConnection({
+    app: props.app,
+    session: props.cloudSession,
+  })
   const containerPill = useContainerPill({
     app: props.app,
-    connection: cloudHealth?.connection ?? null,
+    connection: cloudConnection,
   })
   const locationItems = useLocationItems({
     app: props.app,
-    connection: cloudHealth?.connection ?? null,
+    connection: cloudConnection,
   })
 
   const { selection } = threadModel
