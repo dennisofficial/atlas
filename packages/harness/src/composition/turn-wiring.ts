@@ -93,8 +93,6 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
   const {
     container,
     workspace,
-    executionLocation,
-    mounts,
     models,
     model,
     modelPort,
@@ -186,14 +184,6 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
       runningShells,
       runningAgents,
       runningServices,
-      executionLocation: ({ threadId }) => {
-        void executionLocation.load({ threadId })
-        return {
-          location: executionLocation.of(threadId) ?? executionLocation.current(),
-          mounts,
-        }
-      },
-      capabilities: args.capabilities,
     }),
     launchDirectory: workspace.workspace,
     tools: args.declarations,
@@ -279,14 +269,6 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
           repoRoot: workspace.repo ?? undefined,
           runningShells,
           runningServices,
-          executionLocation: ({ threadId }) => {
-            void executionLocation.load({ threadId })
-            return {
-              location: executionLocation.of(threadId) ?? executionLocation.current(),
-              mounts,
-            }
-          },
-          capabilities: args.capabilities,
         }),
     }),
   })

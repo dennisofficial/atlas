@@ -21,7 +21,6 @@ import {
   choiceValueOf,
   parseRef,
   textValueOf,
-  type CapabilitiesSource,
 } from '@dltech/atlas-core'
 
 import { AgentRegistryPort } from '../agents/registry/port'
@@ -71,7 +70,6 @@ import { probeWorkspace } from '../workspace/probe'
 import type { ContributedSurface } from '../plugins/surface'
 
 import { bindAccounts, bindKeychainSource } from './account-bindings'
-import { dockerCapabilitiesSource } from './capabilities-source'
 import type { Summariser } from './compact-turn'
 import type { HarnessLaunch } from './config'
 import { bindInstructionsAndMemory } from './context-bindings'
@@ -119,7 +117,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
    * it must run ahead of `bindAccounts`, which resolves the account store at boot.
    */
   bindPorts?: ((args: { container: DependencyContainer }) => void) | undefined
-  capabilities?: CapabilitiesSource | undefined
   repoIdentity?: string | null | undefined
 }): Promise<HarnessApp<TSurface, Command, TPluginSurface>> {
   const { launch, surface } = args
@@ -409,10 +406,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   const { turn, runner, turnPolicy, titling, recordTeardownEndings, intake } = wireTurn<Command>({
     container,
     workspace,
-    executionLocation,
-    capabilities:
-      args.capabilities ?? dockerCapabilitiesSource({ executionLocation, cwd: anchor, env: args.env }),
-    mounts,
     models,
     model,
     modelPort,

@@ -9,7 +9,6 @@ import { atlasDirectory, readMetaSync, threadMetaFile, threadMetaSchema } from '
 import { newThreadMeta, sessionDirectory, writeMeta, writeSessionMetaForRoot } from '@dltech/atlas-harness'
 import { registryFor } from '@dltech/atlas-harness'
 
-import { syncCapabilitiesNotice } from './capabilities-notice'
 import { createChannelBridge } from './channel-bridge'
 import { composeServeApp } from './compose-serve'
 import { DEFAULT_DRAIN_DEADLINE_MS, withDeadline } from './drain-deadline'
@@ -46,7 +45,6 @@ import {
 } from './drive-bootstrap'
 import type { FetchTranscriptArchive } from './workspace-spec'
 
-export * from './capabilities-notice'
 export * from './drive-bootstrap'
 export * from './channel-bridge'
 export * from './compose-serve'
@@ -287,8 +285,6 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     storedThreadModel() ??
     (spec?.model === undefined || spec.model === null ? undefined : { ref: spec.model })
 
-  const capabilities = 'profile' in workspace ? workspace.profile?.capabilities : undefined
-
   const app = await (args.compose ?? composeServeApp)({
     threadId,
     cwd,
@@ -299,7 +295,6 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     model: threadModel,
     notice,
     projectDirectory: context.projectDirectory,
-    capabilities,
     identity: context.identity,
   })
 
@@ -474,15 +469,6 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
    * one thing boot owes a client is to say the thread is mid-turn rather than to look alive.
    */
   const events = await app.log.read({ threadId }).catch(() => [])
-  if (capabilities !== undefined) {
-    await syncCapabilitiesNotice({
-      log: app.log,
-      threadId,
-      runId: app.ids.nextRunId(),
-      events,
-      capabilities,
-    }).catch(() => false)
-  }
   const resumable = isResumable(events)
   if (resumable) log({ event: EServeEvent.Resumable, head: events.at(-1)?.seq ?? 0 })
 

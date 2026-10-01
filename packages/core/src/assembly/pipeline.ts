@@ -2,12 +2,7 @@ import { cacheBreakpoints } from './annotators/cache-breakpoints'
 import { INFERENCE_PROVIDER_ID, requestCacheKey } from './annotators/request-cache-key'
 import type { Annotator, Rule } from './rule'
 import { agentEndingsBlock } from './rules/agent-endings-block'
-import { capabilitiesBlock, type CapabilitiesSource } from './rules/capabilities-block'
 import { compactedHistory } from './rules/compacted-history'
-import {
-  executionLocationBlock,
-  type ExecutionLocationSource,
-} from './rules/execution-location-block'
 import { imagesInContext } from './rules/images'
 import { messagesFromEvents } from './rules/messages-from-events'
 import { runningAgentsBlock, type RunningAgentsSource } from './rules/running-agents-block'
@@ -28,8 +23,6 @@ export function defaultRules({
   runningShells,
   runningServices,
   runningAgents,
-  executionLocation,
-  capabilities,
 }: {
   prompt: PromptSource
   launchDirectory: string
@@ -37,8 +30,6 @@ export function defaultRules({
   runningShells?: RunningShellsSource | undefined
   runningServices?: RunningServicesSource | undefined
   runningAgents?: RunningAgentsSource | undefined
-  executionLocation?: ExecutionLocationSource | undefined
-  capabilities?: CapabilitiesSource | undefined
 }): readonly Rule[] {
   return [
     systemPrompt({ prompt, launchDirectory }),
@@ -47,8 +38,6 @@ export function defaultRules({
     compactedHistory(),
     imagesInContext(),
     worktreeBlock({ launchDirectory, repoRoot }),
-    ...(executionLocation === undefined ? [] : [executionLocationBlock({ executionLocation })]),
-    ...(capabilities === undefined ? [] : [capabilitiesBlock({ capabilities })]),
     ...(runningShells === undefined ? [] : [runningShellsBlock({ runningShells })]),
     ...(runningServices === undefined ? [] : [runningServicesBlock({ runningServices })]),
     ...(runningAgents === undefined ? [] : [runningAgentsBlock({ runningAgents })]),
@@ -70,8 +59,6 @@ export function defaultPipeline({
   runningShells,
   runningServices,
   runningAgents,
-  executionLocation,
-  capabilities,
 }: {
   prompt: PromptSource
   launchDirectory: string
@@ -79,8 +66,6 @@ export function defaultPipeline({
   runningShells?: RunningShellsSource | undefined
   runningServices?: RunningServicesSource | undefined
   runningAgents?: RunningAgentsSource | undefined
-  executionLocation?: ExecutionLocationSource | undefined
-  capabilities?: CapabilitiesSource | undefined
 }): AssemblyPipeline {
   return {
     rules: defaultRules({
@@ -90,8 +75,6 @@ export function defaultPipeline({
       runningShells,
       runningServices,
       runningAgents,
-      executionLocation,
-      capabilities,
     }),
     annotators: defaultAnnotators(),
   }
