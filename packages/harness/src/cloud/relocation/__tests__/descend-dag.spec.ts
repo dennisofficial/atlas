@@ -222,7 +222,7 @@ describe('the descend relocation plan', () => {
     const bridge = fakeBridge({ archive: await whitespaceSessionArchive() })
     const channel = bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
 
-    await expect(descend({ bridge, home, channel })).rejects.toThrow(/landed unusable/)
+    await expect(descend({ bridge, home, channel })).rejects.toThrow(/no root metadata/)
 
     const row = await home.threads.find({ threadId: CLOUD_THREAD })
     expect(row?.executionLocation ?? EExecutionLocation.Cloud).toBe(EExecutionLocation.Cloud)

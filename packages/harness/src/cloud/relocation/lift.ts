@@ -95,12 +95,6 @@ export type LiftArgs = {
   /** Deferred so a sandbox that resumed from a snapshot skips the (expensive) skills tar. The lift has no notice port of its own, so the caller supplies the notice-bound capture. */
   captureContext: CaptureContext
   onProgress: (step: ELiftStep) => void
-  /**
-   * Runs after the channel attaches — opening the conversation against the remote stores. This is
-   * the DAG's post-commit attach node, so a failure here is a committed failure: the conversation
-   * moved, and recovery is re-attaching, not flipping back. Optional so a spec that never opens
-   * keeps the bare attach; the live wiring always passes it.
-   */
   open?: ((attachment: CloudAttachment) => Promise<void>) | undefined
 }
 
@@ -174,7 +168,7 @@ const failureOfRun = (args: {
     })
   }
   const step: ELiftStep =
-    run.failed === ELiftNode.Attach || run.failed === ELiftNode.ResumePaused
+    run.failed === ELiftNode.Restore || run.failed === ELiftNode.Attach || run.failed === ELiftNode.ResumePaused
       ? ELiftStep.Attaching
       : run.failed === ELiftNode.ArchiveSession
         ? ELiftStep.Transferring
@@ -187,14 +181,6 @@ const failureOfRun = (args: {
   })
 }
 
-/**
- * Opening the thread again as a cloud thread, rather than moving the ports underneath a running
- * one. The move rides the relocation DAG: provision runs concurrent with pausing and archiving,
- * and the single commit point is the ownership flip — a failure before it leaves the conversation
- * exactly where it was, one after it means the conversation moved and recovery is re-attaching.
- * The durable placement flips inside the placement controller's transaction, so a failed attach
- * after the commit leaves a committed move on the record rather than pretending the lift came back.
- */
 export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
   const { onProgress, threadId } = args
 
@@ -217,10 +203,6 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
     })
   }
 
-  // A DAG failure reaches the lift as a value, so the move is told how it ended explicitly: before
-  // the commit, abandon clears the preparation marker and the source placement stands; after it,
-  // the error is thrown so the controller keeps the committed marker on the record — the session
-  // moved, and clearing that marker is recover()'s call, not this one's.
   let failure: LiftFailure | undefined
   let lifted: LiftSuccess | undefined
   try {
@@ -240,6 +222,8 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
           transcript: undefined,
           sandbox: undefined,
           channel: undefined,
+          attachment: undefined,
+          expected: new Map(),
           contextError: undefined,
           stopped: NOTHING_WAS_STOPPED,
         }
@@ -257,6 +241,7 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
         if (!run.ok) {
           failure = failureOfRun({ run, ctx })
           if (run.phase === 'pre-commit') {
+            ctx.channel?.close()
             transaction.abandon()
             return undefined
           }

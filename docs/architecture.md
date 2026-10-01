@@ -1267,6 +1267,23 @@ and PR/CI webhook delivery, not model credential resolution or sandbox provision
 refresh-token sharing is a provider-specific constraint to verify, not a reason to put local
 turns behind a cloud credential broker.
 
+## Cloud transcript handoff
+
+A lift pauses the local family and captures its session before provisioning serve. The mounted
+drive receives that archive with the rest of the bootstrap, before serve starts composing stores
+or recovering work. The ownership commit requires serve to restore the archive and read back the
+original root and child event identities. An uploaded file or a healthy process is not proof that
+conversation state is ready; a failed verification leaves the local placement unchanged.
+
+The bootstrap receipt identifies the archive that was applied, not the current conversation head.
+Reconnect and idle resume preserve the live event log, including events appended after that archive
+was captured. A new explicit lift supplies a new archive generation. Explicit refresh invalidates
+the entire session's cached logs after an out-of-band directory replacement.
+
+Descend stages and checks the incoming transcript before replacing local data. A missing, invalid,
+or boot-context-only archive cannot erase a local conversation. The local store refreshes before
+re-announcing children or reopening. Cloud read failures are errors, never empty conversations.
+
 ## Which model answers
 
 **Two preferences, one picker.** A conversation carries the model it was last switched to, in

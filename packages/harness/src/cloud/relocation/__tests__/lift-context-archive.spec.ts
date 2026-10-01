@@ -32,7 +32,7 @@ describe('gating the context archive on whether the sandbox already has it', () 
     expect(lifted.ok).toBe(true)
     expect(captureCalls).toBe(0)
     expect(test.bridge.contextPuts).toEqual([])
-    expect(test.bridge.trail).toEqual(['sandbox', 'put-transcript', 'confirm-landed', 'attach'])
+    expect(test.bridge.trail).toEqual(['put-transcript', 'sandbox', 'confirm-landed', 'attach'])
   })
 
   it('captures and uploads when the sandbox was created fresh', async () => {

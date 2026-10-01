@@ -40,7 +40,7 @@ describe('materializing the transcript at boot', () => {
       threadId: THREAD,
     })
 
-    expect(readiness).toEqual({ restored: true, failed: null })
+    expect(readiness).toEqual({ restored: true, fresh: false, failed: null })
     const { existsSync } = await import('node:fs')
     expect(existsSync(join(sessionDirectory({ home, sessionId: THREAD }), 'meta.json'))).toBe(true)
   })
@@ -63,8 +63,8 @@ describe('materializing the transcript at boot', () => {
       threadId: THREAD,
     })
 
-    expect(readiness).toEqual({ restored: false, failed: null })
-    expect(fetches).toBe(0)
+    expect(readiness).toEqual({ restored: false, fresh: false, failed: null })
+    expect(fetches).toBe(1)
     const { readFileSync } = await import('node:fs')
     expect(readFileSync(join(dir, 'meta.json'), 'utf8')).toContain('resumed')
   })
@@ -94,7 +94,7 @@ describe('materializing the transcript at boot', () => {
       threadId: THREAD,
     })
 
-    expect(readiness).toEqual({ restored: true, failed: null })
+    expect(readiness).toEqual({ restored: true, fresh: false, failed: null })
     expect(fetches).toBe(1)
     const { readFileSync } = await import('node:fs')
     expect(readFileSync(join(dir, 'threads', `${THREAD}.events.jsonl`), 'utf8')).toContain('{"seq":1}')
@@ -137,6 +137,6 @@ describe('materializing the transcript at boot', () => {
       threadId: THREAD,
     })
 
-    expect(readiness).toEqual({ restored: false, failed: null })
+    expect(readiness).toEqual({ restored: false, fresh: true, failed: null })
   })
 })

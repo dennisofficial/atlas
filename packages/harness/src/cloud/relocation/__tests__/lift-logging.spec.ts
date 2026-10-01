@@ -49,19 +49,19 @@ describe('lift operational log', () => {
     expect(entry?.error).toBe('disk full')
   })
 
-  it('warns rather than attach silently when the serve is too old to restore the transcript', async () => {
+  it('refuses ownership and logs an error when serve cannot restore the transcript', async () => {
     useAtlasHome()
     const log = new CapturingLog()
     const test = harness({ bridge: fakeBridge({ restoreTranscriptRefused: true }), logPort: log })
 
     const lifted = await liftToCloud(test.args)
 
-    expect(lifted.ok).toBe(true)
-    const entry = log.entries.find((one) => one.data?.['operation'] === 'restore-transcript')
-    expect(entry?.severity).toBe(ELogSeverity.Warn)
-    expect(entry?.source).toBe('cloud.lift')
+    expect(lifted.ok).toBe(false)
+    const entry = log.entries.find((one) => one.data?.['nodeId'] === 'restore')
+    expect(entry?.severity).toBe(ELogSeverity.Error)
+    expect(entry?.source).toBe('cloud.relocation')
     expect(entry?.threadId).toBe(CLOUD_THREAD)
-    expect(entry?.message).toContain('restore the lifted transcript')
+    expect(entry?.data?.['phase']).toBe('pre-commit')
   })
 
   it('warns with the child id when a child flip notice never lands', async () => {
@@ -97,7 +97,7 @@ describe('lift operational log', () => {
     const entry = log.entries.find((one) => one.source === 'cloud.relocation')
     expect(entry?.severity).toBe(ELogSeverity.Error)
     expect(entry?.threadId).toBe(CLOUD_THREAD)
-    expect(entry?.data).toEqual({ nodeId: 'shipSession', phase: 'pre-commit' })
+    expect(entry?.data).toEqual({ nodeId: 'provision', phase: 'pre-commit' })
     expect(entry?.error).toBe('socket reset')
     expect(entry?.stack).toContain('socket reset')
   })

@@ -156,6 +156,13 @@ export function createLocalCloudBridge(args: {
           content: bootstrap,
         })
       }
+      if (createArgs.transcript !== undefined) {
+        await driver.writeBootstrapFileToSandbox({
+          sandbox,
+          path: TRANSCRIPT_ARCHIVE_PATH,
+          content: createArgs.transcript,
+        })
+      }
       const needsPortable = freshBoot || !(await vaultPresentInSandbox(sandbox))
       if (needsPortable) {
         const captured = await captureOnce()

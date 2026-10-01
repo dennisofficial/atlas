@@ -1,6 +1,4 @@
-import { existsSync } from 'node:fs'
-
-import { isResumable, type ThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation, isResumable, type ThreadId } from '@dltech/atlas-core'
 
 import type { StepId } from '@dltech/atlas-harness'
 import { EServeFrame, type ServeFrame, type TurnOutcomeWire } from '@dltech/atlas-harness'
@@ -8,7 +6,8 @@ import { MainWake as LegacyWake } from '@dltech/atlas-harness'
 import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
 
 import { atlasDirectory, readMetaSync, threadMetaFile, threadMetaSchema } from '@dltech/atlas-harness'
-import { sessionDirectory, eventLogFile } from '@dltech/atlas-harness'
+import { newThreadMeta, sessionDirectory, writeMeta, writeSessionMetaForRoot } from '@dltech/atlas-harness'
+import { registryFor } from '@dltech/atlas-harness'
 
 import { syncCapabilitiesNotice } from './capabilities-notice'
 import { createChannelBridge } from './channel-bridge'
@@ -22,6 +21,7 @@ import { materializeContext } from './materialize-context'
 import { materializeTranscript } from './materialize-transcript'
 import { hydrateCloudPlacement } from './placement-hydration'
 import { restoreTranscript } from './restore-transcript'
+import { transcriptBootstrapReceipt } from './transcript-bootstrap'
 import {
   createEnsureWorkspace,
   EWorkspaceState,
@@ -67,6 +67,8 @@ export * from './socket-session'
 export * from './step-alias'
 export * from './materialize-workspace'
 export * from './materialize-transcript'
+export * from './restore-transcript'
+export * from './transcript-bootstrap'
 export * from './placement-hydration'
 export * from './publish-workspace'
 export * from './token-guard'
@@ -249,8 +251,23 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   const transcriptMs = Date.now() - transcriptStartedAt
   if (transcript.failed !== null) {
     log({ event: EServeEvent.TranscriptFailed, reason: transcript.failed, ms: transcriptMs })
-  } else if (transcript.restored) {
+    throw new Error(`the transcript could not be restored at boot: ${transcript.failed}`)
+  }
+  if (transcript.restored) {
     log({ event: EServeEvent.TranscriptRestored, ms: transcriptMs })
+  }
+  if (transcript.fresh) {
+    const sessionDir = sessionDirectory({ home: driveHome, sessionId: threadId })
+    const at = new Date().toISOString()
+    const meta = newThreadMeta({ id: threadId, at })
+    meta.workspace = cwd
+    await writeMeta({ file: threadMetaFile({ sessionDir, threadId }), meta })
+    await writeSessionMetaForRoot({
+      registry: registryFor({ home: driveHome }),
+      sessionDir,
+      root: meta,
+      home: EExecutionLocation.Cloud,
+    })
   }
 
   const storedThreadModel = (): { ref: string; effort?: string | undefined } | undefined => {
@@ -389,17 +406,25 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     ...(app.memoryArchive === undefined ? {} : { memoryArchive: app.memoryArchive }),
     restoreTranscript: async () => {
       const fetchArchive = args.fetchTranscriptArchive ?? driveTranscriptArchiveFetcher({ driveHome })
-      const sessionDir = sessionDirectory({ home: driveHome, sessionId: threadId })
+      const receiptBefore = await transcriptBootstrapReceipt({ atlasHome: driveHome })
       const result = await restoreTranscript({
         fetchArchive,
         atlasHome: driveHome,
         threadId,
         log: app.log,
-        hasTranscript: () => existsSync(eventLogFile({ sessionDir, threadId })),
+        refuseIfBusy: () =>
+          settling.count > 0
+            ? 'transferred children are still resuming, so the transcript cannot be replaced'
+            : null,
       })
       if (result.failed !== null) log({ event: EServeEvent.TranscriptFailed, reason: result.failed })
       else if (result.restored) log({ event: EServeEvent.TranscriptRestored })
-      if (result.restored) await hydrateCloudPlacement({ app, threadId })
+      if (!result.restored) return result
+      await hydrateCloudPlacement({ app, threadId })
+      const receiptAfter = await transcriptBootstrapReceipt({ atlasHome: driveHome })
+      if (receiptAfter !== receiptBefore || receiptAfter === null) {
+        adoptChildrenInBackground({ app, threadId, log, settling, note: () => idleStop.note() })
+      }
       return result
     },
   })

@@ -2,19 +2,24 @@ import {
   EExecutionLocation,
   locationOfPlacement,
   placementOf,
-  stampEvent,
   toEventId,
   toRunId,
   toThreadId,
-  type Event,
-  type EventLogPort,
   type IdPort,
   type PlacementRecord,
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import type { SupervisedAgent, ThreadModel, ThreadStorePort, ThreadSummary } from '../../../store/thread-store'
-import type { TurnLedgerPort, TurnSpend } from '../../../ledger/turn-ledger.port'
+import type {
+  SupervisedAgent,
+  ThreadModel,
+  ThreadStorePort,
+  ThreadSummary,
+} from '../../../store/thread-store'
+import type { FakeEventLog } from './fake-event-log'
+
+export { fakeEventLog, type FakeEventLog } from './fake-event-log'
+export { fakeLedger, type FakeLedger } from './fake-ledger'
 
 const AT = '2026-08-25T00:00:00.000Z'
 
@@ -48,7 +53,10 @@ export type FakeThreadStore = ThreadStorePort & {
   }[]
   readonly renames: readonly { threadId: ThreadId; title: string }[]
   readonly chosenModels: readonly { threadId: ThreadId; model: ThreadModel }[]
-  readonly chosenLocations: readonly { threadId: ThreadId; location: EExecutionLocation }[]
+  readonly chosenLocations: readonly {
+    threadId: ThreadId
+    location: EExecutionLocation
+  }[]
 }
 
 export function fakeThreadStore(
@@ -79,7 +87,10 @@ export function fakeThreadStore(
   }[] = []
   const renames: { threadId: ThreadId; title: string }[] = []
   const chosenModels: { threadId: ThreadId; model: ThreadModel }[] = []
-  const chosenLocations: { threadId: ThreadId; location: EExecutionLocation }[] = []
+  const chosenLocations: {
+    threadId: ThreadId
+    location: EExecutionLocation
+  }[] = []
   const placements = new Map<ThreadId, PlacementRecord>()
 
   return {
@@ -273,141 +284,6 @@ export function fakeThreadStore(
 
     async rewind() {
       throw new Error('unused')
-    },
-  }
-}
-
-export type FakeEventLog = EventLogPort & {
-  readonly branchesRead: readonly ThreadId[]
-  readonly ownReads: readonly ThreadId[]
-  peek(args: { threadId: ThreadId }): readonly Event[]
-  truncate(args: { threadId: ThreadId; toSeq: number }): void
-}
-
-export function fakeEventLog(seeded: readonly Event[] = []): FakeEventLog {
-  const byThread = new Map<ThreadId, Event[]>()
-  const headByThread = new Map<ThreadId, number>()
-  const branchesRead: ThreadId[] = []
-  const ownReads: ThreadId[] = []
-
-  for (const event of seeded) {
-    byThread.set(event.threadId, [...(byThread.get(event.threadId) ?? []), event])
-    headByThread.set(event.threadId, Math.max(headByThread.get(event.threadId) ?? 0, event.seq))
-  }
-
-  let stamped = 0
-
-  const reserve = ({ threadId, count }: { threadId: ThreadId; count: number }): number => {
-    const from = (headByThread.get(threadId) ?? 0) + 1
-    headByThread.set(threadId, from + count - 1)
-    return from
-  }
-
-  const held = ({ threadId, upTo }: { threadId: ThreadId; upTo?: number }): Event[] => {
-    const rows = byThread.get(threadId) ?? []
-    return upTo === undefined ? [...rows] : rows.filter((event) => event.seq <= upTo)
-  }
-
-  return {
-    branchesRead,
-    ownReads,
-
-    peek({ threadId }) {
-      return [...(byThread.get(threadId) ?? [])]
-    },
-
-    async append({ threadId, runId, drafts }) {
-      const firstSeq = reserve({ threadId, count: drafts.length })
-
-      const written = drafts.map((draft, index) => {
-        stamped += 1
-        return stampEvent({
-          draft,
-          envelope: {
-            id: toEventId(`event-${stamped}`),
-            seq: firstSeq + index,
-            threadId,
-            runId,
-            depth: 0,
-            at: AT,
-          },
-        })
-      })
-
-      byThread.set(threadId, [...(byThread.get(threadId) ?? []), ...written])
-      return written
-    },
-
-    async replace({ threadId, runId, drafts }) {
-      const written = drafts.map((draft, index) => {
-        stamped += 1
-        return stampEvent({
-          draft,
-          envelope: {
-            id: toEventId(`event-${stamped}`),
-            seq: index + 1,
-            threadId,
-            runId,
-            depth: 0,
-            at: AT,
-          },
-        })
-      })
-
-      byThread.set(threadId, written)
-      headByThread.set(threadId, written.length)
-      return written
-    },
-
-    truncate({ threadId, toSeq }) {
-      byThread.set(threadId, held({ threadId, upTo: toSeq }))
-      headByThread.set(threadId, toSeq)
-    },
-
-    async read({ threadId, upTo }) {
-      branchesRead.push(threadId)
-      return held({ threadId, ...(upTo === undefined ? {} : { upTo }) })
-    },
-
-    async head({ threadId }) {
-      return headByThread.get(threadId) ?? 0
-    },
-
-    async refresh() {},
-
-    async readOwn({ threadId, upTo }) {
-      ownReads.push(threadId)
-      return held({ threadId, ...(upTo === undefined ? {} : { upTo }) })
-    },
-  }
-}
-
-export type FakeLedger = TurnLedgerPort & { readonly rows: readonly TurnSpend[] }
-
-export function fakeLedger(
-  args: {
-    spent?: readonly TurnSpend[]
-    children?: Readonly<Record<string, readonly ThreadId[]>>
-  } = {},
-): FakeLedger {
-  const rows: TurnSpend[] = [...(args.spent ?? [])]
-
-  return {
-    get rows() {
-      return rows
-    },
-    record: async (spend) => {
-      rows.push(spend)
-    },
-    forThread: async ({ threadId }) => rows.filter((row) => row.threadId === threadId),
-
-    forThreadTree: async ({ threadId }) => {
-      const children = new Set<string>(args.children?.[threadId] ?? [])
-
-      return {
-        own: rows.filter((row) => row.threadId === threadId),
-        delegated: rows.filter((row) => children.has(row.threadId)),
-      }
     },
   }
 }

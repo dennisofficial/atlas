@@ -21,12 +21,12 @@ describe('the steps a move narrates', () => {
 
     expect(move.steps.map((step) => step.id)).toEqual([
       ELiftStep.Stopping,
-      ELiftStep.Transferring,
-      ELiftStep.Flipping,
       ELiftStep.Capturing,
+      ELiftStep.Transferring,
       ELiftStep.Starting,
       ELiftStep.UploadingContext,
       ELiftStep.Attaching,
+      ELiftStep.Flipping,
     ])
   })
 
@@ -70,8 +70,8 @@ describe('advancing through a move', () => {
       EStepMark.Done,
       EStepMark.Done,
       EStepMark.Done,
-      EStepMark.Done,
       EStepMark.Active,
+      EStepMark.Pending,
       EStepMark.Pending,
       EStepMark.Pending,
     ])
@@ -91,8 +91,8 @@ describe('a move that does not finish', () => {
       EStepMark.Done,
       EStepMark.Done,
       EStepMark.Done,
-      EStepMark.Done,
       EStepMark.Failed,
+      EStepMark.Pending,
       EStepMark.Pending,
       EStepMark.Pending,
     ])
@@ -112,12 +112,12 @@ describe('the plan a cloud lift narrates', () => {
   it('is the plain seven steps when nothing was running', () => {
     expect(cloudLiftPlan({ midTurn: false })).toEqual([
       ELiftStep.Stopping,
-      ELiftStep.Transferring,
-      ELiftStep.Flipping,
       ELiftStep.Capturing,
+      ELiftStep.Transferring,
       ELiftStep.Starting,
       ELiftStep.UploadingContext,
       ELiftStep.Attaching,
+      ELiftStep.Flipping,
     ])
   })
 
@@ -125,12 +125,12 @@ describe('the plan a cloud lift narrates', () => {
     expect(cloudLiftPlan({ midTurn: true })).toEqual([
       ELiftStep.Interrupting,
       ELiftStep.Stopping,
-      ELiftStep.Transferring,
-      ELiftStep.Flipping,
       ELiftStep.Capturing,
+      ELiftStep.Transferring,
       ELiftStep.Starting,
       ELiftStep.UploadingContext,
       ELiftStep.Attaching,
+      ELiftStep.Flipping,
       ELiftStep.Resuming,
     ])
   })

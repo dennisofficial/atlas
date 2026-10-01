@@ -6,6 +6,13 @@ import { readThreadSpend } from '../thread-spend'
 import { readThreadBase, readThreadWindow } from '../thread-reads'
 import { EThreadRows } from '../use-thread-view'
 
+export class MissingCloudThreadError extends Error {
+  constructor(threadId: ThreadId) {
+    super(`the lifted session holds no thread "${threadId}"`)
+    this.name = 'MissingCloudThreadError'
+  }
+}
+
 /**
  * Attaching to a lifted session is not opening a local conversation: the transcript belongs to
  * the sandbox's loop, and the stores that read it refuse every mutation. So the attach binds the
@@ -19,7 +26,7 @@ export async function attachCloudSession(args: {
 }): Promise<OpenedConversation> {
   const { stores, threadId } = args
   const thread = await stores.threads.find({ threadId })
-  if (thread === undefined) throw new Error(`the lifted session holds no thread "${threadId}"`)
+  if (thread === undefined) throw new MissingCloudThreadError(threadId)
 
   const window = await readThreadWindow({
     log: stores.log,

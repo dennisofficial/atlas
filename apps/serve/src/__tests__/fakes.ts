@@ -58,6 +58,7 @@ const fakeThreadWrites = (args: {
   },
   spawned: async (): Promise<readonly ThreadSummary[]> => [],
   list: async (): Promise<readonly ThreadSummary[]> => [],
+  writePlacement: async (): Promise<void> => undefined,
   rename: async (given: { threadId: ThreadId; title: string }): Promise<void> => {
     args.renames.push(given)
     for (const listener of [...args.renameListeners]) listener(given)

@@ -92,6 +92,7 @@ export function createSessionHandlers(args: {
   const sessionArchive = args.sessionArchive
   const memoryArchive = args.memoryArchive
   const restoreTranscript = args.restoreTranscript
+  let restoring: Promise<{ restored: boolean; failed: string | null }> | null = null
   const live = new Set<SessionSocket>()
   const attached = new Set<SessionSocket>()
   const aliaser = createStepAliaser()
@@ -165,6 +166,22 @@ export function createSessionHandlers(args: {
 
   const drive = (args: { socket: SessionSocket; frame: ClientFrame }): void => {
     const { socket, frame } = args
+
+    const isRestoreOp = frame.kind === EClientFrame.Request && frame.op === EClientRequest.RestoreTranscript
+    if (restoring !== null && !isRestoreOp) {
+      const held = restoring
+      void held.then((result) => {
+        if (result.failed !== null) {
+          send({
+            socket,
+            frame: { kind: EServeFrame.Error, message: `the transcript restore failed: ${result.failed}` },
+          })
+          return
+        }
+        drive({ socket, frame })
+      })
+      return
+    }
 
     if (frame.kind === EClientFrame.Send) {
       let context: EventDraft[] | undefined
@@ -332,7 +349,17 @@ export function createSessionHandlers(args: {
         })
         return
       }
-      void restoreTranscript()
+      if (driver.busy()) {
+        send({
+          socket,
+          frame: refusedRequest({ replyTo: frame.id, message: 'a turn is running, so the transcript cannot be replaced' }),
+        })
+        return
+      }
+      restoring ??= restoreTranscript().finally(() => {
+        restoring = null
+      })
+      void restoring
         .then((result) =>
           send({
             socket,

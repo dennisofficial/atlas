@@ -1,29 +1,17 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EExecutionLocation, toRunId } from '@dltech/atlas-core'
-import { CloudError, EClientRequest, EShellStatus, type GpgKeyMaterial } from '@dltech/atlas-harness'
+import { EExecutionLocation } from '@dltech/atlas-core'
+import { CloudError, EShellStatus } from '@dltech/atlas-harness'
 
 import { useAtlasHome } from './descend-fixture'
-import { fakeEventLog } from './fake-backend'
 import { ELiftStep, liftToCloud } from '../lift'
 import { CLOUD_NOTICE_KEY } from '../transition-notice'
-import { CLEAN_WORKSPACE, CLOUD_THREAD, fakeBridge } from './fixture'
-import { FOOTER_SELECTION, harness } from './lift-fixture'
-
-const seedLocalTranscript = async (
-  test: ReturnType<typeof harness>,
-  texts: readonly string[] = ['take the linter to zero', 'and then ship it'],
-): Promise<void> => {
-  await test.localThreads.createWithFirstEvents({
-    threadId: CLOUD_THREAD,
-    runId: toRunId('run_local_seed'),
-    drafts: texts.map((text) => ({ type: 'user-said' as const, text })),
-    workspace: '/work',
-  })
-}
+import { CLOUD_THREAD, fakeBridge } from './fixture'
+import { harness } from './lift-fixture'
+import { seedLocalTranscript } from './lift-seed'
 
 describe('lifting a conversation into the cloud', () => {
-  it('stops what is running here, tars the session, uploads it after create, and only then attaches', async () => {
+  it('stops what is running here and stages the transcript before serve boots', async () => {
     useAtlasHome()
     const test = harness()
     await seedLocalTranscript(test)
@@ -31,7 +19,7 @@ describe('lifting a conversation into the cloud', () => {
     const lifted = await liftToCloud(test.args)
 
     expect(lifted.ok).toBe(true)
-    expect(test.bridge.trail).toEqual(['sandbox', 'put-transcript', 'confirm-landed', 'attach'])
+    expect(test.bridge.trail).toEqual(['put-transcript', 'sandbox', 'confirm-landed', 'attach'])
     expect(test.bridge.transcriptPuts).toHaveLength(1)
     expect(test.steps).toEqual([
       ELiftStep.Stopping,
@@ -40,62 +28,9 @@ describe('lifting a conversation into the cloud', () => {
       ELiftStep.Starting,
       ELiftStep.UploadingContext,
       ELiftStep.Starting,
-      ELiftStep.Flipping,
       ELiftStep.Attaching,
+      ELiftStep.Flipping,
     ])
-  })
-
-  it('tells the serve to restore the late-shipped transcript before the conversation opens', async () => {
-    useAtlasHome()
-    const test = harness()
-    await seedLocalTranscript(test)
-
-    const lifted = await liftToCloud(test.args)
-
-    expect(lifted.ok).toBe(true)
-    expect(test.bridge.channel.requests.map((r) => r.op)).toContain(EClientRequest.RestoreTranscript)
-  })
-
-  it('carries the whole local transcript across in the session archive', async () => {
-    useAtlasHome()
-    const test = harness()
-    await seedLocalTranscript(test)
-
-    await liftToCloud(test.args)
-
-    expect(test.bridge.transcriptPuts).toHaveLength(1)
-    const archive = test.bridge.transcriptPuts[0]?.archive
-    expect(archive).toBeDefined()
-    expect(archive?.length).toBeGreaterThan(0)
-    expect(archive?.subarray(0, 2)).toEqual(Buffer.from([0x1f, 0x8b]))
-  })
-
-  it('uploads no transcript for a conversation nobody has spoken in, and still attaches', async () => {
-    useAtlasHome()
-    const test = harness({ started: false, localLog: fakeEventLog([]) })
-
-    const lifted = await liftToCloud(test.args)
-
-    expect(lifted.ok).toBe(true)
-    expect(test.bridge.transcriptPuts).toEqual([])
-    expect(test.bridge.trail).toEqual(['sandbox', 'attach'])
-  })
-
-  it('records an unstarted thread as cloud, so a later boot routes its resume to the attach path', async () => {
-    useAtlasHome()
-    const test = harness({ started: false, localLog: fakeEventLog([]) })
-
-    const lifted = await liftToCloud(test.args)
-
-    expect(lifted.ok).toBe(true)
-    const writes = test.localThreads.chosenLocations.filter(
-      (chosen) => chosen.location === EExecutionLocation.Cloud,
-    )
-    expect(writes.length).toBeGreaterThan(0)
-    expect(writes.at(-1)).toEqual({ threadId: CLOUD_THREAD, location: EExecutionLocation.Cloud })
-    expect((await test.localThreads.find({ threadId: CLOUD_THREAD }))?.executionLocation).toBe(
-      EExecutionLocation.Cloud,
-    )
   })
 
   it('records the thread as a cloud thread on the local side', async () => {
@@ -110,108 +45,6 @@ describe('lifting a conversation into the cloud', () => {
     expect((await test.localThreads.find({ threadId: CLOUD_THREAD }))?.executionLocation).toBe(
       EExecutionLocation.Cloud,
     )
-  })
-
-  it('attaches to the sandbox the provision handed back', async () => {
-    useAtlasHome()
-    const test = harness()
-    await seedLocalTranscript(test)
-
-    const lifted = await liftToCloud(test.args)
-    if (!lifted.ok) throw new Error('expected the lift to succeed')
-
-    expect(test.bridge.attached).toEqual([
-      { threadId: CLOUD_THREAD, url: lifted.sandbox.url, token: lifted.sandbox.token },
-    ])
-  })
-
-  it('sends the git identity and the uncommitted patch with the sandbox request', async () => {
-    useAtlasHome()
-    const dirty = { ...CLEAN_WORKSPACE, patch: 'diff --git a/x b/x\n' }
-    const test = harness({ capture: async () => dirty })
-    await seedLocalTranscript(test)
-
-    await liftToCloud(test.args)
-
-    expect(test.bridge.created).toEqual([
-      { threadId: CLOUD_THREAD, workspace: dirty, model: FOOTER_SELECTION.ref },
-    ])
-  })
-
-  it("carries the operator's gpg material to the sandbox request, stringified", async () => {
-    useAtlasHome()
-    const material: GpgKeyMaterial = {
-      keyId: 'DEADBEEF1234',
-      publicKey: 'PUBLIC BLOCK',
-      secretKey: 'SECRET BLOCK',
-      ownerTrust: 'TRUST',
-      sign: true,
-    }
-    const test = harness({ captureGpg: async () => material })
-    await seedLocalTranscript(test)
-
-    const lifted = await liftToCloud(test.args)
-
-    expect(lifted.ok).toBe(true)
-    expect(test.bridge.created).toEqual([
-      {
-        threadId: CLOUD_THREAD,
-        workspace: CLEAN_WORKSPACE,
-        gpgKey: JSON.stringify(material),
-        model: FOOTER_SELECTION.ref,
-      },
-    ])
-  })
-
-  it('sends no gpg key when the operator has no signing material', async () => {
-    useAtlasHome()
-    const test = harness({ captureGpg: async () => null })
-    await seedLocalTranscript(test)
-
-    const lifted = await liftToCloud(test.args)
-
-    expect(lifted.ok).toBe(true)
-    expect(test.bridge.created).toEqual([
-      { threadId: CLOUD_THREAD, workspace: CLEAN_WORKSPACE, model: FOOTER_SELECTION.ref },
-    ])
-  })
-
-  it('carries the thread’s model to the sandbox request so the cloud session stays on it', async () => {
-    useAtlasHome()
-    const test = harness({})
-    await seedLocalTranscript(test)
-
-    await liftToCloud(test.args)
-
-    expect(test.bridge.created).toEqual([
-      { threadId: CLOUD_THREAD, workspace: CLEAN_WORKSPACE, model: FOOTER_SELECTION.ref },
-    ])
-  })
-
-  it("carries the operator's context archive onto the row before the sandbox boots, so serve finds it on the first poll", async () => {
-    useAtlasHome()
-    const archive = Buffer.from('a fake tar.gz')
-    const test = harness({ captureContext: async () => archive })
-    await seedLocalTranscript(test)
-
-    await liftToCloud(test.args)
-
-    expect(test.bridge.created).toEqual([
-      { threadId: CLOUD_THREAD, workspace: CLEAN_WORKSPACE, model: FOOTER_SELECTION.ref },
-    ])
-    expect(test.bridge.contextPuts).toEqual([{ threadId: CLOUD_THREAD, archive }])
-    expect(test.bridge.trail).toEqual(['put-context', 'sandbox', 'put-transcript', 'confirm-landed', 'attach'])
-  })
-
-  it('sends no context archive request when there is nothing to carry', async () => {
-    useAtlasHome()
-    const test = harness()
-    await seedLocalTranscript(test)
-
-    await liftToCloud(test.args)
-
-    expect(test.bridge.contextPuts).toEqual([])
-    expect(test.bridge.trail).toEqual(['sandbox', 'put-transcript', 'confirm-landed', 'attach'])
   })
 
   it('tells the agent it moved, naming what the move closed — in the local log, after the archive shipped', async () => {
@@ -233,7 +66,9 @@ describe('lifting a conversation into the cloud', () => {
     expect(notice.content).toContain('bun run dev')
     expect(notice.content).toContain('api')
     expect(
-      test.bridge.log.peek({ threadId: CLOUD_THREAD }).some((event) => event.type === 'context-loaded'),
+      test.bridge.log
+        .peek({ threadId: CLOUD_THREAD })
+        .some((event) => event.type === 'context-loaded'),
     ).toBe(false)
   })
 
@@ -282,7 +117,9 @@ describe('lifting a conversation into the cloud', () => {
   it('never drains the local notices when the lift fails, so the host conversation still hears them', async () => {
     useAtlasHome()
     let drains = 0
-    const bridge = fakeBridge({ createFails: new CloudError({ status: 500, message: 'no capacity' }) })
+    const bridge = fakeBridge({
+      createFails: new CloudError({ status: 500, message: 'no capacity' }),
+    })
     const test = harness({
       bridge,
       stopLocal: async () => ({
@@ -324,11 +161,15 @@ describe('lifting a conversation into the cloud', () => {
     expect(events.indexOf(marker)).toBeLessThan(noticeIndex)
   })
 
-  it('starts the provision while pausing is still settling, not after it', async () => {
+  it('waits for pause and archive before provisioning serve', async () => {
     useAtlasHome()
     let createStarted = false
     let pauseSettled = false
     let releasePause = (): void => undefined
+    let acknowledgePause = (): void => undefined
+    const pausing = new Promise<void>((resolve) => {
+      acknowledgePause = resolve
+    })
     const bridge = fakeBridge()
     const originalCreate = bridge.sandboxes.create
     bridge.sandboxes.create = async (createArgs) => {
@@ -337,26 +178,28 @@ describe('lifting a conversation into the cloud', () => {
     }
     const test = harness({
       bridge,
-      stopLocal: () =>
-        new Promise((resolve) => {
+      stopLocal: () => {
+        acknowledgePause()
+        return new Promise((resolve) => {
           releasePause = () => {
             pauseSettled = true
             resolve({ shells: [], services: [], drainNotices: () => [] })
           }
-        }),
+        })
+      },
     })
     await seedLocalTranscript(test)
 
     const lifting = liftToCloud(test.args)
-    while (!pauseSettled && !createStarted) await Bun.sleep(1)
-    await Bun.sleep(5)
+    await pausing
 
     expect(pauseSettled).toBe(false)
-    expect(createStarted).toBe(true)
+    expect(createStarted).toBe(false)
 
     releasePause()
     const lifted = await lifting
     expect(lifted.ok).toBe(true)
+    expect(createStarted).toBe(true)
   })
 
   it('keeps the footer selection out of the transcript — the model rides the open, not the archive', async () => {

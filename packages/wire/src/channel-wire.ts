@@ -80,6 +80,7 @@ export enum EClientRequest {
   ReadThreads = 'read-threads',
   ReadTurns = 'read-turns',
   ReadSessionArchive = 'read-session-archive',
+  ReadTranscriptIdentity = 'read-transcript-identity',
   /**
    * The descend's memory transfer: the sandbox's user and project memory, tarred under the same
    * `.atlas/memory/…` and `project-memory/…` keys the lift archive carried them by. Never a
@@ -132,6 +133,12 @@ export const readEventsParamsSchema = z.object({
 })
 export type ReadEventsParams = z.infer<typeof readEventsParamsSchema>
 
+export const readTranscriptIdentityParamsSchema = z.object({
+  threadId: threadIdWireSchema,
+  upTo: seqSchema.optional(),
+})
+export type ReadTranscriptIdentityParams = z.infer<typeof readTranscriptIdentityParamsSchema>
+
 export const readThreadParamsSchema = z.object({ threadId: threadIdWireSchema })
 export type ReadThreadParams = z.infer<typeof readThreadParamsSchema>
 
@@ -155,6 +162,10 @@ export type SetThreadModelParams = z.infer<typeof setThreadModelParamsSchema>
 export const readEventsReplySchema = z.object({ events: z.array(wireEventSchema) })
 export const readThreadReplySchema = z.object({ thread: wireThreadSchema.nullable() })
 export const readThreadsReplySchema = z.object({ threads: z.array(wireThreadSchema) })
+export const transcriptIdentityReplySchema = z.object({
+  count: z.number().int().nonnegative(),
+  digest: z.string(),
+})
 export const readTurnsReplySchema = z.object({
   own: z.array(wireTurnSchema),
   delegated: z.array(wireTurnSchema),

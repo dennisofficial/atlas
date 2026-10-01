@@ -176,16 +176,10 @@ export class PlacementController {
     }
   }
 
-  /**
-   * A durable move is measured in work: between the preparation write and its commit an archive
-   * can land and rebuild the row from scratch, resetting its revision. When the store no longer
-   * knows the move, the move's own record stays authoritative for the move fields — only the
-   * revision the next write must beat comes back off the store.
-   */
   private async freshen(args: { threadId: ThreadId; held: PlacementRecord }): Promise<PlacementRecord> {
     const stored = await this.binding?.threads.readPlacement({ threadId: args.threadId })
     if (stored === undefined) return args.held
-    if (stored.revision < args.held.revision) return args.held
+    if (stored.revision < args.held.revision) return { ...args.held, revision: stored.revision }
     if (stored.move === null && args.held.move !== null) {
       return { ...stored, move: args.held.move }
     }
@@ -195,7 +189,8 @@ export class PlacementController {
   private async write(args: { threadId: ThreadId; prior: PlacementRecord; next: PlacementRecord }): Promise<PlacementRecord> {
     const binding = this.binding
     if (binding === undefined) throw new Error('placement has no durable store')
-    const record = { ...args.next, revision: args.prior.revision + 1 }
+    const publishedRevision = this.records.get(args.threadId)?.revision ?? 0
+    const record = { ...args.next, revision: Math.max(args.prior.revision, publishedRevision) + 1 }
     await binding.threads.writePlacement({ ...binding, threadId: args.threadId, record, expectedRevision: args.prior.revision })
     this.publish({ threadId: args.threadId, record })
     return record

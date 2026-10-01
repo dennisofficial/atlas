@@ -90,7 +90,7 @@ export type ServeApp = {
   log: Pick<EventLogPort, 'append' | 'read' | 'readOwn' | 'head' | 'refresh'>
   threads: Pick<
     ThreadStorePort,
-    'find' | 'createWithFirstEvents' | 'spawned' | 'list' | 'rename' | 'chooseModel' | 'onRename' | 'onModelChosen'
+    'find' | 'createWithFirstEvents' | 'spawned' | 'list' | 'rename' | 'chooseModel' | 'onRename' | 'onModelChosen' | 'writePlacement'
   >
   /** The live model the channel's set-thread-model op re-pins; absent in fakes. */
   modelBridge?: ServeModelBridge | undefined

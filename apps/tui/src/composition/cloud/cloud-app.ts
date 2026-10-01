@@ -13,7 +13,7 @@ import type { AtlasApp } from '../compose'
 import { noticePortBinding } from '../notice-binding'
 import { unstartedConversation, type OpenedConversation } from '../open-conversation'
 import type { CloudChannel, CloudStores } from '@dltech/atlas-harness'
-import { attachCloudSession } from './attach-cloud'
+import { attachCloudSession, MissingCloudThreadError } from './attach-cloud'
 import { RemoteAgentRegistry } from './remote-agents'
 import { RemoteServiceRegistry } from './remote-services'
 import { RemoteShellRegistry } from './remote-shells'
@@ -65,10 +65,6 @@ export const cloudApp = (args: {
   }
 }
 
-/**
- * Re-opening rather than re-rendering: the durable log is the truth a reload falls back on, so the
- * attach path and the reload path are the same read.
- */
 export async function openCloudConversation(args: {
   app: AtlasApp
   threadId: ThreadId
@@ -79,10 +75,8 @@ export async function openCloudConversation(args: {
       threadId: args.threadId,
       effects: (name) => args.app.tools.find(name)?.effect,
     })
-  } catch {
-    // The thread is cloud by the way it was opened even when the remote store holds nothing yet
-    // (a fresh sandbox on a first lift) — carry the location so the mount's location resolve does
-    // not read the blank store as host and erase the pill.
+  } catch (failure) {
+    if (!(failure instanceof MissingCloudThreadError)) throw failure
     return {
       ...unstartedConversation({ ids: args.app.ids }),
       threadId: args.threadId,
