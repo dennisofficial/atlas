@@ -14,6 +14,16 @@ export const cloudModelFailureNotice = (): {
   text: "the model change didn't reach the cloud session — the footer is back on what the sandbox is running",
 })
 
+export const modelPersistFailureNotice = (args: { model: string }): {
+  key: string
+  tone: ENoticeTone
+  text: string
+} => ({
+  key: CLOUD_MODEL_NOTICE_KEY,
+  tone: ENoticeTone.Warn,
+  text: `the model change could not be saved — this thread will come back on ${args.model} next launch`,
+})
+
 export const cloudRenameFailureNotice = (): {
   key: string
   tone: ENoticeTone
