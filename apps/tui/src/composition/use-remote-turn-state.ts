@@ -89,6 +89,8 @@ export function useRemoteTurnState(args: {
       }),
     ]
     const handleSettled = (): void => {
+      interruptPending.current = false
+      clearNotice({ key: INTERRUPT_LOST_KEY })
       handleRunning(false)
       awaitingLifecycle.current = false
       settling.current += 1

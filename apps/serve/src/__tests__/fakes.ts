@@ -196,6 +196,7 @@ export function fakeServeApp(args: {
   roster?: FakeRoster | undefined
   family?: ServeFamily | undefined
   intake?: boolean | undefined
+  log?: ServeApp['log'] | undefined
   holdStep?: ((step: number) => Promise<void> | undefined) | undefined
 }): FakeServeApp {
   const channel = createDeltaChannel()
@@ -236,7 +237,7 @@ export function fakeServeApp(args: {
       depth: 0,
       at: '2026-09-30T00:00:00.000Z',
     }) as Event
-  const log: ServeApp['log'] = {
+  const memoryLog: ServeApp['log'] = {
     append: async (given: { drafts: readonly EventDraft[]; runId?: RunId }): Promise<Event[]> => {
       appended.push(...given.drafts)
       const runId = given.runId ?? toRunId('run-append')
@@ -249,6 +250,7 @@ export function fakeServeApp(args: {
     refresh: async (): Promise<void> => {},
     head: async (): Promise<number> => stored.length,
   }
+  const log = args.log ?? memoryLog
   const loopRunner =
     intake === undefined
       ? null
@@ -271,14 +273,15 @@ export function fakeServeApp(args: {
             ...(signal === undefined ? {} : { signal }),
           })
       : idle)
-  const loopRun: RunTurn | null =
-    loopRunner === null
-      ? null
-      : ({ threadId: on, signal }) =>
-          loopRunner.runTurn({
+  const resumeRun: RunTurn =
+    args.runTurn ??
+    (loopRunner !== null
+      ? ({ threadId: on, signal }) =>
+          loopRunner.resume({
             threadId: on,
             ...(signal === undefined ? {} : { signal }),
           })
+      : idle)
   const adopt = args.adoptChildren ?? (async () => [])
   let runs = 0
   let forgotten = 0
@@ -296,7 +299,7 @@ export function fakeServeApp(args: {
 
     runner: {
       runTurn: (given) => run(given),
-      resume: (given) => run(given),
+      resume: (given) => resumeRun(given),
     },
 
     log,

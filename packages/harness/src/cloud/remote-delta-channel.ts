@@ -78,7 +78,7 @@ export type RemoteDeltaChannel = DeltaChannel & {
     files?: readonly SaidFile[] | undefined
     context?: readonly EventDraft[] | undefined
   }): void
-  run(): void
+  run(args?: { resume?: boolean }): void
   interrupt(): void
   pause(): void
   resume(): void
@@ -330,6 +330,8 @@ export function createRemoteDeltaChannel(args: {
       attempt = 0
       reattachments = 0
       upstream.attach({ write })
+      const turnInFlight = frame.turnInFlight === true
+      if (turnInFlight !== working) deliver({ type: 'turn-working', working: turnInFlight })
       readies.emit({ turnInFlight: frame.turnInFlight === true })
       moveTo({ state: EChannelConnection.Open, detail: null })
       if (interruptPending && frame.turnInFlight === true) requestInterrupt()
@@ -578,7 +580,11 @@ export function createRemoteDeltaChannel(args: {
         ...(context === undefined || context.length === 0 ? {} : { context: [...context] }),
       }),
 
-    run: () => upstream.send({ kind: EClientFrame.Run }),
+    run: (runArgs) =>
+      upstream.send({
+        kind: EClientFrame.Run,
+        ...(runArgs?.resume === true ? { resume: true } : {}),
+      }),
 
     interrupt: requestInterrupt,
 

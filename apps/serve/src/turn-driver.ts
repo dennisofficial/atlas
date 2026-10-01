@@ -6,6 +6,11 @@ import type { MessageIntake } from '@dltech/atlas-harness'
 
 import type { ServeApp } from './serve-app'
 
+export type TurnRunOptions = {
+  resume?: boolean | undefined
+  onlyIfIdle?: boolean | undefined
+}
+
 export type ServeTurnDriver = {
   say: (args: {
     text: string
@@ -13,7 +18,7 @@ export type ServeTurnDriver = {
     files?: readonly SaidFile[] | undefined
     context?: readonly EventDraft[] | undefined
   }) => Promise<void>
-  run: () => void
+  run: (options?: TurnRunOptions) => void
   /** Starts a turn when none is running, re-arms when one is, and answers whether it acted. */
   sayOrRun: () => boolean
   interrupt: () => void
@@ -127,8 +132,9 @@ export function createTurnDriver(args: {
     await app.turnPolicy?.onOutcome({ threadId, outcome })
   }
 
-  const runUntilQuiet = async (): Promise<void> => {
+  const runUntilQuiet = async (initial: { resume: boolean }): Promise<void> => {
     args.onTurnStarted()
+    let resumeThisTurn = initial.resume
     try {
       do {
         again = false
@@ -136,9 +142,11 @@ export function createTurnDriver(args: {
         const controller = new AbortController()
         abort = controller
         pause = new PauseSignal()
-        const outcome = relocationFrozen
-          ? await app.runner.resume({ threadId, signal: controller.signal, pause })
-          : await app.runner.runTurn({ threadId, signal: controller.signal, pause })
+        const outcome =
+          relocationFrozen || resumeThisTurn
+            ? await app.runner.resume({ threadId, signal: controller.signal, pause })
+            : await app.runner.runTurn({ threadId, signal: controller.signal, pause })
+        resumeThisTurn = false
         await finishOutcome(outcome)
       } while (again)
     } catch (error) {
@@ -154,16 +162,19 @@ export function createTurnDriver(args: {
     }
   }
 
-  const run = (): void => {
+  const run = (options?: TurnRunOptions): void => {
     const refused = args.refusal?.()
     if (refused !== undefined) throw new Error(refused)
 
+    if (options?.onlyIfIdle === true && (turning !== null || committing)) {
+      throw new Error('a turn is already running — wait for it to finish before asking for another')
+    }
     if (committing) return
     if (turning !== null) {
       again = true
       return
     }
-    turning = runUntilQuiet()
+    turning = runUntilQuiet({ resume: options?.resume === true })
   }
 
   const handle: ServeTurnDriver = {
@@ -189,7 +200,7 @@ export function createTurnDriver(args: {
         } finally {
           committing = false
         }
-        turning = runUntilQuiet()
+        turning = runUntilQuiet({ resume: false })
         return
       }
 
@@ -198,7 +209,7 @@ export function createTurnDriver(args: {
         again = true
         return
       }
-      turning = runUntilQuiet()
+      turning = runUntilQuiet({ resume: false })
     },
 
     run,

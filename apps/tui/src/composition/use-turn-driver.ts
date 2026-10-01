@@ -1,4 +1,4 @@
-import { isResumable, resumeDrafts, type EventDraft, type ThreadId } from '@dltech/atlas-core'
+import { isResumable, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 import { ESuppress, LocalRewindMachinery, rewindThread } from '@dltech/atlas-harness'
 import { useCallback, useMemo, useRef, type RefObject } from 'react'
 
@@ -95,8 +95,8 @@ export function useTurnDriver(args: {
   }, [drive, turnInFlight, working])
   const handleResume = useCallback(() => {
     if (working || turnInFlight()) return
-    void drive(resumeDrafts(events))
-  }, [drive, events, turnInFlight, working])
+    void drive([], { resume: true })
+  }, [drive, turnInFlight, working])
 
   const resumeFresh = useCallback(
     (confirmed: boolean) => {

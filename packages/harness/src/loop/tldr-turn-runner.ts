@@ -2,10 +2,11 @@ import { tldrDue, type EventLogPort, type IdPort, type ThreadId } from '@dltech/
 import type { LanguageModel } from 'ai'
 
 import { tldrFor } from '../model/tldr'
+import type { PauseSignal } from './pause-signal'
 import { ETurnStatus, type TurnOutcome } from './turn-outcome'
 import { TurnRunner } from './turn-runner.port'
 
-type TurnArgs = { threadId: ThreadId; signal?: AbortSignal }
+type TurnArgs = { threadId: ThreadId; signal?: AbortSignal; pause?: PauseSignal }
 
 export type TldrFeed = {
   started(args: { threadId: ThreadId; anchorSeq: number }): void

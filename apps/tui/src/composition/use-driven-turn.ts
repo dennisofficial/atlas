@@ -12,6 +12,7 @@ import type { ThreadView } from './use-thread-view'
 export type DriveOptions = {
   onCommitFailed?: ((error: unknown) => void) | undefined
   onCommitted?: (() => void) | undefined
+  resume?: boolean
 }
 
 export function useDrivenTurn(args: {
@@ -128,7 +129,7 @@ export function useDrivenTurn(args: {
           settleCommit()
           const outcome =
             remoteSaid === null
-              ? await app.runner.runTurn({
+              ? await app.runner[opts?.resume === true ? 'resume' : 'runTurn']({
                   threadId,
                   signal: controller.signal,
                   pause: pauseSignal,
