@@ -13,6 +13,7 @@ import { HookChain, type HookChainSource } from '../../hooks/registry'
 import { SIGKILL_GRACE_MS } from '../shell-process'
 import { type ShellId } from '../shell-id'
 import {
+  announced,
   closeRegistries,
   ELSEWHERE,
   endedDraft,
@@ -101,11 +102,14 @@ for (const adapter of shellAdapters) {
         // The cut shell's settle continuation may still be running; the survivor's ending lands
         // regardless, and removal queues nothing for the cut one.
         await recorded({ log })
+        await announced({ registry })
         const ended = (log?.appended ?? []).filter(
           (draft) => draft.type === 'background-shell-ended',
         )
         expect(ended.map((draft) => endedDraft(draft).shellId)).toContain(kept)
-        expect(registry.pendingNotices({ threadId: THREAD })).toEqual([])
+        const pending = registry.pendingNotices({ threadId: THREAD })
+        expect(pending).toHaveLength(1)
+        expect(pending[0]?.snapshot.shellId).toBe(kept)
       })
 
       it('leaves shells of other threads alone, even asked by id', async () => {

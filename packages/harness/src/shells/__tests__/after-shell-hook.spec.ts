@@ -14,6 +14,7 @@ import {
 import { HookChain, type HookChainSource } from '../../hooks/registry'
 import { AFTER_SHELL_BUDGET_MS, afterShellDrafts } from '../after-shell'
 import {
+  announced,
   closeRegistries,
   ELSEWHERE,
   endedDraft,
@@ -251,7 +252,8 @@ for (const adapter of shellAdapters) {
           key: 'additional-context',
           content: 'the checks are green',
         })
-        expect(registry.pendingNotices({ threadId: THREAD })).toEqual([])
+        await announced({ registry })
+        expect(registry.pendingNotices({ threadId: THREAD })).toHaveLength(1)
       })
 
       it('keeps the ending when a hook throws, because a dying process has nowhere to report it', async () => {

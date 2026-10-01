@@ -173,13 +173,14 @@ for (const adapter of shellAdapters) {
         }
 
         await recorded({ log })
+        await announced({ registry })
         const ended = log?.appended.filter((draft) => draft.type === 'background-shell-ended')
         expect(ended).toHaveLength(1)
         expect(endedDraft(ended?.[0])).toMatchObject({
           killedBy: EKilledBy.Model,
           output: 'before\n',
         })
-        expect(registry.pendingNotices({ threadId: THREAD })).toEqual([])
+        expect(registry.pendingNotices({ threadId: THREAD })).toHaveLength(1)
       })
 
       it('answers a second kill of the same shell with the same ending', async () => {

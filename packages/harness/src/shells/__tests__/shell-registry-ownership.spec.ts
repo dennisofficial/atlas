@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import { EKilledBy } from '@dltech/atlas-core'
 
 import {
+  announced,
   closeRegistries,
   ELSEWHERE,
   job,
@@ -60,7 +61,9 @@ for (const adapter of shellAdapters) {
         if (!theirs.ok) throw new Error(theirs.reason)
         await settle({ registry, shellId: theirs.snapshot.shellId, threadId: ELSEWHERE })
         await recorded({ log, threadId: ELSEWHERE })
+        await announced({ registry, threadId: ELSEWHERE })
 
+        expect(registry.pendingNotices({ threadId: ELSEWHERE })).toHaveLength(1)
         expect(registry.pendingNotices({ threadId: THREAD })).toEqual([])
         expect(registry.drainNotifications({ threadId: THREAD })).toEqual([])
         const ended = (log?.appended ?? []).filter(

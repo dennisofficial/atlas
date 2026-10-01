@@ -241,10 +241,16 @@ rather than paged from disk, and a read reports how many characters it lost rath
 gap is not there. A shell that prints past a hard overflow cap is killed, because nothing else bounds
 the decoder.
 
-**Completion is pushed, and reaches the model as an event of its own.** The registry queues one ending
-per shell — guarded by a flag, so a completion is announced once — and the composition root drains it
-through the same `drainPending` seam the composer's typed messages use, now widened from `string[]` to
-`EventDraft[]` so the two can differ in kind. The ending is a `background-shell-ended` event carrying
+**Completion is written once at occurrence and pushed to its owner.** After output drains and
+after-shell hooks finish, the registry appends the ending and hook drafts to the durable log. The
+shell's log adapter publishes `events-appended` without closing a model step that is still streaming.
+Only after the append succeeds does the registry queue an owner-scoped wake bell. Shared intake
+acknowledges that bell without appending another ending; its wake meaning is independent of new
+drafts. The loop rereads the log for a draft-free wake and continues if it arrives at the final drain.
+An ending recorded during a model reply precedes that reply in the chronological log. If the step
+had not seen it, a pure core decision supplies a one-step continuation nudge after the reply, also
+on interruption. This hands the floor back without moving history or recording the ending twice.
+The ending is a `background-shell-ended` event carrying
 the shell's output, not a `user-said` carrying a sentence about it: a `user-said` puts words in the
 operator's mouth and renders as their message, and a notice saying "read it with `shell_output`" spends
 a whole model step fetching bytes the harness already held. `context-loaded` looks like the right event
@@ -253,18 +259,13 @@ would let a completion notice supersede that shell's earlier stall notice and er
 view. `context-loaded` means "here is the current content of X" — right for CLAUDE.md, wrong for a
 stream of point-in-time events about one shell.
 
-**The delta is read when the ending is handed over, not when the process exits.** Consuming the buffer
-in the exit callback reads as the obvious place and is wrong: an ending that is dropped rather than
-delivered — `forgetNotices` when a new conversation opens — would take output nobody had seen with it.
-So a queued ending holds its snapshot and a closure that takes the delta, and `drainNotifications`
-is what advances the model's cursor. Until something drains, `shell_output` still finds the output.
+**The ending captures output at settle without consuming the read cursor.** The event carries the
+captured output, and the first later `shell_output` read can still return it. The wake bell carries
+no output and changes no cursor; dropping or acknowledging it cannot erase the durable ending.
 
-**A kill the model asked for is the one ending that is not pushed.** `shell_kill` claims the ending
-at kill time, waits for the process to die (bounded by the SIGKILL grace plus slack), and hands the
-output back as the tool result — no event, no wake, no transcript line, since the caller is already
-holding the answer. After-shell hooks still run for the shell, and their drafts keep their ride when
-they have one. If the process outlives the settle deadline the claim is released and the ending
-announces itself as usual.
+**A model-requested kill follows the same occurrence-write path.** `shell_kill` waits for settlement
+and returns a read of the captured ending. The durable event remains the announcement; assembly
+suppresses a redundant model-facing telling when a successful kill result already supplied it.
 
 **Nothing times a background shell out.** A quiet shell is not a stuck one — a test suite can run for
 minutes without printing — so there is no threshold, no sweep and no timer. What survives is the signal
@@ -282,16 +283,16 @@ outcome-shaped policy stayed quietest about. So a kill notifies, a failure notif
 notifies, and teardown notifies.
 
 **An ending that finds no turn running starts one.** Shared message intake schedules that wake for
-the owning thread. Inside a running turn, the loop prepares and commits the notice at its next safe
-boundary, including between failed model attempts. Until committed it stands below the working
-indicator through the same notice component as the durable row, with a muted pending variant. The
-scheduler rechecks when a driver becomes idle, so an arrival after the final drain cannot strand
-itself. A stable pending witness bounds repeated wakes that fail before their first drain.
+the owning thread. Inside a running turn, the loop acknowledges the wake bell and reads the already
+committed ending at its next safe boundary, including between failed model attempts. The transcript
+can show the durable ending immediately even when an overlay blocks the model wake. The scheduler
+rechecks when a driver becomes idle, so an arrival after the final drain cannot strand itself. A
+stable pending witness bounds repeated wakes that fail before their first drain.
 
-**Teardown records what it kills.** Closing the session kills every background shell, and those endings
-are worth keeping — reopening the conversation should say where the dev server went. Nothing is left
-running to drain them, so `close()` runs `closeAll()`, then drains and appends per owner before the
-event log goes.
+**Teardown records what it kills.** Closing the session kills every background shell, and those
+endings are worth keeping — reopening the conversation should say where the dev server went.
+`closeAll()` awaits the occurrence writes; teardown acknowledges remaining bells while intake is
+suspended, without synthesizing another ending.
 
 **A shell belongs to the thread that started it.** The registry is one object for the process, but every
 read is scoped to an owner: `start` records the thread, and `list`, `read`, `peek`, `kill`,

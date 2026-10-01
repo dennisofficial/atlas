@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import { EKilledBy } from '@dltech/atlas-core'
 
+import { ENotice } from '../notice-queue'
+
 import {
   announced,
   closeRegistries,
@@ -105,9 +107,12 @@ describe('checking in on a background shell that has not ended', () => {
     registry.kill({ shellId: started.snapshot.shellId, by: EKilledBy.User, threadId: THREAD })
     await settle({ registry, shellId: started.snapshot.shellId })
     await recorded({ log })
+    await announced({ registry })
 
     await Bun.sleep(CHECK_IN_MS * 2 + 100)
 
-    expect(registry.pendingNotices({ threadId: THREAD })).toEqual([])
+    const pending = registry.pendingNotices({ threadId: THREAD })
+    expect(pending).toHaveLength(1)
+    expect(pending[0]?.kind).toBe(ENotice.Ended)
   })
 })
