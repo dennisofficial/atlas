@@ -4,8 +4,33 @@ import { join } from 'node:path'
 
 import { runGit } from '@dltech/atlas-harness'
 import { createWorkspacePublisher } from '../publish-workspace'
+import type { GitRunner } from '../materialize-workspace'
 
-import { commitAll, git, headOf, refsIn, scenario, specOf, THREAD } from './publish-workspace-fixture'
+import {
+  commitAll,
+  git,
+  headOf,
+  installFailingHooks,
+  refsIn,
+  scenario,
+  specOf,
+  THREAD,
+} from './publish-workspace-fixture'
+
+const subjectIn = async (remote: string, cwd: string, rev: string): Promise<string> =>
+  (
+    await runGit({
+      args: ['--git-dir', remote, 'log', '-1', '--format=%s', rev],
+      cwd,
+    })
+  ).stdout.trim()
+
+const recordingGit =
+  (runs: (readonly string[])[]): GitRunner =>
+  async (call) => {
+    runs.push(call.args)
+    return runGit(call)
+  }
 
 describe('createWorkspacePublisher', () => {
   it('commits the sandbox tree and pushes it to a content-addressed scratch ref', async () => {
@@ -63,8 +88,9 @@ describe('createWorkspacePublisher', () => {
     )
   })
 
-  it('writes conventional-commit messages a commit-msg hook (commitlint) accepts', async () => {
+  it('publishes through failing pre-commit and commit-msg hooks, which never fire', async () => {
     const { remote, sandbox, lifted } = await scenario()
+    installFailingHooks(sandbox)
     writeFileSync(join(sandbox, 'cloud-note.txt'), 'written in the cloud\n')
 
     const publish = createWorkspacePublisher({
@@ -75,20 +101,28 @@ describe('createWorkspacePublisher', () => {
     const published = await publish({ cwd: sandbox })
     if (published === null) throw new Error('expected a published ref')
 
-    const conventional = /^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([^()]+\))?!?: .+/
-    const subjectIn = async (rev: string): Promise<string> =>
-      (
-        await runGit({
-          args: ['--git-dir', remote, 'log', '-1', '--format=%s', rev],
-          cwd: sandbox,
-        })
-      ).stdout.trim()
+    expect(await refsIn(remote)).toContain(published.ref)
+    expect(await headOf(sandbox)).toBe(lifted)
+    expect(await subjectIn(remote, sandbox, published.commit)).toBe('chore: workspace coming home')
+  })
 
-    expect((await git(sandbox, ['log', '-1', '--format=%s', 'HEAD'])).stdout.trim()).toMatch(
-      conventional,
-    )
-    expect(await subjectIn(published.commit)).toMatch(conventional)
-    expect(await subjectIn(`${published.commit}^2`)).toMatch(conventional)
+  it('never runs the commit porcelain — the envelope is plumbing only, so hooks never fire', async () => {
+    const { remote, sandbox, lifted } = await scenario()
+    writeFileSync(join(sandbox, 'cloud-note.txt'), 'written in the cloud\n')
+    const runs: (readonly string[])[] = []
+
+    const publish = createWorkspacePublisher({
+      threadId: THREAD,
+      fetchSpec: async () => specOf({ remoteUrl: remote, commit: lifted }),
+      git: recordingGit(runs),
+    })
+
+    const published = await publish({ cwd: sandbox })
+    if (published === null) throw new Error('expected a published ref')
+
+    expect(runs.some((args) => args.includes('commit'))).toBe(false)
+    expect(runs.some((args) => args.includes('write-tree'))).toBe(true)
+    expect(runs.some((args) => args.includes('commit-tree'))).toBe(true)
   })
 
   it('sends nothing when the tree is clean at the lifted commit', async () => {

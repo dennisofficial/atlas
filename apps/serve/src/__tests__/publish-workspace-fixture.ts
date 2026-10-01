@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -33,6 +33,15 @@ export const headOf = async (cwd: string): Promise<string> =>
 
 export const refsIn = async (remote: string): Promise<string> =>
   (await runGit({ args: ['ls-remote', '--', remote], cwd: remote })).stdout
+
+export const installFailingHooks = (cwd: string): void => {
+  const hook = join(cwd, '.git', 'hooks')
+  for (const name of ['pre-commit', 'commit-msg']) {
+    const path = join(hook, name)
+    writeFileSync(path, '#!/bin/sh\nexit 1\n')
+    chmodSync(path, 0o755)
+  }
+}
 
 export const scenario = async (): Promise<{ remote: string; sandbox: string; lifted: string }> => {
   const root = mkdtempSync(join(tmpdir(), 'atlas-publish-'))
