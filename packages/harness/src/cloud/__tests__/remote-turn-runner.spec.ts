@@ -32,18 +32,19 @@ describe('a turn driven over the session socket', () => {
     expect(live().sent.at(-1)).toEqual({ kind: EClientFrame.Run })
   })
 
-  it('settles queued turns in the order the sandbox ends them', async () => {
+  it('refuses overlapping turns without disturbing the accepted turn', async () => {
     const { channel, open, receive } = harness()
     open()
     receive({ kind: EServeFrame.Ready, seq: 1 })
     const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
 
     const first = runner.runTurn({ threadId: THREAD })
-    const second = runner.runTurn({ threadId: THREAD })
+    await expect(runner.runTurn({ threadId: THREAD })).rejects.toThrow('already running')
     endTurn(receive, completed('run-1'))
-    endTurn(receive, completed('run-2'))
-
     await expect(first).resolves.toEqual(completed('run-1'))
+
+    const second = runner.runTurn({ threadId: THREAD })
+    endTurn(receive, completed('run-2'))
     await expect(second).resolves.toEqual(completed('run-2'))
   })
 

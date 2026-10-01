@@ -9,6 +9,7 @@ import { scriptedModel, type ScriptedStep } from '../../model/testing/scripted-m
 import { HookedToolDispatcher } from '../../tools/dispatch'
 import { InMemoryToolRegistry } from '../../tools/registry'
 import { HookChain } from '../../hooks/registry'
+import { PauseSignal } from '../../loop/pause-signal'
 import { createTempHome, type TempHome } from '../../loop/__tests__/temp-home'
 
 const PROJECT_DIRECTORY = '/w'
@@ -95,5 +96,20 @@ describe('the working state a published turn announces', () => {
       { type: 'turn-working', working: true },
       { type: 'turn-working', working: false },
     ])
+  })
+})
+
+describe('resuming a published turn', () => {
+  it('lets the caller pause the resumed turn at the seam', async () => {
+    const { runner, threadId } = await openTurn([{ text: 'still working' }])
+    const first = new PauseSignal()
+    first.pause()
+    await runner.say({ threadId, text: 'go', pause: first })
+    const pause = new PauseSignal()
+    pause.pause()
+
+    const outcome = await runner.resume({ threadId, pause })
+
+    expect(outcome.status).toBe(ETurnStatus.RelocationPaused)
   })
 })

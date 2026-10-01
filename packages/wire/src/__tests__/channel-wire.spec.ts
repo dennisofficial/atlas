@@ -111,8 +111,33 @@ describe('the memory archive op', () => {
 })
 
 describe('the protocol stamp', () => {
-  it('speaks the version that refuses broker-dependent serve runtimes', () => {
-    expect(CHANNEL_PROTOCOL_VERSION).toBe(10)
+  it('speaks the version that refuses serve runtimes which strip the run frame resume flag', () => {
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(11)
+  })
+})
+
+describe('the run frame', () => {
+  it('round-trips a bare run unchanged', () => {
+    const frame: ClientFrame = { kind: EClientFrame.Run }
+
+    expect(decodeClientFrame(encodeFrame(frame))).toEqual({ kind: EClientFrame.Run })
+    expect(encodeFrame(frame)).toBe('{"kind":"run"}')
+  })
+
+  it('round-trips the optional resume flag', () => {
+    const frame: ClientFrame = { kind: EClientFrame.Run, resume: true }
+
+    expect(decodeClientFrame(encodeFrame(frame))).toEqual(frame)
+  })
+
+  it('drops a run frame whose resume flag is not a boolean', () => {
+    expect(decodeClientFrame('{"kind":"run","resume":"yes"}')).toBeNull()
+  })
+
+  it('leaves the relocation resume frame bare', () => {
+    expect(decodeClientFrame(encodeFrame({ kind: EClientFrame.Resume }))).toEqual({
+      kind: EClientFrame.Resume,
+    })
   })
 })
 
