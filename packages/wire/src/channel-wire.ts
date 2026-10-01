@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { rosterWireSchema } from './roster-wire.js'
+import { runtimeCheckpointSchema } from './runtime-checkpoint.js'
 import { wireEventSchema, wireThreadSchema, wireTurnSchema } from './session-wire.js'
 import { channelSignalSchema } from './signal-wire.js'
 
@@ -37,6 +38,7 @@ export enum EServeFrame {
   InterruptAcked = 'interrupt-acked',
   SendAcked = 'send-acked',
   Roster = 'roster',
+  Checkpoint = 'checkpoint',
   ThreadRenamed = 'thread-renamed',
   ThreadModelChanged = 'thread-model-changed',
   Error = 'error',
@@ -102,6 +104,7 @@ export enum EClientRequest {
    * refuses, and the lift warns rather than silently attaching a blank transcript.
    */
   RestoreTranscript = 'restore-transcript',
+  ReadRuntimeCheckpoint = 'read-runtime-checkpoint',
 }
 
 export enum ETurnStatus {
@@ -263,6 +266,7 @@ export const serveFrameSchema = z.discriminatedUnion('kind', [
      * which reproduces the old fail-fast behaviour against an old serve rather than hanging.
      */
     turnInFlight: z.boolean().optional(),
+    checkpoint: runtimeCheckpointSchema.nullable().catch(null).optional(),
   }),
   z.object({ kind: z.literal(EServeFrame.Signal), seq: seqSchema, signal: channelSignalSchema }),
   z.object({
@@ -272,7 +276,8 @@ export const serveFrameSchema = z.discriminatedUnion('kind', [
     data: z.unknown(),
   }),
   z.object({ kind: z.literal(EServeFrame.Reload), sinceEventSeq: seqSchema }),
-  z.object({ kind: z.literal(EServeFrame.Parked), reason: z.string() }),
+  z.object({ kind: z.literal(EServeFrame.Parked), reason: z.string(), checkpoint: runtimeCheckpointSchema.nullable().catch(null).optional() }),
+  z.object({ kind: z.literal(EServeFrame.Checkpoint), checkpoint: runtimeCheckpointSchema }),
   z.object({ kind: z.literal(EServeFrame.TurnEnded), outcome: turnOutcomeWireSchema }),
   z.object({ kind: z.literal(EServeFrame.InterruptAcked), seq: seqSchema }),
   z.object({ kind: z.literal(EServeFrame.SendAcked), sendId: sendIdWireSchema }),
