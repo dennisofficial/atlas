@@ -17,7 +17,7 @@ import {
   THREAD,
   USER_A,
   USER_B,
-} from './sandbox-checkpoint-fixture'
+} from '../../../../test/sandbox-checkpoint-fixture'
 import { storedCheckpointOf } from './sandbox-checkpoint'
 import { SandboxCheckpointController } from './sandbox-checkpoint.controller'
 

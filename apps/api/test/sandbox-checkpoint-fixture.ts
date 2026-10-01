@@ -2,11 +2,11 @@ import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 import {
   fakeSessionDb,
   type FakeCloudSandboxRow,
-} from '../../../../test/fake-session-db.js'
-import type { AuthenticatedRequest } from '../../../_core/types/auth.types'
-import { storedCheckpointOf } from './sandbox-checkpoint'
-import { mintSessionToken } from './sandbox-tokens'
-import type { SandboxAuthenticatedRequest } from './sandbox-token.guard'
+} from './fake-session-db'
+import type { AuthenticatedRequest } from '../src/_core/types/auth.types'
+import { storedCheckpointOf } from '../src/api/platform/sandboxes/sandbox-checkpoint'
+import { mintSessionToken } from '../src/api/platform/sandboxes/sandbox-tokens'
+import type { SandboxAuthenticatedRequest } from '../src/api/platform/sandboxes/sandbox-token.guard'
 
 export const USER_A = 'user-a'
 export const USER_B = 'user-b'

@@ -20,7 +20,7 @@ import {
   storedInRow,
   storedRow,
   THREAD,
-} from './sandbox-checkpoint-fixture'
+} from '../../../../test/sandbox-checkpoint-fixture'
 import { SandboxCheckpointController } from './sandbox-checkpoint.controller'
 import { mintSessionToken } from './sandbox-tokens'
 
