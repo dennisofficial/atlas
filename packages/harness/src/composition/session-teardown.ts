@@ -9,13 +9,6 @@ export type TeardownSource = {
   threadsWithPendingInput?: (() => readonly ThreadId[]) | undefined
 }
 
-export type TeardownShellSource = TeardownSource & {
-  threadsWithUnresolvedEndings(): readonly ThreadId[]
-  recordEndings(args: { log: EventLogPort; ids: IdPort; threadId: ThreadId }): Promise<unknown>
-}
-
-const isShellSource = (source: TeardownSource): source is TeardownShellSource => 'recordEndings' in source
-
 export async function teardownSession(args: {
   sources: readonly TeardownSource[]
   log: EventLogPort
@@ -47,12 +40,6 @@ export async function teardownSession(args: {
             prepared?.release?.()
           }
         })
-      }
-    }
-    for (const source of args.sources) {
-      if (!isShellSource(source)) continue
-      for (const threadId of source.threadsWithUnresolvedEndings()) {
-        await attempt(() => source.recordEndings({ log: args.log, ids: args.ids, threadId }))
       }
     }
   } finally {
