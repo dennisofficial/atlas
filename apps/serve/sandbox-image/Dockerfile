@@ -25,12 +25,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       > /etc/apt/sources.list.d/docker.list \
   && apt-get update && apt-get install -y --no-install-recommends \
       docker-ce-cli docker-ce containerd.io docker-buildx-plugin docker-compose-plugin \
-  # every sandbox user may start the baked dockerd; Vercel sandboxes run unprivileged and the
-  # lazy shim needs sudo to launch the daemon, while the local docker sandbox mounts the host
-  # socket and never starts a nested one
-  && printf 'ALL ALL=(root) NOPASSWD: /usr/bin/dockerd, /usr/bin/sh -c *dockerd*\n' \
-      > /etc/sudoers.d/atlas-dockerd \
-  && chmod 0440 /etc/sudoers.d/atlas-dockerd \
+  # the container is the isolation boundary, so any sandbox user may sudo to root without a
+  # password: privileged setup (playwright --with-deps, apt, the baked dockerd) runs from
+  # non-interactive execs that can never answer a password prompt
+  && printf 'ALL ALL=(ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/atlas-sandbox \
+  && chmod 0440 /etc/sudoers.d/atlas-sandbox \
   && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
       -o /etc/apt/keyrings/githubcli-archive-keyring.gpg \
   && chmod a+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \

@@ -117,10 +117,15 @@ rg --version
 gpg --version
 curl --version
 ssh -V
+test "$(sudo -n id -u)" = 0
+sudo -n apt-get update -qq
+sudo -n apt-get install -y --no-install-recommends cowsay
+/usr/games/cowsay ok
 `,
       })
       expect(identity).toContain('operator=501:20:atlas')
       expect(identity).toContain('/opt/mise/shims/bun')
+      expect(identity).toContain('< ok >')
       const bunOutput = await checkedScript({
         containerId: sandbox.id,
         cwd: worktree,
