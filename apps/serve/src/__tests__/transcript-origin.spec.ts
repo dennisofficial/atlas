@@ -145,6 +145,7 @@ describe('the transcript origin marker and the busy guard', () => {
       atlasHome: home,
       threadId: THREAD,
       log,
+      ids: fixedIds({ prefix: 'spec' }),
     })
     const stamped = await readTranscriptOrigin({
       sessionDir: sessionDirectory({ home, sessionId: THREAD }),
@@ -177,6 +178,7 @@ describe('the transcript origin marker and the busy guard', () => {
       atlasHome: home,
       threadId: THREAD,
       log: openLog({ home }),
+      ids: fixedIds({ prefix: 'spec' }),
     })
 
     const busy = 'children are resuming'
@@ -185,6 +187,7 @@ describe('the transcript origin marker and the busy guard', () => {
       atlasHome: home,
       threadId: THREAD,
       log: openLog({ home }),
+      ids: fixedIds({ prefix: 'spec' }),
       refuseIfBusy: () => busy,
     })
     expect(matched).toEqual({ restored: true, failed: null })
@@ -195,6 +198,7 @@ describe('the transcript origin marker and the busy guard', () => {
       atlasHome: home,
       threadId: THREAD,
       log: openLog({ home }),
+      ids: fixedIds({ prefix: 'spec' }),
       refuseIfBusy: () => busy,
     })
     expect(refused.restored).toBe(false)

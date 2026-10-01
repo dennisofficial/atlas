@@ -181,7 +181,6 @@ export function deriveTranscript(args: {
   events: readonly Event[]
   signals: readonly StepSignal[]
   turns?: readonly TurnSpend[] | undefined
-  location?: EExecutionLocation | undefined
   reveal?: RevealGate | null
   thinking?: EThinkingVisibility
   pendingTldr?: { anchorSeq: number; text: string } | null | undefined
@@ -190,7 +189,7 @@ export function deriveTranscript(args: {
   outputs?: ReadonlyMap<CallId, string> | undefined
 }): TranscriptModel {
   return assembleTranscript({
-    durable: durableEntries({ events: args.events, turns: args.turns, location: args.location }),
+    durable: durableEntries({ events: args.events, turns: args.turns }),
     live: liveSteps({ steps: stepsOfSignals(args.signals), events: args.events }),
     ...(args.reveal === undefined ? {} : { reveal: args.reveal }),
     ...(args.thinking === undefined ? {} : { thinking: args.thinking }),

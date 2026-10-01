@@ -53,9 +53,11 @@ export type LiftCtx = {
 }
 
 /**
- * The relocation notices land in the local log after the archive shipped, so the copy the sandbox
- * serves does not carry them — the descend's own relocation marker closes the trail on the way
- * back. They are for whoever opens the local transcript between the flip and the move.
+ * The lift's model-facing relocation notice lands in the local log after the archive shipped, so
+ * the copy the sandbox serves does not carry it — it is for whoever opens the local transcript
+ * between the flip and the move. The `location-changed` marker is deliberately not here: the
+ * sandbox pins that on its own log during restore (it is the transcript the operator reads while
+ * lifted), and the descend's archive carries that marker home, displacing nothing.
  */
 const appendRelocationNotice = async (ctx: LiftCtx): Promise<void> => {
   const { args } = ctx
@@ -65,14 +67,6 @@ const appendRelocationNotice = async (ctx: LiftCtx): Promise<void> => {
       runId: args.ids.nextRunId(),
       drafts: [
         ...ctx.stopped.drainNotices(),
-        {
-          type: 'location-changed',
-          from: ctx.from,
-          to: EExecutionLocation.Cloud,
-          cwd: CLOUD_WORKSPACE_PATH,
-          remoteUrl: ctx.workspace?.remoteUrl ?? null,
-          branch: ctx.workspace?.branch ?? null,
-        },
         liftedDraft({ workspace: ctx.workspace, stopped: ctx.stopped }),
       ],
     })
@@ -203,7 +197,18 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
       ctx.attachment = attachment
       ctx.channel = attachment.channel
       if (ctx.transcript !== undefined) {
-        const reply = await attachment.channel.request({ op: EClientRequest.RestoreTranscript, params: {} })
+        const reply = await attachment.channel.request({
+          op: EClientRequest.RestoreTranscript,
+          params: {
+            locationChanged: {
+              from: ctx.from,
+              to: EExecutionLocation.Cloud,
+              cwd: CLOUD_WORKSPACE_PATH,
+              remoteUrl: ctx.workspace?.remoteUrl ?? null,
+              branch: ctx.workspace?.branch ?? null,
+            },
+          },
+        })
         if (typeof reply !== 'object' || reply === null || !('restored' in reply) || reply.restored !== true) {
           throw new Error('serve did not restore the transcript — refusing the ownership flip')
         }

@@ -159,6 +159,23 @@ export const setThreadModelParamsSchema = z.object({
 })
 export type SetThreadModelParams = z.infer<typeof setThreadModelParamsSchema>
 
+/**
+ * The lift's `location-changed` marker, carried on the restore op so the sandbox pins it on its own
+ * log as part of the restore. The values mirror core's EExecutionLocation, which wire cannot import.
+ */
+export const restoreTranscriptParamsSchema = z.object({
+  locationChanged: z
+    .object({
+      from: z.enum(['host', 'docker', 'cloud']),
+      to: z.enum(['host', 'docker', 'cloud']),
+      cwd: z.string().min(1).optional(),
+      remoteUrl: z.string().min(1).nullable().optional(),
+      branch: z.string().min(1).nullable().optional(),
+    })
+    .optional(),
+})
+export type RestoreTranscriptParams = z.infer<typeof restoreTranscriptParamsSchema>
+
 export const readEventsReplySchema = z.object({ events: z.array(wireEventSchema) })
 export const readThreadReplySchema = z.object({ thread: wireThreadSchema.nullable() })
 export const readThreadsReplySchema = z.object({ threads: z.array(wireThreadSchema) })

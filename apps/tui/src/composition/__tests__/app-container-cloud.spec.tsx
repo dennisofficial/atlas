@@ -118,7 +118,7 @@ describe('/container cloud', () => {
     }
   }, 60_000)
 
-  it('renders the cloud divider once attached, from placement rather than the sealed archive', async () => {
+  it('renders the cloud divider once attached, pinned by the restore on the served log', async () => {
     const app = speaking()
     const bridge = fakeBridge()
     const mounted = await mount({ app, bridge })

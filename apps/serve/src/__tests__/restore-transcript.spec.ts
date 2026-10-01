@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'bun:test'
-import { toRunId, toThreadId, type ClockPort, type EventId, type IdPort, type RunId, type ThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation, toRunId, toThreadId, type ClockPort, type EventId, type IdPort, type RunId, type ThreadId } from '@dltech/atlas-core'
 
 import { buildSessionArchive, JsonlEventLog, SessionRegistry } from '@dltech/atlas-harness'
 import { eventLogFile, sessionDirectory } from '@dltech/atlas-harness'
@@ -74,6 +74,7 @@ describe('restoring a transcript the lift shipped late', () => {
       atlasHome: home,
       threadId: THREAD,
       log,
+      ids: fixedIds({ prefix: 'spec' }),
     })
 
     expect(result).toEqual({ restored: true, failed: null })
@@ -94,6 +95,7 @@ describe('restoring a transcript the lift shipped late', () => {
       atlasHome: home,
       threadId: THREAD,
       log,
+      ids: fixedIds({ prefix: 'spec' }),
     })
     await log.append({
       threadId: THREAD,
@@ -106,6 +108,7 @@ describe('restoring a transcript the lift shipped late', () => {
       atlasHome: home,
       threadId: THREAD,
       log,
+      ids: fixedIds({ prefix: 'spec' }),
     })
 
     expect(restored).toEqual({ restored: true, failed: null })
@@ -124,9 +127,68 @@ describe('restoring a transcript the lift shipped late', () => {
       atlasHome: home,
       threadId: THREAD,
       log: openLog({ home }),
+      ids: fixedIds({ prefix: 'spec' }),
     })
 
     expect(result.restored).toBe(false)
     expect(result.failed).toContain('no transcript archive')
+  })
+
+  it('pins the lift’s location-changed marker on the restored log', async () => {
+    const home = freshHome()
+    const archive = await seedArchive('before-the-lift')
+    const log = openLog({ home })
+
+    const result = await restoreTranscript({
+      fetchArchive: async () => archive,
+      atlasHome: home,
+      threadId: THREAD,
+      log,
+      ids: fixedIds({ prefix: 'spec' }),
+      marker: {
+        from: 'host',
+        to: 'cloud',
+        cwd: '/workspace',
+        remoteUrl: 'git@github.com:comp-ai/atlas.git',
+        branch: 'dennis/container-cloud',
+      },
+    })
+
+    expect(result).toEqual({ restored: true, failed: null })
+    const events = await log.read({ threadId: THREAD })
+    const marker = events.at(-1)
+    if (marker?.type !== 'location-changed') throw new Error('expected a trailing location-changed')
+    expect(marker.from).toBe(EExecutionLocation.Host)
+    expect(marker.to).toBe(EExecutionLocation.Cloud)
+    expect(marker.cwd).toBe('/workspace')
+    expect(marker.remoteUrl).toBe('git@github.com:comp-ai/atlas.git')
+    expect(marker.branch).toBe('dennis/container-cloud')
+  })
+
+  it('does not pin a second marker when a re-restore already ends at the cloud', async () => {
+    const home = freshHome()
+    const archive = await seedArchive('before-the-lift')
+    const log = openLog({ home })
+    const marker = { from: 'host', to: 'cloud' } as const
+
+    await restoreTranscript({
+      fetchArchive: async () => archive,
+      atlasHome: home,
+      threadId: THREAD,
+      log,
+      ids: fixedIds({ prefix: 'spec' }),
+      marker,
+    })
+    await restoreTranscript({
+      fetchArchive: async () => archive,
+      atlasHome: home,
+      threadId: THREAD,
+      log,
+      ids: fixedIds({ prefix: 'spec' }),
+      marker,
+    })
+
+    const events = await log.read({ threadId: THREAD })
+    expect(events.filter((event) => event.type === 'location-changed')).toHaveLength(1)
   })
 })

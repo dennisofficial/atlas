@@ -105,12 +105,11 @@ describe('lifting a conversation into the cloud', () => {
     }
     expect(ending.output).toBe('listening on :3000')
 
-    const marker = events.findIndex((event) => event.type === 'location-changed')
-    expect(events.indexOf(ending)).toBeLessThan(marker)
+    const cloud = test.bridge.log.peek({ threadId: CLOUD_THREAD })
+    const marker = cloud.findIndex((event) => event.type === 'location-changed')
+    expect(marker).toBeGreaterThan(-1)
     expect(
-      test.bridge.log
-        .peek({ threadId: CLOUD_THREAD })
-        .some((event) => event.type === 'background-shell-ended'),
+      cloud.some((event) => event.type === 'background-shell-ended'),
     ).toBe(false)
   })
 
@@ -139,26 +138,26 @@ describe('lifting a conversation into the cloud', () => {
     expect(drains).toBe(0)
   })
 
-  it('marks the location change in the local log, before the transition notice', async () => {
+  it('pins the location change on the sandbox log during restore, not the local one', async () => {
     useAtlasHome()
     const test = harness()
     await seedLocalTranscript(test)
 
     await liftToCloud(test.args)
 
-    const events = test.localLog.peek({ threadId: CLOUD_THREAD })
-    const marker = events.find((event) => event.type === 'location-changed')
+    const local = test.localLog.peek({ threadId: CLOUD_THREAD })
+    expect(local.some((event) => event.type === 'location-changed')).toBe(false)
+
+    const cloud = test.bridge.log.peek({ threadId: CLOUD_THREAD })
+    const marker = cloud.find((event) => event.type === 'location-changed')
     if (marker === undefined || marker.type !== 'location-changed') {
-      throw new Error('expected a location-changed event in the local log')
+      throw new Error('expected a location-changed event pinned on the sandbox log')
     }
     expect(marker.from).toBe(EExecutionLocation.Host)
     expect(marker.to).toBe(EExecutionLocation.Cloud)
     expect(marker.cwd).toBe('/workspace')
     expect(marker.remoteUrl).toBe('git@github.com:comp-ai/atlas.git')
     expect(marker.branch).toBe('dennis/container-cloud')
-
-    const noticeIndex = events.findIndex((event) => event.type === 'context-loaded')
-    expect(events.indexOf(marker)).toBeLessThan(noticeIndex)
   })
 
   it('waits for pause and archive before provisioning serve', async () => {

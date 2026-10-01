@@ -2,8 +2,15 @@ import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
 
-import { toRunId, toThreadId, type EventDraft, type SaidImage, type ThreadId } from '@dltech/atlas-core'
-import type { RosterWire } from '@dltech/atlas-wire'
+import {
+  EExecutionLocation,
+  toRunId,
+  toThreadId,
+  type EventDraft,
+  type SaidImage,
+  type ThreadId,
+} from '@dltech/atlas-core'
+import { restoreTranscriptParamsSchema, type RosterWire } from '@dltech/atlas-wire'
 import {
   buildSessionArchive,
   EChannelConnection,
@@ -268,6 +275,29 @@ export function fakeCloudChannel(
         await booted
       }
       if (given.op === EClientRequest.RestoreTranscript) {
+        // Mirror the serve's restore: pin the lift's location-changed marker on the sandbox log,
+        // unless the log already ends at a location-changed with the same `to`.
+        const params = restoreTranscriptParamsSchema.safeParse(given.params ?? {})
+        const marker = params.success ? params.data.locationChanged : undefined
+        if (marker !== undefined && args.log !== undefined) {
+          const last = args.log.peek({ threadId: channelThreadId }).at(-1)
+          if (!(last?.type === 'location-changed' && last.to === marker.to)) {
+            await args.log.append({
+              threadId: channelThreadId,
+              runId: toRunId(`serve-${channelThreadId}`),
+              drafts: [
+                {
+                  type: 'location-changed',
+                  from: marker.from as EExecutionLocation,
+                  to: marker.to as EExecutionLocation,
+                  ...(marker.cwd === undefined ? {} : { cwd: marker.cwd }),
+                  ...(marker.remoteUrl === undefined ? {} : { remoteUrl: marker.remoteUrl }),
+                  ...(marker.branch === undefined ? {} : { branch: marker.branch }),
+                },
+              ],
+            })
+          }
+        }
         return { restored: transcriptRestored }
       }
       if (given.op === EClientRequest.ReadTranscriptIdentity) {
