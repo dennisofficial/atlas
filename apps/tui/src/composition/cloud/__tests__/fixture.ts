@@ -10,7 +10,7 @@ import {
   type SaidImage,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { restoreTranscriptParamsSchema, type RosterWire } from '@dltech/atlas-wire'
+import { restoreTranscriptParamsSchema, type RosterWire, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 import {
   buildSessionArchive,
   EChannelConnection,
@@ -77,8 +77,8 @@ export type FakeCloudChannel = CloudChannel & {
   pushThreadRenamed(args: { threadId: ThreadId; title: string }): void
   pushThreadModelChanged(args: { threadId: ThreadId; model: ThreadModel }): void
   endTurn(outcome: TurnOutcome): void
-  onCheckpoint(listener: (checkpoint: unknown) => void): () => void
-  pushCheckpoint(checkpoint: unknown): void
+  onCheckpoint(listener: (checkpoint: RuntimeCheckpoint) => void): () => void
+  pushCheckpoint(checkpoint: RuntimeCheckpoint): void
   readonly closed: boolean
   readonly runs: number
   readonly sent: readonly {
@@ -128,7 +128,7 @@ export function fakeCloudChannel(
     (changed: { threadId: ThreadId; model: ThreadModel }) => void
   >()
   const turnEndings = new Set<(outcome: TurnOutcome) => void>()
-  const checkpoints = new Set<(checkpoint: unknown) => void>()
+  const checkpoints = new Set<(checkpoint: RuntimeCheckpoint) => void>()
   const woken: { url: string; token: string }[] = []
   const requests: { op: EClientRequest; params: unknown }[] = []
   const sent: {
@@ -457,13 +457,13 @@ export function fakeCloudChannel(
     endTurn(outcome) {
       for (const listener of [...turnEndings]) listener(outcome)
     },
-    onCheckpoint: (listener: (checkpoint: unknown) => void) => {
+    onCheckpoint: (listener: (checkpoint: RuntimeCheckpoint) => void) => {
       checkpoints.add(listener)
       return () => {
         checkpoints.delete(listener)
       }
     },
-    pushCheckpoint(checkpoint: unknown) {
+    pushCheckpoint(checkpoint: RuntimeCheckpoint) {
       for (const listener of [...checkpoints]) listener(checkpoint)
     },
   }

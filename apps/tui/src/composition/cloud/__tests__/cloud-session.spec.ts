@@ -385,7 +385,7 @@ describe('the sandbox lifecycle and transcript freshness', () => {
     }
     let appliedNow: { identity: { head: number; count: number; digest: string }; appliedAt: number } | null =
       { identity: applied, appliedAt: SEEN_AT }
-    let resync: (() => void) | null = null
+    const resync: { current: (() => void) | null } = { current: null }
     const channel = fakeCloudChannel({
       connection: { state: EChannelConnection.Open, detail: null },
     })
@@ -401,7 +401,7 @@ describe('the sandbox lifecycle and transcript freshness', () => {
       },
       onReload: () =>
         new Promise<void>((resolve) => {
-          resync = resolve
+          resync.current = resolve
         }),
       appliedSnapshot: () => appliedNow,
     })
@@ -423,7 +423,7 @@ describe('the sandbox lifecycle and transcript freshness', () => {
 
     // Only the applied resync — whose identity now matches the checkpoint — clears the gray.
     appliedNow = { identity: { head: 12, count: 12, digest: 'c'.repeat(64) }, appliedAt: SEEN_AT }
-    resync?.()
+    resync.current?.()
     await settled()
 
     expect(session.health().freshness).toBe(ECloudFreshness.Synced)
