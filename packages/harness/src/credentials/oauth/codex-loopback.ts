@@ -10,10 +10,54 @@ const CALLBACK_TIMEOUT_MS = 5 * 60 * 1000
 const SUCCESS_PAGE_GRACE_MS = 5000
 
 const HTML_TYPE = { 'content-type': 'text/html; charset=utf-8' }
-const SUCCESS_HTML =
-  '<!doctype html><title>Signed in</title><h1>Signed in with ChatGPT</h1><p>You can close this window and return to the terminal.</p><script>window.close()</script>'
+
+const escapeHtml = (text: string): string =>
+  text.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`)
+
+const PAGE_STYLE = `
+  * { margin: 0; box-sizing: border-box; }
+  body {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    background: radial-gradient(ellipse 80% 60% at 50% 0%, #3d2318 0%, #1f130d 55%, #120b08 100%);
+    color: #e8f0ec; padding: 24px;
+  }
+  .card {
+    max-width: 420px; width: 100%; text-align: center; padding: 48px 40px;
+    background: linear-gradient(165deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
+    border: 1px solid rgba(255,255,255,0.09); border-radius: 20px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08);
+    backdrop-filter: blur(12px);
+  }
+  .mark {
+    width: 56px; height: 56px; margin: 0 auto 24px; border-radius: 16px;
+    display: flex; align-items: center; justify-content: center; font-size: 28px; color: #fff;
+    background: linear-gradient(140deg, #10a37f 0%, #0d8a6a 100%);
+    box-shadow: 0 8px 24px rgba(16,163,127,0.35);
+  }
+  .mark.fail { background: linear-gradient(140deg, #b3402e 0%, #8f3123 100%); box-shadow: 0 8px 24px rgba(179,64,46,0.3); }
+  h1 { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; margin-bottom: 10px; }
+  p { font-size: 14px; line-height: 1.6; color: #9db3aa; }
+  p.detail { color: #c9a79e; margin: 0 0 12px; font-size: 13px; }
+`
+
+const page = (args: { title: string; heading: string; body: string; failed: boolean }): string =>
+  `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${args.title}</title><style>${PAGE_STYLE}</style></head><body><div class="card"><div class="mark${args.failed ? ' fail' : ''}">${args.failed ? '&#10007;' : '&#10003;'}</div><h1>${args.heading}</h1>${args.body}</div>${args.failed ? '' : '<script>window.close()</script>'}</body></html>`
+
+const SUCCESS_HTML = page({
+  title: 'Signed in',
+  heading: 'Signed in with ChatGPT',
+  body: '<p>You can close this window and return to the terminal.</p>',
+  failed: false,
+})
+
 const errorHtml = (detail: string): string =>
-  `<!doctype html><title>Sign-in failed</title><h1>Sign-in failed</h1><p>${detail.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`)}</p><p>You can close this window.</p>`
+  page({
+    title: 'Sign-in failed',
+    heading: 'Sign-in failed',
+    body: `<p class="detail">${escapeHtml(detail)}</p><p>You can close this window and try again from the terminal.</p>`,
+    failed: true,
+  })
 
 type BunServer = ReturnType<typeof Bun.serve>
 
