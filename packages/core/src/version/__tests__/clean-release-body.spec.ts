@@ -17,6 +17,14 @@ describe('cleanReleaseBody', () => {
     )
   })
 
+  it('strips bot authors whose login carries a [bot] suffix', () => {
+    expect(
+      cleanReleaseBody(
+        '* chore(harness): regenerate model catalogue by @github-actions[bot] in https://github.com/owner/atlas/pull/976'
+      )
+    ).toBe('* chore(harness): regenerate model catalogue')
+  })
+
   it('strips the attribution tail whether it links a pull url or an issue number', () => {
     expect(
       cleanReleaseBody('* feat(tui): show release notes on launch by @dennislysenko in #860')
