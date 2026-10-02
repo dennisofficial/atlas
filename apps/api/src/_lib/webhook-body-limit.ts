@@ -5,7 +5,9 @@ import { json, type RequestHandler } from 'express'
  * JSON parser accepts WORKSPACE_BODY_LIMIT (96mb) because workspace pushes are legitimately
  * large; a GitHub webhook delivery is never anywhere near that, and these routes are
  * reachable with no caller principal (the HMAC is verified only after the body is buffered), so
- * they get their own parser that rejects oversized bodies before buffering.
+ * they get their own parser that rejects oversized bodies before buffering. There is
+ * deliberately no request-rate cap here: a throttled webhook is a failed delivery, and GitHub
+ * does not retry those, so the ceiling only ever dropped real events.
  */
 export const GITHUB_WEBHOOK_BODY_LIMIT = '1mb'
 
@@ -18,10 +20,3 @@ export function webhookJsonParser(args: { limit: string }): RequestHandler {
     },
   })
 }
-
-/**
- * Per-minute request cap for the unauthenticated webhook endpoints, applied in place of
- * @SkipThrottle(). A real GitHub sender delivers at most a few events a second and retries
- * on 429, while an attacker spraying invalid signatures has no throttle at all without this.
- */
-export const WEBHOOK_THROTTLE_PER_MINUTE = 60

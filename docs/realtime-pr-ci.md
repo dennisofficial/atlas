@@ -134,16 +134,23 @@ GET    /v1/github/prs/stream?repos=owner/a,owner/b   (SSE)
   required for correctness.
 - **The SSE stream** is one connection per session, carrying events for every subscription
   the session holds. Events: `pr-state` (full `GithubPrState` payload) and `heartbeat`
-  (comment frame every 30s to defeat idle-proxy kills).
+  (comment frame every 30s to defeat idle-proxy kills). On open the server replays the cached
+  `GithubPrState` for every live subscription the session holds, so a reconnecting client is
+  current before the catch-up pull even lands. Once the process begins draining for a deploy,
+  the stream endpoint answers 503 and every open stream is completed outright — a forced
+  reconnect is what lands the client on the new instance, where the replay and catch-up heal
+  anything the deploy dropped.
 
 ### Webhook receiver (github-facing)
 
 ```
-POST /v1/github/hooks/:repoFullName    (HMAC-verified, @Public, throttled)
+POST /v1/github/hooks/:repoFullName    (HMAC-verified, @Public, unthrottled)
 ```
 
 The hook URL embeds the repo so the handler can load the per-repo secret without guessing.
-Handler is **stateless**:
+Deliberately exempt from the rate limiter: a throttled webhook is a failed delivery, GitHub
+does not retry failed deliveries, and the HMAC check already rejects junk callers, so the
+only traffic a ceiling ever caught was real events. Handler is **stateless**:
 
 1. Verify `x-hub-signature-256` against the hook's secret. Unknown repo or bad signature → 401.
 2. Normalize the event (`pull_request`, `check_suite`, `check_run`, `push`). Persist nothing
@@ -155,8 +162,9 @@ Handler is **stateless**:
 4. Fan out: query `GithubSubscription` for `(repoFullName, prNumber in affected)`, push
    `pr-state` to each subscriber's live SSE stream.
 
-If the API dies between 3 and 4, the push is lost and **that is fine**: every reconnect does
-the catch-up pull, and `GithubPrState` holds the truth.
+If the API dies between 3 and 4, the push is lost and **that is fine**: `GithubPrState` holds
+the truth, every reconnect does the catch-up pull, and a connected client that never
+reconnects is healed by the re-anchor sweep (see "Fallback").
 
 ### Whose token services a delivery?
 
@@ -173,8 +181,12 @@ subscribe-pull. No delivery ever fails for lack of a token.
   per repo and stored encrypted. Requires the user to be a repo admin; if GitHub answers
   404/403 on hook creation, the subscription still succeeds but is marked **poll-backed**
   (see "Fallback").
-- **Reuse.** Later subscribes on the same repo (any user) find the existing `GithubRepoHook`
-  row and do nothing.
+- **Reuse, but verify.** Later subscribes on the same repo (any user) find the existing
+  `GithubRepoHook` row and verify the hook still exists on GitHub (memoized 5 min per repo, so
+  resubscribe storms don't spend a REST call each time). A `missing` answer recreates the
+  hook; an `unauthorized` answer or a failed verify trusts the row — delivery auth is the HMAC
+  secret, not the token doing the check — and a dead hook would otherwise take hook-backed
+  subscriptions silent with no poll fallback.
 - **Idle teardown, slow.** A sweeper (interval job, DB-claimed via a lease column so two
   instances never double-act) sets `idleSince` when a repo's last live subscription expires,
   and deletes the GitHub hook once `idleSince` is 24h old. Delete uses `createdBy`'s token;
@@ -245,8 +257,9 @@ In the same PR series:
 4. The existing per-repo webhook secret env key is replaced by per-repo generated secrets in
    `GithubRepoHook`.
 
-Old webhook deliveries in flight during deploy are rejected (unknown route) and GitHub
-retries them harmlessly; the first subscribe-pull after deploy re-fills state.
+Old webhook deliveries in flight during deploy are rejected (unknown route) and GitHub does
+**not** retry them — the re-anchor sweep and the first subscribe-pull after deploy re-fill
+state instead.
 
 ## Fallbacks and failure modes
 
@@ -255,8 +268,10 @@ retries them harmlessly; the first subscribe-pull after deploy re-fills state.
 | Signed out | `gh` polling, unchanged (degraded mode) |
 | Cloud session dead (401) | Tile shows last-known state muted; re-sign-in restores |
 | User not repo admin (hook create 403/404) | Subscription marked poll-backed: the API polls GitHub as the user every 30s for that repo's subscribed PRs, pushes diffs over the same SSE stream |
+| Lost webhook delivery (deploy kill, 5xx, GitHub never retries) | Re-anchor sweep: a hook-backed PR whose state row went 10 min without webhook writes (or has none at all) gets one REST read as the subscribing user, which also recreates the missing row that would blind later check events for that PR |
+| Hook deleted on the GitHub side | Next subscribe verifies the row against GitHub (memoized 5 min) and recreates the hook |
 | OAuth token revoked mid-session | Subscriptions keep receiving payload-derived state; computed fields gap until re-auth; next subscribe-pull fails loudly in settings |
-| API restart | Stateless handler; subscriptions/hooks read back from Postgres; SSE clients reconnect + catch-up pull |
+| API restart | Stateless handler; subscriptions/hooks read back from Postgres; drain completes open SSE streams and 503s new ones, so clients reconnect to the new instance and catch up |
 | Delivery storm (100s of check_runs) | `GithubPrState` upsert is idempotent; SSE push coalesced per PR to latest state within a 1s window |
 | Multi-instance API (future) | Fan-out is in-process for now (one DO instance); the seam is a fan-out publisher interface, Neon `LISTEN/NOTIFY` when a second instance ships |
 

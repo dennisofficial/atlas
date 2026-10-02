@@ -8,6 +8,7 @@ vi.mock('../../../db', async () => {
 
 import { fakeGithubDb } from '../../../../test/fake-github-db'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubDeliveryService } from './github-delivery.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import type { GithubPrStateDto } from './github-realtime.types'
@@ -76,7 +77,7 @@ function serviceWith(args: {
   const reads = {
     readPullRequest: args.readPullRequest ?? (async () => REST_FIELDS),
   } as unknown as GithubUserReads
-  const fanout = new GithubPrFanoutService()
+  const fanout = new GithubPrFanoutService(new DrainStateService())
   const cipher = {} as SecretCipherService
   return { service: new GithubDeliveryService(github, reads, fanout, cipher), fanout }
 }

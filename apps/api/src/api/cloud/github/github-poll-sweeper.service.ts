@@ -9,6 +9,14 @@ import { GithubService } from './github.service'
 
 const POLL_INTERVAL_MS = 30_000
 
+/**
+ * A delivered webhook rewrites the state row and bumps `updatedAt`, so a hook-backed PR whose
+ * row is younger than this is provably tracked — skip it. A missing or older row means a
+ * delivery was lost (deploy kill, 5xx, throttle) or never arrived, and the only thing that
+ * heals it is a REST read: GitHub does not retry failed webhook deliveries on its own.
+ */
+const REANCHOR_AFTER_MS = 10 * 60 * 1_000
+
 @Injectable()
 export class GithubPollSweeperService {
   private readonly logger = new Logger(GithubPollSweeperService.name)
@@ -52,6 +60,29 @@ export class GithubPollSweeperService {
         userId: subscription.userId,
         repoFullName: subscription.repoFullName,
         prNumber,
+      })
+    }
+
+    const hookBacked = await db.githubSubscription.findMany({
+      where: { pollBacked: false, expiresAt: { gt: now }, prNumber: { not: null } },
+    })
+    for (const subscription of hookBacked) {
+      if (subscription.prNumber === null) continue
+      const state = await db.githubPrState.findUnique({
+        where: {
+          repoFullName_prNumber: {
+            repoFullName: subscription.repoFullName,
+            prNumber: subscription.prNumber,
+          },
+        },
+      })
+      if (state !== null && now.getTime() - state.updatedAt.getTime() < REANCHOR_AFTER_MS) {
+        continue
+      }
+      await this.pollOne({
+        userId: subscription.userId,
+        repoFullName: subscription.repoFullName,
+        prNumber: subscription.prNumber,
       })
     }
   }
