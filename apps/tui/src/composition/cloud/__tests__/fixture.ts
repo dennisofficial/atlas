@@ -620,7 +620,7 @@ export type FakeBridge = CloudBridge & {
     gpgKey?: string | undefined
   }[]
   readonly contextPuts: readonly { threadId: ThreadId; archive: Buffer }[]
-  readonly attached: readonly { threadId: ThreadId; url: string; token: string }[]
+  readonly attached: readonly { threadId: ThreadId; url: string | undefined; token: string | undefined }[]
   readonly destroyed: readonly ThreadId[]
   readonly channel: FakeCloudChannel
   readonly trail: readonly string[]
@@ -692,7 +692,7 @@ export function fakeBridge(
     gpgKey?: string | undefined
   }[] = []
   const contextPuts: { threadId: ThreadId; archive: Buffer }[] = []
-  const attached: { threadId: ThreadId; url: string; token: string }[] = []
+  const attached: { threadId: ThreadId; url: string | undefined; token: string | undefined }[] = []
   const destroyed: ThreadId[] = []
   const trail: string[] = []
 
