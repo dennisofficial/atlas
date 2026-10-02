@@ -284,6 +284,34 @@ describe('the sign-in prompt', () => {
   })
 })
 
+describe('the browser prompt', () => {
+  const browserState = (url: string): AccountsState => ({
+    ...stateOn(rowsOf([])),
+    view: EAccountsView.BrowserCode,
+    prompt: { provider: EAuthProvider.OpenAI, url },
+  })
+
+  it('shows the authorize url and takes no input', async () => {
+    const rows = await render({
+      state: browserState('https://auth.openai.com/oauth/authorize?state=s1'),
+    })
+    const frame = rows.join('\n')
+
+    expect(frame).toContain('Opened in your browser')
+    expect(frame).toContain('auth.openai.com/oauth/authorize')
+    expect(frame).toContain('waiting for the browser')
+    expect(frame).not.toContain('waiting for a paste')
+  })
+
+  it('holds a placeholder until the url is known', async () => {
+    const rows = await render({ state: browserState('') })
+    const frame = rows.join('\n')
+
+    expect(frame).toContain('Starting sign-in')
+    expect(frame).not.toContain('waiting for the browser')
+  })
+})
+
 describe('the drawer chrome', () => {
   it('titles the drawer as the model provider list', async () => {
     const rows = await render({ state: stateOn(rowsOf([LOGGED_IN])) })

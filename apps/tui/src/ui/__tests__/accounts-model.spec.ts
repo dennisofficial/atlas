@@ -11,10 +11,12 @@ import {
 
 import { accountDetail, actionLabel, maskedKey, signedOutDetail } from '../accounts-labels'
 import {
+  acceptsBrowserLogin,
   acceptsDeviceCode,
   acceptsPastedCode,
   activeOf,
   askForApiKey,
+  askForBrowser,
   askForCode,
   askForDeviceCode,
   announced,
@@ -299,6 +301,30 @@ describe('the device-code prompt', () => {
     expect(acceptsPastedCode(EAuthProvider.OpenAI)).toBe(false)
     expect(acceptsPastedCode(EAuthProvider.Anthropic)).toBe(true)
     expect(acceptsDeviceCode(EAuthProvider.Anthropic)).toBe(false)
+  })
+})
+
+describe('the browser prompt', () => {
+  it('shows the url to approve in the browser rather than taking input', () => {
+    const typed = typeInto({ state: openAccounts({ rows: [] }), text: 'stale' })
+    const asked = askForBrowser({
+      state: { ...typed, failure: 'old failure', notice: 'old notice', busy: true },
+      prompt: { provider: EAuthProvider.OpenAI, url: 'https://auth.openai.com/oauth/authorize' },
+    })
+
+    expect(asked.view).toBe(EAccountsView.BrowserCode)
+    expect(asked.prompt?.url).toBe('https://auth.openai.com/oauth/authorize')
+    expect(asked.typed).toBe('')
+    expect(asked.failure).toBeNull()
+    expect(asked.notice).toBeNull()
+    expect(asked.busy).toBe(false)
+    expect(isPrompting(asked)).toBe(true)
+  })
+
+  it('routes OpenAI to the browser and leaves Anthropic on the paste-back', () => {
+    expect(acceptsBrowserLogin(EAuthProvider.OpenAI)).toBe(true)
+    expect(acceptsBrowserLogin(EAuthProvider.Anthropic)).toBe(false)
+    expect(acceptsBrowserLogin(EAuthProvider.OpenRouter)).toBe(false)
   })
 })
 

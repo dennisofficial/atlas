@@ -12,11 +12,13 @@ import {
 } from '@dltech/atlas-core'
 
 import {
+  canBrowserLogin,
   canDeviceLogin,
   canPasteLogin,
   clientFor,
   EDevicePoll,
   unsupportedProvider,
+  type BrowserTicket,
   type DeviceLogin,
   type OauthClients,
   type OauthLogin,
@@ -88,6 +90,23 @@ export class AccountsService {
     if (!canDeviceLogin(client)) throw unsupportedProvider(provider)
 
     return { provider, ...(await client.startDeviceLogin()) }
+  }
+
+  async beginBrowser(provider: EAuthProvider): Promise<BrowserTicket> {
+    if (!providerSpec(provider).logins.includes(ELoginFlow.BrowserCode))
+      throw unsupportedProvider(provider)
+
+    const client = clientFor({ clients: this.clients, provider })
+    if (!canBrowserLogin(client)) throw unsupportedProvider(provider)
+
+    const session = await client.startBrowserLogin()
+
+    return {
+      provider,
+      url: session.url,
+      login: session.login.then((login) => this.addLogin({ provider, login })),
+      cancel: session.cancel,
+    }
   }
 
   async pollDevice(ticket: DeviceTicket): Promise<DeviceSignIn> {
