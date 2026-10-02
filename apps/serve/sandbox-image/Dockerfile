@@ -17,7 +17,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      git ripgrep gnupg ca-certificates curl unzip xz-utils openssh-client build-essential sudo \
+      git ripgrep gnupg ca-certificates curl unzip xz-utils openssh-client build-essential sudo procps \
   && install -m 0755 -d /etc/apt/keyrings \
   && curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \
   && chmod a+r /etc/apt/keyrings/docker.asc \
@@ -42,6 +42,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && rg --version >/dev/null \
   && gpg --version >/dev/null \
   && curl --version >/dev/null \
+  && ps --version >/dev/null \
   && ssh -V \
   && unzip -v >/dev/null \
   && cc --version >/dev/null \
