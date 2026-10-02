@@ -111,10 +111,14 @@ export async function pauseThreadChildren({
   roster,
   steps,
   recovery,
+  deps,
+  delivery,
 }: {
   threadId: ThreadId
   caller?: ThreadId | undefined
-} & Pick<Relocation, 'roster' | 'steps' | 'recovery'>): Promise<readonly ChildState[]> {
+} & Pick<Relocation, 'roster' | 'steps' | 'recovery' | 'deps' | 'delivery'>): Promise<
+  readonly ChildState[]
+> {
   await recovery.hydrate({ threadId })
 
   const stepping = relocatableChildren({ roster, threadId, skipTeammates: false }).filter(
@@ -125,6 +129,8 @@ export async function pauseThreadChildren({
   await steps
     .whenSettled({ threadId, excluding: caller === undefined ? [] : [caller] })
     .catch(() => undefined)
+
+  await flushPendingEndings({ threadId, deps, delivery })
 
   return stepping
 }
