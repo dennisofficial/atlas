@@ -45,6 +45,10 @@ const MAIN_STATE_ROOTS = new Set([
   'config.worktree',
 ])
 
+export const OPERATION_STATE_ROOTS: ReadonlySet<string> = new Set(
+  [...MAIN_STATE_ROOTS].filter((name) => name !== 'HEAD' && name !== 'config.worktree' && name !== 'ORIG_HEAD'),
+)
+
 const ALTERNATES_PATH = 'objects/info/alternates'
 
 const commonSkip: SkipRule = ({ path }) =>

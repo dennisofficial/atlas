@@ -3,7 +3,7 @@ import { join } from 'node:path'
 
 import { listWorktrees } from '../worktrees'
 import { exists } from './restore-files'
-import { copyReflog, createRef, createSymref, moveRef, readRefs } from './restore-git'
+import { copyReflog, createRef, createSymref, isAncestor, moveRef, readRefs } from './restore-git'
 import { ETreeAction, type IncomingRef, type PlannedTree, type RestoreContext } from './restore-types'
 
 const ATTEMPTS = 50
@@ -93,14 +93,24 @@ export async function settleBranch({
     }
     return branch
   }
-  if (current === undefined && !state.occupied.has(ref)) {
-    await create({ ctx, state, ref, from: ref, sha })
-    state.occupied.add(ref)
-    return branch
-  }
-  if (current === sha && !state.occupied.has(ref)) {
-    state.occupied.add(ref)
-    return branch
+  if (current === undefined) {
+    if (!state.occupied.has(ref)) {
+      await create({ ctx, state, ref, from: ref, sha })
+      state.occupied.add(ref)
+      return branch
+    }
+  } else if (!state.occupied.has(ref)) {
+    if (current === sha) {
+      state.occupied.add(ref)
+      return branch
+    }
+    if (await isAncestor({ cwd: ctx.plan.repoCwd, from: current, to: sha })) {
+      await moveRef({ cwd: ctx.plan.repoCwd, ref, sha, previous: current, journal: ctx.journal })
+      await copyReflog({ stageGit: state.stageGit, commonDir: ctx.commonDir, from: ref, to: ref, journal: ctx.journal })
+      state.host.set(ref, sha)
+      state.occupied.add(ref)
+      return branch
+    }
   }
   const renamed = freeRef({ ref, state, make: () => planned.suffix ?? ctx.suffix() })
   await create({ ctx, state, ref: renamed, from: ref, sha })
