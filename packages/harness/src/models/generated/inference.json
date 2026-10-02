@@ -957,6 +957,27 @@
   {
     "ref": {
       "providerId": "inference",
+      "modelId": "moonshotai/kimi-k3-fast"
+    },
+    "label": "moonshotai/kimi-k3-fast",
+    "api": "openai-completions",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 1048576,
+    "cost": {
+      "inputPerMillion": 4.5,
+      "outputPerMillion": 22.5
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
       "modelId": "nemotron-3-super"
     },
     "label": "nemotron-3-super",
@@ -1090,6 +1111,7 @@
     },
     "effort": {
       "off": "none",
+      "low": "low",
       "high": "high"
     }
   },
