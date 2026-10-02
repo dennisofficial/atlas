@@ -10,6 +10,7 @@ import {
   EParkedResume,
   ERuntimePhase,
   isTranscriptMuted,
+  parkedResumeOf,
   transcriptFreshnessOf,
   type CloudChannel,
   type CloudConnection,
@@ -89,11 +90,18 @@ export function createCloudSession(args: {
     const latest = reported != null && (checkpoint === null || reported.revision > checkpoint.revision)
       ? reported : checkpoint
     const parked = everOpen ? undefined : args.parkedResume
-    const lifecycle = parked === undefined ? sandbox : ECloudSandboxLifecycle.Parked
+    const announced =
+      checkpoint !== null && checkpoint.phase === ERuntimePhase.Parked ? checkpoint : null
+    const lifecycle =
+      parked === undefined && announced === null ? sandbox : ECloudSandboxLifecycle.Parked
     const freshness = parked !== undefined
       ? parkedFreshnessOf(parked)
       : connection.state === EChannelConnection.Open
       ? synced ? ECloudFreshness.Synced : ECloudFreshness.Unknown
+      : announced !== null
+      ? parkedFreshnessOf(
+          parkedResumeOf({ record: { checkpoint: announced, applied: applied?.identity ?? null } }),
+        )
       : transcriptFreshnessOf({
           threadId: channel.threadId,
           lifecycle: sandbox,

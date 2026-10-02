@@ -293,6 +293,90 @@ describe('the sandbox lifecycle and transcript freshness', () => {
     expect(session.health().lastSeenAt).toBe(SEEN_AT)
   })
 
+  it("ungrays on the serve's own park announcement while the provider still reads it as running", async () => {
+    const statusRef = {
+      current: { state: ECloudSandboxState.Running } as CloudSandboxStatus | undefined,
+    }
+    const { channel, session } = sessionOn({
+      statusRef,
+      appliedSnapshot: () => ({ identity: applied, appliedAt: SEEN_AT }),
+    })
+
+    channel.pushCheckpoint(checkpointOf())
+    channel.moveTo({ state: EChannelConnection.Parked, detail: null })
+    await settled()
+
+    expect(session.health().sandbox).toBe(ECloudSandboxLifecycle.Running)
+    expect(session.health().freshness).toBe(ECloudFreshness.Synced)
+    expect(session.health().stale).toBe(false)
+    expect(session.health().lastSeenAt).toBe(SEEN_AT)
+  })
+
+  it('ungrays on the announced park even when the provider has nothing to report', async () => {
+    const statusRef = { current: undefined as CloudSandboxStatus | undefined }
+    const { channel, session } = sessionOn({
+      statusRef,
+      appliedSnapshot: () => ({ identity: applied, appliedAt: SEEN_AT }),
+    })
+
+    channel.pushCheckpoint(checkpointOf())
+    channel.moveTo({ state: EChannelConnection.Parked, detail: null })
+    await settled()
+
+    expect(session.health().sandbox).toBe(ECloudSandboxLifecycle.Unknown)
+    expect(session.health().freshness).toBe(ECloudFreshness.Synced)
+    expect(session.health().stale).toBe(false)
+  })
+
+  it('keeps the dim on an announced park whose checkpoint outruns the applied snapshot', async () => {
+    const { channel, session } = sessionOn({
+      appliedSnapshot: () => ({
+        identity: { head: 9, count: 9, digest: 'b'.repeat(64) },
+        appliedAt: SEEN_AT,
+      }),
+    })
+
+    channel.pushCheckpoint(checkpointOf())
+    channel.moveTo({ state: EChannelConnection.Parked, detail: null })
+    await settled()
+
+    expect(session.health().freshness).toBe(ECloudFreshness.Behind)
+    expect(session.health().stale).toBe(true)
+  })
+
+  it('a wake masks the old park with its running checkpoint; only a fresh announcement ungrays the re-park', async () => {
+    const statusRef = {
+      current: {
+        state: ECloudSandboxState.Parked,
+        sandboxSessionId: 'session-a',
+      } as CloudSandboxStatus | undefined,
+    }
+    const { channel, session } = sessionOn({
+      statusRef,
+      appliedSnapshot: () => ({ identity: applied, appliedAt: SEEN_AT }),
+    })
+
+    channel.pushCheckpoint(checkpointOf())
+    channel.moveTo({ state: EChannelConnection.Parked, detail: null })
+    await settled()
+    expect(session.health().stale).toBe(false)
+
+    channel.moveTo({ state: EChannelConnection.Open, detail: null })
+    channel.pushCheckpoint(
+      checkpointOf({ revision: 3, phase: ERuntimePhase.Running, sandboxSessionId: 'session-b' }),
+    )
+
+    channel.moveTo({ state: EChannelConnection.Parked, detail: null })
+    await settled()
+    expect(session.health().stale).toBe(true)
+
+    channel.pushCheckpoint(
+      checkpointOf({ revision: 4, phase: ERuntimePhase.Parked, sandboxSessionId: 'session-b' }),
+    )
+    await settled()
+    expect(session.health().stale).toBe(false)
+  })
+
   it('stays gray when the parked checkpoint does not match what was applied', async () => {
     const statusRef = {
       current: {
