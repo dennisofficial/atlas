@@ -295,4 +295,75 @@ describe('GithubSubscriptionsService', () => {
       service.unsubscribe({ userId: 'usr_1', subscriptionId: 'sub-nope' }),
     ).rejects.toBeInstanceOf(NotFoundException)
   })
+
+  it('currentStates returns the cached state for every live subscription with a pr number', async () => {
+    const service = serviceWith({ token: 'ghu_1' })
+    fake.subscriptions.push(
+      {
+        id: 'sub-1',
+        userId: 'usr_1',
+        repoFullName: 'compai/app',
+        prNumber: 42,
+        branch: '',
+        pollBacked: false,
+        expiresAt: new Date(Date.now() + 60_000),
+        createdAt: new Date(),
+      },
+      {
+        id: 'sub-2',
+        userId: 'usr_1',
+        repoFullName: 'compai/app',
+        prNumber: null,
+        branch: 'dennis/fresh-branch',
+        pollBacked: false,
+        expiresAt: new Date(Date.now() + 60_000),
+        createdAt: new Date(),
+      },
+      {
+        id: 'sub-3',
+        userId: 'usr_1',
+        repoFullName: 'compai/app',
+        prNumber: 7,
+        branch: '',
+        pollBacked: false,
+        expiresAt: new Date(Date.now() - 60_000),
+        createdAt: new Date(),
+      },
+      {
+        id: 'sub-4',
+        userId: 'usr_2',
+        repoFullName: 'compai/app',
+        prNumber: 99,
+        branch: '',
+        pollBacked: false,
+        expiresAt: new Date(Date.now() + 60_000),
+        createdAt: new Date(),
+      },
+    )
+    fake.prStates.push({
+      repoFullName: 'compai/app',
+      prNumber: 42,
+      title: 'add the thing',
+      url: 'https://github.com/compai/app/pull/42',
+      state: 'open',
+      headBranch: 'dennis/add-the-thing',
+      headSha: 'abc123',
+      headRepoFullName: 'compai/app',
+      checksRunning: 0,
+      checksPassed: 3,
+      checksFailed: 0,
+      mergeable: true,
+      updatedAt: new Date('2026-09-28T00:00:00.000Z'),
+    })
+
+    const states = await service.currentStates({ userId: 'usr_1' })
+
+    expect(states).toHaveLength(1)
+    expect(states[0]).toMatchObject({
+      repoFullName: 'compai/app',
+      prNumber: 42,
+      checksPassed: 3,
+      updatedAt: '2026-09-28T00:00:00.000Z',
+    })
+  })
 })

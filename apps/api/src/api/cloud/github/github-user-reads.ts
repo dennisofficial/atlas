@@ -117,6 +117,26 @@ export class GithubUserReads {
     )
   }
 
+  async getHook(args: {
+    token: string
+    owner: string
+    repo: string
+    hookId: number
+  }): Promise<'found' | 'missing' | 'unauthorized'> {
+    const response = await fetch(
+      `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
+      { headers: this.headers({ token: args.token }) },
+    )
+    if (response.ok) return 'found'
+    if (response.status === 404) return 'missing'
+    if (response.status === 401 || response.status === 403) return 'unauthorized'
+    const detail = (await response.text()).slice(0, DETAIL_CAP)
+    throw new GithubUserReadFailed(
+      `github answered ${response.status} reading hook ${args.hookId}: ${detail}`,
+      response.status,
+    )
+  }
+
   async deleteHook(args: {
     token: string
     owner: string

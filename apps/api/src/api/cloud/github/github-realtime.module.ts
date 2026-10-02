@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common'
+import { HealthModule } from '../../platform/health/health.module'
 import { GithubDeliveryService } from './github-delivery.service'
 import { GithubHookController } from './github-hook.controller'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
@@ -11,7 +12,7 @@ import { GithubUserReads } from './github-user-reads'
 import { GithubModule } from './github.module'
 
 @Module({
-  imports: [GithubModule],
+  imports: [GithubModule, HealthModule],
   controllers: [GithubSubscriptionsController, GithubPrStreamController, GithubHookController],
   providers: [
     GithubSubscriptionsService,

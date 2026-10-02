@@ -10,10 +10,9 @@ import {
   UnauthorizedException,
   UnsupportedMediaTypeException,
 } from '@nestjs/common'
-import { Throttle } from '@nestjs/throttler'
+import { SkipThrottle } from '@nestjs/throttler'
 import { Public } from '../../../_core/decorators/public.decorator'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { WEBHOOK_THROTTLE_PER_MINUTE } from '../../../_lib/webhook-body-limit'
 import { db } from '../../../db'
 import { GithubDeliveryService } from './github-delivery.service'
 import { parseHookRepoParam } from './github-pr-payload'
@@ -26,7 +25,7 @@ import type { GithubPrWebhookRequest } from './github-webhook.types'
  * stateless — a restart loses nothing because GithubPrState is the record.
  */
 @Controller({ path: 'github/hooks', version: '1' })
-@Throttle({ default: { limit: WEBHOOK_THROTTLE_PER_MINUTE, ttl: 60_000 } })
+@SkipThrottle()
 export class GithubHookController {
   private readonly logger = new Logger(GithubHookController.name)
 
