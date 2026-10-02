@@ -3,9 +3,11 @@ import type { ThreadId } from '@dltech/atlas-core'
 import { notify } from '../../ui/notice-store'
 import type { AtlasApp } from '../compose'
 import { messageOf } from '../error-text'
-import type { LiftedAttachment } from '../lifted-session'
+import { cloudAnchorOf, cloudBindingOf, type Binding } from '../session-binding'
+import { createCloudSession } from './cloud-session'
+import { mirrorCloudRenames } from './rename-mirror'
 import type { ContainerMoveControl } from '../use-container-move'
-import { cloudApp, openCloudConversation } from './cloud-app'
+import { cloudRuntimeParts, openCloudConversation } from './cloud-app'
 import type { CloudBridge } from '@dltech/atlas-harness'
 import { createCloudRunner, wakeSandbox } from './cloud-runner'
 import { CLOUD_REATTACH_NOTICE_KEY, reattachNotice } from './lift-notices'
@@ -22,7 +24,8 @@ export async function openCloudThread(args: {
   move?: ContainerMoveControl | undefined
   /** Where this thread lives on this machine, when it does — see cloud-runner.ts's wake. */
   projectDirectory?: string | undefined
-}): Promise<LiftedAttachment> {
+  onReload: () => void
+}): Promise<Binding> {
   const { app, bridge, threadId, move, projectDirectory } = args
   let unready = (): void => undefined
 
@@ -52,11 +55,20 @@ export async function openCloudThread(args: {
       captureContext: () => app.captureContext({ cwd: projectDirectory ?? app.workspace.workspace }),
       ...(move === undefined ? {} : { move }),
     })
-    const attached = cloudApp({ app, channel, stores, runner })
-    const opened = await openCloudConversation({ app: attached, threadId })
+    const opened = await openCloudConversation({
+      app: { ...app, ...cloudRuntimeParts({ channel, stores, runner }) },
+      threadId,
+    })
+    const anchor = await cloudAnchorOf({ stores, threadId, opened })
+    const session = createCloudSession({
+      channel,
+      sandboxes: bridge.sandboxes,
+      onReload: args.onReload,
+      onClose: mirrorCloudRenames({ home: app.threads, remote: stores.threads }),
+    })
 
     move?.handleSettle()
-    return { app: attached, opened, bridge, channel, stores }
+    return cloudBindingOf({ local: app, anchor, channel, stores, bridge, runner, opened, session })
   } catch (error) {
     unready()
     move?.handleFail(messageOf(error))

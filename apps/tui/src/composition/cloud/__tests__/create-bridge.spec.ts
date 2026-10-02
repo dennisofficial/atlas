@@ -107,6 +107,9 @@ const fakeDriver = (args: { created: boolean; vaultPresent?: boolean }): FakeDri
     writeBootstrapFile: async () => undefined,
     transcriptLanded: async () => true,
     destroy: async () => undefined,
+    uploadWorkspaceArchive: async () => undefined,
+    downloadWorkspaceArchive: async () => undefined,
+    releaseWorkspaceArchive: async () => undefined,
   }
 }
 

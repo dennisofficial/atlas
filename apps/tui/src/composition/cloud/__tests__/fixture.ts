@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
 
@@ -15,6 +15,7 @@ import {
   buildSessionArchive,
   EChannelConnection,
   EClientRequest,
+  ETurnStatus,
   extractSessionArchive,
   parseEventLines,
   RemoteThreadStore,
@@ -79,6 +80,7 @@ export type FakeCloudChannel = CloudChannel & {
   endTurn(outcome: TurnOutcome): void
   readonly closed: boolean
   readonly runs: number
+  readonly resumed: number
   readonly sent: readonly {
     text: string
     images?: readonly SaidImage[]
@@ -126,6 +128,7 @@ export function fakeCloudChannel(
     (changed: { threadId: ThreadId; model: ThreadModel }) => void
   >()
   const turnEndings = new Set<(outcome: TurnOutcome) => void>()
+  let resumes = 0
   const woken: { url: string; token: string }[] = []
   const requests: { op: EClientRequest; params: unknown }[] = []
   const sent: {
@@ -226,12 +229,21 @@ export function fakeCloudChannel(
       runs += 1
     },
     interrupt: () => undefined,
-    pause: () => undefined,
-    resume: () => undefined,
+    pause: () => {
+      const runId = toRunId(`serve-${channelThreadId}`)
+      queueMicrotask(() => {
+        for (const listener of [...turnEndings]) listener({ status: ETurnStatus.RelocationPaused, runId })
+      })
+    },
+    resume: () => {
+      resumes += 1
+    },
     request: async (given) => {
       requests.push({ op: given.op, params: given.params })
       if (given.op === EClientRequest.ListRoster) return heldRoster
       if (given.op === EClientRequest.PublishWorkspace) return null
+      if (given.op === EClientRequest.PrepareWorkspaceArchive) return { path: ARCHIVE_EXPORT_PATH, manifest: ARCHIVE_MANIFEST }
+      if (given.op === EClientRequest.ActivateSession) return { activated: true }
       if (given.op === EClientRequest.Rewind) {
         // Serve truncates its own durable log inside the same apply that kills the cuts, so the
         // fake does the same against the log it was handed.
@@ -401,6 +413,9 @@ export function fakeCloudChannel(
       return closed
     },
 
+    get resumed() {
+      return resumes
+    },
     get runs() {
       return runs
     },
@@ -573,6 +588,28 @@ const RUNNING: CloudSandbox = {
   created: true,
 }
 
+const ARCHIVE_EXPORT_PATH = '/tmp/atlas-workspace-export-x/workspace.tar.gz'
+
+const ARCHIVE_MANIFEST = {
+  version: 1,
+  repository: { sourcePath: '/atlas/workspace', originPath: '/work' },
+  activeId: 'main',
+  activeRelativePath: '',
+  trees: [
+    {
+      id: 'main',
+      name: 'main',
+      sourcePath: '/atlas/workspace',
+      originPath: '/work',
+      branch: 'main',
+      head: null,
+      baseline: null,
+      fingerprint: 'fake',
+      isMain: true,
+    },
+  ],
+}
+
 export function fakeBridge(
   args: {
     sandbox?: CloudSandbox
@@ -712,6 +749,9 @@ export function fakeBridge(
         materialize(threadId)
       },
       confirmLanded: async () => ({ landed: transcriptShipped }),
+      downloadWorkspace: async ({ destination }) => {
+        await writeFile(destination, 'a fake workspace archive')
+      },
       find: async () => args.status,
       destroy: async ({ threadId }) => {
         trail.push('destroy')

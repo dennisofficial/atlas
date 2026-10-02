@@ -1,10 +1,14 @@
 import { useSyncExternalStore } from 'react'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
-import type { CloudConnection } from '@dltech/atlas-harness'
+import { EChannelConnection, type CloudConnection } from '@dltech/atlas-harness'
 
 import type { CloudSession } from './cloud/cloud-session'
 import type { AtlasApp } from './compose'
+import { useAttachFailure } from './attach-failure'
+import { useSessionOwner } from './use-session-owner'
+
+const CONNECTING: CloudConnection = { state: EChannelConnection.Connecting, detail: null }
 
 const NEVER_CHANGES = (): (() => void) => () => undefined
 
@@ -22,12 +26,17 @@ export function useCloudConnection(args: {
 }): CloudConnection | null {
   const { app, session } = args
 
-  const location = useSyncExternalStore(app.executionLocation.subscribe, app.executionLocation.current)
+  const { location, bound, threadId } = useSessionOwner({ app })
+  const failure = useAttachFailure()
   const health = useSyncExternalStore(
     session?.subscribe ?? NEVER_CHANGES,
     () => session?.health() ?? null,
   )
 
   if (location !== EExecutionLocation.Cloud) return null
+  if (!bound) {
+    if (failure !== null && failure.threadId === threadId) return { state: EChannelConnection.Closed, detail: failure.detail }
+    return CONNECTING
+  }
   return health?.connection ?? null
 }

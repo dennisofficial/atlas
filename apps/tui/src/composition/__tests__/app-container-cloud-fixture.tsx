@@ -61,6 +61,8 @@ export const mount = async (args: {
       createBridge={createBridge}
       preflightLift={args.preflightLift ?? (async () => null)}
       captureWorkspace={DIRTY}
+      captureArchive={async () => undefined}
+      restoreWorkspace={async () => ({ cwd: args.app.workspace.workspace, repository: args.app.workspace.workspace, trees: [] })}
       captureContext={STUB_CONTEXT}
       {...(args.clipboard === undefined ? {} : { clipboard: args.clipboard })}
     />,

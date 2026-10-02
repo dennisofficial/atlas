@@ -57,6 +57,7 @@ const mount = async (args: { app: FakeApp; bridge: FakeBridge }) => {
       createBridge={createBridge}
       preflightLift={async () => null}
       captureWorkspace={async () => CLEAN_WORKSPACE}
+      captureArchive={async () => undefined}
       captureContext={async () => undefined}
     />,
     WIDE,

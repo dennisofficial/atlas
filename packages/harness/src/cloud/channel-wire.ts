@@ -20,7 +20,15 @@ export {
   EServeFrame,
   ETurnStatus,
   encodeFrame,
+  activateSessionReplySchema,
+  applyWorkspaceArchiveReplySchema,
+  prepareWorkspaceArchiveReplySchema,
   publishedWorkspaceWireSchema,
+  restoredWorkspaceWireSchema,
+  WORKSPACE_EXPORT_DIRECTORY_NAME,
+  WORKSPACE_EXPORT_FILE_PATTERN,
+  workspaceManifestWireSchema,
+  workspaceTreeWireSchema,
   renameThreadParamsSchema,
   readEventsParamsSchema,
   readEventsReplySchema,
@@ -55,7 +63,12 @@ export {
 } from '@dltech/atlas-wire'
 
 export type {
+  ActivateSessionReply,
+  ApplyWorkspaceArchiveReply,
   ClientFrame,
+  PrepareWorkspaceArchiveReply,
+  RestoredWorkspaceWire,
+  WorkspaceManifestWire,
   PublishedWorkspaceWire,
   ReadEventsParams,
   ReadThreadParams,

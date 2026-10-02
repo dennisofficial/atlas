@@ -112,7 +112,7 @@ describe('the memory archive op', () => {
 
 describe('the protocol stamp', () => {
   it('speaks the version that refuses broker-dependent serve runtimes', () => {
-    expect(CHANNEL_PROTOCOL_VERSION).toBe(10)
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(11)
   })
 })
 

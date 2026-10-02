@@ -49,10 +49,10 @@ const closedSentence = (stopped: StoppedLocally): string => {
 }
 
 const NO_REPOSITORY =
-  'There was no git repository behind the old working directory, so the sandbox starts with an empty one.'
+  'The project files were transferred directly; this directory has no Git repository.'
 
 const CARRY_RULE =
-  'Work on the checked-out branch here — a descend carries only it, and refuses to come home while side branches or nested worktrees hold work it cannot carry.'
+  'All worktrees, files, and Git staging state travel with the workspace. If a destination checkout changed independently, the incoming checkout gets a suffixed worktree name and the existing checkout stays untouched.'
 
 const rebuiltSentence = (workspace: LiftedWorkspace | null): string => {
   if (workspace === null) return NO_REPOSITORY
@@ -61,18 +61,9 @@ const rebuiltSentence = (workspace: LiftedWorkspace | null): string => {
   const on = workspace.branch === null ? '' : ` on ${workspace.branch}`
   const from = workspace.remoteUrl === null ? '' : ` from ${workspace.remoteUrl}`
 
-  if (workspace.patch.length === 0) {
-    return `The workspace was rebuilt here${from}${on} at ${at}, with nothing uncommitted to carry.`
-  }
-
-  return `The workspace was rebuilt here${from}${on} at ${at}, and the uncommitted work — tracked edits and untracked files alike — came along as uncommitted changes, so git status here reads exactly like the machine the operator left.`
+  return `The workspace was transferred here${from}${on} at ${at}. Staged edits, unstaged edits, untracked files, and ignored files retain their original state; no user commit or content merge was required.`
 }
 
-/**
- * What the model reads about its own relocation. The session moved machines mid-conversation and
- * nothing else in the transcript would ever say so, which is the whole reason this is prose in the
- * log rather than a silent column update.
- */
 export const liftedProse = (args: {
   workspace: LiftedWorkspace | null
   stopped: StoppedLocally

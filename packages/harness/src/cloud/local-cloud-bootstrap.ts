@@ -16,6 +16,9 @@ export type BridgeDriver = Pick<
   | 'inspect'
   | 'writeBootstrapFileToSandbox'
   | 'writeBootstrapFile'
+  | 'uploadWorkspaceArchive'
+  | 'downloadWorkspaceArchive'
+  | 'releaseWorkspaceArchive'
   | 'transcriptLanded'
   | 'destroy'
 >
@@ -23,6 +26,7 @@ export type BridgeDriver = Pick<
 export const BOOTSTRAP_DIRECTORY = `${DRIVE_HOME_PATH}/bootstrap`
 export const WORKSPACE_SPEC_PATH = `${BOOTSTRAP_DIRECTORY}/workspace-spec.json`
 export const CONTEXT_ARCHIVE_PATH = `${BOOTSTRAP_DIRECTORY}/context.tar.gz`
+export const WORKSPACE_ARCHIVE_PATH = `${BOOTSTRAP_DIRECTORY}/workspace.tar.gz`
 export const TRANSCRIPT_ARCHIVE_PATH = `${BOOTSTRAP_DIRECTORY}/transcript.tar.gz`
 export const VAULT_PROBE_PATH = `${DRIVE_HOME_PATH}/auth.json`
 

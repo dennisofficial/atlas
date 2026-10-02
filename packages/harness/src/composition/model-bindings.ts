@@ -27,6 +27,7 @@ import { modelCatalogue, type ModelCatalogue } from './model-catalogue'
 import { launchSelection, modelPinned } from './model-preference'
 import { selectableModel, type SelectableModel } from './model-selection'
 import { bindSandbox, type SandboxControl } from './sandbox-binding'
+import type { AnchoringControl } from './sandbox-reanchor'
 import type { SandboxStatusState } from './sandbox-status-state'
 
 export type ModelBindings = {
@@ -90,10 +91,6 @@ export async function bindModels(args: {
     }),
   })
   const pinned = executionPinned({ requested: launch.executionLocation })
-  container.register(ExecutionLocationToken, {
-    useValue: { state: executionLocation, pinned },
-  })
-
   const { sandbox, containerStatus, mounts } = await bindSandbox({
     container,
     engine: container.resolve(DockerEngineToken),
@@ -103,6 +100,12 @@ export async function bindModels(args: {
     executionLocation,
     notice,
   })
+  const control: AnchoringControl = {
+    state: executionLocation,
+    pinned,
+    anchoring: { launchDirectory: args.anchor, prepare: sandbox.prepareWorkspace },
+  }
+  container.register(ExecutionLocationToken, { useValue: control })
 
   container.register(LanguageModelToken, { useValue: model.model })
   container.register(SelectableModelToken, { useValue: model })

@@ -148,7 +148,7 @@ export function foldLogEvent(args: {
       return;
     case "location-changed":
       acc.worktree = undefined;
-      acc.home = null;
+      acc.home = event.cwd ?? null;
       acc.repo = null;
       return;
   }

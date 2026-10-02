@@ -1,51 +1,33 @@
-import { EExecutionLocation, isResumable, type ThreadId } from '@dltech/atlas-core'
-
 import type { StepId } from '@dltech/atlas-harness'
-import { EServeFrame, type ServeFrame, type TurnOutcomeWire } from '@dltech/atlas-harness'
-import { MainWake as LegacyWake } from '@dltech/atlas-harness'
-import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
+import { EServeFrame, type ServeFrame } from '@dltech/atlas-harness'
+import { atlasDirectory } from '@dltech/atlas-harness'
 
-import { atlasDirectory, readMetaSync, threadMetaFile, threadMetaSchema } from '@dltech/atlas-harness'
-import { newThreadMeta, sessionDirectory, writeMeta, writeSessionMetaForRoot } from '@dltech/atlas-harness'
-import { registryFor } from '@dltech/atlas-harness'
-
-import { syncCapabilitiesNotice } from './capabilities-notice'
 import { createChannelBridge } from './channel-bridge'
-import { composeServeApp } from './compose-serve'
 import { DEFAULT_DRAIN_DEADLINE_MS, withDeadline } from './drain-deadline'
+import { settleDirectArrival } from './direct-arrival'
 import { createFrameBuffer, DEFAULT_FRAME_BUFFER, type LifecycleFrame, type SignalFrame } from './frame-buffer'
-import { createEnvironmentProfile, EProfileStepState } from './environment-profile'
-import { applyGitAccessEnv } from './git-access-env'
-import { SERVE_IDLE_MINUTES_WITH_SERVICES, startServeIdleStop } from './idle-stop'
-import { materializeContext } from './materialize-context'
-import { materializeTranscript } from './materialize-transcript'
+import { startServeIdleStop } from './idle-stop'
 import { hydrateCloudPlacement } from './placement-hydration'
-import { restoreTranscript } from './restore-transcript'
-import { transcriptBootstrapReceipt } from './transcript-bootstrap'
-import {
-  createEnsureWorkspace,
-  EWorkspaceState,
-  workspaceRefusalOf,
-  type EnsureWorkspace,
-} from './materialize-workspace'
-import {
-  workspacePublisherFor,
-  type WorkspacePublisher,
-} from './publish-workspace'
-import type { ServeApp, ServeCompose } from './serve-app'
+import { EWorkspaceState, workspaceRefusalOf } from './materialize-workspace'
+import type { WorkspacePublisher } from './publish-workspace'
+import type { ServeArgs, ServeHandle } from './serve-args'
+import { announceBoot } from './serve-announce'
+import { adoptChildrenNow, settleLostShellsInBackground } from './serve-background'
+import { bootServeFiles } from './serve-boot'
+import { composeBootApp } from './serve-compose-boot'
 import { serveConfig } from './serve-config'
-import { createServeLog, EServeEvent, LoggingNoticePort, type LogWrite, type ServeLog } from './serve-log'
+import { DORMANT_REFUSAL, wireOutcomeOf } from './serve-outcome'
+import { handlerOptionsOf } from './serve-handler-options'
+import { createServeLog, EServeEvent, LoggingNoticePort } from './serve-log'
+import { createTranscriptRestorer } from './serve-restore'
+import { subscribeThreadBroadcasts } from './serve-thread-broadcasts'
+import { subscribeLegacyWake } from './serve-wake'
 import { startSessionServer } from './session-server'
 import { createSessionHandlers } from './socket-session'
 import { createTurnDriver } from './turn-driver'
-import type { WorkspaceFiles } from './workspace-files'
-import {
-  driveContextArchiveFetcher,
-  driveTranscriptArchiveFetcher,
-  driveWorkspaceSpecFetcher,
-} from './drive-bootstrap'
-import type { FetchTranscriptArchive } from './workspace-spec'
+import { createWorkspaceSession } from './workspace-session'
 
+export * from './serve-args'
 export * from './capabilities-notice'
 export * from './drive-bootstrap'
 export * from './channel-bridge'
@@ -74,110 +56,12 @@ export * from './publish-workspace'
 export * from './token-guard'
 export * from './turn-driver'
 export * from './workspace-files'
+export * from './direct-workspace'
+export * from './prepare-workspace'
+export * from './workspace-ops'
+export * from './workspace-session'
+export * from './workspace-hooks'
 export * from './workspace-spec'
-
-/** Everything the sandbox is told at creation falls back to its environment variable. */
-export type ServeArgs = {
-  threadId?: ThreadId | undefined
-  port?: number | undefined
-  token?: string | undefined
-  controlPlaneUrl?: string | undefined
-  cwd?: string | undefined
-  model?: { ref: string; effort?: string | undefined } | undefined
-  clientVersion?: string | undefined
-  env?: Record<string, string | undefined> | undefined
-  bufferSize?: number | undefined
-  drainDeadlineMs?: number | undefined
-  idleMinutes?: number | undefined
-  idleMinutesWithServices?: number | undefined
-  idleTickMs?: number | undefined
-  /** What an idle serve does after closing — injectable so a spec's process survives it. */
-  exit?: ((code: number) => void) | undefined
-  fetchFn?: typeof fetch | undefined
-  write?: LogWrite | undefined
-  compose?: ServeCompose | undefined
-  ensureWorkspace?: EnsureWorkspace | undefined
-  publishWorkspace?: WorkspacePublisher | undefined
-  contextFiles?: WorkspaceFiles | undefined
-  fetchTranscriptArchive?: FetchTranscriptArchive | undefined
-}
-
-export type ServeHandle = {
-  port: number
-  close: () => Promise<void>
-}
-
-const wireOutcomeOf = (outcome: TurnOutcome): TurnOutcomeWire => {
-  if (outcome.status !== ETurnStatus.Failed) return outcome
-  return { status: outcome.status, runId: outcome.runId, message: outcome.message }
-}
-
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : 'child adoption failed for a reason it did not name'
-
-function adoptChildrenInBackground(args: {
-  app: Pick<ServeApp, 'adoptChildren' | 'whenChildrenSettled'>
-  threadId: ThreadId
-  log: ServeLog
-  settling: { count: number }
-  note: () => void
-}): void {
-  void (async () => {
-    const resumed = await args.app.adoptChildren({ threadId: args.threadId })
-    if (resumed.length === 0) return
-
-    args.log({ event: EServeEvent.ChildrenAdopted, agentIds: resumed })
-    args.settling.count += 1
-    args.note()
-    try {
-      await args.app.whenChildrenSettled({ threadId: args.threadId })
-    } finally {
-      args.settling.count -= 1
-      args.note()
-    }
-  })().catch((error: unknown) => {
-    args.log({ event: EServeEvent.ChildAdoptionFailed, reason: messageOf(error) })
-  })
-}
-
-function settleLostShellsInBackground(args: {
-  app: Pick<ServeApp, 'recordLostShells' | 'recordLostServices'>
-  threadId: ThreadId
-  log: ServeLog
-}): void {
-  if (args.app.recordLostShells !== undefined) {
-    void args.app
-      .recordLostShells({ threadId: args.threadId })
-      .then((settled) => {
-        if (settled.length > 0) {
-          args.log({ event: EServeEvent.LostShellsSettled, shellIds: settled.map((shell) => shell.shellId) })
-        }
-      })
-      .catch((error: unknown) => {
-        args.log({ event: EServeEvent.LostShellSettlementFailed, reason: messageOf(error) })
-      })
-  }
-
-  if (args.app.recordLostServices === undefined) return
-  void args.app
-    .recordLostServices({ threadId: args.threadId })
-    .then((settled) => {
-      if (settled.length > 0) {
-        args.log({
-          event: EServeEvent.LostShellsSettled,
-          serviceIds: settled.map((service) => service.serviceId),
-        })
-      }
-    })
-    .catch((error: unknown) => {
-      args.log({ event: EServeEvent.LostShellSettlementFailed, reason: messageOf(error) })
-    })
-}
-
-const lazy = <T>(fetch: () => Promise<T>): (() => Promise<T>) => {
-  let held: Promise<T> | undefined
-  return () => (held ??= fetch())
-}
 
 export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   const env = args.env ?? process.env
@@ -188,130 +72,74 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   const fetchFn = args.fetchFn ?? fetch
 
   const driveHome = atlasDirectory()
-  const fetchSpecOnce = lazy(driveWorkspaceSpecFetcher({ driveHome }))
-
-  /**
-   * Before anything can read a file: a sandbox boots with whatever its last snapshot held, which on
-   * a first attach is nothing at all.
-   */
-  const workspaceStartedAt = Date.now()
-  const ensureWorkspace =
-    args.ensureWorkspace ??
-    createEnsureWorkspace({
-      profile: createEnvironmentProfile({
-        env,
-        serviceTtlSeconds: (args.idleMinutesWithServices ?? SERVE_IDLE_MINUTES_WITH_SERVICES) * 60,
-      }),
+  const { direct, directBoot, workspace, activeCwd, bootDormant, spec, context } =
+    await bootServeFiles({
+      env,
+      threadId,
+      cwd,
+      driveHome,
+      log,
+      idleMinutesWithServices: args.idleMinutesWithServices,
+      ensureWorkspace: args.ensureWorkspace,
+      restoreWorkspace: args.restoreWorkspace,
+      contextFiles: args.contextFiles,
+      fetchTranscriptArchive: args.fetchTranscriptArchive,
     })
-  const workspace = await ensureWorkspace({
-    cwd,
-    fetchSpec: fetchSpecOnce,
-  })
-  const workspaceMs = Date.now() - workspaceStartedAt
 
-  if (workspace.state === EWorkspaceState.Failed) {
-    log({
-      event: EServeEvent.WorkspaceFailed,
-      step: workspace.step,
-      reason: workspace.reason,
-      ms: workspaceMs,
-    })
-  } else {
-    log({ event: EServeEvent.WorkspaceReady, state: workspace.state, cwd, ms: workspaceMs })
-    for (const outcome of workspace.profile?.steps ?? []) {
-      if (outcome.state !== EProfileStepState.Failed) continue
-      log({ event: EServeEvent.ProfileStepFailed, step: outcome.step, detail: outcome.detail })
-    }
-  }
-
-  const spec = await fetchSpecOnce().catch(() => null)
-  applyGitAccessEnv({ env, cwd, githubToken: spec?.githubToken })
-
-  const contextStartedAt = Date.now()
-  const context = await materializeContext({
-    fetchSpec: fetchSpecOnce,
-    fetchArchive: driveContextArchiveFetcher({ driveHome }),
-    atlasHome: driveHome,
-    cwd,
-    files: args.contextFiles,
-  })
-  const contextMs = Date.now() - contextStartedAt
-  if (context.failed !== null) {
-    log({ event: EServeEvent.ContextFailed, reason: context.failed, ms: contextMs })
-  } else if (context.written > 0) {
-    log({ event: EServeEvent.ContextReady, written: context.written, ms: contextMs })
-  }
-
-  const transcriptStartedAt = Date.now()
-  const transcript = await materializeTranscript({
-    fetchArchive: args.fetchTranscriptArchive ?? driveTranscriptArchiveFetcher({ driveHome }),
-    atlasHome: driveHome,
+  const app = await composeBootApp({
+    compose: args.compose,
+    model: args.model,
+    spec,
+    workspace,
+    context,
     threadId,
-  })
-  const transcriptMs = Date.now() - transcriptStartedAt
-  if (transcript.failed !== null) {
-    log({ event: EServeEvent.TranscriptFailed, reason: transcript.failed, ms: transcriptMs })
-    throw new Error(`the transcript could not be restored at boot: ${transcript.failed}`)
-  }
-  if (transcript.restored) {
-    log({ event: EServeEvent.TranscriptRestored, ms: transcriptMs })
-  }
-  if (transcript.fresh) {
-    const sessionDir = sessionDirectory({ home: driveHome, sessionId: threadId })
-    const at = new Date().toISOString()
-    const meta = newThreadMeta({ id: threadId, at })
-    meta.workspace = cwd
-    await writeMeta({ file: threadMetaFile({ sessionDir, threadId }), meta })
-    await writeSessionMetaForRoot({
-      registry: registryFor({ home: driveHome }),
-      sessionDir,
-      root: meta,
-      home: EExecutionLocation.Cloud,
-    })
-  }
-
-  const storedThreadModel = (): { ref: string; effort?: string | undefined } | undefined => {
-    const meta = readMetaSync({
-      file: threadMetaFile({
-        sessionDir: sessionDirectory({ home: driveHome, sessionId: threadId }),
-        threadId,
-      }),
-      schema: threadMetaSchema,
-    })
-    if (meta === undefined || meta.modelRef === null) return undefined
-    return { ref: meta.modelRef, effort: meta.modelEffort ?? undefined }
-  }
-
-  const threadModel =
-    args.model ??
-    storedThreadModel() ??
-    (spec?.model === undefined || spec.model === null ? undefined : { ref: spec.model })
-
-  const capabilities = 'profile' in workspace ? workspace.profile?.capabilities : undefined
-
-  const app = await (args.compose ?? composeServeApp)({
-    threadId,
-    cwd,
+    cwd: activeCwd,
+    driveHome,
     controlPlaneUrl,
     token,
     clientVersion: args.clientVersion ?? 'dev',
     env,
-    model: threadModel,
     notice,
-    projectDirectory: context.projectDirectory,
-    capabilities,
-    identity: context.identity,
   })
+  const capabilities = 'profile' in workspace ? workspace.profile?.capabilities : undefined
 
   await hydrateCloudPlacement({ app, threadId })
+
+  const bootReceipt = directBoot.kind === 'ready' ? await direct.receipt() : null
+  if (bootReceipt?.arrivalPending === true) {
+    await settleDirectArrival({
+      direct,
+      app,
+      threadId,
+      restored: bootReceipt.restored,
+      launchDirectory: activeCwd,
+    })
+  }
 
   const buffer = createFrameBuffer({ capacity: args.bufferSize ?? DEFAULT_FRAME_BUFFER })
 
   const settling = { count: 0 }
   let idleStop: { note: () => void; halt: () => void } = { note: () => undefined, halt: () => undefined }
 
-  adoptChildrenInBackground({ app, threadId, log, settling, note: () => idleStop.note() })
-  settleLostShellsInBackground({ app, threadId, log })
+  const startChildren = async (): Promise<void> => {
+    await adoptChildrenNow({ app, threadId, log, settling, note: () => idleStop.note() })
+    settleLostShellsInBackground({ app, threadId, log })
+  }
+  const session = createWorkspaceSession({
+    direct,
+    driveHome,
+    threadId,
+    launchDirectory: () => direct.activeCwd() ?? activeCwd,
+    app,
+    capture: args.captureWorkspace,
+    dormant: bootDormant,
+    startChildren,
+  })
+  if (!session.dormant()) {
+    void startChildren().catch((error: unknown) => {
+      log({ event: EServeEvent.ChildAdoptionFailed, reason: error instanceof Error ? error.message : String(error) })
+    })
+  }
 
   let inFlight: () => readonly SignalFrame[] = () => []
   let liveStepId: () => StepId | null = () => null
@@ -325,7 +153,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   const driver = createTurnDriver({
     app,
     threadId,
-    refusal: () => workspaceRefusalOf(workspace),
+    refusal: () => workspaceRefusalOf(workspace) ?? (session.dormant() ? DORMANT_REFUSAL : undefined),
     onTurnStarted: () => {
       idleStop.note()
       log({ event: EServeEvent.TurnStarted })
@@ -350,38 +178,20 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
    * A legacy fake without an intake keeps its wake noticer instead.
    */
   const detachIntake = app.intake === undefined ? undefined : driver.attach(app.intake)
-  const wake =
-    app.intake !== undefined || app.wakeNotices === undefined
-      ? undefined
-      : new LegacyWake({
-          blocked: () => driver.running(),
-          onWake: () => {
-            idleStop.note()
-            driver.sayOrRun()
-          },
-        })
-  const unsubscribeWake =
-    app.intake !== undefined
-      ? undefined
-      : app.wakeNotices?.subscribe(() => {
-          if (app.wakeNotices === undefined) return
-          const waiting =
-            app.wakeNotices.pendingShells({ threadId }) +
-            app.wakeNotices.pendingAgents({ threadId }) +
-            app.wakeNotices.pendingServices({ threadId })
-          wake?.onNotice({ witness: waiting > 0 ? `pending:${waiting}` : null })
-        })
+  const unsubscribeWake = subscribeLegacyWake({
+    app,
+    threadId,
+    running: driver.running,
+    onWake: () => {
+      idleStop.note()
+      driver.sayOrRun()
+    },
+  })
 
   const publishWorkspace: WorkspacePublisher =
     args.publishWorkspace ??
-    workspacePublisherFor({
-      workspace,
-      threadId,
-      // Deliberately not fetchSpecOnce: the token rides the spec, and a GitHub reconnect mints a
-      // new one — a publisher that cached the boot-time spec would wedge every descend until the
-      // sandbox process died (that wedged a real session on 2026-09-19).
-      fetchSpec: driveWorkspaceSpecFetcher({ driveHome }),
-      cwd,
+    (async () => {
+      throw new Error('this serve transfers workspaces as archives; publish-workspace is retired')
     })
 
   const handlers = createSessionHandlers({
@@ -393,67 +203,26 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     files: app.files,
     publish: publishWorkspace,
     refusal: () => workspaceRefusalOf(workspace) ?? null,
+    workspace: { prepare: session.prepare, apply: session.apply, activate: session.activate },
     log,
     roster: app.roster,
     rewind: app.rewind,
-    ...(app.ledger === undefined
-      ? {}
-      : {
-          transcript: { log: app.log, threads: app.threads, ledger: app.ledger },
-        }),
-    ...(app.modelBridge === undefined ? {} : { selectModel: app.modelBridge.select }),
-    ...(app.sessionArchive === undefined ? {} : { sessionArchive: app.sessionArchive }),
-    ...(app.memoryArchive === undefined ? {} : { memoryArchive: app.memoryArchive }),
-    restoreTranscript: async (marker) => {
-      const fetchArchive = args.fetchTranscriptArchive ?? driveTranscriptArchiveFetcher({ driveHome })
-      const receiptBefore = await transcriptBootstrapReceipt({ atlasHome: driveHome })
-      const result = await restoreTranscript({
-        fetchArchive,
-        atlasHome: driveHome,
-        threadId,
-        log: app.log,
-        ids: app.ids,
-        ...(marker === undefined ? {} : { marker }),
-        refuseIfBusy: () =>
-          settling.count > 0
-            ? 'transferred children are still resuming, so the transcript cannot be replaced'
-            : null,
-      })
-      if (result.failed !== null) log({ event: EServeEvent.TranscriptFailed, reason: result.failed })
-      else if (result.restored) log({ event: EServeEvent.TranscriptRestored })
-      if (!result.restored) return result
-      await hydrateCloudPlacement({ app, threadId })
-      const receiptAfter = await transcriptBootstrapReceipt({ atlasHome: driveHome })
-      if (receiptAfter !== receiptBefore || receiptAfter === null) {
-        const restoredThread = await app.threads.find({ threadId })
-        if (app.modelBridge !== undefined && restoredThread?.model !== undefined) {
-          app.modelBridge.select({
-            ref: restoredThread.model.ref,
-            effort: restoredThread.model.effort ?? app.modelBridge.effort(),
-          })
-        }
-        adoptChildrenInBackground({ app, threadId, log, settling, note: () => idleStop.note() })
-      }
-      return result
-    },
+    ...handlerOptionsOf(app),
+    restoreTranscript: createTranscriptRestorer({
+      app,
+      threadId,
+      driveHome,
+      direct,
+      activeCwd,
+      log,
+      settling,
+      dormant: session.dormant,
+      note: () => idleStop.note(),
+      fetchTranscriptArchive: args.fetchTranscriptArchive,
+    }),
   })
 
-  const unsubscribeThreads = (() => {
-    const onRename = app.threads.onRename?.bind(app.threads)
-    const onModelChosen = app.threads.onModelChosen?.bind(app.threads)
-    if (onRename === undefined || onModelChosen === undefined) return undefined
-    const offs = [
-      onRename(({ threadId: renamed, title }) =>
-        handlers.broadcast({ kind: EServeFrame.ThreadRenamed, threadId: renamed, title }),
-      ),
-      onModelChosen(({ threadId: chosen, model }) =>
-        handlers.broadcast({ kind: EServeFrame.ThreadModelChanged, threadId: chosen, model }),
-      ),
-    ]
-    return () => {
-      for (const off of offs) off()
-    }
-  })()
+  const unsubscribeThreads = subscribeThreadBroadcasts({ threads: app.threads, broadcast: handlers.broadcast })
 
   // Watching surfaces (footer chips, sidebar crew) read the roster off the wire, so a change on
   // the live registries is pushed the moment the registries announce it, not on the next request.
@@ -469,22 +238,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   liveStepId = bridge.liveStepId
   broadcast = handlers.broadcast
 
-  /**
-   * A turn cut short by the container stopping leaves its events durable and nothing else, so the
-   * one thing boot owes a client is to say the thread is mid-turn rather than to look alive.
-   */
-  const events = await app.log.read({ threadId }).catch(() => [])
-  if (capabilities !== undefined) {
-    await syncCapabilitiesNotice({
-      log: app.log,
-      threadId,
-      runId: app.ids.nextRunId(),
-      events,
-      capabilities,
-    }).catch(() => false)
-  }
-  const resumable = isResumable(events)
-  if (resumable) log({ event: EServeEvent.Resumable, head: events.at(-1)?.seq ?? 0 })
+  const { resumable } = await announceBoot({ app, threadId, capabilities, log })
 
   const server = startSessionServer({
     port: wanted,

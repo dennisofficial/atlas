@@ -1,110 +1,66 @@
 import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
 
-import type { LanguageModelV4 } from '@ai-sdk/provider'
-
 import {
-  AccountStorePort,
-  agentTypeModelDefinitions,
   EventLogPort,
-  ENoticeTone,
   ESettingId,
-  EUtilityModelRole,
   IdPort,
-  DecisionPort,
-  JudgePort,
-  LogPort,
   ModelPort,
-  TelemetryPort,
-  NOTICE_WARN_MS,
   NoticePort,
-  choiceValueOf,
-  parseRef,
   textValueOf,
   type CapabilitiesSource,
 } from '@dltech/atlas-core'
 
 import { AgentRegistryPort } from '../agents/registry/port'
-import { bindAgentTypes } from '../agents/types/bind-agent-types'
-import { agentTypeSources } from '../agents/types/roots'
-import { createUrlOpener } from '../browser/open-url'
-import { createFileOpener, EEditor } from '../browser/open-file'
-import { createPathResolver } from '../browser/path-resolver'
 import { createDeltaChannel } from '../channel/delta-channel'
 import { createHarnessContainer } from '../container/create-harness-container'
-import { disposeAll, registerDisposable } from '../container/disposal'
 import { portToken, type DependencyContainer } from '../container/injection'
-import { DockerEngineToken } from '../container/tokens'
-import { moveLocalPlacement } from '../execution/local-placement-move'
-import { ExecutionLocationToken } from './execution-location-state'
 import {
   ClientVersionToken,
+  DockerEngineToken,
   HookMishapReporterToken,
-  SecretsStoreToken,
   SleepPreventionToken,
   WakeSignalToken,
-  WorkspaceRoot,
 } from '../container/tokens'
-import type { HookMishap } from '../hooks/budget'
-import { HaikuJudge } from '../classifier/judge'
-import { decisionsConfigFrom, RoutedJudge } from '../classifier/routed-judge'
-import { JevDecisionClient } from '../classifier/jev-client'
-import { JevJudge } from '../classifier/jev-judge'
-import { FileBrowser } from '../files/file-browser'
+import { moveLocalPlacement } from '../execution/local-placement-move'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
-import { summaryFor } from '../model/summariser'
-import { titleFor } from '../model/titler'
-import { EMcpAuthOutcome } from '../mcp/oauth/flow'
-import { registerMcp } from '../mcp/registry/register-mcp'
 import { createPendingQueues } from '../pending'
-import { registerBuiltinPromptFragments } from '../prompt/register-prompt-fragments'
 import { PromptRegistry } from '../prompt/registry'
-import { SleepPrevention } from '../power/sleep-prevention'
 import { ServiceRegistryPort } from '../services/service-registry'
 import { ShellRegistryPort } from '../shells/shell-registry'
 import { atlasDirectory } from '../store/paths'
 import { ThreadStorePort } from '../store/thread-store'
 import { ToolRegistry } from '../tools/registry'
-import { ClockJumpDetector } from '../wake/clock-jump-detector'
-import { WakeSignalSource } from '../wake/wake-signal-source'
-import { probeWorkspace } from '../workspace/probe'
-import type { ContributedSurface } from '../plugins/surface'
 
-import { bindAccounts, bindKeychainSource } from './account-bindings'
+import { bindBrowser } from './compose-browser'
+import { bindSessionAgentTypes } from './compose-agent-types'
+import { bindCredentials } from './compose-credentials'
+import {
+  bindProcessServices,
+  claimLaunchWorkspace,
+  closeSession,
+  hookMishapNotice,
+} from './compose-lifecycle'
+import { bindMcp } from './compose-mcp'
+import { asPluginSurfaces, localSessionOwner } from './compose-session'
+import { bindUtilityModels } from './compose-utility-models'
 import { dockerCapabilitiesSource } from './capabilities-source'
-import type { Summariser } from './compact-turn'
 import type { HarnessLaunch } from './config'
 import { bindInstructionsAndMemory } from './context-bindings'
+import { boundCaptureContext } from './context-archive-binding'
+import { ExecutionLocationToken } from './execution-location-state'
 import { faultInjected } from './fault-injection'
 import type { HarnessApp, HarnessStoreBinding, HarnessSurfaceBinding } from './harness-app'
-import { boundCaptureContext } from './context-archive-binding'
-import { mcpBootNotice, mcpRejectionNotice } from './mcp-report'
-import { knownRefs } from './model-catalogue'
 import { bindModels } from './model-bindings'
-import { bindSettingsPolicy } from './policy-bindings'
 import { loadSessionPlugins } from './plugin-loading'
-import { createUtilityModel } from './utility-model'
-import { reachableRootsFor } from './reachable-files'
-import { journalResume } from './resume-journal'
 import type { ActiveConversation } from './resume-hint'
+import { journalResume } from './resume-journal'
 import type { SettingsBinding } from './settings-binding'
 import { bindSkillRegistry, liveSkillRegistry } from './skills-binding'
 import { wireTurn } from './turn-wiring'
-import { claimLaunchWorktree, threadOpenedHandler } from './worktree-claims'
+import { threadOpenedHandler } from './worktree-claims'
 
-/**
- * A repo or native plugin's surface hook is opaque to the loader by design (see plugins/surface.ts)
- * — it returns whatever the composing app expects, and the loader never inspects it. `TPluginSurface`
- * is that app-chosen shape; `asPluginSurfaces` is the one place the loader's `unknown` is asserted
- * into it, so every other caller sees a properly typed `ContributedSurface<TPluginSurface>[]`
- * instead of reaching for its own cast.
- */
 const SERVE_COMMAND = 'serve'
-
-const asPluginSurfaces = <TPluginSurface>(
-  surfaces: readonly ContributedSurface[],
-): readonly ContributedSurface<TPluginSurface>[] =>
-  surfaces as unknown as readonly ContributedSurface<TPluginSurface>[]
 
 export async function composeHarness<TSurface = undefined, Command = never, TPluginSurface = unknown>(args: {
   launch: HarnessLaunch
@@ -113,83 +69,22 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   clientVersion: string
   surface: HarnessSurfaceBinding<TSurface>
   stores?: HarnessStoreBinding | undefined
-  /**
-   * Rebinds credential-facing ports before anything resolves them. A serve session runs this to
-   * swap the cloud proxies (which assume a user session) for its thread-scoped broker adapters;
-   * it must run ahead of `bindAccounts`, which resolves the account store at boot.
-   */
   bindPorts?: ((args: { container: DependencyContainer }) => void) | undefined
   capabilities?: CapabilitiesSource | undefined
   repoIdentity?: string | null | undefined
 }): Promise<HarnessApp<TSurface, Command, TPluginSurface>> {
   const { launch, surface } = args
-  const notice: NoticePort = surface.notice
+  const notice = surface.notice
   const container = createHarnessContainer()
   container.register(ClientVersionToken, { useValue: args.clientVersion })
   container.register(portToken(NoticePort), { useValue: notice })
   args.bindPorts?.({ container })
-  // A session with no workspace (an orchestrator agent) anchors at the process directory: nothing
-  // probes a repo, claims a worktree, or reads project instructions for it.
-  const anchor = launch.cwd ?? process.cwd()
-  const workspace =
-    launch.cwd === undefined
-      ? { workspace: anchor, repo: null }
-      : await probeWorkspace({ cwd: anchor })
-  await claimLaunchWorktree({ container, workspace })
-  const mcp = await registerMcp({ container, cwd: anchor })
 
-  for (const server of mcp.store.servers()) {
-    const bootNotice = mcpBootNotice(server)
-    if (bootNotice !== null) {
-      notice.notify({
-        key: `mcp:${server.spec.name}`,
-        tone: ENoticeTone.Warn,
-        ttlMs: NOTICE_WARN_MS,
-        text: bootNotice,
-      })
-    }
-  }
-
-  for (const rejection of mcp.rejections) {
-    notice.notify({
-      key: `mcp:rejection:${rejection.definedIn}:${rejection.name ?? 'file'}`,
-      tone: ENoticeTone.Warn,
-      ttlMs: NOTICE_WARN_MS,
-      text: mcpRejectionNotice(rejection),
-    })
-  }
-
-  const mcpSignIn =
-    mcp.signIn === undefined
-      ? undefined
-      : async (signInArgs: { serverName: string }): Promise<{ ok: boolean; detail: string }> => {
-          const status = mcp.store.servers().find((server) => server.spec.name === signInArgs.serverName)
-          if (status === undefined)
-            return { ok: false, detail: `no MCP server named '${signInArgs.serverName}' is configured` }
-          if (status.spec.transport?.kind !== 'http')
-            return { ok: false, detail: `'${signInArgs.serverName}' is not an HTTP server, so it has no OAuth sign-in` }
-
-          const challenge = mcp.store.challengeOf({ serverId: signInArgs.serverName })
-          const result = await mcp.signIn!({
-            serverUrl: status.spec.transport.url,
-            ...(challenge === undefined ? {} : { wwwAuthenticate: challenge }),
-          })
-
-          if (result.outcome === EMcpAuthOutcome.NeedsClientRegistration)
-            return { ok: false, detail: `'${signInArgs.serverName}' does not support OAuth sign-in: ${result.reason}` }
-
-          // The stored token only reaches the loop on a fresh connect, so reopen the server now.
-          await mcp.store.reconnect({ serverId: signInArgs.serverName })
-          const verb = result.outcome === EMcpAuthOutcome.Refreshed ? 'refreshed the token for' : 'signed in to'
-          return { ok: true, detail: `${verb} '${signInArgs.serverName}'` }
-        }
+  const { anchor, workspace } = await claimLaunchWorkspace({ container, launch })
+  const mcp = await bindMcp({ container, cwd: anchor, notice })
 
   const settings = args.settings.service
   const settled = settings.snapshot().resolution
-
-  // The sandbox container is keyed to the session, not the project directory: two tiles working
-  // the same checkout get isolated containers, and resuming a thread reattaches to its own.
-  // Before any thread is open the key falls back to a per-process id.
   const preThreadSessionKey = randomUUID()
   let activeThread: ActiveConversation | null = null
 
@@ -198,58 +93,19 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     return held.length === 0 ? undefined : held
   }
 
-  registerBuiltinPromptFragments({ container })
-  container.register(WorkspaceRoot, { useValue: workspace.workspace })
-  container.register(SleepPreventionToken, {
-    useValue: new SleepPrevention({ log: container.resolve(portToken(LogPort)) }),
-  })
+  bindProcessServices({ container, workspace })
 
-  // One clock-jump detector per session: a sleep that lands mid-stream leaves every pooled socket
-  // half-open, so the wake must reach the model port (abort + fresh connection) and the retry
-  // policy (budget reset) from the same source.
-  const wakeSignals = new WakeSignalSource()
-  const clockJumps = new ClockJumpDetector({})
-  clockJumps.subscribe((jump) => wakeSignals.fire(jump))
-  clockJumps.start()
-  container.register(WakeSignalToken, { useValue: wakeSignals })
-  registerDisposable({
+  const { credentials, accounts, cloud, usage, secrets, accountList } = await bindCredentials({
     container,
-    close: async () => {
-      clockJumps.stop()
-    },
-  })
-
-  bindKeychainSource({ container, launchValue })
-
-  const accountStore = container.resolve(portToken(AccountStorePort))
-  // bindTo registers the settings store tokens bindAccounts resolves for the sign-in migration.
-  args.settings.bindTo(container)
-  registerDisposable({
-    container,
-    close: async () => {
-      settings.close()
-    },
-  })
-  const { credentials, accounts, cloud, usage } = await bindAccounts({
-    container,
+    settings: args.settings,
     env: args.env,
-    cloudUrl: launchValue(ESettingId.CloudUrl),
     clientVersion: args.clientVersion,
     reconcileHostSources: launch.command !== SERVE_COMMAND,
+    workspace,
+    anchor,
+    launchValue,
+    notice,
   })
-  const secrets = container.resolve(SecretsStoreToken)
-
-  await bindSettingsPolicy({ container, settings, workspace, credentials, cwd: anchor })
-
-  const bootAccountList = await accountStore.list()
-  if (bootAccountList.length === 0 && cloud.session() !== null) {
-    notice.notify({
-      key: 'cloud:legacy-accounts',
-      tone: ENoticeTone.Warn,
-      ttlMs: NOTICE_WARN_MS,
-      text: 'Atlas found no local accounts, but a cloud sign-in may still hold them. Pull them down with a cloud download from settings; Atlas never fetches them on its own.',
-    })
-  }
 
   await bindInstructionsAndMemory({
     container,
@@ -275,76 +131,19 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     settled,
     settings,
     credentials,
-    accountList: bootAccountList,
+    accountList,
     notice,
     env: args.env,
   })
 
-  const skillRegistry = bindSkillRegistry({
-    container,
-    registry: await liveSkillRegistry({
-      atlasHome: atlasDirectory(),
-      home: homedir(),
-      cwd: anchor,
-    }),
-  })
+  const roots = { atlasHome: atlasDirectory(), home: homedir(), cwd: anchor }
+  const skillRegistry = bindSkillRegistry({ container, registry: await liveSkillRegistry(roots) })
+  const agentTypes = await bindSessionAgentTypes({ container, settings, launchValue, models, roots })
 
-  const agentTypes = await bindAgentTypes({
-    container,
-    sources: await agentTypeSources({
-      atlasHome: atlasDirectory(),
-      home: homedir(),
-      cwd: anchor,
-    }),
-    reachableModelIds: knownRefs(models),
-    modelIsUsable: (modelId) => {
-      const ref = parseRef(modelId)
-      return ref !== undefined && models.cardFor(ref) !== undefined
-    },
-    subagentModelId: launchValue(ESettingId.SubagentModel),
-  })
-
-  settings.register(
-    agentTypeModelDefinitions({ typeNames: agentTypes.types.map((type) => type.name) }),
-  )
-
-  const decisionsConfig = decisionsConfigFrom({ settings, secrets })
-  const decisions = new JevDecisionClient({ config: decisionsConfig })
-  container.register(portToken(DecisionPort), { useValue: decisions })
-
-  const sessionModelFallback = (): LanguageModelV4 | undefined => {
-    const choice = model.choice()
-    const card = models.cardFor(choice.ref)
-    const adapter = models.adapterFor(choice.ref.providerId)
-    if (card === undefined || adapter === undefined) return undefined
-    return adapter.model({ card, effort: () => model.choice().effort })
-  }
-
-  container.register(portToken(JudgePort), {
-    useValue: new RoutedJudge({
-      fallback: new HaikuJudge({
-        model: createUtilityModel({
-          role: EUtilityModelRole.Judge,
-          settings,
-          catalogue: models,
-          notice,
-          fallback: sessionModelFallback,
-        }),
-      }),
-      jev: new JevJudge({ decisions }),
-      enabled: () => decisionsConfig() !== undefined,
-    }),
-  })
+  const utility = bindUtilityModels({ container, settings, secrets, models, model, notice })
 
   if (args.stores !== undefined) await args.stores.bind({ container })
 
-  /**
-   * Plugin loading resolves `EventLogPort`/`ThreadStorePort`/`TurnLedgerPort` for the host it hands
-   * a repo plugin, so it has to run after `stores.bind` has had its chance to override them — a
-   * serve session's plugins would otherwise be handed the default container stores, or fail
-   * outright before they are even registered. It still has to run
-   * before `surface.bind` and before `ToolRegistry`/`HookChain` first resolve.
-   */
   const plugins = await loadSessionPlugins({ container, cwd: anchor, atlasHome: atlasDirectory(), notice })
 
   const log = container.resolve(portToken(EventLogPort))
@@ -353,19 +152,10 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   executionLocation.bind({ threads, workspace: workspace.workspace, repo: workspace.repo })
   const ledger = container.resolve(portToken(TurnLedgerPort))
 
-  container.register(HookMishapReporterToken, {
-    useValue: (mishap: HookMishap) =>
-      notice.notify({
-        key: `hook:${mishap.label}`,
-        tone: ENoticeTone.Warn,
-        ttlMs: NOTICE_WARN_MS,
-        text: `hook ${mishap.label} ${mishap.detail}`,
-      }),
-  })
+  container.register(HookMishapReporterToken, { useValue: hookMishapNotice(notice) })
 
   const bound = surface.bind === undefined ? undefined : await surface.bind({ container })
 
-  const tools = () => container.resolve(portToken(ToolRegistry)).declarations()
   const modelPort = faultInjected(container.resolve(portToken(ModelPort)))
   const prompts = container.resolve(portToken(PromptRegistry))
   const shells = container.resolve(portToken(ShellRegistryPort))
@@ -375,38 +165,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   const channel = createDeltaChannel()
   const pending = createPendingQueues<Command>()
 
-  const titlerModel = createUtilityModel({
-    role: EUtilityModelRole.Titler,
-    settings,
-    catalogue: models,
-    notice,
-    fallback: sessionModelFallback,
-  })
-  const compactionModel = createUtilityModel({
-    role: EUtilityModelRole.Compaction,
-    settings,
-    catalogue: models,
-    notice,
-    fallback: sessionModelFallback,
-  })
-  const tldrModel = createUtilityModel({
-    role: EUtilityModelRole.Tldr,
-    settings,
-    catalogue: models,
-    notice,
-    fallback: sessionModelFallback,
-  })
-
-  const summarise: Summariser = ({ events, fromSeq, throughSeq, signal }) =>
-    summaryFor({
-      model: compactionModel,
-      events,
-      fromSeq,
-      throughSeq,
-      ...(signal === undefined ? {} : { signal }),
-    })
-
-  const { turn, runner, turnPolicy, titling, recordTeardownEndings, intake } = wireTurn<Command>({
+  const { runner, turnPolicy, titling, recordTeardownEndings, intake } = wireTurn<Command>({
     container,
     workspace,
     executionLocation,
@@ -417,20 +176,33 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     model,
     modelPort,
     prompts,
-    declarations: tools,
+    declarations: () => container.resolve(portToken(ToolRegistry)).declarations(),
     pending,
     channel,
     notice,
-    summarise,
+    summarise: utility.summarise,
     settings,
-    decisionsEnabled: () => decisionsConfig() !== undefined,
+    decisionsEnabled: utility.decisionsEnabled,
     stopSandbox: sandbox.stop,
     settled,
     sleepPrevention: container.resolve(SleepPreventionToken),
     wake: container.resolve(WakeSignalToken),
-    tldr: { feed: surface.tldrFeed, model: tldrModel, modelId: () => tldrModel.modelId },
-    titler: ({ text, images }) =>
-      titleFor({ model: titlerModel, fallback: sessionModelFallback, text, images }),
+    tldr: { feed: surface.tldrFeed, model: utility.tldrModel, modelId: () => utility.tldrModel.modelId },
+    titler: utility.titler,
+  })
+
+  const sessionOwner = localSessionOwner({
+    placement: executionLocation,
+    workspace,
+    runner,
+    channel,
+    log,
+    threads,
+    ledger,
+    intake,
+    shells,
+    agents,
+    services,
   })
 
   return {
@@ -441,35 +213,14 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
       activeThread = active
     },
     activeThread: () => activeThread,
-    titler: ({ text, images, signal }) =>
-      titleFor({ model: titlerModel, fallback: sessionModelFallback, text, images, signal }),
-    summarise,
+    titler: utility.titler,
+    summarise: utility.summarise,
     settings,
     secrets,
     skills: skillRegistry.all(),
     skillRegistry,
     agentTypes,
-    files: new FileBrowser({
-      root: anchor,
-      reachableRoots: () =>
-        reachableRootsFor({
-          location: executionLocation.current(),
-          projectDirectory: anchor,
-          mounts,
-        }),
-    }),
-    openUrl: createUrlOpener(),
-    pathResolver: createPathResolver({ root: anchor }),
-    openFile: createFileOpener({
-      editor: () => {
-        const held = choiceValueOf({
-          resolution: settings.snapshot().resolution,
-          id: ESettingId.Editor,
-          fallback: EEditor.Default,
-        })
-        return Object.values(EEditor).includes(held as EEditor) ? (held as EEditor) : EEditor.Default
-      },
-    }),
+    ...bindBrowser({ anchor, settings, executionLocation, mounts }),
     credentials,
     accounts,
     cloud,
@@ -486,8 +237,8 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     services,
     sandbox,
     containerStatus,
-    mcp: () => mcp.store.servers(),
-    mcpSignIn,
+    mcp: mcp.servers,
+    mcpSignIn: mcp.signIn,
     threadOpened: threadOpenedHandler({ container, log, threads, ids, notice }),
     journalResume: ({ active, directory }) =>
       journalResume({ active, command: launch.command, directory }),
@@ -498,28 +249,20 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     modelPinned,
     models,
     executionLocation,
+    sessionOwner,
     executionPinned,
-    moveTools: (move) => moveLocalPlacement({
-      ...move,
-      control: container.resolve(ExecutionLocationToken),
-      engine: container.resolve(DockerEngineToken),
-      ids,
-      shells,
-      services,
-      stores: () => ({ threads, log, agents }),
-    }),
+    moveTools: (move) =>
+      moveLocalPlacement({
+        ...move,
+        control: container.resolve(ExecutionLocationToken),
+        engine: container.resolve(DockerEngineToken),
+        ids,
+        shells,
+        services,
+        stores: () => ({ threads, log, agents }),
+      }),
     surface: bound as TSurface,
-    close: async () => {
-      usage.dispose()
-      await recordTeardownEndings().catch((error: unknown) => {
-        notice.notify({
-          tone: ENoticeTone.Warn,
-          text: `Could not persist every session ending: ${error instanceof Error ? error.message : String(error)}`,
-        })
-      })
-      await disposeAll({ container })
-      await container.resolve(portToken(TelemetryPort)).flush()
-    },
+    close: () => closeSession({ container, notice, usage, recordTeardownEndings }),
     runner,
     turnPolicy,
     titling,

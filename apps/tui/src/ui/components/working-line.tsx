@@ -2,6 +2,7 @@ import React from 'react'
 
 import { backgroundWaitLabel, type BackgroundWork } from '../background-wait'
 import { useClickRegion } from '../hooks/use-click-region'
+import { EKeyGroup, EKeyLayer, useKeyBindings } from '../keys'
 import { retryLabel, type RetryWait } from '../retry-countdown'
 import { formatElapsed, formatTokens, glyph, theme } from '../theme'
 import { ShimmerLine, SpinnerGlyph } from './shimmer-line'
@@ -16,10 +17,6 @@ export enum EWorkingVerb {
 
 const INTERRUPTING = 'Interrupting…'
 
-/**
- * Only ever shown while something is running. What a finished turn cost is a durable transcript
- * row built from the ledger, not this line settling in place.
- */
 export function WorkingLine(props: {
   elapsedMs: number
   outputTokens: number
@@ -29,6 +26,10 @@ export function WorkingLine(props: {
   onReconnect?: (() => void) | undefined
 }): React.ReactNode {
   const { retry } = props
+  const onReconnect = props.verb === EWorkingVerb.Disconnected ? props.onReconnect : undefined
+  useKeyBindings(onReconnect === undefined ? [] : [{
+    chord: 'ctrl+r', hint: 'reconnect', layer: EKeyLayer.Block, group: EKeyGroup.Turn, run: onReconnect,
+  }])
   const reconnect = useClickRegion(props.verb === EWorkingVerb.Disconnected ? props.onReconnect : undefined)
 
   if (retry !== null && retry !== undefined && !props.interrupting) {
@@ -41,11 +42,6 @@ export function WorkingLine(props: {
 
   const verb = props.verb ?? EWorkingVerb.Working
 
-  /**
-   * A dropped cloud socket freezes the local view: the turn may still be running on the sandbox,
-   * so the row is static (no shimmer) and carries the reconnect affordance, colored the same as a
-   * resume (`↻ ctrl+r` in accent, the verb in hint) since both pick a stopped thing back up.
-   */
   if (verb === EWorkingVerb.Disconnected) {
     return (
       <box flexDirection="column">
@@ -63,11 +59,6 @@ export function WorkingLine(props: {
     )
   }
 
-  /**
-   * A turn dropped before the socket did keeps reading Reconnecting rather than Interrupting: the
-   * abort still queued into a dead channel and the sandbox never saw it, so nothing is actually
-   * interrupting until the socket comes back to carry the frame.
-   */
   if (verb === EWorkingVerb.Reconnecting) {
     return (
       <box flexDirection="column">

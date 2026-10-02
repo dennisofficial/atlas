@@ -1,4 +1,4 @@
-import { useMemo, useSyncExternalStore } from 'react'
+import { useMemo } from 'react'
 
 import { cloudConnectionItemOf, isAttaching } from '../ui/cloud-connection-item'
 import type { FooterItem } from '../ui/footer-item'
@@ -7,15 +7,13 @@ import { locationPillOf } from '../ui/location-pill'
 import { SPINNER_FRAME_MS } from '../ui/theme'
 import type { CloudConnection } from '@dltech/atlas-harness'
 import type { AtlasApp } from './compose'
+import { useSessionOwner } from './use-session-owner'
 
 export function useLocationItems(args: {
   app: AtlasApp
   connection?: CloudConnection | null | undefined
 }): readonly FooterItem[] {
-  const location = useSyncExternalStore(
-    args.app.executionLocation.subscribe,
-    args.app.executionLocation.current,
-  )
+  const { location } = useSessionOwner({ app: args.app })
   const connection = args.connection ?? null
   const now = useShimmerClock({
     active: connection !== null && isAttaching(connection.state),

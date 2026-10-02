@@ -1,4 +1,4 @@
-import { toThreadId } from '@dltech/atlas-core'
+import { projectOf, toThreadId } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
@@ -94,6 +94,7 @@ type Probe = { control: ThreadsControl | null }
 function Picker(props: { probe: Probe; app: AtlasApp; listing: () => { list: unknown } }): React.ReactNode {
   const control = useThreads({
     app: props.app,
+    project: projectOf(props.app.workspace),
     activeThreadId: 'active-thread',
     onPick: () => undefined,
     listing: props.listing as never,
