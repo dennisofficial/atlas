@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
 import { EChannelConnection, type CloudConnection } from '@dltech/atlas-harness'
@@ -7,6 +7,8 @@ import type { CloudHealth, CloudSession } from './cloud/cloud-session'
 import type { AtlasApp } from './compose'
 import { useAttachFailure } from './attach-failure'
 import { useSessionOwner } from './use-session-owner'
+import { clearNotice, ENoticeTone, notify } from '../ui/notice-store'
+import { CLOUD_SANDBOX_NOTICE_KEY } from './cloud/lift-notices'
 
 const CONNECTING: CloudConnection = { state: EChannelConnection.Connecting, detail: null }
 
@@ -62,6 +64,21 @@ export function useCloudHealth(args: {
   session: CloudSession | null
 }): CloudHealth | null {
   const { location, bound, health } = useCloudState(args)
+
+  const failure = health?.failure ?? null
+  useEffect(() => {
+    if (failure === null) {
+      clearNotice({ key: CLOUD_SANDBOX_NOTICE_KEY })
+      return
+    }
+
+    notify({
+      key: CLOUD_SANDBOX_NOTICE_KEY,
+      text: failure,
+      tone: ENoticeTone.Warn,
+      sticky: true,
+    })
+  }, [failure])
 
   if (location !== EExecutionLocation.Cloud || !bound) return null
   return health
