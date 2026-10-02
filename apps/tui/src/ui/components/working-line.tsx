@@ -51,7 +51,7 @@ export function WorkingLine(props: {
     return (
       <box flexDirection="column">
         <text {...reconnect.handlers} {...(reconnect.hovered ? { backgroundColor: theme.hoverBg } : {})}>
-          <span fg={theme.warn}>○ disconnected — the turn may still be running</span>
+          <span fg={theme.warn}>○ disconnected</span>
           {props.lastSeenAt === null || props.lastSeenAt === undefined ? null : (
             <span fg={theme.dim}>{` · transcript last seen ${lastSeenLabel(props.lastSeenAt)}`}</span>
           )}
