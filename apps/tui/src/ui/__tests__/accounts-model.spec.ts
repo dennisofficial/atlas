@@ -321,9 +321,10 @@ describe('the browser prompt', () => {
     expect(isPrompting(asked)).toBe(true)
   })
 
-  it('routes OpenAI to the browser and leaves Anthropic on the paste-back', () => {
+  it('routes Anthropic and OpenAI to the browser, keeping the paste-back behind it', () => {
     expect(acceptsBrowserLogin(EAuthProvider.OpenAI)).toBe(true)
-    expect(acceptsBrowserLogin(EAuthProvider.Anthropic)).toBe(false)
+    expect(acceptsBrowserLogin(EAuthProvider.Anthropic)).toBe(true)
+    expect(acceptsPastedCode(EAuthProvider.Anthropic)).toBe(true)
     expect(acceptsBrowserLogin(EAuthProvider.OpenRouter)).toBe(false)
   })
 })

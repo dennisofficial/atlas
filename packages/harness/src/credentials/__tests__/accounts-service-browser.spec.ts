@@ -112,11 +112,28 @@ describe('AccountsService browser login', () => {
     expect(await service.activeFor(EAuthProvider.OpenAI)).toBeUndefined()
   })
 
+  it('stores an Anthropic account signed in through the browser flow', async () => {
+    const client = new ScriptedBrowserClient()
+    const service = new AccountsService({
+      accounts: vault.store,
+      clients: { [EAuthProvider.Anthropic]: client },
+    })
+
+    const ticket = await service.beginBrowser(EAuthProvider.Anthropic)
+    const { subscription: _dropped, ...noSubscription } = BROWSER_LOGIN
+    client.succeed(noSubscription)
+    const account = await ticket.login
+
+    expect(account.provider).toBe(EAuthProvider.Anthropic)
+    expect(account.label).toBe('dennis@example.com')
+    expect(await service.activeFor(EAuthProvider.Anthropic)).toBe(account.id)
+  })
+
   it('refuses a browser login for a provider without that flow, or a client that cannot do it', async () => {
-    const anthropic = browserServiceWith(new ScriptedBrowserClient()).beginBrowser(
-      EAuthProvider.Anthropic,
+    const openrouter = browserServiceWith(new ScriptedBrowserClient()).beginBrowser(
+      EAuthProvider.OpenRouter,
     )
-    expect(anthropic).rejects.toThrow(CredentialError)
+    expect(openrouter).rejects.toThrow(CredentialError)
 
     const noFlow = new AccountsService({
       accounts: vault.store,

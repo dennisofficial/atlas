@@ -92,13 +92,35 @@ const press = async (args: { setup: Mounted; times: number; key: 'down' | 'enter
   }
 }
 
-const beginOpenAiSignIn = async (setup: Mounted): Promise<void> => {
-  setup.mockInput.pressKey('a', { ctrl: true })
-  await setup.flush()
-  await frameShowing({ setup, text: 'MODEL PROVIDERS' })
-  await press({ setup, times: 1, key: 'down' })
-  await press({ setup, times: 2, key: 'enter' })
+const beginSignIn = async (args: { setup: Mounted; downs: number }): Promise<void> => {
+  args.setup.mockInput.pressKey('a', { ctrl: true })
+  await args.setup.flush()
+  await frameShowing({ setup: args.setup, text: 'MODEL PROVIDERS' })
+  await press({ setup: args.setup, times: args.downs, key: 'down' })
+  await press({ setup: args.setup, times: 2, key: 'enter' })
 }
+
+const beginOpenAiSignIn = (setup: Mounted): Promise<void> => beginSignIn({ setup, downs: 1 })
+
+describe('the Anthropic browser sign-in', () => {
+  it('begins the browser flow for Anthropic and opens the authorize url', async () => {
+    const browser = browserApp()
+    const setup = await opened(browser.app)
+
+    try {
+      await beginSignIn({ setup, downs: 0 })
+
+      const frame = await frameShowing({ setup, text: 'waiting for the browser' })
+
+      expect(browser.begun).toEqual([EAuthProvider.Anthropic])
+      expect(frame).toContain(AUTHORIZE_URL)
+      expect(frame).not.toContain('waiting for a paste')
+      expect(browser.app.openedUrls).toEqual([AUTHORIZE_URL])
+    } finally {
+      await teardown(setup)
+    }
+  })
+})
 
 describe('the OpenAI browser sign-in', () => {
   it('begins the browser flow and shows the authorize url without a typing line', async () => {

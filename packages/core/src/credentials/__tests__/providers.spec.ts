@@ -12,6 +12,14 @@ describe('providerSpec', () => {
     ])
   })
 
+  it('prefers the browser login for Anthropic and keeps the paste-back as a fallback', () => {
+    expect(providerSpec(EAuthProvider.Anthropic).logins).toEqual([
+      ELoginFlow.BrowserCode,
+      ELoginFlow.PastedCode,
+      ELoginFlow.ApiKey,
+    ])
+  })
+
   it('keeps every provider on the flows its label gates on', () => {
     for (const provider of Object.values(EAuthProvider)) {
       expect(providerSpec(provider).logins.length).toBeGreaterThan(0)
