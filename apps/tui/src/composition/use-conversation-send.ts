@@ -71,14 +71,22 @@ export function useTakeBackPending(args: {
   cloudRunner: RemoteTurnRunner | null
   moving: boolean
   pending: PendingQueue<QueuedSettled>
+  sending: ConversationSending
 }): () => PendingSaid | null | Promise<PendingSaid | null> {
-  const { threadId, cloudRunner, moving, pending } = args
+  const { threadId, cloudRunner, moving, pending, sending } = args
 
   return useCallback((): PendingSaid | null | Promise<PendingSaid | null> => {
     if (moving) return null
     if (cloudRunner === null) return pending.takeBackLast()
-    return cloudRunner.takeBackPending({ threadId })
-  }, [cloudRunner, moving, pending, threadId])
+    /**
+     * A recalled steer never commits, so its "sending…" placeholder has nothing to reconcile
+     * against and would stick forever. Resolve it as the recall is confirmed.
+     */
+    return cloudRunner.takeBackPending({ threadId }).then((said) => {
+      if (said !== null) sending.resolve(said.text)
+      return said
+    })
+  }, [cloudRunner, moving, pending, sending, threadId])
 }
 
 export type ConversationSending = ReturnType<typeof useSendingRows>

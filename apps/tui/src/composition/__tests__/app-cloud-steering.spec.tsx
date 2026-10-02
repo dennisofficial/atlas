@@ -117,6 +117,58 @@ describe('steering a turn that runs in the cloud', () => {
     }
   }, 60_000)
 
+  it('renders a steered message once — the sending placeholder, with no duplicate queued row', async () => {
+    const app = slowlySpeaking()
+    const bridge = fakeBridge()
+    const mounted = await mount({ app, bridge })
+
+    try {
+      await liftMidTurn(mounted, bridge)
+
+      await mounted.typeText(STEER)
+      mounted.pressEnter()
+
+      const forwarded = await until({
+        holds: async () => bridge.channel.sent.some((one) => one.text === STEER),
+        within: 20_000,
+      })
+      expect(forwarded).toBe(true)
+
+      // The steer shows instantly as a "sending…" placeholder; when the sandbox's queue broadcast
+      // arrives naming the same message, it must not double-render as a second queued row.
+      bridge.channel.pushPending([{ id: 'pending-1', text: STEER, reserved: false }])
+
+      const once = await until({
+        holds: async () => {
+          const frame = await mounted.nextFrame()
+          if (!frame.includes(STEER)) return false
+          const occurrences = frame.split(STEER).length - 1
+          return occurrences === 1 && frame.includes('sending…') && !frame.includes(TAKE_BACK)
+        },
+        within: 20_000,
+      })
+      expect(once).toBe(true)
+
+      // Taking it back fills the draft and drops the placeholder — the recalled message never
+      // commits, so nothing would reconcile a leftover "sending…" row.
+      bridge.channel.holdTakeBack({ text: STEER, images: [], files: [] })
+      mounted.pressUp()
+
+      const recalled = await until({
+        holds: async () => {
+          const frame = await mounted.nextFrame()
+          return mounted.draftText() === STEER && !frame.includes('sending…') && !frame.includes(TAKE_BACK)
+        },
+        within: 20_000,
+      })
+      expect(recalled).toBe(true)
+
+      bridge.channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-cloud-dedupe') })
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
   it('steers a running cloud turn with an image attached, forwarding it to the sandbox', async () => {
     const app = slowlySpeaking()
     const bridge = fakeBridge()

@@ -183,7 +183,7 @@ export function useConversation(args: ConversationArgs): Conversation {
     setFailure,
   })
 
-  const handleTakeBackPending = useTakeBackPending({ threadId, cloudRunner, moving, pending })
+  const handleTakeBackPending = useTakeBackPending({ threadId, cloudRunner, moving, pending, sending })
 
   const adopt = useCallback(
     (next: OpenedConversation) => {
