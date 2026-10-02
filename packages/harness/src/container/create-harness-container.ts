@@ -54,6 +54,7 @@ import { EShellStatus } from '../shells/background-shell'
 import { ShellRegistryPort } from '../shells/shell-registry'
 import { registerSkills } from '../skills/register-skills'
 import { ThreadStorePort, RandomIds, SystemClock } from '../store'
+import { releaseEndedWorktree } from '../composition/worktree-claims'
 import { JsonlLog } from '../store/logs'
 import { atlasDirectory } from '../store/paths'
 import { JsonlEventLog } from '../store/sessions/event-log'
@@ -135,6 +136,12 @@ function registerAgents({ container }: { container: DependencyContainer }): void
           const services = resolver.resolve(portToken(ServiceRegistryPort))
           if (services.list().some((service) => service.status === EServiceStatus.Running)) return true
           return live.someChild(threadId, isStepping)
+        },
+        onChildEnded: (threadId) => {
+          void releaseEndedWorktree({
+            threads: resolver.resolve(portToken(ThreadStorePort)),
+            threadId,
+          }).catch(() => undefined)
         },
       })
       return live

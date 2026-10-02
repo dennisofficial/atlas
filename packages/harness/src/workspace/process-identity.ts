@@ -2,7 +2,26 @@ import type { WorktreeLockIdentity } from '@dltech/atlas-core'
 
 const START_TIME_ARGS = ['-o', 'lstart=', '-p'] as const
 
-export async function startTimeOf({ pid }: { pid: number }): Promise<string | undefined> {
+// proc(5): comm is paren-wrapped and may itself contain spaces or parens, so the
+// fields after it start at the final ')'; starttime is field 22, i.e. index 19 of those.
+export function parseProcStatStartTime(stat: string): string | undefined {
+  const afterComm = stat.lastIndexOf(')')
+  if (afterComm < 0) return undefined
+
+  const fields = stat.slice(afterComm + 2).split(' ')
+  const start = fields[19]
+  return start !== undefined && /^\d+$/.test(start) ? start : undefined
+}
+
+async function procStartTimeOf({ pid }: { pid: number }): Promise<string | undefined> {
+  try {
+    return parseProcStatStartTime(await Bun.file(`/proc/${pid}/stat`).text())
+  } catch {
+    return undefined
+  }
+}
+
+async function psStartTimeOf({ pid }: { pid: number }): Promise<string | undefined> {
   try {
     const ps = Bun.spawn(['ps', ...START_TIME_ARGS, String(pid)], {
       stdout: 'pipe',
@@ -17,6 +36,12 @@ export async function startTimeOf({ pid }: { pid: number }): Promise<string | un
   } catch {
     return undefined
   }
+}
+
+// Linux sandboxes ship without procps, so ps is missing there; the procfs read keeps the
+// start time intact, which is what makes a recycled pid not read as a live lock holder.
+export async function startTimeOf({ pid }: { pid: number }): Promise<string | undefined> {
+  return (await psStartTimeOf({ pid })) ?? (await procStartTimeOf({ pid }))
 }
 
 export function isProcessAlive({ pid }: { pid: number }): boolean {

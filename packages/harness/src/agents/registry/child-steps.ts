@@ -39,6 +39,7 @@ export class ChildSteps {
   private readonly telemetry: TelemetryPort | undefined
   private readonly intake: IntakeChanged | undefined
   private readonly hasLiveWork: HasLiveWork | undefined
+  private readonly onEnded: ((threadId: ThreadId) => void) | undefined
   private readonly inFlight = new Map<ThreadId, Map<ThreadId, Promise<void>>>()
   private readonly settledListeners = new Set<() => void>()
 
@@ -50,6 +51,7 @@ export class ChildSteps {
     telemetry?: TelemetryPort | undefined
     intake?: IntakeChanged | undefined
     hasLiveWork?: HasLiveWork | undefined
+    onEnded?: ((threadId: ThreadId) => void) | undefined
   }) {
     this.runners = args.runners
     this.roster = args.roster
@@ -58,6 +60,7 @@ export class ChildSteps {
     this.telemetry = args.telemetry
     this.intake = args.intake
     this.hasLiveWork = args.hasLiveWork
+    this.onEnded = args.onEnded
   }
 
   take({
@@ -180,6 +183,9 @@ export class ChildSteps {
         draft: agentEndedDraft(child),
         generation: child.abort.signal,
       })
+      // A teammate parked between wakes holds its claim until the next wake claims nothing
+      // (claimOpenedWorktree fires at open, not resume); only a real ending hands it back.
+      this.onEnded?.(child.agentId)
     }
 
     this.intake?.changed()

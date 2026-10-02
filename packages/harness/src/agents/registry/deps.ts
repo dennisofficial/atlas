@@ -38,6 +38,8 @@ export type SupervisorDeps = {
   intake?: IntakeChanged | undefined
   input?: (() => IntakeSubmit | undefined) | undefined
   hasLiveWork?: HasLiveWork | undefined
+  /** Fired when a child's ending is recorded, so live wiring can hand back what ending orphans (its worktree claim). */
+  onChildEnded?: ((threadId: ThreadId) => void) | undefined
 }
 
 export const agentTypeNamed = ({
