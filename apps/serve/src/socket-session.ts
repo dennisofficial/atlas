@@ -1,9 +1,4 @@
-import type { ServerWebSocket } from 'bun'
-
-import { eventBodySchema, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 import { rosterWireSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
-
-import type { StepId } from '@dltech/atlas-harness'
 
 import {
   CHANNEL_PROTOCOL_VERSION,
@@ -12,91 +7,34 @@ import {
   EServeFrame,
   decodeClientFrame,
   encodeFrame,
-  restoreTranscriptParamsSchema,
   type ClientFrame,
-  type RestoreTranscriptParams,
   type ServeFrame,
 } from '@dltech/atlas-harness'
-import type { FileBrowser, PendingQueues } from '@dltech/atlas-harness'
 
-import type { FrameBuffer, SignalFrame } from './frame-buffer'
-import type { WorkspacePublisher } from './publish-workspace'
-import {
-  answerRequest,
-  answerTakeBackPending,
-  answerTranscriptRead,
-  answerTranscriptWrite,
-  answeredRequest,
-  isPendingOp,
-  isTranscriptReadOp,
-  isTranscriptWriteOp,
-  pendingEntriesOf,
-  refusedRequest,
-  type TranscriptReaders,
-} from './requests'
-import { answerRewind } from './rewind-apply'
-import type { ServeRoster, ServeRewind } from './serve-app'
-import { EServeEvent, type ServeLog } from './serve-log'
-import { createStepAliaser, endsAliasedStep, retagged, type StepAlias } from './step-alias'
-import type { ServeTurnDriver } from './turn-driver'
+import { pendingEntriesOf, refusedRequest } from './requests'
+import { EServeEvent } from './serve-log'
+import type { ServeRoster } from './serve-app'
+import { createTurnCommands } from './socket-commands'
+import { createRequestRouter, messageOf } from './socket-requests'
+import type { HelloFrame, SessionHandlers, SessionHandlersArgs, SessionSocket } from './socket-session-types'
+import { createMutationTracker, isReadOnlyFrame, routeStateRequest } from './socket-state-requests'
+import { createStepAliaser, endsAliasedStep, retagged } from './step-alias'
+
+export type {
+  HelloFrame,
+  SessionHandlers,
+  SessionHandlersArgs,
+  SessionSocket,
+  SocketState,
+} from './socket-session-types'
 
 const POLICY_VIOLATION = 1008
 const GOING_AWAY = 1001
 
-export type SocketState = { helloed: boolean; alias: StepAlias | null }
-
-export type SessionSocket = ServerWebSocket<SocketState>
-
-export type SessionHandlers = {
-  open: (args: { socket: SessionSocket }) => void
-  message: (args: { socket: SessionSocket; message: string | Buffer }) => void
-  close: (args: { socket: SessionSocket }) => void
-  broadcast: (frame: ServeFrame) => void
-  broadcastRoster: () => void
-  park: (args: { reason: string }) => void
-  hangUp: () => void
-  clients: () => number
-  settling: () => boolean
-}
-
 /** A serve without registries (a spec fake) has nothing to report — an empty roster, not an error. */
 const EMPTY_ROSTER: ServeRoster['snapshot'] = () => ({ shells: [], agents: [], services: [] })
 
-type HelloFrame = Extract<ClientFrame, { kind: EClientFrame.Hello }>
-
-const messageOf = (error: unknown, fallback: string): string =>
-  error instanceof Error ? error.message : fallback
-
-export function createSessionHandlers(args: {
-  threadId: ThreadId
-  buffer: FrameBuffer
-  inFlight: () => readonly SignalFrame[]
-  liveStepId: () => StepId | null
-  driver: ServeTurnDriver
-  files: Pick<FileBrowser, 'list'>
-  publish: WorkspacePublisher
-  refusal: () => string | null
-  admissionClosed?: (() => boolean) | undefined
-  checkpoint?: (() => RuntimeCheckpoint | null) | undefined
-  checkpointChanged?: (() => void) | undefined
-  log: ServeLog
-  roster?: ServeRoster | undefined
-  rewind?: ServeRewind | undefined
-  /** The operator's queued input; its changes are broadcast and take-back-pending answers from it. Absent in fakes. */
-  pending?: PendingQueues | undefined
-  /** The transcript stores the read-ops answer from; absent in fakes, which refuse the ops. */
-  transcript?: TranscriptReaders | undefined
-  /** Re-pins the running loop's model for a set-thread-model op; absent in fakes. */
-  selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
-  /** Tars the served session directory for the descend's transfer; absent in fakes. */
-  sessionArchive?: (() => Promise<Uint8Array | null>) | undefined
-  /** Tars the sandbox's memory roots for the descend's memory transfer; absent in fakes. */
-  memoryArchive?: (() => Promise<Uint8Array | null>) | undefined
-  /** The lift's late transcript restore; absent in fakes, which refuse the op. The marker is the lift's `location-changed` draft, pinned on the restored log. */
-  restoreTranscript?:
-    | ((marker?: RestoreTranscriptParams['locationChanged']) => Promise<{ restored: boolean; failed: string | null }>)
-    | undefined
-}): SessionHandlers {
+export function createSessionHandlers(args: SessionHandlersArgs): SessionHandlers {
   const { threadId, buffer, inFlight, liveStepId, driver, files, publish, refusal, log } = args
   const snapshot = args.roster?.snapshot ?? EMPTY_ROSTER
   const rewind = args.rewind
@@ -106,27 +44,42 @@ export function createSessionHandlers(args: {
   const sessionArchive = args.sessionArchive
   const memoryArchive = args.memoryArchive
   const restoreTranscript = args.restoreTranscript
-  const admissionClosed = args.admissionClosed
-  const checkpoint = args.checkpoint
-  const checkpointChanged = args.checkpointChanged
-  let restoring: Promise<{ restored: boolean; failed: string | null }> | null = null
-  let mutations = 0
-  const mutation = <T>(promise: Promise<T>): Promise<T> => {
-    mutations += 1
-    return promise.finally(() => {
-      mutations -= 1
-      checkpointChanged?.()
-    })
-  }
+  const workspaceOps = args.workspace
+  const { admissionClosed, checkpoint, checkpointChanged } = args
+  const mutations = createMutationTracker({ changed: checkpointChanged })
   const live = new Set<SessionSocket>()
   const attached = new Set<SessionSocket>()
   const aliaser = createStepAliaser()
-  // A send's id lives in memory for the boot: a serve re-answer after a restart re-commits the
-  // message, which the harness's transcript merge absorbs as an already-seen event, never a duplicate.
-  const committedSends = new Set<string>()
 
   const send = (args: { socket: SessionSocket; frame: ServeFrame }): void => {
     args.socket.send(encodeFrame(args.frame))
+  }
+
+  const command = createTurnCommands({ threadId, driver, buffer, log, send })
+
+  const router = createRequestRouter({
+    threadId,
+    driver,
+    files,
+    publish,
+    log,
+    snapshot,
+    send: (sent) => {
+      mutations.observe(sent.frame)
+      send(sent)
+    },
+    rewind,
+    transcript,
+    selectModel,
+    sessionArchive,
+    memoryArchive,
+    restoreTranscript,
+    workspace: workspaceOps,
+  })
+
+  const checkpointField = (): { checkpoint?: RuntimeCheckpoint } => {
+    const current = checkpoint?.() ?? null
+    return current === null ? {} : { checkpoint: current }
   }
 
   /** The alias lives exactly as long as the step it renames, and only for the socket that reloaded. */
@@ -166,7 +119,7 @@ export function createSessionHandlers(args: {
         seq: buffer.nextSeq(),
         protocol: CHANNEL_PROTOCOL_VERSION,
         turnInFlight: driver.outcomePending(),
-        ...(checkpoint?.() == null ? {} : { checkpoint: checkpoint?.() }),
+        ...checkpointField(),
       },
     })
 
@@ -214,18 +167,14 @@ export function createSessionHandlers(args: {
   const drive = (args: { socket: SessionSocket; frame: ClientFrame }): void => {
     const { socket, frame } = args
 
-    const reading = frame.kind === EClientFrame.Request && (
-      isTranscriptReadOp(frame.op) || frame.op === EClientRequest.ListRoster || frame.op === EClientRequest.ReadRuntimeCheckpoint ||
-      frame.op === EClientRequest.ReadSessionArchive || frame.op === EClientRequest.ReadMemoryArchive
-    )
-    if (admissionClosed?.() === true && !reading) {
+    if (admissionClosed?.() === true && !isReadOnlyFrame(frame)) {
       refuseDeferred({ socket, frame, message: 'this sandbox is parking and accepts no new work' })
       return
     }
 
     const isRestoreOp = frame.kind === EClientFrame.Request && frame.op === EClientRequest.RestoreTranscript
-    if (restoring !== null && !isRestoreOp) {
-      const held = restoring
+    if (router.state.restoring !== null && !isRestoreOp) {
+      const held = router.state.restoring
       void held.then((result) => {
         if (result.failed !== null) {
           refuseDeferred({ ...args, message: `the transcript restore failed: ${result.failed}` })
@@ -238,309 +187,11 @@ export function createSessionHandlers(args: {
       return
     }
 
-    if (frame.kind === EClientFrame.Send) {
-      let context: EventDraft[] | undefined
-      try {
-        context = frame.context?.map((draft): EventDraft => eventBodySchema.parse(draft))
-      } catch {
-        send({ socket, frame: { kind: EServeFrame.Error, message: 'a context draft was not an event body' } })
-        return
-      }
-      if (committedSends.has(frame.sendId)) {
-        send({ socket, frame: { kind: EServeFrame.SendAcked, sendId: frame.sendId } })
-        return
-      }
-      void driver
-        .say({
-          text: frame.text,
-          images: frame.images,
-          files: frame.files,
-          ...(context === undefined ? {} : { context }),
-        })
-        .then(() => {
-          committedSends.add(frame.sendId)
-          send({ socket, frame: { kind: EServeFrame.SendAcked, sendId: frame.sendId } })
-        })
-        .catch((error: unknown) => {
-          const message = messageOf(error, 'the message was not accepted')
-          send({ socket, frame: { kind: EServeFrame.Error, message } })
-        })
-      return
-    }
-
-    if (frame.kind === EClientFrame.Run) {
-      try {
-        driver.run({ resume: frame.resume === true, onlyIfIdle: true })
-      } catch (error) {
-        send({
-          socket,
-          frame: { kind: EServeFrame.Error, message: messageOf(error, 'the turn was not accepted') },
-        })
-      }
-      return
-    }
-
-    if (frame.kind === EClientFrame.Interrupt) {
-      log({ event: EServeEvent.InterruptRequested, threadId, actor: 'client', running: driver.running() })
-      driver.interrupt()
-      send({ socket, frame: { kind: EServeFrame.InterruptAcked, seq: buffer.nextSeq() } })
-      return
-    }
-
-    if (frame.kind === EClientFrame.Pause) {
-      driver.beginRelocation()
-      return
-    }
-
-    if (frame.kind === EClientFrame.Resume) {
-      driver.resume()
-      return
-    }
-
+    command({ socket, frame })
     if (frame.kind !== EClientFrame.Request) return
-
-    if (frame.op === EClientRequest.ReadRuntimeCheckpoint) {
-      send({ socket, frame: answeredRequest({ replyTo: frame.id, data: { checkpoint: checkpoint?.() ?? null } }) })
-      return
-    }
-
-    if (frame.op === EClientRequest.ListRoster) {
-      send({
-        socket,
-        frame: { kind: EServeFrame.Reply, replyTo: frame.id, ok: true, data: snapshot() },
-      })
-      return
-    }
-
-    if (frame.op === EClientRequest.Rewind) {
-      if (rewind === undefined) {
-        log({ event: EServeEvent.ClientRefused, reason: 'rewind-without-registries' })
-        send({
-          socket,
-          frame: {
-            kind: EServeFrame.Reply,
-            replyTo: frame.id,
-            ok: false,
-            data: { message: 'this serve has nothing a rewind could cut' },
-          },
-        })
-        return
-      }
-      const target = rewind.target
-      void mutation(answerRewind({
-        frame,
-        threadId,
-        target,
-        driver,
-        ...(rewind.truncate === undefined ? {} : { truncate: { truncate: rewind.truncate } }),
-      }))
-        .then((reply) => {
-          if (reply.ok) checkpointChanged?.()
-          send({ socket, frame: reply })
-        })
-        .catch((error: unknown) =>
-          send({
-            socket,
-            frame: {
-              kind: EServeFrame.Reply,
-              replyTo: frame.id,
-              ok: false,
-              data: { message: messageOf(error, 'the rewind cleanup failed') },
-            },
-          }),
-        )
-      return
-    }
-
-    if (isPendingOp(frame.op)) {
-      if (pending === undefined) {
-        send({ socket, frame: refusedRequest({ replyTo: frame.id, message: 'this serve has no pending queue' }) })
-        return
-      }
-      void answerTakeBackPending({ frame, pending })
-        .then((reply) => send({ socket, frame: reply }))
-        .catch((error: unknown) =>
-          send({ socket, frame: refusedRequest({ replyTo: frame.id, message: messageOf(error, 'the take-back failed') }) }),
-        )
-      return
-    }
-
-    if (isTranscriptReadOp(frame.op)) {
-      if (transcript === undefined) {
-        send({
-          socket,
-          frame: refusedRequest({ replyTo: frame.id, message: 'this serve has no transcript to read' }),
-        })
-        return
-      }
-      void answerTranscriptRead({ frame, transcript: transcript, threadId })
-        .then((reply) => send({ socket, frame: reply }))
-        .catch((error: unknown) =>
-          send({
-            socket,
-            frame: {
-              kind: EServeFrame.Reply,
-              replyTo: frame.id,
-              ok: false,
-              data: { message: messageOf(error, 'the transcript read failed') },
-            },
-          }),
-        )
-      return
-    }
-
-    if (isTranscriptWriteOp(frame.op)) {
-      if (transcript === undefined) {
-        send({
-          socket,
-          frame: refusedRequest({ replyTo: frame.id, message: 'this serve has no transcript to write' }),
-        })
-        return
-      }
-      void mutation(answerTranscriptWrite({
-        frame,
-        transcript,
-        threadId,
-        ...(selectModel === undefined ? {} : { select: selectModel }),
-      }))
-        .then((reply) => send({ socket, frame: reply }))
-        .catch((error: unknown) =>
-          send({
-            socket,
-            frame: {
-              kind: EServeFrame.Reply,
-              replyTo: frame.id,
-              ok: false,
-              data: { message: messageOf(error, 'the transcript write failed') },
-            },
-          }),
-        )
-      return
-    }
-
-    if (frame.op === EClientRequest.RestoreTranscript) {
-      if (restoreTranscript === undefined) {
-        send({
-          socket,
-          frame: refusedRequest({ replyTo: frame.id, message: 'this serve cannot restore a transcript' }),
-        })
-        return
-      }
-      if (driver.busy()) {
-        send({
-          socket,
-          frame: refusedRequest({ replyTo: frame.id, message: 'a turn is running, so the transcript cannot be replaced' }),
-        })
-        return
-      }
-      const parsed = restoreTranscriptParamsSchema.safeParse(frame.params ?? {})
-      const marker = parsed.success ? parsed.data.locationChanged : undefined
-      restoring ??= restoreTranscript(marker).finally(() => {
-        restoring = null
-      })
-      void restoring
-        .then((result) => {
-          if (result.restored) checkpointChanged?.()
-          send({
-            socket,
-            frame:
-              result.failed === null
-                ? answeredRequest({ replyTo: frame.id, data: { restored: result.restored } })
-                : refusedRequest({ replyTo: frame.id, message: result.failed }),
-          })
-        })
-        .catch((error: unknown) =>
-          send({
-            socket,
-            frame: {
-              kind: EServeFrame.Reply,
-              replyTo: frame.id,
-              ok: false,
-              data: { message: messageOf(error, 'the transcript restore failed') },
-            },
-          }),
-        )
-      return
-    }
-
-    if (frame.op === EClientRequest.ReadSessionArchive) {
-      const archive = sessionArchive
-      if (archive === undefined) {
-        send({
-          socket,
-          frame: refusedRequest({ replyTo: frame.id, message: 'this serve has no transcript to read' }),
-        })
-        return
-      }
-      void archive()
-        .then((bytes) =>
-          send({
-            socket,
-            frame: answeredRequest({
-              replyTo: frame.id,
-              data: { archive: bytes === null ? '' : Buffer.from(bytes).toString('base64') },
-            }),
-          }),
-        )
-        .catch((error: unknown) =>
-          send({
-            socket,
-            frame: {
-              kind: EServeFrame.Reply,
-              replyTo: frame.id,
-              ok: false,
-              data: { message: messageOf(error, 'the transcript archive failed') },
-            },
-          }),
-        )
-      return
-    }
-
-    if (frame.op === EClientRequest.ReadMemoryArchive) {
-      if (memoryArchive === undefined) {
-        send({
-          socket,
-          frame: refusedRequest({ replyTo: frame.id, message: 'this serve has no memory to read' }),
-        })
-        return
-      }
-      void memoryArchive()
-        .then((bytes) =>
-          send({
-            socket,
-            frame: answeredRequest({
-              replyTo: frame.id,
-              data: { archive: bytes === null ? '' : Buffer.from(bytes).toString('base64') },
-            }),
-          }),
-        )
-        .catch((error: unknown) =>
-          send({
-            socket,
-            frame: {
-              kind: EServeFrame.Reply,
-              replyTo: frame.id,
-              ok: false,
-              data: { message: messageOf(error, 'the memory archive failed') },
-            },
-          }),
-        )
-      return
-    }
-
-    void mutation(answerRequest({ frame, files, publish }))
-      .then((reply) => send({ socket, frame: reply }))
-      .catch((error: unknown) =>
-        send({
-          socket,
-          frame: {
-            kind: EServeFrame.Reply,
-            replyTo: frame.id,
-            ok: false,
-            data: { message: messageOf(error, 'the request failed') },
-          },
-        }),
-      )
+    if (routeStateRequest({ socket, frame, send, checkpoint, pending })) return
+    if (!isReadOnlyFrame(frame)) mutations.begin(frame.id)
+    router.route({ socket, frame })
   }
 
   const broadcast = (frame: ServeFrame): void => {
@@ -602,7 +253,13 @@ export function createSessionHandlers(args: {
     close({ socket }) {
       live.delete(socket)
       if (!attached.delete(socket)) return
-      log({ event: EServeEvent.ClientDetached, clients: attached.size, actor: 'transport', running: driver.running(), execution: 'preserved' })
+      log({
+        event: EServeEvent.ClientDetached,
+        clients: attached.size,
+        actor: 'transport',
+        running: driver.running(),
+        execution: 'preserved',
+      })
     },
 
     broadcast,
@@ -621,7 +278,7 @@ export function createSessionHandlers(args: {
       const clients = [...attached]
       log({ event: EServeEvent.ClientsParked, clients: clients.length, reason: args.reason })
       for (const socket of clients) {
-        send({ socket, frame: { kind: EServeFrame.Parked, reason: args.reason, ...(checkpoint?.() == null ? {} : { checkpoint: checkpoint?.() }) } })
+        send({ socket, frame: { kind: EServeFrame.Parked, reason: args.reason, ...checkpointField() } })
         socket.close(GOING_AWAY, args.reason)
       }
     },
@@ -634,6 +291,6 @@ export function createSessionHandlers(args: {
     },
 
     clients: () => attached.size,
-    settling: () => restoring !== null || mutations > 0,
+    settling: () => router.state.restoring !== null || mutations.active(),
   }
 }

@@ -8,7 +8,6 @@ export type WorkspaceSnapshot = {
   branch: string | null
   commit: string | null
   patch: string
-  /** The Mac-side project directory, carried so a sandbox can key its own memory uploads by repo. */
   projectDirectory: string
   gitIdentity: { name: string; email: string } | null
 }
@@ -117,6 +116,7 @@ export async function uncommittedPatch(args: {
 export async function captureWorkspace(args: {
   cwd: string
   read?: GitReader | undefined
+  includePatch?: boolean | undefined
 }): Promise<WorkspaceSnapshot | null> {
   const read = args.read ?? runGit
   if (!(await insideRepository(read, args.cwd))) return null
@@ -125,9 +125,12 @@ export async function captureWorkspace(args: {
   const [remoteUrl, branch, patch, gitIdentity] = await Promise.all([
     remoteUrlOf(read, args.cwd),
     branchOf(read, args.cwd),
-    uncommittedPatch({ cwd: args.cwd, since: commit, read }),
+    args.includePatch === false ? Promise.resolve('') : uncommittedPatch({ cwd: args.cwd, since: commit, read }),
     gitIdentityOf(read, args.cwd),
   ])
 
   return { remoteUrl, branch, commit, patch, projectDirectory: args.cwd, gitIdentity }
 }
+
+export const captureWorkspaceMetadata = (args: { cwd: string }): Promise<WorkspaceSnapshot | null> =>
+  captureWorkspace({ ...args, includePatch: false })

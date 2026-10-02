@@ -21,6 +21,7 @@ import {
   lifecycleEscalationOf,
   portableOmissionsOf,
   TRANSCRIPT_ARCHIVE_PATH,
+  WORKSPACE_ARCHIVE_PATH,
   WORKSPACE_SPEC_PATH,
   type BridgeDriver,
   type GitTokenReader,
@@ -166,6 +167,13 @@ export function createLocalCloudBridge(args: {
           content: createArgs.transcript,
         })
       }
+      if (createArgs.workspaceArchivePath !== undefined) {
+        await driver.uploadWorkspaceArchive({
+          sandbox,
+          source: createArgs.workspaceArchivePath,
+          destination: WORKSPACE_ARCHIVE_PATH,
+        })
+      }
       const needsPortable = freshBoot || !(await vaultPresentInSandbox(sandbox))
       if (needsPortable) {
         const captured = await captureOnce()
@@ -255,6 +263,17 @@ export function createLocalCloudBridge(args: {
         name: sandboxNameFor({ threadId }),
         path: TRANSCRIPT_ARCHIVE_PATH,
         content: archive,
+      }),
+    downloadWorkspace: ({ threadId, path, destination }) =>
+      driverWith(args.vercel()).downloadWorkspaceArchive({
+        name: sandboxNameFor({ threadId }),
+        path,
+        destination,
+      }),
+    releaseWorkspace: ({ threadId, path }) =>
+      driverWith(args.vercel()).releaseWorkspaceArchive({
+        name: sandboxNameFor({ threadId }),
+        path,
       }),
     confirmLanded: async ({ threadId }) => ({
       landed: await driverWith(args.vercel()).transcriptLanded({

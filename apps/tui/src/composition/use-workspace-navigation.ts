@@ -11,6 +11,7 @@ import type { Conversation } from './use-conversation'
 import { useRewind } from './use-rewind'
 import { useThreadRouter } from './use-thread-router'
 import { useThreads } from './use-threads'
+import { projectOf } from '@dltech/atlas-core'
 import type { WorkspaceProps } from './workspace-props'
 
 type NavigationProps = Pick<
@@ -21,8 +22,8 @@ type NavigationProps = Pick<
   | 'cloudBridge'
   | 'cloudSession'
   | 'createBridge'
-  | 'onLifted'
-  | 'onDescend'
+  | 'onReload'
+  | 'onLeaveCloud'
 >
 
 export function useWorkspaceNavigation(args: {
@@ -60,8 +61,8 @@ export function useWorkspaceNavigation(args: {
     working: conversation.working,
     activeThreadId: conversation.threadId,
     opened: props.opened,
-    onLifted: props.onLifted,
-    onDescend: props.onDescend,
+    onReload: props.onReload,
+    onLeaveCloud: props.onLeaveCloud,
     onLocalSwap: conversation.handleOpenThread,
   })
 
@@ -71,6 +72,7 @@ export function useWorkspaceNavigation(args: {
 
   const threads = useThreads({
     app: props.app,
+    project: projectOf(props.localApp.workspace),
     activeThreadId: conversation.threadId,
     onPick: handleOpenThread,
     listing: router.listing,
@@ -134,5 +136,5 @@ export function useWorkspaceNavigation(args: {
 
   const rewind = useRewind({ events: conversation.readEvents, onPick: handleRewindChoice })
 
-  return { threads, rewind, handleResumeConversation }
+  return { threads, rewind, handleResumeConversation, handleRetryAttach: router.handleRetryAttach }
 }

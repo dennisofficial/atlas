@@ -53,6 +53,10 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
   const { selection, switcher } = models
   const placement = useWorkspacePlacement({
     app: props.app,
+    localApp: props.localApp,
+    opened: props.opened,
+    createBridge: props.createBridge,
+    onReload: props.onReload,
     cloudSession: props.cloudSession,
     conversation,
   })
@@ -192,14 +196,12 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
 
   useComposerPaste({ overlaid, tokens, handleAttachImage: composer.handleAttachImage })
 
-  const header = layout.welcome ? null : (
-    <HeaderBar
+  const header = layout.welcome ? null : <HeaderBar
       width={frame.width}
       projectDirectory={conversation.projectDirectory}
       repoRoot={layout.repoRoot}
       diff={layout.headerDiff}
     />
-  )
 
   return (
     <WorkspaceView
@@ -217,6 +219,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
           conversation={conversation}
           cloudHealth={session.cloudHealth}
           cloudSession={props.cloudSession}
+          onRetryAttach={navigation.handleRetryAttach}
           sends={composer.sends}
           background={background}
           waitingSince={waitingSince}

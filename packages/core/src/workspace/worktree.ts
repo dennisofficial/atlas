@@ -54,7 +54,7 @@ export function homeDirectoryOf(args: {
 }): string {
   let home = args.launchDirectory
   for (const event of args.events) {
-    if (event.type === 'location-changed') home = args.launchDirectory
+    if (event.type === 'location-changed') home = event.cwd ?? args.launchDirectory
     if (event.type === 'worktree-exited' && event.returnTo !== undefined) home = event.returnTo
     if (event.type === 'directory-changed') home = event.path
   }
@@ -67,6 +67,7 @@ export function homeDirectoryAfter(args: {
 }): string {
   let home = args.home
   for (const draft of args.drafts) {
+    if (draft.type === 'location-changed' && draft.cwd !== undefined) home = draft.cwd
     if (draft.type === 'worktree-exited' && draft.returnTo !== undefined) home = draft.returnTo
     if (draft.type === 'directory-changed') home = draft.path
   }

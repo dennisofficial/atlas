@@ -31,6 +31,9 @@ const fixture = (args: {
     },
     writeBootstrapFileToSandbox: async () => undefined,
     writeBootstrapFile: async () => undefined,
+    uploadWorkspaceArchive: async () => undefined,
+    downloadWorkspaceArchive: async () => undefined,
+    releaseWorkspaceArchive: async () => undefined,
     transcriptLanded: async () => false,
     destroy: async () => { destroys += 1 },
   }

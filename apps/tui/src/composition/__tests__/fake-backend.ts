@@ -11,6 +11,7 @@ import {
   toEventId,
   toRunId,
   type IdPort,
+  type PlacementRecord,
   type ThreadId,
   type Event,
   type EventLogPort,
@@ -82,6 +83,7 @@ export function fakeThreadStore(
   } = {},
 ): FakeThreadStore {
   const workspaceOf = args.workspace === undefined ? FAKE_WORKSPACE : args.workspace
+  const placements = new Map<ThreadId, PlacementRecord>()
   const rows: ThreadSummary[] = (args.existing ?? []).map((id) => ({
     id,
     head: 0,
@@ -354,10 +356,17 @@ export function fakeThreadStore(
     async readPlacement({ threadId }) {
       const row = rows.find((held) => held.id === threadId)
       if (row === undefined) return undefined
-      return { placement: placementOf(row.executionLocation ?? EExecutionLocation.Host), revision: 0, move: null }
+      return (
+        placements.get(threadId) ?? {
+          placement: placementOf(row.executionLocation ?? EExecutionLocation.Host),
+          revision: 0,
+          move: null,
+        }
+      )
     },
 
     async writePlacement({ threadId, record }) {
+      placements.set(threadId, record)
       const location = locationOfPlacement(record.placement)
       chosenLocations.push({ threadId, location })
       disk?.locate({ threadId, location })

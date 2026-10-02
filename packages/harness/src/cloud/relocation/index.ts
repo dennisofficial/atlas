@@ -1,4 +1,6 @@
 export * from './cloud-bridge'
+export * from './adopt-transferred-children'
+export * from './freeze-family'
 export * from './descend'
 export * from './lift'
 export * from './lift-children'

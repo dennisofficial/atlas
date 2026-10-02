@@ -2,184 +2,162 @@ import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
 import { EClientRequest } from '../../channel-wire'
+import { EWorkspaceRestoreMode } from '../../../workspace/transfer/restore'
 
 import { cloudArchiveOf, descend, useDescendHome } from './descend-fixture'
 import { CLOUD_THREAD, fakeBridge } from './fixture'
+import { DUMMY_ARCHIVE, EXPORT_PATH, fakeRestorer } from './workspace-fixture'
 
 const said = (text: string) => ({ type: 'user-said' as const, text })
 
 const homeWithArchive = async (
   texts: readonly string[],
+  over: Parameters<typeof fakeBridge>[0] = {},
 ): Promise<{ home: ReturnType<typeof useDescendHome>; bridge: ReturnType<typeof fakeBridge> }> => {
   const home = useDescendHome()
   const archive = await cloudArchiveOf([{ drafts: texts.map(said) }])
-  return { home, bridge: fakeBridge({ archive }) }
+  return { home, bridge: fakeBridge({ archive, ...over }) }
 }
 
 describe('bringing the cloud workspace home', () => {
-  it('merges the ref the sandbox published into the local tree', async () => {
+  it('prepares the export, downloads it, and hands the bytes to the restorer for the host', async () => {
     const { home, bridge } = await homeWithArchive(['work happened in the cloud'])
-    const channel = bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
-    const served = channel.request.bind(channel)
-    let publishCalls = 0
-    channel.request = async (args) => {
-      if (args.op === EClientRequest.PublishWorkspace) {
-        publishCalls += 1
-        return {
-          ref: 'refs/atlas/descend/cloud-thread-0123456789ab',
-          commit: '0123456789abcdef',
-          base: 'ba51e1e0',
-          baseTree: '7ee1ab1e',
-          branch: 'dennis/feature',
-        }
-      }
-      return served(args)
-    }
-    const merged: {
-      cwd: string
-      ref: string
-      base: string | null
-      baseTree: string | null
-      branch: string | null
-    }[] = []
+    const restorer = fakeRestorer()
 
-    await descend({
-      bridge,
-      home,
-      channel,
-      mergeWorkspace: async (args) => {
-        merged.push(args)
-        return { conflicts: [] }
-      },
-    })
+    await descend({ bridge, home, restoreWorkspace: restorer.restore })
 
-    expect(publishCalls).toBe(1)
-    expect(merged).toEqual([
-      {
-        cwd: '/work',
-        ref: 'refs/atlas/descend/cloud-thread-0123456789ab',
-        base: 'ba51e1e0',
-        baseTree: '7ee1ab1e',
-        branch: 'dennis/feature',
-      },
-    ])
-    const events = await home.log.read({ threadId: CLOUD_THREAD })
-    expect(events.at(-1)?.type).toBe('location-changed')
+    expect(bridge.downloads).toHaveLength(1)
+    expect(bridge.downloads[0]).toMatchObject({ threadId: CLOUD_THREAD, path: EXPORT_PATH })
+    expect(restorer.calls).toHaveLength(1)
+    const call = restorer.calls[0]
+    expect(call?.archive).toEqual(DUMMY_ARCHIVE)
+    expect(call?.destination).toBe('/work')
+    expect(call?.mode).toBe(EWorkspaceRestoreMode.Host)
+    expect(call?.archivePath).toBe(bridge.downloads[0]?.destination ?? '')
   })
 
-  it('skips the workspace merge when the cloud has nothing to send home', async () => {
-    const { home, bridge } = await homeWithArchive(['clean cloud session'])
+  it('pauses the sandbox and waits for the acknowledgement before asking for the export', async () => {
+    const { home, bridge } = await homeWithArchive(['paused first'])
+    const channel = bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
+    const order: string[] = []
+    const pause = channel.pause.bind(channel)
+    channel.pause = () => {
+      order.push('pause')
+      pause()
+    }
+    const served = channel.request.bind(channel)
+    channel.request = async (given) => {
+      if (given.op === EClientRequest.PrepareWorkspaceArchive) order.push('prepare')
+      return served(given)
+    }
+
+    await descend({ bridge, home, channel })
+
+    expect(order).toEqual(['pause', 'prepare'])
+  })
+
+  it('never asks the sandbox to publish or merge a ref', async () => {
+    const { home, bridge } = await homeWithArchive(['nothing to merge'])
     const channel = bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
 
-    await descend({
-      bridge,
-      home,
-      channel,
-      mergeWorkspace: async () => {
-        throw new Error('nothing to send home means nothing to merge')
-      },
-    })
+    await descend({ bridge, home, channel })
 
-    const publishes = channel.requests.filter(
-      (entry) => entry.op === EClientRequest.PublishWorkspace,
-    )
-    expect(publishes).toHaveLength(1)
+    expect(channel.requests.map((entry) => entry.op)).not.toContain(EClientRequest.PublishWorkspace)
     expect((await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation).toBe(
       EExecutionLocation.Host,
     )
   })
 
-  it('announces in the log when the merge leaves conflict markers behind', async () => {
-    const { home, bridge } = await homeWithArchive(['both sides edited'])
-    const channel = bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
-    const served = channel.request.bind(channel)
-    channel.request = async (args) => {
-      if (args.op === EClientRequest.PublishWorkspace) {
-        return {
-          ref: 'refs/atlas/descend/cloud-thread-0123456789ab',
-          commit: '0123456789abcdef',
-          base: null,
-        }
-      }
-      return served(args)
-    }
+  it('removes the downloaded archive after restoring it', async () => {
+    const { home, bridge } = await homeWithArchive(['cleanup'])
+    const restorer = fakeRestorer()
 
-    await descend({
-      bridge,
-      home,
-      channel,
-      mergeWorkspace: async () => ({ conflicts: ['app.ts', 'lib.ts'] }),
+    await descend({ bridge, home, restoreWorkspace: restorer.restore })
+
+    const archivePath = restorer.calls[0]?.archivePath ?? ''
+    expect(await Bun.file(archivePath).exists()).toBe(false)
+  })
+
+  it('fails the move before the flip and keeps the source when the download fails', async () => {
+    const { home, bridge } = await homeWithArchive(['stuck in the cloud'], {
+      downloadWorkspaceFails: new Error('the sandbox export vanished'),
     })
+    const restorer = fakeRestorer()
 
-    const events = await home.log.read({ threadId: CLOUD_THREAD })
-    const notice = events.find((event) => event.type === 'context-loaded')
-    expect(notice).toBeDefined()
-    expect(JSON.stringify(notice)).toContain('app.ts')
-    expect(JSON.stringify(notice)).toContain('lib.ts')
-    expect((await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation).toBe(
-      EExecutionLocation.Host,
+    await expect(descend({ bridge, home, restoreWorkspace: restorer.restore })).rejects.toThrow(
+      'the sandbox export vanished',
     )
+
+    expect(restorer.calls).toEqual([])
+    expect(bridge.destroyed).toEqual([])
+    expect(bridge.channel.paused).toBe(false)
   })
 
-  it('tells the log when the host branch was superseded by origin while away', async () => {
-    const { home, bridge } = await homeWithArchive(['shipped from the cloud'])
-    const channel = bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
-    const served = channel.request.bind(channel)
-    channel.request = async (args) => {
-      if (args.op === EClientRequest.PublishWorkspace) {
-        return {
-          ref: 'refs/atlas/descend/cloud-thread-0123456789ab',
-          commit: '0123456789abcdef',
-          base: 'ba51e1e0',
-          baseTree: '7ee1ab1e',
-          branch: 'dennis/feature',
-        }
-      }
-      return served(args)
-    }
-
-    await descend({
-      bridge,
-      home,
-      channel,
-      mergeWorkspace: async () => ({
-        conflicts: [],
-        superseded: { branch: 'dennis/feature', localTip: 'ba51e1e0123456', originTip: 'ff0011223344' },
-      }),
+  it('fails the move and keeps the source when the sandbox cannot prepare the export', async () => {
+    const { home, bridge } = await homeWithArchive(['no export'], {
+      prepareWorkspaceFails: new Error('the nested worktree holds dirty files'),
     })
+    const restorer = fakeRestorer()
 
-    const events = await home.log.read({ threadId: CLOUD_THREAD })
-    const notice = events.find((event) => event.type === 'context-loaded')
-    expect(notice).toBeDefined()
-    expect(JSON.stringify(notice)).toContain('superseded by origin/dennis/feature')
-    expect(JSON.stringify(notice)).toContain('git reset --hard origin/dennis/feature')
+    await expect(descend({ bridge, home, restoreWorkspace: restorer.restore })).rejects.toThrow(
+      'dirty files',
+    )
+
+    expect(bridge.downloads).toEqual([])
+    expect(restorer.calls).toEqual([])
+    expect(bridge.destroyed).toEqual([])
   })
 
-  it('fails the descend after the flip when the workspace would not publish, transcript home', async () => {
-    const { home, bridge } = await homeWithArchive(['stuck in the cloud'])
-    const channel = bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
-    const served = channel.request.bind(channel)
-    channel.request = async (args) => {
-      if (args.op === EClientRequest.PublishWorkspace) {
-        throw new Error('the workspace would not push home: non-fast-forward')
-      }
-      return served(args)
-    }
+  it('keeps the source and flips nothing when the restore itself fails', async () => {
+    const { home, bridge } = await homeWithArchive(['restore breaks'])
+    const restorer = fakeRestorer({ fails: new Error('the destination branch moved') })
 
-    await expect(
-      descend({
-        bridge,
-        home,
-        channel,
-        mergeWorkspace: async () => {
-          throw new Error('nothing published means nothing to merge')
-        },
-      }),
-    ).rejects.toThrow('would not push home')
+    await expect(descend({ bridge, home, restoreWorkspace: restorer.restore })).rejects.toThrow(
+      'the destination branch moved',
+    )
+
     const row = await home.threads.find({ threadId: CLOUD_THREAD })
-    expect(row?.executionLocation).toBe(EExecutionLocation.Host)
-    expect(
-      (await home.log.read({ threadId: CLOUD_THREAD })).some((event) => event.type === 'user-said'),
-    ).toBe(true)
+    expect(row?.executionLocation ?? EExecutionLocation.Cloud).toBe(EExecutionLocation.Cloud)
+    expect(bridge.destroyed).toEqual([])
+    expect(bridge.channel.paused).toBe(false)
+  })
+
+  it('restores nothing and downloads nothing when the cloud transcript is invalid', async () => {
+    const { home, bridge } = await homeWithArchive(['unused'], { archive: '' })
+    const restorer = fakeRestorer()
+
+    await expect(descend({ bridge, home, restoreWorkspace: restorer.restore })).rejects.toThrow(
+      'the cloud holds no transcript',
+    )
+
+    expect(restorer.calls).toEqual([])
+    expect(bridge.downloads).toEqual([])
+    expect(bridge.channel.requests.map((entry) => entry.op)).not.toContain(
+      EClientRequest.PrepareWorkspaceArchive,
+    )
+    expect(bridge.destroyed).toEqual([])
+  })
+
+  it('puts the original local transcript back, with no imported or spawned events, when the restore fails', async () => {
+    const { home, bridge } = await homeWithArchive(['cloud words'])
+    await home.threads.createWithFirstEvents({
+      threadId: CLOUD_THREAD,
+      runId: home.ids.nextRunId(),
+      drafts: [said('original local words')],
+      workspace: '/work',
+      executionLocation: EExecutionLocation.Cloud,
+    })
+    const restorer = fakeRestorer({ fails: new Error('the destination branch moved') })
+
+    await expect(descend({ bridge, home, restoreWorkspace: restorer.restore })).rejects.toThrow(
+      'the destination branch moved',
+    )
+
+    const events = await home.log.read({ threadId: CLOUD_THREAD })
+    expect(events.map((event) => event.type)).toEqual(['user-said'])
+    expect(events[0]?.type === 'user-said' && events[0].text).toBe('original local words')
+    expect((await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation).toBe(
+      EExecutionLocation.Cloud,
+    )
   })
 })

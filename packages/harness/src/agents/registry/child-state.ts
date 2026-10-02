@@ -127,6 +127,31 @@ export function recoveredChild({
   }
 }
 
+export function reviseFromTransfer({
+  child,
+  agent,
+}: {
+  child: ChildState
+  agent: RosteredAgent
+}): void {
+  child.agentType = agent.agentType
+  child.intent = agent.intent
+  child.status = agent.status
+  child.killedBy = agent.killedBy
+  child.turns = agent.turns
+  child.toolCalls = agent.toolCalls
+  child.lastTool = undefined
+  child.lastText = boundedTail(agent.prose)
+  child.lastFullText = agent.prose
+  child.startedAt = agent.spawnedAt ?? child.startedAt
+  child.steppingSince = undefined
+  child.endedAt = agent.endedAt
+  child.deliveredAt = undefined
+  child.abort = new AbortController()
+  child.pause = new PauseSignal()
+  child.context = undefined
+}
+
 export function snapshotOf(child: ChildState): AgentSnapshot {
   return {
     agentId: child.agentId,

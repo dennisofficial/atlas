@@ -54,6 +54,8 @@ const SAFE_TO_REDRIVE: ReadonlySet<EClientRequest> = new Set([
   EClientRequest.ReadMemoryArchive,
   EClientRequest.ReadTranscriptIdentity,
   EClientRequest.RestoreTranscript,
+  EClientRequest.ApplyWorkspaceArchive,
+  EClientRequest.ActivateSession,
 ])
 
 type SendFrame = Extract<ClientFrame, { kind: EClientFrame.Send }>

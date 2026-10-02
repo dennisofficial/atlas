@@ -53,7 +53,7 @@ export async function writeSessionMetaForRoot({
       createdAt: existing?.createdAt ?? root.createdAt,
       updatedAt:
         existing !== undefined && existing.updatedAt > root.updatedAt ? existing.updatedAt : root.updatedAt,
-      home: existing?.home ?? home,
+      home,
       repo: root.repo,
       workspace: root.workspace,
       worktree: existing?.worktree ?? null,

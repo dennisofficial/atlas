@@ -76,6 +76,7 @@ const mount = async (whatsNewDeps: WhatsNewDeps) => {
       createBridge={() => bridge}
       preflightLift={async () => null}
       captureWorkspace={async () => CLEAN_WORKSPACE}
+      captureArchive={async () => undefined}
       captureContext={async () => Buffer.from('stub-context-archive')}
       whatsNewDeps={whatsNewDeps}
     />,

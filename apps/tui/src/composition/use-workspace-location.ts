@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef } from 'react'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
-import { descendFromCloud, EDescendStep, ELiftStep, type DescendSurface } from '@dltech/atlas-harness'
+import { recoverSession } from './session-recovery'
+import { startDescend } from './start-descend'
 
 import { isShellRunning } from '../ui/shells-model'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { liftRefusal } from './cloud/lift-plan'
 import { EContainerAsk } from './commands'
-import { descendPlanOf, ELocalMoveStep } from './container-move'
+import { ELocalMoveStep } from './container-move'
 import {
   currentLocationNotice,
   movedLocationNotice,
@@ -15,10 +16,7 @@ import {
   movingNotice,
   pendingSwitchNotice,
 } from './container-notices'
-import { EOpenMode } from './config'
 import { messageOf } from './error-text'
-import { noticePortBinding } from './notice-binding'
-import { openConversation, type OpenedConversation } from './open-conversation'
 import { useCloudLift } from './use-cloud-lift'
 import { useContainerGuard, type ContainerGuardControl } from './use-container-guard'
 import type { useContainerMove } from './use-container-move'
@@ -34,7 +32,8 @@ export type WorkspaceLocation = {
 
 type LocationProps = Pick<WorkspaceProps,
   'app' | 'localApp' | 'cloudSession' | 'cloudBridge' | 'cloudStores' |
-  'createBridge' | 'preflightLift' | 'captureWorkspace' | 'captureContext' | 'onLifted' | 'onDescend'
+  'opened' | 'createBridge' | 'preflightLift' | 'captureWorkspace' | 'captureArchive' | 'restoreWorkspace' |
+  'captureContext' | 'onReload' | 'onLeaveCloud'
 >
 
 export function useWorkspaceLocation(args: {
@@ -59,19 +58,18 @@ export function useWorkspaceLocation(args: {
     midTurn: conversation.turnInFlight,
     handleInterrupt: conversation.handleInterruptForMove,
     handlePause: conversation.handlePauseForMove,
+    handleResumeSource: conversation.handleResumeSource,
     whenSettled: conversation.whenSettled,
     projectDirectory: conversation.projectDirectory,
-    placement: props.app.executionLocation,
+    owner: props.localApp.sessionOwner,
     createBridge: props.createBridge,
     preflightLift: props.preflightLift,
     capture: props.captureWorkspace,
+    captureArchive: props.captureArchive,
     captureContext: props.captureContext,
     move: containerMove,
-    onLifted: props.onLifted,
+    onReload: props.onReload,
   })
-
-  const attachLanded = useRef(props.cloudSession !== null)
-  if (props.cloudSession !== null) attachLanded.current = true
 
   const applyContainerSwitch = useCallback(
     (target: EExecutionLocation): boolean => {
@@ -80,7 +78,7 @@ export function useWorkspaceLocation(args: {
         return true
       }
 
-      if (conversation.executionLocation === EExecutionLocation.Cloud && !attachLanded.current) {
+      if (execution.location === EExecutionLocation.Cloud && !execution.bound) {
         notify({
           key: 'container-switch',
           tone: ENoticeTone.Warn,
@@ -91,75 +89,24 @@ export function useWorkspaceLocation(args: {
       }
 
       if (
-        conversation.executionLocation === EExecutionLocation.Cloud &&
+        execution.location === EExecutionLocation.Cloud &&
         props.cloudSession !== null &&
         props.cloudBridge !== null &&
         props.cloudStores !== null
       ) {
-        const { channel } = props.cloudSession
-        const bridge = props.cloudBridge
-        const cloudStores = props.cloudStores
-        const descendSurface: DescendSurface<OpenedConversation> = {
-          notice: noticePortBinding(),
-          onBegin: ({ plan }) =>
-            containerMove.handleBegin({ target, plan: descendPlanOf(plan) }),
-          onProgress: (step) => {
-            if (step === ELiftStep.Interrupting || step === EDescendStep.Transferring || step === EDescendStep.Flipping) {
-              containerMove.handleAdvance(step)
-              return
-            }
-            containerMove.handleAdvance(ELocalMoveStep.Relocating)
-          },
-          openLocal: (home, threadId) =>
-            openConversation({
-              threads: home.threads,
-              remoteThreads: cloudStores.threads,
-              log: home.log,
-              ledger: home.ledger,
-              agents: home.agents,
-              shells: props.localApp.shells,
-              services: props.localApp.services,
-              ids: home.ids,
-              workspace: home.workspace,
-              open: { mode: EOpenMode.Resume, threadId },
-              effects: (name) => home.tools.find(name)?.effect,
-            }).then((outcome) => {
-              if ('cloud' in outcome || !outcome.ok) {
-                throw new Error('cloud' in outcome ? 'the descend left the thread marked cloud' : outcome.reason)
-              }
-              return conversation.turnInFlight()
-                ? { ...outcome.conversation, resumeOnArrival: true }
-                : outcome.conversation
-            }),
-        }
-        void descendFromCloud({
-          threadId: conversation.threadId,
+        startDescend({
           target,
-          midTurn: conversation.turnInFlight(),
-          bridge,
-          channel,
-          localApp: props.localApp,
-          surface: descendSurface,
-          placement: props.app.executionLocation,
+          props: {
+            localApp: props.localApp,
+            cloudSession: props.cloudSession,
+            cloudBridge: props.cloudBridge,
+            cloudStores: props.cloudStores,
+            restoreWorkspace: props.restoreWorkspace,
+            onLeaveCloud: props.onLeaveCloud,
+          },
+          conversation,
+          containerMove,
         })
-          .then((opened) => {
-            containerMove.handleSettle()
-            props.onDescend(opened)
-          })
-          .catch((error: unknown) => {
-            const reason = moveFailedNotice({
-              target,
-              from: EExecutionLocation.Cloud,
-              detail: messageOf(error),
-            })
-            containerMove.handleFail(reason)
-            notify({
-              key: 'container-switch',
-              tone: ENoticeTone.Warn,
-              ttlMs: NOTICE_WARN_MS,
-              text: reason,
-            })
-          })
         return true
       }
 
@@ -204,8 +151,6 @@ export function useWorkspaceLocation(args: {
       conversation.refresh,
       conversation.threadId,
       conversation.started,
-      conversation.attachPending,
-      conversation.executionLocation,
       conversation.turnInFlight,
       execution,
       props.app,
@@ -213,9 +158,12 @@ export function useWorkspaceLocation(args: {
       props.cloudSession,
       props.cloudBridge,
       props.cloudStores,
-      props.onDescend,
+      props.onLeaveCloud,
+      props.restoreWorkspace,
     ],
   )
+
+  const recovering = useRef(false)
 
   const containerGuard = useContainerGuard({ onSwitch: applyContainerSwitch })
 
@@ -223,6 +171,30 @@ export function useWorkspaceLocation(args: {
     (asked: EExecutionLocation | EContainerAsk): string | undefined => {
       if (asked === EContainerAsk.Current) return currentLocationNotice(execution.location)
       if (asked === execution.location) return currentLocationNotice(execution.location)
+      const owner = props.localApp.sessionOwner
+      const unfinished = owner.snapshot().record?.move
+      if (unfinished != null && !owner.placement.startedHere(unfinished.id)) {
+        if (recovering.current) return 'a recovery is already underway — wait for it to settle'
+        recovering.current = true
+        void recoverSession({
+          owner,
+          app: props.localApp,
+          threadId: conversation.threadId,
+          bridge: props.createBridge,
+          opened: props.opened,
+          onReload: props.onReload,
+        }).then((outcome) => {
+          recovering.current = false
+          if (outcome.recovered) return
+          notify({
+            key: 'container-switch',
+            tone: ENoticeTone.Warn,
+            ttlMs: NOTICE_WARN_MS,
+            text: `this session has an unfinished move that could not be recovered yet — ${outcome.reason}`,
+          })
+        })
+        return 'this session has an unfinished move — recovering it first; ask again once it settles'
+      }
       if (containerMove.move !== null) {
         return 'a move is already underway — wait for it to settle'
       }
@@ -249,9 +221,14 @@ export function useWorkspaceLocation(args: {
     },
     [
       applyContainerSwitch,
+      conversation.threadId,
       containerBlockers,
       containerGuard,
       containerMove.move,
+      props.createBridge,
+      props.localApp,
+      props.onReload,
+      props.opened,
       conversation.compacting,
       conversation.started,
       execution,

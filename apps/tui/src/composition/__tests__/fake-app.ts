@@ -58,6 +58,7 @@ import {
   ModelStreamError,
   parseSkill,
   PublishingTurnRunner,
+  type TurnRunner,
   RandomIds,
   ShellRegistryPort,
   SkillRegistryPort,
@@ -98,7 +99,7 @@ import { threadHandle } from '@dltech/atlas-harness'
 import { heldChoice } from '@dltech/atlas-harness'
 import type { ModelCatalogue } from '@dltech/atlas-harness'
 import { DEFAULT_MODEL_REF, EOpenMode, type AtlasConfig, type OpenRequest } from '../config'
-import { createExecutionLocationState } from '@dltech/atlas-harness'
+import { createExecutionLocationState, createSessionOwner, ERuntimeKind, type SessionRuntime } from '@dltech/atlas-harness'
 import { createSandboxStatusState } from '@dltech/atlas-harness'
 import { noticePortBinding } from '../notice-binding'
 import { fakeAgentRegistry, type FakeAgents } from './fake-agents'
@@ -858,6 +859,18 @@ export function fakeApp(args: {
   const openedDirectories: string[] = []
   const journaled: { handle: string; directory: string }[] = []
 
+  const countingRunner = {
+    say: (call: Parameters<TurnRunner['say']>[0]) => driving.say(call),
+    resume: (call: Parameters<TurnRunner['resume']>[0]) => {
+      turnsDriven += 1
+      return driving.resume(call)
+    },
+    runTurn: (call: Parameters<TurnRunner['runTurn']>[0]) => {
+      turnsDriven += 1
+      return driving.runTurn(call)
+    },
+  }
+
   const executionLocation = createExecutionLocationState({ initial: EExecutionLocation.Host })
   executionLocation.bind({ threads, workspace: args.workspaceRoot ?? FAKE_CONFIG.cwd, repo: null })
 
@@ -913,6 +926,7 @@ export function fakeApp(args: {
     },
 
     sandbox: {
+      prepareWorkspace: async () => undefined,
       noteBash: () => {
         bashNotes += 1
       },
@@ -969,6 +983,27 @@ export function fakeApp(args: {
     modelPinned: false,
     models: args.models ?? fakeCatalogue(),
     executionLocation,
+    sessionOwner: createSessionOwner<SessionRuntime>({
+      placement: executionLocation,
+      local: {
+        kind: ERuntimeKind.Local,
+        cwd: workspace.workspace,
+        adapters: {
+          runner: countingRunner,
+          channel,
+          log,
+          threads,
+          ledger,
+          intake,
+          shells,
+          agents,
+          services,
+          rewindMachinery: undefined,
+          workspace,
+          attachment: undefined,
+        },
+      },
+    }),
     moveTools: (move) =>
       moveLocalPlacement({
         ...move,
@@ -1006,17 +1041,7 @@ export function fakeApp(args: {
       ...(args.secrets === undefined ? {} : { secrets: args.secrets }),
     }),
     close: async () => {},
-    runner: {
-      say: (call) => driving.say(call),
-      resume: (call) => {
-        turnsDriven += 1
-        return driving.resume(call)
-      },
-      runTurn: (call) => {
-        turnsDriven += 1
-        return driving.runTurn(call)
-      },
-    },
+    runner: countingRunner,
     turnPolicy,
     titling: titlingRunner,
   }

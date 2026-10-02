@@ -1,4 +1,5 @@
 import type {
+  EExecutionLocation,
   EKilledBy,
   EventLogPort,
   IdPort,
@@ -7,6 +8,7 @@ import type {
   WorkspaceIdentity,
 } from '@dltech/atlas-core'
 import type { RosterWire } from '@dltech/atlas-wire'
+import type { RestoredWorkspace } from '@dltech/atlas-harness'
 
 import type { DeltaChannel, PlacementController } from '@dltech/atlas-harness'
 import type { FileBrowser } from '@dltech/atlas-harness'
@@ -49,6 +51,9 @@ export type ServeRoster = {
  */
 export type ServeFamily = {
   pauseChildren: (args: { threadId: ThreadId }) => Promise<void>
+  resumeChildren?: ((args: { threadId: ThreadId }) => Promise<void>) | undefined
+  /** Holds every family thread's intake so no notice wakes a child mid-capture; released by resumeChildren. */
+  freeze?: ((args: { threadId: ThreadId }) => Promise<void> | void) | undefined
 }
 
 /**
@@ -119,6 +124,23 @@ export type ServeApp = {
    * refreshes the store so the read ops serve it. Absent in fakes, which refuse the op.
    */
   restoreTranscript?: (() => Promise<{ restored: boolean; failed: string | null }>) | undefined
+  /**
+   * Appends the arrival events for a restored workspace to every family thread and re-points their
+   * stored workspace at the restored paths, without rewriting history. Absent in fakes.
+   */
+  recordWorkspaceArrival?:
+    | ((args: {
+        restored: RestoredWorkspace
+        from: EExecutionLocation
+        to: EExecutionLocation
+        launchDirectory: string
+      }) => Promise<void>)
+    | undefined
+  /**
+   * Ends the family's shells and services (attributed to the container switch) and awaits their
+   * endings, so a workspace export races no background writer. Absent in fakes.
+   */
+  stopWorkspaceProcesses?: (() => Promise<void>) | undefined
   /** Live counts behind the idle park; absent in fakes, where nothing runs. */
   runningShells?: (() => number) | undefined
   runningServices?: (() => number) | undefined

@@ -21,7 +21,6 @@ export class RoutedProcessPort implements ProcessPort {
   private readonly local: ProcessPort
   private readonly dockerFor: () => ProcessPort
   private readonly locationOf: (threadId: ThreadId | undefined) => EExecutionLocation
-  private docker: ProcessPort | undefined
 
   constructor(args: {
     local: ProcessPort
@@ -38,8 +37,7 @@ export class RoutedProcessPort implements ProcessPort {
       return this.local.spawn(args)
     }
 
-    this.docker ??= this.dockerFor()
-    return this.docker.spawn({ ...args, env: withoutNodeEnv(args.env) })
+    return this.dockerFor().spawn({ ...args, env: withoutNodeEnv(args.env) })
   }
 
   which(args: { command: string; threadId?: ThreadId | undefined }): string | null {
@@ -67,7 +65,6 @@ export class RoutedProcessPort implements ProcessPort {
   private portFor(threadId: ThreadId | undefined): ProcessPort {
     if (this.locationOf(threadId) !== EExecutionLocation.Docker) return this.local
 
-    this.docker ??= this.dockerFor()
-    return this.docker
+    return this.dockerFor()
   }
 }

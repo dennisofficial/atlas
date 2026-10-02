@@ -4,6 +4,7 @@ import { toThreadId } from '@dltech/atlas-core'
 
 import {
   TRANSCRIPT_ARCHIVE_PATH,
+  WORKSPACE_ARCHIVE_PATH,
   WORKSPACE_SPEC_PATH,
   type BridgeDriver,
   type LiveSandbox,
@@ -55,6 +56,11 @@ const fakeDriver = (args: { observed: boolean; vaultPresent?: boolean }) => {
       writes.push({ path: write.path, content: write.content })
     },
     writeBootstrapFile: async () => {},
+    uploadWorkspaceArchive: async (upload) => {
+      events.push(`upload:${upload.destination}:${upload.source}`)
+    },
+    downloadWorkspaceArchive: async () => {},
+    releaseWorkspaceArchive: async () => {},
     transcriptLanded: async () => true,
     destroy: async () => {},
   }
@@ -111,5 +117,44 @@ describe('createLocalCloudBridge transcript handoff', () => {
     await bridgeWith(driver).sandboxes.create({ threadId, workspace: null })
 
     expect(writes).toHaveLength(0)
+  })
+
+  it('uploads an explicit workspace archive before launch on a fresh boot, keeping its path out of the spec', async () => {
+    const { driver, events, writes } = fakeDriver({ observed: false })
+
+    await bridgeWith(driver).sandboxes.create({
+      threadId,
+      workspace: null,
+      workspaceArchivePath: '/tmp/local/workspace.tar.gz',
+    })
+
+    const upload = events.indexOf(`upload:${WORKSPACE_ARCHIVE_PATH}:/tmp/local/workspace.tar.gz`)
+    expect(upload).toBeGreaterThan(-1)
+    expect(events.indexOf('launch')).toBeGreaterThan(upload)
+    const spec = writes.find((entry) => entry.path === WORKSPACE_SPEC_PATH)
+    expect(String(spec?.content)).not.toContain('/tmp/local')
+  })
+
+  it('uploads an explicit workspace archive on a resumed boot too', async () => {
+    const { driver, events, writes } = fakeDriver({ observed: true, vaultPresent: true })
+
+    await bridgeWith(driver).sandboxes.create({
+      threadId,
+      workspace: null,
+      workspaceArchivePath: '/tmp/local/workspace.tar.gz',
+    })
+
+    expect(writes.some((entry) => entry.path === WORKSPACE_SPEC_PATH)).toBe(false)
+    expect(events.indexOf(`upload:${WORKSPACE_ARCHIVE_PATH}:/tmp/local/workspace.tar.gz`)).toBeLessThan(
+      events.indexOf('launch'),
+    )
+  })
+
+  it('uploads no workspace archive when none is supplied', async () => {
+    const { driver, events } = fakeDriver({ observed: true, vaultPresent: true })
+
+    await bridgeWith(driver).sandboxes.create({ threadId, workspace: null })
+
+    expect(events.some((event) => event.startsWith('upload:'))).toBe(false)
   })
 })

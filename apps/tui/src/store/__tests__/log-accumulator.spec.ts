@@ -90,6 +90,15 @@ describe('the log accumulator', () => {
     expect(sidebarFoldFrom(foldLogEvents({ events, effects }))).toEqual(sidebarFoldOf(events))
   })
 
+  it('anchors the home on the directory a location change restored, as the core fold does', () => {
+    const events = log([
+      { type: 'location-changed', from: EExecutionLocation.Cloud, to: EExecutionLocation.Host, cwd: '/restored/work' },
+    ])
+
+    expect(foldLogEvents({ events, effects }).home).toBe('/restored/work')
+    expect(homeDirectoryOf({ events, launchDirectory: '/launch' })).toBe('/restored/work')
+  })
+
   it('lands on the same tallies as the whole-array reads', () => {
     const events = varied()
     const acc = foldLogEvents({ events, effects })

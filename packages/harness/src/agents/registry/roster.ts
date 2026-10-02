@@ -22,6 +22,11 @@ export class AgentRoster {
     this.settle()
   }
 
+  addAll(children: readonly ChildState[]): void {
+    for (const child of children) this.children.set(child.agentId, child)
+    this.settle()
+  }
+
   remove(agentId: ThreadId): void {
     if (!this.children.delete(agentId)) return
     this.settle()

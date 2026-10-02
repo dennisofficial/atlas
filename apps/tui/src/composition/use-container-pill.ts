@@ -6,6 +6,7 @@ import { cloudPillOf, type SidebarCloud } from '../store/cloud-state'
 import { containerPillOf, exposedPortsOf, type SidebarContainer } from '../store/sidebar-model'
 import type { CloudConnection } from '@dltech/atlas-harness'
 import type { AtlasApp } from './compose'
+import { useSessionOwner } from './use-session-owner'
 
 /** At most one of these is ever set: the pill says where the loop runs, and it runs in one place. */
 export type ContainerPills = {
@@ -48,10 +49,7 @@ export function useContainerPill(args: {
   const { app } = args
   const connection = args.connection ?? null
 
-  const location = useSyncExternalStore(
-    app.executionLocation.subscribe,
-    app.executionLocation.current,
-  )
+  const { location } = useSessionOwner({ app })
   const container = useSyncExternalStore(app.containerStatus.subscribe, app.containerStatus.current)
   const exposed = useExposedPorts({ shells: app.shells })
 

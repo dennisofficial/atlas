@@ -30,7 +30,8 @@ type SessionProps = Pick<
   | 'cloudStores'
   | 'draftText'
   | 'onDraftSource'
-  | 'onDescend'
+  | 'onLeaveCloud'
+  | 'onLocalOpened'
   | 'onMoveStep'
 >
 
@@ -81,6 +82,7 @@ export function useWorkspaceSession(args: {
     canWake: exit.exitGuard.state === null && !moveInFlight,
     interruptRefusal,
     frozen: cloudHealth?.connection?.state === EChannelConnection.Closed,
+    onLocalOpened: props.onLocalOpened,
   })
 
   const tokens = useDraftTokens({
@@ -125,8 +127,8 @@ export function useWorkspaceSession(args: {
     }
     if (working) return
 
-    props.onDescend(unstartedConversation({ ids: props.localApp.ids }))
-  }, [conversation, draft, working, props.cloudSession, props.localApp, props.onDescend])
+    props.onLeaveCloud(unstartedConversation({ ids: props.localApp.ids }))
+  }, [conversation, draft, working, props.cloudSession, props.localApp, props.onLeaveCloud])
 
   return {
     draft,

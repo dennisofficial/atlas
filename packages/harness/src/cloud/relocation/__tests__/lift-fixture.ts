@@ -197,6 +197,7 @@ export const harness = (
       return { shells: ['bun run dev'], services: ['api'], drainNotices: () => [] }
     },
     capture: async () => CLEAN_WORKSPACE,
+    captureWorkspaceArchive: async () => undefined,
     onProgress: (step) => steps.push(step),
     captureContext: async () => undefined,
     ...over,
