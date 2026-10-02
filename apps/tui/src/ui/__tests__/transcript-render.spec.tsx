@@ -121,6 +121,41 @@ describe('what the transcript actually says', () => {
     expect(frame).not.toContain('Interrupting…')
   })
 
+  it('keeps the reconnecting line after the turn settles, for as long as the socket is down', async () => {
+    const frame = await frameOf(
+      transcript({ model: SETTLED, width: 80, reconnecting: true, reconnectingSince: Date.now() }),
+      80,
+    )
+    expect(frame).toContain('Reconnecting for')
+  })
+
+  it('reads the reconnect from the origin it is handed, not from when it was mounted', async () => {
+    const frame = await frameOf(
+      transcript({
+        model: SETTLED,
+        width: 80,
+        reconnecting: true,
+        reconnectingSince: Date.now() - 45_000,
+      }),
+      80,
+    )
+    expect(frame).toContain('Reconnecting for 45s')
+  })
+
+  it('says nothing about reconnecting while the transcript is stale', async () => {
+    const frame = await frameOf(
+      transcript({
+        model: SETTLED,
+        width: 80,
+        reconnecting: true,
+        reconnectingSince: Date.now(),
+        stale: true,
+      }),
+      80,
+    )
+    expect(frame).not.toContain('Reconnecting for')
+  })
+
   it('reads disconnected with a reconnect affordance once the socket stays closed', async () => {
     const frame = await frameOf(
       transcript({ model: SETTLED, width: 80, disconnected: true, onReconnect: () => undefined }),

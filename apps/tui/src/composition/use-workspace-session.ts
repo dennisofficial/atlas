@@ -7,6 +7,7 @@ import { newestExpandableKey, type PendingSaid } from '../store'
 import { restoredImages } from '../ui/draft-images'
 import { useDraft } from '../ui/hooks/use-draft'
 import { useDraftTokens } from '../ui/hooks/use-draft-tokens'
+import { useSince } from '../ui/hooks/use-since'
 import { channelTakingTurns } from './cloud/channel-ready'
 import { pasteDirectoryOf } from './paste-directory'
 import { unstartedConversation } from './open-conversation'
@@ -64,6 +65,12 @@ export function useWorkspaceSession(args: {
   )
 
   const cloudHealth = useCloudSession({ session: props.cloudSession })
+
+  const connectionState = cloudHealth?.connection?.state
+  const reconnectingSince = useSince(
+    connectionState === EChannelConnection.Connecting ||
+      connectionState === EChannelConnection.Reconnecting,
+  )
 
   const interruptRefusal = useCallback((): string | null => {
     const state = cloudHealth?.connection?.state
@@ -143,6 +150,7 @@ export function useWorkspaceSession(args: {
     conversation,
     containerMove,
     cloudHealth,
+    reconnectingSince,
     opened,
     handleToggle,
     handleOpenNewest,

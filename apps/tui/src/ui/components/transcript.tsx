@@ -46,6 +46,8 @@ function DerivedTranscript(props: {
    * disconnected, without the reconnect row when the socket itself is fine.
    */
   stale?: boolean
+  /** When the reconnect began, held above this mount. See `WaitingLine`'s `since`. */
+  reconnectingSince?: number | null
   /** When the applied transcript was last proven — rendered in the disconnected row, static. */
   lastSeenAt?: number | null
   onReconnect?: () => void
@@ -235,6 +237,16 @@ function DerivedTranscript(props: {
               verb={EWorkingVerb.Disconnected}
               {...(props.lastSeenAt === undefined ? {} : { lastSeenAt: props.lastSeenAt })}
               {...(props.onReconnect === undefined ? {} : { onReconnect: props.onReconnect })}
+            />
+          </box>
+        ) : props.reconnecting === true && props.stale !== true ? (
+          <box flexDirection="row" marginTop={1} marginBottom={1}>
+            <WorkingLine
+              elapsedMs={0}
+              outputTokens={0}
+              interrupting={false}
+              verb={EWorkingVerb.Reconnecting}
+              since={props.reconnectingSince ?? null}
             />
           </box>
         ) : (

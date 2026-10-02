@@ -219,6 +219,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
           conversation={conversation}
           cloudHealth={session.cloudHealth}
           cloudSession={props.cloudSession}
+          reconnectingSince={session.reconnectingSince}
           onRetryAttach={navigation.handleRetryAttach}
           sends={composer.sends}
           background={background}
