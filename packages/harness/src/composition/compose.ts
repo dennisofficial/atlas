@@ -8,7 +8,6 @@ import {
   ModelPort,
   NoticePort,
   textValueOf,
-  type CapabilitiesSource,
 } from '@dltech/atlas-core'
 
 import { AgentRegistryPort } from '../agents/registry/port'
@@ -44,7 +43,6 @@ import {
 import { bindMcp } from './compose-mcp'
 import { asPluginSurfaces, localSessionOwner } from './compose-session'
 import { bindUtilityModels } from './compose-utility-models'
-import { dockerCapabilitiesSource } from './capabilities-source'
 import type { HarnessLaunch } from './config'
 import { bindInstructionsAndMemory } from './context-bindings'
 import { boundCaptureContext } from './context-archive-binding'
@@ -70,7 +68,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   surface: HarnessSurfaceBinding<TSurface>
   stores?: HarnessStoreBinding | undefined
   bindPorts?: ((args: { container: DependencyContainer }) => void) | undefined
-  capabilities?: CapabilitiesSource | undefined
   repoIdentity?: string | null | undefined
 }): Promise<HarnessApp<TSurface, Command, TPluginSurface>> {
   const { launch, surface } = args
@@ -169,9 +166,6 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     container,
     workspace,
     executionLocation,
-    capabilities:
-      args.capabilities ?? dockerCapabilitiesSource({ executionLocation, cwd: anchor, env: args.env }),
-    mounts,
     models,
     model,
     modelPort,

@@ -1,7 +1,8 @@
 import type { Event } from '@dltech/atlas-core'
 import { publishProjections } from '@dltech/atlas-harness'
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 
+import { pendingRows, type PendingRow } from '../store'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import type { AtlasApp } from './compose'
 
@@ -23,5 +24,29 @@ export function useProjectEvents(args: {
       })
     },
     [pluginProjections],
+  )
+}
+
+type PendingRowsInput = Parameters<typeof pendingRows>[0]
+
+export function usePendingRows(args: {
+  queued: PendingRowsInput['entries']
+  remoteEntries: PendingRowsInput['remoteEntries']
+  wakeNotices: { shells: PendingRowsInput['notices']; agents: PendingRowsInput['agents']; services: PendingRowsInput['services'] }
+  sending: PendingRowsInput['sending']
+}): readonly PendingRow[] {
+  const { queued, remoteEntries, wakeNotices, sending } = args
+
+  return useMemo(
+    () =>
+      pendingRows({
+        entries: queued,
+        ...(remoteEntries === undefined ? {} : { remoteEntries }),
+        notices: wakeNotices.shells,
+        agents: wakeNotices.agents,
+        services: wakeNotices.services,
+        ...(sending === undefined ? {} : { sending }),
+      }),
+    [queued, remoteEntries, sending, wakeNotices.agents, wakeNotices.services, wakeNotices.shells],
   )
 }

@@ -242,6 +242,9 @@ export function createConversationStore(args: {
     }
 
     if (signal.type === "events-appended" || signal.type === "retry-cleared") return;
+    // Pending rows are rendered from use-conversation's onPendingChanged subscription; the
+    // tracker only models step progress.
+    if (signal.type === "pending-changed") return;
     if (signal.type === "retry-waiting") {
       republish();
       return;

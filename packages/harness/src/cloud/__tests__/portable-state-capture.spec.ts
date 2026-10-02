@@ -12,7 +12,6 @@ import {
 
 import { ATLAS_MCP_FILE_NAME, ATLAS_SETTINGS_NAME } from '../../settings/paths'
 import {
-  captureDetachedPreflight,
   capturePortableState,
   materializePortableState,
 } from '../portable-state'
@@ -32,18 +31,19 @@ describe('portable state capture', () => {
     rmSync(target.directory, { recursive: true, force: true })
   })
 
-  it('omits OAuth accounts and MCP OAuth secrets, naming them without values', async () => {
+  it('carries OAuth accounts with the refresh token stripped, and omits MCP OAuth secrets', async () => {
     await seedSource({ source })
     const state = await capturePortableState({ home: source.directory })
 
-    expect(state.accounts.every((account) => account.kind === 'api-key')).toBe(true)
-    expect(state.omitted?.oauthAccounts).toEqual(['Claude subscription'])
+    const oauth = state.accounts.find((account) => account.label === 'Claude subscription')
+    expect(oauth?.kind).toBe('oauth')
+    expect(state.omitted?.oauthAccounts).toEqual([])
     expect(state.omitted?.mcpOauthSecrets).toEqual(['mcp-oauth:linear'])
     expect(JSON.stringify(state)).not.toContain('fake-mcp-refresh')
-    expect(JSON.stringify(state)).not.toContain('fake-access-token')
+    expect(JSON.stringify(state)).not.toContain('fake-refresh-token')
 
     const activeProviders = state.active.map((pointer) => pointer.provider)
-    expect(activeProviders).not.toContain('anthropic')
+    expect(activeProviders).toContain('anthropic')
     expect(activeProviders).toContain('openai')
   })
 
@@ -85,24 +85,6 @@ describe('portable state capture', () => {
     await expect(capturePortableState({ home: source.directory })).rejects.toThrow(
       join(source.directory, 'settings.json'),
     )
-  })
-
-  it('reports a selected OAuth account as not liftable and a selected API-key account as fine', async () => {
-    const seeded = await seedSource({ source })
-
-    const blocked = await captureDetachedPreflight({
-      home: source.directory,
-      selectedAccountId: seeded.oauthAccountId,
-    })
-    expect(blocked).toEqual({ ok: false, label: 'Claude subscription' })
-
-    const fine = await captureDetachedPreflight({
-      home: source.directory,
-      selectedAccountId: seeded.envAccountId,
-    })
-    expect(fine).toEqual({ ok: true })
-
-    expect(await captureDetachedPreflight({ home: source.directory })).toEqual({ ok: true })
   })
 
   it('keeps the payload sealed: no plaintext token or secret appears in the snapshot JSON', async () => {

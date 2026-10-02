@@ -29,7 +29,8 @@ import { compactTurn, ECompaction, type Summariser } from './compact-turn'
 import { EUndo, undoTurn } from './undo-turn'
 import type { UsageTracker } from './usage-tracker'
 
-const COMPACTION_CRASHED = 'compacting the history did not finish, so nothing was changed'
+const compactionCrashed = (fault: unknown): string =>
+  `compacting the history did not finish, so nothing was changed: ${fault instanceof Error ? fault.message : String(fault)}`
 
 const compactionNotice = (usedPercent: number): string =>
   `The window reached ${usedPercent}% — summarising the earlier turns so the conversation fits again.`
@@ -120,8 +121,8 @@ export function createTurnPolicyRunner(args: {
           text: `Summarised ${result.replaced} earlier events so the conversation fits the window again.`,
         })
       }
-    } catch {
-      if (!controller.signal.aborted) warn({ key: 'auto-compaction', text: COMPACTION_CRASHED })
+    } catch (fault) {
+      if (!controller.signal.aborted) warn({ key: 'auto-compaction', text: compactionCrashed(fault) })
     } finally {
       compaction = null
       emit({ type: 'idle' })
@@ -155,8 +156,12 @@ export function createTurnPolicyRunner(args: {
         ...(signal === undefined ? {} : { signal }),
         ...(pause === undefined ? {} : { pause }),
       }),
-    resume: ({ threadId, signal }) =>
-      inner.resume({ threadId, ...(signal === undefined ? {} : { signal }) }),
+    resume: ({ threadId, signal, pause }) =>
+      inner.resume({
+        threadId,
+        ...(signal === undefined ? {} : { signal }),
+        ...(pause === undefined ? {} : { pause }),
+      }),
 
     async onOutcome({ threadId, outcome }) {
       if (

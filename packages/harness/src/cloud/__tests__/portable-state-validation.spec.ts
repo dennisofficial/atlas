@@ -67,14 +67,16 @@ describe('portable state validation', () => {
     expect(existsSync(join(target.directory, 'mcp.json'))).toBe(false)
   })
 
-  it('refuses a payload that smuggles an OAuth grant or an MCP OAuth secret, before any write', async () => {
+  it('refuses an OAuth account still holding a refresh token, and an MCP OAuth secret, before any write', async () => {
     await seedSource({ source })
     const state = await capturePortableState({ home: source.directory })
 
+    const sealed = new SecretCipher(join(source.directory, 'key'))
+    const oauthWithRefresh = sealed.encrypt(JSON.stringify({ kind: 'oauth', tokens: OAUTH_TOKENS }))
     const withOauth = {
       ...state,
+      vaultKeyHex: readFileSync(join(source.directory, 'key'), 'utf8').trim(),
       accounts: [
-        ...state.accounts,
         {
           id: 'acc_smuggled',
           provider: 'anthropic',
@@ -84,7 +86,7 @@ describe('portable state validation', () => {
           status: 'active',
           createdAt: '2026-01-01T00:00:00.000Z',
           updatedAt: '2026-01-01T00:00:00.000Z',
-          secret: state.accounts[0]!.secret,
+          secret: oauthWithRefresh,
         },
       ],
     }

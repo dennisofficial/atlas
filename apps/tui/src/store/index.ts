@@ -21,7 +21,7 @@ export {
   type PendingQueues,
   type PendingSaid,
 } from '@dltech/atlas-harness'
-export { EPendingKind, pendingRows, type PendingRow } from './pending-rows'
+export { EPendingKind, pendingRows, type PendingRow, type RemotePendingEntry } from './pending-rows'
 export {
   shellAwaitingInputLine,
   shellEndedLine,

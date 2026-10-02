@@ -1,4 +1,5 @@
 import type { EventLogPort, ThreadId } from '@dltech/atlas-core'
+import type { RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import type {
   ChannelConnection,
@@ -44,6 +45,8 @@ export type CloudSandbox = {
 export type CloudSandboxStatus = {
   state: ECloudSandboxState
   url?: string | undefined
+  sandboxSessionId?: string | undefined
+  checkpoint?: RuntimeCheckpoint | null | undefined
 }
 
 export type CloudSandboxes = {

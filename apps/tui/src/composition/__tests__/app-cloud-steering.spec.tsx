@@ -152,4 +152,77 @@ describe('steering a turn that runs in the cloud', () => {
       await mounted.done()
     }
   }, 60_000)
+
+  it('renders the sandbox queue the channel broadcasts, and ↑ takes the last entry back into the draft', async () => {
+    const app = slowlySpeaking()
+    const bridge = fakeBridge()
+    const mounted = await mount({ app, bridge })
+
+    try {
+      await liftMidTurn(mounted, bridge)
+
+      bridge.channel.pushPending([
+        { id: 'pending-1', text: STEER, reserved: false },
+      ])
+
+      const shown = await until({
+        holds: async () => {
+          const frame = await mounted.nextFrame()
+          return frame.includes(STEER) && frame.includes(TAKE_BACK)
+        },
+        within: 20_000,
+      })
+      expect(shown).toBe(true)
+
+      bridge.channel.holdTakeBack({ text: STEER, images: [], files: [] })
+      mounted.pressUp()
+
+      const recalled = await until({
+        holds: async () => mounted.draftText() === STEER,
+        within: 20_000,
+      })
+      expect(recalled).toBe(true)
+
+      const rowGone = await until({
+        holds: async () => !(await mounted.nextFrame()).includes(TAKE_BACK),
+        within: 20_000,
+      })
+      expect(rowGone).toBe(true)
+
+      bridge.channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-cloud-take-back') })
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('leaves the row and the draft alone when the sandbox has nothing left to take back', async () => {
+    const app = slowlySpeaking()
+    const bridge = fakeBridge()
+    const mounted = await mount({ app, bridge })
+
+    try {
+      await liftMidTurn(mounted, bridge)
+
+      bridge.channel.pushPending([
+        { id: 'pending-1', text: STEER, reserved: false },
+      ])
+
+      const shown = await until({
+        holds: async () => (await mounted.nextFrame()).includes(TAKE_BACK),
+        within: 20_000,
+      })
+      expect(shown).toBe(true)
+
+      // The intake claimed the message before the ↑ landed: the take-back comes back empty.
+      bridge.channel.holdTakeBack(null)
+      mounted.pressUp()
+
+      await mounted.frame()
+      expect(mounted.draftText()).toBe('')
+
+      bridge.channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-cloud-too-late') })
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
 })

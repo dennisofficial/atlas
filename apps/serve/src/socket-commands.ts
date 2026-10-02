@@ -1,17 +1,20 @@
-import { eventBodySchema, type EventDraft } from '@dltech/atlas-core'
+import { eventBodySchema, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 import { EClientFrame, EServeFrame, type ClientFrame, type ServeFrame } from '@dltech/atlas-harness'
 
 import type { FrameBuffer } from './frame-buffer'
+import { EServeEvent, type ServeLog } from './serve-log'
 import { messageOf } from './socket-requests'
 import type { SessionSocket } from './socket-session'
 import type { ServeTurnDriver } from './turn-driver'
 
 export function createTurnCommands(args: {
+  threadId: ThreadId
   driver: ServeTurnDriver
   buffer: Pick<FrameBuffer, 'nextSeq'>
+  log: ServeLog
   send: (args: { socket: SessionSocket; frame: ServeFrame }) => void
 }) {
-  const { driver, buffer, send } = args
+  const { threadId, driver, buffer, log, send } = args
   const committedSends = new Set<string>()
 
   return (commanded: { socket: SessionSocket; frame: ClientFrame }): void => {
@@ -48,7 +51,7 @@ export function createTurnCommands(args: {
 
   if (frame.kind === EClientFrame.Run) {
     try {
-      driver.run()
+      driver.run({ resume: frame.resume === true, onlyIfIdle: true })
     } catch (error) {
       send({
         socket,
@@ -59,6 +62,7 @@ export function createTurnCommands(args: {
   }
 
   if (frame.kind === EClientFrame.Interrupt) {
+    log({ event: EServeEvent.InterruptRequested, threadId, actor: 'client', running: driver.running() })
     driver.interrupt()
     send({ socket, frame: { kind: EServeFrame.InterruptAcked, seq: buffer.nextSeq() } })
     return

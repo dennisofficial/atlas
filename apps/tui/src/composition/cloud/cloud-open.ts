@@ -1,9 +1,11 @@
 import type { ThreadId } from '@dltech/atlas-core'
+import type { CloudReload } from '@dltech/atlas-harness'
 
 import { notify } from '../../ui/notice-store'
 import type { AtlasApp } from '../compose'
 import { messageOf } from '../error-text'
 import { cloudAnchorOf, cloudBindingOf, type Binding } from '../session-binding'
+import { cloudReadinessOf } from './cloud-readiness'
 import { createCloudSession } from './cloud-session'
 import { mirrorCloudRenames } from './rename-mirror'
 import type { ContainerMoveControl } from '../use-container-move'
@@ -24,7 +26,7 @@ export async function openCloudThread(args: {
   move?: ContainerMoveControl | undefined
   /** Where this thread lives on this machine, when it does — see cloud-runner.ts's wake. */
   projectDirectory?: string | undefined
-  onReload: () => void
+  onReload: (reload: CloudReload) => Promise<void>
 }): Promise<Binding> {
   const { app, bridge, threadId, move, projectDirectory } = args
   let unready = (): void => undefined
@@ -60,11 +62,17 @@ export async function openCloudThread(args: {
       threadId,
     })
     const anchor = await cloudAnchorOf({ stores, threadId, opened })
+    const stopMirroring = mirrorCloudRenames({ home: app.threads, remote: stores.threads })
     const session = createCloudSession({
       channel,
       sandboxes: bridge.sandboxes,
       onReload: args.onReload,
-      onClose: mirrorCloudRenames({ home: app.threads, remote: stores.threads }),
+      appliedSnapshot: () => cloudReadinessOf(channel).applied(),
+      subscribeApplied: (listener) => cloudReadinessOf(channel).subscribe(listener),
+      onClose: () => {
+        cloudReadinessOf(channel).cancelWaiting()
+        stopMirroring()
+      },
     })
 
     move?.handleSettle()

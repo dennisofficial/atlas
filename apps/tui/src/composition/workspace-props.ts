@@ -1,4 +1,4 @@
-import type { CaptureContext, CloudBridge, CloudStores, LiftWorkspaceCapture, WorkspaceRestorer } from '@dltech/atlas-harness'
+import type { CaptureContext, CloudBridge, CloudReload, CloudStores, LiftWorkspaceCapture, WorkspaceRestorer } from '@dltech/atlas-harness'
 import type { ThreadId } from '@dltech/atlas-core'
 
 import type { ClipboardImageReader } from '../ui/clipboard-image'
@@ -27,7 +27,7 @@ export type WorkspaceProps = {
   captureArchive: LiftWorkspaceCapture | undefined
   restoreWorkspace: WorkspaceRestorer | undefined
   captureContext: CaptureContext | undefined
-  onReload: () => void
+  onReload: (reload: CloudReload) => Promise<void>
   onLeaveCloud: (opened: OpenedConversation) => void
   onLocalOpened: (opened: OpenedConversation) => void
   draftText: string

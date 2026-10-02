@@ -1,4 +1,5 @@
 export * from './channel-wire.js'
+export * from './runtime-checkpoint.js'
 export * from './portable-state.js'
 export * from './request-wire.js'
 export * from './rewind-wire.js'

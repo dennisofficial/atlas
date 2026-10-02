@@ -1,4 +1,4 @@
-import type { CapabilitiesSource, ModelPort, NoticePort, SaidImage, SettingsResolution, ToolDeclaration, WorkspaceIdentity } from '@dltech/atlas-core'
+import type { ModelPort, NoticePort, SaidImage, SettingsResolution, ToolDeclaration, WorkspaceIdentity } from '@dltech/atlas-core'
 import type { SleepPrevention } from '../power/sleep-prevention'
 import type { WakeSignal } from '../wake/wake-signals'
 import type { LanguageModel } from 'ai'
@@ -18,8 +18,6 @@ export type TurnSetup<Command = never> = {
   container: DependencyContainer
   workspace: WorkspaceIdentity
   executionLocation: ExecutionLocationState
-  capabilities?: CapabilitiesSource | undefined
-  mounts: readonly string[]
   models: ModelCatalogue
   model: SelectableModel
   modelPort: ModelPort

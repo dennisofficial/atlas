@@ -9,7 +9,7 @@ import { openCloudThread } from './cloud/cloud-open'
 import { clearAttachFailure, recordAttachFailure } from './attach-failure'
 import { cloudAttachmentOf } from './session-binding'
 import { settleOnChannel } from './session-recovery'
-import type { CloudBridge, CloudSandboxes } from '@dltech/atlas-harness'
+import type { CloudBridge, CloudReload, CloudSandboxes } from '@dltech/atlas-harness'
 import type { CloudSession } from './cloud/cloud-session'
 import type { AtlasApp } from './compose'
 import { EOpenMode } from './config'
@@ -40,7 +40,7 @@ export function useThreadRouter(args: {
   working: boolean
   activeThreadId: string
   opened: OpenedConversation
-  onReload: () => void
+  onReload: (reload: CloudReload) => Promise<void>
   onLeaveCloud: (opened: OpenedConversation) => void
   onLocalSwap: (threadId: string) => void
 }): ThreadRouter {

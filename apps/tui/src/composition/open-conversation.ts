@@ -20,9 +20,12 @@ import type {
 import type { LostShell, ServiceRegistryPort, ShellRegistryPort } from '@dltech/atlas-harness'
 
 import { EOpenMode, type OpenRequest } from './config'
-import { claimThread, closeConversation, readOpenedConversation, recoverLostProcesses } from './conversation-claim'
+import { claimThread, closeConversation, recoverLostProcesses } from './conversation-claim'
+import { readThreadSpend } from './thread-spend'
+import { readThreadSnapshot, type ThreadIdentity } from './thread-reads'
+import { EThreadRows } from './use-thread-view'
 import type { LogAccumulator, ToolEffects } from '../store/log-accumulator'
-import { titleMatchesHandle } from '@dltech/atlas-harness'
+import { titleMatchesHandle, transcriptIdentityDigest } from '@dltech/atlas-harness'
 
 export type OpenedConversation = {
   threadId: ThreadId
@@ -37,6 +40,7 @@ export type OpenedConversation = {
   base?: LogAccumulator | undefined
   bootCloudThreadId?: ThreadId | undefined
   resumeOnArrival?: boolean | undefined
+  identity?: ThreadIdentity | undefined
 }
 
 export { closeConversation }
@@ -151,6 +155,42 @@ async function threadFor(args: Opening): Promise<Found> {
   return found
 }
 
+async function readOpenedConversation(args: {
+  thread: ThreadSummary
+  log: EventLogPort
+  ledger: TurnLedgerPort
+  effects: ToolEffects
+  lost?: RecoveredAgents | undefined
+  lostShells?: readonly LostShell[] | undefined
+}): Promise<OpenedConversation> {
+  const { thread } = args
+  // The window, the base and the transcript identity derive from one immutable full read — an
+  // append or rewind landing between separate reads would have them describe different
+  // transcripts, and the identity is what later freshness decisions trust as the applied truth.
+  const snapshot = await readThreadSnapshot({
+    log: args.log,
+    threadId: thread.id,
+    rows: EThreadRows.Composed,
+    effects: args.effects,
+    digest: transcriptIdentityDigest,
+  })
+  const spent = await readThreadSpend({ ledger: args.ledger, threadId: thread.id })
+
+  return {
+    threadId: thread.id,
+    events: snapshot.events,
+    turns: spent.turns,
+    name: thread.title ?? null,
+    started: true,
+    model: thread.model,
+    executionLocation: thread.executionLocation,
+    lost: args.lost,
+    lostShells: args.lostShells,
+    base: snapshot.base,
+    identity: snapshot.identity,
+  }
+}
+
 /**
  * The order is the invariant. Children the last process lost are settled before the transcript is
  * read, so the endings it writes are in the events the screen is built from rather than a turn
@@ -194,13 +234,6 @@ export async function openConversation(args: Opening): Promise<OpenOutcome> {
 
   return {
     ok: true,
-    conversation: await readOpenedConversation({
-      thread,
-      log: args.log,
-      ledger: args.ledger,
-      effects: args.effects,
-      lost,
-      lostShells,
-    }),
+    conversation: await readOpenedConversation({ thread, log: args.log, ledger: args.ledger, effects: args.effects, lost, lostShells }),
   }
 }

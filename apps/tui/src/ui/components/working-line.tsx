@@ -17,6 +17,9 @@ export enum EWorkingVerb {
 
 const INTERRUPTING = 'Interrupting…'
 
+const lastSeenLabel = (at: number): string =>
+  new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+
 export function WorkingLine(props: {
   elapsedMs: number
   outputTokens: number
@@ -24,6 +27,7 @@ export function WorkingLine(props: {
   verb?: EWorkingVerb | undefined
   retry?: RetryWait | null | undefined
   onReconnect?: (() => void) | undefined
+  lastSeenAt?: number | null | undefined
 }): React.ReactNode {
   const { retry } = props
   const onReconnect = props.verb === EWorkingVerb.Disconnected ? props.onReconnect : undefined
@@ -47,6 +51,9 @@ export function WorkingLine(props: {
       <box flexDirection="column">
         <text {...reconnect.handlers} {...(reconnect.hovered ? { backgroundColor: theme.hoverBg } : {})}>
           <span fg={theme.warn}>○ disconnected — the turn may still be running</span>
+          {props.lastSeenAt === null || props.lastSeenAt === undefined ? null : (
+            <span fg={theme.dim}>{` · transcript last seen ${lastSeenLabel(props.lastSeenAt)}`}</span>
+          )}
           {props.onReconnect === undefined ? null : (
             <>
               <span fg={theme.dim}>{'   '}</span>

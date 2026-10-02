@@ -13,21 +13,31 @@ export async function adoptChildrenNow(args: {
   settling: { count: number }
   note: () => void
 }): Promise<void> {
-  const resumed = await args.app.adoptChildren({ threadId: args.threadId })
-  if (resumed.length === 0) return
+  args.settling.count += 1
+  const release = (): void => {
+    args.settling.count -= 1
+    args.note()
+  }
+  let resumed: readonly string[]
+  try {
+    resumed = await args.app.adoptChildren({ threadId: args.threadId })
+  } catch (error) {
+    release()
+    throw error
+  }
+  if (resumed.length === 0) {
+    release()
+    return
+  }
 
   args.log({ event: EServeEvent.ChildrenAdopted, agentIds: resumed })
-  args.settling.count += 1
   args.note()
   void args.app
     .whenChildrenSettled({ threadId: args.threadId })
     .catch((error: unknown) => {
       args.log({ event: EServeEvent.ChildAdoptionFailed, reason: messageOf(error) })
     })
-    .finally(() => {
-      args.settling.count -= 1
-      args.note()
-    })
+    .finally(release)
 }
 
 export function adoptChildrenInBackground(args: Parameters<typeof adoptChildrenNow>[0]): void {
@@ -40,32 +50,35 @@ export function settleLostShellsInBackground(args: {
   app: Pick<ServeApp, 'recordLostShells' | 'recordLostServices'>
   threadId: ThreadId
   log: ServeLog
+  settling: { count: number }
+  note: () => void
 }): void {
-  if (args.app.recordLostShells !== undefined) {
-    void args.app
-      .recordLostShells({ threadId: args.threadId })
+  const settleWith = <T>(args2: {
+    recover: ((args: { threadId: ThreadId }) => Promise<readonly T[]>) | undefined
+    detail: (settled: readonly T[]) => Record<string, unknown>
+  }): void => {
+    if (args2.recover === undefined) return
+    args.settling.count += 1
+    void args2
+      .recover({ threadId: args.threadId })
       .then((settled) => {
-        if (settled.length > 0) {
-          args.log({ event: EServeEvent.LostShellsSettled, shellIds: settled.map((shell) => shell.shellId) })
-        }
+        if (settled.length > 0) args.log({ event: EServeEvent.LostShellsSettled, ...args2.detail(settled) })
       })
       .catch((error: unknown) => {
         args.log({ event: EServeEvent.LostShellSettlementFailed, reason: messageOf(error) })
       })
+      .finally(() => {
+        args.settling.count -= 1
+        args.note()
+      })
   }
 
-  if (args.app.recordLostServices === undefined) return
-  void args.app
-    .recordLostServices({ threadId: args.threadId })
-    .then((settled) => {
-      if (settled.length > 0) {
-        args.log({
-          event: EServeEvent.LostShellsSettled,
-          serviceIds: settled.map((service) => service.serviceId),
-        })
-      }
-    })
-    .catch((error: unknown) => {
-      args.log({ event: EServeEvent.LostShellSettlementFailed, reason: messageOf(error) })
-    })
+  settleWith({
+    recover: args.app.recordLostShells,
+    detail: (settled) => ({ shellIds: settled.map((shell) => shell.shellId) }),
+  })
+  settleWith({
+    recover: args.app.recordLostServices,
+    detail: (settled) => ({ serviceIds: settled.map((service) => service.serviceId) }),
+  })
 }

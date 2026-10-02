@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 
 import type { ThreadId } from '@dltech/atlas-core'
+import type { CloudReload } from '@dltech/atlas-harness'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import type { AtlasApp } from './compose'
@@ -13,7 +14,7 @@ export function useSessionRecovery(args: {
   threadId: ThreadId
   opened: OpenedConversation
   createBridge: CloudBridgeFactory
-  onReload: () => void
+  onReload: (reload: CloudReload) => Promise<void>
 }): void {
   const { localApp, threadId } = args
 

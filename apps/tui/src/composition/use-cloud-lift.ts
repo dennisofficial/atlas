@@ -6,10 +6,11 @@ import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import type { CaptureContext } from '@dltech/atlas-harness'
 
 import { cloudRuntimeParts, openCloudConversation } from './cloud/cloud-app'
+import { cloudReadinessOf } from './cloud/cloud-readiness'
 import { createCloudSession } from './cloud/cloud-session'
 import { mirrorCloudRenames } from './cloud/rename-mirror'
 import { cloudAnchorOf, cloudBindingOf, prepareOn } from './session-binding'
-import type { CloudBridge, LiftedWorkspace, LiftWorkspaceCapture } from '@dltech/atlas-harness'
+import type { CloudBridge, CloudReload, LiftedWorkspace, LiftWorkspaceCapture } from '@dltech/atlas-harness'
 import { createCloudRunner } from './cloud/cloud-runner'
 import { liftToCloud } from '@dltech/atlas-harness'
 import { CLOUD_LIFT_NOTICE_KEY, liftFailedNotice } from './cloud/lift-notices'
@@ -50,7 +51,7 @@ export function useCloudLift(args: {
   captureArchive?: LiftWorkspaceCapture | undefined
   captureContext?: CaptureContext | undefined
   move: ContainerMoveControl
-  onReload: () => void
+  onReload: (reload: CloudReload) => Promise<void>
 }): CloudLiftControl {
   const lifting = useRef(false)
   const latest = useRef(args)
@@ -107,11 +108,17 @@ export function useCloudLift(args: {
             const base = { ...app, ...cloudRuntimeParts({ channel: attachment.channel, stores: attachment.stores, runner }) }
             const opened = await openCloudConversation({ app: base, threadId })
             const anchor = await cloudAnchorOf({ stores: attachment.stores, threadId, opened, restored: restoredWorkspace })
+            const stopMirroring = mirrorCloudRenames({ home: app.threads, remote: attachment.stores.threads })
             const session = createCloudSession({
               channel: attachment.channel,
               sandboxes: bridge.sandboxes,
               onReload: latest.current.onReload,
-              onClose: mirrorCloudRenames({ home: app.threads, remote: attachment.stores.threads }),
+              appliedSnapshot: () => cloudReadinessOf(attachment.channel).applied(),
+              subscribeApplied: (listener) => cloudReadinessOf(attachment.channel).subscribe(listener),
+              onClose: () => {
+                cloudReadinessOf(attachment.channel).cancelWaiting()
+                stopMirroring()
+              },
             })
             prepareOn({
               transaction,

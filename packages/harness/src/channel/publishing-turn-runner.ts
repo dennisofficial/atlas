@@ -64,7 +64,7 @@ export class PublishingTurnRunner extends TurnRunner {
     })
   }
 
-  resume(args: { threadId: ThreadId; signal?: AbortSignal }): Promise<TurnOutcome> {
+  resume(args: { threadId: ThreadId; signal?: AbortSignal; pause?: PauseSignal }): Promise<TurnOutcome> {
     const { publisher, runner } = this.runnerFor(args.threadId)
     return publishing({
       publisher,

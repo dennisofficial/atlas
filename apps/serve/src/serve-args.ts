@@ -22,10 +22,10 @@ export type ServeArgs = {
   bufferSize?: number | undefined
   drainDeadlineMs?: number | undefined
   idleMinutes?: number | undefined
-  idleMinutesWithServices?: number | undefined
   idleTickMs?: number | undefined
   /** What an idle serve does after closing — injectable so a spec's process survives it. */
   exit?: ((code: number) => void) | undefined
+  stopSandbox?: (() => Promise<void>) | undefined
   fetchFn?: typeof fetch | undefined
   write?: LogWrite | undefined
   compose?: ServeCompose | undefined
@@ -39,5 +39,5 @@ export type ServeArgs = {
 
 export type ServeHandle = {
   port: number
-  close: () => Promise<void>
+  close: (args?: { reason: string }) => Promise<void>
 }

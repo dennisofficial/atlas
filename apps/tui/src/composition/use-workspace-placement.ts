@@ -1,3 +1,4 @@
+import type { CloudReload } from '@dltech/atlas-harness'
 import type { CloudSession } from './cloud/cloud-session'
 import type { AtlasApp } from './compose'
 import { useCloudConnection } from './use-cloud-connection'
@@ -14,7 +15,7 @@ export function useWorkspacePlacement(args: {
   localApp: AtlasApp
   opened: OpenedConversation
   createBridge: CloudBridgeFactory
-  onReload: () => void
+  onReload: (reload: CloudReload) => Promise<void>
   cloudSession: CloudSession | null
   conversation: Pick<Conversation, 'threadId' | 'executionLocation'>
 }) {

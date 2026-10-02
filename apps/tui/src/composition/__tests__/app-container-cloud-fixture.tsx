@@ -107,6 +107,7 @@ export const mount = async (args: {
      */
     clearDraft: () => editorIn(setup.renderer.root)?.replaceText(''),
     pressEnter: () => setup.mockInput.pressEnter(),
+    pressUp: () => setup.mockInput.pressArrow('up'),
     pressEscape: () => setup.mockInput.pressEscape(),
     pressCtrl: (key: string) => setup.mockInput.pressKey(key, { ctrl: true }),
     pressCtrlC: () => setup.mockInput.pressKey('c', { ctrl: true }),

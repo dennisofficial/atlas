@@ -6,6 +6,7 @@ import type { CaptureContext, LiftWorkspaceCapture, WorkspaceRestorer } from '@d
 import { readClipboardImage, type ClipboardImageReader } from '../ui/clipboard-image'
 import { createKeyRegistry, KeyRegistryContext } from '../ui/keys'
 import { captureWorkspaceMetadata } from '@dltech/atlas-harness'
+import { cloudReadinessOf } from './cloud/cloud-readiness'
 import { openCloudConversation } from './cloud/cloud-app'
 import type { AtlasApp } from './compose'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
@@ -68,34 +69,43 @@ export function App(props: {
     draftReader.current = reader
   }, [])
 
-  const handleReload = useCallback(() => {
+  const handleReload = useCallback((): Promise<void> => {
     const attached = heldCloud.current
     const current = owner.snapshot().binding
-    if (attached === undefined || current === undefined) return
+    if (attached === undefined || current === undefined) {
+      return Promise.reject(new Error('the cloud attachment is no longer mounted'))
+    }
     if (reloading.current) {
       reloadPending.current = true
-      return
+      return Promise.resolve()
     }
 
     reloading.current = true
-    void openCloudConversation({
-      app: appOf({ local: props.app, binding: current }),
-      threadId: attached.opened.threadId,
-    })
-      .then((opened) =>
-        setReloaded((prior) => ({
-          binding: current,
-          opened,
-          reloads: prior?.binding === current ? prior.reloads + 1 : 1,
-        })),
-      )
-      .catch(() => undefined)
-      .finally(() => {
-        reloading.current = false
-        if (!reloadPending.current) return
-        reloadPending.current = false
-        handleReload()
+    const task = (async () => {
+      const opened = await openCloudConversation({
+        app: appOf({ local: props.app, binding: current }),
+        threadId: attached.opened.threadId,
       })
+      if (owner.snapshot().binding !== current) {
+        throw new Error('the cloud attachment changed during transcript synchronization')
+      }
+      if (opened.identity === undefined) {
+        throw new Error('the cloud transcript has no complete snapshot identity')
+      }
+      const applied = cloudReadinessOf(attached.session.channel).waitUntilApplied(opened.identity)
+      setReloaded((prior) => ({
+        binding: current,
+        opened,
+        reloads: prior?.binding === current ? prior.reloads + 1 : 1,
+      }))
+      await applied
+    })()
+    return task.finally(() => {
+      reloading.current = false
+      if (!reloadPending.current) return
+      reloadPending.current = false
+      void handleReload().catch(() => undefined)
+    })
   }, [owner, props.app])
 
   const handleLocalOpened = useCallback(

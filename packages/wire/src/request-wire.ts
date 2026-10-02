@@ -32,6 +32,9 @@ export const renameThreadParamsSchema = z.object({
 })
 export type RenameThreadParams = z.infer<typeof renameThreadParamsSchema>
 
+export const takeBackPendingParamsSchema = z.object({ threadId: threadIdWireSchema })
+export type TakeBackPendingParams = z.infer<typeof takeBackPendingParamsSchema>
+
 export const threadModelWireSchema = z.object({ ref: z.string(), effort: z.string() })
 
 export const setThreadModelParamsSchema = z.object({

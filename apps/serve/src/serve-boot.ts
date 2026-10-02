@@ -16,7 +16,6 @@ import {
 import { createDirectWorkspace, type DirectWorkspaceRestorer } from './direct-workspace'
 import { createEnvironmentProfile, EProfileStepState } from './environment-profile'
 import { applyGitAccessEnv } from './git-access-env'
-import { SERVE_IDLE_MINUTES_WITH_SERVICES } from './idle-stop'
 import {
   createEnsureWorkspace,
   EWorkspaceState,
@@ -41,7 +40,6 @@ export async function bootServeFiles(args: {
   cwd: string
   driveHome: string
   log: ServeLog
-  idleMinutesWithServices?: number | undefined
   ensureWorkspace?: EnsureWorkspace | undefined
   restoreWorkspace?: DirectWorkspaceRestorer | undefined
   contextFiles?: WorkspaceFiles | undefined
@@ -54,10 +52,7 @@ export async function bootServeFiles(args: {
   const ensureWorkspace =
     args.ensureWorkspace ??
     createEnsureWorkspace({
-      profile: createEnvironmentProfile({
-        env,
-        serviceTtlSeconds: (args.idleMinutesWithServices ?? SERVE_IDLE_MINUTES_WITH_SERVICES) * 60,
-      }),
+      profile: createEnvironmentProfile({ env }),
     })
   const direct = createDirectWorkspace({ driveHome, destination: cwd, restore: args.restoreWorkspace })
   const directBoot = await direct.boot()

@@ -1,9 +1,4 @@
-import type { ServerWebSocket } from 'bun'
-
-import type { ThreadId } from '@dltech/atlas-core'
-import { rosterWireSchema } from '@dltech/atlas-wire'
-
-import type { StepId } from '@dltech/atlas-harness'
+import { rosterWireSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import {
   CHANNEL_PROTOCOL_VERSION,
@@ -13,85 +8,45 @@ import {
   decodeClientFrame,
   encodeFrame,
   type ClientFrame,
-  type RestoreTranscriptParams,
   type ServeFrame,
 } from '@dltech/atlas-harness'
-import type { FileBrowser } from '@dltech/atlas-harness'
 
-import type { FrameBuffer, SignalFrame } from './frame-buffer'
-import type { WorkspacePublisher } from './publish-workspace'
-import { refusedRequest, type TranscriptReaders } from './requests'
+import { pendingEntriesOf, refusedRequest } from './requests'
+import { EServeEvent } from './serve-log'
+import type { ServeRoster } from './serve-app'
 import { createTurnCommands } from './socket-commands'
-import { createRequestRouter, messageOf, type RestoreOutcome } from './socket-requests'
-import type { answerWorkspaceTransfer } from './workspace-ops'
-import type { ServeRoster, ServeRewind } from './serve-app'
-import { EServeEvent, type ServeLog } from './serve-log'
-import { createStepAliaser, endsAliasedStep, retagged, type StepAlias } from './step-alias'
-import type { ServeTurnDriver } from './turn-driver'
+import { createRequestRouter, messageOf } from './socket-requests'
+import type { HelloFrame, SessionHandlers, SessionHandlersArgs, SessionSocket } from './socket-session-types'
+import { createMutationTracker, isReadOnlyFrame, routeStateRequest } from './socket-state-requests'
+import { createStepAliaser, endsAliasedStep, retagged } from './step-alias'
+
+export type {
+  HelloFrame,
+  SessionHandlers,
+  SessionHandlersArgs,
+  SessionSocket,
+  SocketState,
+} from './socket-session-types'
 
 const POLICY_VIOLATION = 1008
 const GOING_AWAY = 1001
 
-type WorkspaceOps = Pick<Parameters<typeof answerWorkspaceTransfer>[0], 'prepare' | 'apply' | 'activate'>
-
-export type SocketState = { helloed: boolean; alias: StepAlias | null }
-
-export type SessionSocket = ServerWebSocket<SocketState>
-
-export type SessionHandlers = {
-  open: (args: { socket: SessionSocket }) => void
-  message: (args: { socket: SessionSocket; message: string | Buffer }) => void
-  close: (args: { socket: SessionSocket }) => void
-  broadcast: (frame: ServeFrame) => void
-  broadcastRoster: () => void
-  park: (args: { reason: string }) => void
-  hangUp: () => void
-  clients: () => number
-}
-
 /** A serve without registries (a spec fake) has nothing to report — an empty roster, not an error. */
 const EMPTY_ROSTER: ServeRoster['snapshot'] = () => ({ shells: [], agents: [], services: [] })
-
-type HelloFrame = Extract<ClientFrame, { kind: EClientFrame.Hello }>
-
-export type SessionHandlersArgs = {
-  threadId: ThreadId
-  buffer: FrameBuffer
-  inFlight: () => readonly SignalFrame[]
-  liveStepId: () => StepId | null
-  driver: ServeTurnDriver
-  files: Pick<FileBrowser, 'list'>
-  publish: WorkspacePublisher
-  refusal: () => string | null
-  log: ServeLog
-  roster?: ServeRoster | undefined
-  rewind?: ServeRewind | undefined
-  /** The transcript stores the read-ops answer from; absent in fakes, which refuse the ops. */
-  transcript?: TranscriptReaders | undefined
-  /** Re-pins the running loop's model for a set-thread-model op; absent in fakes. */
-  selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
-  /** Tars the served session directory for the descend's transfer; absent in fakes. */
-  sessionArchive?: (() => Promise<Uint8Array | null>) | undefined
-  /** Tars the sandbox's memory roots for the descend's memory transfer; absent in fakes. */
-  memoryArchive?: (() => Promise<Uint8Array | null>) | undefined
-  /** The workspace-transfer ops; absent in fakes, which refuse them. */
-  workspace?: WorkspaceOps | undefined
-  /** The lift's late transcript restore; absent in fakes, which refuse the op. The marker is the lift's `location-changed` draft, pinned on the restored log. */
-  restoreTranscript?:
-    | ((marker?: RestoreTranscriptParams['locationChanged']) => Promise<{ restored: boolean; failed: string | null }>)
-    | undefined
-}
 
 export function createSessionHandlers(args: SessionHandlersArgs): SessionHandlers {
   const { threadId, buffer, inFlight, liveStepId, driver, files, publish, refusal, log } = args
   const snapshot = args.roster?.snapshot ?? EMPTY_ROSTER
   const rewind = args.rewind
+  const pending = args.pending
   const transcript = args.transcript
   const selectModel = args.selectModel
   const sessionArchive = args.sessionArchive
   const memoryArchive = args.memoryArchive
   const restoreTranscript = args.restoreTranscript
   const workspaceOps = args.workspace
+  const { admissionClosed, checkpoint, checkpointChanged } = args
+  const mutations = createMutationTracker({ changed: checkpointChanged })
   const live = new Set<SessionSocket>()
   const attached = new Set<SessionSocket>()
   const aliaser = createStepAliaser()
@@ -100,7 +55,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     args.socket.send(encodeFrame(args.frame))
   }
 
-  const command = createTurnCommands({ driver, buffer, send })
+  const command = createTurnCommands({ threadId, driver, buffer, log, send })
 
   const router = createRequestRouter({
     threadId,
@@ -109,7 +64,10 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     publish,
     log,
     snapshot,
-    send,
+    send: (sent) => {
+      mutations.observe(sent.frame)
+      send(sent)
+    },
     rewind,
     transcript,
     selectModel,
@@ -118,6 +76,11 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     restoreTranscript,
     workspace: workspaceOps,
   })
+
+  const checkpointField = (): { checkpoint?: RuntimeCheckpoint } => {
+    const current = checkpoint?.() ?? null
+    return current === null ? {} : { checkpoint: current }
+  }
 
   /** The alias lives exactly as long as the step it renames, and only for the socket that reloaded. */
   const forSocket = (args: { socket: SessionSocket; frame: ServeFrame }): ServeFrame => {
@@ -155,12 +118,25 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
         kind: EServeFrame.Ready,
         seq: buffer.nextSeq(),
         protocol: CHANNEL_PROTOCOL_VERSION,
-        turnInFlight: driver.running(),
+        turnInFlight: driver.outcomePending(),
+        ...checkpointField(),
       },
     })
 
     const blocked = refusal()
     if (blocked !== null) send({ socket, frame: { kind: EServeFrame.Error, message: blocked } })
+
+    const queued = pending === undefined ? [] : pendingEntriesOf({ pending, threadId })
+    if (queued.length > 0) {
+      send({
+        socket,
+        frame: {
+          kind: EServeFrame.Signal,
+          seq: Math.max(0, buffer.nextSeq() - 1),
+          signal: { type: 'pending-changed', entries: queued },
+        },
+      })
+    }
 
     const backfill = resumed && cursor !== null ? buffer.after(cursor) : inFlight()
     const reloadedMidStep = resumed ? null : liveStepId()
@@ -191,6 +167,11 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   const drive = (args: { socket: SessionSocket; frame: ClientFrame }): void => {
     const { socket, frame } = args
 
+    if (admissionClosed?.() === true && !isReadOnlyFrame(frame)) {
+      refuseDeferred({ socket, frame, message: 'this sandbox is parking and accepts no new work' })
+      return
+    }
+
     const isRestoreOp = frame.kind === EClientFrame.Request && frame.op === EClientRequest.RestoreTranscript
     if (router.state.restoring !== null && !isRestoreOp) {
       const held = router.state.restoring
@@ -207,8 +188,26 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     }
 
     command({ socket, frame })
-    if (frame.kind === EClientFrame.Request) router.route({ socket, frame })
+    if (frame.kind !== EClientFrame.Request) return
+    if (routeStateRequest({ socket, frame, send, checkpoint, pending })) return
+    if (!isReadOnlyFrame(frame)) mutations.begin(frame.id)
+    router.route({ socket, frame })
   }
+
+  const broadcast = (frame: ServeFrame): void => {
+    const encoded = encodeFrame(frame)
+    for (const socket of attached) {
+      if (socket.data.alias === null) {
+        socket.send(encoded)
+        continue
+      }
+      socket.send(encodeFrame(forSocket({ socket, frame })))
+    }
+  }
+
+  const unsubscribePending = pending?.subscribe(() => {
+    broadcast(buffer.push({ type: 'pending-changed', entries: pendingEntriesOf({ pending, threadId }) }))
+  })
 
   return {
     open({ socket }) {
@@ -254,19 +253,16 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     close({ socket }) {
       live.delete(socket)
       if (!attached.delete(socket)) return
-      log({ event: EServeEvent.ClientDetached, clients: attached.size })
+      log({
+        event: EServeEvent.ClientDetached,
+        clients: attached.size,
+        actor: 'transport',
+        running: driver.running(),
+        execution: 'preserved',
+      })
     },
 
-    broadcast(frame) {
-      const encoded = encodeFrame(frame)
-      for (const socket of attached) {
-        if (socket.data.alias === null) {
-          socket.send(encoded)
-          continue
-        }
-        socket.send(encodeFrame(forSocket({ socket, frame })))
-      }
-    },
+    broadcast,
 
     broadcastRoster() {
       const frame: ServeFrame = { kind: EServeFrame.Roster, roster: rosterWireSchema.parse(snapshot()) }
@@ -282,17 +278,19 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
       const clients = [...attached]
       log({ event: EServeEvent.ClientsParked, clients: clients.length, reason: args.reason })
       for (const socket of clients) {
-        send({ socket, frame: { kind: EServeFrame.Parked, reason: args.reason } })
+        send({ socket, frame: { kind: EServeFrame.Parked, reason: args.reason, ...checkpointField() } })
         socket.close(GOING_AWAY, args.reason)
       }
     },
 
     hangUp() {
+      unsubscribePending?.()
       for (const socket of live) socket.terminate()
       live.clear()
       attached.clear()
     },
 
     clients: () => attached.size,
+    settling: () => router.state.restoring !== null || mutations.active(),
   }
 }

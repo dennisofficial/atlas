@@ -6,6 +6,11 @@ import type { MessageIntake } from '@dltech/atlas-harness'
 
 import type { ServeApp } from './serve-app'
 
+export type TurnRunOptions = {
+  resume?: boolean | undefined
+  onlyIfIdle?: boolean | undefined
+}
+
 export type ServeTurnDriver = {
   say: (args: {
     text: string
@@ -13,7 +18,7 @@ export type ServeTurnDriver = {
     files?: readonly SaidFile[] | undefined
     context?: readonly EventDraft[] | undefined
   }) => Promise<void>
-  run: () => void
+  run: (options?: TurnRunOptions) => void
   sayOrRun: () => boolean
   interrupt: () => void
   pause: () => void
@@ -21,6 +26,7 @@ export type ServeTurnDriver = {
   resume: () => void
   running: () => boolean
   busy: () => boolean
+  outcomePending: () => boolean
   settled: () => Promise<void>
   attach: (shared: MessageIntake) => () => void
 }
@@ -49,6 +55,7 @@ export function createTurnDriver(args: {
   let again = false
   let committing = false
   let turning: Promise<void> | null = null
+  let outcomePending = false
   let relocationFrozen = false
   let relocationSettling: Promise<void> | null = null
   let resumeRelocation = false
@@ -115,20 +122,24 @@ export function createTurnDriver(args: {
       }
     }
     args.onOutcome(outcome)
+    outcomePending = false
     await app.turnPolicy?.onOutcome({ threadId, outcome })
   }
 
-  const runUntilQuiet = async (): Promise<void> => {
+  const runUntilQuiet = async (initial: { resume: boolean }): Promise<void> => {
     args.onTurnStarted()
+    let resumeThisTurn = initial.resume
     try {
       do {
         again = false
+        outcomePending = true
         const controller = new AbortController()
         abort = controller
         pause = new PauseSignal()
         if (relocationFrozen) pause.pause()
-        const resuming = resumeRelocation
+        const resuming = resumeRelocation || resumeThisTurn
         resumeRelocation = false
+        resumeThisTurn = false
         const outcome = resuming
           ? await app.runner.resume({ threadId, signal: controller.signal, pause })
           : await app.runner.runTurn({ threadId, signal: controller.signal, pause })
@@ -138,6 +149,7 @@ export function createTurnDriver(args: {
       await app.turnPolicy?.onCrashed({ threadId })
       args.onFailure(messageOf(error))
     } finally {
+      outcomePending = false
       abort = null
       pause = null
       turning = null
@@ -146,16 +158,19 @@ export function createTurnDriver(args: {
     }
   }
 
-  const run = (): void => {
+  const run = (options?: TurnRunOptions): void => {
     const refused = args.refusal?.()
     if (refused !== undefined) throw new Error(refused)
 
+    if (options?.onlyIfIdle === true && (turning !== null || committing)) {
+      throw new Error('a turn is already running — wait for it to finish before asking for another')
+    }
     if (committing || relocationSettling !== null || relocationFrozen) return
     if (turning !== null) {
       again = true
       return
     }
-    turning = runUntilQuiet()
+    turning = runUntilQuiet({ resume: options?.resume === true })
   }
 
   const handle: ServeTurnDriver = {
@@ -181,7 +196,7 @@ export function createTurnDriver(args: {
         } finally {
           committing = false
         }
-        turning = runUntilQuiet()
+        turning = runUntilQuiet({ resume: false })
         return
       }
 
@@ -190,7 +205,7 @@ export function createTurnDriver(args: {
         again = true
         return
       }
-      turning = runUntilQuiet()
+      turning = runUntilQuiet({ resume: false })
     },
 
     run,
@@ -270,6 +285,8 @@ export function createTurnDriver(args: {
     running: () => turning !== null,
 
     busy: () => turning !== null || committing,
+
+    outcomePending: () => outcomePending,
 
     settled: () => Promise.all([turning, relocationSettling]).then(() => undefined),
   }

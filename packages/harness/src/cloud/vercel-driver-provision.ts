@@ -8,7 +8,7 @@ import {
   type DriveSdk,
 } from './drive-lifecycle'
 import { driveNameFor } from './drive-names'
-import { ESandboxProbe, probeSandboxForResume, type AttachProbe } from './resume-probe'
+import { ESandboxProbe, probeSandboxForResume, type RuntimeActivityProbe } from './resume-probe'
 import type { RetryPolicy } from './retry-policy'
 import type { ServeLauncher } from './serve-launch'
 import { mountWithRetries } from './vercel-driver-mount'
@@ -40,7 +40,7 @@ export type ProvisionDeps = {
   }
   sdk: VercelSdk
   drives: DriveSdk
-  attachProbe: AttachProbe
+  runtimeHealth: RuntimeActivityProbe
   attachLagRetry: RetryPolicy
   launchServe: ServeLauncher
 }
@@ -91,9 +91,10 @@ export async function provisionSandbox(deps: ProvisionDeps, args: ProvisionArgs)
         deps.sdk.get({
           ...credentials,
           name: args.name,
+          resume: false,
           signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
         }),
-      clientsAttached: deps.attachProbe,
+      runtimeHealth: deps.runtimeHealth,
       waitForDriveDetached: () =>
         waitForDriveDetached({
           sdk: deps.drives,
@@ -131,7 +132,12 @@ export async function provisionSandbox(deps: ProvisionDeps, args: ProvisionArgs)
       await args.putContextOnFreshBoot(sandbox)
     }
     const serveStartedAt = Date.now()
-    await deps.launchServe({ sandbox, token: serveToken })
+    await deps.launchServe({
+      sandbox,
+      token: serveToken,
+      sandboxSessionId: sandbox.currentSession().sessionId,
+      cloudUrl: deps.config.cloudUrl,
+    })
     deps.config.log?.(
       `sandbox ${args.name} provisioned: get-or-create ${createMs}ms, serve launch ${Date.now() - serveStartedAt}ms`,
     )

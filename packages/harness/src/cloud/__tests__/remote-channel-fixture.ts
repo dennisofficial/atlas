@@ -8,7 +8,7 @@ import {
   type ClientFrame,
   type ServeFrame,
 } from '../channel-wire'
-import { createRemoteDeltaChannel } from '../remote-delta-channel'
+import { createRemoteDeltaChannel, type EReconnectEscalation } from '../remote-delta-channel'
 import type { ChannelSocketHandlers } from '../remote-channel-socket'
 
 export const THREAD = toThreadId('brn_cloud')
@@ -43,6 +43,7 @@ export const harness = (options?: {
   reattach?: (() => Promise<{ url: string; token: string }>) | undefined
   requestTimeoutMs?: number | undefined
   interruptAckTimeoutMs?: number | undefined
+  lifecycleEscalation?: (() => Promise<EReconnectEscalation>) | undefined
 }) => {
   const sockets: FakeSocket[] = []
   const retries: { delayMs: number; run: () => void }[] = []
@@ -56,6 +57,7 @@ export const harness = (options?: {
     maxAttempts: options?.maxAttempts,
     maxReattachments: options?.maxReattachments,
     reattach: options?.reattach,
+    lifecycleEscalation: options?.lifecycleEscalation,
     requestTimeoutMs: options?.requestTimeoutMs,
     interruptAckTimeoutMs: options?.interruptAckTimeoutMs,
     scheduleRetry: (retry) => void retries.push(retry),

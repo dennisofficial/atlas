@@ -1,13 +1,8 @@
 import { contextTokens, type Event, type ModelUsage } from '@dltech/atlas-core'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
-import {
-  RemoteTurnRunner,
-  sessionDigest,
-  threadHandle,
-} from '@dltech/atlas-harness'
+import { RemoteTurnRunner, sessionDigest, threadHandle } from '@dltech/atlas-harness'
 
-import { pendingRows, type PendingSaid } from '../store'
 import { useDelegatedToolCalls } from '../ui/hooks/use-delegated-tool-calls'
 import { createAwakeClock } from './awake-clock'
 import type { Conversation, ConversationArgs } from './conversation-types'
@@ -17,9 +12,9 @@ import { clockReadableAt, transcriptOfTurn } from './turn-progress'
 import { useCompaction } from './use-compaction'
 import { useSettledCommands } from './use-conversation-commands'
 import { useConversationDirectory, usePendingMove } from './use-conversation-directory'
-import { useProjectEvents } from './use-conversation-projections'
+import { usePendingRows, useProjectEvents } from './use-conversation-projections'
 import { useResumeOnOpen } from './use-conversation-resume'
-import { useSendingChannel, useSendMessage } from './use-conversation-send'
+import { usePlacementMoving, useRemotePending, useSendingChannel, useSendMessage, useTakeBackPending } from './use-conversation-send'
 import { useMainWake } from './use-main-wake'
 import { useSessionName } from './use-session-name'
 import { EThreadRows, useThreadView, type ThreadSeed } from './use-thread-view'
@@ -40,6 +35,7 @@ export function useConversation(args: ConversationArgs): Conversation {
   const forgetUsage = useCallback(() => setReported(null), [])
 
   const threadId = opened.threadId
+  const moving = usePlacementMoving({ app, threadId })
 
   const clock = useMemo(() => createAwakeClock(), [])
   const readClock = clock.read
@@ -47,7 +43,12 @@ export function useConversation(args: ConversationArgs): Conversation {
   const projectEvents = useProjectEvents({ app })
 
   const initial = useCallback(
-    (): ThreadSeed => ({ events: opened.events, turns: opened.turns }),
+    (): ThreadSeed => ({
+      events: opened.events,
+      turns: opened.turns,
+      ...(opened.base === undefined ? {} : { base: opened.base }),
+      ...(opened.identity === undefined ? {} : { identity: opened.identity }),
+    }),
     [opened],
   )
 
@@ -115,6 +116,7 @@ export function useConversation(args: ConversationArgs): Conversation {
   const { sidebar } = view
 
   const queued = useSyncExternalStore(pending.subscribe, pending.getSnapshot)
+  const remote = useRemotePending({ app, cloudRunner })
 
   const compaction = useCompaction({
     app,
@@ -123,6 +125,7 @@ export function useConversation(args: ConversationArgs): Conversation {
     refresh,
     onFailure: setFailure,
     onCompacted: forgetUsage,
+    frozen: moving,
   })
 
   const turnDriver = useTurnDriver({
@@ -139,9 +142,10 @@ export function useConversation(args: ConversationArgs): Conversation {
     cancelCompaction: compaction.cancel,
     interruptRefusal: args.interruptRefusal,
     driveRefusal,
+    frozen: moving,
   })
 
-  useResumeOnOpen({ app, opened, turnDriver })
+  useResumeOnOpen({ app, opened, turnDriver, moving })
 
   const { working, drive } = turnDriver
   const { compacting } = compaction
@@ -174,11 +178,12 @@ export function useConversation(args: ConversationArgs): Conversation {
     sending,
     cloudRunner,
     working,
+    moving,
     drive,
     setFailure,
   })
 
-  const handleTakeBackPending = useCallback((): PendingSaid | null => pending.takeBackLast(), [pending])
+  const handleTakeBackPending = useTakeBackPending({ threadId, cloudRunner, moving, pending })
 
   const adopt = useCallback(
     (next: OpenedConversation) => {
@@ -228,22 +233,17 @@ export function useConversation(args: ConversationArgs): Conversation {
 
   const delegatedToolCalls = useDelegatedToolCalls({ agents: app.agents, threadId })
 
-  const rows = useMemo(
-    () =>
-      pendingRows({
-        entries: queued,
-        notices: wakeNotices.shells,
-        agents: wakeNotices.agents,
-        services: wakeNotices.services,
-        sending: sending.rows,
-      }),
-    [wakeNotices.agents, wakeNotices.shells, queued, sending.rows, wakeNotices.services],
-  )
+  const rows = usePendingRows({
+    queued,
+    remoteEntries: remote.channel === null ? undefined : remote.entries,
+    wakeNotices,
+    sending: sending.rows,
+  })
 
   const model = transcriptOfTurn({ model: derived, working, failure })
-  const retryable = model.failure !== null && !working
+  const retryable = model.failure !== null && !working && !turnDriver.turnInFlight() && !moving
   const resumable =
-    model.failure === null && !working && !turnDriver.turnInFlight() && turnDriver.isResumable
+    model.failure === null && !working && !turnDriver.turnInFlight() && turnDriver.isResumable && !moving
 
   return {
     rewindConfirm: turnDriver.rewindConfirm,

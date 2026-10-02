@@ -12,6 +12,7 @@ import {
 } from '@dltech/atlas-core'
 
 import type { AgentRegistryPort } from '../agents/registry/port'
+import { SummaryFailure } from '../model/summariser'
 import type { ThreadStorePort } from './thread-store'
 
 export enum ECompactionFailure {
@@ -115,7 +116,16 @@ export async function compactThread(args: {
 
   const range = rangeFor({ events, anchor, seq })
 
-  const summary = await summarise({ events, ...range, ...(signal === undefined ? {} : { signal }) })
+  let summary: string | null
+  try {
+    summary = await summarise({ events, ...range, ...(signal === undefined ? {} : { signal }) })
+  } catch (fault) {
+    if (signal?.aborted === true) throw fault
+    if (fault instanceof SummaryFailure) {
+      return { ok: false, failure: ECompactionFailure.NoSummary, reason: fault.message }
+    }
+    throw fault
+  }
   if (summary === null) {
     return { ok: false, failure: ECompactionFailure.NoSummary, reason: NO_SUMMARY }
   }

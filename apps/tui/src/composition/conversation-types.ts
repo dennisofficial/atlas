@@ -92,7 +92,8 @@ export type Conversation = {
   refresh: () => Promise<void>
   handleSend: (args: SendArgs) => void
   handleQueueSettled: (entry: QueuedSettled) => void
-  handleTakeBackPending: () => PendingSaid | null
+  /** Local sessions answer synchronously; a cloud session asks the sandbox, so it answers async. */
+  handleTakeBackPending: () => PendingSaid | null | Promise<PendingSaid | null>
   handleRetry: (() => void) | null
   handleResume: (() => void) | null
   handleReportProblem: (reason: string) => void

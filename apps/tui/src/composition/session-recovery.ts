@@ -5,6 +5,7 @@ import {
   ERecoveryAction,
   type CloudBridge,
   type CloudChannel,
+  type CloudReload,
   type SessionOwner,
   type SessionRuntime,
 } from '@dltech/atlas-harness'
@@ -38,7 +39,7 @@ export async function recoverSession(args: {
   threadId: ThreadId
   bridge: () => CloudBridge
   opened: OpenedConversation
-  onReload: () => void
+  onReload: (reload: CloudReload) => Promise<void>
 }): Promise<RecoveryOutcome> {
   const { owner, app, threadId } = args
   try {

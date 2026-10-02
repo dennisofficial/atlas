@@ -7,7 +7,6 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import {
   ATLAS_SETTINGS,
   EExecutionLocation,
-  executionLocationNote,
   ProcessPort,
   toThreadId,
 } from '@dltech/atlas-core'
@@ -191,7 +190,6 @@ describe('SandboxControl.prepareWorkspace', () => {
     await sandbox.prepareWorkspace({ cwd: tree, threadId: THREAD })
 
     expect(mounts).toEqual([SHARED])
-    expect(executionLocationNote({ location: EExecutionLocation.Docker, mounts })).toContain(SHARED)
     const after = containerStatus.current()
     expect(after.image).toBe('custom/tree-image:1')
     expect(after.label).toBe('tree-image:1')

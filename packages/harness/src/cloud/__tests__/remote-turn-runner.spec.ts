@@ -3,9 +3,9 @@ import { describe, expect, it } from 'bun:test'
 import { toRunId, toThreadId } from '@dltech/atlas-core'
 
 import { ETurnStatus, type TurnOutcome } from '../../loop/turn-outcome'
-import { EClientFrame, encodeFrame, EServeFrame } from '../channel-wire'
+import { EClientFrame, EClientRequest, encodeFrame, EServeFrame, type ClientFrame } from '../channel-wire'
 import { EChannelConnection } from '../remote-delta-channel'
-import { RemoteTurnRunner } from '../remote-turn-runner'
+import { RemoteTurnDetached, RemoteTurnRunner } from '../remote-turn-runner'
 
 import { harness, OTHER_THREAD, THREAD } from './remote-channel-fixture'
 
@@ -32,18 +32,19 @@ describe('a turn driven over the session socket', () => {
     expect(live().sent.at(-1)).toEqual({ kind: EClientFrame.Run })
   })
 
-  it('settles queued turns in the order the sandbox ends them', async () => {
+  it('refuses overlapping turns without disturbing the accepted turn', async () => {
     const { channel, open, receive } = harness()
     open()
     receive({ kind: EServeFrame.Ready, seq: 1 })
     const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
 
     const first = runner.runTurn({ threadId: THREAD })
-    const second = runner.runTurn({ threadId: THREAD })
+    await expect(runner.runTurn({ threadId: THREAD })).rejects.toThrow('already running')
     endTurn(receive, completed('run-1'))
-    endTurn(receive, completed('run-2'))
-
     await expect(first).resolves.toEqual(completed('run-1'))
+
+    const second = runner.runTurn({ threadId: THREAD })
+    endTurn(receive, completed('run-2'))
     await expect(second).resolves.toEqual(completed('run-2'))
   })
 
@@ -274,7 +275,7 @@ describe('a turn the socket outlives', () => {
     await expect(turn).rejects.toThrow()
   })
 
-  it('holds the pending turn through a re-attach, then fails it once the fresh serve says the turn did not survive', async () => {
+  it('holds the pending turn through a re-attach, then detaches it once the fresh serve says nothing is in flight — the turn finished while detached, it did not fail', async () => {
     const { channel, open, receive, drop, retries, live } = harness({
       maxAttempts: 1,
       reattach: async () => ({ url: 'https://fresh.test/', token: 'tok_fresh' }),
@@ -301,7 +302,11 @@ describe('a turn the socket outlives', () => {
     live().handlers.handleOpen()
     live().handlers.handleMessage('{"kind":"ready","seq":2,"turnInFlight":false}')
 
-    await expect(turn).rejects.toThrow('did not survive')
+    const failure = await turn.then(
+      () => null,
+      (error: unknown) => error,
+    )
+    expect(failure).toBeInstanceOf(RemoteTurnDetached)
   })
 
   it('keeps waiting once the fresh serve reports the turn survived the re-attach', async () => {
@@ -363,7 +368,7 @@ describe('a turn the socket outlives', () => {
     await expect(turn).resolves.toMatchObject({ status: ETurnStatus.Interrupted })
   })
 
-  it('fails the pending turn when a re-attached serve omits turnInFlight, as a serve built before this field existed would', async () => {
+  it('detaches the pending turn when a re-attached serve omits turnInFlight — a serve built before this field existed cannot be driving the turn it was', async () => {
     const { channel, open, receive, drop, retries, live } = harness({
       maxAttempts: 1,
       reattach: async () => ({ url: 'https://fresh.test/', token: 'tok_fresh' }),
@@ -381,7 +386,11 @@ describe('a turn the socket outlives', () => {
     live().handlers.handleOpen()
     live().handlers.handleMessage('{"kind":"ready","seq":2}')
 
-    await expect(turn).rejects.toThrow('did not survive')
+    const failure = await turn.then(
+      () => null,
+      (error: unknown) => error,
+    )
+    expect(failure).toBeInstanceOf(RemoteTurnDetached)
   })
 
   it('keeps waiting through a reconnect, since the turn runs on server-side', async () => {
@@ -406,5 +415,124 @@ describe('a turn the socket outlives', () => {
 
     receive({ kind: EServeFrame.TurnEnded, outcome: completed('run-1') })
     await expect(turn).resolves.toEqual(completed('run-1'))
+  })
+})
+
+describe('taking back the last queued message from the sandbox', () => {
+  const askedOf = (sent: readonly ClientFrame[]) => {
+    const frame = sent.at(-1)
+    return frame?.kind === EClientFrame.Request ? frame : null
+  }
+
+  it('returns the taken said when the sandbox confirms it', async () => {
+    const { channel, open, receive, live } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
+
+    const taken = runner.takeBackPending({ threadId: THREAD })
+    const asked = askedOf(live().sent)
+    expect(asked).toMatchObject({ op: EClientRequest.TakeBackPending, params: { threadId: THREAD } })
+    receive({
+      kind: EServeFrame.Reply,
+      replyTo: asked?.id ?? '',
+      ok: true,
+      data: {
+        taken: {
+          text: 'actually, do X',
+          images: [{ path: '/tmp/shot.png', mediaType: 'image/png', data: 'aGVsbG8=' }],
+          files: [],
+          context: [{ type: 'context-loaded', slot: 'skill', key: 'commit', content: 'prose' }],
+        },
+      },
+    })
+
+    await expect(taken).resolves.toEqual({
+      text: 'actually, do X',
+      images: [{ path: '/tmp/shot.png', mediaType: 'image/png', data: 'aGVsbG8=' }],
+      files: [],
+      context: [{ type: 'context-loaded', slot: 'skill', key: 'commit', content: 'prose' }],
+    })
+  })
+
+  it('drops the whole context when a draft is not an event body, keeping the message', async () => {
+    const { channel, open, receive, live } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
+
+    const taken = runner.takeBackPending({ threadId: THREAD })
+    receive({
+      kind: EServeFrame.Reply,
+      replyTo: askedOf(live().sent)?.id ?? '',
+      ok: true,
+      data: { taken: { text: 'hi', images: [], files: [], context: [{ nonsense: true }] } },
+    })
+
+    await expect(taken).resolves.toEqual({ text: 'hi', images: [], files: [] })
+  })
+
+  it('returns null when the sandbox has nothing to give back', async () => {
+    const { channel, open, receive, live } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
+
+    const taken = runner.takeBackPending({ threadId: THREAD })
+    receive({ kind: EServeFrame.Reply, replyTo: askedOf(live().sent)?.id ?? '', ok: true, data: { taken: null } })
+
+    await expect(taken).resolves.toBeNull()
+  })
+
+  it('returns null when the reply is not the expected shape', async () => {
+    const { channel, open, receive, live } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
+
+    const taken = runner.takeBackPending({ threadId: THREAD })
+    receive({ kind: EServeFrame.Reply, replyTo: askedOf(live().sent)?.id ?? '', ok: true, data: 'nope' })
+
+    await expect(taken).resolves.toBeNull()
+  })
+
+  it('returns null when the sandbox refuses the request, as a serve built before the op does', async () => {
+    const { channel, open, receive, live } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
+
+    const taken = runner.takeBackPending({ threadId: THREAD })
+    receive({
+      kind: EServeFrame.Reply,
+      replyTo: askedOf(live().sent)?.id ?? '',
+      ok: false,
+      data: 'unknown op',
+    })
+
+    await expect(taken).resolves.toBeNull()
+  })
+
+  it('returns null when the socket is lost before the reply', async () => {
+    const { channel, open, receive, drop } = harness({ maxAttempts: 0 })
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
+
+    const taken = runner.takeBackPending({ threadId: THREAD })
+    drop()
+
+    await expect(taken).resolves.toBeNull()
+  })
+
+  it('returns null for a thread the channel does not serve, without asking the sandbox', async () => {
+    const { channel, open, receive, live } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    const runner = new RemoteTurnRunner({ channel, wake: async () => undefined })
+    const sentBefore = live().sent.length
+
+    await expect(runner.takeBackPending({ threadId: OTHER_THREAD })).resolves.toBeNull()
+    expect(live().sent).toHaveLength(sentBefore)
   })
 })

@@ -4,7 +4,12 @@ import type { ChannelListener, DeltaChannel, Unsubscribe } from '../channel/delt
 import { retainReplayable, type InFlightSlots } from '../channel/in-flight'
 import { EStepEnd, type ChannelSignal, type StepId, type StepSignal } from '../channel/signal'
 import type { TurnOutcome } from '../loop/turn-outcome'
-import type { RosterWire } from '@dltech/atlas-wire'
+import {
+  runtimeCheckpointSchema,
+  type PendingEntryWire,
+  type RosterWire,
+  type RuntimeCheckpoint,
+} from '@dltech/atlas-wire'
 
 import {
   bearerSubprotocolOf,
@@ -52,11 +57,19 @@ export enum EChannelConnection {
   Closed = 'closed',
 }
 
+export enum EReconnectEscalation {
+  Reattach = 'reattach',
+  Wait = 'wait',
+  Parked = 'parked',
+}
+
 export type ChannelConnection = { state: EChannelConnection; detail: string | null }
 
 export type ChannelReload = { sinceEventSeq: number }
 
 export type ChannelFailure = { message: string }
+
+export type { RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 /** What the serve said about itself at greet — whether the turn it was running survived. */
 export type ChannelReady = { turnInFlight: boolean }
@@ -70,6 +83,8 @@ export type ThreadModelChangedFrame = { threadId: ThreadId; model: { ref: string
 
 export const INTERRUPT_ACK_TIMEOUT_MS = 5_000
 
+export const STRANDED_STEP_END = EStepEnd.Detached
+
 export type RemoteDeltaChannel = DeltaChannel & {
   readonly threadId: ThreadId
   send(args: {
@@ -78,7 +93,7 @@ export type RemoteDeltaChannel = DeltaChannel & {
     files?: readonly SaidFile[] | undefined
     context?: readonly EventDraft[] | undefined
   }): void
-  run(): void
+  run(args?: { resume?: boolean }): void
   interrupt(): void
   pause(): void
   resume(): void
@@ -89,11 +104,17 @@ export type RemoteDeltaChannel = DeltaChannel & {
   onReady(listener: (ready: ChannelReady) => void): Unsubscribe
   onInterruptAck(listener: (ack: InterruptAck) => void): Unsubscribe
   onRoster(listener: (roster: RosterWire) => void): Unsubscribe
+  pendingEntries(): readonly PendingEntryWire[]
+  onPendingChanged(listener: (entries: readonly PendingEntryWire[]) => void): Unsubscribe
   onThreadRenamed(listener: (renamed: ThreadRenamedFrame) => void): Unsubscribe
   onThreadModelChanged(listener: (changed: ThreadModelChangedFrame) => void): Unsubscribe
   onTurnEnded(listener: (outcome: TurnOutcome) => void): Unsubscribe
   onError(listener: (failure: ChannelFailure) => void): Unsubscribe
   onServerError(listener: (failure: ChannelFailure) => void): Unsubscribe
+  checkpoint?(): RuntimeCheckpoint | null
+  onCheckpoint?(listener: (checkpoint: RuntimeCheckpoint) => void): Unsubscribe
+  detach?(): void
+  onDetached?(listener: (reason: string) => void): Unsubscribe
   wake(args: { url: string; token: string }): void
   /**
    * Re-attach from a stranded Closed state. The operator asked for it, so the reattachment budget
@@ -110,6 +131,8 @@ const DEFAULT_MAX_ATTEMPTS = 8
 const DEFAULT_MAX_REATTACHMENTS = 3
 
 const NOTHING_IN_FLIGHT: readonly StepSignal[] = Object.freeze([])
+
+const NOTHING_PENDING: readonly PendingEntryWire[] = Object.freeze([])
 
 const defaultBackoffMs = (args: { attempt: number }): number =>
   Math.min(RETRY_CEILING_MS, FIRST_RETRY_MS * 2 ** args.attempt)
@@ -144,6 +167,7 @@ export function createRemoteDeltaChannel(args: {
   scheduleKeepalive?: ScheduleKeepalive | undefined
   backoffMs?: ((args: { attempt: number }) => number) | undefined
   maxAttempts?: number | undefined
+  lifecycleEscalation?: (() => Promise<EReconnectEscalation>) | undefined
   requestTimeoutMs?: number | undefined
   keepaliveMs?: number | undefined
   interruptAckTimeoutMs?: number | undefined
@@ -179,8 +203,11 @@ export function createRemoteDeltaChannel(args: {
   const reloads = registryOf<ChannelReload>()
   const readies = registryOf<ChannelReady>()
   const rosters = registryOf<RosterWire>()
+  const pendingChanges = registryOf<readonly PendingEntryWire[]>()
   const threadRenames = registryOf<ThreadRenamedFrame>()
   const threadModelChanges = registryOf<ThreadModelChangedFrame>()
+  const checkpoints = registryOf<RuntimeCheckpoint>()
+  const detachments = registryOf<string>()
   const turnEndings = registryOf<TurnOutcome>()
   const failures = registryOf<ChannelFailure>()
   const serverErrors = registryOf<ChannelFailure>()
@@ -206,6 +233,35 @@ export function createRemoteDeltaChannel(args: {
   let connection: ChannelConnection = { state: EChannelConnection.Connecting, detail: null }
   let interruptPending = false
   let interruptSentGeneration = -1
+  let heldCheckpoint: RuntimeCheckpoint | null = null
+  let heldPending: readonly PendingEntryWire[] = NOTHING_PENDING
+
+  const settlePending = (entries: readonly PendingEntryWire[]): void => {
+    heldPending = entries
+    pendingChanges.emit(entries)
+  }
+
+  const acceptCheckpoint = (checkpoint: RuntimeCheckpoint | null | undefined): void => {
+    if (checkpoint === null || checkpoint === undefined) return
+    if (checkpoint.threadId !== args.threadId) return
+    if (heldCheckpoint !== null && checkpoint.revision <= heldCheckpoint.revision) return
+    heldCheckpoint = checkpoint
+    checkpoints.emit(heldCheckpoint)
+  }
+
+  const checkpointFrom = (raw: string): RuntimeCheckpoint | null | undefined => {
+    let parsed: unknown = null
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      return undefined
+    }
+    if (typeof parsed !== 'object' || parsed === null) return undefined
+    const checkpoint = Reflect.get(parsed, 'checkpoint')
+    if (checkpoint === null) return null
+    const valid = runtimeCheckpointSchema.safeParse(checkpoint)
+    return valid.success ? valid.data : undefined
+  }
 
   /**
    * The interrupt frame is fire-and-forget over a socket that can be half-open, so the stamp
@@ -258,6 +314,7 @@ export function createRemoteDeltaChannel(args: {
   }
 
   const absorb = (signal: ChannelSignal) => {
+    if (signal.type === 'pending-changed') return
     if (signal.type === 'turn-working') {
       working = signal.working
       replay = undefined
@@ -300,11 +357,12 @@ export function createRemoteDeltaChannel(args: {
         })
       }
     }
+    if (signal.type === 'pending-changed') settlePending(signal.entries)
   }
 
   const endStrandedStep = () => {
     if (stepId === undefined) return
-    deliver({ type: 'step-ended', stepId, end: EStepEnd.Failed, supersededBy: null })
+    deliver({ type: 'step-ended', stepId, end: STRANDED_STEP_END, supersededBy: null })
   }
 
   const moveTo = (next: ChannelConnection) => {
@@ -327,9 +385,15 @@ export function createRemoteDeltaChannel(args: {
         socket?.close()
         return
       }
+      acceptCheckpoint(frame.checkpoint)
       attempt = 0
       reattachments = 0
       upstream.attach({ write })
+      const turnInFlight = frame.turnInFlight === true
+      if (turnInFlight !== working) deliver({ type: 'turn-working', working: turnInFlight })
+      // The serve sends the fresh pending snapshot right after Ready, so an empty list first
+      // clears whatever copy a reconnecting client kept from before it detached.
+      settlePending(NOTHING_PENDING)
       readies.emit({ turnInFlight: frame.turnInFlight === true })
       moveTo({ state: EChannelConnection.Open, detail: null })
       if (interruptPending && frame.turnInFlight === true) requestInterrupt()
@@ -359,8 +423,13 @@ export function createRemoteDeltaChannel(args: {
       return
     }
     if (frame.kind === EServeFrame.Parked) {
+      acceptCheckpoint(frame.checkpoint)
       endStrandedStep()
       moveTo({ state: EChannelConnection.Parked, detail: frame.reason })
+      return
+    }
+    if (frame.kind === EServeFrame.Checkpoint) {
+      acceptCheckpoint(frame.checkpoint)
       return
     }
     if (frame.kind === EServeFrame.TurnEnded) {
@@ -414,6 +483,9 @@ export function createRemoteDeltaChannel(args: {
   const handleMessage = (data: string) => {
     const frame = decodeServeFrame(data)
     if (frame === null) {
+      const checkpoint = checkpointFrom(data)
+      acceptCheckpoint(checkpoint)
+      if (checkpoint !== undefined) return
       failures.emit({ message: 'The sandbox sent a frame this client could not read.' })
       return
     }
@@ -466,8 +538,26 @@ export function createRemoteDeltaChannel(args: {
     if (connection.state === EChannelConnection.Parked) return
 
     if (attempt >= maxAttempts) {
-      if (args.reattach !== undefined && reattachments < maxReattachments) {
-        escalate(args.reattach)
+      const reattach = args.reattach
+      if (reattach !== undefined && reattachments < maxReattachments) {
+        if (args.lifecycleEscalation === undefined) {
+          escalate(reattach)
+          return
+        }
+        const inspectedGeneration = generation
+        void args.lifecycleEscalation().then((verdict) => {
+          if (abandoned || inspectedGeneration !== generation || connection.state === EChannelConnection.Open) return
+          if (verdict === EReconnectEscalation.Reattach) {
+            escalate(reattach)
+            return
+          }
+          endStrandedStep()
+          moveTo({ state: verdict === EReconnectEscalation.Parked ? EChannelConnection.Parked : EChannelConnection.Closed, detail: 'the sandbox was not woken by transport recovery' })
+        }).catch(() => {
+          if (abandoned || inspectedGeneration !== generation || connection.state === EChannelConnection.Open) return
+          endStrandedStep()
+          moveTo({ state: EChannelConnection.Closed, detail: 'the sandbox lifecycle could not be read' })
+        })
         return
       }
       endStrandedStep()
@@ -493,16 +583,29 @@ export function createRemoteDeltaChannel(args: {
 
     const reattach = args.reattach
     const shouldEscalate = args.shouldEscalate
+    const reattachOnLifecycle = args.reattach
+    const lifecycleEscalation = args.lifecycleEscalation
     if (
       startingRetryCycle &&
-      reattach !== undefined &&
-      shouldEscalate !== undefined &&
-      reattachments < maxReattachments
+      reattachOnLifecycle !== undefined &&
+      reattachments < maxReattachments &&
+      (shouldEscalate !== undefined || lifecycleEscalation !== undefined)
     ) {
-      shouldEscalate().then(
-        (escalateNow) => {
-          if (scheduled !== generation || !escalateNow) return
-          escalate(reattach)
+      const verdict = async (): Promise<EReconnectEscalation> => {
+        if (lifecycleEscalation !== undefined) return lifecycleEscalation()
+        if (shouldEscalate === undefined) return EReconnectEscalation.Wait
+        return await shouldEscalate() ? EReconnectEscalation.Reattach : EReconnectEscalation.Wait
+      }
+      verdict().then(
+        (state) => {
+          if (abandoned || scheduled !== generation || connection.state === EChannelConnection.Open) return
+          if (state === EReconnectEscalation.Parked) {
+            generation += 1
+            endStrandedStep()
+            moveTo({ state: EChannelConnection.Parked, detail: 'the sandbox is parked' })
+            return
+          }
+          if (state === EReconnectEscalation.Reattach) escalate(reattachOnLifecycle)
         },
         () => undefined,
       )
@@ -578,7 +681,11 @@ export function createRemoteDeltaChannel(args: {
         ...(context === undefined || context.length === 0 ? {} : { context: [...context] }),
       }),
 
-    run: () => upstream.send({ kind: EClientFrame.Run }),
+    run: (runArgs) =>
+      upstream.send({
+        kind: EClientFrame.Run,
+        ...(runArgs?.resume === true ? { resume: true } : {}),
+      }),
 
     interrupt: requestInterrupt,
 
@@ -600,6 +707,10 @@ export function createRemoteDeltaChannel(args: {
 
     onRoster: (listener) => rosters.add(listener),
 
+    pendingEntries: () => heldPending,
+
+    onPendingChanged: (listener) => pendingChanges.add(listener),
+
     onThreadRenamed: (listener) => threadRenames.add(listener),
 
     onThreadModelChanged: (listener) => threadModelChanges.add(listener),
@@ -609,6 +720,10 @@ export function createRemoteDeltaChannel(args: {
     onError: (listener) => failures.add(listener),
 
     onServerError: (listener) => serverErrors.add(listener),
+
+    checkpoint: () => heldCheckpoint,
+
+    onCheckpoint: (listener) => checkpoints.add(listener),
 
     wake({ url: nextUrl, token: nextToken }) {
       if (abandoned) return
@@ -625,11 +740,56 @@ export function createRemoteDeltaChannel(args: {
       ) {
         return
       }
-      if (args.reattach === undefined) return
+      const reattach = args.reattach
+      if (reattach === undefined) return
+
+      if (connection.state === EChannelConnection.Parked) {
+        reattachments = 0
+        escalate(reattach)
+        return
+      }
+      const lifecycleEscalation = args.lifecycleEscalation
+      if (lifecycleEscalation !== undefined) {
+        void lifecycleEscalation().then(
+          (verdict) => {
+            if (abandoned) return
+            if (connection.state !== EChannelConnection.Closed &&
+              connection.state !== EChannelConnection.Parked
+            ) {
+              return
+            }
+            if (verdict !== EReconnectEscalation.Reattach) return
+            reattachments = 0
+            escalate(reattach)
+          },
+          () => undefined,
+        )
+        return
+      }
 
       reattachments = 0
-      escalate(args.reattach)
+      escalate(reattach)
     },
+
+    detach() {
+      if (abandoned) return
+      abandoned = true
+      interruptPending = false
+      heldCheckpoint = null
+      stepId = undefined
+      inFlight = []
+      toolOutputSlots.clear()
+      working = false
+      replay = undefined
+      upstream.abandon({ reason: 'the channel detached' })
+      clearKeepalive()
+      socket?.close()
+      socket = null
+      detachments.emit('The session detached from the sandbox turn.')
+      moveTo({ state: EChannelConnection.Closed, detail: null })
+    },
+
+    onDetached: (listener) => detachments.add(listener),
 
     close() {
       abandoned = true

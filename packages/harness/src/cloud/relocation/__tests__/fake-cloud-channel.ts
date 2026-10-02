@@ -239,6 +239,8 @@ export function fakeCloudChannel(
     },
     onThreadRenamed: () => () => undefined,
     onThreadModelChanged: () => () => undefined,
+    pendingEntries: () => [],
+    onPendingChanged: () => () => undefined,
     wake: ({ url, token }) => {
       woken.push({ url, token })
     },

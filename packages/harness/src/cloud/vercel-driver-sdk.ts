@@ -60,6 +60,8 @@ export type SandboxPlacement = {
 export type SandboxObservation = {
   state: ECloudSandboxState
   url?: string
+  /** The Vercel session the sandbox currently runs as — the identity the serve's park guard holds. */
+  sandboxSessionId?: string | undefined
 }
 
 /** The static SDK surface the driver uses, injectable so a spec never reaches Vercel. */
@@ -91,7 +93,29 @@ export const liveSdk: VercelSdk = {
 export const stateOf = (status: string): ECloudSandboxState => {
   if (status === 'running') return ECloudSandboxState.Running
   if (status === 'pending') return ECloudSandboxState.Resuming
-  return ECloudSandboxState.Parked
+  if (status === 'stopped') return ECloudSandboxState.Parked
+  if (status === 'failed' || status === 'aborted') return ECloudSandboxState.Stopped
+  return ECloudSandboxState.Unknown
+}
+
+export const assertLiveSession = (args: {
+  sandbox: Sandbox
+  name: string
+  expected: string | undefined
+}): void => {
+  const live = args.sandbox.currentSession().sessionId
+  if (args.expected === undefined || live === args.expected) return
+  throw new Error(
+    `refusing to stop sandbox ${args.name}: its live session ${live} is not the session ${args.expected} this stop was issued for`,
+  )
+}
+
+const sandboxSessionIdOf = (sandbox: Sandbox): string | undefined => {
+  try {
+    return sandbox.currentSession().sessionId
+  } catch {
+    return undefined
+  }
 }
 
 export const routedUrlOf = (sandbox: Sandbox): string | undefined => {
@@ -113,4 +137,14 @@ export const routedUrlWithRetries = async (sandbox: Sandbox): Promise<string> =>
   throw new Error(
     `sandbox ${sandbox.name} has no route for port ${SANDBOX_SERVE_PORT} after ${ROUTE_RETRY_ATTEMPTS} attempts`,
   )
+}
+
+export const observationOf = (sandbox: Sandbox): SandboxObservation => {
+  const url = routedUrlOf(sandbox)
+  const sandboxSessionId = sandboxSessionIdOf(sandbox)
+  return {
+    state: stateOf(sandbox.status),
+    ...(sandboxSessionId === undefined ? {} : { sandboxSessionId }),
+    ...(url === undefined ? {} : { url }),
+  }
 }

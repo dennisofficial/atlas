@@ -9,12 +9,14 @@ export function useResumeOnOpen(args: {
   app: AtlasApp
   opened: OpenedConversation
   turnDriver: TurnDriver
+  moving: boolean
 }): void {
-  const { app, opened, turnDriver } = args
+  const { app, opened, turnDriver, moving } = args
   const resumeAtLaunch = useRef(app.config.open.mode !== EOpenMode.New)
   const resumeOnArrival = useRef(opened.resumeOnArrival === true)
 
   useEffect(() => {
+    if (moving) return
     if (resumeOnArrival.current) {
       resumeOnArrival.current = false
       resumeAtLaunch.current = false
@@ -25,5 +27,5 @@ export function useResumeOnOpen(args: {
     if (!resumeAtLaunch.current) return
     resumeAtLaunch.current = false
     if (turnDriver.isResumable) turnDriver.handleResume()
-  }, [turnDriver])
+  }, [moving, turnDriver])
 }

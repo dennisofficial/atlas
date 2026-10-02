@@ -7,7 +7,6 @@ import { EPortExposure, toRunId, type EnvironmentCapabilities } from '@dltech/at
 import { EClientFrame, EServeFrame } from '@dltech/atlas-harness'
 import { sessionDirectory } from '@dltech/atlas-harness'
 
-import { capabilitiesNoticeDraft } from '../capabilities-notice'
 import { EWorkspaceState, startServe } from '../index'
 import { readTranscriptOrigin } from '../transcript-bootstrap'
 
@@ -39,11 +38,18 @@ const CAPABILITIES: EnvironmentCapabilities = {
   failures: [],
 }
 
+const LEGACY_BOOT_CAPABILITY_DRAFT = {
+  type: 'context-loaded',
+  slot: 'session',
+  key: 'environment-capabilities',
+  content: 'This environment’s probed capabilities:\n- git push/PR/CI from here: no',
+} as const
+
 const originIn = (home: string) =>
   readTranscriptOrigin({ sessionDir: sessionDirectory({ home, sessionId: RESTORE_THREAD }) })
 
 describe('the restore-transcript op across a serve’s life', () => {
-  it('restores the archive the lift uploaded after boot served the capability notice', async () => {
+  it('restores the archive the lift uploaded after a profiled boot', async () => {
     const home = freshRestoreHome()
     let uploaded: Uint8Array | null = null
     const app = fakeServeApp({ threadId: RESTORE_THREAD, root: '/workspace' })
@@ -55,7 +61,6 @@ describe('the restore-transcript op across a serve’s life', () => {
       app,
       capabilities: CAPABILITIES,
     })
-    expect(existsSync(restoreEventFile(home))).toBe(true)
     expect(await readSaid(client, 'read-before')).toEqual([])
     expect((await originIn(home))?.archiveDigest).toBeNull()
 
@@ -75,7 +80,7 @@ describe('the restore-transcript op across a serve’s life', () => {
     await seeded.log.append({
       threadId: RESTORE_THREAD,
       runId: toRunId('boot-notice'),
-      drafts: [capabilitiesNoticeDraft({ capabilities: CAPABILITIES })],
+      drafts: [LEGACY_BOOT_CAPABILITY_DRAFT],
     })
     const archive = await seedArchive({ texts: ['one'] })
     const app = fakeServeApp({ threadId: RESTORE_THREAD, root: '/workspace' })
@@ -84,6 +89,18 @@ describe('the restore-transcript op across a serve’s life', () => {
     await bootRestoreServe({ home, archive: async () => archive, app, capabilities: CAPABILITIES })
     expect(existsSync(restoreEventFile(home))).toBe(true)
     expect(await originIn(home)).toBeNull()
+  })
+
+  it('a profiled boot appends no capability context to the real log', async () => {
+    const home = freshRestoreHome()
+    const app = fakeServeApp({ threadId: RESTORE_THREAD, root: '/workspace' })
+    const store = wireRealLog({ home, app })
+
+    await bootRestoreServe({ home, archive: async () => null, app, capabilities: CAPABILITIES })
+
+    const events = await store.log.read({ threadId: RESTORE_THREAD })
+    expect(events.filter((event) => event.type === 'context-loaded')).toEqual([])
+    expect(existsSync(restoreEventFile(home))).toBe(false)
   })
 
   it('keeps a cloud append across a reconnect and a restart against the same uploaded tar', async () => {

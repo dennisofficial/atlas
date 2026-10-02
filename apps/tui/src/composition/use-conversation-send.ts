@@ -5,9 +5,9 @@ import {
   type RemoteDeltaChannel,
   type RemoteTurnRunner,
 } from '@dltech/atlas-harness'
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react'
 
-import type { PendingQueue } from '../store'
+import { pendingRows, type PendingQueue, type PendingRow, type PendingSaid, type RemotePendingEntry } from '../store'
 import type { QueuedSettled } from './commands'
 import type { AtlasApp } from './compose'
 import type { SendArgs } from './conversation-types'
@@ -17,6 +17,69 @@ import type { TurnDriver } from './use-turn-driver'
 
 const NO_IMAGES: readonly SaidImage[] = Object.freeze([])
 const NO_FILES: readonly SaidFile[] = Object.freeze([])
+const EMPTY_REMOTE_PENDING: readonly RemotePendingEntry[] = Object.freeze([])
+
+/**
+ * A placement move (lift, descend, container switch) freezes the transcript: the loop is paused
+ * and the log is mid-transfer, so retry, resume, send, and every log-editing command read this
+ * one durable flag rather than any UI-local move state — it survives the remount across a lift.
+ */
+export function usePlacementMoving(args: { app: AtlasApp; threadId: ThreadId }): boolean {
+  const { app, threadId } = args
+  return useSyncExternalStore(
+    app.executionLocation.subscribe,
+    () => app.executionLocation.moveFor(threadId) !== null,
+  )
+}
+
+/**
+ * A cloud thread's queue lives in the sandbox, which broadcasts it as pending-changed signals;
+ * the local queue stays empty there, so the transcript renders this snapshot instead. The
+ * channel carries the current value (pendingEntries) so a late mount does not wait for the
+ * next change to show what is queued.
+ */
+export function useRemotePending(args: {
+  app: AtlasApp
+  cloudRunner: RemoteTurnRunner | null
+}): { channel: RemoteDeltaChannel | null; entries: readonly RemotePendingEntry[] } {
+  const { app, cloudRunner } = args
+  const channel = useMemo(() => {
+    if (cloudRunner === null) return null
+    if (!('onPendingChanged' in app.channel)) return null
+    return app.channel as RemoteDeltaChannel
+  }, [app.channel, cloudRunner])
+
+  const subscribe = useCallback(
+    (listener: () => void) => channel?.onPendingChanged(listener) ?? (() => undefined),
+    [channel],
+  )
+  const entries = useSyncExternalStore(subscribe, () => channel?.pendingEntries() ?? EMPTY_REMOTE_PENDING)
+
+  return useMemo(() => ({ channel, entries }), [channel, entries])
+}
+
+/**
+ * Only the queue is taken back: once the loop has drained a message into the log, the edit route
+ * is interrupt-and-resend, not a second retraction path that would have to race the stream.
+ *
+ * The cloud queue lives in the sandbox, so the take-back is a wire request and the draft fills
+ * only once the sandbox's reply confirms the message was still queued — a null answer means the
+ * turn's intake already claimed it, and the row keeps rendering instead of being edited twice.
+ */
+export function useTakeBackPending(args: {
+  threadId: ThreadId
+  cloudRunner: RemoteTurnRunner | null
+  moving: boolean
+  pending: PendingQueue<QueuedSettled>
+}): () => PendingSaid | null | Promise<PendingSaid | null> {
+  const { threadId, cloudRunner, moving, pending } = args
+
+  return useCallback((): PendingSaid | null | Promise<PendingSaid | null> => {
+    if (moving) return null
+    if (cloudRunner === null) return pending.takeBackLast()
+    return cloudRunner.takeBackPending({ threadId })
+  }, [cloudRunner, moving, pending, threadId])
+}
 
 export type ConversationSending = ReturnType<typeof useSendingRows>
 
@@ -51,10 +114,11 @@ export function useSendMessage(args: {
   sending: ConversationSending
   cloudRunner: RemoteTurnRunner | null
   working: boolean
+  moving: boolean
   drive: TurnDriver['drive']
   setFailure: (message: string) => void
 }): (send: SendArgs) => void {
-  const { app, threadId, pending, sending, cloudRunner, working, drive, setFailure } = args
+  const { app, threadId, pending, sending, cloudRunner, working, moving, drive, setFailure } = args
 
   return useCallback(
     (send: SendArgs) => {
@@ -62,6 +126,7 @@ export function useSendMessage(args: {
       const images = send.images ?? NO_IMAGES
       const files = send.files ?? NO_FILES
       if (text.length === 0) return
+      if (moving) return
 
       const contextPart = send.context === undefined ? {} : { context: send.context }
 
@@ -116,6 +181,6 @@ export function useSendMessage(args: {
         { onCommitFailed },
       )
     },
-    [app.intake, cloudRunner, drive, pending, sending, setFailure, threadId, working],
+    [app.intake, cloudRunner, drive, moving, pending, sending, setFailure, threadId, working],
   )
 }

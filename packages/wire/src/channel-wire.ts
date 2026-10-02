@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import { rosterWireSchema } from './roster-wire.js'
 import { seqSchema, threadIdWireSchema, threadModelWireSchema } from './request-wire.js'
+import { runtimeCheckpointSchema } from './runtime-checkpoint.js'
 import { channelSignalSchema } from './signal-wire.js'
 
 export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
@@ -12,7 +13,7 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
  * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
  */
-export const CHANNEL_PROTOCOL_VERSION = 11
+export const CHANNEL_PROTOCOL_VERSION = 12
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
@@ -37,6 +38,7 @@ export enum EServeFrame {
   InterruptAcked = 'interrupt-acked',
   SendAcked = 'send-acked',
   Roster = 'roster',
+  Checkpoint = 'checkpoint',
   ThreadRenamed = 'thread-renamed',
   ThreadModelChanged = 'thread-model-changed',
   Error = 'error',
@@ -102,6 +104,13 @@ export enum EClientRequest {
    * refuses, and the lift warns rather than silently attaching a blank transcript.
    */
   RestoreTranscript = 'restore-transcript',
+  ReadRuntimeCheckpoint = 'read-runtime-checkpoint',
+  /**
+   * Takes the newest unreserved operator message back out of the sandbox's pending queue and
+   * returns it for the composer, so the take-back is confirmed by the queue's owner. A serve built
+   * before this op refuses the request, and the client falls back to its local in-memory queue.
+   */
+  TakeBackPending = 'take-back-pending',
   /**
    * The descend's workspace transfer: the sandbox captures its effective project directory (all
    * Git worktrees, staged and ignored files included) into a dedicated export directory and
@@ -186,6 +195,18 @@ const saidFileWireSchema = z.object({
 
 export type SaidFileWire = z.infer<typeof saidFileWireSchema>
 
+export const takeBackPendingReplySchema = z.object({
+  taken: z
+    .object({
+      text: z.string(),
+      images: z.array(saidImageWireSchema).readonly(),
+      files: z.array(saidFileWireSchema).readonly(),
+      context: z.array(z.unknown()).readonly().optional(),
+    })
+    .nullable(),
+})
+export type TakeBackPendingReply = z.infer<typeof takeBackPendingReplySchema>
+
 export const serveFrameSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal(EServeFrame.Ready),
@@ -196,6 +217,7 @@ export const serveFrameSchema = z.discriminatedUnion('kind', [
      * which reproduces the old fail-fast behaviour against an old serve rather than hanging.
      */
     turnInFlight: z.boolean().optional(),
+    checkpoint: runtimeCheckpointSchema.nullable().catch(null).optional(),
   }),
   z.object({ kind: z.literal(EServeFrame.Signal), seq: seqSchema, signal: channelSignalSchema }),
   z.object({
@@ -205,7 +227,8 @@ export const serveFrameSchema = z.discriminatedUnion('kind', [
     data: z.unknown(),
   }),
   z.object({ kind: z.literal(EServeFrame.Reload), sinceEventSeq: seqSchema }),
-  z.object({ kind: z.literal(EServeFrame.Parked), reason: z.string() }),
+  z.object({ kind: z.literal(EServeFrame.Parked), reason: z.string(), checkpoint: runtimeCheckpointSchema.nullable().catch(null).optional() }),
+  z.object({ kind: z.literal(EServeFrame.Checkpoint), checkpoint: runtimeCheckpointSchema }),
   z.object({ kind: z.literal(EServeFrame.TurnEnded), outcome: turnOutcomeWireSchema }),
   z.object({ kind: z.literal(EServeFrame.InterruptAcked), seq: seqSchema }),
   z.object({ kind: z.literal(EServeFrame.SendAcked), sendId: sendIdWireSchema }),
@@ -241,7 +264,7 @@ export const clientFrameSchema = z.discriminatedUnion('kind', [
     files: z.array(saidFileWireSchema).readonly().optional(),
     context: z.array(z.unknown()).readonly().optional(),
   }),
-  z.object({ kind: z.literal(EClientFrame.Run) }),
+  z.object({ kind: z.literal(EClientFrame.Run), resume: z.boolean().optional() }),
   z.object({ kind: z.literal(EClientFrame.Interrupt) }),
   z.object({ kind: z.literal(EClientFrame.Pause) }),
   z.object({ kind: z.literal(EClientFrame.Resume) }),

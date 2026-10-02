@@ -2,7 +2,6 @@ import type { NoticePort, ThreadId } from '@dltech/atlas-core'
 import { readMetaSync, sessionDirectory, threadMetaFile, threadMetaSchema } from '@dltech/atlas-harness'
 
 import { composeServeApp } from './compose-serve'
-import type { WorkspaceReadiness } from './materialize-workspace'
 import type { ServeApp, ServeCompose } from './serve-app'
 import type { bootServeFiles } from './serve-boot'
 
@@ -27,7 +26,6 @@ export function composeBootApp(args: {
   compose?: ServeCompose | undefined
   model?: { ref: string; effort?: string | undefined } | undefined
   spec: Booted['spec']
-  workspace: WorkspaceReadiness
   context: Booted['context']
   threadId: ThreadId
   cwd: string
@@ -54,7 +52,6 @@ export function composeBootApp(args: {
     model,
     notice: args.notice,
     projectDirectory: args.context.projectDirectory,
-    capabilities: 'profile' in args.workspace ? args.workspace.profile?.capabilities : undefined,
     identity: args.context.identity,
   })
 }

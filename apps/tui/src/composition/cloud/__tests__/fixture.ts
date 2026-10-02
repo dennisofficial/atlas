@@ -10,7 +10,7 @@ import {
   type SaidImage,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { restoreTranscriptParamsSchema, type RosterWire } from '@dltech/atlas-wire'
+import { restoreTranscriptParamsSchema, type PendingEntryWire, type RosterWire, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 import {
   buildSessionArchive,
   EChannelConnection,
@@ -27,6 +27,7 @@ import {
   type ThreadModel,
   type ThreadSummary,
   type TurnOutcome,
+  type PendingSaid,
 } from '@dltech/atlas-harness'
 
 import {
@@ -78,6 +79,14 @@ export type FakeCloudChannel = CloudChannel & {
   pushThreadRenamed(args: { threadId: ThreadId; title: string }): void
   pushThreadModelChanged(args: { threadId: ThreadId; model: ThreadModel }): void
   endTurn(outcome: TurnOutcome): void
+  onCheckpoint(listener: (checkpoint: RuntimeCheckpoint) => void): () => void
+  pushCheckpoint(checkpoint: RuntimeCheckpoint): void
+  /** Serve broadcasts its queue as pending-changed signals; the fake holds the latest snapshot. */
+  pushPending(entries: readonly PendingEntryWire[]): void
+  pendingEntries(): readonly PendingEntryWire[]
+  onPendingChanged(listener: (entries: readonly PendingEntryWire[]) => void): () => void
+  /** Serve answers a take-back by dequeuing its newest queued said; the fake holds one to hand back. */
+  holdTakeBack(taken: PendingSaid | null): void
   readonly closed: boolean
   readonly runs: number
   readonly resumed: number
@@ -129,6 +138,10 @@ export function fakeCloudChannel(
   >()
   const turnEndings = new Set<(outcome: TurnOutcome) => void>()
   let resumes = 0
+  const checkpoints = new Set<(checkpoint: RuntimeCheckpoint) => void>()
+  const pendingChanges = new Set<(entries: readonly PendingEntryWire[]) => void>()
+  let heldPending: readonly PendingEntryWire[] = []
+  let heldTakeBack: PendingSaid | null = null
   const woken: { url: string; token: string }[] = []
   const requests: { op: EClientRequest; params: unknown }[] = []
   const sent: {
@@ -244,6 +257,17 @@ export function fakeCloudChannel(
       if (given.op === EClientRequest.PublishWorkspace) return null
       if (given.op === EClientRequest.PrepareWorkspaceArchive) return { path: ARCHIVE_EXPORT_PATH, manifest: ARCHIVE_MANIFEST }
       if (given.op === EClientRequest.ActivateSession) return { activated: true }
+      if (given.op === EClientRequest.TakeBackPending) {
+        const taken = heldTakeBack
+        heldTakeBack = null
+        if (taken !== null) {
+          heldPending = heldPending.slice(0, -1)
+          queueMicrotask(() => {
+            for (const listener of [...pendingChanges]) listener(heldPending)
+          })
+        }
+        return { taken }
+      }
       if (given.op === EClientRequest.Rewind) {
         // Serve truncates its own durable log inside the same apply that kills the cuts, so the
         // fake does the same against the log it was handed.
@@ -466,8 +490,31 @@ export function fakeCloudChannel(
     pushThreadModelChanged({ threadId, model }) {
       for (const listener of [...threadModelChanges]) listener({ threadId, model })
     },
+    pushPending(entries) {
+      heldPending = entries
+      for (const listener of [...pendingChanges]) listener(entries)
+    },
+    pendingEntries: () => heldPending,
+    onPendingChanged: (listener) => {
+      pendingChanges.add(listener)
+      return () => {
+        pendingChanges.delete(listener)
+      }
+    },
+    holdTakeBack(taken) {
+      heldTakeBack = taken
+    },
     endTurn(outcome) {
       for (const listener of [...turnEndings]) listener(outcome)
+    },
+    onCheckpoint: (listener: (checkpoint: RuntimeCheckpoint) => void) => {
+      checkpoints.add(listener)
+      return () => {
+        checkpoints.delete(listener)
+      }
+    },
+    pushCheckpoint(checkpoint: RuntimeCheckpoint) {
+      for (const listener of [...checkpoints]) listener(checkpoint)
     },
   }
 }
@@ -617,6 +664,9 @@ export function fakeBridge(
     putContextFails?: unknown
     destroyFails?: unknown
     status?: CloudSandboxStatus | undefined
+    /** Lets a spec move the sandbox row after the bridge exists — the control plane's answer. */
+    statusRef?: { current: CloudSandboxStatus | undefined } | undefined
+    checkpoint?: RuntimeCheckpoint | undefined
     threadStore?: FakeThreadStore
     /** The local transcript a lift ships up; the fake's stand-in for the sandbox untarring it. */
     sourceLog?: FakeEventLog | undefined
@@ -752,7 +802,12 @@ export function fakeBridge(
       downloadWorkspace: async ({ destination }) => {
         await writeFile(destination, 'a fake workspace archive')
       },
-      find: async () => args.status,
+      find: async () => {
+        const status = args.statusRef?.current ?? args.status
+        if (status === undefined) return undefined
+        if (args.checkpoint === undefined) return status
+        return { ...status, checkpoint: args.checkpoint }
+      },
       destroy: async ({ threadId }) => {
         trail.push('destroy')
         destroyed.push(threadId)

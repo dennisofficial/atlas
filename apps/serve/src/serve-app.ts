@@ -1,7 +1,6 @@
 import type {
   EExecutionLocation,
   EKilledBy,
-  EnvironmentCapabilities,
   EventLogPort,
   IdPort,
   NoticePort,
@@ -145,6 +144,9 @@ export type ServeApp = {
   /** Live counts behind the idle park; absent in fakes, where nothing runs. */
   runningShells?: (() => number) | undefined
   runningServices?: (() => number) | undefined
+  runningChildren?: (() => number) | undefined
+  settlingWork?: (() => boolean) | undefined
+  pendingInput?: (() => boolean) | undefined
   /** Absent in a fake without registries: no endings means nothing to wake for. */
   wakeNotices?: ServeWakeNotices | undefined
   /** Absent in a fake without registries: the client is answered an empty roster instead. */
@@ -169,7 +171,6 @@ export type ServeComposeArgs = {
   notice: NoticePort
   /** The Mac-side project directory, so memory this sandbox uploads is keyed by the right repo. */
   projectDirectory?: string | null | undefined
-  capabilities?: EnvironmentCapabilities | undefined
   /**
    * The repo's normalized origin identity (`github.com/org/repo`) from the workspace spec, so the
    * sandbox's project memory lands in the same identity-keyed directory the host uses. Null when

@@ -119,7 +119,7 @@ describe('startServe', () => {
     expect(failure).toEqual({ kind: EServeFrame.Error, message: 'the control plane answered 401' })
   })
 
-  it('runs a queued turn again when a run frame arrives mid-turn', async () => {
+  it('refuses a run frame that arrives mid-turn rather than queueing a second turn', async () => {
     const held = gate()
     let turns = 0
     const { handle } = await start({
@@ -137,8 +137,33 @@ describe('startServe', () => {
     client.send({ kind: EClientFrame.Run })
     await Bun.sleep(10)
     client.send({ kind: EClientFrame.Run })
-    held.open()
+    const refusal = await client.waitFor((frame) => frame.kind === EServeFrame.Error)
+    expect(JSON.stringify(refusal)).toContain('already running')
 
+    held.open()
+    await client.waitFor((frame) => frame.kind === EServeFrame.TurnEnded)
+    await Bun.sleep(30)
+    expect(turns).toBe(1)
+  })
+
+  it('runs another turn when a run frame arrives after the previous one settled', async () => {
+    let turns = 0
+    const { handle } = await start({
+      runTurn: async () => {
+        turns += 1
+        return { status: ETurnStatus.Completed, runId: toRunId(`run-${turns}`) }
+      },
+    })
+
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    client.send({ kind: EClientFrame.Run })
+    await client.waitFor(
+      (frame) => frame.kind === EServeFrame.TurnEnded && frame.outcome.runId === 'run-1',
+    )
+    client.send({ kind: EClientFrame.Run })
     await client.waitFor(
       (frame) => frame.kind === EServeFrame.TurnEnded && frame.outcome.runId === 'run-2',
     )

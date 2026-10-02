@@ -1,18 +1,18 @@
 import type { Sandbox } from '@vercel/sandbox'
 
 import { detachThenDeleteDrive, liveDriveSdk, type DriveSdk } from './drive-lifecycle'
-import { driveNameFor, DRIVE_HOME_PATH } from './drive-names'
-import { probeClientsAttached, type AttachProbe } from './resume-probe'
+import { driveNameFor } from './drive-names'
+import { probeRuntimeActivity, type RuntimeActivityProbe } from './resume-probe'
 import { attachLagRetry, type RetryPolicy } from './retry-policy'
 import { createServeLauncher, type ServeLauncher } from './serve-launch'
-import { tailServeLog, transcriptPresent } from './vercel-driver-probes'
+import { tailServeLog, transcriptPresent, writeBootstrapFile } from './vercel-driver-probes'
 import { provisionSandbox, type ProvisionArgs } from './vercel-driver-provision'
 import {
   liveSdk,
-  routedUrlOf,
+  assertLiveSession,
+  observationOf,
   SANDBOX_MAX_PORTS,
   SANDBOX_QUICK_TIMEOUT_MS,
-  stateOf,
   type SandboxObservation,
   type SandboxPlacement,
   type VercelCredentials,
@@ -36,7 +36,7 @@ export * from './vercel-driver-sdk'
 export class VercelDriver {
   private readonly sdk: VercelSdk
   private readonly inflightLaunches = new WeakMap<object, Promise<void>>()
-  private readonly attachProbe: AttachProbe = probeClientsAttached
+  private readonly runtimeActivity: RuntimeActivityProbe = probeRuntimeActivity
   private readonly attachLagRetry: RetryPolicy
 
   private readonly drives: DriveSdk
@@ -55,18 +55,13 @@ export class VercelDriver {
       driveSdk?: DriveSdk | undefined
       /** The attach-detach lag budget the delete and mount retries share; a spec passes zero delays. */
       attachLagRetry?: RetryPolicy | undefined
-      /**
-       * Whether a client socket is attached to the sandbox's running serve — the drift probe
-       * consults it before destroying an outdated sandbox. Defaults to the serve's own
-       * `/v1/health` `clients` count, read through a command inside the sandbox.
-       */
-      clientsAttached?: AttachProbe | undefined
+      runtimeHealth?: RuntimeActivityProbe | undefined
     },
   ) {
     this.sdk = args.sdk ?? liveSdk
     this.drives = args.driveSdk ?? liveDriveSdk
     this.attachLagRetry = args.attachLagRetry ?? attachLagRetry
-    if (args.clientsAttached !== undefined) this.attachProbe = args.clientsAttached
+    if (args.runtimeHealth !== undefined) this.runtimeActivity = args.runtimeHealth
   }
 
   createOrResume(args: ProvisionArgs): Promise<SandboxPlacement> {
@@ -75,13 +70,15 @@ export class VercelDriver {
         config: this.args,
         sdk: this.sdk,
         drives: this.drives,
-        attachProbe: this.attachProbe,
+        runtimeHealth: this.runtimeActivity,
         attachLagRetry: this.attachLagRetry,
         launchServe: (launchArgs: Parameters<ServeLauncher>[0]) =>
           this.dedupedLaunch({
             sandbox: launchArgs.sandbox,
-            launch: createServeLauncher(),
+            launch: createServeLauncher({ log: this.args.log }),
             token: launchArgs.token,
+            sandboxSessionId: launchArgs.sandboxSessionId,
+            cloudUrl: launchArgs.cloudUrl,
           }),
       },
       args,
@@ -95,9 +92,8 @@ export class VercelDriver {
    */
   async inspect(args: { name: string }): Promise<SandboxObservation | undefined> {
     try {
-      const sandbox = await this.sandboxNamed(args.name)
-      const url = routedUrlOf(sandbox)
-      return { state: stateOf(sandbox.status), ...(url === undefined ? {} : { url }) }
+      const sandbox = await this.sandboxNamed(args.name, { resume: false })
+      return observationOf(sandbox)
     } catch (failure) {
       if (isSandboxMissing(failure)) return undefined
       throw asVercelFailure(failure)
@@ -130,9 +126,10 @@ export class VercelDriver {
     }
   }
 
-  async stop(args: { name: string }): Promise<void> {
+  async stop(args: { name: string; sessionId?: string | undefined }): Promise<void> {
     try {
-      const sandbox = await this.sandboxNamed(args.name)
+      const sandbox = await this.sandboxNamed(args.name, { resume: false })
+      assertLiveSession({ sandbox, name: args.name, expected: args.sessionId })
       await sandbox.stop({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
     } catch (failure) {
       if (isSandboxMissing(failure)) return
@@ -170,12 +167,7 @@ export class VercelDriver {
     content: Uint8Array | string
   }): Promise<void> {
     try {
-      await args.sandbox.runCommand({
-        cmd: 'sh',
-        args: ['-c', `mkdir -p ${DRIVE_HOME_PATH}/bootstrap`],
-        timeoutMs: SANDBOX_QUICK_TIMEOUT_MS,
-      })
-      await args.sandbox.writeFiles([{ path: args.path, content: args.content, mode: 0o600 }])
+      await writeBootstrapFile(args)
     } catch (failure) {
       throw asVercelFailure(failure)
     }
@@ -273,10 +265,11 @@ export class VercelDriver {
     }
   }
 
-  private sandboxNamed(name: string): Promise<Sandbox> {
+  private sandboxNamed(name: string, opts?: { resume: false }): Promise<Sandbox> {
     return this.sdk.get({
       ...this.args.credentials,
       name,
+      ...(opts ?? {}),
       signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
     })
   }
@@ -285,11 +278,18 @@ export class VercelDriver {
     sandbox: Sandbox
     launch: ServeLauncher
     token?: string | undefined
+    sandboxSessionId?: string | undefined
+    cloudUrl?: string | undefined
   }): Promise<void> {
     const existing = this.inflightLaunches.get(args.sandbox)
     if (existing !== undefined) return existing
     const attempt = args
-      .launch({ sandbox: args.sandbox, ...(args.token === undefined ? {} : { token: args.token }) })
+      .launch({
+        sandbox: args.sandbox,
+        ...(args.token === undefined ? {} : { token: args.token }),
+        ...(args.sandboxSessionId === undefined ? {} : { sandboxSessionId: args.sandboxSessionId }),
+        ...(args.cloudUrl === undefined ? {} : { cloudUrl: args.cloudUrl }),
+      })
       .finally(() => {
         this.inflightLaunches.delete(args.sandbox)
       })
