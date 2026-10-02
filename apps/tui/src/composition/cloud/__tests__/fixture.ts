@@ -587,11 +587,11 @@ class WatchedThreadStore extends ThreadStorePort {
     return this.inner.chooseModel(args)
   }
 
-  writeParkedTranscript(args: Parameters<ThreadStorePort['writeParkedTranscript']>[0]) {
+  override writeParkedTranscript(args: Parameters<ThreadStorePort['writeParkedTranscript']>[0]) {
     return this.inner.writeParkedTranscript(args)
   }
 
-  readParkedTranscript(args: Parameters<ThreadStorePort['readParkedTranscript']>[0]) {
+  override readParkedTranscript(args: Parameters<ThreadStorePort['readParkedTranscript']>[0]) {
     return this.inner.readParkedTranscript(args)
   }
 

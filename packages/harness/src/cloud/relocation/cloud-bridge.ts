@@ -137,9 +137,6 @@ export type CloudAttachment = {
  */
 export type CloudBridge = {
   sandboxes: CloudSandboxes
-  /**
-   * Attach to the sandbox's serve, or to nothing yet: with no `url`/`token` the channel stays
-   * parked until `wake` applies an attachment, which is how a render-first resume defers the wake.
-   */
+  /** No `url`/`token` means deferred: a parked channel until `wake` applies an attachment. */
   attach(args: { threadId: ThreadId; url?: string | undefined; token?: string | undefined }): CloudAttachment
 }

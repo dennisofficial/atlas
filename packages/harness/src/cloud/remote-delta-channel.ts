@@ -166,10 +166,7 @@ const registryOf = <T>() => {
 
 export function createRemoteDeltaChannel(args: {
   threadId: ThreadId
-  /**
-   * The attachment to the sandbox's serve. Absent means deferred: the channel starts
-   * {@link EChannelConnection.Parked} and opens nothing until `wake` hands one over.
-   */
+  /** Absent means deferred: start {@link EChannelConnection.Parked} and open nothing until `wake`. */
   url?: string | undefined
   token?: string | undefined
   lastEventSeq?: (() => number) | undefined
