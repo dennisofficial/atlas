@@ -52,6 +52,8 @@ export type ConversationArgs = {
   interruptRefusal?: (() => string | null) | undefined
   driveRefusal?: (() => string | null) | undefined
   onLocalOpened?: ((opened: OpenedConversation) => void) | undefined
+  /** False while the cloud channel is closed or reattaching — a retry or resume can only re-fail. */
+  channelReady?: boolean | undefined
   frozen?: boolean
 }
 

@@ -7,6 +7,7 @@ import { newestExpandableKey, type PendingSaid } from '../store'
 import { restoredImages } from '../ui/draft-images'
 import { useDraft } from '../ui/hooks/use-draft'
 import { useDraftTokens } from '../ui/hooks/use-draft-tokens'
+import { channelTakingTurns } from './cloud/channel-ready'
 import { pasteDirectoryOf } from './paste-directory'
 import { unstartedConversation } from './open-conversation'
 import { useCloudSession } from './use-cloud-session'
@@ -74,6 +75,8 @@ export function useWorkspaceSession(args: {
 
   const moveInFlight = containerMove.move !== null && containerMove.move.failure === null
 
+  const channelReady = channelTakingTurns(cloudHealth?.connection)
+
   const conversation = useConversation({
     app: props.app,
     threads: props.cloudStores?.threads ?? props.app.threads,
@@ -84,6 +87,7 @@ export function useWorkspaceSession(args: {
     onUndone: handleUndone,
     canWake: exit.exitGuard.state === null && !moveInFlight,
     interruptRefusal,
+    channelReady,
     frozen: cloudHealth?.connection?.state === EChannelConnection.Closed,
     onLocalOpened: props.onLocalOpened,
   })
