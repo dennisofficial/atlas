@@ -68,6 +68,12 @@ export type UpstreamPipe = {
   attach(args: { write: (data: string) => boolean }): void
   detach(args: { reason: string }): void
   abandon(args: { reason: string }): void
+  /**
+   * Rejects every outstanding request on purpose, unlike detach, which keeps redrivable reads in
+   * case of a reattach. Used when the serve says it is parked: it will not answer again until a
+   * wake, so nothing a caller could be waiting on resolves before then.
+   */
+  failWaiting(args: { reason: string }): void
 }
 
 type Waiting = {
@@ -145,6 +151,15 @@ export function createUpstreamPipe(args: {
       redrivable.clear()
       pendingAcks.clear()
       queued.splice(0, queued.length)
+
+      for (const [id, claimed] of [...waiting]) {
+        waiting.delete(id)
+        claimed.reject(new RemoteRequestLost({ op: claimed.op, reason }))
+      }
+    },
+
+    failWaiting({ reason }) {
+      redrivable.clear()
 
       for (const [id, claimed] of [...waiting]) {
         waiting.delete(id)

@@ -3,6 +3,9 @@ import { useCallback, useMemo, useState } from 'react'
 
 import type { Event } from '@dltech/atlas-core'
 
+import { ENoticeTone, notify } from '../ui/notice-store'
+import { messageOf } from './error-text'
+
 import {
   chooseVerb,
   clearVerb,
@@ -31,7 +34,15 @@ export function useRewind(args: {
   const { events, onPick } = args
 
   const handleOpen = useCallback(() => {
-    void events().then((read) => setState(openRewind({ events: read })))
+    void events()
+      .then((read) => setState(openRewind({ events: read })))
+      .catch((error: unknown) => {
+        notify({
+          key: 'rewind-open',
+          tone: ENoticeTone.Warn,
+          text: `rewind could not read the transcript — ${messageOf(error)}`,
+        })
+      })
   }, [events])
 
   const handleDismiss = useCallback(() => setState(null), [])
