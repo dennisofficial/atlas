@@ -2,7 +2,7 @@ const WHATS_CHANGED_HEADING = /^#{1,6}\s+what's changed\s*$/i
 const FULL_CHANGELOG_LINE = /^\*\*full changelog\*\*\s*:?\s*/i
 const CONTRIBUTOR_HEADING = /^#{1,6}\s+new contributors\s*$/i
 const FIRST_CONTRIBUTION = /made their first contribution\b/i
-const ATTRIBUTION_TAIL = /\s+by\s+@[\w-]+\s+in\s+(?:https?:\/\/\S+|#\d+)\s*$/i
+const ATTRIBUTION_TAIL = /\s+by\s+@[\w-]*(?:\[\w+\])?\s+in\s+(?:https?:\/\/\S+|#\d+)\s*$/i
 
 function isDrop(line: string, insideContributorSection: boolean): boolean {
   if (FULL_CHANGELOG_LINE.test(line)) return true
