@@ -6,16 +6,18 @@ import { captureGit } from './capture-git'
 
 const PACK_BASE = 'pack'
 
-const REACHABILITY_FLAGS = ['--all', '--reflog', '--indexed-objects'] as const
+const REACHABILITY_FLAGS = ['--indexed-objects'] as const
 
 export async function packReachableObjects({
   cwd,
   commonDir,
   outputDir,
+  seeds,
 }: {
   cwd: string
   commonDir: string
   outputDir: string
+  seeds: readonly string[]
 }): Promise<string[]> {
   const stdinScratch = await mkdtemp(join(tmpdir(), 'atlas-pack-revs-'))
   // pack-objects renames its temp file from .git/objects/pack onto the output prefix, so the
@@ -25,7 +27,7 @@ export async function packReachableObjects({
   const packScratch = await mkdtemp(join(packRoot, 'atlas-capture-'))
   try {
     const stdinPath = join(stdinScratch, 'revs')
-    await writeFile(stdinPath, '')
+    await writeFile(stdinPath, seeds.length === 0 ? '' : `${seeds.join('\n')}\n`)
     const run = await captureGit({
       args: ['pack-objects', '--quiet', '--revs', ...REACHABILITY_FLAGS, join(packScratch, PACK_BASE)],
       cwd,

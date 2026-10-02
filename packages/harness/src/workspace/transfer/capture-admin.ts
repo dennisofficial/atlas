@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { realpath } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { digestLines, listLogicalRefs } from './capture-refs'
+import { digestLines, listCoveredRefs, type CoveredTree } from './capture-refs'
 import { EEntryKind, hashFile, walkTree, type SkipRule } from './capture-files'
 import { absoluteCommonDir, absoluteGitDir, commonDigestSkip, stateDigestSkip } from './git-state'
 
@@ -17,16 +17,17 @@ const describeRoot = async ({ root, isSkipped }: { root: string; isSkipped: Skip
   return lines
 }
 
-export async function digestGitAdmin({ cwds }: { cwds: readonly string[] }): Promise<string> {
+export async function digestGitAdmin({ trees }: { trees: readonly CoveredTree[] }): Promise<string> {
   const sections = new Map<string, string[]>()
-  for (const cwd of cwds) {
+  for (const tree of trees) {
+    const cwd = tree.sourcePath
     const commonDir = await realpath(await absoluteCommonDir({ cwd }))
     const gitDir = await realpath(await absoluteGitDir({ cwd }))
     const isMain = gitDir === commonDir
     if (!sections.has(`common:${commonDir}`)) {
       sections.set(`common:${commonDir}`, await describeRoot({ root: commonDir, isSkipped: commonDigestSkip }))
     }
-    sections.set(`refs:${gitDir}`, digestLines({ refs: await listLogicalRefs({ cwd }) }))
+    sections.set(`refs:${gitDir}`, digestLines({ refs: await listCoveredRefs({ trees: [tree] }) }))
     if (!sections.has(`state:${gitDir}`)) {
       sections.set(`state:${gitDir}`, await describeRoot({ root: gitDir, isSkipped: stateDigestSkip({ isMain }) }))
     }

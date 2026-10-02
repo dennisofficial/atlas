@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { createReadStream, type Dirent } from 'node:fs'
 import { lstat, readdir, readFile, readlink } from 'node:fs/promises'
-import { join, resolve, sep } from 'node:path'
+import { join, relative, resolve, sep } from 'node:path'
 
 export enum EEntryKind {
   File = 'file',
@@ -130,4 +130,30 @@ export function assertPortable({ unportable, label }: { unportable: readonly Unp
   if (unportable.length === 0) return
   const listed = unportable.map((entry) => `${entry.kind} ${entry.path}`).join(', ')
   throw new Error(`Cannot capture ${label}: non-portable entries cannot be archived (${listed})`)
+}
+
+export function dropExcludedRootWrappers({
+  entries,
+  root,
+  excludedRoots,
+}: {
+  entries: readonly TreeEntry[]
+  root: string
+  excludedRoots: readonly string[]
+}): TreeEntry[] {
+  const wrappers = new Set<string>()
+  for (const excludedRoot of excludedRoots) {
+    const rel = relative(root, resolve(excludedRoot))
+    if (rel === '' || rel === '..' || rel.startsWith(`..${sep}`) || rel.startsWith(sep)) continue
+    const parts = rel.split(sep)
+    for (let depth = 1; depth < parts.length; depth += 1) wrappers.add(parts.slice(0, depth).join('/'))
+  }
+  if (wrappers.size === 0) return [...entries]
+  const dropped = new Set<string>()
+  for (const candidate of [...wrappers].sort((left, right) => right.length - left.length)) {
+    const prefix = `${candidate}/`
+    if (!entries.some((entry) => entry.path.startsWith(prefix) && !dropped.has(entry.path))) dropped.add(candidate)
+  }
+  if (dropped.size === 0) return [...entries]
+  return entries.filter((entry) => !(entry.kind === EEntryKind.Directory && dropped.has(entry.path)))
 }

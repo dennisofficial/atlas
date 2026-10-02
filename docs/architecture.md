@@ -1284,9 +1284,12 @@ adopting the transferred family or reopening. Cloud read failures are errors, ne
 
 Workspace transfer carries physical files and logical Git state directly between the operator's
 machine and its sandbox. It does not require a user commit, flatten the index into a patch, or push
-transport refs to a repository host. Main and linked worktrees travel together, including staged,
-unstaged, untracked, and ignored files. Git administration is reconstructed for the destination's
-paths rather than copying machine-specific worktree registrations.
+transport refs to a repository host. The archive carries the main checkout and the session's own
+worktree — sibling worktrees stay behind — including covered trees' staged, unstaged, and untracked
+files. Refs are scoped to what the covered trees need: their branch heads, their stash, and their
+per-worktree refs; objects pack from exactly those tips plus the covered indexes. Git
+administration is reconstructed for the destination's paths rather than copying machine-specific
+worktree registrations.
 
 Each checkout carries its original identity and lift-time content fingerprint. An unchanged host
 checkout receives its incoming state in place. A checkout changed independently is left untouched;

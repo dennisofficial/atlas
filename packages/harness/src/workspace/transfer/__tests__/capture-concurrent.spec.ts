@@ -36,7 +36,26 @@ async function mutateDuringPacking(args: { command: string; capture: () => Promi
 }
 
 describe('a workspace changing during archive creation', () => {
-  it('refuses a capture when only a side ref changes, rather than exporting an inconsistent repository', async () => {
+  it('refuses a capture when a covered branch moves, rather than exporting an inconsistent repository', async () => {
+    const fixture = await createFixture()
+    fixtures.push(fixture)
+    const output = await createScratch()
+    directories.push(output)
+    const destination = join(output, 'workspace.tar.gz')
+    const head = await git({ cwd: fixture.main, args: ['rev-parse', 'HEAD'] })
+    const other = await git({ cwd: fixture.main, args: ['commit-tree', '-m', 'elsewhere', 'HEAD^{tree}'] })
+
+    await expect(mutateDuringPacking({
+      command: `git -C ${quoted(fixture.main)} update-ref refs/heads/main ${other}`,
+      capture: () => captureWorkspaceArchive({ cwd: fixture.main, destination }),
+    })).rejects.toThrow('changed while it was being captured')
+
+    expect(await stat(destination).then(() => true, () => false)).toBe(false)
+    await git({ cwd: fixture.main, args: ['update-ref', 'refs/heads/main', head] })
+    expect(await git({ cwd: fixture.main, args: ['rev-parse', 'HEAD'] })).toBe(head)
+  })
+
+  it('succeeds when only a side ref outside the covered trees changes', async () => {
     const fixture = await createFixture()
     fixtures.push(fixture)
     const output = await createScratch()
@@ -44,13 +63,13 @@ describe('a workspace changing during archive creation', () => {
     const destination = join(output, 'workspace.tar.gz')
     const head = await git({ cwd: fixture.main, args: ['rev-parse', 'HEAD'] })
 
-    await expect(mutateDuringPacking({
+    const result = await mutateDuringPacking({
       command: `printf '%s\\n' ${quoted(head)} > ${quoted(join(fixture.main, '.git', 'refs', 'heads', 'side-during-capture'))}`,
       capture: () => captureWorkspaceArchive({ cwd: fixture.main, destination }),
-    })).rejects.toThrow('changed while it was being captured')
+    })
 
-    expect(await stat(destination).then(() => true, () => false)).toBe(false)
-    expect(await git({ cwd: fixture.main, args: ['rev-parse', 'HEAD'] })).toBe(head)
+    expect(await stat(destination).then(() => true, () => false)).toBe(true)
+    expect((result as { trees: unknown[] }).trees).toHaveLength(1)
   })
 
   it('refuses a capture when an untracked file appears after the file listing was collected', async () => {
