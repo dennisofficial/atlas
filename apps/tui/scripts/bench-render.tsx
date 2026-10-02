@@ -35,7 +35,7 @@ import { App } from '../src/composition/app'
 import type { AtlasApp } from '../src/composition/compose'
 import { DEFAULT_MODEL_REF, EOpenMode } from '../src/composition/config'
 import { noticePortBinding } from '../src/composition/notice-binding'
-import { createExecutionLocationState } from '@dltech/atlas-harness'
+import { createExecutionLocationState, createSessionOwner, ERuntimeKind, type SessionRuntime } from '@dltech/atlas-harness'
 import { createSandboxStatusState } from '@dltech/atlas-harness'
 import { createPathResolver } from '@dltech/atlas-harness'
 import { heldChoice } from '@dltech/atlas-harness'
@@ -94,13 +94,17 @@ const benchApp = (args: {
 }): AtlasApp => {
   const skillRegistry = fakeSkillRegistry({ skills: [] })
   let active: ActiveConversation | null = null
+  const workspace = { workspace: args.root, repo: null }
+  const agents = fakeAgentRegistry()
+  const services = fakeServiceRegistry()
+  const executionLocation = createExecutionLocationState({ initial: EExecutionLocation.Host })
 
   return {
     config: { model: undefined, open: { mode: EOpenMode.New }, cwd: args.root, executionLocation: undefined },
     launch: { cwd: args.root, command: 'atlas-dev', model: undefined, executionLocation: undefined },
     command: 'atlas-dev',
     journalResume: () => {},
-    workspace: { workspace: args.root, repo: null },
+    workspace,
     tools: new InMemoryToolRegistry([]),
     markActiveThread: (next) => {
       active = next
@@ -119,8 +123,8 @@ const benchApp = (args: {
     ids: args.harness.ids,
     pending: createPendingQueues<QueuedSettled>(),
     shells: args.shells,
-    agents: fakeAgentRegistry(),
-    services: fakeServiceRegistry(),
+    agents,
+    services,
     model: heldChoice({ ref: DEFAULT_MODEL_REF, effort: EEffort.Medium }),
     modelPinned: false,
     models: fakeCatalogue(),
@@ -158,9 +162,30 @@ const benchApp = (args: {
     mcp: () => [],
     mcpSignIn: undefined,
     threadOpened: async () => {},
-    sandbox: { noteBash: () => {}, stop: async () => false },
+    sandbox: { noteBash: () => {}, stop: async () => false, prepareWorkspace: async () => undefined },
     containerStatus: createSandboxStatusState({ image: 'unused', label: 'unused' }),
-    executionLocation: createExecutionLocationState({ initial: EExecutionLocation.Host }),
+    executionLocation,
+    sessionOwner: createSessionOwner<SessionRuntime>({
+      placement: executionLocation,
+      local: {
+        kind: ERuntimeKind.Local,
+        cwd: args.root,
+        adapters: {
+          runner: args.runner,
+          channel: args.channel,
+          log: args.harness.log,
+          threads: args.harness.threads,
+          ledger: args.harness.ledger,
+          intake: undefined,
+          shells: args.shells,
+          agents,
+          services,
+          rewindMachinery: undefined,
+          workspace,
+          attachment: undefined,
+        },
+      },
+    }),
     moveTools: async ({ target }) => ({
       ok: true as const,
       from: EExecutionLocation.Host,

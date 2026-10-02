@@ -117,7 +117,7 @@ describe('steering a turn that runs in the cloud', () => {
     }
   }, 60_000)
 
-  it('renders a steered message once — as the sandbox queue row, not a separate sending placeholder', async () => {
+  it('renders a steered message once — the sending placeholder, with no duplicate queued row', async () => {
     const app = slowlySpeaking()
     const bridge = fakeBridge()
     const mounted = await mount({ app, bridge })

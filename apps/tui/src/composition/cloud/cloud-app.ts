@@ -6,6 +6,7 @@ import {
   RemoteRewindMachinery,
   rewindApplyParamsOf,
   type RewindRead,
+  type SessionRuntime,
   type TurnRunner,
 } from '@dltech/atlas-harness'
 
@@ -19,19 +20,16 @@ import { RemoteServiceRegistry } from './remote-services'
 import { RemoteShellRegistry } from './remote-shells'
 import { createSharedRoster } from './roster-reader'
 
-/**
- * The same app, reading and writing somewhere else. The transcript consumes ports and the turn
- * driver consumes a runner, so a cloud thread is the local one with the five stores swapped — and
- * the three registries too, or the footer and the sidebar would read this machine's empty local
- * process tables instead of the sandbox's live ones. Nothing downstream of here learns which
- * machine the loop is on.
- */
-export const cloudApp = (args: {
-  app: AtlasApp
+export type CloudRuntimeParts = Pick<
+  SessionRuntime,
+  'runner' | 'channel' | 'log' | 'threads' | 'ledger' | 'intake' | 'shells' | 'agents' | 'services' | 'rewindMachinery'
+>
+
+export const cloudRuntimeParts = (args: {
   channel: CloudChannel
   stores: CloudStores
   runner: TurnRunner
-}): AtlasApp => {
+}): CloudRuntimeParts => {
   const roster = createSharedRoster(createRemoteRosterReader({ channel: args.channel }))
   const shells = new RemoteShellRegistry(roster)
   const agents = new RemoteAgentRegistry(roster)
@@ -39,7 +37,6 @@ export const cloudApp = (args: {
   const pricing = new LocalRewindMachinery({ agents, shells, services })
 
   return {
-    ...args.app,
     log: args.stores.log,
     intake: undefined,
     threads: args.stores.threads,
@@ -49,9 +46,6 @@ export const cloudApp = (args: {
     shells,
     agents,
     services,
-    // Pricing comes from the same roster the registries read; cleanup rides the channel as a
-    // command, because the roster is a read model and its registries refuse to touch processes —
-    // the sandbox removes its own creations on apply.
     rewindMachinery: new RemoteRewindMachinery({
       channel: {
         apply: (applyArgs) =>
@@ -64,6 +58,13 @@ export const cloudApp = (args: {
     }),
   }
 }
+
+export const cloudApp = (args: {
+  app: AtlasApp
+  channel: CloudChannel
+  stores: CloudStores
+  runner: TurnRunner
+}): AtlasApp => ({ ...args.app, ...cloudRuntimeParts(args) })
 
 export async function openCloudConversation(args: {
   app: AtlasApp

@@ -14,6 +14,7 @@ const markFor = (state: EChannelConnection): Span => {
     case EChannelConnection.Connecting:
     case EChannelConnection.Reconnecting:
     case EChannelConnection.Reattaching:
+    case EChannelConnection.Waking:
       return { text: glyph.active, fg: theme.warn }
     case EChannelConnection.Parked:
       return { text: glyph.available, fg: theme.rule }

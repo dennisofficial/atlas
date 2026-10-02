@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -12,7 +12,8 @@ import { ETurnStatus } from '../../../loop/turn-outcome'
 import { buildSessionArchive } from '../../session-archive'
 import { cloudArchiveOf, descend, useDescendHome, type DescendHome, type OpenedLocal } from './descend-fixture'
 import { CLOUD_THREAD, fakeBridge, type FakeCloudChannel } from './fixture'
-import { descendFromCloud, type DescendLocalHome, type DescendSurface, type WorkspaceMerger } from '../descend'
+import { descendFromCloud, type DescendLocalHome, type DescendSurface, type WorkspaceRestorer } from '../descend'
+import { fakeRestorer } from './workspace-fixture'
 
 const said = (text: string) => ({ type: 'user-said' as const, text })
 
@@ -83,7 +84,7 @@ describe('the descend relocation plan', () => {
     )
   })
 
-  it('resumes the paused remote loops once the conversation is home again', async () => {
+  it('leaves the source paused once the conversation is home, so nothing resumes in the sandbox', async () => {
     const home = useDescendHome()
     const bridge = fakeBridge({ archive: await cloudArchiveOf([{ drafts: [said('one')] }]) })
     const channel = bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
@@ -91,7 +92,34 @@ describe('the descend relocation plan', () => {
 
     await descend({ bridge, home, channel, midTurn: true })
 
-    expect(count.resumes).toBe(1)
+    expect(count.resumes).toBe(0)
+    expect(bridge.destroyed).toEqual([CLOUD_THREAD])
+  })
+
+  it('pauses an idle cloud session too, waiting for the pause acknowledgement', async () => {
+    const home = useDescendHome()
+    const bridge = fakeBridge({ archive: await cloudArchiveOf([{ drafts: [said('one')] }]) })
+    const channel = bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
+
+    const order: string[] = []
+    const pause = channel.pause.bind(channel)
+    channel.pause = () => {
+      order.push('pause')
+      pause()
+    }
+    const served = channel.request.bind(channel)
+    channel.request = async (given) => {
+      order.push(given.op)
+      return served(given)
+    }
+
+    await descend({ bridge, home, channel, midTurn: false })
+
+    expect(channel.paused).toBe(true)
+    expect(order[0]).toBe('pause')
+    expect(order.indexOf(EClientRequest.ReadSessionArchive)).toBeLessThan(
+      order.indexOf(EClientRequest.PrepareWorkspaceArchive),
+    )
   })
 
   it('gives up legibly when the pause never lands, leaving everything in the cloud', async () => {
@@ -104,7 +132,8 @@ describe('the descend relocation plan', () => {
       descend({ bridge, home, channel, midTurn: true, pauseDeadlineMs: 20 }),
     ).rejects.toThrow('would not pause in time')
 
-    expect(count.resumes).toBe(0)
+    expect(count.resumes).toBe(1)
+    expect(channel.requests).toEqual([])
     expect(await home.threads.find({ threadId: CLOUD_THREAD })).toBeUndefined()
     expect(bridge.destroyed).toEqual([])
   })
@@ -123,98 +152,49 @@ describe('the descend relocation plan', () => {
     expect(bridge.destroyed).toEqual([])
   })
 
-  it('merges the published workspace only after the thread store has flipped home', async () => {
+  it('opens the conversation locally before the ownership flip', async () => {
     const home = useDescendHome()
     const bridge = fakeBridge({ archive: await cloudArchiveOf([{ drafts: [said('one')] }]) })
-    const channel = publishingChannel({ bridge })
     const order: string[] = []
-    const threads = home.threads
-    const flipped = threads.chooseExecutionLocation.bind(threads)
-    threads.chooseExecutionLocation = async (given) => {
+    const flipped = home.threads.chooseExecutionLocation.bind(home.threads)
+    home.threads.chooseExecutionLocation = async (given) => {
       if (given.threadId === CLOUD_THREAD) order.push('flip')
       return flipped(given)
     }
 
-    await descend({
-      bridge,
-      home,
-      channel,
-      mergeWorkspace: async () => {
-        order.push('merge')
-        return { conflicts: [] }
-      },
-    })
-
-    expect(order.indexOf('flip')).toBeGreaterThanOrEqual(0)
-    expect(order.indexOf('merge')).toBe(order.indexOf('flip') + 1)
-  })
-
-  it('opens the conversation locally only after the workspace merge settled', async () => {
-    const home = useDescendHome()
-    const bridge = fakeBridge({ archive: await cloudArchiveOf([{ drafts: [said('one')] }]) })
-    const order: string[] = []
-
     await descendWithSurface({
       home,
       bridge,
-      channel: publishingChannel({ bridge }),
       openLocal: async (_openedHome, threadId) => {
         order.push('open')
         return { threadId }
       },
-      mergeWorkspace: async () => {
-        order.push('merge')
-        return { conflicts: [] }
-      },
     })
 
-    expect(order).toEqual(['merge', 'open'])
+    expect(order).toEqual(['open', 'flip'])
   })
 
-  it('fails the move without a local reopen when the workspace will not merge', async () => {
+  it('flips nothing and keeps the source when the local open fails', async () => {
     const home = useDescendHome()
     const bridge = fakeBridge({ archive: await cloudArchiveOf([{ drafts: [said('one')] }]) })
-    let opens = 0
+    const channel = bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
+    const count = pausingChannel({ channel })
 
     await expect(
       descendWithSurface({
         home,
         bridge,
-        channel: publishingChannel({ bridge }),
-        openLocal: async (_openedHome, threadId) => {
-          opens += 1
-          return { threadId }
-        },
-        mergeWorkspace: async () => {
-          throw new Error('the merge blew up')
-        },
-      }),
-    ).rejects.toThrow('the merge blew up')
-
-    expect(opens).toBe(0)
-    expect((await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation).toBe(
-      EExecutionLocation.Host,
-    )
-    expect(readdirSync(join(sessionDirOf(), 'threads'))).not.toEqual([])
-  })
-
-  it('reopens as the failure recovery when the local open itself fails', async () => {
-    const home = useDescendHome()
-    const bridge = fakeBridge({ archive: await cloudArchiveOf([{ drafts: [said('one')] }]) })
-
-    await expect(
-      descendWithSurface({
-        home,
-        bridge,
+        channel,
         openLocal: async () => {
           throw new Error('the session dir was unreadable')
         },
       }),
     ).rejects.toThrow('the session dir was unreadable')
 
-    expect((await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation).toBe(
-      EExecutionLocation.Host,
-    )
+    const row = await home.threads.find({ threadId: CLOUD_THREAD })
+    expect(row?.executionLocation ?? EExecutionLocation.Cloud).toBe(EExecutionLocation.Cloud)
+    expect(count.resumes).toBe(1)
+    expect(bridge.destroyed).toEqual([])
   })
 
   it('refuses the flip when the shipped archive lands an unusable session directory', async () => {
@@ -230,33 +210,12 @@ describe('the descend relocation plan', () => {
   })
 })
 
-const PUBLISHED = {
-  ref: 'refs/atlas/descend/cloud-thread-0123456789ab',
-  commit: '0123456789abcdef',
-  base: 'ba51e1e0',
-  baseTree: '7ee1ab1e',
-  branch: 'dennis/feature',
-}
-
-const publishingChannel = (args: { bridge: ReturnType<typeof fakeBridge> }): FakeCloudChannel => {
-  const channel = args.bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
-  const served = channel.request.bind(channel)
-  channel.request = async (given) => {
-    if (given.op === EClientRequest.PublishWorkspace) return PUBLISHED
-    return served(given)
-  }
-  return channel
-}
-
-const sessionDirOf = (): string =>
-  join(process.env['ATLAS_HOME'] ?? '', 'sessions', CLOUD_THREAD)
-
 const descendWithSurface = (args: {
   home: DescendHome
   bridge: ReturnType<typeof fakeBridge>
   channel?: FakeCloudChannel
   openLocal: (home: DescendLocalHome, threadId: ThreadId) => Promise<OpenedLocal>
-  mergeWorkspace?: WorkspaceMerger
+  restoreWorkspace?: WorkspaceRestorer
 }): Promise<OpenedLocal> => {
   const surface: DescendSurface<OpenedLocal> = {
     notice: { notify: (_post: NoticePost) => undefined },
@@ -270,6 +229,6 @@ const descendWithSurface = (args: {
     channel: args.channel ?? args.bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel,
     localApp: args.home,
     surface,
-    ...(args.mergeWorkspace === undefined ? {} : { mergeWorkspace: args.mergeWorkspace }),
+    restoreWorkspace: args.restoreWorkspace ?? fakeRestorer().restore,
   })
 }

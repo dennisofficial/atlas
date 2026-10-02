@@ -45,6 +45,7 @@ export async function runRelocation<Ctx>(args: {
   plan: RelocationPlan<Ctx>
   ctx: Ctx
   onStep?: (id: string) => void
+  isCommitted?: (() => boolean) | undefined
   /** When present, a failed node lands in the durable log before the run reports it. */
   log?: { port: LogPort; source: string; threadId: ThreadId } | undefined
 }): Promise<RelocationRun> {
@@ -121,7 +122,9 @@ export async function runRelocation<Ctx>(args: {
   }
 
   if (failure !== null) {
+    await Promise.all(running.values())
     const { failed, error } = failure
+    committed = committed || args.isCommitted?.() === true
     const phase = committed ? 'committed' : 'pre-commit'
     const entry: LogEntry = {
       severity: ELogSeverity.Error,

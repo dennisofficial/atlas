@@ -6,11 +6,13 @@ import { messageOf } from './error-text'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { cloudListing } from './cloud/cloud-listing'
 import { openCloudThread } from './cloud/cloud-open'
-import type { CloudBridge, CloudSandboxes } from '@dltech/atlas-harness'
+import { clearAttachFailure, recordAttachFailure } from './attach-failure'
+import { cloudAttachmentOf } from './session-binding'
+import { settleOnChannel } from './session-recovery'
+import type { CloudBridge, CloudReload, CloudSandboxes } from '@dltech/atlas-harness'
 import type { CloudSession } from './cloud/cloud-session'
 import type { AtlasApp } from './compose'
 import { EOpenMode } from './config'
-import type { LiftedAttachment } from './lifted-session'
 import { openConversation, type OpenedConversation } from './open-conversation'
 import type { CloudBridgeFactory } from './use-cloud-lift'
 import type { ContainerMoveControl } from './use-container-move'
@@ -19,6 +21,7 @@ export type ThreadRouter = {
   handleOpen: (threadId: string) => void
   listing: () => Pick<ThreadStorePort, 'list'>
   findSandbox: () => Pick<CloudSandboxes, 'find'> | null
+  handleRetryAttach: () => void
 }
 
 /**
@@ -37,8 +40,8 @@ export function useThreadRouter(args: {
   working: boolean
   activeThreadId: string
   opened: OpenedConversation
-  onLifted: (attachment: LiftedAttachment) => void
-  onDescend: (opened: OpenedConversation) => void
+  onReload: (reload: CloudReload) => Promise<void>
+  onLeaveCloud: (opened: OpenedConversation) => void
   onLocalSwap: (threadId: string) => void
 }): ThreadRouter {
   const { localApp, cloudBridge, cloudSession, createBridge, containerMove } = args
@@ -59,14 +62,32 @@ export function useThreadRouter(args: {
       if (threadId === args.activeThreadId && cloudSession !== null) return
 
       const bridge = ensureBridge()
+      await localApp.sessionOwner.activateLocal({ threadId: toThreadId(threadId) }).catch(() => undefined)
 
-      const attachment = await openCloudThread({
+      const adopted = await openCloudThread({
         app: localApp,
         bridge,
         threadId: toThreadId(threadId),
         move: containerMove,
+        onReload: args.onReload,
         ...(projectDirectory === undefined ? {} : { projectDirectory }),
+      }).then(async (binding) => {
+        try {
+          const channel = cloudAttachmentOf(binding)?.session.channel
+          await localApp.sessionOwner.adopt({
+            threadId: toThreadId(threadId),
+            binding,
+            settle: async ({ action }) => {
+              if (channel !== undefined) await settleOnChannel({ channel, action })
+            },
+          })
+        } catch (error) {
+          binding.close?.()
+          throw error
+        }
+        return binding
       }).catch((error: unknown) => {
+        recordAttachFailure({ threadId: toThreadId(threadId), detail: messageOf(error) })
         notify({
           key: 'cloud-open-failed',
           text: messageOf(error),
@@ -75,8 +96,8 @@ export function useThreadRouter(args: {
         })
         return null
       })
-      if (attachment === null) return
-      args.onLifted(attachment)
+      if (adopted === null) return
+      clearAttachFailure()
     },
     [args, cloudSession, containerMove, ensureBridge, localApp],
   )
@@ -120,7 +141,7 @@ export function useThreadRouter(args: {
         args.onLocalSwap(target)
         return
       }
-      args.onDescend(outcome.conversation)
+      args.onLeaveCloud(outcome.conversation)
     },
     [args, attach, cloudSession, localApp],
   )
@@ -147,5 +168,11 @@ export function useThreadRouter(args: {
 
   const handleOpen = useCallback((threadId: string) => void route(threadId), [route])
 
-  return { handleOpen, listing, findSandbox }
+  const handleRetryAttach = useCallback(() => {
+    const snapshot = localApp.sessionOwner.snapshot()
+    if (snapshot.bound || snapshot.threadId === undefined) return
+    void attach(snapshot.threadId as string, localApp.workspace.workspace)
+  }, [attach, localApp])
+
+  return { handleOpen, listing, findSandbox, handleRetryAttach }
 }

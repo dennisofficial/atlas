@@ -36,6 +36,8 @@ function DerivedTranscript(props: {
   turn?: TurnClock
   /** The cloud socket is down and being re-established; the turn itself runs on the sandbox. */
   reconnecting?: boolean
+  /** The sandbox was parked and is being woken; nothing is running until it answers. */
+  waking?: boolean
   /** The cloud socket is closed with no re-establish in flight; the local view is stale. */
   disconnected?: boolean
   /**
@@ -213,11 +215,13 @@ function DerivedTranscript(props: {
               outputTokens={turn.outputTokens}
               interrupting={turn.interrupting}
               verb={
-                props.reconnecting === true
-                  ? EWorkingVerb.Reconnecting
-                  : turn.reasoning
-                    ? EWorkingVerb.Thinking
-                    : EWorkingVerb.Working
+                props.waking === true
+                  ? EWorkingVerb.Waking
+                  : props.reconnecting === true
+                    ? EWorkingVerb.Reconnecting
+                    : turn.reasoning
+                      ? EWorkingVerb.Thinking
+                      : EWorkingVerb.Working
               }
               retry={turn.retry}
             />

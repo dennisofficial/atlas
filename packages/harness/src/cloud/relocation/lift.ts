@@ -7,18 +7,20 @@ import {
   type WorkspaceIdentity,
 } from '@dltech/atlas-core'
 
-import { EPlacementMoveKind, type PlacementController } from '../../composition/placement-controller'
+import { EPlacementMoveKind, type PlacementController, type PlacementTransaction } from '../../composition/placement-controller'
+import type { OwnerTransaction, SessionOwner, SessionRuntime } from '../../composition/session-owner'
 import type { ThreadModel, ThreadStorePort } from '../../store/thread-store'
 import type { GpgKeyMaterial } from '../../workspace/gpg-material'
 import type { CaptureContext } from '../context-archive-policy'
-import { CloudError } from '../cloud-transport'
-import { GitCredentialError } from '../gh-auth-token'
-import { VercelNotConfiguredError } from '../vercel-credentials'
 import type { CloudAttachment, CloudBridge, CloudChannel, CloudSandbox, LiftedWorkspace } from './cloud-bridge'
-import { runRelocation, type RelocationRun } from './dag'
-import type { LiftAgentsPort } from './lift-children'
+import { runRelocation } from './dag'
+import { liftErrorDetail, liftFailureOf, liftFailureOfRun, liftSettledBeforeDeadline } from './lift-failure'
+import { resumeStoppedChildren, type LiftAgentsPort } from './lift-children'
 import { ELiftNode, liftPlan, type LiftCtx } from './lift-plan'
 import { NOTHING_WAS_STOPPED, type StoppedLocally } from './transition-notice'
+import type { LiftWorkspaceCapture } from './lift-workspace'
+import type { RestoredWorkspace } from '../../workspace/transfer/manifest'
+import { logFieldsOf } from '../../store/logs'
 
 export { ELiftNode, liftPlan } from './lift-plan'
 
@@ -59,6 +61,7 @@ export type LiftSuccess = {
   workspace: LiftedWorkspace | null
   stopped: StoppedLocally
   resumeOnArrival: boolean
+  warning?: string | undefined
 }
 
 export type Lifted = LiftSuccess | LiftFailure
@@ -74,6 +77,7 @@ export type LiftArgs = {
    * once the turn answers RelocationPaused — the same settle that watched interrupts land.
    */
   pause?: (() => void) | undefined
+  resumeSource?: (() => void) | undefined
   interrupt: () => void
   whenSettled: () => Promise<void>
   interruptDeadlineMs?: number | undefined
@@ -88,97 +92,15 @@ export type LiftArgs = {
   ids: IdPort
   logPort?: LogPort | undefined
   /** The coordinator the ownership flip commits through — the durable placement write is its transaction, not a store call of the lift's own. */
-  placement: PlacementController
+  placement: PlacementController | SessionOwner<SessionRuntime>
   stopLocal: () => Promise<StoppedLocally>
   capture: (args: { cwd: string }) => Promise<LiftedWorkspace | null>
+  captureWorkspaceArchive?: LiftWorkspaceCapture | undefined
   captureGpg?: ((args: { cwd: string }) => Promise<GpgKeyMaterial | null>) | undefined
   /** Deferred so a sandbox that resumed from a snapshot skips the (expensive) skills tar. The lift has no notice port of its own, so the caller supplies the notice-bound capture. */
   captureContext: CaptureContext
   onProgress: (step: ELiftStep) => void
-  open?: ((attachment: CloudAttachment) => Promise<void>) | undefined
-}
-
-const detailOf = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error)
-
-const NOT_CONFIGURED_STATUS = 503
-
-const NOT_CONFIGURED_MARKER = 'not configured'
-
-const UNREACHABLE_STATUS = 0
-
-const PATCH_TOO_LARGE_STATUS = 413
-
-const faultOf = (args: { error: unknown; fallback: ELiftFault }): ELiftFault => {
-  if (args.error instanceof VercelNotConfiguredError) return ELiftFault.NotConfigured
-  if (args.error instanceof GitCredentialError) return ELiftFault.GitAuth
-  if (!(args.error instanceof CloudError)) return args.fallback
-  if (
-    args.error.status === NOT_CONFIGURED_STATUS &&
-    args.error.message.includes(NOT_CONFIGURED_MARKER)
-  ) {
-    return ELiftFault.NotConfigured
-  }
-  if (args.error.status === UNREACHABLE_STATUS) return ELiftFault.Unreachable
-  if (args.error.status === PATCH_TOO_LARGE_STATUS) return ELiftFault.PatchTooLarge
-
-  return args.fallback
-}
-
-const failureOf = (args: {
-  error: unknown
-  step: ELiftStep
-  fallback: ELiftFault
-  stopped: StoppedLocally
-}): LiftFailure => {
-  const fault = faultOf({ error: args.error, fallback: args.fallback })
-  return {
-    ok: false,
-    fault,
-    step: args.step,
-    detail: detailOf(args.error),
-    stopped: args.stopped,
-  }
-}
-
-const INTERRUPT_SETTLE_DEADLINE_MS = 30_000
-
-const settledBeforeDeadline = async (args: LiftArgs): Promise<boolean> => {
-  const deadlineMs = args.interruptDeadlineMs ?? INTERRUPT_SETTLE_DEADLINE_MS
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const expired = new Promise<boolean>((resolve) => {
-    timer = setTimeout(() => resolve(false), deadlineMs)
-  })
-  const settled = await Promise.race([args.whenSettled().then(() => true), expired])
-  clearTimeout(timer)
-  return settled
-}
-
-const failureOfRun = (args: {
-  run: Extract<RelocationRun, { ok: false }>
-  ctx: LiftCtx
-}): LiftFailure => {
-  const { run, ctx } = args
-  if (ctx.contextError !== undefined) {
-    return failureOf({
-      error: ctx.contextError,
-      step: ELiftStep.UploadingContext,
-      fallback: ELiftFault.Context,
-      stopped: ctx.stopped,
-    })
-  }
-  const step: ELiftStep =
-    run.failed === ELiftNode.Restore || run.failed === ELiftNode.Attach || run.failed === ELiftNode.ResumePaused
-      ? ELiftStep.Attaching
-      : run.failed === ELiftNode.ArchiveSession
-        ? ELiftStep.Transferring
-        : ELiftStep.Starting
-  return failureOf({
-    error: run.error,
-    step,
-    fallback: ELiftFault.Sandbox,
-    stopped: ctx.stopped,
-  })
+  open?: ((args: { attachment: CloudAttachment; transaction: PlacementTransaction | OwnerTransaction<SessionRuntime>; restoredWorkspace?: RestoredWorkspace | undefined }) => Promise<void>) | undefined
 }
 
 export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
@@ -193,9 +115,9 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
     else args.pause()
   }
 
-  const settled = await settledBeforeDeadline(args)
+  const settled = await liftSettledBeforeDeadline(args)
   if (!settled) {
-    return failureOf({
+    return liftFailureOf({
       error: new Error('the turn would not stop in time — nothing moved'),
       step: ELiftStep.Interrupting,
       fallback: ELiftFault.Transfer,
@@ -205,6 +127,7 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
 
   let failure: LiftFailure | undefined
   let lifted: LiftSuccess | undefined
+  let committedArrival: LiftSuccess | undefined
   try {
     lifted = await args.placement.move<LiftSuccess | undefined>({
       threadId,
@@ -218,6 +141,8 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
           transaction,
           from,
           workspace: null,
+          workspaceArchive: undefined,
+          restoredWorkspace: undefined,
           gpgKey: undefined,
           transcript: undefined,
           sandbox: undefined,
@@ -226,31 +151,42 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
           expected: new Map(),
           contextError: undefined,
           stopped: NOTHING_WAS_STOPPED,
+          pausedChildren: [],
         }
 
         const run = await runRelocation({
           plan: liftPlan(),
           ctx,
           onStep: () => undefined,
+          isCommitted: transaction.committed,
           log:
             args.logPort === undefined
               ? undefined
               : { port: args.logPort, source: 'cloud.relocation', threadId },
         })
 
+        await ctx.workspaceArchive?.release().catch((error: unknown) => {
+          args.logPort?.warn({ source: 'cloud.lift', threadId, message: 'the workspace transfer staging archive could not be removed', ...logFieldsOf({ error }) })
+        })
         if (!run.ok) {
-          failure = failureOfRun({ run, ctx })
+          if (run.phase === 'committed' && ctx.sandbox !== undefined && ctx.channel !== undefined) {
+            committedArrival = { ok: true, sandbox: ctx.sandbox, channel: ctx.channel, workspace: ctx.workspace, stopped: ctx.stopped, resumeOnArrival: args.midTurn, warning: liftErrorDetail(run.error) }
+            throw run.error instanceof Error ? run.error : new Error(liftErrorDetail(run.error))
+          }
+          failure = liftFailureOfRun({ run, ctx })
           if (run.phase === 'pre-commit') {
             ctx.channel?.close()
+            await resumeStoppedChildren({ agents: args.agents, threadId, stopped: ctx.pausedChildren })
+            if (args.midTurn) args.resumeSource?.()
             transaction.abandon()
             return undefined
           }
-          throw run.error instanceof Error ? run.error : new Error(detailOf(run.error))
+          throw run.error instanceof Error ? run.error : new Error(liftErrorDetail(run.error))
         }
 
         const { sandbox, channel } = ctx
         if (sandbox === undefined || channel === undefined) {
-          failure = failureOf({
+          failure = liftFailureOf({
             error: new Error('the lift finished without its sandbox'),
             step: ELiftStep.Starting,
             fallback: ELiftFault.Sandbox,
@@ -270,9 +206,10 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
         }
       },
     })
-  } catch {
+  } catch (error) {
+    if (committedArrival !== undefined) return committedArrival
     if (failure !== undefined) return failure
-    throw new Error('the lift failed without its outcome')
+    throw error
   }
   if (failure !== undefined) return failure
   if (lifted === undefined) throw new Error('the lift ended without an outcome')

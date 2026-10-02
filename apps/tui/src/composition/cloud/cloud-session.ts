@@ -120,9 +120,11 @@ export function createCloudSession(args: {
         connection =
           reading.kind === EClosedConnectionKind.Parked
             ? { state: EChannelConnection.Parked, detail: null }
-            : reading.kind === EClosedConnectionKind.Reconnecting
-              ? { state: EChannelConnection.Reconnecting, detail: reading.detail }
-              : { state: EChannelConnection.Closed, detail: reading.detail }
+            : reading.kind === EClosedConnectionKind.Waking
+              ? { state: EChannelConnection.Waking, detail: reading.detail }
+              : reading.kind === EClosedConnectionKind.Reconnecting
+                ? { state: EChannelConnection.Reconnecting, detail: reading.detail }
+                : { state: EChannelConnection.Closed, detail: reading.detail }
       }
       sync()
     }).catch(() => {

@@ -54,6 +54,7 @@ export enum EChannelConnection {
   Reconnecting = 'reconnecting',
   Reattaching = 'reattaching',
   Parked = 'parked',
+  Waking = 'waking',
   Closed = 'closed',
 }
 
@@ -116,6 +117,12 @@ export type RemoteDeltaChannel = DeltaChannel & {
   detach?(): void
   onDetached?(listener: (reason: string) => void): Unsubscribe
   wake(args: { url: string; token: string }): void
+  /**
+   * Marks the channel as waking its sandbox. The wake itself is a control-plane call the turn
+   * runner awaits before `wake()` has a fresh attachment to apply, and without this state that
+   * whole window still reads as Parked — or worse, Closed — to whoever is watching.
+   */
+  beginWake(): void
   /**
    * Re-attach from a stranded Closed state. The operator asked for it, so the reattachment budget
    * the automatic retries spent does not apply — a manual reconnect always escalates again. No-op
@@ -730,6 +737,17 @@ export function createRemoteDeltaChannel(args: {
 
       reattachments = 0
       applyAttachment({ url: nextUrl, token: nextToken })
+    },
+
+    beginWake() {
+      if (abandoned) return
+      if (
+        connection.state !== EChannelConnection.Parked &&
+        connection.state !== EChannelConnection.Closed
+      ) {
+        return
+      }
+      moveTo({ state: EChannelConnection.Waking, detail: null })
     },
 
     reconnect() {

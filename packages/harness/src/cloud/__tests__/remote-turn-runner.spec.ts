@@ -166,6 +166,34 @@ describe('a turn driven over the session socket', () => {
     const turn = runner.runTurn({ threadId: THREAD })
     await Bun.sleep(1)
     expect(woken).toBe(1)
+    expect(channel.connection().state).toBe(EChannelConnection.Connecting)
+
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    endTurn(receive, completed('run-1'))
+    await expect(turn).resolves.toEqual(completed('run-1'))
+  })
+
+  it('reads as waking while the sandbox is being woken, before the fresh socket exists', async () => {
+    const { channel, open, receive, live } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    const runner = new RemoteTurnRunner({
+      channel,
+      wake: async () => {
+        await Bun.sleep(20)
+        channel.wake({ url: 'https://sandbox.test/', token: 'tok_session' })
+      },
+    })
+
+    live().handlers.handleMessage(encodeFrame({ kind: EServeFrame.Parked, reason: 'idle' } as never))
+    live().handlers.handleClose()
+
+    const turn = runner.runTurn({ threadId: THREAD })
+    await Bun.sleep(1)
+    expect(channel.connection().state).toBe(EChannelConnection.Waking)
+    await Bun.sleep(30)
+    expect(channel.connection().state).toBe(EChannelConnection.Connecting)
 
     open()
     receive({ kind: EServeFrame.Ready, seq: 1 })

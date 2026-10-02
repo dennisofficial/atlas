@@ -1,4 +1,5 @@
 import {
+  CLOUD_WORKSPACE_PATH,
   EExecutionLocation,
   toRunId,
   type EventDraft,
@@ -21,10 +22,11 @@ import {
   type ChannelReload,
   type InterruptAck,
 } from '../../remote-delta-channel'
-import type { TurnOutcome } from '../../../loop/turn-outcome'
+import { ETurnStatus, type TurnOutcome } from '../../../loop/turn-outcome'
 import type { CloudChannel, CloudReload } from '../cloud-bridge'
 import { CLOUD_THREAD } from './cloud-fixture-ids'
 import type { FakeEventLog } from './fake-event-log'
+import { PREPARE_REPLY } from './workspace-fixture'
 
 export type FakeCloudChannel = CloudChannel & {
   commitSaid(args: { text: string; images?: readonly SaidImage[] }): void
@@ -37,6 +39,7 @@ export type FakeCloudChannel = CloudChannel & {
   pushRoster(roster: RosterWire): void
   endTurn(outcome: TurnOutcome): void
   readonly closed: boolean
+  readonly paused: boolean
   readonly runs: number
   readonly sent: readonly {
     text: string
@@ -55,6 +58,8 @@ export function fakeCloudChannel(
     memoryArchive?: string | undefined
     restoreTranscriptRefused?: boolean | undefined
     applyTranscript?: (() => Promise<void>) | undefined
+    prepareWorkspaceFails?: unknown
+    applyWorkspaceFails?: unknown
   } = {},
 ): FakeCloudChannel {
   const connections = new Set<(connection: ChannelConnection) => void>()
@@ -79,7 +84,12 @@ export function fakeCloudChannel(
   }
   let heldRoster: RosterWire = { shells: [], agents: [], services: [] }
   let closed = false
+  let paused = false
   let runs = 0
+
+  const endTurn = (outcome: TurnOutcome): void => {
+    for (const listener of [...turnEndings]) listener(outcome)
+  }
 
   return {
     threadId: args.threadId ?? CLOUD_THREAD,
@@ -113,8 +123,14 @@ export function fakeCloudChannel(
       runs += 1
     },
     interrupt: () => undefined,
-    pause: () => undefined,
-    resume: () => undefined,
+    pause: () => {
+      paused = true
+      const runId = toRunId(`serve-${args.threadId ?? CLOUD_THREAD}`)
+      queueMicrotask(() => endTurn({ status: ETurnStatus.RelocationPaused, runId }))
+    },
+    resume: () => {
+      paused = false
+    },
     request: async (given) => {
       requests.push({ op: given.op, params: given.params })
       if (given.op === EClientRequest.ReadTranscriptIdentity) {
@@ -127,7 +143,15 @@ export function fakeCloudChannel(
         return { count: events.length, digest: transcriptIdentityDigest(events) }
       }
       if (given.op === EClientRequest.ListRoster) return heldRoster
-      if (given.op === EClientRequest.PublishWorkspace) return null
+      if (given.op === EClientRequest.ApplyWorkspaceArchive) {
+        if (args.applyWorkspaceFails !== undefined) throw args.applyWorkspaceFails
+        return { applied: true, restored: { cwd: CLOUD_WORKSPACE_PATH, repository: CLOUD_WORKSPACE_PATH, trees: [] } }
+      }
+      if (given.op === EClientRequest.ActivateSession) return { activated: true }
+      if (given.op === EClientRequest.PrepareWorkspaceArchive) {
+        if (args.prepareWorkspaceFails !== undefined) throw args.prepareWorkspaceFails
+        return PREPARE_REPLY
+      }
       if (given.op === EClientRequest.Rewind) return { applied: 0 }
       if (given.op === EClientRequest.ReadSessionArchive) return { archive: args.archive ?? '' }
       if (given.op === EClientRequest.ReadMemoryArchive)
@@ -220,6 +244,10 @@ export function fakeCloudChannel(
     wake: ({ url, token }) => {
       woken.push({ url, token })
     },
+    beginWake: () => {
+      held = { state: EChannelConnection.Waking, detail: null }
+      for (const listener of [...connections]) listener(held)
+    },
     reconnect: () => undefined,
     close: () => {
       closed = true
@@ -227,6 +255,10 @@ export function fakeCloudChannel(
 
     get closed() {
       return closed
+    },
+
+    get paused() {
+      return paused
     },
 
     get runs() {
@@ -266,8 +298,6 @@ export function fakeCloudChannel(
       heldRoster = roster
       for (const listener of [...rosters]) listener(roster)
     },
-    endTurn(outcome) {
-      for (const listener of [...turnEndings]) listener(outcome)
-    },
+    endTurn,
   }
 }

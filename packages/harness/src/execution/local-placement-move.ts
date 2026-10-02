@@ -2,17 +2,15 @@ import {
   EExecutionLocation,
   EKilledBy,
   EShellStatus,
+  projectDirectoryOf,
   type IdPort,
   type LogPort,
   type ThreadId,
 } from '@dltech/atlas-core'
 
 import type { AgentRegistryPort } from '../agents/registry/port'
-import type {
-  ExecutionLocationControl,
-  ExecutionLocationState,
-} from '../composition/execution-location-state'
 import { EPlacementMoveKind, PlacementBusy } from '../composition/placement-controller'
+import type { AnchoringControl } from '../composition/sandbox-reanchor'
 import type { DockerEngine } from './docker/engine'
 import type { ServiceRegistryPort } from '../services/service-registry'
 import { KILL_SETTLE_MS, type ShellRegistryPort } from '../shells/shell-registry'
@@ -42,7 +40,7 @@ const messageOf = (error: unknown): string =>
  * resume only after the commit, so their routing is consistent the moment they step again.
  */
 export async function moveLocalPlacement(args: {
-  control: ExecutionLocationControl
+  control: AnchoringControl
   threadId: ThreadId
   target: EExecutionLocation
   engine: Pick<DockerEngine, 'info'>
@@ -52,6 +50,7 @@ export async function moveLocalPlacement(args: {
   /** The store-backed ports, resolved at call time: building the caller must not open a database. */
   stores: () => { threads: ThreadStorePort; log: Parameters<typeof relocateSession>[0]['log']; agents: AgentRegistryPort }
   caller?: ThreadId | undefined
+  cwd?: string | undefined
   pause?: ((args: { threadId: ThreadId; caller: ThreadId | undefined }) => Promise<void>) | undefined
   whenSettled?: (() => Promise<void>) | undefined
   onProgress?: ((note: string) => void) | undefined
@@ -103,6 +102,8 @@ export async function moveLocalPlacement(args: {
       target,
       kind: EPlacementMoveKind.Tools,
       work: async (transaction) => {
+        const cwd = args.cwd ?? (await derivedCwd({ control, threadId: owner, log: stores.log }))
+
         if (args.pause !== undefined) {
           args.onProgress?.('pausing the session’s agents')
           await args.pause({ threadId: owner, caller: args.caller })
@@ -121,12 +122,18 @@ export async function moveLocalPlacement(args: {
           await args.whenSettled()
         }
 
+        if (target === EExecutionLocation.Docker && cwd !== undefined) {
+          args.onProgress?.('anchoring the sandbox to the session’s directory')
+          await control.anchoring?.prepare({ cwd, threadId: owner })
+        }
+
         let moved: RelocatedSession
         try {
           moved = await relocateSession({
             threadId: owner,
             from: transaction.from,
             location: target,
+            cwd,
             caller: args.caller,
             log: stores.log,
             ids: args.ids,
@@ -160,6 +167,19 @@ export async function moveLocalPlacement(args: {
       reason: `the move to ${target} failed (${messageOf(error)}) — the session is back on ${from}`,
     }
   }
+}
+
+const derivedCwd = async (args: {
+  control: AnchoringControl
+  threadId: ThreadId
+  log: Parameters<typeof relocateSession>[0]['log']
+}): Promise<string | undefined> => {
+  if (args.control.anchoring === undefined) return undefined
+
+  return projectDirectoryOf({
+    events: await args.log.read({ threadId: args.threadId }),
+    launchDirectory: args.control.anchoring.launchDirectory,
+  })
 }
 
 const emptyMove: RelocatedSession = { stoppedServices: [], relocatedAgents: [], stillStopping: 0 }

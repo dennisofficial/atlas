@@ -18,6 +18,7 @@ import {
 
 import { InMemoryToolRegistry } from '../../../tools/registry'
 import type { PlacementController } from '../../../composition/placement-controller'
+import type { SessionOwner, SessionRuntime } from '../../../composition/session-owner'
 import { fakeAgentRegistry, type FakeAgents } from './fake-agents'
 import { fakeLedger } from './fake-backend'
 import { fakeServiceRegistry } from './fake-services'
@@ -30,9 +31,10 @@ import {
   type DescendLocalHome,
   type DescendProgressStep,
   type DestroySleeper,
-  type WorkspaceMerger,
+  type WorkspaceRestorer,
 } from '../descend'
 import { CLOUD_THREAD, fakeBridge, type FakeBridge, type FakeCloudChannel } from './fixture'
+import { fakeRestorer } from './workspace-fixture'
 
 const AT = '2026-09-17T12:00:00.000Z'
 export const CHILD = toThreadId('brn_child-1')
@@ -218,9 +220,9 @@ export const descend = (args: {
   surface?: Surface
   midTurn?: boolean
   pauseDeadlineMs?: number
-  mergeWorkspace?: WorkspaceMerger
+  restoreWorkspace?: WorkspaceRestorer
   logPort?: LogPort
-  placement?: PlacementController
+  placement?: PlacementController | SessionOwner<SessionRuntime>
   afterTranscriptLanded?: () => Promise<void>
   destroySleep?: DestroySleeper
 }): Promise<OpenedLocal> => {
@@ -237,7 +239,7 @@ export const descend = (args: {
     surface: surface.surface,
     ...(args.placement === undefined ? {} : { placement: args.placement }),
     ...(args.pauseDeadlineMs === undefined ? {} : { pauseDeadlineMs: args.pauseDeadlineMs }),
-    ...(args.mergeWorkspace === undefined ? {} : { mergeWorkspace: args.mergeWorkspace }),
+    restoreWorkspace: args.restoreWorkspace ?? fakeRestorer().restore,
     ...(args.logPort === undefined ? {} : { logPort: args.logPort }),
     ...(args.afterTranscriptLanded === undefined
       ? {}

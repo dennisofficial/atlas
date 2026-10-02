@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import type { ThreadId } from '@dltech/atlas-core'
+import type { PlacementRecord, ThreadId, WorkspaceIdentity } from '@dltech/atlas-core'
 
 import { extractSessionArchive } from '../session-archive'
 import { requireReadableIncomingFamily } from './descend-family'
@@ -22,6 +22,7 @@ export async function replaceSessionDirectoryGuarded(args: {
   sessionDir: string
   threadId: ThreadId
   tarCommand?: string | undefined
+  preserveOwnership?: { record: PlacementRecord; workspace: WorkspaceIdentity } | undefined
 }): Promise<void> {
   const scratch = await mkdtemp(join(tmpdir(), 'atlas-descend-check-'))
   const stagedDir = join(scratch, sessionDirectoryNameOf({ threadId: args.threadId }))
@@ -49,5 +50,6 @@ export async function replaceSessionDirectoryGuarded(args: {
     archive: args.archive,
     sessionDir: args.sessionDir,
     ...(args.tarCommand === undefined ? {} : { tarCommand: args.tarCommand }),
+    ...(args.preserveOwnership === undefined ? {} : { preserveOwnership: { threadId: args.threadId, ...args.preserveOwnership } }),
   })
 }

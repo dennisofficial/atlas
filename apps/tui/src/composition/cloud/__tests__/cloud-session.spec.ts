@@ -92,7 +92,7 @@ describe('what the operator is told about the socket', () => {
     channel.moveTo({ state: EChannelConnection.Closed, detail: null })
     await settled()
 
-    expect(session.health().connection.state).toBe(EChannelConnection.Reconnecting)
+    expect(session.health().connection.state).toBe(EChannelConnection.Waking)
     expect(session.health().sandbox).toBe(ECloudSandboxLifecycle.Running)
     expect(session.health().failure).toBeNull()
   })

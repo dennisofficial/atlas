@@ -93,10 +93,11 @@ describe('verified transcript ownership handoff', () => {
     }
     test.args.open = async () => {
       expect(verified).toBe(true)
-      expect(test.placement.of(CLOUD_THREAD)).toBe(EExecutionLocation.Cloud)
+      expect(test.placement.of(CLOUD_THREAD)).toBe(EExecutionLocation.Host)
     }
     const lifted = await liftToCloud(test.args)
     expect(lifted.ok).toBe(true)
     expect(verified).toBe(true)
+    expect(test.placement.of(CLOUD_THREAD)).toBe(EExecutionLocation.Cloud)
   })
 })

@@ -1,20 +1,21 @@
 import { readdir } from 'node:fs/promises'
 
-import { ENoticeTone, EExecutionLocation, type LogPort, type NoticePort, type ThreadId } from '@dltech/atlas-core'
+import { ENoticeTone, EExecutionLocation, type LogPort, type NoticePort, type PlacementRecord, type ThreadId } from '@dltech/atlas-core'
 
 import type { PlacementTransaction } from '../../composition/placement-controller'
 import { logFieldsOf } from '../../store/logs'
-import { EClientRequest, publishedWorkspaceWireSchema } from '../channel-wire'
-import { relocateSession } from '../../store/relocate-session'
-import { mergePublishedWorkspace, type MergedWorkspace } from '../../workspace/merge-published'
+import type { RestoredWorkspace } from '../../workspace/transfer/manifest'
+import type { WorkspaceRestoration } from '../../workspace/transfer/restore'
 import { atlasDirectory } from '../../store/paths'
 import { sessionDirectory } from '../../store/sessions/paths'
 import type { CloudBridge, CloudChannel } from './cloud-bridge'
-import { awaitPause, reannounceChildren, transferMemoryDown, transferTranscriptDown } from './descend-transfer'
+import { awaitPause, transferMemoryDown, transferTranscriptDown } from './descend-transfer'
+import { adoptTransferredChildren, activateTransferredChildren } from './adopt-transferred-children'
 import { ELiftStep } from './lift'
 import { flipChildrenBack } from './lift-children'
 import type { RelocationPlan } from './dag'
-import { descendedConflictsDraft, descendedSupersededDraft } from './transition-notice'
+import { restoreCloudWorkspace, type WorkspaceRestorer } from './descend-workspace'
+import { recordWorkspaceArrival } from './workspace-arrival'
 import {
   DESCEND_DESTROY_NOTICE_KEY,
   descendDestroyRetry,
@@ -23,7 +24,6 @@ import {
   type DescendProgressStep,
   type DescendSurface,
   type DestroySleeper,
-  type WorkspaceMerger,
 } from './descend'
 
 const messageOf = (error: unknown): string =>
@@ -31,7 +31,13 @@ const messageOf = (error: unknown): string =>
 
 const PAUSE_DEADLINE_MS = 30_000
 
-export type DescendRun = { pauseLanded: boolean }
+export type DescendRun = {
+  pauseLanded: boolean
+  pauseRequested: boolean
+  restored: RestoredWorkspace | undefined
+  restoration: WorkspaceRestoration | undefined
+  home: DescendLocalHome
+}
 
 export type DescendPlanArgs<Opened> = {
   threadId: ThreadId
@@ -44,22 +50,16 @@ export type DescendPlanArgs<Opened> = {
   notice: NoticePort
   progress: (step: DescendProgressStep) => void
   pauseDeadlineMs?: number | undefined
-  mergeWorkspace?: WorkspaceMerger | undefined
+  restoreWorkspace?: WorkspaceRestorer | undefined
   run: DescendRun
   setOpened: (opened: Opened) => void
   logPort?: LogPort | undefined
-  /** Present when a coordinator owns the move: the flip home is its commit, not a bare store write. */
   transaction?: PlacementTransaction | undefined
-  /** A test seam between the archive landing and the landed-state checks — live wiring never passes it. */
   afterTranscriptLanded?: (() => Promise<void>) | undefined
+  sourceRecord?: PlacementRecord | undefined
   destroySleep: DestroySleeper
 }
 
-/**
- * The §4 descend plan: the remote loops pause at the seam before anything is read for the trip
- * home, the flip of the local store is the single commit point, and everything after it (workspace
- * merge, reopen, sandbox teardown) is recovery-by-reopen territory rather than rollback.
- */
 export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPlan<undefined> {
   const { threadId, target, channel, localApp, progress } = args
   const sessionDir = sessionDirectory({ home: atlasDirectory(), sessionId: threadId })
@@ -69,13 +69,11 @@ export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPl
       id: 'pauseRemoteLoops',
       needs: [],
       run: async () => {
-        if (!args.midTurn) return
-        progress(ELiftStep.Interrupting)
+        if (args.midTurn) progress(ELiftStep.Interrupting)
+        const paused = awaitPause({ channel, deadlineMs: args.pauseDeadlineMs ?? PAUSE_DEADLINE_MS })
+        args.run.pauseRequested = true
         channel.pause()
-        const settled = await awaitPause({
-          channel,
-          deadlineMs: args.pauseDeadlineMs ?? PAUSE_DEADLINE_MS,
-        })
+        const settled = await paused
         if (!settled) throw new Error('the remote loops would not pause in time — nothing moved')
         args.run.pauseLanded = true
       },
@@ -84,7 +82,7 @@ export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPl
       id: 'archiveRemote',
       needs: ['pauseRemoteLoops'],
       run: async () => {
-        await transferTranscriptDown({ threadId, channel })
+        await transferTranscriptDown({ threadId, channel, preserveOwnership: args.sourceRecord === undefined ? undefined : { record: args.sourceRecord, workspace: localApp.workspace } })
         await localApp.log.refresh({ threadId })
       },
     },
@@ -101,7 +99,7 @@ export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPl
       run: async () => {
         progress(EDescendStep.Transferring)
         await (args.afterTranscriptLanded ?? (async () => undefined))()
-        await reannounceChildren({ threadId, threads: localApp.threads, log: localApp.log, ids: localApp.ids, logPort: args.logPort })
+        await adoptTransferredChildren({ agents: localApp.agents, threadId })
       },
     },
     {
@@ -125,7 +123,7 @@ export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPl
     },
     {
       id: 'flipHome',
-      needs: ['confirmLocal'],
+      needs: ['reopenLocal'],
       commit: true,
       run: async () => {
         progress(EDescendStep.Flipping)
@@ -134,62 +132,64 @@ export function descendPlan<Opened>(args: DescendPlanArgs<Opened>): RelocationPl
         } else {
           await args.transaction.commit()
         }
-        await flipChildrenBack({
-          threadId,
-          localThreads: localApp.threads,
-          agents: localApp.agents,
-          location: target,
-        })
       },
     },
     {
-      id: 'mergeWorkspace',
-      needs: ['flipHome'],
+      id: 'prepareWorkspace',
+      needs: ['confirmLocal'],
       run: async () => {
-        const merged = await mergeWorkspaceHome(args)
-        if (merged.conflicts.length === 0 && merged.superseded === undefined) return
-        await localApp.log.append({
+        args.run.restoration = await restoreCloudWorkspace({
           threadId,
-          runId: localApp.ids.nextRunId(),
-          drafts: [
-            ...(merged.conflicts.length > 0
-              ? [descendedConflictsDraft({ conflicts: merged.conflicts })]
-              : []),
-            ...(merged.superseded === undefined
-              ? []
-              : [descendedSupersededDraft({ superseded: merged.superseded })]),
-          ],
+          channel,
+          bridge: args.bridge,
+          destination: localApp.workspace.repo ?? localApp.workspace.workspace,
+          restore: args.restoreWorkspace,
+          logPort: args.logPort,
+          beforeRestore: async () => {
+            await transferTranscriptDown({ threadId, channel, preserveOwnership: args.sourceRecord === undefined ? undefined : { record: args.sourceRecord, workspace: localApp.workspace } })
+            await localApp.log.refresh({ threadId })
+            await adoptTransferredChildren({ agents: localApp.agents, threadId })
+          },
         })
+        args.run.restored = args.run.restoration.restored
+        args.run.home = {
+          ...localApp,
+          workspace: { workspace: args.run.restored.cwd, repo: args.run.restored.repository },
+        }
       },
     },
     {
       id: 'reopenLocal',
-      needs: ['mergeWorkspace'],
+      needs: ['prepareWorkspace'],
       run: async () => {
         progress(EDescendStep.Relocating)
-        await relocateSession({
-          threadId,
-          from: EExecutionLocation.Cloud,
-          location: target,
-          ...(target === EExecutionLocation.Host ? { cwd: localApp.workspace.workspace } : {}),
-          log: localApp.log,
-          ids: localApp.ids,
-          services: localApp.services,
-          agents: localApp.agents,
-        })
-        args.setOpened(await args.surface.openLocal(localApp, threadId))
+        if (args.run.restored !== undefined) {
+          await recordWorkspaceArrival({
+            threadId,
+            from: EExecutionLocation.Cloud,
+            to: target,
+            restored: args.run.restored,
+            launchDirectory: localApp.workspace.workspace,
+            log: localApp.log,
+            threads: localApp.threads,
+            ids: localApp.ids,
+          })
+          await adoptTransferredChildren({ agents: localApp.agents, threadId })
+        }
+        args.setOpened(await args.surface.openLocal(args.run.home, threadId))
       },
     },
     {
-      id: 'resumePaused',
-      needs: ['reopenLocal'],
+      id: 'activateChildren',
+      needs: ['flipHome'],
       run: async () => {
-        if (args.midTurn) channel.resume()
+        await flipChildrenBack({ threadId, localThreads: localApp.threads, agents: localApp.agents, location: target })
+        await activateTransferredChildren({ agents: localApp.agents, log: localApp.log, threadId })
       },
     },
     {
       id: 'destroySandbox',
-      needs: ['flipHome', 'archiveMemory', 'mergeWorkspace'],
+      needs: ['activateChildren'],
       run: async () => {
         void destroySandboxWithRetry(args).catch((error: unknown) => {
           args.logPort?.warn({
@@ -238,19 +238,4 @@ async function destroySandboxWithRetry<Opened>(args: DescendPlanArgs<Opened>): P
     }
   }
 }
-
-async function mergeWorkspaceHome<Opened>(args: DescendPlanArgs<Opened>): Promise<MergedWorkspace> {
-  const { channel, localApp } = args
-  const result = await channel.request({ op: EClientRequest.PublishWorkspace, params: {} })
-  const published = publishedWorkspaceWireSchema.parse(result)
-  if (published === null) return { conflicts: [] }
-  return (args.mergeWorkspace ?? mergePublishedWorkspace)({
-    cwd: localApp.workspace.workspace,
-    ref: published.ref,
-    base: published.base,
-    baseTree: published.baseTree ?? null,
-    branch: published.branch ?? null,
-  })
-}
-
 

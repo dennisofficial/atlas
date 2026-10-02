@@ -53,6 +53,7 @@ export abstract class AgentRegistryPort {
   }): Promise<void>
   abstract list(args: { threadId: ThreadId }): readonly AgentSnapshot[]
   abstract hydrate(args: { threadId: ThreadId }): Promise<void>
+  hydrateTransferred?(args: { threadId: ThreadId }): Promise<void>
   abstract whenChildrenSettled(args: { threadId: ThreadId }): Promise<void>
   settling?(): boolean
   abstract removeChildren(args: {

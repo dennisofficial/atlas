@@ -1,10 +1,3 @@
-import { EChannelConnection } from '@dltech/atlas-harness'
-
-import {
-  ECloudSandboxState,
-  type CloudConnection,
-  type CloudSandboxStatus,
-} from '@dltech/atlas-harness'
 import { ELiftFault, ELiftStep, type LiftFailure } from '@dltech/atlas-harness'
 
 export const CLOUD_LIFT_NOTICE_KEY = 'container-cloud'
@@ -59,29 +52,3 @@ const stillHere = (failure: LiftFailure): string => {
 export const liftFailedNotice = (failure: LiftFailure): string =>
   `${FAULT_HEAD[failure.fault]} — ${stillHere(failure)}. ${failure.detail}`
 
-/**
- * A stopped sandbox cannot say that it stopped, so a socket that will not come back is read against
- * the control plane rather than guessed at: parked is an ordinary resting state, and only a sandbox
- * the control plane has never heard of is a failure.
- */
-export const closedConnectionOf = (status: CloudSandboxStatus | undefined): CloudConnection => {
-  if (status === undefined) {
-    return {
-      state: EChannelConnection.Closed,
-      detail: 'the control plane has no sandbox for this conversation',
-    }
-  }
-
-  if (status.state === ECloudSandboxState.Parked) {
-    return { state: EChannelConnection.Parked, detail: null }
-  }
-
-  if (status.state === ECloudSandboxState.Resuming) {
-    return { state: EChannelConnection.Reconnecting, detail: 'the sandbox is resuming' }
-  }
-
-  return {
-    state: EChannelConnection.Closed,
-    detail: 'the control plane says the sandbox is running, but it is not answering',
-  }
-}
