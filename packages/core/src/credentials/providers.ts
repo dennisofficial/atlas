@@ -1,6 +1,7 @@
 import { EAuthKind, EAuthProvider } from './account'
 
 export enum ELoginFlow {
+  BrowserCode = 'browser-code',
   PastedCode = 'pasted-code',
   DeviceCode = 'device-code',
   ApiKey = 'api-key',
@@ -20,7 +21,7 @@ export const PROVIDER_SPECS: readonly ProviderSpec[] = [
     provider: EAuthProvider.Anthropic,
     label: 'Anthropic',
     kinds: [EAuthKind.Oauth, EAuthKind.ApiKey],
-    logins: [ELoginFlow.PastedCode, ELoginFlow.ApiKey],
+    logins: [ELoginFlow.BrowserCode, ELoginFlow.PastedCode, ELoginFlow.ApiKey],
     apiKeyVariable: 'ANTHROPIC_API_KEY',
     reachable: true,
   },
@@ -28,7 +29,7 @@ export const PROVIDER_SPECS: readonly ProviderSpec[] = [
     provider: EAuthProvider.OpenAI,
     label: 'OpenAI',
     kinds: [EAuthKind.Oauth, EAuthKind.ApiKey],
-    logins: [ELoginFlow.DeviceCode, ELoginFlow.ApiKey],
+    logins: [ELoginFlow.BrowserCode, ELoginFlow.DeviceCode, ELoginFlow.ApiKey],
     apiKeyVariable: 'OPENAI_API_KEY',
     reachable: true,
   },

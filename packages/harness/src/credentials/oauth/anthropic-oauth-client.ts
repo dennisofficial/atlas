@@ -2,11 +2,16 @@ import { createHash, randomBytes } from 'node:crypto'
 
 import type { ClockPort, OauthTokens } from '@dltech/atlas-core'
 
+import { AnthropicLoopbackServer, type AnthropicLoopback } from './anthropic-loopback'
+import type { BrowserLoginClient, BrowserLoginSession } from './browser-login'
 import { OauthHttpError, OauthResponseError } from './oauth-error'
 
-// Claude.ai subscription OAuth: authorization code + PKCE (S256) with manual paste-back. Anthropic
-// hosts a callback page that only displays `code#state`, so no local listening port is needed. The
-// client id and URLs are public values carried by the Claude Code binary.
+// Claude.ai subscription OAuth: authorization code + PKCE (S256). The primary login is Claude
+// Code's own loopback flow — the browser is sent back to a local listener and the exchange posts
+// the verifier — and manual paste-back (Anthropic's hosted callback page displays `code#state`)
+// stays as the headless fallback. The client id and URLs are public values carried by the Claude
+// Code binary (2.1.287); the loopback parameters were verified end-to-end against a real account
+// in the 2026-10-02 spike.
 const AUTHORIZE_URL = 'https://claude.com/cai/oauth/authorize'
 const TOKEN_URL = 'https://platform.claude.com/v1/oauth/token'
 const CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e'
@@ -30,13 +35,50 @@ const base64url = (bytes: Buffer): string => bytes.toString('base64url')
 const stringOr = (value: unknown): string | undefined =>
   typeof value === 'string' && value.length > 0 ? value : undefined
 
-export class AnthropicOauthClient {
+export class AnthropicOauthClient implements BrowserLoginClient {
   private readonly clock: ClockPort
   private readonly fetch: TokenFetch
+  private readonly loopback: () => AnthropicLoopback
 
-  constructor(args: { clock: ClockPort; fetch?: TokenFetch }) {
+  constructor(args: { clock: ClockPort; fetch?: TokenFetch; loopback?: () => AnthropicLoopback }) {
     this.clock = args.clock
     this.fetch = args.fetch ?? globalThis.fetch
+    this.loopback = args.loopback ?? (() => new AnthropicLoopbackServer())
+  }
+
+  async startBrowserLogin(): Promise<BrowserLoginSession> {
+    const server = this.loopback()
+    const { redirectUri } = await server.listen()
+    const pkce = this.generatePkce()
+    const url = this.authorizeBrowserUrl({ pkce, redirectUri })
+
+    let cancelled = false
+    const login = server
+      .waitForCallback({ state: pkce.state })
+      .then(async ({ code }) => {
+        const exchanged = await this.exchangeBrowserCode({
+          code,
+          pkce,
+          redirectUri,
+        })
+        if (cancelled) throw new Error('sign-in cancelled')
+
+        return exchanged
+      })
+      .catch((error: unknown) => {
+        if (cancelled) throw new Error('sign-in cancelled')
+        throw error
+      })
+      .finally(() => server.close())
+
+    return {
+      url,
+      login,
+      cancel: async () => {
+        cancelled = true
+        await server.close()
+      },
+    }
   }
 
   generatePkce(): Pkce {
@@ -61,6 +103,32 @@ export class AnthropicOauthClient {
     url.searchParams.set('code', 'true')
 
     return url.toString()
+  }
+
+  // The loopback authorize request omits the `code=true` the paste-back flow sends — that param is
+  // what asks Anthropic for the manual code page (Claude Code 2.1.287; spike, 2026-10-02).
+  authorizeBrowserUrl(args: { pkce: Pkce; redirectUri: string }): string {
+    const url = new URL(AUTHORIZE_URL)
+    url.searchParams.set('client_id', CLIENT_ID)
+    url.searchParams.set('response_type', 'code')
+    url.searchParams.set('redirect_uri', args.redirectUri)
+    url.searchParams.set('scope', SCOPES)
+    url.searchParams.set('code_challenge', args.pkce.challenge)
+    url.searchParams.set('code_challenge_method', 'S256')
+    url.searchParams.set('state', args.pkce.state)
+
+    return url.toString()
+  }
+
+  exchangeBrowserCode(args: { code: string; pkce: Pkce; redirectUri: string }): Promise<OauthLogin> {
+    return this.post({
+      grant_type: 'authorization_code',
+      code: args.code,
+      state: args.pkce.state,
+      redirect_uri: args.redirectUri,
+      client_id: CLIENT_ID,
+      code_verifier: args.pkce.verifier,
+    })
   }
 
   /** The operator pastes `code#state`; the fragment is a tamper check, not part of the code. */

@@ -2,24 +2,12 @@ import { describe, expect, it } from 'bun:test'
 
 import { ENoticeTone, type ThreadId } from '@dltech/atlas-core'
 
-import { EClientRequest } from '../../channel-wire'
 import type { RetryPolicy } from '../../retry-policy'
-import { CLOUD_THREAD, fakeBridge, type FakeBridge, type FakeCloudChannel } from './fixture'
+import { CLOUD_THREAD, fakeBridge } from './fixture'
 import { cloudArchiveOf, descend, fakeSurface, useDescendHome } from './descend-fixture'
+import { RESTORED_HOME } from './workspace-fixture'
 
 const said = (text: string) => ({ type: 'user-said' as const, text })
-
-const publishingChannel = (args: { bridge: FakeBridge }): FakeCloudChannel => {
-  const channel = args.bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
-  const served = channel.request.bind(channel)
-  channel.request = async (given) => {
-    if (given.op === EClientRequest.PublishWorkspace) {
-      return { ref: 'refs/atlas/descend/cloud', commit: 'abcdef', base: null, baseTree: null, branch: null }
-    }
-    return served(given)
-  }
-  return channel
-}
 
 const flakyDestroyBridge = (args: { archive: string | undefined; failures: number }) => {
   const bridge = fakeBridge({ archive: args.archive })
@@ -63,28 +51,31 @@ const manualSleeper = () => {
 }
 
 describe('descend sandbox teardown', () => {
-  it('tears the sandbox down only after the workspace merge has settled', async () => {
+  it('tears the sandbox down only after the workspace restore has settled', async () => {
     const home = useDescendHome()
     const bridge = fakeBridge({ archive: await cloudArchiveOf([{ drafts: [said('one')] }]) })
     const order: string[] = []
+    const destroy = bridge.sandboxes.destroy.bind(bridge.sandboxes)
+    bridge.sandboxes.destroy = async (given) => {
+      order.push('destroy')
+      return destroy(given)
+    }
 
     await descend({
       bridge,
       home,
-      channel: publishingChannel({ bridge }),
-      mergeWorkspace: async () => {
-        order.push('merge')
-        return { conflicts: [] }
+      restoreWorkspace: async () => {
+        order.push('restore')
+        return RESTORED_HOME
       },
     })
     order.push('returned')
 
-    expect(order).toEqual(['merge', 'returned'])
+    expect(order.slice(0, 2)).toEqual(['restore', 'destroy'])
     expect(bridge.destroyed).toEqual([CLOUD_THREAD])
-    expect(bridge.trail.indexOf('destroy')).toBeGreaterThan(-1)
   })
 
-  it('fails the descend rather than destroying the sandbox when the merge throws', async () => {
+  it('fails the descend rather than destroying the sandbox when the restore throws', async () => {
     const home = useDescendHome()
     const bridge = fakeBridge({ archive: await cloudArchiveOf([{ drafts: [said('one')] }]) })
 
@@ -92,12 +83,11 @@ describe('descend sandbox teardown', () => {
       descend({
         bridge,
         home,
-        channel: publishingChannel({ bridge }),
-        mergeWorkspace: async () => {
-          throw new Error('the merge blew up')
+        restoreWorkspace: async () => {
+          throw new Error('the restore blew up')
         },
       }),
-    ).rejects.toThrow('the merge blew up')
+    ).rejects.toThrow('the restore blew up')
 
     expect(bridge.destroyed).toEqual([])
   })

@@ -1,5 +1,6 @@
 import {
   EExecutionLocation,
+  ENoticeTone,
   type EventLogPort,
   type IdPort,
   type LogPort,
@@ -10,11 +11,14 @@ import {
 
 import type { AgentRegistryPort } from '../../agents/registry/port'
 import { EPlacementMoveKind, type PlacementController, type PlacementTransaction } from '../../composition/placement-controller'
+import type { OwnerTransaction, RuntimeBinding, SessionOwner, SessionRuntime } from '../../composition/session-owner'
 import type { ServiceRegistryPort } from '../../services/service-registry'
 import type { ToolRegistry } from '../../tools/registry'
 import type { ThreadStorePort } from '../../store/thread-store'
 import type { TurnLedgerPort } from '../../ledger/turn-ledger.port'
-import type { MergedWorkspace } from '../../workspace/merge-published'
+import type { WorkspaceRestorer } from './descend-workspace'
+import { preserveDescendSource } from './descend-recovery'
+import { logFieldsOf } from '../../store/logs'
 import type { CloudBridge, CloudChannel } from './cloud-bridge'
 import { retrySleep, type RetryPolicy } from '../retry-policy'
 import { ELiftStep } from './lift'
@@ -40,11 +44,6 @@ const NO_PROTECTION = (): void => undefined
 
 const nullNotice: NoticePort = { notify: () => undefined }
 
-/**
- * The ports on the side the conversation is coming home to, cut down to what the descend touches.
- * `services` and `agents` come from the target session's own registry ports; `tools`/`ledger`
- * are carried so the surface can reopen the conversation from the same bag it handed in.
- */
 export type DescendLocalHome = {
   threads: ThreadStorePort
   log: EventLogPort
@@ -56,27 +55,16 @@ export type DescendLocalHome = {
   tools: ToolRegistry
 }
 
-/**
- * The surface's part of a descend: progress steps, operator notices, and the reopen. A session
- * that came home without its local half being reopened is half a descend, so `openLocal` is
- * required and its failure fails the move; `protect` is the surface's chance to hold the session
- * in place (the TUI dims it under the move overlay) from the first step until the descend returns.
- */
 export type DescendSurface<Opened> = {
   notice: NoticePort
   onBegin?: ((args: { plan: readonly DescendProgressStep[] }) => void) | undefined
   onProgress?: ((step: DescendProgressStep) => void) | undefined
   protect?: (() => () => void) | undefined
   openLocal: (home: DescendLocalHome, threadId: ThreadId) => Promise<Opened>
+  prepareRuntime?: ((args: { opened: Opened; home: DescendLocalHome }) => RuntimeBinding<SessionRuntime>) | undefined
 }
 
-export type WorkspaceMerger = (args: {
-  cwd: string
-  ref: string
-  base: string | null
-  baseTree: string | null
-  branch: string | null
-}) => Promise<MergedWorkspace>
+export type { WorkspaceRestorer } from './descend-workspace'
 
 type DescendArgs<Opened> = {
   threadId: ThreadId
@@ -87,13 +75,13 @@ type DescendArgs<Opened> = {
   localApp: DescendLocalHome
   surface: DescendSurface<Opened>
   pauseDeadlineMs?: number | undefined
-  mergeWorkspace?: WorkspaceMerger | undefined
+  restoreWorkspace?: WorkspaceRestorer | undefined
   logPort?: LogPort | undefined
   /**
    * The coordinator the flip home commits through. Live wiring always passes it; a harness-level
    * spec without one keeps the bare store flip so the relocation mechanics stay exercisable alone.
    */
-  placement?: PlacementController | undefined
+  placement?: PlacementController | SessionOwner<SessionRuntime> | undefined
   /** A test seam between the archive landing and the landed-state checks — live wiring never passes it. */
   afterTranscriptLanded?: (() => Promise<void>) | undefined
   /** The teardown retry's clock — a spec passes a sleeper that never waits real time. */
@@ -102,7 +90,7 @@ type DescendArgs<Opened> = {
 
 async function runDescend<Opened>(
   args: DescendArgs<Opened>,
-  transaction: PlacementTransaction | undefined,
+  transaction: PlacementTransaction | OwnerTransaction<SessionRuntime> | undefined,
 ): Promise<Opened> {
   const { threadId, target, bridge, channel, localApp, surface } = args
   const notice = surface.notice ?? nullNotice
@@ -116,7 +104,8 @@ async function runDescend<Opened>(
   const release = surface.protect === undefined ? NO_PROTECTION : surface.protect()
 
   let opened: Opened | undefined
-  const run: DescendRun = { pauseLanded: false }
+  const recovery = await preserveDescendSource({ threadId })
+  const run: DescendRun = { pauseLanded: false, pauseRequested: false, restored: undefined, restoration: undefined, home: localApp }
   const result = await runRelocation({
     plan: descendPlan<Opened>({
       threadId,
@@ -129,18 +118,23 @@ async function runDescend<Opened>(
       notice,
       progress,
       pauseDeadlineMs: args.pauseDeadlineMs,
-      mergeWorkspace: args.mergeWorkspace,
+      restoreWorkspace: args.restoreWorkspace,
       run,
       setOpened: (value) => {
         opened = value
+        if (transaction !== undefined && 'prepareRuntime' in transaction) {
+          transaction.prepareRuntime(surface.prepareRuntime?.({ opened: value, home: run.home }))
+        }
       },
       logPort: args.logPort,
       transaction,
       afterTranscriptLanded: args.afterTranscriptLanded,
+      sourceRecord: args.placement === undefined ? undefined : ('placement' in args.placement ? args.placement.placement : args.placement).snapshot(threadId),
       destroySleep: args.destroySleep ?? retrySleep,
     }),
     ctx: undefined,
     onStep: () => undefined,
+    isCommitted: transaction?.committed,
     log:
       args.logPort === undefined
         ? undefined
@@ -148,25 +142,43 @@ async function runDescend<Opened>(
   })
 
   release()
+  if (result.ok || result.phase === 'committed') {
+    await run.restoration?.commit().catch((error: unknown) => {
+      notice.notify({ key: 'descend-workspace-cleanup', tone: ENoticeTone.Warn, ttlMs: null, text: `The workspace arrived, but its recovery files could not be removed: ${relocationMessageOf(error)}` })
+    })
+  }
   if (!result.ok) {
-    if (result.phase === 'pre-commit' && run.pauseLanded) channel.resume()
+    if (result.phase === 'committed' && opened !== undefined) {
+      await recovery.complete().catch((error: unknown) => {
+        args.logPort?.warn({ source: 'cloud.descend', threadId, message: 'the completed transcript recovery copy could not be removed', ...logFieldsOf({ error }) })
+      })
+      notice.notify({
+        key: 'descend-cleanup-pending',
+        tone: ENoticeTone.Warn,
+        ttlMs: null,
+        text: `This conversation is on ${target}, but relocation cleanup is incomplete: ${relocationMessageOf(result.error)}. The source sandbox has been retained.`,
+      })
+      return opened
+    }
+    if (result.phase === 'pre-commit') {
+      const failures: unknown[] = []
+      await run.restoration?.rollback().catch((error: unknown) => { failures.push(error) })
+      await recovery.restore().catch((error: unknown) => { failures.push(error) })
+      await localApp.log.refresh({ threadId })
+      if (run.pauseRequested) channel.resume()
+      if (failures.length > 0) throw new AggregateError([result.error, ...failures], `The handoff failed and recovery was incomplete. Both copies are retained under ${recovery.directory}.`)
+    }
     throw result.error instanceof Error ? result.error : new Error(relocationMessageOf(result.error))
   }
   if (opened === undefined) {
     throw new Error('the descend finished without reopening the conversation locally')
   }
+  await recovery.complete().catch((error: unknown) => {
+    args.logPort?.warn({ source: 'cloud.descend', threadId, message: 'the completed transcript recovery copy could not be removed', ...logFieldsOf({ error }) })
+  })
   return opened
 }
 
-/**
- * Bringing a cloud conversation home: pause the remote loops at a resumable seam, move the log's
- * home back (the cloud tail the local store missed, then the relocation marker into the local
- * log), flip the local store, merge the published workspace, and hand back the locally-reopened
- * conversation. Any failure before the flip leaves the cloud session attached and the conversation
- * exactly where it was; a failure after the flip is recovered by reopening, never by flipping back.
- * With a coordinator bound, the flip is its transaction commit, so a post-commit failure leaves a
- * committed move on the record — the session is home even when the reopen is what failed.
- */
 export async function descendFromCloud<Opened>(args: DescendArgs<Opened>): Promise<Opened> {
   const { placement } = args
   if (placement === undefined) return runDescend(args, undefined)

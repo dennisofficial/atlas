@@ -27,15 +27,12 @@ const handleSignal = (signal: string) => {
   closing = true
 
   process.stderr.write(`${JSON.stringify({ event: 'serve.stopping', signal })}\n`)
-  void serve.close().then(() => process.exit(0))
+  void serve.close({ reason: signal }).then(() => process.exit(0))
 }
 
 process.on('SIGTERM', () => handleSignal('SIGTERM'))
 process.on('SIGINT', () => handleSignal('SIGINT'))
 
-// The serve runs detached and unsupervised in the sandbox: a crash that only prints to a dead
-// stdout is indistinguishable from a hang. Exit loud into the serve log so the next attach and
-// the log tail can say what killed it.
 process.on('unhandledRejection', (reason: unknown) => {
   logCrash({ event: 'serve.unhandled-rejection', error: reason })
   process.exit(FATAL)

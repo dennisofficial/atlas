@@ -22,9 +22,11 @@ function serviceWith(args: {
   tokens?: Record<string, string>
   createHook?: (call: { repo: string }) => Promise<CreateHookResult>
   deleteHook?: () => Promise<'deleted' | 'unauthorized'>
-}): { service: GithubHookLifecycleService; created: string[]; deleted: string[] } {
+  getHook?: () => Promise<'found' | 'missing' | 'unauthorized'>
+}): { service: GithubHookLifecycleService; created: string[]; deleted: string[]; verified: string[] } {
   const created: string[] = []
   const deleted: string[] = []
+  const verified: string[] = []
   const github = {
     findToken: async ({ userId }: { userId: string }) => args.tokens?.[userId],
   } as unknown as GithubService
@@ -39,8 +41,17 @@ function serviceWith(args: {
       deleted.push('deleted')
       return (args.deleteHook ?? (async () => 'deleted' as const))()
     },
+    getHook: async (call: { repo: string }) => {
+      verified.push(call.repo)
+      return (args.getHook ?? (async () => 'found' as const))()
+    },
   } as unknown as GithubUserReads
-  return { service: new GithubHookLifecycleService(github, reads, CIPHER, ENV), created, deleted }
+  return {
+    service: new GithubHookLifecycleService(github, reads, CIPHER, ENV),
+    created,
+    deleted,
+    verified,
+  }
 }
 
 function seedHook(overrides: Partial<(typeof fake.repoHooks)[number]> = {}): void {
@@ -77,14 +88,71 @@ describe('GithubHookLifecycleService', () => {
     expect(fake.repoHooks[0]?.secret.startsWith('sealed:')).toBe(true)
   })
 
-  it('reuses the existing hook row on later subscribes', async () => {
-    const { service, created } = serviceWith({ tokens: { 'usr_2': 'ghu_2' } })
+  it('reuses the existing hook row on later subscribes when github still has it', async () => {
+    const { service, created, verified } = serviceWith({ tokens: { 'usr_2': 'ghu_2' } })
     seedHook()
 
     const result = await service.ensureHook({ userId: 'usr_2', repoFullName: 'compai/app' })
 
     expect(result).toBe('existing')
     expect(created).toHaveLength(0)
+    expect(verified).toEqual(['app'])
+  })
+
+  it('recreates the hook when github no longer has it', async () => {
+    const { service, created } = serviceWith({
+      tokens: { 'usr_2': 'ghu_2' },
+      getHook: async () => 'missing',
+    })
+    seedHook()
+
+    const result = await service.ensureHook({ userId: 'usr_2', repoFullName: 'compai/app' })
+
+    expect(result).toBe('created')
+    expect(created).toEqual(['app'])
+    expect(fake.repoHooks[0]).toMatchObject({
+      hookId: 555n,
+      createdBy: 'usr_2',
+      status: 'active',
+    })
+  })
+
+  it('trusts the row when the verify token cannot read the hook', async () => {
+    const { service, created } = serviceWith({
+      tokens: { 'usr_2': 'ghu_2' },
+      getHook: async () => 'unauthorized',
+    })
+    seedHook()
+
+    const result = await service.ensureHook({ userId: 'usr_2', repoFullName: 'compai/app' })
+
+    expect(result).toBe('existing')
+    expect(created).toHaveLength(0)
+  })
+
+  it('trusts the row when the verify call fails outright', async () => {
+    const { service, created } = serviceWith({
+      tokens: { 'usr_2': 'ghu_2' },
+      getHook: async () => {
+        throw new Error('github is down')
+      },
+    })
+    seedHook()
+
+    const result = await service.ensureHook({ userId: 'usr_2', repoFullName: 'compai/app' })
+
+    expect(result).toBe('existing')
+    expect(created).toHaveLength(0)
+  })
+
+  it('memoizes the verify for a few minutes instead of hammering github on every resubscribe', async () => {
+    const { service, verified } = serviceWith({ tokens: { 'usr_2': 'ghu_2' } })
+    seedHook()
+
+    await service.ensureHook({ userId: 'usr_2', repoFullName: 'compai/app' })
+    await service.ensureHook({ userId: 'usr_2', repoFullName: 'compai/app' })
+
+    expect(verified).toEqual(['app'])
   })
 
   it('adopts a hook github already has (422) instead of failing', async () => {

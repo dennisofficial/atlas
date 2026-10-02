@@ -1,8 +1,6 @@
 import {
   EKilledBy,
   NoopExecutionLocationSink,
-  parseRef,
-  type ClockPort,
   type EExecutionLocation,
   type EventLogPort,
   type ExecutionLocationSinkPort,
@@ -11,7 +9,6 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import type { ThreadStorePort } from '../../store'
 import type { InputBatch } from '../../intake/input-batch'
 import type { AgentType } from '../types'
 import { ChildSteps } from './child-steps'
@@ -20,6 +17,7 @@ import { snapshotOf, type ChildState } from './child-state'
 import { NoticeDelivery, type NoticeDrain } from './delivery'
 import { AgentNoticeQueue } from './notices'
 import { NoticeWake } from './notice-wake'
+import { followAgentModels } from './model-follow'
 import { forgetRemovedChildren } from './remove-children'
 import { AgentRegistryPort, type AgentOutcome, type RelocateChildrenArgs } from './port'
 import { ChildRecovery } from './recovery'
@@ -40,16 +38,13 @@ import { stopAllChildren, stopChild } from './stop-all'
 
 export class AgentSupervisor extends AgentRegistryPort {
   private readonly log: EventLogPort
-  private readonly threads: ThreadStorePort
   private readonly ids: IdPort
-  private readonly clock: ClockPort
   private readonly agentTypes: readonly AgentType[]
   private readonly roster = new AgentRoster()
   private readonly notices = new AgentNoticeQueue()
   private readonly delivery: NoticeDelivery
   private readonly steps: ChildSteps
   private readonly recovery: ChildRecovery
-  private readonly launchDirectory: string
   private readonly sink: ExecutionLocationSinkPort
   private readonly deps: SupervisorDeps
   private readonly relocation: Relocation
@@ -60,11 +55,8 @@ export class AgentSupervisor extends AgentRegistryPort {
     super()
     this.deps = args
     this.log = args.log
-    this.threads = args.threads
     this.ids = args.ids
-    this.clock = args.clock
     this.agentTypes = args.agentTypes
-    this.launchDirectory = args.launchDirectory
     this.sink = args.sink ?? new NoopExecutionLocationSink()
     this.steps = new ChildSteps({
       runners: args.runners,
@@ -98,6 +90,8 @@ export class AgentSupervisor extends AgentRegistryPort {
       ids: args.ids,
       clock: args.clock,
       roster: this.roster,
+      notices: this.notices,
+      launchDirectory: args.launchDirectory,
     })
     this.relocation = {
       deps: args,
@@ -108,23 +102,7 @@ export class AgentSupervisor extends AgentRegistryPort {
       delivery: this.delivery,
     }
 
-    /**
-     * A deliberate retarget of a child's model reaches the store, but the roster's snapshot is what
-     * every surface reads — it would keep showing the spawn-time model until the child's next turn
-     * re-noted it. Following the store keeps the sidebar, the footer and the roster itself in step
-     * with the pick the operator just made.
-     */
-    this.threads.onModelChosen(({ threadId: chosenId, model }) => {
-      const child = this.roster.find(chosenId)
-      if (child === undefined) return
-
-      const ref = parseRef(model.ref)
-      if (ref === undefined) return
-      if (child.model?.id === ref.providerId && child.model.modelId === ref.modelId) return
-
-      child.model = { id: ref.providerId, modelId: ref.modelId }
-      this.roster.changed()
-    })
+    followAgentModels({ threads: args.threads, roster: this.roster })
   }
 
   types(): readonly AgentType[] {
@@ -260,8 +238,23 @@ export class AgentSupervisor extends AgentRegistryPort {
     return this.recovery.hydrate({ threadId })
   }
 
+  override async hydrateTransferred({ threadId }: { threadId: ThreadId }): Promise<void> {
+    const owners = await this.recovery.hydrateTransferred({ threadId })
+    for (const owner of owners) {
+      this.notices.forgetAgents({ threadId: owner.threadId, agentIds: owner.agentIds })
+    }
+  }
+
   whenChildrenSettled({ threadId }: { threadId: ThreadId }): Promise<void> {
     return this.steps.whenSettled({ threadId })
+  }
+
+  override settling(): boolean {
+    return this.steps.settling()
+  }
+
+  override onSettled(listener: () => void): () => void {
+    return this.steps.onSettled(listener)
   }
 
   recordLostAgents({ threadId }: { threadId: ThreadId }): Promise<RecoveredAgents> {

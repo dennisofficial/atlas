@@ -8,8 +8,10 @@ import {
 } from '@dltech/atlas-core'
 
 import type { PlacementTransaction } from '../../composition/placement-controller'
+import type { OwnerTransaction, SessionRuntime } from '../../composition/session-owner'
 import { buildSessionArchive } from '../session-archive'
-import { EClientRequest } from '../channel-wire'
+import { activateSessionReplySchema, applyWorkspaceArchiveReplySchema, EClientRequest } from '../channel-wire'
+import type { RestoredWorkspace } from '../../workspace/transfer/manifest'
 import { logFieldsOf } from '../../store/logs'
 import { atlasDirectory } from '../../store/paths'
 import { sessionDirectory } from '../../store/sessions/paths'
@@ -20,6 +22,7 @@ import type { RelocationPlan } from './dag'
 import { flipChildrenToCloud } from './lift-children'
 import { ELiftStep, type LiftArgs } from './lift'
 import { liftedDraft, type StoppedLocally } from './transition-notice'
+import { captureLiftWorkspace, type LiftWorkspaceArchive } from './lift-workspace'
 
 export enum ELiftNode {
   CaptureWorkspace = 'captureWorkspace',
@@ -32,6 +35,7 @@ export enum ELiftNode {
   Restore = 'restore',
   FlipOwnership = 'flipOwnership',
   Attach = 'attach',
+  ActivateFamily = 'activateFamily',
   ResumePaused = 'resumePaused',
 }
 
@@ -39,9 +43,11 @@ export type LiftCtx = {
   args: LiftArgs
   onProgress: (step: ELiftStep) => void
   logPort?: LogPort | undefined
-  transaction: PlacementTransaction
+  transaction: PlacementTransaction | OwnerTransaction<SessionRuntime>
   from: EExecutionLocation
   workspace: LiftedWorkspace | null
+  workspaceArchive: LiftWorkspaceArchive | undefined
+  restoredWorkspace: RestoredWorkspace | undefined
   gpgKey: string | undefined
   transcript: Uint8Array | undefined
   sandbox: CloudSandbox | undefined
@@ -50,6 +56,7 @@ export type LiftCtx = {
   expected: Map<ThreadId, readonly Event[]>
   contextError: unknown
   stopped: StoppedLocally
+  pausedChildren: readonly ThreadId[]
 }
 
 /**
@@ -84,10 +91,11 @@ const appendRelocationNotice = async (ctx: LiftCtx): Promise<void> => {
 export const liftPlan = (): RelocationPlan<LiftCtx> => [
   {
     id: ELiftNode.CaptureWorkspace,
-    needs: [],
+    needs: [ELiftNode.PauseLoops],
     run: async (ctx) => {
-      ctx.workspace = await ctx.args.capture({ cwd: ctx.args.cwd })
       ctx.onProgress(ELiftStep.Capturing)
+      ctx.workspace = await ctx.args.capture({ cwd: ctx.args.cwd })
+      ctx.workspaceArchive = await (ctx.args.captureWorkspaceArchive ?? captureLiftWorkspace)({ cwd: ctx.args.cwd })
     },
   },
   {
@@ -114,7 +122,7 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
     run: async (ctx) => {
       ctx.onProgress(ELiftStep.Stopping)
       ctx.stopped = await ctx.args.stopLocal()
-      await ctx.args.agents.pauseChildren({ threadId: ctx.args.threadId })
+      ctx.pausedChildren = await ctx.args.agents.pauseChildren({ threadId: ctx.args.threadId })
       ctx.args.agents.forgetNotices({ threadId: ctx.args.threadId })
     },
   },
@@ -155,6 +163,7 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
       ctx.sandbox = await ctx.args.bridge.sandboxes.create({
         threadId: ctx.args.threadId,
         workspace: ctx.workspace,
+        ...(ctx.workspaceArchive === undefined ? {} : { workspaceArchivePath: ctx.workspaceArchive.path }),
         model: ctx.args.model.ref,
         ...(ctx.transcript === undefined ? {} : { transcript: ctx.transcript }),
         ...(ctx.gpgKey === undefined ? {} : { gpgKey: ctx.gpgKey }),
@@ -196,6 +205,13 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
       const attachment = ctx.args.bridge.attach({ threadId: ctx.args.threadId, url: sandbox.url, token: sandbox.token })
       ctx.attachment = attachment
       ctx.channel = attachment.channel
+      if (ctx.workspaceArchive !== undefined) {
+        const applied = applyWorkspaceArchiveReplySchema.parse(await attachment.channel.request({
+          op: EClientRequest.ApplyWorkspaceArchive,
+          params: {},
+        }))
+        ctx.restoredWorkspace = applied.restored
+      }
       if (ctx.transcript !== undefined) {
         const reply = await attachment.channel.request({
           op: EClientRequest.RestoreTranscript,
@@ -203,7 +219,7 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
             locationChanged: {
               from: ctx.from,
               to: EExecutionLocation.Cloud,
-              cwd: CLOUD_WORKSPACE_PATH,
+              cwd: ctx.restoredWorkspace?.cwd ?? CLOUD_WORKSPACE_PATH,
               remoteUrl: ctx.workspace?.remoteUrl ?? null,
               branch: ctx.workspace?.branch ?? null,
             },
@@ -218,17 +234,34 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
   },
   {
     id: ELiftNode.FlipOwnership,
-    needs: [ELiftNode.Restore],
+    needs: [ELiftNode.Attach],
     commit: true,
     run: async (ctx) => {
-      const { args } = ctx
+      ctx.onProgress(ELiftStep.Flipping)
       await ctx.transaction.commit({
         harness: EHarnessPlacement.Cloud,
         driveName: ctx.sandbox?.driveName,
       })
-      if (args.started && args.title !== null) {
-        await args.localThreads.rename({ threadId: args.threadId, title: args.title })
+    },
+  },
+  {
+    id: ELiftNode.Attach,
+    needs: [ELiftNode.Restore],
+    run: async (ctx) => {
+      if (ctx.attachment === undefined) throw new Error('the verified cloud attachment is missing')
+      await ctx.args.open?.({ attachment: ctx.attachment, transaction: ctx.transaction, restoredWorkspace: ctx.restoredWorkspace })
+    },
+  },
+  {
+    id: ELiftNode.ActivateFamily,
+    needs: [ELiftNode.FlipOwnership],
+    run: async (ctx) => {
+      if (ctx.workspaceArchive !== undefined) {
+        const activated = activateSessionReplySchema.parse(await ctx.channel?.request({ op: EClientRequest.ActivateSession, params: {} }))
+        if (!activated.activated) throw new Error('the prepared cloud runtime could not be activated after ownership committed')
       }
+      const { args } = ctx
+      if (args.started && args.title !== null) await args.localThreads.rename({ threadId: args.threadId, title: args.title })
       await flipChildrenToCloud({
         threadId: args.threadId,
         ids: args.ids,
@@ -237,20 +270,11 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
         localLog: args.localLog,
         logPort: ctx.logPort,
       })
-      ctx.onProgress(ELiftStep.Flipping)
-    },
-  },
-  {
-    id: ELiftNode.Attach,
-    needs: [ELiftNode.FlipOwnership],
-    run: async (ctx) => {
-      if (ctx.attachment === undefined) throw new Error('the verified cloud attachment is missing')
-      await ctx.args.open?.(ctx.attachment)
     },
   },
   {
     id: ELiftNode.ResumePaused,
-    needs: [ELiftNode.Attach],
+    needs: [ELiftNode.ActivateFamily],
     run: async (ctx) => {
       if (ctx.args.midTurn) ctx.onProgress(ELiftStep.Resuming)
       await appendRelocationNotice(ctx)

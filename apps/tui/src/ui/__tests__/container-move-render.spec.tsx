@@ -7,9 +7,13 @@ import { ELiftStep } from '@dltech/atlas-harness'
 import {
   advanceMove,
   beginMove,
+  ELocalMoveStep,
+  expandMove,
   failMove,
   type ContainerMove,
 } from '../../composition/container-move'
+import { ROTATE_HEADING } from '../../composition/cloud/cloud-runner'
+import { WAKE_HEADING, WAKE_PLAN } from '../../composition/container-move'
 import { ContainerMoveOverlay } from '../components/container-move'
 import { frameOf, mount } from './transcript-fixture'
 
@@ -91,6 +95,77 @@ describe('a move while it runs', () => {
       ),
     ).resolves.toBeUndefined()
   }, 60_000)
+})
+
+describe('a wake that rotates the sandbox first', () => {
+  const rotatingMove = (): ContainerMove => {
+    const begun = beginMove({
+      target: EExecutionLocation.Cloud,
+      plan: WAKE_PLAN,
+      heading: WAKE_HEADING,
+      now: STARTED_AT,
+    })
+    const waiting = advanceMove({ move: begun, step: ELiftStep.Starting, now: STARTED_AT + 1_000 })
+    return expandMove({
+      move: waiting,
+      insertBefore: ELiftStep.Attaching,
+      step: ELocalMoveStep.Rotating,
+      heading: ROTATE_HEADING,
+      now: STARTED_AT + 4_000,
+    })
+  }
+
+  it('names the update and checks off the wait behind it', async () => {
+    const frame = await frameOf(overlay({ move: rotatingMove() }), 80)
+
+    expect(frame).toContain('UPDATING THE CLOUD SANDBOX')
+    expect(frame).toContain('✓ waiting for the sandbox')
+    expect(frame).toContain('updating the cloud sandbox (8s)')
+    expect(frame).toContain('· attaching and verifying the conversation')
+  })
+
+  it('reads as one continuous move rather than a second one', async () => {
+    const frame = await frameOf(overlay({ move: rotatingMove() }), 80)
+
+    expect(frame).not.toContain('WAKING THE SANDBOX')
+  })
+
+  it('advances past the rotation once the sandbox answers again', async () => {
+    const attached = advanceMove({
+      move: rotatingMove(),
+      step: ELiftStep.Attaching,
+      now: STARTED_AT + 9_000,
+    })
+    const frame = await frameOf(overlay({ move: attached }), 80)
+
+    expect(frame).toContain('✓ updating the cloud sandbox')
+    expect(frame).toContain('attaching and verifying the conversation (3s)')
+  })
+
+  it('leaves the plan alone when asked to insert before a step it does not hold', async () => {
+    const begun = beginMove({ target: EExecutionLocation.Cloud, plan: WAKE_PLAN, now: STARTED_AT })
+    const expanded = expandMove({
+      move: begun,
+      insertBefore: ELiftStep.Flipping,
+      step: ELocalMoveStep.Rotating,
+      now: STARTED_AT + 1_000,
+    })
+
+    expect(expanded.steps.map((step) => step.id)).toEqual([...WAKE_PLAN])
+  })
+
+  it('never inserts the same step twice', async () => {
+    const twice = expandMove({
+      move: rotatingMove(),
+      insertBefore: ELiftStep.Attaching,
+      step: ELocalMoveStep.Rotating,
+      now: STARTED_AT + 6_000,
+    })
+
+    expect(
+      twice.steps.filter((step) => step.id === ELocalMoveStep.Rotating),
+    ).toHaveLength(1)
+  })
 })
 
 describe('a move that did not finish', () => {

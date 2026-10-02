@@ -14,7 +14,8 @@ import {
 } from '@dltech/atlas-harness'
 import type { AtlasApp } from './compose'
 
-const COMPACTION_CRASHED = 'compacting the history did not finish, so nothing was changed'
+const compactionCrashed = (fault: unknown): string =>
+  `compacting the history did not finish, so nothing was changed: ${fault instanceof Error ? fault.message : String(fault)}`
 
 export type CompactionControl = {
   compacting: Compacting | null
@@ -35,6 +36,8 @@ export function useCompaction(args: {
   refresh: () => Promise<void>
   onFailure: (reason: string) => void
   onCompacted: () => void
+  /** A placement move owns the session: rewriting the log waits for it to settle. */
+  frozen?: boolean | undefined
 }): CompactionControl {
   const { app, threadId, readClock, refresh, onFailure, onCompacted } = args
   const [compacting, setCompacting] = useState<Compacting | null>(null)
@@ -65,8 +68,8 @@ export function useCompaction(args: {
       try {
         const outcome = await start(controller.signal)
         if (!controller.signal.aborted) await settle(outcome)
-      } catch {
-        if (!controller.signal.aborted) onFailure(COMPACTION_CRASHED)
+      } catch (fault) {
+        if (!controller.signal.aborted) onFailure(compactionCrashed(fault))
       } finally {
         compacter.current = null
         setCompacting(null)
@@ -75,8 +78,10 @@ export function useCompaction(args: {
     [onFailure, readClock, settle],
   )
 
+  const frozen = args.frozen === true
   const compact = useCallback(
-    (scope: ECompactScope) =>
+    (scope: ECompactScope) => {
+      if (frozen) return
       void run((signal) =>
         compactTurn({
           log: app.log,
@@ -87,12 +92,14 @@ export function useCompaction(args: {
           summarise: app.summarise,
           signal,
         }),
-      ),
-    [app.agents, app.log, app.summarise, app.threads, run, threadId],
+      )
+    },
+    [app.agents, app.log, app.summarise, app.threads, frozen, run, threadId],
   )
 
   const compactAround = useCallback(
-    (around: { anchor: ECompactionAnchor; seq: number }) =>
+    (around: { anchor: ECompactionAnchor; seq: number }) => {
+      if (frozen) return
       void run((signal) =>
         summariseAt({
           log: app.log,
@@ -104,8 +111,9 @@ export function useCompaction(args: {
           summarise: app.summarise,
           signal,
         }),
-      ),
-    [app.agents, app.log, app.summarise, app.threads, run, threadId],
+      )
+    },
+    [app.agents, app.log, app.summarise, app.threads, frozen, run, threadId],
   )
 
   /**

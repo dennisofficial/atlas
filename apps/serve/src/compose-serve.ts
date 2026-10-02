@@ -1,11 +1,13 @@
 import {
   ClockPort,
+  EAgentStatus,
   ENoticeTone,
   EventLogPort,
   EServiceStatus,
   EShellStatus,
   NOTICE_WARN_MS,
   ProcessPort,
+  type ThreadId,
 } from '@dltech/atlas-core'
 
 import { EFFORT_LADDER, parseRef } from '@dltech/atlas-core'
@@ -21,10 +23,12 @@ import { ServiceRecovery, ShellRecovery } from '@dltech/atlas-harness'
 import { liveServicesOf, liveShellsOf } from '@dltech/atlas-harness'
 import { ThreadStorePort } from '@dltech/atlas-harness'
 
-import { adoptChildren } from './adopt-children'
+import { activateTransferredChildren, adoptTransferredChildren, holdFamilyIntake } from '@dltech/atlas-harness'
 import { EPortableStateBoot, installPortableState } from './portable-state'
 import type { ServeApp, ServeCompose, ServeModelBridge } from './serve-app'
 import { ServeProcessPort } from './serve-process'
+import { rotationEndingsFor } from './rotation-endings'
+import { workspaceHooksFor } from './workspace-hooks'
 import { serveMemoryArchive, serveSessionArchive } from './serve-session-archive'
 
 export const SERVE_COMMAND = 'serve'
@@ -101,7 +105,6 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     env: args.env,
     settings: loadSettings({ env: args.env, cwd: args.cwd }),
     clientVersion: args.clientVersion,
-    capabilities: args.capabilities === undefined ? undefined : () => args.capabilities,
     surface: {
       notice: args.notice,
       bind: ({ container }) => {
@@ -149,6 +152,9 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     live: () => liveServicesOf(app.services.list()),
   })
 
+  let pausedChildren: readonly ThreadId[] = []
+  let releaseFamily: (() => void) | undefined
+
   return {
     channel: app.channel,
     runner: app.runner,
@@ -157,6 +163,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     threads: app.surface.threads,
     modelBridge: app.surface.modelBridge,
     ledger: app.ledger,
+    settings: app.settings,
     ids: app.ids,
     files: app.files,
     workspace: app.workspace,
@@ -164,21 +171,53 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     ...(app.intake === undefined ? {} : { intake: app.intake }),
     sessionArchive: () => serveSessionArchive({ threadId: args.threadId }),
     memoryArchive: () => serveMemoryArchive({ cwd: args.cwd, identity: args.identity ?? null }),
-    adoptChildren: ({ threadId }) =>
-      adoptChildren({ agents: app.agents, log: app.surface.log, threadId }),
+    adoptChildren: async ({ threadId }) => {
+      await adoptTransferredChildren({ agents: app.agents, threadId })
+      return activateTransferredChildren({ agents: app.agents, log: app.surface.log, threadId })
+    },
     recordLostShells: ({ threadId }) => shellRecovery.recordLost({ threadId }),
     recordLostServices: ({ threadId }) => serviceRecovery.recordLost({ threadId }),
     whenChildrenSettled: ({ threadId }) => app.agents.whenChildrenSettled({ threadId }),
     family: {
+      freeze: async ({ threadId }) => {
+        releaseFamily ??= await holdFamilyIntake({ threadId, threads: app.surface.threads, intake: app.intake })
+      },
       pauseChildren: async ({ threadId }) => {
-        await app.agents.pauseChildren({ threadId })
+        releaseFamily ??= await holdFamilyIntake({ threadId, threads: app.surface.threads, intake: app.intake })
+        pausedChildren = await app.agents.pauseChildren({ threadId })
+      },
+      resumeChildren: async ({ threadId }) => {
+        const children = pausedChildren
+        pausedChildren = []
+        for (const agentId of children) await app.agents.resume({ agentId, threadId })
+        releaseFamily?.()
+        releaseFamily = undefined
       },
     },
+    runningChildren: () => app.agents.listEverywhere().filter((child) => child.status === EAgentStatus.Running).length,
+    settlingWork: () => (app.agents.settling?.() ?? false) || (app.shells.settling?.() ?? false) || (app.services.settling?.() ?? false),
+    pendingInput: () => app.pending.waitingCount() > 0 || (app.intake?.threadsWithPendingInput().length ?? 0) > 0,
     runningShells: () =>
       app.shells.listEverywhere().filter((shell) => shell.status === EShellStatus.Running).length,
     runningServices: () =>
       app.services.list().filter((service) => service.status === EServiceStatus.Running).length,
     executionLocation: app.executionLocation,
+    endProcesses: rotationEndingsFor({
+      root: args.threadId,
+      shells: app.shells,
+      services: app.services,
+      log: app.surface.log,
+      threads: app.surface.threads,
+      ids: app.ids,
+    }),
+    ...workspaceHooksFor({
+      threadId: args.threadId,
+      shells: app.shells,
+      services: app.services,
+      log: app.surface.log,
+      threads: app.surface.threads,
+      ids: app.ids,
+    }),
     roster: {
       snapshot: () => ({
         shells: [...app.shells.listEverywhere()],

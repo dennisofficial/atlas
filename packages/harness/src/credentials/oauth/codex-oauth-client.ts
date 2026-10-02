@@ -1,6 +1,13 @@
 import type { ClockPort, OauthTokens } from '@dltech/atlas-core'
 
 import type { OauthLogin } from './anthropic-oauth-client'
+import {
+  authorizeBrowserUrl,
+  browserPkce,
+  type BrowserLoginClient,
+  type BrowserLoginSession,
+} from './browser-login'
+import { CodexLoopbackServer, type CodexLoopback } from './codex-loopback'
 import { EDevicePoll, type DeviceLogin, type DevicePoll } from './device-login'
 import { decodeJwtClaims } from './jwt-claims'
 import { OauthHttpError, OauthResponseError } from './oauth-error'
@@ -36,13 +43,51 @@ const deviceNotEnabled = (): OauthResponseError =>
     'device-code login is not enabled for this ChatGPT account. Enable "Sign in with device code" in ChatGPT security settings and press n to try again.',
   )
 
-export class CodexOauthClient {
+export class CodexOauthClient implements BrowserLoginClient {
   private readonly clock: ClockPort
   private readonly fetch: TokenFetch
+  private readonly loopback: () => CodexLoopback
 
-  constructor(args: { clock: ClockPort; fetch?: TokenFetch }) {
+  constructor(args: { clock: ClockPort; fetch?: TokenFetch; loopback?: () => CodexLoopback }) {
     this.clock = args.clock
     this.fetch = args.fetch ?? globalThis.fetch
+    this.loopback = args.loopback ?? (() => new CodexLoopbackServer())
+  }
+
+  async startBrowserLogin(): Promise<BrowserLoginSession> {
+    const server = this.loopback()
+    const { redirectUri } = await server.listen()
+    const pkce = browserPkce()
+    const url = authorizeBrowserUrl({
+      clientId: CLIENT_ID,
+      redirectUri,
+      challenge: pkce.challenge,
+      state: pkce.state,
+    })
+
+    let cancelled = false
+    const login = server
+      .waitForCallback({ state: pkce.state })
+      .then(async ({ code }) => {
+        const exchanged = await this.exchangeBrowserCode({ code, verifier: pkce.verifier, redirectUri })
+        if (cancelled) throw new Error('sign-in cancelled')
+
+        return exchanged
+      })
+      .catch((error: unknown) => {
+        if (cancelled) throw new Error('sign-in cancelled')
+        throw error
+      })
+      .finally(() => server.close())
+
+    return {
+      url,
+      login,
+      cancel: async () => {
+        cancelled = true
+        await server.close()
+      },
+    }
   }
 
   async startDeviceLogin(): Promise<DeviceLogin> {
@@ -136,14 +181,27 @@ export class CodexOauthClient {
     }
   }
 
+  private exchangeBrowserCode(args: {
+    code: string
+    verifier: string
+    redirectUri: string
+  }): Promise<OauthLogin> {
+    return this.exchangeCode({
+      authorizationCode: args.code,
+      codeVerifier: args.verifier,
+      redirectUri: args.redirectUri,
+    })
+  }
+
   private async exchangeCode(args: {
     authorizationCode: string
     codeVerifier: string
+    redirectUri?: string
   }): Promise<OauthLogin> {
     const form = new URLSearchParams({
       grant_type: 'authorization_code',
       code: args.authorizationCode,
-      redirect_uri: DEVICE_REDIRECT_URI,
+      redirect_uri: args.redirectUri ?? DEVICE_REDIRECT_URI,
       client_id: CLIENT_ID,
       code_verifier: args.codeVerifier,
     })

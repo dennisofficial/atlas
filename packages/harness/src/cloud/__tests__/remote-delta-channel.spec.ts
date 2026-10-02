@@ -19,6 +19,7 @@ import {
   createRemoteDeltaChannel,
   EChannelConnection,
   RemotePublishRefused,
+  STRANDED_STEP_END,
   type ChannelReload,
   type ChannelSocketHandlers,
 } from '../remote-delta-channel'
@@ -273,7 +274,7 @@ describe('a gap the channel cannot replay', () => {
     expect(seen.at(-1)).toEqual({
       type: 'step-ended',
       stepId: STEP,
-      end: EStepEnd.Failed,
+      end: STRANDED_STEP_END,
       supersededBy: null,
     })
     expect(channel.snapshot({ threadId: THREAD })).toEqual([])
@@ -308,7 +309,7 @@ describe('a gap the channel cannot replay', () => {
     expect(seen).toEqual([
       started,
       chunkSignal('auth'),
-      { type: 'step-ended', stepId: STEP, end: EStepEnd.Failed, supersededBy: null },
+      { type: 'step-ended', stepId: STEP, end: STRANDED_STEP_END, supersededBy: null },
     ])
     expect(reloads).toEqual([{ sinceEventSeq: 31 }])
     expect(channel.connection().state).toBe(EChannelConnection.Open)
@@ -329,7 +330,7 @@ describe('a gap the channel cannot replay', () => {
 
     expect(seen).toEqual([
       started,
-      { type: 'step-ended', stepId: STEP, end: EStepEnd.Failed, supersededBy: null },
+      { type: 'step-ended', stepId: STEP, end: STRANDED_STEP_END, supersededBy: null },
       chunkSignal('next'),
     ])
     expect(reloads).toHaveLength(1)
@@ -390,7 +391,7 @@ describe('losing the socket', () => {
 
     drop()
 
-    expect(seen.at(-1)).toMatchObject({ type: 'step-ended', end: EStepEnd.Failed })
+    expect(seen.at(-1)).toMatchObject({ type: 'step-ended', end: STRANDED_STEP_END })
     expect(channel.connection().state).toBe(EChannelConnection.Closed)
   })
 })
@@ -417,7 +418,7 @@ describe('a sandbox that parked', () => {
 
     receive({ kind: EServeFrame.Parked, reason: 'idle past the ttl' })
 
-    expect(seen.at(-1)).toMatchObject({ type: 'step-ended', end: EStepEnd.Failed })
+    expect(seen.at(-1)).toMatchObject({ type: 'step-ended', end: STRANDED_STEP_END })
   })
 
   it('stays parked when the socket closes behind the parked frame', () => {
@@ -593,7 +594,7 @@ describe('closing the channel', () => {
     channel.close()
     socket.handlers.handleClose()
 
-    expect(seen.at(-1)).toMatchObject({ type: 'step-ended', end: EStepEnd.Failed })
+    expect(seen.at(-1)).toMatchObject({ type: 'step-ended', end: STRANDED_STEP_END })
     expect(socket.closed).toBe(true)
     expect(channel.connection().state).toBe(EChannelConnection.Closed)
     expect(retries).toEqual([])
@@ -888,5 +889,70 @@ describe('the client-side keepalive', () => {
 
     live().handlers.handleOpen()
     expect(stops).toEqual([true, false])
+  })
+})
+
+describe('the sandbox pending queue, as the channel reports it', () => {
+  const entries = [
+    { id: 'pending-1', text: 'first', reserved: false },
+    { id: 'pending-2', text: 'second', via: 'parent-agent', reserved: true },
+  ]
+
+  it('delivers a pending-changed signal to onPendingChanged listeners and holds it', () => {
+    const { channel, open, receive } = harness()
+    const heard: (readonly unknown[])[] = []
+    channel.onPendingChanged((next) => void heard.push(next))
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    heard.length = 0
+
+    receive({ kind: EServeFrame.Signal, seq: 2, signal: { type: 'pending-changed', entries } })
+
+    expect(heard).toEqual([entries])
+    expect(channel.pendingEntries()).toEqual(entries)
+  })
+
+  it('does not fold a pending-changed signal into the in-flight step', () => {
+    const { channel, open, receive } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+
+    receive({ kind: EServeFrame.Signal, seq: 2, signal: { type: 'pending-changed', entries } })
+
+    expect(channel.snapshot({ threadId: THREAD })).toEqual([])
+  })
+
+  it('still hands the signal to ordinary channel listeners', () => {
+    const { channel, open, receive } = harness()
+    const { seen, listener } = recorder()
+    channel.subscribe({ threadId: THREAD, listener })
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+
+    receive({ kind: EServeFrame.Signal, seq: 2, signal: { type: 'pending-changed', entries } })
+
+    expect(seen).toEqual([{ type: 'pending-changed', entries }])
+  })
+
+  it('clears the held queue on a fresh ready, before the serve sends its snapshot', () => {
+    const { channel, open, receive } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+    receive({ kind: EServeFrame.Signal, seq: 2, signal: { type: 'pending-changed', entries } })
+    expect(channel.pendingEntries()).toEqual(entries)
+
+    const heard: (readonly unknown[])[] = []
+    channel.onPendingChanged((next) => void heard.push(next))
+    receive({ kind: EServeFrame.Ready, seq: 3 })
+
+    expect(heard).toEqual([[]])
+    expect(channel.pendingEntries()).toEqual([])
+
+    receive({ kind: EServeFrame.Signal, seq: 3, signal: { type: 'pending-changed', entries } })
+    expect(heard).toEqual([[], entries])
+  })
+
+  it('holds an empty queue before anything arrives', () => {
+    expect(harness().channel.pendingEntries()).toEqual([])
   })
 })

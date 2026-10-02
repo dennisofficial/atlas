@@ -1,9 +1,15 @@
-import { EAgentStatus, EShellStatus, type ProviderIdentity, type ThreadId } from '@dltech/atlas-core'
+import {
+  agentDisplayName,
+  EAgentStatus,
+  EShellStatus,
+  type ProviderIdentity,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import type { AgentSnapshot, ChildContext, ShellSnapshot } from '@dltech/atlas-harness'
 
 import { truncateCells } from '../ui/components/sidebar/cells'
 import { formatElapsed, formatTokens } from '../ui/theme'
-import { TITLE_CELLS, oneLineOf } from './sidebar-text'
+import { TITLE_CELLS } from './sidebar-text'
 
 export type SubagentReadout = {
   status: EAgentStatus
@@ -38,10 +44,8 @@ export type SidebarCrewFold = { hidden: number; hiddenFailed: boolean }
  */
 export type SidebarAgentFold = SidebarCrewFold & { hiddenTeammates: number }
 
-export const subagentLabel = (snapshot: Pick<AgentSnapshot, 'intent' | 'agentType'>): string => {
-  const intent = oneLineOf(snapshot.intent)
-  return truncateCells({ text: intent ?? snapshot.agentType, cells: TITLE_CELLS })
-}
+export const subagentLabel = (snapshot: Pick<AgentSnapshot, 'intent' | 'agentType'>): string =>
+  truncateCells({ text: agentDisplayName(snapshot), cells: TITLE_CELLS })
 
 export const isSubagentAlive = (subagent: Pick<SidebarSubagent, 'status'>): boolean =>
   subagent.status === EAgentStatus.Running || subagent.status === EAgentStatus.Blocked

@@ -36,6 +36,13 @@ const SUMMARY_INSTRUCTION = [
 const TRANSCRIPT_CHARACTER_LIMIT = 400_000
 const SUMMARY_OUTPUT_TOKEN_LIMIT = 2_000
 
+export class SummaryFailure extends Error {
+  override readonly name = 'SummaryFailure'
+}
+
+const messageOf = (fault: unknown): string =>
+  fault instanceof Error ? fault.message : String(fault)
+
 export async function summaryFor(args: {
   model: LanguageModel
   events: readonly Event[]
@@ -50,18 +57,20 @@ export async function summaryFor(args: {
   })
   if (transcript.trim().length === 0) return null
 
+  let generated
   try {
-    const generated = await generateText({
+    generated = await generateText({
       model: args.model,
       system: SUMMARY_INSTRUCTION,
       prompt: transcript.slice(-TRANSCRIPT_CHARACTER_LIMIT),
       maxOutputTokens: SUMMARY_OUTPUT_TOKEN_LIMIT,
       ...(args.signal === undefined ? {} : { abortSignal: args.signal }),
     })
-
-    const summary = generated.text.trim()
-    return summary.length === 0 ? null : summary
-  } catch {
-    return null
+  } catch (fault) {
+    if (args.signal?.aborted === true) return null
+    throw new SummaryFailure(messageOf(fault), { cause: fault })
   }
+
+  const summary = generated.text.trim()
+  return summary.length === 0 ? null : summary
 }

@@ -38,12 +38,13 @@ const reasonOf = (error: unknown): string =>
  */
 export function useThreads(args: {
   app: AtlasApp
+  project: string
   activeThreadId: string
   onPick: (threadId: string) => void
   listing?: (() => Pick<ThreadStorePort, 'list'>) | undefined
   findSandbox?: (() => Pick<CloudSandboxes, 'find'> | null) | undefined
 }): ThreadsControl {
-  const { app, activeThreadId, onPick, listing, findSandbox } = args
+  const { app, project, activeThreadId, onPick, listing, findSandbox } = args
   const held = useRef<ThreadsState | null>(null)
   const [state, setState] = useState<ThreadsState | null>(null)
 
@@ -114,7 +115,7 @@ export function useThreads(args: {
       const source = listing?.() ?? app.threads
       void source
         .list({
-          project: projectOf(app.workspace),
+          project,
           limit: Number.POSITIVE_INFINITY,
           enrich: wanted.map((id) => toThreadId(id)),
         })
@@ -146,7 +147,7 @@ export function useThreads(args: {
         })
         .catch(() => undefined)
     },
-    [activeThreadId, app, decorator, listing, put, putRows],
+    [activeThreadId, app, decorator, listing, project, put, putRows],
   )
 
   useEffect(() => {
@@ -166,7 +167,7 @@ export function useThreads(args: {
     const source = listing?.() ?? app.threads
     source
       .list({
-        project: projectOf(app.workspace),
+        project,
         limit: Number.POSITIVE_INFINITY,
         onUpdate: (threads) => adopt(threads, gen),
       })
@@ -178,7 +179,7 @@ export function useThreads(args: {
 
         put(failedToList({ state: current, reason: reasonOf(error) }))
       })
-  }, [adopt, app, decorator, listing, put])
+  }, [adopt, app, decorator, listing, project, put])
 
   const handleDismiss = useCallback(() => {
     generation.current += 1

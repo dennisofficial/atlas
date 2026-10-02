@@ -13,7 +13,7 @@ const WAIT_MS = 20_000
 
 const INTENT = 'audit the vault'
 
-const NAMED = `Sub-agent explore "${INTENT}"`
+const NAMED = `Sub-agent ${INTENT}`
 
 const script = { thinking: THINKING, reply: REPLY }
 

@@ -86,12 +86,12 @@ describe('a turn waiting across a reconnect that replays an outcome already seen
     const runner = new RemoteTurnRunner({ channel: attached.channel, wake: async () => undefined })
 
     const first = runner.runTurn({ threadId: THREAD })
-    const second = runner.runTurn({ threadId: THREAD })
-    const state = settledState(second)
-
-    attached.receive({ kind: EServeFrame.TurnEnded, outcome: completed('run-1') })
     attached.receive({ kind: EServeFrame.TurnEnded, outcome: completed('run-1') })
     await expect(first).resolves.toEqual(completed('run-1'))
+
+    const second = runner.runTurn({ threadId: THREAD })
+    const state = settledState(second)
+    attached.receive({ kind: EServeFrame.TurnEnded, outcome: completed('run-1') })
     await Bun.sleep(1)
     expect(state.settled).toBe(false)
 

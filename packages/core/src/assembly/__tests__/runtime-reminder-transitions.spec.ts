@@ -42,12 +42,6 @@ const TRANSITIONS: readonly (readonly [string, EventDraft])[] = [
   ['moving to Docker', TO_DOCKER],
 ]
 
-const locationAfter = (drafts: readonly EventDraft[]): EExecutionLocation =>
-  drafts.reduce<EExecutionLocation>(
-    (location, draft) => (draft.type === 'location-changed' ? draft.to : location),
-    EExecutionLocation.Host,
-  )
-
 const assembleWith = ({
   drafts,
   provider,
@@ -58,7 +52,6 @@ const assembleWith = ({
   const { rules, annotators } = defaultPipeline({
     prompt: () => compiled,
     launchDirectory: LAUNCH,
-    executionLocation: () => ({ location: locationAfter(drafts), mounts: [] }),
   })
   const ctx = contextFor({ events: log(drafts) })
 
@@ -113,15 +106,18 @@ describe('runtime reminders across transitions', () => {
     }
   })
 
-  it('states the worktree on the host, then Docker, then the explicit return to host', () => {
+  it('states the worktree after entering it, and invents no execution-location tail', () => {
     const inTree = assembleWith({ drafts: [...BASE, ENTERED] })
     const inDocker = assembleWith({ drafts: [...BASE, ENTERED, TO_DOCKER] })
     const backOnHost = assembleWith({ drafts: [...BASE, ENTERED, TO_DOCKER, TO_HOST] })
 
-    expect(textOf(inTree.messages.at(-2))).toContain(`Project directory: ${TREE}`)
-    expect(textOf(inTree.messages.at(-1))).toContain('Execution location: host')
-    expect(textOf(inDocker.messages.at(-1))).toContain('Docker container')
-    expect(textOf(backOnHost.messages.at(-1))).toContain('Execution location: host')
+    expect(textOf(inTree.messages.at(-1))).toContain(`Project directory: ${TREE}`)
+    for (const assembled of [inTree, inDocker, backOnHost]) {
+      for (const entry of assembled.messages) {
+        expect(textOf(entry)).not.toContain('Execution location')
+        expect(textOf(entry)).not.toContain('Docker container')
+      }
+    }
   })
 
   it('resets to the launch directory on a real location change and does not claim the worktree is retained', () => {
@@ -129,7 +125,7 @@ describe('runtime reminders across transitions', () => {
       [...BASE, ENTERED, TO_DOCKER],
       [...BASE, ENTERED, TO_DOCKER, TO_HOST],
     ]) {
-      const note = textOf(assembleWith({ drafts }).messages.at(-2))
+      const note = textOf(assembleWith({ drafts }).messages.at(-1))
 
       expect(note).toContain(`Project directory: ${LAUNCH}.`)
       expect(note).not.toContain(TREE)
@@ -171,13 +167,13 @@ describe('the cache prefix across Host to Docker to Host', () => {
     expect(prefixOf(backOnHost)).toBe(prefixOf(onHost))
   })
 
-  it('moves only the tail reminders and their breakpoint when the location changes', () => {
+  it('keeps the whole prefix identical when the location changes, adding only the logged event', () => {
     const onHost = assembleWith({ drafts: conversation, provider: CACHING_PROVIDER })
     const inDocker = assembleWith({ drafts: [...conversation, TO_DOCKER], provider: CACHING_PROVIDER })
 
-    expect(inDocker.messages).toHaveLength(onHost.messages.length)
-    expect(textOf(onHost.messages.at(-1))).toContain('Execution location: host')
-    expect(textOf(inDocker.messages.at(-1))).toContain('Docker container')
-    expect(JSON.stringify(inDocker.messages.at(-1))).toContain('cacheControl')
+    const durable = (messages: readonly typeof inDocker.messages[number][]): readonly typeof inDocker.messages[number][] =>
+      messages.filter((entry) => !textOf(entry).includes('Project directory'))
+
+    expect(durable(inDocker.messages)).toEqual([...durable(onHost.messages)])
   })
 })

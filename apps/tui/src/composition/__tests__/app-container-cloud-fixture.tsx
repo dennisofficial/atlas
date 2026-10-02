@@ -61,6 +61,8 @@ export const mount = async (args: {
       createBridge={createBridge}
       preflightLift={args.preflightLift ?? (async () => null)}
       captureWorkspace={DIRTY}
+      captureArchive={async () => undefined}
+      restoreWorkspace={async () => ({ cwd: args.app.workspace.workspace, repository: args.app.workspace.workspace, trees: [] })}
       captureContext={STUB_CONTEXT}
       {...(args.clipboard === undefined ? {} : { clipboard: args.clipboard })}
     />,
@@ -105,6 +107,7 @@ export const mount = async (args: {
      */
     clearDraft: () => editorIn(setup.renderer.root)?.replaceText(''),
     pressEnter: () => setup.mockInput.pressEnter(),
+    pressUp: () => setup.mockInput.pressArrow('up'),
     pressEscape: () => setup.mockInput.pressEscape(),
     pressCtrl: (key: string) => setup.mockInput.pressKey(key, { ctrl: true }),
     pressCtrlC: () => setup.mockInput.pressKey('c', { ctrl: true }),

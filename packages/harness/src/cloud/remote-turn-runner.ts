@@ -1,10 +1,29 @@
-import type { EventDraft, SaidFile, SaidImage, ThreadId } from '@dltech/atlas-core'
+import { eventBodySchema, type EventDraft, type SaidFile, type SaidImage, type ThreadId } from '@dltech/atlas-core'
 
 import { TurnRunner, type PauseSignal, type TurnOutcome } from '../loop'
+import type { PendingSaid } from '../pending/pending-queue'
 
+import { EClientRequest, takeBackPendingReplySchema } from './channel-wire'
 import { EChannelConnection, type RemoteDeltaChannel } from './remote-delta-channel'
 
+export class RemoteTurnDetached extends Error {
+  constructor(reason: string) {
+    super(reason)
+    this.name = 'RemoteTurnDetached'
+  }
+}
+
 export const SERVE_DEFAULT_REPLAY_WINDOW_OUTCOMES = 2048
+
+const draftsOf = (context: readonly unknown[]): readonly EventDraft[] | undefined => {
+  const drafts: EventDraft[] = []
+  for (const draft of context) {
+    const parsed = eventBodySchema.safeParse(draft)
+    if (!parsed.success) return undefined
+    drafts.push(parsed.data)
+  }
+  return drafts
+}
 
 type Waiter = {
   resolve: (outcome: TurnOutcome) => void
@@ -17,6 +36,7 @@ export class RemoteTurnRunner extends TurnRunner {
   private readonly waiters: Waiter[] = []
   private readonly seenOutcomes = new Set<string>()
   private heldForReattach = false
+  private driving = false
 
   constructor(args: { channel: RemoteDeltaChannel; wake: () => Promise<void> }) {
     super()
@@ -32,18 +52,27 @@ export class RemoteTurnRunner extends TurnRunner {
         this.heldForReattach = true
         return
       }
+      if (connection.state === EChannelConnection.Parked) {
+        this.heldForReattach = false
+        this.detachAll('The sandbox parked after this client lost its turn outcome.')
+        return
+      }
       if (connection.state !== EChannelConnection.Closed) return
       this.heldForReattach = false
-      this.failAll(connection.detail ?? 'The session socket closed mid-turn.')
+      this.detachAll(connection.detail ?? 'The session socket closed mid-turn.')
     })
     this.channel.onReady((ready) => {
       if (!this.heldForReattach) return
       this.heldForReattach = false
       if (ready.turnInFlight) return
-      this.failAll('The sandbox was re-attached — the turn it was running did not survive.')
+      this.detachAll('The sandbox finished the turn while this client was detached.')
     })
     this.channel.onServerError((failure) => {
       this.waiters.shift()?.reject(new Error(failure.message))
+    })
+    this.channel.onDetached?.((reason) => {
+      this.heldForReattach = false
+      this.detachAll(reason)
     })
   }
 
@@ -86,6 +115,27 @@ export class RemoteTurnRunner extends TurnRunner {
     })
   }
 
+  async takeBackPending(args: { threadId: ThreadId }): Promise<PendingSaid | null> {
+    if (args.threadId !== this.channel.threadId) return null
+
+    let reply: unknown
+    try {
+      reply = await this.channel.request({
+        op: EClientRequest.TakeBackPending,
+        params: { threadId: this.channel.threadId },
+      })
+    } catch {
+      return null
+    }
+
+    const parsed = takeBackPendingReplySchema.safeParse(reply)
+    if (!parsed.success || parsed.data.taken === null) return null
+
+    const { text, images, files, context } = parsed.data.taken
+    const drafts = context === undefined ? undefined : draftsOf(context)
+    return { text, images, files, ...(drafts === undefined ? {} : { context: drafts }) }
+  }
+
   runTurn(args: {
     threadId: ThreadId
     signal?: AbortSignal
@@ -99,7 +149,7 @@ export class RemoteTurnRunner extends TurnRunner {
     signal?: AbortSignal
     pause?: PauseSignal
   }): Promise<TurnOutcome> {
-    return this.drive({ ...args, fire: () => this.channel.run() })
+    return this.drive({ ...args, fire: () => this.channel.run({ resume: true }) })
   }
 
   private async drive(args: {
@@ -112,25 +162,38 @@ export class RemoteTurnRunner extends TurnRunner {
       throw new Error(`this runner serves ${this.channel.threadId}, not ${args.threadId}`)
     }
 
-    const state = this.channel.connection().state
-    if (state === EChannelConnection.Closed || state === EChannelConnection.Parked) {
-      await this.wake()
-    }
-
-    return new Promise<TurnOutcome>((resolve, reject) => {
-      const interrupt = () => this.channel.interrupt()
-      const pauseTurn = () => this.channel.pause()
-      const settle = <T>(done: (value: T) => void) => (value: T) => {
-        args.signal?.removeEventListener('abort', interrupt)
-        unsubscribePause()
-        done(value)
+    if (this.driving) throw new Error('a turn is already running on this runner')
+    this.driving = true
+    try {
+      const state = this.channel.connection().state
+      if (state === EChannelConnection.Closed || state === EChannelConnection.Parked) {
+        this.channel.beginWake()
+        await this.wake()
       }
-      this.waiters.push({ resolve: settle(resolve), reject: settle(reject) })
-      args.signal?.addEventListener('abort', interrupt)
-      const unsubscribePause = args.pause?.onPause(pauseTurn) ?? (() => undefined)
-      if (args.pause?.paused === true) pauseTurn()
-      args.fire()
-    })
+
+      return await new Promise<TurnOutcome>((resolve, reject) => {
+        const interrupt = () => this.channel.interrupt()
+        const pauseTurn = () => this.channel.pause()
+        const settle =
+          <T>(done: (value: T) => void) =>
+          (value: T) => {
+            args.signal?.removeEventListener('abort', interrupt)
+            unsubscribePause()
+            done(value)
+          }
+        this.waiters.push({ resolve: settle(resolve), reject: settle(reject) })
+        args.signal?.addEventListener('abort', interrupt)
+        const unsubscribePause = args.pause?.onPause(pauseTurn) ?? (() => undefined)
+        if (args.pause?.paused === true) pauseTurn()
+        try {
+          args.fire()
+        } catch (error) {
+          this.detachAll(error instanceof Error ? error.message : 'the turn frame could not be sent')
+        }
+      })
+    } finally {
+      this.driving = false
+    }
   }
 
   private isFirstSighting(outcome: TurnOutcome): boolean {
@@ -145,8 +208,8 @@ export class RemoteTurnRunner extends TurnRunner {
     return true
   }
 
-  private failAll(reason: string): void {
-    const error = new Error(reason)
-    while (this.waiters.length > 0) this.waiters.shift()?.reject(error)
+  private detachAll(reason: string): void {
+    const detached = new RemoteTurnDetached(reason)
+    while (this.waiters.length > 0) this.waiters.shift()?.reject(detached)
   }
 }

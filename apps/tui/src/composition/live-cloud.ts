@@ -12,7 +12,6 @@ import {
 import {
   atlasDirectory,
   capturePortableState,
-  detachedLiftVerdict,
   persistedTelemetryDistinctId,
   readGhAuthToken,
   requireVercelCredentials,
@@ -76,12 +75,8 @@ const portableOmissionNotice = (omitted: {
   oauthAccounts: readonly string[]
   mcpOauthSecrets: readonly string[]
 }): string => {
+  void omitted.oauthAccounts
   const parts: string[] = []
-  if (omitted.oauthAccounts.length > 0) {
-    parts.push(
-      `subscription OAuth accounts stayed on this machine (${omitted.oauthAccounts.join(', ')}) — the sandbox authenticates those providers on API keys only`,
-    )
-  }
   if (omitted.mcpOauthSecrets.length > 0) {
     parts.push(
       `MCP OAuth sign-ins stayed local (${omitted.mcpOauthSecrets.join(', ')}) — these servers need separately configured non-OAuth credentials to authenticate in a detached sandbox`,
@@ -98,6 +93,7 @@ export const liveBridgeFor = (app: AtlasApp): CloudBridgeFactory => {
         ...sandboxImageOf({ settings: app.settings, release: releaseBuildOf() }),
       }),
       attachmentToken: ({ threadId }) => sandboxServeTokenFor({ secrets: app.secrets, threadId }),
+      settings: app.settings,
       readGitToken: () => readGhAuthToken(),
       capturePortable: () => capturePortableState({}),
       onPortableOmitted: (omitted) => {
@@ -172,11 +168,6 @@ export const liveLiftPreflightFor =
   async () => {
     try {
       requireVercelCredentials({ settings: app.settings, secrets: app.secrets })
-      const detached = await detachedLiftVerdict({
-        providerId: parseRef(refKey(app.model.choice().ref))?.providerId,
-        accounts: app.accounts,
-      })
-      if (!detached.ok) return detached.refusal
       return null
     } catch (error) {
       return messageOf(error)

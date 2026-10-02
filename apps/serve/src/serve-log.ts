@@ -13,6 +13,18 @@ export enum EServeEvent {
   TurnEnded = 'serve.turn-ended',
   TurnFailed = 'serve.turn-failed',
   IdleStop = 'serve.idle-stop',
+  InterruptRequested = 'serve.interrupt-requested',
+  ShutdownRequested = 'serve.shutdown-requested',
+  ParkRefused = 'serve.park-refused',
+  ParkFinalized = 'serve.park-finalized',
+  ParkUnfinalized = 'serve.park-unfinalized',
+  ParkStopFailed = 'serve.park-stop-failed',
+  DrainRequested = 'serve.drain-requested',
+  DrainSealed = 'serve.drain-sealed',
+  DrainStepFailed = 'serve.drain-step-failed',
+  CheckpointUnpublishable = 'serve.checkpoint-unpublishable',
+  CheckpointPersistFailed = 'serve.checkpoint-persist-failed',
+  CheckpointMirrorFailed = 'serve.checkpoint-mirror-failed',
   IdleCheckFailed = 'serve.idle-check-failed',
   WorkspaceReady = 'serve.workspace-ready',
   WorkspaceFailed = 'serve.workspace-failed',
@@ -27,6 +39,7 @@ export enum EServeEvent {
   LostShellSettlementFailed = 'serve.lost-shell-settlement-failed',
   PortableStateInstalled = 'serve.portable-state-installed',
   PortableStateFailed = 'serve.portable-state-failed',
+  SettingsDropped = 'serve.settings-dropped',
 }
 
 export type ServeLogLine = { event: EServeEvent; [field: string]: unknown }

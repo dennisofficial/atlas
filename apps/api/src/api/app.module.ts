@@ -12,8 +12,8 @@ import { AccountsModule } from './platform/accounts/accounts.module'
 import { AuthModule } from './platform/auth/auth.module'
 import { GithubModule } from './cloud/github/github.module'
 import { GithubRealtimeModule } from './cloud/github/github-realtime.module'
-import { DrainStateService } from './platform/health/drain-state.service'
 import { HealthController } from './platform/health/health.controller'
+import { HealthModule } from './platform/health/health.module'
 import { MigrationStateService } from './platform/health/migration-state.service'
 import { McpServersModule } from './cloud/mcp-servers/mcp-servers.module'
 import { SandboxesModule } from './platform/sandboxes/sandboxes.module'
@@ -35,6 +35,7 @@ import { SessionsModule } from './platform/sessions/sessions.module'
     }),
     ScheduleModule.forRoot(),
     CryptoModule,
+    HealthModule,
     ClientVersionModule,
     AuthModule,
     AccountsModule,
@@ -48,7 +49,6 @@ import { SessionsModule } from './platform/sessions/sessions.module'
   ],
   controllers: [HealthController],
   providers: [
-    DrainStateService,
     MigrationStateService,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: ClientVersionGuard },

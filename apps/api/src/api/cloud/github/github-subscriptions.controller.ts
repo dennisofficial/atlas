@@ -9,8 +9,9 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common'
+import { SandboxReachable } from '../../../_core/decorators/sandbox-reachable.decorator'
 import type { AuthenticatedRequest } from '../../../_core/types/auth.types'
-import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
+import { SessionOrSandboxGuard } from '../../platform/sessions/session-or-sandbox.guard'
 import { SubscribeDto } from './github-realtime.dto'
 import type { GithubSubscriptionDto } from './github-realtime.types'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
@@ -21,8 +22,14 @@ function userIdOf(request: AuthenticatedRequest): string {
   return auth.userId
 }
 
+/**
+ * Session-or-sandbox because the serve process inside a container subscribes for its own thread:
+ * it holds only the thread-scoped sandbox token, which the guard resolves to the owning user, so
+ * hook creation and REST fills still ride that user's stored GitHub token.
+ */
 @Controller({ path: 'github/subscriptions', version: '1' })
-@UseGuards(SessionAuthGuard)
+@UseGuards(SessionOrSandboxGuard)
+@SandboxReachable()
 export class GithubSubscriptionsController {
   constructor(private readonly subscriptions: GithubSubscriptionsService) {}
 

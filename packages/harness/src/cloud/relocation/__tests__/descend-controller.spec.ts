@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EExecutionLocation, EPlacementMovePhase } from '@dltech/atlas-core'
+import { EAgentStatus, EExecutionLocation, EPlacementMovePhase } from '@dltech/atlas-core'
 import { PlacementController } from '@dltech/atlas-harness'
 
 import { CHILD, cloudArchiveOf, descend, fakeSurface, useDescendHome, type DescendHome } from './descend-fixture'
@@ -49,7 +49,7 @@ describe('a descend through the placement coordinator', () => {
     expect(controller.snapshot(CLOUD_THREAD)?.move).toBeNull()
   })
 
-  it('keeps the committed home placement when the reopen fails — the conversation is home', async () => {
+  it('keeps the cloud placement with no pending move when the reopen fails before the flip', async () => {
     const home = useDescendHome()
     const controller = bindController(home)
     const archive = await cloudArchiveOf([{ drafts: [said('one')] }])
@@ -63,15 +63,33 @@ describe('a descend through the placement coordinator', () => {
       descend({ bridge, home, surface, placement: controller }),
     ).rejects.toThrow('the local conversation would not reopen')
 
-    expect(controller.of(CLOUD_THREAD)).toBe(EExecutionLocation.Host)
-    expect(controller.snapshot(CLOUD_THREAD)?.move?.phase).toBe(EPlacementMovePhase.Committed)
-    expect((await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation).toBe(
-      EExecutionLocation.Host,
-    )
-
-    await controller.recover({ threadId: CLOUD_THREAD, reconcile: async (record) => record.placement })
+    expect(controller.of(CLOUD_THREAD)).toBe(EExecutionLocation.Cloud)
     expect(controller.snapshot(CLOUD_THREAD)?.move).toBeNull()
+    expect(bridge.destroyed).toEqual([])
+  })
+
+  it('keeps the committed home placement when resuming a paused child fails after the flip', async () => {
+    const home = useDescendHome()
+    const controller = bindController(home)
+    const archive = await cloudArchiveOf([
+      { drafts: [said('one')] },
+      { threadId: CHILD, drafts: [said('child was mid-task')], spawnedBy: CLOUD_THREAD },
+    ])
+    const bridge = fakeBridge({ archive })
+    const surface = fakeSurface()
+    home.agents.place(
+      fakeAgentSnapshot({ agentId: CHILD, spawnedBy: CLOUD_THREAD, status: EAgentStatus.Stopped }),
+    )
+    home.agents.resume = async () => {
+      throw new Error('the child would not resume')
+    }
+
+    await descend({ bridge, home, surface, placement: controller })
+
     expect(controller.of(CLOUD_THREAD)).toBe(EExecutionLocation.Host)
+    expect(controller.snapshot(CLOUD_THREAD)?.move).toBeNull()
+    expect(surface.notices.posts.some((post) => post.key === 'descend-cleanup-pending')).toBe(true)
+    expect(bridge.destroyed).toEqual([])
   })
 
   it('flips nothing when the transfer fails before the commit', async () => {

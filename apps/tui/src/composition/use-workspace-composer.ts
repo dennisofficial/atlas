@@ -178,10 +178,32 @@ export function useWorkspaceComposer(args: {
     [draft],
   )
 
+  /**
+   * Cloud take-back is a round trip to the sandbox, so the draft fills from the reply rather than
+   * the keypress. A concurrent second ↑ is refused while one is in flight — both would race for
+   * the same queue tail and the sandbox would hand it out twice.
+   */
+  const takingBack = useRef(false)
   const handleTakeBackPending = useCallback((): boolean => {
-    const taken = conversation.handleTakeBackPending()
-    if (taken === null) return false
+    if (takingBack.current) return false
 
+    const taken = conversation.handleTakeBackPending()
+    if (taken instanceof Promise) {
+      takingBack.current = true
+      void taken
+        .then((said) => {
+          takingBack.current = false
+          if (said === null) return
+          draft.setValue(said.text)
+          tokens.restore(restoredImages({ images: said.images, text: said.text }))
+        })
+        .catch(() => {
+          takingBack.current = false
+        })
+      return true
+    }
+
+    if (taken === null) return false
     draft.setValue(taken.text)
     tokens.restore(restoredImages({ images: taken.images, text: taken.text }))
     return true

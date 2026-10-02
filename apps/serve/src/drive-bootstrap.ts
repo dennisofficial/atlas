@@ -12,6 +12,9 @@ const BOOTSTRAP_DIRECTORY = 'bootstrap'
 const WORKSPACE_SPEC_FILE = 'workspace-spec.json'
 const CONTEXT_ARCHIVE_FILE = 'context.tar.gz'
 const TRANSCRIPT_ARCHIVE_FILE = 'transcript.tar.gz'
+const WORKSPACE_ARCHIVE_FILE = 'workspace.tar.gz'
+const WORKSPACE_RECEIPT_FILE = 'workspace-applied.json'
+const WORKSPACE_EXPORT_DIRECTORY = 'exports'
 
 const ENOENT = 'ENOENT'
 
@@ -58,3 +61,12 @@ export function driveTranscriptArchiveFetcher(args: {
   const path = join(args.driveHome, BOOTSTRAP_DIRECTORY, TRANSCRIPT_ARCHIVE_FILE)
   return () => readArchiveOrNull({ path })
 }
+
+export const driveWorkspaceArchivePath = (args: { driveHome: string }): string =>
+  join(args.driveHome, BOOTSTRAP_DIRECTORY, WORKSPACE_ARCHIVE_FILE)
+
+export const driveWorkspaceReceiptPath = (args: { driveHome: string }): string =>
+  join(args.driveHome, BOOTSTRAP_DIRECTORY, WORKSPACE_RECEIPT_FILE)
+
+export const driveWorkspaceExportDirectory = (args: { driveHome: string }): string =>
+  join(args.driveHome, WORKSPACE_EXPORT_DIRECTORY)

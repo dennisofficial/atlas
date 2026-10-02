@@ -22,7 +22,9 @@ describe('bringing a cloud conversation home', () => {
     expect(
       events.filter((event) => event.type === 'user-said').map((event) => event.text),
     ).toEqual(['one', 'two', 'three', 'four'])
-    expect(events.at(-1)?.type).toBe('location-changed')
+    const arrival = events.find((event) => event.type === 'location-changed')
+    expect(arrival).toMatchObject({ from: EExecutionLocation.Cloud, to: EExecutionLocation.Host, cwd: '/work' })
+    expect(events.at(-1)?.type).toBe('context-loaded')
     expect((await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation).toBe(
       EExecutionLocation.Host,
     )
@@ -30,8 +32,8 @@ describe('bringing a cloud conversation home', () => {
     expect(opened.resumeOnArrival).toBeUndefined()
     expect(surface.steps).toEqual([
       EDescendStep.Transferring,
-      EDescendStep.Flipping,
       EDescendStep.Relocating,
+      EDescendStep.Flipping,
     ])
     expect(surface.protects).toBe(1)
     expect(surface.released).toBe(1)
@@ -67,30 +69,6 @@ describe('bringing a cloud conversation home', () => {
     const childRow = await home.threads.find({ threadId: CHILD })
     expect(childRow?.executionLocation).toBe(EExecutionLocation.Host)
     expect(childRow?.agent?.spawnedBy).toBe(CLOUD_THREAD)
-  })
-
-  it('re-announces each child on the local log so the roster rebuilds after the move', async () => {
-    const home = useDescendHome()
-    const archive = await cloudArchiveOf([
-      { drafts: [said('parent says')] },
-      {
-        threadId: CHILD,
-        title: 'check the thing',
-        drafts: [said('child says')],
-        spawnedBy: CLOUD_THREAD,
-      },
-    ])
-    const bridge = fakeBridge({ archive })
-    home.agents.place(fakeAgentSnapshot({ agentId: CHILD, spawnedBy: CLOUD_THREAD }))
-
-    await descend({ bridge, home })
-
-    const spawned = (await home.log.read({ threadId: CLOUD_THREAD })).filter(
-      (event) => event.type === 'agent-spawned',
-    )
-    expect(spawned).toHaveLength(1)
-    expect(JSON.stringify(spawned[0])).toContain(CHILD)
-    expect(JSON.stringify(spawned[0])).toContain('check the thing')
   })
 
   it('overwrites the local log wholesale when the two sides diverged while away', async () => {

@@ -58,6 +58,7 @@ export class ExecutionLocationTool extends SchemaTool<typeof inputSchema> {
   protected override async run({
     input,
     threadId,
+    projectDirectory,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     const target = input.location
     const move = await moveLocalPlacement({
@@ -70,6 +71,7 @@ export class ExecutionLocationTool extends SchemaTool<typeof inputSchema> {
       services: this.deps.services,
       stores: this.deps.stores,
       caller: threadId,
+      cwd: projectDirectory,
       ...(this.deps.logPort === undefined ? {} : { logPort: this.deps.logPort }),
     })
 

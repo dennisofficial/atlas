@@ -1,149 +1,31 @@
-import { randomBytes } from 'node:crypto'
+import type { Sandbox } from '@vercel/sandbox'
 
-import { Sandbox } from '@vercel/sandbox'
-
+import { detachThenDeleteDrive, liveDriveSdk, type DriveSdk } from './drive-lifecycle'
+import { driveNameFor } from './drive-names'
+import { probeRuntimeActivity, type RuntimeActivityProbe } from './resume-probe'
+import { attachLagRetry, imageOptimizeRetry, type RetryPolicy } from './retry-policy'
+import { createServeLauncher, type ServeLauncher } from './serve-launch'
+import { tailServeLog, transcriptPresent, writeBootstrapFile } from './vercel-driver-probes'
+import { provisionSandbox, type ProvisionArgs } from './vercel-driver-provision'
 import {
-  detachThenDeleteDrive,
-  ensureDrive,
-  liveDriveSdk,
-  waitForDriveDetached,
-  type DriveSdk,
-} from './drive-lifecycle'
-import { driveNameFor, DRIVE_HOME_PATH, DRIVE_MOUNT_PATH, DRIVE_WORKSPACE_PATH } from './drive-names'
+  liveSdk,
+  assertLiveSession,
+  observationOf,
+  SANDBOX_MAX_PORTS,
+  SANDBOX_QUICK_TIMEOUT_MS,
+  type SandboxObservation,
+  type SandboxPlacement,
+  type VercelCredentials,
+  type VercelSdk,
+} from './vercel-driver-sdk'
+import { asVercelFailure, isSandboxMissing, SandboxMissingError } from './vercel-errors'
 import {
-  ESandboxProbe,
-  probeClientsAttached,
-  probeSandboxForResume,
-  type AttachProbe,
-} from './resume-probe'
-import { attachLagRetry, retrySleep, type RetryPolicy } from './retry-policy'
-import { ECloudSandboxState } from './sandbox-client'
-import {
-  createServeLauncher,
-  SERVE_LOG_PATH,
-  type ServeLauncher,
-} from './serve-launch'
-import {
-  asVercelFailure,
-  EVercelFailure,
-  failureTextOf,
-  isDriveAttachedConflict,
-  isSandboxMissing,
-  SandboxMissingError,
-  VercelFailure,
-} from './vercel-errors'
+  downloadWorkspaceArchive,
+  releaseWorkspaceExport,
+  uploadWorkspaceArchive,
+} from './workspace-archive-transport'
 
-export const SANDBOX_REGION = 'iad1'
-export const SANDBOX_SERVE_PORT = 3000
-/** The SDK's per-sandbox ceiling; the serve port occupies one slot. */
-export const SANDBOX_MAX_PORTS = 15
-/**
- * The workspace lives on the thread's drive, mounted at the sandbox root — the sandbox's own
- * filesystem holds only the image and whatever the session installs, and `persistent: true`
- * snapshots cover that OS layer between stops. The path is told to serve rather than inferred, so
- * both halves agree.
- */
-export const WORKSPACE_PATH = DRIVE_WORKSPACE_PATH
-
-/** Set once at creation and never extended: an idle sandbox parks itself. */
-export const SANDBOX_TIMEOUT_MS = 4 * 60 * 60 * 1000
-
-const SANDBOX_LAUNCH_TIMEOUT_MS = 60_000
-const SANDBOX_QUICK_TIMEOUT_MS = 30_000
-const ROUTE_RETRY_ATTEMPTS = 3
-const ROUTE_RETRY_DELAY_MS = 1_000
-
-export type VercelCredentials = { token: string; teamId: string; projectId: string }
-
-export type VercelSandboxConfig = {
-  credentials: VercelCredentials
-  image: string
-  /**
-   * The serve version this build pins, from `sandboxImageOf` — a released Atlas names its own
-   * version, anything else undefined. Drives the resume-time drift check: a sandbox whose baked
-   * serve predates the pin is torn down and recreated from the pinned image rather than resumed
-   * stale. Undefined disables the check (no pinned serve to match against).
-   */
-  serveVersion?: string | undefined
-}
-
-export type SandboxPlacement = {
-  sessionId: string
-  url: string
-  state: ECloudSandboxState
-  /** True only when the SDK's `onCreate` hook fired: a genuinely new sandbox, not a resumed one. */
-  created: boolean
-  /** The drive the sandbox mounted, so the claim row can record it. */
-  driveName: string
-  /**
-   * The serve token the sandbox runs with — minted on this machine unless the caller passed one in.
-   * The bridge hands it to the attach so the channel and the sandbox agree without a control plane.
-   */
-  token: string
-  /**
-   * Set when the drift probe found the sandbox's serve outdated but kept it because a client is
-   * attached — the version it carries, so the operator can be told the pinned one is pending.
-   */
-  outdatedServe?: string | undefined
-}
-
-export type SandboxObservation = {
-  state: ECloudSandboxState
-  url?: string
-}
-
-/** The static SDK surface the driver uses, injectable so a spec never reaches Vercel. */
-export type VercelSdk = {
-  getOrCreate: (
-    params: Parameters<typeof Sandbox.getOrCreate>[0],
-  ) => Promise<Sandbox>
-  get: (params: Parameters<typeof Sandbox.get>[0]) => Promise<Sandbox>
-}
-
-/**
- * Bun's fetch throws BrotliDecompressionError on Vercel's streamed cmd responses, so the driver
- * negotiates gzip — the one content-coding Bun decompresses reliably here.
- */
-const gzipOnlyFetch = Object.assign(
-  (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
-    const headers = new Headers(init?.headers)
-    headers.set('accept-encoding', 'gzip, deflate')
-    return fetch(input, { ...init, headers })
-  },
-  { preconnect: fetch.preconnect },
-)
-
-const liveSdk: VercelSdk = {
-  getOrCreate: (params) => Sandbox.getOrCreate({ ...params, fetch: gzipOnlyFetch }),
-  get: (params) => Sandbox.get({ ...params, fetch: gzipOnlyFetch }),
-}
-
-const stateOf = (status: string): ECloudSandboxState => {
-  if (status === 'running') return ECloudSandboxState.Running
-  if (status === 'pending') return ECloudSandboxState.Resuming
-  return ECloudSandboxState.Parked
-}
-
-const routedUrlOf = (sandbox: Sandbox): string | undefined => {
-  try {
-    return sandbox.domain(SANDBOX_SERVE_PORT)
-  } catch {
-    return undefined
-  }
-}
-
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
-
-const routedUrlWithRetries = async (sandbox: Sandbox): Promise<string> => {
-  for (let attempt = 1; attempt <= ROUTE_RETRY_ATTEMPTS; attempt += 1) {
-    const url = routedUrlOf(sandbox)
-    if (url !== undefined) return url
-    if (attempt < ROUTE_RETRY_ATTEMPTS) await sleep(ROUTE_RETRY_DELAY_MS)
-  }
-  throw new Error(
-    `sandbox ${sandbox.name} has no route for port ${SANDBOX_SERVE_PORT} after ${ROUTE_RETRY_ATTEMPTS} attempts`,
-  )
-}
+export * from './vercel-driver-sdk'
 
 /**
  * Everything Atlas needs from Vercel, driven with the operator's own token: the control plane
@@ -154,8 +36,9 @@ const routedUrlWithRetries = async (sandbox: Sandbox): Promise<string> => {
 export class VercelDriver {
   private readonly sdk: VercelSdk
   private readonly inflightLaunches = new WeakMap<object, Promise<void>>()
-  private readonly attachProbe: AttachProbe = probeClientsAttached
+  private readonly runtimeActivity: RuntimeActivityProbe = probeRuntimeActivity
   private readonly attachLagRetry: RetryPolicy
+  private readonly imageOptimizeRetry: RetryPolicy
 
   private readonly drives: DriveSdk
 
@@ -173,126 +56,38 @@ export class VercelDriver {
       driveSdk?: DriveSdk | undefined
       /** The attach-detach lag budget the delete and mount retries share; a spec passes zero delays. */
       attachLagRetry?: RetryPolicy | undefined
-      /**
-       * Whether a client socket is attached to the sandbox's running serve — the drift probe
-       * consults it before destroying an outdated sandbox. Defaults to the serve's own
-       * `/v1/health` `clients` count, read through a command inside the sandbox.
-       */
-      clientsAttached?: AttachProbe | undefined
+      /** Budget for waiting out a freshly published image's optimization lag. */
+      imageOptimizeRetry?: RetryPolicy | undefined
+      runtimeHealth?: RuntimeActivityProbe | undefined
     },
   ) {
     this.sdk = args.sdk ?? liveSdk
     this.drives = args.driveSdk ?? liveDriveSdk
     this.attachLagRetry = args.attachLagRetry ?? attachLagRetry
-    if (args.clientsAttached !== undefined) this.attachProbe = args.clientsAttached
+    this.imageOptimizeRetry = args.imageOptimizeRetry ?? imageOptimizeRetry
+    if (args.runtimeHealth !== undefined) this.runtimeActivity = args.runtimeHealth
   }
 
-  async createOrResume(args: {
-    name: string
-    threadId: string
-    /**
-     * The session's serve token, minted on this machine when omitted — the claim's token is a
-     * caller override from the bridge slice, which still owns the wire side of it.
-     */
-    token?: string | undefined
-    pinnedModel?: string | undefined
-    /**
-     * Writes the session's bootstrap onto the drive. Runs after the sandbox exists (the drive is
-     * mounted) and before serve launches, so serve finds the workspace spec and context archive on
-     * its first read. Receives the live sandbox — on a fresh boot the name does not resolve until
-     * getOrCreate returns, so the callback writes through the sandbox it is handed, not a lookup.
-     */
-    putContextOnFreshBoot?: ((sandbox: Sandbox) => Promise<void>) | undefined
-    /**
-     * Extra environment for the sandbox process, resolved by the caller at lift time — the
-     * settings a cloud session should inherit from the operator's machine (the decision-model
-     * URL, classifier mode, search backend). The sandbox is a fresh container with no local
-     * settings files, so anything not handed here reads as its fallback there.
-     */
-    environment?: Record<string, string> | undefined
-  }): Promise<SandboxPlacement> {
-    if (this.args.image === undefined) {
-      throw new Error('this driver was built for port exposure only, not for creating sandboxes')
-    }
-    const image = this.args.image
-    const launchServe: ServeLauncher = (launchArgs) =>
-      this.dedupedLaunch({
-        sandbox: launchArgs.sandbox,
-        launch: createServeLauncher(),
-        token: launchArgs.token,
-      })
-    const serveToken = args.token ?? randomBytes(32).toString('hex')
-    const createStartedAt = Date.now()
-    let created = false
-    try {
-      const { credentials } = this.args
-      const driveName = driveNameFor({ threadId: args.threadId })
-      const drive = await ensureDrive({ sdk: this.drives, credentials, name: driveName })
-      const { probe, outdatedServe } = await probeSandboxForResume({
-        name: args.name,
-        pinned: this.args.serveVersion,
-        timeoutMs: SANDBOX_QUICK_TIMEOUT_MS,
-        servePort: SANDBOX_SERVE_PORT,
-        fetch: () =>
-          this.sdk.get({
-            ...credentials,
-            name: args.name,
-            signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
+  createOrResume(args: ProvisionArgs): Promise<SandboxPlacement> {
+    return provisionSandbox(
+      {
+        config: this.args,
+        sdk: this.sdk,
+        drives: this.drives,
+        runtimeHealth: this.runtimeActivity,
+        attachLagRetry: this.attachLagRetry,
+        imageOptimizeRetry: this.imageOptimizeRetry,
+        launchServe: (launchArgs: Parameters<ServeLauncher>[0]) =>
+          this.dedupedLaunch({
+            sandbox: launchArgs.sandbox,
+            launch: createServeLauncher({ log: this.args.log }),
+            token: launchArgs.token,
+            sandboxSessionId: launchArgs.sandboxSessionId,
+            cloudUrl: launchArgs.cloudUrl,
           }),
-        clientsAttached: this.attachProbe,
-        waitForDriveDetached: () =>
-          waitForDriveDetached({
-            sdk: this.drives,
-            credentials,
-            name: driveName,
-            retry: this.attachLagRetry,
-          }),
-        log: this.args.log,
-        isMissing: isSandboxMissing,
-        toFailure: asVercelFailure,
-      })
-      const freshBoot = probe === ESandboxProbe.Missing || probe === ESandboxProbe.Replaced
-      const sandbox = await this.mountWithRetries({
-        credentials,
-        name: args.name,
-        image,
-        drive,
-        driveName,
-        threadId: args.threadId,
-        token: serveToken,
-        environment: args.environment,
-        pinnedModel: args.pinnedModel,
-        onCreate: () => {
-          created = true
-          return Promise.resolve()
-        },
-      })
-      const createMs = Date.now() - createStartedAt
-      if (args.putContextOnFreshBoot !== undefined) {
-        await args.putContextOnFreshBoot(sandbox)
-      }
-      const serveStartedAt = Date.now()
-      await launchServe({ sandbox, token: serveToken })
-      this.args.log?.(
-        `sandbox ${args.name} provisioned: get-or-create ${createMs}ms, serve launch ${Date.now() - serveStartedAt}ms`,
-      )
-      return {
-        sessionId: sandbox.currentSession().sessionId,
-        url: await routedUrlWithRetries(sandbox),
-        state: stateOf(sandbox.status),
-        created,
-        driveName,
-        token: serveToken,
-        ...(outdatedServe === undefined ? {} : { outdatedServe }),
-      }
-    } catch (failure) {
-      if (failure instanceof SandboxMissingError) throw failure
-      if (failure instanceof VercelFailure) throw failure
-      this.args.log?.(
-        `sandbox ${args.name} provision failed ${Date.now() - createStartedAt}ms in: ${failureTextOf(failure)}`,
-      )
-      throw asVercelFailure(failure)
-    }
+      },
+      args,
+    )
   }
 
   /**
@@ -302,13 +97,8 @@ export class VercelDriver {
    */
   async inspect(args: { name: string }): Promise<SandboxObservation | undefined> {
     try {
-      const sandbox = await this.sdk.get({
-        ...this.args.credentials,
-        name: args.name,
-        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
-      })
-      const url = routedUrlOf(sandbox)
-      return { state: stateOf(sandbox.status), ...(url === undefined ? {} : { url }) }
+      const sandbox = await this.sandboxNamed(args.name, { resume: false })
+      return observationOf(sandbox)
     } catch (failure) {
       if (isSandboxMissing(failure)) return undefined
       throw asVercelFailure(failure)
@@ -321,11 +111,7 @@ export class VercelDriver {
    */
   async exposePort(args: { name: string; port: number }): Promise<string> {
     try {
-      const sandbox = await this.sdk.get({
-        ...this.args.credentials,
-        name: args.name,
-        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
-      })
+      const sandbox = await this.sandboxNamed(args.name)
       const routed = sandbox.routes.map((route) => route.port)
       if (!routed.includes(args.port)) {
         if (routed.length >= SANDBOX_MAX_PORTS) {
@@ -345,13 +131,10 @@ export class VercelDriver {
     }
   }
 
-  async stop(args: { name: string }): Promise<void> {
+  async stop(args: { name: string; sessionId?: string | undefined }): Promise<void> {
     try {
-      const sandbox = await this.sdk.get({
-        ...this.args.credentials,
-        name: args.name,
-        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
-      })
+      const sandbox = await this.sandboxNamed(args.name, { resume: false })
+      assertLiveSession({ sandbox, name: args.name, expected: args.sessionId })
       await sandbox.stop({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
     } catch (failure) {
       if (isSandboxMissing(failure)) return
@@ -365,17 +148,8 @@ export class VercelDriver {
    */
   async serveLogTail(args: { name: string }): Promise<string> {
     try {
-      const sandbox = await this.sdk.get({
-        ...this.args.credentials,
-        name: args.name,
-        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
-      })
-      const read = await sandbox.runCommand({
-        cmd: 'sh',
-        args: ['-c', `tail -c 3000 ${SERVE_LOG_PATH} 2>/dev/null || echo NO-SERVE-LOG`],
-        timeoutMs: SANDBOX_QUICK_TIMEOUT_MS,
-      })
-      return (await read.stdout()).trim()
+      const sandbox = await this.sandboxNamed(args.name)
+      return await tailServeLog(sandbox)
     } catch (failure) {
       if (isSandboxMissing(failure)) return '<the sandbox is gone>'
       throw asVercelFailure(failure)
@@ -398,12 +172,7 @@ export class VercelDriver {
     content: Uint8Array | string
   }): Promise<void> {
     try {
-      await args.sandbox.runCommand({
-        cmd: 'sh',
-        args: ['-c', `mkdir -p ${DRIVE_HOME_PATH}/bootstrap`],
-        timeoutMs: SANDBOX_QUICK_TIMEOUT_MS,
-      })
-      await args.sandbox.writeFiles([{ path: args.path, content: args.content, mode: 0o600 }])
+      await writeBootstrapFile(args)
     } catch (failure) {
       throw asVercelFailure(failure)
     }
@@ -420,11 +189,7 @@ export class VercelDriver {
     content: Uint8Array | string
   }): Promise<void> {
     try {
-      const sandbox = await this.sdk.get({
-        ...this.args.credentials,
-        name: args.name,
-        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
-      })
+      const sandbox = await this.sandboxNamed(args.name)
       await this.writeBootstrapFileToSandbox({
         sandbox,
         path: args.path,
@@ -435,20 +200,38 @@ export class VercelDriver {
     }
   }
 
+  async uploadWorkspaceArchive(args: {
+    sandbox: Sandbox
+    source: string
+    destination: string
+  }): Promise<void> {
+    await this.guarded(args.sandbox.name, () => uploadWorkspaceArchive(args))
+  }
+
+  async downloadWorkspaceArchive(args: {
+    name: string
+    path: string
+    destination: string
+  }): Promise<void> {
+    await this.guarded(args.name, async () => {
+      const sandbox = await this.sandboxNamed(args.name)
+      await downloadWorkspaceArchive({ sandbox, path: args.path, destination: args.destination })
+    })
+  }
+
+  async releaseWorkspaceArchive(args: { name: string; path: string }): Promise<void> {
+    try {
+      await releaseWorkspaceExport({ sandbox: await this.sandboxNamed(args.name), path: args.path })
+    } catch (failure) {
+      if (!isSandboxMissing(failure)) throw asVercelFailure(failure)
+    }
+  }
+
   /** True once the transcript archive the laptop wrote is present on the drive. */
   async transcriptLanded(args: { name: string }): Promise<boolean> {
     try {
-      const sandbox = await this.sdk.get({
-        ...this.args.credentials,
-        name: args.name,
-        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
-      })
-      const probe = await sandbox.runCommand({
-        cmd: 'sh',
-        args: ['-c', `test -s ${DRIVE_HOME_PATH}/bootstrap/transcript.tar.gz`],
-        timeoutMs: SANDBOX_QUICK_TIMEOUT_MS,
-      })
-      return probe.exitCode === 0
+      const sandbox = await this.sandboxNamed(args.name)
+      return await transcriptPresent(sandbox)
     } catch (failure) {
       if (isSandboxMissing(failure)) return false
       throw asVercelFailure(failure)
@@ -457,11 +240,7 @@ export class VercelDriver {
 
   async destroy(args: { name: string; threadId?: string | undefined }): Promise<void> {
     try {
-      const sandbox = await this.sdk.get({
-        ...this.args.credentials,
-        name: args.name,
-        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
-      })
+      const sandbox = await this.sandboxNamed(args.name)
       await sandbox.delete({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
     } catch (failure) {
       if (!isSandboxMissing(failure)) throw asVercelFailure(failure)
@@ -482,93 +261,44 @@ export class VercelDriver {
     }
   }
 
-  /**
-   * The mount direction of the attach-detach lag: Vercel detaches a drive asynchronously after a
-   * sandbox goes away, so a create issued while the drive still reads attached lands
-   * `already attached as read-write`. Retries through that window the way deleteDrive retries the
-   * delete side; exhaustion surfaces as a typed failure rather than the raw provider text. A
-   * stopped-but-live sandbox that still holds the mount lands the same failure and is retried as
-   * attach-state lag.
-   */
-  private async mountWithRetries(args: {
-    credentials: VercelCredentials
-    name: string
-    image: string
-    drive: Awaited<ReturnType<DriveSdk['getOrCreate']>>
-    driveName: string
-    threadId: string
-    token: string
-    environment?: Record<string, string> | undefined
-    pinnedModel?: string | undefined
-    onCreate: () => Promise<void>
-  }): Promise<Sandbox> {
-    for (let attempt = 1; ; attempt++) {
-      try {
-        return await this.sdk.getOrCreate({
-          ...args.credentials,
-          name: args.name,
-          ports: [SANDBOX_SERVE_PORT],
-          timeout: this.args.timeoutMs ?? SANDBOX_TIMEOUT_MS,
-          region: SANDBOX_REGION,
-          persistent: true,
-          resume: true,
-          image: args.image,
-          mounts: { [DRIVE_MOUNT_PATH]: args.drive },
-          onCreate: args.onCreate,
-          env: {
-            ATLAS_SERVE_TOKEN: args.token,
-            ATLAS_SERVE_PORT: String(SANDBOX_SERVE_PORT),
-            ATLAS_THREAD_ID: args.threadId,
-            ATLAS_CLOUD_URL: this.args.cloudUrl,
-            ATLAS_WORKSPACE_DIR: WORKSPACE_PATH,
-            ATLAS_HOME: DRIVE_HOME_PATH,
-            VERCEL_TOKEN: args.credentials.token,
-            VERCEL_TEAM_ID: args.credentials.teamId,
-            VERCEL_PROJECT_ID: args.credentials.projectId,
-            ...(args.pinnedModel === undefined ? {} : { ATLAS_MODEL: args.pinnedModel }),
-            ...args.environment,
-          },
-          signal: AbortSignal.timeout(SANDBOX_LAUNCH_TIMEOUT_MS),
-        })
-      } catch (failure) {
-        if (!isDriveAttachedConflict(failure)) throw failure
-        const retry = this.attachLagRetry
-        if (attempt >= retry.attempts) {
-          throw new VercelFailure({
-            kind: EVercelFailure.DriveAttached,
-            message: `drive ${args.driveName} is still attached after ${retry.attempts} attempts to mount it on sandbox ${args.name}: ${failureTextOf(failure)}`,
-          })
-        }
-        this.args.log?.(
-          `drive ${args.driveName} still attached to another sandbox (attempt ${attempt}/${retry.attempts}) — waiting out the detach`,
-        )
-        await retrySleep(retry)
-      }
+  private async guarded(name: string, run: () => Promise<void>): Promise<void> {
+    try {
+      await run()
+    } catch (failure) {
+      if (isSandboxMissing(failure)) throw new SandboxMissingError(name)
+      throw asVercelFailure(failure)
     }
   }
 
-  private async dedupedLaunch(args: {
+  private sandboxNamed(name: string, opts?: { resume: false }): Promise<Sandbox> {
+    return this.sdk.get({
+      ...this.args.credentials,
+      name,
+      ...(opts ?? {}),
+      signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
+    })
+  }
+
+  private dedupedLaunch(args: {
     sandbox: Sandbox
     launch: ServeLauncher
     token?: string | undefined
+    sandboxSessionId?: string | undefined
+    cloudUrl?: string | undefined
   }): Promise<void> {
     const existing = this.inflightLaunches.get(args.sandbox)
     if (existing !== undefined) return existing
-    const attempt = this.healedLaunch(args).finally(() => {
-      this.inflightLaunches.delete(args.sandbox)
-    })
+    const attempt = args
+      .launch({
+        sandbox: args.sandbox,
+        ...(args.token === undefined ? {} : { token: args.token }),
+        ...(args.sandboxSessionId === undefined ? {} : { sandboxSessionId: args.sandboxSessionId }),
+        ...(args.cloudUrl === undefined ? {} : { cloudUrl: args.cloudUrl }),
+      })
+      .finally(() => {
+        this.inflightLaunches.delete(args.sandbox)
+      })
     this.inflightLaunches.set(args.sandbox, attempt)
     return attempt
-  }
-
-  private async healedLaunch(args: {
-    sandbox: Sandbox
-    launch: ServeLauncher
-    token?: string | undefined
-  }): Promise<void> {
-    await args.launch({
-      sandbox: args.sandbox,
-      ...(args.token === undefined ? {} : { token: args.token }),
-    })
   }
 }

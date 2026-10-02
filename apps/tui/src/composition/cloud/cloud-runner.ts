@@ -2,7 +2,7 @@ import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
 import { RemoteTurnRunner, type CaptureContext } from '@dltech/atlas-harness'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
-import { WAKE_HEADING, WAKE_PLAN } from '../container-move'
+import { ELocalMoveStep, WAKE_HEADING, WAKE_PLAN } from '../container-move'
 import { messageOf } from '../error-text'
 import type { ContainerMoveControl } from '../use-container-move'
 import type { CloudBridge, CloudChannel } from '@dltech/atlas-harness'
@@ -12,6 +12,8 @@ export type { CaptureContext }
 
 const WAKE_CONTEXT_NOTICE_KEY = 'wake-context-put-failed'
 const WAKE_OUTDATED_SERVE_NOTICE_KEY = 'wake-outdated-serve'
+
+export const ROTATE_HEADING = 'UPDATING THE CLOUD SANDBOX'
 
 /**
  * Re-attaching to a thread's sandbox: the claim mints a fresh token and git credential, and the
@@ -32,6 +34,13 @@ export async function wakeSandbox(args: {
   const woken = await args.bridge.sandboxes.create({
     threadId: args.threadId,
     workspace: null,
+    onRotationStarted: () => {
+      args.move?.handleExpand({
+        insertBefore: ELiftStep.Attaching,
+        step: ELocalMoveStep.Rotating,
+        heading: ROTATE_HEADING,
+      })
+    },
     captureContext: async (put) => {
       try {
         const archive = await args.captureContext()

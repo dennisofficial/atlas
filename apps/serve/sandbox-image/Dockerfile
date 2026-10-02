@@ -156,10 +156,14 @@ RUN chmod 755 /usr/local/bin/docker /usr/local/bin/docker-daemon-up \
   && /usr/bin/docker --version
 
 # Baked by sandbox-image.yml: the VCR image gets the real serve binary plus a version file the
-# driver's drift probe matches against the pinned release; the GHCR image gets 0-byte
-# placeholders (docker sandboxes never run serve).
+# driver's drift probe matches against the pinned release and a protocol file that decides
+# whether the sandbox is rotated; the GHCR image gets 0-byte placeholders (docker sandboxes never run serve).
 COPY atlas-serve /opt/atlas/atlas-serve
 COPY atlas-serve.version /opt/atlas/atlas-serve.version
+COPY atlas-serve.protocol /opt/atlas/atlas-serve.protocol
+# A fresh stamp per bake, so a republish can always mint a fresh manifest digest: Vercel caches a
+# failed image optimization against the digest, and only a new digest retries it.
+COPY atlas-serve.bake-id /opt/atlas/atlas-serve.bake-id
 # /opt/atlas is 777, not 755: the sandbox session user (non-root) writes the serve
 # token/lock/log files there at runtime, and a root-owned 755 dir would break the launcher.
 RUN chmod 755 /opt/atlas/atlas-serve && chmod 777 /opt/atlas

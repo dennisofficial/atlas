@@ -12,12 +12,14 @@ import { isUniqueViolation } from './unique-violation'
 const HOOK_EVENTS = ['pull_request', 'check_suite', 'check_run', 'push']
 const IDLE_DELETE_AFTER_MS = 24 * 60 * 60 * 1_000
 const SWEEP_LEASE_MS = 5 * 60 * 1_000
+const VERIFY_HOOK_TTL_MS = 5 * 60 * 1_000
 
 export type EnsureHookResult = 'created' | 'existing' | 'poll-backed'
 
 @Injectable()
 export class GithubHookLifecycleService {
   private readonly logger = new Logger(GithubHookLifecycleService.name)
+  private readonly verifiedAliveAt = new Map<string, number>()
 
   constructor(
     private readonly github: GithubService,
@@ -37,7 +39,13 @@ export class GithubHookLifecycleService {
       if (hook.status === ERepoHookStatus.Orphaned) {
         return this.reconcile({ ...args, existingSecret: hook.secret })
       }
-      return 'existing'
+      const alive = await this.isHookAlive({
+        userId: args.userId,
+        repoFullName: args.repoFullName,
+        hookId: hook.hookId,
+      })
+      if (alive) return 'existing'
+      return this.reconcile({ ...args, existingSecret: hook.secret })
     }
     return this.createHook(args)
   }
@@ -72,6 +80,40 @@ export class GithubHookLifecycleService {
       })
       if (claimed.count === 1) await this.teardown({ repoFullName: candidate.repoFullName })
     }
+  }
+
+  /**
+   * The local `active` row is only a claim: the hook can be deleted or disabled on the GitHub
+   * side at any time, and hook-backed subscriptions never fall back to polling, so a dead hook
+   * means silent realtime. Verify against GitHub — memoized briefly, otherwise every resubscribe
+   * storm would spend a REST call on it — and recreate on `missing`. `unauthorized` and network
+   * failures trust the row instead: delivery auth is the HMAC secret, not this token, and a
+   * hook GitHub hides from a token without admin rights still delivers.
+   */
+  private async isHookAlive(args: {
+    userId: string
+    repoFullName: string
+    hookId: bigint
+  }): Promise<boolean> {
+    const verified = this.verifiedAliveAt.get(args.repoFullName)
+    if (verified !== undefined && Date.now() - verified < VERIFY_HOOK_TTL_MS) return true
+
+    const token = await this.github.findToken({ userId: args.userId })
+    if (token === undefined) return true
+
+    const [owner, repo] = args.repoFullName.split('/') as [string, string]
+    let result: 'found' | 'missing' | 'unauthorized'
+    try {
+      result = await this.reads.getHook({ token, owner, repo, hookId: Number(args.hookId) })
+    } catch (failure) {
+      this.logger.warn(`verifying the hook for ${args.repoFullName} failed: ${String(failure)}`)
+      return true
+    }
+    if (result === 'found' || result === 'unauthorized') {
+      this.verifiedAliveAt.set(args.repoFullName, Date.now())
+      return true
+    }
+    return false
   }
 
   private async reconcile(args: {

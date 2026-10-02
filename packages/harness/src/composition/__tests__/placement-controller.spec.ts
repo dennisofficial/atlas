@@ -75,6 +75,39 @@ describe('session placement', () => {
     expect(controller.snapshot(THREAD)?.move).toBeNull()
   })
 
+  it('surfaces the move to readers from its first durable write until it settles', async () => {
+    const { controller } = setup()
+    await controller.activate({ threadId: THREAD })
+    let release: () => void = () => undefined
+    const waiting = new Promise<void>((resolve) => { release = resolve })
+    let entered: () => void = () => undefined
+    const ready = new Promise<void>((resolve) => { entered = resolve })
+    const seen: boolean[] = []
+    const unsubscribe = controller.subscribe(() => {
+      seen.push(controller.moveFor(THREAD) !== null)
+    })
+    const pending = controller.move({
+      threadId: THREAD,
+      target: EExecutionLocation.Cloud,
+      kind: EPlacementMoveKind.Lift,
+      work: async ({ commit }) => {
+        entered()
+        expect(controller.moveFor(THREAD)?.phase).toBe(EPlacementMovePhase.Preparing)
+        await waiting
+        await commit()
+        expect(controller.moveFor(THREAD)?.phase).toBe(EPlacementMovePhase.Committed)
+      },
+    })
+    await ready
+    expect(controller.moveFor(THREAD)?.phase).toBe(EPlacementMovePhase.Preparing)
+    release()
+    await pending
+    unsubscribe()
+    expect(controller.moveFor(THREAD)).toBeNull()
+    expect(seen).toContain(true)
+    expect(seen[seen.length - 1]).toBe(false)
+  })
+
   it('refuses overlapping moves across the session and its teammate', async () => {
     const { controller, threads } = setup()
     await threads.create({ id: THREAD })

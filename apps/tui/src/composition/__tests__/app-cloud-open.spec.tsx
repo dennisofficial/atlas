@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import React from 'react'
 import { testRender } from '@opentui/react/test-utils'
 
-import { EExecutionLocation, toRunId, type ThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation, EPlacementMovePhase, placementOf, toRunId, type ThreadId } from '@dltech/atlas-core'
 
 import { frameShowing } from '../../ui/__tests__/waiting'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
@@ -96,6 +96,7 @@ const mount = async (args: {
       createBridge={createBridge}
       preflightLift={async () => null}
       captureWorkspace={async () => CLEAN_WORKSPACE}
+      captureArchive={async () => undefined}
       captureContext={async () => undefined}
       {...(args.onRestart === undefined ? {} : { onRestart: args.onRestart })}
     />,
@@ -122,6 +123,7 @@ const mount = async (args: {
       return frame()
     },
     typeText: (text: string) => setup.mockInput.typeText(text),
+    pressEscape: () => setup.mockInput.pressEscape(),
     done: async () => {
       await teardown(setup)
       if (previousHome === undefined) delete process.env.ATLAS_HOME
@@ -249,6 +251,91 @@ describe('opening a conversation that lives in the cloud', () => {
       expect((await app.threads.find({ threadId }))?.executionLocation).toBe(
         EExecutionLocation.Cloud,
       )
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('holds the failed boot attach as an unbound cloud placement with its reason, then attaches on the retry from the picker', async () => {
+    const app = speaking()
+    const { threadId } = await seedCloudThread(app)
+    const bridge = fakeBridge({ status: RUNNING_STATUS })
+    await bridge.log.append({
+      threadId,
+      runId: toRunId('run-cloud'),
+      drafts: [{ type: 'user-said', text: 'said inside the sandbox' }],
+    })
+    const create = bridge.sandboxes.create
+    let failures = 1
+    bridge.sandboxes.create = async (given) => {
+      if (failures === 0) return create(given)
+      failures -= 1
+      throw new Error('the sandbox could not wake')
+    }
+    const mounted = await mount({
+      app,
+      bridge,
+      opened: { threadId: THREAD, events: [], turns: [], name: null, started: false, bootCloudThreadId: threadId },
+    })
+
+    try {
+      expect(await until({ holds: async () => failures === 0, within: 10_000 })).toBe(true)
+      const failed = app.sessionOwner.snapshot()
+      expect(failed.location).toBe(EExecutionLocation.Cloud)
+      expect(failed.bound).toBe(false)
+      expect(() => app.sessionOwner.require()).toThrow('not attached')
+      expect(currentNotices().some((notice) => notice.text.includes('the sandbox could not wake'))).toBe(true)
+      expect(app.sessionOwner.snapshot().threadId).toBe(threadId)
+      expect(bridge.attached).toEqual([])
+
+      mounted.pressEscape()
+      await settle(300)
+      await mounted.command('/resume')
+      await mounted.typeText('lifted')
+      await mounted.pick()
+      expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(true)
+      const attached = app.sessionOwner.snapshot()
+      expect(attached.bound).toBe(true)
+      expect(attached.threadId).toBe(threadId)
+      expect(await mounted.showing('said inside the sandbox')).toContain('said inside the sandbox')
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+
+  it('resumes a source that a crashed descend left frozen before it attaches an unfinished record', async () => {
+    const app = speaking()
+    const { threadId } = await seedCloudThread(app)
+    await app.threads.writePlacement({
+      threadId,
+      expectedRevision: 0,
+      record: {
+        placement: placementOf(EExecutionLocation.Cloud),
+        revision: 1,
+        move: {
+          id: 'crashed-descend',
+          from: placementOf(EExecutionLocation.Cloud),
+          to: placementOf(EExecutionLocation.Host),
+          phase: EPlacementMovePhase.Preparing,
+        },
+      },
+    })
+    const bridge = fakeBridge({ status: RUNNING_STATUS })
+    await bridge.log.append({
+      threadId,
+      runId: toRunId('run-cloud'),
+      drafts: [{ type: 'user-said', text: 'said inside the sandbox' }],
+    })
+    const mounted = await mount({ app, bridge })
+
+    try {
+      await mounted.command('/resume')
+      await mounted.typeText('lifted')
+      await mounted.pick()
+      expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(true)
+      expect(await until({ holds: async () => app.sessionOwner.snapshot().bound, within: 10_000 })).toBe(true)
+      expect(bridge.channel.resumed).toBeGreaterThan(0)
+      expect(app.sessionOwner.snapshot().record?.move).toBeNull()
     } finally {
       await mounted.done()
     }

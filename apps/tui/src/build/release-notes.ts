@@ -1,4 +1,9 @@
-import { releaseRowsInRange, versionFromTag, type ReleaseNotesRow } from '@dltech/atlas-core'
+import {
+  cleanReleaseBody,
+  releaseRowsInRange,
+  versionFromTag,
+  type ReleaseNotesRow,
+} from '@dltech/atlas-core'
 
 export type ReleaseNotesFetch =
   | { readonly kind: 'ok'; readonly rows: readonly ReleaseNotesRow[] }
@@ -27,7 +32,7 @@ export async function fetchReleaseNotes(args: {
       const tag = typeof record.tag_name === 'string' ? record.tag_name : ''
       const version = versionFromTag({ tag, prefix: args.prefix })
       if (version === null) continue
-      const body = typeof record.body === 'string' ? record.body.trim() : ''
+      const body = typeof record.body === 'string' ? cleanReleaseBody(record.body) : ''
       rows.push({ version: tag.slice(args.prefix.length), body })
     }
 

@@ -1,13 +1,15 @@
 import type {
+  EExecutionLocation,
   EKilledBy,
-  EnvironmentCapabilities,
   EventLogPort,
   IdPort,
   NoticePort,
   ThreadId,
   WorkspaceIdentity,
 } from '@dltech/atlas-core'
+import type { UserSettingsTarget } from './apply-user-settings'
 import type { RosterWire } from '@dltech/atlas-wire'
+import type { RestoredWorkspace } from '@dltech/atlas-harness'
 
 import type { DeltaChannel, PlacementController } from '@dltech/atlas-harness'
 import type { FileBrowser } from '@dltech/atlas-harness'
@@ -50,6 +52,9 @@ export type ServeRoster = {
  */
 export type ServeFamily = {
   pauseChildren: (args: { threadId: ThreadId }) => Promise<void>
+  resumeChildren?: ((args: { threadId: ThreadId }) => Promise<void>) | undefined
+  /** Holds every family thread's intake so no notice wakes a child mid-capture; released by resumeChildren. */
+  freeze?: ((args: { threadId: ThreadId }) => Promise<void> | void) | undefined
 }
 
 /**
@@ -96,6 +101,7 @@ export type ServeApp = {
   modelBridge?: ServeModelBridge | undefined
   /** The on-disk turn spend, read by the transcript turn-feed op. Absent in fakes. */
   ledger?: Pick<TurnLedgerPort, 'forThread' | 'forThreadTree'> | undefined
+  settings?: UserSettingsTarget | undefined
   ids: Pick<IdPort, 'nextRunId'>
   files: Pick<FileBrowser, 'list' | 'forget'>
   workspace: WorkspaceIdentity
@@ -120,9 +126,34 @@ export type ServeApp = {
    * refreshes the store so the read ops serve it. Absent in fakes, which refuse the op.
    */
   restoreTranscript?: (() => Promise<{ restored: boolean; failed: string | null }>) | undefined
+  /**
+   * Appends the arrival events for a restored workspace to every family thread and re-points their
+   * stored workspace at the restored paths, without rewriting history. Absent in fakes.
+   */
+  recordWorkspaceArrival?:
+    | ((args: {
+        restored: RestoredWorkspace
+        from: EExecutionLocation
+        to: EExecutionLocation
+        launchDirectory: string
+      }) => Promise<void>)
+    | undefined
+  /**
+   * Ends the family's shells and services (attributed to the container switch) and awaits their
+   * endings, so a workspace export races no background writer. Absent in fakes.
+   */
+  stopWorkspaceProcesses?: (() => Promise<void>) | undefined
+  /**
+   * Kills the family's shells and services attributed to `killedBy` and writes their endings to the
+   * log before it resolves. Absent in fakes, where nothing runs.
+   */
+  endProcesses?: ((args: { killedBy: EKilledBy }) => Promise<void>) | undefined
   /** Live counts behind the idle park; absent in fakes, where nothing runs. */
   runningShells?: (() => number) | undefined
   runningServices?: (() => number) | undefined
+  runningChildren?: (() => number) | undefined
+  settlingWork?: (() => boolean) | undefined
+  pendingInput?: (() => boolean) | undefined
   /** Absent in a fake without registries: no endings means nothing to wake for. */
   wakeNotices?: ServeWakeNotices | undefined
   /** Absent in a fake without registries: the client is answered an empty roster instead. */
@@ -147,7 +178,6 @@ export type ServeComposeArgs = {
   notice: NoticePort
   /** The Mac-side project directory, so memory this sandbox uploads is keyed by the right repo. */
   projectDirectory?: string | null | undefined
-  capabilities?: EnvironmentCapabilities | undefined
   /**
    * The repo's normalized origin identity (`github.com/org/repo`) from the workspace spec, so the
    * sandbox's project memory lands in the same identity-keyed directory the host uses. Null when

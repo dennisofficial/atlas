@@ -1,7 +1,8 @@
 import { z } from 'zod'
 
 import { rosterWireSchema } from './roster-wire.js'
-import { wireEventSchema, wireThreadSchema, wireTurnSchema } from './session-wire.js'
+import { seqSchema, threadIdWireSchema, threadModelWireSchema } from './request-wire.js'
+import { runtimeCheckpointSchema } from './runtime-checkpoint.js'
 import { channelSignalSchema } from './signal-wire.js'
 
 export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
@@ -12,7 +13,7 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
  * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
  */
-export const CHANNEL_PROTOCOL_VERSION = 10
+export const CHANNEL_PROTOCOL_VERSION = 13
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
@@ -37,6 +38,7 @@ export enum EServeFrame {
   InterruptAcked = 'interrupt-acked',
   SendAcked = 'send-acked',
   Roster = 'roster',
+  Checkpoint = 'checkpoint',
   ThreadRenamed = 'thread-renamed',
   ThreadModelChanged = 'thread-model-changed',
   Error = 'error',
@@ -49,6 +51,13 @@ export enum EClientFrame {
   Interrupt = 'interrupt',
   Pause = 'pause',
   Resume = 'resume',
+  /**
+   * The operator terminal's whole user settings document, sent on attach and again on each
+   * local change, so a cloud session resolves the same settings as the terminal that owns it.
+   * The serve applies the document wholesale and never sends settings back; a serve built
+   * before this frame version-refuses the socket at hello.
+   */
+  Settings = 'settings',
   Request = 'request',
   Pong = 'pong',
 }
@@ -102,6 +111,31 @@ export enum EClientRequest {
    * refuses, and the lift warns rather than silently attaching a blank transcript.
    */
   RestoreTranscript = 'restore-transcript',
+  ReadRuntimeCheckpoint = 'read-runtime-checkpoint',
+  /**
+   * Takes the newest unreserved operator message back out of the sandbox's pending queue and
+   * returns it for the composer, so the take-back is confirmed by the queue's owner. A serve built
+   * before this op refuses the request, and the client falls back to its local in-memory queue.
+   */
+  TakeBackPending = 'take-back-pending',
+  /**
+   * The descend's workspace transfer: the sandbox captures its effective project directory (all
+   * Git worktrees, staged and ignored files included) into a dedicated export directory and
+   * answers the archive's path plus its manifest. The bytes never ride the socket.
+   */
+  PrepareWorkspaceArchive = 'prepare-workspace-archive',
+  /**
+   * The relift's workspace generation: restores the archive the client uploaded to the drive's
+   * bootstrap directory, once per archive digest, so an already-healthy serve takes the new
+   * generation without a restart. Refused while a turn is running.
+   */
+  ApplyWorkspaceArchive = 'apply-workspace-archive',
+  /**
+   * The lift's commit point on the destination: until it arrives, a freshly bootstrapped workspace
+   * generation stays dormant (no child adoption, no sends or runs), so a lift that fails and
+   * resumes its source never leaves two writers. Idempotent once activated.
+   */
+  ActivateSession = 'activate-session',
 }
 
 export enum ETurnStatus {
@@ -115,98 +149,12 @@ export enum ETurnStatus {
 
 const runIdWireSchema = z.string().min(1).brand<'RunId'>()
 const callIdWireSchema = z.string().min(1).brand<'CallId'>()
-const threadIdWireSchema = z.string().min(1).brand<'ThreadId'>()
 const sendIdWireSchema = z.string().min(1).brand<'SendId'>()
 
 export type SendId = z.infer<typeof sendIdWireSchema>
 
 /** The client assigns each send a correlation id so a re-driven frame is recognized, not re-committed. */
 export const toSendId = (value: string): SendId => sendIdWireSchema.parse(value)
-
-const seqSchema = z.number().int().nonnegative()
-
-export const readEventsParamsSchema = z.object({
-  threadId: threadIdWireSchema,
-  fromSeq: seqSchema.optional(),
-  upTo: seqSchema.optional(),
-  own: z.boolean().optional(),
-})
-export type ReadEventsParams = z.infer<typeof readEventsParamsSchema>
-
-export const readTranscriptIdentityParamsSchema = z.object({
-  threadId: threadIdWireSchema,
-  upTo: seqSchema.optional(),
-})
-export type ReadTranscriptIdentityParams = z.infer<typeof readTranscriptIdentityParamsSchema>
-
-export const readThreadParamsSchema = z.object({ threadId: threadIdWireSchema })
-export type ReadThreadParams = z.infer<typeof readThreadParamsSchema>
-
-export const readTurnsParamsSchema = z.object({ threadId: threadIdWireSchema })
-export type ReadTurnsParams = z.infer<typeof readTurnsParamsSchema>
-
-export const renameThreadParamsSchema = z.object({
-  threadId: threadIdWireSchema,
-  title: z.string(),
-})
-export type RenameThreadParams = z.infer<typeof renameThreadParamsSchema>
-
-export const threadModelWireSchema = z.object({ ref: z.string(), effort: z.string() })
-
-export const setThreadModelParamsSchema = z.object({
-  threadId: threadIdWireSchema,
-  model: threadModelWireSchema,
-  retarget: z.boolean().optional(),
-})
-export type SetThreadModelParams = z.infer<typeof setThreadModelParamsSchema>
-
-/**
- * The lift's `location-changed` marker, carried on the restore op so the sandbox pins it on its own
- * log as part of the restore. The values mirror core's EExecutionLocation, which wire cannot import.
- */
-export const restoreTranscriptParamsSchema = z.object({
-  locationChanged: z
-    .object({
-      from: z.enum(['host', 'docker', 'cloud']),
-      to: z.enum(['host', 'docker', 'cloud']),
-      cwd: z.string().min(1).optional(),
-      remoteUrl: z.string().min(1).nullable().optional(),
-      branch: z.string().min(1).nullable().optional(),
-    })
-    .optional(),
-})
-export type RestoreTranscriptParams = z.infer<typeof restoreTranscriptParamsSchema>
-
-export const readEventsReplySchema = z.object({ events: z.array(wireEventSchema) })
-export const readThreadReplySchema = z.object({ thread: wireThreadSchema.nullable() })
-export const readThreadsReplySchema = z.object({ threads: z.array(wireThreadSchema) })
-export const transcriptIdentityReplySchema = z.object({
-  count: z.number().int().nonnegative(),
-  digest: z.string(),
-})
-export const readTurnsReplySchema = z.object({
-  own: z.array(wireTurnSchema),
-  delegated: z.array(wireTurnSchema),
-})
-
-/** The whole session directory as a base64 tar.gz — the descend's transcript transfer. */
-export const readSessionArchiveReplySchema = z.object({ archive: z.string() })
-
-/** The sandbox's memory roots as a base64 tar.gz — '' when the sandbox holds none. */
-export const readMemoryArchiveReplySchema = z.object({ archive: z.string() })
-
-export const publishedWorkspaceWireSchema = z
-  .object({
-    ref: z.string(),
-    commit: z.string(),
-    base: z.string().nullable(),
-    /** Absent on a serve built before the tree-merge descend; the host falls back to the base commit. */
-    baseTree: z.string().nullish(),
-    branch: z.string().nullish(),
-  })
-  .nullable()
-
-export type PublishedWorkspaceWire = z.infer<typeof publishedWorkspaceWireSchema>
 
 export const turnOutcomeWireSchema = z.discriminatedUnion('status', [
   z.object({ status: z.literal(ETurnStatus.Completed), runId: runIdWireSchema }),
@@ -254,6 +202,18 @@ const saidFileWireSchema = z.object({
 
 export type SaidFileWire = z.infer<typeof saidFileWireSchema>
 
+export const takeBackPendingReplySchema = z.object({
+  taken: z
+    .object({
+      text: z.string(),
+      images: z.array(saidImageWireSchema).readonly(),
+      files: z.array(saidFileWireSchema).readonly(),
+      context: z.array(z.unknown()).readonly().optional(),
+    })
+    .nullable(),
+})
+export type TakeBackPendingReply = z.infer<typeof takeBackPendingReplySchema>
+
 export const serveFrameSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal(EServeFrame.Ready),
@@ -264,6 +224,7 @@ export const serveFrameSchema = z.discriminatedUnion('kind', [
      * which reproduces the old fail-fast behaviour against an old serve rather than hanging.
      */
     turnInFlight: z.boolean().optional(),
+    checkpoint: runtimeCheckpointSchema.nullable().catch(null).optional(),
   }),
   z.object({ kind: z.literal(EServeFrame.Signal), seq: seqSchema, signal: channelSignalSchema }),
   z.object({
@@ -273,7 +234,8 @@ export const serveFrameSchema = z.discriminatedUnion('kind', [
     data: z.unknown(),
   }),
   z.object({ kind: z.literal(EServeFrame.Reload), sinceEventSeq: seqSchema }),
-  z.object({ kind: z.literal(EServeFrame.Parked), reason: z.string() }),
+  z.object({ kind: z.literal(EServeFrame.Parked), reason: z.string(), checkpoint: runtimeCheckpointSchema.nullable().catch(null).optional() }),
+  z.object({ kind: z.literal(EServeFrame.Checkpoint), checkpoint: runtimeCheckpointSchema }),
   z.object({ kind: z.literal(EServeFrame.TurnEnded), outcome: turnOutcomeWireSchema }),
   z.object({ kind: z.literal(EServeFrame.InterruptAcked), seq: seqSchema }),
   z.object({ kind: z.literal(EServeFrame.SendAcked), sendId: sendIdWireSchema }),
@@ -309,10 +271,11 @@ export const clientFrameSchema = z.discriminatedUnion('kind', [
     files: z.array(saidFileWireSchema).readonly().optional(),
     context: z.array(z.unknown()).readonly().optional(),
   }),
-  z.object({ kind: z.literal(EClientFrame.Run) }),
+  z.object({ kind: z.literal(EClientFrame.Run), resume: z.boolean().optional() }),
   z.object({ kind: z.literal(EClientFrame.Interrupt) }),
   z.object({ kind: z.literal(EClientFrame.Pause) }),
   z.object({ kind: z.literal(EClientFrame.Resume) }),
+  z.object({ kind: z.literal(EClientFrame.Settings), content: z.string() }),
   z.object({
     kind: z.literal(EClientFrame.Request),
     id: z.string().min(1),

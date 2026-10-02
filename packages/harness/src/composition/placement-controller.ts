@@ -34,6 +34,7 @@ export class PlacementBusy extends Error {
 
 export type PlacementTransaction = {
   from: EExecutionLocation
+  committed: () => boolean
   commit: (placement?: SessionPlacement) => Promise<void>
   /**
    * Ends the move without flipping placement, for work that reports its failure as a value rather
@@ -47,6 +48,8 @@ export class PlacementController {
   private readonly records = new Map<ThreadId, PlacementRecord>()
   private readonly listeners = new Set<() => void>()
   private readonly moving = new Set<ThreadId>()
+  private readonly startedMoves = new Set<string>()
+  private readonly gates = new Set<(args: { threadId: ThreadId; record: PlacementRecord }) => void>()
   private binding: { threads: PlacementStore; workspace: string; repo: string | null } | undefined
   private sequence = 0
 
@@ -60,7 +63,24 @@ export class PlacementController {
     return record === undefined ? undefined : locationOfPlacement(record.placement)
   }
 
+  readonly startedHere = (moveId: string): boolean => this.startedMoves.has(moveId)
+
+  readonly activeThread = (): ThreadId | undefined => this.active
+
+  readonly beforePublish = (gate: (args: { threadId: ThreadId; record: PlacementRecord }) => void): (() => void) => {
+    this.gates.add(gate)
+    return () => this.gates.delete(gate)
+  }
+
   readonly snapshot = (threadId: ThreadId): PlacementRecord | undefined => this.records.get(threadId)
+
+  /**
+   * The move underway on this thread, or null. Surfaces freeze their transcript affordances on
+   * this rather than on any UI-local move state: it is durable from the first write, so a freeze
+   * keyed to it survives the surface remounting across the move.
+   */
+  readonly moveFor = (threadId: ThreadId): PlacementMove | null =>
+    this.records.get(threadId)?.move ?? null
 
   readonly subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener)
@@ -105,12 +125,15 @@ export class PlacementController {
     const session = await this.sessionRoot(args.threadId)
     if (this.moving.has(session)) throw new PlacementBusy()
     this.moving.add(session)
+    let startedId: string | undefined
     try {
       let record = await this.load({ threadId: args.threadId })
       const from = locationOfPlacement(record.placement)
       this.validate({ ...args, from, record })
       this.sequence += 1
       const id = `${args.threadId}:${record.revision + 1}:${this.sequence}`
+      this.startedMoves.add(id)
+      startedId = id
       const move: PlacementMove = {
         id,
         from: record.placement,
@@ -126,6 +149,7 @@ export class PlacementController {
       let abandoned = false
       const transaction: PlacementTransaction = {
         from,
+        committed: () => committed,
         abandon: () => {
           abandoned = true
         },
@@ -133,11 +157,15 @@ export class PlacementController {
           if (committed) return
           if (locationOfPlacement(placement) !== args.target) throw new Error('the move committed an unexpected placement')
           record = await this.freshen({ threadId: args.threadId, held: record })
-          record = await this.write({
-            threadId: args.threadId,
-            prior: record,
-            next: { ...record, placement, move: { ...move, to: placement, phase: EPlacementMovePhase.Committed } },
-          })
+          const next = { ...record, placement, move: { ...move, to: placement, phase: EPlacementMovePhase.Committed } }
+          try {
+            record = await this.write({ threadId: args.threadId, prior: record, next })
+          } catch (error) {
+            const stored = await binding.threads.readPlacement({ threadId: args.threadId }).catch(() => undefined)
+            if (stored?.move?.id !== move.id || stored.move.phase !== EPlacementMovePhase.Committed) throw error
+            record = stored
+            this.publish({ threadId: args.threadId, record })
+          }
           committed = true
         },
       }
@@ -156,6 +184,7 @@ export class PlacementController {
       }
     } finally {
       this.moving.delete(session)
+      if (startedId !== undefined) this.startedMoves.delete(startedId)
     }
   }
 
@@ -230,11 +259,18 @@ export class PlacementController {
     const prior = this.records.get(args.threadId)
     if (prior !== undefined && prior.revision > args.record.revision) return
     if (JSON.stringify(prior) === JSON.stringify(args.record)) return
+    for (const gate of this.gates) gate(args)
     this.records.set(args.threadId, args.record)
     this.notify()
   }
 
   private notify(): void {
-    for (const listener of this.listeners) listener()
+    for (const listener of [...this.listeners]) {
+      try {
+        listener()
+      } catch {
+        continue
+      }
+    }
   }
 }

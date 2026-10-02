@@ -2,6 +2,7 @@ import type { ThreadId } from '@dltech/atlas-core'
 import type { PortableState } from '@dltech/atlas-wire'
 
 import { DRIVE_HOME_PATH } from './drive-names'
+import { EReconnectEscalation } from './remote-delta-channel'
 import { ECloudSandboxState } from './sandbox-client'
 import { VercelDriver, type VercelSandboxConfig } from './vercel-driver'
 import type { CloudSandboxes, LiftedWorkspace } from './relocation/cloud-bridge'
@@ -16,6 +17,9 @@ export type BridgeDriver = Pick<
   | 'inspect'
   | 'writeBootstrapFileToSandbox'
   | 'writeBootstrapFile'
+  | 'uploadWorkspaceArchive'
+  | 'downloadWorkspaceArchive'
+  | 'releaseWorkspaceArchive'
   | 'transcriptLanded'
   | 'destroy'
 >
@@ -23,6 +27,7 @@ export type BridgeDriver = Pick<
 export const BOOTSTRAP_DIRECTORY = `${DRIVE_HOME_PATH}/bootstrap`
 export const WORKSPACE_SPEC_PATH = `${BOOTSTRAP_DIRECTORY}/workspace-spec.json`
 export const CONTEXT_ARCHIVE_PATH = `${BOOTSTRAP_DIRECTORY}/context.tar.gz`
+export const WORKSPACE_ARCHIVE_PATH = `${BOOTSTRAP_DIRECTORY}/workspace.tar.gz`
 export const TRANSCRIPT_ARCHIVE_PATH = `${BOOTSTRAP_DIRECTORY}/transcript.tar.gz`
 export const VAULT_PROBE_PATH = `${DRIVE_HOME_PATH}/auth.json`
 
@@ -96,13 +101,30 @@ export const parkedEscalationOf = (args: {
     )
 }
 
+export const lifecycleEscalationOf = (args: {
+  sandboxes: Pick<CloudSandboxes, 'find'>
+  threadId: ThreadId
+}): (() => Promise<EReconnectEscalation>) => async () => {
+  try {
+    const status = await args.sandboxes.find({ threadId: args.threadId })
+    if (status?.state === ECloudSandboxState.Running) return EReconnectEscalation.Reattach
+    if (status === undefined || status.state === ECloudSandboxState.Parked || status.state === ECloudSandboxState.Stopped) {
+      return EReconnectEscalation.Parked
+    }
+    return EReconnectEscalation.Wait
+  } catch {
+    return EReconnectEscalation.Wait
+  }
+}
+
 export const liveDriverWith = (args: {
   config: VercelSandboxConfig
   onDriverLog?: ((line: string) => void) | undefined
+  cloudUrl?: string | undefined
 }): BridgeDriver =>
   new VercelDriver({
     credentials: args.config.credentials,
-    cloudUrl: '',
+    cloudUrl: args.cloudUrl ?? '',
     image: args.config.image,
     ...(args.config.serveVersion === undefined ? {} : { serveVersion: args.config.serveVersion }),
     ...(args.onDriverLog === undefined ? {} : { log: args.onDriverLog }),

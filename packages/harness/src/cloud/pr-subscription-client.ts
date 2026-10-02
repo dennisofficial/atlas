@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { CloudTransport } from './cloud-transport'
+import { CloudTransport, type TransportRetryLog } from './cloud-transport'
 import type { CloudSession } from './cloud-session'
 
 const stateSchema = z.strictObject({
@@ -50,13 +50,18 @@ export class PrSubscriptionClient {
   private readonly session: CloudSession
   private readonly clientVersion: string
 
-  constructor(args: { session: CloudSession; clientVersion: string }) {
+  constructor(args: {
+    session: CloudSession
+    clientVersion: string
+    log?: TransportRetryLog | undefined
+  }) {
     this.session = args.session
     this.clientVersion = args.clientVersion
     this.transport = new CloudTransport({
       url: args.session.url,
       token: args.session.token,
       clientVersion: args.clientVersion,
+      ...(args.log === undefined ? {} : { log: args.log }),
     })
   }
 

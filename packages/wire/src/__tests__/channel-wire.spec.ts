@@ -14,6 +14,8 @@ import {
   ETurnStatus,
   readMemoryArchiveReplySchema,
   setThreadModelParamsSchema,
+  takeBackPendingParamsSchema,
+  takeBackPendingReplySchema,
   type ClientFrame,
   type ServeFrame,
 } from '../index'
@@ -111,8 +113,56 @@ describe('the memory archive op', () => {
 })
 
 describe('the protocol stamp', () => {
-  it('speaks the version that refuses broker-dependent serve runtimes', () => {
-    expect(CHANNEL_PROTOCOL_VERSION).toBe(10)
+  it('speaks the version that refuses serve runtimes which cannot apply a settings sync', () => {
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(13)
+  })
+})
+
+describe('the settings frame', () => {
+  it('round-trips the serialised user settings document unchanged', () => {
+    const frame: ClientFrame = {
+      kind: EClientFrame.Settings,
+      content: '{\n  "sidebar.width": 70\n}\n',
+    }
+
+    expect(decodeClientFrame(encodeFrame(frame))).toEqual(frame)
+  })
+
+  it('drops a settings frame without content', () => {
+    const raw = JSON.stringify({ kind: EClientFrame.Settings })
+
+    expect(decodeClientFrame(raw)).toBeNull()
+  })
+
+  it('drops a settings frame whose content is not a string', () => {
+    const raw = JSON.stringify({ kind: EClientFrame.Settings, content: { 'sidebar.width': 70 } })
+
+    expect(decodeClientFrame(raw)).toBeNull()
+  })
+})
+
+describe('the run frame', () => {
+  it('round-trips a bare run unchanged', () => {
+    const frame: ClientFrame = { kind: EClientFrame.Run }
+
+    expect(decodeClientFrame(encodeFrame(frame))).toEqual({ kind: EClientFrame.Run })
+    expect(encodeFrame(frame)).toBe('{"kind":"run"}')
+  })
+
+  it('round-trips the optional resume flag', () => {
+    const frame: ClientFrame = { kind: EClientFrame.Run, resume: true }
+
+    expect(decodeClientFrame(encodeFrame(frame))).toEqual(frame)
+  })
+
+  it('drops a run frame whose resume flag is not a boolean', () => {
+    expect(decodeClientFrame('{"kind":"run","resume":"yes"}')).toBeNull()
+  })
+
+  it('leaves the relocation resume frame bare', () => {
+    expect(decodeClientFrame(encodeFrame({ kind: EClientFrame.Resume }))).toEqual({
+      kind: EClientFrame.Resume,
+    })
   })
 })
 
@@ -273,6 +323,79 @@ describe('the roster frame', () => {
     const raw = JSON.stringify({
       kind: 'roster',
       roster: { shells: [{ shellId: 42 }], agents: [], services: [] },
+    })
+
+    expect(decodeServeFrame(raw)).toBeNull()
+  })
+})
+
+describe('the take-back-pending request', () => {
+  it('round-trips its request frame', () => {
+    const frame: ClientFrame = {
+      kind: EClientFrame.Request,
+      id: 'req-1',
+      op: EClientRequest.TakeBackPending,
+      params: { threadId: 'brn_cloud' },
+    }
+
+    expect(decodeClientFrame(encodeFrame(frame))).toEqual(frame)
+    expect(String(takeBackPendingParamsSchema.parse({ threadId: 'brn_cloud' }).threadId)).toBe('brn_cloud')
+  })
+
+  it('parses a reply with nothing to take back', () => {
+    expect(takeBackPendingReplySchema.parse({ taken: null })).toEqual({ taken: null })
+  })
+
+  it('parses a reply carrying the taken message with its attachments and context', () => {
+    const reply = {
+      taken: {
+        text: 'actually, do X',
+        images: [{ path: '/tmp/shot.png', mediaType: 'image/png', data: 'aGVsbG8=' }],
+        files: [{ path: '/tmp/a.txt', mediaType: 'text/plain', data: 'aGk=', filename: 'a.txt' }],
+        context: [{ type: 'context-loaded', slot: 'skill', key: 'commit', content: 'prose' }],
+      },
+    }
+
+    expect(takeBackPendingReplySchema.parse(reply)).toEqual(reply)
+  })
+
+  it('drops a reply whose taken message has no text', () => {
+    expect(takeBackPendingReplySchema.safeParse({ taken: { images: [], files: [] } }).success).toBe(false)
+  })
+})
+
+describe('the pending-changed signal', () => {
+  it('round-trips through a signal frame, queue entries and all', () => {
+    const frame: ServeFrame = {
+      kind: EServeFrame.Signal,
+      seq: 7,
+      signal: {
+        type: 'pending-changed',
+        entries: [
+          { id: 'pending-1', text: 'first', reserved: true },
+          { id: 'pending-2', text: 'second', via: 'parent-agent', reserved: false },
+        ],
+      },
+    }
+
+    expect(decodeServeFrame(encodeFrame(frame))).toEqual(frame)
+  })
+
+  it('round-trips an emptied queue', () => {
+    const frame: ServeFrame = {
+      kind: EServeFrame.Signal,
+      seq: 8,
+      signal: { type: 'pending-changed', entries: [] },
+    }
+
+    expect(decodeServeFrame(encodeFrame(frame))).toEqual(frame)
+  })
+
+  it('drops an entry with an empty id', () => {
+    const raw = JSON.stringify({
+      kind: EServeFrame.Signal,
+      seq: 9,
+      signal: { type: 'pending-changed', entries: [{ id: '', text: 'x', reserved: false }] },
     })
 
     expect(decodeServeFrame(raw)).toBeNull()

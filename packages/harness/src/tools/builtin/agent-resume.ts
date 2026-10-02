@@ -43,7 +43,7 @@ export class AgentResumeTool extends SchemaTool<typeof inputSchema> {
 
     return {
       ok: true,
-      output: { agentId, agentType: outcome.snapshot.agentType },
+      output: { agentId, agentType: outcome.snapshot.agentType, intent: outcome.snapshot.intent },
       modelText: `Agent ${agentId} is running again from where it stopped, with nothing added to its conversation. Its answer reaches you when it stops.`,
     }
   }

@@ -1,11 +1,13 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import { PORTABLE_STATE_PATH, type PortableState } from '@dltech/atlas-wire'
+import { PORTABLE_STATE_PATH, type PortableState, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
+import type { SettingsService } from '../settings/service'
 import { createRemoteDeltaChannel } from './remote-delta-channel'
 import { RemoteEventLog } from './remote-event-log'
 import { RemoteThreadStore } from './remote-thread-store'
 import { RemoteTurnLedger } from './remote-turn-ledger'
 import { sandboxNameFor } from './sandbox-names'
+import { bindChannelSettingsSync } from './settings-channel-sync'
 import { ECloudSandboxState } from './sandbox-client'
 import type {
   CloudBridge,
@@ -18,9 +20,10 @@ import {
   bootstrapSpecOf,
   CONTEXT_ARCHIVE_PATH,
   liveDriverWith,
-  parkedEscalationOf,
+  lifecycleEscalationOf,
   portableOmissionsOf,
   TRANSCRIPT_ARCHIVE_PATH,
+  WORKSPACE_ARCHIVE_PATH,
   WORKSPACE_SPEC_PATH,
   type BridgeDriver,
   type GitTokenReader,
@@ -54,9 +57,12 @@ export function createLocalCloudBridge(args: {
   onRegistrationFailed?: ((failure: unknown) => void) | undefined
   onPortableOmitted?: ((omitted: PortableOmissions) => void) | undefined
   environment?: (() => Record<string, string>) | undefined
+  cloudUrl?: (() => string) | undefined
+  readCheckpoint?: ((args: { threadId: ThreadId }) => Promise<RuntimeCheckpoint | null>) | undefined
   onDriverLog?: ((line: string) => void) | undefined
   lastEventSeq?: (() => number) | undefined
   driverWith?: ((config: VercelSandboxConfig) => BridgeDriver) | undefined
+  settings?: SettingsService | undefined
 }): CloudBridge {
   const driverWith =
     args.driverWith ??
@@ -64,6 +70,7 @@ export function createLocalCloudBridge(args: {
       liveDriverWith({
         config,
         ...(args.onDriverLog === undefined ? {} : { onDriverLog: args.onDriverLog }),
+        cloudUrl: args.cloudUrl?.() ?? '',
       }))
 
   const readGitTokenQuietly = async (): Promise<string | undefined> => {
@@ -163,6 +170,13 @@ export function createLocalCloudBridge(args: {
           content: createArgs.transcript,
         })
       }
+      if (createArgs.workspaceArchivePath !== undefined) {
+        await driver.uploadWorkspaceArchive({
+          sandbox,
+          source: createArgs.workspaceArchivePath,
+          destination: WORKSPACE_ARCHIVE_PATH,
+        })
+      }
       const needsPortable = freshBoot || !(await vaultPresentInSandbox(sandbox))
       if (needsPortable) {
         const captured = await captureOnce()
@@ -191,6 +205,9 @@ export function createLocalCloudBridge(args: {
       token,
       ...(args.environment === undefined ? {} : { environment: args.environment() }),
       putContextOnFreshBoot: writeBootstrap,
+      ...(createArgs.onRotationStarted === undefined
+        ? {}
+        : { onRotationStarted: createArgs.onRotationStarted }),
     })
 
     if (stagedPortable) {
@@ -212,14 +229,21 @@ export function createLocalCloudBridge(args: {
       created: placement.created,
       driveName: placement.driveName,
       ...(placement.outdatedServe === undefined ? {} : { outdatedServe: placement.outdatedServe }),
+      ...(placement.rotatedProtocol === undefined ? {} : { rotatedProtocol: placement.rotatedProtocol }),
     }
   }
 
   const find = async (findArgs: { threadId: ThreadId }): Promise<CloudSandboxStatus> => {
-    const observed = await driverWith(args.vercel()).inspect({
-      name: sandboxNameFor({ threadId: findArgs.threadId }),
-    })
-    return observed ?? { state: ECloudSandboxState.Parked }
+    const [observed, reported] = await Promise.all([
+      driverWith(args.vercel()).inspect({
+        name: sandboxNameFor({ threadId: findArgs.threadId }),
+      }),
+      args.readCheckpoint?.(findArgs).catch(() => null) ?? null,
+    ])
+    return {
+      ...(observed ?? { state: ECloudSandboxState.Stopped }),
+      checkpoint: reported?.threadId === findArgs.threadId ? reported : null,
+    }
   }
 
   const destroy = async (destroyArgs: { threadId: ThreadId }): Promise<void> => {
@@ -247,6 +271,17 @@ export function createLocalCloudBridge(args: {
         path: TRANSCRIPT_ARCHIVE_PATH,
         content: archive,
       }),
+    downloadWorkspace: ({ threadId, path, destination }) =>
+      driverWith(args.vercel()).downloadWorkspaceArchive({
+        name: sandboxNameFor({ threadId }),
+        path,
+        destination,
+      }),
+    releaseWorkspace: ({ threadId, path }) =>
+      driverWith(args.vercel()).releaseWorkspaceArchive({
+        name: sandboxNameFor({ threadId }),
+        path,
+      }),
     confirmLanded: async ({ threadId }) => ({
       landed: await driverWith(args.vercel()).transcriptLanded({
         name: sandboxNameFor({ threadId }),
@@ -259,14 +294,19 @@ export function createLocalCloudBridge(args: {
   return {
     sandboxes: bridgeSandboxes,
     attach: ({ threadId, url, token }) => {
+      let unbindSettings: (() => void) | undefined
       const channel = createRemoteDeltaChannel({
         threadId,
         url,
         token,
         ...(args.lastEventSeq === undefined ? {} : { lastEventSeq: args.lastEventSeq }),
         reattach: () => reattachSandbox({ sandboxes: bridgeSandboxes, threadId }),
-        shouldEscalate: parkedEscalationOf({ sandboxes: bridgeSandboxes, threadId }),
+        lifecycleEscalation: lifecycleEscalationOf({ sandboxes: bridgeSandboxes, threadId }),
+        onFinished: () => unbindSettings?.(),
       })
+      if (args.settings !== undefined) {
+        unbindSettings = bindChannelSettingsSync({ channel, settings: args.settings })
+      }
       return {
         channel,
         stores: {

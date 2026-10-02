@@ -64,6 +64,27 @@ export async function detachThenDeleteDrive(args: {
   return detached
 }
 
+/**
+ * Read-at-list-time existence, for deciding whether a drive was created by the operation now
+ * unwinding. The API rejects namePrefix unless the listing is sorted by name.
+ */
+export async function driveExists(args: {
+  sdk: DriveSdk
+  credentials: VercelCredentials
+  name: string
+}): Promise<boolean> {
+  const listed = await args.sdk.list({
+    ...args.credentials,
+    namePrefix: args.name,
+    sortBy: 'name',
+    signal: AbortSignal.timeout(30_000),
+  })
+  for await (const drive of listed) {
+    if (drive.name === args.name) return true
+  }
+  return false
+}
+
 export async function deleteDrive(args: {
   sdk: DriveSdk
   credentials: VercelCredentials

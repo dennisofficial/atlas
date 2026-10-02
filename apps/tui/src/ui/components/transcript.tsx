@@ -36,8 +36,18 @@ function DerivedTranscript(props: {
   turn?: TurnClock
   /** The cloud socket is down and being re-established; the turn itself runs on the sandbox. */
   reconnecting?: boolean
+  /** The sandbox was parked and is being woken; nothing is running until it answers. */
+  waking?: boolean
   /** The cloud socket is closed with no re-establish in flight; the local view is stale. */
   disconnected?: boolean
+  /**
+   * The applied transcript is not known to match what the sandbox persisted — parked with a
+   * checkpoint that disagrees, or no trustworthy checkpoint at all. Mutes the same way as
+   * disconnected, without the reconnect row when the socket itself is fine.
+   */
+  stale?: boolean
+  /** When the applied transcript was last proven — rendered in the disconnected row, static. */
+  lastSeenAt?: number | null
   onReconnect?: () => void
   anchorKey?: string | null
   sends?: number
@@ -138,10 +148,10 @@ function DerivedTranscript(props: {
           key={entry.key}
           id={entry.key}
           flexDirection="column"
-          // A dropped cloud socket leaves the entries a stale snapshot: mute them through opacity
-          // (a single seam, not a prop threaded through every block) while the working/disconnected
-          // row stays full-strength so it can still be read and clicked.
-          opacity={props.disconnected === true ? 0.4 : 1}
+          // A dropped cloud socket or an unproven transcript leaves the entries a stale snapshot:
+          // mute them through opacity (a single seam, not a prop threaded through every block)
+          // while the working/disconnected row stays full-strength so it can be read and clicked.
+          opacity={props.disconnected === true || props.stale === true ? 0.4 : 1}
         >
           {index === anchorIndex ? (
             <box id={UNSEEN_ANCHOR_ID} flexDirection="column">
@@ -205,11 +215,13 @@ function DerivedTranscript(props: {
               outputTokens={turn.outputTokens}
               interrupting={turn.interrupting}
               verb={
-                props.reconnecting === true
-                  ? EWorkingVerb.Reconnecting
-                  : turn.reasoning
-                    ? EWorkingVerb.Thinking
-                    : EWorkingVerb.Working
+                props.waking === true
+                  ? EWorkingVerb.Waking
+                  : props.reconnecting === true
+                    ? EWorkingVerb.Reconnecting
+                    : turn.reasoning
+                      ? EWorkingVerb.Thinking
+                      : EWorkingVerb.Working
               }
               retry={turn.retry}
             />
@@ -221,6 +233,7 @@ function DerivedTranscript(props: {
               outputTokens={0}
               interrupting={false}
               verb={EWorkingVerb.Disconnected}
+              {...(props.lastSeenAt === undefined ? {} : { lastSeenAt: props.lastSeenAt })}
               {...(props.onReconnect === undefined ? {} : { onReconnect: props.onReconnect })}
             />
           </box>

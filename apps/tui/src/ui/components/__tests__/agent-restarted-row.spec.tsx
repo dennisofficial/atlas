@@ -44,7 +44,7 @@ describe('a sub-agent restart row', () => {
     const setup = await renderRestartRow(EAgentRestart.Message)
 
     const frame = setup.captureCharFrame()
-    expect(frame).toContain('Sub-agent explore "audit the credential vault" restarted by a message')
+    expect(frame).toContain('Sub-agent audit the credential restarted by a message')
     expect(frame).not.toContain('reported nothing')
   })
 })

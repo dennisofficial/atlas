@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EExecutionLocation, EPlacementMovePhase } from '@dltech/atlas-core'
+import { EExecutionLocation } from '@dltech/atlas-core'
 import { CloudError, GitCredentialError, VercelNotConfiguredError } from '@dltech/atlas-harness'
 
 import { useAtlasHome } from './descend-fixture'
@@ -167,7 +167,7 @@ describe('a lift that does not finish', () => {
     expect(lifted.fault).toBe(ELiftFault.Unreachable)
   })
 
-  it('keeps the committed cloud placement when the open after attach fails — the conversation moved', async () => {
+  it('stays on the host and flips nothing when the open after attach fails — it runs before the commit', async () => {
     useAtlasHome()
     const test = harness({
       open: async () => {
@@ -181,18 +181,27 @@ describe('a lift that does not finish', () => {
     if (lifted.ok) return
 
     expect(lifted.step).toBe(ELiftStep.Attaching)
-    expect(test.placement.of(CLOUD_THREAD)).toBe(EExecutionLocation.Cloud)
-    expect(test.placement.snapshot(CLOUD_THREAD)?.move?.phase).toBe(EPlacementMovePhase.Committed)
-    expect((await test.localThreads.find({ threadId: CLOUD_THREAD }))?.executionLocation).toBe(
-      EExecutionLocation.Cloud,
-    )
-
-    await test.placement.recover({
-      threadId: CLOUD_THREAD,
-      reconcile: async (record) => record.placement,
-    })
+    expect(test.placement.of(CLOUD_THREAD)).toBe(EExecutionLocation.Host)
     expect(test.placement.snapshot(CLOUD_THREAD)?.move).toBeNull()
-    expect(test.placement.of(CLOUD_THREAD)).toBe(EExecutionLocation.Cloud)
+    expect(test.bridge.channel.closed).toBe(true)
+    expect((await test.localThreads.find({ threadId: CLOUD_THREAD }))?.executionLocation ?? EExecutionLocation.Host).toBe(
+      EExecutionLocation.Host,
+    )
+  })
+
+  it('hands the open the verified attachment and the placement transaction', async () => {
+    useAtlasHome()
+    let received: { channel: unknown; from: unknown } | undefined
+    const test = harness({
+      open: async ({ attachment, transaction }) => {
+        received = { channel: attachment.channel, from: transaction.from }
+      },
+    })
+
+    await liftToCloud(test.args)
+
+    expect(received?.channel).toBe(test.bridge.channel)
+    expect(received?.from).toBe(EExecutionLocation.Host)
   })
 
   it('names what the move already closed when it fails after stopping them', async () => {

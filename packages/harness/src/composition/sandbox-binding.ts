@@ -13,6 +13,7 @@ import {
   ProcessPort,
   rangeValueOf,
   type NoticePort,
+  type ThreadId,
 } from '@dltech/atlas-core'
 
 import { registerDisposable } from '../container/disposal'
@@ -20,10 +21,7 @@ import { portToken, type DependencyContainer } from '../container/injection'
 import { DockerFileSystemPort } from '../execution/docker/docker-filesystem'
 import { DockerProcessPort } from '../execution/docker/docker-process'
 import type { DockerEngine } from '../execution/docker/engine'
-import {
-  mountedAtlasHomeSubtrees,
-  sandboxConfigFromHost,
-} from '../execution/docker/host-environment'
+import { sandboxConfigFromHost } from '../execution/docker/host-environment'
 import {
   BashActivityHook,
   ReclaimWorktreeSandboxHook,
@@ -31,7 +29,6 @@ import {
   stopSandbox,
 } from '../execution/docker/lifecycle'
 import { ESandboxState } from '../execution/docker/status'
-import { EImageKind, resolveContainerConfig } from '../execution/image/resolve'
 import { LocalProcessPort } from '../execution/local-process'
 import { LoginEnvProcessPort } from '../execution/login-env-process'
 import { RoutedFileSystemPort } from '../execution/routed-filesystem'
@@ -40,13 +37,22 @@ import { ServiceRegistryPort } from '../services/service-registry'
 import type { SettingsService } from '../settings/service'
 import { ShellRegistryPort } from '../shells/shell-registry'
 
-import { imageLabelOf } from './container-label'
 import type { ExecutionLocationState } from './execution-location-state'
-import { createSandboxStatusState, type SandboxStatusState } from './sandbox-status-state'
+import {
+  DelegatingProcessPort,
+  anchorRootFor,
+  removeSandboxMountedElsewhere,
+  resolveWorkspaceAnchor,
+  retargetableStatus,
+  type PrepareWorkspace,
+  type WorkspaceAnchor,
+} from './sandbox-reanchor'
+import type { SandboxStatusState } from './sandbox-status-state'
 
 export type SandboxControl = {
   noteBash: () => void
   stop: () => Promise<boolean>
+  prepareWorkspace: (args: { cwd: string; threadId: ThreadId }) => Promise<void>
 }
 
 const messageOf = (error: unknown): string =>
@@ -68,27 +74,13 @@ export async function bindSandbox(args: {
 }> {
   const { container, engine, cwd, settings, executionLocation, notice } = args
 
-  const resolution = await resolveContainerConfig({ projectDirectory: cwd, atlasHome: args.atlasHome })
-  const atlasSubtrees = mountedAtlasHomeSubtrees({
-    worktree: cwd,
-    declared: resolution.mounts,
+  let anchor: WorkspaceAnchor = await resolveWorkspaceAnchor({
+    cwd,
     atlasHome: args.atlasHome,
+    notice,
   })
-  const mounts = [
-    ...resolution.mounts.map((mount) => mount.path),
-    ...atlasSubtrees.map((subtree) => subtree.path),
-  ]
-  for (const refusal of resolution.refusals) {
-    notice.notify({
-      key: `container-refusal:${refusal.file}`,
-      tone: ENoticeTone.Warn,
-      ttlMs: NOTICE_WARN_MS,
-      text: `${refusal.file}: ${refusal.detail}`,
-    })
-  }
+  const mounts: string[] = [...anchor.mounts]
 
-  const image =
-    resolution.image.kind === EImageKind.Image ? resolution.image.reference : resolution.image.path
   const cpus = rangeValueOf({
     resolution: settings.snapshot().resolution,
     id: ESettingId.ContainerCpus,
@@ -99,47 +91,84 @@ export async function bindSandbox(args: {
     id: ESettingId.ContainerMemory,
     fallback: 8,
   })
-  const status = createSandboxStatusState({
-    image,
-    label: imageLabelOf(resolution.image),
+  const status = retargetableStatus({
+    image: anchor.image,
+    label: anchor.label,
     limits: { cpus, memoryGb },
   })
 
   let dockerPort: DockerProcessPort | undefined
   let boundSession: string | undefined
+
+  const buildPort = (target: WorkspaceAnchor): DockerProcessPort => {
+    const session = args.sessionKey()
+    const built: DockerProcessPort = new DockerProcessPort({
+      engine,
+      sandbox: sandboxConfigFromHost({
+        worktree: target.cwd,
+        session,
+        resolution: target.resolution,
+        atlasHomeSubtrees: target.atlasSubtrees,
+        limits: { cpus, memoryBytes: memoryGb * 1024 ** 3 },
+      }),
+      onStatus: (sandboxStatus) => {
+        if (dockerPort !== built) return
+        status.mark(sandboxStatus)
+        if (sandboxStatus.state !== ESandboxState.Running) return
+
+        built.warnings.forEach((warning, at) =>
+          notice.notify({
+            key: `sandbox-warning-${at}`,
+            tone: ENoticeTone.Warn,
+            ttlMs: NOTICE_WARN_MS,
+            text: warning,
+          }),
+        )
+      },
+    })
+    boundSession = session
+    return built
+  }
+
   const docker = (): DockerProcessPort => {
     if (dockerPort !== undefined) return dockerPort
 
     try {
-      boundSession = args.sessionKey()
-      dockerPort = new DockerProcessPort({
-        engine,
-        sandbox: sandboxConfigFromHost({
-          worktree: cwd,
-          session: boundSession,
-          resolution,
-          atlasHomeSubtrees: atlasSubtrees,
-          limits: { cpus, memoryBytes: memoryGb * 1024 ** 3 },
-        }),
-        onStatus: (sandboxStatus) => {
-          status.mark(sandboxStatus)
-          if (sandboxStatus.state !== ESandboxState.Running) return
-
-          dockerPort?.warnings.forEach((warning, at) =>
-            notice.notify({
-              key: `sandbox-warning-${at}`,
-              tone: ENoticeTone.Warn,
-              ttlMs: NOTICE_WARN_MS,
-              text: warning,
-            }),
-          )
-        },
-      })
+      dockerPort = buildPort(anchor)
     } catch (error) {
       status.mark({ state: ESandboxState.Failed, reason: messageOf(error) })
       throw error
     }
     return dockerPort
+  }
+
+  const prepareWorkspace: PrepareWorkspace = async ({ cwd: requested }) => {
+    const next = await anchorRootFor({ requested, current: anchor.cwd })
+    const resolved =
+      next === anchor.cwd
+        ? undefined
+        : await resolveWorkspaceAnchor({ cwd: next, atlasHome: args.atlasHome, notice })
+
+    const removed = await removeSandboxMountedElsewhere({
+      engine,
+      session: args.sessionKey(),
+      worktree: next,
+    })
+
+    if (resolved !== undefined) {
+      try {
+        dockerPort = buildPort(resolved)
+      } catch (error) {
+        status.mark({ state: ESandboxState.Failed, reason: messageOf(error) })
+        throw error
+      }
+      anchor = resolved
+      mounts.splice(0, mounts.length, ...resolved.mounts)
+      status.retarget({ image: resolved.image, label: resolved.label })
+    } else if (removed) {
+      dockerPort?.sandboxStopped()
+    }
+    if (resolved !== undefined || removed) status.mark({ state: ESandboxState.Stopped })
   }
 
   container.register(portToken(ProcessPort), {
@@ -162,7 +191,7 @@ export async function bindSandbox(args: {
     useFactory: (resolver) =>
       new RoutedFileSystemPort({
         local: resolver.resolve(portToken(FileSystemPort)),
-        dockerFor: () => new DockerFileSystemPort({ processes: docker() }),
+        dockerFor: () => new DockerFileSystemPort({ processes: new DelegatingProcessPort(docker) }),
         locationOf: (threadId) =>
           (threadId === undefined ? undefined : executionLocation.of(threadId)) ??
           executionLocation.current(),
@@ -208,6 +237,7 @@ export async function bindSandbox(args: {
 
   const sandbox: SandboxControl = {
     noteBash: idleStop.noteBash,
+    prepareWorkspace,
     stop: async () => {
       if (boundSession === undefined) return false
       const stopped = await stopSandbox({ engine, session: boundSession })

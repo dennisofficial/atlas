@@ -1,6 +1,5 @@
 import {
   agentRoster,
-  parseRef,
   type ClockPort,
   type EventLogPort,
   type IdPort,
@@ -10,8 +9,10 @@ import {
 import type { ThreadStorePort } from '../../store'
 import { recoveredChild } from './child-state'
 import { settleLostChildren, unloggedChildren } from './lost-children'
+import type { AgentNoticeQueue } from './notices'
 import type { AgentRoster } from './roster'
 import type { RecoveredAgents } from './snapshot'
+import { refreshTransferredFamily, storedModelOf, type TransferredOwner } from './transferred-family'
 
 export class ChildRecovery {
   private readonly log: EventLogPort
@@ -19,6 +20,8 @@ export class ChildRecovery {
   private readonly ids: IdPort
   private readonly clock: ClockPort
   private readonly roster: AgentRoster
+  private readonly notices: AgentNoticeQueue
+  private readonly launchDirectory: string
   private readonly hydrating = new Map<ThreadId, Promise<void>>()
   private readonly settling = new Map<ThreadId, Promise<RecoveredAgents>>()
 
@@ -28,12 +31,16 @@ export class ChildRecovery {
     ids: IdPort
     clock: ClockPort
     roster: AgentRoster
+    notices: AgentNoticeQueue
+    launchDirectory: string
   }) {
     this.log = args.log
     this.threads = args.threads
     this.ids = args.ids
     this.clock = args.clock
     this.roster = args.roster
+    this.notices = args.notices
+    this.launchDirectory = args.launchDirectory
   }
 
   /**
@@ -53,6 +60,41 @@ export class ChildRecovery {
     })
 
     return running
+  }
+
+  /**
+   * A family that arrived from another location replaces what this process rebuilt before it
+   * moved: the memo is dropped and every child the incoming logs name is revised to what they
+   * say, with no event written. Whatever hydration was already running finishes first so it can
+   * never land over the incoming state.
+   */
+  hydrateTransferred({ threadId }: { threadId: ThreadId }): Promise<readonly TransferredOwner[]> {
+    const prior = this.hydrating.get(threadId) ?? Promise.resolve()
+    const attempt = prior
+      .catch(() => undefined)
+      .then(() =>
+        refreshTransferredFamily({
+          threadId,
+          log: this.log,
+          threads: this.threads,
+          clock: this.clock,
+          roster: this.roster,
+          notices: this.notices,
+          launchDirectory: this.launchDirectory,
+        }),
+      )
+    const memo = attempt.then(() => undefined)
+    this.hydrating.set(threadId, memo)
+    memo.catch(() => {
+      if (this.hydrating.get(threadId) === memo) this.hydrating.delete(threadId)
+    })
+
+    return attempt.then((owners) => {
+      for (const owner of owners) {
+        if (owner.threadId !== threadId) this.hydrating.set(owner.threadId, Promise.resolve())
+      }
+      return owners
+    })
   }
 
   /**
@@ -104,9 +146,8 @@ export class ChildRecovery {
     for (const agent of agentRoster({ events, threadId })) {
       if (this.roster.find(agent.agentId) !== undefined) continue
       const child = recoveredChild({ agent, spawnedBy: threadId, at })
-      const thread = await this.threads.find({ threadId: agent.agentId })
-      const ref = thread?.model === undefined ? undefined : parseRef(thread.model.ref)
-      if (ref !== undefined) child.model = { id: ref.providerId, modelId: ref.modelId }
+      const model = await storedModelOf({ threads: this.threads, agentId: agent.agentId })
+      if (model !== undefined) child.model = model
       this.roster.add(child)
     }
   }

@@ -1,4 +1,4 @@
-import { EHookPhase, EStage, type HookOrder } from '@dltech/atlas-core'
+import { EHookPhase, EStage, LogPort, type HookOrder } from '@dltech/atlas-core'
 import type { CloudSession, CloudSessionStore } from '../../cloud/cloud-session'
 import { portToken, type DependencyContainer } from '../../container/injection'
 import { SsePullRequestPort } from '../../cloud/sse-pull-requests'
@@ -51,6 +51,7 @@ export default class GithubPlugin extends NativePlugin {
       serve: CloudSession | null
       clientVersion: string
       cacheDirectory: string
+      log: LogPort | null
     },
   ) {
     super()
@@ -69,6 +70,7 @@ export default class GithubPlugin extends NativePlugin {
         session,
         clientVersion: this.args.clientVersion,
         onReading,
+        ...(this.args.log === null ? {} : { log: { port: this.args.log } }),
       })
     }
 
@@ -89,7 +91,7 @@ export default class GithubPlugin extends NativePlugin {
     const links = createPullRequestLinks({ service })
     const states = createPullRequestStateProjection()
     const cloudCheckout = createCloudCheckout()
-    const tracking = createCheckoutTracking({ service, facts })
+    const tracking = createCheckoutTracking({ service, facts, cloud: () => cloudCheckout.current() })
     const afterTool = new RefreshPullRequestAfterToolHook({ pullRequests: service })
     const afterShell = new RefreshPullRequestAfterShellHook({ pullRequests: service })
     const transitions = createPullRequestTransitions({ service })
@@ -193,6 +195,9 @@ export function registerPlugin({ container }: { container: DependencyContainer }
           : null,
         clientVersion: resolver.resolve(ClientVersionToken),
         cacheDirectory: resolver.resolve(AtlasHomeToken),
+        log: container.isRegistered(portToken(LogPort), true)
+          ? resolver.resolve(portToken(LogPort))
+          : null,
       }),
   })
 }

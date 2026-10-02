@@ -1,13 +1,16 @@
 import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
-import { storedModel, type PlacementController } from '@dltech/atlas-harness'
+import { storedModel, type SessionOwner, type SessionRuntime } from '@dltech/atlas-harness'
 import { useCallback, useRef } from 'react'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import type { CaptureContext } from '@dltech/atlas-harness'
 
-import { cloudApp, openCloudConversation } from './cloud/cloud-app'
-import type { CloudBridge, CloudStores, LiftedWorkspace } from '@dltech/atlas-harness'
-import { noticePortBinding } from './notice-binding'
+import { cloudRuntimeParts, openCloudConversation } from './cloud/cloud-app'
+import { cloudReadinessOf } from './cloud/cloud-readiness'
+import { createCloudSession } from './cloud/cloud-session'
+import { mirrorCloudRenames } from './cloud/rename-mirror'
+import { cloudAnchorOf, cloudBindingOf, prepareOn } from './session-binding'
+import type { CloudBridge, CloudReload, LiftedWorkspace, LiftWorkspaceCapture } from '@dltech/atlas-harness'
 import { createCloudRunner } from './cloud/cloud-runner'
 import { liftToCloud } from '@dltech/atlas-harness'
 import { CLOUD_LIFT_NOTICE_KEY, liftFailedNotice } from './cloud/lift-notices'
@@ -15,8 +18,6 @@ import { stopLocalWork } from '@dltech/atlas-harness'
 import { cloudLiftPlan } from './container-move'
 import type { AtlasApp } from './compose'
 import { messageOf } from './error-text'
-import type { OpenedConversation } from './open-conversation'
-import type { LiftedAttachment } from './lifted-session'
 import type { ContainerMoveControl } from './use-container-move'
 
 export type CloudBridgeFactory = () => CloudBridge
@@ -40,15 +41,17 @@ export function useCloudLift(args: {
   midTurn: () => boolean
   handleInterrupt: () => void
   handlePause: () => void
+  handleResumeSource: () => void
   whenSettled: () => Promise<void>
   projectDirectory: string
-  placement: PlacementController
+  owner: SessionOwner<SessionRuntime>
   createBridge: CloudBridgeFactory
   preflightLift?: LiftPreflight | undefined
   capture: WorkspaceCapture
+  captureArchive?: LiftWorkspaceCapture | undefined
   captureContext?: CaptureContext | undefined
   move: ContainerMoveControl
-  onLifted: (attachment: LiftedAttachment) => void
+  onReload: (reload: CloudReload) => Promise<void>
 }): CloudLiftControl {
   const lifting = useRef(false)
   const latest = useRef(args)
@@ -57,7 +60,7 @@ export function useCloudLift(args: {
   const handleLift = useCallback(() => {
     if (lifting.current) return
 
-    const { app, threadId, createBridge, onLifted } = latest.current
+    const { app, threadId, createBridge, owner } = latest.current
     const midTurn = latest.current.midTurn()
 
     lifting.current = true
@@ -65,12 +68,7 @@ export function useCloudLift(args: {
       .then(() => latest.current.preflightLift?.() ?? null)
       .then(async (refusal) => {
         if (refusal !== null) {
-          notify({
-            key: CLOUD_LIFT_NOTICE_KEY,
-            text: refusal,
-            tone: ENoticeTone.Warn,
-            ttlMs: NOTICE_WARN_MS,
-          })
+          notify({ key: CLOUD_LIFT_NOTICE_KEY, text: refusal, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
           return
         }
 
@@ -82,76 +80,84 @@ export function useCloudLift(args: {
           latest.current.captureContext?.() ??
           latest.current.app.captureContext({ cwd: latest.current.projectDirectory })
 
-        let opened: OpenedConversation | undefined
-        let liftedStores: CloudStores | undefined
         const lifted = await liftToCloud({
-      threadId,
-      cwd: latest.current.projectDirectory,
-      started: latest.current.started,
-      midTurn,
-      interrupt: latest.current.handleInterrupt,
-      pause: latest.current.handlePause,
-      whenSettled: latest.current.whenSettled,
-      identity: app.workspace,
-      title: null,
-      model: storedModel(app.model.choice()),
-      bridge,
-      localThreads: app.threads,
-      localLog: app.log,
-      agents: app.agents,
-      ids: app.ids,
-      placement: latest.current.placement,
-      stopLocal: async () =>
-        stopLocalWork({ threadId, shells: app.shells, services: app.services }),
-      capture: latest.current.capture,
-      onProgress: (step) => move.handleAdvance(step),
-      captureContext,
-      open: async (attachment) => {
-        liftedStores = attachment.stores
-        const runner = createCloudRunner({
-          bridge,
-          channel: attachment.channel,
           threadId,
+          cwd: latest.current.projectDirectory,
+          started: latest.current.started,
+          midTurn,
+          interrupt: latest.current.handleInterrupt,
+          pause: latest.current.handlePause,
+          resumeSource: latest.current.handleResumeSource,
+          whenSettled: latest.current.whenSettled,
+          identity: app.workspace,
+          title: null,
+          model: storedModel(app.model.choice()),
+          bridge,
+          localThreads: app.threads,
+          localLog: app.log,
+          agents: app.agents,
+          ids: app.ids,
+          placement: owner,
+          stopLocal: async () => stopLocalWork({ threadId, shells: app.shells, services: app.services }),
+          capture: latest.current.capture,
+          ...(latest.current.captureArchive === undefined ? {} : { captureWorkspaceArchive: latest.current.captureArchive }),
+          onProgress: (step) => move.handleAdvance(step),
           captureContext,
-          move,
+          open: async ({ attachment, transaction, restoredWorkspace }) => {
+            const runner = createCloudRunner({ bridge, channel: attachment.channel, threadId, captureContext, move })
+            const base = { ...app, ...cloudRuntimeParts({ channel: attachment.channel, stores: attachment.stores, runner }) }
+            const opened = await openCloudConversation({ app: base, threadId })
+            const anchor = await cloudAnchorOf({ stores: attachment.stores, threadId, opened, restored: restoredWorkspace })
+            const stopMirroring = mirrorCloudRenames({ home: app.threads, remote: attachment.stores.threads })
+            const session = createCloudSession({
+              channel: attachment.channel,
+              sandboxes: bridge.sandboxes,
+              onReload: latest.current.onReload,
+              appliedSnapshot: () => cloudReadinessOf(attachment.channel).applied(),
+              subscribeApplied: (listener) => cloudReadinessOf(attachment.channel).subscribe(listener),
+              onClose: () => {
+                cloudReadinessOf(attachment.channel).cancelWaiting()
+                stopMirroring()
+              },
+            })
+            prepareOn({
+              transaction,
+              binding: cloudBindingOf({
+                local: app,
+                anchor,
+                channel: attachment.channel,
+                stores: attachment.stores,
+                bridge,
+                runner,
+                opened: midTurn ? { ...opened, resumeOnArrival: true } : opened,
+                session,
+              }),
+            })
+          },
         })
-        const attached = cloudApp({ app, channel: attachment.channel, stores: attachment.stores, runner })
-        opened = await openCloudConversation({ app: attached, threadId })
-      },
-    })
+
+        if (lifted.ok && lifted.warning !== undefined) {
+          notify({
+            key: CLOUD_LIFT_NOTICE_KEY,
+            text: `this conversation is in the cloud, but ${lifted.warning}`,
+            tone: ENoticeTone.Warn,
+            sticky: true,
+          })
+        }
 
         if (!lifted.ok) {
           const reason = liftFailedNotice(lifted)
           move.handleFail(reason)
-          notify({
-            key: CLOUD_LIFT_NOTICE_KEY,
-            text: reason,
-            tone: ENoticeTone.Warn,
-            ttlMs: NOTICE_WARN_MS,
-          })
+          notify({ key: CLOUD_LIFT_NOTICE_KEY, text: reason, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
           return
         }
 
-        const runner = createCloudRunner({ bridge, channel: lifted.channel, threadId, captureContext, move })
-        if (liftedStores === undefined) throw new Error('the lift attached without its stores')
-        const attached = cloudApp({ app, channel: lifted.channel, stores: liftedStores, runner })
-        const conversation = opened ?? (await openCloudConversation({ app: attached, threadId }))
-        const arrived = lifted.resumeOnArrival
-          ? { ...conversation, resumeOnArrival: true }
-          : conversation
-
         move.handleSettle()
-        onLifted({ app: attached, opened: arrived, bridge, channel: lifted.channel, stores: liftedStores })
       })
       .catch((error: unknown) => {
         const reason = `moving to the cloud failed — ${messageOf(error)}`
         latest.current.move.handleFail(reason)
-        notify({
-          key: CLOUD_LIFT_NOTICE_KEY,
-          text: reason,
-          tone: ENoticeTone.Warn,
-          ttlMs: NOTICE_WARN_MS,
-        })
+        notify({ key: CLOUD_LIFT_NOTICE_KEY, text: reason, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
       })
       .finally(() => {
         lifting.current = false

@@ -5,6 +5,7 @@ import React from 'react'
 import { EChannelConnection } from '@dltech/atlas-harness'
 
 import { versionLabel } from '../build/info'
+import { useAttachFailure } from './attach-failure'
 import type { EThinkingVisibility } from '../store'
 import type { BackgroundWork } from '../ui/background-wait'
 import { BackPill } from '../ui/components/back-pill'
@@ -39,6 +40,7 @@ export function WorkspaceTranscript(props: {
   >
   cloudHealth: CloudHealth | null
   cloudSession: CloudSession | null
+  onRetryAttach: () => void
   sends: number
   background: BackgroundWork
   waitingSince: number | null
@@ -46,7 +48,9 @@ export function WorkspaceTranscript(props: {
   onToggle: (key: string) => void
 }): React.ReactNode {
   const { app, welcome, width, thinking, agentView, conversation, cloudHealth, cloudSession } = props
-  const connection = cloudHealth?.connection?.state
+  const attachFailed = useAttachFailure()
+  const connection =
+    cloudHealth?.connection?.state ?? (cloudSession === null && attachFailed !== null ? EChannelConnection.Closed : undefined)
 
   return (
     <box flexDirection="column" flexGrow={1} flexShrink={1}>
@@ -89,13 +93,14 @@ export function WorkspaceTranscript(props: {
           now={conversation.now}
           cwd={conversation.projectDirectory}
           turn={conversation.turn}
+          waking={connection === EChannelConnection.Waking}
           reconnecting={
             connection === EChannelConnection.Reconnecting ||
             connection === EChannelConnection.Connecting
           }
           disconnected={connection === EChannelConnection.Closed}
-          {...(connection === EChannelConnection.Closed && cloudSession !== null
-            ? { onReconnect: () => cloudSession.reconnect() }
+          {...(connection === EChannelConnection.Closed
+            ? { onReconnect: () => (cloudSession === null ? props.onRetryAttach() : cloudSession.reconnect()) }
             : {})}
           sends={props.sends}
           pending={conversation.pending}

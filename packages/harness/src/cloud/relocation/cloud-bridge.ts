@@ -1,4 +1,5 @@
 import type { EventLogPort, ThreadId } from '@dltech/atlas-core'
+import type { RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import type {
   ChannelConnection,
@@ -35,6 +36,8 @@ export type CloudSandbox = {
    * serve is pending the next cold boot.
    */
   outdatedServe?: string | undefined
+  /** The wire protocol the sandbox's old serve spoke when this wake rotated it onto the pinned image. */
+  rotatedProtocol?: number | undefined
 }
 
 /**
@@ -44,6 +47,8 @@ export type CloudSandbox = {
 export type CloudSandboxStatus = {
   state: ECloudSandboxState
   url?: string | undefined
+  sandboxSessionId?: string | undefined
+  checkpoint?: RuntimeCheckpoint | null | undefined
 }
 
 export type CloudSandboxes = {
@@ -70,6 +75,13 @@ export type CloudSandboxes = {
      * reconnect or wake omits it, and the sandbox keeps the transcript it already holds.
      */
     transcript?: Uint8Array | undefined
+    /**
+     * A captured workspace archive on this machine, streamed to the drive's bootstrap directory
+     * before serve launches, fresh boot or resumed. The path is never serialized into the boot spec.
+     */
+    workspaceArchivePath?: string | undefined
+    /** Fires the moment the wake finds a protocol-mismatched sandbox and starts rotating it. */
+    onRotationStarted?: (() => void) | undefined
   }): Promise<CloudSandbox>
   /** Operator-session auth, same as `create` — the archive lands on the row `create` just opened. */
   putContext(args: { threadId: ThreadId; archive: Uint8Array }): Promise<void>
@@ -85,6 +97,10 @@ export type CloudSandboxes = {
    * The bridge owns how readiness is probed; the lift only reads the verdict.
    */
   confirmLanded(args: { threadId: ThreadId }): Promise<{ landed: boolean }>
+  /** Streams a serve-prepared workspace export from the sandbox into `destination`. */
+  downloadWorkspace?(args: { threadId: ThreadId; path: string; destination: string }): Promise<void>
+  /** Deletes one serve-prepared export once it has been downloaded or abandoned. */
+  releaseWorkspace?(args: { threadId: ThreadId; path: string }): Promise<void>
   find(args: { threadId: ThreadId }): Promise<CloudSandboxStatus | undefined>
   /**
    * Tears down both halves: the Vercel sandbox through the operator's own token, and the control

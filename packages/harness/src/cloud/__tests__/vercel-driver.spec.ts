@@ -5,6 +5,7 @@ import { APIError, Sandbox } from '@vercel/sandbox'
 import { driveNameFor, DRIVE_MOUNT_PATH, DRIVE_WORKSPACE_PATH, DRIVE_HOME_PATH } from '../drive-names'
 import type { DriveSdk } from '../drive-lifecycle'
 import { ECloudSandboxState } from '../sandbox-client'
+import { CHANNEL_PROTOCOL_VERSION } from '../channel-wire'
 import { SERVE_TOKEN_PATH } from '../serve-launch'
 import { VercelDriver, type VercelSdk } from '../vercel-driver'
 import { EVercelFailure, SandboxMissingError, VercelFailure } from '../vercel-errors'
@@ -61,8 +62,11 @@ const fakeSandbox = (
     status?: string
     routes?: number[]
     installedVersion?: string
+    installedProtocol?: string
+    drainStatus?: string
     versionReadFails?: boolean
     healthy?: boolean
+    alive?: boolean
     calls?: RecordedCall[]
   } = {},
 ): FakeSandbox => {
@@ -81,7 +85,8 @@ const fakeSandbox = (
     currentSession: () => ({ sessionId: 'session-1' }),
     domain: (port: number) => {
       const status = args.status ?? 'running'
-      if (!routedPorts.includes(port) || (status !== 'running' && status !== 'pending')) {
+      const routable = status === 'running' || status === 'pending' || status === 'stopped'
+      if (!routedPorts.includes(port) || !routable) {
         throw new Error('no route')
       }
       return `https://sb-${port}.vercel.run`
@@ -90,14 +95,26 @@ const fakeSandbox = (
       const script = params.args?.[1] ?? params.cmd
       commands.push(script)
       calls?.push({ kind: 'command', script })
+      if (script.startsWith('rm -f')) return { exitCode: 0, stdout: async () => '', stderr: async () => '' }
+      if (script.startsWith('kill -0')) {
+        return { exitCode: args.alive === true ? 0 : 1 }
+      }
+      if (script.startsWith('[ ! -s')) return { exitCode: 0 }
+      if (script.includes('/v1/drain')) {
+        return { exitCode: 0, stdout: async () => args.drainStatus ?? '200', stderr: async () => '' }
+      }
       const isVersionRead = script.includes('.version')
       if (isVersionRead) {
-        if (args.versionReadFails && script.startsWith('cat ')) throw new Error('runCommand unavailable')
-        return { exitCode: 0, stdout: async () => `${args.installedVersion ?? PINNED_VERSION}\n`, stderr: async () => '' }
+        if (args.versionReadFails) throw new Error('runCommand unavailable')
+        const protocol = args.installedProtocol ?? String(CHANNEL_PROTOCOL_VERSION)
+        return {
+          exitCode: 0,
+          stdout: async () => `${args.installedVersion ?? PINNED_VERSION}\n${protocol}\n`,
+          stderr: async () => '',
+        }
       }
       if (script.startsWith('for i in')) return { exitCode: 0 }
       if (script.startsWith('mkdir ')) return { exitCode: 0 }
-      if (script.startsWith('for pid in')) return { exitCode: 0 }
       if (script.startsWith('tail -c')) return { exitCode: 0, stdout: async () => '', stderr: async () => '' }
       const healthy = args.healthy ?? true
       return { exitCode: healthy ? 0 : 1, stderr: async () => '' }
@@ -341,8 +358,33 @@ describe('createOrResume', () => {
     ).toBe(true)
   })
 
-  it('recreates a live sandbox whose baked serve predates the pinned version', async () => {
-    const stale = fakeSandbox({ installedVersion: '1.19.1' })
+  it('preserves a live running sandbox whose baked serve predates the pinned version — a reconnect never kills a runtime', async () => {
+    const stale = fakeSandbox({ installedVersion: '1.19.1', status: 'running' })
+    const driver = new VercelDriver({
+      credentials: CREDENTIALS,
+      cloudUrl: 'https://api.example.com',
+      driveSdk: fakeDriveSdk().sdk,
+      image: `atlas-sandbox:${PINNED_VERSION}`,
+      serveVersion: PINNED_VERSION,
+      sdk: {
+        get: async () => stale,
+        getOrCreate: async () => stale,
+      },
+    })
+
+    const placement = await driver.createOrResume({
+      name: 'atlas-thread-x',
+      threadId: 'brn_cloud',
+      token: 't',
+    })
+
+    expect(stale.deleted).toBe(false)
+    expect(placement.created).toBe(false)
+    expect(placement.outdatedServe).toBe('1.19.1')
+  })
+
+  it('recreates a stopped sandbox whose baked serve predates the pin without waking its runtime', async () => {
+    const stale = fakeSandbox({ installedVersion: '1.19.1', status: 'stopped' })
     const fresh = fakeSandbox({ installedVersion: PINNED_VERSION })
     let getOrCreateParams: Record<string, unknown> | undefined
     const driver = new VercelDriver({
@@ -351,6 +393,15 @@ describe('createOrResume', () => {
       driveSdk: fakeDriveSdk().sdk,
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
+      runtimeHealth: async () => ({
+        busy: false,
+        childrenRunning: 0,
+        shellsRunning: 0,
+        servicesRunning: 0,
+        pendingInput: false,
+        settlingWork: false,
+        clients: 0,
+      }),
       sdk: {
         get: async () => stale,
         getOrCreate: async (params) => {
@@ -368,6 +419,69 @@ describe('createOrResume', () => {
 
     expect(stale.deleted).toBe(true)
     expect(getOrCreateParams?.image).toBe(`atlas-sandbox:${PINNED_VERSION}`)
+  })
+
+  it('rotates a running sandbox whose serve speaks another wire protocol: drain, delete, recreate', async () => {
+    const stale = fakeSandbox({ installedProtocol: String(CHANNEL_PROTOCOL_VERSION - 1), status: 'running' })
+    const fresh = fakeSandbox()
+    const events: string[] = []
+    Object.assign(stale, {
+      delete: async () => {
+        events.push('delete')
+      },
+      runCommand: ((original) => async (params: { cmd: string; args?: string[] }) => {
+        if (params.args?.[1]?.includes('/v1/drain')) events.push('drain')
+        return original(params)
+      })(stale.runCommand.bind(stale) as (params: { cmd: string; args?: string[] }) => Promise<unknown>),
+    })
+    const driver = new VercelDriver({
+      credentials: CREDENTIALS,
+      cloudUrl: 'https://api.example.com',
+      driveSdk: fakeDriveSdk().sdk,
+      image: `atlas-sandbox:${PINNED_VERSION}`,
+      serveVersion: PINNED_VERSION,
+      runtimeHealth: async () => ({ busy: true, clients: 1 }),
+      sdk: {
+        get: async () => stale,
+        getOrCreate: async (params) => {
+          events.push('recreate')
+          await params?.onCreate?.(fresh)
+          return fresh
+        },
+      },
+    })
+
+    const placement = await driver.createOrResume({
+      name: 'atlas-thread-x',
+      threadId: 'brn_cloud',
+      token: 't',
+      onRotationStarted: () => {
+        events.push('rotation-started')
+      },
+    })
+
+    expect(events).toEqual(['rotation-started', 'drain', 'delete', 'recreate'])
+    expect(placement.created).toBe(true)
+    expect(placement.rotatedProtocol).toBe(CHANNEL_PROTOCOL_VERSION - 1)
+    expect(placement.outdatedServe).toBeUndefined()
+  })
+
+  it('recreates over a serve that cannot be drained, still reporting the rotation', async () => {
+    const stale = fakeSandbox({ installedProtocol: '', drainStatus: '404' })
+    const fresh = fakeSandbox()
+    const driver = new VercelDriver({
+      credentials: CREDENTIALS,
+      cloudUrl: 'https://api.example.com',
+      driveSdk: fakeDriveSdk().sdk,
+      image: `atlas-sandbox:${PINNED_VERSION}`,
+      serveVersion: PINNED_VERSION,
+      sdk: { get: async () => stale, getOrCreate: async () => fresh },
+    })
+
+    const placement = await driver.createOrResume({ name: 'atlas-thread-x', threadId: 'brn_cloud', token: 't' })
+
+    expect(stale.deleted).toBe(true)
+    expect(placement.rotatedProtocol).toBe(0)
   })
 
   it('resumes a live sandbox whose baked serve is the pinned version, without destroying it', async () => {
@@ -390,14 +504,23 @@ describe('createOrResume', () => {
     expect(current.deleted).toBe(false)
   })
 
-  it('recreates a sandbox whose version file is missing — the file ships with the image, so its absence means an older bake', async () => {
-    const ancient = fakeSandbox({ installedVersion: '' })
+  it('recreates a stopped sandbox whose version file is missing — the file ships with the image, so its absence means an older bake', async () => {
+    const ancient = fakeSandbox({ installedVersion: '', status: 'stopped' })
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
       driveSdk: fakeDriveSdk().sdk,
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
+      runtimeHealth: async () => ({
+        busy: false,
+        childrenRunning: 0,
+        shellsRunning: 0,
+        servicesRunning: 0,
+        pendingInput: false,
+        settlingWork: false,
+        clients: 0,
+      }),
       sdk: { get: async () => ancient, getOrCreate: async () => fakeSandbox() },
     })
 
@@ -430,8 +553,8 @@ describe('createOrResume', () => {
     expect(unreadable.deleted).toBe(false)
   })
 
-  it('keeps an outdated sandbox that still has a client attached, warning instead of deleting', async () => {
-    const stale = fakeSandbox({ installedVersion: '1.19.1' })
+  it('keeps a running outdated sandbox regardless of attached clients', async () => {
+    const stale = fakeSandbox({ installedVersion: '1.19.1', status: 'running' })
     const lines: string[] = []
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
@@ -440,7 +563,15 @@ describe('createOrResume', () => {
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
       log: (line) => lines.push(line),
-      clientsAttached: async () => true,
+      runtimeHealth: async () => ({
+        busy: false,
+        childrenRunning: 0,
+        shellsRunning: 0,
+        servicesRunning: 0,
+        pendingInput: false,
+        settlingWork: false,
+        clients: 1,
+      }),
       sdk: { get: async () => stale, getOrCreate: async () => stale },
     })
 
@@ -458,15 +589,15 @@ describe('createOrResume', () => {
         (line) =>
           line.includes('carries serve "1.19.1"') &&
           line.includes(`wants "${PINNED_VERSION}"`) &&
-          line.includes('a client is attached'),
+          line.includes('provider reports it running'),
       ),
     ).toBe(true)
   })
 
-  it('keeps a matching-version sandbox with a client attached without warning', async () => {
+  it('keeps a matching-version sandbox without ever reading its health', async () => {
     const current = fakeSandbox({ installedVersion: PINNED_VERSION })
     const lines: string[] = []
-    let attachReads = 0
+    let healthReads = 0
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
@@ -474,9 +605,9 @@ describe('createOrResume', () => {
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
       log: (line) => lines.push(line),
-      clientsAttached: async () => {
-        attachReads += 1
-        return true
+      runtimeHealth: async () => {
+        healthReads += 1
+        return undefined
       },
       sdk: { get: async () => current, getOrCreate: async () => current },
     })
@@ -489,8 +620,8 @@ describe('createOrResume', () => {
 
     expect(current.deleted).toBe(false)
     expect(placement.outdatedServe).toBeUndefined()
-    expect(attachReads).toBe(0)
-    expect(lines.some((line) => line.includes('a client is attached'))).toBe(false)
+    expect(healthReads).toBe(0)
+    expect(lines.some((line) => line.includes('never proved idle'))).toBe(false)
   })
 
   it('writes the bootstrap onto a fresh sandbox after it exists, before serve launches', async () => {
@@ -520,7 +651,7 @@ describe('createOrResume', () => {
   })
 
   it('writes the bootstrap onto a drift-replaced sandbox after it exists, before serve launches', async () => {
-    const stale = fakeSandbox({ installedVersion: '1.19.1' })
+    const stale = fakeSandbox({ installedVersion: '1.19.1', status: 'stopped' })
     const calls: string[] = []
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
@@ -528,6 +659,15 @@ describe('createOrResume', () => {
       driveSdk: fakeDriveSdk().sdk,
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
+      runtimeHealth: async () => ({
+        busy: false,
+        childrenRunning: 0,
+        shellsRunning: 0,
+        servicesRunning: 0,
+        pendingInput: false,
+        settlingWork: false,
+        clients: 0,
+      }),
       sdk: {
         get: async () => stale,
         getOrCreate: async () => {
@@ -809,7 +949,7 @@ describe('createOrResume', () => {
   })
 
   it('waits out a drive that stays attached for a few polls after the stale sandbox is deleted', async () => {
-    const stale = fakeSandbox({ installedVersion: '1.19.1' })
+    const stale = fakeSandbox({ installedVersion: '1.19.1', status: 'stopped' })
     let listCalls = 0
     const drives = fakeDriveSdk({
       list: async () => (async function* () {
@@ -829,6 +969,15 @@ describe('createOrResume', () => {
       image: `atlas-sandbox:${PINNED_VERSION}`,
       serveVersion: PINNED_VERSION,
       attachLagRetry: { attempts: 10, delayMs: 0 },
+      runtimeHealth: async () => ({
+        busy: false,
+        childrenRunning: 0,
+        shellsRunning: 0,
+        servicesRunning: 0,
+        pendingInput: false,
+        settlingWork: false,
+        clients: 0,
+      }),
       sdk: {
         get: async () => stale,
         getOrCreate: async () => {
@@ -841,7 +990,7 @@ describe('createOrResume', () => {
     await driver.createOrResume({ name: 'atlas-thread-x', threadId: 'brn_cloud', token: 't' })
 
     expect(stale.deleted).toBe(true)
-    expect(listCalls).toBe(1)
+    expect(listCalls).toBe(2)
     expect(mounts).toBe(1)
   })
 
@@ -903,14 +1052,183 @@ describe('createOrResume', () => {
     ).rejects.toThrow('quota exceeded')
     expect(calls).toBe(1)
   })
+
+  const imageNotReady = (message: string): APIError<unknown> =>
+    new APIError(new Response(null, { status: 409 }), {
+      json: { error: { code: 'image_not_ready', message } },
+    })
+
+  /** A drive sdk whose listing reflects what getOrCreate minted, for rollback assertions. */
+  const liveDriveSdk = () => {
+    const deleted: string[] = []
+    const live: unknown[] = []
+    const sdk: DriveSdk = {
+      getOrCreate: async (params) => {
+        const drive = fakeDrive(params?.name ?? '', deleted)
+        live.push(drive)
+        return drive
+      },
+      list: async () => (async function* () {
+        yield* live as never[]
+      })(),
+    }
+    return { sdk, live, deleted }
+  }
+
+  it('waits out the image optimization lag and boots once the image is ready', async () => {
+    let calls = 0
+    const driver = new VercelDriver({
+      credentials: CREDENTIALS,
+      cloudUrl: 'https://api.example.com',
+      driveSdk: fakeDriveSdk().sdk,
+      image: `atlas-sandbox:${PINNED_VERSION}`,
+      serveVersion: PINNED_VERSION,
+      attachLagRetry: { attempts: 10, delayMs: 0 },
+      imageOptimizeRetry: { attempts: 5, delayMs: 0 },
+      sdk: {
+        get: async () => {
+          throw notFound()
+        },
+        getOrCreate: async (params) => {
+          calls += 1
+          if (calls < 3) throw imageNotReady('Image is not ready.')
+          const fresh = fakeSandbox()
+          await params?.onCreate?.(fresh)
+          return fresh
+        },
+      },
+    })
+
+    const placement = await driver.createOrResume({
+      name: 'atlas-thread-x',
+      threadId: 'brn_cloud',
+      token: 't',
+    })
+
+    expect(calls).toBe(3)
+    expect(placement.created).toBe(true)
+  })
+
+  it('fails a poisoned image without retrying, naming the republish as the recovery', async () => {
+    let calls = 0
+    const drives = liveDriveSdk()
+    const driver = new VercelDriver({
+      credentials: CREDENTIALS,
+      cloudUrl: 'https://api.example.com',
+      driveSdk: drives.sdk,
+      image: `atlas-sandbox:${PINNED_VERSION}`,
+      serveVersion: PINNED_VERSION,
+      attachLagRetry: { attempts: 10, delayMs: 0 },
+      imageOptimizeRetry: { attempts: 5, delayMs: 0 },
+      sdk: {
+        get: async () => {
+          throw notFound()
+        },
+        getOrCreate: async () => {
+          calls += 1
+          throw imageNotReady('Image optimization failed.')
+        },
+      },
+    })
+
+    const failure = await driver
+      .createOrResume({ name: 'atlas-thread-x', threadId: 'brn_cloud', token: 't' })
+      .catch((caught: unknown) => caught)
+
+    expect(failure).toBeInstanceOf(VercelFailure)
+    expect((failure as VercelFailure).kind).toBe(EVercelFailure.ImageOptimize)
+    expect((failure as Error).message).toContain('fresh digest')
+    expect(calls).toBe(1)
+    expect(drives.deleted).toEqual([driveNameFor({ threadId: 'brn_cloud' })])
+  })
+
+  it('rolls back the sandbox and the drive a failed wake created', async () => {
+    const drives = liveDriveSdk()
+    let freshBoot: FakeSandbox | undefined
+    const driver = new VercelDriver({
+      credentials: CREDENTIALS,
+      cloudUrl: 'https://api.example.com',
+      driveSdk: drives.sdk,
+      image: `atlas-sandbox:${PINNED_VERSION}`,
+      serveVersion: PINNED_VERSION,
+      attachLagRetry: { attempts: 10, delayMs: 0 },
+      imageOptimizeRetry: { attempts: 5, delayMs: 0 },
+      sdk: {
+        get: async () => {
+          if (freshBoot !== undefined) return freshBoot
+          throw notFound()
+        },
+        getOrCreate: async (params) => {
+          freshBoot = fakeSandbox()
+          await params?.onCreate?.(freshBoot)
+          return freshBoot
+        },
+      },
+    })
+
+    await expect(
+      driver.createOrResume({
+        name: 'atlas-thread-x',
+        threadId: 'brn_cloud',
+        token: 't',
+        putContextOnFreshBoot: async () => {
+          throw new Error('write failed')
+        },
+      }),
+    ).rejects.toThrow('write failed')
+
+    expect(freshBoot?.deleted).toBe(true)
+    expect(drives.deleted).toEqual([driveNameFor({ threadId: 'brn_cloud' })])
+  })
+
+  it('keeps a pre-existing drive when the failed wake rolls back', async () => {
+    const drives = liveDriveSdk()
+    drives.live.push(fakeDrive(driveNameFor({ threadId: 'brn_cloud' })))
+    let freshBoot: FakeSandbox | undefined
+    const driver = new VercelDriver({
+      credentials: CREDENTIALS,
+      cloudUrl: 'https://api.example.com',
+      driveSdk: drives.sdk,
+      image: `atlas-sandbox:${PINNED_VERSION}`,
+      serveVersion: PINNED_VERSION,
+      attachLagRetry: { attempts: 10, delayMs: 0 },
+      imageOptimizeRetry: { attempts: 5, delayMs: 0 },
+      sdk: {
+        get: async () => {
+          if (freshBoot !== undefined) return freshBoot
+          throw notFound()
+        },
+        getOrCreate: async (params) => {
+          freshBoot = fakeSandbox()
+          await params?.onCreate?.(freshBoot)
+          return freshBoot
+        },
+      },
+    })
+
+    await expect(
+      driver.createOrResume({
+        name: 'atlas-thread-x',
+        threadId: 'brn_cloud',
+        token: 't',
+        putContextOnFreshBoot: async () => {
+          throw new Error('write failed')
+        },
+      }),
+    ).rejects.toThrow('write failed')
+
+    expect(freshBoot?.deleted).toBe(true)
+    expect(drives.deleted).toEqual([])
+  })
 })
 
 describe('inspect', () => {
-  it('maps the sdk statuses onto the wire states', async () => {
+  it('maps the sdk statuses onto the wire states, carrying the sandbox session identity', async () => {
     const { driver } = driverWith({ get: async () => fakeSandbox({ status: 'running' }) })
     expect(await driver.inspect({ name: 'x' })).toEqual({
       state: ECloudSandboxState.Running,
       url: 'https://sb-3000.vercel.run',
+      sandboxSessionId: 'session-1',
     })
 
     const pending = new VercelDriver({
@@ -921,6 +1239,7 @@ describe('inspect', () => {
     expect(await pending.inspect({ name: 'x' })).toEqual({
       state: ECloudSandboxState.Resuming,
       url: 'https://sb-3000.vercel.run',
+      sandboxSessionId: 'session-1',
     })
 
     const stopped = new VercelDriver({
@@ -928,7 +1247,32 @@ describe('inspect', () => {
       cloudUrl: 'https://api.example.com',
       sdk: { get: async () => fakeSandbox({ status: 'stopped' }), getOrCreate: async () => fakeSandbox() },
     })
-    expect(await stopped.inspect({ name: 'x' })).toEqual({ state: ECloudSandboxState.Parked })
+    expect(await stopped.inspect({ name: 'x' })).toEqual({
+      state: ECloudSandboxState.Parked,
+      url: 'https://sb-3000.vercel.run',
+      sandboxSessionId: 'session-1',
+    })
+  })
+
+  it('reads stopping and snapshotting as unknown, failed and aborted as stopped, never as parked', async () => {
+    for (const status of ['stopping', 'snapshotting']) {
+      const driver = new VercelDriver({
+        credentials: CREDENTIALS,
+        cloudUrl: 'https://api.example.com',
+        sdk: { get: async () => fakeSandbox({ status }), getOrCreate: async () => fakeSandbox() },
+      })
+      const observed = await driver.inspect({ name: 'x' })
+      expect(observed?.state).toBe(ECloudSandboxState.Unknown)
+    }
+    for (const status of ['failed', 'aborted']) {
+      const driver = new VercelDriver({
+        credentials: CREDENTIALS,
+        cloudUrl: 'https://api.example.com',
+        sdk: { get: async () => fakeSandbox({ status }), getOrCreate: async () => fakeSandbox() },
+      })
+      const observed = await driver.inspect({ name: 'x' })
+      expect(observed?.state).toBe(ECloudSandboxState.Stopped)
+    }
   })
 
   it('answers nothing when Vercel has never heard of the sandbox', async () => {
@@ -1006,6 +1350,26 @@ describe('stop and destroy', () => {
       },
     })
     await expect(missing.driver.stop({ name: 'x' })).resolves.toBeUndefined()
+  })
+
+  it('stops the sandbox when the caller holds its live session identity', async () => {
+    const sandbox = fakeSandbox()
+    const { driver } = driverWith({ get: async () => sandbox })
+
+    await driver.stop({ name: 'x', sessionId: 'session-1' })
+
+    expect(sandbox.stopped).toBe(true)
+  })
+
+  it('refuses to stop a sandbox whose live session is not the one the stop was issued for', async () => {
+    const sandbox = fakeSandbox()
+    const { driver } = driverWith({ get: async () => sandbox })
+
+    await expect(driver.stop({ name: 'x', sessionId: 'session-old' })).rejects.toThrow(
+      'refusing to stop sandbox x',
+    )
+
+    expect(sandbox.stopped).toBe(false)
   })
 
   it('deletes the sandbox and tolerates one already gone', async () => {

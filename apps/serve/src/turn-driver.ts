@@ -6,6 +6,11 @@ import type { MessageIntake } from '@dltech/atlas-harness'
 
 import type { ServeApp } from './serve-app'
 
+export type TurnRunOptions = {
+  resume?: boolean | undefined
+  onlyIfIdle?: boolean | undefined
+}
+
 export type ServeTurnDriver = {
   say: (args: {
     text: string
@@ -13,17 +18,15 @@ export type ServeTurnDriver = {
     files?: readonly SaidFile[] | undefined
     context?: readonly EventDraft[] | undefined
   }) => Promise<void>
-  run: () => void
-  /** Starts a turn when none is running, re-arms when one is, and answers whether it acted. */
+  run: (options?: TurnRunOptions) => void
   sayOrRun: () => boolean
   interrupt: () => void
   pause: () => void
-  /** The channel's pause: freeze the parent's turn, then the stepping children, then answer. */
   beginRelocation: () => void
   resume: () => void
   running: () => boolean
-  /** True from the moment a send begins its durable commit until the turn settles. */
   busy: () => boolean
+  outcomePending: () => boolean
   settled: () => Promise<void>
   attach: (shared: MessageIntake) => () => void
 }
@@ -52,9 +55,10 @@ export function createTurnDriver(args: {
   let again = false
   let committing = false
   let turning: Promise<void> | null = null
-  // Not reset when the turn settles: the far side's Resume frame can arrive after the paused loop
-  // has fully unwound, and it must still re-enter the turn from the log.
+  let outcomePending = false
   let relocationFrozen = false
+  let relocationSettling: Promise<void> | null = null
+  let resumeRelocation = false
 
   const writeDrafts = async (drafts: readonly EventDraft[]): Promise<void> => {
     const runId = app.ids.nextRunId()
@@ -90,10 +94,6 @@ export function createTurnDriver(args: {
     await shared.commit({ threadId, append: writeDrafts })
   }
 
-  /**
-   * The message lands durably before any turn runs, so a process death between the two loses a
-   * turn rather than the thing the operator said.
-   */
   const commit = async (said: {
     text: string
     images?: readonly SaidImage[] | undefined
@@ -111,28 +111,36 @@ export function createTurnDriver(args: {
     ])
   }
 
-  /**
-   * The relocation-paused answer is the descend's signal to take the session archive, so it may
-   * not reach the client until the whole family has stopped writing: the children's steps settle
-   * into their own pauses first, and only then does the parent's outcome go out.
-   */
   const finishOutcome = async (outcome: TurnOutcome): Promise<void> => {
     if (outcome.status === ETurnStatus.RelocationPaused && relocationFrozen) {
-      await app.family?.pauseChildren({ threadId }).catch(() => undefined)
+      const settling = app.family?.pauseChildren({ threadId }) ?? Promise.resolve()
+      relocationSettling = settling
+      try {
+        await settling
+      } finally {
+        if (relocationSettling === settling) relocationSettling = null
+      }
     }
     args.onOutcome(outcome)
+    outcomePending = false
     await app.turnPolicy?.onOutcome({ threadId, outcome })
   }
 
-  const runUntilQuiet = async (): Promise<void> => {
+  const runUntilQuiet = async (initial: { resume: boolean }): Promise<void> => {
     args.onTurnStarted()
+    let resumeThisTurn = initial.resume
     try {
       do {
         again = false
+        outcomePending = true
         const controller = new AbortController()
         abort = controller
         pause = new PauseSignal()
-        const outcome = relocationFrozen
+        if (relocationFrozen) pause.pause()
+        const resuming = resumeRelocation || resumeThisTurn
+        resumeRelocation = false
+        resumeThisTurn = false
+        const outcome = resuming
           ? await app.runner.resume({ threadId, signal: controller.signal, pause })
           : await app.runner.runTurn({ threadId, signal: controller.signal, pause })
         await finishOutcome(outcome)
@@ -141,6 +149,7 @@ export function createTurnDriver(args: {
       await app.turnPolicy?.onCrashed({ threadId })
       args.onFailure(messageOf(error))
     } finally {
+      outcomePending = false
       abort = null
       pause = null
       turning = null
@@ -149,23 +158,26 @@ export function createTurnDriver(args: {
     }
   }
 
-  const run = (): void => {
+  const run = (options?: TurnRunOptions): void => {
     const refused = args.refusal?.()
     if (refused !== undefined) throw new Error(refused)
 
-    if (committing) return
+    if (options?.onlyIfIdle === true && (turning !== null || committing)) {
+      throw new Error('a turn is already running — wait for it to finish before asking for another')
+    }
+    if (committing || relocationSettling !== null || relocationFrozen) return
     if (turning !== null) {
       again = true
       return
     }
-    turning = runUntilQuiet()
+    turning = runUntilQuiet({ resume: options?.resume === true })
   }
 
   const handle: ServeTurnDriver = {
-    /** A workspace that failed to materialize refuses work rather than letting an agent loose in an empty tree. */
     async say(said) {
       const refused = args.refusal?.()
       if (refused !== undefined) throw new Error(refused)
+      if (relocationFrozen) throw new Error('the session is paused for a workspace handoff')
 
       if (intake !== null && pending !== null) {
         if (turning !== null || committing) {
@@ -184,7 +196,7 @@ export function createTurnDriver(args: {
         } finally {
           committing = false
         }
-        turning = runUntilQuiet()
+        turning = runUntilQuiet({ resume: false })
         return
       }
 
@@ -193,7 +205,7 @@ export function createTurnDriver(args: {
         again = true
         return
       }
-      turning = runUntilQuiet()
+      turning = runUntilQuiet({ resume: false })
     },
 
     run,
@@ -221,25 +233,40 @@ export function createTurnDriver(args: {
     beginRelocation() {
       relocationFrozen = true
       pause?.pause()
+      if (turning !== null || committing || relocationSettling !== null) return
+      relocationSettling = (async () => {
+        await app.family?.pauseChildren({ threadId })
+        args.onOutcome({ status: ETurnStatus.RelocationPaused, runId: app.ids.nextRunId() })
+      })().catch((error: unknown) => {
+        args.onFailure(messageOf(error))
+      }).finally(() => {
+        relocationSettling = null
+      })
     },
 
-    /**
-     * A paused relocation turn has already exited its loop, so resuming is not releasing a waiter
-     * — it is re-entering the turn from its durable log, which is why it runs rather than
-     * signal-wakes.
-     */
     resume() {
       if (committing) return
+      if (relocationSettling !== null) {
+        void relocationSettling.then(() => handle.resume()).catch((error: unknown) => args.onFailure(messageOf(error)))
+        return
+      }
       if (pause !== null && pause.paused) {
         pause.resume()
         relocationFrozen = false
+        void app.family?.resumeChildren?.({ threadId }).catch((error: unknown) => args.onFailure(messageOf(error)))
         return
       }
       if (!relocationFrozen) return
       if (turning !== null) {
+        relocationFrozen = false
+        resumeRelocation = true
         again = true
+        void app.family?.resumeChildren?.({ threadId }).catch((error: unknown) => args.onFailure(messageOf(error)))
         return
       }
+      relocationFrozen = false
+      resumeRelocation = true
+      void app.family?.resumeChildren?.({ threadId }).catch((error: unknown) => args.onFailure(messageOf(error)))
       run()
     },
 
@@ -247,7 +274,7 @@ export function createTurnDriver(args: {
       return shared.register({
         threadId,
         driver: {
-          blocked: () => turning !== null || committing,
+          blocked: () => turning !== null || committing || relocationFrozen,
           wake: () => {
             handle.sayOrRun()
           },
@@ -259,7 +286,9 @@ export function createTurnDriver(args: {
 
     busy: () => turning !== null || committing,
 
-    settled: () => turning ?? Promise.resolve(),
+    outcomePending: () => outcomePending,
+
+    settled: () => Promise.all([turning, relocationSettling]).then(() => undefined),
   }
 
   return handle

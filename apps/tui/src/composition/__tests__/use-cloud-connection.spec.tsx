@@ -13,7 +13,7 @@ import React, { act } from 'react'
 import type { CloudSession } from '../cloud/cloud-session'
 import { createCloudSession } from '../cloud/cloud-session'
 import { fakeCloudChannel } from '../cloud/__tests__/fixture'
-import { EPlacementMoveKind } from '@dltech/atlas-harness'
+import { EPlacementMoveKind, ERuntimeKind } from '@dltech/atlas-harness'
 import { useCloudConnection } from '../use-cloud-connection'
 import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
@@ -33,7 +33,7 @@ const sessionOn = (connection?: ChannelConnection): CloudSession => {
       find: async () => undefined,
       destroy: async () => undefined,
     },
-    onReload: () => undefined,
+    onReload: async () => undefined,
   })
 }
 
@@ -56,9 +56,17 @@ async function mount(args: {
   app: FakeApp
   location: EExecutionLocation
   session: CloudSession | null
+  attached?: boolean
 }): Promise<Mounted> {
   await args.app.threads.create({ id: THREAD, executionLocation: args.location })
+  const local = args.app.sessionOwner.require()
   await args.app.executionLocation.activate({ threadId: THREAD, fallback: args.location })
+  if (args.location === EExecutionLocation.Cloud && args.attached !== false) {
+    await args.app.sessionOwner.adopt({
+      threadId: THREAD,
+      binding: { kind: ERuntimeKind.Cloud, cwd: '/sandbox', adapters: local.adapters },
+    })
+  }
   const setup = await createTestRenderer({ width: 40, height: 4 })
   const root = createRoot(setup.renderer)
   const probe: Probe = { current: undefined }
@@ -147,5 +155,12 @@ describe('the connection the cloud chrome reads', () => {
     })
 
     expect(probe.current).toBeNull()
+  })
+
+  it('shows a connecting runtime, never a healthy cloud, while the placement says cloud but nothing is attached', async () => {
+    const session = sessionOn({ state: EChannelConnection.Open, detail: null })
+    const { probe } = await mount({ app: appFor(), location: EExecutionLocation.Cloud, session, attached: false })
+
+    expect(probe.current?.state).toBe(EChannelConnection.Connecting)
   })
 })

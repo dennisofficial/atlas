@@ -9,7 +9,7 @@ import type { PauseSignal } from '../../../loop/pause-signal'
 import { scriptedModel } from '../../../model/testing/scripted-model'
 import type { ChildRunnerSource } from '../child-runner'
 import { AgentSupervisor } from '../supervisor'
-import { agentTypeNamed, settled } from './fixtures'
+import { agentTypeNamed, finished, openSupervisor, settled } from './fixtures'
 
 const interrupted = (): TurnOutcome => ({
   status: ETurnStatus.Interrupted,
@@ -172,5 +172,31 @@ describe('pausing a stepping child', () => {
 
     expect(resumed.ok).toBe(true)
     expect(snapshotOf(entry, childId)?.status).toBe(EAgentStatus.Running)
+  })
+
+  it('lands an ending that arrives while the children settle, so the far side sees the child end', async () => {
+    const entry = await openSupervisor()
+    const spawned = await entry.supervisor.spawn({
+      threadId: entry.parent,
+      agentType: 'explore',
+      brief: 'look around',
+      intent: 'a look around',
+    })
+    if (!spawned.ok) throw new Error(spawned.reason)
+    const childId = spawned.snapshot.agentId
+    await settled()
+
+    const pausing = entry.supervisor.pauseChildren({ threadId: entry.parent })
+    entry.runners.started.at(-1)?.settle(finished())
+    await pausing
+
+    const events = await entry.harness.log.readOwn({ threadId: entry.parent })
+    const endings = events.filter(
+      (event) => event.type === 'agent-ended' && event.agentId === childId,
+    )
+    expect(endings).toHaveLength(1)
+    expect(endings[0]).toMatchObject({ status: EAgentStatus.Finished, killedBy: undefined })
+
+    await entry.close()
   })
 })

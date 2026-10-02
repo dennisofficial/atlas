@@ -301,13 +301,56 @@ describe('what a sub-agent call reads as', () => {
   })
 
   it('names the child a message, a resume and a stop were aimed at', () => {
+    const said = reading(
+      aCall({
+        name: 'agent_say',
+        input: { agentId: 'thr_child', text: 'go on' },
+        output: { agentId: 'thr_child', queued: false, intent: 'vault audit', agentType: 'explore' },
+      }),
+    )
+    const resumed = reading(
+      aCall({
+        name: 'agent_resume',
+        input: { agentId: 'thr_child' },
+        output: { agentId: 'thr_child', agentType: 'reviewer', intent: 'check the diff' },
+      }),
+    )
+    const stopped = reading(
+      aCall({
+        name: 'agent_stop',
+        input: { agentId: 'thr_child' },
+        output: { agentId: 'thr_child', agentType: 'builder', intent: 'wire the port', status: EAgentStatus.Running },
+      }),
+    )
+
+    expect(said.line).toBe('Messaged vault audit')
+    expect(resumed.line).toBe('Resumed check the diff')
+    expect(stopped.line).toBe('Stopped wire the port')
+  })
+
+  it('cuts a long intent to a short handle instead of quoting it whole', () => {
+    const said = reading(
+      aCall({
+        name: 'agent_say',
+        input: { agentId: 'thr_child', text: 'go on' },
+        output: {
+          agentId: 'thr_child',
+          queued: false,
+          intent: 'Trace failed descend and retry path',
+          agentType: 'explore',
+        },
+      }),
+    )
+
+    expect(said.line).toBe('Messaged Trace failed descend')
+  })
+
+  it('falls back to the id for a call logged before outputs carried the intent', () => {
     const said = reading(aCall({ name: 'agent_say', input: { agentId: 'thr_child', text: 'go on' } }))
     const resumed = reading(aCall({ name: 'agent_resume', input: { agentId: 'thr_child' } }))
-    const stopped = reading(aCall({ name: 'agent_stop', input: { agentId: 'thr_child' } }))
 
     expect(said.line).toBe('Messaged thr_child')
     expect(resumed.line).toBe('Resumed thr_child')
-    expect(stopped.line).toBe('Stopped thr_child')
   })
 
   it('says a message to a busy child is waiting rather than running', () => {
@@ -421,7 +464,7 @@ describe('what a sub-agent call reads as', () => {
       }),
     )
 
-    expect(one.line).toBe('Spawned map the tui app structure')
+    expect(one.line).toBe('Spawned map the tui')
     expect(one.note).toBe('running')
   })
 

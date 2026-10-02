@@ -40,6 +40,7 @@ export class ChildSteps {
   private readonly intake: IntakeChanged | undefined
   private readonly hasLiveWork: HasLiveWork | undefined
   private readonly inFlight = new Map<ThreadId, Map<ThreadId, Promise<void>>>()
+  private readonly settledListeners = new Set<() => void>()
 
   constructor(args: {
     runners: ChildRunnerSource
@@ -91,7 +92,21 @@ export class ChildSteps {
     void settled.finally(() => {
       forThread.delete(child.agentId)
       if (forThread.size === 0) this.inFlight.delete(child.spawnedBy)
+      if (this.inFlight.size === 0) this.announceSettled()
     })
+  }
+
+  settling(): boolean {
+    return this.inFlight.size > 0
+  }
+
+  onSettled(listener: () => void): () => void {
+    this.settledListeners.add(listener)
+    return () => this.settledListeners.delete(listener)
+  }
+
+  private announceSettled(): void {
+    for (const listener of [...this.settledListeners]) listener()
   }
 
   async whenSettled(args?: {

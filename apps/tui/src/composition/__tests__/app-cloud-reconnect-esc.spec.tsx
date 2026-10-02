@@ -82,3 +82,33 @@ describe('pressing escape while the cloud socket is down', () => {
     }
   }, 60_000)
 })
+
+describe('sending a message to a parked sandbox', () => {
+  it('reads as waking rather than working while the sandbox is being woken', async () => {
+    const app = speaking()
+    const bridge = fakeBridge()
+    const mounted = await mount({ app, bridge })
+
+    try {
+      await mounted.run('cloud')
+      bridge.channel.moveTo({ state: EChannelConnection.Open, detail: null })
+
+      bridge.channel.moveTo({ state: EChannelConnection.Parked, detail: 'idle past the TTL' })
+
+      mounted.typeText('wake up')
+      mounted.pressEnter()
+
+      const waking = await until({
+        holds: async () => {
+          const frame = await mounted.nextFrame()
+          return frame.includes('Waking the sandbox') && !frame.includes('Working for')
+        },
+        within: 20_000,
+      })
+      expect(waking).toBe(true)
+      expect(await mounted.nextFrame()).toContain('waking')
+    } finally {
+      await mounted.done()
+    }
+  }, 60_000)
+})

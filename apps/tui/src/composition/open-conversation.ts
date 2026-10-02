@@ -17,30 +17,15 @@ import type {
   TurnLedgerPort,
   TurnSpend,
 } from '@dltech/atlas-harness'
-import {
-  liveServicesOf,
-  liveShellsOf,
-  ServiceRecovery,
-  ShellRecovery,
-  type LostShell,
-  type ServiceRegistryPort,
-  type ShellRegistryPort,
-} from '@dltech/atlas-harness'
-import {
-  atlasDirectory,
-  claimSession,
-  ESessionClaim,
-  releaseSession,
-  sessionDirectory,
-  sessionLockFile,
-} from '@dltech/atlas-harness'
+import type { LostShell, ServiceRegistryPort, ShellRegistryPort } from '@dltech/atlas-harness'
 
 import { EOpenMode, type OpenRequest } from './config'
+import { claimThread, closeConversation, recoverLostProcesses } from './conversation-claim'
 import { readThreadSpend } from './thread-spend'
-import { readThreadBase, readThreadWindow } from './thread-reads'
+import { readThreadSnapshot, type ThreadIdentity } from './thread-reads'
 import { EThreadRows } from './use-thread-view'
 import type { LogAccumulator, ToolEffects } from '../store/log-accumulator'
-import { titleMatchesHandle } from '@dltech/atlas-harness'
+import { titleMatchesHandle, transcriptIdentityDigest } from '@dltech/atlas-harness'
 
 export type OpenedConversation = {
   threadId: ThreadId
@@ -55,7 +40,10 @@ export type OpenedConversation = {
   base?: LogAccumulator | undefined
   bootCloudThreadId?: ThreadId | undefined
   resumeOnArrival?: boolean | undefined
+  identity?: ThreadIdentity | undefined
 }
+
+export { closeConversation }
 
 export const unstartedConversation = (args: {
   ids: IdPort
@@ -68,15 +56,6 @@ export const unstartedConversation = (args: {
   started: false,
   ...(args.bootCloudThreadId === undefined ? {} : { bootCloudThreadId: args.bootCloudThreadId }),
 })
-
-let heldSessionDir: string | undefined
-
-export async function closeConversation(): Promise<void> {
-  const held = heldSessionDir
-  heldSessionDir = undefined
-  if (held === undefined) return
-  await releaseSession({ lockFile: sessionLockFile({ sessionDir: held }) })
-}
 
 /**
  * The thread meta's executionLocation is the pointer to where the transcript lives: a thread that
@@ -103,44 +82,7 @@ type Opening = {
   effects: ToolEffects
   shells?: ShellRegistryPort | undefined
   services?: ServiceRegistryPort | undefined
-}
-
-const shellRecoveryFor = new WeakMap<EventLogPort, ShellRecovery>()
-
-const shellRecovery = (args: {
-  log: EventLogPort
-  ids: IdPort
-  shells?: ShellRegistryPort | undefined
-}): ShellRecovery => {
-  const held = shellRecoveryFor.get(args.log)
-  if (held !== undefined) return held
-  const shells = args.shells
-  const created = new ShellRecovery({
-    log: args.log,
-    ids: args.ids,
-    live: shells === undefined ? undefined : () => liveShellsOf(shells.listEverywhere()),
-  })
-  shellRecoveryFor.set(args.log, created)
-  return created
-}
-
-const serviceRecoveryFor = new WeakMap<EventLogPort, ServiceRecovery>()
-
-const serviceRecovery = (args: {
-  log: EventLogPort
-  ids: IdPort
-  services?: ServiceRegistryPort | undefined
-}): ServiceRecovery => {
-  const held = serviceRecoveryFor.get(args.log)
-  if (held !== undefined) return held
-  const services = args.services
-  const created = new ServiceRecovery({
-    log: args.log,
-    ids: args.ids,
-    live: services === undefined ? undefined : () => liveServicesOf(services.list()),
-  })
-  serviceRecoveryFor.set(args.log, created)
-  return created
+  preparing?: boolean | undefined
 }
 
 const unknownThread = (args: { threadId: string; project: string }): string =>
@@ -166,7 +108,7 @@ async function resumed(args: Opening & { handle: string }): Promise<ThreadSummar
 
   const byId = await threads.find({ threadId: toThreadId(handle) })
   if (byId !== undefined && reachableFrom({ thread: byId, project })) {
-    if (byId.workspace === null) {
+    if (byId.workspace === null && args.preparing !== true) {
       await threads.adopt({
         threadId: byId.id,
         workspace: workspace.workspace,
@@ -213,6 +155,42 @@ async function threadFor(args: Opening): Promise<Found> {
   return found
 }
 
+async function readOpenedConversation(args: {
+  thread: ThreadSummary
+  log: EventLogPort
+  ledger: TurnLedgerPort
+  effects: ToolEffects
+  lost?: RecoveredAgents | undefined
+  lostShells?: readonly LostShell[] | undefined
+}): Promise<OpenedConversation> {
+  const { thread } = args
+  // The window, the base and the transcript identity derive from one immutable full read — an
+  // append or rewind landing between separate reads would have them describe different
+  // transcripts, and the identity is what later freshness decisions trust as the applied truth.
+  const snapshot = await readThreadSnapshot({
+    log: args.log,
+    threadId: thread.id,
+    rows: EThreadRows.Composed,
+    effects: args.effects,
+    digest: transcriptIdentityDigest,
+  })
+  const spent = await readThreadSpend({ ledger: args.ledger, threadId: thread.id })
+
+  return {
+    threadId: thread.id,
+    events: snapshot.events,
+    turns: spent.turns,
+    name: thread.title ?? null,
+    started: true,
+    model: thread.model,
+    executionLocation: thread.executionLocation,
+    lost: args.lost,
+    lostShells: args.lostShells,
+    base: snapshot.base,
+    identity: snapshot.identity,
+  }
+}
+
 /**
  * The order is the invariant. Children the last process lost are settled before the transcript is
  * read, so the endings it writes are in the events the screen is built from rather than a turn
@@ -226,62 +204,36 @@ export async function openConversation(args: Opening): Promise<OpenOutcome> {
     return { ok: true, conversation: unstartedConversation({ ids: args.ids }) }
   }
 
+  if (args.preparing === true) {
+    return {
+      ok: true,
+      conversation: await readOpenedConversation({
+        thread,
+        log: args.log,
+        ledger: args.ledger,
+        effects: args.effects,
+      }),
+    }
+  }
+
   if (thread.executionLocation === EExecutionLocation.Cloud) {
     return { cloud: true, threadId: thread.id }
   }
 
-  const sessionDir = sessionDirectory({ home: atlasDirectory(), sessionId: thread.id })
-  const claim = await claimSession({
-    sessionDir,
-    lockFile: sessionLockFile({ sessionDir }),
-    label: 'atlas tui',
-  })
-  if (claim.claim === ESessionClaim.Held) {
-    return { ok: false, reason: claim.note ?? 'this conversation is open in another Atlas instance' }
-  }
-  const previous = heldSessionDir
-  if (previous !== undefined && previous !== sessionDir) {
-    await releaseSession({ lockFile: sessionLockFile({ sessionDir: previous }) })
-  }
-  heldSessionDir = sessionDir
+  const refusal = await claimThread({ threadId: thread.id })
+  if (refusal !== null) return { ok: false, reason: refusal }
 
   const lost = await args.agents.recordLostAgents({ threadId: thread.id })
-  const lostShells = await shellRecovery({
+  const lostShells = await recoverLostProcesses({
+    threadId: thread.id,
     log: args.log,
     ids: args.ids,
     shells: args.shells,
-  }).recordLost({
-    threadId: thread.id,
+    services: args.services,
   })
-  await serviceRecovery({ log: args.log, ids: args.ids, services: args.services }).recordLost({
-    threadId: thread.id,
-  })
-
-  const window = await readThreadWindow({ log: args.log, threadId: thread.id, rows: EThreadRows.Composed })
-  const [base, spent] = await Promise.all([
-    readThreadBase({
-      log: args.log,
-      threadId: thread.id,
-      rows: EThreadRows.Composed,
-      fromSeq: window.fromSeq,
-      effects: args.effects,
-    }),
-    readThreadSpend({ ledger: args.ledger, threadId: thread.id }),
-  ])
 
   return {
     ok: true,
-    conversation: {
-      threadId: thread.id,
-      events: window.events,
-      turns: spent.turns,
-      name: thread.title ?? null,
-      started: true,
-      model: thread.model,
-      executionLocation: thread.executionLocation,
-      lost,
-      lostShells,
-      base,
-    },
+    conversation: await readOpenedConversation({ thread, log: args.log, ledger: args.ledger, effects: args.effects, lost, lostShells }),
   }
 }

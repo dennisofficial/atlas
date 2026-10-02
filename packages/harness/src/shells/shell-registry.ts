@@ -106,6 +106,8 @@ export abstract class ShellRegistryPort {
   abstract listEverywhere(): readonly ShellSnapshot[]
   abstract version(): number
   abstract subscribe(listener: () => void): () => void
+  settling?(): boolean
+  onSettled?(listener: () => void): () => void
   abstract drainNotifications(args: { threadId: ThreadId }): readonly EventDraft[]
   prepareNotifications?(args: { threadId: ThreadId }): InputBatch
   abstract pendingNotices(args: { threadId: ThreadId }): readonly PendingShellNotice[]
@@ -113,7 +115,7 @@ export abstract class ShellRegistryPort {
   threadsWithPendingInput?(): readonly ThreadId[]
   abstract onNotice(listener: () => void): () => void
   abstract forgetNotices(args: { threadId: ThreadId }): void
-  abstract closeAll(): Promise<void>
+  abstract closeAll(args?: { killedBy?: EKilledBy }): Promise<void>
 }
 
 const unknownShell = (args: { shellId: string; known: readonly ShellId[] }): string => {
@@ -128,7 +130,8 @@ export class BunShellRegistry extends ShellRegistryPort {
   private readonly notices = new ShellNoticeQueue(({ shellId }) =>
     this.tracked.get(toShellId(shellId))?.shell.snapshot(),
   )
-  private readonly settling = new Set<Promise<void>>()
+  private readonly endingSettlements = new Set<Promise<void>>()
+  private readonly settledListeners = new Set<() => void>()
   private started = 0
 
   private revision = 0
@@ -218,6 +221,22 @@ export class BunShellRegistry extends ShellRegistryPort {
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)
+  }
+
+  override settling(): boolean {
+    if (this.endingSettlements.size > 0) return true
+    return [...this.tracked.values()].some(
+      (entry) => entry.shell.snapshot().status !== EShellStatus.Running && !entry.reaped,
+    )
+  }
+
+  override onSettled(listener: () => void): () => void {
+    this.settledListeners.add(listener)
+    return () => this.settledListeners.delete(listener)
+  }
+
+  private announceSettled(): void {
+    for (const listener of [...this.settledListeners]) listener()
   }
 
   private flush(): void {
@@ -351,7 +370,7 @@ export class BunShellRegistry extends ShellRegistryPort {
         withinDeadline({ promise: entry.shell.exited.catch(() => undefined), ms }),
       ),
     )
-    await withinDeadline({ promise: Promise.all([...this.settling]).catch(() => undefined), ms })
+    await withinDeadline({ promise: Promise.all([...this.endingSettlements]).catch(() => undefined), ms })
     return deaths.filter((died) => !died).length
   }
 
@@ -372,8 +391,8 @@ export class BunShellRegistry extends ShellRegistryPort {
       if (entry.shell.snapshot().status === EShellStatus.Running) {
         entry.shell.kill(by)
         const exited = entry.shell.exited
-        this.settling.add(exited)
-        void exited.finally(() => void this.settling.delete(exited))
+        this.endingSettlements.add(exited)
+        void exited.finally(() => void this.endingSettlements.delete(exited))
       }
       this.tracked.delete(toShellId(shellId))
       this.endings.delete(toShellId(shellId))
@@ -429,11 +448,12 @@ export class BunShellRegistry extends ShellRegistryPort {
    * closeAll stops the shells and waits for their endings to land in the log; with the ending
    * appended at occurrence, nothing is left for a teardown drain to reconcile.
    */
-  async closeAll(): Promise<void> {
+  async closeAll(args?: { killedBy?: EKilledBy }): Promise<void> {
+    const killedBy = args?.killedBy ?? EKilledBy.SessionEnd
     const running = [...this.tracked.values()]
-    for (const entry of running) entry.shell.kill(EKilledBy.SessionEnd)
+    for (const entry of running) entry.shell.kill(killedBy)
     await Promise.all(running.map((entry) => entry.shell.exited))
-    while (this.settling.size > 0) await Promise.all([...this.settling])
+    while (this.endingSettlements.size > 0) await Promise.all([...this.endingSettlements])
     this.tracked.clear()
     this.endings.clear()
     this.pendingKills.clear()
@@ -442,6 +462,7 @@ export class BunShellRegistry extends ShellRegistryPort {
       this.activityTimer = null
     }
     this.listeners.clear()
+    this.settledListeners.clear()
   }
 
   private idsOf(threadId: ThreadId): readonly ShellId[] {
@@ -507,8 +528,11 @@ export class BunShellRegistry extends ShellRegistryPort {
           },
     )
     const tracked: Promise<void> = outcome.then(() => undefined)
-    this.settling.add(tracked)
-    void tracked.finally(() => void this.settling.delete(tracked))
+    this.endingSettlements.add(tracked)
+    void tracked.finally(() => {
+      void this.endingSettlements.delete(tracked)
+      if (!this.settling()) this.announceSettled()
+    })
 
     if (adopt !== undefined) {
       this.pendingKills.delete(entry.shell.shellId)

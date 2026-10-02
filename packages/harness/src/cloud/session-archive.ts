@@ -3,6 +3,10 @@ import { tmpdir } from 'node:os'
 import { dirname, join, relative, sep } from 'node:path'
 
 import { safeRelativeSegment } from '../files/safe-relative-path'
+import { locationOfPlacement, type PlacementRecord, type ThreadId, type WorkspaceIdentity } from '@dltech/atlas-core'
+import { readMeta, sessionMetaSchema, threadMetaSchema, writeMeta } from '../store/sessions/meta'
+import { metaWithPlacement } from '../store/sessions/placement-meta'
+import { sessionMetaFile, threadMetaFile } from '../store/sessions/paths'
 
 /**
  * The session transcript moves between machines as a `.tar.gz` of the session directory, built and
@@ -77,6 +81,7 @@ export async function extractSessionArchive(args: {
   archive: Uint8Array
   sessionDir: string
   tarCommand?: string | undefined
+  preserveOwnership?: { threadId: ThreadId; record: PlacementRecord; workspace: WorkspaceIdentity } | undefined
 }): Promise<void> {
   await mkdir(dirname(args.sessionDir), { recursive: true })
   const workDir = await mkdtemp(join(dirname(args.sessionDir), '.atlas-session-extract-'))
@@ -101,6 +106,16 @@ export async function extractSessionArchive(args: {
       const target = join(replacement, key)
       await mkdir(join(target, '..'), { recursive: true })
       await cp(join(contentDir, key), target, { recursive: true })
+    }
+    const held = args.preserveOwnership
+    if (held !== undefined) {
+      const file = threadMetaFile({ sessionDir: replacement, threadId: held.threadId })
+      const meta = await readMeta({ file, schema: threadMetaSchema })
+      if (meta === undefined) throw new Error('the incoming transcript holds no root ownership record')
+      await writeMeta({ file, meta: metaWithPlacement({ meta: { ...meta, workspace: held.workspace.workspace, repo: held.workspace.repo }, record: held.record }) })
+      const rootFile = sessionMetaFile({ sessionDir: replacement })
+      const root = await readMeta({ file: rootFile, schema: sessionMetaSchema })
+      if (root !== undefined) await writeMeta({ file: rootFile, meta: { ...root, home: locationOfPlacement(held.record.placement), workspace: held.workspace.workspace, repo: held.workspace.repo } })
     }
     const previous = join(workDir, 'previous')
     let movedPrevious = false

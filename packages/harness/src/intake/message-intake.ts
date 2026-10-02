@@ -34,6 +34,8 @@ export class MessageIntake {
   private queued = false
   private closed = false
   private suspended = false
+  private lastBusy = false
+  private readonly listeners = new Set<() => void>()
   private fallback: ((args: { threadId: ThreadId }) => IntakeDriver | undefined) | undefined
 
   constructor(args: { sources: readonly IntakeSource[]; submit?: ((args: SubmittedInput) => void) | undefined }) {
@@ -49,8 +51,23 @@ export class MessageIntake {
     this.changed()
   }
 
+  busy(): boolean {
+    if (this.preparing.size > 0 || this.waking.size > 0 || this.queued) return true
+    const pending = new Set(this.threadsWithPendingInput())
+    for (const threadId of this.heldDrivers.keys()) {
+      if (pending.has(threadId)) return true
+    }
+    return false
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
+  }
+
   hold(args: { threadId: ThreadId }): () => void {
     this.heldDrivers.set(args.threadId, (this.heldDrivers.get(args.threadId) ?? 0) + 1)
+    this.announceIfBusyChanged()
     let released = false
     return () => {
       if (released) return
@@ -58,6 +75,7 @@ export class MessageIntake {
       const count = (this.heldDrivers.get(args.threadId) ?? 1) - 1
       if (count > 0) this.heldDrivers.set(args.threadId, count)
       else this.heldDrivers.delete(args.threadId)
+      this.announceIfBusyChanged()
       this.changed()
     }
   }
@@ -89,9 +107,11 @@ export class MessageIntake {
     const done = new Promise<void>((resolve) => { releaseReservation = resolve })
     const reservation = { done, finish: releaseReservation }
     this.preparing.set(args.threadId, reservation)
+    this.announceIfBusyChanged()
     const unlock = (): void => {
       if (this.preparing.get(args.threadId) === reservation) this.preparing.delete(args.threadId)
       reservation.finish()
+      this.announceIfBusyChanged()
     }
     const batches: InputBatch[] = []
     try {
@@ -144,14 +164,25 @@ export class MessageIntake {
   changed(): void {
     if (this.queued || this.closed) return
     this.queued = true
+    this.announceIfBusyChanged()
     queueMicrotask(() => {
       this.queued = false
       if (!this.closed) this.recheck()
+      queueMicrotask(() => {
+        if (this.closed) return
+        this.announceIfBusyChanged()
+      })
     })
   }
 
   suspend(): void {
     this.suspended = true
+  }
+
+  resume(): void {
+    if (!this.suspended) return
+    this.suspended = false
+    this.changed()
   }
 
   dispose(): void {
@@ -164,6 +195,14 @@ export class MessageIntake {
     this.fallback = undefined
     for (const reservation of this.preparing.values()) reservation.finish()
     this.preparing.clear()
+    this.listeners.clear()
+  }
+
+  private announceIfBusyChanged(): void {
+    const now = this.busy()
+    if (now === this.lastBusy) return
+    this.lastBusy = now
+    for (const listener of [...this.listeners]) listener()
   }
 
   private recheck(): void {
@@ -182,6 +221,7 @@ export class MessageIntake {
       if (count >= MAX_WAKE_ATTEMPTS) continue
       this.attempts.set(threadId, { witness, count: count + 1 })
       this.waking.add(threadId)
+      this.announceIfBusyChanged()
       void Promise.resolve().then(() => {
         if (driver.blocked() || this.closed || this.suspended || this.heldDrivers.has(threadId)) return
         return driver.wake()

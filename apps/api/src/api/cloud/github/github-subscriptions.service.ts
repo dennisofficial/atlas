@@ -123,6 +123,26 @@ export class GithubSubscriptionsService {
     }))
   }
 
+  async currentStates(args: { userId: string }): Promise<GithubPrStateDto[]> {
+    const subscriptions = await db.githubSubscription.findMany({
+      where: { userId: args.userId, expiresAt: { gt: new Date() }, prNumber: { not: null } },
+    })
+    const states: GithubPrStateDto[] = []
+    for (const subscription of subscriptions) {
+      if (subscription.prNumber === null) continue
+      const row = await db.githubPrState.findUnique({
+        where: {
+          repoFullName_prNumber: {
+            repoFullName: subscription.repoFullName,
+            prNumber: subscription.prNumber,
+          },
+        },
+      })
+      if (row !== null) states.push(dtoOf(row))
+    }
+    return states
+  }
+
   private async resolvePrNumber(args: {
     userId: string
     repoFullName: string

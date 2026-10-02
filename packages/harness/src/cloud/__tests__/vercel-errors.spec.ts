@@ -2,7 +2,12 @@ import { describe, expect, it } from 'bun:test'
 
 import { APIError } from '@vercel/sandbox'
 
-import { isDriveAttachedConflict, isDriveDeleteConflict } from '../vercel-errors'
+import {
+  isDriveAttachedConflict,
+  isDriveDeleteConflict,
+  isImageOptimizeFailure,
+  isImageOptimizeLag,
+} from '../vercel-errors'
 
 describe('isDriveAttachedConflict', () => {
   it('classifies the create-side conflict', () => {
@@ -63,5 +68,33 @@ describe('isDriveDeleteConflict', () => {
 
     expect(isDriveDeleteConflict(serverError)).toBe(false)
     expect(isDriveDeleteConflict(new Error('the drive is full'))).toBe(false)
+  })
+})
+
+describe('image not ready classification', () => {
+  const imageNotReady = (message: string): APIError<unknown> =>
+    new APIError(new Response(null, { status: 409 }), {
+      json: { error: { code: 'image_not_ready', message } },
+    })
+
+  it('reads still-optimizing as a lag worth retrying, optimization-failed as terminal', () => {
+    expect(isImageOptimizeLag(imageNotReady('Image is not ready.'))).toBe(true)
+    expect(isImageOptimizeFailure(imageNotReady('Image is not ready.'))).toBe(false)
+    expect(isImageOptimizeLag(imageNotReady('Image optimization failed.'))).toBe(false)
+    expect(isImageOptimizeFailure(imageNotReady('Image optimization failed.'))).toBe(true)
+  })
+
+  it('passes over another 409, a non-409 and a non-API failure', () => {
+    const driveConflict = new APIError(new Response(null, { status: 409 }), {
+      json: { error: { code: 'drive_conflict', message: 'Image is not ready.' } },
+    })
+    const notFound = new APIError(new Response(null, { status: 404 }), {
+      json: { error: { code: 'image_not_ready', message: 'Image is not ready.' } },
+    })
+
+    expect(isImageOptimizeLag(driveConflict)).toBe(false)
+    expect(isImageOptimizeFailure(driveConflict)).toBe(false)
+    expect(isImageOptimizeLag(notFound)).toBe(false)
+    expect(isImageOptimizeLag(new Error('Image is not ready.'))).toBe(false)
   })
 })

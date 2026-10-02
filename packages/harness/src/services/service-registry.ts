@@ -72,6 +72,8 @@ export abstract class ServiceRegistryPort {
   abstract list(): readonly ServiceSnapshot[]
   abstract version(): number
   abstract subscribe(listener: () => void): () => void
+  settling?(): boolean
+  onSettled?(listener: () => void): () => void
   abstract drainNotifications(args: { threadId: ThreadId }): readonly EventDraft[]
   prepareNotifications?(args: { threadId: ThreadId }): InputBatch
   abstract pendingNotices(args: { threadId: ThreadId }): readonly ServiceSnapshot[]
@@ -79,7 +81,7 @@ export abstract class ServiceRegistryPort {
   threadsWithPendingInput?(): readonly ThreadId[]
   abstract onNotice(listener: () => void): () => void
   abstract forgetNotices(args: { threadId: ThreadId }): void
-  abstract closeAll(): Promise<void>
+  abstract closeAll(args?: { killedBy?: EKilledBy }): Promise<void>
 }
 
 type Tracked = { service: Service; threadId: ThreadId; announced: boolean }
@@ -120,6 +122,8 @@ export class BunServiceRegistry extends ServiceRegistryPort {
 
   private revision = 0
   private readonly listeners = new Set<() => void>()
+  private readonly settledListeners = new Set<() => void>()
+  private recordingStarts = 0
   private flushQueued = false
 
   private readonly root: string
@@ -177,6 +181,10 @@ export class BunServiceRegistry extends ServiceRegistryPort {
     this.bump()
     this.recordStart({ serviceId, args })
 
+    void opened.service.exited.finally(() => {
+      if (!this.settling()) this.announceSettled()
+    })
+
     await within(SERVICE_SETTLE_MS, opened.service.exited)
 
     return { ok: true, snapshot: opened.service.snapshot() }
@@ -189,6 +197,21 @@ export class BunServiceRegistry extends ServiceRegistryPort {
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)
+  }
+
+  override settling(): boolean {
+    return this.recordingStarts > 0 || [...this.tracked.values()].some(
+      (entry) => entry.service.snapshot().status !== EServiceStatus.Running && !entry.announced,
+    )
+  }
+
+  override onSettled(listener: () => void): () => void {
+    this.settledListeners.add(listener)
+    return () => this.settledListeners.delete(listener)
+  }
+
+  private announceSettled(): void {
+    for (const listener of [...this.settledListeners]) listener()
   }
 
   private bump(): void {
@@ -272,14 +295,16 @@ export class BunServiceRegistry extends ServiceRegistryPort {
    * Teardown stops everything but suppresses nothing: every ending still queues, and the
    * composition root drains it into the owning thread's log before the database goes.
    */
-  async closeAll(): Promise<void> {
+  async closeAll(args?: { killedBy?: EKilledBy }): Promise<void> {
+    const killedBy = args?.killedBy ?? EKilledBy.SessionEnd
     const entries = [...this.tracked.values()]
-    for (const entry of entries) entry.service.stop(EKilledBy.SessionEnd)
+    for (const entry of entries) entry.service.stop(killedBy)
     await Promise.all(entries.map((entry) => within(CLOSE_GRACE_MS, entry.service.exited)))
-    for (const entry of entries) entry.service.stop(EKilledBy.SessionEnd)
+    for (const entry of entries) entry.service.stop(killedBy)
     await Promise.all(entries.map((entry) => within(KILLED_GRACE_MS, entry.service.exited)))
     this.tracked.clear()
     this.listeners.clear()
+    this.settledListeners.clear()
   }
 
   /**
@@ -294,6 +319,7 @@ export class BunServiceRegistry extends ServiceRegistryPort {
   }): void {
     if (this.recording === undefined) return
     const { log, ids } = this.recording
+    this.recordingStarts += 1
     void log
       .append({
         threadId: args.args.threadId,
@@ -309,6 +335,10 @@ export class BunServiceRegistry extends ServiceRegistryPort {
         ],
       })
       .catch(() => undefined)
+      .finally(() => {
+        this.recordingStarts -= 1
+        if (!this.settling()) this.announceSettled()
+      })
   }
 
   private announceExit(service: Service): void {

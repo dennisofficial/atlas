@@ -1,0 +1,48 @@
+name: codex-version
+
+# Tracks the latest openai/codex CLI release (rust-vX.Y.Z tags) and opens a PR when the pinned
+# CODEX_VERSION drifts. It never merges on its own: the codex models endpoint gates models on
+# minimal_client_version, and that gating behavior is reverse-engineered, so a human merges.
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2.2.0
+
+      - run: bun install
+
+      - name: bump the pinned version and open a PR on drift
+        run: |
+          set -euo pipefail
+          (cd packages/harness && bun run generate:codex-version)
+          pinned=packages/harness/src/providers/codex-version.ts
+          if git diff --quiet -- "$pinned"; then
+            echo "codex client version is fresh"
+            exit 0
+          fi
+          version=$(grep -o "CODEX_VERSION = '[^']*'" "$pinned" | cut -d"'" -f2)
+          branch="codex-version/$version"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add "$pinned"
+          git commit -m "fix(harness): bump codex client version to $version"
+          git push origin "$branch"
+          body_file="$(mktemp)"
+          printf 'Automated bump of `CODEX_VERSION` to the latest `openai/codex` CLI release (%s).\n\nMerge by hand — the codex backend gates models on `minimal_client_version` and that behavior is reverse-engineered, so a new release needs a look before it lands.\n' "$version" > "$body_file"
+          gh pr create \
+            --title "fix(harness): bump codex client version to $version" \
+            --body-file "$body_file"

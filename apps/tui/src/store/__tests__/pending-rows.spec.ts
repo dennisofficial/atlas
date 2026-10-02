@@ -10,7 +10,7 @@ import {
   type ShellSnapshot,
 } from '@dltech/atlas-harness'
 
-import { EPendingKind, pendingRows } from '../pending-rows'
+import { EPendingKind, pendingRows, type RemotePendingEntry } from '../pending-rows'
 import { EEntryKind } from '../transcript-model'
 
 const typed = (id: string, text: string) => ({
@@ -145,7 +145,7 @@ describe('what waits under the working indicator', () => {
     expect(rows[0]).toEqual({
       kind: EPendingKind.Agent,
       id: 'agent-finished-thread-child',
-      text: 'Sub-agent explore "audit the credential vault" finished after 3 turns and 12 tool calls',
+      text: 'Sub-agent audit the credential finished after 3 turns and 12 tool calls',
       failed: false,
       body: null,
       entryKind: EEntryKind.AgentEnded,
@@ -277,4 +277,49 @@ describe('what waits under the working indicator', () => {
     expect(rows[1]).toEqual({ kind: EPendingKind.Command, id: 'p2', text: '/new' })
   })
 
+})
+
+describe('the sandbox queue a cloud session renders', () => {
+  const remote = (over: Partial<RemotePendingEntry> = {}): RemotePendingEntry => ({
+    id: 'remote-1',
+    text: 'steer from the phone',
+    reserved: false,
+    ...over,
+  })
+
+  it('renders broadcast entries instead of the local queue when remote entries are present', () => {
+    const rows = pendingRows({
+      entries: [typed('local-stale', 'never shown')],
+      remoteEntries: [remote()],
+      notices: [],
+      agents: [],
+      services: [],
+    })
+
+    expect(rows).toEqual([{ kind: EPendingKind.Operator, id: 'remote-1', text: 'steer from the phone' }])
+  })
+
+  it('drops entries the intake already reserved, since ↑ can no longer reach them', () => {
+    const rows = pendingRows({
+      entries: [],
+      remoteEntries: [remote(), remote({ id: 'remote-2', text: 'claimed', reserved: true })],
+      notices: [],
+      agents: [],
+      services: [],
+    })
+
+    expect(rows.map((row) => row.id)).toEqual(['remote-1'])
+  })
+
+  it('marks a parent-originated broadcast entry as not editable, like the local queue does', () => {
+    const rows = pendingRows({
+      entries: [],
+      remoteEntries: [remote({ via: 'agent' })],
+      notices: [],
+      agents: [],
+      services: [],
+    })
+
+    expect(rows[0]?.kind === EPendingKind.Operator && rows[0].editable).toBe(false)
+  })
 })

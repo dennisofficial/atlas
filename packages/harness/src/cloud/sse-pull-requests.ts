@@ -7,7 +7,7 @@ import {
   type RepositoryCheckout,
 } from '../plugins/github/pure'
 import type { CloudSession } from './cloud-session'
-import { CloudError } from './cloud-transport'
+import { CloudError, type TransportRetryLog } from './cloud-transport'
 import { runSseStream, SseRefused } from './sse-client'
 import {
   PrSubscriptionClient,
@@ -48,6 +48,7 @@ export class SsePullRequestPort extends PullRequestPort {
   private disposeTimer: ReturnType<typeof setTimeout> | null = null
   private sessionDead = false
   private readonly silenceTimeoutMs: number | undefined
+  private readonly log: TransportRetryLog | undefined
   private catchingUp: { generation: number; pending: Promise<void> } | null = null
   private generation = 0
   private disposed = false
@@ -58,8 +59,10 @@ export class SsePullRequestPort extends PullRequestPort {
     onReading: (args: { key: string; reading: PullRequestReading }) => void
     clock?: SsePullRequestClock
     silenceTimeoutMs?: number
+    log?: TransportRetryLog
   }) {
     super()
+    this.log = args.log
     this.silenceTimeoutMs = args.silenceTimeoutMs
     this.clock = {
       now: args.clock?.now ?? Date.now,
@@ -71,6 +74,7 @@ export class SsePullRequestPort extends PullRequestPort {
     this.client = new PrSubscriptionClient({
       session: args.session,
       clientVersion: args.clientVersion,
+      ...(args.log === undefined ? {} : { log: args.log }),
     })
     this.book = createSseSubscriptionBook({
       now: this.clock.now,
@@ -138,14 +142,14 @@ export class SsePullRequestPort extends PullRequestPort {
         return unavailable(true)
       }
       if (failure instanceof CloudError && (failure.status === 401 || failure.status === 403)) {
-        this.sessionDead = true
+        this.noteSessionDead()
         this.book.markAllStale()
       }
       return unavailable(true)
     }
 
     if (this.disposed) return unavailable(false)
-    this.sessionDead = false
+    this.noteSessionAlive()
 
     const handle: SubscriptionHandle = { id: outcome.id, repoFullName: args.repoFullName }
     const reading = this.book.recordSubscribe({
@@ -189,7 +193,7 @@ export class SsePullRequestPort extends PullRequestPort {
     }).catch((failure: unknown) => {
       if (controller.signal.aborted || this.stream !== controller) return
       if (failure instanceof SseRefused) {
-        this.sessionDead = true
+        this.noteSessionDead()
         this.stopHeartbeat()
       }
       this.book.markAllStale()
@@ -234,6 +238,7 @@ export class SsePullRequestPort extends PullRequestPort {
         throw failure
       }
     }
+    this.noteSessionAlive()
   }
 
   private startHeartbeat(): void {
@@ -252,7 +257,7 @@ export class SsePullRequestPort extends PullRequestPort {
           const generation = this.generation
           void this.catchUp({ controller, generation }).catch((failure: unknown) => {
             if (!(failure instanceof SseRefused) || this.stream !== controller || generation !== this.generation) return
-            this.sessionDead = true
+            this.noteSessionDead()
             this.book.markAllStale()
             this.stopHeartbeat()
             controller.abort()
@@ -262,6 +267,24 @@ export class SsePullRequestPort extends PullRequestPort {
       }
     }, HEARTBEAT_MS)
     this.heartbeat.unref?.()
+  }
+
+  private noteSessionDead(): void {
+    if (this.sessionDead) return
+    this.sessionDead = true
+    this.log?.port.warn({
+      source: 'cloud.pull-requests',
+      message: 'the cloud API rejected the pull request session; realtime tracking is dead until it answers again',
+    })
+  }
+
+  private noteSessionAlive(): void {
+    if (!this.sessionDead) return
+    this.sessionDead = false
+    this.log?.port.info({
+      source: 'cloud.pull-requests',
+      message: 'the cloud API accepts the pull request session again; realtime tracking resumed',
+    })
   }
 
   private stopHeartbeat(): void {

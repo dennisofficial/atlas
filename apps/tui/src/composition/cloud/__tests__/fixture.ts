@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
 
@@ -10,11 +10,12 @@ import {
   type SaidImage,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { restoreTranscriptParamsSchema, type RosterWire } from '@dltech/atlas-wire'
+import { restoreTranscriptParamsSchema, type PendingEntryWire, type RosterWire, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 import {
   buildSessionArchive,
   EChannelConnection,
   EClientRequest,
+  ETurnStatus,
   extractSessionArchive,
   parseEventLines,
   RemoteThreadStore,
@@ -26,6 +27,7 @@ import {
   type ThreadModel,
   type ThreadSummary,
   type TurnOutcome,
+  type PendingSaid,
 } from '@dltech/atlas-harness'
 
 import {
@@ -77,8 +79,17 @@ export type FakeCloudChannel = CloudChannel & {
   pushThreadRenamed(args: { threadId: ThreadId; title: string }): void
   pushThreadModelChanged(args: { threadId: ThreadId; model: ThreadModel }): void
   endTurn(outcome: TurnOutcome): void
+  onCheckpoint(listener: (checkpoint: RuntimeCheckpoint) => void): () => void
+  pushCheckpoint(checkpoint: RuntimeCheckpoint): void
+  /** Serve broadcasts its queue as pending-changed signals; the fake holds the latest snapshot. */
+  pushPending(entries: readonly PendingEntryWire[]): void
+  pendingEntries(): readonly PendingEntryWire[]
+  onPendingChanged(listener: (entries: readonly PendingEntryWire[]) => void): () => void
+  /** Serve answers a take-back by dequeuing its newest queued said; the fake holds one to hand back. */
+  holdTakeBack(taken: PendingSaid | null): void
   readonly closed: boolean
   readonly runs: number
+  readonly resumed: number
   readonly sent: readonly {
     text: string
     images?: readonly SaidImage[]
@@ -126,6 +137,11 @@ export function fakeCloudChannel(
     (changed: { threadId: ThreadId; model: ThreadModel }) => void
   >()
   const turnEndings = new Set<(outcome: TurnOutcome) => void>()
+  let resumes = 0
+  const checkpoints = new Set<(checkpoint: RuntimeCheckpoint) => void>()
+  const pendingChanges = new Set<(entries: readonly PendingEntryWire[]) => void>()
+  let heldPending: readonly PendingEntryWire[] = []
+  let heldTakeBack: PendingSaid | null = null
   const woken: { url: string; token: string }[] = []
   const requests: { op: EClientRequest; params: unknown }[] = []
   const sent: {
@@ -226,12 +242,33 @@ export function fakeCloudChannel(
       runs += 1
     },
     interrupt: () => undefined,
-    pause: () => undefined,
-    resume: () => undefined,
+    pause: () => {
+      const runId = toRunId(`serve-${channelThreadId}`)
+      queueMicrotask(() => {
+        for (const listener of [...turnEndings]) listener({ status: ETurnStatus.RelocationPaused, runId })
+      })
+    },
+    resume: () => {
+      resumes += 1
+    },
+    syncSettings: () => undefined,
     request: async (given) => {
       requests.push({ op: given.op, params: given.params })
       if (given.op === EClientRequest.ListRoster) return heldRoster
       if (given.op === EClientRequest.PublishWorkspace) return null
+      if (given.op === EClientRequest.PrepareWorkspaceArchive) return { path: ARCHIVE_EXPORT_PATH, manifest: ARCHIVE_MANIFEST }
+      if (given.op === EClientRequest.ActivateSession) return { activated: true }
+      if (given.op === EClientRequest.TakeBackPending) {
+        const taken = heldTakeBack
+        heldTakeBack = null
+        if (taken !== null) {
+          heldPending = heldPending.slice(0, -1)
+          queueMicrotask(() => {
+            for (const listener of [...pendingChanges]) listener(heldPending)
+          })
+        }
+        return { taken }
+      }
       if (given.op === EClientRequest.Rewind) {
         // Serve truncates its own durable log inside the same apply that kills the cuts, so the
         // fake does the same against the log it was handed.
@@ -390,6 +427,10 @@ export function fakeCloudChannel(
     wake: ({ url, token }) => {
       woken.push({ url, token })
     },
+    beginWake: () => {
+      held = { state: EChannelConnection.Waking, detail: null }
+      for (const listener of [...connections]) listener(held)
+    },
     reconnect: () => {
       reconnected += 1
     },
@@ -401,6 +442,9 @@ export function fakeCloudChannel(
       return closed
     },
 
+    get resumed() {
+      return resumes
+    },
     get runs() {
       return runs
     },
@@ -451,8 +495,31 @@ export function fakeCloudChannel(
     pushThreadModelChanged({ threadId, model }) {
       for (const listener of [...threadModelChanges]) listener({ threadId, model })
     },
+    pushPending(entries) {
+      heldPending = entries
+      for (const listener of [...pendingChanges]) listener(entries)
+    },
+    pendingEntries: () => heldPending,
+    onPendingChanged: (listener) => {
+      pendingChanges.add(listener)
+      return () => {
+        pendingChanges.delete(listener)
+      }
+    },
+    holdTakeBack(taken) {
+      heldTakeBack = taken
+    },
     endTurn(outcome) {
       for (const listener of [...turnEndings]) listener(outcome)
+    },
+    onCheckpoint: (listener: (checkpoint: RuntimeCheckpoint) => void) => {
+      checkpoints.add(listener)
+      return () => {
+        checkpoints.delete(listener)
+      }
+    },
+    pushCheckpoint(checkpoint: RuntimeCheckpoint) {
+      for (const listener of [...checkpoints]) listener(checkpoint)
     },
   }
 }
@@ -573,6 +640,28 @@ const RUNNING: CloudSandbox = {
   created: true,
 }
 
+const ARCHIVE_EXPORT_PATH = '/tmp/atlas-workspace-export-x/workspace.tar.gz'
+
+const ARCHIVE_MANIFEST = {
+  version: 1,
+  repository: { sourcePath: '/atlas/workspace', originPath: '/work' },
+  activeId: 'main',
+  activeRelativePath: '',
+  trees: [
+    {
+      id: 'main',
+      name: 'main',
+      sourcePath: '/atlas/workspace',
+      originPath: '/work',
+      branch: 'main',
+      head: null,
+      baseline: null,
+      fingerprint: 'fake',
+      isMain: true,
+    },
+  ],
+}
+
 export function fakeBridge(
   args: {
     sandbox?: CloudSandbox
@@ -580,6 +669,9 @@ export function fakeBridge(
     putContextFails?: unknown
     destroyFails?: unknown
     status?: CloudSandboxStatus | undefined
+    /** Lets a spec move the sandbox row after the bridge exists — the control plane's answer. */
+    statusRef?: { current: CloudSandboxStatus | undefined } | undefined
+    checkpoint?: RuntimeCheckpoint | undefined
     threadStore?: FakeThreadStore
     /** The local transcript a lift ships up; the fake's stand-in for the sandbox untarring it. */
     sourceLog?: FakeEventLog | undefined
@@ -676,8 +768,9 @@ export function fakeBridge(
       sourceDisk = disk
     },
     sandboxes: {
-      create: async ({ threadId, workspace, gpgKey, transcript, captureContext }) => {
+      create: async ({ threadId, workspace, gpgKey, transcript, captureContext, onRotationStarted }) => {
         const sandbox = args.sandbox ?? RUNNING
+        if (sandbox.rotatedProtocol !== undefined) onRotationStarted?.()
         // The real create stages the transcript archive next to the serve binary before launch,
         // so the bootstrap untars it into the session directory the sandbox serves from.
         if (transcript !== undefined) await stageTranscript({ threadId, archive: transcript })
@@ -712,7 +805,15 @@ export function fakeBridge(
         materialize(threadId)
       },
       confirmLanded: async () => ({ landed: transcriptShipped }),
-      find: async () => args.status,
+      downloadWorkspace: async ({ destination }) => {
+        await writeFile(destination, 'a fake workspace archive')
+      },
+      find: async () => {
+        const status = args.statusRef?.current ?? args.status
+        if (status === undefined) return undefined
+        if (args.checkpoint === undefined) return status
+        return { ...status, checkpoint: args.checkpoint }
+      },
       destroy: async ({ threadId }) => {
         trail.push('destroy')
         destroyed.push(threadId)

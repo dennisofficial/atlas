@@ -7,6 +7,7 @@ const RESTING: ReadonlySet<EChannelConnection> = new Set([
   EChannelConnection.Reconnecting,
   EChannelConnection.Reattaching,
   EChannelConnection.Parked,
+  EChannelConnection.Waking,
 ])
 
 /** Parked is where a cloud session spends most of its life, so it is never drawn as a fault. */

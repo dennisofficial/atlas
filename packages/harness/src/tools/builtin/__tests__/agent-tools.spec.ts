@@ -288,6 +288,7 @@ describe('agent_say', () => {
     })
 
     expect(outcome.ok && outcome.modelText).toContain('queued')
+    expect(outcome.ok && outcome.output).toMatchObject({ intent: 'mine', agentType: 'explore' })
     expect(open_.runners.started).toHaveLength(1)
     expect(open_.runners.started[0]?.request.steering().peek()).toEqual([
       { text: 'look at the other file instead', images: undefined },
@@ -421,7 +422,7 @@ describe('agent_stop', () => {
     const outcome = await invoke({ tool: open_.stop, threadId: open_.parent, input: { agentId } })
     if (!outcome.ok) throw new Error(outcome.reason)
 
-    expect(outcome.output).toMatchObject({ stopRequestedBy: EKilledBy.Model })
+    expect(outcome.output).toMatchObject({ stopRequestedBy: EKilledBy.Model, intent: 'mine' })
     expect(outcome.output).not.toHaveProperty('killedBy')
   })
 

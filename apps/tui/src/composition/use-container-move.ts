@@ -7,6 +7,7 @@ import { createAwakeClock } from './awake-clock'
 import {
   advanceMove,
   beginMove,
+  expandMove,
   failMove,
   type ContainerMove,
   type MoveStepId,
@@ -22,6 +23,7 @@ export type ContainerMoveControl = {
     heading?: string | undefined
   }) => void
   handleAdvance: (step: MoveStepId) => void
+  handleExpand: (args: { insertBefore: MoveStepId; step: MoveStepId; heading?: string | undefined }) => void
   handleSettle: () => void
   handleFail: (reason: string) => void
   handleDismiss: () => void
@@ -70,6 +72,23 @@ export function useContainerMove(args?: {
     [clock, args],
   )
 
+  const handleExpand = useCallback(
+    (expandArgs: { insertBefore: MoveStepId; step: MoveStepId; heading?: string | undefined }) => {
+      setMove((current) =>
+        current === null
+          ? null
+          : expandMove({
+              move: current,
+              insertBefore: expandArgs.insertBefore,
+              step: expandArgs.step,
+              ...(expandArgs.heading === undefined ? {} : { heading: expandArgs.heading }),
+              now: clock.read(),
+            }),
+      )
+    },
+    [clock],
+  )
+
   const handleSettle = useCallback(() => setMove(null), [])
 
   const handleFail = useCallback((reason: string) => {
@@ -88,7 +107,17 @@ export function useContainerMove(args?: {
   )
 
   return useMemo(
-    () => ({ move, now, handleBegin, handleAdvance, handleSettle, handleFail, handleDismiss, handleKey }),
-    [move, now, handleBegin, handleAdvance, handleSettle, handleFail, handleDismiss, handleKey],
+    () => ({
+      move,
+      now,
+      handleBegin,
+      handleAdvance,
+      handleExpand,
+      handleSettle,
+      handleFail,
+      handleDismiss,
+      handleKey,
+    }),
+    [move, now, handleBegin, handleAdvance, handleExpand, handleSettle, handleFail, handleDismiss, handleKey],
   )
 }

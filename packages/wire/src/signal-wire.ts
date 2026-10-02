@@ -104,11 +104,21 @@ export enum EStepEnd {
   Interrupted = 'interrupted',
   Failed = 'failed',
   Retried = 'retried',
+  Detached = 'detached',
 }
 
 const stepIdWireSchema = z.string().min(1).brand<'StepId'>()
 
 const eventRefWireSchema = z.object({ eventId: eventIdWireSchema, seq: z.number().int() })
+
+const pendingEntryWireSchema = z.object({
+  id: z.string().min(1),
+  text: z.string(),
+  via: z.string().optional(),
+  reserved: z.boolean(),
+})
+
+export type PendingEntryWire = z.infer<typeof pendingEntryWireSchema>
 
 export const channelSignalSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('turn-working'), working: z.boolean() }),
@@ -130,6 +140,7 @@ export const channelSignalSchema = z.discriminatedUnion('type', [
     reason: z.enum(ERetryReason),
   }),
   z.object({ type: z.literal('retry-cleared') }),
+  z.object({ type: z.literal('pending-changed'), entries: z.array(pendingEntryWireSchema) }),
 ])
 
 export type ChannelSignal = z.infer<typeof channelSignalSchema>
