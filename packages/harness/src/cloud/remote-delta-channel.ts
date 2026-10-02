@@ -30,7 +30,7 @@ import {
   type ChannelSocket,
   type ChannelSocketFactory,
 } from './remote-channel-socket'
-import { createUpstreamPipe, RemotePublishRefused } from './remote-channel-upstream'
+import { createUpstreamPipe, RemotePublishRefused, RemoteRequestLost } from './remote-channel-upstream'
 import {
   DEFAULT_KEEPALIVE_MS,
   intervalKeepaliveScheduler,
@@ -376,6 +376,13 @@ export function createRemoteDeltaChannel(args: {
 
   const moveTo = (next: ChannelConnection) => {
     connection = next
+    // A parked serve never answers again: fail the waiters now rather than at their timeouts.
+    if (next.state === EChannelConnection.Parked) {
+      upstream.failWaiting({
+        reason:
+          next.detail === null ? 'the sandbox is parked' : `the sandbox is parked (${next.detail})`,
+      })
+    }
     connections.emit(next)
   }
 
@@ -707,7 +714,14 @@ export function createRemoteDeltaChannel(args: {
       upstream.send({ kind: EClientFrame.Settings, content })
     },
 
-    request: (request) => upstream.request(request),
+    request: (request) => {
+      if (connection.state === EChannelConnection.Parked) {
+        return Promise.reject(
+          new RemoteRequestLost({ op: request.op, reason: 'the sandbox is parked' }),
+        )
+      }
+      return upstream.request(request)
+    },
 
     connection: () => connection,
 

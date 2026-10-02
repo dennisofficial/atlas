@@ -130,7 +130,7 @@ export function useWorkspaceLocation(args: {
             return
           }
           containerMove.handleSettle()
-          void conversation.refresh()
+          void conversation.refresh().catch(() => undefined)
         })
         .catch((error: unknown) => {
           const reason = moveFailedNotice({ target, from, detail: messageOf(error) })

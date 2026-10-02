@@ -1,7 +1,9 @@
 import type { ThreadId } from '@dltech/atlas-core'
 import { useCallback } from 'react'
 
+import { ENoticeTone, notify } from '../ui/notice-store'
 import type { AtlasApp } from './compose'
+import { messageOf } from './error-text'
 
 export function useRevokeGrant(args: {
   app: AtlasApp
@@ -19,7 +21,13 @@ export function useRevokeGrant(args: {
           drafts: [{ type: 'permission-revoked', grantId }],
         })
         await refresh()
-      })()
+      })().catch((error: unknown) => {
+        notify({
+          key: 'grant-revoke',
+          tone: ENoticeTone.Warn,
+          text: `the grant could not be revoked — ${messageOf(error)}`,
+        })
+      })
     },
     [app, refresh, threadId],
   )

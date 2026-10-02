@@ -446,3 +446,52 @@ describe('a request riding the session socket', () => {
     ).not.toThrow()
   })
 })
+
+describe('a request against a parked channel', () => {
+  it('fails a waiting request the moment the serve parks, rather than at its timeout', async () => {
+    const { channel, receive } = readied({ requestTimeoutMs: 60_000 })
+
+    const answer = channel.request({ op: EClientRequest.ReadEvents, params: {} })
+    const failure = async (): Promise<unknown> => await answer.catch((error: unknown) => error)
+
+    receive({ kind: EServeFrame.Parked, reason: 'idle past the ttl' })
+
+    const settled = await failure()
+    expect(settled).toBeInstanceOf(RemoteRequestLost)
+    expect((settled as RemoteRequestLost).message).toContain('the sandbox is parked')
+    expect((settled as RemoteRequestLost).message).toContain('idle past the ttl')
+  })
+
+  it('rejects a new request while the sandbox is parked instead of stalling it', async () => {
+    const { channel, receive, live } = readied({ requestTimeoutMs: 60_000 })
+    receive({ kind: EServeFrame.Parked, reason: 'idle past the ttl' })
+
+    const failure = await channel
+      .request({ op: EClientRequest.ReadEvents, params: {} })
+      .catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(RemoteRequestLost)
+    expect((failure as RemoteRequestLost).message).toContain('the sandbox is parked')
+    expect(upstreamOf(live().sent).filter((frame) => frame.kind === EClientFrame.Request)).toEqual([])
+  })
+
+  it('keeps a request issued while the sandbox wakes and answers it on the fresh socket', async () => {
+    const { channel, receive, live } = readied({ requestTimeoutMs: 60_000 })
+    receive({ kind: EServeFrame.Parked, reason: 'idle past the ttl' })
+
+    channel.wake({ url: 'https://sandbox.test/woken', token: 'tok_woken' })
+    const answer = channel.request({ op: EClientRequest.ReadEvents, params: {} })
+
+    live().handlers.handleOpen()
+    receive({ kind: EServeFrame.Ready, seq: 2 })
+
+    const flushed = upstreamOf(live().sent).filter((frame) => frame.kind === EClientFrame.Request)
+    expect(flushed).toHaveLength(1)
+    const id = flushed[0]?.kind === EClientFrame.Request ? flushed[0].id : ''
+    expect(id.length).toBeGreaterThan(0)
+
+    receive({ kind: EServeFrame.Reply, replyTo: id, ok: true, data: { events: [] } })
+
+    expect(await answer).toEqual({ events: [] })
+  })
+})

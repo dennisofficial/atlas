@@ -101,7 +101,7 @@ export function createCloudRefresh(args: {
 
 export type ThreadViewRefresh = {
   refresh: () => Promise<void>;
-  /** False while a cloud channel is Closed: a re-read then can never land, so signals stand down. */
+  /** False while a cloud channel is Closed or Parked: a re-read then can never land, so signals stand down. */
   refreshable: () => boolean;
   gapped: () => boolean;
   markGapped: (next: boolean) => void;
@@ -208,7 +208,8 @@ export function createThreadViewRefresh(args: {
     refresh,
     refreshable: () =>
       cloudChannel === null ||
-      cloudChannel.connection().state !== EChannelConnection.Closed,
+      (cloudChannel.connection().state !== EChannelConnection.Closed &&
+        cloudChannel.connection().state !== EChannelConnection.Parked),
     gapped: () => tailGapped,
     markGapped: (next) => {
       tailGapped = next;

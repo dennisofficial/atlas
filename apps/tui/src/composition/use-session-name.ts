@@ -3,10 +3,11 @@ import { sanitizedTitle, type ThreadStorePort } from '@dltech/atlas-harness'
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 
 import { NAMING_ANIMATION_MS } from '../ui/hooks/use-naming-animation'
-import { notify } from '../ui/notice-store'
+import { ENoticeTone, notify } from '../ui/notice-store'
 import { cloudRenameFailureNotice } from './cloud/cloud-write-notices'
 import type { AtlasApp } from './compose'
 import { durableOpLog } from './durable-op-log'
+import { messageOf } from './error-text'
 import { ERenamed, type Renaming } from './session-rename'
 
 const trace = (message: string, threadId: ThreadId, data?: Record<string, unknown>): void => {
@@ -87,7 +88,7 @@ export function useSessionName(args: {
         trace('recovered missed rename', threadId, { title })
         return title
       })
-    })
+    }).catch(() => undefined)
     return () => {
       live = false
       trace('onRename unsubscribed', threadId)
@@ -162,7 +163,15 @@ export function useSessionName(args: {
   }, [name])
 
   const nameFromTranscript = useCallback(async (): Promise<Renaming> => {
-    const digest = await readDigest()
+    const digest = await readDigest().catch((failure: unknown): string | null => {
+      notify({
+        key: 'rename-transcript-read',
+        tone: ENoticeTone.Warn,
+        text: `the rename could not read the transcript — ${messageOf(failure)}`,
+      })
+      return null
+    })
+    if (digest === null) return { type: ERenamed.Declined }
     if (digest.trim().length === 0) return { type: ERenamed.Empty }
 
     beginRename()

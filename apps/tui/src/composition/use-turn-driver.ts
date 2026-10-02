@@ -6,6 +6,7 @@ import type { PendingSaid } from '../store'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import type { AtlasApp } from './compose'
 import type { DirectoryMove } from './directory-move'
+import { messageOf } from './error-text'
 import { discardInterrupted, EDiscard } from './resume-turn'
 import { IDLE_PROGRESS, turnInterrupting } from './turn-progress'
 import { useDrivenTurn, type DriveOptions } from './use-driven-turn'
@@ -127,7 +128,9 @@ export function useTurnDriver(args: {
         forgetUsage()
         await refresh()
         void drive([])
-      })()
+      })().catch((error: unknown) => {
+        setFailure(messageOf(error))
+      })
     },
     [
       app.log,
@@ -186,6 +189,8 @@ export function useTurnDriver(args: {
         store.resetSteps()
         forgetUsage()
         await refresh()
+      } catch (error) {
+        setFailure(messageOf(error))
       } finally {
         workingRef.current = false
         setWorking(false)
