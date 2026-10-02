@@ -27,8 +27,10 @@ const toLocation = (value: LocationChangedDraft['from']): EExecutionLocation => 
  * The lift ships its `location-changed → cloud` draft on the restore op so the marker pins on the
  * sandbox's own log — the transcript the operator reads while lifted — rather than only on the
  * local log the archive already sealed. Idempotent: a re-restore of the same tar must not pin a
- * second marker, so a log already ending at `→ cloud` is left alone. A failed append never fails
- * the restore — the transcript is already home; the marker is the telling, not the move.
+ * second marker, so a log whose latest move already lands at the same location is left alone — the
+ * workspace arrival can follow its marker with directory and context events, so the marker is not
+ * necessarily the literal tail. A failed append never fails the restore — the transcript is
+ * already home; the marker is the telling, not the move.
  */
 async function pinLocationMarker(args: {
   log: Pick<EventLogPort, 'readOwn' | 'append'>
@@ -37,8 +39,8 @@ async function pinLocationMarker(args: {
   draft: LocationChangedDraft
 }): Promise<void> {
   const existing = await args.log.readOwn({ threadId: args.threadId })
-  const last = existing.at(-1)
-  if (last?.type === 'location-changed' && last.to === toLocation(args.draft.to)) return
+  const lastMove = existing.findLast((event) => event.type === 'location-changed')
+  if (lastMove?.type === 'location-changed' && lastMove.to === toLocation(args.draft.to)) return
   await args.log
     .append({
       threadId: args.threadId,

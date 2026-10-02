@@ -191,4 +191,40 @@ describe('restoring a transcript the lift shipped late', () => {
     const events = await log.read({ threadId: THREAD })
     expect(events.filter((event) => event.type === 'location-changed')).toHaveLength(1)
   })
+
+  it('does not pin a second marker when the boot arrival pushed events past its marker', async () => {
+    const home = freshHome()
+    const archive = await seedArchive('before-the-lift')
+    const log = openLog({ home })
+    const marker = { from: 'host', to: 'cloud' } as const
+
+    await restoreTranscript({
+      fetchArchive: async () => archive,
+      atlasHome: home,
+      threadId: THREAD,
+      log,
+      ids: fixedIds({ prefix: 'spec' }),
+    })
+    await log.append({
+      threadId: THREAD,
+      runId: toRunId('arrival-run'),
+      drafts: [
+        { type: 'location-changed', from: EExecutionLocation.Host, to: EExecutionLocation.Cloud, cwd: '/workspace' },
+        { type: 'directory-changed', path: '/workspace', repo: '/workspace' },
+        { type: 'context-loaded', slot: 'session', key: 'execution-location', content: 'arrived' },
+      ],
+    })
+    const replaced = await restoreTranscript({
+      fetchArchive: async () => archive,
+      atlasHome: home,
+      threadId: THREAD,
+      log,
+      ids: fixedIds({ prefix: 'spec' }),
+      marker,
+    })
+
+    expect(replaced).toEqual({ restored: true, failed: null })
+    const events = await log.read({ threadId: THREAD })
+    expect(events.filter((event) => event.type === 'location-changed')).toHaveLength(1)
+  })
 })
