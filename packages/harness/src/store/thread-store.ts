@@ -11,6 +11,7 @@ import {
 } from '@dltech/atlas-core'
 
 import type { Unsubscribe } from '../channel/delta-channel'
+import type { ParkedTranscriptRecord } from '../cloud/transcript-freshness'
 import type { OpenThreadArgs } from './create-with-events'
 import type { ThreadWorktree } from './sessions/thread-places'
 
@@ -87,6 +88,18 @@ export abstract class ThreadStorePort {
       threadId: args.threadId,
       location: locationOfPlacement(args.record.placement),
     })
+  }
+
+  async writeParkedTranscript(args: {
+    threadId: ThreadId
+    record: ParkedTranscriptRecord
+  }): Promise<void> {
+    void args
+  }
+
+  async readParkedTranscript(args: { threadId: ThreadId }): Promise<ParkedTranscriptRecord | null> {
+    void args
+    return null
   }
 
 

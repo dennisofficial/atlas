@@ -16,6 +16,7 @@ import type {
   ThreadStorePort,
   ThreadSummary,
 } from '../../../store/thread-store'
+import type { ParkedTranscriptRecord } from '../../transcript-freshness'
 import type { FakeEventLog } from './fake-event-log'
 
 export { fakeEventLog, type FakeEventLog } from './fake-event-log'
@@ -92,6 +93,7 @@ export function fakeThreadStore(
     location: EExecutionLocation
   }[] = []
   const placements = new Map<ThreadId, PlacementRecord>()
+  const parkedTranscripts = new Map<ThreadId, ParkedTranscriptRecord>()
 
   return {
     get created() {
@@ -280,6 +282,14 @@ export function fakeThreadStore(
         revision: (held?.revision ?? 0) + 1,
         move: held?.move ?? null,
       })
+    },
+
+    async writeParkedTranscript({ threadId, record }) {
+      parkedTranscripts.set(threadId, record)
+    },
+
+    async readParkedTranscript({ threadId }) {
+      return parkedTranscripts.get(threadId) ?? null
     },
 
     async rewind() {
