@@ -12,6 +12,7 @@ export enum EWorkingVerb {
   Thinking = 'Thinking',
   Compacting = 'Compacting',
   Reconnecting = 'Reconnecting',
+  Waking = 'Waking the sandbox',
   Disconnected = 'Disconnected',
 }
 
@@ -71,6 +72,17 @@ export function WorkingLine(props: {
       <box flexDirection="column">
         <ShimmerLine
           label={`Reconnecting for ${formatElapsed(props.elapsedMs)} · the turn keeps running on the sandbox`}
+          base={theme.warn}
+        />
+      </box>
+    )
+  }
+
+  if (verb === EWorkingVerb.Waking) {
+    return (
+      <box flexDirection="column">
+        <ShimmerLine
+          label={`Waking the sandbox for ${formatElapsed(props.elapsedMs)} · your message runs once it is up`}
           base={theme.warn}
         />
       </box>
