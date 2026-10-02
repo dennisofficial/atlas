@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it } from 'bun:test'
-import { readFile, writeFile } from 'node:fs/promises'
+import { readFile, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { workspaceReceiptSchema } from '../manifest'
@@ -46,7 +46,7 @@ describe('restoreWorkspaceArchive in host mode', () => {
     const receipt = workspaceReceiptSchema.parse(JSON.parse(await readFile(join(made.main, '.git', 'atlas-transfer.json'), 'utf8')))
     expect(receipt.repositoryOrigin).toBe(made.main)
     const main = receipt.trees.find((tree) => tree.path === made.main)
-    expect(main?.baseline).toBe(await fingerprintWorkspaceTree({ cwd: made.main, excludedRoots: [made.nested, made.detached] }))
+    expect(main?.baseline).toBe(await fingerprintWorkspaceTree({ cwd: made.main }))
   })
 
   it('puts a diverged main checkout aside under a main-xxxx worktree and leaves it untouched', async () => {
@@ -68,22 +68,22 @@ describe('restoreWorkspaceArchive in host mode', () => {
     expect(await git({ args: ['symbolic-ref', 'HEAD'], cwd: aside })).toBe('refs/heads/main-beef')
   })
 
-  it('suffixes a linked worktree whose host copy diverged and keeps the host branch', async () => {
+  it('leaves a linked worktree on the host untouched because only the active tree travels', async () => {
     const { made, back } = await roundTrip()
     await writeFile(join(made.nested, 'host-edit.txt'), 'host\n')
     const hostFeat = await refOf(made.main, 'refs/heads/feat')
+    const before = await worktreePaths(made.main)
 
     const restored = await hostRestore({ archivePath: back.archivePath, destination: made.main, hex: 'cafe' })
-    const aside = join(made.main, '.atlas', 'worktrees', 'feat-cafe')
 
-    expect(restored.trees.find((item) => item.path === aside)).toMatchObject({ renamedFrom: 'feat', branch: 'feat-cafe' })
+    expect(restored.trees.map((item) => item.path)).toEqual([made.main])
     expect(await readFile(join(made.nested, 'host-edit.txt'), 'utf8')).toBe('host\n')
+    expect(await readFile(join(made.nested, 'README.md'), 'utf8')).toBe('nested edit\n')
     expect(await refOf(made.main, 'refs/heads/feat')).toBe(hostFeat)
-    expect(await readFile(join(aside, 'feat.txt'), 'utf8')).toBe('feature\n')
-    expect(await worktreePaths(made.main)).toContain(aside)
+    expect(await worktreePaths(made.main)).toEqual(before)
   })
 
-  it('recreates a worktree that only exists in the cloud and keeps its side branches', async () => {
+  it('imports the branches and tags of a cloud-only worktree without recreating that worktree', async () => {
     const { made, cloud } = await roundTrip()
     const created = join(cloud, '.atlas', 'worktrees', 'cloud-made')
     await git({ args: ['worktree', 'add', created, '-b', 'cloud-branch'], cwd: cloud })
@@ -91,14 +91,16 @@ describe('restoreWorkspaceArchive in host mode', () => {
     await git({ args: ['branch', 'cloud-side'], cwd: cloud })
     await git({ args: ['tag', 'cloud-tag'], cwd: cloud })
     const back = await archiveOf({ cwd: cloud })
+    expect(back.manifest.trees).toHaveLength(1)
+    const before = await worktreePaths(made.main)
 
     await hostRestore({ archivePath: back.archivePath, destination: made.main })
-    const target = join(made.main, '.atlas', 'worktrees', 'cloud-made')
 
-    expect(await readFile(join(target, 'only.txt'), 'utf8')).toBe('cloud only\n')
-    expect(await git({ args: ['symbolic-ref', 'HEAD'], cwd: target })).toBe('refs/heads/cloud-branch')
+    expect(await worktreePaths(made.main)).toEqual(before)
+    expect(await refOf(made.main, 'refs/heads/cloud-branch')).toBe(await refOf(cloud, 'refs/heads/cloud-branch'))
     expect(await refOf(made.main, 'refs/heads/cloud-side')).not.toBe('')
     expect(await refOf(made.main, 'refs/tags/cloud-tag')).not.toBe('')
+    expect(await stat(join(made.main, '.atlas', 'worktrees', 'cloud-made', 'only.txt')).then(() => true, () => false)).toBe(false)
   })
 
   it('keeps host refs and imports a differing incoming ref under a suffixed name', async () => {
@@ -131,14 +133,17 @@ describe('restoreWorkspaceArchive in host mode', () => {
     expect(restored.cwd).toBe(join(made.main, '.atlas', 'worktrees', 'main-bbbb'))
   })
 
-  it('does not overwrite a checkout held by another live session', async () => {
+  it('restores in place while another live session holds a lock on a different worktree', async () => {
     const { made, back } = await roundTrip()
     const holder = Bun.spawn(['sleep', '30'], { stdout: 'ignore', stderr: 'ignore' })
     try {
       await git({ args: ['worktree', 'lock', '--reason', `atlas test (pid ${holder.pid})`, made.nested], cwd: made.main })
       const restored = await hostRestore({ archivePath: back.archivePath, destination: made.main, hex: '1111' })
-      expect(restored.trees.find((tree) => tree.renamedFrom === 'feat')?.path).toBe(join(made.main, '.atlas', 'worktrees', 'feat-1111'))
+      expect(restored.cwd).toBe(made.main)
+      expect(restored.trees.every((tree) => tree.renamedFrom === null)).toBe(true)
+      expect(await readFile(join(made.main, 'README.md'), 'utf8')).toBe('cloud edit\n')
       expect(await readFile(join(made.nested, 'README.md'), 'utf8')).toBe('nested edit\n')
+      expect(await git({ args: ['worktree', 'list', '--porcelain'], cwd: made.main })).toContain('locked')
     } finally {
       holder.kill()
     }
@@ -190,20 +195,21 @@ describe('restoreWorkspaceArchive in host mode', () => {
     expect(await git({ args: ['stash', 'list'], cwd: made.main })).toContain('cloud stash')
   })
 
-  it('moves a created worktree back out and removes it again on rollback', async () => {
+  it('removes the refs a restore imported again on rollback', async () => {
     const { made, cloud } = await roundTrip()
-    const created = join(cloud, '.atlas', 'worktrees', 'cloud-made')
-    await git({ args: ['worktree', 'add', created, '-b', 'cloud-branch'], cwd: cloud })
-    await writeFile(join(created, 'only.txt'), 'cloud only\n')
+    await git({ args: ['branch', 'cloud-branch'], cwd: cloud })
+    await git({ args: ['tag', 'cloud-tag'], cwd: cloud })
     const back = await archiveOf({ cwd: cloud })
     const before = await worktreePaths(made.main)
 
     const restoration = await prepareWorkspaceRestoration({ archivePath: back.archivePath, destination: made.main, mode: EWorkspaceRestoreMode.Host })
-    expect(await worktreePaths(made.main)).toContain(join(made.main, '.atlas', 'worktrees', 'cloud-made'))
+    expect(await refOf(made.main, 'refs/heads/cloud-branch')).not.toBe('')
+    expect(await refOf(made.main, 'refs/tags/cloud-tag')).not.toBe('')
     await restoration.rollback()
 
     expect(await worktreePaths(made.main)).toEqual(before)
     expect(await refOf(made.main, 'refs/heads/cloud-branch')).toBe('')
+    expect(await refOf(made.main, 'refs/tags/cloud-tag')).toBe('')
   })
 
   it('refuses to undo a restore after the user edited the restored checkout', async () => {

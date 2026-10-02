@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it } from 'bun:test'
-import { chmod, utimes, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, utimes, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { captureWorkspaceArchive } from '../capture'
@@ -26,12 +26,40 @@ describe('fingerprintWorkspaceTree', () => {
     const out = await createScratch()
     scratches.push(out)
     const manifest = await captureWorkspaceArchive({ cwd: made.main, destination: join(out, 'a.tar.gz') })
+    expect(manifest.trees).toHaveLength(1)
     for (const tree of manifest.trees) {
       expect(await fingerprintWorkspaceTree({ cwd: tree.sourcePath })).toBe(tree.fingerprint)
     }
-    const main = manifest.trees.find((tree) => tree.isMain)
-    const partial = await fingerprintWorkspaceTree({ cwd: made.main, excludedRoots: [made.nested] })
-    expect(partial).toBe(main?.fingerprint ?? '')
+  })
+
+  it('leaves gitignored untracked files out of the fingerprint but not tracked or force-included ones', async () => {
+    const made = await fixture()
+    const baseline = await fingerprintWorkspaceTree({ cwd: made.main })
+
+    await writeFile(join(made.main, 'debug.log'), 'changed ignored content\n')
+    await writeFile(join(made.main, 'node_modules', 'pkg', 'index.js'), 'changed\n')
+    expect(await fingerprintWorkspaceTree({ cwd: made.main })).toBe(baseline)
+
+    await writeFile(join(made.main, 'tracked.log'), 'tracked\n')
+    await git({ args: ['add', '-f', 'tracked.log'], cwd: made.main })
+    const withTracked = await fingerprintWorkspaceTree({ cwd: made.main })
+    expect(withTracked).not.toBe(baseline)
+    await writeFile(join(made.main, 'tracked.log'), 'edited\n')
+    expect(await fingerprintWorkspaceTree({ cwd: made.main })).not.toBe(withTracked)
+
+    await mkdir(join(made.main, '.atlas'), { recursive: true })
+    await writeFile(join(made.main, '.atlas', '.cloudinclude'), 'debug.log\n')
+    const forced = await fingerprintWorkspaceTree({ cwd: made.main })
+    await writeFile(join(made.main, 'debug.log'), 'now it counts\n')
+    expect(await fingerprintWorkspaceTree({ cwd: made.main })).not.toBe(forced)
+  })
+
+  it('fingerprints only the tree it is pointed at, whatever other worktrees exist', async () => {
+    const made = await fixture()
+    const baseline = await fingerprintWorkspaceTree({ cwd: made.main })
+    await writeFile(join(made.nested, 'another.txt'), 'x\n')
+    await writeFile(join(made.detached, 'another.txt'), 'x\n')
+    expect(await fingerprintWorkspaceTree({ cwd: made.main })).toBe(baseline)
   })
 
   it('ignores stat noise and index layout but notices content and staging changes', async () => {

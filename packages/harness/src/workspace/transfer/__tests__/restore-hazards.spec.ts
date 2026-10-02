@@ -72,7 +72,7 @@ describe('destination changed before the originals are touched', () => {
     const { manifest } = await archiveOf({ cwd: made.main })
     const tree = manifest.trees.find((item) => item.isMain)
     if (tree === undefined) throw new Error('no main tree')
-    const baseline = await fingerprintWorkspaceTree({ cwd: made.main, excludedRoots: [made.nested, made.detached] })
+    const baseline = await fingerprintWorkspaceTree({ cwd: made.main })
     const current = { ...tree, baseline, fingerprint: baseline }
 
     await assertStillReplaceable({ path: made.main, tree: current, repoCwd: made.main })
