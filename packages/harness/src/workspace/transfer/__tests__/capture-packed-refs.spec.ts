@@ -30,93 +30,110 @@ afterAll(async () => {
   await cleanupScratches()
 })
 
+const coverage = (made: Fixture) => ({
+  trees: [
+    { sourcePath: made.main, branch: 'main' },
+    { sourcePath: made.nested, branch: 'feat' },
+  ],
+})
+
 const refsOf = async (cwd: string): Promise<string> =>
   git({ args: ['for-each-ref', '--format=%(refname) %(objectname) %(symref)'], cwd })
 
-const archivedRefs = async ({ extracted, cwd }: { extracted: string; cwd: string }): Promise<string> => {
+const coveredRefsOf = async (cwd: string): Promise<string[]> =>
+  (await refsOf(cwd))
+    .split('\n')
+    .filter((line) => line.startsWith('refs/heads/main'))
+    .map((line) => line.trimEnd())
+
+const archivedRefs = async ({ extracted, cwd }: { extracted: string; cwd: string }): Promise<string[]> => {
   const admin = join(extracted, 'git')
   const head = await readFile(join(extracted, 'trees', 'main', 'git-state', 'HEAD'), 'utf8')
   const probe = await createScratch()
   const gitDir = join(probe, 'admin')
   await Bun.spawn(['cp', '-R', admin, gitDir]).exited
   await Bun.write(join(gitDir, 'HEAD'), head)
-  return git({ args: ['--git-dir', gitDir, 'for-each-ref', '--format=%(refname) %(objectname) %(symref)'], cwd })
+  return (await git({ args: ['--git-dir', gitDir, 'for-each-ref', '--format=%(refname) %(objectname) %(symref)'], cwd }))
+    .split('\n')
+    .filter((line) => line.length > 0)
+    .map((line) => line.trimEnd())
 }
 
 describe('the admin digest and refs', () => {
-  it('does not change when refs are packed, because the logical refs are the same', async () => {
+  it('does not change when refs are packed, because the covered logical refs are the same', async () => {
     const made = await fixture()
-    const roots = [made.main, made.nested, made.detached]
-    const before = await digestGitAdmin({ cwds: roots })
+    const before = await digestGitAdmin(coverage(made))
     await git({ args: ['pack-refs', '--all', '--prune'], cwd: made.main })
-    expect(await digestGitAdmin({ cwds: roots })).toBe(before)
+    expect(await digestGitAdmin(coverage(made))).toBe(before)
   })
 
-  it('still notices a changed ref value and a new tag', async () => {
+  it('notices a covered branch move but ignores a new tag or side branch', async () => {
     const made = await fixture()
-    const roots = [made.main, made.nested, made.detached]
-    const before = await digestGitAdmin({ cwds: roots })
+    const before = await digestGitAdmin(coverage(made))
     await git({ args: ['commit', '--allow-empty', '-m', 'move'], cwd: made.nested })
-    const moved = await digestGitAdmin({ cwds: roots })
+    const moved = await digestGitAdmin(coverage(made))
     expect(moved).not.toBe(before)
     await git({ args: ['tag', 'v3'], cwd: made.main })
-    expect(await digestGitAdmin({ cwds: roots })).not.toBe(moved)
+    expect(await digestGitAdmin(coverage(made))).toBe(moved)
+    await git({ args: ['branch', 'another-side'], cwd: made.main })
+    expect(await digestGitAdmin(coverage(made))).toBe(moved)
   })
 })
 
 describe('capturing while refs are packed or changed', () => {
-  it('succeeds when pack-refs runs during packing and archives exactly the logical refs', async () => {
+  it('succeeds when pack-refs runs during packing and archives exactly the covered refs', async () => {
     const made = await fixture()
-    const expected = await refsOf(made.main)
+    const expected = await coveredRefsOf(made.main)
     const { extracted } = await captureWhileTarRuns({
       cwd: made.main,
       command: `git -C ${quoted(made.main)} pack-refs --all --prune`,
     })
-    expect(await archivedRefs({ extracted, cwd: made.main })).toBe(expected)
-    expect(await refsOf(made.main)).toBe(expected)
+    expect(await archivedRefs({ extracted, cwd: made.main })).toEqual(expected)
+    expect(await refsOf(made.main)).toBe((await refsOf(made.main)).trim())
   })
 
   it('archives packed source refs from a canonical snapshot, not the raw packed-refs file', async () => {
     const made = await fixture()
     await git({ args: ['pack-refs', '--all'], cwd: made.main })
     await git({ args: ['branch', 'loose-after-pack'], cwd: made.main })
-    const expected = await refsOf(made.main)
     const { extracted } = await captureWhileTarRuns({ cwd: made.main, command: 'true' })
-    expect(await archivedRefs({ extracted, cwd: made.main })).toBe(expected)
+    const archived = await archivedRefs({ extracted, cwd: made.main })
+    expect(archived).toEqual(await coveredRefsOf(made.main))
+    expect(archived.join('\n')).not.toContain('loose-after-pack')
     expect((await readdir(join(extracted, 'git', 'refs', 'heads'))).sort()).toEqual([])
-    expect(await readFile(join(extracted, 'git', 'packed-refs'), 'utf8')).toContain('refs/heads/loose-after-pack')
+    expect(await readFile(join(extracted, 'git', 'packed-refs'), 'utf8')).toContain('refs/heads/main')
   })
 
-  it('preserves symbolic refs', async () => {
+  it('excludes tags, remote refs and symbolic refs that the covered trees do not need', async () => {
     const made = await fixture()
     await git({ args: ['symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main'], cwd: made.main }).catch(() => '')
     await git({ args: ['update-ref', 'refs/remotes/origin/main', 'HEAD'], cwd: made.main })
-    await git({ args: ['symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main'], cwd: made.main })
-    const expected = await refsOf(made.main)
-    expect(expected).toContain('refs/remotes/origin/HEAD')
     const { extracted } = await captureWhileTarRuns({ cwd: made.main, command: 'true' })
-    expect(await archivedRefs({ extracted, cwd: made.main })).toBe(expected)
+    const archived = await archivedRefs({ extracted, cwd: made.main })
+    expect(archived).toEqual([`refs/heads/main ${await git({ args: ['rev-parse', 'refs/heads/main'], cwd: made.main })}`])
+    expect(archived.join('\n')).not.toContain('refs/tags/')
+    expect(archived.join('\n')).not.toContain('refs/remotes/')
+    expect(archived.join('\n')).not.toContain('refs/heads/side')
   })
 
-  it('refuses when an existing branch moves during packing', async () => {
+  it('refuses when a covered branch moves during packing', async () => {
     const made = await fixture()
     const other = await git({ args: ['commit-tree', '-m', 'elsewhere', 'HEAD^{tree}'], cwd: made.main })
     await expect(
       captureWhileTarRuns({
         cwd: made.main,
-        command: `git -C ${quoted(made.main)} update-ref refs/heads/side ${other}`,
+        command: `git -C ${quoted(made.main)} update-ref refs/heads/main ${other}`,
       }),
     ).rejects.toThrow('changed while it was being captured')
   })
 
-  it('refuses when a tag is created during packing', async () => {
+  it('does not refuse when an uncovered tag appears during packing, and leaves it out', async () => {
     const made = await fixture()
-    await expect(
-      captureWhileTarRuns({
-        cwd: made.main,
-        command: `git -C ${quoted(made.main)} update-ref refs/tags/created-during-capture HEAD`,
-      }),
-    ).rejects.toThrow('changed while it was being captured')
+    const { extracted } = await captureWhileTarRuns({
+      cwd: made.main,
+      command: `git -C ${quoted(made.main)} update-ref refs/tags/created-during-capture HEAD`,
+    })
+    expect((await archivedRefs({ extracted, cwd: made.main })).join('\n')).not.toContain('created-during-capture')
   })
 
   it('does not leave a raw refs directory mount or write to the source refs', async () => {

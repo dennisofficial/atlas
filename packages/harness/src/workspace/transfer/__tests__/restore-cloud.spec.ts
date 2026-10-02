@@ -62,7 +62,7 @@ describe('restoreWorkspaceArchive in cloud mode', () => {
     expect((await stat(join(destination, 'bin', 'run.sh'))).mode & 0o111).not.toBe(0)
 
     expect(await worktreePaths(destination)).toEqual([destination])
-    expect(await git({ args: ['branch', '--list', 'feat'], cwd: destination })).toContain('feat')
+    expect(await git({ args: ['branch', '--list', 'feat'], cwd: destination })).not.toContain('feat')
     await git({ args: ['fsck', '--no-dangling'], cwd: destination })
   })
 
@@ -119,11 +119,13 @@ describe('restoreWorkspaceArchive in cloud mode', () => {
   it('restores a capture taken from inside a linked worktree and opens the session in its subdirectory', async () => {
     const made = await fixture()
     const { archivePath } = await archiveOf({ cwd: join(made.nested, 'pkg', 'sub') })
-    const { restored } = await cloudRestore({ archivePath })
-    expect(restored.cwd.endsWith(join('pkg', 'sub'))).toBe(true)
+    const { destination, restored } = await cloudRestore({ archivePath })
+    expect(restored.cwd).toBe(join(destination, '.atlas', 'worktrees', 'feat', 'pkg', 'sub'))
     expect(await readFile(join(restored.cwd, 'deep.txt'), 'utf8')).toBe('deep\n')
-    expect(restored.trees).toHaveLength(1)
-    expect(restored.trees[0]).toMatchObject({ sourcePath: made.nested, branch: 'feat' })
+    expect(restored.trees).toHaveLength(2)
+    const nested = restored.trees.find((tree) => tree.sourcePath === made.nested)
+    expect(nested).toMatchObject({ branch: 'feat', path: join(destination, '.atlas', 'worktrees', 'feat') })
+    expect(restored.trees.find((tree) => tree.sourcePath === made.main)).toMatchObject({ path: destination })
   })
 
   it('never runs hooks stored in the archive', async () => {

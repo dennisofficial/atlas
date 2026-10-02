@@ -8,22 +8,22 @@ import { cleanupScratches, createScratch, git } from './capture-fixture'
 
 afterEach(cleanupScratches)
 
-async function seededRepo(): Promise<{ root: string }> {
+async function seededRepo(): Promise<{ root: string; head: string }> {
   const root = await createScratch()
   await git({ args: ['init', '-b', 'main'], cwd: root })
   await Bun.write(join(root, 'a.txt'), 'main work\n')
   await git({ args: ['add', '.'], cwd: root })
   await git({ args: ['commit', '-m', 'work'], cwd: root })
-  return { root }
+  return { root, head: await git({ args: ['rev-parse', 'HEAD'], cwd: root }) }
 }
 
 describe('packReachableObjects', () => {
   test('lands an intact pack in the output directory', async () => {
-    const { root } = await seededRepo()
+    const { root, head } = await seededRepo()
     const outputDir = join(await createScratch(), 'materialized')
     await Bun.write(join(outputDir, '.keep'), '')
 
-    const names = await packReachableObjects({ cwd: root, commonDir: join(root, '.git'), outputDir })
+    const names = await packReachableObjects({ cwd: root, commonDir: join(root, '.git'), outputDir, seeds: [head] })
 
     expect(names.filter((name) => name.endsWith('.pack'))).toHaveLength(1)
     const index = names.find((name) => name.endsWith('.idx'))
@@ -37,11 +37,11 @@ describe('packReachableObjects', () => {
   })
 
   test('leaves no scratch behind in the repository object store', async () => {
-    const { root } = await seededRepo()
+    const { root, head } = await seededRepo()
     const outputDir = await createScratch()
     const before = (await readdir(join(root, '.git', 'objects', 'pack'))).sort()
 
-    await packReachableObjects({ cwd: root, commonDir: join(root, '.git'), outputDir })
+    await packReachableObjects({ cwd: root, commonDir: join(root, '.git'), outputDir, seeds: [head] })
 
     expect((await readdir(join(root, '.git', 'objects', 'pack'))).sort()).toEqual(before)
   })

@@ -1,4 +1,4 @@
-import { stat } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { captureGit } from './capture-git'
@@ -93,6 +93,19 @@ export const collectLinkedState = ({ gitDir }: { gitDir: string }): Promise<Tree
 export const indexPathIfPresent = async ({ gitDir }: { gitDir: string }): Promise<string | null> => {
   const path = join(gitDir, 'index')
   return (await exists(path)) ? path : null
+}
+
+const COMMIT_STATE_FILES = ['MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'REBASE_HEAD', 'ORIG_HEAD'] as const
+const OBJECT_ID = /^[0-9a-f]{40,64}$/
+
+export async function mergeStateSeeds({ gitDir }: { gitDir: string }): Promise<string[]> {
+  const seeds: string[] = []
+  for (const name of COMMIT_STATE_FILES) {
+    const text = await readFile(join(gitDir, name), 'utf8').catch(() => null)
+    const sha = text?.split('\n', 1)[0]?.trim() ?? ''
+    if (OBJECT_ID.test(sha)) seeds.push(sha)
+  }
+  return seeds
 }
 
 const DIGEST_COMMON_ROOTS = new Set(['config', 'shallow', 'info'])
