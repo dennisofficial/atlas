@@ -65,6 +65,7 @@ export function isTranscriptMuted(args: {
 export enum EClosedConnectionKind {
   Parked = 'parked',
   Reconnecting = 'reconnecting',
+  Waking = 'waking',
   Closed = 'closed',
 }
 
@@ -76,7 +77,7 @@ export const closedConnectionOf = (args: {
 }): { kind: EClosedConnectionKind; detail: string | null } => {
   if (args.state === ECloudSandboxState.Parked) return { kind: EClosedConnectionKind.Parked, detail: null }
   if (args.state === ECloudSandboxState.Resuming) {
-    return { kind: EClosedConnectionKind.Reconnecting, detail: args.resuming }
+    return { kind: EClosedConnectionKind.Waking, detail: args.resuming }
   }
   if (args.state === ECloudSandboxState.Running) {
     return { kind: EClosedConnectionKind.Closed, detail: args.running }

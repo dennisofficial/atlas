@@ -89,6 +89,7 @@ export function WorkspaceTranscript(props: {
           now={conversation.now}
           cwd={conversation.projectDirectory}
           turn={conversation.turn}
+          waking={connection === EChannelConnection.Waking}
           reconnecting={
             connection === EChannelConnection.Reconnecting ||
             connection === EChannelConnection.Connecting

@@ -167,6 +167,7 @@ export class RemoteTurnRunner extends TurnRunner {
     try {
       const state = this.channel.connection().state
       if (state === EChannelConnection.Closed || state === EChannelConnection.Parked) {
+        this.channel.beginWake()
         await this.wake()
       }
 

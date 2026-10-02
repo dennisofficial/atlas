@@ -20,6 +20,8 @@ const SOCKET_DOWN_REFUSAL = "the sandbox socket is down — esc will interrupt o
 
 const SANDBOX_PARKED_REFUSAL = 'the sandbox is parked — send a message to wake it first'
 
+const SANDBOX_WAKING_REFUSAL = 'the sandbox is still waking — esc will interrupt once it is up'
+
 type SessionProps = Pick<
   WorkspaceProps,
   | 'app'
@@ -65,6 +67,7 @@ export function useWorkspaceSession(args: {
     const state = cloudHealth?.connection?.state
     if (state === undefined || state === EChannelConnection.Open) return null
     if (state === EChannelConnection.Parked) return SANDBOX_PARKED_REFUSAL
+    if (state === EChannelConnection.Waking) return SANDBOX_WAKING_REFUSAL
     return SOCKET_DOWN_REFUSAL
   }, [cloudHealth])
 

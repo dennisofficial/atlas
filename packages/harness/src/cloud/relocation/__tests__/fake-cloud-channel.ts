@@ -220,6 +220,10 @@ export function fakeCloudChannel(
     wake: ({ url, token }) => {
       woken.push({ url, token })
     },
+    beginWake: () => {
+      held = { state: EChannelConnection.Waking, detail: null }
+      for (const listener of [...connections]) listener(held)
+    },
     reconnect: () => undefined,
     close: () => {
       closed = true
