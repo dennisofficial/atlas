@@ -21,7 +21,7 @@ export const PROVIDER_SPECS: readonly ProviderSpec[] = [
     provider: EAuthProvider.Anthropic,
     label: 'Anthropic',
     kinds: [EAuthKind.Oauth, EAuthKind.ApiKey],
-    logins: [ELoginFlow.PastedCode, ELoginFlow.ApiKey],
+    logins: [ELoginFlow.BrowserCode, ELoginFlow.PastedCode, ELoginFlow.ApiKey],
     apiKeyVariable: 'ANTHROPIC_API_KEY',
     reachable: true,
   },
