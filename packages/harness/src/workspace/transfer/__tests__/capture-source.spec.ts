@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it } from 'bun:test'
-import { chmod, copyFile, mkdir, readdir, readFile, utimes, writeFile } from 'node:fs/promises'
+import { chmod, copyFile, mkdir, readdir, readFile, rm, utimes, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { captureWorkspaceArchive } from '../capture'
@@ -95,10 +95,8 @@ describe('source repository stays untouched', () => {
       values: redirected,
       run: async () => {
         const { manifest } = await capture({ cwd: made.nested })
-        expect(manifest.repository?.sourcePath).toBe(made.main)
-        expect(manifest.trees.map((tree) => tree.sourcePath).sort()).toEqual(
-          [made.main, made.nested, made.detached].sort(),
-        )
+        expect(manifest.repository?.originPath).toBe(made.main)
+        expect(manifest.trees.map((tree) => tree.sourcePath)).toEqual([made.nested])
       },
     })
   })
@@ -160,12 +158,26 @@ describe('borrowed objects', () => {
     expect(await readFile(join(extracted, 'trees', 'main', 'files', 'local.txt'), 'utf8')).toBe('local\n')
   })
 
-  it('refuses an alternate directory that no longer exists', async () => {
+  it('refuses to capture when the objects an alternate once provided are gone', async () => {
+    const made = await fixture()
+    const borrower = join(made.scratch, 'borrower')
+    await git({ args: ['clone', '--shared', '--no-checkout', made.main, borrower], cwd: made.scratch })
+    await git({ args: ['checkout', '-b', 'local-work'], cwd: borrower })
+    await writeFile(join(borrower, 'local.txt'), 'local\n')
+    await git({ args: ['add', 'local.txt'], cwd: borrower })
+    await git({ args: ['commit', '-m', 'local'], cwd: borrower })
+    await rm(join(made.main, '.git', 'objects'), { recursive: true, force: true })
+    const out = await createScratch()
+    await expect(captureWorkspaceArchive({ cwd: borrower, destination: join(out, 'a.tar.gz') })).rejects.toThrow()
+    expect(await readdir(out)).toEqual([])
+  })
+
+  it('captures a repository whose alternates file names a missing directory when no object is borrowed', async () => {
     const made = await fixture()
     await mkdir(join(made.main, '.git', 'objects', 'info'), { recursive: true })
     await writeFile(join(made.main, '.git', 'objects', 'info', 'alternates'), '/elsewhere/objects\n')
-    const out = await createScratch()
-    await expect(captureWorkspaceArchive({ cwd: made.main, destination: join(out, 'a.tar.gz') })).rejects.toThrow(/alternate/i)
-    expect(await readdir(out)).toEqual([])
+    const { extracted } = await capture({ cwd: made.main })
+    expect(await Bun.file(join(extracted, 'git', 'objects', 'info', 'alternates')).exists()).toBe(false)
+    expect((await walk(join(extracted, 'git', 'objects', 'pack'))).some((name) => name.endsWith('.pack'))).toBe(true)
   })
 })

@@ -146,12 +146,11 @@ describe('git state that must survive the move', () => {
   it('carries per-worktree config and flags the shared config for it', async () => {
     const made = await fixture()
     await git({ args: ['config', 'extensions.worktreeConfig', 'true'], cwd: made.main })
-    await git({ args: ['config', '--worktree', 'user.signingkey', 'ABC123'], cwd: made.nested })
+    await git({ args: ['config', '--worktree', 'user.signingkey', 'ABC123'], cwd: made.main })
     const { archivePath } = await archiveOf({ cwd: made.main })
     const { destination } = await cloudRestore({ archivePath })
-    const nested = join(destination, '.atlas', 'worktrees', 'feat')
 
-    expect(await git({ args: ['config', '--worktree', 'user.signingkey'], cwd: nested })).toBe('ABC123')
+    expect(await git({ args: ['config', '--worktree', 'user.signingkey'], cwd: destination })).toBe('ABC123')
     expect(await git({ args: ['config', 'extensions.worktreeConfig'], cwd: destination })).toBe('true')
   })
 

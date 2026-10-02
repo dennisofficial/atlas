@@ -113,6 +113,7 @@ function manifestFor({
     activeRelativePath: layout.activeRelativePath,
     trees: layout.trees.map(({ excludedRoots: _excluded, ...tree }, index) => ({
       ...tree,
+      isMain: layout.trees.length === 1 ? true : tree.isMain,
       head: layout.commonDir === null ? tree.head : (observed.snapshots[index]?.head ?? null),
       branch: layout.commonDir === null ? tree.branch : (observed.snapshots[index]?.branch ?? null),
       fingerprint: observed.snapshots[index]?.fingerprint,

@@ -75,6 +75,8 @@ export async function resolveIgnoreFilter({ cwd }: { cwd: string }): Promise<Ign
   const forced = await cloudIncludePatterns({ cwd })
   if (dirs.size === 0 && files.size === 0) return CAPTURE_ALL
   const isForced = (path: string): boolean => forced.some((pattern) => pattern.test(path))
+  const holdsAlwaysCaptured = (path: string): boolean =>
+    [...ALWAYS_CAPTURED].some((kept) => kept === path || kept.startsWith(`${path}/`))
   const underIgnoredDir = (path: string): boolean => {
     for (let index = path.indexOf('/'); index > 0; index = path.indexOf('/', index + 1)) {
       if (dirs.has(path.slice(0, index))) return true
@@ -82,7 +84,7 @@ export async function resolveIgnoreFilter({ cwd }: { cwd: string }): Promise<Ign
     return false
   }
   const dirPrunable = (path: string): boolean => {
-    if (ALWAYS_CAPTURED.has(path) || isForced(path) || !dirs.has(path)) return false
+    if (ALWAYS_CAPTURED.has(path) || isForced(path) || holdsAlwaysCaptured(path) || !dirs.has(path)) return false
     return !forced.some((pattern) => pattern.test(`${path}/`))
   }
   return {

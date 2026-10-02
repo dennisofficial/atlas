@@ -126,7 +126,7 @@ describe('host configuration when worktree config is enabled', () => {
   it('leaves unrelated keys alone and restores the config byte for byte on rollback', async () => {
     const made = await fixture()
     await git({ args: ['config', 'extensions.worktreeConfig', 'true'], cwd: made.main })
-    await git({ args: ['config', '--worktree', 'user.signingkey', 'KEY1'], cwd: made.nested })
+    await git({ args: ['config', '--worktree', 'user.signingkey', 'KEY1'], cwd: made.main })
     const { archivePath } = await archiveOf({ cwd: made.main })
 
     const host = join(await scratch(), 'host')

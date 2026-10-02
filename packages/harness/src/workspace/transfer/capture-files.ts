@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { createReadStream, type Dirent } from 'node:fs'
-import { lstat, readdir, readlink } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { lstat, readdir, readFile, readlink } from 'node:fs/promises'
+import { join, resolve, sep } from 'node:path'
 
 export enum EEntryKind {
   File = 'file',
@@ -61,6 +61,19 @@ export const treeSkipRule = ({
   }
 }
 
+const GITDIR_PREFIX = 'gitdir:'
+
+const isSiblingWorktree = async ({ root, absolute }: { root: string; absolute: string }): Promise<boolean> => {
+  const pointer = join(absolute, NESTED_GIT_NAME)
+  const info = await lstat(pointer).catch(() => null)
+  if (info === null || !info.isFile()) return false
+  const text = await readFile(pointer, 'utf8').catch(() => null)
+  if (text === null || !text.startsWith(GITDIR_PREFIX)) return false
+  const target = text.slice(GITDIR_PREFIX.length).trim()
+  const resolved = target.startsWith('/') ? target : resolve(absolute, target)
+  return resolved.includes(`${sep}worktrees${sep}`)
+}
+
 const byCodePoint = (left: TreeEntry, right: TreeEntry): number => {
   if (left.path === right.path) return 0
   return left.path < right.path ? -1 : 1
@@ -86,6 +99,7 @@ export async function walkTree({
         const absolute = join(root, path)
         if (dirent.isDirectory()) {
           if (isSkipped({ path, absolute, kind: EEntryKind.Directory })) return
+          if (await isSiblingWorktree({ root, absolute })) return
           entries.push({ path, kind: EEntryKind.Directory, mode: (await lstat(absolute)).mode & PERMISSION_BITS, target: null })
           descend.push(path)
           return

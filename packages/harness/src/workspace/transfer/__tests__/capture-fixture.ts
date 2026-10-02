@@ -122,9 +122,7 @@ export async function createFixture(): Promise<Fixture> {
   await git({ args: ['add', '.'], cwd: main })
   await git({ args: ['commit', '-m', 'initial'], cwd: main })
 
-  const nested = join(main, '.atlas', 'worktrees', 'feat')
-  await mkdir(join(main, '.atlas', 'worktrees'), { recursive: true })
-  await writeFile(join(main, '.atlas', 'worktrees', '.gitignore'), '*\n')
+  const nested = join(scratch, 'feat')
   await git({ args: ['worktree', 'add', nested, '-b', 'feat'], cwd: main })
   const detached = join(scratch, 'detached')
   await git({ args: ['worktree', 'add', '--detach', detached, 'HEAD'], cwd: main })
