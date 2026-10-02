@@ -1317,6 +1317,14 @@ new spawn records. Source execution stays frozen after commitment, and sandbox d
 post-commit cleanup. Reconnect reads the current remote history without replaying an already-applied
 workspace or transcript bootstrap generation.
 
+Once a lift has proven the whole swap — the workspace archive restored in the cloud, the transcript
+verified, the placement committed, and the channel activated — the local session worktree is
+destroyed. The gate is not git's cleanliness heuristic but the lifted manifest: the tree's current
+fingerprint must match the fingerprint captured for the archive, proving a verified copy of exactly
+this state, dirty files included, is serving in the cloud. A mismatch means someone wrote locally
+after the capture, and the tree stays on disk with a warning; the lift is already complete, so
+nothing else follows. A session living in the main checkout is never destroyed.
+
 ## Cloud execution lifetime and attachment
 
 A cloud client owns its attachment, not the execution it observes. Closing, restarting, or losing
