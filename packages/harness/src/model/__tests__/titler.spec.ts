@@ -105,11 +105,11 @@ describe('titleFor', () => {
     expect(model.doGenerateCalls).toHaveLength(0)
   })
 
-  it('does not send a pasted file in full to be named', async () => {
+  it('sends the whole opening however long the paste is', async () => {
     const model = modelSaying('Long paste')
     await titleFor({ model, text: 'x'.repeat(9000) })
 
-    expect(promptTextOf(model).length).toBe(2000)
+    expect(promptTextOf(model).length).toBe(9000)
   })
 
   it('asks for the name as structured output, with no cap a reasoning model can spend it all on', async () => {

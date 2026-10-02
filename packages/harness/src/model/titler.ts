@@ -12,7 +12,6 @@ const TITLE_INSTRUCTION = [
   'Reply with the name alone — no quotes, no trailing punctuation, no preamble.',
 ].join(' ')
 
-const PROMPT_CHARACTER_LIMIT = 2000
 const TITLE_WORD_LIMIT = 10
 const TITLE_CHARACTER_LIMIT = 96
 
@@ -62,7 +61,7 @@ export async function titleFor(args: {
   signal?: AbortSignal | undefined
   fallback?: (() => LanguageModel | undefined) | undefined
 }): Promise<string | null> {
-  const asked = args.text.trim().slice(0, PROMPT_CHARACTER_LIMIT)
+  const asked = args.text.trim()
   const shown = (args.images ?? []).filter((image) => inlinable(image))
   if (asked.length === 0 && shown.length === 0) return null
 
