@@ -15,6 +15,30 @@ export enum ECloudFreshness {
   Unknown = 'unknown',
 }
 
+export enum EParkedResume {
+  Synced = 'synced',
+  Behind = 'behind',
+  Unknown = 'unknown',
+}
+
+export type ParkedTranscriptRecord = {
+  checkpoint: RuntimeCheckpoint
+  applied: { head: number; count: number; digest: string } | null
+}
+
+export function parkedResumeOf(args: { record: ParkedTranscriptRecord | null }): EParkedResume {
+  const record = args.record
+  if (record === null) return EParkedResume.Unknown
+  if (record.checkpoint.phase !== ERuntimePhase.Parked) return EParkedResume.Unknown
+  if (record.applied === null) return EParkedResume.Behind
+  const transcript = record.checkpoint.transcript
+  const same =
+    transcript.head === record.applied.head &&
+    transcript.count === record.applied.count &&
+    transcript.digest === record.applied.digest
+  return same ? EParkedResume.Synced : EParkedResume.Behind
+}
+
 export function transcriptFreshnessOf(args: {
   threadId: string
   lifecycle: ECloudSandboxLifecycle

@@ -5,6 +5,7 @@ import { dirname } from 'node:path'
 import { z } from 'zod'
 
 import type { LogPort } from '@dltech/atlas-core'
+import { runtimeCheckpointSchema, transcriptCheckpointSchema } from '@dltech/atlas-wire'
 
 import { logFieldsOf } from '../logs'
 import { canMigrateToCurrent, migrateSessionDirectory } from './migrations'
@@ -79,6 +80,12 @@ export const threadMetaSchema = z.object({
         .nullable(),
     })
     .nullish(),
+  parkedTranscript: z
+    .object({
+      checkpoint: runtimeCheckpointSchema,
+      applied: transcriptCheckpointSchema.nullable(),
+    })
+    .nullish(),
 })
 
 export type ThreadMeta = z.infer<typeof threadMetaSchema>
@@ -102,6 +109,7 @@ export function newThreadMeta({ id, at }: { id: string; at: string }): ThreadMet
     modelEffort: null,
     executionLocation: null,
     placement: null,
+    parkedTranscript: null,
   }
 }
 

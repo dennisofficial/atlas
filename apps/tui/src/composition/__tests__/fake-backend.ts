@@ -85,7 +85,7 @@ export function fakeThreadStore(
 ): FakeThreadStore {
   const workspaceOf = args.workspace === undefined ? FAKE_WORKSPACE : args.workspace
   const placements = new Map<ThreadId, PlacementRecord>()
-  const parked = new Map<ThreadId, ParkedTranscriptRecord>()
+  const parkedTranscripts = new Map<ThreadId, ParkedTranscriptRecord>()
   const rows: ThreadSummary[] = (args.existing ?? []).map((id) => ({
     id,
     head: 0,
@@ -355,14 +355,6 @@ export function fakeThreadStore(
       return () => undefined
     },
 
-    async writeParkedTranscript({ threadId, record }) {
-      parked.set(threadId, record)
-    },
-
-    async readParkedTranscript({ threadId }) {
-      return parked.get(threadId) ?? null
-    },
-
     async readPlacement({ threadId }) {
       const row = rows.find((held) => held.id === threadId)
       if (row === undefined) return undefined
@@ -417,6 +409,14 @@ export function fakeThreadStore(
         rows.push(row)
       }
       if (row !== undefined) row.executionLocation = location
+    },
+
+    async writeParkedTranscript({ threadId, record }) {
+      parkedTranscripts.set(threadId, record)
+    },
+
+    async readParkedTranscript({ threadId }) {
+      return parkedTranscripts.get(threadId) ?? null
     },
 
     async rewind({ threadId, toSeq, cutAgents }) {

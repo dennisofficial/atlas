@@ -18,9 +18,11 @@ import {
 } from '@dltech/atlas-core'
 
 import type { OpenThreadArgs } from '../create-with-events'
+import type { ParkedTranscriptRecord } from '../../cloud/transcript-freshness'
 import { ForkSeqOutOfRange, ForkSourceMissing } from '../fork'
 import type { Unsubscribe } from '../../channel/delta-channel'
 import type { ModelChosenListener, PlacementChangedListener, RenameListener, SupervisedAgent, ThreadModel, ThreadStorePort, ThreadSummary, WritePlacementArgs } from '../thread-store'
+import { metaWithParkedTranscript, parkedTranscriptOf } from './parked-transcript-meta'
 import { metaWithPlacement, PlacementConflict, placementRecordOf } from './placement-meta'
 import {
   dropRewoundChildren,
@@ -217,6 +219,22 @@ export class JsonlThreadStore implements ThreadStorePort {
       await writeSessionMetaForRoot({ registry: this.registry, sessionDir, root: written, home: locationOfPlacement(record.placement) })
     }
     for (const listener of [...this.placementListeners]) listener({ threadId, record })
+  }
+
+  async writeParkedTranscript(args: { threadId: ThreadId; record: ParkedTranscriptRecord }): Promise<void> {
+    await this.updateMeta({
+      threadId: args.threadId,
+      change: (meta) => metaWithParkedTranscript({ meta, record: args.record }),
+    })
+  }
+
+  async readParkedTranscript(args: { threadId: ThreadId }): Promise<ParkedTranscriptRecord | null> {
+    const sessionDir = await this.registry.sessionDirOf({ threadId: args.threadId })
+    if (sessionDir === undefined) return null
+    const meta = tryReadThreadMeta({
+      file: threadMetaFile({ sessionDir, threadId: args.threadId }),
+    })
+    return meta === undefined ? null : parkedTranscriptOf(meta)
   }
 
   async chooseModel({

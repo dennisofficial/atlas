@@ -7,7 +7,9 @@ import {
   cloudLifecycleOf,
   ECloudFreshness,
   ECloudSandboxLifecycle,
+  EParkedResume,
   isTranscriptMuted,
+  parkedResumeOf,
   transcriptFreshnessOf,
 } from '../transcript-freshness'
 
@@ -102,6 +104,47 @@ describe('transcriptFreshnessOf', () => {
     expect(
       freshness({ checkpoint: checkpoint({ transcript: { head: 42, count: 42, digest: 'c'.repeat(64) } }) }),
     ).toBe(ECloudFreshness.Behind)
+  })
+})
+
+describe('parkedResumeOf', () => {
+  it('reads a missing record as unknown', () => {
+    expect(parkedResumeOf({ record: null })).toBe(EParkedResume.Unknown)
+  })
+
+  it('reads a checkpoint that is not parked as unknown', () => {
+    for (const phase of [ERuntimePhase.Running, ERuntimePhase.Stopped]) {
+      expect(
+        parkedResumeOf({ record: { checkpoint: checkpoint({ phase }), applied } }),
+      ).toBe(EParkedResume.Unknown)
+    }
+  })
+
+  it('reads a parked checkpoint with nothing applied yet as behind', () => {
+    expect(
+      parkedResumeOf({ record: { checkpoint: checkpoint(), applied: null } }),
+    ).toBe(EParkedResume.Behind)
+  })
+
+  it('reads a parked checkpoint matching the applied snapshot as synced', () => {
+    expect(
+      parkedResumeOf({ record: { checkpoint: checkpoint(), applied } }),
+    ).toBe(EParkedResume.Synced)
+  })
+
+  it('reads any head, count, or digest drift as behind', () => {
+    const cases = [
+      { head: 43, count: 42, digest: 'a'.repeat(64) },
+      { head: 42, count: 43, digest: 'a'.repeat(64) },
+      { head: 42, count: 42, digest: 'c'.repeat(64) },
+    ]
+    for (const drifted of cases) {
+      expect(
+        parkedResumeOf({
+          record: { checkpoint: checkpoint({ transcript: drifted }), applied },
+        }),
+      ).toBe(EParkedResume.Behind)
+    }
   })
 })
 
