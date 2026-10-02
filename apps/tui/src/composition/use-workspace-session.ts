@@ -11,7 +11,7 @@ import { useSince } from '../ui/hooks/use-since'
 import { channelTakingTurns } from './cloud/channel-ready'
 import { pasteDirectoryOf } from './paste-directory'
 import { unstartedConversation } from './open-conversation'
-import { useCloudSession } from './use-cloud-session'
+import { useCloudHealth } from './use-cloud-connection'
 import { useContainerMove } from './use-container-move'
 import { useConversation } from './use-conversation'
 import type { SettingsControl } from './use-settings'
@@ -64,7 +64,7 @@ export function useWorkspaceSession(args: {
     props.onMoveStep === undefined ? undefined : { onStep: props.onMoveStep },
   )
 
-  const cloudHealth = useCloudSession({ session: props.cloudSession })
+  const cloudHealth = useCloudHealth({ app: props.app, session: props.cloudSession })
 
   const connectionState = cloudHealth?.connection?.state
   const reconnectingSince = useSince(
