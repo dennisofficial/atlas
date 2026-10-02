@@ -142,7 +142,11 @@ async function stageAndPack({
     mounts.push({ mountPath: 'git', sourcePath: layout.commonDir, entries: admin.entries })
     const outputDir = join(stage, MATERIALIZED_DIRECTORY)
     await mkdir(outputDir)
-    const names = await packReachableObjects({ cwd: layout.trees[0]?.sourcePath ?? layout.commonDir, outputDir })
+    const names = await packReachableObjects({
+      cwd: layout.trees[0]?.sourcePath ?? layout.commonDir,
+      commonDir: layout.commonDir,
+      outputDir,
+    })
     relocated.push({ stageDirectory: MATERIALIZED_DIRECTORY, archiveDirectory: 'git/objects/pack', names })
     const refsDir = join(stage, LOGICAL_REFS_DIRECTORY)
     await mkdir(refsDir)

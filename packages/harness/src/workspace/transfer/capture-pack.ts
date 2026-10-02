@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -10,24 +10,33 @@ const REACHABILITY_FLAGS = ['--all', '--reflog', '--indexed-objects'] as const
 
 export async function packReachableObjects({
   cwd,
+  commonDir,
   outputDir,
 }: {
   cwd: string
+  commonDir: string
   outputDir: string
 }): Promise<string[]> {
-  const scratch = await mkdtemp(join(tmpdir(), 'atlas-pack-revs-'))
+  const stdinScratch = await mkdtemp(join(tmpdir(), 'atlas-pack-revs-'))
+  // pack-objects renames its temp file from .git/objects/pack onto the output prefix, so the
+  // output must share that filesystem — a stage under another mount fails the rename with EXDEV.
+  const packRoot = join(commonDir, 'objects', 'pack')
+  await mkdir(packRoot, { recursive: true })
+  const packScratch = await mkdtemp(join(packRoot, 'atlas-capture-'))
   try {
-    const stdinPath = join(scratch, 'revs')
+    const stdinPath = join(stdinScratch, 'revs')
     await writeFile(stdinPath, '')
     const run = await captureGit({
-      args: ['pack-objects', '--quiet', '--revs', ...REACHABILITY_FLAGS, join(outputDir, PACK_BASE)],
+      args: ['pack-objects', '--quiet', '--revs', ...REACHABILITY_FLAGS, join(packScratch, PACK_BASE)],
       cwd,
       stdinPath,
     })
     if (!run.ok) throw new Error(`Cannot pack the reachable objects of ${cwd}: ${run.stderr.trim()}`)
-    const written = await readdir(outputDir)
-    return written.filter((name) => name.startsWith(`${PACK_BASE}-`))
+    const written = (await readdir(packScratch)).filter((name) => name.startsWith(`${PACK_BASE}-`))
+    for (const name of written) await copyFile(join(packScratch, name), join(outputDir, name))
+    return written
   } finally {
-    await rm(scratch, { recursive: true, force: true })
+    await rm(stdinScratch, { recursive: true, force: true })
+    await rm(packScratch, { recursive: true, force: true })
   }
 }
