@@ -27,6 +27,7 @@ export const ModelInfoSchema = z.object({
   supported_in_api: z.boolean().optional(),
   minimal_client_version: z.unknown().optional(),
   context_window: z.number().nullish(),
+  max_context_window: z.number().nullish(),
 })
 
 export const ModelsResponseSchema = z.object({
@@ -54,6 +55,17 @@ function toEffortMap(levels: ModelInfo['supported_reasoning_levels']): EffortMap
   return Object.keys(map).length === 0 ? undefined : map
 }
 
+// The endpoint's `context_window` is Codex CLI's tuned default; `max_context_window` is the cap
+// for config overrides (codex-rs/protocol/src/openai_models.rs in openai/codex). The card's window
+// is the enforceable ceiling, so take whichever is larger.
+function toContextWindow(model: ModelInfo): number {
+  const present = [model.context_window, model.max_context_window].filter(
+    (value): value is number => typeof value === 'number',
+  )
+  if (present.length === 0) return CONTEXT_WINDOW_UNMEASURED
+  return Math.max(...present)
+}
+
 function toCard(args: { model: ModelInfo; providerId: string }): ModelCard {
   const effort = toEffortMap(args.model.supported_reasoning_levels)
 
@@ -61,7 +73,7 @@ function toCard(args: { model: ModelInfo; providerId: string }): ModelCard {
     ref: { providerId: args.providerId, modelId: args.model.slug },
     label: args.model.display_name ?? args.model.slug,
     api: 'openai-responses',
-    contextWindow: args.model.context_window ?? CONTEXT_WINDOW_UNMEASURED,
+    contextWindow: toContextWindow(args.model),
     imageTier: EImageTier.Standard,
     ...(effort === undefined ? {} : { effort }),
   }

@@ -11,6 +11,7 @@ import {
   type ModelCatalog,
   type ModelRef,
 } from '@dltech/atlas-core'
+import { enrichLiveCards } from '../models/enrich-live-cards'
 import { cardsForProvider, withoutDatedDuplicates } from '../models/generated-catalogue'
 import type { ProviderAdapter } from '../providers/adapter'
 import { AnthropicAdapter } from '../providers/anthropic-adapter'
@@ -63,7 +64,8 @@ type ResolvedCards = { providers: readonly CatalogueProvider[]; catalog: ModelCa
 /**
  * The codex subscription backend serves a plan-scoped subset of the OpenAI catalogue and 400s the
  * rest, so a ChatGPT login lists what the backend returned. A key bills against api.openai.com and
- * keeps the full static list.
+ * keeps the full static list. Live cards carry no price or output cap and may report no window, so
+ * the generated card for the same model fills whatever the live card leaves out.
  */
 function resolveCards(args: {
   adapters: readonly ProviderAdapter[]
@@ -76,8 +78,9 @@ function resolveCards(args: {
   for (const adapter of args.adapters) {
     const live = args.subscribed.has(adapter.id) ? args.live?.cards(adapter.id) : undefined
     if (live !== undefined && live.length > 0) {
-      providers.push({ id: adapter.id, label: adapter.label, cards: live })
-      catalogued.push(...live)
+      const enriched = enrichLiveCards({ live, generated: adapter.cards() })
+      providers.push({ id: adapter.id, label: adapter.label, cards: enriched })
+      catalogued.push(...enriched)
       continue
     }
     providers.push({
