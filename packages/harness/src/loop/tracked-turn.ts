@@ -2,8 +2,10 @@ import {
   awaitsReply,
   callIdsIn,
   dedupeCallIds,
+  EMPTY_STEP_RAW_RETRIES,
   pendingCalls,
   projectDirectoryOf,
+  retriableEmptyStep,
   rowsOwnedBy,
   type Assembled,
   type ThreadId,
@@ -34,6 +36,7 @@ type TurnPosition = {
   settleAttempted: CallId | undefined
   compacted: boolean
   silentSteps: number
+  silentRetries: number
   loopCuts: number
   watch: WatchState
   committedCalls: ModelToolCall[]
@@ -48,6 +51,7 @@ function openPosition(): TurnPosition {
     settleAttempted: undefined,
     compacted: false,
     silentSteps: 0,
+    silentRetries: 0,
     loopCuts: 0,
     watch: { warned: false, cutAnchors: [] },
     committedCalls: [],
@@ -216,17 +220,30 @@ export async function runTrackedTurn(
     const assembled = prepared.assembled
     position.previous = assembled
 
-    const stepped = await takeModelStepWithRetry({
-      model: deps.model,
-      tools: deps.tools(),
-      onChunk: deps.onChunk,
-      assembled,
-      signal: abortSignal,
-      retry: deps.retry,
-      prepare: prepareAttempt,
-    })
+    const stepOnce = () =>
+      takeModelStepWithRetry({
+        model: deps.model,
+        tools: deps.tools(),
+        onChunk: deps.onChunk,
+        assembled,
+        signal: abortSignal,
+        retry: deps.retry,
+        prepare: prepareAttempt,
+      })
 
+    let stepped = await stepOnce()
     position.modelSteps += 1
+
+    if (
+      stepped.ok &&
+      position.silentRetries < EMPTY_STEP_RAW_RETRIES &&
+      retriableEmptyStep(stepped.result)
+    ) {
+      position.silentRetries += 1
+      spend.countStep(stepped.result.usage)
+      stepped = await stepOnce()
+    }
+
     position.settleAttempted = undefined
     if (stepped.ok && preparedThrough !== position.seenThrough) {
       position.previous = undefined
@@ -255,6 +272,7 @@ export async function runTrackedTurn(
     position.committedCalls.push(...stepped.result.toolCalls)
     if (stepped.result.toolCalls.length > 0) {
       position.silentSteps = 0
+      position.silentRetries = 0
       continue
     }
 
@@ -262,6 +280,7 @@ export async function runTrackedTurn(
     if (messageArrivedSince({ events: latest, seenThrough: position.seenThrough })) {
       await appendShellCompletionNudge({ log, threadId, runId, seenThrough: position.seenThrough })
       position.silentSteps = 0
+      position.silentRetries = 0
       continue
     }
 
@@ -272,6 +291,7 @@ export async function runTrackedTurn(
     }
     if (speech.wakesTurn) {
       position.silentSteps = 0
+      position.silentRetries = 0
       continue
     }
 
