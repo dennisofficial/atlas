@@ -49,7 +49,7 @@ export async function recoverSession(args: {
         if (action === ERecoveryAction.BindLocal || action === ERecoveryAction.KeepSource) {
           return localBindingOf({ local: app, workspace: app.workspace, opened: args.opened })
         }
-        const binding = await openCloudThread({ app, bridge: args.bridge(), threadId, onReload: args.onReload })
+        const binding = await openCloudThread({ app, bridge: args.bridge(), threadId, onReload: args.onReload, wakeFirst: true })
         const channel = cloudAttachmentOf(binding)?.session.channel
         if (channel === undefined) throw new Error('the recovered cloud runtime has no channel')
         try {

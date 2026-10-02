@@ -44,6 +44,7 @@ export const harness = (options?: {
   requestTimeoutMs?: number | undefined
   interruptAckTimeoutMs?: number | undefined
   lifecycleEscalation?: (() => Promise<EReconnectEscalation>) | undefined
+  unattached?: boolean | undefined
 }) => {
   const sockets: FakeSocket[] = []
   const retries: { delayMs: number; run: () => void }[] = []
@@ -51,8 +52,7 @@ export const harness = (options?: {
 
   const channel = createRemoteDeltaChannel({
     threadId: THREAD,
-    url: 'https://sandbox.test/',
-    token: 'tok_session',
+    ...(options?.unattached === true ? {} : { url: 'https://sandbox.test/', token: 'tok_session' }),
     lastEventSeq: () => options?.lastEventSeq ?? 0,
     maxAttempts: options?.maxAttempts,
     maxReattachments: options?.maxReattachments,

@@ -41,6 +41,7 @@ export type OpenedConversation = {
   bootCloudThreadId?: ThreadId | undefined
   resumeOnArrival?: boolean | undefined
   identity?: ThreadIdentity | undefined
+  appliedEvents?: readonly Event[] | undefined
 }
 
 export { closeConversation }

@@ -186,6 +186,7 @@ export function createThreadPager(args: {
 
 export type ThreadSnapshot = {
   events: readonly Event[];
+  all: readonly Event[];
   head: number;
   fromSeq: number;
   identity: ThreadIdentity;
@@ -204,6 +205,7 @@ export async function readThreadSnapshot(args: {
   const fromSeq = Math.max(0, head - THREAD_WINDOW_EVENTS);
   return {
     events: events.filter((event) => event.seq > fromSeq),
+    all: events,
     head,
     fromSeq,
     identity: { head, count: events.length, digest: args.digest(events) },

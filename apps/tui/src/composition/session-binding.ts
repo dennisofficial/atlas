@@ -29,6 +29,8 @@ export type CloudAttachment = {
   bridge: CloudBridge
   stores: CloudStores
   session: CloudSession
+  /** Set while the sandbox still has to be woken behind an already-rendered transcript. */
+  wakeInBackground?: (() => void) | undefined
 }
 
 export type LocalAttachment = { kind: 'local'; opened: OpenedConversation }
@@ -75,13 +77,21 @@ export const cloudBindingOf = (args: {
   runner: TurnRunner
   opened: OpenedConversation
   session: CloudSession
+  wakeInBackground?: (() => void) | undefined
 }): Binding => ({
   kind: ERuntimeKind.Cloud,
   cwd: args.anchor.workspace,
   adapters: {
     ...cloudRuntimeParts(args),
     workspace: args.anchor,
-    attachment: { kind: 'cloud', opened: args.opened, bridge: args.bridge, stores: args.stores, session: args.session },
+    attachment: {
+      kind: 'cloud',
+      opened: args.opened,
+      bridge: args.bridge,
+      stores: args.stores,
+      session: args.session,
+      ...(args.wakeInBackground === undefined ? {} : { wakeInBackground: args.wakeInBackground }),
+    },
   },
   close: () => args.session.close(),
 })

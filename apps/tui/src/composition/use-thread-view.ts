@@ -51,6 +51,8 @@ export type ThreadSeed = {
    * projection, which evicts rows past the retention cap and can never vouch for the whole log.
    */
   identity?: ThreadIdentity | undefined;
+  /** The full event array that identity was computed over, held so a park can persist it. */
+  appliedEvents?: readonly Event[] | undefined;
 };
 
 export type ThreadView = {

@@ -137,5 +137,6 @@ export type CloudAttachment = {
  */
 export type CloudBridge = {
   sandboxes: CloudSandboxes
-  attach(args: { threadId: ThreadId; url: string; token: string }): CloudAttachment
+  /** No `url`/`token` means deferred: a parked channel until `wake` applies an attachment. */
+  attach(args: { threadId: ThreadId; url?: string | undefined; token?: string | undefined }): CloudAttachment
 }

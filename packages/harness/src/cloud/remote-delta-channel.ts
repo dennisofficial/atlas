@@ -166,8 +166,9 @@ const registryOf = <T>() => {
 
 export function createRemoteDeltaChannel(args: {
   threadId: ThreadId
-  url: string
-  token: string
+  /** Absent means deferred: start {@link EChannelConnection.Parked} and open nothing until `wake`. */
+  url?: string | undefined
+  token?: string | undefined
   lastEventSeq?: (() => number) | undefined
   socketFactory?: ChannelSocketFactory | undefined
   scheduleRetry?: ((retry: { delayMs: number; run: () => void }) => void) | undefined
@@ -239,7 +240,10 @@ export function createRemoteDeltaChannel(args: {
   let generation = 0
   let url = args.url
   let token = args.token
-  let connection: ChannelConnection = { state: EChannelConnection.Connecting, detail: null }
+  const attached = url !== undefined && token !== undefined
+  let connection: ChannelConnection = attached
+    ? { state: EChannelConnection.Connecting, detail: null }
+    : { state: EChannelConnection.Parked, detail: null }
   let interruptPending = false
   let interruptSentGeneration = -1
   let heldCheckpoint: RuntimeCheckpoint | null = null
@@ -642,7 +646,7 @@ export function createRemoteDeltaChannel(args: {
   }
 
   const connect = (): ChannelSocket | null => {
-    if (abandoned) return null
+    if (abandoned || url === undefined || token === undefined) return null
     supersede()
     let mine: ChannelSocket | null = null
     const guarded = <A extends unknown[]>(handler: (...args: A) => void) =>
@@ -664,7 +668,7 @@ export function createRemoteDeltaChannel(args: {
     return mine
   }
 
-  connect()
+  if (attached) connect()
 
   return {
     threadId: args.threadId,
