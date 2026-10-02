@@ -66,6 +66,31 @@ const openAiCards = (catalogue: ReturnType<typeof catalogueWith>) =>
   catalogue.providers.find((provider) => provider.id === OPENAI_PROVIDER_ID)?.cards ?? []
 
 describe('live codex cards in the catalogue', () => {
+  it("fills the live card with the generated model's price and leaves its window alone", () => {
+    const generatedCard = cardsForProvider(OPENAI_PROVIDER_ID).find(
+      (card) => card.ref.modelId === 'gpt-6.1-sol' && card.cost !== undefined,
+    )
+    expect(generatedCard?.cost).toBeDefined()
+    if (generatedCard === undefined) return
+
+    const unpricedLive: ModelCard = {
+      ref: generatedCard.ref,
+      label: 'GPT-6.1 Sol (live)',
+      api: 'openai-responses',
+      contextWindow: 872_000,
+      imageTier: EImageTier.Standard,
+    }
+    const catalogue = catalogueWith({ kind: EAuthKind.Oauth, live: liveOf([unpricedLive]).live })
+    const resolved = catalogue.cardFor(generatedCard.ref)
+
+    expect(resolved).toMatchObject({
+      label: 'GPT-6.1 Sol (live)',
+      contextWindow: 872_000,
+      cost: generatedCard.cost,
+      maxOutputTokens: generatedCard.maxOutputTokens,
+    })
+  })
+
   it('uses the live list for a ChatGPT login, in the picker and the card lookup', () => {
     const catalogue = catalogueWith({ kind: EAuthKind.Oauth, live: liveOf([LIVE_CARD]).live })
 
