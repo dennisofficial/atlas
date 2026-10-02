@@ -1065,7 +1065,9 @@ until the fold carried it there.
 
 **Two sessions cannot work the same worktree.** Entering claims it with `git worktree lock`, whose
 reason is a legible ownership token — `atlas thread <id> (pid <n> start <t>)`. The start time is
-load-bearing: a pid alone is reusable, so a recycled pid would read as a live owner forever. Reading
+load-bearing: a pid alone is reusable, so a recycled pid would read as a live owner forever. It is
+read from `ps`, falling back to `/proc` so a sandbox image without `ps` (or a Cloud sandbox, where
+pids recycle across restarts) still writes a comparable start time. Reading
 it back is a four-way verdict rather than a flag check, and only the pure part lives in `core`
 (`worktreeLockHolder`) with the process probing in `harness`, because "is that pid alive" is I/O and
 "what does this reason mean" is not.
@@ -1078,9 +1080,14 @@ guest — the same as when the registry cannot be read at all. Refusing to enter
 one case where another agent is actually there.
 
 Leaving releases the lock, and so does switching straight to another worktree, so the one being left
-does not stay wedged. Removal releases first because git will not remove a locked worktree — which
-is also the cost of this scheme: a session that dies takes its lock with it, and the checkout stays
-locked until some later Atlas session reclaims it or the developer runs `git worktree unlock`.
+does not stay wedged. A thread whose ending is recorded hands back any worktree it claimed of its
+own — in a shared serve process the whole thread family is one pid, so a teammate's claim would
+otherwise outlive the teammate by the lifetime of the process. A committed lift or descend flip
+releases the origin checkout's claim: the session now runs on the other side, and the origin's
+release paths never fire again. Removal releases first because git will not remove a locked
+worktree — which is also the cost of this scheme: a session that dies takes its lock with it, and
+the checkout stays locked until some later Atlas session reclaims it or the developer runs
+`git worktree unlock`.
 
 Thread opens re-claim under one exception. A teammate spawns in its spawner's worktree by
 inheritance, and while it has not moved out of it the spawner's own claim already covers it — the
