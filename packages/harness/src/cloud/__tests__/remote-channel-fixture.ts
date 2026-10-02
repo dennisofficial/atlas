@@ -42,6 +42,7 @@ export const harness = (options?: {
   maxReattachments?: number | undefined
   reattach?: (() => Promise<{ url: string; token: string }>) | undefined
   requestTimeoutMs?: number | undefined
+  unwrittenRequestTimeoutMs?: number | undefined
   interruptAckTimeoutMs?: number | undefined
   lifecycleEscalation?: (() => Promise<EReconnectEscalation>) | undefined
 }) => {
@@ -59,6 +60,7 @@ export const harness = (options?: {
     reattach: options?.reattach,
     lifecycleEscalation: options?.lifecycleEscalation,
     requestTimeoutMs: options?.requestTimeoutMs,
+    unwrittenRequestTimeoutMs: options?.unwrittenRequestTimeoutMs,
     interruptAckTimeoutMs: options?.interruptAckTimeoutMs,
     scheduleRetry: (retry) => void retries.push(retry),
     scheduleTimeout: (timeout) => void timeouts.push(timeout),
