@@ -113,7 +113,13 @@ mailbox written by deliveries and subscribe-pulls, not a read-through cache with
 
 ## API surface (apps/api, NestJS, versioned `/v1`)
 
-All routes require a session (`SessionAuthGuard`) except the webhook receiver.
+All routes require a caller the session layer recognizes — a better-auth session or a
+thread-scoped sandbox token (`SessionOrSandboxGuard` + `@SandboxReachable`, the guard resolving
+the sandbox to its owning user so everything downstream still acts as that user) — except the
+webhook receiver. The serve process inside a container holds only the sandbox token, and these
+routes are exactly why it exists: when the realtime stack shipped (2026-09-28) they were
+session-only, the serve's every call 401ed, and cloud sessions went silently untracked until
+this guard opened to it.
 
 ### Subscriptions (client-facing)
 
@@ -266,6 +272,8 @@ state instead.
 | Failure | Behavior |
 | --- | --- |
 | Signed out | `gh` polling, unchanged (degraded mode) |
+| Serve holds only a thread-scoped sandbox token | The realtime routes accept it through `SessionOrSandboxGuard` + `@SandboxReachable` and act as the owning user; a future removal of that opt-in kills cloud tracking silently — the port now logs a warn the moment the API starts refusing it |
+| Direct (never-lifted) cloud arrival | The arrival's `location-changed` carries the restored checkout's `remoteUrl`/`branch` (probed server-side), so the cloud-checkout fold can build a tracked checkout without a lift marker |
 | Cloud session dead (401) | Tile shows last-known state muted; re-sign-in restores |
 | User not repo admin (hook create 403/404) | Subscription marked poll-backed: the API polls GitHub as the user every 30s for that repo's subscribed PRs, pushes diffs over the same SSE stream |
 | Lost webhook delivery (deploy kill, 5xx, GitHub never retries) | Re-anchor sweep: a hook-backed PR whose state row went 10 min without webhook writes (or has none at all) gets one REST read as the subscribing user, which also recreates the missing row that would blind later check events for that PR |

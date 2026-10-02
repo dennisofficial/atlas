@@ -9,9 +9,10 @@ import {
   UseGuards,
 } from '@nestjs/common'
 import { Observable, type Subscriber } from 'rxjs'
+import { SandboxReachable } from '../../../_core/decorators/sandbox-reachable.decorator'
 import type { AuthenticatedRequest } from '../../../_core/types/auth.types'
-import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
 import { DrainStateService } from '../../platform/health/drain-state.service'
+import { SessionOrSandboxGuard } from '../../platform/sessions/session-or-sandbox.guard'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { EPrRealtimeEvent } from './github-realtime.types'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
@@ -19,7 +20,8 @@ import { GithubSubscriptionsService } from './github-subscriptions.service'
 const HEARTBEAT_INTERVAL_MS = 30_000
 
 @Controller({ path: 'github/prs', version: '1' })
-@UseGuards(SessionAuthGuard)
+@UseGuards(SessionOrSandboxGuard)
+@SandboxReachable()
 export class GithubPrStreamController {
   private readonly logger = new Logger(GithubPrStreamController.name)
 
