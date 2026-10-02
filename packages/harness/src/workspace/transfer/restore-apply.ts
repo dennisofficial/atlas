@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 import { assertStillReplaceable } from './restore-destination'
 import { exists, makeDirs, mergeInto, moveEntry, stashEntry } from './restore-files'
 import { git, importObjects, mustGit } from './restore-git'
+import { OPERATION_STATE_ROOTS } from './git-state'
 import { sweepOriginals } from './restore-snapshot'
 import { importOtherRefs, loadRefState, settleBranch, type RefState } from './restore-refs'
 import { ETreeAction, type PlannedTree, type RestoreContext, type TreeOutcome } from './restore-types'
@@ -26,12 +27,31 @@ async function enableWorktreeConfig({ ctx }: { ctx: RestoreContext }) {
 async function installState({ ctx, planned, gitDir, skipHead }: { ctx: RestoreContext; planned: PlannedTree; gitDir: string; skipHead: boolean }) {
   const from = treePart({ ctx, planned, part: 'git-state' })
   if (!(await exists(from))) return
-  for (const child of await readdir(from)) {
+  const incoming = new Set(await readdir(from))
+  for (const child of incoming) {
     if (skipHead && child === 'HEAD') continue
     if (child === 'config.worktree') await enableWorktreeConfig({ ctx })
     const target = join(gitDir, child)
     await stashEntry({ path: target, key: join('state', planned.tree.id, child), journal: ctx.journal })
     await moveEntry({ from: join(from, child), to: target, journal: ctx.journal })
+  }
+  await pruneStaleState({ ctx, planned, gitDir, incoming })
+}
+
+async function pruneStaleState({
+  ctx,
+  planned,
+  gitDir,
+  incoming,
+}: {
+  ctx: RestoreContext
+  planned: PlannedTree
+  gitDir: string
+  incoming: ReadonlySet<string>
+}) {
+  for (const root of OPERATION_STATE_ROOTS) {
+    if (incoming.has(root)) continue
+    await stashEntry({ path: join(gitDir, root), key: join('stale', planned.tree.id, root), journal: ctx.journal })
   }
 }
 
