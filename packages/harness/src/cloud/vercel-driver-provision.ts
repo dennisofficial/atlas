@@ -3,6 +3,8 @@ import { randomBytes } from 'node:crypto'
 import type { Sandbox } from '@vercel/sandbox'
 
 import {
+  detachThenDeleteDrive,
+  driveExists,
   ensureDrive,
   waitForDriveDetached,
   type DriveSdk,
@@ -29,6 +31,48 @@ import {
   VercelFailure,
 } from './vercel-errors'
 
+/**
+ * A failed wake leaves whatever it created unless someone puts it back: the sandbox idles into
+ * Vercel's reaper and the drive keeps a workspace snapshot the next wake then treats as real.
+ * Rolls back only what this call created — a pre-existing drive is the thread's workspace and a
+ * pre-existing sandbox is the probe's decision, never this one's to remove. Best-effort: a
+ * rollback failure must not mask the failure that caused it.
+ */
+async function rollbackProvision(
+  deps: ProvisionDeps,
+  args: { name: string; driveName: string; created: boolean; driveExisted: boolean },
+): Promise<void> {
+  try {
+    if (args.created) {
+      const sandbox = await deps.sdk
+        .get({
+          ...deps.config.credentials,
+          name: args.name,
+          resume: false,
+          signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
+        })
+        .catch((lookup: unknown) => (isSandboxMissing(lookup) ? undefined : Promise.reject(lookup)))
+      if (sandbox !== undefined) {
+        await sandbox.delete({ signal: AbortSignal.timeout(30_000) })
+        deps.config.log?.(`rolled back sandbox ${args.name}, created by the failed wake`)
+      }
+    }
+    if (!args.driveExisted) {
+      await detachThenDeleteDrive({
+        sdk: deps.drives,
+        credentials: deps.config.credentials,
+        name: args.driveName,
+        retry: deps.attachLagRetry,
+      })
+      deps.config.log?.(`rolled back drive ${args.driveName}, created by the failed wake`)
+    }
+  } catch (rollbackFailure) {
+    deps.config.log?.(
+      `rollback of sandbox ${args.name} failed (${failureTextOf(rollbackFailure)}) — Vercel's idle reaper owns the sandbox; the drive stays until the next wake takes it`,
+    )
+  }
+}
+
 export type ProvisionDeps = {
   config: {
     credentials: VercelCredentials
@@ -42,6 +86,7 @@ export type ProvisionDeps = {
   drives: DriveSdk
   runtimeHealth: RuntimeActivityProbe
   attachLagRetry: RetryPolicy
+  imageOptimizeRetry: RetryPolicy
   launchServe: ServeLauncher
 }
 
@@ -79,9 +124,13 @@ export async function provisionSandbox(deps: ProvisionDeps, args: ProvisionArgs)
   const serveToken = args.token ?? randomBytes(32).toString('hex')
   const createStartedAt = Date.now()
   let created = false
+  // Defaults to the conservative answer: an unknown drive is treated as pre-existing, so a
+  // rollback can never delete a drive this wake did not create.
+  let driveExisted = true
   try {
     const { credentials } = deps.config
     const driveName = driveNameFor({ threadId: args.threadId })
+    driveExisted = await driveExists({ sdk: deps.drives, credentials, name: driveName })
     const drive = await ensureDrive({ sdk: deps.drives, credentials, name: driveName })
     const { probe, outdatedServe, outdatedProtocol } = await probeSandboxForResume({
       name: args.name,
@@ -117,6 +166,7 @@ export async function provisionSandbox(deps: ProvisionDeps, args: ProvisionArgs)
       cloudUrl: deps.config.cloudUrl,
       timeoutMs: deps.config.timeoutMs,
       retry: deps.attachLagRetry,
+      imageOptimize: deps.imageOptimizeRetry,
       log: deps.config.log,
       credentials,
       name: args.name,
@@ -157,6 +207,12 @@ export async function provisionSandbox(deps: ProvisionDeps, args: ProvisionArgs)
       ...(outdatedProtocol === undefined ? {} : { rotatedProtocol: outdatedProtocol }),
     }
   } catch (failure) {
+    await rollbackProvision(deps, {
+      name: args.name,
+      driveName: driveNameFor({ threadId: args.threadId }),
+      created,
+      driveExisted,
+    })
     if (failure instanceof SandboxMissingError) throw failure
     if (failure instanceof VercelFailure) throw failure
     deps.config.log?.(

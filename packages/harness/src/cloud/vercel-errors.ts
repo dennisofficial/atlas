@@ -42,6 +42,23 @@ export const isSandboxMissing = (error: unknown): boolean => {
   return error.response.status === 410 && snapshotCodeOf(error.json) === 'snapshot_not_found'
 }
 
+const isImageNotReady = (failure: unknown): boolean => {
+  if (!(failure instanceof APIError)) return false
+  return failure.response.status === 409 && snapshotCodeOf(failure.json) === 'image_not_ready'
+}
+
+/**
+ * Vercel answers a sandbox create with 409 `image_not_ready` in two flavors that share the code
+ * and differ only in the message: "not ready" while the image is still optimizing (worth
+ * retrying, observed end-to-end in about two minutes) and "optimization failed", which Vercel
+ * caches against the image's digest and never retried on its own in October 2026 probes.
+ */
+export const isImageOptimizeLag = (failure: unknown): boolean =>
+  isImageNotReady(failure) && !failureTextOf(failure).includes('optimization failed')
+
+export const isImageOptimizeFailure = (failure: unknown): boolean =>
+  isImageNotReady(failure) && failureTextOf(failure).includes('optimization failed')
+
 export const asVercelFailure = (failure: unknown): Error => {
   if (failure instanceof APIError) return new Error(vercelMessageOf(failure))
   if (failure instanceof Error) return failure
@@ -51,6 +68,7 @@ export const asVercelFailure = (failure: unknown): Error => {
 export enum EVercelFailure {
   Unknown = 'unknown',
   DriveAttached = 'drive-attached',
+  ImageOptimize = 'image-optimize',
 }
 
 export class VercelFailure extends Error {

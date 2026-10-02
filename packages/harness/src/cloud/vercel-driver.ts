@@ -3,7 +3,7 @@ import type { Sandbox } from '@vercel/sandbox'
 import { detachThenDeleteDrive, liveDriveSdk, type DriveSdk } from './drive-lifecycle'
 import { driveNameFor } from './drive-names'
 import { probeRuntimeActivity, type RuntimeActivityProbe } from './resume-probe'
-import { attachLagRetry, type RetryPolicy } from './retry-policy'
+import { attachLagRetry, imageOptimizeRetry, type RetryPolicy } from './retry-policy'
 import { createServeLauncher, type ServeLauncher } from './serve-launch'
 import { tailServeLog, transcriptPresent, writeBootstrapFile } from './vercel-driver-probes'
 import { provisionSandbox, type ProvisionArgs } from './vercel-driver-provision'
@@ -38,6 +38,7 @@ export class VercelDriver {
   private readonly inflightLaunches = new WeakMap<object, Promise<void>>()
   private readonly runtimeActivity: RuntimeActivityProbe = probeRuntimeActivity
   private readonly attachLagRetry: RetryPolicy
+  private readonly imageOptimizeRetry: RetryPolicy
 
   private readonly drives: DriveSdk
 
@@ -55,12 +56,15 @@ export class VercelDriver {
       driveSdk?: DriveSdk | undefined
       /** The attach-detach lag budget the delete and mount retries share; a spec passes zero delays. */
       attachLagRetry?: RetryPolicy | undefined
+      /** Budget for waiting out a freshly published image's optimization lag. */
+      imageOptimizeRetry?: RetryPolicy | undefined
       runtimeHealth?: RuntimeActivityProbe | undefined
     },
   ) {
     this.sdk = args.sdk ?? liveSdk
     this.drives = args.driveSdk ?? liveDriveSdk
     this.attachLagRetry = args.attachLagRetry ?? attachLagRetry
+    this.imageOptimizeRetry = args.imageOptimizeRetry ?? imageOptimizeRetry
     if (args.runtimeHealth !== undefined) this.runtimeActivity = args.runtimeHealth
   }
 
@@ -72,6 +76,7 @@ export class VercelDriver {
         drives: this.drives,
         runtimeHealth: this.runtimeActivity,
         attachLagRetry: this.attachLagRetry,
+        imageOptimizeRetry: this.imageOptimizeRetry,
         launchServe: (launchArgs: Parameters<ServeLauncher>[0]) =>
           this.dedupedLaunch({
             sandbox: launchArgs.sandbox,

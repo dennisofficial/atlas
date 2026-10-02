@@ -16,6 +16,8 @@ import {
   EVercelFailure,
   failureTextOf,
   isDriveAttachedConflict,
+  isImageOptimizeFailure,
+  isImageOptimizeLag,
   VercelFailure,
 } from './vercel-errors'
 
@@ -24,6 +26,7 @@ export async function mountWithRetries(args: {
   cloudUrl: string
   timeoutMs?: number | undefined
   retry: RetryPolicy
+  imageOptimize: RetryPolicy
   log?: ((line: string) => void) | undefined
   credentials: VercelCredentials
   name: string
@@ -36,7 +39,7 @@ export async function mountWithRetries(args: {
   pinnedModel?: string | undefined
   onCreate: () => Promise<void>
 }): Promise<Sandbox> {
-  for (let attempt = 1; ; attempt++) {
+  for (let attempt = 1, optimizeWaits = 0; ; attempt++) {
     try {
       return await args.sdk.getOrCreate({
         ...args.credentials,
@@ -65,6 +68,29 @@ export async function mountWithRetries(args: {
         signal: AbortSignal.timeout(SANDBOX_LAUNCH_TIMEOUT_MS),
       })
     } catch (failure) {
+      if (isImageOptimizeFailure(failure)) {
+        throw new VercelFailure({
+          kind: EVercelFailure.ImageOptimize,
+          message:
+            `sandbox image ${args.image} failed Vercel's optimization, and Vercel pins that ` +
+            `failure to the published digest — waiting cannot fix it. Re-running the release's ` +
+            `sandbox-image retag publishes the same tag under a fresh digest.`,
+        })
+      }
+      if (isImageOptimizeLag(failure)) {
+        optimizeWaits += 1
+        if (optimizeWaits > args.imageOptimize.attempts) {
+          throw new VercelFailure({
+            kind: EVercelFailure.Unknown,
+            message: `sandbox ${args.name} still waiting on Vercel to optimize image ${args.image} after ${args.imageOptimize.attempts} retries`,
+          })
+        }
+        args.log?.(
+          `Vercel is still optimizing image ${args.image} (wait ${optimizeWaits}/${args.imageOptimize.attempts})`,
+        )
+        await retrySleep(args.imageOptimize)
+        continue
+      }
       if (!isDriveAttachedConflict(failure)) throw failure
       const retry = args.retry
       if (attempt >= retry.attempts) {
