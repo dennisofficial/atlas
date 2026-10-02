@@ -4,11 +4,12 @@ import { basename, dirname, join, resolve, sep } from 'node:path'
 
 import { treeMountPath, writeArchive, type ArchiveMount, type Relocation } from './archive'
 import { digestGitAdmin } from './capture-admin'
+import { noIgnoreFilter, resolveIgnoreFilter } from './capture-ignore'
 import { assertPortable, treeSkipRule, walkTree, type TreeEntry } from './capture-files'
 import { snapshotWorkspaceTree, type TreeSnapshot } from './capture-fingerprint'
 import { discoverLayout, type LayoutTree, type WorkspaceLayout } from './capture-layout'
 import { listLogicalRefs, stageLogicalRefs } from './capture-refs'
-import { materializeBorrowedObjects } from './capture-objects'
+import { packReachableObjects } from './capture-pack'
 import {
   absoluteGitDir,
   collectCommonAdmin,
@@ -72,9 +73,15 @@ async function collectTree({
   tree: LayoutTree
   layout: WorkspaceLayout
 }): Promise<Collected> {
+  const ignore = layout.commonDir === null ? noIgnoreFilter : await resolveIgnoreFilter({ cwd: tree.sourcePath })
   const walk = await walkTree({
     root: tree.sourcePath,
-    isSkipped: treeSkipRule({ root: tree.sourcePath, excludedRoots: tree.excludedRoots }),
+    isSkipped: treeSkipRule({
+      root: tree.sourcePath,
+      excludedRoots: tree.excludedRoots,
+      isCaptured: ignore.isCaptured,
+      isCapturedDir: ignore.isCapturedDir,
+    }),
   })
   assertPortable({ unportable: walk.unportable, label: tree.sourcePath })
   if (layout.commonDir === null) {
@@ -134,20 +141,15 @@ async function stageAndPack({
     mounts.push({ mountPath: 'git', sourcePath: layout.commonDir, entries: admin.entries })
     const outputDir = join(stage, MATERIALIZED_DIRECTORY)
     await mkdir(outputDir)
-    const names = await materializeBorrowedObjects({
-      commonDir: layout.commonDir,
-      treeRoots: layout.trees.map((tree) => tree.sourcePath),
-      outputDir,
-    })
+    const names = await packReachableObjects({ cwd: layout.trees[0]?.sourcePath ?? layout.commonDir, outputDir })
     relocated.push({ stageDirectory: MATERIALIZED_DIRECTORY, archiveDirectory: 'git/objects/pack', names })
-    const main = layout.trees.find((tree) => tree.isMain)
     const refsDir = join(stage, LOGICAL_REFS_DIRECTORY)
     await mkdir(refsDir)
     relocated.push({
       stageDirectory: LOGICAL_REFS_DIRECTORY,
       archiveDirectory: 'git',
       names: await stageLogicalRefs({
-        refs: await listLogicalRefs({ cwd: main?.sourcePath ?? layout.commonDir }),
+        refs: await listLogicalRefs({ cwd: layout.trees[0]?.sourcePath ?? layout.commonDir }),
         outputDir: refsDir,
       }),
     })

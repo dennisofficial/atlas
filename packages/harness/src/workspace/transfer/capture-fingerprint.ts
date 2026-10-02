@@ -4,6 +4,7 @@ import { basename } from 'node:path'
 import { join } from 'node:path'
 
 import { captureGit } from './capture-git'
+import { noIgnoreFilter, resolveIgnoreFilter } from './capture-ignore'
 import { listCapturedWorktrees } from './capture-layout'
 import {
   assertPortable,
@@ -107,7 +108,16 @@ export async function snapshotWorkspaceTree({
   const root = await realpath(cwd)
   const worktrees = await worktreePathsOf({ root })
   const excluded = [...excludedRoots, ...(worktrees ?? []).filter((path) => path !== root)]
-  const walk = await walkTree({ root, isSkipped: treeSkipRule({ root, excludedRoots: excluded }) })
+  const ignore = worktrees === null ? noIgnoreFilter : await resolveIgnoreFilter({ cwd: root })
+  const walk = await walkTree({
+    root,
+    isSkipped: treeSkipRule({
+      root,
+      excludedRoots: excluded,
+      isCaptured: ignore.isCaptured,
+      isCapturedDir: ignore.isCapturedDir,
+    }),
+  })
   assertPortable({ unportable: walk.unportable, label: root })
 
   const logical = worktrees === null ? null : await gitLogicalState({ root, headRef })

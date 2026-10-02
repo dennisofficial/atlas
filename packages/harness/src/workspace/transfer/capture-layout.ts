@@ -51,17 +51,6 @@ const readReceipt = async ({ commonDir }: { commonDir: string }): Promise<Worksp
 const isInside = ({ parent, child }: { parent: string; child: string }): boolean =>
   child === parent || child.startsWith(parent.endsWith(sep) ? parent : `${parent}${sep}`)
 
-const activeOf = ({ trees, cwd }: { trees: readonly LayoutTree[]; cwd: string }) => {
-  const containing = trees
-    .filter((tree) => isInside({ parent: tree.sourcePath, child: cwd }))
-    .sort((left, right) => right.sourcePath.length - left.sourcePath.length)[0]
-  if (containing === undefined) {
-    throw new Error(`${cwd} is not inside any worktree of the repository`)
-  }
-  const segments = relative(containing.sourcePath, cwd).split(sep).filter((part) => part.length > 0)
-  return { activeId: containing.id, activeRelativePath: segments.join('/') }
-}
-
 async function plainLayout(cwd: string): Promise<WorkspaceLayout> {
   const receipt = await readPlainWorkspaceReceipt({ path: await plainReceiptPath({ root: cwd }) })
   const id = receipt?.treeId ?? MAIN_ID
@@ -102,32 +91,35 @@ export async function discoverLayout({ cwd: requested }: { cwd: string }): Promi
 
   const commonDir = await realpath(await absoluteCommonDir({ cwd }))
   const receipt = await readReceipt({ commonDir })
-  const paths = worktrees.map((worktree) => worktree.path)
-  const trees = worktrees.map((worktree): LayoutTree => {
-    const known = receipt?.trees.find((entry) => entry.path === worktree.path)
-    const head = worktree.head === undefined || ZERO_HEAD.test(worktree.head) ? null : worktree.head
-    return {
-      id: known?.id ?? (worktree.isMain ? MAIN_ID : idForPath(worktree.path)),
-      name: worktree.isMain ? MAIN_NAME : basename(worktree.path),
-      sourcePath: worktree.path,
-      originPath: known?.originPath ?? worktree.path,
-      branch: worktree.branch ?? null,
-      head,
-      baseline: known?.baseline ?? null,
-      isMain: worktree.isMain,
-      excludedRoots: paths.filter((path) => path !== worktree.path),
-    }
-  })
-  const main = trees.find((tree) => tree.isMain)
-  if (main === undefined) throw new Error(`Cannot find the main worktree of ${cwd}`)
-  if (new Set(trees.map((tree) => tree.id)).size !== trees.length) {
-    throw new Error(`Transfer receipt in ${commonDir} assigns duplicate tree ids`)
+  const active = worktrees
+    .filter((worktree) => isInside({ parent: worktree.path, child: cwd }))
+    .sort((left, right) => right.path.length - left.path.length)[0]
+  if (active === undefined) {
+    throw new Error(`${cwd} is not inside any worktree of the repository`)
   }
-
+  const known = receipt?.trees.find((entry) => entry.path === active.path)
+  const head = active.head === undefined || ZERO_HEAD.test(active.head) ? null : active.head
+  const tree: LayoutTree = {
+    id: known?.id ?? (active.isMain ? MAIN_ID : idForPath(active.path)),
+    name: active.isMain ? MAIN_NAME : basename(active.path),
+    sourcePath: active.path,
+    originPath: known?.originPath ?? active.path,
+    branch: active.branch ?? null,
+    head,
+    baseline: known?.baseline ?? null,
+    isMain: active.isMain,
+    excludedRoots: [],
+  }
+  const segments = relative(active.path, cwd).split(sep).filter((part) => part.length > 0)
+  const main = worktrees.find((worktree) => worktree.isMain)
   return {
-    repository: { sourcePath: main.sourcePath, originPath: receipt?.repositoryOrigin ?? main.sourcePath },
+    repository: {
+      sourcePath: tree.sourcePath,
+      originPath: receipt?.repositoryOrigin ?? main?.path ?? tree.sourcePath,
+    },
     commonDir,
-    trees,
-    ...activeOf({ trees, cwd }),
+    trees: [tree],
+    activeId: tree.id,
+    activeRelativePath: segments.join('/'),
   }
 }

@@ -10,7 +10,7 @@ const PARTIAL_PREFIX = 'tmp_'
 const GC_PID = 'gc.pid'
 const RECEIPT_NAME = 'atlas-transfer.json'
 
-const COMMON_EXCLUDED_ROOTS = new Set(['worktrees', 'index', 'refs', 'packed-refs', RECEIPT_NAME, GC_PID])
+const COMMON_EXCLUDED_ROOTS = new Set(['worktrees', 'index', 'refs', 'packed-refs', 'objects', 'ai', RECEIPT_NAME, GC_PID])
 const LINKED_EXCLUDED_ROOTS = new Set(['commondir', 'gitdir', 'index', 'locked'])
 
 const baseOf = (path: string): string => path.slice(path.lastIndexOf('/') + 1)

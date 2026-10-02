@@ -20,7 +20,7 @@ export type UnportableEntry = { path: string; kind: string }
 
 export type TreeWalk = { entries: TreeEntry[]; unportable: UnportableEntry[] }
 
-export type SkipRule = (args: { path: string; absolute: string }) => boolean
+export type SkipRule = (args: { path: string; absolute: string; kind?: EEntryKind | undefined }) => boolean
 
 const PERMISSION_BITS = 0o7777
 const NESTED_GIT_NAME = '.git'
@@ -45,12 +45,20 @@ export const hashFile = (path: string): Promise<string> =>
 export const treeSkipRule = ({
   root,
   excludedRoots,
+  isCaptured,
+  isCapturedDir,
 }: {
   root: string
   excludedRoots: readonly string[]
+  isCaptured?: ((path: string) => boolean) | undefined
+  isCapturedDir?: ((path: string) => boolean) | undefined
 }): SkipRule => {
   const excluded = new Set(excludedRoots.map((excludedRoot) => resolve(excludedRoot)))
-  return ({ path }) => path === NESTED_GIT_NAME || excluded.has(join(root, path))
+  return ({ path, kind }) => {
+    if (path === NESTED_GIT_NAME || excluded.has(join(root, path))) return true
+    if (kind === EEntryKind.Directory) return isCapturedDir !== undefined && !isCapturedDir(path)
+    return isCaptured !== undefined && !isCaptured(path)
+  }
 }
 
 const byCodePoint = (left: TreeEntry, right: TreeEntry): number => {
@@ -76,18 +84,20 @@ export async function walkTree({
       dirents.map(async (dirent) => {
         const path = relative === '' ? dirent.name : `${relative}/${dirent.name}`
         const absolute = join(root, path)
-        if (isSkipped({ path, absolute })) return
         if (dirent.isDirectory()) {
+          if (isSkipped({ path, absolute, kind: EEntryKind.Directory })) return
           entries.push({ path, kind: EEntryKind.Directory, mode: (await lstat(absolute)).mode & PERMISSION_BITS, target: null })
           descend.push(path)
           return
         }
         if (dirent.isSymbolicLink()) {
+          if (isSkipped({ path, absolute, kind: EEntryKind.Symlink })) return
           const target = await readlink(absolute)
           entries.push({ path, kind: EEntryKind.Symlink, mode: 0, target })
           return
         }
         if (dirent.isFile()) {
+          if (isSkipped({ path, absolute, kind: EEntryKind.File })) return
           const info = await lstat(absolute)
           entries.push({ path, kind: EEntryKind.File, mode: info.mode & PERMISSION_BITS, target: null })
           return
