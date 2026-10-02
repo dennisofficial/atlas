@@ -138,11 +138,16 @@ export type RemotePendingEntry = {
 /**
  * The sandbox's queue, broadcast over the wire: reserved entries are already claimed by the
  * turn's intake, so they render without the take-back affordance — pressing ↑ can no longer
- * reach them.
+ * reach them. An entry whose text a live "sending…" placeholder already covers is suppressed —
+ * the placeholder and the queue row are two projections of the same steer, and the placeholder
+ * renders first (it needs no round trip), so it is the one that stays.
  */
-const remoteOperatorRows = (entries: readonly RemotePendingEntry[]): readonly PendingRow[] =>
+const remoteOperatorRows = (
+  entries: readonly RemotePendingEntry[],
+  sendingTexts: ReadonlySet<string>,
+): readonly PendingRow[] =>
   entries
-    .filter((entry) => !entry.reserved)
+    .filter((entry) => !entry.reserved && !sendingTexts.has(entry.text))
     .map(
       (entry): PendingRow => ({
         kind: EPendingKind.Operator,
@@ -164,8 +169,11 @@ export function pendingRows(args: {
 }): readonly PendingRow[] {
   const { agents, services } = args
   const sending = args.sending ?? []
+  const sendingTexts = new Set(sending.filter((one) => !one.failed).map((one) => one.text))
   const operator =
-    args.remoteEntries === undefined ? operatorRows(args.entries) : remoteOperatorRows(args.remoteEntries)
+    args.remoteEntries === undefined
+      ? operatorRows(args.entries)
+      : remoteOperatorRows(args.remoteEntries, sendingTexts)
   if (
     operator.length === 0 &&
     args.notices.length === 0 &&

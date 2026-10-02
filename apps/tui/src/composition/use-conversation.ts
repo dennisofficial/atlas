@@ -527,9 +527,16 @@ export function useConversation(args: {
     (): PendingSaid | null | Promise<PendingSaid | null> => {
       if (moving) return null
       if (cloudRunner === null) return pending.takeBackLast()
-      return cloudRunner.takeBackPending({ threadId })
+      /**
+       * A recalled steer never commits, so its "sending…" placeholder has nothing to reconcile
+       * against and would stick forever. Resolve it as the recall is confirmed.
+       */
+      return cloudRunner.takeBackPending({ threadId }).then((said) => {
+        if (said !== null) sending.resolve(said.text)
+        return said
+      })
     },
-    [cloudRunner, moving, pending, threadId],
+    [cloudRunner, moving, pending, sending, threadId],
   )
 
   /**
