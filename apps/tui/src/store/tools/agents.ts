@@ -1,4 +1,4 @@
-import { EAgentStatus } from '@dltech/atlas-core'
+import { agentDisplayName, EAgentStatus } from '@dltech/atlas-core'
 
 import { ECallState, type ToolCall } from '../tool-runs'
 import { EDetail, EToolClass, type Classification } from './kinds'
@@ -43,11 +43,14 @@ const AGENT_NOTE: Record<string, (call: ToolCall) => string> = {
 }
 
 const agentNameOf = (args: { call: ToolCall; cwd: string }): string => {
+  const output = outputOf(args.call)
   const input = inputOf(args.call)
-  const intent = str(input.intent)
-  if (intent !== undefined && intent.trim() !== '') return intent.trim()
+  const intent = str(output.intent) ?? str(input.intent)
+  if (intent !== undefined && intent.trim() !== '') {
+    return agentDisplayName({ agentType: str(output.agentType) ?? 'agent', intent })
+  }
 
-  return str(input.agentType) ?? str(input.agentId) ?? 'a sub-agent'
+  return str(output.agentType) ?? str(input.agentType) ?? str(input.agentId) ?? 'a sub-agent'
 }
 
 type Tally = { listed: number; running: number; blocked: number; ended: number }

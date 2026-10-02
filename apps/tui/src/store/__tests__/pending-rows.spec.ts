@@ -145,7 +145,7 @@ describe('what waits under the working indicator', () => {
     expect(rows[0]).toEqual({
       kind: EPendingKind.Agent,
       id: 'agent-finished-thread-child',
-      text: 'Sub-agent explore "audit the credential vault" finished after 3 turns and 12 tool calls',
+      text: 'Sub-agent audit the credential finished after 3 turns and 12 tool calls',
       failed: false,
       body: null,
       entryKind: EEntryKind.AgentEnded,

@@ -53,6 +53,7 @@ export class AgentStopTool extends SchemaTool<typeof inputSchema> {
       output: {
         agentId: snapshot.agentId,
         agentType: snapshot.agentType,
+        intent: snapshot.intent,
         status: snapshot.status,
         ...(alreadyOver ? { killedBy: snapshot.killedBy } : { stopRequestedBy: EKilledBy.Model }),
       },

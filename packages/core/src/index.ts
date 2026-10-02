@@ -95,6 +95,7 @@ export * from './agents/restart'
 export * from './agents/start'
 export * from './agents/status'
 export * from './agents/label'
+export * from './agents/name'
 export * from './agents/roster'
 
 

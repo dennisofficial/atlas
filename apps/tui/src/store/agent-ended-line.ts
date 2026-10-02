@@ -1,6 +1,6 @@
 import {
+  agentDisplayName,
   agentEnding,
-  agentLabel,
   EAgentRestart,
   EAgentStatus,
   isTeammateType,
@@ -26,7 +26,7 @@ const RESTART_VIA: Record<EAgentRestart, string> = {
 }
 
 export const agentRestartedLine = (restart: AgentRestartRow): string =>
-  `${isTeammateType(restart.agentType) ? 'Teammate' : 'Sub-agent'} ${agentLabel(restart)} ${RESTART_VIA[restart.via]}`
+  `${isTeammateType(restart.agentType) ? 'Teammate' : 'Sub-agent'} ${agentDisplayName(restart)} ${RESTART_VIA[restart.via]}`
 
 const NEEDS_ATTENTION: Record<EAgentStatus, boolean> = {
   [EAgentStatus.Running]: false,
@@ -37,10 +37,10 @@ const NEEDS_ATTENTION: Record<EAgentStatus, boolean> = {
 }
 
 export const agentEndedLine = (ending: AgentEndingRow): string =>
-  `${isTeammateType(ending.agentType) ? 'Teammate' : 'Sub-agent'} ${agentLabel(ending)} ${agentEnding(ending)}`
+  `${isTeammateType(ending.agentType) ? 'Teammate' : 'Sub-agent'} ${agentDisplayName(ending)} ${agentEnding(ending)}`
 
 export const agentReportedLine = (report: { agentType: string; intent: string }): string =>
-  `${isTeammateType(report.agentType) ? 'Teammate' : 'Sub-agent'} ${agentLabel(report)} reported`
+  `${isTeammateType(report.agentType) ? 'Teammate' : 'Sub-agent'} ${agentDisplayName(report)} reported`
 
 export const agentEndingFailed = (ending: { status: EAgentStatus }): boolean =>
   NEEDS_ATTENTION[ending.status]
