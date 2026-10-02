@@ -18,7 +18,6 @@ import { cloudReadinessOf } from './cloud-readiness'
 import { cloudRuntimeParts, openCloudConversation } from './cloud-app'
 import { createCloudRunner, createCloudWake, wakeSandbox, type CloudWake } from './cloud-runner'
 import { createCloudSession } from './cloud-session'
-import { CLOUD_REATTACH_NOTICE_KEY, reattachNotice } from './lift-notices'
 import { parkHookFor } from './park-hook'
 import { parkedStoresOf } from './parked-stores'
 import { readParkedResume } from './parked-resume'
@@ -123,7 +122,6 @@ function composeRenderFirst(args: OpenArgs & { opened: OpenedConversation; resum
  */
 export async function openCloudThread(args: OpenArgs): Promise<Binding> {
   const { app, bridge, threadId, move } = args
-  let unready = (): void => undefined
 
   try {
     const renderable = args.wakeFirst === true ? null : await renderableLocally(args)
@@ -132,14 +130,6 @@ export async function openCloudThread(args: OpenArgs): Promise<Binding> {
         ? await composeEager(args)
         : composeRenderFirst({ ...args, opened: renderable.opened, resume: renderable.resume })
     const { channel, stores } = composed
-
-    unready = channel.onReady((ready) => {
-      unready()
-      notify({
-        key: CLOUD_REATTACH_NOTICE_KEY,
-        text: reattachNotice({ created: composed.created(), turnInFlight: ready.turnInFlight }),
-      })
-    })
 
     const runner = createCloudRunner({ ...wakeNarrationFor(args), channel, wake: composed.wake })
     const opened = await composed.openAgainst(runner)
@@ -172,7 +162,6 @@ export async function openCloudThread(args: OpenArgs): Promise<Binding> {
       wakeInBackground: composed.wakeInBackground,
     })
   } catch (error) {
-    unready()
     move?.handleFail(messageOf(error))
     throw error
   }
