@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EEffort, EImageTier } from '@dltech/atlas-core'
+import { CONTEXT_WINDOW_UNMEASURED, EEffort, EImageTier } from '@dltech/atlas-core'
 
 import { ModelsResponseSchema, toCodexModelCards } from '../codex-models-response'
 
@@ -20,6 +20,7 @@ const wire = {
       supported_in_api: true,
       minimal_client_version: '0.1.0',
       context_window: 272_000,
+      max_context_window: 872_000,
       upgrade: null,
       input_modalities: ['text', 'image'],
     },
@@ -44,6 +45,14 @@ const wire = {
 const cards = () =>
   toCodexModelCards({ models: ModelsResponseSchema.parse(wire).models, providerId: 'openai' })
 
+const windowOf = (fields: Record<string, number>): number => {
+  const parsed = ModelsResponseSchema.parse({
+    models: [{ slug: 'w', visibility: 'list', ...fields }],
+  })
+  const [card] = toCodexModelCards({ models: parsed.models, providerId: 'openai' })
+  return card?.contextWindow ?? -1
+}
+
 describe('toCodexModelCards', () => {
   it('keeps only listed models, ordered by ascending priority', () => {
     expect(cards().map((card) => card.ref.modelId)).toEqual([
@@ -62,6 +71,26 @@ describe('toCodexModelCards', () => {
       contextWindow: 400_000,
       imageTier: EImageTier.Standard,
     })
+  })
+
+  it('uses the larger of context_window and max_context_window as the ceiling', () => {
+    const mini = cards().find((card) => card.ref.modelId === 'gpt-5.1-codex-mini')
+
+    expect(mini?.contextWindow).toBe(872_000)
+    expect(windowOf({ context_window: 272_000, max_context_window: 872_000 })).toBe(872_000)
+    expect(windowOf({ context_window: 872_000, max_context_window: 272_000 })).toBe(872_000)
+  })
+
+  it('keeps context_window when max_context_window is absent', () => {
+    expect(windowOf({ context_window: 272_000 })).toBe(272_000)
+  })
+
+  it('uses max_context_window when context_window is absent', () => {
+    expect(windowOf({ max_context_window: 872_000 })).toBe(872_000)
+  })
+
+  it('reports the window as unmeasured when neither field is sent', () => {
+    expect(windowOf({})).toBe(CONTEXT_WINDOW_UNMEASURED)
   })
 
   it('builds the effort map with the literal as the wire value and drops unknown rungs', () => {
