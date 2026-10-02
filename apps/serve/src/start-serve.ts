@@ -49,6 +49,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
       log,
       ensureWorkspace: args.ensureWorkspace,
       restoreWorkspace: args.restoreWorkspace,
+      profile: args.profile,
       contextFiles: args.contextFiles,
       fetchTranscriptArchive: args.fetchTranscriptArchive,
     })

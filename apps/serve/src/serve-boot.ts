@@ -14,7 +14,12 @@ import {
   driveWorkspaceSpecFetcher,
 } from './drive-bootstrap'
 import { createDirectWorkspace, type DirectWorkspaceRestorer } from './direct-workspace'
-import { createEnvironmentProfile, EProfileStepState } from './environment-profile'
+import { applyDirectProfile } from './direct-profile'
+import {
+  createEnvironmentProfile,
+  EProfileStepState,
+  type ApplyEnvironmentProfile,
+} from './environment-profile'
 import { applyGitAccessEnv } from './git-access-env'
 import {
   createEnsureWorkspace,
@@ -42,6 +47,7 @@ export async function bootServeFiles(args: {
   log: ServeLog
   ensureWorkspace?: EnsureWorkspace | undefined
   restoreWorkspace?: DirectWorkspaceRestorer | undefined
+  profile?: ApplyEnvironmentProfile | undefined
   contextFiles?: WorkspaceFiles | undefined
   fetchTranscriptArchive?: FetchTranscriptArchive | undefined
 }) {
@@ -49,16 +55,21 @@ export async function bootServeFiles(args: {
   const fetchSpecOnce = lazy(driveWorkspaceSpecFetcher({ driveHome }))
 
   const workspaceStartedAt = Date.now()
-  const ensureWorkspace =
-    args.ensureWorkspace ??
-    createEnsureWorkspace({
-      profile: createEnvironmentProfile({ env }),
-    })
+  const profile = args.profile ?? createEnvironmentProfile({ env })
+  const ensureWorkspace = args.ensureWorkspace ?? createEnsureWorkspace({ profile })
   const direct = createDirectWorkspace({ driveHome, destination: cwd, restore: args.restoreWorkspace })
   const directBoot = await direct.boot()
   const workspace: WorkspaceReadiness =
     directBoot.kind === 'ready'
-      ? { state: EWorkspaceState.Present }
+      ? {
+          state: EWorkspaceState.Present,
+          profile: await applyDirectProfile({
+            env,
+            cwd: directBoot.result.restored.cwd,
+            fetchSpec: fetchSpecOnce,
+            profile,
+          }),
+        }
       : directBoot.kind === 'failed'
         ? { state: EWorkspaceState.Failed, step: EWorkspaceStep.Apply, reason: directBoot.reason }
         : await ensureWorkspace({ cwd, fetchSpec: fetchSpecOnce })
