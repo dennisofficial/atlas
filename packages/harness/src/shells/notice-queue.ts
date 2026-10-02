@@ -149,17 +149,16 @@ export class ShellNoticeQueue {
   }
 
   /**
-   * A check-in queued behind an ending is dead on arrival: the shell it describes as running is
-   * not, and the ending queued beside it already says so.
+   * A notice claiming a shell is alive is dead on arrival when the shell is not: the ending
+   * queued beside it already says so. Endings themselves always pass — they are the ending.
    */
   private stillWorthTelling(notice: ShellNotice): boolean {
-    if (notice.kind === ENotice.StillRunning) {
-      const live = this.live({ shellId: notice.snapshot.shellId })
-      return live !== undefined && live.status === EShellStatus.Running
-    }
-    if (notice.kind !== ENotice.AwaitingInput) return true
+    if (notice.kind === ENotice.Ended) return true
 
     const live = this.live({ shellId: notice.snapshot.shellId })
+    if (notice.kind === ENotice.StillRunning) {
+      return live !== undefined && live.status === EShellStatus.Running
+    }
     return live === undefined || live.status === EShellStatus.Running
   }
 

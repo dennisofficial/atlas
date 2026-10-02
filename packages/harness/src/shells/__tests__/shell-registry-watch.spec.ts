@@ -194,6 +194,50 @@ for (const adapter of shellAdapters) {
       }, 30_000)
     })
 
+    describe('never telling on a dead shell', () => {
+      it('drops a match whose shell died before the drain', async () => {
+        const { registry, log } = openRegistry({ adapter })
+        const snapshot = watching({
+          registry,
+          command: 'echo "ERROR: late hit"; sleep 30',
+          watch: 'ERROR',
+        })
+
+        await announced({ registry })
+
+        const killed = registry.kill({
+          shellId: snapshot.shellId,
+          by: EKilledBy.Model,
+          threadId: THREAD,
+        })
+        if (!killed.ok) throw new Error('the kill should land')
+        await settle({ registry, shellId: snapshot.shellId })
+        await recorded({ log })
+
+        expect(registry.drainNotifications({ threadId: THREAD })).toEqual([])
+        expect(log?.appended.some((draft) => draft.type === 'background-shell-matched')).toBe(
+          false,
+        )
+      })
+
+      it('never delivers a match that landed inside the exit window', async () => {
+        const { registry, log } = openRegistry({ adapter })
+        const snapshot = watching({
+          registry,
+          command: 'echo "ERROR: boom and gone"',
+          watch: 'ERROR',
+        })
+
+        await settle({ registry, shellId: snapshot.shellId })
+        await recorded({ log })
+
+        expect(registry.drainNotifications({ threadId: THREAD })).toEqual([])
+        expect(log?.appended.some((draft) => draft.type === 'background-shell-matched')).toBe(
+          false,
+        )
+      })
+    })
+
     describe('refusing a pattern that is not one', () => {
       it('names the syntax error and starts nothing', () => {
         const { registry } = openRegistry({ adapter })

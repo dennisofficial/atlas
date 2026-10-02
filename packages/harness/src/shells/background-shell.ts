@@ -362,7 +362,6 @@ export function startBackgroundShell(spec: BackgroundShellSpec): StartedBackgrou
         // A throwing capture must not strand the shell's ending unannounced.
       }
       forgetMatchWatch()
-      deliverMatches()
     }
   })()
 
