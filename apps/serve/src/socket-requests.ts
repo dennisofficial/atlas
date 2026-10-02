@@ -7,7 +7,6 @@ import {
 } from '@dltech/atlas-harness'
 import type { FileBrowser } from '@dltech/atlas-harness'
 
-import type { WorkspacePublisher } from './publish-workspace'
 import {
   answerRequest,
   answerTranscriptRead,
@@ -37,7 +36,6 @@ export function createRequestRouter(args: {
   threadId: ThreadId
   driver: ServeTurnDriver
   files: Pick<FileBrowser, 'list'>
-  publish: WorkspacePublisher
   log: ServeLog
   snapshot: ServeRoster['snapshot']
   send: (args: { socket: SessionSocket; frame: import('@dltech/atlas-harness').ServeFrame }) => void
@@ -49,7 +47,7 @@ export function createRequestRouter(args: {
   restoreTranscript?: ((marker?: RestoreTranscriptParams['locationChanged']) => Promise<RestoreOutcome>) | undefined
   workspace?: WorkspaceOps | undefined
 }) {
-  const { threadId, driver, files, publish, log, snapshot, send, rewind, transcript, selectModel } = args
+  const { threadId, driver, files, log, snapshot, send, rewind, transcript, selectModel } = args
   const { sessionArchive, memoryArchive, restoreTranscript } = args
   const workspaceOps = args.workspace
   const state: { restoring: Promise<RestoreOutcome> | null } = { restoring: null }
@@ -269,7 +267,7 @@ export function createRequestRouter(args: {
     return
   }
 
-  void answerRequest({ frame, files, publish })
+  void answerRequest({ frame, files })
     .then((reply) => send({ socket, frame: reply }))
     .catch((error: unknown) =>
       send({

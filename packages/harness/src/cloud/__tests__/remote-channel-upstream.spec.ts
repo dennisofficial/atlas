@@ -352,15 +352,6 @@ describe('a request riding the session socket', () => {
     await expect(answer).rejects.toBeInstanceOf(RemoteRequestLost)
   })
 
-  it('rejects a workspace publish in flight when the socket closes', async () => {
-    const { channel, drop } = readied()
-
-    const answer = channel.request({ op: EClientRequest.PublishWorkspace, params: {} })
-    drop()
-
-    await expect(answer).rejects.toBeInstanceOf(RemoteRequestLost)
-  })
-
   describe('a restore or identity request in flight when the socket closes', () => {
     it('re-drives the restore on the next ready with the same id and op', async () => {
       const { channel, drop, retries, receive, live } = readied()

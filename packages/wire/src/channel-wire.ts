@@ -65,7 +65,6 @@ export enum EClientFrame {
 export enum EClientRequest {
   CompletePaths = 'complete-paths',
   BrowseDirectory = 'browse-directory',
-  PublishWorkspace = 'publish-workspace',
   /**
    * The live shell/agent/service rosters, for a client whose footer and sidebar read local
    * registries the sandbox never populates. A serve built before this op refuses the request, and

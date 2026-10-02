@@ -56,18 +56,6 @@ describe('bringing the cloud workspace home', () => {
     expect(order).toEqual(['pause', 'prepare'])
   })
 
-  it('never asks the sandbox to publish or merge a ref', async () => {
-    const { home, bridge } = await homeWithArchive(['nothing to merge'])
-    const channel = bridge.attach({ threadId: CLOUD_THREAD, url: '', token: '' }).channel
-
-    await descend({ bridge, home, channel })
-
-    expect(channel.requests.map((entry) => entry.op)).not.toContain(EClientRequest.PublishWorkspace)
-    expect((await home.threads.find({ threadId: CLOUD_THREAD }))?.executionLocation).toBe(
-      EExecutionLocation.Host,
-    )
-  })
-
   it('removes the downloaded archive after restoring it', async () => {
     const { home, bridge } = await homeWithArchive(['cleanup'])
     const restorer = fakeRestorer()
