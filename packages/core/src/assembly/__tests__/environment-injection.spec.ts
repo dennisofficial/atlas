@@ -91,9 +91,13 @@ describe('environment injection at the default pipeline', () => {
     }
   })
 
-  it('keeps earlier history byte-identical as the log grows across repeated assemblies', () => {
+  it('moves only the project-directory tail as the log grows across repeated assemblies', () => {
     const lengths = [3, 4, 5, 6, 7]
-    const runs = lengths.map((length) => assembleThrough(length).assembled.messages)
+    const runs = lengths.map((length) =>
+      assembleThrough(length)
+        .assembled.messages.map((entry) => entry.message)
+        .filter((entry) => !textsOfEntry(entry).includes('Project directory')),
+    )
 
     for (const [index, messages] of runs.entries()) {
       const previous = runs[index - 1]
@@ -103,11 +107,17 @@ describe('environment injection at the default pipeline', () => {
     }
   })
 
-  it('ends on a logged event rather than a user message anchored to the last event', () => {
-    const { assembled } = assembleThrough(HISTORY.length)
+  it('ends on the project-directory reminder anchored to the last logged event', () => {
+    const { events, assembled } = assembleThrough(HISTORY.length)
     const last = assembled.messages.at(-1)
+    const before = assembled.messages.at(-2)
 
     expect(last?.message.role).toBe('user')
-    expect(textsOf(assembled).at(-1)).toBe('again')
+    expect(textsOf(assembled).at(-1)).toContain('Project directory')
+    expect(last?.origin.eventId).toBe(events.at(-1)?.id)
+    expect(before === undefined ? '' : textsOfEntry(before.message)).not.toContain('Project directory')
   })
 })
+
+const textsOfEntry = (entry: { content: readonly { type: string; text?: string }[] }): string =>
+  entry.content.flatMap((part) => (part.type === 'text' ? [part.text ?? ''] : [])).join('')

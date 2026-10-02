@@ -82,12 +82,11 @@ describe('the built-in agent types', () => {
     }
   })
 
-  it('tells every sub-agent that only its final message reaches the caller', async () => {
+  it('tells every sub-agent that only its final message reaches the caller, and to stay within the task', async () => {
     for (const agentType of await load()) {
       if (agentType.name === 'teammate') continue
       expect(agentType.prompt).toContain('Only your final message reaches the caller')
-      expect(agentType.prompt).toContain('Do not gold-plate')
-      expect(agentType.prompt).toContain('Do not leave it half-done')
+      expect(agentType.prompt).toContain('nothing beyond it')
     }
   })
 
@@ -122,7 +121,7 @@ describe('the built-in agent types', () => {
   it('tells explore and reviewer to report rather than change, as an instruction not a limit', async () => {
     for (const name of ['explore', 'reviewer']) {
       const agentType = await named(name)
-      expect(agentType.prompt).toContain('Do not use them to change anything')
+      expect(agentType.prompt).toContain('only to observe')
       expect(agentType.whenToUse).toContain('briefed to report')
     }
   })

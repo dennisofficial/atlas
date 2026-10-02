@@ -78,10 +78,15 @@ describe('a turn without recurring environment reminders', () => {
       expect(outcome.status).toBe(ETurnStatus.Completed)
       expect(model.doStreamCalls).toHaveLength(3)
       expect(model.doStreamCalls.map((call) => call.prompt.map((message) => message.role))).toEqual([
-        ['user'],
-        ['user', 'assistant', 'tool'],
-        ['user', 'assistant', 'tool', 'assistant', 'tool'],
+        ['user', 'user'],
+        ['user', 'assistant', 'tool', 'user'],
+        ['user', 'assistant', 'tool', 'assistant', 'tool', 'user'],
       ])
+      const tails = model.doStreamCalls.map((call) => call.prompt.at(-1))
+      for (const tail of tails) {
+        expect(tail?.role).toBe('user')
+        expect(JSON.stringify(tail)).toContain('Project directory')
+      }
       expect(JSON.stringify(model.doStreamCalls)).not.toContain('probed capabilities')
       expect(JSON.stringify(model.doStreamCalls)).not.toContain('You are executing inside')
       const events = await harness.log.read({ threadId: thread.id })

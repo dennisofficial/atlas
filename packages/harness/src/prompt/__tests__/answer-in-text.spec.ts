@@ -87,14 +87,10 @@ describe('the answer-in-text fragment across the model axis', () => {
 })
 
 describe('what the fragment tells the model', () => {
-  it('pins the prose', () => {
-    expect(new AnswerInTextFragment().text()).toBe(
-      [
-        'Finish every turn in the text channel, never in reasoning alone. The developer sees only your',
-        'text; a reply that lives entirely in reasoning renders as nothing, ends the turn, and leaves a',
-        'summariser to answer in your place. When the work is done, write the full answer as message text.',
-      ].join('\n'),
-    )
+  it('describes the real failure mode without promising a summariser fallback', () => {
+    const text = new AnswerInTextFragment().text()
+    expect(text).toContain('text channel')
+    expect(text).not.toContain('summariser')
   })
 })
 

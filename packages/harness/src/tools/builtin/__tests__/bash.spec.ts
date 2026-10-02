@@ -272,12 +272,11 @@ describe('refusing to idle', () => {
     expect((await invoke({ command: 'true; true' })).ok).toBe(false)
   })
 
-  it('teaches in the description that a turn waits by ending, never by ticking', () => {
+  it('says in the description that do-nothing ticks are refused', () => {
     const { description } = new BashTool(new BunShellRegistry(root, new SystemClock(), noHooks))
 
-    expect(description).toContain('true, :')
-    expect(description).toContain('it waits by ending')
-    expect(description).toContain('no do-nothing call to tick the time away')
+    expect(description).toContain('do-nothing ticks')
+    expect(description).toContain('refused')
   })
 
   it('warns against the tick in the message a background start returns', async () => {
@@ -310,10 +309,11 @@ describe('refusing to hold the turn open on a watch', () => {
     expect(outcome.ok).toBe(true)
   })
 
-  it('teaches in the description that a foreground watch is refused like a sleep', () => {
+  it('says in the description that foreground watches are refused', () => {
     const { description } = new BashTool(new BunShellRegistry(root, new SystemClock(), noHooks))
 
-    expect(description).toContain('never a foreground command')
+    expect(description).toContain('foreground watches')
+    expect(description).toContain('refused')
   })
 })
 
@@ -407,11 +407,11 @@ describe('pacing a background shell check-in', () => {
     expect(outcome.ok && outcome.modelText).toContain('a check-in reaches you every 10000 ms')
   })
 
-  it('teaches the cadence in the description, as a heartbeat rather than a kill', () => {
+  it('names checkInMs and the silent-shell timeout in the description', () => {
     const { description } = new BashTool(new BunShellRegistry(root, new SystemClock(), noHooks))
 
     expect(description).toContain('checkInMs')
-    expect(description).toContain('a check-in kills nothing')
+    expect(description).toContain('30 minutes')
   })
 })
 
@@ -419,9 +419,7 @@ describe('what the tool tells the model about watching', () => {
   it('warns that a watch on the success marker alone is silent through a crash', () => {
     const { description } = new BashTool(new BunShellRegistry(root, new SystemClock(), noHooks))
 
-    expect(description).toContain('silence from a watch is indistinguishable from progress')
-    expect(description).toContain('widen the alternation rather than narrow it')
-    expect(description).toContain('Traceback')
+    expect(description).toContain('silence is indistinguishable from progress')
   })
 })
 

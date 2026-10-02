@@ -61,18 +61,26 @@ describe('telling the model what it still has out', () => {
     expect(tail).toContain('agent-2  explore "audit the frontend slice"')
   })
 
-  it('tells the model the report arrives on its own, so polling is never the way', () => {
+  it('says a sub-agent final answer arrives on its own, with no prohibition on checking', () => {
     const tail = textsOf(assembleWith({ events: SPOKEN, agents: [anAgent()] })).at(-1) ?? ''
 
-    expect(tail).toContain('never poll')
-    expect(tail).toContain('agent_list can tell you nothing about these')
+    expect(tail).toContain('final answer arrives on its own')
+    expect(tail).not.toMatch(/never poll|no sleeping|no polling|agent_list/)
+    expect(tail).not.toContain('explicit report')
+  })
+
+  it('adds the explicit-report rule only when a teammate is running', () => {
+    const tail =
+      textsOf(assembleWith({ events: SPOKEN, agents: [anAgent({ agentType: 'teammate' })] })).at(-1) ?? ''
+
+    expect(tail).toContain('reports only when it sends an explicit report')
   })
 
   it('names ending the turn as the way to wait, rather than leaving waiting undefined', () => {
     const tail = textsOf(assembleWith({ events: SPOKEN, agents: [anAgent()] })).at(-1) ?? ''
 
-    expect(tail).toContain('Ending your turn is how you wait')
-    expect(tail).toContain('say what you are waiting for and end your turn')
+    expect(tail).toContain('say what for and end your turn')
+    expect(tail).toContain('agent_say({ agentId, text })')
   })
 
   it('carries the same words while nothing about the agents changes, so a re-read reads as stale', () => {
@@ -101,5 +109,16 @@ describe('telling the model what it still has out', () => {
     const assembled = assembleWith({ events: log([]), agents: [anAgent()] })
 
     expect(textsOf(assembled)).toEqual([])
+  })
+})
+
+describe('the running-shells reminder guidance', () => {
+  it('says endings arrive automatically without a polling prohibition', () => {
+    const tail =
+      textsOf(assembleWith({ events: SPOKEN, agents: [], shells: [aShell()] })).at(-1) ?? ''
+
+    expect(tail).toContain('ending arrives automatically')
+    expect(tail).toContain('shell_kill({ shellId })')
+    expect(tail).not.toMatch(/never poll|no sleeping|no polling/)
   })
 })

@@ -9,9 +9,6 @@ export class AtlasIdentityFragment extends PromptFragment {
   }
 
   text(): string {
-    return [
-      'You are Atlas, a coding agent talking to a developer in their terminal.',
-      'Answer directly and concisely, and prefer using a tool over describing what you would do.',
-    ].join('\n')
+    return 'You are Atlas, a coding agent.'
   }
 }

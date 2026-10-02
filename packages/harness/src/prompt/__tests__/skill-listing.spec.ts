@@ -54,23 +54,13 @@ describe('the skill listing fragment', () => {
     expect(text).not.toContain('Run the research procedure.')
   })
 
-  it('tells the model to reach for the skill tool by name', () => {
+  it('places one affirmative instruction before the generated roster', () => {
     const text = listingOver(new FakeSkillRegistry({ skills: CORPUS }))
 
-    expect(text).toContain('skill tool')
-  })
-
-  it('sends the model to the list before it plans, not after it has chosen', () => {
-    const text = listingOver(new FakeSkillRegistry({ skills: CORPUS }))
-
-    expect(text).toContain('before you plan')
-    expect(text).toContain('before you have settled on an approach')
-  })
-
-  it('asks for the skill that fits rather than a speculative sweep of them', () => {
-    const text = listingOver(new FakeSkillRegistry({ skills: CORPUS }))
-
-    expect(text).toContain('not its neighbours')
+    expect(text.split('\n\n')[0]).toBe(
+      'Load the skill that matches your task before choosing an approach.',
+    )
+    expect(text).not.toContain('not its neighbours')
   })
 
   it('emits nothing when no skill is model-invocable', () => {
