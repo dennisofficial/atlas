@@ -115,7 +115,7 @@ export abstract class ShellRegistryPort {
   threadsWithPendingInput?(): readonly ThreadId[]
   abstract onNotice(listener: () => void): () => void
   abstract forgetNotices(args: { threadId: ThreadId }): void
-  abstract closeAll(): Promise<void>
+  abstract closeAll(args?: { killedBy?: EKilledBy }): Promise<void>
 }
 
 const unknownShell = (args: { shellId: string; known: readonly ShellId[] }): string => {
@@ -448,9 +448,10 @@ export class BunShellRegistry extends ShellRegistryPort {
    * closeAll stops the shells and waits for their endings to land in the log; with the ending
    * appended at occurrence, nothing is left for a teardown drain to reconcile.
    */
-  async closeAll(): Promise<void> {
+  async closeAll(args?: { killedBy?: EKilledBy }): Promise<void> {
+    const killedBy = args?.killedBy ?? EKilledBy.SessionEnd
     const running = [...this.tracked.values()]
-    for (const entry of running) entry.shell.kill(EKilledBy.SessionEnd)
+    for (const entry of running) entry.shell.kill(killedBy)
     await Promise.all(running.map((entry) => entry.shell.exited))
     while (this.endingSettlements.size > 0) await Promise.all([...this.endingSettlements])
     this.tracked.clear()

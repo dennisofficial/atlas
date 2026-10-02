@@ -68,6 +68,7 @@ export type ProvisionArgs = {
    * settings files, so anything not handed here reads as its fallback there.
    */
   environment?: Record<string, string> | undefined
+  onRotationStarted?: (() => void) | undefined
 }
 
 export async function provisionSandbox(deps: ProvisionDeps, args: ProvisionArgs): Promise<SandboxPlacement> {
@@ -82,7 +83,7 @@ export async function provisionSandbox(deps: ProvisionDeps, args: ProvisionArgs)
     const { credentials } = deps.config
     const driveName = driveNameFor({ threadId: args.threadId })
     const drive = await ensureDrive({ sdk: deps.drives, credentials, name: driveName })
-    const { probe, outdatedServe } = await probeSandboxForResume({
+    const { probe, outdatedServe, outdatedProtocol } = await probeSandboxForResume({
       name: args.name,
       pinned: deps.config.serveVersion,
       timeoutMs: SANDBOX_QUICK_TIMEOUT_MS,
@@ -102,11 +103,15 @@ export async function provisionSandbox(deps: ProvisionDeps, args: ProvisionArgs)
           name: driveName,
           retry: deps.attachLagRetry,
         }),
+      onRotationStarted: args.onRotationStarted,
       log: deps.config.log,
       isMissing: isSandboxMissing,
       toFailure: asVercelFailure,
     })
-    const freshBoot = probe === ESandboxProbe.Missing || probe === ESandboxProbe.Replaced
+    const freshBoot =
+      probe === ESandboxProbe.Missing ||
+      probe === ESandboxProbe.Replaced ||
+      probe === ESandboxProbe.RotationNeeded
     const sandbox = await mountWithRetries({
       sdk: deps.sdk,
       cloudUrl: deps.config.cloudUrl,
@@ -149,6 +154,7 @@ export async function provisionSandbox(deps: ProvisionDeps, args: ProvisionArgs)
       driveName,
       token: serveToken,
       ...(outdatedServe === undefined ? {} : { outdatedServe }),
+      ...(outdatedProtocol === undefined ? {} : { rotatedProtocol: outdatedProtocol }),
     }
   } catch (failure) {
     if (failure instanceof SandboxMissingError) throw failure

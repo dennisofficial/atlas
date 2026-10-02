@@ -36,6 +36,8 @@ export type CloudSandbox = {
    * serve is pending the next cold boot.
    */
   outdatedServe?: string | undefined
+  /** The wire protocol the sandbox's old serve spoke when this wake rotated it onto the pinned image. */
+  rotatedProtocol?: number | undefined
 }
 
 /**
@@ -78,6 +80,8 @@ export type CloudSandboxes = {
      * before serve launches, fresh boot or resumed. The path is never serialized into the boot spec.
      */
     workspaceArchivePath?: string | undefined
+    /** Fires the moment the wake finds a protocol-mismatched sandbox and starts rotating it. */
+    onRotationStarted?: (() => void) | undefined
   }): Promise<CloudSandbox>
   /** Operator-session auth, same as `create` — the archive lands on the row `create` just opened. */
   putContext(args: { threadId: ThreadId; archive: Uint8Array }): Promise<void>

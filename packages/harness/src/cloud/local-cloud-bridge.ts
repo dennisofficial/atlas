@@ -202,6 +202,9 @@ export function createLocalCloudBridge(args: {
       token,
       ...(args.environment === undefined ? {} : { environment: args.environment() }),
       putContextOnFreshBoot: writeBootstrap,
+      ...(createArgs.onRotationStarted === undefined
+        ? {}
+        : { onRotationStarted: createArgs.onRotationStarted }),
     })
 
     if (stagedPortable) {
@@ -223,6 +226,7 @@ export function createLocalCloudBridge(args: {
       created: placement.created,
       driveName: placement.driveName,
       ...(placement.outdatedServe === undefined ? {} : { outdatedServe: placement.outdatedServe }),
+      ...(placement.rotatedProtocol === undefined ? {} : { rotatedProtocol: placement.rotatedProtocol }),
     }
   }
 

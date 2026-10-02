@@ -4,6 +4,12 @@ export enum ERuntimePhase {
   Running = 'running',
   Parked = 'parked',
   Stopped = 'stopped',
+  /**
+   * The serve drained itself for a protocol rotation and exited; the checkpoint stays readable on
+   * the drive so a crashed rotation is distinguishable from a park, and the boot guard that
+   * refuses to serve over a "parked" checkpoint does not trip on it.
+   */
+  Rotating = 'rotating',
 }
 
 export const transcriptCheckpointSchema = z.strictObject({

@@ -119,6 +119,22 @@ for (const adapter of shellAdapters) {
         expect(ended[0]?.output).toContain('before-close')
       })
 
+      it('writes the caller-chosen killedBy when closeAll is given one', async () => {
+        const { registry, log } = openRegistry({ adapter })
+        const started = registry.start(job({ command: 'sleep 60' }))
+        if (!started.ok) throw new Error(started.reason)
+
+        await registry.closeAll({ killedBy: EKilledBy.ContainerSwitch })
+
+        const ended = endedInLog(log)
+        expect(ended).toHaveLength(1)
+        expect(ended[0]).toMatchObject({
+          shellId: started.snapshot.shellId,
+          status: EShellStatus.Killed,
+          killedBy: EKilledBy.ContainerSwitch,
+        })
+      })
+
       it('a second model kill of the same shell reads the same single ending', async () => {
         const { registry, log } = openRegistry({ adapter })
         const started = registry.start(job({ command: 'sleep 60' }))

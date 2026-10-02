@@ -54,7 +54,8 @@ jobs:
       - name: generate serve placeholders
         run: |
           touch apps/serve/sandbox-image/atlas-serve \
-            apps/serve/sandbox-image/atlas-serve.version
+            apps/serve/sandbox-image/atlas-serve.version \
+            apps/serve/sandbox-image/atlas-serve.protocol
 
       - uses: docker/build-push-action@v7
         with:
@@ -113,8 +114,11 @@ jobs:
       # Empty here and filled by the retag job's rebuild when a release labels the image: a
       # released TUI pins its own version, so only a labeled bake satisfies its drift probe,
       # while an unpinned (dev) build skips the probe and trusts whatever the image carries.
-      - name: write the serve version file
-        run: touch apps/serve/sandbox-image/atlas-serve.version
+      - name: write the serve version and protocol files
+        run: |
+          touch apps/serve/sandbox-image/atlas-serve.version
+          sed -nE 's/^export const CHANNEL_PROTOCOL_VERSION = ([0-9]+).*/\1/p' packages/wire/src/channel-wire.ts | tr -d '\n' > apps/serve/sandbox-image/atlas-serve.protocol
+          test -s apps/serve/sandbox-image/atlas-serve.protocol
 
       - uses: docker/build-push-action@v7
         with:
@@ -197,12 +201,14 @@ jobs:
       - run: bun install
         if: vars.VERCEL_VCR_ENABLED == 'true'
 
-      - name: rebuild serve with the release version stamped
+      - name: rebuild serve with the release version and protocol stamped
         if: vars.VERCEL_VCR_ENABLED == 'true'
         working-directory: apps/serve
         run: |
           bun run build:serve -- --target bun-linux-x64 --outfile sandbox-image/atlas-serve
           printf '%s' "$VERSION" > sandbox-image/atlas-serve.version
+          sed -nE 's/^export const CHANNEL_PROTOCOL_VERSION = ([0-9]+).*/\1/p' ../../packages/wire/src/channel-wire.ts | tr -d '\n' > sandbox-image/atlas-serve.protocol
+          test -s sandbox-image/atlas-serve.protocol
 
       - name: publish the version-tagged VCR image
         if: vars.VERCEL_VCR_ENABLED == 'true'

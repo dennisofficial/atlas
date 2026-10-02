@@ -66,4 +66,37 @@ describe('serve checkpoint lifecycle binding', () => {
     expect(published).toHaveLength(0)
     await expect(binding.finalizePark()).rejects.toThrow('no final park checkpoint')
   })
+
+  it('seals a rotating checkpoint, then suppresses later running captures', async () => {
+    const phases: ERuntimePhase[] = []
+    let flushed = 0
+    let revision = 0
+    const binding = bindRuntimeCheckpoint({
+      log: () => undefined,
+      publish: () => undefined,
+      capture: {
+        capture: async ({ phase }) => {
+          revision += 1
+          phases.push(phase)
+          return checkpoint({ phase, revision })
+        },
+        flush: async () => { flushed += 1 },
+      },
+    })
+    await binding.boot()
+    await binding.finalizeRotation()
+    binding.running()
+    expect(phases).toEqual([ERuntimePhase.Running, ERuntimePhase.Rotating])
+    expect(binding.current()?.phase).toBe(ERuntimePhase.Rotating)
+    expect(flushed).toBe(1)
+  })
+
+  it('refuses to claim a rotation seal it could not capture', async () => {
+    const binding = bindRuntimeCheckpoint({
+      log: () => undefined,
+      publish: () => undefined,
+      capture: { capture: async () => null, flush: async () => undefined },
+    })
+    await expect(binding.finalizeRotation()).rejects.toThrow('no final rotation checkpoint')
+  })
 })

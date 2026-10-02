@@ -27,6 +27,7 @@ import { activateTransferredChildren, adoptTransferredChildren, holdFamilyIntake
 import { EPortableStateBoot, installPortableState } from './portable-state'
 import type { ServeApp, ServeCompose, ServeModelBridge } from './serve-app'
 import { ServeProcessPort } from './serve-process'
+import { rotationEndingsFor } from './rotation-endings'
 import { workspaceHooksFor } from './workspace-hooks'
 import { serveMemoryArchive, serveSessionArchive } from './serve-session-archive'
 
@@ -200,6 +201,14 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     runningServices: () =>
       app.services.list().filter((service) => service.status === EServiceStatus.Running).length,
     executionLocation: app.executionLocation,
+    endProcesses: rotationEndingsFor({
+      root: args.threadId,
+      shells: app.shells,
+      services: app.services,
+      log: app.surface.log,
+      threads: app.surface.threads,
+      ids: app.ids,
+    }),
     ...workspaceHooksFor({
       threadId: args.threadId,
       shells: app.shells,

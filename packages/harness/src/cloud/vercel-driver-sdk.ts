@@ -55,6 +55,8 @@ export type SandboxPlacement = {
    * attached — the version it carries, so the operator can be told the pinned one is pending.
    */
   outdatedServe?: string | undefined
+  /** The wire protocol the sandbox's old serve spoke, set when the sandbox was rotated onto the pinned image. */
+  rotatedProtocol?: number | undefined
 }
 
 export type SandboxObservation = {

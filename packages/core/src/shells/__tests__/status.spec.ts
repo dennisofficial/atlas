@@ -19,6 +19,11 @@ describe('the sentence a shell ends on', () => {
     expect(killedBy(EKilledBy.Rewind)).toBe('was killed by a rewind')
   })
 
+  it('names a sandbox rotation as the shell being replaced along with its sandbox', () => {
+    expect(killedBy(EKilledBy.Rotation)).toBe('was killed because the sandbox was being replaced')
+    expect(shellFailed({ status: EShellStatus.Killed, killedBy: EKilledBy.Rotation })).toBe(false)
+  })
+
   it('names a lost shell as killed rather than finished', () => {
     expect(killedBy(EKilledBy.LostContact)).toBe('was killed because atlas lost contact with it')
   })
