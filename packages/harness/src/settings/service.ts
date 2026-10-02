@@ -1,6 +1,7 @@
 import {
   EMPTY_SETTINGS_DOCUMENT,
   ESettingsLayer,
+  parseSettingsDocument,
   resolveSettings,
   serialiseSettingsDocument,
   withoutSetting,
@@ -36,6 +37,7 @@ export type SettingsService = {
   subscribe: (listener: () => void) => () => void
   set: (args: { id: string; value: SettingValue }) => SettingsWrite
   clear: (args: { id: string }) => SettingsWrite
+  applyUserDocument: (document: SettingsDocument) => SettingsWrite
   /** Late-registered rows — the per-agent-type model picks exist only once the types are loaded. */
   register: (extra: readonly SettingDefinition[]) => void
   reload: () => void
@@ -182,6 +184,13 @@ export function createSettingsService(args: {
     },
     set: ({ id, value }) => persist((document) => withSetting({ document, id, value })),
     clear: ({ id }) => persist((document) => withoutSetting({ document, id })),
+    applyUserDocument: (document) => {
+      const parsed = parseSettingsDocument(document.values)
+      const unchanged =
+        serialiseSettingsDocument(parsed) === serialiseSettingsDocument(snapshot.document)
+      if (unchanged) return { ok: true }
+      return persist(() => parsed)
+    },
     register: (extra) => {
       const known = new Set(definitions.map((definition) => definition.id))
       const novel = extra.filter((definition) => !known.has(definition.id))

@@ -131,6 +131,7 @@ export function fakeCloudChannel(
     resume: () => {
       paused = false
     },
+    syncSettings: () => undefined,
     request: async (given) => {
       requests.push({ op: given.op, params: given.params })
       if (given.op === EClientRequest.ReadTranscriptIdentity) {

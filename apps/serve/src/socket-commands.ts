@@ -12,9 +12,10 @@ export function createTurnCommands(args: {
   driver: ServeTurnDriver
   buffer: Pick<FrameBuffer, 'nextSeq'>
   log: ServeLog
+  applyUserSettings?: ((content: string) => void) | undefined
   send: (args: { socket: SessionSocket; frame: ServeFrame }) => void
 }) {
-  const { threadId, driver, buffer, log, send } = args
+  const { threadId, driver, buffer, log, send, applyUserSettings } = args
   const committedSends = new Set<string>()
 
   return (commanded: { socket: SessionSocket; frame: ClientFrame }): void => {
@@ -75,6 +76,11 @@ export function createTurnCommands(args: {
 
   if (frame.kind === EClientFrame.Resume) {
     driver.resume()
+    return
+  }
+
+  if (frame.kind === EClientFrame.Settings) {
+    applyUserSettings?.(frame.content)
     return
   }
   }

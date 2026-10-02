@@ -39,6 +39,7 @@ export enum EServeEvent {
   LostShellSettlementFailed = 'serve.lost-shell-settlement-failed',
   PortableStateInstalled = 'serve.portable-state-installed',
   PortableStateFailed = 'serve.portable-state-failed',
+  SettingsDropped = 'serve.settings-dropped',
 }
 
 export type ServeLogLine = { event: EServeEvent; [field: string]: unknown }

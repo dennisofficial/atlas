@@ -1,11 +1,13 @@
 import type { ThreadId } from '@dltech/atlas-core'
 import { PORTABLE_STATE_PATH, type PortableState, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
+import type { SettingsService } from '../settings/service'
 import { createRemoteDeltaChannel } from './remote-delta-channel'
 import { RemoteEventLog } from './remote-event-log'
 import { RemoteThreadStore } from './remote-thread-store'
 import { RemoteTurnLedger } from './remote-turn-ledger'
 import { sandboxNameFor } from './sandbox-names'
+import { bindChannelSettingsSync } from './settings-channel-sync'
 import { ECloudSandboxState } from './sandbox-client'
 import type {
   CloudBridge,
@@ -60,6 +62,7 @@ export function createLocalCloudBridge(args: {
   onDriverLog?: ((line: string) => void) | undefined
   lastEventSeq?: (() => number) | undefined
   driverWith?: ((config: VercelSandboxConfig) => BridgeDriver) | undefined
+  settings?: SettingsService | undefined
 }): CloudBridge {
   const driverWith =
     args.driverWith ??
@@ -291,6 +294,7 @@ export function createLocalCloudBridge(args: {
   return {
     sandboxes: bridgeSandboxes,
     attach: ({ threadId, url, token }) => {
+      let unbindSettings: (() => void) | undefined
       const channel = createRemoteDeltaChannel({
         threadId,
         url,
@@ -298,7 +302,11 @@ export function createLocalCloudBridge(args: {
         ...(args.lastEventSeq === undefined ? {} : { lastEventSeq: args.lastEventSeq }),
         reattach: () => reattachSandbox({ sandboxes: bridgeSandboxes, threadId }),
         lifecycleEscalation: lifecycleEscalationOf({ sandboxes: bridgeSandboxes, threadId }),
+        onFinished: () => unbindSettings?.(),
       })
+      if (args.settings !== undefined) {
+        unbindSettings = bindChannelSettingsSync({ channel, settings: args.settings })
+      }
       return {
         channel,
         stores: {

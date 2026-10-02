@@ -169,7 +169,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     roster: app.roster,
     rewind: app.rewind,
     pending: app.pending,
-    ...handlerOptionsOf(app),
+    ...handlerOptionsOf({ app, log }),
     restoreTranscript: createTranscriptRestorer({
       app,
       threadId,

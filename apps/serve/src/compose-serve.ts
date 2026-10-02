@@ -163,6 +163,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     threads: app.surface.threads,
     modelBridge: app.surface.modelBridge,
     ledger: app.ledger,
+    settings: app.settings,
     ids: app.ids,
     files: app.files,
     workspace: app.workspace,

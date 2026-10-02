@@ -49,6 +49,7 @@ export type SessionHandlersArgs = {
   checkpoint?: (() => RuntimeCheckpoint | null) | undefined
   checkpointChanged?: (() => void) | undefined
   log: ServeLog
+  applyUserSettings?: ((content: string) => void) | undefined
   roster?: ServeRoster | undefined
   rewind?: ServeRewind | undefined
   /** The operator's queued input; its changes are broadcast and take-back-pending answers from it. Absent in fakes. */

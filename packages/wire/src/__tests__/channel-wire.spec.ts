@@ -113,8 +113,31 @@ describe('the memory archive op', () => {
 })
 
 describe('the protocol stamp', () => {
-  it('speaks the version that refuses serve runtimes which cannot take a queued message back', () => {
-    expect(CHANNEL_PROTOCOL_VERSION).toBe(12)
+  it('speaks the version that refuses serve runtimes which cannot apply a settings sync', () => {
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(13)
+  })
+})
+
+describe('the settings frame', () => {
+  it('round-trips the serialised user settings document unchanged', () => {
+    const frame: ClientFrame = {
+      kind: EClientFrame.Settings,
+      content: '{\n  "sidebar.width": 70\n}\n',
+    }
+
+    expect(decodeClientFrame(encodeFrame(frame))).toEqual(frame)
+  })
+
+  it('drops a settings frame without content', () => {
+    const raw = JSON.stringify({ kind: EClientFrame.Settings })
+
+    expect(decodeClientFrame(raw)).toBeNull()
+  })
+
+  it('drops a settings frame whose content is not a string', () => {
+    const raw = JSON.stringify({ kind: EClientFrame.Settings, content: { 'sidebar.width': 70 } })
+
+    expect(decodeClientFrame(raw)).toBeNull()
   })
 })
 

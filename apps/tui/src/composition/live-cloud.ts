@@ -93,6 +93,7 @@ export const liveBridgeFor = (app: AtlasApp): CloudBridgeFactory => {
         ...sandboxImageOf({ settings: app.settings, release: releaseBuildOf() }),
       }),
       attachmentToken: ({ threadId }) => sandboxServeTokenFor({ secrets: app.secrets, threadId }),
+      settings: app.settings,
       readGitToken: () => readGhAuthToken(),
       capturePortable: () => capturePortableState({}),
       onPortableOmitted: (omitted) => {

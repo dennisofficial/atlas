@@ -55,7 +55,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     args.socket.send(encodeFrame(args.frame))
   }
 
-  const command = createTurnCommands({ threadId, driver, buffer, log, send })
+  const command = createTurnCommands({ threadId, driver, buffer, log, send, applyUserSettings: args.applyUserSettings })
 
   const router = createRequestRouter({
     threadId,
