@@ -77,7 +77,6 @@ function noticeProps(run: PendingNoticeRun): {
       return { openHint: SHELL_OUTPUT_HINT, silentNote: PRINTED_NOTHING }
     case EEntryKind.BackgroundShellMatched:
       return { openHint: MATCHED_LINES_HINT, silentNote: MATCHED_NOTHING }
-    case EEntryKind.BackgroundShellStillRunning:
     case EEntryKind.BackgroundShellEnded:
     case EEntryKind.ServiceEnded:
       return { openHint: SHELL_OUTPUT_HINT, silentNote: PRINTED_NOTHING }

@@ -38,7 +38,6 @@ export const RETAINED_ENDED_SHELLS = 50
 export const ACTIVITY_NOTIFY_MS = 100
 export const OVERFLOW_CHARACTERS = 50_000_000
 export const PROMPT_SETTLE_MS = 2_000
-export const CHECK_IN_TAIL_CHARACTERS = 1_000
 export const SILENT_FOR_AT_MOST_MS = 1_800_000
 
 /** SIGKILL plus the read grace and slack: a kill that outlives this is handed back to the announcement path. */
@@ -159,7 +158,6 @@ export class BunShellRegistry extends ShellRegistryPort {
 
     this.started += 1
     const shellId = toShellId(`bash_${this.started}`)
-    const checkInMs = args.checkInMs
 
     const opened = startBackgroundShell({
       shellId,
@@ -177,17 +175,12 @@ export class BunShellRegistry extends ShellRegistryPort {
       matchedLinesCap: MATCHED_LINES_CAP,
       timeoutMs: args.timeoutMs,
       silenceMs: this.silenceMs,
-      checkInMs,
       exposure: args.exposure,
       processes: this.processes,
       onExit: (shell) => this.announceExit(shell),
       onSettled: (shellId) => this.captureOutput(shellId),
       onAwaitingInput: (shell) => this.announceAwaitingInput(shell),
       onMatched: (matched) => this.announceMatched(matched),
-      onStillRunning: (shell) => {
-        if (checkInMs === undefined) return
-        this.announceStillRunning({ shell, checkInMs })
-      },
       onActivity: () => this.noteActivity(),
     })
     if (!opened.ok) return opened
@@ -603,24 +596,6 @@ export class BunShellRegistry extends ShellRegistryPort {
       snapshot: shell.snapshot(),
       take: () => previewDelta(entry),
       threadId: entry.threadId,
-    })
-  }
-
-  private announceStillRunning(args: { shell: BackgroundShell; checkInMs: number }): void {
-    const entry = this.tracked.get(args.shell.shellId)
-    if (entry === undefined || entry.announced) return
-
-    const snapshot = args.shell.snapshot()
-    const now = Date.parse(this.clock.now())
-
-    this.notices.queue({
-      kind: ENotice.StillRunning,
-      snapshot,
-      threadId: entry.threadId,
-      peek: () => args.shell.tail(CHECK_IN_TAIL_CHARACTERS),
-      runningForMs: Math.max(now - Date.parse(snapshot.startedAt), 0),
-      silentForMs: Math.max(now - Date.parse(snapshot.lastOutputAt), 0),
-      checkInMs: args.checkInMs,
     })
   }
 

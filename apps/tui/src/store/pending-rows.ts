@@ -15,7 +15,6 @@ import {
   shellEndedLine,
   shellEndingFailed,
   shellMatchedNoticeLine,
-  shellStillRunningLine,
 } from './shell-ended-line'
 import { EEntryKind } from './transcript-model'
 
@@ -50,17 +49,6 @@ const NOTHING_PENDING: readonly PendingRow[] = Object.freeze([])
 
 function pendingShellRow(notice: PendingShellNotice): PendingRow {
   const { snapshot } = notice
-
-  if (notice.kind === ENotice.StillRunning) {
-    return {
-      kind: EPendingKind.BackgroundShell,
-      id: `shell-still-running-${snapshot.shellId}`,
-      text: shellStillRunningLine(snapshot),
-      failed: false,
-      body: null,
-      entryKind: EEntryKind.BackgroundShellStillRunning,
-    }
-  }
 
   if (notice.kind === ENotice.Matched) {
     return {

@@ -192,24 +192,6 @@ describe('what waits under the working indicator', () => {
     expect(rows.map((row) => row.id)).toEqual(['shell-ended-bash_1', 'shell-ended-bash_2'])
   })
 
-  it('reads a queued check-in as a shell still running, never as a prompt to answer', () => {
-    const rows = pendingRows({
-      entries: [],
-      notices: [notice({ status: EShellStatus.Running }, ENotice.StillRunning)],
-      agents: [],
-      services: [],
-    })
-
-    expect(rows[0]).toEqual({
-      kind: EPendingKind.BackgroundShell,
-      id: 'shell-still-running-bash_1',
-      text: 'Background shell "Run full TUI suite" is still running - a scheduled check-in, not an ending',
-      failed: false,
-      body: null,
-      entryKind: EEntryKind.BackgroundShellStillRunning,
-    })
-  })
-
   it('reads a queued watch match as progress, not as a prompt to answer', () => {
     const rows = pendingRows({
       entries: [],

@@ -37,7 +37,6 @@ import { MAXIMUM_OUTPUT_CHARACTERS, mergeStreams, renderModelText } from './bash
 import {
   bashDescription,
   ceilingClause,
-  checkInClause,
   exposureClause,
   exposureNeedsBackground,
   exposureUnsupported,
@@ -58,7 +57,6 @@ const inputSchema = z.strictObject({
   description: z.string().min(1),
   runInBackground: z.boolean().optional(),
   watch: z.string().min(1).optional(),
-  checkInMs: z.number().int().positive().optional(),
   exposePort: z.number().int().min(1).max(65_535).optional(),
 })
 
@@ -117,7 +115,6 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
     cwd: string
     watch?: string | undefined
     timeoutMs?: number | undefined
-    checkInMs?: number | undefined
     exposure?: PortExposure | undefined
   }): ToolOutcome {
     const started = this.shells.start(args)
@@ -134,7 +131,6 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
         shellId,
         status: started.snapshot.status,
         pid: started.snapshot.pid,
-        ...(args.checkInMs === undefined ? {} : { checkInMs: args.checkInMs }),
         ...(args.watch === undefined ? {} : { watch: args.watch }),
         ...(args.timeoutMs === undefined ? {} : { timeoutMs: args.timeoutMs }),
         ...(args.exposure === undefined ? {} : { exposure: args.exposure }),
@@ -149,7 +145,6 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
         'and the ending is written to the durable log and announced like every other, so you can be told the same death twice - once as the tool result, once as the ending.',
         ...watchClause({ watch: args.watch }),
         ...ceilingClause({ timeoutMs: args.timeoutMs }),
-        ...checkInClause({ checkInMs: args.checkInMs }),
         ...exposureClause({ exposure: args.exposure }),
         'So do not wait on it: no sleeping, no polling, no idle loop, and no do-nothing command to pass the time - a tick only spins the turn. Take up other work, or end the turn and be woken.',
         `Use shell_output({ shellId: "${shellId}" }) only for a shell that will not end on its own, such as a dev server`,
@@ -205,14 +200,6 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
       }
     }
 
-    if (input.checkInMs !== undefined && input.runInBackground !== true) {
-      return {
-        ok: false,
-        reason:
-          'checkInMs paces the check-ins of a shell that outlives the call, so it needs runInBackground: true; a foreground command is already bounded by timeoutMs and hands you its ending when it returns',
-      }
-    }
-
     if (input.exposePort !== undefined && input.runInBackground !== true) {
       return { ok: false, reason: exposureNeedsBackground() }
     }
@@ -245,7 +232,6 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
         cwd,
         watch: input.watch,
         timeoutMs,
-        checkInMs: input.checkInMs,
         exposure: exposure.exposure,
       })
     }

@@ -60,22 +60,4 @@ describe('preparing a batch off the shell notice queue', () => {
     expect(batch.drafts).toHaveLength(1)
     expect(batch.wakesTurn).toBe(true)
   })
-
-  it('does not wake for a stale check-in whose shell already ended', () => {
-    const queue = new ShellNoticeQueue(() => endedSnapshot({ shellId: 'bash_1' }))
-    queue.queue({
-      kind: ENotice.StillRunning,
-      snapshot: endedSnapshot({ shellId: 'bash_1' }),
-      threadId: THREAD,
-      peek: () => '',
-      runningForMs: 1000,
-      silentForMs: 1000,
-      checkInMs: 100,
-    })
-
-    const batch = queue.prepare({ threadId: THREAD })
-
-    expect(batch.drafts).toEqual([])
-    expect(batch.wakesTurn).toBe(false)
-  })
 })

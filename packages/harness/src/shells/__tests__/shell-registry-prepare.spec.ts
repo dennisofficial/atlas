@@ -17,8 +17,6 @@ const openLogless = (args: Parameters<typeof openRegistry>[0] = {}) =>
 
 afterEach(closeRegistries)
 
-const CHECK_IN_MS = 100
-
 describe('the shell notice queue as a wake-up bell', () => {
   it('rings for an ending but yields no ending draft: the occurrence write is the record', async () => {
     const { registry } = openLogless()
@@ -56,24 +54,6 @@ describe('the shell notice queue as a wake-up bell', () => {
     expect(read.ok && read.delta.text).toContain('second')
     const second = registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
     expect(second.ok && second.delta.text).toBe('')
-  })
-
-  it('keeps a check-in queued behind a prepared batch when it replaced the captured one', async () => {
-    const { registry } = openLogless()
-    const started = registry.start({ ...job({ command: 'sleep 30' }), checkInMs: CHECK_IN_MS })
-    if (!started.ok) throw new Error(started.reason)
-
-    await announced({ registry })
-    const batch = registry.prepareNotifications({ threadId: THREAD })
-    expect(batch.drafts).toHaveLength(1)
-
-    await Bun.sleep(CHECK_IN_MS * 2 + 100)
-    batch.acknowledge()
-
-    const remaining = registry.prepareNotifications({ threadId: THREAD })
-    expect(remaining.drafts).toHaveLength(1)
-    expect(remaining.drafts[0]?.type).toBe('background-shell-still-running')
-    remaining.acknowledge()
   })
 
   it('acknowledges exactly once: a second ack removes nothing more', async () => {
@@ -150,14 +130,14 @@ describe('the shell notice queue as a wake-up bell', () => {
     const { registry } = openLogless()
     const started = registry.start({
       ...job({ command: `printf 'early\\n'; sleep 60` }),
-      checkInMs: CHECK_IN_MS,
+      watch: 'early',
     })
     if (!started.ok) throw new Error(started.reason)
     await printed({ registry, shellId: started.snapshot.shellId, text: 'early' })
 
     await announced({ registry })
     const batch = registry.prepareNotifications({ threadId: THREAD })
-    expect(batch.drafts[0]?.type).toBe('background-shell-still-running')
+    expect(batch.drafts[0]?.type).toBe('background-shell-matched')
 
     registry.kill({ shellId: started.snapshot.shellId, by: EKilledBy.User, threadId: THREAD })
     await settle({ registry, shellId: started.snapshot.shellId })
@@ -169,33 +149,5 @@ describe('the shell notice queue as a wake-up bell', () => {
     expect(ending.drafts).toEqual([])
     expect(registry.pendingNotices({ threadId: THREAD })).toHaveLength(1)
     ending.acknowledge()
-  })
-
-  it('clears a check-in whose shell ended behind a prepared batch instead of queuing it forever', async () => {
-    const { registry } = openLogless()
-    const started = registry.start({ ...job({ command: 'sleep 30' }), checkInMs: CHECK_IN_MS })
-    if (!started.ok) throw new Error(started.reason)
-    await announced({ registry })
-
-    const batch = registry.prepareNotifications({ threadId: THREAD })
-    expect(batch.drafts).toHaveLength(1)
-
-    registry.kill({ shellId: started.snapshot.shellId, by: EKilledBy.User, threadId: THREAD })
-    await settle({ registry, shellId: started.snapshot.shellId })
-
-    batch.acknowledge()
-
-    const remaining = registry.prepareNotifications({ threadId: THREAD })
-    expect(remaining.drafts.some((draft) => draft.type === 'background-shell-still-running')).toBe(
-      false,
-    )
-    remaining.acknowledge()
-
-    await announced({ registry })
-    const ending = registry.prepareNotifications({ threadId: THREAD })
-    expect(ending.drafts).toEqual([])
-    expect(registry.pendingNotices({ threadId: THREAD })).toHaveLength(1)
-    ending.acknowledge()
-    expect(registry.threadsWithPendingInput()).toEqual([])
   })
 })

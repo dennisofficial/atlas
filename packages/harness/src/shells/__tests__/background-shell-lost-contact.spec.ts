@@ -77,7 +77,6 @@ const started = (
     onExit,
     onAwaitingInput: () => {},
     onMatched: () => {},
-    onStillRunning: () => {},
   })
 
 describe('a background shell the harness can no longer read', () => {

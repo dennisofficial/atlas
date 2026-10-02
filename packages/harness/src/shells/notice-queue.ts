@@ -4,7 +4,7 @@ import type { ShellDelta } from './background-shell'
 
 import type { InputBatch } from '../intake/input-batch'
 import type { ShellSnapshot } from './background-shell'
-import { awaitingInputDraft, matchedDraft, stillRunningDraft } from './notifications'
+import { awaitingInputDraft, matchedDraft } from './notifications'
 import type { MatchedLines } from './shell-watch'
 import { DELIVERED_CHARACTERS, previewDelta, take } from './output-preview'
 
@@ -15,7 +15,6 @@ export enum ENotice {
   Ended = 'ended',
   AwaitingInput = 'awaiting-input',
   Matched = 'matched',
-  StillRunning = 'still-running',
 }
 
 type NoticedShell = { snapshot: ShellSnapshot; threadId: ThreadId }
@@ -36,16 +35,9 @@ export type ShellNotice =
       take: () => ShellDelta
     })
   | (NoticedShell & { kind: ENotice.Matched; pattern: string; matched: MatchedLines })
-  | (NoticedShell & {
-      kind: ENotice.StillRunning
-      peek: () => string
-      runningForMs: number
-      silentForMs: number
-      checkInMs: number
-    })
 
 /**
- * A pending row must know which kind of notice it is: a still-running shell announced as
+ * A pending row must know which kind of notice it is: a matched shell announced as
  * "waiting on input" would send the operator to answer a prompt that does not exist.
  */
 export type PendingShellNotice = { kind: ENotice; snapshot: ShellSnapshot }
@@ -63,20 +55,8 @@ export class ShellNoticeQueue {
 
   constructor(private readonly live: (args: { shellId: string }) => ShellSnapshot | undefined) {}
 
-  /**
-   * Check-ins arrive on a cadence whether or not the last one was drained, so an undrained one is
-   * replaced by its fresher successor rather than stacked behind it.
-   */
   queue(notice: ShellNotice): void {
-    const kept =
-      notice.kind === ENotice.StillRunning
-        ? this.queued.filter(
-            (held) =>
-              held.kind !== ENotice.StillRunning ||
-              held.snapshot.shellId !== notice.snapshot.shellId,
-          )
-        : this.queued
-    this.settle([...kept, notice])
+    this.settle([...this.queued, notice])
   }
 
   /**
@@ -156,9 +136,6 @@ export class ShellNoticeQueue {
     if (notice.kind === ENotice.Ended) return true
 
     const live = this.live({ shellId: notice.snapshot.shellId })
-    if (notice.kind === ENotice.StillRunning) {
-      return live !== undefined && live.status === EShellStatus.Running
-    }
     return live === undefined || live.status === EShellStatus.Running
   }
 
@@ -169,18 +146,6 @@ export class ShellNoticeQueue {
           snapshot: notice.snapshot,
           pattern: notice.pattern,
           matched: notice.matched,
-        }),
-      ]
-    }
-
-    if (notice.kind === ENotice.StillRunning) {
-      return [
-        stillRunningDraft({
-          snapshot: notice.snapshot,
-          tail: notice.peek(),
-          runningForMs: notice.runningForMs,
-          silentForMs: notice.silentForMs,
-          checkInMs: notice.checkInMs,
         }),
       ]
     }

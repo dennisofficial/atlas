@@ -22,8 +22,8 @@ export function bashDescription({
     'outlives the turn that started it. A server - a dev server, a database, anything that listens',
     'until stopped - belongs on service_start instead. A watch pattern delivers matching lines as',
     'they arrive; match failure markers as well as success, since silence is indistinguishable from',
-    'progress. A background shell that prints nothing for 30 minutes is killed; without checkInMs it',
-    'wakes you only on its ending. Commands that wait idly - sleeps, poll loops, foreground watches,',
+    'progress. A background shell that prints nothing for 30 minutes is killed, and that ending wakes',
+    'you like any other. Commands that wait idly - sleeps, poll loops, foreground watches,',
     'do-nothing ticks - are refused.',
     'shell_output reads a shell that will not end on its own, shell_list shows what is running, and',
     "shell_kill stops one. exposePort publishes a background server's port at runInBackground and",
@@ -67,20 +67,12 @@ export function ceilingClause({ timeoutMs }: { timeoutMs: number | undefined }):
   return [`It is killed if it outlives ${timeoutMs} ms, and the killing reaches you as its ending.`]
 }
 
-export function checkInClause({ checkInMs }: { checkInMs: number | undefined }): readonly string[] {
-  if (checkInMs === undefined) return []
-  return [
-    `While it runs, a check-in reaches you every ${checkInMs} ms with how long it has been up and its latest output,`,
-    'so it can never sit running unnoticed - if that cadence would only nag, it belongs on service_start.',
-  ]
-}
-
 const NATIVE_WAITS = 'gh run watch --exit-status, gh pr checks --watch'
 
 export function noOpRefusal(): string {
   return [
     'this command does nothing: it would return at once with nothing printed and nothing changed, so the only thing calling it spends is the turn itself, and calling it again spends another.',
-    'If the point was to wait on a background shell, a turn does not wait by calling tools - it waits by ending. End the turn with no tool call, and the shell ending, a watch match or the next check-in will wake you.',
+    'If the point was to wait on a background shell, a turn does not wait by calling tools - it waits by ending. End the turn with no tool call, and the shell ending or a watch match will wake you.',
     'If nothing is running the slow work yet, start it with runInBackground and a watch instead of ticking.',
   ].join(' ')
 }

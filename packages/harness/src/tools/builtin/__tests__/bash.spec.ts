@@ -385,33 +385,13 @@ describe('giving a background shell a ceiling', () => {
   })
 })
 
-describe('pacing a background shell check-in', () => {
-  it('refuses checkInMs on a foreground command, and says what it needs', async () => {
-    const outcome = await invoke({ command: 'echo hi', checkInMs: 5_000 })
-
-    expect(outcome.ok).toBe(false)
-    expect(!outcome.ok && outcome.reason).toContain('runInBackground')
-  })
-
-  it('schedules no check-in when none is asked for', async () => {
-    const outcome = await invoke({ command: 'sleep 30', runInBackground: true })
-
-    expect(outputOf(outcome)).not.toHaveProperty('checkInMs')
-    expect(outcome.ok && outcome.modelText).not.toContain('a check-in reaches you')
-  })
-
-  it('takes a checkInMs rather than refusing it', async () => {
-    const outcome = await invoke({ command: 'sleep 30', runInBackground: true, checkInMs: 10_000 })
-
-    expect(outputOf(outcome)).toMatchObject({ checkInMs: 10_000 })
-    expect(outcome.ok && outcome.modelText).toContain('a check-in reaches you every 10000 ms')
-  })
-
-  it('names checkInMs and the silent-shell timeout in the description', () => {
+describe('the silent-shell timeout', () => {
+  it('names the silent-shell timeout in the description, and no check-in cadence', () => {
     const { description } = new BashTool(new BunShellRegistry(root, new SystemClock(), noHooks))
 
-    expect(description).toContain('checkInMs')
     expect(description).toContain('30 minutes')
+    expect(description).not.toContain('checkInMs')
+    expect(description).not.toContain('check-in')
   })
 })
 

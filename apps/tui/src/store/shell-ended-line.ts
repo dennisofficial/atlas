@@ -48,6 +48,3 @@ export const shellAwaitingInputLine = (shell: NamedShell): string =>
 
 export const shellMatchedNoticeLine = (shell: NamedShell): string =>
   `Background shell ${named(shell)} matched its watch and is still running`
-
-export const shellStillRunningLine = (shell: NamedShell): string =>
-  `Background shell ${named(shell)} is still running - a scheduled check-in, not an ending`

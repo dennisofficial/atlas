@@ -90,29 +90,6 @@ describe('the durable and the pending notice are the same block', () => {
     expect(dimmed(setup.captureSpans(), 'exit code 0')).toBe(true)
   })
 
-  test('a pending check-in keeps its semantics: still running, no failure mark, output semantics', async () => {
-    const setup = await shown(
-      <PendingBlock
-        rows={[
-          {
-            kind: EPendingKind.BackgroundShell,
-            id: 'shell-still-running-bash_1',
-            text: 'Background shell "Run full TUI suite" is still running - a scheduled check-in, not an ending',
-            failed: false,
-            body: '261 pass so far',
-            entryKind: EEntryKind.BackgroundShellStillRunning,
-          } satisfies PendingRow,
-        ]}
-        width={90}
-      />,
-    )
-
-    const frame = setup.captureCharFrame()
-    expect(frame).toContain('still running - a scheduled check-in')
-    expect(frame).toContain('261 pass so far')
-    expect(frame).not.toContain('↵ output')
-  })
-
   test('a pending watch match reads as progress with its matches in preview, not as a prompt', async () => {
     const setup = await shown(
       <PendingBlock
