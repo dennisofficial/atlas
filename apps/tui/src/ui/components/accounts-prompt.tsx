@@ -68,6 +68,37 @@ export function Wrapped(props: {
   )
 }
 
+export const BROWSER_HINT = 'Opened in your browser. Approve the sign-in there. Click to reopen:'
+
+function BrowserPrompt(props: {
+  url: string
+  cells: number
+  onOpenUrl: () => void
+}): React.ReactNode {
+  const press = usePress()
+
+  if (props.url.length === 0) {
+    return <TextLine spans={[{ text: 'Starting sign-in…', fg: theme.hint }]} cells={props.cells} />
+  }
+
+  return (
+    <>
+      <TextLine
+        spans={[{ text: BROWSER_HINT, fg: theme.hint }]}
+        cells={props.cells}
+        press={press(props.onOpenUrl)}
+      />
+      <Wrapped
+        text={props.url}
+        cells={props.cells}
+        fg={theme.court.external}
+        press={press(props.onOpenUrl)}
+      />
+      <TextLine spans={[{ text: 'waiting for the browser…', fg: theme.hint }]} cells={props.cells} />
+    </>
+  )
+}
+
 function DevicePrompt(props: {
   url: string
   userCode: string
@@ -105,7 +136,8 @@ export function AccountsPrompt(props: {
   const press = usePress()
   const provider = state.prompt === null ? null : providerSpec(state.prompt.provider).label
   const typing = state.view === EAccountsView.ApiKey ? maskedKey(state.typed) : state.typed
-  const takesInput = state.view !== EAccountsView.DeviceCode
+  const takesInput =
+    state.view !== EAccountsView.DeviceCode && state.view !== EAccountsView.BrowserCode
 
   return (
     <box flexDirection="column" flexShrink={0}>
@@ -116,6 +148,12 @@ export function AccountsPrompt(props: {
         <TextLine
           spans={[{ text: `Paste a ${provider ?? ''} api key and press enter.`, fg: theme.hint }]}
           cells={props.cells}
+        />
+      ) : state.view === EAccountsView.BrowserCode ? (
+        <BrowserPrompt
+          url={state.prompt?.url ?? ''}
+          cells={props.cells}
+          onOpenUrl={props.onOpenUrl}
         />
       ) : state.view === EAccountsView.DeviceCode ? (
         state.prompt?.userCode === undefined || state.prompt.userCode.length === 0 ? (

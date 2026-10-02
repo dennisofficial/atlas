@@ -37,6 +37,7 @@ export function accountDetail(account: Account): string {
 }
 
 const FLOW_LABEL: Readonly<Record<ELoginFlow, string>> = {
+  [ELoginFlow.BrowserCode]: 'sign in',
   [ELoginFlow.PastedCode]: 'sign in',
   [ELoginFlow.DeviceCode]: 'sign in',
   [ELoginFlow.ApiKey]: 'api key',

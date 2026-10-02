@@ -203,7 +203,8 @@ export function Accounts(props: {
   const row = selectedRow(props.state)
 
   const hints = prompting
-    ? props.state.view === EAccountsView.DeviceCode
+    ? props.state.view === EAccountsView.DeviceCode ||
+      props.state.view === EAccountsView.BrowserCode
       ? DEVICE_HINTS
       : PROMPT_HINTS
     : props.state.view === EAccountsView.List

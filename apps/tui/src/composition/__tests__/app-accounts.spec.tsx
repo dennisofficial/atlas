@@ -455,34 +455,3 @@ describe('the browser sign-in flow', () => {
     }
   })
 })
-
-describe('the device code flow', () => {
-  it('shows the device code for OpenAI and signs in once the poll completes', async () => {
-    const app = await appWith([])
-    const setup = await opened({ app })
-
-    try {
-      await openOverlay(setup)
-      await down(setup)
-      await enter(setup)
-      await enter(setup)
-
-      const prompting = await frameShowing({ setup, text: 'ABCD-EFGH' })
-      expect(prompting).toContain('ABCD-EFGH')
-      expect(prompting).toContain('auth.openai.com/codex/device')
-
-      const openedUrl = await until({
-        holds: async () => app.openedUrls.length === 1,
-        within: 10_000,
-      })
-      expect(openedUrl).toBe(true)
-      expect(app.openedUrls).toEqual(['https://auth.openai.com/codex/device'])
-
-      const frame = await frameShowing({ setup, text: 'codex-user@example.com' })
-      expect(frame).toContain('codex-user@example.com')
-      expect(await app.accounts.activeFor(EAuthProvider.OpenAI)).not.toBeUndefined()
-    } finally {
-      await teardown(setup)
-    }
-  })
-})

@@ -13,6 +13,7 @@ export enum EAccountsView {
   SwitchLogin = 'switch-login',
   PastedCode = 'pasted-code',
   DeviceCode = 'device-code',
+  BrowserCode = 'browser-code',
   ApiKey = 'api-key',
 }
 
@@ -95,6 +96,9 @@ export const othersOf = (row: ProviderRow): readonly Account[] => {
 export const acceptsApiKey = (provider: EAuthProvider): boolean =>
   providerSpec(provider).logins.includes(ELoginFlow.ApiKey)
 
+export const acceptsBrowserLogin = (provider: EAuthProvider): boolean =>
+  providerSpec(provider).logins.includes(ELoginFlow.BrowserCode)
+
 export const acceptsPastedCode = (provider: EAuthProvider): boolean =>
   providerSpec(provider).logins.includes(ELoginFlow.PastedCode)
 
@@ -104,7 +108,12 @@ export const acceptsDeviceCode = (provider: EAuthProvider): boolean =>
 export function providerActions(row: ProviderRow): readonly EProviderAction[] {
   const actions: EProviderAction[] = []
 
-  if (acceptsPastedCode(row.provider) || acceptsDeviceCode(row.provider)) {
+  const signsIn =
+    acceptsBrowserLogin(row.provider) ||
+    acceptsPastedCode(row.provider) ||
+    acceptsDeviceCode(row.provider)
+
+  if (signsIn) {
     actions.push(EProviderAction.SignIn)
   }
   if (acceptsApiKey(row.provider)) actions.push(EProviderAction.AddApiKey)
@@ -238,6 +247,13 @@ export function askForDeviceCode(args: {
   }
 }
 
+export function askForBrowser(args: {
+  state: AccountsState
+  prompt: AccountsPrompt
+}): AccountsState {
+  return { ...askForDeviceCode(args), view: EAccountsView.BrowserCode }
+}
+
 export function askForApiKey(args: {
   state: AccountsState
   provider: EAuthProvider
@@ -279,4 +295,5 @@ export function announced(args: { state: AccountsState; notice: string }): Accou
 export const isPrompting = (state: AccountsState): boolean =>
   state.view === EAccountsView.PastedCode ||
   state.view === EAccountsView.DeviceCode ||
+  state.view === EAccountsView.BrowserCode ||
   state.view === EAccountsView.ApiKey

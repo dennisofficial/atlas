@@ -19,6 +19,7 @@ import { EDevicePoll } from '@dltech/atlas-harness'
 
 import {
   acceptsApiKey,
+  acceptsBrowserLogin,
   acceptsDeviceCode,
   acceptsPastedCode,
   askForApiKey,
@@ -49,6 +50,7 @@ import {
   type ProviderRow,
 } from '../ui/accounts-model'
 import { pastedText } from '../ui/pasted-text'
+import { useBrowserLogin } from './use-browser-login'
 
 export type AccountsControl = {
   state: AccountsState | null
@@ -137,11 +139,14 @@ export function useAccounts(args: {
     [put, rows],
   )
 
+  const browser = useBrowserLogin({ accounts, openUrl, held, put, refresh })
+
   const handleDismiss = useCallback(() => {
     ticket.current = null
     stopDevice()
+    browser.cancel()
     put(null)
-  }, [put, stopDevice])
+  }, [browser, put, stopDevice])
 
   const handlePick = useCallback(
     (row: ProviderRow) => {
@@ -228,6 +233,11 @@ export function useAccounts(args: {
       const provider = providerOf(current)
       if (provider === undefined) return
 
+      if (acceptsBrowserLogin(provider)) {
+        browser.begin({ state: current, provider })
+        return
+      }
+
       if (acceptsPastedCode(provider)) {
         try {
           const begun = accounts.begin(provider)
@@ -247,7 +257,7 @@ export function useAccounts(args: {
 
       beginDevice(current, provider)
     },
-    [accounts, beginDevice, openUrl, put],
+    [accounts, beginDevice, browser, openUrl, put],
   )
 
   const askForKey = useCallback(
@@ -416,11 +426,14 @@ export function useAccounts(args: {
       if (key.name === 'escape') {
         ticket.current = null
         stopDevice()
+        browser.cancel()
         put(backToList(current))
         return
       }
 
-      if (current.view === EAccountsView.DeviceCode) return
+      if (current.view === EAccountsView.DeviceCode || current.view === EAccountsView.BrowserCode) {
+        return
+      }
 
       if (key.name === 'return') {
         submit(current)
@@ -434,7 +447,7 @@ export function useAccounts(args: {
 
       if (isPrintable(key)) put(typeInto({ state: current, text: key.sequence ?? '' }))
     },
-    [put, stopDevice, submit],
+    [browser, put, stopDevice, submit],
   )
 
   const handleKey = useCallback(
