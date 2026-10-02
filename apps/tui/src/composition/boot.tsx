@@ -104,6 +104,14 @@ export async function bootAtlas(args: {
     targetFps: TARGET_FPS,
   });
 
+  /*
+   * OpenTUI subscribes every mounted ScrollBox to the renderer's "selection" event from its
+   * constructor to its destroySelf, so a normal scene of transcript + sidebar + overlays +
+   * horizontal scrollers exceeds Node's default listener cap of ten and the EventEmitter
+   * warning fires on ordinary UI.
+   */
+  renderer.setMaxListeners(0);
+
   const untrackFocus = trackTerminalFocus({
     source: renderer,
     write: (sequence) => process.stdout.write(sequence),
