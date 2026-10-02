@@ -141,6 +141,11 @@ export type ServeApp = {
    * endings, so a workspace export races no background writer. Absent in fakes.
    */
   stopWorkspaceProcesses?: (() => Promise<void>) | undefined
+  /**
+   * Kills the family's shells and services attributed to `killedBy` and writes their endings to the
+   * log before it resolves. Absent in fakes, where nothing runs.
+   */
+  endProcesses?: ((args: { killedBy: EKilledBy }) => Promise<void>) | undefined
   /** Live counts behind the idle park; absent in fakes, where nothing runs. */
   runningShells?: (() => number) | undefined
   runningServices?: (() => number) | undefined

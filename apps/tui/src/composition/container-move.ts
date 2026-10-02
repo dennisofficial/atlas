@@ -5,6 +5,7 @@ export enum ELocalMoveStep {
   Stopping = 'stopping',
   Flipping = 'flipping',
   Relocating = 'relocating',
+  Rotating = 'rotating',
 }
 
 export enum EStepMark {
@@ -42,6 +43,7 @@ const STEP_TEXT: Record<MoveStepId, string> = {
   [ELiftStep.Attaching]: 'attaching and verifying the conversation',
   [ELiftStep.Resuming]: 'resuming the turn in the cloud',
   [ELocalMoveStep.Relocating]: 'stopping services, moving sub-agents',
+  [ELocalMoveStep.Rotating]: 'updating the cloud sandbox',
 }
 
 const CLOUD_PLAN: readonly MoveStepId[] = [
@@ -118,8 +120,35 @@ export function advanceMove(args: {
   }
 }
 
-export function failMove(args: { move: ContainerMove; reason: string }): ContainerMove {
+/**
+ * A wake can discover mid-flight that the sandbox needs rotating before it can attach — the probe
+ * only answers once it has read the sandbox's stamps. Inserting the step ahead of the active one
+ * keeps every mark behind the insertion point (they already happened) and re-activates the new
+ * step.
+ */
+export function expandMove(args: {
+  move: ContainerMove
+  insertBefore: MoveStepId
+  step: MoveStepId
+  heading?: string | undefined
+  now: number
+}): ContainerMove {
+  const at = args.move.steps.findIndex((step) => step.id === args.insertBefore)
+  if (at === -1 || args.move.steps.some((step) => step.id === args.step)) return args.move
+
   return {
+    ...args.move,
+    ...(args.heading === undefined ? {} : { heading: args.heading }),
+    steps: [
+      ...args.move.steps.slice(0, at).map((step) => ({ ...step, mark: EStepMark.Done })),
+      stepOf({ id: args.step, mark: EStepMark.Active }),
+      ...args.move.steps.slice(at).map((step) => ({ ...step, mark: EStepMark.Pending })),
+    ],
+    activeSince: args.now,
+  }
+}
+
+export function failMove(args: { move: ContainerMove; reason: string }): ContainerMove {  return {
     ...args.move,
     steps: args.move.steps.map((step) =>
       step.mark === EStepMark.Active ? { ...step, mark: EStepMark.Failed } : step,

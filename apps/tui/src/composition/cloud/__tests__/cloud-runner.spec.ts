@@ -23,6 +23,8 @@ const fakeMove = (): FakeMove => {
     now: 0,
     handleBegin: (args) => calls.push(`begin:${args.target}`),
     handleAdvance: (step) => calls.push(`advance:${step}`),
+    handleExpand: (args) =>
+      calls.push(`expand:${args.step}:${args.heading ?? ''}`),
     handleSettle: () => calls.push('settle'),
     handleFail: (reason) => calls.push(`fail:${reason}`),
     handleDismiss: () => calls.push('dismiss'),
@@ -178,6 +180,36 @@ describe('waking a cloud runner whose channel is not open', () => {
 
     channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-5') })
     await expect(turn).resolves.toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-5') })
+  })
+
+  it('expands the drawer with a rotation step when the wake rotates the sandbox', async () => {
+    const bridge = fakeBridge({
+      sandbox: { ...RESUMED, rotatedProtocol: 11 },
+    })
+    const channel = fakeCloudChannel()
+    channel.moveTo({ state: EChannelConnection.Closed, detail: null })
+    const move = fakeMove()
+    const runner = createCloudRunner({
+      bridge,
+      channel,
+      threadId: CLOUD_THREAD,
+      move,
+      captureContext: async () => undefined,
+    })
+
+    const turn = runner.runTurn({ threadId: CLOUD_THREAD })
+    await Bun.sleep(1)
+
+    expect(move.calls).toEqual([
+      `begin:${EExecutionLocation.Cloud}`,
+      `advance:${ELiftStep.Starting}`,
+      `expand:rotating:UPDATING THE CLOUD SANDBOX`,
+      `advance:${ELiftStep.Attaching}`,
+      'settle',
+    ])
+
+    channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-6') })
+    await expect(turn).resolves.toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-6') })
   })
 
   it('fails the move and propagates the error when waking cannot re-provision the sandbox', async () => {

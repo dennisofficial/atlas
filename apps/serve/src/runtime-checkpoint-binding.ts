@@ -3,16 +3,19 @@ import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 import type { RuntimeCheckpointCapture } from './runtime-checkpoint'
 import { EServeEvent, type ServeLog } from './serve-log'
 
-export function bindRuntimeCheckpoint(args: {
-  capture: Pick<RuntimeCheckpointCapture, 'capture' | 'flush'>
-  log: ServeLog
-  publish: (checkpoint: RuntimeCheckpoint) => void
-}): {
+export type RuntimeCheckpointBinding = {
   current: () => RuntimeCheckpoint | null
   running: () => void
   boot: () => Promise<void>
   finalizePark: () => Promise<void>
-} {
+  finalizeRotation: () => Promise<void>
+}
+
+export function bindRuntimeCheckpoint(args: {
+  capture: Pick<RuntimeCheckpointCapture, 'capture' | 'flush'>
+  log: ServeLog
+  publish: (checkpoint: RuntimeCheckpoint) => void
+}): RuntimeCheckpointBinding {
   let held: RuntimeCheckpoint | null = null
   let finalized = false
   let pending: Promise<void> | null = null
@@ -23,6 +26,14 @@ export function bindRuntimeCheckpoint(args: {
     if (checkpoint === null) return
     held = checkpoint
     args.publish(checkpoint)
+  }
+
+  const finalize = async (final: { phase: ERuntimePhase; label: string }): Promise<void> => {
+    finalized = true
+    await pending
+    await capture(final.phase)
+    if (held?.phase !== final.phase) throw new Error(`this runtime has no final ${final.label} checkpoint`)
+    await args.capture.flush({ timeoutMs: 1_000 })
   }
 
   const running = (): void => {
@@ -45,12 +56,7 @@ export function bindRuntimeCheckpoint(args: {
     current: () => held,
     running,
     boot: () => capture(ERuntimePhase.Running),
-    finalizePark: async () => {
-      finalized = true
-      await pending
-      await capture(ERuntimePhase.Parked)
-      if (held?.phase !== ERuntimePhase.Parked) throw new Error('this runtime has no final park checkpoint')
-      await args.capture.flush({ timeoutMs: 1_000 })
-    },
+    finalizePark: () => finalize({ phase: ERuntimePhase.Parked, label: 'park' }),
+    finalizeRotation: () => finalize({ phase: ERuntimePhase.Rotating, label: 'rotation' }),
   }
 }

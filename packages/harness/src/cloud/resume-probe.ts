@@ -1,16 +1,25 @@
 import type { Sandbox } from '@vercel/sandbox'
 import { z } from 'zod'
 
-import { SERVE_TOKEN_PATH, SERVE_VERSION_PATH } from './serve-launch'
+import { CHANNEL_PROTOCOL_VERSION } from './channel-wire'
+import { drainServe, type ServeDrain } from './serve-drain-client'
+import { SERVE_PROTOCOL_PATH, SERVE_TOKEN_PATH, SERVE_VERSION_PATH } from './serve-launch'
 
 export enum ESandboxProbe {
   Missing = 'missing',
   Kept = 'kept',
   Replaced = 'replaced',
+  RotationNeeded = 'rotation-needed',
   OutdatedPreserved = 'outdated-preserved',
 }
 
-export type SandboxProbeResult = { probe: ESandboxProbe; outdatedServe?: string | undefined }
+export const UNSTAMPED_PROTOCOL = 0
+
+export type SandboxProbeResult = {
+  probe: ESandboxProbe
+  outdatedServe?: string | undefined
+  outdatedProtocol?: number | undefined
+}
 
 export enum ERuntimeIdle {
   Idle = 'idle',
@@ -117,6 +126,22 @@ const routedUrlOf = (sandbox: Sandbox, port: number): string | undefined => {
   }
 }
 
+const protocolOf = (text: string | undefined): number => {
+  const trimmed = text?.trim() ?? ''
+  return /^\d+$/.test(trimmed) ? Number(trimmed) : UNSTAMPED_PROTOCOL
+}
+
+const notifyRotationStarted = (args: {
+  onRotationStarted: (() => void) | undefined
+  log: ((line: string) => void) | undefined
+}): void => {
+  try {
+    args.onRotationStarted?.()
+  } catch (failure) {
+    args.log?.(`rotation notice callback threw: ${failure instanceof Error ? failure.message : String(failure)}`)
+  }
+}
+
 export async function probeSandboxForResume(args: {
   name: string
   pinned: string | undefined
@@ -125,6 +150,8 @@ export async function probeSandboxForResume(args: {
   fetch: () => Promise<Sandbox>
   runtimeHealth: RuntimeActivityProbe
   waitForDriveDetached?: DetachWait | undefined
+  drain?: ServeDrain | undefined
+  onRotationStarted?: (() => void) | undefined
   log?: ((line: string) => void) | undefined
   isMissing: (failure: unknown) => boolean
   toFailure: (failure: unknown) => Error
@@ -155,12 +182,41 @@ export async function probeSandboxForResume(args: {
   const read = await sandbox
     .runCommand({
       cmd: 'sh',
-      args: ['-c', `cat ${SERVE_VERSION_PATH} 2>/dev/null || true`],
+      args: [
+        '-c',
+        `printf '%s\\n' "$(cat ${SERVE_VERSION_PATH} 2>/dev/null)"; printf '%s\\n' "$(cat ${SERVE_PROTOCOL_PATH} 2>/dev/null)"`,
+      ],
       timeoutMs: args.timeoutMs,
     })
     .catch(() => null)
   if (read === null) return { probe: ESandboxProbe.Kept }
-  const installed = (await read.stdout()).trim()
+  const [versionLine, protocolLine] = (await read.stdout()).split('\n')
+  const installed = (versionLine ?? '').trim()
+  const installedProtocol = protocolOf(protocolLine)
+
+  if (installedProtocol !== CHANNEL_PROTOCOL_VERSION) {
+    notifyRotationStarted({ onRotationStarted: args.onRotationStarted, log: args.log })
+    args.log?.(
+      `sandbox ${args.name} speaks wire protocol ${installedProtocol === UNSTAMPED_PROTOCOL ? 'none (unstamped)' : installedProtocol}, this build speaks ${CHANNEL_PROTOCOL_VERSION} — draining the old serve and recreating the sandbox from the pinned image`,
+    )
+    const url = routedUrlOf(sandbox, args.servePort)
+    if (url === undefined) {
+      args.log?.(`sandbox ${args.name} has no routed URL to drain through — deleting it without a drain`)
+    } else {
+      // A serve that predates /v1/drain answers 404, and one that already exited refuses the
+      // connection; neither can be drained, and rotation must still go on to the delete.
+      await (args.drain ?? drainServe)({ sandbox, url }).catch((failure: unknown) => {
+        args.log?.(
+          `sandbox ${args.name} did not drain cleanly (${failure instanceof Error ? failure.message : String(failure)}) — deleting it anyway`,
+        )
+      })
+    }
+    await sandbox.delete({ signal: AbortSignal.timeout(args.timeoutMs) })
+    const detached = await (args.waitForDriveDetached?.() ?? true)
+    if (!detached) args.log?.(`sandbox ${args.name} deleted, but its drive is still attached — the recreate will retry through the lag`)
+    return { probe: ESandboxProbe.RotationNeeded, outdatedProtocol: installedProtocol }
+  }
+
   if (installed === pinned) return { probe: ESandboxProbe.Kept }
 
   const installedLabel = installed === '' ? 'none' : installed

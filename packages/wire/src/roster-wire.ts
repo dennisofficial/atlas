@@ -7,6 +7,7 @@ export enum EKilledBy {
   Timeout = 'timeout',
   Rewind = 'rewind',
   ContainerSwitch = 'container-switch',
+  Rotation = 'rotation',
   LostContact = 'lost-contact',
   Unrecorded = 'unrecorded',
 }

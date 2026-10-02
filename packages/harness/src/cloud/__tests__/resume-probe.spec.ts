@@ -2,7 +2,8 @@ import { describe, expect, it } from 'bun:test'
 
 import { APIError, Sandbox } from '@vercel/sandbox'
 
-import { SERVE_VERSION_PATH } from '../serve-launch'
+import { CHANNEL_PROTOCOL_VERSION } from '../channel-wire'
+import { SERVE_PROTOCOL_PATH, SERVE_VERSION_PATH } from '../serve-launch'
 import {
   ESandboxProbe,
   ERuntimeIdle,
@@ -27,7 +28,13 @@ const FULL_IDLE: ServeRuntimeHealth = {
   clients: 0,
 }
 
-const fakeSandbox = (args: { installed: string; status?: string; routes?: number[] }) => {
+const fakeSandbox = (args: {
+  installed: string
+  protocol?: string
+  status?: string
+  routes?: number[]
+}) => {
+  const protocol = args.protocol ?? String(CHANNEL_PROTOCOL_VERSION)
   let deleted = false
   const routedPorts = args.routes ?? [3000]
   const base = {
@@ -35,7 +42,7 @@ const fakeSandbox = (args: { installed: string; status?: string; routes?: number
     status: args.status ?? 'running',
     runCommand: async () => ({
       exitCode: 0,
-      stdout: async () => `${args.installed}\n`,
+      stdout: async () => `${args.installed}\n${protocol}\n`,
       stderr: async () => '',
     }),
     domain: (port: number) => {
@@ -57,6 +64,8 @@ const probeOf = (args: {
   health?: ServeRuntimeHealth | undefined
   healthThrows?: boolean
   waitForDriveDetached?: () => Promise<boolean>
+  drain?: (args: { sandbox: Sandbox; url: string }) => Promise<void>
+  onRotationStarted?: () => void
   lines?: string[]
 }) =>
   probeSandboxForResume({
@@ -69,6 +78,8 @@ const probeOf = (args: {
       if (args.healthThrows === true) throw new Error('command unavailable')
       return args.health
     },
+    ...(args.drain === undefined ? {} : { drain: args.drain }),
+    ...(args.onRotationStarted === undefined ? {} : { onRotationStarted: args.onRotationStarted }),
     ...(args.waitForDriveDetached === undefined
       ? {}
       : { waitForDriveDetached: args.waitForDriveDetached }),
@@ -271,6 +282,22 @@ describe('probeSandboxForResume', () => {
     expect(versionReads).toBe(1)
   })
 
+  it('reads the protocol stamp in the same command as the version', async () => {
+    const sandbox = fakeSandbox({ installed: PINNED })
+    const scripts: string[] = []
+    Object.assign(sandbox, {
+      runCommand: async (params: { args?: string[] }) => {
+        scripts.push(params.args?.[1] ?? '')
+        return { exitCode: 0, stdout: async () => `${PINNED}\n${CHANNEL_PROTOCOL_VERSION}\n`, stderr: async () => '' }
+      },
+    })
+
+    await probeOf({ sandbox })
+
+    expect(scripts).toHaveLength(1)
+    expect(scripts[0]).toContain(SERVE_PROTOCOL_PATH)
+  })
+
   it('keeps a sandbox whose version read fails — a transient command failure is not drift', async () => {
     const sandbox = fakeSandbox({ installed: PINNED })
     const failing = Object.assign(sandbox, {
@@ -283,6 +310,142 @@ describe('probeSandboxForResume', () => {
 
     expect(result.probe).toBe(ESandboxProbe.Kept)
     expect(failing.deleted()).toBe(false)
+  })
+})
+
+describe('probeSandboxForResume protocol rotation', () => {
+  const STALE_PROTOCOL = String(CHANNEL_PROTOCOL_VERSION - 1)
+
+  it('keeps a sandbox whose protocol stamp matches, never draining', async () => {
+    const sandbox = fakeSandbox({ installed: PINNED })
+    let drains = 0
+
+    const result = await probeOf({ sandbox, drain: async () => { drains += 1 } })
+
+    expect(result.probe).toBe(ESandboxProbe.Kept)
+    expect(drains).toBe(0)
+    expect(sandbox.deleted()).toBe(false)
+  })
+
+  it('drains a live mismatched serve before deleting it, whatever its runtime is doing', async () => {
+    const sandbox = fakeSandbox({ installed: PINNED, protocol: STALE_PROTOCOL })
+    const order: string[] = []
+    Object.assign(sandbox, { delete: async () => { order.push('delete') } })
+    const drained: { url: string }[] = []
+
+    const result = await probeOf({
+      sandbox,
+      health: { ...FULL_IDLE, busy: true, clients: 2 },
+      drain: async ({ url }) => {
+        order.push('drain')
+        drained.push({ url })
+      },
+    })
+
+    expect(order).toEqual(['drain', 'delete'])
+    expect(drained).toEqual([{ url: 'https://sb-3000.vercel.run' }])
+    expect(result).toEqual({
+      probe: ESandboxProbe.RotationNeeded,
+      outdatedProtocol: CHANNEL_PROTOCOL_VERSION - 1,
+    })
+  })
+
+  it('treats a missing or empty protocol stamp as a serve that predates it', async () => {
+    for (const protocol of ['', 'garbage']) {
+      const sandbox = fakeSandbox({ installed: PINNED, protocol })
+      let drains = 0
+
+      const result = await probeOf({ sandbox, drain: async () => { drains += 1 } })
+
+      expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
+      expect(result.outdatedProtocol).toBe(0)
+      expect(drains).toBe(1)
+      expect(sandbox.deleted()).toBe(true)
+    }
+  })
+
+  it('rotates on protocol drift even when the build version also drifted', async () => {
+    const sandbox = fakeSandbox({ installed: STALE, protocol: STALE_PROTOCOL })
+
+    const result = await probeOf({ sandbox, drain: async () => {} })
+
+    expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
+    expect(result.outdatedServe).toBeUndefined()
+    expect(sandbox.deleted()).toBe(true)
+  })
+
+  it('still deletes when the drain is rejected, logging why', async () => {
+    const sandbox = fakeSandbox({ installed: PINNED, protocol: STALE_PROTOCOL })
+    const lines: string[] = []
+
+    const result = await probeOf({
+      sandbox,
+      lines,
+      drain: async () => {
+        throw new Error('the serve answered the drain with HTTP 404')
+      },
+    })
+
+    expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
+    expect(sandbox.deleted()).toBe(true)
+    expect(lines.some((line) => line.includes('HTTP 404') && line.includes('deleting it anyway'))).toBe(true)
+  })
+
+  it('deletes without a drain when the sandbox has no routed URL', async () => {
+    const sandbox = fakeSandbox({ installed: PINNED, protocol: STALE_PROTOCOL, routes: [] })
+    let drains = 0
+
+    const result = await probeOf({ sandbox, drain: async () => { drains += 1 } })
+
+    expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
+    expect(drains).toBe(0)
+    expect(sandbox.deleted()).toBe(true)
+  })
+
+  it('announces the rotation before the drain starts, and survives a throwing callback', async () => {
+    const sandbox = fakeSandbox({ installed: PINNED, protocol: STALE_PROTOCOL })
+    const order: string[] = []
+    const lines: string[] = []
+
+    const result = await probeOf({
+      sandbox,
+      lines,
+      onRotationStarted: () => {
+        order.push('started')
+        throw new Error('drawer unmounted')
+      },
+      drain: async () => { order.push('drain') },
+    })
+
+    expect(order).toEqual(['started', 'drain'])
+    expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
+    expect(lines.some((line) => line.includes('drawer unmounted'))).toBe(true)
+  })
+
+  it('never announces a rotation for build drift alone or a matching sandbox', async () => {
+    let announced = 0
+    const onRotationStarted = () => { announced += 1 }
+
+    await probeOf({ sandbox: fakeSandbox({ installed: STALE }), health: FULL_IDLE, onRotationStarted })
+    await probeOf({ sandbox: fakeSandbox({ installed: PINNED }), onRotationStarted })
+
+    expect(announced).toBe(0)
+  })
+
+  it('replaces a stopped sandbox without draining or announcing', async () => {
+    const sandbox = fakeSandbox({ installed: STALE, protocol: STALE_PROTOCOL, status: 'stopped' })
+    let drains = 0
+    let announced = 0
+
+    const result = await probeOf({
+      sandbox,
+      drain: async () => { drains += 1 },
+      onRotationStarted: () => { announced += 1 },
+    })
+
+    expect(result.probe).toBe(ESandboxProbe.Replaced)
+    expect(drains).toBe(0)
+    expect(announced).toBe(0)
   })
 })
 

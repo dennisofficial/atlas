@@ -2,6 +2,7 @@ import type { Server } from 'bun'
 
 import { CHANNEL_SUBPROTOCOL, tokenFromSubprotocols } from '@dltech/atlas-harness'
 
+import type { ServeDrain } from './serve-drain'
 import type { SessionHandlers, SocketState } from './socket-session'
 import { bearerToken, offeredSubprotocols, tokenMatches } from './token-guard'
 
@@ -9,13 +10,15 @@ export const HEALTH_PATH = '/v1/health'
 
 export const PARK_PATH = '/v1/park'
 
+export const DRAIN_PATH = '/v1/drain'
+
 export const SESSION_PATH = '/v1/session'
 
 const MAX_IDLE_SECONDS = 255
 
 const unauthorized = (): Response => new Response('unauthorized', { status: 401 })
 
-const parkReasonOf = async (request: Request): Promise<string | null> => {
+const reasonOf = async (request: Request): Promise<string | null> => {
   let body: unknown
   try {
     body = await request.json()
@@ -27,10 +30,19 @@ const parkReasonOf = async (request: Request): Promise<string | null> => {
   return typeof reason === 'string' && reason.length > 0 ? reason : null
 }
 
+const reasonedPost = async (args: { request: Request; token: string }): Promise<string | Response> => {
+  if (args.request.method !== 'POST') return new Response('method not allowed', { status: 405 })
+  const offered = bearerToken(args.request.headers.get('authorization'))
+  if (!tokenMatches({ expected: args.token, offered })) return unauthorized()
+  const reason = await reasonOf(args.request)
+  return reason ?? new Response('a reason is required', { status: 400 })
+}
+
 export function startSessionServer(args: {
   port: number
   token: string
   handlers: SessionHandlers
+  drain: ServeDrain
   health: () => unknown
 }): Server<SocketState> {
   const { token, handlers } = args
@@ -49,13 +61,16 @@ export function startSessionServer(args: {
       }
 
       if (pathname === PARK_PATH) {
-        if (request.method !== 'POST') return new Response('method not allowed', { status: 405 })
-        const offered = bearerToken(request.headers.get('authorization'))
-        if (!tokenMatches({ expected: token, offered })) return unauthorized()
-        const reason = await parkReasonOf(request)
-        if (reason === null) return new Response('a reason is required', { status: 400 })
+        const reason = await reasonedPost({ request, token })
+        if (reason instanceof Response) return reason
         handlers.park({ reason })
         return Response.json({ ok: true })
+      }
+
+      if (pathname === DRAIN_PATH) {
+        const reason = await reasonedPost({ request, token })
+        if (reason instanceof Response) return reason
+        return Response.json(await args.drain({ reason }))
       }
 
       if (pathname !== SESSION_PATH) return new Response('not found', { status: 404 })

@@ -19,6 +19,7 @@ import { announceBoot } from './serve-announce'
 import { bootServeFiles } from './serve-boot'
 import { composeBootApp } from './serve-compose-boot'
 import { serveConfig } from './serve-config'
+import { bindServeDrain } from './serve-drain-binding'
 import { createServeLifecycle } from './serve-lifecycle'
 import { createServeDriver } from './serve-driver'
 import { handlerOptionsOf } from './serve-handler-options'
@@ -221,10 +222,24 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     })
   })
 
+  const exit = args.exit ?? process.exit
+  const drain = bindServeDrain({
+    app,
+    driver,
+    threadId,
+    admission,
+    haltIdle: () => idleStop.halt(),
+    checkpoint,
+    close: (given) => lifecycle.close(given),
+    exit,
+    log,
+  })
+
   const server = startSessionServer({
     port: wanted,
     token,
     handlers,
+    drain,
     health: () => ({
       ok: workspace.state !== EWorkspaceState.Failed,
       threadId,
@@ -261,7 +276,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
       unsubscribePending?.()
     },
     stopSandbox: args.stopSandbox ?? sandboxPark({ threadId, controlPlaneUrl, env }),
-    exit: args.exit ?? process.exit,
+    exit,
     finalizePark: checkpoint.finalizePark,
   })
 

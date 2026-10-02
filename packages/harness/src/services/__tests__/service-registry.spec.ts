@@ -380,6 +380,19 @@ describe('closing the session', () => {
     }
   })
 
+  it('lands a caller-chosen killedBy in every ending', async () => {
+    const { registry } = openRegistry()
+    await registry.start({ threadId: THREAD, command: 'sleep 30', description: 'web dev server' })
+
+    await registry.closeAll({ killedBy: EKilledBy.ContainerSwitch })
+
+    const drafts = registry.drainNotifications({ threadId: THREAD })
+    expect(drafts).toHaveLength(1)
+    const [draft] = drafts
+    if (draft?.type !== 'service-ended') throw new Error('expected a service-ended draft')
+    expect(draft.killedBy).toBe(EKilledBy.ContainerSwitch)
+  })
+
   it('escalates to SIGKILL for a service that ignores SIGTERM', async () => {
     const { registry } = openRegistry()
     await registry.start({

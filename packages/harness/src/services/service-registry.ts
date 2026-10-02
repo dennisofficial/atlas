@@ -81,7 +81,7 @@ export abstract class ServiceRegistryPort {
   threadsWithPendingInput?(): readonly ThreadId[]
   abstract onNotice(listener: () => void): () => void
   abstract forgetNotices(args: { threadId: ThreadId }): void
-  abstract closeAll(): Promise<void>
+  abstract closeAll(args?: { killedBy?: EKilledBy }): Promise<void>
 }
 
 type Tracked = { service: Service; threadId: ThreadId; announced: boolean }
@@ -295,11 +295,12 @@ export class BunServiceRegistry extends ServiceRegistryPort {
    * Teardown stops everything but suppresses nothing: every ending still queues, and the
    * composition root drains it into the owning thread's log before the database goes.
    */
-  async closeAll(): Promise<void> {
+  async closeAll(args?: { killedBy?: EKilledBy }): Promise<void> {
+    const killedBy = args?.killedBy ?? EKilledBy.SessionEnd
     const entries = [...this.tracked.values()]
-    for (const entry of entries) entry.service.stop(EKilledBy.SessionEnd)
+    for (const entry of entries) entry.service.stop(killedBy)
     await Promise.all(entries.map((entry) => within(CLOSE_GRACE_MS, entry.service.exited)))
-    for (const entry of entries) entry.service.stop(EKilledBy.SessionEnd)
+    for (const entry of entries) entry.service.stop(killedBy)
     await Promise.all(entries.map((entry) => within(KILLED_GRACE_MS, entry.service.exited)))
     this.tracked.clear()
     this.listeners.clear()
