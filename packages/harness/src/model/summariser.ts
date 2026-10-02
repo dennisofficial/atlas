@@ -14,9 +14,6 @@ const SUMMARY_INSTRUCTION = [
   'Write prose and short lists, no headings. Reply with the summary alone.',
 ].join(' ')
 
-const TRANSCRIPT_CHARACTER_LIMIT = 400_000
-const SUMMARY_OUTPUT_TOKEN_LIMIT = 2_000
-
 export class SummaryFailure extends Error {
   override readonly name = 'SummaryFailure'
 }
@@ -43,8 +40,7 @@ export async function summaryFor(args: {
     generated = await generateText({
       model: args.model,
       system: SUMMARY_INSTRUCTION,
-      prompt: transcript.slice(-TRANSCRIPT_CHARACTER_LIMIT),
-      maxOutputTokens: SUMMARY_OUTPUT_TOKEN_LIMIT,
+      prompt: transcript,
       ...(args.signal === undefined ? {} : { abortSignal: args.signal }),
     })
   } catch (fault) {

@@ -39,9 +39,7 @@ const tldrSchema = z.object({
 
 export type TldrResult = { text: string; status: ETldrStatus }
 
-const TURN_CHARACTER_LIMIT = 200_000
 const TURN_PAYLOAD_CHARACTER_LIMIT = 4_000
-const TLDR_OUTPUT_TOKEN_LIMIT = 260
 
 export function tldrPrompt({
   events,
@@ -60,7 +58,7 @@ export function tldrPrompt({
   }).trim()
   if (turn.length === 0) return null
 
-  return turn.slice(-TURN_CHARACTER_LIMIT)
+  return turn
 }
 
 export async function tldrFor(args: {
@@ -84,7 +82,6 @@ export async function tldrFor(args: {
       schema: tldrSchema,
       system: TLDR_INSTRUCTION,
       prompt,
-      maxOutputTokens: TLDR_OUTPUT_TOKEN_LIMIT,
       onError: () => undefined,
       ...(args.signal === undefined ? {} : { abortSignal: args.signal }),
     })
