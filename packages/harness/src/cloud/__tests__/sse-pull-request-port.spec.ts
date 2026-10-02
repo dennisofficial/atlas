@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
+import { ELogSeverity, type LogEntry, type LogPort } from '@dltech/atlas-core'
+
 import { EPullRequestLookup, EForge, type RepositoryCheckout } from '../../plugins/github/pure'
 import { SsePullRequestPort } from '../sse-pull-requests'
 import type { SubscriptionPrState } from '../pr-subscription-client'
@@ -191,5 +193,49 @@ describe('SsePullRequestPort recovery', () => {
     const last = readings[readings.length - 1]
     expect(last?.lookup).toBe(EPullRequestLookup.Unavailable)
     expect(last?.retryable).toBe(true)
+  }, 10_000)
+
+  it('logs the session dying on a refusal and reviving on the next accepted subscribe', async () => {
+    const entries: LogEntry[] = []
+    let refused = true
+    globalThis.fetch = (async (url: unknown) => {
+      const target = String(url)
+      if (target.endsWith('/v1/github/subscriptions')) {
+        return refused ? respond({ message: 'unauthorized' }, 401) : respond(liveSubscribeBody)
+      }
+      if (target.endsWith('/v1/github/prs/stream')) return new Promise<Response>(() => {})
+      return respond({})
+    }) as unknown as typeof fetch
+
+    const port = createPort({
+      session: SESSION,
+      clientVersion: 'test',
+      onReading: () => {},
+      clock: { now: () => 0 },
+      log: {
+        port: {
+          record: (entry: LogEntry) => entries.push(entry),
+          info: (args: { source: string; message: string }) =>
+            entries.push({ severity: ELogSeverity.Info, ...args }),
+          warn: (args: { source: string; message: string }) =>
+            entries.push({ severity: ELogSeverity.Warn, ...args }),
+        } as unknown as LogPort,
+      },
+    })
+
+    await port.read({ checkout: CHECKOUT })
+    await port.read({ checkout: CHECKOUT })
+
+    expect(entries).toHaveLength(1)
+    expect(entries[0]).toMatchObject({
+      severity: ELogSeverity.Warn,
+      source: 'cloud.pull-requests',
+    })
+
+    refused = false
+    await port.read({ checkout: CHECKOUT })
+
+    expect(entries).toHaveLength(2)
+    expect(entries[1]?.severity).toBe(ELogSeverity.Info)
   }, 10_000)
 })

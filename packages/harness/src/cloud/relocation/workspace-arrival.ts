@@ -12,6 +12,7 @@ import {
 
 import type { ThreadStorePort } from '../../store/thread-store'
 import type { RestoredTree, RestoredWorkspace } from '../../workspace/transfer/manifest'
+import { captureWorkspaceMetadata } from '../../workspace/snapshot'
 
 const within = (args: { path: string; root: string }): string | undefined => {
   const tail = relative(args.root, args.path)
@@ -37,9 +38,11 @@ export function workspaceArrivalDrafts(args: {
   path: string
   tree?: RestoredTree | undefined
   repository: string | null
+  remoteUrl?: string | null
+  branch?: string | null
 }): EventDraft[] {
   const drafts: EventDraft[] = [
-    { type: 'location-changed', from: args.from, to: args.to, cwd: args.path },
+    { type: 'location-changed', from: args.from, to: args.to, cwd: args.path, remoteUrl: args.remoteUrl ?? null, branch: args.branch ?? null },
     { type: 'directory-changed', path: args.path, repo: args.repository },
   ]
   if (args.tree !== undefined && args.tree.path !== args.repository) {
@@ -82,6 +85,11 @@ export async function recordWorkspaceArrival(args: {
       ? [...args.restored.trees].sort((a, b) => b.path.length - a.path.length).find((item) => within({ path: directory.path, root: item.path }) !== undefined)
       : directory.tree
     await args.threads.adopt({ threadId, workspace: directory.path, repo: args.restored.repository })
+    // LiftedWorkspaceOf folds the newest cloud marker and refuses one without git identity, and
+    // the transfer manifest never carried a remote URL — only a probe of the restored checkout
+    // itself can answer these two, which is also the only path a direct (never-lifted) arrival
+    // has to them.
+    const identity = await captureWorkspaceMetadata({ cwd: directory.path }).catch(() => null)
     await args.log.append({
       threadId,
       runId: args.ids.nextRunId(),
@@ -91,6 +99,8 @@ export async function recordWorkspaceArrival(args: {
         path: directory.path,
         tree: tree === undefined || (active === undefined && tree.path === args.restored.repository) ? undefined : tree,
         repository: args.restored.repository,
+        remoteUrl: identity?.remoteUrl ?? null,
+        branch: identity?.branch ?? tree?.branch ?? null,
       }),
     })
     const children = await args.threads.spawned({ threadId })
