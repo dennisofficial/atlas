@@ -13,7 +13,7 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
  * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
  */
-export const CHANNEL_PROTOCOL_VERSION = 12
+export const CHANNEL_PROTOCOL_VERSION = 13
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
@@ -51,6 +51,13 @@ export enum EClientFrame {
   Interrupt = 'interrupt',
   Pause = 'pause',
   Resume = 'resume',
+  /**
+   * The operator terminal's whole user settings document, sent on attach and again on each
+   * local change, so a cloud session resolves the same settings as the terminal that owns it.
+   * The serve applies the document wholesale and never sends settings back; a serve built
+   * before this frame version-refuses the socket at hello.
+   */
+  Settings = 'settings',
   Request = 'request',
   Pong = 'pong',
 }
@@ -268,6 +275,7 @@ export const clientFrameSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal(EClientFrame.Interrupt) }),
   z.object({ kind: z.literal(EClientFrame.Pause) }),
   z.object({ kind: z.literal(EClientFrame.Resume) }),
+  z.object({ kind: z.literal(EClientFrame.Settings), content: z.string() }),
   z.object({
     kind: z.literal(EClientFrame.Request),
     id: z.string().min(1),

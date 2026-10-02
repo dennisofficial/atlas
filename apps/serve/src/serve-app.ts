@@ -7,6 +7,7 @@ import type {
   ThreadId,
   WorkspaceIdentity,
 } from '@dltech/atlas-core'
+import type { UserSettingsTarget } from './apply-user-settings'
 import type { RosterWire } from '@dltech/atlas-wire'
 import type { RestoredWorkspace } from '@dltech/atlas-harness'
 
@@ -100,6 +101,7 @@ export type ServeApp = {
   modelBridge?: ServeModelBridge | undefined
   /** The on-disk turn spend, read by the transcript turn-feed op. Absent in fakes. */
   ledger?: Pick<TurnLedgerPort, 'forThread' | 'forThreadTree'> | undefined
+  settings?: UserSettingsTarget | undefined
   ids: Pick<IdPort, 'nextRunId'>
   files: Pick<FileBrowser, 'list' | 'forget'>
   workspace: WorkspaceIdentity

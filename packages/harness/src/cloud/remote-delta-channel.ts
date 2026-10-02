@@ -98,6 +98,7 @@ export type RemoteDeltaChannel = DeltaChannel & {
   interrupt(): void
   pause(): void
   resume(): void
+  syncSettings(args: { content: string }): void
   request(args: { op: EClientRequest; params: unknown }): Promise<unknown>
   connection(): ChannelConnection
   onConnection(listener: (connection: ChannelConnection) => void): Unsubscribe
@@ -192,6 +193,7 @@ export function createRemoteDeltaChannel(args: {
    * settled `true` escalates immediately instead of waiting out the rest of the backoff.
    */
   shouldEscalate?: (() => Promise<boolean>) | undefined
+  onFinished?: (() => void) | undefined
 }): RemoteDeltaChannel {
   const lastEventSeq = args.lastEventSeq ?? (() => 0)
   const socketFactory = args.socketFactory ?? webSocketFactory
@@ -700,6 +702,11 @@ export function createRemoteDeltaChannel(args: {
 
     resume: () => upstream.send({ kind: EClientFrame.Resume }),
 
+    syncSettings({ content }) {
+      if (abandoned) return
+      upstream.send({ kind: EClientFrame.Settings, content })
+    },
+
     request: (request) => upstream.request(request),
 
     connection: () => connection,
@@ -800,6 +807,7 @@ export function createRemoteDeltaChannel(args: {
       working = false
       replay = undefined
       upstream.abandon({ reason: 'the channel detached' })
+      args.onFinished?.()
       clearKeepalive()
       socket?.close()
       socket = null
@@ -814,6 +822,7 @@ export function createRemoteDeltaChannel(args: {
       interruptPending = false
       endStrandedStep()
       upstream.abandon({ reason: 'the channel was closed' })
+      args.onFinished?.()
       clearKeepalive()
       socket?.close()
       socket = null
