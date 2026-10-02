@@ -210,6 +210,7 @@ export function transcript(args: {
   width: number
   turn?: TurnClock
   reconnecting?: boolean
+  reconnectingSince?: number
   anchorKey?: string
   sends?: number
   pending?: readonly PendingRow[]
@@ -228,6 +229,7 @@ export function transcript(args: {
       cwd={CWD}
       {...(args.turn ? { turn: args.turn } : {})}
       {...(args.reconnecting === undefined ? {} : { reconnecting: args.reconnecting })}
+      {...(args.reconnectingSince === undefined ? {} : { reconnectingSince: args.reconnectingSince })}
       {...(args.anchorKey ? { anchorKey: args.anchorKey } : {})}
       {...(args.sends === undefined ? {} : { sends: args.sends })}
       {...(args.pending ? { pending: args.pending } : {})}
