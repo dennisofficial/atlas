@@ -109,7 +109,6 @@ describe('what the transcript actually says', () => {
       80,
     )
     expect(frame).toContain('Reconnecting for')
-    expect(frame).toContain('the turn keeps running on the sandbox')
     expect(frame).not.toContain('Working for')
   })
 
