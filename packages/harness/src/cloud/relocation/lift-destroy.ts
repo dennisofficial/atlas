@@ -4,6 +4,7 @@ import { sep } from 'node:path'
 import type { LogPort, ThreadId } from '@dltech/atlas-core'
 
 import { logFieldsOf } from '../../store/logs'
+import { fingerprintWorkspaceTree } from '../../workspace/transfer/capture-fingerprint'
 import { listWorktrees, removeWorktree, type Worktree } from '../../workspace/worktrees'
 
 export enum EDestroySkip {
@@ -35,10 +36,12 @@ export const destroyPlanOf = ({
 
 export async function destroyLiftedWorktree({
   cwd,
+  expected,
   logPort,
   threadId,
 }: {
   cwd: string
+  expected: string
   logPort?: LogPort | undefined
   threadId: ThreadId
 }): Promise<void> {
@@ -64,21 +67,31 @@ export async function destroyLiftedWorktree({
     }
     return
   }
-  const mainCwd = listing.worktrees.find((worktree) => worktree.isMain)?.path ?? cwd
-  const removal = await removeWorktree({ cwd: mainCwd, path: plan.path, force: false })
-  if (removal.worktreeRemoved.ok) {
-    logPort?.info({
+  const current = await fingerprintWorkspaceTree({ cwd: plan.path }).catch(() => null)
+  if (current !== expected) {
+    logPort?.warn({
       source: 'cloud.lift',
-      message: `the lifted local worktree ${plan.path} was destroyed after the swap was verified`,
+      message: `the lifted local worktree ${plan.path} changed after it was captured; it stays on disk`,
       threadId,
-      data: { operation: 'destroy-local-worktree', path: plan.path },
+      data: { operation: 'destroy-local-worktree', path: plan.path, matches: current === expected },
     })
     return
   }
-  logPort?.warn({
+  const mainCwd = listing.worktrees.find((worktree) => worktree.isMain)?.path ?? cwd
+  const removal = await removeWorktree({ cwd: mainCwd, path: plan.path, force: true })
+  if (!removal.worktreeRemoved.ok) {
+    logPort?.warn({
+      source: 'cloud.lift',
+      message: `the lifted local worktree ${plan.path} refused removal and stays on disk`,
+      threadId,
+      data: { operation: 'destroy-local-worktree', path: plan.path, reason: removal.worktreeRemoved.message },
+    })
+    return
+  }
+  logPort?.info({
     source: 'cloud.lift',
-    message: `the lifted local worktree ${plan.path} refused removal and stays on disk`,
+    message: `the lifted local worktree ${plan.path} was destroyed after the swap was verified`,
     threadId,
-    data: { operation: 'destroy-local-worktree', path: plan.path, reason: removal.worktreeRemoved.message },
+    data: { operation: 'destroy-local-worktree', path: plan.path },
   })
 }

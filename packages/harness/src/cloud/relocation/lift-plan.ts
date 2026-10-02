@@ -286,18 +286,24 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
     id: ELiftNode.DestroyLocalWorktree,
     needs: [ELiftNode.ResumePaused],
     run: async (ctx) => {
-      if (ctx.workspaceArchive === undefined || ctx.restoredWorkspace === undefined) return
-      await destroyLiftedWorktree({ cwd: ctx.args.cwd, logPort: ctx.logPort, threadId: ctx.args.threadId }).catch(
-        (error: unknown) => {
-          ctx.logPort?.warn({
-            source: 'cloud.lift',
-            message: 'the lifted local worktree could not be destroyed; it stays on disk',
-            threadId: ctx.args.threadId,
-            data: { operation: 'destroy-local-worktree' },
-            ...logFieldsOf({ error }),
-          })
-        },
-      )
+      const archive = ctx.workspaceArchive
+      if (archive === undefined || ctx.restoredWorkspace === undefined) return
+      const tree = archive.manifest.trees.find((candidate) => candidate.id === archive.manifest.activeId)
+      if (tree === undefined) return
+      await destroyLiftedWorktree({
+        cwd: ctx.args.cwd,
+        expected: tree.fingerprint,
+        logPort: ctx.logPort,
+        threadId: ctx.args.threadId,
+      }).catch((error: unknown) => {
+        ctx.logPort?.warn({
+          source: 'cloud.lift',
+          message: 'the lifted local worktree could not be destroyed; it stays on disk',
+          threadId: ctx.args.threadId,
+          data: { operation: 'destroy-local-worktree' },
+          ...logFieldsOf({ error }),
+        })
+      })
     },
   },
 ]

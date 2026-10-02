@@ -1319,9 +1319,11 @@ workspace or transcript bootstrap generation.
 
 Once a lift has proven the whole swap — the workspace archive restored in the cloud, the transcript
 verified, the placement committed, and the channel activated — the local session worktree is
-destroyed with `git worktree remove`. A session living in the main checkout keeps it. A worktree git
-considers dirty refuses removal and stays on disk with a warning; the lift is already complete, so
-nothing is forced.
+destroyed. The gate is not git's cleanliness heuristic but the lifted manifest: the tree's current
+fingerprint must match the fingerprint captured for the archive, proving a verified copy of exactly
+this state, dirty files included, is serving in the cloud. A mismatch means someone wrote locally
+after the capture, and the tree stays on disk with a warning; the lift is already complete, so
+nothing else follows. A session living in the main checkout is never destroyed.
 
 ## Cloud execution lifetime and attachment
 
