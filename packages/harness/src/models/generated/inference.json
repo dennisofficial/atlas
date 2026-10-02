@@ -385,8 +385,8 @@
     "imageTier": "standard",
     "maxOutputTokens": 128000,
     "cost": {
-      "inputPerMillion": 1.3,
-      "outputPerMillion": 4.4
+      "inputPerMillion": 0.65,
+      "outputPerMillion": 2.2
     },
     "effort": {
       "off": "none",
@@ -1072,6 +1072,40 @@
       "low": "low",
       "medium": "medium",
       "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
+      "modelId": "tencent/hy4-preview"
+    },
+    "label": "tencent/hy4-preview",
+    "api": "openai-completions",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.83,
+      "outputPerMillion": 2.5
+    },
+    "effort": {
+      "off": "none",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
+      "modelId": "xiaomi/mimo-v2.6-flash"
+    },
+    "label": "xiaomi/mimo-v2.6-flash",
+    "api": "openai-completions",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 0.14,
+      "outputPerMillion": 0.28
     }
   }
 ]
