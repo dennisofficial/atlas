@@ -1,20 +1,28 @@
 import { useRenderer } from '@opentui/react'
 import { useRef } from 'react'
 
-import { DETACH_EXIT_LINE } from '../ui/exit-guard-model'
 import { closeConversation } from './open-conversation'
 import { useExitGuard } from './use-exit-guard'
 import type { WorkspaceProps } from './workspace-props'
 
-type ExitProps = Pick<WorkspaceProps, 'cloudBridge' | 'cloudSession' | 'onRestart'>
+type ExitProps = Pick<WorkspaceProps, 'cloudSession' | 'onRestart'>
+
+export const DETACHED_EXIT_LINE =
+  'detached — turn keeps running; filesystem persists via snapshot; services die on park'
 
 export function useWorkspaceExit(args: { props: ExitProps }) {
   const { props } = args
   const renderer = useRenderer()
   const restarting = useRef(false)
-  const cloud = props.cloudBridge !== null
+
+  const handleDetach = () => {
+    props.cloudSession?.close()
+    void closeConversation()
+    renderer.destroy()
+    process.stdout.write(`${DETACHED_EXIT_LINE}\n`)
+  }
+
   const exitGuard = useExitGuard({
-    cloud,
     onExit: () => {
       if (restarting.current && props.onRestart !== null) {
         props.onRestart()
@@ -23,17 +31,7 @@ export function useWorkspaceExit(args: { props: ExitProps }) {
       void closeConversation()
       renderer.destroy()
     },
-    onDetach: () => {
-      props.cloudSession?.close()
-      if (restarting.current && props.onRestart !== null) {
-        props.onRestart()
-        return
-      }
-      void closeConversation()
-      renderer.destroy()
-      process.stdout.write(`${DETACH_EXIT_LINE}\n`)
-    },
   })
 
-  return { renderer, restarting, exitGuard }
+  return { renderer, restarting, exitGuard, handleDetach }
 }

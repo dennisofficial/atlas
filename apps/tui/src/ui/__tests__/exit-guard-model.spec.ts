@@ -4,10 +4,9 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   AGENT_TAG,
-  DETACH_NOTE,
   EExitChoice,
+  EXIT_GUARD_OPTIONS,
   exitGuardAgentRow,
-  exitGuardOptions,
   exitGuardRow,
   moveSelection,
   openExitGuard,
@@ -16,110 +15,84 @@ import {
   SHELL_TAG,
 } from '../exit-guard-model'
 
-const LOCAL = exitGuardOptions({ cloud: false })
+const OPTIONS = EXIT_GUARD_OPTIONS
 
-const CLOUD = exitGuardOptions({ cloud: true })
-
-const openedLocal = () => openExitGuard({ options: LOCAL })
+const opened = () => openExitGuard()
 
 const at = (choice: EExitChoice): number =>
-  LOCAL.findIndex((option) => option.choice === choice)
+  OPTIONS.findIndex((option) => option.choice === choice)
 
 describe('exit guard options', () => {
-  it('offers stopping and staying to a local conversation, hiding detach', () => {
-    expect(LOCAL.map((option) => option.choice)).toEqual([
+  it('offers stopping and staying', () => {
+    expect(OPTIONS.map((option) => option.choice)).toEqual([
       EExitChoice.StopAndExit,
       EExitChoice.Stay,
     ])
   })
 
-  it('offers detaching first to a cloud conversation, and never stopping', () => {
-    expect(CLOUD.map((option) => option.choice)).toEqual([EExitChoice.Detach, EExitChoice.Stay])
-  })
-
-  it('enables detaching and says what survives it', () => {
-    const detach = CLOUD[0]
-
-    expect(detach?.enabled).toBe(true)
-    expect(detach?.note).toBe(DETACH_NOTE)
-    expect(detach?.note).toContain('turn keeps running')
-    expect(detach?.note).toContain('filesystem persists via snapshot')
-    expect(detach?.note).toContain('services die on park')
-  })
-
   it('enables every option it offers', () => {
-    for (const options of [LOCAL, CLOUD]) {
-      expect(options.every((option) => option.enabled)).toBe(true)
-    }
+    expect(OPTIONS.every((option) => option.enabled)).toBe(true)
   })
 })
 
 describe('opening the exit guard', () => {
   it('selects the first option', () => {
-    expect(resolve({ options: LOCAL, state: openedLocal() })).toBe(EExitChoice.StopAndExit)
-  })
-
-  it('selects detach first for a cloud conversation', () => {
-    expect(resolve({ options: CLOUD, state: openExitGuard({ options: CLOUD }) })).toBe(
-      EExitChoice.Detach,
-    )
+    expect(resolve({ state: opened() })).toBe(EExitChoice.StopAndExit)
   })
 
   it('carries nothing but the selection', () => {
-    expect(openedLocal()).toEqual({ selected: at(EExitChoice.StopAndExit) })
+    expect(opened()).toEqual({ selected: at(EExitChoice.StopAndExit) })
   })
 })
 
 describe('moving the selection', () => {
   it('steps down to the next option', () => {
-    const moved = moveSelection({ options: LOCAL, state: openedLocal(), delta: 1 })
+    const moved = moveSelection({ state: opened(), delta: 1 })
 
     expect(moved.selected).toBe(at(EExitChoice.Stay))
   })
 
   it('steps back up', () => {
-    const bottom = moveSelection({ options: LOCAL, state: openedLocal(), delta: 1 })
-    const moved = moveSelection({ options: LOCAL, state: bottom, delta: -1 })
+    const bottom = moveSelection({ state: opened(), delta: 1 })
+    const moved = moveSelection({ state: bottom, delta: -1 })
 
     expect(moved.selected).toBe(at(EExitChoice.StopAndExit))
   })
 
   it('clamps at the bottom rather than wrapping', () => {
-    const bottom = moveSelection({ options: LOCAL, state: openedLocal(), delta: 1 })
-    const past = moveSelection({ options: LOCAL, state: bottom, delta: 1 })
+    const bottom = moveSelection({ state: opened(), delta: 1 })
+    const past = moveSelection({ state: bottom, delta: 1 })
 
     expect(past.selected).toBe(at(EExitChoice.Stay))
   })
 
   it('clamps at the top rather than wrapping', () => {
-    const past = moveSelection({ options: LOCAL, state: openedLocal(), delta: -1 })
+    const past = moveSelection({ state: opened(), delta: -1 })
 
     expect(past.selected).toBe(at(EExitChoice.StopAndExit))
   })
 
   it('stands still on a zero delta', () => {
-    const state = openedLocal()
+    const state = opened()
 
-    expect(moveSelection({ options: LOCAL, state, delta: 0 })).toBe(state)
+    expect(moveSelection({ state, delta: 0 })).toBe(state)
   })
 })
 
 describe('resolving a choice', () => {
   it('returns the option the selection sits on', () => {
-    const moved = moveSelection({ options: LOCAL, state: openedLocal(), delta: 1 })
+    const moved = moveSelection({ state: opened(), delta: 1 })
 
-    expect(resolve({ options: LOCAL, state: moved })).toBe(EExitChoice.Stay)
+    expect(resolve({ state: moved })).toBe(EExitChoice.Stay)
   })
 
   it('returns nothing when the selection sits off the end', () => {
-    expect(resolve({ options: LOCAL, state: { selected: LOCAL.length } })).toBeNull()
+    expect(resolve({ state: { selected: OPTIONS.length } })).toBeNull()
   })
 
   it('reports the selected option itself', () => {
-    expect(selectedOption({ options: LOCAL, state: openedLocal() })?.choice).toBe(
-      EExitChoice.StopAndExit,
-    )
-    expect(selectedOption({ options: LOCAL, state: { selected: -1 } })).toBeUndefined()
+    expect(selectedOption({ state: opened() })?.choice).toBe(EExitChoice.StopAndExit)
+    expect(selectedOption({ state: { selected: -1 } })).toBeUndefined()
   })
 })
 

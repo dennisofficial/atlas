@@ -110,7 +110,7 @@ describe('quitting while a background shell is still running', () => {
     }
   }, 60_000)
 
-  it('offers stopping and staying, keeping detach for cloud conversations', async () => {
+  it('offers stopping and staying', async () => {
     const setup = await opened(appWith([shell({ shellId: 'bash_1', command: 'bun run dev' })]))
 
     try {
