@@ -53,7 +53,7 @@ export class AgentSayTool extends SchemaTool<typeof inputSchema> {
 
     return {
       ok: true,
-      output: { agentId, queued },
+      output: { agentId, queued, intent: outcome.snapshot.intent, agentType: outcome.snapshot.agentType },
       modelText: queued
         ? `Agent ${agentId} is mid-step, so your message is queued and it will read it before its next one.`
         : `Agent ${agentId} took your message and is running again; its answer reaches you when it stops.`,

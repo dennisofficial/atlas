@@ -162,7 +162,7 @@ describe('rows for live sub-agents', () => {
     expect(row).toEqual({
       id: 'thr_child',
       tag: AGENT_TAG,
-      label: 'auditing the credential vault',
+      label: 'auditing the credential',
     })
   })
 

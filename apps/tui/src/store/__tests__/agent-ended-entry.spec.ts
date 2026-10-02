@@ -63,7 +63,7 @@ describe('a sub-agent ending in the transcript', () => {
 
   it('names the child by what it was doing and counts the work it did', () => {
     expect(onlyAgentEntry(log([agentEnded()])).text).toBe(
-      'Sub-agent explore "audit the credential vault" finished after 3 turns and 12 tool calls',
+      'Sub-agent audit the credential finished after 3 turns and 12 tool calls',
     )
   })
 
@@ -77,7 +77,7 @@ describe('a sub-agent ending in the transcript', () => {
     const entry = onlyAgentEntry(log([agentEnded({ status: EAgentStatus.Failed })]))
 
     expect(entry.text).toBe(
-      'Sub-agent explore "audit the credential vault" failed after 3 turns and 12 tool calls',
+      'Sub-agent audit the credential failed after 3 turns and 12 tool calls',
     )
     expect(entry.failed).toBe(true)
   })
@@ -187,7 +187,7 @@ describe('a sub-agent restart in the transcript', () => {
 
   it('names the child and that it was resumed', () => {
     expect(onlyRestartEntry(log([agentRestarted()])).text).toBe(
-      'Sub-agent explore "audit the credential vault" resumed',
+      'Sub-agent audit the credential resumed',
     )
   })
 
@@ -244,7 +244,7 @@ describe('a teammate reporting in the transcript', () => {
 
   it('names the teammate by what it is doing, and calls it a teammate rather than a sub-agent', () => {
     expect(onlyReportEntry(log([agentReported()])).text).toBe(
-      'Teammate teammate "build the admin app" reported',
+      'Teammate build the admin reported',
     )
   })
 

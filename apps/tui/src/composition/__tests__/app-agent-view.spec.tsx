@@ -424,11 +424,15 @@ const TEAMMATE = toThreadId('thr_teammate')
 
 const TEAMMATE_INTENT = 'build the admin app'
 
+const TEAMMATE_NAME = 'build the admin'
+
 const TEAMMATE_SAID = 'The admin app boots off its own worktree.'
 
 const TEAMMATE_CHILD = toThreadId('thr_teammate_child')
 
 const TEAMMATE_CHILD_INTENT = 'wire the admin routes'
+
+const TEAMMATE_CHILD_NAME = 'wire the admin'
 
 const TEAMMATE_CHILD_SAID = 'The routes mount under /admin.'
 
@@ -456,7 +460,7 @@ async function seedTeammate(app: FakeApp): Promise<void> {
 }
 
 async function openTeammate(setup: Mounted): Promise<void> {
-  const row = sidebarRowOf(setup, TEAMMATE_INTENT)
+  const row = sidebarRowOf(setup, TEAMMATE_NAME)
   expect(row).toBeGreaterThan(-1)
 
   setup.mockMouse.click(WIDE.width - 10, row)
@@ -501,7 +505,7 @@ describe('taking over a teammate', () => {
       await openTeammate(setup)
 
       const frame = setup.captureCharFrame()
-      expect(frame).toContain(TEAMMATE_CHILD_INTENT)
+      expect(frame).toContain(TEAMMATE_CHILD_NAME)
     } finally {
       await teardown(setup)
     }
@@ -523,14 +527,14 @@ describe('taking over a teammate', () => {
     try {
       await openTeammate(setup)
 
-      const row = sidebarRowOf(setup, TEAMMATE_CHILD_INTENT)
+      const row = sidebarRowOf(setup, TEAMMATE_CHILD_NAME)
       expect(row).toBeGreaterThan(-1)
       setup.mockMouse.click(WIDE.width - 10, row)
       await setup.flush()
 
       const nested = await frameShowing({ setup, text: TEAMMATE_CHILD_SAID })
       expect(nested).toContain(TEAMMATE_CHILD_SAID)
-      expect(nested).toContain(`back to ${TEAMMATE_INTENT}`)
+      expect(nested).toContain(`back to ${TEAMMATE_NAME}`)
 
       act(() => app.agents.end({ agentId: TEAMMATE_CHILD }))
       await setup.flush()
