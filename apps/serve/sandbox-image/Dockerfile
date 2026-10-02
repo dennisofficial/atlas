@@ -161,6 +161,9 @@ RUN chmod 755 /usr/local/bin/docker /usr/local/bin/docker-daemon-up \
 COPY atlas-serve /opt/atlas/atlas-serve
 COPY atlas-serve.version /opt/atlas/atlas-serve.version
 COPY atlas-serve.protocol /opt/atlas/atlas-serve.protocol
+# A fresh stamp per bake, so a republish can always mint a fresh manifest digest: Vercel caches a
+# failed image optimization against the digest, and only a new digest retries it.
+COPY atlas-serve.bake-id /opt/atlas/atlas-serve.bake-id
 # /opt/atlas is 777, not 755: the sandbox session user (non-root) writes the serve
 # token/lock/log files there at runtime, and a root-owned 755 dir would break the launcher.
 RUN chmod 755 /opt/atlas/atlas-serve && chmod 777 /opt/atlas

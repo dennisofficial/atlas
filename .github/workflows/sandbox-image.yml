@@ -56,6 +56,8 @@ jobs:
           touch apps/serve/sandbox-image/atlas-serve \
             apps/serve/sandbox-image/atlas-serve.version \
             apps/serve/sandbox-image/atlas-serve.protocol
+          printf '%s-%s' "$(date -u +%s)" "${{ github.run_attempt }}" \
+            > apps/serve/sandbox-image/atlas-serve.bake-id
 
       - uses: docker/build-push-action@v7
         with:
@@ -119,6 +121,10 @@ jobs:
           touch apps/serve/sandbox-image/atlas-serve.version
           sed -nE 's/^export const CHANNEL_PROTOCOL_VERSION = ([0-9]+).*/\1/p' packages/wire/src/channel-wire.ts | tr -d '\n' > apps/serve/sandbox-image/atlas-serve.protocol
           test -s apps/serve/sandbox-image/atlas-serve.protocol
+          # fresh stamp per bake: the verify step heals a poisoned optimization by republishing, and
+          # only a changed stamp guarantees the republish lands under a new manifest digest
+          printf '%s-%s' "$(date -u +%s)" "${{ github.run_attempt }}" \
+            > apps/serve/sandbox-image/atlas-serve.bake-id
 
       - uses: docker/build-push-action@v7
         with:
@@ -209,6 +215,7 @@ jobs:
           printf '%s' "$VERSION" > sandbox-image/atlas-serve.version
           sed -nE 's/^export const CHANNEL_PROTOCOL_VERSION = ([0-9]+).*/\1/p' ../../packages/wire/src/channel-wire.ts | tr -d '\n' > sandbox-image/atlas-serve.protocol
           test -s sandbox-image/atlas-serve.protocol
+          printf '%s-%s' "$(date -u +%s)" "${{ github.run_attempt }}" > sandbox-image/atlas-serve.bake-id
 
       - name: publish the version-tagged VCR image
         if: vars.VERCEL_VCR_ENABLED == 'true'
@@ -220,3 +227,16 @@ jobs:
           tags: ${{ env.VCR_IMAGE }}:${{ env.VERSION }}
           outputs: type=image,push=true,oci-mediatypes=true,compression=zstd,compression-level=3,force-compression=true
           cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
+
+      # Boot a throwaway sandbox against the just-published tag: the create is what triggers
+      # Vercel's optimization, so this both proves the image and pre-warms it — clients that pin
+      # the release never wait on a cold digest. A failed optimization is cached against the
+      # digest, and the script heals it by republishing under a fresh one, so a green retag run
+      # means a released TUI can boot this tag.
+      - name: verify the published image boots
+        if: vars.VERCEL_VCR_ENABLED == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: team_GR4aCzLIY5D3YYWgITz3Tere
+          VERCEL_PROJECT_ID: prj_sYzDU4qVdx0jaSuYprH3QaZb1vIF
+        run: bun apps/serve/scripts/verify-vcr-image.ts "atlas-sandbox:${{ env.VERSION }}"
