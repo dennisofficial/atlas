@@ -12,7 +12,6 @@ import {
   type EnsureWorkspace,
   type ServeHandle,
   type WorkspaceFiles,
-  type WorkspacePublisher,
   type WorkspaceReadiness,
 } from '../index'
 
@@ -107,7 +106,6 @@ export const start = async (args: {
   env?: Record<string, string | undefined> | undefined
   workspace?: WorkspaceReadiness | undefined
   ensureWorkspace?: EnsureWorkspace | undefined
-  publishWorkspace?: WorkspacePublisher | undefined
   adoptChildren?: ((args: { threadId: ThreadId }) => Promise<readonly ThreadId[]>) | undefined
   whenChildrenSettled?: (() => Promise<void>) | undefined
   wakeNotices?: boolean | undefined
@@ -146,7 +144,6 @@ export const start = async (args: {
     compose: async () => app,
     ensureWorkspace:
       args.ensureWorkspace ?? (async () => args.workspace ?? { state: EWorkspaceState.Skipped }),
-    publishWorkspace: args.publishWorkspace,
     idleMinutes: args.idleMinutes,
     idleTickMs: args.idleTickMs,
     exit: args.exit,
