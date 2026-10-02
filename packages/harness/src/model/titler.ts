@@ -3,12 +3,11 @@ import { generateText, Output, type LanguageModel, type ModelMessage } from 'ai'
 import { z } from 'zod'
 
 const TITLE_INSTRUCTION = [
-  'You name coding sessions.',
-  "You are given the developer's opening message, or an excerpt of the session so far.",
-  'The opening message may come with files excerpted or pictures attached to it. Name the work they show, never the fact that something was attached.',
-  'An excerpt opens at the start of the session and ends with what was said most recently.',
-  'Sessions drift, so when the end disagrees with the beginning, name what the session is about now.',
-  'Two to ten words. Name the task, never the developer.',
+  "You name coding sessions from the developer's opening message or an excerpt of the session so far.",
+  'An excerpt opens at the start of the session and ends with what was said most recently; sessions',
+  'drift, so when the end disagrees with the beginning, name what the session is about now. Attached',
+  'files or pictures show the work — name the work, never the fact that something was attached.',
+  'Two to six words. Name the task, never the developer.',
   'Reply with the name alone — no quotes, no trailing punctuation, no preamble.',
 ].join(' ')
 

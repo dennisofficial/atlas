@@ -6,21 +6,13 @@ import { DelegationFragment } from './fragments/agents'
 import { ExecutionLocationFragment, TodayFragment } from './fragments/environment'
 import { AtlasIdentityFragment } from './fragments/identity'
 import { AnswerInTextFragment } from './fragments/models'
-import {
-  CiteFileAndLineFragment,
-  CutOrderFragment,
-  LeadWithOutcomeFragment,
-  OutputShapeFragment,
-  ReadableBeatsTerseFragment,
-} from './fragments/output'
+import { CiteFileAndLineFragment, OutputShapeFragment } from './fragments/output'
 import { TaskListFragment } from './fragments/plan'
 import { DestructiveActionsFragment, GitEtiquetteFragment } from './fragments/safety'
 import {
+  AnswerHonestlyFragment,
   ConcernThenBuildFragment,
-  DecisionsAreTheirsFragment,
-  OpenQuestionsFragment,
-  PaceFragment,
-  PlanFirstFragment,
+  EndTurnMessageFragment,
 } from './fragments/scope'
 import { BackgroundShellsFragment } from './fragments/shells'
 import { SkillListingFragment } from './fragments/skills'
@@ -40,24 +32,19 @@ export function registerBuiltinPromptFragments({
   const fragments = [
     AtlasIdentityFragment,
     ConcernThenBuildFragment,
-    PaceFragment,
-    OpenQuestionsFragment,
-    PlanFirstFragment,
-    DecisionsAreTheirsFragment,
+    AnswerHonestlyFragment,
+    EndTurnMessageFragment,
+    TaskListFragment,
     TodayFragment,
     ExecutionLocationFragment,
     PreferDedicatedToolsFragment,
     ParallelToolCallsFragment,
     OperatorSeesImagesFragment,
     BackgroundShellsFragment,
-    TaskListFragment,
     DelegationFragment,
     DestructiveActionsFragment,
     GitEtiquetteFragment,
-    LeadWithOutcomeFragment,
-    ReadableBeatsTerseFragment,
     OutputShapeFragment,
-    CutOrderFragment,
     CiteFileAndLineFragment,
     SkillListingFragment,
     WebResearchFragment,

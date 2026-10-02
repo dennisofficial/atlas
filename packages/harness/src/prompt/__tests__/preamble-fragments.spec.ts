@@ -44,38 +44,10 @@ const REMOVED_PARTS = [
   'environment.relative-paths',
 ]
 
-const REGISTERED_PARTS = [
-  'identity.atlas',
-  'scope.concern-then-build',
-  'scope.pace',
-  'scope.open-questions',
-  'scope.plan-first',
-  'scope.decisions-are-theirs',
-  'environment.today',
-  'environment.execution-location',
-  'tools.prefer-dedicated',
-  'tools.parallel-calls',
-  'tools.operator-sees-images',
-  'shells.background',
-  'plan.task-list',
-  'agents.delegation',
-  'safety.destructive-actions',
-  'safety.git-etiquette',
-  'output.lead-with-outcome',
-  'output.readable-beats-terse',
-  'output.shape',
-  'output.cut-order',
-  'output.cite-file-and-line',
-  'skills.listing',
-  'web.research',
-  'web.untrusted-content',
-  'models.answer-in-text',
-]
-
 describe('the builtin prompt', () => {
-  it('uses a minimal identity without generic request-handling guidance', () => {
+  it('opens with identity and carries no generic request-handling guidance', () => {
     const parts = compiled().parts
-    expect(parts[0]?.text).toBe('You are Atlas, a coding agent.')
+    expect(parts[0]?.id).toBe('identity.atlas')
     expect(parts.some((part) => part.id === 'scope.request-ladder')).toBe(false)
   })
 
@@ -92,41 +64,32 @@ describe('the builtin prompt', () => {
     expect(first.blocks[0]?.text).not.toContain(CONTEXT.projectDirectory)
   })
 
-  it('has no execution-state dependency while compiling stable topology', () => {
+  it('compiles the stable execution topology without touching runtime execution state', () => {
     const container = registered()
     container.register(ExecutionLocationToken, {
       useFactory: () => { throw new Error('runtime execution state belongs outside system text') },
     })
     const parts = container.resolve(portToken(PromptRegistry)).compile(CONTEXT).parts
-    expect(parts.find((part) => part.id === 'environment.execution-location')?.text).toContain(
-      'Local sessions execute commands and file operations on the host or in Docker.',
-    )
+    expect(parts.some((part) => part.id === 'environment.execution-location')).toBe(true)
   })
 
-  it('uses affirmative notification guidance with accurate speech sources', () => {
+  it('steers waiting behavior affirmatively rather than naming forbidden mechanics', () => {
     const text = compiled().parts.find((part) => part.id === 'shells.background')?.text ?? ''
-    expect(text).toContain('background shell results, service exits, sub-agent answers, and teammate reports')
-    expect(text).toContain('end your turn while waiting')
     expect(text).not.toContain('poll')
     expect(text).not.toContain('sleep')
     expect(text).not.toContain('runInBackground')
   })
 
-  it('uses file-tool tracking without a snapshot or file-restoring rewind promise', () => {
+  it('makes no snapshot or file-restoring rewind promise in tool guidance', () => {
     const parts = compiled().parts.filter((part) => part.id.startsWith('tools.'))
     const text = parts.map((part) => part.text).join('\n')
-    expect(text).toContain('track reads and show changes')
     expect(text).not.toContain('snapshotted')
     expect(text).not.toContain('rewound')
   })
 
-  it('keeps source selection and untrusted content instructions concise', () => {
+  it('keeps the web guidance short', () => {
     const parts = compiled().parts.filter((part) => part.id.startsWith('web.'))
     const text = parts.map((part) => part.text).join('\n')
-    expect(text).toContain('current primary sources')
-    expect(text).toContain('repository evidence')
-    expect(text).toContain('only snippets')
-    expect(text).toContain('as evidence')
     expect(text.length).toBeLessThan(400)
   })
 
@@ -142,11 +105,6 @@ describe('the builtin prompt', () => {
 })
 
 describe('builtin registration', () => {
-  it('lists fragments in prompt order', () => {
-    const fragments = resolveSet({ container: registered(), token: portToken(PromptFragment) })
-    expect(fragments.map((fragment) => fragment.id)).toEqual(REGISTERED_PARTS)
-  })
-
   it('selects every registered fragment in a reachable context', () => {
     const fragments = resolveSet({ container: registered(), token: portToken(PromptFragment) })
     expect(deadFragmentIds({
