@@ -48,6 +48,7 @@ export function useConversation(args: ConversationArgs): Conversation {
       turns: opened.turns,
       ...(opened.base === undefined ? {} : { base: opened.base }),
       ...(opened.identity === undefined ? {} : { identity: opened.identity }),
+      ...(opened.appliedEvents === undefined ? {} : { appliedEvents: opened.appliedEvents }),
     }),
     [opened],
   )

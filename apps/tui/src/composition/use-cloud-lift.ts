@@ -6,6 +6,7 @@ import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import type { CaptureContext } from '@dltech/atlas-harness'
 
 import { cloudRuntimeParts, openCloudConversation } from './cloud/cloud-app'
+import { parkHookFor } from './cloud/park-hook'
 import { cloudReadinessOf } from './cloud/cloud-readiness'
 import { createCloudSession } from './cloud/cloud-session'
 import { mirrorCloudRenames } from './cloud/rename-mirror'
@@ -115,6 +116,7 @@ export function useCloudLift(args: {
               onReload: latest.current.onReload,
               appliedSnapshot: () => cloudReadinessOf(attachment.channel).applied(),
               subscribeApplied: (listener) => cloudReadinessOf(attachment.channel).subscribe(listener),
+              onParked: parkHookFor({ app, channel: attachment.channel }),
               onClose: () => {
                 cloudReadinessOf(attachment.channel).cancelWaiting()
                 stopMirroring()

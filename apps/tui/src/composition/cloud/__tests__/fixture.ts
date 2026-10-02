@@ -117,6 +117,8 @@ const wireThreadOf = (thread: ThreadSummary): Record<string, unknown> => ({
 export function fakeCloudChannel(
   args: {
     threadId?: ThreadId
+    /** Called when `wake` hands the channel its url and token — the fake's stand-in for dialling. */
+    onDial?: ((dial: { url: string; token: string }) => void) | undefined
     log?: FakeEventLog | undefined
     threads?: FakeThreadStore | undefined
     /** The on-disk mirror of the remote session, for the descend's archive read. */
@@ -426,6 +428,7 @@ export function fakeCloudChannel(
     },
     wake: ({ url, token }) => {
       woken.push({ url, token })
+      args.onDial?.({ url, token })
     },
     beginWake: () => {
       held = { state: EChannelConnection.Waking, detail: null }
@@ -584,6 +587,14 @@ class WatchedThreadStore extends ThreadStorePort {
     return this.inner.chooseModel(args)
   }
 
+  writeParkedTranscript(args: Parameters<ThreadStorePort['writeParkedTranscript']>[0]) {
+    return this.inner.writeParkedTranscript(args)
+  }
+
+  readParkedTranscript(args: Parameters<ThreadStorePort['readParkedTranscript']>[0]) {
+    return this.inner.readParkedTranscript(args)
+  }
+
   chooseExecutionLocation(args: Parameters<ThreadStorePort['chooseExecutionLocation']>[0]) {
     this.trail.push('flip')
     return this.inner.chooseExecutionLocation(args)
@@ -621,6 +632,8 @@ export type FakeBridge = CloudBridge & {
   }[]
   readonly contextPuts: readonly { threadId: ThreadId; archive: Buffer }[]
   readonly attached: readonly { threadId: ThreadId; url: string; token: string }[]
+  /** Channels handed out without a url or token: parked, no socket, until `wake` dials. */
+  readonly parkedAttaches: readonly ThreadId[]
   readonly destroyed: readonly ThreadId[]
   readonly channel: FakeCloudChannel
   readonly trail: readonly string[]
@@ -693,6 +706,7 @@ export function fakeBridge(
   }[] = []
   const contextPuts: { threadId: ThreadId; archive: Buffer }[] = []
   const attached: { threadId: ThreadId; url: string; token: string }[] = []
+  const parkedAttaches: ThreadId[] = []
   const destroyed: ThreadId[] = []
   const trail: string[] = []
 
@@ -755,6 +769,7 @@ export function fakeBridge(
     created,
     contextPuts,
     attached,
+    parkedAttaches,
     destroyed,
     get channel() {
       if (channel === null) throw new Error('nothing has attached yet')
@@ -821,15 +836,30 @@ export function fakeBridge(
       },
     },
     attach: ({ threadId, url, token }) => {
-      trail.push('attach')
-      attached.push({ threadId, url, token })
+      const dialled = url !== undefined && token !== undefined
+      if (dialled) {
+        trail.push('attach')
+        attached.push({ threadId, url, token })
+      } else {
+        parkedAttaches.push(threadId)
+      }
       materialize(threadId)
       const opened = fakeCloudChannel({
         threadId,
         log,
         threads,
         disk,
-        connection: { state: EChannelConnection.Open, detail: null },
+        connection: dialled
+          ? { state: EChannelConnection.Open, detail: null }
+          : { state: EChannelConnection.Parked, detail: null },
+        onDial: dialled
+          ? undefined
+          : (dial) => {
+              trail.push('attach')
+              attached.push({ threadId, ...dial })
+              opened.reload({ sinceEventSeq: 0 })
+              opened.moveTo({ state: EChannelConnection.Open, detail: null })
+            },
       })
       channel = opened
       // Serve has untarred the staged archive into its session directory by the time a client can

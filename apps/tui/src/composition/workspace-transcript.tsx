@@ -99,6 +99,7 @@ export function WorkspaceTranscript(props: {
             connection === EChannelConnection.Connecting
           }
           disconnected={connection === EChannelConnection.Closed}
+          stale={cloudHealth?.stale === true}
           {...(connection === EChannelConnection.Closed
             ? { onReconnect: () => (cloudSession === null ? props.onRetryAttach() : cloudSession.reconnect()) }
             : {})}

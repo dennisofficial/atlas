@@ -63,7 +63,7 @@ export async function refreshCloudThreadView(args: {
   args.resetLog({ events: retained, base: snapshot.base, turns: spent.turns });
   args.setEvents(retained);
   args.markApplied(snapshot.identity);
-  args.readiness.registerApplied(snapshot.identity, Date.now());
+  args.readiness.registerApplied(snapshot.identity, Date.now(), snapshot.all);
 }
 
 type CloudTranscriptReadiness = ReturnType<typeof cloudReadinessOf>;
@@ -220,7 +220,7 @@ export function createThreadViewRefresh(args: {
       if (sameIdentity({ left: readiness.applied()?.identity, right: seeded })) return;
 
       heldIdentity = seeded;
-      readiness.registerApplied(seeded, Date.now());
+      readiness.registerApplied(seeded, Date.now(), readSeed?.().appliedEvents);
     },
   };
 }

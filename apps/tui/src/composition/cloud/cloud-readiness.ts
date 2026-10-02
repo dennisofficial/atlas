@@ -1,13 +1,19 @@
+import type { Event } from '@dltech/atlas-core'
 import type { CloudChannel } from '@dltech/atlas-harness'
 import type { ThreadIdentity } from '../thread-reads'
 
 export type CloudAppliedSnapshot = {
   identity: ThreadIdentity
   appliedAt: number
+  events: readonly Event[] | undefined
 }
 
 export type CloudTranscriptReadiness = {
-  registerApplied(identity: ThreadIdentity | null, appliedAt: number | null): void
+  registerApplied(
+    identity: ThreadIdentity | null,
+    appliedAt: number | null,
+    events?: readonly Event[] | undefined,
+  ): void
   applied(): CloudAppliedSnapshot | null
   subscribe(listener: () => void): () => void
   waitUntilApplied(identity: ThreadIdentity): Promise<void>
@@ -32,8 +38,8 @@ export const cloudReadinessOf = (
   const listeners = new Set<() => void>()
   const waiting = new Set<{ identity: ThreadIdentity; resolve: () => void; reject: (error: Error) => void }>()
   const created: CloudTranscriptReadiness = {
-    registerApplied(identity, appliedAt) {
-      applied = identity === null || appliedAt === null ? null : { identity, appliedAt }
+    registerApplied(identity, appliedAt, events) {
+      applied = identity === null || appliedAt === null ? null : { identity, appliedAt, events }
       for (const waiter of waiting) {
         if (!matchesIdentity({ applied: applied?.identity, wanted: waiter.identity })) continue
         waiting.delete(waiter)

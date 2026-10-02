@@ -144,6 +144,16 @@ export const mountCloud = async (args: {
       await setup.flush()
     },
     pressEscape: () => setup.mockInput.pressEscape(),
+    mutedEntries: (): number => {
+      let muted = 0
+      const walk = (node: unknown): void => {
+        const candidate = node as { opacity?: unknown; id?: unknown; getChildren?: () => readonly unknown[] }
+        if (candidate.opacity === 0.4 && typeof candidate.id === 'string') muted += 1
+        for (const child of candidate.getChildren?.() ?? []) walk(child)
+      }
+      walk(setup.renderer.root)
+      return muted
+    },
     pressCtrl: (key: string) => setup.mockInput.pressKey(key, { ctrl: true }),
     click: (at: { x: number; y: number }) => setup.mockMouse.click(at.x, at.y),
     done: async () => {
