@@ -53,6 +53,12 @@ const serviceRunning = (callId: string, serviceId: string): EventDraft => ({
   name: 'service_start',
   output: { serviceId, status: 'running' },
 })
+const shellStarted = (shellId: string): EventDraft => ({
+  type: 'background-shell-started',
+  shellId,
+  command: 'npm test',
+  description: 'run the tests',
+})
 const shellEnded = (shellId: string, output: string): EventDraft => ({
   type: 'background-shell-ended',
   shellId,
@@ -115,6 +121,60 @@ describe('rewindPlan for background shells', () => {
 
     expect(cutIds(plan, 'shell')).toEqual(['bash_1'])
     expect(plan.reappend).toEqual([])
+  })
+
+  it('cuts a shell by its started event, the marker modern shells write at occurrence', () => {
+    const events = eventsFrom([
+      said('msg_1'),
+      shellStarted('bash_1'),
+      replied('on it'),
+      said('msg_2'),
+      shellEnded('bash_1', 'all green'),
+      said('msg_3'),
+    ])
+
+    const plan = rewindPlan({ events, toSeq: 1 })
+
+    expect(cutIds(plan, 'shell')).toEqual(['bash_1'])
+    expect(plan.cuts[0]).toMatchObject({
+      kind: 'shell',
+      shellId: 'bash_1',
+      command: 'npm test',
+      description: 'run the tests',
+    })
+    expect(plan.reappend).toEqual([])
+  })
+
+  it('keeps a shell whose started event sits below the cut', () => {
+    const events = eventsFrom([
+      said('msg_1'),
+      shellStarted('bash_1'),
+      said('msg_2'),
+      shellEnded('bash_1', 'all green'),
+      said('msg_3'),
+    ])
+
+    const plan = rewindPlan({ events, toSeq: 3 })
+
+    expect(plan.cuts).toEqual([])
+    expect(plan.reappend.map((notice) => notice.draft)).toEqual([
+      expect.objectContaining({ shellId: 'bash_1' }),
+    ])
+  })
+
+  it('cuts a shell once when the log carries both the started event and the tool-call pairing', () => {
+    const events = eventsFrom([
+      said('msg_1'),
+      startedInBackground('call-1'),
+      backgrounded('call-1', 'bash_1'),
+      shellStarted('bash_1'),
+      said('msg_2'),
+      shellEnded('bash_1', 'all green'),
+    ])
+
+    const plan = rewindPlan({ events, toSeq: 1 })
+
+    expect(cutIds(plan, 'shell')).toEqual(['bash_1'])
   })
 
   it('carries the start details on the cut so the confirmation can name the shell', () => {

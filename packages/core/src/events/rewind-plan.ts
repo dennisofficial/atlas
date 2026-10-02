@@ -78,6 +78,9 @@ const toNotice = (event: Event): RewoundNotice => {
  * result carrying the shellId is a start, and only a service_start call paired with the result
  * carrying the serviceId is a service creation.
  *
+ * Modern shells also write their own started event at occurrence; it is the authoritative cut
+ * marker, and the tool-call pairing is the fallback for logs written before it existed.
+ *
  * Notices above the cut survive exactly when their source survives: they are re-appended above
  * the new head rather than deleted with the rows around them.
  */
@@ -92,15 +95,27 @@ export function rewindPlan({
 
   const cuts: RewindCut[] = []
   const cutAgentIds = new Set<ThreadId>()
+  const cutShellIds = new Set<string>()
   for (const event of above) {
-    if (event.type !== 'agent-spawned' && event.type !== 'agent-restarted') continue
-    cutAgentIds.add(event.agentId)
+    if (event.type === 'agent-spawned' || event.type === 'agent-restarted') {
+      cutAgentIds.add(event.agentId)
+      cuts.push({
+        kind: 'agent',
+        seq: event.seq,
+        agentId: event.agentId,
+        agentType: event.agentType,
+        intent: event.intent,
+      })
+      continue
+    }
+    if (event.type !== 'background-shell-started') continue
+    cutShellIds.add(event.shellId)
     cuts.push({
-      kind: 'agent',
+      kind: 'shell',
       seq: event.seq,
-      agentId: event.agentId,
-      agentType: event.agentType,
-      intent: event.intent,
+      shellId: event.shellId,
+      command: event.command,
+      description: event.description,
     })
   }
 
@@ -112,7 +127,6 @@ export function rewindPlan({
     if (isServiceStart(event)) serviceStarts.set(event.callId, startDetailsOf(event.input))
   }
 
-  const cutShellIds = new Set<string>()
   const cutServiceIds = new Set<string>()
   for (const event of above) {
     if (event.type !== 'tool-result') continue
@@ -120,7 +134,7 @@ export function rewindPlan({
 
     const shellStart = shellStarts.get(event.callId)
     const shellId = shellStart === undefined ? undefined : stringOf(output, 'shellId')
-    if (shellStart !== undefined && shellId !== undefined) {
+    if (shellStart !== undefined && shellId !== undefined && !cutShellIds.has(shellId)) {
       cutShellIds.add(shellId)
       cuts.push({ kind: 'shell', seq: event.seq, shellId, ...shellStart })
     }
