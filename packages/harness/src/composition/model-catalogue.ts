@@ -58,34 +58,86 @@ const keyedProviders = (accounts: readonly Account[]): ReadonlySet<string> =>
 const subscribedProviders = (accounts: readonly Account[]): ReadonlySet<string> =>
   providersHolding({ accounts, wanted: (account) => account.kind === EAuthKind.Oauth })
 
+type ResolvedCards = { providers: readonly CatalogueProvider[]; catalog: ModelCatalog }
+
+/**
+ * The codex subscription backend serves a plan-scoped subset of the OpenAI catalogue and 400s the
+ * rest, so a ChatGPT login lists what the backend returned. A key bills against api.openai.com and
+ * keeps the full static list.
+ */
+function resolveCards(args: {
+  adapters: readonly ProviderAdapter[]
+  subscribed: ReadonlySet<string>
+  live: LiveCards | undefined
+}): ResolvedCards {
+  const providers: CatalogueProvider[] = []
+  const catalogued: ModelCard[] = []
+
+  for (const adapter of args.adapters) {
+    const live = args.subscribed.has(adapter.id) ? args.live?.cards(adapter.id) : undefined
+    if (live !== undefined && live.length > 0) {
+      providers.push({ id: adapter.id, label: adapter.label, cards: live })
+      catalogued.push(...live)
+      continue
+    }
+    providers.push({
+      id: adapter.id,
+      label: adapter.label,
+      cards: withoutDatedDuplicates(adapter.cards()),
+    })
+    catalogued.push(...adapter.cards())
+  }
+
+  return { providers, catalog: catalogOf(catalogued) }
+}
+
+export type LiveCards = {
+  cards: (providerId: string) => readonly ModelCard[] | undefined
+  subscribe: (listener: () => void) => () => void
+  refresh: () => Promise<void>
+}
+
 export function modelCatalogue(args: {
   adapters: readonly ProviderAdapter[]
   accounts?: readonly Account[]
+  live?: LiveCards
 }): ModelCatalogue {
-  const cards = args.adapters.flatMap((adapter) => [...adapter.cards()])
-  const catalog = catalogOf(cards)
   let keyed = keyedProviders(args.accounts ?? [])
   let subscribed = subscribedProviders(args.accounts ?? [])
 
   const listeners = new Set<() => void>()
   let version = 0
+  let resolved: ResolvedCards | undefined
+
+  const resolve = (): ResolvedCards => {
+    resolved ??= resolveCards({ adapters: args.adapters, subscribed, live: args.live })
+    return resolved
+  }
+
+  const announce = (): void => {
+    resolved = undefined
+    version += 1
+    for (const listener of listeners) listener()
+  }
+
+  args.live?.subscribe(announce)
 
   return {
-    providers: args.adapters.map((adapter) => ({
-      id: adapter.id,
-      label: adapter.label,
-      cards: withoutDatedDuplicates(adapter.cards()),
-    })),
-    catalog,
-    cardFor: (ref) => findCard({ catalog, ref }),
+    get providers() {
+      return resolve().providers
+    },
+    get catalog() {
+      return resolve().catalog
+    },
+    cardFor: (ref) => findCard({ catalog: resolve().catalog, ref }),
     adapterFor: (providerId) => args.adapters.find((adapter) => adapter.id === providerId),
     reachable: (providerId) => keyed.has(providerId),
     subscribed: (providerId) => subscribed.has(providerId),
     observeAccounts: (accounts) => {
       keyed = keyedProviders(accounts)
       subscribed = subscribedProviders(accounts)
-      version += 1
-      for (const listener of listeners) listener()
+      announce()
+      if (subscribed.has(OPENAI_PROVIDER_ID)) void args.live?.refresh()
     },
     subscribe: (listener) => {
       listeners.add(listener)

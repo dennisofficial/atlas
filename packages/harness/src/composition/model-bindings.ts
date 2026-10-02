@@ -1,5 +1,7 @@
 import {
   ANTHROPIC_PROVIDER_ID,
+  EAuthKind,
+  EAuthProvider,
   type Account,
   type CredentialPort,
   type NoticePort,
@@ -8,7 +10,9 @@ import {
 
 import type { DependencyContainer } from '../container/injection'
 import { DockerEngineToken, LanguageModelToken, ModelCardSourceToken, SelectableModelToken } from '../container/tokens'
+import { CodexModelsCatalogue } from '../models/codex-models-catalogue'
 import { cardsForProvider } from '../models/generated-catalogue'
+import { CODEX_VERSION } from '../providers/codex-version'
 import { AnthropicAdapter } from '../providers/anthropic-adapter'
 import { InferenceAdapter, INFERENCE_PROVIDER_ID } from '../providers/inference-adapter'
 import { OpenAiAdapter, OPENAI_PROVIDER_ID } from '../providers/openai-adapter'
@@ -44,6 +48,11 @@ export type ModelBindings = {
 const emptyToUndefined = (value: string | undefined): string | undefined =>
   value === undefined || value.length === 0 ? undefined : value
 
+const holdsOpenAiLogin = (accounts: readonly Account[]): boolean =>
+  accounts.some(
+    (account) => account.provider === EAuthProvider.OpenAI && account.kind === EAuthKind.Oauth,
+  )
+
 export async function bindModels(args: {
   container: DependencyContainer
   launch: HarnessLaunch
@@ -60,6 +69,12 @@ export async function bindModels(args: {
 }): Promise<ModelBindings> {
   const { container, launch, settled, settings, credentials, notice } = args
 
+  const codexModels = new CodexModelsCatalogue({
+    credentials,
+    provider: EAuthProvider.OpenAI,
+    clientVersion: CODEX_VERSION,
+  })
+
   const models = modelCatalogue({
     adapters: [
       new AnthropicAdapter({ credentials, cards: cardsForProvider(ANTHROPIC_PROVIDER_ID) }),
@@ -72,7 +87,14 @@ export async function bindModels(args: {
       new InferenceAdapter({ credentials, cards: cardsForProvider(INFERENCE_PROVIDER_ID) }),
     ],
     accounts: args.accountList,
+    live: {
+      cards: (providerId) => (providerId === OPENAI_PROVIDER_ID ? codexModels.cards() : undefined),
+      subscribe: (listener) => codexModels.subscribe(listener),
+      refresh: () => codexModels.refresh(),
+    },
   })
+
+  if (holdsOpenAiLogin(args.accountList)) void codexModels.refresh()
 
   const model = selectableModel({
     catalogue: models,
