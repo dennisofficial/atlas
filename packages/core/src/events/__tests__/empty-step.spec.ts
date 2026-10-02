@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EMPTY_STEP_NOTICE_STEPS, emptyStepNudgeDraft, silentStep } from '../empty-step'
+import { EFinishReason } from '../../stream/chunk'
+import { EMPTY_STEP_NOTICE_STEPS, emptyStepNudgeDraft, retriableEmptyStep, silentStep } from '../empty-step'
 
 describe('silentStep', () => {
   it('reads a step with no parts and no tool calls as silent', () => {
@@ -22,6 +23,51 @@ describe('silentStep', () => {
   it('reads a tool call as an answer however empty the text is', () => {
     expect(
       silentStep({ parts: [], toolCalls: [{ callId: 'read_1', name: 'read', input: {} }] }),
+    ).toBe(false)
+  })
+})
+
+describe('retriableEmptyStep', () => {
+  it('flags a silent stop as worth a raw re-request', () => {
+    expect(retriableEmptyStep({ parts: [], toolCalls: [], finishReason: EFinishReason.Stop })).toBe(true)
+  })
+
+  it('flags whitespace-only text stopped cleanly as worth a raw re-request', () => {
+    expect(
+      retriableEmptyStep({
+        parts: [{ type: 'text', text: ' \n ' }],
+        toolCalls: [],
+        finishReason: EFinishReason.Stop,
+      }),
+    ).toBe(true)
+  })
+
+  it('never retries a decided answer, only dropped completions', () => {
+    for (const finishReason of [
+      EFinishReason.Error,
+      EFinishReason.ContentFilter,
+      EFinishReason.Length,
+      EFinishReason.Other,
+      EFinishReason.ToolCalls,
+    ]) {
+      expect(retriableEmptyStep({ parts: [], toolCalls: [], finishReason })).toBe(false)
+    }
+  })
+
+  it('never retries a step that actually answered', () => {
+    expect(
+      retriableEmptyStep({
+        parts: [{ type: 'text', text: 'here is what I found' }],
+        toolCalls: [],
+        finishReason: EFinishReason.Stop,
+      }),
+    ).toBe(false)
+    expect(
+      retriableEmptyStep({
+        parts: [],
+        toolCalls: [{ callId: 'read_1', name: 'read', input: {} }],
+        finishReason: EFinishReason.Stop,
+      }),
     ).toBe(false)
   })
 })
