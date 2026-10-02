@@ -36,14 +36,20 @@ describe('parseProcStatStartTime', () => {
 })
 
 describe('startTimeOf', () => {
-  it('returns a start time from procfs when ps is absent and /proc exists', async () => {
+  it('returns a start time when the process exists', async () => {
+    expect(await startTimeOf({ pid: process.pid })).toBeDefined()
+  })
+
+  it('parses a numeric start from real procfs when it exists', async () => {
     try {
       await access(`/proc/${process.pid}/stat`)
     } catch {
       return
     }
 
-    expect(await startTimeOf({ pid: process.pid })).toMatch(/^\d+$/)
+    expect(parseProcStatStartTime(await Bun.file(`/proc/${process.pid}/stat`).text())).toMatch(
+      /^\d+$/,
+    )
   })
 
   it('returns undefined for a pid that does not exist', async () => {
