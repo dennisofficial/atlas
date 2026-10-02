@@ -1317,6 +1317,12 @@ new spawn records. Source execution stays frozen after commitment, and sandbox d
 post-commit cleanup. Reconnect reads the current remote history without replaying an already-applied
 workspace or transcript bootstrap generation.
 
+Once a lift has proven the whole swap — the workspace archive restored in the cloud, the transcript
+verified, the placement committed, and the channel activated — the local session worktree is
+destroyed with `git worktree remove`. A session living in the main checkout keeps it. A worktree git
+considers dirty refuses removal and stays on disk with a warning; the lift is already complete, so
+nothing is forced.
+
 ## Cloud execution lifetime and attachment
 
 A cloud client owns its attachment, not the execution it observes. Closing, restarting, or losing

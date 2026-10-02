@@ -21,6 +21,7 @@ import { verifyTranscript } from './verify-transcript'
 import type { RelocationPlan } from './dag'
 import { flipChildrenToCloud } from './lift-children'
 import { ELiftStep, type LiftArgs } from './lift'
+import { destroyLiftedWorktree } from './lift-destroy'
 import { liftedDraft, type StoppedLocally } from './transition-notice'
 import { captureLiftWorkspace, type LiftWorkspaceArchive } from './lift-workspace'
 
@@ -37,6 +38,7 @@ export enum ELiftNode {
   Attach = 'attach',
   ActivateFamily = 'activateFamily',
   ResumePaused = 'resumePaused',
+  DestroyLocalWorktree = 'destroyLocalWorktree',
 }
 
 export type LiftCtx = {
@@ -278,6 +280,24 @@ export const liftPlan = (): RelocationPlan<LiftCtx> => [
     run: async (ctx) => {
       if (ctx.args.midTurn) ctx.onProgress(ELiftStep.Resuming)
       await appendRelocationNotice(ctx)
+    },
+  },
+  {
+    id: ELiftNode.DestroyLocalWorktree,
+    needs: [ELiftNode.ResumePaused],
+    run: async (ctx) => {
+      if (ctx.workspaceArchive === undefined || ctx.restoredWorkspace === undefined) return
+      await destroyLiftedWorktree({ cwd: ctx.args.cwd, logPort: ctx.logPort, threadId: ctx.args.threadId }).catch(
+        (error: unknown) => {
+          ctx.logPort?.warn({
+            source: 'cloud.lift',
+            message: 'the lifted local worktree could not be destroyed; it stays on disk',
+            threadId: ctx.args.threadId,
+            data: { operation: 'destroy-local-worktree' },
+            ...logFieldsOf({ error }),
+          })
+        },
+      )
     },
   },
 ]
