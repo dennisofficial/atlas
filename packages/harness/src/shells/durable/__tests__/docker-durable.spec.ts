@@ -1,6 +1,16 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { lstat, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
+import { EKilledBy, toThreadId } from '@dltech/atlas-core'
+import { HookChain } from '../../../hooks/registry'
+import { RandomIds } from '../../../store/ids'
+import { SystemClock } from '../../../store/clock'
+import { BunShellRegistry } from '../../shell-registry'
+import { ShellLauncherPort } from '../../port'
+import { attachmentOf } from '../../durable-attachment'
+import { shellFiles } from '../../storage'
+import { toShellId } from '../../shell-id'
+import { RecordingLog } from '../../__tests__/shell-registry-log'
 
 import { bundleSupervisorSource } from '../../supervisor-bundle'
 import { attachDurableShell, EExitCause, ELeaseMode, type ControlTransport } from '../client'
@@ -100,6 +110,7 @@ describeDocker('real Docker durable supervisor', () => {
     await execute({
       command: [
         'docker', 'run', '-d', '--name', container,
+        '--user', `${process.getuid?.() ?? 0}:${process.getgid?.() ?? 0}`,
         '--mount', `type=bind,src=${root},dst=${root}`,
         '--env', `ATLAS_HOME=${join(root, 'home')}`,
         '--entrypoint', 'bun', image, '-e',
@@ -184,6 +195,42 @@ describeDocker('real Docker durable supervisor', () => {
     const replay = await attach(launched)
     expect(Buffer.byteLength(await collect({ stream: replay.stdout }))).toBe(2048)
     expect((await stat(join(launched.shellDir, 'spool.out'))).size).toBe(2048)
+  }, 30000)
+
+  test('records the owner’s real ending and output before its container is removed', async () => {
+    const threadId = toThreadId('docker-journal-owner')
+    const shellId = toShellId('shell_docker_journal')
+    const files = shellFiles({ sessionDir: root, threadId, shellId })
+    class Launcher extends ShellLauncherPort {
+      async launch() {
+        const launched = await launch({
+          name: `threads/${threadId}/shells/${shellId}`,
+          command: 'echo kept-through-teardown; sleep 300',
+        })
+        const handle = await attach(launched)
+        return { ok: true as const, attachment: attachmentOf({ handle, files, shellId, startedAt: new Date().toISOString() }) }
+      }
+      async inspect() { return [] }
+    }
+    const log = new RecordingLog()
+    const registry = new BunShellRegistry({
+      root,
+      clock: new SystemClock(),
+      hooks: () => new HookChain({}),
+      launcher: new Launcher(),
+      log,
+      ids: new RandomIds(),
+    })
+    const started = await registry.start({ threadId, command: 'echo kept-through-teardown; sleep 300', description: 'verify Docker teardown' })
+    if (!started.ok) throw new Error(started.reason)
+    await registry.closeAll()
+    const ending = log.appended.find((draft) => draft.type === 'background-shell-ended')
+    expect(ending?.type).toBe('background-shell-ended')
+    if (ending?.type !== 'background-shell-ended') throw new Error('the owner needs a durable ending')
+    expect(ending.output).toContain('kept-through-teardown')
+    expect(ending.killedBy).toBe(EKilledBy.SessionEnd)
+    expect(await readFile(files.output, 'utf8')).toContain('kept-through-teardown')
+    expect(registry.drainNotifications({ threadId })).toEqual([])
   }, 30000)
 
   test('replays stdout and stderr with exact exit after an unattended command finishes', async () => {
