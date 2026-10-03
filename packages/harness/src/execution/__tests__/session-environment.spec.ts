@@ -12,10 +12,11 @@ import {
 
 import { CountingIds, SteppingClock } from '../../store/__tests__/harness'
 import { JsonlEventLog } from '../../store/sessions/event-log'
-import { sessionDirectory, threadDataDirectory } from '../../store/sessions/paths'
+import { contextDirectory, sessionDirectory, threadDataDirectory } from '../../store/sessions/paths'
 import { SessionRegistry } from '../../store/sessions/registry'
 import { JsonlThreadStore } from '../../store/sessions/thread-store'
 import {
+  ATLAS_CONTEXT_DIR_ENV,
   ATLAS_SESSION_DIR_ENV,
   ATLAS_THREAD_DIR_ENV,
   SessionEnvironmentProcessPort,
@@ -95,7 +96,11 @@ describe('SessionEnvironmentProcessPort', () => {
     expect(inner.spawned.map((one) => one.env?.[ATLAS_THREAD_DIR_ENV])).toEqual(
       [main, sub, mate].map((thread) => threadDataDirectory({ sessionDir, threadId: thread.id })),
     )
+    expect(inner.spawned.map((one) => one.env?.[ATLAS_CONTEXT_DIR_ENV])).toEqual(
+      [sessionDir, sessionDir, sessionDir].map((dir) => contextDirectory({ sessionDir: dir })),
+    )
     expect((await stat(threadDataDirectory({ sessionDir, threadId: mate.id }))).isDirectory()).toBe(true)
+    expect((await stat(contextDirectory({ sessionDir }))).isDirectory()).toBe(true)
   })
 
   it('keeps concurrent spawns for different threads separate', async () => {
@@ -123,7 +128,12 @@ describe('SessionEnvironmentProcessPort', () => {
       port.spawn({
         cmd: ['x'],
         cwd: '/',
-        env: { [ATLAS_SESSION_DIR_ENV]: '/evil', [ATLAS_THREAD_DIR_ENV]: '/evil', KEEP: '1' },
+        env: {
+          [ATLAS_SESSION_DIR_ENV]: '/evil',
+          [ATLAS_THREAD_DIR_ENV]: '/evil',
+          [ATLAS_CONTEXT_DIR_ENV]: '/evil',
+          KEEP: '1',
+        },
         threadId: main.id,
       }),
     )
@@ -132,6 +142,7 @@ describe('SessionEnvironmentProcessPort', () => {
     expect(env?.KEEP).toBe('1')
     expect(env?.[ATLAS_SESSION_DIR_ENV]).not.toBe('/evil')
     expect(env?.[ATLAS_THREAD_DIR_ENV]).not.toBe('/evil')
+    expect(env?.[ATLAS_CONTEXT_DIR_ENV]).not.toBe('/evil')
   })
 
   it('refuses to run a shell for an unregistered thread and says why, without creating a session', async () => {

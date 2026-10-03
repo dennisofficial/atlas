@@ -10,6 +10,7 @@ export const LEDGER_FILE_NAME = 'ledger.jsonl'
 export const LOGS_FILE_NAME = 'logs.jsonl'
 export const EVENTS_FILE_SUFFIX = '.events.jsonl'
 export const THREAD_META_FILE_SUFFIX = '.meta.json'
+export const CONTEXT_DIRECTORY_NAME = 'context'
 
 export function sessionsDirectory({ home }: { home: string }): string {
   return join(home, SESSIONS_DIRECTORY_NAME)
@@ -37,6 +38,10 @@ export function ledgerFile({ sessionDir }: { sessionDir: string }): string {
 
 export function sessionLogsFile({ sessionDir }: { sessionDir: string }): string {
   return join(sessionDir, LOGS_FILE_NAME)
+}
+
+export function contextDirectory({ sessionDir }: { sessionDir: string }): string {
+  return join(sessionDir, CONTEXT_DIRECTORY_NAME)
 }
 
 export function eventLogFile({

@@ -241,7 +241,9 @@ while Atlas was absent. The model receives the output path and can Read or Grep 
 The spool lives at `<atlasHome>/sessions/<session>/threads/<thread>/shells/<unique-shell-id>/`, beside
 its owner's existing flat event log. The session registry resolves that root for main agents,
 sub-agents, and teammates. `ATLAS_SESSION_DIR` and `ATLAS_THREAD_DIR` are per-command environment
-values; a background command also has `ATLAS_SHELL_DIR`. This does not change `TMPDIR`.
+values, joined by `ATLAS_CONTEXT_DIR`, the session-shared `context/` folder under the session
+directory for plans and working notes; a background command also has `ATLAS_SHELL_DIR`. This does
+not change `TMPDIR`.
 
 The default kernel file-size limit is 5 GiB and there is no rotation, so byte offsets stay valid.
 The limit applies to each regular file the command writes, not only its spool and not total disk use.
