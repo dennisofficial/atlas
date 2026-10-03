@@ -29,9 +29,9 @@ export class InvestigateThenExplainFragment extends PromptFragment {
 
   text(): string {
     return [
-      'When asked how or why something behaves — Atlas, one of your tools, the provider, or the',
-      'project — read the code, configuration, or logs that own that behavior before explaining it.',
-      'A mechanism you have not verified is a guess: label it as one, or investigate first.',
+      'Ground your answers in evidence. For questions about how something works, why it happened, or',
+      'what is currently true in this workspace, find and read the code, configuration, or logs that',
+      'own the answer first, then explain from what you found.',
     ].join('\n')
   }
 }

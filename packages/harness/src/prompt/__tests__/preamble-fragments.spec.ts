@@ -87,11 +87,12 @@ describe('the builtin prompt', () => {
     expect(text).not.toContain('rewound')
   })
 
-  it('sends how-and-why questions about behavior to the code before answering', () => {
+  it('grounds answers about the workspace in evidence read first', () => {
     const part = compiled().parts.find((part) => part.id === 'scope.investigate-then-explain')
     expect(part).toBeDefined()
+    expect(part?.text).toContain('evidence')
     expect(part?.text).toContain('read the code')
-    expect(part?.text).toContain('guess')
+    expect(part?.text).toContain('what is currently true')
   })
 
   it('keeps the web guidance short', () => {
