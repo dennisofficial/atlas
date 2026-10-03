@@ -18,6 +18,7 @@ import {
   isDriveAttachedConflict,
   isImageOptimizeFailure,
   isImageOptimizeLag,
+  isSandboxMissing,
   VercelFailure,
 } from './vercel-errors'
 
@@ -89,6 +90,21 @@ export async function mountWithRetries(args: {
           `Vercel is still optimizing image ${args.image} (wait ${optimizeWaits}/${args.imageOptimize.attempts})`,
         )
         await retrySleep(args.imageOptimize)
+        continue
+      }
+      // The probe can delete a stale sandbox and the wake's mount land while Vercel still reports
+      // the name gone; the retry budget rides out that settle exactly like the drive detach lag.
+      if (isSandboxMissing(failure)) {
+        if (attempt >= args.retry.attempts) {
+          throw new VercelFailure({
+            kind: EVercelFailure.Unknown,
+            message: `sandbox ${args.name} stayed missing through ${args.retry.attempts} attempts to resume or create it: ${failureTextOf(failure)}`,
+          })
+        }
+        args.log?.(
+          `Vercel reported sandbox ${args.name} missing mid-wake (attempt ${attempt}/${args.retry.attempts}) — waiting for the provider to settle`,
+        )
+        await retrySleep(args.retry)
         continue
       }
       if (!isDriveAttachedConflict(failure)) throw failure

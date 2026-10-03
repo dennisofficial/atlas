@@ -149,6 +149,11 @@ const fakeSandbox = (
 const notFound = (): APIError<unknown> =>
   new APIError(new Response(null, { status: 404 }), { message: 'sandbox not found' })
 
+const notFoundForProject = (): APIError<unknown> =>
+  new APIError(new Response(null, { status: 400 }), {
+    json: { error: { message: "Sandbox 'atlas-thread-x' not found for this project." } },
+  })
+
 const alreadyAttachedError = (): APIError<unknown> =>
   new APIError(new Response(null, { status: 409 }), {
     json: {
@@ -1025,6 +1030,73 @@ describe('createOrResume', () => {
     expect(failure).toBeInstanceOf(VercelFailure)
     expect((failure as VercelFailure).kind).toBe(EVercelFailure.DriveAttached)
     expect((failure as VercelFailure).message).toContain('already attached')
+  })
+
+  it('rides out Vercel reporting the sandbox gone mid-wake, then mounts once the name settles', async () => {
+    let calls = 0
+    const lines: string[] = []
+    const driver = new VercelDriver({
+      credentials: CREDENTIALS,
+      cloudUrl: 'https://api.example.com',
+      driveSdk: fakeDriveSdk().sdk,
+      image: `atlas-sandbox:${PINNED_VERSION}`,
+      serveVersion: PINNED_VERSION,
+      attachLagRetry: { attempts: 10, delayMs: 0 },
+      log: (line) => lines.push(line),
+      sdk: {
+        get: async () => {
+          throw notFound()
+        },
+        getOrCreate: async () => {
+          calls += 1
+          if (calls === 1) throw notFoundForProject()
+          return fakeSandbox()
+        },
+      },
+    })
+
+    const placement = await driver.createOrResume({
+      name: 'atlas-thread-x',
+      threadId: 'brn_cloud',
+      token: 't',
+    })
+
+    expect(calls).toBe(2)
+    expect(placement.url).toBe('https://sb-3000.vercel.run')
+    expect(lines.some((line) => line.includes('mid-wake'))).toBe(true)
+  })
+
+  it('exhausts the mid-wake settle retries into a typed failure naming the cause', async () => {
+    let calls = 0
+    const driver = new VercelDriver({
+      credentials: CREDENTIALS,
+      cloudUrl: 'https://api.example.com',
+      driveSdk: fakeDriveSdk().sdk,
+      image: `atlas-sandbox:${PINNED_VERSION}`,
+      serveVersion: PINNED_VERSION,
+      attachLagRetry: { attempts: 10, delayMs: 0 },
+      sdk: {
+        get: async () => {
+          throw notFound()
+        },
+        getOrCreate: async () => {
+          calls += 1
+          throw notFoundForProject()
+        },
+      },
+    })
+
+    const failure = await driver
+      .createOrResume({ name: 'atlas-thread-x', threadId: 'brn_cloud', token: 't' })
+      .then(
+        () => undefined,
+        (caught: unknown) => caught,
+      )
+
+    expect(calls).toBe(10)
+    expect(failure).toBeInstanceOf(VercelFailure)
+    expect((failure as VercelFailure).kind).toBe(EVercelFailure.Unknown)
+    expect((failure as VercelFailure).message).toContain('not found for this project')
   })
 
   it('does not retry a create failure that is not the attach lag', async () => {
