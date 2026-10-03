@@ -9,7 +9,6 @@ import {
   LogPort,
   ProcessPort,
   ToolDefinition,
-  type ModelCard,
 } from '@dltech/atlas-core'
 
 import { AgentRegistryPort } from '../agents/registry/port'
@@ -20,15 +19,12 @@ import { OperatorInputPort } from '../operator-input/port'
 import {
   DeltaChannelToken,
   DockerEngineToken,
-  ModelCardSourceToken,
-  MultimodalCapWorkaroundToken,
   SecretsStoreToken,
   WebSearchBackendToken,
   WorktreeDirectoryToken,
   WorkspaceRoot,
 } from '../container/tokens'
 import { FileWriteGuardPort } from '../files/write-guard'
-import type { ModelCardSource } from '../model/ai-sdk-model-port'
 import { ServiceRegistryPort } from '../services/service-registry'
 import { ShellRegistryPort } from '../shells/shell-registry'
 import { SkillRegistryPort } from '../skills/port'
@@ -70,9 +66,6 @@ import { WriteTool } from './builtin/write'
 import { WorktreeListTool } from './builtin/worktree-list'
 import { InMemoryToolRegistry, ToolRegistry } from './registry'
 
-const cardOfSource = (source: ModelCardSource): ModelCard | undefined =>
-  typeof source === 'function' ? source() : source
-
 const relocationLog = (resolver: DependencyContainer): EventLogPort => {
   const log = resolver.resolve(portToken(EventLogPort))
   if (!resolver.isRegistered(DeltaChannelToken, true)) return log
@@ -91,15 +84,6 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
       new ReadTool({
         files: resolver.resolve(portToken(AgentFileSystemPort)),
         fileCapabilities: resolver.resolve(portToken(FileCapabilitiesPort)),
-        ...(resolver.isRegistered(MultimodalCapWorkaroundToken, true) &&
-        resolver.isRegistered(ModelCardSourceToken, true)
-          ? {
-              imageResize: {
-                workaroundEnabled: resolver.resolve(MultimodalCapWorkaroundToken),
-                card: () => cardOfSource(resolver.resolve(ModelCardSourceToken)),
-              },
-            }
-          : {}),
       }),
   })
   container.register(portToken(ToolDefinition), {

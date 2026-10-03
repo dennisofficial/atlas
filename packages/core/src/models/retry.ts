@@ -3,13 +3,11 @@ export enum ERetryReason {
   Overloaded = 'overloaded',
   ServerError = 'server-error',
   Network = 'network',
-  PromptTooLong = 'prompt-too-long',
 }
 
 export type ModelFailure = {
   status?: number | undefined
   retryAfterMs?: number | undefined
-  promptTooLong?: boolean | undefined
 }
 
 export type RetryPolicy = {
@@ -17,8 +15,6 @@ export type RetryPolicy = {
   baseDelayMs: number
   maxDelayMs: number
   maxRetryAfterMs?: number | undefined
-  /** Same replayable failure can be retried at most this many times in a row, independent of maxAttempts. */
-  promptTooLongAttempts?: number | undefined
 }
 
 export const DEFAULT_RETRY_POLICY: RetryPolicy = {
@@ -44,7 +40,6 @@ const NOTHING_LEFT_TO_TRY: RetryDecision = { retry: false }
 
 export function retryReasonOf(failure: ModelFailure): ERetryReason | null {
   const { status } = failure
-  if (failure.promptTooLong === true) return ERetryReason.PromptTooLong
   if (status === undefined) return ERetryReason.Network
   if (status === TOO_MANY_REQUESTS) return ERetryReason.RateLimited
   if (status === OVERLOADED) return ERetryReason.Overloaded
@@ -68,12 +63,6 @@ export function planRetry(args: {
   const reason = retryReasonOf(args.failure)
   if (reason === null) return NOTHING_LEFT_TO_TRY
   if (args.attempts >= args.policy.maxAttempts) return NOTHING_LEFT_TO_TRY
-  if (
-    reason === ERetryReason.PromptTooLong &&
-    args.attempts > (args.policy.promptTooLongAttempts ?? 0)
-  ) {
-    return NOTHING_LEFT_TO_TRY
-  }
 
   const { retryAfterMs } = args.failure
   const delayMs =

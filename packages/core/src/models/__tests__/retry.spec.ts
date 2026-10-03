@@ -32,10 +32,6 @@ describe('naming why a model call is worth trying again', () => {
   it.each([400, 401, 403, 404, 413, 422])('refuses to retry %i, which will fail again', (status) => {
     expect(retryReasonOf({ status })).toBeNull()
   })
-
-  it('names a prompt the provider rejected for length', () => {
-    expect(retryReasonOf({ status: 400, promptTooLong: true })).toBe(ERetryReason.PromptTooLong)
-  })
 })
 
 describe('planning the wait before trying again', () => {
@@ -127,38 +123,6 @@ describe('planning the wait before trying again', () => {
       maxDelayMs: 10_000,
       maxRetryAfterMs: 60_000,
     })
-  })
-
-  it('never retries a prompt-too-long on a policy without a budget for it', () => {
-    const decision = planRetry({
-      failure: { status: 400, promptTooLong: true },
-      attempts: 1,
-      policy: POLICY,
-      jitter: MAXIMUM_JITTER,
-    })
-
-    expect(decision.retry).toBe(false)
-    expect(DEFAULT_RETRY_POLICY.promptTooLongAttempts).toBeUndefined()
-  })
-
-  it('spends the prompt-too-long budget exactly once when the policy grants one', () => {
-    const budgeted: RetryPolicy = { ...POLICY, promptTooLongAttempts: 1 }
-
-    const first = planRetry({
-      failure: { status: 400, promptTooLong: true },
-      attempts: 1,
-      policy: budgeted,
-      jitter: MAXIMUM_JITTER,
-    })
-    const second = planRetry({
-      failure: { status: 400, promptTooLong: true },
-      attempts: 2,
-      policy: budgeted,
-      jitter: MAXIMUM_JITTER,
-    })
-
-    expect(first).toEqual({ retry: true, delayMs: 1_000, reason: ERetryReason.PromptTooLong })
-    expect(second.retry).toBe(false)
   })
 })
 

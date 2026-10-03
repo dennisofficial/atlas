@@ -14,7 +14,6 @@ export enum ERetryReason {
   Overloaded = 'overloaded',
   ServerError = 'server-error',
   Network = 'network',
-  PromptTooLong = 'prompt-too-long',
 }
 
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }

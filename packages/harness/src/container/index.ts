@@ -23,7 +23,6 @@ export {
   LocalAccountStoreToken,
   LocalSecretsStoreToken,
   ModelCardSourceToken,
-  MultimodalCapWorkaroundToken,
   ProjectSettingsStoreToken,
   SecretsStoreToken,
   SelectableModelToken,

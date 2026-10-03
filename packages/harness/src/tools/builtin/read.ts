@@ -19,7 +19,7 @@ import { LocalFileSystemPort } from '../../execution/local-filesystem'
 import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-text'
 import { missingPathReason } from './missing-path'
 import { readFile } from './read-file'
-import { readImage, type ImageResizeDecision } from './read-image'
+import { readImage } from './read-image'
 
 const MAX_READ_BYTES = 262_144
 
@@ -156,7 +156,6 @@ function noticeFor(args: { path: string; scan: Selection }): string | undefined 
 export type ReadToolArgs = {
   files?: AgentFileSystemPort | undefined
   fileCapabilities?: FileCapabilitiesPort | undefined
-  imageResize?: ImageResizeDecision | undefined
 }
 
 export class ReadTool extends SchemaTool<typeof inputSchema> {
@@ -179,13 +178,11 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
 
   private readonly files: AgentFileSystemPort
   private readonly fileCapabilities: FileCapabilitiesPort | undefined
-  private readonly imageResize: ImageResizeDecision | undefined
 
   constructor(args: ReadToolArgs = {}) {
     super()
     this.files = args.files ?? new LocalFileSystemPort()
     this.fileCapabilities = args.fileCapabilities
-    this.imageResize = args.imageResize
   }
 
   protected override async run({
@@ -225,7 +222,6 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
         head,
         files: this.files,
         threadId,
-        ...(this.imageResize === undefined ? {} : { resize: this.imageResize }),
       })
     }
 
