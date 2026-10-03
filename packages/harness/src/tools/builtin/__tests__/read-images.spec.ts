@@ -1,14 +1,21 @@
 import {
   decodeBase64,
+  EImageTier,
+  encodePng,
   MAX_API_EDGE,
   MAX_INLINE_BYTES,
+  OPENAI_COMPLETIONS_API,
+  pngSize,
+  projectedSize,
   toThreadId,
+  type ModelCard,
 } from '@dltech/atlas-core'
-import { mkdtemp, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeAll, describe, expect, it } from 'bun:test'
 
+import { zlibPngCodec } from '../../../images/png-codec'
 import { ReadTool } from '../read'
 import type { ImageReadOutput } from '../read-image'
 
@@ -48,6 +55,18 @@ const paths = {
   heavy: '',
   text: '',
   misnamed: '',
+  real: '',
+}
+
+const solidPng = (args: { width: number; height: number }): Uint8Array => {
+  const rgba = new Uint8Array(args.width * args.height * 4)
+  for (let i = 0; i < rgba.length; i += 4) {
+    rgba[i] = 120
+    rgba[i + 1] = 60
+    rgba[i + 2] = 200
+    rgba[i + 3] = 255
+  }
+  return encodePng({ size: { width: args.width, height: args.height }, rgba }, zlibPngCodec)
 }
 
 beforeAll(async () => {
@@ -59,6 +78,9 @@ beforeAll(async () => {
   paths.heavy = join(root, 'huge.png')
   paths.text = join(root, 'notes.txt')
   paths.misnamed = join(root, 'not-really.txt')
+  paths.real = join(root, 'real-shot.png')
+
+  await writeFile(paths.real, solidPng({ width: 4000, height: 3000 }))
 
   await writeFile(paths.small, png({ width: 1024, height: 768, padding: 400 * 1024 }))
   await writeFile(paths.wide, png({ width: 4000, height: 3000 }))
@@ -166,6 +188,81 @@ describe('read on an image it cannot send', () => {
       height: 600,
       inlined: false,
     })
+  })
+})
+
+const completionsCard: ModelCard = {
+  ref: { providerId: 'inference', modelId: 'kimi-k3' },
+  label: 'Kimi K3',
+  api: OPENAI_COMPLETIONS_API,
+  contextWindow: 1_048_576,
+  imageTier: EImageTier.Standard,
+}
+
+const gated = (args: { enabled: boolean; card?: ModelCard }): ReadTool =>
+  new ReadTool({
+    imageResize: {
+      workaroundEnabled: () => args.enabled,
+      card: () => args.card,
+    },
+  })
+
+const readWith = async (tool: ReadTool, path: string) => {
+  const outcome = await tool.invoke({
+    input: { path },
+    signal: new AbortController().signal,
+    idempotencyKey: 'read-images-resize',
+    projectDirectory: '/workspace',
+    threadId: toThreadId('thread-1'),
+  })
+  if (!outcome.ok) throw new Error((outcome as { reason: string }).reason)
+  return outcome
+}
+
+describe('read on an oversized PNG with the multimodal cap workaround', () => {
+  it('downscales to the tier projection for a completions model while the toggle is on', async () => {
+    const outcome = await readWith(gated({ enabled: true, card: completionsCard }), paths.real)
+    const expected = projectedSize({ size: { width: 4000, height: 3000 } })
+
+    const output = imageOutput(outcome.output)
+    expect({ width: output.width, height: output.height }).toEqual(expected)
+
+    const part = outcome.modelParts?.[1]
+    if (part?.type !== 'image') throw new Error('expected an image part')
+    const delivered = decodeBase64(part.data)
+    expect(pngSize(delivered)).toEqual(expected)
+    expect(output.byteLength).toBe(delivered.byteLength)
+    expect(outcome.modelText).toContain('Downscaled from 4000×3000.')
+  })
+
+  it('sends the original bytes for a model that rescales server-side even while on', async () => {
+    const messagesCard: ModelCard = { ...completionsCard, api: 'messages' }
+    const outcome = await readWith(gated({ enabled: true, card: messagesCard }), paths.real)
+
+    const part = outcome.modelParts?.[1]
+    if (part?.type !== 'image') throw new Error('expected an image part')
+    const original = await readFile(paths.real)
+    expect(decodeBase64(part.data)).toEqual(new Uint8Array(original))
+    expect(imageOutput(outcome.output).width).toBe(4000)
+  })
+
+  it('sends the original bytes while the toggle is off', async () => {
+    const outcome = await readWith(gated({ enabled: false, card: completionsCard }), paths.real)
+
+    const part = outcome.modelParts?.[1]
+    if (part?.type !== 'image') throw new Error('expected an image part')
+    expect(pngSize(decodeBase64(part.data))).toEqual({ width: 4000, height: 3000 })
+    expect(outcome.modelText).not.toContain('Downscaled from')
+  })
+
+  it('keeps the original bytes when the PNG cannot be re-encoded', async () => {
+    const outcome = await readWith(gated({ enabled: true, card: completionsCard }), paths.wide)
+
+    const part = outcome.modelParts?.[1]
+    if (part?.type !== 'image') throw new Error('expected an image part')
+    expect(decodeBase64(part.data).byteLength).toBe(24)
+    expect(imageOutput(outcome.output).width).toBe(4000)
+    expect(outcome.modelText).not.toContain('Downscaled from')
   })
 })
 

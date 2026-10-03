@@ -15,6 +15,7 @@ const REASON_LABEL: Record<ERetryReason, string> = {
   [ERetryReason.Overloaded]: 'API overloaded',
   [ERetryReason.ServerError]: 'API error',
   [ERetryReason.Network]: 'No response from provider',
+  [ERetryReason.PromptTooLong]: 'Prompt rejected for length',
 }
 
 export function retryRemainingMs(args: { retry: RetryWait; now: number }): number {

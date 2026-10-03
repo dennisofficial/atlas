@@ -8,7 +8,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { createIsolatedContainer } from '../../container/injection'
-import { ClassifierPolicyToken } from '../../container/tokens'
+import { ClassifierPolicyToken, MultimodalCapWorkaroundToken } from '../../container/tokens'
 import { MemorySettingsStore } from '../../settings/memory-store'
 import { createSettingsService } from '../../settings/service'
 import { bindSettingsPolicy } from '../policy-bindings'
@@ -50,5 +50,47 @@ describe('classifier mode binding', () => {
   it('honours an explicit mode either way', async () => {
     const policy = await policyOver({ [ESettingId.ClassifierMode]: EClassifierMode.Nudge })
     expect(policy.mode).toBe(EClassifierMode.Nudge)
+  })
+})
+
+describe('the multimodal input-cap workaround binding', () => {
+  const workaroundOver = async (values: Record<string, string>): Promise<boolean> => {
+    const container = createIsolatedContainer()
+    await bindSettingsPolicy({
+      container,
+      settings: createSettingsService({
+        definitions: ATLAS_SETTINGS,
+        user: new MemorySettingsStore({ document: { values } }),
+      }),
+      workspace: { workspace: process.cwd(), repo: null },
+      credentials: alwaysAuthorised(),
+      cwd: process.cwd(),
+    })
+    return container.resolve(MultimodalCapWorkaroundToken)()
+  }
+
+  it('is off by default', async () => {
+    expect(await workaroundOver({})).toBe(false)
+  })
+
+  it('reads live once the toggle is turned on', async () => {
+    const settings = createSettingsService({
+      definitions: ATLAS_SETTINGS,
+      user: new MemorySettingsStore({ document: { values: {} } }),
+    })
+    const container = createIsolatedContainer()
+    await bindSettingsPolicy({
+      container,
+      settings,
+      workspace: { workspace: process.cwd(), repo: null },
+      credentials: alwaysAuthorised(),
+      cwd: process.cwd(),
+    })
+    const enabled = container.resolve(MultimodalCapWorkaroundToken)
+
+    expect(enabled()).toBe(false)
+    const written = settings.set({ id: ESettingId.MultimodalCapWorkaround, value: true })
+    if (!written.ok) throw new Error('the workaround toggle did not land')
+    expect(enabled()).toBe(true)
   })
 })

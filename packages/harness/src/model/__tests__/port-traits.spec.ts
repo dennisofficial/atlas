@@ -2,8 +2,10 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   CONTEXT_WINDOW_UNMEASURED,
+  EImagePricing,
   EImageTier,
   contextWindowOf,
+  imageCostOf,
   imageTierOf,
   type ModelCard,
 } from '@dltech/atlas-core'
@@ -58,6 +60,51 @@ describe('the window a port reports', () => {
     const port = new AiSdkModelPort({ model: stub })
 
     expect(contextWindowOf(port)).toBe(CONTEXT_WINDOW_UNMEASURED)
+  })
+})
+
+const KIMI: ModelCard = {
+  ref: { providerId: 'inference', modelId: 'kimi-k3' },
+  label: 'Kimi K3',
+  api: 'openai-completions',
+  contextWindow: 1_048_576,
+  imageTier: EImageTier.Standard,
+}
+
+describe('the experimental input-cap workaround', () => {
+  it('leaves the advertised window alone while the workaround is off or absent', () => {
+    const off = new AiSdkModelPort({ model: stub, card: KIMI, inputCapWorkaround: () => false })
+    const absent = new AiSdkModelPort({ model: stub, card: KIMI })
+
+    expect(contextWindowOf(off)).toBe(1_048_576)
+    expect(contextWindowOf(absent)).toBe(1_048_576)
+  })
+
+  it('caps kimi-k3 at the deployed wall once the workaround is on', () => {
+    const on = new AiSdkModelPort({ model: stub, card: KIMI, inputCapWorkaround: () => true })
+
+    expect(contextWindowOf(on)).toBe(245_000)
+  })
+
+  it('prices images by their actual patches for completions cards only while on', () => {
+    const on = new AiSdkModelPort({ model: stub, card: KIMI, inputCapWorkaround: () => true })
+    const off = new AiSdkModelPort({ model: stub, card: KIMI, inputCapWorkaround: () => false })
+
+    expect(imageCostOf(on).pricing).toBe(EImagePricing.ActualPatches)
+    expect(imageCostOf(off).pricing).toBeUndefined()
+  })
+
+  it('leaves anthropic cards untouched either way', () => {
+    const plain: ModelCard = {
+      ...OPUS,
+      ref: { providerId: 'anthropic', modelId: 'opus' },
+      contextWindow: 123_456,
+      api: 'anthropic-messages',
+    }
+    const on = new AiSdkModelPort({ model: stub, card: plain, inputCapWorkaround: () => true })
+
+    expect(contextWindowOf(on)).toBe(123_456)
+    expect(imageCostOf(on).pricing).toBeUndefined()
   })
 })
 

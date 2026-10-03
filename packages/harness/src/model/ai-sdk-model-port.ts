@@ -2,10 +2,13 @@ import { getErrorMessage, type LanguageModelV4 } from '@ai-sdk/provider'
 import { stepCountIs, streamText, type LanguageModel } from 'ai'
 
 import {
+  cappedTraits,
   carriesToolResultImages,
   DEFAULT_IMAGE_TIER,
+  EImagePricing,
   hoistToolResultFiles,
   ModelPort,
+  OPENAI_COMPLETIONS_API,
   type Assembled,
   type Chunk,
   type ChunkFilter,
@@ -185,6 +188,8 @@ export type AiSdkModelPortArgs = {
   hooks?: HookChain | undefined
   tape?: RawTape | undefined
   wake?: WakeSignal | undefined
+  /** Live read of the experimental toggle; consulted on every traits() call. */
+  inputCapWorkaround?: (() => boolean) | undefined
 }
 
 export class AiSdkModelPort extends ModelPort {
@@ -194,6 +199,7 @@ export class AiSdkModelPort extends ModelPort {
   private readonly hooks: HookChain | undefined
   private readonly tape: RawTape | undefined
   private readonly wake: WakeSignal | undefined
+  private readonly inputCapWorkaround: (() => boolean) | undefined
 
   constructor(args: AiSdkModelPortArgs) {
     super()
@@ -203,6 +209,7 @@ export class AiSdkModelPort extends ModelPort {
     this.hooks = args.hooks
     this.tape = args.tape
     this.wake = args.wake
+    this.inputCapWorkaround = args.inputCapWorkaround
   }
 
   get identity(): ProviderIdentity {
@@ -212,10 +219,17 @@ export class AiSdkModelPort extends ModelPort {
   override traits(): ModelTraits {
     const card = cardOf(this.card)
 
-    return {
+    const traits: ModelTraits = {
       imageTier: card?.imageTier ?? DEFAULT_IMAGE_TIER,
       ...(card === undefined ? {} : { contextWindow: card.contextWindow }),
     }
+
+    if (card === undefined || this.inputCapWorkaround?.() !== true) return traits
+
+    const capped = cappedTraits({ card, traits })
+    return card.api === OPENAI_COMPLETIONS_API
+      ? { ...capped, imagePricing: EImagePricing.ActualPatches }
+      : capped
   }
 
   async step({

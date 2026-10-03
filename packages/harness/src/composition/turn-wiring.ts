@@ -11,6 +11,7 @@ import {
   promptContextFor,
   promptModelOf,
   contextWindowOf,
+  DEFAULT_RETRY_POLICY,
   toggleValueOf,
   ClockPort,
   DecisionPort,
@@ -177,7 +178,16 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
     model: modelPort,
     ids,
     ...(args.sleepPrevention === undefined ? {} : { sleepPrevention: args.sleepPrevention }),
-    ...(args.wake === undefined ? {} : { retry: { clockJumps: asClockJumps(args.wake) } }),
+    retry: {
+      ...(args.wake === undefined ? {} : { clockJumps: asClockJumps(args.wake) }),
+      policy: () =>
+        toggleValueOf({
+          resolution: args.settings.snapshot().resolution,
+          id: ESettingId.MultimodalCapWorkaround,
+        })
+          ? { ...DEFAULT_RETRY_POLICY, promptTooLongAttempts: 1 }
+          : undefined,
+    },
     assembly: defaultPipeline({
       prompt: compiledPrompt,
       launchDirectory: workspace.workspace,

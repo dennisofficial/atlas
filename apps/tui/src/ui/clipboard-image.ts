@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { deflateSync, inflateSync } from 'node:zlib'
 
 import {
   downscalePng,
@@ -12,15 +11,9 @@ import {
   projectedSize,
   visualTokens,
   type EImageTier,
-  type PngCodec,
   type SupportedImageMediaType,
 } from '@dltech/atlas-core'
-
-/** Core is pure and imports no node builtins, so the zlib the PNG codec needs is supplied here. */
-const pngCodec: PngCodec = {
-  inflate: (bytes) => new Uint8Array(inflateSync(bytes)),
-  deflate: (bytes) => new Uint8Array(deflateSync(bytes)),
-}
+import { zlibPngCodec } from '@dltech/atlas-harness'
 
 export type ClipboardImage = {
   path: string
@@ -144,7 +137,7 @@ function sizedBytes(args: {
     return { bytes: args.bytes, size: args.size }
   }
 
-  const scaled = downscalePng({ bytes: args.bytes, target, codec: pngCodec })
+  const scaled = downscalePng({ bytes: args.bytes, target, codec: zlibPngCodec })
   if (scaled === null) return { bytes: args.bytes, size: args.size }
 
   return { bytes: Buffer.from(scaled), size: target }

@@ -1,7 +1,7 @@
 import {
   AUTO_COMPACT_OFF,
   estimateTokensFor,
-  imageTierOf,
+  imageCostOf,
   saidBody,
   type Assembled,
   type AssemblyPipeline,
@@ -88,7 +88,7 @@ export class LoopTurnRunner extends TurnRunner {
 
     const tools = deps.tools ?? (() => [])
     const countTokens =
-      deps.countTokens ?? ((assembled: Assembled) => estimateTokensFor(imageTierOf(deps.model))(assembled))
+      deps.countTokens ?? ((assembled: Assembled) => estimateTokensFor(imageCostOf(deps.model))(assembled))
 
     this.tracked = {
       log: deps.log,
