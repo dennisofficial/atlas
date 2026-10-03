@@ -18,6 +18,7 @@ import {
 import { BackgroundShellsFragment } from './fragments/shells'
 import { SkillListingFragment } from './fragments/skills'
 import {
+  OperatorInputFragment,
   OperatorSeesImagesFragment,
   ParallelToolCallsFragment,
   PreferDedicatedToolsFragment,
@@ -43,6 +44,7 @@ export function registerBuiltinPromptFragments({
     PreferDedicatedToolsFragment,
     ParallelToolCallsFragment,
     OperatorSeesImagesFragment,
+    OperatorInputFragment,
     BackgroundShellsFragment,
     DelegationFragment,
     DestructiveActionsFragment,
