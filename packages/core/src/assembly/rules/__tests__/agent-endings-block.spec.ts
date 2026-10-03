@@ -67,6 +67,25 @@ describe('handing a finished delegate to the parent that spawned it', () => {
     expect(block).toContain('It reported nothing.')
   })
 
+  it('warns the caller when the delegate ended with no reply content', () => {
+    const block = blocksOf(assembleWith({ drafts: [ended({ prose: '<no content>' })] }))[0] ?? ''
+
+    expect(block).toContain('<no content>')
+    expect(block).toMatch(/ended with no reply content/)
+    expect(block).toMatch(/[Rr]esume it|resume it/)
+    expect(block).toMatch(/compensate/)
+    expect(block).toContain('finished after 4 turns and 11 tool calls')
+  })
+
+  it('keeps other ending advice intact alongside the no-content guidance', () => {
+    const block = blocksOf(
+      assembleWith({ drafts: [ended({ prose: '<no content>', killedBy: EKilledBy.User })] }),
+    )[0] ?? ''
+
+    expect(block).toContain('The user stopped this agent deliberately')
+    expect(block).toMatch(/ended with no reply content/)
+  })
+
   it('renders the ending where it landed in the log, not at the tail', () => {
     const texts = textsOf(
       assembleWith({

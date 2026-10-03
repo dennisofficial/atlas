@@ -24,6 +24,18 @@ export class AnswerHonestlyFragment extends PromptFragment {
   }
 }
 
+export class InvestigateThenExplainFragment extends PromptFragment {
+  readonly id = 'scope.investigate-then-explain'
+
+  text(): string {
+    return [
+      'Ground your answers in evidence. For questions about how something works, why it happened, or',
+      'what is currently true in this workspace, find and read the code, configuration, or logs that',
+      'own the answer first, then explain from what you found.',
+    ].join('\n')
+  }
+}
+
 export class EndTurnMessageFragment extends PromptFragment {
   readonly id = 'scope.end-turn-message'
 

@@ -14,6 +14,7 @@ export function AssistantBlock(props: {
   width: number
   streaming?: boolean
   interrupted?: boolean
+  muted?: boolean
 }): React.ReactNode {
   return (
     // Always a blank row underneath, including when a tool run follows. The reply used to hug the
@@ -29,6 +30,7 @@ export function AssistantBlock(props: {
             source={props.text}
             width={Math.max(1, props.width - RESERVED)}
             {...(props.streaming === undefined ? {} : { streaming: props.streaming })}
+            {...(props.muted === true ? { fg: theme.hint } : {})}
           />
         </box>
       </box>

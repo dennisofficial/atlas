@@ -65,6 +65,7 @@ const SUBAGENT_WENT_WRONG: Record<EAgentStatus, boolean> = {
   [EAgentStatus.Finished]: false,
   [EAgentStatus.Failed]: true,
   [EAgentStatus.Stopped]: true,
+  [EAgentStatus.Paused]: false,
 }
 
 export const subagentWentWrong = (subagent: Pick<SidebarSubagent, 'status'>): boolean =>
@@ -87,6 +88,7 @@ const SUBAGENT_READING: Record<EAgentStatus, ESubagentReading> = {
   [EAgentStatus.Finished]: ESubagentReading.Settled,
   [EAgentStatus.Failed]: ESubagentReading.Settled,
   [EAgentStatus.Stopped]: ESubagentReading.Settled,
+  [EAgentStatus.Paused]: ESubagentReading.Held,
 }
 
 const SUBAGENT_STATE_LABEL: Record<EAgentStatus, string> = {
@@ -95,6 +97,7 @@ const SUBAGENT_STATE_LABEL: Record<EAgentStatus, string> = {
   [EAgentStatus.Finished]: 'done',
   [EAgentStatus.Failed]: 'failed',
   [EAgentStatus.Stopped]: 'stopped',
+  [EAgentStatus.Paused]: 'paused',
 }
 
 export const subagentReading = (subagent: Pick<SidebarSubagent, 'status'>): ESubagentReading =>

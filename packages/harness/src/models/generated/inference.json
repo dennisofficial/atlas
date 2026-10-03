@@ -381,9 +381,9 @@
     },
     "label": "glm-5.2",
     "api": "openai-completions",
-    "contextWindow": 1000000,
+    "contextWindow": 1048576,
     "imageTier": "standard",
-    "maxOutputTokens": 128000,
+    "maxOutputTokens": 943718,
     "cost": {
       "inputPerMillion": 0.65,
       "outputPerMillion": 2.2
@@ -445,7 +445,7 @@
     "api": "openai-completions",
     "contextWindow": 1048576,
     "imageTier": "standard",
-    "maxOutputTokens": 128000,
+    "maxOutputTokens": 262144,
     "cost": {
       "inputPerMillion": 0.1,
       "outputPerMillion": 0.45
@@ -957,6 +957,27 @@
   {
     "ref": {
       "providerId": "inference",
+      "modelId": "moonshotai/kimi-k3-fast"
+    },
+    "label": "moonshotai/kimi-k3-fast",
+    "api": "openai-completions",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 1048576,
+    "cost": {
+      "inputPerMillion": 4.5,
+      "outputPerMillion": 22.5
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
       "modelId": "nemotron-3-super"
     },
     "label": "nemotron-3-super",
@@ -1077,34 +1098,15 @@
   {
     "ref": {
       "providerId": "inference",
-      "modelId": "tencent/hy4-preview"
-    },
-    "label": "tencent/hy4-preview",
-    "api": "openai-completions",
-    "contextWindow": 1048576,
-    "imageTier": "standard",
-    "maxOutputTokens": 131072,
-    "cost": {
-      "inputPerMillion": 0.83,
-      "outputPerMillion": 2.5
-    },
-    "effort": {
-      "off": "none",
-      "high": "high"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "inference",
       "modelId": "xiaomi/mimo-v2.6-flash"
     },
     "label": "xiaomi/mimo-v2.6-flash",
     "api": "openai-completions",
     "contextWindow": 1048576,
     "imageTier": "standard",
-    "maxOutputTokens": 131072,
+    "maxOutputTokens": 1048576,
     "cost": {
-      "inputPerMillion": 0.14,
+      "inputPerMillion": 0.12,
       "outputPerMillion": 0.28
     }
   }

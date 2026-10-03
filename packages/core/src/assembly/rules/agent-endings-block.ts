@@ -1,5 +1,6 @@
 import { agentLabel } from '../../agents/label'
 import { agentEnding, countedNoun } from '../../agents/status'
+import { NO_CONTENT_TEXT } from '../../events/empty-step'
 import type { Event, EventOfType } from '../../events/envelope'
 import { EKilledBy } from '../../shells/status'
 import type { AssembledMessage } from '../assembled'
@@ -9,6 +10,9 @@ const OPEN = '<agents-ended>'
 const CLOSE = '</agents-ended>'
 
 const REPORTED_NOTHING = 'It reported nothing.'
+
+const NO_REPLY_CONTENT =
+  'It ended with no reply content: the provider dropped its final reply even after Atlas retried the request and nudged it, so Atlas ended the turn cleanly instead of failing the thread. There is no answer here to act on. Resume it to try again, or compensate for what it never delivered — do not read this as a quiet success.'
 
 const USER_STOPPED =
   'The user stopped this agent deliberately; you did not, and nothing went wrong with it. Do not spawn it again to finish what it was doing unless the user asks.'
@@ -29,11 +33,16 @@ const reportOf = (event: Ending): string => {
   return prose === '' ? REPORTED_NOTHING : prose
 }
 
+const noContentAdvice = (event: Ending): readonly string[] =>
+  event.prose.trim() === NO_CONTENT_TEXT ? [NO_REPLY_CONTENT] : []
+
 function advice(event: Ending): readonly string[] {
-  if (event.killedBy === EKilledBy.User) return [USER_STOPPED]
-  if (event.killedBy === EKilledBy.Unrecorded) return [LOST_AGENT]
-  if (event.killedBy === EKilledBy.ContainerSwitch) return [RELOCATED]
-  return []
+  if (event.status === 'paused' || event.killedBy === EKilledBy.ContainerSwitch) {
+    return [RELOCATED, ...noContentAdvice(event)]
+  }
+  if (event.killedBy === EKilledBy.User) return [USER_STOPPED, ...noContentAdvice(event)]
+  if (event.killedBy === EKilledBy.Unrecorded) return [LOST_AGENT, ...noContentAdvice(event)]
+  return noContentAdvice(event)
 }
 
 function sectionOf(event: Ending): string {

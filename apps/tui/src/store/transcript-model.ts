@@ -48,6 +48,7 @@ export type ModelSaidEntry = {
   text: string
   streaming: boolean
   interrupted: boolean
+  muted: boolean
 }
 
 export type ModelThoughtEntry = {

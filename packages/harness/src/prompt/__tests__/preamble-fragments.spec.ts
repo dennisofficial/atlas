@@ -87,6 +87,14 @@ describe('the builtin prompt', () => {
     expect(text).not.toContain('rewound')
   })
 
+  it('grounds answers about the workspace in evidence read first', () => {
+    const part = compiled().parts.find((part) => part.id === 'scope.investigate-then-explain')
+    expect(part).toBeDefined()
+    expect(part?.text).toContain('evidence')
+    expect(part?.text).toContain('read the code')
+    expect(part?.text).toContain('what is currently true')
+  })
+
   it('keeps the web guidance short', () => {
     const parts = compiled().parts.filter((part) => part.id.startsWith('web.'))
     const text = parts.map((part) => part.text).join('\n')

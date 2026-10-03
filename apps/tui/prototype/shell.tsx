@@ -47,6 +47,7 @@ const replied = (key: string, text: string): TranscriptEntry => ({
   text,
   streaming: false,
   interrupted: false,
+  muted: false,
 })
 
 const thought = (key: string, text: string): TranscriptEntry => ({

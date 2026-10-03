@@ -17,7 +17,11 @@ import {
 
 import { createIsolatedContainer, portToken } from '../../container/injection'
 import { SessionRegistryToken, WorkspaceRoot } from '../../container/tokens'
-import { ATLAS_SESSION_DIR_ENV, ATLAS_THREAD_DIR_ENV } from '../../execution/session-environment'
+import {
+  ATLAS_CONTEXT_DIR_ENV,
+  ATLAS_SESSION_DIR_ENV,
+  ATLAS_THREAD_DIR_ENV,
+} from '../../execution/session-environment'
 import { sessionDirectory, threadDataDirectory } from '../../store/sessions/paths'
 import { SessionRegistry } from '../../store/sessions/registry'
 import { BashTool } from '../../tools/builtin/bash'
@@ -36,7 +40,7 @@ const TEAMMATE = toThreadId('thread-teammate')
 const STRANGER = toThreadId('thread-stranger')
 
 const ROOT = '/Users/dev/project'
-const RESERVED = [ATLAS_SESSION_DIR_ENV, ATLAS_THREAD_DIR_ENV, ATLAS_SHELL_DIR_ENV]
+const RESERVED = [ATLAS_SESSION_DIR_ENV, ATLAS_THREAD_DIR_ENV, ATLAS_CONTEXT_DIR_ENV, ATLAS_SHELL_DIR_ENV]
 
 let home = ''
 let sessionDir = ''
@@ -99,6 +103,18 @@ describe('per-thread session directory expansion in file tool paths', () => {
       decision: EBeforeToolDecision.Allow,
       input: { path: `${sessionDir}/meta.json` },
     })
+  })
+
+  it('expands ATLAS_CONTEXT_DIR to the session context folder for every thread in the session', async () => {
+    const hook = hookWith()
+
+    for (const threadId of [MAIN, CHILD, TEAMMATE]) {
+      const outcome = await runOn({ hook, call: readingAs('$ATLAS_CONTEXT_DIR/plan.md', threadId) })
+      expect(outcome).toEqual({
+        decision: EBeforeToolDecision.Allow,
+        input: { path: `${join(sessionDir, 'context')}/plan.md` },
+      })
+    }
   })
 
   it('keeps main, sub-agent and teammate isolated when their calls resolve concurrently', async () => {

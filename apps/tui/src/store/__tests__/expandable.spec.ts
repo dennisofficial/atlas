@@ -28,6 +28,7 @@ const said = (key: string): TranscriptEntry => ({
   text: 'rotation is in',
   streaming: false,
   interrupted: false,
+  muted: false,
 })
 
 const row = (args: { key: string; index: number; state: ECallState }): ToolCall => ({

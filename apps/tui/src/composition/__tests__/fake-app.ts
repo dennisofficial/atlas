@@ -887,6 +887,7 @@ export function fakeApp(args: {
     usage: createUsageTracker({ channel, log }),
     atPercent: () => 0,
     notice: noticePortBinding(),
+    ids,
     readClock: () => Date.now(),
   })
   const turnPolicy = args.turnPolicy ?? policyRunner

@@ -1,4 +1,4 @@
-import { EContextSlot, EExecutionLocation, EKilledBy, EOperatorInputOutcome, latestTldrPerAnchor, quotedShellCommand, type AssistantPart, type CallId, type Event, type EventId, type EventOfType, type SaidImage } from '@dltech/atlas-core'
+import { EAssistantPlaceholder, EContextSlot, EExecutionLocation, EKilledBy, EOperatorInputOutcome, latestTldrPerAnchor, quotedShellCommand, type AssistantPart, type CallId, type Event, type EventId, type EventOfType, type SaidImage } from '@dltech/atlas-core'
 
 import { formatElapsed } from '../ui/theme'
 
@@ -57,11 +57,13 @@ function runsOfParts(parts: readonly AssistantPart[]): PartRun[] {
 }
 
 function entriesOfAssistantEvent(event: EventOfType<'assistant-said'>): TranscriptEntry[] {
+  const muted = event.placeholder === EAssistantPlaceholder.NoContent
   return modelEntries({
     runs: runsOfParts(event.parts).map((run, index) => ({
       key: `${event.id}#${index}`,
       text: run.text,
       isReasoning: run.type === 'reasoning',
+      muted,
     })),
     streaming: false,
     interruptedAtEnd: event.interrupted === true,

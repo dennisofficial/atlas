@@ -1,7 +1,37 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EFinishReason } from '../../stream/chunk'
-import { EMPTY_STEP_NOTICE_STEPS, emptyStepNudgeDraft, retriableEmptyStep, silentStep } from '../empty-step'
+import { EAssistantPlaceholder, type EventDraft } from '../body'
+import {
+  EMPTY_STEP_NOTICE_STEPS,
+  EMPTY_STEP_STREAK_LIMIT,
+  NO_CONTENT_TEXT,
+  emptyStepNudgeDraft,
+  emptyTurnBlocked,
+  noContentDraft,
+  noContentStreak,
+  retriableEmptyStep,
+  silentStep,
+} from '../empty-step'
+import type { Event } from '../envelope'
+import { toEventId, toRunId, toThreadId } from '../ids'
+import { eventBodySchema } from '../schema'
+import { stampDrafts } from '../stamp'
+
+const eventsFrom = (drafts: readonly EventDraft[]): Event[] =>
+  stampDrafts({
+    drafts,
+    envelopes: drafts.map((_, index) => ({
+      id: toEventId(`evt-${index + 1}`),
+      seq: index + 1,
+      threadId: toThreadId('thread-1'),
+      runId: toRunId('run-1'),
+      depth: 0,
+      at: new Date(Date.UTC(2026, 0, 1, 0, 0, index)).toISOString(),
+    })),
+  })
+
+const said = (text: string): EventDraft => ({ type: 'assistant-said', parts: [{ type: 'text', text }] })
 
 describe('silentStep', () => {
   it('reads a step with no parts and no tool calls as silent', () => {
@@ -80,5 +110,64 @@ describe('emptyStepNudgeDraft', () => {
     expect(draft.type === 'nudge' ? draft.lifetimeSteps : 0).toBe(EMPTY_STEP_NOTICE_STEPS)
     expect(draft.type === 'nudge' ? draft.text : '').toMatch(/empty/)
     expect(draft.type === 'nudge' ? draft.text : '').toMatch(/Reply now/)
+  })
+})
+
+describe('noContentDraft', () => {
+  it('renders as a stable <no content> assistant-said carrying the placeholder flag', () => {
+    const draft = noContentDraft()
+
+    expect(draft.type).toBe('assistant-said')
+    expect(draft.type === 'assistant-said' ? draft.placeholder : undefined).toBe(
+      EAssistantPlaceholder.NoContent,
+    )
+    const parts = draft.type === 'assistant-said' ? draft.parts : []
+    expect(parts).toEqual([{ type: 'text', text: NO_CONTENT_TEXT }])
+    expect(NO_CONTENT_TEXT).toBe('<no content>')
+  })
+
+  it('round-trips through the stored event schema', () => {
+    expect(eventBodySchema.safeParse(noContentDraft()).success).toBe(true)
+  })
+})
+
+describe('noContentStreak', () => {
+  it('counts consecutive placeholder endings back from the tail', () => {
+    const events = eventsFrom([
+      { type: 'user-said', text: 'one' },
+      noContentDraft(),
+      { type: 'user-said', text: 'two' },
+      noContentDraft(),
+    ])
+
+    expect(noContentStreak(events)).toBe(2)
+  })
+
+  it('stops counting at the last real reply even when other events sit between', () => {
+    const events = eventsFrom([
+      noContentDraft(),
+      noContentDraft(),
+      said('a real answer'),
+      { type: 'user-said', text: 'more' },
+      noContentDraft(),
+    ])
+
+    expect(noContentStreak(events)).toBe(1)
+  })
+
+  it('reads zero on a thread that never ended silently', () => {
+    expect(noContentStreak(eventsFrom([said('fine')]))).toBe(0)
+    expect(noContentStreak([])).toBe(0)
+  })
+})
+
+describe('emptyTurnBlocked', () => {
+  it('blocks only once the streak reaches the limit', () => {
+    const below = eventsFrom(Array.from({ length: EMPTY_STEP_STREAK_LIMIT - 1 }, noContentDraft))
+    const at = eventsFrom(Array.from({ length: EMPTY_STEP_STREAK_LIMIT }, noContentDraft))
+
+    expect(emptyTurnBlocked(below)).toBe(false)
+    expect(emptyTurnBlocked(at)).toBe(true)
+    expect(EMPTY_STEP_STREAK_LIMIT).toBe(3)
   })
 })

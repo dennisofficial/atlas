@@ -1,11 +1,14 @@
 import { EFinishReason } from '../stream/chunk'
-import type { AssistantPart, EventDraft } from './body'
+import { EAssistantPlaceholder, type AssistantPart, type EventDraft } from './body'
+import type { Event } from './envelope'
 
 export const EMPTY_STEP_NOTICE_STEPS = 2
 
 export const EMPTY_STEP_NUDGES_PER_TURN = 1
 
 export const EMPTY_STEP_RAW_RETRIES = 1
+
+export const EMPTY_STEP_STREAK_LIMIT = 3
 
 /**
  * A step that gave the thread nothing to act on: no tool calls and no readable text. Reasoning
@@ -47,4 +50,48 @@ export function emptyStepNotice(): string {
 
 export function emptyStepNudgeDraft(): EventDraft {
   return { type: 'nudge', text: emptyStepNotice(), lifetimeSteps: EMPTY_STEP_NOTICE_STEPS }
+}
+
+export const NO_CONTENT_TEXT = '<no content>'
+
+/**
+ * The durable marker a turn ends on when the full retry chain (silent raw retry, then nudge) still
+ * produced nothing: a completed turn whose only assistant output is this text. The turn closes
+ * normally — ledger, cost accounting, roster and sub-thread endings all read it as a completed
+ * run — and the placeholder flag lets renderers and the streak guard tell it apart from real
+ * replies without pattern-matching the text.
+ */
+export function noContentDraft(): EventDraft {
+  return {
+    type: 'assistant-said',
+    parts: [{ type: 'text', text: NO_CONTENT_TEXT }],
+    placeholder: EAssistantPlaceholder.NoContent,
+  }
+}
+
+/**
+ * Consecutive turns that ended on the no-content placeholder: counting stops at the last real
+ * assistant reply, since one answered turn proves the chain healed. Everything between the
+ * endings (operator messages, tool rows, nudges) does not break the streak — only real model
+ * speech does.
+ */
+export function noContentStreak(events: readonly Event[]): number {
+  let streak = 0
+  for (const event of [...events].reverse()) {
+    if (event.type !== 'assistant-said') continue
+    if (event.placeholder !== EAssistantPlaceholder.NoContent) return streak
+    streak += 1
+  }
+  return streak
+}
+
+export function emptyTurnBlocked(events: readonly Event[]): boolean {
+  return noContentStreak(events) >= EMPTY_STEP_STREAK_LIMIT
+}
+
+export function emptyTurnRefusal(): string {
+  return [
+    `Atlas refused to open this turn: the model ended the last ${EMPTY_STEP_STREAK_LIMIT} turns with <no content> — the provider keeps dropping its replies, so another identical turn was refused before it opened. No model request was sent.`,
+    'Send again to acknowledge and force one more turn; if it comes back with <no content> again, switch the thread\u2019s model or compact its context to break the pattern.',
+  ].join(' ')
 }

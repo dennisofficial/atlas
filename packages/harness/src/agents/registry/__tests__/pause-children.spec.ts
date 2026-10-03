@@ -120,6 +120,7 @@ describe('pausing a stepping child', () => {
 
     expect(paused).toEqual([childId])
     const snapshot = snapshotOf(entry, childId)
+    expect(snapshot?.status).toBe(EAgentStatus.Paused)
     expect(snapshot?.killedBy).toBeUndefined()
   })
 

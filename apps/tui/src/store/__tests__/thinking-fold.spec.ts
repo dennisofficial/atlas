@@ -33,6 +33,7 @@ const said = (args: { key: string; text: string }): TranscriptEntry => ({
   text: args.text,
   streaming: false,
   interrupted: false,
+  muted: false,
 })
 
 const toolsRan = (): TranscriptEntry => {

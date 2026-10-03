@@ -63,6 +63,7 @@ function DerivedEntryView(props: {
           width={props.width}
           streaming={entry.streaming}
           interrupted={entry.interrupted}
+          muted={entry.muted}
         />
       )
 

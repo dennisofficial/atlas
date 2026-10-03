@@ -24,12 +24,8 @@ export const swallowedReport = (call: { callId: CallId; name: string }): string 
 export const faultReport = (faults: readonly ExchangeFault[]): string =>
   `the assembled prompt is one Atlas must not send — ${faults.map(faultLine).join('; ')}`
 
-export const emptyStepReport = (reason?: EFinishReason): string => {
-  const base =
-    'the model returned an empty reply — no text, no tool calls — and did it again after a silent retry of the identical request and then a nudge, so the provider is dropping the reply rather than the model choosing to stop. Resuming will likely hit the same wall until the context changes; a very large image or tool result is the usual suspect.'
-  if (reason === undefined || reason === EFinishReason.Stop) return base
-  return `${base} The provider's finish reason was "${reason}".`
-}
+const decidedFinishFault = (reason: EFinishReason): string =>
+  `the model returned an empty reply — no text, no tool calls — and it did so with finish reason "${reason}", which is a decided answer to the payload rather than a dropped completion: the retry-and-nudge chain for dropped replies does not apply, and replaying the request would re-buy the same refusal. Narrow the request or split the context before retrying.`
 
 export const finishFaultReport = (reason: EFinishReason): string =>
   reason === EFinishReason.ContentFilter
@@ -45,6 +41,7 @@ export const overflowReport = ({ tokens, window }: { tokens: number; window: num
 export type SilentOutcome =
   | { kind: 'answered' }
   | { kind: 'nudged' }
+  | { kind: 'no-content' }
   | { kind: 'failed'; message: string; cause: unknown }
 
 export async function nudgeSilentStep({
@@ -68,7 +65,10 @@ export async function nudgeSilentStep({
   if (!silentStep(result)) return { kind: 'answered' }
 
   if (silentSteps + 1 > EMPTY_STEP_NUDGES_PER_TURN) {
-    return { kind: 'failed', message: emptyStepReport(finish), cause: { silentSteps: silentSteps + 1, finish } }
+    if (finish !== undefined && finish !== EFinishReason.Stop) {
+      return { kind: 'failed', message: decidedFinishFault(finish), cause: { silentSteps: silentSteps + 1, finish } }
+    }
+    return { kind: 'no-content' }
   }
 
   await log.append({ threadId, runId, drafts: [emptyStepNudgeDraft()] })
