@@ -197,7 +197,7 @@ export class AgentSupervisor extends AgentRegistryPort {
     return markThreadChildrenRelocated({ ...args, ...this.relocation })
   }
 
-  stop({
+  async stop({
     agentId,
     threadId,
     by,
@@ -205,7 +205,7 @@ export class AgentSupervisor extends AgentRegistryPort {
     agentId: ThreadId
     threadId: ThreadId
     by: EKilledBy
-  }): AgentOutcome {
+  }): Promise<AgentOutcome> {
     const child = this.childFor({ agentId, threadId })
     if (child === undefined) {
       return { ok: false, reason: unknownAgent({ agentId, known: this.list({ threadId }) }) }

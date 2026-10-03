@@ -10,7 +10,7 @@ import type { FileBrowser, PendingQueues } from '@dltech/atlas-harness'
 import type { FrameBuffer, SignalFrame } from './frame-buffer'
 import type { WorkspacePublisher } from './publish-workspace'
 import type { TranscriptReaders } from './requests'
-import type { ServeRoster, ServeRewind } from './serve-app'
+import type { ServeAgentSteer, ServeRoster, ServeRewind } from './serve-app'
 import type { ServeLog } from './serve-log'
 import type { StepAlias } from './step-alias'
 import type { ServeTurnDriver } from './turn-driver'
@@ -52,6 +52,8 @@ export type SessionHandlersArgs = {
   applyUserSettings?: ((content: string) => void) | undefined
   roster?: ServeRoster | undefined
   rewind?: ServeRewind | undefined
+  /** The sandbox's own agent registry, narrowed to the operator-steer ops; absent in fakes, which refuse them. */
+  agents?: ServeAgentSteer | undefined
   /** The operator's queued input; its changes are broadcast and take-back-pending answers from it. Absent in fakes. */
   pending?: PendingQueues | undefined
   /** The transcript stores the read-ops answer from; absent in fakes, which refuse the ops. */

@@ -38,7 +38,7 @@ export class UnstaffedAgents extends AgentRegistryPort {
     return Promise.resolve({ ok: false as const, reason: 'no agent registry in this fixture' })
   }
   stop() {
-    return { ok: false as const, reason: 'no agent registry in this fixture' }
+    return Promise.resolve({ ok: false as const, reason: 'no agent registry in this fixture' })
   }
   relocateChildren(_args: RelocateChildrenArgs): Promise<readonly ThreadId[]> {
     return Promise.resolve([])

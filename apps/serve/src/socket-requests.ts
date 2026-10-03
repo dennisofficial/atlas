@@ -7,6 +7,7 @@ import {
 } from '@dltech/atlas-harness'
 import type { FileBrowser } from '@dltech/atlas-harness'
 
+import { answerAgentSteer, isAgentSteerOp } from './agent-steer'
 import type { WorkspacePublisher } from './publish-workspace'
 import {
   answerRequest,
@@ -20,7 +21,7 @@ import {
   type TranscriptReaders,
 } from './requests'
 import { answerRewind } from './rewind-apply'
-import type { ServeRewind, ServeRoster } from './serve-app'
+import type { ServeAgentSteer, ServeRewind, ServeRoster } from './serve-app'
 import { EServeEvent, type ServeLog } from './serve-log'
 import type { SessionSocket } from './socket-session'
 import type { ServeTurnDriver } from './turn-driver'
@@ -42,6 +43,7 @@ export function createRequestRouter(args: {
   snapshot: ServeRoster['snapshot']
   send: (args: { socket: SessionSocket; frame: import('@dltech/atlas-harness').ServeFrame }) => void
   rewind?: ServeRewind | undefined
+  agents?: ServeAgentSteer | undefined
   transcript?: TranscriptReaders | undefined
   selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
   sessionArchive?: (() => Promise<Uint8Array | null>) | undefined
@@ -49,7 +51,7 @@ export function createRequestRouter(args: {
   restoreTranscript?: ((marker?: RestoreTranscriptParams['locationChanged']) => Promise<RestoreOutcome>) | undefined
   workspace?: WorkspaceOps | undefined
 }) {
-  const { threadId, driver, files, publish, log, snapshot, send, rewind, transcript, selectModel } = args
+  const { threadId, driver, files, publish, log, snapshot, send, rewind, agents, transcript, selectModel } = args
   const { sessionArchive, memoryArchive, restoreTranscript } = args
   const workspaceOps = args.workspace
   const state: { restoring: Promise<RestoreOutcome> | null } = { restoring: null }
@@ -95,6 +97,30 @@ export function createRequestRouter(args: {
             replyTo: frame.id,
             ok: false,
             data: { message: messageOf(error, 'the rewind cleanup failed') },
+          },
+        }),
+      )
+    return
+  }
+
+  if (isAgentSteerOp(frame.op)) {
+    if (agents === undefined) {
+      send({
+        socket,
+        frame: refusedRequest({ replyTo: frame.id, message: 'this serve holds no agents to steer' }),
+      })
+      return
+    }
+    void answerAgentSteer({ frame, agents })
+      .then((reply) => send({ socket, frame: reply }))
+      .catch((error: unknown) =>
+        send({
+          socket,
+          frame: {
+            kind: EServeFrame.Reply,
+            replyTo: frame.id,
+            ok: false,
+            data: { message: messageOf(error, 'the agent steer failed') },
           },
         }),
       )

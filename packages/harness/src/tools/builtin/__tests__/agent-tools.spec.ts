@@ -436,7 +436,7 @@ describe('agent_stop', () => {
       }),
     )
     await settle()
-    open_.supervisor.stop({ agentId, threadId: open_.parent, by: EKilledBy.User })
+    await open_.supervisor.stop({ agentId, threadId: open_.parent, by: EKilledBy.User })
     open_.runners.started[0]?.settle(interrupted())
     await open_.supervisor.closeAll()
 

@@ -95,7 +95,7 @@ describe('a stopped teammate across a simulated move', () => {
     const first = await open()
     opened.push(first)
     const teammateId = await spawnTeammate(first)
-    first.supervisor.stop({ agentId: teammateId, threadId: first.parent, by: EKilledBy.User })
+    await first.supervisor.stop({ agentId: teammateId, threadId: first.parent, by: EKilledBy.User })
     first.runners.started[0]?.settle(interrupted())
     await settled()
 
@@ -135,7 +135,7 @@ describe('resuming a terminal agent', () => {
     const entry = await open()
     opened.push(entry)
     const teammateId = await spawnTeammate(entry)
-    entry.supervisor.stop({ agentId: teammateId, threadId: entry.parent, by: EKilledBy.User })
+    await entry.supervisor.stop({ agentId: teammateId, threadId: entry.parent, by: EKilledBy.User })
     entry.runners.started[0]?.settle(interrupted())
     await settled()
 
@@ -155,7 +155,7 @@ describe('resuming a terminal agent', () => {
     const first = await open()
     opened.push(first)
     const teammateId = await spawnTeammate(first)
-    first.supervisor.stop({ agentId: teammateId, threadId: first.parent, by: EKilledBy.User })
+    await first.supervisor.stop({ agentId: teammateId, threadId: first.parent, by: EKilledBy.User })
     first.runners.started[0]?.settle(interrupted())
     await settled()
     await appendAsParent(first, first.supervisor.drainNotifications({ threadId: first.parent }).drafts)
@@ -193,7 +193,7 @@ describe('resuming a terminal agent', () => {
     const entry = await open()
     opened.push(entry)
     const teammateId = await spawnTeammate(entry)
-    entry.supervisor.stop({ agentId: teammateId, threadId: entry.parent, by: EKilledBy.User })
+    await entry.supervisor.stop({ agentId: teammateId, threadId: entry.parent, by: EKilledBy.User })
     entry.runners.started[0]?.settle(interrupted())
     await settled()
 

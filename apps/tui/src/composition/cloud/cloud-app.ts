@@ -32,7 +32,7 @@ export const cloudRuntimeParts = (args: {
 }): CloudRuntimeParts => {
   const roster = createSharedRoster(createRemoteRosterReader({ channel: args.channel }))
   const shells = new RemoteShellRegistry(roster)
-  const agents = new RemoteAgentRegistry(roster)
+  const agents = new RemoteAgentRegistry(roster, args.channel)
   const services = new RemoteServiceRegistry(roster)
   const pricing = new LocalRewindMachinery({ agents, shells, services })
 

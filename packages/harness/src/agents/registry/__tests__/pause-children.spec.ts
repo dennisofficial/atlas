@@ -140,7 +140,7 @@ describe('pausing a stepping child', () => {
     const entry = await open()
     opened.push(entry)
     const settledId = await spawn({ entry, threadId: entry.parent, agentType: 'explore' })
-    entry.supervisor.stop({ agentId: settledId, threadId: entry.parent, by: EKilledBy.User })
+    await entry.supervisor.stop({ agentId: settledId, threadId: entry.parent, by: EKilledBy.User })
     await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
     const steppingId = await spawn({ entry, threadId: entry.parent, agentType: 'explore' })
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
+  agentOutcomeWireSchema,
   CHANNEL_PROTOCOL_VERSION,
   decodeClientFrame,
   decodeServeFrame,
@@ -13,7 +14,10 @@ import {
   EShellStatus,
   ETurnStatus,
   readMemoryArchiveReplySchema,
+  resumeAgentParamsSchema,
+  sayToAgentParamsSchema,
   setThreadModelParamsSchema,
+  stopAgentParamsSchema,
   takeBackPendingParamsSchema,
   takeBackPendingReplySchema,
   type ClientFrame,
@@ -113,8 +117,8 @@ describe('the memory archive op', () => {
 })
 
 describe('the protocol stamp', () => {
-  it('speaks the version that refuses serve runtimes which cannot apply a settings sync', () => {
-    expect(CHANNEL_PROTOCOL_VERSION).toBe(13)
+  it('speaks the version that refuses serve runtimes built before agent steering', () => {
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(14)
   })
 })
 
@@ -361,6 +365,99 @@ describe('the take-back-pending request', () => {
 
   it('drops a reply whose taken message has no text', () => {
     expect(takeBackPendingReplySchema.safeParse({ taken: { images: [], files: [] } }).success).toBe(false)
+  })
+})
+
+describe('the agent-steer ops', () => {
+  it('round-trips a say-to-agent request carrying text, images and files like a send would', () => {
+    const request: ClientFrame = {
+      kind: EClientFrame.Request,
+      id: 'steer-1',
+      op: EClientRequest.SayToAgent,
+      params: {
+        threadId: 'brn_main',
+        agentId: 'brn_child',
+        text: 'keep the commits conventional',
+        images: [{ path: '/tmp/shot.png', mediaType: 'image/png', data: 'aGVsbG8=' }],
+        files: [{ path: '/tmp/note.md', mediaType: 'text/markdown', data: 'aGVsbG8=' }],
+      },
+    }
+
+    expect(decodeClientFrame(encodeFrame(request))).toEqual(request)
+    expect(JSON.stringify(sayToAgentParamsSchema.parse(request.params))).toBe(
+      JSON.stringify(request.params),
+    )
+  })
+
+  it('round-trips a bare say-to-agent request with the attachments omitted', () => {
+    const request: ClientFrame = {
+      kind: EClientFrame.Request,
+      id: 'steer-2',
+      op: EClientRequest.SayToAgent,
+      params: { threadId: 'brn_main', agentId: 'brn_child', text: 'status?' },
+    }
+
+    expect(decodeClientFrame(encodeFrame(request))).toEqual(request)
+  })
+
+  it('rejects a say-to-agent whose text is missing — a steer must carry the message', () => {
+    const params = { threadId: 'brn_main', agentId: 'brn_child' }
+
+    expect(sayToAgentParamsSchema.safeParse(params).success).toBe(false)
+  })
+
+  it('round-trips resume-agent and stop-agent as address-only requests', () => {
+    for (const op of [EClientRequest.ResumeAgent, EClientRequest.StopAgent]) {
+      const request: ClientFrame = {
+        kind: EClientFrame.Request,
+        id: 'steer-3',
+        op,
+        params: { threadId: 'brn_main', agentId: 'brn_child' },
+      }
+
+      expect(decodeClientFrame(encodeFrame(request))).toEqual(request)
+    }
+  })
+
+  it('rejects a resume or stop request that names no agent', () => {
+    expect(resumeAgentParamsSchema.safeParse({ threadId: 'brn_main' }).success).toBe(false)
+    expect(stopAgentParamsSchema.safeParse({ threadId: 'brn_main' }).success).toBe(false)
+  })
+})
+
+describe('the agent outcome reply', () => {
+  it('parses a successful outcome with the agent snapshot the roster already carries', () => {
+    const parsed = agentOutcomeWireSchema.parse({
+      ok: true,
+      snapshot: {
+        agentId: 'brn_child',
+        spawnedBy: 'brn_main',
+        agentType: 'explore',
+        intent: 'map the registry',
+        status: EAgentStatus.Running,
+        turns: 3,
+        toolCalls: 9,
+        startedAt: '2026-10-02T20:00:00.000Z',
+      },
+    })
+
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) {
+      expect(String(parsed.snapshot.agentId)).toBe('brn_child')
+      expect(parsed.snapshot.turns).toBe(3)
+      expect(parsed.snapshot.lastTool).toBeUndefined()
+    }
+  })
+
+  it("round-trips a refusal with the registry's prose reason unchanged", () => {
+    const outcome = { ok: false as const, reason: 'agent brn_child is already taking a step' }
+
+    expect(agentOutcomeWireSchema.parse(outcome)).toEqual(outcome)
+  })
+
+  it('rejects an outcome that claims success without the snapshot', () => {
+    expect(agentOutcomeWireSchema.safeParse({ ok: true, reason: 'fine' }).success).toBe(false)
+    expect(agentOutcomeWireSchema.safeParse({ ok: false }).success).toBe(false)
   })
 })
 

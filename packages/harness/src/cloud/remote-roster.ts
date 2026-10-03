@@ -84,7 +84,7 @@ export const rosterShells = (args: {
 }): readonly ShellSnapshot[] =>
   args.roster.shells.filter((shell) => shell.threadId === args.threadId)
 
-const toAgentSnapshot = (wire: RosterWire['agents'][number]): AgentSnapshot => ({
+export const toAgentSnapshot = (wire: RosterWire['agents'][number]): AgentSnapshot => ({
   agentId: wire.agentId,
   spawnedBy: wire.spawnedBy,
   agentType: wire.agentType,

@@ -199,8 +199,9 @@ export function useAgentView(args: {
   const handleStop = useCallback((): void => {
     if (state.viewing === null) return
 
-    const outcome = agents.stop({ agentId: state.viewing, threadId: scopeId, by: EKilledBy.User })
-    if (!outcome.ok) onProblem(outcome.reason)
+    void agents.stop({ agentId: state.viewing, threadId: scopeId, by: EKilledBy.User }).then((outcome) => {
+      if (!outcome.ok) onProblem(outcome.reason)
+    })
     armStop(false)
   }, [agents, armStop, onProblem, scopeId, state.viewing])
 

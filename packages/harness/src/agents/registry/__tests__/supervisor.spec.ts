@@ -250,7 +250,7 @@ describe('stopping', () => {
     if (!outcome.ok) throw new Error(outcome.reason)
     const stranger = (await opened.harness.threads.create({})).id
 
-    const stopped = opened.supervisor.stop({
+    const stopped = await opened.supervisor.stop({
       agentId: outcome.snapshot.agentId,
       threadId: stranger,
       by: EKilledBy.User,

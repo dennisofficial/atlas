@@ -11,7 +11,7 @@ import type { UserSettingsTarget } from './apply-user-settings'
 import type { RosterWire } from '@dltech/atlas-wire'
 import type { RestoredWorkspace } from '@dltech/atlas-harness'
 
-import type { DeltaChannel, PlacementController } from '@dltech/atlas-harness'
+import type { AgentRegistryPort, DeltaChannel, PlacementController } from '@dltech/atlas-harness'
 import type { FileBrowser } from '@dltech/atlas-harness'
 import type { MessageIntake } from '@dltech/atlas-harness'
 import type { PendingQueues } from '@dltech/atlas-harness'
@@ -85,6 +85,8 @@ export type ServeModelBridge = {
   effort: () => string
   select: (next: { ref: string; effort: string }) => void
 }
+
+export type ServeAgentSteer = Pick<AgentRegistryPort, 'say' | 'resume' | 'stop'>
 
 /** The composed session as serve consumes it: everything a socket can reach and nothing else. */
 export type ServeApp = {
@@ -162,6 +164,12 @@ export type ServeApp = {
   family?: ServeFamily | undefined
   /** Absent in a fake without registries: a rewind apply is refused rather than dropped. */
   rewind?: ServeRewind | undefined
+  /**
+   * The agent registry narrowed to what the socket's operator-steer ops forward: the same
+   * say/resume/stop the harness's agent tools call, answered by the sandbox because its agents
+   * live here. Absent in a fake without registries, which refuses the op.
+   */
+  agents?: ServeAgentSteer | undefined
   /** The session's placement controller; serve hydrates it to cloud after transcript restore. */
   executionLocation?: PlacementController | undefined
   close: () => Promise<void>

@@ -206,7 +206,7 @@ describe('an operator retargeting a supervised child over the cloud channel', ()
     const held = adapters.anthropic.holdNext()
     const childId = await spawnChild(opened)
     await held.reached
-    supervisor.stop({ agentId: childId, threadId: main, by: EKilledBy.User })
+    await supervisor.stop({ agentId: childId, threadId: main, by: EKilledBy.User })
     await supervisor.whenChildrenSettled({ threadId: main })
     expect(statusOf(opened, childId)).toBe(EAgentStatus.Stopped)
 
