@@ -5,7 +5,7 @@ import type { ShellSnapshot } from '@dltech/atlas-harness'
 import type { SidebarCrewFold } from '../../../store/subagent-row'
 import { plural } from '../../../store/tools/reading'
 import { usePress } from '../../hooks/use-press'
-import { shellNameLabel, shellReadout } from '../../shells-model'
+import { shellNameLabel, shellSidebarReadout } from '../../shells-model'
 import { glyph, theme } from '../../theme'
 import type { Span } from '../spans'
 import { Row, Section } from './row'
@@ -16,7 +16,7 @@ const markFor = (shell: ShellSnapshot) =>
     : { text: glyph.active, fg: theme.ok }
 
 const valueFor = (args: { shell: ShellSnapshot; now: number }): readonly Span[] => [
-  { text: shellReadout(args), fg: args.shell.awaitingInput ? theme.warn : theme.hint },
+  { text: shellSidebarReadout(args), fg: args.shell.awaitingInput ? theme.warn : theme.hint },
 ]
 
 /**

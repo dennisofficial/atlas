@@ -15,6 +15,7 @@ import {
   shellCommandLabel,
   shellElapsedMs,
   shellReadout,
+  shellSidebarReadout,
   shellStateLabel,
 } from '../shells-model'
 
@@ -301,5 +302,34 @@ describe('what a shell row reads as', () => {
     expect(shellReadout({ shell: shell({ shellId: 'bash_1', startedAt: '' }), now: AT(5) })).toBe(
       'running',
     )
+  })
+})
+
+describe('what a sidebar shell row reads as', () => {
+  it('leaves the state to the green dot and shows only the time while the shell runs', () => {
+    expect(shellSidebarReadout({ shell: running('bash_1'), now: AT(64) })).toBe('1m 4s')
+  })
+
+  it('keeps the warning for a shell waiting on input', () => {
+    const stuck = shell({ shellId: 'bash_1', awaitingInput: true })
+
+    expect(shellSidebarReadout({ shell: stuck, now: AT(64) })).toBe('awaiting input')
+  })
+
+  it('shows nothing when a running shell has no start to count from', () => {
+    expect(
+      shellSidebarReadout({ shell: shell({ shellId: 'bash_1', startedAt: '' }), now: AT(5) }),
+    ).toBe('')
+  })
+
+  it('keeps the full reading for a settled shell', () => {
+    const settled = shell({
+      shellId: 'bash_1',
+      status: EShellStatus.Exited,
+      exitCode: 0,
+      endedAt: '2026-08-27T12:01:04.000Z',
+    })
+
+    expect(shellSidebarReadout({ shell: settled, now: AT(64) })).toBe('done · 1m 4s')
   })
 })
