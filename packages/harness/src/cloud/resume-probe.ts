@@ -10,14 +10,13 @@ export enum ESandboxProbe {
   Kept = 'kept',
   Replaced = 'replaced',
   RotationNeeded = 'rotation-needed',
-  OutdatedPreserved = 'outdated-preserved',
 }
 
 export const UNSTAMPED_PROTOCOL = 0
 
 export type SandboxProbeResult = {
   probe: ESandboxProbe
-  outdatedServe?: string | undefined
+  rotatedFrom?: string | undefined
   outdatedProtocol?: number | undefined
 }
 
@@ -131,6 +130,36 @@ const protocolOf = (text: string | undefined): number => {
   return /^\d+$/.test(trimmed) ? Number(trimmed) : UNSTAMPED_PROTOCOL
 }
 
+export const EServeAge = {
+  Older: 'older',
+  Same: 'same',
+  Newer: 'newer',
+  Unknown: 'unknown',
+} as const
+export type EServeAge = (typeof EServeAge)[keyof typeof EServeAge]
+
+export const serveAgeOf = (args: { installed: string; pinned: string }): EServeAge => {
+  const parse = (text: string): [number, number, number] | null => {
+    const parts = text.trim().split('.')
+    if (parts.length !== 3) return null
+    const nums = parts.map((part) => (/^\d+$/.test(part) ? Number(part) : Number.NaN))
+    const [major, minor, patch] = nums
+    if (major === undefined || minor === undefined || patch === undefined) return null
+    if (Number.isNaN(major) || Number.isNaN(minor) || Number.isNaN(patch)) return null
+    return [major, minor, patch]
+  }
+  const installed = parse(args.installed)
+  const pinned = parse(args.pinned)
+  if (installed === null || pinned === null) return EServeAge.Unknown
+  for (const index of [0, 1, 2] as const) {
+    const left = installed[index] ?? 0
+    const right = pinned[index] ?? 0
+    if (left < right) return EServeAge.Older
+    if (left > right) return EServeAge.Newer
+  }
+  return EServeAge.Same
+}
+
 const notifyRotationStarted = (args: {
   onRotationStarted: (() => void) | undefined
   log: ((line: string) => void) | undefined
@@ -165,9 +194,9 @@ export async function probeSandboxForResume(args: {
   }
 
   const pinned = args.pinned
-  if (pinned === undefined) return { probe: ESandboxProbe.Kept }
   const providerStatus = sandbox.status
   if (providerStatus === 'stopped') {
+    if (pinned === undefined) return { probe: ESandboxProbe.Kept }
     args.log?.(`sandbox ${args.name} is confirmed stopped — recreating it from the pinned image without waking its old runtime`)
     await sandbox.delete({ signal: AbortSignal.timeout(args.timeoutMs) })
     const detached = await (args.waitForDriveDetached?.() ?? true)
@@ -194,11 +223,9 @@ export async function probeSandboxForResume(args: {
   const installed = (versionLine ?? '').trim()
   const installedProtocol = protocolOf(protocolLine)
 
-  if (installedProtocol !== CHANNEL_PROTOCOL_VERSION) {
+  const rotate = async (line: string): Promise<void> => {
     notifyRotationStarted({ onRotationStarted: args.onRotationStarted, log: args.log })
-    args.log?.(
-      `sandbox ${args.name} speaks wire protocol ${installedProtocol === UNSTAMPED_PROTOCOL ? 'none (unstamped)' : installedProtocol}, this build speaks ${CHANNEL_PROTOCOL_VERSION} — draining the old serve and recreating the sandbox from the pinned image`,
-    )
+    args.log?.(line)
     const url = routedUrlOf(sandbox, args.servePort)
     if (url === undefined) {
       args.log?.(`sandbox ${args.name} has no routed URL to drain through — deleting it without a drain`)
@@ -214,18 +241,29 @@ export async function probeSandboxForResume(args: {
     await sandbox.delete({ signal: AbortSignal.timeout(args.timeoutMs) })
     const detached = await (args.waitForDriveDetached?.() ?? true)
     if (!detached) args.log?.(`sandbox ${args.name} deleted, but its drive is still attached — the recreate will retry through the lag`)
+  }
+
+  if (installedProtocol !== CHANNEL_PROTOCOL_VERSION) {
+    await rotate(
+      `sandbox ${args.name} speaks wire protocol ${installedProtocol === UNSTAMPED_PROTOCOL ? 'none (unstamped)' : installedProtocol}, this build speaks ${CHANNEL_PROTOCOL_VERSION} — draining the old serve and recreating the sandbox from the pinned image`,
+    )
     return { probe: ESandboxProbe.RotationNeeded, outdatedProtocol: installedProtocol }
   }
 
+  // An unpinned build (dev/source, or an operator-set image) has no serve version to judge drift
+  // against; the protocol gate above is the only check that can run without one.
+  if (pinned === undefined) return { probe: ESandboxProbe.Kept }
   if (installed === pinned) return { probe: ESandboxProbe.Kept }
 
-  const installedLabel = installed === '' ? 'none' : installed
-  const preserve = (reason: string): SandboxProbeResult => {
+  if (serveAgeOf({ installed, pinned }) === EServeAge.Newer) {
     args.log?.(
-      `sandbox ${args.name} carries serve "${installedLabel}", this build wants "${pinned}", but its runtime never proved idle (${reason}) — keeping the older serve until the sandbox parks cleanly`,
+      `sandbox ${args.name} carries serve "${installed}", newer than this build's pinned "${pinned}" — keeping it`,
     )
-    return { probe: ESandboxProbe.OutdatedPreserved, outdatedServe: installed }
+    return { probe: ESandboxProbe.Kept }
   }
 
-  return preserve(`the provider reports it ${providerStatus}`)
+  await rotate(
+    `sandbox ${args.name} carries serve "${installed === '' ? 'none' : installed}", outdated against this build's pinned "${pinned}" — draining the old serve and recreating the sandbox from the pinned image`,
+  )
+  return { probe: ESandboxProbe.RotationNeeded, rotatedFrom: installed }
 }

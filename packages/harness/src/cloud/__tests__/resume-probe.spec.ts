@@ -7,9 +7,11 @@ import { SERVE_PROTOCOL_PATH, SERVE_VERSION_PATH } from '../serve-launch'
 import {
   ESandboxProbe,
   ERuntimeIdle,
+  EServeAge,
   probeRuntimeActivity,
   runtimeIdleOf,
   probeSandboxForResume,
+  serveAgeOf,
   type ServeRuntimeHealth,
 } from '../resume-probe'
 import { asVercelFailure, isSandboxMissing } from '../vercel-errors'
@@ -61,6 +63,7 @@ const fakeSandbox = (args: {
 
 const probeOf = (args: {
   sandbox: Sandbox
+  unpinned?: boolean
   health?: ServeRuntimeHealth | undefined
   healthThrows?: boolean
   waitForDriveDetached?: () => Promise<boolean>
@@ -70,7 +73,7 @@ const probeOf = (args: {
 }) =>
   probeSandboxForResume({
     name: 'atlas-thread-x',
-    pinned: PINNED,
+    pinned: args.unpinned === true ? undefined : PINNED,
     timeoutMs: 5_000,
     servePort: 3000,
     fetch: async () => args.sandbox,
@@ -151,27 +154,38 @@ describe('probeSandboxForResume', () => {
     expect(lines.some((line) => line.includes('drive is still attached'))).toBe(true)
   })
 
-  it('never replaces a stale sandbox whose runtime is running, however idle its health reads', async () => {
+  it('drains and replaces a stale sandbox whose runtime is running, however idle its health reads', async () => {
     const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
+    const order: string[] = []
+    Object.assign(sandbox, { delete: async () => { order.push('delete') } })
 
-    const result = await probeOf({ sandbox, health: FULL_IDLE })
+    const result = await probeOf({
+      sandbox,
+      health: FULL_IDLE,
+      drain: async () => { order.push('drain') },
+    })
 
-    expect(result.probe).toBe(ESandboxProbe.OutdatedPreserved)
-    expect(result.outdatedServe).toBe(STALE)
-    expect(sandbox.deleted()).toBe(false)
+    expect(order).toEqual(['drain', 'delete'])
+    expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
+    expect(result.rotatedFrom).toBe(STALE)
   })
 
-  it('never replaces a stale sandbox whose runtime is resuming', async () => {
+  it('drains and replaces a stale sandbox whose runtime is resuming', async () => {
     const sandbox = fakeSandbox({ installed: STALE, status: 'pending' })
 
-    const result = await probeOf({ sandbox, health: FULL_IDLE })
+    const result = await probeOf({
+      sandbox,
+      health: FULL_IDLE,
+      drain: async () => undefined,
+    })
 
-    expect(result.probe).toBe(ESandboxProbe.OutdatedPreserved)
-    expect(sandbox.deleted()).toBe(false)
+    expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
+    expect(sandbox.deleted()).toBe(true)
   })
 
-  it('preserves a running stale sandbox while any guarded field reports work', async () => {
-    const busyVariants: ServeRuntimeHealth[] = [
+  it('rotates a running stale sandbox whatever its runtime health reports', async () => {
+    const healthVariants: (ServeRuntimeHealth | undefined)[] = [
+      FULL_IDLE,
       { ...FULL_IDLE, busy: true },
       { ...FULL_IDLE, childrenRunning: 1 },
       { ...FULL_IDLE, shellsRunning: 1 },
@@ -180,79 +194,61 @@ describe('probeSandboxForResume', () => {
       { ...FULL_IDLE, settlingWork: true },
       { ...FULL_IDLE, clients: 1 },
       { ...FULL_IDLE, turnRunning: true },
+      { clients: 0 },
+      undefined,
     ]
 
-    for (const health of busyVariants) {
+    for (const health of healthVariants) {
       const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
-      const result = await probeOf({ sandbox, health })
-      expect(result.probe).toBe(ESandboxProbe.OutdatedPreserved)
-      expect(sandbox.deleted()).toBe(false)
+      const result = await probeOf({ sandbox, health, drain: async () => undefined })
+      expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
+      expect(sandbox.deleted()).toBe(true)
     }
   })
 
-  it('preserves a running stale sandbox when any guarded field is missing from the health answer', async () => {
-    const incomplete: ServeRuntimeHealth = { ...FULL_IDLE }
-    delete incomplete.settlingWork
-
-    const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
-
-    const result = await probeOf({ sandbox, health: incomplete })
-
-    expect(result.probe).toBe(ESandboxProbe.OutdatedPreserved)
-    expect(sandbox.deleted()).toBe(false)
-  })
-
-  it('preserves a running stale sandbox when health cannot be read at all', async () => {
-    const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
-
-    const result = await probeOf({ sandbox, health: undefined })
-
-    expect(result.probe).toBe(ESandboxProbe.OutdatedPreserved)
-    expect(sandbox.deleted()).toBe(false)
-  })
-
-  it('preserves a running stale sandbox when the health read throws', async () => {
-    const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
-
-    const result = await probeOf({ sandbox, healthThrows: true })
-
-    expect(result.probe).toBe(ESandboxProbe.OutdatedPreserved)
-    expect(sandbox.deleted()).toBe(false)
-  })
-
-  it('preserves a running stale sandbox when it has no routed URL to probe', async () => {
+  it('deletes a stale sandbox without a drain when it has no routed URL', async () => {
     const sandbox = fakeSandbox({ installed: STALE, status: 'running', routes: [] })
+    let drains = 0
 
-    const result = await probeOf({ sandbox, health: FULL_IDLE })
+    const result = await probeOf({ sandbox, health: FULL_IDLE, drain: async () => { drains += 1 } })
 
-    expect(result.probe).toBe(ESandboxProbe.OutdatedPreserved)
-    expect(sandbox.deleted()).toBe(false)
+    expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
+    expect(drains).toBe(0)
+    expect(sandbox.deleted()).toBe(true)
   })
 
-  it('treats a legacy health answer carrying only clients as unknown rather than idle', async () => {
+  it('attributes a build-drift rotation to the version mismatch', async () => {
     const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
     const lines: string[] = []
 
-    const result = await probeOf({ sandbox, health: { clients: 0 }, lines })
+    await probeOf({ sandbox, health: FULL_IDLE, drain: async () => undefined, lines })
 
-    expect(result.probe).toBe(ESandboxProbe.OutdatedPreserved)
-    expect(sandbox.deleted()).toBe(false)
-    expect(lines.some((line) => line.includes('running'))).toBe(true)
-  })
-
-  it('attributes a preservation decision to the fields that forced it', async () => {
-    const sandbox = fakeSandbox({ installed: STALE, status: 'running' })
-    const lines: string[] = []
-
-    await probeOf({
-      sandbox,
-      health: { ...FULL_IDLE, shellsRunning: 2, settlingWork: true },
-      lines,
-    })
-
-    const decision = lines.find((line) => line.includes('never proved idle'))
+    const decision = lines.find((line) => line.includes('outdated against'))
     expect(decision).toBeDefined()
-    expect(decision).toContain('provider reports it running')
+    expect(decision).toContain(STALE)
+    expect(decision).toContain(PINNED)
+  })
+
+  it('keeps a sandbox whose serve is newer than the pin, logging why', async () => {
+    const sandbox = fakeSandbox({ installed: '99.0.0', status: 'running' })
+    const lines: string[] = []
+    let drains = 0
+
+    const result = await probeOf({ sandbox, lines, drain: async () => { drains += 1 } })
+
+    expect(result.probe).toBe(ESandboxProbe.Kept)
+    expect(drains).toBe(0)
+    expect(sandbox.deleted()).toBe(false)
+    expect(lines.some((line) => line.includes('newer than this build'))).toBe(true)
+  })
+
+  it('rotates a sandbox whose version stamp cannot be parsed', async () => {
+    for (const installed of ['', 'release-branch', '1.2']) {
+      const sandbox = fakeSandbox({ installed, status: 'running' })
+      const result = await probeOf({ sandbox, drain: async () => undefined })
+      expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
+      expect(sandbox.deleted()).toBe(true)
+    }
   })
 
   it('attributes a replacement to a confirmed provider stop', async () => {
@@ -370,7 +366,7 @@ describe('probeSandboxForResume protocol rotation', () => {
     const result = await probeOf({ sandbox, drain: async () => {} })
 
     expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
-    expect(result.outdatedServe).toBeUndefined()
+    expect(result.rotatedFrom).toBeUndefined()
     expect(sandbox.deleted()).toBe(true)
   })
 
@@ -422,14 +418,14 @@ describe('probeSandboxForResume protocol rotation', () => {
     expect(lines.some((line) => line.includes('drawer unmounted'))).toBe(true)
   })
 
-  it('never announces a rotation for build drift alone or a matching sandbox', async () => {
+  it('announces a build-drift rotation too, and stays quiet for a matching sandbox', async () => {
     let announced = 0
     const onRotationStarted = () => { announced += 1 }
 
-    await probeOf({ sandbox: fakeSandbox({ installed: STALE }), health: FULL_IDLE, onRotationStarted })
+    await probeOf({ sandbox: fakeSandbox({ installed: STALE }), health: FULL_IDLE, onRotationStarted, drain: async () => undefined })
     await probeOf({ sandbox: fakeSandbox({ installed: PINNED }), onRotationStarted })
 
-    expect(announced).toBe(0)
+    expect(announced).toBe(1)
   })
 
   it('replaces a stopped sandbox without draining or announcing', async () => {
@@ -446,6 +442,43 @@ describe('probeSandboxForResume protocol rotation', () => {
     expect(result.probe).toBe(ESandboxProbe.Replaced)
     expect(drains).toBe(0)
     expect(announced).toBe(0)
+  })
+
+  it('rotates on protocol drift even when the build pins no serve version', async () => {
+    const sandbox = fakeSandbox({ installed: PINNED, protocol: STALE_PROTOCOL })
+
+    const result = await probeOf({ sandbox, unpinned: true, drain: async () => undefined })
+
+    expect(result.probe).toBe(ESandboxProbe.RotationNeeded)
+    expect(result.outdatedProtocol).toBe(CHANNEL_PROTOCOL_VERSION - 1)
+    expect(sandbox.deleted()).toBe(true)
+  })
+
+  it('keeps a protocol-matching sandbox when the build pins no serve version, whatever version it carries', async () => {
+    const sandbox = fakeSandbox({ installed: '9.9.9' })
+
+    const result = await probeOf({ sandbox, unpinned: true })
+
+    expect(result.probe).toBe(ESandboxProbe.Kept)
+    expect(sandbox.deleted()).toBe(false)
+  })
+})
+
+describe('serveAgeOf', () => {
+  it('compares by major, then minor, then patch', () => {
+    expect(serveAgeOf({ installed: '1.0.0', pinned: '2.0.0' })).toBe(EServeAge.Older)
+    expect(serveAgeOf({ installed: '1.48.2', pinned: '1.49.0' })).toBe(EServeAge.Older)
+    expect(serveAgeOf({ installed: '1.48.2', pinned: '1.48.10' })).toBe(EServeAge.Older)
+    expect(serveAgeOf({ installed: '2.0.0', pinned: '2.0.0' })).toBe(EServeAge.Same)
+    expect(serveAgeOf({ installed: '2.0.1', pinned: '2.0.0' })).toBe(EServeAge.Newer)
+    expect(serveAgeOf({ installed: '3.0.0', pinned: '2.9.9' })).toBe(EServeAge.Newer)
+  })
+
+  it('reads unparsable versions as unknown', () => {
+    expect(serveAgeOf({ installed: '', pinned: '2.0.0' })).toBe(EServeAge.Unknown)
+    expect(serveAgeOf({ installed: 'release-branch', pinned: '2.0.0' })).toBe(EServeAge.Unknown)
+    expect(serveAgeOf({ installed: '1.2', pinned: '2.0.0' })).toBe(EServeAge.Unknown)
+    expect(serveAgeOf({ installed: '1.2.x', pinned: '2.0.0' })).toBe(EServeAge.Unknown)
   })
 })
 

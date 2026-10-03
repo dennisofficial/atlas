@@ -156,27 +156,32 @@ describe('waking a cloud runner whose channel is not open', () => {
     await expect(turn).resolves.toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-3') })
   })
 
-  it('warns when the wake resumes a sandbox whose outdated serve survived an attached client', async () => {
+  it('expands the drawer with a rotation step when the wake rotates a build-drifted sandbox', async () => {
     const bridge = fakeBridge({
-      sandbox: { ...RESUMED, outdatedServe: '1.19.1' },
+      sandbox: { ...RESUMED, rotatedFrom: '1.19.1' },
     })
     const channel = fakeCloudChannel()
     channel.moveTo({ state: EChannelConnection.Closed, detail: null })
+    const move = fakeMove()
     const runner = createCloudRunner({
       bridge,
       channel,
       threadId: CLOUD_THREAD,
+      move,
       captureContext: async () => undefined,
     })
 
     const turn = runner.runTurn({ threadId: CLOUD_THREAD })
     await Bun.sleep(1)
 
+    expect(move.calls).toEqual([
+      `begin:${EExecutionLocation.Cloud}`,
+      `advance:${ELiftStep.Starting}`,
+      `expand:rotating:UPDATING THE CLOUD SANDBOX`,
+      `advance:${ELiftStep.Attaching}`,
+      'settle',
+    ])
     expect(channel.woken).toEqual([{ url: POLLED_URL, token: 'sandbox-token' }])
-    const notice = currentNotices().find((entry) => entry.key === 'wake-outdated-serve')
-    expect(notice).toBeDefined()
-    expect(notice?.tone).toBe(ENoticeTone.Warn)
-    expect(notice?.text).toContain('1.19.1')
 
     channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-5') })
     await expect(turn).resolves.toEqual({ status: ETurnStatus.Completed, runId: toRunId('run-5') })

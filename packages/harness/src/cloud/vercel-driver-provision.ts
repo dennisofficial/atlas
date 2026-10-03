@@ -132,7 +132,7 @@ export async function provisionSandbox(deps: ProvisionDeps, args: ProvisionArgs)
     const driveName = driveNameFor({ threadId: args.threadId })
     driveExisted = await driveExists({ sdk: deps.drives, credentials, name: driveName })
     const drive = await ensureDrive({ sdk: deps.drives, credentials, name: driveName })
-    const { probe, outdatedServe, outdatedProtocol } = await probeSandboxForResume({
+    const { probe, rotatedFrom, outdatedProtocol } = await probeSandboxForResume({
       name: args.name,
       pinned: deps.config.serveVersion,
       timeoutMs: SANDBOX_QUICK_TIMEOUT_MS,
@@ -203,7 +203,7 @@ export async function provisionSandbox(deps: ProvisionDeps, args: ProvisionArgs)
       created,
       driveName,
       token: serveToken,
-      ...(outdatedServe === undefined ? {} : { outdatedServe }),
+      ...(rotatedFrom === undefined ? {} : { rotatedFrom }),
       ...(outdatedProtocol === undefined ? {} : { rotatedProtocol: outdatedProtocol }),
     }
   } catch (failure) {

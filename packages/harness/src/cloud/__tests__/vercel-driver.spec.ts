@@ -328,7 +328,8 @@ describe('createOrResume', () => {
     await driver.createOrResume({ name: 'atlas-thread-x', threadId: 'brn_cloud' })
 
     expect(unpinned.deleted).toBe(false)
-    expect(unpinned.commands.some((script) => script.includes('.version'))).toBe(false)
+    expect(unpinned.commands.some((script) => script.includes('.protocol'))).toBe(true)
+    expect(unpinned.commands.some((script) => script.includes('/v1/drain'))).toBe(false)
   })
 
   it('resumes an existing sandbox without the created flag, staging the serve token', async () => {
@@ -358,8 +359,19 @@ describe('createOrResume', () => {
     ).toBe(true)
   })
 
-  it('preserves a live running sandbox whose baked serve predates the pinned version — a reconnect never kills a runtime', async () => {
+  it('rotates a live running sandbox whose baked serve predates the pinned version: drain, delete, recreate', async () => {
     const stale = fakeSandbox({ installedVersion: '1.19.1', status: 'running' })
+    const fresh = fakeSandbox()
+    const events: string[] = []
+    Object.assign(stale, {
+      delete: async () => {
+        events.push('delete')
+      },
+      runCommand: ((original) => async (params: { cmd: string; args?: string[] }) => {
+        if (params.args?.[1]?.includes('/v1/drain')) events.push('drain')
+        return original(params)
+      })(stale.runCommand.bind(stale) as (params: { cmd: string; args?: string[] }) => Promise<unknown>),
+    })
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
       cloudUrl: 'https://api.example.com',
@@ -368,7 +380,11 @@ describe('createOrResume', () => {
       serveVersion: PINNED_VERSION,
       sdk: {
         get: async () => stale,
-        getOrCreate: async () => stale,
+        getOrCreate: async (params) => {
+          events.push('recreate')
+          await params?.onCreate?.(fresh)
+          return fresh
+        },
       },
     })
 
@@ -376,11 +392,15 @@ describe('createOrResume', () => {
       name: 'atlas-thread-x',
       threadId: 'brn_cloud',
       token: 't',
+      onRotationStarted: () => {
+        events.push('rotation-started')
+      },
     })
 
-    expect(stale.deleted).toBe(false)
-    expect(placement.created).toBe(false)
-    expect(placement.outdatedServe).toBe('1.19.1')
+    expect(events).toEqual(['rotation-started', 'drain', 'delete', 'recreate'])
+    expect(placement.created).toBe(true)
+    expect(placement.rotatedFrom).toBe('1.19.1')
+    expect(placement.rotatedProtocol).toBeUndefined()
   })
 
   it('recreates a stopped sandbox whose baked serve predates the pin without waking its runtime', async () => {
@@ -463,7 +483,7 @@ describe('createOrResume', () => {
     expect(events).toEqual(['rotation-started', 'drain', 'delete', 'recreate'])
     expect(placement.created).toBe(true)
     expect(placement.rotatedProtocol).toBe(CHANNEL_PROTOCOL_VERSION - 1)
-    expect(placement.outdatedServe).toBeUndefined()
+    expect(placement.rotatedFrom).toBeUndefined()
   })
 
   it('recreates over a serve that cannot be drained, still reporting the rotation', async () => {
@@ -553,7 +573,7 @@ describe('createOrResume', () => {
     expect(unreadable.deleted).toBe(false)
   })
 
-  it('keeps a running outdated sandbox regardless of attached clients', async () => {
+  it('rotates a running outdated sandbox regardless of attached clients', async () => {
     const stale = fakeSandbox({ installedVersion: '1.19.1', status: 'running' })
     const lines: string[] = []
     const driver = new VercelDriver({
@@ -581,15 +601,13 @@ describe('createOrResume', () => {
       token: 't',
     })
 
-    expect(stale.deleted).toBe(false)
-    expect(placement.created).toBe(false)
-    expect(placement.outdatedServe).toBe('1.19.1')
+    expect(stale.deleted).toBe(true)
+    expect(placement.rotatedFrom).toBe('1.19.1')
     expect(
       lines.some(
         (line) =>
           line.includes('carries serve "1.19.1"') &&
-          line.includes(`wants "${PINNED_VERSION}"`) &&
-          line.includes('provider reports it running'),
+          line.includes(`outdated against this build's pinned "${PINNED_VERSION}"`),
       ),
     ).toBe(true)
   })
@@ -619,9 +637,8 @@ describe('createOrResume', () => {
     })
 
     expect(current.deleted).toBe(false)
-    expect(placement.outdatedServe).toBeUndefined()
+    expect(placement.rotatedFrom).toBeUndefined()
     expect(healthReads).toBe(0)
-    expect(lines.some((line) => line.includes('never proved idle'))).toBe(false)
   })
 
   it('writes the bootstrap onto a fresh sandbox after it exists, before serve launches', async () => {
