@@ -15,6 +15,7 @@ import { AgentRegistryPort } from '../agents/registry/port'
 import { withDeltaPublishing } from '../channel/publishing-event-log'
 import { ExecutionLocationToken } from '../composition/execution-location-state'
 import { portToken, resolveSet, type DependencyContainer } from '../container/injection'
+import { OperatorInputPort } from '../operator-input/port'
 import {
   DeltaChannelToken,
   DockerEngineToken,
@@ -55,6 +56,7 @@ import { ShellKillTool } from './builtin/shell-kill'
 import { ShellListTool } from './builtin/shell-list'
 import { ShellOutputTool } from './builtin/shell-output'
 import { ShellInputTool } from './builtin/shell-input'
+import { OperatorInputTool } from './builtin/operator-input'
 import { SkillTool } from './builtin/skill'
 import { SkillInstallTool } from './builtin/skill-install'
 import { TaskWriteTool } from './builtin/task-write'
@@ -134,6 +136,12 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) => new ShellInputTool(shellRegistry(resolver)),
+  })
+  container.register(portToken(ToolDefinition), {
+    useFactory: (resolver) => new OperatorInputTool({
+      operatorInput: resolver.resolve(portToken(OperatorInputPort)),
+      threads: resolver.resolve(portToken(ThreadStorePort)),
+    }),
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) =>

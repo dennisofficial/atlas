@@ -24,6 +24,8 @@ import type {
   TranscriptModel,
 } from '../store'
 import type { Compacting } from '../ui/components/compacting'
+
+import type { OperatorInputControl } from './use-operator-input'
 import type { TurnClock } from '../ui/turn-clock'
 import type { QueuedSettled } from './commands'
 import type { CommandEffect } from './commands/local-command'
@@ -88,6 +90,7 @@ export type Conversation = {
   activeWorktree: ActiveWorktree | null
   repo: string | null
   pending: readonly PendingRow[]
+  operatorInput: OperatorInputControl
   readEvents: () => Promise<readonly Event[]>
   loadOlderHistory: () => Promise<void>
   hasOlderHistory: boolean

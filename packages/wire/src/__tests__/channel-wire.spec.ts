@@ -117,8 +117,8 @@ describe('the memory archive op', () => {
 })
 
 describe('the protocol stamp', () => {
-  it('speaks the version that refuses serve runtimes built before agent steering', () => {
-    expect(CHANNEL_PROTOCOL_VERSION).toBe(14)
+  it('speaks the version that refuses serve runtimes built before operator input', () => {
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(15)
   })
 })
 

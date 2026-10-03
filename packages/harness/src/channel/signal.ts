@@ -31,6 +31,13 @@ export type TurnWorkingSignal = { type: 'turn-working'; working: boolean }
 
 type PendingEntrySignal = { id: string; text: string; via?: string | undefined; reserved: boolean }
 
+export type OperatorInputRequest = {
+  requestId: string
+  description: string
+  url?: string | undefined
+  path: string
+}
+
 export type ChannelSignal =
   | StepSignal
   | TurnWorkingSignal
@@ -38,3 +45,4 @@ export type ChannelSignal =
   | RetryWaitingSignal
   | { type: 'retry-cleared' }
   | { type: 'pending-changed'; entries: PendingEntrySignal[] }
+  | { type: 'operator-input'; request: OperatorInputRequest | null }

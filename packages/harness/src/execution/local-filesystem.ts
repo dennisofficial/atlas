@@ -32,8 +32,7 @@ export class LocalFileSystemPort implements FileSystemPort {
   }
 
   async writeFile(args: { path: string; content: string; mode?: number }): Promise<void> {
-    await nodeWriteFile(args.path, args.content, 'utf8')
-    // node applies the mode at creation under the umask; chmod after is the only exact write.
+    await nodeWriteFile(args.path, args.content, { encoding: 'utf8', ...(args.mode === undefined ? {} : { mode: args.mode }) })
     if (args.mode !== undefined) await nodeChmod(args.path, args.mode)
   }
 

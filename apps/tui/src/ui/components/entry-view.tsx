@@ -228,6 +228,13 @@ function DerivedEntryView(props: {
         </box>
       )
 
+    case EEntryKind.OperatorInput:
+      return (
+        <box flexDirection="row" marginBottom={1} flexShrink={0}>
+          <text fg={theme.dim}>{entry.text}</text>
+        </box>
+      )
+
     case EEntryKind.AgentRestarted:
       return (
         <NoticeBlock

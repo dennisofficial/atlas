@@ -36,6 +36,18 @@ export type RenameThreadParams = z.infer<typeof renameThreadParamsSchema>
 export const takeBackPendingParamsSchema = z.object({ threadId: threadIdWireSchema })
 export type TakeBackPendingParams = z.infer<typeof takeBackPendingParamsSchema>
 
+export const provideOperatorInputParamsSchema = z.strictObject({
+  requestId: z.string().min(1),
+  value: z.string(),
+})
+export type ProvideOperatorInputParams = z.infer<typeof provideOperatorInputParamsSchema>
+
+export const operatorInputReplySchema = z.strictObject({
+  delivered: z.boolean(),
+  bytes: z.number().int().nonnegative(),
+})
+export type OperatorInputReply = z.infer<typeof operatorInputReplySchema>
+
 export const resumeAgentParamsSchema = z.object({
   threadId: threadIdWireSchema,
   agentId: threadIdWireSchema,

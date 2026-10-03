@@ -49,6 +49,7 @@ const BUILTIN_NAMES = [
   'shell_output',
   'shell_kill',
   'shell_input',
+  'operator_input',
   'service_start',
   'service_stop',
   'service_list',

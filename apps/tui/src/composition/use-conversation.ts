@@ -13,6 +13,7 @@ import { useCompaction } from './use-compaction'
 import { useSettledCommands } from './use-conversation-commands'
 import { useConversationDirectory, usePendingMove } from './use-conversation-directory'
 import { usePendingRows, useProjectEvents } from './use-conversation-projections'
+import { useOperatorInput } from './use-operator-input'
 import { useResumeOnOpen } from './use-conversation-resume'
 import { usePlacementMoving, useRemotePending, useSendingChannel, useSendMessage, useTakeBackPending } from './use-conversation-send'
 import { useMainWake } from './use-main-wake'
@@ -241,6 +242,13 @@ export function useConversation(args: ConversationArgs): Conversation {
     sending: sending.rows,
   })
 
+  const operatorInput = useOperatorInput({
+    app,
+    threadId,
+    cloudRunner,
+    onInterrupt: turnDriver.handleInterrupt,
+  })
+
   const model = transcriptOfTurn({ model: derived, working, failure })
   const channelReady = args.channelReady !== false
   const retryable =
@@ -278,6 +286,7 @@ export function useConversation(args: ConversationArgs): Conversation {
     mutations: logSummary.treeMutations + delegatedToolCalls,
     contextTokens: used,
     pending: rows,
+    operatorInput,
     handleSend,
     handleQueueSettled,
     refresh,
