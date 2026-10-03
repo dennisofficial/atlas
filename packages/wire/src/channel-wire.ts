@@ -13,7 +13,7 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
  * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
  */
-export const CHANNEL_PROTOCOL_VERSION = 15
+export const CHANNEL_PROTOCOL_VERSION = 16
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
@@ -111,6 +111,8 @@ export enum EClientRequest {
    */
   RestoreTranscript = 'restore-transcript',
   ReadRuntimeCheckpoint = 'read-runtime-checkpoint',
+  ListContextFiles = 'list-context-files',
+  ReadContextFile = 'read-context-file',
   /**
    * Takes the newest unreserved operator message back out of the sandbox's pending queue and
    * returns it for the composer, so the take-back is confirmed by the queue's owner. A serve built

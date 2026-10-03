@@ -244,6 +244,18 @@ typecheck cannot: runtime assets loaded by path, and optional peer dependencies 
 Nest was the original reason for that warning and now lives only under `deprecated/`, but the class of
 failure is not specific to it — the tree-sitter grammars are the live example.
 
+## Cloud terminal previews
+
+A session running in the cloud has no operator terminal, so "run `atlas-dev` and look at it"
+is uncheckable there — a dev-server preview only covers things with an HTTP surface. For any
+task that ends with the operator eyeballing something interactive in a terminal, boot the web
+terminal as the preview instead: `cd apps/webterm && bun run dev`, started as a service with
+its port exposed. Hand the operator the full URL (token included) and what to look at. The
+wrapper seeds a scratch `ATLAS_HOME` from the session's real credentials, starts in the
+checkout it was booted from, and drops the operator straight into `atlas-dev` — details live
+in `apps/webterm/README.md`. This augments, not replaces, the completion-preview rule in the
+operator's global instructions: the rule stays "produce a preview", this is the terminal kind.
+
 ## Sandbox image
 
 The sandbox image is a private GHCR listing; access rides on GitHub.

@@ -1,5 +1,6 @@
 import React from 'react'
 
+import { useWorkspaceContext, WorkspaceContextPane } from './workspace-context'
 import { HeaderBar } from '../ui/components/header-bar'
 import { useCopyOnSelect } from '../ui/selection/use-copy-on-select'
 import { useComposerPaste } from './use-composer-paste'
@@ -63,6 +64,9 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
 
   const shells = useShells({ app: props.app, threadId: conversation.threadId })
   const services = useServices({ app: props.app })
+  const contextBrowser = useWorkspaceContext({
+    readers: props.attachment?.context, threadId: conversation.threadId, onClosePeek: frame.handleClosePeek,
+  })
 
   useWorkspaceNotices({
     app: props.app,
@@ -192,6 +196,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
     exitGuard,
     containerGuard,
     containerMove,
+    contextBrowser,
   })
 
   useComposerPaste({ overlaid, tokens, handleAttachImage: composer.handleAttachImage })
@@ -207,6 +212,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
     <WorkspaceView
       header={header}
       contentWidth={layout.contentWidth}
+      pane={contextBrowser.viewer === null ? null : <WorkspaceContextPane control={contextBrowser} width={layout.contentWidth} />}
       transcript={
         <WorkspaceTranscript
           app={props.app}
@@ -264,6 +270,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
             shells={shells}
             services={services}
             agentView={agentView}
+            contextBrowser={contextBrowser}
             onRevokeGrant={conversation.handleRevokeGrant}
           />
         ) : null
@@ -276,17 +283,8 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
           cwd={props.app.config.cwd}
           active={selection.ref}
           accountMeters={accountMeters}
-          switcher={switcher}
-          shells={shells}
-          services={services}
-          agents={agents}
-          settings={settings}
-          onboarding={onboarding}
-          whatsNew={whatsNew}
-          accounts={accounts}
-          threads={threads}
-          agentsPicker={agentsPicker}
-          rewind={rewind}
+          {...{ switcher, shells, services, agents, settings, onboarding, whatsNew,
+            accounts, threads, agentsPicker, rewind }}
           rewindConfirm={conversation.rewindConfirm}
           operatorInput={conversation.operatorInput}
           exitGuard={exitGuard}

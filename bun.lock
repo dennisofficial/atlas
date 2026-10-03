@@ -115,6 +115,13 @@
         "typescript": "6.0.3",
       },
     },
+    "apps/webterm": {
+      "name": "@dltech/atlas-webterm",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
     "packages/core": {
       "name": "@dltech/atlas-core",
       "version": "0.1.0",
@@ -297,6 +304,8 @@
     "@dltech/atlas-serve": ["@dltech/atlas-serve@workspace:apps/serve"],
 
     "@dltech/atlas-ui": ["@dltech/atlas-ui@workspace:packages/ui"],
+
+    "@dltech/atlas-webterm": ["@dltech/atlas-webterm@workspace:apps/webterm"],
 
     "@dltech/atlas-wire": ["@dltech/atlas-wire@workspace:packages/wire"],
 

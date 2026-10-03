@@ -29,6 +29,7 @@ export { ATLAS_DIRECTORY_NAME, atlasDirectory } from './paths'
 export {
   sessionsDirectory,
   sessionDirectory,
+  contextDirectory,
   eventLogFile,
   ledgerFile,
   sessionLockFile,

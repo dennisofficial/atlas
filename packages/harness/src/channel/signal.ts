@@ -42,6 +42,7 @@ export type ChannelSignal =
   | StepSignal
   | TurnWorkingSignal
   | { type: 'events-appended' }
+  | { type: 'context-changed' }
   | RetryWaitingSignal
   | { type: 'retry-cleared' }
   | { type: 'pending-changed'; entries: PendingEntrySignal[] }

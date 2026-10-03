@@ -232,6 +232,7 @@ export function createConversationStore(args: {
   };
 
   const handleSignal = (signal: ChannelSignal) => {
+    if (signal.type === 'context-changed') return;
     progress = turnObserved({ progress, signal, now: readClock() });
 
     if (signal.type === "turn-working") {

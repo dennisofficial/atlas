@@ -7,8 +7,10 @@ import {
 } from '@dltech/atlas-harness'
 import type { FileBrowser } from '@dltech/atlas-harness'
 
+import { answerArchiveRead, isArchiveReadOp } from './archive-requests'
 import { answerAgentSteer, isAgentSteerOp } from './agent-steer'
 import { routeOperatorInput } from './operator-input'
+import { answerContextRead, isContextOp, type ContextReaders } from './context-requests'
 import {
   answerRequest,
   answerTranscriptRead,
@@ -44,6 +46,7 @@ export function createRequestRouter(args: {
   rewind?: ServeRewind | undefined
   agents?: ServeAgentSteer | undefined
   operatorInput?: Pick<import('@dltech/atlas-harness').OperatorInputPort, 'answer'> | undefined
+  context?: ContextReaders | undefined
   transcript?: TranscriptReaders | undefined
   selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
   sessionArchive?: (() => Promise<Uint8Array | null>) | undefined
@@ -52,6 +55,7 @@ export function createRequestRouter(args: {
   workspace?: WorkspaceOps | undefined
 }) {
   const { threadId, driver, files, log, snapshot, send, rewind, agents, transcript, selectModel } = args
+  const context = args.context
   const { sessionArchive, memoryArchive, restoreTranscript } = args
   const workspaceOps = args.workspace
   const state: { restoring: Promise<RestoreOutcome> | null } = { restoring: null }
@@ -153,6 +157,30 @@ export function createRequestRouter(args: {
     return
   }
 
+  if (isContextOp(frame.op)) {
+    if (context === undefined) {
+      send({
+        socket,
+        frame: refusedRequest({ replyTo: frame.id, message: 'this serve has no context folder to read' }),
+      })
+      return
+    }
+    void answerContextRead({ frame, context })
+      .then((reply) => send({ socket, frame: reply }))
+      .catch((error: unknown) =>
+        send({
+          socket,
+          frame: {
+            kind: EServeFrame.Reply,
+            replyTo: frame.id,
+            ok: false,
+            data: { message: messageOf(error, 'the context read failed') },
+          },
+        }),
+      )
+    return
+  }
+
   if (isTranscriptWriteOp(frame.op)) {
     if (transcript === undefined) {
       send({
@@ -232,68 +260,9 @@ export function createRequestRouter(args: {
     return
   }
 
-  if (frame.op === EClientRequest.ReadSessionArchive) {
-    const archive = sessionArchive
-    if (archive === undefined) {
-      send({
-        socket,
-        frame: refusedRequest({ replyTo: frame.id, message: 'this serve has no transcript to read' }),
-      })
-      return
-    }
-    void archive()
-      .then((bytes) =>
-        send({
-          socket,
-          frame: answeredRequest({
-            replyTo: frame.id,
-            data: { archive: bytes === null ? '' : Buffer.from(bytes).toString('base64') },
-          }),
-        }),
-      )
-      .catch((error: unknown) =>
-        send({
-          socket,
-          frame: {
-            kind: EServeFrame.Reply,
-            replyTo: frame.id,
-            ok: false,
-            data: { message: messageOf(error, 'the transcript archive failed') },
-          },
-        }),
-      )
-    return
-  }
-
-  if (frame.op === EClientRequest.ReadMemoryArchive) {
-    if (memoryArchive === undefined) {
-      send({
-        socket,
-        frame: refusedRequest({ replyTo: frame.id, message: 'this serve has no memory to read' }),
-      })
-      return
-    }
-    void memoryArchive()
-      .then((bytes) =>
-        send({
-          socket,
-          frame: answeredRequest({
-            replyTo: frame.id,
-            data: { archive: bytes === null ? '' : Buffer.from(bytes).toString('base64') },
-          }),
-        }),
-      )
-      .catch((error: unknown) =>
-        send({
-          socket,
-          frame: {
-            kind: EServeFrame.Reply,
-            replyTo: frame.id,
-            ok: false,
-            data: { message: messageOf(error, 'the memory archive failed') },
-          },
-        }),
-      )
+  if (isArchiveReadOp(frame.op)) {
+    void answerArchiveRead({ frame, sessionArchive, memoryArchive })
+      .then((reply) => send({ socket, frame: reply }))
     return
   }
 

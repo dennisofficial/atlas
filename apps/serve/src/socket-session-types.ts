@@ -7,6 +7,7 @@ import type { StepId } from '@dltech/atlas-harness'
 import type { ClientFrame, EClientFrame, RestoreTranscriptParams, ServeFrame } from '@dltech/atlas-harness'
 import type { FileBrowser, OperatorInputPort, PendingQueues } from '@dltech/atlas-harness'
 
+import type { ContextReaders } from './context-requests'
 import type { FrameBuffer, SignalFrame } from './frame-buffer'
 import type { TranscriptReaders } from './requests'
 import type { ServeAgentSteer, ServeRoster, ServeRewind } from './serve-app'
@@ -55,6 +56,7 @@ export type SessionHandlersArgs = {
   operatorInput?: Pick<OperatorInputPort, 'answer' | 'pending'> | undefined
   /** The operator's queued input; its changes are broadcast and take-back-pending answers from it. Absent in fakes. */
   pending?: PendingQueues | undefined
+  context?: ContextReaders | undefined
   /** The transcript stores the read-ops answer from; absent in fakes, which refuse the ops. */
   transcript?: TranscriptReaders | undefined
   /** Re-pins the running loop's model for a set-thread-model op; absent in fakes. */

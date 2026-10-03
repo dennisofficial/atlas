@@ -1,5 +1,8 @@
 import {
+  createSessionContextReader,
+  type ContextReader,
   ERuntimeKind,
+  RemoteContextFiles,
   type CloudBridge,
   type CloudChannel,
   type CloudStores,
@@ -23,9 +26,12 @@ import type { CloudSession } from './cloud/cloud-session'
 import type { AtlasApp } from './compose'
 import type { OpenedConversation } from './open-conversation'
 
+export type ContextReaders = ContextReader
+
 export type CloudAttachment = {
   kind: 'cloud'
   opened: OpenedConversation
+  context: ContextReaders
   bridge: CloudBridge
   stores: CloudStores
   session: CloudSession
@@ -33,7 +39,7 @@ export type CloudAttachment = {
   wakeInBackground?: (() => void) | undefined
 }
 
-export type LocalAttachment = { kind: 'local'; opened: OpenedConversation }
+export type LocalAttachment = { kind: 'local'; opened: OpenedConversation; context: ContextReaders }
 
 export type SurfaceAttachment = CloudAttachment | LocalAttachment
 
@@ -87,6 +93,7 @@ export const cloudBindingOf = (args: {
     attachment: {
       kind: 'cloud',
       opened: args.opened,
+      context: new RemoteContextFiles({ channel: args.channel }),
       bridge: args.bridge,
       stores: args.stores,
       session: args.session,
@@ -120,7 +127,11 @@ export const localBindingOf = (args: {
     services: args.local.services,
     rewindMachinery: undefined,
     workspace: args.workspace,
-    attachment: { kind: 'local', opened: args.opened },
+    attachment: {
+      kind: 'local',
+      opened: args.opened,
+      context: createSessionContextReader({ threadId: args.opened.threadId }),
+    },
   },
 })
 

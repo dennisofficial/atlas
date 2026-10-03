@@ -72,6 +72,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     rewind,
     agents,
     operatorInput: args.operatorInput,
+    ...(args.context === undefined ? {} : { context: args.context }),
     transcript,
     selectModel,
     sessionArchive,

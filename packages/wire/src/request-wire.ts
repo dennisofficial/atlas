@@ -93,6 +93,23 @@ export const restoreTranscriptParamsSchema = z.object({
 })
 export type RestoreTranscriptParams = z.infer<typeof restoreTranscriptParamsSchema>
 
+export const listContextFilesParamsSchema = z.object({ directory: z.string().optional() })
+export type ListContextFilesParams = z.infer<typeof listContextFilesParamsSchema>
+
+export const readContextFileParamsSchema = z.object({ path: z.string() })
+export type ReadContextFileParams = z.infer<typeof readContextFileParamsSchema>
+
+const directoryEntryWireSchema = z.object({ name: z.string(), isDirectory: z.boolean() })
+
+export const contextFileContentWireSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('text'), content: z.string(), truncated: z.boolean() }),
+  z.object({ type: z.literal('refused'), reason: z.string() }),
+])
+export type ContextFileContentWire = z.infer<typeof contextFileContentWireSchema>
+
+export const listContextFilesReplySchema = z.object({ entries: z.array(directoryEntryWireSchema) })
+export const readContextFileReplySchema = z.object({ file: contextFileContentWireSchema })
+
 export const readEventsReplySchema = z.object({ events: z.array(wireEventSchema) })
 export const readThreadReplySchema = z.object({ thread: wireThreadSchema.nullable() })
 export const readThreadsReplySchema = z.object({ threads: z.array(wireThreadSchema) })
