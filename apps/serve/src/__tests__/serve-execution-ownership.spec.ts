@@ -34,7 +34,7 @@ describe('serve owns execution independently of its actual socket clients', () =
       await hello(first)
       first.send({ kind: EClientFrame.Send, sendId: toSendId('owned-send'), text: 'start work' })
       await entered.done
-      const startedShell = world.shells.start({ threadId: OWNERSHIP_THREAD, command: 'sleep 600', description: 'held shell' })
+      const startedShell = await world.shells.start({ threadId: OWNERSHIP_THREAD, command: 'sleep 600', description: 'held shell' })
       if (!startedShell.ok) throw new Error(startedShell.reason)
       const startedService = await world.services.start({ threadId: OWNERSHIP_THREAD, command: 'sleep 600', description: 'held service' })
       if (!startedService.ok) throw new Error(startedService.reason)
@@ -83,7 +83,7 @@ describe('serve owns execution independently of its actual socket clients', () =
       await hello(client)
       client.send({ kind: EClientFrame.Send, sendId: toSendId('shutdown-send'), text: 'start work' })
       await client.waitFor((frame) => frame.kind === EServeFrame.TurnEnded)
-      const startedShell = world.shells.start({ threadId: OWNERSHIP_THREAD, command: 'sleep 600', description: 'held shell' })
+      const startedShell = await world.shells.start({ threadId: OWNERSHIP_THREAD, command: 'sleep 600', description: 'held shell' })
       if (!startedShell.ok) throw new Error(startedShell.reason)
       const startedService = await world.services.start({ threadId: OWNERSHIP_THREAD, command: 'sleep 600', description: 'held service' })
       if (!startedService.ok) throw new Error(startedService.reason)

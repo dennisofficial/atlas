@@ -6,32 +6,34 @@ import { closeConversation } from './open-conversation'
 import { useExitGuard } from './use-exit-guard'
 import type { WorkspaceProps } from './workspace-props'
 
-type ExitProps = Pick<WorkspaceProps, 'cloudBridge' | 'cloudSession' | 'onRestart'>
+type ExitProps = Pick<WorkspaceProps, 'localApp' | 'cloudBridge' | 'cloudSession' | 'onRestart'>
 
 export function useWorkspaceExit(args: { props: ExitProps }) {
   const { props } = args
   const renderer = useRenderer()
   const restarting = useRef(false)
   const cloud = props.cloudBridge !== null
+
+  const leave = (): boolean => {
+    if (restarting.current && props.onRestart !== null) {
+      props.onRestart()
+      return false
+    }
+    void closeConversation()
+    renderer.destroy()
+    return true
+  }
+
   const exitGuard = useExitGuard({
     cloud,
+    onKeepShells: () => void leave(),
     onExit: () => {
-      if (restarting.current && props.onRestart !== null) {
-        props.onRestart()
-        return
-      }
-      void closeConversation()
-      renderer.destroy()
+      props.localApp.prepareClose({ stopShells: true })
+      void leave()
     },
     onDetach: () => {
       props.cloudSession?.close()
-      if (restarting.current && props.onRestart !== null) {
-        props.onRestart()
-        return
-      }
-      void closeConversation()
-      renderer.destroy()
-      process.stdout.write(`${DETACH_EXIT_LINE}\n`)
+      if (leave()) process.stdout.write(`${DETACH_EXIT_LINE}\n`)
     },
   })
 

@@ -6,6 +6,7 @@ import {
   AGENT_TAG,
   DETACH_NOTE,
   EExitChoice,
+  KEEP_SHELLS_NOTE,
   exitGuardAgentRow,
   exitGuardOptions,
   exitGuardRow,
@@ -26,8 +27,9 @@ const at = (choice: EExitChoice): number =>
   LOCAL.findIndex((option) => option.choice === choice)
 
 describe('exit guard options', () => {
-  it('offers stopping and staying to a local conversation, hiding detach', () => {
+  it('offers keeping shells first, then stopping and staying, to a local conversation, hiding detach', () => {
     expect(LOCAL.map((option) => option.choice)).toEqual([
+      EExitChoice.KeepShells,
       EExitChoice.StopAndExit,
       EExitChoice.Stay,
     ])
@@ -35,6 +37,12 @@ describe('exit guard options', () => {
 
   it('offers detaching first to a cloud conversation, and never stopping', () => {
     expect(CLOUD.map((option) => option.choice)).toEqual([EExitChoice.Detach, EExitChoice.Stay])
+  })
+
+  it('says that only shells survive a local exit', () => {
+    expect(LOCAL[0]?.note).toBe(KEEP_SHELLS_NOTE)
+    expect(KEEP_SHELLS_NOTE).toBe('Shells continue; agents and services stop')
+    expect(LOCAL[1]?.note).toBeUndefined()
   })
 
   it('enables detaching and says what survives it', () => {
@@ -55,8 +63,8 @@ describe('exit guard options', () => {
 })
 
 describe('opening the exit guard', () => {
-  it('selects the first option', () => {
-    expect(resolve({ options: LOCAL, state: openedLocal() })).toBe(EExitChoice.StopAndExit)
+  it('selects keeping shells by default', () => {
+    expect(resolve({ options: LOCAL, state: openedLocal() })).toBe(EExitChoice.KeepShells)
   })
 
   it('selects detach first for a cloud conversation', () => {
@@ -66,7 +74,7 @@ describe('opening the exit guard', () => {
   })
 
   it('carries nothing but the selection', () => {
-    expect(openedLocal()).toEqual({ selected: at(EExitChoice.StopAndExit) })
+    expect(openedLocal()).toEqual({ selected: at(EExitChoice.KeepShells) })
   })
 })
 
@@ -74,18 +82,18 @@ describe('moving the selection', () => {
   it('steps down to the next option', () => {
     const moved = moveSelection({ options: LOCAL, state: openedLocal(), delta: 1 })
 
-    expect(moved.selected).toBe(at(EExitChoice.Stay))
+    expect(moved.selected).toBe(at(EExitChoice.StopAndExit))
   })
 
   it('steps back up', () => {
     const bottom = moveSelection({ options: LOCAL, state: openedLocal(), delta: 1 })
     const moved = moveSelection({ options: LOCAL, state: bottom, delta: -1 })
 
-    expect(moved.selected).toBe(at(EExitChoice.StopAndExit))
+    expect(moved.selected).toBe(at(EExitChoice.KeepShells))
   })
 
   it('clamps at the bottom rather than wrapping', () => {
-    const bottom = moveSelection({ options: LOCAL, state: openedLocal(), delta: 1 })
+    const bottom = moveSelection({ options: LOCAL, state: { selected: LOCAL.length - 1 }, delta: 0 })
     const past = moveSelection({ options: LOCAL, state: bottom, delta: 1 })
 
     expect(past.selected).toBe(at(EExitChoice.Stay))
@@ -94,7 +102,7 @@ describe('moving the selection', () => {
   it('clamps at the top rather than wrapping', () => {
     const past = moveSelection({ options: LOCAL, state: openedLocal(), delta: -1 })
 
-    expect(past.selected).toBe(at(EExitChoice.StopAndExit))
+    expect(past.selected).toBe(at(EExitChoice.KeepShells))
   })
 
   it('stands still on a zero delta', () => {
@@ -106,7 +114,7 @@ describe('moving the selection', () => {
 
 describe('resolving a choice', () => {
   it('returns the option the selection sits on', () => {
-    const moved = moveSelection({ options: LOCAL, state: openedLocal(), delta: 1 })
+    const moved = moveSelection({ options: LOCAL, state: { selected: LOCAL.length - 1 }, delta: 0 })
 
     expect(resolve({ options: LOCAL, state: moved })).toBe(EExitChoice.Stay)
   })
@@ -117,7 +125,7 @@ describe('resolving a choice', () => {
 
   it('reports the selected option itself', () => {
     expect(selectedOption({ options: LOCAL, state: openedLocal() })?.choice).toBe(
-      EExitChoice.StopAndExit,
+      EExitChoice.KeepShells,
     )
     expect(selectedOption({ options: LOCAL, state: { selected: -1 } })).toBeUndefined()
   })

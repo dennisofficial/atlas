@@ -29,10 +29,10 @@ for (const adapter of shellAdapters) {
   const describeAdapter = adapter.available ? describe : describe.skip
 
   describeAdapter(`${adapter.name} process adapter`, () => {
-    describe('an ending written at occurrence', () => {
+    describe('an ending written at occurrence', async () => {
       it('writes the whole remaining output into the log the moment the shell settles', async () => {
         const { registry, log } = openRegistry({ adapter })
-        const started = registry.start(job({ command: `printf 'first\\n'; sleep 0.3; printf 'second\\n'` }))
+        const started = await registry.start(job({ command: `printf 'first\\n'; sleep 0.3; printf 'second\\n'` }))
         if (!started.ok) throw new Error(started.reason)
         await printed({ registry, shellId: started.snapshot.shellId, text: 'first' })
 
@@ -53,7 +53,7 @@ for (const adapter of shellAdapters) {
         }
         const hooks: HookChainSource = () => new HookChain({ afterShell: [new PollHook()] })
         const { registry, log } = openRegistry({ adapter, hooks })
-        const started = registry.start(job({ command: 'echo pushed' }))
+        const started = await registry.start(job({ command: 'echo pushed' }))
         if (!started.ok) throw new Error(started.reason)
 
         await settle({ registry, shellId: started.snapshot.shellId })
@@ -61,15 +61,16 @@ for (const adapter of shellAdapters) {
 
         const events = (await log?.read({ threadId: THREAD })) ?? []
         expect(events.map((event) => event.type)).toEqual([
+          'background-shell-started',
           'background-shell-ended',
           'context-loaded',
         ])
-        expect(events[0]?.runId).toBe(events[1]?.runId)
+        expect(events[1]?.runId).toBe(events[2]?.runId)
       })
 
       it('the real incident: one shell_kill, one durable ending, and teardown synthesizes nothing', async () => {
         const { registry, log } = openRegistry({ adapter })
-        const started = registry.start(job({ command: 'echo before; sleep 60' }))
+        const started = await registry.start(job({ command: 'echo before; sleep 60' }))
         if (!started.ok) throw new Error(started.reason)
         await printed({ registry, shellId: started.snapshot.shellId, text: 'before' })
 
@@ -103,7 +104,7 @@ for (const adapter of shellAdapters) {
 
       it('writes a session-end ending at occurrence for a shell closeAll had to kill', async () => {
         const { registry, log } = openRegistry({ adapter })
-        const started = registry.start(job({ command: 'echo before-close; sleep 60' }))
+        const started = await registry.start(job({ command: 'echo before-close; sleep 60' }))
         if (!started.ok) throw new Error(started.reason)
         await printed({ registry, shellId: started.snapshot.shellId, text: 'before-close' })
 
@@ -121,7 +122,7 @@ for (const adapter of shellAdapters) {
 
       it('writes the caller-chosen killedBy when closeAll is given one', async () => {
         const { registry, log } = openRegistry({ adapter })
-        const started = registry.start(job({ command: 'sleep 60' }))
+        const started = await registry.start(job({ command: 'sleep 60' }))
         if (!started.ok) throw new Error(started.reason)
 
         await registry.closeAll({ killedBy: EKilledBy.ContainerSwitch })
@@ -137,7 +138,7 @@ for (const adapter of shellAdapters) {
 
       it('a second model kill of the same shell reads the same single ending', async () => {
         const { registry, log } = openRegistry({ adapter })
-        const started = registry.start(job({ command: 'sleep 60' }))
+        const started = await registry.start(job({ command: 'sleep 60' }))
         if (!started.ok) throw new Error(started.reason)
 
         const first = registry.kill({
@@ -175,11 +176,11 @@ for (const adapter of shellAdapters) {
         }
         const hooks: HookChainSource = () => new HookChain({ afterShell: [new GatedHook()] })
         const { registry, log } = openRegistry({ adapter, hooks })
-        const started = registry.start(job({ command: 'echo done' }))
+        const started = await registry.start(job({ command: 'echo done' }))
         if (!started.ok) throw new Error(started.reason)
 
         await settle({ registry, shellId: started.snapshot.shellId })
-        registry.removeShells({
+        await registry.removeShells({
           threadId: THREAD,
           shellIds: [started.snapshot.shellId],
           by: EKilledBy.Rewind,

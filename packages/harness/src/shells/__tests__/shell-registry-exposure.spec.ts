@@ -19,21 +19,21 @@ const EXPOSURE: PortExposure = {
   url: 'http://localhost:41237',
 }
 
-describe('a background shell with an exposed port', () => {
-  it('carries the mapping on its snapshot from the moment it starts', () => {
+describe('a background shell with an exposed port', async () => {
+  it('carries the mapping on its snapshot from the moment it starts', async () => {
     const { registry, log } = openRegistry({ adapter: localShellAdapter })
 
-    const started = registry.start({ ...job({ command: 'sleep 60' }), exposure: EXPOSURE })
+    const started = await registry.start({ ...job({ command: 'sleep 60' }), exposure: EXPOSURE })
     if (!started.ok) throw new Error(started.reason)
 
     expect(started.snapshot.exposure).toEqual(EXPOSURE)
     expect(registry.list({ threadId: THREAD })[0]?.exposure).toEqual(EXPOSURE)
   })
 
-  it('carries no mapping on a shell that never asked for one', () => {
+  it('carries no mapping on a shell that never asked for one', async () => {
     const { registry, log } = openRegistry({ adapter: localShellAdapter })
 
-    const started = registry.start(job({ command: 'sleep 60' }))
+    const started = await registry.start(job({ command: 'sleep 60' }))
     if (!started.ok) throw new Error(started.reason)
 
     expect(started.snapshot.exposure).toBeUndefined()
@@ -42,7 +42,7 @@ describe('a background shell with an exposed port', () => {
   it('keeps the mapping on the ending event the log records', async () => {
     const { registry, log } = openRegistry({ adapter: localShellAdapter })
 
-    const started = registry.start({ ...job({ command: 'sleep 60' }), exposure: EXPOSURE })
+    const started = await registry.start({ ...job({ command: 'sleep 60' }), exposure: EXPOSURE })
     if (!started.ok) throw new Error(started.reason)
 
     registry.kill({ shellId: started.snapshot.shellId, by: EKilledBy.User, threadId: THREAD })

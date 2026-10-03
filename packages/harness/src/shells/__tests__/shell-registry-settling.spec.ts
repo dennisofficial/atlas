@@ -63,10 +63,10 @@ const settlingOf = async ({
   throw new Error(`settling never became ${wanted}`)
 }
 
-describe('a shell death still settling', () => {
+describe('a shell death still settling', async () => {
   it('is not settling for a healthy running shell', async () => {
     const { registry } = openRegistry()
-    const started = registry.start(job({ command: 'sleep 30' }))
+    const started = await registry.start(job({ command: 'sleep 30' }))
     if (!started.ok) throw new Error(started.reason)
     expect(registry.settling?.()).toBe(false)
   })
@@ -75,13 +75,15 @@ describe('a shell death still settling', () => {
     const blocked = blockedAfterShell()
     const { registry, log } = openRegistry({ hooks: blocked.hooks })
 
-    const started = registry.start(job({ command: 'echo done' }))
+    const started = await registry.start(job({ command: 'echo done' }))
     if (!started.ok) throw new Error(started.reason)
     await settle({ registry, shellId: started.snapshot.shellId })
     await blocked.entered
 
     expect(registry.settling?.()).toBe(true)
-    expect(log?.appended ?? []).toHaveLength(0)
+    expect(
+      (log?.appended ?? []).filter((draft) => draft.type === 'background-shell-ended'),
+    ).toHaveLength(0)
 
     blocked.release()
     await settlingOf({ registry, wanted: false })
@@ -90,7 +92,7 @@ describe('a shell death still settling', () => {
 
   it('stays settling for a killed shell that has not been reaped yet', async () => {
     const { registry, log } = openRegistry()
-    const started = registry.start(job({ command: 'sleep 30' }))
+    const started = await registry.start(job({ command: 'sleep 30' }))
     if (!started.ok) throw new Error(started.reason)
 
     const killed = registry.kill({
@@ -113,7 +115,7 @@ describe('a shell death still settling', () => {
     const unsubscribe = registry.onSettled?.(() => announcements.push(announcements.length))
     if (unsubscribe === undefined) throw new Error('onSettled is optional but must exist here')
 
-    const started = registry.start(job({ command: 'echo done' }))
+    const started = await registry.start(job({ command: 'echo done' }))
     if (!started.ok) throw new Error(started.reason)
     await settle({ registry, shellId: started.snapshot.shellId })
     await blocked.entered

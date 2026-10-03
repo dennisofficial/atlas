@@ -11,14 +11,12 @@ import type {
 } from '@dltech/atlas-harness'
 import {
   liveServicesOf,
-  liveShellsOf,
   ServiceRecovery,
-  ShellRecovery,
   atlasDirectory,
   claimSession,
   ESessionClaim,
   releaseSession,
-  sessionDirectory,
+  registryFor,
   sessionLockFile,
 } from '@dltech/atlas-harness'
 
@@ -38,7 +36,7 @@ export async function closeConversation(): Promise<void> {
 }
 
 export async function claimThread(args: { threadId: ThreadId }): Promise<string | null> {
-  const sessionDir = sessionDirectory({ home: atlasDirectory(), sessionId: args.threadId })
+  const sessionDir = await registryFor({ home: atlasDirectory() }).sessionDirFor({ threadId: args.threadId })
   const claim = await claimSession({
     sessionDir,
     lockFile: sessionLockFile({ sessionDir }),
@@ -53,25 +51,6 @@ export async function claimThread(args: { threadId: ThreadId }): Promise<string 
   }
   heldSessionDir = sessionDir
   return null
-}
-
-const shellRecoveryFor = new WeakMap<EventLogPort, ShellRecovery>()
-
-const shellRecovery = (args: {
-  log: EventLogPort
-  ids: IdPort
-  shells?: ShellRegistryPort | undefined
-}): ShellRecovery => {
-  const held = shellRecoveryFor.get(args.log)
-  if (held !== undefined) return held
-  const shells = args.shells
-  const created = new ShellRecovery({
-    log: args.log,
-    ids: args.ids,
-    live: shells === undefined ? undefined : () => liveShellsOf(shells.listEverywhere()),
-  })
-  shellRecoveryFor.set(args.log, created)
-  return created
 }
 
 const serviceRecoveryFor = new WeakMap<EventLogPort, ServiceRecovery>()
@@ -100,7 +79,7 @@ export async function recoverLostProcesses(args: {
   shells?: ShellRegistryPort | undefined
   services?: ServiceRegistryPort | undefined
 }): Promise<OpenedConversation['lostShells']> {
-  const lostShells = await shellRecovery(args).recordLost({ threadId: args.threadId })
+  const lostShells = (await args.shells?.reconcile({ threadId: args.threadId })) ?? []
   await serviceRecovery(args).recordLost({ threadId: args.threadId })
   return lostShells
 }

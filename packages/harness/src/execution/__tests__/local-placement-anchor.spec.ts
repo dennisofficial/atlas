@@ -58,18 +58,20 @@ const setup = async (args: { prepare?: (call: { cwd: string; threadId: ThreadId 
 }
 
 class OrderedShells extends UnstaffedShells {
+  private killed = false
+
   constructor(private readonly order: string[]) {
     super()
   }
 
-  override list(): readonly ShellSnapshot[] {
+  override list(args: { threadId: ThreadId }): readonly ShellSnapshot[] {
     return [
       {
         shellId: toShellId('sh_1'),
-        threadId: toThreadId('thread'),
+        threadId: args.threadId,
         command: 'bun run dev',
         description: 'dev',
-        status: EShellStatus.Running,
+        status: this.killed ? EShellStatus.Killed : EShellStatus.Running,
         startedAt: '2026-09-15T00:00:00.000Z',
         lastOutputAt: '2026-09-15T00:00:00.000Z',
         totalCharacters: 0,
@@ -80,7 +82,11 @@ class OrderedShells extends UnstaffedShells {
 
   override kill(args?: { shellId: string; by: EKilledBy; threadId: ThreadId }): ShellKillOutcome {
     this.order.push('kill')
-    return args === undefined ? { ok: false, reason: 'no args' } : { ok: false, reason: 'gone' }
+    if (args === undefined) return { ok: false, reason: 'no args' }
+    this.killed = true
+    const snapshot = this.list({ threadId: args.threadId })[0]
+    if (snapshot === undefined) return { ok: false, reason: 'unknown shell' }
+    return { ok: true, snapshot }
   }
 }
 

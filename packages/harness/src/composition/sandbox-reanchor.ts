@@ -125,6 +125,12 @@ export class DelegatingProcessPort extends ProcessPort {
   which(args: { command: string; threadId?: ThreadId | undefined }): string | null {
     return this.current().which(args)
   }
+
+  override async launchDetached(args: SpawnCommand): Promise<void> {
+    const port = this.current()
+    if (port.launchDetached === undefined) throw new Error('this execution location cannot launch a durable supervisor')
+    await port.launchDetached(args)
+  }
 }
 
 export type RetargetableStatus = SandboxStatusState & {

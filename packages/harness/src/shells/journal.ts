@@ -13,6 +13,7 @@ export function startedDraft(args: { snapshot: ShellSnapshot }): EventDraft {
     command: snapshot.command,
     description: snapshot.description,
     bootId: snapshot.bootId,
+    ...(snapshot.outputPath === undefined ? {} : { outputPath: snapshot.outputPath }),
   }
 }
 
@@ -31,6 +32,9 @@ export function endedDraft(args: { snapshot: ShellSnapshot; delta: ShellDelta })
     output: delta.text,
     droppedCharacters: delta.droppedCharacters,
     remainingCharacters: delta.remainingCharacters,
+    ...(snapshot.outputPath === undefined ? {} : { outputPath: snapshot.outputPath }),
+    ...(delta.outputStart === undefined ? {} : { outputStart: delta.outputStart }),
+    ...(delta.outputEnd === undefined ? {} : { outputEnd: delta.outputEnd }),
   }
 }
 
@@ -48,6 +52,11 @@ export function awaitingInputDraft(args: {
     output: delta.text,
     droppedCharacters: delta.droppedCharacters,
     remainingCharacters: delta.remainingCharacters,
+    ...(snapshot.bootId === undefined ? {} : { bootId: snapshot.bootId }),
+    ...(snapshot.inputSupported === undefined ? {} : { inputSupported: snapshot.inputSupported }),
+    ...(snapshot.outputPath === undefined ? {} : { outputPath: snapshot.outputPath }),
+    ...(delta.outputStart === undefined ? {} : { outputStart: delta.outputStart }),
+    ...(delta.outputEnd === undefined ? {} : { outputEnd: delta.outputEnd }),
   }
 }
 
@@ -67,33 +76,38 @@ export function matchedDraft(args: {
     lines: matched.lines.join('\n'),
     matchCount: matched.matchCount,
     watchDisarmed: matched.disarmed ? true : undefined,
+    ...(snapshot.bootId === undefined ? {} : { bootId: snapshot.bootId }),
+    ...(snapshot.outputPath === undefined ? {} : { outputPath: snapshot.outputPath }),
   }
 }
 
 export enum EJournalSkip {
   Superseded = 'superseded',
   Failed = 'failed',
+  Ended = 'ended',
 }
 
 export type JournalAppend = { appended: true } | { appended: false; reason: EJournalSkip }
 
-type ShellKey = { threadId: ThreadId; shellId: ShellId }
+type ShellKey = {
+  threadId: ThreadId
+  shellId: ShellId
+  snapshot?: Pick<ShellSnapshot, 'bootId'> | undefined
+  occurrenceId?: string | undefined
+}
 
-const keyOf = ({ threadId, shellId }: ShellKey): string => `${threadId}\u0000${shellId}`
+const shellScope = ({ threadId, shellId }: ShellKey): string => `${threadId}\u0000${shellId}\u0000`
+const keyOf = (args: ShellKey): string => `${shellScope(args)}${args.snapshot?.bootId ?? ''}\u0000${args.occurrenceId ?? ''}`
 
-/**
- * The single writer of `background-shell-*` events. Appends for one (thread, shell) pair run one
- * after another in the order they were enqueued, so a shell's facts land in occurrence order even
- * when their callers race; different shells never wait on each other. A failed append is warned
- * about and dropped, and the chain carries on: a lost fact, never a corrupted one. `started` is
- * held to the same rule, so a caller that must not wait on its own record simply does not await it.
- */
 export class ShellEventJournal {
   private readonly log: EventLogPort
   private readonly ids: IdPort
   private readonly warn: (message: string) => void
   private readonly tails = new Map<string, Promise<void>>()
   private readonly disowned = new Set<string>()
+  private readonly terminal = new Set<string>()
+  private readonly endingWrites = new Map<string, Promise<JournalAppend>>()
+  private readonly failedEndings = new Set<string>()
 
   constructor(args: { log: EventLogPort; ids: IdPort; warn: (message: string) => void }) {
     this.log = args.log
@@ -138,23 +152,41 @@ export class ShellEventJournal {
       hooked: readonly EventDraft[]
     },
   ): Promise<JournalAppend> {
-    return this.enqueue({
+    const key = keyOf(args)
+    if (this.endingWrites.has(key) && !this.failedEndings.has(key)) {
+      return Promise.resolve({ appended: false, reason: EJournalSkip.Ended })
+    }
+    this.failedEndings.delete(key)
+    this.terminal.add(key)
+    const ending = this.enqueue({
       ...args,
       kind: 'ending',
       drafts: () => [endedDraft({ snapshot: args.snapshot, delta: args.delta }), ...args.hooked],
     })
+    this.endingWrites.set(key, ending)
+    void ending.then((result) => {
+      if (!result.appended && result.reason === EJournalSkip.Failed) this.failedEndings.add(key)
+    })
+    return ending
   }
 
-  disown(args: ShellKey): Promise<void> {
-    const key = keyOf(args)
-    this.disowned.add(key)
-    return this.tails.get(key) ?? Promise.resolve()
+  async flush(): Promise<void> {
+    await Promise.all(this.tails.values())
+  }
+
+  async disown(args: ShellKey): Promise<void> {
+    const scope = shellScope(args)
+    this.disowned.add(scope)
+    await Promise.all([...this.tails].flatMap(([key, tail]) => key.startsWith(scope) ? [tail] : []))
   }
 
   private enqueue(args: ShellKey & { kind: string; drafts: () => EventDraft[] }): Promise<JournalAppend> {
     const key = keyOf(args)
-    if (this.disowned.has(key)) {
+    if (this.disowned.has(shellScope(args))) {
       return Promise.resolve({ appended: false, reason: EJournalSkip.Superseded })
+    }
+    if (this.terminal.has(key) && args.kind !== 'ending') {
+      return Promise.resolve({ appended: false, reason: EJournalSkip.Ended })
     }
 
     const prior = this.tails.get(key) ?? Promise.resolve()
@@ -170,6 +202,9 @@ export class ShellEventJournal {
   private async write(
     args: ShellKey & { kind: string; drafts: () => EventDraft[] },
   ): Promise<JournalAppend> {
+    if (this.disowned.has(shellScope(args))) {
+      return { appended: false, reason: EJournalSkip.Superseded }
+    }
     try {
       await this.log.append({
         threadId: args.threadId,

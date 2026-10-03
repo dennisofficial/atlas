@@ -18,9 +18,9 @@ import { VercelDriver, type VercelCredentials } from '@dltech/atlas-harness'
 import { composeHarness } from '@dltech/atlas-harness'
 import { loadSettings } from '@dltech/atlas-harness'
 import { portToken } from '@dltech/atlas-harness'
-import { SecretsStoreToken, ServeSessionToken } from '@dltech/atlas-harness'
-import { ServiceRecovery, ShellRecovery } from '@dltech/atlas-harness'
-import { liveServicesOf, liveShellsOf } from '@dltech/atlas-harness'
+import { SecretsStoreToken, ServeSessionToken, SessionRegistryToken, SessionEnvironmentProcessPort } from '@dltech/atlas-harness'
+import { ServiceRecovery } from '@dltech/atlas-harness'
+import { liveServicesOf } from '@dltech/atlas-harness'
 import { ThreadStorePort } from '@dltech/atlas-harness'
 
 import { activateTransferredChildren, adoptTransferredChildren, holdFamilyIntake } from '@dltech/atlas-harness'
@@ -123,17 +123,20 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
 
         const credentials = vercelCredentialsOf(args.env)
         container.register(portToken(ProcessPort), {
-          useValue: new ServeProcessPort(
-            credentials === null
-              ? null
-              : {
-                  driver: new VercelDriver({
-                    credentials,
-                    cloudUrl: args.controlPlaneUrl,
-                  }),
-                  name: sandboxNameFor({ threadId: args.threadId }),
-                },
-          ),
+          useValue: new SessionEnvironmentProcessPort({
+            sessions: container.resolve(SessionRegistryToken),
+            inner: new ServeProcessPort(
+              credentials === null
+                ? null
+                : {
+                    driver: new VercelDriver({
+                      credentials,
+                      cloudUrl: args.controlPlaneUrl,
+                    }),
+                    name: sandboxNameFor({ threadId: args.threadId }),
+                  },
+            ),
+          }),
         })
 
         return { log, threads, modelBridge }
@@ -141,15 +144,19 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     },
   })
 
-  const shellRecovery = new ShellRecovery({
-    log: app.surface.log,
-    ids: app.ids,
-    live: () => liveShellsOf(app.shells.listEverywhere()),
-  })
   const serviceRecovery = new ServiceRecovery({
     log: app.surface.log,
     ids: app.ids,
     live: () => liveServicesOf(app.services.list()),
+  })
+
+  const workspaceHooks = workspaceHooksFor({
+    threadId: args.threadId,
+    shells: app.shells,
+    services: app.services,
+    log: app.surface.log,
+    threads: app.surface.threads,
+    ids: app.ids,
   })
 
   let pausedChildren: readonly ThreadId[] = []
@@ -169,13 +176,13 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     workspace: app.workspace,
     pending: app.pending,
     ...(app.intake === undefined ? {} : { intake: app.intake }),
-    sessionArchive: () => serveSessionArchive({ threadId: args.threadId }),
+    sessionArchive: () => serveSessionArchive({ threadId: args.threadId, endFamilyShells: workspaceHooks.endFamilyShells }),
     memoryArchive: () => serveMemoryArchive({ cwd: args.cwd, identity: args.identity ?? null }),
     adoptChildren: async ({ threadId }) => {
       await adoptTransferredChildren({ agents: app.agents, threadId })
       return activateTransferredChildren({ agents: app.agents, log: app.surface.log, threadId })
     },
-    recordLostShells: ({ threadId }) => shellRecovery.recordLost({ threadId }),
+    recordLostShells: ({ threadId }) => app.shells.reconcile({ threadId }),
     recordLostServices: ({ threadId }) => serviceRecovery.recordLost({ threadId }),
     whenChildrenSettled: ({ threadId }) => app.agents.whenChildrenSettled({ threadId }),
     family: {
@@ -210,14 +217,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       threads: app.surface.threads,
       ids: app.ids,
     }),
-    ...workspaceHooksFor({
-      threadId: args.threadId,
-      shells: app.shells,
-      services: app.services,
-      log: app.surface.log,
-      threads: app.surface.threads,
-      ids: app.ids,
-    }),
+    ...workspaceHooks,
     roster: {
       snapshot: () => ({
         shells: [...app.shells.listEverywhere()],

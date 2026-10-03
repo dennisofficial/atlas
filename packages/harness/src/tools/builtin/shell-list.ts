@@ -10,7 +10,6 @@ import {
   type ToolRun,
 } from '@dltech/atlas-core'
 
-import {  portToken } from '../../container/injection'
 import { EShellStatus, type ShellSnapshot } from '../../shells/background-shell'
 import { ShellRegistryPort } from '../../shells/shell-registry'
 
@@ -22,11 +21,11 @@ const description = [
   'List the background shells this conversation has started, running and finished alike.',
   'Set runningOnly to leave out the ones that have already ended.',
   'Each entry names its shellId, its command, whether it is still running, and how much it has printed.',
-  'A shell marked as awaiting input is stuck: its stdin is closed, so nothing can answer it and it must be killed.',
+  'A shell marked as awaiting input may need an answer through shell_input. Durable shells preserve input and output across Atlas restarts.',
   'Reading a shell with shell_output does not appear here; this only says what exists.',
 ].join(' ')
 
-const AWAITING_INPUT = 'awaiting input — its stdin is closed, so kill it and re-run with input piped in'
+const AWAITING_INPUT = 'awaiting input — answer with shell_input when supported'
 
 function lineFor(snapshot: ShellSnapshot): string {
   const state =
@@ -36,7 +35,8 @@ function lineFor(snapshot: ShellSnapshot): string {
         : 'running'
       : shellEnding(snapshot)
 
-  return `${snapshot.shellId}  ${quotedShellCommand(snapshot.command)}  ${state}  (${snapshot.totalCharacters} characters printed)`
+  const path = snapshot.outputPath === undefined ? '' : `  output: ${snapshot.outputPath}`
+  return `${snapshot.shellId}  ${quotedShellCommand(snapshot.command)}  ${state}  (${snapshot.totalCharacters} characters printed)${path}`
 }
 
 export class ShellListTool extends SchemaTool<typeof inputSchema> {
@@ -84,6 +84,7 @@ export class ShellListTool extends SchemaTool<typeof inputSchema> {
           lastOutputAt: snapshot.lastOutputAt,
           totalCharacters: snapshot.totalCharacters,
           awaitingInput: snapshot.awaitingInput,
+          outputPath: snapshot.outputPath,
         })),
       },
       modelText: shown.map(lineFor).join('\n'),

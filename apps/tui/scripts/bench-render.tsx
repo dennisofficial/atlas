@@ -195,6 +195,7 @@ const benchApp = (args: {
       stillDying: 0,
     }),
     executionPinned: false,
+    prepareClose: () => {},
     close: async () => {},
   }
 }

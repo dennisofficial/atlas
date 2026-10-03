@@ -103,6 +103,13 @@ export class DockerProcessPort implements ProcessPort {
     }
   }
 
+  async launchDetached(args: SpawnCommand): Promise<void> {
+    await this.withRecoveredSandbox(async (sandbox) => {
+      const exec = await this.createExecFor({ sandbox, command: args, cmd: args.cmd })
+      await this.engine.startExec({ execId: exec.id, detach: true })
+    })
+  }
+
   async exposePort(args: { containerPort: number }): Promise<PortExposureOutcome> {
     const sandbox = await this.ensure()
     const proxy = await ensureSandboxProxy({
@@ -194,25 +201,32 @@ export class DockerProcessPort implements ProcessPort {
   }
 
   private async startExec(args: SpawnCommand): Promise<RunningExec> {
+    return await this.withRecoveredSandbox((sandbox) => this.execIn({ sandbox, command: args }))
+  }
+
+  private async withRecoveredSandbox<T>(run: (sandbox: Sandbox) => Promise<T>): Promise<T> {
     try {
-      return await this.execIn({ sandbox: await this.ensure(), command: args })
+      return await run(await this.ensure())
     } catch (error) {
       if (!containerGone(error)) throw error
 
       this.onStatus?.({ state: ESandboxState.Stopped })
       this.sandboxStopped()
-      return await this.execIn({ sandbox: await this.ensure(), command: args })
+      return await run(await this.ensure())
     }
   }
 
-  private async execIn(args: { sandbox: Sandbox; command: SpawnCommand }): Promise<RunningExec> {
+  private async createExecFor(args: {
+    sandbox: Sandbox
+    command: SpawnCommand
+    cmd: readonly string[]
+  }): Promise<{ id: string }> {
     const { sandbox, command } = args
     this.imageEnv ??= (await this.engine.inspectContainer({ id: sandbox.id })).config.env
 
-    const pidfile = `/tmp/atlas-exec-${crypto.randomUUID()}.pid`
-    const exec = await this.engine.createExec({
+    return await this.engine.createExec({
       containerId: sandbox.id,
-      cmd: ['sh', '-c', `printf %s $$ > ${pidfile}; exec "$@"`, 'sh', ...command.cmd],
+      cmd: args.cmd,
       cwd: command.cwd,
       env:
         command.env === undefined
@@ -223,6 +237,17 @@ export class DockerProcessPort implements ProcessPort {
               home: this.sandboxConfig.home,
               atlasBin: atlasBinDirectory(),
             }),
+    })
+  }
+
+  private async execIn(args: { sandbox: Sandbox; command: SpawnCommand }): Promise<RunningExec> {
+    const { sandbox, command } = args
+
+    const pidfile = `/tmp/atlas-exec-${crypto.randomUUID()}.pid`
+    const exec = await this.createExecFor({
+      sandbox,
+      command,
+      cmd: ['sh', '-c', `printf %s $$ > ${pidfile}; exec "$@"`, 'sh', ...command.cmd],
     })
     const tracked = trackExec({
       stream: await this.engine.startExec({ execId: exec.id }),

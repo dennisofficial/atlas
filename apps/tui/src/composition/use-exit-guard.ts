@@ -23,11 +23,12 @@ export type ExitGuardControl = {
 
 export function useExitGuard(args: {
   cloud: boolean
+  onKeepShells: () => void
   onExit: () => void
   onDetach: () => void
 }): ExitGuardControl {
   const [state, setState] = useState<ExitGuardState | null>(null)
-  const { cloud, onExit, onDetach } = args
+  const { cloud, onKeepShells, onExit, onDetach } = args
   const options = useMemo(() => exitGuardOptions({ cloud }), [cloud])
 
   const handleOpen = useCallback(() => setState(openExitGuard({ options })), [options])
@@ -37,10 +38,11 @@ export function useExitGuard(args: {
   const handlePick = useCallback(
     (choice: EExitChoice) => {
       setState(null)
+      if (choice === EExitChoice.KeepShells) onKeepShells()
       if (choice === EExitChoice.StopAndExit) onExit()
       if (choice === EExitChoice.Detach) onDetach()
     },
-    [onDetach, onExit],
+    [onDetach, onExit, onKeepShells],
   )
 
   const handleKey = useCallback(

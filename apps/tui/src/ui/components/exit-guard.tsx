@@ -14,7 +14,7 @@ export const exitGuardCells = stopGuardCells
 
 export const HEADING = 'Background work is running'
 
-export const SUBTITLE = 'The following will stop when you exit:'
+export const SUBTITLE = 'Shells can keep running; agents and services stop when you exit:'
 
 export const CLOUD_HEADING = 'Leave the cloud session?'
 

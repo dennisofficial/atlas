@@ -32,7 +32,7 @@ describe('leaving a cloud conversation', () => {
       expect(frame).toContain('Move to background and exit')
       expect(frame).toContain(DETACH_NOTE.split(';')[0] ?? '')
       expect(frame).not.toContain(LOCAL_HEADING)
-      expect(frame).not.toContain('Exit and stop tasks')
+      expect(frame).not.toContain('Stop tasks and exit')
     } finally {
       await mounted.done()
     }

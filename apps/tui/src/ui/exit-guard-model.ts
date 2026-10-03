@@ -12,6 +12,7 @@ import {
 } from './stop-guard-model'
 
 export enum EExitChoice {
+  KeepShells = 'keep-shells',
   StopAndExit = 'stop-and-exit',
   Detach = 'detach',
   Stay = 'stay',
@@ -30,8 +31,16 @@ export const DETACH_NOTE =
 
 export const DETACH_EXIT_LINE = `detached — ${DETACH_NOTE}`
 
+export const KEEP_SHELLS_NOTE = 'Shells continue; agents and services stop'
+
 const LOCAL_OPTIONS: readonly ExitGuardOption[] = Object.freeze([
-  { choice: EExitChoice.StopAndExit, label: 'Exit and stop tasks', enabled: true },
+  {
+    choice: EExitChoice.KeepShells,
+    label: 'Keep shells running and exit',
+    enabled: true,
+    note: KEEP_SHELLS_NOTE,
+  },
+  { choice: EExitChoice.StopAndExit, label: 'Stop tasks and exit', enabled: true },
   { choice: EExitChoice.Stay, label: 'Stay', enabled: true },
 ])
 
@@ -45,10 +54,6 @@ const CLOUD_OPTIONS: readonly ExitGuardOption[] = Object.freeze([
   { choice: EExitChoice.Stay, label: 'Stay', enabled: true },
 ])
 
-/**
- * Detaching is a cloud promise — the sandbox outlives the window — so a local conversation never
- * sees it, and a cloud one never sees "stop tasks": exiting cannot stop what runs on the sandbox.
- */
 export function exitGuardOptions(args: { cloud: boolean }): readonly ExitGuardOption[] {
   return args.cloud ? CLOUD_OPTIONS : LOCAL_OPTIONS
 }

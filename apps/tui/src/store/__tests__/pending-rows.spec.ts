@@ -203,7 +203,7 @@ describe('what waits under the working indicator', () => {
     expect(rows[0]).toEqual({
       kind: EPendingKind.BackgroundShell,
       id: 'shell-matched-bash_1',
-      text: 'Background shell "Run full TUI suite" matched its watch and is still running',
+      text: 'Background shell "Run full TUI suite" matched its watch',
       failed: false,
       body: null,
       entryKind: EEntryKind.BackgroundShellMatched,

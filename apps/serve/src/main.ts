@@ -1,6 +1,12 @@
+import { runSupervisorCli } from '@dltech/atlas-harness'
 import { startServe } from './index'
 import { logServeFatal, serveOpLog } from './fatal-log'
 import { ServeNeedsConfiguration } from './serve-config'
+
+if (process.argv[2] === '--shell-supervise') {
+  await runSupervisorCli({ argv: process.argv.slice(3) })
+  process.exit(0)
+}
 
 const FATAL = 1
 

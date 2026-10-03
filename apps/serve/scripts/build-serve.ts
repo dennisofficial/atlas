@@ -2,6 +2,8 @@ import { chmod, copyFile, mkdir, readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 
+import { writeSupervisorBundle } from '../../../packages/harness/src/shells/supervisor-bundle'
+
 const RIPGREP_PLATFORMS: Readonly<Record<string, string>> = {
   'bun-darwin-arm64': 'darwin-arm64',
   'bun-darwin-x64': 'darwin-x64',
@@ -51,6 +53,7 @@ async function stageVendoredRipgrep(args: { target: string | undefined }): Promi
 
 const target = arg('--target')
 const version = await stageVendoredRipgrep({ target })
+await writeSupervisorBundle()
 
 const cmd = [
   'bun',

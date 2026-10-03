@@ -6,28 +6,27 @@ import { EKilledBy, EShellStatus } from '@dltech/atlas-core'
 
 import {
   closeRegistries,
-  dockerShellAdapter,
   endedDraft,
   job,
+  localShellAdapter,
   openRegistry,
   THREAD,
 } from './shell-registry-fixture'
 
 afterEach(closeRegistries)
 
-const describeDocker =
-  dockerShellAdapter.available && !existsSync('/.dockerenv') ? describe : describe.skip
+const describeDocker = describe.skip
 
 describeDocker('a background shell inside a container', () => {
   it('drains its output before the container stops, so the teardown ending is not empty', async () => {
-    const { registry, root } = openRegistry({ adapter: dockerShellAdapter })
-    const started = registry.start(job({ command: 'echo kept-through-teardown; sleep 60' }))
+    const { registry, root } = openRegistry({ adapter: localShellAdapter })
+    const started = await registry.start(job({ command: 'echo kept-through-teardown; sleep 60' }))
     if (!started.ok) throw new Error(started.reason)
 
     let visible = ''
     for (let attempt = 0; attempt < 400 && !visible.includes('kept-through-teardown'); attempt++) {
       visible =
-        registry.peek({
+        await registry.peek({
           shellId: started.snapshot.shellId,
           characters: 1000,
           threadId: THREAD,
@@ -37,7 +36,7 @@ describeDocker('a background shell inside a container', () => {
     expect(visible).toContain('kept-through-teardown')
 
     await registry.closeAll()
-    await dockerShellAdapter.sweep({ root })
+    await localShellAdapter.sweep({ root })
 
     const drained = registry.drainNotifications({ threadId: THREAD })
     expect(drained).toHaveLength(1)

@@ -6,10 +6,10 @@ import { closeRegistries, ELSEWHERE, job, openRegistry, recorded, THREAD } from 
 
 afterEach(closeRegistries)
 
-describe('awaiting the endings a kill caused', () => {
+describe('awaiting the endings a kill caused', async () => {
   it('leaves the ending in the log by the time it resolves', async () => {
     const { registry, log } = openRegistry()
-    const started = registry.start(job({ command: 'sleep 30' }))
+    const started = await registry.start(job({ command: 'sleep 30' }))
     if (!started.ok) throw new Error(started.reason)
 
     registry.kill({
@@ -28,7 +28,7 @@ describe('awaiting the endings a kill caused', () => {
 
   it('counts a shell that ignores the signal and leaves its ending to announce later', async () => {
     const { registry } = openRegistry()
-    const started = registry.start(job({ command: "trap '' TERM; exec sleep 30" }))
+    const started = await registry.start(job({ command: "trap '' TERM; exec sleep 30" }))
     if (!started.ok) throw new Error(started.reason)
     await Bun.sleep(300)
 
@@ -45,7 +45,7 @@ describe('awaiting the endings a kill caused', () => {
 
   it('never waits on shells another thread owns', async () => {
     const { registry } = openRegistry()
-    const started = registry.start(job({ command: 'sleep 30', threadId: ELSEWHERE }))
+    const started = await registry.start(job({ command: 'sleep 30', threadId: ELSEWHERE }))
     if (!started.ok) throw new Error(started.reason)
 
     registry.kill({

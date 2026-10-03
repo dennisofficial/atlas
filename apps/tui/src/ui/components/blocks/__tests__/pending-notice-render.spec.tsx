@@ -97,7 +97,7 @@ describe('the durable and the pending notice are the same block', () => {
           {
             kind: EPendingKind.BackgroundShell,
             id: 'shell-matched-bash_1',
-            text: 'Background shell "Run full TUI suite" matched its watch and is still running',
+            text: 'Background shell "Run full TUI suite" matched its watch',
             failed: false,
             body: '12 fail\n13 fail',
             entryKind: EEntryKind.BackgroundShellMatched,
@@ -108,20 +108,20 @@ describe('the durable and the pending notice are the same block', () => {
     )
 
     const frame = setup.captureCharFrame()
-    expect(frame).toContain('matched its watch and is still running')
+    expect(frame).toContain('matched its watch')
     expect(frame).toContain('12 fail')
     expect(frame).not.toContain('↵ matches')
   })
 
-  test('a pending awaiting-input shell stays marked failed, because it cannot be answered', async () => {
+  test('a pending input prompt is not marked failed, because the shell can still be answered', async () => {
     const setup = await shown(
       <PendingBlock
         rows={[
           {
             kind: EPendingKind.BackgroundShell,
             id: 'shell-awaiting-bash_1',
-            text: 'Background shell "Run full TUI suite" is waiting on input and cannot be answered',
-            failed: true,
+            text: 'Background shell "Run full TUI suite" reached an input prompt',
+            failed: false,
             body: null,
             entryKind: EEntryKind.BackgroundShellAwaitingInput,
           } satisfies PendingRow,
@@ -131,7 +131,7 @@ describe('the durable and the pending notice are the same block', () => {
     )
 
     const frame = setup.captureCharFrame()
-    expect(frame).toContain('is waiting on input and cannot be answered')
+    expect(frame).toContain('reached an input prompt')
     expect(frame).not.toContain('↵ output')
   })
 

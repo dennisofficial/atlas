@@ -1,21 +1,30 @@
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { defaultPipeline, EMPTY_PROMPT, type ModelPort } from '@dltech/atlas-core'
+import {
+  defaultPipeline,
+  EMPTY_PROMPT,
+  EShellStatus,
+  toThreadId,
+  type ClockPort,
+  type ModelPort,
+} from '@dltech/atlas-core'
 
 import { buildHarness, ETurnStatus, LoopTurnRunner, type AtlasHarness } from '..'
 import { scriptedModel } from '../../model/testing/scripted-model'
-import { endedDraft } from '../../shells/notifications'
+import { HookChain } from '../../hooks/registry'
+import type { ShellAttachment, ShellLaunchOutcome, ShellLaunchSpec } from '../../shells/port'
+import { ShellLauncherPort } from '../../shells/port'
+import { endedDraft } from '../../shells/journal'
+import { toShellId } from '../../shells/shell-id'
+import { BunShellRegistry, type ShellRegistryPort } from '../../shells/shell-registry'
 import { RandomIds } from '../../store/ids'
 import { appendPending } from '../pending-intake'
 import type { PendingDrain } from '../run-turn'
-import {
-  closeRegistries,
-  job,
-  openRegistry,
-  recorded,
-  settle,
-  THREAD,
-} from '../../shells/__tests__/shell-registry-fixture'
+import { RecordingLog } from '../../shells/__tests__/shell-registry-log'
 import { createTempHome, type TempHome } from './temp-home'
 
 const PROJECT_DIRECTORY = '/w'
@@ -27,7 +36,6 @@ afterEach(async () => {
     await entry.harness.close()
     entry.temp.discard()
   }
-  await closeRegistries()
 })
 
 async function runEndingAfterFinalMessage(args: { wakesTurn: boolean }): Promise<{
@@ -110,20 +118,94 @@ describe('a shell ending drained after the final message', () => {
   })
 })
 
+const SPEC_THREAD = toThreadId('thread-under-test')
+
+const fakeClock: ClockPort = { now: () => '2026-09-26T00:00:00.000Z' }
+
+class AlreadyExitedLauncher extends ShellLauncherPort {
+  constructor(private readonly root: string) {
+    super()
+  }
+
+  launch(spec: ShellLaunchSpec): Promise<ShellLaunchOutcome> {
+    const attachment: ShellAttachment = {
+      shellId: toShellId('bash_1'),
+      startedAt: fakeClock.now(),
+      outputPath: join(this.root, 'output.log'),
+      cursorPath: join(this.root, 'cursor.json'),
+      inputSupported: false,
+      totalBytes: () => 0,
+      readOutput: () => Promise.resolve(new Uint8Array()),
+      writeInput: () => Promise.resolve({ ok: false, reason: 'no input' }),
+      kill: () => undefined,
+      watch: ({ onExit }) => {
+        queueMicrotask(() =>
+          onExit({ status: EShellStatus.Exited, exitCode: 0, endedAt: fakeClock.now(), totalBytes: 0 }),
+        )
+      },
+      detach: () => Promise.resolve(),
+    }
+    void spec
+    return Promise.resolve({ ok: true, attachment })
+  }
+
+  inspect(): Promise<readonly never[]> {
+    return Promise.resolve([])
+  }
+}
+
+const fakeRegistries: { registry: ShellRegistryPort; root: string }[] = []
+
+afterEach(async () => {
+  for (const entry of fakeRegistries.splice(0)) {
+    await entry.registry.closeAll()
+    rmSync(entry.root, { recursive: true, force: true })
+  }
+})
+
+function openFakeRegistry(): {
+  registry: ShellRegistryPort
+  log: RecordingLog
+  threadId: typeof SPEC_THREAD
+} {
+  const root = mkdtempSync(join(tmpdir(), 'atlas-shell-ending-wake-'))
+  const log = new RecordingLog()
+  const registry = new BunShellRegistry({
+    root,
+    clock: fakeClock,
+    hooks: () => new HookChain({}),
+    launcher: new AlreadyExitedLauncher(root),
+    log,
+    ids: new RandomIds(),
+  })
+  fakeRegistries.push({ registry, root })
+  return { registry, log, threadId: SPEC_THREAD }
+}
+
 describe('an ending the occurrence already wrote', () => {
   it('is not appended a second time when the turn drains the wake-up bell', async () => {
-    const { registry, log } = openRegistry()
-    const started = registry.start(job({ command: 'echo done' }))
+    const { registry, log, threadId } = openFakeRegistry()
+    const started = await registry.start({
+      threadId,
+      command: 'echo done',
+      description: 'Run a background job',
+    })
     if (!started.ok) throw new Error(started.reason)
 
-    await settle({ registry, shellId: started.snapshot.shellId })
-    await recorded({ log })
-
-    if (log === undefined) throw new Error('the registry opened without a log')
+    for (let attempt = 0; attempt < 400; attempt += 1) {
+      const recorded = (await log.read({ threadId })).filter(
+        (event) => event.type === 'background-shell-ended',
+      )
+      if (recorded.length > 0) break
+      if (attempt === 399) throw new Error('no background-shell-ended ever reached the log')
+      await Bun.sleep(25)
+    }
 
     const drained = await appendPending({
-      drain: async ({ threadId }) => {
-        const batch = registry.prepareNotifications({ threadId })
+      drain: async ({ threadId: drainedThread }) => {
+        const prepare = registry.prepareNotifications
+        if (prepare === undefined) throw new Error('this registry prepares no notifications')
+        const batch = prepare.call(registry, { threadId: drainedThread })
         return {
           drafts: batch.drafts,
           wakesTurn: batch.wakesTurn,
@@ -132,11 +214,11 @@ describe('an ending the occurrence already wrote', () => {
       },
       log,
       ids: new RandomIds(),
-      threadId: THREAD,
+      threadId,
     })
 
     expect(drained.ok && !drained.drained).toBe(true)
-    const ended = (await log.read({ threadId: THREAD })).filter(
+    const ended = (await log.read({ threadId })).filter(
       (event) => event.type === 'background-shell-ended',
     )
     expect(ended).toHaveLength(1)

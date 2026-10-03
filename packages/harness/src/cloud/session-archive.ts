@@ -7,16 +7,16 @@ import { locationOfPlacement, type PlacementRecord, type ThreadId, type Workspac
 import { readMeta, sessionMetaSchema, threadMetaSchema, writeMeta } from '../store/sessions/meta'
 import { metaWithPlacement } from '../store/sessions/placement-meta'
 import { sessionMetaFile, threadMetaFile } from '../store/sessions/paths'
+import { assertShellsTerminal, isPortableSessionFile, markShellsImported } from './portable-session-file'
 
 /**
  * The session transcript moves between machines as a `.tar.gz` of the session directory, built and
  * read with the platform's own `tar` for the same reason the context archive is: no archive
  * library joins the dependency tree, and macOS bsdtar and the sandbox image's GNU tar read each
- * other's output. The session lock is left out — it names the process that holds it, which never
- * survives the move.
+ * other's output. The session lock and each shell's control token, socket, lock and leases are left
+ * out — they name processes of one machine, which never survive the move. A shell without a terminal
+ * status.json refuses the build: its process could still be writing.
  */
-const SESSION_LOCK_NAME = 'lock'
-
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
@@ -48,8 +48,9 @@ export async function buildSessionArchive(args: {
   sessionDir: string
   tarCommand?: string | undefined
 }): Promise<Buffer | undefined> {
-  const keys = (await collectFiles(args.sessionDir)).filter((key) => key !== SESSION_LOCK_NAME)
+  const keys = (await collectFiles(args.sessionDir)).filter((key) => isPortableSessionFile({ key }))
   if (keys.length === 0) return undefined
+  await assertShellsTerminal({ sessionDir: args.sessionDir, keys })
 
   const workDir = await mkdtemp(join(tmpdir(), 'atlas-session-build-'))
   const contentDir = join(workDir, 'content')
@@ -98,7 +99,7 @@ export async function extractSessionArchive(args: {
     })
 
     const keys = await collectFiles(contentDir)
-    const staged = keys.filter((key) => safeRelativeSegment(key) !== null)
+    const staged = keys.filter((key) => safeRelativeSegment(key) !== null && isPortableSessionFile({ key }))
 
     const replacement = join(workDir, 'replacement')
     await mkdir(replacement)
@@ -107,6 +108,7 @@ export async function extractSessionArchive(args: {
       await mkdir(join(target, '..'), { recursive: true })
       await cp(join(contentDir, key), target, { recursive: true })
     }
+    await markShellsImported({ root: replacement, keys: staged })
     const held = args.preserveOwnership
     if (held !== undefined) {
       const file = threadMetaFile({ sessionDir: replacement, threadId: held.threadId })

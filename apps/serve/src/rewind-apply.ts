@@ -19,7 +19,7 @@ import type { ServeTurnDriver } from './turn-driver'
  */
 export type ServeRewindTarget = {
   removeChildren(args: { threadId: ThreadId; agentIds: readonly ThreadId[] }): Promise<void>
-  removeShells(args: { threadId: ThreadId; shellIds: readonly string[]; by: EKilledBy }): void
+  removeShells(args: { threadId: ThreadId; shellIds: readonly string[]; by: EKilledBy }): Promise<void> | void
   removeServices(args: { serviceIds: readonly string[]; by: EKilledBy }): void
 }
 
@@ -58,7 +58,7 @@ export async function answerRewind(args: {
   const serviceIds = cuts.flatMap((cut) => (cut.kind === 'service' ? [cut.serviceId] : []))
 
   await args.target.removeChildren({ threadId: args.threadId, agentIds })
-  args.target.removeShells({ threadId: args.threadId, shellIds, by: EKilledBy.Rewind })
+  await args.target.removeShells({ threadId: args.threadId, shellIds, by: EKilledBy.Rewind })
   args.target.removeServices({ serviceIds, by: EKilledBy.Rewind })
 
   const toSeq = parsed.data.toSeq

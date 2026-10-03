@@ -1,26 +1,32 @@
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { beforeAll, describe, expect, it } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
 import { toThreadId, type ToolOutputChunk, type ToolOutcome } from '@dltech/atlas-core'
 
-import { HookChain } from '../../../hooks/registry'
-import { BunShellRegistry } from '../../../shells/shell-registry'
-import { SystemClock } from '../../../store'
 import { BashTool } from '../bash'
+import { discardSuites, openRuntimeRegistry, type RuntimeSuite } from './runtime-launcher'
 
 let root = ''
+let suite: RuntimeSuite
+const suites: RuntimeSuite[] = []
 
 beforeAll(async () => {
   root = await mkdtemp(join(tmpdir(), 'atlas-bash-live-'))
+  suite = await openRuntimeRegistry({ root })
+  suites.push(suite)
+})
+
+afterAll(async () => {
+  await discardSuites(suites)
 })
 
 const invoke = (args: {
   command: string
   onOutput?: ((chunk: ToolOutputChunk) => void) | undefined
 }): Promise<ToolOutcome> =>
-  new BashTool(new BunShellRegistry(root, new SystemClock(), () => new HookChain({}))).invoke({
+  new BashTool(suite.shells).invoke({
     input: { command: args.command, description: 'Exercise the shell' },
     signal: new AbortController().signal,
     idempotencyKey: 'bash-live-1',
@@ -47,7 +53,7 @@ describe('a foreground bash call with an output listener', () => {
     expect(streamed('stdout')).toBe('one\ntwo\n')
     expect(streamed('stderr')).toBe('err\n')
     expect(chunks.length).toBeGreaterThanOrEqual(3)
-  })
+  }, 30_000)
 
   it('streams nothing for a call that the pre-flight checks refuse', async () => {
     const chunks: ToolOutputChunk[] = []
@@ -56,5 +62,5 @@ describe('a foreground bash call with an output listener', () => {
 
     expect(outcome.ok).toBe(false)
     expect(chunks).toEqual([])
-  })
+  }, 30_000)
 })

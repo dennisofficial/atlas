@@ -9,9 +9,10 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { buildHarness, BunShellRegistry, HookChain, SystemClock } from '@dltech/atlas-harness'
+import { buildHarness } from '@dltech/atlas-harness'
 
 import { benchModel } from './bench-model'
+import { benchShellRegistry } from './bench-shells'
 import { mountBenchRender, publishingRunner } from './bench-render'
 
 const WARMUP_MS = 1_000
@@ -26,7 +27,7 @@ const harness = await buildHarness({
   launchDirectory: root,
 })
 const { channel, runner } = publishingRunner({ harness, root })
-const shells = new BunShellRegistry(root, new SystemClock(), () => new HookChain({}))
+const { registry: shells } = await benchShellRegistry({ root })
 const visibleThread = await harness.threads.create({ title: 'idle-visible' })
 const render = await mountBenchRender({ root, harness, shells, channel, runner, threadId: visibleThread.id })
 

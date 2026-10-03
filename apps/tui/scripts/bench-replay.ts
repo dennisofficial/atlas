@@ -7,15 +7,13 @@ import { join } from 'node:path'
 import { toThreadId, type ThreadId } from '@dltech/atlas-core'
 import {
   buildHarness,
-  BunShellRegistry,
   eventLogFile,
-  HookChain,
   readSessionMetaSync,
   sessionMetaFile,
-  SystemClock,
 } from '@dltech/atlas-harness'
 
 import { benchModel } from './bench-model'
+import { benchShellRegistry } from './bench-shells'
 import { mountBenchRender, publishingRunner } from './bench-render'
 
 const CRASH_SCREEN_MARKER = 'something broke'
@@ -212,7 +210,7 @@ const main = async (): Promise<void> => {
     launchDirectory: root,
   })
   const { channel, runner } = publishingRunner({ harness, root })
-  const shells = new BunShellRegistry(root, new SystemClock(), () => new HookChain({}))
+  const { registry: shells } = await benchShellRegistry({ root })
 
   const rows: ReplayRow[] = []
   try {

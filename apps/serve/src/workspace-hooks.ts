@@ -1,7 +1,6 @@
 import {
   EKilledBy,
   EServiceStatus,
-  EShellStatus,
   type EventLogPort,
   type IdPort,
   type ThreadId,
@@ -28,9 +27,28 @@ export const familyThreadIdsOf = async (args: {
   return family
 }
 
+type FamilyShells = Pick<ShellRegistryPort, 'stopOwners'>
+
+const STILL_WRITING = 'background processes are still writing to the workspace, so it cannot be captured consistently'
+
+export function endFamilyShellsFor(args: {
+  root: ThreadId
+  shells: FamilyShells
+  threads: Pick<ThreadStorePort, 'spawned'>
+}): () => Promise<void> {
+  return async () => {
+    const family = await familyThreadIdsOf({ root: args.root, threads: args.threads })
+    await args.shells.stopOwners({
+      threadIds: [...family],
+      by: EKilledBy.ContainerSwitch,
+      ms: KILL_SETTLE_MS,
+    })
+  }
+}
+
 export function stopWorkspaceProcessesFor(args: {
   root: ThreadId
-  shells: Pick<ShellRegistryPort, 'listEverywhere' | 'kill' | 'awaitEndings' | 'drainNotifications'>
+  shells: Pick<ShellRegistryPort, 'stopOwners' | 'drainNotifications'>
   services: Pick<ServiceRegistryPort, 'list' | 'stop' | 'awaitEndings' | 'drainNotifications'>
   threads: Pick<ThreadStorePort, 'spawned'>
   log: Pick<EventLogPort, 'append'>
@@ -39,33 +57,19 @@ export function stopWorkspaceProcessesFor(args: {
   const { shells, services } = args
   return async () => {
     const family = await familyThreadIdsOf({ root: args.root, threads: args.threads })
-    const owned = shells
-      .listEverywhere()
-      .filter((shell) => shell.status === EShellStatus.Running && family.has(shell.threadId))
-    for (const shell of owned) {
-      shells.kill({ shellId: shell.shellId, by: EKilledBy.ContainerSwitch, threadId: shell.threadId })
-    }
+    const shellEndings = shells.stopOwners({
+      threadIds: [...family],
+      by: EKilledBy.ContainerSwitch,
+      ms: KILL_SETTLE_MS,
+    })
     for (const service of services.list()) {
       if (service.status === EServiceStatus.Running) {
         services.stop({ serviceId: service.serviceId, by: EKilledBy.ContainerSwitch })
       }
     }
-    const stragglers = await Promise.all([
-      ...[...new Set(owned.map((shell) => shell.threadId))].map((threadId) =>
-        shells.awaitEndings({ threadId, ms: KILL_SETTLE_MS }),
-      ),
-      services.awaitEndings({ ms: STOP_SETTLE_MS }),
-    ])
-    const stillRunning =
-      shells
-        .listEverywhere()
-        .filter((shell) => shell.status === EShellStatus.Running && family.has(shell.threadId))
-        .length + services.list().filter((service) => service.status === EServiceStatus.Running).length
-    if (stillRunning > 0 || stragglers.some((count) => count > 0)) {
-      throw new Error(
-        'background processes are still writing to the workspace, so it cannot be captured consistently',
-      )
-    }
+    const [, stragglers] = await Promise.all([shellEndings, services.awaitEndings({ ms: STOP_SETTLE_MS })])
+    const stillRunning = services.list().filter((service) => service.status === EServiceStatus.Running).length
+    if (stillRunning > 0 || stragglers > 0) throw new Error(STILL_WRITING)
     for (const threadId of family) {
       const drafts = [
         ...shells.drainNotifications({ threadId }),
@@ -84,8 +88,15 @@ export function workspaceHooksFor(args: {
   log: EventLogPort
   threads: ThreadStorePort
   ids: IdPort
-}): Pick<ServeApp, 'stopWorkspaceProcesses' | 'recordWorkspaceArrival'> {
+}): Pick<ServeApp, 'stopWorkspaceProcesses' | 'recordWorkspaceArrival'> & {
+  endFamilyShells: () => Promise<void>
+} {
   return {
+    endFamilyShells: endFamilyShellsFor({
+      root: args.threadId,
+      shells: args.shells,
+      threads: args.threads,
+    }),
     stopWorkspaceProcesses: stopWorkspaceProcessesFor({
       root: args.threadId,
       shells: args.shells,

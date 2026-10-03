@@ -116,7 +116,7 @@ describe('quitting while a background shell is still running', () => {
     try {
       const frame = await quit(setup)
 
-      expect(frame).toContain('Exit and stop tasks')
+      expect(frame).toContain('Stop tasks and exit')
       expect(frame).not.toContain('Move to background and exit')
       expect(frame).toContain('Stay')
     } finally {
@@ -160,6 +160,8 @@ describe('quitting while a background shell is still running', () => {
     try {
       await quit(setup)
 
+      setup.mockInput.pressArrow('down')
+      await settle(PRESS_MS)
       setup.mockInput.pressArrow('down')
       await settle(PRESS_MS)
       await setup.flush()
@@ -218,12 +220,50 @@ describe('quitting while a background shell is still running', () => {
     }
   }, 60_000)
 
+  it('keeps shells running on the default choice, asking the harness to stop nothing', async () => {
+    const app = appWith([shell({ shellId: 'bash_1', command: 'bun run dev' })])
+    const setup = await opened(app)
+
+    try {
+      await quit(setup)
+
+      setup.mockInput.pressEnter()
+      await settle(PRESS_MS)
+
+      expect(app.closeRequests.some((request) => request.stopShells === true)).toBe(false)
+      expect(app.shells.killed).toEqual([])
+      expect(app.shells.closes).toBe(0)
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('asks the harness to stop shells before it exits on Stop tasks and exit', async () => {
+    const app = appWith([shell({ shellId: 'bash_1', command: 'bun run dev' })])
+    const setup = await opened(app)
+
+    try {
+      await quit(setup)
+
+      setup.mockInput.pressArrow('down')
+      await settle(PRESS_MS)
+      setup.mockInput.pressEnter()
+      await settle(PRESS_MS)
+
+      expect(app.closeRequests).toEqual([{ stopShells: true }])
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
   it('closes on staying, leaving the conversation where it was', async () => {
     const setup = await opened(appWith([shell({ shellId: 'bash_1', command: 'bun run dev' })]))
 
     try {
       await quit(setup)
 
+      setup.mockInput.pressArrow('down')
+      await settle(PRESS_MS)
       setup.mockInput.pressArrow('down')
       await settle(PRESS_MS)
       setup.mockInput.pressEnter()

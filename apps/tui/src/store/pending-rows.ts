@@ -66,7 +66,7 @@ function pendingShellRow(notice: PendingShellNotice): PendingRow {
       kind: EPendingKind.BackgroundShell,
       id: `shell-awaiting-${snapshot.shellId}`,
       text: shellAwaitingInputLine(snapshot),
-      failed: true,
+      failed: false,
       body: null,
       entryKind: EEntryKind.BackgroundShellAwaitingInput,
     }

@@ -85,6 +85,13 @@ export class LoginEnvProcessPort implements ProcessPort {
     }
   }
 
+  async launchDetached(args: SpawnCommand): Promise<void> {
+    if (this.inner.launchDetached === undefined) {
+      throw new Error('the port this thread runs on cannot launch detached processes')
+    }
+    await this.inner.launchDetached(args)
+  }
+
   which(args: { command: string; threadId?: ThreadId | undefined }): string | null {
     return this.inner.which(args)
   }

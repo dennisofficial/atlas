@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -242,6 +242,7 @@ describe('mountedAtlasHomeSubtrees', () => {
       ).toEqual([
         { path: join(atlasHome, 'memory'), mode: EMountMode.ReadWrite },
         { path: join(atlasHome, 'skills'), mode: EMountMode.ReadWrite },
+        { path: join(atlasHome, 'sessions'), mode: EMountMode.ReadWrite },
       ])
     })
   })
@@ -254,9 +255,19 @@ describe('mountedAtlasHomeSubtrees', () => {
       expect(
         mountedAtlasHomeSubtrees({ worktree: '/unrelated/worktree', atlasHome }),
       ).toEqual([
+        { path: join(atlasHome, 'sessions'), mode: EMountMode.ReadWrite },
         { path: join(atlasHome, 'services'), mode: EMountMode.ReadWrite },
         { path: join(atlasHome, 'bin'), mode: EMountMode.ReadWrite },
       ])
+    })
+  })
+
+  it('creates the sessions directory so a fresh home still mounts it', async () => {
+    await withAtlasHome(async (atlasHome) => {
+      expect(
+        mountedAtlasHomeSubtrees({ worktree: '/unrelated/worktree', atlasHome }),
+      ).toEqual([{ path: join(atlasHome, 'sessions'), mode: EMountMode.ReadWrite }])
+      expect((await stat(join(atlasHome, 'sessions'))).isDirectory()).toBe(true)
     })
   })
 
@@ -310,6 +321,7 @@ describe('mountedAtlasHomeSubtrees', () => {
         })
         expect(probed.atlasHomeSubtrees).toEqual([
           { path: join(atlasHome, 'memory'), mode: EMountMode.ReadWrite },
+          { path: join(atlasHome, 'sessions'), mode: EMountMode.ReadWrite },
         ])
 
         const explicit = sandboxConfigFromHost({

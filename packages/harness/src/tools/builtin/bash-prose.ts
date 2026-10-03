@@ -19,7 +19,12 @@ export function bashDescription({
     'call carries a description: a few imperative words naming the job, which the developer reads in',
     'place of the command.',
     'Start a long-running command with runInBackground to get a shell id back at once; the shell',
-    'outlives the turn that started it. A server - a dev server, a database, anything that listens',
+    'outlives the turn that started it and reconnects after an Atlas restart. Full background output',
+    'is saved in the owning thread’s session folder; the returned output path can be read or grepped.',
+    'shell_input writes to a durable shell’s stdin. ATLAS_SESSION_DIR and ATLAS_THREAD_DIR name the',
+    'owning session and thread data directories in each command. They are per-agent, not shared mutable state.',
+    'The output file does not rotate. A 5 GiB kernel file-size limit bounds regular-file writes for background commands.',
+    'A server - a dev server, a database, anything that listens',
     'until stopped - belongs on service_start instead. A watch pattern delivers matching lines as',
     'they arrive; match failure markers as well as success, since silence is indistinguishable from',
     'progress. A background shell that prints nothing for 30 minutes is killed, and that ending wakes',
@@ -80,7 +85,7 @@ export function noOpRefusal(): string {
 export function watchRefusal(): string {
   return [
     'this command only ends when what it watches ends, so in the foreground it holds the whole turn open for minutes nothing else can use.',
-    'Start this exact command with runInBackground instead: its ending reaches you wherever you are with everything it printed, and a watch pattern naming both the outcome you want and the failures that would end the wait can wake you sooner.',
+    'Start this exact command with runInBackground instead: its ending reaches you with an output excerpt and the full log path, and a watch pattern naming both the outcome you want and the failures that would end the wait can wake you sooner.',
     'If the point was a one-shot look, run the one-shot form - gh run view, gh pr checks without --watch, tail without -f.',
   ].join(' ')
 }
@@ -88,7 +93,7 @@ export function watchRefusal(): string {
 export function truncatedWatchRefusal(): string {
   return [
     'piping a CI watch through tail or head keeps only its last lines, and the lines that name a failing check are the ones that fall off - a green-looking tail has merged a red run before.',
-    'Run the watch untruncated with runInBackground: its ending carries everything it printed, and when output grows past the cap the tail is what survives anyway.',
+    'Run the watch untruncated with runInBackground: its ending carries an output excerpt and the path to the complete spool, so failing lines remain available through Read or Grep.',
   ].join(' ')
 }
 

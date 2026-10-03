@@ -44,7 +44,7 @@ export const shellEndingFailed = (ending: ShellEnding): boolean =>
   (ending.exitCode !== undefined && ending.exitCode !== 0)
 
 export const shellAwaitingInputLine = (shell: NamedShell): string =>
-  `Background shell ${named(shell)} is waiting on input and cannot be answered`
+  `Background shell ${named(shell)} reached an input prompt`
 
 export const shellMatchedNoticeLine = (shell: NamedShell): string =>
-  `Background shell ${named(shell)} matched its watch and is still running`
+  `Background shell ${named(shell)} matched its watch`

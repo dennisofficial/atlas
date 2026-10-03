@@ -197,8 +197,8 @@ and there should be one of it, not two.
 background-shell notices, and service exits enter through source adapters, then cross the same
 prepare → append → acknowledge seam. Preparation retains the source input; a successful append
 acknowledges exactly the captured batch. Failed preparation or append releases any reservation and
-leaves the input available for retry. A shell's output cursor advances only on acknowledgement,
-never beyond the captured output. Typed drafts remain editable until reserved for commit; immutable
+leaves the input available for retry. Shell attention acknowledges durable journal references, not output. A shell's model read cursor
+advances only through its output-read operation; watch and ending notifications do not consume it. Typed drafts remain editable until reserved for commit; immutable
 notices never acquire an operator's edit or cancellation affordance.
 
 Local TUI and serve drivers register with this intake and announce transitions back to idle. The
@@ -232,17 +232,24 @@ reader pages away from it. That window is shorter than what the registry retains
 renderable the tail rewrites each time the shell prints. `harness/src/shells/` owns the lifecycle and the bash tool is a caller, which is why the
 process primitives live there rather than under `tools/builtin/`.
 
-**Output is buffered in memory behind a byte cursor, not written to a file.** Claude Code hands the
-child an fd and tails the file, which buys it a process the harness need not stay alive to drain; Atlas
-already drains the pipe incrementally for the foreground path, so a bounded ring buffer per shell costs
-one module instead of a temp directory, an `O_NOFOLLOW | O_EXCL` open against planted symlinks, a
-size watchdog and unlink-on-exit. What it costs instead: output beyond the retained window is dropped
-rather than paged from disk, and a read reports how many characters it lost rather than pretending the
-gap is not there. A shell that prints past a hard overflow cap is killed, because nothing else bounds
-the decoder.
+**Background output is an append-only file owned by a durable supervisor.** Each command has one
+supervisor that owns its stdin and child wait, redirects stdout and stderr directly into `spool.out`,
+and atomically records terminal status before exiting. Atlas reads byte ranges; it is not in the raw
+output write path. A restart can reconnect to live output and input, or ingest a real exit code recorded
+while Atlas was absent. The model receives the output path and can Read or Grep complete history.
 
-**Completion is written once at occurrence and pushed to its owner.** After output drains and
-after-shell hooks finish, the registry appends the ending and hook drafts to the durable log. The
+The spool lives at `<atlasHome>/sessions/<session>/threads/<thread>/shells/<unique-shell-id>/`, beside
+its owner's existing flat event log. The session registry resolves that root for main agents,
+sub-agents, and teammates. `ATLAS_SESSION_DIR` and `ATLAS_THREAD_DIR` are per-command environment
+values; a background command also has `ATLAS_SHELL_DIR`. This does not change `TMPDIR`.
+
+The default kernel file-size limit is 5 GiB and there is no rotation, so byte offsets stay valid.
+The limit applies to each regular file the command writes, not only its spool and not total disk use.
+See `docs/research/durable-shells.md` for the process, storage, and recovery contracts.
+
+**Every shell fact has one journal writer.** Starts, matches, input prompts, and endings are appended
+at occurrence through one serialized writer per shell. After terminal output is captured and
+after-shell hooks finish, the writer appends the ending and hook drafts to the durable log. The
 shell's log adapter publishes `events-appended` without closing a model step that is still streaming.
 Only after the append succeeds does the registry queue an owner-scoped wake bell. Shared intake
 acknowledges that bell without appending another ending; its wake meaning is independent of new
@@ -267,13 +274,11 @@ no output and changes no cursor; dropping or acknowledging it cannot erase the d
 and returns a read of the captured ending. The durable event remains the announcement; assembly
 suppresses a redundant model-facing telling when a successful kill result already supplied it.
 
-**Nothing times a background shell out.** A quiet shell is not a stuck one — a test suite can run for
-minutes without printing — so there is no threshold, no sweep and no timer. What survives is the signal
-that was actually diagnostic: output ending *without* a newline on a prompt-shaped last line, which is
-what a process waiting on stdin leaves behind. That is computed on demand as `awaitingInput` on the
-snapshot rather than announced, so it informs `shell_list`, `shell_output` and the sidebar without ever
-interrupting a command that is merely slow. Its stdin is closed, so nothing can answer it; every place
-that surfaces it says to kill it and re-run with input piped in.
+**Supervision survives attachment loss.** Explicit command deadlines and the existing silence ceiling
+are enforced by the supervisor. Prompt-shaped output can notify the owning thread; `shell_input`
+answers through the reconnectable stdin pipe. This is not a pseudo-terminal. Periodic still-running
+check-ins are removed; old events remain readable. A supervisor-owned unclaimed timeout bounds work
+that nobody reattaches to. There is no independent spool-directory sweep.
 
 **Every ending notifies, and the model does not get a say.** There was a `notifyOnExit` axis —
 `always` / `on-failure` / `never` — and it is gone. An option nobody should choose should not exist:
@@ -289,10 +294,11 @@ can show the durable ending immediately even when an overlay blocks the model wa
 rechecks when a driver becomes idle, so an arrival after the final drain cannot strand itself. A
 stable pending witness bounds repeated wakes that fail before their first drain.
 
-**Teardown records what it kills.** Closing the session kills every background shell, and those
-endings are worth keeping — reopening the conversation should say where the dev server went.
-`closeAll()` awaits the occurrence writes; teardown acknowledges remaining bells while intake is
-suspended, without synthesizing another ending.
+**Normal exit detaches; an explicit stop records what it kills.** The local quit guard defaults to
+keeping shells, while agents and services still stop. `detachAll()` closes observations and releases
+Atlas-owned power assertions without signalling children or fabricating endings. `closeAll()` is the
+intentional kill operation and awaits durable endings. The disposal backstop also detaches, so it
+cannot undo the quit choice. Caffeinate remains tied to Atlas, not an invisible supervisor.
 
 **A shell belongs to the thread that started it.** The registry is one object for the process, but every
 read is scoped to an owner: `start` records the thread, and `list`, `read`, `peek`, `kill`,
@@ -301,13 +307,14 @@ and cannot kill, a shell another conversation is running — the model asking `s
 learn about a `bash_3` it never started. Endings route to the owning thread's log rather than to
 whichever turn drains first, which is why switching conversations keeps a queued ending instead of
 discarding it. Two reads stay deliberately global: `listEverywhere`, because the exit guard must name
-every shell that quitting would kill whoever started it, and `closeAll`, because the process dying takes
-them all.
+every shell affected by the quit decision whoever started it, and `closeAll`, for an explicit
+process-wide stop.
 
-**Reaping is by spawner, not by process tree.** A backgrounded shell is meant to outlive its turn, so
-only the session that started it knows when nobody is left to read it: container teardown kills the
-whole group. Shells do not survive the process — the registry is memory — which is the one
-place this deliberately stops short of Claude Code, whose tasks survive a session and a `/clear`.
+**Recovery is owned by the shells module.** A start without an ending is unresolved work, not proof
+that the process died. Recovery inspects durable status and reconnects through an authenticated
+supervisor identity, retaining the shell id and cursor. The supervisor never writes the conversation
+log. Intentional rewind and location moves still stop the affected process groups before discarding
+history or transferring files. Imported session metadata never grants control over a foreign PID.
 
 ## Services
 
@@ -1310,8 +1317,8 @@ workspace or transcript bootstrap generation.
 ## Cloud execution lifetime and attachment
 
 A cloud client owns its attachment, not the execution it observes. Closing, restarting, or losing
-that client cannot interrupt the sandbox's turn, children, shells, or services. Local process
-shutdown still reaps local work; actual sandbox shutdown still reaps sandbox work. Explicit stop
+that client cannot interrupt the sandbox's turn, children, shells, or services. Local process shutdown stops agents and services but detaches durable shells by default;
+actual sandbox destruction still stops sandbox processes. Explicit stop
 and rewind remain execution controls, never consequences of transport recovery.
 
 Runtime upgrades preserve running work even when no clients are attached. An absent socket or a
@@ -1513,7 +1520,7 @@ packages/harness/src/
   tools/         registry, dispatcher, builtin tools
   agents/types/     the agent-type definition, frontmatter parsing, built-ins, directory sources
   agents/registry/  AgentRegistryPort, the supervisor, the roster, notices, the child runner
-  shells/        background shell registry, process-group lifecycle, delta output buffers
+  shells/        shell journal, durable supervision, spool cursors, recovery and attachment lifetime
   hooks/         hook implementations — claude-md injection, read-before-write,
                  file-state recording
   settings/      SettingsStorePort backends: user and project files, in memory; the layer service

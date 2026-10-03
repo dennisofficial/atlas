@@ -13,6 +13,7 @@ import {
   DETACH_NOTE,
   EExitChoice,
   exitGuardOptions,
+  KEEP_SHELLS_NOTE,
   type ExitGuardRow,
 } from '../exit-guard-model'
 import { glyph } from '../theme'
@@ -93,7 +94,7 @@ describe('the exit guard when background work is still running', () => {
     const frame = await frameOf(guard({ running: [] }), WIDTH)
 
     expect(frame).toContain(HEADING)
-    expect(frame).not.toContain('shell')
+    expect(frame).not.toContain('shell · ')
     expect(frame).not.toContain(RUNNING_LABEL)
   })
 
@@ -118,7 +119,7 @@ describe('the exit guard when background work is still running', () => {
     expect(detach?.choice).toBe(EExitChoice.Detach)
     expect(detach?.enabled).toBe(true)
     expect(rowWith(frame, 'Move to background and exit')).toContain(`(${DETACH_NOTE})`)
-    expect(frame).not.toContain('Exit and stop tasks')
+    expect(frame).not.toContain('Stop tasks and exit')
   })
 
   it('tells a cloud conversation which local tasks still stop', async () => {
@@ -135,10 +136,17 @@ describe('the exit guard when background work is still running', () => {
     expect(rowWith(frame, labelOf(EExitChoice.Stay))).not.toContain('(')
   })
 
+  it('labels the default choice with what survives', async () => {
+    const frame = await frameOf(guard({ width: WIDE }), WIDE)
+
+    expect(rowWith(frame, labelOf(EExitChoice.KeepShells))).toContain(`(${KEEP_SHELLS_NOTE})`)
+  })
+
   it('marks the selected option and nothing else', async () => {
     const frame = await frameOf(guard(), WIDTH)
 
-    expect(rowWith(frame, labelOf(EExitChoice.StopAndExit))).toContain(glyph.selected)
+    expect(rowWith(frame, labelOf(EExitChoice.KeepShells))).toContain(glyph.selected)
+    expect(rowWith(frame, labelOf(EExitChoice.StopAndExit))).not.toContain(glyph.selected)
     expect(rowWith(frame, labelOf(EExitChoice.Stay))).not.toContain(glyph.selected)
   })
 

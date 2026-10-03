@@ -8,6 +8,7 @@ import {
   ModelPort,
   NoticePort,
   textValueOf,
+  toThreadId,
 } from '@dltech/atlas-core'
 
 import { AgentRegistryPort } from '../agents/registry/port'
@@ -48,7 +49,7 @@ import { bindInstructionsAndMemory } from './context-bindings'
 import { boundCaptureContext } from './context-archive-binding'
 import { ExecutionLocationToken } from './execution-location-state'
 import { faultInjected } from './fault-injection'
-import type { HarnessApp, HarnessStoreBinding, HarnessSurfaceBinding } from './harness-app'
+import type { HarnessApp, HarnessCloseRequest, HarnessStoreBinding, HarnessSurfaceBinding } from './harness-app'
 import { bindModels } from './model-bindings'
 import { loadSessionPlugins } from './plugin-loading'
 import type { ActiveConversation } from './resume-hint'
@@ -199,6 +200,8 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     services,
   })
 
+  let prepared: HarnessCloseRequest = {}
+
   return {
     launch,
     workspace,
@@ -256,7 +259,21 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
         stores: () => ({ threads, log, agents }),
       }),
     surface: bound as TSurface,
-    close: () => closeSession({ container, notice, usage, recordTeardownEndings }),
+    prepareClose: (request) => {
+      prepared = { ...prepared, ...request }
+    },
+    close: (request) =>
+      closeSession({
+        container,
+        notice,
+        usage,
+        recordTeardownEndings,
+        request: { ...prepared, ...request },
+        stopShells: async () => {
+          intake.suspend()
+          await shells.closeAll(activeThread === null ? undefined : { threadId: toThreadId(activeThread.threadId) })
+        },
+      }),
     runner,
     turnPolicy,
     titling,

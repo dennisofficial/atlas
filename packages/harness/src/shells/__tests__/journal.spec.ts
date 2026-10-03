@@ -77,14 +77,14 @@ describe('the shell event journal', () => {
 
   it('carries the hooked drafts in the same append call as the ended draft', async () => {
     const { journal, log } = openJournal()
-    const hooked = [{ type: 'background-shell-matched' as const, ...matchedShape() }]
+    const hooked = [{ type: 'context-loaded' as const, slot: 'after-shell', key: 'test', content: 'done' }]
 
     await journal.ended({ ...endedArgs, hooked })
 
     expect(log.calls).toHaveLength(1)
     expect(log.calls[0]?.drafts.map((draft) => draft.type)).toEqual([
       'background-shell-ended',
-      'background-shell-matched',
+      'context-loaded',
     ])
   })
 
@@ -186,6 +186,7 @@ describe('the shell event journal', () => {
       {
         type: 'background-shell-matched',
         shellId: SHELL,
+        bootId: 'boot-1',
         command: 'sleep 1',
         description: 'sleeps',
         pattern: 'ready',
@@ -196,6 +197,7 @@ describe('the shell event journal', () => {
       {
         type: 'background-shell-awaiting-input',
         shellId: SHELL,
+        bootId: 'boot-1',
         command: 'sleep 1',
         description: 'sleeps',
         output: 'Password:',
@@ -203,6 +205,39 @@ describe('the shell event journal', () => {
         remainingCharacters: 3,
       },
     ])
+  })
+
+  it('refuses progress and duplicate endings after an ending was enqueued', async () => {
+    const { journal, log } = openJournal()
+    const ending = journal.ended(endedArgs)
+    expect(await journal.matched(matchedArgs)).toEqual({ appended: false, reason: EJournalSkip.Ended })
+    expect(await journal.ended(endedArgs)).toEqual({ appended: false, reason: EJournalSkip.Ended })
+    await ending
+    expect(log.landedTypes()).toEqual(['background-shell-ended'])
+  })
+
+  it('retries a failed ending without admitting late progress or duplicate successful endings', async () => {
+    const { journal, log } = openJournal()
+    log.failNext = new Error('disk full')
+    expect(await journal.ended(endedArgs)).toEqual({ appended: false, reason: EJournalSkip.Failed })
+    expect(await journal.matched(matchedArgs)).toEqual({ appended: false, reason: EJournalSkip.Ended })
+    expect(await journal.ended(endedArgs)).toEqual({ appended: true })
+    expect(await journal.ended(endedArgs)).toEqual({ appended: false, reason: EJournalSkip.Ended })
+    expect(log.landedTypes()).toEqual(['background-shell-ended'])
+  })
+
+  it('drops queued writes after disown and waits for the in-flight write', async () => {
+    const { journal, log } = openJournal()
+    log.autoSettle = false
+    const first = journal.matched(matchedArgs)
+    const queued = journal.awaitingInput({ ...matchedArgs, delta: deltaOf() })
+    await Bun.sleep(0)
+    const removed = journal.disown({ threadId: THREAD, shellId: SHELL })
+    log.calls[0]?.settle.release()
+    await removed
+    expect(await first).toEqual({ appended: true })
+    expect(await queued).toEqual({ appended: false, reason: EJournalSkip.Superseded })
+    expect(log.calls).toHaveLength(1)
   })
 
   it('leaves watchDisarmed unset when the watch is still armed', async () => {
@@ -216,13 +251,3 @@ describe('the shell event journal', () => {
     expect(log.landed[0]?.[0]).toMatchObject({ watchDisarmed: undefined, matchCount: 1 })
   })
 })
-
-function matchedShape() {
-  return {
-    shellId: SHELL,
-    command: 'hook',
-    pattern: 'p',
-    lines: 'l',
-    matchCount: 1,
-  }
-}

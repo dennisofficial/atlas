@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 
+import { mkdtempSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { readShell, startShell } from '../../shells/shell-process'
 import { LocalProcessPort, SIGKILL_GRACE_MS } from '../local-process'
+
+process.env.ATLAS_HOME = join(mkdtempSync(join(tmpdir(), 'atlas-local-process-')), '.atlas-home')
 
 const textOf = async (stream: ReadableStream<Uint8Array>): Promise<string> =>
   await new Response(stream).text()

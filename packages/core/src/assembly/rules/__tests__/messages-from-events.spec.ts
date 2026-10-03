@@ -366,4 +366,29 @@ describe('a shell ending after a shell_kill', () => {
 
     expect(texts(assembled).some((text) => text.includes('<background-shell-ended>'))).toBe(true)
   })
+
+  it('suppresses an ending that landed before the kill result in the same stretch', () => {
+    const events = log([killCall, shellEnded, killResult])
+
+    const assembled = messagesFromEvents()(empty, contextFor({ events }))
+
+    expect(texts(assembled).some((text) => text.includes('<background-shell-ended>'))).toBe(false)
+  })
+
+  it('lets one kill result cover one ending, so a recycled id ending still renders', () => {
+    const events = log([killCall, shellEnded, killResult, shellEnded])
+
+    const assembled = messagesFromEvents()(empty, contextFor({ events }))
+
+    expect(texts(assembled).filter((text) => text.includes('<background-shell-ended>'))).toHaveLength(1)
+  })
+
+  it('does not let a kill result that failed muzzle the ending', () => {
+    const failed = { ...killResult, output: undefined, error: { message: 'no such shell' } }
+    const events = log([killCall, failed, shellEnded])
+
+    const assembled = messagesFromEvents()(empty, contextFor({ events }))
+
+    expect(texts(assembled).some((text) => text.includes('<background-shell-ended>'))).toBe(true)
+  })
 })

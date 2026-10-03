@@ -29,7 +29,7 @@ async function churnEndedShells({
 }): Promise<ShellId[]> {
   const shellIds: ShellId[] = []
   for (let index = 0; index < count; index += 1) {
-    const started = registry.start(job({ command: 'true', threadId }))
+    const started = await registry.start(job({ command: 'true', threadId }))
     if (!started.ok) throw new Error(started.reason)
     shellIds.push(started.snapshot.shellId)
     await settle({ registry, shellId: started.snapshot.shellId, threadId })
@@ -37,7 +37,7 @@ async function churnEndedShells({
   return shellIds
 }
 
-describe('bounding what the registry retains', () => {
+describe('bounding what the registry retains', async () => {
   it('drops ended shells past the retention cap, keeping the most recent', async () => {
     const { registry, log } = openRegistry()
     const shellIds = await churnEndedShells({
@@ -54,9 +54,9 @@ describe('bounding what the registry retains', () => {
 
   it('never reaps a live shell while ended ones are churned out', async () => {
     const { registry, log } = openRegistry()
-    const first = registry.start(job({ command: 'sleep 300' }))
+    const first = await registry.start(job({ command: 'sleep 300' }))
     if (!first.ok) throw new Error(first.reason)
-    const second = registry.start(job({ command: 'sleep 300' }))
+    const second = await registry.start(job({ command: 'sleep 300' }))
     if (!second.ok) throw new Error(second.reason)
 
     await churnEndedShells({
@@ -71,13 +71,13 @@ describe('bounding what the registry retains', () => {
     expect(kept).toContain(first.snapshot.shellId)
     expect(kept).toContain(second.snapshot.shellId)
 
-    const read = registry.read({ shellId: first.snapshot.shellId, threadId: THREAD })
+    const read = await registry.read({ shellId: first.snapshot.shellId, threadId: THREAD })
     expect(read.ok).toBe(true)
   })
 
   it('lets an ended shell of another thread churn out with the rest, its ending already durable', async () => {
     const { registry, log } = openRegistry()
-    const kept = registry.start(job({ command: 'echo not-yet-told', threadId: ELSEWHERE }))
+    const kept = await registry.start(job({ command: 'echo not-yet-told', threadId: ELSEWHERE }))
     if (!kept.ok) throw new Error(kept.reason)
     await settle({ registry, shellId: kept.snapshot.shellId, threadId: ELSEWHERE })
     await recorded({ log, threadId: ELSEWHERE })
@@ -89,8 +89,6 @@ describe('bounding what the registry retains', () => {
     })
     await recorded({ log, threadId: THREAD, count: RETAINED_ENDED_SHELLS + CHURN })
 
-    // Reaping holds no output hostage: the ending is already in the log, so the oldest ended
-    // shells leave the registry whether or not anyone has read them.
     expect(registry.listEverywhere()).toHaveLength(RETAINED_ENDED_SHELLS)
     expect(
       registry
@@ -101,12 +99,17 @@ describe('bounding what the registry retains', () => {
     const ended = (log?.appended ?? []).find(
       (draft) => draft.type === 'background-shell-ended' && draft.shellId === kept.snapshot.shellId,
     )
-    expect(ended).toMatchObject({ output: 'not-yet-told\n' })
+    expect(ended).toMatchObject({ output: 'not-yet-told\n', outputPath: kept.snapshot.outputPath })
+    if (kept.snapshot.outputPath === undefined) throw new Error('the shell must name its spool')
+    expect(await Bun.file(kept.snapshot.outputPath).text()).toBe('not-yet-told\n')
+    const read = await registry.read({ shellId: kept.snapshot.shellId, threadId: ELSEWHERE })
+    expect(read.ok).toBe(false)
+    expect((await Bun.file(kept.snapshot.outputPath).text()).match(/^not-yet-told$/gm)).toEqual(['not-yet-told'])
   })
 
-  it('leaves a reaped shell answering as its final snapshot, with no output behind it', async () => {
+  it('retains an ended handle below capacity and preserves its spool after repeated reads', async () => {
     const { registry, log } = openRegistry()
-    const started = registry.start(job({ command: 'echo delivered' }))
+    const started = await registry.start(job({ command: 'echo delivered' }))
     if (!started.ok) throw new Error(started.reason)
     await settle({ registry, shellId: started.snapshot.shellId })
     await recorded({ log })
@@ -117,12 +120,16 @@ describe('bounding what the registry retains', () => {
     expect(listed).toMatchObject({
       status: EShellStatus.Exited,
       exitCode: 0,
-      totalCharacters: 'delivered\n'.length,
     })
 
-    const read = registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
+    const read = await registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
     expect(read.ok && read.delta.text).toBe('delivered\n')
     expect(read.ok && read.delta.remainingCharacters).toBe(0)
+    const second = await registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
+    expect(second.ok && second.delta.text).toBe('')
+    expect(registry.list({ threadId: THREAD }).map((snapshot) => snapshot.shellId)).toContain(started.snapshot.shellId)
+    if (started.snapshot.outputPath === undefined) throw new Error('the shell must name its spool')
+    expect(await Bun.file(started.snapshot.outputPath).text()).toBe('delivered\n')
 
     const killed = registry.kill({
       shellId: started.snapshot.shellId,
@@ -130,5 +137,6 @@ describe('bounding what the registry retains', () => {
       threadId: THREAD,
     })
     expect(killed.ok && killed.snapshot.status).toBe(EShellStatus.Exited)
+    expect(listed?.totalCharacters).toBe('delivered\n'.length)
   })
 })

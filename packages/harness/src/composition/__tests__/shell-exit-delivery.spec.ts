@@ -6,18 +6,27 @@ import {
   EMPTY_PROMPT,
   EventLogPort,
   IdPort,
+  ProcessPort,
   type Event,
 } from '@dltech/atlas-core'
 
 import { createDeltaChannel, PublishingTurnRunner, type ChannelSignal } from '../../channel'
 import { createIsolatedContainer, portToken } from '../../container/injection'
-import { DeltaChannelToken, HookChainToken, WorkspaceRoot } from '../../container/tokens'
+import {
+  AtlasHomeToken,
+  DeltaChannelToken,
+  HookChainToken,
+  SessionRegistryToken,
+  WorkspaceRoot,
+} from '../../container/tokens'
+import { LocalProcessPort } from '../../execution/local-process'
 import { HookChain } from '../../hooks/registry'
 import { MessageIntake } from '../../intake/message-intake'
 import { buildHarness, ETurnStatus, type TurnOutcome } from '../../loop'
 import { createTempHome } from '../../loop/__tests__/temp-home'
 import { scriptedModel } from '../../model/testing/scripted-model'
 import { registerShells } from '../../shells/register-shells'
+import { registryFor } from '../../store/sessions/registry'
 import { ShellRegistryPort } from '../../shells/shell-registry'
 
 const cleanups: (() => Promise<void>)[] = []
@@ -40,6 +49,9 @@ async function openDelivery() {
   container.register(portToken(IdPort), { useValue: harness.ids })
   container.register(portToken(EventLogPort), { useValue: harness.log })
   container.register(HookChainToken, { useValue: new HookChain({}) })
+  container.register(AtlasHomeToken, { useValue: temp.home })
+  container.register(SessionRegistryToken, { useValue: registryFor({ home: temp.home }) })
+  container.register(portToken(ProcessPort), { useValue: new LocalProcessPort() })
   registerShells({ container })
   const shells = container.resolve(portToken(ShellRegistryPort))
   const channel = createDeltaChannel()
@@ -106,7 +118,7 @@ async function openDelivery() {
     threadId: owner.id,
     listener: (signal) => {
       ownerSignals.push(signal)
-      if (signal.type === 'events-appended' && publishedRead === undefined) {
+      if (signal.type === 'events-appended') {
         publishedRead = harness.log.read({ threadId: owner.id })
       }
     },
@@ -126,7 +138,7 @@ describe('background shell completion through shared delivery', () => {
   for (const exitCode of [0, 1]) {
     it(`publishes and answers an idle owner's exit ${exitCode} without operator input`, async () => {
       const delivery = await openDelivery()
-      const started = delivery.shells.start({
+      const started = await delivery.shells.start({
         threadId: delivery.owner.id,
         command: `printf 'build result'; exit ${exitCode}`,
         description: 'Build result',
@@ -141,12 +153,18 @@ describe('background shell completion through shared delivery', () => {
       expect(delivery.wakes()).toEqual({ owner: 1, other: 0 })
       expect(delivery.otherSignals).toEqual([])
       expect(delivery.ownerSignals[0]?.type).toBe('events-appended')
-      expect(published?.at(-1)).toMatchObject({
+      expect(
+        published?.findLast((event) => event.type === 'background-shell-ended'),
+      ).toMatchObject({
         type: 'background-shell-ended',
         shellId: started.snapshot.shellId,
         exitCode,
         output: 'build result',
       })
+      expect(started.snapshot.shellId).toMatch(/^shell_[0-9a-f]{32}$/)
+      expect(events.filter((event) => event.type === 'background-shell-started')).toMatchObject([
+        { shellId: started.snapshot.shellId },
+      ])
       expect(events.filter((event) => event.type === 'background-shell-ended')).toHaveLength(1)
       expect(events.filter((event) => event.type === 'user-said')).toHaveLength(1)
       expect(events.at(-1)).toMatchObject({
@@ -166,7 +184,7 @@ describe('background shell completion through shared delivery', () => {
     const unsubscribe = delivery.shells.onNotice(() => {
       if (delivery.shells.pendingNotices({ threadId: delivery.owner.id }).length > 0) noticed.resolve()
     })
-    const started = delivery.shells.start({
+    const started = await delivery.shells.start({
       threadId: delivery.owner.id,
       command: 'echo done',
       description: 'Finish while blocked',
@@ -176,7 +194,7 @@ describe('background shell completion through shared delivery', () => {
     unsubscribe()
 
     expect(delivery.wakes()).toEqual({ owner: 0, other: 0 })
-    expect(delivery.ownerSignals).toEqual([{ type: 'events-appended' }])
+    expect(delivery.ownerSignals).toEqual([{ type: 'events-appended' }, { type: 'events-appended' }])
     expect((await delivery.published())?.at(-1)?.type).toBe('background-shell-ended')
 
     delivery.setBlocked(false)

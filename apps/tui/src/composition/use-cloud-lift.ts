@@ -98,7 +98,7 @@ export function useCloudLift(args: {
           agents: app.agents,
           ids: app.ids,
           placement: owner,
-          stopLocal: async () => stopLocalWork({ threadId, shells: app.shells, services: app.services }),
+          stopLocal: async () => stopLocalWork({ threadId, shells: app.shells, services: app.services, threads: app.threads }),
           capture: latest.current.capture,
           ...(latest.current.captureArchive === undefined ? {} : { captureWorkspaceArchive: latest.current.captureArchive }),
           onProgress: (step) => move.handleAdvance(step),

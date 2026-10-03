@@ -21,10 +21,10 @@ for (const adapter of shellAdapters) {
   const describeAdapter = adapter.available ? describe : describe.skip
 
   describeAdapter(`${adapter.name} process adapter`, () => {
-    describe('telling the model a background shell finished', () => {
+    describe('telling the model a background shell finished', async () => {
       it('writes one event naming the shell, how it ended, and what it printed', async () => {
         const { registry, log } = openRegistry({ adapter })
-        const started = registry.start({
+        const started = await registry.start({
           threadId: THREAD,
           command: 'echo hi',
           description: 'Say hi',
@@ -38,7 +38,7 @@ for (const adapter of shellAdapters) {
         expect(ended).toHaveLength(1)
         expect(endedDraft(ended?.[0])).toMatchObject({
           type: 'background-shell-ended',
-          shellId: 'bash_1',
+          shellId: started.snapshot.shellId,
           command: 'echo hi',
           description: 'Say hi',
           status: ECoreShellStatus.Exited,
@@ -46,12 +46,16 @@ for (const adapter of shellAdapters) {
           output: 'hi\n',
           droppedCharacters: 0,
           remainingCharacters: 0,
+          outputPath: started.snapshot.outputPath,
+          bootId: started.snapshot.bootId,
+          outputStart: 0,
+          outputEnd: 3,
         })
       })
 
-      it('hands the output over rather than asking the model to go and read it', async () => {
+      it('delivers the ending excerpt without consuming the first explicit read', async () => {
         const { registry, log } = openRegistry({ adapter })
-        const started = registry.start(job({ command: 'echo already-delivered' }))
+        const started = await registry.start(job({ command: 'echo already-delivered' }))
         if (!started.ok) throw new Error(started.reason)
         await settle({ registry, shellId: started.snapshot.shellId })
         await recorded({ log })
@@ -59,17 +63,19 @@ for (const adapter of shellAdapters) {
         const delivered = endedDraft(
           log?.appended.find((draft) => draft.type === 'background-shell-ended'),
         )
-        const read = registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
+        const read = await registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
 
         expect(delivered.output).toBe('already-delivered\n')
-        // The capture at occurrence keeps the delta for the model's first read: the log holds the
-        // ending, and shell_output still hands over what the shell printed rather than nothing.
         expect(read.ok && read.delta.text).toBe('already-delivered\n')
+        const second = await registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
+        expect(second.ok && second.delta.text).toBe('')
+        if (delivered.outputPath === undefined) throw new Error('the ending must name its spool')
+        expect(await Bun.file(delivered.outputPath).text()).toBe('already-delivered\n')
       })
 
       it('writes once, so the same ending is never announced twice', async () => {
         const { registry, log } = openRegistry({ adapter })
-        const started = registry.start(job({ command: 'echo hi' }))
+        const started = await registry.start(job({ command: 'echo hi' }))
         if (!started.ok) throw new Error(started.reason)
         await settle({ registry, shellId: started.snapshot.shellId })
         await recorded({ log })
@@ -83,7 +89,7 @@ for (const adapter of shellAdapters) {
 
       it('writes nothing while the command is still running', async () => {
         const { registry, log } = openRegistry({ adapter })
-        registry.start(job({ command: 'sleep 30' }))
+        await registry.start(job({ command: 'sleep 30' }))
 
         await Bun.sleep(100)
 
@@ -93,10 +99,10 @@ for (const adapter of shellAdapters) {
       })
     })
 
-    describe('announcing every ending, whoever caused it', () => {
+    describe('announcing every ending, whoever caused it', async () => {
       it('announces a failure, naming the code', async () => {
         const { registry, log } = openRegistry({ adapter })
-        const started = registry.start(job({ command: 'exit 7' }))
+        const started = await registry.start(job({ command: 'exit 7' }))
         if (!started.ok) throw new Error(started.reason)
         await settle({ registry, shellId: started.snapshot.shellId })
         await recorded({ log })
@@ -109,7 +115,7 @@ for (const adapter of shellAdapters) {
 
       it('announces a shell the developer killed, so the model stops reasoning about a dead server', async () => {
         const { registry, log } = openRegistry({ adapter })
-        const started = registry.start(job({ command: 'sleep 60' }))
+        const started = await registry.start(job({ command: 'sleep 60' }))
         if (!started.ok) throw new Error(started.reason)
 
         registry.kill({ shellId: started.snapshot.shellId, by: EKilledBy.User, threadId: THREAD })
@@ -123,7 +129,7 @@ for (const adapter of shellAdapters) {
 
       it('announces a shell killed by teardown rather than suppressing it', async () => {
         const { registry, log } = openRegistry({ adapter })
-        const started = registry.start(job({ command: 'sleep 60' }))
+        const started = await registry.start(job({ command: 'sleep 60' }))
         if (!started.ok) throw new Error(started.reason)
 
         await registry.closeAll()
@@ -135,7 +141,7 @@ for (const adapter of shellAdapters) {
 
       it('still announces each ending exactly once', async () => {
         const { registry, log } = openRegistry({ adapter })
-        const started = registry.start(job({ command: 'echo hi' }))
+        const started = await registry.start(job({ command: 'echo hi' }))
         if (!started.ok) throw new Error(started.reason)
         await settle({ registry, shellId: started.snapshot.shellId })
         await recorded({ log })
@@ -148,10 +154,10 @@ for (const adapter of shellAdapters) {
       })
     })
 
-    describe('a kill the model asked for', () => {
+    describe('a kill the model asked for', async () => {
       it('hands the ending to the kill call and records it in the log beside it', async () => {
         const { registry, log } = openRegistry({ adapter })
-        const started = registry.start(job({ command: 'echo before; sleep 60' }))
+        const started = await registry.start(job({ command: 'echo before; sleep 60' }))
         if (!started.ok) throw new Error(started.reason)
         await printed({ registry, shellId: started.snapshot.shellId, text: 'before' })
 
@@ -185,7 +191,7 @@ for (const adapter of shellAdapters) {
 
       it('answers a second kill of the same shell with the same ending', async () => {
         const { registry, log } = openRegistry({ adapter })
-        const started = registry.start(job({ command: 'sleep 60' }))
+        const started = await registry.start(job({ command: 'sleep 60' }))
         if (!started.ok) throw new Error(started.reason)
 
         const first = registry.kill({
@@ -215,7 +221,7 @@ for (const adapter of shellAdapters) {
 
       it('a later model kill of a dying shell reads the same ending the log records', async () => {
         const { registry, log } = openRegistry({ adapter })
-        const started = registry.start(job({ command: 'sleep 60' }))
+        const started = await registry.start(job({ command: 'sleep 60' }))
         if (!started.ok) throw new Error(started.reason)
 
         registry.kill({ shellId: started.snapshot.shellId, by: EKilledBy.User, threadId: THREAD })
@@ -226,8 +232,6 @@ for (const adapter of shellAdapters) {
         })
         if (!again.ok) throw new Error('the second kill failed')
 
-        // The shell was already dying; the model kill joins the same ending rather than starting
-        // a second one. The log records it once, naming who actually signalled first.
         if (again.settled !== undefined) await again.settled
         await recorded({ log })
         const ended = log?.appended.filter((draft) => draft.type === 'background-shell-ended')

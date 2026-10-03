@@ -6,19 +6,28 @@ import {
   EMPTY_PROMPT,
   EventLogPort,
   IdPort,
+  ProcessPort,
   type Event,
   type ModelPort,
 } from '@dltech/atlas-core'
 
 import { createDeltaChannel, PublishingTurnRunner } from '../../channel'
 import { createIsolatedContainer, portToken } from '../../container/injection'
-import { DeltaChannelToken, HookChainToken, WorkspaceRoot } from '../../container/tokens'
+import {
+  AtlasHomeToken,
+  DeltaChannelToken,
+  HookChainToken,
+  SessionRegistryToken,
+  WorkspaceRoot,
+} from '../../container/tokens'
+import { LocalProcessPort } from '../../execution/local-process'
 import { HookChain } from '../../hooks/registry'
 import { MessageIntake } from '../../intake/message-intake'
 import { buildHarness, ETurnStatus } from '../../loop'
 import { createTempHome } from '../../loop/__tests__/temp-home'
 import { scriptedModel } from '../../model/testing/scripted-model'
 import { registerShells } from '../../shells/register-shells'
+import { registryFor } from '../../store/sessions/registry'
 import { ShellRegistryPort } from '../../shells/shell-registry'
 
 it('answers a real shell ending during a model reply without replacing its live stream', async () => {
@@ -34,6 +43,9 @@ it('answers a real shell ending during a model reply without replacing its live 
   container.register(portToken(IdPort), { useValue: harness.ids })
   container.register(portToken(EventLogPort), { useValue: harness.log })
   container.register(HookChainToken, { useValue: new HookChain({}) })
+  container.register(AtlasHomeToken, { useValue: temp.home })
+  container.register(SessionRegistryToken, { useValue: registryFor({ home: temp.home }) })
+  container.register(portToken(ProcessPort), { useValue: new LocalProcessPort() })
   registerShells({ container })
   const shells = container.resolve(portToken(ShellRegistryPort))
   const channel = createDeltaChannel()
@@ -63,11 +75,14 @@ it('answers a real shell ending during a model reply without replacing its live 
         listener: (signal) => {
           if (signal.type !== 'events-appended') return
           inFlightPreserved = channel.snapshot({ threadId: owner.id }) === inFlight
-          readAtPublication = harness.log.read({ threadId: owner.id })
-          published.resolve()
+          const read = harness.log.read({ threadId: owner.id })
+          readAtPublication = read
+          void read.then((events) => {
+            if (events.some((event) => event.type === 'background-shell-ended')) published.resolve()
+          })
         },
       })
-      const started = shells.start({
+      const started = await shells.start({
         threadId: owner.id,
         command: "printf 'build failed'; exit 7",
         description: 'Build during a reply',

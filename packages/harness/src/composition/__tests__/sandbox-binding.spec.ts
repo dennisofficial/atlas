@@ -74,6 +74,6 @@ describe('the mounts bindSandbox returns', () => {
 
     const { mounts } = await bindIn(cwd, atlasHome)
 
-    expect(mounts).toEqual([join(atlasHome, 'memory')])
+    expect(mounts).toEqual([join(atlasHome, 'memory'), join(atlasHome, 'sessions')])
   })
 })

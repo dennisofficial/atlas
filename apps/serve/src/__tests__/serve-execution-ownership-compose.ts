@@ -15,6 +15,7 @@ import { MessageIntake, noticeSources, operatorSource } from '@dltech/atlas-harn
 import { PublishingTurnRunner } from '@dltech/atlas-harness'
 import { createPendingQueues } from '@dltech/atlas-harness'
 import { BunServiceRegistry, BunShellRegistry } from '@dltech/atlas-harness'
+import { DurableShellLauncher, ShellStorage, prepareSupervisorLauncher } from '@dltech/atlas-harness'
 import { LocalProcessPort } from '@dltech/atlas-harness'
 import { BashTool } from '@dltech/atlas-harness'
 import { HookedToolDispatcher, InMemoryToolRegistry } from '@dltech/atlas-harness'
@@ -28,6 +29,7 @@ import {
 
 import { AgentSpawnTool } from '../../../../packages/harness/src/tools/builtin/agent-spawn'
 import { ServiceStartTool } from '../../../../packages/harness/src/tools/builtin/service-start'
+import { SessionEnvironmentProcessPort } from '../../../../packages/harness/src/execution/session-environment'
 import { JsonlThreadStore } from '../../../../packages/harness/src/store/sessions/thread-store'
 
 import type { ServeApp } from '../index'
@@ -75,7 +77,21 @@ export async function composeOwnershipApp(args: {
   const channel = createDeltaChannel()
   const processes = new LocalProcessPort()
 
-  const shells = new BunShellRegistry(args.cwd, clock, () => hooks, processes, undefined, log, ids)
+  const shellProcesses = new SessionEnvironmentProcessPort({ inner: processes, sessions: registry })
+  const shells = new BunShellRegistry({
+    root: args.cwd,
+    clock,
+    hooks: () => hooks,
+    launcher: new DurableShellLauncher({
+      storage: new ShellStorage({ sessions: registry }),
+      sessions: registry,
+      processes: shellProcesses,
+      supervisor: () => prepareSupervisorLauncher({ home: args.home }),
+      now: () => clock.now(),
+    }),
+    log,
+    ids,
+  })
   const services = new BunServiceRegistry({
     root: args.cwd,
     clock,

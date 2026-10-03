@@ -8,6 +8,7 @@ import { liveNudgeIds } from '../../events/nudges'
 import { imagePathLine, inlinable } from '../../images/attached'
 import type { FilePart, ImagePart, TextPart, ToolCallPart, ToolResultPart } from '../../message/parts'
 import { basenameOf } from '../../policy/classifier/path-set'
+import { shellEventContextsOf } from '../../shells/lifecycle'
 import type { AssembledMessage } from '../assembled'
 import { defineRule, type Rule } from '../rule'
 import {
@@ -20,6 +21,7 @@ import { agentReportedBlock } from './agent-reported-block'
 import { agentRestartedBlock } from './agent-restarted-block'
 import { nudgeBlock } from './nudge-block'
 import { serviceEndedBlock } from './service-ended-block'
+import { endingsToldByKill } from './shell-kill-coverage'
 
 type OpenMessage =
   | { role: 'user'; content: (TextPart | ImagePart | FilePart)[] }
@@ -66,20 +68,6 @@ function unsettledResult(call: ToolCallPart): ToolResultPart {
     toolName: call.toolName,
     output: { type: 'error-text', value: UNSETTLED_CALL },
   }
-}
-
-const SHELL_KILL = 'shell_kill'
-
-/**
- * The shells a turn's shell_kill results already settled, keyed with the command because a shell
- * id recycles across restarts and an old kill must not muzzle a fresh shell's ending.
- */
-function shellKillRead(event: Settlement): string | undefined {
-  if (event.type !== 'tool-result' || event.name !== SHELL_KILL) return undefined
-  if (typeof event.output !== 'object' || event.output === null) return undefined
-  const output = event.output as { shellId?: unknown; command?: unknown }
-  if (typeof output.shellId !== 'string') return undefined
-  return `${output.shellId} ${typeof output.command === 'string' ? output.command : ''}`
 }
 
 function settlementOutput(event: Settlement): ToolResultPart['output'] {
@@ -171,14 +159,12 @@ function walkEvents(events: readonly Event[]): Walk {
   const openCallIds = new Map<string, string[]>()
   const current = new Set(currentContextEvents(events).map((event) => event.id))
   const nudging = liveNudgeIds(events)
-  const killReadsInTurn = new Set<string>()
+  const toldByKill = endingsToldByKill(events)
+  const shellContexts = shellEventContextsOf(events)
   let openAssistant: Group | undefined
 
   for (const event of events) {
     if (event.type === 'assistant-said') {
-      // The model spoke, so the stretch of tool calls a shell_kill belonged to is over: an ending
-      // written after this point was never answered in-band and must render as its own block.
-      killReadsInTurn.clear()
       openAssistant = { message: { role: 'assistant', content: [...event.parts] }, origin: originOf(event) }
       groups.push(openAssistant)
       continue
@@ -233,13 +219,10 @@ function walkEvents(events: readonly Event[]): Walk {
     }
 
     if (event.type === 'background-shell-ended') {
-      // The ending lands in the log the moment the shell settles, so a shell_kill answered in the
-      // same tool stretch has already told the model this death as its tool result; re-rendering
-      // the block would say it twice. Presentation-only: the event itself is always in the log.
-      if (killReadsInTurn.has(`${event.shellId} ${event.command}`)) continue
+      if (toldByKill.has(event.id)) continue
 
       groups.push({
-        message: { role: 'user', content: [{ type: 'text', text: backgroundShellBlock(event) }] },
+        message: { role: 'user', content: [{ type: 'text', text: backgroundShellBlock(event, shellContexts.get(event.id)) }] },
         origin: originOf(event),
       })
       continue
@@ -249,7 +232,7 @@ function walkEvents(events: readonly Event[]): Walk {
       groups.push({
         message: {
           role: 'user',
-          content: [{ type: 'text', text: backgroundShellAwaitingInputBlock(event) }],
+          content: [{ type: 'text', text: backgroundShellAwaitingInputBlock(event, shellContexts.get(event.id)) }],
         },
         origin: originOf(event),
       })
@@ -260,7 +243,7 @@ function walkEvents(events: readonly Event[]): Walk {
       groups.push({
         message: {
           role: 'user',
-          content: [{ type: 'text', text: backgroundShellMatchedBlock(event) }],
+          content: [{ type: 'text', text: backgroundShellMatchedBlock(event, shellContexts.get(event.id)) }],
         },
         origin: originOf(event),
       })
@@ -271,7 +254,7 @@ function walkEvents(events: readonly Event[]): Walk {
       groups.push({
         message: {
           role: 'user',
-          content: [{ type: 'text', text: backgroundShellStillRunningBlock(event) }],
+          content: [{ type: 'text', text: backgroundShellStillRunningBlock(event, shellContexts.get(event.id)) }],
         },
         origin: originOf(event),
       })
@@ -316,9 +299,6 @@ function walkEvents(events: readonly Event[]): Walk {
       if (latest !== undefined) open.pop()
       const settledId = latest ?? event.callId
       settlements.set(settledId, { part: toolResultPart(event, settledId), origin: originOf(event) })
-
-      const killRead = shellKillRead(event)
-      if (killRead !== undefined) killReadsInTurn.add(killRead)
     }
   }
 

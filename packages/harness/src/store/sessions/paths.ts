@@ -58,3 +58,13 @@ export function threadMetaFile({
 }): string {
   return join(threadsDirectory({ sessionDir }), `${threadId}${THREAD_META_FILE_SUFFIX}`)
 }
+
+export function threadDataDirectory({
+  sessionDir,
+  threadId,
+}: {
+  sessionDir: string
+  threadId: ThreadId
+}): string {
+  return join(threadsDirectory({ sessionDir }), threadId)
+}

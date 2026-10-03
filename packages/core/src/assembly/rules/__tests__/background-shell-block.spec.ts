@@ -134,11 +134,12 @@ describe('handing a running background shell watch match to the model', () => {
     expect(backgroundShellMatchedBlock(matched())).toContain('1 line')
   })
 
-  it('says the shell is still running, so a match does not read as an ending', () => {
+  it('reports the match as a historical fact, never as a claim the shell is still running', () => {
     const block = backgroundShellMatchedBlock(matched())
 
-    expect(block).toContain('still running')
-    expect(block).toContain('has not ended')
+    expect(block).toContain('watch matched 1 line')
+    expect(block).not.toContain('still running')
+    expect(block).not.toContain('has not ended')
     expect(block).not.toContain('shell_output')
   })
 
@@ -153,8 +154,8 @@ describe('handing a running background shell watch match to the model', () => {
     const block = backgroundShellMatchedBlock(matched({ watchDisarmed: true }))
 
     expect(block).toContain('The watch has stopped')
-    expect(block).toContain('The shell itself did NOT stop')
-    expect(block).toContain('its ending will still arrive')
+    expect(block).toContain('says nothing about the shell itself')
+    expect(block).not.toContain('still running')
   })
 
   it('renders the disarm notice even with no lines to show', () => {
@@ -164,8 +165,7 @@ describe('handing a running background shell watch match to the model', () => {
 
     expect(block).toContain('It carried no lines with it.')
     expect(block).toContain('The watch has stopped')
-    expect(block).toContain('The shell itself did NOT stop')
-    expect(block).toContain('still running')
+    expect(block).not.toContain('still running')
   })
 
   it('says nothing about a disarmed watch while the watch is still armed', () => {

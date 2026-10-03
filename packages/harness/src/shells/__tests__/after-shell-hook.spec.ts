@@ -52,7 +52,7 @@ const chainOf = (hooks: readonly AfterShellHook[]): HookChainSource => {
 
 afterEach(closeRegistries)
 
-describe('the budget an after-shell hook is given', () => {
+describe('the budget an after-shell hook is given', async () => {
   const chain = (run: AfterShell): HookChainSource =>
     chainOf([new ObservingHook('bounded', { stage: EStage.Observe, nudge: 0 }, run)])
 
@@ -110,7 +110,7 @@ for (const adapter of shellAdapters) {
   const describeAdapter = adapter.available ? describe : describe.skip
 
   describeAdapter(`${adapter.name} process adapter`, () => {
-    describe('the after-shell phase, fired by the shell registry', () => {
+    describe('the after-shell phase, fired by the shell registry', async () => {
       it('runs when a shell exits, naming the shell and the thread that started it', async () => {
         const seen: { threadId: ThreadId; shell: EndedShell }[] = []
         const { registry } = openRegistry({
@@ -118,7 +118,7 @@ for (const adapter of shellAdapters) {
           hooks: chainOf([observe({ name: 'watch', seen })]),
         })
 
-        const started = registry.start(job({ command: 'echo pushed' }))
+        const started = await registry.start(job({ command: 'echo pushed' }))
         if (!started.ok) throw new Error(started.reason)
         await settle({ registry, shellId: started.snapshot.shellId })
 
@@ -141,7 +141,7 @@ for (const adapter of shellAdapters) {
           hooks: chainOf([observe({ name: 'watch', seen })]),
         })
 
-        const started = registry.start(job({ command: 'sleep 30' }))
+        const started = await registry.start(job({ command: 'sleep 30' }))
         if (!started.ok) throw new Error(started.reason)
         const killed = registry.kill({
           shellId: started.snapshot.shellId,
@@ -166,7 +166,7 @@ for (const adapter of shellAdapters) {
           hooks: chainOf([observe({ name: 'watch', seen })]),
         })
 
-        const started = registry.start(job({ command: 'echo once' }))
+        const started = await registry.start(job({ command: 'echo once' }))
         if (!started.ok) throw new Error(started.reason)
         await settle({ registry, shellId: started.snapshot.shellId })
 
@@ -188,7 +188,7 @@ for (const adapter of shellAdapters) {
           hooks: chainOf([observe({ name: 'watch', seen })]),
         })
 
-        const started = registry.start(job({ command: 'echo elsewhere', threadId: ELSEWHERE }))
+        const started = await registry.start(job({ command: 'echo elsewhere', threadId: ELSEWHERE }))
         if (!started.ok) throw new Error(started.reason)
         await settle({ registry, shellId: started.snapshot.shellId, threadId: ELSEWHERE })
 
@@ -209,12 +209,14 @@ for (const adapter of shellAdapters) {
         )
         const { registry, log } = openRegistry({ adapter, hooks: chainOf([hook]) })
 
-        const shell = registry.start(job({ command: 'echo pushed' }))
+        const shell = await registry.start(job({ command: 'echo pushed' }))
         if (!shell.ok) throw new Error(shell.reason)
         await settle({ registry, shellId: shell.snapshot.shellId })
         await recorded({ log })
 
-        const appended = log?.appended ?? []
+        const appended = (log?.appended ?? []).filter(
+          (draft) => draft.type !== 'background-shell-started',
+        )
 
         expect(endedDraft(appended[0]).shellId).toBe(shell.snapshot.shellId)
         expect(appended[1]).toEqual({
@@ -231,7 +233,7 @@ for (const adapter of shellAdapters) {
         }))
         const { registry, log } = openRegistry({ adapter, hooks: chainOf([hook]) })
 
-        const started = registry.start(job({ command: 'sleep 60' }))
+        const started = await registry.start(job({ command: 'sleep 60' }))
         if (!started.ok) throw new Error(started.reason)
         const killed = registry.kill({
           shellId: started.snapshot.shellId,
@@ -242,7 +244,9 @@ for (const adapter of shellAdapters) {
         await killed.settled
         await recorded({ log })
 
-        const appended = log?.appended ?? []
+        const appended = (log?.appended ?? []).filter(
+          (draft) => draft.type !== 'background-shell-started',
+        )
 
         expect(appended).toHaveLength(2)
         expect(appended[0]?.type).toBe('background-shell-ended')
@@ -262,12 +266,14 @@ for (const adapter of shellAdapters) {
         })
         const { registry, log } = openRegistry({ adapter, hooks: chainOf([hook]) })
 
-        const shell = registry.start(job({ command: 'echo pushed' }))
+        const shell = await registry.start(job({ command: 'echo pushed' }))
         if (!shell.ok) throw new Error(shell.reason)
         await settle({ registry, shellId: shell.snapshot.shellId })
         await recorded({ log })
 
-        const appended = log?.appended ?? []
+        const appended = (log?.appended ?? []).filter(
+          (draft) => draft.type !== 'background-shell-started',
+        )
 
         expect(appended).toHaveLength(1)
         expect(endedDraft(appended[0]).shellId).toBe(shell.snapshot.shellId)
@@ -281,7 +287,7 @@ for (const adapter of shellAdapters) {
         )
         const { registry, log } = openRegistry({ adapter, hooks: chainOf([hook]) })
 
-        const shell = registry.start(job({ command: 'echo pushed' }))
+        const shell = await registry.start(job({ command: 'echo pushed' }))
         if (!shell.ok) throw new Error(shell.reason)
         await settle({ registry, shellId: shell.snapshot.shellId })
 
@@ -289,7 +295,9 @@ for (const adapter of shellAdapters) {
         await registry.closeAll()
 
         expect(Date.now() - closing).toBeLessThan(AFTER_SHELL_BUDGET_MS * 2)
-        const appended = log?.appended ?? []
+        const appended = (log?.appended ?? []).filter(
+          (draft) => draft.type !== 'background-shell-started',
+        )
         expect(appended).toHaveLength(1)
         expect(endedDraft(appended[0]).shellId).toBe(shell.snapshot.shellId)
       }, AFTER_SHELL_BUDGET_MS * 4)
@@ -302,12 +310,14 @@ for (const adapter of shellAdapters) {
         )
         const { registry, log } = openRegistry({ adapter, hooks: chainOf([hook]) })
 
-        const shell = registry.start(job({ command: 'sleep 30' }))
+        const shell = await registry.start(job({ command: 'sleep 30' }))
         if (!shell.ok) throw new Error(shell.reason)
 
         await registry.closeAll()
 
-        const appended = log?.appended ?? []
+        const appended = (log?.appended ?? []).filter(
+          (draft) => draft.type !== 'background-shell-started',
+        )
         expect(appended).toHaveLength(2)
         expect(appended[0]?.type).toBe('background-shell-ended')
         expect(appended[1]?.type).toBe('context-loaded')
