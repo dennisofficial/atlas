@@ -75,7 +75,7 @@ describe('a stopped child retargeted to another model', () => {
     const held = adapters.anthropic.holdNext()
     const childId = await spawnChild(opened)
     await held.reached
-    supervisor.stop({ agentId: childId, threadId: main, by: EKilledBy.User })
+    await supervisor.stop({ agentId: childId, threadId: main, by: EKilledBy.User })
     await supervisor.whenChildrenSettled({ threadId: main })
 
     expect(statusOf(opened, childId)).toBe(EAgentStatus.Stopped)

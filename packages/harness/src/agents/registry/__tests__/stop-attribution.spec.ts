@@ -49,7 +49,7 @@ describe('a sub-agent the operator stopped', () => {
   it('records the operator on the ending the parent is handed', async () => {
     const open = await spawned()
 
-    open.supervisor.stop({ agentId: agentIdOf(open), threadId: open.parent, by: EKilledBy.User })
+    await open.supervisor.stop({ agentId: agentIdOf(open), threadId: open.parent, by: EKilledBy.User })
     open.runners.started[0]?.settle(interrupted())
     await open.supervisor.closeAll()
 
@@ -62,7 +62,7 @@ describe('a sub-agent the operator stopped', () => {
   it('records the parent when the parent stopped it, so the two never read alike', async () => {
     const open = await spawned()
 
-    open.supervisor.stop({ agentId: agentIdOf(open), threadId: open.parent, by: EKilledBy.Model })
+    await open.supervisor.stop({ agentId: agentIdOf(open), threadId: open.parent, by: EKilledBy.Model })
     open.runners.started[0]?.settle(interrupted())
     await open.supervisor.closeAll()
 
@@ -74,7 +74,7 @@ describe('a sub-agent the operator stopped', () => {
   it('is stopped rather than failed when the abort came back as a throw', async () => {
     const open = await spawned()
 
-    open.supervisor.stop({ agentId: agentIdOf(open), threadId: open.parent, by: EKilledBy.User })
+    await open.supervisor.stop({ agentId: agentIdOf(open), threadId: open.parent, by: EKilledBy.User })
     open.runners.started[0]?.fail(new Error('the model stream was aborted'))
     await open.supervisor.closeAll()
 
@@ -87,7 +87,7 @@ describe('a sub-agent the operator stopped', () => {
     const open = await spawned()
     const agentId = agentIdOf(open)
 
-    open.supervisor.stop({ agentId, threadId: open.parent, by: EKilledBy.User })
+    await open.supervisor.stop({ agentId, threadId: open.parent, by: EKilledBy.User })
     open.runners.started[0]?.settle(interrupted())
     await open.supervisor.closeAll()
     expect(lastEnding(open).killedBy).toBe(EKilledBy.User)
@@ -107,7 +107,7 @@ describe('a sub-agent the operator stopped', () => {
     open.runners.started[0]?.settle(finished())
     await open.supervisor.closeAll()
 
-    const outcome = open.supervisor.stop({
+    const outcome = await open.supervisor.stop({
       agentId: agentIdOf(open),
       threadId: open.parent,
       by: EKilledBy.User,
@@ -137,7 +137,7 @@ describe('a sub-agent still stepping when the session closes', () => {
   it('keeps an operator stop that was already in flight', async () => {
     const open = await spawned()
 
-    open.supervisor.stop({ agentId: agentIdOf(open), threadId: open.parent, by: EKilledBy.User })
+    await open.supervisor.stop({ agentId: agentIdOf(open), threadId: open.parent, by: EKilledBy.User })
     const closing = open.supervisor.closeAll()
     open.runners.started[0]?.settle(interrupted())
     await closing

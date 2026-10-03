@@ -69,18 +69,28 @@ const LIVE: RosterWire = {
   ],
 }
 
-const stubChannel = (args: { answer?: unknown; refuse?: boolean }) => {
+const stubChannel = (args: { answer?: unknown; steerAnswer?: unknown; refuse?: boolean }) => {
   const rosterListeners = new Set<(roster: RosterWire) => void>()
   const reloadListeners = new Set<() => void>()
+  const requests: { op: EClientRequest; params: unknown }[] = []
 
   return {
+    requests,
     pushRoster: (roster: RosterWire) => {
       for (const listener of [...rosterListeners]) listener(roster)
     },
     channel: {
       async request(request: { op: EClientRequest; params: unknown }) {
+        requests.push(request)
         if (args.refuse === true) {
           throw new RemoteRequestFailed({ op: request.op, data: { message: 'unknown op' } })
+        }
+        if (
+          request.op === EClientRequest.SayToAgent ||
+          request.op === EClientRequest.ResumeAgent ||
+          request.op === EClientRequest.StopAgent
+        ) {
+          return args.steerAnswer ?? { ok: false, reason: 'no steer answer stubbed' }
         }
         return args.answer
       },
@@ -123,7 +133,7 @@ const registriesOf = (channel: ReturnType<typeof stubChannel>['channel']) => {
   return {
     roster,
     shells: new RemoteShellRegistry(roster),
-    agents: new RemoteAgentRegistry(roster),
+    agents: new RemoteAgentRegistry(roster, channel),
     services: new RemoteServiceRegistry(roster),
   }
 }
@@ -229,7 +239,73 @@ describe('the remote registries a cloud session reads', () => {
     ).toBe(false)
     expect(shells.peek({ shellId: 'bash_1', characters: 100, threadId: THREAD })).toBeUndefined()
     expect((await agents.spawn({ threadId: THREAD, agentType: 'explore', brief: 'x', intent: 'x' })).ok).toBe(false)
-    expect(agents.stop({ agentId: toThreadId('child-explore'), threadId: THREAD, by: 'user' as never }).ok).toBe(false)
     expect(services.stop({ serviceId: 'svc_1', by: 'user' as never }).ok).toBe(false)
+  })
+
+  it('steers agents through the channel: say, resume and stop ride their own ops', async () => {
+    const child = LIVE.agents[0]
+    if (child === undefined) throw new Error('fixture holds no agent')
+    const stub = stubChannel({ answer: LIVE, steerAnswer: { ok: true, snapshot: child } })
+    const { agents } = registriesOf(stub.channel)
+    await settle()
+
+    const said = await agents.say({
+      agentId: toThreadId('child-explore'),
+      threadId: THREAD,
+      text: 'keep the commits conventional',
+    })
+    const resumed = await agents.resume({ agentId: toThreadId('child-explore'), threadId: THREAD })
+    const stopped = await agents.stop({
+      agentId: toThreadId('child-explore'),
+      threadId: THREAD,
+      by: 'user' as never,
+    })
+
+    expect(said.ok && resumed.ok && stopped.ok).toBe(true)
+    if (said.ok) expect(said.snapshot.agentId).toBe(child.agentId)
+
+    const steers = stub.requests.filter((one) => one.op !== EClientRequest.ListRoster)
+    expect(steers.map((one) => one.op)).toEqual([
+      EClientRequest.SayToAgent,
+      EClientRequest.ResumeAgent,
+      EClientRequest.StopAgent,
+    ])
+    expect(steers[0]?.params).toMatchObject({
+      threadId: 'thread-cloud',
+      agentId: 'child-explore',
+      text: 'keep the commits conventional',
+    })
+    expect(steers[2]?.params).toEqual({ threadId: 'thread-cloud', agentId: 'child-explore' })
+  })
+
+  it('hands the sandbox’s refusal back verbatim rather than inventing one', async () => {
+    const stub = stubChannel({
+      answer: LIVE,
+      steerAnswer: { ok: false, reason: 'agent child-explore is already taking a step; steer it with a message or stop it first' },
+    })
+    const { agents } = registriesOf(stub.channel)
+    await settle()
+
+    const outcome = await agents.resume({ agentId: toThreadId('child-explore'), threadId: THREAD })
+
+    expect(outcome).toEqual({
+      ok: false,
+      reason: 'agent child-explore is already taking a step; steer it with a message or stop it first',
+    })
+  })
+
+  it('refuses legibly when the sandbox answers a steer with a shape this build does not know', async () => {
+    const stub = stubChannel({ answer: LIVE, steerAnswer: { puzzling: true } })
+    const { agents } = registriesOf(stub.channel)
+    await settle()
+
+    const outcome = await agents.say({
+      agentId: toThreadId('child-explore'),
+      threadId: THREAD,
+      text: 'hi',
+    })
+
+    expect(outcome.ok).toBe(false)
+    if (!outcome.ok) expect(outcome.reason).toContain('a shape this build does not know')
   })
 })

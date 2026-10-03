@@ -355,7 +355,7 @@ describe('relocating a thread whose child is already terminal', () => {
     const entry = await open()
     opened.push(entry)
     const childId = await spawnChild(entry, entry.parent)
-    entry.supervisor.stop({ agentId: childId, threadId: entry.parent, by: EKilledBy.User })
+    await entry.supervisor.stop({ agentId: childId, threadId: entry.parent, by: EKilledBy.User })
     runOf(entry, childId, 'run').settle(interrupted())
     await settled()
 

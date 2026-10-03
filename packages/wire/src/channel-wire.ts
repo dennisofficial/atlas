@@ -13,7 +13,7 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
  * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
  */
-export const CHANNEL_PROTOCOL_VERSION = 13
+export const CHANNEL_PROTOCOL_VERSION = 14
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
@@ -135,6 +135,16 @@ export enum EClientRequest {
    * resumes its source never leaves two writers. Idempotent once activated.
    */
   ActivateSession = 'activate-session',
+  /**
+   * Operator steering of the sandbox's own agents: a message for a sub-agent or teammate, queued
+   * while it steps and restarting it once it has settled, exactly as the local registry's say does.
+   * A serve built before these ops version-refuses the socket at hello.
+   */
+  SayToAgent = 'say-to-agent',
+  /** Restart a resumable sub-agent or teammate with no message attached. Same gating as say-to-agent. */
+  ResumeAgent = 'resume-agent',
+  /** Stop a sub-agent or teammate; the sandbox records the kill as the operator's. Same gating as say-to-agent. */
+  StopAgent = 'stop-agent',
 }
 
 export enum ETurnStatus {
@@ -212,6 +222,15 @@ export const takeBackPendingReplySchema = z.object({
     .nullable(),
 })
 export type TakeBackPendingReply = z.infer<typeof takeBackPendingReplySchema>
+
+export const sayToAgentParamsSchema = z.object({
+  threadId: threadIdWireSchema,
+  agentId: threadIdWireSchema,
+  text: z.string(),
+  images: z.array(saidImageWireSchema).readonly().optional(),
+  files: z.array(saidFileWireSchema).readonly().optional(),
+})
+export type SayToAgentParams = z.infer<typeof sayToAgentParamsSchema>
 
 export const serveFrameSchema = z.discriminatedUnion('kind', [
   z.object({

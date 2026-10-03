@@ -170,7 +170,7 @@ export function fakeAgentRegistry(args: { threads?: FakeThreadStore | undefined 
 
     wake: async ({ agentId }) => refused(agentId),
 
-    stop: ({ agentId, by }) => {
+    stop: async ({ agentId, by }) => {
       const found = children.find((one) => one.agentId === agentId)
       if (found === undefined) return refused(agentId)
 

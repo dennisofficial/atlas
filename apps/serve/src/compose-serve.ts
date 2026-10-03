@@ -258,6 +258,11 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       },
       truncate: (truncateArgs) => app.threads.rewind(truncateArgs),
     },
+    agents: {
+      say: (steer) => app.agents.say(steer),
+      resume: (steer) => app.agents.resume(steer),
+      stop: (steer) => app.agents.stop(steer),
+    },
     close: app.close,
   }
 }

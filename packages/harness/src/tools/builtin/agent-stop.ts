@@ -42,7 +42,7 @@ export class AgentStopTool extends SchemaTool<typeof inputSchema> {
     threadId,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     const agentId = toThreadId(input.agentId)
-    const outcome = this.agents().stop({ agentId, threadId, by: EKilledBy.Model })
+    const outcome = await this.agents().stop({ agentId, threadId, by: EKilledBy.Model })
     if (!outcome.ok) return outcome
 
     const { snapshot } = outcome

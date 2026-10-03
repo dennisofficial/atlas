@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { agentSnapshotWireSchema } from './roster-wire.js'
 import { wireEventSchema, wireThreadSchema, wireTurnSchema } from './session-wire.js'
 
 export const threadIdWireSchema = z.string().min(1).brand<'ThreadId'>()
@@ -34,6 +35,25 @@ export type RenameThreadParams = z.infer<typeof renameThreadParamsSchema>
 
 export const takeBackPendingParamsSchema = z.object({ threadId: threadIdWireSchema })
 export type TakeBackPendingParams = z.infer<typeof takeBackPendingParamsSchema>
+
+export const resumeAgentParamsSchema = z.object({
+  threadId: threadIdWireSchema,
+  agentId: threadIdWireSchema,
+})
+export type ResumeAgentParams = z.infer<typeof resumeAgentParamsSchema>
+
+export const stopAgentParamsSchema = z.object({
+  threadId: threadIdWireSchema,
+  agentId: threadIdWireSchema,
+})
+export type StopAgentParams = z.infer<typeof stopAgentParamsSchema>
+
+/** The harness registry's AgentOutcome, mirrored so the wire package never imports in-repo code. */
+export const agentOutcomeWireSchema = z.discriminatedUnion('ok', [
+  z.object({ ok: z.literal(true), snapshot: agentSnapshotWireSchema }),
+  z.object({ ok: z.literal(false), reason: z.string() }),
+])
+export type AgentOutcomeWire = z.infer<typeof agentOutcomeWireSchema>
 
 export const threadModelWireSchema = z.object({ ref: z.string(), effort: z.string() })
 

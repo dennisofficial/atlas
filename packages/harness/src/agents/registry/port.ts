@@ -43,7 +43,7 @@ export abstract class AgentRegistryPort {
   abstract reportToParent(args: { threadId: ThreadId; text: string }): Promise<AgentOutcome>
   abstract resume(args: { agentId: ThreadId; threadId: ThreadId }): Promise<AgentOutcome>
   abstract wake(args: { agentId: ThreadId }): Promise<AgentOutcome>
-  abstract stop(args: { agentId: ThreadId; threadId: ThreadId; by: EKilledBy }): AgentOutcome
+  abstract stop(args: { agentId: ThreadId; threadId: ThreadId; by: EKilledBy }): Promise<AgentOutcome>
   abstract relocateChildren(args: RelocateChildrenArgs): Promise<readonly ThreadId[]>
   abstract stopChildren(args: { threadId: ThreadId; by: EKilledBy }): Promise<readonly ThreadId[]>
   abstract pauseChildren(args: { threadId: ThreadId }): Promise<readonly ThreadId[]>

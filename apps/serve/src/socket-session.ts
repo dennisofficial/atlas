@@ -38,6 +38,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   const { threadId, buffer, inFlight, liveStepId, driver, files, refusal, log } = args
   const snapshot = args.roster?.snapshot ?? EMPTY_ROSTER
   const rewind = args.rewind
+  const agents = args.agents
   const pending = args.pending
   const transcript = args.transcript
   const selectModel = args.selectModel
@@ -68,6 +69,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
       send(sent)
     },
     rewind,
+    agents,
     transcript,
     selectModel,
     sessionArchive,
