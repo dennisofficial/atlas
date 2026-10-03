@@ -115,4 +115,3 @@ export async function seedDevHome({
   const hadCredentials = existsSync(join(devHome, 'key')) && existsSync(join(devHome, 'auth.json'));
   return { devHome, rcFile, hadCredentials, copiedCount: copied.length };
 }
-

@@ -117,8 +117,8 @@ describe('the memory archive op', () => {
 })
 
 describe('the protocol stamp', () => {
-  it('speaks the version that refuses serve runtimes built before the context-folder ops', () => {
-    expect(CHANNEL_PROTOCOL_VERSION).toBe(15)
+  it('speaks the version that includes context-folder ops and operator input', () => {
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(16)
   })
 })
 

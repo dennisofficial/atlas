@@ -120,6 +120,15 @@ const pendingEntryWireSchema = z.object({
 
 export type PendingEntryWire = z.infer<typeof pendingEntryWireSchema>
 
+export const operatorInputRequestWireSchema = z.object({
+  requestId: z.string().min(1),
+  description: z.string(),
+  url: z.string().optional(),
+  path: z.string(),
+})
+
+export type OperatorInputRequestWire = z.infer<typeof operatorInputRequestWireSchema>
+
 export const channelSignalSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('turn-working'), working: z.boolean() }),
   z.object({ type: z.literal('step-started'), stepId: stepIdWireSchema }),
@@ -142,6 +151,10 @@ export const channelSignalSchema = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('retry-cleared') }),
   z.object({ type: z.literal('pending-changed'), entries: z.array(pendingEntryWireSchema) }),
+  z.object({
+    type: z.literal('operator-input'),
+    request: operatorInputRequestWireSchema.nullable(),
+  }),
 ])
 
 export type ChannelSignal = z.infer<typeof channelSignalSchema>

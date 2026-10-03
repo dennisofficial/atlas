@@ -13,7 +13,7 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
  * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
  */
-export const CHANNEL_PROTOCOL_VERSION = 15
+export const CHANNEL_PROTOCOL_VERSION = 16
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
@@ -147,6 +147,12 @@ export enum EClientRequest {
   ResumeAgent = 'resume-agent',
   /** Stop a sub-agent or teammate; the sandbox records the kill as the operator's. Same gating as say-to-agent. */
   StopAgent = 'stop-agent',
+  /**
+   * The operator's answer to an operator-input request: a pasted token or OTP the harness pipes
+   * into the waiting process, byte-exact and never through the model. A serve built before this
+   * op refuses the request, and the client tells the operator the answer could not be delivered.
+   */
+  ProvideOperatorInput = 'provide-operator-input',
 }
 
 export enum ETurnStatus {

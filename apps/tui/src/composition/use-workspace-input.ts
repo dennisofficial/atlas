@@ -48,7 +48,7 @@ export type WorkspaceInputArgs = {
   handleNewConversation: () => void
   handleOpenAccounts: () => void
   handleQuit: () => void
-  conversation: Pick<ReturnType<typeof useConversation>, 'handleInterrupt' | 'rewindConfirm' | 'compacting'>
+  conversation: Pick<ReturnType<typeof useConversation>, 'handleInterrupt' | 'rewindConfirm' | 'compacting' | 'operatorInput'>
   composer: Pick<ReturnType<typeof useWorkspaceComposer>,
     'draftIsEmpty' | 'handleSubmit' | 'handleTakeBackPending' | 'handleAttachImage' | 'menus'>
   agentView: Pick<ReturnType<typeof useAgentView>, 'handleCycle' | 'disarmStop'>
@@ -155,6 +155,7 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
   const overlays = useMemo(
     (): readonly OverlayPresence[] => [
       covering(whatsNew.view !== null, whatsNew.handleKey),
+      { ...covering(conversation.operatorInput.state !== null, conversation.operatorInput.handleKey), porous: true },
       covering(exitGuard.state !== null, exitGuard.handleKey),
       covering(containerGuard.state !== null, containerGuard.handleKey),
       covering(rewindConfirm.state !== null, rewindConfirm.handleKey),
@@ -187,6 +188,8 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
       contextBrowser.handleKey,
       contextBrowser.viewer,
       containerMove.handleKey,
+      conversation.operatorInput.handleKey,
+      conversation.operatorInput.state,
       exitGuard.handleKey,
       exitGuard.state,
       footerStrip.handleKey,
@@ -229,14 +232,14 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
 
       if (key.eventType !== 'release' && key.name !== 'escape') agentView.disarmStop()
 
-      if (contextBrowser.viewer === null && menus.handleKey(key)) {
+      if (conversation.operatorInput.state === null && contextBrowser.viewer === null && menus.handleKey(key)) {
         key.preventDefault()
         return
       }
 
       handleKey(key)
     },
-    [agentView, covered, contextBrowser.viewer, handleKey, menus],
+    [agentView, conversation.operatorInput.state, covered, contextBrowser.viewer, handleKey, menus],
   )
 
   useKeyboard(handleKeyWithMenu)

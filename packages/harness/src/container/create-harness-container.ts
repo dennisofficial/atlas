@@ -49,6 +49,7 @@ import { registerFileState } from '../files'
 import { registerExecution } from '../execution/register-execution'
 import { registerServices } from '../services/register-services'
 import { ServiceRegistryPort } from '../services/service-registry'
+import { registerOperatorInput } from '../operator-input/register-operator-input'
 import { registerShells } from '../shells/register-shells'
 import { EShellStatus } from '../shells/background-shell'
 import { ShellRegistryPort } from '../shells/shell-registry'
@@ -283,6 +284,7 @@ export function createHarnessContainer(): DependencyContainer {
   registerExecution({ container: harness })
   registerShells({ container: harness })
   registerServices({ container: harness })
+  registerOperatorInput({ container: harness })
   registerSkills({ container: harness })
   registerAgents({ container: harness })
   // bindModels re-registers this with the session's real state; the default only exists so a

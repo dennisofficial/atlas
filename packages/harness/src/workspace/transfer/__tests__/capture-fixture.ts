@@ -13,6 +13,7 @@ const GIT_IDENTITY = [
   '-c', 'user.email=fixture@example.com',
   '-c', 'commit.gpgsign=false',
   '-c', 'core.fsmonitor=false',
+  '-c', 'maintenance.auto=false',
 ] as const
 
 const cleanEnvironment = (): Record<string, string> => {

@@ -47,7 +47,8 @@ const fake = vi.hoisted(() => {
           (row) => row.id === args.where.id && row.userId === args.where.userId,
         ) ?? null,
       create: async (args: { data: Omit<AgentAccountRow, 'createdAt' | 'updatedAt'> }) => {
-        const row = { ...args.data, createdAt: new Date(), updatedAt: new Date() }
+        const timestamp = new Date()
+        const row = { ...args.data, createdAt: timestamp, updatedAt: timestamp }
         accounts.push(row)
         return row
       },
@@ -79,7 +80,8 @@ const fake = vi.hoisted(() => {
       create: async (args: {
         data: Omit<ActiveAccountRow, 'createdAt' | 'updatedAt'>
       }) => {
-        const row = { ...args.data, createdAt: new Date(), updatedAt: new Date() }
+        const timestamp = new Date()
+        const row = { ...args.data, createdAt: timestamp, updatedAt: timestamp }
         actives.push(row)
         return row
       },
@@ -98,7 +100,8 @@ const fake = vi.hoisted(() => {
           existing.updatedAt = new Date()
           return existing
         }
-        const row = { ...args.create, createdAt: new Date(), updatedAt: new Date() }
+        const timestamp = new Date()
+        const row = { ...args.create, createdAt: timestamp, updatedAt: timestamp }
         actives.push(row)
         return row
       },

@@ -5,6 +5,7 @@ import {
   EStepEnd,
   toStepId,
   type ChannelSignal,
+  type OperatorInputRequest,
   type RetryWaitingSignal,
   type StepId,
   type StepSignal,
@@ -25,6 +26,7 @@ export type ThreadPublisher = {
   close(args: { end: EStepEnd }): void
   retrying(notice: Omit<RetryWaitingSignal, 'type'>): void
   turnWorking(args: { working: boolean }): void
+  operatorInput(args: { open: OperatorInputRequest | null; onListenerError?: ListenerErrorSink }): void
 }
 
 export type DeltaChannel = {
@@ -37,7 +39,8 @@ type ThreadState = {
   listeners: Set<ChannelListener>
   inFlight: StepSignal[]
   toolOutputSlots: InFlightSlots
-  replay: readonly StepSignal[] | undefined
+  replay: readonly ChannelSignal[] | undefined
+  operatorInput: OperatorInputRequest | null
   stepId: StepId | undefined
   stepsStarted: number
   working: boolean
@@ -72,13 +75,17 @@ export function createDeltaChannel(): DeltaChannel {
       stepId: undefined,
       stepsStarted: 0,
       working: false,
+      operatorInput: null,
     }
     threads.set(threadId, created)
     return created
   }
 
   const forgetIfIdle = (args: { threadId: ThreadId; state: ThreadState }) => {
-    if (args.state.listeners.size > 0 || args.state.stepId !== undefined || args.state.working) return
+    if (
+      args.state.listeners.size > 0 || args.state.stepId !== undefined ||
+      args.state.working || args.state.operatorInput !== null
+    ) return
     threads.delete(args.threadId)
   }
 
@@ -88,12 +95,11 @@ export function createDeltaChannel(): DeltaChannel {
 
   const WORKING_SIGNAL: StepSignal = Object.freeze({ type: 'turn-working', working: true })
 
-  const stableReplay = (state: ThreadState): readonly StepSignal[] => {
-    if (state.inFlight.length === 0) {
-      return state.working ? [WORKING_SIGNAL] : NOTHING_IN_FLIGHT
-    }
+  const stableReplay = (state: ThreadState): readonly ChannelSignal[] => {
     if (state.replay !== undefined) return state.replay
-    const held = state.working ? [WORKING_SIGNAL, ...state.inFlight] : [...state.inFlight]
+    if (!state.working && state.inFlight.length === 0 && state.operatorInput === null) return NOTHING_IN_FLIGHT
+    const held: ChannelSignal[] = state.working ? [WORKING_SIGNAL, ...state.inFlight] : [...state.inFlight]
+    if (state.operatorInput !== null) held.push({ type: 'operator-input', request: state.operatorInput })
     state.replay = Object.freeze(held)
     return state.replay
   }
@@ -223,6 +229,20 @@ export function createDeltaChannel(): DeltaChannel {
 
         turnWorking({ working }) {
           markWorking({ threadId, state: stateFor(threadId), working })
+        },
+
+        operatorInput({ open, onListenerError }) {
+          const state = stateFor(threadId)
+          state.operatorInput = open
+          state.replay = undefined
+          for (const listener of [...state.listeners]) {
+            try {
+              listener({ type: 'operator-input', request: open })
+            } catch (cause) {
+              onListenerError?.(cause)
+            }
+          }
+          if (open === null) forgetIfIdle({ threadId, state })
         },
       }
     },

@@ -12,6 +12,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { AgentRegistryPort } from '../agents/registry/port'
+import { OperatorInputPort } from '../operator-input/port'
 import { createDeltaChannel } from '../channel/delta-channel'
 import { createHarnessContainer } from '../container/create-harness-container'
 import { portToken, type DependencyContainer } from '../container/injection'
@@ -159,6 +160,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
   const shells = container.resolve(portToken(ShellRegistryPort))
   const agents = container.resolve(portToken(AgentRegistryPort))
   const services = container.resolve(portToken(ServiceRegistryPort))
+  const operatorInput = container.resolve(portToken(OperatorInputPort))
 
   const channel = createDeltaChannel()
   const pending = createPendingQueues<Command>()
@@ -232,6 +234,7 @@ export async function composeHarness<TSurface = undefined, Command = never, TPlu
     shells,
     agents,
     services,
+    operatorInput,
     sandbox,
     containerStatus,
     mcp: mcp.servers,
