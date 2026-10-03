@@ -129,10 +129,11 @@ describe('what the sidebar says about background shells', () => {
     expect(has(rows, 'awaiting input')).toBe(true)
   })
 
-  it('counts a running shell up from when it started', async () => {
+  it('counts a running shell up from when it started, leaving the state to the green dot', async () => {
     const rows = await sidebarRows([shell({ shellId: 'bash_1' })])
 
-    expect(has(rows, 'running · 1m 4s')).toBe(true)
+    expect(has(rows, '1m 4s')).toBe(true)
+    expect(has(rows, 'running · 1m 4s')).toBe(false)
   })
 })
 
