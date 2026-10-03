@@ -48,12 +48,14 @@ async function onCloudTab(app: FakeApp): Promise<Mounted> {
 
   setup.mockInput.pressKey('o', { ctrl: true })
   await landed(setup)
-  setup.mockInput.pressTab()
-  await landed(setup)
-  setup.mockInput.pressTab()
-  await landed(setup)
-  setup.mockInput.pressTab()
-  await landed(setup)
+  for (let press = 0; press < 6; press += 1) {
+    if (setup.captureCharFrame().includes('ATLAS CLOUD')) return setup
+    setup.mockInput.pressTab()
+    await landed(setup)
+  }
+  if (!setup.captureCharFrame().includes('ATLAS CLOUD')) {
+    throw new Error('tabbing never reached the cloud settings page')
+  }
   return setup
 }
 
