@@ -42,8 +42,10 @@ export const harness = (options?: {
   maxReattachments?: number | undefined
   reattach?: (() => Promise<{ url: string; token: string }>) | undefined
   requestTimeoutMs?: number | undefined
+  unwrittenRequestTimeoutMs?: number | undefined
   interruptAckTimeoutMs?: number | undefined
   lifecycleEscalation?: (() => Promise<EReconnectEscalation>) | undefined
+  unattached?: boolean | undefined
 }) => {
   const sockets: FakeSocket[] = []
   const retries: { delayMs: number; run: () => void }[] = []
@@ -51,14 +53,14 @@ export const harness = (options?: {
 
   const channel = createRemoteDeltaChannel({
     threadId: THREAD,
-    url: 'https://sandbox.test/',
-    token: 'tok_session',
+    ...(options?.unattached === true ? {} : { url: 'https://sandbox.test/', token: 'tok_session' }),
     lastEventSeq: () => options?.lastEventSeq ?? 0,
     maxAttempts: options?.maxAttempts,
     maxReattachments: options?.maxReattachments,
     reattach: options?.reattach,
     lifecycleEscalation: options?.lifecycleEscalation,
     requestTimeoutMs: options?.requestTimeoutMs,
+    unwrittenRequestTimeoutMs: options?.unwrittenRequestTimeoutMs,
     interruptAckTimeoutMs: options?.interruptAckTimeoutMs,
     scheduleRetry: (retry) => void retries.push(retry),
     scheduleTimeout: (timeout) => void timeouts.push(timeout),

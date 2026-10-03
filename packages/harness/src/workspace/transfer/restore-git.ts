@@ -133,6 +133,10 @@ export async function createSymref({ cwd, ref, target, journal }: { cwd: string;
   journal.undo.push(() => undoGit({ args: ['symbolic-ref', '--delete', ref], cwd }))
 }
 
+export async function isAncestor({ cwd, from, to }: { cwd: string; from: string; to: string }): Promise<boolean> {
+  return (await git({ args: ['merge-base', '--is-ancestor', from, to], cwd })).ok
+}
+
 const timeOf = (line: string): number => Number(/> (\d+) /.exec(line)?.[1] ?? 0)
 
 const linesOf = async (path: string): Promise<string[]> =>

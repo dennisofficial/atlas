@@ -67,7 +67,7 @@ export function useWorkspaceLifecycle(args: {
 
   const handleQuit = useCallback(() => {
     if (cloud) {
-      exitGuard.handleOpen()
+      exit.handleDetach()
       return
     }
 
@@ -83,7 +83,7 @@ export function useWorkspaceLifecycle(args: {
 
     void closeConversation()
     renderer.destroy()
-  }, [agents.running, cloud, conversation, exitGuard, renderer, services.running, shells])
+  }, [agents.running, cloud, conversation, exit, renderer, services.running, shells])
 
   useEffect(() => {
     if (cloud) return

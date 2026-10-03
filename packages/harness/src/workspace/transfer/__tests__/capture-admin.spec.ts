@@ -19,7 +19,12 @@ afterAll(async () => {
 })
 
 const digestOf = (made: Fixture): Promise<string> =>
-  digestGitAdmin({ cwds: [made.main, made.nested, made.detached] })
+  digestGitAdmin({
+    trees: [
+      { sourcePath: made.main, branch: 'main' },
+      { sourcePath: made.nested, branch: 'feat' },
+    ],
+  })
 
 describe('digestGitAdmin', () => {
   it('is stable when nothing changes and when only stat data is refreshed', async () => {
@@ -29,11 +34,14 @@ describe('digestGitAdmin', () => {
     expect(await digestOf(made)).toBe(before)
   })
 
-  it('notices a side ref, a config edit and in-progress state', async () => {
+  it('notices a covered ref move, a config edit and in-progress state, but not a side branch', async () => {
     const made = await fixture()
     const base = await digestOf(made)
 
     await git({ args: ['branch', 'side'], cwd: made.main })
+    expect(await digestOf(made)).toBe(base)
+
+    await git({ args: ['commit', '--allow-empty', '-m', 'moved'], cwd: made.nested })
     const withRef = await digestOf(made)
     expect(withRef).not.toBe(base)
 

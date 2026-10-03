@@ -166,8 +166,9 @@ const registryOf = <T>() => {
 
 export function createRemoteDeltaChannel(args: {
   threadId: ThreadId
-  url: string
-  token: string
+  /** Absent means deferred: start {@link EChannelConnection.Parked} and open nothing until `wake`. */
+  url?: string | undefined
+  token?: string | undefined
   lastEventSeq?: (() => number) | undefined
   socketFactory?: ChannelSocketFactory | undefined
   scheduleRetry?: ((retry: { delayMs: number; run: () => void }) => void) | undefined
@@ -177,6 +178,12 @@ export function createRemoteDeltaChannel(args: {
   maxAttempts?: number | undefined
   lifecycleEscalation?: (() => Promise<EReconnectEscalation>) | undefined
   requestTimeoutMs?: number | undefined
+  /**
+   * A request issued while the wire is down queues and its answer clock starts only once the
+   * frame reaches a socket; this bounds how long "queued behind a wake" may last before the
+   * caller is told the request never left.
+   */
+  unwrittenRequestTimeoutMs?: number | undefined
   keepaliveMs?: number | undefined
   interruptAckTimeoutMs?: number | undefined
   /**
@@ -222,6 +229,7 @@ export function createRemoteDeltaChannel(args: {
   const serverErrors = registryOf<ChannelFailure>()
   const upstream = createUpstreamPipe({
     timeoutMs: args.requestTimeoutMs,
+    unwrittenTimeoutMs: args.unwrittenRequestTimeoutMs,
     scheduleTimeout,
   })
 
@@ -239,7 +247,10 @@ export function createRemoteDeltaChannel(args: {
   let generation = 0
   let url = args.url
   let token = args.token
-  let connection: ChannelConnection = { state: EChannelConnection.Connecting, detail: null }
+  const attached = url !== undefined && token !== undefined
+  let connection: ChannelConnection = attached
+    ? { state: EChannelConnection.Connecting, detail: null }
+    : { state: EChannelConnection.Parked, detail: null }
   let interruptPending = false
   let interruptSentGeneration = -1
   let heldCheckpoint: RuntimeCheckpoint | null = null
@@ -519,7 +530,7 @@ export function createRemoteDeltaChannel(args: {
     connect()
   }
 
-  const escalate = (reattach: () => Promise<{ url: string; token: string }>) => {
+  const escalate = (reattach: () => Promise<{ url: string; token: string }>, forQueuedWork = false) => {
     generation += 1
     reattachments += 1
     endStrandedStep()
@@ -532,16 +543,35 @@ export function createRemoteDeltaChannel(args: {
       },
       (failure) => {
         if (abandoned || scheduled !== generation) return
-        moveTo({
-          state: EChannelConnection.Closed,
-          detail:
-            `The session socket closed and did not reopen after ${maxAttempts} attempts, ` +
-            `and re-attaching to the sandbox failed: ${
-              failure instanceof Error ? failure.message : String(failure)
-            }`,
-        })
+        const cause = failure instanceof Error ? failure.message : String(failure)
+        const detail = forQueuedWork
+          ? `The sandbox could not be woken for the queued work: ${cause}`
+          : `The session socket closed and did not reopen after ${maxAttempts} attempts, ` +
+            `and re-attaching to the sandbox failed: ${cause}`
+        upstream.failUnwritten({ reason: detail })
+        moveTo({ state: EChannelConnection.Closed, detail })
       },
     )
+  }
+
+  /**
+   * Operator intent beats a dead wire: any outgoing frame against a parked or closed sandbox
+   * starts the same re-attach the transport recovery escalates to, and the queued pipe delivers
+   * everything once the fresh socket greets. Turn frames reach here through the turn runner's
+   * own wake ceremony, so this exists for everything else — requests and publishes alike.
+   */
+  const kickWake = () => {
+    if (abandoned) return
+    const reattach = args.reattach
+    if (reattach === undefined) return
+    if (
+      connection.state !== EChannelConnection.Parked &&
+      connection.state !== EChannelConnection.Closed
+    ) {
+      return
+    }
+    reattachments = 0
+    escalate(reattach, true)
   }
 
   const handleClose = () => {
@@ -550,7 +580,7 @@ export function createRemoteDeltaChannel(args: {
     if (abandoned) return
 
     // Told in words (EServeFrame.Parked) before the close: the sandbox is gone on purpose, so
-    // retrying its URL is futile — waking it is the turn runner's job on the next action.
+    // retrying its URL is futile — the next wire action wakes it instead (see kickWake).
     if (connection.state === EChannelConnection.Parked) return
 
     if (attempt >= maxAttempts) {
@@ -642,7 +672,7 @@ export function createRemoteDeltaChannel(args: {
   }
 
   const connect = (): ChannelSocket | null => {
-    if (abandoned) return null
+    if (abandoned || url === undefined || token === undefined) return null
     supersede()
     let mine: ChannelSocket | null = null
     const guarded = <A extends unknown[]>(handler: (...args: A) => void) =>
@@ -664,7 +694,7 @@ export function createRemoteDeltaChannel(args: {
     return mine
   }
 
-  connect()
+  if (attached) connect()
 
   return {
     threadId: args.threadId,
@@ -689,19 +719,23 @@ export function createRemoteDeltaChannel(args: {
       throw new RemotePublishRefused(threadId)
     },
 
-    send: ({ text, images, files, context }) =>
+    send: ({ text, images, files, context }) => {
+      kickWake()
       upstream.send({
         kind: EClientFrame.Send,
         sendId: toSendId(crypto.randomUUID()),
         ...saidBody({ text, images, files }),
         ...(context === undefined || context.length === 0 ? {} : { context: [...context] }),
-      }),
+      })
+    },
 
-    run: (runArgs) =>
+    run: (runArgs) => {
+      kickWake()
       upstream.send({
         kind: EClientFrame.Run,
         ...(runArgs?.resume === true ? { resume: true } : {}),
-      }),
+      })
+    },
 
     interrupt: requestInterrupt,
 
@@ -715,11 +749,17 @@ export function createRemoteDeltaChannel(args: {
     },
 
     request: (request) => {
-      if (connection.state === EChannelConnection.Parked) {
+      if (abandoned) {
+        return Promise.reject(
+          new RemoteRequestLost({ op: request.op, reason: 'the channel is closed' }),
+        )
+      }
+      if (connection.state === EChannelConnection.Parked && args.reattach === undefined) {
         return Promise.reject(
           new RemoteRequestLost({ op: request.op, reason: 'the sandbox is parked' }),
         )
       }
+      kickWake()
       return upstream.request(request)
     },
 

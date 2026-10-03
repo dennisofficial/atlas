@@ -1,9 +1,9 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
 import type { DirectWorkspaceRestorer } from './direct-workspace'
+import type { ApplyEnvironmentProfile } from './environment-profile'
 import type { EnsureWorkspace } from './materialize-workspace'
 import type { WorkspaceCapturer } from './prepare-workspace'
-import type { WorkspacePublisher } from './publish-workspace'
 import type { ServeCompose } from './serve-app'
 import type { LogWrite } from './serve-log'
 import type { WorkspaceFiles } from './workspace-files'
@@ -30,7 +30,7 @@ export type ServeArgs = {
   write?: LogWrite | undefined
   compose?: ServeCompose | undefined
   ensureWorkspace?: EnsureWorkspace | undefined
-  publishWorkspace?: WorkspacePublisher | undefined
+  profile?: ApplyEnvironmentProfile | undefined
   contextFiles?: WorkspaceFiles | undefined
   fetchTranscriptArchive?: FetchTranscriptArchive | undefined
   restoreWorkspace?: DirectWorkspaceRestorer | undefined

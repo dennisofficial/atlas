@@ -95,9 +95,6 @@ const rig = (): {
     liveStepId: () => null,
     driver: untouchedDriver(touched),
     files: { list: async () => [] },
-    publish: async () => {
-      throw new Error('unused')
-    },
     refusal: () => null,
     log,
     applyUserSettings: createUserSettingsApplier({ settings: service, log }),
@@ -169,9 +166,6 @@ describe('settings client frame', () => {
       liveStepId: () => null,
       driver: untouchedDriver([]),
       files: { list: async () => [] },
-      publish: async () => {
-        throw new Error('unused')
-      },
       refusal: () => null,
       log: () => undefined,
     })
@@ -198,9 +192,6 @@ describe('settings client frame', () => {
       liveStepId: () => null,
       driver: untouchedDriver([]),
       files: { list: async () => [] },
-      publish: async () => {
-        throw new Error('unused')
-      },
       refusal: () => null,
       admissionClosed: () => true,
       log,

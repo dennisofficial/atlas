@@ -60,6 +60,14 @@ const SAFE_TO_REDRIVE: ReadonlySet<EClientRequest> = new Set([
 
 type SendFrame = Extract<ClientFrame, { kind: EClientFrame.Send }>
 
+/**
+ * A backstop, not a deadline: a queued request whose wake fell through is rejected by
+ * `failUnwritten` the moment the failure is known, so this only bounds a wake that never
+ * resolves. It clears the slowest legitimate wake (a resume that trips image-optimize
+ * retries) rather than tuning for the common case.
+ */
+export const UNWRITTEN_REQUEST_TIMEOUT_MS = 600_000
+
 export type UpstreamPipe = {
   send(frame: ClientFrame): void
   request(args: { op: EClientRequest; params: unknown }): Promise<unknown>
@@ -74,6 +82,12 @@ export type UpstreamPipe = {
    * wake, so nothing a caller could be waiting on resolves before then.
    */
   failWaiting(args: { reason: string }): void
+  /**
+   * Rejects only the requests whose frames never reached a socket — the ones stranded when a wake
+   * the wire was counting on falls through. Requests already written keep racing their own
+   * answer deadline.
+   */
+  failUnwritten(args: { reason: string }): void
 }
 
 type Waiting = {
@@ -84,27 +98,63 @@ type Waiting = {
 
 export function createUpstreamPipe(args: {
   timeoutMs?: number | undefined
+  unwrittenTimeoutMs?: number | undefined
   scheduleTimeout: (timeout: { delayMs: number; run: () => void }) => void
 }): UpstreamPipe {
   const waiting = new Map<string, Waiting>()
   const queued: ClientFrame[] = []
   const redrivable = new Map<string, Extract<ClientFrame, { kind: EClientFrame.Request }>>()
   const pendingAcks = new Map<SendFrame['sendId'], SendFrame>()
+  const unwritten = new Set<string>()
   let write: ((data: string) => boolean) | null = null
   let issued = 0
+
+  const claim = (id: string): Waiting | undefined => {
+    const claimed = waiting.get(id)
+    waiting.delete(id)
+    return claimed
+  }
+
+  /**
+   * The answer deadline measures the serve, not the queue: a request parked behind a wake has
+   * no clock until its frame first reaches a socket — but once armed, the deadline survives
+   * detaches and re-drives, so a request can still time out mid-reconnect.
+   */
+  const armAnswerDeadline = (frame: Extract<ClientFrame, { kind: EClientFrame.Request }>) => {
+    if (!unwritten.delete(frame.id)) return
+    const timeoutMs = requestTimeoutFor({ op: frame.op, overrideMs: args.timeoutMs })
+    args.scheduleTimeout({
+      delayMs: timeoutMs,
+      run: () =>
+        claim(frame.id)?.reject(
+          new RemoteRequestLost({ op: frame.op, reason: `it timed out after ${timeoutMs}ms` }),
+        ),
+    })
+  }
+
+  const emitted = (frame: ClientFrame) => {
+    if (frame.kind === EClientFrame.Request) armAnswerDeadline(frame)
+  }
 
   const emit = (frame: ClientFrame) => {
     if (write === null) {
       queued.push(frame)
       return
     }
-    if (!write(encodeFrame(frame))) queued.push(frame)
+    if (!write(encodeFrame(frame))) {
+      queued.push(frame)
+      return
+    }
+    emitted(frame)
   }
 
-  const claim = (id: string): Waiting | undefined => {
-    const claimed = waiting.get(id)
-    waiting.delete(id)
-    return claimed
+  const dropQueued = (id: string) => {
+    for (let i = queued.length - 1; i >= 0; i--) {
+      const frame = queued[i]
+      if (frame !== undefined && frame.kind === EClientFrame.Request && frame.id === id) {
+        queued.splice(i, 1)
+      }
+    }
   }
 
   return {
@@ -121,14 +171,23 @@ export function createUpstreamPipe(args: {
         waiting.set(id, { op, resolve, reject })
         const frame = { kind: EClientFrame.Request, id, op, params } as const
         if (SAFE_TO_REDRIVE.has(op)) redrivable.set(id, frame)
+        unwritten.add(id)
         emit(frame)
-        const timeoutMs = requestTimeoutFor({ op, overrideMs: args.timeoutMs })
+        if (!unwritten.has(id)) return
+        const stallMs = args.unwrittenTimeoutMs ?? UNWRITTEN_REQUEST_TIMEOUT_MS
         args.scheduleTimeout({
-          delayMs: timeoutMs,
-          run: () =>
+          delayMs: stallMs,
+          run: () => {
+            if (!unwritten.delete(id)) return
+            redrivable.delete(id)
+            dropQueued(id)
             claim(id)?.reject(
-              new RemoteRequestLost({ op, reason: `it timed out after ${timeoutMs}ms` }),
-            ),
+              new RemoteRequestLost({
+                op,
+                reason: `it was never sent — the socket stayed closed for ${stallMs}ms`,
+              }),
+            )
+          },
         })
       })
     },
@@ -151,6 +210,7 @@ export function createUpstreamPipe(args: {
       redrivable.clear()
       pendingAcks.clear()
       queued.splice(0, queued.length)
+      unwritten.clear()
 
       for (const [id, claimed] of [...waiting]) {
         waiting.delete(id)
@@ -163,6 +223,18 @@ export function createUpstreamPipe(args: {
 
       for (const [id, claimed] of [...waiting]) {
         waiting.delete(id)
+        unwritten.delete(id)
+        claimed.reject(new RemoteRequestLost({ op: claimed.op, reason }))
+      }
+    },
+
+    failUnwritten({ reason }) {
+      for (const id of [...unwritten]) {
+        unwritten.delete(id)
+        redrivable.delete(id)
+        dropQueued(id)
+        const claimed = claim(id)
+        if (claimed === undefined) continue
         claimed.reject(new RemoteRequestLost({ op: claimed.op, reason }))
       }
     },
@@ -170,7 +242,11 @@ export function createUpstreamPipe(args: {
     attach({ write: writer }) {
       write = writer
       for (const frame of queued.splice(0, queued.length)) {
-        if (!writer(encodeFrame(frame))) queued.push(frame)
+        if (!writer(encodeFrame(frame))) {
+          queued.push(frame)
+          continue
+        }
+        emitted(frame)
       }
     },
 
@@ -180,6 +256,7 @@ export function createUpstreamPipe(args: {
       for (const [id, claimed] of [...waiting]) {
         if (redrivable.has(id)) continue
         waiting.delete(id)
+        unwritten.delete(id)
         claimed.reject(new RemoteRequestLost({ op: claimed.op, reason }))
       }
 

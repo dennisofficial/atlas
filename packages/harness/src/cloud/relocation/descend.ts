@@ -19,6 +19,8 @@ import type { TurnLedgerPort } from '../../ledger/turn-ledger.port'
 import type { WorkspaceRestorer } from './descend-workspace'
 import { preserveDescendSource } from './descend-recovery'
 import { logFieldsOf } from '../../store/logs'
+import { probeWorkspace } from '../../workspace/probe'
+import { releaseWorktree } from '../../workspace/worktree-lock'
 import type { CloudBridge, CloudChannel } from './cloud-bridge'
 import { retrySleep, type RetryPolicy } from '../retry-policy'
 import { ELiftStep } from './lift'
@@ -146,6 +148,13 @@ async function runDescend<Opened>(
     await run.restoration?.commit().catch((error: unknown) => {
       notice.notify({ key: 'descend-workspace-cleanup', tone: ENoticeTone.Warn, ttlMs: null, text: `The workspace arrived, but its recovery files could not be removed: ${relocationMessageOf(error)}` })
     })
+    // The conversation now runs locally; this process's claim on the origin checkout must not
+    // outlive the flip, because the sandbox park/shutdown is the only other releaser and it may
+    // never run between a descend and the next lift.
+    const origin = await probeWorkspace({ cwd: localApp.workspace.workspace }).catch(() => undefined)
+    if (origin !== undefined && origin.repo !== null && origin.workspace !== origin.repo) {
+      await releaseWorktree({ cwd: origin.repo, path: origin.workspace }).catch(() => false)
+    }
   }
   if (!result.ok) {
     if (result.phase === 'committed' && opened !== undefined) {

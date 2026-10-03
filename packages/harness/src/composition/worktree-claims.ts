@@ -4,6 +4,7 @@ import type { DependencyContainer } from '../container/injection'
 import { registerDisposable } from '../container/disposal'
 import { HookChainToken } from '../container/tokens'
 import type { ThreadStorePort } from '../store/thread-store'
+import { probeWorkspace } from '../workspace/probe'
 import {
   claimWorktree,
   claimWorktreeAt,
@@ -71,6 +72,27 @@ async function sharesSpawnerWorktree(args: {
   if (spawner?.workspace === null || spawner?.workspace === undefined) return false
 
   return spawner.workspace === args.projectDirectory
+}
+
+/**
+ * The mirror of `claimOpenedWorktree` for a thread whose ending is being recorded: if it claimed a
+ * worktree of its own, hand the claim back — otherwise the lock outlives the thread until process
+ * shutdown, which in a shared serve process (the whole teammate family in one pid) is never. A
+ * thread still parked in its spawner's worktree holds no claim of its own, exactly as at open.
+ */
+export async function releaseEndedWorktree(args: {
+  threads: ThreadStorePort
+  threadId: ThreadId
+}): Promise<void> {
+  const ended = await args.threads.find({ threadId: args.threadId })
+  const workspace = ended?.workspace
+  if (workspace === null || workspace === undefined) return
+  if (await sharesSpawnerWorktree({ threads: args.threads, threadId: args.threadId, projectDirectory: workspace })) return
+
+  const identity = await probeWorkspace({ cwd: workspace }).catch(() => undefined)
+  if (identity === undefined || identity.repo === null || identity.workspace === identity.repo) return
+
+  await releaseWorktree({ cwd: identity.repo, path: identity.workspace })
 }
 
 export async function claimOpenedWorktree(args: {

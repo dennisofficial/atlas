@@ -352,15 +352,6 @@ describe('a request riding the session socket', () => {
     await expect(answer).rejects.toBeInstanceOf(RemoteRequestLost)
   })
 
-  it('rejects a workspace publish in flight when the socket closes', async () => {
-    const { channel, drop } = readied()
-
-    const answer = channel.request({ op: EClientRequest.PublishWorkspace, params: {} })
-    drop()
-
-    await expect(answer).rejects.toBeInstanceOf(RemoteRequestLost)
-  })
-
   describe('a restore or identity request in flight when the socket closes', () => {
     it('re-drives the restore on the next ready with the same id and op', async () => {
       const { channel, drop, retries, receive, live } = readied()
@@ -462,7 +453,64 @@ describe('a request against a parked channel', () => {
     expect((settled as RemoteRequestLost).message).toContain('idle past the ttl')
   })
 
-  it('rejects a new request while the sandbox is parked instead of stalling it', async () => {
+  it('wakes the sandbox for a new request and answers it once the fresh socket greets', async () => {
+    let reattached = 0
+    const { channel, receive, live } = readied({
+      reattach: async () => {
+        reattached += 1
+        return { url: 'https://sandbox.test/woken', token: 'tok_woken' }
+      },
+    })
+    receive({ kind: EServeFrame.Parked, reason: 'idle past the ttl' })
+    live().handlers.handleClose()
+
+    const answer = channel.request({ op: EClientRequest.ReadEvents, params: {} })
+    await Bun.sleep(1)
+
+    expect(reattached).toBe(1)
+    expect(upstreamOf(live().sent).filter((frame) => frame.kind === EClientFrame.Request)).toEqual([])
+
+    live().handlers.handleOpen()
+    receive({ kind: EServeFrame.Ready, seq: 2 })
+
+    const flushed = upstreamOf(live().sent).filter((frame) => frame.kind === EClientFrame.Request)
+    expect(flushed).toHaveLength(1)
+    const id = flushed[0]?.kind === EClientFrame.Request ? flushed[0].id : ''
+
+    receive({ kind: EServeFrame.Reply, replyTo: id, ok: true, data: { events: [] } })
+    expect(await answer).toEqual({ events: [] })
+  })
+
+  it('answers a parked-request that takes longer than the reply timeout to wake, since the clock starts on write', async () => {
+    const { channel, receive, live, timeouts } = readied({
+      requestTimeoutMs: 100,
+      reattach: async () => ({ url: 'https://sandbox.test/woken', token: 'tok_woken' }),
+    })
+    receive({ kind: EServeFrame.Parked, reason: 'idle past the ttl' })
+    live().handlers.handleClose()
+
+    const answer = channel.request({ op: EClientRequest.ReadEvents, params: {} })
+    await Bun.sleep(1)
+
+    expect(timeouts.filter((timeout) => timeout.delayMs === 100)).toEqual([])
+
+    live().handlers.handleOpen()
+    receive({ kind: EServeFrame.Ready, seq: 2 })
+
+    const flushed = upstreamOf(live().sent).filter((frame) => frame.kind === EClientFrame.Request)
+    const id = flushed[0]?.kind === EClientFrame.Request ? flushed[0].id : ''
+    expect(id).not.toBe('')
+
+    timeouts
+      .filter((timeout) => timeout.delayMs === 100)
+      .at(-1)
+      ?.run()
+    const settled = await answer.catch((error: unknown) => error)
+    expect(settled).toBeInstanceOf(RemoteRequestLost)
+    expect((settled as RemoteRequestLost).message).toContain('timed out after 100ms')
+  })
+
+  it('rejects a new request while the sandbox is parked only when nothing can wake it', async () => {
     const { channel, receive, live } = readied({ requestTimeoutMs: 60_000 })
     receive({ kind: EServeFrame.Parked, reason: 'idle past the ttl' })
 

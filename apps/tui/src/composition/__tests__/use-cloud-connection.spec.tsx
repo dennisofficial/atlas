@@ -14,7 +14,7 @@ import type { CloudSession } from '../cloud/cloud-session'
 import { createCloudSession } from '../cloud/cloud-session'
 import { fakeCloudChannel } from '../cloud/__tests__/fixture'
 import { EPlacementMoveKind, ERuntimeKind } from '@dltech/atlas-harness'
-import { useCloudConnection } from '../use-cloud-connection'
+import { useCloudConnection, useCloudHealth } from '../use-cloud-connection'
 import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
@@ -38,6 +38,12 @@ const sessionOn = (connection?: ChannelConnection): CloudSession => {
 }
 
 type Probe = { current: CloudConnection | null | undefined }
+type HealthProbe = { current: ReturnType<typeof useCloudHealth> | undefined }
+
+function HealthHarness(args: { probe: HealthProbe; app: FakeApp; session: CloudSession | null }) {
+  args.probe.current = useCloudHealth({ app: args.app, session: args.session })
+  return <box />
+}
 
 function Harness(args: { probe: Probe; app: FakeApp; session: CloudSession | null }) {
   args.probe.current = useCloudConnection({ app: args.app, session: args.session })
@@ -83,10 +89,11 @@ async function mount(args: {
 }
 
 afterEach(() => {
-  const mounted = live.pop()
-  if (mounted === undefined) return
-  mounted.root.unmount()
-  mounted.setup.renderer.destroy()
+  for (const mounted of [live.pop(), liveHealth.pop()]) {
+    if (mounted === undefined) continue
+    mounted.root.unmount()
+    mounted.setup.renderer.destroy()
+  }
 })
 
 const appFor = (): FakeApp =>
@@ -164,3 +171,67 @@ describe('the connection the cloud chrome reads', () => {
     expect(probe.current?.state).toBe(EChannelConnection.Connecting)
   })
 })
+
+describe('the full health the transcript reads', () => {
+  it('dims nothing once the placement says the session is home, however stale the last cloud health', async () => {
+    const app = appFor()
+    const session = sessionOn({ state: EChannelConnection.Closed, detail: 'gave up after 8 attempts' })
+    const { probe, root } = await mountHealth({ app, location: EExecutionLocation.Cloud, session })
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(probe.current?.stale).toBe(true)
+
+    await act(async () => {
+      await app.executionLocation.move({
+        threadId: THREAD,
+        target: EExecutionLocation.Host,
+        kind: EPlacementMoveKind.Descend,
+        work: async (transaction) => {
+          await transaction.commit(placementOf(EExecutionLocation.Host))
+        },
+      })
+    })
+
+    expect(probe.current).toBeNull()
+  })
+})
+
+type MountedHealth = {
+  setup: TestRendererSetup
+  root: Root
+  probe: HealthProbe
+}
+
+async function mountHealth(args: {
+  app: FakeApp
+  location: EExecutionLocation
+  session: CloudSession | null
+  attached?: boolean
+}): Promise<MountedHealth> {
+  await args.app.threads.create({ id: THREAD, executionLocation: args.location })
+  const local = args.app.sessionOwner.require()
+  await args.app.executionLocation.activate({ threadId: THREAD, fallback: args.location })
+  if (args.location === EExecutionLocation.Cloud && args.attached !== false) {
+    await args.app.sessionOwner.adopt({
+      threadId: THREAD,
+      binding: { kind: ERuntimeKind.Cloud, cwd: '/sandbox', adapters: local.adapters },
+    })
+  }
+  const setup = await createTestRenderer({ width: 40, height: 4 })
+  const root = createRoot(setup.renderer)
+  const probe: HealthProbe = { current: undefined }
+  await act(async () => {
+    root.render(<HealthHarness probe={probe} app={args.app} session={args.session} />)
+    await setup.flush()
+  })
+  await act(async () => {
+    await Promise.resolve()
+  })
+  const mounted = { setup, root, probe }
+  liveHealth.push(mounted)
+  return mounted
+}
+
+const liveHealth: MountedHealth[] = []

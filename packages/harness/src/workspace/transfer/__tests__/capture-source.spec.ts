@@ -96,7 +96,7 @@ describe('source repository stays untouched', () => {
       run: async () => {
         const { manifest } = await capture({ cwd: made.nested })
         expect(manifest.repository?.originPath).toBe(made.main)
-        expect(manifest.trees.map((tree) => tree.sourcePath)).toEqual([made.nested])
+        expect(manifest.trees.map((tree) => tree.sourcePath)).toEqual([made.main, made.nested])
       },
     })
   })

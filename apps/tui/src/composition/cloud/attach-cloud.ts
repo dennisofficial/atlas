@@ -52,5 +52,6 @@ export async function attachCloudSession(args: {
     lostShells: [],
     base: snapshot.base,
     identity: snapshot.identity,
+    appliedEvents: snapshot.all,
   }
 }

@@ -8,6 +8,7 @@ import { noIgnoreFilter, resolveIgnoreFilter } from './capture-ignore'
 import { listCapturedWorktrees } from './capture-layout'
 import {
   assertPortable,
+  dropExcludedRootWrappers,
   EEntryKind,
   hashFile,
   treeSkipRule,
@@ -119,11 +120,12 @@ export async function snapshotWorkspaceTree({
     }),
   })
   assertPortable({ unportable: walk.unportable, label: root })
+  const entries = dropExcludedRootWrappers({ entries: walk.entries, root, excludedRoots: excluded })
 
   const logical = worktrees === null ? null : await gitLogicalState({ root, headRef })
   const hash = createHash('sha256')
   hash.update(logical === null ? 'plain\n' : logical.text)
-  await feedEntries({ root, entries: walk.entries, hash, pointers: pointerMap })
+  await feedEntries({ root, entries, hash, pointers: pointerMap })
   return { fingerprint: hash.digest('hex'), head: logical?.head ?? null, branch: logical?.branch ?? null }
 }
 

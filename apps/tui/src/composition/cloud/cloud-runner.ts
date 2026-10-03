@@ -69,28 +69,57 @@ export async function wakeSandbox(args: {
   return { url: woken.url, token: woken.token, created: woken.created }
 }
 
+export type CloudWake = (options?: { quiet?: boolean }) => Promise<void>
+
+/**
+ * One wake at a time: a background wake still provisioning when the operator sends (or a second
+ * send racing the first) joins the wake already in flight instead of claiming the sandbox twice.
+ * A quiet wake runs behind an already-rendered transcript, so it narrates nothing through `move`.
+ */
+export function createCloudWake(args: {
+  bridge: CloudBridge
+  channel: CloudChannel
+  threadId: ThreadId
+  captureContext: CaptureContext
+  move?: ContainerMoveControl | undefined
+  onWoken?: ((woken: { created: boolean }) => void) | undefined
+}): CloudWake {
+  let inFlight: Promise<void> | null = null
+
+  const run = async (move: ContainerMoveControl | undefined): Promise<void> => {
+    try {
+      const woken = await wakeSandbox({
+        bridge: args.bridge,
+        threadId: args.threadId,
+        captureContext: args.captureContext,
+        ...(move === undefined ? {} : { move }),
+      })
+      args.onWoken?.({ created: woken.created })
+      args.channel.wake({ url: woken.url, token: woken.token })
+      move?.handleSettle()
+    } catch (error) {
+      move?.handleFail(messageOf(error))
+      throw error
+    }
+  }
+
+  return (options) => {
+    if (inFlight !== null) return inFlight
+    inFlight = run(options?.quiet === true ? undefined : args.move).finally(() => {
+      inFlight = null
+    })
+    return inFlight
+  }
+}
+
 export function createCloudRunner(args: {
   bridge: CloudBridge
   channel: CloudChannel
   threadId: ThreadId
   captureContext: CaptureContext
   move?: ContainerMoveControl | undefined
+  wake?: CloudWake | undefined
 }): RemoteTurnRunner {
-  const wake = async (): Promise<void> => {
-    try {
-      const woken = await wakeSandbox({
-        bridge: args.bridge,
-        threadId: args.threadId,
-        captureContext: args.captureContext,
-        ...(args.move === undefined ? {} : { move: args.move }),
-      })
-      args.channel.wake({ url: woken.url, token: woken.token })
-      args.move?.handleSettle()
-    } catch (error) {
-      args.move?.handleFail(messageOf(error))
-      throw error
-    }
-  }
-
-  return new RemoteTurnRunner({ channel: args.channel, wake })
+  const wake = args.wake ?? createCloudWake(args)
+  return new RemoteTurnRunner({ channel: args.channel, wake: () => wake() })
 }

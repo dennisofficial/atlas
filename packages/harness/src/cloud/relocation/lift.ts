@@ -21,6 +21,8 @@ import { NOTHING_WAS_STOPPED, type StoppedLocally } from './transition-notice'
 import type { LiftWorkspaceCapture } from './lift-workspace'
 import type { RestoredWorkspace } from '../../workspace/transfer/manifest'
 import { logFieldsOf } from '../../store/logs'
+import { probeWorkspace } from '../../workspace/probe'
+import { releaseWorktree } from '../../workspace/worktree-lock'
 
 export { ELiftNode, liftPlan } from './lift-plan'
 
@@ -194,6 +196,14 @@ export async function liftToCloud(args: LiftArgs): Promise<Lifted> {
           })
           transaction.abandon()
           return undefined
+        }
+
+        // The claim was taken on the origin checkout; the session runs in the cloud now, so the
+        // claim must not outlive the move — nothing else ever returns to release it, and a
+        // committed flip means the origin side is never resumed.
+        const origin = await probeWorkspace({ cwd: args.identity.workspace }).catch(() => undefined)
+        if (origin !== undefined && origin.repo !== null && origin.workspace !== origin.repo) {
+          await releaseWorktree({ cwd: origin.repo, path: origin.workspace }).catch(() => false)
         }
 
         return {

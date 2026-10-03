@@ -91,34 +91,35 @@ export async function discoverLayout({ cwd: requested }: { cwd: string }): Promi
 
   const commonDir = await realpath(await absoluteCommonDir({ cwd }))
   const receipt = await readReceipt({ commonDir })
+  const layoutTree = ({ worktree }: { worktree: Worktree }): LayoutTree => {
+    const known = receipt?.trees.find((entry) => entry.path === worktree.path)
+    return {
+      id: known?.id ?? (worktree.isMain ? MAIN_ID : idForPath(worktree.path)),
+      name: worktree.isMain ? MAIN_NAME : basename(worktree.path),
+      sourcePath: worktree.path,
+      originPath: known?.originPath ?? worktree.path,
+      branch: worktree.branch ?? null,
+      head: worktree.head === undefined || ZERO_HEAD.test(worktree.head) ? null : worktree.head,
+      baseline: known?.baseline ?? null,
+      isMain: worktree.isMain,
+      excludedRoots: [],
+    }
+  }
   const active = worktrees
     .filter((worktree) => isInside({ parent: worktree.path, child: cwd }))
     .sort((left, right) => right.path.length - left.path.length)[0]
   if (active === undefined) {
     throw new Error(`${cwd} is not inside any worktree of the repository`)
   }
-  const known = receipt?.trees.find((entry) => entry.path === active.path)
-  const head = active.head === undefined || ZERO_HEAD.test(active.head) ? null : active.head
-  const tree: LayoutTree = {
-    id: known?.id ?? (active.isMain ? MAIN_ID : idForPath(active.path)),
-    name: active.isMain ? MAIN_NAME : basename(active.path),
-    sourcePath: active.path,
-    originPath: known?.originPath ?? active.path,
-    branch: active.branch ?? null,
-    head,
-    baseline: known?.baseline ?? null,
-    isMain: active.isMain,
-    excludedRoots: [],
-  }
-  const segments = relative(active.path, cwd).split(sep).filter((part) => part.length > 0)
+  const tree = layoutTree({ worktree: active })
   const main = worktrees.find((worktree) => worktree.isMain)
+  const trees = active.isMain || main === undefined ? [tree] : [layoutTree({ worktree: main }), tree]
+  const root = main ?? active
+  const segments = relative(active.path, cwd).split(sep).filter((part) => part.length > 0)
   return {
-    repository: {
-      sourcePath: tree.sourcePath,
-      originPath: receipt?.repositoryOrigin ?? main?.path ?? tree.sourcePath,
-    },
+    repository: { sourcePath: root.path, originPath: receipt?.repositoryOrigin ?? root.path },
     commonDir,
-    trees: [tree],
+    trees,
     activeId: tree.id,
     activeRelativePath: segments.join('/'),
   }

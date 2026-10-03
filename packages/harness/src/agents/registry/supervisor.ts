@@ -65,6 +65,7 @@ export class AgentSupervisor extends AgentRegistryPort {
       clock: args.clock,
       ...(args.telemetry === undefined ? {} : { telemetry: args.telemetry }),
       ...(args.hasLiveWork === undefined ? {} : { hasLiveWork: args.hasLiveWork }),
+      ...(args.onChildEnded === undefined ? {} : { onEnded: args.onChildEnded }),
     })
     this.spawner = new ChildSpawner({
       threads: args.threads,

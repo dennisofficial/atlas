@@ -1,8 +1,11 @@
+import { EFinishReason } from '../stream/chunk'
 import type { AssistantPart, EventDraft } from './body'
 
 export const EMPTY_STEP_NOTICE_STEPS = 2
 
 export const EMPTY_STEP_NUDGES_PER_TURN = 1
+
+export const EMPTY_STEP_RAW_RETRIES = 1
 
 /**
  * A step that gave the thread nothing to act on: no tool calls and no readable text. Reasoning
@@ -17,6 +20,22 @@ export function silentStep(args: {
 }): boolean {
   if (args.toolCalls.length > 0) return false
   return !args.parts.some((part) => part.type === 'text' && part.text.trim().length > 0)
+}
+
+/**
+ * Only a clean stop is worth silently re-requesting: a refusal (content-filter), a length cut, or
+ * a provider error is a decided answer to the payload, not a dropped completion, and replaying the
+ * identical request would just re-buy the same outcome. Observed against inference.net kimi-k3:
+ * bursts of zero-token completions on a ~250k-token prompt that an unchanged replay answers once
+ * the burst passes (2026-10-02 investigation).
+ */
+export function retriableEmptyStep(args: {
+  parts: readonly AssistantPart[]
+  toolCalls: readonly unknown[]
+  finishReason: EFinishReason
+}): boolean {
+  if (args.finishReason !== EFinishReason.Stop) return false
+  return silentStep(args)
 }
 
 export function emptyStepNotice(): string {

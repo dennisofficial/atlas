@@ -5,10 +5,11 @@ import { basename, dirname, join, resolve, sep } from 'node:path'
 import { treeMountPath, writeArchive, type ArchiveMount, type Relocation } from './archive'
 import { digestGitAdmin } from './capture-admin'
 import { noIgnoreFilter, resolveIgnoreFilter } from './capture-ignore'
+import { dropExcludedRootWrappers } from './capture-files'
 import { assertPortable, treeSkipRule, walkTree, type TreeEntry } from './capture-files'
 import { snapshotWorkspaceTree, type TreeSnapshot } from './capture-fingerprint'
-import { discoverLayout, type LayoutTree, type WorkspaceLayout } from './capture-layout'
-import { listLogicalRefs, stageLogicalRefs } from './capture-refs'
+import { discoverLayout, listCapturedWorktrees, type LayoutTree, type WorkspaceLayout } from './capture-layout'
+import { listCoveredRefs, stageLogicalRefs } from './capture-refs'
 import { packReachableObjects } from './capture-pack'
 import {
   absoluteGitDir,
@@ -16,6 +17,7 @@ import {
   collectLinkedState,
   collectMainState,
   indexPathIfPresent,
+  mergeStateSeeds,
 } from './git-state'
 import { workspaceManifestSchema, type WorkspaceManifest } from './manifest'
 
@@ -62,7 +64,7 @@ async function observe({ layout }: { layout: WorkspaceLayout }): Promise<Observa
     ),
   )
   const roots = layout.trees.map((tree) => tree.sourcePath)
-  const admin = layout.commonDir === null ? null : await digestGitAdmin({ cwds: roots })
+  const admin = layout.commonDir === null ? null : await digestGitAdmin({ trees: layout.trees })
   return { snapshots, admin, paths: roots }
 }
 
@@ -74,25 +76,33 @@ async function collectTree({
   layout: WorkspaceLayout
 }): Promise<Collected> {
   const ignore = layout.commonDir === null ? noIgnoreFilter : await resolveIgnoreFilter({ cwd: tree.sourcePath })
+  const siblings =
+    layout.commonDir === null
+      ? []
+      : (await listCapturedWorktrees({ cwd: tree.sourcePath }))
+          .map((worktree) => worktree.path)
+          .filter((path) => path !== tree.sourcePath)
+  const excludedRoots = [...tree.excludedRoots, ...siblings]
   const walk = await walkTree({
     root: tree.sourcePath,
     isSkipped: treeSkipRule({
       root: tree.sourcePath,
-      excludedRoots: tree.excludedRoots,
+      excludedRoots,
       isCaptured: ignore.isCaptured,
       isCapturedDir: ignore.isCapturedDir,
     }),
   })
   assertPortable({ unportable: walk.unportable, label: tree.sourcePath })
+  const files = dropExcludedRootWrappers({ entries: walk.entries, root: tree.sourcePath, excludedRoots })
   if (layout.commonDir === null) {
-    return { tree, files: walk.entries, state: [], stateRoot: null, indexSource: null }
+    return { tree, files, state: [], stateRoot: null, indexSource: null }
   }
   const gitDir = await realpath(await absoluteGitDir({ cwd: tree.sourcePath }))
   const state = tree.isMain ? await collectMainState({ gitDir }) : await collectLinkedState({ gitDir })
   assertPortable({ unportable: state.unportable, label: gitDir })
   return {
     tree,
-    files: walk.entries,
+    files,
     state: state.entries,
     stateRoot: gitDir,
     indexSource: await indexPathIfPresent({ gitDir }),
@@ -142,21 +152,34 @@ async function stageAndPack({
     mounts.push({ mountPath: 'git', sourcePath: layout.commonDir, entries: admin.entries })
     const outputDir = join(stage, MATERIALIZED_DIRECTORY)
     await mkdir(outputDir)
-    const names = await packReachableObjects({
-      cwd: layout.trees[0]?.sourcePath ?? layout.commonDir,
-      commonDir: layout.commonDir,
-      outputDir,
+    const refs = await listCoveredRefs({ trees: layout.trees })
+    const stateSeeds = await Promise.all(
+      collected.map((item) => (item.stateRoot === null ? Promise.resolve([]) : mergeStateSeeds({ gitDir: item.stateRoot }))),
+    )
+    const seeds = [
+      ...new Set([
+        ...refs.filter((ref) => ref.symref.length === 0).map((ref) => ref.sha),
+        ...layout.trees.map((tree) => tree.head).filter((head): head is string => head !== null),
+        ...stateSeeds.flat(),
+      ]),
+    ]
+    const names: string[] = []
+    for (const tree of layout.trees) {
+      names.push(
+        ...(await packReachableObjects({ cwd: tree.sourcePath, commonDir: layout.commonDir, outputDir, seeds })),
+      )
+    }
+    relocated.push({
+      stageDirectory: MATERIALIZED_DIRECTORY,
+      archiveDirectory: 'git/objects/pack',
+      names: [...new Set(names)],
     })
-    relocated.push({ stageDirectory: MATERIALIZED_DIRECTORY, archiveDirectory: 'git/objects/pack', names })
     const refsDir = join(stage, LOGICAL_REFS_DIRECTORY)
     await mkdir(refsDir)
     relocated.push({
       stageDirectory: LOGICAL_REFS_DIRECTORY,
       archiveDirectory: 'git',
-      names: await stageLogicalRefs({
-        refs: await listLogicalRefs({ cwd: layout.trees[0]?.sourcePath ?? layout.commonDir }),
-        outputDir: refsDir,
-      }),
+      names: await stageLogicalRefs({ refs, outputDir: refsDir }),
     })
   }
   const looseNames: string[] = ['manifest.json']

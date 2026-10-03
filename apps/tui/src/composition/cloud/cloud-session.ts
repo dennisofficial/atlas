@@ -7,8 +7,10 @@ import {
   ECloudSandboxState,
   ECloudFreshness,
   ECloudSandboxLifecycle,
+  EParkedResume,
   ERuntimePhase,
   isTranscriptMuted,
+  parkedResumeOf,
   transcriptFreshnessOf,
   type CloudChannel,
   type CloudConnection,
@@ -17,6 +19,8 @@ import {
   type CloudSandboxStatus,
   type RuntimeCheckpoint,
 } from '@dltech/atlas-harness'
+
+import { parkedFreshnessOf } from './parked-resume'
 
 export type CloudHealth = {
   connection: CloudConnection
@@ -51,6 +55,8 @@ export function createCloudSession(args: {
     appliedAt: number
   } | null) | undefined
   subscribeApplied?: ((listener: () => void) => () => void) | undefined
+  parkedResume?: EParkedResume | undefined
+  onParked?: ((checkpoint: RuntimeCheckpoint) => void) | undefined
   settleMs?: number | undefined
   onClose?: (() => void) | undefined
 }): CloudSession {
@@ -70,6 +76,7 @@ export function createCloudSession(args: {
   let pendingReload: CloudReload | null = null
   let resyncing = false
   let parkTimer: ReturnType<typeof setTimeout> | null = null
+  let everOpen = connection.state === EChannelConnection.Open
 
   const CLOSED_DETAIL = {
     resuming: 'the sandbox is resuming',
@@ -82,8 +89,19 @@ export function createCloudSession(args: {
     const reported = status?.checkpoint
     const latest = reported != null && (checkpoint === null || reported.revision > checkpoint.revision)
       ? reported : checkpoint
-    const freshness = connection.state === EChannelConnection.Open
+    const parked = everOpen ? undefined : args.parkedResume
+    const announced =
+      checkpoint !== null && checkpoint.phase === ERuntimePhase.Parked ? checkpoint : null
+    const lifecycle =
+      parked === undefined && announced === null ? sandbox : ECloudSandboxLifecycle.Parked
+    const freshness = parked !== undefined
+      ? parkedFreshnessOf(parked)
+      : connection.state === EChannelConnection.Open
       ? synced ? ECloudFreshness.Synced : ECloudFreshness.Unknown
+      : announced !== null
+      ? parkedFreshnessOf(
+          parkedResumeOf({ record: { checkpoint: announced, applied: applied?.identity ?? null } }),
+        )
       : transcriptFreshnessOf({
           threadId: channel.threadId,
           lifecycle: sandbox,
@@ -93,7 +111,7 @@ export function createCloudSession(args: {
         })
     return {
       connection, sandbox, freshness,
-      stale: isTranscriptMuted({ lifecycle: sandbox, socketOpen: connection.state === EChannelConnection.Open, freshness }),
+      stale: isTranscriptMuted({ lifecycle, socketOpen: connection.state === EChannelConnection.Open, freshness }),
       lastSeenAt: applied?.appliedAt ?? null,
       failure,
     }
@@ -171,6 +189,7 @@ export function createCloudSession(args: {
     synced = false
     clearParkTimer()
     if (next.state === EChannelConnection.Open) {
+      everOpen = true
       sandbox = ECloudSandboxLifecycle.Running
     }
     sync()
@@ -201,7 +220,10 @@ export function createCloudSession(args: {
     if (closed || reported.threadId !== channel.threadId) return
     if (checkpoint !== null && reported.revision <= checkpoint.revision) return
     checkpoint = reported
-    if (reported.phase === ERuntimePhase.Parked) inspectPark()
+    if (reported.phase === ERuntimePhase.Parked) {
+      inspectPark()
+      args.onParked?.(reported)
+    }
     sync()
   }) ?? (() => undefined)
   const unsubscribeApplied = args.subscribeApplied?.(() => {

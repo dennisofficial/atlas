@@ -48,6 +48,7 @@ export function useConversation(args: ConversationArgs): Conversation {
       turns: opened.turns,
       ...(opened.base === undefined ? {} : { base: opened.base }),
       ...(opened.identity === undefined ? {} : { identity: opened.identity }),
+      ...(opened.appliedEvents === undefined ? {} : { appliedEvents: opened.appliedEvents }),
     }),
     [opened],
   )
@@ -241,9 +242,16 @@ export function useConversation(args: ConversationArgs): Conversation {
   })
 
   const model = transcriptOfTurn({ model: derived, working, failure })
-  const retryable = model.failure !== null && !working && !turnDriver.turnInFlight() && !moving
+  const channelReady = args.channelReady !== false
+  const retryable =
+    model.failure !== null && !working && !turnDriver.turnInFlight() && !moving && channelReady
   const resumable =
-    model.failure === null && !working && !turnDriver.turnInFlight() && turnDriver.isResumable && !moving
+    model.failure === null &&
+    !working &&
+    !turnDriver.turnInFlight() &&
+    turnDriver.isResumable &&
+    !moving &&
+    channelReady
 
   return {
     rewindConfirm: turnDriver.rewindConfirm,

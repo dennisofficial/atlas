@@ -21,7 +21,6 @@ import type { FileBrowser, PendingQueues } from '@dltech/atlas-harness'
 import type { TurnLedgerPort } from '@dltech/atlas-harness'
 import type { ThreadStorePort } from '@dltech/atlas-harness'
 
-import type { WorkspacePublisher } from './publish-workspace'
 import { wireEventOf, wireThreadOf, wireTurnOf } from './session-wires'
 import { answerSetThreadModel } from './thread-model'
 import { answeredRequest, refusedRequest, type ReplyFrame, type RequestFrame } from './request-reply'
@@ -71,22 +70,12 @@ async function browseDirectory(args: {
   return answeredRequest({ replyTo: args.frame.id, data: { directory: parsed.data.directory, entries } })
 }
 
-async function publishWorkspaceHandler(args: {
-  frame: RequestFrame
-  publish: WorkspacePublisher
-}): Promise<ReplyFrame> {
-  const published = await args.publish()
-  return answeredRequest({ replyTo: args.frame.id, data: published })
-}
-
 export async function answerRequest(args: {
   frame: RequestFrame
   files: Pick<FileBrowser, 'list'>
-  publish: WorkspacePublisher
 }): Promise<ReplyFrame> {
   if (args.frame.op === EClientRequest.CompletePaths) return await completePaths(args)
   if (args.frame.op === EClientRequest.BrowseDirectory) return await browseDirectory(args)
-  if (args.frame.op === EClientRequest.PublishWorkspace) return await publishWorkspaceHandler(args)
   return refusedRequest({ replyTo: args.frame.id, message: `unknown request op: ${args.frame.op}` })
 }
 

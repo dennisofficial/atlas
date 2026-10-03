@@ -3,18 +3,14 @@ import { useCallback, useMemo, useState } from 'react'
 
 import {
   EExitChoice,
-  exitGuardOptions,
   moveSelection,
   openExitGuard,
   resolve,
-  type ExitGuardOption,
   type ExitGuardState,
 } from '../ui/exit-guard-model'
 
 export type ExitGuardControl = {
   state: ExitGuardState | null
-  options: readonly ExitGuardOption[]
-  cloud: boolean
   handleOpen: () => void
   handleDismiss: () => void
   handlePick: (choice: EExitChoice) => void
@@ -22,16 +18,13 @@ export type ExitGuardControl = {
 }
 
 export function useExitGuard(args: {
-  cloud: boolean
   onKeepShells: () => void
   onExit: () => void
-  onDetach: () => void
 }): ExitGuardControl {
   const [state, setState] = useState<ExitGuardState | null>(null)
-  const { cloud, onKeepShells, onExit, onDetach } = args
-  const options = useMemo(() => exitGuardOptions({ cloud }), [cloud])
+  const { onKeepShells, onExit } = args
 
-  const handleOpen = useCallback(() => setState(openExitGuard({ options })), [options])
+  const handleOpen = useCallback(() => setState(openExitGuard()), [])
 
   const handleDismiss = useCallback(() => setState(null), [])
 
@@ -40,9 +33,8 @@ export function useExitGuard(args: {
       setState(null)
       if (choice === EExitChoice.KeepShells) onKeepShells()
       if (choice === EExitChoice.StopAndExit) onExit()
-      if (choice === EExitChoice.Detach) onDetach()
     },
-    [onDetach, onExit, onKeepShells],
+    [onExit, onKeepShells],
   )
 
   const handleKey = useCallback(
@@ -55,20 +47,20 @@ export function useExitGuard(args: {
       }
 
       if (key.name === 'return') {
-        const choice = resolve({ options, state })
+        const choice = resolve({ state })
         if (choice !== null) handlePick(choice)
         return
       }
 
       if (key.name === 'up' || key.name === 'down') {
-        setState(moveSelection({ options, state, delta: key.name === 'up' ? -1 : 1 }))
+        setState(moveSelection({ state, delta: key.name === 'up' ? -1 : 1 }))
       }
     },
-    [handleDismiss, handlePick, options, state],
+    [handleDismiss, handlePick, state],
   )
 
   return useMemo(
-    () => ({ state, options, cloud, handleOpen, handleDismiss, handlePick, handleKey }),
-    [cloud, handleDismiss, handleKey, handleOpen, handlePick, options, state],
+    () => ({ state, handleOpen, handleDismiss, handlePick, handleKey }),
+    [handleDismiss, handleKey, handleOpen, handlePick, state],
   )
 }

@@ -33,13 +33,6 @@ const RUNNING_STATUS = {
   url: 'https://sandbox.example/thread',
 } as const
 
-const RESUMED_SANDBOX = {
-  url: 'https://sandbox.example/thread',
-  token: 'sandbox-token',
-  state: ECloudSandboxState.Running,
-  created: false,
-} as const
-
 const speaking = (): FakeApp =>
   fakeApp({
     model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }),
@@ -343,7 +336,7 @@ describe('opening a conversation that lives in the cloud', () => {
 })
 
 
-describe('the picker badge and the reattach notice', () => {
+describe('the picker badge', () => {
   it('badges a cloud conversation with its sandbox state in the picker', async () => {
     const app = speaking()
     await seedCloudThread(app)
@@ -360,35 +353,6 @@ describe('the picker badge and the reattach notice', () => {
     }
   }, 60_000)
 
-  it('says what survived once the reattached sandbox greets', async () => {
-    const app = speaking()
-    const { threadId } = await seedCloudThread(app)
-    const bridge = fakeBridge({
-      status: RUNNING_STATUS,
-      sandbox: RESUMED_SANDBOX,
-    })
-    await bridge.log.append({
-      threadId,
-      runId: toRunId('run-cloud'),
-      drafts: [{ type: 'user-said', text: 'said inside the sandbox' }],
-    })
-    const mounted = await mount({ app, bridge })
-
-    try {
-      await mounted.command('/resume')
-      await mounted.typeText('lifted')
-      await mounted.pick()
-
-      bridge.channel.ready({ turnInFlight: true })
-      const frame = await mounted.frame()
-
-      expect(frame).toContain('reattached')
-      expect(frame).toContain('as you left them')
-      expect(frame).toContain('the turn kept running')
-    } finally {
-      await mounted.done()
-    }
-  }, 60_000)
 })
 
 describe('coming back to the host', () => {
