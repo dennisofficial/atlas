@@ -215,7 +215,7 @@ describe('activating a transferred family', () => {
     expect(await activate(entry)).toEqual([])
   })
 
-  it('records the resume as one restart on the parent log and no new spawn', async () => {
+  it('records the resume as one relocation restart on the parent log and no new spawn', async () => {
     const entry = await open()
     const childId = await openChild({ entry, spawnedBy: entry.parent })
     await append(entry, childId, interruptedMidTool)
@@ -226,7 +226,7 @@ describe('activating a transferred family', () => {
       (event) => event.type === 'agent-restarted',
     )
     expect(restarts).toHaveLength(1)
-    expect(restarts[0]).toMatchObject({ agentId: childId, via: EAgentRestart.Resume })
+    expect(restarts[0]).toMatchObject({ agentId: childId, via: EAgentRestart.Relocation })
     expect(await spawnEvents(entry, entry.parent)).toHaveLength(1)
   })
 })

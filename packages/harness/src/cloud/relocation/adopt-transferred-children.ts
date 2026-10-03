@@ -1,4 +1,4 @@
-import { isResumable, type EventLogPort, type ThreadId } from '@dltech/atlas-core'
+import { EAgentRestart, isResumable, type EventLogPort, type ThreadId } from '@dltech/atlas-core'
 
 import type { AgentRegistryPort } from '../../agents/registry/port'
 import { resumableAfterTransfer } from '../../agents/registry/transferred-family'
@@ -36,7 +36,11 @@ export async function activateTransferredChildren(args: {
       if (!resumableAfterTransfer(child)) continue
       if (!isResumable(await log.readOwn({ threadId: child.agentId }))) continue
 
-      const outcome = await agents.resume({ agentId: child.agentId, threadId: owner })
+      const outcome = await agents.resume({
+        agentId: child.agentId,
+        threadId: owner,
+        via: EAgentRestart.Relocation,
+      })
       if (outcome.ok) resumed.push(child.agentId)
     }
   }

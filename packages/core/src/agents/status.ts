@@ -6,6 +6,7 @@ export enum EAgentStatus {
   Failed = 'failed',
   Stopped = 'stopped',
   Blocked = 'blocked',
+  Paused = 'paused',
 }
 
 export type AgentEnding = {
@@ -49,6 +50,7 @@ function outcome(ending: AgentEnding): string {
   if (ending.status === EAgentStatus.Blocked) {
     return 'is blocked on an approval it cannot answer, after'
   }
+  if (ending.status === EAgentStatus.Paused) return 'was paused as the conversation moved, after'
   return 'finished after'
 }
 

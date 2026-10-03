@@ -137,6 +137,7 @@ export async function refreshTransferredFamily({
 }
 
 export function resumableAfterTransfer(child: AgentSnapshot): boolean {
+  if (child.status === EAgentStatus.Paused) return true
   if (child.status !== EAgentStatus.Stopped) return false
   return child.killedBy === undefined || child.killedBy === EKilledBy.ContainerSwitch
 }

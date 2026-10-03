@@ -22,6 +22,7 @@ const AGENT_STATE_LABEL: Record<EAgentStatus, string> = {
   [EAgentStatus.Finished]: 'done',
   [EAgentStatus.Failed]: 'failed',
   [EAgentStatus.Stopped]: 'stopped',
+  [EAgentStatus.Paused]: 'paused',
 }
 
 export const agentHasSettled = (agent: Pick<AgentSnapshot, 'status'>): boolean =>
