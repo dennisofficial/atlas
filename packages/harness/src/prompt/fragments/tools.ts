@@ -1,4 +1,4 @@
-import { PromptFragment } from '@dltech/atlas-core'
+import { EPromptAgent, PromptFragment, type PromptContext } from '@dltech/atlas-core'
 
 export class PreferDedicatedToolsFragment extends PromptFragment {
   readonly id = 'tools.prefer-dedicated'
@@ -24,5 +24,21 @@ export class OperatorSeesImagesFragment extends PromptFragment {
       'When you read an image file, the operator’s surface may render it inline for them — reading',
       'a screenshot is also how you show the developer what something looks like.',
     ].join('\n')
+  }
+}
+
+export class OperatorInputFragment extends PromptFragment {
+  readonly id = 'tools.operator-input'
+
+  override applies(ctx: PromptContext): boolean {
+    return ctx.agent === EPromptAgent.Main
+  }
+
+  text(): string {
+    return [
+      'When a process needs a value only the operator can supply — a device code, an OTP, a login token, any long paste —',
+      'ask for it with operator_input. The value travels straight from the operator to the destination you choose,',
+      'never through the conversation, and you never retype it.',
+    ].join(' ')
   }
 }
