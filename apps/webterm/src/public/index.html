@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>atlas web terminal</title>
+    <link rel="stylesheet" href="https://unpkg.com/@xterm/xterm@5.5.0/css/xterm.css" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0d0d0f;
+      }
+      #term {
+        height: 100%;
+        padding: 8px;
+        box-sizing: border-box;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="term"></div>
+    <script src="https://unpkg.com/@xterm/xterm@5.5.0/lib/xterm.js"></script>
+    <script src="https://unpkg.com/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
+    <script>
+      (function () {
+        var token = new URLSearchParams(location.search).get('token') || '';
+        var term = new Terminal({
+          fontFamily: '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
+          fontSize: 13,
+          lineHeight: 1.3,
+          cursorBlink: true,
+          scrollback: 5000,
+          convertEol: false,
+          theme: {
+            background: '#0d0d0f',
+            foreground: '#d4d4d4',
+            cursor: '#7c5cff',
+            selectionBackground: '#3f3f46',
+          },
+        });
+        var fit = new FitAddon.FitAddon();
+        term.loadAddon(fit);
+        term.open(document.getElementById('term'));
+        fit.fit();
+
+        var wsScheme = location.protocol === 'https:' ? 'wss' : 'ws';
+        var ws = new WebSocket(wsScheme + '://' + location.host + '/ws?token=' + encodeURIComponent(token));
+        ws.binaryType = 'arraybuffer';
+
+        function sendResize() {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ t: 'resize', cols: term.cols, rows: term.rows }));
+          }
+        }
+
+        ws.onopen = function () {
+          term.focus();
+          sendResize();
+        };
+        ws.onmessage = function (ev) {
+          if (typeof ev.data === 'string') {
+            try {
+              var msg = JSON.parse(ev.data);
+              if (msg.t === 'exit') {
+                term.write('\r\n\x1b[33m[session exited with code ' + msg.code + ' — reload to restart]\x1b[0m\r\n');
+              }
+            } catch (err) {
+              void err;
+            }
+            return;
+          }
+          term.write(new Uint8Array(ev.data));
+        };
+        ws.onclose = function () {
+          term.write('\r\n\x1b[31m[connection closed]\x1b[0m\r\n');
+        };
+        ws.onerror = function () {
+          term.write('\r\n\x1b[31m[connection error]\x1b[0m\r\n');
+        };
+
+        term.onData(function (data) {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ t: 'in', d: data }));
+          }
+        });
+        term.onResize(function () {
+          sendResize();
+        });
+
+        new ResizeObserver(function () {
+          fit.fit();
+        }).observe(document.getElementById('term'));
+
+        setInterval(function () {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ t: 'ping' }));
+          }
+        }, 30000);
+      })();
+    </script>
+  </body>
+</html>
