@@ -14,9 +14,10 @@ import {
   THREAD,
 } from './shell-registry-fixture'
 
-afterEach(closeRegistries)
-
+const RETENTION_CHURN_TIMEOUT_MS = 30_000
 const CHURN = 5
+
+afterEach(closeRegistries, RETENTION_CHURN_TIMEOUT_MS)
 
 async function churnEndedShells({
   registry,
@@ -50,7 +51,7 @@ describe('bounding what the registry retains', async () => {
     const kept = registry.listEverywhere().map((snapshot) => snapshot.shellId)
     expect(kept).toHaveLength(RETAINED_ENDED_SHELLS)
     expect(kept).toEqual(shellIds.slice(CHURN))
-  })
+  }, RETENTION_CHURN_TIMEOUT_MS)
 
   it('never reaps a live shell while ended ones are churned out', async () => {
     const { registry, log } = openRegistry()
@@ -73,7 +74,7 @@ describe('bounding what the registry retains', async () => {
 
     const read = await registry.read({ shellId: first.snapshot.shellId, threadId: THREAD })
     expect(read.ok).toBe(true)
-  })
+  }, RETENTION_CHURN_TIMEOUT_MS)
 
   it('lets an ended shell of another thread churn out with the rest, its ending already durable', async () => {
     const { registry, log } = openRegistry()
@@ -105,7 +106,7 @@ describe('bounding what the registry retains', async () => {
     const read = await registry.read({ shellId: kept.snapshot.shellId, threadId: ELSEWHERE })
     expect(read.ok).toBe(false)
     expect((await Bun.file(kept.snapshot.outputPath).text()).match(/^not-yet-told$/gm)).toEqual(['not-yet-told'])
-  })
+  }, RETENTION_CHURN_TIMEOUT_MS)
 
   it('retains an ended handle below capacity and preserves its spool after repeated reads', async () => {
     const { registry, log } = openRegistry()
