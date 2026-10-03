@@ -36,10 +36,20 @@ export const failureTextOf = (failure: unknown): string => {
   return String(failure)
 }
 
+// Vercel also reports a sandbox gone as "Sandbox '<name>' not found for this project." with a
+// non-404 status (observed when a by-name call lands mid-deletion, October 2026), which neither the
+// 404 check nor the SDK's own getOrCreate not-found branch recognizes. The text carries the missing
+// there; scoping the match to sandbox avoids swallowing a same-phrased drive failure.
+const SANDBOX_NOT_FOUND_FOR_PROJECT = /sandbox\s+'[^']*'\s+not found for this project/i
+
 export const isSandboxMissing = (error: unknown): boolean => {
-  if (!(error instanceof APIError)) return false
-  if (error.response.status === 404) return true
-  return error.response.status === 410 && snapshotCodeOf(error.json) === 'snapshot_not_found'
+  if (error instanceof APIError) {
+    if (error.response.status === 404) return true
+    if (error.response.status === 410 && snapshotCodeOf(error.json) === 'snapshot_not_found') {
+      return true
+    }
+  }
+  return SANDBOX_NOT_FOUND_FOR_PROJECT.test(failureTextOf(error))
 }
 
 const isImageNotReady = (failure: unknown): boolean => {
