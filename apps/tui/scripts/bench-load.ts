@@ -8,13 +8,12 @@ import {
   buildHarness,
   BunShellRegistry,
   ETurnStatus,
-  HookChain,
-  SystemClock,
   type AtlasHarness,
   type TurnRunner,
 } from '@dltech/atlas-harness'
 
 import { benchModel, chunksStreamed, STEP_TEXT } from './bench-model'
+import { benchShellRegistry } from './bench-shells'
 import { mountBenchRender, publishingRunner, type BenchFrameStats, type BenchRender } from './bench-render'
 
 const AGENTS_PER_THREAD = 5
@@ -98,9 +97,9 @@ const runAgent = async (args: {
   return { completed, failed, turnMs }
 }
 
-const startShells = (args: { shells: BunShellRegistry; threadId: ThreadId }): void => {
+const startShells = async (args: { shells: BunShellRegistry; threadId: ThreadId }): Promise<void> => {
   for (let index = 0; index < SHELLS_PER_AGENT; index += 1) {
-    const started = args.shells.start({
+    const started = await args.shells.start({
       threadId: args.threadId,
       command: SHELL_COMMAND,
       description: `bench shell ${index}`,
@@ -122,7 +121,7 @@ const spawnAgents = async (args: {
         title: `bench-agent-${parent}-${agent}`,
         agent: { spawnedBy: parentThread.id, type: 'bench-agent' },
       })
-      startShells({ shells: args.shells, threadId: thread.id })
+      await startShells({ shells: args.shells, threadId: thread.id })
       agents.push(thread.id)
     }
   }
@@ -192,7 +191,7 @@ const main = async (): Promise<void> => {
     launchDirectory: root,
   })
   const { channel, runner } = publishingRunner({ harness, root })
-  const shells = new BunShellRegistry(root, new SystemClock(), () => new HookChain({}))
+  const { registry: shells } = await benchShellRegistry({ root })
   const visibleThread = await harness.threads.create({ title: 'bench-visible' })
   for (let entry = 0; entry < flags.history; entry += 1) {
     await harness.log.append({

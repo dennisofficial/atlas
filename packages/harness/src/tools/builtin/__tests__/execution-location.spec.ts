@@ -75,7 +75,7 @@ class FakeShells extends UnstaffedShells {
   readonly endingsAwaited: { threadId: ThreadId; ms: number }[] = []
 
   constructor(
-    private readonly snapshots: readonly ShellSnapshot[],
+    private snapshots: readonly ShellSnapshot[],
     private readonly stillDying = 0,
   ) {
     super()
@@ -86,8 +86,8 @@ class FakeShells extends UnstaffedShells {
     return Promise.resolve(this.stillDying)
   }
 
-  override list(): readonly ShellSnapshot[] {
-    return this.snapshots
+  override list(args: { threadId: ThreadId }): readonly ShellSnapshot[] {
+    return this.snapshots.filter((snapshot) => snapshot.threadId === args.threadId)
   }
 
   override kill(args?: { shellId: string; by: EKilledBy; threadId: ThreadId }): ShellKillOutcome {
@@ -95,15 +95,17 @@ class FakeShells extends UnstaffedShells {
     this.kills.push(args)
     const snapshot = this.snapshots.find((one) => one.shellId === args.shellId)
     if (snapshot === undefined) return { ok: false, reason: 'unknown shell' }
-    return { ok: true, snapshot }
+    const killed = { ...snapshot, status: EShellStatus.Killed, killedBy: args.by }
+    this.snapshots = this.snapshots.map((one) => one === snapshot ? killed : one)
+    return { ok: true, snapshot: killed }
   }
 }
 
-const runningShell = (shellId: string): ShellSnapshot => ({
-  shellId: toShellId(shellId),
-  threadId: toThreadId('thread'),
+const runningShell = (args: { shellId: string; threadId: ThreadId }): ShellSnapshot => ({
+  shellId: toShellId(args.shellId),
+  threadId: args.threadId,
   command: 'bun run dev',
-  description: `shell ${shellId}`,
+  description: `shell ${args.shellId}`,
   status: EShellStatus.Running,
   startedAt: '2026-09-15T00:00:00.000Z',
   lastOutputAt: '2026-09-15T00:00:00.000Z',
@@ -186,11 +188,13 @@ const call = (tool: ExecutionLocationTool, args: { threadId: ThreadId; location:
 
 describe('execution_location', () => {
   it('moves the session host → docker: state, stored row, event, shells, services and children', async () => {
-    const shells = new FakeShells([runningShell('sh_1')])
+    const snapshots: ShellSnapshot[] = []
+    const shells = new FakeShells(snapshots)
     const services = new FakeServices()
     const agents = new FakeAgents()
     const { tool, fixture, control } = await open({ shells, services, agents })
     const threadId = (await fixture.threads.create({})).id
+    snapshots.push(runningShell({ shellId: 'sh_1', threadId }))
     await control.state.activate({ threadId })
 
     const outcome = await call(tool, { threadId, location: 'docker' })
@@ -218,19 +222,28 @@ describe('execution_location', () => {
     }
   })
 
-  it('says which endings are still in flight when a process outlives the settle bound', async () => {
-    const shells = new FakeShells([runningShell('sh_1')], 1)
-    const { tool, fixture, control } = await open({ shells })
+  it('refuses to commit placement when a process outlives the settle bound', async () => {
+    const snapshots: ShellSnapshot[] = []
+    const shells = new FakeShells(snapshots, 1)
+    const services = new FakeServices()
+    const agents = new FakeAgents()
+    const { tool, fixture, control } = await open({ shells, services, agents })
     const threadId = (await fixture.threads.create({})).id
+    snapshots.push(runningShell({ shellId: 'sh_1', threadId }))
     await control.state.activate({ threadId })
 
     const outcome = await call(tool, { threadId, location: 'docker' })
 
-    expect(outcome.ok).toBe(true)
-    if (outcome.ok) {
-      expect(outcome.modelText).toContain('had not exited within the settle bound')
-      expect(outcome.modelText).toContain('their endings will arrive when they do')
-    }
+    expect(outcome.ok).toBe(false)
+    if (!outcome.ok) expect(outcome.reason).toContain('background shells have not stopped')
+    expect(control.state.current()).toBe(EExecutionLocation.Host)
+    expect(control.state.of(threadId)).toBe(EExecutionLocation.Host)
+    expect((await fixture.threads.find({ threadId }))?.executionLocation).toBe(EExecutionLocation.Host)
+    expect(await fixture.log.readOwn({ threadId })).toEqual([])
+    expect(shells.kills).toEqual([{ shellId: 'sh_1', by: EKilledBy.ContainerSwitch, threadId }])
+    expect(shells.endingsAwaited).toEqual([{ threadId, ms: KILL_SETTLE_MS }])
+    expect(services.stops).toEqual([])
+    expect(agents.relocations).toEqual([])
   })
 
   it('answers the current location without touching anything when asked for it', async () => {
@@ -392,7 +405,7 @@ describe('execution_location', () => {
     const threadId = (await fixture.threads.create({})).id
     await control.state.activate({ threadId })
 
-    const shells = new FakeShells([runningShell('sh_1')])
+    const shells = new FakeShells([runningShell({ shellId: 'sh_1', threadId })])
     const slow = new ExecutionLocationTool({
       control,
       engine: liveEngine as DockerEngine,

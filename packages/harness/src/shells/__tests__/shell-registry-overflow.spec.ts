@@ -1,66 +1,52 @@
+import { readFile, stat } from 'node:fs/promises'
 import { afterEach, describe, expect, it } from 'bun:test'
 
 import { EShellStatus } from '@dltech/atlas-core'
+import { closeRegistries, endedDraft, job, openRegistry, recorded, settle, THREAD } from './shell-registry-fixture'
 
-import { DELIVERED_CHARACTERS } from '../notice-queue'
-import { OVERFLOW_CHARACTERS, RETAINED_CHARACTERS } from '../shell-registry'
-import {
-  recorded,
-  closeRegistries,
-  endedDraft,
-  job,
-  openRegistry,
-  settle,
-  shellAdapters,
-  THREAD,
-} from './shell-registry-fixture'
+const CAP_BYTES = 64 * 1024
 
 afterEach(closeRegistries)
 
-for (const adapter of shellAdapters) {
-  const describeAdapter = adapter.available ? describe : describe.skip
+describe('a durable shell’s output cap', () => {
+  it('bounds the append-only spool in the kernel and records a confirmed SIGXFSZ overflow', async () => {
+    const { registry, log } = openRegistry()
+    const started = await registry.start({ ...job({ command: 'exec yes y' }), outputLimitBytes: CAP_BYTES })
+    if (!started.ok) throw new Error(started.reason)
+    await settle({ registry, shellId: started.snapshot.shellId })
+    await recorded({ log })
 
-  describeAdapter(`${adapter.name} process adapter`, () => {
-    describe('a shell that outprints the overflow cap', () => {
-      it('is killed and the ending says it overflowed', async () => {
-        const { registry, log } = openRegistry({ adapter })
-        const started = registry.start(job({ command: 'yes y' }))
-        if (!started.ok) throw new Error(started.reason)
-
-        await settle({ registry, shellId: started.snapshot.shellId })
-        await recorded({ log })
-
-        const snapshot = registry
-          .list({ threadId: THREAD })
-          .find((entry) => entry.shellId === started.snapshot.shellId)
-        expect(snapshot?.status).toBe(EShellStatus.Overflowed)
-
-        const ended = endedDraft(log?.appended.find((draft) => draft.type === 'background-shell-ended'))
-        expect(ended.status).toBe(EShellStatus.Overflowed)
-        expect(ended.output).toHaveLength(DELIVERED_CHARACTERS)
-        expect(ended.droppedCharacters).toBeGreaterThan(
-          OVERFLOW_CHARACTERS - RETAINED_CHARACTERS,
-        )
-      }, 60_000)
-    })
-
-    describe('the drop accounting a read reports', () => {
-      it('counts the characters that fell out of the window, byte-identically', async () => {
-        const { registry, log } = openRegistry({ adapter })
-        const started = registry.start(
-          job({ command: `yes y | head -c ${RETAINED_CHARACTERS + 1000}` }),
-        )
-        if (!started.ok) throw new Error(started.reason)
-        await settle({ registry, shellId: started.snapshot.shellId })
-        await recorded({ log })
-
-        const ended = endedDraft(log?.appended.find((draft) => draft.type === 'background-shell-ended'))
-
-        expect(ended.status).toBe(EShellStatus.Exited)
-        expect(ended.droppedCharacters).toBe(1000)
-        expect(ended.output).toBe('y\n'.repeat(DELIVERED_CHARACTERS / 2))
-        expect(ended.remainingCharacters).toBe(RETAINED_CHARACTERS - DELIVERED_CHARACTERS)
-      }, 30_000)
-    })
+    const ended = endedDraft(log?.appended.find((draft) => draft.type === 'background-shell-ended'))
+    expect(ended.status).toBe(EShellStatus.Overflowed)
+    expect(ended.output.length).toBeLessThanOrEqual(8192)
+    expect(ended.droppedCharacters).toBe(0)
+    const path = started.snapshot.outputPath
+    if (path === undefined) throw new Error('a durable shell must name its spool')
+    expect((await stat(path)).size).toBe(CAP_BYTES)
+    expect((await readFile(path)).length).toBe(CAP_BYTES)
+    const read = await registry.read({ threadId: THREAD, shellId: started.snapshot.shellId })
+    expect(read.ok && Buffer.byteLength(read.delta.text)).toBe(CAP_BYTES)
   })
-}
+
+  it('keeps full output beyond an inline read without dropping or rotating bytes', async () => {
+    const { registry, log } = openRegistry()
+    const started = await registry.start(job({ command: 'yes y | head -c 401000' }))
+    if (!started.ok) throw new Error(started.reason)
+    await settle({ registry, shellId: started.snapshot.shellId })
+    await recorded({ log })
+    const path = started.snapshot.outputPath
+    if (path === undefined) throw new Error('a durable shell must name its spool')
+    const bytes = await readFile(path)
+    expect(bytes.length).toBe(401000)
+    const ended = endedDraft(log?.appended.find((draft) => draft.type === 'background-shell-ended'))
+    expect(ended.droppedCharacters).toBe(0)
+    expect(ended.output).toBe(bytes.subarray(-8192).toString())
+    const first = await registry.read({ threadId: THREAD, shellId: started.snapshot.shellId })
+    const second = await registry.read({ threadId: THREAD, shellId: started.snapshot.shellId })
+    if (!first.ok || !second.ok) throw new Error('the retained shell must stay readable')
+    expect(first.delta.droppedCharacters).toBe(0)
+    expect(second.delta.droppedCharacters).toBe(0)
+    expect(first.delta.text + second.delta.text).toBe(bytes.toString())
+    expect(await readFile(path)).toEqual(bytes)
+  })
+})

@@ -5,41 +5,18 @@ import { EServiceStatus } from '../../services/status'
 import { EShellStatus } from '../../shells/status'
 import type { EventDraft } from '../body'
 import type { Event } from '../envelope'
-import { toThreadId, toCallId, toEventId, toRunId } from '../ids'
+import { toCallId, toRunId } from '../ids'
 import { rewindPlan } from '../rewind-plan'
-import { stampDrafts } from '../stamp'
+import {
+  backgrounded,
+  eventsFrom,
+  replied,
+  said,
+  shellCutIds,
+  shellEnded,
+  startedInBackground,
+} from './rewind-fixture'
 
-const eventsFrom = (drafts: readonly EventDraft[]): Event[] =>
-  stampDrafts({
-    drafts,
-    envelopes: drafts.map((_, index) => ({
-      id: toEventId(`evt-${index + 1}`),
-      seq: index + 1,
-      threadId: toThreadId('thread-1'),
-      runId: toRunId('run-1'),
-      depth: 0,
-      at: new Date(Date.UTC(2026, 0, 1, 0, 0, index)).toISOString(),
-    })),
-  })
-
-const said = (text: string): EventDraft => ({ type: 'user-said', text })
-const replied = (text: string): EventDraft => ({
-  type: 'assistant-said',
-  parts: [{ type: 'text', text }],
-})
-const startedInBackground = (callId: string): EventDraft => ({
-  type: 'tool-called',
-  callId: toCallId(callId),
-  name: 'bash',
-  input: { command: 'npm test', runInBackground: true },
-  ordinal: 0,
-})
-const backgrounded = (callId: string, shellId: string): EventDraft => ({
-  type: 'tool-result',
-  callId: toCallId(callId),
-  name: 'bash',
-  output: { shellId, status: 'running' },
-})
 const startedService = (callId: string): EventDraft => ({
   type: 'tool-called',
   callId: toCallId(callId),
@@ -47,21 +24,11 @@ const startedService = (callId: string): EventDraft => ({
   input: { command: 'npm run dev', description: 'dev server' },
   ordinal: 0,
 })
-const serviceRunning = (callId: string, serviceId: string): EventDraft => ({
+const serviceRunning = ({ callId, serviceId }: { callId: string; serviceId: string }): EventDraft => ({
   type: 'tool-result',
   callId: toCallId(callId),
   name: 'service_start',
   output: { serviceId, status: 'running' },
-})
-const shellEnded = (shellId: string, output: string): EventDraft => ({
-  type: 'background-shell-ended',
-  shellId,
-  command: 'npm test',
-  status: EShellStatus.Exited,
-  exitCode: 0,
-  output,
-  droppedCharacters: 0,
-  remainingCharacters: 0,
 })
 const serviceEnded = (serviceId: string): EventDraft => ({
   type: 'service-ended',
@@ -74,21 +41,14 @@ const serviceEnded = (serviceId: string): EventDraft => ({
   tail: 'shutting down',
 })
 
-const cutIds = (plan: ReturnType<typeof rewindPlan>, kind: 'shell' | 'service'): string[] =>
-  plan.cuts.flatMap((cut) => {
-    if (cut.kind === 'shell' && kind === 'shell') return [cut.shellId]
-    if (cut.kind === 'service' && kind === 'service') return [cut.serviceId]
-    return []
-  })
-
 const transcript = (): Event[] =>
   eventsFrom([
     said('msg_1'),
     startedInBackground('call-1'),
-    backgrounded('call-1', 'bash_1'),
+    backgrounded({ callId: 'call-1', shellId: 'bash_1' }),
     replied('on it'),
     said('msg_2'),
-    shellEnded('bash_1', 'all green'),
+    shellEnded({ shellId: 'bash_1', output: 'all green' }),
     said('msg_3'),
   ])
 
@@ -113,7 +73,7 @@ describe('rewindPlan for background shells', () => {
   it('cuts a shell whose background start the cut removes, dropping every notice of it', () => {
     const plan = rewindPlan({ events: transcript(), toSeq: 1 })
 
-    expect(cutIds(plan, 'shell')).toEqual(['bash_1'])
+    expect(shellCutIds(plan)).toEqual(['bash_1'])
     expect(plan.reappend).toEqual([])
   })
 
@@ -137,7 +97,7 @@ describe('rewindPlan for background shells', () => {
   })
 
   it('keeps a shell whose start the log no longer holds, the way summarisation leaves it', () => {
-    const events = eventsFrom([said('msg_1'), shellEnded('bash_7', 'from a compacted era')])
+    const events = eventsFrom([said('msg_1'), shellEnded({ shellId: 'bash_7', output: 'from a compacted era' })])
 
     const plan = rewindPlan({ events, toSeq: 1 })
 
@@ -149,7 +109,7 @@ describe('rewindPlan for background shells', () => {
     const events = eventsFrom([
       said('msg_1'),
       startedInBackground('call-1'),
-      backgrounded('call-1', 'bash_1'),
+      backgrounded({ callId: 'call-1', shellId: 'bash_1' }),
       said('msg_2'),
       {
         type: 'tool-called',
@@ -164,7 +124,7 @@ describe('rewindPlan for background shells', () => {
         name: 'shell_output',
         output: { shellId: 'bash_1', status: 'running', text: 'a line' },
       },
-      shellEnded('bash_1', 'all green'),
+      shellEnded({ shellId: 'bash_1', output: 'all green' }),
     ])
 
     const plan = rewindPlan({ events, toSeq: 4 })
@@ -177,17 +137,17 @@ describe('rewindPlan for background shells', () => {
     const events = eventsFrom([
       said('msg_1'),
       startedInBackground('call-1'),
-      backgrounded('call-1', 'bash_1'),
+      backgrounded({ callId: 'call-1', shellId: 'bash_1' }),
       said('msg_2'),
       startedInBackground('call-2'),
-      backgrounded('call-2', 'bash_2'),
-      shellEnded('bash_1', 'all green'),
-      shellEnded('bash_2', 'also green'),
+      backgrounded({ callId: 'call-2', shellId: 'bash_2' }),
+      shellEnded({ shellId: 'bash_1', output: 'all green' }),
+      shellEnded({ shellId: 'bash_2', output: 'also green' }),
     ])
 
     const plan = rewindPlan({ events, toSeq: 4 })
 
-    expect(cutIds(plan, 'shell')).toEqual(['bash_2'])
+    expect(shellCutIds(plan)).toEqual(['bash_2'])
     expect(plan.reappend.map((notice) => notice.draft)).toEqual([
       expect.objectContaining({ shellId: 'bash_1' }),
     ])
@@ -199,7 +159,7 @@ describe('rewindPlan for services', () => {
     const events = eventsFrom([
       said('msg_1'),
       startedService('call-1'),
-      serviceRunning('call-1', 'svc_1'),
+      serviceRunning({ callId: 'call-1', serviceId: 'svc_1' }),
       said('msg_2'),
       serviceEnded('svc_1'),
     ])
@@ -222,7 +182,7 @@ describe('rewindPlan for services', () => {
     const events = eventsFrom([
       said('msg_1'),
       startedService('call-1'),
-      serviceRunning('call-1', 'svc_1'),
+      serviceRunning({ callId: 'call-1', serviceId: 'svc_1' }),
       said('msg_2'),
       serviceEnded('svc_1'),
     ])

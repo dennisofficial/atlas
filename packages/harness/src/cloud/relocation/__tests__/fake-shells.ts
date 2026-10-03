@@ -1,8 +1,9 @@
 import { toThreadId, type EKilledBy, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 
 import { EShellStatus, type ShellSnapshot } from '../../../shells/background-shell'
-import { ENotice, type PendingShellNotice } from '../../../shells/notice-queue'
+import { ENotice, type PendingShellNotice } from '../../../shells/attention'
 import { ShellRegistryPort } from '../../../shells/shell-registry'
+import { stopShellOwners } from '../../../shells/lifecycle-operations'
 
 export type FakeShells = ShellRegistryPort & {
   place: (snapshot: ShellSnapshot, owner?: ThreadId) => void
@@ -65,7 +66,11 @@ export function fakeShellRegistry(): FakeShells {
   const find = (shellId: string, threadId: ThreadId): ShellSnapshot | undefined =>
     owned.find((one) => one.snapshot.shellId === shellId && one.threadId === threadId)?.snapshot
 
-  return {
+  const registry: FakeShells = {
+    stopOwners(owners) {
+      return stopShellOwners({ shells: this, owners })
+    },
+
     get killed() {
       return killed
     },
@@ -75,7 +80,7 @@ export function fakeShellRegistry(): FakeShells {
     },
 
     place: (snapshot, owner = FAKE_SHELL_OWNER) => {
-      owned.push({ snapshot, threadId: owner })
+      owned.push({ snapshot: { ...snapshot, threadId: owner }, threadId: owner })
       bump()
     },
 
@@ -85,7 +90,7 @@ export function fakeShellRegistry(): FakeShells {
     },
 
     announce: (snapshot, owner = FAKE_SHELL_OWNER) => {
-      owned.push({ snapshot, threadId: owner })
+      owned.push({ snapshot: { ...snapshot, threadId: owner }, threadId: owner })
       settle([...ended, { snapshot, threadId: owner }])
       bump()
     },
@@ -116,11 +121,13 @@ export function fakeShellRegistry(): FakeShells {
         ? undefined
         : (printed.get(shellId) ?? `output of ${shellId}`),
 
-    kill: ({ shellId, threadId }) => {
-      const snapshot = find(shellId, threadId)
-      if (snapshot === undefined) return { ok: false, reason: `no shell ${shellId}` }
+    kill: ({ shellId, threadId, by }) => {
+      const entry = owned.find((one) => one.snapshot.shellId === shellId && one.threadId === threadId)
+      if (entry === undefined) return { ok: false, reason: `no shell ${shellId}` }
       killed.push(shellId)
-      return { ok: true, snapshot }
+      entry.snapshot = { ...entry.snapshot, threadId, status: EShellStatus.Killed, killedBy: by }
+      bump()
+      return { ok: true, snapshot: entry.snapshot }
     },
 
     awaitEndings: () => Promise.resolve(0),
@@ -182,5 +189,13 @@ export function fakeShellRegistry(): FakeShells {
     },
 
     closeAll: async () => {},
+
+    writeInput: () =>
+      Promise.resolve({ ok: false, reason: 'the fake registry accepts no input for shells' }),
+
+    detachAll: () => Promise.resolve(),
+
+    reconcile: () => Promise.resolve([]),
   }
+  return registry
 }

@@ -83,8 +83,16 @@ export class LocalRewindMachinery extends RewindMachineryPort {
       cut.kind === 'service' ? [cut.serviceId] : [],
     )
 
+    for (const agentId of cutAgents) {
+      const shells = this.registries.shells.list({ threadId: agentId })
+      await this.registries.shells.removeShells({
+        threadId: agentId,
+        shellIds: shells.map((shell) => shell.shellId),
+        by: EKilledBy.Rewind,
+      })
+    }
     await this.registries.agents.removeChildren({ threadId: args.threadId, agentIds: cutAgents })
-    this.registries.shells.removeShells({
+    await this.registries.shells.removeShells({
       threadId: args.threadId,
       shellIds: cutShellIds,
       by: EKilledBy.Rewind,

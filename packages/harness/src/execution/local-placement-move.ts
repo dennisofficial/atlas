@@ -1,7 +1,5 @@
 import {
   EExecutionLocation,
-  EKilledBy,
-  EShellStatus,
   projectDirectoryOf,
   type IdPort,
   type LogPort,
@@ -13,7 +11,8 @@ import { EPlacementMoveKind, PlacementBusy } from '../composition/placement-cont
 import type { AnchoringControl } from '../composition/sandbox-reanchor'
 import type { DockerEngine } from './docker/engine'
 import type { ServiceRegistryPort } from '../services/service-registry'
-import { KILL_SETTLE_MS, type ShellRegistryPort } from '../shells/shell-registry'
+import type { ShellRegistryPort } from '../shells/shell-registry'
+import { stopMovingShells } from './moving-shells'
 import { logFieldsOf } from '../store/logs'
 import { relocateSession, type RelocatedSession } from '../store/relocate-session'
 import type { ThreadStorePort } from '../store/thread-store'
@@ -32,13 +31,6 @@ export type LocalPlacementResult = ({ ok: true } & LocalPlacementMove) | LocalPl
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
-/**
- * The one host↔docker move, shared by the execution_location tool and the operator's own switch:
- * probe the destination before anything dies, freeze the family's stepping children only when the
- * caller asks to, kill the root's running shells, then relocate the session and commit the durable
- * placement — a failure before commit never writes it. Children relocate inside the same move and
- * resume only after the commit, so their routing is consistent the moment they step again.
- */
 export async function moveLocalPlacement(args: {
   control: AnchoringControl
   threadId: ThreadId
@@ -109,13 +101,11 @@ export async function moveLocalPlacement(args: {
           await args.pause({ threadId: owner, caller: args.caller })
         }
 
-        const killed = args.shells
-          .list({ threadId: owner })
-          .filter((shell) => shell.status === EShellStatus.Running)
-        for (const shell of killed) {
-          args.shells.kill({ shellId: shell.shellId, by: EKilledBy.ContainerSwitch, threadId: owner })
-        }
-        const shellEndings = args.shells.awaitEndings({ threadId: owner, ms: KILL_SETTLE_MS })
+        const killedShells = await stopMovingShells({
+          root: owner,
+          threads: stores.threads,
+          shells: args.shells,
+        })
 
         if (args.whenSettled !== undefined) {
           args.onProgress?.('waiting for the session’s agents to settle')
@@ -154,8 +144,7 @@ export async function moveLocalPlacement(args: {
         await stores.threads.chooseExecutionLocation({ threadId: owner, location: target })
         await transaction.commit()
 
-        const stillDying = (await shellEndings) + moved.stillStopping
-        return { from: transaction.from, to: target, killedShells: killed.length, moved, stillDying }
+        return { from: transaction.from, to: target, killedShells, moved, stillDying: moved.stillStopping }
       },
     }).then((moved) => ({ ok: true as const, ...moved }))
   } catch (error) {

@@ -5,7 +5,7 @@ import { closeRegistries, job, openRegistry, settle, THREAD } from './shell-regi
 
 afterEach(closeRegistries)
 
-describe('shell registry versioning', () => {
+describe('shell registry versioning', async () => {
   it('publishes a start to subscribers and raises the version', async () => {
     const { registry } = openRegistry()
     const seen: number[] = []
@@ -13,7 +13,7 @@ describe('shell registry versioning', () => {
 
     // The shell must outlive the assertion window: an echo can be reaped within
     // Bun.sleep(0), landing the exit event first and making the version 2 or 3 here.
-    const started = registry.start(job({ command: 'sleep 60' }))
+    const started = await registry.start(job({ command: 'sleep 60' }))
     if (!started.ok) throw new Error(started.reason)
     await Bun.sleep(0)
 
@@ -23,7 +23,7 @@ describe('shell registry versioning', () => {
 
   it('publishes an exit when the process is reaped', async () => {
     const { registry } = openRegistry()
-    const started = registry.start(job({ command: 'echo done' }))
+    const started = await registry.start(job({ command: 'echo done' }))
     if (!started.ok) throw new Error(started.reason)
 
     let exits = 0
@@ -42,7 +42,7 @@ describe('shell registry versioning', () => {
 
   it('coalesces output into throttled notifications instead of one per chunk', async () => {
     const { registry } = openRegistry()
-    const started = registry.start(
+    const started = await registry.start(
       job({ command: 'for i in $(seq 1 200); do echo line-$i; done' }),
     )
     if (!started.ok) throw new Error(started.reason)
@@ -67,7 +67,7 @@ describe('shell registry versioning', () => {
     })
     unsubscribe()
 
-    registry.start(job({ command: 'echo done' }))
+    await registry.start(job({ command: 'echo done' }))
     await Bun.sleep(0)
 
     expect(notifications).toBe(0)

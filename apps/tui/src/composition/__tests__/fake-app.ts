@@ -94,6 +94,7 @@ import type { QueuedSettled } from '../commands'
 import { userSaidDraft } from '@dltech/atlas-harness'
 import type { TurnPolicy } from '@dltech/atlas-harness'
 import type { AtlasApp } from '../compose'
+import type { HarnessCloseRequest } from '@dltech/atlas-harness'
 import type { ActiveConversation } from '@dltech/atlas-harness'
 import { threadHandle } from '@dltech/atlas-harness'
 import { heldChoice } from '@dltech/atlas-harness'
@@ -447,6 +448,9 @@ export type FakeShells = ShellRegistryPort & {
   poke: () => void
   readonly killed: readonly string[]
   readonly removed: readonly { shellId: string; by: EKilledBy }[]
+  readonly inputs: readonly { shellId: string; text: string; end?: boolean | undefined }[]
+  readonly detaches: number
+  readonly closes: number
 }
 
 const NO_NOTICES: readonly PendingShellNotice[] = Object.freeze([])
@@ -460,6 +464,9 @@ export function fakeShellRegistry(): FakeShells {
   const printed = new Map<string, string>()
   const killed: string[] = []
   const removed: { shellId: string; by: EKilledBy }[] = []
+  const inputs: { shellId: string; text: string; end?: boolean | undefined }[] = []
+  let detaches = 0
+  let closes = 0
   const listeners = new Set<() => void>()
   const revisionListeners = new Set<() => void>()
   let revision = 0
@@ -510,6 +517,18 @@ export function fakeShellRegistry(): FakeShells {
       return removed
     },
 
+    get inputs() {
+      return inputs
+    },
+
+    get detaches() {
+      return detaches
+    },
+
+    get closes() {
+      return closes
+    },
+
     place: (snapshot, owner = FAKE_SHELL_OWNER) => {
       owned.push({ snapshot, threadId: owner })
       bump()
@@ -557,6 +576,15 @@ export function fakeShellRegistry(): FakeShells {
       if (snapshot === undefined) return { ok: false, reason: `no shell ${shellId}` }
       killed.push(shellId)
       return { ok: true, snapshot }
+    },
+
+    stopOwners(args) {
+      return ShellRegistryPort.prototype.stopOwners.call(this, args)
+    },
+
+    writeInput: async ({ shellId, text, end }) => {
+      inputs.push({ shellId, text, end })
+      return { ok: false, reason: 'the fake registry does not write shell input' }
     },
 
     awaitEndings: () => Promise.resolve(0),
@@ -617,7 +645,15 @@ export function fakeShellRegistry(): FakeShells {
       settle(kept)
     },
 
-    closeAll: async () => {},
+    closeAll: async () => {
+      closes += 1
+    },
+
+    detachAll: async () => {
+      detaches += 1
+    },
+
+    reconcile: async () => [],
   }
 }
 
@@ -712,6 +748,7 @@ export type FakeApp = AtlasApp & {
   readonly openedDirectories: readonly string[]
   readonly sandboxStops: number
   readonly bashNotes: number
+  readonly closeRequests: readonly HarnessCloseRequest[]
   readonly journaled: readonly { handle: string; directory: string }[]
 }
 
@@ -853,6 +890,7 @@ export function fakeApp(args: {
   let marked: ActiveConversation | null = null
   let sandboxStops = 0
   let bashNotes = 0
+  const closeRequests: HarnessCloseRequest[] = []
   const titled: string[] = []
   const titledImages: (readonly SaidImage[])[] = []
   const openedUrls: string[] = []
@@ -921,6 +959,9 @@ export function fakeApp(args: {
       return sandboxStops
     },
 
+    get closeRequests() {
+      return closeRequests
+    },
     get bashNotes() {
       return bashNotes
     },
@@ -1040,7 +1081,12 @@ export function fakeApp(args: {
       label: '~/.atlas/secrets.json',
       ...(args.secrets === undefined ? {} : { secrets: args.secrets }),
     }),
-    close: async () => {},
+    prepareClose: (request) => {
+      closeRequests.push(request)
+    },
+    close: async (request) => {
+      if (request !== undefined) closeRequests.push(request)
+    },
     runner: countingRunner,
     turnPolicy,
     titling: titlingRunner,

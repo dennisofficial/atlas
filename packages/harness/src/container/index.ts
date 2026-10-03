@@ -27,6 +27,7 @@ export {
   SecretsStoreToken,
   SelectableModelToken,
   ServeSessionToken,
+  SessionRegistryToken,
   UserSettingsStoreToken,
   WorkspaceRoot,
   WorktreeDirectoryToken,

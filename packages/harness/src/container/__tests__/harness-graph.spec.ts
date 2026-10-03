@@ -61,6 +61,7 @@ describe('the harness container graph', () => {
       'service_list',
       'service_start',
       'service_stop',
+      'shell_input',
       'shell_kill',
       'shell_list',
       'shell_output',

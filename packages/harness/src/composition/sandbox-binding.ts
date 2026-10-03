@@ -33,6 +33,8 @@ import { LocalProcessPort } from '../execution/local-process'
 import { LoginEnvProcessPort } from '../execution/login-env-process'
 import { RoutedFileSystemPort } from '../execution/routed-filesystem'
 import { RoutedProcessPort } from '../execution/routed-process'
+import { SessionEnvironmentProcessPort } from '../execution/session-environment'
+import { SessionRegistryToken } from '../container/tokens'
 import { ServiceRegistryPort } from '../services/service-registry'
 import type { SettingsService } from '../settings/service'
 import { ShellRegistryPort } from '../shells/shell-registry'
@@ -172,12 +174,15 @@ export async function bindSandbox(args: {
   }
 
   container.register(portToken(ProcessPort), {
-    useValue: new RoutedProcessPort({
-      local: new LoginEnvProcessPort(new LocalProcessPort()),
-      docker,
-      locationOf: (threadId) =>
-        (threadId === undefined ? undefined : executionLocation.of(threadId)) ??
-        executionLocation.current(),
+    useValue: new SessionEnvironmentProcessPort({
+      sessions: container.resolve(SessionRegistryToken),
+      inner: new RoutedProcessPort({
+        local: new LoginEnvProcessPort(new LocalProcessPort()),
+        docker,
+        locationOf: (threadId) =>
+          (threadId === undefined ? undefined : executionLocation.of(threadId)) ??
+          executionLocation.current(),
+      }),
     }),
   })
 

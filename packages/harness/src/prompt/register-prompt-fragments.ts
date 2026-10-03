@@ -3,7 +3,7 @@ import { PromptFragment } from '@dltech/atlas-core'
 import { SkillRegistryPort } from '../skills/port'
 import { instanceCachingFactory, portToken, type DependencyContainer } from '../container/injection'
 import { DelegationFragment } from './fragments/agents'
-import { ExecutionLocationFragment, TodayFragment } from './fragments/environment'
+import { ExecutionLocationFragment, SessionPathsFragment, TodayFragment } from './fragments/environment'
 import { AtlasIdentityFragment } from './fragments/identity'
 import { AnswerInTextFragment } from './fragments/models'
 import { CiteFileAndLineFragment, OutputShapeFragment } from './fragments/output'
@@ -37,6 +37,7 @@ export function registerBuiltinPromptFragments({
     TaskListFragment,
     TodayFragment,
     ExecutionLocationFragment,
+    SessionPathsFragment,
     PreferDedicatedToolsFragment,
     ParallelToolCallsFragment,
     OperatorSeesImagesFragment,

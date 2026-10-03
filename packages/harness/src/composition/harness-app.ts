@@ -71,6 +71,10 @@ export type HarnessStoreBinding = {
   bind: (args: { container: DependencyContainer }) => void | Promise<void>
 }
 
+export type HarnessCloseRequest = {
+  stopShells?: boolean | undefined
+}
+
 /** What a composed session hands its surface. Nothing here renders. */
 export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = unknown> = {
   launch: HarnessLaunch
@@ -127,5 +131,6 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   pluginProjections: readonly ContributedProjection[]
   pluginSurfaces: readonly ContributedSurface<TPluginSurface>[]
   surface: TSurface
-  close: () => Promise<void>
+  prepareClose: (request: HarnessCloseRequest) => void
+  close: (request?: HarnessCloseRequest) => Promise<void>
 }

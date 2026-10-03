@@ -27,7 +27,7 @@ const matchedLineCount = (count: number): string => (count === 1 ? '1 line' : `$
 
 const shellMatchedLine = (event: EventOfType<'background-shell-matched'>): string => {
   const named = shellName(event)
-  const matched = `matched ${matchedLineCount(event.matchCount)} and is still running`
+  const matched = `matched ${matchedLineCount(event.matchCount)}`
   return event.watchDisarmed === true
     ? `Background shell ${named} ${matched}, but stopped watching`
     : `Background shell ${named} ${matched}`

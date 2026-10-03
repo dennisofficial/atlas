@@ -19,6 +19,7 @@ import { WakeSignalSource } from '../wake/wake-signal-source'
 import { probeWorkspace } from '../workspace/probe'
 
 import type { HarnessLaunch } from './config'
+import type { HarnessCloseRequest } from './harness-app'
 import { claimLaunchWorktree } from './worktree-claims'
 
 export type LaunchWorkspace = { anchor: string; workspace: WorkspaceIdentity }
@@ -66,14 +67,17 @@ export async function closeSession(args: {
   notice: NoticePort
   usage: AccountUsageService
   recordTeardownEndings: () => Promise<void>
+  request?: HarnessCloseRequest | undefined
+  stopShells?: (() => Promise<void>) | undefined
 }): Promise<void> {
   args.usage.dispose()
-  await args.recordTeardownEndings().catch((error: unknown) => {
+  const warn = (error: unknown): void =>
     args.notice.notify({
       tone: ENoticeTone.Warn,
       text: `Could not persist every session ending: ${error instanceof Error ? error.message : String(error)}`,
     })
-  })
+  if (args.request?.stopShells === true) await args.stopShells?.().catch(warn)
+  await args.recordTeardownEndings().catch(warn)
   await disposeAll({ container: args.container })
   await args.container.resolve(portToken(TelemetryPort)).flush()
 }

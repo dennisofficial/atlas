@@ -72,8 +72,8 @@ describe('what a waiting notice knows about its body', () => {
     expect(rows[0]).toEqual({
       kind: EPendingKind.BackgroundShell,
       id: 'shell-awaiting-bash_1',
-      text: 'Background shell "Run full TUI suite" is waiting on input and cannot be answered',
-      failed: true,
+      text: 'Background shell "Run full TUI suite" reached an input prompt',
+      failed: false,
       body: null,
       entryKind: EEntryKind.BackgroundShellAwaitingInput,
     })

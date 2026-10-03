@@ -8,6 +8,7 @@ import {
   closeRegistries,
   job,
   openRegistry,
+  recordedDraft,
   settle,
   shellAdapters,
   THREAD,
@@ -19,10 +20,10 @@ for (const adapter of shellAdapters) {
   const describeAdapter = adapter.available ? describe : describe.skip
 
   describeAdapter(`${adapter.name} process adapter`, () => {
-    describe('noticing a background shell stuck on a prompt', () => {
+    describe('noticing a background shell stuck on a prompt', async () => {
       it('reports a running shell whose last line looks like a question as awaiting input', async () => {
         const { registry } = openRegistry({ adapter })
-        const started = registry.start(job({ command: `printf 'Overwrite? (y/n) '; sleep 30` }))
+        const started = await registry.start(job({ command: `printf 'Overwrite? (y/n) '; sleep 30` }))
         if (!started.ok) throw new Error(started.reason)
 
         expect(await awaitingInputOf({ registry, shellId: started.snapshot.shellId })).toBe(true)
@@ -30,14 +31,14 @@ for (const adapter of shellAdapters) {
 
       it('reassembles a prompt split across two chunks of the output stream', async () => {
         const { registry } = openRegistry({ adapter })
-        const started = registry.start(
+        const started = await registry.start(
           job({ command: `printf 'Pass'; sleep 1; printf 'word: '; sleep 30` }),
         )
         if (!started.ok) throw new Error(started.reason)
 
         expect(await awaitingInputOf({ registry, shellId: started.snapshot.shellId })).toBe(true)
 
-        const peeked = registry.peek({
+        const peeked = await registry.peek({
           shellId: started.snapshot.shellId,
           characters: 100,
           threadId: THREAD,
@@ -47,7 +48,7 @@ for (const adapter of shellAdapters) {
 
       it('says nothing of the sort about a shell printing ordinary progress', async () => {
         const { registry } = openRegistry({ adapter })
-        const started = registry.start(job({ command: `echo 'compiled 12 modules'; sleep 30` }))
+        const started = await registry.start(job({ command: `echo 'compiled 12 modules'; sleep 30` }))
         if (!started.ok) throw new Error(started.reason)
         await Bun.sleep(300)
 
@@ -59,28 +60,43 @@ for (const adapter of shellAdapters) {
       })
 
       it('announces a shell that stopped to ask, so the model can answer it', async () => {
-        const { registry } = openRegistry({ adapter })
-        const started = registry.start(job({ command: `printf 'Password: '; sleep 30` }))
+        const { registry, log } = openRegistry({ adapter })
+        const started = await registry.start(job({ command: `printf 'Password: '; sleep 30` }))
         if (!started.ok) throw new Error(started.reason)
         expect(await awaitingInputOf({ registry, shellId: started.snapshot.shellId })).toBe(true)
 
-        const drained = registry.drainNotifications({ threadId: THREAD })
+        await recordedDraft({ log, type: 'background-shell-awaiting-input' })
+        expect(registry.drainNotifications({ threadId: THREAD })).toEqual([])
 
-        expect(drained).toHaveLength(1)
-        expect(awaitingInputDraft(drained[0])).toMatchObject({
+        expect(
+          awaitingInputDraft(
+            log?.appended.find((draft) => draft.type === 'background-shell-awaiting-input'),
+          ),
+        ).toMatchObject({
           type: 'background-shell-awaiting-input',
-          shellId: 'bash_1',
+          shellId: started.snapshot.shellId,
           command: `printf 'Password: '; sleep 30`,
           description: 'Run a background job',
           output: 'Password: ',
           droppedCharacters: 0,
           remainingCharacters: 0,
+          outputPath: started.snapshot.outputPath,
+          bootId: started.snapshot.bootId,
+          inputSupported: started.snapshot.inputSupported,
+          outputStart: 0,
+          outputEnd: 'Password: '.length,
         })
+        const read = await registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
+        expect(read.ok && read.delta.text).toBe('Password: ')
+        const second = await registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
+        expect(second.ok && second.delta.text).toBe('')
+        if (started.snapshot.outputPath === undefined) throw new Error('the shell must name its spool')
+        expect(await Bun.file(started.snapshot.outputPath).text()).toBe('Password: ')
       }, 15_000)
 
       it('queues nothing for a slow command, so it is left alone however long it runs', async () => {
         const { registry } = openRegistry({ adapter })
-        const started = registry.start(job({ command: `printf 'compiled 12 modules'; sleep 30` }))
+        const started = await registry.start(job({ command: `printf 'compiled 12 modules'; sleep 30` }))
         if (!started.ok) throw new Error(started.reason)
         await Bun.sleep(PROMPT_SETTLE_MS + 500)
 
@@ -95,7 +111,7 @@ for (const adapter of shellAdapters) {
 
       it('stops claiming it once the shell has ended', async () => {
         const { registry } = openRegistry({ adapter })
-        const started = registry.start(job({ command: `printf 'Continue? (y/n) '` }))
+        const started = await registry.start(job({ command: `printf 'Continue? (y/n) '` }))
         if (!started.ok) throw new Error(started.reason)
         await settle({ registry, shellId: started.snapshot.shellId })
 

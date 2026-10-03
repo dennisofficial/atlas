@@ -19,10 +19,10 @@ for (const adapter of shellAdapters) {
   const describeAdapter = adapter.available ? describe : describe.skip
 
   describeAdapter(`${adapter.name} process adapter`, () => {
-    describe('killing a background shell', () => {
+    describe('killing a background shell', async () => {
       it('stops it and reports it killed rather than exited', async () => {
         const { registry } = openRegistry({ adapter })
-        const started = registry.start(job({ command: 'sleep 60' }))
+        const started = await registry.start(job({ command: 'sleep 60' }))
         if (!started.ok) throw new Error(started.reason)
 
         const killed = registry.kill({
@@ -33,14 +33,14 @@ for (const adapter of shellAdapters) {
         expect(killed.ok).toBe(true)
 
         await settle({ registry, shellId: started.snapshot.shellId })
-        const read = registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
+        const read = await registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
         expect(read.ok && read.snapshot.status).toBe(EShellStatus.Killed)
       })
 
       it('reaches a process the shell forked, not only the shell', async () => {
         const { registry, root } = openRegistry({ adapter })
         const witness = join(root, 'survivor.txt')
-        const started = registry.start(
+        const started = await registry.start(
           job({ command: `(sleep 2; echo alive > ${witness}) & wait` }),
         )
         if (!started.ok) throw new Error(started.reason)
@@ -63,7 +63,7 @@ for (const adapter of shellAdapters) {
 
       it('is harmless on a shell that already finished', async () => {
         const { registry } = openRegistry({ adapter })
-        const started = registry.start(job({ command: 'echo done' }))
+        const started = await registry.start(job({ command: 'echo done' }))
         if (!started.ok) throw new Error(started.reason)
         await settle({ registry, shellId: started.snapshot.shellId })
 

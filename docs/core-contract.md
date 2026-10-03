@@ -78,7 +78,9 @@ type EventBody =
   can emit a malformed prompt.
 - **`tool-called.ordinal` fixes intra-step ordering.** `seq` alone across two event kinds collapses
   text → tool-call → text into (all text)(all calls).
-- **`background-shell-ended` carries the output rather than a pointer to it.** A shell that outlives
+- **`background-shell-ended` carries an excerpt and an optional full-output path.** Modern shells
+  carry `outputPath` and optional byte-range fields from their append-only spool; the model can Read
+  or Grep that path for complete output. Historical no-path events keep their original rendering. A shell that outlives
   its turn has to re-enter the conversation somehow, and the two obvious shapes are both wrong: a
   `user-said` puts words in the operator's mouth and renders as their message, and a notice saying
   "read it with `shell_output`" spends a whole model step fetching bytes the harness already held.

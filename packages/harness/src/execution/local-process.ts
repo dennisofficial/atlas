@@ -76,6 +76,19 @@ export class LocalProcessPort implements ProcessPort {
     )
   }
 
+  async launchDetached(args: SpawnCommand): Promise<void> {
+    const child = Bun.spawn({
+      cmd: [...args.cmd],
+      cwd: args.cwd,
+      stdin: 'ignore',
+      stdout: 'ignore',
+      stderr: 'ignore',
+      detached: true,
+      env: withoutLauncherPrivateEnv(args.env ?? process.env),
+    })
+    child.unref()
+  }
+
   /**
    * Bun.which resolves against the PATH captured when the process started and ignores later writes
    * to process.env.PATH unless the PATH option is passed explicitly.

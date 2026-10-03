@@ -2,11 +2,17 @@ import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { ExitGuard, HEADING, SUBTITLE } from '../components/exit-guard'
-import { EExitChoice, EXIT_GUARD_OPTIONS, type ExitGuardRow } from '../exit-guard-model'
+import {
+  EExitChoice,
+  EXIT_GUARD_OPTIONS,
+  KEEP_SHELLS_NOTE,
+  type ExitGuardRow,
+} from '../exit-guard-model'
 import { glyph } from '../theme'
 import { frameOf, mount } from './transcript-fixture'
 
 const WIDTH = 80
+const WIDE = 150
 
 const RUNNING_LABEL = 'Wait for TUI suite then report'
 
@@ -14,9 +20,9 @@ const RUNNING: readonly ExitGuardRow[] = [{ id: 'sh-1', tag: 'shell', label: RUN
 
 const OPTIONS = EXIT_GUARD_OPTIONS
 
-const guard = (over: { running?: readonly ExitGuardRow[]; selected?: number } = {}) => (
+const guard = (over: { width?: number; running?: readonly ExitGuardRow[]; selected?: number } = {}) => (
   <ExitGuard
-    width={WIDTH}
+    width={over.width ?? WIDTH}
     running={over.running ?? RUNNING}
     state={{ selected: over.selected ?? 0 }}
     overlay
@@ -73,7 +79,7 @@ describe('the exit guard when background work is still running', () => {
     const frame = await frameOf(guard({ running: [] }), WIDTH)
 
     expect(frame).toContain(HEADING)
-    expect(frame).not.toContain('shell')
+    expect(frame).not.toContain('shell · ')
     expect(frame).not.toContain(RUNNING_LABEL)
   })
 
@@ -84,10 +90,17 @@ describe('the exit guard when background work is still running', () => {
     expect(rowWith(frame, labelOf(EExitChoice.Stay))).not.toContain('(')
   })
 
+  it('labels the default choice with what survives', async () => {
+    const frame = await frameOf(guard({ width: WIDE }), WIDE)
+
+    expect(rowWith(frame, labelOf(EExitChoice.KeepShells))).toContain(`(${KEEP_SHELLS_NOTE})`)
+  })
+
   it('marks the selected option and nothing else', async () => {
     const frame = await frameOf(guard(), WIDTH)
 
-    expect(rowWith(frame, labelOf(EExitChoice.StopAndExit))).toContain(glyph.selected)
+    expect(rowWith(frame, labelOf(EExitChoice.KeepShells))).toContain(glyph.selected)
+    expect(rowWith(frame, labelOf(EExitChoice.StopAndExit))).not.toContain(glyph.selected)
     expect(rowWith(frame, labelOf(EExitChoice.Stay))).not.toContain(glyph.selected)
   })
 
