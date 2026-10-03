@@ -2285,9 +2285,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.99,
+      "inputPerMillion": 0.72,
       "outputPerMillion": 13,
-      "cacheReadPerMillion": 0.8
+      "cacheReadPerMillion": 0.7
     },
     "effort": {
       "low": "low",
@@ -4840,9 +4840,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 128000,
     "cost": {
-      "inputPerMillion": 0.132,
-      "outputPerMillion": 0.528,
-      "cacheReadPerMillion": 0.033
+      "inputPerMillion": 0.0825,
+      "outputPerMillion": 0.33,
+      "cacheReadPerMillion": 0.020625
     },
     "effort": {
       "off": "none",
@@ -4882,9 +4882,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 64000,
     "cost": {
-      "inputPerMillion": 0.834,
-      "outputPerMillion": 2.501,
-      "cacheReadPerMillion": 0.042
+      "inputPerMillion": 0.7506,
+      "outputPerMillion": 2.2509,
+      "cacheReadPerMillion": 0.0378
     },
     "effort": {
       "off": "none",
@@ -5478,11 +5478,11 @@
     "api": "openai-completions",
     "contextWindow": 1048576,
     "imageTier": "standard",
-    "maxOutputTokens": 131072,
+    "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 1.4,
-      "outputPerMillion": 4.4,
-      "cacheReadPerMillion": 0.14
+      "inputPerMillion": 0.22,
+      "outputPerMillion": 3.39,
+      "cacheReadPerMillion": 0.176
     },
     "effort": {
       "low": "low",
@@ -5667,11 +5667,11 @@
     "api": "openai-completions",
     "contextWindow": 1048576,
     "imageTier": "standard",
-    "maxOutputTokens": 943718,
+    "maxOutputTokens": 393216,
     "cost": {
       "inputPerMillion": 0.02,
-      "outputPerMillion": 0.6,
-      "cacheReadPerMillion": 0.01
+      "outputPerMillion": 0.4,
+      "cacheReadPerMillion": 0.003
     },
     "effort": {
       "low": "low",
@@ -5688,11 +5688,11 @@
     "api": "openai-completions",
     "contextWindow": 1048576,
     "imageTier": "standard",
-    "maxOutputTokens": 943718,
+    "maxOutputTokens": 393216,
     "cost": {
-      "inputPerMillion": 0.22,
+      "inputPerMillion": 0.2178,
       "outputPerMillion": 4.2,
-      "cacheReadPerMillion": 0.14
+      "cacheReadPerMillion": 0.22
     },
     "effort": {
       "low": "low",
@@ -5776,9 +5776,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.9895,
-      "outputPerMillion": 13,
-      "cacheReadPerMillion": 0.45
+      "inputPerMillion": 0.65,
+      "outputPerMillion": 10.331,
+      "cacheReadPerMillion": 0.29
     },
     "effort": {
       "low": "low",
@@ -5940,9 +5940,9 @@
     "imageTier": "standard",
     "maxOutputTokens": 131072,
     "cost": {
-      "inputPerMillion": 0.035,
+      "inputPerMillion": 0.0337,
       "outputPerMillion": 0.5,
-      "cacheReadPerMillion": 0.035
+      "cacheReadPerMillion": 0.0337
     },
     "effort": {
       "low": "low",
@@ -5959,10 +5959,10 @@
     "api": "openai-completions",
     "contextWindow": 1048576,
     "imageTier": "standard",
-    "maxOutputTokens": 131072,
+    "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.12,
-      "outputPerMillion": 4,
+      "inputPerMillion": 0.1,
+      "outputPerMillion": 4.4,
       "cacheReadPerMillion": 0.08
     },
     "effort": {
