@@ -211,7 +211,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
   return (
     <WorkspaceView
       header={header}
-      contentWidth={layout.contentWidth}
+      contentWidth={layout.contentWidth} onPaneFocus={contextBrowser.handleViewerFocus}
       pane={contextBrowser.viewer === null ? null : <WorkspaceContextPane control={contextBrowser} width={layout.contentWidth} />}
       transcript={
         <WorkspaceTranscript

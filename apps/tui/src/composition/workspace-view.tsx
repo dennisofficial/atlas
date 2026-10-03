@@ -34,6 +34,7 @@ export function WorkspaceView(props: {
   sidebar: React.ReactNode
   overlays: React.ReactNode
   pane?: React.ReactNode
+  onPaneFocus?: () => void
 }): React.ReactNode {
   return (
     <Screen {...(props.header === null ? {} : { header: props.header })}>
@@ -44,6 +45,7 @@ export function WorkspaceView(props: {
           flexGrow={1}
           flexShrink={1}
           flexBasis={0}
+          {...(props.onPaneFocus === undefined ? {} : { onMouseDown: props.onPaneFocus })}
         >
           <box
             flexDirection="column"

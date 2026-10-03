@@ -25,6 +25,7 @@ export function ContextViewer(props: {
   loading: boolean
   content: ContextFileContent | null
   onDismiss: () => void
+  onFocus?: () => void
   attachScroll: (box: ScrollBoxRenderable | null) => void
 }): React.ReactNode {
   const [window, setWindow] = useState({ start: 0, end: 100 })
@@ -45,7 +46,7 @@ export function ContextViewer(props: {
   useEffect(() => () => { release.current?.() }, [])
 
   return (
-    <box flexDirection="column" flexGrow={1} flexShrink={1} flexBasis={0}>
+    <box flexDirection="column" flexGrow={1} flexShrink={1} flexBasis={0} {...(props.onFocus === undefined ? {} : { onMouseDown: props.onFocus })}>
       <box flexDirection="row" flexShrink={0} paddingTop={1} paddingBottom={1}>
         <BackPill label="context" onBack={props.onDismiss} />
         <box flexGrow={1} flexShrink={1} justifyContent="flex-end" flexDirection="row">

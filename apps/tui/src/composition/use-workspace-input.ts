@@ -67,7 +67,7 @@ export type WorkspaceInputArgs = {
   exitGuard: Pick<ReturnType<typeof useExitGuard>, 'state' | 'handleKey'>
   containerGuard: Pick<ReturnType<typeof useContainerGuard>, 'state' | 'handleKey'>
   containerMove: Pick<ReturnType<typeof useContainerMove>, 'move' | 'handleKey'>
-  contextBrowser: Pick<ReturnType<typeof useContextBrowser>, 'viewer' | 'handleKey'>
+  contextBrowser: Pick<ReturnType<typeof useContextBrowser>, 'viewer' | 'tree' | 'handleKey'>
 }
 
 export type WorkspaceInput = {
@@ -167,7 +167,8 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
       covering(agentsPicker.state !== null, agentsPicker.handleKey),
       { ...covering(onboarding.state !== null, onboarding.handleKey), porous: true },
       { ...covering(settings.state !== null, settings.handleKey), porous: true },
-      covering(contextBrowser.viewer !== null, contextBrowser.handleKey),
+      { open: contextBrowser.viewer !== null || contextBrowser.tree.focused,
+        handleKey: contextBrowser.handleKey, coversComposer: true, coversTranscript: contextBrowser.viewer !== null },
       { ...covering(footerStrip.state !== null, footerStrip.handleKey), coversTranscript: false },
       { open: compacting, coversComposer: true, coversTranscript: true },
       {
@@ -186,6 +187,7 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
       compacting,
       contextBrowser.handleKey,
       contextBrowser.viewer,
+      contextBrowser.tree.focused,
       containerMove.handleKey,
       exitGuard.handleKey,
       exitGuard.state,
@@ -229,14 +231,14 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
 
       if (key.eventType !== 'release' && key.name !== 'escape') agentView.disarmStop()
 
-      if (contextBrowser.viewer === null && menus.handleKey(key)) {
+      if (contextBrowser.viewer === null && !contextBrowser.tree.focused && menus.handleKey(key)) {
         key.preventDefault()
         return
       }
 
       handleKey(key)
     },
-    [agentView, covered, contextBrowser.viewer, handleKey, menus],
+    [agentView, covered, contextBrowser.viewer, contextBrowser.tree.focused, handleKey, menus],
   )
 
   useKeyboard(handleKeyWithMenu)
