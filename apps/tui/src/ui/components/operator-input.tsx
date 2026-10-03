@@ -1,8 +1,9 @@
-import type { KeyBinding, PasteEvent, TextareaRenderable } from '@opentui/core'
+import type { PasteEvent, TextareaRenderable } from '@opentui/core'
 import React, { type RefObject } from 'react'
 
 import type { OperatorInputState } from '../../composition/use-operator-input'
 import { fitHints, hintSpans, type Hint } from '../hint-layout'
+import { COMPOSER_NEWLINE_BINDINGS } from '../composer-input-bindings'
 import { useClickRegion, type ClickRegion } from '../hooks/use-click-region'
 import { glyph, theme } from '../theme'
 import { BottomDrawer, DRAWER_PAD, drawerCells, DrawerLine } from './drawer'
@@ -17,16 +18,11 @@ export function operatorInputHints(state: OperatorInputState): readonly Hint[] {
     { key: 'esc', label: 'interrupt the turn' },
   ]
   return [
-    { key: '^s', label: 'send — the model never sees it' },
-    { key: '⏎', label: 'newline' },
+    { key: '⏎', label: 'send — the model never sees it' },
+    { key: 'shift+⏎', label: 'newline' },
     { key: 'esc', label: 'interrupt the turn' },
   ]
 }
-
-const INPUT_BINDINGS: KeyBinding[] = [
-  { name: 'return', action: 'newline' },
-  { name: 'return', meta: true, action: 'newline' },
-]
 
 function Line(props: { spans: readonly Span[]; cells: number; region?: ClickRegion }): React.ReactNode {
   return (
@@ -86,9 +82,9 @@ export function OperatorInputOverlay(props: {
           wrapMode="word"
           textColor={theme.bright}
           cursorColor={theme.accent}
-          placeholder="Paste the value here. Ctrl+S sends it without showing the model."
+          placeholder="Paste the value here. Enter sends; Shift+Enter adds a newline."
           placeholderColor={theme.hint}
-          keyBindings={INPUT_BINDINGS}
+          keyBindings={COMPOSER_NEWLINE_BINDINGS}
           onContentChange={props.onChange}
           onPaste={props.onPaste}
         />

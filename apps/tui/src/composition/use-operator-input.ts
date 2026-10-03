@@ -11,6 +11,7 @@ import { decodePasteBytes, type KeyEvent, type PasteEvent, type TextareaRenderab
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 
 import { operatorEditorText, operatorTextAfterEdit, operatorTextWithPaste } from '../ui/operator-input-text'
+import { chordMatches } from '../ui/keys'
 import type { AtlasApp } from './compose'
 
 export type OperatorInputReady = {
@@ -173,7 +174,7 @@ export function useOperatorInput(args: {
         onInterrupt()
         return
       }
-      if (key.name === 's' && key.ctrl && !key.meta && !key.shift) {
+      if (chordMatches({ chord: 'return', press: key })) {
         key.preventDefault()
         handleSubmit()
         return

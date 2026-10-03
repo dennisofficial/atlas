@@ -13,7 +13,7 @@ async function paste(mounted: Awaited<ReturnType<typeof mountInput>>, value: str
 }
 
 const send = (mounted: Awaited<ReturnType<typeof mountInput>>) =>
-  mounted.input.pressKey('s', { ctrl: true })
+  mounted.input.pressEnter()
 
 describe('native operator input', () => {
   it('preserves a >10KB multiline paste and the composer, including repeated request signals', async () => {
@@ -38,13 +38,13 @@ describe('native operator input', () => {
     }
   })
 
-  it('inserts Enter as a newline and uses native cursor editing, not append-only key handling', async () => {
+  it('inserts Shift+Enter as a newline, edits natively, and submits Enter without an implicit newline', async () => {
     const mounted = await mountInput()
     const answer = mock(async () => ({ ok: true, bytes: 0 } as const))
     mounted.app.operatorInput.answer = answer
     try {
       await paste(mounted, '  first')
-      mounted.input.pressEnter()
+      mounted.input.pressShiftEnter()
       await mounted.flush()
       await mounted.input.typeText('second  ')
       mounted.input.pressArrow('left')
@@ -52,13 +52,18 @@ describe('native operator input', () => {
       await mounted.flush()
       expect(mounted.control().editor.current?.plainText).toBe('  first\nsecond ')
       expect(answer).not.toHaveBeenCalled()
+      send(mounted)
+      await mounted.flush()
+      expect(answer).toHaveBeenCalledTimes(1)
+      expect(answer).toHaveBeenCalledWith({ requestId: INPUT_REQUEST.requestId, value: '  first\nsecond ' })
+      expect(mounted.control().state?.typed).toBe('  first\nsecond ')
       expect(mounted.composerText()).toBe('composer stays here')
     } finally {
       await mounted.done()
     }
   })
 
-  it('awaits actual local delivery on Ctrl+S and does not submit twice', async () => {
+  it('awaits actual local delivery on Enter and does not submit twice', async () => {
     const mounted = await mountInput()
     const gate = deliveryGate<OperatorInputAnswerOutcome>()
     const answer = mock((_args: { requestId: string; value: string }) => gate.promise)

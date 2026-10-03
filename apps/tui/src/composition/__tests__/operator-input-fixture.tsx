@@ -21,6 +21,7 @@ export const INPUT_REQUEST = {
   url: 'https://example.com/authorize?code=readable',
   path: '/tmp/operator-input.txt',
 }
+export const SHIFT_ENTER_SEQUENCE = '\x1b[13;2u'
 export const MULTILINE = '  leading\n\n' + '  line with tabs\tand Unicode 界\r\n'.repeat(400) + '\ntrailing  \n'
 
 export async function mountInput(args: {
@@ -100,6 +101,7 @@ export async function mountInput(args: {
       typeText: async (text: string) => { await act(async () => { await setup.mockInput.typeText(text) }) },
       pressKey: (key: string, modifiers: { ctrl: boolean }) => { act(() => setup.mockInput.pressKey(key, modifiers)) },
       pressEnter: () => { act(() => setup.mockInput.pressEnter()) },
+      pressShiftEnter: () => { act(() => setup.mockInput.pressKey(SHIFT_ENTER_SEQUENCE)) },
       pressEscape: () => { act(() => setup.mockInput.pressEscape()) },
       pressBackspace: () => { act(() => setup.mockInput.pressBackspace()) },
       pressArrow: (direction: 'left' | 'right') => { act(() => setup.mockInput.pressArrow(direction)) },

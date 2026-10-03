@@ -7,12 +7,12 @@ import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { theme } from '../../ui/theme'
 import { open, THREAD } from './app-fixture'
 import { fakeApp, scriptedModelPort } from './fake-app'
-import { INPUT_REQUEST, MULTILINE, mountInput } from './operator-input-fixture'
+import { INPUT_REQUEST, MULTILINE, SHIFT_ENTER_SEQUENCE, mountInput } from './operator-input-fixture'
 
 await grammarsReady()
 
 describe('operator input overlay in the real workspace', () => {
-  it('takes native input without leaking paste tokens or Enter into the conversation composer', async () => {
+  it('edits with Shift+Enter and submits with Enter without leaking into the conversation composer', async () => {
     const app = fakeApp({ model: scriptedModelPort({ script: { thinking: '', reply: 'done' } }) })
     const answer = mock(async (_args: { requestId: string; value: string }) => ({ ok: true, bytes: 0 } as const))
     app.operatorInput.answer = answer
@@ -28,14 +28,16 @@ describe('operator input overlay in the real workspace', () => {
       act(() => app.channel.publisherFor({ threadId: THREAD }).operatorInput({ open: INPUT_REQUEST }))
       expect(await capture()).toContain(OPERATOR_INPUT_HEADING)
       await act(async () => { await mounted.paste(MULTILINE) })
-      act(() => mounted.pressEnter())
+      await act(async () => { await mounted.typeText(SHIFT_ENTER_SEQUENCE) })
       const frame = await capture()
       expect(frame).not.toContain('[Pasted text')
       expect(answer).not.toHaveBeenCalled()
       expect(mounted.draftText()).toBe('/comp')
-      act(() => mounted.pressCtrl('s'))
+      act(() => mounted.pressEnter())
       await capture()
+      expect(answer).toHaveBeenCalledTimes(1)
       expect(answer).toHaveBeenCalledWith({ requestId: INPUT_REQUEST.requestId, value: MULTILINE + '\n' })
+      expect(answer.mock.calls[0]?.[0].value).not.toBe(MULTILINE + '\n\n')
       expect(mounted.draftText()).toBe('/comp')
       expect(app.turnsDriven).toBe(0)
       act(() => app.channel.publisherFor({ threadId: THREAD }).operatorInput({ open: null }))
@@ -63,7 +65,7 @@ describe('native operator input history', () => {
       expect(mounted.control().editor.current?.plainText).toBe('')
       act(() => { mounted.control().editor.current?.redo() })
       await mounted.flush()
-      mounted.input.pressKey('s', { ctrl: true })
+      mounted.input.pressEnter()
       await mounted.flush()
       expect(answer).toHaveBeenCalledWith({ requestId: INPUT_REQUEST.requestId, value })
     } finally {
