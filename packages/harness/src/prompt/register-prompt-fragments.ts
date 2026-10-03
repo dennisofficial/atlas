@@ -13,6 +13,7 @@ import {
   AnswerHonestlyFragment,
   ConcernThenBuildFragment,
   EndTurnMessageFragment,
+  InvestigateThenExplainFragment,
 } from './fragments/scope'
 import { BackgroundShellsFragment } from './fragments/shells'
 import { SkillListingFragment } from './fragments/skills'
@@ -33,6 +34,7 @@ export function registerBuiltinPromptFragments({
     AtlasIdentityFragment,
     ConcernThenBuildFragment,
     AnswerHonestlyFragment,
+    InvestigateThenExplainFragment,
     EndTurnMessageFragment,
     TaskListFragment,
     TodayFragment,

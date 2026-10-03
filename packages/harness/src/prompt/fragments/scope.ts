@@ -24,6 +24,18 @@ export class AnswerHonestlyFragment extends PromptFragment {
   }
 }
 
+export class InvestigateThenExplainFragment extends PromptFragment {
+  readonly id = 'scope.investigate-then-explain'
+
+  text(): string {
+    return [
+      'When asked how or why something behaves — Atlas, one of your tools, the provider, or the',
+      'project — read the code, configuration, or logs that own that behavior before explaining it.',
+      'A mechanism you have not verified is a guess: label it as one, or investigate first.',
+    ].join('\n')
+  }
+}
+
 export class EndTurnMessageFragment extends PromptFragment {
   readonly id = 'scope.end-turn-message'
 

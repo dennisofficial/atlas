@@ -87,6 +87,13 @@ describe('the builtin prompt', () => {
     expect(text).not.toContain('rewound')
   })
 
+  it('sends how-and-why questions about behavior to the code before answering', () => {
+    const part = compiled().parts.find((part) => part.id === 'scope.investigate-then-explain')
+    expect(part).toBeDefined()
+    expect(part?.text).toContain('read the code')
+    expect(part?.text).toContain('guess')
+  })
+
   it('keeps the web guidance short', () => {
     const parts = compiled().parts.filter((part) => part.id.startsWith('web.'))
     const text = parts.map((part) => part.text).join('\n')
