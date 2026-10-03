@@ -25,7 +25,7 @@ export function useContextTree(args: {
   useEffect(() => {
     let live = true
     if (args.readers === undefined) { setLoading(false); return }
-    setLoading(true)
+    if (held.current.size === 0) setLoading(true)
     void readContextTree({ readers: args.readers, expanded, previous: held.current }).then((next) => {
       if (!live) return
       setLevels((current) => sameContextTreeLevels({ left: current, right: next }) ? current : next)
