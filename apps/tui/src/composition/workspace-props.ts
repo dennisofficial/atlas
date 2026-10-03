@@ -5,6 +5,7 @@ import type { ClipboardImageReader } from '../ui/clipboard-image'
 import type { CloudSession } from './cloud/cloud-session'
 import type { AtlasApp } from './compose'
 import type { OpenedConversation } from './open-conversation'
+import type { SurfaceAttachment } from './session-binding'
 import type { CloudBridgeFactory, LiftPreflight, WorkspaceCapture } from './use-cloud-lift'
 import type { MoveStepTiming } from './use-container-move'
 import type { WhatsNewControl } from './use-whats-new'
@@ -13,6 +14,7 @@ export type WorkspaceProps = {
   app: AtlasApp
   localApp: AtlasApp
   opened: OpenedConversation
+  attachment: SurfaceAttachment | undefined
   credentialNotice: string | null
   covered: boolean
   whatsNew: WhatsNewControl
