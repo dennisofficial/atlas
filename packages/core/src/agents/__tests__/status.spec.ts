@@ -74,6 +74,13 @@ describe('the sentence a parent reads about a delegate that stopped', () => {
     expect(sentence).not.toContain('stopped')
   })
 
+  it('says a paused child paused with the move, not that anyone stopped it', () => {
+    const sentence = agentEnding(ending({ status: EAgentStatus.Paused }))
+
+    expect(sentence).toBe('was paused as the conversation moved, after 4 turns and 11 tool calls')
+    expect(sentence).not.toContain('stopped')
+  })
+
   it('says a relocated child is resuming, never that anyone stopped it', () => {
     const sentence = agentEnding(
       ending({ status: EAgentStatus.Stopped, killedBy: EKilledBy.ContainerSwitch }),

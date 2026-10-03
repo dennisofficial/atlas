@@ -34,6 +34,7 @@ const NEEDS_ATTENTION: Record<EAgentStatus, boolean> = {
   [EAgentStatus.Failed]: true,
   [EAgentStatus.Stopped]: false,
   [EAgentStatus.Blocked]: true,
+  [EAgentStatus.Paused]: false,
 }
 
 export const agentEndedLine = (ending: AgentEndingRow): string =>

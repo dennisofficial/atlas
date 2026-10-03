@@ -30,9 +30,9 @@ const reportOf = (event: Ending): string => {
 }
 
 function advice(event: Ending): readonly string[] {
+  if (event.status === 'paused' || event.killedBy === EKilledBy.ContainerSwitch) return [RELOCATED]
   if (event.killedBy === EKilledBy.User) return [USER_STOPPED]
   if (event.killedBy === EKilledBy.Unrecorded) return [LOST_AGENT]
-  if (event.killedBy === EKilledBy.ContainerSwitch) return [RELOCATED]
   return []
 }
 

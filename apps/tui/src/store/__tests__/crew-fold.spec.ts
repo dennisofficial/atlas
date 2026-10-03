@@ -14,6 +14,7 @@ const WENT_WRONG: Record<EAgentStatus, boolean> = {
   [EAgentStatus.Finished]: false,
   [EAgentStatus.Failed]: true,
   [EAgentStatus.Stopped]: true,
+  [EAgentStatus.Paused]: false,
 }
 
 const wentWrong = (one: Row): boolean => WENT_WRONG[one.status]

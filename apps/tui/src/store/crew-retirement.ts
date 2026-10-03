@@ -25,6 +25,7 @@ const IS_TERMINAL: Record<EAgentStatus, boolean> = {
   [EAgentStatus.Finished]: true,
   [EAgentStatus.Failed]: true,
   [EAgentStatus.Stopped]: true,
+  [EAgentStatus.Paused]: false,
 }
 
 const NEEDS_ACKNOWLEDGING: Record<EAgentStatus, boolean> = {
@@ -33,6 +34,7 @@ const NEEDS_ACKNOWLEDGING: Record<EAgentStatus, boolean> = {
   [EAgentStatus.Finished]: false,
   [EAgentStatus.Failed]: true,
   [EAgentStatus.Stopped]: true,
+  [EAgentStatus.Paused]: false,
 }
 
 const instantOf = (iso: string): number | null => {

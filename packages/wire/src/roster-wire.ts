@@ -25,6 +25,7 @@ export enum EAgentStatus {
   Failed = 'failed',
   Stopped = 'stopped',
   Blocked = 'blocked',
+  Paused = 'paused',
 }
 
 export enum EServiceStatus {

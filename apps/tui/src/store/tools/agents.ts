@@ -17,6 +17,7 @@ const STOP_NOTE: Record<EAgentStatus, string> = {
   [EAgentStatus.Failed]: 'already failed',
   [EAgentStatus.Stopped]: 'already stopped',
   [EAgentStatus.Blocked]: 'blocked',
+  [EAgentStatus.Paused]: 'paused with the move',
 }
 
 const STILL_OUT: Record<EAgentStatus, boolean> = {
@@ -25,6 +26,7 @@ const STILL_OUT: Record<EAgentStatus, boolean> = {
   [EAgentStatus.Finished]: false,
   [EAgentStatus.Failed]: false,
   [EAgentStatus.Stopped]: false,
+  [EAgentStatus.Paused]: false,
 }
 
 const statusOf = (value: unknown): EAgentStatus | undefined =>
