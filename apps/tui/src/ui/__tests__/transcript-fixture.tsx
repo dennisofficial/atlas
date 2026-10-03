@@ -69,6 +69,7 @@ const modelSaid = (key: string, text: string, flags: ModelFlags = {}): Transcrip
   text,
   streaming: flags.streaming ?? false,
   interrupted: flags.interrupted ?? false,
+  muted: false,
 })
 
 const modelThought = (key: string, text: string, flags: ModelFlags = {}): TranscriptEntry => ({

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EAssistantPlaceholder } from '@dltech/atlas-core'
 import { EStepEnd, type StepId, type StepSignal } from '@dltech/atlas-harness'
 
 import { deriveTranscript } from '../derive-transcript'
@@ -63,6 +64,23 @@ describe('a settled exchange', () => {
       [EEntryKind.ModelThought, 'weighing it up'],
       [EEntryKind.ModelSaid, 'a burrito'],
     ])
+  })
+
+  it('renders the no-content placeholder muted rather than as a plain reply', () => {
+    const events = log([
+      { type: 'user-said', text: 'what changed?' },
+      {
+        type: 'assistant-said',
+        parts: [{ type: 'text', text: '<no content>' }],
+        placeholder: EAssistantPlaceholder.NoContent,
+      },
+    ])
+
+    const model = deriveTranscript({ events, signals: [] })
+    const placeholder = model.entries.find((entry) => entry.kind === EEntryKind.ModelSaid)
+
+    expect(placeholder?.kind === EEntryKind.ModelSaid ? placeholder.text : '').toBe('<no content>')
+    expect(placeholder?.kind === EEntryKind.ModelSaid ? placeholder.muted : false).toBe(true)
   })
 
   it('gives every entry a distinct key', () => {

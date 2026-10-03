@@ -1,6 +1,6 @@
 import { EAuthor, EEntryKind, type TranscriptEntry } from './transcript-model'
 
-export type ModelRun = { key: string; text: string; isReasoning: boolean }
+export type ModelRun = { key: string; text: string; isReasoning: boolean; muted?: boolean }
 
 export function modelEntries(args: {
   runs: readonly ModelRun[]
@@ -19,6 +19,6 @@ export function modelEntries(args: {
 
     return run.isReasoning
       ? { kind: EEntryKind.ModelThought, ...shared, heldOpen: false }
-      : { kind: EEntryKind.ModelSaid, ...shared }
+      : { kind: EEntryKind.ModelSaid, ...shared, muted: run.muted === true }
   })
 }

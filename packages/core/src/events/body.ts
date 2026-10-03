@@ -44,6 +44,10 @@ export enum EPullRequestState {
 export const saidBy = (said: { via?: EMessageOrigin | undefined }): EMessageOrigin =>
   said.via ?? EMessageOrigin.Operator
 
+export enum EAssistantPlaceholder {
+  NoContent = 'no-content',
+}
+
 export type AssistantPart = TextPart | ReasoningPart
 
 export type SaidImage = {
@@ -69,7 +73,12 @@ export type EventBody =
       images?: readonly SaidImage[] | undefined
       files?: readonly SaidFile[] | undefined
     }
-  | { type: 'assistant-said'; parts: readonly AssistantPart[]; interrupted?: boolean | undefined }
+  | {
+      type: 'assistant-said'
+      parts: readonly AssistantPart[]
+      interrupted?: boolean | undefined
+      placeholder?: EAssistantPlaceholder | undefined
+    }
   | { type: 'tool-called'; callId: CallId; name: string; input?: unknown; ordinal: number }
   | {
       type: 'tool-result'

@@ -325,6 +325,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
     usage,
     atPercent,
     notice,
+    ids,
     readClock: () => Date.now(),
   })
 

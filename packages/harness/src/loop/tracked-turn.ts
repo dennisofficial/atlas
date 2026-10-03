@@ -3,6 +3,7 @@ import {
   callIdsIn,
   dedupeCallIds,
   EMPTY_STEP_RAW_RETRIES,
+  noContentDraft,
   pendingCalls,
   projectDirectoryOf,
   retriableEmptyStep,
@@ -309,6 +310,9 @@ export async function runTrackedTurn(
       position.silentSteps += 1
       position.resetAssembly()
       continue
+    }
+    if (silenced.kind === 'no-content') {
+      await log.append({ threadId, runId, drafts: [noContentDraft()] })
     }
 
     const closing = (await deps.hooks?.afterTurn({ threadId })) ?? []

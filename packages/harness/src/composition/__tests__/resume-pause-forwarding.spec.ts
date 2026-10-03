@@ -14,6 +14,7 @@ import { ETurnStatus, type TurnOutcome } from '../../loop/turn-outcome'
 import { TurnRunner } from '../../loop/turn-runner.port'
 import { LocalRewindMachinery } from '../../store/local-rewind-machinery'
 import {
+  CountingIds,
   UnstaffedAgents,
   UnstaffedServices,
   UnstaffedShells,
@@ -77,6 +78,7 @@ describe('resuming a turn through the policy decorator', () => {
       usage: createUsageTracker({ channel, log: fixture.log }),
       atPercent: () => 90,
       notice: recordingNotices().port,
+      ids: new CountingIds('resume-pause'),
       readClock: () => 1000,
     })
     const pause = new PauseSignal()
