@@ -13,6 +13,7 @@ import {
   type OverlayPresence,
 } from './overlay-presence'
 import type { useAccounts } from './use-accounts'
+import type { useContextBrowser } from './use-context'
 import type { useAgentView } from './use-agent-view'
 import type { useAgents } from './use-agents'
 import type { useAgentsPicker } from './use-agents-picker'
@@ -66,6 +67,7 @@ export type WorkspaceInputArgs = {
   exitGuard: Pick<ReturnType<typeof useExitGuard>, 'state' | 'handleKey'>
   containerGuard: Pick<ReturnType<typeof useContainerGuard>, 'state' | 'handleKey'>
   containerMove: Pick<ReturnType<typeof useContainerMove>, 'move' | 'handleKey'>
+  contextBrowser: Pick<ReturnType<typeof useContextBrowser>, 'viewer' | 'handleKey'>
 }
 
 export type WorkspaceInput = {
@@ -104,6 +106,7 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
     exitGuard,
     containerGuard,
     containerMove,
+    contextBrowser,
   } = args
 
   const { menus } = composer
@@ -164,6 +167,7 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
       covering(agentsPicker.state !== null, agentsPicker.handleKey),
       { ...covering(onboarding.state !== null, onboarding.handleKey), porous: true },
       { ...covering(settings.state !== null, settings.handleKey), porous: true },
+      covering(contextBrowser.viewer !== null, contextBrowser.handleKey),
       { ...covering(footerStrip.state !== null, footerStrip.handleKey), coversTranscript: false },
       { open: compacting, coversComposer: true, coversTranscript: true },
       {
@@ -180,6 +184,8 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
       agentsPicker.handleKey,
       agentsPicker.state,
       compacting,
+      contextBrowser.handleKey,
+      contextBrowser.viewer,
       containerMove.handleKey,
       exitGuard.handleKey,
       exitGuard.state,
@@ -223,14 +229,14 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
 
       if (key.eventType !== 'release' && key.name !== 'escape') agentView.disarmStop()
 
-      if (menus.handleKey(key)) {
+      if (contextBrowser.viewer === null && menus.handleKey(key)) {
         key.preventDefault()
         return
       }
 
       handleKey(key)
     },
-    [agentView, covered, handleKey, menus],
+    [agentView, covered, contextBrowser.viewer, handleKey, menus],
   )
 
   useKeyboard(handleKeyWithMenu)

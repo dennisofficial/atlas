@@ -7,6 +7,7 @@ import { Sidebar } from '../ui/components/sidebar'
 import type { NamingState } from '../ui/components/naming-line'
 import type { AtlasApp } from './compose'
 import { useTeammateSidebar } from './use-teammate-scope'
+import type { ContextControl } from './use-context'
 
 /**
  * The teammate-scoped sidebar: the same panel fed by the model the caller already scoped to the
@@ -32,6 +33,7 @@ export function TeammateSidebar(props: {
   serviceFold?: SidebarCrewFold
   onOpenShell?: (shellId: string) => void
   onOpenService?: (serviceId: string) => void
+  contextBrowser?: Pick<ContextControl, 'entries' | 'loading' | 'directory' | 'error' | 'handleUp' | 'handleOpen'>
   onSelectSubagent?: (agentId: string) => void
   naming?: NamingState | null | undefined
   back?: { label: string; onBack: () => void } | undefined
@@ -50,6 +52,14 @@ export function TeammateSidebar(props: {
       worktree={props.worktree}
       version={props.version}
       accented
+      {...(props.contextBrowser === undefined ? {} : {
+        contextEntries: props.contextBrowser.entries,
+        contextLoading: props.contextBrowser.loading,
+        contextDirectory: props.contextBrowser.directory,
+        contextError: props.contextBrowser.error,
+        onContextUp: props.contextBrowser.handleUp,
+        onOpenContext: props.contextBrowser.handleOpen,
+      })}
       {...(props.repoName === undefined ? {} : { repoName: props.repoName })}
       {...(props.overlay === undefined ? {} : { overlay: props.overlay })}
       {...(props.shells === undefined ? {} : { shells: props.shells })}

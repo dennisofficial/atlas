@@ -132,6 +132,7 @@ export const channelSignalSchema = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('tool-output'), callId: callIdWireSchema, text: z.string() }),
   z.object({ type: z.literal('events-appended') }),
+  z.object({ type: z.literal('context-changed') }),
   z.object({
     type: z.literal('retry-waiting'),
     attempt: z.number().int().positive(),

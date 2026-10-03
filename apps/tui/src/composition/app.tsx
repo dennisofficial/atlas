@@ -155,6 +155,7 @@ export function App(props: {
         app={app}
         localApp={props.app}
         opened={openedFor}
+        attachment={attachment}
         whatsNew={whatsNew}
         draftText={carried !== undefined && carried.threadId === openedFor.threadId ? carried.text : ''}
         onDraftSource={handleDraftSource}

@@ -1,6 +1,7 @@
 import type { StepId } from '@dltech/atlas-harness'
 import { EServeFrame, type ServeFrame } from '@dltech/atlas-harness'
 import { atlasDirectory } from '@dltech/atlas-harness'
+import { createSessionContextReader } from '@dltech/atlas-harness'
 
 import { createChannelBridge } from './channel-bridge'
 import { DEFAULT_DRAIN_DEADLINE_MS } from './drain-deadline'
@@ -146,6 +147,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     },
   })
 
+  const contextReader = createSessionContextReader({ threadId, home: driveHome })
   const handlers = createSessionHandlers({
     threadId,
     buffer,
@@ -153,6 +155,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     liveStepId: () => liveStepId(),
     driver,
     files: app.files,
+    context: contextReader,
     admissionClosed: () => admission.closed,
     checkpoint: checkpoint.current,
     checkpointChanged: () => captureRunning(),
@@ -178,6 +181,9 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     }),
   })
 
+  const unsubscribeContext = contextReader.subscribe(() => {
+    handlers.broadcast(buffer.push({ type: 'context-changed' }))
+  })
   const unsubscribeThreads = subscribeThreadBroadcasts({ threads: app.threads, broadcast: handlers.broadcast })
 
   // Watching surfaces (footer chips, sidebar crew) read the roster off the wire, so a change on
@@ -267,6 +273,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
       unsubscribeWake?.()
       unsubscribeRoster?.()
       unsubscribeThreads?.()
+      unsubscribeContext()
       unsubscribePending?.()
     },
     stopSandbox: args.stopSandbox ?? sandboxPark({ threadId, controlPlaneUrl, env }),

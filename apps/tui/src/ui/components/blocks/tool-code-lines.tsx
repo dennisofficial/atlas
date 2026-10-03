@@ -105,20 +105,22 @@ export function CodeLines(props: {
   path: string
   inner: number
   indent: string
+  window?: { start: number; end: number }
 }): React.ReactNode {
   const filetype = useMemo(() => pathToFiletype(props.path) ?? 'text', [props.path])
   const texts = useMemo(() => props.lines.map((line) => line.text), [props.lines])
   const chunks = useHighlighted({ lines: texts, filetype })
-  const digits = Math.max(
-    2,
-    ...props.lines.map((line) => (line.number === null ? 0 : String(line.number).length)),
-  )
+  const digits = props.lines.reduce((max, line) => Math.max(max, String(line.number ?? '').length), 2)
   const columns = Math.max(1, props.inner - props.indent.length - digits - 1)
   const rows = useRowChunks({ texts, chunks, columns })
+  const start = Math.min(rows.length, props.window?.start ?? 0)
+  const end = Math.min(rows.length, props.window?.end ?? rows.length)
 
   return (
     <>
-      {rows.map((row, index) => {
+      {start === 0 ? null : <box height={start} flexShrink={0} />}
+      {rows.slice(start, end).map((row, offset) => {
+        const index = start + offset
         const number = props.lines[index]?.number ?? null
         const gutter = `${props.indent}${(number === null ? '' : String(number)).padStart(digits)} `
         return (
@@ -134,6 +136,7 @@ export function CodeLines(props: {
           </text>
         )
       })}
+      {end === rows.length ? null : <box height={rows.length - end} flexShrink={0} />}
     </>
   )
 }
