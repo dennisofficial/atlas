@@ -28,8 +28,10 @@ export type ClockJumpDetector = {
   onJump: (callback: (gapMs: number) => void) => () => void
 }
 
+export type RetryPolicyResolution = RetryPolicy | (() => RetryPolicy | undefined)
+
 export type RetryDeps = {
-  policy?: RetryPolicy | undefined
+  policy?: RetryPolicyResolution | undefined
   onWaiting?: Waiting | undefined
   sleep?: ((args: { ms: number; signal: AbortSignal }) => Promise<void>) | undefined
   jitter?: (() => number) | undefined
@@ -114,7 +116,11 @@ export async function takeModelStepWithRetry(args: {
   retry?: RetryDeps | undefined
   prepare?: (() => Promise<PreparedStep>) | undefined
 }): Promise<SteppedTurn> {
-  const policy = args.retry?.policy ?? DEFAULT_RETRY_POLICY
+  const policyResolution = args.retry?.policy
+  const resolvePolicy = (): RetryPolicy => {
+    const resolved = typeof policyResolution === 'function' ? policyResolution() : policyResolution
+    return resolved ?? DEFAULT_RETRY_POLICY
+  }
   const sleep = args.retry?.sleep ?? sleepUnlessAborted
   const jitter = args.retry?.jitter ?? Math.random
 
@@ -152,6 +158,7 @@ export async function takeModelStepWithRetry(args: {
 
       attempts += 1
 
+      const policy = resolvePolicy()
       const failure = modelFailureOf(attempt.cause)
       if (failure === null) {
         args.retry?.log?.({ attempt: attempts, maxAttempts: policy.maxAttempts, reason: 'non-retryable', willRetry: false, error: attempt.cause })

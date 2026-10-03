@@ -17,6 +17,7 @@ import {
 
 import {
   ClassifierPolicyToken,
+  MultimodalCapWorkaroundToken,
   SkillSuggestionEnabledToken,
   WebSearchBackendToken,
   WorktreeDirectoryToken,
@@ -88,6 +89,14 @@ export async function bindSettingsPolicy(args: {
         textValueOf({ resolution, id: ESettingId.DecisionsUrl }).length > 0
       )
     },
+  })
+
+  container.register(MultimodalCapWorkaroundToken, {
+    useValue: () =>
+      toggleValueOf({
+        resolution: settings.snapshot().resolution,
+        id: ESettingId.MultimodalCapWorkaround,
+      }),
   })
 
   container.register(WebSearchBackendToken, {

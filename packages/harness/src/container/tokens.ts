@@ -72,6 +72,10 @@ export const WorktreeDirectoryToken: InjectionToken<() => string> = Symbol(
   'atlas.WorktreeDirectory',
 )
 
+export const MultimodalCapWorkaroundToken: InjectionToken<() => boolean> = Symbol(
+  'atlas.MultimodalCapWorkaround',
+)
+
 export const WebSearchBackendToken: InjectionToken<() => EWebSearchBackend> = Symbol(
   'atlas.WebSearchBackend',
 )

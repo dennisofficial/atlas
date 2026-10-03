@@ -1,14 +1,25 @@
 import {
+  downscalePng,
   EImageDelivery,
   imageSize,
+  OPENAI_COMPLETIONS_API,
   planDelivery,
+  projectedSize,
   type AgentFileSystemPort,
   type ImageSize,
+  type ModelCard,
   type ModelPart,
   type SupportedImageMediaType,
   type ThreadId,
   type ToolOutcome,
 } from '@dltech/atlas-core'
+
+import { zlibPngCodec } from '../../images/png-codec'
+
+export type ImageResizeDecision = {
+  workaroundEnabled: () => boolean
+  card: () => ModelCard | undefined
+}
 
 export type ImageReadOutput = {
   path: string
@@ -65,30 +76,74 @@ const textOnly = (args: {
   modelText: `${describe(args)} It was not sent to you because ${args.because}.`,
 })
 
+const resizedFor = (args: {
+  resize: ImageResizeDecision | undefined
+  mediaType: SupportedImageMediaType
+  size: ImageSize | null
+  bytes: Uint8Array
+}): { size: ImageSize; bytes: Uint8Array } | null => {
+  if (args.resize === undefined || !args.resize.workaroundEnabled()) return null
+  if (args.mediaType !== 'image/png') return null
+  if (args.size === null) return null
+
+  const card = args.resize.card()
+  if (card?.api !== OPENAI_COMPLETIONS_API) return null
+
+  const target = projectedSize({ size: args.size, tier: card.imageTier })
+  if (target.width === args.size.width && target.height === args.size.height) return null
+
+  const scaled = downscalePng({ bytes: args.bytes, target, codec: zlibPngCodec })
+  return scaled === null ? null : { size: target, bytes: scaled }
+}
+
 const inlined = (args: {
   path: string
   mediaType: SupportedImageMediaType
   size: ImageSize | null
   byteLength: number
   bytes: Uint8Array
+  resize?: ImageResizeDecision | undefined
 }): ToolOutcome => {
-  const summary = describe(args)
+  const resized = resizedFor({
+    resize: args.resize,
+    mediaType: args.mediaType,
+    size: args.size,
+    bytes: args.bytes,
+  })
+
+  const delivered = resized
+    ? { size: resized.size, byteLength: resized.bytes.byteLength, bytes: resized.bytes }
+    : { size: args.size, byteLength: args.byteLength, bytes: args.bytes }
+
+  const summary = describe({
+    path: args.path,
+    mediaType: args.mediaType,
+    size: delivered.size,
+    byteLength: delivered.byteLength,
+  })
+  const note = resized && args.size !== null ? ` Downscaled from ${args.size.width}×${args.size.height}.` : ''
   const parts: readonly ModelPart[] = [
-    { type: 'text', text: summary },
+    { type: 'text', text: summary + note },
     {
       type: 'image',
-      data: Buffer.from(args.bytes).toString('base64'),
+      data: Buffer.from(delivered.bytes).toString('base64'),
       mediaType: args.mediaType,
       source: args.path,
-      width: args.size?.width,
-      height: args.size?.height,
+      width: delivered.size?.width,
+      height: delivered.size?.height,
     },
   ]
 
   return {
     ok: true,
-    output: outputFor({ ...args, inlined: true }),
-    modelText: summary,
+    output: outputFor({
+      path: args.path,
+      mediaType: args.mediaType,
+      size: delivered.size,
+      byteLength: delivered.byteLength,
+      inlined: true,
+    }),
+    modelText: summary + note,
     modelParts: parts,
   }
 }
@@ -100,6 +155,7 @@ export async function readImage(args: {
   head: Uint8Array
   files: AgentFileSystemPort
   threadId: ThreadId
+  resize?: ImageResizeDecision | undefined
 }): Promise<ToolOutcome> {
   const { path, mediaType, byteLength } = args
 
@@ -119,5 +175,5 @@ export async function readImage(args: {
 
   const bytes = await args.files.readBytes({ path, threadId: args.threadId })
 
-  return inlined({ path, mediaType, size, byteLength, bytes })
+  return inlined({ path, mediaType, size, byteLength, bytes, resize: args.resize })
 }

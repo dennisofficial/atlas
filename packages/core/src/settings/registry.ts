@@ -9,6 +9,7 @@ export const SETTING_PAGES: readonly SettingPage[] = [
   { id: ESettingPage.General, label: 'general' },
   { id: ESettingPage.Models, label: 'models' },
   { id: ESettingPage.Appearance, label: 'appearance' },
+  { id: ESettingPage.Experimental, label: 'experimental' },
   { id: ESettingPage.Cloud, label: 'cloud' },
 ]
 
@@ -58,6 +59,7 @@ export enum ESettingId {
   KeychainService = 'credentials.keychainService',
   CloudUrl = 'cloud.url',
   AutoRestart = 'dev.autoRestart',
+  MultimodalCapWorkaround = 'experimental.multimodalCapWorkaround',
 }
 
 export const DEFAULT_WORKTREE_DIRECTORY = '.atlas/worktrees'
@@ -667,6 +669,17 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     kind: ESettingKind.Secret,
     fallback: '',
     masked: true,
+  },
+  {
+    id: ESettingId.MultimodalCapWorkaround,
+    page: ESettingPage.Experimental,
+    group: 'Reliability',
+    label: 'multimodal input-cap workaround',
+    description:
+      'Works around providers that advertise a large context window but serve some requests from replicas with a much smaller one — inference.net\u2019s kimi-k3 replicas reject any multimodal request at 250,000 input tokens while the card advertises 1,048,576. With this on, Atlas trusts the smaller deployed cap for kimi-k3 models (so the fullness meter, overflow guard and auto-compaction all aim under the wall), resizes oversized images it reads from disk for chat-completions models the way the paste path already does, prices images by their real patch count instead of the clamped tier, and retries a rejected-for-length request once in case the retry lands on a larger replica. Off by default because every one of those leans toward insufficiency.',
+    environmentVariable: 'ATLAS_EXPERIMENTAL_MULTIMODAL_CAP_WORKAROUND',
+    kind: ESettingKind.Toggle,
+    fallback: false,
   },
   {
     id: ESettingId.KeychainService,

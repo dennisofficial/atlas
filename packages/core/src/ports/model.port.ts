@@ -1,4 +1,5 @@
 import type { Assembled } from '../assembly/assembled'
+import { EImagePricing, type ImageCost } from '../assembly/tokens'
 import { DEFAULT_IMAGE_TIER, type EImageTier } from '../images/projection'
 import type { AssistantPart } from '../events/body'
 import type { CallId } from '../events/ids'
@@ -19,6 +20,7 @@ export type ModelStepResult = {
 
 export type ModelTraits = {
   imageTier?: EImageTier | undefined
+  imagePricing?: EImagePricing | undefined
   contextWindow?: number | undefined
 }
 
@@ -26,6 +28,11 @@ export const CONTEXT_WINDOW_UNMEASURED = 0
 
 export const imageTierOf = (model: { traits?: () => ModelTraits }): EImageTier =>
   model.traits?.().imageTier ?? DEFAULT_IMAGE_TIER
+
+export const imageCostOf = (model: { traits?: () => ModelTraits }): ImageCost => ({
+  tier: imageTierOf(model),
+  pricing: model.traits?.().imagePricing,
+})
 
 export const contextWindowOf = (model: { traits?: () => ModelTraits }): number =>
   model.traits?.().contextWindow ?? CONTEXT_WINDOW_UNMEASURED

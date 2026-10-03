@@ -65,13 +65,17 @@ export type RecordingAdapter = ProviderAdapter & {
   built: BuiltModel[]
 }
 
-function recordingAdapter(args: { ref: ModelRef; texts: readonly string[] }): RecordingAdapter {
+export function recordingAdapter(args: {
+  ref: ModelRef
+  texts: readonly string[]
+  card?: Partial<ModelCard>
+}): RecordingAdapter {
   const built: BuiltModel[] = []
   return {
     id: args.ref.providerId,
     label: args.ref.providerId,
     built,
-    cards: () => [cardFor(args.ref)],
+    cards: () => [{ ...cardFor(args.ref), ...args.card }],
     model: ({ effort }) => {
       const model = scriptedModel({
         script: args.texts.map((text) => ({ text })),
@@ -149,6 +153,7 @@ export async function childModelFixture(args?: {
   parentRef?: ModelRef
   parentEffort?: EffortValue
   settings?: Record<string, string>
+  extraAdapters?: readonly RecordingAdapter[]
 }): Promise<ChildModelFixture> {
   const home = await mkdtemp(join(tmpdir(), 'atlas-child-model-'))
   homes.push(home)
@@ -164,7 +169,7 @@ export async function childModelFixture(args?: {
     anthropic: recordingAdapter({ ref: CLAUDE, texts: ['one', 'two', 'three'] }),
     openai: recordingAdapter({ ref: GPT, texts: ['one', 'two', 'three'] }),
   }
-  const models = recordingCatalogue([adapters.anthropic, adapters.openai])
+  const models = recordingCatalogue([adapters.anthropic, adapters.openai, ...(args?.extraAdapters ?? [])])
 
   const parent = selectableModel({
     catalogue: models,
