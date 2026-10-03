@@ -2,21 +2,33 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ScrollBoxRenderable } from '@opentui/core'
 import type { ContextFileContent } from '@dltech/atlas-harness'
 
+import { cellsOf } from '../hint-layout'
 import { observeScroll } from '../scroll-signal'
 import { theme } from '../theme'
 import { BackPill } from './back-pill'
 import { CodeLines } from './blocks/tool-code-lines'
+import { MarkdownView } from '../markdown/markdown-view'
+
+const VIEWPORT_PAD = 2
+
+export const isMarkdownPath = (path: string): boolean => /\.(md|markdown)$/i.test(path)
 
 function ViewerBody(props: {
   content: ContextFileContent
   path: string
-  inner: number
+  viewport: number
   window: { start: number; end: number }
 }): React.ReactNode {
   const text = props.content.type === 'text' ? props.content.content : ''
   const lines = useMemo(() => text.split('\n').map((value, index) => ({ number: index + 1, text: value })), [text])
+  const digits = useMemo(() => lines.reduce((max, line) => Math.max(max, String(line.number).length), 2), [lines])
+  const widest = useMemo(() => lines.reduce((max, line) => Math.max(max, cellsOf(line.text)), 0), [lines])
   if (props.content.type === 'refused') return <text fg={theme.warn}>{props.content.reason}</text>
-  return <CodeLines lines={lines} path={props.path} inner={props.inner} indent="" window={props.window} />
+  if (isMarkdownPath(props.path)) {
+    return <MarkdownView source={props.content.content} width={Math.max(1, props.viewport)} />
+  }
+  const inner = Math.max(props.viewport, digits + 1 + widest)
+  return <CodeLines lines={lines} path={props.path} inner={inner} indent="" window={props.window} />
 }
 
 export function ContextViewer(props: {
@@ -53,11 +65,11 @@ export function ContextViewer(props: {
         </box>
       </box>
       {props.loading ? <text fg={theme.hint}>Reading {props.path}…</text> : props.content === null ? null : (
-        <scrollbox ref={attach} flexGrow={1} flexShrink={1} flexBasis={0} viewportCulling>
-          <ViewerBody content={props.content} path={props.path} inner={Math.max(1, props.width - 2)} window={window} />
+        <scrollbox ref={attach} scrollX flexGrow={1} flexShrink={1} flexBasis={0} viewportCulling>
+          <ViewerBody content={props.content} path={props.path} viewport={Math.max(1, props.width - VIEWPORT_PAD)} window={window} />
         </scrollbox>
       )}
-      <text fg={theme.hint} flexShrink={0}>↑↓ scroll · pgup/pgdn page · esc to close</text>
+      <text fg={theme.hint} flexShrink={0}>↑↓ scroll · ←→ pan · pgup/pgdn page · esc to close</text>
     </box>
   )
 }

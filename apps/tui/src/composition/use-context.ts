@@ -13,6 +13,8 @@ export type ContextViewer =
 
 const messageOf = (error: unknown): string => error instanceof Error ? error.message : String(error)
 
+const PAN_COLUMNS = 8
+
 export function useContextBrowser(args: {
   readers: ContextReaders | undefined
   onOpenFile?: () => void
@@ -61,6 +63,10 @@ export function useContextBrowser(args: {
     if (tree.focused) { tree.handleKey(key); return }
     if (key.name === 'tab') { tree.handleFocus(); return }
     if (key.name === 'escape' || key.name === 'q') { handleDismiss(); return }
+    if (key.name === 'left' || key.name === 'right') {
+      scroller.current?.scrollBy({ x: key.name === 'left' ? -PAN_COLUMNS : PAN_COLUMNS, y: 0 })
+      return
+    }
     const command = key.name === 'up' || key.name === 'down'
       ? { kind: EOutputScroll.Lines, amount: key.name === 'up' ? -3 : 3 }
       : outputScrollCommand(key)
