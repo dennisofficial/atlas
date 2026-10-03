@@ -9,20 +9,25 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import { threadDataDirectory } from '../store/sessions/paths'
+import { contextDirectory, threadDataDirectory } from '../store/sessions/paths'
 import type { SessionRegistry } from '../store/sessions/registry'
 
 export const ATLAS_SESSION_DIR_ENV = 'ATLAS_SESSION_DIR'
 export const ATLAS_THREAD_DIR_ENV = 'ATLAS_THREAD_DIR'
+export const ATLAS_CONTEXT_DIR_ENV = 'ATLAS_CONTEXT_DIR'
 
-export const RESERVED_SESSION_ENV: readonly string[] = [ATLAS_SESSION_DIR_ENV, ATLAS_THREAD_DIR_ENV]
+export const RESERVED_SESSION_ENV: readonly string[] = [
+  ATLAS_SESSION_DIR_ENV,
+  ATLAS_THREAD_DIR_ENV,
+  ATLAS_CONTEXT_DIR_ENV,
+]
 export const PRIVATE_DIRECTORY_MODE = 0o700
 const TERMINATED_BEFORE_START = 143
 const COULD_NOT_START = 127
 
 type Environment = Record<string, string | undefined>
 
-export type SessionPaths = { sessionDir: string; threadDir: string }
+export type SessionPaths = { sessionDir: string; threadDir: string; contextDir: string }
 
 type ChunkReader = {
   read(): Promise<{ done: boolean; value?: Uint8Array | undefined }>
@@ -41,7 +46,12 @@ export const withoutReservedSessionEnv = (env: Environment): Environment => {
 const withPaths = ({ env, paths }: { env: Environment; paths: SessionPaths | undefined }): Environment =>
   paths === undefined
     ? env
-    : { ...env, [ATLAS_SESSION_DIR_ENV]: paths.sessionDir, [ATLAS_THREAD_DIR_ENV]: paths.threadDir }
+    : {
+        ...env,
+        [ATLAS_SESSION_DIR_ENV]: paths.sessionDir,
+        [ATLAS_THREAD_DIR_ENV]: paths.threadDir,
+        [ATLAS_CONTEXT_DIR_ENV]: paths.contextDir,
+      }
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 
@@ -111,8 +121,10 @@ export class SessionEnvironmentProcessPort implements ProcessPort {
     }
 
     const threadDir = threadDataDirectory({ sessionDir, threadId })
+    const contextDir = contextDirectory({ sessionDir })
     await ensurePrivateDirectory({ anchor: dirname(sessionDir), directory: threadDir })
-    const paths: SessionPaths = { sessionDir, threadDir }
+    await ensurePrivateDirectory({ anchor: sessionDir, directory: contextDir })
+    const paths: SessionPaths = { sessionDir, threadDir, contextDir }
     this.resolved.set(threadId, paths)
     return paths
   }
