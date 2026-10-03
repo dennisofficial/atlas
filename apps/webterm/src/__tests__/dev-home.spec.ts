@@ -107,6 +107,13 @@ describe('seedDevHome', () => {
     expect(seed.rcFile.startsWith(target)).toBe(true);
   });
 
+  it('auto-launches atlas-dev unless the flag disables it', async () => {
+    const { seed } = await seedWith();
+    const rc = await readFile(seed.rcFile, 'utf8');
+    expect(rc).toContain('ATLAS_WEBTERM_AUTOLAUNCH');
+    expect(rc).toContain('atlas-dev');
+  });
+
   it('boots fine when the source home does not exist', async () => {
     const { target } = paths();
     const seed = await seedDevHome({ sourceHome: join(sandbox, 'missing'), devHome: target, reset: false });

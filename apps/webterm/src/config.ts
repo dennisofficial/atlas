@@ -9,6 +9,7 @@ export type WebtermConfig = {
   sourceHome: string;
   devHome: string;
   resetHome: boolean;
+  autoLaunch: boolean;
 };
 
 const DEFAULT_PORT = 7681;
@@ -36,5 +37,6 @@ export function resolveConfig({
     sourceHome: env.WEBTERM_SOURCE_HOME ?? env.ATLAS_HOME ?? fallbackHome,
     devHome: env.WEBTERM_HOME ?? resolve(repoRoot, '.atlas-home', 'webterm'),
     resetHome: env.WEBTERM_RESET_HOME === '1',
+    autoLaunch: env.WEBTERM_AUTOLAUNCH !== '0',
   };
 }

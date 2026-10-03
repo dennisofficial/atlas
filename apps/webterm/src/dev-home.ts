@@ -62,12 +62,16 @@ function rcContents({ devHome, sourceHome }: { devHome: string; sourceHome: stri
   const escape = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
   return [
     `PS1='\\[\\e[1;35m\\](webterm)\\[\\e[0m\\] \\w \\$ '`,
+    `if [ "\${ATLAS_WEBTERM_AUTOLAUNCH:-1}" != "0" ]; then`,
+    `  printf 'webterm: launching atlas-dev — exiting it lands you here\\n'`,
+    `  atlas-dev`,
+    `fi`,
     `cat <<'EOF'`,
     `atlas web terminal — scratch dev home`,
     `  ATLAS_HOME = ${devHome}`,
     `  credentials seeded from ${sourceHome}`,
     `  reseed from scratch: WEBTERM_RESET_HOME=1`,
-    `  run atlas-dev (this checkout, from source)`,
+    `  plain shell next time: WEBTERM_AUTOLAUNCH=0`,
     `EOF`,
     `export ATLAS_WEBTERM_RC=${escape(join(devHome, 'webterm.rc'))}`,
     ``,

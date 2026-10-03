@@ -7,6 +7,9 @@ it and get a shell that can run `atlas-dev` from this checkout, against a **scra
 
 It is not part of the product. Nothing in it ships in the `atlas` binary.
 
+Opening the URL drops you straight into `atlas-dev` (this checkout, from source) — exiting
+the TUI leaves you in the seeded shell. Set `WEBTERM_AUTOLAUNCH=0` for a plain shell instead.
+
 ## Two flavors
 
 ```bash
@@ -45,19 +48,20 @@ sign-in file. If you want a completely fresh seed: `WEBTERM_RESET_HOME=1 bun run
 | `WEBTERM_HOME`       | `<repo>/.atlas-home/webterm`         | Scratch home the terminal runs against   |
 | `WEBTERM_CWD`        | repo root                            | Shell start directory                    |
 | `WEBTERM_RESET_HOME` | unset                                | `1` wipes and re-seeds the scratch home  |
+| `WEBTERM_AUTOLAUNCH` | `1`                                  | `0` opens a plain shell, no auto `atlas-dev` |
 
 The token matters on the sandbox: the exposed URL is effectively public, so the page and
 the websocket both refuse connections without it.
 
 ## Differences between the flavors
 
-- **`bun run dev`** owns the wire protocol (JSON text frames for input/resize/ping,
-  binary frames for output) and handles resize via `stty -F` on the discovered pts. Use
-  it as the reference for how thin this can be.
-- **`bun run ttyd`** downloads ttyd 1.7.7 into the scratch home's `bin/` on first use
-  (Linux only; on macOS `brew install ttyd` and it'll be found on `PATH`). Auth is HTTP
-  basic — enter the token as both username and password. Resize and rendering are
-  solid, but the env setup is exactly the same as above. Note the child is launched as
+- **`bun run dev`** (the default) owns the wire protocol (JSON text frames for
+  input/resize/ping, binary frames for output) and handles resize via `stty -F` on the
+  discovered pts.
+- **`bun run ttyd`** (fallback) downloads ttyd 1.7.7 into the scratch home's `bin/` on
+  first use (Linux only; on macOS `brew install ttyd` and it'll be found on `PATH`). Auth
+  is HTTP basic — enter the token as both username and password. Its frontend occasionally
+  settles on a grid smaller than the viewport; reload at final window size. Note the child is launched as
   `bash --rcfile …` without `-i`: bash under a pty is interactive anyway, and a `-i`
   anywhere in the child argv crashes the ttyd 1.7.7 static build outright (getopt
   re-parses the child arguments).

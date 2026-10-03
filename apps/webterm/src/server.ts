@@ -55,6 +55,7 @@ const server = Bun.serve<SocketData>({
       const env: Record<string, string> = {
         ATLAS_HOME: config.devHome,
         ATLAS_WEBTERM_RC: seed.rcFile,
+        ATLAS_WEBTERM_AUTOLAUNCH: config.autoLaunch ? '1' : '0',
         TERM: 'xterm-256color',
         COLORTERM: 'truecolor',
         PATH: `${join(config.repoRoot, 'apps', 'tui', 'bin')}:${process.env.PATH ?? ''}`,
