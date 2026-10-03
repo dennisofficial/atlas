@@ -316,6 +316,29 @@ supervisor identity, retaining the shell id and cursor. The supervisor never wri
 log. Intentional rewind and location moves still stop the affected process groups before discarding
 history or transferring files. Imported session metadata never grants control over a foreign PID.
 
+## Operator input
+
+`operator_input` asks the operator for a paste without routing that text through chat or asking the
+model to reproduce it. The model chooses a new file or a FIFO and sets up its CLI reader first.
+The harness publishes a value-free request through the session channel; the surface supplies the
+paste through an answer operation. The tool waits until destination delivery finishes and returns
+only the UTF-8 byte count or an actionable failure. Text is preserved exactly; `appendNewline`
+explicitly opts a line-oriented CLI into adding a missing final newline.
+
+Delivery uses the thread-routed filesystem and process ports on host, Docker, and cloud. A private,
+short-lived staging file feeds the recipient without putting the value into a model tool argument;
+cleanup runs after delivery, cancellation, or timeout. Existing regular files are not overwritten.
+A FIFO without a reader has a bounded delivery timeout, and interrupt cancels the waiting request
+or blocked write. Request and settlement events carry metadata only, never the pasted value.
+Requests are made in the main conversation; supervised children receive a refusal directing them
+to ask their parent rather than waiting on a card the operator cannot answer.
+
+The live pending request is replayable on remount and sent as a fresh snapshot after socket
+backfill, so reconnect cannot strand the input card behind an evicted frame. An answer is not a
+redrivable operation: duplicate and stale request IDs are refused rather than written twice.
+A process restart is not a reconnect to a running login; the agent must restart an expired CLI
+flow rather than feed its old one-time code to a new process.
+
 ## Services
 
 A background shell is work the model is waiting on; a **service** is infrastructure the model works

@@ -25,6 +25,7 @@ import type { TurnPolicy } from '../loop/turn-policy'
 import type { TurnRunner } from '../loop/turn-runner.port'
 import type { TitlingTurnRunner } from './titling-turn-runner'
 import type { McpServerStatus } from '../mcp/registry/handle-status'
+import type { OperatorInputPort } from '../operator-input/port'
 import type { PendingQueues } from '../pending'
 import type { MessageIntake } from '../intake'
 import type { ContributedProjection } from '../plugins/projection'
@@ -99,6 +100,7 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   intake?: MessageIntake | undefined
   shells: ShellRegistryPort
   agents: AgentRegistryPort
+  operatorInput: OperatorInputPort
   services: ServiceRegistryPort
   sandbox: SandboxControl
   containerStatus: SandboxStatusState

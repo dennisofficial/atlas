@@ -8,6 +8,7 @@ import {
 import type { FileBrowser } from '@dltech/atlas-harness'
 
 import { answerAgentSteer, isAgentSteerOp } from './agent-steer'
+import { routeOperatorInput } from './operator-input'
 import {
   answerRequest,
   answerTranscriptRead,
@@ -42,6 +43,7 @@ export function createRequestRouter(args: {
   send: (args: { socket: SessionSocket; frame: import('@dltech/atlas-harness').ServeFrame }) => void
   rewind?: ServeRewind | undefined
   agents?: ServeAgentSteer | undefined
+  operatorInput?: Pick<import('@dltech/atlas-harness').OperatorInputPort, 'answer'> | undefined
   transcript?: TranscriptReaders | undefined
   selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
   sessionArchive?: (() => Promise<Uint8Array | null>) | undefined
@@ -124,6 +126,8 @@ export function createRequestRouter(args: {
       )
     return
   }
+
+  if (routeOperatorInput({ frame, threadId, operatorInput: args.operatorInput, reply: (reply) => send({ socket, frame: reply }) })) return
 
   if (isTranscriptReadOp(frame.op)) {
     if (transcript === undefined) {

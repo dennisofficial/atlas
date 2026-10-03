@@ -45,6 +45,7 @@ import {
   fakeAccounts,
   fakeCloud,
   fakeCatalogue,
+  fakeOperatorInput,
   fakeSkillRegistry,
 } from '../src/composition/__tests__/fake-app'
 import { fakeServiceRegistry } from '../src/composition/__tests__/fake-services'
@@ -97,6 +98,7 @@ const benchApp = (args: {
   const workspace = { workspace: args.root, repo: null }
   const agents = fakeAgentRegistry()
   const services = fakeServiceRegistry()
+  const operatorInput = fakeOperatorInput()
   const executionLocation = createExecutionLocationState({ initial: EExecutionLocation.Host })
 
   return {
@@ -125,6 +127,7 @@ const benchApp = (args: {
     shells: args.shells,
     agents,
     services,
+    operatorInput,
     model: heldChoice({ ref: DEFAULT_MODEL_REF, effort: EEffort.Medium }),
     modelPinned: false,
     models: fakeCatalogue(),

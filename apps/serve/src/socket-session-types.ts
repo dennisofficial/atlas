@@ -5,7 +5,7 @@ import type { RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import type { StepId } from '@dltech/atlas-harness'
 import type { ClientFrame, EClientFrame, RestoreTranscriptParams, ServeFrame } from '@dltech/atlas-harness'
-import type { FileBrowser, PendingQueues } from '@dltech/atlas-harness'
+import type { FileBrowser, OperatorInputPort, PendingQueues } from '@dltech/atlas-harness'
 
 import type { FrameBuffer, SignalFrame } from './frame-buffer'
 import type { TranscriptReaders } from './requests'
@@ -52,6 +52,7 @@ export type SessionHandlersArgs = {
   rewind?: ServeRewind | undefined
   /** The sandbox's own agent registry, narrowed to the operator-steer ops; absent in fakes, which refuse them. */
   agents?: ServeAgentSteer | undefined
+  operatorInput?: Pick<OperatorInputPort, 'answer' | 'pending'> | undefined
   /** The operator's queued input; its changes are broadcast and take-back-pending answers from it. Absent in fakes. */
   pending?: PendingQueues | undefined
   /** The transcript stores the read-ops answer from; absent in fakes, which refuse the ops. */

@@ -162,6 +162,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
     roster: app.roster,
     rewind: app.rewind,
     agents: app.agents,
+    operatorInput: app.operatorInput,
     pending: app.pending,
     ...handlerOptionsOf({ app, log }),
     restoreTranscript: createTranscriptRestorer({

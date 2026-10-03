@@ -17,6 +17,7 @@ import {
   ECompactionAnchor,
   EDecision,
   EMessageOrigin,
+  EOperatorInputOutcome,
   EPullRequestState,
   EWorktreeExit,
   type EventBody,
@@ -182,6 +183,19 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     cwd: z.string().min(1).optional(),
     remoteUrl: z.string().min(1).nullable().optional(),
     branch: z.string().min(1).nullable().optional(),
+  }),
+  z.object({
+    type: z.literal('operator-input-requested'),
+    requestId: z.string().min(1),
+    description: z.string(),
+    url: z.string().optional(),
+    path: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal('operator-input-resolved'),
+    requestId: z.string().min(1),
+    outcome: z.enum(EOperatorInputOutcome),
+    bytes: z.number().int().nonnegative().optional(),
   }),
   z.object({
     type: z.literal('directory-changed'),

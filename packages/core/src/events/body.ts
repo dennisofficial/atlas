@@ -28,6 +28,12 @@ export enum EWorktreeExit {
   Remove = 'remove',
 }
 
+export enum EOperatorInputOutcome {
+  Delivered = 'delivered',
+  Undelivered = 'undelivered',
+  Cancelled = 'cancelled',
+}
+
 export enum EMessageOrigin {
   Operator = 'operator',
   ParentAgent = 'parent-agent',
@@ -110,6 +116,19 @@ export type EventBody =
       cwd?: string | undefined
       remoteUrl?: string | null | undefined
       branch?: string | null | undefined
+    }
+  | {
+      type: 'operator-input-requested'
+      requestId: string
+      description: string
+      url?: string | undefined
+      path: string
+    }
+  | {
+      type: 'operator-input-resolved'
+      requestId: string
+      outcome: EOperatorInputOutcome
+      bytes?: number | undefined
     }
   | { type: 'directory-changed'; path: string; repo?: string | null | undefined }
   | {

@@ -87,7 +87,7 @@ import { MessageIntake, operatorSource } from '@dltech/atlas-harness'
 
 import { createPathResolver } from '@dltech/atlas-harness'
 
-import type { PullRequestPort } from '@dltech/atlas-harness'
+import type { OperatorInputPort, PullRequestPort } from '@dltech/atlas-harness'
 
 import { createPendingQueues } from '../../store'
 import type { QueuedSettled } from '../commands'
@@ -211,6 +211,12 @@ const CREDENTIAL: Credential = {
 export const alwaysAuthorised = (): CredentialPort => ({
   read: async () => CREDENTIAL,
   discard: async () => {},
+})
+
+export const fakeOperatorInput = (): OperatorInputPort => ({
+  request: async () => ({ ok: false, reason: 'no operator input fake wired' }),
+  answer: async () => ({ ok: false, reason: 'no operator input fake wired' }),
+  pending: () => null,
 })
 
 export const fakeAccounts = (seeded?: readonly AccountDraft[]): AccountsService => {
@@ -915,6 +921,7 @@ export function fakeApp(args: {
   return {
     skills: skillRegistry.all(),
     skillRegistry,
+    operatorInput: fakeOperatorInput(),
     tools: new InMemoryToolRegistry([]),
     agentTypes: args.agentTypes ?? EMPTY_AGENT_TYPE_CATALOG,
     pluginProjections: [],
