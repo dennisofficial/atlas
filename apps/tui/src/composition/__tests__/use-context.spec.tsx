@@ -52,9 +52,36 @@ describe('context browser with an inline tree', () => {
     const { readers } = fixture()
     const { box, setup } = await probe(readers)
     try {
+      expect(box.current?.tree.loading).toBe(true)
       await settle()
       expect(box.current?.tree.loading).toBe(false)
       expect(pathsOf(box)).toEqual(['notes', 'plan.md'])
+    } finally { await teardown(setup) }
+  })
+
+  it('does not re-enter loading on a refresh once the tree has been read', async () => {
+    const source = fixture()
+    const { box, setup } = await probe(source.readers)
+    try {
+      await settle()
+      await act(async () => { source.emit() })
+      expect(box.current?.tree.loading).toBe(false)
+      await settle()
+      expect(box.current?.tree.loading).toBe(false)
+    } finally { await teardown(setup) }
+  })
+
+  it('does not re-enter loading on a refresh even when the tree is empty', async () => {
+    const source = fixture()
+    source.levels.set('', [])
+    const { box, setup } = await probe(source.readers)
+    try {
+      await settle()
+      expect(box.current?.tree.loading).toBe(false)
+      await act(async () => { source.emit() })
+      expect(box.current?.tree.loading).toBe(false)
+      await settle()
+      expect(box.current?.tree.loading).toBe(false)
     } finally { await teardown(setup) }
   })
 
