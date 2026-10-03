@@ -21,5 +21,5 @@ export function WorkspaceContextPane(props: { control: ContextControl; width: nu
   return <ContextViewer key={viewer.path} width={props.width} path={viewer.path}
     loading={viewer.state === EContextView.Loading}
     content={viewer.state === EContextView.Ready ? viewer.content : null}
-    onDismiss={props.control.handleDismiss} onFocus={props.control.handleViewerFocus} attachScroll={props.control.attachScroll} />
+    onDismiss={props.control.handleDismiss} attachScroll={props.control.attachScroll} />
 }
