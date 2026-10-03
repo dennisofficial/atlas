@@ -1,0 +1,16 @@
+{
+  "name": "@dltech/atlas-webterm",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dev-only web terminal: serves an xterm.js page that drives a real shell running atlas-dev against a scratch ATLAS_HOME seeded from the real one.",
+  "type": "module",
+  "scripts": {
+    "dev": "bun src/server.ts",
+    "ttyd": "bun src/ttyd.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

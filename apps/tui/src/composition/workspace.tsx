@@ -286,8 +286,8 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
           {...{ switcher, shells, services, agents, settings, onboarding, whatsNew,
             accounts, threads, agentsPicker, rewind }}
           rewindConfirm={conversation.rewindConfirm}
-          exitGuard={exitGuard}
-          containerGuard={containerGuard}
+          operatorInput={conversation.operatorInput}
+          {...{ exitGuard, containerGuard }}
           compacting={conversation.compacting}
           containerMove={containerMove.move}
           containerMoveNow={containerMove.now}

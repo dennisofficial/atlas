@@ -16,6 +16,7 @@ import { EServeEvent } from './serve-log'
 import type { ServeRoster } from './serve-app'
 import { createTurnCommands } from './socket-commands'
 import { createRequestRouter, messageOf } from './socket-requests'
+import { operatorInputSnapshot } from './operator-input'
 import type { HelloFrame, SessionHandlers, SessionHandlersArgs, SessionSocket } from './socket-session-types'
 import { createMutationTracker, isReadOnlyFrame, routeStateRequest } from './socket-state-requests'
 import { createStepAliaser, endsAliasedStep, retagged } from './step-alias'
@@ -38,7 +39,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   const { threadId, buffer, inFlight, liveStepId, driver, files, refusal, log } = args
   const snapshot = args.roster?.snapshot ?? EMPTY_ROSTER
   const rewind = args.rewind
-  const agents = args.agents
+  const { agents, operatorInput } = args
   const pending = args.pending
   const transcript = args.transcript
   const selectModel = args.selectModel
@@ -70,6 +71,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     },
     rewind,
     agents,
+    operatorInput: args.operatorInput,
     ...(args.context === undefined ? {} : { context: args.context }),
     transcript,
     selectModel,
@@ -145,6 +147,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     socket.data.alias = reloadedMidStep === null ? null : aliaser.next(reloadedMidStep)
 
     for (const frame of backfill) send({ socket, frame: forSocket({ socket, frame }) })
+    if (operatorInput !== undefined) send({ socket, frame: operatorInputSnapshot({ operatorInput, threadId, seq: buffer.nextSeq() }) })
 
     socket.data.helloed = true
     attached.add(socket)

@@ -235,7 +235,8 @@ export function createRemoteDeltaChannel(args: {
 
   let inFlight: StepSignal[] = []
   const toolOutputSlots: InFlightSlots = new Map()
-  let replay: readonly StepSignal[] | undefined
+  let replay: readonly ChannelSignal[] | undefined
+  let operatorInput: Extract<ChannelSignal, { type: 'operator-input' }> | null = null
   let stepId: StepId | undefined
   let working = false
   let channelCursor: number | null = null
@@ -327,14 +328,22 @@ export function createRemoteDeltaChannel(args: {
 
   const WORKING_SIGNAL: StepSignal = Object.freeze({ type: 'turn-working', working: true })
 
-  const stableReplay = (): readonly StepSignal[] => {
-    if (inFlight.length === 0) return working ? [WORKING_SIGNAL] : NOTHING_IN_FLIGHT
-    replay ??= Object.freeze(working ? [WORKING_SIGNAL, ...inFlight] : [...inFlight])
+  const stableReplay = (): readonly ChannelSignal[] => {
+    if (replay !== undefined) return replay
+    if (!working && inFlight.length === 0 && operatorInput === null) return NOTHING_IN_FLIGHT
+    const held: ChannelSignal[] = working ? [WORKING_SIGNAL, ...inFlight] : [...inFlight]
+    if (operatorInput !== null) held.push(operatorInput)
+    replay = Object.freeze(held)
     return replay
   }
 
   const absorb = (signal: ChannelSignal) => {
     if (signal.type === 'pending-changed') return
+    if (signal.type === 'operator-input') {
+      operatorInput = signal.request === null ? null : signal
+      replay = undefined
+      return
+    }
     if (signal.type === 'turn-working') {
       working = signal.working
       replay = undefined
@@ -852,6 +861,7 @@ export function createRemoteDeltaChannel(args: {
 
     detach() {
       if (abandoned) return
+      deliver({ type: 'operator-input', request: null })
       abandoned = true
       interruptPending = false
       heldCheckpoint = null
@@ -872,6 +882,7 @@ export function createRemoteDeltaChannel(args: {
     onDetached: (listener) => detachments.add(listener),
 
     close() {
+      deliver({ type: 'operator-input', request: null })
       abandoned = true
       interruptPending = false
       endStrandedStep()

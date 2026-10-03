@@ -19,6 +19,7 @@ import { Switcher } from '../ui/components/switcher'
 import { Threads } from '../ui/components/threads'
 import { AgentsPicker } from '../ui/components/agents-picker'
 import { Onboarding } from '../ui/components/onboarding'
+import { OperatorInputOverlay } from '../ui/components/operator-input'
 import { WhatsNew } from '../ui/components/whats-new'
 import { useAppearance } from '../ui/hooks/use-appearance'
 import { isServiceAlive } from '../ui/services-model'
@@ -30,6 +31,7 @@ import type { AgentsPickerControl } from './use-agents-picker'
 import type { ContainerGuardControl } from './use-container-guard'
 import type { ExitGuardControl } from './use-exit-guard'
 import type { OnboardingControl } from './use-onboarding'
+import type { OperatorInputControl } from './use-operator-input'
 import type { RewindControl } from './use-rewind'
 import type { RewindConfirmControl } from './use-rewind-confirm'
 import type { ServicesControl } from './use-services'
@@ -64,6 +66,7 @@ function DerivedOverlayStack(props: {
   containerMove: ContainerMove | null
   containerMoveNow: number
   onDismissContainerMove: () => void
+  operatorInput: OperatorInputControl
   now: number
 }): React.ReactNode {
   const {
@@ -99,6 +102,17 @@ function DerivedOverlayStack(props: {
       )}
       {props.compacting === null ? null : (
         <CompactingOverlay compacting={props.compacting} now={props.now} width={props.width} />
+      )}
+      {props.operatorInput.state === null ? null : (
+        <OperatorInputOverlay
+          width={Math.min(props.contentWidth, props.width)}
+          state={props.operatorInput.state}
+          editor={props.operatorInput.editor}
+          onChange={props.operatorInput.handleChange}
+          onPaste={props.operatorInput.handlePaste}
+          onSubmit={props.operatorInput.handleSubmit}
+          onOpenUrl={props.operatorInput.handleOpenUrl}
+        />
       )}
       {props.containerMove === null ? null : (
         <ContainerMoveOverlay

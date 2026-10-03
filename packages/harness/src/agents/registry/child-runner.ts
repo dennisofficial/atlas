@@ -57,10 +57,11 @@ const SUB_AGENT_DENIED: readonly string[] = [
   ...AGENT_TOOL_NAMES,
   ...WORKTREE_TOOL_NAMES,
   ...SERVICE_CONTROL_TOOL_NAMES,
+  'operator_input',
 ]
 
 const deniedFor = (agentType: AgentType): readonly string[] =>
-  isTeammateType(agentType.name) ? SERVICE_CONTROL_TOOL_NAMES : SUB_AGENT_DENIED
+  isTeammateType(agentType.name) ? [...SERVICE_CONTROL_TOOL_NAMES, 'operator_input'] : SUB_AGENT_DENIED
 
 function observingLog({
   log,

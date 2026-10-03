@@ -251,13 +251,13 @@ names sort naturally. Only expanded, visible directory levels are read; refresh 
 and selection. Clicking a folder toggles it; clicking a file opens the transcript/composer pane's
 viewer using the tool blocks' code rows, line-number gutter and syntax highlighting. The tree owns
 arrow/Enter navigation only while focused; Tab or clicking the pane returns focus to the viewer or
-composer. The conversation stays mounted while hidden so returning preserves its draft and scroll state. The harness resolves the session root through the
-thread registry, including for teammates. Local readers use filesystem notifications; serve pushes
+composer. The conversation stays mounted while hidden so returning preserves its draft and scroll
+state. The harness resolves the session root through the thread registry, including for teammates. Local readers use filesystem notifications; serve pushes
 `context-changed` signals and answers `list-context-files`/`read-context-file` requests through the
 same reader. Reads stay inside `context/`, refuse binary files and files over 2 MiB, and return
 complete text rather than the mention browser's truncated preview. The viewer only mounts visible
-code rows plus an overscan window. The wire protocol is version 15; older sandboxes need the
-matching serve build.
+code rows plus an overscan window. Clients and sandboxes require matching session wire protocol
+versions.
 
 The default kernel file-size limit is 5 GiB and there is no rotation, so byte offsets stay valid.
 The limit applies to each regular file the command writes, not only its spool and not total disk use.
@@ -331,6 +331,29 @@ that the process died. Recovery inspects durable status and reconnects through a
 supervisor identity, retaining the shell id and cursor. The supervisor never writes the conversation
 log. Intentional rewind and location moves still stop the affected process groups before discarding
 history or transferring files. Imported session metadata never grants control over a foreign PID.
+
+## Operator input
+
+`operator_input` asks the operator for a paste without routing that text through chat or asking the
+model to reproduce it. The model chooses a new file or a FIFO and sets up its CLI reader first.
+The harness publishes a value-free request through the session channel; the surface supplies the
+paste through an answer operation. The tool waits until destination delivery finishes and returns
+only the UTF-8 byte count or an actionable failure. Text is preserved exactly; `appendNewline`
+explicitly opts a line-oriented CLI into adding a missing final newline.
+
+Delivery uses the thread-routed filesystem and process ports on host, Docker, and cloud. A private,
+short-lived staging file feeds the recipient without putting the value into a model tool argument;
+cleanup runs after delivery, cancellation, or timeout. Existing regular files are not overwritten.
+A FIFO without a reader has a bounded delivery timeout, and interrupt cancels the waiting request
+or blocked write. Request and settlement events carry metadata only, never the pasted value.
+Requests are made in the main conversation; supervised children receive a refusal directing them
+to ask their parent rather than waiting on a card the operator cannot answer.
+
+The live pending request is replayable on remount and sent as a fresh snapshot after socket
+backfill, so reconnect cannot strand the input card behind an evicted frame. An answer is not a
+redrivable operation: duplicate and stale request IDs are refused rather than written twice.
+A process restart is not a reconnect to a running login; the agent must restart an expired CLI
+flow rather than feed its old one-time code to a new process.
 
 ## Services
 

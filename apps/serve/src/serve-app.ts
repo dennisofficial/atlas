@@ -11,7 +11,7 @@ import type { UserSettingsTarget } from './apply-user-settings'
 import type { RosterWire } from '@dltech/atlas-wire'
 import type { RestoredWorkspace } from '@dltech/atlas-harness'
 
-import type { AgentRegistryPort, DeltaChannel, PlacementController } from '@dltech/atlas-harness'
+import type { AgentRegistryPort, DeltaChannel, OperatorInputPort, PlacementController } from '@dltech/atlas-harness'
 import type { FileBrowser } from '@dltech/atlas-harness'
 import type { MessageIntake } from '@dltech/atlas-harness'
 import type { PendingQueues } from '@dltech/atlas-harness'
@@ -170,6 +170,7 @@ export type ServeApp = {
    * live here. Absent in a fake without registries, which refuses the op.
    */
   agents?: ServeAgentSteer | undefined
+  operatorInput?: Pick<OperatorInputPort, 'answer' | 'pending'> | undefined
   /** The session's placement controller; serve hydrates it to cloud after transcript restore. */
   executionLocation?: PlacementController | undefined
   close: () => Promise<void>

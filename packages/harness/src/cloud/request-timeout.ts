@@ -9,6 +9,7 @@ const LONG_RUNNING: ReadonlySet<EClientRequest> = new Set([
   EClientRequest.ReadSessionArchive,
   EClientRequest.ReadMemoryArchive,
   EClientRequest.ReadTranscriptIdentity,
+  EClientRequest.ProvideOperatorInput,
 ])
 
 const WORKSPACE_TRANSFER: ReadonlySet<EClientRequest> = new Set([

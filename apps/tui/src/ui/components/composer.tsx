@@ -1,7 +1,8 @@
-import type { KeyBinding, KeyEvent } from '@opentui/core'
+import type { KeyEvent } from '@opentui/core'
 import React, { useCallback, useLayoutEffect, useRef, useState } from 'react'
 
 import { composerEdge, EComposerEdge } from '../composer-edge-store'
+import { COMPOSER_NEWLINE_BINDINGS } from '../composer-input-bindings'
 import { charRangeOf } from '../highlight-offsets'
 import { mentionStyleId, mentionSyntaxStyle } from '../mention-style'
 import { useAppearance } from '../hooks/use-appearance'
@@ -43,18 +44,6 @@ export function composerTone(args: { working: boolean; interrupting: boolean }):
 
 const railColour = (tone: EComposerTone, accent: string): string =>
   tone === EComposerTone.Interrupting ? theme.warn : accent
-
-/**
- * What Atlas adds to OpenTUI's own keymap. Bindings are looked up by an exact
- * `name:ctrl:shift:meta:super` key, so a default binding on the bare key does not answer a modified
- * one: unbound, `shift+⏎` falls through to the printable path where `\r` is dropped. `meta+⏎` is
- * remapped off its default `submit` because the page owns submit, on a plain `⏎`.
- */
-const ATLAS_BINDINGS: KeyBinding[] = [
-  { name: 'return', shift: true, action: 'newline' },
-  { name: 'return', ctrl: true, action: 'newline' },
-  { name: 'return', meta: true, action: 'newline' },
-]
 
 const CHROME_COLUMNS = PANEL_INSET + PANEL_PAD
 
@@ -268,7 +257,7 @@ function DerivedComposer(props: {
       height={metrics.rows}
       textColor={theme.userFg}
       cursorColor={theme.caretBg}
-      keyBindings={ATLAS_BINDINGS}
+      keyBindings={COMPOSER_NEWLINE_BINDINGS}
       onKeyDown={handleKeyDown}
       {...(props.placeholder === undefined ? {} : { placeholder: props.placeholder })}
       placeholderColor={theme.hint}

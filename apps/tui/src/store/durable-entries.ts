@@ -1,4 +1,4 @@
-import { EAssistantPlaceholder, EContextSlot, EExecutionLocation, EKilledBy, latestTldrPerAnchor, quotedShellCommand, type AssistantPart, type CallId, type Event, type EventId, type EventOfType, type SaidImage } from '@dltech/atlas-core'
+import { EAssistantPlaceholder, EContextSlot, EExecutionLocation, EKilledBy, EOperatorInputOutcome, latestTldrPerAnchor, quotedShellCommand, type AssistantPart, type CallId, type Event, type EventId, type EventOfType, type SaidImage } from '@dltech/atlas-core'
 
 import { formatElapsed } from '../ui/theme'
 
@@ -360,6 +360,34 @@ export function durableEntries(args: {
 
     if (event.type === 'location-changed') {
       return [locationChangedEntry({ key: event.id, to: event.to })]
+    }
+
+    if (event.type === 'operator-input-requested') {
+      return [
+        {
+          kind: EEntryKind.OperatorInput,
+          author: EAuthor.Model,
+          key: event.id,
+          text: `asks the operator: ${event.description}`,
+        },
+      ]
+    }
+
+    if (event.type === 'operator-input-resolved') {
+      const text =
+        event.outcome === EOperatorInputOutcome.Delivered
+          ? `the operator's pasted value was delivered (${event.bytes ?? 0} bytes)`
+          : event.outcome === EOperatorInputOutcome.Undelivered
+            ? 'the operator input could not be delivered'
+            : 'the operator input request was cancelled'
+      return [
+        {
+          kind: EEntryKind.OperatorInput,
+          author: EAuthor.Model,
+          key: event.id,
+          text,
+        },
+      ]
     }
 
     return []
