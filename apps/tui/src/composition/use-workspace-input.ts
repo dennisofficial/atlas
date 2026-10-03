@@ -159,7 +159,6 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
       covering(containerGuard.state !== null, containerGuard.handleKey),
       covering(rewindConfirm.state !== null, rewindConfirm.handleKey),
       covering(rewind.state !== null, rewind.handleKey),
-      covering(contextBrowser.viewer !== null, contextBrowser.handleKey),
       { ...covering(switcher.state !== null, switcher.handleKey), porous: true },
       covering(shells.state !== null, shells.handleKey),
       covering(services.state !== null, services.handleKey),
@@ -168,6 +167,7 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
       covering(agentsPicker.state !== null, agentsPicker.handleKey),
       { ...covering(onboarding.state !== null, onboarding.handleKey), porous: true },
       { ...covering(settings.state !== null, settings.handleKey), porous: true },
+      covering(contextBrowser.viewer !== null, contextBrowser.handleKey),
       { ...covering(footerStrip.state !== null, footerStrip.handleKey), coversTranscript: false },
       { open: compacting, coversComposer: true, coversTranscript: true },
       {
